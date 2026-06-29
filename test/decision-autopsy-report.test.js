@@ -76,6 +76,7 @@ describe('decision-autopsy-report', () => {
           },
         }],
         mtfConfluenceSnapshot: {
+          available: true,
           direction: 'long',
           confidence: 10,
           confluenceScore: 0.4,
@@ -107,6 +108,15 @@ describe('decision-autopsy-report', () => {
             contributors: [{ name: 'strategy_signal', value: 48 }],
           },
         }],
+        mtfConfluenceSnapshot: {
+          source: 'StrategyOrchestrator.mtfConfluence',
+          available: false,
+          unavailableReason: 'no_ready_timeframes',
+          direction: 'neutral',
+          confluenceScore: 0,
+          confidence: 0,
+          readyTimeframes: [],
+        },
       },
       {
         _type: 'decision_autopsy',
@@ -146,7 +156,7 @@ describe('decision-autopsy-report', () => {
       badJson: 1,
       decisionAutopsyRecords: 3,
       scopeCompleteRecords: 3,
-      mtfCoveragePercent: 33.33,
+      mtfCoveragePercent: 66.67,
       firstPersistedAt: '2026-06-29T14:00:00.000Z',
       lastPersistedAt: '2026-06-29T14:30:00.000Z',
     }));
@@ -162,6 +172,9 @@ describe('decision-autopsy-report', () => {
     expect(countFor(report.counts.passedGate, 'min_confidence')).toBe(1);
     expect(countFor(report.counts.confidenceContributor, 'strategy_signal')).toBe(3);
     expect(countFor(report.counts.confidenceContributor, 'mtf_confluence')).toBe(1);
+    expect(countFor(report.counts.mtfAvailability, 'available')).toBe(1);
+    expect(countFor(report.counts.mtfAvailability, 'unavailable')).toBe(1);
+    expect(countFor(report.counts.mtfUnavailableReason, 'no_ready_timeframes')).toBe(1);
     expect(countFor(report.counts.mtfReadyTimeframe, '15m')).toBe(1);
     expect(countFor(report.counts.mtfReadyTimeframe, '1h')).toBe(1);
     expect(countFor(report.counts.mtfDirection, 'long')).toBe(1);
@@ -170,7 +183,7 @@ describe('decision-autopsy-report', () => {
       missingOriginalSymbol: 0,
       missingStrategySignals: 0,
       missingExitEvaluationsOnExit: 0,
-      missingMtfSnapshot: 2,
+      missingMtfSnapshot: 1,
       badJsonLines: [{ line: 4, error: expect.any(String) }],
     }));
     expect(report.samples['status:execute']).toHaveLength(2);

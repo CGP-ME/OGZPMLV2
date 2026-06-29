@@ -1124,6 +1124,16 @@ const BASE_CONFIG = {
 
     // MTF timeframes (comma-separated in .env)
     mtfTimeframes: process.env.MTF_TIMEFRAMES?.split(',') || ['1m', '5m', '15m', '1h', '4h'],
+    mtfConfluenceBooster: {
+      enabled: envBool('ENABLE_MTF_CONFLUENCE_BOOSTER', false),
+      minScore: env('MTF_BOOSTER_MIN_SCORE', 0.30),
+      minConfidence: env('MTF_BOOSTER_MIN_CONFIDENCE', 0.50),
+      strengthMultiplier: env('MTF_BOOSTER_STRENGTH_MULT', 0.20),
+      maxMultiplier: env('MTF_BOOSTER_MAX_MULT', 1.15),
+      conflictMultiplier: env('MTF_BOOSTER_CONFLICT_MULT', 0.85),
+      penalizeConflicts: envBool('MTF_BOOSTER_PENALIZE_CONFLICTS', true),
+      boostMtfCandidate: envBool('MTF_BOOSTER_BOOST_MTF_CANDIDATE', false),
+    },
   },
 
   // =========================================================================

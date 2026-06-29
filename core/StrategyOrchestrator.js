@@ -522,11 +522,13 @@ class StrategyOrchestrator {
       return this.mtfEvaluationCache.confluence;
     }
 
-    const cacheResult = (confluence) => {
+    const cacheResult = (confluence, unavailableReason = null) => {
       this.mtfEvaluationCache = {
         evalCount: this.evalCount,
         confluence,
-        snapshot: this._buildMtfConfluenceSnapshot(confluence),
+        snapshot: confluence
+          ? this._buildMtfConfluenceSnapshot(confluence)
+          : this._buildMtfUnavailableSnapshot(unavailableReason),
       };
       return confluence;
     };
@@ -536,7 +538,7 @@ class StrategyOrchestrator {
       if (process.env.STRATEGY_DIAG === 'true') {
         console.log(`[DIAG] MultiTimeframe: NOT ENOUGH CANDLES (${candles?.length || 0} < ${this.minCandlesMTF})`);
       }
-      return cacheResult(null);
+      return cacheResult(null, 'insufficient_candles');
     }
 
     const latestCandle = candles[candles.length - 1];
@@ -557,7 +559,7 @@ class StrategyOrchestrator {
       scopedMtfAdapter.ingestCandle(latestCandle, latestCandle.timeframe);
     } catch (e) {
       if (process.env.STRATEGY_DIAG === 'true') console.log(`[DIAG] MultiTimeframe: ingestCandle error: ${e.message}`);
-      return cacheResult(null);
+      return cacheResult(null, `ingest_error:${e.message}`);
     }
 
     let confluence;
@@ -565,18 +567,33 @@ class StrategyOrchestrator {
       confluence = scopedMtfAdapter.getConfluence ? scopedMtfAdapter.getConfluence() : scopedMtfAdapter.getConfluenceScore();
     } catch (e) {
       if (process.env.STRATEGY_DIAG === 'true') console.log(`[DIAG] MultiTimeframe: getConfluence error: ${e.message}`);
-      return cacheResult(null);
+      return cacheResult(null, `confluence_error:${e.message}`);
     }
 
     if (process.env.STRATEGY_DIAG === 'true') {
       console.log(`[DIAG] MultiTimeframe: confluence=${confluence ? JSON.stringify({ dir: confluence.direction, score: confluence.confluenceScore ?? confluence.score }) : 'null'}`);
     }
-    return cacheResult(confluence || null);
+    return cacheResult(confluence || null, 'no_confluence');
+  }
+
+  _buildMtfUnavailableSnapshot(reason = null) {
+    return deepFreezePlain({
+      source: 'StrategyOrchestrator.mtfConfluence',
+      available: false,
+      unavailableReason: reason || 'unavailable',
+      direction: 'neutral',
+      confluenceScore: 0,
+      confidence: 0,
+      readyTimeframes: [],
+      totalTimeframes: null,
+      shouldTrade: null,
+      overallBias: null,
+    });
   }
 
   _buildMtfConfluenceSnapshot(confluence) {
     if (!confluence || typeof confluence !== 'object') {
-      return null;
+      return this._buildMtfUnavailableSnapshot('invalid_confluence');
     }
     const score = firstFiniteNumber(confluence.confluenceScore, confluence.score);
     const readyTimeframes = Array.isArray(confluence.readyTimeframes)
@@ -584,10 +601,20 @@ class StrategyOrchestrator {
       : Array.isArray(confluence.timeframes)
         ? confluence.timeframes.slice()
         : [];
+    const direction = confluence.direction || 'neutral';
+    const available = typeof confluence.available === 'boolean'
+      ? confluence.available
+      : direction !== 'neutral' || (score != null && score !== 0) || readyTimeframes.length > 0;
 
     return deepFreezePlain({
       source: 'StrategyOrchestrator.mtfConfluence',
-      direction: confluence.direction || 'neutral',
+      available,
+      unavailableReason: available
+        ? null
+        : (Array.isArray(confluence.reasoning) && confluence.reasoning.length > 0
+          ? confluence.reasoning[0]
+          : 'no_ready_timeframes'),
+      direction,
       confluenceScore: score == null ? 0 : score,
       confidence: firstFiniteNumber(confluence.confidence, score == null ? 0 : Math.abs(score)) ?? 0,
       readyTimeframes,
@@ -604,6 +631,12 @@ class StrategyOrchestrator {
       return null;
     }
     return this.mtfEvaluationCache.snapshot || null;
+  }
+
+  _shouldObserveMtfConfluence() {
+    const pipeline = TradingConfig.get('pipeline') || {};
+    const booster = TradingConfig.get('orchestrator.mtfConfluenceBooster') || {};
+    return pipeline.enableMultiTimeframe === true || booster.enabled === true;
   }
 
   _applyMtfConfluenceBooster(results, ctx) {
@@ -1821,6 +1854,9 @@ class StrategyOrchestrator {
       }
     }
 
+    if (this._shouldObserveMtfConfluence()) {
+      this._getMtfConfluenceForEvaluation(ctx);
+    }
     this._applyMtfConfluenceBooster(results, ctx);
     const mtfConfluenceSnapshot = this._getCachedMtfConfluenceSnapshot();
 

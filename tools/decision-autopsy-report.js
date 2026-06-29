@@ -110,6 +110,8 @@ function compactRecord(record) {
       : [],
     mtfConfluenceSnapshot: record.mtfConfluenceSnapshot
       ? {
+        available: record.mtfConfluenceSnapshot.available ?? null,
+        unavailableReason: record.mtfConfluenceSnapshot.unavailableReason || null,
         direction: record.mtfConfluenceSnapshot.direction || null,
         confidence: record.mtfConfluenceSnapshot.confidence ?? null,
         confluenceScore: record.mtfConfluenceSnapshot.confluenceScore ?? null,
@@ -148,6 +150,8 @@ function createReport(file, opts = {}) {
       failedGate: new Map(),
       passedGate: new Map(),
       confidenceContributor: new Map(),
+      mtfAvailability: new Map(),
+      mtfUnavailableReason: new Map(),
       mtfReadyTimeframe: new Map(),
       mtfDirection: new Map(),
     },
@@ -250,6 +254,8 @@ function ingestRecord(report, record, opts = {}) {
 
   const mtf = record?.mtfConfluenceSnapshot;
   if (mtf) {
+    inc(report.counts.mtfAvailability, mtf.available === false ? 'unavailable' : 'available');
+    if (mtf.available === false) inc(report.counts.mtfUnavailableReason, mtf.unavailableReason || '(missing)');
     inc(report.counts.mtfDirection, mtf.direction);
     for (const timeframe of (mtf.readyTimeframes || [])) inc(report.counts.mtfReadyTimeframe, timeframe);
     addSample(report.samples, 'mtf', record, sampleLimit);
@@ -345,6 +351,8 @@ function renderText(report) {
   section('Failed Gates', report.counts.failedGate);
   section('Winning Strategies', report.counts.winnerStrategy);
   section('Confidence Contributors', report.counts.confidenceContributor);
+  section('MTF Availability', report.counts.mtfAvailability);
+  section('MTF Unavailable Reasons', report.counts.mtfUnavailableReason);
   section('MTF Ready Timeframes', report.counts.mtfReadyTimeframe);
 
   lines.push('');
