@@ -408,8 +408,15 @@
       "type": "object",
       "description": "TRAI runtime configuration. Secrets are referenced by env-var name, not stored in this file.",
       "additionalProperties": false,
-      "required": ["llm"],
+      "required": ["enabled", "mode", "weight", "vetoPower", "maxRisk", "minConf", "maxConf", "llm"],
       "properties": {
+        "enabled": { "type": "boolean" },
+        "mode": { "type": "string", "enum": ["passive", "advisory", "hybrid", "autonomous"] },
+        "weight": { "type": "number", "minimum": 0, "maximum": 1 },
+        "vetoPower": { "type": "boolean" },
+        "maxRisk": { "type": "number", "minimum": 0 },
+        "minConf": { "type": "number", "minimum": 0, "maximum": 1 },
+        "maxConf": { "type": "number", "minimum": 0, "maximum": 1 },
         "llm": {
           "type": "object",
           "additionalProperties": false,

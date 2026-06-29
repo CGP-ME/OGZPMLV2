@@ -19,6 +19,7 @@ const OPERATOR_ENV_KEYS = Object.freeze([
   'TTP_MAX_LOSS_THRESHOLD_EQUITY',
   'TTP_EARNINGS_STATUS_JSON',
   'TTP_PROFIT_TARGET_DOLLARS',
+  'INCEPTION_API_KEY',
   'INITIAL_BALANCE',
   'STARTING_BALANCE',
   'OGZ_ACCOUNT_ID',
@@ -59,6 +60,7 @@ function operatorEnvValues() {
       symbols: { TSLA: false, NVDA: false, SPY: false, QQQ: false, COIN: false, MARA: false, RIOT: false },
     }),
     TTP_PROFIT_TARGET_DOLLARS: '300',
+    INCEPTION_API_KEY: 'test-inception-key',
     INITIAL_BALANCE: '5000',
     STARTING_BALANCE: '5000',
     OGZ_ACCOUNT_ID: 'MAX58356',
@@ -165,7 +167,10 @@ describe('ecosystem eval live profile', () => {
       ALPACA_SYMBOLS: 'TSLA,NVDA,SPY,QQQ,COIN,MARA,RIOT',
       STATE_FILE: 'data/state.json',
       SESSION_ROUTER_ENABLED: 'false',
-      ENABLE_TRAI: 'false',
+      ENABLE_TRAI: 'true',
+      TRAI_MODE: 'passive',
+      TRAI_VETO: 'false',
+      TRAI_ENABLE_BACKTEST: 'true',
       WEBHOOK_ORDERS_ENABLED: 'true',
       WEBHOOK_DRY_RUN: 'false',
       MIN_TRADE_CONFIDENCE: '0.5',
@@ -175,6 +180,7 @@ describe('ecosystem eval live profile', () => {
       ACCOUNT_DRAWDOWN_BYPASS: 'false',
       ...LOCKED_PROFILE_ENV_VALUES,
     }));
+    expect(env.INCEPTION_API_KEY).toBe('test-inception-key');
     expect(report.checked.config['mode.execution']).toEqual({ value: 'live', source: 'env:EXECUTION_MODE' });
     expect(report.checked.config['broker.id']).toEqual({ value: 'alpaca', source: 'env:BROKER' });
     expect(JSON.stringify(report)).not.toContain(operatorEnv.ALPACA_API_KEY);

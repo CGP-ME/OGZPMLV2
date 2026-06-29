@@ -1,5 +1,7 @@
 'use strict';
 
+const fs = require('fs');
+
 const mockStateManager = {};
 
 jest.mock('../core/StateManager', () => ({
@@ -443,6 +445,266 @@ describe('OrderExecutor TRAI learning payload', () => {
       regime: 'bull',
       trend: 'uptrend',
     })).toBe('ema-cross_bull_uptrend');
+  });
+
+  test('TRAI decision store skips null pattern keys', () => {
+    const module = Object.create(TRAIDecisionModule.prototype);
+    module.decisionHistory = [];
+    module.patternMemory = new Map();
+
+    module.storeDecision({ id: 1 }, {
+      patterns: [],
+    }, {
+      regime: 'bull',
+    });
+
+    expect(module.decisionHistory).toHaveLength(1);
+    expect(module.patternMemory.has(null)).toBe(false);
+    expect(module.patternMemory.size).toBe(0);
+  });
+
+  test('OrderExecutor only attaches TRAI decisions that match the order scope', () => {
+    const executor = makeExecutor();
+    const now = 1700000000000;
+    const matchingDecision = {
+      id: 'TRAI_MATCH',
+      createdAt: now - 500,
+      mode: 'advisory',
+      originalSignal: {
+        symbol: 'TSLA',
+        action: 'BUY',
+      },
+    };
+
+    expect(executor._shouldStoreTraiDecisionForOrder(
+      matchingDecision,
+      { action: 'BUY' },
+      'TSLA',
+      now
+    )).toBe(true);
+
+    expect(executor._shouldStoreTraiDecisionForOrder(
+      {
+        ...matchingDecision,
+        mode: 'passive',
+      },
+      { action: 'BUY' },
+      'TSLA',
+      now
+    )).toBe(false);
+
+    expect(executor._shouldStoreTraiDecisionForOrder(
+      {
+        ...matchingDecision,
+        originalSignal: { symbol: 'NVDA', action: 'BUY' },
+      },
+      { action: 'BUY' },
+      'TSLA',
+      now
+    )).toBe(false);
+
+    expect(executor._shouldStoreTraiDecisionForOrder(
+      {
+        ...matchingDecision,
+        originalSignal: { symbol: 'TSLA', action: 'SELL' },
+      },
+      { action: 'BUY' },
+      'TSLA',
+      now
+    )).toBe(false);
+
+    expect(executor._shouldStoreTraiDecisionForOrder(
+      {
+        ...matchingDecision,
+        createdAt: now - 60001,
+      },
+      { action: 'BUY' },
+      'TSLA',
+      now
+    )).toBe(false);
+  });
+
+  test('TRAI passive mode observes without execution adjustments or boost wording', async () => {
+    const module = Object.create(TRAIDecisionModule.prototype);
+    module.config = {
+      mode: 'passive',
+      enableVetoPower: false,
+      trackDecisions: false,
+      minConfidenceOverride: 0.4,
+      maxRiskTolerance: 999,
+      emergencyStopLoss: 0.05,
+    };
+    module.state = { totalDecisions: 0 };
+    module.decisionHistory = [];
+    module.patternMemory = new Map();
+    module.patternIntegration = {
+      evaluate: jest.fn(() => ({
+        matchedPatterns: [],
+        matchedAntiPatterns: [],
+        confidenceMultiplier: 1,
+      })),
+    };
+    module.traiCore = null;
+    module.emit = jest.fn();
+    module.broadcastChainOfThought = jest.fn();
+    const adjustSpy = jest.spyOn(module, 'calculateAdjustments');
+
+    const decision = await module.processDecision({
+      action: 'BUY',
+      confidence: 0.62,
+      patterns: [{ name: 'ema-cross' }],
+      symbol: 'TSLA',
+      timeframe: '15m',
+    }, {
+      symbol: 'TSLA',
+      timeframe: '15m',
+      brokerId: 'alpaca',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      indicators: {
+        rsi: 54,
+        macd: { histogram: 0.1 },
+      },
+      trend: 'uptrend',
+      volatility: 0.02,
+      regime: 'trend',
+      positionSize: 100,
+      price: 100,
+    });
+
+    expect(decision.finalConfidence).toBe(0.62);
+    expect(decision.adjustments).toEqual([]);
+    expect(adjustSpy).not.toHaveBeenCalled();
+    expect(decision.reasoning).toContain('TRAI observed');
+    expect(decision.reasoning).not.toContain('TRAI +');
+
+    adjustSpy.mockRestore();
+  });
+
+  test('TRAI LLM reasoning uses scoped symbol instead of phantom BTC', async () => {
+    const module = Object.create(TRAIDecisionModule.prototype);
+    module.traiCore = {
+      generateIntelligentResponse: jest.fn().mockResolvedValue('TSLA setup aligned.'),
+    };
+    module.generateRuleBasedReasoning = jest.fn(() => 'rule fallback');
+
+    const response = await module.generateReasoning({
+      symbol: 'TSLA',
+      action: 'BUY',
+      confidence: 0.62,
+    }, {
+      indicators: { rsi: 54 },
+      trend: 'uptrend',
+      symbol: 'TSLA',
+    }, {
+      traiRecommendation: 'BUY',
+    });
+
+    expect(response).toBe('TSLA setup aligned.');
+    expect(module.traiCore.generateIntelligentResponse.mock.calls[0][0]).toContain('TSLA BUY 62%');
+    expect(module.traiCore.generateIntelligentResponse.mock.calls[0][0]).not.toContain('BTC ');
+  });
+
+  test('TRAI LLM reasoning falls back when symbol scope is missing', async () => {
+    const module = Object.create(TRAIDecisionModule.prototype);
+    module.traiCore = {
+      generateIntelligentResponse: jest.fn(),
+    };
+    module.generateRuleBasedReasoning = jest.fn(() => 'rule fallback');
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const response = await module.generateReasoning({
+      action: 'BUY',
+      confidence: 0.62,
+    }, {
+      indicators: { rsi: 54 },
+      trend: 'uptrend',
+    }, {
+      traiRecommendation: 'BUY',
+    });
+
+    expect(response).toBe('rule fallback');
+    expect(module.traiCore.generateIntelligentResponse).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith('[TRAI] LLM reasoning skipped: missing scoped symbol');
+
+    warnSpy.mockRestore();
+  });
+
+  test('TRAI decision telemetry refuses unscoped writes and stamps runtime scope', () => {
+    const module = Object.create(TRAIDecisionModule.prototype);
+    module.config = {
+      trackDecisions: true,
+      logPath: './logs/test-trai-decisions.log',
+      mode: 'passive',
+    };
+    module.state = { totalDecisions: 1 };
+    const appendSpy = jest.spyOn(fs, 'appendFile').mockImplementation((file, payload, cb) => cb());
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    module.logDecision({
+      id: 1,
+      originalConfidence: 0.62,
+      finalConfidence: 0.62,
+      traiConfidence: 0.4,
+      traiRecommendation: 'BUY',
+      riskAssessment: { riskScore: 0.2, factors: [] },
+      adjustments: [],
+      reasoning: 'scoped',
+      processingTime: 5,
+    }, {
+      symbol: 'TSLA',
+      timeframe: '15m',
+      brokerId: 'alpaca',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      action: 'BUY',
+      patterns: [],
+    }, {
+      symbol: 'TSLA',
+      timeframe: '15m',
+      brokerId: 'alpaca',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      indicators: { rsi: 54 },
+      regime: 'trend',
+      trend: 'uptrend',
+      volatility: 0.02,
+    });
+
+    const telemetry = JSON.parse(appendSpy.mock.calls[0][1]);
+    expect(telemetry.input).toEqual(expect.objectContaining({
+      symbol: 'TSLA',
+      timeframe: '15m',
+    }));
+    expect(telemetry.meta).toEqual(expect.objectContaining({
+      brokerId: 'alpaca',
+      assetClass: 'stocks',
+      mode: 'paper',
+      traiMode: 'passive',
+    }));
+    expect(JSON.stringify(telemetry)).not.toContain('kraken');
+    expect(JSON.stringify(telemetry)).not.toContain('quantum');
+
+    appendSpy.mockClear();
+    module.logDecision({
+      id: 2,
+      originalConfidence: 0.62,
+      finalConfidence: 0.62,
+      traiConfidence: 0.4,
+      traiRecommendation: 'BUY',
+      riskAssessment: { riskScore: 0.2, factors: [] },
+      adjustments: [],
+      reasoning: 'missing scope',
+      processingTime: 5,
+    }, {
+      action: 'BUY',
+    }, {});
+
+    expect(appendSpy).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Decision telemetry scope incomplete'));
+
+    appendSpy.mockRestore();
+    errorSpy.mockRestore();
   });
 
   test('TRAI wrapper preserves successful alias-shaped outcomes', () => {

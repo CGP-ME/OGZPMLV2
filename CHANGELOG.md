@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### TRAI Passive Activation (2026-06-29)
+
+- Enabled TRAI by default in passive observation mode while keeping veto and execution adjustments off unless explicitly configured.
+- Routed eval PM2 config and posture gates through passive TRAI with `INCEPTION_API_KEY` inherited from operator env and no secret committed to repo config.
+- Hardened TRAI telemetry and learning so passive observer decisions cannot alter confidence, sizing, execution, or outcome learning without explicit order correlation.
+
 ### Strategy Timeframe Exit Contract Ownership (2026-06-29)
 
 - Added per-strategy per-timeframe exit contract resolution for confidence gates, ATR gates, and trade-birth exit geometry via `exitContracts.<strategy>.timeframes.<timeframe>`.

@@ -51,6 +51,23 @@ class OrderExecutor {
     return action === 'SELL' || action === 'COVER';
   }
 
+  _shouldStoreTraiDecisionForOrder(traiDecision, decision, symbol, nowMs = Date.now()) {
+    const traiSignal = traiDecision?.originalSignal || {};
+    const traiDecisionAgeMs = Number.isFinite(traiDecision?.createdAt)
+      ? nowMs - traiDecision.createdAt
+      : null;
+    return Boolean(
+      traiDecision
+      && traiDecision.id
+      && String(traiDecision.mode || '') !== 'passive'
+      && String(traiSignal.symbol || '') === String(symbol || '')
+      && String(traiSignal.action || '').toUpperCase() === String(decision?.action || '').toUpperCase()
+      && Number.isFinite(traiDecisionAgeMs)
+      && traiDecisionAgeMs >= 0
+      && traiDecisionAgeMs <= 60000
+    );
+  }
+
   _firstFiniteNumber(...values) {
     for (const value of values) {
       if (Number.isFinite(value)) {
@@ -1907,9 +1924,12 @@ class OrderExecutor {
         }
 
         // FIX 2026-02-14: Store TRAI decision for learning feedback loop
-        // Use _lastTraiDecision from async observer OR traiDecision param
-        const traiDecisionToStore = traiDecision || this.ctx._lastTraiDecision;
-        if (traiDecisionToStore && traiDecisionToStore.id && unifiedResult.orderId) {
+        // Non-blocking observer decisions need an explicit order correlation id
+        // before they can safely feed outcome learning.
+        const traiDecisionToStore = traiDecision;
+        const traiDecisionMatchesOrder = unifiedResult.orderId
+          && this._shouldStoreTraiDecisionForOrder(traiDecisionToStore, decision, symbol);
+        if (traiDecisionMatchesOrder) {
           this.pendingTraiDecisions.set(unifiedResult.orderId, {
             decisionId: traiDecisionToStore.id,
             originalConfidence: traiDecisionToStore.originalConfidence,
@@ -1919,6 +1939,9 @@ class OrderExecutor {
           });
           this.ctx._lastTraiDecision = null;  // Clear after storing
           console.log(`[TRAI] Decision stored for learning (orderId: ${unifiedResult.orderId})`);
+        } else if (this.ctx._lastTraiDecision) {
+          this.ctx._lastTraiDecision = null;
+          console.warn(`[TRAI] Skipped async observer decision learning for orderId: ${unifiedResult.orderId || 'unknown'} until order correlation is explicit`);
         }
         // Update position tracking
         if (decision.action === 'BUY') {

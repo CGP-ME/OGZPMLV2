@@ -900,6 +900,13 @@
     "enableShorts": false
   },
   "trai": {
+    "enabled": true,
+    "mode": "passive",
+    "weight": 0.2,
+    "vetoPower": false,
+    "maxRisk": 0.03,
+    "minConf": 0.4,
+    "maxConf": 0.95,
     "llm": {
       "provider": "mercury",
       "baseUrl": "https://api.inceptionlabs.ai/v1",
@@ -926,7 +933,7 @@
     "enableSmartMoneySweep": false,
     "enableDonchianBreakout": false,
     "enableRiskManager": true,
-    "enableTRAI": false,
+    "enableTRAI": true,
     "traiEnableBacktest": true,
     "enableDashboard": true,
     "enableNotifications": true,

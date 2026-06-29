@@ -1419,7 +1419,7 @@ class OGZPrimeV14Bot {
       // ConfigLoader injection - mode flags
       backtestFast: resolvedConfig.config.backtest.fast,
       testMode: resolvedConfig.config.mode.testMode,
-      traiEnableBacktest: TradingConfig.get('features.traiEnableBacktest'),
+      traiEnableBacktest: resolvedConfig.config.trai.enableBacktest,
       // HIGH-16: broker.candleTimeframe threaded into ctx for orchestrator validation
       candleTimeframe: this.candleTimeframe,
       // Additional context for strategy orchestration

@@ -107,6 +107,9 @@ describe('ConfigLoader live trading safety guard', () => {
     delete process.env.TRAILING_ACTIVATION;
     delete process.env.ATR_FILTER_ENABLED;
     delete process.env.ATR_MIN_PERCENT;
+    delete process.env.ENABLE_TRAI;
+    delete process.env.TRAI_MODE;
+    delete process.env.TRAI_VETO;
 
     const loaded = loadConfig();
 
@@ -118,9 +121,13 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(loaded.config.exits.trailingActivation).toBe(configFileValue('exits.trailingActivation'));
     expect(loaded.config.filters.atrEnabled).toBe(configFileValue('filters.atrEnabled'));
     expect(loaded.config.filters.atrMinPercent).toBe(configFileValue('filters.atrMinPercent'));
+    expect(loaded.config.trai.enabled).toBe(true);
+    expect(loaded.config.trai.mode).toBe('passive');
+    expect(loaded.config.trai.vetoPower).toBe(false);
     expect(loaded.sources['confidence.minStrategyConfidence']).toBe('default');
     expect(loaded.sources['exits.stopLossPercent']).toBe('default');
     expect(loaded.sources['filters.atrEnabled']).toBe('default');
+    expect(loaded.sources['trai.enabled']).toBe('default');
   });
 
   test('keeps risk defaults sourced from trading.config.json without weakening explicit-source guard', () => {

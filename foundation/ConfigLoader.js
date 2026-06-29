@@ -416,8 +416,8 @@ function buildConfig() {
 
     // ─── TRAI (AI) ───
     trai: {
-      enabled: track('trai.enabled', envBool('ENABLE_TRAI', false)),
-      mode: track('trai.mode', envStr('TRAI_MODE', 'advisory')),
+      enabled: track('trai.enabled', envBool('ENABLE_TRAI', true)),
+      mode: track('trai.mode', envStr('TRAI_MODE', 'passive')),
       weight: track('trai.weight', envFloat('TRAI_WEIGHT', 0.2)),
       vetoPower: track('trai.vetoPower', envBool('TRAI_VETO', false)),
       maxRisk: track('trai.maxRisk', envFloat('TRAI_MAX_RISK', 0.03)),

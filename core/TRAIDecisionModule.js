@@ -158,6 +158,8 @@ class TRAIDecisionModule extends EventEmitter {
     const decision = {
       id: Date.now(), // CODEX FIX: Add ID for learning feedback loop
       originalSignal: signal,
+      createdAt: startTime,
+      mode: this.config.mode,
       originalConfidence: signal.confidence || 0,
       traiConfidence: 0,
       finalConfidence: 0,
@@ -262,7 +264,7 @@ class TRAIDecisionModule extends EventEmitter {
       }
       
       // Step 8: Apply position size adjustments
-      if (decision.traiRecommendation === 'BUY' || decision.traiRecommendation === 'SELL') {
+      if (this.config.mode !== 'passive' && (decision.traiRecommendation === 'BUY' || decision.traiRecommendation === 'SELL')) {
         decision.adjustments = this.calculateAdjustments(decision.finalConfidence, decision.riskAssessment);
       }
       
@@ -801,7 +803,12 @@ class TRAIDecisionModule extends EventEmitter {
     }
     
     try {
-      const prompt = `BTC ${signal.action} ${(signal.confidence * 100).toFixed(0)}%, RSI ${context.indicators?.rsi?.toFixed(0) || 'N/A'}, ${context.trend || 'sideways'} trend.
+      const symbol = signal?.symbol || context?.symbol || null;
+      if (!symbol) {
+        console.warn('[TRAI] LLM reasoning skipped: missing scoped symbol');
+        return this.generateRuleBasedReasoning(decision, context);
+      }
+      const prompt = `${symbol} ${signal.action} ${(signal.confidence * 100).toFixed(0)}%, RSI ${context.indicators?.rsi?.toFixed(0) || 'N/A'}, ${context.trend || 'sideways'} trend.
 
 Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State the KEY reason only.`;
       
@@ -825,7 +832,10 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
     const confidence = (decision.finalConfidence * 100).toFixed(1);
     const risk = (decision.riskAssessment.riskScore * 100).toFixed(1);
     const original = (decision.originalConfidence * 100).toFixed(1);
-    const traiBoost = (decision.traiConfidence * 100).toFixed(1);
+    const traiObserved = (decision.traiConfidence * 100).toFixed(1);
+    const traiContribution = this.config.mode === 'passive'
+      ? `TRAI observed ${traiObserved}%`
+      : `TRAI +${traiObserved}%`;
 
     if (decision.vetoApplied) {
       return `Trade vetoed: ${decision.riskAssessment.vetoReason}`;
@@ -841,18 +851,18 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
     }
 
     if (decision.traiRecommendation === 'STRONG_BUY') {
-      return `Strong buy signal: ${original}% base -> ${confidence}% final (TRAI +${traiBoost}%). Risk: ${risk}%. Excellent pattern alignment.${contextStr}`;
+      return `Strong buy signal: ${original}% base -> ${confidence}% final (${traiContribution}). Risk: ${risk}%. Excellent pattern alignment.${contextStr}`;
     }
 
     if (decision.traiRecommendation === 'BUY') {
-      return `Buy signal: ${original}% base -> ${confidence}% final (TRAI +${traiBoost}%). Risk: ${risk}%. Favorable conditions detected.${contextStr}`;
+      return `Buy signal: ${original}% base -> ${confidence}% final (${traiContribution}). Risk: ${risk}%. Favorable conditions detected.${contextStr}`;
     }
 
     if (decision.traiRecommendation === 'SELL') {
-      return `Sell signal: ${original}% base -> ${confidence}% final (TRAI +${traiBoost}%). Risk: ${risk}%. Bearish conditions detected.${contextStr}`;
+      return `Sell signal: ${original}% base -> ${confidence}% final (${traiContribution}). Risk: ${risk}%. Bearish conditions detected.${contextStr}`;
     }
 
-    return `Holding: ${confidence}% confidence (base ${original}%, TRAI ${traiBoost}%), ${risk}% risk. Waiting for clearer setup.${contextStr}`;
+    return `Holding: ${confidence}% confidence (base ${original}%, ${traiContribution}), ${risk}% risk. Waiting for clearer setup.${contextStr}`;
   }
   
   /**
@@ -931,6 +941,7 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
     
     // Store pattern for learning
     const patternKey = this.generatePatternKey(signal, context);
+    if (!patternKey) return;
     if (!this.patternMemory.has(patternKey)) {
       this.patternMemory.set(patternKey, {
         samples: 0,
@@ -975,6 +986,22 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
   logDecision(decision, signal, context) {
     if (!this.config.trackDecisions) return;
 
+    const scopedSymbol = signal?.symbol || context?.symbol || null;
+    const scopedTimeframe = signal?.timeframe || context?.timeframe || null;
+    const scopedBrokerId = signal?.brokerId || context?.brokerId || null;
+    const scopedAssetClass = signal?.assetClass || context?.assetClass || null;
+    const scopedExecutionMode = signal?.executionMode || context?.executionMode || null;
+    const missingScope = [];
+    if (!scopedSymbol) missingScope.push('symbol');
+    if (!scopedTimeframe) missingScope.push('timeframe');
+    if (!scopedBrokerId) missingScope.push('brokerId');
+    if (!scopedAssetClass) missingScope.push('assetClass');
+    if (!scopedExecutionMode) missingScope.push('executionMode');
+    if (missingScope.length > 0) {
+      console.error(`[TRAI] Decision telemetry scope incomplete (${missingScope.join(', ')}) - refusing unscoped write`);
+      return;
+    }
+
     // Detect trading mode (no secrets exposure)
     const tradingMode = process.env.BACKTEST_MODE === 'true' ? 'backtest' :
                         (process.env.TRADING_MODE === 'live' || process.env.ENABLE_LIVE_TRADING === 'true') ? 'live' : 'paper';
@@ -987,17 +1014,8 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
 
       // Sanitized input - NO secrets, NO full env dumps
       input: {
-        // FIX MIRROR-TRAI-SYMBOL: refuse phantom BTC-USD when signal.symbol missing.
-        // Same poisoning class as CRIT-04/05; original spec audited OrderExecutor's
-        // TradingProofLogger calls but missed this site.
-        symbol: (() => {
-          if (!signal?.symbol) {
-            console.warn('[TRAI] signal.symbol missing - record will be skipped');
-            return null;
-          }
-          return signal.symbol;
-        })(),
-        timeframe: signal?.timeframe || '1m',
+        symbol: scopedSymbol,
+        timeframe: scopedTimeframe,
         action: signal?.action,
         originalConfidence: decision.originalConfidence,
         regime: context?.regime || null,
@@ -1028,9 +1046,9 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
 
       meta: {
         version: VERSION_HASH,
-        adapterId: 'kraken',
-        brokerId: process.env.BOT_TIER || 'quantum',
-        mode: tradingMode,
+        brokerId: scopedBrokerId,
+        assetClass: scopedAssetClass,
+        mode: scopedExecutionMode || tradingMode,
         traiMode: this.config.mode,
         latencyMs: decision.processingTime
       }
