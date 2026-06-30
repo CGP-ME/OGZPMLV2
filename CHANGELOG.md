@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Config Override Hardening (2026-06-30)
 
 - Changed frozen `TradingConfig.setOverrides()` calls from warn-and-ignore to a thrown error so post-freeze config mutation attempts cannot silently diverge from operator intent.
+- Routed `TradingConfig.getTimeframeConfig()` through active runtime overrides and made unknown timeframe exit geometry fail loudly instead of inheriting `15m` defaults.
 
 ### Live Broker-State Reconciliation Hotfix (2026-06-30)
 

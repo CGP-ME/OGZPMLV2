@@ -218,6 +218,43 @@ describe('ExitContractManager exit ownership contract', () => {
     }
   });
 
+  test('honors runtime timeframeConfig overrides for generic strategy contracts', () => {
+    const TradingConfig = require('../core/TradingConfig');
+    TradingConfig.setOverrides({
+      timeframeConfig: {
+        '1h': {
+          slPct: 0.031,
+          tpPct: 0.062,
+          trailPct: 0.021,
+          maxHoldMin: 777,
+        },
+      },
+    });
+
+    try {
+      const manager = new ExitContractManager();
+      const contract = manager.createExitContract('RuntimeGenericTimeframeProbe', {}, { timeframe: '1h', volatility: 1 });
+
+      expect(contract).toEqual(expect.objectContaining({
+        strategyName: 'RuntimeGenericTimeframeProbe',
+        stopLossPercent: -3.1,
+        takeProfitPercent: 6.2,
+        trailingStopPercent: 2.1,
+        maxHoldTimeMinutes: 777,
+        timeframe: '1h',
+      }));
+    } finally {
+      TradingConfig.clearOverrides();
+    }
+  });
+
+  test('unknown timeframeConfig fails loudly instead of inheriting 15m exits', () => {
+    const manager = new ExitContractManager();
+
+    expect(() => manager.createExitContract('RuntimeGenericTimeframeProbe', {}, { timeframe: '2h', volatility: 1 }))
+      .toThrow(/Unknown timeframeConfig '2h'; refusing 15m fallback/);
+  });
+
   test('routes profit-side exits through the stateless planner after safety checks', () => {
     const manager = new ExitContractManager();
     const now = Date.parse('2026-06-28T12:00:00.000Z');

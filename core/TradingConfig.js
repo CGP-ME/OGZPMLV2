@@ -1778,7 +1778,38 @@ class TradingConfig {
    * Get timeframe-specific config
    */
   static getTimeframeConfig(timeframe) {
-    return BASE_CONFIG.timeframeConfig[timeframe] || BASE_CONFIG.timeframeConfig['15m'];
+    const normalizedTimeframe = typeof timeframe === 'string' ? timeframe.trim() : '';
+    if (!normalizedTimeframe) {
+      throw new Error(`[TradingConfig] timeframeConfig lookup requires a non-empty timeframe (got ${timeframe})`);
+    }
+
+    const baseFrame = BASE_CONFIG.timeframeConfig[normalizedTimeframe];
+    const config = baseFrame && typeof baseFrame === 'object' && !Array.isArray(baseFrame)
+      ? { ...baseFrame }
+      : {};
+    const overridePrefix = `timeframeConfig.${normalizedTimeframe}.`;
+    let hasOverride = false;
+    for (const [path, value] of Object.entries(activeOverrides)) {
+      if (!path.startsWith(overridePrefix)) continue;
+      const field = path.slice(overridePrefix.length);
+      if (!field) continue;
+      config[field] = value;
+      hasOverride = true;
+    }
+
+    if (!baseFrame && !hasOverride) {
+      throw new Error(`[TradingConfig] Unknown timeframeConfig '${normalizedTimeframe}'; refusing 15m fallback`);
+    }
+
+    for (const field of ['trailPct', 'maxHoldMin', 'slPct', 'tpPct']) {
+      const numeric = Number(config[field]);
+      if (!Number.isFinite(numeric)) {
+        throw new Error(`[TradingConfig] timeframeConfig.${normalizedTimeframe}.${field} must be finite (got ${config[field]})`);
+      }
+      config[field] = numeric;
+    }
+
+    return config;
   }
 
   /**
