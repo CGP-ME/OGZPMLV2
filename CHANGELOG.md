@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Routed `TradingConfig.getTimeframeConfig()` through active runtime overrides and made unknown timeframe exit geometry fail loudly instead of inheriting `15m` defaults.
 - Aligned ConfigLoader's legacy strategy snapshot defaults for BreakRetest, MarketRegime, and ORB with the actual TradingConfig pipeline defaults.
 - Routed pattern-memory mode selection through `EXECUTION_MODE` as well as legacy mode flags so learned-state banks follow ConfigLoader-derived runtime mode.
+- Routed FeatureFlagManager mode detection through `EXECUTION_MODE` as well as legacy mode flags.
 
 ### Live Broker-State Reconciliation Hotfix (2026-06-30)
 

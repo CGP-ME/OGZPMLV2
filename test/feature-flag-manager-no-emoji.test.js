@@ -35,6 +35,27 @@ describe('FeatureFlagManager logging', () => {
     expect(output).toContain('[FeatureFlagManager] Reloaded features');
   });
 
+  test('detects mode from EXECUTION_MODE when legacy mode flags are absent', () => {
+    const originalEnv = process.env;
+    process.env = {
+      ...originalEnv,
+      EXECUTION_MODE: 'backtest',
+    };
+    delete process.env.BACKTEST_MODE;
+    delete process.env.PAPER_TRADING;
+    delete process.env.TRADING_MODE;
+    delete process.env.ENABLE_LIVE_TRADING;
+
+    try {
+      const FeatureFlagManager = loadFreshFeatureFlagManager();
+      const flags = FeatureFlagManager.getInstance();
+
+      expect(flags.mode).toBe('backtest');
+    } finally {
+      process.env = originalEnv;
+    }
+  });
+
   test('load failure log stays emoji-free', () => {
     jest.resetModules();
     const fs = require('fs');

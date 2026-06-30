@@ -100,10 +100,11 @@ class FeatureFlagManager {
    * Detect trading mode from environment
    */
   _detectMode() {
-    if (process.env.BACKTEST_MODE === 'true') return 'backtest';
+    const executionMode = String(process.env.EXECUTION_MODE || '').trim().toLowerCase();
+    if (process.env.BACKTEST_MODE === 'true' || executionMode === 'backtest') return 'backtest';
     if (process.env.TEST_MODE === 'true') return 'test';
-    if (process.env.TRADING_MODE === 'live' || process.env.ENABLE_LIVE_TRADING === 'true') return 'live';
-    if (process.env.PAPER_TRADING === 'true' || process.env.TRADING_MODE === 'paper') return 'paper';
+    if (process.env.TRADING_MODE === 'live' || executionMode === 'live' || process.env.ENABLE_LIVE_TRADING === 'true') return 'live';
+    if (process.env.PAPER_TRADING === 'true' || process.env.TRADING_MODE === 'paper' || executionMode === 'paper') return 'paper';
     return 'paper'; // Safe default
   }
 
