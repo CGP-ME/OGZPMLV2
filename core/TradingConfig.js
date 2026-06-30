@@ -2040,8 +2040,7 @@ class TradingConfig {
    */
   static setOverrides(overrides) {
     if (configFrozen) {
-      console.warn('[TradingConfig] Config is frozen, ignoring setOverrides()');
-      return;
+      throw new Error('[TradingConfig] Config is frozen; refusing setOverrides()');
     }
 
     // Flatten nested objects to dot notation

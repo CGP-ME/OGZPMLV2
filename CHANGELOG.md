@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Config Override Hardening (2026-06-30)
+
+- Changed frozen `TradingConfig.setOverrides()` calls from warn-and-ignore to a thrown error so post-freeze config mutation attempts cannot silently diverge from operator intent.
+
 ### Live Broker-State Reconciliation Hotfix (2026-06-30)
 
 - Stopped webhook transport success without a durable broker order id from broadcasting `broker_ack` or narrator "Broker accepted" messages.

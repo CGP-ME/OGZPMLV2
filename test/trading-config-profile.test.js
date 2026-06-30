@@ -345,6 +345,20 @@ describe('TradingConfig runtime profile contract', () => {
     expect(TradingConfig.get('confidence.minTradeConfidence')).toBe(0.5);
   });
 
+  test('frozen config refuses setOverrides instead of silently ignoring them', () => {
+    TradingConfig.freeze();
+
+    try {
+      expect(() => TradingConfig.setOverrides({
+        confidence: { minTradeConfidence: 0.9 },
+      })).toThrow(/Config is frozen; refusing setOverrides\(\)/);
+
+      expect(TradingConfig.get('confidence.minTradeConfidence')).toBe(0.5);
+    } finally {
+      TradingConfig.unfreeze();
+    }
+  });
+
   test('live runtime refuses tuning profile minTradeConfidence overrides below the configured floor', () => {
     const originalBuildTuningProfileOverrides = TradingConfig.buildTuningProfileOverrides;
     TradingConfig.buildTuningProfileOverrides = () => ({
