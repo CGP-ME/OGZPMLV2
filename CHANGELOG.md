@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Live Broker-State Reconciliation Hotfix (2026-06-30)
+
+- Stopped webhook transport success without a durable broker order id from broadcasting `broker_ack` or narrator "Broker accepted" messages.
+- Reconciled broker "No open positions for the asset" exit responses by removing the stale local active trade into an unverified reconciliation record instead of retrying the close forever.
+- Blocked same-symbol duplicate entries in `StateManager.openPosition` and kept same-symbol hedge/unknown-direction blocks intact so local state cannot layer active positions for one symbol.
+- Added the missing module-scope `BreakAndRetest` import used by the symbol-scoped strategy factory.
+
 ### Eval Startup Gate Softening (2026-06-30)
 
 - Removed the eval-live posture exact-symbol-universe hard gate so removed or added Alpaca symbols do not block startup posture by code constant.

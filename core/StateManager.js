@@ -373,6 +373,7 @@ class StateManager {
       unrealizedPnL: 0,         // Current open position P&L (updated externally)
       totalPnL: 0,              // realizedPnL + unrealizedPnL
       closedTrades: [],         // Append-only log of full-close records (for win-rate math)
+      reconciledTrades: [],     // Broker/local state reconciliations that are not verified fills
 
       // ─────────────────────────────────────────────────────────────────────
       // SYSTEM STATE
@@ -411,6 +412,7 @@ class StateManager {
     this.releaseExitSlot = this.releaseExitSlot.bind(this);
     this.openPosition = this.openPosition.bind(this);
     this.closePosition = this.closePosition.bind(this);
+    this.reconcileBrokerFlat = this.reconcileBrokerFlat.bind(this);
 
     // Load persisted state from disk (respects BACKTEST_MODE, FRESH_START)
     this.load();
@@ -924,6 +926,11 @@ class StateManager {
         if (activeTrade.symbol !== tradeSymbol) return false;
         return activeTradeDirection(activeTrade) === null;
       });
+      const sameSymbolSameDirectionTrade = Array.from(nextActiveTrades.values()).find((activeTrade) => {
+        if (!activeTrade || typeof activeTrade !== 'object') return false;
+        if (activeTrade.symbol !== tradeSymbol) return false;
+        return activeTradeDirection(activeTrade) === tradeDirection;
+      });
       if (sameSymbolUnknownTrade) {
         const existingId = sameSymbolUnknownTrade.orderId || sameSymbolUnknownTrade.id || 'unknown';
         return {
@@ -932,6 +939,17 @@ class StateManager {
           blockedReason: 'same_symbol_trade_direction_unknown',
           existingTradeId: existingId,
           existingDirection: null,
+          nextDirection: tradeDirection,
+        };
+      }
+      if (sameSymbolSameDirectionTrade) {
+        const existingId = sameSymbolSameDirectionTrade.orderId || sameSymbolSameDirectionTrade.id || 'unknown';
+        return {
+          success: false,
+          error: `StateManager.openPosition same-symbol duplicate blocked: ${tradeSymbol} already has ${tradeDirection} trade ${existingId}; refusing duplicate entry ${tradeId}`,
+          blockedReason: 'same_symbol_duplicate_blocked',
+          existingTradeId: existingId,
+          existingDirection: tradeDirection,
           nextDirection: tradeDirection,
         };
       }
@@ -1291,6 +1309,71 @@ class StateManager {
       try {
         narrator.closed(narratorPayload);
       } catch (_) { /* narrator must never break trading */ }
+    }
+
+    return result;
+  }
+
+  async reconcileBrokerFlat(tradeId, context = {}) {
+    if (!tradeId) {
+      return { success: false, error: 'tradeId required for broker-flat reconciliation' };
+    }
+
+    let result;
+    await this.acquireLock();
+    try {
+      const trades = this._normalizeActiveTradesInput(
+        this.state.activeTrades || new Map(),
+        'StateManager.reconcileBrokerFlat'
+      );
+
+      const trade = trades.get(tradeId);
+      if (!trade) {
+        return { success: false, error: `Trade ${tradeId} not found` };
+      }
+
+      const nextActiveTrades = new Map(trades);
+      nextActiveTrades.delete(tradeId);
+      const noActiveTradesRemaining = nextActiveTrades.size === 0;
+      const remainingExposureUsd = noActiveTradesRemaining ? 0 : this._getActiveTradeExposureUsd(nextActiveTrades);
+      const remainingSignedExposureUsd = noActiveTradesRemaining ? 0 : this._getActiveTradeSignedExposureUsd(nextActiveTrades);
+      const reconciledAt = Date.now();
+      const reconciliation = {
+        tradeId,
+        orderId: trade.orderId || trade.id || tradeId,
+        symbol: trade.symbol || context.symbol || null,
+        action: context.action || null,
+        direction: trade.direction || null,
+        reason: context.reason || 'broker_flat_no_open_position',
+        responseBody: context.responseBody || null,
+        traceId: context.traceId || null,
+        signalId: context.signalId || null,
+        decisionId: context.decisionId || null,
+        reconciledAt,
+        verifiedFill: false,
+      };
+
+      const updates = {
+        activeTrades: nextActiveTrades,
+        position: remainingSignedExposureUsd,
+        positionCount: nextActiveTrades.size,
+        entryPrice: noActiveTradesRemaining ? 0 : this.state.entryPrice,
+        entryTime: noActiveTradesRemaining ? null : this.state.entryTime,
+        inPosition: remainingExposureUsd,
+        reconciledTrades: [...(this.state.reconciledTrades || []), reconciliation],
+        lastTradeTime: reconciledAt,
+      };
+
+      result = this._applyStateUpdatesLocked(updates, {
+        action: 'RECONCILE_BROKER_FLAT',
+        tradeId,
+        ...context,
+      });
+      if (result?.success) {
+        result.reconciliation = reconciliation;
+      }
+    } finally {
+      this.releaseLock();
     }
 
     return result;
