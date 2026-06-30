@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Changed frozen `TradingConfig.setOverrides()` calls from warn-and-ignore to a thrown error so post-freeze config mutation attempts cannot silently diverge from operator intent.
 - Routed `TradingConfig.getTimeframeConfig()` through active runtime overrides and made unknown timeframe exit geometry fail loudly instead of inheriting `15m` defaults.
 - Aligned ConfigLoader's legacy strategy snapshot defaults for BreakRetest, MarketRegime, and ORB with the actual TradingConfig pipeline defaults.
+- Routed pattern-memory mode selection through `EXECUTION_MODE` as well as legacy mode flags so learned-state banks follow ConfigLoader-derived runtime mode.
 
 ### Live Broker-State Reconciliation Hotfix (2026-06-30)
 

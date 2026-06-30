@@ -180,8 +180,10 @@ function resolvePatternMemoryConfig(overrides) {
 }
 
 function resolveInitialMode() {
-  if (process.env.BACKTEST_MODE === 'true') return 'backtest';
-  if (process.env.PAPER_TRADING === 'true') return 'paper';
+  const executionMode = String(process.env.EXECUTION_MODE || '').trim().toLowerCase();
+  if (process.env.BACKTEST_MODE === 'true' || executionMode === 'backtest') return 'backtest';
+  if (process.env.PAPER_TRADING === 'true' || executionMode === 'paper') return 'paper';
+  if (executionMode === 'live') return 'live';
   return 'live';
 }
 

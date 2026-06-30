@@ -120,6 +120,22 @@ describe('Pattern memory scope isolation', () => {
     expect(Object.keys(memory.patterns)).toHaveLength(1);
   });
 
+  test('UnifiedPatternMemory treats EXECUTION_MODE=backtest as backtest when BACKTEST_MODE is absent', () => {
+    delete process.env.BACKTEST_MODE;
+    delete process.env.PAPER_TRADING;
+    process.env.EXECUTION_MODE = 'backtest';
+
+    const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
+    const memory = new UnifiedPatternMemory({
+      persistToDisk: false,
+      minSamples: 1,
+      successThreshold: 0.6,
+    });
+
+    expect(memory.storageMode).toBe('backtest');
+    expect(memory.storagePath).toBe(path.join(process.env.DATA_DIR, 'unified-patterns.backtest.TSLA.json'));
+  });
+
   test('UnifiedPatternMemory compatibility recordPattern requires canonical live close outcome fields', () => {
     const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
     const memory = new UnifiedPatternMemory({
@@ -586,6 +602,28 @@ describe('Pattern memory scope isolation', () => {
 
     expect(bank.recordTradeOutcome(bankTrade({ indicators: null }))).toBe(false);
     expect(Object.values(bank.exportMemory().patterns)).toHaveLength(1);
+  });
+
+  test('PatternMemoryBank treats EXECUTION_MODE=backtest as backtest when BACKTEST_MODE is absent', () => {
+    delete process.env.BACKTEST_MODE;
+    delete process.env.PAPER_TRADING;
+    process.env.EXECUTION_MODE = 'backtest';
+
+    const PatternMemoryBank = require('../core/PatternMemoryBank');
+    const dbPath = path.join(process.env.DATA_DIR, `pattern-bank-execution-mode-${Date.now()}.json`);
+    const bank = new PatternMemoryBank({
+      ...scope(),
+      dbPath,
+      minTradesSample: 1,
+      featureFlags: {
+        PATTERN_MEMORY_PARTITION: {
+          settings: { backtestPersist: false },
+        },
+      },
+    });
+
+    expect(bank.dbPath).toContain('.backtest.');
+    expect(bank.persistenceEnabled).toBe(false);
   });
 
   test('PatternMemoryBank uses TradingConfig-owned bank tunables and rejects invalid overrides', () => {
