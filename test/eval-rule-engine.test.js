@@ -579,11 +579,32 @@ describe('EvalRuleEngine TTP volume cap', () => {
     }));
   });
 
-  test('blocks new openings before regular market open when TTP cutoff blocking is enabled', async () => {
+  test('allows new openings during premarket when TTP cutoff blocking is enabled', async () => {
     const premarket = new Date('2026-05-22T13:29:00.000Z');
     const engine = makeEngine({
       candles: [candleFor(premarket.getTime(), -60000, 100000)],
       now: () => premarket.getTime(),
+    });
+
+    const result = await engine.check(entryPlan({ orderQuantity: 10 }));
+
+    expect(result.allowed).toBe(true);
+    expect(result.passedRules).toEqual(expect.arrayContaining([
+      'TTP_MARKET_TIME',
+      'TTP_VOLUME_5_PERCENT',
+    ]));
+    expect(result.inputs).toEqual(expect.objectContaining({
+      phase: 'pre',
+      isOpen: true,
+      blocksNewEntries: false,
+    }));
+  });
+
+  test('blocks new openings before the premarket session opens when TTP cutoff blocking is enabled', async () => {
+    const beforePremarket = new Date('2026-05-22T07:59:00.000Z');
+    const engine = makeEngine({
+      candles: [candleFor(beforePremarket.getTime(), -60000, 100000)],
+      now: () => beforePremarket.getTime(),
     });
 
     const result = await engine.check(entryPlan({ orderQuantity: 10 }));
@@ -594,7 +615,7 @@ describe('EvalRuleEngine TTP volume cap', () => {
       reason: 'outside_regular_session_no_openings',
       cutoffMinute: 950,
       rthCloseMinute: 960,
-      phase: 'pre',
+      phase: 'closed',
       action: 'BLOCK_ORDER',
     }));
   });

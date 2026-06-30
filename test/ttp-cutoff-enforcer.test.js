@@ -332,6 +332,128 @@ describe('TtpCutoffEnforcer', () => {
     );
   });
 
+  test('premarket recovery closes previous-day tracked stock trades without blocking same-day premarket entries', async () => {
+    const now = () => new Date('2026-05-22T13:29:00.000Z').getTime();
+    const activeTrades = new Map([['BUY_1', makeTrade({
+      remainingOrderQuantity: 1,
+      entryTime: new Date('2026-05-21T19:45:00.000Z').getTime(),
+    })]]);
+    const executeTrade = jest.fn(async () => {
+      activeTrades.delete('BUY_1');
+    });
+    const stateManager = {
+      get: jest.fn(() => activeTrades),
+      updateState: jest.fn(async () => ({ success: true })),
+    };
+    const enforcer = new TtpCutoffEnforcer({
+      evalRuleEngine: makeRuleEngine(now),
+      stateManager,
+      orderRouter: {},
+      executeTrade,
+      getExitPrice: jest.fn(() => 126),
+      assetClass: 'stocks',
+      symbols: ['TSLA'],
+      brokerReconciliationEnabled: false,
+      now,
+      logger: { log: jest.fn() },
+    });
+
+    const result = await enforcer.enforce();
+
+    expect(result.enforced).toBe(true);
+    expect(result.state.phase).toBe('pre');
+    expect(result.state.blocksNewEntries).toBe(false);
+    expect(executeTrade).toHaveBeenCalledWith(
+      { action: 'SELL', confidence: 100, tradeId: 'BUY_1', exitReason: 'ttp_1550_liquidation' },
+      { totalConfidence: 100 },
+      126,
+      {},
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+  });
+
+  test('premarket recovery leaves same-day tracked stock trades alone', async () => {
+    const now = () => new Date('2026-05-22T13:29:00.000Z').getTime();
+    const activeTrades = new Map([['BUY_1', makeTrade({
+      remainingOrderQuantity: 1,
+      entryTime: new Date('2026-05-22T12:00:00.000Z').getTime(),
+    })]]);
+    const executeTrade = jest.fn();
+    const enforcer = new TtpCutoffEnforcer({
+      evalRuleEngine: makeRuleEngine(now),
+      stateManager: { get: jest.fn(() => activeTrades) },
+      orderRouter: {},
+      executeTrade,
+      getExitPrice: jest.fn(() => 126),
+      assetClass: 'stocks',
+      symbols: ['TSLA'],
+      brokerReconciliationEnabled: false,
+      now,
+      logger: { log: jest.fn() },
+    });
+
+    const result = await enforcer.enforce();
+
+    expect(result.enforced).toBe(false);
+    expect(result.state.phase).toBe('pre');
+    expect(result.state.blocksNewEntries).toBe(false);
+    expect(executeTrade).not.toHaveBeenCalled();
+  });
+
+  test('premarket recovery closes only previous-day tracked trades when same-day trades also exist', async () => {
+    const now = () => new Date('2026-05-22T13:29:00.000Z').getTime();
+    const activeTrades = new Map([
+      ['STALE_1', makeTrade({
+        id: 'STALE_1',
+        orderId: 'STALE_1',
+        entryTime: new Date('2026-05-21T19:45:00.000Z').getTime(),
+      })],
+      ['TODAY_1', makeTrade({
+        id: 'TODAY_1',
+        orderId: 'TODAY_1',
+        entryTime: new Date('2026-05-22T12:00:00.000Z').getTime(),
+      })],
+    ]);
+    const executeTrade = jest.fn(async (decision) => {
+      activeTrades.delete(decision.tradeId);
+    });
+    const stateManager = {
+      get: jest.fn(() => activeTrades),
+      updateState: jest.fn(async () => ({ success: true })),
+    };
+    const enforcer = new TtpCutoffEnforcer({
+      evalRuleEngine: makeRuleEngine(now),
+      stateManager,
+      orderRouter: {},
+      executeTrade,
+      getExitPrice: jest.fn(() => 126),
+      assetClass: 'stocks',
+      symbols: ['TSLA'],
+      brokerReconciliationEnabled: false,
+      now,
+      logger: { log: jest.fn() },
+    });
+
+    const result = await enforcer.enforce();
+
+    expect(result.enforced).toBe(true);
+    expect(executeTrade).toHaveBeenCalledTimes(1);
+    expect(executeTrade).toHaveBeenCalledWith(
+      { action: 'SELL', confidence: 100, tradeId: 'STALE_1', exitReason: 'ttp_1550_liquidation' },
+      { totalConfidence: 100 },
+      126,
+      {},
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+    expect(activeTrades.has('TODAY_1')).toBe(true);
+  });
+
   test('webhook-routed cutoff quarantines unverified broker flatness without entry pause API', async () => {
     const now = () => new Date('2026-05-22T20:05:00.000Z').getTime();
     const activeTrades = new Map([['BUY_1', makeTrade({ remainingOrderQuantity: 1 })]]);

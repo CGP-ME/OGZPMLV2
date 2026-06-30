@@ -120,8 +120,10 @@ class EvalRuleEngine {
     const inLiquidationWindow = phase.isRTH === true
       && et.minuteOfDay >= cutoffMinute
       && et.minuteOfDay < phase.rthCloseMinute;
+    const isPremarket = phase.phase === 'pre';
+    const isRegularBeforeCutoff = phase.isRTH === true && et.minuteOfDay < cutoffMinute;
     const blocksNewEntries = cfg.blockEntriesAfterCutoff !== false && (
-      phase.isRTH !== true || et.minuteOfDay >= cutoffMinute
+      !isPremarket && !isRegularBeforeCutoff
     );
 
     return {
@@ -134,6 +136,7 @@ class EvalRuleEngine {
       rthCloseMinute: phase.rthCloseMinute,
       phase: phase.phase,
       isRTH: phase.isRTH,
+      isOpen: phase.isOpen,
       inLiquidationWindow,
       blocksNewEntries,
       blockEntriesAfterCutoff: cfg.blockEntriesAfterCutoff !== false,

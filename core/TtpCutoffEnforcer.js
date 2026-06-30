@@ -54,8 +54,12 @@ class TtpCutoffEnforcer {
     const targetAllBrokerStocks = brokerPositionReadAvailable && this.brokerNames.length > 0;
     const activeTrades = this._activeTrades();
     const hasTrackedTtpStockTrades = activeTrades.some(trade => this._isTtpStockTrade(trade));
+    const hasOvernightTtpStockTrades = activeTrades.some(trade => (
+      this._isTtpStockTrade(trade) && this._tradeOpenedBeforeEtDate(trade, state.currentDateET)
+    ));
     let initialBrokerPositions = [];
-    if (brokerPositionReadAvailable && state.blocksNewEntries === true) {
+    const premarketRecoveryCheck = String(state.phase || '').toLowerCase() === 'pre';
+    if (brokerPositionReadAvailable && (state.blocksNewEntries === true || premarketRecoveryCheck)) {
       initialBrokerPositions = await this._getBrokerPositions(symbolScope);
     }
     const targetBrokerPositionsForDecision = brokerPositionReadAvailable
@@ -65,8 +69,12 @@ class TtpCutoffEnforcer {
       && Number.isFinite(state.cutoffMinute)
       && state.currentMinuteET >= state.cutoffMinute;
     const closedSessionRecovery = ['ah', 'closed', 'holiday'].includes(String(state.phase || '').toLowerCase());
+    const premarketOvernightRecovery = premarketRecoveryCheck && (
+      hasOvernightTtpStockTrades
+      || (targetBrokerPositionsForDecision.length > 0 && !hasTrackedTtpStockTrades)
+    );
     const missedCutoffRecovery = state.inLiquidationWindow !== true
-      && state.blocksNewEntries === true
+      && (state.blocksNewEntries === true || premarketOvernightRecovery)
       && (
         hasTrackedTtpStockTrades
         || targetBrokerPositionsForDecision.length > 0
@@ -103,9 +111,15 @@ class TtpCutoffEnforcer {
       const failures = [];
       const closed = [];
       const activeTradeSymbols = new Set();
+      const premarketTrackedStaleRecovery = premarketRecoveryCheck
+        && state.blocksNewEntries !== true
+        && state.inLiquidationWindow !== true;
 
       for (const trade of activeTrades) {
         if (!this._isTtpStockTrade(trade)) continue;
+        if (premarketTrackedStaleRecovery && !this._tradeOpenedBeforeEtDate(trade, state.currentDateET)) {
+          continue;
+        }
         const tradeId = trade.orderId || trade.id;
         const symbol = trade.symbol;
         const normalizedSymbol = this._normalizeSymbol(symbol);
@@ -237,6 +251,24 @@ class TtpCutoffEnforcer {
   _isTtpStockTrade(trade) {
     const assetClass = String(trade?.assetClass || this.assetClass || '').trim().toLowerCase();
     return this._isTtpStockAssetClass(assetClass);
+  }
+
+  _tradeOpenedBeforeEtDate(trade, currentDateET) {
+    const openedAt = Number.isFinite(trade?.entryTime) && trade.entryTime > 0
+      ? trade.entryTime
+      : (Number.isFinite(trade?.timestamp) && trade.timestamp > 0 ? trade.timestamp : null);
+    if (!openedAt || !currentDateET) {
+      return true;
+    }
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(new Date(openedAt));
+    const get = (type) => (parts.find(part => part.type === type) || {}).value;
+    const openedDateET = `${get('year')}-${get('month')}-${get('day')}`;
+    return openedDateET < currentDateET;
   }
 
   _exitActionForTrade(trade) {
