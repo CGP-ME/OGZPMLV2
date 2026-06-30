@@ -93,11 +93,10 @@ function candleFor(nowMs, offsetMs, volume) {
   };
 }
 
-function makeEngine({ cfg = config(), candles = [candle(-60000, 10000)], getCandles, getCutoffQuarantine, now = () => BASE_TIME } = {}) {
+function makeEngine({ cfg = config(), candles = [candle(-60000, 10000)], getCandles, now = () => BASE_TIME } = {}) {
   return new EvalRuleEngine({
     config: cfg,
     getCandles: getCandles || jest.fn(() => candles),
-    getCutoffQuarantine,
     now,
   });
 }
@@ -556,48 +555,6 @@ describe('EvalRuleEngine TTP volume cap', () => {
       reason: 'liquidation_window_no_openings',
       cutoffMinute: 950,
       rthCloseMinute: 960,
-      action: 'BLOCK_ORDER',
-    }));
-  });
-
-  test('blocks new openings while cutoff broker flatness requires manual reconciliation', async () => {
-    const beforeCutoff = new Date('2026-05-22T19:49:00.000Z');
-    const engine = makeEngine({
-      cfg: config({
-        accountLimits: {
-          accountStartOfDayDate: '2026-05-22',
-          maxLossThresholdEquity: undefined,
-        },
-        earningsRestriction: {
-          manualStatus: {
-            date: '2026-05-22',
-            symbols: { TSLA: false },
-          },
-        },
-      }),
-      candles: [candleFor(beforeCutoff.getTime(), -60000, 100000)],
-      getCutoffQuarantine: () => ({
-        source: 'ttp_cutoff_unverified_broker_flatness',
-        status: 'quarantined',
-        entryBlocking: false,
-        manualReconciliationRequired: true,
-        brokerFlatVerified: false,
-        currentDateET: '2026-05-21',
-      }),
-      now: () => beforeCutoff.getTime(),
-    });
-
-    const result = await engine.check(entryPlan({ orderQuantity: 10 }));
-
-    expect(result.allowed).toBe(false);
-    expect(result.failedRules[0]).toEqual(expect.objectContaining({
-      ruleId: 'TTP_CUTOFF_RECONCILIATION',
-      reason: 'manual_reconciliation_required_no_openings',
-      source: 'ttp_cutoff_unverified_broker_flatness',
-      status: 'quarantined',
-      brokerFlatVerified: false,
-      manualReconciliationRequired: true,
-      entryBlocking: true,
       action: 'BLOCK_ORDER',
     }));
   });

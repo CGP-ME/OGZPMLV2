@@ -107,6 +107,56 @@ describe('TtpCutoffEnforcer', () => {
     expect(result.orphanClosed).toEqual([]);
   });
 
+  test('clears stale cutoff quarantine when broker flatness is verified', async () => {
+    const now = () => new Date('2026-05-22T19:50:00.000Z').getTime();
+    const activeTrades = new Map();
+    const staleQuarantine = {
+      source: 'ttp_cutoff_unverified_broker_flatness',
+      status: 'quarantined',
+      entryBlocking: false,
+      manualReconciliationRequired: true,
+      brokerFlatVerified: false,
+    };
+    const stateManager = {
+      get: jest.fn((key) => {
+        if (key === 'activeTrades') return activeTrades;
+        if (key === 'ttpCutoffQuarantine') return staleQuarantine;
+        return undefined;
+      }),
+      updateState: jest.fn(async () => ({ success: true })),
+    };
+    const orderRouter = {
+      cancelAllOpenOrders: jest.fn(async () => ({ success: true, cancelled: 0, failed: 0, results: [] })),
+      getAllPositions: jest.fn(async () => []),
+    };
+    const logger = { log: jest.fn() };
+    const enforcer = new TtpCutoffEnforcer({
+      evalRuleEngine: makeRuleEngine(now),
+      stateManager,
+      orderRouter,
+      executeTrade: jest.fn(),
+      getExitPrice: jest.fn(() => 125),
+      assetClass: 'stocks',
+      symbols: ['TSLA'],
+      now,
+      logger,
+    });
+
+    const result = await enforcer.enforce();
+
+    expect(result.enforced).toBe(true);
+    expect(result.brokerFlatVerified).toBe(true);
+    expect(stateManager.updateState).toHaveBeenCalledWith(
+      { ttpCutoffQuarantine: null },
+      expect.objectContaining({
+        action: 'TTP_CUTOFF_QUARANTINE_CLEAR',
+        source: 'ttp_cutoff_unverified_broker_flatness',
+        brokerFlatVerified: true,
+      })
+    );
+    expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('cleared cutoff reconciliation quarantine'));
+  });
+
   test('fails loud instead of guessing a cutoff exit side for ambiguous active trades', async () => {
     const now = () => new Date('2026-05-22T19:50:00.000Z').getTime();
     const activeTrades = new Map([['AMBIGUOUS_1', makeTrade({
@@ -195,7 +245,7 @@ describe('TtpCutoffEnforcer', () => {
     expect(result.quarantine).toEqual(expect.objectContaining({
       source: 'ttp_cutoff_unverified_broker_flatness',
       status: 'quarantined',
-      entryBlocking: true,
+      entryBlocking: false,
       manualReconciliationRequired: true,
       brokerFlatVerified: false,
       currentDateET: '2026-05-22',
@@ -208,11 +258,11 @@ describe('TtpCutoffEnforcer', () => {
     expect(stateManager.updateState).toHaveBeenCalledWith(
       { ttpCutoffQuarantine: expect.objectContaining({
         source: 'ttp_cutoff_unverified_broker_flatness',
-        entryBlocking: true,
+        entryBlocking: false,
       }) },
       expect.objectContaining({
         action: 'TTP_CUTOFF_QUARANTINE',
-        entryBlocking: true,
+        entryBlocking: false,
       })
     );
     expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('BROKER FLATNESS QUARANTINED'));
@@ -268,7 +318,7 @@ describe('TtpCutoffEnforcer', () => {
     expect(result.requiresManualReconciliation).toBe(true);
     expect(result.quarantine).toEqual(expect.objectContaining({
       status: 'quarantined',
-      entryBlocking: true,
+      entryBlocking: false,
       manualReconciliationRequired: true,
       marketTimeBlocksNewEntries: true,
       inLiquidationWindow: false,
@@ -314,7 +364,7 @@ describe('TtpCutoffEnforcer', () => {
     expect(result.requiresManualReconciliation).toBe(true);
     expect(result.quarantine).toEqual(expect.objectContaining({
       status: 'quarantined',
-      entryBlocking: true,
+      entryBlocking: false,
     }));
     expect(enforcer.completedKeys.size).toBe(0);
   });
@@ -382,7 +432,7 @@ describe('TtpCutoffEnforcer', () => {
     expect(enforcer.unverifiedKeys.has('2026-05-22:950')).toBe(true);
     expect(stateManager.pauseTrading).not.toHaveBeenCalled();
     expect(stateManager.updateState).toHaveBeenCalledWith(
-      { ttpCutoffQuarantine: expect.objectContaining({ status: 'quarantined', entryBlocking: true }) },
+      { ttpCutoffQuarantine: expect.objectContaining({ status: 'quarantined', entryBlocking: false }) },
       expect.objectContaining({ action: 'TTP_CUTOFF_QUARANTINE' })
     );
   });

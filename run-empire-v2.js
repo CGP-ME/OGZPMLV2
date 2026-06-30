@@ -1328,7 +1328,6 @@ class OGZPrimeV14Bot {
     this.evalRuleEngine = new EvalRuleEngine({
       config: resolvedConfig.config.evalRules,
       getCandles: (symbol, timeframe) => this.getSymbolTimeframeCandles(symbol, timeframe),
-      getCutoffQuarantine: () => this.stateManager.get('ttpCutoffQuarantine'),
     });
 
     // REFACTOR Phase 14: OrderExecutor - context with all dependencies

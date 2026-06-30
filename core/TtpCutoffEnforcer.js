@@ -213,6 +213,7 @@ class TtpCutoffEnforcer {
 
       this.unverifiedKeys.delete(key);
       this.completedKeys.add(key);
+      await this._clearVerifiedBrokerFlatnessQuarantine(state, closed, orphanClosed, cancelResult);
       this.logger.log(`[TTP_MARKET_TIME] cutoff enforcement complete date=${state.currentDateET} closed=${closed.length} orphanClosed=${orphanClosed.length} cancelled=${cancelResult?.cancelled || 0} brokerFlatVerified=${brokerFlatVerified}`);
       return { enforced: true, alreadyCompleted, state, cancelResult, closed, orphanClosed, brokerFlatVerified };
     } finally {
@@ -318,7 +319,7 @@ class TtpCutoffEnforcer {
     const quarantine = {
       source: 'ttp_cutoff_unverified_broker_flatness',
       status: 'quarantined',
-      entryBlocking: true,
+      entryBlocking: false,
       manualReconciliationRequired: true,
       requiresManualReconciliation: true,
       brokerFlatVerified: false,
@@ -348,15 +349,46 @@ class TtpCutoffEnforcer {
 
     const result = await this.stateManager.updateState(
       { ttpCutoffQuarantine: quarantine },
-      { action: 'TTP_CUTOFF_QUARANTINE', reason, source: quarantine.source, entryBlocking: true }
+      { action: 'TTP_CUTOFF_QUARANTINE', reason, source: quarantine.source, entryBlocking: false }
     );
     if (result && result.success === false) {
       throw new Error(`[TTP_MARKET_TIME] broker flatness quarantine record failed: ${result.error || 'unknown_error'}`);
     }
 
     const warn = typeof this.logger.warn === 'function' ? this.logger.warn.bind(this.logger) : this.logger.log.bind(this.logger);
-    warn(`[TTP_MARKET_TIME] BROKER FLATNESS QUARANTINED date=${state.currentDateET} closed=${quarantine.closedCount} orphanClosed=${quarantine.orphanClosedCount} brokerFlatVerified=false entryBlocking=true manualReconciliationRequired=true`);
+    warn(`[TTP_MARKET_TIME] BROKER FLATNESS QUARANTINED date=${state.currentDateET} closed=${quarantine.closedCount} orphanClosed=${quarantine.orphanClosedCount} brokerFlatVerified=false entryBlocking=false manualReconciliationRequired=true`);
     return quarantine;
+  }
+
+  async _clearVerifiedBrokerFlatnessQuarantine(state, closed, orphanClosed, cancelResult) {
+    if (!this.stateManager || typeof this.stateManager.get !== 'function' || typeof this.stateManager.updateState !== 'function') {
+      return null;
+    }
+
+    const quarantine = this.stateManager.get('ttpCutoffQuarantine');
+    if (!quarantine || quarantine.source !== 'ttp_cutoff_unverified_broker_flatness') {
+      return null;
+    }
+
+    const reason = `[TTP_MARKET_TIME] broker flatness verified after cutoff date=${state.currentDateET}; clearing cutoff reconciliation quarantine`;
+    const result = await this.stateManager.updateState(
+      { ttpCutoffQuarantine: null },
+      {
+        action: 'TTP_CUTOFF_QUARANTINE_CLEAR',
+        reason,
+        source: quarantine.source,
+        brokerFlatVerified: true,
+        closedCount: Array.isArray(closed) ? closed.length : 0,
+        orphanClosedCount: Array.isArray(orphanClosed) ? orphanClosed.length : 0,
+        cancelled: Number.isFinite(cancelResult?.cancelled) ? cancelResult.cancelled : 0,
+      }
+    );
+    if (result && result.success === false) {
+      throw new Error(`[TTP_MARKET_TIME] broker flatness quarantine clear failed: ${result.error || 'unknown_error'}`);
+    }
+
+    this.logger.log(`[TTP_MARKET_TIME] broker flatness verified; cleared cutoff reconciliation quarantine date=${state.currentDateET}`);
+    return { cleared: true, reason };
   }
 
   _ttpBrokerPositions(positions, symbolScope = this._currentSymbolScope(), targetAllBrokerStocks = this.brokerNames.length > 0) {

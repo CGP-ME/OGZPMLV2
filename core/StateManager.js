@@ -1721,7 +1721,7 @@ class StateManager {
     this.state.ttpCutoffQuarantine = {
       source: TTP_CUTOFF_FLATNESS_PAUSE_SOURCE,
       status: 'quarantined',
-      entryBlocking: true,
+      entryBlocking: false,
       manualReconciliationRequired: true,
       requiresManualReconciliation: true,
       brokerFlatVerified: false,
@@ -1733,7 +1733,7 @@ class StateManager {
       manualReconciliationMessage: pauseReason,
       operatorMessage: pauseReason,
       currentDateET: cutoffDate,
-      reason: `${pauseReason}; migrated from legacy global pause to blocking quarantine`,
+      reason: `${pauseReason}; migrated from legacy global pause to non-blocking quarantine`,
     };
     this.state.isTrading = true;
     this.state.pauseReason = null;
