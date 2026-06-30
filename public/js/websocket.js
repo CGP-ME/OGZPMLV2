@@ -15,10 +15,13 @@
     let lastPongAt = 0;
     let lastDataAt = 0;
     let operatorDashboardToken = '';
+    let dashboardSessionTicket = '';
+    let dashboardSessionBootstrap = null;
 
     const WS_PATH = '/ws';
     const DASHBOARD_WS_STORAGE_NAME = 'ogz.dashboard.wsToken';
     const DASHBOARD_WS_FRAGMENT_KEYS = ['dashboardToken', 'ogzDashboardToken', 'ogz_ws_token'];
+    const DASHBOARD_SESSION_AUTH_TOKEN = '__OGZ_DASHBOARD_SESSION__';
     const HEARTBEAT_INTERVAL_MS = 15000;
     const PONG_TIMEOUT_MS = 30000;
     const DATA_TIMEOUT_MS = 60000;
@@ -104,6 +107,7 @@
     }
 
     function storedDashboardToken() {
+        if (dashboardSessionTicket) return DASHBOARD_SESSION_AUTH_TOKEN;
         const fragmentToken = dashboardTokenFromFragment();
         if (fragmentToken) return fragmentToken;
         if (operatorDashboardToken) return operatorDashboardToken;
@@ -135,7 +139,12 @@
         for (const key of DASHBOARD_WS_FRAGMENT_KEYS) {
             const token = params.get(key);
             if (storeDashboardToken(token)) {
-                stripDashboardTokenFragment(params);
+                if (!stripDashboardTokenFragment(params)) {
+                    operatorDashboardToken = '';
+                    removePersistedDashboardToken();
+                    console.warn('[Socket] Dashboard token fragment could not be stripped. Token was not stored.');
+                    return '';
+                }
                 return operatorDashboardToken;
             }
         }
@@ -147,14 +156,14 @@
         const hash = window.location && typeof window.location.hash === 'string'
             ? window.location.hash.replace(/^#/, '')
             : '';
-        if (!hash) return false;
+        if (!hash) return true;
 
         let params = existingParams;
         if (!params) {
             try {
                 params = new URLSearchParams(hash);
             } catch (_) {
-                return false;
+                return true;
             }
         }
 
@@ -165,7 +174,7 @@
                 removed = true;
             }
         }
-        if (!removed) return false;
+        if (!removed) return true;
 
         const nextHash = params.toString();
         const nextUrl = `${window.location.pathname || ''}${window.location.search || ''}${nextHash ? `#${nextHash}` : ''}`;
@@ -175,19 +184,31 @@
             } else {
                 window.location.hash = nextHash;
             }
+            return true;
         } catch (_) {
         }
-        return true;
+
+        try {
+            window.location.hash = nextHash;
+            return true;
+        } catch (_) {
+        }
+
+        try {
+            if (window.location && typeof window.location.replace === 'function') {
+                window.location.replace(nextUrl || window.location.pathname || '/');
+                return true;
+            }
+        } catch (_) {
+        }
+
+        return false;
     }
 
     function storeDashboardToken(token) {
         const trimmed = typeof token === 'string' ? token.trim() : '';
         if (!trimmed) return false;
         operatorDashboardToken = trimmed;
-        try {
-            if (window.localStorage) window.localStorage.setItem(DASHBOARD_WS_STORAGE_NAME, trimmed);
-        } catch (_) {
-        }
         return true;
     }
 
@@ -201,10 +222,100 @@
     function clearStoredDashboardToken() {
         operatorDashboardToken = '';
         removePersistedDashboardToken();
+        const stripped = stripDashboardTokenFragment();
+        if (!stripped) {
+            console.warn('[Socket] Dashboard token fragment could not be stripped during token clear.');
+        }
+        return stripped;
     }
 
     function dashboardAuthToken() {
         return storedDashboardToken();
+    }
+
+    async function requestDashboardSessionTicket() {
+        if (typeof fetch !== 'function') return false;
+        try {
+            const response = await fetch('/api/dashboard/session-ticket', {
+                method: 'GET',
+                credentials: 'same-origin',
+                cache: 'no-store',
+                headers: { 'Accept': 'application/json' }
+            });
+            if (!response || !response.ok) return false;
+            const payload = await response.json();
+            const ticket = payload && typeof payload.ticket === 'string' ? payload.ticket.trim() : '';
+            if (!ticket) return false;
+            dashboardSessionTicket = ticket;
+            operatorDashboardToken = '';
+            removePersistedDashboardToken();
+            return true;
+        } catch (err) {
+            console.warn('[Socket] Dashboard session ticket request failed:', err && err.message ? err.message : err);
+            return false;
+        }
+    }
+
+    function bootstrapDashboardSession() {
+        if (dashboardSessionBootstrap) return true;
+        dashboardSessionBootstrap = requestDashboardSessionTicket()
+            .then((ok) => {
+                dashboardSessionBootstrap = null;
+                if (ok) {
+                    removeDashboardTokenPrompt();
+                    Socket.connect();
+                } else {
+                    showDashboardTokenPrompt();
+                }
+                return ok;
+            });
+        return true;
+    }
+
+    async function enrollDashboardSession(rawToken) {
+        const submitted = typeof rawToken === 'string' ? rawToken.trim() : '';
+        if (!submitted) {
+            console.warn('[Socket] Refusing empty dashboard token');
+            return false;
+        }
+        if (typeof fetch !== 'function') {
+            console.warn('[Socket] Dashboard session enrollment unavailable in this browser.');
+            return false;
+        }
+        try {
+            const response = await fetch('/api/dashboard/session', {
+                method: 'POST',
+                credentials: 'same-origin',
+                cache: 'no-store',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ token: submitted })
+            });
+            if (!response || !response.ok) {
+                console.warn('[Socket] Dashboard session enrollment rejected.');
+                return false;
+            }
+            const payload = await response.json();
+            const ticket = payload && typeof payload.ticket === 'string' ? payload.ticket.trim() : '';
+            if (!ticket) {
+                console.warn('[Socket] Dashboard session enrollment did not return a WebSocket ticket.');
+                return false;
+            }
+            dashboardSessionTicket = ticket;
+            operatorDashboardToken = '';
+            removePersistedDashboardToken();
+            if (!stripDashboardTokenFragment()) {
+                dashboardSessionTicket = '';
+                console.warn('[Socket] Dashboard token fragment could not be stripped. Session was not used.');
+                return false;
+            }
+            return true;
+        } catch (err) {
+            console.warn('[Socket] Dashboard session enrollment failed:', err && err.message ? err.message : err);
+            return false;
+        }
     }
 
     function removeDashboardTokenGate() {
@@ -219,6 +330,80 @@
         if (existing && existing.parentNode) {
             existing.parentNode.removeChild(existing);
         }
+    }
+
+    function showDashboardTokenPrompt() {
+        if (!document.body) return null;
+        const existing = document.getElementById('ogz-dashboard-token-prompt');
+        if (existing) return existing;
+
+        const panel = document.createElement('div');
+        panel.id = 'ogz-dashboard-token-prompt';
+        panel.className = 'ogz-dashboard-token-prompt';
+        panel.style.cssText = [
+            'position:fixed',
+            'z-index:2147483647',
+            'left:12px',
+            'right:12px',
+            'bottom:12px',
+            'max-width:520px',
+            'margin:0 auto',
+            'padding:14px',
+            'border:1px solid rgba(250,204,21,.55)',
+            'background:rgba(5,7,10,.96)',
+            'box-shadow:0 16px 48px rgba(0,0,0,.55)',
+            'font-family:JetBrains Mono,monospace',
+            'color:#f8fafc'
+        ].join(';');
+
+        const title = document.createElement('div');
+        title.textContent = 'Dashboard access required';
+        title.style.cssText = 'font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#facc15;margin-bottom:8px';
+
+        const detail = document.createElement('div');
+        detail.textContent = 'Enter the operator WebSocket key to start live data on this browser.';
+        detail.style.cssText = 'font-size:11px;line-height:1.45;color:#cbd5e1;margin-bottom:10px';
+
+        const form = document.createElement('form');
+        form.id = 'ogz-dashboard-token-form';
+        form.style.cssText = 'display:grid;grid-template-columns:1fr;gap:8px;align-items:stretch';
+
+        const input = document.createElement('input');
+        input.id = 'ogz-dashboard-token-input';
+        input.type = 'password';
+        input.name = 'dashboard-token';
+        input.autocomplete = 'off';
+        input.placeholder = 'Operator WebSocket key';
+        input.style.cssText = 'min-width:0;width:100%;box-sizing:border-box;padding:10px;border:1px solid rgba(148,163,184,.45);background:#020617;color:#f8fafc;font:12px JetBrains Mono,monospace;outline:none';
+
+        const button = document.createElement('button');
+        button.id = 'ogz-dashboard-token-submit';
+        button.type = 'submit';
+        button.textContent = 'Connect';
+        button.style.cssText = 'width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid rgba(34,211,238,.65);background:#071316;color:#22d3ee;font:800 12px JetBrains Mono,monospace;text-transform:uppercase';
+
+        form.addEventListener('submit', async (event) => {
+            if (event && typeof event.preventDefault === 'function') event.preventDefault();
+            button.disabled = true;
+            button.textContent = 'Connecting';
+            if (await enrollDashboardSession(input.value)) {
+                removeDashboardTokenPrompt();
+                Socket.connect();
+            } else {
+                button.disabled = false;
+                button.textContent = 'Connect';
+                input.focus();
+            }
+        });
+
+        form.appendChild(input);
+        form.appendChild(button);
+        panel.appendChild(title);
+        panel.appendChild(detail);
+        panel.appendChild(form);
+        document.body.appendChild(panel);
+        input.focus();
+        return panel;
     }
 
     function sendRaw(data) {
@@ -301,7 +486,7 @@
             const token = dashboardAuthToken();
             if (!token) {
                 removeDashboardTokenGate();
-                removeDashboardTokenPrompt();
+                bootstrapDashboardSession();
                 console.warn('[Socket] No dashboard token configured. Dashboard data socket remains disconnected.');
                 return false;
             }
@@ -317,7 +502,12 @@
                 // Public HTML must not carry WEBSOCKET_AUTH_TOKEN. Until the
                 // gated session/ticket flow lands, an empty token fails closed
                 // at the server instead of silently using a leaked literal.
-                this.send({ type: 'auth', token });
+                if (token === DASHBOARD_SESSION_AUTH_TOKEN) {
+                    this.send({ type: 'auth', token, ticket: dashboardSessionTicket });
+                    dashboardSessionTicket = '';
+                } else {
+                    this.send({ type: 'auth', token });
+                }
             };
 
             currentSocket.onmessage = (e) => {
@@ -361,8 +551,8 @@
                     if (data.type === 'auth_failure') {
                         clearStoredDashboardToken();
                         console.warn('[Socket] Dashboard token was rejected. Stored token cleared.');
-                        removeDashboardTokenPrompt();
-                        forceReconnect('dashboard auth failure');
+                        showDashboardTokenPrompt();
+                        currentSocket.close(1008, 'dashboard auth failure');
                     }
 
                     // Dispatch to registered handlers
@@ -385,7 +575,7 @@
                 if (!wasAuthenticated && (code === 1008 || /auth|token/i.test(reason))) {
                     clearStoredDashboardToken();
                     console.warn(`[Socket] Dashboard token rejected: ${reason}`);
-                    removeDashboardTokenPrompt();
+                    showDashboardTokenPrompt();
                     return;
                 }
                 scheduleReconnect(`close code=${code}`);
@@ -427,6 +617,13 @@
             }
             try {
                 storeDashboardToken(token);
+                if (!stripDashboardTokenFragment()) {
+                    operatorDashboardToken = '';
+                    removePersistedDashboardToken();
+                    showDashboardTokenPrompt();
+                    console.warn('[Socket] Dashboard token fragment could not be stripped. Token was not stored.');
+                    return false;
+                }
             } catch (err) {
                 console.error('[Socket] Failed to store dashboard token:', err);
                 return false;
@@ -449,7 +646,7 @@
             return true;
         },
 
-        getAuthToken: () => operatorDashboardToken,
+        getAuthToken: () => dashboardAuthToken(),
 
         isConnected: () => Boolean(ws && ws.readyState === OPEN && authenticated)
     };

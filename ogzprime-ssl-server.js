@@ -58,11 +58,30 @@ const {
 } = require('./server/dashboard-market-scope');
 const { buildTickerPriceFrame, parseTickerSymbolList } = require('./server/dashboard-ticker-frame');
 const { resolveDashboardStockConfig } = require('./server/dashboard-stock-stream-config');
+const { createDashboardSessionAuth } = require('./server/dashboard-session-auth');
 const { ASSET_REGISTRY, normalizeAssetSymbol } = require('./core/AssetRegistry');
 
 const apiPort = process.env.API_PORT || 3010;
 const app = express();
 const httpServer = http.createServer(app);
+const dashboardSessionAuth = createDashboardSessionAuth();
+
+function isSameOriginDashboardRequest(req) {
+  const headers = req && req.headers ? req.headers : {};
+  const origin = typeof headers.origin === 'string' ? headers.origin : '';
+  if (!origin) return false;
+  const forwardedHost = typeof headers['x-forwarded-host'] === 'string'
+    ? headers['x-forwarded-host'].split(',')[0].trim()
+    : '';
+  const host = forwardedHost || headers.host || '';
+  if (!host) return false;
+  try {
+    const parsedOrigin = new URL(origin);
+    return parsedOrigin.host.toLowerCase() === String(host).toLowerCase();
+  } catch (_) {
+    return false;
+  }
+}
 
 function normalizeDashboardSymbol(symbol) {
   if (typeof symbol !== 'string' || !symbol.trim()) return null;
@@ -133,6 +152,51 @@ function serveDashboardV2(req, res) {
 app.get(['/unified-dashboard-v2.html', '/unified-dashboard-v2.html/'], serveDashboardV2);
 
 app.get(['/', '/index.html', '/index.html/', '/unified-dashboard-legacy.html', '/unified-dashboard-legacy.html/'], serveDashboardV2);
+
+app.post('/api/dashboard/session', (req, res) => {
+  const validToken = process.env.WEBSOCKET_AUTH_TOKEN;
+  if (!validToken) {
+    return res.status(503).json({ ok: false, error: 'dashboard_auth_unavailable' });
+  }
+
+  const submittedToken = req && req.body ? req.body.token : '';
+  if (!dashboardSessionAuth.tokenMatches(submittedToken, validToken)) {
+    return res.status(401).json({ ok: false, error: 'invalid_dashboard_token' });
+  }
+
+  const session = dashboardSessionAuth.issueSession();
+  const ticket = dashboardSessionAuth.issueTicket();
+  res.set('Cache-Control', 'no-store');
+  res.set('Set-Cookie', dashboardSessionAuth.buildSessionCookie(req, session.token));
+  return res.json({
+    ok: true,
+    auth: 'dashboard_session',
+    expiresAt: session.expiresAt,
+    ticket: ticket.ticket,
+    ticketExpiresAt: ticket.expiresAt
+  });
+});
+
+app.get('/api/dashboard/session-ticket', (req, res) => {
+  if (!dashboardSessionAuth.sessionFromRequest(req)) {
+    return res.status(401).json({ ok: false, error: 'dashboard_session_required' });
+  }
+
+  const ticket = dashboardSessionAuth.issueTicket();
+  res.set('Cache-Control', 'no-store');
+  return res.json({
+    ok: true,
+    auth: 'dashboard_session',
+    ticket: ticket.ticket,
+    ticketExpiresAt: ticket.expiresAt
+  });
+});
+
+app.post('/api/dashboard/logout', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.set('Set-Cookie', dashboardSessionAuth.clearSessionCookie(req));
+  return res.json({ ok: true });
+});
 
 function denyStaticBackup(req, res) {
   res.status(404).type('text').send('Not found');
@@ -1684,7 +1748,16 @@ wss.on('connection', (ws, req) => {
           return;
         }
 
-        if (data.token === validToken) {
+        const sessionAuthenticated = Boolean(
+          isSameOriginDashboardRequest(req)
+          &&
+          dashboardSessionAuth.sessionFromRequest(req)
+          && typeof data.ticket === 'string'
+          && dashboardSessionAuth.consumeTicket(data.ticket)
+        );
+        const rawTokenAuthenticated = dashboardSessionAuth.tokenMatches(data.token, validToken);
+
+        if (rawTokenAuthenticated || sessionAuthenticated) {
           ws.authenticated = true;
           clearTimeout(authTimeout);
           console.log(`[AUTH] Client ${connectionId} authenticated successfully`);
