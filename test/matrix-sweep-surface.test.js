@@ -92,7 +92,7 @@ describe('matrix-sweep runnable surface', () => {
     }).toThrow(TypeError);
   });
 
-  test('exploratory roster excludes MarketRegime because it is a regime filter, not a solo strategy', () => {
+  test('sweep roster excludes MarketRegime because it is a regime booster, not a solo strategy', () => {
     expect(ALL_STRATEGIES).toEqual(expect.arrayContaining([
       'CandlePattern',
       'NoWickImbalance',
@@ -100,6 +100,24 @@ describe('matrix-sweep runnable surface', () => {
       'OpeningRangeBreakout',
       'SmartMoneySweep',
     ]));
+    expect(ALL_STRATEGIES).toEqual([
+      'RSI',
+      'EMASMACrossover',
+      'MADynamicSR',
+      'LiquiditySweep',
+      'SmartMoneySweep',
+      'MultiTimeframe',
+      'OGZTPO',
+      'OpeningRangeBreakout',
+      'CandlePattern',
+      'NoWickImbalance',
+      'BreakRetest',
+      'DonchianBreakout',
+      'PropSafeEMAPullback',
+      'EMATrendRetest',
+      'RSI2MeanReversion',
+      'TimeSeriesMomentum',
+    ]);
     expect(ALL_STRATEGIES).not.toContain('MarketRegime');
   });
 
@@ -107,15 +125,25 @@ describe('matrix-sweep runnable surface', () => {
     expect(usesStructuralExits('LiquiditySweep')).toBe(true);
     expect(usesStructuralExits('SmartMoneySweep')).toBe(true);
     expect(usesStructuralExits('NoWickImbalance')).toBe(true);
+    expect(usesStructuralExits('BreakRetest')).toBe(true);
+    expect(usesStructuralExits('OpeningRangeBreakout')).toBe(true);
 
     expect(filterStrategiesForPhase([
       'RSI',
       'LiquiditySweep',
       'SmartMoneySweep',
       'NoWickImbalance',
+      'BreakRetest',
+      'OpeningRangeBreakout',
     ], 'exits')).toEqual({
       runnable: ['RSI'],
-      skipped: ['LiquiditySweep', 'SmartMoneySweep', 'NoWickImbalance'],
+      skipped: [
+        'LiquiditySweep',
+        'SmartMoneySweep',
+        'NoWickImbalance',
+        'BreakRetest',
+        'OpeningRangeBreakout',
+      ],
     });
   });
 
@@ -150,6 +178,8 @@ describe('matrix-sweep runnable surface', () => {
     expect(generateMatrix(['NoWickImbalance'], GRID.exits, 'exits')).toHaveLength(0);
     expect(generateMatrix(['LiquiditySweep'], GRID.full, 'full')).toHaveLength(0);
     expect(generateMatrix(['SmartMoneySweep'], GRID.quick, 'quick')).toHaveLength(0);
+    expect(generateMatrix(['BreakRetest'], GRID.exits, 'exits')).toHaveLength(0);
+    expect(generateMatrix(['OpeningRangeBreakout'], GRID.full, 'full')).toHaveLength(0);
   });
 
   test('all generated matrix env keys are explicit worker override keys', () => {

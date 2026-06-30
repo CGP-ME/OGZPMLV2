@@ -172,13 +172,15 @@ module.exports = {
         TTP_CONSISTENCY_ENABLED: 'true',
         TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO: '0.30',
         TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO: '0.06',
-        // 2026-04-29: NoWickImbalance enabled. Strategy is disabled in code
-        // default; this flip turns it on. Sweep + walk-forward to follow.
+        ENABLE_BREAKRETEST: 'true',
+        ENABLE_SMS: 'true',
         ENABLE_NOWICK: 'true',
-        // 2026-04-29: OpeningRangeBreakout enabled for production observation
-        // parity with the parallel sweep campaign. Strategy is disabled in code
-        // default; this flip turns it on. Sweep will validate before locking.
-        ENABLE_ORB: 'true'
+        ENABLE_ORB: 'true',
+        ENABLE_DONCHIAN: 'true',
+        ENABLE_PROPSAFE_EMA: 'true',
+        ENABLE_EMA_TREND_RETEST: 'true',
+        ENABLE_RSI2_MR: 'true',
+        ENABLE_TSMOM: 'true'
       }
     },
     {

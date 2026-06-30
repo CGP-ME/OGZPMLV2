@@ -551,6 +551,18 @@ const BASE_CONFIG = {
       invalidationConditions: ['liquidity_absorbed'],
       _validated: '2026-03-20',
     },
+    BreakRetest: {
+      stopLossPercent: -2.0,          // Fallback only - strategy provides structural overrideLevels
+      takeProfitPercent: 2.5,         // Fallback only - strategy provides structural overrideLevels
+      trailingStopPercent: 0.6,
+      trailingActivation: 0.8,
+      maxHoldTimeMinutes: 240,
+      useStructuralExits: true,
+      minConfidence: null,
+      atrMinPercent: null,
+      invalidationConditions: ['break_retest_invalidated'],
+      _validated: null,
+    },
     // ╔═══════════════════════════════════════════════════════════════════════════╗
     // ║  RSI - LOCKED CONFIG - DO NOT CHANGE WITHOUT RE-VALIDATION               ║
     // ║  Walk-forward validated 2026-03-20 on TSLA 15m                            ║
@@ -639,6 +651,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 0.6,
       trailingActivation: 0.8,
       maxHoldTimeMinutes: 180,
+      useStructuralExits: true,
       minConfidence: null,            // No locked per-strategy confidence gate yet.
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['fvg_filled', 'or_break_reversal'],
@@ -1539,18 +1552,18 @@ const BASE_CONFIG = {
     enableEMACrossover: envBool('ENABLE_EMA', true),
     enableLiquiditySweep: envBool('ENABLE_LIQSWEEP', true),
     enableCandlePattern: envBool('ENABLE_CANDLEPATTERN', true),
-    enableBreakRetest: envBool('ENABLE_BREAKRETEST', false),
+    enableBreakRetest: envBool('ENABLE_BREAKRETEST', true),
     enableMarketRegime: envBool('ENABLE_REGIME', false),  // DEPRECATED: now orchestrator pre-filter
     enableMultiTimeframe: envBool('ENABLE_MTF', true),
     enableOGZTPO: envBool('ENABLE_TPO', true),
-    enableOpeningRangeBreakout: envBool('ENABLE_ORB', false), // NEW: Disabled by default until tuned
-    enableSmartMoneySweep: envBool('ENABLE_SMS', false),     // NEW: Disabled by default until validated
-    enableNoWickImbalance: envBool('ENABLE_NOWICK', false),  // 2026-04-28: Disabled by default until sweep + walk-forward
-    enableDonchianBreakout: envBool('ENABLE_DONCHIAN', false),
-    enablePropSafeEMAPullback: envBool('ENABLE_PROPSAFE_EMA', false),
-    enableEMATrendRetest: envBool('ENABLE_EMA_TREND_RETEST', false),
-    enableRSI2MeanReversion: envBool('ENABLE_RSI2_MR', false),
-    enableTimeSeriesMomentum: envBool('ENABLE_TSMOM', false),
+    enableOpeningRangeBreakout: envBool('ENABLE_ORB', true),
+    enableSmartMoneySweep: envBool('ENABLE_SMS', true),
+    enableNoWickImbalance: envBool('ENABLE_NOWICK', true),
+    enableDonchianBreakout: envBool('ENABLE_DONCHIAN', true),
+    enablePropSafeEMAPullback: envBool('ENABLE_PROPSAFE_EMA', true),
+    enableEMATrendRetest: envBool('ENABLE_EMA_TREND_RETEST', true),
+    enableRSI2MeanReversion: envBool('ENABLE_RSI2_MR', true),
+    enableTimeSeriesMomentum: envBool('ENABLE_TSMOM', true),
 
     // Component toggles
     enableRiskManager: envBool('ENABLE_RISK', true),

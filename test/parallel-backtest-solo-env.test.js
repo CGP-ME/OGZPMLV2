@@ -82,7 +82,7 @@ describe('parallel-backtest solo strategy env wiring', () => {
       .toBeUndefined();
   });
 
-  test('strategy roster includes exploratory strategies that matrix-sweep can run', () => {
+  test('strategy roster excludes MarketRegime because it is a regime booster, not a solo strategy', () => {
     expect(STRATEGIES).toEqual(expect.arrayContaining([
       'CandlePattern',
       'NoWickImbalance',
@@ -90,10 +90,28 @@ describe('parallel-backtest solo strategy env wiring', () => {
       'OpeningRangeBreakout',
       'SmartMoneySweep',
     ]));
+    expect(STRATEGIES).toEqual([
+      'RSI',
+      'EMASMACrossover',
+      'MADynamicSR',
+      'LiquiditySweep',
+      'SmartMoneySweep',
+      'MultiTimeframe',
+      'OGZTPO',
+      'OpeningRangeBreakout',
+      'CandlePattern',
+      'NoWickImbalance',
+      'BreakRetest',
+      'DonchianBreakout',
+      'PropSafeEMAPullback',
+      'EMATrendRetest',
+      'RSI2MeanReversion',
+      'TimeSeriesMomentum',
+    ]);
     expect(STRATEGIES).not.toContain('MarketRegime');
   });
 
-  test('strategy-sweep excludes deprecated MarketRegime strategy entries', () => {
+  test('strategy-sweep excludes MarketRegime solo coverage', () => {
     expect(SWEEP_PRESETS['strategy-sweep'].map(config => config.env.SOLO_STRATEGY))
       .not.toContain('MarketRegime');
   });

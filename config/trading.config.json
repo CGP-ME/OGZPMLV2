@@ -324,6 +324,20 @@
       ],
       "_validated": "2026-03-20"
     },
+    "BreakRetest": {
+      "stopLossPercent": -2,
+      "takeProfitPercent": 2.5,
+      "trailingStopPercent": 0.6,
+      "trailingActivation": 0.8,
+      "maxHoldTimeMinutes": 240,
+      "useStructuralExits": true,
+      "minConfidence": null,
+      "atrMinPercent": null,
+      "invalidationConditions": [
+        "break_retest_invalidated"
+      ],
+      "_validated": null
+    },
     "RSI": {
       "stopLossPercent": -0.8,
       "takeProfitPercent": 1,
@@ -387,6 +401,9 @@
       "trailingStopPercent": 0.6,
       "trailingActivation": 0.8,
       "maxHoldTimeMinutes": 180,
+      "useStructuralExits": true,
+      "minConfidence": null,
+      "atrMinPercent": null,
       "invalidationConditions": [
         "fvg_filled",
         "or_break_reversal"
@@ -925,13 +942,18 @@
     "enableMADynamicSR": true,
     "enableEMACrossover": true,
     "enableLiquiditySweep": true,
-    "enableBreakRetest": false,
+    "enableBreakRetest": true,
     "enableMarketRegime": false,
     "enableMultiTimeframe": true,
     "enableOGZTPO": true,
-    "enableOpeningRangeBreakout": false,
-    "enableSmartMoneySweep": false,
-    "enableDonchianBreakout": false,
+    "enableOpeningRangeBreakout": true,
+    "enableSmartMoneySweep": true,
+    "enableNoWickImbalance": true,
+    "enableDonchianBreakout": true,
+    "enablePropSafeEMAPullback": true,
+    "enableEMATrendRetest": true,
+    "enableRSI2MeanReversion": true,
+    "enableTimeSeriesMomentum": true,
     "enableRiskManager": true,
     "enableTRAI": true,
     "traiEnableBacktest": true,
