@@ -118,6 +118,9 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(loaded.config.exits.stopLossPercent).toBe(configFileValue('exits.stopLossPercent'));
     expect(loaded.config.exits.takeProfitPercent).toBe(configFileValue('exits.takeProfitPercent'));
     expect(loaded.config.exits.trailingStopPercent).toBe(configFileValue('exits.trailingStopPercent'));
+    expect(loaded.config.strategies.enableBreakRetest).toBe(configFileValue('pipeline.enableBreakRetest'));
+    expect(loaded.config.strategies.enableMarketRegime).toBe(configFileValue('pipeline.enableMarketRegime'));
+    expect(loaded.config.strategies.enableORB).toBe(configFileValue('pipeline.enableOpeningRangeBreakout'));
     expect(loaded.config.exits.trailingActivation).toBe(configFileValue('exits.trailingActivation'));
     expect(loaded.config.filters.atrEnabled).toBe(configFileValue('filters.atrEnabled'));
     expect(loaded.config.filters.atrMinPercent).toBe(configFileValue('filters.atrMinPercent'));
