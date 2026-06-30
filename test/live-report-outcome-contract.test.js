@@ -293,6 +293,52 @@ describe('LiveReport closed-trade outcome contract', () => {
     expect(refs.get('fresh').className).not.toBe('lr-fresh live');
   });
 
+  test('does not render impossible bot_thinking confidence percentages in meta', () => {
+    const { liveReport, refs, handlers } = loadLiveReportWithSocket();
+
+    liveReport.init();
+    handlers.bot_thinking({
+      type: 'bot_thinking',
+      timestamp: Date.now(),
+      message: 'Holding. Waiting for clearer setup.',
+      confidence: 8562.3,
+    });
+
+    expect(refs.get('reason').textContent).toBe('Holding. Waiting for clearer setup.');
+    expect(refs.get('reasonMeta').textContent).toContain('confidence invalid');
+    expect(refs.get('reasonMeta').textContent).not.toContain('8562');
+  });
+
+  test('renders bot_thinking percent-string confidence as a percentage', () => {
+    const { liveReport, refs, handlers } = loadLiveReportWithSocket();
+
+    liveReport.init();
+    handlers.bot_thinking({
+      type: 'bot_thinking',
+      timestamp: Date.now(),
+      message: 'Holding. Waiting for clearer setup.',
+      confidence: '85.623%',
+    });
+
+    expect(refs.get('reasonMeta').textContent).toContain('confidence 86%');
+    expect(refs.get('reasonMeta').textContent).not.toContain('confidence invalid');
+  });
+
+  test('renders literal sub-one percent-string confidence without scaling it to fifty percent', () => {
+    const { liveReport, refs, handlers } = loadLiveReportWithSocket();
+
+    liveReport.init();
+    handlers.bot_thinking({
+      type: 'bot_thinking',
+      timestamp: Date.now(),
+      message: 'Holding. Waiting for clearer setup.',
+      confidence: '0.5%',
+    });
+
+    expect(refs.get('reasonMeta').textContent).toContain('confidence 0.5%');
+    expect(refs.get('reasonMeta').textContent).not.toContain('confidence 50%');
+  });
+
   test('does not invent a symbol from incomplete runtimeScope', () => {
     const { liveReport, refs, handlers } = loadLiveReportWithSocket();
 
@@ -645,6 +691,43 @@ describe('LiveReport closed-trade outcome contract', () => {
     expect(liveReport._compute().hasTrace).toBe(true);
   });
 
+  test('surfaces empty decision autopsy trace payloads as schema work', () => {
+    const { liveReport, refs, handlers } = loadLiveReportWithSocket();
+
+    liveReport.init();
+    handlers.trace_event({
+      type: 'trace_event',
+      event: 'DECISION_AUTOPSY',
+      timestamp: Date.now(),
+      fields: {},
+    });
+
+    expect(refs.get('trace').textContent).toContain('DECISION_AUTOPSY');
+    expect(refs.get('trace').textContent).toContain('missing autopsy payload');
+    expect(refs.get('trace').textContent).not.toContain('UNMAPPED_TRACE_EVENT');
+    expect(refs.get('traceMeta').textContent).toContain('action required fix trace payload schema');
+  });
+
+  test('surfaces invalid decision autopsy confidence as schema work', () => {
+    const { liveReport, refs, handlers } = loadLiveReportWithSocket();
+
+    liveReport.init();
+    handlers.trace_event({
+      type: 'trace_event',
+      event: 'DECISION_AUTOPSY',
+      timestamp: Date.now(),
+      fields: {
+        confidence: 'abc',
+      },
+    });
+
+    expect(refs.get('trace').textContent).toContain('DECISION_AUTOPSY');
+    expect(refs.get('trace').textContent).toContain('confidence invalid');
+    expect(refs.get('trace').textContent).toContain('malformed autopsy confidence');
+    expect(refs.get('trace').textContent).not.toContain('UNMAPPED_TRACE_EVENT');
+    expect(refs.get('traceMeta').textContent).toContain('action required fix trace payload schema');
+  });
+
   test('turns missing trace event names into explicit schema errors', () => {
     const { liveReport, refs, handlers } = loadLiveReportWithSocket();
 
@@ -763,6 +846,25 @@ describe('LiveReport closed-trade outcome contract', () => {
     expect(refs.get('trace').textContent).toContain('confidence invalid');
     expect(refs.get('trace').textContent).toContain('min invalid');
     expect(refs.get('trace').textContent).not.toContain('12345%');
+  });
+
+  test('renders fractional confidencePct values as percentages', () => {
+    const { liveReport, refs, handlers } = loadLiveReportWithSocket();
+
+    liveReport.init();
+    handlers.trace_event({
+      type: 'trace_event',
+      event: 'DECISION_AUTOPSY',
+      fields: {
+        confidencePct: 0.85,
+        minConfidencePct: 0.5,
+      },
+    });
+
+    expect(refs.get('trace').textContent).toContain('DECISION_AUTOPSY');
+    expect(refs.get('trace').textContent).toContain('confidence 85%');
+    expect(refs.get('trace').textContent).toContain('min 50%');
+    expect(refs.get('trace').textContent).not.toContain('confidence 0.9%');
   });
 
   test('logs trace handler failures instead of silently swallowing them', () => {

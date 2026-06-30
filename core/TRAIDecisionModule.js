@@ -100,6 +100,27 @@ class TRAIDecisionModule extends EventEmitter {
     console.log('[TRAI] Dashboard WebSocket connected');
   }
 
+  normalizeConfidence01(value) {
+    if (value === undefined || value === null || value === '') return null;
+    let normalizedValue = value;
+    let explicitPercent = false;
+    if (typeof normalizedValue === 'string') {
+      normalizedValue = normalizedValue.trim();
+      if (!normalizedValue) return null;
+      explicitPercent = normalizedValue.endsWith('%');
+      if (explicitPercent) {
+        normalizedValue = normalizedValue.slice(0, -1).trim();
+      }
+    }
+    const numeric = Number(normalizedValue);
+    if (!Number.isFinite(numeric) || numeric < 0) return null;
+    if (explicitPercent && numeric > 100) return null;
+    if (explicitPercent) return numeric / 100;
+    if (numeric <= 1) return numeric;
+    if (numeric <= 100) return numeric / 100;
+    return null;
+  }
+
   /**
    * Initialize TRAI Decision Module
    */
@@ -155,12 +176,23 @@ class TRAIDecisionModule extends EventEmitter {
     this.state.totalDecisions++;
 
     const startTime = Date.now();
+    const normalizedSignalConfidence = this.normalizeConfidence01(signal.confidence);
+    const confidenceInputInvalid = normalizedSignalConfidence == null;
+    const normalizedSignal = {
+      ...signal,
+      confidence: confidenceInputInvalid ? 0 : normalizedSignalConfidence,
+      confidenceInputInvalid
+    };
+    const storedSignal = confidenceInputInvalid
+      ? { ...normalizedSignal, confidence: null }
+      : normalizedSignal;
     const decision = {
       id: Date.now(), // CODEX FIX: Add ID for learning feedback loop
       originalSignal: signal,
       createdAt: startTime,
       mode: this.config.mode,
-      originalConfidence: signal.confidence || 0,
+      originalConfidence: confidenceInputInvalid ? null : normalizedSignal.confidence,
+      confidenceInputInvalid,
       traiConfidence: 0,
       finalConfidence: 0,
       traiRecommendation: 'HOLD',
@@ -180,11 +212,11 @@ class TRAIDecisionModule extends EventEmitter {
       console.log(`[TRAI-CHECKPOINT-5] Market analysis - volatility: ${marketAnalysis.volatility}, trend: ${marketAnalysis.trend}`);
 
       // Step 1.5: Evaluate against harvested pattern pack
-      const patternEval = this.patternIntegration.evaluate(signal, {
+      const patternEval = this.patternIntegration.evaluate(normalizedSignal, {
         entryPrice: context.price,
         timestamp: Date.now(),
         direction: signal.action,
-        confidence: signal.confidence,
+        confidence: normalizedSignal.confidence,
         ...context
       });
       decision.patternEval = patternEval;
@@ -194,7 +226,7 @@ class TRAIDecisionModule extends EventEmitter {
 
       // Step 2: Calculate TRAI's independent confidence score
       console.log('[TRAI-CHECKPOINT-6] Calling calculateConfidence');
-      decision.traiConfidence = await this.calculateConfidence(signal, context, marketAnalysis);
+      decision.traiConfidence = await this.calculateConfidence(normalizedSignal, context, marketAnalysis);
       console.log(`[TRAI-CHECKPOINT-7] TRAI confidence calculated: ${decision.traiConfidence}`);
 
       // Step 2.5: Apply pattern pack multiplier to TRAI confidence
@@ -206,19 +238,31 @@ class TRAIDecisionModule extends EventEmitter {
       
       // Step 3: Blend confidences based on mode
       decision.finalConfidence = this.blendConfidences(
-        signal.confidence,
+        normalizedSignal.confidence,
         decision.traiConfidence
       );
       
       // Step 4: Risk assessment and governance
       decision.riskAssessment = await this.assessRisk(signal, context, decision.finalConfidence);
+
+      if (decision.confidenceInputInvalid) {
+        decision.finalConfidence = 0;
+        decision.riskAssessment.approved = false;
+        decision.riskAssessment.vetoReason = 'Invalid signal confidence';
+        decision.riskAssessment.factors = [
+          ...(decision.riskAssessment.factors || []),
+          'invalid_confidence_input'
+        ];
+      }
       
       // Step 5: Make final recommendation (pass original action for proper BUY/SELL handling)
-      decision.traiRecommendation = this.makeRecommendation(
-        decision.finalConfidence,
-        decision.riskAssessment,
-        signal.action
-      );
+      decision.traiRecommendation = decision.confidenceInputInvalid
+        ? 'HOLD'
+        : this.makeRecommendation(
+          decision.finalConfidence,
+          decision.riskAssessment,
+          signal.action
+        );
       
       // Step 6: Check for veto conditions
       if (this.config.enableVetoPower) {
@@ -236,11 +280,11 @@ class TRAIDecisionModule extends EventEmitter {
         // Use LLM for borderline decisions (40-70% confidence) - need deep analysis
         // CRITICAL: Check ORIGINAL confidence, not final (final is already blended down!)
         // Uses persistent LLM server for fast inference (<2s with model in GPU)
-        const useLLM = signal.confidence >= 0.40 && signal.confidence <= 0.70;
+        const useLLM = normalizedSignal.confidence >= 0.40 && normalizedSignal.confidence <= 0.70;
 
         if (useLLM) {
           try {
-            const llmReasoning = await this.generateReasoning(signal, context, decision);
+            const llmReasoning = await this.generateReasoning(normalizedSignal, context, decision);
             // If LLM returns valid response, use it; otherwise record the LLM miss and use rule-based reasoning.
             if (llmReasoning && !llmReasoning.includes("I'm TRAI, your AI co-founder")) {
               decision.reasoning = llmReasoning;
@@ -269,12 +313,12 @@ class TRAIDecisionModule extends EventEmitter {
       }
       
       // Step 9: Store decision for learning
-      this.storeDecision(decision, signal, context);
+      this.storeDecision(decision, storedSignal, context);
 
     } catch (error) {
       console.error('[TRAI] Error processing decision:', error.message);
       // Fail gracefully - return original signal
-      decision.finalConfidence = signal.confidence;
+      decision.finalConfidence = normalizedSignal.confidence;
       // CHANGE 614: Fix case-sensitivity bug - normalize to uppercase for consistency
       const fallbackAction = (signal.action || 'HOLD').toString().toUpperCase();
       decision.traiRecommendation = fallbackAction;
@@ -302,6 +346,12 @@ class TRAIDecisionModule extends EventEmitter {
   broadcastChainOfThought(decision, context) {
     try {
       if (this.wsClient && this.wsClient.readyState === 1) {
+        const dashboardConfidence = decision.confidenceInputInvalid
+          ? 'invalid'
+          : (decision.finalConfidence * 100).toFixed(1);
+        const dashboardOriginalConfidence = decision.confidenceInputInvalid
+          ? null
+          : (decision.originalConfidence * 100).toFixed(1);
         const scope = {
           symbol: context.symbol || null,
           asset: context.symbol || null,
@@ -340,7 +390,7 @@ class TRAIDecisionModule extends EventEmitter {
           timestamp: Date.now(),
           ...scope,
           message: decision.reasoning,
-          confidence: (decision.finalConfidence * 100).toFixed(1),
+          confidence: dashboardConfidence,
           data: {
             ...scope,
             // Market analysis
@@ -352,9 +402,10 @@ class TRAIDecisionModule extends EventEmitter {
             indicators: dashboardIndicators,
 
             // TRAI decision breakdown
-            originalConfidence: (decision.originalConfidence * 100).toFixed(1),
+            confidenceInputInvalid: !!decision.confidenceInputInvalid,
+            originalConfidence: dashboardOriginalConfidence,
             traiConfidence: (decision.traiConfidence * 100).toFixed(1),
-            finalConfidence: (decision.finalConfidence * 100).toFixed(1),
+            finalConfidence: dashboardConfidence,
             recommendation: decision.traiRecommendation,
             riskScore: (decision.riskAssessment.riskScore * 100).toFixed(1),
 
@@ -850,6 +901,10 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
       contextStr = ` Market: RSI ${rsi}, ${trend} trend, ${vol} volatility.`;
     }
 
+    if (decision.confidenceInputInvalid) {
+      return `Holding: invalid confidence input (${traiContribution}), ${risk}% risk. Waiting for valid signal confidence.${contextStr}`;
+    }
+
     if (decision.traiRecommendation === 'STRONG_BUY') {
       return `Strong buy signal: ${original}% base -> ${confidence}% final (${traiContribution}). Risk: ${risk}%. Excellent pattern alignment.${contextStr}`;
     }
@@ -1018,6 +1073,7 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
         timeframe: scopedTimeframe,
         action: signal?.action,
         originalConfidence: decision.originalConfidence,
+        confidenceInputInvalid: !!decision.confidenceInputInvalid,
         regime: context?.regime || null,
         trend: context?.trend || null,
         volatility: context?.volatility || null,

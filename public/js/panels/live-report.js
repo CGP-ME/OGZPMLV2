@@ -55,6 +55,9 @@
         'CANDLE_NORMALIZED',
         'CANDLE_PROCESSOR_RECEIVED',
         'CANDLE_SCOPE_REJECTED',
+        'DECISION_AUTOPSY',
+        'DECISION_AUTOPSY_FAILED',
+        'DECISION_AUTOPSY_WRITE_FAILED',
         'DECISION_SKIP',
         'EVAL_RULE_CHECK',
         'EXECUTE_HANDOFF',
@@ -76,6 +79,11 @@
         'TTP_CONSISTENCY_CHECK',
         'WEBHOOK_ORDER_DISPATCH',
         'WEBHOOK_ORDER_RESULT'
+    ]);
+    const AUTOPSY_TRACE_EVENTS = new Set([
+        'DECISION_AUTOPSY',
+        'DECISION_AUTOPSY_FAILED',
+        'DECISION_AUTOPSY_WRITE_FAILED'
     ]);
 
     const IS_OPERATOR = (function () {
@@ -172,6 +180,20 @@
         const n = Number(v);
         return Number.isFinite(n) ? n : null;
     }
+    function confidencePercent(value) {
+        if (value == null || value === '') return null;
+        let raw = value;
+        let explicitPercent = false;
+        if (typeof raw === 'string') {
+            raw = raw.trim();
+            if (!raw) return null;
+            explicitPercent = raw.endsWith('%');
+            if (explicitPercent) raw = raw.slice(0, -1).trim();
+        }
+        const n = Number(raw);
+        if (!Number.isFinite(n)) return null;
+        return explicitPercent ? n : (Math.abs(n) <= 1 ? n * 100 : n);
+    }
     function eventText(v) {
         if (v == null || v === '') return null;
         const s = String(v).replace(/[\u0000-\u001f\u007f]+/g, ' ').trim();
@@ -190,10 +212,9 @@
             : n.toFixed(0);
         return text + '%';
     }
-    function confidenceText(value, explicitPct) {
-        const n = finiteNumber(value);
-        if (n == null) return 'invalid';
-        const pct = explicitPct ? n : (Math.abs(n) <= 1 ? n * 100 : n);
+    function confidenceText(value) {
+        const pct = confidencePercent(value);
+        if (pct == null) return 'invalid';
         if (!Number.isFinite(pct) || pct < 0 || pct > 100) return 'invalid';
         return pctText(pct);
     }
@@ -735,7 +756,7 @@
             if (t) {
                 const bits = [];
                 if (t.winner)            bits.push('winner ' + esc(t.winner));
-                if (t.confidence != null) bits.push('confidence ' + Number(t.confidence).toFixed(0) + '%');
+                if (t.confidence != null) bits.push('confidence ' + confidenceText(t.confidence, false));
                 if (t.regime)            bits.push('regime ' + esc(t.regime));
                 if (t.ts) {
                     bits.push(new Date(t.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
@@ -1013,19 +1034,8 @@
         const minConfidenceRaw = firstValue(fields.minConfidence, msg.minConfidence);
         const success = firstValue(fields.success);
         const sent = firstValue(fields.sent);
-
-        if (action != null) bits.push('action ' + eventText(action));
-        if (direction != null) bits.push('direction ' + eventText(direction));
-        if (reason != null) bits.push('reason ' + eventText(reason));
-        if (winner != null) bits.push('winner ' + eventText(winner));
-        if (confidencePct != null) bits.push('confidence ' + (confidenceText(confidencePct, true) || eventText(confidencePct)));
-        else if (confidenceRaw != null) bits.push('confidence ' + (confidenceText(confidenceRaw, false) || eventText(confidenceRaw)));
-        if (minConfidencePct != null) bits.push('min ' + (confidenceText(minConfidencePct, true) || eventText(minConfidencePct)));
-        else if (minConfidenceRaw != null) bits.push('min ' + (confidenceText(minConfidenceRaw, false) || eventText(minConfidenceRaw)));
-        if (success != null) bits.push('success ' + eventText(success));
-        if (sent != null) bits.push('sent ' + eventText(sent));
-
-        const meta = [];
+        const status = firstValue(fields.status, msg.status);
+        const skipReason = firstValue(fields.skipReason, msg.skipReason);
         const fieldKeys = traceFieldKeys(fields);
         const traceId = firstValue(msg.traceId, fields.traceId);
         const symbol = firstValue(msg.symbol, fields.symbol);
@@ -1034,6 +1044,32 @@
         const account = firstValue(msg.accountId, fields.accountId);
         const mode = firstValue(msg.executionMode, fields.executionMode);
         const scopeKey = firstValue(msg.scopeKey, fields.scopeKey);
+        const autopsyPayloadMissing = knownEvent
+            && AUTOPSY_TRACE_EVENTS.has(normalizedName)
+            && [traceId, symbol, action, confidencePct, confidenceRaw, reason, status, skipReason, winner].every(v => v == null);
+        const confidencePctText = confidencePct != null ? confidenceText(confidencePct, true) : null;
+        const confidenceRawText = confidenceRaw != null ? confidenceText(confidenceRaw, false) : null;
+        const confidenceInvalid = confidencePctText === 'invalid' || confidenceRawText === 'invalid';
+        const autopsyPayloadMalformed = knownEvent
+            && AUTOPSY_TRACE_EVENTS.has(normalizedName)
+            && confidenceInvalid;
+
+        if (action != null) bits.push('action ' + eventText(action));
+        if (direction != null) bits.push('direction ' + eventText(direction));
+        if (reason != null) bits.push('reason ' + eventText(reason));
+        if (winner != null) bits.push('winner ' + eventText(winner));
+        if (status != null) bits.push('status ' + eventText(status));
+        if (skipReason != null) bits.push('skip ' + eventText(skipReason));
+        if (confidencePct != null) bits.push('confidence ' + (confidencePctText || eventText(confidencePct)));
+        else if (confidenceRaw != null) bits.push('confidence ' + (confidenceRawText || eventText(confidenceRaw)));
+        if (minConfidencePct != null) bits.push('min ' + (confidenceText(minConfidencePct, true) || eventText(minConfidencePct)));
+        else if (minConfidenceRaw != null) bits.push('min ' + (confidenceText(minConfidenceRaw, false) || eventText(minConfidenceRaw)));
+        if (success != null) bits.push('success ' + eventText(success));
+        if (sent != null) bits.push('sent ' + eventText(sent));
+        if (autopsyPayloadMissing) bits.push('missing autopsy payload');
+        if (autopsyPayloadMalformed) bits.push('malformed autopsy confidence');
+
+        const meta = [];
         const ts = msg.timestamp || fields.timestamp || Date.now();
         const eventAt = timestampMs(ts);
 
@@ -1059,7 +1095,8 @@
             metaParts: meta,
             actionRequired: !hasEventName
                 ? 'action required fix trace payload schema'
-                : (!knownEvent ? 'action required add trace vocabulary' : null),
+                : (!knownEvent ? 'action required add trace vocabulary'
+                    : (autopsyPayloadMissing || autopsyPayloadMalformed ? 'action required fix trace payload schema' : null)),
             receivedAt: Date.now(),
             eventAt,
             knownEvent

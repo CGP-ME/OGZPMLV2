@@ -581,6 +581,163 @@ describe('OrderExecutor TRAI learning payload', () => {
     adjustSpy.mockRestore();
   });
 
+  test('TRAI normalizes percent confidence before passive reasoning', async () => {
+    const module = Object.create(TRAIDecisionModule.prototype);
+    module.config = {
+      mode: 'passive',
+      enableVetoPower: false,
+      trackDecisions: false,
+      minConfidenceOverride: 0.4,
+      maxRiskTolerance: 999,
+      emergencyStopLoss: 0.05,
+    };
+    module.state = { totalDecisions: 0 };
+    module.decisionHistory = [];
+    module.patternMemory = new Map();
+    module.patternIntegration = {
+      evaluate: jest.fn(signal => {
+        expect(signal.confidence).toBeCloseTo(0.85623);
+        return {
+          matchedPatterns: [],
+          matchedAntiPatterns: [],
+          confidenceMultiplier: 1,
+        };
+      }),
+    };
+    module.analyzeMarketConditions = jest.fn().mockResolvedValue({
+      volatility: 2.326,
+      trend: 'up trend',
+      sentiment: 'neutral',
+      risk: 'medium',
+    });
+    module.calculateConfidence = jest.fn(async signal => {
+      expect(signal.confidence).toBeCloseTo(0.85623);
+      return 0.83;
+    });
+    module.assessRisk = jest.fn().mockResolvedValue({
+      riskScore: 1,
+      approved: false,
+      reasons: ['risk guard active'],
+    });
+    module.makeRecommendation = jest.fn(() => 'HOLD');
+    module.storeDecision = jest.fn();
+    module.logDecision = jest.fn();
+    module.traiCore = null;
+    module.emit = jest.fn();
+    module.broadcastChainOfThought = jest.fn();
+
+    expect(module.normalizeConfidence01('85.623%')).toBeCloseTo(0.85623);
+    expect(module.normalizeConfidence01('0.5%')).toBeCloseTo(0.005);
+    expect(module.normalizeConfidence01('8562.3%')).toBeNull();
+
+    const decision = await module.processDecision({
+      action: 'HOLD',
+      confidence: '85.623%',
+      patterns: [],
+      symbol: 'TSLA',
+      timeframe: '15m',
+    }, {
+      symbol: 'TSLA',
+      timeframe: '15m',
+      brokerId: 'alpaca',
+      accountId: 'paper-account',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      indicators: { rsi: 81.5 },
+      trend: 'up',
+      volatility: 2.326,
+      price: 380,
+      positionSize: 100,
+    });
+
+    expect(decision.originalConfidence).toBeCloseTo(0.85623);
+    expect(decision.confidenceInputInvalid).toBe(false);
+    expect(decision.finalConfidence).toBeCloseTo(0.85623);
+    expect(decision.reasoning).toContain('Holding: 85.6% confidence');
+    expect(decision.reasoning).toContain('base 85.6%');
+    expect(decision.reasoning).toContain('TRAI observed 83.0%');
+    expect(decision.reasoning).not.toContain('8562.3%');
+    expect(module.storeDecision.mock.calls[0][1].confidence).toBeCloseTo(0.85623);
+  });
+
+  test('TRAI fails closed and labels impossible confidence inputs', async () => {
+    const module = Object.create(TRAIDecisionModule.prototype);
+    module.config = {
+      mode: 'advisory',
+      confidenceWeight: 0.3,
+      enableVetoPower: false,
+      trackDecisions: false,
+      minConfidenceOverride: 0.4,
+      maxRiskTolerance: 999,
+      emergencyStopLoss: 0.05,
+    };
+    module.state = { totalDecisions: 0 };
+    module.decisionHistory = [];
+    module.patternMemory = new Map();
+    module.patternIntegration = {
+      evaluate: jest.fn(signal => {
+        expect(signal.confidence).toBe(0);
+        return {
+          matchedPatterns: [],
+          matchedAntiPatterns: [],
+          confidenceMultiplier: 1,
+        };
+      }),
+    };
+    module.analyzeMarketConditions = jest.fn().mockResolvedValue({
+      volatility: 0.01,
+      trend: 'up trend',
+      sentiment: 'neutral',
+      risk: 'low',
+    });
+    module.calculateConfidence = jest.fn(async () => 0.83);
+    module.assessRisk = jest.fn().mockResolvedValue({
+      riskScore: 0.1,
+      approved: true,
+      factors: [],
+    });
+    module.makeRecommendation = jest.fn(() => 'BUY');
+    module.storeDecision = jest.fn();
+    module.logDecision = jest.fn();
+    module.traiCore = null;
+    module.emit = jest.fn();
+    module.broadcastChainOfThought = jest.fn();
+
+    const decision = await module.processDecision({
+      action: 'BUY',
+      confidence: '8562.3%',
+      patterns: [],
+      symbol: 'TSLA',
+      timeframe: '15m',
+    }, {
+      symbol: 'TSLA',
+      timeframe: '15m',
+      brokerId: 'alpaca',
+      accountId: 'paper-account',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      indicators: { rsi: 81.5 },
+      trend: 'up',
+      volatility: 0.01,
+      price: 380,
+      positionSize: 100,
+    });
+
+    expect(module.makeRecommendation).not.toHaveBeenCalled();
+    expect(decision.confidenceInputInvalid).toBe(true);
+    expect(decision.originalConfidence).toBeNull();
+    expect(decision.traiRecommendation).toBe('HOLD');
+    expect(decision.finalConfidence).toBe(0);
+    expect(decision.riskAssessment.approved).toBe(false);
+    expect(decision.riskAssessment.vetoReason).toBe('Invalid signal confidence');
+    expect(decision.riskAssessment.factors).toContain('invalid_confidence_input');
+    expect(decision.reasoning).toContain('invalid confidence input');
+    expect(decision.reasoning).not.toContain('base 0.0%');
+    expect(module.storeDecision.mock.calls[0][0].confidenceInputInvalid).toBe(true);
+    expect(module.storeDecision.mock.calls[0][1].confidence).toBeNull();
+    expect(module.storeDecision.mock.calls[0][1].confidenceInputInvalid).toBe(true);
+  });
+
   test('TRAI LLM reasoning uses scoped symbol instead of phantom BTC', async () => {
     const module = Object.create(TRAIDecisionModule.prototype);
     module.traiCore = {
