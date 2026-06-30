@@ -3,10 +3,11 @@
 const { getInstance: getMarketCalendar } = require('../foundation/MarketCalendar');
 
 class EvalRuleEngine {
-  constructor({ config = {}, getCandles, getEarningsStatus, now = () => Date.now(), marketCalendar = getMarketCalendar() } = {}) {
+  constructor({ config = {}, getCandles, getEarningsStatus, getCutoffQuarantine, now = () => Date.now(), marketCalendar = getMarketCalendar() } = {}) {
     this.config = config || {};
     this.getCandles = getCandles;
     this.getEarningsStatus = getEarningsStatus;
+    this.getCutoffQuarantine = getCutoffQuarantine;
     this.now = now;
     this.marketCalendar = marketCalendar;
     this.openingVolumeReservations = new Map();
@@ -29,6 +30,18 @@ class EvalRuleEngine {
 
     const passedRules = [];
     const inputs = { ...identity };
+    const quarantineResult = this._checkTtpCutoffQuarantine(entryPlan);
+    Object.assign(inputs, quarantineResult.inputs || {});
+    if (quarantineResult.allowed === false) {
+      return {
+        allowed: false,
+        failedRules: [quarantineResult.failure],
+        passedRules,
+        inputs,
+        ...identity,
+      };
+    }
+
     const marketTimeResult = this._checkTtpMarketTime(entryPlan);
     Object.assign(inputs, marketTimeResult.inputs || {});
     if (marketTimeResult.allowed === false) {
@@ -103,6 +116,42 @@ class EvalRuleEngine {
       traceId: entryPlan.traceId || null,
       signalId: entryPlan.signalId || entryPlan.decisionId || null,
       symbol: entryPlan.symbol || null,
+    };
+  }
+
+  _checkTtpCutoffQuarantine(entryPlan) {
+    if (typeof this.getCutoffQuarantine !== 'function') {
+      return { allowed: true, inputs: { ruleId: 'TTP_CUTOFF_RECONCILIATION', enabled: false } };
+    }
+
+    const quarantine = this.getCutoffQuarantine();
+    if (!quarantine || typeof quarantine !== 'object') {
+      return { allowed: true, inputs: { ruleId: 'TTP_CUTOFF_RECONCILIATION', enabled: false } };
+    }
+
+    const manualRequired = quarantine.manualReconciliationRequired === true
+      || quarantine.requiresManualReconciliation === true;
+    const flatVerified = quarantine.brokerFlatVerified === true;
+    if (manualRequired && !flatVerified) {
+      return this._fail('TTP_CUTOFF_RECONCILIATION', 'manual_reconciliation_required_no_openings', {
+        symbol: entryPlan.symbol,
+        source: quarantine.source || null,
+        status: quarantine.status || null,
+        currentDateET: quarantine.currentDateET || null,
+        brokerFlatVerified: false,
+        manualReconciliationRequired: true,
+        entryBlocking: true,
+      });
+    }
+
+    return {
+      allowed: true,
+      inputs: {
+        ruleId: 'TTP_CUTOFF_RECONCILIATION',
+        enabled: true,
+        brokerFlatVerified: flatVerified,
+        manualReconciliationRequired: manualRequired,
+      },
     };
   }
 

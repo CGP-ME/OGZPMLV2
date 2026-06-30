@@ -318,7 +318,7 @@ class TtpCutoffEnforcer {
     const quarantine = {
       source: 'ttp_cutoff_unverified_broker_flatness',
       status: 'quarantined',
-      entryBlocking: false,
+      entryBlocking: true,
       manualReconciliationRequired: true,
       requiresManualReconciliation: true,
       brokerFlatVerified: false,
@@ -348,14 +348,14 @@ class TtpCutoffEnforcer {
 
     const result = await this.stateManager.updateState(
       { ttpCutoffQuarantine: quarantine },
-      { action: 'TTP_CUTOFF_QUARANTINE', reason, source: quarantine.source, entryBlocking: false }
+      { action: 'TTP_CUTOFF_QUARANTINE', reason, source: quarantine.source, entryBlocking: true }
     );
     if (result && result.success === false) {
       throw new Error(`[TTP_MARKET_TIME] broker flatness quarantine record failed: ${result.error || 'unknown_error'}`);
     }
 
     const warn = typeof this.logger.warn === 'function' ? this.logger.warn.bind(this.logger) : this.logger.log.bind(this.logger);
-    warn(`[TTP_MARKET_TIME] BROKER FLATNESS QUARANTINED date=${state.currentDateET} closed=${quarantine.closedCount} orphanClosed=${quarantine.orphanClosedCount} brokerFlatVerified=false entryBlocking=false manualReconciliationRequired=true`);
+    warn(`[TTP_MARKET_TIME] BROKER FLATNESS QUARANTINED date=${state.currentDateET} closed=${quarantine.closedCount} orphanClosed=${quarantine.orphanClosedCount} brokerFlatVerified=false entryBlocking=true manualReconciliationRequired=true`);
     return quarantine;
   }
 
