@@ -169,17 +169,6 @@ describe('eval live posture gate', () => {
     expect(wrongOrderReport.errors.join('\n')).toMatch(/must list broker\.tradingPair TSLA first/);
   });
 
-  test('rejects stale PM2 eval symbol universe drift such as RIOT after quarantine', () => {
-    const report = validateEvalLivePosture(validEvalLiveEnv({
-      ALPACA_SYMBOLS: 'TSLA,NVDA,SPY,QQQ,COIN,MARA,RIOT',
-      TTP_EARNINGS_STATUS_JSON: earningsStatusJson(currentNewYorkDate(), { RIOT: false }),
-    }));
-
-    expect(report.status).toBe('FAIL');
-    expect(report.checked.symbol.expectedAlpacaSymbols).toEqual(['TSLA', 'NVDA', 'SPY', 'QQQ', 'COIN', 'MARA']);
-    expect(report.errors.join('\n')).toMatch(/ALPACA_SYMBOLS must exactly match eval universe TSLA, NVDA, SPY, QQQ, COIN, MARA/);
-  });
-
   test('readiness passes with explicit flat state and flat Alpaca positions', async () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-eval-ready-'));
     const stateFile = writeStateFile(path.join(tempDir, 'state.json'));
@@ -547,13 +536,13 @@ describe('eval live posture gate', () => {
     expect(report.errors.join('\n')).toMatch(/trai\.enabled must be explicitly sourced/);
   });
 
-  test('fails eval-live posture when TTP start-of-day date is stale', () => {
+  test('warns eval-live posture when TTP start-of-day date is stale without failing posture', () => {
     const report = validateEvalLivePosture(validEvalLiveEnv({
       TTP_ACCOUNT_START_OF_DAY_DATE: '2026-01-01',
     }));
 
-    expect(report.status).toBe('FAIL');
-    expect(report.errors.join('\n')).toMatch(/TTP_ACCOUNT_START_OF_DAY_DATE must match current New York date/);
+    expect(report.status).toBe('PASS');
+    expect(report.warnings.join('\n')).toMatch(/TTP_ACCOUNT_START_OF_DAY_DATE 2026-01-01 does not match current New York date/);
   });
 
   test('rejects backtest tuning profile bleed and unsafe runtime tuning profiles', () => {

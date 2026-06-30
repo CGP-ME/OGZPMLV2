@@ -7,13 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Eval Startup Gate Softening (2026-06-30)
+
+- Removed the eval-live posture exact-symbol-universe hard gate so removed or added Alpaca symbols do not block startup posture by code constant.
+- Changed missing or stale live TTP start-of-day dates from startup errors and entry vetoes to warnings/quarantine metadata so calendar-date drift does not shut down the bot.
+
 ### Live Exit Flip And Hedge Guard (2026-06-29)
 
 - Routed webhook-backed exits through close-only payloads so SELL/COVER liquidation and strategy exits cannot be interpreted as fresh directional buy/sell entries by the destination.
 - Blocked opposite-side entry signals while a same-symbol position is open instead of converting them into flip exits, while preserving short entries from flat.
 - Added OrderExecutor and StateManager same-symbol guards so active long/short hedges and unknown-direction active trades cannot be layered into state.
 - Hardened TTP cutoff liquidation to refuse ambiguous active-trade direction instead of guessing an exit side.
-- Made the eval live posture gate reject stale symbol universes such as RIOT after quarantine instead of passing a runtime env that still subscribes the removed symbol.
 
 ### Eval RIOT Quarantine (2026-06-29)
 

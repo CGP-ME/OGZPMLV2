@@ -173,7 +173,7 @@ describe('EvalRuleEngine TTP volume cap', () => {
     }));
   });
 
-  test('blocks stale start-of-day equity from a prior ET trading date', async () => {
+  test('quarantines stale start-of-day equity from a prior ET trading date without blocking entries', async () => {
     const engine = makeEngine({
       cfg: config({
         accountLimits: {
@@ -187,14 +187,18 @@ describe('EvalRuleEngine TTP volume cap', () => {
       currentEquity: 50000,
     }));
 
-    expect(result.allowed).toBe(false);
-    expect(result.failedRules).toEqual([expect.objectContaining({
-      ruleId: 'TTP_DAILY_LOSS_PAUSE',
+    expect(result.allowed).toBe(true);
+    expect(result.failedRules).toEqual([]);
+    expect(result.passedRules).not.toContain('TTP_DAILY_LOSS_PAUSE');
+    expect(result.inputs).toEqual(expect.objectContaining({
       reason: 'stale_start_of_day_equity',
       accountStartOfDayDate: '2023-11-13',
       currentDateET: '2023-11-14',
       currentEquity: 50000,
-    })]);
+      dailyLossPauseStatus: 'quarantined',
+      dailyLossPauseContributed: false,
+      policy: 'stale_daily_loss_pause_does_not_block_bot',
+    }));
   });
 
   test('fails closed when current equity is missing from the entry plan', async () => {

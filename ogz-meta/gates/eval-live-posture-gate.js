@@ -103,15 +103,6 @@ const RUNTIME_PROFILE_KEYS = Object.freeze([
   'TUNING_PROFILE',
 ]);
 
-const EVAL_ALLOWED_ALPACA_SYMBOLS = Object.freeze([
-  'TSLA',
-  'NVDA',
-  'SPY',
-  'QQQ',
-  'COIN',
-  'MARA',
-]);
-
 function hasOwn(obj, key) {
   return Object.prototype.hasOwnProperty.call(obj, key);
 }
@@ -455,16 +446,6 @@ function validateSymbolConsistency(report) {
   if (symbols[0] !== tradingPair) {
     addError(report.errors, `ALPACA_SYMBOLS must list broker.tradingPair ${tradingPair} first so primary routing remains deterministic, got ${symbols[0]}`);
   }
-  const expectedSymbols = EVAL_ALLOWED_ALPACA_SYMBOLS;
-  const unexpectedSymbols = symbols.filter((symbol) => !expectedSymbols.includes(symbol));
-  const missingSymbols = expectedSymbols.filter((symbol) => !symbols.includes(symbol));
-  report.checked.symbol.expectedAlpacaSymbols = expectedSymbols.slice();
-  if (unexpectedSymbols.length > 0 || missingSymbols.length > 0) {
-    addError(
-      report.errors,
-      `ALPACA_SYMBOLS must exactly match eval universe ${expectedSymbols.join(', ')}, got ${symbols.join(', ')}`
-    );
-  }
 }
 
 function validateTtpCrossChecks(report) {
@@ -598,6 +579,9 @@ function validateEvalLivePosture(sourceEnv = process.env, options = {}) {
 
   try {
     report.configSnapshot = loadConfigSnapshot(sourceEnv, options);
+    for (const warning of report.configSnapshot.warnings || []) {
+      addWarning(report, warning);
+    }
   } catch (error) {
     addError(report.errors, error && error.message ? error.message : String(error));
   }

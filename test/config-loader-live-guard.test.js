@@ -616,22 +616,28 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(() => loadConfig()).toThrow(/TTP_ACCOUNT_START_OF_DAY_EQUITY must be configured/);
   });
 
-  test('rejects missing TTP start-of-day date when eval rules are enabled', () => {
+  test('warns on missing TTP start-of-day date when eval rules are enabled without blocking startup', () => {
     process.env.EVAL_RULES_ENABLED = 'true';
     process.env.TTP_RULES_ENABLED = 'true';
     process.env.TTP_ACCOUNT_START_OF_DAY_DATE = '';
 
-    expect(() => loadConfig()).toThrow(/TTP_ACCOUNT_START_OF_DAY_DATE must be YYYY-MM-DD/);
+    const loaded = loadConfig();
+
+    expect(loaded.config.evalRules.ttp.accountLimits.accountStartOfDayDate).toBe('');
+    expect(loaded.warnings.join('\n')).toMatch(/TTP_ACCOUNT_START_OF_DAY_DATE should be YYYY-MM-DD/);
   });
 
-  test('rejects stale TTP start-of-day date during live eval startup', () => {
+  test('warns on stale TTP start-of-day date during live eval startup without blocking startup', () => {
     process.env.EVAL_RULES_ENABLED = 'true';
     process.env.TTP_RULES_ENABLED = 'true';
     process.env.LIVE_TRADING = 'true';
     process.env.CONFIRM_LIVE_TRADING = 'true';
     process.env.TTP_ACCOUNT_START_OF_DAY_DATE = '2026-01-01';
 
-    expect(() => loadConfig()).toThrow(/TTP_ACCOUNT_START_OF_DAY_DATE must match current New York date/);
+    const loaded = loadConfig();
+
+    expect(loaded.config.evalRules.ttp.accountLimits.accountStartOfDayDate).toBe('2026-01-01');
+    expect(loaded.warnings.join('\n')).toMatch(/TTP_ACCOUNT_START_OF_DAY_DATE 2026-01-01 does not match current New York date/);
   });
 
   test('rejects disabling TTP account limits when eval rules are enabled', () => {

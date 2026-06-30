@@ -699,9 +699,9 @@ function validate(config, sources = {}) {
     }
     if (ttpAccountLimits.enforceDailyLossPause === true) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(String(ttpAccountLimits.accountStartOfDayDate || ''))) {
-        errors.push(`TTP_ACCOUNT_START_OF_DAY_DATE must be YYYY-MM-DD for daily loss pause, got ${ttpAccountLimits.accountStartOfDayDate || '(missing)'}`);
+        warnings.push(`TTP_ACCOUNT_START_OF_DAY_DATE should be YYYY-MM-DD for daily loss pause, got ${ttpAccountLimits.accountStartOfDayDate || '(missing)'}; daily loss pause will be skipped until refreshed`);
       } else if (config.mode.liveTrading && String(ttpAccountLimits.accountStartOfDayDate) !== currentNewYorkDate) {
-        errors.push(`TTP_ACCOUNT_START_OF_DAY_DATE must match current New York date ${currentNewYorkDate} for live eval, got ${ttpAccountLimits.accountStartOfDayDate}`);
+        warnings.push(`TTP_ACCOUNT_START_OF_DAY_DATE ${ttpAccountLimits.accountStartOfDayDate} does not match current New York date ${currentNewYorkDate}; daily loss pause will be skipped until refreshed`);
       }
       if (!Number.isFinite(ttpAccountLimits.accountStartOfDayEquity) || ttpAccountLimits.accountStartOfDayEquity <= 0) {
         errors.push(`TTP_ACCOUNT_START_OF_DAY_EQUITY must be configured for daily loss pause, got ${ttpAccountLimits.accountStartOfDayEquity}`);

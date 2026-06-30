@@ -293,15 +293,19 @@ class EvalRuleEngine {
 
     if (enforceDailyLossPause) {
       if (accountStartOfDayDate !== currentDateET) {
-        return this._fail('TTP_DAILY_LOSS_PAUSE', 'stale_start_of_day_equity', inputs);
-      }
-      if (!Number.isFinite(accountStartOfDayEquity) || accountStartOfDayEquity <= 0 || !Number.isFinite(dailyLossDollars) || dailyLossDollars <= 0) {
+        Object.assign(inputs, {
+          reason: 'stale_start_of_day_equity',
+          dailyLossPauseStatus: 'quarantined',
+          dailyLossPauseContributed: false,
+          policy: 'stale_daily_loss_pause_does_not_block_bot',
+        });
+      } else if (!Number.isFinite(accountStartOfDayEquity) || accountStartOfDayEquity <= 0 || !Number.isFinite(dailyLossDollars) || dailyLossDollars <= 0) {
         return this._fail('TTP_DAILY_LOSS_PAUSE', 'invalid_daily_loss_config', inputs);
-      }
-      if (currentEquity <= dailyPauseThreshold) {
+      } else if (currentEquity <= dailyPauseThreshold) {
         return this._fail('TTP_DAILY_LOSS_PAUSE', 'daily_loss_pause_reached', inputs);
+      } else {
+        passedRules.push('TTP_DAILY_LOSS_PAUSE');
       }
-      passedRules.push('TTP_DAILY_LOSS_PAUSE');
     }
 
     return { allowed: true, inputs, passedRules };
