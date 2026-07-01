@@ -117,9 +117,9 @@
                                   0 0 0 1px rgba(220, 38, 38, 0.06) inset;
 
             /* Resizable rails (driven by rail-resize.js) */
-            --left-rail-width: 320px;
-            --right-rail-width: 320px;
-            --rail-gap: 20px;
+            --left-rail-width: 300px;
+            --right-rail-width: 300px;
+            --rail-gap: 16px;
             --dashboard-top-chrome-height: 287px;
         }
 
@@ -220,16 +220,45 @@
             z-index: 5;
         }
 
-        /* News ticker — horizontal scrolling RTL news events */
-        #newsTicker {
+        /* News ticker — full-width scrolling market event rail */
+        .dash-news-band {
             height: 80px;
             border-bottom: 1px solid var(--border-color);
             background: var(--bg-secondary);
             padding: 8px 12px;
-            overflow-x: auto;
-            overflow-y: hidden;
+            overflow: hidden;
             flex-shrink: 0;
             z-index: 5;
+        }
+
+        .dash-news-band #newsTicker {
+            min-width: 0;
+            height: 100%;
+            min-height: 0;
+            overflow: hidden;
+            margin: 0;
+            background: transparent;
+            padding: 0;
+            border: 0;
+            border-radius: 0;
+        }
+
+        /* Strategy ensemble hotbar — directly under news, above chart */
+        .dash-strategy-band {
+            height: 54px;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            padding: 8px 12px;
+            overflow: hidden;
+            flex-shrink: 0;
+            z-index: 5;
+        }
+
+        .dash-strategy-band #confidenceHeatbar {
+            width: 100%;
+            height: 38px;
+            min-height: 38px;
+            margin: 0;
         }
 
         /* Main content grid: left rail | center | right rail */
@@ -290,7 +319,7 @@
             min-height: 420px;
         }
 
-        /* Strategy Leaderboard now lives in the right rail with performance modules. */
+        /* Strategy Leaderboard lives in the right rail with performance modules. */
 
         /* Readouts row: side-by-side live readouts + pattern card */
         .dash-readouts-row {
@@ -318,7 +347,7 @@
             overflow-y: auto;
         }
 
-        /* Right rail — open positions, TRAI brain, size preview, risk gauge, trade log */
+        /* Right rail — open positions, edge analytics, TRAI brain, size preview, risk gauge, trade log */
         aside.dash-right-rail {
             display: flex;
             flex-direction: column;
@@ -359,8 +388,13 @@
             max-height: 180px;
             overflow-y: auto !important;
         }
-        aside.dash-right-rail #riskGauge { order: 2; }
-        aside.dash-right-rail #edgeAnalyticsPanel { order: 3; }
+        aside.dash-right-rail #riskGauge { order: 3; }
+        aside.dash-right-rail #edgeAnalyticsPanel {
+            order: 2;
+            flex: 1 1 320px;
+            min-height: 300px;
+            max-height: none;
+        }
         aside.dash-right-rail #traiBrain {
             order: 4;
             flex: 0 0 180px !important;
@@ -377,7 +411,6 @@
         aside.dash-right-rail #tradeLog { order: 6; }
         aside.dash-right-rail #strategyLeaderboard { order: 7; }
 
-        #edgeAnalyticsPanel,
         #traiBrain {
             flex: 0 0 180px;
             max-height: 180px;
@@ -521,9 +554,24 @@
                 flex-wrap: wrap;
             }
             #watchlistStrip { height: 96px; padding: 8px; }
-            #newsTicker     { height: 56px; padding: 6px 8px; }
+            .dash-news-band,
+            .dash-strategy-band {
+                padding: 6px 8px;
+            }
+            .dash-news-band {
+                height: 56px;
+            }
+            .dash-strategy-band {
+                height: 50px;
+            }
+            .dash-strategy-band #confidenceHeatbar {
+                height: 36px;
+                min-height: 36px;
+            }
+            .dash-news-band #newsTicker {
+                max-height: 72px;
+            }
             main.dash-main-grid { padding: 8px; gap: 8px; }
-            #strategyLeaderboard { min-height: 120px; max-height: 200px; }
             #chainOfThought { min-height: 160px; padding: 8px; }
             .dash-bottom-row {
                 grid-template-columns: 1fr;
@@ -544,7 +592,22 @@
         @media (max-width: 480px) {
             header#dashHeader { padding: 4px 8px; gap: 6px; }
             #watchlistStrip { height: 84px; padding: 6px; }
-            #newsTicker     { height: 48px; padding: 4px 6px; font-size: 10px; }
+            .dash-news-band,
+            .dash-strategy-band { padding: 4px 6px; }
+            .dash-news-band {
+                height: 48px;
+            }
+            .dash-strategy-band {
+                height: 46px;
+            }
+            .dash-strategy-band #confidenceHeatbar {
+                height: 34px;
+                min-height: 34px;
+            }
+            .dash-news-band #newsTicker {
+                max-height: 56px;
+                font-size: 10px;
+            }
             #chainOfThought { min-height: 140px; padding: 6px; }
             .dash-bottom-row { padding: 6px; gap: 6px; }
             #liveReport,
@@ -641,6 +704,181 @@
         main.dash-main-grid {
             background: transparent;
         }
+
+        /* Mobile operator shell hardening.
+           HeaderStrip and LayoutSwitcher inject styles after this inline block,
+           so these phone rules intentionally use !important only where needed
+           to keep injected desktop floors from widening or burying the page. */
+        @media (max-width: 768px) {
+            html,
+            body {
+                width: 100%;
+                max-width: 100%;
+                height: auto;
+                overflow-x: hidden !important;
+            }
+
+            header#dashHeader {
+                box-sizing: border-box;
+                width: 100%;
+                max-width: 100vw;
+                min-width: 0;
+                padding: 6px 8px !important;
+                gap: 6px !important;
+                align-items: flex-start !important;
+                justify-content: flex-start !important;
+                overflow: hidden !important;
+            }
+
+            header#dashHeader > *,
+            .hs-brand,
+            .hs-hero-price,
+            .hs-status-cluster {
+                min-width: 0 !important;
+                max-width: 100% !important;
+            }
+
+            .hs-brand {
+                flex: 1 1 148px !important;
+            }
+
+            .hs-logo {
+                width: 150px !important;
+                height: 40px !important;
+                max-width: 100% !important;
+            }
+
+            .hs-tagline {
+                letter-spacing: 1px !important;
+                white-space: normal !important;
+                overflow-wrap: anywhere;
+            }
+
+            .hs-hero-price {
+                flex: 1 1 144px !important;
+                text-align: right !important;
+            }
+
+            .hs-hero-price-main {
+                font-size: 24px !important;
+                letter-spacing: 0 !important;
+            }
+
+            .hs-hero-price-delta,
+            .hs-hero-session-meta {
+                font-size: 10px !important;
+                letter-spacing: 0 !important;
+            }
+
+            .hs-status-cluster {
+                flex: 1 1 100% !important;
+                margin-left: 0 !important;
+                flex-wrap: wrap !important;
+                justify-content: space-between !important;
+                gap: 6px !important;
+            }
+
+            .hs-status-lights-bar {
+                flex: 1 1 auto !important;
+                flex-wrap: wrap !important;
+                gap: 8px !important;
+                padding: 6px 8px !important;
+                max-width: 100% !important;
+                border-radius: 14px !important;
+            }
+
+            .hs-risk-budget {
+                min-width: 54px !important;
+                padding: 5px 8px !important;
+            }
+
+            .hs-account-selector {
+                max-width: 120px !important;
+                min-width: 0 !important;
+                padding: 5px 8px !important;
+            }
+
+            .ogz-layout-switcher {
+                margin-left: 0 !important;
+                max-width: 100% !important;
+            }
+
+            .ogz-layout-switcher-btn {
+                max-width: 112px !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+                padding: 4px 6px !important;
+            }
+
+            .ogz-layout-hint {
+                display: none !important;
+            }
+
+            main.dash-main-grid,
+            .dash-center,
+            .dash-left-rail,
+            .dash-right-rail {
+                min-width: 0 !important;
+                max-width: 100% !important;
+                overflow-x: hidden !important;
+                box-sizing: border-box;
+            }
+
+            #chartPanel {
+                min-height: 520px !important;
+            }
+
+            #chartPanel .cp-header {
+                min-width: 0 !important;
+                overflow: hidden !important;
+            }
+
+            #chartPanel .cp-container,
+            #chartPanel .cp-tv-chart-container {
+                min-height: 340px !important;
+            }
+
+            .cp-title-container,
+            .cp-controls,
+            .cp-indicator-checkboxes {
+                min-width: 0 !important;
+                max-width: 100% !important;
+            }
+
+            .dash-readouts-row {
+                flex-direction: column;
+                min-height: 0;
+            }
+
+            #patternCard {
+                flex: 0 0 auto;
+            }
+
+            .dash-bottom-row {
+                max-height: none !important;
+                overflow: visible !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .hs-logo {
+                width: 132px !important;
+                height: 36px !important;
+            }
+
+            .hs-hero-price-main {
+                font-size: 21px !important;
+            }
+
+            #chartPanel {
+                min-height: 480px !important;
+            }
+
+            #chartPanel .cp-container,
+            #chartPanel .cp-tv-chart-container {
+                min-height: 300px !important;
+            }
+        }
     </style>
 </head>
 
@@ -669,13 +907,17 @@
     <div id="watchlistStrip"></div>
 
     <!-- ========================================================================
-         NEWS TICKER
+         TOP INTEL BANDS: News + Strategy Ensemble
 
-         Status: Module exists as public/js/panels/news-ticker.js
-         Features: RTL marquee scrolling of trading-altering events (FOMC, earnings, etc.)
-         Mount point: NewsTicker.js targets #newsTicker at init
+         NewsTicker keeps the full-width marquee. ConfidenceHeatbar is the
+         strategy ensemble heatmap directly underneath it above the main chart.
          ======================================================================== -->
-    <div id="newsTicker"></div>
+    <section class="dash-news-band" aria-label="Market news">
+        <div id="newsTicker"></div>
+    </section>
+    <section class="dash-strategy-band" aria-label="Strategy ensemble">
+        <div id="confidenceHeatbar"></div>
+    </section>
 
     <!-- ========================================================================
          MAIN GRID: Left Rail | Center | Right Rail
@@ -683,7 +925,7 @@
     <main class="dash-main-grid">
 
         <!-- ====================================================================
-             LEFT RAIL: Chain of Thought + Confidence Heatbar
+             LEFT RAIL: Chain of Thought
              ==================================================================== -->
         <aside class="dash-left-rail">
 
@@ -693,10 +935,6 @@
                  Subscribes to narrator_event (verified) + bot_thinking + signal_analysis. -->
             <div id="chainOfThought"></div>
 
-            <!-- Confidence Heatbar (Phase E) -->
-            <!-- Status: Module exists as public/js/panels/confidence-heatbar.js
-                 Mount-point ID matches the module's ROOT_ID = 'confidenceHeatbar'. -->
-            <div id="confidenceHeatbar"></div>
         </aside>
 
         <!-- ====================================================================
@@ -712,7 +950,7 @@
                  chartHudOhlc, etc.) so drawing-tools.js + other consumers still work. -->
             <div id="chartPanel"></div>
 
-            <!-- Strategy Leaderboard moved to right rail under Trade Log. -->
+            <!-- Strategy ensemble heatmap lives in the top strategy band above the chart. -->
 
             <!-- Readouts Row: Live Readouts + Pattern Card (side-by-side) -->
             <div class="dash-readouts-row">
@@ -784,8 +1022,9 @@
 
             <!-- Strategy Leaderboard -->
             <!-- Status: Module exists as public/js/panels/strategy-leaderboard.js -->
-            <!-- Features: Backtest leaderboard, historical trade performance -->
+            <!-- Features: Session strategy attribution, P&L, trade count, win rate -->
             <div id="strategyLeaderboard"></div>
+
         </aside>
     </main>
 
@@ -867,14 +1106,14 @@
     <script src="/js/panels/pattern-sparkline.js?v=1777847456749"></script>
 
     <!-- Phase E: Confidence Heatbar + Risk Gauge -->
-    <script src="/js/panels/confidence-heatbar.js?v=1779666442541"></script>
+    <script src="/js/panels/confidence-heatbar.js?v=1782860300000"></script>
     <script src="/js/panels/risk-gauge.js?v=1782700000000"></script>
 
     <!-- Phase F: HUD Widgets (Candle Countdown, Session Phase, Size Preview, Strategy Leaderboard) -->
     <script src="/js/panels/candle-countdown.js?v=1777005601913"></script>
     <script src="/js/panels/session-phase.js?v=1777945312788"></script>
     <script src="/js/panels/size-preview.js?v=1777847456749"></script>
-    <script src="/js/panels/strategy-leaderboard.js?v=1780008152632"></script>
+    <script src="/js/panels/strategy-leaderboard.js?v=1782860200000"></script>
 
     <!-- Trading panels -->
     <script src="/js/panels/trade-log.js?v=1782670000000"></script>

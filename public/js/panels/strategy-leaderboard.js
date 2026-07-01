@@ -250,7 +250,7 @@
         let html = `
             <div class="sl-head">
                 <span>Strategy Leaderboard · Session</span>
-                <button class="sl-reset" data-role="reset" title="Reset session">⟲ reset</button>
+                <button class="sl-reset" data-role="reset" title="Reset session">reset</button>
             </div>
             <div class="sl-agg">
                 <span class="sl-agg-pnl ${aggPnlCls}">${fmtUsd(aggPnl)}</span>

@@ -191,16 +191,11 @@
     function mount() {
         if (state.mounted) return true;
 
-        // Gate H landmine fix. The v2 shell already ships an empty
-        // <div id="confidenceHeatbar"> in the left rail. The module must
-        // mount into that element; it already does (no duplicate root
-        // is ever created; the getElementById guard prevents that). The real
-        // bug: the adopt path below returned immediately without building the
-        // .hb-label/.hb-track/.hb-winner-tag scaffold. That scaffold was
-        // only ever written on the self-create path. So when adopting the
-        // HTML-supplied div, renderSegments()' `.hb-track` lookup returned
-        // null and the heatbar silently rendered nothing despite receiving
-        // live bot_thinking / signal_analysis data. Build the scaffold here.
+        // The v2 shell ships an empty <div id="confidenceHeatbar"> in the
+        // top strategy band. The module adopts that element instead of
+        // creating a duplicate root. Build the scaffold on adoption so
+        // renderSegments() always has the .hb-track/.hb-winner-tag nodes it
+        // needs when live bot_thinking / signal_analysis data arrives.
         const existing = document.getElementById(ROOT_ID);
         if (existing) {
             if (!existing.querySelector('.hb-track')) {
