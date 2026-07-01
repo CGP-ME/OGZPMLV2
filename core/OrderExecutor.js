@@ -398,6 +398,25 @@ class OrderExecutor {
     return null;
   }
 
+  _webhookCorrelationOrderId(action, orderPlan, decisionId) {
+    const symbol = String(orderPlan?.symbol || 'UNKNOWN').trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_');
+    const actionKey = String(action || 'ORDER').trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_');
+    const decisionKey = String(decisionId || `dec_${Date.now()}`).trim().replace(/[^A-Za-z0-9_-]+/g, '_');
+    return `WEBHOOK_PENDING_${actionKey}_${symbol}_${decisionKey}`;
+  }
+
+  _webhookResponseBody(result = {}) {
+    const body = result?.response?.body;
+    return typeof body === 'string' ? body : '';
+  }
+
+  _isWebhookBrokerFlatResult(action, result = {}) {
+    if (!this._isExitAction(action)) return false;
+    return this._webhookResponseBody(result)
+      .toLowerCase()
+      .includes('no open positions for the asset');
+  }
+
   _getActiveTradeById(orderId) {
     if (!orderId) return null;
 
@@ -656,20 +675,25 @@ class OrderExecutor {
   _broadcastBrokerOrderResult(baseFields, result = {}) {
     const response = result?.response || null;
     const sent = result?.sent === true;
-    const reason = result?.reason || (sent ? null : 'not_sent');
+    const orderId = this._extractWebhookOrderId(result);
+    const brokerFlat = this._isWebhookBrokerFlatResult(baseFields.action, result);
+    const acceptedWithoutOrderId = sent && !orderId && !brokerFlat;
+    const ok = sent && !brokerFlat;
+    const reason = result?.reason || (brokerFlat ? 'broker_flat_no_open_position' : acceptedWithoutOrderId ? 'accepted_without_order_id' : ok ? null : sent ? 'missing_webhook_order_id' : 'not_sent');
     const body = typeof response?.body === 'string' ? response.body.slice(0, 500) : null;
     const scope = this._runtimeScope(baseFields.symbol || null, baseFields, { preferOverrides: true });
 
     const frame = {
-      type: sent ? 'broker_ack' : 'broker_reject',
+      type: ok ? 'broker_ack' : 'broker_reject',
       timestamp: Date.now(),
-      ok: sent,
+      ok,
       sent,
       route: 'webhook',
       traceId: baseFields.traceId || null,
       signalId: baseFields.signalId || null,
       decisionId: baseFields.decisionId || null,
-      orderId: result?.orderId || response?.orderId || null,
+      orderId: orderId || null,
+      acceptedWithoutOrderId,
       symbol: baseFields.symbol || null,
       action: baseFields.action || null,
       webhookAction: baseFields.webhookAction || null,
@@ -687,13 +711,14 @@ class OrderExecutor {
       dryRun: reason === 'dry_run',
       responseBody: body,
       data: {
-        ok: sent,
+        ok,
         sent,
         route: 'webhook',
         traceId: baseFields.traceId || null,
         signalId: baseFields.signalId || null,
         decisionId: baseFields.decisionId || null,
-        orderId: result?.orderId || response?.orderId || null,
+        orderId: orderId || null,
+        acceptedWithoutOrderId,
         symbol: baseFields.symbol || null,
         action: baseFields.action || null,
         webhookAction: baseFields.webhookAction || null,
@@ -710,6 +735,7 @@ class OrderExecutor {
         reason,
         dryRun: reason === 'dry_run',
         responseBody: body,
+        brokerFlat,
       },
     };
     const sentFrame = this._sendDashboardFrame(frame);
@@ -1791,21 +1817,82 @@ class OrderExecutor {
             route: 'webhook',
             stateMutationSucceeded: false,
           });
+        } else if (!webhookOrderId && this._isWebhookBrokerFlatResult(decision.action, webhookResult)) {
+          const responseBody = this._webhookResponseBody(webhookResult).slice(0, 500);
+          const reconciled = await stateManager.reconcileBrokerFlat(exitPlan.tradeId, {
+            traceId,
+            signalId,
+            decisionId,
+            symbol,
+            action: decision.action,
+            reason: 'broker_flat_no_open_position',
+            responseBody,
+          });
+          if (reconciled?.success === true) {
+            tradeResult = {
+              success: false,
+              reason: 'broker_flat_reconciled',
+              traceId,
+              signalId,
+              stateMutationSucceeded: true,
+              brokerFlatReconciled: true,
+            };
+            emitTrace(this.ctx, 'STATE_MUTATION', {
+              traceId,
+              signalId,
+              symbol,
+              action: decision.action,
+              success: true,
+              operation: 'reconcileBrokerFlat',
+              orderId: exitPlan.tradeId,
+              reason: 'broker_flat_no_open_position',
+              stateMutationSucceeded: true,
+            });
+          } else {
+            tradeResult = {
+              success: false,
+              reason: 'broker_flat_reconcile_failed',
+              traceId,
+              signalId,
+              stateMutationSucceeded: false,
+            };
+            emitTrace(this.ctx, 'STATE_MUTATION', {
+              traceId,
+              signalId,
+              symbol,
+              action: decision.action,
+              success: false,
+              operation: 'reconcileBrokerFlat',
+              orderId: exitPlan.tradeId,
+              reason: reconciled?.error || 'broker_flat_reconcile_failed',
+              stateMutationSucceeded: false,
+            });
+          }
         } else if (!webhookOrderId) {
+          const localOrderId = this._webhookCorrelationOrderId(decision.action, brokerOrderPlan, decisionId);
           tradeResult = {
-            success: false,
-            reason: 'missing_webhook_order_id',
+            success: true,
+            orderId: localOrderId,
+            brokerOrderId: null,
+            webhookOrderIdMissing: true,
+            webhookAcceptedWithoutOrderId: true,
+            responseBody: this._webhookResponseBody(webhookResult).slice(0, 500),
+            price,
+            amount: brokerOrderPlan.sizeUsd,
+            orderQuantity: brokerOrderPlan.orderQuantity,
+            quantityUnit: brokerOrderPlan.quantityUnit,
             traceId,
             signalId,
           };
-          emitTrace(this.ctx, 'ORDER_BLOCKED', {
+          emitTrace(this.ctx, 'WEBHOOK_ACCEPTED_WITHOUT_ORDER_ID', {
             traceId,
             signalId,
+            decisionId,
             symbol,
             action: decision.action,
-            reason: 'missing_webhook_order_id',
+            localOrderId,
             route: 'webhook',
-            stateMutationSucceeded: false,
+            responseBody: tradeResult.responseBody,
           });
         } else {
           tradeResult = {
@@ -2087,6 +2174,9 @@ class OrderExecutor {
             traceId,
             signalId,
             decisionId,
+            brokerOrderId: tradeResult.brokerOrderId === undefined ? tradeResult.orderId : tradeResult.brokerOrderId,
+            webhookOrderIdMissing: tradeResult.webhookOrderIdMissing === true,
+            webhookAcceptedWithoutOrderId: tradeResult.webhookAcceptedWithoutOrderId === true,
             // CC-A Change 2: stamp indicator state at entry on trade record
             atrAtEntry: decision.atrAtEntry ?? null,
             regimeAtEntry: decision.regimeAtEntry ?? null,
@@ -2290,6 +2380,9 @@ class OrderExecutor {
             traceId,
             signalId,
             decisionId,
+            brokerOrderId: tradeResult.brokerOrderId === undefined ? tradeResult.orderId : tradeResult.brokerOrderId,
+            webhookOrderIdMissing: tradeResult.webhookOrderIdMissing === true,
+            webhookAcceptedWithoutOrderId: tradeResult.webhookAcceptedWithoutOrderId === true,
             // CC-A Change 2: stamp indicator state at entry on trade record
             atrAtEntry: decision.atrAtEntry ?? null,
             regimeAtEntry: decision.regimeAtEntry ?? null,
@@ -3412,6 +3505,9 @@ class OrderExecutor {
         console.log(`${decision.action} executed: ${tradeResult.orderId || 'SIMULATED'} | Size: $${(tradeResult.amount ?? positionSize).toFixed(2)}\n`);
         return executionReturn(true, {
           orderId: tradeResult.orderId,
+          brokerOrderId: tradeResult.brokerOrderId === undefined ? tradeResult.orderId : tradeResult.brokerOrderId,
+          webhookOrderIdMissing: tradeResult.webhookOrderIdMissing === true,
+          webhookAcceptedWithoutOrderId: tradeResult.webhookAcceptedWithoutOrderId === true,
           orderAccepted: true,
           stateMutationSucceeded: true,
           price: tradeResult.price ?? price,
@@ -3422,7 +3518,7 @@ class OrderExecutor {
 	        });
       } else {
         const blockReason = tradeResult?.reason || 'trade_result_not_successful_without_reason';
-        if (exitIntent) {
+        if (exitIntent && tradeResult?.brokerFlatReconciled !== true) {
           const released = await stateManager.releaseExitSlot(exitPlan.tradeId, exitIntent.intentId, {
             reason: blockReason,
           });
@@ -3460,6 +3556,8 @@ class OrderExecutor {
         return blockedReturn(blockReason, {
           orderId: tradeResult?.orderId || null,
           orderAccepted: false,
+          stateMutationSucceeded: tradeResult?.stateMutationSucceeded ?? false,
+          brokerFlatReconciled: tradeResult?.brokerFlatReconciled === true,
         });
       }
 

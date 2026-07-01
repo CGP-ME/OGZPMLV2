@@ -256,6 +256,100 @@ describe('TradeJournalBridge scoped storage', () => {
     }
   });
 
+  test('reconciles stale journal-open trades at startup when state and broker are flat', async () => {
+    const {
+      TradeJournalBridge,
+      TradeJournal,
+      resolveJournalScope,
+      resolveJournalDataDir,
+    } = require('../core/TradeJournalBridge');
+    const journalRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'trade-journal-startup-reconcile-'));
+    const activeTrades = new Map();
+    const bot = {
+      tradingPair: 'TSLA',
+      candleTimeframe: '15m',
+      config: {
+        tradingPair: 'TSLA',
+        brokerId: 'alpaca',
+        accountId: 'acct-1',
+        assetClass: 'stocks',
+        executionMode: 'live',
+        timeframe: '15m',
+        journalDataDir: journalRoot,
+      },
+      ttpCutoffSymbols: ['TSLA'],
+      kraken: {
+        getPositions: jest.fn(async () => []),
+      },
+      executeTrade: jest.fn(async () => ({
+        success: true,
+        orderId: 'unused',
+        orderAccepted: true,
+        stateMutationSucceeded: true,
+      })),
+      stateManager: {
+        get: jest.fn((key) => {
+          if (key === 'activeTrades') return activeTrades;
+          if (key === 'positionCount') return 0;
+          return null;
+        }),
+      },
+      priceHistory: [],
+    };
+    const scope = resolveJournalScope(bot);
+    const journalDir = resolveJournalDataDir(bot, { dataDir: journalRoot }, scope);
+    const preexistingJournal = new TradeJournal({
+      dataDir: journalDir,
+      scope,
+      startingBalance: 5000,
+      autoSaveInterval: 600000,
+    });
+    preexistingJournal.recordEntry({
+      orderId: 'STALE-JOURNAL-OPEN',
+      direction: 'BUY',
+      entryPrice: 400,
+      size: 800,
+      usdValue: 800,
+      confidence: 72,
+      fees: 1.5,
+      timestamp: Date.parse('2026-06-29T16:50:00.000Z'),
+      regime: 'ranging',
+      indicators: { rsi: 48, macd: 0.1, trend: 'up', volatility: 0.2 },
+      patterns: [],
+      entryStrategy: 'EMASMACrossover',
+    });
+    preexistingJournal.destroy();
+
+    const bridge = new TradeJournalBridge(bot, {
+      dataDir: journalRoot,
+      startingBalance: 5000,
+      autoSaveInterval: 600000,
+    });
+
+    try {
+      await bridge._startupJournalReconciliationPromise;
+
+      expect(bot.kraken.getPositions).toHaveBeenCalledTimes(1);
+      expect(bridge._combinedJournalSnapshot().openPositions).toBe(0);
+      expect(bridge.journal.openTrades.size).toBe(0);
+      const rows = readJsonl(path.join(journalDir, 'trade-ledger.jsonl'));
+      expect(rows).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          event: 'OPEN_TRADE_RECONCILED',
+          orderId: 'STALE-JOURNAL-OPEN',
+          reason: 'state_manager_and_broker_flat',
+          source: 'TradeJournalBridge.startup_authoritative_reconciliation',
+          stateActiveTradeCount: 0,
+          brokerPositionCount: 0,
+          brokerSymbolPositionCount: 0,
+        }),
+      ]));
+    } finally {
+      bridge.destroy();
+      fs.rmSync(journalRoot, { recursive: true, force: true });
+    }
+  });
+
   test('does not mark flat or malformed replay notifications as wins', () => {
     const { TradeJournalBridge } = require('../core/TradeJournalBridge');
     const sent = [];
@@ -1591,7 +1685,7 @@ describe('TradeJournalBridge scoped storage', () => {
     }
   });
 
-  test('visibility failure stamps total persistence failure, pauses trading, and still emits dashboard evidence', () => {
+  test('visibility failure stamps total persistence failure, alerts only, and still emits dashboard evidence', () => {
     const { TradeJournalBridge } = require('../core/TradeJournalBridge');
     const stderrSpy = jest.spyOn(fs, 'writeSync').mockImplementation(() => {});
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -1631,20 +1725,14 @@ describe('TradeJournalBridge scoped storage', () => {
         visibilityLedgerPersisted: false,
         visibilityFallbackPersisted: false,
         visibilityAllPersistenceFailed: true,
-        visibilityTradingPauseAttempted: true,
-        visibilityTradingPauseConfirmed: true,
+        visibilityTradingPauseAttempted: false,
+        visibilityTradingPauseConfirmed: false,
       });
       expect(record.visibilityTradingPauseReason).toContain('ORDER-VIS-5');
       expect(record.visibilityLedgerError).toEqual(expect.any(String));
       expect(record.visibilityFallbackError).toEqual(expect.any(String));
-      expect(bridge.bot.stateManager.pauseTrading).toHaveBeenCalledWith(
-        expect.stringContaining('ORDER-VIS-5'),
-        expect.objectContaining({
-          source: 'TradeJournalBridge.visibility',
-          recoverable: false,
-          scope: bridge.journal.scope,
-        })
-      );
+      expect(bridge.bot.stateManager.pauseTrading).not.toHaveBeenCalled();
+      expect(state.isTrading).toBe(true);
       expect(stderrSpy).toHaveBeenCalledWith(
         2,
         expect.stringContaining('[TRADE_VISIBILITY_FAILURE_UNPERSISTED]')
@@ -1654,7 +1742,7 @@ describe('TradeJournalBridge scoped storage', () => {
         data: expect.objectContaining({
           orderId: 'ORDER-VIS-5',
           visibilityAllPersistenceFailed: true,
-          visibilityTradingPauseConfirmed: true,
+          visibilityTradingPauseConfirmed: false,
         }),
       }));
     } finally {

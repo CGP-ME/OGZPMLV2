@@ -7,8 +7,6 @@
  * CRITICAL: High lag = delayed trades = losses
  */
 
-const { getInstance: getStateManager } = require('./StateManager');
-
 class EventLoopMonitor {
   constructor(config = {}) {
     // Configuration
@@ -35,7 +33,7 @@ class EventLoopMonitor {
     this.onWarning = config.onWarning || null;
     this.onCritical = config.onCritical || null;
 
-    console.log('⚡ EventLoopMonitor initialized');
+    console.log('[EventLoopMonitor] initialized');
     console.log(`   Warning threshold: ${this.warningThreshold}ms`);
     console.log(`   Critical threshold: ${this.criticalThreshold}ms`);
   }
@@ -45,11 +43,11 @@ class EventLoopMonitor {
    */
   start() {
     if (this.isMonitoring) {
-      console.log('⚠️ Event loop monitoring already active');
+      console.log('[EventLoopMonitor] monitoring already active');
       return;
     }
 
-    console.log('🔍 Starting event loop monitoring...');
+    console.log('[EventLoopMonitor] Starting event loop monitoring...');
     this.isMonitoring = true;
     this.lastCheck = Date.now();
 
@@ -68,7 +66,7 @@ class EventLoopMonitor {
   stop() {
     if (!this.isMonitoring) return;
 
-    console.log('🛑 Stopping event loop monitoring');
+    console.log('[EventLoopMonitor] Stopping event loop monitoring');
     this.isMonitoring = false;
 
     if (this.monitorTimer) {
@@ -146,7 +144,7 @@ class EventLoopMonitor {
   recordPreciseLag(lag) {
     // This catches micro-freezes that interval checks might miss
     if (lag > this.warningThreshold) {
-      console.warn(`⚠️ Event loop micro-freeze detected: ${lag}ms`);
+      console.warn(`[EVENT_LOOP] micro-freeze detected: ${lag}ms`);
 
       if (lag > this.criticalThreshold) {
         this.handleCriticalLag(lag);
@@ -160,7 +158,7 @@ class EventLoopMonitor {
   handleWarningLag(lag) {
     this.stats.warningCount++;
 
-    console.warn(`⚠️ EVENT LOOP LAG WARNING: ${lag}ms`);
+    console.warn(`[EVENT_LOOP] LAG WARNING: ${lag}ms`);
     console.warn(`   Total warnings: ${this.stats.warningCount}`);
     console.warn(`   Average lag: ${this.stats.avgLag.toFixed(1)}ms`);
 
@@ -177,22 +175,14 @@ class EventLoopMonitor {
   }
 
   /**
-   * Handle critical-level lag - PAUSE TRADING
+   * Handle critical-level lag as an alert-only signal.
    */
   async handleCriticalLag(lag) {
     this.stats.criticalCount++;
 
-    console.error('🚨 CRITICAL EVENT LOOP LAG: ' + lag + 'ms');
-    console.error('   PAUSING TRADING FOR SAFETY');
+    console.error('[EVENT_LOOP] CRITICAL LAG: ' + lag + 'ms');
+    console.error('   Alert only; trading is not paused by EventLoopMonitor');
     console.error(`   Critical events: ${this.stats.criticalCount}`);
-
-    // PAUSE TRADING IMMEDIATELY
-    try {
-      const stateManager = getStateManager();
-      await stateManager.pauseTrading(`Critical event loop lag: ${lag}ms`);
-    } catch (error) {
-      console.error('❌ Failed to pause trading:', error.message);
-    }
 
     if (this.onCritical) {
       this.onCritical(lag, this.stats);
@@ -203,7 +193,7 @@ class EventLoopMonitor {
       type: 'event_loop_critical',
       lag: lag,
       stats: this.stats,
-      action: 'TRADING_PAUSED'
+      action: 'ALERT_ONLY'
     });
   }
 
@@ -277,12 +267,12 @@ class EventLoopMonitor {
    * Diagnostic function to deliberately create lag (for testing)
    */
   testLag(duration = 1000) {
-    console.log(`🧪 Creating test lag for ${duration}ms...`);
+    console.log(`[EventLoopMonitor] Creating test lag for ${duration}ms...`);
     const start = Date.now();
     while (Date.now() - start < duration) {
       // Busy loop to block event loop
     }
-    console.log('🧪 Test lag complete');
+    console.log('[EventLoopMonitor] Test lag complete');
   }
 
   /**
@@ -298,7 +288,7 @@ class EventLoopMonitor {
       lastLag: 0
     };
     this.lagHistory = [];
-    console.log('📊 Event loop stats reset');
+    console.log('[EventLoopMonitor] Event loop stats reset');
   }
 }
 

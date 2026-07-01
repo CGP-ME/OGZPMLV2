@@ -15,6 +15,7 @@ const mockStateManager = {
   reserveExitSlot: jest.fn(),
   releaseExitSlot: jest.fn(),
   applyFill: jest.fn(),
+  reconcileBrokerFlat: jest.fn(),
   getTradesBySymbol: jest.fn(),
   haltSymbol: jest.fn(),
   removeActiveTrade: jest.fn(),
@@ -227,6 +228,7 @@ describe('OrderExecutor pause gate', () => {
       pnl: 0,
       netRealizedResult: 0,
     });
+    mockStateManager.reconcileBrokerFlat.mockResolvedValue({ success: true });
     mockStateManager.getTradesBySymbol.mockReturnValue([]);
     mockStateManager.haltSymbol.mockResolvedValue({ success: true });
   });
@@ -826,7 +828,113 @@ describe('OrderExecutor pause gate', () => {
     expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining('webhook_fractional_share_quantity'));
   });
 
-  test('enabled webhook route sent response without order identity blocks local state mutation', async () => {
+  test('enabled webhook exit accepted without order identity still applies local fill with correlation id', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: 500, balance: 10000 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([makeBuyTrade()]);
+    const webhookAdapter = {
+      enabled: true,
+      dryRun: false,
+      emit: jest.fn().mockResolvedValue({
+        sent: true,
+        response: { status: 202, body: 'Broker accepted. Order is in the pipe.' },
+      }),
+    };
+    const executor = makeExecutor({}, { webhookAdapter });
+
+    const result = await executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'BUY_1', exitReason: 'tier_exit', exitFraction: 0.3, decisionId: 'decision_webhook_exit_no_id' },
+      {},
+      125,
+      { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: true,
+      orderId: 'WEBHOOK_PENDING_SELL_TSLA_decision_webhook_exit_no_id',
+      orderAccepted: true,
+      stateMutationSucceeded: true,
+      webhookOrderIdMissing: true,
+      webhookAcceptedWithoutOrderId: true,
+      brokerOrderId: null,
+      orderQuantity: 1,
+      quantityUnit: 'shares',
+    }));
+    expect(webhookAdapter.emit).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'close',
+      symbol: 'TSLA',
+      quantity: 1,
+      quantityUnit: 'shares',
+      bypassThrottle: true,
+    }));
+    expectExitFillApplied({
+      tradeId: 'BUY_1',
+      filledQuantity: 1,
+      fillPrice: 125,
+      remainingQuantity: 4,
+      simulated: true,
+      expectedReserveFraction: 0.2,
+      expectedReserveRemainingQuantity: 4,
+    });
+  });
+
+  test('webhook exit already-flat response reconciles local active trade instead of retrying as accepted', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: 500, balance: 10000 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([makeBuyTrade({
+      orderId: 'LIVE_STALE_LONG',
+      id: 'LIVE_STALE_LONG',
+      symbol: 'TSLA',
+      entryOrderQuantity: 2,
+      remainingOrderQuantity: 2,
+    })]);
+    const webhookAdapter = {
+      enabled: true,
+      dryRun: false,
+      emit: jest.fn().mockResolvedValue({
+        sent: true,
+        response: { status: 201, body: '{"status":"accepted","status_description":"No open positions for the asset"}' },
+      }),
+    };
+    const executor = makeExecutor({}, { webhookAdapter });
+
+    const result = await executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'LIVE_STALE_LONG', exitReason: 'test_exit' },
+      {},
+      421,
+      { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'broker_flat_reconciled',
+      stateMutationSucceeded: true,
+      brokerFlatReconciled: true,
+    }));
+    expect(mockStateManager.reconcileBrokerFlat).toHaveBeenCalledWith('LIVE_STALE_LONG', expect.objectContaining({
+      symbol: 'TSLA',
+      action: 'SELL',
+      reason: 'broker_flat_no_open_position',
+    }));
+    expect(mockStateManager.releaseExitSlot).not.toHaveBeenCalled();
+    expect(mockStateManager.applyFill).not.toHaveBeenCalled();
+  });
+
+  test('enabled webhook route sent response without order identity opens state with local correlation id', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;
       return null;
@@ -853,12 +961,25 @@ describe('OrderExecutor pause gate', () => {
     );
 
     expect(result).toEqual(expect.objectContaining({
-      success: false,
-      reason: 'missing_webhook_order_id',
-      orderAccepted: false,
+      success: true,
+      orderId: expect.stringMatching(/^WEBHOOK_PENDING_BUY_TSLA_dec_/),
+      orderAccepted: true,
+      stateMutationSucceeded: true,
+      webhookOrderIdMissing: true,
+      webhookAcceptedWithoutOrderId: true,
+      brokerOrderId: null,
     }));
     expect(webhookAdapter.emit).toHaveBeenCalledTimes(1);
-    expect(mockStateManager.openPosition).not.toHaveBeenCalled();
+    expect(mockStateManager.openPosition).toHaveBeenCalledWith(
+      500,
+      100,
+      expect.objectContaining({
+        orderId: expect.stringMatching(/^WEBHOOK_PENDING_BUY_TSLA_dec_/),
+        action: 'BUY',
+        entryOrderQuantity: 5,
+        remainingOrderQuantity: 5,
+      })
+    );
   });
 
   test('flat sizing profile disables confidence multiplier before confluence sizing', async () => {
@@ -3111,7 +3232,9 @@ describe('OrderExecutor pause gate', () => {
       executionMode: 'paper',
       timeframe: '15m',
       httpStatus: 202,
-      reason: null,
+      reason: 'accepted_without_order_id',
+      orderId: null,
+      acceptedWithoutOrderId: true,
       responseBody: 'accepted',
     }));
     expect(brokerNarratorSpy).toHaveBeenCalledWith(expect.objectContaining({
@@ -3119,6 +3242,75 @@ describe('OrderExecutor pause gate', () => {
       symbol: 'TSLA',
       action: 'BUY',
       ok: true,
+      reason: 'accepted_without_order_id',
+    }));
+
+    brokerNarratorSpy.mockRestore();
+    logSpy.mockRestore();
+  });
+
+  test('webhook emit helper treats broker-flat body as reject even when body includes an id', async () => {
+    const dashboardWs = { readyState: 1, bufferedAmount: 0, send: jest.fn() };
+    const webhookAdapter = {
+      emit: jest.fn().mockResolvedValue({
+        sent: true,
+        response: {
+          status: 201,
+          body: '{"orderId":"bad-flat-id","status_description":"No open positions for the asset"}',
+        },
+      }),
+    };
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const brokerNarratorSpy = jest.spyOn(getNarrator(), 'brokerResult').mockImplementation(() => {});
+    const executor = makeExecutor(
+      {
+        evalTraceEnabled: true,
+        traceEventMaxBufferedBytes: 1048576,
+      },
+      {
+        dashboardWs,
+        dashboardWsConnected: true,
+        webhookAdapter,
+      }
+    );
+
+    await executor._emitWebhookOrder('SELL', {
+      action: 'close',
+      symbol: 'TSLA',
+      quantity: 2,
+      quantityUnit: 'shares',
+      orderType: 'market',
+      bypassThrottle: true,
+    }, {
+      traceId: 'trace_webhook_flat_id',
+      signalId: 'signal_webhook_flat_id',
+      decisionId: 'decision_webhook_flat_id',
+      symbol: 'TSLA',
+    });
+
+    expect(dashboardWs.send).toHaveBeenCalledTimes(3);
+    const brokerReject = JSON.parse(dashboardWs.send.mock.calls[2][0]);
+    expect(brokerReject).toEqual(expect.objectContaining({
+      type: 'broker_reject',
+      ok: false,
+      sent: true,
+      orderId: 'bad-flat-id',
+      symbol: 'TSLA',
+      action: 'SELL',
+      webhookAction: 'close',
+      reason: 'broker_flat_no_open_position',
+      responseBody: '{"orderId":"bad-flat-id","status_description":"No open positions for the asset"}',
+    }));
+    expect(brokerReject.data).toEqual(expect.objectContaining({
+      ok: false,
+      sent: true,
+      brokerFlat: true,
+      reason: 'broker_flat_no_open_position',
+    }));
+    expect(brokerNarratorSpy).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'broker_reject',
+      ok: false,
+      reason: 'broker_flat_no_open_position',
     }));
 
     brokerNarratorSpy.mockRestore();

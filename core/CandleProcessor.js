@@ -605,7 +605,7 @@ class CandleProcessor {
     }
 
     // Feed modular entry systems (only on NEW candles, not updates)
-    if (shouldUpdateLegacyRoot && this.ctx.mtfAdapter) this.ctx.mtfAdapter.ingestCandle(candle);
+    if (shouldUpdateLegacyRoot && this.ctx.mtfAdapter) this.ctx.mtfAdapter.ingestCandle(candle, candleTimeframe);
     if (shouldUpdateLegacyRoot && this.ctx.emaCrossover) this.ctx.emaCrossoverSignal = this.ctx.emaCrossover.update(candle, this.ctx.priceHistory);
     if (shouldUpdateLegacyRoot && this.ctx.maDynamicSR) this.ctx.maDynamicSRSignal = this.ctx.maDynamicSR.update(candle, this.ctx.priceHistory);
     // 2026-05-04: BreakAndRetest moved to self-contained pattern (owned by StrategyOrchestrator).
@@ -1042,29 +1042,7 @@ class CandleProcessor {
     ) {
       console.error('[STALE DATA]', Math.round(dataAge / 1000), 'seconds old');
 
-      // AUTO-PAUSE TRADING
-      if (!this.ctx.staleFeedPaused) {
-        console.error('[STALE DATA] PAUSING NEW ENTRIES DUE TO STALE DATA');
-        this.ctx.staleFeedPaused = true;
-
-        // Notify StateManager to pause
-        try {
-          stateManager.pauseTrading(`Stale data: ${Math.round(dataAge / 1000)}s old`, {
-            source: 'data_feed_liveness',
-            recoverable: true,
-            scope: {
-              symbol: stampedSymbol,
-              timeframe: sourceTimeframe,
-              brokerId: wrappedInput?.brokerId,
-              accountId: wrappedInput?.accountId,
-              assetClass: wrappedInput?.assetClass,
-              executionMode: wrappedInput?.executionMode,
-            },
-          });
-        } catch (error) {
-          console.error('Failed to pause via StateManager:', error.message);
-        }
-      }
+      console.error('[STALE DATA] Not pausing trading; stale candle will remain visible in logs');
     } else if (this.ctx.staleFeedPaused && dataAge < this.dataFeedConfig.staleDataRecoveryAgeMs) {
       console.log('[STALE DATA] Fresh data restored, checking recoverable pause owner');
       this._resumeDataFeedPause({
@@ -1150,20 +1128,7 @@ class CandleProcessor {
               });
               this.cleanCandleCount = 0;
             } else {
-              console.error('[GAP-RECOVERY] Backfill failed, halting trading');
-              this.ctx.staleFeedPaused = true;
-              stateManager.pauseTrading(`Data gap: ${missingCandles} candles missing, backfill failed`, {
-                source: 'data_feed_liveness',
-                recoverable: true,
-                scope: {
-                  symbol: candle.symbol,
-                  timeframe: candle.timeframe,
-                  brokerId: candle.brokerId,
-                  accountId: candle.accountId,
-                  assetClass: candle.assetClass,
-                  executionMode: candle.executionMode,
-                },
-              });
+              console.error('[GAP-RECOVERY] Backfill failed; not pausing trading');
               this.startBackfillRetry(lastCandle.etime, candle.etime, {
                 ...gapTraceContext,
                 source: 'gap_backfill_retry',

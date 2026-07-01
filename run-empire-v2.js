@@ -1397,6 +1397,8 @@ class OGZPrimeV14Bot {
       ],
       brokerNames: ttpCutoffBrokerNames,
       brokerReconciliationEnabled: !webhookExecutionRoute,
+      brokerPositionReadEnabled: isTtpStockAssetClass,
+      brokerOrderManagementEnabled: !webhookExecutionRoute,
     });
 
     // REFACTOR Phase 15: TradingLoop - context with all dependencies
@@ -3099,26 +3101,13 @@ class OGZPrimeV14Bot {
 
       if ((brokerSilent || activeTimeframeSilent) && !this.staleFeedPaused) {
         if (!symbol || !timeframe) {
-          console.error(`[CRITICAL] LIVENESS WATCHDOG: missing symbol/timeframe (symbol=${symbol || '(missing)'} timeframe=${timeframe || '(missing)'})`);
-          this.staleFeedPaused = true;
-          stateManager.pauseTrading('Liveness watchdog: missing symbol/timeframe', {
-            source: 'data_feed_liveness',
-            recoverable: true,
-            scope: {
-              symbol: symbol || null,
-              timeframe: timeframe || null,
-              brokerId: this.config.brokerId,
-              accountId: this.config.accountId,
-              assetClass: this.config.assetClass,
-              executionMode: this.config.executionMode,
-            },
-          });
+          console.error(`[WATCHDOG] LIVENESS: missing symbol/timeframe (symbol=${symbol || '(missing)'} timeframe=${timeframe || '(missing)'}) - not pausing trading`);
           return;
         }
 
         console.warn(`[WATCHDOG] LIVENESS: brokerSilent=${brokerSilent} brokerSilence=${Math.round(brokerSilenceDuration / 1000)}s activeTimeframeSilent=${activeTimeframeSilent} activeSilence=${Math.round(activeSilenceDuration / 1000)}s activeLimit=${Math.round(activeLimitMs / 1000)}s | symbol=${symbol} timeframe=${timeframe} lastBrokerSymbol=${this.lastBrokerDataSymbol || '(none)'} lastBrokerTimeframe=${this.lastBrokerDataTimeframe || '(none)'} lastActiveSymbol=${this.lastActiveTimeframeSymbol || '(none)'} lastActiveTimeframe=${this.lastActiveTimeframe || '(none)'} - attempting REST backfill`);
 
-        // ATTEMPT BACKFILL FIRST before halting
+        // Attempt backfill for observability/recovery; liveness cannot pause trading.
         try {
           const recovered = await this._attemptLivenessBackfill(symbol, timeframe);
           if (recovered > 0) {
@@ -3133,34 +3122,11 @@ class OGZPrimeV14Bot {
           console.error(`[WATCHDOG] REST backfill failed | symbol=${symbol} timeframe=${timeframe}:`, backfillError.message);
         }
 
-        // Backfill failed - now halt
-        console.error(`[CRITICAL] LIVENESS WATCHDOG: BACKFILL FAILED - HALTING | symbol=${symbol} timeframe=${timeframe}`);
-        console.error('[WATCHDOG] PAUSING TRADING - DATA FEED APPEARS DEAD');
-        this.staleFeedPaused = true;
-
-        // Notify StateManager to pause
-        try {
-          const { getInstance: getStateManager } = require('./core/StateManager');
-          const stateManager = getStateManager();
-          stateManager.pauseTrading(`Liveness watchdog: brokerSilent=${brokerSilent} activeTimeframeSilent=${activeTimeframeSilent}, backfill failed`, {
-            source: 'data_feed_liveness',
-            recoverable: true,
-            scope: {
-              symbol,
-              timeframe,
-              brokerId: this.config.brokerId,
-              accountId: this.config.accountId,
-              assetClass: this.config.assetClass,
-              executionMode: this.config.executionMode,
-            },
-          });
-        } catch (error) {
-          console.error('Failed to pause via StateManager:', error.message);
-        }
+        console.error(`[WATCHDOG] LIVENESS: backfill failed | symbol=${symbol} timeframe=${timeframe} - not pausing trading`);
       }
     }, feed.livenessCheckIntervalMs);
 
-    console.log(`Liveness watchdog started (checks every ${feed.livenessCheckIntervalMs}ms, attempts REST backfill before halting)`);
+    console.log(`Liveness watchdog started (checks every ${feed.livenessCheckIntervalMs}ms, attempts REST backfill, does not pause trading)`);
   }
 
   /**
