@@ -381,7 +381,7 @@ describe('frontend websocket lifecycle', () => {
     expect(harness.instances).toEqual([]);
     expect(harness.console.warn).toHaveBeenCalledWith(expect.stringContaining('Dashboard access session is not configured'));
     expect(harness.document.getElementById('ogz-dashboard-token-gate')).toBeNull();
-    expect(harness.document.getElementById('ogz-dashboard-token-prompt')).not.toBeNull();
+    expect(harness.document.getElementById('ogz-dashboard-token-prompt')).toBeNull();
   });
 
   test('closes without sending auth when public meta token is only whitespace', async () => {
@@ -392,7 +392,7 @@ describe('frontend websocket lifecycle', () => {
 
     expect(harness.instances).toEqual([]);
     expect(harness.document.getElementById('ogz-dashboard-token-gate')).toBeNull();
-    expect(harness.document.getElementById('ogz-dashboard-token-prompt')).not.toBeNull();
+    expect(harness.document.getElementById('ogz-dashboard-token-prompt')).toBeNull();
   });
 
   test('uses operator token in memory and reconnects without persisting the raw key', () => {
@@ -405,7 +405,7 @@ describe('frontend websocket lifecycle', () => {
     expect(harness.localStorage.setItem).not.toHaveBeenCalledWith('ogz.dashboard.wsToken', 'placeholder-operator-token');
     expect(firstSocket.closeArgs).toEqual({
       code: 4000,
-      reason: 'dashboard token updated'
+      reason: 'dashboard access updated'
     });
 
     jest.advanceTimersByTime(1000);
@@ -417,15 +417,15 @@ describe('frontend websocket lifecycle', () => {
     expect(harness.document.getElementById('ogz-dashboard-token-prompt')).toBeNull();
   });
 
-  test('missing operator token renders an operator prompt without opening a socket', async () => {
+  test('missing operator token leaves dashboard shell loaded without opening an access prompt', async () => {
     const harness = createHarness({ token: '' });
 
     expect(harness.Socket.connect()).toBe(false);
     await flushSessionBootstrap();
     expect(harness.document.getElementById('ogz-dashboard-token-gate')).toBeNull();
-    expect(harness.document.getElementById('ogz-dashboard-token-prompt')).not.toBeNull();
-    expect(harness.document.getElementById('ogz-dashboard-token-form').style.cssText).toContain('grid-template-columns:1fr');
-    expect(harness.document.getElementById('ogz-dashboard-token-submit').style.cssText).toContain('width:100%');
+    expect(harness.document.getElementById('ogz-dashboard-token-prompt')).toBeNull();
+    expect(harness.document.getElementById('ogz-dashboard-token-form')).toBeNull();
+    expect(harness.document.getElementById('ogz-dashboard-token-submit')).toBeNull();
     expect(harness.instances).toEqual([]);
   });
 
@@ -442,52 +442,6 @@ describe('frontend websocket lifecycle', () => {
     expect(socket.sent[0].type).toBe('auth');
     expect(socket.sent[0].token).toBe('__OGZ_DASHBOARD_SESSION__');
     expect(socket.sent[0].ticket).toBe('placeholder-cookie-ticket');
-  });
-
-  test('operator prompt enrolls a dashboard session and connects with a ticket', async () => {
-    const harness = createHarness({ token: '', enrollmentTicket: 'placeholder-session-ticket' });
-
-    expect(harness.Socket.connect()).toBe(false);
-    await flushSessionBootstrap();
-    const input = harness.document.getElementById('ogz-dashboard-token-input');
-    const form = harness.document.getElementById('ogz-dashboard-token-form');
-    const preventDefault = jest.fn();
-    input.value = ' placeholder-prompt-token ';
-    await form.listeners.submit({ preventDefault });
-
-    expect(preventDefault).toHaveBeenCalled();
-    expect(harness.Socket.getAuthToken()).toBe('__OGZ_DASHBOARD_SESSION__');
-    expect(harness.localStorage.setItem).not.toHaveBeenCalledWith('ogz.dashboard.wsToken', 'placeholder-prompt-token');
-    expect(harness.localStorage.removeItem).toHaveBeenCalledWith('ogz.dashboard.wsToken');
-    expect(harness.document.getElementById('ogz-dashboard-token-prompt')).toBeNull();
-
-    const socket = harness.instances[0];
-    socket.open();
-    expect(socket.sent[0].type).toBe('auth');
-    expect(socket.sent[0].token).toBe('__OGZ_DASHBOARD_SESSION__');
-    expect(socket.sent[0].ticket).toBe('placeholder-session-ticket');
-  });
-
-  test('operator prompt session strips stale fragment before reconnecting', async () => {
-    const harness = createHarness({ token: '', enrollmentTicket: 'placeholder-session-ticket' });
-
-    expect(harness.Socket.connect()).toBe(false);
-    await flushSessionBootstrap();
-    harness.location.hash = '#dashboardToken=placeholder-stale-fragment-token';
-    const input = harness.document.getElementById('ogz-dashboard-token-input');
-    const form = harness.document.getElementById('ogz-dashboard-token-form');
-    input.value = 'placeholder-fresh-prompt-token';
-    await form.listeners.submit({ preventDefault: jest.fn() });
-
-    expect(harness.Socket.getAuthToken()).toBe('__OGZ_DASHBOARD_SESSION__');
-    expect(harness.localStorage.setItem).not.toHaveBeenCalledWith('ogz.dashboard.wsToken', 'placeholder-fresh-prompt-token');
-    expect(harness.history.replaceState).toHaveBeenCalledWith(null, undefined, '/unified-dashboard-v2.html');
-
-    const socket = harness.instances[0];
-    socket.open();
-    expect(socket.sent[0].type).toBe('auth');
-    expect(socket.sent[0].token).toBe('__OGZ_DASHBOARD_SESSION__');
-    expect(socket.sent[0].ticket).toBe('placeholder-session-ticket');
   });
 
   test('fragment dashboard token stores the key, strips it from the URL, and connects', () => {
@@ -538,7 +492,7 @@ describe('frontend websocket lifecycle', () => {
     expect(harness.Socket.getAuthToken()).toBe('');
     expect(harness.localStorage.removeItem).toHaveBeenCalledWith('ogz.dashboard.wsToken');
     expect(harness.instances).toEqual([]);
-    expect(harness.document.getElementById('ogz-dashboard-token-prompt')).not.toBeNull();
+    expect(harness.document.getElementById('ogz-dashboard-token-prompt')).toBeNull();
     expect(harness.console.warn).toHaveBeenCalledWith(expect.stringContaining('fragment could not be stripped'));
   });
 
@@ -586,7 +540,7 @@ describe('frontend websocket lifecycle', () => {
     expect(harness.Socket.getAuthToken()).toBe('');
     expect(harness.localStorage.removeItem).toHaveBeenCalledWith('ogz.dashboard.wsToken');
     expect(harness.document.getElementById('ogz-dashboard-token-gate')).toBeNull();
-    expect(harness.document.getElementById('ogz-dashboard-token-prompt')).not.toBeNull();
+    expect(harness.document.getElementById('ogz-dashboard-token-prompt')).toBeNull();
   });
 
   test('rejected fragment token is stripped and does not reconnect with the same value', () => {
@@ -600,7 +554,7 @@ describe('frontend websocket lifecycle', () => {
     expect(harness.Socket.getAuthToken()).toBe('');
     expect(harness.localStorage.removeItem).toHaveBeenCalledWith('ogz.dashboard.wsToken');
     expect(harness.history.replaceState).toHaveBeenCalledWith(null, undefined, '/unified-dashboard-v2.html');
-    expect(harness.document.getElementById('ogz-dashboard-token-prompt')).not.toBeNull();
+    expect(harness.document.getElementById('ogz-dashboard-token-prompt')).toBeNull();
 
     jest.advanceTimersByTime(1000);
     expect(harness.instances).toHaveLength(1);
@@ -621,8 +575,8 @@ describe('frontend websocket lifecycle', () => {
     socket.receive({ type: 'auth_failure' });
 
     expect(harness.Socket.getAuthToken()).toBe('');
-    expect(harness.document.getElementById('ogz-dashboard-token-prompt')).not.toBeNull();
-    expect(harness.console.warn).toHaveBeenCalledWith(expect.stringContaining('could not be stripped during token clear'));
+    expect(harness.document.getElementById('ogz-dashboard-token-prompt')).toBeNull();
+    expect(harness.console.warn).toHaveBeenCalledWith(expect.stringContaining('could not be stripped during access clear'));
 
     jest.advanceTimersByTime(1000);
     expect(harness.instances).toHaveLength(1);
