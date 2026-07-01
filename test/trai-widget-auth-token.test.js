@@ -118,7 +118,7 @@ describe('TRAI widget dashboard auth token', () => {
     harness.api.connectWebSocket();
 
     expect(harness.instances).toEqual([]);
-    expect(harness.console.warn).toHaveBeenCalledWith(expect.stringContaining('No dashboard token configured'));
+    expect(harness.console.warn).toHaveBeenCalledWith(expect.stringContaining('Dashboard access session is not configured'));
   });
 
   test('closes without sending auth when no operator token is configured', () => {
@@ -127,6 +127,6 @@ describe('TRAI widget dashboard auth token', () => {
     harness.api.connectWebSocket();
 
     expect(harness.instances).toEqual([]);
-    expect(harness.console.warn).toHaveBeenCalledWith(expect.stringContaining('No dashboard token configured'));
+    expect(harness.console.warn).toHaveBeenCalledWith(expect.stringContaining('Dashboard access session is not configured'));
   });
 });

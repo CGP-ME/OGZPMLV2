@@ -357,11 +357,11 @@
         ].join(';');
 
         const title = document.createElement('div');
-        title.textContent = 'Dashboard access required';
+        title.textContent = 'Secure dashboard sign-in';
         title.style.cssText = 'font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#facc15;margin-bottom:8px';
 
         const detail = document.createElement('div');
-        detail.textContent = 'Enter the operator WebSocket key to start live data on this browser.';
+        detail.textContent = 'Enter your dashboard access key once to start a secure session on this browser.';
         detail.style.cssText = 'font-size:11px;line-height:1.45;color:#cbd5e1;margin-bottom:10px';
 
         const form = document.createElement('form');
@@ -373,7 +373,7 @@
         input.type = 'password';
         input.name = 'dashboard-token';
         input.autocomplete = 'off';
-        input.placeholder = 'Operator WebSocket key';
+        input.placeholder = 'Dashboard access key';
         input.style.cssText = 'min-width:0;width:100%;box-sizing:border-box;padding:10px;border:1px solid rgba(148,163,184,.45);background:#020617;color:#f8fafc;font:12px JetBrains Mono,monospace;outline:none';
 
         const button = document.createElement('button');
@@ -487,7 +487,7 @@
             if (!token) {
                 removeDashboardTokenGate();
                 bootstrapDashboardSession();
-                console.warn('[Socket] No dashboard token configured. Dashboard data socket remains disconnected.');
+                console.warn('[Socket] Dashboard access session is not configured. Dashboard data socket remains disconnected.');
                 return false;
             }
 

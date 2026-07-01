@@ -345,7 +345,7 @@ describe('frontend websocket lifecycle', () => {
     socket.open();
 
     expect(socket.sent[0]).toEqual({ type: 'auth', token: 'placeholder-memory-token' });
-    expect(harness.console.warn).not.toHaveBeenCalledWith(expect.stringContaining('No dashboard token configured'));
+    expect(harness.console.warn).not.toHaveBeenCalledWith(expect.stringContaining('Dashboard access session is not configured'));
   });
 
   test('treats whitespace meta token as missing and uses in-memory operator token', () => {
@@ -379,7 +379,7 @@ describe('frontend websocket lifecycle', () => {
     await flushSessionBootstrap();
 
     expect(harness.instances).toEqual([]);
-    expect(harness.console.warn).toHaveBeenCalledWith(expect.stringContaining('No dashboard token configured'));
+    expect(harness.console.warn).toHaveBeenCalledWith(expect.stringContaining('Dashboard access session is not configured'));
     expect(harness.document.getElementById('ogz-dashboard-token-gate')).toBeNull();
     expect(harness.document.getElementById('ogz-dashboard-token-prompt')).not.toBeNull();
   });

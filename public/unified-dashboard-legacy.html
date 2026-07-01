@@ -3785,7 +3785,7 @@
                 const __authToken = (__metaToken && __metaToken !== '') ? __metaToken
                     : (typeof window.OGZ_DASHBOARD_TOKEN === 'string' ? window.OGZ_DASHBOARD_TOKEN : '');
                 if (!__authToken) {
-                    console.warn('[WS] No dashboard token configured — set <meta name="ws-token"> or window.OGZ_DASHBOARD_TOKEN');
+                    console.warn('[WS] Dashboard access session is not configured.');
                 }
                 ws.send(JSON.stringify({
                     type: 'auth',

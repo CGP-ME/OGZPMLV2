@@ -385,7 +385,7 @@
     try {
       const authToken = dashboardAuthToken();
       if (!authToken) {
-        console.warn('[TRAI Widget] No dashboard token configured — enter the operator WebSocket key in the dashboard');
+        console.warn('[TRAI Widget] Dashboard access session is not configured.');
         return;
       }
 
