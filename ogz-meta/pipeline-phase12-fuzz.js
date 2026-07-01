@@ -142,15 +142,14 @@ function hasNaN(value) {
 
 // ─── MODULE FUZZERS ──────────────────────────────────────────
 
-function fuzzMaxProfitManager() {
-  const section = 'MaxProfitManager';
+function fuzzProfitExitPlanner() {
+  const section = 'ProfitExitPlanner';
   if (!JSON_OUT) console.log(`\n  📁 Fuzzing ${section}...`);
 
   try {
-    const modPath = path.resolve(ROOT, 'core/MaxProfitManager');
+    const modPath = path.resolve(ROOT, 'core/ProfitExitPlanner');
     delete require.cache[require.resolve(modPath)];
-    const MPMMod = require(modPath);
-    const MPMClass = MPMMod.MaxProfitManager || MPMMod;
+    const planner = require(modPath);
 
     // Suppress console during fuzzing
     const origLog = console.log;
@@ -158,23 +157,46 @@ function fuzzMaxProfitManager() {
     console.log = () => {};
     console.warn = () => {};
 
-    // Fuzz constructor
-    for (const fuzz of FUZZ_PRIMITIVES) {
-      fuzzTest(section, 'constructor', fuzz.label, () => new MPMClass(fuzz.value));
-    }
+    const snapshot = {
+      tradeId: 'FUZZ_TRADE',
+      intentId: 'FUZZ_INTENT',
+      tradeRevision: 0,
+      direction: 'long',
+      entryPrice: 100,
+      entryOrderQuantity: 10,
+      remainingOrderQuantity: 10,
+      frozenExitPolicy: {
+        policyHash: 'fuzz-policy',
+        contract: { stopLossPercent: -1 },
+        profitManagement: {
+          beScaleOut: {
+            enabled: true,
+            triggerType: 'one_to_one_r',
+            fixedPercentTrigger: 0.5,
+            scaleOutFraction: 0.5,
+          },
+          tieredExit: {
+            enabled: true,
+            allocationBasis: 'open_tier_weight',
+            tiers: [
+              { name: 'tier1', targetProfitMove: 0.015, exitFraction: 0.3 },
+              { name: 'final', targetProfitMove: 0.05, exitFraction: 0.7 },
+            ],
+          },
+        },
+      },
+      pendingExitIntent: null,
+      beScaleOutState: { status: 'idle', filledQuantity: 0, brokerOrderIds: [] },
+      tierStates: [
+        { tierIndex: 0, name: 'tier1', status: 'idle', filledQuantity: 0, brokerOrderIds: [] },
+        { tierIndex: 1, name: 'final', status: 'idle', filledQuantity: 0, brokerOrderIds: [] },
+      ],
+      currentPrice: 100,
+    };
 
-    // Fuzz start()
-    const mpm = new MPMClass({ enableTieredExit: true });
     for (const fuzz of FUZZ_PRIMITIVES) {
-      fuzzTest(section, 'start', `price=${fuzz.label}`, () => mpm.start(fuzz.value, 'buy', 0.001));
-      fuzzTest(section, 'start', `direction=${fuzz.label}`, () => mpm.start(95000, fuzz.value, 0.001));
-      fuzzTest(section, 'start', `size=${fuzz.label}`, () => mpm.start(95000, 'buy', fuzz.value));
-    }
-
-    // Fuzz update()
-    mpm.start(95000, 'buy', 0.001, { confidence: 0.72 });
-    for (const fuzz of FUZZ_PRIMITIVES) {
-      fuzzTest(section, 'update', fuzz.label, () => mpm.update(fuzz.value));
+      fuzzTest(section, 'plan.snapshot', fuzz.label, () => planner.plan(fuzz.value, { currentPrice: 101 }));
+      fuzzTest(section, 'plan.currentPrice', fuzz.label, () => planner.plan(snapshot, { currentPrice: fuzz.value }));
     }
 
     console.log = origLog;
@@ -525,7 +547,7 @@ function main() {
     console.log(`${'╚'.padEnd(64, '═')}╝`);
   }
 
-  fuzzMaxProfitManager();
+  fuzzProfitExitPlanner();
   fuzzExitContractManager();
   fuzzStateManager();
   fuzzRiskManager();

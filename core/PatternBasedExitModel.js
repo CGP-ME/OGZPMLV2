@@ -9,7 +9,7 @@
  * 4. Exit confluence from multiple pattern signals
  * 5. Regime-aware exit timing
  *
- * Works WITH MaxProfitManager - doesn't replace it, enhances it.
+ * Works with the ExitContractManager profit planner path; does not own fills.
  */
 
 class PatternBasedExitModel {

@@ -18,7 +18,7 @@
     },
     "PATTERN_EXIT_MODEL": {
       "enabled": true,
-      "description": "Pattern-based exit intelligence - enhances MaxProfitManager",
+      "description": "Pattern-based exit intelligence for the exit contract planner path",
       "version": "2.3.2",
       "shadowMode": true,
       "settings": {
@@ -158,7 +158,7 @@
       "settings": {
         "activeSystem": "maxprofit",
         "availableSystems": {
-          "maxprofit": "MaxProfitManager - tiered exits with trailing stops (RECOMMENDED)",
+          "maxprofit": "ExitContractManager plus ProfitExitPlanner - tiered exits with trailing stops",
           "intelligence": "TradeIntelligenceEngine - 13-dimension analysis",
           "pattern": "PatternExitModel - pattern-based exits",
           "brain": "TradingBrain signals - brain sell + conditions",

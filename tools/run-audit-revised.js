@@ -35,10 +35,10 @@ function askMercuryAgentic(question) {
 
 const blocks = [
   { title: 'BLOCK A — Partial-close pipeline', questions: [
-    'In core/OrderExecutor.js SELL path, show the exact lines that read decision.exitSize. Is the check exitSize > 0 && exitSize < 1 still present? Cite file:line. Show 3-5 lines of verbatim code.',
-    'In core/MaxProfitManager.js, show every return statement that emits exitSize. For each, is the value an absolute size or a 0-1 fraction? Cite file:line + 3 lines context.',
-    'In core/MaxProfitManager.js setupProfitTiers, what is the shape of each tier object? Is exitPercentage already 0-1 fractional, or is it a percent like 30? Cite file:line.',
-    'Confirm the BE scale-out block in core/MaxProfitManager.js returns scaleOutSize or scaleOutFraction. Cite file:line with verbatim code.',
+    'In core/OrderExecutor.js SELL/COVER path, show the exact lines that read decision.exitFraction and build the exit plan. Does execution sizing derive from active remaining quantity, not a legacy exitSize field? Cite file:line. Show 3-5 lines of verbatim code.',
+    'In core/ProfitExitPlanner.js, show every return statement that emits exitFraction. For each, is the value a 0-1 fraction of current remaining quantity? Cite file:line + 3 lines context.',
+    'In core/PolicyBuilder.js normalizeTieredExit, what is the shape of each tier object? Is exitFraction already 0-1 fractional, or is it a percent like 30? Cite file:line.',
+    'Confirm the BE scale-out block in core/ProfitExitPlanner.js returns scaleOutFraction semantics through exitFraction. Cite file:line with verbatim code.',
     'In core/StateManager.js, show closePosition signature and body. Does it accept a size parameter, and if so, does it actually reduce position or always close full? Cite file:line for every branch.',
     'Does core/StateManager.js have any method named reducePosition, partialClose, or equivalent today? If yes cite file:line; if no state explicitly NOT FOUND.',
   ]},

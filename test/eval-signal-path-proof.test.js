@@ -21,12 +21,6 @@ jest.mock('../core/StateManager', () => ({
   getInstance: () => mockStateManager,
 }));
 
-jest.mock('../core/MaxProfitManager', () => {
-  const { createMockMaxProfitManager } = require('./fixtures/mock-max-profit-manager');
-  const ActualMaxProfitManager = jest.requireActual('../core/MaxProfitManager');
-  return createMockMaxProfitManager(jest, ActualMaxProfitManager);
-});
-
 jest.mock('../ogz-meta/claudito-logger', () => ({
   TradingProofLogger: {
     trade: jest.fn(),
@@ -112,7 +106,6 @@ function buildProofContext({ brokerId, symbol, assetClass, price }) {
     dashboardWs,
     orderRouter,
     preOrderEntryGate: jest.fn(async () => ({ allowed: true, passedRules: ['proof_gate'] })),
-    maxProfitManagers: new Map(),
     notifyTrade: jest.fn(() => Promise.resolve()),
     discordNotifier: { notifyTrade: jest.fn() },
     performanceAnalyzer: { processTrade: jest.fn() },

@@ -491,7 +491,7 @@ const BASE_CONFIG = {
     postBreakevenTrail: env('POST_BREAKEVEN_TRAIL', 5.0),        // 5% trail after BE withdrawal
     profitProtectionLevel: env('PROFIT_PROTECTION', 1.5),        // 1.5% min profit to lock in
 
-    // Tiered profit targets (for MaxProfitManager)
+    // Tiered profit targets (for ProfitExitPlanner)
     // FIX 2026-03-16: All tiers must clear 0.65% round-trip fees
     profitTiers: {
       tier1: env('TIER1_TARGET', 0.015),                         // 1.5% first tier (was 0.7% - below fees!)
@@ -757,7 +757,7 @@ const BASE_CONFIG = {
   },
 
   // =========================================================================
-  // EXIT LOGIC CONFIGURATION (read by MaxProfitManager - the sole exit authority)
+  // EXIT LOGIC CONFIGURATION (frozen at trade birth by PolicyBuilder)
   // All values overridable via env vars for matrix sweep tuning
   // =========================================================================
   exitLogic: {
@@ -775,12 +775,12 @@ const BASE_CONFIG = {
       triggerPercent: parseFloat(env('BREAKEVEN_STOP_TRIGGER_PCT', 0.2)),
     },
 
-    // ─── Tiered Exit Scale-Out (MPM multi-tier profit taking) ───
-    // Lifted from MaxProfitManager constructor hardcodes 2026-04-16
+    // ─── Tiered Exit Scale-Out (ProfitExitPlanner multi-tier profit taking) ───
+    // Lifted from the legacy profit manager constructor hardcodes 2026-04-16
     // All values env-backed for matrix sweep tuning
     tieredExit: {
       enabled: envBool('TIERED_EXIT_ENABLED', true),
-      // Relative tier weights. MaxProfitManager rebalances open tiers against
+      // Relative tier weights. ProfitExitPlanner allocates open tiers against
       // the current remaining runner after any earlier partial exit.
       tier1ExitFraction: parseFloat(env('TIER1_EXIT_FRACTION', 0.30)),
       tier2ExitFraction: parseFloat(env('TIER2_EXIT_FRACTION', 0.30)),
@@ -1167,7 +1167,7 @@ const BASE_CONFIG = {
     enableTimeBasedAdjustments: envBool('MPM_TIME_BASED_ADJUSTMENTS_ENABLED', false),
     minHoldTimeMinutes: parseFloat(env('MIN_HOLD_TIME_MINUTES', 0.0)), // 0 = no minimum (scalping)
 
-    // Time-based trail tightening (for MaxProfitManager)
+    // Time-based trail tightening (for the exit planner path)
     tighteningSchedule: [
       { minutes: 30, trailFactor: 1.0 },
       { minutes: 60, trailFactor: 0.8 },

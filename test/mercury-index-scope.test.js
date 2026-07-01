@@ -905,15 +905,15 @@ describe('Mercury index scope hygiene', () => {
     const adapter = createToolAdapter({ repoRoot: path.resolve(__dirname, '..') });
 
     const result = await adapter.execute('serena_blast_radius', {
-      path: 'core/MaxProfitManager.js',
+      path: 'core/ProfitExitPlanner.js',
     });
     const schemaNames = adapter.buildToolSchema().map((tool) => tool.function.name);
 
     expect(result.error).toBeUndefined();
     expect(result.source).toBe('serena_blast_radius');
-    expect(result.file).toBe('core/MaxProfitManager.js');
+    expect(result.file).toBe('core/ProfitExitPlanner.js');
     expect(result.callerCount).toBeGreaterThan(0);
-    expect(result.text).toContain('## Blast Radius — core/MaxProfitManager.js');
+    expect(result.text).toContain('## Blast Radius — core/ProfitExitPlanner.js');
     expect(result.text).toContain('**Callers (file:line):**');
     expect(schemaNames).toContain('serena_blast_radius');
   });

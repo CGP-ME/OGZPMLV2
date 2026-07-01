@@ -8,8 +8,6 @@ jest.mock('../core/StateManager', () => ({
   getInstance: () => mockStateManager,
 }));
 
-jest.mock('../core/MaxProfitManager', () => jest.fn());
-
 jest.mock('../ogz-meta/claudito-logger', () => ({
   TradingProofLogger: {
     trade: jest.fn(),
@@ -32,7 +30,6 @@ function makeExecutor() {
       timeframe: '15m',
       enableBacktestMode: false,
     },
-    maxProfitManagers: new Map(),
   });
 }
 

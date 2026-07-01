@@ -1171,7 +1171,6 @@ describe('TradingLoop trace spine', () => {
           sizingMultiplier: 1,
         })),
       },
-      maxProfitManagers: new Map(),
       executeTrade,
       broadcastPatternAnalysis: jest.fn(),
     };
@@ -1258,7 +1257,6 @@ describe('TradingLoop trace spine', () => {
           sizingMultiplier: 1,
         })),
       },
-      maxProfitManagers: new Map(),
       executeTrade,
     });
     const loop = new TradingLoop(ctx);
@@ -1330,7 +1328,6 @@ describe('TradingLoop trace spine', () => {
         getSnapshot: jest.fn(() => ({ indicators: { atr: 1, rsi: 55, superTrendDirection: 'sideways' } })),
         getRawState: jest.fn(() => null),
       },
-      maxProfitManagers: new Map(),
       executeTrade,
     };
     const loop = new TradingLoop(ctx);
@@ -1419,7 +1416,6 @@ describe('TradingLoop trace spine', () => {
         getSnapshot: jest.fn(() => ({ indicators: { atr: 1, rsi: 55, superTrendDirection: 'sideways' } })),
         getRawState: jest.fn(() => null),
       },
-      maxProfitManagers: new Map(),
       executeTrade,
     };
     const loop = new TradingLoop(ctx);
@@ -1478,7 +1474,6 @@ describe('TradingLoop trace spine', () => {
         getSnapshot: jest.fn(() => ({ indicators: { atr: 1, rsi: 55, superTrendDirection: 'sideways' } })),
         getRawState: jest.fn(() => null),
       },
-      maxProfitManagers: new Map(),
       executeTrade,
     };
     const loop = new TradingLoop(ctx);
@@ -1526,7 +1521,6 @@ describe('TradingLoop trace spine', () => {
         getSnapshot: jest.fn(() => ({ indicators: { atr: 1, rsi: 55, superTrendDirection: 'sideways' } })),
         getRawState: jest.fn(() => null),
       },
-      maxProfitManagers: new Map(),
       executeTrade,
     });
 
@@ -1572,7 +1566,6 @@ describe('TradingLoop trace spine', () => {
         getSnapshot: jest.fn(() => ({ indicators: { atr: 1, rsi: 55, superTrendDirection: 'sideways' } })),
         getRawState: jest.fn(() => null),
       },
-      maxProfitManagers: new Map(),
       executeTrade: jest.fn(),
     });
 
@@ -1611,7 +1604,6 @@ describe('TradingLoop trace spine', () => {
         getSnapshot: jest.fn(() => ({ indicators: { atr: 1, rsi: 55, superTrendDirection: 'sideways' } })),
         getRawState: jest.fn(() => null),
       },
-      maxProfitManagers: new Map(),
       executeTrade: jest.fn(),
     });
 
@@ -1646,7 +1638,6 @@ describe('TradingLoop trace spine', () => {
         getSnapshot: jest.fn(() => ({ indicators: { atr: 1, rsi: 55, superTrendDirection: 'sideways' } })),
         getRawState: jest.fn(() => null),
       },
-      maxProfitManagers: new Map(),
       executeTrade: jest.fn(),
     });
 

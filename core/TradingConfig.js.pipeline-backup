@@ -107,7 +107,7 @@ const BASE_CONFIG = {
     postBreakevenTrail: env('POST_BREAKEVEN_TRAIL', 5.0),        // 5% trail after BE withdrawal
     profitProtectionLevel: env('PROFIT_PROTECTION', 1.5),        // 1.5% min profit to lock in
 
-    // Tiered profit targets (for MaxProfitManager)
+    // Tiered profit targets (for ProfitExitPlanner)
     profitTiers: {
       tier1: env('TIER1_TARGET', 0.007),                         // 0.7% first tier
       tier2: env('TIER2_TARGET', 0.010),                         // 1.0% second tier
@@ -273,7 +273,7 @@ const BASE_CONFIG = {
     defaultMaxHold: 180,                                          // 3 hours default
     minHoldTimeMinutes: env('MIN_HOLD_TIME_MINUTES', 0.0),       // 0 = no minimum (scalping)
 
-    // Time-based trail tightening (for MaxProfitManager)
+    // Time-based trail tightening (for the exit planner path)
     tighteningSchedule: [
       { minutes: 30, trailFactor: 1.0 },
       { minutes: 60, trailFactor: 0.8 },

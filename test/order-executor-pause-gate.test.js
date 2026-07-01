@@ -25,12 +25,6 @@ jest.mock('../core/StateManager', () => ({
   getInstance: () => mockStateManager,
 }));
 
-jest.mock('../core/MaxProfitManager', () => {
-  const { createMockMaxProfitManager } = require('./fixtures/mock-max-profit-manager');
-  const ActualMaxProfitManager = jest.requireActual('../core/MaxProfitManager');
-  return createMockMaxProfitManager(jest, ActualMaxProfitManager);
-});
-
 jest.mock('../ogz-meta/claudito-logger', () => ({
   TradingProofLogger: {
     trade: jest.fn(),
@@ -39,7 +33,6 @@ jest.mock('../ogz-meta/claudito-logger', () => ({
 }));
 
 const OrderExecutor = require('../core/OrderExecutor');
-const MaxProfitManager = require('../core/MaxProfitManager');
 const TradingConfig = require('../core/TradingConfig');
 const { getNarrator } = require('../core/TradeNarrator');
 const { TradingProofLogger } = require('../ogz-meta/claudito-logger');
@@ -58,7 +51,6 @@ function makeExecutor(config = {}, ctx = {}) {
     paperTrading: true,
     backtestFast: true,
     orderRouter: { sendOrder: jest.fn() },
-    maxProfitManagers: new Map(),
     notifyTrade: jest.fn(() => Promise.resolve()),
     discordNotifier: { notifyTrade: jest.fn() },
     performanceAnalyzer: { processTrade: jest.fn() },
@@ -424,7 +416,6 @@ describe('OrderExecutor pause gate', () => {
         }),
       })
     );
-    expect(MaxProfitManager).not.toHaveBeenCalled();
   });
 
   test('stock quantity planning preserves Alpaca fractional shares but floors non-fractional stock brokers', () => {
@@ -1503,7 +1494,6 @@ describe('OrderExecutor pause gate', () => {
     }));
     expect(preOrderEntryGate).not.toHaveBeenCalled();
     expect(mockStateManager.openPosition).not.toHaveBeenCalled();
-    expect(MaxProfitManager).not.toHaveBeenCalled();
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('planned shares quantity=0'));
   });
 
