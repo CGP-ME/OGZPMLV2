@@ -53,6 +53,7 @@ const PropSafeEMAPullback = require('../modules/PropSafeEMAPullback');
 const EMATrendRetest = require('../modules/EMATrendRetest');
 const RSI2MeanReversion = require('../modules/RSI2MeanReversion');
 const TimeSeriesMomentum = require('../modules/TimeSeriesMomentum');
+const MTF_CONFLUENCE_STATS_KEY = '__OGZ_MTF_CONFLUENCE_STATS';
 
 function assertBaseConfidence01(confidence, label) {
   if (!Number.isFinite(confidence)) {
@@ -156,6 +157,20 @@ function recordRankingScoreChange(result, nextRankingScore, label, contributor) 
   });
 }
 
+function getMtfConfluenceStats() {
+  if (!globalThis[MTF_CONFLUENCE_STATS_KEY]) {
+    globalThis[MTF_CONFLUENCE_STATS_KEY] = {
+      boosterEvaluations: 0,
+      candidatesSeen: 0,
+      appliedContributors: 0,
+      alignedBoosts: 0,
+      conflictPenalties: 0,
+      conflictFloorProtections: 0,
+    };
+  }
+  return globalThis[MTF_CONFLUENCE_STATS_KEY];
+}
+
 function publicResult(result) {
   const { rankingScore, ...publicFields } = result;
   return {
@@ -167,6 +182,34 @@ function publicResult(result) {
 
 function normalizeTimeframeValue(value) {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function mtfTrendDirection(indicators) {
+  const trend = typeof indicators?.trend === 'string' ? indicators.trend.toLowerCase() : '';
+  if (trend === 'bullish' || trend === 'uptrend' || trend === 'buy' || trend === 'long') return 'buy';
+  if (trend === 'bearish' || trend === 'downtrend' || trend === 'sell' || trend === 'short') return 'sell';
+  return null;
+}
+
+function isMtfTrendAligned(indicators, direction) {
+  const trendDirection = mtfTrendDirection(indicators);
+  return trendDirection != null && trendDirection === direction;
+}
+
+function isMtfTrendConflicting(indicators, direction) {
+  const trendDirection = mtfTrendDirection(indicators);
+  return trendDirection != null && trendDirection !== direction;
+}
+
+function isMtfMacdAligned(indicators, direction) {
+  if (!indicators?.macd || typeof indicators.macd.bullish !== 'boolean') return false;
+  return direction === 'buy' ? indicators.macd.bullish : !indicators.macd.bullish;
+}
+
+function mtfReadyTimeframes(confluence) {
+  if (Array.isArray(confluence?.readyTimeframes)) return confluence.readyTimeframes;
+  if (Array.isArray(confluence?.timeframes)) return confluence.timeframes;
+  return [];
 }
 
 function requireOptionalTimeframe(value, label) {
@@ -522,10 +565,11 @@ class StrategyOrchestrator {
       return this.mtfEvaluationCache.confluence;
     }
 
-    const cacheResult = (confluence, unavailableReason = null) => {
+    const cacheResult = (confluence, unavailableReason = null, adapter = null) => {
       this.mtfEvaluationCache = {
         evalCount: this.evalCount,
         confluence,
+        adapter,
         snapshot: confluence
           ? this._buildMtfConfluenceSnapshot(confluence)
           : this._buildMtfUnavailableSnapshot(unavailableReason),
@@ -559,7 +603,7 @@ class StrategyOrchestrator {
       scopedMtfAdapter.ingestCandle(latestCandle, latestCandle.timeframe);
     } catch (e) {
       if (process.env.STRATEGY_DIAG === 'true') console.log(`[DIAG] MultiTimeframe: ingestCandle error: ${e.message}`);
-      return cacheResult(null, `ingest_error:${e.message}`);
+      return cacheResult(null, `ingest_error:${e.message}`, scopedMtfAdapter);
     }
 
     let confluence;
@@ -567,13 +611,29 @@ class StrategyOrchestrator {
       confluence = scopedMtfAdapter.getConfluence ? scopedMtfAdapter.getConfluence() : scopedMtfAdapter.getConfluenceScore();
     } catch (e) {
       if (process.env.STRATEGY_DIAG === 'true') console.log(`[DIAG] MultiTimeframe: getConfluence error: ${e.message}`);
-      return cacheResult(null, `confluence_error:${e.message}`);
+      return cacheResult(null, `confluence_error:${e.message}`, scopedMtfAdapter);
     }
 
     if (process.env.STRATEGY_DIAG === 'true') {
       console.log(`[DIAG] MultiTimeframe: confluence=${confluence ? JSON.stringify({ dir: confluence.direction, score: confluence.confluenceScore ?? confluence.score }) : 'null'}`);
     }
-    return cacheResult(confluence || null, 'no_confluence');
+    return cacheResult(confluence || null, 'no_confluence', scopedMtfAdapter);
+  }
+
+  _getMtfIndicatorsForEvaluation(ctx, timeframe) {
+    this._getMtfConfluenceForEvaluation(ctx);
+    const adapter = this.mtfEvaluationCache?.evalCount === this.evalCount
+      ? this.mtfEvaluationCache.adapter
+      : null;
+    if (!adapter || typeof adapter.getTimeframeIndicators !== 'function') return null;
+    try {
+      return adapter.getTimeframeIndicators(timeframe);
+    } catch (e) {
+      if (process.env.STRATEGY_DIAG === 'true') {
+        console.log(`[DIAG] MultiTimeframe: getTimeframeIndicators(${timeframe}) error: ${e.message}`);
+      }
+      return null;
+    }
   }
 
   _buildMtfUnavailableSnapshot(reason = null) {
@@ -661,9 +721,12 @@ class StrategyOrchestrator {
     if (scoreMagnitude < minScore || confidence < minConfidence) return false;
 
     const mtfDirection = signedScore > 0 ? 'buy' : 'sell';
+    const stats = getMtfConfluenceStats();
+    stats.boosterEvaluations += 1;
     let changed = false;
     for (const result of results) {
       if (result.strategyName === 'MultiTimeframe' && !boostMtfCandidate) continue;
+      stats.candidatesSeen += 1;
 
       const aligned = result.direction === mtfDirection;
       const multiplier = aligned
@@ -673,9 +736,13 @@ class StrategyOrchestrator {
       if (multiplier === 1) continue;
       const previousRankingScore = result.rankingScore;
       const boostedScore = previousRankingScore * multiplier;
+      const conflictFloor = previousRankingScore >= this.minStrategyConfidence
+        ? this.minStrategyConfidence
+        : 0;
+      const floorProtected = !aligned && boostedScore < conflictFloor;
       const cappedScore = aligned
         ? Math.min(boostedScore, Math.max(previousRankingScore, 1))
-        : boostedScore;
+        : Math.max(boostedScore, conflictFloor);
       if (cappedScore === previousRankingScore) continue;
       recordRankingScoreChange(
         result,
@@ -698,12 +765,248 @@ class StrategyOrchestrator {
         multiplier: cappedScore / previousRankingScore,
         configuredMultiplier: multiplier,
         aligned,
+        floorProtected,
       };
+      stats.appliedContributors += 1;
+      if (aligned) {
+        stats.alignedBoosts += 1;
+      } else {
+        stats.conflictPenalties += 1;
+        if (floorProtected) stats.conflictFloorProtections += 1;
+      }
       changed = true;
     }
 
     if (changed) results.sort((a, b) => b.rankingScore - a.rankingScore);
     return changed;
+  }
+
+  _applyStrategyMtfConfluence(result, ctx) {
+    const strategyMtfConfig = TradingConfig.get('orchestrator.strategyMtfConfluence') || {};
+    if (strategyMtfConfig.enabled !== true) {
+      return { disabled: true };
+    }
+
+    const applyPenalty = (name, multiplier, reason, extra = {}) => {
+      const safeMultiplier = Number.isFinite(Number(multiplier)) ? Number(multiplier) : 1;
+      const contributor = {
+        name,
+        type: 'mtf_confluence',
+        passed: false,
+        reason,
+        configuredMultiplier: safeMultiplier,
+        ...extra,
+      };
+      const floor = result.rankingScore >= this.minStrategyConfidence ? this.minStrategyConfidence : 0;
+      const nextScore = Math.max(result.rankingScore * safeMultiplier, floor);
+      if (nextScore !== result.rankingScore) {
+        recordRankingScoreChange(
+          result,
+          nextScore,
+          `${result.strategyName}.${name}`,
+          contributor
+        );
+      } else {
+        addDecisionContributor(result, contributor);
+      }
+      return { adjusted: nextScore !== result.rankingScore };
+    };
+    const add = (name, amount, extra = {}) => {
+      if (!Number.isFinite(amount) || amount === 0) return;
+      const nextScore = Math.max(0, Math.min(1, result.rankingScore + amount));
+      if (nextScore === result.rankingScore) return;
+      recordRankingScoreChange(
+        result,
+        nextScore,
+        `${result.strategyName}.${name}`,
+        {
+          name,
+          type: 'additive',
+          amount,
+          ...extra,
+        }
+      );
+    };
+    const multiply = (name, multiplier, extra = {}) => {
+      if (!Number.isFinite(multiplier) || multiplier === 1) return;
+      recordRankingScoreChange(
+        result,
+        result.rankingScore * multiplier,
+        `${result.strategyName}.${name}`,
+        {
+          name,
+          type: 'multiplier',
+          configuredMultiplier: multiplier,
+          ...extra,
+        }
+      );
+    };
+
+    switch (result.strategyName) {
+      case 'EMASMACrossover': {
+        const cfg = TradingConfig.get('orchestrator.emaCrossoverMtf') || {};
+        const tf1h = this._getMtfIndicatorsForEvaluation(ctx, '1h');
+        const tf4h = this._getMtfIndicatorsForEvaluation(ctx, '4h');
+        if (tf1h && isMtfTrendConflicting(tf1h, result.direction)) {
+          const multiplier = finiteConfigNumber(cfg.hourlyTrendVetoMultiplier, 'emaCrossoverMtf.hourlyTrendVetoMultiplier', 0.95, 0);
+          addDecisionContributor(result, {
+            name: 'ema_mtf_1h_trend_conflict_context',
+            type: 'annotation',
+            passed: false,
+            configuredMultiplier: multiplier,
+            timeframe: '1h',
+            mtfTrend: tf1h.trend,
+            direction: result.direction,
+          });
+        }
+        if (tf4h && isMtfMacdAligned(tf4h, result.direction)) {
+          const multiplier = finiteConfigNumber(cfg.fourHourMacdBoostMultiplier, 'emaCrossoverMtf.fourHourMacdBoostMultiplier', 1.15, 1);
+          addDecisionContributor(result, {
+            name: 'ema_mtf_4h_macd_alignment_context',
+            type: 'annotation',
+            configuredMultiplier: multiplier,
+            timeframe: '4h',
+            direction: result.direction,
+            macdBullish: tf4h.macd?.bullish,
+          });
+        }
+        const minTrendStrength = finiteConfigNumber(cfg.freshLongTermCrossoverMinTrendStrength, 'emaCrossoverMtf.freshLongTermCrossoverMinTrendStrength', 0.3, 0);
+        const crossovers = Array.isArray(result.signalData?.crossovers) ? result.signalData.crossovers : [];
+        const matchingLongCrosses = crossovers.filter((crossover) => (
+          crossover?.pair === 'ema50_200' &&
+          ((result.direction === 'buy' && crossover.type === 'golden') ||
+            (result.direction === 'sell' && crossover.type === 'death'))
+        ));
+        if (matchingLongCrosses.length > 0 && (!tf1h || !Number.isFinite(tf1h.trendStrength) || tf1h.trendStrength <= minTrendStrength)) {
+          addDecisionContributor(result, {
+            name: 'ema_mtf_fresh_50_200_unconfirmed',
+            type: 'annotation',
+            passed: false,
+            timeframe: '1h',
+            requiredTrendStrength: minTrendStrength,
+            actualTrendStrength: Number.isFinite(tf1h?.trendStrength) ? tf1h.trendStrength : null,
+            crossoverCount: matchingLongCrosses.length,
+          });
+        }
+        break;
+      }
+      case 'MADynamicSR': {
+        const cfg = TradingConfig.get('orchestrator.maDynamicSRMtf') || {};
+        const tf1h = this._getMtfIndicatorsForEvaluation(ctx, '1h');
+        const tf4h = this._getMtfIndicatorsForEvaluation(ctx, '4h');
+        if (cfg.requireHourlyTrendAlign === true && tf1h && isMtfTrendConflicting(tf1h, result.direction)) {
+          const multiplier = finiteConfigNumber(cfg.hourlyTrendConflictMultiplier, 'maDynamicSRMtf.hourlyTrendConflictMultiplier', 0.95, 0);
+          applyPenalty('masr_mtf_1h_trend_conflict_penalty', multiplier, 'MADynamicSR 1h trend conflicts with entry direction', {
+            timeframe: '1h',
+            mtfTrend: tf1h.trend,
+            direction: result.direction,
+          });
+        }
+        if (result.timeframe === '1h' && tf4h && isMtfTrendAligned(tf4h, result.direction)) {
+          const boost = finiteConfigNumber(cfg.fourHourAlignBoost, 'maDynamicSRMtf.fourHourAlignBoost', 0.08, 0);
+          add('masr_mtf_4h_trend_boost', boost, {
+            timeframe: '4h',
+            mtfTrend: tf4h.trend,
+            direction: result.direction,
+          });
+        }
+        const compressionThreshold = finiteConfigNumber(cfg.compressionBandwidthThreshold, 'maDynamicSRMtf.compressionBandwidthThreshold', 0.01, 0);
+        const bandwidth = tf4h?.bollinger?.bandwidth;
+        if (Number.isFinite(bandwidth) && bandwidth < compressionThreshold) {
+          addDecisionContributor(result, {
+            name: 'masr_mtf_4h_compression_annotation',
+            type: 'annotation',
+            timeframe: '4h',
+            bandwidth,
+            threshold: compressionThreshold,
+          });
+        }
+        break;
+      }
+      case 'RSI': {
+        const cfg = TradingConfig.get('orchestrator.rsiMtf') || {};
+        const tf4h = this._getMtfIndicatorsForEvaluation(ctx, '4h');
+        if (cfg.penalizeAgainst4hTrend === true && tf4h && isMtfTrendConflicting(tf4h, result.direction)) {
+          const multiplier = finiteConfigNumber(cfg.fourHourTrendConflictMultiplier, 'rsiMtf.fourHourTrendConflictMultiplier', 0.95, 0);
+          applyPenalty('rsi_mtf_4h_trend_conflict_penalty', multiplier, 'RSI 4h trend conflicts with mean-reversion direction', {
+            timeframe: '4h',
+            mtfTrend: tf4h.trend,
+            direction: result.direction,
+          });
+        }
+        const tf1h = this._getMtfIndicatorsForEvaluation(ctx, '1h');
+        const hourlyRsi = tf1h?.rsi;
+        const buyMax = finiteConfigNumber(cfg.hourlyRsiBuyMax, 'rsiMtf.hourlyRsiBuyMax', 40, 0);
+        const sellMin = finiteConfigNumber(cfg.hourlyRsiSellMin, 'rsiMtf.hourlyRsiSellMin', 60, 0);
+        const alignedHourlyRsi = Number.isFinite(hourlyRsi) && (
+          (result.direction === 'buy' && hourlyRsi < buyMax) ||
+          (result.direction === 'sell' && hourlyRsi > sellMin)
+        );
+        if (alignedHourlyRsi) {
+          const boost = finiteConfigNumber(cfg.hourlyRsiAlignBoost, 'rsiMtf.hourlyRsiAlignBoost', 0.10, 0);
+          add('rsi_mtf_1h_rsi_boost', boost, {
+            timeframe: '1h',
+            hourlyRsi,
+            direction: result.direction,
+          });
+        }
+        break;
+      }
+      case 'MultiTimeframe': {
+        const cfg = TradingConfig.get('orchestrator.multiTimeframeMtf') || {};
+        const required = Array.isArray(cfg.requireHigherTFReady) ? cfg.requireHigherTFReady : [];
+        if (required.length > 0) {
+          const ready = mtfReadyTimeframes(result.signalData);
+          const missing = required.filter((timeframe) => !ready.includes(timeframe));
+          if (missing.length > 0) {
+            const multiplier = finiteConfigNumber(cfg.missingHigherTfMultiplier, 'multiTimeframeMtf.missingHigherTfMultiplier', 1.0, 0);
+            applyPenalty('mtf_standalone_higher_tf_missing_observation', multiplier, `MultiTimeframe higher timeframes are not ready: ${missing.join(',')}`, {
+              requiredTimeframes: required,
+              readyTimeframes: ready,
+              missingTimeframes: missing,
+            });
+          }
+        }
+        break;
+      }
+      case 'OGZTPO': {
+        const cfg = TradingConfig.get('orchestrator.ogzTpoMtf') || {};
+        const tf4h = this._getMtfIndicatorsForEvaluation(ctx, '4h');
+        if (tf4h && isMtfTrendAligned(tf4h, result.direction)) {
+          const multiplier = finiteConfigNumber(cfg.fourHourTrendBoostMultiplier, 'ogzTpoMtf.fourHourTrendBoostMultiplier', 1.12, 1);
+          multiply('ogztpo_mtf_4h_trend_boost', multiplier, {
+            timeframe: '4h',
+            mtfTrend: tf4h.trend,
+            direction: result.direction,
+          });
+        }
+        const tf1h = this._getMtfIndicatorsForEvaluation(ctx, '1h');
+        if (tf1h && isMtfMacdAligned(tf1h, result.direction)) {
+          const multiplier = finiteConfigNumber(cfg.hourlyMacdAlignBoost, 'ogzTpoMtf.hourlyMacdAlignBoost', 1.08, 1);
+          multiply('ogztpo_mtf_1h_macd_boost', multiplier, {
+            timeframe: '1h',
+            direction: result.direction,
+            macdBullish: tf1h.macd?.bullish,
+          });
+        }
+        const bandwidth = tf4h?.bollinger?.bandwidth;
+        const bandwidthThreshold = finiteConfigNumber(cfg.bandwidthThreshold, 'ogzTpoMtf.bandwidthThreshold', 0.015, 0);
+        if (Number.isFinite(bandwidth) && bandwidth > bandwidthThreshold) {
+          addDecisionContributor(result, {
+            name: 'ogztpo_mtf_4h_volatility_context',
+            type: 'annotation',
+            timeframe: '4h',
+            bandwidth,
+            threshold: bandwidthThreshold,
+          });
+        }
+        break;
+      }
+      default:
+        break;
+    }
+
+    return { applied: true };
   }
 
   /**
@@ -1572,6 +1875,7 @@ class StrategyOrchestrator {
               passed: true,
             });
           }
+          this._applyStrategyMtfConfluence(candidate, ctx);
           results.push(candidate);
         }
       } catch (err) {

@@ -26,6 +26,10 @@ const EventEmitter = require('events');
 // FIX 2026-02-16: Use centralized candle helper for format compatibility
 const { c, o, h, l, v, t } = require('../core/CandleHelper');
 
+function uniqueTimeframes(timeframes) {
+  return Array.from(new Set(timeframes.filter(Boolean)));
+}
+
 class MultiTimeframeAdapter extends EventEmitter {
   constructor(config = {}) {
     super();
@@ -40,8 +44,23 @@ class MultiTimeframeAdapter extends EventEmitter {
       '1d':  { ms: 86400000,   maxCandles: 365  },
     };
 
+    const baseTimeframe = config.baseTimeframe || '1m';
+    const baseConfig = this.TIMEFRAME_CONFIG[baseTimeframe];
+    if (!baseConfig) {
+      throw new Error(`[MultiTimeframeAdapter] unsupported baseTimeframe '${baseTimeframe}'`);
+    }
+    const requestedTimeframes = uniqueTimeframes([
+      baseTimeframe,
+      ...(config.activeTimeframes || ['1m', '5m', '15m', '1h', '4h', '1d']),
+    ]);
+    const activeTimeframes = requestedTimeframes.filter((timeframe) => {
+      const timeframeConfig = this.TIMEFRAME_CONFIG[timeframe];
+      return timeframeConfig && timeframeConfig.ms >= baseConfig.ms;
+    });
+
     this.config = {
-      activeTimeframes: config.activeTimeframes || ['1m', '5m', '15m', '1h', '4h', '1d'],
+      baseTimeframe,
+      activeTimeframes,
       indicatorPeriods: {
         rsi: 14,
         smaFast: 10,
@@ -88,28 +107,42 @@ class MultiTimeframeAdapter extends EventEmitter {
    * Feed a 1-minute candle from the WebSocket.
    * @param {Object} candle — { c, o, h, l, v, t } (V2 Kraken)
    */
-  ingestCandle(candle) {
+  ingestCandle(candle, sourceTimeframe = candle?.timeframe) {
     if (!candle || c(candle) == null || t(candle) == null) return;
 
-    this.stats.candlesProcessed++;
+    const normalizedSourceTimeframe = typeof sourceTimeframe === 'string' ? sourceTimeframe.trim() : '';
+    if (!normalizedSourceTimeframe) {
+      throw new Error('[MultiTimeframeAdapter] sourceTimeframe required');
+    }
+    const sourceConfig = this.TIMEFRAME_CONFIG[normalizedSourceTimeframe];
+    if (!sourceConfig) {
+      throw new Error(`[MultiTimeframeAdapter] unsupported sourceTimeframe '${normalizedSourceTimeframe}'`);
+    }
+    const baseConfig = this.TIMEFRAME_CONFIG[this.config.baseTimeframe];
+    if (sourceConfig.ms < baseConfig.ms) {
+      throw new Error(`[MultiTimeframeAdapter] sourceTimeframe '${normalizedSourceTimeframe}' is below baseTimeframe '${this.config.baseTimeframe}'`);
+    }
 
-    // Store raw 1m
-    this._addCandle('1m', candle);
+    this.stats.candlesProcessed++;
+    const stampedCandle = { ...candle, timeframe: normalizedSourceTimeframe };
+
+    this._addCandle(normalizedSourceTimeframe, stampedCandle);
 
     // Aggregate into higher timeframes
     for (const tf of this.config.activeTimeframes) {
-      if (tf === '1m') continue;
       const tfConfig = this.TIMEFRAME_CONFIG[tf];
       if (!tfConfig) continue;
-      this._aggregateInto(tf, candle);
+      if (tfConfig.ms <= sourceConfig.ms) continue;
+      this._aggregateInto(tf, stampedCandle);
     }
 
     // Recalc indicators on ready timeframes
     this._recalculateIndicators();
 
     this.emit('timeframes_updated', {
-      timestamp: t(candle),
-      price: c(candle),
+      timestamp: t(stampedCandle),
+      price: c(stampedCandle),
+      sourceTimeframe: normalizedSourceTimeframe,
       readyTimeframes: Array.from(this.readyTimeframes),
     });
   }
@@ -456,6 +489,8 @@ class MultiTimeframeAdapter extends EventEmitter {
   /** Dashboard snapshot */
   getSnapshot() {
     return {
+      baseTimeframe: this.config.baseTimeframe,
+      activeTimeframes: [...this.config.activeTimeframes],
       readyTimeframes: Array.from(this.readyTimeframes),
       candleCounts: this.getCandleCounts(),
       indicators: Object.fromEntries(this.indicators),

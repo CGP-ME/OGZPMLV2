@@ -178,11 +178,11 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
 	  test('uses confluence score magnitude for bearish MTF decisions', () => {
     const ingestCandle = jest.fn();
     const getConfluenceScore = jest.fn(() => ({
-      direction: 'sell',
-      confluenceScore: -0.44,
-      confidence: 0.70,
-      readyTimeframes: ['15m', '1h'],
-    }));
+	      direction: 'sell',
+	      confluenceScore: -0.44,
+	      confidence: 0.70,
+	      readyTimeframes: ['15m', '1h', '4h'],
+	    }));
     jest.doMock('../modules/MultiTimeframeAdapter', () => jest.fn().mockImplementation(() => ({
       ingestCandle,
       getConfluenceScore,
@@ -221,9 +221,14 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
 	    }));
 	  });
 
-	  test('keeps MTF booster default-off while capturing observational MTF state', () => {
-	    const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
-	    const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
+	  test('can disable MTF booster while still capturing observational MTF state', () => {
+	    process.env = {
+	      ...process.env,
+	      ENABLE_MTF_CONFLUENCE_BOOSTER: 'false',
+	    };
+	    jest.resetModules();
+		    const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
+		    const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
 	    const confluenceSpy = jest.spyOn(orchestrator, '_getMtfConfluenceForEvaluation');
 
 	    orchestrator.strategies = [{
@@ -289,10 +294,9 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
 	    expect(result.mtfConfluenceSnapshot).toBeNull();
 	  });
 
-	  test('boosts aligned bullish candidates and penalizes conflicts without mutating raw confidence', () => {
+	  test('default-on booster adjusts aligned and conflicting candidates without mutating raw confidence', () => {
 	    process.env = {
 	      ...process.env,
-	      ENABLE_MTF_CONFLUENCE_BOOSTER: 'true',
 	      MTF_BOOSTER_MIN_SCORE: '0.1',
 	      MTF_BOOSTER_MIN_CONFIDENCE: '0.1',
 	      MTF_BOOSTER_STRENGTH_MULT: '1',
@@ -332,6 +336,55 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
 	      ['ProbeBuy', 0.96],
 	      ['ProbeSell', 0.31],
 	    ]);
+	  });
+
+	  test('does not let MTF conflict penalty demote a qualified trade into HOLD', () => {
+	    process.env = {
+	      ...process.env,
+	      MIN_STRATEGY_CONFIDENCE: '0.50',
+	      MTF_BOOSTER_MIN_SCORE: '0.1',
+	      MTF_BOOSTER_MIN_CONFIDENCE: '0.1',
+	      MTF_BOOSTER_CONFLICT_MULT: '0.5',
+	    };
+
+	    const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
+	    const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
+	    jest.spyOn(orchestrator, '_getMtfConfluenceForEvaluation').mockReturnValue({
+	      confluenceScore: -0.6,
+	      confidence: 0.9,
+	      readyTimeframes: ['15m', '1h'],
+	    });
+
+	    orchestrator.strategies = [{
+	      name: 'ProbeBuy',
+	      evaluate: () => ({
+	        direction: 'buy',
+	        confidence: 0.51,
+	        reason: 'qualified raw signal',
+	      }),
+	    }];
+
+	    const result = orchestrator.evaluate(
+	      { atr: 1, volatility: 1 },
+	      [],
+	      { currentRegime: 'ranging', confidence: 0.5, positionMultiplier: 1 },
+	      [{ symbol: 'TSLA', timeframe: '15m', o: 100, h: 101, l: 99, c: 100, t: 1 }],
+	      { symbol: 'TSLA', timeframe: '15m', price: 100 }
+	    );
+
+	    expect(result.action).toBe('BUY');
+	    expect(result.winnerStrategy).toBe('ProbeBuy');
+	    expect(result.confidence).toBeCloseTo(50, 6);
+	    expect(result.allResults[0].decisionAttribution.contributors).toEqual(
+	      expect.arrayContaining([
+	        expect.objectContaining({
+	          name: 'mtf_confluence_booster',
+	          aligned: false,
+	          previousSelectionScore: 0.51,
+	          nextSelectionScore: 0.5,
+	        }),
+	      ])
+	    );
 	  });
 
 	  test('exposes cached MTF confluence snapshot on the orchestrator result', () => {

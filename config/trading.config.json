@@ -739,7 +739,50 @@
       "15m",
       "1h",
       "4h"
-    ]
+    ],
+    "mtfConfluenceBooster": {
+      "enabled": true,
+      "minScore": 0.3,
+      "minConfidence": 0.45,
+      "strengthMultiplier": 0.2,
+      "maxMultiplier": 1.15,
+      "conflictMultiplier": 0.88,
+      "penalizeConflicts": true,
+      "boostMtfCandidate": false
+    },
+    "strategyMtfConfluence": {
+      "enabled": true
+    },
+    "emaCrossoverMtf": {
+      "hourlyTrendVetoMultiplier": 0.95,
+      "fourHourMacdBoostMultiplier": 1.15,
+      "freshLongTermCrossoverMinTrendStrength": 0.3
+    },
+    "maDynamicSRMtf": {
+      "requireHourlyTrendAlign": true,
+      "hourlyTrendConflictMultiplier": 0.95,
+      "fourHourAlignBoost": 0.08,
+      "compressionBandwidthThreshold": 0.01
+    },
+    "rsiMtf": {
+      "penalizeAgainst4hTrend": true,
+      "fourHourTrendConflictMultiplier": 0.95,
+      "hourlyRsiAlignBoost": 0.1,
+      "hourlyRsiBuyMax": 40,
+      "hourlyRsiSellMin": 60
+    },
+    "multiTimeframeMtf": {
+      "requireHigherTFReady": [
+        "1h",
+        "4h"
+      ],
+      "missingHigherTfMultiplier": 1
+    },
+    "ogzTpoMtf": {
+      "fourHourTrendBoostMultiplier": 1.12,
+      "hourlyMacdAlignBoost": 1.08,
+      "bandwidthThreshold": 0.015
+    }
   },
   "universalLimits": {
     "hardStopLossPercent": -5,
