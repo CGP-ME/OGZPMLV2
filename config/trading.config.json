@@ -632,10 +632,10 @@
         }
       ],
       "patternMultipliers": {
-        "promoted": 1.5,
+        "promoted": 1,
         "neutral": 1,
         "learning": 1,
-        "quarantined": 0.25,
+        "quarantined": 1,
         "unknown": 1
       },
       "confluenceMultipliers": [

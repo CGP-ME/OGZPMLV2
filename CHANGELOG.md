@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fix 18 Pattern Sizing Mitigation (2026-07-02)
+
+- Neutralized DynamicPositionSizer pattern multipliers so promoted/quarantined pattern-memory status cannot boost, quarter, or block position size while TRAI feature-vector learning is under M-N repair.
+- Hardened the sizer against env, constructor override, and half-Kelly bypasses so direct construction cannot silently restore pattern-memory-driven sizing.
+- Added focused coverage proving promoted, quarantined, neutral, and unknown pattern statuses produce the same size and multiplier under the mitigation, including attempted override inputs.
+
 ### Fee-Aware Entry Gate Visibility (2026-07-02)
 
 - Added config-owned `risk.feeGate.minEdgeMultiple` and a trade-birth `fee_edge` risk gate that compares contracted expected move dollars against config-owned round-trip fees from `FeeModel`.

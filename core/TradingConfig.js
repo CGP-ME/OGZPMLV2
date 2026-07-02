@@ -1097,11 +1097,11 @@ const BASE_CONFIG = {
         { atrPercent: 2.00, multiplier: 0.40 },
       ],
       patternMultipliers: {
-        promoted:    parseFloat(env('PATTERN_MULT_PROMOTED', 1.50)),
-        neutral:     parseFloat(env('PATTERN_MULT_NEUTRAL', 1.00)),
-        learning:    parseFloat(env('PATTERN_MULT_LEARNING', 1.00)),
-        quarantined: parseFloat(env('PATTERN_MULT_QUARANTINED', 0.25)),
-        unknown:     parseFloat(env('PATTERN_MULT_UNKNOWN', 1.00)),
+        promoted:    1.00,
+        neutral:     1.00,
+        learning:    1.00,
+        quarantined: 1.00,
+        unknown:     1.00,
       },
       confluenceMultipliers: [1.0, 1.0, 1.25, 1.5, 1.75, 2.0],  // by confluence count
     },

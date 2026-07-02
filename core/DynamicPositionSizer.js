@@ -9,8 +9,8 @@
  *
  * Where:
  *   baseSize           = account × BASE_POSITION_SIZE (default 1%)
- *   patternMultiplier  = from UnifiedPatternMemory win rate
- *                        unknown=1.0, promoted=1.5, quarantined=0
+ *   patternMultiplier  = from UnifiedPatternMemory status
+ *                        temporarily neutralized at 1.0 pending Fix 18
  *   confidenceMultiplier = from signal confidence (0-1 scale)
  *                        50%=0.5x, 75%=1.5x, 90%=2.5x
  *   volatilityMultiplier = ATR-based
@@ -93,12 +93,14 @@ class DynamicPositionSizer {
     // ═══════════════════════════════════════════════════════════════
     // PATTERN MULTIPLIER — from UnifiedPatternMemory status
     // ═══════════════════════════════════════════════════════════════
-    this.patternMultipliers = config.patternMultipliers ?? {
-      promoted:    1.50,   // Proven winner — trust it more
-      neutral:     1.00,   // Unknown track record — standard size
-      learning:    1.00,   // Still collecting data — standard size
-      quarantined: 0.25,   // Proven loser — quarter size, still trade to collect data
-      unknown:     1.00,   // No pattern match — standard size
+    // Fix 18 mitigation: pattern-memory feature vectors are contaminated until
+    // M-N repairs the write path, so status is observational only for sizing.
+    this.patternMultipliers = {
+      promoted:    1.00,
+      neutral:     1.00,
+      learning:    1.00,
+      quarantined: 1.00,
+      unknown:     1.00,
     };
 
     // ═══════════════════════════════════════════════════════════════
@@ -106,7 +108,7 @@ class DynamicPositionSizer {
     // Kelly criterion: f* = (bp - q) / b where b=win/loss ratio
     // Half-Kelly = 50% of full Kelly = 75% of growth, way less drawdown
     // ═══════════════════════════════════════════════════════════════
-    this.useHalfKelly = config.useHalfKelly ?? false;
+    this.useHalfKelly = false;
     this.kellyMinSamples = config.kellyMinSamples ?? 20; // Need 20+ trades for Kelly
 
     // Reference to pattern memory — injected after construction
