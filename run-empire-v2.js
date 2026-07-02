@@ -93,7 +93,7 @@ require('./instrument.js');
  * KEY METHODS:
  * - processCandle(candle): Main trading loop entry point
  * - executeTrade(decision, ...): Executes BUY/SELL orders
- * - manageExistingPosition(price, ...): Handles exits/trailing stops
+ * - TradingLoop.checkExitsOnly(symbol): Handles exits/trailing stops (ECM stack)
  * - handleMarketData(candle): Routes incoming market data
  *
  * STATE MANAGEMENT:
