@@ -96,6 +96,7 @@
         socketHandlersInstalled: false,
         socketHandlerSocket: null,
         positionSyncIntervalId: null,
+        brokerFeedState: new Map(),        // broker code ('ALP'|'KRA') → { ok, reason } from real broker_status frames
     };
 
     function normalizePriceMatchSymbol(symbol) {
@@ -424,9 +425,11 @@
         sparklineWrap.className = 'ws-sparkline-wrap';
         sparklineWrap.innerHTML = renderSparkline(ts.sparkline);
 
+        const displayState = displayedCardState(ts);
         const statePill = document.createElement('div');
-        statePill.className = `ws-state ${ts.positionState}`;
-        statePill.textContent = ts.positionState;
+        statePill.className = `ws-state ${displayState.pill}`;
+        statePill.textContent = displayState.label;
+        if (displayState.reason) card.title = displayState.reason;
 
         card.appendChild(header);
         card.appendChild(priceRow);
@@ -489,12 +492,16 @@
             sparklineWrap.innerHTML = renderSparkline(ts.sparkline);
         }
 
-        // Update position state
+        // Update position state (feed-fault display wins while the card has
+        // no price and its broker feed reports not-ok — honest empty state).
         const stateEl = card.querySelector('.ws-state');
         if (stateEl) {
+            const display = displayedCardState(ts);
             stateEl.classList.remove('SCAN', 'LONG', 'SHORT', 'COOL', 'FAULT');
-            stateEl.classList.add(ts.positionState);
-            stateEl.textContent = ts.positionState;
+            stateEl.classList.add(display.pill);
+            stateEl.textContent = display.label;
+            if (display.reason) card.title = display.reason;
+            else card.removeAttribute('title');
         }
 
         // Flash animation on price change
@@ -507,6 +514,51 @@
                 card.classList.remove(flashClass);
             }, PRICE_FLASH_MS);
         }
+    }
+
+    /**
+     * Resolve the pill a card should display. While a card has NO price and
+     * its broker's feed reports not-ok (real broker_status frames from the
+     * SSL server's stock/crypto fanout), the pill shows FAULT with the
+     * broadcast reason as tooltip — instead of implying an active SCAN on a
+     * feed that is down or unconfigured. Position state wins once data flows.
+     */
+    function displayedCardState(ts) {
+        const noData = !isFinite(ts.price) || ts.price <= 0;
+        if (noData) {
+            const feed = state.brokerFeedState.get(normalizeBrokerCode(ts.broker));
+            if (feed && feed.ok === false) {
+                return {
+                    pill: 'FAULT',
+                    label: 'FEED',
+                    reason: `${ts.broker} feed down: ${feed.reason || 'no reason broadcast'}`,
+                };
+            }
+        }
+        return { pill: ts.positionState, label: ts.positionState, reason: null };
+    }
+
+    /**
+     * broker_status frames — emitted by the SSL server's price fanout paths
+     * with {name:'alpaca'|'kraken', ok:boolean, reason}. Strict validation;
+     * malformed frames are rejected loudly, never guessed at.
+     */
+    function onBrokerStatus(frame) {
+        const data = (frame && frame.data) ? frame.data : frame;
+        if (!data || typeof data.name !== 'string' || typeof data.ok !== 'boolean') {
+            console.error('[WatchlistStrip] Rejected malformed broker_status frame:', frame);
+            return;
+        }
+        const brokerCode = normalizeBrokerCode(data.name);
+        if (!brokerCode) return;
+        state.brokerFeedState.set(brokerCode, {
+            ok: data.ok,
+            reason: typeof data.reason === 'string' ? data.reason : null,
+        });
+        // Refresh pills on this broker's cards that still lack data.
+        state.tickers
+            .filter(t => normalizeBrokerCode(t.broker) === brokerCode)
+            .forEach(t => updateCard(t.symbol));
     }
 
     // ─── Event Handlers ─────────────────────────────────────────────────
@@ -630,6 +682,9 @@
                 if (socket && socket.registerHandler && state.socketHandlerSocket !== socket) {
                     socket.registerHandler('price', onPriceEvent);
                     socket.registerHandler('ticker_price', onPriceEvent);
+                    // broker_status → honest FEED pill on no-data cards whose
+                    // broker fanout reports down/unconfigured.
+                    socket.registerHandler('broker_status', onBrokerStatus);
                     state.socketHandlersInstalled = true;
                     state.socketHandlerSocket = socket;
                     // TODO verify with backend: position_update

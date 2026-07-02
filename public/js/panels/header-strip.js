@@ -102,6 +102,11 @@
         sessionTradeCount: 0,
         sessionWins: 0,
         sessionLosses: 0,
+        // Authoritative win stats from state_update (StateManager closedTrades
+        // ledger). null until the first frame carrying them arrives — the
+        // header renders '--' rather than a fabricated 0%.
+        closedTradeCount: null,
+        winningTrades: null,
         priceHistory: [],          // for DATA-light idle detection
         externalRiskOverride: null,// non-null = use external RiskGauge value
 
@@ -622,8 +627,15 @@
             const unrEl    = state.domRefs.heroSessionMeta.querySelector('[data-k="unr"]');
             if (tradesEl) tradesEl.textContent = String(state.sessionTradeCount);
             if (winEl) {
-                if (state.sessionTradeCount > 0) {
-                    const wp = (state.sessionWins / state.sessionTradeCount) * 100;
+                // Win% truth (2026-07-01): authoritative stats from
+                // state_update (StateManager closedTrades ledger). The old
+                // math divided a browser-session-local win tally by lifetime
+                // tradeCount — mixed scopes that rendered WIN 0% on any
+                // dashboard connecting mid-session. No frame yet → '--',
+                // never a fabricated percentage.
+                if (Number.isFinite(state.closedTradeCount) && state.closedTradeCount > 0
+                    && Number.isFinite(state.winningTrades)) {
+                    const wp = (state.winningTrades / state.closedTradeCount) * 100;
                     winEl.textContent = `${wp.toFixed(0)}%`;
                     winEl.classList.toggle('pos', wp >= 60);
                     winEl.classList.toggle('warn', wp >= 40 && wp < 60);
@@ -805,6 +817,16 @@
             state.equity = equity;
             state.sessionTotalPnL = totPnL;
             state.sessionTradeCount = trades;
+
+            // Authoritative win stats (StateManager closedTrades ledger).
+            // Only accept when both fields are finite numbers — partial
+            // frames leave the previous values untouched.
+            const closedCount = Number(s.closedTradeCount);
+            const wins = Number(s.winningTrades);
+            if (Number.isFinite(closedCount) && Number.isFinite(wins)) {
+                state.closedTradeCount = closedCount;
+                state.winningTrades = wins;
+            }
 
             // Capture session-open equity on first real state_update.
             // Walk back to the pre-PnL principal so the % delta is correct

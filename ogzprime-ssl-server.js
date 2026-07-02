@@ -249,43 +249,29 @@ async function getTraiClient() {
   return traiClient;
 }
 
-// CHANGE 2026-03-30: Tavily web search for TRAI (must be before analyze endpoint)
-const TAVILY_API_KEY = process.env.TAVILY_API_KEY || '';
+// CHANGE 2026-07-01: Provider-explicit news search (core/NewsSearchProvider.js).
+// Replaces the hardcoded Tavily coupling. Provider is selected by
+// NEWS_SEARCH_PROVIDER (tavily | brightdata); required keys are enforced at
+// startup — misconfiguration throws instead of silently degrading. When no
+// provider is configured, newsSearch() returns null and every consumer
+// surfaces the existing honest "unconfigured" state.
+const { resolveNewsSearchConfig, createNewsSearchClient } = require('./core/NewsSearchProvider');
+const NEWS_SEARCH_CONFIG = resolveNewsSearchConfig(process.env);
+const newsSearchClient = NEWS_SEARCH_CONFIG.provider ? createNewsSearchClient(NEWS_SEARCH_CONFIG) : null;
+const NEWS_SEARCH_CONFIGURED = Boolean(newsSearchClient);
+const NEWS_SEARCH_SOURCE = NEWS_SEARCH_CONFIG.provider || 'unconfigured';
 
-async function tavilySearch(query, maxResults = 5) {
-  if (!TAVILY_API_KEY) {
+async function newsSearch(query, maxResults = 5) {
+  if (!newsSearchClient) {
     return null;  // Callers must expose the unconfigured search state.
   }
 
   try {
-    const response = await fetch('https://api.tavily.com/search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        api_key: TAVILY_API_KEY,
-        query,
-        search_depth: 'basic',
-        max_results: maxResults,
-        include_answer: true,
-        include_raw_content: false
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Tavily API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return {
-      answer: data.answer || null,
-      results: (data.results || []).map(r => ({
-        title: r.title,
-        url: r.url,
-        snippet: r.content?.substring(0, 300)
-      }))
-    };
+    return await newsSearchClient.search(query, maxResults);
   } catch (error) {
-    console.error('[TRAI Search] Error:', error.message);
+    // null here is the documented "unavailable" surface consumed by every
+    // TRAI endpoint — the error itself is never swallowed silently.
+    console.error(`[NewsSearch:${NEWS_SEARCH_SOURCE}] Error:`, error.message);
     return null;
   }
 }
@@ -448,13 +434,13 @@ IMPORTANT: Use ONLY the data above. Do NOT invent or hallucinate any numbers, pr
     // also fetch news any time a stock symbol is present OR the question is
     // about a company/market, so TRAI is actually aware of what's happening
     // instead of falling back to generic output.
-    const shouldSearch = enableSearch !== false && TAVILY_API_KEY && (needsWebSearch(prompt) || symbol);
+    const shouldSearch = enableSearch !== false && NEWS_SEARCH_CONFIGURED && (needsWebSearch(prompt) || symbol);
     if (shouldSearch) {
-      console.log('[TRAI Analyze] Fetching news context via Tavily...');
+      console.log(`[TRAI Analyze] Fetching news context via ${NEWS_SEARCH_SOURCE}...`);
       const newsQuery = symbol
         ? `${symbol} stock news today ${new Date().toISOString().slice(0, 10)}`
         : prompt;
-      const searchResults = await tavilySearch(newsQuery, 4);
+      const searchResults = await newsSearch(newsQuery, 4);
       if (searchResults && (searchResults.answer || searchResults.results?.length)) {
         searchUsed = true;
         dataContext += `\n**Recent news (last 24-48h):**\n`;
@@ -536,7 +522,8 @@ app.get('/api/trai/status', async (req, res) => {
   try {
     const client = await getTraiClient();
     const status = client.getStatus();
-    status.searchEnabled = !!TAVILY_API_KEY;
+    status.searchEnabled = NEWS_SEARCH_CONFIGURED;
+    status.searchProvider = NEWS_SEARCH_SOURCE;
     res.json(status);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -550,14 +537,14 @@ app.post('/api/trai/search', async (req, res) => {
       return res.status(400).json({ error: 'query is required' });
     }
 
-    if (!TAVILY_API_KEY) {
+    if (!NEWS_SEARCH_CONFIGURED) {
       return res.status(503).json({
         error: 'Web search not configured',
-        hint: 'Set TAVILY_API_KEY in .env (free at tavily.com)'
+        hint: 'Set NEWS_SEARCH_PROVIDER=brightdata (with BRIGHTDATA_API_KEY + BRIGHTDATA_SERP_ZONE) or NEWS_SEARCH_PROVIDER=tavily (with TAVILY_API_KEY) in .env'
       });
     }
 
-    const results = await tavilySearch(query, maxResults || 5);
+    const results = await newsSearch(query, maxResults || 5);
     res.json(results || { answer: null, results: [] });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -721,11 +708,11 @@ function cachedFetch(key, ttlMs, fetcher) {
 app.get('/api/trai/events', async (req, res) => {
   try {
     const symbol = sanitizeSymbol(req.query.symbol, 'TSLA');
-    if (!TAVILY_API_KEY) {
+    if (!NEWS_SEARCH_CONFIGURED) {
       res.set('Cache-Control', 'no-store');
       return res.json({
         events: [],
-        source: 'tavily',
+        source: NEWS_SEARCH_SOURCE,
         symbol,
         configured: false,
         status: 'unconfigured',
@@ -748,7 +735,7 @@ app.get('/api/trai/events', async (req, res) => {
     let data = null;
     try {
       data = await _withTimeout((async () => {
-        const results = await tavilySearch(
+        const results = await newsSearch(
           `${symbol} stock upcoming earnings date FOMC FDA catalyst 2026`,
           5
         );
@@ -758,7 +745,7 @@ app.get('/api/trai/events', async (req, res) => {
         if (!results.results || !results.results.length) {
           return {
             events: [],
-            source: 'tavily',
+            source: NEWS_SEARCH_SOURCE,
             symbol,
             configured: true,
             status: 'empty',
@@ -794,7 +781,7 @@ If no events found, return []. ONLY output the JSON array.`;
         events = _validateEventsArray(events);
         return {
           events,
-          source: 'tavily+trai',
+          source: `${NEWS_SEARCH_SOURCE}+trai`,
           symbol,
           configured: true,
           status: events.length ? 'ready' : 'empty',
@@ -809,7 +796,7 @@ If no events found, return []. ONLY output the JSON array.`;
     if (!data) {
       return res.status(503).json({
         events: [],
-        source: 'tavily+trai',
+        source: `${NEWS_SEARCH_SOURCE}+trai`,
         symbol,
         configured: true,
         status: 'unavailable',
@@ -821,6 +808,13 @@ If no events found, return []. ONLY output the JSON array.`;
 
     const cachedAt = Date.now();
     _traiCache.set(cacheKey, { data, at: cachedAt });
+
+    // Fresh events → push over the news_event WS channel so the ticker's WS
+    // path and TRAI Brain "Latest News" receive them without polling.
+    if (data.status === 'ready' && Array.isArray(data.events) && data.events.length > 0) {
+      broadcastDashboardNewsEvents(data.events, symbol);
+    }
+
     res.json({
       ...data,
       cached: false,
@@ -831,9 +825,9 @@ If no events found, return []. ONLY output the JSON array.`;
     console.error('[TRAI Events] Error:', error.message);
     res.status(500).json({
       events: [],
-      source: 'tavily+trai',
+      source: `${NEWS_SEARCH_SOURCE}+trai`,
       symbol: sanitizeSymbol(req.query.symbol, 'TSLA'),
-      configured: !!TAVILY_API_KEY,
+      configured: NEWS_SEARCH_CONFIGURED,
       status: 'unavailable',
       message: 'Failed to fetch events',
       details: error.message
@@ -848,7 +842,7 @@ app.get('/api/trai/regime', async (req, res) => {
     const symbol = sanitizeSymbol(req.query.symbol, 'TSLA');
     const data = await cachedFetch(`regime:${symbol}`, 5 * 60 * 1000, async () => {
       const marketData = await fetchMarketData(symbol);
-      const news = await tavilySearch(`${symbol} stock market trend today`, 3);
+      const news = await newsSearch(`${symbol} stock market trend today`, 3);
       const client = await getTraiClient();
       const dataBlock = marketData
         ? `Price: $${marketData.price}, Change: ${marketData.changePct}%, RSI: ${marketData.rsi}, Volume ratio: ${marketData.volumeRatio}x, ATR: $${marketData.atr}`
@@ -920,7 +914,7 @@ app.get('/api/trai/session-context', async (req, res) => {
 
       let watchNote = null;
       try {
-        const news = await tavilySearch(`${symbol} stock what to watch market open`, 3);
+        const news = await newsSearch(`${symbol} stock what to watch market open`, 3);
         if (news && news.answer) {
           watchNote = news.answer;
         } else if (news && news.results && news.results.length) {
@@ -1045,12 +1039,12 @@ app.get('/api/trai/whales', async (req, res) => {
   try {
     const symbol = sanitizeSymbol(req.query.symbol, 'TSLA');
     const data = await cachedFetch(`whales:${symbol}`, 30 * 60 * 1000, async () => {
-      const results = await tavilySearch(
+      const results = await newsSearch(
         `${symbol} insider trading SEC filing institutional ownership large block trade 2026`,
         5
       );
       if (!results || !results.results || !results.results.length) {
-        return { activities: [], source: 'tavily', symbol };
+        return { activities: [], source: NEWS_SEARCH_SOURCE, symbol };
       }
       const client = await getTraiClient();
       const prompt = `You are an institutional-activity extractor for ${symbol}.
@@ -1076,9 +1070,9 @@ If no activity found, return []. ONLY output the JSON array.`;
       // Schema-enforce: unknown whale activity types collapse to
       // 'institutional' (benign default), strings bounded, extras dropped.
       activities = _validateWhalesArray(activities);
-      return { activities, source: 'tavily+trai', symbol, fetchedAt: new Date().toISOString() };
+      return { activities, source: `${NEWS_SEARCH_SOURCE}+trai`, symbol, fetchedAt: new Date().toISOString() };
     });
-    res.json(data || { activities: [], source: 'tavily', symbol: sanitizeSymbol(req.query.symbol, 'TSLA') });
+    res.json(data || { activities: [], source: NEWS_SEARCH_SOURCE, symbol: sanitizeSymbol(req.query.symbol, 'TSLA') });
   } catch (error) {
     console.error('[TRAI Whales] Error:', error.message);
     res.status(500).json({ error: 'Failed to fetch whale activity', details: error.message });
@@ -1091,6 +1085,11 @@ If no activity found, return []. ONLY output the JSON array.`;
 
 // CHANGE 2026-03-06: Restore /api/health endpoint for proof page
 app.get('/api/health', (req, res) => {
+  // no-store (2026-07-01): the live deployment served a 5-day-old cached
+  // health payload (timestamp + connections:0 frozen by upstream nginx/CDN
+  // caching). Health MUST always be computed fresh — the dashboard footer
+  // polls this endpoint and renders whatever it gets as current truth.
+  res.set('Cache-Control', 'no-store');
   res.json({
     status: 'healthy',
     uptime: process.uptime(),
@@ -1170,6 +1169,63 @@ function dashboardClients() {
     client.authenticated &&
     client.clientType === 'dashboard'
   ));
+}
+
+// ─── news_event WS push ────────────────────────────────────────────────
+// Fulfills the dashboard's existing news_event consumers (news-ticker WS
+// path + TRAI Brain "Latest News"). Called ONLY after a fresh (non-cached)
+// /api/trai/events fetch — real provider events, never synthetic.
+// Sentiment mapping mirrors news-ticker.js mapTraiEventToNewsItem exactly;
+// the two MUST stay in sync (shared contract, documented both places).
+const NEWS_EVENT_SENTIMENT_BY_TYPE = {
+  earnings: 'neutral',
+  fomc: 'defensive',
+  fda: 'neutral',
+  macro: 'defensive',
+  catalyst: 'bullish',
+  other: 'neutral',
+};
+
+function broadcastDashboardNewsEvents(events, symbol) {
+  if (!Array.isArray(events) || events.length === 0) return 0;
+
+  const clients = dashboardClients();
+  if (clients.length === 0) return 0;
+
+  let sent = 0;
+  for (const event of events) {
+    if (!event || typeof event.title !== 'string' || !event.title.trim()) {
+      console.error('[NewsEvent Push] Skipping event without title:', event);
+      continue;
+    }
+
+    let ts = Date.now();
+    if (event.date && event.date !== 'TBD') {
+      const parsed = Date.parse(event.date);
+      if (Number.isFinite(parsed)) ts = parsed;
+    }
+
+    const frame = JSON.stringify({
+      type: 'news_event',
+      ts,
+      timestamp: Date.now(),
+      sentiment: NEWS_EVENT_SENTIMENT_BY_TYPE[event.type] || 'neutral',
+      headline: event.title,
+      source: typeof event.source === 'string' && event.source ? event.source : 'TRAI',
+      ticker: symbol,
+      trai_commentary: typeof event.summary === 'string' && event.summary ? event.summary : undefined,
+    });
+
+    for (const client of clients) {
+      try {
+        client.send(frame);
+        sent += 1;
+      } catch (err) {
+        console.error('[NewsEvent Push] send failed:', err.message);
+      }
+    }
+  }
+  return sent;
 }
 
 function sanitizeBrokerStatusText(value) {

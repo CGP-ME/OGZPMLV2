@@ -8,7 +8,7 @@
  * Data sources (priority order):
  *   1. bot_thinking      — d.strategy_stack[], winner from d.winner_id
  *   2. signal_analysis   — d.signal.signals[], winner from d.modules.orchestrator.winner
- *   3. orchestrator_result (legacy) — d.signalBreakdown.signals / d.allResults
+ *   (orchestrator_result legacy subscription removed 2026-07-01 — no emitter ever existed)
  *
  * Mounts inside .chart-container, immediately before #tvChartContainer.
  * Self-injects its own scoped CSS; self-registers as OGZ.Heatbar.
@@ -343,22 +343,12 @@
                     } catch (_) { /* swallow */ }
                 });
 
-                // 3. orchestrator_result (legacy / fallback)
-                socket.registerHandler('orchestrator_result', (d) => {
-                    try {
-                        if (!d) return;
-                        const src = (d.signalBreakdown && d.signalBreakdown.signals)
-                            || d.allResults
-                            || null;
-                        if (!src) return;
-                        const stack = normalizeStack(src);
-                        if (stack.length === 0) return;
-                        const winner = (d.winner && (d.winner.name || d.winner.strategyName))
-                            || d.winnerName
-                            || null;
-                        renderSegments(stack, winner);
-                    } catch (_) { /* swallow */ }
-                });
+                // 3. orchestrator_result — REMOVED 2026-07-01. No emitter has
+                // ever existed for this frame type anywhere in the codebase
+                // (verified by full-repo grep); the heatbar is fully served by
+                // its two REAL sources above (bot_thinking, signal_analysis).
+                // Dead fallback subscriptions violate the no-fallback doctrine
+                // and mislead readers into thinking a third feed exists.
             } catch (_) { /* never throw from init */ }
         },
 

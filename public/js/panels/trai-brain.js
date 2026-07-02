@@ -697,7 +697,11 @@
         if (state.escalations.length === 0) {
             const muted = document.createElement('div');
             muted.className = 'tb-escalation-muted';
-            muted.textContent = '0 items requiring operator attention';
+            // Honest empty state: the 'escalation' WS frame has NO backend
+            // emitter yet (planned: Supervisor/TRAI ops-attention bridge).
+            // "0 items" would claim a live-and-empty queue; this channel is
+            // not wired. Label updates itself the moment real frames arrive.
+            muted.textContent = 'Escalation channel awaiting backend emitter';
             state.domRefs.escalationSection.appendChild(muted);
             return;
         }

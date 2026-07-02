@@ -138,6 +138,19 @@ window.OGZ = (window.OGZ && window.OGZ.__coreGuard === 'ogz-core-v2')
             const socket = this.get('Socket');
             if (!socket) return;
 
+            // LIVE: Bot runtime posture (core/BotStateFrame.js). Stored as the
+            // single source of truth so any panel can explain WHY a feed is
+            // quiet (eval_dormant, weekend_idle, paused) instead of showing
+            // bare placeholders. No default posture is fabricated here —
+            // panels must handle OGZ.state.botState === undefined explicitly.
+            socket.registerHandler('bot_state', (d) => {
+                if (!d || typeof d.mode !== 'string' || !d.mode.trim()) {
+                    console.error('[OGZ] Rejected malformed bot_state frame (mode missing):', d);
+                    return;
+                }
+                state.botState = d;
+            });
+
             // DORMANT: Golden Setup State (awaits backend emitter)
             socket.registerHandler('golden_setup_state', (d) => {
                 state.proximityToGolden = d.proximity;

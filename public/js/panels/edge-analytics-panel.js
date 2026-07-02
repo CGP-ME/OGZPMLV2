@@ -57,9 +57,9 @@
         root.innerHTML = '';
         root.className = 'eap-root';
 
-        // Section 1: Liquidation Levels
+        // Section 1: Liquidation Levels (crypto-only concept — hidden on stocks)
         const liqSection = document.createElement('div');
-        liqSection.className = 'eap-section edge-section';
+        liqSection.className = 'eap-section edge-section eap-crypto-only';
         liqSection.innerHTML = `
             <h4>💀 Liquidation Levels</h4>
             <div class="liq-levels">
@@ -91,9 +91,9 @@
         `;
         root.appendChild(cvdSection);
 
-        // Section 3: Funding Rates
+        // Section 3: Funding Rates (crypto-only concept — hidden on stocks)
         const fundingSection = document.createElement('div');
-        fundingSection.className = 'eap-section edge-section';
+        fundingSection.className = 'eap-section edge-section eap-crypto-only';
         fundingSection.innerHTML = `
             <h4>💰 Funding Rates</h4>
             <div class="funding-display">
@@ -381,6 +381,41 @@
         _registeredHandlers.push({ type, fn });
     }
 
+    // ─── Symbol-class awareness ──────────────────────────────────────────
+    // Liquidation zones and funding rates are perpetual-futures concepts.
+    // Rendering them under a stock scope (the "$738 Long Liq Zone on TSLA"
+    // bug) presents fabricated-looking analytics as real. Sections marked
+    // .eap-crypto-only are hidden while a stock is selected.
+    function assetClassForBroker(broker) {
+        const code = String(broker || '').trim().toUpperCase();
+        if (code === 'KRA' || code === 'KRAKEN' || code === 'CB' || code === 'COINBASE') return 'crypto';
+        if (code === 'ALP' || code === 'ALPACA') return 'stock';
+        return null;
+    }
+
+    function applyAssetClassVisibility(assetClass) {
+        if (assetClass !== 'crypto' && assetClass !== 'stock') {
+            console.error(`[EdgeAnalyticsPanel] Unknown asset class "${assetClass}" — section visibility unchanged`);
+            return;
+        }
+        const root = document.getElementById(ROOT_ID);
+        if (!root) return;
+        root.querySelectorAll('.eap-crypto-only').forEach(section => {
+            section.style.display = assetClass === 'crypto' ? '' : 'none';
+        });
+    }
+
+    function onWatchlistSelect(data) {
+        const broker = data && data.broker;
+        const assetClass = assetClassForBroker(broker);
+        if (!assetClass) {
+            console.error('[EdgeAnalyticsPanel] watchlist:select without recognizable broker:', data);
+            return;
+        }
+        if (data && data.symbol) state.currentSymbol = String(data.symbol);
+        applyAssetClassVisibility(assetClass);
+    }
+
     // ─── Public API ──────────────────────────────────────────────────────
     const EdgeAnalyticsPanel = {
         init: function () {
@@ -399,6 +434,17 @@
                     subscribe(socket, 'smart_money',      onSmartMoney);
                     subscribe(socket, 'fear_greed',       onFearGreed);
                     subscribe(socket, 'divergence',       onDivergence);
+                }
+
+                // Symbol-class awareness: track selection changes and apply
+                // the initial state from the watchlist's REAL selection.
+                if (OGZ.bus && typeof OGZ.bus.on === 'function') {
+                    OGZ.bus.on('watchlist:select', onWatchlistSelect);
+                }
+                const watchlist = OGZ.get && OGZ.get('WatchlistStrip');
+                if (watchlist && typeof watchlist.getSelected === 'function') {
+                    const selected = watchlist.getSelected();
+                    if (selected) onWatchlistSelect(selected);
                 }
             } catch (_) { /* swallow */ }
         },
@@ -435,6 +481,9 @@
         teardown: function () {
             try {
                 _registeredHandlers.length = 0; // OGZ.Socket has no unregister; we drop refs
+                if (OGZ.bus && typeof OGZ.bus.off === 'function') {
+                    OGZ.bus.off('watchlist:select', onWatchlistSelect);
+                }
                 state.mounted = false;
                 state.cvdHistory.length = 0;
             } catch (_) { /* swallow */ }

@@ -92,6 +92,7 @@
         liveConfCell: null,
         liveConfBar: null,
         patternCell: null,
+        postureEl: null,
     };
 
     // ─── CSS Injection ───────────────────────────────────────────────────
@@ -128,6 +129,25 @@
                 text-transform: uppercase;
                 letter-spacing: 0.08em;
                 color: var(--text-secondary, #a1a1aa);
+            }
+
+            /* Bot-posture row: full-width honest explanation of WHY readouts
+               are quiet (eval dormant / weekend idle / paused). Hidden while
+               the bot is in an active mode (live / eval_active). */
+            .lr-posture {
+                grid-column: 1 / -1;
+                display: none;
+                padding: 6px 10px;
+                border: 1px dashed var(--glass-border, rgba(255, 215, 0, 0.18));
+                border-radius: 6px;
+                font-size: 10px;
+                letter-spacing: 0.04em;
+                color: var(--text-secondary, #a1a1aa);
+                text-align: center;
+            }
+
+            .lr-posture.lr-posture-visible {
+                display: block;
             }
 
             .lr-value {
@@ -409,6 +429,69 @@
             value: patternValue,
             enumerable: false,
         });
+
+        // Bot-posture row (honest empty-state explanation).
+        // Populated exclusively from real bot_state frames — never fabricated.
+        const postureDiv = document.createElement('div');
+        postureDiv.className = 'lr-posture';
+        root.appendChild(postureDiv);
+        state.postureEl = postureDiv;
+        renderPosture();
+    }
+
+    // ─── Bot posture (honest empty state) ───────────────────────────────
+    const ACTIVE_BOT_MODES = new Set(['live', 'eval_active']);
+
+    function postureText(frame) {
+        const modeLabel = String(frame.mode).replace(/_/g, ' ').toUpperCase();
+        const reason = typeof frame.reason === 'string' && frame.reason.trim()
+            ? frame.reason.trim().replace(/_/g, ' ')
+            : null;
+        let text = `BOT ${modeLabel}`;
+        if (reason) text += ` — ${reason}`;
+        if (typeof frame.next_active_at === 'string' && frame.next_active_at) {
+            const nextAt = new Date(frame.next_active_at);
+            if (Number.isFinite(nextAt.getTime())) {
+                text += ` · resumes ${nextAt.toLocaleString('en-US', {
+                    timeZone: 'America/New_York',
+                    weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false,
+                })} ET`;
+            }
+        }
+        return text;
+    }
+
+    function renderPosture(frameArg) {
+        if (!state.postureEl) return;
+        // Frame passed directly by the WS handler wins; at mount time (before
+        // any frame has arrived this session) fall through to the copy core.js
+        // stored from a previous frame. Never fabricate a posture.
+        const frame = frameArg !== undefined
+            ? frameArg
+            : (window.OGZ && window.OGZ.state ? window.OGZ.state.botState : undefined);
+
+        if (!frame) {
+            state.postureEl.classList.remove('lr-posture-visible');
+            state.postureEl.textContent = '';
+            return;
+        }
+        if (typeof frame.mode !== 'string' || !frame.mode.trim()) {
+            console.error('[LiveReadouts] bot_state frame has no mode — refusing to render posture:', frame);
+            state.postureEl.classList.remove('lr-posture-visible');
+            return;
+        }
+
+        if (ACTIVE_BOT_MODES.has(frame.mode)) {
+            state.postureEl.classList.remove('lr-posture-visible');
+            state.postureEl.textContent = '';
+        } else {
+            state.postureEl.textContent = postureText(frame);
+            state.postureEl.classList.add('lr-posture-visible');
+        }
+    }
+
+    function onBotState(frame) {
+        renderPosture(frame);
     }
 
     // ─── Update Methods ─────────────────────────────────────────────────
@@ -611,6 +694,7 @@
             socket.registerHandler('price', onPrice);
             socket.registerHandler('signal_analysis', onSignalAnalysis);
             socket.registerHandler('pattern_analysis', onPatternAnalysis);
+            socket.registerHandler('bot_state', onBotState);
         }
 
         // Subscribe to OGZ.bus events
@@ -690,6 +774,7 @@
             socket.unregisterHandler('price', onPrice);
             socket.unregisterHandler('signal_analysis', onSignalAnalysis);
             socket.unregisterHandler('pattern_analysis', onPatternAnalysis);
+            socket.unregisterHandler('bot_state', onBotState);
         }
 
         // Unsubscribe from OGZ.bus events

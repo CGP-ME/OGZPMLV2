@@ -519,6 +519,7 @@
         currentPattern: null,              // PatternEvent or null
         historyByTicker: new Map(),        // symbol → PatternEvent[]
         totalHistory: [],                  // All events (capped at MAX_HISTORY_TOTAL)
+        lastBotState: null,                // Latest validated bot_state frame (real frames only)
     };
 
     // ─── Utilities ──────────────────────────────────────────────────────
@@ -930,10 +931,27 @@
             ? `Last: ${PATTERN_DESCRIPTIONS[lastPat.pattern]?.title || lastPat.pattern} @ ${Math.round(lastPat.confidence * 100)}% (${lastPat.symbol}, ${formatRelativeTime(lastPat.ts)})`
             : '--';
 
+        // Honest empty state: when the bot itself reports a non-active posture
+        // (eval_dormant / weekend_idle / paused via core-stored bot_state),
+        // say WHY the engine is quiet instead of implying an active scan.
+        // Posture is read from the real bot_state frame only — never fabricated.
+        const botState = state.lastBotState
+            || (window.OGZ && window.OGZ.state ? window.OGZ.state.botState : undefined);
+        const dormant = botState
+            && typeof botState.mode === 'string'
+            && botState.mode !== 'live'
+            && botState.mode !== 'eval_active';
+        const scanLabel = dormant
+            ? `Pattern engine idle — bot ${String(botState.mode).replace(/_/g, ' ')}` +
+              (typeof botState.reason === 'string' && botState.reason
+                  ? ` (${botState.reason.replace(/_/g, ' ')})`
+                  : '')
+            : 'Pattern engine scanning...';
+
         root.innerHTML = `
             <div class="pc-state-scanning">
                 <div class="pc-scan-icon" aria-hidden="true"></div>
-                <div class="pc-scan-label">Pattern engine scanning...</div>
+                <div class="pc-scan-label">${scanLabel}</div>
                 <div class="pc-last-detected">${lastAttr}</div>
             </div>
         `;
@@ -1023,6 +1041,18 @@
         } catch (_) { /* swallow */ }
     }
 
+    // Bot posture changed → refresh the scanning state's honest label.
+    // The frame argument is used directly because panel handlers run before
+    // core.js stores the frame on OGZ.state (registration order).
+    function onBotState(frame) {
+        if (!frame || typeof frame.mode !== 'string' || !frame.mode.trim()) {
+            console.error('[PatternCard] Rejected malformed bot_state frame (mode missing):', frame);
+            return;
+        }
+        state.lastBotState = frame;
+        if (!state.currentPattern) renderScanning();
+    }
+
     // ─── Event Bus Handler ──────────────────────────────────────────────
     function onWatchlistSelect(data) {
         try {
@@ -1049,6 +1079,7 @@
                 const socket = OGZ.get && OGZ.get('Socket');
                 if (socket && socket.registerHandler) {
                     socket.registerHandler('pattern_analysis', onPatternAnalysis);
+                    socket.registerHandler('bot_state', onBotState);
                 }
 
                 // Subscribe to watchlist selection event
@@ -1121,10 +1152,17 @@
                     OGZ.bus.off('watchlist:select', onWatchlistSelect);
                 }
 
+                const socket = OGZ.get && OGZ.get('Socket');
+                if (socket && typeof socket.unregisterHandler === 'function') {
+                    socket.unregisterHandler('pattern_analysis', onPatternAnalysis);
+                    socket.unregisterHandler('bot_state', onBotState);
+                }
+
                 state.mounted = false;
                 state.currentPattern = null;
                 state.historyByTicker.clear();
                 state.totalHistory = [];
+                state.lastBotState = null;
             } catch (_) { /* swallow */ }
         },
 
