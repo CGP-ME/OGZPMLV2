@@ -2585,6 +2585,8 @@ class OrderExecutor {
               ?? (buyTrade.entryPrice > 0 ? longExitSizeUsd / buyTrade.entryPrice : null);
             const longExitFeeQuantity = longExitOrderQuantity
               ?? (price > 0 ? longExitSizeUsd / price : null);
+            const stateExitFraction = executedExitPlan?.stateExitFraction ?? 1;
+            const statePartialClose = executedExitPlan ? stateExitFraction < 1 : false;
 
             // Create complete trade result
             // FIX 2026-02-23: Use actual exitReason from decision (was hardcoded to 'signal')
@@ -2642,10 +2644,15 @@ class OrderExecutor {
                 ...(buyTrade.entryStrategy ? {} : (() => { throw new Error(`[MED-03] BUY exit: trade record missing entryStrategy (orderId=${buyTrade.orderId}) — state corruption between open and close`); })()),
                 strategyName: buyTrade.entryStrategy,
                 confidence: this._firstFiniteNumber(buyTrade.confidence),
+                signalBreakdown: buyTrade.signalBreakdown ?? null,
+                mtfConfluenceSnapshot: buyTrade.frozenExitPolicy?.mtfConfluenceSnapshot ?? null,
+                isPartialClose: statePartialClose,
+                partialFraction: statePartialClose ? stateExitFraction : null,
                 exitReason: completeTradeResult.exitReason,
                 reason: this._firstNonEmptyString(buyTrade.reason),
                 holdTimeMinutes: holdDuration / 60000,
                 exitContract: buyTrade.exitContract,
+                frozenExitPolicy: buyTrade.frozenExitPolicy ?? null,
                 // CC-A Change 2: passthrough indicator state stamped on trade at entry
                 atrAtEntry: buyTrade.atrAtEntry ?? null,
                 regimeAtEntry: buyTrade.regimeAtEntry ?? null,
@@ -2678,8 +2685,6 @@ class OrderExecutor {
 
             console.log(`Trade closed: ${pnl >= 0 ? 'PASS' : 'FAIL'} ${pnl.toFixed(2)}% | Hold: ${(holdDuration/60000).toFixed(1)}min`);
 
-            const stateExitFraction = executedExitPlan?.stateExitFraction ?? 1;
-            const statePartialClose = executedExitPlan ? stateExitFraction < 1 : false;
             isPartialClose = statePartialClose;
             const longFillFee = this._calculateOrderFee({
               notionalUsd: longExitOrderQuantity * price,
@@ -3161,10 +3166,15 @@ class OrderExecutor {
               ...(shortTrade.entryStrategy ? {} : (() => { throw new Error(`[MED-03] SHORT exit: trade record missing entryStrategy (orderId=${shortTrade.orderId}) — state corruption between open and close`); })()),
               strategyName: shortTrade.entryStrategy,
               confidence: this._firstFiniteNumber(shortTrade.confidence),
+              signalBreakdown: shortTrade.signalBreakdown ?? null,
+              mtfConfluenceSnapshot: shortTrade.frozenExitPolicy?.mtfConfluenceSnapshot ?? null,
+              isPartialClose: false,
+              partialFraction: null,
               exitReason: completeTradeResult.exitReason,
               reason: this._firstNonEmptyString(shortTrade.reason),
               holdTimeMinutes: holdDuration / 60000,
               exitContract: shortTrade.exitContract,
+              frozenExitPolicy: shortTrade.frozenExitPolicy ?? null,
               // CC-A Change 2: passthrough indicator state stamped on trade at entry
               atrAtEntry: shortTrade.atrAtEntry ?? null,
               regimeAtEntry: shortTrade.regimeAtEntry ?? null,

@@ -197,6 +197,49 @@ describe('Backtest report scope contract', () => {
     expect(malformedTierRecord.exitType).toBe('profit_tier_one');
   });
 
+  test('preserves trade-birth confidence attribution and MTF snapshot on backtest rows', () => {
+    const recorder = new BacktestRecorder({ startingBalance: 10000, feePerSide: 0 });
+
+    const signalBreakdown = {
+      winnerStrategy: 'GateStrategy',
+      signals: [{
+        name: 'GateStrategy',
+        decisionAttribution: {
+          strategyName: 'GateStrategy',
+          contributors: [
+            { name: 'strategy_signal', type: 'base', confidence: 0.72 },
+            { name: 'mtf_confluence_booster', type: 'multiplier', configuredMultiplier: 1.1 },
+          ],
+        },
+      }],
+    };
+    const mtfConfluenceSnapshot = {
+      direction: 'buy',
+      confluenceScore: 0.42,
+      confidence: 0.81,
+      readyTimeframes: ['15m', '1h', '4h'],
+    };
+    const frozenExitPolicy = {
+      policyHash: 'policy-hash-1',
+      mtfConfluenceSnapshot,
+    };
+
+    const record = recorder.recordTrade(scopedTrade({
+      signalBreakdown,
+      frozenExitPolicy,
+      isPartialClose: true,
+      partialFraction: 0.3,
+    }));
+
+    expect(record.signalBreakdown).toEqual(signalBreakdown);
+    expect(record.winnerDecisionAttribution).toEqual(signalBreakdown.signals[0].decisionAttribution);
+    expect(record.confidenceContributors).toBe('strategy_signal|mtf_confluence_booster');
+    expect(record.mtfConfluenceSnapshot).toEqual(mtfConfluenceSnapshot);
+    expect(record.frozenExitPolicy).toEqual(frozenExitPolicy);
+    expect(record.isPartialClose).toBe(true);
+    expect(record.partialFraction).toBe(0.3);
+  });
+
   test('rejects missing scope before mutating backtest balance or rows', () => {
     const recorder = new BacktestRecorder({ startingBalance: 10000, feePerSide: 0 });
 

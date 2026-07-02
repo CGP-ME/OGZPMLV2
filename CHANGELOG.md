@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Backtest Confidence Attribution Rows (2026-07-02)
+
+- Preserved trade-birth `signalBreakdown`, winner decision attribution, confidence contributor names, frozen MTF confluence snapshots, frozen exit policy, and partial-close metadata on BacktestRecorder rows.
+- Added compact CSV columns for contributor names, MTF confluence, partial-close state, and frozen policy hash without changing entry, exit, sizing, or P&L math.
+- Added focused recorder and OrderExecutor coverage for attribution/MTF/policy/partial-close propagation into backtest rows.
+
 ### Eval Startup Gate Softening (2026-06-30)
 
 - Removed the eval-live posture exact-symbol-universe hard gate so removed or added Alpaca symbols do not block startup posture by code constant.

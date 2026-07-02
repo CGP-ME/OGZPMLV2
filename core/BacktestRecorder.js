@@ -29,6 +29,32 @@ class BacktestRecorder {
         return cleaned || null;
     }
 
+    static jsonCloneOrNull(value) {
+        if (value === null || value === undefined) return null;
+        try {
+            return JSON.parse(JSON.stringify(value));
+        } catch (_) {
+            return null;
+        }
+    }
+
+    static winnerAttributionFromSignalBreakdown(signalBreakdown, strategyName) {
+        const signals = Array.isArray(signalBreakdown?.signals) ? signalBreakdown.signals : [];
+        const winnerSignal = signals.find(signal => (
+            signal?.name === strategyName
+            || signal?.strategyName === strategyName
+        ));
+        return BacktestRecorder.jsonCloneOrNull(winnerSignal?.decisionAttribution);
+    }
+
+    static contributorNames(attribution) {
+        if (!Array.isArray(attribution?.contributors)) return '';
+        return attribution.contributors
+            .map(contributor => BacktestRecorder.cleanTextOrNull(contributor?.name))
+            .filter(Boolean)
+            .join('|');
+    }
+
     static validateTradeScope(trade, caller = 'BacktestRecorder.validateTradeScope') {
         const missing = [];
         const cleanText = (value, name) => {
@@ -193,6 +219,17 @@ class BacktestRecorder {
         }
 
         // Build trade record
+        const rawSignalBreakdown = BacktestRecorder.jsonCloneOrNull(trade.signalBreakdown);
+        const rawMtfConfluenceSnapshot = BacktestRecorder.jsonCloneOrNull(
+            trade.mtfConfluenceSnapshot ?? trade.frozenExitPolicy?.mtfConfluenceSnapshot
+        );
+        const rawFrozenExitPolicy = BacktestRecorder.jsonCloneOrNull(trade.frozenExitPolicy);
+        const strategyName = trade.strategyName || trade.winner || 'unknown';
+        const winnerDecisionAttribution = BacktestRecorder.winnerAttributionFromSignalBreakdown(
+            rawSignalBreakdown,
+            strategyName
+        );
+
         const record = {
             tradeNumber: this.trades.length + 1,
             entryTime: trade.entryTime || trade.entryCandle?.time || '',
@@ -225,9 +262,16 @@ class BacktestRecorder {
             netPnlPercent,
 
             // Strategy info
-            strategyName: trade.strategyName || trade.winner || 'unknown',
+            strategyName,
             confidence: trade.confidence || 0,
             exitReason: trade.exitReason || 'unknown',
+            signalBreakdown: rawSignalBreakdown,
+            winnerDecisionAttribution,
+            confidenceContributors: BacktestRecorder.contributorNames(winnerDecisionAttribution),
+            mtfConfluenceSnapshot: rawMtfConfluenceSnapshot,
+            frozenExitPolicy: rawFrozenExitPolicy,
+            isPartialClose: trade.isPartialClose === true,
+            partialFraction: BacktestRecorder.finiteNumberOrNull(trade.partialFraction),
 
             // Balance tracking
             balanceBefore,
@@ -396,7 +440,15 @@ class BacktestRecorder {
             'exit_type',
             'atr_at_entry',
             'regime_at_entry',
-            'rsi_at_entry'
+            'rsi_at_entry',
+            'confidence_contributors',
+            'mtf_confluence_direction',
+            'mtf_confluence_score',
+            'mtf_confluence_confidence',
+            'mtf_ready_timeframes',
+            'is_partial_close',
+            'partial_fraction',
+            'frozen_exit_policy_hash'
         ];
 
         const rows = this.trades.map(t => [
@@ -448,7 +500,15 @@ class BacktestRecorder {
             t.exitType ?? '',
             t.atrAtEntry != null ? t.atrAtEntry : '',
             t.regimeAtEntry ?? '',
-            t.rsiAtEntry != null ? t.rsiAtEntry : ''
+            t.rsiAtEntry != null ? t.rsiAtEntry : '',
+            t.confidenceContributors ?? '',
+            t.mtfConfluenceSnapshot?.direction ?? '',
+            t.mtfConfluenceSnapshot?.confluenceScore ?? t.mtfConfluenceSnapshot?.score ?? '',
+            t.mtfConfluenceSnapshot?.confidence ?? '',
+            Array.isArray(t.mtfConfluenceSnapshot?.readyTimeframes) ? t.mtfConfluenceSnapshot.readyTimeframes.join('|') : '',
+            t.isPartialClose === true ? 'true' : 'false',
+            t.partialFraction ?? '',
+            t.frozenExitPolicy?.policyHash ?? ''
         ]);
 
         const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');

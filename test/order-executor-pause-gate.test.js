@@ -2380,12 +2380,36 @@ describe('OrderExecutor pause gate', () => {
       return null;
     });
     mockStateManager.getState.mockReturnValue({ position: 300, balance: 10000 });
+    const signalBreakdown = {
+      winnerStrategy: 'RSI',
+      signals: [{
+        name: 'RSI',
+        decisionAttribution: {
+          contributors: [
+            { name: 'strategy_signal', confidence: 0.75 },
+            { name: 'mtf_confluence_booster', configuredMultiplier: 1.05 },
+          ],
+        },
+      }],
+    };
+    const mtfConfluenceSnapshot = {
+      direction: 'buy',
+      confluenceScore: 0.33,
+      confidence: 0.8,
+      readyTimeframes: ['15m', '1h'],
+    };
+    const frozenExitPolicy = {
+      policyHash: 'policy-hash-1',
+      mtfConfluenceSnapshot,
+    };
     mockStateManager.getTradesBySymbol.mockReturnValue([
       makeBuyTrade({
         size: 300,
         sizeUsd: 300,
         entryOrderQuantity: 3,
         remainingOrderQuantity: 3,
+        signalBreakdown,
+        frozenExitPolicy,
       }),
     ]);
     const backtestRecorder = { recordTrade: jest.fn() };
@@ -2435,6 +2459,11 @@ describe('OrderExecutor pause gate', () => {
       quantityUnit: 'shares',
       entryFeeQuantity: 0.8999999999999999,
       exitFeeQuantity: 0.8999999999999999,
+      signalBreakdown,
+      mtfConfluenceSnapshot,
+      frozenExitPolicy,
+      isPartialClose: true,
+      partialFraction: 0.3,
     }));
   });
 
