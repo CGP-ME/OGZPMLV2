@@ -1136,6 +1136,212 @@ describe('OrderExecutor pause gate', () => {
     expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining('webhook_fractional_share_quantity'));
   });
 
+  test('webhook full long exit closes state only after broker position reads flat', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: 500, balance: 10000 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([makeBuyTrade()]);
+    const webhookAdapter = {
+      enabled: true,
+      dryRun: false,
+      emit: jest.fn().mockResolvedValue({
+        sent: true,
+        response: { status: 202, body: '{"orderId":"WEBHOOK_EXIT_FULL_1","status":"filled","filledQuantity":5}' },
+      }),
+    };
+    const orderRouter = {
+      sendOrder: jest.fn(),
+      getAllPositions: jest.fn().mockResolvedValue([]),
+    };
+    const logTrade = jest.fn();
+    const executor = makeExecutor({}, { webhookAdapter, orderRouter, logTrade });
+
+    const result = await executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'BUY_1', exitReason: 'risk_flatten' },
+      {},
+      125,
+      { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: true,
+      orderId: 'WEBHOOK_EXIT_FULL_1',
+      brokerFillConfirmed: true,
+      brokerFlatVerified: true,
+      stateMutationSucceeded: true,
+      orderQuantity: 5,
+      quantityUnit: 'shares',
+    }));
+    expect(orderRouter.getAllPositions).toHaveBeenCalledWith({
+      symbols: ['TSLA'],
+      strict: true,
+      brokerNames: ['alpaca'],
+    });
+    expect(orderRouter.sendOrder).not.toHaveBeenCalled();
+    expectExitFillApplied({
+      tradeId: 'BUY_1',
+      filledQuantity: 5,
+      fillPrice: 125,
+      remainingQuantity: 0,
+      simulated: true,
+      expectedReserveFraction: 1,
+      expectedReserveRemainingQuantity: 0,
+    });
+    expect(logTrade).toHaveBeenCalled();
+  });
+
+  test('webhook full long exit flattens and halts instead of journaling closed while broker still holds shares', async () => {
+    const maraTrade = makeBuyTrade({
+      id: 'MARA_102',
+      orderId: 'MARA_102',
+      symbol: 'MARA',
+      entryPrice: 13.07,
+      size: 1333.14,
+      sizeUsd: 1333.14,
+      entryOrderQuantity: 102,
+      remainingOrderQuantity: 102,
+    });
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: 1333.14, balance: 10000 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([maraTrade]);
+    const webhookAdapter = {
+      enabled: true,
+      dryRun: false,
+      emit: jest.fn().mockResolvedValue({
+        sent: true,
+        response: { status: 202, body: '{"orderId":"WEBHOOK_MARA_FULL_102","status":"filled","filledQuantity":102}' },
+      }),
+    };
+    const orderRouter = {
+      sendOrder: jest.fn().mockResolvedValue({ orderId: 'FLATTEN_MARA_102' }),
+      getAllPositions: jest.fn().mockResolvedValue([{ symbol: 'MARA', side: 'long', size: 102, broker: 'alpaca' }]),
+    };
+    const logTrade = jest.fn();
+    const backtestRecorder = { recordTrade: jest.fn() };
+    const executor = makeExecutor({}, { webhookAdapter, orderRouter, logTrade, backtestRecorder });
+
+    const result = await executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'MARA_102', exitReason: 'risk_flatten', decisionId: 'decision_mara_102' },
+      {},
+      13.21,
+      { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+      [],
+      null,
+      null,
+      'MARA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'exit_broker_desync_flatten_halt',
+      tradeId: 'MARA_102',
+      orderAccepted: true,
+      stateMutationSucceeded: false,
+      brokerFlatVerified: false,
+      brokerConfirmationPending: true,
+      flattenAttempted: true,
+      flattenOrderId: 'FLATTEN_MARA_102',
+      brokerPositionSize: 102,
+    }));
+    expect(webhookAdapter.emit).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'sell',
+      symbol: 'MARA',
+      quantity: 102,
+      quantityUnit: 'shares',
+      bypassThrottle: true,
+    }));
+    expect(orderRouter.getAllPositions).toHaveBeenCalledWith({
+      symbols: ['MARA'],
+      strict: true,
+      brokerNames: ['alpaca'],
+    });
+    expect(orderRouter.sendOrder).toHaveBeenCalledWith(expect.objectContaining({
+      symbol: 'MARA',
+      side: 'sell',
+      amount: 102,
+      type: 'market',
+      options: expect.objectContaining({
+        quantityUnit: 'shares',
+        exitReason: 'exit_rail_desync_flatten',
+        sourceTradeId: 'MARA_102',
+      }),
+    }));
+    expect(mockStateManager.haltSymbol).toHaveBeenCalledWith(
+      'MARA',
+      expect.stringContaining('EXIT-RAIL'),
+      expect.objectContaining({
+        tradeId: 'MARA_102',
+        brokerPositionSize: 102,
+        flattenAttempted: true,
+        flattenOrderId: 'FLATTEN_MARA_102',
+      })
+    );
+    expect(mockStateManager.applyFill).not.toHaveBeenCalled();
+    expect(mockStateManager.releaseExitSlot).not.toHaveBeenCalled();
+    expect(backtestRecorder.recordTrade).not.toHaveBeenCalled();
+    expect(logTrade).not.toHaveBeenCalled();
+    expect(TradingProofLogger.trade).not.toHaveBeenCalledWith(expect.objectContaining({
+      tradeId: 'MARA_102',
+      action: 'SELL',
+    }));
+  });
+
+  test('webhook full long exit stays open when broker flatness cannot be read', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: 500, balance: 10000 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([makeBuyTrade()]);
+    const webhookAdapter = {
+      enabled: true,
+      dryRun: false,
+      emit: jest.fn().mockResolvedValue({
+        sent: true,
+        response: { status: 202, body: '{"orderId":"WEBHOOK_EXIT_FULL_NO_POSITIONS","status":"filled","filledQuantity":5}' },
+      }),
+    };
+    const logTrade = jest.fn();
+    const backtestRecorder = { recordTrade: jest.fn() };
+    const executor = makeExecutor({}, { webhookAdapter, logTrade, backtestRecorder });
+
+    const result = await executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'BUY_1', exitReason: 'risk_flatten' },
+      {},
+      125,
+      { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: true,
+      reason: 'exit_pending_broker_flat_confirmation',
+      orderId: 'WEBHOOK_EXIT_FULL_NO_POSITIONS',
+      orderAccepted: true,
+      stateMutationSucceeded: false,
+      brokerFlatVerified: false,
+      brokerConfirmationPending: true,
+      orderQuantity: 5,
+      quantityUnit: 'shares',
+    }));
+    expect(mockStateManager.applyFill).not.toHaveBeenCalled();
+    expect(mockStateManager.releaseExitSlot).not.toHaveBeenCalled();
+    expect(backtestRecorder.recordTrade).not.toHaveBeenCalled();
+    expect(logTrade).not.toHaveBeenCalled();
+  });
+
   test('enabled webhook exit accepted without broker fill proof leaves state and journal open pending confirmation', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;

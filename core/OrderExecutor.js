@@ -590,6 +590,192 @@ class OrderExecutor {
     };
   }
 
+  _isFullExitExecution(executedExitPlan) {
+    if (!executedExitPlan) return false;
+    const remainingQuantity = Number(executedExitPlan.remainingOrderQuantity);
+    const filledQuantity = Number(executedExitPlan.orderQuantity);
+    return Number.isFinite(remainingQuantity)
+      && remainingQuantity > 0
+      && Number.isFinite(filledQuantity)
+      && filledQuantity + 1e-9 >= remainingQuantity;
+  }
+
+  _normalizeBrokerPositionSymbol(symbol) {
+    return String(symbol || '').trim().toUpperCase().replace('/', '-');
+  }
+
+  _brokerPositionSize(position) {
+    const candidates = [
+      position?.size,
+      position?.qty,
+      position?.quantity,
+      position?.shares,
+      position?.position,
+    ];
+    for (const candidate of candidates) {
+      const value = Number(candidate);
+      if (Number.isFinite(value)) {
+        return Math.abs(value);
+      }
+    }
+    return 0;
+  }
+
+  _matchingBrokerPositionForExit(exitPlan, positions = []) {
+    const targetSymbol = this._normalizeBrokerPositionSymbol(exitPlan?.symbol);
+    if (!targetSymbol || !Array.isArray(positions)) return null;
+    return positions.find((position) => {
+      const symbol = this._normalizeBrokerPositionSymbol(position?.symbol);
+      return symbol === targetSymbol && this._brokerPositionSize(position) > 1e-9;
+    }) || null;
+  }
+
+  async _readBrokerPositionForExit(exitPlan) {
+    const router = this.ctx.orderRouter;
+    if (!router || typeof router.getAllPositions !== 'function') {
+      return { available: false, positions: [], matchingPosition: null, error: 'missing_get_all_positions' };
+    }
+    const scope = {
+      symbols: [exitPlan.symbol],
+      strict: true,
+    };
+    if (exitPlan.brokerId) {
+      scope.brokerNames = [exitPlan.brokerId];
+    }
+    try {
+      const positions = await router.getAllPositions(scope);
+      const matchingPosition = this._matchingBrokerPositionForExit(exitPlan, positions);
+      return { available: true, positions, matchingPosition, error: null };
+    } catch (err) {
+      return { available: false, positions: [], matchingPosition: null, error: err.message || 'broker_position_read_failed' };
+    }
+  }
+
+  async _flattenAndHaltExitDesync({ exitPlan, matchingPosition, traceId, signalId, decisionId, reason }) {
+    const positionSize = this._brokerPositionSize(matchingPosition);
+    let flattenAttempted = false;
+    let flattenOrderId = null;
+    let flattenError = null;
+
+    if (positionSize > 0 && this.ctx.orderRouter && typeof this.ctx.orderRouter.sendOrder === 'function') {
+      flattenAttempted = true;
+      try {
+        const flattenResult = await this.ctx.orderRouter.sendOrder({
+          symbol: exitPlan.symbol,
+          side: exitPlan.side,
+          amount: positionSize,
+          type: 'market',
+          traceId,
+          signalId,
+          decisionId,
+          options: {
+            quantityUnit: exitPlan.quantityUnit,
+            exitReason: 'exit_rail_desync_flatten',
+            sourceTradeId: exitPlan.tradeId,
+          },
+        });
+        flattenOrderId = flattenResult?.orderId || flattenResult?.id || null;
+      } catch (err) {
+        flattenError = err.message;
+      }
+    }
+
+    const haltReason = `EXIT-RAIL: broker position still open after confirmed full exit for ${exitPlan.symbol}`;
+    await stateManager.haltSymbol(exitPlan.symbol, haltReason, {
+      traceId,
+      signalId,
+      decisionId,
+      tradeId: exitPlan.tradeId,
+      brokerPositionSize: positionSize,
+      flattenAttempted,
+      flattenOrderId,
+      flattenError,
+      reason,
+    });
+
+    emitTrace(this.ctx, 'EXIT_RAIL_DESYNC_FLATTEN_HALT', {
+      traceId,
+      signalId,
+      decisionId,
+      symbol: exitPlan.symbol,
+      action: exitPlan.action,
+      orderId: exitPlan.tradeId,
+      reason,
+      brokerPositionSize: positionSize,
+      flattenAttempted,
+      flattenOrderId,
+      flattenError,
+      stateMutationSucceeded: false,
+    });
+
+    return {
+      success: false,
+      reason: 'exit_broker_desync_flatten_halt',
+      orderId: null,
+      tradeId: exitPlan.tradeId,
+      orderAccepted: true,
+      stateMutationSucceeded: false,
+      brokerFlatVerified: false,
+      brokerConfirmationPending: true,
+      flattenAttempted,
+      flattenOrderId,
+      flattenError,
+      brokerPositionSize: positionSize,
+    };
+  }
+
+  async _verifyWebhookFullExitBrokerFlat({ executedExitPlan, tradeResult, traceId, signalId, decisionId }) {
+    if (!this._isFullExitExecution(executedExitPlan)) return null;
+    if (tradeResult?.brokerFillConfirmed !== true) return null;
+
+    const brokerState = await this._readBrokerPositionForExit(executedExitPlan);
+    if (!brokerState.available) {
+      emitTrace(this.ctx, 'EXIT_PENDING_BROKER_FLAT_CONFIRMATION', {
+        traceId,
+        signalId,
+        decisionId,
+        symbol: executedExitPlan.symbol,
+        action: executedExitPlan.action,
+        orderId: tradeResult.orderId,
+        tradeId: executedExitPlan.tradeId,
+        reason: brokerState.error,
+        orderAccepted: true,
+        stateMutationSucceeded: false,
+      });
+      return {
+        success: true,
+        reason: 'exit_pending_broker_flat_confirmation',
+        orderId: tradeResult.orderId,
+        brokerOrderId: tradeResult.brokerOrderId === undefined ? tradeResult.orderId : tradeResult.brokerOrderId,
+        orderAccepted: true,
+        stateMutationSucceeded: false,
+        brokerFlatVerified: false,
+        brokerConfirmationPending: true,
+        action: executedExitPlan.action,
+        symbol: executedExitPlan.symbol,
+        price: tradeResult.price,
+        amount: executedExitPlan.sizeUsd,
+        orderQuantity: executedExitPlan.orderQuantity,
+        quantityUnit: executedExitPlan.quantityUnit,
+        traceId,
+        signalId,
+      };
+    }
+
+    if (brokerState.matchingPosition) {
+      return this._flattenAndHaltExitDesync({
+        exitPlan: executedExitPlan,
+        matchingPosition: brokerState.matchingPosition,
+        traceId,
+        signalId,
+        decisionId,
+        reason: 'broker_position_not_flat_after_full_exit',
+      });
+    }
+
+    return { brokerFlatVerified: true };
+  }
+
   _getActiveTradeById(orderId) {
     if (!orderId) return null;
 
@@ -2946,6 +3132,22 @@ class OrderExecutor {
             const stateExitFraction = executedExitPlan?.stateExitFraction ?? 1;
             const statePartialClose = executedExitPlan ? stateExitFraction < 1 : false;
 
+            if (isWebhookExecutionRoute && !statePartialClose) {
+              const brokerFlatCheck = await this._verifyWebhookFullExitBrokerFlat({
+                executedExitPlan,
+                tradeResult,
+                traceId,
+                signalId,
+                decisionId,
+              });
+              if (brokerFlatCheck && brokerFlatCheck.brokerFlatVerified !== true) {
+                return brokerFlatCheck;
+              }
+              if (brokerFlatCheck?.brokerFlatVerified === true) {
+                tradeResult.brokerFlatVerified = true;
+              }
+            }
+
             // Create complete trade result
             // FIX 2026-02-23: Use actual exitReason from decision (was hardcoded to 'signal')
             const completeTradeResult = {
@@ -3475,6 +3677,24 @@ class OrderExecutor {
             ?? (shortTrade.entryPrice > 0 ? coverExitSizeUsd / shortTrade.entryPrice : null);
           const shortExitFeeQuantity = coverExitOrderQuantity
             ?? (price > 0 ? coverExitSizeUsd / price : null);
+          const coverStateExitFraction = executedExitPlan?.stateExitFraction ?? 1;
+          const coverPartialClose = executedExitPlan ? coverStateExitFraction < 1 : false;
+
+          if (isWebhookExecutionRoute && !coverPartialClose) {
+            const brokerFlatCheck = await this._verifyWebhookFullExitBrokerFlat({
+              executedExitPlan,
+              tradeResult,
+              traceId,
+              signalId,
+              decisionId,
+            });
+            if (brokerFlatCheck && brokerFlatCheck.brokerFlatVerified !== true) {
+              return brokerFlatCheck;
+            }
+            if (brokerFlatCheck?.brokerFlatVerified === true) {
+              tradeResult.brokerFlatVerified = true;
+            }
+          }
 
           const completeTradeResult = {
             ...shortTrade,
@@ -3886,10 +4106,11 @@ class OrderExecutor {
           brokerOrderId: tradeResult.brokerOrderId === undefined ? tradeResult.orderId : tradeResult.brokerOrderId,
           webhookOrderIdMissing: tradeResult.webhookOrderIdMissing === true,
           webhookAcceptedWithoutOrderId: tradeResult.webhookAcceptedWithoutOrderId === true,
-          brokerFillConfirmed: tradeResult.brokerFillConfirmed === true,
-          brokerFillStatus: tradeResult.brokerFillStatus || null,
-          orderAccepted: true,
-          stateMutationSucceeded: true,
+	          brokerFillConfirmed: tradeResult.brokerFillConfirmed === true,
+	          brokerFillStatus: tradeResult.brokerFillStatus || null,
+	          brokerFlatVerified: tradeResult.brokerFlatVerified === true,
+	          orderAccepted: true,
+	          stateMutationSucceeded: true,
           price: tradeResult.price ?? price,
 	          amount: tradeResult.amount ?? positionSize,
 	          orderQuantity: tradeResult.orderQuantity ?? null,
