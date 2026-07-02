@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Strategy Lab Dossier Generator (2026-07-02)
+
+- Added `tools/strategy-lab.js` to turn explicit-fee matrix and worker backtest reports into per-strategy dossiers with sample gates, exit/session/confidence slices, hold-time asymmetry, and roster verdict candidates.
+- Hard-locked the lab to `ttp_real` and made it reject reports or matrix rows that do not declare that profile, matrix rows without nonzero fee totals, and worker trades without per-trade fee evidence so M-J analysis cannot silently reuse zero-fee artifacts.
+- Enforced the M-J minimum-sample law by rejecting `minTrades` overrides below 100.
+- Changed the sample gate to count real worker-report trades only; matrix rows now have to link to an existing worker report before they can support a roster verdict.
+- Rejected standalone worker reports, linked worker reports with explicit non-`ttp_real` profiles, and linked worker reports without trade rows so loose or mismatched trade files cannot generate KILL/KEEP/REBUILD verdicts without a valid matrix lab run tying them to a tested config.
+- Added focused coverage for fee-profile enforcement, sample-gated verdicts, and JSON/Markdown dossier output.
+
 ### TradingLoop Per-Symbol Scan Locks (2026-07-02)
 
 - Replaced the global `TradingLoop.analyzing` admission guard with per-symbol analysis locks so simultaneous 15m candle closes across different symbols no longer drop entry evaluation behind a cross-symbol concurrency skip.
