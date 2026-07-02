@@ -8,6 +8,7 @@ const mockStateManager = {
   getHaltReason: jest.fn(() => null),
   isSymbolHalted: jest.fn(() => false),
   getSymbolHaltReason: jest.fn(() => null),
+  getSymbolHaltCode: jest.fn(() => null),
   getState: jest.fn(),
   openPosition: jest.fn(),
   closePosition: jest.fn(),
@@ -192,6 +193,11 @@ describe('OrderExecutor pause gate', () => {
       if (key === 'lastError') return null;
       return null;
     });
+    mockStateManager.isHalted.mockReturnValue(false);
+    mockStateManager.getHaltReason.mockReturnValue(null);
+    mockStateManager.isSymbolHalted.mockReturnValue(false);
+    mockStateManager.getSymbolHaltReason.mockReturnValue(null);
+    mockStateManager.getSymbolHaltCode.mockReturnValue(null);
     mockStateManager.getEquity.mockReturnValue(10000);
     mockStateManager.getAvailableCapital.mockReturnValue(10000);
     mockStateManager.getState.mockReturnValue({ position: 0, balance: 10000 });
@@ -255,6 +261,105 @@ describe('OrderExecutor pause gate', () => {
     expect(mockStateManager.getAvailableCapital).not.toHaveBeenCalled();
     expect(executor.ctx.orderRouter.sendOrder).not.toHaveBeenCalled();
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('trading paused (manual pause)'));
+  });
+
+  test('emits gate_event row when symbol cooldown blocks an entry', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      if (key === 'balance') return 10000;
+      if (key === 'position') return 0;
+      return null;
+    });
+    mockStateManager.isSymbolHalted.mockReturnValue(true);
+    mockStateManager.getSymbolHaltReason.mockReturnValue('symbol_cooldown: MARA 2 consecutive losses');
+    mockStateManager.getSymbolHaltCode.mockReturnValue('symbol_cooldown');
+    const dashboardWs = { readyState: 1, send: jest.fn() };
+    const executor = makeExecutor({}, {
+      dashboardWs,
+      dashboardWsConnected: true,
+    });
+
+    const result = await executor.executeTrade(
+      { action: 'BUY', confidence: 75 },
+      {},
+      14.25,
+      {},
+      [],
+      null,
+      makeOrchResult(),
+      'MARA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'symbol_cooldown',
+      detail: 'symbol_cooldown: MARA 2 consecutive losses',
+      symbol: 'MARA',
+      action: 'BUY',
+    }));
+    const frames = dashboardWs.send.mock.calls.map(call => JSON.parse(call[0]));
+    const gateEvent = frames.find(frame => frame.type === 'gate_event');
+    expect(gateEvent).toEqual(expect.objectContaining({
+      type: 'gate_event',
+      symbol: 'MARA',
+      action: 'BUY',
+      kind: 'risk_block',
+      passed: false,
+      reason: 'symbol_cooldown',
+    }));
+    expect(gateEvent.riskGates).toEqual([
+      expect.objectContaining({
+        gate: 'symbol_cooldown',
+        passed: false,
+        rejectReason: 'symbol_cooldown: MARA 2 consecutive losses',
+      }),
+    ]);
+    expect(executor.ctx.orderRouter.sendOrder).not.toHaveBeenCalled();
+    expect(mockStateManager.openPosition).not.toHaveBeenCalled();
+  });
+
+  test('symbol cooldown gate_event send failure does not change blocked result', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      if (key === 'balance') return 10000;
+      if (key === 'position') return 0;
+      return null;
+    });
+    mockStateManager.isSymbolHalted.mockReturnValue(true);
+    mockStateManager.getSymbolHaltReason.mockReturnValue('symbol_cooldown: MARA 2 consecutive losses');
+    mockStateManager.getSymbolHaltCode.mockReturnValue('symbol_cooldown');
+    const dashboardWs = {
+      readyState: 1,
+      send: jest.fn(() => {
+        throw new Error('socket send failed');
+      }),
+    };
+    const executor = makeExecutor({}, {
+      dashboardWs,
+      dashboardWsConnected: true,
+    });
+
+    const result = await executor.executeTrade(
+      { action: 'BUY', confidence: 75 },
+      {},
+      14.25,
+      {},
+      [],
+      null,
+      makeOrchResult(),
+      'MARA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'symbol_cooldown',
+      detail: 'symbol_cooldown: MARA 2 consecutive losses',
+      symbol: 'MARA',
+      action: 'BUY',
+    }));
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('symbol_cooldown gate_event send failed: socket send failed'));
+    expect(executor.ctx.orderRouter.sendOrder).not.toHaveBeenCalled();
+    expect(mockStateManager.openPosition).not.toHaveBeenCalled();
   });
 
   test('blocks direct entries below configured minTradeConfidence before routing', async () => {

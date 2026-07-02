@@ -203,6 +203,57 @@ class OrderExecutor {
     return scope;
   }
 
+  _emitSymbolCooldownGateEvent({ traceId, signalId, symbol, action, reason, detail, executionScope }) {
+    const ws = this.ctx.dashboardWs;
+    if (!ws || ws.readyState !== 1 || typeof ws.send !== 'function') return false;
+
+    const gate = {
+      gate: 'symbol_cooldown',
+      passed: false,
+      rejectReason: detail || reason || 'symbol cooldown active',
+    };
+    const frame = {
+      type: 'gate_event',
+      timestamp: Date.now(),
+      traceId: traceId || null,
+      signalId: signalId || null,
+      symbol,
+      action,
+      kind: 'risk_block',
+      passed: false,
+      reason: reason || 'symbol_cooldown',
+      riskGates: [gate],
+      brokerId: executionScope?.brokerId || null,
+      accountId: executionScope?.accountId || null,
+      assetClass: executionScope?.assetClass || null,
+      executionMode: executionScope?.executionMode || null,
+      timeframe: executionScope?.timeframe || null,
+      data: {
+        symbol,
+        action,
+        kind: 'risk_block',
+        passed: false,
+        reason: reason || 'symbol_cooldown',
+        riskGates: [gate],
+        traceId: traceId || null,
+        signalId: signalId || null,
+        brokerId: executionScope?.brokerId || null,
+        accountId: executionScope?.accountId || null,
+        assetClass: executionScope?.assetClass || null,
+        executionMode: executionScope?.executionMode || null,
+        timeframe: executionScope?.timeframe || null,
+      },
+    };
+
+    try {
+      ws.send(JSON.stringify(frame));
+      return true;
+    } catch (err) {
+      console.warn(`[GateMeter] symbol_cooldown gate_event send failed: ${err.message}`);
+      return false;
+    }
+  }
+
   _orderQuantityUnit(scope = null) {
     const assetClass = String((scope && scope.assetClass) || this._runtimeScope().assetClass || '').trim().toLowerCase();
     if (['stocks', 'stock', 'equities', 'equity', 'etfs', 'etf'].includes(assetClass)) {
@@ -1460,6 +1511,17 @@ class OrderExecutor {
         console.error(`[ENTRY] Refusing ${decision.action} for ${symbol}: ${globalHaltReason || symbolHaltReason}`);
         const blockReason = symbolHaltCode || 'halted';
         emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: blockReason, detail: globalHaltReason || symbolHaltReason });
+        if (blockReason === 'symbol_cooldown') {
+          this._emitSymbolCooldownGateEvent({
+            traceId,
+            signalId,
+            symbol,
+            action: decision.action,
+            reason: blockReason,
+            detail: symbolHaltReason,
+            executionScope,
+          });
+        }
         return blockedReturn(blockReason, { detail: globalHaltReason || symbolHaltReason });
       }
       const hedgeBlock = this._sameSymbolHedgeBlock(decision.action, symbol);
