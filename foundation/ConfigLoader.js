@@ -285,6 +285,14 @@ function buildConfig() {
       maxPositions: track('sizing.maxPositions', envInt('MAX_POSITIONS', 3)),
     },
 
+    entryLogic: {
+      symbolLossCooldown: {
+        enabled: track('entryLogic.symbolLossCooldown.enabled', envBool('SYMBOL_LOSS_COOLDOWN_ENABLED', tradingConfigFile.entryLogic?.symbolLossCooldown?.enabled === true)),
+        consecutiveLosses: track('entryLogic.symbolLossCooldown.consecutiveLosses', envInt('SYMBOL_LOSS_COOLDOWN_CONSECUTIVE_LOSSES', tradingConfigFile.entryLogic?.symbolLossCooldown?.consecutiveLosses || 2)),
+        cooldownMinutes: track('entryLogic.symbolLossCooldown.cooldownMinutes', envFloat('SYMBOL_LOSS_COOLDOWN_MINUTES', tradingConfigFile.entryLogic?.symbolLossCooldown?.cooldownMinutes || 120)),
+      },
+    },
+
     // ─── EXIT PARAMETERS ───
     exits: {
       stopLossPercent: track('exits.stopLossPercent', envFloat('STOP_LOSS_PERCENT', requiredConfiguredNumber('exits.stopLossPercent'))),

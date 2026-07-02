@@ -614,6 +614,11 @@
         1.75,
         2
       ]
+    },
+    "symbolLossCooldown": {
+      "enabled": false,
+      "consecutiveLosses": 2,
+      "cooldownMinutes": 120
     }
   },
   "strategies": {
@@ -827,7 +832,7 @@
   },
   "sessions": {
     "routerEnabled": false,
-    "stockSymbols": ["TSLA","SPY","QQQ","NVDA","COIN","MARA"],
+    "stockSymbols": ["TSLA","NVDA","COIN","MARA","RIOT"],
     "cryptoSymbols": ["BTC-USD","ETH-USD","SOL-USD"],
     "checkIntervalMs": 60000,
     "forceCloseOnSessionEnd": true

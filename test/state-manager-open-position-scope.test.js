@@ -112,6 +112,9 @@ describe('StateManager openPosition scope contract', () => {
     process.env.MAX_WEEKLY_LOSS = '5';
     process.env.MAX_MONTHLY_LOSS = '5';
     process.env.FRESH_START = 'false';
+    process.env.SYMBOL_LOSS_COOLDOWN_ENABLED = 'true';
+    process.env.SYMBOL_LOSS_COOLDOWN_CONSECUTIVE_LOSSES = '2';
+    process.env.SYMBOL_LOSS_COOLDOWN_MINUTES = '120';
 
     consoleSpies = [
       jest.spyOn(console, 'log').mockImplementation(() => {}),
@@ -1438,6 +1441,148 @@ describe('StateManager openPosition scope contract', () => {
         verifiedFill: false,
       }),
     ]);
+  });
+
+  test('symbol loss cooldown halts entries after configured consecutive closed losses', async () => {
+    const firstOpen = await manager.openPosition(500, 100, fullScope({
+      orderId: 'MARA_LOSS_1',
+      symbol: 'MARA',
+      ledgerData: fullLedgerData(),
+    }));
+    expect(firstOpen.success).toBe(true);
+    const firstClose = await manager.closePosition(99, false, null, {
+      orderId: 'MARA_LOSS_1',
+      orderQuantity: 5,
+      quantityUnit: 'shares',
+      exitReason: 'cooldown_probe_loss_1',
+    });
+    expect(firstClose.success).toBe(true);
+    expect(manager.isSymbolHalted('MARA')).toBe(false);
+
+    const secondOpen = await manager.openPosition(500, 100, fullScope({
+      orderId: 'MARA_LOSS_2',
+      symbol: 'MARA',
+      ledgerData: fullLedgerData(),
+    }));
+    expect(secondOpen.success).toBe(true);
+    const secondClose = await manager.closePosition(99, false, null, {
+      orderId: 'MARA_LOSS_2',
+      orderQuantity: 5,
+      quantityUnit: 'shares',
+      exitReason: 'cooldown_probe_loss_2',
+    });
+    expect(secondClose.success).toBe(true);
+
+    expect(manager.isSymbolHalted('MARA')).toBe(true);
+    expect(manager.getSymbolHaltCode('MARA')).toBe('symbol_cooldown');
+    expect(manager.getSymbolHaltReason('MARA')).toMatch(/symbol_cooldown: MARA 2 consecutive losses/);
+    expect(manager.get('symbolLossStreaks').MARA.consecutiveLosses).toBe(2);
+  });
+
+  test('symbol loss cooldown resets streak on a winning close and can be cleared manually', async () => {
+    const lossOpen = await manager.openPosition(500, 100, fullScope({
+      orderId: 'TSLA_LOSS_1',
+      symbol: 'TSLA',
+      ledgerData: fullLedgerData(),
+    }));
+    expect(lossOpen.success).toBe(true);
+    await manager.closePosition(99, false, null, {
+      orderId: 'TSLA_LOSS_1',
+      orderQuantity: 5,
+      quantityUnit: 'shares',
+      exitReason: 'cooldown_probe_loss',
+    });
+
+    const winOpen = await manager.openPosition(500, 100, fullScope({
+      orderId: 'TSLA_WIN_1',
+      symbol: 'TSLA',
+      ledgerData: fullLedgerData(),
+    }));
+    expect(winOpen.success).toBe(true);
+    await manager.closePosition(101, false, null, {
+      orderId: 'TSLA_WIN_1',
+      orderQuantity: 5,
+      quantityUnit: 'shares',
+      exitReason: 'cooldown_probe_win',
+    });
+
+    expect(manager.get('symbolLossStreaks').TSLA.consecutiveLosses).toBe(0);
+    expect(manager.isSymbolHalted('TSLA')).toBe(false);
+
+    await manager.haltSymbol('TSLA', 'manual cooldown clear probe', { code: 'symbol_cooldown' });
+    expect(manager.isSymbolHalted('TSLA')).toBe(true);
+    const reset = await manager.resetSymbolHalt('TSLA');
+    expect(reset.success).toBe(true);
+    expect(manager.isSymbolHalted('TSLA')).toBe(false);
+  });
+
+  test('symbol loss cooldown expiry does not keep entries halted', async () => {
+    await manager.haltSymbol('COIN', 'expired cooldown probe', {
+      code: 'symbol_cooldown',
+      expiresAt: Date.now() - 1000,
+    });
+
+    expect(manager.isSymbolHalted('COIN')).toBe(false);
+    expect(manager.getSymbolHaltCode('COIN')).toBeNull();
+    expect(manager.getSymbolHaltReason('COIN')).toBeNull();
+  });
+
+  test('load normalizes persisted symbol cooldown state without resurrecting corrupt halts', () => {
+    const now = Date.now();
+    const stateFile = process.env.STATE_FILE;
+    fs.writeFileSync(stateFile, JSON.stringify({
+      position: 0,
+      inPosition: 0,
+      activeTrades: [],
+      isTrading: true,
+      symbolEntryHalts: {
+        mara: {
+          reason: 'symbol_cooldown: MARA 2 consecutive losses',
+          code: 'symbol_cooldown',
+          haltedAt: String(now - 1000),
+          expiresAt: String(now + 60000),
+          consecutiveLosses: 2,
+        },
+        COIN: {
+          reason: 'expired cooldown',
+          code: 'symbol_cooldown',
+          haltedAt: now - 120000,
+          expiresAt: now - 60000,
+        },
+        BAD: [],
+      },
+      symbolLossStreaks: {
+        mara: {
+          consecutiveLosses: '2',
+          lastClosedAt: String(now - 1000),
+          lastPnl: '-5',
+        },
+        TSLA: {
+          consecutiveLosses: 'not-a-number',
+          lastClosedAt: now,
+          lastPnl: -1,
+        },
+        NVDA: [],
+      },
+    }), 'utf8');
+
+    const { StateManager } = require('../core/StateManager');
+    const loaded = new StateManager();
+    loaded.save = jest.fn();
+    loaded.notifyListeners = jest.fn();
+
+    expect(loaded.isSymbolHalted('MARA')).toBe(true);
+    expect(loaded.getSymbolHaltCode('MARA')).toBe('symbol_cooldown');
+    expect(loaded.isSymbolHalted('COIN')).toBe(false);
+    expect(loaded.get('symbolEntryHalts')).not.toHaveProperty('COIN');
+    expect(loaded.get('symbolEntryHalts')).not.toHaveProperty('BAD');
+    expect(loaded.get('symbolLossStreaks')).toEqual({
+      MARA: {
+        consecutiveLosses: 2,
+        lastClosedAt: now - 1000,
+        lastPnl: -5,
+      },
+    });
   });
 
   test('openPosition blocks same-symbol entries when existing trade direction is unknown', async () => {

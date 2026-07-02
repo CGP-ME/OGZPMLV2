@@ -15,7 +15,7 @@ const {
 const ConfigLoader = require('../foundation/ConfigLoader');
 
 const MISSING_ENV_FILE = path.join(__dirname, 'fixtures', 'missing-eval-live-posture.env');
-const EVAL_ALPACA_SYMBOLS = 'TSLA,NVDA,SPY,QQQ,COIN,MARA';
+const EVAL_ALPACA_SYMBOLS = 'TSLA,NVDA,COIN,MARA,RIOT';
 
 function currentNewYorkDate() {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -36,10 +36,9 @@ function earningsStatusJson(date = currentNewYorkDate(), symbolOverrides = {}) {
     symbols: {
       TSLA: false,
       NVDA: false,
-      SPY: false,
-      QQQ: false,
       COIN: false,
       MARA: false,
+      RIOT: false,
       ...symbolOverrides,
     },
   });
@@ -140,7 +139,7 @@ describe('eval live posture gate', () => {
       protocol: 'https:',
       source: 'env:SIGNALSTACK_WEBHOOK_URL',
     });
-    expect(report.checked.symbol.alpacaSymbols).toEqual(['TSLA', 'NVDA', 'SPY', 'QQQ', 'COIN', 'MARA']);
+    expect(report.checked.symbol.alpacaSymbols).toEqual(['TSLA', 'NVDA', 'COIN', 'MARA', 'RIOT']);
     expect(JSON.stringify(report)).not.toContain('signalstack.example');
   });
 
@@ -585,9 +584,8 @@ describe('eval live posture gate', () => {
     const symbols = {
       TSLA: false,
       NVDA: false,
-      SPY: false,
-      QQQ: false,
       COIN: false,
+      RIOT: false,
     };
     const report = validateEvalLivePosture(validEvalLiveEnv({
       TTP_EARNINGS_STATUS_JSON: JSON.stringify({ date: currentNewYorkDate(), symbols }),

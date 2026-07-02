@@ -138,6 +138,16 @@
             "quarantineMaxWinRate": { "type": "number", "minimum": 0, "maximum": 1 },
             "maxPatterns": { "type": "integer", "minimum": 1 }
           }
+        },
+        "symbolLossCooldown": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled", "consecutiveLosses", "cooldownMinutes"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "consecutiveLosses": { "type": "integer", "minimum": 1 },
+            "cooldownMinutes": { "type": "number", "minimum": 0 }
+          }
         }
       }
     },

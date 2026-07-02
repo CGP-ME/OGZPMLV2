@@ -1453,10 +1453,14 @@ class OrderExecutor {
       }
       const globalHaltReason = stateManager.isHalted() ? stateManager.getHaltReason() : null;
       const symbolHaltReason = stateManager.isSymbolHalted(symbol) ? stateManager.getSymbolHaltReason(symbol) : null;
+      const symbolHaltCode = symbolHaltReason && typeof stateManager.getSymbolHaltCode === 'function'
+        ? stateManager.getSymbolHaltCode(symbol)
+        : null;
       if (globalHaltReason || symbolHaltReason) {
         console.error(`[ENTRY] Refusing ${decision.action} for ${symbol}: ${globalHaltReason || symbolHaltReason}`);
-        emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: 'halted', detail: globalHaltReason || symbolHaltReason });
-        return blockedReturn('halted', { detail: globalHaltReason || symbolHaltReason });
+        const blockReason = symbolHaltCode || 'halted';
+        emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: blockReason, detail: globalHaltReason || symbolHaltReason });
+        return blockedReturn(blockReason, { detail: globalHaltReason || symbolHaltReason });
       }
       const hedgeBlock = this._sameSymbolHedgeBlock(decision.action, symbol);
       if (hedgeBlock) {

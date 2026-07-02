@@ -77,6 +77,7 @@
 
 const TradingConfig = require('./TradingConfig');
 const { get: getConfigValue, getSource: getConfigSource } = require('../foundation/ConfigLoader');
+const tradingConfigFile = require('../config/trading.config.json');
 const { getNarrator } = require('./TradeNarrator');
 const FeeModel = require('./FeeModel');
 const { assertExplicitExitOwnership } = require('./dto/ExitContractOwnership');
@@ -98,6 +99,11 @@ const INVALID_SCOPE_PLACEHOLDER_VALUES = new Set([
 
 const TTP_CUTOFF_FLATNESS_PAUSE_SOURCE = 'ttp_cutoff_unverified_broker_flatness';
 const TTP_CUTOFF_FLATNESS_PAUSE_PREFIX = '[TTP_MARKET_TIME] broker flatness unverified after cutoff';
+
+function finiteNumberOrNull(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
 
 function firstNonEmptyString(...values) {
   for (const value of values) {
@@ -353,6 +359,7 @@ class StateManager {
       // ─────────────────────────────────────────────────────────────────────
       activeTrades: new Map(),  // orderId → { size, price, entryTime, symbol, ... }
       symbolEntryHalts: {},     // canonical symbol -> { reason, haltedAt }
+      symbolLossStreaks: {},    // canonical symbol -> { consecutiveLosses, lastClosedAt, lastPnl }
       ttpCutoffQuarantine: null,
       // Per-symbol last-known prices for cross-asset equity math.
       // Mercury attack 2026-05-04: getEquity previously applied ONE caller-
@@ -453,6 +460,7 @@ class StateManager {
       inPosition: 0,
       activeTrades: new Map(),
       symbolEntryHalts: {},
+      symbolLossStreaks: {},
       ttpCutoffQuarantine: null,
       lastPrices: new Map(),
       lastTradeTime: null,
@@ -1254,6 +1262,7 @@ class StateManager {
         holdMs: holdTimeMs,
         closedAt
       };
+      const cooldownUpdates = this._symbolLossCooldownUpdates(closedTradeRecord, closedAt);
 
       const updates = {
         activeTrades: nextActiveTrades,
@@ -1266,7 +1275,8 @@ class StateManager {
         realizedPnL: this.state.realizedPnL + netRealizedResult,
         totalPnL: this.state.totalPnL + pnl,
         closedTrades: [...(this.state.closedTrades || []), closedTradeRecord],
-        lastTradeTime: Date.now()
+        lastTradeTime: closedAt,
+        ...cooldownUpdates
       };
 
       console.log(`Position closed: PnL ${pnl > 0 ? '+' : ''}$${pnl.toFixed(2)} (${pnlPercent.toFixed(2)}%)`);
@@ -2819,12 +2829,101 @@ class StateManager {
     return this._haltReason || null;
   }
 
-  async haltSymbol(symbol, reason) {
+  _symbolLossCooldownConfig() {
+    let cfg = getConfigValue('entryLogic.symbolLossCooldown') || null;
+    if (!cfg && typeof TradingConfig.get === 'function') {
+      try {
+        cfg = TradingConfig.get('entryLogic.symbolLossCooldown');
+      } catch (_) {
+        cfg = null;
+      }
+    }
+    if (!cfg) {
+      cfg = tradingConfigFile.entryLogic?.symbolLossCooldown || null;
+    }
+    cfg = cfg || {};
+    const enabled = cfg.enabled === true;
+    const consecutiveLosses = finiteNumberOrNull(cfg.consecutiveLosses);
+    const cooldownMinutes = finiteNumberOrNull(cfg.cooldownMinutes);
+    return {
+      enabled,
+      consecutiveLosses: Number.isInteger(consecutiveLosses) && consecutiveLosses > 0 ? consecutiveLosses : null,
+      cooldownMs: cooldownMinutes !== null && cooldownMinutes > 0 ? cooldownMinutes * 60 * 1000 : null,
+    };
+  }
+
+  _symbolLossCooldownUpdates(closedTradeRecord, closedAt) {
+    const config = this._symbolLossCooldownConfig();
+    if (!config.enabled || config.consecutiveLosses === null) {
+      return {};
+    }
+
+    const rawSymbol = closedTradeRecord?.symbol;
+    if (typeof rawSymbol !== 'string' || !rawSymbol.trim()) {
+      return {};
+    }
+
+    const normalized = this.normalizeSymbol(rawSymbol, 'StateManager.symbolLossCooldown');
+    const pnl = finiteNumberOrNull(closedTradeRecord.pnl);
+    if (pnl === null) {
+      return {};
+    }
+
+    const existingStreaks = this.state.symbolLossStreaks || {};
+    const previous = existingStreaks[normalized] || {};
+    const previousLosses = Number.isInteger(previous.consecutiveLosses) && previous.consecutiveLosses > 0
+      ? previous.consecutiveLosses
+      : 0;
+    const consecutiveLosses = pnl < 0 ? previousLosses + 1 : 0;
+    const symbolLossStreaks = {
+      ...existingStreaks,
+      [normalized]: {
+        consecutiveLosses,
+        lastClosedAt: closedAt,
+        lastPnl: pnl,
+      },
+    };
+
+    if (consecutiveLosses < config.consecutiveLosses) {
+      return { symbolLossStreaks };
+    }
+
+    const expiresAt = config.cooldownMs === null ? null : closedAt + config.cooldownMs;
+    const reason = `symbol_cooldown: ${normalized} ${consecutiveLosses} consecutive losses`;
+    const symbolEntryHalts = {
+      ...(this.state.symbolEntryHalts || {}),
+      [normalized]: {
+        reason,
+        code: 'symbol_cooldown',
+        haltedAt: closedAt,
+        expiresAt,
+        consecutiveLosses,
+      },
+    };
+
+    console.warn(`[StateManager] SYMBOL COOLDOWN: ${normalized} after ${consecutiveLosses} consecutive losses`);
+    return { symbolLossStreaks, symbolEntryHalts };
+  }
+
+  _symbolHaltRecord(symbol, now = Date.now()) {
+    const normalized = this.normalizeSymbol(symbol, 'StateManager.symbolHaltRecord');
+    const halt = this.state.symbolEntryHalts?.[normalized];
+    if (!halt) return null;
+    const expiresAt = finiteNumberOrNull(halt.expiresAt);
+    if (expiresAt !== null && expiresAt <= now) {
+      return null;
+    }
+    return halt;
+  }
+
+  async haltSymbol(symbol, reason, metadata = {}) {
     const normalized = this.normalizeSymbol(symbol, 'StateManager.haltSymbol');
+    const now = Date.now();
     const halts = { ...(this.state.symbolEntryHalts || {}) };
     halts[normalized] = {
       reason: reason || 'unspecified',
-      haltedAt: Date.now()
+      haltedAt: now,
+      ...(metadata && typeof metadata === 'object' ? metadata : {})
     };
 
     console.error(`[StateManager] SYMBOL ENTRY HALT: ${normalized} - ${halts[normalized].reason}`);
@@ -2835,13 +2934,15 @@ class StateManager {
   }
 
   isSymbolHalted(symbol) {
-    const normalized = this.normalizeSymbol(symbol, 'StateManager.isSymbolHalted');
-    return Boolean(this.state.symbolEntryHalts && this.state.symbolEntryHalts[normalized]);
+    return Boolean(this._symbolHaltRecord(symbol));
   }
 
   getSymbolHaltReason(symbol) {
-    const normalized = this.normalizeSymbol(symbol, 'StateManager.getSymbolHaltReason');
-    return this.state.symbolEntryHalts?.[normalized]?.reason || null;
+    return this._symbolHaltRecord(symbol)?.reason || null;
+  }
+
+  getSymbolHaltCode(symbol) {
+    return this._symbolHaltRecord(symbol)?.code || null;
   }
 
   async resetSymbolHalt(symbol) {
@@ -3006,10 +3107,42 @@ class StateManager {
         } else {
           const normalizedHalts = {};
           for (const [haltSymbol, halt] of Object.entries(this.state.symbolEntryHalts)) {
+            if (!halt || typeof halt !== 'object' || Array.isArray(halt)) continue;
             const normalized = this.normalizeSymbol(haltSymbol, 'StateManager.load symbolEntryHalts');
-            normalizedHalts[normalized] = halt;
+            const haltedAt = finiteNumberOrNull(halt.haltedAt);
+            const expiresAt = halt.expiresAt === null || halt.expiresAt === undefined
+              ? null
+              : finiteNumberOrNull(halt.expiresAt);
+            if (haltedAt === null) continue;
+            if (expiresAt !== null && expiresAt <= Date.now()) continue;
+            normalizedHalts[normalized] = {
+              ...halt,
+              reason: typeof halt.reason === 'string' && halt.reason.trim() ? halt.reason : 'unspecified',
+              code: typeof halt.code === 'string' && halt.code.trim() ? halt.code : undefined,
+              haltedAt,
+              expiresAt,
+            };
           }
           this.state.symbolEntryHalts = normalizedHalts;
+        }
+        if (!this.state.symbolLossStreaks || typeof this.state.symbolLossStreaks !== 'object' || Array.isArray(this.state.symbolLossStreaks)) {
+          this.state.symbolLossStreaks = {};
+        } else {
+          const normalizedStreaks = {};
+          for (const [streakSymbol, streak] of Object.entries(this.state.symbolLossStreaks)) {
+            if (!streak || typeof streak !== 'object' || Array.isArray(streak)) continue;
+            const normalized = this.normalizeSymbol(streakSymbol, 'StateManager.load symbolLossStreaks');
+            const consecutiveLosses = finiteNumberOrNull(streak.consecutiveLosses);
+            const lastClosedAt = finiteNumberOrNull(streak.lastClosedAt);
+            const lastPnl = finiteNumberOrNull(streak.lastPnl);
+            if (!Number.isInteger(consecutiveLosses) || consecutiveLosses < 0 || lastClosedAt === null || lastPnl === null) continue;
+            normalizedStreaks[normalized] = {
+              consecutiveLosses,
+              lastClosedAt,
+              lastPnl,
+            };
+          }
+          this.state.symbolLossStreaks = normalizedStreaks;
         }
         console.log('[StateManager] State loaded from disk');
 
