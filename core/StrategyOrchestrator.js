@@ -38,6 +38,7 @@ const narrator = getNarrator();
 const MAExtensionFilter = require('./MAExtensionFilter');
 const TradingConfig = require('./TradingConfig');
 const OpeningRangeBreakout = require('../modules/OpeningRangeBreakout');
+const BreakAndRetest = require('../modules/BreakAndRetest');
 const MISSING_EXIT_CONTRACT_VALUE = Symbol('missing_exit_contract_value');
 
 // FIX 2026-03-19: Self-contained strategies — each computes its own signals
@@ -485,7 +486,6 @@ class StrategyOrchestrator {
       ...(TradingConfig.get('strategies.LiquiditySweep') || {}),
       disableSessionCheck: true,
     });
-    const BreakAndRetest = require('../modules/BreakAndRetest');
     this.breakAndRetestModule = new BreakAndRetest();
     const NoWickImbalance = require('../modules/NoWickImbalance');
     this.noWickModule = new NoWickImbalance({
