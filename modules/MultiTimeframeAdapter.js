@@ -3,7 +3,7 @@
 /**
  * MultiTimeframeAdapter.js — V2-Compatible Rebuild
  * =================================================
- * Aggregates 1m candles into 5m/15m/30m/1h/4h/1d timeframes.
+ * Stores source candles in their real timeframe and aggregates upward.
  * Calculates indicators per timeframe. Returns confluence score.
  *
  * V2 FIXES:
@@ -15,9 +15,8 @@
  *   • Optional Polygon backfill kept but normalized to V2 format
  *
  * Integration:
- *   const mtf = new MultiTimeframeAdapter({ activeTimeframes: ['1m','5m','15m','1h','4h','1d'] });
- *   // In your 1m candle loop:
- *   mtf.ingestCandle(candle);  // candle = { c, o, h, l, v, t }
+ *   const mtf = new MultiTimeframeAdapter({ baseTimeframe: '15m', activeTimeframes: ['15m','1h','4h','1d'] });
+ *   mtf.ingestCandle(candle, '15m');  // candle = { c, o, h, l, v, t }
  *   const confluence = mtf.getConfluenceScore();
  */
 
@@ -104,7 +103,7 @@ class MultiTimeframeAdapter extends EventEmitter {
   // ═══════════════════════════════════════════════════════════
 
   /**
-   * Feed a 1-minute candle from the WebSocket.
+   * Feed a source candle from the configured runtime timeframe.
    * @param {Object} candle — { c, o, h, l, v, t } (V2 Kraken)
    */
   ingestCandle(candle, sourceTimeframe = candle?.timeframe) {

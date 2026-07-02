@@ -461,6 +461,9 @@ class StrategyOrchestrator {
       3: 2.0,   // Three agree — 2x
       4: 2.5,   // Four+ agree — 2.5x (cap)
     };
+    this.mtfBaseTimeframe = typeof config.mtfBaseTimeframe === 'string' && config.mtfBaseTimeframe.trim()
+      ? config.mtfBaseTimeframe.trim()
+      : null;
 
     // Strategy definitions — each has an evaluate function
     // These are pluggable: add/remove strategies by editing this array
@@ -491,9 +494,7 @@ class StrategyOrchestrator {
       swingLookback: 20,
       minBodyPercent: 0.3
     });
-    this.mtfAdapter = new MultiTimeframeAdapter({
-      activeTimeframes: TradingConfig.get('orchestrator.mtfTimeframes') || ['1m', '5m', '15m', '1h', '4h']
-    });
+    this.mtfAdapter = new MultiTimeframeAdapter(this._buildMtfAdapterConfig());
     this.tpoIntegration = new OgzTpoIntegration();
     this.smartMoneySweepModule = new SmartMoneySweep(
       TradingConfig.get('strategies.SmartMoneySweep') || {}
@@ -541,6 +542,13 @@ class StrategyOrchestrator {
 
     // Register built-in strategies (uses diagFunnel, so must come after)
     this._registerBuiltinStrategies();
+  }
+
+  _buildMtfAdapterConfig() {
+    return {
+      ...(this.mtfBaseTimeframe ? { baseTimeframe: this.mtfBaseTimeframe } : {}),
+      activeTimeframes: TradingConfig.get('orchestrator.mtfTimeframes') || ['1m', '5m', '15m', '1h', '4h'],
+    };
   }
 
   _getSymbolStrategyModule(strategyName, symbol, fallbackModule, factory) {
@@ -594,9 +602,7 @@ class StrategyOrchestrator {
       'MultiTimeframe',
       ctx.extras?.symbol,
       this.mtfAdapter,
-      () => new MultiTimeframeAdapter({
-        activeTimeframes: TradingConfig.get('orchestrator.mtfTimeframes') || ['1m', '5m', '15m', '1h', '4h']
-      })
+      () => new MultiTimeframeAdapter(this._buildMtfAdapterConfig())
     );
 
     try {

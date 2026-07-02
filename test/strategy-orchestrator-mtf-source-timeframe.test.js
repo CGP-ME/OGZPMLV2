@@ -22,6 +22,53 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
     jest.restoreAllMocks();
   });
 
+  test('constructs root and symbol-scoped MTF adapters with runtime base timeframe', () => {
+    const ingestCandle = jest.fn();
+    const getConfluenceScore = jest.fn(() => ({
+      direction: 'neutral',
+      score: 0,
+    }));
+    const MultiTimeframeAdapter = jest.fn().mockImplementation(() => ({
+      ingestCandle,
+      getConfluenceScore,
+    }));
+    jest.doMock('../modules/MultiTimeframeAdapter', () => MultiTimeframeAdapter);
+
+    const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
+    const orchestrator = new StrategyOrchestrator({
+      minConfluenceCount: 1,
+      mtfBaseTimeframe: '15m',
+    });
+    const latestCandle = {
+      symbol: 'TSLA',
+      timeframe: '15m',
+      t: Date.UTC(2026, 0, 1, 14, 30, 0),
+      etime: Date.UTC(2026, 0, 1, 14, 45, 0),
+      o: 100,
+      h: 101,
+      l: 99,
+      c: 100.5,
+      v: 1000,
+    };
+
+    orchestrator.evaluate(
+      { atr: 1, trend: 'bullish' },
+      [],
+      null,
+      [latestCandle],
+      { symbol: 'TSLA', timeframe: '15m', price: 100.5 }
+    );
+
+    expect(MultiTimeframeAdapter).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      baseTimeframe: '15m',
+      activeTimeframes: expect.any(Array),
+    }));
+    expect(MultiTimeframeAdapter).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      baseTimeframe: '15m',
+      activeTimeframes: expect.any(Array),
+    }));
+  });
+
   test('passes evaluation timeframe into the MTF adapter ingest call', () => {
     const ingestCandle = jest.fn();
     const getConfluenceScore = jest.fn(() => ({

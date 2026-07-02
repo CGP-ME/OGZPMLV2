@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### MTF Runtime Base Timeframe Ownership (2026-07-02)
+
+- Threaded `broker.candleTimeframe` into live and StrategyOrchestrator MTF adapter construction so source candles are stored and aggregated from the configured runtime timeframe instead of an implicit 1m base.
+- Added focused tests proving root/symbol-scoped MTF adapters receive the runtime base timeframe and the runner resolves that timeframe before MTF construction.
+- Updated MTF adapter comments to describe source-timeframe candles and upward aggregation instead of 1m-only ingestion.
+
 ### Backtest Confidence Attribution Rows (2026-07-02)
 
 - Preserved trade-birth `signalBreakdown`, winner decision attribution, confidence contributor names, frozen MTF confluence snapshots, frozen exit policy, and partial-close metadata on BacktestRecorder rows.

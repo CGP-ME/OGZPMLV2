@@ -612,10 +612,17 @@ class OGZPrimeV14Bot {
     // CHANGE 2026-02-21: Isolated strategy entry pipeline (replaces soupy pooled confidence)
     // Each strategy evaluates independently. Highest confidence WINS and OWNS the trade.
     // Confluence only affects POSITION SIZING, not the entry decision.
+    const runtimeCandleTimeframe = resolvedConfig.config.broker.candleTimeframe;
+    if (typeof runtimeCandleTimeframe !== 'string' || !runtimeCandleTimeframe.trim()) {
+      throw new Error(`[BOOT][Timeframe] broker.candleTimeframe missing/invalid (${runtimeCandleTimeframe}) - refusing to start without a real candle timeframe`);
+    }
+    this.candleTimeframe = runtimeCandleTimeframe.trim();
+
     this.strategyOrchestrator = new StrategyOrchestrator({
       // CHANGE 2026-02-28: Use TradingConfig for minStrategyConfidence
       minStrategyConfidence: TradingConfig.get('confidence.minStrategyConfidence'),
       minConfluenceCount: 1,         // 1 = winner alone can trade
+      mtfBaseTimeframe: this.candleTimeframe,
     });
 
     // Fibonacci level detection for strategy context (supports EMA bounce + fib confluence)
@@ -669,18 +676,13 @@ class OGZPrimeV14Bot {
 
     // CHANGE 2026-02-10: Modular Entry System (V2 format: c/o/h/l/v/t)
     this.mtfAdapter = new MultiTimeframeAdapter({
+      baseTimeframe: this.candleTimeframe,
       activeTimeframes: ['1m', '5m', '15m', '1h', '4h', '1d'],
     });
     this.candleAggregator = new CandleAggregator();
     this._emittedAggregatedActiveCandles = new Set();
     this._settledAggregatedActiveCandles = new Set();
     this._aggregateSourceBackfills = new Set();
-
-    const runtimeCandleTimeframe = resolvedConfig.config.broker.candleTimeframe;
-    if (typeof runtimeCandleTimeframe !== 'string' || !runtimeCandleTimeframe.trim()) {
-      throw new Error(`[BOOT][Timeframe] broker.candleTimeframe missing/invalid (${runtimeCandleTimeframe}) - refusing to start without a real candle timeframe`);
-    }
-    this.candleTimeframe = runtimeCandleTimeframe.trim();
 
     // CHANGE 2026-02-21: Adaptive timeframe selection based on market conditions
     // Runtime analysis is pinned to broker.candleTimeframe until SymbolTradingContext
