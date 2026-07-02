@@ -3601,6 +3601,15 @@ class StateManager {
       const authoritativeRuntimeScope = runtimeScope && runtimeScope.scopeComplete && positions.length === 0
         ? runtimeScope
         : null;
+      // Win-rate truth (2026-07-01): computed from the SAME closedTrades
+      // ledger CandleProcessor uses for its winRate math. The dashboard header
+      // previously divided a browser-session-local win tally by the lifetime
+      // tradeCount — structurally wrong (mixed scopes) and rendered WIN 0%
+      // on any dashboard that connected after wins occurred.
+      const closedTrades = Array.isArray(state.closedTrades) ? state.closedTrades : [];
+      const winningTrades = closedTrades.filter(t => Number(t && t.pnl) > 0).length;
+      const losingTrades = closedTrades.filter(t => Number(t && t.pnl) < 0).length;
+
       const dashboardState = {
         position: state.position,
         balance: state.balance,
@@ -3613,6 +3622,9 @@ class StateManager {
         pnlStatus: pricingStatus.pnlStatus,
         pnlMissingPriceSymbols: pricingStatus.pnlMissingPriceSymbols,
         tradeCount: state.tradeCount,
+        closedTradeCount: closedTrades.length,
+        winningTrades,
+        losingTrades,
         dailyTradeCount: state.dailyTradeCount,
         recoveryMode: state.recoveryMode,
         ttpCutoffQuarantine: state.ttpCutoffQuarantine || null,
