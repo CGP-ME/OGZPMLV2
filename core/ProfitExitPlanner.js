@@ -251,11 +251,12 @@ function planTier(snapshot, profitPercent) {
     if (exitFraction <= 0) {
       continue;
     }
-    const tierReason = tier.name === 'final'
+    const tierName = typeof tier.name === 'string' ? tier.name.trim() : '';
+    const tierReason = tierName.toLowerCase() === 'final'
       ? `profit_tier_${index + 1}`
-      : typeof tier.name === 'string' && /^tier\d+$/i.test(tier.name.trim())
-      ? `profit_tier_${tier.name.trim().replace(/^\D+/i, '')}`
-      : `profit_${tier.name || `tier_${index + 1}`}`;
+      : /^tier\d+$/i.test(tierName)
+      ? `profit_tier_${tierName.replace(/^\D+/i, '')}`
+      : `profit_tier_${index + 1}`;
     return intent(snapshot, {
       action: exitFraction >= 1 ? 'exit_full' : 'exit_partial',
       reason: tierReason,

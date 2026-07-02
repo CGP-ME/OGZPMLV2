@@ -319,7 +319,8 @@ class BacktestRecorder {
         // Exit type normalization
         const er = (record.exitReason || '').toLowerCase();
         if (er.includes('stop_loss') || er.includes('stoploss')) record.exitType = 'stop_loss';
-        else if (er.includes('take_profit') || er.includes('tier')) record.exitType = 'take_profit';
+        else if (er === 'profit_tier' || /^profit_tier_?\d+$/.test(er)) record.exitType = 'profit_tier';
+        else if (er.includes('take_profit')) record.exitType = 'take_profit';
         else if (er.includes('trailing')) record.exitType = 'trailing_stop';
         else if (er.includes('max_hold')) record.exitType = 'max_hold';
         else if (er.includes('break_even')) record.exitType = 'break_even';

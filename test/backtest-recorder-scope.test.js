@@ -33,7 +33,17 @@ describe('Backtest report scope contract', () => {
     originalEnv = { ...process.env };
     process.env.EXECUTION_MODE = 'backtest';
     process.env.BACKTEST_MODE = 'true';
+    process.env.LIVE_TRADING = 'false';
+    process.env.PAPER_TRADING = 'true';
+    process.env.EVAL_RULES_ENABLED = 'false';
+    process.env.TTP_RULES_ENABLED = 'false';
     process.env.INITIAL_BALANCE = '10000';
+    process.env.MIN_TRADE_CONFIDENCE = '0.60';
+    process.env.MAX_DRAWDOWN = '5';
+    process.env.MAX_DAILY_LOSS = '1';
+    process.env.MAX_WEEKLY_LOSS = '5';
+    process.env.MAX_MONTHLY_LOSS = '5';
+    process.env.RISK_MANAGER_BYPASS = 'true';
     consoleSpies = [
       jest.spyOn(console, 'log').mockImplementation(() => {}),
       jest.spyOn(console, 'warn').mockImplementation(() => {}),
@@ -46,7 +56,12 @@ describe('Backtest report scope contract', () => {
     for (const spy of consoleSpies) {
       spy.mockRestore();
     }
-    process.env = originalEnv;
+    for (const key of Object.keys(process.env)) {
+      if (!Object.prototype.hasOwnProperty.call(originalEnv, key)) {
+        delete process.env[key];
+      }
+    }
+    Object.assign(process.env, originalEnv);
   });
 
   test('records immutable scope on every backtest trade row', () => {
@@ -124,6 +139,62 @@ describe('Backtest report scope contract', () => {
     expect(record.netPnlDollars).toBeCloseTo(executedRawPnl, 8);
     expect(record.balanceAfter - record.balanceBefore).toBeCloseTo(executedRawPnl, 8);
     expect(record.pnlPerShare).toBeCloseTo(executedRawPnl / closedOrderQuantity, 8);
+  });
+
+  test('preserves profit-tier exits as profit_tier instead of take_profit', () => {
+    const recorder = new BacktestRecorder({ startingBalance: 10000, feePerSide: 0 });
+
+    const tierRecord = recorder.recordTrade(scopedTrade({ exitReason: 'profit_tier_1' }));
+    const takeProfitRecord = recorder.recordTrade(scopedTrade({
+      exitReason: 'take_profit',
+      entryTime: '2026-05-26T14:00:00.000Z',
+      exitTime: '2026-05-26T14:15:00.000Z',
+    }));
+    const trailingRecord = recorder.recordTrade(scopedTrade({
+      exitReason: 'trailing_stop',
+      entryTime: '2026-05-26T14:30:00.000Z',
+      exitTime: '2026-05-26T14:45:00.000Z',
+    }));
+    const stopRecord = recorder.recordTrade(scopedTrade({
+      exitReason: 'stop_loss',
+      entryTime: '2026-05-26T15:00:00.000Z',
+      exitTime: '2026-05-26T15:15:00.000Z',
+    }));
+    const maxHoldRecord = recorder.recordTrade(scopedTrade({
+      exitReason: 'max_hold_winner',
+      entryTime: '2026-05-26T15:30:00.000Z',
+      exitTime: '2026-05-26T15:45:00.000Z',
+    }));
+    const breakEvenRecord = recorder.recordTrade(scopedTrade({
+      exitReason: 'break_even',
+      entryTime: '2026-05-26T16:00:00.000Z',
+      exitTime: '2026-05-26T16:15:00.000Z',
+    }));
+    const mixedTakeProfitRecord = recorder.recordTrade(scopedTrade({
+      exitReason: 'take_profit_tier',
+      entryTime: '2026-05-26T16:30:00.000Z',
+      exitTime: '2026-05-26T16:45:00.000Z',
+    }));
+    const compactTierRecord = recorder.recordTrade(scopedTrade({
+      exitReason: 'profit_Tier1',
+      entryTime: '2026-05-26T16:45:00.000Z',
+      exitTime: '2026-05-26T17:00:00.000Z',
+    }));
+    const malformedTierRecord = recorder.recordTrade(scopedTrade({
+      exitReason: 'profit_tier_one',
+      entryTime: '2026-05-26T17:00:00.000Z',
+      exitTime: '2026-05-26T17:15:00.000Z',
+    }));
+
+    expect(tierRecord.exitType).toBe('profit_tier');
+    expect(takeProfitRecord.exitType).toBe('take_profit');
+    expect(trailingRecord.exitType).toBe('trailing_stop');
+    expect(stopRecord.exitType).toBe('stop_loss');
+    expect(maxHoldRecord.exitType).toBe('max_hold');
+    expect(breakEvenRecord.exitType).toBe('break_even');
+    expect(mixedTakeProfitRecord.exitType).toBe('take_profit');
+    expect(compactTierRecord.exitType).toBe('profit_tier');
+    expect(malformedTierRecord.exitType).toBe('profit_tier_one');
   });
 
   test('rejects missing scope before mutating backtest balance or rows', () => {

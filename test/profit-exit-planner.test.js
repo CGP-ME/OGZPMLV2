@@ -240,6 +240,37 @@ describe('ProfitExitPlanner', () => {
     });
   });
 
+  test('canonicalizes custom tier names into indexed profit-tier reasons', () => {
+    const basePolicy = policy();
+    const result = ProfitExitPlanner.plan(snapshot({
+      currentPrice: 102.5,
+      maxProfitPercent: 0.025,
+      frozenExitPolicy: policy({
+        profitManagement: {
+          ...basePolicy.profitManagement,
+          beScaleOut: {
+            ...basePolicy.profitManagement.beScaleOut,
+            enabled: false,
+          },
+          tieredExit: {
+            ...basePolicy.profitManagement.tieredExit,
+            tiers: [
+              { name: 'TierOne', targetProfitMove: 0.015, exitFraction: 0.3 },
+              ...basePolicy.profitManagement.tieredExit.tiers.slice(1),
+            ],
+          },
+        },
+      }),
+    }));
+
+    expect(result).toMatchObject({
+      action: 'exit_partial',
+      reason: 'profit_tier_1',
+      stateKey: 'tierStates',
+      tierIndex: 0,
+    });
+  });
+
   test('allocates open tiers by remaining open-tier weight after prior exits', () => {
     const result = ProfitExitPlanner.plan(snapshot({
       currentPrice: 102.5,
