@@ -168,6 +168,54 @@ describe('Pattern memory scope isolation', () => {
     expect(memory.patterns).toEqual({});
   });
 
+  test('UnifiedPatternMemory treats EXECUTION_MODE=backtest as backtest when BACKTEST_MODE is absent', () => {
+    delete process.env.BACKTEST_MODE;
+    delete process.env.PAPER_TRADING;
+    process.env.EXECUTION_MODE = 'backtest';
+
+    const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
+    const memory = new UnifiedPatternMemory({
+      persistToDisk: false,
+      minSamples: 1,
+      successThreshold: 0.6,
+    });
+
+    expect(memory.storageMode).toBe('backtest');
+    expect(memory.storagePath).toBe(path.join(process.env.DATA_DIR, 'unified-patterns.backtest.TSLA.json'));
+  });
+
+  test('pattern stores keep TEST_MODE in the same mode bucket', () => {
+    delete process.env.BACKTEST_MODE;
+    delete process.env.PAPER_TRADING;
+    delete process.env.TRADING_MODE;
+    delete process.env.ENABLE_LIVE_TRADING;
+    delete process.env.EXECUTION_MODE;
+    process.env.TEST_MODE = 'true';
+    process.env.ASSET_CLASS = 'stocks';
+
+    const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
+    const memory = new UnifiedPatternMemory({
+      persistToDisk: false,
+      minSamples: 1,
+      successThreshold: 0.6,
+    });
+
+    const PatternMemoryBank = require('../core/PatternMemoryBank');
+    const bank = new PatternMemoryBank({
+      ...scope({ executionMode: 'test', scopeKey: 'test:alpaca:acct-main:stocks:TSLA:15m' }),
+      minTradesSample: 1,
+      featureFlags: {
+        PATTERN_MEMORY_PARTITION: {
+          settings: { testPersist: false },
+        },
+      },
+    });
+
+    expect(memory.storageMode).toBe('test');
+    expect(memory.storagePath).toBe(path.join(process.env.DATA_DIR, 'unified-patterns.test.stocks.json'));
+    expect(bank.dbPath).toContain('.test.');
+  });
+
   test('UnifiedPatternMemory compatibility recordPattern requires canonical live close outcome fields', () => {
     const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
     const memory = new UnifiedPatternMemory({
@@ -634,6 +682,67 @@ describe('Pattern memory scope isolation', () => {
 
     expect(bank.recordTradeOutcome(bankTrade({ indicators: null }))).toBe(false);
     expect(Object.values(bank.exportMemory().patterns)).toHaveLength(1);
+  });
+
+  test('PatternMemoryBank treats EXECUTION_MODE=backtest as backtest when BACKTEST_MODE is absent', () => {
+    delete process.env.BACKTEST_MODE;
+    delete process.env.PAPER_TRADING;
+    process.env.EXECUTION_MODE = 'backtest';
+
+    const PatternMemoryBank = require('../core/PatternMemoryBank');
+    const dbPath = path.join(process.env.DATA_DIR, `pattern-bank-execution-mode-${Date.now()}.json`);
+    const bank = new PatternMemoryBank({
+      ...scope(),
+      dbPath,
+      minTradesSample: 1,
+      featureFlags: {
+        PATTERN_MEMORY_PARTITION: {
+          settings: { backtestPersist: false },
+        },
+      },
+    });
+
+    expect(bank.dbPath).toContain('.backtest.');
+    expect(bank.persistenceEnabled).toBe(false);
+  });
+
+  test('UnifiedPatternMemory follows legacy live and paper mode flags', () => {
+    delete process.env.BACKTEST_MODE;
+    delete process.env.TEST_MODE;
+    delete process.env.EXECUTION_MODE;
+    delete process.env.PAPER_TRADING;
+    process.env.ASSET_CLASS = 'stocks';
+
+    const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
+
+    process.env.TRADING_MODE = 'paper';
+    let memory = new UnifiedPatternMemory({ persistToDisk: false });
+    expect(memory.storageMode).toBe('paper');
+
+    process.env.TRADING_MODE = 'live';
+    memory = new UnifiedPatternMemory({ persistToDisk: false });
+    expect(memory.storageMode).toBe('live');
+
+    delete process.env.TRADING_MODE;
+    process.env.ENABLE_LIVE_TRADING = 'true';
+    memory = new UnifiedPatternMemory({ persistToDisk: false });
+    expect(memory.storageMode).toBe('live');
+  });
+
+  test('UnifiedPatternMemory defaults to paper when no mode flag is set', () => {
+    delete process.env.BACKTEST_MODE;
+    delete process.env.TEST_MODE;
+    delete process.env.EXECUTION_MODE;
+    delete process.env.PAPER_TRADING;
+    delete process.env.TRADING_MODE;
+    delete process.env.ENABLE_LIVE_TRADING;
+    process.env.ASSET_CLASS = 'stocks';
+
+    const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
+    const memory = new UnifiedPatternMemory({ persistToDisk: false });
+
+    expect(memory.storageMode).toBe('paper');
+    expect(memory.storagePath).toBe(path.join(process.env.DATA_DIR, 'unified-patterns.paper.stocks.json'));
   });
 
   test('PatternMemoryBank uses TradingConfig-owned bank tunables and rejects invalid overrides', () => {

@@ -180,9 +180,13 @@ function resolvePatternMemoryConfig(overrides) {
 }
 
 function resolveInitialMode() {
-  if (process.env.BACKTEST_MODE === 'true') return 'backtest';
-  if (process.env.PAPER_TRADING === 'true') return 'paper';
-  return 'live';
+  const executionMode = String(process.env.EXECUTION_MODE || '').trim().toLowerCase();
+  const tradingMode = String(process.env.TRADING_MODE || '').trim().toLowerCase();
+  if (process.env.BACKTEST_MODE === 'true' || executionMode === 'backtest') return 'backtest';
+  if (process.env.TEST_MODE === 'true' || executionMode === 'test') return 'test';
+  if (tradingMode === 'live' || executionMode === 'live' || process.env.ENABLE_LIVE_TRADING === 'true') return 'live';
+  if (process.env.PAPER_TRADING === 'true' || tradingMode === 'paper' || executionMode === 'paper') return 'paper';
+  return 'paper';
 }
 
 function sanitizePatternBucket(value) {

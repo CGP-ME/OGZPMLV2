@@ -156,19 +156,30 @@ function resolvePatternBankConfig(config) {
     return Object.freeze({ ...resolved });
 }
 
+function resolveInitialMode() {
+    const executionMode = String(process.env.EXECUTION_MODE || '').trim().toLowerCase();
+    const tradingMode = String(process.env.TRADING_MODE || '').trim().toLowerCase();
+    if (process.env.BACKTEST_MODE === 'true' || executionMode === 'backtest') {
+        return 'backtest';
+    }
+    if (process.env.TEST_MODE === 'true' || executionMode === 'test') {
+        return 'test';
+    }
+    if (tradingMode === 'live' || executionMode === 'live' || process.env.ENABLE_LIVE_TRADING === 'true') {
+        return 'live';
+    }
+    if (tradingMode === 'paper' || executionMode === 'paper' || process.env.PAPER_TRADING === 'true') {
+        return 'paper';
+    }
+    return 'paper';
+}
+
 class PatternMemoryBank {
     #memory;
 
     constructor(config = {}) {
         // Mode-aware pattern memory persistence to prevent contamination
-        let mode = 'paper';  // Default to paper
-        if (process.env.BACKTEST_MODE === 'true') {
-            mode = 'backtest';
-        } else if (process.env.TRADING_MODE === 'live' || process.env.ENABLE_LIVE_TRADING === 'true') {
-            mode = 'live';
-        } else if (process.env.TRADING_MODE === 'paper' || process.env.PAPER_TRADING === 'true') {
-            mode = 'paper';
-        }
+        const mode = resolveInitialMode();
         const featureFlags = config.featureFlags || {};
         const partitionSettings = featureFlags.PATTERN_MEMORY_PARTITION?.settings || {};
 
@@ -194,6 +205,8 @@ class PatternMemoryBank {
             memoryFile = `pattern_memory.paper${scopeSuffix}.json`;
         } else if (mode === 'backtest') {
             memoryFile = `pattern_memory.backtest${scopeSuffix}.json`;
+        } else if (mode === 'test') {
+            memoryFile = `pattern_memory.test${scopeSuffix}.json`;
         }
         if (scopeSuffix && !memoryFile.endsWith(`${scopeSuffix}.json`)) {
             memoryFile = memoryFile.replace(/\.json$/, `${scopeSuffix}.json`);
@@ -209,8 +222,10 @@ class PatternMemoryBank {
             this.backupPath = assertJsonPathInsideRoot(memoryFile.replace(/\.json$/, '.backup.json'), dataDir, 'PatternMemoryBank.backupPath');
         }
 
-        // Disable persistence for backtest mode if configured
-        this.persistenceEnabled = mode !== 'backtest' || partitionSettings.backtestPersist !== false;
+        // Disable persistence for non-runtime modes when configured.
+        this.persistenceEnabled =
+            (mode !== 'backtest' || partitionSettings.backtestPersist !== false) &&
+            (mode !== 'test' || partitionSettings.testPersist !== false);
         this.pruneFailureReason = null;
 
         console.log(`[TRAI Memory] Mode: ${mode}, File: ${memoryFile}, Persist: ${this.persistenceEnabled}`);
