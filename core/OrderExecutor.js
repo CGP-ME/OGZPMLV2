@@ -522,11 +522,72 @@ class OrderExecutor {
     return typeof body === 'string' ? body : '';
   }
 
+  _webhookResponseJson(result = {}) {
+    const body = this._webhookResponseBody(result);
+    if (!body.trim()) return null;
+    try {
+      return JSON.parse(body);
+    } catch (_) {
+      return null;
+    }
+  }
+
   _isWebhookBrokerFlatResult(action, result = {}) {
     if (!this._isExitAction(action)) return false;
     return this._webhookResponseBody(result)
       .toLowerCase()
       .includes('no open positions for the asset');
+  }
+
+  _extractWebhookFillProof(action, result = {}) {
+    if (!this._isExitAction(action)) return null;
+    const parsed = this._webhookResponseJson(result) || {};
+    const statusText = String(
+      result?.status
+        || result?.orderStatus
+        || result?.fillStatus
+        || parsed?.status
+        || parsed?.orderStatus
+        || parsed?.order_status
+        || parsed?.fillStatus
+        || parsed?.fill_status
+        || parsed?.status_description
+        || ''
+    ).trim().toLowerCase();
+    const terminalFillStatuses = new Set(['filled', 'fill', 'executed', 'complete', 'completed']);
+    if (!terminalFillStatuses.has(statusText)) {
+      return null;
+    }
+
+    const filledQuantity = [
+      result?.filledQuantity,
+      result?.filledQty,
+      result?.executedQuantity,
+      result?.executedQty,
+      result?.qtyFilled,
+      parsed?.filledQuantity,
+      parsed?.filledQty,
+      parsed?.filled_qty,
+      parsed?.executedQuantity,
+      parsed?.executedQty,
+      parsed?.executed_qty,
+      parsed?.qtyFilled,
+      parsed?.qty_filled,
+    ].map((value) => Number(value)).find((value) => Number.isFinite(value));
+    if (!Number.isFinite(filledQuantity) || filledQuantity <= 0) {
+      return null;
+    }
+
+    const orderId = this._extractWebhookOrderId(result);
+    if (!orderId) {
+      return null;
+    }
+
+    return {
+      orderId,
+      filledQuantity,
+      status: statusText,
+    };
   }
 
   _getActiveTradeById(orderId) {
@@ -1027,7 +1088,10 @@ class OrderExecutor {
     }
 
     const remainingQuantity = Math.max(0, remainingBefore - filledQuantity);
-    const resolvedLifecycleState = lifecycleState || 'full_fill';
+    const tolerance = 1e-9;
+    const expectedExitQuantity = Number(exitPlan.orderQuantity);
+    const resolvedLifecycleState = lifecycleState
+      || (Number.isFinite(expectedExitQuantity) && filledQuantity + tolerance < expectedExitQuantity ? 'partial_fill' : 'full_fill');
     return {
       fillId: `${brokerOrderId}:${intentId}:${filledQuantity}`,
       brokerOrderId,
@@ -2037,6 +2101,7 @@ class OrderExecutor {
           ...brokerOrderPlan,
         });
         const webhookOrderId = this._extractWebhookOrderId(webhookResult);
+        const webhookFillProof = this._extractWebhookFillProof(decision.action, webhookResult);
         if (webhookResult?.sent !== true) {
           const webhookReason = webhookResult?.reason || 'not_sent';
           tradeResult = {
@@ -2105,6 +2170,46 @@ class OrderExecutor {
               stateMutationSucceeded: false,
             });
           }
+        } else if (isExitAction && !webhookFillProof) {
+          const localOrderId = webhookOrderId
+            || this._webhookCorrelationOrderId(decision.action, brokerOrderPlan, decisionId);
+          const responseBody = this._webhookResponseBody(webhookResult).slice(0, 500);
+          emitTrace(this.ctx, 'EXIT_PENDING_BROKER_CONFIRMATION', {
+            traceId,
+            signalId,
+            decisionId,
+            symbol,
+            action: decision.action,
+            orderId: localOrderId,
+            route: 'webhook',
+            responseBody,
+            brokerOrderIdPresent: Boolean(webhookOrderId),
+            pendingExitIntent: exitIntent || null,
+            orderAccepted: true,
+            stateMutationSucceeded: false,
+          });
+          return {
+            success: true,
+            reason: 'exit_pending_broker_confirmation',
+            orderId: localOrderId,
+            brokerOrderId: webhookOrderId || null,
+            webhookOrderIdMissing: !webhookOrderId,
+            webhookAcceptedWithoutOrderId: !webhookOrderId,
+            brokerConfirmationPending: true,
+            brokerFillConfirmed: false,
+            brokerFillStatus: null,
+            responseBody,
+            action: decision.action,
+            symbol,
+            price,
+            amount: brokerOrderPlan.sizeUsd,
+            orderQuantity: brokerOrderPlan.orderQuantity,
+            quantityUnit: brokerOrderPlan.quantityUnit,
+            traceId,
+            signalId,
+            orderAccepted: true,
+            stateMutationSucceeded: false,
+          };
         } else if (!webhookOrderId) {
           const localOrderId = this._webhookCorrelationOrderId(decision.action, brokerOrderPlan, decisionId);
           tradeResult = {
@@ -2116,8 +2221,10 @@ class OrderExecutor {
             responseBody: this._webhookResponseBody(webhookResult).slice(0, 500),
             price,
             amount: brokerOrderPlan.sizeUsd,
-            orderQuantity: brokerOrderPlan.orderQuantity,
+            orderQuantity: webhookFillProof?.filledQuantity ?? brokerOrderPlan.orderQuantity,
             quantityUnit: brokerOrderPlan.quantityUnit,
+            brokerFillConfirmed: Boolean(webhookFillProof),
+            brokerFillStatus: webhookFillProof?.status || null,
             traceId,
             signalId,
           };
@@ -2137,8 +2244,10 @@ class OrderExecutor {
             orderId: webhookOrderId,
             price,
             amount: brokerOrderPlan.sizeUsd,
-            orderQuantity: brokerOrderPlan.orderQuantity,
+            orderQuantity: webhookFillProof?.filledQuantity ?? brokerOrderPlan.orderQuantity,
             quantityUnit: brokerOrderPlan.quantityUnit,
+            brokerFillConfirmed: Boolean(webhookFillProof),
+            brokerFillStatus: webhookFillProof?.status || null,
             traceId,
             signalId,
           };
@@ -3777,6 +3886,8 @@ class OrderExecutor {
           brokerOrderId: tradeResult.brokerOrderId === undefined ? tradeResult.orderId : tradeResult.brokerOrderId,
           webhookOrderIdMissing: tradeResult.webhookOrderIdMissing === true,
           webhookAcceptedWithoutOrderId: tradeResult.webhookAcceptedWithoutOrderId === true,
+          brokerFillConfirmed: tradeResult.brokerFillConfirmed === true,
+          brokerFillStatus: tradeResult.brokerFillStatus || null,
           orderAccepted: true,
           stateMutationSucceeded: true,
           price: tradeResult.price ?? price,
