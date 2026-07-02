@@ -127,6 +127,12 @@ function isAllowedNodeRuntime(tokens, index) {
   if (firstArg === 'trai_brain/mercury-bridge/ask.js' || firstArg === './trai_brain/mercury-bridge/ask.js') {
     return true;
   }
+  if (
+    (firstArg === 'trai_brain/claude-bridge/cli.js' || firstArg === './trai_brain/claude-bridge/cli.js') &&
+    segment[2] === 'record-proof'
+  ) {
+    return true;
+  }
   return false;
 }
 
@@ -275,6 +281,73 @@ function extractPaths(cmd) {
   return [...new Set(paths)];
 }
 
+function gitCommandSegment(cmd) {
+  const tokens = shellTokens(cmd);
+  for (let i = 0; i < tokens.length; i++) {
+    if (!isCommandPosition(tokens, i)) continue;
+    const name = commandName(tokens[i]);
+    if (name === 'git') return segmentUntilSeparator(tokens, i);
+    if (!COMMAND_WRAPPERS.has(name)) continue;
+    const wrapped = segmentUntilSeparator(tokens, i + 1);
+    const gitIndex = wrapped.findIndex((token) => commandName(token) === 'git');
+    if (gitIndex !== -1) return wrapped.slice(gitIndex);
+  }
+  return [];
+}
+
+function gitSubcommandIndex(segment) {
+  for (let i = 1; i < segment.length; i++) {
+    const part = segment[i];
+    if (['-C', '-c', '--git-dir', '--work-tree', '--namespace'].includes(part)) {
+      i += 1;
+      continue;
+    }
+    if (
+      part.startsWith('--git-dir=') ||
+      part.startsWith('--work-tree=') ||
+      part.startsWith('--namespace=') ||
+      part.startsWith('-')
+    ) {
+      continue;
+    }
+    return i;
+  }
+  return -1;
+}
+
+function isBroadGitAddPath(token) {
+  return token === '.' || token === './' || token === '-A' || token === '--all' || token === ':/';
+}
+
+function gitAddPaths(segment, subcommandIndex) {
+  const paths = [];
+  for (let i = subcommandIndex + 1; i < segment.length; i++) {
+    const part = segment[i];
+    if (!part || part === '--') continue;
+    if (part.startsWith('-')) {
+      if (isBroadGitAddPath(part)) return null;
+      continue;
+    }
+    if (isBroadGitAddPath(part)) return null;
+    paths.push(part);
+  }
+  return paths.length > 0 ? paths : null;
+}
+
+function gitMutationScope(cmd) {
+  const segment = gitCommandSegment(cmd);
+  const subcommandIndex = gitSubcommandIndex(segment);
+  if (subcommandIndex < 0) return { kind: 'broad' };
+  const subcommand = commandName(segment[subcommandIndex]);
+  if (subcommand === 'push') return { kind: 'push' };
+  if (subcommand === 'commit') return { kind: 'staged' };
+  if (subcommand === 'add') {
+    const paths = gitAddPaths(segment, subcommandIndex);
+    return paths ? { kind: 'paths', paths } : { kind: 'broad' };
+  }
+  return { kind: 'broad' };
+}
+
 function mutationReason(cmd) {
   if (OUTPUT_REDIRECT.test(cmd)) return 'output_redirection';
   if (IN_PLACE_EDIT.test(cmd)) return 'in_place_edit';
@@ -315,10 +388,20 @@ function assertWardenAllowsGitMutation(input) {
     emit('BLOCKED (claude-bridge Warden): missing session identity. Warden policy fails closed.', 2);
   }
 
-  const result = finishGate.evaluateFinishGate(
-    finishGate.changedFiles(),
-    editLedger.listEditedFiles()
-  );
+  const cmd = input.tool_input?.command || '';
+  const scope = gitMutationScope(cmd);
+  if (scope.kind === 'push') return;
+
+  const files = scope.kind === 'paths'
+    ? finishGate.changedFilesForPaths(scope.paths)
+    : scope.kind === 'staged'
+      ? finishGate.stagedFiles()
+      : finishGate.changedFiles();
+  const editedFiles = scope.kind === 'broad'
+    ? editLedger.listEditedFiles()
+    : files;
+
+  const result = finishGate.evaluateFinishGate(files, editedFiles);
   if (!result.allowed) {
     emit(
       `BLOCKED (claude-bridge Warden): git mutation requires completed Warden proof first. ` +
@@ -403,4 +486,11 @@ function run() {
 }
 
 if (require.main === module) run();
-module.exports = { run, extractPaths, mutationReason, mercuryFramingReason, assertWardenAllowsGitMutation };
+module.exports = {
+  run,
+  extractPaths,
+  mutationReason,
+  mercuryFramingReason,
+  gitMutationScope,
+  assertWardenAllowsGitMutation,
+};

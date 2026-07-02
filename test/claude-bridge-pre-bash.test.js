@@ -1,4 +1,9 @@
-const { extractPaths, mutationReason, mercuryFramingReason } = require('../trai_brain/claude-bridge/pre-bash');
+const {
+  extractPaths,
+  mutationReason,
+  mercuryFramingReason,
+  gitMutationScope,
+} = require('../trai_brain/claude-bridge/pre-bash');
 const { spawnSync } = require('child_process');
 const path = require('path');
 
@@ -18,6 +23,7 @@ describe('claude bridge Bash gate', () => {
     expect(mutationReason('rg -n "needle" core test')).toBeNull();
     expect(mutationReason('npx jest test/claude-bridge-policy.test.js --runInBand')).toBeNull();
     expect(mutationReason('node --check trai_brain/claude-bridge/pre-bash.js')).toBeNull();
+    expect(mutationReason('node trai_brain/claude-bridge/cli.js record-proof ogz-meta/cognition-history/proof.json')).toBeNull();
   });
 
   test('blocks shell mutation bypasses that avoid Edit and Write hooks', () => {
@@ -76,6 +82,17 @@ describe('claude bridge Bash gate', () => {
     expect(mutationReason('command git -C repo push origin main')).toBe('warden_gated_git_mutation');
     expect(mutationReason('git -C repo restore -- file.js')).toBe('git_mutation');
     expect(mutationReason('git -C repo status --short')).toBeNull();
+  });
+
+  test('scopes Warden git mutations by command intent', () => {
+    expect(gitMutationScope('git add core/OrderExecutor.js test/order-executor.test.js')).toEqual({
+      kind: 'paths',
+      paths: ['core/OrderExecutor.js', 'test/order-executor.test.js'],
+    });
+    expect(gitMutationScope('git add .')).toEqual({ kind: 'broad' });
+    expect(gitMutationScope('git add -A')).toEqual({ kind: 'broad' });
+    expect(gitMutationScope('git commit -m "Fixed thing"')).toEqual({ kind: 'staged' });
+    expect(gitMutationScope('git push origin main')).toEqual({ kind: 'push' });
   });
 
   test('still detects ignored read paths for allowed read commands', () => {

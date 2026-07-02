@@ -73,6 +73,7 @@ describe('claude bridge policy ownership', () => {
       '.claude/hookify.no-emojis.local.md',
       '.claude/commands/recorder.md',
       '.claude/session-state/read-ledger.json',
+      '.claude/session-state/hot-path-proof.json',
       'trai_brain/claude-bridge/pre-bash.js',
       'trai_brain/claude-bridge/policy.js',
     ]) {
