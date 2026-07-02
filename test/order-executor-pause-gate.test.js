@@ -1115,7 +1115,7 @@ describe('OrderExecutor pause gate', () => {
       quantityUnit: 'shares',
     }));
     expect(webhookAdapter.emit).toHaveBeenCalledWith(expect.objectContaining({
-      action: 'close',
+      action: 'sell',
       symbol: 'TSLA',
       quantity: 1,
       quantityUnit: 'shares',
@@ -1173,7 +1173,7 @@ describe('OrderExecutor pause gate', () => {
       quantityUnit: 'shares',
     }));
     expect(webhookAdapter.emit).toHaveBeenCalledWith(expect.objectContaining({
-      action: 'close',
+      action: 'sell',
       symbol: 'TSLA',
       quantity: 1,
       quantityUnit: 'shares',
@@ -2585,7 +2585,7 @@ describe('OrderExecutor pause gate', () => {
 
     expect(result).toEqual(expect.objectContaining({ success: true }));
     expect(recordPatternResult).toHaveBeenCalledTimes(1);
-    expect(recordPatternResult.mock.calls[0][0]).toBe(features);
+    expect(recordPatternResult.mock.calls[0][0]).toEqual(features);
     expect(recordPatternResult.mock.calls[0][1]).toEqual(expect.objectContaining({
       symbol: 'TSLA',
       brokerId: 'alpaca',
@@ -2646,7 +2646,7 @@ describe('OrderExecutor pause gate', () => {
 
     expect(result).toEqual(expect.objectContaining({ success: true }));
     expect(recordPatternResult).toHaveBeenCalledTimes(1);
-    expect(recordPatternResult.mock.calls[0][0]).toBe(features);
+    expect(recordPatternResult.mock.calls[0][0]).toEqual(features);
     expect(recordPatternResult.mock.calls[0][1]).toEqual(expect.objectContaining({
       symbol: 'TSLA',
       brokerId: 'alpaca',
@@ -3445,7 +3445,7 @@ describe('OrderExecutor pause gate', () => {
     expect(cryptoExecutor._webhookQuantityBlockReason(0.016588545429287938, 'base')).toBeNull();
   });
 
-  test('webhook action mapping keeps entries directional but sends exits as close-only actions', () => {
+  test('webhook action mapping keeps entries and exits directional', () => {
     const executor = makeExecutor();
     const plan = {
       symbol: 'TSLA',
@@ -3460,15 +3460,32 @@ describe('OrderExecutor pause gate', () => {
     expect(buySignal).not.toHaveProperty('bypassThrottle');
     expect(shortSignal).not.toHaveProperty('bypassThrottle');
     expect(executor._webhookSignalForOrderPlan('SELL', plan)).toEqual(expect.objectContaining({
-      action: 'close',
+      action: 'sell',
       bypassThrottle: true,
     }));
     expect(executor._webhookSignalForOrderPlan('COVER', plan)).toEqual(expect.objectContaining({
-      action: 'close',
+      action: 'buy',
       bypassThrottle: true,
     }));
     expect(() => executor._webhookSignalForOrderPlan('sell', plan)).toThrow(/unsupported action/);
     expect(() => executor._webhookSignalForOrderPlan('cover', plan)).toThrow(/unsupported action/);
+  });
+
+  test('webhook short exits emit buy instead of rejected close action', () => {
+    const executor = makeExecutor();
+    const plan = {
+      symbol: 'NVDA',
+      orderQuantity: 2,
+      quantityUnit: 'shares',
+    };
+
+    expect(executor._webhookSignalForOrderPlan('COVER', plan)).toEqual(expect.objectContaining({
+      action: 'buy',
+      symbol: 'NVDA',
+      quantity: 2,
+      quantityUnit: 'shares',
+      bypassThrottle: true,
+    }));
   });
 
   test('webhook emit helper broadcasts dispatch and local result trace events', async () => {

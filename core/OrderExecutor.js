@@ -472,9 +472,7 @@ class OrderExecutor {
     if (!SUPPORTED_ACTIONS.has(action)) {
       throw new Error(`[WEBHOOK-ORDER] unsupported action ${JSON.stringify(action)} for webhook signal`);
     }
-    const webhookAction = this._isExitAction(action)
-      ? 'close'
-      : (action === 'BUY' ? 'buy' : 'sell');
+    const webhookAction = (action === 'BUY' || action === 'COVER') ? 'buy' : 'sell';
     return {
       action: webhookAction,
       symbol: orderPlan.symbol,
