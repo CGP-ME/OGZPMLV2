@@ -488,6 +488,9 @@ const BASE_CONFIG = {
     counterTrendReduction: 0.30,                                  // 30% reduction against trend
     lowConfidenceReduction: 0.25,                                 // 25% reduction on weak signals
     highConfidenceBoost: 1.30,                                    // 1.3x on strong signals
+    feeGate: {
+      minEdgeMultiple: requiredConfigNumber('risk.feeGate.minEdgeMultiple'),
+    },
   },
 
   // =========================================================================

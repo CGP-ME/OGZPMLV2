@@ -254,6 +254,54 @@ class OrderExecutor {
     }
   }
 
+  _emitFeeEdgeGateEvent({ traceId, signalId, symbol, action, gate, executionScope }) {
+    const ws = this.ctx.dashboardWs;
+    if (!ws || ws.readyState !== 1 || typeof ws.send !== 'function') return false;
+
+    const passed = gate?.passed === true;
+    const reason = passed ? 'fee_edge_passed' : 'fee_edge';
+    const frame = {
+      type: 'gate_event',
+      timestamp: Date.now(),
+      traceId: traceId || null,
+      signalId: signalId || null,
+      symbol,
+      action,
+      kind: passed ? 'eval_pass' : 'risk_block',
+      passed,
+      reason,
+      riskGates: [gate],
+      brokerId: executionScope?.brokerId || null,
+      accountId: executionScope?.accountId || null,
+      assetClass: executionScope?.assetClass || null,
+      executionMode: executionScope?.executionMode || null,
+      timeframe: executionScope?.timeframe || null,
+      data: {
+        symbol,
+        action,
+        kind: passed ? 'eval_pass' : 'risk_block',
+        passed,
+        reason,
+        riskGates: [gate],
+        traceId: traceId || null,
+        signalId: signalId || null,
+        brokerId: executionScope?.brokerId || null,
+        accountId: executionScope?.accountId || null,
+        assetClass: executionScope?.assetClass || null,
+        executionMode: executionScope?.executionMode || null,
+        timeframe: executionScope?.timeframe || null,
+      },
+    };
+
+    try {
+      ws.send(JSON.stringify(frame));
+      return true;
+    } catch (err) {
+      console.warn(`[GateMeter] fee_edge gate_event send failed: ${err.message}`);
+      return false;
+    }
+  }
+
   _orderQuantityUnit(scope = null) {
     const assetClass = String((scope && scope.assetClass) || this._runtimeScope().assetClass || '').trim().toLowerCase();
     if (['stocks', 'stock', 'equities', 'equity', 'etfs', 'etf'].includes(assetClass)) {
@@ -823,6 +871,84 @@ class OrderExecutor {
     });
   }
 
+  _resolveFeeGateMinEdgeMultiple() {
+    const value = Number(TradingConfig.get('risk.feeGate.minEdgeMultiple'));
+    if (!Number.isFinite(value) || value <= 0) {
+      throw new Error(`[FEE-GATE] risk.feeGate.minEdgeMultiple must be a finite positive number; got ${TradingConfig.get('risk.feeGate.minEdgeMultiple')}`);
+    }
+    return value;
+  }
+
+  _roundGateNumber(value) {
+    return Number.isFinite(value) ? Number(value.toFixed(6)) : null;
+  }
+
+  _ledgerDataWithEntryAnnotations(ledgerData, { riskGates = null, positionSizing = null } = {}) {
+    if (!ledgerData || typeof ledgerData !== 'object') return ledgerData || null;
+    const hasRiskGates = Array.isArray(riskGates) && riskGates.length > 0;
+    const hasPositionSizing = positionSizing && typeof positionSizing === 'object';
+    if (!hasRiskGates && !hasPositionSizing) return ledgerData;
+
+    const annotatedLedgerData = { ...ledgerData };
+    if (hasPositionSizing) annotatedLedgerData.positionSizing = positionSizing;
+    if (hasRiskGates) {
+      annotatedLedgerData.riskGates = [
+        ...(Array.isArray(ledgerData.riskGates) ? ledgerData.riskGates : []),
+        ...riskGates,
+      ];
+    }
+    return annotatedLedgerData;
+  }
+
+  _buildFeeEdgeGate(entryPlan) {
+    if (!entryPlan || !this._isEntryAction(entryPlan.action)) return null;
+
+    const minEdgeMultiple = this._resolveFeeGateMinEdgeMultiple();
+    const takeProfitPercent = Number(entryPlan.exitContract?.takeProfitPercent);
+    if (!Number.isFinite(takeProfitPercent) || takeProfitPercent <= 0) {
+      throw new Error(`[FEE-GATE] exitContract.takeProfitPercent must be a finite positive number for ${entryPlan.action} ${entryPlan.symbol}; got ${entryPlan.exitContract?.takeProfitPercent}`);
+    }
+
+    const positionNotionalDollars = Number(entryPlan.sizeUsd);
+    const orderQuantity = Number(entryPlan.orderQuantity);
+    if (!Number.isFinite(positionNotionalDollars) || positionNotionalDollars <= 0 || !Number.isFinite(orderQuantity) || orderQuantity <= 0) {
+      return null;
+    }
+
+    const expectedMoveDollars = positionNotionalDollars * (takeProfitPercent / 100);
+    const roundTripFeeDollars = this._calculateRoundTripFees({
+      entryNotionalUsd: positionNotionalDollars,
+      exitNotionalUsd: positionNotionalDollars,
+      entryQuantity: orderQuantity,
+      exitQuantity: orderQuantity,
+    });
+    const requiredMoveDollars = roundTripFeeDollars * minEdgeMultiple;
+    const passed = expectedMoveDollars >= requiredMoveDollars;
+    const edgeMultiple = roundTripFeeDollars > 0
+      ? expectedMoveDollars / roundTripFeeDollars
+      : null;
+
+    const gate = {
+      gate: 'fee_edge',
+      threshold: this._roundGateNumber(requiredMoveDollars),
+      value: this._roundGateNumber(expectedMoveDollars),
+      passed,
+      minEdgeMultiple,
+      expectedMoveDollars: this._roundGateNumber(expectedMoveDollars),
+      roundTripFeeDollars: this._roundGateNumber(roundTripFeeDollars),
+      requiredMoveDollars: this._roundGateNumber(requiredMoveDollars),
+      edgeMultiple: this._roundGateNumber(edgeMultiple),
+      takeProfitPercent,
+      positionNotionalDollars: this._roundGateNumber(positionNotionalDollars),
+      orderQuantity,
+      quantityUnit: entryPlan.quantityUnit,
+    };
+    if (!passed) {
+      gate.rejectReason = `expected move $${expectedMoveDollars.toFixed(2)} below ${minEdgeMultiple}x round-trip fee $${roundTripFeeDollars.toFixed(2)}`;
+    }
+    return gate;
+  }
+
   _buildExitIntentId(exitPlan, decision) {
     if (!exitPlan || !decision) {
       throw new Error('[EXECUTION-FILL] exit intent requires exitPlan and decision');
@@ -1121,7 +1247,7 @@ class OrderExecutor {
       plannedSizeUsd = orderQuantity * price;
     }
 
-    return {
+    const entryPlan = {
       traceId: decision.traceId || null,
       signalId: decision.signalId || decision.decisionId || null,
       decisionId: decision.decisionId || null,
@@ -1157,6 +1283,8 @@ class OrderExecutor {
       exitContract,
       frozenExitPolicy
     };
+    entryPlan.feeEdgeGate = this._buildFeeEdgeGate(entryPlan);
+    return entryPlan;
   }
 
   _findExitTrade(decision, symbol) {
@@ -1720,6 +1848,31 @@ class OrderExecutor {
       });
     }
     if (entryPlan) {
+      this._emitFeeEdgeGateEvent({
+        traceId,
+        signalId,
+        symbol,
+        action: entryPlan.action,
+        gate: entryPlan.feeEdgeGate,
+        executionScope,
+      });
+      if (entryPlan.feeEdgeGate && entryPlan.feeEdgeGate.passed === false) {
+        console.warn(`[FEE-GATE] BLOCKED ${entryPlan.action} ${symbol}: ${entryPlan.feeEdgeGate.rejectReason}`);
+        emitTrace(this.ctx, 'ORDER_BLOCKED', {
+          traceId,
+          signalId,
+          symbol,
+          action: entryPlan.action,
+          reason: 'fee_edge',
+          riskGates: [entryPlan.feeEdgeGate],
+        });
+        return blockedReturn('fee_edge', {
+          riskGates: [entryPlan.feeEdgeGate],
+          feeEdgeGate: entryPlan.feeEdgeGate,
+        });
+      }
+      const feeEdgeRiskGates = entryPlan.feeEdgeGate ? [entryPlan.feeEdgeGate] : [];
+      entryPlan.feeEdgeRiskGates = feeEdgeRiskGates;
       emitTrace(this.ctx, 'ORDER_PLAN', {
         traceId,
         signalId,
@@ -1731,6 +1884,7 @@ class OrderExecutor {
         quantityUnit: entryPlan.quantityUnit,
         stockShareRange: entryPlan.stockShareRange,
         entryStrategy: entryPlan.entryStrategy,
+        riskGates: feeEdgeRiskGates,
       });
       const gateResult = await this._runPreOrderEntryGate(entryPlan);
       entryPlan.gateResult = gateResult;
@@ -2205,9 +2359,10 @@ class OrderExecutor {
           console.log(`[ORCHESTRATOR-ENTRY] Winner: ${entryStrategy} | Sizing: ${sizingMultiplier}x | SL=${exitContract.stopLossPercent}%, TP=${exitContract.takeProfitPercent}%`);
 
           // L4: Enrich ledger with actual computed position sizing
+          let ledgerPositionSizing = null;
           if (decision.ledgerData) {
             const baseP = TradingConfig.get('positionSizing.maxPositionSize');
-            decision.ledgerData.positionSizing = {
+            ledgerPositionSizing = {
               basePercent: baseP,
               confidenceMultiplier,
               confidencePercent: baseP * confidenceMultiplier,
@@ -2236,7 +2391,12 @@ class OrderExecutor {
             entryStrategy: entryStrategy,
             exitContract: exitContract,
             frozenExitPolicy,
-            ledgerData: decision.ledgerData || null,
+            feeEdgeGate: entryPlan.feeEdgeGate || null,
+            riskGates: entryPlan.feeEdgeRiskGates || [],
+            ledgerData: this._ledgerDataWithEntryAnnotations(decision.ledgerData, {
+              riskGates: entryPlan.feeEdgeRiskGates,
+              positionSizing: ledgerPositionSizing,
+            }),
             traceId,
             signalId,
             decisionId,
@@ -2411,9 +2571,10 @@ class OrderExecutor {
           console.log(`[ORCHESTRATOR-ENTRY] SHORT Winner: ${entryStrategy} | Sizing: ${sizingMultiplier}x | SL=${exitContract.stopLossPercent}%, TP=${exitContract.takeProfitPercent}%`);
 
           // L4: Enrich ledger with actual computed position sizing (short path)
+          let ledgerPositionSizing = null;
           if (decision.ledgerData) {
             const baseP = TradingConfig.get('positionSizing.maxPositionSize');
-            decision.ledgerData.positionSizing = {
+            ledgerPositionSizing = {
               basePercent: baseP,
               confidenceMultiplier,
               confidencePercent: baseP * confidenceMultiplier,
@@ -2442,7 +2603,12 @@ class OrderExecutor {
             entryStrategy: entryStrategy,
             exitContract: exitContract,
             frozenExitPolicy,
-            ledgerData: decision.ledgerData || null,
+            feeEdgeGate: entryPlan.feeEdgeGate || null,
+            riskGates: entryPlan.feeEdgeRiskGates || [],
+            ledgerData: this._ledgerDataWithEntryAnnotations(decision.ledgerData, {
+              riskGates: entryPlan.feeEdgeRiskGates,
+              positionSizing: ledgerPositionSizing,
+            }),
             traceId,
             signalId,
             decisionId,
@@ -2712,6 +2878,8 @@ class OrderExecutor {
                 confidence: this._firstFiniteNumber(buyTrade.confidence),
                 signalBreakdown: buyTrade.signalBreakdown ?? null,
                 mtfConfluenceSnapshot: buyTrade.frozenExitPolicy?.mtfConfluenceSnapshot ?? null,
+                feeEdgeGate: buyTrade.feeEdgeGate ?? null,
+                riskGates: Array.isArray(buyTrade.riskGates) ? buyTrade.riskGates : null,
                 isPartialClose: statePartialClose,
                 partialFraction: statePartialClose ? stateExitFraction : null,
                 exitReason: completeTradeResult.exitReason,
@@ -3234,6 +3402,8 @@ class OrderExecutor {
               confidence: this._firstFiniteNumber(shortTrade.confidence),
               signalBreakdown: shortTrade.signalBreakdown ?? null,
               mtfConfluenceSnapshot: shortTrade.frozenExitPolicy?.mtfConfluenceSnapshot ?? null,
+              feeEdgeGate: shortTrade.feeEdgeGate ?? null,
+              riskGates: Array.isArray(shortTrade.riskGates) ? shortTrade.riskGates : null,
               isPartialClose: false,
               partialFraction: null,
               exitReason: completeTradeResult.exitReason,

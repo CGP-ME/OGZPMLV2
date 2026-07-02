@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fee-Aware Entry Gate Visibility (2026-07-02)
+
+- Added config-owned `risk.feeGate.minEdgeMultiple` and a trade-birth `fee_edge` risk gate that compares contracted expected move dollars against config-owned round-trip fees from `FeeModel`.
+- Emits dashboard `gate_event` rows for passed and blocked fee-edge checks, blocks entries that fail the economics check before broker/webhook/state side effects, and persists passed fee-edge evidence into backtest trade rows.
+- Verified canonical P0 remains `8338.146639366509 / 1551 trades / 52.2% WR / PF 0.64` because all current EMA P0 trades pass the initial `2x` fee edge threshold; report rows now carry `feeEdgeGate`/`riskGates` for fee diagnostics.
+
 ### TTP Venue Fee Backtest Parity (2026-07-02)
 
 - Added explicit `ttp_real` and `zero` fee profiles and required backtest worker, matrix sweep, parallel sweep, and confidence grid paths to choose a fee profile instead of silently inheriting zero stock fees.

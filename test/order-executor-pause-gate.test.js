@@ -62,7 +62,7 @@ function makeExecutor(config = {}, ctx = {}) {
 function makeExitContract(overrides = {}) {
   return {
     stopLossPercent: -0.5,
-    takeProfitPercent: 1,
+    takeProfitPercent: 2,
     trailingStopPercent: 0.6,
     trailingActivation: 0.8,
     maxHoldTimeMinutes: 240,
@@ -362,6 +362,150 @@ describe('OrderExecutor pause gate', () => {
     expect(mockStateManager.openPosition).not.toHaveBeenCalled();
   });
 
+  test('fee edge gate blocks entries whose contracted expected move cannot cover round-trip fees', async () => {
+    const executor = makeExecutor();
+    const feeSpy = jest.spyOn(executor, '_calculateRoundTripFees').mockReturnValue(1.5);
+
+    const gate = executor._buildFeeEdgeGate({
+      action: 'BUY',
+      symbol: 'TSLA',
+      sizeUsd: 100,
+      orderQuantity: 2,
+      quantityUnit: 'shares',
+      exitContract: makeExitContract({ takeProfitPercent: 1 }),
+    });
+
+    expect(gate).toEqual(expect.objectContaining({
+      gate: 'fee_edge',
+      threshold: 3,
+      value: 1,
+      passed: false,
+      minEdgeMultiple: 2,
+      expectedMoveDollars: 1,
+      roundTripFeeDollars: 1.5,
+      requiredMoveDollars: 3,
+      edgeMultiple: 0.666667,
+      rejectReason: 'expected move $1.00 below 2x round-trip fee $1.50',
+    }));
+    expect(feeSpy).toHaveBeenCalledWith({
+      entryNotionalUsd: 100,
+      exitNotionalUsd: 100,
+      entryQuantity: 2,
+      exitQuantity: 2,
+    });
+  });
+
+  test('fee edge gate passes and exposes expected move separately from fee cost', () => {
+    const executor = makeExecutor();
+    jest.spyOn(executor, '_calculateRoundTripFees').mockReturnValue(1.5);
+
+    const gate = executor._buildFeeEdgeGate({
+      action: 'SELL_SHORT',
+      symbol: 'TSLA',
+      sizeUsd: 1000,
+      orderQuantity: 20,
+      quantityUnit: 'shares',
+      exitContract: makeExitContract({ takeProfitPercent: 1 }),
+    });
+
+    expect(gate).toEqual(expect.objectContaining({
+      gate: 'fee_edge',
+      threshold: 3,
+      value: 10,
+      passed: true,
+      expectedMoveDollars: 10,
+      roundTripFeeDollars: 1.5,
+      requiredMoveDollars: 3,
+      edgeMultiple: 6.666667,
+    }));
+    expect(gate.rejectReason).toBeUndefined();
+  });
+
+  test('fee edge gate throws when risk.feeGate.minEdgeMultiple is missing', () => {
+    const executor = makeExecutor();
+    const getSpy = jest.spyOn(TradingConfig, 'get').mockImplementation((path, defaultValue) => (
+      path === 'risk.feeGate.minEdgeMultiple' ? undefined : defaultValue
+    ));
+
+    expect(() => executor._buildFeeEdgeGate({
+      action: 'BUY',
+      symbol: 'TSLA',
+      sizeUsd: 100,
+      orderQuantity: 2,
+      quantityUnit: 'shares',
+      exitContract: makeExitContract({ takeProfitPercent: 1 }),
+    })).toThrow(/risk\.feeGate\.minEdgeMultiple must be a finite positive number/);
+    getSpy.mockRestore();
+  });
+
+  test('fee edge block emits a dashboard gate row before router or state mutation', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      if (key === 'balance') return 10000;
+      if (key === 'position') return 0;
+      return null;
+    });
+    mockStateManager.getAvailableCapital.mockReturnValue(1000);
+    mockStateManager.getEquity.mockReturnValue(1000);
+    const dashboardWs = { readyState: 1, send: jest.fn() };
+    const executor = makeExecutor({}, {
+      dashboardWs,
+      dashboardWsConnected: true,
+      alpacaAdapter: { supportsFractionalShares: () => true },
+    });
+    jest.spyOn(executor, '_calculateRoundTripFees').mockReturnValue(1.5);
+
+    const result = await executor.executeTrade(
+      { action: 'BUY', confidence: 75, traceId: 'trace-fee', signalId: 'signal-fee', decisionId: 'decision-fee' },
+      {},
+      10,
+      { volatility: 0.01 },
+      [],
+      null,
+      makeOrchResult({ sizingMultiplier: 1, exitContract: makeExitContract({ takeProfitPercent: 1 }) }),
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'fee_edge',
+      symbol: 'TSLA',
+      action: 'BUY',
+      riskGates: [
+        expect.objectContaining({
+          gate: 'fee_edge',
+          passed: false,
+          expectedMoveDollars: expect.any(Number),
+          roundTripFeeDollars: 1.5,
+        }),
+      ],
+    }));
+    const frames = dashboardWs.send.mock.calls.map(call => JSON.parse(call[0]));
+    const gateEvent = frames.find(frame => frame.type === 'gate_event' && frame.reason === 'fee_edge');
+    expect(gateEvent).toEqual(expect.objectContaining({
+      type: 'gate_event',
+      traceId: 'trace-fee',
+      signalId: 'signal-fee',
+      symbol: 'TSLA',
+      action: 'BUY',
+      kind: 'risk_block',
+      passed: false,
+      reason: 'fee_edge',
+    }));
+    expect(gateEvent.riskGates).toEqual([
+      expect.objectContaining({
+        gate: 'fee_edge',
+        passed: false,
+        minEdgeMultiple: 2,
+        expectedMoveDollars: expect.any(Number),
+        roundTripFeeDollars: 1.5,
+        requiredMoveDollars: 3,
+      }),
+    ]);
+    expect(executor.ctx.orderRouter.sendOrder).not.toHaveBeenCalled();
+    expect(mockStateManager.openPosition).not.toHaveBeenCalled();
+  });
+
   test('blocks direct entries below configured minTradeConfidence before routing', async () => {
     clearTradingConfigOverrides = true;
     TradingConfig.setOverrides({ confidence: { minTradeConfidence: 0.9 } });
@@ -515,9 +659,74 @@ describe('OrderExecutor pause gate', () => {
           contract: expect.objectContaining({
             strategyName: 'RSI',
             stopLossPercent: -0.5,
-            takeProfitPercent: 1,
+            takeProfitPercent: 2,
             useStructuralExits: false,
           }),
+        }),
+        feeEdgeGate: expect.objectContaining({
+          gate: 'fee_edge',
+          passed: true,
+          expectedMoveDollars: 10,
+          roundTripFeeDollars: 3.25,
+        }),
+        riskGates: [
+          expect.objectContaining({
+            gate: 'fee_edge',
+            passed: true,
+          }),
+        ],
+      })
+    );
+  });
+
+  test('fee edge ledger snapshot does not mutate incoming decision risk gates', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    const sendOrder = jest.fn().mockResolvedValue({ orderId: 'LIVE_LEDGER_1', price: 100 });
+    const ledgerData = {
+      traceId: 'trace-ledger',
+      riskGates: [{ gate: 'existing_gate', passed: true }],
+    };
+    const executor = makeExecutor(
+      { executionMode: 'live' },
+      {
+        paperTrading: false,
+        orderRouter: { sendOrder },
+        preOrderEntryGate: jest.fn().mockResolvedValue({ allowed: true }),
+      }
+    );
+
+    await executor.executeTrade(
+      { action: 'BUY', confidence: 50, ledgerData },
+      {},
+      100,
+      { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+      [],
+      null,
+      makeOrchResult(),
+      'TSLA'
+    );
+
+    expect(ledgerData.riskGates).toEqual([{ gate: 'existing_gate', passed: true }]);
+    expect(ledgerData.positionSizing).toBeUndefined();
+    expect(mockStateManager.openPosition).toHaveBeenCalledWith(
+      500,
+      100,
+      expect.objectContaining({
+        ledgerData: expect.objectContaining({
+          positionSizing: expect.objectContaining({
+            finalSizeUsd: 500,
+            accountBalance: 10000,
+          }),
+          riskGates: [
+            { gate: 'existing_gate', passed: true },
+            expect.objectContaining({
+              gate: 'fee_edge',
+              passed: true,
+            }),
+          ],
         }),
       })
     );
