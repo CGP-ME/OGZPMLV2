@@ -12,12 +12,14 @@ describe('BacktestRunner runtime path parity', () => {
   let logSpy;
   let warnSpy;
   let errorSpy;
+  let originalMtfStats;
 
   beforeEach(() => {
     jest.resetModules();
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-backtest-runtime-path-'));
     dataFile = path.join(tempDir, 'tsla-15m-test.json');
     originalOutputDir = process.env.BACKTEST_OUTPUT_DIR;
+    originalMtfStats = globalThis.__OGZ_MTF_CONFLUENCE_STATS;
     process.env.BACKTEST_OUTPUT_DIR = path.join(tempDir, 'out');
 
     const start = Date.parse('2026-06-15T13:30:00.000Z');
@@ -65,6 +67,11 @@ describe('BacktestRunner runtime path parity', () => {
     } else {
       process.env.BACKTEST_OUTPUT_DIR = originalOutputDir;
     }
+    if (originalMtfStats === undefined) {
+      delete globalThis.__OGZ_MTF_CONFLUENCE_STATS;
+    } else {
+      globalThis.__OGZ_MTF_CONFLUENCE_STATS = originalMtfStats;
+    }
     exitSpy.mockRestore();
     logSpy.mockRestore();
     warnSpy.mockRestore();
@@ -74,6 +81,11 @@ describe('BacktestRunner runtime path parity', () => {
   });
 
   test('feeds scoped runtime-shaped candles and triggers the runtime trading cycle', async () => {
+    globalThis.__OGZ_MTF_CONFLUENCE_STATS = {
+      boosterEvaluations: 999,
+      alignedBoosts: 999,
+      conflictPenalties: 999,
+    };
     const BacktestRunner = require('../core/BacktestRunner');
     const ctx = {
       __dirname: path.resolve(__dirname, '..'),
@@ -91,7 +103,13 @@ describe('BacktestRunner runtime path parity', () => {
         ctx.priceHistory.push(payload);
         return { acceptedAsNew: true };
       }),
-      runTradingCycle: jest.fn(),
+      runTradingCycle: jest.fn(() => {
+        globalThis.__OGZ_MTF_CONFLUENCE_STATS = {
+          boosterEvaluations: 3,
+          alignedBoosts: 2,
+          conflictPenalties: 1,
+        };
+      }),
       backtestRecorder: {
         startingBalance: 10000,
         trades: [],
@@ -131,6 +149,19 @@ describe('BacktestRunner runtime path parity', () => {
     expect(ctx.runTradingCycle).toHaveBeenCalledTimes(16);
     expect(ctx.runTradingCycle).toHaveBeenNthCalledWith(1, 'TSLA', expect.any(String));
     expect(ctx.runTradingCycle).toHaveBeenNthCalledWith(16, 'TSLA', expect.any(String));
+
+    const reportFiles = fs.readdirSync(process.env.BACKTEST_OUTPUT_DIR, { recursive: true })
+      .filter((file) => String(file).endsWith('.json'));
+    expect(reportFiles).toHaveLength(1);
+    const report = JSON.parse(fs.readFileSync(
+      path.join(process.env.BACKTEST_OUTPUT_DIR, reportFiles[0]),
+      'utf8'
+    ));
+    expect(report.mtfConfluenceBooster).toEqual({
+      boosterEvaluations: 3,
+      alignedBoosts: 2,
+      conflictPenalties: 1,
+    });
   });
 
   test('refuses to run when candle file identity and runtime scope disagree', () => {

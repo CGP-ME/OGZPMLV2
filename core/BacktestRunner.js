@@ -103,6 +103,7 @@ class BacktestRunner {
     // See: FIX 2026-03-12 at top of run-empire-v2.js
     const path = require('path');
 
+    delete globalThis.__OGZ_MTF_CONFLUENCE_STATS;
     console.log('📊 BACKTEST MODE: Loading historical data...');
 
     const fs = require('fs').promises;
@@ -346,6 +347,9 @@ class BacktestRunner {
           winRate: trades.length > 0 ? winners.length / trades.length : 0,
           totalPnL: totalPnL
         },
+        mtfConfluenceBooster: globalThis.__OGZ_MTF_CONFLUENCE_STATS
+          ? { ...globalThis.__OGZ_MTF_CONFLUENCE_STATS }
+          : null,
         trades: trades,
         config: {
           // CRIT-08-followup-B: was hardcoded 10000 — a lie when the run's
