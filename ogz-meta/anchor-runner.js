@@ -62,7 +62,8 @@ const CANONICAL_ENV = Object.freeze({
   ACCOUNT_DRAWDOWN_BYPASS: 'true',
   DIRECTION_FILTER: 'long_only',
   ENABLE_SHORTS: 'false',
-  ENABLE_TRAI: 'false'
+  ENABLE_TRAI: 'false',
+  ENABLE_MTF_CONFLUENCE_BOOSTER: 'false'
 });
 
 const P0_TUNING_PROFILE = 'current-eval';
