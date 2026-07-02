@@ -1288,6 +1288,158 @@ describe('StateManager openPosition scope contract', () => {
     expect(manager.get('position')).toBe(500);
   });
 
+  test('openPosition blocks same-symbol duplicate entries', async () => {
+    const openedLong = await manager.openPosition(500, 100, fullScope({
+      orderId: 'LONG_SCOPE_1',
+      action: 'BUY',
+      direction: 'long',
+      symbol: 'TSLA',
+      entryOrderQuantity: 5,
+      remainingOrderQuantity: 5,
+      ledgerData: fullLedgerData(),
+    }));
+    expect(openedLong.success).toBe(true);
+
+    const duplicateLong = await manager.openPosition(300, 30, fullScope({
+      orderId: 'LONG_SCOPE_2',
+      action: 'BUY',
+      direction: 'long',
+      symbol: 'TSLA',
+      entryOrderQuantity: 10,
+      remainingOrderQuantity: 10,
+      ledgerData: fullLedgerData(),
+    }));
+
+    expect(duplicateLong.success).toBe(false);
+    expect(duplicateLong.blockedReason).toBe('same_symbol_duplicate_blocked');
+    expect(duplicateLong.existingTradeId).toBe('LONG_SCOPE_1');
+    expect(duplicateLong.existingDirection).toBe('long');
+    expect(duplicateLong.nextDirection).toBe('long');
+    expect(manager.get('activeTrades').size).toBe(1);
+    expect(manager.get('activeTrades').has('LONG_SCOPE_1')).toBe(true);
+    expect(manager.get('activeTrades').has('LONG_SCOPE_2')).toBe(false);
+    expect(manager.get('position')).toBe(500);
+  });
+
+  test('reconcileBrokerFlat removes stale active trade without recording verified PnL', async () => {
+    const openedLong = await manager.openPosition(500, 100, fullScope({
+      orderId: 'LONG_SCOPE_1',
+      action: 'BUY',
+      direction: 'long',
+      symbol: 'TSLA',
+      entryOrderQuantity: 5,
+      remainingOrderQuantity: 5,
+      ledgerData: fullLedgerData(),
+    }));
+    expect(openedLong.success).toBe(true);
+
+    const reconciled = await manager.reconcileBrokerFlat('LONG_SCOPE_1', {
+      symbol: 'TSLA',
+      action: 'SELL',
+      reason: 'broker_flat_no_open_position',
+      responseBody: '{"status_description":"No open positions for the asset"}',
+      traceId: 'trace-flat',
+    });
+
+    expect(reconciled.success).toBe(true);
+    expect(manager.get('activeTrades').size).toBe(0);
+    expect(manager.get('position')).toBe(0);
+    expect(manager.get('inPosition')).toBe(0);
+    expect(manager.get('closedTrades')).toEqual([]);
+    expect(manager.get('reconciledTrades')).toEqual([
+      expect.objectContaining({
+        tradeId: 'LONG_SCOPE_1',
+        symbol: 'TSLA',
+        action: 'SELL',
+        reason: 'broker_flat_no_open_position',
+        verifiedFill: false,
+        traceId: 'trace-flat',
+      }),
+    ]);
+  });
+
+  test('reconcileBrokerFlat normalizes serialized active trades before removing stale trade', async () => {
+    const openedLong = await manager.openPosition(500, 100, fullScope({
+      orderId: 'SERIALIZED_SCOPE_1',
+      action: 'BUY',
+      direction: 'long',
+      symbol: 'TSLA',
+      entryOrderQuantity: 5,
+      remainingOrderQuantity: 5,
+      ledgerData: fullLedgerData(),
+    }));
+    expect(openedLong.success).toBe(true);
+
+    manager.state.activeTrades = Array.from(manager.state.activeTrades.entries());
+
+    const reconciled = await manager.reconcileBrokerFlat('SERIALIZED_SCOPE_1', {
+      symbol: 'TSLA',
+      action: 'SELL',
+      reason: 'broker_flat_no_open_position',
+      responseBody: '{"status_description":"No open positions for the asset"}',
+      traceId: 'trace-flat-serialized',
+    });
+
+    expect(reconciled.success).toBe(true);
+    expect(manager.get('activeTrades')).toBeInstanceOf(Map);
+    expect(manager.get('activeTrades').size).toBe(0);
+    expect(manager.get('position')).toBe(0);
+    expect(manager.get('inPosition')).toBe(0);
+    expect(manager.get('closedTrades')).toEqual([]);
+    expect(manager.get('reconciledTrades')).toEqual([
+      expect.objectContaining({
+        tradeId: 'SERIALIZED_SCOPE_1',
+        symbol: 'TSLA',
+        action: 'SELL',
+        reason: 'broker_flat_no_open_position',
+        verifiedFill: false,
+        traceId: 'trace-flat-serialized',
+      }),
+    ]);
+  });
+
+  test('reconcileBrokerFlat removes pending exit intent with stale active trade', async () => {
+    const openedLong = await manager.openPosition(500, 100, fullScope({
+      orderId: 'PENDING_EXIT_SCOPE_1',
+      action: 'BUY',
+      direction: 'long',
+      symbol: 'TSLA',
+      entryOrderQuantity: 5,
+      remainingOrderQuantity: 5,
+      ledgerData: fullLedgerData(),
+    }));
+    expect(openedLong.success).toBe(true);
+
+    const reserved = await manager.reserveExitSlot('PENDING_EXIT_SCOPE_1', 'intent-flat-1', {
+      submittedAtMs: Date.parse('2026-06-30T12:50:00.000Z'),
+      exitFraction: 1,
+    });
+    expect(reserved.success).toBe(true);
+    expect(manager.getActiveTrade('PENDING_EXIT_SCOPE_1').pendingExitIntent.intentId).toBe('intent-flat-1');
+
+    const reconciled = await manager.reconcileBrokerFlat('PENDING_EXIT_SCOPE_1', {
+      symbol: 'TSLA',
+      action: 'SELL',
+      reason: 'broker_flat_no_open_position',
+      responseBody: '{"status_description":"No open positions for the asset"}',
+      traceId: 'trace-flat-pending',
+    });
+
+    expect(reconciled.success).toBe(true);
+    expect(manager.getActiveTrade('PENDING_EXIT_SCOPE_1')).toBeNull();
+    expect(manager.get('activeTrades').size).toBe(0);
+    expect(manager.get('position')).toBe(0);
+    expect(manager.get('inPosition')).toBe(0);
+    expect(manager.get('closedTrades')).toEqual([]);
+    expect(manager.get('reconciledTrades')).toEqual([
+      expect.objectContaining({
+        tradeId: 'PENDING_EXIT_SCOPE_1',
+        reason: 'broker_flat_no_open_position',
+        verifiedFill: false,
+      }),
+    ]);
+  });
+
   test('openPosition blocks same-symbol entries when existing trade direction is unknown', async () => {
     manager.state.activeTrades = new Map([[
       'AMBIGUOUS_SCOPE_1',
