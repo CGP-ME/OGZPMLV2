@@ -168,11 +168,27 @@ describe('Mercury LLM config contract', () => {
         temperature: 0,
         requestTimeoutMs: 300000,
       });
-      expect(options.systemPrompt).toContain('default-on consensus collaborator');
+      expect(options.systemPrompt).toContain('adversarial reviewer');
     }, {
       ANTHROPIC_API_KEY: undefined,
       CLAUDE_API_KEY: undefined,
       LLM_API_KEY: 'fallback-must-not-be-read',
+    });
+  });
+
+  test('malformed MERCURY_ADVERSARIAL_REVIEW env does not abort config load', async () => {
+    await withMercuryConfig({}, () => {
+      const config = require('../trai_brain/mercury-bridge/config');
+      expect(config.ADVERSARIAL_REVIEW_DEFAULT_ENABLED).toBe(false);
+    }, {
+      MERCURY_ADVERSARIAL_REVIEW: 'maybe',
+    });
+
+    await withMercuryConfig({}, () => {
+      const config = require('../trai_brain/mercury-bridge/config');
+      expect(config.ADVERSARIAL_REVIEW_DEFAULT_ENABLED).toBe(false);
+    }, {
+      MERCURY_ADVERSARIAL_REVIEW: '',
     });
   });
 
@@ -197,7 +213,7 @@ describe('Mercury LLM config contract', () => {
         temperature: 0,
         requestTimeoutMs: 300000,
       });
-      expect(options.systemPrompt).toContain('default-on consensus collaborator');
+      expect(options.systemPrompt).toContain('adversarial reviewer');
     }, {
       MERCURY_TEST_FABLE_KEY: 'TEST_PLACEHOLDER_FABLE_TOKEN',
       ANTHROPIC_API_KEY: 'fallback-must-not-be-read',

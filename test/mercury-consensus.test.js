@@ -1,9 +1,12 @@
 'use strict';
 
 const {
+  adversarialReviewRequested,
+  reviewModeRequested,
   consensusRequested,
   parseConsensusAnswer,
   buildMercuryRecheckPrompt,
+  buildMercuryRecheckPrompts,
   formatAdversarialReviewPacket,
   buildConsensusPrompt,
   runFableConsensus,
@@ -12,11 +15,25 @@ const {
 const { parseArgs } = require('../trai_brain/mercury-bridge/ask');
 
 describe('Mercury Fable consensus', () => {
-  test('CLI consensus flags expose default-on consensus and explicit opt-out', () => {
+  test('CLI adversarial review flags expose explicit controls while preserving consensus aliases', () => {
     expect(parseArgs(['node', 'ask.js', '--agentic', 'break this'])).toMatchObject({
       agentic: true,
+      adversarialReview: false,
+      adversarialReviewExplicit: false,
       consensus: false,
       consensusExplicit: false,
+      query: 'break this',
+    });
+
+    expect(parseArgs(['node', 'ask.js', '--agentic', '--adversarial-review', 'break this'])).toMatchObject({
+      adversarialReview: true,
+      adversarialReviewExplicit: true,
+      query: 'break this',
+    });
+
+    expect(parseArgs(['node', 'ask.js', '--agentic', '--no-adversarial-review', 'break this'])).toMatchObject({
+      adversarialReview: false,
+      adversarialReviewExplicit: true,
       query: 'break this',
     });
 
@@ -42,6 +59,29 @@ describe('Mercury Fable consensus', () => {
     expect(consensusRequested({ consensusExplicit: true, consensus: true })).toBe(true);
     expect(consensusRequested({ consensusExplicit: true, consensus: false })).toBe(false);
     expect(consensusRequested({})).toBe(true);
+    expect(adversarialReviewRequested({ adversarialReviewExplicit: true, adversarialReview: true })).toBe(true);
+    expect(adversarialReviewRequested({ adversarialReviewExplicit: true, adversarialReview: false })).toBe(false);
+    expect(reviewModeRequested({ adversarialReviewExplicit: true, adversarialReview: true })).toBe('adversarial_review');
+    expect(reviewModeRequested({ consensusExplicit: true, consensus: true })).toBe('consensus');
+  });
+
+  test('malformed MERCURY_ADVERSARIAL_REVIEW env does not crash review selection', () => {
+    const previous = process.env.MERCURY_ADVERSARIAL_REVIEW;
+    try {
+      process.env.MERCURY_ADVERSARIAL_REVIEW = '';
+      expect(() => adversarialReviewRequested({})).not.toThrow();
+      expect(adversarialReviewRequested({})).toBe(false);
+
+      process.env.MERCURY_ADVERSARIAL_REVIEW = 'maybe';
+      expect(() => adversarialReviewRequested({})).not.toThrow();
+      expect(adversarialReviewRequested({})).toBe(false);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.MERCURY_ADVERSARIAL_REVIEW;
+      } else {
+        process.env.MERCURY_ADVERSARIAL_REVIEW = previous;
+      }
+    }
   });
 
   test('buildConsensusPrompt fences Fable to Mercury evidence instead of fresh claims', () => {
@@ -63,6 +103,7 @@ describe('Mercury Fable consensus', () => {
       },
     });
 
+    expect(prompt).toContain('READ-ONLY AUDIT. Do not edit code.');
     expect(prompt).toContain('You do not have repo tools');
     expect(prompt).toContain('Do not invent file:line citations');
     expect(prompt).toContain('CONSENSUS_BLOCKING: yes | no');
@@ -118,16 +159,16 @@ describe('Mercury Fable consensus', () => {
     ].join('\n'))).toMatchObject({
       verdict: 'agree',
       blocking: true,
-      parseWarnings: ['missing_consensus_blocking_field'],
+      parseWarnings: ['missing_adversarial_review_blocking_field'],
     });
 
     expect(parseConsensusAnswer('`CONSENSUS_BLOCKING`: yes')).toMatchObject({
       blocking: true,
-      parseWarnings: ['missing_consensus_blocking_field'],
+      parseWarnings: ['missing_adversarial_review_blocking_field'],
     });
     expect(parseConsensusAnswer('> CONSENSUS_BLOCKING: yes')).toMatchObject({
       blocking: true,
-      parseWarnings: ['missing_consensus_blocking_field'],
+      parseWarnings: ['missing_adversarial_review_blocking_field'],
     });
   });
 
@@ -147,9 +188,34 @@ describe('Mercury Fable consensus', () => {
     });
 
     expect(prompt).toContain('Fable critique:');
+    expect(prompt).toContain('READ-ONLY AUDIT. Do not edit code.');
     expect(prompt).toContain('forgot the blocking field');
     expect(prompt).toContain('Required recheck:');
     expect(prompt).toContain('inspect parser behavior');
+  });
+
+  test('splits multiple Fable recheck prompts so caller can cap them at two', () => {
+    const parsed = parseConsensusAnswer([
+      'VERDICT: needs_more_evidence',
+      'CONSENSUS_BLOCKING: yes',
+      'RECHECK_PROMPT: - Mercury, recheck file A.',
+      '- Mercury, recheck file B.',
+      '- Mercury, recheck file C.',
+    ].join('\n'));
+
+    const prompts = buildMercuryRecheckPrompts({
+      originalQuery: 'Mercury, break my fix.',
+      mercuryAnswer: 'No break found.',
+      fableAnswer: 'critique',
+      parsedConsensus: parsed,
+    });
+
+    expect(prompts).toEqual([
+      'Mercury, recheck file A.',
+      'Mercury, recheck file B.',
+      'Mercury, recheck file C.',
+    ]);
+    expect(prompts.slice(0, 2)).toHaveLength(2);
   });
 
   test('builds a visible adversarial review packet with Mercury, Fable, and recheck data', () => {
@@ -178,18 +244,20 @@ describe('Mercury Fable consensus', () => {
           nextCheck: 'none',
         },
         recheckPrompt: 'Mercury, inspect the spawn site.',
-        recheck: {
+        recheckPrompts: ['Mercury, inspect the spawn site.'],
+        rechecks: [{
           termination: 'answer_given',
           iterations: 2,
           answer: 'Spawn site uses execSync(..., { env }); parent env cannot override after overlay.',
-        },
+        }],
       },
     });
 
-    expect(packet).toContain('1. ORIGINAL PROMPT');
-    expect(packet).toContain('2. MERCURY PASS 1');
-    expect(packet).toContain('3. FABLE ADVERSARIAL REVIEW');
-    expect(packet).toContain('4. MERCURY RECHECK');
+    expect(packet).toContain('1. Original Prompt');
+    expect(packet).toContain('2. Mercury Pass 1');
+    expect(packet).toContain('3. Fable Review');
+    expect(packet).toContain('4. Mercury Recheck');
+    expect(packet).toContain('5. Final Resolution');
     expect(packet).toContain('Missing spawn-site proof.');
     expect(packet).toContain('Spawn site uses execSync');
   });
@@ -202,7 +270,7 @@ describe('Mercury Fable consensus', () => {
       }),
       generateResponse: jest.fn(async (prompt, maxTokens) => {
         calls.push(['generateResponse', maxTokens, prompt.includes('Mercury answer:')]);
-        return 'VERDICT: agree\nCONSENSUS_BLOCKING: no\nRATIONALE: evidence is cited.\nGAPS: none\nNEXT_CHECK: none';
+        return 'VERDICT: pass\nCONSENSUS_BLOCKING: no\nRATIONALE: evidence is cited.\nDISAGREEMENT: none\nREQUIRED_RECHECK: none\nRECHECK_PROMPT: none\nNEXT_CHECK: none';
       }),
     };
 
@@ -230,16 +298,17 @@ describe('Mercury Fable consensus', () => {
       model: 'claude-fable-5',
       latencyMs: 250,
       parsed: {
-        verdict: 'agree',
+        verdict: 'pass',
         blocking: false,
       },
     });
-    expect(result.answer).toContain('VERDICT: agree');
+    expect(result.answer).toContain('VERDICT: pass');
   });
 
   test('consensusFailure preserves visible error metadata', () => {
     expect(consensusFailure(new Error('quota exceeded'))).toMatchObject({
       enabled: true,
+      mode: 'adversarial_review',
       ok: false,
       provider: 'claude-code',
       model: 'claude-fable-5',

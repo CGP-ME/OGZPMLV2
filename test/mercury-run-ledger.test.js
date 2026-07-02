@@ -161,6 +161,7 @@ describe('Mercury run ledger', () => {
       { file: 'trai_brain/mercury-bridge/ask.js', callerCount: 0, riskLevel: 'isolated' },
     ]);
     expect(entry.consensus).toMatchObject({
+      mode: 'adversarial_review',
       enabled: true,
       ok: true,
       provider: 'claude',
@@ -169,8 +170,10 @@ describe('Mercury run ledger', () => {
       parsed: null,
       recheck_prompt_excerpt: null,
       recheck: null,
+      rechecks: [],
       answer_excerpt: 'VERDICT: agree\nCONSENSUS_BLOCKING: no',
     });
+    expect(entry.adversarial_review).toEqual(entry.consensus);
   });
 
   test('writes JSONL rows with stable repo-scoped citations', () => {
@@ -221,6 +224,7 @@ describe('Mercury run ledger', () => {
     });
 
     expect(entry.consensus).toEqual({
+      mode: 'adversarial_review',
       enabled: true,
       ok: false,
       provider: 'claude-code',
@@ -231,10 +235,14 @@ describe('Mercury run ledger', () => {
         message: 'spawn claude ENOENT',
       },
       parsed: null,
+      max_rechecks: null,
       recheck_prompt_excerpt: null,
+      recheck_prompts: [],
       recheck: null,
+      rechecks: [],
       answer_excerpt: null,
     });
+    expect(entry.adversarial_review).toEqual(entry.consensus);
     expect(entry.consensus.ok).toBe(false);
     expect(entry.verdict).toBe('consensus_failed');
     expect(entry.commit_blocking).toBe(true);
@@ -267,12 +275,19 @@ describe('Mercury run ledger', () => {
             nextCheck: 'none',
           },
           recheckPrompt: 'Mercury, inspect the spawn site.',
+          recheckPrompts: ['Mercury, inspect the spawn site.'],
           recheck: {
             termination: 'answer_given',
             iterations: 2,
             totalLatencyMs: 500,
             answer: 'Spawn site uses execSync(..., { env }); parent env cannot override after overlay.',
           },
+          rechecks: [{
+            termination: 'answer_given',
+            iterations: 2,
+            totalLatencyMs: 500,
+            answer: 'Spawn site uses execSync(..., { env }); parent env cannot override after overlay.',
+          }],
         },
         answerQuality: { flags: [] },
         toolTelemetry: { byTool: {}, filesOpened: [], runCheckArtifacts: [], runChecks: [] },
@@ -280,11 +295,13 @@ describe('Mercury run ledger', () => {
     });
 
     expect(entry.consensus).toMatchObject({
+      mode: 'adversarial_review',
       ok: true,
       parsed: {
         verdict: 'needs_more_evidence',
         blocking: true,
       },
+      recheck_prompts: ['Mercury, inspect the spawn site.'],
       recheck_prompt_excerpt: 'Mercury, inspect the spawn site.',
       recheck: {
         termination: 'answer_given',
@@ -292,6 +309,60 @@ describe('Mercury run ledger', () => {
         latency_ms: 500,
         answer_excerpt: 'Spawn site uses execSync(..., { env }); parent env cannot override after overlay.',
       },
+      rechecks: [{
+        termination: 'answer_given',
+        iterations: 2,
+        latency_ms: 500,
+        answer_excerpt: 'Spawn site uses execSync(..., { env }); parent env cannot override after overlay.',
+      }],
     });
+    expect(entry.adversarial_review).toEqual(entry.consensus);
+  });
+
+  test('does not persist phantom recheck prompt when cap prevents rechecks', () => {
+    const entry = buildRunLedgerEntry({
+      repoRoot: tmpRoot,
+      query: 'Mercury, break my fix.',
+      startedAt: new Date('2026-07-02T00:00:00.000Z'),
+      finishedAt: new Date('2026-07-02T00:00:01.000Z'),
+      result: {
+        termination: 'answer_given',
+        iterations: 3,
+        totalLatencyMs: 1000,
+        answer: 'No concrete break found. core/Foo.js:1-2',
+        adversarialReview: {
+          mode: 'adversarial_review',
+          enabled: true,
+          ok: true,
+          provider: 'claude-code',
+          model: 'claude-fable-5',
+          latencyMs: 250,
+          answer: 'VERDICT: needs_more_evidence\nCONSENSUS_BLOCKING: yes',
+          parsed: {
+            verdict: 'needs_more_evidence',
+            blocking: true,
+            disagreement: 'Missing proof.',
+            requiredRecheck: 'inspect core/Foo.js:1-2',
+            recheckPrompt: 'Mercury, inspect core/Foo.js:1-2.',
+            nextCheck: 'none',
+          },
+          recheckPrompt: null,
+          recheckPrompts: [],
+          rechecks: [],
+        },
+        answerQuality: { flags: [] },
+        toolTelemetry: { byTool: {}, filesOpened: [], runCheckArtifacts: [], runChecks: [] },
+      },
+    });
+
+    expect(entry.adversarial_review).toMatchObject({
+      mode: 'adversarial_review',
+      ok: true,
+      recheck_prompt_excerpt: null,
+      recheck_prompts: [],
+      recheck: null,
+      rechecks: [],
+    });
+    expect(entry.consensus).toEqual(entry.adversarial_review);
   });
 });

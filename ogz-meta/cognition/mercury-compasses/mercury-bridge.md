@@ -41,17 +41,19 @@ Read these first:
    - If Mercury freshness matters after a push, prove the indexer ran for the
    pushed code before claiming fresh context.
 
-7. `trai_brain/mercury-bridge/consensus.js`
-   - Default-on Fable second-opinion pass behind
-     `mercury.config.json:consensus.defaultEnabled=true`; suppress per run with
-     `ask.js --no-consensus` when intentionally needed.
-   - Fable does not receive repo tools in this pass. It adversarially evaluates
-     Mercury's answer and telemetry, names evidence gaps, and must not invent
-     new file:line claims.
-   - `CONSENSUS_BLOCKING: yes` launches one bounded Mercury recheck from Fable's
-     `RECHECK_PROMPT`; missing or malformed blocking fields fail closed into a
+7. `trai_brain/mercury-bridge/adversarial-review.js`
+   - Canonical Fable review mode is `adversarial_review`, enabled by
+     `MERCURY_ADVERSARIAL_REVIEW=true` or `ask.js --adversarial-review`.
+     Legacy `consensus.defaultEnabled=true` and `ask.js --consensus` remain
+     compatibility aliases only.
+   - Fable does not receive repo tools in this critique pass. It adversarially
+     evaluates Mercury's answer and telemetry, names evidence gaps, and must not
+     invent new file:line claims.
+   - `CONSENSUS_BLOCKING: yes` launches bounded Mercury rechecks from Fable's
+     `RECHECK_PROMPT`; missing or malformed blocking fields trigger a bounded
      recheck. Terminal output and run ledger metadata retain the original
-     Mercury answer, Fable challenge, recheck prompt, and recheck answer excerpt.
+     Mercury answer, Fable challenge, recheck prompts, recheck answers, and final
+     adversarial review packet.
    - Current default provider is local Claude Code (`consensus.provider=claude-code`),
      which uses the logged-in CLI subscription instead of Anthropic API env keys.
 
@@ -67,7 +69,7 @@ Common bug classes:
 - External fetched content is treated as instructions instead of data.
 - Secret-shaped prompt, answer, or env text leaks into ledger or artifact
   output.
-- Fable consensus is mistaken for Mercury tool evidence or local Claude Code
+- Fable adversarial review is mistaken for Mercury tool evidence or local Claude Code
   auth is bypassed by stale API-key environment variables.
 
 Proof hints:

@@ -19,7 +19,8 @@
  *   --quiet                Suppress progress logs
  *   --show-chunks          Print retrieved chunk text (not just filenames)
  *   --show-history         Agentic mode only: print the full tool-call trace
- *   --consensus            Agentic mode only: ask Fable for a second-opinion pass
+ *   --adversarial-review   Agentic mode only: ask Fable to attack Mercury's answer
+ *   --consensus            Agentic mode only: legacy alias for Fable review
  *   --check-providers      Warm up Mercury and Fable clients, then exit
  */
 
@@ -39,12 +40,12 @@ const { createToolAdapter } = require('./tool-adapter');
 const { routeQuery } = require('./query-router');
 const { createMercuryLlmClient } = require('./llm-client');
 const {
-  consensusRequested,
-  runFableConsensus,
-  consensusFailure,
-  buildMercuryRecheckPrompt,
+  reviewModeRequested,
+  runFableAdversarialReview,
+  adversarialReviewFailure,
+  buildMercuryRecheckPrompts,
   formatAdversarialReviewPacket,
-} = require('./consensus');
+} = require('./adversarial-review');
 const { runProviderPreflight } = require('./provider-preflight');
 const { retrieveSimilarTrace, formatTraceAsHint, captureTrace, markTraceUsed, evictStaleTraces, ensureTraceIndexes, getTraceStats } = require('./trace-memory');
 const { buildRunLedgerEntry, writeRunLedgerEntry } = require('./run-ledger');
@@ -63,6 +64,8 @@ function parseArgs(argv) {
     showChunks: false,
     showHistory: false,
     agentic: false,
+    adversarialReview: false,
+    adversarialReviewExplicit: false,
     consensus: false,
     consensusExplicit: false,
     retrievalMode: null,   // semantic | hybrid | hybrid-classified
@@ -85,6 +88,12 @@ function parseArgs(argv) {
       args.showHistory = true;
     } else if (arg === '--agentic') {
       args.agentic = true;
+    } else if (arg === '--adversarial-review') {
+      args.adversarialReview = true;
+      args.adversarialReviewExplicit = true;
+    } else if (arg === '--no-adversarial-review') {
+      args.adversarialReview = false;
+      args.adversarialReviewExplicit = true;
     } else if (arg === '--consensus') {
       args.consensus = true;
       args.consensusExplicit = true;
@@ -168,8 +177,10 @@ function usage() {
   console.log('  --quiet                Suppress progress logs');
   console.log('  --show-chunks          Print retrieved chunk text');
   console.log('  --show-history         Agentic only: print full tool-call trace');
-  console.log(`  --consensus            Agentic only: force a Fable (${config.CONSENSUS_MODEL}) consensus pass`);
-  console.log('  --no-consensus         Agentic only: suppress config-default consensus for this run');
+  console.log(`  --adversarial-review   Agentic only: force a Fable (${config.CONSENSUS_MODEL}) adversarial review`);
+  console.log('  --no-adversarial-review Agentic only: suppress env/config adversarial review for this run');
+  console.log('  --consensus            Agentic only: legacy alias for a Fable review');
+  console.log('  --no-consensus         Agentic only: suppress config-default legacy consensus for this run');
   console.log('  --check-providers      Warm up Mercury and Fable clients, then exit');
   console.log('  --capture-trace        Agentic only: manually store a successful investigation trace');
   console.log('                         RAG/chunk writes are never done by ask.js; run indexer.js explicitly.');
@@ -456,48 +467,62 @@ async function runAgentic(query, opts) {
       result.serenaBlastRadius = autoBlastRadius;
     }
 
-    if (consensusRequested(opts)) {
+    const reviewMode = reviewModeRequested(opts);
+    if (reviewMode) {
       if (verbose) {
-        console.log(`[MERCURY-BRIDGE] Fable consensus requested: ${config.CONSENSUS_MODEL}`);
+        console.log(`[MERCURY-BRIDGE] Fable ${reviewMode} requested: ${config.CONSENSUS_MODEL}`);
       }
       try {
-        result.consensus = await runFableConsensus({
+        const review = await runFableAdversarialReview({
           query,
           mercuryResult: result,
         });
-        if (result.consensus.ok && result.consensus.parsed && result.consensus.parsed.blocking) {
-          result.consensus.recheckPrompt = buildMercuryRecheckPrompt({
+        review.mode = reviewMode;
+        if (review.ok && review.parsed && review.parsed.blocking) {
+          const recheckPrompts = buildMercuryRecheckPrompts({
             originalQuery: query,
             mercuryAnswer: result.answer,
-            fableAnswer: result.consensus.answer,
-            parsedConsensus: result.consensus.parsed,
-          });
+            fableAnswer: review.answer,
+            parsedReview: review.parsed,
+          }).slice(0, config.ADVERSARIAL_REVIEW_MAX_RECHECKS);
+          review.recheckPrompts = recheckPrompts;
+          review.rechecks = [];
+          review.recheckPrompt = recheckPrompts[0] || null;
           if (verbose) {
-            console.log('[MERCURY-BRIDGE] Fable marked consensus blocking; launching one Mercury recheck.');
+            console.log(`[MERCURY-BRIDGE] Fable marked ${reviewMode} blocking; launching ${recheckPrompts.length} Mercury recheck(s).`);
           }
-          const recheckStarted = Date.now();
-          result.consensus.recheck = await runReactLoop({
-            client,
-            toolAdapter,
-            userQuery: result.consensus.recheckPrompt,
-            starterContext,
-            traceHint: null,
-            blastRadius,
-            maxIterations,
-            maxTokens,
-            verbose,
-          });
-          result.consensus.recheck.totalLatencyMs = Date.now() - recheckStarted;
+          for (const recheckPrompt of recheckPrompts) {
+            const recheckStarted = Date.now();
+            const recheck = await runReactLoop({
+              client,
+              toolAdapter,
+              userQuery: recheckPrompt,
+              starterContext,
+              traceHint: null,
+              blastRadius,
+              maxIterations,
+              maxTokens,
+              verbose,
+            });
+            recheck.totalLatencyMs = Date.now() - recheckStarted;
+            review.rechecks.push(recheck);
+          }
+          review.recheck = review.rechecks[0] || null;
         }
+        result.adversarialReview = review;
+        result.consensus = review;
         result.adversarialReviewPacket = formatAdversarialReviewPacket({
           originalQuery: query,
           mercuryResult: result,
-          consensus: result.consensus,
+          review,
         });
       } catch (err) {
-        result.consensus = consensusFailure(err);
+        const failure = adversarialReviewFailure(err);
+        failure.mode = reviewMode;
+        result.adversarialReview = failure;
+        result.consensus = failure;
         if (verbose) {
-          console.log(`[MERCURY-BRIDGE] Fable consensus failed: ${err.message}`);
+          console.log(`[MERCURY-BRIDGE] Fable ${reviewMode} failed: ${err.message}`);
         }
       }
     }
@@ -679,25 +704,32 @@ async function main() {
       if (result.runLedger) {
         console.log(`[run ledger: ${result.runLedger.citation}]`);
       }
-      if (result.consensus) {
+      if (result.adversarialReview || result.consensus) {
+        const review = result.adversarialReview || result.consensus;
         console.log('');
-        console.log('═══ FABLE CONSENSUS ═══');
+        console.log(review.mode === 'consensus' ? '═══ FABLE LEGACY REVIEW ═══' : '═══ FABLE ADVERSARIAL REVIEW ═══');
         console.log('');
-        if (result.consensus.ok) {
-          console.log(result.consensus.answer);
+        if (review.ok) {
+          console.log(review.answer);
           console.log('');
-          console.log(`[consensus: ${result.consensus.provider}/${result.consensus.model} | latency: ${result.consensus.latencyMs}ms]`);
-          if (result.consensus.recheck) {
+          console.log(`[${review.mode || 'adversarial_review'}: ${review.provider}/${review.model} | latency: ${review.latencyMs}ms]`);
+          const rechecks = Array.isArray(review.rechecks)
+            ? review.rechecks
+            : (review.recheck ? [review.recheck] : []);
+          const recheckPrompts = Array.isArray(review.recheckPrompts)
+            ? review.recheckPrompts
+            : (review.recheckPrompt ? [review.recheckPrompt] : []);
+          for (const [index, recheck] of rechecks.entries()) {
             console.log('');
-            console.log('═══ MERCURY RECHECK ═══');
+            console.log(`═══ MERCURY RECHECK ${index + 1} ═══`);
             console.log('');
-            console.log(`Prompt:\n${result.consensus.recheckPrompt}`);
+            console.log(`Prompt:\n${recheckPrompts[index] || review.recheckPrompt || '<empty>'}`);
             console.log('');
-            console.log(result.consensus.recheck.answer);
+            console.log(recheck.answer);
             console.log('');
-            console.log(`[recheck iterations: ${result.consensus.recheck.iterations} | termination: ${result.consensus.recheck.termination} | latency: ${result.consensus.recheck.totalLatencyMs}ms]`);
-            if (result.consensus.recheck.toolTelemetry) {
-              console.log(`[recheck tool telemetry: ${formatToolTelemetry(result.consensus.recheck.toolTelemetry)}]`);
+            console.log(`[recheck iterations: ${recheck.iterations} | termination: ${recheck.termination} | latency: ${recheck.totalLatencyMs}ms]`);
+            if (recheck.toolTelemetry) {
+              console.log(`[recheck tool telemetry: ${formatToolTelemetry(recheck.toolTelemetry)}]`);
             }
           }
           if (result.adversarialReviewPacket) {
@@ -707,8 +739,8 @@ async function main() {
             console.log(result.adversarialReviewPacket);
           }
         } else {
-          console.log(`Consensus unavailable: ${result.consensus.error.message}`);
-          console.log(`[consensus: ${result.consensus.provider}/${result.consensus.model}]`);
+          console.log(`Adversarial review unavailable: ${review.error.message}`);
+          console.log(`[${review.mode || 'adversarial_review'}: ${review.provider}/${review.model}]`);
         }
       }
 

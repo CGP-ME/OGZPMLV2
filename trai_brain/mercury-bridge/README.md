@@ -73,23 +73,28 @@ echo $INCEPTION_API_KEY
 ```
 If empty, add to `.env`: `INCEPTION_API_KEY=sk_xxx`
 
-### 3b. Local Fable consensus through Claude Code
-Fable is the default consensus collaborator for agentic Mercury asks in the
-current config. `mercury.config.json` sets `consensus.defaultEnabled=true` and
-`consensus.provider=claude-code`, so `ask.js --agentic` asks Mercury first and
-then asks local Claude Code Fable to adversarially review Mercury's answer and
-evidence. When Fable returns `CONSENSUS_BLOCKING: yes`, the bridge launches one
-bounded Mercury recheck with Fable's exact `RECHECK_PROMPT`, then prints an
-adversarial review packet containing the original prompt, Mercury pass 1, Fable's
-challenge, Mercury's recheck, and the remaining proof posture. Use
-`ask.js --no-consensus` only when intentionally suppressing the review loop.
+### 3b. Local Fable adversarial review through Claude Code
+Fable is the adversarial reviewer for agentic Mercury asks. Set
+`MERCURY_ADVERSARIAL_REVIEW=true` or pass `ask.js --adversarial-review` to run
+the canonical `adversarial_review` mode. Legacy `consensus.defaultEnabled=true`
+and `ask.js --consensus` remain as compatibility aliases, but new output and
+ledger consumers should use `adversarial_review`.
+
+The review flow is Mercury pass 1, Fable critique, bounded Mercury recheck, then
+final evidence packet. Fable does not receive repo tools in this critique role;
+it attacks Mercury's evidence, unsupported claims, missing file:line proof,
+missing tests, stale context, and scope drift. If Fable returns
+`CONSENSUS_BLOCKING: yes`, the bridge launches Mercury rechecks with Fable's
+exact `RECHECK_PROMPT`, capped by `adversarialReview.maxRechecks` at 2 by
+default. Use `ask.js --no-adversarial-review` to suppress the new mode for a
+run, or `ask.js --no-consensus` only when suppressing the legacy alias.
 
 ```bash
 claude --version
 claude -p --model fable --permission-mode dontAsk --output-format json "Reply with exactly: FABLE_OK"
 ```
 
-Do not add `ANTHROPIC_API_KEY` for the default consensus path. The local
+Do not add `ANTHROPIC_API_KEY` for the default Fable path. The local
 Claude Code provider uses the logged-in Claude Code subscription and strips
 `ANTHROPIC_API_KEY`, `CLAUDE_API_KEY`, and `LLM_API_KEY` from the child process
 so a stale API key cannot override the subscription-backed CLI auth.
@@ -172,21 +177,21 @@ Expected output:
 node trai_brain/mercury-bridge/ask.js "How does MaxProfitManager handle BE scale-out?"
 ```
 
-### Ask Mercury with default Fable consensus
+### Ask Mercury with Fable adversarial review
 ```bash
-node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens=7750 "Mercury, break my fix."
+MERCURY_ADVERSARIAL_REVIEW=true node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens=7750 "Mercury, break my fix."
 ```
 
-The consensus pass receives Mercury's prompt, answer, run telemetry, and cited
-evidence summary. It does not get repo tools in this pass, so it must mark gaps
-as `needs_more_evidence` instead of inventing new current-code claims. Fable's
-structured `CONSENSUS_BLOCKING` field controls whether one Mercury recheck runs;
-missing or malformed blocking fields fail closed into a recheck.
+The adversarial review pass receives Mercury's prompt, answer, run telemetry,
+and cited evidence summary. It does not get repo tools in this critique pass, so
+it must mark gaps as `needs_more_evidence` instead of inventing new current-code
+claims. Fable's structured `CONSENSUS_BLOCKING` field controls whether Mercury
+rechecks run; missing or malformed blocking fields trigger a bounded recheck.
 
-To suppress consensus for a specific agentic run:
+To suppress adversarial review for a specific agentic run:
 
 ```bash
-node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens=7750 --no-consensus "Mercury, break my fix."
+node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens=7750 --no-adversarial-review "Mercury, break my fix."
 ```
 
 ### Check provider access before a full run

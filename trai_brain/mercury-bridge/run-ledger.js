@@ -112,6 +112,51 @@ function isCommitBlockingVerdict(verdict) {
   return verdict !== 'no_break_found';
 }
 
+function buildReviewLedgerSummary(review) {
+  if (!review) return null;
+  const rechecks = Array.isArray(review.rechecks)
+    ? review.rechecks
+    : (review.recheck ? [review.recheck] : []);
+  const recheckPrompts = Array.isArray(review.recheckPrompts)
+    ? review.recheckPrompts
+    : (review.recheckPrompt ? [review.recheckPrompt] : []);
+
+  return {
+    mode: review.mode || 'adversarial_review',
+    enabled: review.enabled === true,
+    ok: review.ok === true,
+    provider: review.provider || null,
+    model: review.model || null,
+    latency_ms: review.latencyMs == null ? null : review.latencyMs,
+    error: review.error || null,
+    parsed: review.parsed || null,
+    max_rechecks: recheckPrompts.length || null,
+    recheck_prompt_excerpt: review.recheckPrompt
+      ? truncateText(redactSensitiveText(review.recheckPrompt), ANSWER_EXCERPT_MAX)
+      : null,
+    recheck_prompts: recheckPrompts.map((prompt) => truncateText(redactSensitiveText(prompt), ANSWER_EXCERPT_MAX)),
+    recheck: review.recheck ? {
+      termination: review.recheck.termination || null,
+      iterations: review.recheck.iterations == null ? null : review.recheck.iterations,
+      latency_ms: review.recheck.totalLatencyMs == null ? null : review.recheck.totalLatencyMs,
+      answer_excerpt: review.recheck.answer
+        ? truncateText(redactSensitiveText(review.recheck.answer), ANSWER_EXCERPT_MAX)
+        : null,
+    } : null,
+    rechecks: rechecks.map((recheck) => ({
+      termination: recheck.termination || null,
+      iterations: recheck.iterations == null ? null : recheck.iterations,
+      latency_ms: recheck.totalLatencyMs == null ? null : recheck.totalLatencyMs,
+      answer_excerpt: recheck.answer
+        ? truncateText(redactSensitiveText(recheck.answer), ANSWER_EXCERPT_MAX)
+        : null,
+    })),
+    answer_excerpt: review.answer
+      ? truncateText(redactSensitiveText(review.answer), ANSWER_EXCERPT_MAX)
+      : null,
+  };
+}
+
 function buildRunLedgerEntry({
   repoRoot,
   query,
@@ -127,6 +172,7 @@ function buildRunLedgerEntry({
   const verdict = classifyMercuryVerdict({ result, error });
   const repoState = readRepoState(repoRoot);
   const telemetry = result && result.toolTelemetry ? result.toolTelemetry : {};
+  const reviewSummary = buildReviewLedgerSummary(result && (result.adversarialReview || result.consensus));
   const answerQualityFlags = result && result.answerQuality && Array.isArray(result.answerQuality.flags)
     ? result.answerQuality.flags
     : [];
@@ -168,29 +214,8 @@ function buildRunLedgerEntry({
     run_check_artifacts: Array.isArray(telemetry.runCheckArtifacts) ? telemetry.runCheckArtifacts : [],
     run_checks: Array.isArray(telemetry.runChecks) ? telemetry.runChecks : [],
     answer_quality: answerQualityFlags,
-    consensus: result && result.consensus ? {
-      enabled: result.consensus.enabled === true,
-      ok: result.consensus.ok === true,
-      provider: result.consensus.provider || null,
-      model: result.consensus.model || null,
-      latency_ms: result.consensus.latencyMs == null ? null : result.consensus.latencyMs,
-      error: result.consensus.error || null,
-      parsed: result.consensus.parsed || null,
-      recheck_prompt_excerpt: result.consensus.recheckPrompt
-        ? truncateText(redactSensitiveText(result.consensus.recheckPrompt), ANSWER_EXCERPT_MAX)
-        : null,
-      recheck: result.consensus.recheck ? {
-        termination: result.consensus.recheck.termination || null,
-        iterations: result.consensus.recheck.iterations == null ? null : result.consensus.recheck.iterations,
-        latency_ms: result.consensus.recheck.totalLatencyMs == null ? null : result.consensus.recheck.totalLatencyMs,
-        answer_excerpt: result.consensus.recheck.answer
-          ? truncateText(redactSensitiveText(result.consensus.recheck.answer), ANSWER_EXCERPT_MAX)
-          : null,
-      } : null,
-      answer_excerpt: result.consensus.answer
-        ? truncateText(redactSensitiveText(result.consensus.answer), ANSWER_EXCERPT_MAX)
-        : null,
-    } : null,
+    adversarial_review: reviewSummary,
+    consensus: reviewSummary,
     termination: result ? result.termination : null,
     iterations: result ? result.iterations : null,
     latency_ms: result ? result.totalLatencyMs : null,

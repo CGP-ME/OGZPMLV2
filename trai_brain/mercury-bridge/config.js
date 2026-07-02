@@ -71,6 +71,15 @@ function optionalBoolean(config, dottedPath, defaultValue) {
   return value;
 }
 
+function optionalEnvBoolean(envName) {
+  if (!Object.prototype.hasOwnProperty.call(process.env, envName)) return null;
+  const value = String(process.env[envName] || '').trim().toLowerCase();
+  if (value === '') return null;
+  if (['1', 'true', 'yes', 'on'].includes(value)) return true;
+  if (['0', 'false', 'no', 'off'].includes(value)) return false;
+  return false;
+}
+
 function requiredNumber(config, dottedPath, { integer = false, min = Number.NEGATIVE_INFINITY } = {}) {
   const value = getConfigValue(config, dottedPath);
   if (typeof value !== 'number' || !Number.isFinite(value)) {
@@ -309,8 +318,13 @@ if (MERCURY_LLM_PROVIDER === 'ollama') {
   throw new Error('llm.apiKeyEnv is required for non-local Mercury LLM providers');
 }
 
-// ─── Fable consensus client ──────────────────────────────────
+// ─── Fable adversarial review client ─────────────────────────
 const CONSENSUS_DEFAULT_ENABLED = optionalBoolean(MERCURY_CONFIG, 'consensus.defaultEnabled', false);
+const adversarialReviewEnv = optionalEnvBoolean('MERCURY_ADVERSARIAL_REVIEW');
+const ADVERSARIAL_REVIEW_DEFAULT_ENABLED = adversarialReviewEnv == null
+  ? optionalBoolean(MERCURY_CONFIG, 'adversarialReview.defaultEnabled', false)
+  : adversarialReviewEnv;
+const ADVERSARIAL_REVIEW_MAX_RECHECKS = optionalNumber(MERCURY_CONFIG, 'adversarialReview.maxRechecks', 2, { integer: true, min: 0 });
 const CONSENSUS_PROVIDER = (optionalString(MERCURY_CONFIG, 'consensus.provider') || 'claude').toLowerCase();
 const CONSENSUS_BASE_URL = optionalString(MERCURY_CONFIG, 'consensus.baseUrl') || 'https://api.anthropic.com/v1';
 const CONSENSUS_MODEL = optionalString(MERCURY_CONFIG, 'consensus.model') || 'claude-fable-5';
@@ -439,6 +453,8 @@ module.exports = {
   MERCURY_LLM_CLIENT_MIN_TOKENS,
   MERCURY_LLM_REQUEST_TIMEOUT_MS,
   MERCURY_LLM_TEMPERATURE,
+  ADVERSARIAL_REVIEW_DEFAULT_ENABLED,
+  ADVERSARIAL_REVIEW_MAX_RECHECKS,
   CONSENSUS_DEFAULT_ENABLED,
   CONSENSUS_PROVIDER,
   CONSENSUS_BASE_URL,
