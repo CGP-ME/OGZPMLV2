@@ -118,6 +118,9 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(loaded.config.exits.stopLossPercent).toBe(configFileValue('exits.stopLossPercent'));
     expect(loaded.config.exits.takeProfitPercent).toBe(configFileValue('exits.takeProfitPercent'));
     expect(loaded.config.exits.trailingStopPercent).toBe(configFileValue('exits.trailingStopPercent'));
+    expect(loaded.config.strategies.enableBreakRetest).toBe(configFileValue('pipeline.enableBreakRetest'));
+    expect(loaded.config.strategies.enableMarketRegime).toBe(configFileValue('pipeline.enableMarketRegime'));
+    expect(loaded.config.strategies.enableORB).toBe(configFileValue('pipeline.enableOpeningRangeBreakout'));
     expect(loaded.config.exits.trailingActivation).toBe(configFileValue('exits.trailingActivation'));
     expect(loaded.config.filters.atrEnabled).toBe(configFileValue('filters.atrEnabled'));
     expect(loaded.config.filters.atrMinPercent).toBe(configFileValue('filters.atrMinPercent'));
@@ -128,6 +131,153 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(loaded.sources['exits.stopLossPercent']).toBe('default');
     expect(loaded.sources['filters.atrEnabled']).toBe('default');
     expect(loaded.sources['trai.enabled']).toBe('default');
+  });
+
+  test('TradingConfig compatibility reads use the resolved ConfigLoader snapshot', () => {
+    process.env.MIN_TRADE_CONFIDENCE = '0.62';
+    process.env.MIN_STRATEGY_CONFIDENCE = '0.41';
+    process.env.MAX_POSITION_SIZE_PCT = '0.04';
+    process.env.FEE_MODEL = 'per_share_minimum';
+    process.env.FEE_PER_SHARE = '0.005';
+    process.env.FEE_MIN_ORDER = '0.75';
+    process.env.ATR_FILTER_ENABLED = 'true';
+    process.env.ATR_MIN_PERCENT = '0.17';
+    process.env.TTP_DAILY_LOSS_LIMIT_DOLLARS = '125';
+    process.env.TTP_PROFIT_TARGET_DOLLARS = '900';
+
+    const loaded = loadConfig();
+
+    process.env.MIN_TRADE_CONFIDENCE = '0.91';
+    process.env.MIN_STRATEGY_CONFIDENCE = '0.88';
+    process.env.MAX_POSITION_SIZE_PCT = '0.22';
+    process.env.FEE_MODEL = 'percent';
+    process.env.FEE_PER_SHARE = '9';
+    process.env.FEE_MIN_ORDER = '99';
+    process.env.ATR_FILTER_ENABLED = 'false';
+    process.env.ATR_MIN_PERCENT = '0.99';
+    process.env.TTP_DAILY_LOSS_LIMIT_DOLLARS = '999';
+    process.env.TTP_PROFIT_TARGET_DOLLARS = '9999';
+
+    const TradingConfig = require('../core/TradingConfig');
+
+    expect(TradingConfig.get('confidence.minTradeConfidence')).toBe(loaded.config.confidence.minTradeConfidence);
+    expect(TradingConfig.get('confidence.minStrategyConfidence')).toBe(loaded.config.confidence.minStrategyConfidence);
+    expect(TradingConfig.get('positionSizing.maxPositionSize')).toBe(loaded.config.sizing.maxPositionSize);
+    expect(TradingConfig.get('fees.model')).toBe(loaded.config.fees.model);
+    expect(TradingConfig.get('fees.perShare')).toBe(loaded.config.fees.perShare);
+    expect(TradingConfig.get('fees.minOrderFee')).toBe(loaded.config.fees.minOrderFee);
+    expect(TradingConfig.get('filters.atrEnabled')).toBe(loaded.config.filters.atrEnabled);
+    expect(TradingConfig.get('filters.atrMinPercent')).toBe(loaded.config.filters.atrMinPercent);
+    expect(TradingConfig.get('evalRules.ttp.accountLimits.dailyLossDollars')).toBe(
+      loaded.config.evalRules.ttp.accountLimits.dailyLossDollars
+    );
+    expect(TradingConfig.get('evalRules.ttp.consistency.profitTargetDollars')).toBe(
+      loaded.config.evalRules.ttp.consistency.profitTargetDollars
+    );
+
+    expect(TradingConfig.getSection('confidence').minTradeConfidence).toBe(loaded.config.confidence.minTradeConfidence);
+    expect(TradingConfig.getSection('positionSizing').maxPositionSize).toBe(loaded.config.sizing.maxPositionSize);
+    expect(TradingConfig.getSection('fees').perShare).toBe(loaded.config.fees.perShare);
+    expect(TradingConfig.getSection('filters').atrMinPercent).toBe(loaded.config.filters.atrMinPercent);
+  });
+
+  test('TradingConfig cannot shadow ConfigLoader-owned paths after config load', () => {
+    process.env.MIN_TRADE_CONFIDENCE = '0.62';
+    process.env.FEE_PER_SHARE = '0.005';
+    process.env.FEE_MIN_ORDER = '0.75';
+    process.env.TIER1_TARGET = '0.011';
+
+    const loaded = loadConfig();
+    const TradingConfig = require('../core/TradingConfig');
+
+    expect(() => TradingConfig.setOverrides({
+      confidence: { minTradeConfidence: 0.77 },
+      fees: { perShare: 0.123 },
+      exits: { profitTiers: { tier1: 0.099 } },
+    })).toThrow(/attempted to override ConfigLoader-owned path\(s\) after config load/);
+
+    expect(TradingConfig.get('confidence.minTradeConfidence')).toBe(loaded.config.confidence.minTradeConfidence);
+    expect(TradingConfig.get('fees.perShare')).toBe(loaded.config.fees.perShare);
+    expect(TradingConfig.get('exits.profitTiers.tier1')).toBe(loaded.config.tiers.tier1);
+    expect(TradingConfig.getSection('exits').profitTiers.tier1).toBe(loaded.config.tiers.tier1);
+  });
+
+  test('TradingConfig tuning profiles cannot replace ConfigLoader-owned paths after config load', () => {
+    loadConfig();
+    const TradingConfig = require('../core/TradingConfig');
+
+    expect(() => TradingConfig.applyTuningProfile('legacy-wide', {
+      phase: 'startup',
+      requireFlat: true,
+      flatState: { flat: true, source: 'unit-test' },
+      source: 'unit-test',
+    })).toThrow(/attempted to override ConfigLoader-owned path\(s\) after config load/);
+  });
+
+  test('TradingConfig mapped reads follow ConfigLoader force reloads', () => {
+    process.env.MIN_TRADE_CONFIDENCE = '0.62';
+    process.env.FEE_PER_SHARE = '0.005';
+
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    const TradingConfig = require('../core/TradingConfig');
+    const first = ConfigLoader.load({ force: true, silent: true });
+
+    expect(TradingConfig.get('confidence.minTradeConfidence')).toBe(first.config.confidence.minTradeConfidence);
+    expect(TradingConfig.get('fees.perShare')).toBe(first.config.fees.perShare);
+
+    process.env.MIN_TRADE_CONFIDENCE = '0.72';
+    process.env.FEE_PER_SHARE = '0.456';
+
+    const second = ConfigLoader.load({ force: true, silent: true });
+    expect(TradingConfig.get('confidence.minTradeConfidence')).toBe(second.config.confidence.minTradeConfidence);
+    expect(TradingConfig.get('fees.perShare')).toBe(second.config.fees.perShare);
+  });
+
+  test('TradingConfig whole pipeline section uses ConfigLoader strategy snapshot values', () => {
+    process.env.ENABLE_RSI = 'false';
+    process.env.ENABLE_ORB = 'false';
+    const TradingConfig = require('../core/TradingConfig');
+
+    process.env.ENABLE_RSI = 'true';
+    process.env.ENABLE_ORB = 'true';
+    const loaded = loadConfig();
+    const pipeline = TradingConfig.get('pipeline');
+
+    expect(pipeline.enableRSI).toBe(loaded.config.strategies.enableRSI);
+    expect(pipeline.enableOpeningRangeBreakout).toBe(loaded.config.strategies.enableORB);
+    expect(TradingConfig.get('pipeline.enableRSI')).toBe(loaded.config.strategies.enableRSI);
+    expect(TradingConfig.get('pipeline.enableOpeningRangeBreakout')).toBe(loaded.config.strategies.enableORB);
+  });
+
+  test('TradingConfig exposes additional ConfigLoader-owned compatibility sections', () => {
+    process.env.MAX_HOLD_MINUTES = '333';
+    process.env.TRAIL_ATR_MULTIPLIER = '2.4';
+    process.env.TRAIL_MIN_ACTIVATION = '1.2';
+    process.env.TRAIL_TREND_WIDEN = '1.8';
+    process.env.TRAIL_STRUCTURE_TIGHTEN = '0.6';
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    process.env.TTP_VOLUME_CAP_ENABLED = 'true';
+    process.env.TTP_MARKET_TIME_ENABLED = 'true';
+    process.env.TTP_ACCOUNT_LIMITS_ENABLED = 'true';
+    process.env.TTP_EARNINGS_RESTRICTION_ENABLED = 'true';
+    process.env.TTP_CONSISTENCY_ENABLED = 'true';
+
+    const loaded = loadConfig();
+    const TradingConfig = require('../core/TradingConfig');
+
+    expect(TradingConfig.get('exits.maxHoldMinutes')).toBe(loaded.config.exits.maxHoldMinutes);
+    expect(TradingConfig.getSection('exits').maxHoldMinutes).toBe(loaded.config.exits.maxHoldMinutes);
+    expect(TradingConfig.get('trail.atrMultiplier')).toBe(loaded.config.trail.atrMultiplier);
+    expect(TradingConfig.get('trail.minActivation')).toBe(loaded.config.trail.minActivation);
+    expect(TradingConfig.getSection('trail')).toEqual(loaded.config.trail);
+    expect(TradingConfig.get('evalRules.enabled')).toBe(loaded.config.evalRules.enabled);
+    expect(TradingConfig.get('evalRules.ttp.enabled')).toBe(loaded.config.evalRules.ttp.enabled);
+    expect(TradingConfig.get('evalRules.ttp.volumeCap.enabled')).toBe(loaded.config.evalRules.ttp.volumeCap.enabled);
+    expect(TradingConfig.get('evalRules.ttp.marketTime.enabled')).toBe(loaded.config.evalRules.ttp.marketTime.enabled);
+    expect(TradingConfig.get('evalRules.ttp.accountLimits.enabled')).toBe(loaded.config.evalRules.ttp.accountLimits.enabled);
+    expect(TradingConfig.get('evalRules.ttp.earningsRestriction.enabled')).toBe(loaded.config.evalRules.ttp.earningsRestriction.enabled);
+    expect(TradingConfig.get('evalRules.ttp.consistency.enabled')).toBe(loaded.config.evalRules.ttp.consistency.enabled);
   });
 
   test('keeps risk defaults sourced from trading.config.json without weakening explicit-source guard', () => {

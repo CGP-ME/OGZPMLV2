@@ -63,7 +63,7 @@ describe('TradingConfig runtime profile contract', () => {
     expect(TradingProfileManager.disabledReason).toBe('runtime_profile_switch_not_wired');
   });
 
-  test('tuning profiles resolve from TradingConfig as the single config owner', () => {
+  test('tuning profiles resolve from the TradingConfig compatibility surface', () => {
     expect(TradingConfig.listTuningProfileNames().sort()).toEqual(['current-eval', 'legacy-wide', 'ttp-5k-max']);
     expect(TradingConfig.getTuningProfileDefinitions()).toEqual(tradingConfigJson.tuningProfiles.definitions);
     expect(TradingConfig.resolveTuningProfile('legacy-wide')).toEqual(
@@ -343,6 +343,20 @@ describe('TradingConfig runtime profile contract', () => {
     });
 
     expect(TradingConfig.get('confidence.minTradeConfidence')).toBe(0.5);
+  });
+
+  test('frozen config refuses setOverrides instead of silently ignoring them', () => {
+    TradingConfig.freeze();
+
+    try {
+      expect(() => TradingConfig.setOverrides({
+        confidence: { minTradeConfidence: 0.9 },
+      })).toThrow(/Config is frozen; refusing setOverrides\(\)/);
+
+      expect(TradingConfig.get('confidence.minTradeConfidence')).toBe(0.5);
+    } finally {
+      TradingConfig.unfreeze();
+    }
   });
 
   test('live runtime refuses tuning profile minTradeConfidence overrides below the configured floor', () => {

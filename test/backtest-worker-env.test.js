@@ -116,7 +116,7 @@ describe('backtest worker env contract', () => {
     expect(env.EVAL_RULES_ENABLED).toBe('false');
     expect(env.TTP_RULES_ENABLED).toBe('false');
     expect(env.BACKTEST_NO_PATTERN_SAVE).toBe('true');
-    expect(env.DIRECTION_FILTER).toBe('long_only');
+    expect(env.DIRECTION_FILTER).toBe('both');
     expect(env.ACCOUNT_DRAWDOWN_BYPASS).toBe('true');
     expect(env.RISK_MANAGER_BYPASS).toBe('true');
     expect(env.MAX_DRAWDOWN).toBe('5');
@@ -284,8 +284,8 @@ describe('backtest worker env contract', () => {
     expect(env.FEE_MIN_ORDER).toBe('0.75');
   });
 
-  test('explicit config fee model can still override TTP 5k MAX profile fees', () => {
-    const env = buildEnv({
+  test('explicit config fee model cannot override TTP 5k MAX profile fees', () => {
+    expect(() => buildEnv({
       stockMode: true,
       profileName: 'ttp-5k-max',
       sourceEnv: {
@@ -298,11 +298,7 @@ describe('backtest worker env contract', () => {
         FEE_PER_SHARE: '0.006',
         FEE_MIN_ORDER: '0.80',
       },
-    });
-
-    expect(env.FEE_MODEL).toBe('per_share_minimum');
-    expect(env.FEE_PER_SHARE).toBe('0.006');
-    expect(env.FEE_MIN_ORDER).toBe('0.80');
+    })).toThrow(/Disallowed configEnv override 'FEE_MODEL'/);
   });
 
   test('unknown tuning profile fails loudly instead of falling back to eval sizing', () => {
@@ -333,11 +329,39 @@ describe('backtest worker env contract', () => {
     expect(env.MAX_DAILY_LOSS).toBe('1');
     expect(env.MAX_WEEKLY_LOSS).toBe('5');
     expect(env.MAX_MONTHLY_LOSS).toBe('5');
-    expect(env.DIRECTION_FILTER).toBe('long_only');
+    expect(env.DIRECTION_FILTER).toBe('both');
     expect(env.FEE_SLIPPAGE).toBe('0.0005');
   });
 
-  test('explicit source fee model overrides stock zero-fee worker defaults', () => {
+  test('strategy-owned exit geometry sweep keys are explicit worker inputs', () => {
+    const env = buildEnv({
+      stockMode: true,
+      configEnv: {
+        SOLO_STRATEGY: 'TimeSeriesMomentum',
+        ENABLE_TSMOM: 'true',
+        TSMOM_MIN_RETURN: '0.006',
+        TSMOM_STOP_LOSS_PERCENT: '-1.0',
+        TSMOM_TAKE_PROFIT_PERCENT: '2.4',
+        TSMOM_TRAILING_STOP_PERCENT: '0.8',
+        TSMOM_TRAILING_ACTIVATION: '1.0',
+        TSMOM_MAX_HOLD_MINUTES: '180',
+      },
+    });
+
+    expect(env.SOLO_STRATEGY).toBe('TimeSeriesMomentum');
+    expect(env.ENABLE_TSMOM).toBe('true');
+    expect(env.TSMOM_MIN_RETURN).toBe('0.006');
+    expect(env.TSMOM_STOP_LOSS_PERCENT).toBe('-1.0');
+    expect(env.TSMOM_TAKE_PROFIT_PERCENT).toBe('2.4');
+    expect(env.TSMOM_TRAILING_STOP_PERCENT).toBe('0.8');
+    expect(env.TSMOM_TRAILING_ACTIVATION).toBe('1.0');
+    expect(env.TSMOM_MAX_HOLD_MINUTES).toBe('180');
+    expect(env.STOP_LOSS_PERCENT).toBeUndefined();
+    expect(env.TAKE_PROFIT_PERCENT).toBeUndefined();
+    expect(env.TRAILING_STOP_PERCENT).toBeUndefined();
+  });
+
+  test('explicit source fee model does not reach stock worker profile economics', () => {
     const env = buildEnv({
       sourceEnv: {
         PATH: '/usr/bin',
@@ -347,23 +371,21 @@ describe('backtest worker env contract', () => {
       },
     });
 
-    expect(env.FEE_MODEL).toBe('per_share_minimum');
-    expect(env.FEE_PER_SHARE).toBe('0.005');
-    expect(env.FEE_MIN_ORDER).toBe('0.75');
+    expect(env.FEE_MODEL).toBeUndefined();
+    expect(env.FEE_PER_SHARE).toBeUndefined();
+    expect(env.FEE_MIN_ORDER).toBeUndefined();
     expect(env.FEE_MAKER).toBe('0');
     expect(env.FEE_TAKER).toBe('0');
     expect(env.FEE_TOTAL_ROUNDTRIP).toBe('0');
 
     const summary = summarizeWorkerEnv(env);
-    expect(summary).toMatchObject({
-      FEE_MODEL: 'per_share_minimum',
-      FEE_PER_SHARE: '0.005',
-      FEE_MIN_ORDER: '0.75',
-    });
+    expect(summary.FEE_MODEL).toBeUndefined();
+    expect(summary.FEE_PER_SHARE).toBeUndefined();
+    expect(summary.FEE_MIN_ORDER).toBeUndefined();
   });
 
-  test('explicit config fee model overrides source fee model', () => {
-    const env = buildEnv({
+  test('explicit config fee model fails instead of overriding profile economics', () => {
+    expect(() => buildEnv({
       sourceEnv: {
         PATH: '/usr/bin',
         FEE_MODEL: 'percent',
@@ -375,11 +397,7 @@ describe('backtest worker env contract', () => {
         FEE_PER_SHARE: '0.005',
         FEE_MIN_ORDER: '0.75',
       },
-    });
-
-    expect(env.FEE_MODEL).toBe('per_share_minimum');
-    expect(env.FEE_PER_SHARE).toBe('0.005');
-    expect(env.FEE_MIN_ORDER).toBe('0.75');
+    })).toThrow(/Disallowed configEnv override 'FEE_MODEL'/);
   });
 
   test('explicit sweep direction wins over source env and legacy alias normalizes', () => {
@@ -400,13 +418,6 @@ describe('backtest worker env contract', () => {
   });
 
   test('invalid direction filters fail loudly instead of falling back to both', () => {
-    expect(() => buildEnv({
-      sourceEnv: {
-        PATH: '/usr/bin',
-        DIRECTION_FILTER: 'longs_only',
-      },
-    })).toThrow(/Invalid sourceEnv DIRECTION_FILTER 'longs_only'/);
-
     expect(() => buildEnv({
       configEnv: {
         DIRECTION_FILTER: 'sideways',
@@ -458,14 +469,46 @@ describe('backtest worker env contract', () => {
   test('summary includes audit-relevant contract fields without full process env', () => {
     const summary = summarizeWorkerEnv(buildEnv({
       stockMode: true,
-      configEnv: { SOLO_STRATEGY: 'DonchianBreakout', ENABLE_DONCHIAN: 'true' },
+      configEnv: {
+        SOLO_STRATEGY: 'DonchianBreakout',
+        ENABLE_DONCHIAN: 'true',
+        DONCHIAN_ATR_STOP_MULT: '1.2',
+        DONCHIAN_TAKE_PROFIT_PERCENT: '1.8',
+        DONCHIAN_TRAILING_STOP_PERCENT: '0.6',
+        DONCHIAN_TRAILING_ACTIVATION: '0.8',
+        DONCHIAN_MAX_HOLD_MINUTES: '240',
+        ENABLE_MTF_CONFLUENCE_BOOSTER: 'true',
+        MTF_BOOSTER_MIN_SCORE: '0.25',
+        MTF_BOOSTER_MIN_CONFIDENCE: '0.55',
+        MTF_BOOSTER_STRENGTH_MULT: '0.3',
+        MTF_BOOSTER_MAX_MULT: '1.2',
+        MTF_BOOSTER_CONFLICT_MULT: '0.75',
+        MTF_BOOSTER_PENALIZE_CONFLICTS: 'true',
+        MTF_BOOSTER_BOOST_MTF_CANDIDATE: 'false',
+        EMA_MTF_HOURLY_TREND_VETO_MULT: '0.65',
+        EMA_MTF_4H_MACD_BOOST_MULT: '1.15',
+        EMA_MTF_FRESH_50_200_MIN_1H_TREND_STRENGTH: '0.3',
+        MASR_MTF_REQUIRE_HOURLY_TREND_ALIGN: 'true',
+        MASR_MTF_4H_ALIGN_BOOST: '0.08',
+        MASR_MTF_4H_COMPRESSION_BANDWIDTH: '0.01',
+        RSI_MTF_VETO_AGAINST_4H_TREND: 'true',
+        RSI_MTF_1H_RSI_ALIGN_BOOST: '0.1',
+        RSI_MTF_1H_RSI_BUY_MAX: '40',
+        RSI_MTF_1H_RSI_SELL_MIN: '60',
+        MTF_REQUIRE_HIGHER_TF_READY: '1h,4h',
+        OGZTPO_MTF_4H_TREND_BOOST_MULT: '1.12',
+        OGZTPO_MTF_1H_MACD_BOOST_MULT: '1.08',
+        OGZTPO_MTF_4H_VOL_STOP_WIDEN: 'true',
+        OGZTPO_MTF_4H_BANDWIDTH_THRESHOLD: '0.015',
+        OGZTPO_MTF_STOP_WIDEN_FACTOR: '0.25',
+      },
     }));
 
     expect(summary).toMatchObject({
       EXECUTION_MODE: 'backtest',
       TEST_MODE: 'false',
       BACKTEST_NO_PATTERN_SAVE: 'true',
-      DIRECTION_FILTER: 'long_only',
+      DIRECTION_FILTER: 'both',
       EXIT_SYSTEM: 'legacy',
       TUNING_PROFILE: 'current-eval',
       ENABLE_DYNAMIC_SIZING: 'true',
@@ -477,6 +520,35 @@ describe('backtest worker env contract', () => {
       TRADING_PAIR: 'TSLA',
       SOLO_STRATEGY: 'DonchianBreakout',
       ENABLE_DONCHIAN: 'true',
+      DONCHIAN_ATR_STOP_MULT: '1.2',
+      DONCHIAN_TAKE_PROFIT_PERCENT: '1.8',
+      DONCHIAN_TRAILING_STOP_PERCENT: '0.6',
+      DONCHIAN_TRAILING_ACTIVATION: '0.8',
+      DONCHIAN_MAX_HOLD_MINUTES: '240',
+      ENABLE_MTF_CONFLUENCE_BOOSTER: 'true',
+      MTF_BOOSTER_MIN_SCORE: '0.25',
+      MTF_BOOSTER_MIN_CONFIDENCE: '0.55',
+      MTF_BOOSTER_STRENGTH_MULT: '0.3',
+      MTF_BOOSTER_MAX_MULT: '1.2',
+      MTF_BOOSTER_CONFLICT_MULT: '0.75',
+      MTF_BOOSTER_PENALIZE_CONFLICTS: 'true',
+      MTF_BOOSTER_BOOST_MTF_CANDIDATE: 'false',
+      EMA_MTF_HOURLY_TREND_VETO_MULT: '0.65',
+      EMA_MTF_4H_MACD_BOOST_MULT: '1.15',
+      EMA_MTF_FRESH_50_200_MIN_1H_TREND_STRENGTH: '0.3',
+      MASR_MTF_REQUIRE_HOURLY_TREND_ALIGN: 'true',
+      MASR_MTF_4H_ALIGN_BOOST: '0.08',
+      MASR_MTF_4H_COMPRESSION_BANDWIDTH: '0.01',
+      RSI_MTF_VETO_AGAINST_4H_TREND: 'true',
+      RSI_MTF_1H_RSI_ALIGN_BOOST: '0.1',
+      RSI_MTF_1H_RSI_BUY_MAX: '40',
+      RSI_MTF_1H_RSI_SELL_MIN: '60',
+      MTF_REQUIRE_HIGHER_TF_READY: '1h,4h',
+      OGZTPO_MTF_4H_TREND_BOOST_MULT: '1.12',
+      OGZTPO_MTF_1H_MACD_BOOST_MULT: '1.08',
+      OGZTPO_MTF_4H_VOL_STOP_WIDEN: 'true',
+      OGZTPO_MTF_4H_BANDWIDTH_THRESHOLD: '0.015',
+      OGZTPO_MTF_STOP_WIDEN_FACTOR: '0.25',
     });
     expect(summary.PATH).toBeUndefined();
     expect(summary.HOME).toBeUndefined();
@@ -511,7 +583,7 @@ describe('backtest worker env contract', () => {
       }
     );
 
-    expect(env.DIRECTION_FILTER).toBe('long_only');
+    expect(env.DIRECTION_FILTER).toBe('both');
     expect(env.EXIT_SYSTEM).toBe('legacy');
     expect(env.FEE_SLIPPAGE).toBe('0.0005');
     expect(env.SOLO_STRATEGY).toBeUndefined();

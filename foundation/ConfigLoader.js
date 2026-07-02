@@ -432,11 +432,11 @@ function buildConfig() {
       enableMADynamicSR: track('strategies.enableMADynamicSR', envBool('ENABLE_MASR', true)),
       enableEMACrossover: track('strategies.enableEMACrossover', envBool('ENABLE_EMA', true)),
       enableLiquiditySweep: track('strategies.enableLiquiditySweep', envBool('ENABLE_LIQSWEEP', true)),
-      enableBreakRetest: track('strategies.enableBreakRetest', envBool('ENABLE_BREAKRETEST', false)),
-      enableMarketRegime: track('strategies.enableMarketRegime', envBool('ENABLE_REGIME', true)),
+      enableBreakRetest: track('strategies.enableBreakRetest', envBool('ENABLE_BREAKRETEST', requiredConfiguredBool('pipeline.enableBreakRetest'))),
+      enableMarketRegime: track('strategies.enableMarketRegime', envBool('ENABLE_REGIME', requiredConfiguredBool('pipeline.enableMarketRegime'))),
       enableMultiTimeframe: track('strategies.enableMultiTimeframe', envBool('ENABLE_MTF', true)),
       enableOGZTPO: track('strategies.enableOGZTPO', envBool('ENABLE_TPO', true)),
-      enableORB: track('strategies.enableORB', envBool('ENABLE_ORB', false)),
+      enableORB: track('strategies.enableORB', envBool('ENABLE_ORB', requiredConfiguredBool('pipeline.enableOpeningRangeBreakout'))),
       enableDashboard: track('strategies.enableDashboard', envBool('ENABLE_DASHBOARD', true)),
     },
 
@@ -902,10 +902,28 @@ function getSource(path) {
   return _cached.sources ? _cached.sources[path] : undefined;
 }
 
+function hasLoadedSnapshot() {
+  return _cached !== null;
+}
+
+function getCachedSnapshot() {
+  return _cached;
+}
+
 function _resetForTest() {
   _cached = null;
   activeEnv = process.env;
   activeEnvSources = {};
 }
 
-module.exports = { load, get, getSource, fingerprint, snapshot, validate, _resetForTest };
+module.exports = {
+  load,
+  get,
+  getSource,
+  hasLoadedSnapshot,
+  getCachedSnapshot,
+  fingerprint,
+  snapshot,
+  validate,
+  _resetForTest,
+};

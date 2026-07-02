@@ -14,6 +14,7 @@ const {
   assertDormantStrategyEnvCompatible,
   buildWorkerBaseEnv,
   applySoloStrategyToConfigs,
+  filterConfigsByName,
   parseBacktestOutput,
   describeFeePosture,
   tryReadReport,
@@ -65,12 +66,15 @@ describe('parallel-backtest solo strategy env wiring', () => {
     expect(SWEEP_PRESETS.real).toEqual(parallelConfig.sweepPresets.real);
     expect(SWEEP_PRESETS.atr).toEqual(parallelConfig.sweepPresets.atr);
     expect(SWEEP_PRESETS['strategy-sweep']).toEqual(parallelConfig.sweepPresets.strategySweep);
+    expect(SWEEP_PRESETS['exit-geometry']).toEqual(parallelConfig.sweepPresets.exitGeometry);
     expect(Object.isFrozen(DATA_SHORTCUTS)).toBe(true);
     expect(Object.isFrozen(STOCK_DATA_SHORTCUTS)).toBe(true);
     expect(Object.isFrozen(STRATEGIES)).toBe(true);
     expect(Object.isFrozen(SWEEP_PRESETS)).toBe(true);
     expect(Object.isFrozen(SWEEP_PRESETS.real)).toBe(true);
+    expect(Object.isFrozen(SWEEP_PRESETS['exit-geometry'])).toBe(true);
     expect(Object.isFrozen(SWEEP_PRESETS.real[0].env)).toBe(true);
+    expect(Object.isFrozen(SWEEP_PRESETS['exit-geometry'][0].env)).toBe(true);
 
     expect(() => {
       SWEEP_PRESETS.real[0].env.ATR_FILTER_ENABLED = 'true';
@@ -226,6 +230,46 @@ describe('parallel-backtest solo strategy env wiring', () => {
     ]);
   });
 
+  test('config name matcher narrows sweep configs without mutating presets', () => {
+    const narrowed = filterConfigsByName(SWEEP_PRESETS['exit-geometry'], 'propema');
+
+    expect(narrowed.map(config => config.name)).toEqual([
+      'propema-current',
+      'propema-tight-r',
+      'propema-balanced-r',
+    ]);
+    expect(narrowed[0]).toEqual(SWEEP_PRESETS['exit-geometry'].find(config => config.name === 'propema-current'));
+    expect(narrowed[0]).not.toBe(SWEEP_PRESETS['exit-geometry'].find(config => config.name === 'propema-current'));
+  });
+
+  test('config name matcher treats invalid regex text as a literal match', () => {
+    expect(filterConfigsByName([
+      { name: 'literal-(unclosed', env: {} },
+      { name: 'propema-tight-r', env: {} },
+    ], '(unclosed')).toEqual([
+      { name: 'literal-(unclosed', env: {} },
+    ]);
+  });
+
+  test('solo mode preserves explicit strategy-owned exit geometry overrides', () => {
+    expect(applySoloStrategyToConfigs([
+      {
+        name: 'donchian-custom',
+        env: {
+          DONCHIAN_TAKE_PROFIT_PERCENT: '2.8',
+        },
+      },
+    ], 'DonchianBreakout')).toEqual([
+      {
+        name: 'donchian-custom',
+        env: {
+          DONCHIAN_TAKE_PROFIT_PERCENT: '2.8',
+          SOLO_STRATEGY: 'DonchianBreakout',
+        },
+      },
+    ]);
+  });
+
   test('all generated parallel sweep env keys are explicit worker override keys', () => {
     const keys = new Set();
 
@@ -239,55 +283,43 @@ describe('parallel-backtest solo strategy env wiring', () => {
     expect([...keys].sort()).toEqual([...keys].filter(key => CONFIG_ENV_OVERRIDE_ALLOWLIST.has(key)).sort());
   });
 
-  test('stock fee posture reports explicit source fee model', () => {
-    expect(describeFeePosture([{ name: 'baseline', env: {} }], true, {
-      FEE_MODEL: 'per_share_minimum',
-      FEE_PER_SHARE: '0.005',
-      FEE_MIN_ORDER: '0.75',
-    })).toBe('per-share minimum model (perShare=0.005, minOrder=0.75)');
+  test('exit geometry sweep uses strategy-owned keys without generic stop overrides', () => {
+    const keys = new Set();
+
+    for (const config of SWEEP_PRESETS['exit-geometry']) {
+      for (const key of Object.keys(config.env || {})) keys.add(key);
+    }
+
+    expect([...keys].sort()).toEqual(expect.arrayContaining([
+      'DONCHIAN_ATR_STOP_MULT',
+      'TSMOM_STOP_LOSS_PERCENT',
+      'RSI2_MR_STOP_LOSS_PERCENT',
+      'PROPSAFE_EMA_TARGET_RR',
+      'EMA_TREND_RETEST_TARGET_RR',
+    ]));
+    expect(keys.has('STOP_LOSS_PERCENT')).toBe(false);
+    expect(keys.has('TAKE_PROFIT_PERCENT')).toBe(false);
+    expect(keys.has('TRAILING_STOP_PERCENT')).toBe(false);
   });
 
-  test('stock fee posture gives config fee overrides precedence over source env', () => {
-    expect(describeFeePosture([{
-      name: 'baseline',
-      env: {
-        FEE_MODEL: 'per_share_minimum',
-        FEE_PER_SHARE: '0.005',
-        FEE_MIN_ORDER: '0.75',
-      },
-    }], true, {
-      FEE_MODEL: 'percent',
-      FEE_MAKER: '0.99',
-    })).toBe('per-share minimum model (perShare=0.005, minOrder=0.75)');
+  test('stock fee posture reports the owning tuning profile fee model', () => {
+    const profile = TradingConfig.resolveTuningProfile('ttp-5k-max');
+
+    expect(describeFeePosture(profile, true))
+      .toBe('profile ttp-5k-max: per-share minimum model (perShare=0.005, minOrder=0.75, slippage=0.0005)');
   });
 
-  test('stock fee posture reports mixed per-config fee overrides without pretending one model applies', () => {
-    expect(describeFeePosture([
-      { name: 'zero', env: {} },
-      {
-        name: 'ttp',
-        env: {
-          FEE_MODEL: 'per_share_minimum',
-          FEE_PER_SHARE: '0.005',
-          FEE_MIN_ORDER: '0.75',
-        },
-      },
-    ], true, {})).toBe('config-specific fee overrides');
+  test('stock fee posture reports profile-backed stock zero commission and slippage', () => {
+    const profile = TradingConfig.resolveTuningProfile('current-eval');
+
+    expect(describeFeePosture(profile, true))
+      .toBe('profile current-eval: stock zero-commission model, slippage=0.0005');
   });
 
-  test('stock fee posture reports stock default when no explicit fee model reaches workers', () => {
-    expect(describeFeePosture([{ name: 'baseline', env: {} }], true, {
-      FEE_MAKER: '0.99',
-      FEE_TAKER: '0.99',
-    })).toBe('$0 stock default');
-  });
+  test('fee posture is not reported for non-stock backtests', () => {
+    const profile = TradingConfig.resolveTuningProfile('ttp-5k-max');
 
-  test('stock fee posture does not confuse real fee model text with the default marker', () => {
-    expect(describeFeePosture([{ name: 'baseline', env: {} }], true, {
-      FEE_MODEL: 'stock_zero_default',
-      FEE_PER_SHARE: '0.001',
-      FEE_MIN_ORDER: '0.01',
-    })).toBe('stock_zero_default model');
+    expect(describeFeePosture(profile, false)).toBeNull();
   });
 
   test('parallel sweep presets never generate locked-exit env overrides', () => {

@@ -1,12 +1,13 @@
 /**
  * TradingConfig.js - CENTRALIZED TRADING CONFIGURATION
  * =====================================================
- * SINGLE SOURCE OF TRUTH for ALL trading parameters.
+ * Compatibility accessors for trading parameters.
  *
  * RULES:
- * 1. ConfigLoader owns dotenv loading; this file reads already-loaded process.env values for trading params
- * 2. All other files import from TradingConfig, NEVER from process.env directly
- * 3. If you find parseFloat(process.env.TRADING_PARAM) anywhere else, it's a bug
+ * 1. ConfigLoader owns dotenv loading, env normalization, validation, and the resolved runtime snapshot.
+ * 2. Existing callers may import TradingConfig while they are migrated, but overlapping runtime paths
+ *    must resolve from the loaded ConfigLoader snapshot.
+ * 3. If you find a new process.env trading-param read outside ConfigLoader, it's a bug.
  * 4. Use setOverrides() for backtest/dashboard temporary config changes
  *
  * Created: 2026-02-28
@@ -14,6 +15,149 @@
  */
 
 const tradingConfigFile = require('../config/trading.config.json');
+
+const CONFIG_LOADER_MISSING = Symbol('CONFIG_LOADER_MISSING');
+const CONFIG_LOADER_RUNTIME_PATHS = Object.freeze({
+  'confidence.minTradeConfidence': 'confidence.minTradeConfidence',
+  'confidence.maxConfidence': 'confidence.maxConfidence',
+  'confidence.minStrategyConfidence': 'confidence.minStrategyConfidence',
+  'positionSizing.basePositionSize': 'sizing.basePositionSize',
+  'positionSizing.maxPositionSize': 'sizing.maxPositionSize',
+  'positionSizing.maxPositions': 'sizing.maxPositions',
+  'exits.stopLossPercent': 'exits.stopLossPercent',
+  'exits.takeProfitPercent': 'exits.takeProfitPercent',
+  'exits.trailingStopPercent': 'exits.trailingStopPercent',
+  'exits.trailingActivation': 'exits.trailingActivation',
+  'exits.maxHoldMinutes': 'exits.maxHoldMinutes',
+  'exits.exitSystem': 'exits.exitSystem',
+  'exits.profitTiers.tier1': 'tiers.tier1',
+  'exits.profitTiers.tier2': 'tiers.tier2',
+  'exits.profitTiers.tier3': 'tiers.tier3',
+  'exits.profitTiers.final': 'tiers.final',
+  'fees.model': 'fees.model',
+  'fees.makerFee': 'fees.makerFee',
+  'fees.takerFee': 'fees.takerFee',
+  'fees.totalRoundTrip': 'fees.totalRoundTrip',
+  'fees.perShare': 'fees.perShare',
+  'fees.minOrderFee': 'fees.minOrderFee',
+  'risk.riskManagerBypass': 'risk.riskManagerBypass',
+  'risk.accountDrawdownBypass': 'risk.accountDrawdownBypass',
+  'risk.maxDrawdown': 'risk.maxDrawdown',
+  'risk.maxDailyLoss': 'risk.maxDailyLoss',
+  'risk.maxWeeklyLoss': 'risk.maxWeeklyLoss',
+  'risk.maxMonthlyLoss': 'risk.maxMonthlyLoss',
+  'filters.atrEnabled': 'filters.atrEnabled',
+  'filters.atrMinPercent': 'filters.atrMinPercent',
+  'evalRules.enabled': 'evalRules.enabled',
+  'evalRules.ttp.enabled': 'evalRules.ttp.enabled',
+  'evalRules.ttp.volumeCap.enabled': 'evalRules.ttp.volumeCap.enabled',
+  'evalRules.ttp.volumeCap.percent': 'evalRules.ttp.volumeCap.percent',
+  'evalRules.ttp.volumeCap.timeframe': 'evalRules.ttp.volumeCap.timeframe',
+  'evalRules.ttp.volumeCap.fallbackToMostRecentVolume': 'evalRules.ttp.volumeCap.fallbackToMostRecentVolume',
+  'evalRules.ttp.volumeCap.maxReferenceAgeMs': 'evalRules.ttp.volumeCap.maxReferenceAgeMs',
+  'evalRules.ttp.marketTime.enabled': 'evalRules.ttp.marketTime.enabled',
+  'evalRules.ttp.marketTime.blockEntriesAfterCutoff': 'evalRules.ttp.marketTime.blockEntriesAfterCutoff',
+  'evalRules.ttp.marketTime.liquidationEnabled': 'evalRules.ttp.marketTime.liquidationEnabled',
+  'evalRules.ttp.marketTime.cutoffMinutesBeforeClose': 'evalRules.ttp.marketTime.cutoffMinutesBeforeClose',
+  'evalRules.ttp.accountLimits.enabled': 'evalRules.ttp.accountLimits.enabled',
+  'evalRules.ttp.accountLimits.enforceDailyLossPause': 'evalRules.ttp.accountLimits.enforceDailyLossPause',
+  'evalRules.ttp.accountLimits.enforceMaxLoss': 'evalRules.ttp.accountLimits.enforceMaxLoss',
+  'evalRules.ttp.accountLimits.accountStartOfDayDate': 'evalRules.ttp.accountLimits.accountStartOfDayDate',
+  'evalRules.ttp.accountLimits.accountStartOfDayEquity': 'evalRules.ttp.accountLimits.accountStartOfDayEquity',
+  'evalRules.ttp.accountLimits.dailyLossDollars': 'evalRules.ttp.accountLimits.dailyLossDollars',
+  'evalRules.ttp.accountLimits.maxLossThresholdEquity': 'evalRules.ttp.accountLimits.maxLossThresholdEquity',
+  'evalRules.ttp.earningsRestriction.enabled': 'evalRules.ttp.earningsRestriction.enabled',
+  'evalRules.ttp.earningsRestriction.blockEntries': 'evalRules.ttp.earningsRestriction.blockEntries',
+  'evalRules.ttp.earningsRestriction.manualStatus': 'evalRules.ttp.earningsRestriction.manualStatus',
+  'evalRules.ttp.consistency.enabled': 'evalRules.ttp.consistency.enabled',
+  'evalRules.ttp.consistency.profitTargetDollars': 'evalRules.ttp.consistency.profitTargetDollars',
+  'evalRules.ttp.consistency.maxPositionProfitRatio': 'evalRules.ttp.consistency.maxPositionProfitRatio',
+  'evalRules.ttp.consistency.maxProfitTargetInitialBalanceRatio': 'evalRules.ttp.consistency.maxProfitTargetInitialBalanceRatio',
+  'trail.atrMultiplier': 'trail.atrMultiplier',
+  'trail.minActivation': 'trail.minActivation',
+  'trail.trendWiden': 'trail.trendWiden',
+  'trail.structureTighten': 'trail.structureTighten',
+  'pipeline.enableRSI': 'strategies.enableRSI',
+  'pipeline.enableMASR': 'strategies.enableMADynamicSR',
+  'pipeline.enableEMA': 'strategies.enableEMACrossover',
+  'pipeline.enableLiquiditySweep': 'strategies.enableLiquiditySweep',
+  'pipeline.enableBreakRetest': 'strategies.enableBreakRetest',
+  'pipeline.enableMarketRegime': 'strategies.enableMarketRegime',
+  'pipeline.enableMTF': 'strategies.enableMultiTimeframe',
+  'pipeline.enableTPO': 'strategies.enableOGZTPO',
+  'pipeline.enableOpeningRangeBreakout': 'strategies.enableORB',
+  'pipeline.enableDashboard': 'strategies.enableDashboard',
+  'startingBalance': 'backtest.initialBalance',
+});
+
+function readObjectPath(root, path) {
+  const parts = path.split('.');
+  let value = root;
+  for (const part of parts) {
+    if (value === undefined || value === null) return undefined;
+    value = value[part];
+  }
+  return value;
+}
+
+function readConfigLoaderRuntimeValue(path) {
+  const loaderPath = CONFIG_LOADER_RUNTIME_PATHS[path];
+  if (!loaderPath) return CONFIG_LOADER_MISSING;
+
+  const ConfigLoader = require('../foundation/ConfigLoader');
+  if (typeof ConfigLoader.hasLoadedSnapshot !== 'function' || !ConfigLoader.hasLoadedSnapshot()) {
+    return CONFIG_LOADER_MISSING;
+  }
+
+  const loaded = ConfigLoader.getCachedSnapshot();
+  if (!loaded || !loaded.config) return CONFIG_LOADER_MISSING;
+
+  const value = readObjectPath(loaded.config, loaderPath);
+  return value === undefined ? CONFIG_LOADER_MISSING : value;
+}
+
+function hasConfigLoaderSnapshot() {
+  const ConfigLoader = require('../foundation/ConfigLoader');
+  return typeof ConfigLoader.hasLoadedSnapshot === 'function' && ConfigLoader.hasLoadedSnapshot();
+}
+
+function assertConfigLoaderOwnedPathsNotOverridden(flatOverrides, source) {
+  if (!hasConfigLoaderSnapshot()) return;
+  const ownedPaths = Object.keys(flatOverrides)
+    .filter(path => Object.prototype.hasOwnProperty.call(CONFIG_LOADER_RUNTIME_PATHS, path));
+
+  if (ownedPaths.length === 0) return;
+
+  throw new Error(
+    `[TradingConfig] ${source} attempted to override ConfigLoader-owned path(s) after config load: ` +
+    `${ownedPaths.sort().join(', ')}`
+  );
+}
+
+function setObjectPath(root, path, value) {
+  const parts = path.split('.');
+  let current = root;
+  for (let index = 0; index < parts.length - 1; index += 1) {
+    const part = parts[index];
+    const existing = current[part];
+    if (!existing || typeof existing !== 'object' || Array.isArray(existing)) {
+      current[part] = {};
+    } else if (Object.isFrozen(existing) || Object.getPrototypeOf(existing) !== Object.prototype) {
+      current[part] = { ...existing };
+    }
+    current = current[part];
+  }
+  current[parts[parts.length - 1]] = value;
+}
+
+function applyConfigLoaderSectionValues(section, result) {
+  for (const tradingPath of Object.keys(CONFIG_LOADER_RUNTIME_PATHS)) {
+    if (!tradingPath.startsWith(`${section}.`)) continue;
+    const value = readConfigLoaderRuntimeValue(tradingPath);
+    if (value === CONFIG_LOADER_MISSING) continue;
+    setObjectPath(result, tradingPath.slice(section.length + 1), value);
+  }
+}
 
 // Helper to parse env vars with fallback
 const env = (key, fallback) => {
@@ -1473,6 +1617,29 @@ const BASE_CONFIG = {
         { name: 'RSI2MR-only', env: { SOLO_STRATEGY: 'RSI2MeanReversion' } },
         { name: 'TSMOM-only', env: { SOLO_STRATEGY: 'TimeSeriesMomentum' } },
       ],
+      exitGeometry: [
+        { name: 'donchian-current', env: { SOLO_STRATEGY: 'DonchianBreakout', ENABLE_DONCHIAN: 'true' } },
+        { name: 'donchian-fee-tight', env: { SOLO_STRATEGY: 'DonchianBreakout', ENABLE_DONCHIAN: 'true', DONCHIAN_ATR_STOP_MULT: '1.2', DONCHIAN_TAKE_PROFIT_PERCENT: '1.8', DONCHIAN_TRAILING_STOP_PERCENT: '0.6', DONCHIAN_TRAILING_ACTIVATION: '0.8', DONCHIAN_MAX_HOLD_MINUTES: '240' } },
+        { name: 'donchian-balanced', env: { SOLO_STRATEGY: 'DonchianBreakout', ENABLE_DONCHIAN: 'true', DONCHIAN_ATR_STOP_MULT: '1.6', DONCHIAN_TAKE_PROFIT_PERCENT: '2.8', DONCHIAN_TRAILING_STOP_PERCENT: '0.8', DONCHIAN_TRAILING_ACTIVATION: '1.0', DONCHIAN_MAX_HOLD_MINUTES: '480' } },
+        { name: 'donchian-runner', env: { SOLO_STRATEGY: 'DonchianBreakout', ENABLE_DONCHIAN: 'true', DONCHIAN_ATR_STOP_MULT: '2.0', DONCHIAN_TAKE_PROFIT_PERCENT: '4.0', DONCHIAN_TRAILING_STOP_PERCENT: '1.0', DONCHIAN_TRAILING_ACTIVATION: '1.2', DONCHIAN_MAX_HOLD_MINUTES: '720' } },
+
+        { name: 'tsmom-current', env: { SOLO_STRATEGY: 'TimeSeriesMomentum', ENABLE_TSMOM: 'true' } },
+        { name: 'tsmom-fee-tight', env: { SOLO_STRATEGY: 'TimeSeriesMomentum', ENABLE_TSMOM: 'true', TSMOM_MIN_RETURN: '0.004', TSMOM_STOP_LOSS_PERCENT: '-0.8', TSMOM_TAKE_PROFIT_PERCENT: '1.6', TSMOM_TRAILING_STOP_PERCENT: '0.6', TSMOM_TRAILING_ACTIVATION: '0.8', TSMOM_MAX_HOLD_MINUTES: '120' } },
+        { name: 'tsmom-balanced', env: { SOLO_STRATEGY: 'TimeSeriesMomentum', ENABLE_TSMOM: 'true', TSMOM_MIN_RETURN: '0.006', TSMOM_STOP_LOSS_PERCENT: '-1.0', TSMOM_TAKE_PROFIT_PERCENT: '2.4', TSMOM_TRAILING_STOP_PERCENT: '0.8', TSMOM_TRAILING_ACTIVATION: '1.0', TSMOM_MAX_HOLD_MINUTES: '180' } },
+        { name: 'tsmom-selective', env: { SOLO_STRATEGY: 'TimeSeriesMomentum', ENABLE_TSMOM: 'true', TSMOM_MIN_RETURN: '0.010', TSMOM_STOP_LOSS_PERCENT: '-1.2', TSMOM_TAKE_PROFIT_PERCENT: '3.0', TSMOM_TRAILING_STOP_PERCENT: '1.0', TSMOM_TRAILING_ACTIVATION: '1.2', TSMOM_MAX_HOLD_MINUTES: '240' } },
+
+        { name: 'rsi2mr-current', env: { SOLO_STRATEGY: 'RSI2MeanReversion', ENABLE_RSI2_MR: 'true' } },
+        { name: 'rsi2mr-scalp', env: { SOLO_STRATEGY: 'RSI2MeanReversion', ENABLE_RSI2_MR: 'true', RSI2_MR_STOP_LOSS_PERCENT: '-0.6', RSI2_MR_TAKE_PROFIT_PERCENT: '1.0', RSI2_MR_TRAILING_STOP_PERCENT: '0.4', RSI2_MR_TRAILING_ACTIVATION: '0.6', RSI2_MR_MAX_HOLD_MINUTES: '120' } },
+        { name: 'rsi2mr-balanced', env: { SOLO_STRATEGY: 'RSI2MeanReversion', ENABLE_RSI2_MR: 'true', RSI2_MR_STOP_LOSS_PERCENT: '-0.8', RSI2_MR_TAKE_PROFIT_PERCENT: '1.4', RSI2_MR_TRAILING_STOP_PERCENT: '0.5', RSI2_MR_TRAILING_ACTIVATION: '0.7', RSI2_MR_MAX_HOLD_MINUTES: '180' } },
+
+        { name: 'propema-current', env: { SOLO_STRATEGY: 'PropSafeEMAPullback', ENABLE_PROPSAFE_EMA: 'true' } },
+        { name: 'propema-tight-r', env: { SOLO_STRATEGY: 'PropSafeEMAPullback', ENABLE_PROPSAFE_EMA: 'true', PROPSAFE_EMA_ATR_STOP_MULT: '0.8', PROPSAFE_EMA_TARGET_RR: '2.0', PROPSAFE_EMA_TRAIL_ACTIVATION_R: '1.0', PROPSAFE_EMA_TRAIL_DISTANCE_R: '0.7', PROPSAFE_EMA_MAX_HOLD_MINUTES: '120' } },
+        { name: 'propema-balanced-r', env: { SOLO_STRATEGY: 'PropSafeEMAPullback', ENABLE_PROPSAFE_EMA: 'true', PROPSAFE_EMA_ATR_STOP_MULT: '1.0', PROPSAFE_EMA_TARGET_RR: '2.6', PROPSAFE_EMA_TRAIL_ACTIVATION_R: '1.2', PROPSAFE_EMA_TRAIL_DISTANCE_R: '0.8', PROPSAFE_EMA_MAX_HOLD_MINUTES: '180' } },
+
+        { name: 'emaretest-current', env: { SOLO_STRATEGY: 'EMATrendRetest', ENABLE_EMA_TREND_RETEST: 'true' } },
+        { name: 'emaretest-tight-r', env: { SOLO_STRATEGY: 'EMATrendRetest', ENABLE_EMA_TREND_RETEST: 'true', EMA_TREND_RETEST_ATR_STOP_MULT: '0.8', EMA_TREND_RETEST_TARGET_RR: '2.0', EMA_TREND_RETEST_TRAIL_ACTIVATION_R: '1.0', EMA_TREND_RETEST_TRAIL_DISTANCE_R: '0.7', EMA_TREND_RETEST_MAX_HOLD_MINUTES: '120' } },
+        { name: 'emaretest-balanced-r', env: { SOLO_STRATEGY: 'EMATrendRetest', ENABLE_EMA_TREND_RETEST: 'true', EMA_TREND_RETEST_ATR_STOP_MULT: '1.0', EMA_TREND_RETEST_TARGET_RR: '2.6', EMA_TREND_RETEST_TRAIL_ACTIVATION_R: '1.2', EMA_TREND_RETEST_TRAIL_DISTANCE_R: '0.8', EMA_TREND_RETEST_MAX_HOLD_MINUTES: '180' } },
+      ],
     },
     rsiSweep: {
       oversoldLevels: [15, 20, 25, 30, 35],
@@ -1771,6 +1938,18 @@ class TradingConfig {
       return activeOverrides[path];
     }
 
+    const configLoaderValue = readConfigLoaderRuntimeValue(path);
+    if (configLoaderValue !== CONFIG_LOADER_MISSING) {
+      return configLoaderValue;
+    }
+
+    if (!path.includes('.')) {
+      const section = BASE_CONFIG[path];
+      if (section && typeof section === 'object' && !Array.isArray(section)) {
+        return this.getSection(path);
+      }
+    }
+
     // Navigate nested path
     const parts = path.split('.');
     let value = BASE_CONFIG;
@@ -1790,14 +1969,17 @@ class TradingConfig {
    */
   static getSection(section) {
     const base = BASE_CONFIG[section];
-    if (!base) return undefined;
+    const hasConfigLoaderOwnedPaths = Object.keys(CONFIG_LOADER_RUNTIME_PATHS)
+      .some(path => path.startsWith(`${section}.`));
+    if (!base && !hasConfigLoaderOwnedPaths) return undefined;
 
     // Merge any overrides for this section
-    const result = { ...base };
+    const result = base && typeof base === 'object' && !Array.isArray(base) ? { ...base } : {};
+    applyConfigLoaderSectionValues(section, result);
     for (const [key, val] of Object.entries(activeOverrides)) {
       if (key.startsWith(`${section}.`)) {
         const subKey = key.slice(section.length + 1);
-        result[subKey] = val;
+        setObjectPath(result, subKey, val);
       }
     }
 
@@ -1816,7 +1998,38 @@ class TradingConfig {
    * Get timeframe-specific config
    */
   static getTimeframeConfig(timeframe) {
-    return BASE_CONFIG.timeframeConfig[timeframe] || BASE_CONFIG.timeframeConfig['15m'];
+    const normalizedTimeframe = typeof timeframe === 'string' ? timeframe.trim() : '';
+    if (!normalizedTimeframe) {
+      throw new Error(`[TradingConfig] timeframeConfig lookup requires a non-empty timeframe (got ${timeframe})`);
+    }
+
+    const baseFrame = BASE_CONFIG.timeframeConfig[normalizedTimeframe];
+    const config = baseFrame && typeof baseFrame === 'object' && !Array.isArray(baseFrame)
+      ? { ...baseFrame }
+      : {};
+    const overridePrefix = `timeframeConfig.${normalizedTimeframe}.`;
+    let hasOverride = false;
+    for (const [path, value] of Object.entries(activeOverrides)) {
+      if (!path.startsWith(overridePrefix)) continue;
+      const field = path.slice(overridePrefix.length);
+      if (!field) continue;
+      config[field] = value;
+      hasOverride = true;
+    }
+
+    if (!baseFrame && !hasOverride) {
+      throw new Error(`[TradingConfig] Unknown timeframeConfig '${normalizedTimeframe}'; refusing 15m fallback`);
+    }
+
+    for (const field of ['trailPct', 'maxHoldMin', 'slPct', 'tpPct']) {
+      const numeric = Number(config[field]);
+      if (!Number.isFinite(numeric)) {
+        throw new Error(`[TradingConfig] timeframeConfig.${normalizedTimeframe}.${field} must be finite (got ${config[field]})`);
+      }
+      config[field] = numeric;
+    }
+
+    return config;
   }
 
   /**
@@ -1958,6 +2171,7 @@ class TradingConfig {
     const overrides = this.buildTuningProfileOverrides(profile.name);
     const paths = Object.keys(overrides);
     assertLiveConfidenceOverrideAllowed(overrides, `tuning profile '${profile.name}'`);
+    assertConfigLoaderOwnedPathsNotOverridden(overrides, `tuning profile '${profile.name}'`);
     const previousProfilePaths = replaceActiveProfile
       ? Array.from(activeTuningProfileOverridePaths)
       : [];
@@ -2078,8 +2292,7 @@ class TradingConfig {
    */
   static setOverrides(overrides) {
     if (configFrozen) {
-      console.warn('[TradingConfig] Config is frozen, ignoring setOverrides()');
-      return;
+      throw new Error('[TradingConfig] Config is frozen; refusing setOverrides()');
     }
 
     // Flatten nested objects to dot notation
@@ -2098,6 +2311,7 @@ class TradingConfig {
 
     const flatOverrides = flatten(overrides);
     assertLiveConfidenceOverrideAllowed(flatOverrides, 'setOverrides');
+    assertConfigLoaderOwnedPathsNotOverridden(flatOverrides, 'setOverrides');
     activeOverrides = { ...activeOverrides, ...flatOverrides };
     for (const path of Object.keys(flatOverrides)) {
       activeTuningProfileOverridePaths.delete(path);

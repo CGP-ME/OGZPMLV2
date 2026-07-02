@@ -32,7 +32,6 @@ const { resolveInstrumentFromDataFile } = require('./instrument-env');
 const {
   buildWorkerBaseEnv,
   buildBacktestWorkerEnv,
-  resolveFeeEnv,
   summarizeWorkerEnv,
 } = require('./backtest-worker-env');
 const {
@@ -230,6 +229,18 @@ function applySoloStrategyToConfigs(configs, soloStrategy) {
   });
 }
 
+function filterConfigsByName(configs, pattern) {
+  if (!pattern) return cloneSweepConfigs(configs);
+  let matcher;
+  try {
+    matcher = new RegExp(pattern, 'i');
+  } catch (error) {
+    const escaped = String(pattern).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    matcher = new RegExp(escaped, 'i');
+  }
+  return cloneSweepConfigs(configs).filter(config => matcher.test(config.name));
+}
+
 function generateGauntlet(paramType, values) {
   const configs = [];
   for (const strat of STRATEGIES) {
@@ -266,7 +277,9 @@ function generateGauntlet(paramType, values) {
 // ═══════════════════════════════════════════════════════════════
 // HONORED: ATR_FILTER_ENABLED, ATR_MIN_PERCENT, RISK_MANAGER_BYPASS,
 //          ACCOUNT_DRAWDOWN_BYPASS, MAX_POSITION_SIZE_PCT, TIER1/2/3_TARGET
-// REJECTED: STOP_LOSS_PERCENT, TAKE_PROFIT_PERCENT, TRAILING_STOP_PERCENT
+// HONORED STRATEGY-OWNED EXIT GEOMETRY: DONCHIAN_*, TSMOM_*, RSI2_MR_*,
+//          PROPSAFE_EMA_*, EMA_TREND_RETEST_* keys exposed by --exit-geometry
+// REJECTED: generic STOP_LOSS_PERCENT, TAKE_PROFIT_PERCENT, TRAILING_STOP_PERCENT
 //           (locked exitContracts own strategy risk; worker env rejects fake tuning)
 // GHOST:   TRAILING_STOP_ENABLED, REGIME_FILTER_ENABLED, REGIME_ALLOW_*
 //          (never read by trading code)
@@ -318,6 +331,9 @@ const SWEEP_PRESETS = Object.freeze({
   // STRATEGY ISOLATION — Test each strategy individually
   // ═══════════════════════════════════════════════════════════════
   'strategy-sweep': freezeSweepConfigs(SWEEP_PRESET_DEFINITIONS.strategySweep),
+
+  // Strategy-owned stop/target/trail geometry.
+  'exit-geometry': freezeSweepConfigs(SWEEP_PRESET_DEFINITIONS.exitGeometry),
 
   // RSI thresholds sweep - oversold x overbought grid
   rsi: freezeSweepConfigs(generateRSISweep()),
@@ -597,34 +613,18 @@ function parseBacktestOutput(output, name) {
   return result;
 }
 
-function describeFeePosture(configs, stockMode, sourceEnv = process.env) {
+function describeFeePosture(profile, stockMode) {
   if (!stockMode) return null;
 
-  const sweepConfigs = configs && configs.length > 0 ? configs : [{ env: {} }];
-  const resolvedFeeEnvs = sweepConfigs
-    .map(config => resolveFeeEnv(sourceEnv, (config && config.env) || {}))
-    .map(env => (Object.keys(env).length > 0 ? env : { __stockZeroDefault: true }));
-
-  const uniqueFeePostures = new Set(resolvedFeeEnvs.map(env => JSON.stringify(env)));
-  if (uniqueFeePostures.size > 1) {
-    return 'config-specific fee overrides';
-  }
-
-  const feeEnv = resolvedFeeEnvs[0];
-  if (feeEnv.__stockZeroDefault === true) {
-    return '$0 stock default';
-  }
-
+  const feeEnv = (profile && profile.env) || {};
+  const slippageText = feeEnv.FEE_SLIPPAGE ? `, slippage=${feeEnv.FEE_SLIPPAGE}` : '';
   if (feeEnv.FEE_MODEL === 'per_share_minimum') {
-    return `per-share minimum model (perShare=${feeEnv.FEE_PER_SHARE || 'unset'}, minOrder=${feeEnv.FEE_MIN_ORDER || 'unset'})`;
+    return `profile ${profile.name}: per-share minimum model (perShare=${feeEnv.FEE_PER_SHARE || 'unset'}, minOrder=${feeEnv.FEE_MIN_ORDER || 'unset'}${slippageText})`;
   }
   if (feeEnv.FEE_MODEL) {
-    return `${feeEnv.FEE_MODEL} model`;
+    return `profile ${profile.name}: ${feeEnv.FEE_MODEL} model${slippageText}`;
   }
-  if (Object.keys(feeEnv).length > 0) {
-    return 'config-specific fee overrides';
-  }
-  return '$0 stock default';
+  return `profile ${profile.name}: stock zero-commission model${slippageText}`;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -633,7 +633,7 @@ function describeFeePosture(configs, stockMode, sourceEnv = process.env) {
 
 async function runParallelSweep(configs, dataFile, stockMode = false, profileName = DEFAULT_TUNING_PROFILE) {
   const tuningProfile = resolveTuningProfile(profileName);
-  const feePosture = describeFeePosture(configs, stockMode);
+  const feePosture = describeFeePosture(tuningProfile, stockMode);
 
   console.log(`\n${'═'.repeat(70)}`);
   console.log(`  OGZPrime PARALLEL BACKTESTER v2${stockMode ? ' [STOCK MODE]' : ''}`);
@@ -746,6 +746,7 @@ async function main() {
   let stockMode = false;
   let cliSoloStrategy = null;
   let profileName = DEFAULT_TUNING_PROFILE;
+  let configNameMatch = null;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--sweep' && args[i+1]) sweepName = args[++i];
@@ -765,6 +766,15 @@ async function main() {
     else if (args[i].startsWith('--profile=')) {
       profileName = args[i].split('=')[1];
     }
+    else if ((args[i] === '--match' || args[i] === '--config-match') && args[i+1]) {
+      configNameMatch = args[++i];
+    }
+    else if (args[i].startsWith('--match=')) {
+      configNameMatch = args[i].split('=')[1];
+    }
+    else if (args[i].startsWith('--config-match=')) {
+      configNameMatch = args[i].split('=')[1];
+    }
     else if (args[i] === '--real') sweepName = 'real';
     else if (args[i] === '--quick') sweepName = 'quick';  // alias to real
     else if (args[i] === '--full') sweepName = 'full';
@@ -774,6 +784,7 @@ async function main() {
     else if (args[i] === '--risk') sweepName = 'risk';
     else if (args[i] === '--rsi') sweepName = 'rsi';
     else if (args[i] === '--strategy-sweep') sweepName = 'strategy-sweep';
+    else if (args[i] === '--exit-geometry') sweepName = 'exit-geometry';
     else if (args[i] === '--gauntlet-atr') sweepName = 'gauntlet-atr';
     else if (args[i] === '--strategy' && args[i+1]) {
       // Single strategy isolation mode - adds SOLO_STRATEGY to all configs
@@ -809,10 +820,12 @@ Focused Optimization (one variable at a time):
   --tiers        Profit tier sweep (5 configs)
   --risk         Risk manager + drawdown bypass (4 configs)
   --rsi          RSI oversold/overbought grid (15 configs)
+  --exit-geometry Strategy-owned stop/target/trail sweep (${SWEEP_PRESETS['exit-geometry'].length} configs)
 
 Strategy Isolation:
   --strategy-sweep  Test each strategy individually (11 configs)
   --solo=NAME       Run sweep with ONLY this strategy enabled
+  --match=TEXT      Run only config names matching TEXT/regex
 
 Gauntlet:
   --gauntlet-atr    11 strategies x 8 ATR levels (88 configs)
@@ -825,8 +838,8 @@ Options:
   --stocks       Zero commission mode (for stocks)
   --help         Show this help
 
-NOTE: STOP_LOSS_PERCENT, TAKE_PROFIT_PERCENT, TRAILING_STOP_* are not sweep knobs.
-      Locked exitContracts own strategy risk, and worker env rejects fake tuning.
+NOTE: Generic STOP_LOSS_PERCENT, TAKE_PROFIT_PERCENT, TRAILING_STOP_* are not sweep knobs.
+      Use --exit-geometry for strategy-owned keys that live strategies read.
 
 Examples:
   node tools/parallel-backtest.js --real --stocks --data=tsla --profile=current-eval
@@ -857,6 +870,12 @@ Notes:
   }
 
   configs = applySoloStrategyToConfigs(configs, cliSoloStrategy);
+  configs = filterConfigsByName(configs, configNameMatch);
+
+  if (configs.length === 0) {
+    console.error(`No configs matched${configNameMatch ? `: ${configNameMatch}` : ''}`);
+    process.exit(1);
+  }
 
   await runParallelSweep(configs, dataFile, stockMode, profileName);
 }
@@ -879,6 +898,7 @@ module.exports = {
   assertDormantStrategyEnvCompatible,
   buildWorkerBaseEnv,
   applySoloStrategyToConfigs,
+  filterConfigsByName,
   parseBacktestOutput,
   describeFeePosture,
   tryReadReport,
