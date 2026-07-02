@@ -14,6 +14,9 @@ describe('SessionRouter stock symbol config ownership', () => {
       EXECUTION_MODE: 'backtest',
       BACKTEST_MODE: 'true',
       CANDLE_SOURCE: 'file',
+      // Backtest mode refuses the implicit $10000 reset by StateManager
+      // guard; the fixture supplies its balance explicitly.
+      INITIAL_BALANCE: '10000',
     });
   });
 

@@ -45,6 +45,9 @@ describe('config-audit env boundary', () => {
       delete process.env.TIER1_TARGET;
       delete process.env.MAX_WEEKLY_LOSS;
       delete process.env.MAX_MONTHLY_LOSS;
+      // Canonical test baseline pins ALPACA_MODE; this test needs it absent
+      // from env so the audit fixture is proven to supply it.
+      delete process.env.ALPACA_MODE;
 
       const audit = require('../tools/config-audit');
       const context = audit.createAuditContext();
@@ -186,6 +189,11 @@ describe('config-audit env boundary', () => {
     const context = audit.createAuditContext({
       sourceEnv: {
         BACKTEST_MODE: 'true',
+        // Backtest-mode audit context must not inherit live posture from the
+        // repo .env via dotenv; the fixture declares its mode explicitly
+        // (EXECUTION_MODE=live in the repo .env alone resurrects live mode).
+        LIVE_TRADING: 'false',
+        EXECUTION_MODE: 'backtest',
         ALPACA_MODE: 'live',
         MAX_WEEKLY_LOSS: '6',
         MAX_MONTHLY_LOSS: '12',

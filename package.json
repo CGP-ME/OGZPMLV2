@@ -84,6 +84,9 @@
     "testPathIgnorePatterns": [
       "/node_modules/",
       "/ogz-meta/cognition-history/"
+    ],
+    "setupFiles": [
+      "<rootDir>/test/helpers/canonical-test-env.js"
     ]
   }
 }
