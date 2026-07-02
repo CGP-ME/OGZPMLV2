@@ -73,6 +73,26 @@ echo $INCEPTION_API_KEY
 ```
 If empty, add to `.env`: `INCEPTION_API_KEY=sk_xxx`
 
+### 3b. Local Fable consensus through Claude Code
+Fable is the default consensus collaborator for agentic Mercury asks in the
+current config. `mercury.config.json` sets `consensus.defaultEnabled=true` and
+`consensus.provider=claude-code`, so `ask.js --agentic` asks Mercury first and
+then asks local Claude Code Fable to review Mercury's answer and evidence. Use
+`ask.js --no-consensus` only when intentionally suppressing the second pass.
+
+```bash
+claude --version
+claude -p --model fable --permission-mode dontAsk --output-format json "Reply with exactly: FABLE_OK"
+```
+
+Do not add `ANTHROPIC_API_KEY` for the default consensus path. The local
+Claude Code provider uses the logged-in Claude Code subscription and strips
+`ANTHROPIC_API_KEY`, `CLAUDE_API_KEY`, and `LLM_API_KEY` from the child process
+so a stale API key cannot override the subscription-backed CLI auth.
+
+The direct Anthropic API provider still exists for explicit experiments:
+configure `consensus.provider=claude` and a dedicated `consensus.apiKeyEnv`.
+
 ### 4. npm dependency (one-time)
 ```bash
 npm install mongodb
@@ -147,6 +167,30 @@ Expected output:
 ```bash
 node trai_brain/mercury-bridge/ask.js "How does MaxProfitManager handle BE scale-out?"
 ```
+
+### Ask Mercury with default Fable consensus
+```bash
+node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens=7750 "Mercury, break my fix."
+```
+
+The consensus pass receives Mercury's prompt, answer, run telemetry, and cited
+evidence summary. It does not get repo tools in this pass, so it must mark gaps
+as `needs_more_evidence` instead of inventing new current-code claims.
+
+To suppress consensus for a specific agentic run:
+
+```bash
+node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens=7750 --no-consensus "Mercury, break my fix."
+```
+
+### Check provider access before a full run
+```bash
+node trai_brain/mercury-bridge/ask.js --check-providers
+```
+
+This performs minimal warm-up calls for Mercury and Fable, returns structured
+provider/model status, and exits non-zero if either provider is blocked by
+auth, billing/quota, model availability, or network errors.
 
 Investigation trace memory is also manual-write. Normal asks may retrieve prior
 trace hints, but a successful answer is not saved as a new trace unless

@@ -62,6 +62,34 @@ describe('Mercury run ledger', () => {
       },
     })).toBe('blocked');
 
+    expect(classifyMercuryVerdict({
+      result: {
+        termination: 'answer_given',
+        answer: 'No concrete break found. core/Foo.js:1-2',
+        consensus: {
+          enabled: true,
+          ok: false,
+          provider: 'claude-code',
+          model: 'claude-fable-5',
+          error: { message: 'spawn claude ENOENT' },
+        },
+      },
+    })).toBe('consensus_failed');
+
+    expect(classifyMercuryVerdict({
+      result: {
+        termination: 'answer_given',
+        answer: 'No concrete break found. core/Foo.js:1-2',
+        consensus: {
+          enabled: false,
+          ok: false,
+          provider: 'claude-code',
+          model: 'claude-fable-5',
+          error: { message: 'manual suppression produced failure metadata' },
+        },
+      },
+    })).toBe('consensus_failed');
+
     expect(classifyMercuryVerdict({ error: new Error('MongoDB failed') })).toBe('tool_failure');
   });
 
@@ -87,6 +115,14 @@ describe('Mercury run ledger', () => {
         iterations: 2,
         totalLatencyMs: 1234,
         answer: 'No concrete break found. trai_brain/mercury-bridge/ask.js:1-2',
+        consensus: {
+          enabled: true,
+          ok: true,
+          provider: 'claude',
+          model: 'claude-fable-5',
+          latencyMs: 250,
+          answer: 'VERDICT: agree\nCONSENSUS_BLOCKING: no',
+        },
         answerQuality: { flags: [] },
         toolTelemetry: {
           byTool: {
@@ -124,6 +160,14 @@ describe('Mercury run ledger', () => {
     expect(entry.source_refs.auto_blast_radius_files).toEqual([
       { file: 'trai_brain/mercury-bridge/ask.js', callerCount: 0, riskLevel: 'isolated' },
     ]);
+    expect(entry.consensus).toMatchObject({
+      enabled: true,
+      ok: true,
+      provider: 'claude',
+      model: 'claude-fable-5',
+      latency_ms: 250,
+      answer_excerpt: 'VERDICT: agree\nCONSENSUS_BLOCKING: no',
+    });
   });
 
   test('writes JSONL rows with stable repo-scoped citations', () => {
@@ -145,5 +189,48 @@ describe('Mercury run ledger', () => {
     expect(rows).toHaveLength(2);
     expect(rows[0].verdict).toBe('no_break_found');
     expect(rows[1].verdict).toBe('blocked');
+  });
+
+  test('persists failed Fable consensus as explicit metadata instead of a successful pass', () => {
+    const entry = buildRunLedgerEntry({
+      repoRoot: tmpRoot,
+      query: 'Mercury, break my fix.',
+      startedAt: new Date('2026-07-02T00:00:00.000Z'),
+      finishedAt: new Date('2026-07-02T00:00:01.000Z'),
+      result: {
+        termination: 'answer_given',
+        iterations: 3,
+        totalLatencyMs: 1000,
+        answer: 'No concrete break found. core/Foo.js:1-2',
+        consensus: {
+          enabled: true,
+          ok: false,
+          provider: 'claude-code',
+          model: 'claude-fable-5',
+          error: {
+            name: 'Error',
+            message: 'spawn claude ENOENT',
+          },
+        },
+        answerQuality: { flags: [] },
+        toolTelemetry: { byTool: {}, filesOpened: [], runCheckArtifacts: [], runChecks: [] },
+      },
+    });
+
+    expect(entry.consensus).toEqual({
+      enabled: true,
+      ok: false,
+      provider: 'claude-code',
+      model: 'claude-fable-5',
+      latency_ms: null,
+      error: {
+        name: 'Error',
+        message: 'spawn claude ENOENT',
+      },
+      answer_excerpt: null,
+    });
+    expect(entry.consensus.ok).toBe(false);
+    expect(entry.verdict).toBe('consensus_failed');
+    expect(entry.commit_blocking).toBe(true);
   });
 });

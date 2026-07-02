@@ -32,14 +32,24 @@ Read these first:
 5. `trai_brain/mercury-bridge/run-ledger.js`
    - Durable JSONL run envelope writer.
    - Stores prompt hashes/excerpts, repo state, telemetry, answer-quality flags,
-     verdict, and artifact citations under
+     verdict, optional Fable consensus metadata, and artifact citations under
      `ogz-meta/cognition-history/mercury-runs/`.
 
 6. `trai_brain/mercury-bridge/indexer.js` and
    `trai_brain/mercury-bridge/trace-memory.js`
    - Indexed repo context and guarded trace memory.
    - If Mercury freshness matters after a push, prove the indexer ran for the
-     pushed code before claiming fresh context.
+   pushed code before claiming fresh context.
+
+7. `trai_brain/mercury-bridge/consensus.js`
+   - Default-on Fable second-opinion pass behind
+     `mercury.config.json:consensus.defaultEnabled=true`; suppress per run with
+     `ask.js --no-consensus` when intentionally needed.
+   - Fable does not receive repo tools in this pass. It evaluates Mercury's
+     answer and telemetry, names evidence gaps, and must not invent new
+     file:line claims.
+   - Current default provider is local Claude Code (`consensus.provider=claude-code`),
+     which uses the logged-in CLI subscription instead of Anthropic API env keys.
 
 Common bug classes:
 
@@ -53,6 +63,8 @@ Common bug classes:
 - External fetched content is treated as instructions instead of data.
 - Secret-shaped prompt, answer, or env text leaks into ledger or artifact
   output.
+- Fable consensus is mistaken for Mercury tool evidence or local Claude Code
+  auth is bypassed by stale API-key environment variables.
 
 Proof hints:
 

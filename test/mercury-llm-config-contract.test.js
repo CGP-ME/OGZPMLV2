@@ -80,6 +80,13 @@ describe('Mercury LLM config contract', () => {
       expect(config.MERCURY_LLM_CLIENT_MIN_TOKENS).toBe(400);
       expect(config.MERCURY_LLM_REQUEST_TIMEOUT_MS).toBe(300000);
       expect(config.MERCURY_LLM_TEMPERATURE).toBe(baseMercuryConfig.llm.temperature);
+      expect(config.CONSENSUS_DEFAULT_ENABLED).toBe(true);
+      expect(config.CONSENSUS_PROVIDER).toBe('claude-code');
+      expect(config.CONSENSUS_BASE_URL).toBe('https://api.anthropic.com/v1');
+      expect(config.CONSENSUS_MODEL).toBe('claude-fable-5');
+      expect(config.CONSENSUS_API_KEY_ENV).toBeNull();
+      expect(config.CONSENSUS_COMMAND).toBe('claude');
+      expect(config.CONSENSUS_PERMISSION_MODE).toBe('dontAsk');
       expect(config.AGENTIC_MAX_ITERATIONS).toBe(60);
       expect(config.AGENTIC_MAX_TOKENS).toBe(7750);
       expect(config.SINGLE_SHOT_MAX_TOKENS).toBe(2000);
@@ -141,6 +148,172 @@ describe('Mercury LLM config contract', () => {
       MERCURY_API_KEY: 'fallback-must-not-be-read',
       OPENAI_API_KEY: 'fallback-must-not-be-read',
       ANTHROPIC_API_KEY: 'fallback-must-not-be-read',
+    });
+  });
+
+  test('default consensus client options use local Claude Code Fable without API key', async () => {
+    await withMercuryConfig({}, () => {
+      const { resolveConsensusLlmClientOptions } = require('../trai_brain/mercury-bridge/llm-client');
+      const options = resolveConsensusLlmClientOptions();
+
+      expect(options).toMatchObject({
+        provider: 'claude-code',
+        model: 'claude-fable-5',
+        apiKey: '',
+        authRequired: false,
+        command: 'claude',
+        permissionMode: 'dontAsk',
+        maxTokens: 2000,
+        minimumTokens: 200,
+        temperature: 0,
+        requestTimeoutMs: 300000,
+      });
+      expect(options.systemPrompt).toContain('default-on consensus collaborator');
+    }, {
+      ANTHROPIC_API_KEY: undefined,
+      CLAUDE_API_KEY: undefined,
+      LLM_API_KEY: 'fallback-must-not-be-read',
+    });
+  });
+
+  test('resolved API consensus client options use configured key only when provider is claude', async () => {
+    await withMercuryConfig({
+      consensus: {
+        provider: 'claude',
+        apiKeyEnv: 'MERCURY_TEST_FABLE_KEY',
+      },
+    }, () => {
+      const { resolveConsensusLlmClientOptions } = require('../trai_brain/mercury-bridge/llm-client');
+      const options = resolveConsensusLlmClientOptions();
+
+      expect(options).toMatchObject({
+        provider: 'claude',
+        baseUrl: 'https://api.anthropic.com/v1',
+        model: 'claude-fable-5',
+        apiKey: 'TEST_PLACEHOLDER_FABLE_TOKEN',
+        authRequired: true,
+        maxTokens: 2000,
+        minimumTokens: 200,
+        temperature: 0,
+        requestTimeoutMs: 300000,
+      });
+      expect(options.systemPrompt).toContain('default-on consensus collaborator');
+    }, {
+      MERCURY_TEST_FABLE_KEY: 'TEST_PLACEHOLDER_FABLE_TOKEN',
+      ANTHROPIC_API_KEY: 'fallback-must-not-be-read',
+      CLAUDE_API_KEY: 'fallback-must-not-be-read',
+      LLM_API_KEY: 'fallback-must-not-be-read',
+    });
+  });
+
+  test('API consensus client key is required only when provider is claude', async () => {
+    await withMercuryConfig({
+      consensus: {
+        provider: 'claude',
+        apiKeyEnv: 'MERCURY_TEST_FABLE_KEY',
+      },
+    }, () => {
+      const config = require('../trai_brain/mercury-bridge/config');
+      const { resolveConsensusLlmClientOptions } = require('../trai_brain/mercury-bridge/llm-client');
+
+      expect(config.CONSENSUS_MODEL).toBe('claude-fable-5');
+      expect(() => resolveConsensusLlmClientOptions())
+        .toThrow(/Configured consensus LLM API key env is missing: MERCURY_TEST_FABLE_KEY/);
+    }, {
+      MERCURY_TEST_FABLE_KEY: undefined,
+      ANTHROPIC_API_KEY: 'fallback-must-not-be-read',
+    });
+  });
+
+  test('consensus endpoint rejects ambiguous or secret-bearing URLs', async () => {
+    for (const baseUrl of [
+      'https://api.anthropic.com/v1?proxy=1',
+      'https://api.anthropic.com/v1#models',
+      ['https://user', ':pass@api.anthropic.com/v1'].join(''),
+    ]) {
+      await withMercuryConfig({
+        consensus: { provider: 'claude', baseUrl, apiKeyEnv: 'MERCURY_TEST_FABLE_KEY' },
+      }, () => {
+        expect(() => require('../trai_brain/mercury-bridge/config'))
+          .toThrow(/consensus\.baseUrl must not contain credentials, query parameters, or fragments/);
+      }, {
+        MERCURY_TEST_FABLE_KEY: 'TEST_PLACEHOLDER_FABLE_TOKEN',
+      });
+    }
+  });
+
+  test('claude-code consensus rejects API key env because auth is owned by Claude Code', async () => {
+    await withMercuryConfig({
+      consensus: {
+        provider: 'claude-code',
+        apiKeyEnv: 'ANTHROPIC_API_KEY',
+      },
+    }, () => {
+      expect(() => require('../trai_brain/mercury-bridge/config'))
+        .toThrow(/consensus\.apiKeyEnv must be empty when consensus\.provider=claude-code/);
+    });
+  });
+
+  test('Claude Code result parser accepts JSON result frames and assistant fallback', async () => {
+    await withMercuryConfig({}, () => {
+      const { extractClaudeCodeResult } = require('../trai_brain/mercury-bridge/llm-client');
+
+      expect(extractClaudeCodeResult(JSON.stringify([
+        { type: 'system', subtype: 'init' },
+        { type: 'assistant', message: { content: [{ type: 'text', text: 'draft answer' }] } },
+        { type: 'result', result: 'final answer' },
+      ]))).toBe('final answer');
+
+      expect(extractClaudeCodeResult(JSON.stringify({
+        type: 'assistant',
+        message: { content: [{ type: 'text', text: 'assistant answer' }] },
+      }))).toBe('assistant answer');
+
+      expect(extractClaudeCodeResult(JSON.stringify({
+        type: 'assistant',
+        message: { content: 'assistant string answer' },
+      }))).toBe('assistant string answer');
+
+      expect(extractClaudeCodeResult('plain text answer')).toBe('plain text answer');
+    });
+  });
+
+  test('Claude Code result parser skips invalid trailing JSON-like text', async () => {
+    await withMercuryConfig({}, () => {
+      const { extractClaudeCodeResult } = require('../trai_brain/mercury-bridge/llm-client');
+      const output = [
+        JSON.stringify({ type: 'result', result: 'real result' }),
+        '{ invalid snippet',
+      ].join('\n');
+
+      expect(extractClaudeCodeResult(output)).toBe('real result');
+      expect(extractClaudeCodeResult('{"type":"result","result":"same-line"}{ invalid snippet'))
+        .toBe('same-line');
+    });
+  });
+
+  test('Claude Code result parser prefers frames over later valid non-frame JSON', async () => {
+    await withMercuryConfig({}, () => {
+      const { extractClaudeCodeResult } = require('../trai_brain/mercury-bridge/llm-client');
+
+      expect(extractClaudeCodeResult([
+        JSON.stringify({ type: 'result', result: 'GOOD' }),
+        '[1,2]',
+      ].join('\n'))).toBe('GOOD');
+
+      expect(extractClaudeCodeResult([
+        JSON.stringify({ type: 'assistant', message: { content: 'assistant good' } }),
+        '{"not":"a frame"}',
+      ].join('\n'))).toBe('assistant good');
+    });
+  });
+
+  test('Claude Code result parser extracts frames from concatenated JSON values', async () => {
+    await withMercuryConfig({}, () => {
+      const { extractClaudeCodeResult } = require('../trai_brain/mercury-bridge/llm-client');
+
+      expect(extractClaudeCodeResult('[{"type":"result","result":"final"}]{"extra":"data"}'))
+        .toBe('final');
     });
   });
 

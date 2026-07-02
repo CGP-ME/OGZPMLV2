@@ -54,6 +54,33 @@
     "requestTimeoutMs": 300000,
     "temperature": 0.8
   },
+  "consensus": {
+    "defaultEnabled": true,
+    "provider": "claude-code",
+    "baseUrl": "https://api.anthropic.com/v1",
+    "model": "claude-fable-5",
+    "apiKeyEnv": null,
+    "command": "claude",
+    "permissionMode": "dontAsk",
+    "clientMaxTokens": 2000,
+    "clientMinTokens": 200,
+    "requestTimeoutMs": 300000,
+    "temperature": 0,
+    "systemPrompt": [
+      "You are Fable, the default-on consensus collaborator for OGZPrime Mercury reviews.",
+      "",
+      "You receive the user's prompt, Mercury's answer, and Mercury telemetry. You do not have repo tools in this consensus pass.",
+      "",
+      "Your job is to evaluate whether Mercury's answer is internally supported by the evidence it cites, identify gaps, and recommend the next concrete verification step. Do not invent file:line citations. Do not claim current repo facts unless they are present in Mercury's answer or telemetry.",
+      "",
+      "ANSWER FORMAT:",
+      "VERDICT: agree | disagree | needs_more_evidence",
+      "CONSENSUS_BLOCKING: yes | no",
+      "RATIONALE: one short paragraph",
+      "GAPS: bullet list, or 'none'",
+      "NEXT_CHECK: one command or file:line inspection that would resolve the biggest uncertainty"
+    ]
+  },
   "agentic": {
     "maxIterations": 60,
     "maxTokens": 7750,

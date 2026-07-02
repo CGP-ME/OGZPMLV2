@@ -86,6 +86,13 @@ function compactToolStats(toolTelemetry = {}) {
 
 function classifyMercuryVerdict({ result = null, error = null } = {}) {
   if (error) return 'tool_failure';
+  if (
+    result
+    && result.consensus
+    && result.consensus.ok !== true
+  ) {
+    return 'consensus_failed';
+  }
   if (!result || result.termination !== 'answer_given') return 'blocked';
 
   const answer = String(result.answer || '').toLowerCase();
@@ -161,6 +168,17 @@ function buildRunLedgerEntry({
     run_check_artifacts: Array.isArray(telemetry.runCheckArtifacts) ? telemetry.runCheckArtifacts : [],
     run_checks: Array.isArray(telemetry.runChecks) ? telemetry.runChecks : [],
     answer_quality: answerQualityFlags,
+    consensus: result && result.consensus ? {
+      enabled: result.consensus.enabled === true,
+      ok: result.consensus.ok === true,
+      provider: result.consensus.provider || null,
+      model: result.consensus.model || null,
+      latency_ms: result.consensus.latencyMs == null ? null : result.consensus.latencyMs,
+      error: result.consensus.error || null,
+      answer_excerpt: result.consensus.answer
+        ? truncateText(redactSensitiveText(result.consensus.answer), ANSWER_EXCERPT_MAX)
+        : null,
+    } : null,
     termination: result ? result.termination : null,
     iterations: result ? result.iterations : null,
     latency_ms: result ? result.totalLatencyMs : null,

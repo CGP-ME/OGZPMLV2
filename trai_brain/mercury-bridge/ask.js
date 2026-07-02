@@ -19,6 +19,8 @@
  *   --quiet                Suppress progress logs
  *   --show-chunks          Print retrieved chunk text (not just filenames)
  *   --show-history         Agentic mode only: print the full tool-call trace
+ *   --consensus            Agentic mode only: ask Fable for a second-opinion pass
+ *   --check-providers      Warm up Mercury and Fable clients, then exit
  */
 
 'use strict';
@@ -36,6 +38,8 @@ const { runReactLoop, formatToolTelemetry } = require('./react-loop');
 const { createToolAdapter } = require('./tool-adapter');
 const { routeQuery } = require('./query-router');
 const { createMercuryLlmClient } = require('./llm-client');
+const { consensusRequested, runFableConsensus, consensusFailure } = require('./consensus');
+const { runProviderPreflight } = require('./provider-preflight');
 const { retrieveSimilarTrace, formatTraceAsHint, captureTrace, markTraceUsed, evictStaleTraces, ensureTraceIndexes, getTraceStats } = require('./trace-memory');
 const { buildRunLedgerEntry, writeRunLedgerEntry } = require('./run-ledger');
 const MongoStore = require('./mongo-store');
@@ -53,12 +57,15 @@ function parseArgs(argv) {
     showChunks: false,
     showHistory: false,
     agentic: false,
+    consensus: false,
+    consensusExplicit: false,
     retrievalMode: null,   // semantic | hybrid | hybrid-classified
     boostType: null,       // manual content_type boost (e.g. recent_changes)
     explainRoute: false,   // print routing decision and exit
     explainTrace: false,   // print trace hint and exit
     traceStats: false,     // dump trace stats and exit
     pruneTraces: false,    // force eviction and exit
+    checkProviders: false, // warm up configured LLM providers and exit
     captureTrace: false,   // opt-in successful trace capture
   };
   const positional = [];
@@ -72,6 +79,12 @@ function parseArgs(argv) {
       args.showHistory = true;
     } else if (arg === '--agentic') {
       args.agentic = true;
+    } else if (arg === '--consensus') {
+      args.consensus = true;
+      args.consensusExplicit = true;
+    } else if (arg === '--no-consensus') {
+      args.consensus = false;
+      args.consensusExplicit = true;
     } else if (arg.startsWith('--top-k=')) {
       args.topK = parseInt(arg.split('=')[1], 10);
     } else if (arg.startsWith('--max-tokens=')) {
@@ -90,6 +103,8 @@ function parseArgs(argv) {
       args.traceStats = true;
     } else if (arg === '--prune-traces') {
       args.pruneTraces = true;
+    } else if (arg === '--check-providers') {
+      args.checkProviders = true;
     } else if (arg === '--capture-trace') {
       args.captureTrace = true;
     } else if (arg.startsWith('--')) {
@@ -147,6 +162,9 @@ function usage() {
   console.log('  --quiet                Suppress progress logs');
   console.log('  --show-chunks          Print retrieved chunk text');
   console.log('  --show-history         Agentic only: print full tool-call trace');
+  console.log(`  --consensus            Agentic only: force a Fable (${config.CONSENSUS_MODEL}) consensus pass`);
+  console.log('  --no-consensus         Agentic only: suppress config-default consensus for this run');
+  console.log('  --check-providers      Warm up Mercury and Fable clients, then exit');
   console.log('  --capture-trace        Agentic only: manually store a successful investigation trace');
   console.log('                         RAG/chunk writes are never done by ask.js; run indexer.js explicitly.');
   console.log('');
@@ -432,6 +450,23 @@ async function runAgentic(query, opts) {
       result.serenaBlastRadius = autoBlastRadius;
     }
 
+    if (consensusRequested(opts)) {
+      if (verbose) {
+        console.log(`[MERCURY-BRIDGE] Fable consensus requested: ${config.CONSENSUS_MODEL}`);
+      }
+      try {
+        result.consensus = await runFableConsensus({
+          query,
+          mercuryResult: result,
+        });
+      } catch (err) {
+        result.consensus = consensusFailure(err);
+        if (verbose) {
+          console.log(`[MERCURY-BRIDGE] Fable consensus failed: ${err.message}`);
+        }
+      }
+    }
+
     // 6. Mark trace as used if we injected one
     if (traceUsed && result.termination === 'answer_given') {
       await markTraceUsed({ store, traceId: traceUsed._id });
@@ -543,6 +578,13 @@ async function main() {
       await store.disconnect();
       return;
     }
+
+    if (args.checkProviders) {
+      const result = await runProviderPreflight();
+      console.log(JSON.stringify(result, null, 2));
+      if (!result.ok) process.exit(1);
+      return;
+    }
   } catch (err) {
     console.error('Error:', err.message);
     process.exit(1);
@@ -601,6 +643,19 @@ async function main() {
       }
       if (result.runLedger) {
         console.log(`[run ledger: ${result.runLedger.citation}]`);
+      }
+      if (result.consensus) {
+        console.log('');
+        console.log('═══ FABLE CONSENSUS ═══');
+        console.log('');
+        if (result.consensus.ok) {
+          console.log(result.consensus.answer);
+          console.log('');
+          console.log(`[consensus: ${result.consensus.provider}/${result.consensus.model} | latency: ${result.consensus.latencyMs}ms]`);
+        } else {
+          console.log(`Consensus unavailable: ${result.consensus.error.message}`);
+          console.log(`[consensus: ${result.consensus.provider}/${result.consensus.model}]`);
+        }
       }
 
       if (args.showHistory && result.history.length > 0) {
@@ -684,6 +739,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  parseArgs,
   runAgentic,
   buildCurrentChangeBlastRadius,
   currentChangedFiles,
