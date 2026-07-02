@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### TRAI Real Feature Vector Learning (2026-07-02)
+
+- Threaded clean entry `patterns[].features` vectors into long and short TRAI trade-outcome learning payloads so PatternMemoryBank writes use the entry feature vector instead of reconstructing from indicator fragments.
+- Made TRAI Core prefer explicit entry feature vectors and reject invalid explicit vectors rather than falling back to pseudo-reconstructed features.
+- Added focused coverage for explicit feature-vector recording, invalid-vector rejection, and OrderExecutor finite-vector selection.
+
 ### Fix 18 Pattern Sizing Mitigation (2026-07-02)
 
 - Neutralized DynamicPositionSizer pattern multipliers so promoted/quarantined pattern-memory status cannot boost, quarter, or block position size while TRAI feature-vector learning is under M-N repair.

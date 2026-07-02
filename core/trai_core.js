@@ -758,6 +758,29 @@ BOT STATUS:
   // Both checkPatternMemory and recordTradeResult share this — they write to the
   // same PatternMemoryBank store, so partial fabrication on either side poisons
   // the same hash. Per spec Rule #5 these paths must be cleaned together.
+  _hasExplicitFeatureVector(trade) {
+    return Boolean(
+      Object.prototype.hasOwnProperty.call(trade || {}, 'features') ||
+      Object.prototype.hasOwnProperty.call(trade || {}, 'entryFeatures') ||
+      Object.prototype.hasOwnProperty.call(trade?.entry || {}, 'features')
+    );
+  }
+
+  _extractProvidedFeatures(trade) {
+    const candidates = [
+      trade?.entry?.features,
+      trade?.features,
+      trade?.entryFeatures,
+    ];
+    for (const features of candidates) {
+      if (!Array.isArray(features)) continue;
+      if (features.length === 0 || features.length > 50) return null;
+      if (!features.every(value => Number.isFinite(value))) return null;
+      return [...features];
+    }
+    return null;
+  }
+
   _extractFeatures(rawIndicators, trend, volatility) {
     const ind = rawIndicators || {};
     const rsi = ind.rsi;
@@ -791,11 +814,15 @@ BOT STATUS:
   recordTradeResult(trade) {
     if (!this.patternMemory) return false;
     try {
-      const features = this._extractFeatures(
-        trade.entry?.indicators || trade.indicators,
-        trade.entry?.trend || trade.trend,
-        trade.entry?.volatility != null ? trade.entry.volatility : trade.volatility
-      );
+      let features = this._extractProvidedFeatures(trade);
+      if (!features && this._hasExplicitFeatureVector(trade)) return false;
+      if (!features) {
+        features = this._extractFeatures(
+          trade.entry?.indicators || trade.indicators,
+          trade.entry?.trend || trade.trend,
+          trade.entry?.volatility != null ? trade.entry.volatility : trade.volatility
+        );
+      }
       if (!features) return false;
       const pnl = trade.pnl != null ? trade.pnl : (trade.pnlDollars != null ? trade.pnlDollars : trade.profitLoss);
       const pnlPercent = trade.pnlPercent != null ? trade.pnlPercent : trade.profitLossPercent;

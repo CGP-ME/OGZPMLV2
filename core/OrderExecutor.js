@@ -99,6 +99,21 @@ class OrderExecutor {
     return null;
   }
 
+  _normalizePatternFeatureVector(features) {
+    if (!Array.isArray(features) || features.length === 0 || features.length > 50) {
+      return null;
+    }
+    if (!features.every(value => Number.isFinite(value))) {
+      return null;
+    }
+    return [...features];
+  }
+
+  _entryPatternFeaturesForTrai(trade) {
+    const pattern = this._firstPatternWithOutcomeFeatures(trade);
+    return pattern ? [...pattern.features] : null;
+  }
+
   _resolveStoredSizeUsd(trade, label) {
     const storedSizeUsd = this._firstFiniteNumber(trade?.sizeUsd, trade?.size);
     if (storedSizeUsd !== null && storedSizeUsd > 0) {
@@ -663,9 +678,13 @@ class OrderExecutor {
 
   _firstPatternWithOutcomeFeatures(trade) {
     if (!trade || !Array.isArray(trade.patterns)) return null;
-    return trade.patterns.find(pattern =>
-      pattern && Array.isArray(pattern.features) && pattern.features.length > 0
-    ) || null;
+    for (const pattern of trade.patterns) {
+      const features = this._normalizePatternFeatureVector(pattern?.features);
+      if (features) {
+        return { ...pattern, features };
+      }
+    }
+    return null;
   }
 
   _patternOutcomeRecordingDisabled() {
@@ -2275,7 +2294,7 @@ class OrderExecutor {
             name: p.name || p.type,
             signature: p.signature || p.id || `${p.name || p.type}_${Date.now()}`,
             confidence: p.confidence || 0,
-            features: p.features || []  // CRITICAL: Required for pattern learning!
+            features: this._normalizePatternFeatureVector(p.features) || []  // CRITICAL: Required for pattern learning!
           })) || [],
           indicators: {
             rsi: indicators.rsi,
@@ -3239,6 +3258,7 @@ class OrderExecutor {
             // recordTradeOutcome() takes ONE arg. extractPattern() needs .indicators and .trend
             if (this.ctx.trai && this.pendingTraiDecisions?.has(buyTrade.orderId)) {
               const traiDecisionData = this.pendingTraiDecisions.get(buyTrade.orderId);
+              const traiEntryFeatures = this._entryPatternFeaturesForTrai(buyTrade);
               const traiRecorded = this.ctx.trai.recordTradeOutcome({
                 tradeId: buyTrade.orderId,
                 decisionId: traiDecisionData.decisionId,
@@ -3255,9 +3275,11 @@ class OrderExecutor {
                 profitLoss: profitLoss,
                 profitLossPercent: pnl,
                 holdDuration: holdDuration,
+                features: traiEntryFeatures,
                 entry: {
                   price: buyTrade.entryPrice || buyTrade.price,
                   timestamp: buyTrade.entryTime,
+                  features: traiEntryFeatures,
                   indicators: traiLearningIndicators,
                   trend: traiLearningTrend,
                   volatility: traiLearningVolatility
@@ -3676,6 +3698,7 @@ class OrderExecutor {
               shortTrade.entryIndicators?.volatility,
               shortTrade.indicators?.volatility
             );
+            const traiEntryFeatures = this._entryPatternFeaturesForTrai(shortTrade);
             const traiRecorded = this.ctx.trai.recordTradeOutcome({
               tradeId: shortTrade.orderId,
               decisionId: traiDecisionData.decisionId,
@@ -3692,9 +3715,11 @@ class OrderExecutor {
               profitLoss: profitLoss,
               profitLossPercent: pnl,
               holdDuration: holdDuration,
+              features: traiEntryFeatures,
               entry: {
                 price: shortTrade.entryPrice || shortTrade.price,
                 timestamp: shortTrade.entryTime,
+                features: traiEntryFeatures,
                 indicators: traiLearningIndicators,
                 trend: traiLearningTrend,
                 volatility: traiLearningVolatility

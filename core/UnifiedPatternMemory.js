@@ -961,6 +961,7 @@ class UnifiedPatternMemory {
   _validateFeatures(features) {
     if (!Array.isArray(features) || features.length === 0) return false;
     if (features.length > 50) return false;
+    if (!features.every(value => Number.isFinite(value))) return false;
     return true;
   }
 

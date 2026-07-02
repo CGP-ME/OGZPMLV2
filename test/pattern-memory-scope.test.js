@@ -120,6 +120,54 @@ describe('Pattern memory scope isolation', () => {
     expect(Object.keys(memory.patterns)).toHaveLength(1);
   });
 
+  test('UnifiedPatternMemory rejects non-finite feature vectors before outcome storage', () => {
+    const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
+    const memory = new UnifiedPatternMemory({
+      persistToDisk: false,
+      minSamples: 1,
+      successThreshold: 0.6,
+    });
+
+    expect(memory.recordOutcome([0.5, Number.NaN, 0.3], {
+      ...scope(),
+      pnl: 12,
+      pnlPercent: 2.4,
+      holdTimeMs: 900000,
+      exitReason: 'take_profit',
+      strategy: 'GateStrategy',
+    })).toBe(false);
+    expect(memory.recordOutcome([0.5, Infinity, 0.3], {
+      ...scope(),
+      pnl: 12,
+      pnlPercent: 2.4,
+      holdTimeMs: 900000,
+      exitReason: 'take_profit',
+      strategy: 'GateStrategy',
+    })).toBe(false);
+    expect(memory.recordOutcome([0.5, null, 0.3], {
+      ...scope(),
+      pnl: 12,
+      pnlPercent: 2.4,
+      holdTimeMs: 900000,
+      exitReason: 'take_profit',
+      strategy: 'GateStrategy',
+    })).toBe(false);
+    expect(memory.recordOutcome([0.5, undefined, 0.3], {
+      ...scope(),
+      pnl: 12,
+      pnlPercent: 2.4,
+      holdTimeMs: 900000,
+      exitReason: 'take_profit',
+      strategy: 'GateStrategy',
+    })).toBe(false);
+    expect(memory.recordObservation([0.5, Number.NaN, 0.3], {
+      ...scope(),
+      timestamp: 1779802200000,
+      strategy: 'GateStrategy',
+    })).toBeNull();
+    expect(memory.patterns).toEqual({});
+  });
+
   test('UnifiedPatternMemory compatibility recordPattern requires canonical live close outcome fields', () => {
     const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
     const memory = new UnifiedPatternMemory({

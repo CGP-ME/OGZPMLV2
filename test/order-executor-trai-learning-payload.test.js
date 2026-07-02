@@ -123,6 +123,92 @@ describe('OrderExecutor TRAI learning payload', () => {
     }));
   });
 
+  test('TRAI core records explicit entry feature vectors instead of rebuilding from indicators', () => {
+    const trai = makeTraiCoreWithRecorder();
+    const entryFeatures = [0.11, 0.22, 0.33, 0.44, 0.55, 0.66, 0.77, 0.88, 0.99];
+    const recorded = trai.recordTradeResult({
+      entry: {
+        features: entryFeatures,
+        indicators: {
+          rsi: 99,
+          macd: 9,
+          macdSignal: 1,
+          bbWidth: 0.9,
+        },
+        trend: 'downtrend',
+        volatility: 0.9,
+      },
+      profitLoss: 12.5,
+      profitLossPercent: 0.8,
+      holdDuration: 900000,
+      exitReason: 'take_profit',
+      strategy: 'EMASMACrossover',
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      accountId: 'paper-account',
+      accountIdSource: 'test',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+      scopeKey: 'paper:alpaca:paper-account:stocks:TSLA:15m',
+    });
+
+    expect(recorded).toBe(true);
+    expect(trai.patternMemory.recordOutcome).toHaveBeenCalledTimes(1);
+    expect(trai.patternMemory.recordOutcome.mock.calls[0][0]).toEqual(entryFeatures);
+    expect(trai.patternMemory.recordOutcome.mock.calls[0][0]).not.toBe(entryFeatures);
+  });
+
+  test('TRAI core rejects invalid explicit entry feature vectors instead of falling back', () => {
+    const trai = makeTraiCoreWithRecorder();
+    const recorded = trai.recordTradeResult({
+      entry: {
+        features: [0.11, Number.NaN, 0.33],
+        indicators: {
+          rsi: 52,
+          macd: 1.25,
+          macdSignal: 1.1,
+          bbWidth: 0.045,
+        },
+        trend: 'uptrend',
+        volatility: 0.02,
+      },
+      profitLoss: 12.5,
+      profitLossPercent: 0.8,
+      holdDuration: 900000,
+      exitReason: 'take_profit',
+      strategy: 'EMASMACrossover',
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      accountId: 'paper-account',
+      accountIdSource: 'test',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+      scopeKey: 'paper:alpaca:paper-account:stocks:TSLA:15m',
+    });
+
+    expect(recorded).toBe(false);
+    expect(trai.patternMemory.recordOutcome).not.toHaveBeenCalled();
+  });
+
+  test('OrderExecutor exposes only clean entry pattern feature vectors to TRAI learning', () => {
+    const executor = makeExecutor();
+    const entryFeatures = [0.11, 0.22, 0.33, 0.44, 0.55, 0.66, 0.77, 0.88, 0.99];
+
+    expect(executor._entryPatternFeaturesForTrai({
+      patterns: [
+        { name: 'bad-pattern', features: [0.1, Infinity] },
+        { name: 'ema-cross', features: entryFeatures },
+      ],
+    })).toEqual(entryFeatures);
+    expect(executor._entryPatternFeaturesForTrai({
+      patterns: [
+        { name: 'bad-pattern', features: [0.1, Infinity] },
+      ],
+    })).toBeNull();
+  });
+
   test('does not fabricate missing TRAI learning fields', () => {
     const executor = makeExecutor();
     const indicators = executor._buildTraiLearningIndicators({
