@@ -19,6 +19,43 @@ const {
   buildGridSearchEnv,
 } = require('../tools/grid-search-confidence');
 
+const EXPECTED_CANONICAL_BACKTEST_ENV = Object.freeze({
+  EXECUTION_MODE: 'backtest',
+  CANDLE_SOURCE: 'file',
+  BACKTEST_MODE: 'true',
+  BACKTEST_SILENT: 'true',
+  BACKTEST_VERBOSE: 'false',
+  BACKTEST_FAST: 'true',
+  INITIAL_BALANCE: '10000',
+  PAPER_TRADING: 'true',
+  LIVE_TRADING: 'false',
+  ENABLE_LIVE_TRADING: 'false',
+  CONFIRM_LIVE_TRADING: 'false',
+  TEST_MODE: 'false',
+  BACKTEST_NO_PATTERN_SAVE: 'true',
+  SKIP_CSV_EXPORT: 'true',
+  ENABLE_DASHBOARD: 'false',
+  WEBHOOK_ORDERS_ENABLED: 'false',
+  WEBHOOK_DRY_RUN: 'true',
+  EVAL_RULES_ENABLED: 'false',
+  TTP_RULES_ENABLED: 'false',
+  SENTRY_DSN: '',
+  NODE_ENV: 'test',
+  DIRECTION_FILTER: 'both',
+  ACCOUNT_DRAWDOWN_BYPASS: 'true',
+  RISK_MANAGER_BYPASS: 'true',
+  MAX_DRAWDOWN: '5',
+  MAX_DAILY_LOSS: '1',
+  MAX_WEEKLY_LOSS: '5',
+  MAX_MONTHLY_LOSS: '5',
+  EXIT_SYSTEM: 'legacy',
+  FEE_MAKER: '0.0025',
+  FEE_TAKER: '0.0040',
+  FEE_TOTAL_ROUNDTRIP: '0.0065',
+  FEE_SAFETY_BUFFER: '0.001',
+  FEE_SLIPPAGE: '0.0005',
+});
+
 describe('backtest worker env contract', () => {
   const projectRoot = '/repo';
   const LOCKED_EXIT_PROFILE_KEYS = [
@@ -85,10 +122,13 @@ describe('backtest worker env contract', () => {
   });
 
   test('canonical worker env values are owned by TradingConfig and exported read-only', () => {
+    expect(CANONICAL_BACKTEST_ENV).toEqual(EXPECTED_CANONICAL_BACKTEST_ENV);
     expect(CANONICAL_BACKTEST_ENV).toEqual(TradingConfig.getBacktestWorkerEnvDefaults());
     expect(STOCK_ZERO_FEE_ENV).toEqual(TradingConfig.getBacktestStockZeroFeeEnv());
     expect(Object.isFrozen(CANONICAL_BACKTEST_ENV)).toBe(true);
     expect(Object.isFrozen(STOCK_ZERO_FEE_ENV)).toBe(true);
+    expect(CANONICAL_BACKTEST_ENV.ENABLE_MTF_CONFLUENCE_BOOSTER).toBeUndefined();
+    expect(Object.keys(CANONICAL_BACKTEST_ENV).filter(key => key.startsWith('MTF_BOOSTER_'))).toEqual([]);
 
     expect(() => {
       CANONICAL_BACKTEST_ENV.EXECUTION_MODE = 'live';

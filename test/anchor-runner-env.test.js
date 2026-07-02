@@ -10,6 +10,17 @@ const {
   runP0,
 } = require('../ogz-meta/anchor-runner');
 
+const EXPECTED_ANCHOR_CANONICAL_ENV = Object.freeze({
+  SOLO_STRATEGY: 'EMASMACrossover',
+  ENABLE_EMA: 'true',
+  MIN_TRADE_CONFIDENCE: '0.60',
+  ACCOUNT_DRAWDOWN_BYPASS: 'true',
+  DIRECTION_FILTER: 'long_only',
+  ENABLE_SHORTS: 'false',
+  ENABLE_TRAI: 'false',
+  ENABLE_MTF_CONFLUENCE_BOOSTER: 'false',
+});
+
 describe('anchor-runner P0 env contract', () => {
   const originalEnv = process.env;
 
@@ -37,6 +48,7 @@ describe('anchor-runner P0 env contract', () => {
   test('builds P0 from the pinned stock profile instead of ambient trading env', () => {
     const spec = buildP0RunSpec('full', 'unit', '2026-06-04T00-00-00-000Z');
 
+    expect(CANONICAL_ENV).toEqual(EXPECTED_ANCHOR_CANONICAL_ENV);
     expect(spec.runSpec).toEqual(expect.objectContaining({
       profile: 'full',
       runner: 'ogz-meta/anchor-runner.js',
@@ -66,6 +78,7 @@ describe('anchor-runner P0 env contract', () => {
       ATR_MIN_PERCENT: '0.15',
       SOLO_STRATEGY: 'EMASMACrossover',
       ENABLE_EMA: 'true',
+      ENABLE_MTF_CONFLUENCE_BOOSTER: 'false',
       DIRECTION_FILTER: 'long_only',
       ENABLE_SHORTS: 'false',
       ENABLE_TRAI: 'false',
