@@ -144,6 +144,35 @@
       }
     }
   },
+  "feeProfiles": {
+    "definitions": {
+      "ttp_real": {
+        "name": "ttp_real",
+        "description": "Trade The Pool venue economics confirmed 2026-07-01: $0.005/share, $0.75 minimum per filled order.",
+        "env": {
+          "FEE_MODEL": "per_share_minimum",
+          "FEE_MAKER": "0",
+          "FEE_TAKER": "0",
+          "FEE_TOTAL_ROUNDTRIP": "0",
+          "FEE_SAFETY_BUFFER": "0",
+          "FEE_PER_SHARE": "0.005",
+          "FEE_MIN_ORDER": "0.75",
+          "FEE_SLIPPAGE": "0.0005"
+        }
+      },
+      "zero": {
+        "name": "zero",
+        "description": "Historical zero-commission stock backtest posture for side-by-side anchor comparison only.",
+        "env": {
+          "FEE_MAKER": "0",
+          "FEE_TAKER": "0",
+          "FEE_TOTAL_ROUNDTRIP": "0",
+          "FEE_SAFETY_BUFFER": "0",
+          "FEE_SLIPPAGE": "0.0005"
+        }
+      }
+    }
+  },
   "patternMemory": {
     "minSamples": 10,
     "successThreshold": 0.65,

@@ -7,7 +7,7 @@
 #         ./backtest.sh baseline --receipts
 #
 # Presets: baseline, sms-10mo, sms-18mo, rsi-only, ema-only
-# Options: --long-only, --verbose, --receipts
+# Options: --long-only, --verbose, --receipts, --fee-profile=ttp_real|zero
 # Note: All presets default to shorts=true. Use --long-only to override.
 # ═══════════════════════════════════════════════════════════════
 
@@ -15,6 +15,7 @@ PRESET="${1:-help}"
 LONG_ONLY_OVERRIDE=false
 VERBOSE=false
 RECEIPTS=false
+FEE_PROFILE="ttp_real"
 
 shift 2>/dev/null
 for arg in "$@"; do
@@ -22,6 +23,11 @@ for arg in "$@"; do
         --long-only) LONG_ONLY_OVERRIDE=true ;;
         --verbose) VERBOSE=true ;;
         --receipts) RECEIPTS=true ;;
+        --fee-profile=*) FEE_PROFILE="${arg#*=}" ;;
+        --fee-profile)
+            echo "  --fee-profile requires a value: ttp_real or zero"
+            exit 1
+            ;;
     esac
 done
 
@@ -61,11 +67,12 @@ case $PRESET in
         echo "    rsi-only  — RSI Solo"
         echo "    ema-only  — EMA Solo"
         echo ""
-        echo "  Usage: ./backtest.sh <preset> [--long-only] [--verbose] [--receipts]"
+        echo "  Usage: ./backtest.sh <preset> [--long-only] [--verbose] [--receipts] [--fee-profile=ttp_real|zero]"
         echo "  Options:"
         echo "    --long-only  Override preset to disable shorts"
         echo "    --verbose    Show full output (no filtering)"
         echo "    --receipts   Include TRADE-RECEIPT lines in output"
+        echo "    --fee-profile Venue economics profile (default: ttp_real)"
         echo ""
         exit 0
         ;;
@@ -75,6 +82,20 @@ if [ "$LONG_ONLY_OVERRIDE" = true ]; then
     SHORTS=false
 fi
 
+FEE_PROFILE_EXPORTS="$(node tools/fee-profiles.js shell-export "$FEE_PROFILE")" || exit 1
+if [ -z "$FEE_PROFILE_EXPORTS" ]; then
+    echo "  Fee profile export was empty for: $FEE_PROFILE"
+    exit 1
+fi
+case "$FEE_PROFILE_EXPORTS" in
+    *"BACKTEST_FEE_PROFILE="*) ;;
+    *)
+        echo "  Fee profile export missing BACKTEST_FEE_PROFILE for: $FEE_PROFILE"
+        exit 1
+        ;;
+esac
+eval "$FEE_PROFILE_EXPORTS"
+
 echo ""
 echo "═══════════════════════════════════════════════════════"
 echo "  OGZPrime Backtest Runner"
@@ -83,6 +104,7 @@ echo "  Preset:    $PRESET"
 echo "  Strategy:  $STRATEGY"
 echo "  Data:      $DATAFILE"
 echo "  Shorts:    $SHORTS"
+echo "  Fees:      $FEE_PROFILE"
 echo "  Desc:      $DESC"
 echo "═══════════════════════════════════════════════════════"
 echo ""
@@ -95,8 +117,6 @@ export CANDLE_DATA_FILE="$DATAFILE"
 export BACKTEST_MODE="true"
 export BACKTEST_FAST="true"
 export BACKTEST_NO_PATTERN_SAVE="true"
-export FEE_MAKER="0"
-export FEE_TAKER="0"
 export ENABLE_TRAI="false"
 export ACCOUNT_DRAWDOWN_BYPASS="true"
 
@@ -135,5 +155,6 @@ echo "════════════════════════�
 # ─── Clean up env vars so they don't leak to next run ───
 unset SOLO_STRATEGY EXECUTION_MODE CANDLE_SOURCE CANDLE_DATA_FILE
 unset BACKTEST_MODE BACKTEST_FAST BACKTEST_NO_PATTERN_SAVE
-unset FEE_MAKER FEE_TAKER ENABLE_TRAI ACCOUNT_DRAWDOWN_BYPASS
+unset BACKTEST_FEE_PROFILE FEE_MODEL FEE_MAKER FEE_TAKER FEE_TOTAL_ROUNDTRIP FEE_SAFETY_BUFFER FEE_SLIPPAGE FEE_PER_SHARE FEE_MIN_ORDER
+unset ENABLE_TRAI ACCOUNT_DRAWDOWN_BYPASS
 unset DIRECTION_FILTER ENABLE_SHORTS ENABLE_SMS SMS_VP_RTH_ONLY

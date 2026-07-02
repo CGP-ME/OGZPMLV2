@@ -302,22 +302,22 @@ describe('parallel-backtest solo strategy env wiring', () => {
     expect(keys.has('TRAILING_STOP_PERCENT')).toBe(false);
   });
 
-  test('stock fee posture reports the owning tuning profile fee model', () => {
-    const profile = TradingConfig.resolveTuningProfile('ttp-5k-max');
+  test('stock fee posture reports the owning venue fee profile model', () => {
+    const profile = TradingConfig.resolveFeeProfile('ttp_real');
 
     expect(describeFeePosture(profile, true))
-      .toBe('profile ttp-5k-max: per-share minimum model (perShare=0.005, minOrder=0.75, slippage=0.0005)');
+      .toBe('profile ttp_real: per-share minimum model (perShare=0.005, minOrder=0.75, slippage=0.0005)');
   });
 
-  test('stock fee posture reports profile-backed stock zero commission and slippage', () => {
-    const profile = TradingConfig.resolveTuningProfile('current-eval');
+  test('stock fee posture reports explicit zero venue fee profile and slippage', () => {
+    const profile = TradingConfig.resolveFeeProfile('zero');
 
     expect(describeFeePosture(profile, true))
-      .toBe('profile current-eval: stock zero-commission model, slippage=0.0005');
+      .toBe('profile zero: stock zero-commission model, slippage=0.0005');
   });
 
   test('fee posture is not reported for non-stock backtests', () => {
-    const profile = TradingConfig.resolveTuningProfile('ttp-5k-max');
+    const profile = TradingConfig.resolveFeeProfile('ttp_real');
 
     expect(describeFeePosture(profile, false)).toBeNull();
   });

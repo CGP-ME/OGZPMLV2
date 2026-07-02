@@ -18,8 +18,10 @@
  *   BACKTEST_MODE=true
  *   BACKTEST_FAST=true
  *   BACKTEST_SILENT=true
- *   FEE_MAKER=0
- *   FEE_TAKER=0
+ *   BACKTEST_FEE_PROFILE=ttp_real
+ *   FEE_MODEL=per_share_minimum
+ *   FEE_PER_SHARE=0.005
+ *   FEE_MIN_ORDER=0.75
  *   BROKER/TRADING_PAIR/ASSET_CLASS=<derived from CANDLE_DATA_FILE>
  *   MIN_TRADE_CONFIDENCE=0.60
  *   ATR_FILTER_ENABLED=true
@@ -67,6 +69,7 @@ const CANONICAL_ENV = Object.freeze({
 });
 
 const P0_TUNING_PROFILE = 'current-eval';
+const P0_FEE_PROFILE = 'ttp_real';
 
 const PROFILES = {
   fast: {
@@ -108,7 +111,7 @@ function assertP0WorkerEnvMatchesProfile(env, tuningProfile) {
   }
 }
 
-function buildP0RunSpec(profile, logTag, runStamp = buildRunStamp()) {
+function buildP0RunSpec(profile, logTag, runStamp = buildRunStamp(), options = {}) {
   const cfg = PROFILES[profile];
   if (!cfg) {
     throw new Error(`anchor-runner: unknown profile "${profile}" — expected one of ${Object.keys(PROFILES).join(', ')}`);
@@ -122,6 +125,7 @@ function buildP0RunSpec(profile, logTag, runStamp = buildRunStamp()) {
   const stateFilePath = path.join(REPO_ROOT, cfg.stateFile);
   const instrumentEnv = resolveInstrumentFromDataFile(cfg.candleFile);
   const tuningProfile = resolveTuningProfile(P0_TUNING_PROFILE);
+  const feeProfileName = options.feeProfileName || P0_FEE_PROFILE;
   const env = buildBacktestWorkerEnv({
     sourceEnv: process.env,
     projectRoot: REPO_ROOT,
@@ -133,6 +137,7 @@ function buildP0RunSpec(profile, logTag, runStamp = buildRunStamp()) {
     configEnv: CANONICAL_ENV,
     instrumentEnv,
     profileName: tuningProfile.name,
+    feeProfileName,
   });
   assertP0WorkerEnvMatchesProfile(env, tuningProfile);
 
@@ -155,6 +160,7 @@ function buildP0RunSpec(profile, logTag, runStamp = buildRunStamp()) {
       stateFile: cfg.stateFile,
       stateFilePath,
       tuningProfile: tuningProfile.name,
+      feeProfile: feeProfileName,
       canonicalEnv: { ...CANONICAL_ENV },
     },
     tuningProfile,
@@ -170,7 +176,7 @@ function buildP0RunSpec(profile, logTag, runStamp = buildRunStamp()) {
  * @returns {object} { profile, label, log, report, summary }
  * @throws {Error} on profile invalid, backtest exit non-zero, or report missing
  */
-function runP0(profile, logTag) {
+function runP0(profile, logTag, options = {}) {
   const {
     cfg,
     env,
@@ -178,7 +184,7 @@ function runP0(profile, logTag) {
     runSpec,
     tuningProfile,
     workerEnv,
-  } = buildP0RunSpec(profile, logTag);
+  } = buildP0RunSpec(profile, logTag, buildRunStamp(), options);
   if (!runSpec.candleFilePresent) {
     throw new Error(`anchor-runner: canonical candle file missing: ${runSpec.candleFilePath}`);
   }
@@ -270,6 +276,7 @@ module.exports = {
   PROFILES,
   CANONICAL_ENV,
   P0_TUNING_PROFILE,
+  P0_FEE_PROFILE,
   assertP0WorkerEnvMatchesProfile,
   buildP0RunSpec,
   buildRunStamp,

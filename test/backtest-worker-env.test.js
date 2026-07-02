@@ -16,6 +16,11 @@ const {
   summarizeTuningProfile,
 } = require('../tools/tuning-profiles');
 const {
+  buildShellExports,
+  listFeeProfileNames,
+  resolveFeeProfile,
+} = require('../tools/fee-profiles');
+const {
   buildGridSearchEnv,
 } = require('../tools/grid-search-confidence');
 
@@ -90,6 +95,7 @@ describe('backtest worker env contract', () => {
       dataDir: '/repo/data/backtest',
       reportTag: 'test-worker',
       stockMode: true,
+      feeProfileName: 'ttp_real',
       instrumentEnv: {
         TRADING_PAIR: 'TSLA',
         BROKER: 'alpaca',
@@ -164,12 +170,13 @@ describe('backtest worker env contract', () => {
     expect(env.MAX_WEEKLY_LOSS).toBe('5');
     expect(env.MAX_MONTHLY_LOSS).toBe('5');
     expect(env.EXIT_SYSTEM).toBe('legacy');
+    expect(env.BACKTEST_FEE_PROFILE).toBe('ttp_real');
+    expect(env.FEE_MODEL).toBe('per_share_minimum');
     expect(env.FEE_MAKER).toBe('0');
     expect(env.FEE_TAKER).toBe('0');
     expect(env.FEE_TOTAL_ROUNDTRIP).toBe('0');
-    expect(env.FEE_MODEL).toBeUndefined();
-    expect(env.FEE_PER_SHARE).toBeUndefined();
-    expect(env.FEE_MIN_ORDER).toBeUndefined();
+    expect(env.FEE_PER_SHARE).toBe('0.005');
+    expect(env.FEE_MIN_ORDER).toBe('0.75');
     expect(env.FEE_SAFETY_BUFFER).toBe('0');
     expect(env.FEE_SLIPPAGE).toBe('0.0005');
     expect(env.TUNING_PROFILE).toBe('current-eval');
@@ -273,10 +280,11 @@ describe('backtest worker env contract', () => {
     expectLockedExitProfileKeysAbsent(env);
   });
 
-  test('explicit TTP 5k MAX profile keeps prop-fee settings in stock mode', () => {
+  test('explicit TTP 5k MAX tuning profile and TTP fee profile keep prop-fee settings in stock mode', () => {
     const env = buildEnv({
       stockMode: true,
       profileName: 'ttp-5k-max',
+      feeProfileName: 'ttp_real',
     });
 
     expect(env.TUNING_PROFILE).toBe('ttp-5k-max');
@@ -317,6 +325,7 @@ describe('backtest worker env contract', () => {
         FEE_PER_SHARE: '0.010',
         FEE_MIN_ORDER: '1.00',
       },
+      feeProfileName: 'ttp_real',
     });
 
     expect(env.FEE_MODEL).toBe('per_share_minimum');
@@ -403,6 +412,7 @@ describe('backtest worker env contract', () => {
 
   test('explicit source fee model does not reach stock worker profile economics', () => {
     const env = buildEnv({
+      feeProfileName: 'zero',
       sourceEnv: {
         PATH: '/usr/bin',
         FEE_MODEL: 'per_share_minimum',
@@ -411,6 +421,7 @@ describe('backtest worker env contract', () => {
       },
     });
 
+    expect(env.BACKTEST_FEE_PROFILE).toBe('zero');
     expect(env.FEE_MODEL).toBeUndefined();
     expect(env.FEE_PER_SHARE).toBeUndefined();
     expect(env.FEE_MIN_ORDER).toBeUndefined();
@@ -438,6 +449,74 @@ describe('backtest worker env contract', () => {
         FEE_MIN_ORDER: '0.75',
       },
     })).toThrow(/Disallowed configEnv override 'FEE_MODEL'/);
+  });
+
+  test('explicit config fee taker fails instead of overriding profile economics', () => {
+    expect(() => buildEnv({
+      configEnv: {
+        FEE_TAKER: '0',
+      },
+    })).toThrow(/Disallowed configEnv override 'FEE_TAKER'/);
+  });
+
+  test('instrument fee keys fail instead of overriding profile economics', () => {
+    expect(() => buildEnv({
+      instrumentEnv: {
+        TRADING_PAIR: 'TSLA',
+        BROKER: 'alpaca',
+        ASSET_CLASS: 'stocks',
+        CANDLE_TIMEFRAME: '15m',
+        FEE_TAKER: '0',
+      },
+    })).toThrow(/Disallowed instrumentEnv override 'FEE_TAKER'/);
+  });
+
+  test('missing fee profile fails loudly instead of silently using zero fees', () => {
+    expect(() => buildEnv({ feeProfileName: null }))
+      .toThrow(/Missing fee profile/);
+  });
+
+  test('unknown fee profile fails loudly instead of falling back to zero fees', () => {
+    expect(() => buildEnv({ feeProfileName: 'missing-fees' }))
+      .toThrow(/Unknown fee profile 'missing-fees'/);
+  });
+
+  test('explicit zero fee profile preserves the historical stock comparison economics', () => {
+    const env = buildEnv({ feeProfileName: 'zero' });
+
+    expect(env.BACKTEST_FEE_PROFILE).toBe('zero');
+    expect(env.FEE_MODEL).toBeUndefined();
+    expect(env.FEE_MAKER).toBe('0');
+    expect(env.FEE_TAKER).toBe('0');
+    expect(env.FEE_TOTAL_ROUNDTRIP).toBe('0');
+    expect(env.FEE_SAFETY_BUFFER).toBe('0');
+    expect(env.FEE_SLIPPAGE).toBe('0.0005');
+    expect(env.FEE_PER_SHARE).toBeUndefined();
+    expect(env.FEE_MIN_ORDER).toBeUndefined();
+  });
+
+  test('fee profile shell exports are generated from config-owned profiles', () => {
+    expect(listFeeProfileNames()).toEqual(expect.arrayContaining(['ttp_real', 'zero']));
+
+    const ttpReal = buildShellExports('ttp_real');
+    expect(ttpReal).toContain("export BACKTEST_FEE_PROFILE='ttp_real'");
+    expect(ttpReal).toContain('unset FEE_MODEL');
+    expect(ttpReal).toContain("export FEE_MODEL='per_share_minimum'");
+    expect(ttpReal).toContain("export FEE_PER_SHARE='0.005'");
+    expect(ttpReal).toContain("export FEE_MIN_ORDER='0.75'");
+
+    const zero = buildShellExports('zero');
+    expect(zero).toContain("export BACKTEST_FEE_PROFILE='zero'");
+    expect(zero).toContain('unset FEE_MODEL');
+    expect(zero).not.toContain('export FEE_MODEL=');
+    expect(zero).not.toContain('export FEE_PER_SHARE=');
+    expect(zero).not.toContain('export FEE_MIN_ORDER=');
+  });
+
+  test('fee profile shell export rejects missing or unknown profiles', () => {
+    expect(() => buildShellExports(null)).toThrow(/Missing fee profile/);
+    expect(() => buildShellExports('not-real')).toThrow(/Unknown fee profile 'not-real'/);
+    expect(resolveFeeProfile('ttp_real').env.FEE_PER_SHARE).toBe('0.005');
   });
 
   test('explicit sweep direction wins over source env and legacy alias normalizes', () => {
@@ -620,12 +699,14 @@ describe('backtest worker env contract', () => {
         EXIT_SYSTEM: 'contract',
         FEE_SLIPPAGE: '0',
         SOLO_STRATEGY: 'NoWickImbalance',
-      }
+      },
+      'ttp_real'
     );
 
     expect(env.DIRECTION_FILTER).toBe('both');
     expect(env.EXIT_SYSTEM).toBe('legacy');
     expect(env.FEE_SLIPPAGE).toBe('0.0005');
+    expect(env.BACKTEST_FEE_PROFILE).toBe('ttp_real');
     expect(env.SOLO_STRATEGY).toBeUndefined();
     expect(env.MIN_TRADE_CONFIDENCE).toBe('0.25');
     expect(env.CANDLE_LIMIT).toBe('60000');

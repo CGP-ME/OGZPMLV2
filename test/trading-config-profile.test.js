@@ -126,6 +126,7 @@ describe('TradingConfig runtime profile contract', () => {
       dataDir: 'data/backtest',
       reportTag: 'unit-risk-profile',
       profileName: 'current-eval',
+      feeProfileName: 'ttp_real',
       stockMode: true,
       instrumentEnv: {
         BROKER: 'alpaca',
@@ -144,6 +145,8 @@ describe('TradingConfig runtime profile contract', () => {
     expect(workerEnv.ATR_MIN_PERCENT).toBe('0.15');
     expect(workerEnv.TUNING_PROFILE).toBe('current-eval');
     expect(workerEnv.BACKTEST_TUNING_PROFILE).toBe('current-eval');
+    expect(workerEnv.BACKTEST_FEE_PROFILE).toBe('ttp_real');
+    expect(workerEnv.FEE_MODEL).toBe('per_share_minimum');
   });
 
   test('TTP 5k MAX tuning profile exports prop-eval economics to stock backtest workers', () => {
@@ -155,6 +158,7 @@ describe('TradingConfig runtime profile contract', () => {
       dataDir: 'data/backtest',
       reportTag: 'unit-ttp-5k-profile',
       profileName: 'ttp-5k-max',
+      feeProfileName: 'ttp_real',
       stockMode: true,
       instrumentEnv: {
         BROKER: 'alpaca',
@@ -184,6 +188,7 @@ describe('TradingConfig runtime profile contract', () => {
     expect(workerEnv.TTP_PROFIT_TARGET_DOLLARS).toBe('300');
     expect(workerEnv.TUNING_PROFILE).toBe('ttp-5k-max');
     expect(workerEnv.BACKTEST_TUNING_PROFILE).toBe('ttp-5k-max');
+    expect(workerEnv.BACKTEST_FEE_PROFILE).toBe('ttp_real');
   });
 
   test('stock backtest workers carry explicit Alpaca adapter config without leaking credentials in summaries', () => {
@@ -199,6 +204,7 @@ describe('TradingConfig runtime profile contract', () => {
       dataDir: 'data/backtest',
       reportTag: 'unit-alpaca-worker',
       profileName: 'current-eval',
+      feeProfileName: 'zero',
       stockMode: true,
       instrumentEnv: {
         BROKER: 'alpaca',

@@ -13,9 +13,9 @@
  * - Reads results from JSON report file as fallback
  * 
  * Usage:
- *   node tools/parallel-backtest.js --real     (HONORED env vars only - default)
- *   node tools/parallel-backtest.js --full     (all HONORED sweeps)
- *   node tools/parallel-backtest.js --atr      (ATR filter sweep)
+ *   node tools/parallel-backtest.js --real --fee-profile=ttp_real     (HONORED env vars only - default)
+ *   node tools/parallel-backtest.js --full --fee-profile=ttp_real     (all HONORED sweeps)
+ *   node tools/parallel-backtest.js --atr --fee-profile=ttp_real      (ATR filter sweep)
  * 
  * @author Claude (Opus) for Trey / OGZPrime
  * @date 2026-03-16
@@ -40,6 +40,11 @@ const {
   resolveTuningProfile,
   summarizeTuningProfile,
 } = require('./tuning-profiles');
+const {
+  listFeeProfileNames,
+  resolveFeeProfile,
+  summarizeFeeProfile,
+} = require('./fee-profiles');
 
 // ═══════════════════════════════════════════════════════════════
 // HARDWARE DETECTION
@@ -377,7 +382,7 @@ function generateRSISweep(options = PARALLEL_BACKTEST_CONFIG.rsiSweep) {
 // WORKER — Runs a single backtest as a child process
 // ═══════════════════════════════════════════════════════════════
 
-function runSingleBacktest(config, dataFile, stockMode = false, profileName = DEFAULT_TUNING_PROFILE) {
+function runSingleBacktest(config, dataFile, stockMode = false, profileName = DEFAULT_TUNING_PROFILE, feeProfileName) {
   return new Promise((resolve) => {
     const startTime = Date.now();
     const uniqueId = `${config.name}-${Date.now()}-${Math.random().toString(36).substr(2,4)}`;
@@ -398,6 +403,7 @@ function runSingleBacktest(config, dataFile, stockMode = false, profileName = DE
       reportTag,
       stockMode,
       profileName,
+      feeProfileName,
       strategyDiag: process.env.STRATEGY_DIAG || 'false',
       configEnv: { ...dormantStrategyEnv, ...(config.env || {}) },
       instrumentEnv,
@@ -631,9 +637,10 @@ function describeFeePosture(profile, stockMode) {
 // PARALLEL RUNNER
 // ═══════════════════════════════════════════════════════════════
 
-async function runParallelSweep(configs, dataFile, stockMode = false, profileName = DEFAULT_TUNING_PROFILE) {
+async function runParallelSweep(configs, dataFile, stockMode = false, profileName = DEFAULT_TUNING_PROFILE, feeProfileName) {
   const tuningProfile = resolveTuningProfile(profileName);
-  const feePosture = describeFeePosture(tuningProfile, stockMode);
+  const feeProfile = resolveFeeProfile(feeProfileName);
+  const feePosture = describeFeePosture(feeProfile, stockMode);
 
   console.log(`\n${'═'.repeat(70)}`);
   console.log(`  OGZPrime PARALLEL BACKTESTER v2${stockMode ? ' [STOCK MODE]' : ''}`);
@@ -641,6 +648,7 @@ async function runParallelSweep(configs, dataFile, stockMode = false, profileNam
   console.log(`  ${configs.length} configurations to test`);
   console.log(`  Data: ${dataFile}`);
   console.log(`  Profile: ${tuningProfile.name}`);
+  console.log(`  Fee profile: ${feeProfile.name}`);
   console.log(`  Timeout: None (runs until complete)`);
   if (feePosture) console.log(`  Fees: ${feePosture}`);
   console.log(`${'═'.repeat(70)}\n`);
@@ -658,7 +666,7 @@ async function runParallelSweep(configs, dataFile, stockMode = false, profileNam
     console.log(`  ⏳ Running... (no timeout, will finish when done)`);
 
     const batchResults = await Promise.all(
-      batch.map(config => runSingleBacktest(config, dataFile, stockMode, tuningProfile.name))
+      batch.map(config => runSingleBacktest(config, dataFile, stockMode, tuningProfile.name, feeProfile.name))
     );
 
     batchResults.forEach(r => {
@@ -710,6 +718,7 @@ async function runParallelSweep(configs, dataFile, stockMode = false, profileNam
     hardware: { cpu: cpuModel, threads: threadCount, workers: MAX_WORKERS },
     dataFile,
     tuningProfile: summarizeTuningProfile(tuningProfile),
+    feeProfile: summarizeFeeProfile(feeProfile),
     totalConfigs: configs.length,
     parsedConfigs: ranked.length,
     erroredConfigs: failed.length,
@@ -746,6 +755,7 @@ async function main() {
   let stockMode = false;
   let cliSoloStrategy = null;
   let profileName = DEFAULT_TUNING_PROFILE;
+  let feeProfileName = null;
   let configNameMatch = null;
 
   for (let i = 0; i < args.length; i++) {
@@ -765,6 +775,12 @@ async function main() {
     }
     else if (args[i].startsWith('--profile=')) {
       profileName = args[i].split('=')[1];
+    }
+    else if (args[i] === '--fee-profile' && args[i+1]) {
+      feeProfileName = args[++i];
+    }
+    else if (args[i].startsWith('--fee-profile=')) {
+      feeProfileName = args[i].split('=')[1];
     }
     else if ((args[i] === '--match' || args[i] === '--config-match') && args[i+1]) {
       configNameMatch = args[++i];
@@ -835,15 +851,16 @@ Options:
                  Shortcuts: tsla, spy, qqq, btc, btc-5sec
   --solo=NAME    Test single strategy (RSI, MADynamicSR, EMASMACrossover, SmartMoneySweep, etc)
   --profile=NAME Tuning profile (${listTuningProfileNames().join(', ')})
-  --stocks       Zero commission mode (for stocks)
+  --fee-profile=NAME Required venue fee profile (${listFeeProfileNames().join(', ')})
+  --stocks       Force stock instrument validation
   --help         Show this help
 
 NOTE: Generic STOP_LOSS_PERCENT, TAKE_PROFIT_PERCENT, TRAILING_STOP_* are not sweep knobs.
       Use --exit-geometry for strategy-owned keys that live strategies read.
 
 Examples:
-  node tools/parallel-backtest.js --real --stocks --data=tsla --profile=current-eval
-  node tools/parallel-backtest.js --atr --solo=RSI --stocks --profile=legacy-wide
+  node tools/parallel-backtest.js --real --stocks --data=tsla --profile=current-eval --fee-profile=ttp_real
+  node tools/parallel-backtest.js --atr --solo=RSI --stocks --profile=legacy-wide --fee-profile=ttp_real
 
 Walk-Forward Validation:
   After finding winners, test on unseen data:
@@ -857,6 +874,11 @@ Notes:
 `);
       process.exit(0);
     }
+  }
+
+  if (!feeProfileName) {
+    console.error(`Missing required --fee-profile. Available: ${listFeeProfileNames().join(', ')}`);
+    process.exit(1);
   }
 
   let configs;
@@ -877,7 +899,7 @@ Notes:
     process.exit(1);
   }
 
-  await runParallelSweep(configs, dataFile, stockMode, profileName);
+  await runParallelSweep(configs, dataFile, stockMode, profileName, feeProfileName);
 }
 
 if (require.main === module) {

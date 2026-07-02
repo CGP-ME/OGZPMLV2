@@ -362,6 +362,58 @@ function buildTuningProfilesConfig() {
   });
 }
 
+const FEE_PROFILE_ENV_KEYS = Object.freeze(new Set([
+  'FEE_MODEL',
+  'FEE_MAKER',
+  'FEE_TAKER',
+  'FEE_TOTAL_ROUNDTRIP',
+  'FEE_SAFETY_BUFFER',
+  'FEE_SLIPPAGE',
+  'FEE_PER_SHARE',
+  'FEE_MIN_ORDER',
+]));
+
+function freezeFeeProfile(profile, profileName) {
+  if (!profile || typeof profile !== 'object' || Array.isArray(profile)) {
+    throw new Error(`[TradingConfig] feeProfiles.definitions.${profileName} must be an object`);
+  }
+  if (profile.name !== profileName) {
+    throw new Error(`[TradingConfig] fee profile key '${profileName}' must match profile.name '${profile.name}'`);
+  }
+  if (typeof profile.description !== 'string' || profile.description.trim() === '') {
+    throw new Error(`[TradingConfig] feeProfiles.definitions.${profileName}.description must be a non-empty string`);
+  }
+  if (!profile.env || typeof profile.env !== 'object' || Array.isArray(profile.env)) {
+    throw new Error(`[TradingConfig] feeProfiles.definitions.${profileName}.env must be an object`);
+  }
+  const unknownKeys = Object.keys(profile.env).filter(key => !FEE_PROFILE_ENV_KEYS.has(key));
+  if (unknownKeys.length > 0) {
+    throw new Error(`[TradingConfig] feeProfiles.definitions.${profileName}.env has non-fee key(s): ${unknownKeys.join(', ')}`);
+  }
+  return Object.freeze({
+    ...profile,
+    env: Object.freeze({ ...profile.env }),
+  });
+}
+
+function buildFeeProfilesConfig() {
+  const feeProfiles = tradingConfigFile.feeProfiles;
+  if (!feeProfiles || typeof feeProfiles !== 'object' || Array.isArray(feeProfiles)) {
+    throw new Error('[TradingConfig] config/trading.config.json must define feeProfiles');
+  }
+  const { definitions } = feeProfiles;
+  if (!definitions || typeof definitions !== 'object' || Array.isArray(definitions)) {
+    throw new Error('[TradingConfig] feeProfiles.definitions must be an object');
+  }
+  const frozenDefinitions = {};
+  for (const [profileName, profile] of Object.entries(definitions)) {
+    frozenDefinitions[profileName] = freezeFeeProfile(profile, profileName);
+  }
+  return Object.freeze({
+    definitions: Object.freeze(frozenDefinitions),
+  });
+}
+
 function freezeStringMap(values) {
   return Object.freeze({ ...values });
 }
@@ -1788,6 +1840,7 @@ const BASE_CONFIG = {
   // =========================================================================
   fundTarget: env('FUND_TARGET', 25000),
   startingBalance: env('STARTING_BALANCE', 10000),
+  feeProfiles: buildFeeProfilesConfig(),
 };
 
 // =============================================================================
@@ -1830,6 +1883,14 @@ function normalizeTuningProfileName(profileName) {
 
 function getTuningProfileDefinitions() {
   return BASE_CONFIG.tuningProfiles.definitions;
+}
+
+function normalizeFeeProfileName(profileName) {
+  return String(profileName || '').trim();
+}
+
+function getFeeProfileDefinitions() {
+  return BASE_CONFIG.feeProfiles.definitions;
 }
 
 function coerceProfileEnvValue(envKey, rawValue) {
@@ -2077,6 +2138,33 @@ class TradingConfig {
 
   static getTuningProfileDefinitions() {
     return deepFreezePlain(clonePlain(getTuningProfileDefinitions()));
+  }
+
+  static listFeeProfileNames() {
+    return Object.keys(getFeeProfileDefinitions());
+  }
+
+  static resolveFeeProfile(profileName) {
+    const normalized = normalizeFeeProfileName(profileName);
+    if (!normalized) {
+      throw new Error(`[TradingConfig] Missing fee profile. Pass an explicit fee profile (${this.listFeeProfileNames().join(', ')})`);
+    }
+    const profile = getFeeProfileDefinitions()[normalized];
+    if (!profile) {
+      throw new Error(`[TradingConfig] Unknown fee profile '${normalized}'. Available: ${this.listFeeProfileNames().join(', ')}`);
+    }
+    return deepFreezePlain(clonePlain(profile));
+  }
+
+  static summarizeFeeProfile(profileOrName) {
+    const profile = typeof profileOrName === 'string' || !profileOrName
+      ? this.resolveFeeProfile(profileOrName)
+      : this.resolveFeeProfile(profileOrName.name);
+    return {
+      name: profile.name,
+      description: profile.description,
+      env: { ...profile.env },
+    };
   }
 
   static getBacktestWorkerEnvDefaults() {

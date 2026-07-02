@@ -10,6 +10,7 @@
     "risk",
     "authFailureGuard",
     "patternMemory",
+    "feeProfiles",
     "positionSizing",
     "regimeBoosts",
     "volumeProfileBoosts",
@@ -76,6 +77,40 @@
       "properties": {
         "thresholdCount": { "type": "integer", "minimum": 1 },
         "windowMs": { "type": "integer", "minimum": 1000 }
+      }
+    },
+    "feeProfiles": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["definitions"],
+      "properties": {
+        "definitions": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "description", "env"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "description": { "type": "string", "minLength": 1 },
+              "env": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "FEE_MODEL": { "type": "string", "enum": ["percent", "per_share_minimum"] },
+                  "FEE_MAKER": { "type": "string" },
+                  "FEE_TAKER": { "type": "string" },
+                  "FEE_TOTAL_ROUNDTRIP": { "type": "string" },
+                  "FEE_SAFETY_BUFFER": { "type": "string" },
+                  "FEE_SLIPPAGE": { "type": "string" },
+                  "FEE_PER_SHARE": { "type": "string" },
+                  "FEE_MIN_ORDER": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
       }
     },
     "patternMemory": {

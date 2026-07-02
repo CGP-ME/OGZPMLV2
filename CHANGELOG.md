@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### TTP Venue Fee Backtest Parity (2026-07-02)
+
+- Added explicit `ttp_real` and `zero` fee profiles and required backtest worker, matrix sweep, parallel sweep, and confidence grid paths to choose a fee profile instead of silently inheriting zero stock fees.
+- Re-anchored the canonical P0 gate to TTP venue economics: `$0.005/share`, `$0.75` minimum per filled order, with the prior zero-fee P0 retained as historical comparison only.
+- Added focused worker/profile coverage proving missing or unknown fee profiles fail loudly, TTP-real fees apply to stock workers, and explicit `zero` remains available only for side-by-side comparisons.
+
 ### MTF Runtime Base Timeframe Ownership (2026-07-02)
 
 - Threaded `broker.candleTimeframe` into live and StrategyOrchestrator MTF adapter construction so source candles are stored and aggregated from the configured runtime timeframe instead of an implicit 1m base.

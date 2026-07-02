@@ -5,8 +5,8 @@
  * On 60k polygon candles
  *
  * Usage:
- *   node tools/grid-search-confidence.js           # Sequential (safe)
- *   node tools/grid-search-confidence.js --parallel # Parallel (fast, needs 6+ cores)
+ *   node tools/grid-search-confidence.js --fee-profile=ttp_real            # Sequential (safe)
+ *   node tools/grid-search-confidence.js --fee-profile=ttp_real --parallel # Parallel (fast, needs 6+ cores)
  */
 
 const { spawn } = require('child_process');
@@ -17,6 +17,10 @@ const {
   buildBacktestWorkerEnv,
   summarizeWorkerEnv,
 } = require('./backtest-worker-env');
+const {
+  listFeeProfileNames,
+  resolveFeeProfile,
+} = require('./fee-profiles');
 
 const THRESHOLDS = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30];
 const CANDLE_LIMIT = 60000;
@@ -24,8 +28,10 @@ const WORK_DIR = path.resolve(__dirname, '..');
 const DATA_FILE = path.join(WORK_DIR, 'data/polygon-btc-1y.json');
 
 const PARALLEL = process.argv.includes('--parallel') || process.argv.includes('-p');
+const feeProfileArg = process.argv.find(arg => arg.startsWith('--fee-profile='));
+const FEE_PROFILE = feeProfileArg ? feeProfileArg.split('=')[1] : null;
 
-function buildGridSearchEnv(threshold, reportTag, stateFile, sourceEnv = process.env) {
+function buildGridSearchEnv(threshold, reportTag, stateFile, sourceEnv = process.env, feeProfileName = FEE_PROFILE) {
   return buildBacktestWorkerEnv({
     sourceEnv,
     projectRoot: WORK_DIR,
@@ -42,6 +48,7 @@ function buildGridSearchEnv(threshold, reportTag, stateFile, sourceEnv = process
       DEBUG_BRAIN: '0',
     },
     instrumentEnv: resolveInstrumentFromDataFile(DATA_FILE),
+    feeProfileName,
   });
 }
 
@@ -128,11 +135,18 @@ function runBacktest(threshold) {
 }
 
 async function main() {
+  if (!FEE_PROFILE) {
+    console.error(`Missing required --fee-profile. Available: ${listFeeProfileNames().join(', ')}`);
+    process.exit(1);
+  }
+  resolveFeeProfile(FEE_PROFILE);
+
   console.log('╔════════════════════════════════════════════════════════════╗');
   console.log('║     MIN_TRADE_CONFIDENCE GRID SEARCH                       ║');
   console.log('║     Testing: 5%, 10%, 15%, 20%, 25%, 30%                   ║');
   console.log('║     Data: 60k polygon candles                              ║');
   console.log(`║     Mode: ${PARALLEL ? 'PARALLEL (all 6 at once)' : 'Sequential'}                         ║`);
+  console.log(`║     Fee profile: ${FEE_PROFILE.padEnd(44)}║`);
   console.log('╚════════════════════════════════════════════════════════════╝');
   console.log('');
 

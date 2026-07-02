@@ -26,12 +26,12 @@
  *   (previously only 5 of 10 — stdout regex + JSON read now both emit full set)
  *
  * Usage:
- *   node tools/matrix-sweep.js --data tsla              # Full matrix, all strategies
- *   node tools/matrix-sweep.js --data tsla --solo=RSI   # RSI only
- *   node tools/matrix-sweep.js --data tsla --phase exits # Tier-target sweep, locked conf
- *   node tools/matrix-sweep.js --data tsla --phase conf  # Just confidence, locked exits
- *   # ATR dimension tuning: use `node tools/parallel-backtest.js --atr --data <ticker>`
- *   node tools/matrix-sweep.js --data tsla --quick       # Reduced grid (fast sanity check)
+ *   node tools/matrix-sweep.js --data tsla --fee-profile=ttp_real              # Full matrix, all strategies
+ *   node tools/matrix-sweep.js --data tsla --solo=RSI --fee-profile=ttp_real   # RSI only
+ *   node tools/matrix-sweep.js --data tsla --phase exits --fee-profile=ttp_real # Tier-target sweep, locked conf
+ *   node tools/matrix-sweep.js --data tsla --phase conf --fee-profile=ttp_real  # Just confidence, locked exits
+ *   # ATR dimension tuning: use `node tools/parallel-backtest.js --atr --data <ticker> --fee-profile=ttp_real`
+ *   node tools/matrix-sweep.js --data tsla --quick --fee-profile=ttp_real       # Reduced grid (fast sanity check)
  *
  * Output:
  *   backtest-results/matrix-{timestamp}.json    Full results
@@ -83,6 +83,11 @@ const {
   resolveTuningProfile,
   summarizeTuningProfile,
 } = require('./tuning-profiles');
+const {
+  listFeeProfileNames,
+  resolveFeeProfile,
+  summarizeFeeProfile,
+} = require('./fee-profiles');
 const RESULTS_DIR = getMatrixDir();
 const WORKER_LOG_DIR = path.join(PROJECT_ROOT, 'backtest-results', 'worker-logs');
 const MATRIX_SWEEP_CONFIG = TradingConfig.getMatrixSweepConfig();
@@ -399,7 +404,7 @@ function generateMatrix(strategies, grid, phase) {
 // (Same pattern as parallel-backtest.js)
 // ===================================================================
 
-function runWorker(config, dataFile, stockMode, profileName) {
+function runWorker(config, dataFile, stockMode, profileName, feeProfileName) {
   return new Promise(function(resolve) {
     var startTime = Date.now();
     var uid = 'matrix-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
@@ -416,6 +421,7 @@ function runWorker(config, dataFile, stockMode, profileName) {
       reportTag: uid,
       stockMode: stockMode,
       profileName: profileName,
+      feeProfileName: feeProfileName,
       strategyDiag: 'false',
       configEnv: config.env,
       instrumentEnv: instrumentEnv,
@@ -633,8 +639,9 @@ function tryReadReport(projectRoot, tag) {
 // PARALLEL RUNNER
 // ===================================================================
 
-async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, profileName) {
+async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, profileName, feeProfileName) {
   var tuningProfile = resolveTuningProfile(profileName);
+  var feeProfile = resolveFeeProfile(feeProfileName);
   var totalStart = Date.now();
 
   console.log('\n' + '='.repeat(72));
@@ -643,6 +650,7 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, prof
   console.log('  ' + configs.length + ' configurations to test');
   console.log('  Data: ' + dataFile);
   console.log('  Profile: ' + tuningProfile.name);
+  console.log('  Fee profile: ' + feeProfile.name);
   console.log('  ETA: ~' + Math.ceil(configs.length / MAX_WORKERS * 30 / 60) + ' minutes');
   console.log('='.repeat(72) + '\n');
 
@@ -664,7 +672,7 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, prof
     process.stdout.write('  Batch ' + batchNum + '/' + totalBatches + ' (' + pct + '% done, ' + batch.length + ' workers)...');
 
     var batchResults = await Promise.all(
-      batch.map(function(c) { return runWorker(c, dataFile, stockMode, tuningProfile.name); })
+      batch.map(function(c) { return runWorker(c, dataFile, stockMode, tuningProfile.name, feeProfile.name); })
     );
 
     batchResults.forEach(function(r) { results.push(r); });
@@ -772,6 +780,7 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, prof
     dataFile: dataFile,
     stockMode: stockMode,
     tuningProfile: summarizeTuningProfile(tuningProfile),
+    feeProfile: summarizeFeeProfile(feeProfile),
     totalConfigs: configs.length,
     parsedConfigs: parsed.length,
     erroredConfigs: failed.length,
@@ -847,6 +856,7 @@ async function main() {
   var soloStrategy = null;  // null = all validated strategies
   var useAllStrategies = false;
   var profileName = DEFAULT_TUNING_PROFILE;
+  var feeProfileName = null;
 
   for (var i = 0; i < args.length; i++) {
     if (args[i] === '--data' && args[i + 1]) {
@@ -865,6 +875,10 @@ async function main() {
       profileName = args[++i];
     } else if (args[i].indexOf('--profile=') === 0) {
       profileName = args[i].split('=')[1];
+    } else if (args[i] === '--fee-profile' && args[i + 1]) {
+      feeProfileName = args[++i];
+    } else if (args[i].indexOf('--fee-profile=') === 0) {
+      feeProfileName = args[i].split('=')[1];
     } else if (args[i] === '--quick') {
       phase = 'quick';
     } else if (args[i] === '--full') {
@@ -900,16 +914,17 @@ async function main() {
       console.log('  --all-strategies    Test ALL strategies\n');
       console.log('Profiles:');
       console.log('  --profile=NAME      Tuning profile (' + listTuningProfileNames().join(', ') + ')\n');
+      console.log('  --fee-profile=NAME  Required venue fee profile (' + listFeeProfileNames().join(', ') + ')\n');
       console.log('Data:');
       console.log('  --data tsla    TSLA 15m 2-year (default)');
       console.log('  --data spy     SPY, --data qqq, nvda, riot, etc.');
-      console.log('  --stocks       Force zero-commission mode\n');
+      console.log('  --stocks       Force stock instrument validation\n');
       console.log('Examples:');
-      console.log('  node tools/matrix-sweep.js --data tsla');
-      console.log('  node tools/matrix-sweep.js --data tsla --solo=RSI --conf');
-      console.log('  node tools/matrix-sweep.js --data tsla --solo=EMA --exits --profile=current-eval');
-      console.log('  node tools/matrix-sweep.js --data tsla --quick');
-      console.log('  node tools/matrix-sweep.js --data spy --stocks\n');
+      console.log('  node tools/matrix-sweep.js --data tsla --fee-profile=ttp_real');
+      console.log('  node tools/matrix-sweep.js --data tsla --solo=RSI --conf --fee-profile=ttp_real');
+      console.log('  node tools/matrix-sweep.js --data tsla --solo=EMA --exits --profile=current-eval --fee-profile=ttp_real');
+      console.log('  node tools/matrix-sweep.js --data tsla --quick --fee-profile=ttp_real');
+      console.log('  node tools/matrix-sweep.js --data spy --stocks --fee-profile=ttp_real\n');
       console.log('Walk-Forward Workflow:');
       console.log('  1. Run --exits on training data:  --data tsla-train --exits');
       console.log('  2. Lock best honored tier targets per strategy/profile');
@@ -919,6 +934,11 @@ async function main() {
       console.log('  6. Compare train vs test P&L (WFE > 60% = robust)');
       process.exit(0);
     }
+  }
+
+  if (!feeProfileName) {
+    console.error('Missing required --fee-profile. Available: ' + listFeeProfileNames().join(', '));
+    process.exit(1);
   }
 
   // Resolve solo strategy (prefix match)
@@ -962,9 +982,10 @@ async function main() {
   console.log('\n  Phase: ' + phase);
   console.log('  Strategies: ' + strategies.join(', '));
   console.log('  Profile: ' + resolveTuningProfile(profileName).name);
+  console.log('  Fee profile: ' + resolveFeeProfile(feeProfileName).name);
   console.log('  Total configs: ' + configs.length);
 
-  await runMatrix(configs, dataFile, stockMode, soloStrategy, phase, profileName);
+  await runMatrix(configs, dataFile, stockMode, soloStrategy, phase, profileName, feeProfileName);
 }
 
 if (require.main === module) {

@@ -7,6 +7,9 @@ const {
   DEFAULT_TUNING_PROFILE,
   resolveTuningProfile,
 } = require('./tuning-profiles');
+const {
+  resolveFeeProfile,
+} = require('./fee-profiles');
 
 const WORKER_ENV_ALLOWLIST = [
   'PATH',
@@ -175,6 +178,7 @@ const SUMMARY_KEYS = [
   'FEE_SLIPPAGE',
   'FEE_PER_SHARE',
   'FEE_MIN_ORDER',
+  'BACKTEST_FEE_PROFILE',
   'TTP_DAILY_LOSS_LIMIT_DOLLARS',
   'TTP_MAX_LOSS_THRESHOLD_EQUITY',
   'TTP_PROFIT_TARGET_DOLLARS',
@@ -340,6 +344,7 @@ function buildBacktestWorkerEnv(options) {
     configEnv = {},
     instrumentEnv = {},
     profileName = DEFAULT_TUNING_PROFILE,
+    feeProfileName,
   } = options || {};
 
   if (!projectRoot) throw new Error('buildBacktestWorkerEnv requires projectRoot');
@@ -349,6 +354,7 @@ function buildBacktestWorkerEnv(options) {
   if (!reportTag) throw new Error('buildBacktestWorkerEnv requires reportTag');
 
   const profile = resolveTuningProfile(profileName);
+  const feeProfile = resolveFeeProfile(feeProfileName);
   assertEnvKeysAllowed(configEnv, CONFIG_ENV_OVERRIDE_ALLOWLIST, 'configEnv');
   assertEnvKeysAllowed(instrumentEnv, INSTRUMENT_ENV_ALLOWLIST, 'instrumentEnv');
   assertStockModeMatchesInstrument(stockMode, instrumentEnv);
@@ -362,7 +368,6 @@ function buildBacktestWorkerEnv(options) {
   return {
     ...buildWorkerBaseEnv(sourceEnv),
     ...CANONICAL_BACKTEST_ENV,
-    ...(stockMode ? STOCK_ZERO_FEE_ENV : {}),
     ...profile.env,
     CANDLE_DATA_FILE: path.resolve(projectRoot, dataFile),
     STATE_FILE: stateFile,
@@ -373,8 +378,10 @@ function buildBacktestWorkerEnv(options) {
     DIRECTION_FILTER: directionFilter,
     ...normalizedConfigEnv,
     ...instrumentEnv,
+    ...feeProfile.env,
     TUNING_PROFILE: profile.name,
     BACKTEST_TUNING_PROFILE: profile.name,
+    BACKTEST_FEE_PROFILE: feeProfile.name,
   };
 }
 

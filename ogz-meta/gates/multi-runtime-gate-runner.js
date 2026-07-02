@@ -16,10 +16,10 @@ const {
 } = require('./eval-live-posture-gate');
 
 const EXPECTED_P0 = Object.freeze({
-  finalBalance: 10663.639172063286,
-  totalTrades: 1596,
-  winRate: 70.1,
-  profitFactor: 1.16
+  finalBalance: 8338.146639366509,
+  totalTrades: 1551,
+  winRate: 52.2,
+  profitFactor: 0.64
 });
 
 const P0_GATE_ID = 'p0.single_lane.tsla_ema_anchor';
@@ -157,6 +157,13 @@ function buildP0BaselineProvenance(gates, deps = {}) {
       {
         finalBalance: 10663.30975684895,
         reason: 'historical requested-notional recorder anchor before executed closed quantity owned stock PnL'
+      },
+      {
+        finalBalance: 10663.639172063286,
+        totalTrades: 1596,
+        winRate: 70.1,
+        profitFactor: 1.16,
+        reason: 'historical zero-fee stock P0 before TTP venue fee parity became canonical'
       }
     ]
   };
