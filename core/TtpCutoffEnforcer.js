@@ -12,6 +12,8 @@ class TtpCutoffEnforcer {
     getSymbols,
     brokerNames = [],
     brokerReconciliationEnabled = true,
+    brokerPositionReadEnabled = brokerReconciliationEnabled,
+    brokerOrderManagementEnabled = brokerReconciliationEnabled,
     now = () => Date.now(),
     logger = console,
   } = {}) {
@@ -25,6 +27,8 @@ class TtpCutoffEnforcer {
     this.getSymbols = typeof getSymbols === 'function' ? getSymbols : null;
     this.brokerNames = this._normalizeBrokerNames(brokerNames);
     this.brokerReconciliationEnabled = brokerReconciliationEnabled === true;
+    this.brokerPositionReadEnabled = brokerPositionReadEnabled === true;
+    this.brokerOrderManagementEnabled = brokerOrderManagementEnabled === true;
     this.symbols = this._buildSymbolScope(this.baseSymbols);
     this.now = now;
     this.logger = logger;
@@ -114,6 +118,10 @@ class TtpCutoffEnforcer {
       const premarketTrackedStaleRecovery = premarketRecoveryCheck
         && state.blocksNewEntries !== true
         && state.inLiquidationWindow !== true;
+      const expectedBrokerPositions = this._expectedBrokerPositions(activeTrades, symbolScope, state, {
+        premarketTrackedStaleRecovery,
+        targetAllBrokerStocks,
+      });
 
       for (const trade of activeTrades) {
         if (!this._isTtpStockTrade(trade)) continue;
@@ -133,6 +141,13 @@ class TtpCutoffEnforcer {
         if (brokerPositionReadAvailable && !brokerPosition) {
           failures.push({ tradeId, symbol, reason: 'state_trade_open_without_broker_position' });
           continue;
+        }
+        if (brokerPositionReadAvailable) {
+          const quantityMismatch = this._brokerPositionQuantityMismatch(brokerPosition, normalizedSymbol, expectedBrokerPositions);
+          if (quantityMismatch) {
+            failures.push({ tradeId, symbol, reason: 'broker_position_quantity_mismatch', ...quantityMismatch });
+            continue;
+          }
         }
 
         const action = this._exitActionForTrade(trade);
@@ -204,6 +219,23 @@ class TtpCutoffEnforcer {
       }
 
       if (failures.length > 0) {
+        if (brokerPositionReadAvailable && !this.brokerOrderManagementEnabled) {
+          const quarantine = await this._quarantineUnverifiedBrokerFlatness(state, closed, orphanClosed, cancelResult, failures);
+          this.unverifiedKeys.add(key);
+          this.completedKeys.delete(key);
+          return {
+            enforced: true,
+            alreadyCompleted,
+            state,
+            cancelResult,
+            closed,
+            orphanClosed,
+            brokerFlatVerified: false,
+            requiresManualReconciliation: true,
+            failures,
+            quarantine,
+          };
+        }
         throw new Error(`[TTP_MARKET_TIME] liquidation incomplete: ${JSON.stringify(failures)}`);
       }
 
@@ -253,6 +285,120 @@ class TtpCutoffEnforcer {
     return this._isTtpStockAssetClass(assetClass);
   }
 
+  _expectedBrokerPositions(activeTrades, symbolScope, state, options = {}) {
+    const expected = new Map();
+    if (!Array.isArray(activeTrades)) return expected;
+    const {
+      premarketTrackedStaleRecovery = false,
+      targetAllBrokerStocks = false,
+    } = options;
+
+    for (const trade of activeTrades) {
+      if (!this._isTtpStockTrade(trade)) continue;
+      if (premarketTrackedStaleRecovery && !this._tradeOpenedBeforeEtDate(trade, state.currentDateET)) {
+        continue;
+      }
+      const symbol = trade?.symbol;
+      const normalizedSymbol = this._normalizeSymbol(symbol);
+      if (!normalizedSymbol) continue;
+      if (!targetAllBrokerStocks && !this._isTargetSymbol(normalizedSymbol, symbolScope)) {
+        continue;
+      }
+      const quantity = this._remainingBrokerQuantity(trade);
+      const side = this._entrySideForTrade(trade);
+      const existing = expected.get(normalizedSymbol);
+      const nextQuantity = quantity === null || existing?.quantity === null
+        ? null
+        : (existing?.quantity || 0) + quantity;
+      expected.set(normalizedSymbol, {
+        quantity: nextQuantity,
+        side: existing?.side && side && existing.side !== side ? 'mixed' : (existing?.side || side),
+      });
+    }
+
+    return expected;
+  }
+
+  _entrySideForTrade(trade) {
+    const direction = String(trade?.direction || '').trim().toLowerCase();
+    if (direction === 'long' || direction === 'short') return direction;
+    const action = String(trade?.action || trade?.type || '').trim().toUpperCase();
+    if (action === 'BUY') return 'long';
+    if (action === 'SELL_SHORT') return 'short';
+    return null;
+  }
+
+  _remainingBrokerQuantity(trade) {
+    const unit = String(trade?.remainingOrderQuantityUnit || trade?.entryOrderQuantityUnit || '').trim().toLowerCase();
+    if (unit && !['share', 'shares'].includes(unit)) {
+      return null;
+    }
+    const quantity = Number(
+      trade?.remainingOrderQuantity
+      ?? trade?.entryOrderQuantity
+      ?? trade?.orderQuantity
+      ?? trade?.quantity
+    );
+    if (!Number.isFinite(quantity) || quantity < 0) {
+      return null;
+    }
+    return Math.abs(quantity);
+  }
+
+  _brokerPositionQuantityMismatch(position, symbol, expectedPositions) {
+    if (!(expectedPositions instanceof Map)) return null;
+    const normalizedSymbol = this._normalizeSymbol(symbol);
+    if (!normalizedSymbol || !expectedPositions.has(normalizedSymbol)) return null;
+
+    const expectedPosition = expectedPositions.get(normalizedSymbol);
+    const expectedQuantity = expectedPosition?.quantity;
+    const brokerQuantity = Math.abs(Number(position?.size));
+    if (!Number.isFinite(brokerQuantity) || brokerQuantity <= 0) {
+      return {
+        brokerPositionSize: position?.size,
+        expectedRemainingQuantity: expectedQuantity,
+      };
+    }
+    if (!Number.isFinite(expectedQuantity) || expectedQuantity < 0) {
+      return {
+        brokerPositionSize: brokerQuantity,
+        expectedRemainingQuantity: expectedQuantity,
+        expectedQuantityKnown: false,
+      };
+    }
+    const expectedSide = expectedPosition?.side || null;
+    const brokerSide = this._brokerSideForPosition(position);
+    if (expectedSide && brokerSide && expectedSide !== brokerSide) {
+      return {
+        brokerPositionSize: brokerQuantity,
+        expectedRemainingQuantity: expectedQuantity,
+        brokerPositionSide: brokerSide,
+        expectedPositionSide: expectedSide,
+      };
+    }
+
+    if (brokerQuantity === expectedQuantity) {
+      return null;
+    }
+
+    return {
+      brokerPositionSize: brokerQuantity,
+      expectedRemainingQuantity: expectedQuantity,
+    };
+  }
+
+  _brokerSideForPosition(position) {
+    const side = String(position?.side || '').trim().toLowerCase();
+    if (['long', 'buy', 'bought'].includes(side)) return 'long';
+    if (['short', 'sell', 'sold'].includes(side)) return 'short';
+    const signedSize = Number(position?.size);
+    if (Number.isFinite(signedSize)) {
+      if (signedSize > 0) return 'long';
+      if (signedSize < 0) return 'short';
+    }
+    return null;
+  }
+
   _tradeOpenedBeforeEtDate(trade, currentDateET) {
     const openedAt = Number.isFinite(trade?.entryTime) && trade.entryTime > 0
       ? trade.entryTime
@@ -288,8 +434,11 @@ class TtpCutoffEnforcer {
   }
 
   async _cancelOpenOrders(symbolScope) {
-    if (!this.brokerReconciliationEnabled) {
-      return { success: true, skipped: true, reason: 'broker_reconciliation_disabled', cancelled: 0, failed: 0, results: [] };
+    if (!this.brokerOrderManagementEnabled) {
+      const reason = this.brokerPositionReadEnabled
+        ? 'broker_order_management_disabled'
+        : 'broker_reconciliation_disabled';
+      return { success: true, skipped: true, reason, cancelled: 0, failed: 0, results: [] };
     }
     if (!this.orderRouter || typeof this.orderRouter.cancelAllOpenOrders !== 'function') {
       return { success: true, skipped: true, reason: 'missing_cancel_api', cancelled: 0, failed: 0, results: [] };
@@ -298,7 +447,7 @@ class TtpCutoffEnforcer {
   }
 
   _brokerPositionReadAvailable() {
-    return this.brokerReconciliationEnabled
+    return this.brokerPositionReadEnabled
       && this.orderRouter
       && typeof this.orderRouter.getAllPositions === 'function';
   }
@@ -311,6 +460,9 @@ class TtpCutoffEnforcer {
   }
 
   async _closeBrokerPosition(position) {
+    if (!this.brokerOrderManagementEnabled) {
+      throw new Error('broker_order_management_disabled');
+    }
     if (!this.orderRouter || typeof this.orderRouter.sendOrder !== 'function') {
       throw new Error('missing_send_order_api');
     }
@@ -341,7 +493,7 @@ class TtpCutoffEnforcer {
     };
   }
 
-  async _quarantineUnverifiedBrokerFlatness(state, closed, orphanClosed, cancelResult) {
+  async _quarantineUnverifiedBrokerFlatness(state, closed, orphanClosed, cancelResult, failures = []) {
     if (!this.stateManager || typeof this.stateManager.updateState !== 'function') {
       throw new Error('[TTP_MARKET_TIME] broker flatness unverified and StateManager.updateState unavailable for quarantine record');
     }
@@ -376,6 +528,7 @@ class TtpCutoffEnforcer {
       cancelled: Number.isFinite(cancelResult?.cancelled) ? cancelResult.cancelled : 0,
       closed,
       orphanClosed,
+      failures,
       createdAt,
     };
 
