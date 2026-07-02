@@ -17,7 +17,7 @@ function makeCandle(close, ts) {
  * Feed a list of close prices to a fresh IndicatorEngine and return the final RSI.
  */
 function rsiFromCloses(closes, period = 14) {
-  const ie = new IndicatorEngine({ rsiPeriod: period, warmupCandles: 0 });
+  const ie = new IndicatorEngine({ symbol: 'TEST-RSI', rsiPeriod: period, warmupCandles: 0 });
   for (let i = 0; i < closes.length; i++) {
     ie.updateCandle(makeCandle(closes[i], i * 900_000)); // 15-min candles
   }
@@ -64,7 +64,7 @@ test('Snapshot validates against Zod schema', () => {
     46.08, 45.89, 46.03, 45.61, 46.28, 46.28, 46.00, 46.03, 46.41,
     46.22, 45.64,
   ];
-  const ie = new IndicatorEngine({ rsiPeriod: 14, warmupCandles: 0 });
+  const ie = new IndicatorEngine({ symbol: 'TEST-RSI', rsiPeriod: 14, warmupCandles: 0 });
   for (let i = 0; i < closes.length; i++) ie.updateCandle(makeCandle(closes[i], i * 900_000));
   const snapshot = ie.getSnapshot(); // will throw if malformed
   // If we got here the DTO is valid

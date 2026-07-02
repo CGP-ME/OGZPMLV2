@@ -29,6 +29,7 @@ describe('StrategyOrchestrator EMASMACrossover validity', () => {
         l: close - 0.2,
         c: close,
         v: 1000 + index,
+        timeframe: '15m',
       };
     });
   }

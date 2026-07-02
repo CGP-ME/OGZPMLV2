@@ -79,5 +79,11 @@
     "recast": "^0.23.11",
     "tree-sitter": "^0.25.0",
     "tree-sitter-javascript": "^0.25.0"
+  },
+  "jest": {
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/ogz-meta/cognition-history/"
+    ]
   }
 }

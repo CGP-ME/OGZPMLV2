@@ -139,7 +139,7 @@ describe('TRAIBrain section rendering', () => {
     expect(countText(root, 'Awaiting market events...')).toBe(1);
     expect(countText(root, 'Watching for whales...')).toBe(1);
     expect(countText(root, 'Awaiting narrator updates...')).toBe(1);
-    expect(countText(root, '0 items requiring operator attention')).toBe(1);
+    expect(countText(root, 'Escalation channel awaiting backend emitter')).toBe(1);
   });
 
   test('replaces narrator placeholder when real narrator text arrives', () => {

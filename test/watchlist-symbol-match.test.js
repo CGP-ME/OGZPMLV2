@@ -105,9 +105,10 @@ describe('watchlist price symbol matching', () => {
     watchlist.teardown();
     watchlist.init();
 
-    expect(registerHandler).toHaveBeenCalledTimes(2);
+    expect(registerHandler).toHaveBeenCalledTimes(3);
     expect(registerHandler).toHaveBeenNthCalledWith(1, 'price', expect.any(Function));
     expect(registerHandler).toHaveBeenNthCalledWith(2, 'ticker_price', expect.any(Function));
+    expect(registerHandler).toHaveBeenNthCalledWith(3, 'broker_status', expect.any(Function));
     expect(setIntervalMock).toHaveBeenCalledTimes(2);
     expect(clearIntervalMock).toHaveBeenCalledWith(42);
     expect(watchlist._compute().socketHandlersInstalled).toBe(true);
@@ -128,9 +129,10 @@ describe('watchlist price symbol matching', () => {
     socket = secondSocket;
     watchlist.init();
 
-    expect(firstSocket.registerHandler).toHaveBeenCalledTimes(2);
-    expect(secondSocket.registerHandler).toHaveBeenCalledTimes(2);
+    expect(firstSocket.registerHandler).toHaveBeenCalledTimes(3);
+    expect(secondSocket.registerHandler).toHaveBeenCalledTimes(3);
     expect(secondSocket.registerHandler).toHaveBeenNthCalledWith(1, 'price', expect.any(Function));
     expect(secondSocket.registerHandler).toHaveBeenNthCalledWith(2, 'ticker_price', expect.any(Function));
+    expect(secondSocket.registerHandler).toHaveBeenNthCalledWith(3, 'broker_status', expect.any(Function));
   });
 });
