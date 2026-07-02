@@ -166,6 +166,9 @@ describe('Mercury run ledger', () => {
       provider: 'claude',
       model: 'claude-fable-5',
       latency_ms: 250,
+      parsed: null,
+      recheck_prompt_excerpt: null,
+      recheck: null,
       answer_excerpt: 'VERDICT: agree\nCONSENSUS_BLOCKING: no',
     });
   });
@@ -227,10 +230,68 @@ describe('Mercury run ledger', () => {
         name: 'Error',
         message: 'spawn claude ENOENT',
       },
+      parsed: null,
+      recheck_prompt_excerpt: null,
+      recheck: null,
       answer_excerpt: null,
     });
     expect(entry.consensus.ok).toBe(false);
     expect(entry.verdict).toBe('consensus_failed');
     expect(entry.commit_blocking).toBe(true);
+  });
+
+  test('persists Fable-triggered Mercury recheck metadata', () => {
+    const entry = buildRunLedgerEntry({
+      repoRoot: tmpRoot,
+      query: 'Mercury, break my fix.',
+      startedAt: new Date('2026-07-02T00:00:00.000Z'),
+      finishedAt: new Date('2026-07-02T00:00:01.000Z'),
+      result: {
+        termination: 'answer_given',
+        iterations: 3,
+        totalLatencyMs: 1000,
+        answer: 'No concrete break found. core/Foo.js:1-2',
+        consensus: {
+          enabled: true,
+          ok: true,
+          provider: 'claude-code',
+          model: 'claude-fable-5',
+          latencyMs: 250,
+          answer: 'VERDICT: needs_more_evidence\nCONSENSUS_BLOCKING: yes',
+          parsed: {
+            verdict: 'needs_more_evidence',
+            blocking: true,
+            disagreement: 'Missing spawn-site proof.',
+            requiredRecheck: 'inspect ogz-meta/anchor-runner.js:188-197',
+            recheckPrompt: 'Mercury, inspect the spawn site.',
+            nextCheck: 'none',
+          },
+          recheckPrompt: 'Mercury, inspect the spawn site.',
+          recheck: {
+            termination: 'answer_given',
+            iterations: 2,
+            totalLatencyMs: 500,
+            answer: 'Spawn site uses execSync(..., { env }); parent env cannot override after overlay.',
+          },
+        },
+        answerQuality: { flags: [] },
+        toolTelemetry: { byTool: {}, filesOpened: [], runCheckArtifacts: [], runChecks: [] },
+      },
+    });
+
+    expect(entry.consensus).toMatchObject({
+      ok: true,
+      parsed: {
+        verdict: 'needs_more_evidence',
+        blocking: true,
+      },
+      recheck_prompt_excerpt: 'Mercury, inspect the spawn site.',
+      recheck: {
+        termination: 'answer_given',
+        iterations: 2,
+        latency_ms: 500,
+        answer_excerpt: 'Spawn site uses execSync(..., { env }); parent env cannot override after overlay.',
+      },
+    });
   });
 });

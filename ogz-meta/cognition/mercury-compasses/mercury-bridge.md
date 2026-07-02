@@ -45,9 +45,13 @@ Read these first:
    - Default-on Fable second-opinion pass behind
      `mercury.config.json:consensus.defaultEnabled=true`; suppress per run with
      `ask.js --no-consensus` when intentionally needed.
-   - Fable does not receive repo tools in this pass. It evaluates Mercury's
-     answer and telemetry, names evidence gaps, and must not invent new
-     file:line claims.
+   - Fable does not receive repo tools in this pass. It adversarially evaluates
+     Mercury's answer and telemetry, names evidence gaps, and must not invent
+     new file:line claims.
+   - `CONSENSUS_BLOCKING: yes` launches one bounded Mercury recheck from Fable's
+     `RECHECK_PROMPT`; missing or malformed blocking fields fail closed into a
+     recheck. Terminal output and run ledger metadata retain the original
+     Mercury answer, Fable challenge, recheck prompt, and recheck answer excerpt.
    - Current default provider is local Claude Code (`consensus.provider=claude-code`),
      which uses the logged-in CLI subscription instead of Anthropic API env keys.
 

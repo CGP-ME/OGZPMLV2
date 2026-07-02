@@ -77,8 +77,12 @@ If empty, add to `.env`: `INCEPTION_API_KEY=sk_xxx`
 Fable is the default consensus collaborator for agentic Mercury asks in the
 current config. `mercury.config.json` sets `consensus.defaultEnabled=true` and
 `consensus.provider=claude-code`, so `ask.js --agentic` asks Mercury first and
-then asks local Claude Code Fable to review Mercury's answer and evidence. Use
-`ask.js --no-consensus` only when intentionally suppressing the second pass.
+then asks local Claude Code Fable to adversarially review Mercury's answer and
+evidence. When Fable returns `CONSENSUS_BLOCKING: yes`, the bridge launches one
+bounded Mercury recheck with Fable's exact `RECHECK_PROMPT`, then prints an
+adversarial review packet containing the original prompt, Mercury pass 1, Fable's
+challenge, Mercury's recheck, and the remaining proof posture. Use
+`ask.js --no-consensus` only when intentionally suppressing the review loop.
 
 ```bash
 claude --version
@@ -175,7 +179,9 @@ node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens
 
 The consensus pass receives Mercury's prompt, answer, run telemetry, and cited
 evidence summary. It does not get repo tools in this pass, so it must mark gaps
-as `needs_more_evidence` instead of inventing new current-code claims.
+as `needs_more_evidence` instead of inventing new current-code claims. Fable's
+structured `CONSENSUS_BLOCKING` field controls whether one Mercury recheck runs;
+missing or malformed blocking fields fail closed into a recheck.
 
 To suppress consensus for a specific agentic run:
 

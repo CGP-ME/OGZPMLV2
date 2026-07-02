@@ -38,7 +38,13 @@ const { runReactLoop, formatToolTelemetry } = require('./react-loop');
 const { createToolAdapter } = require('./tool-adapter');
 const { routeQuery } = require('./query-router');
 const { createMercuryLlmClient } = require('./llm-client');
-const { consensusRequested, runFableConsensus, consensusFailure } = require('./consensus');
+const {
+  consensusRequested,
+  runFableConsensus,
+  consensusFailure,
+  buildMercuryRecheckPrompt,
+  formatAdversarialReviewPacket,
+} = require('./consensus');
 const { runProviderPreflight } = require('./provider-preflight');
 const { retrieveSimilarTrace, formatTraceAsHint, captureTrace, markTraceUsed, evictStaleTraces, ensureTraceIndexes, getTraceStats } = require('./trace-memory');
 const { buildRunLedgerEntry, writeRunLedgerEntry } = require('./run-ledger');
@@ -459,6 +465,35 @@ async function runAgentic(query, opts) {
           query,
           mercuryResult: result,
         });
+        if (result.consensus.ok && result.consensus.parsed && result.consensus.parsed.blocking) {
+          result.consensus.recheckPrompt = buildMercuryRecheckPrompt({
+            originalQuery: query,
+            mercuryAnswer: result.answer,
+            fableAnswer: result.consensus.answer,
+            parsedConsensus: result.consensus.parsed,
+          });
+          if (verbose) {
+            console.log('[MERCURY-BRIDGE] Fable marked consensus blocking; launching one Mercury recheck.');
+          }
+          const recheckStarted = Date.now();
+          result.consensus.recheck = await runReactLoop({
+            client,
+            toolAdapter,
+            userQuery: result.consensus.recheckPrompt,
+            starterContext,
+            traceHint: null,
+            blastRadius,
+            maxIterations,
+            maxTokens,
+            verbose,
+          });
+          result.consensus.recheck.totalLatencyMs = Date.now() - recheckStarted;
+        }
+        result.adversarialReviewPacket = formatAdversarialReviewPacket({
+          originalQuery: query,
+          mercuryResult: result,
+          consensus: result.consensus,
+        });
       } catch (err) {
         result.consensus = consensusFailure(err);
         if (verbose) {
@@ -652,6 +687,25 @@ async function main() {
           console.log(result.consensus.answer);
           console.log('');
           console.log(`[consensus: ${result.consensus.provider}/${result.consensus.model} | latency: ${result.consensus.latencyMs}ms]`);
+          if (result.consensus.recheck) {
+            console.log('');
+            console.log('═══ MERCURY RECHECK ═══');
+            console.log('');
+            console.log(`Prompt:\n${result.consensus.recheckPrompt}`);
+            console.log('');
+            console.log(result.consensus.recheck.answer);
+            console.log('');
+            console.log(`[recheck iterations: ${result.consensus.recheck.iterations} | termination: ${result.consensus.recheck.termination} | latency: ${result.consensus.recheck.totalLatencyMs}ms]`);
+            if (result.consensus.recheck.toolTelemetry) {
+              console.log(`[recheck tool telemetry: ${formatToolTelemetry(result.consensus.recheck.toolTelemetry)}]`);
+            }
+          }
+          if (result.adversarialReviewPacket) {
+            console.log('');
+            console.log('═══ ADVERSARIAL REVIEW PACKET ═══');
+            console.log('');
+            console.log(result.adversarialReviewPacket);
+          }
         } else {
           console.log(`Consensus unavailable: ${result.consensus.error.message}`);
           console.log(`[consensus: ${result.consensus.provider}/${result.consensus.model}]`);

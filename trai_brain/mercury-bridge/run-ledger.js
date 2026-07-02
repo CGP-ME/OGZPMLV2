@@ -175,6 +175,18 @@ function buildRunLedgerEntry({
       model: result.consensus.model || null,
       latency_ms: result.consensus.latencyMs == null ? null : result.consensus.latencyMs,
       error: result.consensus.error || null,
+      parsed: result.consensus.parsed || null,
+      recheck_prompt_excerpt: result.consensus.recheckPrompt
+        ? truncateText(redactSensitiveText(result.consensus.recheckPrompt), ANSWER_EXCERPT_MAX)
+        : null,
+      recheck: result.consensus.recheck ? {
+        termination: result.consensus.recheck.termination || null,
+        iterations: result.consensus.recheck.iterations == null ? null : result.consensus.recheck.iterations,
+        latency_ms: result.consensus.recheck.totalLatencyMs == null ? null : result.consensus.recheck.totalLatencyMs,
+        answer_excerpt: result.consensus.recheck.answer
+          ? truncateText(redactSensitiveText(result.consensus.recheck.answer), ANSWER_EXCERPT_MAX)
+          : null,
+      } : null,
       answer_excerpt: result.consensus.answer
         ? truncateText(redactSensitiveText(result.consensus.answer), ANSWER_EXCERPT_MAX)
         : null,
