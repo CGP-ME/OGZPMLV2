@@ -48,8 +48,22 @@ class TradingLoop {
   constructor(ctx) {
     this.ctx = ctx;
     this.analyzing = false;
+    this.analyzingSymbols = new Set();
     this.pendingExitSymbols = new Set();
     console.log('[TradingLoop] Initialized (clean rewrite - direction agnostic)');
+  }
+
+  _setSymbolAnalyzing(symbol, analyzing) {
+    if (analyzing) {
+      this.analyzingSymbols.add(symbol);
+    } else {
+      this.analyzingSymbols.delete(symbol);
+    }
+    this.analyzing = this.analyzingSymbols.size > 0;
+  }
+
+  _isSymbolAnalyzing(symbol) {
+    return this.analyzingSymbols.has(symbol);
   }
 
   _diag(stage, fields = {}) {
@@ -861,8 +875,8 @@ class TradingLoop {
         `TradingLoop.analyzeAndTrade requires explicit non-empty string symbol; got ${JSON.stringify(symbol)}`
       );
     }
-    // Concurrency guard — one analysis at a time
-    if (this.analyzing) {
+    // Concurrency guard — one analysis at a time per symbol.
+    if (this._isSymbolAnalyzing(symbol)) {
       emitTrace(this.ctx, 'ANALYSIS_SKIP', { traceId, symbol, reason: 'concurrency_guard' });
       this._writeDecisionAutopsy({
         traceId,
@@ -873,13 +887,13 @@ class TradingLoop {
       });
       return;
     }
-    this.analyzing = true;
+    this._setSymbolAnalyzing(symbol, true);
 
     try {
       await this._analyze(symbol, traceId);
     } finally {
-      this.analyzing = false;
-      await this._drainPendingExitChecks();
+      this._setSymbolAnalyzing(symbol, false);
+      await this._drainPendingExitChecks(symbol);
     }
   }
 
@@ -893,26 +907,29 @@ class TradingLoop {
         `TradingLoop.checkExitsOnly requires explicit non-empty string symbol; got ${JSON.stringify(symbol)}`
       );
     }
-    if (this.analyzing) {
+    if (this._isSymbolAnalyzing(symbol)) {
       this.pendingExitSymbols.add(symbol);
       this._diag('EXIT_ONLY_QUEUED', { symbol });
       return;
     }
-    this.analyzing = true;
+    this._setSymbolAnalyzing(symbol, true);
 
     try {
       await this._checkExitsOnly(symbol);
     } finally {
-      this.analyzing = false;
-      await this._drainPendingExitChecks();
+      this._setSymbolAnalyzing(symbol, false);
+      await this._drainPendingExitChecks(symbol);
     }
   }
 
-  async _drainPendingExitChecks() {
+  async _drainPendingExitChecks(releasedSymbol = null) {
     if (!this.pendingExitSymbols || this.pendingExitSymbols.size === 0) return;
-    const symbols = Array.from(this.pendingExitSymbols);
-    this.pendingExitSymbols.clear();
+    const symbols = releasedSymbol
+      ? (this.pendingExitSymbols.has(releasedSymbol) ? [releasedSymbol] : [])
+      : Array.from(this.pendingExitSymbols);
     for (const symbol of symbols) {
+      if (this._isSymbolAnalyzing(symbol)) continue;
+      this.pendingExitSymbols.delete(symbol);
       await this.checkExitsOnly(symbol);
     }
   }

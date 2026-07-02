@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### TradingLoop Per-Symbol Scan Locks (2026-07-02)
+
+- Replaced the global `TradingLoop.analyzing` admission guard with per-symbol analysis locks so simultaneous 15m candle closes across different symbols no longer drop entry evaluation behind a cross-symbol concurrency skip.
+- Kept same-symbol serialization and same-symbol exit-only queuing, with queued exit checks draining after that symbol releases.
+- Added focused TradingLoop coverage for cross-symbol parallel analysis, same-symbol concurrency autopsy, and same-symbol exit-only queue drain.
+
 ### TRAI Real Feature Vector Learning (2026-07-02)
 
 - Threaded clean entry `patterns[].features` vectors into long and short TRAI trade-outcome learning payloads so PatternMemoryBank writes use the entry feature vector instead of reconstructing from indicator fragments.

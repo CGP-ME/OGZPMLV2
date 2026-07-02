@@ -426,7 +426,7 @@ describe('TradingLoop trace spine', () => {
   test('writes scoped decision autopsy for concurrency skips', async () => {
     const ctx = baseEntryContext();
     const loop = new TradingLoop(ctx);
-    loop.analyzing = true;
+    loop._setSymbolAnalyzing('TSLA', true);
 
     await loop.analyzeAndTrade('TSLA', 'trace_autopsy_concurrency');
 
@@ -444,6 +444,62 @@ describe('TradingLoop trace spine', () => {
       skipReason: 'concurrency_guard',
     }));
     expect(ctx.strategyOrchestrator.evaluate).not.toHaveBeenCalled();
+  });
+
+  test('allows different symbols to analyze while preserving same-symbol serialization', async () => {
+    const ctx = baseEntryContext();
+    const loop = new TradingLoop(ctx);
+    const releases = new Map();
+    loop._analyze = jest.fn(symbol => new Promise(resolve => {
+      releases.set(symbol, resolve);
+    }));
+
+    const tslaAnalysis = loop.analyzeAndTrade('TSLA', 'trace_tsla_parallel');
+    await Promise.resolve();
+
+    const nvdaAnalysis = loop.analyzeAndTrade('NVDA', 'trace_nvda_parallel');
+    await Promise.resolve();
+
+    await loop.analyzeAndTrade('TSLA', 'trace_tsla_duplicate');
+
+    expect(loop._analyze).toHaveBeenCalledTimes(2);
+    expect(loop._analyze.mock.calls.map(call => call[0])).toEqual(['TSLA', 'NVDA']);
+    const duplicateAutopsy = mockDecisionAutopsyLogger.writeAutopsy.mock.calls.at(-1)[0];
+    expect(duplicateAutopsy).toEqual(expect.objectContaining({
+      traceId: 'trace_tsla_duplicate',
+      symbol: 'TSLA',
+      status: 'skip',
+      skipReason: 'concurrency_guard',
+    }));
+
+    releases.get('TSLA')();
+    releases.get('NVDA')();
+    await Promise.all([tslaAnalysis, nvdaAnalysis]);
+  });
+
+  test('drains same-symbol exit-only work after analysis releases', async () => {
+    const ctx = baseEntryContext();
+    const loop = new TradingLoop(ctx);
+    let releaseAnalysis;
+    loop._analyze = jest.fn(() => new Promise(resolve => {
+      releaseAnalysis = resolve;
+    }));
+    loop._checkExitsOnly = jest.fn().mockResolvedValue(undefined);
+
+    const analysis = loop.analyzeAndTrade('TSLA', 'trace_tsla_analysis');
+    await Promise.resolve();
+
+    await loop.checkExitsOnly('TSLA');
+
+    expect(loop.pendingExitSymbols.has('TSLA')).toBe(true);
+    expect(loop._checkExitsOnly).not.toHaveBeenCalled();
+
+    releaseAnalysis();
+    await analysis;
+
+    expect(loop.pendingExitSymbols.has('TSLA')).toBe(false);
+    expect(loop._checkExitsOnly).toHaveBeenCalledTimes(1);
+    expect(loop._checkExitsOnly).toHaveBeenCalledWith('TSLA');
   });
 
   test('fails closed after decision autopsy primary and fallback persistence fail', () => {
