@@ -1637,14 +1637,14 @@ const BASE_CONFIG = {
   // PARALLEL BACKTEST RUNNER CONFIG
   // =========================================================================
   parallelBacktest: deepFreezePlain({
-    defaultData: 'tuning/tsla-15m-2y.json',
+    defaultData: 'tuning/alpaca-tsla-15m-2y.json',
     dataShortcuts: {
-      tsla: 'tuning/tsla-15m-2y.json',
+      tsla: 'tuning/alpaca-tsla-15m-2y.json',
       'tsla-train': 'tuning/tsla-15m-train.json',
       'tsla-test': 'tuning/tsla-15m-test.json',
       'tsla-unseen': 'tuning/tsla-15m-unseen.json',
-      spy: 'tuning/spy-15m-2y.json',
-      qqq: 'tuning/qqq-15m-2y.json',
+      spy: 'tuning/alpaca-spy-15m-2y.json',
+      qqq: 'tuning/alpaca-qqq-15m-2y.json',
       btc: 'data/polygon-btc-1y.json',
       'btc-5sec': 'data/polygon-btc-5sec.json',
     },
@@ -1775,18 +1775,18 @@ const BASE_CONFIG = {
   // MATRIX SWEEP RUNNER CONFIG
   // =========================================================================
   matrixSweep: deepFreezePlain({
-    defaultData: 'tuning/tsla-15m-2y.json',
+    defaultData: 'tuning/alpaca-tsla-15m-2y.json',
     dataShortcuts: {
-      tsla: 'tuning/tsla-15m-2y.json',
+      tsla: 'tuning/alpaca-tsla-15m-2y.json',
       'tsla-train': 'tuning/tsla-15m-train.json',
       'tsla-test': 'tuning/tsla-15m-test.json',
       'tsla-unseen': 'tuning/tsla-15m-unseen.json',
-      spy: 'tuning/spy-15m-2y.json',
-      qqq: 'tuning/qqq-15m-2y.json',
-      nvda: 'tuning/nvda-15m-2y.json',
-      riot: 'tuning/riot-15m-2y.json',
-      mara: 'tuning/mara-15m-2y.json',
-      coin: 'tuning/coin-15m-2y.json',
+      spy: 'tuning/alpaca-spy-15m-2y.json',
+      qqq: 'tuning/alpaca-qqq-15m-2y.json',
+      nvda: 'tuning/alpaca-nvda-15m-2y.json',
+      riot: 'tuning/alpaca-riot-15m-2y.json',
+      mara: 'tuning/alpaca-mara-15m-2y.json',
+      coin: 'tuning/alpaca-coin-15m-2y.json',
       btc: 'data/polygon-btc-1y.json',
     },
     stockTickers: [

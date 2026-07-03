@@ -203,6 +203,7 @@ function isStockTickerShortcut(key) {
 function getDataLabel(dataFile) {
   var base = path.basename(dataFile, '.json');
   base = base.replace(/^polygon-/, '');
+  base = base.replace(/^alpaca-/, '');
   base = base.replace(/-15m-/, '-');
   base = base.replace(/-1m-/, '-');
   base = base.replace(/-5m-/, '-');
@@ -468,7 +469,7 @@ function runWorker(config, dataFile, stockMode, profileName, feeProfileName) {
 
       // Try reading report JSON as fallback
       if (result.trades == null) {
-        var reportResult = tryReadReport(PROJECT_ROOT, uid);
+        var reportResult = tryReadReport(PROJECT_ROOT, uid, env.BACKTEST_OUTPUT_DIR);
         if (reportResult) Object.assign(result, reportResult);
       }
 
@@ -558,7 +559,25 @@ function finiteNumber(value) {
   return Number.isFinite(number) ? number : null;
 }
 
-function tryReadReport(projectRoot, tag) {
+function listTaggedReports(scanDir, tag) {
+  if (!scanDir || !fs.existsSync(scanDir)) return [];
+  var reports = [];
+  for (var entry of fs.readdirSync(scanDir, { withFileTypes: true })) {
+    var full = path.join(scanDir, entry.name);
+    if (entry.isDirectory()) {
+      reports = reports.concat(listTaggedReports(full, tag));
+      continue;
+    }
+    var matchesLegacyName = entry.name.startsWith('backtest-report-') && entry.name.endsWith('.json');
+    var matchesCampaignName = entry.name.startsWith('report-') && entry.name.endsWith('.json');
+    if (!matchesLegacyName && !matchesCampaignName) continue;
+    if (tag && full.indexOf(tag) === -1) continue;
+    reports.push({ name: entry.name, path: full, mtime: fs.statSync(full).mtimeMs });
+  }
+  return reports;
+}
+
+function tryReadReport(projectRoot, tag, outputRoot) {
   try {
     // FIX 2026-04-22: per-worker tag filter — prevents race condition under parallelism.
     // When tag is provided (matrix-sweep call), match only files containing that tag.
@@ -566,18 +585,14 @@ function tryReadReport(projectRoot, tag) {
     // FIX 2026-04-22 (2nd pass): scan backtest-results/worker-reports/ first (new routing
     // for tagged workers), fall back to project root for legacy files still lingering there.
     var workerDir = path.join(projectRoot, 'backtest-results', 'worker-reports');
-    var scanDir = fs.existsSync(workerDir) ? workerDir : projectRoot;
-    var reports = fs.readdirSync(scanDir)
-      .filter(function(f) {
-        if (!f.startsWith('backtest-report-') || !f.endsWith('.json')) return false;
-        if (tag) return f.indexOf(tag) !== -1;
-        return true;
-      })
-      .map(function(f) { return { name: f, mtime: fs.statSync(path.join(scanDir, f)).mtimeMs }; })
+    var reports = []
+      .concat(listTaggedReports(outputRoot, tag))
+      .concat(listTaggedReports(workerDir, tag))
+      .concat(listTaggedReports(projectRoot, tag))
       .sort(function(a, b) { return b.mtime - a.mtime; });
 
     if (reports.length === 0) return null;
-    var reportPath = path.join(scanDir, reports[0].name);
+    var reportPath = reports[0].path;
     var data = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
     // FIX 2026-04-21: removed unlinkSync — per-worker reports are kept for postmortem analysis.
     // Race fix (2026-04-22, commit 747909d): workers route to backtest-results/worker-reports/

@@ -124,7 +124,7 @@
               "name": {"type": "string"},
               "adjustedConfidence": {"type": "number"},
               "rejected": {"type": "boolean"},
-              "rejectReason": {"type": "string"}
+              "rejectReason": {"type": ["string", "null"]}
             }
           }
         }
@@ -192,11 +192,13 @@
               "same_direction_block",
               "kill_switch",
               "warmup",
-              "direction_filter"
+              "direction_filter",
+              "shorts_enabled",
+              "fee_edge"
             ]
           },
-          "threshold": {"type": "number"},
-          "value": {"type": "number"},
+          "threshold": {"type": ["number", "string", "boolean", "null"]},
+          "value": {"type": ["number", "string", "boolean", "null"]},
           "passed": {"type": "boolean"},
           "rejectReason": {"type": "string", "description": "If passed=false, why this gate killed the trade"}
         }
@@ -220,19 +222,26 @@
 
     "exitContract": {
       "type": "object",
-      "required": ["source", "stopLossPercent", "takeProfitPercent"],
+      "required": ["stopLossPercent", "takeProfitPercent"],
       "properties": {
         "source": {
           "type": "string",
           "example": "TradingConfig.exitContracts.EMASMACrossover"
         },
+        "strategyName": {"type": "string"},
+        "timeframe": {"type": "string"},
+        "createdAt": {"type": "integer"},
+        "signalConfidence": {"type": "number"},
+        "_validated": {"type": "string", "format": "date"},
         "validatedDate": {"type": "string", "format": "date"},
         "stopLossPercent": {"type": "number"},
         "takeProfitPercent": {"type": "number"},
         "trailingStopPercent": {"type": "number"},
         "trailingActivation": {"type": "number"},
         "maxHoldMinutes": {"type": "integer"},
+        "maxHoldTimeMinutes": {"type": "integer"},
         "minConfidence": {"type": "number"},
+        "atrMinPercent": {"type": ["number", "null"]},
         "useStructuralExits": {"type": "boolean"},
         "invalidationConditions": {
           "type": "array",

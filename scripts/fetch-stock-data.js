@@ -35,6 +35,33 @@ function assertDownloadConfig(config) {
   }
 }
 
+function optionalText(config, key) {
+  const value = String(config?.[key] || '').trim();
+  return value || null;
+}
+
+function withOptionalDownloadConfig(config, env = process.env) {
+  return {
+    ...config,
+    startDate: optionalText(config, 'startDate') || optionalText(env, 'ALPACA_STOCK_DOWNLOAD_START'),
+    endDate: optionalText(config, 'endDate') || optionalText(env, 'ALPACA_STOCK_DOWNLOAD_END'),
+    outputFile: optionalText(config, 'outputFile') || optionalText(env, 'ALPACA_STOCK_DOWNLOAD_OUTPUT_FILE'),
+    sessionProfile: optionalText(config, 'sessionProfile') || optionalText(env, 'ALPACA_STOCK_DOWNLOAD_SESSION_PROFILE') || 'alpaca_bars_no_session_filter',
+  };
+}
+
+function resolveDownloadRange(config) {
+  const endDate = config.endDate ? new Date(config.endDate) : new Date();
+  const startDate = config.startDate ? new Date(config.startDate) : new Date(endDate);
+  if (!config.startDate) {
+    startDate.setFullYear(startDate.getFullYear() - config.years);
+  }
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || startDate >= endDate) {
+    throw new Error(`[fetch-stock-data] Invalid download range start=${config.startDate || '(years-derived)'} end=${config.endDate || '(now)'}`);
+  }
+  return { startDate, endDate };
+}
+
 async function fetchBars(symbol, start, end, config) {
   assertDownloadConfig(config);
 
@@ -68,19 +95,18 @@ async function fetchBars(symbol, start, end, config) {
 async function fetchAllData(symbol, config) {
   assertDownloadConfig(config);
 
-  console.log(`Fetching ${symbol} (${config.timeframe}, ${config.years} years)...`);
+  const range = resolveDownloadRange(config);
+  console.log(`Fetching ${symbol} (${config.timeframe}, ${range.startDate.toISOString()} to ${range.endDate.toISOString()})...`);
 
   const allBars = [];
-  const endDate = new Date();
-  const startDate = new Date();
-  startDate.setFullYear(startDate.getFullYear() - config.years);
+  const errors = [];
 
-  let currentStart = new Date(startDate);
+  let currentStart = new Date(range.startDate);
 
-  while (currentStart < endDate) {
+  while (currentStart < range.endDate) {
     const chunkEnd = new Date(currentStart);
     chunkEnd.setMonth(chunkEnd.getMonth() + config.chunkMonths);
-    if (chunkEnd > endDate) chunkEnd.setTime(endDate.getTime());
+    if (chunkEnd > range.endDate) chunkEnd.setTime(range.endDate.getTime());
 
     const startStr = currentStart.toISOString();
     const endStr = chunkEnd.toISOString();
@@ -94,9 +120,14 @@ async function fetchAllData(symbol, config) {
       await new Promise(r => setTimeout(r, config.rateLimitMs));
     } catch (error) {
       console.error(`\n   Error: ${error.message}`);
+      errors.push(`${startStr} -> ${endStr}: ${error.message}`);
     }
 
     currentStart = new Date(chunkEnd);
+  }
+
+  if (errors.length > 0) {
+    throw new Error(`[fetch-stock-data] ${symbol} download failed for ${errors.length} chunk(s): ${errors.join('; ')}`);
   }
 
   console.log();
@@ -116,23 +147,59 @@ function convertFormat(bars) {
   }));
 }
 
-async function main(config = resolveAlpacaStockDownloadConfig(process.env)) {
-  assertDownloadConfig(config);
+function buildOutputPayload(symbol, candles, config, range) {
+  return {
+    metadata: {
+      provider: 'alpaca',
+      feed: config.feed,
+      feedType: config.feed === 'iex' ? 'single-exchange' : 'unknown',
+      adjustment: config.adjustment,
+      sessionProfile: config.sessionProfile,
+      timestampConvention: 'bar_start_ms_aligned',
+      symbol,
+      timeframe: config.filenameTimeframe,
+      alpacaTimeframe: config.timeframe,
+      requestedStart: range.startDate.toISOString(),
+      requestedEnd: range.endDate.toISOString(),
+      firstTimestamp: candles[0]?.t ?? null,
+      firstIso: candles[0] ? new Date(candles[0].t).toISOString() : null,
+      lastTimestamp: candles[candles.length - 1]?.t ?? null,
+      lastIso: candles[candles.length - 1] ? new Date(candles[candles.length - 1].t).toISOString() : null,
+      candleCount: candles.length,
+      generatedAt: new Date().toISOString(),
+      source: 'scripts/fetch-stock-data.js',
+    },
+    candles,
+  };
+}
 
-  const outputDir = path.resolve(process.cwd(), config.outputDir);
+function outputFilename(symbol, config, range) {
+  if (config.outputFile) return path.basename(config.outputFile);
+  const rangeSuffix = config.startDate || config.endDate
+    ? `${range.startDate.toISOString().slice(0, 10)}_${range.endDate.toISOString().slice(0, 10)}`
+    : `${config.years}y`;
+  return `alpaca-${symbol.toLowerCase()}-${config.filenameTimeframe}-${rangeSuffix}.json`;
+}
+
+async function main(config = resolveAlpacaStockDownloadConfig(process.env)) {
+  const resolvedConfig = withOptionalDownloadConfig(config);
+  assertDownloadConfig(resolvedConfig);
+
+  const outputDir = path.resolve(process.cwd(), resolvedConfig.outputDir);
+  const range = resolveDownloadRange(resolvedConfig);
   console.log('Alpaca Stock Data Fetcher');
   console.log('============================');
-  console.log(`Symbols: ${config.symbols.join(', ')}`);
-  console.log(`Interval: ${config.timeframe}, Range: ${config.years} years`);
+  console.log(`Symbols: ${resolvedConfig.symbols.join(', ')}`);
+  console.log(`Interval: ${resolvedConfig.timeframe}, Range: ${range.startDate.toISOString()} to ${range.endDate.toISOString()}`);
   console.log(`Output: ${outputDir}\n`);
 
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
   }
 
-  for (const symbol of config.symbols) {
+  for (const symbol of resolvedConfig.symbols) {
     try {
-      const rawBars = await fetchAllData(symbol, config);
+      const rawBars = await fetchAllData(symbol, resolvedConfig);
 
       if (rawBars.length === 0) {
         console.log(`No data for ${symbol}\n`);
@@ -141,10 +208,13 @@ async function main(config = resolveAlpacaStockDownloadConfig(process.env)) {
 
       const candles = convertFormat(rawBars);
 
-      const filename = `${symbol.toLowerCase()}-${config.filenameTimeframe}-${config.years}y.json`;
-      const filepath = path.join(outputDir, filename);
+      const filename = outputFilename(symbol, resolvedConfig, range);
+      const filepath = resolvedConfig.outputFile
+        ? path.resolve(process.cwd(), resolvedConfig.outputFile)
+        : path.join(outputDir, filename);
+      const payload = buildOutputPayload(symbol, candles, resolvedConfig, range);
 
-      fs.writeFileSync(filepath, JSON.stringify(candles));
+      fs.writeFileSync(filepath, `${JSON.stringify(payload, null, 2)}\n`);
 
       const firstDate = new Date(candles[0].t).toISOString().split('T')[0];
       const lastDate = new Date(candles[candles.length - 1].t).toISOString().split('T')[0];
@@ -170,8 +240,12 @@ if (require.main === module) {
 }
 
 module.exports = {
+  buildOutputPayload,
   convertFormat,
   fetchAllData,
   fetchBars,
   main,
+  outputFilename,
+  resolveDownloadRange,
+  withOptionalDownloadConfig,
 };

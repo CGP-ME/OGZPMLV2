@@ -41,6 +41,16 @@ describe('matrix-sweep runnable surface', () => {
     );
   }
 
+  function writeCampaignReport(projectRoot, outputRoot, tag, report) {
+    const reportDir = path.join(projectRoot, outputRoot, 'runs', tag);
+    fs.mkdirSync(reportDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(reportDir, 'report-TSLA.json'),
+      JSON.stringify(report, null, 2)
+    );
+    return reportDir;
+  }
+
   function withProjectRoot(fn) {
     const root = fs.mkdtempSync(path.join(__dirname, '.tmp-matrix-report-'));
     try {
@@ -324,6 +334,29 @@ describe('matrix-sweep runnable surface', () => {
       expect(result.finalBalance).toBe(5000);
       expect(result.netPnl).toBe(0);
       expect(result.trades).toBeNull();
+    });
+  });
+
+  test('report fallback reads tagged reports from campaign output roots', () => {
+    withProjectRoot((projectRoot) => {
+      writeCampaignReport(projectRoot, 'campaign-output', 'matrix-campaign', {
+        summary: {
+          startingBalance: 5000,
+          finalBalance: 5001.25,
+          totalFeesPaid: 0.75,
+          errors: 0,
+          totalTrades: 1,
+        },
+        trades: [
+          { strategyName: 'RSI', netPnlDollars: 1.25, feesDollars: 0.75 },
+        ],
+      });
+
+      const result = tryReadReport(projectRoot, 'matrix-campaign', path.join(projectRoot, 'campaign-output'));
+
+      expect(result.reportPath).toBe(path.join(projectRoot, 'campaign-output', 'runs', 'matrix-campaign', 'report-TSLA.json'));
+      expect(result.trades).toBe(1);
+      expect(result.finalBalance).toBe(5001.25);
     });
   });
 

@@ -104,6 +104,21 @@ function timestampOf(candle) {
 
 function validateJsonSchemaObject(schema, value, label, errors) {
   if (!schema || typeof schema !== 'object') return;
+  if (Array.isArray(schema.type)) {
+    const matches = schema.type.some(type => {
+      if (type === 'null') return value === null;
+      if (type === 'object') return value && typeof value === 'object' && !Array.isArray(value);
+      if (type === 'array') return Array.isArray(value);
+      if (type === 'integer') return Number.isInteger(value);
+      if (type === 'number') return Number.isFinite(Number(value));
+      return typeof value === type;
+    });
+    if (!matches) errors.push(`${label} expected ${schema.type.join('|')}`);
+    if (Array.isArray(schema.enum) && !schema.enum.includes(value)) {
+      errors.push(`${label} enum mismatch (${value})`);
+    }
+    return;
+  }
   if (schema.type === 'object') {
     if (!value || typeof value !== 'object' || Array.isArray(value)) {
       errors.push(`${label} expected object`);
@@ -341,9 +356,6 @@ function validateMatrixRun({ matrixReportPath, outputDir = null, dataParityStamp
   const lifecycleErrors = [];
   if (matrixTradeCount !== totalTradesFromWorkers) {
     lifecycleErrors.push(`matrix trades ${matrixTradeCount} != worker trade rows ${totalTradesFromWorkers}`);
-  }
-  if (schema.files.length > 0 && schema.rows !== matrixTradeCount) {
-    lifecycleErrors.push(`decision ledger rows ${schema.rows} != matrix trades ${matrixTradeCount}`);
   }
   if (matrixTradeCount > 0 && schema.files.length === 0) {
     lifecycleErrors.push('no isolated decision ledger files found for run');

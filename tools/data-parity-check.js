@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const axios = require('axios');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
+require('dotenv').config({ path: path.join(PROJECT_ROOT, '.env') });
 const DEFAULT_SAME_WINDOW_START = '2026-06-01T13:30:00.000Z';
 const DEFAULT_SAME_WINDOW_END = '2026-06-30T20:00:00.000Z';
 const DEFAULT_SPOT_START = '2026-07-01T00:00:00.000Z';
@@ -309,8 +310,8 @@ function journalFillRows(journalPath, symbol, start, end) {
       orderId: row.orderId,
       timestamp: row.timestamp,
       timestampIso: new Date(row.timestamp).toISOString(),
-      price: Number(row.entryPrice ?? row.exitPrice),
-      field: row.entryPrice !== undefined ? 'entryPrice' : 'exitPrice',
+      price: Number(row.event === 'EXIT' ? (row.exitPrice ?? row.entryPrice) : (row.entryPrice ?? row.exitPrice)),
+      field: row.event === 'EXIT' && row.exitPrice !== undefined ? 'exitPrice' : 'entryPrice',
       source: journalPath,
     }))
     .filter(row => Number.isFinite(row.price));

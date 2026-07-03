@@ -790,7 +790,48 @@ function referenceFileForSymbol(referenceDir, symbol) {
   return candidates.find(file => fs.existsSync(file)) || null;
 }
 
+function findScopedJournalForInstrument(instrument, journalRoot = path.join(PROJECT_ROOT, 'data', 'journal')) {
+  const symbol = String(instrument?.TRADING_PAIR || '').toUpperCase();
+  const timeframe = String(instrument?.CANDLE_TIMEFRAME || '15m');
+  if (!symbol || !fs.existsSync(journalRoot)) return null;
+
+  const symbolNeedle = `__${symbol.length}-${symbol}__`;
+  const timeframeNeedle = `__${timeframe.length}-${timeframe}`;
+  const candidates = [];
+  for (const entry of fs.readdirSync(journalRoot, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    if (!entry.name.includes(symbolNeedle) || !entry.name.includes(timeframeNeedle)) continue;
+    const ledgerPath = path.join(journalRoot, entry.name, 'trade-ledger.jsonl');
+    if (!fs.existsSync(ledgerPath)) continue;
+    const stat = fs.statSync(ledgerPath);
+    const score = [
+      entry.name.includes('4-live__6-alpaca') ? 4 : 0,
+      entry.name.includes('__6-stocks__') ? 2 : 0,
+      entry.name.includes('__5-paper__') ? -1 : 0,
+    ].reduce((sum, value) => sum + value, 0);
+    candidates.push({ ledgerPath, score, mtimeMs: stat.mtimeMs });
+  }
+
+  candidates.sort((a, b) => (b.score - a.score) || (b.mtimeMs - a.mtimeMs) || a.ledgerPath.localeCompare(b.ledgerPath));
+  return candidates[0]?.ledgerPath || null;
+}
+
+function resolveJournalPathForParity(options, instrument) {
+  if (options.journal) return path.resolve(PROJECT_ROOT, options.journal);
+  const journalRoot = options['journal-root']
+    ? path.resolve(PROJECT_ROOT, options['journal-root'])
+    : path.join(PROJECT_ROOT, 'data', 'journal');
+  return findScopedJournalForInstrument(instrument, journalRoot);
+}
+
+function assertCampaignParitySource(options) {
+  if (options['reference-dir'] && options['allow-reference-dir'] !== true && options['allow-reference-dir'] !== 'true') {
+    throw new Error('Campaign parity requires live Alpaca reference by default; pass --allow-reference-dir=true only for explicit offline forensic runs');
+  }
+}
+
 async function runDataParityForManifest(options) {
+  assertCampaignParitySource(options);
   const manifestPath = options.manifest
     ? path.resolve(PROJECT_ROOT, options.manifest)
     : null;
@@ -809,13 +850,14 @@ async function runDataParityForManifest(options) {
     const instrument = resolveInstrumentFromDataFile(dataFile);
     const output = runs[0].dataParityPath || path.join(manifest.rootDir, 'data-parity', `${safeName(symbol)}.json`);
     const referenceFile = referenceFileForSymbol(options['reference-dir'], symbol);
+    const journalPath = resolveJournalPathForParity(options, instrument);
     const stamp = await runDataParityCheck({
       dataFile,
       symbol: instrument.TRADING_PAIR,
       timeframe: instrument.CANDLE_TIMEFRAME || '15m',
       referenceFile,
       liveReference: options['live-reference'],
-      journalPath: options.journal,
+      journalPath,
       output,
       sameWindowStart: options['same-window-start'],
       sameWindowEnd: options['same-window-end'],
@@ -996,6 +1038,8 @@ module.exports = {
   countFrozenAtrPolicies,
   evaluateFrequency,
   EXPECTED_SIGNAL_FREQUENCY,
+  assertCampaignParitySource,
+  findScopedJournalForInstrument,
   runDataParityForManifest,
   resolveDataFile,
   strategyEnv,

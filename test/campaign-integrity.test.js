@@ -184,6 +184,79 @@ describe('campaign integrity validator', () => {
     });
   });
 
+  test('validates current decision-ledger rows without treating decision count as trade count', () => {
+    withTempDir(dir => {
+      const dataFile = writeJson(dir, 'candles.json', [
+        { timestamp: 1000, close: 100 },
+        { timestamp: 2000, close: 101 },
+        { timestamp: 3000, close: 102 },
+      ]);
+      fs.mkdirSync(path.join(dir, 'ledger'), { recursive: true });
+      fs.writeFileSync(path.join(dir, 'ledger', 'decisions_2026-07-03.jsonl'), `${JSON.stringify({
+        tradeId: 'SIM_1',
+        candleTimestamp: 1000,
+        symbol: 'TSLA',
+        timeframe: '15m',
+        executionMode: 'backtest',
+        entryPrice: 100,
+        direction: 'long',
+        strategySignals: [{
+          name: 'RSI',
+          direction: 'long',
+          baseConfidence: 0.65,
+          reason: 'RSI Oversold',
+        }],
+        orchestratorDecision: {
+          winnerStrategy: 'RSI',
+          finalConfidence: 0.65,
+          reason: 'RSI selected',
+          competingStrategies: [{
+            name: 'RSI',
+            adjustedConfidence: 0.65,
+            rejected: false,
+            rejectReason: null,
+          }],
+        },
+        positionSizing: {
+          basePercent: 0.05,
+          confidenceMultiplier: 1,
+          confluenceMultiplier: 1,
+          finalPercent: 0.05,
+          finalSizeUsd: 250,
+          formula: 'test',
+        },
+        exitContract: {
+          stopLossPercent: -0.8,
+          takeProfitPercent: 1,
+          maxHoldTimeMinutes: 240,
+          atrMinPercent: null,
+          strategyName: 'RSI',
+          timeframe: '15m',
+          createdAt: 1783102853759,
+          signalConfidence: 0.65,
+          _validated: '2026-03-20',
+        },
+        riskGates: [
+          { gate: 'direction_filter', threshold: 'both', value: 'buy', passed: true },
+          { gate: 'shorts_enabled', threshold: true, value: 'not_applicable', passed: true },
+          { gate: 'same_direction_block', threshold: null, value: 'buy', passed: true },
+          { gate: 'fee_edge', threshold: 3, value: 4.5, passed: true },
+        ],
+      })}\n`);
+      const matrixPath = writeJson(dir, 'matrix.json', {
+        dataFile,
+        results: [{ name: 'RSI', strategy: 'RSI', trades: 0 }],
+      });
+
+      const result = validateMatrixRun({ matrixReportPath: matrixPath, outputDir: dir, dataParityStamp: greenDataParity(dataFile) });
+
+      expect(result.status).toBe('PASS');
+      expect(result.checks.schema).toBe(true);
+      expect(result.checks.lifecycle).toBe(true);
+      expect(result.details.schema.rows).toBe(1);
+    });
+  });
+
   test('passes a worker report with balanced accounting, full fields, and complete coverage', () => {
     withTempDir(dir => {
       const reportPath = writeJson(dir, 'worker.json', workerReport());
