@@ -222,14 +222,55 @@ class BacktestRunner {
       // This prevents money from staying "locked" in inPosition when backtest ends mid-trade
       // FIX 2026-03-26 Bug 11: Use !== 0 to also close short positions (negative values)
       const activeTrades = stateManager.getAllTrades();
+      const windowEndPositions = [];
       if (activeTrades.length > 0) {
         const lastCandle = historicalCandles[historicalCandles.length - 1];
         const lastPrice = lastCandle.close ?? lastCandle.c;
+        const exitTimestamp = lastCandle.timestamp ?? lastCandle.t ?? lastCandle.time ?? Date.now();
         for (const trade of activeTrades) {
           const direction = trade.direction === 'short' || trade.action === 'SELL_SHORT' ? 'SHORT' : 'LONG';
           console.log(`\n⚠️ BACKTEST_END_CLOSE: Force-closing ${direction} trade ${trade.orderId || trade.id} at $${lastPrice.toFixed(2)}`);
           try {
-            await stateManager.closePosition(lastPrice, false, null, { tradeId: trade.orderId || trade.id, reason: 'BACKTEST_END_CLOSE' });
+            const closed = await stateManager.closePosition(lastPrice, false, null, { tradeId: trade.orderId || trade.id, reason: 'BACKTEST_END_CLOSE' });
+            if (closed?.success) {
+              const entryPrice = Number(trade.entryPrice ?? trade.price);
+              const remainingOrderQuantity = Number(trade.remainingOrderQuantity);
+              const sizeUsd = Number(trade.sizeUsd ?? trade.size);
+              const exitOrderQuantity = Number.isFinite(remainingOrderQuantity) && remainingOrderQuantity > 0
+                ? remainingOrderQuantity
+                : (Number.isFinite(entryPrice) && entryPrice > 0 ? sizeUsd / entryPrice : null);
+              windowEndPositions.push({
+                tradeId: trade.orderId || trade.id,
+                entryTime: trade.entryTime ? new Date(trade.entryTime).toISOString() : '',
+                exitTime: new Date(exitTimestamp).toISOString(),
+                status: 'closed_at_window_end',
+                exitReason: 'BACKTEST_END_CLOSE',
+                direction: trade.direction === 'short' ? 'short' : 'long',
+                entryPrice,
+                exitPrice: lastPrice,
+                size: sizeUsd,
+                entryOrderQuantity: trade.entryOrderQuantity,
+                entryOrderQuantityUnit: trade.entryOrderQuantityUnit,
+                remainingOrderQuantityBeforeExit: trade.remainingOrderQuantity,
+                remainingOrderQuantityUnit: trade.remainingOrderQuantityUnit,
+                exitOrderQuantity,
+                exitOrderQuantityUnit: trade.remainingOrderQuantityUnit || trade.entryOrderQuantityUnit,
+                quantityUnit: trade.remainingOrderQuantityUnit || trade.entryOrderQuantityUnit,
+                strategyName: trade.entryStrategy || trade.strategy,
+                confidence: trade.confidence,
+                maxFavorableExcursionPercent: trade.maxFavorableExcursionPercent ?? trade.maxProfitPercent ?? null,
+                maxAdverseExcursionPercent: trade.maxAdverseExcursionPercent ?? null,
+                symbol: trade.symbol,
+                brokerId: trade.brokerId,
+                accountId: trade.accountId,
+                accountIdSource: trade.accountIdSource,
+                assetClass: trade.assetClass,
+                executionMode: trade.executionMode,
+                timeframe: trade.timeframe,
+                scopeKey: trade.scopeKey,
+                scopeKeyVersion: trade.scopeKeyVersion,
+              });
+            }
           } catch (err) {
             console.error(`❌ BACKTEST_END_CLOSE failed for trade ${trade.orderId || trade.id}: ${err.message}`);
           }
@@ -297,15 +338,18 @@ class BacktestRunner {
       // FIX 2026-04-16: Route to unified output directory
       const { getRunDir } = require('./OutputPaths');
       const runTimestamp = Date.now();
-      const runId = `${runTimestamp}-${process.pid}-${randomUUID()}`;
-      const runDir = getRunDir(runId);
       const envRoot = process.env.BACKTEST_OUTPUT_DIR;
+      const rawReportTag = process.env.BACKTEST_REPORT_TAG || '';
+      const reportTag = rawReportTag.replace(/[^a-zA-Z0-9_.-]/g, '_');
+      const runId = reportTag
+        ? `${runTimestamp}-${process.pid}-${reportTag}-${randomUUID()}`
+        : `${runTimestamp}-${process.pid}-${randomUUID()}`;
+      const runDir = getRunDir(runId);
       // FIX 2026-04-22: append BACKTEST_REPORT_TAG (uid) to filename when set.
       // Matrix-sweep sets it per worker — prevents tryReadReport from grabbing another
       // worker's report via mtime-sort under parallelism. Unset = unchanged filename.
       // FIX 2026-04-22 (2nd pass): tagged workers write to backtest-results/worker-reports/
       // instead of project root. Keeps repo root clean; standalone backtests keep legacy path.
-      const reportTag = process.env.BACKTEST_REPORT_TAG || '';
       let reportAssetSuffix = '';
       if (process.env.CANDLE_DATA_FILE) {
         const reportAssetSlug = deriveReportAssetSlugFromDataFile(process.env.CANDLE_DATA_FILE);
@@ -365,6 +409,7 @@ class BacktestRunner {
           ? { ...globalThis.__OGZ_MTF_CONFLUENCE_STATS }
           : null,
         trades: trades,
+        windowEndPositions,
         config: {
           // CRIT-08-followup-B: was hardcoded 10000 — a lie when the run's
           // actual initialBalance differs (e.g., INITIAL_BALANCE=50000).

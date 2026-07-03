@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const DECISION_LEDGER_SCHEMA_PATH = path.join(PROJECT_ROOT, 'ogz-meta', 'specs', 'decision-ledger-schema.json');
 const REQUIRED_TRADE_FIELDS = Object.freeze([
+  'tradeId',
   'entryPrice',
   'exitPrice',
   'closedOrderQuantity',
@@ -158,6 +159,7 @@ function validateDecisionLedgers(ledgerDir) {
   const schema = readJson(DECISION_LEDGER_SCHEMA_PATH);
   const decisionFiles = listFilesRecursive(ledgerDir, file => /decisions_.*\.jsonl$/.test(path.basename(file)));
   const errors = [];
+  const tradeIds = new Set();
   let rows = 0;
   for (const file of decisionFiles) {
     for (const parsed of loadJsonl(file)) {
@@ -166,6 +168,7 @@ function validateDecisionLedgers(ledgerDir) {
         continue;
       }
       rows += 1;
+      if (nonEmpty(parsed.value?.tradeId)) tradeIds.add(String(parsed.value.tradeId));
       validateJsonSchemaObject(schema, parsed.value, `${file}:${parsed.line}`, errors);
     }
   }
@@ -173,6 +176,7 @@ function validateDecisionLedgers(ledgerDir) {
     ok: errors.length === 0,
     rows,
     files: decisionFiles,
+    tradeIds: Array.from(tradeIds).sort(),
     errors,
   };
 }
@@ -359,6 +363,39 @@ function validateMatrixRun({ matrixReportPath, outputDir = null, dataParityStamp
   }
   if (matrixTradeCount > 0 && schema.files.length === 0) {
     lifecycleErrors.push('no isolated decision ledger files found for run');
+  }
+  const reportTradeIds = new Set();
+  const windowEndTradeIds = new Set();
+  const missingReportTradeIds = [];
+  for (const worker of workerReports) {
+    const report = readJson(worker.reportPath);
+    for (const [index, trade] of (Array.isArray(report.trades) ? report.trades : []).entries()) {
+      if (nonEmpty(trade.tradeId)) {
+        reportTradeIds.add(String(trade.tradeId));
+      } else {
+        missingReportTradeIds.push(`${worker.reportPath}:trades[${index}].tradeId missing`);
+      }
+    }
+    for (const position of (Array.isArray(report.windowEndPositions) ? report.windowEndPositions : [])) {
+      if (nonEmpty(position.tradeId)) {
+        windowEndTradeIds.add(String(position.tradeId));
+      }
+    }
+  }
+  if (missingReportTradeIds.length > 0) {
+    lifecycleErrors.push(...missingReportTradeIds.slice(0, 20));
+    if (missingReportTradeIds.length > 20) {
+      lifecycleErrors.push(`${missingReportTradeIds.length - 20} additional report tradeId omissions`);
+    }
+  }
+  const ledgerTradeIds = new Set(schema.tradeIds || []);
+  const missingLedgerTradeIds = Array.from(reportTradeIds).filter(tradeId => !ledgerTradeIds.has(tradeId));
+  const orphanLedgerTradeIds = Array.from(ledgerTradeIds).filter(tradeId => !reportTradeIds.has(tradeId) && !windowEndTradeIds.has(tradeId));
+  if (missingLedgerTradeIds.length > 0) {
+    lifecycleErrors.push(`decision ledger missing ${missingLedgerTradeIds.length} report trade group(s): ${missingLedgerTradeIds.slice(0, 20).join(', ')}`);
+  }
+  if (orphanLedgerTradeIds.length > 0) {
+    lifecycleErrors.push(`decision ledger has ${orphanLedgerTradeIds.length} orphan trade group(s): ${orphanLedgerTradeIds.slice(0, 20).join(', ')}`);
   }
 
   const dataParity = validateDataParityStamp(dataParityStamp, matrix);

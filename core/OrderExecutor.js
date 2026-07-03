@@ -1292,6 +1292,8 @@ class OrderExecutor {
       intentId,
       sourceEventId,
       lifecycleState: resolvedLifecycleState,
+      exitReason: this._firstNonEmptyString(executedExitPlan?.exitReason, exitPlan?.exitReason, exitPlan?.reason),
+      triggeredBy: this._firstNonEmptyString(exitPlan?.triggeredBy, exitPlan?.source, 'OrderExecutor.executeTrade'),
       filledQuantity,
       filledQuantityUnit: executedExitPlan.quantityUnit,
       filledSizeUsd: filledQuantity * numericFillPrice,
@@ -3209,6 +3211,7 @@ class OrderExecutor {
             // CHANGE 2026-02-23: Record trade in BacktestRecorder (with fees, running balance)
             if (this.ctx.backtestRecorder) {
               this.ctx.backtestRecorder.recordTrade({
+                tradeId: buyTrade.orderId || buyTrade.id || decision.tradeId || null,
                 entryTime: buyTrade.entryTime ? new Date(buyTrade.entryTime).toISOString() : '',
                 exitTime: exitTimestamp ? new Date(exitTimestamp).toISOString() : '',
                 direction: 'long',
@@ -3761,6 +3764,7 @@ class OrderExecutor {
           // Record trade
           if (this.ctx.backtestRecorder) {
             this.ctx.backtestRecorder.recordTrade({
+              tradeId: shortTrade.orderId || shortTrade.id || decision.tradeId || null,
               entryTime: shortTrade.entryTime ? new Date(shortTrade.entryTime).toISOString() : '',
               exitTime: exitTimestamp ? new Date(exitTimestamp).toISOString() : '',
               direction: 'short',

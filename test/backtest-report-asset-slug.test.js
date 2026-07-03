@@ -8,7 +8,11 @@ describe('BacktestRunner standalone report asset slug', () => {
     const source = fs.readFileSync(path.join(__dirname, '..', 'core', 'BacktestRunner.js'), 'utf8');
     expect(source).toContain('deriveReportAssetSlugFromDataFile');
     expect(source).toContain("require('./DataFileInstrument')");
-    expect(source).toContain("const runId = `${runTimestamp}-${process.pid}-${randomUUID()}`;");
+    expect(source).toContain("const rawReportTag = process.env.BACKTEST_REPORT_TAG || '';");
+    expect(source).toContain("const reportTag = rawReportTag.replace(/[^a-zA-Z0-9_.-]/g, '_');");
+    expect(source).toContain('const runId = reportTag');
+    expect(source).toContain('? `${runTimestamp}-${process.pid}-${reportTag}-${randomUUID()}`');
+    expect(source).toContain(': `${runTimestamp}-${process.pid}-${randomUUID()}`;');
     expect(source).toContain('const runDir = getRunDir(runId);');
     expect(source).toContain('deriveReportAssetSlugFromDataFile(process.env.CANDLE_DATA_FILE)');
     expect(source).toContain('report${reportAssetSuffix}.json');

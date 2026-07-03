@@ -6,6 +6,7 @@ describe('Backtest report scope contract', () => {
   let originalEnv;
 
   const scopedTrade = (overrides = {}) => ({
+    tradeId: 'SIM_SCOPE_1',
     entryTime: '2026-05-26T13:30:00.000Z',
     exitTime: '2026-05-26T13:45:00.000Z',
     direction: 'long',
@@ -70,6 +71,7 @@ describe('Backtest report scope contract', () => {
     const record = recorder.recordTrade(scopedTrade());
 
     expect(record.symbol).toBe('TSLA');
+    expect(record.tradeId).toBe('SIM_SCOPE_1');
     expect(record.brokerId).toBe('alpaca');
     expect(record.accountId).toBe('acct-main');
     expect(record.accountIdSource).toBe('config');

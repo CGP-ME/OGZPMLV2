@@ -46,6 +46,7 @@ function workerReport(overrides = {}) {
       complete: true,
     },
     trades: [{
+      tradeId: 'SIM_1',
       entryPrice: 100,
       exitPrice: 105,
       closedOrderQuantity: 1,
@@ -184,7 +185,7 @@ describe('campaign integrity validator', () => {
     });
   });
 
-  test('validates current decision-ledger rows without treating decision count as trade count', () => {
+  test('validates report trade groups against decision-ledger trade groups without treating exit-event count as trade count', () => {
     withTempDir(dir => {
       const dataFile = writeJson(dir, 'candles.json', [
         { timestamp: 1000, close: 100 },
@@ -245,7 +246,33 @@ describe('campaign integrity validator', () => {
       })}\n`);
       const matrixPath = writeJson(dir, 'matrix.json', {
         dataFile,
-        results: [{ name: 'RSI', strategy: 'RSI', trades: 0 }],
+        results: [{ name: 'RSI', strategy: 'RSI', trades: 2, reportPath: writeJson(dir, 'worker.json', workerReport({
+          summary: {
+            startingBalance: 10000,
+            finalBalance: 10008,
+            totalTrades: 2,
+            candlesProcessed: 3,
+          },
+          metrics: {
+            totalTrades: 2,
+          },
+          trades: [
+            {
+              ...workerReport().trades[0],
+              tradeId: 'SIM_1',
+              rawPnlDollars: 5,
+              feesDollars: 1,
+              netPnlDollars: 4,
+            },
+            {
+              ...workerReport().trades[0],
+              tradeId: 'SIM_1',
+              rawPnlDollars: 5,
+              feesDollars: 1,
+              netPnlDollars: 4,
+            },
+          ],
+        })) }],
       });
 
       const result = validateMatrixRun({ matrixReportPath: matrixPath, outputDir: dir, dataParityStamp: greenDataParity(dataFile) });
@@ -254,6 +281,156 @@ describe('campaign integrity validator', () => {
       expect(result.checks.schema).toBe(true);
       expect(result.checks.lifecycle).toBe(true);
       expect(result.details.schema.rows).toBe(1);
+    });
+  });
+
+  test('fails report trades that cannot join to decision-ledger trade groups', () => {
+    withTempDir(dir => {
+      const dataFile = writeJson(dir, 'candles.json', [
+        { timestamp: 1000, close: 100 },
+        { timestamp: 2000, close: 101 },
+        { timestamp: 3000, close: 102 },
+      ]);
+      fs.mkdirSync(path.join(dir, 'ledger'), { recursive: true });
+      fs.writeFileSync(path.join(dir, 'ledger', 'decisions_2026-07-03.jsonl'), `${JSON.stringify({
+        tradeId: 'SIM_LEDGER_ONLY',
+        candleTimestamp: 1000,
+        symbol: 'TSLA',
+        timeframe: '15m',
+        executionMode: 'backtest',
+        entryPrice: 100,
+        direction: 'long',
+        strategySignals: [{ name: 'RSI', direction: 'long', baseConfidence: 0.65, reason: 'RSI Oversold' }],
+        orchestratorDecision: { winnerStrategy: 'RSI', finalConfidence: 0.65, reason: 'RSI selected' },
+        positionSizing: {
+          basePercent: 0.05,
+          confidenceMultiplier: 1,
+          confluenceMultiplier: 1,
+          finalPercent: 0.05,
+          finalSizeUsd: 250,
+          formula: 'test',
+        },
+        exitContract: {
+          stopLossPercent: -0.8,
+          takeProfitPercent: 1,
+          strategyName: 'RSI',
+        },
+      })}\n`);
+      const reportPath = writeJson(dir, 'worker.json', workerReport({
+        trades: [{ ...workerReport().trades[0], tradeId: 'SIM_REPORT_ONLY' }],
+      }));
+      const matrixPath = writeJson(dir, 'matrix.json', {
+        dataFile,
+        results: [{ name: 'RSI', strategy: 'RSI', trades: 1, reportPath }],
+      });
+
+      const result = validateMatrixRun({ matrixReportPath: matrixPath, outputDir: dir, dataParityStamp: greenDataParity(dataFile) });
+
+      expect(result.status).toBe('FAILED-INTEGRITY');
+      expect(result.checks.lifecycle).toBe(false);
+      expect(result.details.lifecycle.errors.join('\n')).toContain('decision ledger missing 1 report trade group(s): SIM_REPORT_ONLY');
+      expect(result.details.lifecycle.errors.join('\n')).toContain('decision ledger has 1 orphan trade group(s): SIM_LEDGER_ONLY');
+    });
+  });
+
+  test('accepts decision-ledger groups closed at backtest window end without mutating report trade count', () => {
+    withTempDir(dir => {
+      const dataFile = writeJson(dir, 'candles.json', [
+        { timestamp: 1000, close: 100 },
+        { timestamp: 2000, close: 101 },
+        { timestamp: 3000, close: 102 },
+      ]);
+      fs.mkdirSync(path.join(dir, 'ledger'), { recursive: true });
+      const ordinaryLedgerRow = {
+        tradeId: 'SIM_1',
+        candleTimestamp: 1000,
+        symbol: 'TSLA',
+        timeframe: '15m',
+        executionMode: 'backtest',
+        entryPrice: 100,
+        direction: 'long',
+        strategySignals: [{ name: 'RSI', direction: 'long', baseConfidence: 0.65, reason: 'RSI Oversold' }],
+        orchestratorDecision: { winnerStrategy: 'RSI', finalConfidence: 0.65, reason: 'RSI selected' },
+        positionSizing: {
+          basePercent: 0.05,
+          confidenceMultiplier: 1,
+          confluenceMultiplier: 1,
+          finalPercent: 0.05,
+          finalSizeUsd: 250,
+          formula: 'test',
+        },
+        exitContract: {
+          stopLossPercent: -0.8,
+          takeProfitPercent: 1,
+          strategyName: 'RSI',
+        },
+      };
+      fs.writeFileSync(path.join(dir, 'ledger', 'decisions_2026-07-03.jsonl'), `${JSON.stringify(ordinaryLedgerRow)}\n${JSON.stringify({
+        tradeId: 'SIM_WINDOW_END',
+        candleTimestamp: 1000,
+        symbol: 'TSLA',
+        timeframe: '15m',
+        executionMode: 'backtest',
+        entryPrice: 100,
+        direction: 'long',
+        strategySignals: [{ name: 'RSI', direction: 'long', baseConfidence: 0.65, reason: 'RSI Oversold' }],
+        orchestratorDecision: { winnerStrategy: 'RSI', finalConfidence: 0.65, reason: 'RSI selected' },
+        positionSizing: {
+          basePercent: 0.05,
+          confidenceMultiplier: 1,
+          confluenceMultiplier: 1,
+          finalPercent: 0.05,
+          finalSizeUsd: 250,
+          formula: 'test',
+        },
+        exitContract: {
+          stopLossPercent: -0.8,
+          takeProfitPercent: 1,
+          strategyName: 'RSI',
+        },
+        exits: [{
+          legNumber: 1,
+          exitSize: 250,
+          exitFraction: 1,
+          remainingSize: 0,
+          exitOrderQuantity: 2.5,
+          remainingOrderQuantity: 0,
+          exitPrice: 101,
+          exitReason: 'session_end',
+          rawExitReason: 'BACKTEST_END_CLOSE',
+          realizedPnL: 2.5,
+          realizedPnLPercent: 1,
+          triggeredBy: 'BacktestRunner',
+          timestamp: 3000,
+        }],
+        outcome: {
+          exitPrice: 101,
+          exitTime: 3000,
+          pnlDollars: 2.5,
+          pnlPercent: 1,
+          exitFee: 0,
+          netPnlDollars: 2.5,
+          exitReason: 'session_end',
+          holdTimeMs: 2000,
+        },
+      })}\n`);
+      const reportPath = writeJson(dir, 'worker.json', workerReport({
+        windowEndPositions: [{
+          tradeId: 'SIM_WINDOW_END',
+          status: 'closed_at_window_end',
+          exitReason: 'BACKTEST_END_CLOSE',
+        }],
+      }));
+      const matrixPath = writeJson(dir, 'matrix.json', {
+        dataFile,
+        results: [{ name: 'RSI', strategy: 'RSI', trades: 1, reportPath }],
+      });
+
+      const result = validateMatrixRun({ matrixReportPath: matrixPath, outputDir: dir, dataParityStamp: greenDataParity(dataFile) });
+
+      expect(result.status).toBe('PASS');
+      expect(result.checks.lifecycle).toBe(true);
+      expect(result.details.lifecycle.errors).toEqual([]);
     });
   });
 

@@ -1922,15 +1922,14 @@ describe('StateManager openPosition scope contract', () => {
   });
 
   test('uses per-share minimum fee model for entry and exit accounting', async () => {
-    const TradingConfig = require('../core/TradingConfig');
-    TradingConfig.setOverrides({
-      'fees.model': 'per_share_minimum',
-      'fees.perShare': 0.005,
-      'fees.minOrderFee': 0.75,
-      'fees.makerFee': 0,
-      'fees.takerFee': 0,
-      'fees.totalRoundTrip': 0,
-    });
+    process.env.FEE_MODEL = 'per_share_minimum';
+    process.env.FEE_PER_SHARE = '0.005';
+    process.env.FEE_MIN_ORDER = '0.75';
+    process.env.FEE_MAKER = '0';
+    process.env.FEE_TAKER = '0';
+    process.env.FEE_ROUND_TRIP = '0';
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    ConfigLoader.load({ force: true, silent: true });
 
     const opened = await manager.openPosition(100, 100, fullScope({
       orderId: 'FEE_MODEL_1',
@@ -2020,4 +2019,5 @@ describe('StateManager openPosition scope contract', () => {
     expect(manager.get('position')).toBe(0);
     expect(manager._buildScopedDashboardPositions(manager.state)).toEqual(beforePositions);
   });
+
 });

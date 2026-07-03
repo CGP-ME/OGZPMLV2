@@ -244,6 +244,7 @@ class BacktestRecorder {
 
         const record = {
             tradeNumber: this.trades.length + 1,
+            tradeId: BacktestRecorder.cleanTextOrNull(trade.tradeId ?? trade.orderId ?? trade.id),
             entryTime: trade.entryTime || trade.entryCandle?.time || '',
             exitTime: trade.exitTime || trade.exitCandle?.time || '',
             direction: trade.direction || 'unknown',

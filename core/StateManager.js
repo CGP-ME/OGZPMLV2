@@ -265,6 +265,26 @@ function normalizeTierStates(value) {
   return value.map((tierState) => clonePlain(tierState));
 }
 
+function normalizeDecisionLedgerExitReason(reason) {
+  const value = String(reason || '').trim().toLowerCase();
+  if (value === 'be_scaleout') return 'be_scaleout';
+  if (value === 'profit_tier_1') return 'profit_tier_1';
+  if (value === 'profit_tier_2') return 'profit_tier_2';
+  if (value === 'profit_tier_3') return 'profit_tier_3';
+  if (value === 'trailing_stop') return 'trailing_stop';
+  if (value === 'take_profit') return 'take_profit';
+  if (value === 'invalidation') return 'invalidation';
+  if (value === 'flip_position') return 'flip_position';
+  if (value === 'kill_switch') return 'kill_switch';
+  if (value === 'manual_close') return 'manual_close';
+  if (value === 'drawdown_circuit') return 'drawdown_circuit';
+  if (value === 'session_end' || value === 'backtest_end_close' || value === 'ttp_1550_liquidation') return 'session_end';
+  if (value === 'max_hold' || value.startsWith('max_hold_')) return 'max_hold';
+  if (value === 'profit_tier_4') return 'take_profit';
+  if (value === 'hard_stop' || value === 'break_even' || value === 'stop_loss' || value === 'stoploss') return 'stop_loss';
+  return 'manual_close';
+}
+
 function withExitLifecycleFields(trade, { legacy = false, reset = false } = {}) {
   if (!trade || typeof trade !== 'object' || Array.isArray(trade)) {
     return trade;
@@ -2508,11 +2528,63 @@ class StateManager {
       const pnlPercent = closedEntryNotionalUsd > 0 ? (pnl / closedEntryNotionalUsd) * 100 : 0;
       const netRealizedResult = pnl - fee;
       const noActiveTradeRemainder = computedRemainingQuantity <= tolerance || remainingSizeUsd <= tolerance;
+      const rawExitReason = firstNonEmptyString(fill.exitReason, pending.exitReason, pending.reason, lifecycleState);
+      const exitReason = normalizeDecisionLedgerExitReason(rawExitReason);
+      const existingLedgerExits = Array.isArray(trade.decisionLedger?.exits) ? trade.decisionLedger.exits : [];
+      const ledgerExitEntry = trade.decisionLedger
+        ? {
+            legNumber: existingLedgerExits.length + 1,
+            exitSize: closedEntryNotionalUsd,
+            exitFraction: priorOrderQuantity > 0 ? filledQuantity / priorOrderQuantity : null,
+            remainingSize: Math.max(0, remainingSizeUsd),
+            exitOrderQuantity: filledQuantity,
+            remainingOrderQuantity: computedRemainingQuantity,
+            exitPrice: fillPrice,
+            exitReason,
+            rawExitReason,
+            realizedPnL: netRealizedResult,
+            realizedPnLPercent: pnlPercent,
+            triggeredBy: firstNonEmptyString(fill.triggeredBy, pending.triggeredBy, 'StateManager.applyFill'),
+            netPnlDollars: netRealizedResult,
+            fillId,
+            brokerOrderId,
+            intentId,
+            sourceEventId,
+            lifecycleState,
+            timestamp: confirmedAtMs,
+          }
+        : null;
+      const nextDecisionLedger = ledgerExitEntry
+        ? {
+            ...trade.decisionLedger,
+            exits: [
+              ...existingLedgerExits,
+              ledgerExitEntry,
+            ],
+          }
+        : trade.decisionLedger;
       const nextActiveTrades = new Map(trades);
       let closedTradeRecord = null;
+      let ledgerToWrite = null;
 
       if (noActiveTradeRemainder) {
         nextActiveTrades.delete(tradeId);
+        if (nextDecisionLedger) {
+          ledgerToWrite = {
+            ...nextDecisionLedger,
+            outcome: {
+              exitPrice: fillPrice,
+              exitTime: confirmedAtMs,
+              pnlDollars: pnl,
+              pnlPercent,
+              exitFee: fee,
+              netPnlDollars: netRealizedResult,
+              exitReason,
+              rawExitReason,
+              holdTimeMs: holdTimeMsOrNull(trade, confirmedAtMs),
+            },
+          };
+        }
         closedTradeRecord = {
           tradeId,
           symbol: trade.symbol || null,
@@ -2552,6 +2624,7 @@ class StateManager {
           tradeRevision: nextRevision,
           pendingExitIntent: nextPendingExitIntent,
           processedFillIds: Array.from(new Set([...processedFillIds, fillId])),
+          decisionLedger: nextDecisionLedger,
           sizeUsd: remainingSizeUsd,
           size: remainingSizeUsd,
           remainingOrderQuantity: computedRemainingQuantity,
@@ -2623,6 +2696,15 @@ class StateManager {
         executionMode,
         simulated: fill.simulated,
       });
+
+      if (result?.success && ledgerToWrite) {
+        try {
+          const ledgerLogger = require('./DecisionLedgerLogger');
+          ledgerLogger.writeOnClose(ledgerToWrite);
+        } catch (e) {
+          console.warn('[LEDGER] Failed to persist decision ledger:', e.message);
+        }
+      }
 
       return {
         ...result,
