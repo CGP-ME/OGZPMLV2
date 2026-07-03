@@ -5,6 +5,7 @@ node_modules/
 data/
 backtest-results/
 logs/
+runs/
 dist/
 build/
 .ai-specs/

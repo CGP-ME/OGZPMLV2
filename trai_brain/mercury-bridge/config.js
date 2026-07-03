@@ -376,6 +376,8 @@ const SKIP_FILE_PATTERNS = [
   /\.bak$/,
   /\.bak-/,
   /\.backup$/,
+  /^PROOF-.*\.json$/,
+
   /\.min\.js$/,
   /package-lock\.json$/,
   /yarn\.lock$/,
