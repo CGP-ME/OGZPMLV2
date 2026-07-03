@@ -43,6 +43,24 @@ const DEFAULT_PHASE = 'conf';
 const DEFAULT_CAMPAIGN_SYMBOLS = Object.freeze(
   STOCK_TICKERS.filter(symbol => !String(symbol).includes('-'))
 );
+const EXPECTED_SIGNAL_FREQUENCY = Object.freeze({
+  RSI: { minPerSession: 1, maxPerSession: 15, source: 'class-band' },
+  EMASMACrossover: { minPerSession: 10, maxPerSession: 80, source: 'class-band' },
+  MADynamicSR: { minPerSession: 10, maxPerSession: 70, source: 'class-band' },
+  LiquiditySweep: { minPerSession: 0.5, maxPerSession: 5, source: 'class-band' },
+  SmartMoneySweep: { minPerSession: 2, maxPerSession: 15, source: 'class-band' },
+  MultiTimeframe: { minPerSession: 1, maxPerSession: 10, source: 'class-band' },
+  OGZTPO: { minPerSession: 0.1, maxPerSession: 2, source: 'class-band' },
+  OpeningRangeBreakout: { minPerSession: 0.1, maxPerSession: 2, source: 'class-band' },
+  CandlePattern: { minPerSession: 10, maxPerSession: 80, source: 'class-band' },
+  NoWickImbalance: { minPerSession: 0.2, maxPerSession: 4, source: 'class-band' },
+  BreakRetest: { minPerSession: 0.2, maxPerSession: 4, source: 'class-band' },
+  DonchianBreakout: { minPerSession: 1, maxPerSession: 8, source: 'class-band' },
+  PropSafeEMAPullback: { minPerSession: 3, maxPerSession: 7, source: 'operator-2026-07-03' },
+  EMATrendRetest: { minPerSession: 3, maxPerSession: 12, source: 'class-band' },
+  RSI2MeanReversion: { minPerSession: 2, maxPerSession: 12, source: 'class-band' },
+  TimeSeriesMomentum: { minPerSession: 4, maxPerSession: 20, source: 'class-band' },
+});
 
 function usage(exitCode = 0) {
   const lines = [
@@ -339,6 +357,62 @@ function countStrategyEvidence(strategy, ledgers) {
   };
 }
 
+function tradingSessionKey(timestamp) {
+  const numeric = Number(timestamp);
+  if (!Number.isFinite(numeric)) return null;
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date(numeric));
+  const year = parts.find(part => part.type === 'year')?.value;
+  const month = parts.find(part => part.type === 'month')?.value;
+  const day = parts.find(part => part.type === 'day')?.value;
+  return year && month && day ? `${year}-${month}-${day}` : null;
+}
+
+function countTradingSessions(ledgers) {
+  const sessions = new Set();
+  for (const record of ledgers.autopsies || []) {
+    const key = tradingSessionKey(record.candleTimestamp);
+    if (key) sessions.add(key);
+  }
+  return sessions.size;
+}
+
+function evaluateFrequency(strategy, evidence, ledgers) {
+  const band = EXPECTED_SIGNAL_FREQUENCY[strategy];
+  const sessions = countTradingSessions(ledgers);
+  const signalsPerSession = sessions > 0 ? evidence.signalCount / sessions : null;
+  if (!band) {
+    return {
+      ok: false,
+      reason: 'missing frequency band',
+      sessions,
+      signalsPerSession,
+      band: null,
+    };
+  }
+  if (!Number.isFinite(signalsPerSession)) {
+    return {
+      ok: false,
+      reason: 'missing session count',
+      sessions,
+      signalsPerSession,
+      band,
+    };
+  }
+  const ok = signalsPerSession >= band.minPerSession && signalsPerSession <= band.maxPerSession;
+  return {
+    ok,
+    reason: ok ? 'in_band' : `signals/session ${signalsPerSession.toFixed(2)} outside ${band.minPerSession}-${band.maxPerSession}`,
+    sessions,
+    signalsPerSession,
+    band,
+  };
+}
+
 function totalTrades(report) {
   const value = report?.summary?.totalTrades ?? report?.metrics?.totalTrades ?? 0;
   const numeric = Number(value);
@@ -428,14 +502,16 @@ async function runSmoke(options) {
       feeProfileName,
     });
     const evidence = countStrategyEvidence(strategy, run.ledgers);
+    const frequency = evaluateFrequency(strategy, evidence, run.ledgers);
     const trades = totalTrades(run.report);
-    const verdict = run.status.exitCode === 0 && evidence.evaluatedCount > 0 && (trades >= 1 || evidence.evaluatedCount > 0)
+    const verdict = run.status.exitCode === 0 && evidence.evaluatedCount > 0 && (trades >= 1 || evidence.evaluatedCount > 0) && frequency.ok
       ? 'PASS'
       : 'FAIL';
     rows.push({
       strategy,
       evaluated: evidence.evaluatedCount,
       strategySignals: evidence.signalCount,
+      frequency,
       trades,
       exitCode: run.status.exitCode,
       verdict,
@@ -545,6 +621,7 @@ function printSmokeRow(row) {
     row.strategy,
     `evaluated=${row.evaluated}`,
     `signals=${row.strategySignals}`,
+    `signals/session=${Number.isFinite(row.frequency?.signalsPerSession) ? row.frequency.signalsPerSession.toFixed(2) : 'n/a'}`,
     `trades=${row.trades}`,
     `exit=${row.exitCode}`,
     row.verdict,
@@ -553,9 +630,15 @@ function printSmokeRow(row) {
 
 function printSmokeSummary(summary, summaryPath) {
   process.stdout.write('\nSMOKE MATRIX\n');
-  process.stdout.write('strategy | evaluated | trades | exit code | verdict\n');
+  process.stdout.write('strategy | evaluated | signals/session | band | trades | exit code | verdict\n');
   for (const row of summary.rows) {
-    process.stdout.write(`${row.strategy} | ${row.evaluated} | ${row.trades} | ${row.exitCode} | ${row.verdict}\n`);
+    const band = row.frequency?.band
+      ? `${row.frequency.band.minPerSession}-${row.frequency.band.maxPerSession}`
+      : 'missing';
+    const rate = Number.isFinite(row.frequency?.signalsPerSession)
+      ? row.frequency.signalsPerSession.toFixed(2)
+      : 'n/a';
+    process.stdout.write(`${row.strategy} | ${row.evaluated} | ${rate} | ${band} | ${row.trades} | ${row.exitCode} | ${row.verdict}\n`);
   }
   process.stdout.write('\nTREY-SPEC ENGAGEMENT\n');
   process.stdout.write(`${JSON.stringify(summary.treySpec, null, 2)}\n`);
@@ -814,8 +897,11 @@ if (require.main === module) {
 
 module.exports = {
   buildCampaignManifest,
+  countTradingSessions,
   countStrategyEvidence,
   countFrozenAtrPolicies,
+  evaluateFrequency,
+  EXPECTED_SIGNAL_FREQUENCY,
   resolveDataFile,
   strategyEnv,
 };

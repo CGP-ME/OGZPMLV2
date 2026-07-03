@@ -1260,7 +1260,7 @@ const BASE_CONFIG = {
       atrPeriod: env('PROPSAFE_EMA_ATR_PERIOD', 14),
       crossLookbackBars: env('PROPSAFE_EMA_CROSS_LOOKBACK', 3),
       pullbackLookbackBars: env('PROPSAFE_EMA_PULLBACK_LOOKBACK', 4),
-      pullbackMinAtr: env('PROPSAFE_EMA_PULLBACK_MIN_ATR', 0.4),
+      pullbackMinAtr: env('PROPSAFE_EMA_PULLBACK_MIN_ATR', 0),
       pullbackMaxAtr: env('PROPSAFE_EMA_PULLBACK_MAX_ATR', 1.0),
       atrStopMult: env('PROPSAFE_EMA_ATR_STOP_MULT', 1.1),
       targetRR: env('PROPSAFE_EMA_TARGET_RR', 3.0),

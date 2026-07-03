@@ -35,7 +35,7 @@ function strategy(overrides = {}) {
     atrPeriod: 5,
     crossLookbackBars: 8,
     pullbackLookbackBars: 8,
-    pullbackMinAtr: 0.05,
+    pullbackMinAtr: 0,
     pullbackMaxAtr: 2.0,
     atrStopMult: 1.1,
     targetRR: 3,
@@ -76,6 +76,48 @@ describe('PropSafeEMAPullback', () => {
       atrStopMult: 1.1,
       targetRR: 3,
     });
+  });
+
+  test('does not require a fresh EMA crossover when pullback confirmation is valid', () => {
+    const signal = strategy({ crossLookbackBars: 2 }).evaluate({
+      priceHistory: buildTrendCandles(),
+      indicators: { atr: 0.8 },
+    });
+
+    expect(signal).toMatchObject({
+      strategy: 'PropSafeEMAPullback',
+      direction: 'buy',
+      signalData: {
+        crossBarsAgo: null,
+      },
+    });
+  });
+
+  test('does not re-emit on later green candles that no longer touch the pullback EMA', () => {
+    const base = buildTrendCandles();
+    const instance = strategy({ crossLookbackBars: 2 });
+
+    expect(instance.evaluate({
+      priceHistory: base,
+      indicators: { atr: 0.8 },
+    })).toMatchObject({
+      strategy: 'PropSafeEMAPullback',
+      direction: 'buy',
+    });
+
+    const laterCandles = [
+      ...base,
+      candle(108.00, 108.80, 107.95, 108.50, 46),
+      candle(108.50, 109.05, 108.40, 108.85, 47),
+      candle(108.85, 109.40, 108.80, 109.20, 48),
+    ];
+
+    for (let length = base.length + 1; length <= laterCandles.length; length += 1) {
+      expect(instance.evaluate({
+        priceHistory: laterCandles.slice(0, length),
+        indicators: { atr: 0.8 },
+      })).toBeNull();
+    }
   });
 
   test('blocks non-RTH candles when RTH is required', () => {

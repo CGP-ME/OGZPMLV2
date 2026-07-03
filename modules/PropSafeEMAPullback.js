@@ -219,13 +219,29 @@ class PropSafeEMAPullback {
     return null;
   }
 
+  _emaSlope(direction, candles, period) {
+    const current = IndicatorCalculator.calculateEMA(candles, period);
+    const previous = IndicatorCalculator.calculateEMA(
+      candles.slice(0, Math.max(0, candles.length - this.cfg.pullbackLookbackBars)),
+      period
+    );
+    if (![current, previous].every(value => Number.isFinite(value) && value > 0)) return false;
+    return direction === 'buy' ? current > previous : current < previous;
+  }
+
   _pullbackDistance(candles, pullback, atr) {
     const recent = candles.slice(-this.cfg.pullbackLookbackBars);
     let best = null;
     for (const candle of recent) {
-      const lowDistance = Math.abs(l(candle) - pullback) / atr;
-      const highDistance = Math.abs(h(candle) - pullback) / atr;
-      for (const distance of [lowDistance, highDistance]) {
+      const candleLow = l(candle);
+      const candleHigh = h(candle);
+      const distances = candleLow <= pullback && candleHigh >= pullback
+        ? [0]
+        : [
+          Math.abs(candleLow - pullback) / atr,
+          Math.abs(candleHigh - pullback) / atr,
+        ];
+      for (const distance of distances) {
         if (!Number.isFinite(distance)) continue;
         if (best === null || distance < best) best = distance;
       }
@@ -235,9 +251,9 @@ class PropSafeEMAPullback {
 
   _longSignal({ candles, latest, price, fast, pullback, trend, atr }) {
     if (!(price > trend && fast > pullback)) return null;
-    const crossBarsAgo = this._crossed('buy', candles);
-    if (crossBarsAgo === null) return null;
-    const pullbackDistance = this._pullbackDistance(candles, pullback, atr);
+    if (!this._emaSlope('buy', candles, this.cfg.pullbackEmaPeriod)) return null;
+    if (!this._emaSlope('buy', candles, this.cfg.trendEmaPeriod)) return null;
+    const pullbackDistance = this._pullbackDistance([latest], pullback, atr);
     if (
       pullbackDistance === null ||
       pullbackDistance < this.cfg.pullbackMinAtr ||
@@ -246,6 +262,7 @@ class PropSafeEMAPullback {
       return null;
     }
     if (!(price > pullback && c(latest) > o(latest))) return null;
+    const crossBarsAgo = this._crossed('buy', candles);
 
     return this._signal('buy', {
       price,
@@ -258,9 +275,9 @@ class PropSafeEMAPullback {
 
   _shortSignal({ candles, latest, price, fast, pullback, trend, atr }) {
     if (!(price < trend && fast < pullback)) return null;
-    const crossBarsAgo = this._crossed('sell', candles);
-    if (crossBarsAgo === null) return null;
-    const pullbackDistance = this._pullbackDistance(candles, pullback, atr);
+    if (!this._emaSlope('sell', candles, this.cfg.pullbackEmaPeriod)) return null;
+    if (!this._emaSlope('sell', candles, this.cfg.trendEmaPeriod)) return null;
+    const pullbackDistance = this._pullbackDistance([latest], pullback, atr);
     if (
       pullbackDistance === null ||
       pullbackDistance < this.cfg.pullbackMinAtr ||
@@ -269,6 +286,7 @@ class PropSafeEMAPullback {
       return null;
     }
     if (!(price < pullback && c(latest) < o(latest))) return null;
+    const crossBarsAgo = this._crossed('sell', candles);
 
     return this._signal('sell', {
       price,
@@ -281,13 +299,16 @@ class PropSafeEMAPullback {
 
   _signal(direction, context) {
     const stopPct = (this.cfg.atrStopMult * context.atr) / context.price * 100;
+    const freshCrossBonus = Number.isFinite(context.crossBarsAgo)
+      ? (this.cfg.crossLookbackBars - context.crossBarsAgo) / this.cfg.crossLookbackBars * this.cfg.confidenceFreshCrossBonus
+      : 0;
     const confidence = Math.min(
       this.cfg.maxConfidence,
       this.cfg.confidenceBase
         + this.cfg.confidenceTrendBonus
         + this.cfg.confidencePullbackBonus
         + this.cfg.confidenceConfirmationBonus
-        + (this.cfg.crossLookbackBars - context.crossBarsAgo) / this.cfg.crossLookbackBars * this.cfg.confidenceFreshCrossBonus
+        + freshCrossBonus
     );
 
     return {
