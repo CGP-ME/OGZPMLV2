@@ -321,4 +321,21 @@ describe('ExitContractManager exit ownership contract', () => {
       reason: 'no_profit_exit',
     }));
   });
+
+  test('tracks favorable and adverse excursions while updating active trade profit', () => {
+    const manager = new ExitContractManager();
+    const trade = profitTrade({
+      entryPrice: 100,
+      maxProfitPercent: 0,
+      maxAdverseExcursionPercent: 0,
+    });
+
+    expect(manager.updateMaxProfit(trade, 102)).toBeCloseTo(2);
+    expect(trade.maxFavorableExcursionPercent).toBeCloseTo(2);
+    expect(trade.maxAdverseExcursionPercent).toBeCloseTo(0);
+
+    expect(manager.updateMaxProfit(trade, 98.5)).toBeCloseTo(2);
+    expect(trade.maxFavorableExcursionPercent).toBeCloseTo(2);
+    expect(trade.maxAdverseExcursionPercent).toBeCloseTo(-1.5);
+  });
 });

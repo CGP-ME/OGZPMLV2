@@ -388,6 +388,12 @@ class ExitContractManager {
 
     const previousMax = Number.isFinite(Number(trade.maxProfitPercent)) ? Number(trade.maxProfitPercent) : 0;
     trade.maxProfitPercent = Math.max(previousMax, pnlPercent);
+    trade.maxFavorableExcursionPercent = trade.maxProfitPercent;
+
+    const previousAdverse = Number.isFinite(Number(trade.maxAdverseExcursionPercent))
+      ? Number(trade.maxAdverseExcursionPercent)
+      : 0;
+    trade.maxAdverseExcursionPercent = Math.min(previousAdverse, pnlPercent);
 
     if (isShort) {
       const currentLow = positiveFiniteOrNull(trade.lowestPrice);

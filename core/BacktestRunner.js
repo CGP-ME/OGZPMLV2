@@ -153,6 +153,8 @@ class BacktestRunner {
       }
       this._assertDataFileMatchesRuntimeScope(dataPath, symbol, timeframe);
       const timeframeMs = this._getTimeframeMs(timeframe);
+      const firstCoverageCandle = this._normalizeBacktestCandle(historicalCandles[0], timeframeMs);
+      const lastCoverageCandle = this._normalizeBacktestCandle(historicalCandles[historicalCandles.length - 1], timeframeMs);
 
       // Process each candle through the trading logic
       for (const polygonCandle of historicalCandles) {
@@ -339,6 +341,18 @@ class BacktestRunner {
           duration: `${totalTime}s`,
           candlesProcessed: processedCount,
           errors: errorCount
+        },
+        dataCoverage: {
+          dataFile: dataPath,
+          symbol,
+          timeframe,
+          expectedCandles: historicalCandles.length,
+          candlesProcessed: processedCount,
+          startTimestamp: firstCoverageCandle.t,
+          endTimestamp: lastCoverageCandle.t,
+          startIso: new Date(firstCoverageCandle.t).toISOString(),
+          endIso: new Date(lastCoverageCandle.t).toISOString(),
+          complete: processedCount === historicalCandles.length,
         },
         metrics: {
           totalTrades: trades.length,

@@ -110,6 +110,20 @@ describe('Backtest report scope contract', () => {
     expect(record.exitFeeQuantity).toBe(2);
   });
 
+  test('records MFE and MAE on every backtest trade row when supplied by the active trade lifecycle', () => {
+    const recorder = new BacktestRecorder({ startingBalance: 10000, feePerSide: 0 });
+
+    const record = recorder.recordTrade(scopedTrade({
+      maxFavorableExcursionPercent: 2.25,
+      maxAdverseExcursionPercent: -0.75,
+    }));
+
+    expect(record.maxFavorableExcursionPercent).toBe(2.25);
+    expect(record.maxAdverseExcursionPercent).toBe(-0.75);
+    expect(record.mfePercent).toBe(2.25);
+    expect(record.maePercent).toBe(-0.75);
+  });
+
   test('preserves fee edge gate evidence on backtest trade rows', () => {
     const recorder = new BacktestRecorder({ startingBalance: 10000, feePerSide: 0 });
     const feeEdgeGate = {

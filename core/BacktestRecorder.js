@@ -231,6 +231,16 @@ class BacktestRecorder {
             rawSignalBreakdown,
             strategyName
         );
+        const maxFavorableExcursionPercent = BacktestRecorder.finiteNumberOrNull(
+            trade.maxFavorableExcursionPercent
+            ?? trade.maxProfitPercent
+            ?? trade.maxFavorableExcursion
+        );
+        const maxAdverseExcursionPercent = BacktestRecorder.finiteNumberOrNull(
+            trade.maxAdverseExcursionPercent
+            ?? trade.maxDrawdownPercent
+            ?? trade.maxAdverseExcursion
+        );
 
         const record = {
             tradeNumber: this.trades.length + 1,
@@ -274,6 +284,10 @@ class BacktestRecorder {
             frozenExitPolicy: rawFrozenExitPolicy,
             feeEdgeGate: rawFeeEdgeGate,
             riskGates: rawRiskGates,
+            maxFavorableExcursionPercent,
+            maxAdverseExcursionPercent,
+            mfePercent: maxFavorableExcursionPercent,
+            maePercent: maxAdverseExcursionPercent,
             isPartialClose: trade.isPartialClose === true,
             partialFraction: BacktestRecorder.finiteNumberOrNull(trade.partialFraction),
 

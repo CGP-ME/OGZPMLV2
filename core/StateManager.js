@@ -849,6 +849,8 @@ class StateManager {
       ...stateContext,
       ...initialExitLifecycleFields(stateContext.frozenExitPolicy || null),
       maxProfitPercent: 0,
+      maxFavorableExcursionPercent: 0,
+      maxAdverseExcursionPercent: 0,
       highestPrice: tradeDirection === 'long' ? price : 0,
       lowestPrice: tradeDirection === 'short' ? price : Infinity,
       currentStop: profitStopPrice,

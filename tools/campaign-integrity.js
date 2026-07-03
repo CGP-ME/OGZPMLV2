@@ -1,0 +1,381 @@
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+
+const PROJECT_ROOT = path.resolve(__dirname, '..');
+const DECISION_LEDGER_SCHEMA_PATH = path.join(PROJECT_ROOT, 'ogz-meta', 'specs', 'decision-ledger-schema.json');
+const REQUIRED_TRADE_FIELDS = Object.freeze([
+  'entryPrice',
+  'exitPrice',
+  'closedOrderQuantity',
+  'feesDollars',
+  'netPnlDollars',
+  'rawPnlDollars',
+  'strategyName',
+  'direction',
+  'entryTime',
+  'exitTime',
+  'mfePercent',
+  'maePercent',
+]);
+
+function readJson(filePath) {
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+function writeJson(filePath, payload) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, `${JSON.stringify(payload, null, 2)}\n`);
+}
+
+function listFilesRecursive(root, predicate, results = []) {
+  if (!fs.existsSync(root)) return results;
+  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+    const full = path.join(root, entry.name);
+    if (entry.isDirectory()) {
+      listFilesRecursive(full, predicate, results);
+    } else if (predicate(full)) {
+      results.push(full);
+    }
+  }
+  return results;
+}
+
+function newestFile(files) {
+  if (!files.length) return null;
+  return files
+    .map(file => ({ file, mtimeMs: fs.statSync(file).mtimeMs }))
+    .sort((a, b) => b.mtimeMs - a.mtimeMs)[0].file;
+}
+
+function roundCents(value) {
+  return Math.round(Number(value) * 100) / 100;
+}
+
+function finiteNumber(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function nonEmpty(value) {
+  return typeof value === 'string' ? value.trim().length > 0 : value !== null && value !== undefined;
+}
+
+function loadJsonl(filePath) {
+  if (!fs.existsSync(filePath)) return [];
+  return fs.readFileSync(filePath, 'utf8')
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line, index) => {
+      try {
+        return { ok: true, value: JSON.parse(line), line: index + 1 };
+      } catch (error) {
+        return { ok: false, error: error.message, line: index + 1, raw: line };
+      }
+    });
+}
+
+function dataFileCandleCount(dataFile) {
+  const resolved = path.isAbsolute(dataFile) ? dataFile : path.resolve(PROJECT_ROOT, dataFile);
+  const parsed = readJson(resolved);
+  const candles = Array.isArray(parsed) ? parsed : parsed.candles;
+  if (!Array.isArray(candles)) {
+    throw new Error(`Unable to count candles in ${resolved}`);
+  }
+  return {
+    dataFile: resolved,
+    expectedCandles: candles.length,
+    startTimestamp: timestampOf(candles[0]),
+    endTimestamp: timestampOf(candles[candles.length - 1]),
+  };
+}
+
+function timestampOf(candle) {
+  const value = candle && (candle.timestamp ?? candle.t ?? candle.time);
+  const numeric = typeof value === 'string' ? Date.parse(value) : Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function validateJsonSchemaObject(schema, value, label, errors) {
+  if (!schema || typeof schema !== 'object') return;
+  if (schema.type === 'object') {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      errors.push(`${label} expected object`);
+      return;
+    }
+    for (const required of schema.required || []) {
+      if (!Object.prototype.hasOwnProperty.call(value, required)) {
+        errors.push(`${label}.${required} missing`);
+      }
+    }
+    const props = schema.properties || {};
+    for (const [key, childSchema] of Object.entries(props)) {
+      if (value[key] !== undefined) {
+        validateJsonSchemaObject(childSchema, value[key], `${label}.${key}`, errors);
+      }
+    }
+    return;
+  }
+  if (schema.type === 'array') {
+    if (!Array.isArray(value)) {
+      errors.push(`${label} expected array`);
+      return;
+    }
+    value.forEach((item, index) => validateJsonSchemaObject(schema.items, item, `${label}[${index}]`, errors));
+    return;
+  }
+  if (schema.type === 'string' && typeof value !== 'string') errors.push(`${label} expected string`);
+  if (schema.type === 'integer' && !Number.isInteger(value)) errors.push(`${label} expected integer`);
+  if (schema.type === 'number' && !Number.isFinite(Number(value))) errors.push(`${label} expected number`);
+  if (schema.type === 'boolean' && typeof value !== 'boolean') errors.push(`${label} expected boolean`);
+  if (Array.isArray(schema.enum) && !schema.enum.includes(value)) {
+    errors.push(`${label} enum mismatch (${value})`);
+  }
+}
+
+function validateDecisionLedgers(ledgerDir) {
+  const schema = readJson(DECISION_LEDGER_SCHEMA_PATH);
+  const decisionFiles = listFilesRecursive(ledgerDir, file => /decisions_.*\.jsonl$/.test(path.basename(file)));
+  const errors = [];
+  let rows = 0;
+  for (const file of decisionFiles) {
+    for (const parsed of loadJsonl(file)) {
+      if (!parsed.ok) {
+        errors.push(`${file}:${parsed.line} JSON parse failed: ${parsed.error}`);
+        continue;
+      }
+      rows += 1;
+      validateJsonSchemaObject(schema, parsed.value, `${file}:${parsed.line}`, errors);
+    }
+  }
+  return {
+    ok: errors.length === 0,
+    rows,
+    files: decisionFiles,
+    errors,
+  };
+}
+
+function validateAccounting(report) {
+  const trades = Array.isArray(report.trades) ? report.trades : [];
+  const startingBalance = finiteNumber(report.summary?.startingBalance ?? report.summary?.initialBalance);
+  const finalBalance = finiteNumber(report.summary?.finalBalance);
+  const gross = trades.reduce((sum, trade) => sum + (finiteNumber(trade.rawPnlDollars) ?? 0), 0);
+  const fees = trades.reduce((sum, trade) => sum + (finiteNumber(trade.feesDollars) ?? 0), 0);
+  const expected = startingBalance === null ? null : startingBalance + gross - fees;
+  const ok = startingBalance !== null && finalBalance !== null && roundCents(expected) === roundCents(finalBalance);
+  return {
+    ok,
+    startingBalance,
+    finalBalance,
+    grossPnlDollars: gross,
+    feesDollars: fees,
+    expectedFinalBalance: expected,
+    centDelta: finalBalance === null || expected === null ? null : roundCents(finalBalance - expected),
+  };
+}
+
+function validateFields(report) {
+  const errors = [];
+  const trades = Array.isArray(report.trades) ? report.trades : [];
+  trades.forEach((trade, index) => {
+    for (const field of REQUIRED_TRADE_FIELDS) {
+      const value = trade[field];
+      if (!nonEmpty(value)) {
+        errors.push(`trades[${index}].${field} missing/null`);
+      } else if (['entryPrice', 'exitPrice', 'closedOrderQuantity', 'feesDollars', 'netPnlDollars', 'rawPnlDollars', 'mfePercent', 'maePercent'].includes(field)
+        && finiteNumber(value) === null) {
+        errors.push(`trades[${index}].${field} non-finite`);
+      }
+    }
+  });
+  return { ok: errors.length === 0, errors };
+}
+
+function validateCoverage(report, expectedCoverage) {
+  const coverage = report.dataCoverage || {};
+  const expectedCandles = expectedCoverage?.expectedCandles ?? coverage.expectedCandles;
+  const candlesProcessed = finiteNumber(coverage.candlesProcessed ?? report.summary?.candlesProcessed);
+  const startTimestamp = finiteNumber(coverage.startTimestamp);
+  const endTimestamp = finiteNumber(coverage.endTimestamp);
+  const errors = [];
+  if (!Number.isFinite(expectedCandles)) errors.push('expected candle count missing');
+  if (candlesProcessed !== expectedCandles) {
+    errors.push(`candlesProcessed ${candlesProcessed} != expected ${expectedCandles}`);
+  }
+  const hasExpectedStart = expectedCoverage
+    && expectedCoverage.startTimestamp !== null
+    && expectedCoverage.startTimestamp !== undefined;
+  const hasExpectedEnd = expectedCoverage
+    && expectedCoverage.endTimestamp !== null
+    && expectedCoverage.endTimestamp !== undefined;
+  if (hasExpectedStart && startTimestamp !== expectedCoverage.startTimestamp) {
+    errors.push(`startTimestamp ${startTimestamp} != requested ${expectedCoverage.startTimestamp}`);
+  }
+  if (hasExpectedEnd && endTimestamp !== expectedCoverage.endTimestamp) {
+    errors.push(`endTimestamp ${endTimestamp} != requested ${expectedCoverage.endTimestamp}`);
+  }
+  if (coverage.complete !== true) errors.push('dataCoverage.complete is not true');
+  return { ok: errors.length === 0, errors, coverage, expectedCoverage };
+}
+
+function validateWorkerReport(reportPath, expectedCoverage = null) {
+  const report = readJson(reportPath);
+  const trades = Array.isArray(report.trades) ? report.trades : [];
+  const reportTradeCount = finiteNumber(report.summary?.totalTrades ?? report.metrics?.totalTrades);
+  const lifecycleErrors = [];
+  if (reportTradeCount !== trades.length) {
+    lifecycleErrors.push(`report totalTrades ${reportTradeCount} != trades.length ${trades.length}`);
+  }
+  const accounting = validateAccounting(report);
+  const fields = validateFields(report);
+  const coverage = validateCoverage(report, expectedCoverage);
+  const lifecycle = { ok: lifecycleErrors.length === 0, errors: lifecycleErrors, reportTrades: reportTradeCount, tradeRows: trades.length };
+  const checks = {
+    accounting,
+    lifecycle,
+    fields,
+    coverage,
+  };
+  return {
+    reportPath,
+    status: Object.values(checks).every(check => check.ok) ? 'PASS' : 'FAIL',
+    trades: trades.length,
+    checks,
+  };
+}
+
+function integrityBooleans(checks) {
+  return {
+    identity: Boolean(checks.accounting?.ok),
+    lifecycle: Boolean(checks.lifecycle?.ok),
+    fields: Boolean(checks.fields?.ok),
+    coverage: Boolean(checks.coverage?.ok),
+    schema: Boolean(checks.schema?.ok),
+  };
+}
+
+function stampReport(reportPath, stamp) {
+  const report = readJson(reportPath);
+  report.integrityStamp = stamp;
+  writeJson(reportPath, report);
+}
+
+function validateMatrixRun({ matrixReportPath, outputDir = null }) {
+  const matrix = readJson(matrixReportPath);
+  const matrixDir = outputDir || path.dirname(matrixReportPath);
+  const expectedCoverage = matrix.dataFile ? dataFileCandleCount(matrix.dataFile) : null;
+  const workerReports = [];
+  const errors = [];
+  let totalTradesFromWorkers = 0;
+
+  for (const result of matrix.results || []) {
+    if (!result.reportPath) {
+      if (Number(result.trades) > 0) errors.push(`${result.name || result.strategy} missing reportPath`);
+      continue;
+    }
+    const reportPath = path.isAbsolute(result.reportPath)
+      ? result.reportPath
+      : path.resolve(path.dirname(matrixReportPath), result.reportPath);
+    if (!fs.existsSync(reportPath)) {
+      errors.push(`${result.name || result.strategy} reportPath not found: ${reportPath}`);
+      continue;
+    }
+    const worker = validateWorkerReport(reportPath, expectedCoverage);
+    workerReports.push(worker);
+    totalTradesFromWorkers += worker.trades;
+  }
+
+  const ledgerDir = path.join(matrixDir, 'ledger');
+  const schema = validateDecisionLedgers(ledgerDir);
+  const matrixTradeCount = (matrix.results || []).reduce((sum, result) => sum + (finiteNumber(result.trades) ?? 0), 0);
+  const lifecycleErrors = [];
+  if (matrixTradeCount !== totalTradesFromWorkers) {
+    lifecycleErrors.push(`matrix trades ${matrixTradeCount} != worker trade rows ${totalTradesFromWorkers}`);
+  }
+  if (schema.files.length > 0 && schema.rows !== matrixTradeCount) {
+    lifecycleErrors.push(`decision ledger rows ${schema.rows} != matrix trades ${matrixTradeCount}`);
+  }
+  if (matrixTradeCount > 0 && schema.files.length === 0) {
+    lifecycleErrors.push('no isolated decision ledger files found for run');
+  }
+
+  const checks = {
+    accounting: { ok: workerReports.every(report => report.checks.accounting.ok), failed: workerReports.filter(report => !report.checks.accounting.ok).map(report => report.reportPath) },
+    lifecycle: { ok: lifecycleErrors.length === 0 && workerReports.every(report => report.checks.lifecycle.ok), errors: lifecycleErrors },
+    fields: { ok: workerReports.every(report => report.checks.fields.ok), failed: workerReports.filter(report => !report.checks.fields.ok).map(report => ({ reportPath: report.reportPath, errors: report.checks.fields.errors.slice(0, 20) })) },
+    coverage: { ok: workerReports.every(report => report.checks.coverage.ok), failed: workerReports.filter(report => !report.checks.coverage.ok).map(report => ({ reportPath: report.reportPath, errors: report.checks.coverage.errors })) },
+    schema,
+  };
+  const booleans = integrityBooleans(checks);
+  const status = errors.length === 0 && Object.values(booleans).every(Boolean) ? 'PASS' : 'FAILED-INTEGRITY';
+  const stamp = {
+    version: 1,
+    status,
+    stampedAt: new Date().toISOString(),
+    matrixReportPath,
+    outputDir: matrixDir,
+    trades: matrixTradeCount,
+    checks: booleans,
+    details: checks,
+    errors,
+    workerReports: workerReports.map(report => ({
+      reportPath: report.reportPath,
+      status: report.status,
+      trades: report.trades,
+      checks: {
+        identity: report.checks.accounting.ok,
+        lifecycle: report.checks.lifecycle.ok,
+        fields: report.checks.fields.ok,
+        coverage: report.checks.coverage.ok,
+      },
+    })),
+  };
+
+  for (const worker of workerReports) {
+    stampReport(worker.reportPath, {
+      version: 1,
+      status: worker.status === 'PASS' && schema.ok ? 'PASS' : 'FAILED-INTEGRITY',
+      stampedAt: stamp.stampedAt,
+      parentMatrixReportPath: matrixReportPath,
+      checks: {
+        ...integrityBooleans({
+          accounting: worker.checks.accounting,
+          lifecycle: worker.checks.lifecycle,
+          fields: worker.checks.fields,
+          coverage: worker.checks.coverage,
+          schema,
+        }),
+      },
+    });
+  }
+  stampReport(matrixReportPath, stamp);
+  return stamp;
+}
+
+function findLatestMatrixReport(outputDir) {
+  return newestFile(listFilesRecursive(outputDir, file => /^matrix-.*\.json$/.test(path.basename(file))));
+}
+
+function assertLabIntegrity(filePath, report) {
+  const stamp = report?.integrityStamp;
+  if (!stamp || stamp.status !== 'PASS') {
+    throw new Error(`Strategy Lab refuses ${filePath}: missing full-green integrityStamp`);
+  }
+  const checks = stamp.checks || {};
+  const required = ['identity', 'lifecycle', 'fields', 'coverage', 'schema'];
+  for (const key of required) {
+    if (checks[key] !== true) {
+      throw new Error(`Strategy Lab refuses ${filePath}: integrity ${key} is not green`);
+    }
+  }
+}
+
+module.exports = {
+  assertLabIntegrity,
+  dataFileCandleCount,
+  findLatestMatrixReport,
+  validateMatrixRun,
+  validateWorkerReport,
+};

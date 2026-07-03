@@ -18,6 +18,10 @@ const { resolveInstrumentFromDataFile } = require('./instrument-env');
 const { buildBacktestWorkerEnv, summarizeWorkerEnv } = require('./backtest-worker-env');
 const { resolveTuningProfile } = require('./tuning-profiles');
 const { resolveFeeProfile } = require('./fee-profiles');
+const {
+  findLatestMatrixReport,
+  validateMatrixRun,
+} = require('./campaign-integrity');
 
 const DORMANT_STRATEGY_ENV = Object.freeze({
   SmartMoneySweep: { ENABLE_SMS: 'true', SMS_VP_RTH_ONLY: 'true' },
@@ -46,6 +50,7 @@ function usage(exitCode = 0) {
     '  node tools/weekend-campaign-gauntlet.js smoke [--data=tsla-unseen] [--fee-profile=ttp_real] [--run-id=<id>]',
     '  node tools/weekend-campaign-gauntlet.js plan [--symbols=tsla,spy,qqq,nvda,riot,mara,coin] [--phase=conf] [--run-id=<id>]',
     '  node tools/weekend-campaign-gauntlet.js launch --manifest=<path> [--resume]',
+    '  node tools/weekend-campaign-gauntlet.js status --manifest=<path>',
     '',
     'Smoke writes smoke-summary.json and refuses to greenlight launch if any roster row fails.',
     'Launch writes manifest.json, heartbeat.json, per-run status JSON, and full per-run logs.',
@@ -595,6 +600,9 @@ function buildCampaignManifest(options) {
           attempts: 0,
           logPath: path.join(rootDir, 'logs', `${safeName(`${profile}-${symbol}-${strategy}-${phase}`)}.log`),
           statusPath: path.join(rootDir, 'status', `${safeName(`${profile}-${symbol}-${strategy}-${phase}`)}.json`),
+          artifactDir: path.join(rootDir, 'artifacts', safeName(`${profile}-${symbol}-${strategy}-${phase}`)),
+          integrityPath: path.join(rootDir, 'integrity', `${safeName(`${profile}-${symbol}-${strategy}-${phase}`)}.json`),
+          integrity: null,
         });
       }
     }
@@ -633,11 +641,48 @@ function writeHeartbeat(manifest, event, currentRun = null) {
 }
 
 function summarizeManifest(manifest) {
-  const counts = { planned: 0, running: 0, done: 0, failed: 0, skipped: 0 };
+  const counts = { planned: 0, running: 0, done: 0, failed: 0, skipped: 0, 'FAILED-INTEGRITY': 0 };
   for (const run of manifest.planned || []) {
     counts[run.status] = (counts[run.status] || 0) + 1;
   }
   return counts;
+}
+
+function renderIntegrityMark(value) {
+  if (value === true) return '✓';
+  if (value === false) return '✗';
+  return '-';
+}
+
+function renderCampaignStatus(manifest) {
+  const lines = [];
+  lines.push('run | trades | identity | lifecycle | fields | coverage | schema | status');
+  for (const run of manifest.planned || []) {
+    const checks = run.integrity?.checks || {};
+    lines.push([
+      run.id,
+      run.integrity?.trades ?? '-',
+      renderIntegrityMark(checks.identity),
+      renderIntegrityMark(checks.lifecycle),
+      renderIntegrityMark(checks.fields),
+      renderIntegrityMark(checks.coverage),
+      renderIntegrityMark(checks.schema),
+      run.status,
+    ].join(' | '));
+  }
+  lines.push('');
+  lines.push('aggregate | count');
+  const counts = summarizeManifest(manifest);
+  for (const [status, count] of Object.entries(counts)) {
+    lines.push(`${status} | ${count}`);
+  }
+  return lines.join('\n');
+}
+
+function writeCampaignStatus(manifest) {
+  const statusPath = path.join(manifest.rootDir, 'campaign-status.md');
+  fs.writeFileSync(statusPath, `${renderCampaignStatus(manifest)}\n`);
+  return statusPath;
 }
 
 async function launchCampaign(options) {
@@ -652,17 +697,26 @@ async function launchCampaign(options) {
   writeHeartbeat(manifest, 'campaign_started');
 
   for (const run of manifest.planned) {
-    if (options.resume && (run.status === 'done' || run.status === 'running')) {
+    if (options.resume && run.status === 'done' && run.integrity?.status === 'PASS') {
+      continue;
+    }
+    if (options.resume && run.status === 'failed') {
       continue;
     }
     run.status = 'running';
     run.startedAt = new Date().toISOString();
     run.attempts = (run.attempts || 0) + 1;
+    run.artifactDir = run.artifactDir || path.join(manifest.rootDir, 'artifacts', run.id);
+    run.integrityPath = run.integrityPath || path.join(manifest.rootDir, 'integrity', `${run.id}.json`);
     writeJson(manifestPath, { ...manifest, counts: summarizeManifest(manifest) });
+    writeCampaignStatus(manifest);
     writeHeartbeat(manifest, 'run_started', run);
     const status = await runNodeProcess({
       args: run.command.slice(1),
-      env: process.env,
+      env: {
+        ...process.env,
+        BACKTEST_OUTPUT_DIR: run.artifactDir,
+      },
       logPath: run.logPath,
       statusPath: run.statusPath,
       label: run.id,
@@ -671,16 +725,60 @@ async function launchCampaign(options) {
     run.finishedAt = status.finishedAt;
     run.exitCode = status.exitCode;
     run.signal = status.signal;
+    run.matrixReportPath = null;
+    run.integrity = null;
+    if (status.exitCode === 0) {
+      const matrixReportPath = findLatestMatrixReport(run.artifactDir);
+      if (!matrixReportPath) {
+        run.status = 'FAILED-INTEGRITY';
+        run.integrity = {
+          status: 'FAILED-INTEGRITY',
+          trades: 0,
+          checks: { identity: false, lifecycle: false, fields: false, coverage: false, schema: false },
+          errors: ['matrix report missing'],
+        };
+      } else {
+        run.matrixReportPath = matrixReportPath;
+        const stamp = validateMatrixRun({
+          matrixReportPath,
+          outputDir: run.artifactDir,
+        });
+        writeJson(run.integrityPath, stamp);
+        run.integrity = {
+          status: stamp.status,
+          trades: stamp.trades,
+          checks: stamp.checks,
+          path: run.integrityPath,
+        };
+        if (stamp.status !== 'PASS') {
+          run.status = 'FAILED-INTEGRITY';
+        }
+      }
+    }
     writeJson(manifestPath, { ...manifest, counts: summarizeManifest(manifest) });
+    writeCampaignStatus(manifest);
     writeHeartbeat(manifest, 'run_finished', run);
   }
 
-  manifest.status = manifest.planned.some(run => run.status === 'failed') ? 'done_with_failures' : 'done';
+  manifest.status = manifest.planned.some(run => run.status === 'failed' || run.status === 'FAILED-INTEGRITY')
+    ? 'done_with_failures'
+    : 'done';
   manifest.doneAt = new Date().toISOString();
   manifest.counts = summarizeManifest(manifest);
   writeJson(manifestPath, manifest);
+  writeCampaignStatus(manifest);
   writeHeartbeat(manifest, 'campaign_finished');
   return manifest;
+}
+
+function showCampaignStatus(options) {
+  const manifestPath = options.manifest
+    ? path.resolve(PROJECT_ROOT, options.manifest)
+    : null;
+  if (!manifestPath) throw new Error('status requires --manifest=<path>');
+  const manifest = readJson(manifestPath);
+  manifest.manifestPath = manifestPath;
+  process.stdout.write(`${renderCampaignStatus(manifest)}\n`);
 }
 
 async function main() {
@@ -698,6 +796,10 @@ async function main() {
   if (command === 'launch') {
     const manifest = await launchCampaign(options);
     process.stdout.write(`manifest=${manifest.manifestPath}\nheartbeat=${manifest.heartbeatPath}\nstatus=${manifest.status}\n`);
+    return;
+  }
+  if (command === 'status') {
+    showCampaignStatus(options);
     return;
   }
   usage(1);

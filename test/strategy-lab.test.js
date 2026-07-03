@@ -38,6 +38,27 @@ function trade(overrides = {}) {
   };
 }
 
+function integrityStamp(overrides = {}) {
+  return {
+    status: 'PASS',
+    checks: {
+      identity: true,
+      lifecycle: true,
+      fields: true,
+      coverage: true,
+      schema: true,
+    },
+    ...overrides,
+  };
+}
+
+function stampedReport(report, stampOverrides = {}) {
+  return {
+    integrityStamp: integrityStamp(stampOverrides),
+    ...report,
+  };
+}
+
 function repeatTrades(count, overrides = {}) {
   return Array.from({ length: count }, () => trade(overrides));
 }
@@ -45,13 +66,13 @@ function repeatTrades(count, overrides = {}) {
 describe('strategy lab dossier generator', () => {
   test('rejects matrix reports without the required explicit ttp_real fee profile', () => {
     withTempDir(dir => {
-      const reportPath = writeJson(dir, 'matrix-zero.json', {
+      const reportPath = writeJson(dir, 'matrix-zero.json', stampedReport({
         results: [{
           strategy: 'RSI',
           netPnl: 50,
           trades: 120,
         }],
-      });
+      }));
 
       expect(() => buildStrategyLab([reportPath])).toThrow(
         /requires fee profile ttp_real.*UNKNOWN/
@@ -61,10 +82,10 @@ describe('strategy lab dossier generator', () => {
 
   test('does not allow Strategy Lab callers to downgrade the required fee profile', () => {
     withTempDir(dir => {
-      const reportPath = writeJson(dir, 'matrix-zero.json', {
+      const reportPath = writeJson(dir, 'matrix-zero.json', stampedReport({
         feeProfile: { name: 'zero' },
         results: [],
-      });
+      }));
 
       expect(() => buildStrategyLab([reportPath], { requiredFeeProfile: 'zero' })).toThrow(
         /only supports ttp_real/
@@ -90,7 +111,7 @@ describe('strategy lab dossier generator', () => {
 
   test('rejects ttp_real matrix rows that report trades without fee evidence', () => {
     withTempDir(dir => {
-      const reportPath = writeJson(dir, 'matrix-fake-ttp.json', {
+      const reportPath = writeJson(dir, 'matrix-fake-ttp.json', stampedReport({
         feeProfile: { name: 'ttp_real' },
         results: [{
           name: 'RSI_fake_keep',
@@ -101,7 +122,7 @@ describe('strategy lab dossier generator', () => {
           reportPath: path.join(dir, 'worker.json'),
         }],
         trades: [],
-      });
+      }));
 
       expect(() => buildStrategyLab([reportPath])).toThrow(
         /requires nonzero ttp_real fee evidence/
@@ -111,7 +132,7 @@ describe('strategy lab dossier generator', () => {
 
   test('rejects matrix rows with per-result fee profile overrides', () => {
     withTempDir(dir => {
-      const reportPath = writeJson(dir, 'matrix-row-override.json', {
+      const reportPath = writeJson(dir, 'matrix-row-override.json', stampedReport({
         feeProfile: { name: 'ttp_real' },
         results: [{
           name: 'RSI_row_override',
@@ -122,7 +143,7 @@ describe('strategy lab dossier generator', () => {
           reportPath: path.join(dir, 'worker.json'),
           workerEnv: { BACKTEST_FEE_PROFILE: 'zero' },
         }],
-      });
+      }));
 
       expect(() => buildStrategyLab([reportPath])).toThrow(
         /requires fee profile ttp_real.*zero/
@@ -132,7 +153,7 @@ describe('strategy lab dossier generator', () => {
 
   test('rejects matrix rows whose reported trades do not link to a worker report', () => {
     withTempDir(dir => {
-      const reportPath = writeJson(dir, 'matrix-missing-worker.json', {
+      const reportPath = writeJson(dir, 'matrix-missing-worker.json', stampedReport({
         feeProfile: { name: 'ttp_real' },
         results: [{
           name: 'RSI_missing_worker',
@@ -142,7 +163,7 @@ describe('strategy lab dossier generator', () => {
           fees: 375,
           reportPath: path.join(dir, 'missing-worker.json'),
         }],
-      });
+      }));
 
       expect(() => buildStrategyLab([reportPath])).toThrow(
         /reportPath not found/
@@ -153,7 +174,7 @@ describe('strategy lab dossier generator', () => {
   test('rejects ttp_real worker reports with trades missing per-trade fees', () => {
     withTempDir(dir => {
       const workerPath = path.join(dir, 'worker-fake-ttp.json');
-      const matrixPath = writeJson(dir, 'matrix-linked-to-fake-worker.json', {
+      const matrixPath = writeJson(dir, 'matrix-linked-to-fake-worker.json', stampedReport({
         feeProfile: { name: 'ttp_real' },
         results: [{
           name: 'RSI_fake_worker',
@@ -163,8 +184,8 @@ describe('strategy lab dossier generator', () => {
           fees: 180,
           reportPath: workerPath,
         }],
-      });
-      writeJson(dir, 'worker-fake-ttp.json', {
+      }));
+      writeJson(dir, 'worker-fake-ttp.json', stampedReport({
         trades: Array.from({ length: 120 }, () => ({
           strategyName: 'RSI',
           netPnlDollars: 1,
@@ -174,7 +195,7 @@ describe('strategy lab dossier generator', () => {
           confidenceTier: 'high',
           direction: 'long',
         })),
-      });
+      }));
 
       expect(() => buildStrategyLab([matrixPath])).toThrow(
         /requires per-trade ttp_real fee evidence/
@@ -185,7 +206,7 @@ describe('strategy lab dossier generator', () => {
   test('rejects linked worker reports that explicitly declare a non-ttp fee profile', () => {
     withTempDir(dir => {
       const workerPath = path.join(dir, 'worker-zero-profile.json');
-      const matrixPath = writeJson(dir, 'matrix-linked-to-zero-worker.json', {
+      const matrixPath = writeJson(dir, 'matrix-linked-to-zero-worker.json', stampedReport({
         feeProfile: { name: 'ttp_real' },
         results: [{
           name: 'RSI_zero_worker',
@@ -195,11 +216,11 @@ describe('strategy lab dossier generator', () => {
           fees: 180,
           reportPath: workerPath,
         }],
-      });
-      writeJson(dir, 'worker-zero-profile.json', {
+      }));
+      writeJson(dir, 'worker-zero-profile.json', stampedReport({
         workerEnv: { BACKTEST_FEE_PROFILE: 'zero' },
         trades: repeatTrades(120),
-      });
+      }));
 
       expect(() => buildStrategyLab([matrixPath])).toThrow(
         /requires fee profile ttp_real.*zero/
@@ -210,7 +231,7 @@ describe('strategy lab dossier generator', () => {
   test('rejects linked worker reports without trade rows', () => {
     withTempDir(dir => {
       const workerPath = path.join(dir, 'worker-empty.json');
-      const matrixPath = writeJson(dir, 'matrix-linked-to-empty-worker.json', {
+      const matrixPath = writeJson(dir, 'matrix-linked-to-empty-worker.json', stampedReport({
         feeProfile: { name: 'ttp_real' },
         results: [{
           name: 'RSI_empty_worker',
@@ -220,10 +241,10 @@ describe('strategy lab dossier generator', () => {
           fees: 180,
           reportPath: workerPath,
         }],
-      });
-      writeJson(dir, 'worker-empty.json', {
+      }));
+      writeJson(dir, 'worker-empty.json', stampedReport({
         trades: [],
-      });
+      }));
 
       expect(() => buildStrategyLab([matrixPath])).toThrow(
         /requires non-empty trades array/
@@ -233,10 +254,10 @@ describe('strategy lab dossier generator', () => {
 
   test('rejects standalone worker reports that are not linked by matrix reportPath', () => {
     withTempDir(dir => {
-      const workerPath = writeJson(dir, 'worker-standalone.json', {
+      const workerPath = writeJson(dir, 'worker-standalone.json', stampedReport({
         feeProfile: { name: 'ttp_real' },
         trades: repeatTrades(120),
-      });
+      }));
 
       expect(() => buildStrategyLab([workerPath])).toThrow(
         /worker report must be linked by matrix reportPath/
@@ -248,20 +269,20 @@ describe('strategy lab dossier generator', () => {
     withTempDir(dir => {
       const rsiReportPath = path.join(dir, 'rsi-worker.json');
       const madReportPath = path.join(dir, 'mad-worker.json');
-      writeJson(dir, 'rsi-worker.json', {
+      writeJson(dir, 'rsi-worker.json', stampedReport({
         trades: [
           ...repeatTrades(100, { netPnlDollars: 5, holdTimeMinutes: 300 }),
           ...repeatTrades(20, { netPnlDollars: -3, holdTimeMinutes: 20, exitReason: 'stop_loss' }),
         ],
-      });
-      writeJson(dir, 'mad-worker.json', {
+      }));
+      writeJson(dir, 'mad-worker.json', stampedReport({
         trades: repeatTrades(24, {
           strategyName: 'MADynamicSR',
           netPnlDollars: -2,
           exitReason: 'stop_loss',
         }),
-      });
-      const matrixPath = writeJson(dir, 'matrix-ttp.json', {
+      }));
+      const matrixPath = writeJson(dir, 'matrix-ttp.json', stampedReport({
         feeProfile: { name: 'ttp_real' },
         results: [
           {
@@ -301,7 +322,7 @@ describe('strategy lab dossier generator', () => {
             reportPath: madReportPath,
           },
         ],
-      });
+      }));
       const report = buildStrategyLab([matrixPath], { minTrades: 100 });
 
       expect(report.requiredFeeProfile).toBe('ttp_real');
@@ -324,7 +345,7 @@ describe('strategy lab dossier generator', () => {
 
   test('writes json and markdown dossiers with roster decision evidence', () => {
     withTempDir(dir => {
-      const reportPath = writeJson(dir, 'matrix-ttp.json', {
+      const reportPath = writeJson(dir, 'matrix-ttp.json', stampedReport({
         feeProfile: { name: 'ttp_real' },
         results: [{
           name: 'RSI_c55',
@@ -335,10 +356,10 @@ describe('strategy lab dossier generator', () => {
           fees: 180,
           reportPath: path.join(dir, 'rsi-worker.json'),
         }],
-      });
-      writeJson(dir, 'rsi-worker.json', {
+      }));
+      writeJson(dir, 'rsi-worker.json', stampedReport({
         trades: repeatTrades(120, { netPnlDollars: -1, exitReason: 'stop_loss' }),
-      });
+      }));
       const report = buildStrategyLab([reportPath], { minTrades: 100 });
       const outDir = path.join(dir, 'lab');
       const written = writeStrategyLab(report, outDir);
@@ -351,6 +372,19 @@ describe('strategy lab dossier generator', () => {
       expect(markdown).toContain('matrix_result:');
       expect(markdown).toContain('fees=180.00');
       expect(renderMarkdown(report)).toContain('Required fee profile: ttp_real');
+    });
+  });
+
+  test('refuses unstamped reports before they can feed dossiers', () => {
+    withTempDir(dir => {
+      const reportPath = writeJson(dir, 'matrix-unstamped.json', {
+        feeProfile: { name: 'ttp_real' },
+        results: [],
+      });
+
+      expect(() => buildStrategyLab([reportPath])).toThrow(
+        /missing full-green integrityStamp/
+      );
     });
   });
 });

@@ -5,6 +5,9 @@ const path = require('path');
 const {
   ALL_STRATEGIES,
 } = require('./matrix-sweep');
+const {
+  assertLabIntegrity,
+} = require('./campaign-integrity');
 
 const DEFAULT_MIN_TRADES = 100;
 const DEFAULT_REQUIRED_FEE_PROFILE = 'ttp_real';
@@ -230,6 +233,7 @@ function normalizeMatrixResult(result) {
 }
 
 function applyMatrixReport(dossiers, report, filePath, requiredFeeProfile, loadedWorkerReports) {
+  assertLabIntegrity(filePath, report);
   assertFeeProfile(filePath, report, null, requiredFeeProfile);
   for (const result of ensureArray(report.results)) {
     assertFeeProfile(filePath, report, result, requiredFeeProfile);
@@ -268,6 +272,7 @@ function applyMatrixReport(dossiers, report, filePath, requiredFeeProfile, loade
 }
 
 function applyWorkerReport(dossiers, report, filePath, requiredFeeProfile, options = {}) {
+  assertLabIntegrity(filePath, report);
   if (!options.allowMissingFeeProfile) {
     assertFeeProfile(filePath, report, null, requiredFeeProfile);
   } else {

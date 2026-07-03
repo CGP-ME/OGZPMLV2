@@ -3208,6 +3208,11 @@ class OrderExecutor {
                 mtfConfluenceSnapshot: buyTrade.frozenExitPolicy?.mtfConfluenceSnapshot ?? null,
                 feeEdgeGate: buyTrade.feeEdgeGate ?? null,
                 riskGates: Array.isArray(buyTrade.riskGates) ? buyTrade.riskGates : null,
+                maxFavorableExcursionPercent: this._firstFiniteNumber(
+                  buyTrade.maxFavorableExcursionPercent,
+                  buyTrade.maxProfitPercent
+                ),
+                maxAdverseExcursionPercent: this._firstFiniteNumber(buyTrade.maxAdverseExcursionPercent),
                 isPartialClose: statePartialClose,
                 partialFraction: statePartialClose ? stateExitFraction : null,
                 exitReason: completeTradeResult.exitReason,
@@ -3753,6 +3758,11 @@ class OrderExecutor {
               mtfConfluenceSnapshot: shortTrade.frozenExitPolicy?.mtfConfluenceSnapshot ?? null,
               feeEdgeGate: shortTrade.feeEdgeGate ?? null,
               riskGates: Array.isArray(shortTrade.riskGates) ? shortTrade.riskGates : null,
+              maxFavorableExcursionPercent: this._firstFiniteNumber(
+                shortTrade.maxFavorableExcursionPercent,
+                shortTrade.maxProfitPercent
+              ),
+              maxAdverseExcursionPercent: this._firstFiniteNumber(shortTrade.maxAdverseExcursionPercent),
               isPartialClose: false,
               partialFraction: null,
               exitReason: completeTradeResult.exitReason,
