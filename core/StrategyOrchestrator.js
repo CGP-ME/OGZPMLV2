@@ -245,6 +245,80 @@ function finiteConfigNumber(value, label, fallback, min = null) {
   return numeric;
 }
 
+function booleanConfigValue(value, fallback = false) {
+  if (value === true || value === false) return value;
+  if (value === undefined || value === null) return fallback;
+  const normalized = String(value).trim().toLowerCase();
+  if (normalized === 'true' || normalized === '1') return true;
+  if (normalized === 'false' || normalized === '0') return false;
+  return fallback;
+}
+
+function getEmaCrossoverConfig() {
+  return {
+    entryEventsOnly: booleanConfigValue(TradingConfig.get('strategyBehavior.emaCrossover.entryEventsOnly'), false),
+    confirmBars: finiteConfigNumber(TradingConfig.get('strategyBehavior.emaCrossover.confirmBars'), 'emaCrossover.confirmBars', 0, 0),
+    warmupBars: finiteConfigNumber(TradingConfig.get('strategyBehavior.emaCrossover.warmupBars'), 'emaCrossover.warmupBars', 10, 1),
+  };
+}
+
+function getTrendRegimeGateConfig() {
+  const strategyListConfig = TradingConfig.get('strategyBehavior.trendRegimeGate.strategies');
+  const strategyList = Array.isArray(strategyListConfig)
+    ? strategyListConfig
+    : [
+        'EMASMACrossover',
+        'MADynamicSR',
+        'MultiTimeframe',
+        'DonchianBreakout',
+        'PropSafeEMAPullback',
+        'EMATrendRetest',
+        'TimeSeriesMomentum',
+      ];
+  return {
+    enabled: booleanConfigValue(TradingConfig.get('strategyBehavior.trendRegimeGate.enabled'), false),
+    minConfidence: finiteConfigNumber(TradingConfig.get('strategyBehavior.trendRegimeGate.minConfidence'), 'trendRegimeGate.minConfidence', 0.25, 0),
+    strategies: new Set(strategyList.map(name => String(name || '').trim()).filter(Boolean)),
+  };
+}
+
+function getAtrContractConfig() {
+  return {
+    enabled: booleanConfigValue(TradingConfig.get('strategyBehavior.atrContracts.enabled'), false),
+    stopMultiplier: finiteConfigNumber(TradingConfig.get('strategyBehavior.atrContracts.stopMultiplier'), 'atrContracts.stopMultiplier', 2.0, 0),
+    trailMultiplier: finiteConfigNumber(TradingConfig.get('strategyBehavior.atrContracts.trailMultiplier'), 'atrContracts.trailMultiplier', 2.0, 0),
+    trailingActivationR: finiteConfigNumber(TradingConfig.get('strategyBehavior.atrContracts.trailingActivationR'), 'atrContracts.trailingActivationR', 1.0, 0),
+  };
+}
+
+function buildAtrContractOverrides({ indicators, price, strategyName }) {
+  const cfg = getAtrContractConfig();
+  if (!cfg.enabled) return null;
+  const atr = Number(indicators?.atr);
+  const entryPrice = Number(price);
+  if (!Number.isFinite(atr) || atr <= 0 || !Number.isFinite(entryPrice) || entryPrice <= 0) {
+    return null;
+  }
+
+  const atrPercent = (atr / entryPrice) * 100;
+  const stopLossPercent = -Math.abs(atrPercent * cfg.stopMultiplier);
+  const trailingStopPercent = Math.abs(atrPercent * cfg.trailMultiplier);
+  return {
+    stopLossPercent,
+    trailingStopPercent,
+    trailingActivation: Math.abs(stopLossPercent) * cfg.trailingActivationR,
+    atrContract: {
+      strategyName,
+      atr,
+      price: entryPrice,
+      atrPercent,
+      stopMultiplier: cfg.stopMultiplier,
+      trailMultiplier: cfg.trailMultiplier,
+      trailingActivationR: cfg.trailingActivationR,
+    },
+  };
+}
+
 function firstFiniteNumber(...values) {
   for (const value of values) {
     const numeric = Number(value);
@@ -480,7 +554,8 @@ class StrategyOrchestrator {
 
     // FIX 2026-03-19: Self-contained signal modules
     // Each strategy owns its signal computation — no ctx.extras handoff
-    this.emaCrossoverModule = new EMASMACrossoverSignal();
+    this.emaCrossoverConfig = getEmaCrossoverConfig();
+    this.emaCrossoverModule = new EMASMACrossoverSignal(this.emaCrossoverConfig);
     this.maDynamicSRModule = new MADynamicSR();
     this.liquiditySweepModule = new LiquiditySweepDetector({
       ...(TradingConfig.get('strategies.LiquiditySweep') || {}),
@@ -1105,7 +1180,7 @@ class StrategyOrchestrator {
           'EMASMACrossover',
           ctx.extras?.symbol,
           emaCrossoverModule,
-          () => new EMASMACrossoverSignal()
+          () => new EMASMACrossoverSignal(this.emaCrossoverConfig)
         );
         const sig = scopedEmaCrossover.update(latestCandle, candles);
         if (sig) diagEMA.moduleNonNull++;
@@ -2063,6 +2138,36 @@ class StrategyOrchestrator {
     const boosts = regimeBoosts[regimeType] || {};
     const regimePositionMultiplier = boosts._positionSizeMultiplier || 1.0;
 
+    const trendRegimeGate = getTrendRegimeGateConfig();
+    const trendRegimeDropped = [];
+    if (trendRegimeGate.enabled && results.length > 0) {
+      const trendRegimePassed = regimeType === 'trending' && regimeConfidence >= trendRegimeGate.minConfidence;
+      for (let i = results.length - 1; i >= 0; i -= 1) {
+        const result = results[i];
+        if (!trendRegimeGate.strategies.has(result.strategyName)) continue;
+        addDecisionContributor(result, {
+          name: 'trend_regime_entry_eligibility',
+          type: 'gate',
+          regimeType,
+          rawRegime,
+          regimeConfidence,
+          minConfidence: trendRegimeGate.minConfidence,
+          passed: trendRegimePassed,
+        });
+        if (trendRegimePassed) continue;
+        filteredResults.push({
+          ...result,
+          rejectedBy: 'trend_regime_entry_eligibility',
+          rejectReason: `trend strategy requires trending regime; got ${regimeType}`,
+        });
+        trendRegimeDropped.push(`${result.strategyName}:${result.direction}:${regimeType}`);
+        results.splice(i, 1);
+      }
+      if (process.env.STRATEGY_DIAG === 'true' && trendRegimeDropped.length > 0) {
+        console.log(`[ORCH][FILTER_DROP] eval=${this.evalCount} filter=trend-regime dropped=${trendRegimeDropped.join(',')}`);
+      }
+    }
+
     if (Object.keys(boosts).length > 0 && results.length > 0) {
       for (const result of results) {
         const boost = boosts[result.strategyName] || 1.0;
@@ -2320,6 +2425,23 @@ class StrategyOrchestrator {
       throw new Error(`[HIGH-16] extras.timeframe missing or non-string (got ${typeof timeframe}: ${timeframe}) — TradingLoop must thread broker.candleTimeframe`);
     }
     const winnerTimeframe = normalizeTimeframeValue(winner.timeframe) || timeframe;
+    const atrContractOverrides = buildAtrContractOverrides({
+      indicators,
+      price,
+      strategyName: winner.strategyName,
+    });
+    if (atrContractOverrides) {
+      const { atrContract, ...contractFields } = atrContractOverrides;
+      Object.assign(signalOverrides, contractFields);
+      addDecisionContributor(winner, {
+        name: 'atr_scaled_exit_contract',
+        type: 'exit_contract',
+        ...atrContract,
+        stopLossPercent: signalOverrides.stopLossPercent,
+        trailingStopPercent: signalOverrides.trailingStopPercent,
+        trailingActivation: signalOverrides.trailingActivation,
+      });
+    }
     exitContract = ecm.createExitContract(
       winner.strategyName,
       { ...signalOverrides, confidence: publicWinnerConfidence },
@@ -2362,7 +2484,7 @@ class StrategyOrchestrator {
         })),
       },
       mtfConfluenceSnapshot,
-      allResults: publicResults,
+      allResults: results.map(publicResult),
       filteredResults: publicFilteredResults,
       reasons,
       // Signal breakdown for trade logging (compatible with existing signalBreakdown format)

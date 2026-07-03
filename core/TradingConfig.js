@@ -59,6 +59,7 @@ const CONFIG_LOADER_RUNTIME_PATHS = Object.freeze({
   'evalRules.ttp.marketTime.blockEntriesAfterCutoff': 'evalRules.ttp.marketTime.blockEntriesAfterCutoff',
   'evalRules.ttp.marketTime.liquidationEnabled': 'evalRules.ttp.marketTime.liquidationEnabled',
   'evalRules.ttp.marketTime.cutoffMinutesBeforeClose': 'evalRules.ttp.marketTime.cutoffMinutesBeforeClose',
+  'evalRules.ttp.marketTime.entryBufferMinutesBeforeCutoff': 'evalRules.ttp.marketTime.entryBufferMinutesBeforeCutoff',
   'evalRules.ttp.accountLimits.enabled': 'evalRules.ttp.accountLimits.enabled',
   'evalRules.ttp.accountLimits.enforceDailyLossPause': 'evalRules.ttp.accountLimits.enforceDailyLossPause',
   'evalRules.ttp.accountLimits.enforceMaxLoss': 'evalRules.ttp.accountLimits.enforceMaxLoss',
@@ -159,10 +160,33 @@ function applyConfigLoaderSectionValues(section, result) {
   }
 }
 
+function selectedProfileEnvValue(key) {
+  const profileName = String(
+    process.env.BACKTEST_TUNING_PROFILE ||
+    process.env.TUNING_PROFILE ||
+    ''
+  ).trim();
+  if (!profileName) return undefined;
+  const definitions = tradingConfigFile.tuningProfiles?.definitions;
+  const profile = definitions && definitions[profileName];
+  if (!profile || !profile.env || !Object.prototype.hasOwnProperty.call(profile.env, key)) {
+    return undefined;
+  }
+  return profile.env[key];
+}
+
+function envSourceValue(key) {
+  const direct = process.env[key];
+  if (direct !== undefined && direct !== '') return direct;
+  const profileValue = selectedProfileEnvValue(key);
+  if (profileValue !== undefined && profileValue !== '') return profileValue;
+  return undefined;
+}
+
 // Helper to parse env vars with fallback
 const env = (key, fallback) => {
-  const val = process.env[key];
-  if (val === undefined || val === '') return fallback;
+  const val = envSourceValue(key);
+  if (val === undefined) return fallback;
   const num = parseFloat(val);
   return isNaN(num) ? val : num;
 };
@@ -174,8 +198,8 @@ const env = (key, fallback) => {
 // pair below — must be attached AFTER the module.exports = TradingConfig line
 // at ~1130, otherwise the late reassignment wipes the attachment.
 const envNumber = (key, fallback) => {
-  const val = process.env[key];
-  if (val === undefined || val === '') return fallback;
+  const val = envSourceValue(key);
+  if (val === undefined) return fallback;
   const num = Number(val);
   if (!Number.isFinite(num)) {
     throw new Error(`[FIX-28] envNumber: ${key}="${val}" is not a finite number`);
@@ -184,8 +208,8 @@ const envNumber = (key, fallback) => {
 };
 
 const envBool = (key, fallback) => {
-  const val = process.env[key];
-  if (val === undefined || val === '') return fallback;
+  const val = envSourceValue(key);
+  if (val === undefined) return fallback;
   return val === 'true' || val === '1';
 };
 
@@ -265,6 +289,21 @@ const PROFILE_ENV_CONFIG_PATHS = Object.freeze({
   TTP_PROFIT_TARGET_DOLLARS: Object.freeze(['evalRules.ttp.consistency.profitTargetDollars']),
   TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO: Object.freeze(['evalRules.ttp.consistency.maxPositionProfitRatio']),
   TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO: Object.freeze(['evalRules.ttp.consistency.maxProfitTargetInitialBalanceRatio']),
+  TTP_LIQUIDATION_MINUTES_BEFORE_CLOSE: Object.freeze(['evalRules.ttp.marketTime.cutoffMinutesBeforeClose']),
+  TTP_ENTRY_BUFFER_MINUTES_BEFORE_CUTOFF: Object.freeze(['evalRules.ttp.marketTime.entryBufferMinutesBeforeCutoff']),
+  EMA_CROSSOVER_ENTRY_EVENTS_ONLY: Object.freeze(['strategyBehavior.emaCrossover.entryEventsOnly']),
+  EMA_CROSSOVER_CONFIRM_BARS: Object.freeze(['strategyBehavior.emaCrossover.confirmBars']),
+  EMA_CROSSOVER_WARMUP_BARS: Object.freeze(['strategyBehavior.emaCrossover.warmupBars']),
+  ORCH_MIN_CANDLES_EMA: Object.freeze(['orchestrator.minCandlesEMA']),
+  TREND_REGIME_GATE_ENABLED: Object.freeze(['strategyBehavior.trendRegimeGate.enabled']),
+  TREND_REGIME_GATE_MIN_CONFIDENCE: Object.freeze(['strategyBehavior.trendRegimeGate.minConfidence']),
+  ATR_CONTRACTS_ENABLED: Object.freeze(['strategyBehavior.atrContracts.enabled']),
+  ATR_STOP_MULTIPLIER: Object.freeze(['strategyBehavior.atrContracts.stopMultiplier']),
+  ATR_TRAIL_MULTIPLIER: Object.freeze(['strategyBehavior.atrContracts.trailMultiplier']),
+  ATR_TRAILING_ACTIVATION_R: Object.freeze(['strategyBehavior.atrContracts.trailingActivationR']),
+  BE_SCALEOUT_ENABLED: Object.freeze(['exitLogic.beScaleOut.enabled']),
+  BE_SCALEOUT_FRACTION: Object.freeze(['exitLogic.beScaleOut.scaleOutFraction']),
+  TIERED_EXIT_ENABLED: Object.freeze(['exitLogic.tieredExit.enabled']),
 });
 
 const PROFILE_BOOLEAN_ENV_KEYS = Object.freeze(new Set([
@@ -273,6 +312,11 @@ const PROFILE_BOOLEAN_ENV_KEYS = Object.freeze(new Set([
   'ACCOUNT_DRAWDOWN_BYPASS',
   'RISK_MANAGER_BYPASS',
   'ATR_FILTER_ENABLED',
+  'EMA_CROSSOVER_ENTRY_EVENTS_ONLY',
+  'TREND_REGIME_GATE_ENABLED',
+  'ATR_CONTRACTS_ENABLED',
+  'BE_SCALEOUT_ENABLED',
+  'TIERED_EXIT_ENABLED',
 ]));
 
 const PROFILE_STRING_ENV_KEYS = Object.freeze(new Set([
@@ -295,6 +339,8 @@ const PROFILE_RUNTIME_SNAPSHOT_ENV_KEYS = Object.freeze(new Set([
   'TTP_PROFIT_TARGET_DOLLARS',
   'TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO',
   'TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO',
+  'TTP_LIQUIDATION_MINUTES_BEFORE_CLOSE',
+  'TTP_ENTRY_BUFFER_MINUTES_BEFORE_CUTOFF',
 ]));
 
 const PROFILE_SNAPSHOT_MISSING = Symbol('profile_snapshot_missing');
@@ -1430,6 +1476,33 @@ const BASE_CONFIG = {
   filters: {
     atrEnabled: envBool('ATR_FILTER_ENABLED', false),             // Skip trades in dead markets
     atrMinPercent: env('ATR_MIN_PERCENT', 0.15),                  // Minimum ATR % to allow trades
+  },
+
+  strategyBehavior: {
+    emaCrossover: {
+      entryEventsOnly: envBool('EMA_CROSSOVER_ENTRY_EVENTS_ONLY', false),
+      confirmBars: env('EMA_CROSSOVER_CONFIRM_BARS', 0),
+      warmupBars: env('EMA_CROSSOVER_WARMUP_BARS', 10),
+    },
+    trendRegimeGate: {
+      enabled: envBool('TREND_REGIME_GATE_ENABLED', false),
+      minConfidence: env('TREND_REGIME_GATE_MIN_CONFIDENCE', 0.25),
+      strategies: [
+        'EMASMACrossover',
+        'MADynamicSR',
+        'MultiTimeframe',
+        'DonchianBreakout',
+        'PropSafeEMAPullback',
+        'EMATrendRetest',
+        'TimeSeriesMomentum',
+      ],
+    },
+    atrContracts: {
+      enabled: envBool('ATR_CONTRACTS_ENABLED', false),
+      stopMultiplier: env('ATR_STOP_MULTIPLIER', 2.0),
+      trailMultiplier: env('ATR_TRAIL_MULTIPLIER', 2.0),
+      trailingActivationR: env('ATR_TRAILING_ACTIVATION_R', 1.0),
+    },
   },
 
   // =========================================================================

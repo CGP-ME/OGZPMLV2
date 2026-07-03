@@ -647,6 +647,47 @@ describe('EvalRuleEngine TTP volume cap', () => {
     ]));
   });
 
+  test('blocks new openings inside configured entry buffer before the liquidation cutoff without moving liquidation', async () => {
+    const bufferTime = new Date('2026-05-22T19:25:00.000Z');
+    const engine = makeEngine({
+      cfg: config({
+        marketTime: {
+          cutoffMinutesBeforeClose: 10,
+          entryBufferMinutesBeforeCutoff: 30,
+        },
+        accountLimits: {
+          accountStartOfDayDate: '2026-05-22',
+        },
+        earningsRestriction: {
+          manualStatus: {
+            date: '2026-05-22',
+            symbols: { TSLA: false },
+          },
+        },
+      }),
+      candles: [candleFor(bufferTime.getTime(), -60000, 100000)],
+      now: () => bufferTime.getTime(),
+    });
+
+    const state = engine.getTtpMarketTimeState(bufferTime);
+    expect(state.cutoffMinute).toBe(950);
+    expect(state.entryBlockMinute).toBe(920);
+    expect(state.inLiquidationWindow).toBe(false);
+    expect(state.inEntryBufferWindow).toBe(true);
+
+    const result = await engine.check(entryPlan({ orderQuantity: 10 }));
+
+    expect(result.allowed).toBe(false);
+    expect(result.failedRules[0]).toEqual(expect.objectContaining({
+      ruleId: 'TTP_MARKET_TIME',
+      reason: 'entry_buffer_no_openings',
+      cutoffMinute: 950,
+      entryBlockMinute: 920,
+      entryBufferMinutesBeforeCutoff: 30,
+      action: 'BLOCK_ORDER',
+    }));
+  });
+
   test('aggregates repeated opening orders against the same reference candle', async () => {
     const engine = makeEngine({
       cfg: config({ volumeCap: { reserveOnAllow: false } }),

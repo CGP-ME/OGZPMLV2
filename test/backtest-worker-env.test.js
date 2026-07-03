@@ -685,7 +685,7 @@ describe('backtest worker env contract', () => {
   });
 
   test('runnable tuning profiles exclude reconstructed config guesses', () => {
-    expect(listTuningProfileNames().sort()).toEqual(['current-eval', 'legacy-wide', 'ttp-5k-max']);
+    expect(listTuningProfileNames().sort()).toEqual(['current-eval', 'legacy-wide', 'trey-spec', 'ttp-5k-max']);
   });
 
   test('grid-search confidence runner uses the same env contract', () => {

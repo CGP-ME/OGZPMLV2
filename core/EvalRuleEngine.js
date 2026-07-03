@@ -117,13 +117,21 @@ class EvalRuleEngine {
     const et = this.marketCalendar.getNYTimeParts(currentDate);
     const cutoffMinutesBeforeClose = cfg.cutoffMinutesBeforeClose;
     const cutoffMinute = phase.rthCloseMinute - cutoffMinutesBeforeClose;
+    const entryBufferMinutesBeforeCutoff = Number.isFinite(Number(cfg.entryBufferMinutesBeforeCutoff))
+      ? Math.max(0, Number(cfg.entryBufferMinutesBeforeCutoff))
+      : 0;
+    const entryBlockMinute = cutoffMinute - entryBufferMinutesBeforeCutoff;
     const inLiquidationWindow = phase.isRTH === true
       && et.minuteOfDay >= cutoffMinute
       && et.minuteOfDay < phase.rthCloseMinute;
+    const inEntryBufferWindow = entryBufferMinutesBeforeCutoff > 0
+      && phase.isRTH === true
+      && et.minuteOfDay >= entryBlockMinute
+      && et.minuteOfDay < cutoffMinute;
     const isPremarket = phase.phase === 'pre';
-    const isRegularBeforeCutoff = phase.isRTH === true && et.minuteOfDay < cutoffMinute;
+    const isRegularBeforeEntryBlock = phase.isRTH === true && et.minuteOfDay < entryBlockMinute;
     const blocksNewEntries = cfg.blockEntriesAfterCutoff !== false && (
-      !isPremarket && !isRegularBeforeCutoff
+      !isPremarket && !isRegularBeforeEntryBlock
     );
 
     return {
@@ -133,11 +141,14 @@ class EvalRuleEngine {
       currentMinuteET: et.minuteOfDay,
       cutoffMinute,
       cutoffMinutesBeforeClose,
+      entryBufferMinutesBeforeCutoff,
+      entryBlockMinute,
       rthCloseMinute: phase.rthCloseMinute,
       phase: phase.phase,
       isRTH: phase.isRTH,
       isOpen: phase.isOpen,
       inLiquidationWindow,
+      inEntryBufferWindow,
       blocksNewEntries,
       blockEntriesAfterCutoff: cfg.blockEntriesAfterCutoff !== false,
       liquidationEnabled: cfg.liquidationEnabled !== false,
@@ -157,6 +168,18 @@ class EvalRuleEngine {
         currentDateET: state.currentDateET,
         currentMinuteET: state.currentMinuteET,
         cutoffMinute: state.cutoffMinute,
+        rthCloseMinute: state.rthCloseMinute,
+        phase: state.phase,
+      });
+    }
+    if (state.inEntryBufferWindow) {
+      return this._fail('TTP_MARKET_TIME', 'entry_buffer_no_openings', {
+        symbol: entryPlan.symbol,
+        currentDateET: state.currentDateET,
+        currentMinuteET: state.currentMinuteET,
+        cutoffMinute: state.cutoffMinute,
+        entryBlockMinute: state.entryBlockMinute,
+        entryBufferMinutesBeforeCutoff: state.entryBufferMinutesBeforeCutoff,
         rthCloseMinute: state.rthCloseMinute,
         phase: state.phase,
       });

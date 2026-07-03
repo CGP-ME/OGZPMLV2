@@ -355,6 +355,7 @@ function buildConfig() {
           blockEntriesAfterCutoff: track('evalRules.ttp.marketTime.blockEntriesAfterCutoff', envBool('TTP_BLOCK_ENTRIES_AFTER_CUTOFF', true)),
           liquidationEnabled: track('evalRules.ttp.marketTime.liquidationEnabled', envBool('TTP_LIQUIDATION_ENABLED', true)),
           cutoffMinutesBeforeClose: track('evalRules.ttp.marketTime.cutoffMinutesBeforeClose', envStrictFloat('TTP_LIQUIDATION_MINUTES_BEFORE_CLOSE', 10)),
+          entryBufferMinutesBeforeCutoff: track('evalRules.ttp.marketTime.entryBufferMinutesBeforeCutoff', envStrictFloat('TTP_ENTRY_BUFFER_MINUTES_BEFORE_CUTOFF', 0)),
         },
         accountLimits: {
           enabled: track('evalRules.ttp.accountLimits.enabled', envBool('TTP_ACCOUNT_LIMITS_ENABLED', true)),
@@ -685,6 +686,9 @@ function validate(config, sources = {}) {
   if (config.evalRules?.enabled && config.evalRules?.ttp?.enabled && ttpMarketTime?.enabled) {
     if (!Number.isInteger(ttpMarketTime.cutoffMinutesBeforeClose) || ttpMarketTime.cutoffMinutesBeforeClose <= 0 || ttpMarketTime.cutoffMinutesBeforeClose > 120) {
       errors.push(`TTP_LIQUIDATION_MINUTES_BEFORE_CLOSE out of range: ${ttpMarketTime.cutoffMinutesBeforeClose}`);
+    }
+    if (!Number.isInteger(ttpMarketTime.entryBufferMinutesBeforeCutoff) || ttpMarketTime.entryBufferMinutesBeforeCutoff < 0 || ttpMarketTime.entryBufferMinutesBeforeCutoff > 120) {
+      errors.push(`TTP_ENTRY_BUFFER_MINUTES_BEFORE_CUTOFF out of range: ${ttpMarketTime.entryBufferMinutesBeforeCutoff}`);
     }
     if (ttpMarketTime.blockEntriesAfterCutoff !== true && ttpMarketTime.liquidationEnabled !== true) {
       errors.push('TTP market-time rule cannot disable both cutoff entry blocking and liquidation enforcement');

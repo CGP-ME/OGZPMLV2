@@ -64,7 +64,7 @@ describe('TradingConfig runtime profile contract', () => {
   });
 
   test('tuning profiles resolve from the TradingConfig compatibility surface', () => {
-    expect(TradingConfig.listTuningProfileNames().sort()).toEqual(['current-eval', 'legacy-wide', 'ttp-5k-max']);
+    expect(TradingConfig.listTuningProfileNames().sort()).toEqual(['current-eval', 'legacy-wide', 'trey-spec', 'ttp-5k-max']);
     expect(TradingConfig.getTuningProfileDefinitions()).toEqual(tradingConfigJson.tuningProfiles.definitions);
     expect(TradingConfig.resolveTuningProfile('legacy-wide')).toEqual(
       expect.objectContaining({
@@ -97,6 +97,18 @@ describe('TradingConfig runtime profile contract', () => {
         TTP_DAILY_LOSS_LIMIT_DOLLARS: '50',
         TTP_MAX_LOSS_THRESHOLD_EQUITY: '4850',
         TTP_PROFIT_TARGET_DOLLARS: '300',
+      })
+    );
+    expect(TradingConfig.resolveTuningProfile('trey-spec').env).toEqual(
+      expect.objectContaining({
+        EMA_CROSSOVER_ENTRY_EVENTS_ONLY: 'true',
+        EMA_CROSSOVER_WARMUP_BARS: '200',
+        ORCH_MIN_CANDLES_EMA: '200',
+        TREND_REGIME_GATE_ENABLED: 'true',
+        ATR_CONTRACTS_ENABLED: 'true',
+        BE_SCALEOUT_FRACTION: '0.25',
+        TIERED_EXIT_ENABLED: 'false',
+        TTP_ENTRY_BUFFER_MINUTES_BEFORE_CUTOFF: '30',
       })
     );
     const resolved = TradingConfig.resolveTuningProfile('legacy-wide');
@@ -189,6 +201,78 @@ describe('TradingConfig runtime profile contract', () => {
     expect(workerEnv.TUNING_PROFILE).toBe('ttp-5k-max');
     expect(workerEnv.BACKTEST_TUNING_PROFILE).toBe('ttp-5k-max');
     expect(workerEnv.BACKTEST_FEE_PROFILE).toBe('ttp_real');
+  });
+
+  test('TREY SPEC tuning profile exports strategy behavior and TTP entry buffer to stock backtest workers', () => {
+    const workerEnv = buildBacktestWorkerEnv({
+      sourceEnv: {},
+      projectRoot: path.join(__dirname, '..'),
+      dataFile: 'tuning/tsla-15m-750.json',
+      stateFile: 'data/state-unit-trey-spec-profile.json',
+      dataDir: 'data/backtest',
+      reportTag: 'unit-trey-spec-profile',
+      profileName: 'trey-spec',
+      feeProfileName: 'ttp_real',
+      stockMode: true,
+      instrumentEnv: {
+        BROKER: 'alpaca',
+        TRADING_PAIR: 'TSLA',
+        ASSET_CLASS: 'stocks',
+        CANDLE_TIMEFRAME: '15m',
+      },
+    });
+
+    expect(workerEnv.TUNING_PROFILE).toBe('trey-spec');
+    expect(workerEnv.BACKTEST_TUNING_PROFILE).toBe('trey-spec');
+    expect(workerEnv.BACKTEST_FEE_PROFILE).toBe('ttp_real');
+    expect(workerEnv.EMA_CROSSOVER_ENTRY_EVENTS_ONLY).toBe('true');
+    expect(workerEnv.EMA_CROSSOVER_CONFIRM_BARS).toBe('1');
+    expect(workerEnv.EMA_CROSSOVER_WARMUP_BARS).toBe('200');
+    expect(workerEnv.ORCH_MIN_CANDLES_EMA).toBe('200');
+    expect(workerEnv.TREND_REGIME_GATE_ENABLED).toBe('true');
+    expect(workerEnv.ATR_CONTRACTS_ENABLED).toBe('true');
+    expect(workerEnv.ATR_STOP_MULTIPLIER).toBe('2.0');
+    expect(workerEnv.BE_SCALEOUT_FRACTION).toBe('0.25');
+    expect(workerEnv.TIERED_EXIT_ENABLED).toBe('false');
+    expect(workerEnv.TTP_ENTRY_BUFFER_MINUTES_BEFORE_CUTOFF).toBe('30');
+    expect(TradingConfig.buildTuningProfileOverrides('trey-spec')).toEqual(expect.objectContaining({
+      'strategyBehavior.emaCrossover.entryEventsOnly': true,
+      'strategyBehavior.emaCrossover.warmupBars': 200,
+      'strategyBehavior.trendRegimeGate.enabled': true,
+      'strategyBehavior.atrContracts.enabled': true,
+      'exitLogic.beScaleOut.scaleOutFraction': 0.25,
+      'exitLogic.tieredExit.enabled': false,
+      'evalRules.ttp.marketTime.entryBufferMinutesBeforeCutoff': 30,
+    }));
+  });
+
+  test('explicit TUNING_PROFILE selector materializes trey-spec env-backed config at module load', () => {
+    const previous = {
+      TUNING_PROFILE: process.env.TUNING_PROFILE,
+      BACKTEST_TUNING_PROFILE: process.env.BACKTEST_TUNING_PROFILE,
+      EMA_CROSSOVER_ENTRY_EVENTS_ONLY: process.env.EMA_CROSSOVER_ENTRY_EVENTS_ONLY,
+    };
+
+    jest.resetModules();
+    process.env.TUNING_PROFILE = 'trey-spec';
+    delete process.env.BACKTEST_TUNING_PROFILE;
+    delete process.env.EMA_CROSSOVER_ENTRY_EVENTS_ONLY;
+
+    try {
+      const FreshTradingConfig = require('../core/TradingConfig');
+      expect(FreshTradingConfig.get('strategyBehavior.emaCrossover.entryEventsOnly')).toBe(true);
+      expect(FreshTradingConfig.get('strategyBehavior.emaCrossover.warmupBars')).toBe(200);
+      expect(FreshTradingConfig.get('strategyBehavior.atrContracts.enabled')).toBe(true);
+    } finally {
+      for (const [key, value] of Object.entries(previous)) {
+        if (value === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = value;
+        }
+      }
+      jest.resetModules();
+    }
   });
 
   test('stock backtest workers carry explicit Alpaca adapter config without leaking credentials in summaries', () => {

@@ -35,6 +35,15 @@ class EMASMACrossoverSignal {
 
     // Signal decay (bars until a crossover signal fades)
     this.decayBars = config.decayBars || 10;
+    this.entryEventsOnly = config.entryEventsOnly === true;
+    this.confirmBars = Number.isFinite(Number(config.confirmBars))
+      ? Math.max(0, Math.floor(Number(config.confirmBars)))
+      : 0;
+    const slowestPair = this.pairs.reduce((max, pair) => Math.max(max, pair.slow), 0);
+    this.warmupBars = Number.isFinite(Number(config.warmupBars))
+      ? Math.max(1, Math.floor(Number(config.warmupBars)))
+      : 10;
+    this.warmupBars = Math.max(this.warmupBars, this.entryEventsOnly ? slowestPair : 1);
 
     // Divergence tracking depth
     this.divergenceDepth = config.divergenceDepth || 20;
@@ -69,7 +78,7 @@ class EMASMACrossoverSignal {
    * @returns {Object} signal
    */
   update(candle, priceHistory) {
-    if (!priceHistory || priceHistory.length < 10) {
+    if (!priceHistory || priceHistory.length < this.warmupBars) {
       return this._emptySignal();
     }
 
@@ -120,11 +129,21 @@ class EMASMACrossoverSignal {
         state.barsAgo++;
       }
 
-      // Count current MA alignment (no decay - just current state)
-      if (currentSide === 'golden') {
-        bullishCount += pair.weight;
-      } else if (currentSide === 'death') {
-        bearishCount += pair.weight;
+      if (this.entryEventsOnly) {
+        if (state.barsAgo <= this.confirmBars) {
+          if (state.side === 'golden') {
+            bullishCount += pair.weight;
+          } else if (state.side === 'death') {
+            bearishCount += pair.weight;
+          }
+        }
+      } else {
+        // Count current MA alignment (no decay - just current state)
+        if (currentSide === 'golden') {
+          bullishCount += pair.weight;
+        } else if (currentSide === 'death') {
+          bearishCount += pair.weight;
+        }
       }
       totalWeight += pair.weight;
 
@@ -227,7 +246,10 @@ class EMASMACrossoverSignal {
       confluence: confluenceRatio,
       snapback: snapbackSignal,
       blowoff: blowoffWarning,
-      maValues               // expose raw MA values for dashboard
+      maValues,              // expose raw MA values for dashboard
+      entryEventsOnly: this.entryEventsOnly,
+      confirmBars: this.confirmBars,
+      warmupBars: this.warmupBars
     };
 
     // Log (bounded)
@@ -300,7 +322,10 @@ class EMASMACrossoverSignal {
       confluence: 0,
       snapback: null,
       blowoff: false,
-      maValues: {}
+      maValues: {},
+      entryEventsOnly: this.entryEventsOnly,
+      confirmBars: this.confirmBars,
+      warmupBars: this.warmupBars
     };
   }
 
