@@ -22,6 +22,9 @@ const {
   findLatestMatrixReport,
   validateMatrixRun,
 } = require('./campaign-integrity');
+const {
+  runDataParityCheck,
+} = require('./data-parity-check');
 
 const DORMANT_STRATEGY_ENV = Object.freeze({
   SmartMoneySweep: { ENABLE_SMS: 'true', SMS_VP_RTH_ONLY: 'true' },
@@ -67,6 +70,7 @@ function usage(exitCode = 0) {
     'Usage:',
     '  node tools/weekend-campaign-gauntlet.js smoke [--data=tsla-unseen] [--fee-profile=ttp_real] [--run-id=<id>]',
     '  node tools/weekend-campaign-gauntlet.js plan [--symbols=tsla,spy,qqq,nvda,riot,mara,coin] [--phase=conf] [--run-id=<id>]',
+    '  node tools/weekend-campaign-gauntlet.js parity --manifest=<path> [--reference-dir=<dir>|--live-reference=alpaca]',
     '  node tools/weekend-campaign-gauntlet.js launch --manifest=<path> [--resume]',
     '  node tools/weekend-campaign-gauntlet.js status --manifest=<path>',
     '',
@@ -685,6 +689,8 @@ function buildCampaignManifest(options) {
           statusPath: path.join(rootDir, 'status', `${safeName(`${profile}-${symbol}-${strategy}-${phase}`)}.json`),
           artifactDir: path.join(rootDir, 'artifacts', safeName(`${profile}-${symbol}-${strategy}-${phase}`)),
           integrityPath: path.join(rootDir, 'integrity', `${safeName(`${profile}-${symbol}-${strategy}-${phase}`)}.json`),
+          dataParityPath: path.join(rootDir, 'data-parity', `${safeName(symbol)}.json`),
+          dataParity: null,
           integrity: null,
         });
       }
@@ -724,7 +730,7 @@ function writeHeartbeat(manifest, event, currentRun = null) {
 }
 
 function summarizeManifest(manifest) {
-  const counts = { planned: 0, running: 0, done: 0, failed: 0, skipped: 0, 'FAILED-INTEGRITY': 0 };
+  const counts = { planned: 0, running: 0, done: 0, failed: 0, skipped: 0, 'FAILED-DATA-PARITY': 0, 'FAILED-INTEGRITY': 0 };
   for (const run of manifest.planned || []) {
     counts[run.status] = (counts[run.status] || 0) + 1;
   }
@@ -739,11 +745,17 @@ function renderIntegrityMark(value) {
 
 function renderCampaignStatus(manifest) {
   const lines = [];
-  lines.push('run | trades | identity | lifecycle | fields | coverage | schema | status');
+  lines.push('run | dataParity | trades | identity | lifecycle | fields | coverage | schema | status');
   for (const run of manifest.planned || []) {
     const checks = run.integrity?.checks || {};
+    const dataParity = run.dataParity?.status === 'PASS'
+      ? '✓'
+      : run.dataParity?.status
+        ? '✗'
+        : '-';
     lines.push([
       run.id,
+      dataParity,
       run.integrity?.trades ?? '-',
       renderIntegrityMark(checks.identity),
       renderIntegrityMark(checks.lifecycle),
@@ -768,6 +780,73 @@ function writeCampaignStatus(manifest) {
   return statusPath;
 }
 
+function referenceFileForSymbol(referenceDir, symbol) {
+  if (!referenceDir) return null;
+  const candidates = [
+    `${symbol}-15m-live.json`,
+    `${symbol}-15m-alpaca-iex.json`,
+    `${symbol}-15m.json`,
+  ].map(file => path.resolve(PROJECT_ROOT, referenceDir, file));
+  return candidates.find(file => fs.existsSync(file)) || null;
+}
+
+async function runDataParityForManifest(options) {
+  const manifestPath = options.manifest
+    ? path.resolve(PROJECT_ROOT, options.manifest)
+    : null;
+  if (!manifestPath) throw new Error('parity requires --manifest=<path>');
+  const manifest = readJson(manifestPath);
+  manifest.manifestPath = manifestPath;
+  manifest.rootDir = manifest.rootDir || path.dirname(manifestPath);
+  const bySymbol = new Map();
+  for (const run of manifest.planned || []) {
+    if (!bySymbol.has(run.symbol)) bySymbol.set(run.symbol, []);
+    bySymbol.get(run.symbol).push(run);
+  }
+
+  for (const [symbol, runs] of bySymbol) {
+    const dataFile = resolveDataFile(symbol);
+    const instrument = resolveInstrumentFromDataFile(dataFile);
+    const output = runs[0].dataParityPath || path.join(manifest.rootDir, 'data-parity', `${safeName(symbol)}.json`);
+    const referenceFile = referenceFileForSymbol(options['reference-dir'], symbol);
+    const stamp = await runDataParityCheck({
+      dataFile,
+      symbol: instrument.TRADING_PAIR,
+      timeframe: instrument.CANDLE_TIMEFRAME || '15m',
+      referenceFile,
+      liveReference: options['live-reference'],
+      journalPath: options.journal,
+      output,
+      sameWindowStart: options['same-window-start'],
+      sameWindowEnd: options['same-window-end'],
+      spotStart: options['spot-start'],
+      spotEnd: options['spot-end'],
+    });
+    for (const run of runs) {
+      run.dataParityPath = output;
+      run.dataParity = {
+        status: stamp.status,
+        checks: stamp.checks,
+        path: output,
+        dataFile: stamp.dataFile,
+        dataFileSha256: stamp.dataFileSha256,
+        stampedAt: stamp.stampedAt,
+      };
+    }
+    process.stdout.write(`${symbol} | ${stamp.status} | provenance=${stamp.checks.provenance ? 'PASS' : 'FAIL'} sameWindow=${stamp.checks.sameWindow ? 'PASS' : 'FAIL'} groundTruth=${stamp.checks.groundTruth ? 'PASS' : 'FAIL'} | ${output}\n`);
+  }
+
+  manifest.dataParityCheckedAt = new Date().toISOString();
+  manifest.status = [...bySymbol.values()].flat().some(run => run.dataParity?.status !== 'PASS')
+    ? 'data_parity_failed'
+    : 'data_parity_passed';
+  manifest.counts = summarizeManifest(manifest);
+  writeJson(manifestPath, manifest);
+  writeCampaignStatus(manifest);
+  writeHeartbeat(manifest, 'data_parity_checked');
+  return manifest;
+}
+
 async function launchCampaign(options) {
   const manifestPath = options.manifest
     ? path.resolve(PROJECT_ROOT, options.manifest)
@@ -781,6 +860,15 @@ async function launchCampaign(options) {
 
   for (const run of manifest.planned) {
     if (options.resume && run.status === 'done' && run.integrity?.status === 'PASS') {
+      continue;
+    }
+    if (!run.dataParity || run.dataParity.status !== 'PASS') {
+      run.status = 'FAILED-DATA-PARITY';
+      run.finishedAt = new Date().toISOString();
+      run.integrity = null;
+      writeJson(manifestPath, { ...manifest, counts: summarizeManifest(manifest) });
+      writeCampaignStatus(manifest);
+      writeHeartbeat(manifest, 'run_blocked_data_parity', run);
       continue;
     }
     if (options.resume && run.status === 'failed') {
@@ -817,7 +905,7 @@ async function launchCampaign(options) {
         run.integrity = {
           status: 'FAILED-INTEGRITY',
           trades: 0,
-          checks: { identity: false, lifecycle: false, fields: false, coverage: false, schema: false },
+          checks: { identity: false, lifecycle: false, fields: false, coverage: false, schema: false, dataParity: false },
           errors: ['matrix report missing'],
         };
       } else {
@@ -825,6 +913,7 @@ async function launchCampaign(options) {
         const stamp = validateMatrixRun({
           matrixReportPath,
           outputDir: run.artifactDir,
+          dataParityStamp: run.dataParity,
         });
         writeJson(run.integrityPath, stamp);
         run.integrity = {
@@ -843,7 +932,7 @@ async function launchCampaign(options) {
     writeHeartbeat(manifest, 'run_finished', run);
   }
 
-  manifest.status = manifest.planned.some(run => run.status === 'failed' || run.status === 'FAILED-INTEGRITY')
+  manifest.status = manifest.planned.some(run => run.status === 'failed' || run.status === 'FAILED-INTEGRITY' || run.status === 'FAILED-DATA-PARITY')
     ? 'done_with_failures'
     : 'done';
   manifest.doneAt = new Date().toISOString();
@@ -876,6 +965,11 @@ async function main() {
     process.stdout.write(`manifest=${manifest.manifestPath}\nheartbeat=${manifest.heartbeatPath}\nplanned=${manifest.planned.length}\n`);
     return;
   }
+  if (command === 'parity') {
+    const manifest = await runDataParityForManifest(options);
+    process.stdout.write(`manifest=${manifest.manifestPath}\nheartbeat=${manifest.heartbeatPath}\nstatus=${manifest.status}\n`);
+    return;
+  }
   if (command === 'launch') {
     const manifest = await launchCampaign(options);
     process.stdout.write(`manifest=${manifest.manifestPath}\nheartbeat=${manifest.heartbeatPath}\nstatus=${manifest.status}\n`);
@@ -902,6 +996,7 @@ module.exports = {
   countFrozenAtrPolicies,
   evaluateFrequency,
   EXPECTED_SIGNAL_FREQUENCY,
+  runDataParityForManifest,
   resolveDataFile,
   strategyEnv,
 };

@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const {
   validateMatrixRun,
@@ -62,6 +63,25 @@ function workerReport(overrides = {}) {
   };
 }
 
+function sha256File(filePath) {
+  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+}
+
+function greenDataParity(dataFile) {
+  return {
+    status: 'PASS',
+    checks: {
+      provenance: true,
+      sameWindow: true,
+      groundTruth: true,
+    },
+    dataFile: path.resolve(dataFile),
+    dataFileSha256: sha256File(dataFile),
+    stampedAt: '2026-07-03T00:00:00.000Z',
+    path: 'data-parity.json',
+  };
+}
+
 describe('campaign integrity validator', () => {
   test('passes a zero-trade matrix run when candle provenance is present', () => {
     withTempDir(dir => {
@@ -75,7 +95,7 @@ describe('campaign integrity validator', () => {
         results: [{ name: 'RSI', strategy: 'RSI', trades: 0 }],
       });
 
-      const result = validateMatrixRun({ matrixReportPath: matrixPath, outputDir: dir });
+      const result = validateMatrixRun({ matrixReportPath: matrixPath, outputDir: dir, dataParityStamp: greenDataParity(dataFile) });
 
       expect(result.status).toBe('PASS');
       expect(result.trades).toBe(0);
@@ -85,6 +105,7 @@ describe('campaign integrity validator', () => {
         fields: true,
         coverage: true,
         schema: true,
+        dataParity: true,
       });
     });
   });
@@ -109,13 +130,57 @@ describe('campaign integrity validator', () => {
         results: [{ name: 'RSI', strategy: 'RSI', trades: 1, reportPath }],
       });
 
-      const result = validateMatrixRun({ matrixReportPath: matrixPath, outputDir: dir });
+      const result = validateMatrixRun({ matrixReportPath: matrixPath, outputDir: dir, dataParityStamp: greenDataParity(dataFile) });
       const stampedWorker = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
 
       expect(result.status).toBe('FAILED-INTEGRITY');
       expect(result.checks.identity).toBe(false);
       expect(stampedWorker.integrityStamp.status).toBe('FAILED-INTEGRITY');
       expect(stampedWorker.integrityStamp.checks.identity).toBe(false);
+    });
+  });
+
+  test('fails a matrix run without a green data parity stamp', () => {
+    withTempDir(dir => {
+      const dataFile = writeJson(dir, 'candles.json', [
+        { timestamp: 1000, close: 100 },
+        { timestamp: 2000, close: 101 },
+        { timestamp: 3000, close: 102 },
+      ]);
+      const matrixPath = writeJson(dir, 'matrix.json', {
+        dataFile,
+        results: [{ name: 'RSI', strategy: 'RSI', trades: 0 }],
+      });
+
+      const result = validateMatrixRun({ matrixReportPath: matrixPath, outputDir: dir });
+
+      expect(result.status).toBe('FAILED-INTEGRITY');
+      expect(result.checks.dataParity).toBe(false);
+    });
+  });
+
+  test('fails a matrix run when data parity hash no longer matches the data file', () => {
+    withTempDir(dir => {
+      const dataFile = writeJson(dir, 'candles.json', [
+        { timestamp: 1000, close: 100 },
+        { timestamp: 2000, close: 101 },
+        { timestamp: 3000, close: 102 },
+      ]);
+      const staleStamp = greenDataParity(dataFile);
+      fs.writeFileSync(dataFile, JSON.stringify([
+        { timestamp: 1000, close: 999 },
+        { timestamp: 2000, close: 101 },
+        { timestamp: 3000, close: 102 },
+      ]));
+      const matrixPath = writeJson(dir, 'matrix.json', {
+        dataFile,
+        results: [{ name: 'RSI', strategy: 'RSI', trades: 0 }],
+      });
+
+      const result = validateMatrixRun({ matrixReportPath: matrixPath, outputDir: dir, dataParityStamp: staleStamp });
+
+      expect(result.status).toBe('FAILED-INTEGRITY');
+      expect(result.details.dataParity.errors).toContain('data parity dataFileSha256 does not match current data file');
     });
   });
 

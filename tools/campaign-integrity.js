@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const DECISION_LEDGER_SCHEMA_PATH = path.join(PROJECT_ROOT, 'ogz-meta', 'specs', 'decision-ledger-schema.json');
@@ -27,6 +28,10 @@ function readJson(filePath) {
 function writeJson(filePath, payload) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, `${JSON.stringify(payload, null, 2)}\n`);
+}
+
+function sha256File(filePath) {
+  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
 }
 
 function listFilesRecursive(root, predicate, results = []) {
@@ -253,6 +258,49 @@ function integrityBooleans(checks) {
     fields: Boolean(checks.fields?.ok),
     coverage: Boolean(checks.coverage?.ok),
     schema: Boolean(checks.schema?.ok),
+    dataParity: Boolean(checks.dataParity?.ok),
+  };
+}
+
+function validateDataParityStamp(dataParityStamp, matrix) {
+  const errors = [];
+  if (!dataParityStamp || dataParityStamp.status !== 'PASS') {
+    errors.push('data parity stamp missing or not PASS');
+  }
+  const stampChecks = dataParityStamp?.checks || {};
+  for (const key of ['provenance', 'sameWindow', 'groundTruth']) {
+    if (stampChecks[key] !== true) errors.push(`data parity ${key} is not green`);
+  }
+  const matrixDataFile = matrix?.dataFile
+    ? path.resolve(PROJECT_ROOT, matrix.dataFile)
+    : null;
+  const stampDataFile = dataParityStamp?.dataFile
+    ? path.resolve(PROJECT_ROOT, dataParityStamp.dataFile)
+    : null;
+  if (!stampDataFile) errors.push('data parity stamp missing dataFile');
+  if (matrixDataFile && stampDataFile && matrixDataFile !== stampDataFile) {
+    errors.push(`data parity dataFile ${stampDataFile} != matrix dataFile ${matrixDataFile}`);
+  }
+  if (!dataParityStamp?.dataFileSha256) {
+    errors.push('data parity stamp missing dataFileSha256');
+  } else if (stampDataFile && fs.existsSync(stampDataFile)) {
+    const currentSha = sha256File(stampDataFile);
+    if (currentSha !== dataParityStamp.dataFileSha256) {
+      errors.push('data parity dataFileSha256 does not match current data file');
+    }
+  }
+  if (!dataParityStamp?.stampedAt || Number.isNaN(Date.parse(dataParityStamp.stampedAt))) {
+    errors.push('data parity stamp missing stampedAt');
+  }
+  return {
+    ok: errors.length === 0,
+    status: dataParityStamp?.status || null,
+    path: dataParityStamp?.path || null,
+    dataFile: dataParityStamp?.dataFile || null,
+    dataFileSha256: dataParityStamp?.dataFileSha256 || null,
+    stampedAt: dataParityStamp?.stampedAt || null,
+    checks: stampChecks,
+    errors,
   };
 }
 
@@ -262,7 +310,7 @@ function stampReport(reportPath, stamp) {
   writeJson(reportPath, report);
 }
 
-function validateMatrixRun({ matrixReportPath, outputDir = null }) {
+function validateMatrixRun({ matrixReportPath, outputDir = null, dataParityStamp = null }) {
   const matrix = readJson(matrixReportPath);
   const matrixDir = outputDir || path.dirname(matrixReportPath);
   const expectedCoverage = matrix.dataFile ? dataFileCandleCount(matrix.dataFile) : null;
@@ -301,12 +349,14 @@ function validateMatrixRun({ matrixReportPath, outputDir = null }) {
     lifecycleErrors.push('no isolated decision ledger files found for run');
   }
 
+  const dataParity = validateDataParityStamp(dataParityStamp, matrix);
   const checks = {
     accounting: { ok: workerReports.every(report => report.checks.accounting.ok), failed: workerReports.filter(report => !report.checks.accounting.ok).map(report => report.reportPath) },
     lifecycle: { ok: lifecycleErrors.length === 0 && workerReports.every(report => report.checks.lifecycle.ok), errors: lifecycleErrors },
     fields: { ok: workerReports.every(report => report.checks.fields.ok), failed: workerReports.filter(report => !report.checks.fields.ok).map(report => ({ reportPath: report.reportPath, errors: report.checks.fields.errors.slice(0, 20) })) },
     coverage: { ok: workerReports.every(report => report.checks.coverage.ok), failed: workerReports.filter(report => !report.checks.coverage.ok).map(report => ({ reportPath: report.reportPath, errors: report.checks.coverage.errors })) },
     schema,
+    dataParity,
   };
   const booleans = integrityBooleans(checks);
   const status = errors.length === 0 && Object.values(booleans).every(Boolean) ? 'PASS' : 'FAILED-INTEGRITY';
@@ -334,19 +384,22 @@ function validateMatrixRun({ matrixReportPath, outputDir = null }) {
   };
 
   for (const worker of workerReports) {
+    const workerStampChecks = integrityBooleans({
+      accounting: worker.checks.accounting,
+      lifecycle: worker.checks.lifecycle,
+      fields: worker.checks.fields,
+      coverage: worker.checks.coverage,
+      schema,
+      dataParity: checks.dataParity,
+    });
     stampReport(worker.reportPath, {
       version: 1,
-      status: worker.status === 'PASS' && schema.ok ? 'PASS' : 'FAILED-INTEGRITY',
+      status: worker.status === 'PASS' && Object.values(workerStampChecks).every(Boolean) ? 'PASS' : 'FAILED-INTEGRITY',
       stampedAt: stamp.stampedAt,
       parentMatrixReportPath: matrixReportPath,
-      checks: {
-        ...integrityBooleans({
-          accounting: worker.checks.accounting,
-          lifecycle: worker.checks.lifecycle,
-          fields: worker.checks.fields,
-          coverage: worker.checks.coverage,
-          schema,
-        }),
+      checks: workerStampChecks,
+      details: {
+        dataParity,
       },
     });
   }
@@ -365,10 +418,23 @@ function assertLabIntegrity(filePath, report) {
   }
   const checks = stamp.checks || {};
   const required = ['identity', 'lifecycle', 'fields', 'coverage', 'schema'];
+  required.push('dataParity');
   for (const key of required) {
     if (checks[key] !== true) {
       throw new Error(`Strategy Lab refuses ${filePath}: integrity ${key} is not green`);
     }
+  }
+  const dataParity = stamp.details?.dataParity || null;
+  if (!dataParity || dataParity.status !== 'PASS') {
+    throw new Error(`Strategy Lab refuses ${filePath}: data parity detail missing or not PASS`);
+  }
+  for (const key of ['provenance', 'sameWindow', 'groundTruth']) {
+    if (dataParity.checks?.[key] !== true) {
+      throw new Error(`Strategy Lab refuses ${filePath}: data parity ${key} is not green`);
+    }
+  }
+  if (!dataParity.dataFileSha256 || !dataParity.stampedAt) {
+    throw new Error(`Strategy Lab refuses ${filePath}: data parity provenance detail incomplete`);
   }
 }
 

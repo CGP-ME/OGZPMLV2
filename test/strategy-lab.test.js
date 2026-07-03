@@ -47,6 +47,19 @@ function integrityStamp(overrides = {}) {
       fields: true,
       coverage: true,
       schema: true,
+      dataParity: true,
+    },
+    details: {
+      dataParity: {
+        status: 'PASS',
+        checks: {
+          provenance: true,
+          sameWindow: true,
+          groundTruth: true,
+        },
+        dataFileSha256: 'fixture-sha',
+        stampedAt: '2026-07-03T00:00:00.000Z',
+      },
     },
     ...overrides,
   };
@@ -384,6 +397,43 @@ describe('strategy lab dossier generator', () => {
 
       expect(() => buildStrategyLab([reportPath])).toThrow(
         /missing full-green integrityStamp/
+      );
+    });
+  });
+
+  test('refuses reports without green data parity evidence', () => {
+    withTempDir(dir => {
+      const reportPath = writeJson(dir, 'matrix-no-parity.json', stampedReport({
+        feeProfile: { name: 'ttp_real' },
+        results: [],
+      }, {
+        checks: {
+          identity: true,
+          lifecycle: true,
+          fields: true,
+          coverage: true,
+          schema: true,
+          dataParity: false,
+        },
+      }));
+
+      expect(() => buildStrategyLab([reportPath])).toThrow(
+        /integrity dataParity is not green/
+      );
+    });
+  });
+
+  test('refuses boolean-only data parity stamps without detail payload', () => {
+    withTempDir(dir => {
+      const reportPath = writeJson(dir, 'matrix-no-parity-detail.json', stampedReport({
+        feeProfile: { name: 'ttp_real' },
+        results: [],
+      }, {
+        details: {},
+      }));
+
+      expect(() => buildStrategyLab([reportPath])).toThrow(
+        /data parity detail missing or not PASS/
       );
     });
   });
