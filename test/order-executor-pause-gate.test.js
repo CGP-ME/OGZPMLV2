@@ -4120,7 +4120,7 @@ describe('OrderExecutor pause gate', () => {
     );
 
     await executor._emitWebhookOrder('SELL', {
-      action: 'close',
+      action: 'sell',
       symbol: 'TSLA',
       quantity: 2,
       quantityUnit: 'shares',
@@ -4142,7 +4142,7 @@ describe('OrderExecutor pause gate', () => {
       orderId: 'bad-flat-id',
       symbol: 'TSLA',
       action: 'SELL',
-      webhookAction: 'close',
+      webhookAction: 'sell',
       reason: 'broker_flat_no_open_position',
       responseBody: '{"orderId":"bad-flat-id","status_description":"No open positions for the asset"}',
     }));
@@ -4181,7 +4181,7 @@ describe('OrderExecutor pause gate', () => {
     );
 
     await expect(executor._emitWebhookOrder('SELL', {
-      action: 'close',
+      action: 'sell',
       symbol: 'TSLA',
       quantity: 3,
       quantityUnit: 'shares',
@@ -4221,7 +4221,7 @@ describe('OrderExecutor pause gate', () => {
       decisionId: 'decision_webhook_2',
       symbol: 'TSLA',
       action: 'SELL',
-      webhookAction: 'close',
+      webhookAction: 'sell',
       quantity: 3,
       quantityUnit: 'shares',
       orderType: 'market',
@@ -4259,7 +4259,7 @@ describe('OrderExecutor pause gate', () => {
     );
 
     await expect(executor._emitWebhookOrder('COVER', {
-      action: 'close',
+      action: 'buy',
       symbol: 'TSLA',
       quantity: 2,
       quantityUnit: 'shares',
@@ -4284,7 +4284,7 @@ describe('OrderExecutor pause gate', () => {
       decisionId: 'decision_webhook_3',
       symbol: 'TSLA',
       action: 'COVER',
-      webhookAction: 'close',
+      webhookAction: 'buy',
       quantity: 2,
       orderType: 'market',
       bypassThrottle: true,
@@ -4292,6 +4292,79 @@ describe('OrderExecutor pause gate', () => {
     }));
     expect(warnSpy).toHaveBeenCalledWith('[WebhookOrder] COVER emit failed: adapter exploded');
 
+    logSpy.mockRestore();
+  });
+
+  test('webhook emit helper refuses hand-built close action before adapter emit', async () => {
+    const dashboardWs = { readyState: 1, bufferedAmount: 0, send: jest.fn() };
+    const webhookAdapter = {
+      emit: jest.fn(),
+    };
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const brokerNarratorSpy = jest.spyOn(getNarrator(), 'brokerResult').mockImplementation(() => {});
+    const executor = makeExecutor(
+      {
+        evalTraceEnabled: true,
+        traceEventMaxBufferedBytes: 1048576,
+      },
+      {
+        dashboardWs,
+        dashboardWsConnected: true,
+        webhookAdapter,
+      }
+    );
+
+    const result = await executor._emitWebhookOrderWithResult('COVER', {
+      action: 'close',
+      symbol: 'TSLA',
+      quantity: 2,
+      quantityUnit: 'shares',
+      orderType: 'market',
+      bypassThrottle: true,
+    }, {
+      traceId: 'trace_webhook_close_block',
+      signalId: 'signal_webhook_close_block',
+      decisionId: 'decision_webhook_close_block',
+      symbol: 'TSLA',
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      sent: false,
+      reason: 'webhook_action_mismatch',
+      expectedWebhookAction: 'buy',
+      actualWebhookAction: 'close',
+    }));
+    expect(webhookAdapter.emit).not.toHaveBeenCalled();
+    expect(dashboardWs.send).toHaveBeenCalledTimes(2);
+    const traceResult = JSON.parse(dashboardWs.send.mock.calls[0][0]);
+    const brokerReject = JSON.parse(dashboardWs.send.mock.calls[1][0]);
+    expect(traceResult).toEqual(expect.objectContaining({
+      type: 'trace_event',
+      event: 'WEBHOOK_ORDER_RESULT',
+      action: 'COVER',
+    }));
+    expect(traceResult.fields).toEqual(expect.objectContaining({
+      sent: false,
+      reason: 'webhook_action_mismatch',
+      expectedWebhookAction: 'buy',
+      actualWebhookAction: 'close',
+    }));
+    expect(brokerReject).toEqual(expect.objectContaining({
+      type: 'broker_reject',
+      ok: false,
+      sent: false,
+      action: 'COVER',
+      webhookAction: 'close',
+      reason: 'webhook_action_mismatch',
+    }));
+    expect(brokerNarratorSpy).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'broker_reject',
+      ok: false,
+      reason: 'webhook_action_mismatch',
+    }));
+    expect(warnSpy).toHaveBeenCalledWith('[WebhookOrder] COVER blocked before emit: expected webhook action buy, got close');
+
+    brokerNarratorSpy.mockRestore();
     logSpy.mockRestore();
   });
 });

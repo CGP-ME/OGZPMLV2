@@ -483,6 +483,13 @@ class OrderExecutor {
     };
   }
 
+  _expectedWebhookAction(action) {
+    if (!SUPPORTED_ACTIONS.has(action)) {
+      throw new Error(`[WEBHOOK-ORDER] unsupported action ${JSON.stringify(action)} for webhook signal`);
+    }
+    return (action === 'BUY' || action === 'COVER') ? 'buy' : 'sell';
+  }
+
   _extractWebhookOrderId(result = {}) {
     const directId = result?.orderId || result?.id;
     if (typeof directId === 'string' && directId.trim()) {
@@ -1715,6 +1722,7 @@ class OrderExecutor {
   }
 
   _emitWebhookOrderWithResult(action, signal, traceFields = {}) {
+    const expectedWebhookAction = this._expectedWebhookAction(action);
     const baseFields = {
       traceId: traceFields.traceId || null,
       signalId: traceFields.signalId || null,
@@ -1733,6 +1741,28 @@ class OrderExecutor {
       executionMode: traceFields.executionMode || signal?.executionMode || null,
       timeframe: traceFields.timeframe || signal?.timeframe || null,
     };
+
+    if (signal?.action !== expectedWebhookAction) {
+      const result = {
+        sent: false,
+        reason: 'webhook_action_mismatch',
+        rejected: true,
+        expectedWebhookAction,
+        actualWebhookAction: signal?.action || null,
+      };
+      console.warn(`[WebhookOrder] ${action} blocked before emit: expected webhook action ${expectedWebhookAction}, got ${signal?.action || 'missing'}`);
+      emitTrace(this.ctx, 'WEBHOOK_ORDER_RESULT', {
+        ...baseFields,
+        success: false,
+        sent: false,
+        reason: result.reason,
+        rejected: true,
+        expectedWebhookAction,
+        actualWebhookAction: signal?.action || null,
+      });
+      this._broadcastBrokerOrderResult(baseFields, result);
+      return Promise.resolve(result);
+    }
 
     emitTrace(this.ctx, 'WEBHOOK_ORDER_DISPATCH', baseFields);
 
