@@ -350,6 +350,14 @@ const exitContractManager = getExitContractManager();
 
 // CHANGE 2026-02-28: TradingConfig - Centralized trading parameters
 const TradingConfig = require('./core/TradingConfig');
+const { applyBacktestConfigOverrides } = require('./core/BacktestConfigOverrides');
+applyBacktestConfigOverrides(process.env.BACKTEST_CONFIG_OVERRIDES_JSON, {
+  isBacktest: resolvedConfig.config.mode.backtest,
+  executionMode: resolvedConfig.config.mode.execution,
+  candleSource: resolvedConfig.config.mode.candleSource,
+  liveTrading: resolvedConfig.config.mode.liveTrading,
+  tradingConfig: TradingConfig,
+});
 const { logRuntimeConfigProof } = require('./core/RuntimeConfigProof');
 logRuntimeConfigProof(resolvedConfig, TradingConfig);
 const EvalRuleEngine = require('./core/EvalRuleEngine');

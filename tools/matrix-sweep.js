@@ -247,6 +247,7 @@ function buildGridPhaseFromConfig(phaseConfig) {
     : phaseConfig.tierPresets;
 
   return Object.freeze({
+    stopLoss: phaseConfig.stopLoss == null ? null : Object.freeze([...phaseConfig.stopLoss]),
     tierPresets: freezeTierPresetList(tierPresets),
     confidence: Object.freeze([...phaseConfig.confidence]),
   });
@@ -279,12 +280,25 @@ const GRID = buildGridFromConfig(MATRIX_SWEEP_CONFIG);
 // two in sync automatically.
 //
 // TradingConfig stores stopLossPercent as negative (e.g. -0.5 = "stop 0.5% below entry for long").
-// Matrix-sweep records the locked absolute value as metadata only; it does not emit
-// STOP_LOSS_PERCENT because locked exitContracts own strategy risk.
+// Matrix-sweep changes strategy-owned stop geometry through a backtest-only config
+// override payload, not global STOP_LOSS_PERCENT.
 const { BASE_CONFIG } = TradingConfig;
 function getLockedSL(strat) {
   const contract = BASE_CONFIG.exitContracts[strat] || BASE_CONFIG.exitContracts.default;
   return Math.abs(contract.stopLossPercent);
+}
+
+function buildExitContractOverrideEnv(strategyName, stopLoss) {
+  if (stopLoss == null) return {};
+  const numericStop = Number(stopLoss);
+  if (!Number.isFinite(numericStop) || numericStop <= 0) {
+    throw new Error('Matrix stopLoss must be a positive finite percentage, got ' + stopLoss);
+  }
+  return {
+    BACKTEST_CONFIG_OVERRIDES_JSON: JSON.stringify({
+      [`exitContracts.${strategyName}.stopLossPercent`]: -Math.abs(numericStop),
+    }),
+  };
 }
 
 function formatTiers(tiers) {
@@ -322,76 +336,87 @@ function generateMatrix(strategies, grid, phase) {
   const phaseStrategies = filterStrategiesForPhase(strategies, phase).runnable;
 
   for (const strat of phaseStrategies) {
-    // Get tier presets: if phase='conf', use defaults (null = don't set env var)
+    // Confidence phase tests entry threshold against the locked exit contract.
+    // Full/exits phases sweep strategy-owned stop geometry through backtest-only
+    // config overrides so workers exercise the same frozen-policy path as live.
+    const slValues = phase === 'conf' || !grid.stopLoss ? [null] : grid.stopLoss;
     const tierPresets = grid.tierPresets || [null];
     const lockedSL = getLockedSL(strat);
 
-    for (const tiers of tierPresets) {
-      for (const conf of grid.confidence) {
-        const shortName = strat.substring(0, 4);
-        const tierLabel = tiers ? tiers.label : 'def';
-        const name = shortName + '_lockedsl' + lockedSL + '_' + tierLabel + '_c' + (conf * 100).toFixed(0);
+    for (const sl of slValues) {
+      const effectiveSL = sl == null ? lockedSL : sl;
+      for (const tiers of tierPresets) {
+        for (const conf of grid.confidence) {
+          const shortName = strat.substring(0, 4);
+          const tierLabel = tiers ? tiers.label : 'def';
+          const slLabel = sl == null ? 'lockedsl' + lockedSL : 'sl' + effectiveSL;
+          const name = shortName + '_' + slLabel + '_' + tierLabel + '_c' + (conf * 100).toFixed(0);
 
-        const env = {
-          SOLO_STRATEGY: strat,
-          MIN_TRADE_CONFIDENCE: String(conf),
-        };
+          const env = {
+            SOLO_STRATEGY: strat,
+            MIN_TRADE_CONFIDENCE: String(conf),
+            ...buildExitContractOverrideEnv(strat, sl),
+          };
 
-        // Set tier targets if sweeping (otherwise MPM uses TradingConfig defaults)
-        if (tiers) {
-          env.TIER1_TARGET = String(tiers.t1);
-          env.TIER2_TARGET = String(tiers.t2);
-          env.TIER3_TARGET = String(tiers.t3);
+          // Set tier targets if sweeping (otherwise MPM uses TradingConfig defaults)
+          if (tiers) {
+            env.TIER1_TARGET = String(tiers.t1);
+            env.TIER2_TARGET = String(tiers.t2);
+            env.TIER3_TARGET = String(tiers.t3);
+          }
+
+          // SMS needs explicit enable
+          if (strat === 'SmartMoneySweep') {
+            env.ENABLE_SMS = 'true';
+            env.SMS_VP_RTH_ONLY = 'true';
+          }
+
+          // NoWick needs explicit enable (off by default; sweep uses opt-in env)
+          if (strat === 'NoWickImbalance') {
+            env.ENABLE_NOWICK = 'true';
+          }
+
+          // BreakRetest needs explicit enable (off by default; sweep uses opt-in env)
+          if (strat === 'BreakRetest') {
+            env.ENABLE_BREAKRETEST = 'true';
+          }
+
+          // ORB needs explicit enable (off by default; sweep uses opt-in env)
+          if (strat === 'OpeningRangeBreakout') {
+            env.ENABLE_ORB = 'true';
+          }
+
+          // DonchianBreakout needs explicit enable (off by default; sweep uses opt-in env)
+          if (strat === 'DonchianBreakout') {
+            env.ENABLE_DONCHIAN = 'true';
+          }
+
+          if (strat === 'PropSafeEMAPullback') {
+            env.ENABLE_PROPSAFE_EMA = 'true';
+          }
+
+          if (strat === 'EMATrendRetest') {
+            env.ENABLE_EMA_TREND_RETEST = 'true';
+          }
+
+          if (strat === 'RSI2MeanReversion') {
+            env.ENABLE_RSI2_MR = 'true';
+          }
+
+          if (strat === 'TimeSeriesMomentum') {
+            env.ENABLE_TSMOM = 'true';
+          }
+
+          configs.push({
+            name,
+            strategy: strat,
+            lockedSL,
+            sl: effectiveSL,
+            tiers,
+            conf,
+            env,
+          });
         }
-
-        // SMS needs explicit enable
-        if (strat === 'SmartMoneySweep') {
-          env.ENABLE_SMS = 'true';
-          env.SMS_VP_RTH_ONLY = 'true';
-        }
-
-        // NoWick needs explicit enable (off by default; sweep uses opt-in env)
-        if (strat === 'NoWickImbalance') {
-          env.ENABLE_NOWICK = 'true';
-        }
-
-        // BreakRetest needs explicit enable (off by default; sweep uses opt-in env)
-        if (strat === 'BreakRetest') {
-          env.ENABLE_BREAKRETEST = 'true';
-        }
-
-        // ORB needs explicit enable (off by default; sweep uses opt-in env)
-        if (strat === 'OpeningRangeBreakout') {
-          env.ENABLE_ORB = 'true';
-        }
-
-        // DonchianBreakout needs explicit enable (off by default; sweep uses opt-in env)
-        if (strat === 'DonchianBreakout') {
-          env.ENABLE_DONCHIAN = 'true';
-        }
-
-        if (strat === 'PropSafeEMAPullback') {
-          env.ENABLE_PROPSAFE_EMA = 'true';
-        }
-
-        if (strat === 'EMATrendRetest') {
-          env.ENABLE_EMA_TREND_RETEST = 'true';
-        }
-
-        if (strat === 'RSI2MeanReversion') {
-          env.ENABLE_RSI2_MR = 'true';
-        }
-
-        if (strat === 'TimeSeriesMomentum') {
-          env.ENABLE_TSMOM = 'true';
-        }
-
-        configs.push({
-          name,
-          strategy: strat,
-          lockedSL, tiers, conf,
-          env,
-        });
       }
     }
   }

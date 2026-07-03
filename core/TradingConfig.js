@@ -1750,6 +1750,7 @@ const BASE_CONFIG = {
     ],
     grid: {
       full: {
+        stopLoss: [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 3.0, 3.5, 4.0, 5.0],
         tierPresets: [
           { t1: 0.005, t2: 0.010, t3: 0.015, label: 'tight' },
           { t1: 0.007, t2: 0.010, t3: 0.015, label: 'default' },
@@ -1759,6 +1760,7 @@ const BASE_CONFIG = {
         confidence: [0.30, 0.40, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75],
       },
       quick: {
+        stopLoss: [0.5, 0.8, 1.5],
         tierPresets: [
           { t1: 0.005, t2: 0.010, t3: 0.015, label: 'tight' },
           { t1: 0.007, t2: 0.010, t3: 0.015, label: 'default' },
@@ -1767,10 +1769,12 @@ const BASE_CONFIG = {
         confidence: [0.40, 0.55, 0.70],
       },
       exits: {
+        stopLoss: [0.3, 0.5, 0.8, 1.0, 1.5, 2.0, 2.5, 3.0],
         tierGrid: [0.005, 0.0075, 0.010, 0.0125, 0.015, 0.0175, 0.020, 0.0225, 0.025, 0.0275],
         confidence: [0.60],
       },
       conf: {
+        stopLoss: null,
         tierPresets: null,
         confidence: [0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80],
       },

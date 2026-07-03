@@ -69,10 +69,14 @@ describe('matrix-sweep runnable surface', () => {
       ...matrixConfig.exploratoryStrategies,
     ]);
     expect(GRID.full.confidence).toEqual(matrixConfig.grid.full.confidence);
+    expect(GRID.full.stopLoss).toEqual(matrixConfig.grid.full.stopLoss);
     expect(GRID.quick.tierPresets).toEqual(matrixConfig.grid.quick.tierPresets);
+    expect(GRID.quick.stopLoss).toEqual(matrixConfig.grid.quick.stopLoss);
     expect(GRID.conf.tierPresets).toBeNull();
+    expect(GRID.conf.stopLoss).toBeNull();
     expect(GRID.conf.confidence).toEqual(matrixConfig.grid.conf.confidence);
     expect(GRID.exits.confidence).toEqual(matrixConfig.grid.exits.confidence);
+    expect(GRID.exits.stopLoss).toEqual(matrixConfig.grid.exits.stopLoss);
     expect(GRID.exits.tierPresets).toEqual(buildMonotonicTierCube(matrixConfig.grid.exits.tierGrid));
 
     expect(Object.isFrozen(DATA_SHORTCUTS)).toBe(true);
@@ -195,26 +199,46 @@ describe('matrix-sweep runnable surface', () => {
     expect([...keys].sort()).toEqual([...keys].filter(key => CONFIG_ENV_OVERRIDE_ALLOWLIST.has(key)).sort());
   });
 
-  test('matrix sweeps never generate locked-exit env overrides', () => {
+  test('matrix sweeps never generate global locked-exit env overrides', () => {
     const forbidden = new Set(PROFILE_FORBIDDEN_ENV_KEYS);
 
     for (const phase of Object.keys(GRID)) {
       const configs = generateMatrix(ALL_STRATEGIES, GRID[phase], phase);
       for (const config of configs || []) {
-        expect(Object.keys(config.env || {}).filter(key => forbidden.has(key))).toEqual([]);
+        const directForbidden = Object.keys(config.env || {})
+          .filter(key => key !== 'BACKTEST_CONFIG_OVERRIDES_JSON')
+          .filter(key => forbidden.has(key));
+        expect(directForbidden).toEqual([]);
       }
     }
   });
 
-  test('exit phase sweeps only honored tier targets with locked SL metadata', () => {
+  test('exit phase sweeps strategy stop geometry through backtest config override payload', () => {
     const configs = generateMatrix(['RSI'], GRID.exits, 'exits');
     const lockedRsiStop = Math.abs(BASE_CONFIG.exitContracts.RSI.stopLossPercent);
 
-    expect(configs).toHaveLength(GRID.exits.tierPresets.length * GRID.exits.confidence.length);
+    expect(configs).toHaveLength(GRID.exits.stopLoss.length * GRID.exits.tierPresets.length * GRID.exits.confidence.length);
     expect(configs.every(config => config.lockedSL === lockedRsiStop)).toBe(true);
     expect(configs.every(config => config.env.STOP_LOSS_PERCENT === undefined)).toBe(true);
     expect(configs.every(config => config.env.TAKE_PROFIT_PERCENT === undefined)).toBe(true);
     expect(new Set(configs.map(config => config.env.TIER1_TARGET)).size).toBeGreaterThan(1);
+
+    const stopPayloads = configs.map(config => JSON.parse(config.env.BACKTEST_CONFIG_OVERRIDES_JSON));
+    expect(new Set(stopPayloads.map(payload => payload['exitContracts.RSI.stopLossPercent'])).size)
+      .toBe(GRID.exits.stopLoss.length);
+    expect(stopPayloads).toContainEqual({
+      'exitContracts.RSI.stopLossPercent': -2.5,
+    });
+  });
+
+  test('confidence phase keeps locked strategy contract without stop override payload', () => {
+    const configs = generateMatrix(['EMASMACrossover'], GRID.conf, 'conf');
+    const lockedEmaStop = Math.abs(BASE_CONFIG.exitContracts.EMASMACrossover.stopLossPercent);
+
+    expect(configs).toHaveLength(GRID.conf.confidence.length);
+    expect(configs.every(config => config.lockedSL === lockedEmaStop)).toBe(true);
+    expect(configs.every(config => config.sl === lockedEmaStop)).toBe(true);
+    expect(configs.every(config => config.env.BACKTEST_CONFIG_OVERRIDES_JSON === undefined)).toBe(true);
   });
 
   test('report fallback preserves worker errors, report path, and zero stock fees', () => {
