@@ -3,7 +3,7 @@
 Generated: 2026-07-04
 Verdict: HOLD
 
-The weekend campaign is not launched. The evidence gate is mechanical, and two required rows are not green: the campaign runner has no verified disk low-space clean-abort guard, and no real stop/resume runbook proof exists on disk. The smoke gauntlet, dress rehearsal, data parity, and storage capacity checks are green.
+The weekend campaign is not launched. The original two blockers are cleared: the runner now has a disk low-space clean-abort path, and the campaign runbook plus real stop/resume proof are on disk. The full campaign still failed the mechanical GO gate because real-manifest data parity is not fully green: SPY, QQQ, RIOT, and COIN stamped `FAILED-DATA-PARITY`.
 
 ## Launch Gate
 
@@ -17,10 +17,11 @@ The weekend campaign is not launched. The evidence gate is mechanical, and two r
 | Integrity stamps | PASS | `campaign-status.md` rows: `current-eval-tsla-RSI-conf` and `current-eval-tsla-EMASMACrossover-conf` both dataParity PASS and identity/lifecycle/fields/coverage/schema all PASS. | The run artifacts balance accounting and have complete trade lifecycle data. |
 | Real trade row with MFE/MAE | PASS | Example from EMASMACrossover report: entry 250.034955 USD, exit 251.564155 USD, qty present, MFE 0.6619%, MAE -0.0160%, net P&L 2.3244 USD. | The tuning analysis has the required excursion data; MFE/MAE is not blank. |
 | Strategy Lab dossier output | PASS | Markdown: `ogz-meta/cognition-history/weekend-campaign/dress-rehearsal-2026-07-03-mini-conf-r5/strategy-lab/strategy-lab-2026-07-03T23-19-22-559Z.md`. JSON: same timestamp `.json`. | Human-readable dossier exists; raw JSON is not the only output. |
-| Data parity | PASS | `ogz-meta/cognition-history/weekend-campaign/dress-rehearsal-2026-07-03-mini-conf-r5/data-parity/tsla.json`; provider Alpaca, feed IEX, 625/625 June 2026 bars matched, close delta p95 0 bps, volume ratio p95 1.0, 11 live journal fills checked in range. | Campaign TSLA 15m data matches the live Alpaca IEX source for the checked window. |
+| Dress rehearsal data parity | PASS | `ogz-meta/cognition-history/weekend-campaign/dress-rehearsal-2026-07-03-mini-conf-r5/data-parity/tsla.json`; provider Alpaca, feed IEX, 625/625 June 2026 bars matched, close delta p95 0 bps, volume ratio p95 1.0, 11 live journal fills checked in range. | Dress rehearsal TSLA 15m data matches the live Alpaca IEX source for the checked window. |
+| Full campaign data parity | HOLD | Real manifest `campaign-2026-07-03-weekend` stamped 96 rows PASS and 128 rows FAILED-DATA-PARITY. Failed symbols: SPY, QQQ, RIOT, COIN. | No partial launch. The full campaign cannot start until all symbol parity stamps are green or the operator explicitly changes the gate. |
 | Storage capacity | PASS | Dress rehearsal size: 1,746 MiB for 2 runs. Projected 222-run output: 193,806 MiB, or 189.3 GiB. Available on `/opt/ogzprime/OGZPMLV2`: 403,207 MiB, or 393.8 GiB. | There is enough free space for the projected campaign if output size scales linearly. |
-| Disk low-space clean-abort guard | HOLD | Search of `tools/weekend-campaign-gauntlet.js` and `tools/*.js` found no `statfs`, free-space, `ENOSPC`, low-disk, or clean-abort guard in the campaign runner. | Capacity is currently checked manually, but the unattended runner is not proven to abort cleanly if disk pressure changes mid-campaign. |
-| Launch/stop/resume/status runbook | HOLD | Runner supports `plan`, `parity`, `launch --resume`, and `status`; no campaign README/runbook file found under the weekend campaign tree; no real stop+resume proof artifact found. | Resume/status exist, but the required operator runbook and one real stop+resume proof are not green. |
+| Disk low-space clean-abort guard | PASS | Forced proof: `ogz-meta/cognition-history/weekend-campaign/low-disk-proof-2026-07-04/low-disk-abort.json`; `availableMiB=401674.87`, forced `requiredMiB=999999999`, run marked `LOW-DISK-ABORT`, no worker log created. | The runner aborts before the next worker and preserves the manifest/artifacts. |
+| Launch/stop/resume/status runbook | PASS | Runbook: `ogz-meta/cognition-history/weekend-campaign/README.md`. Proof root: `ogz-meta/cognition-history/weekend-campaign/stop-resume-proof-2026-07-04-r2`; sequence `running|running|planned` -> `stopped|done|planned` -> `done|done|done`, final 2 done, 0 failed. | Stop/resume is proven against real matrix runs. |
 | Bot remains off | PASS | PM2 check: `ogz-prime-v2` status `stopped`, pid 0. No PM2 restart was run. | Trading bot stayed off while campaign prep was evaluated. |
 
 ## Smoke Matrix
@@ -72,7 +73,7 @@ Finished dossier summary:
 | RSI | REBUILD_CANDIDATE | 1966/100 trades | 7.05 USD | -2304.37 USD | 30.3% | Rebuild entries/exits one variable class at a time and regenerate dossier. |
 | EMASMACrossover | KILL_CANDIDATE | 22543/100 trades | -3052.70 USD | -40634.91 USD | 49.0% | Bench or rebuild; do not activate without a new dossier. |
 
-## Data Parity
+## Dress Rehearsal Data Parity
 
 Campaign file:
 
@@ -96,10 +97,36 @@ Alpaca IEX, raw adjustment, /v2/stocks/{symbol}/bars and wss://stream.data.alpac
 | Missing bars | 0 missing in campaign, 0 missing in reference |
 | Ground-truth live fills | 11 July 1-2 TSLA journal fills checked; all sampled prices inside campaign candle high/low range |
 
+## Full Campaign Data Parity
+
+Command:
+
+```bash
+node tools/weekend-campaign-gauntlet.js parity --manifest=ogz-meta/cognition-history/weekend-campaign/campaign-2026-07-03-weekend/manifest.json --live-reference=alpaca
+```
+
+| Symbol | Status | Same-Window Candle Diff | Ground-Truth Check | Notes |
+| --- | --- | --- | --- | --- |
+| TSLA | PASS | PASS | PASS | Full green. |
+| NVDA | PASS | PASS | PASS | Full green. |
+| MARA | PASS | PASS | PASS | Full green. |
+| SPY | FAILED-DATA-PARITY | PASS, p95 close delta 0 bps, volume ratio p95 1.0 | FAIL | No live journal fill rows found in July 1-2 spot-check window. |
+| QQQ | FAILED-DATA-PARITY | PASS, p95 close delta 0 bps, volume ratio p95 1.0 | FAIL | No live journal fill rows found in July 1-2 spot-check window. |
+| RIOT | FAILED-DATA-PARITY | PASS, p95 close delta 0 bps, volume ratio p95 1.0 | FAIL | No live journal fill rows found in July 1-2 spot-check window. |
+| COIN | FAILED-DATA-PARITY | PASS, p95 close delta 0 bps, volume ratio p95 1.0 | FAIL | One live fill at 154.80 USD was outside campaign candle range 154.905-156.59 USD. |
+
+Manifest outcome:
+
+```text
+96 planned rows PASS
+128 planned rows FAILED-DATA-PARITY
+```
+
 ## Hold Reasons
 
-1. Disk guard is not proven in code. Free space is currently sufficient, but the unattended runner does not show a verified low-disk clean-abort path.
-2. The runbook and stop/resume proof are not green. `launch --resume` and `status` exist, but no written campaign README/runbook and no real stop+resume proof artifact were found.
+1. Full campaign data parity is not green. SPY, QQQ, RIOT, and COIN have `FAILED-DATA-PARITY` stamps.
+2. COIN has a concrete ground-truth mismatch: one live fill is outside the corresponding campaign candle high/low range.
+3. SPY, QQQ, and RIOT lack live July 1-2 fill rows for the required ground-truth spot check.
 
 Because the conditional GO says any non-green item means HOLD, the campaign was not launched.
 
