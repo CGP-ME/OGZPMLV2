@@ -43,6 +43,8 @@ const DEFAULT_FEE_PROFILE = 'ttp_real';
 const DEFAULT_BASELINE_PROFILE = 'current-eval';
 const DEFAULT_TREY_PROFILE = 'trey-spec';
 const DEFAULT_PHASE = 'conf';
+const DEFAULT_DISK_RESERVE_MIB = 10240;
+const LOW_DISK_STATUS = 'LOW-DISK-ABORT';
 const DEFAULT_CAMPAIGN_SYMBOLS = Object.freeze(
   STOCK_TICKERS.filter(symbol => !String(symbol).includes('-'))
 );
@@ -71,7 +73,8 @@ function usage(exitCode = 0) {
     '  node tools/weekend-campaign-gauntlet.js smoke [--data=tsla-unseen] [--fee-profile=ttp_real] [--run-id=<id>]',
     '  node tools/weekend-campaign-gauntlet.js plan [--symbols=tsla,spy,qqq,nvda,riot,mara,coin] [--phase=conf] [--run-id=<id>]',
     '  node tools/weekend-campaign-gauntlet.js parity --manifest=<path> [--reference-dir=<dir>|--live-reference=alpaca]',
-    '  node tools/weekend-campaign-gauntlet.js launch --manifest=<path> [--resume]',
+    '  node tools/weekend-campaign-gauntlet.js launch --manifest=<path> [--resume] [--min-free-mib=<mib>] [--projected-mib-per-run=<mib>] [--disk-reserve-mib=10240]',
+    '  node tools/weekend-campaign-gauntlet.js stop --manifest=<path>',
     '  node tools/weekend-campaign-gauntlet.js status --manifest=<path>',
     '',
     'Smoke writes smoke-summary.json and refuses to greenlight launch if any roster row fails.',
@@ -202,7 +205,7 @@ function pickProofEnv(env) {
   return proof;
 }
 
-function runNodeProcess({ args, env, logPath, statusPath, label }) {
+function runNodeProcess({ args, env, logPath, statusPath, label, onSpawn }) {
   return new Promise((resolve) => {
     const startedAt = new Date().toISOString();
     writeJson(statusPath, {
@@ -219,6 +222,9 @@ function runNodeProcess({ args, env, logPath, statusPath, label }) {
       env,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
+    if (typeof onSpawn === 'function') {
+      onSpawn(child);
+    }
     const stream = fs.createWriteStream(logPath, { flags: 'a' });
     child.stdout.pipe(stream, { end: false });
     child.stderr.pipe(stream, { end: false });
@@ -696,6 +702,7 @@ function buildCampaignManifest(options) {
       }
     }
   }
+  const diskGuard = buildDiskGuardConfig(options, planned.length);
 
   const manifest = {
     runId,
@@ -705,8 +712,10 @@ function buildCampaignManifest(options) {
     generatedAt: new Date().toISOString(),
     doneAt: null,
     status: 'planned',
+    stopFile: path.join(rootDir, 'STOP_REQUESTED.json'),
     continueOnFailure: true,
     resumeFromManifest: true,
+    diskGuard,
     counts: { planned: planned.length, done: 0, failed: 0, running: 0 },
     planned,
   };
@@ -724,13 +733,15 @@ function writeHeartbeat(manifest, event, currentRun = null) {
     status: manifest.status,
     counts,
     currentRun,
+    stopRequested: Boolean(manifest.stopRequestedAt),
+    lowDiskAbort: manifest.lowDiskAbort || null,
     manifestPath: manifest.manifestPath,
   };
   writeJson(manifest.heartbeatPath, heartbeat);
 }
 
 function summarizeManifest(manifest) {
-  const counts = { planned: 0, running: 0, done: 0, failed: 0, skipped: 0, 'FAILED-DATA-PARITY': 0, 'FAILED-INTEGRITY': 0 };
+  const counts = { planned: 0, running: 0, done: 0, failed: 0, skipped: 0, 'FAILED-DATA-PARITY': 0, 'FAILED-INTEGRITY': 0, [LOW_DISK_STATUS]: 0 };
   for (const run of manifest.planned || []) {
     counts[run.status] = (counts[run.status] || 0) + 1;
   }
@@ -778,6 +789,132 @@ function writeCampaignStatus(manifest) {
   const statusPath = path.join(manifest.rootDir, 'campaign-status.md');
   fs.writeFileSync(statusPath, `${renderCampaignStatus(manifest)}\n`);
   return statusPath;
+}
+
+function parsePositiveNumber(value, name) {
+  if (value === undefined || value === null || value === '') return null;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 0) {
+    throw new Error(`${name} must be a non-negative number`);
+  }
+  return numeric;
+}
+
+function buildDiskGuardConfig(options, plannedCount = 0) {
+  const reserveMiB = parsePositiveNumber(options['disk-reserve-mib'] ?? process.env.WEEKEND_CAMPAIGN_DISK_RESERVE_MIB, 'disk-reserve-mib') ?? DEFAULT_DISK_RESERVE_MIB;
+  const minFreeMiB = parsePositiveNumber(options['min-free-mib'] ?? process.env.WEEKEND_CAMPAIGN_MIN_FREE_MIB, 'min-free-mib');
+  const projectedMiBPerRun = parsePositiveNumber(options['projected-mib-per-run'] ?? process.env.WEEKEND_CAMPAIGN_PROJECTED_MIB_PER_RUN, 'projected-mib-per-run') ?? 0;
+  return {
+    reserveMiB,
+    minFreeMiB,
+    projectedMiBPerRun,
+    plannedCount,
+    projectedTotalMiB: projectedMiBPerRun * plannedCount,
+  };
+}
+
+function getDiskFreeMiB(targetPath) {
+  const existingPath = fs.existsSync(targetPath)
+    ? targetPath
+    : path.dirname(targetPath);
+  const stats = fs.statfsSync(existingPath);
+  return (Number(stats.bavail) * Number(stats.bsize)) / (1024 * 1024);
+}
+
+function remainingRunsForDisk(manifest) {
+  return (manifest.planned || []).filter(run => !(run.status === 'done' && run.integrity?.status === 'PASS')).length;
+}
+
+function resolveLaunchDiskGuard(manifest, options) {
+  const base = manifest.diskGuard || {};
+  const reserveOverride = parsePositiveNumber(options['disk-reserve-mib'] ?? process.env.WEEKEND_CAMPAIGN_DISK_RESERVE_MIB, 'disk-reserve-mib');
+  const minFreeOverride = parsePositiveNumber(options['min-free-mib'] ?? process.env.WEEKEND_CAMPAIGN_MIN_FREE_MIB, 'min-free-mib');
+  const projectedOverride = parsePositiveNumber(options['projected-mib-per-run'] ?? process.env.WEEKEND_CAMPAIGN_PROJECTED_MIB_PER_RUN, 'projected-mib-per-run');
+  return {
+    reserveMiB: reserveOverride ?? base.reserveMiB ?? DEFAULT_DISK_RESERVE_MIB,
+    minFreeMiB: minFreeOverride ?? base.minFreeMiB ?? null,
+    projectedMiBPerRun: projectedOverride ?? base.projectedMiBPerRun ?? 0,
+  };
+}
+
+function checkDiskGuard(manifest, options = {}) {
+  const guard = resolveLaunchDiskGuard(manifest, options);
+  const remainingRuns = remainingRunsForDisk(manifest);
+  const projectedRemainingMiB = guard.projectedMiBPerRun * remainingRuns;
+  const requiredMiB = Math.max(
+    guard.minFreeMiB ?? 0,
+    guard.reserveMiB + projectedRemainingMiB
+  );
+  const availableMiB = getDiskFreeMiB(manifest.rootDir || path.dirname(manifest.manifestPath));
+  return {
+    ok: availableMiB >= requiredMiB,
+    checkedAt: new Date().toISOString(),
+    availableMiB,
+    requiredMiB,
+    reserveMiB: guard.reserveMiB,
+    minFreeMiB: guard.minFreeMiB,
+    projectedMiBPerRun: guard.projectedMiBPerRun,
+    projectedRemainingMiB,
+    remainingRuns,
+  };
+}
+
+function stopFilePath(manifest) {
+  return manifest.stopFile || path.join(manifest.rootDir || path.dirname(manifest.manifestPath), 'STOP_REQUESTED.json');
+}
+
+function hasStopRequest(manifest) {
+  return Boolean(manifest.stopRequestedAt) || fs.existsSync(stopFilePath(manifest));
+}
+
+function clearStopRequest(manifest) {
+  const filePath = stopFilePath(manifest);
+  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  delete manifest.stopRequestedAt;
+  delete manifest.stopReason;
+  delete manifest.stopRequestedBy;
+}
+
+function markCampaignStopped(manifest, event = 'campaign_stopped') {
+  manifest.status = 'stopped';
+  manifest.stoppedAt = new Date().toISOString();
+  manifest.counts = summarizeManifest(manifest);
+  writeJson(manifest.manifestPath, manifest);
+  writeCampaignStatus(manifest);
+  writeHeartbeat(manifest, event);
+}
+
+function abortCampaignForLowDisk(manifest, run, diskCheck) {
+  const abort = {
+    status: LOW_DISK_STATUS,
+    abortedAt: new Date().toISOString(),
+    runId: run?.id || null,
+    ...diskCheck,
+  };
+  if (run) {
+    run.status = LOW_DISK_STATUS;
+    run.finishedAt = abort.abortedAt;
+    run.lowDiskAbort = abort;
+    if (run.statusPath) {
+      writeJson(run.statusPath, {
+        label: run.id,
+        status: LOW_DISK_STATUS,
+        finishedAt: abort.abortedAt,
+        lowDiskAbort: abort,
+      });
+    }
+  }
+  manifest.status = 'aborted_low_disk';
+  manifest.lowDiskAbort = abort;
+  manifest.doneAt = abort.abortedAt;
+  manifest.counts = summarizeManifest(manifest);
+  const proofPath = path.join(manifest.rootDir, 'low-disk-abort.json');
+  writeJson(proofPath, abort);
+  manifest.lowDiskAbort.path = proofPath;
+  writeJson(manifest.manifestPath, manifest);
+  writeCampaignStatus(manifest);
+  writeHeartbeat(manifest, 'campaign_aborted_low_disk', run || null);
+  return abort;
 }
 
 function referenceFileForSymbol(referenceDir, symbol) {
@@ -896,11 +1033,35 @@ async function launchCampaign(options) {
   if (!manifestPath) throw new Error('launch requires --manifest=<path>');
   const manifest = readJson(manifestPath);
   manifest.manifestPath = manifestPath;
+  manifest.rootDir = manifest.rootDir || path.dirname(manifestPath);
+  manifest.stopFile = manifest.stopFile || path.join(manifest.rootDir, 'STOP_REQUESTED.json');
+  if (options.resume) {
+    clearStopRequest(manifest);
+    for (const run of manifest.planned || []) {
+      if (run.status === 'running' || run.status === LOW_DISK_STATUS) {
+        run.status = 'planned';
+        delete run.lowDiskAbort;
+      }
+    }
+  } else if (hasStopRequest(manifest)) {
+    markCampaignStopped(manifest, 'campaign_stop_request_honored');
+    return manifest;
+  }
   manifest.status = 'running';
   manifest.startedAt = manifest.startedAt || new Date().toISOString();
   writeHeartbeat(manifest, 'campaign_started');
 
   for (const run of manifest.planned) {
+    if (hasStopRequest(manifest)) {
+      markCampaignStopped(manifest, 'campaign_stop_request_honored');
+      return manifest;
+    }
+    const diskCheck = checkDiskGuard(manifest, options);
+    manifest.diskGuardLastCheck = diskCheck;
+    if (!diskCheck.ok) {
+      abortCampaignForLowDisk(manifest, run, diskCheck);
+      return manifest;
+    }
     if (options.resume && run.status === 'done' && run.integrity?.status === 'PASS') {
       continue;
     }
@@ -933,7 +1094,21 @@ async function launchCampaign(options) {
       logPath: run.logPath,
       statusPath: run.statusPath,
       label: run.id,
+      onSpawn: (child) => {
+        run.childPid = child.pid;
+        manifest.currentRun = {
+          id: run.id,
+          childPid: child.pid,
+          startedAt: run.startedAt,
+          logPath: run.logPath,
+          statusPath: run.statusPath,
+        };
+        writeJson(manifestPath, { ...manifest, counts: summarizeManifest(manifest) });
+        writeHeartbeat(manifest, 'run_spawned', manifest.currentRun);
+      },
     });
+    delete run.childPid;
+    delete manifest.currentRun;
     run.status = status.exitCode === 0 ? 'done' : 'failed';
     run.finishedAt = status.finishedAt;
     run.exitCode = status.exitCode;
@@ -972,6 +1147,10 @@ async function launchCampaign(options) {
     writeJson(manifestPath, { ...manifest, counts: summarizeManifest(manifest) });
     writeCampaignStatus(manifest);
     writeHeartbeat(manifest, 'run_finished', run);
+    if (hasStopRequest(manifest)) {
+      markCampaignStopped(manifest, 'campaign_stop_request_honored_after_run');
+      return manifest;
+    }
   }
 
   manifest.status = manifest.planned.some(run => run.status === 'failed' || run.status === 'FAILED-INTEGRITY' || run.status === 'FAILED-DATA-PARITY')
@@ -982,6 +1161,35 @@ async function launchCampaign(options) {
   writeJson(manifestPath, manifest);
   writeCampaignStatus(manifest);
   writeHeartbeat(manifest, 'campaign_finished');
+  return manifest;
+}
+
+function stopCampaign(options) {
+  const manifestPath = options.manifest
+    ? path.resolve(PROJECT_ROOT, options.manifest)
+    : null;
+  if (!manifestPath) throw new Error('stop requires --manifest=<path>');
+  const manifest = readJson(manifestPath);
+  manifest.manifestPath = manifestPath;
+  manifest.rootDir = manifest.rootDir || path.dirname(manifestPath);
+  manifest.stopFile = manifest.stopFile || path.join(manifest.rootDir, 'STOP_REQUESTED.json');
+  const stopRecord = {
+    requestedAt: new Date().toISOString(),
+    manifestPath,
+    reason: options.reason || 'operator_stop',
+    mode: 'graceful_after_current_run',
+    currentRun: manifest.currentRun || null,
+  };
+  manifest.stopRequestedAt = stopRecord.requestedAt;
+  manifest.stopReason = stopRecord.reason;
+  manifest.stopRequestedBy = 'weekend-campaign-gauntlet stop';
+  manifest.status = 'stop_requested';
+  manifest.counts = summarizeManifest(manifest);
+  writeJson(manifest.stopFile, stopRecord);
+  writeJson(manifestPath, manifest);
+  writeCampaignStatus(manifest);
+  writeHeartbeat(manifest, 'stop_requested', manifest.currentRun || null);
+  process.stdout.write(`stopRequested=${manifest.stopFile}\nmanifest=${manifestPath}\n`);
   return manifest;
 }
 
@@ -1017,6 +1225,10 @@ async function main() {
     process.stdout.write(`manifest=${manifest.manifestPath}\nheartbeat=${manifest.heartbeatPath}\nstatus=${manifest.status}\n`);
     return;
   }
+  if (command === 'stop') {
+    stopCampaign(options);
+    return;
+  }
   if (command === 'status') {
     showCampaignStatus(options);
     return;
@@ -1040,7 +1252,11 @@ module.exports = {
   EXPECTED_SIGNAL_FREQUENCY,
   assertCampaignParitySource,
   findScopedJournalForInstrument,
+  launchCampaign,
   runDataParityForManifest,
   resolveDataFile,
+  checkDiskGuard,
+  stopCampaign,
   strategyEnv,
+  LOW_DISK_STATUS,
 };

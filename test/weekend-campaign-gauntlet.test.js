@@ -6,10 +6,14 @@ const path = require('path');
 
 const {
   assertCampaignParitySource,
+  checkDiskGuard,
   countStrategyEvidence,
   countTradingSessions,
   evaluateFrequency,
   findScopedJournalForInstrument,
+  launchCampaign,
+  LOW_DISK_STATUS,
+  stopCampaign,
 } = require('../tools/weekend-campaign-gauntlet');
 
 function autopsy(day, strategy) {
@@ -91,5 +95,80 @@ describe('weekend campaign frequency sanity', () => {
       .toThrow(/requires live Alpaca reference/);
     expect(() => assertCampaignParitySource({ 'reference-dir': 'fixtures', 'allow-reference-dir': 'true' }))
       .not.toThrow();
+  });
+
+  test('forced low-disk launch abort marks manifest without starting a run', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-campaign-low-disk-'));
+    try {
+      const manifestPath = path.join(root, 'manifest.json');
+      const manifest = {
+        runId: 'low-disk-proof',
+        rootDir: root,
+        manifestPath,
+        heartbeatPath: path.join(root, 'heartbeat.json'),
+        status: 'data_parity_passed',
+        planned: [{
+          id: 'proof-run',
+          status: 'planned',
+          command: [process.execPath, 'tools/matrix-sweep.js', '--data=tsla', '--solo=RSI', '--phase=conf'],
+          statusPath: path.join(root, 'status', 'proof-run.json'),
+          logPath: path.join(root, 'logs', 'proof-run.log'),
+          dataParity: { status: 'PASS' },
+        }],
+        diskGuard: {
+          reserveMiB: 0,
+          minFreeMiB: null,
+          projectedMiBPerRun: 0,
+        },
+      };
+      fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+
+      const disk = checkDiskGuard(manifest, { 'min-free-mib': '999999999' });
+      expect(disk.ok).toBe(false);
+
+      const result = await launchCampaign({ manifest: manifestPath, 'min-free-mib': '999999999' });
+      const written = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+
+      expect(result.status).toBe('aborted_low_disk');
+      expect(written.status).toBe('aborted_low_disk');
+      expect(written.planned[0].status).toBe(LOW_DISK_STATUS);
+      expect(fs.existsSync(path.join(root, 'low-disk-abort.json'))).toBe(true);
+      expect(fs.existsSync(path.join(root, 'logs', 'proof-run.log'))).toBe(false);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('stop command writes a resumable stop request without dropping planned runs', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-campaign-stop-'));
+    try {
+      const manifestPath = path.join(root, 'manifest.json');
+      const stopFile = path.join(root, 'STOP_REQUESTED.json');
+      const manifest = {
+        runId: 'stop-proof',
+        rootDir: root,
+        manifestPath,
+        heartbeatPath: path.join(root, 'heartbeat.json'),
+        stopFile,
+        status: 'running',
+        planned: [
+          { id: 'done-run', status: 'done', integrity: { status: 'PASS' } },
+          { id: 'planned-run', status: 'planned' },
+        ],
+      };
+      fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+
+      stopCampaign({ manifest: manifestPath, reason: 'jest_stop_proof' });
+      const written = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+      const stopRecord = JSON.parse(fs.readFileSync(stopFile, 'utf8'));
+
+      expect(written.status).toBe('stop_requested');
+      expect(written.planned.map(run => run.status)).toEqual(['done', 'planned']);
+      expect(stopRecord.mode).toBe('graceful_after_current_run');
+      expect(fs.existsSync(path.join(root, 'campaign-status.md'))).toBe(true);
+      expect(fs.existsSync(path.join(root, 'heartbeat.json'))).toBe(true);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 });
