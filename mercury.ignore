@@ -6,6 +6,8 @@ data/
 backtest-results/
 logs/
 runs/
+_ds/
+incoming-website/
 dist/
 build/
 .ai-specs/
