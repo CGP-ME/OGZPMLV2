@@ -133,6 +133,33 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(loaded.sources['trai.enabled']).toBe('default');
   });
 
+  test('selected tuning profile overrides conflicting env through ConfigLoader snapshot', () => {
+    process.env.TUNING_PROFILE = 'trey-spec';
+    process.env.MIN_TRADE_CONFIDENCE = '0.91';
+    process.env.MAX_POSITION_SIZE_PCT = '0.01';
+    process.env.EMA_CROSSOVER_ENTRY_EVENTS_ONLY = 'false';
+    process.env.EMA_CROSSOVER_WARMUP_BARS = '10';
+    process.env.ATR_CONTRACTS_ENABLED = 'false';
+    process.env.BE_SCALEOUT_FRACTION = '0.5';
+    process.env.TIERED_EXIT_ENABLED = 'true';
+    process.env.TTP_ENTRY_BUFFER_MINUTES_BEFORE_CUTOFF = '0';
+
+    const loaded = loadConfig();
+
+    expect(loaded.config.confidence.minTradeConfidence).toBe(0.5);
+    expect(loaded.config.sizing.maxPositionSize).toBe(0.10);
+    expect(loaded.config.strategyBehavior.emaCrossover.entryEventsOnly).toBe(true);
+    expect(loaded.config.strategyBehavior.emaCrossover.warmupBars).toBe(200);
+    expect(loaded.config.strategyBehavior.atrContracts.enabled).toBe(true);
+    expect(loaded.config.exitLogic.beScaleOut.scaleOutFraction).toBe(0.25);
+    expect(loaded.config.exitLogic.tieredExit.enabled).toBe(false);
+    expect(loaded.config.evalRules.ttp.marketTime.entryBufferMinutesBeforeCutoff).toBe(30);
+    expect(loaded.sources['confidence.minTradeConfidence']).toBe('profile:trey-spec:MIN_TRADE_CONFIDENCE');
+    expect(loaded.sources['strategyBehavior.emaCrossover.warmupBars']).toBe('profile:trey-spec:EMA_CROSSOVER_WARMUP_BARS');
+    expect(loaded.sources['exitLogic.tieredExit.enabled']).toBe('profile:trey-spec:TIERED_EXIT_ENABLED');
+    expect(loaded.sources['evalRules.ttp.marketTime.entryBufferMinutesBeforeCutoff']).toBe('profile:trey-spec:TTP_ENTRY_BUFFER_MINUTES_BEFORE_CUTOFF');
+  });
+
   test('TradingConfig compatibility reads use the resolved ConfigLoader snapshot', () => {
     process.env.MIN_TRADE_CONFIDENCE = '0.62';
     process.env.MIN_STRATEGY_CONFIDENCE = '0.41';
@@ -144,6 +171,7 @@ describe('ConfigLoader live trading safety guard', () => {
     process.env.ATR_MIN_PERCENT = '0.17';
     process.env.TTP_DAILY_LOSS_LIMIT_DOLLARS = '125';
     process.env.TTP_PROFIT_TARGET_DOLLARS = '900';
+    process.env.MTF_TIMEFRAMES = '5m,15m,1h';
 
     const loaded = loadConfig();
 
@@ -157,6 +185,7 @@ describe('ConfigLoader live trading safety guard', () => {
     process.env.ATR_MIN_PERCENT = '0.99';
     process.env.TTP_DAILY_LOSS_LIMIT_DOLLARS = '999';
     process.env.TTP_PROFIT_TARGET_DOLLARS = '9999';
+    process.env.MTF_TIMEFRAMES = '1m';
 
     const TradingConfig = require('../core/TradingConfig');
 
@@ -168,6 +197,8 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(TradingConfig.get('fees.minOrderFee')).toBe(loaded.config.fees.minOrderFee);
     expect(TradingConfig.get('filters.atrEnabled')).toBe(loaded.config.filters.atrEnabled);
     expect(TradingConfig.get('filters.atrMinPercent')).toBe(loaded.config.filters.atrMinPercent);
+    expect(TradingConfig.get('orchestrator.mtfTimeframes')).toEqual(['5m', '15m', '1h']);
+    expect(loaded.sources['orchestrator.mtfTimeframes']).toBe('env:MTF_TIMEFRAMES');
     expect(TradingConfig.get('evalRules.ttp.accountLimits.dailyLossDollars')).toBe(
       loaded.config.evalRules.ttp.accountLimits.dailyLossDollars
     );
@@ -374,7 +405,7 @@ describe('ConfigLoader live trading safety guard', () => {
     process.env.TTP_RULES_ENABLED = 'true';
     delete process.env.MIN_TRADE_CONFIDENCE;
 
-    expect(() => loadConfig()).toThrow(/MIN_TRADE_CONFIDENCE from process env, got dotenv:MIN_TRADE_CONFIDENCE/);
+    expect(() => loadConfig()).toThrow(/MIN_TRADE_CONFIDENCE from process env or selected tuning profile, got dotenv:MIN_TRADE_CONFIDENCE/);
   });
 
   test('throws during live startup when EVAL_RULES_ENABLED is false or unset', () => {

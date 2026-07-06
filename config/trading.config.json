@@ -631,6 +631,32 @@
       "maxHoldTimeMinutes": 480
     }
   },
+  "strategyBehavior": {
+    "emaCrossover": {
+      "entryEventsOnly": false,
+      "confirmBars": 0,
+      "warmupBars": 10
+    },
+    "trendRegimeGate": {
+      "enabled": false,
+      "minConfidence": 0.25,
+      "strategies": [
+        "EMASMACrossover",
+        "MADynamicSR",
+        "MultiTimeframe",
+        "DonchianBreakout",
+        "PropSafeEMAPullback",
+        "EMATrendRetest",
+        "TimeSeriesMomentum"
+      ]
+    },
+    "atrContracts": {
+      "enabled": false,
+      "stopMultiplier": 2,
+      "trailMultiplier": 2,
+      "trailingActivationR": 1
+    }
+  },
   "entryLogic": {
     "sizing": {
       "enabled": true,

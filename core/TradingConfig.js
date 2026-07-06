@@ -74,6 +74,33 @@ const CONFIG_LOADER_RUNTIME_PATHS = Object.freeze({
   'evalRules.ttp.consistency.profitTargetDollars': 'evalRules.ttp.consistency.profitTargetDollars',
   'evalRules.ttp.consistency.maxPositionProfitRatio': 'evalRules.ttp.consistency.maxPositionProfitRatio',
   'evalRules.ttp.consistency.maxProfitTargetInitialBalanceRatio': 'evalRules.ttp.consistency.maxProfitTargetInitialBalanceRatio',
+  'exitLogic.beScaleOut.enabled': 'exitLogic.beScaleOut.enabled',
+  'exitLogic.beScaleOut.triggerType': 'exitLogic.beScaleOut.triggerType',
+  'exitLogic.beScaleOut.fixedPercentTrigger': 'exitLogic.beScaleOut.fixedPercentTrigger',
+  'exitLogic.beScaleOut.scaleOutFraction': 'exitLogic.beScaleOut.scaleOutFraction',
+  'exitLogic.beScaleOut.feeBufferPercent': 'exitLogic.beScaleOut.feeBufferPercent',
+  'exitLogic.tieredExit.enabled': 'exitLogic.tieredExit.enabled',
+  'exitLogic.tieredExit.tier1ExitFraction': 'exitLogic.tieredExit.tier1ExitFraction',
+  'exitLogic.tieredExit.tier2ExitFraction': 'exitLogic.tieredExit.tier2ExitFraction',
+  'exitLogic.tieredExit.tier3ExitFraction': 'exitLogic.tieredExit.tier3ExitFraction',
+  'exitLogic.tieredExit.enableMarketAdaptation': 'exitLogic.tieredExit.enableMarketAdaptation',
+  'exitLogic.tieredExit.trendingTargetMultiplier': 'exitLogic.tieredExit.trendingTargetMultiplier',
+  'exitLogic.tieredExit.rangingTargetMultiplier': 'exitLogic.tieredExit.rangingTargetMultiplier',
+  'exitLogic.tieredExit.highConfidenceThreshold': 'exitLogic.tieredExit.highConfidenceThreshold',
+  'exitLogic.tieredExit.highConfidenceMultiplier': 'exitLogic.tieredExit.highConfidenceMultiplier',
+  'exitLogic.tieredExit.lowConfidenceThreshold': 'exitLogic.tieredExit.lowConfidenceThreshold',
+  'exitLogic.tieredExit.lowConfidenceMultiplier': 'exitLogic.tieredExit.lowConfidenceMultiplier',
+  'strategyBehavior.emaCrossover.entryEventsOnly': 'strategyBehavior.emaCrossover.entryEventsOnly',
+  'strategyBehavior.emaCrossover.confirmBars': 'strategyBehavior.emaCrossover.confirmBars',
+  'strategyBehavior.emaCrossover.warmupBars': 'strategyBehavior.emaCrossover.warmupBars',
+  'strategyBehavior.trendRegimeGate.enabled': 'strategyBehavior.trendRegimeGate.enabled',
+  'strategyBehavior.trendRegimeGate.minConfidence': 'strategyBehavior.trendRegimeGate.minConfidence',
+  'strategyBehavior.trendRegimeGate.strategies': 'strategyBehavior.trendRegimeGate.strategies',
+  'strategyBehavior.atrContracts.enabled': 'strategyBehavior.atrContracts.enabled',
+  'strategyBehavior.atrContracts.stopMultiplier': 'strategyBehavior.atrContracts.stopMultiplier',
+  'strategyBehavior.atrContracts.trailMultiplier': 'strategyBehavior.atrContracts.trailMultiplier',
+  'strategyBehavior.atrContracts.trailingActivationR': 'strategyBehavior.atrContracts.trailingActivationR',
+  'orchestrator.mtfTimeframes': 'orchestrator.mtfTimeframes',
   'trail.atrMultiplier': 'trail.atrMultiplier',
   'trail.minActivation': 'trail.minActivation',
   'trail.trendWiden': 'trail.trendWiden',
@@ -160,26 +187,9 @@ function applyConfigLoaderSectionValues(section, result) {
   }
 }
 
-function selectedProfileEnvValue(key) {
-  const profileName = String(
-    process.env.BACKTEST_TUNING_PROFILE ||
-    process.env.TUNING_PROFILE ||
-    ''
-  ).trim();
-  if (!profileName) return undefined;
-  const definitions = tradingConfigFile.tuningProfiles?.definitions;
-  const profile = definitions && definitions[profileName];
-  if (!profile || !profile.env || !Object.prototype.hasOwnProperty.call(profile.env, key)) {
-    return undefined;
-  }
-  return profile.env[key];
-}
-
 function envSourceValue(key) {
   const direct = process.env[key];
   if (direct !== undefined && direct !== '') return direct;
-  const profileValue = selectedProfileEnvValue(key);
-  if (profileValue !== undefined && profileValue !== '') return profileValue;
   return undefined;
 }
 
@@ -221,6 +231,13 @@ function requiredConfigNumber(configPath) {
     throw new Error(`[TradingConfig] config/trading.config.json ${configPath} must be a finite number`);
   }
   return value;
+}
+
+function configValue(configPath, fallback = undefined) {
+  const value = configPath.split('.').reduce((current, part) => (
+    current && Object.prototype.hasOwnProperty.call(current, part) ? current[part] : undefined
+  ), tradingConfigFile);
+  return value === undefined ? fallback : value;
 }
 
 const PROFILE_FORBIDDEN_ENV_KEYS = Object.freeze([
@@ -294,6 +311,7 @@ const PROFILE_ENV_CONFIG_PATHS = Object.freeze({
   EMA_CROSSOVER_ENTRY_EVENTS_ONLY: Object.freeze(['strategyBehavior.emaCrossover.entryEventsOnly']),
   EMA_CROSSOVER_CONFIRM_BARS: Object.freeze(['strategyBehavior.emaCrossover.confirmBars']),
   EMA_CROSSOVER_WARMUP_BARS: Object.freeze(['strategyBehavior.emaCrossover.warmupBars']),
+  MTF_TIMEFRAMES: Object.freeze(['orchestrator.mtfTimeframes']),
   ORCH_MIN_CANDLES_EMA: Object.freeze(['orchestrator.minCandlesEMA']),
   TREND_REGIME_GATE_ENABLED: Object.freeze(['strategyBehavior.trendRegimeGate.enabled']),
   TREND_REGIME_GATE_MIN_CONFIDENCE: Object.freeze(['strategyBehavior.trendRegimeGate.minConfidence']),
@@ -322,6 +340,10 @@ const PROFILE_BOOLEAN_ENV_KEYS = Object.freeze(new Set([
 const PROFILE_STRING_ENV_KEYS = Object.freeze(new Set([
   'EXIT_SYSTEM',
   'FEE_MODEL',
+]));
+
+const PROFILE_LIST_ENV_KEYS = Object.freeze(new Set([
+  'MTF_TIMEFRAMES',
 ]));
 
 const PROFILE_RUNTIME_SNAPSHOT_ENV_KEYS = Object.freeze(new Set([
@@ -1380,8 +1402,7 @@ const BASE_CONFIG = {
     // TPO strength scaling
     tpoStrengthMultiplier: env('TPO_STRENGTH_MULT', 10),    // Scale 0.03-0.1 -> 0.3-1.0
 
-    // MTF timeframes (comma-separated in .env)
-    mtfTimeframes: process.env.MTF_TIMEFRAMES?.split(',') || ['1m', '5m', '15m', '1h', '4h'],
+    mtfTimeframes: configValue('orchestrator.mtfTimeframes', ['1m', '5m', '15m', '1h', '4h']),
     mtfConfluenceBooster: {
       enabled: envBool('ENABLE_MTF_CONFLUENCE_BOOSTER', true),
       minScore: env('MTF_BOOSTER_MIN_SCORE', 0.30),
@@ -1988,6 +2009,14 @@ function coerceProfileEnvValue(envKey, rawValue) {
       throw new Error(`[TradingConfig] Tuning profile env key ${envKey} requires a non-empty string`);
     }
     return value;
+  }
+
+  if (PROFILE_LIST_ENV_KEYS.has(envKey)) {
+    const values = String(rawValue || '').split(',').map(item => item.trim()).filter(Boolean);
+    if (values.length === 0) {
+      throw new Error(`[TradingConfig] Tuning profile env key ${envKey} requires a comma-separated list`);
+    }
+    return values;
   }
 
   const value = Number(rawValue);

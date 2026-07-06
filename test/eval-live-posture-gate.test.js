@@ -89,6 +89,7 @@ function validEvalLiveEnv(overrides = {}) {
     TTP_BLOCK_ENTRIES_AFTER_CUTOFF: 'true',
     TTP_LIQUIDATION_ENABLED: 'true',
     TTP_LIQUIDATION_MINUTES_BEFORE_CLOSE: '10',
+    TTP_ENTRY_BUFFER_MINUTES_BEFORE_CUTOFF: '30',
     TTP_ACCOUNT_LIMITS_ENABLED: 'true',
     TTP_DAILY_LOSS_PAUSE_ENABLED: 'true',
     TTP_MAX_LOSS_ENABLED: 'true',
@@ -544,7 +545,7 @@ describe('eval live posture gate', () => {
     expect(report.warnings.join('\n')).toMatch(/TTP_ACCOUNT_START_OF_DAY_DATE 2026-01-01 does not match current New York date/);
   });
 
-  test('rejects backtest tuning profile bleed and unsafe runtime tuning profiles', () => {
+  test('rejects backtest tuning profile bleed while allowing safe runtime profile materialization', () => {
     const backtestProfileReport = validateEvalLivePosture(validEvalLiveEnv({
       BACKTEST_TUNING_PROFILE: 'current-eval',
     }));
@@ -552,12 +553,27 @@ describe('eval live posture gate', () => {
     expect(backtestProfileReport.errors.join('\n')).toMatch(/BACKTEST_TUNING_PROFILE must not be set/);
 
     const runtimeProfileReport = validateEvalLivePosture(validEvalLiveEnv({
+      TUNING_PROFILE: 'trey-spec',
+      MIN_TRADE_CONFIDENCE: '0.91',
+      TTP_ENTRY_BUFFER_MINUTES_BEFORE_CUTOFF: '0',
+      TIERED_EXIT_ENABLED: 'true',
+    }));
+    expect(runtimeProfileReport.status).toBe('PASS');
+    expect(runtimeProfileReport.checked.env.MIN_TRADE_CONFIDENCE).toEqual({
+      value: '0.5',
+      source: 'profile:trey-spec:MIN_TRADE_CONFIDENCE',
+    });
+    expect(runtimeProfileReport.checked.config['evalRules.ttp.marketTime.entryBufferMinutesBeforeCutoff']).toEqual({
+      value: 30,
+      source: 'profile:trey-spec:TTP_ENTRY_BUFFER_MINUTES_BEFORE_CUTOFF',
+    });
+
+    const unsafeProfileReport = validateEvalLivePosture(validEvalLiveEnv({
       TUNING_PROFILE: 'current-eval',
     }));
-    expect(runtimeProfileReport.status).toBe('FAIL');
-    expect(runtimeProfileReport.errors.join('\n')).toMatch(/startup-snapshot key\(s\).*RISK_MANAGER_BYPASS/);
-    expect(runtimeProfileReport.errors.join('\n')).toMatch(/RISK_MANAGER_BYPASS=true/);
-    expect(runtimeProfileReport.errors.join('\n')).toMatch(/ACCOUNT_DRAWDOWN_BYPASS=true/);
+    expect(unsafeProfileReport.status).toBe('FAIL');
+    expect(unsafeProfileReport.errors.join('\n')).toMatch(/RISK_MANAGER_BYPASS=true/);
+    expect(unsafeProfileReport.errors.join('\n')).toMatch(/ACCOUNT_DRAWDOWN_BYPASS=true/);
   });
 
   test('quarantines stale eval earnings status without failing posture', () => {

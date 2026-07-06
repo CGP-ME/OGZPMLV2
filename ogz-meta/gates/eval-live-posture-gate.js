@@ -90,6 +90,7 @@ const REQUIRED_NUMERIC_CONFIG = Object.freeze([
   'evalRules.ttp.volumeCap.percent',
   'evalRules.ttp.volumeCap.maxReferenceAgeMs',
   'evalRules.ttp.marketTime.cutoffMinutesBeforeClose',
+  'evalRules.ttp.marketTime.entryBufferMinutesBeforeCutoff',
   'evalRules.ttp.accountLimits.accountStartOfDayEquity',
   'evalRules.ttp.accountLimits.dailyLossDollars',
   'evalRules.ttp.accountLimits.maxLossThresholdEquity',
@@ -147,6 +148,20 @@ function buildEffectiveEnv(sourceEnv = process.env, options = {}) {
   }
   for (const key of Object.keys(baseEnv)) {
     sources[key] = `env:${key}`;
+  }
+
+  const profileKey = values.BACKTEST_TUNING_PROFILE
+    ? 'BACKTEST_TUNING_PROFILE'
+    : (values.TUNING_PROFILE ? 'TUNING_PROFILE' : null);
+  if (profileKey) {
+    const profileName = String(values[profileKey] || '').trim();
+    const profile = tradingConfigFile.tuningProfiles?.definitions?.[profileName];
+    if (profile && profile.env) {
+      for (const [key, value] of Object.entries(profile.env)) {
+        values[key] = String(value);
+        sources[key] = `profile:${profileName}:${key}`;
+      }
+    }
   }
 
   return {
@@ -366,8 +381,10 @@ function expectEnvProcessSource(report, key) {
   };
   report.checked.env[key] = { ...existing, source };
 
-  if (source !== `env:${key}`) {
-    addError(report.errors, `${key} must come from process env for eval-live posture, got ${source}`);
+  const selectedProfileSource = /^profile:[^:]+:[A-Z0-9_]+$/.test(String(source || '')) &&
+    source.endsWith(`:${key}`);
+  if (source !== `env:${key}` && !selectedProfileSource) {
+    addError(report.errors, `${key} must come from process env or selected tuning profile for eval-live posture, got ${source}`);
   }
 }
 
@@ -533,15 +550,6 @@ function validateRuntimeProfile(report) {
   } catch (error) {
     addError(report.errors, `Runtime tuning profile '${profileName}' failed to resolve: ${error.message}`);
     return;
-  }
-
-  const runtimeSnapshotKeys = Array.from(TradingConfig.PROFILE_RUNTIME_SNAPSHOT_ENV_KEYS || [])
-    .filter((key) => hasOwn(profile.env || {}, key));
-  if (runtimeSnapshotKeys.length > 0) {
-    addError(
-      report.errors,
-      `Runtime tuning profile '${profileName}' owns startup-snapshot key(s) ${runtimeSnapshotKeys.join(', ')} and cannot be used for eval-live posture`
-    );
   }
 
   for (const key of ['RISK_MANAGER_BYPASS', 'ACCOUNT_DRAWDOWN_BYPASS']) {

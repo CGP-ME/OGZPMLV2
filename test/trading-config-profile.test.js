@@ -246,23 +246,39 @@ describe('TradingConfig runtime profile contract', () => {
     }));
   });
 
-  test('explicit TUNING_PROFILE selector materializes trey-spec env-backed config at module load', () => {
+  test('explicit TUNING_PROFILE selector materializes trey-spec through ConfigLoader before TradingConfig reads', () => {
     const previous = {
+      DOTENV_CONFIG_PATH: process.env.DOTENV_CONFIG_PATH,
+      EXECUTION_MODE: process.env.EXECUTION_MODE,
+      CANDLE_SOURCE: process.env.CANDLE_SOURCE,
+      BACKTEST_MODE: process.env.BACKTEST_MODE,
       TUNING_PROFILE: process.env.TUNING_PROFILE,
       BACKTEST_TUNING_PROFILE: process.env.BACKTEST_TUNING_PROFILE,
       EMA_CROSSOVER_ENTRY_EVENTS_ONLY: process.env.EMA_CROSSOVER_ENTRY_EVENTS_ONLY,
+      EMA_CROSSOVER_WARMUP_BARS: process.env.EMA_CROSSOVER_WARMUP_BARS,
     };
 
     jest.resetModules();
+    process.env.DOTENV_CONFIG_PATH = '/tmp/ogzprime-test-missing.env';
+    process.env.EXECUTION_MODE = 'backtest';
+    process.env.CANDLE_SOURCE = 'file';
+    process.env.BACKTEST_MODE = 'true';
     process.env.TUNING_PROFILE = 'trey-spec';
     delete process.env.BACKTEST_TUNING_PROFILE;
     delete process.env.EMA_CROSSOVER_ENTRY_EVENTS_ONLY;
+    process.env.EMA_CROSSOVER_WARMUP_BARS = '10';
 
     try {
+      const ConfigLoader = require('../foundation/ConfigLoader');
+      const loaded = ConfigLoader.load({ force: true, silent: true });
       const FreshTradingConfig = require('../core/TradingConfig');
       expect(FreshTradingConfig.get('strategyBehavior.emaCrossover.entryEventsOnly')).toBe(true);
       expect(FreshTradingConfig.get('strategyBehavior.emaCrossover.warmupBars')).toBe(200);
       expect(FreshTradingConfig.get('strategyBehavior.atrContracts.enabled')).toBe(true);
+      expect(FreshTradingConfig.get('exitLogic.beScaleOut.scaleOutFraction')).toBe(0.25);
+      expect(FreshTradingConfig.get('exitLogic.tieredExit.enabled')).toBe(false);
+      expect(loaded.sources['strategyBehavior.emaCrossover.warmupBars']).toBe('profile:trey-spec:EMA_CROSSOVER_WARMUP_BARS');
+      expect(loaded.sources['exitLogic.tieredExit.enabled']).toBe('profile:trey-spec:TIERED_EXIT_ENABLED');
     } finally {
       for (const [key, value] of Object.entries(previous)) {
         if (value === undefined) {

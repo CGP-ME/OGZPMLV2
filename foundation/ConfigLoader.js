@@ -55,6 +55,13 @@ function requiredConfiguredBool(configPath) {
   return value;
 }
 
+function configuredValue(configPath, fallback = undefined) {
+  const value = configPath.split('.').reduce((current, part) => (
+    current && Object.prototype.hasOwnProperty.call(current, part) ? current[part] : undefined
+  ), tradingConfigFile);
+  return value === undefined ? fallback : value;
+}
+
 const LIVE_MIN_TRADE_CONFIDENCE_FLOOR = requiredConfiguredNumber('confidence.minTradeConfidence');
 
 // ═══════════════════════════════════════════════════════════════
@@ -125,6 +132,17 @@ function envJsonObject(key, fallback) {
   }
 }
 
+function envStringList(key, fallback) {
+  const val = envSource()[key];
+  if (val !== undefined && val !== '') {
+    return {
+      value: String(val).split(',').map(item => item.trim()).filter(Boolean),
+      source: valueSource(key),
+    };
+  }
+  return { value: fallback, source: 'default' };
+}
+
 function defaultJournalDataDir(dataDir) {
   const root = dataDir || path.join(process.cwd(), 'data');
   return path.join(root, 'journal');
@@ -150,6 +168,36 @@ function buildDotenvSources(dotenvValues, sourceEnv) {
     }
   });
   return sources;
+}
+
+function applyTuningProfileEnv(sourceEnv, sourceOverrides = {}) {
+  const selectedKey = sourceEnv.BACKTEST_TUNING_PROFILE
+    ? 'BACKTEST_TUNING_PROFILE'
+    : (sourceEnv.TUNING_PROFILE ? 'TUNING_PROFILE' : null);
+  if (!selectedKey) {
+    return { values: sourceEnv, sources: sourceOverrides };
+  }
+
+  const profileName = String(sourceEnv[selectedKey] || '').trim();
+  if (!profileName) {
+    return { values: sourceEnv, sources: sourceOverrides };
+  }
+
+  const definitions = tradingConfigFile.tuningProfiles?.definitions || {};
+  const profile = definitions[profileName];
+  if (!profile) {
+    throw new Error(
+      `[ConfigLoader] Unknown tuning profile '${profileName}'. Available: ${Object.keys(definitions).join(', ')}`
+    );
+  }
+
+  const values = { ...sourceEnv };
+  const sources = { ...sourceOverrides };
+  for (const [key, value] of Object.entries(profile.env || {})) {
+    values[key] = String(value);
+    sources[key] = `profile:${profileName}:${key}`;
+  }
+  return { values, sources };
 }
 
 function buildEffectiveEnv(sourceEnv, sourceOverrides = {}) {
@@ -291,6 +339,58 @@ function buildConfig() {
         consecutiveLosses: track('entryLogic.symbolLossCooldown.consecutiveLosses', envInt('SYMBOL_LOSS_COOLDOWN_CONSECUTIVE_LOSSES', tradingConfigFile.entryLogic?.symbolLossCooldown?.consecutiveLosses || 2)),
         cooldownMinutes: track('entryLogic.symbolLossCooldown.cooldownMinutes', envFloat('SYMBOL_LOSS_COOLDOWN_MINUTES', tradingConfigFile.entryLogic?.symbolLossCooldown?.cooldownMinutes || 120)),
       },
+    },
+
+    exitLogic: {
+      beScaleOut: {
+        enabled: track('exitLogic.beScaleOut.enabled', envBool('BE_SCALEOUT_ENABLED', configuredValue('exitLogic.beScaleOut.enabled', true))),
+        triggerType: track('exitLogic.beScaleOut.triggerType', envStr('BE_SCALEOUT_TRIGGER', configuredValue('exitLogic.beScaleOut.triggerType', 'one_to_one_r'))),
+        fixedPercentTrigger: track('exitLogic.beScaleOut.fixedPercentTrigger', envFloat('BE_SCALEOUT_TRIGGER_PCT', configuredValue('exitLogic.beScaleOut.fixedPercentTrigger', 0.5))),
+        scaleOutFraction: track('exitLogic.beScaleOut.scaleOutFraction', envFloat('BE_SCALEOUT_FRACTION', configuredValue('exitLogic.beScaleOut.scaleOutFraction', 0.5))),
+        feeBufferPercent: track('exitLogic.beScaleOut.feeBufferPercent', envFloat('BE_SCALEOUT_FEE_BUFFER', configuredValue('exitLogic.beScaleOut.feeBufferPercent', 0.05))),
+      },
+      tieredExit: {
+        enabled: track('exitLogic.tieredExit.enabled', envBool('TIERED_EXIT_ENABLED', configuredValue('exitLogic.tieredExit.enabled', true))),
+        tier1ExitFraction: track('exitLogic.tieredExit.tier1ExitFraction', envFloat('TIER1_EXIT_FRACTION', configuredValue('exitLogic.tieredExit.tier1ExitFraction', 0.3))),
+        tier2ExitFraction: track('exitLogic.tieredExit.tier2ExitFraction', envFloat('TIER2_EXIT_FRACTION', configuredValue('exitLogic.tieredExit.tier2ExitFraction', 0.3))),
+        tier3ExitFraction: track('exitLogic.tieredExit.tier3ExitFraction', envFloat('TIER3_EXIT_FRACTION', configuredValue('exitLogic.tieredExit.tier3ExitFraction', 0.2))),
+        enableMarketAdaptation: track('exitLogic.tieredExit.enableMarketAdaptation', envBool('TIER_MARKET_ADAPTATION_ENABLED', configuredValue('exitLogic.tieredExit.enableMarketAdaptation', true))),
+        trendingTargetMultiplier: track('exitLogic.tieredExit.trendingTargetMultiplier', envFloat('TIER_TREND_MULT', configuredValue('exitLogic.tieredExit.trendingTargetMultiplier', 1.3))),
+        rangingTargetMultiplier: track('exitLogic.tieredExit.rangingTargetMultiplier', envFloat('TIER_RANGE_MULT', configuredValue('exitLogic.tieredExit.rangingTargetMultiplier', 0.8))),
+        highConfidenceThreshold: track('exitLogic.tieredExit.highConfidenceThreshold', envFloat('TIER_HIGH_CONF_THRESHOLD', configuredValue('exitLogic.tieredExit.highConfidenceThreshold', 0.8))),
+        highConfidenceMultiplier: track('exitLogic.tieredExit.highConfidenceMultiplier', envFloat('TIER_HIGH_CONF_MULT', configuredValue('exitLogic.tieredExit.highConfidenceMultiplier', 1.2))),
+        lowConfidenceThreshold: track('exitLogic.tieredExit.lowConfidenceThreshold', envFloat('TIER_LOW_CONF_THRESHOLD', configuredValue('exitLogic.tieredExit.lowConfidenceThreshold', 0.6))),
+        lowConfidenceMultiplier: track('exitLogic.tieredExit.lowConfidenceMultiplier', envFloat('TIER_LOW_CONF_MULT', configuredValue('exitLogic.tieredExit.lowConfidenceMultiplier', 0.8))),
+      },
+    },
+
+    strategyBehavior: {
+      emaCrossover: {
+        entryEventsOnly: track('strategyBehavior.emaCrossover.entryEventsOnly', envBool('EMA_CROSSOVER_ENTRY_EVENTS_ONLY', configuredValue('strategyBehavior.emaCrossover.entryEventsOnly', false))),
+        confirmBars: track('strategyBehavior.emaCrossover.confirmBars', envFloat('EMA_CROSSOVER_CONFIRM_BARS', configuredValue('strategyBehavior.emaCrossover.confirmBars', 0))),
+        warmupBars: track('strategyBehavior.emaCrossover.warmupBars', envFloat('EMA_CROSSOVER_WARMUP_BARS', configuredValue('strategyBehavior.emaCrossover.warmupBars', 10))),
+      },
+      trendRegimeGate: {
+        enabled: track('strategyBehavior.trendRegimeGate.enabled', envBool('TREND_REGIME_GATE_ENABLED', configuredValue('strategyBehavior.trendRegimeGate.enabled', false))),
+        minConfidence: track('strategyBehavior.trendRegimeGate.minConfidence', envFloat('TREND_REGIME_GATE_MIN_CONFIDENCE', configuredValue('strategyBehavior.trendRegimeGate.minConfidence', 0.25))),
+        strategies: track('strategyBehavior.trendRegimeGate.strategies', {
+          value: configuredValue('strategyBehavior.trendRegimeGate.strategies', []),
+          source: 'default',
+        }),
+      },
+      atrContracts: {
+        enabled: track('strategyBehavior.atrContracts.enabled', envBool('ATR_CONTRACTS_ENABLED', configuredValue('strategyBehavior.atrContracts.enabled', false))),
+        stopMultiplier: track('strategyBehavior.atrContracts.stopMultiplier', envFloat('ATR_STOP_MULTIPLIER', configuredValue('strategyBehavior.atrContracts.stopMultiplier', 2.0))),
+        trailMultiplier: track('strategyBehavior.atrContracts.trailMultiplier', envFloat('ATR_TRAIL_MULTIPLIER', configuredValue('strategyBehavior.atrContracts.trailMultiplier', 2.0))),
+        trailingActivationR: track('strategyBehavior.atrContracts.trailingActivationR', envFloat('ATR_TRAILING_ACTIVATION_R', configuredValue('strategyBehavior.atrContracts.trailingActivationR', 1.0))),
+      },
+    },
+
+    orchestrator: {
+      mtfTimeframes: track('orchestrator.mtfTimeframes', envStringList(
+        'MTF_TIMEFRAMES',
+        configuredValue('orchestrator.mtfTimeframes', ['1m', '5m', '15m', '1h', '4h'])
+      )),
     },
 
     // ─── EXIT PARAMETERS ───
@@ -597,8 +697,10 @@ function validate(config, sources = {}) {
   }
   if (config.mode.liveTrading) {
     const minTradeConfidenceSource = sources['confidence.minTradeConfidence'];
-    if (minTradeConfidenceSource !== 'env:MIN_TRADE_CONFIDENCE') {
-      errors.push(`LIVE_TRADING=true requires MIN_TRADE_CONFIDENCE from process env, got ${minTradeConfidenceSource || 'missing'} because live confidence must be process-explicit`);
+    const minTradeConfidenceExplicit = minTradeConfidenceSource === 'env:MIN_TRADE_CONFIDENCE' ||
+      /^profile:[^:]+:MIN_TRADE_CONFIDENCE$/.test(String(minTradeConfidenceSource || ''));
+    if (!minTradeConfidenceExplicit) {
+      errors.push(`LIVE_TRADING=true requires MIN_TRADE_CONFIDENCE from process env or selected tuning profile, got ${minTradeConfidenceSource || 'missing'}`);
     }
     if (!Number.isFinite(config.confidence.minTradeConfidence) || config.confidence.minTradeConfidence < LIVE_MIN_TRADE_CONFIDENCE_FLOOR) {
       errors.push(`LIVE_TRADING=true requires MIN_TRADE_CONFIDENCE >= ${LIVE_MIN_TRADE_CONFIDENCE_FLOOR}, got ${config.confidence.minTradeConfidence}`);
@@ -836,10 +938,11 @@ function buildSnapshot(sourceEnv = process.env, opts = {}) {
   const dotenvValues = opts.loadDotenv === false ? {} : loadDotenvValues(envPath);
   const baseEnv = { ...dotenvValues, ...sourceEnv };
   const baseEnvSources = buildDotenvSources(dotenvValues, sourceEnv);
+  const profiledEnv = applyTuningProfileEnv(baseEnv, baseEnvSources);
 
   const previousEnv = activeEnv;
   const previousEnvSources = activeEnvSources;
-  const effectiveEnv = buildEffectiveEnv(baseEnv, baseEnvSources);
+  const effectiveEnv = buildEffectiveEnv(profiledEnv.values, profiledEnv.sources);
   activeEnv = effectiveEnv.values;
   activeEnvSources = effectiveEnv.sources;
 
