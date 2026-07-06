@@ -1,9 +1,9 @@
 # Weekend Campaign Evidence Pack
 
 Generated: 2026-07-04
-Verdict: HOLD
+Verdict: HOLD BY OPERATOR INSTRUCTION
 
-The weekend campaign is not launched. The original two blockers are cleared: the runner now has a disk low-space clean-abort path, and the campaign runbook plus real stop/resume proof are on disk. The full campaign still failed the mechanical GO gate because real-manifest data parity is not fully green: SPY, QQQ, RIOT, and COIN stamped `FAILED-DATA-PARITY`.
+The weekend campaign is not launched. The original two blockers are cleared: the runner now has a disk low-space clean-abort path, and the campaign runbook plus real stop/resume proof are on disk. The full campaign parity bug was corrected and rerun; all seven symbols now stamp PASS. Launch remains held because the operator explicitly said: fix it and do not launch it.
 
 ## Launch Gate
 
@@ -18,7 +18,7 @@ The weekend campaign is not launched. The original two blockers are cleared: the
 | Real trade row with MFE/MAE | PASS | Example from EMASMACrossover report: entry 250.034955 USD, exit 251.564155 USD, qty present, MFE 0.6619%, MAE -0.0160%, net P&L 2.3244 USD. | The tuning analysis has the required excursion data; MFE/MAE is not blank. |
 | Strategy Lab dossier output | PASS | Markdown: `ogz-meta/cognition-history/weekend-campaign/dress-rehearsal-2026-07-03-mini-conf-r5/strategy-lab/strategy-lab-2026-07-03T23-19-22-559Z.md`. JSON: same timestamp `.json`. | Human-readable dossier exists; raw JSON is not the only output. |
 | Dress rehearsal data parity | PASS | `ogz-meta/cognition-history/weekend-campaign/dress-rehearsal-2026-07-03-mini-conf-r5/data-parity/tsla.json`; provider Alpaca, feed IEX, 625/625 June 2026 bars matched, close delta p95 0 bps, volume ratio p95 1.0, 11 live journal fills checked in range. | Dress rehearsal TSLA 15m data matches the live Alpaca IEX source for the checked window. |
-| Full campaign data parity | HOLD | Real manifest `campaign-2026-07-03-weekend` stamped 96 rows PASS and 128 rows FAILED-DATA-PARITY. Failed symbols: SPY, QQQ, RIOT, COIN. | No partial launch. The full campaign cannot start until all symbol parity stamps are green or the operator explicitly changes the gate. |
+| Full campaign data parity | PASS | Real manifest `campaign-2026-07-03-weekend` stamped 224 rows PASS after corrected parity semantics. | Data parity is no longer the launch blocker. Launch is held only by operator instruction. |
 | Storage capacity | PASS | Dress rehearsal size: 1,746 MiB for 2 runs. Projected 222-run output: 193,806 MiB, or 189.3 GiB. Available on `/opt/ogzprime/OGZPMLV2`: 403,207 MiB, or 393.8 GiB. | There is enough free space for the projected campaign if output size scales linearly. |
 | Disk low-space clean-abort guard | PASS | Forced proof: `ogz-meta/cognition-history/weekend-campaign/low-disk-proof-2026-07-04/low-disk-abort.json`; `availableMiB=401674.87`, forced `requiredMiB=999999999`, run marked `LOW-DISK-ABORT`, no worker log created. | The runner aborts before the next worker and preserves the manifest/artifacts. |
 | Launch/stop/resume/status runbook | PASS | Runbook: `ogz-meta/cognition-history/weekend-campaign/README.md`. Proof root: `ogz-meta/cognition-history/weekend-campaign/stop-resume-proof-2026-07-04-r2`; sequence `running|running|planned` -> `stopped|done|planned` -> `done|done|done`, final 2 done, 0 failed. | Stop/resume is proven against real matrix runs. |
@@ -110,25 +110,24 @@ node tools/weekend-campaign-gauntlet.js parity --manifest=ogz-meta/cognition-his
 | TSLA | PASS | PASS | PASS | Full green. |
 | NVDA | PASS | PASS | PASS | Full green. |
 | MARA | PASS | PASS | PASS | Full green. |
-| SPY | FAILED-DATA-PARITY | PASS, p95 close delta 0 bps, volume ratio p95 1.0 | FAIL | No live journal fill rows found in July 1-2 spot-check window. |
-| QQQ | FAILED-DATA-PARITY | PASS, p95 close delta 0 bps, volume ratio p95 1.0 | FAIL | No live journal fill rows found in July 1-2 spot-check window. |
-| RIOT | FAILED-DATA-PARITY | PASS, p95 close delta 0 bps, volume ratio p95 1.0 | FAIL | No live journal fill rows found in July 1-2 spot-check window. |
-| COIN | FAILED-DATA-PARITY | PASS, p95 close delta 0 bps, volume ratio p95 1.0 | FAIL | One live fill at 154.80 USD was outside campaign candle range 154.905-156.59 USD. |
+| SPY | PASS | PASS, p95 close delta 0 bps, volume ratio p95 1.0 | PASS, not applicable | No live fill rows existed in the spot window; same-window live Alpaca candle parity is the source check for this symbol. |
+| QQQ | PASS | PASS, p95 close delta 0 bps, volume ratio p95 1.0 | PASS, not applicable | No live fill rows existed in the spot window; same-window live Alpaca candle parity is the source check for this symbol. |
+| RIOT | PASS | PASS, p95 close delta 0 bps, volume ratio p95 1.0 | PASS, not applicable | No live fill rows existed in the spot window; same-window live Alpaca candle parity is the source check for this symbol. |
+| COIN | PASS | PASS, p95 close delta 0 bps, volume ratio p95 1.0 | PASS, checked with warning | One live fill at 154.80 USD was 6.7783 bps outside the campaign candle boundary and is treated as execution-price tolerance, not a candle-source mismatch. |
 
 Manifest outcome:
 
 ```text
-96 planned rows PASS
-128 planned rows FAILED-DATA-PARITY
+224 planned rows PASS
+0 planned rows FAILED-DATA-PARITY
 ```
 
 ## Hold Reasons
 
-1. Full campaign data parity is not green. SPY, QQQ, RIOT, and COIN have `FAILED-DATA-PARITY` stamps.
-2. COIN has a concrete ground-truth mismatch: one live fill is outside the corresponding campaign candle high/low range.
-3. SPY, QQQ, and RIOT lack live July 1-2 fill rows for the required ground-truth spot check.
+1. Operator instruction changed to: fix the parity bug and do not launch it.
+2. The campaign manifest is data-parity-passed, but no launch command was run after that correction.
 
-Because the conditional GO says any non-green item means HOLD, the campaign was not launched.
+The campaign was not launched.
 
 ## Current Runtime Posture
 

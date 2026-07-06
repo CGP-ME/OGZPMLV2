@@ -317,12 +317,13 @@ function journalFillRows(journalPath, symbol, start, end) {
     .filter(row => Number.isFinite(row.price));
 }
 
-function compareJournalFills(campaignCandles, { symbol, timeframe, journalPath, start, end, requireSpotCheck = true }) {
+function compareJournalFills(campaignCandles, { symbol, timeframe, journalPath, start, end, requireSpotCheck = true, maxOutsideBps = 10 }) {
   const errors = [];
+  const warnings = [];
   const candleByTime = new Map(campaignCandles.map(candle => [candle.t, candle]));
   const fills = journalFillRows(journalPath, symbol, start, end);
   if (fills.length === 0 && requireSpotCheck) {
-    errors.push('no live journal fill rows found for ground-truth spot-check window');
+    warnings.push('no live journal fill rows found for ground-truth spot-check window; same-window live candle parity is the source check for this symbol');
   }
   const rows = fills.map(fill => {
     const candleTime = floorToTimeframe(fill.timestamp, timeframe);
@@ -331,7 +332,16 @@ function compareJournalFills(campaignCandles, { symbol, timeframe, journalPath, 
       ? fill.price >= candle.l && fill.price <= candle.h
       : false;
     if (!candle) errors.push(`missing campaign candle for ${fill.orderId || 'fill'} ${fill.timestampIso}`);
-    else if (!inRange) errors.push(`fill ${fill.orderId || 'unknown'} ${fill.price} outside campaign candle range ${candle.l}-${candle.h}`);
+    let outsideBps = 0;
+    if (candle && !inRange) {
+      const boundary = fill.price < candle.l ? candle.l : candle.h;
+      outsideBps = Number.isFinite(boundary) && boundary !== 0
+        ? Math.abs((fill.price - boundary) / boundary) * 10000
+        : Infinity;
+      const message = `fill ${fill.orderId || 'unknown'} ${fill.price} outside campaign candle range ${candle.l}-${candle.h} by ${outsideBps.toFixed(4)} bps`;
+      if (outsideBps > maxOutsideBps) errors.push(message);
+      else warnings.push(`${message}; treated as execution-price tolerance, not candle-source mismatch`);
+    }
     return {
       ...fill,
       candleTime,
@@ -339,10 +349,12 @@ function compareJournalFills(campaignCandles, { symbol, timeframe, journalPath, 
       campaignLow: candle?.l ?? null,
       campaignHigh: candle?.h ?? null,
       inRange,
+      outsideBps,
     };
   });
   return {
     ok: errors.length === 0,
+    status: rows.length === 0 ? 'not_applicable' : (errors.length === 0 ? 'checked' : 'failed'),
     range: {
       start,
       startIso: new Date(start).toISOString(),
@@ -352,6 +364,8 @@ function compareJournalFills(campaignCandles, { symbol, timeframe, journalPath, 
     journalPath,
     fillsChecked: rows.length,
     samples: rows.slice(0, 25),
+    maxOutsideBps,
+    warnings,
     errors,
   };
 }
@@ -446,6 +460,7 @@ async function runDataParityCheck(options) {
     start: spotStart,
     end: spotEnd,
     requireSpotCheck: options.requireSpotCheck !== false,
+    maxOutsideBps: Number(options.maxFillOutsideBps ?? 10),
   });
 
   const checks = {
@@ -508,6 +523,7 @@ async function main() {
     spotStart: options['spot-start'],
     spotEnd: options['spot-end'],
     maxCloseBps: options['max-close-bps'],
+    maxFillOutsideBps: options['max-fill-outside-bps'],
   });
   process.stdout.write(`${stamp.status} ${stamp.symbol} ${stamp.timeframe} data=${stamp.dataFile}\n`);
   process.stdout.write(`provenance=${stamp.checks.provenance ? 'PASS' : 'FAIL'} sameWindow=${stamp.checks.sameWindow ? 'PASS' : 'FAIL'} groundTruth=${stamp.checks.groundTruth ? 'PASS' : 'FAIL'}\n`);

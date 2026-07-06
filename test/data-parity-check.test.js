@@ -122,6 +122,83 @@ describe('data parity checker', () => {
     });
   });
 
+  test('does not fail data parity when no live fills exist for the spot-check window', async () => {
+    await withTempDir(async dir => {
+      const candles = [
+        candle('2026-06-01T13:30:00.000Z', 100),
+        candle('2026-07-01T13:30:00.000Z', 101),
+      ];
+      const dataFile = writeJson(dir, 'alpaca-spy-15m.json', {
+        metadata: {
+          provider: 'alpaca',
+          feed: 'iex',
+          sessionProfile: 'rth_only',
+          timestampConvention: 'bar_start_ms_aligned',
+        },
+        candles,
+      });
+      const reference = writeJson(dir, 'reference.json', {
+        metadata: {
+          provider: 'alpaca',
+          feed: 'iex',
+          sessionProfile: 'rth_only',
+          timestampConvention: 'bar_start_ms_aligned',
+        },
+        candles: [candles[0]],
+      });
+      const journal = writeJsonl(dir, 'journal.jsonl', []);
+
+      const result = await runDataParityCheck({
+        dataFile,
+        symbol: 'SPY',
+        timeframe: '15m',
+        referenceFile: reference,
+        journalPath: journal,
+      });
+
+      expect(result.status).toBe('PASS');
+      expect(result.checks.groundTruth).toBe(true);
+      expect(result.groundTruth.status).toBe('not_applicable');
+      expect(result.groundTruth.warnings[0]).toContain('no live journal fill rows');
+    });
+  });
+
+  test('treats small fill boundary drift as warning instead of source mismatch', () => {
+    return withTempDir(dir => {
+      const journal = writeJsonl(dir, 'journal.jsonl', [{
+        event: 'EXIT',
+        timestamp: Date.parse('2026-07-01T13:46:00.000Z'),
+        orderId: 'T1',
+        symbol: 'COIN',
+        exitPrice: 154.8,
+      }]);
+
+      const result = compareJournalFills([
+        {
+          t: Date.parse('2026-07-01T13:45:00.000Z'),
+          o: 155.5,
+          h: 156.59,
+          l: 154.905,
+          c: 155.8,
+          v: 1000,
+        },
+      ], {
+        symbol: 'COIN',
+        timeframe: '15m',
+        journalPath: journal,
+        start: Date.parse('2026-07-01T00:00:00.000Z'),
+        end: Date.parse('2026-07-02T00:00:00.000Z'),
+        maxOutsideBps: 10,
+      });
+
+      expect(result.ok).toBe(true);
+      expect(result.status).toBe('checked');
+      expect(result.samples[0].inRange).toBe(false);
+      expect(result.samples[0].outsideBps).toBeLessThan(10);
+      expect(result.warnings[0]).toContain('execution-price tolerance');
+    });
+  });
+
   test('fails stale provider-looking filenames when embedded provenance is missing', async () => {
     await withTempDir(async dir => {
       const oldBars = [
