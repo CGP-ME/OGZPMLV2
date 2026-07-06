@@ -3,7 +3,7 @@
 
 const { c: _c, o: _o, h: _h, l: _l, v: _v, t: _t } = require('../core/CandleHelper');
 const FairValueGapDetector = require('./FairValueGapDetector');
-const TradingConfig = require('../core/TradingConfig');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 /**
  * OpeningRangeBreakout (ORB) Strategy
@@ -33,8 +33,8 @@ const STATES = {
 
 class OpeningRangeBreakout {
   constructor(config = {}) {
-    // Read from TradingConfig with fallbacks
-    const orbConfig = TradingConfig.get('strategies.OpeningRangeBreakout') || {};
+    // Read from ConfigLoader with fallbacks
+    const orbConfig = ConfigLoader.get('strategies.OpeningRangeBreakout') || {};
 
     this.sessionOpenHourUTC = config.sessionOpenHourUTC ?? orbConfig.sessionOpenHourUTC ?? 14; // legacy: 9am EST = 14:00 UTC
     // 2026-05-04: NYSE 9:30 ET session detection. Handles DST automatically via Intl

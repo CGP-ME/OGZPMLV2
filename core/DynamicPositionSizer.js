@@ -17,7 +17,7 @@
  *                        low vol=1.5x, normal=1.0x, high vol=0.6x
  *
  * Cap: MAX_POSITION_SIZE (default 5%)
- * All thresholds configurable via TradingConfig / .env
+ * All thresholds configurable via ConfigLoader / .env
  *
  * USAGE:
  *   const sizer = new DynamicPositionSizer();
@@ -42,7 +42,7 @@
 
 'use strict';
 
-const TradingConfig = require('./TradingConfig');
+const ConfigLoader = require('../foundation/ConfigLoader');
 const { getNarrator } = require('./TradeNarrator');
 // Cache singleton at module load — narrator.enabled is sealed from env vars
 // in the constructor. Hot-path hook below checks cached narrator.enabled
@@ -52,14 +52,14 @@ const narrator = getNarrator();
 class DynamicPositionSizer {
   constructor(config = {}) {
     // ═══════════════════════════════════════════════════════════════
-    // BASE SIZING — from TradingConfig, overridable via .env
+    // BASE SIZING — from ConfigLoader, overridable via .env
     // ═══════════════════════════════════════════════════════════════
     this.basePositionPercent = config.basePositionPercent
-      ?? TradingConfig.get('positionSizing.basePositionSize')
+      ?? ConfigLoader.get('positionSizing.basePositionSize')
       ?? 0.01; // 1%
 
     this.maxPositionPercent = config.maxPositionPercent
-      ?? TradingConfig.get('positionSizing.maxPositionSize')
+      ?? ConfigLoader.get('positionSizing.maxPositionSize')
       ?? 0.05; // 5%
 
     // ═══════════════════════════════════════════════════════════════

@@ -63,8 +63,8 @@ describe('DynamicPositionSizer Fix 18 mitigation', () => {
     process.env.PATTERN_MULT_QUARANTINED = '0.25';
     jest.resetModules();
 
-    const TradingConfig = require('../core/TradingConfig');
-    expect(TradingConfig.get('entryLogic.sizing.patternMultipliers')).toEqual({
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    expect(ConfigLoader.get('entryLogic.sizing.patternMultipliers')).toEqual({
       promoted: 1,
       neutral: 1,
       learning: 1,

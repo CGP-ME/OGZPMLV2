@@ -17,17 +17,17 @@ describe('StrategyOrchestrator pattern learning shadow snapshot', () => {
     process.env = originalEnv;
   });
 
-  function addContract(TradingConfig, strategyName) {
-    TradingConfig.BASE_CONFIG.exitContracts[strategyName] = {
-      ...TradingConfig.BASE_CONFIG.exitContracts.default,
+  function addContract(ConfigLoader, strategyName) {
+    ConfigLoader.BASE_CONFIG.exitContracts[strategyName] = {
+      ...ConfigLoader.BASE_CONFIG.exitContracts.default,
       minConfidence: null,
       atrMinPercent: null,
     };
   }
 
   function buildOrchestrator(strategies) {
-    const TradingConfig = require('../core/TradingConfig');
-    strategies.forEach(strategy => addContract(TradingConfig, strategy.name));
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    strategies.forEach(strategy => addContract(ConfigLoader, strategy.name));
     const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
     const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
     orchestrator.strategies = strategies;

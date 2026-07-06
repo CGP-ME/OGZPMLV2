@@ -40,7 +40,7 @@ const blocks = [
     'Where does OrderExecutor get its broker adapter from? Is it injected via ctx.orderRouter, instantiated directly, or hardcoded? Trace the call from OrderExecutor.executeTrade to the adapter method. Cite file:line for every hop.',
     'Does any OrderRouter or BrokerRouter class exist that selects which adapter to use per trade? Cite file:line or state NOT FOUND.',
     'List every broker adapter file in brokers/ directory. For each file, is it a stub (methods throw not implemented) or actually implemented with real API calls? Cite a representative method body file:line for each.',
-    'Does core/TradingConfig.js have any per-broker config block (different fees, different symbol formats, different position size limits per broker)? Cite file:line or state NOT FOUND.',
+    'Does foundation/ConfigLoader.js have any per-broker config block (different fees, different symbol formats, different position size limits per broker)? Cite file:line or state NOT FOUND.',
   ]},
   { title: 'BLOCK N — Multi-asset support', questions: [
     'In core/StateManager.js, does activeTrades Map key on tradeId only, or does it include asset/symbol? Could the bot today hold concurrent positions in TSLA + BTC + SPY without state collision? Cite file:line.',
@@ -70,10 +70,10 @@ const blocks = [
     'Is there pattern namespacing by ticker, timeframe, strategy, or any combination? Or is the pattern store a single global namespace? Cite file:line.',
   ]},
   { title: 'BLOCK R — Hot-swap and atomic config changes', questions: [
-    'In core/TradingConfig.js, are values read once at module load, or can TradingConfig.get(key) return updated values mid-run if env vars change? Trace the implementation of get(). Cite file:line.',
-    'Does any file call TradingConfig.set() or TradingConfig.update() to mutate config during runtime? Cite file:line or state NOT FOUND.',
+    'In foundation/ConfigLoader.js, are values read once at module load, or can ConfigLoader.get(key) return updated values mid-run if env vars change? Trace the implementation of get(). Cite file:line.',
+    'Does any file call ConfigLoader.set() or ConfigLoader.update() to mutate config during runtime? Cite file:line or state NOT FOUND.',
     'Is there any pending changes staging area that batches config updates and applies them between candles atomically? Cite file:line or state NOT FOUND.',
-    'If TradingConfig values change mid-run, do in-flight trades inherit the new values or keep the values from when they were opened (sealed-at-birth property)? Cite file:line.',
+    'If ConfigLoader values change mid-run, do in-flight trades inherit the new values or keep the values from when they were opened (sealed-at-birth property)? Cite file:line.',
   ]},
   { title: 'BLOCK S — Pine transpiler SaaS readiness', questions: [
     'Can a user upload a .pine file via HTTP endpoint and get a transpiled JS module back? Search for any web endpoint that accepts pine source. Cite file:line or state NOT FOUND.',
@@ -81,8 +81,8 @@ const blocks = [
     'Is there any user/tenant model in the codebase (User class, account ID, multi-tenancy)? Cite file:line or state NOT FOUND.',
   ]},
   { title: 'BLOCK T — Tournament to PID handoff', questions: [
-    'In core/TradingConfig.js, search for a pid block. Paste the full pid section if it exists. Cite file:line.',
-    'Does core/PIDController.js exist? If yes, where do the clamp ranges (outputMin/outputMax for each loop) come from — hardcoded constants, TradingConfig values, or a pid.envelopes lookup? Cite file:line for each clamp.',
+    'In foundation/ConfigLoader.js, search for a pid block. Paste the full pid section if it exists. Cite file:line.',
+    'Does core/PIDController.js exist? If yes, where do the clamp ranges (outputMin/outputMax for each loop) come from — hardcoded constants, ConfigLoader values, or a pid.envelopes lookup? Cite file:line for each clamp.',
     'Does any tournament tool (tools/tournament.js, tools/parallel-backtest.js) write output to a pid.envelopes block or manifest file that PID can read? Cite file:line or state NOT FOUND.',
     'Is PIDController instantiated and called anywhere in the trading loop today, or is it built-but-unwired? Cite file:line of instantiation or state NOT FOUND.',
     'Is there any persistence for PID state (integral accumulator, prevError, history) between bot restarts? Cite file:line or state NOT FOUND.',

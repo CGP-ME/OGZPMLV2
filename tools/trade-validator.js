@@ -35,7 +35,7 @@ const path = require('path');
 const projectRoot = path.resolve(__dirname, '..');
 
 // Load modules for independent calculation
-const TradingConfig = require(path.join(projectRoot, 'core/TradingConfig'));
+const ConfigLoader = require(path.join(projectRoot, 'foundation/ConfigLoader'));
 const { c, o, h, l, v, t } = require(path.join(projectRoot, 'core/CandleHelper'));
 
 // ── CONFIG ──
@@ -158,14 +158,14 @@ function runBacktestAndCaptureTrades() {
   const indicatorEngine = new IndicatorEngine({ warmupCandles: 50 });
   const exitContractManager = getExitContractManager();
 
-  const emaConfig = TradingConfig.get('strategies.EMACrossover') || {};
+  const emaConfig = ConfigLoader.get('strategies.EMACrossover') || {};
   const emaCrossover = new EMASMACrossoverSignal({
     decayBars: emaConfig.decayBars || 10,
     snapbackThresholdPct: emaConfig.snapbackThreshold || 2.5,
     blowoffAccelThreshold: emaConfig.blowoffThreshold || 0.15,
   });
 
-  const masrConfig = TradingConfig.get('strategies.MADynamicSR') || {};
+  const masrConfig = ConfigLoader.get('strategies.MADynamicSR') || {};
   const maDynamicSR = new MADynamicSR({
     entryMaPeriod: masrConfig.entryMaPeriod || 20,
     srMaPeriod: masrConfig.srMaPeriod || 200,
@@ -181,7 +181,7 @@ function runBacktestAndCaptureTrades() {
     patternPersistBars: masrConfig.patternPersistBars || 15,
   });
 
-  const liqConfig = TradingConfig.get('strategies.LiquiditySweep') || {};
+  const liqConfig = ConfigLoader.get('strategies.LiquiditySweep') || {};
   const liquiditySweep = new LiquiditySweepDetector({
     sweepLookbackBars: liqConfig.sweepLookbackBars || 50,
     sweepMinExtensionPct: liqConfig.sweepMinExtensionPct || 0.1,
@@ -307,7 +307,7 @@ function validateTrade(trade, candles) {
     case 'RSI': {
       // Independent RSI calculation (Wilder's smoothing - matches IndicatorEngine)
       const rsi = calcRSI(closesUpToEntry, 14);
-      const rsiConfig = TradingConfig.get('strategies.RSI') || {};
+      const rsiConfig = ConfigLoader.get('strategies.RSI') || {};
       const oversold = rsiConfig.oversoldLevel || 25;
       const overbought = rsiConfig.overboughtLevel || 75;
 
@@ -349,7 +349,7 @@ function validateTrade(trade, candles) {
     }
 
     case 'MADynamicSR': {
-      const masrConfig = TradingConfig.get('strategies.MADynamicSR') || {};
+      const masrConfig = ConfigLoader.get('strategies.MADynamicSR') || {};
       const entryPeriod = masrConfig.entryMaPeriod || 20;
       const touchZone = masrConfig.touchZonePct || 0.6;
       const extensionPct = masrConfig.extensionPct || 2.0;

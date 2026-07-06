@@ -43,22 +43,22 @@ function redactedUrlPresence(snapshot, path) {
   };
 }
 
-function tradingConfigValue(TradingConfig, path) {
-  const value = TradingConfig.get(path);
+function tradingConfigValue(ConfigLoader, path) {
+  const value = ConfigLoader.get(path);
   return value === undefined ? null : value;
 }
 
-function buildRuntimeConfigProof(snapshot, TradingConfig, options = {}) {
+function buildRuntimeConfigProof(snapshot, ConfigLoader, options = {}) {
   if (!snapshot || !snapshot.config) {
     throw new Error('[RuntimeConfigProof] ConfigLoader snapshot is required');
   }
-  if (!TradingConfig || typeof TradingConfig.get !== 'function') {
-    throw new Error('[RuntimeConfigProof] TradingConfig module is required');
+  if (!ConfigLoader || typeof ConfigLoader.get !== 'function') {
+    throw new Error('[RuntimeConfigProof] ConfigLoader module is required');
   }
 
   const now = options.now instanceof Date ? options.now : new Date();
-  const tuningStatus = typeof TradingConfig.getTuningProfileStatus === 'function'
-    ? TradingConfig.getTuningProfileStatus()
+  const tuningStatus = typeof ConfigLoader.getTuningProfileStatus === 'function'
+    ? ConfigLoader.getTuningProfileStatus()
     : null;
 
   return {
@@ -132,47 +132,47 @@ function buildRuntimeConfigProof(snapshot, TradingConfig, options = {}) {
     tradingConfig: {
       tuningProfile: tuningStatus,
       confidence: {
-        minTradeConfidence: tradingConfigValue(TradingConfig, 'confidence.minTradeConfidence'),
-        minStrategyConfidence: tradingConfigValue(TradingConfig, 'confidence.minStrategyConfidence'),
+        minTradeConfidence: tradingConfigValue(ConfigLoader, 'confidence.minTradeConfidence'),
+        minStrategyConfidence: tradingConfigValue(ConfigLoader, 'confidence.minStrategyConfidence'),
       },
       filters: {
-        atrEnabled: tradingConfigValue(TradingConfig, 'filters.atrEnabled'),
-        atrMinPercent: tradingConfigValue(TradingConfig, 'filters.atrMinPercent'),
+        atrEnabled: tradingConfigValue(ConfigLoader, 'filters.atrEnabled'),
+        atrMinPercent: tradingConfigValue(ConfigLoader, 'filters.atrMinPercent'),
       },
       positionSizing: {
-        basePositionSize: tradingConfigValue(TradingConfig, 'positionSizing.basePositionSize'),
-        maxPositionSize: tradingConfigValue(TradingConfig, 'positionSizing.maxPositionSize'),
-        absoluteCapPercent: tradingConfigValue(TradingConfig, 'entryLogic.sizing.absoluteCapPercent'),
+        basePositionSize: tradingConfigValue(ConfigLoader, 'positionSizing.basePositionSize'),
+        maxPositionSize: tradingConfigValue(ConfigLoader, 'positionSizing.maxPositionSize'),
+        absoluteCapPercent: tradingConfigValue(ConfigLoader, 'entryLogic.sizing.absoluteCapPercent'),
       },
       exits: {
-        stopLossPercent: tradingConfigValue(TradingConfig, 'exits.stopLossPercent'),
-        takeProfitPercent: tradingConfigValue(TradingConfig, 'exits.takeProfitPercent'),
-        trailingStopPercent: tradingConfigValue(TradingConfig, 'exits.trailingStopPercent'),
-        exitSystem: tradingConfigValue(TradingConfig, 'exits.exitSystem'),
-        tier1Target: tradingConfigValue(TradingConfig, 'exits.profitTiers.tier1'),
-        tier2Target: tradingConfigValue(TradingConfig, 'exits.profitTiers.tier2'),
-        tier3Target: tradingConfigValue(TradingConfig, 'exits.profitTiers.tier3'),
-        finalTarget: tradingConfigValue(TradingConfig, 'exits.profitTiers.final'),
+        stopLossPercent: tradingConfigValue(ConfigLoader, 'exits.stopLossPercent'),
+        takeProfitPercent: tradingConfigValue(ConfigLoader, 'exits.takeProfitPercent'),
+        trailingStopPercent: tradingConfigValue(ConfigLoader, 'exits.trailingStopPercent'),
+        exitSystem: tradingConfigValue(ConfigLoader, 'exits.exitSystem'),
+        tier1Target: tradingConfigValue(ConfigLoader, 'exits.profitTiers.tier1'),
+        tier2Target: tradingConfigValue(ConfigLoader, 'exits.profitTiers.tier2'),
+        tier3Target: tradingConfigValue(ConfigLoader, 'exits.profitTiers.tier3'),
+        finalTarget: tradingConfigValue(ConfigLoader, 'exits.profitTiers.final'),
       },
       fees: {
-        model: tradingConfigValue(TradingConfig, 'fees.model'),
-        makerFee: tradingConfigValue(TradingConfig, 'fees.makerFee'),
-        takerFee: tradingConfigValue(TradingConfig, 'fees.takerFee'),
-        slippage: tradingConfigValue(TradingConfig, 'fees.slippage'),
-        totalRoundTrip: tradingConfigValue(TradingConfig, 'fees.totalRoundTrip'),
-        perShare: tradingConfigValue(TradingConfig, 'fees.perShare'),
-        minOrderFee: tradingConfigValue(TradingConfig, 'fees.minOrderFee'),
+        model: tradingConfigValue(ConfigLoader, 'fees.model'),
+        makerFee: tradingConfigValue(ConfigLoader, 'fees.makerFee'),
+        takerFee: tradingConfigValue(ConfigLoader, 'fees.takerFee'),
+        slippage: tradingConfigValue(ConfigLoader, 'fees.slippage'),
+        totalRoundTrip: tradingConfigValue(ConfigLoader, 'fees.totalRoundTrip'),
+        perShare: tradingConfigValue(ConfigLoader, 'fees.perShare'),
+        minOrderFee: tradingConfigValue(ConfigLoader, 'fees.minOrderFee'),
       },
       features: {
-        enableDynamicSizing: tradingConfigValue(TradingConfig, 'features.enableDynamicSizing'),
-        enableShorts: tradingConfigValue(TradingConfig, 'features.enableShorts'),
+        enableDynamicSizing: tradingConfigValue(ConfigLoader, 'features.enableDynamicSizing'),
+        enableShorts: tradingConfigValue(ConfigLoader, 'features.enableShorts'),
       },
     },
   };
 }
 
-function logRuntimeConfigProof(snapshot, TradingConfig, logger = console) {
-  const proof = buildRuntimeConfigProof(snapshot, TradingConfig);
+function logRuntimeConfigProof(snapshot, ConfigLoader, logger = console) {
+  const proof = buildRuntimeConfigProof(snapshot, ConfigLoader);
   logger.log(`[RUNTIME-CONFIG-PROOF] ${JSON.stringify(proof)}`);
   return proof;
 }

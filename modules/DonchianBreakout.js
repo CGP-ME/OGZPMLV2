@@ -2,7 +2,7 @@
 
 const { c } = require('../core/CandleHelper');
 const { IndicatorCalculator } = require('../core/IndicatorCalculator');
-const TradingConfig = require('../core/TradingConfig');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 const REQUIRED_NUMERIC_KEYS = [
   'entryPeriod',
@@ -15,7 +15,7 @@ const REQUIRED_NUMERIC_KEYS = [
 ];
 
 function readConfig(overrides) {
-  const base = TradingConfig.get('strategies.DonchianBreakout');
+  const base = ConfigLoader.get('strategies.DonchianBreakout');
   const cfg = { ...(base || {}), ...(overrides || {}) };
   const missing = REQUIRED_NUMERIC_KEYS.filter(key => !Number.isFinite(Number(cfg[key])));
   if (missing.length > 0) {

@@ -6,12 +6,12 @@ const BacktestRecorder = require('../core/BacktestRecorder');
 const BreakEvenManager = require('../core/exit/BreakEvenManager');
 const DynamicTrailingStop = require('../core/exit/DynamicTrailingStop');
 const MaxHoldChecker = require('../core/exit/MaxHoldChecker');
-const TradingConfig = require('../core/TradingConfig');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 describe('FeeModel', () => {
   afterEach(() => {
-    if (typeof TradingConfig.clearOverrides === 'function') {
-      TradingConfig.clearOverrides();
+    if (typeof ConfigLoader.clearOverrides === 'function') {
+      ConfigLoader.clearOverrides();
     }
   });
 
@@ -127,7 +127,7 @@ describe('FeeModel', () => {
   });
 
   test('converts per-share minimum fees into trade-specific percent buffers for exits', () => {
-    TradingConfig.setOverrides({
+    ConfigLoader.setOverrides({
       'fees.model': 'per_share_minimum',
       'fees.perShare': 0.005,
       'fees.minOrderFee': 0.75,

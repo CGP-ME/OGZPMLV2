@@ -12,8 +12,8 @@ describe('TRAI pipeline default', () => {
     delete process.env.ENABLE_TRAI;
 
     try {
-      const TradingConfig = require('../core/TradingConfig');
-      expect(TradingConfig.get('pipeline.enableTRAI')).toBe(true);
+      const ConfigLoader = require('../foundation/ConfigLoader');
+      expect(ConfigLoader.get('pipeline.enableTRAI')).toBe(true);
     } finally {
       process.env = originalEnv;
     }
@@ -28,8 +28,8 @@ describe('TRAI pipeline default', () => {
     };
 
     try {
-      const TradingConfig = require('../core/TradingConfig');
-      expect(TradingConfig.get('pipeline.enableTRAI')).toBe(false);
+      const ConfigLoader = require('../foundation/ConfigLoader');
+      expect(ConfigLoader.get('pipeline.enableTRAI')).toBe(false);
     } finally {
       process.env = originalEnv;
     }

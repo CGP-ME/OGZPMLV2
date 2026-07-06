@@ -34,7 +34,7 @@ jest.mock('../ogz-meta/claudito-logger', () => ({
 }));
 
 const OrderExecutor = require('../core/OrderExecutor');
-const TradingConfig = require('../core/TradingConfig');
+const ConfigLoader = require('../foundation/ConfigLoader');
 const { getNarrator } = require('../core/TradeNarrator');
 const { TradingProofLogger } = require('../ogz-meta/claudito-logger');
 
@@ -232,7 +232,7 @@ describe('OrderExecutor pause gate', () => {
   });
 
   afterEach(() => {
-    if (clearTradingConfigOverrides) TradingConfig.clearOverrides();
+    if (clearTradingConfigOverrides) ConfigLoader.clearOverrides();
     errorSpy.mockRestore();
     warnSpy.mockRestore();
   });
@@ -423,7 +423,7 @@ describe('OrderExecutor pause gate', () => {
 
   test('fee edge gate throws when risk.feeGate.minEdgeMultiple is missing', () => {
     const executor = makeExecutor();
-    const getSpy = jest.spyOn(TradingConfig, 'get').mockImplementation((path, defaultValue) => (
+    const getSpy = jest.spyOn(ConfigLoader, 'get').mockImplementation((path, defaultValue) => (
       path === 'risk.feeGate.minEdgeMultiple' ? undefined : defaultValue
     ));
 
@@ -508,7 +508,7 @@ describe('OrderExecutor pause gate', () => {
 
   test('blocks direct entries below configured minTradeConfidence before routing', async () => {
     clearTradingConfigOverrides = true;
-    TradingConfig.setOverrides({ confidence: { minTradeConfidence: 0.9 } });
+    ConfigLoader.setOverrides({ confidence: { minTradeConfidence: 0.9 } });
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;
       if (key === 'balance') return 10000;
@@ -863,7 +863,7 @@ describe('OrderExecutor pause gate', () => {
   });
 
   test('enabled stock webhook route rejects sub-one-share entry before state mutation', async () => {
-    TradingConfig.setOverrides({
+    ConfigLoader.setOverrides({
       features: { enableDynamicSizing: false },
       positionSizing: { maxPositionSize: 0.01 },
     });
@@ -1775,7 +1775,7 @@ describe('OrderExecutor pause gate', () => {
   });
 
   test('flat sizing profile disables confidence multiplier before confluence sizing', async () => {
-    TradingConfig.setOverrides({
+    ConfigLoader.setOverrides({
       features: { enableDynamicSizing: false },
       positionSizing: { maxPositionSize: 0.05 },
     });
@@ -1822,7 +1822,7 @@ describe('OrderExecutor pause gate', () => {
   });
 
   test('entry sizing enforces entryLogic absolute cap after confidence and confluence', async () => {
-    TradingConfig.setOverrides({
+    ConfigLoader.setOverrides({
       features: { enableDynamicSizing: true },
       positionSizing: { maxPositionSize: 0.05, absoluteCapPercent: 0.99 },
       entryLogic: { sizing: { absoluteCapPercent: 0.04 } },
@@ -1872,7 +1872,7 @@ describe('OrderExecutor pause gate', () => {
   });
 
   test('stock share range raises fee-floor entries to configured minimum shares before eval gate', async () => {
-    TradingConfig.setOverrides({
+    ConfigLoader.setOverrides({
       features: { enableDynamicSizing: true },
       positionSizing: { maxPositionSize: 0.10 },
       entryLogic: {
@@ -1938,7 +1938,7 @@ describe('OrderExecutor pause gate', () => {
   });
 
   test('stock share range caps high-confidence entries below the TTP best-trade profit limit', async () => {
-    TradingConfig.setOverrides({
+    ConfigLoader.setOverrides({
       features: { enableDynamicSizing: true },
       positionSizing: { maxPositionSize: 0.20 },
       entryLogic: {
@@ -2003,7 +2003,7 @@ describe('OrderExecutor pause gate', () => {
   });
 
   test('stock share range caps cheap-symbol raw share counts by eval risk math instead of universal share ceiling', async () => {
-    TradingConfig.setOverrides({
+    ConfigLoader.setOverrides({
       features: { enableDynamicSizing: true },
       positionSizing: { maxPositionSize: 0.20 },
       entryLogic: {
@@ -2072,7 +2072,7 @@ describe('OrderExecutor pause gate', () => {
   });
 
   test('stock share range blocks when configured minimum shares would violate consistency cap', async () => {
-    TradingConfig.setOverrides({
+    ConfigLoader.setOverrides({
       features: { enableDynamicSizing: true },
       positionSizing: { maxPositionSize: 0.10 },
       entryLogic: {
@@ -3753,7 +3753,7 @@ describe('OrderExecutor pause gate', () => {
   });
 
   test('live stock entry partial fill below configured share minimum records broker truth and halts symbol', async () => {
-    TradingConfig.setOverrides({
+    ConfigLoader.setOverrides({
       features: { enableDynamicSizing: true },
       positionSizing: { maxPositionSize: 0.05 },
       entryLogic: {

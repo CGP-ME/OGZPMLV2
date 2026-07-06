@@ -1,6 +1,6 @@
 'use strict';
 
-const TradingConfig = require('./TradingConfig');
+const ConfigLoader = require('../foundation/ConfigLoader');
 const { freezePolicy } = require('./dto/FrozenExitPolicy');
 
 const REQUIRED_CONTRACT_FIELDS = Object.freeze([
@@ -156,7 +156,7 @@ function requireString(value, label) {
 function readConfig(configReader, path) {
   const value = configReader.get(path);
   if (value === undefined) {
-    throw new Error(`[PolicyBuilder] missing TradingConfig value: ${path}`);
+    throw new Error(`[PolicyBuilder] missing ConfigLoader value: ${path}`);
   }
   return value;
 }
@@ -494,7 +494,7 @@ function buildForTrade(options = {}) {
     marketCondition,
     entryDirection,
     mtfConfluenceSnapshot,
-    configReader = TradingConfig,
+    configReader = ConfigLoader,
   } = options;
 
   const normalizedStrategyName = requireString(strategyName, 'strategyName');

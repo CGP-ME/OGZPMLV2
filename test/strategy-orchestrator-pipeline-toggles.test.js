@@ -66,8 +66,8 @@ describe('StrategyOrchestrator pipeline toggles', () => {
     };
 
     try {
-      const TradingConfig = require('../core/TradingConfig');
-      const pipeline = TradingConfig.get('pipeline');
+      const ConfigLoader = require('../foundation/ConfigLoader');
+      const pipeline = ConfigLoader.get('pipeline');
       expect(pipeline.enableCandlePattern).toBe(true);
 
       const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
@@ -87,9 +87,9 @@ describe('StrategyOrchestrator pipeline toggles', () => {
     };
 
     try {
-      const TradingConfig = require('../core/TradingConfig');
-      const realGet = TradingConfig.get.bind(TradingConfig);
-      jest.spyOn(TradingConfig, 'get').mockImplementation((path, defaultValue) => {
+      const ConfigLoader = require('../foundation/ConfigLoader');
+      const realGet = ConfigLoader.get.bind(ConfigLoader);
+      jest.spyOn(ConfigLoader, 'get').mockImplementation((path, defaultValue) => {
         if (path === 'pipeline') {
           const pipeline = { ...realGet(path, defaultValue) };
           delete pipeline.enableCandlePattern;
@@ -151,8 +151,8 @@ describe('StrategyOrchestrator pipeline toggles', () => {
         'TimeSeriesMomentum',
       ];
 
-      const TradingConfig = require('../core/TradingConfig');
-      const pipeline = TradingConfig.get('pipeline');
+      const ConfigLoader = require('../foundation/ConfigLoader');
+      const pipeline = ConfigLoader.get('pipeline');
       const expectedPipeline = Object.fromEntries(PIPELINE_STRATEGY_KEYS.map((key) => [key, true]));
       expectedPipeline.enableMarketRegime = false;
       expect(Object.fromEntries(PIPELINE_STRATEGY_KEYS.map((key) => [key, pipeline[key]])))
@@ -166,7 +166,7 @@ describe('StrategyOrchestrator pipeline toggles', () => {
     }
   });
 
-  test('MTF confluence booster is an explicit default-off orchestrator control', () => {
+  test('MTF confluence booster is a default-on non-blocking orchestrator control', () => {
     jest.resetModules();
     const originalEnv = process.env;
     process.env = {
@@ -175,14 +175,14 @@ describe('StrategyOrchestrator pipeline toggles', () => {
     };
 
     try {
-      const TradingConfig = require('../core/TradingConfig');
-      expect(TradingConfig.get('orchestrator.mtfConfluenceBooster')).toEqual({
-        enabled: false,
+      const ConfigLoader = require('../foundation/ConfigLoader');
+      expect(ConfigLoader.get('orchestrator.mtfConfluenceBooster')).toEqual({
+        enabled: true,
         minScore: 0.3,
-        minConfidence: 0.5,
+        minConfidence: 0.45,
         strengthMultiplier: 0.2,
         maxMultiplier: 1.15,
-        conflictMultiplier: 0.85,
+        conflictMultiplier: 0.88,
         penalizeConflicts: true,
         boostMtfCandidate: false,
       });

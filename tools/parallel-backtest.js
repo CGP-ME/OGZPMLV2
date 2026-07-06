@@ -27,7 +27,7 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const TradingConfig = require('../core/TradingConfig');
+const ConfigLoader = require('../foundation/ConfigLoader');
 const { resolveInstrumentFromDataFile } = require('./instrument-env');
 const {
   buildWorkerBaseEnv,
@@ -59,7 +59,7 @@ const MAX_WORKERS = Math.max(1, is7800X3D ? 14 : threadCount - 2);
 // ═══════════════════════════════════════════════════════════════
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const RUNNER = path.join(PROJECT_ROOT, 'run-empire-v2.js');
-const PARALLEL_BACKTEST_CONFIG = TradingConfig.getParallelBacktestConfig();
+const PARALLEL_BACKTEST_CONFIG = ConfigLoader.getParallelBacktestConfig();
 const DEFAULT_DATA = PARALLEL_BACKTEST_CONFIG.defaultData;
 const DATA_SHORTCUTS = Object.freeze({ ...PARALLEL_BACKTEST_CONFIG.dataShortcuts });
 const STOCK_DATA_SHORTCUTS = Object.freeze([...PARALLEL_BACKTEST_CONFIG.stockDataShortcutKeys]);

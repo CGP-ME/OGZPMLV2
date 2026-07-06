@@ -1,7 +1,7 @@
 'use strict';
 
 const path = require('path');
-const TradingConfig = require('./TradingConfig');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 const PROVIDER_PREFIXES = new Set(['polygon', 'alpaca', 'kraken', 'coinbase', 'binance', 'real']);
 const TIMEFRAME_TOKENS = new Set(['5sec', '1m', '5m', '15m', '30m', '1h', '4h', '1d']);
@@ -16,8 +16,8 @@ function configuredCryptoBases() {
 }
 
 function configuredStockTickers() {
-  const parallelConfig = TradingConfig.getParallelBacktestConfig();
-  const matrixConfig = TradingConfig.getMatrixSweepConfig();
+  const parallelConfig = ConfigLoader.getParallelBacktestConfig();
+  const matrixConfig = ConfigLoader.getMatrixSweepConfig();
   const stockKeys = [
     ...(parallelConfig.stockDataShortcutKeys || []),
     ...(matrixConfig.stockTickers || []),

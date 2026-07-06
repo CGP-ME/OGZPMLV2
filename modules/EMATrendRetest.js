@@ -2,7 +2,7 @@
 
 const { c, o, h, l } = require('../core/CandleHelper');
 const { IndicatorCalculator } = require('../core/IndicatorCalculator');
-const TradingConfig = require('../core/TradingConfig');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 const REQUIRED_NUMERIC_KEYS = [
   'atrPeriod',
@@ -69,7 +69,7 @@ function parseEmaPeriods(value) {
 }
 
 function readConfig(overrides) {
-  const base = TradingConfig.get('strategies.EMATrendRetest');
+  const base = ConfigLoader.get('strategies.EMATrendRetest');
   const cfg = { ...(base || {}), ...(overrides || {}) };
 
   if (cfg.emaPeriods === undefined || cfg.emaPeriods === null || cfg.emaPeriods === '') {

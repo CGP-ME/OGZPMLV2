@@ -17,7 +17,7 @@
 'use strict';
 
 // Phase 1 REWRITE: Single source of truth for all trading params
-const TradingConfig = require('./TradingConfig');
+const ConfigLoader = require('../foundation/ConfigLoader');
 const { assertExplicitExitOwnership } = require('./dto/ExitContractOwnership');
 const ProfitExitPlanner = require('./ProfitExitPlanner');
 
@@ -84,7 +84,7 @@ const EXIT_CONTRACT_VALUE_FIELDS = [
 ];
 
 function readRuntimeContractValue(path) {
-  return TradingConfig.get(path, MISSING_EXIT_CONTRACT_VALUE);
+  return ConfigLoader.get(path, MISSING_EXIT_CONTRACT_VALUE);
 }
 
 function hasRuntimeContractOverride(strategyName, timeframe) {
@@ -130,22 +130,22 @@ function buildStrategyContract(contract, strategyName, timeframe) {
 }
 
 /**
- * Exit contracts and universal limits now come from TradingConfig (single source of truth)
- * Phase 1 REWRITE: Eliminated hardcoded duplicates - TradingConfig owns all trading params
+ * Exit contracts and universal limits now come from ConfigLoader (single source of truth)
+ * Phase 1 REWRITE: Eliminated hardcoded duplicates - ConfigLoader owns all trading params
  */
-const DEFAULT_CONTRACTS = TradingConfig.BASE_CONFIG.exitContracts;
-const UNIVERSAL_LIMITS = TradingConfig.BASE_CONFIG.universalLimits;
+const DEFAULT_CONTRACTS = ConfigLoader.BASE_CONFIG.exitContracts;
+const UNIVERSAL_LIMITS = ConfigLoader.BASE_CONFIG.universalLimits;
 
 class ExitContractManager {
   constructor() {
-    // Phase 1 REWRITE: Read from TradingConfig (single source of truth)
-    this.universalLimits = TradingConfig.BASE_CONFIG.universalLimits;
-    this.defaultContracts = TradingConfig.BASE_CONFIG.exitContracts;
+    // Phase 1 REWRITE: Read from ConfigLoader (single source of truth)
+    this.universalLimits = ConfigLoader.BASE_CONFIG.universalLimits;
+    this.defaultContracts = ConfigLoader.BASE_CONFIG.exitContracts;
 
     // Phase 10: Delegate to individual checkers
     this.stopLossChecker = new StopLossChecker(this.universalLimits);
     this.takeProfitChecker = new TakeProfitChecker();
-    this.trailConfig = TradingConfig.BASE_CONFIG.exitLogic.trail;
+    this.trailConfig = ConfigLoader.BASE_CONFIG.exitLogic.trail;
     this.maxHoldChecker = new MaxHoldChecker(this.universalLimits);
     // Phase 11: Break-even state machine (for external access/dashboard)
     this.breakEvenManager = new BreakEvenManager();
@@ -545,7 +545,7 @@ class ExitContractManager {
   }
 
   _updateBreakevenStopState(trade, currentPrice, pnlPercent) {
-    const breakEvenConfig = TradingConfig.BASE_CONFIG.exitLogic.breakEvenStop;
+    const breakEvenConfig = ConfigLoader.BASE_CONFIG.exitLogic.breakEvenStop;
     if (breakEvenConfig?.enabled !== true || trade.breakevenActive === true) {
       return { updated: false, reason: 'breakeven_disabled_or_active' };
     }
@@ -560,7 +560,7 @@ class ExitContractManager {
       return { updated: false, reason: 'missing_entry_price' };
     }
 
-    const feeBufferPercent = TradingConfig.BASE_CONFIG.exitLogic.trail.feeBufferPercent;
+    const feeBufferPercent = ConfigLoader.BASE_CONFIG.exitLogic.trail.feeBufferPercent;
     const feeBuffer = Math.max(0, finiteOrNull(feeBufferPercent) ?? 0) / 100;
     const isShort = trade.direction === 'short' || trade.action === 'SELL_SHORT';
     const breakevenStop = isShort ? entryPrice * (1 - feeBuffer) : entryPrice * (1 + feeBuffer);
@@ -667,9 +667,9 @@ class ExitContractManager {
 
     // FIX 2026-03-20: Only apply timeframe config for strategies WITHOUT their own exit contracts
     // Bug: Was overwriting RSI's -2.0% SL with 15m's -1.5% SL, causing premature stops on TSLA
-    const hasStrategyContract = !!TradingConfig.BASE_CONFIG.exitContracts[strategyName]
+    const hasStrategyContract = !!ConfigLoader.BASE_CONFIG.exitContracts[strategyName]
       || hasRuntimeContractOverride(strategyName, timeframe);
-    const tfConfig = TradingConfig.getTimeframeConfig(timeframe);
+    const tfConfig = ConfigLoader.getTimeframeConfig(timeframe);
     if (tfConfig && !hasStrategyContract) {
       // Only apply timeframe defaults for strategies using generic 'default' contract
       contract.stopLossPercent = -1 * (tfConfig.slPct * 100);  // 0.015 → -1.5
@@ -702,12 +702,12 @@ class ExitContractManager {
     // Adjust for volatility if provided
     // FIX 2026-02-21: Raised threshold from 2.0 to 5.0 for 1-minute data
     // On 1m candles, volatility 2.0 is normal - only widen on extreme vol
-    // FIX 2026-03-19: Extracted hardcoded values to TradingConfig
+    // FIX 2026-03-19: Extracted hardcoded values to ConfigLoader
     // EXIT-MED-02: ?? preserves intentional zero on these thresholds (e.g.,
     // a 0 volSlMult means "no vol-based SL widening"). || coerced 0 to default.
-    const volThreshold = TradingConfig.get('exits.volatilityThreshold') ?? 5.0;
-    const volSlMult = TradingConfig.get('exits.volatilitySlMultiplier') ?? 1.15;
-    const volTpMult = TradingConfig.get('exits.volatilityTpMultiplier') ?? 1.20;
+    const volThreshold = ConfigLoader.get('exits.volatilityThreshold') ?? 5.0;
+    const volSlMult = ConfigLoader.get('exits.volatilitySlMultiplier') ?? 1.15;
+    const volTpMult = ConfigLoader.get('exits.volatilityTpMultiplier') ?? 1.20;
     if (context.volatility && context.volatility > volThreshold) {
       // High volatility - widen stops
       contract.stopLossPercent *= volSlMult;

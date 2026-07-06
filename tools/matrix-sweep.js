@@ -55,7 +55,7 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const TradingConfig = require('../core/TradingConfig');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 // ===================================================================
 // HARDWARE DETECTION
@@ -90,7 +90,7 @@ const {
 } = require('./fee-profiles');
 const RESULTS_DIR = getMatrixDir();
 const WORKER_LOG_DIR = path.join(PROJECT_ROOT, 'backtest-results', 'worker-logs');
-const MATRIX_SWEEP_CONFIG = TradingConfig.getMatrixSweepConfig();
+const MATRIX_SWEEP_CONFIG = ConfigLoader.getMatrixSweepConfig();
 const DEFAULT_DATA = MATRIX_SWEEP_CONFIG.defaultData;
 
 function normalizeWorkerErrors(value) {
@@ -273,17 +273,17 @@ const ALL_STRATEGIES = Object.freeze([
 ]);
 const GRID = buildGridFromConfig(MATRIX_SWEEP_CONFIG);
 
-// Locked exits per strategy — pulled from canonical source TradingConfig.exitContracts
+// Locked exits per strategy — pulled from canonical source ConfigLoader.exitContracts
 // (DEC-013: contracts are sealed with _validated markers). Previously this was a hardcoded
-// dict that had drifted from TradingConfig — 4 strategies (MultiTimeframe, OGZTPO,
+// dict that had drifted from ConfigLoader — 4 strategies (MultiTimeframe, OGZTPO,
 // OpeningRangeBreakout, SmartMoneySweep) had values that didn't match the real contract,
 // so sweeps were using the wrong locked-SL baseline. Reading from BASE_CONFIG keeps the
 // two in sync automatically.
 //
-// TradingConfig stores stopLossPercent as negative (e.g. -0.5 = "stop 0.5% below entry for long").
+// ConfigLoader stores stopLossPercent as negative (e.g. -0.5 = "stop 0.5% below entry for long").
 // Matrix-sweep changes strategy-owned stop geometry through a backtest-only config
 // override payload, not global STOP_LOSS_PERCENT.
-const { BASE_CONFIG } = TradingConfig;
+const { BASE_CONFIG } = ConfigLoader;
 function getLockedSL(strat) {
   const contract = BASE_CONFIG.exitContracts[strat] || BASE_CONFIG.exitContracts.default;
   return Math.abs(contract.stopLossPercent);
@@ -359,7 +359,7 @@ function generateMatrix(strategies, grid, phase) {
             ...buildExitContractOverrideEnv(strat, sl),
           };
 
-          // Set tier targets if sweeping (otherwise MPM uses TradingConfig defaults)
+          // Set tier targets if sweeping (otherwise MPM uses ConfigLoader defaults)
           if (tiers) {
             env.TIER1_TARGET = String(tiers.t1);
             env.TIER2_TARGET = String(tiers.t2);

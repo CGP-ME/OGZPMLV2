@@ -19,7 +19,7 @@ if (!API_KEY) {
 // Files to include in context (reduced for rate limits)
 const CONTEXT_FILES = [
   'core/TradingLoop.js',
-  'core/TradingConfig.js',
+  'foundation/ConfigLoader.js',
   'core/ExitContractManager.js',
 ];
 

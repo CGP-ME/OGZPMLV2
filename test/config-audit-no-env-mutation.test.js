@@ -226,7 +226,7 @@ describe('config-audit env boundary', () => {
     expect(missing).toEqual([]);
     expect(audit.sourceLabelFor('audit-fixture:MAX_WEEKLY_LOSS')).toBe('AUD');
     expect(audit.sourceLabelFor('ConfigLoader:mode.liveTrading')).toBe('CFG');
-    expect(audit.sourceLabelFor('TradingConfig:pipeline.enableRSI')).toBe('TC');
+    expect(audit.sourceLabelFor('ConfigLoader:pipeline.enableRSI')).toBe('CFG');
   });
 
   test('surfaces default-sourced risk config as audit violations', () => {

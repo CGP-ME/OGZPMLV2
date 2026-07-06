@@ -2,7 +2,7 @@
 
 const { c } = require('../core/CandleHelper');
 const { IndicatorCalculator } = require('../core/IndicatorCalculator');
-const TradingConfig = require('../core/TradingConfig');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 const REQUIRED_NUMERIC_KEYS = [
   'rsiPeriod',
@@ -20,7 +20,7 @@ const REQUIRED_NUMERIC_KEYS = [
 ];
 
 function readConfig(overrides) {
-  const base = TradingConfig.get('strategies.RSI2MeanReversion');
+  const base = ConfigLoader.get('strategies.RSI2MeanReversion');
   const cfg = { ...(base || {}), ...(overrides || {}) };
 
   const missingNumeric = REQUIRED_NUMERIC_KEYS.filter(key => !Number.isFinite(Number(cfg[key])));

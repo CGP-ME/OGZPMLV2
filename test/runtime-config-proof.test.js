@@ -164,7 +164,7 @@ function tradingConfigFixture() {
 }
 
 describe('RuntimeConfigProof', () => {
-  test('records ConfigLoader sources next to TradingConfig effective trade tunables', () => {
+  test('records ConfigLoader sources next to ConfigLoader effective trade tunables', () => {
     const proof = buildRuntimeConfigProof(
       snapshotFixture(),
       tradingConfigFixture(),

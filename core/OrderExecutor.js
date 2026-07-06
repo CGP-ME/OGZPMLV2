@@ -12,7 +12,7 @@
 'use strict';
 
 const { getInstance: getStateManager } = require('./StateManager');
-const TradingConfig = require('./TradingConfig');
+const ConfigLoader = require('../foundation/ConfigLoader');
 const exitContractManager = require('./ExitContractManager');
 const { getBrokerInfo } = require('../brokers/BrokerRegistry');
 // Phase 4 REWRITE: FeatureFlagManager removed - AGGRESSIVE_LEARNING_MODE deleted
@@ -1114,7 +1114,7 @@ class OrderExecutor {
   }
 
   _resolveAbsolutePositionCap() {
-    const absoluteCap = TradingConfig.get('entryLogic.sizing.absoluteCapPercent');
+    const absoluteCap = ConfigLoader.get('entryLogic.sizing.absoluteCapPercent');
     if (!Number.isFinite(absoluteCap) || absoluteCap <= 0) {
       throw new Error(`[ABSOLUTE_POSITION_CAP] entryLogic.sizing.absoluteCapPercent must be a finite positive decimal; got ${absoluteCap}`);
     }
@@ -1143,9 +1143,9 @@ class OrderExecutor {
   }
 
   _resolveFeeGateMinEdgeMultiple() {
-    const value = Number(TradingConfig.get('risk.feeGate.minEdgeMultiple'));
+    const value = Number(ConfigLoader.get('risk.feeGate.minEdgeMultiple'));
     if (!Number.isFinite(value) || value <= 0) {
-      throw new Error(`[FEE-GATE] risk.feeGate.minEdgeMultiple must be a finite positive number; got ${TradingConfig.get('risk.feeGate.minEdgeMultiple')}`);
+      throw new Error(`[FEE-GATE] risk.feeGate.minEdgeMultiple must be a finite positive number; got ${ConfigLoader.get('risk.feeGate.minEdgeMultiple')}`);
     }
     return value;
   }
@@ -1319,7 +1319,7 @@ class OrderExecutor {
   }
 
   _positiveConfigNumber(path) {
-    const value = Number(TradingConfig.get(path));
+    const value = Number(ConfigLoader.get(path));
     return Number.isFinite(value) && value > 0 ? value : null;
   }
 
@@ -1348,12 +1348,12 @@ class OrderExecutor {
 
   _applyStockShareRange({ orderQuantity, price, exitContract }) {
     const range = {
-      enabled: TradingConfig.get('entryLogic.sizing.stockShareRange.enabled'),
-      minShares: TradingConfig.get('entryLogic.sizing.stockShareRange.minShares'),
-      maxShares: TradingConfig.get('entryLogic.sizing.stockShareRange.maxShares'),
-      maxNotionalUsd: TradingConfig.get('entryLogic.sizing.stockShareRange.maxNotionalUsd'),
-      consistencyCapBuffer: TradingConfig.get('entryLogic.sizing.stockShareRange.consistencyCapBuffer'),
-      dailyLossRiskFraction: TradingConfig.get('entryLogic.sizing.stockShareRange.dailyLossRiskFraction'),
+      enabled: ConfigLoader.get('entryLogic.sizing.stockShareRange.enabled'),
+      minShares: ConfigLoader.get('entryLogic.sizing.stockShareRange.minShares'),
+      maxShares: ConfigLoader.get('entryLogic.sizing.stockShareRange.maxShares'),
+      maxNotionalUsd: ConfigLoader.get('entryLogic.sizing.stockShareRange.maxNotionalUsd'),
+      consistencyCapBuffer: ConfigLoader.get('entryLogic.sizing.stockShareRange.consistencyCapBuffer'),
+      dailyLossRiskFraction: ConfigLoader.get('entryLogic.sizing.stockShareRange.dailyLossRiskFraction'),
     };
     if (!range || range.enabled !== true) {
       return {
@@ -1990,7 +1990,7 @@ class OrderExecutor {
       emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: 'no_available_capital', availableCapital: currentBalance });
       return blockedReturn('no_available_capital', { availableCapital: currentBalance });
     }
-    // CHANGE 2026-02-28: Use TradingConfig for position sizing
+    // CHANGE 2026-02-28: Use ConfigLoader for position sizing
     // NOTE: DynamicPositionSizer.js exists in core/ but is NOT WIRED - needs tuning first
     let basePositionPercent = 0;
 
@@ -2012,7 +2012,7 @@ class OrderExecutor {
       ? (rawConfidence > 1 ? rawConfidence / 100 : rawConfidence)
       : null;
     if (isEntryAction) {
-      const configuredMinConfidence = TradingConfig.get('confidence.minTradeConfidence');
+      const configuredMinConfidence = ConfigLoader.get('confidence.minTradeConfidence');
       const minTradeConfidence = configuredMinConfidence > 1
         ? configuredMinConfidence / 100
         : configuredMinConfidence;
@@ -2036,10 +2036,10 @@ class OrderExecutor {
         });
       }
     }
-    const dynamicSizingEnabled = TradingConfig.get('features.enableDynamicSizing', true) !== false;
+    const dynamicSizingEnabled = ConfigLoader.get('features.enableDynamicSizing', true) !== false;
     let confidenceMultiplier = 1.0;
     if (isEntryAction) {
-      basePositionPercent = TradingConfig.get('positionSizing.maxPositionSize');
+      basePositionPercent = ConfigLoader.get('positionSizing.maxPositionSize');
     }
     if (isEntryAction && dynamicSizingEnabled) {
       // Linear scale: confidence 0.5 -> multiplier 0.5, confidence 1.0 -> multiplier 2.5
@@ -2050,7 +2050,7 @@ class OrderExecutor {
     }
 
     // FIX 2026-03-06: ENFORCE MAX_POSITION_SIZE cap after confidence multiplier
-    const maxPositionPercent = TradingConfig.get('positionSizing.maxPositionSize') * (dynamicSizingEnabled ? 2.5 : 1);
+    const maxPositionPercent = ConfigLoader.get('positionSizing.maxPositionSize') * (dynamicSizingEnabled ? 2.5 : 1);
     if (isEntryAction && basePositionPercent > maxPositionPercent) {
       console.log(`Position capped: ${(basePositionPercent * 100).toFixed(2)}% -> ${(maxPositionPercent * 100).toFixed(2)}% (MAX_POSITION_SIZE limit)`);
       basePositionPercent = maxPositionPercent;
@@ -2066,7 +2066,7 @@ class OrderExecutor {
       console.log(`Confidence sizing: ${(tradeConfidence * 100).toFixed(0)}% -> ${confidenceMultiplier.toFixed(1)}x -> ${(basePositionPercent * 100).toFixed(2)}% of balance${dynamicSizingEnabled ? '' : ' (flat profile)'}`);
     }
 
-    // Phase 4 REWRITE: AGGRESSIVE_LEARNING_MODE removed - use TradingConfig for all sizing
+    // Phase 4 REWRITE: AGGRESSIVE_LEARNING_MODE removed - use ConfigLoader for all sizing
     const baseSizeUSD = isEntryAction ? currentBalance * basePositionPercent : 0;
 
     // FIX 2026-03-28: Position size stays in USD (no BTC conversion for stocks)
@@ -2477,12 +2477,12 @@ class OrderExecutor {
         // FIX 2026-03-26 Bug 7: Apply slippage to simulated fills
         // BUY/COVER pay more, SELL/SELL_SHORT receive less
         // HIGH-06: throw on missing/non-finite slippage rather than fall back
-        // to a hardcoded 0.05% (crypto-tuned, wrong for stocks). TradingConfig
+        // to a hardcoded 0.05% (crypto-tuned, wrong for stocks). ConfigLoader
         // already supplies 0.0005 as the env-default for FEE_SLIPPAGE so this
         // throw catches genuinely malformed config, not unset env.
-        const slippagePercent = TradingConfig.get('fees.slippage');
+        const slippagePercent = ConfigLoader.get('fees.slippage');
         if (!Number.isFinite(slippagePercent) || slippagePercent < 0) {
-          throw new Error(`[HIGH-06] TradingConfig.fees.slippage non-finite or negative (got ${slippagePercent})`);
+          throw new Error(`[HIGH-06] ConfigLoader.fees.slippage non-finite or negative (got ${slippagePercent})`);
         }
         const isBuyAction = decision.action === 'BUY' || decision.action === 'COVER';
         const fillPrice = isBuyAction
@@ -2705,7 +2705,7 @@ class OrderExecutor {
           // L4: Enrich ledger with actual computed position sizing
           let ledgerPositionSizing = null;
           if (decision.ledgerData) {
-            const baseP = TradingConfig.get('positionSizing.maxPositionSize');
+            const baseP = ConfigLoader.get('positionSizing.maxPositionSize');
             ledgerPositionSizing = {
               basePercent: baseP,
               confidenceMultiplier,
@@ -2917,7 +2917,7 @@ class OrderExecutor {
           // L4: Enrich ledger with actual computed position sizing (short path)
           let ledgerPositionSizing = null;
           if (decision.ledgerData) {
-            const baseP = TradingConfig.get('positionSizing.maxPositionSize');
+            const baseP = ConfigLoader.get('positionSizing.maxPositionSize');
             ledgerPositionSizing = {
               basePercent: baseP,
               confidenceMultiplier,

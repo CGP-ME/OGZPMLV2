@@ -41,6 +41,12 @@ describe('BacktestRunner runtime path parity', () => {
         if (key === 'misc.subscriptionTier') return 'ML';
         return undefined;
       }),
+      getParallelBacktestConfig: jest.fn(() => ({
+        stockDataShortcutKeys: ['tsla', 'spy', 'qqq'],
+      })),
+      getMatrixSweepConfig: jest.fn(() => ({
+        stockTickers: ['tsla', 'spy', 'qqq', 'nvda'],
+      })),
     }));
 
     jest.doMock('../core/StateManager', () => ({

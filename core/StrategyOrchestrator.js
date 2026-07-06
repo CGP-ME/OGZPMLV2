@@ -36,7 +36,7 @@ const { getNarrator } = require('./TradeNarrator');
 // frame is never entered (zero allocation per C1 contract).
 const narrator = getNarrator();
 const MAExtensionFilter = require('./MAExtensionFilter');
-const TradingConfig = require('./TradingConfig');
+const ConfigLoader = require('../foundation/ConfigLoader');
 const OpeningRangeBreakout = require('../modules/OpeningRangeBreakout');
 const BreakAndRetest = require('../modules/BreakAndRetest');
 const MISSING_EXIT_CONTRACT_VALUE = Symbol('missing_exit_contract_value');
@@ -256,14 +256,14 @@ function booleanConfigValue(value, fallback = false) {
 
 function getEmaCrossoverConfig() {
   return {
-    entryEventsOnly: booleanConfigValue(TradingConfig.get('strategyBehavior.emaCrossover.entryEventsOnly'), false),
-    confirmBars: finiteConfigNumber(TradingConfig.get('strategyBehavior.emaCrossover.confirmBars'), 'emaCrossover.confirmBars', 0, 0),
-    warmupBars: finiteConfigNumber(TradingConfig.get('strategyBehavior.emaCrossover.warmupBars'), 'emaCrossover.warmupBars', 10, 1),
+    entryEventsOnly: booleanConfigValue(ConfigLoader.get('strategyBehavior.emaCrossover.entryEventsOnly'), false),
+    confirmBars: finiteConfigNumber(ConfigLoader.get('strategyBehavior.emaCrossover.confirmBars'), 'emaCrossover.confirmBars', 0, 0),
+    warmupBars: finiteConfigNumber(ConfigLoader.get('strategyBehavior.emaCrossover.warmupBars'), 'emaCrossover.warmupBars', 10, 1),
   };
 }
 
 function getTrendRegimeGateConfig() {
-  const strategyListConfig = TradingConfig.get('strategyBehavior.trendRegimeGate.strategies');
+  const strategyListConfig = ConfigLoader.get('strategyBehavior.trendRegimeGate.strategies');
   const strategyList = Array.isArray(strategyListConfig)
     ? strategyListConfig
     : [
@@ -276,18 +276,18 @@ function getTrendRegimeGateConfig() {
         'TimeSeriesMomentum',
       ];
   return {
-    enabled: booleanConfigValue(TradingConfig.get('strategyBehavior.trendRegimeGate.enabled'), false),
-    minConfidence: finiteConfigNumber(TradingConfig.get('strategyBehavior.trendRegimeGate.minConfidence'), 'trendRegimeGate.minConfidence', 0.25, 0),
+    enabled: booleanConfigValue(ConfigLoader.get('strategyBehavior.trendRegimeGate.enabled'), false),
+    minConfidence: finiteConfigNumber(ConfigLoader.get('strategyBehavior.trendRegimeGate.minConfidence'), 'trendRegimeGate.minConfidence', 0.25, 0),
     strategies: new Set(strategyList.map(name => String(name || '').trim()).filter(Boolean)),
   };
 }
 
 function getAtrContractConfig() {
   return {
-    enabled: booleanConfigValue(TradingConfig.get('strategyBehavior.atrContracts.enabled'), false),
-    stopMultiplier: finiteConfigNumber(TradingConfig.get('strategyBehavior.atrContracts.stopMultiplier'), 'atrContracts.stopMultiplier', 2.0, 0),
-    trailMultiplier: finiteConfigNumber(TradingConfig.get('strategyBehavior.atrContracts.trailMultiplier'), 'atrContracts.trailMultiplier', 2.0, 0),
-    trailingActivationR: finiteConfigNumber(TradingConfig.get('strategyBehavior.atrContracts.trailingActivationR'), 'atrContracts.trailingActivationR', 1.0, 0),
+    enabled: booleanConfigValue(ConfigLoader.get('strategyBehavior.atrContracts.enabled'), false),
+    stopMultiplier: finiteConfigNumber(ConfigLoader.get('strategyBehavior.atrContracts.stopMultiplier'), 'atrContracts.stopMultiplier', 2.0, 0),
+    trailMultiplier: finiteConfigNumber(ConfigLoader.get('strategyBehavior.atrContracts.trailMultiplier'), 'atrContracts.trailMultiplier', 2.0, 0),
+    trailingActivationR: finiteConfigNumber(ConfigLoader.get('strategyBehavior.atrContracts.trailingActivationR'), 'atrContracts.trailingActivationR', 1.0, 0),
   };
 }
 
@@ -414,27 +414,27 @@ function buildLearningSnapshot(result, ctx) {
 function getEffectiveExitContractValue(strategyName, key, timeframe = null) {
   const normalizedTimeframe = normalizeTimeframeValue(timeframe);
   if (normalizedTimeframe) {
-    const timeframeValue = TradingConfig.get(`exitContracts.${strategyName}.timeframes.${normalizedTimeframe}.${key}`, MISSING_EXIT_CONTRACT_VALUE);
+    const timeframeValue = ConfigLoader.get(`exitContracts.${strategyName}.timeframes.${normalizedTimeframe}.${key}`, MISSING_EXIT_CONTRACT_VALUE);
     if (timeframeValue !== MISSING_EXIT_CONTRACT_VALUE) {
       return { value: timeframeValue, source: 'strategy_timeframe', timeframe: normalizedTimeframe };
     }
   }
-  const strategyValue = TradingConfig.get(`exitContracts.${strategyName}.${key}`, MISSING_EXIT_CONTRACT_VALUE);
+  const strategyValue = ConfigLoader.get(`exitContracts.${strategyName}.${key}`, MISSING_EXIT_CONTRACT_VALUE);
   if (strategyValue !== MISSING_EXIT_CONTRACT_VALUE) {
     return { value: strategyValue, source: 'strategy', timeframe: normalizedTimeframe };
   }
-  const strategyContract = TradingConfig.get(`exitContracts.${strategyName}`, MISSING_EXIT_CONTRACT_VALUE);
+  const strategyContract = ConfigLoader.get(`exitContracts.${strategyName}`, MISSING_EXIT_CONTRACT_VALUE);
   if (strategyContract !== MISSING_EXIT_CONTRACT_VALUE) {
     throw new Error(`[EXIT-CONTRACT] ${strategyName}.${key} must be explicit null or a finite number; key is missing from strategy contract`);
   }
   if (normalizedTimeframe) {
-    const defaultTimeframeValue = TradingConfig.get(`exitContracts.default.timeframes.${normalizedTimeframe}.${key}`, MISSING_EXIT_CONTRACT_VALUE);
+    const defaultTimeframeValue = ConfigLoader.get(`exitContracts.default.timeframes.${normalizedTimeframe}.${key}`, MISSING_EXIT_CONTRACT_VALUE);
     if (defaultTimeframeValue !== MISSING_EXIT_CONTRACT_VALUE) {
       return { value: defaultTimeframeValue, source: 'default_timeframe', timeframe: normalizedTimeframe };
     }
   }
   return {
-    value: TradingConfig.get(`exitContracts.default.${key}`, null),
+    value: ConfigLoader.get(`exitContracts.default.${key}`, null),
     source: 'default',
     timeframe: normalizedTimeframe,
   };
@@ -519,12 +519,12 @@ class StrategyOrchestrator {
     // Minimum confidence a single strategy needs to fire a trade
     // This is PER-STRATEGY, not aggregate — much more meaningful
     // TUNE 2026-02-27: Raised from 0.25 to filter garbage signals
-    this.minStrategyConfidence = TradingConfig.get('confidence.minStrategyConfidence') ?? 0.01;
+    this.minStrategyConfidence = ConfigLoader.get('confidence.minStrategyConfidence') ?? 0.01;
 
     // FIX 2026-03-19: Extracted hardcoded thresholds to config
-    this.regimeMinConfidence = TradingConfig.get('confidence.regimeMinConfidence') ?? 0.30;
-    this.confluenceMinScore = TradingConfig.get('confidence.confluenceMinScore') ?? 0.30;
-    this.tpoStrengthMin = TradingConfig.get('confidence.tpoStrengthMin') ?? 0.03;
+    this.regimeMinConfidence = ConfigLoader.get('confidence.regimeMinConfidence') ?? 0.30;
+    this.confluenceMinScore = ConfigLoader.get('confidence.confluenceMinScore') ?? 0.30;
+    this.tpoStrengthMin = ConfigLoader.get('confidence.tpoStrengthMin') ?? 0.03;
 
     // Minimum confluence signals to allow entry (default: 1 = winner alone is enough)
     this.minConfluenceCount = config.minConfluenceCount ?? 1;
@@ -558,7 +558,7 @@ class StrategyOrchestrator {
     this.emaCrossoverModule = new EMASMACrossoverSignal(this.emaCrossoverConfig);
     this.maDynamicSRModule = new MADynamicSR();
     this.liquiditySweepModule = new LiquiditySweepDetector({
-      ...(TradingConfig.get('strategies.LiquiditySweep') || {}),
+      ...(ConfigLoader.get('strategies.LiquiditySweep') || {}),
       disableSessionCheck: true,
     });
     this.breakAndRetestModule = new BreakAndRetest();
@@ -572,10 +572,10 @@ class StrategyOrchestrator {
     this.mtfAdapter = new MultiTimeframeAdapter(this._buildMtfAdapterConfig());
     this.tpoIntegration = new OgzTpoIntegration();
     this.smartMoneySweepModule = new SmartMoneySweep(
-      TradingConfig.get('strategies.SmartMoneySweep') || {}
+      ConfigLoader.get('strategies.SmartMoneySweep') || {}
     );
     this.donchianBreakoutModule = new DonchianBreakout(
-      TradingConfig.get('strategies.DonchianBreakout') || {}
+      ConfigLoader.get('strategies.DonchianBreakout') || {}
     );
     // SOLO_STRATEGY mode: only enable specified strategies for isolated testing
     // Usage: SOLO_STRATEGY=RSI node tools/parallel-backtest.js ...
@@ -587,18 +587,18 @@ class StrategyOrchestrator {
       console.log(`[StrategyOrchestrator] SOLO MODE: Only ${this.soloStrategies.join(', ')} enabled`);
     }
 
-    // FIX 2026-03-19: Load orchestrator config from TradingConfig (no hardcodes)
-    this.minCandlesEMA = TradingConfig.get('orchestrator.minCandlesEMA') ?? 20;
-    this.minCandlesMASR = TradingConfig.get('orchestrator.minCandlesMASR') ?? 50;
-    this.minCandlesSweep = TradingConfig.get('orchestrator.minCandlesSweep') ?? 20;
-    this.minCandlesMTF = TradingConfig.get('orchestrator.minCandlesMTF') ?? 30;
-    this.minCandlesTPO = TradingConfig.get('orchestrator.minCandlesTPO') ?? 30;
-    this.fibDistanceEMA = TradingConfig.get('orchestrator.fibDistanceEMA') ?? 0.5;
-    this.fibDistanceMASR = TradingConfig.get('orchestrator.fibDistanceMASR') ?? 0.5;
-    this.fibDistanceSweep = TradingConfig.get('orchestrator.fibDistanceSweep') ?? 0.8;
-    this.fibBoostNormal = TradingConfig.get('orchestrator.fibBoostNormal') ?? 0.10;
-    this.fibBoostGolden = TradingConfig.get('orchestrator.fibBoostGolden') ?? 0.15;
-    this.tpoStrengthMultiplier = TradingConfig.get('orchestrator.tpoStrengthMultiplier') ?? 10;
+    // FIX 2026-03-19: Load orchestrator config from ConfigLoader (no hardcodes)
+    this.minCandlesEMA = ConfigLoader.get('orchestrator.minCandlesEMA') ?? 20;
+    this.minCandlesMASR = ConfigLoader.get('orchestrator.minCandlesMASR') ?? 50;
+    this.minCandlesSweep = ConfigLoader.get('orchestrator.minCandlesSweep') ?? 20;
+    this.minCandlesMTF = ConfigLoader.get('orchestrator.minCandlesMTF') ?? 30;
+    this.minCandlesTPO = ConfigLoader.get('orchestrator.minCandlesTPO') ?? 30;
+    this.fibDistanceEMA = ConfigLoader.get('orchestrator.fibDistanceEMA') ?? 0.5;
+    this.fibDistanceMASR = ConfigLoader.get('orchestrator.fibDistanceMASR') ?? 0.5;
+    this.fibDistanceSweep = ConfigLoader.get('orchestrator.fibDistanceSweep') ?? 0.8;
+    this.fibBoostNormal = ConfigLoader.get('orchestrator.fibBoostNormal') ?? 0.10;
+    this.fibBoostGolden = ConfigLoader.get('orchestrator.fibBoostGolden') ?? 0.15;
+    this.tpoStrengthMultiplier = ConfigLoader.get('orchestrator.tpoStrengthMultiplier') ?? 10;
 
     // Stats tracking
     this.lastEvaluation = null;
@@ -622,7 +622,7 @@ class StrategyOrchestrator {
   _buildMtfAdapterConfig() {
     return {
       ...(this.mtfBaseTimeframe ? { baseTimeframe: this.mtfBaseTimeframe } : {}),
-      activeTimeframes: TradingConfig.get('orchestrator.mtfTimeframes') || ['1m', '5m', '15m', '1h', '4h'],
+      activeTimeframes: ConfigLoader.get('orchestrator.mtfTimeframes') || ['1m', '5m', '15m', '1h', '4h'],
     };
   }
 
@@ -775,13 +775,13 @@ class StrategyOrchestrator {
   }
 
   _shouldObserveMtfConfluence() {
-    const pipeline = TradingConfig.get('pipeline') || {};
-    const booster = TradingConfig.get('orchestrator.mtfConfluenceBooster') || {};
+    const pipeline = ConfigLoader.get('pipeline') || {};
+    const booster = ConfigLoader.get('orchestrator.mtfConfluenceBooster') || {};
     return pipeline.enableMultiTimeframe === true || booster.enabled === true;
   }
 
   _applyMtfConfluenceBooster(results, ctx) {
-    const config = TradingConfig.get('orchestrator.mtfConfluenceBooster') || {};
+    const config = ConfigLoader.get('orchestrator.mtfConfluenceBooster') || {};
     if (config.enabled !== true) return false;
     if (results.length === 0) return false;
 
@@ -863,7 +863,7 @@ class StrategyOrchestrator {
   }
 
   _applyStrategyMtfConfluence(result, ctx) {
-    const strategyMtfConfig = TradingConfig.get('orchestrator.strategyMtfConfluence') || {};
+    const strategyMtfConfig = ConfigLoader.get('orchestrator.strategyMtfConfluence') || {};
     if (strategyMtfConfig.enabled !== true) {
       return { disabled: true };
     }
@@ -925,7 +925,7 @@ class StrategyOrchestrator {
 
     switch (result.strategyName) {
       case 'EMASMACrossover': {
-        const cfg = TradingConfig.get('orchestrator.emaCrossoverMtf') || {};
+        const cfg = ConfigLoader.get('orchestrator.emaCrossoverMtf') || {};
         const tf1h = this._getMtfIndicatorsForEvaluation(ctx, '1h');
         const tf4h = this._getMtfIndicatorsForEvaluation(ctx, '4h');
         if (tf1h && isMtfTrendConflicting(tf1h, result.direction)) {
@@ -972,7 +972,7 @@ class StrategyOrchestrator {
         break;
       }
       case 'MADynamicSR': {
-        const cfg = TradingConfig.get('orchestrator.maDynamicSRMtf') || {};
+        const cfg = ConfigLoader.get('orchestrator.maDynamicSRMtf') || {};
         const tf1h = this._getMtfIndicatorsForEvaluation(ctx, '1h');
         const tf4h = this._getMtfIndicatorsForEvaluation(ctx, '4h');
         if (cfg.requireHourlyTrendAlign === true && tf1h && isMtfTrendConflicting(tf1h, result.direction)) {
@@ -1005,7 +1005,7 @@ class StrategyOrchestrator {
         break;
       }
       case 'RSI': {
-        const cfg = TradingConfig.get('orchestrator.rsiMtf') || {};
+        const cfg = ConfigLoader.get('orchestrator.rsiMtf') || {};
         const tf4h = this._getMtfIndicatorsForEvaluation(ctx, '4h');
         if (cfg.penalizeAgainst4hTrend === true && tf4h && isMtfTrendConflicting(tf4h, result.direction)) {
           const multiplier = finiteConfigNumber(cfg.fourHourTrendConflictMultiplier, 'rsiMtf.fourHourTrendConflictMultiplier', 0.95, 0);
@@ -1034,7 +1034,7 @@ class StrategyOrchestrator {
         break;
       }
       case 'MultiTimeframe': {
-        const cfg = TradingConfig.get('orchestrator.multiTimeframeMtf') || {};
+        const cfg = ConfigLoader.get('orchestrator.multiTimeframeMtf') || {};
         const required = Array.isArray(cfg.requireHigherTFReady) ? cfg.requireHigherTFReady : [];
         if (required.length > 0) {
           const ready = mtfReadyTimeframes(result.signalData);
@@ -1051,7 +1051,7 @@ class StrategyOrchestrator {
         break;
       }
       case 'OGZTPO': {
-        const cfg = TradingConfig.get('orchestrator.ogzTpoMtf') || {};
+        const cfg = ConfigLoader.get('orchestrator.ogzTpoMtf') || {};
         const tf4h = this._getMtfIndicatorsForEvaluation(ctx, '4h');
         if (tf4h && isMtfTrendAligned(tf4h, result.direction)) {
           const multiplier = finiteConfigNumber(cfg.fourHourTrendBoostMultiplier, 'ogzTpoMtf.fourHourTrendBoostMultiplier', 1.12, 1);
@@ -1145,10 +1145,10 @@ class StrategyOrchestrator {
     };
     const shouldInstantiateDormantStrategy = (name, toggleKey, envName) => {
       if (!shouldRegister(name)) return false;
-      const pipeline = TradingConfig.get('pipeline') || {};
+      const pipeline = ConfigLoader.get('pipeline') || {};
       const toggle = pipeline[toggleKey];
       if (typeof toggle !== 'boolean') {
-        throw new Error(`[PIPELINE] ${name} pipeline toggle must be boolean; got ${toggle}. Check TradingConfig.pipeline and ${envName}`);
+        throw new Error(`[PIPELINE] ${name} pipeline toggle must be boolean; got ${toggle}. Check ConfigLoader.pipeline and ${envName}`);
       }
       if (toggle === false) {
         if (this.soloStrategies && this.soloStrategies.includes(name.toLowerCase())) {
@@ -1299,7 +1299,7 @@ class StrategyOrchestrator {
           ctx.extras?.symbol,
           liquiditySweepModule,
           () => new LiquiditySweepDetector({
-            ...(TradingConfig.get('strategies.LiquiditySweep') || {}),
+            ...(ConfigLoader.get('strategies.LiquiditySweep') || {}),
             disableSessionCheck: true,
           })
         );
@@ -1381,14 +1381,14 @@ class StrategyOrchestrator {
     }
 
     // ─── 5. RSI Extreme Strategy ───
-    // FIX 2026-03-06: Read thresholds from TradingConfig per STRATEGY-REWRITE-SPEC
+    // FIX 2026-03-06: Read thresholds from ConfigLoader per STRATEGY-REWRITE-SPEC
     if (shouldRegister('RSI')) this.strategies.push({
       name: 'RSI',  // RSI Extreme strategy
       evaluate: (ctx) => {
         const rsi = ctx.indicators?.rsi;
         if (rsi == null) return null;
 
-        const rsiConfig = TradingConfig.get('strategies.RSI') || {};
+        const rsiConfig = ConfigLoader.get('strategies.RSI') || {};
         const oversold = rsiConfig.oversoldLevel || 25;
         const overbought = rsiConfig.overboughtLevel || 75;
 
@@ -1641,7 +1641,7 @@ class StrategyOrchestrator {
           ctx.extras?.symbol,
           smartMoneySweepModule,
           () => new SmartMoneySweep(
-            TradingConfig.get('strategies.SmartMoneySweep') || {}
+            ConfigLoader.get('strategies.SmartMoneySweep') || {}
           )
         );
         const sig = scopedSmartMoneySweep.update(latestCandle, candles);
@@ -1703,14 +1703,14 @@ class StrategyOrchestrator {
         ctx.extras?.symbol,
         donchianBreakoutModule,
         () => new DonchianBreakout(
-          TradingConfig.get('strategies.DonchianBreakout') || {}
+          ConfigLoader.get('strategies.DonchianBreakout') || {}
         )
       ).evaluate(ctx)
     });
 
     if (shouldInstantiateDormantStrategy('PropSafeEMAPullback', 'enablePropSafeEMAPullback', 'ENABLE_PROPSAFE_EMA')) {
       const propSafeEmaPullbackModule = new PropSafeEMAPullback(
-        TradingConfig.get('strategies.PropSafeEMAPullback') || {}
+        ConfigLoader.get('strategies.PropSafeEMAPullback') || {}
       );
       this.strategies.push({
         name: 'PropSafeEMAPullback',
@@ -1719,7 +1719,7 @@ class StrategyOrchestrator {
           ctx.extras?.symbol,
           propSafeEmaPullbackModule,
           () => new PropSafeEMAPullback(
-            TradingConfig.get('strategies.PropSafeEMAPullback') || {}
+            ConfigLoader.get('strategies.PropSafeEMAPullback') || {}
           )
         ).evaluate(ctx)
       });
@@ -1727,7 +1727,7 @@ class StrategyOrchestrator {
 
     if (shouldInstantiateDormantStrategy('EMATrendRetest', 'enableEMATrendRetest', 'ENABLE_EMA_TREND_RETEST')) {
       const emaTrendRetestModule = new EMATrendRetest(
-        TradingConfig.get('strategies.EMATrendRetest') || {}
+        ConfigLoader.get('strategies.EMATrendRetest') || {}
       );
       this.strategies.push({
         name: 'EMATrendRetest',
@@ -1736,7 +1736,7 @@ class StrategyOrchestrator {
           ctx.extras?.symbol,
           emaTrendRetestModule,
           () => new EMATrendRetest(
-            TradingConfig.get('strategies.EMATrendRetest') || {}
+            ConfigLoader.get('strategies.EMATrendRetest') || {}
           )
         ).evaluate(ctx)
       });
@@ -1744,7 +1744,7 @@ class StrategyOrchestrator {
 
     if (shouldInstantiateDormantStrategy('RSI2MeanReversion', 'enableRSI2MeanReversion', 'ENABLE_RSI2_MR')) {
       const rsi2MeanReversionModule = new RSI2MeanReversion(
-        TradingConfig.get('strategies.RSI2MeanReversion') || {}
+        ConfigLoader.get('strategies.RSI2MeanReversion') || {}
       );
       this.strategies.push({
         name: 'RSI2MeanReversion',
@@ -1753,7 +1753,7 @@ class StrategyOrchestrator {
           ctx.extras?.symbol,
           rsi2MeanReversionModule,
           () => new RSI2MeanReversion(
-            TradingConfig.get('strategies.RSI2MeanReversion') || {}
+            ConfigLoader.get('strategies.RSI2MeanReversion') || {}
           )
         ).evaluate(ctx)
       });
@@ -1761,7 +1761,7 @@ class StrategyOrchestrator {
 
     if (shouldInstantiateDormantStrategy('TimeSeriesMomentum', 'enableTimeSeriesMomentum', 'ENABLE_TSMOM')) {
       const timeSeriesMomentumModule = new TimeSeriesMomentum(
-        TradingConfig.get('strategies.TimeSeriesMomentum') || {}
+        ConfigLoader.get('strategies.TimeSeriesMomentum') || {}
       );
       this.strategies.push({
         name: 'TimeSeriesMomentum',
@@ -1770,7 +1770,7 @@ class StrategyOrchestrator {
           ctx.extras?.symbol,
           timeSeriesMomentumModule,
           () => new TimeSeriesMomentum(
-            TradingConfig.get('strategies.TimeSeriesMomentum') || {}
+            ConfigLoader.get('strategies.TimeSeriesMomentum') || {}
           )
         ).evaluate(ctx)
       });
@@ -1786,7 +1786,7 @@ class StrategyOrchestrator {
    * Logs exactly which strategies are active/disabled - no silent failures.
    */
   _applyPipelineToggles() {
-    const pipeline = TradingConfig.get('pipeline') || {};
+    const pipeline = ConfigLoader.get('pipeline') || {};
     const toggleMap = {
       'RSI': pipeline.enableRSI,
       'MADynamicSR': pipeline.enableMADynamicSR,
@@ -1825,7 +1825,7 @@ class StrategyOrchestrator {
       const toggle = toggleMap[s.name];
       if (typeof toggle !== 'boolean') {
         const envName = enableEnvMap[s.name] || `ENABLE_${s.name.toUpperCase()}`;
-        throw new Error(`[PIPELINE] ${s.name} pipeline toggle must be boolean; got ${toggle}. Check TradingConfig.pipeline and ${envName}`);
+        throw new Error(`[PIPELINE] ${s.name} pipeline toggle must be boolean; got ${toggle}. Check ConfigLoader.pipeline and ${envName}`);
       }
       if (toggle === false) {
         if (this.soloStrategies && this.soloStrategies.includes(s.name.toLowerCase())) {
@@ -2035,8 +2035,8 @@ class StrategyOrchestrator {
 
     // ATR filter: Per-strategy threshold via effective exitContracts.{strategy}.atrMinPercent
     // null = fall back to global filters.atrMinPercent (zero behavior change default)
-    const atrFilterEnabled = TradingConfig.get('filters.atrEnabled');
-    const globalAtrMin = TradingConfig.get('filters.atrMinPercent');
+    const atrFilterEnabled = ConfigLoader.get('filters.atrEnabled');
+    const globalAtrMin = ConfigLoader.get('filters.atrMinPercent');
     const atrDropped = [];
     if (atrFilterEnabled && filterATRpct > 0 && results.length > 0) {
       for (let i = results.length - 1; i >= 0; i--) {
@@ -2095,15 +2095,15 @@ class StrategyOrchestrator {
     results.sort((a, b) => b.rankingScore - a.rankingScore);
 
     // ─── Step 2.5: Regime-based strategy boosting ───
-    // FIX 2026-04-05: Read from TradingConfig for matrix sweep optimization
+    // FIX 2026-04-05: Read from ConfigLoader for matrix sweep optimization
     // Multipliers, not gates. Losers still fire, just sized smaller.
     // HIGH-23: throw if regimeBoosts config missing or non-object.
-    // TradingConfig.js:108 already defines this as an object, so the throw
+    // ConfigLoader.js:108 already defines this as an object, so the throw
     // only fires on genuine config breakage. Per Rule #1 — refusing to fall
     // back to {} which silently disables boosts.
-    const regimeBoosts = TradingConfig.get('regimeBoosts');
+    const regimeBoosts = ConfigLoader.get('regimeBoosts');
     if (regimeBoosts == null || typeof regimeBoosts !== 'object') {
-      throw new Error(`[HIGH-23] TradingConfig.regimeBoosts must be an object (got ${typeof regimeBoosts})`);
+      throw new Error(`[HIGH-23] ConfigLoader.regimeBoosts must be an object (got ${typeof regimeBoosts})`);
     }
 
     // Classify regime name to category (trending_up/trending_down → trending, etc.)
@@ -2194,11 +2194,11 @@ class StrategyOrchestrator {
 
     // ─── Step 2.6: Volume Profile-based strategy boosting ───
     // FIX 2026-04-05: Auction Market Theory - boost based on price position
-    // HIGH-24: same halt-class throw as HIGH-23. TradingConfig.js:146 always
+    // HIGH-24: same halt-class throw as HIGH-23. ConfigLoader.js:146 always
     // provides volumeProfileBoosts as an object.
-    const volumeProfileBoosts = TradingConfig.get('volumeProfileBoosts');
+    const volumeProfileBoosts = ConfigLoader.get('volumeProfileBoosts');
     if (volumeProfileBoosts == null || typeof volumeProfileBoosts !== 'object') {
-      throw new Error(`[HIGH-24] TradingConfig.volumeProfileBoosts must be an object (got ${typeof volumeProfileBoosts})`);
+      throw new Error(`[HIGH-24] ConfigLoader.volumeProfileBoosts must be an object (got ${typeof volumeProfileBoosts})`);
     }
     const volumeProfile = extras.volumeProfile;
     // FIX MIRROR-CRIT-09-VP: mirror of CRIT-09 hardening at line 790. Prior code used
@@ -2401,7 +2401,7 @@ class StrategyOrchestrator {
       // DEBUG: Log override level conversion
       console.log(`[EXIT-DEBUG] ${winner.strategyName} overrideLevels → Price=$${price?.toFixed(2)} SL=$${winner.overrideLevels.stopLoss?.toFixed(2)} TP=$${winner.overrideLevels.takeProfit?.toFixed(2)} → SL%=${signalOverrides.stopLossPercent?.toFixed(2)}% TP%=${signalOverrides.takeProfitPercent?.toFixed(2)}%`);
     } else {
-      console.log(`[EXIT-DEBUG] ${winner.strategyName} NO overrideLevels — will use TradingConfig defaults`);
+      console.log(`[EXIT-DEBUG] ${winner.strategyName} NO overrideLevels — will use ConfigLoader defaults`);
     }
 
     // FIX 2026-02-23: Convert ATR to percentage (was passing raw $ causing inflation)
@@ -2565,7 +2565,7 @@ class StrategyOrchestrator {
         symbol,
         this.smartMoneySweepModule,
         () => new SmartMoneySweep(
-          TradingConfig.get('strategies.SmartMoneySweep') || {}
+          ConfigLoader.get('strategies.SmartMoneySweep') || {}
         )
       );
       smsModule.recordTradeResult(pnl);

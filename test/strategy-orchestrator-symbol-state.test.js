@@ -57,10 +57,10 @@ describe('StrategyOrchestrator symbol-scoped strategy state', () => {
   test('records SmartMoneySweep trade results on the matching symbol module only', () => {
     const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
     const SmartMoneySweep = require('../modules/SmartMoneySweep');
-    const TradingConfig = require('../core/TradingConfig');
+    const ConfigLoader = require('../foundation/ConfigLoader');
     const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
     const makeSmartMoneySweep = () => new SmartMoneySweep(
-      TradingConfig.get('strategies.SmartMoneySweep') || {}
+      ConfigLoader.get('strategies.SmartMoneySweep') || {}
     );
 
     const tslaSms = orchestrator._getSymbolStrategyModule(

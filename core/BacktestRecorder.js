@@ -14,7 +14,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const TradingConfig = require('./TradingConfig');
+const ConfigLoader = require('../foundation/ConfigLoader');
 const FeeModel = require('./FeeModel');
 
 class BacktestRecorder {
@@ -135,7 +135,7 @@ class BacktestRecorder {
                 ? FeeModel.percent({ makerFee: config.feePerSide, takerFee: config.feePerSide })
                 : FeeModel.fromTradingConfig()
         );
-        this.feePerSide = config.feePerSide ?? TradingConfig.get('fees.makerFee');
+        this.feePerSide = config.feePerSide ?? ConfigLoader.get('fees.makerFee');
         this.roundTripFee = this.feePerSide * 2;
 
         this.balance = this.startingBalance;

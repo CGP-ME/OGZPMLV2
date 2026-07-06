@@ -74,14 +74,14 @@ const blocks = [
     'Does backtest model slippage at all, or does it assume exit price = signal price? Cite file:line.',
   ]},
   { title: 'BLOCK G — $970.71 regression anchor reproducibility', questions: [
-    'In core/TradingConfig.js exitContracts block, paste the current values for RSI, EMASMACrossover, MADynamicSR, LiquiditySweep. Confirm _validated dates are present. Cite file:line.',
-    'Does ExitContractManager.createExitContract actually pull from TradingConfig.BASE_CONFIG.exitContracts, or is there a fallback to global exits.stopLossPercent? Cite file:line for both paths.',
+    'In foundation/ConfigLoader.js exitContracts block, paste the current values for RSI, EMASMACrossover, MADynamicSR, LiquiditySweep. Confirm _validated dates are present. Cite file:line.',
+    'Does ExitContractManager.createExitContract actually pull from ConfigLoader.BASE_CONFIG.exitContracts, or is there a fallback to global exits.stopLossPercent? Cite file:line for both paths.',
     'Does tools/parallel-backtest.js worker spawn block set ENABLE_SMS=true and SMS_VP_RTH_ONLY=true? Cite file:line.',
     'In core/exit/StopLossChecker.js:49-52, is the drawdown bypass calc fix applied (uses getEquity or equivalent), or does it still double-count via accountBalance + positionValue? Cite file:line.',
     'In core/TradingLoop.js:149-150, does accountBalance read from stateManager.getEquity(price) or from stateManager.get(balance)? Cite file:line.',
   ]},
   { title: 'BLOCK H — Config system duplication', questions: [
-    'core/TradingConfig.js and foundation/ConfigLoader.js both exist. For STOP_LOSS_PERCENT, MIN_TRADE_CONFIDENCE, RISK_MANAGER_BYPASS, ACCOUNT_DRAWDOWN_BYPASS — which file defines each, what default, and which consumers read from which? Full cross-reference with file:line.',
+    'foundation/ConfigLoader.js and foundation/ConfigLoader.js both exist. For STOP_LOSS_PERCENT, MIN_TRADE_CONFIDENCE, RISK_MANAGER_BYPASS, ACCOUNT_DRAWDOWN_BYPASS — which file defines each, what default, and which consumers read from which? Full cross-reference with file:line.',
     'In production (backtest + live), which config source wins when the two disagree? Trace a specific read of MIN_TRADE_CONFIDENCE from TradingLoop back to its source. Cite file:line.',
   ]},
   { title: 'BLOCK I — Orphan code (potential free alpha)', questions: [
@@ -91,11 +91,11 @@ const blocks = [
   ]},
   { title: 'BLOCK J — Position sizing', questions: [
     'In core/OrderExecutor.js:55-81, show the current confidence multiplier formula and the cap. Confirm the stack is base x confidence x confluence. Cite file:line with verbatim code.',
-    'What is maxPositionSize in TradingConfig.js, and does OrderExecutor use basePositionSize (1%) or maxPositionSize (5%) as the starting point? Cite file:line.',
+    'What is maxPositionSize in ConfigLoader.js, and does OrderExecutor use basePositionSize (1%) or maxPositionSize (5%) as the starting point? Cite file:line.',
     'Is DynamicPositionSizer instantiated and wired, or is it still null per run-empire-v2.js:615? Cite file:line.',
   ]},
   { title: 'BLOCK K — PID controller readiness', questions: [
-    'Does core/TradingConfig.js have a pid block defined today (even empty)? Cite file:line or confirm NOT FOUND.',
+    'Does foundation/ConfigLoader.js have a pid block defined today (even empty)? Cite file:line or confirm NOT FOUND.',
     'Is PIDController.js created as a module yet, or does only the spec exist? Cite file path or confirm NOT FOUND.',
   ]},
   { title: 'BLOCK L — Pine transpiler state', questions: [

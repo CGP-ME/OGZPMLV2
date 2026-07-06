@@ -2,7 +2,7 @@
  * PIDController.js — Adaptive Parameter Optimization
  * ===================================================
  * Sits ON TOP of the orchestrator. Reads performance
- * metrics, adjusts TradingConfig values in real time.
+ * metrics, adjusts ConfigLoader values in real time.
  *
  * NOT a strategy. NOT an exit checker. A META-CONTROLLER
  * that tunes the system while it runs.
@@ -17,7 +17,7 @@
  *   - 50-trade warmup before activation
  *   - Rate-limited output (max 10% change per cycle)
  *   - Anti-windup on integral term
- *   - All Kp/Ki/Kd in TradingConfig with env() for matrix sweep
+ *   - All Kp/Ki/Kd in ConfigLoader with env() for matrix sweep
  *
  * @module core/PIDController
  * @author Trey (Architecture) + Claude (Implementation)
@@ -26,7 +26,7 @@
 
 'use strict';
 
-const TradingConfig = require('./TradingConfig');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // PID LOOP — Single feedback loop implementation
@@ -123,19 +123,19 @@ class PIDLoop {
 
 class PIDController {
   constructor(config = {}) {
-    this.enabled = config.enabled ?? TradingConfig.get('pid.enabled') ?? true;
-    this.updateInterval = config.updateInterval || TradingConfig.get('pid.updateInterval') || 10;
-    this.warmupTrades = config.warmupTrades || TradingConfig.get('pid.warmupTrades') || 50;
+    this.enabled = config.enabled ?? ConfigLoader.get('pid.enabled') ?? true;
+    this.updateInterval = config.updateInterval || ConfigLoader.get('pid.updateInterval') || 10;
+    this.warmupTrades = config.warmupTrades || ConfigLoader.get('pid.warmupTrades') || 50;
     this.tradesSinceUpdate = 0;
     this.totalTrades = 0;
 
     // === LOOP 1: Position Sizing ===
     // Target: maintain positive equity slope
     this.positionLoop = new PIDLoop('position_sizing', {
-      Kp: TradingConfig.get('pid.positionKp') || 0.30,
-      Ki: TradingConfig.get('pid.positionKi') || 0.05,
-      Kd: TradingConfig.get('pid.positionKd') || 0.10,
-      setpoint: TradingConfig.get('pid.targetEquitySlope') || 0.005,
+      Kp: ConfigLoader.get('pid.positionKp') || 0.30,
+      Ki: ConfigLoader.get('pid.positionKi') || 0.05,
+      Kd: ConfigLoader.get('pid.positionKd') || 0.10,
+      setpoint: ConfigLoader.get('pid.targetEquitySlope') || 0.005,
       outputMin: 0.3,   // minimum 30% of base size
       outputMax: 2.0,   // maximum 200% of base size
       integralMax: 5.0,
@@ -148,9 +148,9 @@ class PIDController {
     const strategies = ['RSI', 'EMASMACrossover', 'MADynamicSR', 'LiquiditySweep', 'SmartMoneySweep'];
     for (const strat of strategies) {
       this.regimeLoops[strat] = new PIDLoop(`regime_${strat}`, {
-        Kp: TradingConfig.get('pid.regimeKp') || 0.02,
-        Ki: TradingConfig.get('pid.regimeKi') || 0.005,
-        Kd: TradingConfig.get('pid.regimeKd') || 0.01,
+        Kp: ConfigLoader.get('pid.regimeKp') || 0.02,
+        Ki: ConfigLoader.get('pid.regimeKi') || 0.005,
+        Kd: ConfigLoader.get('pid.regimeKd') || 0.01,
         setpoint: 0, // target: profitable (P&L > 0)
         outputMin: 0.5,
         outputMax: 1.5,
@@ -162,10 +162,10 @@ class PIDController {
     // === LOOP 3: Trailing Stop Adaptation ===
     // Target: capture 60%+ of max favorable excursion
     this.trailLoop = new PIDLoop('trailing_stop', {
-      Kp: TradingConfig.get('pid.trailKp') || 0.15,
-      Ki: TradingConfig.get('pid.trailKi') || 0.03,
-      Kd: TradingConfig.get('pid.trailKd') || 0.05,
-      setpoint: TradingConfig.get('pid.targetMFERatio') || 0.60,
+      Kp: ConfigLoader.get('pid.trailKp') || 0.15,
+      Ki: ConfigLoader.get('pid.trailKi') || 0.03,
+      Kd: ConfigLoader.get('pid.trailKd') || 0.05,
+      setpoint: ConfigLoader.get('pid.targetMFERatio') || 0.60,
       outputMin: 1.0,
       outputMax: 3.5,
       integralMax: 2.0,
@@ -174,7 +174,7 @@ class PIDController {
 
     // Performance tracking
     this.recentTrades = [];   // rolling window
-    this.windowSize = config.windowSize || TradingConfig.get('pid.windowSize') || 20;
+    this.windowSize = config.windowSize || ConfigLoader.get('pid.windowSize') || 20;
 
     // Output state (read by other modules)
     this.outputs = {

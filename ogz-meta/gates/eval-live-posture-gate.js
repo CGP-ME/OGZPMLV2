@@ -8,7 +8,6 @@ const axios = require('axios');
 const dotenv = require('dotenv');
 
 const ConfigLoader = require('../../foundation/ConfigLoader');
-const TradingConfig = require('../../core/TradingConfig');
 const tradingConfigFile = require('../../config/trading.config.json');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
@@ -546,7 +545,7 @@ function validateRuntimeProfile(report) {
 
   let profile;
   try {
-    profile = TradingConfig.resolveTuningProfile(profileName);
+    profile = ConfigLoader.resolveTuningProfile(profileName);
   } catch (error) {
     addError(report.errors, `Runtime tuning profile '${profileName}' failed to resolve: ${error.message}`);
     return;

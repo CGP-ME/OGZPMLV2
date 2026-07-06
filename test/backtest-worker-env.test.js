@@ -1,7 +1,7 @@
 'use strict';
 
 const path = require('path');
-const TradingConfig = require('../core/TradingConfig');
+const ConfigLoader = require('../foundation/ConfigLoader');
 const {
   CANONICAL_BACKTEST_ENV,
   STOCK_ZERO_FEE_ENV,
@@ -127,10 +127,10 @@ describe('backtest worker env contract', () => {
     });
   });
 
-  test('canonical worker env values are owned by TradingConfig and exported read-only', () => {
+  test('canonical worker env values are owned by ConfigLoader and exported read-only', () => {
     expect(CANONICAL_BACKTEST_ENV).toEqual(EXPECTED_CANONICAL_BACKTEST_ENV);
-    expect(CANONICAL_BACKTEST_ENV).toEqual(TradingConfig.getBacktestWorkerEnvDefaults());
-    expect(STOCK_ZERO_FEE_ENV).toEqual(TradingConfig.getBacktestStockZeroFeeEnv());
+    expect(CANONICAL_BACKTEST_ENV).toEqual(ConfigLoader.getBacktestWorkerEnvDefaults());
+    expect(STOCK_ZERO_FEE_ENV).toEqual(ConfigLoader.getBacktestStockZeroFeeEnv());
     expect(Object.isFrozen(CANONICAL_BACKTEST_ENV)).toBe(true);
     expect(Object.isFrozen(STOCK_ZERO_FEE_ENV)).toBe(true);
     expect(CANONICAL_BACKTEST_ENV.ENABLE_MTF_CONFLUENCE_BOOSTER).toBeUndefined();
@@ -143,8 +143,8 @@ describe('backtest worker env contract', () => {
       STOCK_ZERO_FEE_ENV.FEE_MAKER = '0.99';
     }).toThrow(TypeError);
 
-    expect(TradingConfig.getBacktestWorkerEnvDefaults().EXECUTION_MODE).toBe('backtest');
-    expect(TradingConfig.getBacktestStockZeroFeeEnv().FEE_MAKER).toBe('0');
+    expect(ConfigLoader.getBacktestWorkerEnvDefaults().EXECUTION_MODE).toBe('backtest');
+    expect(ConfigLoader.getBacktestStockZeroFeeEnv().FEE_MAKER).toBe('0');
   });
 
   test('canonical stock worker env preserves explicit direction while blocking other trading drift', () => {

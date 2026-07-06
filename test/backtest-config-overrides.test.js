@@ -70,7 +70,7 @@ describe('BacktestConfigOverrides', () => {
     )).toThrow(/must be negative percent-form/);
   });
 
-  test('applies parsed overrides through TradingConfig surface', () => {
+  test('applies parsed overrides through ConfigLoader surface', () => {
     const calls = [];
     const raw = JSON.stringify({ 'exitContracts.EMASMACrossover.stopLossPercent': -2.5 });
     const applied = applyBacktestConfigOverrides(raw, {

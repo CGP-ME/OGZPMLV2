@@ -75,7 +75,7 @@
  * @property {boolean} state.recoveryMode - Emergency recovery mode flag
  */
 
-const TradingConfig = require('./TradingConfig');
+const ConfigLoader = require('../foundation/ConfigLoader');
 const { get: getConfigValue, getSource: getConfigSource } = require('../foundation/ConfigLoader');
 const tradingConfigFile = require('../config/trading.config.json');
 const { getNarrator } = require('./TradeNarrator');
@@ -2915,9 +2915,9 @@ class StateManager {
 
   _symbolLossCooldownConfig() {
     let cfg = getConfigValue('entryLogic.symbolLossCooldown') || null;
-    if (!cfg && typeof TradingConfig.get === 'function') {
+    if (!cfg && typeof ConfigLoader.get === 'function') {
       try {
-        cfg = TradingConfig.get('entryLogic.symbolLossCooldown');
+        cfg = ConfigLoader.get('entryLogic.symbolLossCooldown');
       } catch (_) {
         cfg = null;
       }
@@ -3463,9 +3463,9 @@ class StateManager {
   }
 
   _dashboardStateHeartbeatMs() {
-    const heartbeatMs = Number(TradingConfig.get('dashboard.stateUpdateHeartbeatMs'));
+    const heartbeatMs = Number(ConfigLoader.get('dashboard.stateUpdateHeartbeatMs'));
     if (!Number.isFinite(heartbeatMs) || heartbeatMs <= 0) {
-      throw new Error(`TradingConfig dashboard.stateUpdateHeartbeatMs must be positive milliseconds; got ${heartbeatMs}`);
+      throw new Error(`ConfigLoader dashboard.stateUpdateHeartbeatMs must be positive milliseconds; got ${heartbeatMs}`);
     }
     return heartbeatMs;
   }

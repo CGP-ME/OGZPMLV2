@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://ogzprime.com/schemas/trading.config.schema.json",
   "title": "OGZPrime Trading Config",
-  "description": "Canonical schema for config/trading.config.json. Mirrors the shape of TradingConfig.BASE_CONFIG at commit 747909d. Phase 1 of config consolidation — matches current shape, validates top-level keys and critical constraints; nested objects allow additional properties so _validated / _meta markers on locked exit contracts pass through unchanged.",
+  "description": "Canonical schema for config/trading.config.json. Mirrors the shape of ConfigLoader.BASE_CONFIG at commit 747909d. Phase 1 of config consolidation — matches current shape, validates top-level keys and critical constraints; nested objects allow additional properties so _validated / _meta markers on locked exit contracts pass through unchanged.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -124,7 +124,7 @@
     },
     "patternMemory": {
       "type": "object",
-      "description": "Canonical UnifiedPatternMemory tunables. Runtime code must read these values through TradingConfig and must not read PATTERN_* env vars or local defaults.",
+      "description": "Canonical UnifiedPatternMemory tunables. Runtime code must read these values through ConfigLoader and must not read PATTERN_* env vars or local defaults.",
       "additionalProperties": false,
       "required": [
         "minSamples",

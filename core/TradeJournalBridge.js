@@ -27,7 +27,7 @@ const TradeJournal = require('./TradeJournal');
 const TradeReplayCapture = require('./TradeReplayCapture');
 const path = require('path');
 const fs = require('fs');
-const TradingConfig = require('./TradingConfig');  // CHANGE 2026-02-28: Centralized config
+const ConfigLoader = require('../foundation/ConfigLoader');  // CHANGE 2026-02-28: Centralized config
 const { requirePatternScope } = require('./PatternScope');
 
 function safeScopePathSegment(scope) {
@@ -506,7 +506,7 @@ class TradeJournalBridge {
     // Mercury caught Wolf's initial spec putting startingBalance before ...config which
     // caused the spread to silently overwrite the coerced value with raw config input —
     // re-introducing the exact bug Fix 27 was meant to fix.
-    const _rawStartingBalance = config.startingBalance ?? TradingConfig.get('startingBalance');
+    const _rawStartingBalance = config.startingBalance ?? ConfigLoader.get('startingBalance');
     this._journalBridgeConfig = { ...config };
     this._journalStartingBalance = Number(_rawStartingBalance);
     this._journalBundles = new Map();

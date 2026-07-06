@@ -54,7 +54,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { normalizePatternScope } = require('./PatternScope');
-const TradingConfig = require('./TradingConfig');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 // Ensure logs directory exists (fire-and-forget at module load)
 const LOGS_DIR = path.join(__dirname, '..', 'logs');
@@ -123,12 +123,12 @@ function copyDefinedConfigValue(source, sourceKey, target, targetKey = sourceKey
 }
 
 function resolvePatternBankConfig(config) {
-    const patternMemoryConfig = TradingConfig.getSection('patternMemory');
+    const patternMemoryConfig = ConfigLoader.getSection('patternMemory');
     if (!patternMemoryConfig || typeof patternMemoryConfig !== 'object') {
-        throw new Error('[PatternMemoryBank] TradingConfig.patternMemory is required');
+        throw new Error('[PatternMemoryBank] ConfigLoader.patternMemory is required');
     }
     if (!patternMemoryConfig.bank || typeof patternMemoryConfig.bank !== 'object') {
-        throw new Error('[PatternMemoryBank] TradingConfig.patternMemory.bank is required');
+        throw new Error('[PatternMemoryBank] ConfigLoader.patternMemory.bank is required');
     }
 
     const overrides = {};

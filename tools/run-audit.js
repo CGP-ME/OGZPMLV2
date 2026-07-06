@@ -64,7 +64,7 @@ const passes = [
   ]},
   { title: 'PASS 9 — EXIT PIPELINE', questions: [
     'Does ExitContractManager own every trade from fill to close? What order do exit checkers fire per tick?',
-    'Are exit contracts per-strategy locked via TradingConfig, or can global env vars override them?',
+    'Are exit contracts per-strategy locked via ConfigLoader, or can global env vars override them?',
   ]},
   { title: 'PASS 10 — PATTERN MEMORY', questions: [
     'Where is logPatternResult called from? Does it currently capture realized R-multiple data?',
@@ -80,7 +80,7 @@ const passes = [
     'How many places in run-empire-v2.js hardcode BTC-USD or tradingPair to a specific symbol?',
   ]},
   { title: 'PASS 14 — CONFIG', questions: [
-    'Which env vars in .env are ghost vars never consumed by TradingConfig.js or any runtime code?',
+    'Which env vars in .env are ghost vars never consumed by ConfigLoader.js or any runtime code?',
   ]},
   { title: 'PASS 17 — MULTI-ASSET READINESS', questions: [
     'Can multiple IBrokerAdapter instances coexist in the same process? Is there singleton state preventing two brokers running simultaneously?',

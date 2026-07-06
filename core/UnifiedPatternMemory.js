@@ -48,7 +48,7 @@
  *   7. PRUNE:    Patterns with <3 trades older than 90 days get deleted
  * 
  * CONFIG:
- *   Runtime tunables are owned by TradingConfig.patternMemory.
+ *   Runtime tunables are owned by ConfigLoader.patternMemory.
  *   This module must not read PATTERN_* env vars or invent local fallback values.
  * 
  * @module core/UnifiedPatternMemory
@@ -62,7 +62,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { normalizePatternScope } = require('./PatternScope');
-const TradingConfig = require('./TradingConfig');
+const ConfigLoader = require('../foundation/ConfigLoader');
 const { deriveReportAssetSlugFromDataFile } = require('./DataFileInstrument');
 
 // ═══════════════════════════════════════════════════════════════
@@ -146,9 +146,9 @@ function assertPatternMemoryNumber(config, key, rule) {
 }
 
 function resolvePatternMemoryConfig(overrides) {
-  const ownedConfig = TradingConfig.getSection('patternMemory');
+  const ownedConfig = ConfigLoader.getSection('patternMemory');
   if (!ownedConfig || typeof ownedConfig !== 'object') {
-    throw new Error('[UnifiedPatternMemory] TradingConfig.patternMemory is required');
+    throw new Error('[UnifiedPatternMemory] ConfigLoader.patternMemory is required');
   }
 
   const resolved = {

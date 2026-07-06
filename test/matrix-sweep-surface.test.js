@@ -28,8 +28,8 @@ const {
 const {
   PROFILE_FORBIDDEN_ENV_KEYS,
 } = require('../tools/tuning-profiles');
-const TradingConfig = require('../core/TradingConfig');
-const { BASE_CONFIG } = TradingConfig;
+const ConfigLoader = require('../foundation/ConfigLoader');
+const { BASE_CONFIG } = ConfigLoader;
 
 describe('matrix-sweep runnable surface', () => {
   function writeWorkerReport(projectRoot, tag, report) {
@@ -61,15 +61,15 @@ describe('matrix-sweep runnable surface', () => {
   }
 
   test('tsla shortcut uses the current stock eval baseline', () => {
-    const matrixConfig = TradingConfig.getMatrixSweepConfig();
+    const matrixConfig = ConfigLoader.getMatrixSweepConfig();
 
     expect(DEFAULT_DATA).toBe(matrixConfig.defaultData);
     expect(DATA_SHORTCUTS.tsla).toBe(matrixConfig.defaultData);
     expect(getDataLabel(DATA_SHORTCUTS.tsla)).toBe('tsla-2y');
   });
 
-  test('matrix sweep surface is owned by TradingConfig and read-only', () => {
-    const matrixConfig = TradingConfig.getMatrixSweepConfig();
+  test('matrix sweep surface is owned by ConfigLoader and read-only', () => {
+    const matrixConfig = ConfigLoader.getMatrixSweepConfig();
 
     expect(DATA_SHORTCUTS).toEqual(matrixConfig.dataShortcuts);
     expect(STOCK_TICKERS).toEqual(matrixConfig.stockTickers);

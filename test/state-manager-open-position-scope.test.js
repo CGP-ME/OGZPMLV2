@@ -131,7 +131,7 @@ describe('StateManager openPosition scope contract', () => {
 
   afterEach(() => {
     try {
-      require('../core/TradingConfig').clearOverrides();
+      require('../foundation/ConfigLoader').clearOverrides();
     } catch (_) {}
     for (const spy of consoleSpies) {
       spy.mockRestore();

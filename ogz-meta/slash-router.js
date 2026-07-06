@@ -410,7 +410,7 @@ function parseIssueForCodeRefs(issue) {
     refs[0].bugType = 'HARDCODED_VALUE';
   }
 
-  // Pattern: "→ TradingConfig" or "-> TradingConfig" - fix hint
+  // Pattern: "→ ConfigLoader" or "-> ConfigLoader" - fix hint
   const fixHintMatch = issue.match(/[→\->]+\s*(\w+)/);
   if (fixHintMatch && refs.length > 0) {
     refs[0].fixHint = `Replace with ${fixHintMatch[1]}`;
@@ -661,19 +661,19 @@ function applyCodeFix(bug) {
         newLine = indent + bug.newCode.trim();
       }
     }
-    // Handle "Replace with TradingConfig" pattern
-    else if (bug.fix_hint && bug.fix_hint.includes('TradingConfig')) {
+    // Handle "Replace with ConfigLoader" pattern
+    else if (bug.fix_hint && bug.fix_hint.includes('ConfigLoader')) {
       if (bug.code.includes('0.0052') || bug.code.includes('fees')) {
         newLine = originalLine.replace(
           /\*\s*0\.0052\s*,?\s*(\/\/.*)?$/,
-          `* TradingConfig.get('fees.totalRoundTrip'),  // From TradingConfig`
+          `* ConfigLoader.get('fees.totalRoundTrip'),  // From ConfigLoader`
         );
       } else if (bug.code.match(/\*\s*0\.\d+/)) {
         const match = bug.code.match(/\*\s*(0\.\d+)/);
         if (match) {
           newLine = originalLine.replace(
             new RegExp(`\\*\\s*${match[1].replace('.', '\\.')}\\s*,?\\s*(\\/\\/.*)?$`),
-            `* TradingConfig.get('fees.totalRoundTrip'),  // From TradingConfig`
+            `* ConfigLoader.get('fees.totalRoundTrip'),  // From ConfigLoader`
           );
         }
       }

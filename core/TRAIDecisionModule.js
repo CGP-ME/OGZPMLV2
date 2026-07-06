@@ -23,7 +23,7 @@
 const EventEmitter = require('events');
 const fs = require('fs');
 const path = require('path');
-const TradingConfig = require('./TradingConfig');  // CHANGE 2026-02-28: Centralized config
+const ConfigLoader = require('../foundation/ConfigLoader');  // CHANGE 2026-02-28: Centralized config
 const { getInstance: getUnifiedPatternMemory } = require('./UnifiedPatternMemory');  // CHANGE 2026-03-18: Unified pattern store
 const TRAIPatternIntegration = require('./TRAIPatternIntegration');  // CHANGE 2026-03-30: Pattern pack integration
 
@@ -790,11 +790,11 @@ class TRAIDecisionModule extends EventEmitter {
     // Change 598->2026-02-28: Honor minConfidenceOverride from config
     // Determine minimum confidence threshold:
     // 1) prefer explicit override from config (TRAI_MIN_CONF)
-    // 2) fall back to TradingConfig centralized config
+    // 2) fall back to ConfigLoader centralized config
     const minConfidence =
       (this.config && typeof this.config.minConfidenceOverride === 'number'
         ? this.config.minConfidenceOverride
-        : TradingConfig.get('confidence.minTradeConfidence'));
+        : ConfigLoader.get('confidence.minTradeConfidence'));
     if (!Number.isFinite(minConfidence)) {
       throw new Error('[TRAI] minConfidence must resolve to a finite configured number');
     }

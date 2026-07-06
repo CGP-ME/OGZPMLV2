@@ -25,7 +25,7 @@ const { getInstance: getStateManager } = require('./StateManager');
 const { RegimeDetector } = require('./RegimeDetector');
 const FeatureExtractor = require('./FeatureExtractor');
 const FeatureFlagManager = require('./FeatureFlagManager');
-const TradingConfig = require('./TradingConfig');
+const ConfigLoader = require('../foundation/ConfigLoader');
 const { getInstance: getExitContractManager } = require('./ExitContractManager');
 const CandlePatternDetector = require('./CandlePatternDetector');
 const { getNarrator } = require('./TradeNarrator');
@@ -1268,8 +1268,8 @@ class TradingLoop {
     });
 
     // ─── DIRECTION FILTER (configurable, not hardcoded) ───
-    const directionFilter = TradingConfig.get('pipeline.directionFilter');
-    const enableShorts = TradingConfig.get('features.enableShorts');
+    const directionFilter = ConfigLoader.get('pipeline.directionFilter');
+    const enableShorts = ConfigLoader.get('features.enableShorts');
     const minConfidence = this.ctx.config.minTradeConfidence;
 
     // ─── LOG ───
@@ -1283,7 +1283,7 @@ class TradingLoop {
     let finalDirection = tradingDirection;
 
     if (tpoResult?.signal?.highProbability) {
-      if (tpoResult.signal.strength > TradingConfig.get('confidence.tpoStrengthMin')) {
+      if (tpoResult.signal.strength > ConfigLoader.get('confidence.tpoStrengthMin')) {
         overrideSignal = tpoResult.signal;
         signalSource = 'TPO';
         finalDirection = tpoResult.signal.action === 'BUY' ? 'buy' : 'sell';
@@ -1325,7 +1325,7 @@ class TradingLoop {
         finalDirection,
         minConfidence,
         activeTrades: stateManager.getTradesBySymbol(symbol),
-        maxPositions: TradingConfig.get('positionSizing.maxPositions') ?? 3,
+        maxPositions: ConfigLoader.get('positionSizing.maxPositions') ?? 3,
         directionFilter,
         enableShorts,
         skipReason: directionGate.reason,
@@ -1354,7 +1354,7 @@ class TradingLoop {
     // run15mTradingCycle, the interval cycle, BacktestRunner) now pass
     // symbol explicitly.
     const activeTrades = stateManager.getTradesBySymbol(symbol);
-    const maxPositions = TradingConfig.get('positionSizing.maxPositions') ?? 3;
+    const maxPositions = ConfigLoader.get('positionSizing.maxPositions') ?? 3;
     const exitEvaluations = [];
 
     let decision = { action: 'HOLD', confidence: orchResult.confidence };
@@ -1912,7 +1912,7 @@ class TradingLoop {
       macd: indicators.macd?.macd ?? null,
       volume: marketData?.volume ?? null
     });
-    const minPatternConf = TradingConfig.get('confidence.candlePatternMinConfidence') || 0.70;
+    const minPatternConf = ConfigLoader.get('confidence.candlePatternMinConfidence') || 0.70;
     const candlePatterns = rawCandlePatterns.filter(p => (p.confidence || 0) >= minPatternConf);
     const patterns = [...candlePatterns, ...memoryPatterns];
 
@@ -2062,7 +2062,7 @@ class TradingLoop {
       const patternScope = this._patternScope(symbol);
       this.ctx.trai.processDecision(
         { action: direction.toUpperCase(), confidence: orchResult.confidence, patterns, indicators, price, timestamp: Date.now(), ...patternScope },
-        { volatility: indicators.volatility, trend: indicators.trend, volume: marketData?.volume || 'normal', regime: regime.currentRegime || 'unknown', indicators, positionSize: stateManager.get('balance') * TradingConfig.get('positionSizing.basePositionSize'), currentPosition: stateManager.get('position'), ...patternScope }
+        { volatility: indicators.volatility, trend: indicators.trend, volume: marketData?.volume || 'normal', regime: regime.currentRegime || 'unknown', indicators, positionSize: stateManager.get('balance') * ConfigLoader.get('positionSizing.basePositionSize'), currentPosition: stateManager.get('position'), ...patternScope }
       ).then(d => { if (d?.id) this.ctx._lastTraiDecision = d; })
        .catch(err => console.warn('[TRAI] Error:', err.message));
     } catch (e) {

@@ -159,9 +159,9 @@ describe('Pattern memory eviction boundary', () => {
     }
   });
 
-  test('Invariant 2: PatternMemoryBank.pruneOldPatterns enforces the TradingConfig-owned cap by removing lowest-score then oldest records first', () => {
-    const TradingConfig = require('../core/TradingConfig');
-    const MAX_PATTERNS = TradingConfig.get('patternMemory.bank.maxPatterns');
+  test('Invariant 2: PatternMemoryBank.pruneOldPatterns enforces the ConfigLoader-owned cap by removing lowest-score then oldest records first', () => {
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    const MAX_PATTERNS = ConfigLoader.get('patternMemory.bank.maxPatterns');
     expect(MAX_PATTERNS).toBe(10000);
 
     const bank = makeBackestBank();
@@ -202,7 +202,7 @@ describe('Pattern memory eviction boundary', () => {
     const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
 
     // maxPatterns=3 is supplied explicitly via local override on top of
-    // TradingConfig.patternMemory so the owned production cap is not used here.
+    // ConfigLoader.patternMemory so the owned production cap is not used here.
     // maxAgeDays is set very high so the age-based pruning pass cannot remove
     // anything; only the cap path produces the eviction.
     const memory = new UnifiedPatternMemory({

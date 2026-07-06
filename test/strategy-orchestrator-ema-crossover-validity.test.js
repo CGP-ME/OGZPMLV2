@@ -59,8 +59,8 @@ describe('StrategyOrchestrator EMASMACrossover validity', () => {
   });
 
   test('trey-spec blocks trend strategies in chop and uses ATR-scaled runner contract in trend', async () => {
-    const TradingConfig = require('../core/TradingConfig');
-    await TradingConfig.runWithTuningProfile(
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    await ConfigLoader.runWithTuningProfile(
       'trey-spec',
       async () => {
         const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');

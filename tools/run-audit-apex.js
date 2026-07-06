@@ -49,7 +49,7 @@ const sections = [
     'Is there logic for trailing drawdown where the high-water-mark moves up and the drawdown line chases it?',
   ]},
   { title: 'SECTION 5 — STRATEGY STACK VALIDATION', questions: [
-    'Which strategies in the StrategyOrchestrator have validated exit contracts in TradingConfig?',
+    'Which strategies in the StrategyOrchestrator have validated exit contracts in ConfigLoader?',
     'Is there a way to restrict the orchestrator to only run a curated subset of strategies via SOLO_STRATEGY env var?',
     'Do validated exit contracts persist across restarts without drift?',
   ]},

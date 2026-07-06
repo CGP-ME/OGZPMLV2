@@ -17,9 +17,9 @@ describe('StrategyOrchestrator exit contract confidence gate', () => {
     process.env = originalEnv;
   });
 
-  function addContract(TradingConfig, strategyName, overrides) {
-    TradingConfig.BASE_CONFIG.exitContracts[strategyName] = {
-      ...TradingConfig.BASE_CONFIG.exitContracts.default,
+  function addContract(ConfigLoader, strategyName, overrides) {
+    ConfigLoader.BASE_CONFIG.exitContracts[strategyName] = {
+      ...ConfigLoader.BASE_CONFIG.exitContracts.default,
       ...overrides,
     };
   }
@@ -46,8 +46,8 @@ describe('StrategyOrchestrator exit contract confidence gate', () => {
   }
 
   test('drops a strategy signal below its exit contract minConfidence before winner selection', () => {
-    const TradingConfig = require('../core/TradingConfig');
-    addContract(TradingConfig, 'ContractGateStrict', { minConfidence: 0.60 });
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    addContract(ConfigLoader, 'ContractGateStrict', { minConfidence: 0.60 });
     const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
 
     const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
@@ -58,9 +58,9 @@ describe('StrategyOrchestrator exit contract confidence gate', () => {
     expect(result.exitContract).toBeNull();
   });
 
-  test('honors runtime minConfidence overrides from TradingConfig.setOverrides', () => {
-    const TradingConfig = require('../core/TradingConfig');
-    TradingConfig.setOverrides({
+  test('honors runtime minConfidence overrides from ConfigLoader.setOverrides', () => {
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    ConfigLoader.setOverrides({
       exitContracts: {
         RuntimeOverrideGate: {
           minConfidence: 0.80,
@@ -78,11 +78,11 @@ describe('StrategyOrchestrator exit contract confidence gate', () => {
   });
 
   test('honors runtime minConfidence overrides applied after orchestrator construction', () => {
-    const TradingConfig = require('../core/TradingConfig');
+    const ConfigLoader = require('../foundation/ConfigLoader');
     const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
     const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
 
-    TradingConfig.setOverrides({
+    ConfigLoader.setOverrides({
       exitContracts: {
         RuntimeLateOverrideGate: {
           minConfidence: 0.80,
@@ -97,8 +97,8 @@ describe('StrategyOrchestrator exit contract confidence gate', () => {
   });
 
   test('allows a strategy signal at its exit contract minConfidence', () => {
-    const TradingConfig = require('../core/TradingConfig');
-    addContract(TradingConfig, 'ContractGateStrict', { minConfidence: 0.60 });
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    addContract(ConfigLoader, 'ContractGateStrict', { minConfidence: 0.60 });
     const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
 
     const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
@@ -110,8 +110,8 @@ describe('StrategyOrchestrator exit contract confidence gate', () => {
   });
 
   test('uses timeframe-specific minConfidence before flat strategy minConfidence', () => {
-    const TradingConfig = require('../core/TradingConfig');
-    addContract(TradingConfig, 'ContractGateTimeframe', {
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    addContract(ConfigLoader, 'ContractGateTimeframe', {
       minConfidence: 0.30,
       timeframes: {
         '1h': { minConfidence: 0.80 },
@@ -139,8 +139,8 @@ describe('StrategyOrchestrator exit contract confidence gate', () => {
   });
 
   test('fails loudly when a strategy reports a malformed timeframe', () => {
-    const TradingConfig = require('../core/TradingConfig');
-    addContract(TradingConfig, 'ContractGateMalformedTimeframe', {
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    addContract(ConfigLoader, 'ContractGateMalformedTimeframe', {
       minConfidence: 0.30,
       timeframes: {
         '5m': { minConfidence: 0.80 },
@@ -168,8 +168,8 @@ describe('StrategyOrchestrator exit contract confidence gate', () => {
   });
 
   test('does not invent a confidence gate when exit contract minConfidence is null', () => {
-    const TradingConfig = require('../core/TradingConfig');
-    addContract(TradingConfig, 'ContractGateOpen', { minConfidence: null });
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    addContract(ConfigLoader, 'ContractGateOpen', { minConfidence: null });
     const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
 
     const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
@@ -180,8 +180,8 @@ describe('StrategyOrchestrator exit contract confidence gate', () => {
   });
 
   test('fails loudly when a known strategy contract omits minConfidence instead of declaring null', () => {
-    const TradingConfig = require('../core/TradingConfig');
-    TradingConfig.BASE_CONFIG.exitContracts.ContractGateMissingKey = {
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    ConfigLoader.BASE_CONFIG.exitContracts.ContractGateMissingKey = {
       stopLossPercent: -2.0,
       takeProfitPercent: 2.5,
       trailingStopPercent: 0.6,
@@ -190,7 +190,7 @@ describe('StrategyOrchestrator exit contract confidence gate', () => {
       atrMinPercent: null,
       invalidationConditions: [],
     };
-    TradingConfig.setOverrides({
+    ConfigLoader.setOverrides({
       exitContracts: {
         default: {
           minConfidence: 0.80,
@@ -208,8 +208,8 @@ describe('StrategyOrchestrator exit contract confidence gate', () => {
   test('honors runtime atrMinPercent overrides in the same contract reader path', () => {
     process.env.ATR_FILTER_ENABLED = 'true';
     process.env.ATR_MIN_PERCENT = '0.1';
-    const TradingConfig = require('../core/TradingConfig');
-    TradingConfig.setOverrides({
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    ConfigLoader.setOverrides({
       exitContracts: {
         RuntimeAtrGate: {
           atrMinPercent: 2.0,
@@ -229,8 +229,8 @@ describe('StrategyOrchestrator exit contract confidence gate', () => {
   test('uses timeframe-specific atrMinPercent before flat strategy atrMinPercent', () => {
     process.env.ATR_FILTER_ENABLED = 'true';
     process.env.ATR_MIN_PERCENT = '0.1';
-    const TradingConfig = require('../core/TradingConfig');
-    addContract(TradingConfig, 'RuntimeAtrTimeframeGate', {
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    addContract(ConfigLoader, 'RuntimeAtrTimeframeGate', {
       minConfidence: null,
       atrMinPercent: null,
       timeframes: {
@@ -260,8 +260,8 @@ describe('StrategyOrchestrator exit contract confidence gate', () => {
   });
 
   test('births the exit contract from the winning signal timeframe, not the base runtime timeframe', () => {
-    const TradingConfig = require('../core/TradingConfig');
-    addContract(TradingConfig, 'ContractGateSignalTimeframe', {
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    addContract(ConfigLoader, 'ContractGateSignalTimeframe', {
       minConfidence: 0.30,
       stopLossPercent: -0.5,
       takeProfitPercent: 1.2,
@@ -314,8 +314,8 @@ describe('StrategyOrchestrator exit contract confidence gate', () => {
   });
 
   test('fails loudly when exit contract minConfidence is malformed', () => {
-    const TradingConfig = require('../core/TradingConfig');
-    addContract(TradingConfig, 'ContractGateBroken', { minConfidence: '0.60' });
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    addContract(ConfigLoader, 'ContractGateBroken', { minConfidence: '0.60' });
     const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
 
     const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
@@ -325,8 +325,8 @@ describe('StrategyOrchestrator exit contract confidence gate', () => {
   });
 
   test('fails loudly when runtime minConfidence override is malformed', () => {
-    const TradingConfig = require('../core/TradingConfig');
-    TradingConfig.setOverrides({
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    ConfigLoader.setOverrides({
       exitContracts: {
         RuntimeBrokenGate: {
           minConfidence: '0.60',

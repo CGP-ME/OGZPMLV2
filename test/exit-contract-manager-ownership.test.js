@@ -113,9 +113,9 @@ describe('ExitContractManager exit ownership contract', () => {
   });
 
   test('births strategy exit geometry from the selected timeframe contract', () => {
-    const TradingConfig = require('../core/TradingConfig');
-    TradingConfig.BASE_CONFIG.exitContracts.TimeframeExitProbe = {
-      ...TradingConfig.BASE_CONFIG.exitContracts.default,
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    ConfigLoader.BASE_CONFIG.exitContracts.TimeframeExitProbe = {
+      ...ConfigLoader.BASE_CONFIG.exitContracts.default,
       strategyName: 'TimeframeExitProbe',
       stopLossPercent: -0.5,
       takeProfitPercent: 1.2,
@@ -159,13 +159,13 @@ describe('ExitContractManager exit ownership contract', () => {
       timeframe: '15m',
     }));
 
-    delete TradingConfig.BASE_CONFIG.exitContracts.TimeframeExitProbe;
+    delete ConfigLoader.BASE_CONFIG.exitContracts.TimeframeExitProbe;
   });
 
   test('does not let generic timeframe defaults clobber a locked strategy contract', () => {
-    const TradingConfig = require('../core/TradingConfig');
+    const ConfigLoader = require('../foundation/ConfigLoader');
     const manager = new ExitContractManager();
-    const baseContract = TradingConfig.BASE_CONFIG.exitContracts.EMASMACrossover;
+    const baseContract = ConfigLoader.BASE_CONFIG.exitContracts.EMASMACrossover;
 
     const contract = manager.createExitContract('EMASMACrossover', {}, { timeframe: '1h', volatility: 1 });
 
@@ -182,8 +182,8 @@ describe('ExitContractManager exit ownership contract', () => {
   });
 
   test('honors runtime per-timeframe exit geometry overrides at trade birth', () => {
-    const TradingConfig = require('../core/TradingConfig');
-    TradingConfig.setOverrides({
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    ConfigLoader.setOverrides({
       exitContracts: {
         RuntimeTimeframeExitProbe: {
           strategyName: 'RuntimeTimeframeExitProbe',
@@ -214,13 +214,13 @@ describe('ExitContractManager exit ownership contract', () => {
         timeframe: '1h',
       }));
     } finally {
-      TradingConfig.clearOverrides();
+      ConfigLoader.clearOverrides();
     }
   });
 
   test('honors runtime timeframeConfig overrides for generic strategy contracts', () => {
-    const TradingConfig = require('../core/TradingConfig');
-    TradingConfig.setOverrides({
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    ConfigLoader.setOverrides({
       timeframeConfig: {
         '1h': {
           slPct: 0.031,
@@ -244,7 +244,7 @@ describe('ExitContractManager exit ownership contract', () => {
         timeframe: '1h',
       }));
     } finally {
-      TradingConfig.clearOverrides();
+      ConfigLoader.clearOverrides();
     }
   });
 

@@ -1,6 +1,6 @@
 'use strict';
 
-describe('TradingConfig dotenv ownership', () => {
+describe('ConfigLoader dotenv ownership', () => {
   beforeEach(() => {
     jest.resetModules();
   });
@@ -13,7 +13,7 @@ describe('TradingConfig dotenv ownership', () => {
     jest.doMock('dotenv', () => ({ config: jest.fn() }));
     const dotenv = require('dotenv');
 
-    require('../core/TradingConfig');
+    require('../foundation/ConfigLoader');
 
     expect(dotenv.config).not.toHaveBeenCalled();
   });

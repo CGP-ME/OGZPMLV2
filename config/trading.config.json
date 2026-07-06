@@ -34,7 +34,7 @@
           ".env:236-269",
           ".env:328-329",
           "config/trading.config.json:tuningProfiles.definitions.current-eval",
-          "core/TradingConfig.js backtestWorkerEnv.canonical"
+          "foundation/ConfigLoader.js backtestWorkerEnv.canonical"
         ],
         "env": {
           "ENABLE_DYNAMIC_SIZING": "true",
@@ -68,7 +68,7 @@
         "evidence": [
           "operator-provided Trade The Pool MAX58356 5k account support transcript",
           "config/trading.config.json:tuningProfiles.definitions.ttp-5k-max",
-          "core/TradingConfig.js PROFILE_ENV_CONFIG_PATHS",
+          "foundation/ConfigLoader.js PROFILE_ENV_CONFIG_PATHS",
           "tools/backtest-worker-env.js profile fee precedence"
         ],
         "env": {
@@ -120,7 +120,7 @@
         "evidence": [
           "operator TREY SPEC 001, 2026-07-03",
           "config/trading.config.json:tuningProfiles.definitions.trey-spec",
-          "core/TradingConfig.js PROFILE_ENV_CONFIG_PATHS"
+          "foundation/ConfigLoader.js PROFILE_ENV_CONFIG_PATHS"
         ],
         "env": {
           "INITIAL_BALANCE": "5000",

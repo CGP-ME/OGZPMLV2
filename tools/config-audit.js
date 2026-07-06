@@ -22,7 +22,6 @@ const path = require('path');
 const crypto = require('crypto');
 const dotenv = require('dotenv');
 const ConfigLoader = require('../foundation/ConfigLoader');
-const TradingConfig = require('../core/TradingConfig');
 
 const REDACTED_VALUE = '[REDACTED]';
 const SECRET_PATH_PATTERN = /(^|[._-])(apiKey|apiSecret|secret|token|dsn|webhookUrl|password|privateKey)($|[._-])/i;
@@ -182,13 +181,13 @@ function getSourceFromContext(context, envKey, configPath, hardcodedDefault) {
   }
 
   const envVal = process.env[envKey];
-  const configVal = configPath ? TradingConfig.get(configPath) : undefined;
+  const configVal = configPath ? ConfigLoader.get(configPath) : undefined;
   
   if (envVal !== undefined && envVal !== '') {
     return auditEntry(envKey, { value: envVal, source: `env:${envKey}`, raw: true });
   }
   if (configVal !== undefined && configVal !== null) {
-    return { value: configVal, source: `TradingConfig:${configPath}`, raw: false };
+    return { value: configVal, source: `ConfigLoader:${configPath}`, raw: false };
   }
   return { value: hardcodedDefault, source: 'hardcoded-default', raw: false };
 }
@@ -245,7 +244,7 @@ function buildResolvedConfig(context = createAuditContext()) {
   resolved['fees.model'] = getSource('FEE_MODEL', 'fees.model', 'percent');
   resolved['fees.makerFee'] = getSource('FEE_MAKER', 'fees.makerFee', 0.0025);
   resolved['fees.takerFee'] = getSource('FEE_TAKER', 'fees.takerFee', 0.004);
-  resolved['fees.totalRoundTrip'] = getSource('FEE_TOTAL_ROUNDTRIP', 'fees.totalRoundTrip', TradingConfig.get('fees.totalRoundTrip'));
+  resolved['fees.totalRoundTrip'] = getSource('FEE_TOTAL_ROUNDTRIP', 'fees.totalRoundTrip', ConfigLoader.get('fees.totalRoundTrip'));
   resolved['fees.perShare'] = getSource('FEE_PER_SHARE', 'fees.perShare', 0);
   resolved['fees.minOrderFee'] = getSource('FEE_MIN_ORDER', 'fees.minOrderFee', 0);
 
@@ -258,23 +257,23 @@ function buildResolvedConfig(context = createAuditContext()) {
   resolved['risk.maxMonthlyLoss'] = getSource('MAX_MONTHLY_LOSS', 'risk.maxMonthlyLoss', 20);
 
   // === UNIVERSAL LIMITS ===
-  resolved['limits.hardStopLoss'] = { value: TradingConfig.get('universalLimits.hardStopLossPercent'), source: 'TradingConfig:universalLimits.hardStopLossPercent' };
-  resolved['limits.accountDrawdown'] = { value: TradingConfig.get('universalLimits.accountDrawdownPercent'), source: 'TradingConfig:universalLimits.accountDrawdownPercent' };
-  resolved['limits.maxHoldTime'] = { value: TradingConfig.get('universalLimits.maxHoldTimeMinutes'), source: 'TradingConfig:universalLimits.maxHoldTimeMinutes' };
+  resolved['limits.hardStopLoss'] = { value: ConfigLoader.get('universalLimits.hardStopLossPercent'), source: 'ConfigLoader:universalLimits.hardStopLossPercent' };
+  resolved['limits.accountDrawdown'] = { value: ConfigLoader.get('universalLimits.accountDrawdownPercent'), source: 'ConfigLoader:universalLimits.accountDrawdownPercent' };
+  resolved['limits.maxHoldTime'] = { value: ConfigLoader.get('universalLimits.maxHoldTimeMinutes'), source: 'ConfigLoader:universalLimits.maxHoldTimeMinutes' };
 
   // === STRATEGY TOGGLES ===
-  const pipeline = TradingConfig.get('pipeline') || {};
-  resolved['strategies.RSI'] = { value: pipeline.enableRSI, source: 'TradingConfig:pipeline.enableRSI' };
-  resolved['strategies.MADynamicSR'] = { value: pipeline.enableMADynamicSR, source: 'TradingConfig:pipeline.enableMADynamicSR' };
-  resolved['strategies.EMACrossover'] = { value: pipeline.enableEMACrossover, source: 'TradingConfig:pipeline.enableEMACrossover' };
-  resolved['strategies.LiquiditySweep'] = { value: pipeline.enableLiquiditySweep, source: 'TradingConfig:pipeline.enableLiquiditySweep' };
-  resolved['strategies.BreakRetest'] = { value: pipeline.enableBreakRetest, source: 'TradingConfig:pipeline.enableBreakRetest' };
-  resolved['strategies.MarketRegime'] = { value: pipeline.enableMarketRegime, source: 'TradingConfig:pipeline.enableMarketRegime' };
-  resolved['strategies.MultiTimeframe'] = { value: pipeline.enableMultiTimeframe, source: 'TradingConfig:pipeline.enableMultiTimeframe' };
-  resolved['strategies.OGZTPO'] = { value: pipeline.enableOGZTPO, source: 'TradingConfig:pipeline.enableOGZTPO' };
-  resolved['strategies.ORB'] = { value: pipeline.enableOpeningRangeBreakout, source: 'TradingConfig:pipeline.enableOpeningRangeBreakout' };
-  resolved['strategies.TRAI'] = { value: pipeline.enableTRAI, source: 'TradingConfig:pipeline.enableTRAI' };
-  resolved['strategies.Dashboard'] = { value: pipeline.enableDashboard, source: 'TradingConfig:pipeline.enableDashboard' };
+  const pipeline = ConfigLoader.get('pipeline') || {};
+  resolved['strategies.RSI'] = { value: pipeline.enableRSI, source: 'ConfigLoader:pipeline.enableRSI' };
+  resolved['strategies.MADynamicSR'] = { value: pipeline.enableMADynamicSR, source: 'ConfigLoader:pipeline.enableMADynamicSR' };
+  resolved['strategies.EMACrossover'] = { value: pipeline.enableEMACrossover, source: 'ConfigLoader:pipeline.enableEMACrossover' };
+  resolved['strategies.LiquiditySweep'] = { value: pipeline.enableLiquiditySweep, source: 'ConfigLoader:pipeline.enableLiquiditySweep' };
+  resolved['strategies.BreakRetest'] = { value: pipeline.enableBreakRetest, source: 'ConfigLoader:pipeline.enableBreakRetest' };
+  resolved['strategies.MarketRegime'] = { value: pipeline.enableMarketRegime, source: 'ConfigLoader:pipeline.enableMarketRegime' };
+  resolved['strategies.MultiTimeframe'] = { value: pipeline.enableMultiTimeframe, source: 'ConfigLoader:pipeline.enableMultiTimeframe' };
+  resolved['strategies.OGZTPO'] = { value: pipeline.enableOGZTPO, source: 'ConfigLoader:pipeline.enableOGZTPO' };
+  resolved['strategies.ORB'] = { value: pipeline.enableOpeningRangeBreakout, source: 'ConfigLoader:pipeline.enableOpeningRangeBreakout' };
+  resolved['strategies.TRAI'] = { value: pipeline.enableTRAI, source: 'ConfigLoader:pipeline.enableTRAI' };
+  resolved['strategies.Dashboard'] = { value: pipeline.enableDashboard, source: 'ConfigLoader:pipeline.enableDashboard' };
 
   // === ATR FILTER ===
   resolved['filters.atrEnabled'] = getSource('ATR_FILTER_ENABLED', null, 'false (DISABLED)');
@@ -294,16 +293,16 @@ function buildResolvedConfig(context = createAuditContext()) {
   resolved['trail.trendWiden'] = getSource('TRAIL_TREND_WIDEN', null, 1.5);
   resolved['trail.structureTighten'] = getSource('TRAIL_STRUCTURE_TIGHTEN', null, 0.5);
 
-  // === PER-STRATEGY EXIT CONTRACTS (actual values from TradingConfig) ===
+  // === PER-STRATEGY EXIT CONTRACTS (actual values from ConfigLoader) ===
   const strategies = ['RSI', 'EMASMACrossover', 'LiquiditySweep', 'MADynamicSR', 'CandlePattern', 'MarketRegime'];
   for (const s of strategies) {
-    const contract = TradingConfig.getExitContract(s);
+    const contract = ConfigLoader.getExitContract(s);
     if (contract) {
-      resolved[`exitContract.${s}.SL`] = { value: contract.stopLossPercent, source: `TradingConfig:exitContracts.${s}.stopLossPercent` };
-      resolved[`exitContract.${s}.TP`] = { value: contract.takeProfitPercent, source: `TradingConfig:exitContracts.${s}.takeProfitPercent` };
-      resolved[`exitContract.${s}.trail`] = { value: contract.trailingStopPercent, source: `TradingConfig:exitContracts.${s}.trailingStopPercent` };
-      resolved[`exitContract.${s}.trailAct`] = { value: contract.trailingActivation, source: `TradingConfig:exitContracts.${s}.trailingActivation` };
-      resolved[`exitContract.${s}.maxHold`] = { value: contract.maxHoldTimeMinutes, source: `TradingConfig:exitContracts.${s}.maxHoldTimeMinutes` };
+      resolved[`exitContract.${s}.SL`] = { value: contract.stopLossPercent, source: `ConfigLoader:exitContracts.${s}.stopLossPercent` };
+      resolved[`exitContract.${s}.TP`] = { value: contract.takeProfitPercent, source: `ConfigLoader:exitContracts.${s}.takeProfitPercent` };
+      resolved[`exitContract.${s}.trail`] = { value: contract.trailingStopPercent, source: `ConfigLoader:exitContracts.${s}.trailingStopPercent` };
+      resolved[`exitContract.${s}.trailAct`] = { value: contract.trailingActivation, source: `ConfigLoader:exitContracts.${s}.trailingActivation` };
+      resolved[`exitContract.${s}.maxHold`] = { value: contract.maxHoldTimeMinutes, source: `ConfigLoader:exitContracts.${s}.maxHoldTimeMinutes` };
     }
   }
 
@@ -328,7 +327,7 @@ function findEnvReads() {
   
   const activeFiles = [
     'run-empire-v2.js',
-    'core/TradingConfig.js',
+    'foundation/ConfigLoader.js',
     'core/TradingLoop.js',
     'core/OrderExecutor.js',
     'core/ExitContractManager.js',
@@ -357,7 +356,7 @@ function findEnvReads() {
       lines.forEach((line, i) => {
         // Skip comments
         if (line.trim().startsWith('//') || line.trim().startsWith('*')) return;
-        // Find process.env reads (not in TradingConfig's env() helper)
+        // Find process.env reads outside ConfigLoader's env helpers
         if (line.includes('process.env.') && !line.includes('const env =') && !line.includes('function env')) {
           const match = line.match(/process\.env\.([A-Z_]+)/);
           if (match) {
@@ -388,7 +387,7 @@ function sourceLabelFor(source) {
   if (source.startsWith('env:') || source.startsWith('dotenv:')) return 'ENV';
   if (source.startsWith('derived:')) return 'DER';
   if (source.startsWith('ConfigLoader:')) return 'CFG';
-  if (source.startsWith('TradingConfig')) return 'TC';
+  if (source.startsWith('ConfigLoader')) return 'CFG';
   if (source === 'default' || source === 'hardcoded-default') return 'DEF';
   return 'UNK';
 }
@@ -450,8 +449,8 @@ function run(context = createAuditContext()) {
 
   let totalReads = 0;
   for (const [file, reads] of Object.entries(byFile)) {
-    // Separate bootstrap (TradingConfig, run-empire-v2 top) from runtime
-    const isBootstrap = file === 'core/TradingConfig.js' || file === 'instrument.js';
+    // Separate bootstrap (ConfigLoader, run-empire-v2 top) from runtime
+    const isBootstrap = file === 'foundation/ConfigLoader.js' || file === 'instrument.js';
     const label = isBootstrap ? '(bootstrap — OK)' : '(RUNTIME — should be injected)';
     console.log(`  ${file} ${label}`);
     for (const r of reads) {
@@ -463,7 +462,7 @@ function run(context = createAuditContext()) {
   }
 
   console.log(`\n  Total: ${totalReads} direct process.env reads across ${Object.keys(byFile).length} active files`);
-  const runtimeReads = envReads.filter(r => r.file !== 'core/TradingConfig.js' && r.file !== 'instrument.js');
+  const runtimeReads = envReads.filter(r => r.file !== 'foundation/ConfigLoader.js' && r.file !== 'instrument.js');
   console.log(`  Runtime reads (should be 0): ${runtimeReads.length}`);
 
   // Save to file

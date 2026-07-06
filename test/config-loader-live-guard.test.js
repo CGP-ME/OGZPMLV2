@@ -160,7 +160,7 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(loaded.sources['evalRules.ttp.marketTime.entryBufferMinutesBeforeCutoff']).toBe('profile:trey-spec:TTP_ENTRY_BUFFER_MINUTES_BEFORE_CUTOFF');
   });
 
-  test('TradingConfig compatibility reads use the resolved ConfigLoader snapshot', () => {
+  test('ConfigLoader compatibility reads use the resolved ConfigLoader snapshot', () => {
     process.env.MIN_TRADE_CONFIDENCE = '0.62';
     process.env.MIN_STRATEGY_CONFIDENCE = '0.41';
     process.env.MAX_POSITION_SIZE_PCT = '0.04';
@@ -187,57 +187,57 @@ describe('ConfigLoader live trading safety guard', () => {
     process.env.TTP_PROFIT_TARGET_DOLLARS = '9999';
     process.env.MTF_TIMEFRAMES = '1m';
 
-    const TradingConfig = require('../core/TradingConfig');
+    const ConfigLoader = require('../foundation/ConfigLoader');
 
-    expect(TradingConfig.get('confidence.minTradeConfidence')).toBe(loaded.config.confidence.minTradeConfidence);
-    expect(TradingConfig.get('confidence.minStrategyConfidence')).toBe(loaded.config.confidence.minStrategyConfidence);
-    expect(TradingConfig.get('positionSizing.maxPositionSize')).toBe(loaded.config.sizing.maxPositionSize);
-    expect(TradingConfig.get('fees.model')).toBe(loaded.config.fees.model);
-    expect(TradingConfig.get('fees.perShare')).toBe(loaded.config.fees.perShare);
-    expect(TradingConfig.get('fees.minOrderFee')).toBe(loaded.config.fees.minOrderFee);
-    expect(TradingConfig.get('filters.atrEnabled')).toBe(loaded.config.filters.atrEnabled);
-    expect(TradingConfig.get('filters.atrMinPercent')).toBe(loaded.config.filters.atrMinPercent);
-    expect(TradingConfig.get('orchestrator.mtfTimeframes')).toEqual(['5m', '15m', '1h']);
+    expect(ConfigLoader.get('confidence.minTradeConfidence')).toBe(loaded.config.confidence.minTradeConfidence);
+    expect(ConfigLoader.get('confidence.minStrategyConfidence')).toBe(loaded.config.confidence.minStrategyConfidence);
+    expect(ConfigLoader.get('positionSizing.maxPositionSize')).toBe(loaded.config.sizing.maxPositionSize);
+    expect(ConfigLoader.get('fees.model')).toBe(loaded.config.fees.model);
+    expect(ConfigLoader.get('fees.perShare')).toBe(loaded.config.fees.perShare);
+    expect(ConfigLoader.get('fees.minOrderFee')).toBe(loaded.config.fees.minOrderFee);
+    expect(ConfigLoader.get('filters.atrEnabled')).toBe(loaded.config.filters.atrEnabled);
+    expect(ConfigLoader.get('filters.atrMinPercent')).toBe(loaded.config.filters.atrMinPercent);
+    expect(ConfigLoader.get('orchestrator.mtfTimeframes')).toEqual(['5m', '15m', '1h']);
     expect(loaded.sources['orchestrator.mtfTimeframes']).toBe('env:MTF_TIMEFRAMES');
-    expect(TradingConfig.get('evalRules.ttp.accountLimits.dailyLossDollars')).toBe(
+    expect(ConfigLoader.get('evalRules.ttp.accountLimits.dailyLossDollars')).toBe(
       loaded.config.evalRules.ttp.accountLimits.dailyLossDollars
     );
-    expect(TradingConfig.get('evalRules.ttp.consistency.profitTargetDollars')).toBe(
+    expect(ConfigLoader.get('evalRules.ttp.consistency.profitTargetDollars')).toBe(
       loaded.config.evalRules.ttp.consistency.profitTargetDollars
     );
 
-    expect(TradingConfig.getSection('confidence').minTradeConfidence).toBe(loaded.config.confidence.minTradeConfidence);
-    expect(TradingConfig.getSection('positionSizing').maxPositionSize).toBe(loaded.config.sizing.maxPositionSize);
-    expect(TradingConfig.getSection('fees').perShare).toBe(loaded.config.fees.perShare);
-    expect(TradingConfig.getSection('filters').atrMinPercent).toBe(loaded.config.filters.atrMinPercent);
+    expect(ConfigLoader.getSection('confidence').minTradeConfidence).toBe(loaded.config.confidence.minTradeConfidence);
+    expect(ConfigLoader.getSection('positionSizing').maxPositionSize).toBe(loaded.config.sizing.maxPositionSize);
+    expect(ConfigLoader.getSection('fees').perShare).toBe(loaded.config.fees.perShare);
+    expect(ConfigLoader.getSection('filters').atrMinPercent).toBe(loaded.config.filters.atrMinPercent);
   });
 
-  test('TradingConfig cannot shadow ConfigLoader-owned paths after config load', () => {
+  test('ConfigLoader cannot shadow ConfigLoader-owned paths after config load', () => {
     process.env.MIN_TRADE_CONFIDENCE = '0.62';
     process.env.FEE_PER_SHARE = '0.005';
     process.env.FEE_MIN_ORDER = '0.75';
     process.env.TIER1_TARGET = '0.011';
 
     const loaded = loadConfig();
-    const TradingConfig = require('../core/TradingConfig');
+    const ConfigLoader = require('../foundation/ConfigLoader');
 
-    expect(() => TradingConfig.setOverrides({
+    expect(() => ConfigLoader.setOverrides({
       confidence: { minTradeConfidence: 0.77 },
       fees: { perShare: 0.123 },
       exits: { profitTiers: { tier1: 0.099 } },
     })).toThrow(/attempted to override ConfigLoader-owned path\(s\) after config load/);
 
-    expect(TradingConfig.get('confidence.minTradeConfidence')).toBe(loaded.config.confidence.minTradeConfidence);
-    expect(TradingConfig.get('fees.perShare')).toBe(loaded.config.fees.perShare);
-    expect(TradingConfig.get('exits.profitTiers.tier1')).toBe(loaded.config.tiers.tier1);
-    expect(TradingConfig.getSection('exits').profitTiers.tier1).toBe(loaded.config.tiers.tier1);
+    expect(ConfigLoader.get('confidence.minTradeConfidence')).toBe(loaded.config.confidence.minTradeConfidence);
+    expect(ConfigLoader.get('fees.perShare')).toBe(loaded.config.fees.perShare);
+    expect(ConfigLoader.get('exits.profitTiers.tier1')).toBe(loaded.config.tiers.tier1);
+    expect(ConfigLoader.getSection('exits').profitTiers.tier1).toBe(loaded.config.tiers.tier1);
   });
 
-  test('TradingConfig tuning profiles cannot replace ConfigLoader-owned paths after config load', () => {
+  test('ConfigLoader tuning profiles cannot replace ConfigLoader-owned paths after config load', () => {
     loadConfig();
-    const TradingConfig = require('../core/TradingConfig');
+    const ConfigLoader = require('../foundation/ConfigLoader');
 
-    expect(() => TradingConfig.applyTuningProfile('legacy-wide', {
+    expect(() => ConfigLoader.applyTuningProfile('legacy-wide', {
       phase: 'startup',
       requireFlat: true,
       flatState: { flat: true, source: 'unit-test' },
@@ -245,42 +245,41 @@ describe('ConfigLoader live trading safety guard', () => {
     })).toThrow(/attempted to override ConfigLoader-owned path\(s\) after config load/);
   });
 
-  test('TradingConfig mapped reads follow ConfigLoader force reloads', () => {
+  test('ConfigLoader mapped reads follow ConfigLoader force reloads', () => {
     process.env.MIN_TRADE_CONFIDENCE = '0.62';
     process.env.FEE_PER_SHARE = '0.005';
 
     const ConfigLoader = require('../foundation/ConfigLoader');
-    const TradingConfig = require('../core/TradingConfig');
     const first = ConfigLoader.load({ force: true, silent: true });
 
-    expect(TradingConfig.get('confidence.minTradeConfidence')).toBe(first.config.confidence.minTradeConfidence);
-    expect(TradingConfig.get('fees.perShare')).toBe(first.config.fees.perShare);
+    expect(ConfigLoader.get('confidence.minTradeConfidence')).toBe(first.config.confidence.minTradeConfidence);
+    expect(ConfigLoader.get('fees.perShare')).toBe(first.config.fees.perShare);
 
     process.env.MIN_TRADE_CONFIDENCE = '0.72';
     process.env.FEE_PER_SHARE = '0.456';
 
     const second = ConfigLoader.load({ force: true, silent: true });
-    expect(TradingConfig.get('confidence.minTradeConfidence')).toBe(second.config.confidence.minTradeConfidence);
-    expect(TradingConfig.get('fees.perShare')).toBe(second.config.fees.perShare);
+    expect(ConfigLoader.get('confidence.minTradeConfidence')).toBe(second.config.confidence.minTradeConfidence);
+    expect(ConfigLoader.get('fees.perShare')).toBe(second.config.fees.perShare);
   });
 
-  test('TradingConfig whole pipeline section uses ConfigLoader strategy snapshot values', () => {
+  test('ConfigLoader whole pipeline section uses ConfigLoader strategy snapshot values', () => {
     process.env.ENABLE_RSI = 'false';
     process.env.ENABLE_ORB = 'false';
-    const TradingConfig = require('../core/TradingConfig');
+    const ConfigLoader = require('../foundation/ConfigLoader');
 
     process.env.ENABLE_RSI = 'true';
     process.env.ENABLE_ORB = 'true';
     const loaded = loadConfig();
-    const pipeline = TradingConfig.get('pipeline');
+    const pipeline = ConfigLoader.get('pipeline');
 
     expect(pipeline.enableRSI).toBe(loaded.config.strategies.enableRSI);
     expect(pipeline.enableOpeningRangeBreakout).toBe(loaded.config.strategies.enableORB);
-    expect(TradingConfig.get('pipeline.enableRSI')).toBe(loaded.config.strategies.enableRSI);
-    expect(TradingConfig.get('pipeline.enableOpeningRangeBreakout')).toBe(loaded.config.strategies.enableORB);
+    expect(ConfigLoader.get('pipeline.enableRSI')).toBe(loaded.config.strategies.enableRSI);
+    expect(ConfigLoader.get('pipeline.enableOpeningRangeBreakout')).toBe(loaded.config.strategies.enableORB);
   });
 
-  test('TradingConfig exposes additional ConfigLoader-owned compatibility sections', () => {
+  test('ConfigLoader exposes additional ConfigLoader-owned compatibility sections', () => {
     process.env.MAX_HOLD_MINUTES = '333';
     process.env.TRAIL_ATR_MULTIPLIER = '2.4';
     process.env.TRAIL_MIN_ACTIVATION = '1.2';
@@ -295,20 +294,20 @@ describe('ConfigLoader live trading safety guard', () => {
     process.env.TTP_CONSISTENCY_ENABLED = 'true';
 
     const loaded = loadConfig();
-    const TradingConfig = require('../core/TradingConfig');
+    const ConfigLoader = require('../foundation/ConfigLoader');
 
-    expect(TradingConfig.get('exits.maxHoldMinutes')).toBe(loaded.config.exits.maxHoldMinutes);
-    expect(TradingConfig.getSection('exits').maxHoldMinutes).toBe(loaded.config.exits.maxHoldMinutes);
-    expect(TradingConfig.get('trail.atrMultiplier')).toBe(loaded.config.trail.atrMultiplier);
-    expect(TradingConfig.get('trail.minActivation')).toBe(loaded.config.trail.minActivation);
-    expect(TradingConfig.getSection('trail')).toEqual(loaded.config.trail);
-    expect(TradingConfig.get('evalRules.enabled')).toBe(loaded.config.evalRules.enabled);
-    expect(TradingConfig.get('evalRules.ttp.enabled')).toBe(loaded.config.evalRules.ttp.enabled);
-    expect(TradingConfig.get('evalRules.ttp.volumeCap.enabled')).toBe(loaded.config.evalRules.ttp.volumeCap.enabled);
-    expect(TradingConfig.get('evalRules.ttp.marketTime.enabled')).toBe(loaded.config.evalRules.ttp.marketTime.enabled);
-    expect(TradingConfig.get('evalRules.ttp.accountLimits.enabled')).toBe(loaded.config.evalRules.ttp.accountLimits.enabled);
-    expect(TradingConfig.get('evalRules.ttp.earningsRestriction.enabled')).toBe(loaded.config.evalRules.ttp.earningsRestriction.enabled);
-    expect(TradingConfig.get('evalRules.ttp.consistency.enabled')).toBe(loaded.config.evalRules.ttp.consistency.enabled);
+    expect(ConfigLoader.get('exits.maxHoldMinutes')).toBe(loaded.config.exits.maxHoldMinutes);
+    expect(ConfigLoader.getSection('exits').maxHoldMinutes).toBe(loaded.config.exits.maxHoldMinutes);
+    expect(ConfigLoader.get('trail.atrMultiplier')).toBe(loaded.config.trail.atrMultiplier);
+    expect(ConfigLoader.get('trail.minActivation')).toBe(loaded.config.trail.minActivation);
+    expect(ConfigLoader.getSection('trail')).toEqual(loaded.config.trail);
+    expect(ConfigLoader.get('evalRules.enabled')).toBe(loaded.config.evalRules.enabled);
+    expect(ConfigLoader.get('evalRules.ttp.enabled')).toBe(loaded.config.evalRules.ttp.enabled);
+    expect(ConfigLoader.get('evalRules.ttp.volumeCap.enabled')).toBe(loaded.config.evalRules.ttp.volumeCap.enabled);
+    expect(ConfigLoader.get('evalRules.ttp.marketTime.enabled')).toBe(loaded.config.evalRules.ttp.marketTime.enabled);
+    expect(ConfigLoader.get('evalRules.ttp.accountLimits.enabled')).toBe(loaded.config.evalRules.ttp.accountLimits.enabled);
+    expect(ConfigLoader.get('evalRules.ttp.earningsRestriction.enabled')).toBe(loaded.config.evalRules.ttp.earningsRestriction.enabled);
+    expect(ConfigLoader.get('evalRules.ttp.consistency.enabled')).toBe(loaded.config.evalRules.ttp.consistency.enabled);
   });
 
   test('keeps risk defaults sourced from trading.config.json without weakening explicit-source guard', () => {

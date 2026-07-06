@@ -1,6 +1,6 @@
 'use strict';
 
-const TradingConfig = require('./TradingConfig');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 const VALID_MODELS = new Set(['percent', 'per_share_minimum']);
 
@@ -48,12 +48,12 @@ class FeeModel {
 
   static fromTradingConfig() {
     return new FeeModel({
-      model: TradingConfig.get('fees.model'),
-      makerFee: TradingConfig.get('fees.makerFee'),
-      takerFee: TradingConfig.get('fees.takerFee'),
-      totalRoundTrip: TradingConfig.get('fees.totalRoundTrip'),
-      perShare: TradingConfig.get('fees.perShare'),
-      minOrderFee: TradingConfig.get('fees.minOrderFee'),
+      model: ConfigLoader.get('fees.model'),
+      makerFee: ConfigLoader.get('fees.makerFee'),
+      takerFee: ConfigLoader.get('fees.takerFee'),
+      totalRoundTrip: ConfigLoader.get('fees.totalRoundTrip'),
+      perShare: ConfigLoader.get('fees.perShare'),
+      minOrderFee: ConfigLoader.get('fees.minOrderFee'),
     });
   }
 

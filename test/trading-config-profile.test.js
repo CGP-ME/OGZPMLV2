@@ -1,7 +1,7 @@
 'use strict';
 
 const path = require('path');
-const TradingConfig = require('../core/TradingConfig');
+const ConfigLoader = require('../foundation/ConfigLoader');
 const tradingConfigJson = require('../config/trading.config.json');
 const TradingProfileManager = require('../TradingProfileManager');
 const {
@@ -12,9 +12,9 @@ const {
   summarizeWorkerEnv,
 } = require('../tools/backtest-worker-env');
 
-describe('TradingConfig runtime profile contract', () => {
+describe('ConfigLoader runtime profile contract', () => {
   afterEach(() => {
-    TradingConfig.clearOverrides();
+    ConfigLoader.clearOverrides();
   });
 
   function withLiveRuntimeEnv(callback) {
@@ -41,20 +41,20 @@ describe('TradingConfig runtime profile contract', () => {
   }
 
   test('known runtime profiles resolve explicitly', () => {
-    expect(TradingConfig.getProfile('balanced')).toEqual(
+    expect(ConfigLoader.getProfile('balanced')).toEqual(
       expect.objectContaining({
         minConfidence: expect.any(Number),
         maxPositionSize: expect.any(Number),
         riskPercent: expect.any(Number),
       })
     );
-    expect(TradingConfig.getProfile('balanced')).toEqual(tradingConfigJson.profiles.balanced);
+    expect(ConfigLoader.getProfile('balanced')).toEqual(tradingConfigJson.profiles.balanced);
   });
 
   test('unknown runtime profiles fail loudly instead of falling back to balanced', () => {
-    expect(() => TradingConfig.getProfile('missing-profile'))
+    expect(() => ConfigLoader.getProfile('missing-profile'))
       .toThrow(/Unknown trading profile 'missing-profile'/);
-    expect(() => TradingConfig.getProfile())
+    expect(() => ConfigLoader.getProfile())
       .toThrow(/Unknown trading profile 'undefined'/);
   });
 
@@ -63,10 +63,10 @@ describe('TradingConfig runtime profile contract', () => {
     expect(TradingProfileManager.disabledReason).toBe('runtime_profile_switch_not_wired');
   });
 
-  test('tuning profiles resolve from the TradingConfig compatibility surface', () => {
-    expect(TradingConfig.listTuningProfileNames().sort()).toEqual(['current-eval', 'legacy-wide', 'trey-spec', 'ttp-5k-max']);
-    expect(TradingConfig.getTuningProfileDefinitions()).toEqual(tradingConfigJson.tuningProfiles.definitions);
-    expect(TradingConfig.resolveTuningProfile('legacy-wide')).toEqual(
+  test('tuning profiles resolve from the ConfigLoader compatibility surface', () => {
+    expect(ConfigLoader.listTuningProfileNames().sort()).toEqual(['current-eval', 'legacy-wide', 'trey-spec', 'ttp-5k-max']);
+    expect(ConfigLoader.getTuningProfileDefinitions()).toEqual(tradingConfigJson.tuningProfiles.definitions);
+    expect(ConfigLoader.resolveTuningProfile('legacy-wide')).toEqual(
       expect.objectContaining({
         name: 'legacy-wide',
         env: expect.objectContaining({
@@ -77,13 +77,13 @@ describe('TradingConfig runtime profile contract', () => {
     );
     expect(Object.isFrozen(PROFILE_DEFINITIONS)).toBe(true);
     expect(Object.isFrozen(PROFILE_DEFINITIONS['legacy-wide'].env)).toBe(true);
-    expect(TradingConfig.resolveTuningProfile('current-eval').env).toEqual(
+    expect(ConfigLoader.resolveTuningProfile('current-eval').env).toEqual(
       expect.objectContaining({
         ATR_FILTER_ENABLED: 'true',
         ATR_MIN_PERCENT: '0.15',
       })
     );
-    expect(TradingConfig.resolveTuningProfile('ttp-5k-max').env).toEqual(
+    expect(ConfigLoader.resolveTuningProfile('ttp-5k-max').env).toEqual(
       expect.objectContaining({
         INITIAL_BALANCE: '5000',
         MAX_DRAWDOWN: '3',
@@ -99,7 +99,7 @@ describe('TradingConfig runtime profile contract', () => {
         TTP_PROFIT_TARGET_DOLLARS: '300',
       })
     );
-    expect(TradingConfig.resolveTuningProfile('trey-spec').env).toEqual(
+    expect(ConfigLoader.resolveTuningProfile('trey-spec').env).toEqual(
       expect.objectContaining({
         EMA_CROSSOVER_ENTRY_EVENTS_ONLY: 'true',
         EMA_CROSSOVER_WARMUP_BARS: '200',
@@ -111,7 +111,7 @@ describe('TradingConfig runtime profile contract', () => {
         TTP_ENTRY_BUFFER_MINUTES_BEFORE_CUTOFF: '30',
       })
     );
-    const resolved = TradingConfig.resolveTuningProfile('legacy-wide');
+    const resolved = ConfigLoader.resolveTuningProfile('legacy-wide');
     expect(Object.isFrozen(resolved)).toBe(true);
     expect(Object.isFrozen(resolved.env)).toBe(true);
     try {
@@ -119,16 +119,16 @@ describe('TradingConfig runtime profile contract', () => {
     } catch (_) {
       // Strict-mode engines throw on frozen assignment; either way the value must not change.
     }
-    expect(TradingConfig.resolveTuningProfile('legacy-wide').env.TIER1_TARGET).toBe('0.020');
+    expect(ConfigLoader.resolveTuningProfile('legacy-wide').env.TIER1_TARGET).toBe('0.020');
   });
 
-  test('RiskManager circuit limits are worker-env profile values, not TradingConfig base defaults', () => {
-    expect(TradingConfig.get('risk.maxDrawdown')).toBeUndefined();
-    expect(TradingConfig.get('risk.maxDailyLoss')).toBeUndefined();
-    expect(TradingConfig.get('risk.maxWeeklyLoss')).toBeUndefined();
-    expect(TradingConfig.get('risk.maxMonthlyLoss')).toBeUndefined();
-    expect(TradingConfig.get('risk.riskManagerBypass')).toBeUndefined();
-    expect(TradingConfig.get('risk.accountDrawdownBypass')).toBe(false);
+  test('RiskManager circuit limits are worker-env profile values, not ConfigLoader base defaults', () => {
+    expect(ConfigLoader.get('risk.maxDrawdown')).toBeUndefined();
+    expect(ConfigLoader.get('risk.maxDailyLoss')).toBeUndefined();
+    expect(ConfigLoader.get('risk.maxWeeklyLoss')).toBeUndefined();
+    expect(ConfigLoader.get('risk.maxMonthlyLoss')).toBeUndefined();
+    expect(ConfigLoader.get('risk.riskManagerBypass')).toBeUndefined();
+    expect(ConfigLoader.get('risk.accountDrawdownBypass')).toBe(false);
 
     const workerEnv = buildBacktestWorkerEnv({
       sourceEnv: {},
@@ -235,7 +235,7 @@ describe('TradingConfig runtime profile contract', () => {
     expect(workerEnv.BE_SCALEOUT_FRACTION).toBe('0.25');
     expect(workerEnv.TIERED_EXIT_ENABLED).toBe('false');
     expect(workerEnv.TTP_ENTRY_BUFFER_MINUTES_BEFORE_CUTOFF).toBe('30');
-    expect(TradingConfig.buildTuningProfileOverrides('trey-spec')).toEqual(expect.objectContaining({
+    expect(ConfigLoader.buildTuningProfileOverrides('trey-spec')).toEqual(expect.objectContaining({
       'strategyBehavior.emaCrossover.entryEventsOnly': true,
       'strategyBehavior.emaCrossover.warmupBars': 200,
       'strategyBehavior.trendRegimeGate.enabled': true,
@@ -246,7 +246,7 @@ describe('TradingConfig runtime profile contract', () => {
     }));
   });
 
-  test('explicit TUNING_PROFILE selector materializes trey-spec through ConfigLoader before TradingConfig reads', () => {
+  test('explicit TUNING_PROFILE selector materializes trey-spec through ConfigLoader before ConfigLoader reads', () => {
     const previous = {
       DOTENV_CONFIG_PATH: process.env.DOTENV_CONFIG_PATH,
       EXECUTION_MODE: process.env.EXECUTION_MODE,
@@ -271,7 +271,7 @@ describe('TradingConfig runtime profile contract', () => {
     try {
       const ConfigLoader = require('../foundation/ConfigLoader');
       const loaded = ConfigLoader.load({ force: true, silent: true });
-      const FreshTradingConfig = require('../core/TradingConfig');
+      const FreshTradingConfig = require('../foundation/ConfigLoader');
       expect(FreshTradingConfig.get('strategyBehavior.emaCrossover.entryEventsOnly')).toBe(true);
       expect(FreshTradingConfig.get('strategyBehavior.emaCrossover.warmupBars')).toBe(200);
       expect(FreshTradingConfig.get('strategyBehavior.atrContracts.enabled')).toBe(true);
@@ -349,7 +349,7 @@ describe('TradingConfig runtime profile contract', () => {
     process.env.TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO = '0.06';
 
     try {
-      const FreshTradingConfig = require('../core/TradingConfig');
+      const FreshTradingConfig = require('../foundation/ConfigLoader');
 
       expect(FreshTradingConfig.get('evalRules.ttp.accountLimits.dailyLossDollars')).toBe(50);
       expect(FreshTradingConfig.get('evalRules.ttp.accountLimits.maxLossThresholdEquity')).toBe(4850);
@@ -370,11 +370,11 @@ describe('TradingConfig runtime profile contract', () => {
   });
 
   test('flat-state tuning profile swap applies and restores config without mutating process env', async () => {
-    const profileKeys = Object.keys(TradingConfig.resolveTuningProfile('current-eval').env);
+    const profileKeys = Object.keys(ConfigLoader.resolveTuningProfile('current-eval').env);
     const envBefore = {};
     for (const key of profileKeys) envBefore[key] = process.env[key];
 
-    const applied = TradingConfig.applyTuningProfile('current-eval', {
+    const applied = ConfigLoader.applyTuningProfile('current-eval', {
       phase: 'startup',
       requireFlat: true,
       flatState: { flat: true, source: 'unit-test' },
@@ -393,20 +393,20 @@ describe('TradingConfig runtime profile contract', () => {
         'RISK_MANAGER_BYPASS',
       ],
     }));
-    expect(TradingConfig.get('exits.profitTiers.tier1')).toBe(0.007);
-    expect(TradingConfig.get('exitLogic.tieredExit.tier1ExitFraction')).toBe(0.30);
-    expect(TradingConfig.get('fees.slippage')).toBe(0.0005);
-    expect(TradingConfig.get('risk.accountDrawdownBypass')).toBe(true);
-    expect(TradingConfig.get('filters.atrEnabled')).toBe(true);
-    expect(TradingConfig.get('filters.atrMinPercent')).toBe(0.15);
+    expect(ConfigLoader.get('exits.profitTiers.tier1')).toBe(0.007);
+    expect(ConfigLoader.get('exitLogic.tieredExit.tier1ExitFraction')).toBe(0.30);
+    expect(ConfigLoader.get('fees.slippage')).toBe(0.0005);
+    expect(ConfigLoader.get('risk.accountDrawdownBypass')).toBe(true);
+    expect(ConfigLoader.get('filters.atrEnabled')).toBe(true);
+    expect(ConfigLoader.get('filters.atrMinPercent')).toBe(0.15);
 
-    await TradingConfig.runWithTuningProfile(
+    await ConfigLoader.runWithTuningProfile(
       'legacy-wide',
       async (status) => {
         expect(status.activeProfile).toBe('legacy-wide');
-        expect(TradingConfig.get('exits.profitTiers.tier1')).toBe(0.020);
-        expect(TradingConfig.get('exits.profitTiers.final')).toBe(0.100);
-        expect(TradingConfig.get('exitLogic.tieredExit.tier1ExitFraction')).toBe(0.30);
+        expect(ConfigLoader.get('exits.profitTiers.tier1')).toBe(0.020);
+        expect(ConfigLoader.get('exits.profitTiers.final')).toBe(0.100);
+        expect(ConfigLoader.get('exitLogic.tieredExit.tier1ExitFraction')).toBe(0.30);
       },
       {
         phase: 'startup',
@@ -416,10 +416,10 @@ describe('TradingConfig runtime profile contract', () => {
       }
     );
 
-    expect(TradingConfig.getTuningProfileStatus().activeProfile).toBe('current-eval');
-    expect(TradingConfig.get('exits.profitTiers.tier1')).toBe(0.007);
-    expect(TradingConfig.get('exits.profitTiers.final')).toBe(0.025);
-    expect(TradingConfig.get('filters.atrEnabled')).toBe(true);
+    expect(ConfigLoader.getTuningProfileStatus().activeProfile).toBe('current-eval');
+    expect(ConfigLoader.get('exits.profitTiers.tier1')).toBe(0.007);
+    expect(ConfigLoader.get('exits.profitTiers.final')).toBe(0.025);
+    expect(ConfigLoader.get('filters.atrEnabled')).toBe(true);
 
     const envAfter = {};
     for (const key of profileKeys) envAfter[key] = process.env[key];
@@ -427,14 +427,14 @@ describe('TradingConfig runtime profile contract', () => {
   });
 
   test('profile apply refuses missing flat-state proof when flat state is required', () => {
-    expect(() => TradingConfig.applyTuningProfile('legacy-wide', {
+    expect(() => ConfigLoader.applyTuningProfile('legacy-wide', {
       requireFlat: true,
       phase: 'startup',
     })).toThrow(/requires an explicit flatState probe result/);
   });
 
   test('runtime phase refuses startup-snapshot profile keys instead of pretending to update live objects', () => {
-    expect(() => TradingConfig.applyTuningProfile('legacy-wide', {
+    expect(() => ConfigLoader.applyTuningProfile('legacy-wide', {
       phase: 'runtime',
       requireFlat: true,
       flatState: { flat: true, source: 'unit-test' },
@@ -443,54 +443,54 @@ describe('TradingConfig runtime profile contract', () => {
 
   test('live runtime refuses manual minTradeConfidence overrides below the configured floor', () => {
     withLiveRuntimeEnv(() => {
-      expect(() => TradingConfig.setOverrides({
+      expect(() => ConfigLoader.setOverrides({
         confidence: { minTradeConfidence: 0.49 },
       })).toThrow(/Live runtime refuses setOverrides override for confidence\.minTradeConfidence/);
     });
 
-    expect(TradingConfig.get('confidence.minTradeConfidence')).toBe(0.5);
+    expect(ConfigLoader.get('confidence.minTradeConfidence')).toBe(0.5);
   });
 
   test('frozen config refuses setOverrides instead of silently ignoring them', () => {
-    TradingConfig.freeze();
+    ConfigLoader.freeze();
 
     try {
-      expect(() => TradingConfig.setOverrides({
+      expect(() => ConfigLoader.setOverrides({
         confidence: { minTradeConfidence: 0.9 },
       })).toThrow(/Config is frozen; refusing setOverrides\(\)/);
 
-      expect(TradingConfig.get('confidence.minTradeConfidence')).toBe(0.5);
+      expect(ConfigLoader.get('confidence.minTradeConfidence')).toBe(0.5);
     } finally {
-      TradingConfig.unfreeze();
+      ConfigLoader.unfreeze();
     }
   });
 
   test('live runtime refuses tuning profile minTradeConfidence overrides below the configured floor', () => {
-    const originalBuildTuningProfileOverrides = TradingConfig.buildTuningProfileOverrides;
-    TradingConfig.buildTuningProfileOverrides = () => ({
+    const originalBuildTuningProfileOverrides = ConfigLoader.buildTuningProfileOverrides;
+    ConfigLoader.buildTuningProfileOverrides = () => ({
       'confidence.minTradeConfidence': 0.49,
     });
 
     try {
       withLiveRuntimeEnv(() => {
-        expect(() => TradingConfig.applyTuningProfile('current-eval', {
+        expect(() => ConfigLoader.applyTuningProfile('current-eval', {
           phase: 'startup',
           source: 'unit-test',
         })).toThrow(/Live runtime refuses tuning profile 'current-eval' override for confidence\.minTradeConfidence/);
       });
     } finally {
-      TradingConfig.buildTuningProfileOverrides = originalBuildTuningProfileOverrides;
+      ConfigLoader.buildTuningProfileOverrides = originalBuildTuningProfileOverrides;
     }
 
-    expect(TradingConfig.get('confidence.minTradeConfidence')).toBe(0.5);
+    expect(ConfigLoader.get('confidence.minTradeConfidence')).toBe(0.5);
   });
 
   test('profile apply refuses active override collisions unless profile replacement is explicit', () => {
-    TradingConfig.setOverrides({
+    ConfigLoader.setOverrides({
       'exits.profitTiers.tier1': 0.123,
     });
 
-    expect(() => TradingConfig.applyTuningProfile('legacy-wide', {
+    expect(() => ConfigLoader.applyTuningProfile('legacy-wide', {
       phase: 'startup',
       requireFlat: true,
       flatState: { flat: true, source: 'unit-test' },
@@ -498,87 +498,87 @@ describe('TradingConfig runtime profile contract', () => {
   });
 
   test('explicit profile replacement still requires flat-state proof for active collisions', () => {
-    TradingConfig.setOverrides({
+    ConfigLoader.setOverrides({
       'exits.profitTiers.tier1': 0.123,
     });
 
-    expect(() => TradingConfig.applyTuningProfile('legacy-wide', {
+    expect(() => ConfigLoader.applyTuningProfile('legacy-wide', {
       phase: 'startup',
       replaceActiveProfile: true,
     })).toThrow(/requires an explicit flatState probe result/);
   });
 
   test('explicit profile replacement requires flat-state proof even when values already match', () => {
-    TradingConfig.applyTuningProfile('current-eval', {
+    ConfigLoader.applyTuningProfile('current-eval', {
       phase: 'startup',
       source: 'unit-test',
     });
 
-    expect(() => TradingConfig.applyTuningProfile('current-eval', {
+    expect(() => ConfigLoader.applyTuningProfile('current-eval', {
       phase: 'startup',
       replaceActiveProfile: true,
     })).toThrow(/requires an explicit flatState probe result/);
   });
 
   test('different active profile cannot be applied without explicit replacement', () => {
-    TradingConfig.applyTuningProfile('current-eval', {
+    ConfigLoader.applyTuningProfile('current-eval', {
       phase: 'startup',
       source: 'unit-test',
     });
 
-    expect(() => TradingConfig.applyTuningProfile('legacy-wide', {
+    expect(() => ConfigLoader.applyTuningProfile('legacy-wide', {
       phase: 'startup',
       source: 'unit-test',
     })).toThrow(/cannot replace active profile 'current-eval' without replaceActiveProfile=true/);
   });
 
   test('profile replacement removes old profile-owned paths not present in the new profile', () => {
-    TradingConfig.applyTuningProfile('current-eval', {
+    ConfigLoader.applyTuningProfile('current-eval', {
       phase: 'startup',
       source: 'unit-test',
     });
-    expect(TradingConfig.get('filters.atrEnabled')).toBe(true);
+    expect(ConfigLoader.get('filters.atrEnabled')).toBe(true);
 
-    TradingConfig.applyTuningProfile('legacy-wide', {
+    ConfigLoader.applyTuningProfile('legacy-wide', {
       phase: 'startup',
       replaceActiveProfile: true,
       flatState: { flat: true, source: 'unit-test' },
       source: 'unit-test',
     });
 
-    expect(TradingConfig.getTuningProfileStatus().activeProfile).toBe('legacy-wide');
-    expect(TradingConfig.get('filters.atrEnabled')).toBe(false);
+    expect(ConfigLoader.getTuningProfileStatus().activeProfile).toBe('legacy-wide');
+    expect(ConfigLoader.get('filters.atrEnabled')).toBe(false);
   });
 
   test('profile replacement does not delete manual overrides removed from active profile ownership', () => {
-    TradingConfig.applyTuningProfile('current-eval', {
+    ConfigLoader.applyTuningProfile('current-eval', {
       phase: 'startup',
       source: 'unit-test',
     });
-    TradingConfig.setOverrides({
+    ConfigLoader.setOverrides({
       'filters.atrEnabled': false,
     });
 
-    TradingConfig.applyTuningProfile('legacy-wide', {
+    ConfigLoader.applyTuningProfile('legacy-wide', {
       phase: 'startup',
       replaceActiveProfile: true,
       flatState: { flat: true, source: 'unit-test' },
       source: 'unit-test',
     });
 
-    expect(TradingConfig.getTuningProfileStatus().activeProfile).toBe('legacy-wide');
-    expect(TradingConfig.get('filters.atrEnabled')).toBe(false);
+    expect(ConfigLoader.getTuningProfileStatus().activeProfile).toBe('legacy-wide');
+    expect(ConfigLoader.get('filters.atrEnabled')).toBe(false);
   });
 
   test('runWithTuningProfile restores paths that were missing before the temporary profile', async () => {
-    const beforeTier1 = TradingConfig.get('exits.profitTiers.tier1');
-    const beforeStatus = TradingConfig.getTuningProfileStatus();
+    const beforeTier1 = ConfigLoader.get('exits.profitTiers.tier1');
+    const beforeStatus = ConfigLoader.getTuningProfileStatus();
 
-    await TradingConfig.runWithTuningProfile(
+    await ConfigLoader.runWithTuningProfile(
       'legacy-wide',
       async () => {
-        expect(TradingConfig.get('exits.profitTiers.tier1')).toBe(0.020);
-        expect(TradingConfig.getTuningProfileStatus().activeProfile).toBe('legacy-wide');
+        expect(ConfigLoader.get('exits.profitTiers.tier1')).toBe(0.020);
+        expect(ConfigLoader.getTuningProfileStatus().activeProfile).toBe('legacy-wide');
       },
       {
         phase: 'startup',
@@ -587,19 +587,19 @@ describe('TradingConfig runtime profile contract', () => {
       }
     );
 
-    expect(TradingConfig.get('exits.profitTiers.tier1')).toBe(beforeTier1);
-    expect(TradingConfig.getTuningProfileStatus()).toEqual(beforeStatus);
+    expect(ConfigLoader.get('exits.profitTiers.tier1')).toBe(beforeTier1);
+    expect(ConfigLoader.getTuningProfileStatus()).toEqual(beforeStatus);
   });
 
   test('runWithTuningProfile restores manual overrides on paths changed by the temporary profile', async () => {
-    TradingConfig.setOverrides({
+    ConfigLoader.setOverrides({
       'filters.atrEnabled': false,
     });
 
-    await TradingConfig.runWithTuningProfile(
+    await ConfigLoader.runWithTuningProfile(
       'current-eval',
       async () => {
-        expect(TradingConfig.get('filters.atrEnabled')).toBe(true);
+        expect(ConfigLoader.get('filters.atrEnabled')).toBe(true);
       },
       {
         phase: 'startup',
@@ -608,6 +608,6 @@ describe('TradingConfig runtime profile contract', () => {
       }
     );
 
-    expect(TradingConfig.get('filters.atrEnabled')).toBe(false);
+    expect(ConfigLoader.get('filters.atrEnabled')).toBe(false);
   });
 });

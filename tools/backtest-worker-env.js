@@ -1,7 +1,7 @@
 'use strict';
 
 const path = require('path');
-const TradingConfig = require('../core/TradingConfig');
+const ConfigLoader = require('../foundation/ConfigLoader');
 const { resolveInstrumentFromDataFile } = require('./instrument-env');
 const {
   DEFAULT_TUNING_PROFILE,
@@ -31,8 +31,8 @@ const WORKER_ENV_ALLOWLIST = [
   'WINDIR',
 ];
 
-const CANONICAL_BACKTEST_ENV = TradingConfig.getBacktestWorkerEnvDefaults();
-const STOCK_ZERO_FEE_ENV = TradingConfig.getBacktestStockZeroFeeEnv();
+const CANONICAL_BACKTEST_ENV = ConfigLoader.getBacktestWorkerEnvDefaults();
+const STOCK_ZERO_FEE_ENV = ConfigLoader.getBacktestStockZeroFeeEnv();
 const STOCK_BACKTEST_ALPACA_ENV = Object.freeze({
   ALPACA_MODE: 'paper',
   ALPACA_API_KEY: 'backtest-alpaca-key',

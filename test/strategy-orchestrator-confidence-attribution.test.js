@@ -25,9 +25,9 @@ describe('StrategyOrchestrator confidence attribution', () => {
   });
 
   test('records raw-to-final confidence contributors for ranking boosts', () => {
-    const TradingConfig = require('../core/TradingConfig');
-    TradingConfig.BASE_CONFIG.regimeBoosts.ranging.AttributionProbe = 1.1;
-    TradingConfig.BASE_CONFIG.volumeProfileBoosts.atPOC.AttributionProbe = 1.2;
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    ConfigLoader.BASE_CONFIG.regimeBoosts.ranging.AttributionProbe = 1.1;
+    ConfigLoader.BASE_CONFIG.volumeProfileBoosts.atPOC.AttributionProbe = 1.2;
 
     const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
     const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
@@ -114,8 +114,8 @@ describe('StrategyOrchestrator confidence attribution', () => {
 
   test('keeps ranking score private while exposing capped public confidence', () => {
     process.env.ENABLE_MTF_CONFLUENCE_BOOSTER = 'false';
-    const TradingConfig = require('../core/TradingConfig');
-    TradingConfig.BASE_CONFIG.regimeBoosts.ranging.PublicBoundaryProbe = 1.5;
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    ConfigLoader.BASE_CONFIG.regimeBoosts.ranging.PublicBoundaryProbe = 1.5;
 
     const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
     const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
@@ -155,14 +155,14 @@ describe('StrategyOrchestrator confidence attribution', () => {
 
   test('records candidates rejected by ATR before winner selection', () => {
     process.env.ENABLE_MTF_CONFLUENCE_BOOSTER = 'false';
-    const TradingConfig = require('../core/TradingConfig');
-    TradingConfig.BASE_CONFIG.exitContracts.HighAtrProbe = {
-      ...TradingConfig.BASE_CONFIG.exitContracts.default,
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    ConfigLoader.BASE_CONFIG.exitContracts.HighAtrProbe = {
+      ...ConfigLoader.BASE_CONFIG.exitContracts.default,
       minConfidence: null,
       atrMinPercent: 2,
     };
-    TradingConfig.BASE_CONFIG.exitContracts.LowAtrProbe = {
-      ...TradingConfig.BASE_CONFIG.exitContracts.default,
+    ConfigLoader.BASE_CONFIG.exitContracts.LowAtrProbe = {
+      ...ConfigLoader.BASE_CONFIG.exitContracts.default,
       minConfidence: null,
       atrMinPercent: 0.1,
     };

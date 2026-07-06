@@ -1,17 +1,17 @@
 'use strict';
 
-const TradingConfig = require('../core/TradingConfig');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 function listFeeProfileNames() {
-  return TradingConfig.listFeeProfileNames();
+  return ConfigLoader.listFeeProfileNames();
 }
 
 function resolveFeeProfile(profileName) {
-  return TradingConfig.resolveFeeProfile(profileName);
+  return ConfigLoader.resolveFeeProfile(profileName);
 }
 
 function summarizeFeeProfile(profile) {
-  return TradingConfig.summarizeFeeProfile(profile);
+  return ConfigLoader.summarizeFeeProfile(profile);
 }
 
 function shellQuote(value) {

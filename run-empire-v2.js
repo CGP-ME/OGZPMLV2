@@ -348,18 +348,18 @@ const stateManager = getStateManager();
 const { getInstance: getExitContractManager } = require('./core/ExitContractManager');
 const exitContractManager = getExitContractManager();
 
-// CHANGE 2026-02-28: TradingConfig - Centralized trading parameters
-const TradingConfig = require('./core/TradingConfig');
+// CHANGE 2026-02-28: ConfigLoader - Centralized trading parameters
+const ConfigLoader = require('./foundation/ConfigLoader');
 const { applyBacktestConfigOverrides } = require('./core/BacktestConfigOverrides');
 applyBacktestConfigOverrides(process.env.BACKTEST_CONFIG_OVERRIDES_JSON, {
   isBacktest: resolvedConfig.config.mode.backtest,
   executionMode: resolvedConfig.config.mode.execution,
   candleSource: resolvedConfig.config.mode.candleSource,
   liveTrading: resolvedConfig.config.mode.liveTrading,
-  tradingConfig: TradingConfig,
+  tradingConfig: ConfigLoader,
 });
 const { logRuntimeConfigProof } = require('./core/RuntimeConfigProof');
-logRuntimeConfigProof(resolvedConfig, TradingConfig);
+logRuntimeConfigProof(resolvedConfig, ConfigLoader);
 const EvalRuleEngine = require('./core/EvalRuleEngine');
 const TtpCutoffEnforcer = require('./core/TtpCutoffEnforcer');
 
@@ -579,9 +579,9 @@ class OGZPrimeV14Bot {
     // PIPELINE: Read toggles early for component initialization
     // RUN-MED-03: ?? + warn when pipeline config missing. || coerced an
     // explicit empty object (intentional "all gates off") to {} silently.
-    const _pipelineCfg = TradingConfig.get('pipeline');
+    const _pipelineCfg = ConfigLoader.get('pipeline');
     if (_pipelineCfg == null) {
-      console.warn('[RUN-MED-03] TradingConfig.pipeline missing — defaulting to {} (all pipeline gates off). Verify pipeline config block.');
+      console.warn('[RUN-MED-03] ConfigLoader.pipeline missing — defaulting to {} (all pipeline gates off). Verify pipeline config block.');
     }
     this.pipeline = _pipelineCfg ?? {};
 
@@ -613,9 +613,9 @@ class OGZPrimeV14Bot {
     // CHANGE 665: Initialize TradingProfileManager for manual profile switching
     // AUTO-SWITCHING DISABLED - profiles are user-controlled only
     // Phase 2 REWRITE: TradingProfileManager, OptimizedTradingBrain, tradingOptimizations deleted
-    // Profiles now in TradingConfig, orchestrator replaced brain, PatternStatsManager unused
+    // Profiles now in ConfigLoader, orchestrator replaced brain, PatternStatsManager unused
     const initialProfile = resolvedConfig.config.misc.tradingProfile;
-    console.log(`Trading Profile: ${initialProfile.toUpperCase()} (from TradingConfig)`);
+    console.log(`Trading Profile: ${initialProfile.toUpperCase()} (from ConfigLoader)`);
 
     // CHANGE 2026-02-21: Isolated strategy entry pipeline (replaces soupy pooled confidence)
     // Each strategy evaluates independently. Highest confidence WINS and OWNS the trade.
@@ -627,8 +627,8 @@ class OGZPrimeV14Bot {
     this.candleTimeframe = runtimeCandleTimeframe.trim();
 
     this.strategyOrchestrator = new StrategyOrchestrator({
-      // CHANGE 2026-02-28: Use TradingConfig for minStrategyConfidence
-      minStrategyConfidence: TradingConfig.get('confidence.minStrategyConfidence'),
+      // CHANGE 2026-02-28: Use ConfigLoader for minStrategyConfidence
+      minStrategyConfidence: ConfigLoader.get('confidence.minStrategyConfidence'),
       minConfluenceCount: 1,         // 1 = winner alone can trade
       mtfBaseTimeframe: this.candleTimeframe,
     });
@@ -706,14 +706,14 @@ class OGZPrimeV14Bot {
     // zeros (e.g., 0 decayBars = "no decay", 0 snapbackThreshold = "always
     // snap"). || coerced any 0 config value to the hardcoded default, blocking
     // intentional overrides. Same architectural class across all 6 constructors.
-    const emaConfig = TradingConfig.get('strategies.EMACrossover') ?? {};
+    const emaConfig = ConfigLoader.get('strategies.EMACrossover') ?? {};
     this.emaCrossover = new EMASMACrossoverSignal({
       decayBars: emaConfig.decayBars ?? 10,
       snapbackThresholdPct: emaConfig.snapbackThreshold ?? 2.5,
       blowoffAccelThreshold: emaConfig.blowoffThreshold ?? 0.15,
     });
 
-    const masrConfig = TradingConfig.get('strategies.MADynamicSR') ?? {};
+    const masrConfig = ConfigLoader.get('strategies.MADynamicSR') ?? {};
     this.maDynamicSR = new MADynamicSR({
       entryMaPeriod: masrConfig.entryMaPeriod ?? 20,
       srMaPeriod: masrConfig.srMaPeriod ?? 200,
@@ -740,7 +740,7 @@ class OGZPrimeV14Bot {
       });
     }
 
-    const liqConfig = TradingConfig.get('strategies.LiquiditySweep') ?? {};
+    const liqConfig = ConfigLoader.get('strategies.LiquiditySweep') ?? {};
     this.liquiditySweep = new LiquiditySweepDetector({
       sweepLookbackBars: liqConfig.sweepLookbackBars ?? 50,
       sweepMinExtensionPct: liqConfig.sweepMinExtensionPct ?? 0.1,
@@ -756,7 +756,7 @@ class OGZPrimeV14Bot {
 
     // CHANGE 2026-02-23: Volume Profile (Fabio Valentino / Auction Market Theory)
     // Filters out trend strategies when market is BALANCED (inside value area = chop)
-    const vpConfig = TradingConfig.get('strategies.VolumeProfile') ?? {};
+    const vpConfig = ConfigLoader.get('strategies.VolumeProfile') ?? {};
     this.volumeProfile = new VolumeProfile({
       sessionLookback: vpConfig.sessionLookback ?? 96,    // 96 x 15min = 24 hours
       numBins: vpConfig.numBins ?? 50,
@@ -820,7 +820,7 @@ class OGZPrimeV14Bot {
 
     if (sessionRouterEnabled) {
       console.log('[EMPIRE V2] SessionRouter ENABLED — creating Kraken + Alpaca adapters');
-      const sessionsCfg = (TradingConfig.get && TradingConfig.get('sessions')) || {};
+      const sessionsCfg = (ConfigLoader.get && ConfigLoader.get('sessions')) || {};
       const primaryCryptoSymbol = Array.isArray(sessionsCfg.cryptoSymbols) ? sessionsCfg.cryptoSymbols[0] : null;
       if (!primaryCryptoSymbol) {
         throw new Error('[SessionRouter] cryptoSymbols[0] missing — refusing to configure Kraken depth feed');
@@ -1117,7 +1117,7 @@ class OGZPrimeV14Bot {
     {
       const brokerId = resolvedConfig.config.broker.id;
       const sessionRouterEnabled = process.env.SESSION_ROUTER_ENABLED === 'true';
-      const sessionsCfg = (TradingConfig.get && TradingConfig.get('sessions')) || {};
+      const sessionsCfg = (ConfigLoader.get && ConfigLoader.get('sessions')) || {};
       const alpacaSymbols = resolveAlpacaSymbols(resolvedConfig.config.broker, {
         allowTradingPairFallback: !sessionRouterEnabled,
       });
@@ -1302,8 +1302,8 @@ class OGZPrimeV14Bot {
     }
 
     this.config = {
-      // CHANGE 2026-02-28: Use TradingConfig for minTradeConfidence
-      minTradeConfidence: TradingConfig.get('confidence.minTradeConfidence'),
+      // CHANGE 2026-02-28: Use ConfigLoader for minTradeConfidence
+      minTradeConfidence: ConfigLoader.get('confidence.minTradeConfidence'),
       tradingPair: this.tradingPair,
       brokerId: resolvedConfig.config.broker.id,
       accountId: resolvedConfig.config.broker.accountId || 'default',
@@ -1316,7 +1316,7 @@ class OGZPrimeV14Bot {
       evalTraceBacktest: resolvedConfig.config.observability.evalTraceBacktest,
       traceEventMaxBufferedBytes: resolvedConfig.config.observability.traceEventMaxBufferedBytes,
       dataFeed: resolvedConfig.config.dataFeed,
-      enableShorts: TradingConfig.get('features.enableShorts'),
+      enableShorts: ConfigLoader.get('features.enableShorts'),
       enableLiveTrading,
       enableBacktestMode,
       tradingMode
@@ -3254,7 +3254,7 @@ class OGZPrimeV14Bot {
           : [];
         const primaryPattern = dashboardPatterns.length > 0 ? dashboardPatterns[0] : null;
 
-        // Phase 2 REWRITE: profileManager deleted - profiles now in TradingConfig
+        // Phase 2 REWRITE: profileManager deleted - profiles now in ConfigLoader
         const activeProfile = resolvedConfig.config.misc.tradingProfile;
 
         // CHANGE 2.0.12: Include pattern memory stats in dashboard

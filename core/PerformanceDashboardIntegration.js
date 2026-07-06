@@ -11,7 +11,7 @@ const path = require('path');
 // Import all the hidden performance modules
 const PerformanceVisualizer = require('./PerformanceVisualizer');
 const PerformanceValidator = require('./PerformanceValidator');
-// Phase 2 REWRITE: TradingProfileManager deleted - profiles now in TradingConfig
+// Phase 2 REWRITE: TradingProfileManager deleted - profiles now in ConfigLoader
 // CHANGE 2025-12-11: TradingSafetyNet commented out - module doesn't exist
 
 const RUNTIME_PROFILE_DISABLED_REASON = 'runtime_profile_switch_not_wired';

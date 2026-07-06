@@ -86,7 +86,7 @@ describe('RiskManager config wiring', () => {
     })).toThrow(/risk\.maxDailyLoss requires explicit env\/profile source/);
   });
 
-  test('rejects decimal-style TradingConfig risk units', () => {
+  test('rejects decimal-style ConfigLoader risk units', () => {
     expect(() => buildRiskManagerConfig({
       maxDrawdown: 0.18,
       maxDailyLoss: 10,
@@ -219,7 +219,7 @@ describe('RiskManager config wiring', () => {
     expect(source).toContain('new RiskManager(buildRiskManagerConfig(');
     expect(source).toContain('resolvedConfig.config.risk');
     expect(source).toContain('resolvedConfig.sources');
-    expect(source).not.toContain("maxDailyLoss: TradingConfig.get('risk.maxDailyLoss')");
-    expect(source).not.toContain("maxDrawdown: TradingConfig.get('risk.maxDrawdown')");
+    expect(source).not.toContain("maxDailyLoss: ConfigLoader.get('risk.maxDailyLoss')");
+    expect(source).not.toContain("maxDrawdown: ConfigLoader.get('risk.maxDrawdown')");
   });
 });

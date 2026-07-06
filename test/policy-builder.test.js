@@ -2,7 +2,7 @@
 
 const { buildPolicyHash } = require('../core/dto/FrozenExitPolicy');
 const PolicyBuilder = require('../core/PolicyBuilder');
-const TradingConfig = require('../core/TradingConfig');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 describe('PolicyBuilder frozen exit policy', () => {
   const fixedNowMs = Date.parse('2026-06-28T18:30:00.000Z');
@@ -335,7 +335,7 @@ describe('PolicyBuilder frozen exit policy', () => {
   });
 
   test('all base exit contracts declare structural-exit ownership explicitly', () => {
-    const contracts = TradingConfig.BASE_CONFIG.exitContracts;
+    const contracts = ConfigLoader.BASE_CONFIG.exitContracts;
 
     for (const [strategyName, contract] of Object.entries(contracts)) {
       expect(contract).toHaveProperty('useStructuralExits');
@@ -345,7 +345,7 @@ describe('PolicyBuilder frozen exit policy', () => {
         exitContract: contract,
         nowMs: fixedNowMs,
         ...policyContext,
-        configReader: TradingConfig,
+        configReader: ConfigLoader,
       })).not.toThrow();
     }
   });
@@ -360,7 +360,7 @@ describe('PolicyBuilder frozen exit policy', () => {
       nowMs: fixedNowMs,
       ...policyContext,
       configReader: reader(values),
-    })).toThrow(/missing TradingConfig value: exitLogic\.beScaleOut\.scaleOutFraction/);
+    })).toThrow(/missing ConfigLoader value: exitLogic\.beScaleOut\.scaleOutFraction/);
   });
 
   test('preserves structural-exit contracts with null trailing fields', () => {
@@ -507,7 +507,7 @@ describe('PolicyBuilder frozen exit policy', () => {
     }
   });
 
-  test('builds with the default TradingConfig class reader', () => {
+  test('builds with the default ConfigLoader class reader', () => {
     const policy = PolicyBuilder.buildForTrade({
       strategyName: 'EMASMACrossover',
       exitContract: exitContract(),

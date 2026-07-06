@@ -309,7 +309,7 @@ describe('Pattern memory scope isolation', () => {
     expect(Object.keys(memory.patterns)).toHaveLength(0);
   });
 
-  test('UnifiedPatternMemory ignores PATTERN env vars and uses TradingConfig-owned tunables', () => {
+  test('UnifiedPatternMemory ignores PATTERN env vars and uses ConfigLoader-owned tunables', () => {
     process.env.PATTERN_MIN_SAMPLES = '1';
     process.env.PATTERN_SUCCESS_THRESHOLD = '0.01';
 
@@ -745,9 +745,9 @@ describe('Pattern memory scope isolation', () => {
     expect(memory.storagePath).toBe(path.join(process.env.DATA_DIR, 'unified-patterns.paper.stocks.json'));
   });
 
-  test('PatternMemoryBank uses TradingConfig-owned bank tunables and rejects invalid overrides', () => {
+  test('PatternMemoryBank uses ConfigLoader-owned bank tunables and rejects invalid overrides', () => {
     const PatternMemoryBank = require('../core/PatternMemoryBank');
-    const TradingConfig = require('../core/TradingConfig');
+    const ConfigLoader = require('../foundation/ConfigLoader');
     const dbPath = path.join(process.env.DATA_DIR, `pattern-bank-config-${Date.now()}.json`);
     const bank = new PatternMemoryBank({
       ...scope(),
@@ -759,8 +759,8 @@ describe('Pattern memory scope isolation', () => {
       },
     });
 
-    expect(bank.minTradesSample).toBe(TradingConfig.get('patternMemory.bank.minTradesSample'));
-    expect(bank.patternBankConfig.maxPatterns).toBe(TradingConfig.get('patternMemory.bank.maxPatterns'));
+    expect(bank.minTradesSample).toBe(ConfigLoader.get('patternMemory.bank.minTradesSample'));
+    expect(bank.patternBankConfig.maxPatterns).toBe(ConfigLoader.get('patternMemory.bank.maxPatterns'));
     expect(() => new PatternMemoryBank({
       ...scope(),
       dbPath,

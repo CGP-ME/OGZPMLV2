@@ -5,7 +5,7 @@
  * NOT just syntax checking. Actually:
  * 1. Instantiates core modules and feeds test data
  * 2. Verifies signal modules can process candles
- * 3. Checks TradingConfig values are production-ready
+ * 3. Checks ConfigLoader values are production-ready
  * 4. Tests orchestrator can evaluate signals
  * 5. Uses Bombardier to detect hidden bugs:
  *    - Orphaned/dead code
@@ -67,7 +67,9 @@ for (let i = 0; i < 100; i++) {
     h: Math.max(open, close, high),
     l: Math.min(open, close, low),
     c: close,
-    v: 100 + Math.random() * 500
+    v: 100 + Math.random() * 500,
+    timeframe: '15m',
+    symbol: 'BTC-USD'
   });
 }
 
@@ -78,7 +80,7 @@ console.log('\n--- DEPENDENCY CHECKS ---\n');
 
 test('All critical modules can be required', () => {
   const criticalModules = [
-    'core/TradingConfig',
+    'foundation/ConfigLoader',
     'core/StrategyOrchestrator',
     'core/OrderExecutor',
     'core/StateManager',
@@ -109,9 +111,9 @@ test('All critical modules can be required', () => {
 test('No circular dependencies in core modules', () => {
   // Try requiring modules in different orders to catch circular deps
   const orders = [
-    ['core/TradingConfig', 'core/StrategyOrchestrator', 'core/OrderExecutor'],
-    ['core/OrderExecutor', 'core/TradingConfig', 'core/StrategyOrchestrator'],
-    ['core/StateManager', 'core/ExitContractManager', 'core/TradingConfig'],
+    ['foundation/ConfigLoader', 'core/StrategyOrchestrator', 'core/OrderExecutor'],
+    ['core/OrderExecutor', 'foundation/ConfigLoader', 'core/StrategyOrchestrator'],
+    ['core/StateManager', 'core/ExitContractManager', 'foundation/ConfigLoader'],
   ];
 
   for (const order of orders) {
@@ -132,11 +134,11 @@ test('No circular dependencies in core modules', () => {
 // ═══════════════════════════════════════════════════════════
 console.log('\n--- CONFIGURATION VALIDATION ---\n');
 
-test('TradingConfig fees are production-ready', () => {
-  const TradingConfig = require(path.join(projectRoot, 'core/TradingConfig'));
-  const makerFee = TradingConfig.get('fees.makerFee');
-  const takerFee = TradingConfig.get('fees.takerFee');
-  const roundTrip = TradingConfig.get('fees.totalRoundTrip');
+test('ConfigLoader fees are production-ready', () => {
+  const ConfigLoader = require(path.join(projectRoot, 'foundation/ConfigLoader'));
+  const makerFee = ConfigLoader.get('fees.makerFee');
+  const takerFee = ConfigLoader.get('fees.takerFee');
+  const roundTrip = ConfigLoader.get('fees.totalRoundTrip');
 
   if (typeof makerFee !== 'number') throw new Error(`makerFee not a number: ${makerFee}`);
   if (typeof takerFee !== 'number') throw new Error(`takerFee not a number: ${takerFee}`);
@@ -145,8 +147,8 @@ test('TradingConfig fees are production-ready', () => {
   if (!roundTrip || roundTrip < 0.003) throw new Error(`totalRoundTrip invalid: ${roundTrip}`);
 });
 
-test('TradingConfig strategy params exist and are valid', () => {
-  const TradingConfig = require(path.join(projectRoot, 'core/TradingConfig'));
+test('ConfigLoader strategy params exist and are valid', () => {
+  const ConfigLoader = require(path.join(projectRoot, 'foundation/ConfigLoader'));
 
   const configs = {
     'strategies.EMACrossover': ['decayBars', 'snapbackThreshold'],
@@ -155,7 +157,7 @@ test('TradingConfig strategy params exist and are valid', () => {
   };
 
   for (const [configPath, requiredKeys] of Object.entries(configs)) {
-    const config = TradingConfig.get(configPath);
+    const config = ConfigLoader.get(configPath);
     if (!config) throw new Error(`${configPath} missing`);
 
     for (const key of requiredKeys) {
@@ -167,9 +169,9 @@ test('TradingConfig strategy params exist and are valid', () => {
 });
 
 test('Exit contract thresholds are sane', () => {
-  const TradingConfig = require(path.join(projectRoot, 'core/TradingConfig'));
-  const stopLoss = TradingConfig.get('exits.stopLossPercent');
-  const takeProfit = TradingConfig.get('exits.takeProfitPercent');
+  const ConfigLoader = require(path.join(projectRoot, 'foundation/ConfigLoader'));
+  const stopLoss = ConfigLoader.get('exits.stopLossPercent');
+  const takeProfit = ConfigLoader.get('exits.takeProfitPercent');
 
   if (!stopLoss || stopLoss < 0.5 || stopLoss > 10) {
     throw new Error(`stopLossPercent invalid: ${stopLoss}`);
@@ -215,9 +217,9 @@ console.log('\n--- SIGNAL MODULES ---\n');
 
 test('EMASMACrossoverSignal processes candles and returns structure', () => {
   const EMASMACrossoverSignal = require(path.join(projectRoot, 'modules/EMASMACrossoverSignal'));
-  const TradingConfig = require(path.join(projectRoot, 'core/TradingConfig'));
+  const ConfigLoader = require(path.join(projectRoot, 'foundation/ConfigLoader'));
 
-  const emaConfig = TradingConfig.get('strategies.EMACrossover') || {};
+  const emaConfig = ConfigLoader.get('strategies.EMACrossover') || {};
   const signal = new EMASMACrossoverSignal({
     decayBars: emaConfig.decayBars || 10,
     snapbackThresholdPct: emaConfig.snapbackThreshold || 2.5,
@@ -236,9 +238,9 @@ test('EMASMACrossoverSignal processes candles and returns structure', () => {
 
 test('MADynamicSR processes candles and builds swing data', () => {
   const MADynamicSR = require(path.join(projectRoot, 'modules/MADynamicSR'));
-  const TradingConfig = require(path.join(projectRoot, 'core/TradingConfig'));
+  const ConfigLoader = require(path.join(projectRoot, 'foundation/ConfigLoader'));
 
-  const masrConfig = TradingConfig.get('strategies.MADynamicSR') || {};
+  const masrConfig = ConfigLoader.get('strategies.MADynamicSR') || {};
   const signal = new MADynamicSR({
     entryMaPeriod: masrConfig.entryMaPeriod || 20,
     srMaPeriod: masrConfig.srMaPeriod || 200,
@@ -259,9 +261,9 @@ test('MADynamicSR processes candles and builds swing data', () => {
 
 test('LiquiditySweepDetector processes candles and tracks levels', () => {
   const LiquiditySweepDetector = require(path.join(projectRoot, 'modules/LiquiditySweepDetector'));
-  const TradingConfig = require(path.join(projectRoot, 'core/TradingConfig'));
+  const ConfigLoader = require(path.join(projectRoot, 'foundation/ConfigLoader'));
 
-  const liqConfig = TradingConfig.get('strategies.LiquiditySweep') || {};
+  const liqConfig = ConfigLoader.get('strategies.LiquiditySweep') || {};
   const detector = new LiquiditySweepDetector({
     sweepLookbackBars: liqConfig.sweepLookbackBars || 50,
     atrPeriod: liqConfig.atrPeriod || 14,

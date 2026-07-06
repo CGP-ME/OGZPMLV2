@@ -29,7 +29,7 @@ const {
 const {
   PROFILE_FORBIDDEN_ENV_KEYS,
 } = require('../tools/tuning-profiles');
-const TradingConfig = require('../core/TradingConfig');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 describe('parallel-backtest solo strategy env wiring', () => {
   function writeWorkerReport(projectRoot, tag, report) {
@@ -51,7 +51,7 @@ describe('parallel-backtest solo strategy env wiring', () => {
   }
 
   test('tsla shortcut uses the current stock eval baseline', () => {
-    const parallelConfig = TradingConfig.getParallelBacktestConfig();
+    const parallelConfig = ConfigLoader.getParallelBacktestConfig();
 
     expect(DEFAULT_DATA).toBe(parallelConfig.defaultData);
     expect(DATA_SHORTCUTS).toEqual(parallelConfig.dataShortcuts);
@@ -59,8 +59,8 @@ describe('parallel-backtest solo strategy env wiring', () => {
     expect(DATA_SHORTCUTS.tsla).toBe(parallelConfig.defaultData);
   });
 
-  test('parallel runner sweep surface is owned by TradingConfig and read-only', () => {
-    const parallelConfig = TradingConfig.getParallelBacktestConfig();
+  test('parallel runner sweep surface is owned by ConfigLoader and read-only', () => {
+    const parallelConfig = ConfigLoader.getParallelBacktestConfig();
 
     expect(STRATEGIES).toEqual(parallelConfig.strategies);
     expect(SWEEP_PRESETS.real).toEqual(parallelConfig.sweepPresets.real);
@@ -82,7 +82,7 @@ describe('parallel-backtest solo strategy env wiring', () => {
 
     const full = SWEEP_PRESETS.full();
     full[0].env.ATR_FILTER_ENABLED = 'true';
-    expect(TradingConfig.getParallelBacktestConfig().sweepPresets.real[0].env.ATR_FILTER_ENABLED)
+    expect(ConfigLoader.getParallelBacktestConfig().sweepPresets.real[0].env.ATR_FILTER_ENABLED)
       .toBeUndefined();
   });
 
@@ -303,21 +303,21 @@ describe('parallel-backtest solo strategy env wiring', () => {
   });
 
   test('stock fee posture reports the owning venue fee profile model', () => {
-    const profile = TradingConfig.resolveFeeProfile('ttp_real');
+    const profile = ConfigLoader.resolveFeeProfile('ttp_real');
 
     expect(describeFeePosture(profile, true))
       .toBe('profile ttp_real: per-share minimum model (perShare=0.005, minOrder=0.75, slippage=0.0005)');
   });
 
   test('stock fee posture reports explicit zero venue fee profile and slippage', () => {
-    const profile = TradingConfig.resolveFeeProfile('zero');
+    const profile = ConfigLoader.resolveFeeProfile('zero');
 
     expect(describeFeePosture(profile, true))
       .toBe('profile zero: stock zero-commission model, slippage=0.0005');
   });
 
   test('fee posture is not reported for non-stock backtests', () => {
-    const profile = TradingConfig.resolveFeeProfile('ttp_real');
+    const profile = ConfigLoader.resolveFeeProfile('ttp_real');
 
     expect(describeFeePosture(profile, false)).toBeNull();
   });

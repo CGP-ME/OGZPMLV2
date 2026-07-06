@@ -3,7 +3,7 @@
  * Pipeline Diagnostic Script
  *
  * Verifies ALL plumbing before tuning:
- * - TradingConfig respect (minTradeConfidence override)
+ * - ConfigLoader respect (minTradeConfidence override)
  * - Strategy verification (confidence ranges, signals vs wins)
  * - Exit contract verification (contract matches strategy)
  * - Gate verification (counts blocks per gate)
@@ -22,7 +22,7 @@ const projectRoot = path.resolve(__dirname, '..');
 // ── CORE MODULES (same paths as tuning-backtest-full.js) ─────────────────
 const IndicatorEngine = require(path.join(projectRoot, 'core/indicators/IndicatorEngine'));
 const { getInstance: getExitContractManager } = require(path.join(projectRoot, 'core/ExitContractManager'));
-const TradingConfig = require(path.join(projectRoot, 'core/TradingConfig'));
+const ConfigLoader = require(path.join(projectRoot, 'foundation/ConfigLoader'));
 const { StrategyOrchestrator } = require(path.join(projectRoot, 'core/StrategyOrchestrator'));
 
 // ── SIGNAL MODULES ───────────────────────────────────────────────────────
@@ -39,10 +39,11 @@ const FEES_PCT = parseFloat(process.env.FEES_PCT) || 0;
 const MIN_CONFIDENCE = parseFloat(process.env.MIN_CONFIDENCE) || 35;
 const INITIAL_BALANCE = parseFloat(process.env.INITIAL_BALANCE) || 10000;
 const POSITION_SIZE_PCT = parseFloat(process.env.POSITION_SIZE_PCT) || 4;
+const CANDLE_TIMEFRAME = process.env.CANDLE_TIMEFRAME || process.env.TIMEFRAME || '15m';
 
-// Exit config from TradingConfig
-const STOP_LOSS_PCT = parseFloat(process.env.STOP_LOSS_PERCENT) || TradingConfig.get('exits.stopLossPercent') || 2.0;
-const TAKE_PROFIT_PCT = parseFloat(process.env.TAKE_PROFIT_PERCENT) || TradingConfig.get('exits.takeProfitPercent') || 2.5;
+// Exit config from ConfigLoader
+const STOP_LOSS_PCT = parseFloat(process.env.STOP_LOSS_PERCENT) || ConfigLoader.get('exits.stopLossPercent') || 2.0;
+const TAKE_PROFIT_PCT = parseFloat(process.env.TAKE_PROFIT_PERCENT) || ConfigLoader.get('exits.takeProfitPercent') || 2.5;
 const TIER1 = parseFloat(process.env.TIER1_TARGET) || 0.007;
 const TIER2 = parseFloat(process.env.TIER2_TARGET) || 0.010;
 const TIER3 = parseFloat(process.env.TIER3_TARGET) || 0.015;
@@ -66,7 +67,8 @@ try {
     h: _h(c) || c.high,
     l: _l(c) || c.low,
     c: _c(c) || c.close,
-    v: _v(c) || c.volume || 0
+    v: _v(c) || c.volume || 0,
+    timeframe: c.timeframe || CANDLE_TIMEFRAME
   }));
   console.log(`Loaded ${candles.length} candles\n`);
 } catch (err) {
@@ -113,14 +115,14 @@ const orchestrator = new StrategyOrchestrator({
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// TEST 1: TradingConfig Respect
+// TEST 1: ConfigLoader Respect
 // ═══════════════════════════════════════════════════════════════════════════
-console.log('TEST 1: TradingConfig Respect');
+console.log('TEST 1: ConfigLoader Respect');
 console.log('-'.repeat(50));
 
-const tcConfidence = TradingConfig.get('confidence');
-const tcExits = TradingConfig.get('exits');
-const tcFees = TradingConfig.get('fees');
+const tcConfidence = ConfigLoader.get('confidence');
+const tcExits = ConfigLoader.get('exits');
+const tcFees = ConfigLoader.get('fees');
 
 report.tests.tradingConfigRespect.details = {
   configConfidence: tcConfidence,
@@ -132,16 +134,16 @@ report.tests.tradingConfigRespect.details = {
 
 // Check if we can read config values
 if (tcConfidence && tcExits) {
-  console.log(`  ✓ TradingConfig readable`);
+  console.log(`  ✓ ConfigLoader readable`);
   console.log(`    - minTradeConfidence: ${tcConfidence.minTradeConfidence}`);
   console.log(`    - stopLossPercent: ${tcExits.stopLossPercent}`);
   console.log(`    - takeProfitPercent: ${tcExits.takeProfitPercent}`);
   report.tests.tradingConfigRespect.status = 'pass';
   report.summary.passed++;
 } else {
-  console.log(`  ✗ TradingConfig NOT readable`);
+  console.log(`  ✗ ConfigLoader NOT readable`);
   report.tests.tradingConfigRespect.status = 'fail';
-  report.flags.push('TradingConfig values not accessible');
+  report.flags.push('ConfigLoader values not accessible');
   report.summary.failed++;
 }
 
@@ -319,7 +321,7 @@ for (let i = 0; i < candles.length; i++) {
   try { maDynamicSRSignal = maDynamicSR.update(candle, priceHistory); } catch(e) {}
   try { breakRetestSignal = breakAndRetest.update(candle, priceHistory); } catch(e) {}
   try { liquiditySweepSignal = liquiditySweep.feedCandle(candle); } catch(e) {}
-  try { mtfAdapter.ingestCandle(candle); } catch(e) {}
+  try { mtfAdapter.ingestCandle(candle, candle.timeframe); } catch(e) {}
   try { volumeProfile.update(candle, priceHistory); } catch(e) {}
 
   if (i < WARMUP) continue;

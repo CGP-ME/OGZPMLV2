@@ -160,9 +160,9 @@ describe('EMATrendRetest', () => {
     };
 
     try {
-      const TradingConfig = require('../core/TradingConfig');
-      const realGet = TradingConfig.get.bind(TradingConfig);
-      jest.spyOn(TradingConfig, 'get').mockImplementation((path, defaultValue) => {
+      const ConfigLoader = require('../foundation/ConfigLoader');
+      const realGet = ConfigLoader.get.bind(ConfigLoader);
+      jest.spyOn(ConfigLoader, 'get').mockImplementation((path, defaultValue) => {
         if (path === 'pipeline') {
           const pipeline = { ...realGet(path, defaultValue) };
           delete pipeline.enableEMATrendRetest;
@@ -191,9 +191,9 @@ describe('EMATrendRetest', () => {
     };
 
     try {
-      const TradingConfig = require('../core/TradingConfig');
-      const realGet = TradingConfig.get.bind(TradingConfig);
-      jest.spyOn(TradingConfig, 'get').mockImplementation((path, defaultValue) => {
+      const ConfigLoader = require('../foundation/ConfigLoader');
+      const realGet = ConfigLoader.get.bind(ConfigLoader);
+      jest.spyOn(ConfigLoader, 'get').mockImplementation((path, defaultValue) => {
         if (path === 'strategies.EMATrendRetest') {
           throw new Error('EMATrendRetest config should not be read while disabled');
         }

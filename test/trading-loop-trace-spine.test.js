@@ -35,7 +35,7 @@ jest.mock('../core/ExitContractManager', () => ({
 jest.mock('../core/DecisionAutopsyLogger', () => mockDecisionAutopsyLogger);
 
 const TradingLoop = require('../core/TradingLoop');
-const TradingConfig = require('../core/TradingConfig');
+const ConfigLoader = require('../foundation/ConfigLoader');
 const { getNarrator } = require('../core/TradeNarrator');
 
 function candles(count = 20) {
@@ -114,8 +114,8 @@ function sentFrames(ctx) {
 }
 
 function mockDirectionConfig({ directionFilter = 'both', enableShorts = true } = {}) {
-  const originalGet = TradingConfig.get.bind(TradingConfig);
-  return jest.spyOn(TradingConfig, 'get').mockImplementation((key, defaultValue) => {
+  const originalGet = ConfigLoader.get.bind(ConfigLoader);
+  return jest.spyOn(ConfigLoader, 'get').mockImplementation((key, defaultValue) => {
     if (key === 'pipeline.directionFilter') return directionFilter;
     if (key === 'features.enableShorts') return enableShorts;
     return originalGet(key, defaultValue);

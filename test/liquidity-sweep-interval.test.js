@@ -121,14 +121,14 @@ describe('LiquiditySweep interval detection', () => {
     expect(detector.stats.manipCandlesDetected).toBe(0);
   });
 
-  test('StrategyOrchestrator wires TradingConfig LiquiditySweep tunables into the detector', () => {
+  test('StrategyOrchestrator wires ConfigLoader LiquiditySweep tunables into the detector', () => {
     const source = fs.readFileSync(
       path.join(__dirname, '..', 'core', 'StrategyOrchestrator.js'),
       'utf8'
     );
 
-    expect(source).toContain("TradingConfig.get('strategies.LiquiditySweep')");
-    expect(source).toMatch(/new LiquiditySweepDetector\(\{\s*\.\.\.\(TradingConfig\.get\('strategies\.LiquiditySweep'\) \|\| \{\}\),\s*disableSessionCheck: true,\s*\}\)/s);
+    expect(source).toContain("ConfigLoader.get('strategies.LiquiditySweep')");
+    expect(source).toMatch(/new LiquiditySweepDetector\(\{\s*\.\.\.\(ConfigLoader\.get\('strategies\.LiquiditySweep'\) \|\| \{\}\),\s*disableSessionCheck: true,\s*\}\)/s);
   });
 
   test('stops the session when the opening candle is below the ATR manipulation threshold', () => {

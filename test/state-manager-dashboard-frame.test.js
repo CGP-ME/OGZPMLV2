@@ -302,7 +302,7 @@ describe('StateManager dashboard state_update frame', () => {
         if (event === 'close') closeHandler = handler;
       }),
     };
-    const heartbeatMs = require('../core/TradingConfig').get('dashboard.stateUpdateHeartbeatMs');
+    const heartbeatMs = require('../foundation/ConfigLoader').get('dashboard.stateUpdateHeartbeatMs');
 
     manager.setDashboardWs(ws);
 
@@ -341,8 +341,8 @@ describe('StateManager dashboard state_update frame', () => {
       send: payload => sent.push(JSON.parse(payload)),
       once: jest.fn(),
     };
-    const TradingConfig = require('../core/TradingConfig');
-    TradingConfig.setOverrides({ dashboard: { stateUpdateHeartbeatMs: 0 } });
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    ConfigLoader.setOverrides({ dashboard: { stateUpdateHeartbeatMs: 0 } });
 
     expect(() => manager.setDashboardWs(ws)).toThrow('dashboard.stateUpdateHeartbeatMs must be positive milliseconds');
     expect(sent).toHaveLength(0);
@@ -360,7 +360,7 @@ describe('StateManager dashboard state_update frame', () => {
         if (event === 'close') closeHandler = handler;
       }),
     };
-    const heartbeatMs = require('../core/TradingConfig').get('dashboard.stateUpdateHeartbeatMs');
+    const heartbeatMs = require('../foundation/ConfigLoader').get('dashboard.stateUpdateHeartbeatMs');
 
     manager.setDashboardWs(ws);
     expect(ws.on).toHaveBeenCalledWith('close', expect.any(Function));
@@ -383,7 +383,7 @@ describe('StateManager dashboard state_update frame', () => {
       send: payload => sent.push(JSON.parse(payload)),
       once: jest.fn(),
     };
-    const heartbeatMs = require('../core/TradingConfig').get('dashboard.stateUpdateHeartbeatMs');
+    const heartbeatMs = require('../foundation/ConfigLoader').get('dashboard.stateUpdateHeartbeatMs');
 
     manager.setDashboardWs(ws);
     ws.readyState = 3;
@@ -406,7 +406,7 @@ describe('StateManager dashboard state_update frame', () => {
       send: payload => sent.push(JSON.parse(payload)),
       once: jest.fn(),
     };
-    const heartbeatMs = require('../core/TradingConfig').get('dashboard.stateUpdateHeartbeatMs');
+    const heartbeatMs = require('../foundation/ConfigLoader').get('dashboard.stateUpdateHeartbeatMs');
     const originalBroadcast = manager.broadcastToDashboard.bind(manager);
     manager.broadcastToDashboard = jest.fn((updates, context) => {
       if (context?.reason === 'dashboard_heartbeat') {

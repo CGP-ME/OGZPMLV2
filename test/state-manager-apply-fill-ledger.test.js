@@ -107,7 +107,7 @@ describe('StateManager applyFill decision ledger persistence', () => {
 
   afterEach(() => {
     try {
-      require('../core/TradingConfig').clearOverrides();
+      require('../foundation/ConfigLoader').clearOverrides();
     } catch (_) {}
     for (const spy of consoleSpies) {
       spy.mockRestore();
