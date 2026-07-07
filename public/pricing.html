@@ -1,196 +1,180 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OGZPrime Pricing — Trading Infrastructure That Works</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-  <script src="https://js.stripe.com/v3/"></script>
-  <style>
-    :root {
-      --red: #dc2626;
-      --red-glow: rgba(220, 38, 38, 0.4);
-      --red-light: #f87171;
-      --green: #22c55e;
-      --yellow: #f59e0b;
-      --bg: #0a0a0a;
-      --card: #111;
-      --text: #fff;
-      --text-dim: #999;
-      --border: #222;
-    }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'DM Sans', sans-serif;
-      line-height: 1.6;
-      min-height: 100vh;
-    }
-    .container { max-width: 960px; margin: 0 auto; padding: 60px 20px; }
-    .header { text-align: center; margin-bottom: 60px; }
-    .header h1 {
-      font-family: 'Space Mono', monospace;
-      font-size: 2.8rem;
-      color: var(--red);
-      margin-bottom: 12px;
-      letter-spacing: -1px;
-    }
-    .header p { font-size: 1.15rem; color: var(--text-dim); max-width: 600px; margin: 0 auto; }
-    .pricing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 60px; }
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 40px 32px;
-      position: relative;
-      transition: border-color 0.3s, box-shadow 0.3s;
-    }
-    .card:hover { border-color: var(--red); box-shadow: 0 0 40px var(--red-glow); }
-    .card.featured { border-color: var(--green); box-shadow: 0 0 30px rgba(34, 197, 94, 0.2); }
-    .card.featured::before {
-      content: "RECOMMENDED";
-      position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
-      background: var(--green); color: #000; padding: 4px 16px; border-radius: 20px;
-      font-size: 0.75rem; font-weight: 700; letter-spacing: 1px;
-    }
-    .tier-name { font-family: 'Space Mono', monospace; font-size: 1.1rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; }
-    .price { font-size: 3rem; font-weight: 700; margin-bottom: 4px; }
-    .price span { font-size: 1rem; color: var(--text-dim); font-weight: 400; }
-    .trial { color: var(--green); font-size: 0.9rem; margin-bottom: 24px; }
-    .description { color: var(--text-dim); font-size: 0.95rem; margin-bottom: 24px; min-height: 48px; }
-    .features { list-style: none; margin-bottom: 32px; }
-    .features li { padding: 8px 0; color: #ccc; font-size: 0.95rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-left: 24px; position: relative; }
-    .features li::before { content: "\2713"; position: absolute; left: 0; color: var(--green); font-weight: 700; }
-    .features li.highlight { color: var(--yellow); }
-    .features li.highlight::before { content: "\2605"; color: var(--yellow); }
-    .cta {
-      display: block; width: 100%; padding: 16px; background: var(--red); border: none;
-      border-radius: 10px; color: #fff; font-size: 1.1rem; font-weight: 700; cursor: pointer;
-      transition: background 0.2s, transform 0.2s; text-transform: uppercase; letter-spacing: 1px;
-    }
-    .cta:hover { background: #ef4444; transform: translateY(-2px); }
-    .cta:disabled { background: #444; cursor: wait; }
-    .comparison { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 40px; margin-bottom: 40px; }
-    .comparison h3 { font-family: 'Space Mono', monospace; color: var(--red); font-size: 1.4rem; text-align: center; margin-bottom: 24px; }
-    .comp-row { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 16px; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); align-items: center; }
-    .comp-row:first-child { border-bottom: 2px solid var(--border); font-weight: 700; }
-    .comp-label { color: #ccc; }
-    .comp-val { text-align: center; color: var(--text-dim); }
-    .comp-val.yes { color: var(--green); font-weight: 700; }
-    .comp-val.no { color: #444; }
-    .comp-val.pro { color: var(--yellow); font-weight: 700; }
-    .footer { text-align: center; padding: 40px 0; color: var(--text-dim); font-size: 0.85rem; }
-    .footer a { color: var(--red-light); text-decoration: none; }
-    .footer a:hover { text-decoration: underline; }
-    .back { display: inline-block; margin: 20px 10px; padding: 12px 24px; border: 1px solid var(--border); border-radius: 8px; color: var(--text-dim); text-decoration: none; transition: all 0.2s; }
-    .back:hover { border-color: var(--red); color: var(--red); }
-    .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 0.6s linear infinite; margin-right: 8px; vertical-align: middle; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    @media (max-width: 700px) {
-      .pricing-grid { grid-template-columns: 1fr; }
-      .header h1 { font-size: 2rem; }
-      .comp-row { grid-template-columns: 1.5fr 1fr 1fr; font-size: 0.85rem; }
-    }
-  </style>
+<title>Pricing — OGZPrime | First Month Free, Pay With Profits</title>
+<meta name="description" content="No double paywall. Your first month is the full Pro tier, free. Make money with the bot first, then pay with profits. Starter, Core, and Pro tiers. You control your own API keys.">
+<link rel="canonical" href="https://www.ogzprime.com/pricing.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="OGZPrime">
+<meta property="og:title" content="Pricing — OGZPrime | First Month Free, Pay With Profits">
+<meta property="og:description" content="No double paywall. Your first month is the full Pro tier, free. Make money with the bot first, then pay with profits. Starter, Core, and Pro tiers. You control your own API keys.">
+<meta property="og:url" content="https://www.ogzprime.com/pricing.html">
+<meta property="og:image" content="https://www.ogzprime.com/assets/ogz-logo-white.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Pricing — OGZPrime | First Month Free, Pay With Profits">
+<meta name="twitter:description" content="No double paywall. Your first month is the full Pro tier, free. Make money with the bot first, then pay with profits. Starter, Core, and Pro tiers. You control your own API keys.">
+<meta name="twitter:image" content="https://www.ogzprime.com/assets/ogz-logo-white.png">
+<meta name="robots" content="index,follow">
+<meta name="theme-color" content="#0a0a0a">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>OGZPrime</h1>
-      <p>Modular trading infrastructure. Plug in your strategies, backtest with real fees, deploy to live markets. You bring the edge — we handle everything else.</p>
+<x-dc>
+
+<helmet>
+<script src="./ds-base.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;800;900&family=JetBrains+Mono:wght@400;500;700&family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://js.stripe.com/v3/"></script>
+<style>body { margin:0; background:#0a0a0a; color:#fff; font-family:'DM Sans',sans-serif; line-height:1.6; }</style>
+</helmet>
+
+<div style="max-width:1100px; margin:0 auto; padding:0 24px;">
+
+  <nav style="display:flex; justify-content:space-between; align-items:center; padding:20px 0;">
+    <div style="font-family:'Orbitron',monospace; font-weight:900; font-size:18px; letter-spacing:4px; color:#fff; text-shadow:0 0 12px rgba(179,21,18,0.4);">OGZPRIME</div>
+    <div style="display:flex; gap:12px; align-items:center;">
+      <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Button" variant="ghost" size="sm" hint-size="70px,34px"><a href="index.html" style="color:inherit; text-decoration:none;">Home</a></x-import>
+      <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Button" variant="ghost" size="sm" hint-size="80px,34px"><a href="features.html" style="color:inherit; text-decoration:none;">Features</a></x-import>
+      <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Button" variant="ghost" size="sm" hint-size="60px,34px"><a href="proof.html" style="color:inherit; text-decoration:none;">Proof</a></x-import>
     </div>
-    <div class="pricing-grid">
-      <div class="card">
-        <div class="tier-name">Core</div>
-        <div class="price">$49 <span>/month</span></div>
-        <div class="trial">7-day free trial</div>
-        <div class="description">Everything you need to run a trading bot. Connect your exchange, plug in strategies, manage risk.</div>
-        <ul class="features">
-          <li>Full indicator engine (RSI, EMA, MACD, BB, ATR, 15+)</li>
-          <li>Strategy orchestrator — plug in your own strategies</li>
-          <li>Per-strategy exit contracts (SL, TP, trailing, tiers)</li>
-          <li>Risk management (drawdown limits, position sizing)</li>
-          <li>Kraken exchange adapter (more coming)</li>
-          <li>Real-time trading dashboard</li>
-          <li>Live operation proof logs</li>
-          <li>Strategy template + documentation</li>
-        </ul>
-        <button class="cta" id="core-btn" onclick="checkout('core')">Start Free Trial</button>
-      </div>
-      <div class="card featured">
-        <div class="tier-name">Pro</div>
-        <div class="price">$149 <span>/month</span></div>
-        <div class="trial">7-day free trial</div>
-        <div class="description">Full platform plus backtesting, pattern learning, and multi-timeframe analysis.</div>
-        <ul class="features">
-          <li>Everything in Core</li>
-          <li class="highlight">Backtest engine with per-strategy attribution</li>
-          <li class="highlight">Pattern memory bank (learns from your trades)</li>
-          <li class="highlight">Volume profile analysis</li>
-          <li class="highlight">Market regime detection</li>
-          <li class="highlight">Fibonacci level detection</li>
-          <li class="highlight">Multi-timeframe adapter</li>
-          <li class="highlight">Pipeline diagnostic harness</li>
-          <li class="highlight">Priority support</li>
-        </ul>
-        <button class="cta" id="pro-btn" onclick="checkout('pro')">Start Free Trial</button>
-      </div>
-    </div>
-    <div class="comparison">
-      <h3>Feature Comparison</h3>
-      <div class="comp-row"><div class="comp-label"><strong>Feature</strong></div><div class="comp-val"><strong>Core</strong></div><div class="comp-val"><strong>Pro</strong></div></div>
-      <div class="comp-row"><div class="comp-label">Indicator Engine (15+)</div><div class="comp-val yes">&#10003;</div><div class="comp-val yes">&#10003;</div></div>
-      <div class="comp-row"><div class="comp-label">Strategy Orchestrator</div><div class="comp-val yes">&#10003;</div><div class="comp-val yes">&#10003;</div></div>
-      <div class="comp-row"><div class="comp-label">Exit Contract System</div><div class="comp-val yes">&#10003;</div><div class="comp-val yes">&#10003;</div></div>
-      <div class="comp-row"><div class="comp-label">Risk Management</div><div class="comp-val yes">&#10003;</div><div class="comp-val yes">&#10003;</div></div>
-      <div class="comp-row"><div class="comp-label">Live Dashboard</div><div class="comp-val yes">&#10003;</div><div class="comp-val yes">&#10003;</div></div>
-      <div class="comp-row"><div class="comp-label">Exchange Connection</div><div class="comp-val yes">&#10003;</div><div class="comp-val yes">&#10003;</div></div>
-      <div class="comp-row"><div class="comp-label">Backtest Engine</div><div class="comp-val no">&mdash;</div><div class="comp-val pro">&#10003;</div></div>
-      <div class="comp-row"><div class="comp-label">Pattern Memory Bank</div><div class="comp-val no">&mdash;</div><div class="comp-val pro">&#10003;</div></div>
-      <div class="comp-row"><div class="comp-label">Volume Profile</div><div class="comp-val no">&mdash;</div><div class="comp-val pro">&#10003;</div></div>
-      <div class="comp-row"><div class="comp-label">Market Regime Detection</div><div class="comp-val no">&mdash;</div><div class="comp-val pro">&#10003;</div></div>
-      <div class="comp-row"><div class="comp-label">Multi-Timeframe Analysis</div><div class="comp-val no">&mdash;</div><div class="comp-val pro">&#10003;</div></div>
-      <div class="comp-row"><div class="comp-label">Diagnostic Harness</div><div class="comp-val no">&mdash;</div><div class="comp-val pro">&#10003;</div></div>
-      <div class="comp-row"><div class="comp-label">Support</div><div class="comp-val">Standard</div><div class="comp-val pro">Priority</div></div>
-    </div>
-    <div style="text-align: center;">
-      <a href="/" class="back">&larr; Back to OGZPrime</a>
-      <a href="proof/" class="back">View Live Proof</a>
-    </div>
-    <div class="footer">&copy; 2026 OGZPrime. All Rights Reserved. | <a href="legal.html">Legal</a> | <a href="mailto:support@ogzprime.com">Contact</a></div>
+  </nav>
+
+  <section style="text-align:center; padding:60px 0 50px;">
+    <h1 style="font-family:'Orbitron',monospace; font-weight:900; font-size:38px; letter-spacing:4px; color:#fff; text-shadow:0 0 20px rgba(179,21,18,0.4); margin:0 0 14px;">PRICING</h1>
+    <p style="color:#999; font-size:17px; max-width:580px; margin:0 auto;">First month free on every tier. Make money with the bot first. Pay with your profits.</p>
+  </section>
+
+  <div style="background:rgba(255,215,0,0.03); border:1px solid rgba(255,215,0,0.2); border-radius:12px; padding:24px 28px; text-align:center; max-width:700px; margin:0 auto 48px;">
+    <h3 style="font-family:'Space Mono',monospace; color:#ffd700; font-size:16px; margin:0 0 6px;">No Double Paywall — Free Trial Is Full Pro</h3>
+    <p style="color:#999; font-size:14px; margin:0;">Nobody wants to buy a bot and then load money onto a broker before they find out if it works. Your free month is the full Pro tier — every feature, every ML component, nothing held back. Make money with it first. Then pick the tier that fits.</p>
   </div>
-  <script>
-    const stripe = Stripe("pk_live_51T7M8wCRplnSOv5bMtioVeazlNJrCgChGElSEc0V2gcymGHklJbpxpJpwg3S2aIaga6LrTiQ956awcGQSVlBHLZb00eeut8r0h");
-    function checkout(tier) {
+
+  <!-- 3 TIER GRID -->
+  <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; margin-bottom:56px;">
+
+    <!-- STARTER -->
+    <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Card" hint-size="100%,480px">
+      <div style="padding:6px 2px;">
+        <div style="font-family:'Space Mono',monospace; font-size:12px; color:#999; text-transform:uppercase; letter-spacing:2px; margin-bottom:8px;">Starter</div>
+        <div style="font-size:38px; font-weight:700; color:#fff; margin-bottom:2px;">$19 <span style="font-size:15px; color:#999; font-weight:400;">/mo</span></div>
+        <div style="color:#ffd700; font-size:13px; font-family:'JetBrains Mono',monospace; margin-bottom:18px;">First month free</div>
+        <p style="color:#888; font-size:13px; margin:0 0 20px; min-height:36px;">The engine. One broker, one ticker at a time. For people coming off other platforms who want real infrastructure.</p>
+        <div style="display:flex; flex-direction:column; gap:7px; margin-bottom:24px;">
+          <div style="color:#ccc; font-size:13px; padding-left:18px; position:relative;"><span style="position:absolute; left:0; color:#ffd700;">✓</span> Execution engine (24/7)</div>
+          <div style="color:#ccc; font-size:13px; padding-left:18px; position:relative;"><span style="position:absolute; left:0; color:#ffd700;">✓</span> 1 broker connection</div>
+          <div style="color:#ccc; font-size:13px; padding-left:18px; position:relative;"><span style="position:absolute; left:0; color:#ffd700;">✓</span> 1 concurrent ticker</div>
+          <div style="color:#ccc; font-size:13px; padding-left:18px; position:relative;"><span style="position:absolute; left:0; color:#ffd700;">✓</span> Exit contracts sealed per-trade</div>
+          <div style="color:#ccc; font-size:13px; padding-left:18px; position:relative;"><span style="position:absolute; left:0; color:#ffd700;">✓</span> 4-layer risk management</div>
+          <div style="color:#ccc; font-size:13px; padding-left:18px; position:relative;"><span style="position:absolute; left:0; color:#ffd700;">✓</span> Basic dashboard</div>
+          <div style="color:#ccc; font-size:13px; padding-left:18px; position:relative;"><span style="position:absolute; left:0; color:#ffd700;">✓</span> Decision ledger</div>
+          <div style="color:#ccc; font-size:13px; padding-left:18px; position:relative;"><span style="position:absolute; left:0; color:#ffd700;">✓</span> Command Center (backtesting)</div>
+          <div style="color:#ccc; font-size:13px; padding-left:18px; position:relative;"><span style="position:absolute; left:0; color:#ffd700;">✓</span> Locked configs (safe defaults)</div>
+        </div>
+        <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Button" size="md" uppercase="{{ true }}" hint-size="100%,46px"><span id="starter-btn" onclick="checkout('starter')" style="cursor:pointer;">Start Free Month</span></x-import>
+      </div>
+    </x-import>
+
+    <!-- CORE -->
+    <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Card" hint-size="100%,480px">
+      <div style="padding:6px 2px;">
+        <div style="font-family:'Space Mono',monospace; font-size:12px; color:#999; text-transform:uppercase; letter-spacing:2px; margin-bottom:8px;">Core</div>
+        <div style="font-size:38px; font-weight:700; color:#fff; margin-bottom:2px;">$49 <span style="font-size:15px; color:#999; font-weight:400;">/mo</span></div>
+        <div style="color:#ffd700; font-size:13px; font-family:'JetBrains Mono',monospace; margin-bottom:18px;">First month free</div>
+        <p style="color:#888; font-size:13px; margin:0 0 20px; min-height:36px;">The whole bot. Everything unlocked. Multi-ticker, multi-broker, multi-direction, multi-timeframe. Full infrastructure.</p>
+        <div style="display:flex; flex-direction:column; gap:7px; margin-bottom:24px;">
+          <div style="color:#ccc; font-size:13px; padding-left:18px; position:relative;"><span style="position:absolute; left:0; color:#ffd700;">✓</span> Everything in Starter</div>
+          <div style="color:#ccc; font-size:13px; padding-left:18px; position:relative;"><span style="position:absolute; left:0; color:#ffd700;">✓</span> All 11 broker adapters</div>
+          <div style="color:#ccc; font-size:13px; padding-left:18px; position:relative;"><span style="position:absolute; left:0; color:#ffd700;">✓</span> Multi-ticker, multi-direction, MTF</div>
+          <div style="color:#ccc; font-size:13px; padding-left:18px; position:relative;"><span style="position:absolute; left:0; color:#ffd700;">✓</span> Strategy orchestrator</div>
+          <div style="color:#ccc; font-size:13px; padding-left:18px; position:relative;"><span style="position:absolute; left:0; color:#ffd700;">✓</span> Pine Script transpiler</div>
+          <div style="color:#ccc; font-size:13px; padding-left:18px; position:relative;"><span style="position:absolute; left:0; color:#ffd700;">✓</span> TRAI brain + chain of thought</div>
+          <div style="color:#ccc; font-size:13px; padding-left:18px; position:relative;"><span style="position:absolute; left:0; color:#ffd700;">✓</span> Full dashboard (38 modules)</div>
+          <div style="color:#ccc; font-size:13px; padding-left:18px; position:relative;"><span style="position:absolute; left:0; color:#ffd700;">✓</span> Unlocked configs</div>
+        </div>
+        <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Button" size="md" uppercase="{{ true }}" hint-size="100%,46px"><span id="core-btn" onclick="checkout('core')" style="cursor:pointer;">Start Free Month</span></x-import>
+      </div>
+    </x-import>
+
+    <!-- PRO -->
+    <div style="position:relative;">
+      <div style="position:absolute; top:-12px; left:50%; transform:translateX(-50%); z-index:2;">
+        <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Badge" tone="warning" uppercase="{{ true }}" hint-size="130px,24px">RECOMMENDED</x-import>
+      </div>
+      <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Card" hint-size="100%,480px">
+        <div style="padding:6px 2px;">
+          <div style="font-family:'Space Mono',monospace; font-size:12px; color:#999; text-transform:uppercase; letter-spacing:2px; margin-bottom:8px;">Pro</div>
+          <div style="font-size:38px; font-weight:700; color:#fff; margin-bottom:2px;">$149 <span style="font-size:15px; color:#999; font-weight:400;">/mo</span></div>
+          <div style="color:#ffd700; font-size:13px; font-family:'JetBrains Mono',monospace; margin-bottom:18px;">First month free</div>
+          <p style="color:#888; font-size:13px; margin:0 0 20px; min-height:36px;">Everything in Core plus the ML and intelligence layer. The bot learns, adapts, and remembers.</p>
+          <div style="display:flex; flex-direction:column; gap:7px; margin-bottom:24px;">
+            <div style="color:#ccc; font-size:13px; padding-left:18px; position:relative;"><span style="position:absolute; left:0; color:#ffd700;">✓</span> Everything in Core</div>
+            <div style="color:#ffd700; font-size:13px; padding-left:18px; position:relative;"><span style="position:absolute; left:0;">★</span> Pattern memory bank</div>
+            <div style="color:#ffd700; font-size:13px; padding-left:18px; position:relative;"><span style="position:absolute; left:0;">★</span> Market regime detection (7 regimes)</div>
+            <div style="color:#ffd700; font-size:13px; padding-left:18px; position:relative;"><span style="position:absolute; left:0;">★</span> Edge analytics (8 panels)</div>
+            <div style="color:#ffd700; font-size:13px; padding-left:18px; position:relative;"><span style="position:absolute; left:0;">★</span> Trade replay</div>
+            <div style="color:#ffd700; font-size:13px; padding-left:18px; position:relative;"><span style="position:absolute; left:0;">★</span> Spoofing detection</div>
+            <div style="color:#ffd700; font-size:13px; padding-left:18px; position:relative;"><span style="position:absolute; left:0;">★</span> ML learning components</div>
+            <div style="color:#ffd700; font-size:13px; padding-left:18px; position:relative;"><span style="position:absolute; left:0;">★</span> Priority support</div>
+          </div>
+          <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Button" size="md" uppercase="{{ true }}" hint-size="100%,46px"><span id="pro-btn" onclick="checkout('pro')" style="cursor:pointer;">Start Free Month</span></x-import>
+        </div>
+      </x-import>
+    </div>
+  </div>
+
+  <!-- ZERO LIABILITY -->
+  <section style="padding:0 0 56px;">
+    <div style="background:rgba(255,215,0,0.02); border:1px solid rgba(255,215,0,0.15); border-radius:12px; padding:28px; text-align:center; max-width:700px; margin:0 auto;">
+      <h3 style="font-family:'Space Mono',monospace; color:#ffd700; font-size:16px; margin:0 0 6px;">Your Keys. Your Money. Zero Liability.</h3>
+      <p style="color:#999; font-size:14px; margin:0; max-width:520px; margin-left:auto; margin-right:auto;">API keys come from your broker and stay on your machine. We never see them, never store them. We don't know your balance or your P&amp;L. We charge a flat subscription. If you stop paying, we invalidate your license. That's it.</p>
+    </div>
+  </section>
+
+  <div style="text-align:center; padding:0 0 20px; display:flex; gap:12px; justify-content:center;">
+    <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Button" variant="outline" hint-size="150px,44px"><a href="index.html" style="color:inherit; text-decoration:none;">← Back to Home</a></x-import>
+    <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Button" variant="outline" hint-size="150px,44px"><a href="proof.html" style="color:inherit; text-decoration:none;">View Live Proof</a></x-import>
+  </div>
+
+  <footer style="text-align:center; padding:34px 0; color:#555; font-size:13px; border-top:1px solid #1a1a1a;">
+    © 2026 OGZPrime. All Rights Reserved. ·
+    <a href="legal.html" style="color:#f87171; text-decoration:none;">Legal</a> ·
+    <a href="features.html" style="color:#f87171; text-decoration:none;">Features</a> ·
+    <a href="proof.html" style="color:#f87171; text-decoration:none;">Proof</a> ·
+    <a href="proof/track-record/" style="color:#f87171; text-decoration:none;">Track Record</a> ·
+    <a href="command-center.html" style="color:#f87171; text-decoration:none;">Command Center</a>
+  </footer>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  componentDidMount() {
+    window.stripe = window.Stripe && window.Stripe("pk_live_51T7M8wCRplnSOv5bMtioVeazlNJrCgChGElSEc0V2gcymGHklJbpxpJpwg3S2aIaga6LrTiQ956awcGQSVlBHLZb00eeut8r0h");
+    window.checkout = (tier) => {
       const btn = document.getElementById(tier + '-btn');
-      const original = btn.innerHTML;
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span>Processing...';
+      if (!btn) return;
+      const orig = btn.innerHTML;
+      btn.style.pointerEvents = 'none';
+      btn.textContent = 'Processing...';
       fetch("/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tier: tier })
+        body: JSON.stringify({ tier })
       })
-      .then(function(res) {
-        if (!res.ok) throw new Error("Server error: " + res.status);
-        return res.json();
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(d => {
+        if (d.url) window.location.href = d.url;
+        else if (d.sessionId && window.stripe) return window.stripe.redirectToCheckout({ sessionId: d.sessionId });
+        else throw new Error("No checkout URL");
       })
-      .then(function(data) {
-        if (data.url) { window.location.href = data.url; }
-        else if (data.sessionId) { return stripe.redirectToCheckout({ sessionId: data.sessionId }); }
-        else { throw new Error("No checkout URL returned"); }
-      })
-      .catch(function(err) {
-        console.error('Checkout error:', err);
-        alert('Checkout temporarily unavailable. Please try again in a moment.');
-      })
-      .finally(function() {
-        btn.disabled = false;
-        btn.innerHTML = original;
-      });
-    }
-  </script>
+      .catch(e => { console.error(e); alert('Checkout temporarily unavailable.'); })
+      .finally(() => { btn.style.pointerEvents = ''; btn.innerHTML = orig; });
+    };
+  }
+  renderVals() { return {}; }
+}
+</script>
 </body>
 </html>

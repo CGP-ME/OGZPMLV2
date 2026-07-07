@@ -1,0 +1,86 @@
+/* ============================================================================
+   OGZPrime — Color Tokens
+   Sourced from the live product: marketing site (index.html / pricing.html),
+   the v2 trading dashboard (unified-dashboard-v2.html), and command-center.html.
+   ============================================================================ */
+
+:root {
+  /* ---- Surfaces (near-black, layered dark) -------------------------------- */
+  --ogz-void:            #000000;  /* deepest — dashboard canvas */
+  --ogz-base:            #0a0a0a;  /* primary page background */
+  --ogz-base-2:          #08080a;  /* command-center variant */
+  --ogz-surface-1:       #0f0f0f;  /* section-dark / raised band */
+  --ogz-surface-2:       #111111;  /* card fill */
+  --ogz-surface-3:       #1a1a1a;  /* hover fill / gradient stop */
+  --ogz-panel:           rgba(20, 20, 20, 0.90);  /* dashboard panel */
+
+  /* Glass surfaces (dashboard) */
+  --ogz-glass:           rgba(14, 14, 16, 0.72);
+  --ogz-glass-strong:    rgba(10, 10, 12, 0.86);
+
+  /* ---- Borders ------------------------------------------------------------ */
+  --ogz-border:          #222222;                  /* marketing card border */
+  --ogz-border-hairline: rgba(255, 255, 255, 0.10);/* dashboard hairline */
+  --ogz-border-strong:   rgba(255, 255, 255, 0.15);
+  --ogz-border-faint:    rgba(255, 255, 255, 0.05);
+  --ogz-glass-border:        rgba(220, 38, 38, 0.14);
+  --ogz-glass-border-hover:  rgba(220, 38, 38, 0.38);
+
+  /* ---- Brand red (the signature) ------------------------------------------ */
+  --ogz-red-blood:  #b31512;  /* the LOGO red — deep outlaw crimson (cowboy-hat bandana) */
+  --ogz-red:        #dc2626;  /* primary UI brand red (web + dashboard) */
+  --ogz-red-bright: #ef4444;  /* hover / active */
+  --ogz-red-dim:    #991b1b;  /* pressed / deep */
+  --ogz-red-deep:   #b91c1c;  /* gradient mid-stop */
+  --ogz-red-light:  #f87171;  /* links on dark */
+  --ogz-red-glow:   rgba(220, 38, 38, 0.55);
+  --ogz-red-line:   rgba(220, 38, 38, 0.25);
+
+  /* ---- Trading accents ---------------------------------------------------- */
+  --ogz-gold:       #ffd700;  /* ML / high-conviction "golden setup" */
+  --ogz-gold-amber: #ffb800;  /* command-center gold variant */
+  --ogz-gold-soft:  #ffed4e;  /* gradient highlight */
+  --ogz-cyan:       #00ccff;  /* "core" / indicator engine */
+  --ogz-cyan-soft:  #4dddff;
+
+  /* ---- Semantic: profit / loss -------------------------------------------- */
+  --ogz-profit:        #00ff88;  /* neon green — dashboard P&L up */
+  --ogz-loss:          #ff3366;  /* neon red  — dashboard P&L down */
+  --ogz-neutral:       #8b8b8b;
+  --ogz-verified:      #22c55e;  /* "verified / proof" green (marketing) */
+  --ogz-warn:          #f59e0b;  /* amber warnings (pricing "pro") */
+
+  /* ---- Text --------------------------------------------------------------- */
+  --ogz-text:          #ffffff;
+  --ogz-text-soft:     #cccccc;
+  --ogz-text-muted:    #a0a0a0;
+  --ogz-text-dim:      #999999;
+  --ogz-text-faint:    #666666;
+  --ogz-text-ghost:    #555555;
+  --ogz-text-warm:     #d4c9a8;  /* command-center parchment mono */
+
+  /* ---- Gradients ---------------------------------------------------------- */
+  --ogz-grad-red:      linear-gradient(135deg, #ef4444 0%, #dc2626 45%, #b91c1c 75%, #ef4444 100%); /* @kind color */
+  --ogz-grad-gold:     linear-gradient(135deg, #ffd700 0%, #ffed4e 50%, #ffd700 100%); /* @kind color */
+  --ogz-grad-cyan:     linear-gradient(135deg, #00ccff 0%, #4dddff 50%, #00ccff 100%); /* @kind color */
+  --ogz-grad-metallic: linear-gradient(135deg, #c0c0c0 0%, #808080 50%, #c0c0c0 100%); /* @kind color */
+  --ogz-grad-header:   linear-gradient(180deg, #0d0d1a 0%, #080812 100%); /* @kind color */
+
+  /* Ambient page glow (dashboard body backdrop) */
+  --ogz-ambient:
+    radial-gradient(circle at 20% 50%, rgba(255, 215, 0, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 80% 50%, rgba(0, 204, 255, 0.05) 0%, transparent 50%); /* @kind color */
+
+  /* ---- Semantic aliases --------------------------------------------------- */
+  --surface-page:     var(--ogz-base);
+  --surface-card:     var(--ogz-surface-2);
+  --surface-panel:    var(--ogz-panel);
+  --surface-glass:    var(--ogz-glass);
+  --border-default:   var(--ogz-border);
+  --border-hairline:  var(--ogz-border-hairline);
+  --text-body:        var(--ogz-text-dim);
+  --text-heading:     var(--ogz-text);
+  --text-link:        var(--ogz-red-light);
+  --accent-primary:   var(--ogz-red);
+  --accent-primary-hover: var(--ogz-red-bright);
+}

@@ -1,0 +1,78 @@
+/* ============================================================================
+   OGZPrime — Effects: shadows, glows, glass, motion
+   The dashboard leans on neon glows + glass underglow; the marketing site on
+   colored border-glow on hover. Motion is fast (120–300ms) and decisive.
+   ============================================================================ */
+
+:root {
+  /* ---- Glass / panel shadows ---------------------------------------------- */
+  --shadow-glass:
+    0 8px 28px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(220, 38, 38, 0.06) inset;
+  --shadow-underglow:
+    0 4px 20px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(220, 38, 38, 0.06);
+  --shadow-underglow-strong:
+    0 8px 28px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(220, 38, 38, 0.14),
+    0 0 18px rgba(220, 38, 38, 0.18);
+  --shadow-header: 0 2px 12px rgba(0, 0, 0, 0.80);
+  --shadow-card-soft: 0 2px 8px rgba(0, 0, 0, 0.4);
+
+  /* ---- Neon glows (text-shadow / box-shadow) ------------------------------ */
+  --glow-red:    0 0 14px rgba(220, 38, 38, 0.45);
+  --glow-red-sm: 0 0 6px rgba(220, 38, 38, 0.55);
+  --glow-gold:   0 0 12px rgba(255, 215, 0, 0.55);
+  --glow-cyan:   0 0 12px rgba(0, 204, 255, 0.50);
+  --glow-profit: 0 0 22px rgba(34, 197, 94, 0.40);
+  --glow-loss:   0 0 22px rgba(239, 68, 68, 0.40);
+
+  /* Hover halo for marketing cards (border + outer red bloom) */
+  --halo-red:    0 0 40px var(--ogz-red-glow);
+  --halo-green:  0 0 30px rgba(34, 197, 94, 0.20);
+
+  /* ---- Heat / progress gradient ------------------------------------------- */
+  --heat-gradient: linear-gradient(90deg, #00ff88 0%, #ffd700 55%, #ff3366 100%); /* @kind color */
+
+  /* ---- Backdrop blur ------------------------------------------------------ */
+  --blur-panel: blur(8px); /* @kind other */
+
+  /* ---- Motion ------------------------------------------------------------- */
+  --ease-out:   cubic-bezier(0.25, 0.46, 0.45, 0.94); /* @kind other */
+  --dur-fast:   120ms;   /* @kind other */
+  --dur-base:   200ms;   /* @kind other */
+  --dur-slow:   300ms;   /* @kind other */
+
+  /* Signature lift on hover (cards, panels, buttons) */
+  --lift: translateY(-2px); /* @kind other */
+}
+
+/* ---- Reusable keyframes ---------------------------------------------------- */
+@keyframes ogz-status-pulse {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%      { opacity: 0.6; transform: scale(1.1); }
+}
+
+@keyframes ogz-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes ogz-golden-glow {
+  0%   { box-shadow: inset 0 0 40px rgba(255, 215, 0, 0.2); outline: 1px solid rgba(255, 215, 0, 0.3); }
+  50%  { box-shadow: inset 0 0 80px rgba(255, 215, 0, 0.5); outline: 3px solid rgba(255, 215, 0, 0.8); }
+  100% { box-shadow: inset 0 0 40px rgba(255, 215, 0, 0.2); outline: 1px solid rgba(255, 215, 0, 0.3); }
+}
+
+/* Gold ATTENTION-FLASH — the psychological “look here” pulse. Gold is reserved
+   as an attention-grabber over the black/red base (and reads cyberpunk): use it
+   to flash high-conviction setups, milestones, and “golden” moments. */
+@keyframes ogz-gold-flash {
+  0%, 100% { text-shadow: 0 0 6px rgba(255, 215, 0, 0.45); filter: brightness(1); }
+  50%      { text-shadow: 0 0 16px rgba(255, 215, 0, 0.95), 0 0 28px rgba(255, 215, 0, 0.5); filter: brightness(1.25); }
+}
+
+@keyframes ogz-gold-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.55); }
+  70%  { box-shadow: 0 0 0 10px rgba(255, 215, 0, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0); }
+}

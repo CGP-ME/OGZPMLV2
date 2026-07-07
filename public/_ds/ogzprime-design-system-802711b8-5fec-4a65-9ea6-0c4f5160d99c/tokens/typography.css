@@ -1,0 +1,56 @@
+/* ============================================================================
+   OGZPrime — Typography Tokens
+   Four families, two voices:
+   • Dashboard voice  → Orbitron (display) + JetBrains Mono (UI)
+   • Marketing voice  → Space Mono (headings) + DM Sans (body)
+   ============================================================================ */
+
+:root {
+  /* ---- Families ----------------------------------------------------------- */
+  --font-display:   'Orbitron', monospace;          /* logo, hero prices, big stats */
+  --font-mono:      'JetBrains Mono', monospace;     /* dashboard UI workhorse */
+  --font-mono-web:  'Space Mono', monospace;         /* marketing display headings */
+  --font-body:      'DM Sans', system-ui, sans-serif;/* marketing body copy */
+
+  /* ---- Type scale (px) ---------------------------------------------------- */
+  --fs-2xs:  10px;   /* micro labels, status text */
+  --fs-xs:   11px;   /* dashboard captions, taglines */
+  --fs-sm:   12px;   /* panel labels, table cells */
+  --fs-base: 14px;   /* dashboard body */
+  --fs-md:   15px;   /* marketing body */
+  --fs-lg:   18px;   /* card titles */
+  --fs-xl:   22px;   /* metric values */
+  --fs-2xl:  32px;   /* section / logo */
+  --fs-3xl:  36px;   /* hero equity price */
+  --fs-4xl:  44px;   /* marketing H1 (2.8rem) */
+  --fs-5xl:  64px;   /* hero H1 (4rem) */
+
+  /* ---- Weights ------------------------------------------------------------ */
+  --fw-light:     300; /* @kind font */
+  --fw-regular:   400; /* @kind font */
+  --fw-medium:    500; /* @kind font */
+  --fw-semibold:  600; /* @kind font */
+  --fw-bold:      700; /* @kind font */
+  --fw-extrabold: 800; /* @kind font */
+  --fw-black:     900; /* @kind font */
+
+  /* ---- Line height -------------------------------------------------------- */
+  --lh-tight:   1.0;   /* @kind font */
+  --lh-snug:    1.2;   /* @kind font */
+  --lh-normal:  1.6;   /* @kind font */
+
+  /* ---- Letter spacing ----------------------------------------------------- */
+  --ls-tight:   -2px;    /* hero H1 */
+  --ls-snug:    -1px;    /* marketing H1 */
+  --ls-logo:    4px;     /* ORBITRON LOGO TRACKING */
+  --ls-label:   2px;     /* uppercase tier labels */
+  --ls-caption: 2.8px;   /* tagline tracking */
+  --ls-micro:   0.08em;  /* uppercase micro labels */
+
+  /* ---- Semantic aliases --------------------------------------------------- */
+  --text-logo-size:   var(--fs-2xl);
+  --text-hero-size:   var(--fs-5xl);
+  --text-h2-size:     var(--fs-2xl);
+  --text-body-size:   var(--fs-md);
+  --text-mono-size:   var(--fs-base);
+}

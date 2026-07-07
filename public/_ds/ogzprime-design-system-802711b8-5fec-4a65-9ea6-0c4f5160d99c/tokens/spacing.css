@@ -1,0 +1,40 @@
+/* ============================================================================
+   OGZPrime — Spacing, Radii & Sizing Tokens
+   Dashboard works on an 8px-ish rhythm (8/12/16/20/24); marketing pads larger.
+   ============================================================================ */
+
+:root {
+  /* ---- Spacing scale ------------------------------------------------------ */
+  --space-1:   4px;
+  --space-2:   8px;
+  --space-3:   12px;   /* default panel gap */
+  --space-4:   16px;   /* header padding, card gap */
+  --space-5:   20px;   /* rail gap, card padding */
+  --space-6:   24px;   /* section padding-x */
+  --space-8:   32px;
+  --space-10:  40px;
+  --space-12:  48px;
+  --space-16:  64px;
+  --space-20:  80px;   /* marketing section padding-y */
+
+  /* ---- Radii -------------------------------------------------------------- */
+  --radius-xs:   4px;    /* badges, status pills, small buttons */
+  --radius-sm:   6px;    /* placeholders, chips */
+  --radius-md:   8px;    /* panels, buttons, inputs */
+  --radius-lg:   12px;   /* marketing cards, modal */
+  --radius-xl:   16px;   /* pricing cards */
+  --radius-pill: 20px;   /* status-light bar, "RECOMMENDED" pill */
+  --radius-full: 9999px; /* dots, circular step markers */
+
+  /* ---- Layout rails (dashboard) ------------------------------------------- */
+  --rail-left:   320px;
+  --rail-right:  320px;
+  --rail-gap:    20px;
+  --header-h:    60px;
+  --content-max: 1000px;  /* marketing column */
+  --content-wide: 1400px; /* dashboard / command center */
+
+  /* ---- Borders ------------------------------------------------------------ */
+  --bw-hair:  1px;
+  --bw-thick: 2px;  /* outline buttons, featured cards */
+}

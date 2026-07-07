@@ -1,437 +1,301 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OGZPrime Features — What's Under The Hood</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --red: #dc2626;
-      --red-glow: rgba(220, 38, 38, 0.4);
-      --red-light: #f87171;
-      --green: #22c55e;
-      --yellow: #f59e0b;
-      --bg: #0a0a0a;
-      --card: #111;
-      --text: #fff;
-      --text-dim: #999;
-      --border: #222;
-    }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'DM Sans', sans-serif;
-      line-height: 1.7;
-    }
-
-    /* Nav */
-    .nav {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 20px 40px;
-      border-bottom: 1px solid var(--border);
-    }
-    .nav-logo {
-      font-family: 'Space Mono', monospace;
-      font-size: 1.3rem;
-      color: var(--red);
-      text-decoration: none;
-      font-weight: 700;
-    }
-    .nav-links a {
-      color: var(--text-dim);
-      text-decoration: none;
-      margin-left: 24px;
-      font-size: 0.95rem;
-      transition: color 0.2s;
-    }
-    .nav-links a:hover { color: var(--red); }
-
-    /* Hero */
-    .hero {
-      text-align: center;
-      padding: 80px 20px 60px;
-    }
-    .hero h1 {
-      font-family: 'Space Mono', monospace;
-      font-size: 2.8rem;
-      color: var(--red);
-      margin-bottom: 16px;
-      letter-spacing: -1px;
-    }
-    .hero p {
-      font-size: 1.15rem;
-      color: var(--text-dim);
-      max-width: 640px;
-      margin: 0 auto;
-    }
-
-    /* Sections */
-    .section {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 60px 24px;
-    }
-    .section-title {
-      font-family: 'Space Mono', monospace;
-      font-size: 1.6rem;
-      color: var(--red);
-      margin-bottom: 12px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .section-title .badge {
-      font-size: 0.65rem;
-      background: var(--green);
-      color: #000;
-      padding: 3px 10px;
-      border-radius: 12px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-    }
-    .section-title .badge.pro {
-      background: var(--yellow);
-    }
-    .section-desc {
-      color: var(--text-dim);
-      font-size: 1rem;
-      margin-bottom: 32px;
-      max-width: 700px;
-    }
-
-    /* Feature grid */
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 20px;
-      margin-bottom: 40px;
-    }
-    .feat {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 28px 24px;
-      transition: border-color 0.3s;
-    }
-    .feat:hover { border-color: var(--red); }
-    .feat h3 {
-      color: var(--text);
-      font-size: 1.05rem;
-      margin-bottom: 8px;
-      font-weight: 700;
-    }
-    .feat p {
-      color: var(--text-dim);
-      font-size: 0.9rem;
-      line-height: 1.6;
-    }
-    .feat .tag {
-      display: inline-block;
-      font-size: 0.7rem;
-      padding: 2px 8px;
-      border-radius: 8px;
-      margin-top: 10px;
-      font-weight: 600;
-    }
-    .tag.core { background: rgba(34,197,94,0.15); color: var(--green); }
-    .tag.pro { background: rgba(245,158,11,0.15); color: var(--yellow); }
-
-    /* Indicator list */
-    .indicator-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 12px;
-      margin-bottom: 40px;
-    }
-    .ind {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 14px 18px;
-      font-size: 0.9rem;
-      color: #ccc;
-    }
-    .ind strong { color: var(--text); }
-
-    /* Divider */
-    .divider {
-      border: none;
-      border-top: 1px solid var(--border);
-      margin: 20px 0;
-    }
-
-    /* CTA */
-    .cta-section {
-      text-align: center;
-      padding: 80px 20px;
-    }
-    .cta-section h2 {
-      font-family: 'Space Mono', monospace;
-      font-size: 2rem;
-      color: var(--text);
-      margin-bottom: 16px;
-    }
-    .cta-section p { color: var(--text-dim); margin-bottom: 32px; }
-    .cta-btn {
-      display: inline-block;
-      padding: 16px 40px;
-      background: var(--red);
-      color: #fff;
-      text-decoration: none;
-      border-radius: 10px;
-      font-weight: 700;
-      font-size: 1.1rem;
-      transition: background 0.2s, transform 0.2s;
-    }
-    .cta-btn:hover { background: #ef4444; transform: translateY(-2px); }
-
-    /* Footer */
-    .footer {
-      text-align: center;
-      padding: 40px 20px;
-      color: var(--text-dim);
-      font-size: 0.85rem;
-      border-top: 1px solid var(--border);
-    }
-    .footer a { color: var(--red-light); text-decoration: none; }
-
-    @media (max-width: 700px) {
-      .hero h1 { font-size: 2rem; }
-      .nav { padding: 16px 20px; }
-      .nav-links a { margin-left: 16px; font-size: 0.85rem; }
-      .section { padding: 40px 16px; }
-    }
-  </style>
+<title>Features — OGZPrime | Strategy Orchestrator, Pine Transpiler, 4-Layer Risk</title>
+<meta name="description" content="Strategy orchestrator, exit contracts sealed at birth, 4-layer risk management, Pine Script transpiler, TRAI AI brain, and a decision ledger that logs every action. 11 broker adapters.">
+<link rel="canonical" href="https://www.ogzprime.com/features.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="OGZPrime">
+<meta property="og:title" content="Features — OGZPrime | Strategy Orchestrator, Pine Transpiler, 4-Layer Risk">
+<meta property="og:description" content="Strategy orchestrator, exit contracts sealed at birth, 4-layer risk management, Pine Script transpiler, TRAI AI brain, and a decision ledger that logs every action. 11 broker adapters.">
+<meta property="og:url" content="https://www.ogzprime.com/features.html">
+<meta property="og:image" content="https://www.ogzprime.com/assets/ogz-logo-white.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Features — OGZPrime | Strategy Orchestrator, Pine Transpiler, 4-Layer Risk">
+<meta name="twitter:description" content="Strategy orchestrator, exit contracts sealed at birth, 4-layer risk management, Pine Script transpiler, TRAI AI brain, and a decision ledger that logs every action. 11 broker adapters.">
+<meta name="twitter:image" content="https://www.ogzprime.com/assets/ogz-logo-white.png">
+<meta name="robots" content="index,follow">
+<meta name="theme-color" content="#0a0a0a">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
 </head>
 <body>
+<x-dc>
 
-  <nav class="nav">
-    <a href="/" class="nav-logo">OGZPrime</a>
-    <div class="nav-links">
-      <a href="features.html">Features</a>
-      <a href="pricing.html">Pricing</a>
-      <a href="proof/">Proof</a>
-      <a href="legal.html">Legal</a>
+<helmet>
+<script src="./ds-base.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;800;900&family=JetBrains+Mono:wght@400;500;700&family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#000; color:#fff; font-family:'DM Sans',sans-serif; line-height:1.6; }
+  @keyframes blink { 0%,49% { opacity:1; } 50%,100% { opacity:0; } }
+  @keyframes goldpulse { 0%,100% { box-shadow:0 0 8px rgba(255,215,0,0.12); } 50% { box-shadow:0 0 24px rgba(255,215,0,0.35); } }
+  @keyframes reddot { 0%,100% { opacity:1; } 50% { opacity:0.35; } }
+</style>
+</helmet>
+
+<div style="max-width:1060px; margin:0 auto; padding:0 24px;">
+
+  <!-- NAV -->
+  <nav style="display:flex; justify-content:space-between; align-items:center; padding:20px 0;">
+    <a href="index.html" style="text-decoration:none; font-family:'Orbitron',monospace; font-weight:900; font-size:18px; letter-spacing:4px; color:#fff; text-shadow:0 0 12px rgba(179,21,18,0.4);">OGZPRIME</a>
+    <div style="display:flex; gap:12px; align-items:center;">
+      <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Button" variant="ghost" size="sm" hint-size="70px,34px"><a href="index.html" style="color:inherit; text-decoration:none;">Home</a></x-import>
+      <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Button" variant="ghost" size="sm" hint-size="70px,34px"><a href="pricing.html" style="color:inherit; text-decoration:none;">Pricing</a></x-import>
+      <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Button" variant="ghost" size="sm" hint-size="60px,34px"><a href="proof.html" style="color:inherit; text-decoration:none;">Proof</a></x-import>
+      <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Button" size="sm" uppercase="{{ true }}" hint-size="140px,34px"><a href="pricing.html" style="color:inherit; text-decoration:none;">First Month Free</a></x-import>
     </div>
   </nav>
 
-  <div class="hero">
-    <h1>What's Under The Hood</h1>
-    <p>Every feature listed here exists in the codebase and has been verified across 45,000+ candles of market data. No vaporware. No roadmap promises. This is what runs today.</p>
-  </div>
-
-  <!-- INDICATOR ENGINE -->
-  <div class="section">
-    <div class="section-title">Indicator Engine <span class="badge">Core</span></div>
-    <div class="section-desc">15+ technical indicators calculated in real-time on every candle. Battle-tested computation engine handling continuous market data.</div>
-    <div class="indicator-grid">
-      <div class="ind"><strong>RSI</strong> — Relative Strength Index (14)</div>
-      <div class="ind"><strong>MACD</strong> — 12/26/9 convergence divergence</div>
-      <div class="ind"><strong>EMA</strong> — Exponential moving averages (20, 50, 200)</div>
-      <div class="ind"><strong>SMA</strong> — Simple moving averages (20, 50, 200)</div>
-      <div class="ind"><strong>Bollinger Bands</strong> — 20-period, 2 std dev</div>
-      <div class="ind"><strong>ATR</strong> — Average True Range (14)</div>
-      <div class="ind"><strong>ADX</strong> — Average Directional Index (14)</div>
-      <div class="ind"><strong>Stochastic RSI</strong> — Momentum oscillator</div>
-      <div class="ind"><strong>SuperTrend</strong> — Trend-following indicator</div>
-      <div class="ind"><strong>Keltner Channels</strong> — Volatility bands</div>
-      <div class="ind"><strong>Donchian Channels</strong> — Breakout detection</div>
-      <div class="ind"><strong>OBV</strong> — On-Balance Volume</div>
-      <div class="ind"><strong>MFI</strong> — Money Flow Index</div>
-      <div class="ind"><strong>VWAP</strong> — Volume-weighted average price</div>
-      <div class="ind"><strong>OGZ-TPO</strong> — Proprietary two-pole oscillator</div>
+  <!-- HERO -->
+  <header style="position:relative; padding:90px 0 70px; border-bottom:1px solid #1a1a1a; overflow:hidden;">
+    <video autoplay muted loop playsinline style="position:absolute; top:50%; right:-60px; transform:translateY(-50%); height:130%; opacity:0.5; filter:brightness(0.6); pointer-events:none; mask-image:linear-gradient(90deg, transparent 0%, #000 40%);" src="assets/ogz-logo-fire.mp4"></video>
+    <div style="position:relative; z-index:2;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#dc2626; letter-spacing:3px; text-transform:uppercase; margin-bottom:14px;">// system capabilities</div>
+      <h1 style="font-family:'Orbitron',monospace; font-weight:900; font-size:44px; letter-spacing:2px; margin:0 0 16px; color:#fff; text-shadow:0 0 28px rgba(179,21,18,0.4); text-transform:uppercase;">What's Under<br>The Hood</h1>
+      <p style="color:#999; font-size:17px; max-width:520px; margin:0;">Fifteen months of engineering. Not a list of promises — a list of what's built, running, and logged. Every claim on this page has a code path behind it.</p>
     </div>
-  </div>
+  </header>
 
-  <hr class="divider">
-
-  <!-- STRATEGY SYSTEM -->
-  <div class="section">
-    <div class="section-title">Strategy Orchestrator <span class="badge">Core</span></div>
-    <div class="section-desc">Plug in your own trading strategies. Each strategy evaluates independently, competes on confidence, and the best signal wins. No blended soup — clean, owned decisions.</div>
-    <div class="grid">
-      <div class="feat">
-        <h3>Independent Evaluation</h3>
-        <p>Every strategy runs its own logic on every candle and returns a direction and confidence score. No interference between strategies.</p>
-        <span class="tag core">Core</span>
-      </div>
-      <div class="feat">
-        <h3>Winner-Takes-All</h3>
-        <p>The strategy with the highest confidence above threshold wins the trade. One entry signal, one exit contract. Clean ownership.</p>
-        <span class="tag core">Core</span>
-      </div>
-      <div class="feat">
-        <h3>Strategy Templates</h3>
-        <p>Implement <code>evaluate()</code>, return <code>{ direction, confidence }</code>. Documentation and examples included. Plug in and compete.</p>
-        <span class="tag core">Core</span>
-      </div>
-      <div class="feat">
-        <h3>Configurable Thresholds</h3>
-        <p>Per-strategy confidence minimums, global trade confidence gates, and confluence requirements. All from one config file.</p>
-        <span class="tag core">Core</span>
-      </div>
+  <!-- 01 ORCHESTRATOR -->
+  <section style="display:grid; grid-template-columns:1fr 1fr; gap:48px; padding:70px 0; border-bottom:1px solid #1a1a1a; align-items:center;">
+    <div>
+      <div style="font-family:'Orbitron',monospace; font-size:60px; font-weight:900; color:#1c1c1c; line-height:1; margin-bottom:-8px;">01</div>
+      <h2 style="font-family:'Space Mono',monospace; font-size:26px; color:#dc2626; margin:0 0 14px;">Strategy Orchestrator</h2>
+      <p style="color:#a0a0a0; font-size:15px; margin:0 0 14px;">Every candle, your strategies compete. Each runs its own pipeline, produces its own signal with its own confidence score. The orchestrator picks the winner — highest conviction takes the trade.</p>
+      <p style="color:#a0a0a0; font-size:15px; margin:0 0 14px;">When multiple strategies agree on direction, that's confluence — position sizing scales from 1x up to 2.5x. When they disagree, the strongest signal wins outright.</p>
+      <p style="color:#ffd700; font-family:'JetBrains Mono',monospace; font-size:13px; margin:0;">No blended signals. No soup. Winner takes the trade.</p>
     </div>
-  </div>
+    <div style="background:rgba(14,14,16,0.72); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:20px; font-family:'JetBrains Mono',monospace; font-size:12.5px; line-height:2;">
+      <div style="font-size:10px; color:#666; text-transform:uppercase; letter-spacing:2px; margin-bottom:12px;">how a candle resolves</div>
+      <div style="color:#888;">every strategy runs its own pipeline</div>
+      <div style="color:#888;">each produces a signal + confidence score</div>
+      <div style="color:#ffd700; text-shadow:0 0 10px rgba(255,215,0,0.4);">highest confidence takes the trade</div>
+      <div style="border-top:1px solid #222; margin-top:10px; padding-top:10px; color:#ccc;">directional agreement scales position size <span style="color:#ffd700;">1x → 2.5x</span></div>
+    </div>
+  </section>
 
-  <hr class="divider">
+  <!-- 02 EXIT CONTRACTS -->
+  <section style="display:grid; grid-template-columns:1fr 1fr; gap:48px; padding:70px 0; border-bottom:1px solid #1a1a1a; align-items:center;">
+    <div style="background:rgba(14,14,16,0.72); border:1px solid rgba(255,215,0,0.18); border-radius:8px; padding:20px; font-family:'JetBrains Mono',monospace; font-size:12.5px; line-height:1.9; animation:goldpulse 3s ease-in-out infinite;">
+      <div style="font-size:10px; color:#666; text-transform:uppercase; letter-spacing:2px; margin-bottom:12px;">exit contract — contract fields</div>
+      <div style="color:#888;">{</div>
+      <div style="padding-left:16px;"><span style="color:#dc2626;">"stop_loss"</span><span style="color:#666;">,</span></div>
+      <div style="padding-left:16px;"><span style="color:#dc2626;">"take_profit"</span><span style="color:#666;">,</span></div>
+      <div style="padding-left:16px;"><span style="color:#dc2626;">"trailing"</span><span style="color:#666;">,</span></div>
+      <div style="padding-left:16px;"><span style="color:#dc2626;">"tiered_exits"</span><span style="color:#666;">,</span></div>
+      <div style="padding-left:16px;"><span style="color:#dc2626;">"sealed_at"</span><span style="color:#666;">:</span> <span style="color:#ffd700;">"entry"</span> <span style="color:#555;">// immutable</span></div>
+      <div style="color:#888;">}</div>
+    </div>
+    <div>
+      <div style="font-family:'Orbitron',monospace; font-size:60px; font-weight:900; color:#1c1c1c; line-height:1; margin-bottom:-8px;">02</div>
+      <h2 style="font-family:'Space Mono',monospace; font-size:26px; color:#dc2626; margin:0 0 14px;">Exit Contracts Sealed at Birth</h2>
+      <p style="color:#a0a0a0; font-size:15px; margin:0 0 14px;">The moment a trade opens, its exit plan is locked. Stop loss, take profit, trailing stops, tiered exits — defined per-strategy, per-trade, validated with fingerprints.</p>
+      <p style="color:#a0a0a0; font-size:15px; margin:0 0 14px;">Nothing can override it after entry. Not a hopeful "let it ride." Not a panic close. Not drift. The contract the strategy wrote is the contract that executes.</p>
+      <p style="color:#ffd700; font-family:'JetBrains Mono',monospace; font-size:13px; margin:0;">The plan you entered with is the plan you exit with.</p>
+    </div>
+  </section>
 
-  <!-- EXIT SYSTEM -->
-  <div class="section">
-    <div class="section-title">Exit Contract System <span class="badge">Core</span></div>
-    <div class="section-desc">Every trade gets its own exit contract based on which strategy opened it. Per-strategy stop losses, take profits, trailing stops, and tiered exits.</div>
-    <div class="grid">
-      <div class="feat">
-        <h3>Per-Strategy Exit Contracts</h3>
-        <p>Each strategy defines its own SL, TP, trailing stop, activation threshold, and max hold time. The trade follows its contract from open to close.</p>
-        <span class="tag core">Core</span>
+  <!-- 03 RISK -->
+  <section style="padding:70px 0; border-bottom:1px solid #1a1a1a;">
+    <div style="text-align:center; margin-bottom:44px;">
+      <div style="font-family:'Orbitron',monospace; font-size:60px; font-weight:900; color:#1c1c1c; line-height:1;">03</div>
+      <h2 style="font-family:'Space Mono',monospace; font-size:26px; color:#dc2626; margin:0 0 10px;">Four Layers Between You and a Blown Account</h2>
+      <p style="color:#a0a0a0; font-size:15px; max-width:560px; margin:0 auto;">Built first not to blow up. Each layer operates independently — one bad trade physically cannot cascade.</p>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:2px; background:#1a1a1a; border:1px solid #1a1a1a; border-radius:8px; overflow:hidden;">
+      <div style="background:#0a0a0a; padding:28px 20px;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#dc2626; letter-spacing:2px; margin-bottom:10px;">LAYER 1</div>
+        <div style="color:#fff; font-size:15px; font-weight:700; margin-bottom:6px;">Drawdown Limits</div>
+        <div style="color:#888; font-size:13px;">Account-level ceiling. Hit it and the engine stands down.</div>
       </div>
-      <div class="feat">
-        <h3>Tiered Profit Taking</h3>
-        <p>Three configurable profit tiers exit partial positions at different levels. Lock in gains progressively instead of all-or-nothing.</p>
-        <span class="tag core">Core</span>
+      <div style="background:#0a0a0a; padding:28px 20px;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#dc2626; letter-spacing:2px; margin-bottom:10px;">LAYER 2</div>
+        <div style="color:#fff; font-size:15px; font-weight:700; margin-bottom:6px;">Daily Loss Caps</div>
+        <div style="color:#888; font-size:13px;">Bad day? Trading halts. Tomorrow is another session.</div>
       </div>
-      <div class="feat">
-        <h3>Trailing Stops</h3>
-        <p>Trailing stop activates after a profit threshold, then follows price at a configurable distance. Rides winners, protects gains.</p>
-        <span class="tag core">Core</span>
+      <div style="background:#0a0a0a; padding:28px 20px;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#dc2626; letter-spacing:2px; margin-bottom:10px;">LAYER 3</div>
+        <div style="color:#fff; font-size:15px; font-weight:700; margin-bottom:6px;">Exit Contracts</div>
+        <div style="color:#888; font-size:13px;">Sealed at entry, per-trade. No trade exists without one.</div>
       </div>
-      <div class="feat">
-        <h3>Universal Circuit Breakers</h3>
-        <p>Hard stop loss and account drawdown limits override everything. Safety nets that can never be disabled or overridden by strategies.</p>
-        <span class="tag core">Core</span>
+      <div style="background:#0a0a0a; padding:28px 20px;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#dc2626; letter-spacing:2px; margin-bottom:10px;">LAYER 4</div>
+        <div style="color:#fff; font-size:15px; font-weight:700; margin-bottom:6px;">Confidence Sizing</div>
+        <div style="color:#888; font-size:13px;">Weak signals get small positions. Conviction earns size.</div>
       </div>
     </div>
-  </div>
+    <div style="text-align:center; margin-top:20px; font-family:'JetBrains Mono',monospace; font-size:12px; color:#666;">+ file-based kill switch that works even when the process is stuck &nbsp;·&nbsp; + one process, one state file, one kill switch per account</div>
+  </section>
 
-  <hr class="divider">
-
-  <!-- RISK MANAGEMENT -->
-  <div class="section">
-    <div class="section-title">Risk Management <span class="badge">Core</span></div>
-    <div class="section-desc">Multiple layers of risk protection. Position sizing, drawdown limits, daily loss caps, and confidence-scaled sizing.</div>
-    <div class="grid">
-      <div class="feat">
-        <h3>Drawdown Protection</h3>
-        <p>Maximum drawdown limits at the account level. If hit, all trading pauses until conditions reset. Configurable thresholds.</p>
-        <span class="tag core">Core</span>
+  <!-- 04 PINE TRANSPILER -->
+  <section style="display:grid; grid-template-columns:1fr 1fr; gap:48px; padding:70px 0; border-bottom:1px solid #1a1a1a; align-items:center;">
+    <div>
+      <div style="font-family:'Orbitron',monospace; font-size:60px; font-weight:900; color:#1c1c1c; line-height:1; margin-bottom:-8px;">04</div>
+      <h2 style="font-family:'Space Mono',monospace; font-size:26px; color:#dc2626; margin:0 0 14px;">Pine Script Transpiler</h2>
+      <p style="color:#a0a0a0; font-size:15px; margin:0 0 14px;">Your TradingView strategies aren't trapped anymore. Drop your .pine files in — the transpiler converts them to native OGZPrime strategies. Full lexer, parser, AST runtime, and TA library.</p>
+      <p style="color:#a0a0a0; font-size:15px; margin:0 0 14px;">No rewrite. No vendor lock-in. The strategy you spent months tuning runs on real infrastructure with real risk management and real exit contracts.</p>
+      <p style="color:#ffd700; font-family:'JetBrains Mono',monospace; font-size:13px; margin:0;">Bring your edge with you.</p>
+    </div>
+    <div style="background:#0a0a0a; border:1px solid #222; border-radius:8px; overflow:hidden;">
+      <div style="display:flex; align-items:center; gap:8px; padding:10px 14px; background:#111; border-bottom:1px solid #222;">
+        <span style="width:10px; height:10px; border-radius:50%; background:#dc2626;"></span>
+        <span style="width:10px; height:10px; border-radius:50%; background:#444;"></span>
+        <span style="width:10px; height:10px; border-radius:50%; background:#444;"></span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#666; margin-left:8px;">ogz transpile</span>
       </div>
-      <div class="feat">
-        <h3>Daily Loss Limits</h3>
-        <p>Daily, weekly, and monthly loss caps prevent catastrophic runs. Each configurable independently.</p>
-        <span class="tag core">Core</span>
-      </div>
-      <div class="feat">
-        <h3>Confidence-Scaled Sizing</h3>
-        <p>Higher confidence signals get larger position sizes. Lower confidence gets smaller exposure. Automatic risk calibration.</p>
-        <span class="tag core">Core</span>
-      </div>
-      <div class="feat">
-        <h3>Single Config Source</h3>
-        <p>Every risk parameter lives in one config file. No scattered hardcoded values. Change once, applies everywhere.</p>
-        <span class="tag core">Core</span>
+      <div style="padding:18px; font-family:'JetBrains Mono',monospace; font-size:12.5px; line-height:2;">
+        <div style="color:#888;">$ ogz transpile my_strategy.pine</div>
+        <div style="color:#666;">→ lexer</div>
+        <div style="color:#666;">→ parser</div>
+        <div style="color:#666;">→ ast runtime</div>
+        <div style="color:#666;">→ ta library</div>
+        <div style="color:#ffd700;">✓ native strategy</div>
+        <div style="color:#888;">$ <span style="display:inline-block; width:8px; height:14px; background:#dc2626; vertical-align:middle; animation:blink 1s step-end infinite;"></span></div>
       </div>
     </div>
-  </div>
+  </section>
 
-  <hr class="divider">
+  <!-- 05 CHAIN OF THOUGHT / TRAI -->
+  <section style="display:grid; grid-template-columns:1fr 1fr; gap:48px; padding:70px 0; border-bottom:1px solid #1a1a1a; align-items:center;">
+    <div style="background:rgba(14,14,16,0.72); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:20px; font-family:'JetBrains Mono',monospace; font-size:12px; line-height:1.9;">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+        <span style="width:8px; height:8px; border-radius:50%; background:#dc2626; animation:reddot 1.2s ease-in-out infinite;"></span>
+        <span style="font-size:10px; color:#666; text-transform:uppercase; letter-spacing:2px;">chain of thought — streaming</span>
+      </div>
+      <div style="color:#666; font-family:'JetBrains Mono',monospace; font-size:12px; line-height:1.9;">The real feed streams in the live dashboard.<br><a href="proof/track-record/" style="color:#ffd700; text-decoration:none;">See actual trades in the track record →</a></div>
+    </div>
+    <div>
+      <div style="font-family:'Orbitron',monospace; font-size:60px; font-weight:900; color:#1c1c1c; line-height:1; margin-bottom:-8px;">05</div>
+      <h2 style="font-family:'Space Mono',monospace; font-size:26px; color:#dc2626; margin:0 0 14px;">TRAI — It Talks. You Listen. Or Ask.</h2>
+      <p style="color:#a0a0a0; font-size:15px; margin:0 0 14px;">Every decision is narrated live over WebSocket — what it scanned, what it found, why it acted. That's the chain of thought, and it never stops.</p>
+      <p style="color:#a0a0a0; font-size:15px; margin:0 0 14px;">TRAI also watches what you can't: unusual options flow, dark pool prints, block trades, breaking news. Dangerous days suspend trading. Opportunity days boost aligned strategies. And when you have a question — ask it. Why'd you take that trade? What's my risk right now? It answers.</p>
+      <p style="color:#ffd700; font-family:'JetBrains Mono',monospace; font-size:13px; margin:0;">A bot that explains itself, in real time, forever.</p>
+    </div>
+  </section>
 
-  <!-- EXCHANGE & DASHBOARD -->
-  <div class="section">
-    <div class="section-title">Live Trading & Dashboard <span class="badge">Core</span></div>
-    <div class="section-desc">Real-time exchange connection and monitoring dashboard. WebSocket data feed, order execution, and operation proof logging.</div>
-    <div class="grid">
-      <div class="feat">
-        <h3>Kraken Exchange Adapter</h3>
-        <p>Live WebSocket connection to Kraken. Real-time OHLCV data, order placement, position management. More exchanges planned.</p>
-        <span class="tag core">Core</span>
+  <!-- 06 INTELLIGENCE GRID -->
+  <section style="padding:70px 0; border-bottom:1px solid #1a1a1a;">
+    <div style="text-align:center; margin-bottom:44px;">
+      <div style="font-family:'Orbitron',monospace; font-size:60px; font-weight:900; color:#1c1c1c; line-height:1;">06</div>
+      <h2 style="font-family:'Space Mono',monospace; font-size:26px; color:#dc2626; margin:0 0 10px;">The Intelligence Layer</h2>
+      <p style="color:#a0a0a0; font-size:15px; max-width:560px; margin:0 auto;">The ML tier. The bot learns, remembers, and adapts to the market it's actually in.</p>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:20px;">
+      <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Card" hint-size="100%,130px">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#ffd700; letter-spacing:2px; text-transform:uppercase; margin-bottom:8px;">ML / Learning</div>
+        <h3 style="font-size:16px; margin:0 0 6px; color:#fff;">Pattern Memory Bank</h3>
+        <p style="color:#a0a0a0; font-size:13.5px; margin:0;">Every setup ever seen, recorded with its outcome. The system learns which conditions produce winners.</p>
+      </x-import>
+      <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Card" hint-size="100%,130px">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#ffd700; letter-spacing:2px; text-transform:uppercase; margin-bottom:8px;">ML / Learning</div>
+        <h3 style="font-size:16px; margin:0 0 6px; color:#fff;">Regime Detection</h3>
+        <p style="color:#a0a0a0; font-size:13.5px; margin:0;">Seven market regimes identified in real time. Risk parameters and strategy weights adapt to the market that actually exists.</p>
+      </x-import>
+      <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Card" hint-size="100%,130px">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#ffd700; letter-spacing:2px; text-transform:uppercase; margin-bottom:8px;">ML / Learning</div>
+        <h3 style="font-size:16px; margin:0 0 6px; color:#fff;">Spoofing Detection</h3>
+        <p style="color:#a0a0a0; font-size:13.5px; margin:0;">Someone faking liquidity to move price? The order book doesn't lie to this engine.</p>
+      </x-import>
+      <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Card" hint-size="100%,130px">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#dc2626; letter-spacing:2px; text-transform:uppercase; margin-bottom:8px;">Analytics</div>
+        <h3 style="font-size:16px; margin:0 0 6px; color:#fff;">Edge Analytics — 8 Panels</h3>
+        <p style="color:#a0a0a0; font-size:13.5px; margin:0;">Liquidation levels, CVD, funding rates, whale flow, market internals, smart money, fear &amp; greed, divergences.</p>
+      </x-import>
+      <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Card" hint-size="100%,130px">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#dc2626; letter-spacing:2px; text-transform:uppercase; margin-bottom:8px;">Analytics</div>
+        <h3 style="font-size:16px; margin:0 0 6px; color:#fff;">Trade Replay</h3>
+        <p style="color:#a0a0a0; font-size:13.5px; margin:0;">Click any closed trade. Watch the entry reasoning, the exit trigger, the P&amp;L. Learn from the bot's history.</p>
+      </x-import>
+      <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Card" hint-size="100%,130px">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#dc2626; letter-spacing:2px; text-transform:uppercase; margin-bottom:8px;">Analytics</div>
+        <h3 style="font-size:16px; margin:0 0 6px; color:#fff;">Command Center</h3>
+        <p style="color:#a0a0a0; font-size:13.5px; margin:0 0 8px;">Drop any CSV — OGZPrime, TradingView, MT4, generic. Auto-detected. Equity curve, exit breakdown, full attribution.</p>
+        <a href="command-center.html" style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#ffd700; text-decoration:none;">Try it now →</a>
+      </x-import>
+    </div>
+  </section>
+
+  <!-- BROKER STRIP -->
+  <section style="padding:60px 0; border-bottom:1px solid #1a1a1a; text-align:center;">
+    <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#666; letter-spacing:3px; text-transform:uppercase; margin-bottom:24px;">11 broker adapters · one interface · strategies don't care which</div>
+    <div style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center;">
+      <span style="background:rgba(220,38,38,0.06); border:1px solid rgba(220,38,38,0.25); color:#ccc; padding:8px 18px; border-radius:6px; font-family:'JetBrains Mono',monospace; font-size:13px;">Alpaca</span>
+      <span style="background:rgba(220,38,38,0.06); border:1px solid rgba(220,38,38,0.25); color:#ccc; padding:8px 18px; border-radius:6px; font-family:'JetBrains Mono',monospace; font-size:13px;">IBKR</span>
+      <span style="background:rgba(220,38,38,0.06); border:1px solid rgba(220,38,38,0.25); color:#ccc; padding:8px 18px; border-radius:6px; font-family:'JetBrains Mono',monospace; font-size:13px;">Schwab</span>
+      <span style="background:rgba(220,38,38,0.06); border:1px solid rgba(220,38,38,0.25); color:#ccc; padding:8px 18px; border-radius:6px; font-family:'JetBrains Mono',monospace; font-size:13px;">Tastyworks</span>
+      <span style="background:rgba(220,38,38,0.06); border:1px solid rgba(220,38,38,0.25); color:#ccc; padding:8px 18px; border-radius:6px; font-family:'JetBrains Mono',monospace; font-size:13px;">Kraken</span>
+      <span style="background:rgba(220,38,38,0.06); border:1px solid rgba(220,38,38,0.25); color:#ccc; padding:8px 18px; border-radius:6px; font-family:'JetBrains Mono',monospace; font-size:13px;">Coinbase</span>
+      <span style="background:rgba(220,38,38,0.06); border:1px solid rgba(220,38,38,0.25); color:#ccc; padding:8px 18px; border-radius:6px; font-family:'JetBrains Mono',monospace; font-size:13px;">Binance</span>
+      <span style="background:rgba(220,38,38,0.06); border:1px solid rgba(220,38,38,0.25); color:#ccc; padding:8px 18px; border-radius:6px; font-family:'JetBrains Mono',monospace; font-size:13px;">OANDA</span>
+      <span style="background:rgba(220,38,38,0.06); border:1px solid rgba(220,38,38,0.25); color:#ccc; padding:8px 18px; border-radius:6px; font-family:'JetBrains Mono',monospace; font-size:13px;">Gemini</span>
+      <span style="background:rgba(220,38,38,0.06); border:1px solid rgba(220,38,38,0.25); color:#ccc; padding:8px 18px; border-radius:6px; font-family:'JetBrains Mono',monospace; font-size:13px;">Uphold</span>
+      <span style="background:rgba(220,38,38,0.06); border:1px solid rgba(220,38,38,0.25); color:#ccc; padding:8px 18px; border-radius:6px; font-family:'JetBrains Mono',monospace; font-size:13px;">CME</span>
+    </div>
+    <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#666; margin-top:20px;">Stocks · Crypto · Futures · Forex — long and short, multiple tickers, multiple timeframes, concurrently</div>
+  </section>
+
+  <!-- 07 THE MOAT -->
+  <section style="padding:70px 0; border-bottom:1px solid #1a1a1a;">
+    <div style="text-align:center; margin-bottom:44px;">
+      <div style="font-family:'Orbitron',monospace; font-size:60px; font-weight:900; color:#1c1c1c; line-height:1;">07</div>
+      <h2 style="font-family:'Space Mono',monospace; font-size:26px; color:#dc2626; margin:0 0 10px;">Why This Can't Be Knocked Off Over a Weekend</h2>
+      <p style="color:#a0a0a0; font-size:15px; max-width:600px; margin:0 auto;">Fifteen months of engineering decisions that only show up when things go wrong — which is exactly when they matter.</p>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:2px; background:#1a1a1a; border:1px solid #1a1a1a; border-radius:8px; overflow:hidden;">
+      <div style="background:#0a0a0a; padding:30px 26px;">
+        <h3 style="font-family:'Space Mono',monospace; font-size:16px; color:#ffd700; margin:0 0 8px;">Identical Code Paths</h3>
+        <p style="color:#999; font-size:14px; margin:0;">Backtest and live trading run the exact same code — only the execution layer swaps. There is no parallel-universe backtest script that behaves differently from production. What you test is literally what runs.</p>
       </div>
-      <div class="feat">
-        <h3>Real-Time Dashboard</h3>
-        <p>TradingView-powered charts with live candles, indicator overlays, trade markers, and position tracking. WebSocket-fed, real-time updates.</p>
-        <span class="tag core">Core</span>
+      <div style="background:#0a0a0a; padding:30px 26px;">
+        <h3 style="font-family:'Space Mono',monospace; font-size:16px; color:#ffd700; margin:0 0 8px;">Validated at Every Boundary</h3>
+        <p style="color:#999; font-size:14px; margin:0;">Every piece of data crossing a pipeline boundary is schema-validated. Malformed data doesn't propagate — it gets caught at the door. Ghost fills and silent corruption die here.</p>
       </div>
-      <div class="feat">
-        <h3>Operation Proof Logs</h3>
-        <p>Every trade, every decision, every restart is recorded automatically. Verified behavior published as proof. No silent resets.</p>
-        <span class="tag core">Core</span>
+      <div style="background:#0a0a0a; padding:30px 26px;">
+        <h3 style="font-family:'Space Mono',monospace; font-size:16px; color:#ffd700; margin:0 0 8px;">Restart Integrity</h3>
+        <p style="color:#999; font-size:14px; margin:0;">Process dies mid-trade? State is journaled. On restart the engine reconciles its book against the broker's before it touches anything. No orphaned positions, no double entries, no amnesia.</p>
       </div>
-      <div class="feat">
-        <h3>Candle Integrity</h3>
-        <p>Gap detection, stale data handling, automatic backfill. If data is missing or delayed, the bot pauses until integrity is restored.</p>
-        <span class="tag core">Core</span>
+      <div style="background:#0a0a0a; padding:30px 26px;">
+        <h3 style="font-family:'Space Mono',monospace; font-size:16px; color:#ffd700; margin:0 0 8px;">Everything Leaves a Record</h3>
+        <p style="color:#999; font-size:14px; margin:0;">The decision ledger writes structured JSONL continuously — every signal, every gate, every order. It's not a report we generate for marketing. It's how the machine works, and it's published automatically.</p>
       </div>
     </div>
-  </div>
+  </section>
 
-  <hr class="divider">
-
-  <!-- PRO FEATURES -->
-  <div class="section">
-    <div class="section-title">Analysis & Backtesting <span class="badge pro">Pro</span></div>
-    <div class="section-desc">Advanced analysis tools and backtesting infrastructure for serious strategy development.</div>
-    <div class="grid">
-      <div class="feat">
-        <h3>Backtest Engine</h3>
-        <p>Run your strategies against historical data with real fee calculations. Per-strategy attribution shows exactly which strategies make money and which don't.</p>
-        <span class="tag pro">Pro</span>
-      </div>
-      <div class="feat">
-        <h3>Pattern Memory Bank</h3>
-        <p>Records candlestick patterns and their outcomes. Over time, builds a database of what patterns actually lead to profitable trades in your market.</p>
-        <span class="tag pro">Pro</span>
-      </div>
-      <div class="feat">
-        <h3>Volume Profile</h3>
-        <p>Identifies value areas, points of control, and balanced vs. imbalanced markets. Filters trend strategies during choppy conditions.</p>
-        <span class="tag pro">Pro</span>
-      </div>
-      <div class="feat">
-        <h3>Market Regime Detection</h3>
-        <p>Classifies current market as trending, ranging, or volatile. Strategies can adapt behavior or sit out unfavorable regimes.</p>
-        <span class="tag pro">Pro</span>
-      </div>
-      <div class="feat">
-        <h3>Fibonacci Level Detection</h3>
-        <p>Automatically identifies key Fibonacci retracement and extension levels. Provides confluence data to boost strategy confidence at key levels.</p>
-        <span class="tag pro">Pro</span>
-      </div>
-      <div class="feat">
-        <h3>Multi-Timeframe Analysis</h3>
-        <p>Aggregates 1-minute candles into 5m, 15m, 30m, 1h, 4h, and daily timeframes. Strategies can confirm signals across multiple timeframes.</p>
-        <span class="tag pro">Pro</span>
-      </div>
-      <div class="feat">
-        <h3>Pipeline Diagnostic Harness</h3>
-        <p>Verify your entire trading pipeline is working correctly. Tests config propagation, gate verification, exit contract ownership, and fee calculations.</p>
-        <span class="tag pro">Pro</span>
-      </div>
-      <div class="feat">
-        <h3>Enhanced Pattern Recognition</h3>
-        <p>Detects candlestick patterns with confidence scoring. Patterns are recorded and tracked against actual trade outcomes for continuous learning.</p>
-        <span class="tag pro">Pro</span>
-      </div>
-    </div>
-  </div>
+  <!-- ZERO LIABILITY -->
+  <section style="padding:70px 0; border-bottom:1px solid #1a1a1a; text-align:center;">
+    <h2 style="font-family:'Space Mono',monospace; font-size:22px; color:#ffd700; margin:0 0 14px;">Your Keys. Your Broker. Your Money.</h2>
+    <p style="color:#999; font-size:15px; max-width:620px; margin:0 auto 8px;">Your API keys live on your machine — we never see them, never store them, never touch them. We don't know your balance. We don't know your P&amp;L. Nothing relays back to us.</p>
+    <p style="color:#666; font-size:14px; max-width:620px; margin:0 auto; font-family:'JetBrains Mono',monospace;">We charge a subscription. You stop paying, the license invalidates. That's the entire relationship.</p>
+  </section>
 
   <!-- CTA -->
-  <div class="cta-section">
-    <h2>Built Different. Verified Daily.</h2>
-    <p>Every feature on this page runs in production today. See it yourself.</p>
-    <a href="pricing.html" class="cta-btn">View Pricing</a>
-  </div>
+  <section style="text-align:center; padding:80px 0;">
+    <h2 style="font-family:'Orbitron',monospace; font-weight:900; font-size:30px; letter-spacing:2px; margin:0 0 14px; color:#fff; text-transform:uppercase; text-shadow:0 0 24px rgba(179,21,18,0.4);">Built Different.<br>Verified Daily.</h2>
+    <p style="color:#a0a0a0; margin:0 0 30px; font-size:16px;">First month free — full Pro tier, nothing held back. Make money with it first.</p>
+    <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
+      <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Button" size="lg" uppercase="{{ true }}" hint-size="200px,54px"><a href="pricing.html" style="color:inherit; text-decoration:none;">Start Free Month</a></x-import>
+      <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Button" size="lg" variant="outline" hint-size="190px,54px"><a href="proof/track-record/" style="color:inherit; text-decoration:none;">See the Receipts</a></x-import>
+    </div>
+  </section>
 
-  <div class="footer">
-    &copy; 2026 OGZPrime. All Rights Reserved. |
-    <a href="legal.html">Legal</a> |
-    <a href="pricing.html">Pricing</a> |
-    <a href="proof/">Live Proof</a>
-  </div>
+  <!-- FOOTER -->
+  <footer style="text-align:center; padding:34px 0; color:#555; font-size:13px; border-top:1px solid #1a1a1a;">
+    © 2026 OGZPrime. All Rights Reserved. ·
+    <a href="legal.html" style="color:#f87171; text-decoration:none;">Legal</a> ·
+    <a href="index.html" style="color:#f87171; text-decoration:none;">Home</a> ·
+    <a href="pricing.html" style="color:#f87171; text-decoration:none;">Pricing</a> ·
+    <a href="proof.html" style="color:#f87171; text-decoration:none;">Proof</a> ·
+    <a href="proof/track-record/" style="color:#f87171; text-decoration:none;">Track Record</a> ·
+    <a href="command-center.html" style="color:#f87171; text-decoration:none;">Command Center</a>
+  </footer>
 
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
 </body>
 </html>

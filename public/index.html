@@ -1,511 +1,280 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OGZPrime — Modular Trading Infrastructure</title>
-  <link rel="stylesheet" href="valhalla-style.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      background: #0a0a0a;
-      color: #fff;
-      font-family: 'DM Sans', sans-serif;
-      line-height: 1.6;
-    }
-
-    /* Hero */
-    .hero {
-      position: relative;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #000;
-      overflow: hidden;
-    }
-    .hero video {
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      object-fit: cover;
-      z-index: 1;
-      filter: brightness(0.25);
-    }
-    .hero-content {
-      position: relative;
-      z-index: 2;
-      text-align: center;
-      padding: 20px;
-    }
-    .hero-content h1 {
-      font-family: 'Space Mono', monospace;
-      font-size: 4rem;
-      color: #dc2626;
-      margin-bottom: 16px;
-      letter-spacing: -2px;
-    }
-    .hero-content p {
-      font-size: 1.2rem;
-      color: #999;
-      max-width: 600px;
-      margin: 0 auto 8px;
-    }
-    .hero-content .sub {
-      font-size: 0.95rem;
-      color: #555;
-    }
-
-    /* Sections */
-    .section {
-      max-width: 1000px;
-      margin: 0 auto;
-      padding: 80px 24px;
-    }
-    .section-dark {
-      background: #0f0f0f;
-      border-top: 1px solid #1a1a1a;
-      border-bottom: 1px solid #1a1a1a;
-    }
-    .section h2 {
-      font-family: 'Space Mono', monospace;
-      font-size: 2rem;
-      color: #dc2626;
-      margin-bottom: 16px;
-      text-align: center;
-    }
-    .section .lead {
-      text-align: center;
-      color: #999;
-      font-size: 1.1rem;
-      max-width: 650px;
-      margin: 0 auto 48px;
-    }
-
-    /* Feature grid */
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 20px;
-    }
-    .card {
-      background: #111;
-      border: 1px solid #222;
-      border-radius: 12px;
-      padding: 28px 24px;
-      transition: border-color 0.3s;
-    }
-    .card:hover { border-color: #dc2626; }
-    .card h3 {
-      font-size: 1.1rem;
-      color: #fff;
-      margin-bottom: 8px;
-    }
-    .card p {
-      color: #888;
-      font-size: 0.92rem;
-      line-height: 1.6;
-    }
-
-    /* Stats bar */
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 20px;
-      text-align: center;
-      padding: 60px 24px;
-      max-width: 900px;
-      margin: 0 auto;
-    }
-    .stat-num {
-      font-family: 'Space Mono', monospace;
-      font-size: 2.2rem;
-      color: #dc2626;
-      font-weight: 700;
-    }
-    .stat-label {
-      color: #666;
-      font-size: 0.85rem;
-      margin-top: 4px;
-    }
-
-    /* Proof strip */
-    .proof-strip {
-      background: linear-gradient(135deg, #111 0%, #1a1a1a 100%);
-      border-top: 1px solid #22c55e;
-      border-bottom: 1px solid #22c55e;
-      padding: 48px 24px;
-      text-align: center;
-    }
-    .proof-strip h2 {
-      font-family: 'Space Mono', monospace;
-      color: #22c55e;
-      font-size: 1.6rem;
-      margin-bottom: 12px;
-    }
-    .proof-strip p { color: #888; margin-bottom: 24px; }
-    .proof-checks {
-      display: flex;
-      justify-content: center;
-      gap: 32px;
-      flex-wrap: wrap;
-      margin-bottom: 24px;
-    }
-    .proof-check {
-      color: #ccc;
-      font-size: 0.95rem;
-    }
-    .proof-check::before {
-      content: "\2713";
-      color: #22c55e;
-      font-weight: 700;
-      margin-right: 6px;
-    }
-
-    /* How it works */
-    .steps {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 32px;
-      counter-reset: step;
-    }
-    .step {
-      text-align: center;
-      counter-increment: step;
-    }
-    .step::before {
-      content: counter(step);
-      display: inline-block;
-      width: 48px;
-      height: 48px;
-      line-height: 48px;
-      border-radius: 50%;
-      background: #dc2626;
-      color: #fff;
-      font-family: 'Space Mono', monospace;
-      font-size: 1.3rem;
-      font-weight: 700;
-      margin-bottom: 16px;
-    }
-    .step h3 { color: #fff; margin-bottom: 8px; font-size: 1.05rem; }
-    .step p { color: #888; font-size: 0.9rem; }
-
-    /* CTA */
-    .cta-section {
-      text-align: center;
-      padding: 80px 24px;
-    }
-    .cta-section h2 {
-      font-family: 'Space Mono', monospace;
-      color: #fff;
-      font-size: 2.2rem;
-      margin-bottom: 12px;
-    }
-    .cta-section p { color: #888; margin-bottom: 32px; font-size: 1.05rem; }
-    .btn-row { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
-    .btn-primary {
-      display: inline-block;
-      padding: 16px 36px;
-      background: #dc2626;
-      color: #fff;
-      text-decoration: none;
-      border-radius: 8px;
-      font-weight: 700;
-      font-size: 1.1rem;
-      border: none;
-      cursor: pointer;
-      transition: background 0.2s, transform 0.2s;
-    }
-    .btn-primary:hover { background: #ef4444; transform: translateY(-2px); }
-    .btn-outline {
-      display: inline-block;
-      padding: 16px 36px;
-      background: transparent;
-      color: #dc2626;
-      text-decoration: none;
-      border: 2px solid #dc2626;
-      border-radius: 8px;
-      font-weight: 700;
-      font-size: 1.1rem;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .btn-outline:hover { background: rgba(220,38,38,0.1); transform: translateY(-2px); }
-
-    /* Footer */
-    footer {
-      text-align: center;
-      padding: 40px 20px;
-      color: #555;
-      font-size: 0.85rem;
-      border-top: 1px solid #1a1a1a;
-    }
-    footer a { color: #f87171; text-decoration: none; }
-    footer a:hover { text-decoration: underline; }
-
-    /* Lead modal */
-    #leadModal {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.8);
-      z-index: 9999;
-      align-items: center;
-      justify-content: center;
-    }
-    .modal-box {
-      width: 95%;
-      max-width: 480px;
-      background: #0b0b0b;
-      border: 1px solid #dc2626;
-      border-radius: 12px;
-      padding: 28px;
-    }
-    .modal-box h3 { color: #f87171; margin-bottom: 8px; }
-    .modal-box p { color: #888; font-size: 0.92rem; margin-bottom: 16px; }
-    .modal-box input {
-      width: 100%;
-      padding: 12px;
-      border-radius: 8px;
-      border: 1px solid #333;
-      background: #111;
-      color: #fff;
-      margin-bottom: 10px;
-      font-size: 0.95rem;
-    }
-    .modal-actions { display: flex; gap: 10px; margin-top: 8px; }
-    .modal-submit {
-      flex: 1;
-      padding: 12px;
-      background: #dc2626;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-    .modal-cancel {
-      padding: 12px 16px;
-      background: transparent;
-      border: 1px solid #333;
-      color: #888;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-
-    @media (max-width: 700px) {
-      .hero-content h1 { font-size: 2.5rem; }
-      .stats { grid-template-columns: repeat(2, 1fr); }
-      .steps { grid-template-columns: 1fr; }
-      .proof-checks { flex-direction: column; align-items: center; gap: 8px; }
-    }
-  </style>
+<title>OGZPrime — Risk Management Execution Engine for Traders</title>
+<meta name="description" content="Autonomous trading execution engine built first not to blow up your capital. 11 broker adapters, Pine Script transpiler, exit contracts sealed at entry, every decision logged. First month free.">
+<link rel="canonical" href="https://www.ogzprime.com/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="OGZPrime">
+<meta property="og:title" content="OGZPrime — Risk Management Execution Engine for Traders">
+<meta property="og:description" content="Autonomous trading execution engine built first not to blow up your capital. 11 broker adapters, Pine Script transpiler, exit contracts sealed at entry, every decision logged. First month free.">
+<meta property="og:url" content="https://www.ogzprime.com/">
+<meta property="og:image" content="https://www.ogzprime.com/assets/ogz-logo-white.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="OGZPrime — Risk Management Execution Engine for Traders">
+<meta name="twitter:description" content="Autonomous trading execution engine built first not to blow up your capital. 11 broker adapters, Pine Script transpiler, exit contracts sealed at entry, every decision logged. First month free.">
+<meta name="twitter:image" content="https://www.ogzprime.com/assets/ogz-logo-white.png">
+<meta name="robots" content="index,follow">
+<meta name="theme-color" content="#0a0a0a">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"OGZPrime","applicationCategory":"FinanceApplication","operatingSystem":"Web","url":"https://www.ogzprime.com","description":"Risk management execution engine for algorithmic trading. Multi-broker, multi-asset, with a Pine Script transpiler and full decision logging.","offers":[{"@type":"Offer","name":"Starter","price":"19","priceCurrency":"USD"},{"@type":"Offer","name":"Core","price":"49","priceCurrency":"USD"},{"@type":"Offer","name":"Pro","price":"149","priceCurrency":"USD"}]}</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
 </head>
 <body>
+<x-dc>
+
+<helmet>
+<script src="./ds-base.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;800;900&family=JetBrains+Mono:wght@400;500;700&family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#0a0a0a; color:#fff; font-family:'DM Sans',sans-serif; line-height:1.6; }
+  @keyframes scan { from { top:-100%; } to { top:200%; } }
+  #leadModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999; align-items:center; justify-content:center; }
+</style>
+</helmet>
+
+<div style="max-width:1000px; margin:0 auto;">
+
+  <!-- NAV -->
+  <nav style="display:flex; justify-content:space-between; align-items:center; padding:20px 24px;">
+    <div style="font-family:'Orbitron',monospace; font-weight:900; font-size:18px; letter-spacing:4px; color:#fff; text-shadow:0 0 12px rgba(179,21,18,0.4);">OGZPRIME</div>
+    <div style="display:flex; gap:12px; align-items:center;">
+      <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Button" variant="ghost" size="sm" hint-size="80px,34px"><a href="features.html" style="color:inherit; text-decoration:none;">Features</a></x-import>
+      <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Button" variant="ghost" size="sm" hint-size="70px,34px"><a href="pricing.html" style="color:inherit; text-decoration:none;">Pricing</a></x-import>
+      <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Button" variant="ghost" size="sm" hint-size="60px,34px"><a href="proof.html" style="color:inherit; text-decoration:none;">Proof</a></x-import>
+      <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Button" size="sm" uppercase="{{ true }}" hint-size="140px,34px"><a href="pricing.html" style="color:inherit; text-decoration:none;">First Month Free</a></x-import>
+    </div>
+  </nav>
 
   <!-- HERO -->
-  <section class="hero">
-    <video autoplay muted loop playsinline>
-      <source src="/assets/video/ogz-stinger-merged.mp4" type="video/mp4">
-    </video>
-    <div class="hero-content">
-      <h1>OGZPrime</h1>
-      <p>Modular trading infrastructure. Plug in your strategies, backtest with real fees, deploy to live markets.</p>
-      <p class="sub">Verified daily under real market conditions. No silent resets.</p>
+  <section style="text-align:center; padding:80px 24px 60px; position:relative; overflow:hidden; background:radial-gradient(circle at 50% 0%, rgba(220,38,38,0.10) 0%, transparent 55%);">
+    <div style="position:absolute; inset:0; overflow:hidden; pointer-events:none;">
+      <div style="position:absolute; left:0; right:0; height:1px; background:linear-gradient(90deg, transparent, rgba(220,38,38,0.12), transparent); animation:scan 8s linear infinite; opacity:0.4;"></div>
+    </div>
+    <div style="font-family:'Orbitron',monospace; font-weight:900; font-size:52px; letter-spacing:8px; text-transform:uppercase; color:#fff; text-shadow:0 0 32px rgba(179,21,18,0.5); margin-bottom:8px;">OGZPRIME</div>
+    <p style="color:#999; font-size:19px; max-width:660px; margin:20px auto 6px;">A risk management execution engine. Built first not to blow up your capital — then iterated toward profitability.</p>
+    <p style="color:#555; font-size:14px; font-family:'JetBrains Mono',monospace; margin-bottom:36px;">Multi-broker · Multi-asset · Multi-direction · Multi-timeframe</p>
+    <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
+      <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Button" size="lg" uppercase="{{ true }}" hint-size="200px,54px"><a href="pricing.html" style="color:inherit; text-decoration:none;">Start Free Month</a></x-import>
+      <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Button" size="lg" variant="outline" hint-size="200px,54px"><a href="#" style="color:inherit; text-decoration:none;" onclick="document.getElementById('leadModal').style.display='flex'; return false;">Watch Live Demo</a></x-import>
     </div>
   </section>
 
   <!-- STATS -->
-  <div class="stats">
-    <div>
-      <div class="stat-num">15+</div>
-      <div class="stat-label">Technical Indicators</div>
-    </div>
-    <div>
-      <div class="stat-num">45K+</div>
-      <div class="stat-label">Candles Validated</div>
-    </div>
-    <div>
-      <div class="stat-num">24/7</div>
-      <div class="stat-label">Live Operation</div>
-    </div>
-    <div>
-      <div class="stat-num">7 Day</div>
-      <div class="stat-label">Free Trial</div>
-    </div>
-  </div>
+  <section style="display:grid; grid-template-columns:repeat(4,1fr); gap:20px; padding:20px 24px 70px;">
+    <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Metric" value="11" sub="Broker Adapters" align="center" hint-size="100%,70px"></x-import>
+    <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Metric" value="38" sub="Dashboard Modules" align="center" hint-size="100%,70px"></x-import>
+    <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Metric" value="24/7" sub="Autonomous Operation" align="center" hint-size="100%,70px"></x-import>
+    <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Metric" value="1 mo" sub="Free — Pay With Profits" align="center" hint-size="100%,70px"></x-import>
+  </section>
 
-  <!-- WHAT IT DOES -->
-  <div class="section-dark">
-    <div class="section">
-      <h2>Your Strategies. Our Infrastructure.</h2>
-      <p class="lead">OGZPrime handles the hard parts — exchange connections, indicator calculations, risk management, exit logic, position tracking. You focus on what matters: your trading edge.</p>
-      <div class="grid">
-        <div class="card">
-          <h3>Indicator Engine</h3>
-          <p>RSI, MACD, EMA, Bollinger Bands, ATR, ADX, VWAP, Stochastic RSI, SuperTrend, and more. Calculated in real-time on every candle.</p>
-        </div>
-        <div class="card">
-          <h3>Strategy Orchestrator</h3>
-          <p>Plug in your own strategies. Each competes independently on confidence. Winner takes the trade. No blended signals, no soup.</p>
-        </div>
-        <div class="card">
-          <h3>Exit Contract System</h3>
-          <p>Every trade gets its own exit rules based on which strategy opened it. Stop loss, take profit, trailing stops, tiered exits. Per-strategy, per-trade.</p>
-        </div>
-        <div class="card">
-          <h3>Risk Management</h3>
-          <p>Drawdown limits, daily loss caps, confidence-scaled position sizing. Multiple layers of protection you configure once from a single file.</p>
-        </div>
-        <div class="card">
-          <h3>Live Dashboard</h3>
-          <p>Real-time TradingView charts, trade markers, indicator overlays, position tracking. WebSocket-fed, always current.</p>
-        </div>
-        <div class="card">
-          <h3>Backtest Engine</h3>
-          <p>Run your strategies against historical data with real fee calculations. Per-strategy attribution shows exactly what works and what doesn't.</p>
-        </div>
-      </div>
+  <!-- PINE TRANSPILER + COMMAND CENTER -->
+  <section style="padding:0 24px 70px; display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+    <div style="background:rgba(220,38,38,0.03); border:1px solid rgba(220,38,38,0.2); border-radius:12px; padding:32px; text-align:center;">
+      <div style="font-family:'Space Mono',monospace; font-size:13px; color:#dc2626; text-transform:uppercase; letter-spacing:2px; margin-bottom:8px;">Pine Script Transpiler</div>
+      <h3 style="font-size:20px; color:#fff; margin-bottom:8px;">Your TradingView strategies run here.</h3>
+      <p style="color:#888; font-size:15px; max-width:480px; margin:0 auto;">Drop your .pine files in. Full lexer, parser, AST runtime, and TA library. No rewrite. No vendor lock-in. Your code, real infrastructure.</p>
     </div>
-  </div>
+    <div style="background:rgba(255,215,0,0.02); border:1px solid rgba(255,215,0,0.2); border-radius:12px; padding:32px; text-align:center;">
+      <div style="font-family:'Space Mono',monospace; font-size:13px; color:#ffd700; text-transform:uppercase; letter-spacing:2px; margin-bottom:8px;">Free Tool — No Signup</div>
+      <h3 style="font-size:20px; color:#fff; margin-bottom:8px;">Got a backtest CSV? See what it's really telling you.</h3>
+      <p style="color:#888; font-size:15px; max-width:480px; margin:0 auto 16px;">Drop any backtest export — TradingView, MT4, or generic — into the Command Center. Instant equity curve, exit breakdown, win/loss attribution. Right in your browser.</p>
+      <a href="command-center.html" style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#ffd700; text-decoration:none;">Analyze your backtest →</a>
+    </div>
+  </section>
 
-  <!-- VERIFIED PROOF -->
-  <div class="proof-strip">
-    <h2>Verified Operations</h2>
-    <p>Behavior is recorded and published automatically as part of normal operation.</p>
-    <div class="proof-checks">
-      <span class="proof-check">Order handling verified</span>
-      <span class="proof-check">Restart integrity verified</span>
-      <span class="proof-check">Continuous operation recorded</span>
-      <span class="proof-check">Instance isolation verified</span>
+  <!-- THE ENGINE -->
+  <section style="background:#0f0f0f; border-top:1px solid #1a1a1a; border-bottom:1px solid #1a1a1a; padding:70px 0; margin:0 -9999px; padding-left:9999px; padding-right:9999px;">
+    <div style="max-width:1000px; margin:0 auto; padding:0 24px;">
+      <h2 style="font-family:'Space Mono',monospace; font-size:28px; color:#dc2626; text-align:center; margin:0 0 12px;">The Execution Engine</h2>
+      <p style="text-align:center; color:#999; max-width:640px; margin:0 auto 44px;">Strategies fire independently with independent pipelines and independent exits. The architecture itself is the product.</p>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:20px;">
+        <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Card" hint-size="100%,150px">
+          <h3 style="font-size:17px; margin:0 0 8px; color:#fff;">Strategy Orchestrator</h3>
+          <p style="color:#a0a0a0; font-size:14px; margin:0;">Strategies compete independently every candle. Highest-confidence signal wins. When multiple agree, confluence scales sizing from 1x to 2.5x. No blended signals.</p>
+        </x-import>
+        <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Card" hint-size="100%,150px">
+          <h3 style="font-size:17px; margin:0 0 8px; color:#fff;">Exit Contracts Sealed at Birth</h3>
+          <p style="color:#a0a0a0; font-size:14px; margin:0;">Every trade gets its exit plan locked at entry — SL, TP, trailing, tiered exits. Per-strategy, per-trade. Validated fingerprints. No overrides, no drift.</p>
+        </x-import>
+        <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Card" hint-size="100%,150px">
+          <h3 style="font-size:17px; margin:0 0 8px; color:#fff;">4-Layer Risk Management</h3>
+          <p style="color:#a0a0a0; font-size:14px; margin:0;">Drawdown limits. Daily loss caps that halt trading. Exit contracts sealed at birth. Confidence-scaled sizing — weak signals get smaller positions. One trade cannot cascade.</p>
+        </x-import>
+        <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Card" hint-size="100%,150px">
+          <h3 style="font-size:17px; margin:0 0 8px; color:#fff;">Account Isolation</h3>
+          <p style="color:#a0a0a0; font-size:14px; margin:0;">One process, one state file, one log directory, one kill switch per account. Run 20 accounts in parallel — one account's bug never cascades to another.</p>
+        </x-import>
+        <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Card" hint-size="100%,150px">
+          <h3 style="font-size:17px; margin:0 0 8px; color:#fff;">Identical Code Paths</h3>
+          <p style="color:#a0a0a0; font-size:14px; margin:0;">Backtests and live trading run the same code. Only the execution layer swaps. What you test is what runs. Zod-validated DTOs at every pipeline boundary.</p>
+        </x-import>
+        <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Card" hint-size="100%,150px">
+          <h3 style="font-size:17px; margin:0 0 8px; color:#fff;">11 Broker Adapters</h3>
+          <p style="color:#a0a0a0; font-size:14px; margin:0;">Alpaca, IBKR, Schwab, Tastyworks, Kraken, Coinbase, Binance, OANDA, Gemini, Uphold, CME. Common interface — strategies don't know which broker they're on.</p>
+        </x-import>
+      </div>
     </div>
-    <a href="proof/" class="btn-outline" style="border-color: #22c55e; color: #22c55e;">View Live Proof</a>
-  </div>
+  </section>
 
-  <!-- HOW IT WORKS -->
-  <div class="section">
-    <h2>How It Works</h2>
-    <p class="lead">From signup to live trading in three steps.</p>
-    <div class="steps">
-      <div class="step">
-        <h3>Connect Your Exchange</h3>
-        <p>Add your Kraken API keys. Read-only or trade-enabled — your choice. More exchanges coming.</p>
+  <!-- TRAI -->
+  <section style="padding:70px 24px;">
+    <h2 style="font-family:'Space Mono',monospace; font-size:28px; color:#dc2626; text-align:center; margin:0 0 12px;">TRAI — The Brain Layer</h2>
+    <p style="text-align:center; color:#999; max-width:640px; margin:0 auto 44px;">Autonomous AI on top of the engine. Watches the market, narrates decisions, only escalates when something crosses your priority threshold.</p>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:20px;">
+      <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Card" hint-size="100%,130px">
+        <h3 style="font-size:17px; margin:0 0 8px; color:#fff;">Chain of Thought</h3>
+        <p style="color:#a0a0a0; font-size:14px; margin:0;">Every decision narrated live via WebSocket. What it scanned, what it found, why it acted. Streaming into the dashboard as it happens.</p>
+      </x-import>
+      <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Card" hint-size="100%,130px">
+        <h3 style="font-size:17px; margin:0 0 8px; color:#fff;">Whale Watcher</h3>
+        <p style="color:#a0a0a0; font-size:14px; margin:0;">Unusual options activity, dark pool prints, block trades, insider transactions. Feeds back into strategy confidence when flow confirms a signal.</p>
+      </x-import>
+      <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Card" hint-size="100%,130px">
+        <h3 style="font-size:17px; margin:0 0 8px; color:#fff;">News &amp; Catalyst Guard</h3>
+        <p style="color:#a0a0a0; font-size:14px; margin:0;">Ingests financial news in real time. On dangerous days, suspends trading. On opportunity days, boosts confidence on aligned strategies.</p>
+      </x-import>
+      <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Card" hint-size="100%,130px">
+        <h3 style="font-size:17px; margin:0 0 8px; color:#fff;">Ask It Anything</h3>
+        <p style="color:#a0a0a0; font-size:14px; margin:0;">Chat interface in the dashboard. Ask why it took a trade. Ask what risk looks like. Ask it to walk you through your broker's API key setup screen by screen.</p>
+      </x-import>
+    </div>
+  </section>
+
+  <!-- DECISION LEDGER -->
+  <section style="text-align:center; padding:54px 24px; background:linear-gradient(135deg,#111 0%,#1a1a1a 100%); border-top:1px solid rgba(255,215,0,0.2); border-bottom:1px solid rgba(255,215,0,0.2); margin:0 -9999px; padding-left:9999px; padding-right:9999px;">
+    <div style="max-width:1000px; margin:0 auto;">
+      <h2 style="font-family:'Space Mono',monospace; color:#ffd700; font-size:24px; margin:0 0 12px;">Decision Ledger — Every Action Logged</h2>
+      <p style="color:#a0a0a0; margin:0 auto 24px; max-width:600px;">Structured JSONL logged continuously. Every trade decision, every risk gate, every system event. Machine-readable, timestamped, verifiable. The proof writes itself as a side effect of the bot running.</p>
+      <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap; margin-bottom:28px;">
+        <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Badge" tone="warning" soft="{{ true }}" uppercase="{{ false }}" hint-size="190px,26px">✓ Order handling verified</x-import>
+        <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Badge" tone="warning" soft="{{ true }}" uppercase="{{ false }}" hint-size="200px,26px">✓ Restart integrity verified</x-import>
+        <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Badge" tone="warning" soft="{{ true }}" uppercase="{{ false }}" hint-size="220px,26px">✓ Continuous operation recorded</x-import>
       </div>
-      <div class="step">
-        <h3>Plug In Your Strategy</h3>
-        <p>Use the strategy template. Implement your logic. Backtest against real data with real fees before going live.</p>
-      </div>
-      <div class="step">
-        <h3>Deploy & Monitor</h3>
-        <p>Go live. Watch the dashboard. Risk management and exit contracts handle the rest. Every action logged and verifiable.</p>
+      <p style="color:#ccc; margin:0 auto 20px; max-width:600px; font-size:15px;">The claim is simple: this engine doesn't melt accounts. The receipts are public — a live eval account trading real market conditions, every trade recorded as it happens. Judge it yourself.</p>
+      <div style="display:flex; gap:14px; justify-content:center; flex-wrap:wrap;">
+        <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Button" variant="outline" hint-size="170px,46px"><a href="proof.html" style="color:inherit; text-decoration:none;">View Live Proof</a></x-import>
+        <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Button" variant="outline" hint-size="180px,46px"><a href="proof/track-record/" style="color:inherit; text-decoration:none;">View Track Record</a></x-import>
       </div>
     </div>
-  </div>
+  </section>
+
+  <!-- NO DOUBLE PAYWALL + ZERO LIABILITY -->
+  <section style="padding:70px 24px;">
+    <div style="max-width:750px; margin:0 auto;">
+      <h2 style="font-family:'Space Mono',monospace; font-size:28px; color:#dc2626; text-align:center; margin:0 0 12px;">No Double Paywall</h2>
+      <p style="text-align:center; color:#999; font-size:16px; max-width:640px; margin:0 auto 40px;">Nobody wants to buy a bot and then load money onto a broker before they can even find out if it works. That's two paywalls before you make a single dollar. We built something we actually trust — so the first month is free. Make money with it first. Then pay us back with your profits for the next month. You keep the subscription.</p>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+        <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Card" hint-size="100%,140px">
+          <h3 style="font-size:17px; margin:0 0 8px; color:#ffd700;">Your Keys. Your Machine.</h3>
+          <p style="color:#a0a0a0; font-size:14px; margin:0;">API keys come from your broker. They live on your machine. OGZPrime never sees them, never stores them, never transmits them. We have zero access to your account, your balance, or your trades.</p>
+        </x-import>
+        <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Card" hint-size="100%,140px">
+          <h3 style="font-size:17px; margin:0 0 8px; color:#ffd700;">Zero Liability</h3>
+          <p style="color:#a0a0a0; font-size:14px; margin:0;">We don't know how much you make. We don't know how much you have. We charge a flat subscription. If you stop paying, we invalidate your license. That's it. Nothing about your money ever touches our infrastructure.</p>
+        </x-import>
+      </div>
+    </div>
+  </section>
 
   <!-- CTA -->
-  <div class="cta-section">
-    <h2>Built Different. Verified Daily.</h2>
-    <p>7-day free trial. No credit card required to explore. Cancel anytime.</p>
-    <div class="btn-row">
-      <a href="pricing.html" class="btn-primary">See Pricing</a>
-      <a href="#" onclick="return openDemoGate(event)" class="btn-outline">Watch Live Demo</a>
+  <section style="text-align:center; padding:70px 24px;">
+    <h2 style="font-family:'Space Mono',monospace; font-size:34px; margin:0 0 12px; color:#fff;">Built Different. Verified Daily.</h2>
+    <p style="color:#a0a0a0; margin:0 0 30px;">First month free. Make money with the bot first, pay with your profits. No credit card to start.</p>
+    <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
+      <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Button" size="lg" uppercase="{{ true }}" hint-size="180px,54px"><a href="pricing.html" style="color:inherit; text-decoration:none;">See Pricing</a></x-import>
+      <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Button" size="lg" variant="outline" hint-size="200px,54px"><a href="#" style="color:inherit; text-decoration:none;" onclick="document.getElementById('leadModal').style.display='flex'; return false;">Watch Live Demo</a></x-import>
     </div>
-  </div>
-
-  <!-- LEAD CAPTURE MODAL -->
-  <div id="leadModal">
-    <div class="modal-box">
-      <h3>Unlock Live Demo</h3>
-      <p>Enter your email to view the live trading dashboard.</p>
-      <form id="leadForm" onsubmit="return submitLead(event)">
-        <input id="leadName" placeholder="Your name (optional)">
-        <input id="leadEmail" placeholder="Email (required)" type="email" required>
-        <div id="leadError" style="display:none; color:#f87171; font-size:0.9rem; margin-bottom:8px;"></div>
-        <div class="modal-actions">
-          <button id="leadSubmit" class="modal-submit" type="submit">Continue to Live Demo</button>
-          <button type="button" class="modal-cancel" onclick="closeLeadModal()">Cancel</button>
-        </div>
-        <div style="margin-top:10px; color:#555; font-size:0.8rem;">We respect your inbox. Unsubscribe anytime. <a href="legal.html" style="color:#f87171;">Privacy</a></div>
-        <input type="text" id="leadBot" style="position:absolute; left:-9999px;" tabindex="-1" autocomplete="off">
-      </form>
-    </div>
-  </div>
+  </section>
 
   <!-- FOOTER -->
-  <footer>
-    &copy; 2026 OGZPrime. All Rights Reserved. |
-    <a href="legal.html">Legal</a> |
-    <a href="features.html">Features</a> |
-    <a href="pricing.html">Pricing</a>
-    <p style="margin-top:8px; font-size:0.8rem; color:#444;">OGZPrime publishes operational proof as part of normal operation.</p>
+  <footer style="text-align:center; padding:34px 20px; color:#555; font-size:13px; border-top:1px solid #1a1a1a;">
+    © 2026 OGZPrime. All Rights Reserved. ·
+    <a href="legal.html" style="color:#f87171; text-decoration:none;">Legal</a> ·
+    <a href="features.html" style="color:#f87171; text-decoration:none;">Features</a> ·
+    <a href="pricing.html" style="color:#f87171; text-decoration:none;">Pricing</a> ·
+    <a href="proof.html" style="color:#f87171; text-decoration:none;">Proof</a> ·
+    <a href="proof/track-record/" style="color:#f87171; text-decoration:none;">Track Record</a> ·
+    <a href="command-center.html" style="color:#f87171; text-decoration:none;">Command Center</a>
   </footer>
 
-  <script>
-    function openDemoGate(e) {
-      e.preventDefault();
+</div>
+
+<!-- LEAD CAPTURE MODAL -->
+<div id="leadModal">
+  <div style="width:95%; max-width:480px; background:#0b0b0b; border:1px solid #dc2626; border-radius:12px; padding:28px;">
+    <h3 style="color:#f87171; margin-bottom:8px;">Unlock Live Demo</h3>
+    <p style="color:#888; font-size:14px; margin-bottom:16px;">Enter your email to view the live trading dashboard.</p>
+    <form id="leadForm">
+      <input id="leadName" placeholder="Your name (optional)" style="width:100%; padding:12px; border-radius:8px; border:1px solid #333; background:#111; color:#fff; margin-bottom:10px; font-size:14px;">
+      <input id="leadEmail" placeholder="Email (required)" type="email" required style="width:100%; padding:12px; border-radius:8px; border:1px solid #333; background:#111; color:#fff; margin-bottom:10px; font-size:14px;">
+      <div id="leadError" style="display:none; color:#f87171; font-size:13px; margin-bottom:8px;"></div>
+      <div style="display:flex; gap:10px; margin-top:8px;">
+        <button id="leadSubmit" type="submit" style="flex:1; padding:12px; background:#dc2626; color:#fff; border:none; border-radius:8px; font-weight:700; cursor:pointer; font-size:14px;">Continue to Live Demo</button>
+        <button type="button" style="padding:12px 16px; background:transparent; border:1px solid #333; color:#888; border-radius:8px; cursor:pointer;" onclick="document.getElementById('leadModal').style.display='none'">Cancel</button>
+      </div>
+      <p style="margin-top:10px; color:#555; font-size:12px;">We respect your inbox. <a href="legal.html" style="color:#f87171;">Privacy</a></p>
+      <input type="text" id="leadBot" style="position:absolute; left:-9999px;" tabindex="-1" autocomplete="off">
+    </form>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  componentDidMount() {
+    const form = document.getElementById('leadForm');
+    if (!form) return;
+    form.onsubmit = async (ev) => {
+      ev.preventDefault();
+      const email = document.getElementById('leadEmail').value.trim();
+      const name = document.getElementById('leadName').value.trim();
+      const errEl = document.getElementById('leadError');
+      const botField = document.getElementById('leadBot');
+      if (botField && botField.value) return false;
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        errEl.textContent = 'Please enter a valid email.';
+        errEl.style.display = 'block';
+        return false;
+      }
+      errEl.style.display = 'none';
+      const btn = document.getElementById('leadSubmit');
+      btn.disabled = true;
+      btn.textContent = 'Submitting...';
       try {
-        if (localStorage.getItem('ogz_lead_demo_ok')) {
-          window.location.href = 'unified-dashboard.html';
-          return false;
-        }
-      } catch(_) {}
-      document.getElementById('leadModal').style.display = 'flex';
-      return false;
-    }
-    function closeLeadModal() {
-      document.getElementById('leadModal').style.display = 'none';
-    }
-    function showLeadError(msg) {
-      var el = document.getElementById('leadError');
-      el.textContent = msg; el.style.display = 'block';
-    }
-    function hideLeadError() {
-      document.getElementById('leadError').style.display = 'none';
-    }
-    function getUtmParams() {
-      var p = new URLSearchParams(window.location.search);
-      var keys = ['utm_source','utm_medium','utm_campaign','utm_term','utm_content'];
-      var obj = {}; keys.forEach(function(k) { if (p.get(k)) obj[k] = p.get(k); });
-      return obj;
-    }
-    async function submitLead(ev) {
-      ev.preventDefault(); hideLeadError();
-      var email = document.getElementById('leadEmail').value.trim();
-      var name = document.getElementById('leadName').value.trim();
-      if (document.getElementById('leadBot').value) return false;
-      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showLeadError('Please enter a valid email.'); return false; }
-      var btn = document.getElementById('leadSubmit');
-      btn.disabled = true; btn.textContent = 'Submitting...';
-      try {
-        var payload = {
-          email: email,
-          name: name,
-          type: 'demo_gate',
+        const payload = {
+          email, name, type: 'demo_gate',
           timestamp: new Date().toISOString(),
-          source: 'index',
-          page: window.location.href,
+          source: 'index', page: window.location.href,
           userAgent: navigator.userAgent,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
         };
-        var utms = getUtmParams();
-        for (var k in utms) payload[k] = utms[k];
-        var res = await fetch('https://hook.us2.make.com/qvl54ugr24grkqgkbbm7i0xmfub3oh5a', {
+        const p = new URLSearchParams(window.location.search);
+        ['utm_source','utm_medium','utm_campaign','utm_term','utm_content'].forEach(k => {
+          if (p.get(k)) payload[k] = p.get(k);
+        });
+        const res = await fetch('https://hook.us2.make.com/qvl54ugr24grkqgkbbm7i0xmfub3oh5a', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
           body: JSON.stringify(payload)
         });
         if (!res.ok) throw new Error('Webhook failed');
         try { localStorage.setItem('ogz_lead_demo_ok', String(Date.now())); } catch(_) {}
-        window.location.href = 'unified-dashboard.html';
+        window.location.href = 'unified-dashboard-v2.html';
       } catch (e) {
-        showLeadError('Could not submit. Please try again.');
+        errEl.textContent = 'Could not submit. Please try again.';
+        errEl.style.display = 'block';
       } finally {
-        btn.disabled = false; btn.textContent = 'Continue to Live Demo';
+        btn.disabled = false;
+        btn.textContent = 'Continue to Live Demo';
       }
       return false;
-    }
-  </script>
+    };
+  }
+  renderVals() { return {}; }
+}
+</script>
 </body>
 </html>

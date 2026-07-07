@@ -1,0 +1,12 @@
+/* ============================================================================
+   OGZPrime — Webfonts
+   All four families are Google Fonts (no local binaries required).
+   Imported here so consumers get them by linking styles.css alone.
+   ----------------------------------------------------------------------------
+   Orbitron     — display / logo / big numerics (hero price, equity)
+   JetBrains Mono — primary dashboard UI mono (the workhorse)
+   Space Mono   — marketing-site display headings
+   DM Sans      — marketing-site body copy
+   ============================================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;800;900&family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;700&display=swap');
