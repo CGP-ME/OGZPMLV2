@@ -233,7 +233,7 @@ describe('SessionRouter failed-safe transition behavior', () => {
     expect(router.stateManager.state.isTrading).toBe(false);
   });
 
-  test('pause failure applies visible local pause fallback', async () => {
+  test('pause failure reports unconfirmed pause without local state fallback', async () => {
     const router = makeRouter();
     router.activeSession = 'crypto';
     router.stateManager.pauseTrading.mockRejectedValue(new Error('state write failed'));
@@ -244,20 +244,18 @@ describe('SessionRouter failed-safe transition behavior', () => {
 
     expect(router.failedSafeMode).toBe(true);
     expect(router.failedSafeReason).toBe('state write failed');
-    expect(router.failedSafePauseConfirmed).toBe(true);
+    expect(router.failedSafePauseConfirmed).toBe(false);
     expect(router.failedSafePauseError).toBe('state write failed');
-    expect(router.failedSafePauseFallbackApplied).toBe(true);
-    expect(router.stateManager.state.isTrading).toBe(false);
-    expect(router.stateManager.state.pauseReason).toBe(
-      'SessionRouter failed safe: crypto -> stocks: state write failed'
-    );
+    expect(router.failedSafePauseFallbackApplied).toBe(false);
+    expect(router.stateManager.state.isTrading).toBe(true);
+    expect(router.stateManager.state.pauseReason).toBeUndefined();
     expect(fallbackEvents).toEqual([
       expect.objectContaining({
         from: 'crypto',
         to: 'stocks',
         reason: 'state write failed',
-        fallbackApplied: true,
-        pauseConfirmed: true,
+        fallbackApplied: false,
+        pauseConfirmed: false,
         pauseError: 'state write failed'
       })
     ]);

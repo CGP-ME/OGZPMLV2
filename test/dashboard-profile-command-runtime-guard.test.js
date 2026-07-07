@@ -2,6 +2,7 @@
 
 const WebSocketManager = require('../core/WebSocketManager');
 const PerformanceDashboardIntegration = require('../core/PerformanceDashboardIntegration');
+const stateManager = require('../core/StateManager').getInstance();
 
 describe('dashboard profile command runtime guard', () => {
   let logSpy;
@@ -59,6 +60,40 @@ describe('dashboard profile command runtime guard', () => {
         .toThrow(/Runtime profile switch rejected for 'legacy-wide': runtime_profile_switch_not_wired/);
     } finally {
       integration.shutdown();
+    }
+  });
+
+  test('dashboard pause and resume carry explicit operator authority metadata', () => {
+    const send = jest.fn();
+    const pauseSpy = jest.spyOn(stateManager, 'pauseTrading').mockResolvedValue({ success: true });
+    const resumeSpy = jest.spyOn(stateManager, 'resumeTrading').mockResolvedValue({ success: true });
+    const manager = new WebSocketManager({
+      dashboardWs: { readyState: 1, send }
+    });
+
+    try {
+      manager.pauseTradingFromDashboard(' operator pause ');
+      manager.resumeTradingFromDashboard();
+
+      expect(pauseSpy).toHaveBeenCalledWith('operator pause', {
+        source: 'dashboard_manual',
+        recoverable: false
+      });
+      expect(resumeSpy).toHaveBeenCalledWith({
+        source: 'dashboard_manual'
+      });
+      expect(JSON.parse(send.mock.calls[0][0])).toEqual(expect.objectContaining({
+        type: 'pause_confirmed',
+        reason: 'operator pause',
+        source: 'dashboard_manual'
+      }));
+      expect(JSON.parse(send.mock.calls[1][0])).toEqual(expect.objectContaining({
+        type: 'resume_confirmed',
+        source: 'dashboard_manual'
+      }));
+    } finally {
+      pauseSpy.mockRestore();
+      resumeSpy.mockRestore();
     }
   });
 });

@@ -282,6 +282,32 @@ describe('StateManager openPosition scope contract', () => {
     expect(manager._buildScopedDashboardPositions(manager.state)).toEqual(beforePositions);
   });
 
+  test('updateActiveTrade bypass telemetry does not halt new entries', () => {
+    const alertListener = jest.fn();
+    manager.onAlert(alertListener);
+
+    manager.updateActiveTrade('BYPASS_TELEMETRY_1', {
+      ...fullScope({
+        orderId: 'BYPASS_TELEMETRY_1',
+      }),
+      id: 'BYPASS_TELEMETRY_1',
+      sizeUsd: 500,
+      size: 500,
+      entryPrice: 100,
+      status: 'open',
+      frozenExitPolicy: frozenExitPolicy({ policyHash: 'bypass-telemetry-policy' }),
+    });
+
+    expect(manager.getBypassViolations()).toHaveLength(1);
+    expect(alertListener).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'BYPASS_VIOLATION',
+      method: 'updateActiveTrade',
+      orderId: 'BYPASS_TELEMETRY_1',
+    }));
+    expect(manager.isHalted()).toBe(false);
+    expect(manager.getHaltReason()).toBeNull();
+  });
+
   test('set rejects malformed activeTrades maps before mutating active trades', () => {
     const beforePositions = manager._buildScopedDashboardPositions(manager.state);
 
@@ -1514,6 +1540,42 @@ describe('StateManager openPosition scope contract', () => {
     const reset = await manager.resetSymbolHalt('TSLA');
     expect(reset.success).toBe(true);
     expect(manager.isSymbolHalted('TSLA')).toBe(false);
+  });
+
+  test('haltSymbol refuses unauthorized persistent entry blocks', async () => {
+    const result = await manager.haltSymbol('MARA', 'legacy caller tried to block entries');
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'unauthorized_symbol_halt',
+      symbol: 'MARA',
+      code: null,
+    }));
+    expect(manager.isSymbolHalted('MARA')).toBe(false);
+    expect(manager.get('symbolEntryHalts')).not.toHaveProperty('MARA');
+  });
+
+  test('updateState cannot directly inject symbol entry halts', async () => {
+    const result = await manager.updateState({
+      symbolEntryHalts: {
+        MARA: {
+          reason: 'fake broker desync halt',
+          code: 'exit_rail_broker_desync',
+          authority: 'financial_integrity',
+          financialIntegrityCritical: true,
+          haltedAt: Date.now(),
+          expiresAt: null,
+        },
+      },
+    }, { action: 'UNAUTHORIZED_DIRECT_STATE_WRITE' });
+
+    expect(result.success).toBe(true);
+    expect(manager.isSymbolHalted('MARA')).toBe(false);
+    expect(manager.get('symbolEntryHalts')).toEqual({});
+    expect(manager.notifyListeners).toHaveBeenCalledWith(
+      expect.objectContaining({ symbolEntryHalts: {} }),
+      expect.objectContaining({ action: 'UNAUTHORIZED_DIRECT_STATE_WRITE' })
+    );
   });
 
   test('symbol loss cooldown expiry does not keep entries halted', async () => {

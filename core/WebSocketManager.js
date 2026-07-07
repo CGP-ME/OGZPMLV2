@@ -64,6 +64,41 @@ class WebSocketManager {
     return false;
   }
 
+  pauseTradingFromDashboard(reason) {
+    const normalizedReason = typeof reason === 'string' && reason.trim()
+      ? reason.trim()
+      : 'Manual pause from dashboard';
+    console.log('[Dashboard] Pause command received:', normalizedReason);
+    const result = stateManager.pauseTrading(normalizedReason, {
+      source: 'dashboard_manual',
+      recoverable: false
+    });
+    if (this.ctx.dashboardWs && this.ctx.dashboardWs.readyState === WebSocket.OPEN) {
+      this.ctx.dashboardWs.send(JSON.stringify({
+        type: 'pause_confirmed',
+        reason: normalizedReason,
+        source: 'dashboard_manual',
+        timestamp: Date.now()
+      }));
+    }
+    return result;
+  }
+
+  resumeTradingFromDashboard() {
+    console.log('[Dashboard] Resume command received');
+    const result = stateManager.resumeTrading({
+      source: 'dashboard_manual'
+    });
+    if (this.ctx.dashboardWs && this.ctx.dashboardWs.readyState === WebSocket.OPEN) {
+      this.ctx.dashboardWs.send(JSON.stringify({
+        type: 'resume_confirmed',
+        source: 'dashboard_manual',
+        timestamp: Date.now()
+      }));
+    }
+    return result;
+  }
+
   /**
    * Initialize Dashboard WebSocket connection (Change 528)
    * OPTIONAL - only connects if WS_HOST is set
@@ -255,23 +290,12 @@ class WebSocketManager {
             // PAUSE TRADING - Manual safety stop from dashboard
             else if (msg.command === 'pause_trading') {
               const reason = msg.reason || 'Manual pause from dashboard';
-              console.log('[Dashboard] Pause command received:', reason);
-              stateManager.pauseTrading(reason);
-              this.ctx.dashboardWs.send(JSON.stringify({
-                type: 'pause_confirmed',
-                reason: reason,
-                timestamp: Date.now()
-              }));
+              this.pauseTradingFromDashboard(reason);
             }
 
             // RESUME TRADING - Manual resume from dashboard
             else if (msg.command === 'resume_trading') {
-              console.log('[Dashboard] Resume command received');
-              stateManager.resumeTrading();
-              this.ctx.dashboardWs.send(JSON.stringify({
-                type: 'resume_confirmed',
-                timestamp: Date.now()
-              }));
+              this.resumeTradingFromDashboard();
             }
           }
 

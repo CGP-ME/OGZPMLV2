@@ -9,6 +9,12 @@ describe('StateManager load validation', () => {
   let tempDir;
   let stateFile;
 
+  const exitContract = {
+    stopLossPercent: -0.5,
+    takeProfitPercent: 1,
+    useStructuralExits: false,
+  };
+
   beforeEach(() => {
     jest.resetModules();
     originalEnv = { ...process.env };
@@ -35,6 +41,10 @@ describe('StateManager load validation', () => {
   });
 
   afterEach(() => {
+    try {
+      require('../foundation/ConfigLoader').clearOverrides();
+      require('../foundation/ConfigLoader')._resetForTest();
+    } catch (_) {}
     process.env = originalEnv;
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
@@ -59,6 +69,292 @@ describe('StateManager load validation', () => {
     const saved = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
     expect(saved.isTrading).toBe(false);
     expect(saved.pauseReason).toContain('invalid persisted isTrading');
+  });
+
+  test('load clears persisted data-feed liveness pause with stale missing scope', () => {
+    fs.writeFileSync(stateFile, JSON.stringify({
+      balance: 10000,
+      totalBalance: 10000,
+      activeTrades: [],
+      position: 0,
+      inPosition: 0,
+      positionCount: 0,
+      entryPrice: 0,
+      entryTime: null,
+      isTrading: false,
+      pauseReason: 'Liveness watchdog: missing symbol/timeframe',
+      lastError: 'Liveness watchdog: missing symbol/timeframe',
+      pauseSource: 'data_feed_liveness',
+      pauseRecoverable: true,
+      pauseScope: {
+        symbol: null,
+        timeframe: '1m',
+        brokerId: 'kraken',
+        accountId: null,
+        assetClass: null,
+        executionMode: null,
+      },
+      recoveryMode: false,
+    }), 'utf8');
+
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    expect(manager.get('isTrading')).toBe(true);
+    expect(manager.get('pauseReason')).toBeNull();
+    expect(manager.get('lastError')).toBeNull();
+    expect(manager.get('pauseSource')).toBeNull();
+    expect(manager.get('pauseScope')).toBeNull();
+  });
+
+  test('load drops persisted symbol cooldown halt and streak when cooldown is disabled', () => {
+    process.env.SYMBOL_LOSS_COOLDOWN_ENABLED = 'false';
+    const now = Date.now();
+    fs.writeFileSync(stateFile, JSON.stringify({
+      balance: 10000,
+      totalBalance: 10000,
+      activeTrades: [],
+      position: 0,
+      inPosition: 0,
+      isTrading: true,
+      symbolEntryHalts: {
+        TSLA: {
+          reason: 'symbol_cooldown: TSLA 2 consecutive losses',
+          code: 'symbol_cooldown',
+          haltedAt: now - 1000,
+          expiresAt: now + 3600000,
+          consecutiveLosses: 2,
+        },
+      },
+      symbolLossStreaks: {
+        TSLA: {
+          consecutiveLosses: 2,
+          lastClosedAt: now - 1000,
+          lastPnl: -5,
+        },
+      },
+    }), 'utf8');
+
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    expect(manager.isSymbolHalted('TSLA')).toBe(false);
+    expect(manager.get('symbolEntryHalts')).toEqual({});
+    expect(manager.get('symbolLossStreaks')).toEqual({});
+
+    const saved = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+    expect(saved.symbolEntryHalts).toEqual({});
+    expect(saved.symbolLossStreaks).toEqual({});
+  });
+
+  test('load drops legacy symbol cooldown halt without code when cooldown is disabled', () => {
+    process.env.SYMBOL_LOSS_COOLDOWN_ENABLED = 'false';
+    const now = Date.now();
+    fs.writeFileSync(stateFile, JSON.stringify({
+      balance: 10000,
+      totalBalance: 10000,
+      activeTrades: [],
+      position: 0,
+      inPosition: 0,
+      isTrading: true,
+      symbolEntryHalts: {
+        TSLA: {
+          reason: 'symbol_cooldown: TSLA 2 consecutive losses',
+          haltedAt: now - 1000,
+          expiresAt: now + 3600000,
+          consecutiveLosses: 2,
+        },
+      },
+      symbolLossStreaks: {},
+    }), 'utf8');
+
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    expect(manager.isSymbolHalted('TSLA')).toBe(false);
+    expect(manager.get('symbolEntryHalts')).toEqual({});
+
+    const saved = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+    expect(saved.symbolEntryHalts).toEqual({});
+  });
+
+  test('load drops legacy symbol cooldown halt with mixed-case marker when cooldown is disabled', () => {
+    process.env.SYMBOL_LOSS_COOLDOWN_ENABLED = 'false';
+    const now = Date.now();
+    fs.writeFileSync(stateFile, JSON.stringify({
+      balance: 10000,
+      totalBalance: 10000,
+      activeTrades: [],
+      position: 0,
+      inPosition: 0,
+      isTrading: true,
+      symbolEntryHalts: {
+        TSLA: {
+          reason: 'Symbol_Cooldown: TSLA 2 consecutive losses',
+          code: 'SYMBOL_COOLDOWN',
+          haltedAt: now - 1000,
+          expiresAt: now + 3600000,
+          consecutiveLosses: 2,
+        },
+      },
+      symbolLossStreaks: {},
+    }), 'utf8');
+
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    expect(manager.isSymbolHalted('TSLA')).toBe(false);
+    expect(manager.get('symbolEntryHalts')).toEqual({});
+  });
+
+  test('load drops legacy symbol cooldown halt with spaced reason marker when cooldown is disabled', () => {
+    process.env.SYMBOL_LOSS_COOLDOWN_ENABLED = 'false';
+    const now = Date.now();
+    fs.writeFileSync(stateFile, JSON.stringify({
+      balance: 10000,
+      totalBalance: 10000,
+      activeTrades: [],
+      position: 0,
+      inPosition: 0,
+      isTrading: true,
+      symbolEntryHalts: {
+        TSLA: {
+          reason: 'symbol_cooldown : TSLA 2 consecutive losses',
+          haltedAt: now - 1000,
+          expiresAt: now + 3600000,
+          consecutiveLosses: 2,
+        },
+      },
+      symbolLossStreaks: {},
+    }), 'utf8');
+
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    expect(manager.isSymbolHalted('TSLA')).toBe(false);
+    expect(manager.get('symbolEntryHalts')).toEqual({});
+  });
+
+  test('load honors ConfigLoader override disabling cooldown over cached enabled snapshot', () => {
+    process.env.SYMBOL_LOSS_COOLDOWN_ENABLED = 'true';
+    process.env.SYMBOL_LOSS_COOLDOWN_CONSECUTIVE_LOSSES = '2';
+    process.env.SYMBOL_LOSS_COOLDOWN_MINUTES = '120';
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    ConfigLoader.load({ force: true, silent: true });
+    ConfigLoader.setOverrides({
+      entryLogic: {
+        symbolLossCooldown: {
+          enabled: false,
+          consecutiveLosses: 2,
+          cooldownMinutes: 120,
+        },
+      },
+    });
+
+    const now = Date.now();
+    fs.writeFileSync(stateFile, JSON.stringify({
+      balance: 10000,
+      totalBalance: 10000,
+      activeTrades: [],
+      position: 0,
+      inPosition: 0,
+      isTrading: true,
+      symbolEntryHalts: {
+        TSLA: {
+          reason: 'symbol_cooldown: TSLA 2 consecutive losses',
+          code: 'symbol_cooldown',
+          haltedAt: now - 1000,
+          expiresAt: now + 3600000,
+          consecutiveLosses: 2,
+        },
+      },
+      symbolLossStreaks: {
+        TSLA: {
+          consecutiveLosses: 2,
+          lastClosedAt: now - 1000,
+          lastPnl: -5,
+        },
+      },
+    }), 'utf8');
+
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    expect(manager.isSymbolHalted('TSLA')).toBe(false);
+    expect(manager.get('symbolEntryHalts')).toEqual({});
+    expect(manager.get('symbolLossStreaks')).toEqual({});
+  });
+
+  test('load drops unauthorized symbol halt codes from persisted state', () => {
+    const now = Date.now();
+    fs.writeFileSync(stateFile, JSON.stringify({
+      balance: 10000,
+      totalBalance: 10000,
+      activeTrades: [],
+      position: 0,
+      inPosition: 0,
+      isTrading: true,
+      symbolEntryHalts: {
+        TSLA: {
+          reason: 'unauthorized stale halt from disk',
+          code: 'legacy_hidden_block',
+          haltedAt: now - 1000,
+          expiresAt: now + 3600000,
+        },
+      },
+      symbolLossStreaks: {},
+    }), 'utf8');
+
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    expect(manager.isSymbolHalted('TSLA')).toBe(false);
+    expect(manager.get('symbolEntryHalts')).toEqual({});
+  });
+
+  test('load preserves exit-rail broker desync halt authority metadata', () => {
+    const now = Date.now();
+    fs.writeFileSync(stateFile, JSON.stringify({
+      balance: 10000,
+      totalBalance: 10000,
+      activeTrades: [],
+      position: 0,
+      inPosition: 0,
+      isTrading: true,
+      symbolEntryHalts: {
+        NVDA: {
+          reason: 'EXIT-RAIL: broker position still open after confirmed full exit for NVDA',
+          code: 'exit_rail_broker_desync',
+          authority: 'financial_integrity',
+          financialIntegrityCritical: true,
+          entryBlockScope: 'symbol',
+          operatorActionRequired: true,
+          tradeId: 'NVDA_EXIT_DESYNC_1',
+          brokerPositionSize: 2,
+          flattenAttempted: true,
+          flattenOrderId: 'FLATTEN_NVDA_1',
+          haltedAt: String(now - 2000),
+          expiresAt: null,
+        },
+      },
+      symbolLossStreaks: {},
+    }), 'utf8');
+
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    expect(manager.isSymbolHalted('NVDA')).toBe(true);
+    expect(manager.get('symbolEntryHalts').NVDA).toEqual(expect.objectContaining({
+      code: 'exit_rail_broker_desync',
+      authority: 'financial_integrity',
+      financialIntegrityCritical: true,
+      entryBlockScope: 'symbol',
+      operatorActionRequired: true,
+      tradeId: 'NVDA_EXIT_DESYNC_1',
+      brokerPositionSize: 2,
+      flattenAttempted: true,
+      flattenOrderId: 'FLATTEN_NVDA_1',
+    }));
   });
 
   test('fresh state initializer applies explicit starting balance and clears exposure', () => {
@@ -392,6 +688,7 @@ describe('StateManager load validation', () => {
       assetClass: 'stocks',
       executionMode: 'live',
       timeframe: '15m',
+      exitContract,
       entryOrderQuantity: 5,
       entryOrderQuantityUnit: 'shares',
       remainingOrderQuantity: 5,
@@ -427,6 +724,7 @@ describe('StateManager load validation', () => {
       assetClass: 'stocks',
       executionMode: 'paper',
       timeframe: '15m',
+      exitContract,
       entryOrderQuantity: 3,
       entryOrderQuantityUnit: 'shares',
       remainingOrderQuantity: 3,
@@ -469,6 +767,7 @@ describe('StateManager load validation', () => {
       assetClass: 'stocks',
       executionMode: 'paper',
       timeframe: '15m',
+      exitContract,
       entryOrderQuantity: 3,
       entryOrderQuantityUnit: 'shares',
       remainingOrderQuantity: 3,
@@ -499,6 +798,7 @@ describe('StateManager load validation', () => {
       assetClass: 'stocks',
       executionMode: 'paper',
       timeframe: '15m',
+      exitContract,
       entryOrderQuantity: 3,
       entryOrderQuantityUnit: 'shares',
       remainingOrderQuantity: 3,
@@ -539,6 +839,7 @@ describe('StateManager load validation', () => {
       assetClass: 'stocks',
       executionMode: 'paper',
       timeframe: '15m',
+      exitContract,
       entryOrderQuantity: 5,
       entryOrderQuantityUnit: 'shares',
       remainingOrderQuantity: 5,
@@ -578,6 +879,7 @@ describe('StateManager load validation', () => {
       assetClass: 'stocks',
       executionMode: 'paper',
       timeframe: '15m',
+      exitContract,
       entryOrderQuantity: 10,
       entryOrderQuantityUnit: 'shares',
       remainingOrderQuantity: 10,
@@ -621,6 +923,7 @@ describe('StateManager load validation', () => {
       assetClass: 'stocks',
       executionMode: 'paper',
       timeframe: '15m',
+      exitContract,
       entryOrderQuantity: 5,
       entryOrderQuantityUnit: 'shares',
       remainingOrderQuantity: 5,
@@ -657,6 +960,7 @@ describe('StateManager load validation', () => {
       assetClass: 'stocks',
       executionMode: 'paper',
       timeframe: '15m',
+      exitContract,
       entryOrderQuantity: 3,
       entryOrderQuantityUnit: 'shares',
       remainingOrderQuantity: 3,

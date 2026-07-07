@@ -254,15 +254,8 @@ class SessionRouter extends EventEmitter {
   }
 
   _applyLocalPauseFallback(reason) {
-    if (!this.stateManager || !this.stateManager.state || typeof this.stateManager.state !== 'object') {
-      return false;
-    }
-
-    this.stateManager.state.isTrading = false;
-    this.stateManager.state.lastError = reason;
-    this.stateManager.state.pauseReason = reason;
-    this.stateManager.state.pausedAt = Date.now();
-    return true;
+    console.error(`[SessionRouter] Refusing direct StateManager pause fallback: ${reason}`);
+    return false;
   }
 
   _transitionAt(now) {

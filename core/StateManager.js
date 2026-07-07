@@ -99,6 +99,49 @@ const INVALID_SCOPE_PLACEHOLDER_VALUES = new Set([
 
 const TTP_CUTOFF_FLATNESS_PAUSE_SOURCE = 'ttp_cutoff_unverified_broker_flatness';
 const TTP_CUTOFF_FLATNESS_PAUSE_PREFIX = '[TTP_MARKET_TIME] broker flatness unverified after cutoff';
+const DATA_FEED_LIVENESS_PAUSE_SOURCE = 'data_feed_liveness';
+const DATA_FEED_LIVENESS_PAUSE_PREFIXES = [
+  'Liveness watchdog:',
+  'Stale data:',
+  'Data gap:'
+];
+const AUTHORIZED_SYMBOL_HALT_CODES = new Set([
+  'exit_rail_broker_desync',
+  'symbol_cooldown'
+]);
+const SYMBOL_ENTRY_HALTS_MUTATION_TOKEN = Symbol('symbolEntryHaltsMutation');
+
+function ensureConfigLoaded() {
+  try {
+    if (typeof ConfigLoader.hasLoadedSnapshot === 'function' && !ConfigLoader.hasLoadedSnapshot()) {
+      ConfigLoader.load({ silent: true });
+    }
+  } catch (_) {}
+}
+
+function isSymbolCooldownHalt(halt) {
+  if (!halt || typeof halt !== 'object') return false;
+  const code = typeof halt.code === 'string' ? halt.code.trim().toLowerCase() : '';
+  const reason = typeof halt.reason === 'string' ? halt.reason.trim().toLowerCase() : '';
+  return code === 'symbol_cooldown' || /^symbol_cooldown\s*:/.test(reason);
+}
+
+function normalizeSymbolHaltCode(metadata) {
+  if (!metadata || typeof metadata !== 'object') return null;
+  return typeof metadata.code === 'string' && metadata.code.trim()
+    ? metadata.code.trim().toLowerCase()
+    : null;
+}
+
+function normalizeSymbolHaltExpiry(halt) {
+  return halt.expiresAt === null || halt.expiresAt === undefined
+    ? null
+    : finiteNumberOrNull(halt.expiresAt);
+}
+
+function hasSymbolEntryHaltsMutationAuthority(context) {
+  return context?.symbolEntryHaltsMutationToken === SYMBOL_ENTRY_HALTS_MUTATION_TOKEN;
+}
 
 function finiteNumberOrNull(value) {
   const number = Number(value);
@@ -497,7 +540,11 @@ class StateManager {
       pauseSource: null,
       pauseRecoverable: false,
       pauseScope: null,
-    }, { action: 'INITIALIZE_FRESH_STATE', ...context });
+    }, {
+      action: 'INITIALIZE_FRESH_STATE',
+      ...context,
+      symbolEntryHaltsMutationToken: SYMBOL_ENTRY_HALTS_MUTATION_TOKEN,
+    });
   }
 
   /**
@@ -668,12 +715,20 @@ class StateManager {
       // Snapshot for rollback
       const snapshot = { ...this.state };
       const timestamp = Date.now();
+      const preparedUpdates = { ...updates };
+
+      if (Object.prototype.hasOwnProperty.call(preparedUpdates, 'symbolEntryHalts')) {
+        preparedUpdates.symbolEntryHalts = this._normalizeSymbolEntryHaltsMutation(
+          preparedUpdates.symbolEntryHalts,
+          context
+        );
+      }
 
       // Validate updates
-      this.validateUpdates(updates);
+      this.validateUpdates(preparedUpdates);
 
       // Apply updates atomically
-      for (const [key, value] of Object.entries(updates)) {
+      for (const [key, value] of Object.entries(preparedUpdates)) {
         // DEBUG: Log balance changes
         if (key === 'balance') {
           console.log(`[StateManager] Balance update: ${this.state[key]} -> ${value}`);
@@ -697,13 +752,13 @@ class StateManager {
       // Log transaction
       this.logTransaction({
         timestamp,
-        updates,
+        updates: preparedUpdates,
         context,
         snapshot
       });
 
       // Notify listeners
-      this.notifyListeners(updates, context);
+      this.notifyListeners(preparedUpdates, context);
 
       // CHANGE 2025-12-13: Save state to disk after updates
       this.save();
@@ -1309,7 +1364,10 @@ class StateManager {
         size: closeSize,
         pnl,
         partial,
-        ...context
+        ...context,
+        symbolEntryHaltsMutationToken: cooldownUpdates.symbolEntryHalts
+          ? SYMBOL_ENTRY_HALTS_MUTATION_TOKEN
+          : undefined,
       });
 
       narratorPayload = {
@@ -1816,6 +1874,32 @@ class StateManager {
     return pauseReason.trim() ? pauseReason : String(this.state.lastError || '');
   }
 
+  _isDataFeedLivenessPause() {
+    if (this.state.isTrading !== false) return false;
+    const pauseSource = typeof this.state.pauseSource === 'string'
+      ? this.state.pauseSource.trim()
+      : this.state.pauseSource || null;
+    return pauseSource === DATA_FEED_LIVENESS_PAUSE_SOURCE;
+  }
+
+  _clearPersistedDataFeedLivenessPause() {
+    if (!this._isDataFeedLivenessPause()) {
+      return false;
+    }
+
+    const pauseReason = String(this.state.pauseReason || this.state.lastError || '').trim();
+    this.state.isTrading = true;
+    this.state.pauseReason = null;
+    this.state.pauseSource = null;
+    this.state.pauseRecoverable = false;
+    this.state.pauseScope = null;
+    this.state.lastError = null;
+    this.state.pausedAt = null;
+    this.state.resumedAt = Date.now();
+    console.warn(`[StateManager] Cleared persisted data-feed liveness pause on load: ${pauseReason || 'unknown liveness pause'}`);
+    return true;
+  }
+
   _migrateLegacyTtpFlatnessPause(activeTradeCount) {
     if (this.state.isTrading !== false || !this._isLegacyTtpFlatnessPause()) {
       return false;
@@ -1935,13 +2019,11 @@ class StateManager {
   // === CHANGE 2025-12-13: STEP 1 - ACTIVE TRADES MANAGEMENT ===
 
   /**
-   * Add or update an active trade
-   * PHASE 13B: BYPASS HALT - triggers haltNewEntries when called from outside PositionTracker
+   * Add or update an active trade.
+   * Direct callers are recorded as bypass telemetry only; this path must not
+   * silently convert an active-trade write into a global entry halt.
    */
   updateActiveTrade(orderId, tradeData) {
-    // PHASE 13B: Bypass halt switch ENABLED
-    const BYPASS_HALT_ENABLED = true;
-
     const stack = new Error().stack;
     const isFromPositionTracker = stack.includes('PositionTracker');
     if (!isFromPositionTracker) {
@@ -1957,35 +2039,21 @@ class StateManager {
         stack: stack.split('\n').slice(1, 6).join('\n')
       });
 
-      // PHASE 13B: Trigger halt on bypass
-      if (BYPASS_HALT_ENABLED) {
-        this._haltNewEntries = true;
-        this._haltReason = `Bypass detected: ${caller} called updateActiveTrade() directly`;
+      console.warn(`[StateManager] BYPASS DETECTED: updateActiveTrade() called from outside PositionTracker`);
+      console.warn(`   Caller: ${caller}`);
+      console.warn(`   OrderId: ${orderId}`);
 
-        console.error(`[StateManager] BYPASS HALT TRIGGERED`);
-        console.error(`   Caller: ${caller}`);
-        console.error(`   OrderId: ${orderId}`);
-        console.error(`   Stack trace:\n${stack.split('\n').slice(1, 6).join('\n')}`);
-        console.error(`   NEW ENTRIES HALTED - exits only until flat`);
-
-        // Emit alert event if listeners registered
-        if (this._alertListeners?.length > 0) {
-          const alert = {
-            type: 'BYPASS_VIOLATION',
-            method: 'updateActiveTrade',
-            caller,
-            orderId,
-            timestamp: Date.now()
-          };
-          for (const listener of this._alertListeners) {
-            try { listener(alert); } catch (e) { /* ignore */ }
-          }
+      if (this._alertListeners?.length > 0) {
+        const alert = {
+          type: 'BYPASS_VIOLATION',
+          method: 'updateActiveTrade',
+          caller,
+          orderId,
+          timestamp: Date.now()
+        };
+        for (const listener of this._alertListeners) {
+          try { listener(alert); } catch (e) { /* ignore */ }
         }
-      } else {
-        // Detection mode only (Phase 13A behavior)
-        console.warn(`[StateManager] BYPASS DETECTED: updateActiveTrade() called from outside PositionTracker`);
-        console.warn(`   Caller: ${caller}`);
-        console.warn(`   OrderId: ${orderId}`);
       }
     }
 
@@ -2898,29 +2966,36 @@ class StateManager {
   }
 
   /**
-   * PHASE 13B: Check if new entries are halted due to bypass violation
-   * @returns {boolean} True if entries halted
+   * Historical bypass halt surface retained for callers, but bypass detection
+   * is now telemetry-only and cannot globally halt entries.
    */
   isHalted() {
-    return this._haltNewEntries === true;
+    return false;
   }
 
   /**
-   * PHASE 13B: Get halt reason
+   * Historical bypass halt reason retained for callers.
    * @returns {string|null} Reason for halt or null
    */
   getHaltReason() {
-    return this._haltReason || null;
+    return null;
   }
 
   _symbolLossCooldownConfig() {
-    let cfg = getConfigValue('entryLogic.symbolLossCooldown') || null;
-    if (!cfg && typeof ConfigLoader.get === 'function') {
+    ensureConfigLoaded();
+    let cfg = null;
+    if (typeof ConfigLoader.get === 'function') {
       try {
-        cfg = ConfigLoader.get('entryLogic.symbolLossCooldown');
-      } catch (_) {
-        cfg = null;
-      }
+        const enabled = ConfigLoader.get('entryLogic.symbolLossCooldown.enabled');
+        const consecutiveLosses = ConfigLoader.get('entryLogic.symbolLossCooldown.consecutiveLosses');
+        const cooldownMinutes = ConfigLoader.get('entryLogic.symbolLossCooldown.cooldownMinutes');
+        if (enabled !== undefined || consecutiveLosses !== undefined || cooldownMinutes !== undefined) {
+          cfg = { enabled, consecutiveLosses, cooldownMinutes };
+        }
+      } catch (_) {}
+    }
+    if (!cfg) {
+      cfg = getConfigValue('entryLogic.symbolLossCooldown') || null;
     }
     if (!cfg) {
       cfg = tradingConfigFile.entryLogic?.symbolLossCooldown || null;
@@ -2989,11 +3064,62 @@ class StateManager {
     return { symbolLossStreaks, symbolEntryHalts };
   }
 
+  _normalizeSymbolEntryHaltsCollection(symbolEntryHalts, source = 'StateManager.symbolEntryHalts') {
+    if (!symbolEntryHalts || typeof symbolEntryHalts !== 'object' || Array.isArray(symbolEntryHalts)) {
+      return {};
+    }
+
+    const normalizedHalts = {};
+    const symbolLossCooldownEnabled = this._symbolLossCooldownConfig().enabled;
+    const now = Date.now();
+    for (const [haltSymbol, halt] of Object.entries(symbolEntryHalts)) {
+      if (!halt || typeof halt !== 'object' || Array.isArray(halt)) continue;
+      const normalized = this.normalizeSymbol(haltSymbol, `${source} symbolEntryHalts`);
+      const haltedAt = finiteNumberOrNull(halt.haltedAt);
+      const expiresAt = normalizeSymbolHaltExpiry(halt);
+      if (haltedAt === null) continue;
+      if (expiresAt !== null && expiresAt <= now) continue;
+      const code = normalizeSymbolHaltCode(halt);
+      if (!code || !AUTHORIZED_SYMBOL_HALT_CODES.has(code)) continue;
+      const normalizedHalt = { ...halt, code };
+      if (isSymbolCooldownHalt(normalizedHalt) && !symbolLossCooldownEnabled) continue;
+      normalizedHalts[normalized] = {
+        ...normalizedHalt,
+        reason: typeof halt.reason === 'string' && halt.reason.trim() ? halt.reason : 'unspecified',
+        code,
+        haltedAt,
+        expiresAt,
+      };
+    }
+    return normalizedHalts;
+  }
+
+  _normalizeSymbolEntryHaltsMutation(symbolEntryHalts, context = {}) {
+    if (!hasSymbolEntryHaltsMutationAuthority(context)) {
+      const action = typeof context.action === 'string' && context.action.trim()
+        ? context.action.trim()
+        : 'unknown';
+      console.error(`[StateManager] REFUSING UNAUTHORIZED symbolEntryHalts state mutation from ${action}`);
+      return this._normalizeSymbolEntryHaltsCollection(
+        this.state.symbolEntryHalts || {},
+        'StateManager.current'
+      );
+    }
+
+    return this._normalizeSymbolEntryHaltsCollection(
+      symbolEntryHalts,
+      'StateManager.authorizedMutation'
+    );
+  }
+
   _symbolHaltRecord(symbol, now = Date.now()) {
     const normalized = this.normalizeSymbol(symbol, 'StateManager.symbolHaltRecord');
     const halt = this.state.symbolEntryHalts?.[normalized];
     if (!halt) return null;
-    const expiresAt = finiteNumberOrNull(halt.expiresAt);
+    if (isSymbolCooldownHalt(halt) && !this._symbolLossCooldownConfig().enabled) {
+      return null;
+    }
+    const expiresAt = normalizeSymbolHaltExpiry(halt);
     if (expiresAt !== null && expiresAt <= now) {
       return null;
     }
@@ -3002,18 +3128,36 @@ class StateManager {
 
   async haltSymbol(symbol, reason, metadata = {}) {
     const normalized = this.normalizeSymbol(symbol, 'StateManager.haltSymbol');
+    const haltMetadata = metadata && typeof metadata === 'object' ? metadata : {};
+    const code = normalizeSymbolHaltCode(haltMetadata);
+    if (!code || !AUTHORIZED_SYMBOL_HALT_CODES.has(code)) {
+      console.error(`[StateManager] REFUSING UNAUTHORIZED SYMBOL ENTRY HALT: ${normalized} - ${reason || 'unspecified'} (code=${code || 'missing'})`);
+      return {
+        success: false,
+        reason: 'unauthorized_symbol_halt',
+        symbol: normalized,
+        requestedReason: reason || 'unspecified',
+        code
+      };
+    }
     const now = Date.now();
     const halts = { ...(this.state.symbolEntryHalts || {}) };
     halts[normalized] = {
       reason: reason || 'unspecified',
       haltedAt: now,
-      ...(metadata && typeof metadata === 'object' ? metadata : {})
+      ...haltMetadata,
+      code
     };
 
     console.error(`[StateManager] SYMBOL ENTRY HALT: ${normalized} - ${halts[normalized].reason}`);
     return this.updateState(
       { symbolEntryHalts: halts },
-      { action: 'SYMBOL_ENTRY_HALT', symbol: normalized, reason: halts[normalized].reason }
+      {
+        action: 'SYMBOL_ENTRY_HALT',
+        symbol: normalized,
+        reason: halts[normalized].reason,
+        symbolEntryHaltsMutationToken: SYMBOL_ENTRY_HALTS_MUTATION_TOKEN,
+      }
     );
   }
 
@@ -3036,15 +3180,18 @@ class StateManager {
     console.warn(`[StateManager] SYMBOL ENTRY HALT RESET: ${normalized}`);
     return this.updateState(
       { symbolEntryHalts: halts },
-      { action: 'SYMBOL_ENTRY_HALT_RESET', symbol: normalized }
+      {
+        action: 'SYMBOL_ENTRY_HALT_RESET',
+        symbol: normalized,
+        symbolEntryHaltsMutationToken: SYMBOL_ENTRY_HALTS_MUTATION_TOKEN,
+      }
     );
   }
 
   /**
-   * PHASE 13B: Reset halt flag (use with caution - only on bot restart)
+   * Historical bypass halt reset retained for compatibility.
    */
   resetHalt() {
-    console.warn('[StateManager] HALT FLAG RESET - entries re-enabled');
     this._haltNewEntries = false;
     this._haltReason = null;
   }
@@ -3065,6 +3212,7 @@ class StateManager {
    */
   save() {
     try {
+      ensureConfigLoaded();
       // Skip state saving in backtest mode - don't corrupt real state
       if (getConfigValue('mode.backtest')) {
         return;
@@ -3108,6 +3256,7 @@ class StateManager {
    */
   load() {
     try {
+      ensureConfigLoaded();
       // Skip persisted state in backtest mode, but still honor explicit
       // INITIAL_BALANCE so sizing, recorder math, and state agree.
       if (getConfigValue('mode.backtest')) {
@@ -3189,27 +3338,22 @@ class StateManager {
         if (!this.state.symbolEntryHalts || typeof this.state.symbolEntryHalts !== 'object' || Array.isArray(this.state.symbolEntryHalts)) {
           this.state.symbolEntryHalts = {};
         } else {
-          const normalizedHalts = {};
-          for (const [haltSymbol, halt] of Object.entries(this.state.symbolEntryHalts)) {
-            if (!halt || typeof halt !== 'object' || Array.isArray(halt)) continue;
-            const normalized = this.normalizeSymbol(haltSymbol, 'StateManager.load symbolEntryHalts');
-            const haltedAt = finiteNumberOrNull(halt.haltedAt);
-            const expiresAt = halt.expiresAt === null || halt.expiresAt === undefined
-              ? null
-              : finiteNumberOrNull(halt.expiresAt);
-            if (haltedAt === null) continue;
-            if (expiresAt !== null && expiresAt <= Date.now()) continue;
-            normalizedHalts[normalized] = {
-              ...halt,
-              reason: typeof halt.reason === 'string' && halt.reason.trim() ? halt.reason : 'unspecified',
-              code: typeof halt.code === 'string' && halt.code.trim() ? halt.code : undefined,
-              haltedAt,
-              expiresAt,
-            };
-          }
+          const originalHalts = this.state.symbolEntryHalts;
+          const normalizedHalts = this._normalizeSymbolEntryHaltsCollection(
+            this.state.symbolEntryHalts,
+            'StateManager.load'
+          );
           this.state.symbolEntryHalts = normalizedHalts;
+          if (JSON.stringify(originalHalts) !== JSON.stringify(normalizedHalts)) {
+            correctedStateShape = true;
+          }
         }
         if (!this.state.symbolLossStreaks || typeof this.state.symbolLossStreaks !== 'object' || Array.isArray(this.state.symbolLossStreaks)) {
+          this.state.symbolLossStreaks = {};
+        } else if (!this._symbolLossCooldownConfig().enabled) {
+          if (Object.keys(this.state.symbolLossStreaks).length > 0) {
+            correctedStateShape = true;
+          }
           this.state.symbolLossStreaks = {};
         } else {
           const normalizedStreaks = {};
@@ -3314,6 +3458,9 @@ class StateManager {
           }
         }
         if (this._migrateLegacyTtpFlatnessPause(activeTradeCount)) {
+          correctedStateShape = true;
+        }
+        if (this._clearPersistedDataFeedLivenessPause()) {
           correctedStateShape = true;
         }
         if (correctedStateShape) {

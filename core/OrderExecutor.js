@@ -689,6 +689,11 @@ class OrderExecutor {
 
     const haltReason = `EXIT-RAIL: broker position still open after confirmed full exit for ${exitPlan.symbol}`;
     await stateManager.haltSymbol(exitPlan.symbol, haltReason, {
+      code: 'exit_rail_broker_desync',
+      authority: 'financial_integrity',
+      financialIntegrityCritical: true,
+      entryBlockScope: 'symbol',
+      operatorActionRequired: true,
       traceId,
       signalId,
       decisionId,
@@ -1459,12 +1464,12 @@ class OrderExecutor {
     return null;
   }
 
-  async _handleStockShareRangeFillViolation({ stateManager, entryPlan, executedEntryPlan, traceId, signalId, symbol, action }) {
+  async _handleStockShareRangeFillViolation({ entryPlan, executedEntryPlan, traceId, signalId, symbol, action }) {
     const violation = this._stockShareRangeFillViolation(entryPlan, executedEntryPlan);
     if (!violation) return null;
 
     const haltReason = `[RISK-ENTRY-SHARE-RANGE] ${violation}`;
-    console.error(`[ENTRY-SHARE-RANGE] Broker accepted ${executedEntryPlan.orderQuantity} shares for ${symbol} outside configured bounds after order acceptance; recording broker truth and halting new entries for symbol`);
+    console.error(`[ENTRY-SHARE-RANGE] Broker accepted ${executedEntryPlan.orderQuantity} shares for ${symbol} outside configured bounds after order acceptance; recording broker truth without persisting a symbol entry halt`);
     emitTrace(this.ctx, 'ORDER_ACCEPTED_OUTSIDE_SHARE_RANGE', {
       traceId,
       signalId,
@@ -1477,7 +1482,6 @@ class OrderExecutor {
       stockShareRange: entryPlan.stockShareRange,
       stateMutationSucceeded: true,
     });
-    await stateManager.haltSymbol(symbol, haltReason);
     return haltReason;
   }
 
@@ -2216,7 +2220,7 @@ class OrderExecutor {
         : 'KILL-5: COVER with no matching SELL_SHORT';
       const routeName = isLiveBrokerRoute ? 'broker' : (shouldPlanWebhookExit ? 'webhook' : 'execution');
       console.error(`[ORDER-PLAN] ${haltReason} for ${symbol} before ${routeName} route`);
-      await stateManager.haltSymbol(symbol, haltReason);
+      console.error(`[ORDER-PLAN] ${haltReason} is telemetry-only; not persisting a symbol entry halt`);
       emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: haltReason });
       return blockedReturn(haltReason);
     }
@@ -2800,18 +2804,17 @@ class OrderExecutor {
             success: true,
             operation: 'openPosition',
             orderId: unifiedResult.orderId,
-	            position: stateAfter.position,
-	            balance: stateAfter.balance,
-	          });
-	          tradeResult.stockShareRangeFillViolation = await this._handleStockShareRangeFillViolation({
-	            stateManager,
-	            entryPlan,
-	            executedEntryPlan,
-	            traceId,
-	            signalId,
-	            symbol,
-	            action: decision.action,
-	          });
+            position: stateAfter.position,
+            balance: stateAfter.balance,
+          });
+          tradeResult.stockShareRangeFillViolation = await this._handleStockShareRangeFillViolation({
+            entryPlan,
+            executedEntryPlan,
+            traceId,
+            signalId,
+            symbol,
+            action: decision.action,
+          });
 
           // CHANGE 2026-02-01: Send Telegram notification for trade
           // Skip notifications during fast backtest
@@ -3011,7 +3014,6 @@ class OrderExecutor {
 	            balance: stateAfter.balance,
 	          });
 	          tradeResult.stockShareRangeFillViolation = await this._handleStockShareRangeFillViolation({
-	            stateManager,
 	            entryPlan,
 	            executedEntryPlan,
 	            traceId,
@@ -3133,8 +3135,7 @@ class OrderExecutor {
             })));
 
             const haltReason = 'KILL-5: SELL with no matching BUY';
-            console.error(`[KILL-5-MITIGATION] Halting new entries for ${symbol}: ${haltReason}`);
-            await stateManager.haltSymbol(symbol, haltReason);
+            console.error(`[KILL-5-MITIGATION] ${haltReason} for ${symbol}; not persisting a symbol entry halt`);
             emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: haltReason });
             return blockedReturn(haltReason);
           }
@@ -3687,8 +3688,7 @@ class OrderExecutor {
             const symbolTrades = stateManager.getTradesBySymbol(symbol);
             console.log(`   Active trades for ${symbol}:`, symbolTrades.map(t => ({ id: t.orderId, action: t.action, price: t.entryPrice })));
             const haltReason = 'KILL-5: COVER with no matching SELL_SHORT';
-            console.error(`[KILL-5-MITIGATION] Halting new entries for ${symbol}: ${haltReason}`);
-            await stateManager.haltSymbol(symbol, haltReason);
+            console.error(`[KILL-5-MITIGATION] ${haltReason} for ${symbol}; not persisting a symbol entry halt`);
             emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: haltReason });
             return blockedReturn(haltReason);
           }

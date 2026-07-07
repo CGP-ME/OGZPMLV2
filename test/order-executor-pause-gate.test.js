@@ -1279,6 +1279,11 @@ describe('OrderExecutor pause gate', () => {
       'MARA',
       expect.stringContaining('EXIT-RAIL'),
       expect.objectContaining({
+        code: 'exit_rail_broker_desync',
+        authority: 'financial_integrity',
+        financialIntegrityCritical: true,
+        entryBlockScope: 'symbol',
+        operatorActionRequired: true,
         tradeId: 'MARA_102',
         brokerPositionSize: 102,
         flattenAttempted: true,
@@ -3628,7 +3633,45 @@ describe('OrderExecutor pause gate', () => {
       symbol: 'TSLA',
       action: 'SELL',
     }));
-    expect(mockStateManager.haltSymbol).toHaveBeenCalledWith('TSLA', 'KILL-5: SELL with no matching BUY');
+    expect(mockStateManager.haltSymbol).not.toHaveBeenCalled();
+    expect(mockStateManager.closePosition).not.toHaveBeenCalled();
+    expect(mockStateManager.reducePosition).not.toHaveBeenCalled();
+    expect(webhookAdapter.emit).not.toHaveBeenCalled();
+  });
+
+  test('enabled webhook cover with no matching short blocks without persisting symbol halt', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: -600, balance: 10000 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([]);
+    const webhookAdapter = { enabled: true, emit: jest.fn() };
+    const executor = makeExecutor(
+      {},
+      {
+        webhookAdapter,
+      }
+    );
+
+    const result = await executor.executeTrade(
+      { action: 'COVER', confidence: 100, tradeId: 'SHORT_1', exitReason: 'test_exit' },
+      { totalConfidence: 100 },
+      125,
+      { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'KILL-5: COVER with no matching SELL_SHORT',
+      symbol: 'TSLA',
+      action: 'COVER',
+    }));
+    expect(mockStateManager.haltSymbol).not.toHaveBeenCalled();
     expect(mockStateManager.closePosition).not.toHaveBeenCalled();
     expect(mockStateManager.reducePosition).not.toHaveBeenCalled();
     expect(webhookAdapter.emit).not.toHaveBeenCalled();
@@ -3752,7 +3795,7 @@ describe('OrderExecutor pause gate', () => {
     );
   });
 
-  test('live stock entry partial fill below configured share minimum records broker truth and halts symbol', async () => {
+  test('live stock entry partial fill below configured share minimum records broker truth without persisting symbol halt', async () => {
     ConfigLoader.setOverrides({
       features: { enableDynamicSizing: true },
       positionSizing: { maxPositionSize: 0.05 },
@@ -3825,10 +3868,7 @@ describe('OrderExecutor pause gate', () => {
         remainingOrderQuantityUnit: 'shares',
       })
     );
-    expect(mockStateManager.haltSymbol).toHaveBeenCalledWith(
-      'TSLA',
-      '[RISK-ENTRY-SHARE-RANGE] stock_share_range_fill_below_min:min=2:accepted=1'
-    );
+    expect(mockStateManager.haltSymbol).not.toHaveBeenCalled();
   });
 
   test('live stock sell short opens state with accepted broker quantity size', async () => {
