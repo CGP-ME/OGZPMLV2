@@ -1,7 +1,7 @@
 # OGZPrime Backtesting Guide & Env Var Audit
 
-**Last updated:** 2026-04-07
-**Branch:** `tradingloop-clean-rewrite`
+**Last updated:** 2026-07-07
+**Branch:** `codex/multi-asset-symbol-state`
 **Read this first if you've never backtested OGZPrime before.**
 
 ---
@@ -32,7 +32,7 @@ This is where most confusion lives. Read carefully.
 
 **Both must agree for a strategy to actually run.** If `ENABLE_RSI=false` and `SOLO_STRATEGY=RSI`, RSI will not fire — the pipeline toggle blocks it before SOLO_STRATEGY ever gets checked. This has bitten people. Always set both.
 
-4. **An exit contract** is a per-strategy hardcoded set of stop-loss, take-profit, trailing stop, max-hold, and minimum-confidence values. Each strategy ships with a `_validated` block that locks these values. Example: RSI's exit contract is SL=-0.8%, TP=1.0%, trailing=0.6%, maxHold=240min, minConfidence=0.60. These locked values override most env vars. **This is the single most important thing to understand about backtesting OGZPrime: you cannot tune SL/TP via env var. You have to edit the exit contract directly in `core/TradingConfig.js` and re-validate.**
+4. **An exit contract** is a per-strategy set of stop-loss, take-profit, trailing stop, max-hold, and minimum-confidence values owned by `config/trading.config.json` and exposed through `foundation/ConfigLoader.js`. Each strategy ships with a `_validated` block that locks these values. Example: RSI's exit contract is SL=-0.8%, TP=1.0%, trailing=0.6%, maxHold=240min, minConfidence=0.60. These locked values override most env vars. **This is the single most important thing to understand about backtesting OGZPrime: you cannot tune SL/TP via env var unless the current code path explicitly maps that env/profile into the exit contract. Edit the strategy's `exitContracts` block in `config/trading.config.json` and re-validate.**
 
 ---
 
@@ -81,7 +81,7 @@ Each row tells you whether the env var actually changes trading behavior, where 
 | Env Var | Code Location | What It Does |
 |---------|---------------|--------------|
 | `SOLO_STRATEGY` | StrategyOrchestrator.js | Comma-separated list. Only these strategies are allowed to fire. Example: `RSI,EMASMACrossover` |
-| `ENABLE_RSI` / `ENABLE_EMA` / `ENABLE_SMS` / `ENABLE_MASR` / `ENABLE_LIQSWEEP` / `ENABLE_MTF` / `ENABLE_TPO` / `ENABLE_BREAKRETEST` / `ENABLE_REGIME` / `ENABLE_ORB` | TradingConfig.js pipeline section | Per-strategy master switch. Must be true for the strategy to register. |
+| `ENABLE_RSI` / `ENABLE_EMA` / `ENABLE_SMS` / `ENABLE_MASR` / `ENABLE_LIQSWEEP` / `ENABLE_MTF` / `ENABLE_TPO` / `ENABLE_BREAKRETEST` / `ENABLE_REGIME` / `ENABLE_ORB` | `config/trading.config.json` via `foundation/ConfigLoader.js` pipeline section | Per-strategy master switch. Must be true for the strategy to register. |
 | `DIRECTION_FILTER` | TradingLoop | `long`, `short`, or `both`. Filters which trade directions are allowed. |
 | `ENABLE_SHORTS` | TradingLoop | true/false. Hard switch for short-side trading. Should match DIRECTION_FILTER. |
 | `EXECUTION_MODE` | run-empire-v2.js | `backtest`, `paper`, or `live`. Picks which execution layer runs. |
@@ -97,7 +97,7 @@ Each row tells you whether the env var actually changes trading behavior, where 
 | `MAX_POSITION_SIZE_PCT` | OrderExecutor.js:57,71 | Base position sizing as fraction of balance. Example: 0.05 for 5%. The orchestrator multiplies this by confidence (0.5x–2.5x) and confluence (1x–2.5x). |
 | `TIER1_TARGET` / `TIER2_TARGET` / `TIER3_TARGET` | MaxProfitManager.js:105-111 | Profit-taking tier thresholds in percent. Example: 0.5 / 1.0 / 2.0 |
 | `RISK_MANAGER_BYPASS` | RiskManager.js:88,159 | true short-circuits all risk checks. Use ONLY for isolated strategy testing. |
-| `ACCOUNT_DRAWDOWN_BYPASS` | StopLossChecker.js:48 | true disables the drawdown circuit breaker. Currently REQUIRED in backtests because the drawdown calculation is broken and fires on every trade when enabled. |
+| `ACCOUNT_DRAWDOWN_BYPASS` | StopLossChecker.js:48 | true disables the drawdown circuit breaker for isolated backtest sweeps. Live trading rejects this bypass at config load. |
 | `ENABLE_TRAI` | Multiple | true activates the LLM-backed pattern modulation layer. Set false for pure strategy backtests. |
 | `SMS_VP_RTH_ONLY` | SmartMoneySweep | true makes SMS use only regular trading hours candles for volume profile. |
 | `STRATEGY_DIAG` | StrategyOrchestrator.js | true enables verbose diagnostic logging for every strategy evaluation. |
@@ -116,7 +116,7 @@ Each row tells you whether the env var actually changes trading behavior, where 
 | `TAKE_PROFIT_PERCENT` | Same — locked exit contracts override. |
 | `TRAILING_STOP_PERCENT` | Same — locked exit contracts override. |
 
-These env vars look like they should work. They don't. Setting them in any backtest is decorative. If you want to change SL/TP/trailing, you have to edit the strategy's exit contract directly in `core/TradingConfig.js`.
+These env vars look like they should work. They don't affect locked per-strategy contracts unless the current code path explicitly maps them into a ConfigLoader override for that strategy. If you want to change SL/TP/trailing, edit the strategy's `exitContracts` block in `config/trading.config.json` or use a tested ConfigLoader profile/override path that writes that exact contract field.
 
 ### GHOST — referenced in old code but not read by trading logic at all
 
@@ -145,7 +145,7 @@ ENABLE_<strategy>=true            # Master switch on
 ENABLE_TRAI=false                 # No LLM modulation
 ATR_FILTER_ENABLED=false          # No volatility gating
 RISK_MANAGER_BYPASS=true          # No risk-mgr cuts
-ACCOUNT_DRAWDOWN_BYPASS=true      # Drawdown check is broken
+ACCOUNT_DRAWDOWN_BYPASS=true      # Isolate raw strategy edge from account-level circuit breakers
 DIRECTION_FILTER=both
 ENABLE_SHORTS=true
 FEE_MAKER=0
@@ -206,8 +206,8 @@ ENABLE_EMA=true
 
 **Setup:** This is NOT a backtest sweep. Env vars don't help here. Process:
 
-1. Open `core/TradingConfig.js`
-2. Find the strategy's exit contract block (search for the strategy name)
+1. Open `config/trading.config.json`
+2. Find the strategy's `exitContracts` block (search for the strategy name)
 3. Comment out the `_validated` line so the locked-config warning doesn't fire
 4. Modify SL, TP, trailing, maxHold values directly
 5. Run Test 1 (pure validation) with the new values on training data
@@ -231,28 +231,28 @@ CANDLE_SOURCE=live
 ENABLE_TRAI=true                  # Now we want LLM modulation
 ATR_FILTER_ENABLED=true           # Real environmental gating
 RISK_MANAGER_BYPASS=false         # Real risk checks
-ACCOUNT_DRAWDOWN_BYPASS=false     # ⚠️ ONLY when drawdown calc is fixed
+ACCOUNT_DRAWDOWN_BYPASS=false     # Live-style account drawdown enforcement
 FEE_MAKER=<real broker rate>
 FEE_TAKER=<real broker rate>
 ```
 
-**WARNING:** Test 5 is currently UNSAFE because `ACCOUNT_DRAWDOWN_BYPASS=false` triggers the broken drawdown calculation. Do not run Test 5 until the drawdown bug is fixed. Until then, paper test with bypass=true and accept that you're not exercising the drawdown circuit breaker.
+**WARNING:** Test 5 is unsafe if either risk bypass is enabled. Current live config validation rejects `LIVE_TRADING=true` with `ACCOUNT_DRAWDOWN_BYPASS=true` or `RISK_MANAGER_BYPASS=true`; keep both false for live-readiness rehearsal.
 
 ---
 
 ## 6. Landmines (read these before running anything)
 
-1. **`ACCOUNT_DRAWDOWN_BYPASS=true` is currently REQUIRED in backtests.** The drawdown calculation is broken and fires on every trade when enabled, killing legitimate trades. This bypass must stay on until the calc is fixed. This means the production drawdown safety net is currently UNTESTED in backtest. Treat live deployment with caution.
+1. **`ACCOUNT_DRAWDOWN_BYPASS=true` is an isolation tool, not a production posture.** Use it only when you intentionally want raw strategy behavior without account-level circuit breakers. For live-style backtests and paper rehearsals, run with `ACCOUNT_DRAWDOWN_BYPASS=false` and `RISK_MANAGER_BYPASS=false`; live trading rejects drawdown bypass at config load.
 
 2. **`SOLO_STRATEGY` and `ENABLE_*` are independent gates.** Setting one without the other gives you silent zero-trade results. Always set both.
 
-3. **Locked exit contracts override most env vars.** Setting `STOP_LOSS_PERCENT=0.5` does nothing for any strategy in the codebase. Edit the strategy's contract directly in TradingConfig.js if you need to change exits.
+3. **Locked exit contracts override most env vars.** Setting `STOP_LOSS_PERCENT=0.5` does nothing for any strategy unless the current code maps that env/profile into the strategy's contract field. Edit the strategy's contract in `config/trading.config.json` or use a tested ConfigLoader profile/override path if you need to change exits.
 
 4. **Multiple balance prints exist at end of backtest.** Both StateManager and BacktestRecorder print final balance. In current code they typically match, but if you see disagreement, trust BacktestRecorder's summary block — it's the authoritative source for all trade statistics.
 
 5. **`parallel-backtest.js` wipes some parent shell env vars before spawning workers** (`STOP_LOSS_PERCENT`, `TAKE_PROFIT_PERCENT`, `MIN_TRADE_CONFIDENCE`, `TRAILING_STOP_PERCENT`, `ATR_MIN_PERCENT`) **but NOT the `ENABLE_*` toggles.** If you have stale `ENABLE_*` values in your shell from a previous run, they leak into every worker. Always run from a clean shell or use the wrapper scripts which set everything explicitly.
 
-6. **Two config systems exist** (`core/TradingConfig.js` and `foundation/ConfigLoader.js`) with overlapping defaults. They disagree: TradingConfig has `MIN_TRADE_CONFIDENCE=0.35`, `STOP_LOSS_PERCENT=0.8` while ConfigLoader has `MIN_TRADE_CONFIDENCE=0.50`, `STOP_LOSS_PERCENT=1.5`. TradingConfig is the primary system (33 imports vs 8). This is a known cleanup item.
+6. **Current config owner:** `core/TradingConfig.js` is not present on this branch. The live runtime config owner is `foundation/ConfigLoader.js`, with durable trading values in `config/trading.config.json`. Treat older docs that mention a second live `TradingConfig` module as historical unless current code proves otherwise.
 
 ---
 
@@ -264,7 +264,7 @@ FEE_TAKER=<real broker rate>
 | Should I add an ATR filter? | Test 2 |
 | Should I run RSI alone or combined with EMA? | Test 3 |
 | Can I improve RSI's stop loss? | Test 4 |
-| Is my bot ready for live trading? | Test 5 (when drawdown is fixed) |
+| Is my bot ready for live trading? | Test 5 |
 | Why is SMS producing 0 trades? | Test 1 with `STRATEGY_DIAG=true` |
 | Why are my sweep results all the same number? | Read Section 5 — you're probably sweeping IGNORED env vars |
 | Why does my Windows backtest produce different results than VPS? | You almost certainly have an env var mismatch. Diff .env files. |

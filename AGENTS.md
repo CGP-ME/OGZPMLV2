@@ -100,7 +100,7 @@ For changes on the trading/backtest execution path:
   `ogz-meta/sessions/session-2026-06-27-mercury-deepsearch-substrate.md:16-50,111-121,123-160`.
 - Run the full P0 TSLA 2-year anchor after each trading-path fix.
 - Current required P0 gate: `node ogz-meta/gates/multi-runtime-gate-runner.js --p0`.
-- Current full-anchor expectation: `10663.639172063286 / 1596 trades / 70.1% WR / PF 1.16`.
+- Current full-anchor expectation: `8338.146639366509 / 1551 trades / 52.2% WR / PF 0.64`.
 - `ogz-meta/gates/runs/multi-runtime-latest.json` is expected to update after
   each gate run. If it ever predates the current terminal PASS, treat that as a
   gate bug; use the direct worker report path printed by the gate command as
@@ -110,6 +110,10 @@ For changes on the trading/backtest execution path:
 - Older `13255.255799695915` references are historical contaminated partial-exit over-credit anchors.
 - Older `13213.042341608163` references are historical/modifiers-off anchors unless the current
   executable gate is explicitly rebaselined.
+- Older `10687.113526633222` references are historical pre-current-fee-profile anchors from before
+  the executable P0 gate expected the fee-inclusive `ttp_real` current-eval baseline.
+- Older `10663.639172063286` references are historical zero-fee or pre-current-fee-profile anchors
+  from before the executable P0 gate expected the fee-inclusive `ttp_real` current-eval baseline.
 - Older `10663.30975684895` references are historical requested-notional recorder anchors from before
   backtest reports used executed closed quantity as the source of truth for stock P&L.
 - If the anchor moves, stop and root-cause before continuing.

@@ -250,10 +250,11 @@ Pipeline order:
 - Never hardcode symbol formats. Use broker-layer conversions such as display `BTC-USD`, Kraken WS `XBT/USD`, and Kraken REST `XXBTZUSD`.
 - Execution must check balance, open positions, broker constraints, max trade count, and kill switch.
 - Risk limits and veto safety checks cannot be overridden by ML.
+- TRAI passive/observer mode is not execution authority: it must not apply execution adjustments, set veto, or feed outcome learning unless a non-passive decision is explicitly correlated to the order, and decision telemetry must carry symbol, timeframe, broker, asset class, and execution mode. Source: `ogz-meta/sessions/session-2026-06-29-trai-passive-activation.md:5-7`.
 - Exits must obey dynamic trailing logic.
 - Decisions must be deterministic unless the ML layer intentionally applies learned weights.
 - Position size flows in USD through the pipeline. Legacy BTC-named variables may exist; do not convert mid-flight unless current code/spec proves asset-unit semantics.
-- Exit contracts are locked per strategy in `core/TradingConfig.js` when `_validated` fingerprints exist. Do not tune those strategies through env-var sweeps unless current code proves env vars are still honored.
+- Exit contracts are locked per strategy in `config/trading.config.json` and exposed through `foundation/ConfigLoader.js` when `_validated` fingerprints exist. Do not tune those strategies through env-var sweeps unless current code proves env/profile values are mapped into the specific contract fields.
 - Backtests must use the same trading path as live. Do not create a parallel backtest engine to make numbers easier.
 - Every Apex clone must isolate process, state file, log directory, and kill switch.
 - StrategyOrchestrator semantics are winner-takes-all per candle; strategies do not blend. Confluence applies after winner selection.
@@ -308,7 +309,7 @@ Pipeline order:
 - Watch for stale `.env` values leaking into runs.
 - Manual runs may leave `data/state-*.json`; inspect or clean intentionally if results look wrong.
 - `EXIT_SYSTEM=contract` vs `legacy` changes which exit manager runs.
-- Per-strategy config in `core/TradingConfig.js` can override global SL/TP/trailing/confidence env vars.
+- Per-strategy config in `config/trading.config.json` via `foundation/ConfigLoader.js` can override global SL/TP/trailing/confidence env vars.
 - Trust `BacktestRecorder` summary for trade stats if multiple end balances disagree.
 - Do not use shell `timeout` for backtests or sweeps. Use internal max-iteration flags, visible background monitoring, or PM2 logs.
 - If a backtest hangs, find the hang and fix root cause.
