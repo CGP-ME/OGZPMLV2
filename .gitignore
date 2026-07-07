@@ -169,12 +169,16 @@ test/btc-10k.json
 .scannerwork/
 
 # Runtime artifacts (regenerated every cycle)
+data/journal/*/
 data/journal/journal-stats.json
+data/runtime-audit/
+data/backtest-e2e-trace-*/
 data/pipeline-snapshots.jsonl
 ogz-meta/gates/runs/latest.json
 ogz-meta/gates/runs/multi-runtime-latest.json
 public/proof/gates/latest.json
 public/proof/live-trades.json
+public/proof/track-record/data/accounts/default.json
 
 # Auto-generated health reports (every 30min)
 ogz-meta/health-reports/*.txt
