@@ -189,6 +189,10 @@ data/backtest/
 trees/
 .playwright-mcp/
 
+# Browser automation working profiles captured during dashboard proof runs
+ogz-meta/cognition-history/**/chrome-profile*/
+ogz-meta/cognition-history/**/chrome.pid
+
 # Pattern memory backups (point-in-time recoveries, not source)
 data/pattern-memory.paper.json.bak-*
 
