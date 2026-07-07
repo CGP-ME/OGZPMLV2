@@ -59,7 +59,7 @@ describe('ConfigLoader runtime profile contract', () => {
   });
 
   test('retired TradingProfileManager cannot own a parallel profile bank', () => {
-    expect(() => new TradingProfileManager()).toThrow(/TradingProfileManager is retired/);
+    expect(() => new TradingProfileManager()).toThrow(/foundation\/ConfigLoader profile APIs/);
     expect(TradingProfileManager.disabledReason).toBe('runtime_profile_switch_not_wired');
   });
 
