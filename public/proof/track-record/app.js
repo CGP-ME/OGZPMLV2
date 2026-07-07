@@ -46,6 +46,17 @@ const STATE = {
 };
 
 const DATA_BASE = '/proof/track-record/data';
+const DISPLAY_TIME_ZONE = 'America/New_York';
+const DISPLAY_TIME_ZONE_LABEL = 'ET';
+const ET_DATE_TIME_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  timeZone: DISPLAY_TIME_ZONE,
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: true
+});
 
 async function fetchJson(url) {
   const res = await fetch(url, { cache: 'no-cache' });
@@ -81,6 +92,13 @@ function fmtPct(n) {
   if (n == null || isNaN(n)) return '—';
   const sign = n > 0 ? '+' : '';
   return `${sign}${n.toFixed(2)}%`;
+}
+
+function fmtEtDateTime(value) {
+  if (!value) return '—';
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) return '—';
+  return `${ET_DATE_TIME_FORMATTER.format(date)} ${DISPLAY_TIME_ZONE_LABEL}`;
 }
 
 function fmtCompactList(values, limit = 5) {
@@ -289,9 +307,7 @@ function renderProofMatrix(container, account) {
   const exitReasons = Object.entries(summary.exit_reasons || {})
     .sort((a, b) => b[1] - a[1])
     .map(([reason, count]) => `${reason}: ${count}`);
-  const startBoundary = summary.track_record_start_at
-    ? new Date(summary.track_record_start_at).toLocaleString()
-    : '—';
+  const startBoundary = fmtEtDateTime(summary.track_record_start_at);
   const cards = [
     { label: 'Trade Progress', value: `${summary.trades_recorded ?? account.trades_recorded ?? 0} / ${summary.min_trades_required ?? account.min_trades_required ?? '—'}` },
     { label: 'Win Rate', value: fmtPct(summary.win_rate ?? 0) },
@@ -369,7 +385,7 @@ function renderStream(slotEl, archiveEl) {
   if (s.live && s.live.active && s.live.youtube_id) {
     slotEl.innerHTML = `<iframe src="https://www.youtube.com/embed/${s.live.youtube_id}" allowfullscreen></iframe>`;
   } else if (s.live && s.live.scheduled_for) {
-    const when = new Date(s.live.scheduled_for).toLocaleString();
+    const when = fmtEtDateTime(s.live.scheduled_for);
     slotEl.innerHTML = `Next session: ${s.live.title || ''} — ${when}`;
   } else {
     slotEl.innerHTML = 'No active stream';
@@ -449,7 +465,7 @@ function renderTrades(container, trades) {
   }
   tbody.innerHTML = trades.map(t => {
     const pnlClass = (t.pnl || 0) >= 0 ? 'pnl-up' : 'pnl-down';
-    const time = new Date(t.t).toLocaleString();
+    const time = fmtEtDateTime(t.t);
     return `<tr>
       <td>${time}</td>
       <td>${t.accountLabel || ''}</td>
@@ -516,7 +532,7 @@ function applyMode() {
     banner.classList.remove('visible');
   }
   document.getElementById('lastUpdated').textContent = STATE.index && STATE.index.updated
-    ? new Date(STATE.index.updated).toLocaleString()
+    ? fmtEtDateTime(STATE.index.updated)
     : '—';
 }
 
