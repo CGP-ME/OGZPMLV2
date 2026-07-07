@@ -5,39 +5,46 @@
   "status": "active",
   "broker": "alpaca",
   "starting_balance": 5000,
-  "current_balance": 5023.589999999998,
+  "current_balance": 5068.47,
   "profit_target": 300,
   "max_drawdown": 150,
-  "days_traded": 4,
-  "trades_recorded": 18,
+  "days_traded": 10,
+  "trades_recorded": 80,
   "min_trades_required": 20,
   "proof_summary": {
-    "trades_recorded": 18,
+    "trades_recorded": 80,
     "min_trades_required": 20,
-    "winning_trades": 12,
-    "losing_trades": 5,
-    "win_rate": 66.66666666666666,
-    "gross_profit": 32.89499999999987,
-    "gross_loss": -9.30500000000007,
-    "avg_pnl": 1.3105555555555444,
+    "winning_trades": 51,
+    "losing_trades": 26,
+    "win_rate": 63.74999999999999,
+    "gross_profit": 156.97499999999988,
+    "gross_loss": -88.50500000000028,
+    "avg_pnl": 0.8558749999999951,
     "symbols_traded": [
+      "COIN",
       "MARA",
       "NVDA",
+      "QQQ",
       "RIOT",
       "TSLA"
     ],
     "exit_reasons": {
-      "stop_loss": 9,
-      "break_even": 1,
-      "profit_tier_2": 2,
+      "stop_loss": 25,
+      "break_even": 4,
+      "profit_tier_2": 5,
       "max_hold_universal": 1,
-      "flip_position": 2,
-      "ttp_1550_liquidation": 1,
-      "be_scaleout": 1,
-      "max_hold_loser": 1
+      "flip_position": 4,
+      "ttp_1550_liquidation": 7,
+      "be_scaleout": 15,
+      "max_hold_loser": 2,
+      "profit_tier_4": 3,
+      "trailing_stop": 5,
+      "max_hold_winner": 1,
+      "profit_tier_1": 7,
+      "profit_tier_3": 1
     },
-    "partial_exits": 1,
-    "full_exits": 17,
+    "partial_exits": 21,
+    "full_exits": 59,
     "track_record_start_at": "2026-06-12T00:00:00.000Z"
   },
   "equity_series": [
@@ -112,6 +119,254 @@
     {
       "t": "2026-06-22T19:45:06.086Z",
       "balance": 5023.589999999998
+    },
+    {
+      "t": "2026-06-24T14:00:05.307Z",
+      "balance": 5010.089999999998
+    },
+    {
+      "t": "2026-06-24T14:15:02.723Z",
+      "balance": 5006.894999999999
+    },
+    {
+      "t": "2026-06-24T15:00:15.285Z",
+      "balance": 4996.994999999999
+    },
+    {
+      "t": "2026-06-24T15:30:14.044Z",
+      "balance": 4993.194999999999
+    },
+    {
+      "t": "2026-06-24T16:45:00.835Z",
+      "balance": 4994.434999999999
+    },
+    {
+      "t": "2026-06-24T17:45:02.942Z",
+      "balance": 5014.414999999998
+    },
+    {
+      "t": "2026-06-24T18:15:00.661Z",
+      "balance": 5044.084999999998
+    },
+    {
+      "t": "2026-06-24T18:30:00.661Z",
+      "balance": 5046.409999999998
+    },
+    {
+      "t": "2026-06-25T16:33:32.691Z",
+      "balance": 5048.289999999998
+    },
+    {
+      "t": "2026-06-25T16:45:27.016Z",
+      "balance": 5041.109999999998
+    },
+    {
+      "t": "2026-06-25T17:15:23.264Z",
+      "balance": 5041.879999999998
+    },
+    {
+      "t": "2026-06-25T17:18:29.969Z",
+      "balance": 5038.799999999998
+    },
+    {
+      "t": "2026-06-25T17:38:36.897Z",
+      "balance": 5035.279999999998
+    },
+    {
+      "t": "2026-06-25T18:30:00.582Z",
+      "balance": 5031.509999999998
+    },
+    {
+      "t": "2026-06-25T19:01:28.849Z",
+      "balance": 5033.189999999999
+    },
+    {
+      "t": "2026-06-25T19:18:55.448Z",
+      "balance": 5034.209999999999
+    },
+    {
+      "t": "2026-06-25T19:36:08.836Z",
+      "balance": 5034.329999999999
+    },
+    {
+      "t": "2026-06-25T19:46:19.687Z",
+      "balance": 5033.629999999999
+    },
+    {
+      "t": "2026-06-25T19:50:03.948Z",
+      "balance": 5039.539999999999
+    },
+    {
+      "t": "2026-06-25T19:50:07.591Z",
+      "balance": 5039.604999999999
+    },
+    {
+      "t": "2026-06-25T19:50:14.847Z",
+      "balance": 5039.604999999999
+    },
+    {
+      "t": "2026-06-25T19:50:18.313Z",
+      "balance": 5038.504999999999
+    },
+    {
+      "t": "2026-06-29T14:05:36.517Z",
+      "balance": 5036.964999999999
+    },
+    {
+      "t": "2026-06-29T14:25:06.290Z",
+      "balance": 5039.025
+    },
+    {
+      "t": "2026-06-29T14:34:09.483Z",
+      "balance": 5037.035
+    },
+    {
+      "t": "2026-06-29T15:03:01.688Z",
+      "balance": 5037.615
+    },
+    {
+      "t": "2026-06-29T17:01:07.240Z",
+      "balance": 5035.665
+    },
+    {
+      "t": "2026-06-29T18:00:25.844Z",
+      "balance": 5035.945
+    },
+    {
+      "t": "2026-06-29T18:17:51.939Z",
+      "balance": 5032.495
+    },
+    {
+      "t": "2026-06-29T19:00:01.483Z",
+      "balance": 5052.3949999999995
+    },
+    {
+      "t": "2026-06-29T19:23:01.509Z",
+      "balance": 5052.995
+    },
+    {
+      "t": "2026-06-29T19:30:00.966Z",
+      "balance": 5053.345
+    },
+    {
+      "t": "2026-06-29T19:32:51.751Z",
+      "balance": 5055.6
+    },
+    {
+      "t": "2026-06-29T19:50:05.424Z",
+      "balance": 5058.05
+    },
+    {
+      "t": "2026-06-29T19:50:09.008Z",
+      "balance": 5058.05
+    },
+    {
+      "t": "2026-06-30T13:47:54.639Z",
+      "balance": 5058.53
+    },
+    {
+      "t": "2026-06-30T14:52:44.835Z",
+      "balance": 5055.5599999999995
+    },
+    {
+      "t": "2026-06-30T18:19:33.852Z",
+      "balance": 5056.5599999999995
+    },
+    {
+      "t": "2026-06-30T18:38:48.171Z",
+      "balance": 5056.57
+    },
+    {
+      "t": "2026-07-01T13:45:14.403Z",
+      "balance": 5057.545
+    },
+    {
+      "t": "2026-07-01T13:46:46.457Z",
+      "balance": 5055.985
+    },
+    {
+      "t": "2026-07-01T14:22:07.732Z",
+      "balance": 5056.965
+    },
+    {
+      "t": "2026-07-01T14:26:19.646Z",
+      "balance": 5058.08
+    },
+    {
+      "t": "2026-07-01T14:30:50.395Z",
+      "balance": 5059.72
+    },
+    {
+      "t": "2026-07-01T14:33:44.287Z",
+      "balance": 5061.04
+    },
+    {
+      "t": "2026-07-01T14:45:59.276Z",
+      "balance": 5062.8
+    },
+    {
+      "t": "2026-07-01T14:46:34.803Z",
+      "balance": 5063.52
+    },
+    {
+      "t": "2026-07-01T14:46:36.353Z",
+      "balance": 5065.4400000000005
+    },
+    {
+      "t": "2026-07-01T14:58:43.815Z",
+      "balance": 5061.150000000001
+    },
+    {
+      "t": "2026-07-01T15:03:39.516Z",
+      "balance": 5059.63
+    },
+    {
+      "t": "2026-07-02T13:45:16.475Z",
+      "balance": 5055.125
+    },
+    {
+      "t": "2026-07-02T14:04:13.910Z",
+      "balance": 5050.765
+    },
+    {
+      "t": "2026-07-02T14:18:07.807Z",
+      "balance": 5049.445000000001
+    },
+    {
+      "t": "2026-07-02T14:34:15.115Z",
+      "balance": 5051.465000000001
+    },
+    {
+      "t": "2026-07-02T14:40:54.024Z",
+      "balance": 5054.955000000001
+    },
+    {
+      "t": "2026-07-02T14:58:03.737Z",
+      "balance": 5056.945000000001
+    },
+    {
+      "t": "2026-07-02T15:01:58.978Z",
+      "balance": 5059.320000000001
+    },
+    {
+      "t": "2026-07-02T15:02:14.570Z",
+      "balance": 5060.125000000001
+    },
+    {
+      "t": "2026-07-02T15:02:51.369Z",
+      "balance": 5061.405000000001
+    },
+    {
+      "t": "2026-07-02T15:03:33.086Z",
+      "balance": 5062.7300000000005
+    },
+    {
+      "t": "2026-07-02T15:05:43.724Z",
+      "balance": 5065.1
+    },
+    {
+      "t": "2026-07-02T15:20:36.039Z",
+      "balance": 5068.47
     }
   ],
   "daily_pnl": [
@@ -134,274 +389,784 @@
       "date": "2026-06-22",
       "pnl": 6.709999999999972,
       "trades": 8
+    },
+    {
+      "date": "2026-06-24",
+      "pnl": 22.8199999999999,
+      "trades": 8
+    },
+    {
+      "date": "2026-06-25",
+      "pnl": -7.904999999999961,
+      "trades": 14
+    },
+    {
+      "date": "2026-06-29",
+      "pnl": 19.545,
+      "trades": 13
+    },
+    {
+      "date": "2026-06-30",
+      "pnl": -1.4800000000000364,
+      "trades": 4
+    },
+    {
+      "date": "2026-07-01",
+      "pnl": 3.0599999999999277,
+      "trades": 11
+    },
+    {
+      "date": "2026-07-02",
+      "pnl": 8.839999999999975,
+      "trades": 12
     }
   ],
   "recent_trades": [
     {
-      "t": "2026-06-22T19:45:06.086Z",
+      "t": "2026-07-02T15:20:36.039Z",
       "symbol": "TSLA",
-      "side": "COVER_MAX_HOLD",
-      "entry": 406.645,
-      "exit": 405.35,
-      "pnl": 1.294999999999959,
-      "pct": 0.3184595900601161,
-      "trade_id": "43462856",
-      "order_id": "43462856",
+      "side": "COVER_FULL",
+      "entry": 397.67,
+      "exit": 394.3,
+      "pnl": 3.3700000000000045,
+      "pct": 0.8474363165438691,
+      "trade_id": "44090319",
+      "order_id": "44090319",
       "leg_type": "full_close",
       "partial_fraction": null,
-      "exit_reason": "max_hold_loser",
-      "confidence": 80
+      "exit_reason": "profit_tier_1",
+      "confidence": 100
     },
     {
-      "t": "2026-06-22T19:45:00.885Z",
+      "t": "2026-07-02T15:05:43.724Z",
       "symbol": "MARA",
       "side": "COVER_FULL",
-      "entry": 14.93,
-      "exit": 14.86,
-      "pnl": 1.400000000000006,
-      "pct": 0.4688546550569343,
-      "trade_id": "43471222",
-      "order_id": "43471222",
+      "entry": 13.155,
+      "exit": 12.76,
+      "pnl": 2.3699999999999974,
+      "pct": 3.002660585328769,
+      "trade_id": "44092723",
+      "order_id": "44092723",
       "leg_type": "full_close",
       "partial_fraction": null,
-      "exit_reason": "flip_position",
-      "confidence": 0.7374375
-    },
-    {
-      "t": "2026-06-22T19:30:20.967Z",
-      "symbol": "NVDA",
-      "side": "COVER_STOP_LOSS",
-      "entry": 208.56,
-      "exit": 208,
-      "pnl": 0.5600000000000023,
-      "pct": 0.2685078634445734,
-      "trade_id": "43466298",
-      "order_id": "43466298",
-      "leg_type": "full_close",
-      "partial_fraction": null,
-      "exit_reason": "stop_loss",
+      "exit_reason": "profit_tier_4",
       "confidence": 100
     },
     {
-      "t": "2026-06-22T19:30:05.982Z",
-      "symbol": "RIOT",
-      "side": "SELL_STOP_LOSS",
-      "entry": 28.94,
-      "exit": 28.79,
-      "pnl": -2.10000000000003,
-      "pct": -0.5183137525915762,
-      "trade_id": "43470597",
-      "order_id": "43470597",
-      "leg_type": "full_close",
-      "partial_fraction": null,
-      "exit_reason": "stop_loss",
-      "confidence": 100
-    },
-    {
-      "t": "2026-06-22T19:15:21.033Z",
+      "t": "2026-07-02T15:03:33.086Z",
       "symbol": "MARA",
-      "side": "SELL_STOP_LOSS",
-      "entry": 14.955,
-      "exit": 14.995,
-      "pnl": 0.8399999999999821,
-      "pct": 0.26746907388832597,
-      "trade_id": "43469704",
-      "order_id": "43469704",
-      "leg_type": "full_close",
-      "partial_fraction": null,
-      "exit_reason": "stop_loss",
-      "confidence": 100
-    },
-    {
-      "t": "2026-06-22T18:45:21.037Z",
-      "symbol": "RIOT",
-      "side": "SELL_STOP_LOSS",
-      "entry": 28.915,
-      "exit": 28.995,
-      "pnl": 1.3600000000000314,
-      "pct": 0.2766730070897522,
-      "trade_id": "43467349",
-      "order_id": "43467349",
-      "leg_type": "full_close",
-      "partial_fraction": null,
-      "exit_reason": "stop_loss",
-      "confidence": 100
-    },
-    {
-      "t": "2026-06-22T18:00:05.906Z",
-      "symbol": "MARA",
-      "side": "SELL_PARTIAL_OTHER",
-      "entry": 14.905,
-      "exit": 15.035,
-      "pnl": 2.860000000000017,
-      "pct": 0.8721905400872244,
-      "trade_id": "43465005",
-      "order_id": "43465005",
+      "side": "COVER_PARTIAL_TIER_3",
+      "entry": 13.155,
+      "exit": 12.89,
+      "pnl": 1.3249999999999937,
+      "pct": 2.014443177499041,
+      "trade_id": "44092723",
+      "order_id": "44092723",
       "leg_type": "partial_close",
-      "partial_fraction": 0.5,
+      "partial_fraction": null,
+      "exit_reason": "profit_tier_3",
+      "confidence": 100
+    },
+    {
+      "t": "2026-07-02T15:02:51.369Z",
+      "symbol": "MARA",
+      "side": "COVER_PARTIAL_TIER_2",
+      "entry": 13.155,
+      "exit": 12.995,
+      "pnl": 1.2800000000000011,
+      "pct": 1.216267578867352,
+      "trade_id": "44092723",
+      "order_id": "44092723",
+      "leg_type": "partial_close",
+      "partial_fraction": null,
+      "exit_reason": "profit_tier_2",
+      "confidence": 100
+    },
+    {
+      "t": "2026-07-02T15:02:14.570Z",
+      "symbol": "MARA",
+      "side": "COVER_PARTIAL_TIER_1",
+      "entry": 13.155,
+      "exit": 13.04,
+      "pnl": 0.8050000000000015,
+      "pct": 0.8741923223109102,
+      "trade_id": "44092723",
+      "order_id": "44092723",
+      "leg_type": "partial_close",
+      "partial_fraction": null,
+      "exit_reason": "profit_tier_1",
+      "confidence": 100
+    },
+    {
+      "t": "2026-07-02T15:01:58.978Z",
+      "symbol": "MARA",
+      "side": "COVER_PARTIAL_OTHER",
+      "entry": 13.155,
+      "exit": 13.06,
+      "pnl": 2.3749999999999716,
+      "pct": 0.722158874952481,
+      "trade_id": "44092723",
+      "order_id": "44092723",
+      "leg_type": "partial_close",
+      "partial_fraction": null,
       "exit_reason": "be_scaleout",
       "confidence": 100
     },
     {
-      "t": "2026-06-22T17:45:20.949Z",
-      "symbol": "NVDA",
-      "side": "COVER_STOP_LOSS",
-      "entry": 208.995,
-      "exit": 208.5,
-      "pnl": 0.4950000000000046,
-      "pct": 0.23684777147778874,
-      "trade_id": "43463927",
-      "order_id": "43463927",
-      "leg_type": "full_close",
+      "t": "2026-07-02T14:58:03.737Z",
+      "symbol": "TSLA",
+      "side": "COVER_PARTIAL_OTHER",
+      "entry": 397.67,
+      "exit": 395.68,
+      "pnl": 1.9900000000000089,
+      "pct": 0.5004149168908917,
+      "trade_id": "44090319",
+      "order_id": "44090319",
+      "leg_type": "partial_close",
       "partial_fraction": null,
-      "exit_reason": "stop_loss",
+      "exit_reason": "be_scaleout",
       "confidence": 100
     },
     {
-      "t": "2026-06-18T19:50:03.823Z",
+      "t": "2026-07-02T14:40:54.024Z",
       "symbol": "TSLA",
       "side": "COVER_FULL",
-      "entry": 398.715,
-      "exit": 398.715,
-      "pnl": 0,
-      "pct": 0,
-      "trade_id": "43391422",
-      "order_id": "43391422",
+      "entry": 401.55,
+      "exit": 398.06,
+      "pnl": 3.4900000000000095,
+      "pct": 0.8691321130618875,
+      "trade_id": "44087550",
+      "order_id": "44087550",
       "leg_type": "full_close",
       "partial_fraction": null,
-      "exit_reason": "ttp_1550_liquidation",
+      "exit_reason": "profit_tier_1",
       "confidence": 100
     },
     {
-      "t": "2026-06-18T19:30:00.727Z",
+      "t": "2026-07-02T14:34:15.115Z",
       "symbol": "TSLA",
-      "side": "SELL_FULL",
-      "entry": 394.3,
-      "exit": 395.905,
-      "pnl": 1.6049999999999613,
-      "pct": 0.4070504691858892,
-      "trade_id": "43388078",
-      "order_id": "43388078",
-      "leg_type": "full_close",
+      "side": "COVER_PARTIAL_OTHER",
+      "entry": 401.55,
+      "exit": 399.53,
+      "pnl": 2.0200000000000387,
+      "pct": 0.5030506786203558,
+      "trade_id": "44087550",
+      "order_id": "44087550",
+      "leg_type": "partial_close",
       "partial_fraction": null,
-      "exit_reason": "flip_position",
-      "confidence": 0.9116106557377048
+      "exit_reason": "be_scaleout",
+      "confidence": 100
     },
     {
-      "t": "2026-06-18T18:30:00.882Z",
-      "symbol": "TSLA",
-      "side": "COVER_STOP_LOSS",
-      "entry": 395.65,
-      "exit": 394.28,
-      "pnl": 1.3700000000000045,
-      "pct": 0.34626563882219247,
-      "trade_id": "43384996",
-      "order_id": "43384996",
+      "t": "2026-07-02T14:18:07.807Z",
+      "symbol": "MARA",
+      "side": "SELL_STOP_LOSS",
+      "entry": 13.875,
+      "exit": 13.765,
+      "pnl": -1.3199999999999932,
+      "pct": -0.7927927927927887,
+      "trade_id": "44083709",
+      "order_id": "44083709",
       "leg_type": "full_close",
       "partial_fraction": null,
       "exit_reason": "stop_loss",
       "confidence": 100
     },
     {
-      "t": "2026-06-15T17:00:00.948Z",
+      "t": "2026-07-02T14:04:13.910Z",
       "symbol": "TSLA",
       "side": "SELL_STOP_LOSS",
-      "entry": 409.945,
-      "exit": 408.745,
-      "pnl": -1.1999999999999886,
-      "pct": -0.2927221944407149,
-      "trade_id": "43118487",
-      "order_id": "43118487",
+      "entry": 413.02,
+      "exit": 410.84,
+      "pnl": -4.360000000000014,
+      "pct": -0.52781947605443,
+      "trade_id": "44079421",
+      "order_id": "44079421",
       "leg_type": "full_close",
       "partial_fraction": null,
       "exit_reason": "stop_loss",
       "confidence": 100
     },
     {
-      "t": "2026-06-15T13:30:31.296Z",
-      "symbol": "TSLA",
-      "side": "SELL_MAX_HOLD",
-      "entry": 401.925,
-      "exit": 411.99,
-      "pnl": 10.064999999999998,
-      "pct": 2.504198544504571,
-      "trade_id": "43052435",
-      "order_id": "43052435",
-      "leg_type": "full_close",
-      "partial_fraction": null,
-      "exit_reason": "max_hold_universal",
-      "confidence": 100
-    },
-    {
-      "t": "2026-06-12T18:30:00.735Z",
-      "symbol": "TSLA",
+      "t": "2026-07-02T13:45:16.475Z",
+      "symbol": "MARA",
       "side": "SELL_STOP_LOSS",
-      "entry": 401.94,
-      "exit": 401.33,
-      "pnl": -0.6100000000000136,
-      "pct": -0.15176394486739656,
-      "trade_id": "43047665",
-      "order_id": "43047665",
+      "entry": 14.035,
+      "exit": 13.95,
+      "pnl": -4.505000000000045,
+      "pct": -0.6056287851799135,
+      "trade_id": "44074521",
+      "order_id": "44074521",
       "leg_type": "full_close",
       "partial_fraction": null,
       "exit_reason": "stop_loss",
       "confidence": 100
     },
     {
-      "t": "2026-06-12T17:30:02.936Z",
-      "symbol": "TSLA",
-      "side": "SELL_FULL",
-      "entry": 396.225,
-      "exit": 402.03,
-      "pnl": 5.80499999999995,
-      "pct": 1.4650766609880623,
-      "trade_id": "43041168",
-      "order_id": "43041168",
-      "leg_type": "full_close",
-      "partial_fraction": null,
-      "exit_reason": "profit_tier_2",
-      "confidence": 100
-    },
-    {
-      "t": "2026-06-12T16:30:24.212Z",
-      "symbol": "TSLA",
-      "side": "SELL_FULL",
-      "entry": 389.35,
-      "exit": 394.59,
-      "pnl": 5.239999999999952,
-      "pct": 1.345832798253487,
-      "trade_id": "43035002",
-      "order_id": "43035002",
-      "leg_type": "full_close",
-      "partial_fraction": null,
-      "exit_reason": "profit_tier_2",
-      "confidence": 100
-    },
-    {
-      "t": "2026-06-12T15:45:00.920Z",
-      "symbol": "TSLA",
-      "side": "SELL_FULL",
-      "entry": 397.37,
-      "exit": 394.36,
-      "pnl": -3.009999999999991,
-      "pct": -0.7574804338525783,
-      "trade_id": "43025231",
-      "order_id": "43025231",
+      "t": "2026-07-01T15:03:39.516Z",
+      "symbol": "MARA",
+      "side": "COVER_FULL",
+      "entry": 13.33,
+      "exit": 13.425,
+      "pnl": -1.5200000000000102,
+      "pct": -0.7126781695423904,
+      "trade_id": "44014079",
+      "order_id": "44014079",
       "leg_type": "full_close",
       "partial_fraction": null,
       "exit_reason": "break_even",
       "confidence": 100
     },
     {
-      "t": "2026-06-12T14:45:01.055Z",
+      "t": "2026-07-01T14:58:43.815Z",
       "symbol": "TSLA",
       "side": "SELL_STOP_LOSS",
-      "entry": 396.165,
-      "exit": 393.78,
-      "pnl": -2.3850000000000477,
-      "pct": -0.6020218848207306,
-      "trade_id": "43004150",
-      "order_id": "43004150",
+      "entry": 427.05,
+      "exit": 424.905,
+      "pnl": -4.290000000000077,
+      "pct": -0.50228310502284,
+      "trade_id": "44010916",
+      "order_id": "44010916",
+      "leg_type": "full_close",
+      "partial_fraction": null,
+      "exit_reason": "stop_loss",
+      "confidence": 100
+    },
+    {
+      "t": "2026-07-01T14:46:36.353Z",
+      "symbol": "COIN",
+      "side": "COVER_FULL",
+      "entry": 156.72,
+      "exit": 154.8,
+      "pnl": 1.9199999999999875,
+      "pct": 1.2251148545176032,
+      "trade_id": "44007518",
+      "order_id": "44007518",
+      "leg_type": "full_close",
+      "partial_fraction": null,
+      "exit_reason": "profit_tier_2",
+      "confidence": 100
+    },
+    {
+      "t": "2026-07-01T14:46:34.803Z",
+      "symbol": "MARA",
+      "side": "COVER_PARTIAL_TIER_1",
+      "entry": 13.33,
+      "exit": 13.21,
+      "pnl": 0.7199999999999953,
+      "pct": 0.9002250562640602,
+      "trade_id": "44014079",
+      "order_id": "44014079",
+      "leg_type": "partial_close",
+      "partial_fraction": null,
+      "exit_reason": "profit_tier_1",
+      "confidence": 100
+    },
+    {
+      "t": "2026-07-01T14:45:59.276Z",
+      "symbol": "MARA",
+      "side": "COVER_PARTIAL_OTHER",
+      "entry": 13.33,
+      "exit": 13.25,
+      "pnl": 1.7600000000000016,
+      "pct": 0.6001500375093779,
+      "trade_id": "44014079",
+      "order_id": "44014079",
+      "leg_type": "partial_close",
+      "partial_fraction": null,
+      "exit_reason": "be_scaleout",
+      "confidence": 100
+    },
+    {
+      "t": "2026-07-01T14:33:44.287Z",
+      "symbol": "COIN",
+      "side": "COVER_PARTIAL_TIER_1",
+      "entry": 156.72,
+      "exit": 155.4,
+      "pnl": 1.3199999999999932,
+      "pct": 0.8422664624808532,
+      "trade_id": "44007518",
+      "order_id": "44007518",
+      "leg_type": "partial_close",
+      "partial_fraction": null,
+      "exit_reason": "profit_tier_1",
+      "confidence": 100
+    },
+    {
+      "t": "2026-07-01T14:30:50.395Z",
+      "symbol": "COIN",
+      "side": "COVER_PARTIAL_OTHER",
+      "entry": 156.72,
+      "exit": 155.9,
+      "pnl": 1.6399999999999864,
+      "pct": 0.5232261357835587,
+      "trade_id": "44007518",
+      "order_id": "44007518",
+      "leg_type": "partial_close",
+      "partial_fraction": null,
+      "exit_reason": "be_scaleout",
+      "confidence": 100
+    },
+    {
+      "t": "2026-07-01T14:26:19.646Z",
+      "symbol": "NVDA",
+      "side": "SELL_FULL",
+      "entry": 195.45,
+      "exit": 196.565,
+      "pnl": 1.115000000000009,
+      "pct": 0.5704783832182191,
+      "trade_id": "44003172",
+      "order_id": "44003172",
+      "leg_type": "full_close",
+      "partial_fraction": null,
+      "exit_reason": "profit_tier_1",
+      "confidence": 100
+    },
+    {
+      "t": "2026-07-01T14:22:07.732Z",
+      "symbol": "NVDA",
+      "side": "SELL_PARTIAL_OTHER",
+      "entry": 195.45,
+      "exit": 196.43,
+      "pnl": 0.9800000000000182,
+      "pct": 0.5014070094653458,
+      "trade_id": "44003172",
+      "order_id": "44003172",
+      "leg_type": "partial_close",
+      "partial_fraction": 0.5,
+      "exit_reason": "be_scaleout",
+      "confidence": 100
+    },
+    {
+      "t": "2026-07-01T13:46:46.457Z",
+      "symbol": "MARA",
+      "side": "COVER_FULL",
+      "entry": 13.48,
+      "exit": 13.6,
+      "pnl": -1.5599999999999898,
+      "pct": -0.8902077151335253,
+      "trade_id": "43997513",
+      "order_id": "43997513",
+      "leg_type": "full_close",
+      "partial_fraction": null,
+      "exit_reason": "break_even",
+      "confidence": 100
+    },
+    {
+      "t": "2026-07-01T13:45:14.403Z",
+      "symbol": "MARA",
+      "side": "COVER_PARTIAL_OTHER",
+      "entry": 13.48,
+      "exit": 13.405,
+      "pnl": 0.9750000000000139,
+      "pct": 0.5563798219584648,
+      "trade_id": "43997513",
+      "order_id": "43997513",
+      "leg_type": "partial_close",
+      "partial_fraction": null,
+      "exit_reason": "be_scaleout",
+      "confidence": 100
+    },
+    {
+      "t": "2026-06-30T18:38:48.171Z",
+      "symbol": "NVDA",
+      "side": "SELL_TRAILING_STOP",
+      "entry": 198.25,
+      "exit": 198.26,
+      "pnl": 0.009999999999990905,
+      "pct": 0.005044136191672588,
+      "trade_id": "43941738",
+      "order_id": "43941738",
+      "leg_type": "full_close",
+      "partial_fraction": null,
+      "exit_reason": "trailing_stop",
+      "confidence": 100
+    },
+    {
+      "t": "2026-06-30T18:19:33.852Z",
+      "symbol": "NVDA",
+      "side": "SELL_PARTIAL_OTHER",
+      "entry": 198.25,
+      "exit": 199.25,
+      "pnl": 1,
+      "pct": 0.5044136191677175,
+      "trade_id": "43941738",
+      "order_id": "43941738",
+      "leg_type": "partial_close",
+      "partial_fraction": 0.5,
+      "exit_reason": "be_scaleout",
+      "confidence": 100
+    },
+    {
+      "t": "2026-06-30T14:52:44.835Z",
+      "symbol": "NVDA",
+      "side": "SELL_STOP_LOSS",
+      "entry": 197.9,
+      "exit": 196.91,
+      "pnl": -2.9700000000000277,
+      "pct": -0.5002526528549819,
+      "trade_id": "43934187",
+      "order_id": "43934187",
+      "leg_type": "full_close",
+      "partial_fraction": null,
+      "exit_reason": "stop_loss",
+      "confidence": 100
+    },
+    {
+      "t": "2026-06-30T13:47:54.639Z",
+      "symbol": "RIOT",
+      "side": "COVER_FULL",
+      "entry": 26.71,
+      "exit": 26.55,
+      "pnl": 0.48000000000000037,
+      "pct": 0.599026581804568,
+      "trade_id": "43917158",
+      "order_id": "43917158",
+      "leg_type": "full_close",
+      "partial_fraction": null,
+      "exit_reason": "be_scaleout",
+      "confidence": 100
+    },
+    {
+      "t": "2026-06-29T19:50:09.008Z",
+      "symbol": "TSLA",
+      "side": "SELL_FULL",
+      "entry": 412.07,
+      "exit": 412.07,
+      "pnl": 0,
+      "pct": 0,
+      "trade_id": "43882110",
+      "order_id": "43882110",
+      "leg_type": "full_close",
+      "partial_fraction": null,
+      "exit_reason": "ttp_1550_liquidation",
+      "confidence": 100
+    },
+    {
+      "t": "2026-06-29T19:50:05.424Z",
+      "symbol": "RIOT",
+      "side": "SELL_FULL",
+      "entry": 27.77,
+      "exit": 28.12,
+      "pnl": 2.45000000000001,
+      "pct": 1.2603528988116726,
+      "trade_id": "43880044",
+      "order_id": "43880044",
+      "leg_type": "full_close",
+      "partial_fraction": null,
+      "exit_reason": "ttp_1550_liquidation",
+      "confidence": 100
+    },
+    {
+      "t": "2026-06-29T19:32:51.751Z",
+      "symbol": "MARA",
+      "side": "SELL_TRAILING_STOP",
+      "entry": 14.145,
+      "exit": 14.2,
+      "pnl": 2.2549999999999883,
+      "pct": 0.38882997525627233,
+      "trade_id": "43876120",
+      "order_id": "43876120",
+      "leg_type": "full_close",
+      "partial_fraction": null,
+      "exit_reason": "trailing_stop",
+      "confidence": 100
+    },
+    {
+      "t": "2026-06-29T19:30:00.966Z",
+      "symbol": "NVDA",
+      "side": "SELL_MAX_HOLD",
+      "entry": 194.56,
+      "exit": 194.735,
+      "pnl": 0.35000000000002274,
+      "pct": 0.08994654605263742,
+      "trade_id": "43867417",
+      "order_id": "43867417",
+      "leg_type": "full_close",
+      "partial_fraction": null,
+      "exit_reason": "max_hold_loser",
+      "confidence": 80
+    },
+    {
+      "t": "2026-06-29T19:23:01.509Z",
+      "symbol": "RIOT",
+      "side": "SELL_PARTIAL_TIER_1",
+      "entry": 27.77,
+      "exit": 27.97,
+      "pnl": 0.5999999999999979,
+      "pct": 0.7202016564638074,
+      "trade_id": "43880044",
+      "order_id": "43880044",
+      "leg_type": "partial_close",
+      "partial_fraction": 0.3,
+      "exit_reason": "profit_tier_1",
+      "confidence": 100
+    },
+    {
+      "t": "2026-06-29T19:00:01.483Z",
+      "symbol": "TSLA",
+      "side": "SELL_MAX_HOLD",
+      "entry": 390.44,
+      "exit": 410.34,
+      "pnl": 19.899999999999977,
+      "pct": 5.096813851039847,
+      "trade_id": "43835945",
+      "order_id": "43835945",
+      "leg_type": "full_close",
+      "partial_fraction": null,
+      "exit_reason": "max_hold_winner",
+      "confidence": 80
+    },
+    {
+      "t": "2026-06-29T18:17:51.939Z",
+      "symbol": "RIOT",
+      "side": "SELL_STOP_LOSS",
+      "entry": 27.685,
+      "exit": 27.455,
+      "pnl": -3.450000000000006,
+      "pct": -0.8307747877912242,
+      "trade_id": "43874685",
+      "order_id": "43874685",
+      "leg_type": "full_close",
+      "partial_fraction": null,
+      "exit_reason": "stop_loss",
+      "confidence": 100
+    },
+    {
+      "t": "2026-06-29T18:00:25.844Z",
+      "symbol": "RIOT",
+      "side": "SELL_TRAILING_STOP",
+      "entry": 27.585,
+      "exit": 27.655,
+      "pnl": 0.28000000000000114,
+      "pct": 0.2537611020482156,
+      "trade_id": "43848174",
+      "order_id": "43848174",
+      "leg_type": "full_close",
+      "partial_fraction": null,
+      "exit_reason": "trailing_stop",
+      "confidence": 100
+    },
+    {
+      "t": "2026-06-29T17:01:07.240Z",
+      "symbol": "NVDA",
+      "side": "COVER_STOP_LOSS",
+      "entry": 193.095,
+      "exit": 194.07,
+      "pnl": -1.9499999999999886,
+      "pct": -0.5049328050959343,
+      "trade_id": "43863888",
+      "order_id": "43863888",
+      "leg_type": "full_close",
+      "partial_fraction": null,
+      "exit_reason": "stop_loss",
+      "confidence": 100
+    },
+    {
+      "t": "2026-06-29T15:03:01.688Z",
+      "symbol": "RIOT",
+      "side": "SELL_PARTIAL_OTHER",
+      "entry": 27.585,
+      "exit": 27.73,
+      "pnl": 0.5799999999999983,
+      "pct": 0.5256479970998716,
+      "trade_id": "43848174",
+      "order_id": "43848174",
+      "leg_type": "partial_close",
+      "partial_fraction": 0.5,
+      "exit_reason": "be_scaleout",
+      "confidence": 100
+    },
+    {
+      "t": "2026-06-29T14:34:09.483Z",
+      "symbol": "NVDA",
+      "side": "COVER_STOP_LOSS",
+      "entry": 192.725,
+      "exit": 193.72,
+      "pnl": -1.990000000000009,
+      "pct": -0.5162796731093551,
+      "trade_id": "43840331",
+      "order_id": "43840331",
+      "leg_type": "full_close",
+      "partial_fraction": null,
+      "exit_reason": "stop_loss",
+      "confidence": 100
+    },
+    {
+      "t": "2026-06-29T14:25:06.290Z",
+      "symbol": "TSLA",
+      "side": "SELL_PARTIAL_OTHER",
+      "entry": 390.44,
+      "exit": 392.5,
+      "pnl": 2.0600000000000023,
+      "pct": 0.5276098760372918,
+      "trade_id": "43835945",
+      "order_id": "43835945",
+      "leg_type": "partial_close",
+      "partial_fraction": 0.5,
+      "exit_reason": "be_scaleout",
+      "confidence": 100
+    },
+    {
+      "t": "2026-06-29T14:05:36.517Z",
+      "symbol": "RIOT",
+      "side": "SELL_FULL",
+      "entry": 27.33,
+      "exit": 27.11,
+      "pnl": -1.539999999999992,
+      "pct": -0.8049762166117778,
+      "trade_id": "43831064",
+      "order_id": "43831064",
+      "leg_type": "full_close",
+      "partial_fraction": null,
+      "exit_reason": "break_even",
+      "confidence": 100
+    },
+    {
+      "t": "2026-06-25T19:50:18.313Z",
+      "symbol": "QQQ",
+      "side": "SELL_FULL",
+      "entry": 714.89,
+      "exit": 714.34,
+      "pnl": -1.099999999999909,
+      "pct": -0.07693491306354189,
+      "trade_id": "43715577",
+      "order_id": "43715577",
+      "leg_type": "full_close",
+      "partial_fraction": null,
+      "exit_reason": "ttp_1550_liquidation",
+      "confidence": 100
+    },
+    {
+      "t": "2026-06-25T19:50:14.847Z",
+      "symbol": "COIN",
+      "side": "COVER_FULL",
+      "entry": 142.1,
+      "exit": 142.1,
+      "pnl": 0,
+      "pct": 0,
+      "trade_id": "43714872",
+      "order_id": "43714872",
+      "leg_type": "full_close",
+      "partial_fraction": null,
+      "exit_reason": "ttp_1550_liquidation",
+      "confidence": 100
+    },
+    {
+      "t": "2026-06-25T19:50:07.591Z",
+      "symbol": "MARA",
+      "side": "COVER_FULL",
+      "entry": 13.78,
+      "exit": 13.775,
+      "pnl": 0.06499999999998707,
+      "pct": 0.03628447024672718,
+      "trade_id": "43714012",
+      "order_id": "43714012",
+      "leg_type": "full_close",
+      "partial_fraction": null,
+      "exit_reason": "ttp_1550_liquidation",
+      "confidence": 100
+    },
+    {
+      "t": "2026-06-25T19:50:03.948Z",
+      "symbol": "NVDA",
+      "side": "COVER_FULL",
+      "entry": 196.72,
+      "exit": 194.75,
+      "pnl": 5.909999999999996,
+      "pct": 1.001423342822285,
+      "trade_id": "43699524",
+      "order_id": "43699524",
+      "leg_type": "full_close",
+      "partial_fraction": null,
+      "exit_reason": "ttp_1550_liquidation",
+      "confidence": 100
+    },
+    {
+      "t": "2026-06-25T19:46:19.687Z",
+      "symbol": "RIOT",
+      "side": "COVER_STOP_LOSS",
+      "entry": 27.38,
+      "exit": 27.52,
+      "pnl": -0.700000000000003,
+      "pct": -0.5113221329437567,
+      "trade_id": "43716381",
+      "order_id": "43716381",
+      "leg_type": "full_close",
+      "partial_fraction": null,
+      "exit_reason": "stop_loss",
+      "confidence": 100
+    },
+    {
+      "t": "2026-06-25T19:36:08.836Z",
+      "symbol": "RIOT",
+      "side": "COVER_TRAILING_STOP",
+      "entry": 27.5,
+      "exit": 27.47,
+      "pnl": 0.12000000000000453,
+      "pct": 0.10909090909091322,
+      "trade_id": "43713016",
+      "order_id": "43713016",
+      "leg_type": "full_close",
+      "partial_fraction": null,
+      "exit_reason": "trailing_stop",
+      "confidence": 100
+    },
+    {
+      "t": "2026-06-25T19:18:55.448Z",
+      "symbol": "RIOT",
+      "side": "COVER_PARTIAL_TIER_2",
+      "entry": 27.5,
+      "exit": 27.16,
+      "pnl": 1.0199999999999996,
+      "pct": 1.2363636363636359,
+      "trade_id": "43713016",
+      "order_id": "43713016",
+      "leg_type": "partial_close",
+      "partial_fraction": null,
+      "exit_reason": "profit_tier_2",
+      "confidence": 100
+    },
+    {
+      "t": "2026-06-25T19:01:28.849Z",
+      "symbol": "RIOT",
+      "side": "COVER_PARTIAL_OTHER",
+      "entry": 27.5,
+      "exit": 27.26,
+      "pnl": 1.679999999999989,
+      "pct": 0.872727272727267,
+      "trade_id": "43713016",
+      "order_id": "43713016",
+      "leg_type": "partial_close",
+      "partial_fraction": null,
+      "exit_reason": "be_scaleout",
+      "confidence": 100
+    },
+    {
+      "t": "2026-06-25T18:30:00.582Z",
+      "symbol": "TSLA",
+      "side": "COVER_FULL",
+      "entry": 373.97,
+      "exit": 375.855,
+      "pnl": -3.769999999999982,
+      "pct": -0.5040511270957538,
+      "trade_id": "43708822",
+      "order_id": "43708822",
+      "leg_type": "full_close",
+      "partial_fraction": null,
+      "exit_reason": "flip_position",
+      "confidence": 0.85
+    },
+    {
+      "t": "2026-06-25T17:38:36.897Z",
+      "symbol": "RIOT",
+      "side": "COVER_STOP_LOSS",
+      "entry": 27.43,
+      "exit": 27.65,
+      "pnl": -3.5199999999999823,
+      "pct": -0.8020415603353951,
+      "trade_id": "43707947",
+      "order_id": "43707947",
       "leg_type": "full_close",
       "partial_fraction": null,
       "exit_reason": "stop_loss",
@@ -409,8 +1174,8 @@
     }
   ],
   "_meta": {
-    "last_updated": "2026-06-23T19:35:33.027Z",
-    "total_recorded_exits": 18,
+    "last_updated": "2026-07-07T08:03:54.194Z",
+    "total_recorded_exits": 80,
     "track_record_start_at": "2026-06-12T00:00:00.000Z",
     "execution_mode": "live",
     "spec": "CC-SPEC-EVAL-CAPTURE"

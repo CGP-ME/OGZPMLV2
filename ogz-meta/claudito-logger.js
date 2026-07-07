@@ -179,6 +179,57 @@ function _buildSideLabel(action, isPartialClose, exitReason) {
   return `${prefix}_PARTIAL_OTHER`;
 }
 
+function _isTrackRecordExit(entry) {
+  return entry && (entry.action === 'SELL' || entry.action === 'COVER');
+}
+
+function _hasTrackRecordPartialFraction(entry) {
+  const value = Number(entry?.partialFraction);
+  return Number.isFinite(value) && value > 0 && value < 1;
+}
+
+function _compareTrackRecordEntriesByTime(a, b, fallbackOrder = []) {
+  const aMs = Date.parse(a?.timestamp);
+  const bMs = Date.parse(b?.timestamp);
+  if (Number.isFinite(aMs) && Number.isFinite(bMs) && aMs !== bMs) {
+    return aMs - bMs;
+  }
+  return fallbackOrder.indexOf(a) - fallbackOrder.indexOf(b);
+}
+
+function _trackRecordTimestampMs(entry) {
+  const ms = Date.parse(entry?.timestamp);
+  if (!Number.isFinite(ms)) {
+    throw new Error(`Track record proof requires TRADE timestamp before publishing ${entry?.tradeId || entry?.orderId || '(unknown trade)'}`);
+  }
+  return ms;
+}
+
+function _validateTrackRecordExitOrdering(byTradeId) {
+  for (const [tradeId, tradeLegs] of byTradeId.entries()) {
+    const exitTimestamps = new Set();
+    for (const exitLeg of tradeLegs.filter(_isTrackRecordExit)) {
+      const timestampMs = _trackRecordTimestampMs(exitLeg);
+      if (exitTimestamps.has(timestampMs)) {
+        throw new Error(`Track record proof cannot infer exit leg order for trade ${tradeId}: duplicate exit timestamp ${exitLeg.timestamp}`);
+      }
+      exitTimestamps.add(timestampMs);
+    }
+  }
+}
+
+function _isTrackRecordPartialExit(exitEntry, tradeLegs = []) {
+  if (exitEntry?.isPartialClose === true && _hasTrackRecordPartialFraction(exitEntry)) {
+    return true;
+  }
+
+  const exitLegs = tradeLegs
+    .filter(_isTrackRecordExit)
+    .sort((a, b) => _compareTrackRecordEntriesByTime(a, b, tradeLegs));
+  const exitIndex = exitLegs.indexOf(exitEntry);
+  return exitIndex >= 0 && exitIndex < exitLegs.length - 1;
+}
+
 /**
  * TRADING PROOF LOGGER
  * Records every trade for website proof of profitability
@@ -313,17 +364,40 @@ function _resolveTrackRecordMaxDrawdown(env, startingBalance) {
   return derived;
 }
 
+function _parseStartingBalanceFromAccountLabel(accountLabel) {
+  const label = String(accountLabel || '');
+  const match = label.match(/\b(\d+(?:\.\d+)?)\s*K\b/i);
+  if (!match) return null;
+  return Number(match[1]) * 1000;
+}
+
 function _resolveTrackRecordAccountConfig(env = process.env) {
   const startingBalance = _readPositiveNumber(env, 'STARTING_BALANCE');
+  const accountLabel = _readRequiredString(env, 'OGZ_ACCOUNT_LABEL');
+  const expectedStartingBalance = _parseStartingBalanceFromAccountLabel(accountLabel);
+  if (expectedStartingBalance === null) {
+    throw new Error(`Track record proof requires OGZ_ACCOUNT_LABEL to include account size token like 5K, got ${accountLabel}`);
+  }
+  if (
+    Math.abs(startingBalance - expectedStartingBalance) > 0.01
+  ) {
+    throw new Error(`Track record proof account label implies STARTING_BALANCE=${expectedStartingBalance}, got ${startingBalance} for OGZ_ACCOUNT_LABEL=${accountLabel}`);
+  }
+
+  const maxDrawdown = _resolveTrackRecordMaxDrawdown(env, startingBalance);
+  if (maxDrawdown >= startingBalance) {
+    throw new Error(`Track record proof max drawdown must be below STARTING_BALANCE=${startingBalance}, got ${maxDrawdown}`);
+  }
+
   return {
     accountId: _readRequiredString(env, 'OGZ_ACCOUNT_ID'),
-    accountLabel: _readRequiredString(env, 'OGZ_ACCOUNT_LABEL'),
+    accountLabel,
     accountStage: _readRequiredString(env, 'OGZ_ACCOUNT_STAGE'),
     accountStatus: _readRequiredString(env, 'OGZ_ACCOUNT_STATUS'),
     broker: _readRequiredString(env, 'BROKER'),
     startingBalance,
     profitTarget: _readFirstPositiveNumber(env, ['OGZ_PROFIT_TARGET', 'TTP_PROFIT_TARGET_DOLLARS']),
-    maxDrawdown: _resolveTrackRecordMaxDrawdown(env, startingBalance),
+    maxDrawdown,
     minTradesRequired: _readPositiveInteger(env, 'OGZ_MIN_TRADES_REQUIRED'),
     trackRecordStartAt: _readRequiredIsoTimestamp(env, 'OGZ_TRACK_RECORD_START_AT'),
   };
@@ -333,10 +407,7 @@ function _filterTrackRecordEntriesForAccount(entries, startAt) {
   const startMs = Date.parse(startAt);
   return entries.filter(entry => {
     if (entry.type !== 'TRADE') return true;
-    const timestampMs = Date.parse(entry.timestamp);
-    if (!Number.isFinite(timestampMs)) {
-      throw new Error(`Track record proof requires TRADE timestamp before publishing ${entry.tradeId || entry.orderId || '(unknown trade)'}`);
-    }
+    const timestampMs = _trackRecordTimestampMs(entry);
     return timestampMs >= startMs;
   });
 }
@@ -369,27 +440,28 @@ function _writeTrackRecordNow() {
     if (!byTradeId.has(e.tradeId)) byTradeId.set(e.tradeId, []);
     byTradeId.get(e.tradeId).push(e);
   }
+  _validateTrackRecordExitOrdering(byTradeId);
 
   const recent_trades = [];
-  for (let i = entries.length - 1; i >= 0; i--) {
-    const e = entries[i];
-    const isExit = (e.action === 'SELL' || e.action === 'COVER');
-    if (!isExit) continue;
-
+  const recentExits = entries
+    .filter(_isTrackRecordExit)
+    .sort((a, b) => _compareTrackRecordEntriesByTime(b, a, entries));
+  for (const e of recentExits) {
     const legs = byTradeId.get(e.tradeId) || [];
     const entryLeg = legs.find(x => x.action === 'BUY' || x.action === 'SELL_SHORT');
+    const isPartialExit = _isTrackRecordPartialExit(e, legs);
 
     recent_trades.push({
       t: e.timestamp,
       symbol: e.symbol,
-      side: _buildSideLabel(e.action, e.isPartialClose, e.exitReason),
+      side: _buildSideLabel(e.action, isPartialExit, e.exitReason),
       entry: e.entryPrice ?? entryLeg?.price ?? null,
       exit: e.price,
       pnl: e.pnl ?? null,
       pct: e.pnlPercent ?? null,
       trade_id: e.tradeId,
       order_id: e.orderId,
-      leg_type: e.isPartialClose ? 'partial_close' : 'full_close',
+      leg_type: isPartialExit ? 'partial_close' : 'full_close',
       partial_fraction: e.partialFraction,
       exit_reason: e.exitReason,
       confidence: e.confidence
@@ -398,7 +470,11 @@ function _writeTrackRecordNow() {
     if (recent_trades.length >= 50) break;
   }
 
-  const exits = entries.filter(e => e.action === 'SELL' || e.action === 'COVER');
+  const exits = entries.filter(_isTrackRecordExit);
+  const exitLegTypes = exits.map(e => ({
+    entry: e,
+    partial: _isTrackRecordPartialExit(e, byTradeId.get(e.tradeId) || []),
+  }));
   const dailyMap = new Map();
   for (const e of exits) {
     const date = new Date(e.timestamp).toISOString().split('T')[0];
@@ -431,8 +507,8 @@ function _writeTrackRecordNow() {
     avg_pnl: trades_recorded > 0 ? (grossProfit + grossLoss) / trades_recorded : 0,
     symbols_traded: symbolsTraded,
     exit_reasons: exitReasons,
-    partial_exits: exits.filter(e => e.isPartialClose).length,
-    full_exits: exits.filter(e => !e.isPartialClose).length,
+    partial_exits: exitLegTypes.filter(e => e.partial).length,
+    full_exits: exitLegTypes.filter(e => !e.partial).length,
     track_record_start_at: trackRecordStartAt,
   };
 

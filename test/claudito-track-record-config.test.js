@@ -19,7 +19,7 @@ let existingIndexRaw = null;
 function validEnv(overrides = {}) {
   return {
     OGZ_ACCOUNT_ID: 'MAX58356',
-    OGZ_ACCOUNT_LABEL: 'Trade The Pool MAX5',
+    OGZ_ACCOUNT_LABEL: 'Trade The Pool MAX5 5K',
     OGZ_ACCOUNT_STAGE: 'EVAL',
     OGZ_ACCOUNT_STATUS: 'active',
     BROKER: 'alpaca',
@@ -81,7 +81,7 @@ describe('Claudito track record proof config', () => {
     const accountJson = writeJsonAtomic.mock.calls[0][1];
     expect(accountJson).toEqual(expect.objectContaining({
       id: 'MAX58356',
-      label: 'Trade The Pool MAX5',
+      label: 'Trade The Pool MAX5 5K',
       stage: 'EVAL',
       status: 'active',
       broker: 'alpaca',
@@ -112,6 +112,40 @@ describe('Claudito track record proof config', () => {
     const accountJson = writeJsonAtomic.mock.calls[0][1];
     expect(accountJson.profit_target).toBe(325);
     expect(accountJson.max_drawdown).toBe(175);
+  });
+
+  test('rejects max drawdown values above the account size', () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    writeTrackRecordWithEnv(validEnv({
+      OGZ_MAX_DRAWDOWN: '5150',
+    }));
+
+    expect(writeJsonAtomic).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringMatching(/max drawdown must be below STARTING_BALANCE=5000/));
+  });
+
+  test('rejects account label and starting balance mismatch', () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    writeTrackRecordWithEnv(validEnv({
+      OGZ_ACCOUNT_LABEL: 'Trade The Pool MAX5 5K',
+      STARTING_BALANCE: '10000',
+    }));
+
+    expect(writeJsonAtomic).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringMatching(/account label implies STARTING_BALANCE=5000/));
+  });
+
+  test('rejects account label without explicit account size', () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    writeTrackRecordWithEnv(validEnv({
+      OGZ_ACCOUNT_LABEL: 'Trade The Pool MAX5',
+    }));
+
+    expect(writeJsonAtomic).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringMatching(/requires OGZ_ACCOUNT_LABEL to include account size token like 5K/));
   });
 
   test('rebuilds track record from the durable proof log after process memory is empty', () => {
@@ -204,6 +238,248 @@ describe('Claudito track record proof config', () => {
     ]);
   });
 
+  test('marks scaleout and earlier tier exits as partial legs', () => {
+    proofLogRaw = [
+      JSON.stringify({
+        type: 'TRADE',
+        timestamp: '2026-07-02T14:30:00.000Z',
+        action: 'SELL_SHORT',
+        symbol: 'MARA',
+        price: 13.15,
+        confidence: 100,
+        tradeId: 'short-1',
+        orderId: 'entry-1',
+      }),
+      JSON.stringify({
+        type: 'TRADE',
+        timestamp: '2026-07-02T15:00:00.000Z',
+        action: 'COVER',
+        symbol: 'MARA',
+        price: 13.06,
+        confidence: 100,
+        tradeId: 'short-1',
+        orderId: 'exit-1',
+        entryPrice: 13.15,
+        pnl: 1.25,
+        pnlPercent: 0.7,
+        isPartialClose: false,
+        partialFraction: null,
+        exitReason: 'be_scaleout',
+      }),
+      JSON.stringify({
+        type: 'TRADE',
+        timestamp: '2026-07-02T15:02:00.000Z',
+        action: 'COVER',
+        symbol: 'MARA',
+        price: 13,
+        confidence: 100,
+        tradeId: 'short-1',
+        orderId: 'exit-2',
+        entryPrice: 13.15,
+        pnl: 0.9,
+        pnlPercent: 1.1,
+        isPartialClose: false,
+        partialFraction: null,
+        exitReason: 'profit_tier_1',
+      }),
+      JSON.stringify({
+        type: 'TRADE',
+        timestamp: '2026-07-02T15:05:00.000Z',
+        action: 'COVER',
+        symbol: 'MARA',
+        price: 12.75,
+        confidence: 100,
+        tradeId: 'short-1',
+        orderId: 'exit-3',
+        entryPrice: 13.15,
+        pnl: 2.4,
+        pnlPercent: 3,
+        isPartialClose: false,
+        partialFraction: null,
+        exitReason: 'profit_tier_4',
+      }),
+    ].join('\n');
+
+    writeTrackRecordWithEnv(validEnv({
+      OGZ_ACCOUNT_LABEL: 'Trade The Pool MAX5 5K',
+    }));
+
+    const accountJson = writeJsonAtomic.mock.calls[0][1];
+    expect(accountJson.proof_summary.partial_exits).toBe(2);
+    expect(accountJson.proof_summary.full_exits).toBe(1);
+    expect(accountJson.recent_trades).toEqual([
+      expect.objectContaining({
+        order_id: 'exit-3',
+        side: 'COVER_FULL',
+        leg_type: 'full_close',
+      }),
+      expect.objectContaining({
+        order_id: 'exit-2',
+        side: 'COVER_PARTIAL_TIER_1',
+        leg_type: 'partial_close',
+      }),
+      expect.objectContaining({
+        order_id: 'exit-1',
+        side: 'COVER_PARTIAL_OTHER',
+        leg_type: 'partial_close',
+      }),
+    ]);
+  });
+
+  test('does not let a stale partial flag alone turn a final exit into a partial leg', () => {
+    proofLogRaw = [
+      JSON.stringify({
+        type: 'TRADE',
+        timestamp: '2026-07-02T14:30:00.000Z',
+        action: 'BUY',
+        symbol: 'MARA',
+        price: 14.5,
+        confidence: 100,
+        tradeId: 'long-1',
+        orderId: 'entry-1',
+      }),
+      JSON.stringify({
+        type: 'TRADE',
+        timestamp: '2026-07-02T15:00:00.000Z',
+        action: 'SELL',
+        symbol: 'MARA',
+        price: 15,
+        confidence: 100,
+        tradeId: 'long-1',
+        orderId: 'exit-1',
+        entryPrice: 14.5,
+        pnl: 5,
+        pnlPercent: 0.34,
+        isPartialClose: true,
+        partialFraction: null,
+        exitReason: 'take_profit',
+      }),
+    ].join('\n');
+
+    writeTrackRecordWithEnv(validEnv());
+
+    const accountJson = writeJsonAtomic.mock.calls[0][1];
+    expect(accountJson.proof_summary.partial_exits).toBe(0);
+    expect(accountJson.proof_summary.full_exits).toBe(1);
+    expect(accountJson.recent_trades).toEqual([
+      expect.objectContaining({
+        order_id: 'exit-1',
+        side: 'SELL_TAKE_PROFIT',
+        leg_type: 'full_close',
+      }),
+    ]);
+  });
+
+  test('uses timestamps instead of proof-log order for multi-leg full close inference', () => {
+    proofLogRaw = [
+      JSON.stringify({
+        type: 'TRADE',
+        timestamp: '2026-07-02T14:30:00.000Z',
+        action: 'BUY',
+        symbol: 'MARA',
+        price: 14.5,
+        confidence: 100,
+        tradeId: 'long-1',
+        orderId: 'entry-1',
+      }),
+      JSON.stringify({
+        type: 'TRADE',
+        timestamp: '2026-07-02T15:05:00.000Z',
+        action: 'SELL',
+        symbol: 'MARA',
+        price: 15.1,
+        confidence: 100,
+        tradeId: 'long-1',
+        orderId: 'exit-final',
+        entryPrice: 14.5,
+        pnl: 6,
+        pnlPercent: 0.41,
+        exitReason: 'take_profit',
+      }),
+      JSON.stringify({
+        type: 'TRADE',
+        timestamp: '2026-07-02T15:02:00.000Z',
+        action: 'SELL',
+        symbol: 'MARA',
+        price: 15,
+        confidence: 100,
+        tradeId: 'long-1',
+        orderId: 'exit-earlier',
+        entryPrice: 14.5,
+        pnl: 5,
+        pnlPercent: 0.34,
+        exitReason: 'take_profit',
+      }),
+    ].join('\n');
+
+    writeTrackRecordWithEnv(validEnv());
+
+    const accountJson = writeJsonAtomic.mock.calls[0][1];
+    expect(accountJson.proof_summary.partial_exits).toBe(1);
+    expect(accountJson.proof_summary.full_exits).toBe(1);
+    expect(accountJson.recent_trades).toEqual([
+      expect.objectContaining({
+        order_id: 'exit-final',
+        side: 'SELL_TAKE_PROFIT',
+        leg_type: 'full_close',
+      }),
+      expect.objectContaining({
+        order_id: 'exit-earlier',
+        side: 'SELL_PARTIAL_OTHER',
+        leg_type: 'partial_close',
+      }),
+    ]);
+  });
+
+  test('rejects duplicate exit timestamps for the same trade instead of guessing leg order', () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    proofLogRaw = [
+      JSON.stringify({
+        type: 'TRADE',
+        timestamp: '2026-07-02T14:30:00.000Z',
+        action: 'BUY',
+        symbol: 'MARA',
+        price: 14.5,
+        confidence: 100,
+        tradeId: 'long-1',
+        orderId: 'entry-1',
+      }),
+      JSON.stringify({
+        type: 'TRADE',
+        timestamp: '2026-07-02T15:02:00.000Z',
+        action: 'SELL',
+        symbol: 'MARA',
+        price: 15,
+        confidence: 100,
+        tradeId: 'long-1',
+        orderId: 'exit-1',
+        entryPrice: 14.5,
+        pnl: 5,
+        pnlPercent: 0.34,
+        exitReason: 'take_profit',
+      }),
+      JSON.stringify({
+        type: 'TRADE',
+        timestamp: '2026-07-02T15:02:00.000Z',
+        action: 'SELL',
+        symbol: 'MARA',
+        price: 15.1,
+        confidence: 100,
+        tradeId: 'long-1',
+        orderId: 'exit-2',
+        entryPrice: 14.5,
+        pnl: 6,
+        pnlPercent: 0.41,
+        exitReason: 'take_profit',
+      }),
+    ].join('\n');
+
+    writeTrackRecordWithEnv(validEnv());
+
+    expect(writeJsonAtomic).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringMatching(/cannot infer exit leg order for trade long-1/));
+  });
+
   test('fails loud when track record start boundary is missing', () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -233,7 +509,7 @@ describe('Claudito track record proof config', () => {
     expect(indexJson.accounts).toEqual([
       {
         id: 'MAX58356',
-        label: 'Trade The Pool MAX5',
+        label: 'Trade The Pool MAX5 5K',
         stage: 'EVAL',
         status: 'active',
       },

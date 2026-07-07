@@ -64,7 +64,7 @@ function operatorEnvValues() {
     INITIAL_BALANCE: '5000',
     STARTING_BALANCE: '5000',
     OGZ_ACCOUNT_ID: 'MAX58356',
-    OGZ_ACCOUNT_LABEL: 'Trade The Pool MAX5',
+    OGZ_ACCOUNT_LABEL: 'Trade The Pool MAX5 5K',
     OGZ_ACCOUNT_STAGE: 'EVAL',
     OGZ_ACCOUNT_STATUS: 'active',
     OGZ_MIN_TRADES_REQUIRED: '20',
