@@ -84,6 +84,17 @@ describe('chart panel symbol filter', () => {
     expect(source).toContain("return optionExists ? selected : normalizeDashboardSymbol(DEFAULT_SYMBOL);");
   });
 
+  test('watchlist card selection binding waits for the shared bus to exist', () => {
+    const source = fs.readFileSync(path.join(__dirname, '../public/js/panels/chart-panel.js'), 'utf8');
+
+    expect(source).toContain('function bindWatchlistSelect()');
+    expect(source).toContain('function armWatchlistSelectBinding()');
+    expect(source).toContain("OGZ.bus.on('watchlist:select', _watchlistSelectHandler);");
+    expect(source).toContain('const tid = setInterval(() => {');
+    expect(source).toContain('if (!bindWatchlistSelect()) return;');
+    expect(source).toContain("OGZ.bus.off('watchlist:select', _watchlistSelectHandler);");
+  });
+
   test('normalizes indicator selections without dropping existing oscillator panes on string calls', () => {
     const source = fs.readFileSync(path.join(__dirname, '../public/js/panels/chart-panel.js'), 'utf8');
     const chart = loadChartPanel('TSLA');
@@ -141,6 +152,36 @@ describe('chart panel symbol filter', () => {
     expect(source).toContain("if (requestedSymbol !== currentSymbol || requestedTimeframe !== currentTimeframe) return;");
     expect(source).toContain("if (isPriceMismatched(requestedSymbol, formatted))");
     expect(source).toContain("pill.textContent = `${requestedSymbol} historical feed mismatch`;");
+  });
+
+  test('timeframe changes clear stale candles and reject mislabeled historical spacing', () => {
+    const source = fs.readFileSync(path.join(__dirname, '../public/js/panels/chart-panel.js'), 'utf8');
+    const chart = loadChartPanel('TSLA');
+    const fifteenMinuteCandles = Array.from({ length: 20 }, (_, i) => ({
+      time: 1782700000 + i * 900,
+      open: 380,
+      high: 381,
+      low: 379,
+      close: 380.5,
+      volume: 1000,
+    }));
+    const fiveMinuteCandles = Array.from({ length: 20 }, (_, i) => ({
+      time: 1782700000 + i * 300,
+      open: 380,
+      high: 381,
+      low: 379,
+      close: 380.5,
+      volume: 1000,
+    }));
+
+    expect(source).toContain('this.clearAll();');
+    expect(source).toContain('Loading ${asset} ${displayTimeframe(nextTimeframe)} history...');
+    expect(source).toContain('historicalSpacingMatchesTimeframe(formatted, requestedTimeframe)');
+    expect(source).toContain('history spacing mismatch');
+    expect(chart._historicalSpacingMatchesTimeframe(fifteenMinuteCandles, '1m').ok).toBe(false);
+    expect(chart._historicalSpacingMatchesTimeframe(fifteenMinuteCandles, '5m').ok).toBe(false);
+    expect(chart._historicalSpacingMatchesTimeframe(fifteenMinuteCandles, '15m').ok).toBe(true);
+    expect(chart._historicalSpacingMatchesTimeframe(fiveMinuteCandles, '5m').ok).toBe(true);
   });
 
   test('rejects unsymbolized frames instead of assigning them to the selected chart', () => {

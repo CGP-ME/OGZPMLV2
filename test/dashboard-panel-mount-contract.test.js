@@ -36,4 +36,37 @@ describe('dashboard panel mount contracts', () => {
     expect(source).toContain('if (!session.timerId)');
     expect(source).toContain('TradeLog.init();');
   });
+
+  test('SystemHealth omits unknown crash, error, and commit placeholders', () => {
+    const source = readPanel('system-health.js');
+    const css = fs.readFileSync(
+      path.join(__dirname, '..', 'public', 'css', 'panels', 'system-health.css'),
+      'utf8'
+    );
+
+    expect(source).not.toContain("crashLabel.textContent = 'LAST CRASH:'");
+    expect(source).not.toContain("formatCrashTime(crashTime)");
+    expect(source).not.toContain("errValue.textContent = '?'");
+    expect(source).not.toContain("commitValue.textContent = commit || '?'");
+    expect(source).toContain('if (state.haveErrorEmitter || errCount > 0)');
+    expect(source).toContain('if (commit) {');
+    expect(css).not.toContain('LAST CRASH TIME');
+    expect(css).not.toContain('.sh-crash-time');
+  });
+
+  test('SystemHealth derives broker posture from runtime scope, not chart selector', () => {
+    const source = readPanel('system-health.js');
+
+    expect(source).toContain('runtimeScope: null');
+    expect(source).toContain('function runtimeScopeFromFrame(frame)');
+    expect(source).toContain('function brokerFromRuntimeScope(scope)');
+    expect(source).toContain("routerLabel.textContent = 'RUNTIME:';");
+    expect(source).toContain("renderBroker(activeBroker, 'BROKER:');");
+    expect(source).toContain('const broker = brokerFromRuntimeScope(state.runtimeScope) || symbolToBroker(state.currentSymbol);');
+    expect(source).toContain('state.runtimeScope = runtimeScope;');
+    expect(source).not.toContain("routerLabel.textContent = 'SESSIONROUTER:';");
+    expect(source).not.toContain("renderBroker('kraken', 'KRAKEN:');");
+    expect(source).not.toContain("renderBroker('alpaca', 'ALPACA:');");
+    expect(source).not.toContain("document.getElementById('cp-assetSelector')");
+  });
 });

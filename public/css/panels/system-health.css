@@ -2,8 +2,8 @@
  * system-health.css - SystemHealth Footer-Right Operator Health Strip
  *
  * Compact monospace horizontal strip displaying system health metrics:
- * SessionRouter state, broker WS status, error count, uptime, last crash,
- * risk posture, and commit hash.
+ * SessionRouter state, broker WS status, real error count when available,
+ * uptime, risk posture, and commit hash when available.
  *
  * All classes prefixed sh- for scoping.
  * Uses CSS theme variables exclusively (--text-primary, --profit-color, etc).
@@ -160,24 +160,6 @@
     font-variant-numeric: tabular-nums;
     color: var(--text-primary, #ffffff);
     letter-spacing: 0.2px;
-}
-
-/* ────────────────────────────────────────────────────────────────────────
-   LAST CRASH TIME
-   ──────────────────────────────────────────────────────────────────────── */
-
-.sh-crash-time {
-    font-weight: 600;
-    letter-spacing: 0.3px;
-}
-
-.sh-crash-time.never {
-    color: var(--ml-color, #ffd700);
-    text-shadow: 0 0 6px rgba(255, 215, 0, 0.3);
-}
-
-.sh-crash-time.ago {
-    color: var(--text-primary, #ffffff);
 }
 
 /* ────────────────────────────────────────────────────────────────────────

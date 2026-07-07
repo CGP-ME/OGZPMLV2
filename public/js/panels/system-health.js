@@ -2,21 +2,21 @@
  * system-health.js — SystemHealth: Operator Health Strip
  *
  * Footer-right operator health visibility panel. Displays at-a-glance status for:
- * SessionRouter state (CRYPTO / STOCKS / FAULTED), broker WebSocket connections
- * (Kraken / Alpaca individual status), error count, session uptime, last unplanned
- * crash timestamp, Risk Posture guardrail state, and git commit hash.
+ * Runtime state (CRYPTO / STOCKS / FAULTED), active broker feed status,
+ * real error count when an error emitter
+ * exists, session uptime, Risk Posture guardrail state, and git commit hash
+ * when the health endpoint provides it.
  *
  * Renders as a compact horizontal strip with segments separated by " | ":
- *   SESSIONROUTER: CRYPTO ✓ | KRAKEN ✓ | ALPACA ✗ | LAST ERR: 3 | UPTIME: 2h 14m |
- *   LAST CRASH: 47 days ago | RISK POSTURE: ALL GUARDRAILS ARMED ✓ | COMMIT: a07516a
+ *   RUNTIME: ALPACA STOCKS ✓ | BROKER: ALPACA ? | LAST ERR: 3 | UPTIME: 2h 14m |
+ *   RISK POSTURE: ALL GUARDRAILS ARMED ✓ | COMMIT: a07516a
  *
  * Self-registers as OGZ.SystemHealth via OGZ.register().
  * Mounts into <div id="systemHealth"></div>.
  *
  * Data sources:
  *   - HTTP fetch /api/health (every 30s) — uptime, status, timestamp, broker
- *     WS counts, memory. Backend MAY return optional: commit, lastCrash,
- *     errorCount fields.
+ *     WS counts, memory. Backend MAY return optional: commit, errorCount fields.
  *   - WS events (real bot shapes verified against StateManager / TradingLoop /
  *     CandleProcessor):
  *     * state_update — { state:{ recoveryMode, position, balance, ... } }.
@@ -56,7 +56,6 @@
  * @property {number} websockets - Count of active WebSocket connections
  * @property {Object} memory - {heapUsed: number, heapTotal: number}
  * @property {string} [commit] - Git commit hash (optional, backend gap)
- * @property {number} [lastCrash] - Unix timestamp of last unplanned crash (optional)
  * @property {number} [errorCount] - Error count in current session (optional)
  *
  * @module public/js/panels/system-health
@@ -88,7 +87,8 @@
         lastStateUpdateAt: 0,
         lastPriceAt: 0,
         lastBotThinkingAt: 0,
-        currentSymbol: null,        // resolved from chart selector
+        currentSymbol: null,        // resolved from runtime/price frames, not chart selector
+        runtimeScope: null,         // authoritative bot/account scope from state_update
         recoveryMode: false,        // mirrored from state_update.state.recoveryMode
 
         // Backend-emitter availability flags. Flip true once first such event
@@ -198,19 +198,6 @@
                 font-variant-numeric: tabular-nums;
             }
 
-            .sh-crash-time {
-                color: var(--ml-color, #ffd700);
-                font-weight: 600;
-            }
-
-            .sh-crash-time.never {
-                color: var(--ml-color, #ffd700);
-            }
-
-            .sh-crash-time.ago {
-                color: var(--text-primary, #ffffff);
-            }
-
             .sh-posture {
                 font-weight: 700;
                 text-transform: uppercase;
@@ -281,25 +268,6 @@
         return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     }
 
-    function formatCrashTime(timestamp) {
-        if (!timestamp || timestamp === 0) {
-            return 'NEVER';
-        }
-        const now = Date.now();
-        const diffMs = now - timestamp;
-        const days = Math.floor(diffMs / (86400000));
-        const hours = Math.floor((diffMs % 86400000) / 3600000);
-        const minutes = Math.floor((diffMs % 3600000) / 60000);
-
-        if (days > 0) {
-            return `${days} day${days !== 1 ? 's' : ''} ago`;
-        } else if (hours > 0) {
-            return `${hours}h ${minutes}m ago`;
-        } else {
-            return `${minutes}m ago`;
-        }
-    }
-
     // ─── DOM Rendering ──────────────────────────────────────────────────
     function render() {
         if (!state.mounted) return;
@@ -309,19 +277,20 @@
 
         root.innerHTML = '';
 
-        // Segment 1: SessionRouter state
+        // Segment 1: runtime state. This is not necessarily SessionRouter; eval
+        // may be running the single-broker Alpaca path with SessionRouter off.
         const routerSegment = document.createElement('div');
         routerSegment.className = 'sh-segment';
         const routerLabel = document.createElement('span');
         routerLabel.className = 'sh-label';
-        routerLabel.textContent = 'SESSIONROUTER:';
+        routerLabel.textContent = 'RUNTIME:';
         const routerState = document.createElement('span');
         routerState.className = 'sh-value';
         const routerOk = state.routerState && state.routerState !== 'OFFLINE' && state.routerState !== 'FAULTED';
         const routerIndicator = document.createElement('span');
         routerIndicator.className = `sh-indicator ${routerOk ? 'ok' : state.routerState === 'FAULTED' ? 'fail' : 'muted'}`;
         routerIndicator.textContent = routerOk || state.routerState === 'FAULTED' ? (routerOk ? '✓' : '✗') : '?';
-        routerState.appendChild(document.createTextNode(state.routerState + ' '));
+        routerState.appendChild(document.createTextNode(displayRuntimeState() + ' '));
         routerState.appendChild(routerIndicator);
         routerSegment.appendChild(routerLabel);
         routerSegment.appendChild(routerState);
@@ -333,10 +302,9 @@
         sep1.textContent = '|';
         root.appendChild(sep1);
 
-        // Segment 2 & 3: Kraken / Alpaca broker WS status. Render '?' for
-        // unknown, '✓' for true, '✗' for explicit false. Heartbeat-derived
-        // status only updates the active broker; the inactive one stays
-        // unknown until the dedicated broker_status emitter ships.
+        // Segment 2: active broker feed status. Do not render inactive broker
+        // columns in single-broker eval; that makes the dashboard imply Kraken
+        // posture while the bot is scoped to Alpaca.
         const renderBroker = (key, label) => {
             const v = state.brokers.get(key);
             const known = v === true || v === false;
@@ -356,7 +324,6 @@
             seg.appendChild(ind);
             root.appendChild(seg);
         };
-        renderBroker('kraken', 'KRAKEN:');
 
         // Separator
         const sep2 = document.createElement('span');
@@ -364,39 +331,37 @@
         sep2.textContent = '|';
         root.appendChild(sep2);
 
-        renderBroker('alpaca', 'ALPACA:');
-
-        // Separator
-        const sep3 = document.createElement('span');
-        sep3.className = 'sh-separator';
-        sep3.textContent = '|';
-        root.appendChild(sep3);
-
-        // Segment 4: Error count. When the backend error_event emitter hasn't
-        // shipped, the count is honestly '?' with an AWAITING tooltip — never
-        // a fake green 0. Once we observe the first error_event, we count for real.
-        const errCount = state.errors.length;
-        const errSegment = document.createElement('div');
-        errSegment.className = 'sh-segment';
-        const errLabel = document.createElement('span');
-        errLabel.className = 'sh-label';
-        errLabel.textContent = 'LAST ERR:';
-        const errValue = document.createElement('span');
-        if (!state.haveErrorEmitter && errCount === 0) {
-            errSegment.title = 'AWAITING error_event emitter (no top-level error broadcast yet)';
-            errValue.className = 'sh-error-count';
-            errValue.style.color = 'var(--neutral-color, #8b8b8b)';
-            errValue.textContent = '?';
+        const activeBroker = brokerFromRuntimeScope(state.runtimeScope) || symbolToBroker(state.currentSymbol);
+        if (activeBroker) {
+            renderBroker(activeBroker, 'BROKER:');
         } else {
+            renderBroker('unknown', 'BROKER:');
+        }
+
+        // Segment 4: Error count. Do not render a placeholder when the backend
+        // error_event emitter has not shipped; render only real error telemetry.
+        const errCount = state.errors.length;
+        if (state.haveErrorEmitter || errCount > 0) {
+            const sep3 = document.createElement('span');
+            sep3.className = 'sh-separator';
+            sep3.textContent = '|';
+            root.appendChild(sep3);
+
+            const errSegment = document.createElement('div');
+            errSegment.className = 'sh-segment';
+            const errLabel = document.createElement('span');
+            errLabel.className = 'sh-label';
+            errLabel.textContent = 'LAST ERR:';
+            const errValue = document.createElement('span');
             if (errCount > 0) {
                 errSegment.title = `Last error: ${state.errors[state.errors.length - 1]}`;
             }
             errValue.className = `sh-error-count ${errCount > 0 ? 'alert' : 'ok'}`;
             errValue.textContent = String(errCount);
+            errSegment.appendChild(errLabel);
+            errSegment.appendChild(errValue);
+            root.appendChild(errSegment);
         }
-        errSegment.appendChild(errLabel);
-        errSegment.appendChild(errValue);
-        root.appendChild(errSegment);
 
         // Separator
         const sep4 = document.createElement('span');
@@ -424,27 +389,7 @@
         sep5.textContent = '|';
         root.appendChild(sep5);
 
-        // Segment 6: Last crash
-        const crashTime = state.lastHealth ? state.lastHealth.lastCrash : 0;
-        const crashSegment = document.createElement('div');
-        crashSegment.className = 'sh-segment';
-        const crashLabel = document.createElement('span');
-        crashLabel.className = 'sh-label';
-        crashLabel.textContent = 'LAST CRASH:';
-        const crashValue = document.createElement('span');
-        crashValue.className = `sh-crash-time ${crashTime === 0 ? 'never' : 'ago'}`;
-        crashValue.textContent = formatCrashTime(crashTime);
-        crashSegment.appendChild(crashLabel);
-        crashSegment.appendChild(crashValue);
-        root.appendChild(crashSegment);
-
-        // Separator
-        const sep6 = document.createElement('span');
-        sep6.className = 'sh-separator';
-        sep6.textContent = '|';
-        root.appendChild(sep6);
-
-        // Segment 7: Risk Posture
+        // Segment 6: Risk Posture
         const postureSeg = document.createElement('div');
         postureSeg.className = 'sh-segment';
         const postureLabel = document.createElement('span');
@@ -463,25 +408,26 @@
         postureSeg.appendChild(postureValue);
         root.appendChild(postureSeg);
 
-        // Separator
-        const sep7 = document.createElement('span');
-        sep7.className = 'sh-separator';
-        sep7.textContent = '|';
-        root.appendChild(sep7);
-
-        // Segment 8: Commit
+        // Segment 7: Commit. Render only when /api/health provides a real value.
         const commit = state.lastHealth ? state.lastHealth.commit : null;
-        const commitSeg = document.createElement('div');
-        commitSeg.className = 'sh-segment';
-        const commitLabel = document.createElement('span');
-        commitLabel.className = 'sh-label';
-        commitLabel.textContent = 'COMMIT:';
-        const commitValue = document.createElement('span');
-        commitValue.className = `sh-commit ${commit ? '' : 'unknown'}`;
-        commitValue.textContent = commit || '?';
-        commitSeg.appendChild(commitLabel);
-        commitSeg.appendChild(commitValue);
-        root.appendChild(commitSeg);
+        if (commit) {
+            const sep7 = document.createElement('span');
+            sep7.className = 'sh-separator';
+            sep7.textContent = '|';
+            root.appendChild(sep7);
+
+            const commitSeg = document.createElement('div');
+            commitSeg.className = 'sh-segment';
+            const commitLabel = document.createElement('span');
+            commitLabel.className = 'sh-label';
+            commitLabel.textContent = 'COMMIT:';
+            const commitValue = document.createElement('span');
+            commitValue.className = 'sh-commit';
+            commitValue.textContent = commit;
+            commitSeg.appendChild(commitLabel);
+            commitSeg.appendChild(commitValue);
+            root.appendChild(commitSeg);
+        }
     }
 
     // ─── Health Fetch ────────────────────────────────────────────────────
@@ -699,12 +645,54 @@
         return 'alpaca';
     }
 
-    function resolveCurrentSymbol() {
-        try {
-            const sel = document.getElementById('cp-assetSelector');
-            if (sel && sel.value) return String(sel.value).toUpperCase();
-        } catch (_) { /* swallow */ }
+    function cleanScopeString(value) {
+        return typeof value === 'string' && value.trim() ? value.trim() : null;
+    }
+
+    function runtimeScopeFromFrame(frame) {
+        const data = frame && frame.data && typeof frame.data === 'object' ? frame.data : null;
+        const stateSnapshot = frame && frame.state && typeof frame.state === 'object'
+            ? frame.state
+            : (data && data.state && typeof data.state === 'object' ? data.state : null);
+        const scope = (frame && frame.runtimeScope && typeof frame.runtimeScope === 'object' && frame.runtimeScope)
+            || (stateSnapshot && stateSnapshot.runtimeScope && typeof stateSnapshot.runtimeScope === 'object' && stateSnapshot.runtimeScope)
+            || (data && data.runtimeScope && typeof data.runtimeScope === 'object' && data.runtimeScope)
+            || null;
+        if (!scope) return null;
+
+        const brokerId = cleanScopeString(scope.brokerId || scope.broker);
+        const assetClass = cleanScopeString(scope.assetClass);
+        const symbol = cleanScopeString(scope.symbol || scope.asset);
+        if (!brokerId && !assetClass && !symbol) return null;
+        return { brokerId, assetClass, symbol };
+    }
+
+    function brokerFromRuntimeScope(scope) {
+        if (!scope) return null;
+        const brokerId = cleanScopeString(scope.brokerId || scope.broker);
+        if (brokerId) return brokerId.toLowerCase();
+        const assetClass = cleanScopeString(scope.assetClass);
+        if (assetClass) {
+            const normalized = assetClass.toLowerCase();
+            if (normalized === 'stocks' || normalized === 'stock' || normalized === 'equity' || normalized === 'equities') return 'alpaca';
+            if (normalized === 'crypto' || normalized === 'cryptocurrency') return 'kraken';
+        }
+        return symbolToBroker(scope.symbol || scope.asset);
+    }
+
+    function routerStateFromBroker(broker) {
+        if (broker === 'kraken') return 'CRYPTO';
+        if (broker === 'alpaca') return 'STOCKS';
+        if (broker) return 'LIVE';
         return null;
+    }
+
+    function displayRuntimeState() {
+        const broker = brokerFromRuntimeScope(state.runtimeScope);
+        const assetClass = cleanScopeString(state.runtimeScope && state.runtimeScope.assetClass);
+        if (broker && assetClass) return `${broker.toUpperCase()} ${assetClass.toUpperCase()}`;
+        if (broker) return broker.toUpperCase();
+        return state.routerState;
     }
 
     // Derive router state from heartbeats. Public method updates state &
@@ -712,8 +700,7 @@
     // heartbeats degrade gracefully.
     function recomputeDerivedHealth() {
         const now = Date.now();
-        const sym = state.currentSymbol || resolveCurrentSymbol();
-        const broker = symbolToBroker(sym);
+        const broker = brokerFromRuntimeScope(state.runtimeScope) || symbolToBroker(state.currentSymbol);
 
         // Router state: alive only while state_update OR bot_thinking is fresh
         const routerAlive =
@@ -721,17 +708,15 @@
             (state.lastBotThinkingAt > 0 && (now - state.lastBotThinkingAt) < HEARTBEAT_FRESH_MS);
 
         if (routerAlive) {
-            state.routerState = (broker === 'kraken') ? 'CRYPTO'
-                              : (broker === 'alpaca') ? 'STOCKS'
-                              : 'LIVE';
+            state.routerState = routerStateFromBroker(broker) || 'LIVE';
         } else if (state.lastStateUpdateAt === 0 && state.lastBotThinkingAt === 0) {
             state.routerState = 'OFFLINE';
         } else {
             state.routerState = 'STALE';
         }
 
-        // Broker heartbeats from price feed. We only know the active broker;
-        // the inactive one stays '?' (not '✗') until broker_status emitter ships.
+        // Broker heartbeats from price feed. We only know the active broker,
+        // and render only that active broker unless broker_status ships more.
         if (broker && state.lastPriceAt > 0) {
             const priceFresh = (now - state.lastPriceAt) < HEARTBEAT_FRESH_MS;
             // Only flip the active broker; leave the other one alone unless we
@@ -761,17 +746,24 @@
             if (s && typeof s === 'object') {
                 state.recoveryMode = !!s.recoveryMode;
             }
+            const runtimeScope = runtimeScopeFromFrame(d);
+            if (runtimeScope) {
+                state.runtimeScope = runtimeScope;
+                if (runtimeScope.symbol) state.currentSymbol = String(runtimeScope.symbol).toUpperCase();
+            }
             recomputeDerivedHealth();
             render();
         } catch (_) { /* swallow */ }
     }
 
     // 'price' — broker feed heartbeat. Single-pair bot, so the active broker
-    // is derived from the current asset selector / data.symbol when present.
+    // comes from runtimeScope first, then the symbol carried by the price frame.
     function onPriceEvent(d) {
         try {
             const data = (d && d.data) ? d.data : d;
             if (!data) return;
+            const runtimeScope = runtimeScopeFromFrame(d);
+            if (runtimeScope) state.runtimeScope = runtimeScope;
             if (data.symbol) state.currentSymbol = String(data.symbol).toUpperCase();
             state.lastPriceAt = Date.now();
             recomputeDerivedHealth();

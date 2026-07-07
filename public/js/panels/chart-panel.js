@@ -79,11 +79,17 @@
 
     // Cached hot-path DOM refs (resolved once at mount)
     let _cachedPriceEl = null;
+    // Symbol whose price header was last painted by a LIVE frame (price/delta).
+    // loadHistorical() seeds the header from the last historical close ONLY
+    // when no live frame has painted the selected symbol — live always wins.
+    let _livePricePaintedFor = null;
     let _cachedHudPrice = null;
     let _cachedHudOhlc = null;
     let _cachedTooltipEl = null;
     let _loadedAsset = null;
     let _initialized = false;
+    let _watchlistSelectHandler = null;
+    let _watchlistBindTimer = null;
 
     // Teardown tracking
     const _trackedListeners = [];
@@ -160,9 +166,50 @@
         '1d': 1440
     });
 
+    function displayTimeframe(timeframe) {
+        return String(timeframe || DEFAULT_TIMEFRAME).toUpperCase();
+    }
+
     function toFiniteNumber(value) {
         const n = Number(value);
         return Number.isFinite(n) ? n : 0;
+    }
+
+    function median(values) {
+        if (!Array.isArray(values) || values.length === 0) return null;
+        const sorted = values.slice().sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    }
+
+    function historicalSpacingMatchesTimeframe(candles, timeframe) {
+        const expected = TF_SECONDS[timeframe || DEFAULT_TIMEFRAME];
+        if (!expected || !Array.isArray(candles) || candles.length < 8) {
+            return { ok: true, expected, observed: null, sampleSize: 0 };
+        }
+
+        const deltas = [];
+        for (let i = 1; i < candles.length; i++) {
+            const delta = candles[i].time - candles[i - 1].time;
+            if (delta > 0 && Number.isFinite(delta)) deltas.push(delta);
+        }
+        if (deltas.length < 4) return { ok: true, expected, observed: null, sampleSize: deltas.length };
+
+        // Market-hour gaps are legitimate for stocks, so validate from the
+        // compact deltas where candle-to-candle spacing should reveal the
+        // actual interval. This catches 15m history mislabeled as 1m/5m.
+        const compact = deltas.filter(delta => delta <= expected * 3);
+        const sample = compact.length >= 4 ? compact : deltas;
+        const observed = median(sample);
+        if (!Number.isFinite(observed)) return { ok: true, expected, observed: null, sampleSize: sample.length };
+
+        const tolerance = Math.max(2, expected * 0.25);
+        return {
+            ok: Math.abs(observed - expected) <= tolerance,
+            expected,
+            observed,
+            sampleSize: sample.length
+        };
     }
 
     function normalizeHistoricalCandle(candle) {
@@ -546,6 +593,35 @@
     function trackTimer(id) {
         _trackedTimers.add(id);
         return id;
+    }
+
+    function bindWatchlistSelect() {
+        if (_watchlistSelectHandler) return true;
+        if (!(OGZ && OGZ.bus && typeof OGZ.bus.on === 'function')) return false;
+
+        _watchlistSelectHandler = (payload) => {
+            try {
+                const sym = payload && payload.symbol
+                    ? String(payload.symbol)
+                    : (typeof payload === 'string' ? payload : null);
+                if (sym) ChartPanel.switchAsset(sym);
+            } catch (e) { /* swallow */ }
+        };
+        OGZ.bus.on('watchlist:select', _watchlistSelectHandler);
+        return true;
+    }
+
+    function armWatchlistSelectBinding() {
+        if (bindWatchlistSelect()) return;
+        if (_watchlistBindTimer) return;
+
+        const tid = setInterval(() => {
+            if (!bindWatchlistSelect()) return;
+            clearInterval(tid);
+            _trackedTimers.delete(tid);
+            if (_watchlistBindTimer === tid) _watchlistBindTimer = null;
+        }, 50);
+        _watchlistBindTimer = trackTimer(tid);
     }
 
     // ─── Helper: RSI Band Removal ──────────────────────────────────────────
@@ -1318,6 +1394,7 @@
                     const prev = OGZ.state.lastPrice || p;
                     OGZ.state.lastPriceDelta = p - prev;
                     OGZ.state.lastPrice = p;
+                    _livePricePaintedFor = selectedAssetSymbol();
                     const up = OGZ.state.lastPriceDelta >= 0;
                     priceEl.textContent = `$${p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                     priceEl.style.color = up ? '#22c55e' : '#ef4444';
@@ -1467,22 +1544,10 @@
                     }
                 } catch (e) { /* swallow */ }
 
-                // ─── FIX #41: subscribe to watchlist:select ──────────────
-                // Clicking a watchlist ticker emits {symbol, broker}. Switch
-                // the chart by reusing the same asset-switch sequence the
-                // #cp-assetSelector dropdown uses.
-                try {
-                    if (OGZ && OGZ.bus && typeof OGZ.bus.on === 'function') {
-                        OGZ.bus.on('watchlist:select', (payload) => {
-                            try {
-                                const sym = payload && payload.symbol
-                                    ? String(payload.symbol)
-                                    : (typeof payload === 'string' ? payload : null);
-                                if (sym) ChartPanel.switchAsset(sym);
-                            } catch (e) { /* swallow */ }
-                        });
-                    }
-                } catch (e) { /* swallow */ }
+                // Chart initializes before WatchlistStrip creates OGZ.bus, so
+                // this binding must wait for the shared bus instead of trying
+                // once during early boot.
+                try { armWatchlistSelectBinding(); } catch (e) { /* swallow */ }
             } catch (e) {
                 /* swallow */
             }
@@ -1603,24 +1668,25 @@
                 updateChartTitle();
             });
 
-            // Timeframe selector — fix #42: do NOT call clearAll() preemptively.
-            // The incoming `historical_candles` handler (loadHistorical) does a
-            // full setData() replace, so blanking the chart first only risks a
-            // silent black void if the response is slow/empty. Instead we arm a
-            // ~5s watchdog that surfaces a visible "No data" message.
+            // Timeframe selector: clear stale candles immediately, then show a
+            // loading/no-data status if the requested history does not arrive.
             const tfSel = root.querySelector('#cp-timeframeSelector');
             if (tfSel) trackListener(tfSel, 'change', (e) => {
+                const nextTimeframe = e.target.value;
+                const asset = root.querySelector('#cp-assetSelector')?.value || DEFAULT_SYMBOL;
                 updateChartTitle();
+                this.clearAll();
+                this._setFeedStatus(`Loading ${asset} ${displayTimeframe(nextTimeframe)} history...`, true);
                 const socket = OGZ.get('Socket');
                 if (socket) {
-                    socket.send({ type: 'timeframe_change', timeframe: e.target.value });
+                    socket.send({ type: 'timeframe_change', timeframe: nextTimeframe, asset });
                     socket.send({
                         type: 'request_historical',
-                        timeframe: e.target.value,
-                        asset: root.querySelector('#cp-assetSelector')?.value || DEFAULT_SYMBOL,
+                        timeframe: nextTimeframe,
+                        asset,
                         limit: 500
                     });
-                    this._armNoDataWatchdog();
+                    this._armNoDataWatchdog(asset, nextTimeframe);
                 }
             });
 
@@ -1716,17 +1782,13 @@
          * "No data for this timeframe" message instead of a silent void.
          * loadHistorical() clears the watchdog on the next data arrival.
          */
-        _armNoDataWatchdog: function () {
+        _armNoDataWatchdog: function (symbol, timeframe) {
             this._clearNoDataWatchdog();
             const tid = setTimeout(() => {
                 _trackedTimers.delete(tid);
                 _noDataWatchdogTimer = null;
                 try {
-                    const pill = document.getElementById('feedStatusPill');
-                    if (pill) {
-                        pill.textContent = 'No data for this timeframe';
-                        pill.style.display = 'block';
-                    }
+                    this._setFeedStatus(`No ${symbol || selectedAssetSymbol()} ${displayTimeframe(timeframe)} history received`, true);
                 } catch (e) { /* swallow */ }
             }, 5000);
             _noDataWatchdogTimer = tid;
@@ -1745,10 +1807,17 @@
             }
             try {
                 const pill = document.getElementById('feedStatusPill');
-                if (pill && pill.textContent === 'No data for this timeframe') {
+                if (pill && /^(No .+ history received|Loading .+ history\.\.\.)$/.test(pill.textContent || '')) {
                     pill.style.display = 'none';
                 }
             } catch (e) { /* swallow */ }
+        },
+
+        _setFeedStatus: function (message, visible) {
+            const pill = document.getElementById('feedStatusPill');
+            if (!pill) return;
+            pill.textContent = message || '';
+            pill.style.display = visible ? 'block' : 'none';
         },
 
         /**
@@ -1927,6 +1996,13 @@
             if (this._areaSeries) this._areaSeries.setData([]);
             if (this._barSeries) this._barSeries.setData([]);
             if (ghostSeries) ghostSeries.setData([]);
+            Object.values(_oscPanes).forEach(entry => {
+                Object.values(entry?.series || {}).forEach(series => {
+                    try { if (series && typeof series.setData === 'function') series.setData([]); }
+                    catch (e) { /* swallow */ }
+                });
+            });
+            storedCandles = [];
 
             wallLines.forEach(l => {
                 try { candleSeries.removePriceLine(l); }
@@ -1951,6 +2027,13 @@
             }
             _trackedTimers.clear();
             _pendingAssetHistoryTimer = null;
+            _watchlistBindTimer = null;
+
+            if (_watchlistSelectHandler && OGZ && OGZ.bus && typeof OGZ.bus.off === 'function') {
+                try { OGZ.bus.off('watchlist:select', _watchlistSelectHandler); }
+                catch (e) { /* swallow */ }
+            }
+            _watchlistSelectHandler = null;
 
             for (const { target, type, handler } of _trackedListeners) {
                 try { target.removeEventListener(type, handler); }
@@ -1972,6 +2055,7 @@
             _cachedHudPrice = null;
             _cachedHudOhlc = null;
             _cachedTooltipEl = null;
+            _livePricePaintedFor = null;
 
             if (this._chartResizeObserver) {
                 try { this._chartResizeObserver.disconnect(); }
@@ -2118,6 +2202,7 @@
             if (price != null) {
                 OGZ.state.lastPriceDelta = price - OGZ.state.lastPrice;
                 OGZ.state.lastPrice = price;
+                _livePricePaintedFor = selectedAssetSymbol();
                 const up = OGZ.state.lastPriceDelta >= 0;
                 const flashColor = up ? '#22c55e' : '#ef4444';
                 const flashShadow = up ? 'rgba(34,197,94,0.75)' : 'rgba(239,68,68,0.75)';
@@ -2264,7 +2349,27 @@
                     };
                 }).filter(c => c.time > 0 && c.open > 0);
 
-                if (formatted.length === 0) return;
+                if (formatted.length === 0) {
+                    this._setFeedStatus(`No ${requestedSymbol} ${displayTimeframe(requestedTimeframe)} history received`, true);
+                    return;
+                }
+                const spacing = historicalSpacingMatchesTimeframe(formatted, requestedTimeframe);
+                if (!spacing.ok) {
+                    this.clearAll();
+                    this._clearNoDataWatchdog();
+                    this._setFeedStatus(
+                        `${requestedSymbol} ${displayTimeframe(requestedTimeframe)} history spacing mismatch`,
+                        true
+                    );
+                    console.warn('[ChartPanel] rejected historical candle spacing mismatch', {
+                        symbol: requestedSymbol,
+                        timeframe: requestedTimeframe,
+                        expectedSeconds: spacing.expected,
+                        observedSeconds: spacing.observed,
+                        sampleSize: spacing.sampleSize
+                    });
+                    return;
+                }
                 if (isPriceMismatched(requestedSymbol, formatted)) {
                     const pill = document.getElementById('feedStatusPill');
                     if (pill) {
@@ -2299,6 +2404,38 @@
                 }
 
                 storedCandles = formatted;
+
+                // Seed the price header + HUD from the last historical close.
+                // Root fix for the "$0.00 until first live frame" gap: when the
+                // bot is dormant or the market is closed, no live price frame
+                // ever arrives, so the header sat at its $0.00 initial text
+                // while the chart itself showed real candles. The last close IS
+                // real data. Live frames always win (guarded by
+                // _livePricePaintedFor); the seed paints neutral, no flash.
+                if (_livePricePaintedFor !== requestedSymbol) {
+                    const lastCandle = formatted[formatted.length - 1];
+                    const lastClose = Number(lastCandle.close);
+                    if (isFinite(lastClose) && lastClose > 0) {
+                        if (_cachedPriceEl) {
+                            _cachedPriceEl.textContent = `$${lastClose.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                            _cachedPriceEl.style.color = '';
+                            _cachedPriceEl.style.textShadow = '';
+                        }
+                        if (_cachedHudPrice) {
+                            _cachedHudPrice.textContent = `$${lastClose.toFixed(2)}`;
+                            _cachedHudPrice.style.color = '';
+                            _cachedHudPrice.style.textShadow = '';
+                        }
+                        if (_cachedHudOhlc) {
+                            _cachedHudOhlc.textContent = `O ${lastCandle.open.toFixed(2)}  H ${lastCandle.high.toFixed(2)}  L ${lastCandle.low.toFixed(2)}  C ${lastCandle.close.toFixed(2)}`;
+                            const hud = _cachedHudOhlc.parentElement;
+                            if (hud && hud.style.visibility !== 'visible') {
+                                hud.style.visibility = 'visible';
+                            }
+                        }
+                        OGZ.state.lastPrice = lastClose;
+                    }
+                }
 
                 // fix #42: real data arrived — cancel the timeframe-change watchdog.
                 this._clearNoDataWatchdog();
@@ -2805,6 +2942,10 @@
 
         _normalizeIndicatorSelection: function (active) {
             return normalizeIndicatorSelection(active);
+        },
+
+        _historicalSpacingMatchesTimeframe: function (candles, timeframe) {
+            return historicalSpacingMatchesTimeframe(candles, timeframe);
         }
     };
 
