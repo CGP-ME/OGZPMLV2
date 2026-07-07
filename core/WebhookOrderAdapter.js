@@ -102,6 +102,10 @@ class WebhookOrderAdapter {
             console.warn(`[WebhookOrder] invalid signal: ${JSON.stringify(signal)}`);
             return { sent: false, reason: 'invalid signal' };
         }
+        if (signal.action !== 'buy' && signal.action !== 'sell') {
+            console.warn(`[WebhookOrder] unsupported action blocked before POST: ${JSON.stringify(signal)}`);
+            return { sent: false, reason: 'unsupported_action', action: signal.action };
+        }
 
         const now = Date.now();
         // Mercury fix (parallel): asymmetric throttle. Caller passes

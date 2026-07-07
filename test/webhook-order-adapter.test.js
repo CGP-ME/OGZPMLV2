@@ -120,4 +120,32 @@ describe('WebhookOrderAdapter live posture guard', () => {
       webhookUrl: 'http://signalstack.example/webhook',
     })).toThrow(/https/);
   });
+
+  test('blocks unsupported close action before posting to SignalStack', async () => {
+    const adapter = new WebhookOrderAdapter({
+      enabled: true,
+      dryRun: false,
+      liveTrading: true,
+      webhookUrl: 'https://signalstack.example/webhook',
+    });
+    const postSpy = jest.spyOn(adapter, '_post').mockResolvedValue({ status: 200, body: '{}' });
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const result = await adapter.emit({
+      action: 'close',
+      symbol: 'NVDA',
+      quantity: 1,
+      bypassThrottle: true,
+    });
+
+    expect(result).toEqual({
+      sent: false,
+      reason: 'unsupported_action',
+      action: 'close',
+    });
+    expect(postSpy).not.toHaveBeenCalled();
+    expect(adapter.getStats().lastOrderTime).toBe(0);
+
+    warnSpy.mockRestore();
+  });
 });
