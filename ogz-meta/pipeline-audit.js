@@ -480,7 +480,8 @@ function auditDataFlow(loaded) {
       h: close + Math.random() * 100,
       l: close - Math.random() * 100,
       c: close,
-      v: 10 + Math.random() * 50
+      v: 10 + Math.random() * 50,
+      timeframe: '1m'
     });
   }
   const latestCandle = candles[candles.length - 1];
@@ -537,8 +538,8 @@ function auditDataFlow(loaded) {
   // Test MultiTimeframeAdapter
   try {
     const MTA = loaded.MultiTimeframeAdapter;
-    const mtf = new MTA({ timeframes: ['5m', '15m'] });
-    for (const c of candles) mtf.ingestCandle(c);
+    const mtf = new MTA({ activeTimeframes: ['5m', '15m'] });
+    for (const c of candles) mtf.ingestCandle(c, c.timeframe);
     const conf = mtf.getConfluenceScore();
     check('dataFlow', 'MultiTimeframeAdapter.getConfluenceScore()', conf && conf.confidence !== undefined,
       conf ? `confidence=${(conf.confidence*100).toFixed(1)}%, shouldTrade=${conf.shouldTrade}` : 'NO CONFLUENCE');
