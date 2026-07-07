@@ -1037,8 +1037,6 @@ function _resetForTest() {
 // ═══════════════════════════════════════════════════════════════
 
 const configCompatibility = (() => {
-const tradingConfigFile = require('../config/trading.config.json');
-
 const CONFIG_LOADER_MISSING = Symbol('CONFIG_LOADER_MISSING');
 const CONFIG_LOADER_RUNTIME_PATHS = Object.freeze({
   'confidence.minTradeConfidence': 'confidence.minTradeConfidence',
@@ -1541,11 +1539,22 @@ function sameConfigValue(left, right) {
   return Object.is(left, right);
 }
 
+function getConfigFileValue(configPath) {
+  const value = configPath.split('.').reduce((current, part) => (
+    current && Object.prototype.hasOwnProperty.call(current, part) ? current[part] : undefined
+  ), tradingConfigFile);
+  if (value === undefined) return undefined;
+  return deepFreezePlain(clonePlain(value));
+}
+
 // =============================================================================
 // BASE CONFIGURATION - Read from .env with sensible defaults
 // =============================================================================
 
 const BASE_CONFIG = {
+  authFailureGuard: deepFreezePlain(clonePlain(tradingConfigFile.authFailureGuard)),
+  trai: deepFreezePlain(clonePlain(tradingConfigFile.trai)),
+
   // =========================================================================
   // CONFIDENCE THRESHOLDS
   // =========================================================================
@@ -3713,6 +3722,7 @@ class ConfigLoader {
   return Object.assign(ConfigLoader, {
     BASE_CONFIG,
     envNumber,
+    getConfigFileValue,
     DEFAULT_TUNING_PROFILE: BASE_CONFIG.tuningProfiles.defaultProfile,
     PROFILE_FORBIDDEN_ENV_KEYS,
     PROFILE_ENV_CONFIG_PATHS,

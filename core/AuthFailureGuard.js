@@ -12,9 +12,9 @@
  * so dead credentials caused the bot to retry indefinitely without
  * escalation.
  *
- * No defaults: config/trading.config.json must provide an authFailureGuard
- * block with thresholdCount and windowMs. Missing/invalid config throws
- * at module load. Per AGENTS.md "no silent failures / no defaults" rule.
+ * No defaults: ConfigLoader must provide an authFailureGuard block with
+ * thresholdCount and windowMs. Missing/invalid config throws at module load.
+ * Per AGENTS.md "no silent failures / no defaults" rule.
  *
  * Known limitations (documented, not silent):
  *   - Wall-clock based window. A system-time jump >windowMs forward will
@@ -40,25 +40,13 @@
  *     gap is transient.
  */
 
-const fs = require('fs');
-const path = require('path');
 const killSwitch = require('./KillSwitch');
-
-const CONFIG_PATH = path.join(__dirname, '..', 'config', 'trading.config.json');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 function loadConfig() {
-  if (!fs.existsSync(CONFIG_PATH)) {
-    throw new Error(`AuthFailureGuard: missing config file at ${CONFIG_PATH}`);
-  }
-  let raw;
-  try {
-    raw = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-  } catch (err) {
-    throw new Error(`AuthFailureGuard: invalid JSON at ${CONFIG_PATH}: ${err.message}`);
-  }
-  const block = raw.authFailureGuard;
+  const block = ConfigLoader.get('authFailureGuard');
   if (!block || typeof block !== 'object' || Array.isArray(block)) {
-    throw new Error(`AuthFailureGuard: missing authFailureGuard block in ${CONFIG_PATH}`);
+    throw new Error('AuthFailureGuard: missing authFailureGuard block in ConfigLoader');
   }
   const allowedKeys = new Set(['thresholdCount', 'windowMs']);
   const unexpectedKeys = Object.keys(block).filter((key) => !allowedKeys.has(key));

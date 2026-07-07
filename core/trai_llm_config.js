@@ -1,13 +1,18 @@
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
-const TRADING_CONFIG_PATH = path.join(__dirname, '..', 'config', 'trading.config.json');
-
-function readTradingConfig(configPath = TRADING_CONFIG_PATH) {
-  const raw = fs.readFileSync(configPath, 'utf8');
-  return JSON.parse(raw);
+function readTradingConfig() {
+  const snapshot = typeof ConfigLoader.getCachedSnapshot === 'function'
+    ? ConfigLoader.getCachedSnapshot()
+    : null;
+  if (snapshot && snapshot.config && typeof snapshot.config === 'object') {
+    return snapshot.config;
+  }
+  if (ConfigLoader.BASE_CONFIG && typeof ConfigLoader.BASE_CONFIG === 'object') {
+    return ConfigLoader.BASE_CONFIG;
+  }
+  throw new Error('[TRAI-LLM-CONFIG] ConfigLoader did not expose a trading config snapshot');
 }
 
 function requireObject(value, pathLabel) {
@@ -47,10 +52,15 @@ function assertValidUrl(value, pathLabel) {
 }
 
 function resolveTraiLlmConfig(options = {}) {
-  const sourceConfig = options.config || readTradingConfig(options.configPath);
+  const sourceConfig = options.config || null;
   const env = options.env || process.env;
-  const traiConfig = requireObject(sourceConfig.trai, 'trai');
-  const llmConfig = requireObject(traiConfig.llm, 'trai.llm');
+  let llmConfig;
+  if (sourceConfig) {
+    const traiConfig = requireObject(sourceConfig.trai, 'trai');
+    llmConfig = requireObject(traiConfig.llm, 'trai.llm');
+  } else {
+    llmConfig = requireObject(ConfigLoader.get('trai.llm'), 'trai.llm');
+  }
 
   const provider = requireString(llmConfig.provider, 'trai.llm.provider').toLowerCase();
   const baseUrl = assertValidUrl(requireString(llmConfig.baseUrl, 'trai.llm.baseUrl'), 'trai.llm.baseUrl');
@@ -75,7 +85,6 @@ function resolveTraiLlmConfig(options = {}) {
 }
 
 module.exports = {
-  TRADING_CONFIG_PATH,
   readTradingConfig,
   resolveTraiLlmConfig,
 };

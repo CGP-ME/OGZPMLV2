@@ -6,7 +6,7 @@ const path = require('path');
 const PersistentLLMClient = require('../core/persistent_llm_client');
 const TRAICore = require('../core/trai_core');
 const { resolveTraiLlmConfig } = require('../core/trai_llm_config');
-const tradingConfig = require('../config/trading.config.json');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 const explicitClientConfig = Object.freeze({
   provider: 'mercury',
@@ -166,7 +166,8 @@ describe('TRAI LLM config contract', () => {
   });
 
   test('canonical trading config owns the TRAI LLM runtime block', () => {
-    expect(tradingConfig.trai.llm).toMatchObject({
+    const llmConfig = ConfigLoader.get('trai.llm');
+    expect(llmConfig).toMatchObject({
       provider: 'mercury',
       baseUrl: 'https://api.inceptionlabs.ai/v1',
       model: 'mercury-2',
@@ -177,8 +178,8 @@ describe('TRAI LLM config contract', () => {
       temperature: 0.8,
       requestTimeoutMs: 60000,
     });
-    expect(typeof tradingConfig.trai.llm.systemPrompt).toBe('string');
-    expect(tradingConfig.trai.llm.systemPrompt.length).toBeGreaterThan(50);
+    expect(typeof llmConfig.systemPrompt).toBe('string');
+    expect(llmConfig.systemPrompt.length).toBeGreaterThan(50);
   });
 
   test('tracked runtime callers do not construct PersistentLLMClient without explicit config', () => {

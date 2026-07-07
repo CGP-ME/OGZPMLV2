@@ -8,13 +8,13 @@ const axios = require('axios');
 const dotenv = require('dotenv');
 
 const ConfigLoader = require('../../foundation/ConfigLoader');
-const tradingConfigFile = require('../../config/trading.config.json');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
-const EVAL_MIN_TRADE_CONFIDENCE = tradingConfigFile.confidence.minTradeConfidence;
+const EVAL_MIN_TRADE_CONFIDENCE = ConfigLoader.getConfigFileValue('confidence.minTradeConfidence');
 if (!Number.isFinite(EVAL_MIN_TRADE_CONFIDENCE)) {
-  throw new Error('config/trading.config.json confidence.minTradeConfidence must be a finite number');
+  throw new Error('ConfigLoader confidence.minTradeConfidence file value must be a finite number');
 }
+const TUNING_PROFILE_DEFINITIONS = ConfigLoader.getConfigFileValue('tuningProfiles.definitions') || {};
 
 const REQUIRED_ENV_EXACT = Object.freeze({
   SESSION_ROUTER_ENABLED: 'false',
@@ -154,7 +154,7 @@ function buildEffectiveEnv(sourceEnv = process.env, options = {}) {
     : (values.TUNING_PROFILE ? 'TUNING_PROFILE' : null);
   if (profileKey) {
     const profileName = String(values[profileKey] || '').trim();
-    const profile = tradingConfigFile.tuningProfiles?.definitions?.[profileName];
+    const profile = TUNING_PROFILE_DEFINITIONS[profileName];
     if (profile && profile.env) {
       for (const [key, value] of Object.entries(profile.env)) {
         values[key] = String(value);

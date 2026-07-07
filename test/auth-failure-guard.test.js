@@ -107,28 +107,23 @@ describe('AuthFailureGuard', () => {
   test('rejects unknown authFailureGuard config keys at module load', () => {
     jest.resetModules();
     cleanFlag();
-    const actualFs = jest.requireActual('fs');
-    jest.doMock('fs', () => ({
-      ...actualFs,
-      existsSync: (filePath) => String(filePath).endsWith('/config/trading.config.json')
-        ? true
-        : actualFs.existsSync(filePath),
-      readFileSync: (filePath, encoding) => {
-        if (String(filePath).endsWith('/config/trading.config.json')) {
-          return JSON.stringify({
-            authFailureGuard: {
-              thresholdCount: 3,
-              windowMs: 300000,
-              extra: true,
-            },
-          });
+    jest.doMock('../foundation/ConfigLoader', () => ({
+      hasLoadedSnapshot: jest.fn(() => true),
+      load: jest.fn(),
+      get: jest.fn((pathLabel) => {
+        if (pathLabel === 'authFailureGuard') {
+          return {
+            thresholdCount: 3,
+            windowMs: 300000,
+            extra: true,
+          };
         }
-        return actualFs.readFileSync(filePath, encoding);
-      },
+        return undefined;
+      }),
     }));
 
     expect(() => require('../core/AuthFailureGuard')).toThrow(/unexpected authFailureGuard config key/);
-    jest.dontMock('fs');
+    jest.dontMock('../foundation/ConfigLoader');
   });
 
   test('Kraken auth classifier trips only on credential-style failures', () => {

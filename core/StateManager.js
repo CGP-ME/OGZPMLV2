@@ -77,7 +77,6 @@
 
 const ConfigLoader = require('../foundation/ConfigLoader');
 const { get: getConfigValue, getSource: getConfigSource } = require('../foundation/ConfigLoader');
-const tradingConfigFile = require('../config/trading.config.json');
 const { getNarrator } = require('./TradeNarrator');
 const FeeModel = require('./FeeModel');
 const { assertExplicitExitOwnership } = require('./dto/ExitContractOwnership');
@@ -2996,9 +2995,6 @@ class StateManager {
     }
     if (!cfg) {
       cfg = getConfigValue('entryLogic.symbolLossCooldown') || null;
-    }
-    if (!cfg) {
-      cfg = tradingConfigFile.entryLogic?.symbolLossCooldown || null;
     }
     cfg = cfg || {};
     const enabled = cfg.enabled === true;
