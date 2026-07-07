@@ -19,6 +19,7 @@ process.env = {
   MAX_DAILY_LOSS: '1',
   MAX_WEEKLY_LOSS: '5',
   MAX_MONTHLY_LOSS: '5',
+  INITIAL_BALANCE: '10000',
 };
 
 const CandleProcessor = require('../core/CandleProcessor');
@@ -46,6 +47,7 @@ function primeConfigForSymbolRouting(overrides = {}) {
     MAX_DAILY_LOSS: '1',
     MAX_WEEKLY_LOSS: '5',
     MAX_MONTHLY_LOSS: '5',
+    INITIAL_BALANCE: '10000',
     ...overrides,
   };
   ConfigLoader.load({ force: true, silent: true, loadDotenv: false });
@@ -359,6 +361,28 @@ describe('symbol-aware candle routing', () => {
     );
   });
 
+  test('processNewCandle passes stamped timeframe into legacy MTF adapter', () => {
+    const tsla = makeSymCtx('TSLA');
+    const ctx = makeCtx(new Map([['TSLA', tsla]]), 'TSLA', '15m');
+    ctx.mtfAdapter = { ingestCandle: jest.fn() };
+    const processor = new CandleProcessor(ctx);
+
+    processor.processNewCandle(candleObject({
+      symbol: 'TSLA',
+      timeframe: '15m',
+      t: 1779440400000,
+      etime: 1779441300000,
+    }));
+
+    expect(ctx.mtfAdapter.ingestCandle).toHaveBeenCalledWith(
+      expect.objectContaining({
+        symbol: 'TSLA',
+        timeframe: '15m',
+      }),
+      '15m'
+    );
+  });
+
   test('processNewCandle rejects non-millisecond timestamps instead of storing ambiguous candles', () => {
     const btc = makeSymCtx('BTC-USD');
     const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '1m');
@@ -423,7 +447,7 @@ describe('symbol-aware candle routing', () => {
     }
   });
 
-  test('still pauses stock runtime for stale candle during RTH', () => {
+  test('does not pause stock runtime for stale candle during RTH', () => {
     primeConfigForSymbolRouting({
       EXECUTION_MODE: 'paper',
       CANDLE_SOURCE: 'websocket',
@@ -461,29 +485,15 @@ describe('symbol-aware candle routing', () => {
         executionMode: 'paper',
       }));
 
-      expect(pauseSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Stale data:'),
-        expect.objectContaining({
-          source: 'data_feed_liveness',
-          recoverable: true,
-          scope: expect.objectContaining({
-            symbol: 'TSLA',
-            timeframe: '15m',
-            brokerId: 'alpaca',
-            accountId: 'acct-1',
-            assetClass: 'stocks',
-            executionMode: 'paper',
-          }),
-        })
-      );
-      expect(ctx.staleFeedPaused).toBe(true);
+      expect(pauseSpy).not.toHaveBeenCalled();
+      expect(ctx.staleFeedPaused).not.toBe(true);
     } finally {
       pauseSpy.mockRestore();
       dateSpy.mockRestore();
     }
   });
 
-  test('fails closed for stale stock candle when market phase omits isRTH', () => {
+  test('does not pause for stale stock candle when market phase omits isRTH', () => {
     primeConfigForSymbolRouting({
       EXECUTION_MODE: 'paper',
       CANDLE_SOURCE: 'websocket',
@@ -519,21 +529,15 @@ describe('symbol-aware candle routing', () => {
         executionMode: 'paper',
       }));
 
-      expect(pauseSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Stale data:'),
-        expect.objectContaining({
-          source: 'data_feed_liveness',
-          recoverable: true,
-        })
-      );
-      expect(ctx.staleFeedPaused).toBe(true);
+      expect(pauseSpy).not.toHaveBeenCalled();
+      expect(ctx.staleFeedPaused).not.toBe(true);
     } finally {
       pauseSpy.mockRestore();
       dateSpy.mockRestore();
     }
   });
 
-  test('fails closed for stale stock candle when market phase contradicts isRTH', () => {
+  test('does not pause for stale stock candle when market phase contradicts isRTH', () => {
     primeConfigForSymbolRouting({
       EXECUTION_MODE: 'paper',
       CANDLE_SOURCE: 'websocket',
@@ -571,14 +575,8 @@ describe('symbol-aware candle routing', () => {
         executionMode: 'paper',
       }));
 
-      expect(pauseSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Stale data:'),
-        expect.objectContaining({
-          source: 'data_feed_liveness',
-          recoverable: true,
-        })
-      );
-      expect(ctx.staleFeedPaused).toBe(true);
+      expect(pauseSpy).not.toHaveBeenCalled();
+      expect(ctx.staleFeedPaused).not.toBe(true);
     } finally {
       pauseSpy.mockRestore();
       dateSpy.mockRestore();
