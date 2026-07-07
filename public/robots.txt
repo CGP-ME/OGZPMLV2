@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /unified-dashboard-v2.html
+Disallow: /command-center.html
+
+Sitemap: https://www.ogzprime.com/sitemap.xml

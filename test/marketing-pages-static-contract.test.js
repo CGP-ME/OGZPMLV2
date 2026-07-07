@@ -7,6 +7,7 @@ const PAGES = [
   'public/index.html',
   'public/features.html',
   'public/pricing.html',
+  'public/proof.html',
 ];
 
 const DS_ROOT = 'public/_ds/ogzprime-design-system-802711b8-5fec-4a65-9ea6-0c4f5160d99c';
@@ -72,5 +73,28 @@ describe('marketing page static contract', () => {
     expect(index).toContain('https://hook.us2.make.com/');
     expect(pricing).toContain('pk_live_');
     expect(`${index}\n${pricing}`).not.toMatch(/sk_live_|sk_test_|whsec_/);
+  });
+
+  test('seo files point only at public marketing/proof pages', () => {
+    const robots = read('public/robots.txt');
+    const sitemap = read('public/sitemap.xml');
+
+    expect(robots).toContain('Disallow: /unified-dashboard-v2.html');
+    expect(robots).toContain('Disallow: /command-center.html');
+    expect(robots).toContain('Sitemap: https://www.ogzprime.com/sitemap.xml');
+
+    for (const route of [
+      '/',
+      '/pricing.html',
+      '/features.html',
+      '/proof.html',
+      '/proof/',
+      '/proof/track-record/',
+    ]) {
+      expect(sitemap).toContain(`https://www.ogzprime.com${route}`);
+    }
+
+    expect(sitemap).not.toContain('unified-dashboard-v2.html');
+    expect(sitemap).not.toContain('command-center.html');
   });
 });
