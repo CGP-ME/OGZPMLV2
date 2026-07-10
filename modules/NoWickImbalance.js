@@ -201,6 +201,7 @@ class NoWickImbalance {
     const state = this._getScopeState(scopeKey);
     const currentPrice = currentCandle.c;
     const atr = indicators?.atr;
+    if (!Number.isFinite(currentPrice) || currentPrice <= 0) return null;
 
     state.candleCount++;
 
@@ -283,28 +284,53 @@ class NoWickImbalance {
 
       // Find SL level — most recent swing point + breathing room
       const swingLevel = this._findRecentSwing(candles, currentTrend);
-      if (!swingLevel) {
+      if (!Number.isFinite(swingLevel) || swingLevel <= 0) {
         if (this.DEBUG) console.log(`[NoWick] SKIP — no swing point found for SL`);
         continue;
       }
 
-      const breathingRoom = atr ? atr * this.slBreathingATR : 0;
+      const breathingRoom = Number.isFinite(atr) && atr > 0 ? atr * this.slBreathingATR : 0;
       let stopLoss, takeProfit, direction;
 
       if (level.type === 'bullish') {
         direction = 'buy';
         stopLoss = swingLevel - breathingRoom;           // Below recent higher low
-        const risk = level.level - stopLoss;             // Risk = entry - SL
-        takeProfit = level.level + risk;                 // TP = 1:1
+        const risk = currentPrice - stopLoss;            // Risk = actual market entry - SL
+        if (!Number.isFinite(stopLoss) || !Number.isFinite(risk) || risk <= 0) {
+          state.pendingLevels.splice(i, 1);
+          if (this.DEBUG) console.log(`[NoWick] INVALIDATED bullish @ ${level.level.toFixed(2)} — SL ${stopLoss.toFixed(2)} is not below entry ${currentPrice.toFixed(2)}`);
+          continue;
+        }
+        takeProfit = currentPrice + risk;                // TP = 1:1 from actual entry
       } else {
         direction = 'sell';
         stopLoss = swingLevel + breathingRoom;           // Above recent lower high
-        const risk = stopLoss - level.level;             // Risk = SL - entry
-        takeProfit = level.level - risk;                 // TP = 1:1
+        const risk = stopLoss - currentPrice;            // Risk = SL - actual market entry
+        if (!Number.isFinite(stopLoss) || !Number.isFinite(risk) || risk <= 0) {
+          state.pendingLevels.splice(i, 1);
+          if (this.DEBUG) console.log(`[NoWick] INVALIDATED bearish @ ${level.level.toFixed(2)} — SL ${stopLoss.toFixed(2)} is not above entry ${currentPrice.toFixed(2)}`);
+          continue;
+        }
+        takeProfit = currentPrice - risk;                // TP = 1:1 from actual entry
       }
 
       // Sanity: SL must be a reasonable distance
-      if (Math.abs(level.level - stopLoss) <= 0) continue;
+      if (!Number.isFinite(takeProfit) || stopLoss <= 0 || takeProfit <= 0) {
+        state.pendingLevels.splice(i, 1);
+        continue;
+      }
+      if (direction === 'buy' && !(stopLoss < currentPrice && takeProfit > currentPrice)) {
+        state.pendingLevels.splice(i, 1);
+        continue;
+      }
+      if (direction === 'sell' && !(stopLoss > currentPrice && takeProfit < currentPrice)) {
+        state.pendingLevels.splice(i, 1);
+        continue;
+      }
+      if (Math.abs(currentPrice - stopLoss) <= 0) {
+        state.pendingLevels.splice(i, 1);
+        continue;
+      }
 
       // Remove the tapped level — one shot only
       state.pendingLevels.splice(i, 1);
@@ -325,7 +351,8 @@ class NoWickImbalance {
           age,
           trend: currentTrend,
           swingLevel,
-          breathingRoom
+          breathingRoom,
+          entryPrice: currentPrice
         },
         overrideLevels: {
           stopLoss,

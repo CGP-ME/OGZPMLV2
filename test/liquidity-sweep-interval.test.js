@@ -178,4 +178,31 @@ describe('LiquiditySweep interval detection', () => {
     expect(detector.stats.totalSessionsAnalyzed).toBe(1);
     expect(detector.stats.manipCandlesDetected).toBe(1);
   });
+
+  test('consumes a generated signal instead of replaying stale structural levels', () => {
+    const detector = new LiquiditySweepDetector({ disableSessionCheck: true });
+    detector.state.signal = {
+      hasSignal: true,
+      direction: 'buy',
+      confidence: 0.7,
+      stopLoss: 99,
+      takeProfit: 105,
+    };
+    detector.state.phase = 'signal_active';
+
+    expect(detector.getSignal()).toEqual(expect.objectContaining({
+      hasSignal: true,
+      direction: 'buy',
+      stopLoss: 99,
+      takeProfit: 105,
+    }));
+
+    detector.consumeSignal();
+
+    expect(detector.getSignal()).toEqual(expect.objectContaining({
+      hasSignal: false,
+      direction: 'neutral',
+      phase: 'done',
+    }));
+  });
 });

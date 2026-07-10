@@ -80,6 +80,112 @@ function boundedConfidenceFromRankingScore(score, label = 'publicConfidence') {
   return Math.min(1.0, assertRankingScore(score, label));
 }
 
+function parseStructuralPrice(value, label, strategyName) {
+  const type = typeof value;
+  let numeric;
+
+  if (type === 'number') {
+    numeric = value;
+  } else if (type === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return {
+        ok: false,
+        reason: `[EXIT-GEOMETRY] ${strategyName} ${label} must be a finite positive price (got empty string)`,
+      };
+    }
+    numeric = Number(trimmed);
+  } else {
+    return {
+      ok: false,
+      reason: `[EXIT-GEOMETRY] ${strategyName} ${label} must be a finite positive price (got ${String(value)})`,
+    };
+  }
+
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return {
+      ok: false,
+      reason: `[EXIT-GEOMETRY] ${strategyName} ${label} must be a finite positive price (got ${String(value)})`,
+    };
+  }
+
+  return { ok: true, value: numeric };
+}
+
+function formatStructuralPriceForLog(value) {
+  return Number.isFinite(value) ? value.toFixed(2) : 'n/a';
+}
+
+function hasStructuralLevelOverride(result) {
+  const levels = result?.overrideLevels;
+  return Boolean(
+    levels &&
+    typeof levels === 'object' &&
+    (
+      Object.prototype.hasOwnProperty.call(levels, 'stopLoss') ||
+      Object.prototype.hasOwnProperty.call(levels, 'takeProfit')
+    )
+  );
+}
+
+function validateStructuralLevelOverride(result, entryPriceInput) {
+  if (!hasStructuralLevelOverride(result)) return { ok: true, signalOverrides: {} };
+
+  const strategyName = result.strategyName || result.name || 'unknown_strategy';
+  const exitContractHint = result.exitContractHint || result.signalData?.exitContractHint;
+  if (exitContractHint || strategyName === 'OpeningRangeBreakout') {
+    return { ok: true, signalOverrides: {}, ignored: true };
+  }
+
+  const isShort = result.direction === 'sell';
+  const hasStopLossLevel = Object.prototype.hasOwnProperty.call(result.overrideLevels, 'stopLoss');
+  const hasTakeProfitLevel = Object.prototype.hasOwnProperty.call(result.overrideLevels, 'takeProfit');
+  if (!hasStopLossLevel && !hasTakeProfitLevel) return { ok: true, signalOverrides: {} };
+
+  const parsedEntry = parseStructuralPrice(entryPriceInput, 'entry price', strategyName);
+  if (!parsedEntry.ok) return parsedEntry;
+  const entryPrice = parsedEntry.value;
+  const signalOverrides = {};
+  let stopLossLevel;
+  let takeProfitLevel;
+
+  if (hasStopLossLevel) {
+    const parsedStop = parseStructuralPrice(result.overrideLevels.stopLoss, 'stopLoss', strategyName);
+    if (!parsedStop.ok) return parsedStop;
+    stopLossLevel = parsedStop.value;
+    const rawSL = ((stopLossLevel - entryPrice) / entryPrice) * 100;
+    if ((!isShort && rawSL >= 0) || (isShort && rawSL <= 0)) {
+      return {
+        ok: false,
+        reason: `[EXIT-GEOMETRY] ${strategyName} stopLoss ${stopLossLevel} is on the wrong side of entry ${entryPrice} for ${result.direction}`,
+      };
+    }
+    signalOverrides.stopLossPercent = isShort ? -rawSL : rawSL;
+  }
+
+  if (hasTakeProfitLevel) {
+    const parsedTarget = parseStructuralPrice(result.overrideLevels.takeProfit, 'takeProfit', strategyName);
+    if (!parsedTarget.ok) return parsedTarget;
+    takeProfitLevel = parsedTarget.value;
+    const rawTP = ((takeProfitLevel - entryPrice) / entryPrice) * 100;
+    if ((!isShort && rawTP <= 0) || (isShort && rawTP >= 0)) {
+      return {
+        ok: false,
+        reason: `[EXIT-GEOMETRY] ${strategyName} takeProfit ${takeProfitLevel} is on the wrong side of entry ${entryPrice} for ${result.direction}`,
+      };
+    }
+    signalOverrides.takeProfitPercent = isShort ? -rawTP : rawTP;
+  }
+
+  return {
+    ok: true,
+    signalOverrides,
+    stopLossLevel,
+    takeProfitLevel,
+    entryPrice,
+  };
+}
+
 function cloneDecisionAttribution(attribution) {
   if (!attribution || typeof attribution !== 'object') return null;
   return {
@@ -1310,6 +1416,9 @@ class StrategyOrchestrator {
           console.log(`[DIAG] LiquiditySweep: called, sig=${sig ? JSON.stringify({hasSignal: sig.hasSignal, direction: sig.direction, confidence: sig.confidence}) : 'null'}`);
         }
         if (!sig || !sig.hasSignal) return null;
+        if (typeof scopedLiquiditySweep.consumeSignal === 'function') {
+          scopedLiquiditySweep.consumeSignal();
+        }
         if (!sig.direction || sig.direction === 'neutral') return null;
         let conf = sig.confidence || 0;
         if (conf < this.minStrategyConfidence) return null;
@@ -1328,11 +1437,8 @@ class StrategyOrchestrator {
           confidence: conf,
           reason: `Liquidity Sweep ${sig.direction} (${sig.sweepType || 'institutional'})${fibBoost}`,
           signalData: sig,
-          // FIX 2026-02-23: Pass structural stops from sweep analysis
-          overrideLevels: sig.stopLoss && sig.takeProfit ? {
-            stopLoss: sig.stopLoss,
-            takeProfit: sig.takeProfit
-          } : null
+          // Producer only exposes overrideLevels when entry-relative geometry is valid.
+          overrideLevels: sig.overrideLevels || null
         };
       }
     });
@@ -1370,11 +1476,7 @@ class StrategyOrchestrator {
             confidence: conf,
             reason: sig.reason || `Break & Retest ${sig.direction}${fibBoost}`,
             signalData: sig,
-            overrideLevels: sig.stopLoss && sig.takeProfit ? {
-              stopLoss: sig.stopLoss,
-              takeProfit: sig.takeProfit,
-              pt2: sig.pt2
-            } : null
+            overrideLevels: sig.overrideLevels || null
           };
         }
       });
@@ -1611,11 +1713,6 @@ class StrategyOrchestrator {
           confidence: signal.confidence,
           reason: signal.reason,
           signalData: signal,
-          // ORB provides structural levels from FVG
-          overrideLevels: {
-            stopLoss: signal.stop,
-            takeProfit: signal.target,
-          },
           exitContractHint: signal.exitContractHint,
           // Pass order type hint
           orderTypeHint: signal.orderType,
@@ -1954,6 +2051,38 @@ class StrategyOrchestrator {
               actualConfidence: confidence,
               timeframe: signalTimeframe,
               passed: true,
+            });
+          }
+          const structuralPriceBasis = extras.price ?? (priceHistory.length > 0 ? priceHistory[priceHistory.length - 1]?.c : null);
+          const structuralValidation = validateStructuralLevelOverride(candidate, structuralPriceBasis);
+          if (!structuralValidation.ok) {
+            addDecisionContributor(candidate, {
+              name: 'exit_geometry',
+              type: 'gate',
+              passed: false,
+              reason: structuralValidation.reason,
+              timeframe: signalTimeframe,
+            });
+            filteredResults.push({
+              ...candidate,
+              rejectedBy: 'exit_geometry',
+              rejectReason: structuralValidation.reason,
+            });
+            console.warn(`[EXIT-GEOMETRY] Rejected ${strategy.name}: ${structuralValidation.reason}`);
+            continue;
+          }
+          if (structuralValidation.signalOverrides && Object.keys(structuralValidation.signalOverrides).length > 0) {
+            candidate.structuralExitOverrides = structuralValidation.signalOverrides;
+            candidate.structuralExitLevels = {
+              entryPrice: structuralValidation.entryPrice,
+              stopLoss: structuralValidation.stopLossLevel,
+              takeProfit: structuralValidation.takeProfitLevel,
+            };
+            addDecisionContributor(candidate, {
+              name: 'exit_geometry',
+              type: 'gate',
+              passed: true,
+              timeframe: signalTimeframe,
             });
           }
           this._applyStrategyMtfConfluence(candidate, ctx);
@@ -2370,7 +2499,7 @@ class StrategyOrchestrator {
     // ─── Step 7: Create exit contract from winning strategy ───
     let exitContract = null;
     const ecm = getExitContractManager();
-    const price = extras.price || (priceHistory.length > 0 ? priceHistory[priceHistory.length - 1]?.c : 0);
+    const price = extras.price ?? (priceHistory.length > 0 ? priceHistory[priceHistory.length - 1]?.c : 0);
 
     // If the winning strategy provided its own levels (e.g. TPO), use them
     const signalOverrides = {};
@@ -2378,28 +2507,17 @@ class StrategyOrchestrator {
     console.log(`[EXIT-DEBUG] Winner "${winner.strategyName}" keys: ${Object.keys(winner).join(', ')}`);
     console.log(`[EXIT-DEBUG] Winner overrideLevels type: ${typeof winner.overrideLevels}, value: ${JSON.stringify(winner.overrideLevels)}`);
     const exitContractHint = winner.exitContractHint || winner.signalData?.exitContractHint;
-    if (winner.strategyName === 'OpeningRangeBreakout' && !exitContractHint) {
-      throw new Error('[EXIT-HINT] OpeningRangeBreakout requires entry-based exitContractHint; refusing current-price override-level math');
-    }
     if (exitContractHint) {
       Object.assign(signalOverrides, normalizeExitContractHint(exitContractHint, winner.strategyName));
       console.log(`[EXIT-DEBUG] ${winner.strategyName} using exitContractHint SL%=${signalOverrides.stopLossPercent.toFixed(2)} TP%=${signalOverrides.takeProfitPercent.toFixed(2)}`);
-    } else if (winner.overrideLevels) {
-      const isShort = winner.direction === 'sell';
-      if (winner.overrideLevels.stopLoss && price) {
-        // FIX 2026-03-27: SL% must always be negative (how far price can move against you)
-        // For shorts, stopLoss is ABOVE entry → raw calc is positive → negate it
-        const rawSL = ((winner.overrideLevels.stopLoss - price) / price) * 100;
-        signalOverrides.stopLossPercent = isShort ? -Math.abs(rawSL) : rawSL;
-      }
-      if (winner.overrideLevels.takeProfit && price) {
-        // FIX 2026-03-27: TP% must always be positive (how far price needs to move in your favor)
-        // For shorts, takeProfit is BELOW entry → raw calc is negative → make positive
-        const rawTP = ((winner.overrideLevels.takeProfit - price) / price) * 100;
-        signalOverrides.takeProfitPercent = isShort ? Math.abs(rawTP) : rawTP;
-      }
+    } else if (winner.strategyName === 'OpeningRangeBreakout' && winner.overrideLevels) {
+      console.warn('[EXIT-HINT] OpeningRangeBreakout overrideLevels ignored without entry-based exitContractHint');
+    } else if (winner.structuralExitOverrides) {
+      Object.assign(signalOverrides, winner.structuralExitOverrides);
+      const stopLossLevel = winner.structuralExitLevels?.stopLoss;
+      const takeProfitLevel = winner.structuralExitLevels?.takeProfit;
       // DEBUG: Log override level conversion
-      console.log(`[EXIT-DEBUG] ${winner.strategyName} overrideLevels → Price=$${price?.toFixed(2)} SL=$${winner.overrideLevels.stopLoss?.toFixed(2)} TP=$${winner.overrideLevels.takeProfit?.toFixed(2)} → SL%=${signalOverrides.stopLossPercent?.toFixed(2)}% TP%=${signalOverrides.takeProfitPercent?.toFixed(2)}%`);
+      console.log(`[EXIT-DEBUG] ${winner.strategyName} overrideLevels → Price=$${formatStructuralPriceForLog(price)} SL=$${formatStructuralPriceForLog(stopLossLevel)} TP=$${formatStructuralPriceForLog(takeProfitLevel)} → SL%=${signalOverrides.stopLossPercent?.toFixed(2)}% TP%=${signalOverrides.takeProfitPercent?.toFixed(2)}%`);
     } else {
       console.log(`[EXIT-DEBUG] ${winner.strategyName} NO overrideLevels — will use ConfigLoader defaults`);
     }

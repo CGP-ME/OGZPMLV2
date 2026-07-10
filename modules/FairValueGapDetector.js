@@ -3,6 +3,10 @@
 
 const { c: _c, o: _o, h: _h, l: _l, v: _v, t: _t } = require('../core/CandleHelper');
 
+function isFinitePositivePrice(value) {
+  return Number.isFinite(value) && value > 0;
+}
+
 /**
  * FairValueGapDetector
  *
@@ -95,7 +99,7 @@ class FairValueGapDetector {
 
     // Use c2 close as reference price for percentage calculation
     const refPrice = _c(c2);
-    if (!refPrice || refPrice <= 0) return null;
+    if (![c1High, c1Low, c3High, c3Low, refPrice].every(isFinitePositivePrice)) return null;
 
     // BULLISH FVG: candle 3 low is above candle 1 high
     // Gap zone: c1.high to c3.low
@@ -205,6 +209,11 @@ class FairValueGapDetector {
     } else {
       target = entry - (risk * targetRR);
     }
+
+    if (![entry, stop, target, risk].every(Number.isFinite)) return null;
+    if (entry <= 0 || stop <= 0 || target <= 0 || risk <= 0) return null;
+    if (fvg.direction === 'bullish' && !(stop < entry && target > entry)) return null;
+    if (fvg.direction === 'bearish' && !(stop > entry && target < entry)) return null;
 
     return {
       entry: entry,

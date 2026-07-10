@@ -306,6 +306,11 @@ function detectTpoCrossover(tpoOutput, index) {
  * @returns {Object} Stop loss and take profit levels
  */
 function calculateDynamicLevels(entryPrice, vol, direction, multiplier = 1.5) {
+    if (!Number.isFinite(entryPrice) || entryPrice <= 0) return null;
+    if (!Number.isFinite(vol) || vol <= 0) return null;
+    if (!Number.isFinite(multiplier) || multiplier <= 0) return null;
+    if (direction !== 'LONG' && direction !== 'SHORT') return null;
+
     const stopDistance = vol * multiplier;
     const tpDistance = stopDistance * 1.5; // 1.5:1 R:R ratio
     

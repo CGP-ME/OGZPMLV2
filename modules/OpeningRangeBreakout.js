@@ -218,6 +218,11 @@ class OpeningRangeBreakout {
     if (fvg) {
       // Found FVG! Generate signal
       const signal = this._generateSignal(fvg, candle);
+      if (!signal) {
+        this.pendingSignal = null;
+        this.state = STATES.DONE;
+        return null;
+      }
       this.pendingSignal = signal;
       this.state = STATES.SIGNAL_READY;
       console.log(`[ORB] FVG found: ${fvg.direction} gap ${fvg.gapLow.toFixed(2)}-${fvg.gapHigh.toFixed(2)}`);
@@ -246,6 +251,11 @@ class OpeningRangeBreakout {
       this.stopBufferPct,
       this.targetRR
     );
+    if (!levels) {
+      console.warn(`[ORB] Ignoring ${fvg.direction} FVG with invalid exit geometry`);
+      this.state = STATES.DONE;
+      return null;
+    }
 
     return {
       strategy: 'OpeningRangeBreakout',

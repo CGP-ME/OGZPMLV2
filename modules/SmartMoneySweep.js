@@ -22,6 +22,19 @@
 
 const { c, o, h, l, v, t } = require('../core/CandleHelper');
 
+function isFinitePositivePrice(value) {
+  return Number.isFinite(value) && value > 0;
+}
+
+function hasValidExitGeometry(direction, entry, levels) {
+  if (!levels || !isFinitePositivePrice(entry)) return false;
+  const { stopLoss, takeProfit } = levels;
+  if (![stopLoss, takeProfit].every(isFinitePositivePrice)) return false;
+  if (direction === 'buy') return stopLoss < entry && takeProfit > entry;
+  if (direction === 'sell') return stopLoss > entry && takeProfit < entry;
+  return false;
+}
+
 class SmartMoneySweep {
   constructor(config = {}) {
     // ─── Volume Profile Config ───
@@ -331,12 +344,13 @@ class SmartMoneySweep {
     for (const candle of candles) {
       const hi = h(candle);
       const lo = l(candle);
+      if (!isFinitePositivePrice(hi) || !isFinitePositivePrice(lo)) continue;
       if (hi > vpHigh) vpHigh = hi;
       if (lo < vpLow) vpLow = lo;
     }
 
     const vpRange = vpHigh - vpLow;
-    if (vpRange <= 0) return null;
+    if (!Number.isFinite(vpRange) || vpRange <= 0) return null;
     const binSize = vpRange / this.vpBins;
 
     // Build volume array with body-weighted distribution
@@ -349,6 +363,7 @@ class SmartMoneySweep {
       const cO = o(candle);
       const cC = c(candle);
       const cV = v(candle);
+      if (![cH, cL, cO, cC, cV].every(Number.isFinite)) continue;
       const bTop = Math.max(cO, cC);
       const bBot = Math.min(cO, cC);
       const cRng = cH - cL;
@@ -440,6 +455,7 @@ class SmartMoneySweep {
       }
     }
 
+    if (![vahPrice, valPrice, pocPrice, vpHigh, vpLow].every(isFinitePositivePrice)) return null;
     return { vah: vahPrice, val: valPrice, poc: pocPrice, profileBias, lvnLevels, vpHigh, vpLow };
   }
 
@@ -846,6 +862,8 @@ class SmartMoneySweep {
     // ATR is required for TP calculation. Warmup (priceHistory < period+1) returns 0,
     // which would make TP = entry price and exit on first profit tick. Skip the signal entirely.
     if (!Number.isFinite(atrVal) || atrVal <= 0) return null;
+    if (!isFinitePositivePrice(price)) return null;
+    if (!vp || ![vp.poc, vp.vah, vp.val].every(isFinitePositivePrice)) return null;
     if (direction === 'buy') {
       // SL = lowest low of sweep bars minus buffer, capped by maxLossPct
       const candle2 = priceHistory[priceHistory.length - 2];
@@ -854,6 +872,7 @@ class SmartMoneySweep {
       const low2 = l(candle2);
       const low3 = l(candle3);
       const low4 = l(candle4);
+      if (![low2, low3, low4].every(isFinitePositivePrice)) return null;
       const sweepLow = Math.min(low2, low3, low4);
 
       // DEBUG: Show sweep low calculation
@@ -885,14 +904,15 @@ class SmartMoneySweep {
 
       const takeProfit = conditionsMet >= 3 ? highTarget : conditionsMet >= 2 ? midTarget : atrTPLow;
 
-      return { stopLoss, takeProfit };
+      const levels = { stopLoss, takeProfit };
+      return hasValidExitGeometry(direction, price, levels) ? levels : null;
     } else {
       // Short
-      const sweepHigh = Math.max(
-        h(priceHistory[priceHistory.length - 2]),
-        h(priceHistory[priceHistory.length - 3]),
-        h(priceHistory[priceHistory.length - 4])
-      );
+      const high2 = h(priceHistory[priceHistory.length - 2]);
+      const high3 = h(priceHistory[priceHistory.length - 3]);
+      const high4 = h(priceHistory[priceHistory.length - 4]);
+      if (![high2, high3, high4].every(isFinitePositivePrice)) return null;
+      const sweepHigh = Math.max(high2, high3, high4);
       const slBuffer = price * (this.slBufferPct / 100);
       const wickSL = sweepHigh + slBuffer;
       const maxLossSL = price + (price * this.maxLossPct / 100);
@@ -915,7 +935,8 @@ class SmartMoneySweep {
 
       const takeProfit = conditionsMet >= 3 ? highTarget : conditionsMet >= 2 ? midTarget : atrTPLow;
 
-      return { stopLoss, takeProfit };
+      const levels = { stopLoss, takeProfit };
+      return hasValidExitGeometry(direction, price, levels) ? levels : null;
     }
   }
 

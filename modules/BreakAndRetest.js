@@ -34,6 +34,17 @@
 
 const { c, o, h, l, v } = require('../core/CandleHelper');
 
+function isFinitePositivePrice(value) {
+  return Number.isFinite(value) && value > 0;
+}
+
+function hasValidExitGeometry(direction, entry, stopLoss, takeProfit) {
+  if (![entry, stopLoss, takeProfit].every(isFinitePositivePrice)) return false;
+  if (direction === 'buy') return stopLoss < entry && takeProfit > entry;
+  if (direction === 'sell') return stopLoss > entry && takeProfit < entry;
+  return false;
+}
+
 class BreakAndRetest {
   constructor(config = {}) {
     // ─── KEY LEVEL DETECTION ───
@@ -428,6 +439,11 @@ class BreakAndRetest {
         const risk = price - stopLoss;
         const takeProfit = price + (risk * this.rewardRiskRatio);
         const pt2 = bz.breakoutHigh || (price + risk * 2.5);
+        if (!hasValidExitGeometry('buy', price, stopLoss, takeProfit)) {
+          this._logSignal('INVALID_EXIT_GEOMETRY', `Long setup produced invalid exits: entry=${price}, stop=${stopLoss}, target=${takeProfit}`);
+          this._resetState();
+          return this._emptySignal();
+        }
 
         // Confidence based on quality
         let confidence = 0.35; // Base
@@ -451,6 +467,7 @@ class BreakAndRetest {
           stopLoss,
           takeProfit,
           pt2,
+          overrideLevels: { stopLoss, takeProfit, pt2 },
           riskReward: risk > 0 ? (takeProfit - price) / risk : 0,
           entryType: 'break_retest_long',
           levelPrice: bz.level,
@@ -478,6 +495,11 @@ class BreakAndRetest {
         const risk = stopLoss - price;
         const takeProfit = price - (risk * this.rewardRiskRatio);
         const pt2 = bz.breakoutLow || (price - risk * 2.5);
+        if (!hasValidExitGeometry('sell', price, stopLoss, takeProfit)) {
+          this._logSignal('INVALID_EXIT_GEOMETRY', `Short setup produced invalid exits: entry=${price}, stop=${stopLoss}, target=${takeProfit}`);
+          this._resetState();
+          return this._emptySignal();
+        }
 
         let confidence = 0.35;
         confidence += Math.min(0.15, rejectionWicks * 0.05);
@@ -500,6 +522,7 @@ class BreakAndRetest {
           stopLoss,
           takeProfit,
           pt2,
+          overrideLevels: { stopLoss, takeProfit, pt2 },
           riskReward: risk > 0 ? (price - takeProfit) / risk : 0,
           entryType: 'break_retest_short',
           levelPrice: bz.level,

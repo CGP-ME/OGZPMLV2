@@ -140,9 +140,10 @@ describe('StrategyOrchestrator OpeningRangeBreakout exit hint', () => {
     )).toThrow(/exitContractHint\.invalidationConditions must be an array when provided/);
   });
 
-  test('refuses ORB override-level fallback when entry-based hint is missing', () => {
+  test('ignores ORB override-level fallback when entry-based hint is missing', () => {
     const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
     const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
     orchestrator.strategies = [{
       name: 'OpeningRangeBreakout',
@@ -157,12 +158,18 @@ describe('StrategyOrchestrator OpeningRangeBreakout exit hint', () => {
       }),
     }];
 
-    expect(() => orchestrator.evaluate(
+    const result = orchestrator.evaluate(
       { atr: 1, volatility: 1 },
       [],
       { currentRegime: 'ranging', confidence: 0.5, positionMultiplier: 1 },
       [{ o: 99, h: 100, l: 98, c: 99, t: 1 }],
       { price: 99, timeframe: '15m' }
-    )).toThrow(/OpeningRangeBreakout requires entry-based exitContractHint/);
+    );
+
+    expect(result.action).toBe('BUY');
+    expect(result.winnerStrategy).toBe('OpeningRangeBreakout');
+    expect(result.exitContract.stopLossPercent).toBeLessThan(0);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('OpeningRangeBreakout overrideLevels ignored'));
+    warnSpy.mockRestore();
   });
 });

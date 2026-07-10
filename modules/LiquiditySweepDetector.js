@@ -32,6 +32,21 @@ function positiveConfigNumber(config, key, defaultValue) {
   return value;
 }
 
+function isFinitePositivePrice(value) {
+  return Number.isFinite(value) && value > 0;
+}
+
+function buildKnownEntryOverrideLevels(direction, entry, stopLoss, takeProfit) {
+  if (![entry, stopLoss, takeProfit].every(isFinitePositivePrice)) return null;
+  if (direction === 'bullish' && stopLoss < entry && takeProfit > entry) {
+    return { stopLoss, takeProfit };
+  }
+  if (direction === 'bearish' && stopLoss > entry && takeProfit < entry) {
+    return { stopLoss, takeProfit };
+  }
+  return null;
+}
+
 class LiquiditySweepDetector {
   #dailyATR = null;
 
@@ -398,12 +413,19 @@ class LiquiditySweepDetector {
     else if (pattern.type === 'inverted_hammer') { direction = 'bearish'; entry = null; stopLoss = pattern.wickExtreme * bufUp; takeProfit = box.low; }
     else if (pattern.type === 'bullish_engulfing') { direction = 'bullish'; entry = pattern.entryLevel; stopLoss = pattern.stopLevel * bufDn; takeProfit = box.high; }
     else if (pattern.type === 'bearish_engulfing') { direction = 'bearish'; entry = pattern.entryLevel; stopLoss = pattern.stopLevel * bufUp; takeProfit = box.low; }
+    const overrideLevels = buildKnownEntryOverrideLevels(direction, entry, stopLoss, takeProfit);
+    if (entry != null && !overrideLevels) {
+      this.state.signal = null;
+      this.state.phase = 'done';
+      console.warn(`[LiquiditySweep] Ignoring ${pattern.type} with invalid exit geometry: entry=${entry}, stop=${stopLoss}, target=${takeProfit}`);
+      return;
+    }
     let confidence = this.config.weights.manipCandle;
     if (box.validations.sweepsHighs || box.validations.sweepsLows) confidence += this.config.weights.wickSweep;
     if (box.validations.closesInsideRange) confidence += this.config.weights.sweepReject;
     if (pattern.type.includes('hammer')) confidence += this.config.weights.hammerPattern;
     else confidence += this.config.weights.engulfPattern;
-    if (entry != null && stopLoss != null && takeProfit != null) {
+    if (overrideLevels) {
       const risk = Math.abs(entry - stopLoss);
       const reward = Math.abs(takeProfit - entry);
       if (risk > 0) {
@@ -418,7 +440,7 @@ class LiquiditySweepDetector {
       hasSignal: true, direction: direction === 'bullish' ? 'buy' : 'sell', confidence,
       pattern: pattern.type, entry,
       entryType: pattern.type.includes('hammer') ? 'next_candle_open' : 'limit_order',
-      stopLoss, takeProfit,
+      stopLoss, takeProfit, overrideLevels,
       box: { high: box.high, low: box.low, range: box.range, atrPct: box.atrPct },
       validations: { ...box.validations }, exitSide: this.state.exitSide,
       barsSinceOpen: this.state.barsAfterOpen, timestamp: Date.now(),
@@ -459,6 +481,11 @@ class LiquiditySweepDetector {
       };
     }
     return { module: 'LiquiditySweep', ...this.state.signal, candleIntervalMin: this._candleIntervalMin };
+  }
+
+  consumeSignal() {
+    this.state.signal = null;
+    this.state.phase = 'done';
   }
 
   _emptySignal() { return { module: 'LiquiditySweep', hasSignal: false, direction: 'neutral', confidence: 0, phase: 'waiting' }; }
