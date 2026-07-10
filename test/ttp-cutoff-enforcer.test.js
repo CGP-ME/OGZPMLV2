@@ -245,7 +245,7 @@ describe('TtpCutoffEnforcer', () => {
     expect(result.quarantine).toEqual(expect.objectContaining({
       source: 'ttp_cutoff_unverified_broker_flatness',
       status: 'quarantined',
-      entryBlocking: false,
+      entryBlocking: true,
       manualReconciliationRequired: true,
       brokerFlatVerified: false,
       currentDateET: '2026-05-22',
@@ -258,11 +258,11 @@ describe('TtpCutoffEnforcer', () => {
     expect(stateManager.updateState).toHaveBeenCalledWith(
       { ttpCutoffQuarantine: expect.objectContaining({
         source: 'ttp_cutoff_unverified_broker_flatness',
-        entryBlocking: false,
+        entryBlocking: true,
       }) },
       expect.objectContaining({
         action: 'TTP_CUTOFF_QUARANTINE',
-        entryBlocking: false,
+        entryBlocking: true,
       })
     );
     expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('BROKER FLATNESS QUARANTINED'));
@@ -717,7 +717,7 @@ describe('TtpCutoffEnforcer', () => {
     expect(result.requiresManualReconciliation).toBe(true);
     expect(result.quarantine).toEqual(expect.objectContaining({
       status: 'quarantined',
-      entryBlocking: false,
+      entryBlocking: true,
       manualReconciliationRequired: true,
       marketTimeBlocksNewEntries: true,
       inLiquidationWindow: false,
@@ -885,7 +885,7 @@ describe('TtpCutoffEnforcer', () => {
     expect(result.requiresManualReconciliation).toBe(true);
     expect(result.quarantine).toEqual(expect.objectContaining({
       status: 'quarantined',
-      entryBlocking: false,
+      entryBlocking: true,
     }));
     expect(enforcer.completedKeys.size).toBe(0);
   });
@@ -953,7 +953,7 @@ describe('TtpCutoffEnforcer', () => {
     expect(enforcer.unverifiedKeys.has('2026-05-22:950')).toBe(true);
     expect(stateManager.pauseTrading).not.toHaveBeenCalled();
     expect(stateManager.updateState).toHaveBeenCalledWith(
-      { ttpCutoffQuarantine: expect.objectContaining({ status: 'quarantined', entryBlocking: false }) },
+      { ttpCutoffQuarantine: expect.objectContaining({ status: 'quarantined', entryBlocking: true }) },
       expect.objectContaining({ action: 'TTP_CUTOFF_QUARANTINE' })
     );
   });

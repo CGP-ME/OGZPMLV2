@@ -493,17 +493,44 @@ class TtpCutoffEnforcer {
     };
   }
 
+  _affectedSymbolsForQuarantine(closed = [], orphanClosed = [], failures = []) {
+    const symbols = new Set();
+    const addSymbol = (value) => {
+      const normalized = this._normalizeSymbol(value);
+      if (normalized) symbols.add(normalized);
+    };
+    for (const entry of Array.isArray(closed) ? closed : []) {
+      addSymbol(entry?.symbol);
+    }
+    for (const entry of Array.isArray(orphanClosed) ? orphanClosed : []) {
+      addSymbol(entry?.symbol);
+    }
+    for (const failure of Array.isArray(failures) ? failures : []) {
+      addSymbol(failure?.symbol);
+      for (const position of Array.isArray(failure?.positions) ? failure.positions : []) {
+        addSymbol(position?.symbol);
+      }
+    }
+    if (symbols.size === 0) {
+      for (const symbol of this._currentSymbolScope()) {
+        addSymbol(symbol);
+      }
+    }
+    return Array.from(symbols);
+  }
+
   async _quarantineUnverifiedBrokerFlatness(state, closed, orphanClosed, cancelResult, failures = []) {
     if (!this.stateManager || typeof this.stateManager.updateState !== 'function') {
       throw new Error('[TTP_MARKET_TIME] broker flatness unverified and StateManager.updateState unavailable for quarantine record');
     }
 
     const createdAt = new Date(this.now()).toISOString();
-    const reason = `[TTP_MARKET_TIME] broker flatness unverified after cutoff date=${state.currentDateET}; cutoff reconciliation quarantined; entries remain governed by normal risk/eval rules`;
+    const reason = `[TTP_MARKET_TIME] broker flatness unverified after cutoff date=${state.currentDateET}; cutoff reconciliation quarantined; entries blocked for affected symbols until manual reconciliation`;
+    const affectedSymbols = this._affectedSymbolsForQuarantine(closed, orphanClosed, failures);
     const quarantine = {
       source: 'ttp_cutoff_unverified_broker_flatness',
       status: 'quarantined',
-      entryBlocking: false,
+      entryBlocking: true,
       manualReconciliationRequired: true,
       requiresManualReconciliation: true,
       brokerFlatVerified: false,
@@ -529,19 +556,34 @@ class TtpCutoffEnforcer {
       closed,
       orphanClosed,
       failures,
+      affectedSymbols,
       createdAt,
     };
 
     const result = await this.stateManager.updateState(
       { ttpCutoffQuarantine: quarantine },
-      { action: 'TTP_CUTOFF_QUARANTINE', reason, source: quarantine.source, entryBlocking: false }
+      { action: 'TTP_CUTOFF_QUARANTINE', reason, source: quarantine.source, entryBlocking: true, affectedSymbols }
     );
     if (result && result.success === false) {
       throw new Error(`[TTP_MARKET_TIME] broker flatness quarantine record failed: ${result.error || 'unknown_error'}`);
     }
+    if (typeof this.stateManager.haltSymbol === 'function') {
+      for (const symbol of affectedSymbols) {
+        await this.stateManager.haltSymbol(symbol, reason, {
+          code: quarantine.source,
+          authority: 'financial_integrity',
+          financialIntegrityCritical: true,
+          manualReconciliationRequired: true,
+          entryBlockScope: 'symbol',
+          source: quarantine.source,
+          currentDateET: state.currentDateET,
+          createdAt,
+        });
+      }
+    }
 
     const warn = typeof this.logger.warn === 'function' ? this.logger.warn.bind(this.logger) : this.logger.log.bind(this.logger);
-    warn(`[TTP_MARKET_TIME] BROKER FLATNESS QUARANTINED date=${state.currentDateET} closed=${quarantine.closedCount} orphanClosed=${quarantine.orphanClosedCount} brokerFlatVerified=false entryBlocking=false manualReconciliationRequired=true`);
+    warn(`[TTP_MARKET_TIME] BROKER FLATNESS QUARANTINED date=${state.currentDateET} closed=${quarantine.closedCount} orphanClosed=${quarantine.orphanClosedCount} brokerFlatVerified=false entryBlocking=true manualReconciliationRequired=true affectedSymbols=${affectedSymbols.join(',')}`);
     return quarantine;
   }
 
@@ -570,6 +612,16 @@ class TtpCutoffEnforcer {
     );
     if (result && result.success === false) {
       throw new Error(`[TTP_MARKET_TIME] broker flatness quarantine clear failed: ${result.error || 'unknown_error'}`);
+    }
+    if (Array.isArray(quarantine.affectedSymbols) && typeof this.stateManager.resetSymbolHalt === 'function') {
+      for (const symbol of quarantine.affectedSymbols) {
+        const haltCode = typeof this.stateManager.getSymbolHaltCode === 'function'
+          ? this.stateManager.getSymbolHaltCode(symbol)
+          : null;
+        if (haltCode === quarantine.source) {
+          await this.stateManager.resetSymbolHalt(symbol);
+        }
+      }
     }
 
     this.logger.log(`[TTP_MARKET_TIME] broker flatness verified; cleared cutoff reconciliation quarantine date=${state.currentDateET}`);

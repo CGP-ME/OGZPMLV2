@@ -637,6 +637,344 @@ class OrderExecutor {
     }) || null;
   }
 
+  _exitIntentTtlMs() {
+    const webhookTimeout = Number(this.ctx.webhookAdapter?.timeout);
+    return Number.isFinite(webhookTimeout) && webhookTimeout > 0 ? webhookTimeout * 3 : 15000;
+  }
+
+  _exitIntentAgeMs(pendingExitIntent, nowMs = Date.now()) {
+    const submittedAtMs = Number(pendingExitIntent?.submittedAtMs);
+    return Number.isFinite(submittedAtMs) && submittedAtMs > 0 ? Math.max(0, nowMs - submittedAtMs) : null;
+  }
+
+  _exitIntentOrigin(pendingExitIntent) {
+    return {
+      intentId: pendingExitIntent?.intentId || null,
+      lifecycleState: pendingExitIntent?.lifecycleState || null,
+      submittedAtMs: Number.isFinite(Number(pendingExitIntent?.submittedAtMs)) ? Number(pendingExitIntent.submittedAtMs) : null,
+      acceptedAtMs: Number.isFinite(Number(pendingExitIntent?.acceptedAtMs)) ? Number(pendingExitIntent.acceptedAtMs) : null,
+      brokerOrderId: pendingExitIntent?.brokerOrderId || null,
+      sourceEventId: pendingExitIntent?.sourceEventId || null,
+    };
+  }
+
+  _isWebhookOrderStatusRoute() {
+    return !this.ctx.backtestMode && this.ctx.webhookAdapter?.enabled === true && this.ctx.webhookAdapter?.dryRun === false;
+  }
+
+  _isWebhookExecutionPlan(exitPlan) {
+    return exitPlan?.executionRoute === 'webhook' || this._isWebhookOrderStatusRoute();
+  }
+
+  _exitIntentTruthSource(exitPlan) {
+    if (this._isWebhookExecutionPlan(exitPlan)) {
+      return {
+        venue: 'signalstack_ttp_webhook',
+        source: 'none_available_in_repo',
+        available: false,
+        operatorReconciliationRequired: true,
+      };
+    }
+    return {
+      venue: exitPlan?.executionVenue || exitPlan?.brokerId || 'broker',
+      source: 'broker_open_orders_api',
+      available: true,
+      operatorReconciliationRequired: false,
+    };
+  }
+
+  _openOrderId(order) {
+    return this._firstNonEmptyString(order?.orderId, order?.id, order?.clientOrderId, order?.client_order_id);
+  }
+
+  _openOrderSide(order) {
+    const raw = this._firstNonEmptyString(order?.side, order?.action, order?.direction);
+    if (!raw) return null;
+    const side = raw.trim().toLowerCase();
+    if (side === 'buy' || side === 'cover') return 'buy';
+    if (side === 'sell' || side === 'sell_short' || side === 'short') return 'sell';
+    return null;
+  }
+
+  _openOrderIsPending(order) {
+    const status = this._firstNonEmptyString(order?.status, order?.state, order?.status_description, order?.statusDescription);
+    if (!status) return true;
+    return !new Set(['filled', 'complete', 'completed', 'cancelled', 'canceled', 'expired', 'rejected', 'failed']).has(status.trim().toLowerCase());
+  }
+
+  _matchingOpenExitOrderForIntent(exitPlan, pendingExitIntent, orders = []) {
+    const targetSymbol = this._normalizeBrokerPositionSymbol(exitPlan?.symbol);
+    const targetSide = exitPlan?.side || null;
+    const pendingOrderId = this._firstNonEmptyString(pendingExitIntent?.brokerOrderId, pendingExitIntent?.orderId);
+    if (!targetSymbol || !Array.isArray(orders)) return null;
+    return orders.find((order) => {
+      if (!this._openOrderIsPending(order)) return false;
+      const orderId = this._openOrderId(order);
+      if (pendingOrderId && orderId && orderId === pendingOrderId) return true;
+      const symbol = this._normalizeBrokerPositionSymbol(order?.symbol);
+      const side = this._openOrderSide(order);
+      return symbol === targetSymbol && (!targetSide || side === targetSide);
+    }) || null;
+  }
+
+  async _readBrokerOpenOrdersForExit(exitPlan) {
+    const truthSource = this._exitIntentTruthSource(exitPlan);
+    if (truthSource.available !== true) {
+      return { available: false, orders: [], matchingOrder: null, error: 'webhook_order_status_unavailable', truthSource };
+    }
+    const router = this.ctx.orderRouter;
+    const adapters = router?.adapters instanceof Map ? router.adapters : null;
+    if (!adapters) {
+      return { available: false, orders: [], matchingOrder: null, error: 'missing_order_router_adapters', truthSource };
+    }
+    const targetBroker = this._firstNonEmptyString(exitPlan?.brokerId);
+    const orders = [];
+    let readableAdapters = 0;
+    const errors = [];
+
+    for (const [brokerName, adapter] of adapters.entries()) {
+      if (targetBroker && String(brokerName || '').trim().toLowerCase() !== targetBroker.trim().toLowerCase()) {
+        continue;
+      }
+      if (!adapter || typeof adapter.getOpenOrders !== 'function') {
+        continue;
+      }
+      try {
+        const brokerOrders = await adapter.getOpenOrders();
+        readableAdapters += 1;
+        for (const order of Array.isArray(brokerOrders) ? brokerOrders : []) {
+          orders.push({ ...order, broker: brokerName });
+        }
+      } catch (err) {
+        errors.push(`${brokerName}:${err?.message || 'open_order_read_failed'}`);
+      }
+    }
+
+    if (readableAdapters === 0) {
+      return {
+        available: false,
+        orders: [],
+        matchingOrder: null,
+        error: errors[0] || 'no_open_order_reader_for_exit_broker',
+        truthSource,
+      };
+    }
+
+    return {
+      available: true,
+      orders,
+      matchingOrder: this._matchingOpenExitOrderForIntent(exitPlan, exitPlan?.pendingExitIntent, orders),
+      error: null,
+      truthSource,
+    };
+  }
+
+  async _releaseExitIntentWithTrace({ exitPlan, pendingExitIntent, reason, traceId, signalId, decisionId, symbol, action }) {
+    const ageMs = this._exitIntentAgeMs(pendingExitIntent);
+    const origin = this._exitIntentOrigin(pendingExitIntent);
+    const intentId = pendingExitIntent?.intentId || null;
+    if (!exitPlan?.tradeId || !intentId) {
+      return { released: false, reason: 'missing_exit_intent_identity', ageMs, origin };
+    }
+
+    let released;
+    try {
+      released = await stateManager.releaseExitSlot(exitPlan.tradeId, intentId, { reason });
+    } catch (err) {
+      released = { success: false, released: false, reason: err?.message || 'release_exception' };
+    }
+    const releaseReason = released?.reason || released?.error || 'release_unknown';
+    const ok = released?.success === true && released?.released === true;
+
+    emitTrace(this.ctx, ok ? 'EXIT_INTENT_STALE_RELEASED' : 'EXIT_INTENT_STALE_RELEASE_FAILED', {
+      traceId,
+      signalId,
+      decisionId,
+      symbol: symbol || exitPlan.symbol,
+      action: action || exitPlan.action,
+      tradeId: exitPlan.tradeId,
+      intentId,
+      reason,
+      releaseReason,
+      ageMs,
+      origin,
+    });
+    const logLine = `[EXECUTION-FILL] ${ok ? 'Released' : 'Failed to release'} exit intent ${intentId} for ${exitPlan.symbol} reason=${reason} ageMs=${ageMs ?? 'unknown'} origin=${JSON.stringify(origin)}`;
+    if (ok) {
+      console.warn(logLine);
+    } else {
+      console.error(logLine);
+    }
+
+    return { released: ok, reason: releaseReason, ageMs, origin };
+  }
+
+  async _haltExitIntentReconciliationRequired({ exitPlan, pendingExitIntent, reason, traceId, signalId, decisionId, symbol, action, truthSource }) {
+    const ageMs = this._exitIntentAgeMs(pendingExitIntent);
+    const origin = this._exitIntentOrigin(pendingExitIntent);
+    const haltReason = `[EXIT-INTENT] ${exitPlan.symbol} pending exit intent cannot be reconciled automatically (${reason}); operator must confirm venue order/position state`;
+    let haltResult = null;
+    if (typeof stateManager.haltSymbol === 'function') {
+      haltResult = await stateManager.haltSymbol(exitPlan.symbol, haltReason, {
+        code: 'exit_intent_reconciliation_required',
+        authority: 'financial_integrity',
+        financialIntegrityCritical: true,
+        manualReconciliationRequired: true,
+        operatorActionRequired: true,
+        entryBlockScope: 'symbol',
+        traceId,
+        signalId,
+        decisionId,
+        tradeId: exitPlan.tradeId,
+        intentId: pendingExitIntent?.intentId || null,
+        ageMs,
+        origin,
+        truthSource: truthSource || this._exitIntentTruthSource(exitPlan),
+      });
+    }
+
+    emitTrace(this.ctx, 'EXIT_INTENT_RECONCILIATION_REQUIRED', {
+      traceId,
+      signalId,
+      decisionId,
+      symbol: symbol || exitPlan.symbol,
+      action: action || exitPlan.action,
+      tradeId: exitPlan.tradeId,
+      intentId: pendingExitIntent?.intentId || null,
+      reason,
+      ageMs,
+      origin,
+      truthSource: truthSource || this._exitIntentTruthSource(exitPlan),
+      symbolHaltSucceeded: haltResult?.success === true,
+    });
+    console.error(`[EXECUTION-FILL] ${haltReason} ageMs=${ageMs ?? 'unknown'} origin=${JSON.stringify(origin)}`);
+
+    return {
+      released: false,
+      halted: haltResult?.success === true,
+      reason: 'exit_intent_reconciliation_required',
+      detail: reason,
+      ageMs,
+      origin,
+      truthSource: truthSource || this._exitIntentTruthSource(exitPlan),
+    };
+  }
+
+  async _reconcilePendingExitIntentForReservation({ exitPlan, pendingExitIntent, traceId, signalId, decisionId, symbol, action }) {
+    const nowMs = Date.now();
+    const ageMs = this._exitIntentAgeMs(pendingExitIntent, nowMs);
+    const ttlMs = this._exitIntentTtlMs();
+    const planWithPending = { ...exitPlan, pendingExitIntent };
+
+    const openOrderState = await this._readBrokerOpenOrdersForExit(planWithPending);
+    if (openOrderState.available === true) {
+      const matchingOrder = this._matchingOpenExitOrderForIntent(exitPlan, pendingExitIntent, openOrderState.orders);
+      if (!matchingOrder) {
+        return this._releaseExitIntentWithTrace({
+          exitPlan,
+          pendingExitIntent,
+          reason: 'exit_intent_no_matching_open_order',
+          traceId,
+          signalId,
+          decisionId,
+          symbol,
+          action,
+        });
+      }
+      emitTrace(this.ctx, 'EXIT_INTENT_OPEN_ORDER_CONFIRMED', {
+        traceId,
+        signalId,
+        decisionId,
+        symbol: symbol || exitPlan.symbol,
+        action: action || exitPlan.action,
+        tradeId: exitPlan.tradeId,
+        intentId: pendingExitIntent?.intentId || null,
+        ageMs,
+        ttlMs,
+        orderId: this._openOrderId(matchingOrder),
+      });
+      return { released: false, reason: 'matching_open_order_confirmed', ageMs };
+    }
+
+    if (ageMs !== null && ageMs >= ttlMs) {
+      return this._haltExitIntentReconciliationRequired({
+        exitPlan,
+        pendingExitIntent,
+        reason: openOrderState.error || 'open_order_reconciliation_unavailable',
+        traceId,
+        signalId,
+        decisionId,
+        symbol,
+        action,
+        truthSource: openOrderState.truthSource || this._exitIntentTruthSource(exitPlan),
+      });
+    }
+
+    emitTrace(this.ctx, 'EXIT_INTENT_RECONCILE_UNAVAILABLE', {
+      traceId,
+      signalId,
+      decisionId,
+      symbol: symbol || exitPlan.symbol,
+      action: action || exitPlan.action,
+      tradeId: exitPlan.tradeId,
+      intentId: pendingExitIntent?.intentId || null,
+      ageMs,
+      ttlMs,
+      reason: openOrderState.error || 'open_order_reconciliation_unavailable',
+      truthSource: openOrderState.truthSource || this._exitIntentTruthSource(exitPlan),
+    });
+    return { released: false, reason: openOrderState.error || 'open_order_reconciliation_unavailable', ageMs };
+  }
+
+  _exitPlanFromActiveTrade(trade, tradeKey) {
+    const tradeId = this._firstNonEmptyString(trade?.id, trade?.orderId, tradeKey);
+    const symbol = this._firstNonEmptyString(trade?.symbol, this.ctx.tradingPair);
+    if (!tradeId || !symbol || !trade?.pendingExitIntent?.intentId) return null;
+    const direction = this._activeTradeDirection(trade);
+    const action = direction === 'short' ? 'COVER' : 'SELL';
+    return {
+      tradeId,
+      symbol,
+      action,
+      side: action === 'COVER' ? 'buy' : 'sell',
+      brokerId: this._firstNonEmptyString(trade?.brokerId, this.ctx.config?.brokerId),
+      executionRoute: this._firstNonEmptyString(trade?.executionRoute),
+      executionVenue: this._firstNonEmptyString(trade?.executionVenue, trade?.brokerId, this.ctx.config?.brokerId),
+      marketDataBrokerId: this._firstNonEmptyString(trade?.marketDataBrokerId, trade?.brokerId, this.ctx.config?.brokerId),
+      pendingExitIntent: trade.pendingExitIntent,
+    };
+  }
+
+  async reconcilePersistedExitIntents(context = {}) {
+    const activeTrades = stateManager.get('activeTrades');
+    if (!(activeTrades instanceof Map)) {
+      return { checked: 0, released: 0, reason: 'active_trades_not_map' };
+    }
+    let checked = 0;
+    let released = 0;
+    let halted = 0;
+    for (const [tradeKey, trade] of activeTrades.entries()) {
+      const exitPlan = this._exitPlanFromActiveTrade(trade, tradeKey);
+      if (!exitPlan) continue;
+      checked += 1;
+      const result = await this._reconcilePendingExitIntentForReservation({
+        exitPlan,
+        pendingExitIntent: trade.pendingExitIntent,
+        traceId: context.traceId || createTraceId('startup_exit_intent'),
+        signalId: context.signalId || 'startup_exit_intent_reconcile',
+        decisionId: context.decisionId || 'startup',
+        symbol: exitPlan.symbol,
+        action: exitPlan.action,
+      });
+      if (result?.released === true) released += 1;
+      if (result?.halted === true) halted += 1;
+    }
+    if (checked > 0) {
+      console.warn(`[EXECUTION-FILL] Startup exit-intent reconciliation checked=${checked} released=${released} halted=${halted}`);
+    }
+    return { checked, released, halted, reason: 'startup_exit_intent_reconcile' };
+  }
+
   async _readBrokerPositionForExit(exitPlan) {
     const router = this.ctx.orderRouter;
     if (!router || typeof router.getAllPositions !== 'function') {
@@ -1536,6 +1874,7 @@ class OrderExecutor {
       direction: decision.action === 'BUY' ? 'long' : 'short',
       symbol,
       brokerId: scope.brokerId,
+      marketDataBrokerId: scope.brokerId,
       accountId: scope.accountId,
       accountIdSource: scope.accountIdSource,
       assetClass: scope.assetClass,
@@ -1639,6 +1978,9 @@ class OrderExecutor {
       direction: 'close',
       symbol,
       brokerId: scope.brokerId,
+      executionRoute: trade.executionRoute || null,
+      executionVenue: trade.executionVenue || trade.brokerId || null,
+      marketDataBrokerId: trade.marketDataBrokerId || trade.brokerId || null,
       accountId: scope.accountId,
       accountIdSource: scope.accountIdSource,
       assetClass: scope.assetClass,
@@ -1746,6 +2088,9 @@ class OrderExecutor {
       assetClass: traceFields.assetClass || signal?.assetClass || null,
       executionMode: traceFields.executionMode || signal?.executionMode || null,
       timeframe: traceFields.timeframe || signal?.timeframe || null,
+      executionRoute: traceFields.executionRoute || null,
+      executionVenue: traceFields.executionVenue || null,
+      marketDataBrokerId: traceFields.marketDataBrokerId || traceFields.brokerId || null,
     };
 
     if (signal?.action !== expectedWebhookAction) {
@@ -1885,6 +2230,13 @@ class OrderExecutor {
           executionMode: null,
           timeframe: null,
         });
+    const executionRoute = isWebhookExecutionRoute
+      ? 'webhook'
+      : (this.ctx.backtestMode || this.ctx.paperTrading ? 'simulated' : 'broker');
+    const executionVenue = isWebhookExecutionRoute
+      ? 'signalstack_ttp'
+      : executionScope.brokerId;
+    const marketDataBrokerId = executionScope.brokerId;
     const executionReturn = (success, details = {}) => ({
       success,
       reason: success ? null : (details.reason || null),
@@ -1898,6 +2250,9 @@ class OrderExecutor {
       assetClass: executionScope.assetClass,
       executionMode: executionScope.executionMode,
       timeframe: executionScope.timeframe,
+      executionRoute,
+      executionVenue,
+      marketDataBrokerId,
       ...details,
     });
     const blockedReturn = (reason, details = {}) => executionReturn(false, { reason, ...details });
@@ -2252,11 +2607,12 @@ class OrderExecutor {
     }
 
     let exitIntent = null;
+    let reservationBlockOverride = null;
     if (exitPlan) {
       const submittedAtMs = Date.now();
       const intentId = this._buildExitIntentId(exitPlan, decision);
       const expectedRemainingQuantity = Math.max(0, exitPlan.remainingOrderQuantity - exitPlan.orderQuantity);
-      const reserved = await stateManager.reserveExitSlot(exitPlan.tradeId, intentId, {
+      let reserved = await stateManager.reserveExitSlot(exitPlan.tradeId, intentId, {
         submittedAtMs,
         sourceEventId: decision.decisionId,
         exitFraction: exitPlan.stateExitFraction,
@@ -2265,8 +2621,32 @@ class OrderExecutor {
         tierIndex: decision.exitIntent?.tierIndex,
         targetQuantity: exitPlan.orderQuantity,
       });
+      if (reserved?.reason === 'exit_already_pending' && reserved.pendingExitIntent) {
+        const staleResult = await this._reconcilePendingExitIntentForReservation({
+          exitPlan,
+          pendingExitIntent: reserved.pendingExitIntent,
+          traceId,
+          signalId,
+          decisionId: decision.decisionId,
+          symbol,
+          action: decision.action,
+        });
+        if (staleResult?.released === true) {
+          reserved = await stateManager.reserveExitSlot(exitPlan.tradeId, intentId, {
+            submittedAtMs,
+            sourceEventId: decision.decisionId,
+            exitFraction: exitPlan.stateExitFraction,
+            expectedRemainingQuantity,
+            stateKey: decision.exitIntent?.stateKey || null,
+            tierIndex: decision.exitIntent?.tierIndex,
+            targetQuantity: exitPlan.orderQuantity,
+          });
+        } else if (staleResult?.halted === true || staleResult?.reason === 'exit_intent_reconciliation_required') {
+          reservationBlockOverride = staleResult;
+        }
+      }
       if (!reserved || reserved.success !== true || reserved.reserved !== true) {
-        const reason = reserved?.reason || reserved?.error || 'exit_intent_not_reserved';
+        const reason = reservationBlockOverride?.reason || reserved?.reason || reserved?.error || 'exit_intent_not_reserved';
         console.error(`[EXECUTION-FILL] Refusing ${decision.action} ${symbol}: exit intent not reserved (${reason})`);
         emitTrace(this.ctx, 'ORDER_BLOCKED', {
           traceId,
@@ -2278,12 +2658,14 @@ class OrderExecutor {
           tradeId: exitPlan.tradeId,
           intentId,
           pendingExitIntent: reserved?.pendingExitIntent || null,
+          reconciliation: reservationBlockOverride || null,
         });
-        return blockedReturn('exit_intent_not_reserved', {
+        return blockedReturn(reservationBlockOverride?.reason || 'exit_intent_not_reserved', {
           detail: reason,
           tradeId: exitPlan.tradeId,
           intentId,
           stateMutationSucceeded: false,
+          reconciliation: reservationBlockOverride || null,
         });
       }
       exitIntent = {
@@ -2321,6 +2703,9 @@ class OrderExecutor {
           signalId,
           decisionId,
           ...brokerOrderPlan,
+          executionRoute,
+          executionVenue,
+          marketDataBrokerId,
         });
         const webhookOrderId = this._extractWebhookOrderId(webhookResult);
         const webhookFillProof = this._extractWebhookFillProof(decision.action, webhookResult);
@@ -2396,6 +2781,19 @@ class OrderExecutor {
           const localOrderId = webhookOrderId
             || this._webhookCorrelationOrderId(decision.action, brokerOrderPlan, decisionId);
           const responseBody = this._webhookResponseBody(webhookResult).slice(0, 500);
+          const acceptedIntent = exitIntent && typeof stateManager.markExitSlotAccepted === 'function'
+            ? await stateManager.markExitSlotAccepted(exitPlan.tradeId, exitIntent.intentId, {
+              brokerOrderId: localOrderId,
+              acceptedAtMs: Date.now(),
+            })
+            : null;
+          if (acceptedIntent?.success === true && acceptedIntent.accepted === true) {
+            exitIntent = {
+              ...acceptedIntent.pendingExitIntent,
+              intentId: exitIntent.intentId,
+              sourceEventId: exitIntent.sourceEventId,
+            };
+          }
           emitTrace(this.ctx, 'EXIT_PENDING_BROKER_CONFIRMATION', {
             traceId,
             signalId,
@@ -2409,6 +2807,8 @@ class OrderExecutor {
             pendingExitIntent: exitIntent || null,
             orderAccepted: true,
             stateMutationSucceeded: false,
+            intentAccepted: acceptedIntent?.accepted === true,
+            intentAcceptReason: acceptedIntent?.reason || null,
           });
           return {
             success: true,
@@ -2756,6 +3156,9 @@ class OrderExecutor {
             regimeAtEntry: decision.regimeAtEntry ?? null,
             rsiAtEntry: decision.rsiAtEntry ?? null,
             brokerId: entryPlan.brokerId,
+            executionRoute,
+            executionVenue,
+            marketDataBrokerId,
             accountId: entryPlan.accountId,
             accountIdSource: entryPlan.accountIdSource,
             assetClass: entryPlan.assetClass,
@@ -2967,6 +3370,9 @@ class OrderExecutor {
             regimeAtEntry: decision.regimeAtEntry ?? null,
             rsiAtEntry: decision.rsiAtEntry ?? null,
             brokerId: entryPlan.brokerId,
+            executionRoute,
+            executionVenue,
+            marketDataBrokerId,
             accountId: entryPlan.accountId,
             accountIdSource: entryPlan.accountIdSource,
             assetClass: entryPlan.assetClass,
@@ -3308,6 +3714,18 @@ class OrderExecutor {
             // Confirmed execution fill is the only active-trade mutation path.
             if (!closeResult.success) {
               console.error('StateManager.applyFill failed:', closeResult.error);
+              if (exitIntent) {
+                await this._releaseExitIntentWithTrace({
+                  exitPlan,
+                  pendingExitIntent: exitIntent,
+                  reason: 'apply_fill_failed',
+                  traceId,
+                  signalId,
+                  decisionId,
+                  symbol,
+                  action: decision.action,
+                });
+              }
               emitTrace(this.ctx, 'STATE_MUTATION', {
                 traceId,
                 signalId,
@@ -3852,6 +4270,18 @@ class OrderExecutor {
 
           if (!closeResult.success) {
             console.error('StateManager.applyFill (COVER) failed:', closeResult.error);
+            if (exitIntent) {
+              await this._releaseExitIntentWithTrace({
+                exitPlan,
+                pendingExitIntent: exitIntent,
+                reason: 'apply_fill_failed',
+                traceId,
+                signalId,
+                decisionId,
+                symbol,
+                action: decision.action,
+              });
+            }
             emitTrace(this.ctx, 'STATE_MUTATION', {
               traceId,
               signalId,
@@ -4207,6 +4637,18 @@ class OrderExecutor {
       }
 
     } catch (error) {
+      if (exitIntent) {
+        await this._releaseExitIntentWithTrace({
+          exitPlan,
+          pendingExitIntent: exitIntent,
+          reason: 'order_exception',
+          traceId,
+          signalId,
+          decisionId: decision?.decisionId || null,
+          symbol,
+          action: decision?.action || null,
+        });
+      }
       // FIX TIER-2-EXECUTE-CATCH: audit-prefixed throws (CRIT/HIGH/MED/RUN/EXIT/MOD/TRAI/PNLC/RISK/BTR/SESSION/DPS/PS)
       // are intentional halts on bad state. Without this differentiation, the wrapper
       // turns every "fail-loud" spec into fail-silent behavior. Re-throw audit prefixes

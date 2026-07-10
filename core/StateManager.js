@@ -106,7 +106,9 @@ const DATA_FEED_LIVENESS_PAUSE_PREFIXES = [
 ];
 const AUTHORIZED_SYMBOL_HALT_CODES = new Set([
   'exit_rail_broker_desync',
-  'symbol_cooldown'
+  'exit_intent_reconciliation_required',
+  'symbol_cooldown',
+  TTP_CUTOFF_FLATNESS_PAUSE_SOURCE
 ]);
 const SYMBOL_ENTRY_HALTS_MUTATION_TOKEN = Symbol('symbolEntryHaltsMutation');
 
@@ -478,6 +480,7 @@ class StateManager {
     this.updateActiveTrade = this.updateActiveTrade.bind(this);
     this.removeActiveTrade = this.removeActiveTrade.bind(this);
     this.reserveExitSlot = this.reserveExitSlot.bind(this);
+    this.markExitSlotAccepted = this.markExitSlotAccepted.bind(this);
     this.releaseExitSlot = this.releaseExitSlot.bind(this);
     this.openPosition = this.openPosition.bind(this);
     this.closePosition = this.closePosition.bind(this);
@@ -1919,7 +1922,7 @@ class StateManager {
     this.state.ttpCutoffQuarantine = {
       source: TTP_CUTOFF_FLATNESS_PAUSE_SOURCE,
       status: 'quarantined',
-      entryBlocking: false,
+      entryBlocking: true,
       manualReconciliationRequired: true,
       requiresManualReconciliation: true,
       brokerFlatVerified: false,
@@ -1931,7 +1934,7 @@ class StateManager {
       manualReconciliationMessage: pauseReason,
       operatorMessage: pauseReason,
       currentDateET: cutoffDate,
-      reason: `${pauseReason}; migrated from legacy global pause to non-blocking quarantine`,
+      reason: `${pauseReason}; migrated from legacy global pause to entry-blocking quarantine`,
     };
     this.state.isTrading = true;
     this.state.pauseReason = null;
@@ -2277,6 +2280,108 @@ class StateManager {
         tradeId: normalizedTradeId,
         intentId: normalizedIntentId,
         pendingExitIntent: clonePlain(nextTrade.pendingExitIntent),
+      };
+    } finally {
+      this.releaseLock();
+    }
+  }
+
+  async markExitSlotAccepted(tradeId, intentId, options = {}) {
+    const normalizedTradeId = typeof tradeId === 'string' && tradeId.trim() ? tradeId.trim() : null;
+    const normalizedIntentId = typeof intentId === 'string' && intentId.trim() ? intentId.trim() : null;
+    if (!normalizedTradeId || !normalizedIntentId) {
+      return {
+        success: false,
+        accepted: false,
+        reason: 'invalid_exit_intent_identity',
+        tradeId: normalizedTradeId,
+        intentId: normalizedIntentId,
+      };
+    }
+
+    await this.acquireLock();
+    try {
+      const trades = this.state.activeTrades;
+      if (!(trades instanceof Map)) {
+        return {
+          success: false,
+          accepted: false,
+          reason: 'active_trades_not_map',
+          tradeId: normalizedTradeId,
+          intentId: normalizedIntentId,
+        };
+      }
+
+      const trade = trades.get(normalizedTradeId);
+      if (!trade) {
+        return { success: false, accepted: false, reason: 'trade_not_found', tradeId: normalizedTradeId, intentId: normalizedIntentId };
+      }
+
+      const pending = trade.pendingExitIntent;
+      if (!pending || !pending.intentId) {
+        return { success: true, accepted: false, reason: 'no_exit_pending', tradeId: normalizedTradeId, intentId: normalizedIntentId };
+      }
+      if (pending.intentId !== normalizedIntentId) {
+        return {
+          success: true,
+          accepted: false,
+          reason: 'intent_mismatch',
+          tradeId: normalizedTradeId,
+          intentId: normalizedIntentId,
+          pendingExitIntent: clonePlain(pending),
+        };
+      }
+
+      const brokerOrderId = typeof options.brokerOrderId === 'string' && options.brokerOrderId.trim()
+        ? options.brokerOrderId.trim()
+        : pending.brokerOrderId || null;
+      const acceptedAtMs = Number(options.acceptedAtMs);
+      const nextPending = {
+        ...pending,
+        brokerOrderId,
+        lifecycleState: 'accepted',
+        acceptedAtMs: Number.isFinite(acceptedAtMs) && acceptedAtMs > 0 ? acceptedAtMs : Date.now(),
+      };
+      const nextTrade = {
+        ...trade,
+        pendingExitIntent: nextPending,
+      };
+      if (nextTrade.beScaleOutState && nextTrade.beScaleOutState.intentId === normalizedIntentId && brokerOrderId) {
+        nextTrade.beScaleOutState = {
+          ...nextTrade.beScaleOutState,
+          brokerOrderIds: Array.from(new Set([...(nextTrade.beScaleOutState.brokerOrderIds || []), brokerOrderId])),
+        };
+      }
+      if (Array.isArray(nextTrade.tierStates) && brokerOrderId) {
+        nextTrade.tierStates = nextTrade.tierStates.map((tier) => (
+          tier && tier.intentId === normalizedIntentId
+            ? {
+                ...tier,
+                brokerOrderIds: Array.from(new Set([...(tier.brokerOrderIds || []), brokerOrderId])),
+              }
+            : tier
+        ));
+      }
+
+      const nextActiveTrades = new Map(trades);
+      nextActiveTrades.set(normalizedTradeId, nextTrade);
+
+      const result = this._applyStateUpdatesLocked({
+        activeTrades: nextActiveTrades,
+      }, {
+        action: 'MARK_EXIT_SLOT_ACCEPTED',
+        tradeId: normalizedTradeId,
+        intentId: normalizedIntentId,
+        brokerOrderId,
+      });
+
+      return {
+        ...result,
+        accepted: result.success === true,
+        reason: result.success === true ? 'accepted' : 'state_update_failed',
+        tradeId: normalizedTradeId,
+        intentId: normalizedIntentId,
+        pendingExitIntent: clonePlain(nextPending),
       };
     } finally {
       this.releaseLock();
@@ -3855,6 +3960,7 @@ class StateManager {
         dailyTradeCount: state.dailyTradeCount,
         recoveryMode: state.recoveryMode,
         ttpCutoffQuarantine: state.ttpCutoffQuarantine || null,
+        symbolEntryHalts: state.symbolEntryHalts || {},
         runtimeScope,
         runtimeScopeStatus,
         runtimeScopeMissing,
@@ -3879,6 +3985,7 @@ class StateManager {
         tradeCount: dashboardState.tradeCount,
         dailyTradeCount: dashboardState.dailyTradeCount,
         ttpCutoffQuarantine: dashboardState.ttpCutoffQuarantine,
+        symbolEntryHalts: dashboardState.symbolEntryHalts,
         runtimeScope,
         runtimeScopeStatus,
         runtimeScopeMissing,

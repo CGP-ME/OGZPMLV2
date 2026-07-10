@@ -14,6 +14,7 @@ const mockStateManager = {
   closePosition: jest.fn(),
   reducePosition: jest.fn(),
   reserveExitSlot: jest.fn(),
+  markExitSlotAccepted: jest.fn(),
   releaseExitSlot: jest.fn(),
   applyFill: jest.fn(),
   reconcileBrokerFlat: jest.fn(),
@@ -212,6 +213,20 @@ describe('OrderExecutor pause gate', () => {
         intentId: 'reserved-intent',
         sourceEventId: 'reserved-source',
         submittedAtMs: Date.parse('2026-06-28T07:00:00.000Z'),
+        tradeRevision: 0,
+      },
+    });
+    mockStateManager.markExitSlotAccepted.mockResolvedValue({
+      success: true,
+      accepted: true,
+      reason: 'accepted',
+      pendingExitIntent: {
+        intentId: 'reserved-intent',
+        sourceEventId: 'reserved-source',
+        brokerOrderId: 'accepted-order',
+        lifecycleState: 'accepted',
+        submittedAtMs: Date.parse('2026-06-28T07:00:00.000Z'),
+        acceptedAtMs: Date.parse('2026-06-28T07:00:01.000Z'),
         tradeRevision: 0,
       },
     });
@@ -994,6 +1009,10 @@ describe('OrderExecutor pause gate', () => {
       expect.objectContaining({
         orderId: 'WEBHOOK_ORDER_1',
         action: 'BUY',
+        brokerId: 'alpaca',
+        marketDataBrokerId: 'alpaca',
+        executionRoute: 'webhook',
+        executionVenue: 'signalstack_ttp',
         entryOrderQuantity: 5,
         remainingOrderQuantity: 5,
         frozenExitPolicy: expect.objectContaining({
@@ -1510,6 +1529,182 @@ describe('OrderExecutor pause gate', () => {
     }));
     expect(mockStateManager.applyFill).not.toHaveBeenCalled();
     expect(mockStateManager.releaseExitSlot).not.toHaveBeenCalled();
+    expect(logTrade).not.toHaveBeenCalled();
+  });
+
+  test('stale broker exit reservation without matching open order is released and exit proceeds', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: 500, balance: 10000 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([makeBuyTrade()]);
+    mockStateManager.reserveExitSlot
+      .mockImplementationOnce(async (_tradeId, intentId) => ({
+        success: true,
+        reserved: false,
+        reason: 'exit_already_pending',
+        intentId,
+        pendingExitIntent: {
+          intentId: 'stale-intent-broker',
+          sourceEventId: 'old-decision',
+          brokerOrderId: 'DEAD_ORDER',
+          lifecycleState: 'accepted',
+          submittedAtMs: Date.now() - 1000,
+          acceptedAtMs: Date.now() - 900,
+          tradeRevision: 0,
+        },
+      }))
+      .mockImplementationOnce(async (_tradeId, intentId, options = {}) => ({
+        success: true,
+        reserved: true,
+        reason: 'reserved',
+        pendingExitIntent: {
+          intentId,
+          sourceEventId: options.sourceEventId,
+          brokerOrderId: null,
+          lifecycleState: 'submitted',
+          submittedAtMs: options.submittedAtMs,
+          tradeRevision: 0,
+        },
+      }));
+    const adapter = { getOpenOrders: jest.fn().mockResolvedValue([]) };
+    const orderRouter = {
+      adapters: new Map([['alpaca', adapter]]),
+      sendOrder: jest.fn().mockResolvedValue({ orderId: 'BROKER_EXIT_FILLED', price: 125 }),
+    };
+    const executor = makeExecutor({}, { paperTrading: false, orderRouter });
+
+    const result = await executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'BUY_1', exitReason: 'risk_flatten', decisionId: 'decision_stale_broker' },
+      {},
+      125,
+      { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: true,
+      orderId: 'BROKER_EXIT_FILLED',
+      stateMutationSucceeded: true,
+    }));
+    expect(adapter.getOpenOrders).toHaveBeenCalled();
+    expect(mockStateManager.releaseExitSlot).toHaveBeenCalledWith('BUY_1', 'stale-intent-broker', {
+      reason: 'exit_intent_no_matching_open_order',
+    });
+    expect(orderRouter.sendOrder).toHaveBeenCalledWith(expect.objectContaining({
+      symbol: 'TSLA',
+      side: 'sell',
+      amount: 5,
+      type: 'market',
+    }));
+    expectExitFillApplied({
+      tradeId: 'BUY_1',
+      filledQuantity: 5,
+      fillPrice: 125,
+      remainingQuantity: 0,
+      executionMode: 'live',
+      expectedReserveFraction: 1,
+      expectedReserveRemainingQuantity: 0,
+    });
+  });
+
+  test('expired webhook exit reservation halts for operator reconciliation instead of guessing release', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: 500, balance: 10000 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([makeBuyTrade()]);
+    mockStateManager.reserveExitSlot
+      .mockImplementationOnce(async (_tradeId, intentId) => ({
+        success: true,
+        reserved: false,
+        reason: 'exit_already_pending',
+        intentId,
+        pendingExitIntent: {
+          intentId: 'stale-intent-webhook',
+          sourceEventId: 'old-decision',
+          brokerOrderId: 'WEBHOOK_DEAD_ORDER',
+          lifecycleState: 'accepted',
+          submittedAtMs: Date.now() - 60000,
+          acceptedAtMs: Date.now() - 59000,
+          tradeRevision: 0,
+        },
+      }))
+      .mockImplementationOnce(async (_tradeId, intentId, options = {}) => ({
+        success: true,
+        reserved: true,
+        reason: 'reserved',
+        pendingExitIntent: {
+          intentId,
+          sourceEventId: options.sourceEventId,
+          brokerOrderId: null,
+          lifecycleState: 'submitted',
+          submittedAtMs: options.submittedAtMs,
+          tradeRevision: 0,
+        },
+      }));
+    const webhookAdapter = {
+      enabled: true,
+      dryRun: false,
+      timeout: 5000,
+      emit: jest.fn().mockResolvedValue({
+        sent: true,
+        response: { status: 202, body: '{"orderId":"WEBHOOK_FILLED_AFTER_STALE","status":"filled","filledQuantity":5}' },
+      }),
+    };
+    const orderRouter = {
+      sendOrder: jest.fn(),
+      getAllPositions: jest.fn().mockResolvedValue([]),
+    };
+    const logTrade = jest.fn();
+    const executor = makeExecutor({}, { webhookAdapter, orderRouter, logTrade });
+
+    const result = await executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'BUY_1', exitReason: 'risk_flatten', decisionId: 'decision_stale_webhook' },
+      {},
+      125,
+      { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'exit_intent_reconciliation_required',
+      stateMutationSucceeded: false,
+      reconciliation: expect.objectContaining({
+        reason: 'exit_intent_reconciliation_required',
+        halted: true,
+        truthSource: expect.objectContaining({
+          venue: 'signalstack_ttp_webhook',
+          source: 'none_available_in_repo',
+          operatorReconciliationRequired: true,
+        }),
+      }),
+    }));
+    expect(mockStateManager.releaseExitSlot).not.toHaveBeenCalled();
+    expect(mockStateManager.haltSymbol).toHaveBeenCalledWith(
+      'TSLA',
+      expect.stringContaining('pending exit intent cannot be reconciled automatically'),
+      expect.objectContaining({
+        code: 'exit_intent_reconciliation_required',
+        authority: 'financial_integrity',
+        manualReconciliationRequired: true,
+        operatorActionRequired: true,
+        truthSource: expect.objectContaining({
+          source: 'none_available_in_repo',
+        }),
+      })
+    );
+    expect(webhookAdapter.emit).not.toHaveBeenCalled();
+    expect(mockStateManager.applyFill).not.toHaveBeenCalled();
     expect(logTrade).not.toHaveBeenCalled();
   });
 

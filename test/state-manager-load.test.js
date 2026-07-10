@@ -1072,7 +1072,7 @@ describe('StateManager load validation', () => {
     expect(manager.get('ttpCutoffQuarantine')).toEqual(expect.objectContaining({
       source: 'ttp_cutoff_unverified_broker_flatness',
       status: 'quarantined',
-      entryBlocking: false,
+      entryBlocking: true,
       manualReconciliationRequired: true,
       requiresManualReconciliation: true,
       brokerFlatVerified: false,
@@ -1088,7 +1088,7 @@ describe('StateManager load validation', () => {
     expect(saved.isTrading).toBe(true);
     expect(saved.pauseReason).toBeNull();
     expect(saved.pauseSource).toBeNull();
-    expect(saved.ttpCutoffQuarantine.entryBlocking).toBe(false);
+    expect(saved.ttpCutoffQuarantine.entryBlocking).toBe(true);
     expect(saved.ttpCutoffQuarantine.manualReconciliationMessage).toBe(legacyReason);
   });
 
@@ -1209,7 +1209,7 @@ describe('StateManager load validation', () => {
     expect(manager.get('pauseSource')).toBeNull();
     expect(manager.get('ttpCutoffQuarantine')).toEqual(expect.objectContaining({
       source: 'ttp_cutoff_unverified_broker_flatness',
-      entryBlocking: false,
+      entryBlocking: true,
       manualReconciliationRequired: true,
       legacyPauseReason: ` ${legacyReason} `,
       manualReconciliationMessage: ` ${legacyReason} `,
@@ -1246,7 +1246,7 @@ describe('StateManager load validation', () => {
     expect(manager.get('lastError')).toBeNull();
     expect(manager.get('ttpCutoffQuarantine')).toEqual(expect.objectContaining({
       source: 'ttp_cutoff_unverified_broker_flatness',
-      entryBlocking: false,
+      entryBlocking: true,
       manualReconciliationRequired: true,
       legacyPauseReason: legacyReason,
       manualReconciliationMessage: legacyReason,

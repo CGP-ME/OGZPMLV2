@@ -1851,6 +1851,11 @@ class OGZPrimeV14Bot {
         console.log('[MODE] LIVE/PAPER MODE: Connecting to real-time data...');
         // V2 ARCHITECTURE: Connect broker first to load asset pairs
         await this.kraken.connect();
+        if (this.orderExecutor && typeof this.orderExecutor.reconcilePersistedExitIntents === 'function') {
+          await this.orderExecutor.reconcilePersistedExitIntents({
+            source: 'startup_after_broker_connect',
+          });
+        }
         const brokerIdentity = this.promoteBrokerAccountIdentity(this.kraken, {
           source: 'broker_connect',
           brokerId: this.config.brokerId,
