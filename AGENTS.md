@@ -32,6 +32,14 @@ does not match current doctrine.
 - Prefer root-cause fixes over bandaids, even when the hard path is slower.
 - Do not silently substitute plausible defaults for missing trading-critical data.
 - Do not swallow execution-path errors with warn/log-only catches.
+- The Fourth Shape governs throws. Before adding any throw, enumerate every code
+  path that could trigger it with file:line producer evidence, then fix each
+  producer so the invalid state cannot occur. If the condition is impossible
+  after producer fixes, the throw is unnecessary and should not be added. If the
+  condition originates outside the system, such as broker responses, network
+  state, or exchange data, treat it as detect -> flatten -> halt symbol -> trace,
+  not as a throw. A throw guarding an internal invariant is an admission of an
+  unfixed producer bug; fix the bug.
 - Remove emojis from touched production code/log lines, but do not bundle broad
   cosmetic sweeps with runtime fixes.
 - Preserve unrelated dirty work. Assume unrecognized changes belong to the
@@ -51,6 +59,10 @@ does not match current doctrine.
   hold or revert the generated output and fix the writer/fixture before
   publishing. Source:
   `ogz-meta/sessions/session-2026-06-24-clean-tree-and-exit-audit-handoff.md:83-106,263-285`.
+- Public proof publication must also reject account-label/start-balance mismatch,
+  impossible drawdown scale, malformed partial flags, and duplicate exit
+  timestamps instead of guessing presentation order. Source:
+  `ogz-meta/sessions/session-2026-07-07-proof-honesty-and-marketing-lanes.md:9-17,37-44`.
 - Public dashboard HTML must never carry `WEBSOCKET_AUTH_TOKEN` or any long-lived
   dashboard WebSocket secret. Dashboard HTML must be no-store on the public
   hostname, missing token config must fail closed, and dashboard-token containment
@@ -148,3 +160,11 @@ a change appears obvious.
 This repo values correctness, auditability, and recoverability over speed.
 When a failure can affect trading, backtests, pattern memory, broker state,
 or operator trust, fail loudly and preserve evidence.
+
+## OUTPUT ROUTING
+
+Routing law source: `ogz-meta/ROUTING.md`.
+
+Agents write session output ONLY to `ogz-meta/inbox/<agent>/<YYYY-MM-DD>/`. Writing anywhere else outside assigned mission files is a defect.
+
+Inbox to evidence promotion requires a `MANIFEST.md` with source, date, and why kept. `ogz-meta/specs/` is canonical-only and human-promoted. Superseded docs move to `ogz-meta/archive/`, never deleted.

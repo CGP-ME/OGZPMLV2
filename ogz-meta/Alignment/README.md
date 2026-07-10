@@ -8,6 +8,15 @@ It is not, by itself, the source of truth. The source of truth is live repo stat
 
 Before answering questions or touching files, walk this path:
 
+0. Apply the Fourth Shape before any throw doctrine is used:
+   - Enumerate every code path that could trigger the throw, with file:line for each producer.
+   - Fix each producer so the invalid state cannot occur.
+   - If the condition is impossible after producer fixes, do not add the throw.
+   - If the condition originates outside the system, such as broker responses,
+     network state, or exchange data, handle it as detect -> flatten -> halt
+     symbol -> trace, not as a throw.
+   - A throw guarding an internal invariant is an admission of an unfixed producer bug.
+
 1. Run the live-state check:
 
 ```bash

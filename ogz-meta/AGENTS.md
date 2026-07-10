@@ -43,6 +43,15 @@ claiming "done" without proof. Follow this file before touching the project.
 - No "low priority follow-up" for known bugs. Severity controls order, not whether the bug gets ignored.
 - No technical loopholes around a rule's intent. If the outcome is the same banned behavior, it is banned even if the tool/mechanism is different.
 
+## The Fourth Shape: Throw Doctrine
+Before adding any throw, the agent must:
+1. Enumerate every code path that could trigger it, with file:line for each producer.
+2. Fix each producer so the invalid state cannot occur.
+3. If the condition is impossible after fixing producers, the throw is unnecessary and should not be added.
+4. If the condition originates outside the system, such as broker responses, network state, or exchange data, it is not a throw case; handle it as detect -> flatten -> halt symbol -> trace.
+
+A throw guarding an internal invariant is an admission of an unfixed bug. Fix the bug.
+
 ## Startup Ritual
 Before non-trivial work, read the relevant current context. Do not pretend memory is current.
 
@@ -109,6 +118,10 @@ Doc priority:
 - If the pipeline cannot do what the task requires, build the missing pipeline stage instead of writing a one-off driver script. Driver scripts are a smell unless Trey explicitly asked for one.
 - One task, one module, one pipeline mission at a time unless Trey explicitly widens scope.
 - Structural enforcement must fail closed. Hooks, bridge policy, Mercury ignore/config contracts, forced-read gates, task contracts, Warden gates, and Mercury framing gates should block violations with a non-zero failure instead of printing advisory warnings. Before loosening any Claude/Mercury/harness box, surface the bypass risk in plain language even when Trey authorized the change. Sources: `ogz-meta/sessions/session-2026-06-09-mercury-contracts-and-claude-bridge-RECONSTRUCTED.md:83-89`; `ogz-meta/sessions/session-2026-06-10-claude-warden-and-trade-path-hardening-RECONSTRUCTED.md:26-53,177-182`; `/home/linuxuser/.claude/projects/-opt-ogzprime-OGZPMLV2/memory/feedback-hooks-must-fail-closed.md:7-16`; `/home/linuxuser/.claude/projects/-opt-ogzprime-OGZPMLV2/memory/feedback-flag-box-loosening-even-when-authorized.md:7-20`.
+- Claude Code hot-path bridge work uses per-file `record-proof` payloads before
+  add/commit/push per lane; bridge defects remain explicit mission work, not
+  reasons to bypass proof. Source:
+  `ogz-meta/sessions/session-2026-07-02-dashboard-honesty-deploy-and-census.md:15,34-44`.
 
 Pipeline order:
 1. Warden: scope check, duplicate prevention, prior lessons.
@@ -210,6 +223,10 @@ Pipeline order:
   `Mercury, break my fix.` reviews still must not be narrowed by hidden targets.
   Source:
   `ogz-meta/sessions/session-2026-06-27-mercury-deepsearch-substrate.md:16-50,111-121,123-160`.
+- Mercury agentic reviews have a Claude Code Fable consensus lane with provider
+  preflight, and consensus failure is commit-blocking in the Mercury run ledger.
+  Check provider posture before relying on a full agentic run. Source:
+  `ogz-meta/sessions/session-2026-07-02-fable-consensus-exit-telemetry-and-sweep-config.md:5-8,15-21,29-35`.
 
 ## Git Rules
 - Check status before staging.
@@ -297,6 +314,11 @@ Pipeline order:
   full close, hold or revert the generated output, preserve the raw journals,
   and fix the writer/fixture before publishing. Source:
   `ogz-meta/sessions/session-2026-06-24-clean-tree-and-exit-audit-handoff.md:83-106,263-285`.
+- Public proof publication must fail closed on account-label/start-balance
+  mismatch, impossible drawdown scale, malformed partial flags, and duplicate
+  exit timestamps; do not guess final-leg order or present scale-ambiguous
+  proof. Source:
+  `ogz-meta/sessions/session-2026-07-07-proof-honesty-and-marketing-lanes.md:9-17,37-44`.
 
 ## Backtest Rules
 - `ogz-meta/BACKTEST-OPS.md` is the single source of truth for backtesting.
@@ -429,3 +451,11 @@ Before saying work is done:
 - Did I list created/modified files?
 - Did I update docs/changelog/session notes if required?
 - Did I report exact errors if anything failed?
+
+## OUTPUT ROUTING
+
+Routing law source: `ogz-meta/ROUTING.md`.
+
+Agents write session output ONLY to `ogz-meta/inbox/<agent>/<YYYY-MM-DD>/`. Writing anywhere else outside assigned mission files is a defect.
+
+Inbox to evidence promotion requires a `MANIFEST.md` with source, date, and why kept. `ogz-meta/specs/` is canonical-only and human-promoted. Superseded docs move to `ogz-meta/archive/`, never deleted.

@@ -32,6 +32,10 @@
 
 **Maintenance note 2026-07-07:** Current branch verification supersedes older config-migration notes that cite `core/TradingConfig.js` as a live module. `core/TradingConfig.js` is absent on `codex/multi-asset-symbol-state`; durable trading config lives in `config/trading.config.json` and runtime access/overrides flow through `foundation/ConfigLoader.js`. Older specs and session notes that describe a live `TradingConfig`/`ConfigLoader` split are historical unless current file evidence proves otherwise.
 
+**Maintenance note 2026-07-09:** Mercury agentic reviews now have a default-on Claude Code Fable consensus lane with provider preflight, and consensus failure is commit-blocking in the Mercury run ledger; check provider posture before relying on a full agentic review (`ogz-meta/sessions/session-2026-07-02-fable-consensus-exit-telemetry-and-sweep-config.md:5-8,15-21,29-35`). Public proof publication must fail closed on account-label/start-balance mismatch, impossible drawdown scale, malformed partial flags, and duplicate exit timestamps, and generated proof JSON must not be treated as publication-safe until these checks pass (`ogz-meta/sessions/session-2026-07-07-proof-honesty-and-marketing-lanes.md:9-16,37-44,61-64`).
+
+**Maintenance note 2026-07-09 (Fourth Shape):** Throw doctrine is now a cold-start rule. Before adding any throw, enumerate every triggering code path with producer file:line evidence, fix each internal producer so the invalid state cannot occur, remove the throw if producer fixes make the condition impossible, and treat outside-system faults such as broker, network, or exchange data as detect -> flatten -> halt symbol -> trace rather than internal throws. A throw guarding an internal invariant is an admission of an unfixed producer bug.
+
 ---
 
 # STOP. READ THIS BEFORE YOU DO ANYTHING ELSE.
