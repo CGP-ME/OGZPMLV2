@@ -179,14 +179,9 @@ function resolvePatternMemoryConfig(overrides) {
   });
 }
 
-function resolveInitialMode() {
-  const executionMode = String(process.env.EXECUTION_MODE || '').trim().toLowerCase();
-  const tradingMode = String(process.env.TRADING_MODE || '').trim().toLowerCase();
-  if (process.env.BACKTEST_MODE === 'true' || executionMode === 'backtest') return 'backtest';
-  if (process.env.TEST_MODE === 'true' || executionMode === 'test') return 'test';
-  if (tradingMode === 'live' || executionMode === 'live' || process.env.ENABLE_LIVE_TRADING === 'true') return 'live';
-  if (process.env.PAPER_TRADING === 'true' || tradingMode === 'paper' || executionMode === 'paper') return 'paper';
-  return 'paper';
+function resolveInitialMode(config = {}) {
+  const explicitMode = String(config.mode || config.executionMode || '').trim().toLowerCase();
+  return explicitMode || ConfigLoader.load({ silent: true }).config.mode.execution;
 }
 
 function sanitizePatternBucket(value) {
@@ -248,7 +243,7 @@ class UnifiedPatternMemory {
     //
     // Spec: ogz-meta/specs/pattern-bank-separation-spec.md
     // Incident: 2026-04-22 crypto bank corruption on broker flip before this fix existed.
-    const mode = resolveInitialMode();
+    const mode = resolveInitialMode(config);
     const assetBucket = resolveInitialAssetBucket(mode);
     this.dataDir = config.dataDir || process.env.DATA_DIR || (config.storagePath ? path.dirname(config.storagePath) : path.join(process.cwd(), 'data'));
     this.storagePath = config.storagePath || storagePathForBucket(this.dataDir, mode, assetBucket);

@@ -52,18 +52,19 @@
 
 const fs = require('fs');
 const path = require('path');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 // Singleton instance
 let instance = null;
 
 class FeatureFlagManager {
-  constructor() {
+  constructor(options = {}) {
     if (instance) {
       return instance;
     }
 
-    // Detect mode from environment
-    this.mode = this._detectMode();
+    // Detect mode from resolved config, or from an explicit non-env caller contract.
+    this.mode = this._detectMode(options);
     this.tier = process.env.TRADING_TIER || 'ml';
 
     // Load features from JSON (single source of truth)
@@ -82,9 +83,9 @@ class FeatureFlagManager {
   /**
    * Get singleton instance
    */
-  static getInstance() {
+  static getInstance(options = {}) {
     if (!instance) {
-      instance = new FeatureFlagManager();
+      instance = new FeatureFlagManager(options);
     }
     return instance;
   }
@@ -99,13 +100,9 @@ class FeatureFlagManager {
   /**
    * Detect trading mode from environment
    */
-  _detectMode() {
-    const executionMode = String(process.env.EXECUTION_MODE || '').trim().toLowerCase();
-    if (process.env.BACKTEST_MODE === 'true' || executionMode === 'backtest') return 'backtest';
-    if (process.env.TEST_MODE === 'true' || executionMode === 'test') return 'test';
-    if (process.env.TRADING_MODE === 'live' || executionMode === 'live' || process.env.ENABLE_LIVE_TRADING === 'true') return 'live';
-    if (process.env.PAPER_TRADING === 'true' || process.env.TRADING_MODE === 'paper' || executionMode === 'paper') return 'paper';
-    return 'paper'; // Safe default
+  _detectMode(options = {}) {
+    const explicitMode = typeof options.mode === 'string' ? options.mode.trim().toLowerCase() : '';
+    return explicitMode || ConfigLoader.load({ silent: true }).config.mode.execution;
   }
 
   /**

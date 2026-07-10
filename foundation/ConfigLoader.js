@@ -70,6 +70,7 @@ const LIVE_MIN_TRADE_CONFIDENCE_FLOOR = requiredConfiguredNumber('confidence.min
 
 let activeEnv = process.env;
 let activeEnvSources = {};
+let activeLaunchProfileContext = null;
 
 function envSource() {
   return activeEnv || process.env;
@@ -200,26 +201,86 @@ function applyTuningProfileEnv(sourceEnv, sourceOverrides = {}) {
   return { values, sources };
 }
 
-function buildEffectiveEnv(sourceEnv, sourceOverrides = {}) {
-  const effectiveEnv = { ...sourceEnv };
-  const sources = { ...sourceOverrides };
-  const liveExecutionRequested = effectiveEnv.EXECUTION_MODE === 'live' ||
-    effectiveEnv.TRADING_MODE === 'live' ||
-    effectiveEnv.ENABLE_LIVE_TRADING === 'true';
-  if (liveExecutionRequested) {
-    effectiveEnv.LIVE_TRADING = 'true';
-    if (sourceEnv.LIVE_TRADING !== 'true' && sourceEnv.LIVE_TRADING !== '1') {
-      sources.LIVE_TRADING = 'derived:live-execution-mode';
-    }
+const VALID_LAUNCH_MODES = Object.freeze(new Set(['live', 'paper', 'backtest']));
+
+function requireLaunchProfiles() {
+  const launchProfiles = tradingConfigFile.launchProfiles;
+  if (!launchProfiles || typeof launchProfiles !== 'object' || Array.isArray(launchProfiles)) {
+    throw new Error('[ConfigLoader] config/trading.config.json must define launchProfiles');
   }
-  if (effectiveEnv.EXECUTION_MODE === 'backtest' || effectiveEnv.CANDLE_SOURCE === 'file') {
-    effectiveEnv.BACKTEST_MODE = 'true';
-    if (sourceEnv.BACKTEST_MODE !== 'true' && sourceEnv.BACKTEST_MODE !== '1') {
-      sources.BACKTEST_MODE = 'derived:backtest-mode';
-    }
+  return launchProfiles;
+}
+
+function getLaunchProfileDefinitions(launchProfiles) {
+  const rawDefinitions = launchProfiles.definitions || launchProfiles;
+  return Object.fromEntries(
+    Object.entries(rawDefinitions)
+      .filter(([name, value]) => name !== 'defaultProfile' && value && typeof value === 'object' && !Array.isArray(value))
+  );
+}
+
+function resolveLaunchProfileName(sourceEnv, launchProfiles = requireLaunchProfiles()) {
+  const explicitProfileName = String(sourceEnv.PROFILE || '').trim();
+  if (explicitProfileName) {
+    return { profileName: explicitProfileName, source: 'env:PROFILE' };
   }
 
-  if (effectiveEnv.BACKTEST_MODE === 'true') {
+  const defaultProfileName = String(launchProfiles.defaultProfile || '').trim();
+  if (!defaultProfileName) {
+    throw new Error('[ConfigLoader] config/trading.config.json launchProfiles.defaultProfile is required when PROFILE is absent');
+  }
+  return { profileName: defaultProfileName, source: 'config:launchProfiles.defaultProfile' };
+}
+
+function normalizeLaunchMode(profileName, profile) {
+  const mode = String(profile?.mode || '').trim().toLowerCase();
+  if (!VALID_LAUNCH_MODES.has(mode)) {
+    throw new Error(`[ConfigLoader] launchProfiles.${profileName}.mode must be live, paper, or backtest`);
+  }
+  if (typeof profile.confirmLive !== 'boolean') {
+    throw new Error(`[ConfigLoader] launchProfiles.${profileName}.confirmLive must be boolean`);
+  }
+  return mode;
+}
+
+function resolveLaunchProfile(sourceEnv, launchProfiles = requireLaunchProfiles()) {
+  const profileDefinitions = getLaunchProfileDefinitions(launchProfiles);
+  const { profileName, source } = resolveLaunchProfileName(sourceEnv, launchProfiles);
+  const profile = profileDefinitions[profileName];
+  if (!profile) {
+    throw new Error(
+      `[ConfigLoader] Unknown PROFILE '${profileName}'. Available: ${Object.keys(profileDefinitions).join(', ')}`
+    );
+  }
+
+  const mode = normalizeLaunchMode(profileName, profile);
+  return {
+    profileName,
+    profileSource: source,
+    mode,
+    confirmLive: profile.confirmLive,
+  };
+}
+
+function applyLaunchProfileEnv(sourceEnv, sourceOverrides = {}) {
+  const launchProfile = resolveLaunchProfile(sourceEnv);
+  const values = {
+    ...sourceEnv,
+    PROFILE: launchProfile.profileName,
+  };
+  const sources = {
+    ...sourceOverrides,
+    PROFILE: launchProfile.profileSource,
+  };
+
+  return { values, sources, launchProfile };
+}
+
+function buildEffectiveEnv(sourceEnv, sourceOverrides = {}, launchProfileContext = null) {
+  const effectiveEnv = { ...sourceEnv };
+  const sources = { ...sourceOverrides };
+
+  if (launchProfileContext?.mode === 'backtest') {
     if (!effectiveEnv.STATE_FILE) {
       effectiveEnv.STATE_FILE = path.join(process.cwd(), 'data', 'state-backtest.json');
       sources.STATE_FILE = 'derived:backtest-state-isolation';
@@ -257,12 +318,38 @@ function buildConfig() {
   const config = {
     // ─── EXECUTION MODE ───
     mode: {
-      execution: track('mode.execution', envStr('EXECUTION_MODE', 'paper')),
-      backtest: track('mode.backtest', envBool('BACKTEST_MODE', false)),
-      paperTrading: track('mode.paperTrading', envBool('PAPER_TRADING', false)),
-      liveTrading: track('mode.liveTrading', envBool('LIVE_TRADING', false)),
-      confirmLiveTrading: track('mode.confirmLiveTrading', envBool('CONFIRM_LIVE_TRADING', false)),
-      testMode: track('mode.testMode', envBool('TEST_MODE', false)),
+      launchProfile: track('mode.launchProfile', {
+        value: activeLaunchProfileContext.profileName,
+        source: activeLaunchProfileContext.profileSource,
+      }),
+      execution: track('mode.execution', {
+        value: activeLaunchProfileContext.mode,
+        source: `config:launchProfiles.${activeLaunchProfileContext.profileName}.mode`,
+      }),
+      confirmLive: track('mode.confirmLive', {
+        value: activeLaunchProfileContext.confirmLive,
+        source: `config:launchProfiles.${activeLaunchProfileContext.profileName}.confirmLive`,
+      }),
+      backtest: track('mode.backtest', {
+        value: activeLaunchProfileContext.mode === 'backtest',
+        source: `config:launchProfiles.${activeLaunchProfileContext.profileName}.mode`,
+      }),
+      paperTrading: track('mode.paperTrading', {
+        value: activeLaunchProfileContext.mode === 'paper',
+        source: `config:launchProfiles.${activeLaunchProfileContext.profileName}.mode`,
+      }),
+      liveTrading: track('mode.liveTrading', {
+        value: activeLaunchProfileContext.mode === 'live',
+        source: `config:launchProfiles.${activeLaunchProfileContext.profileName}.mode`,
+      }),
+      confirmLiveTrading: track('mode.confirmLiveTrading', {
+        value: activeLaunchProfileContext.confirmLive,
+        source: `config:launchProfiles.${activeLaunchProfileContext.profileName}.confirmLive`,
+      }),
+      testMode: track('mode.testMode', {
+        value: false,
+        source: `config:launchProfiles.${activeLaunchProfileContext.profileName}.mode`,
+      }),
       candleSource: track('mode.candleSource', envStr('CANDLE_SOURCE', 'websocket')),
     },
 
@@ -623,6 +710,13 @@ function validate(config, sources = {}) {
   const warnings = [];
   const currentNewYorkDate = getCurrentNewYorkDate();
 
+  if (!config.mode.launchProfile) {
+    errors.push('mode.launchProfile must resolve from PROFILE or config/trading.config.json launchProfiles.defaultProfile');
+  }
+  if (!VALID_LAUNCH_MODES.has(config.mode.execution)) {
+    errors.push(`mode.execution must be live, paper, or backtest; got ${config.mode.execution || '(missing)'}`);
+  }
+
   // Confidence
   if (config.confidence.minTradeConfidence < 0 || config.confidence.minTradeConfidence > 1) {
     errors.push(`minTradeConfidence out of range: ${config.confidence.minTradeConfidence}`);
@@ -938,13 +1032,16 @@ function buildSnapshot(sourceEnv = process.env, opts = {}) {
   const dotenvValues = opts.loadDotenv === false ? {} : loadDotenvValues(envPath);
   const baseEnv = { ...dotenvValues, ...sourceEnv };
   const baseEnvSources = buildDotenvSources(dotenvValues, sourceEnv);
-  const profiledEnv = applyTuningProfileEnv(baseEnv, baseEnvSources);
+  const launchProfiledEnv = applyLaunchProfileEnv(baseEnv, baseEnvSources);
+  const profiledEnv = applyTuningProfileEnv(launchProfiledEnv.values, launchProfiledEnv.sources);
 
   const previousEnv = activeEnv;
   const previousEnvSources = activeEnvSources;
-  const effectiveEnv = buildEffectiveEnv(profiledEnv.values, profiledEnv.sources);
+  const previousLaunchProfileContext = activeLaunchProfileContext;
+  const effectiveEnv = buildEffectiveEnv(profiledEnv.values, profiledEnv.sources, launchProfiledEnv.launchProfile);
   activeEnv = effectiveEnv.values;
   activeEnvSources = effectiveEnv.sources;
+  activeLaunchProfileContext = launchProfiledEnv.launchProfile;
 
   let config;
   let sources;
@@ -958,6 +1055,7 @@ function buildSnapshot(sourceEnv = process.env, opts = {}) {
   } finally {
     activeEnv = previousEnv;
     activeEnvSources = previousEnvSources;
+    activeLaunchProfileContext = previousLaunchProfileContext;
   }
 
   // Log
@@ -1256,6 +1354,7 @@ function configValue(configPath, fallback = undefined) {
 }
 
 const PROFILE_FORBIDDEN_ENV_KEYS = Object.freeze([
+  'PROFILE',
   'EXECUTION_MODE',
   'CANDLE_SOURCE',
   'BACKTEST_MODE',
@@ -2674,9 +2773,10 @@ const BASE_CONFIG = {
   // =========================================================================
   // BACKTEST WORKER ENV CONTRACT
   // =========================================================================
-  backtestWorkerEnv: {
-    canonical: freezeStringMap({
-      EXECUTION_MODE: 'backtest',
+	  backtestWorkerEnv: {
+	    canonical: freezeStringMap({
+	      PROFILE: 'backtest-all',
+	      EXECUTION_MODE: 'backtest',
       CANDLE_SOURCE: 'file',
       BACKTEST_MODE: 'true',
       BACKTEST_SILENT: 'true',
@@ -2988,7 +3088,7 @@ const BASE_CONFIG = {
     enableNotifications: envBool('ENABLE_NOTIFICATIONS', true),
 
     // Execution mode: 'live' | 'paper' | 'backtest'
-    executionMode: env('EXECUTION_MODE', 'paper'),
+    executionMode: configuredValue('pipeline.executionMode'),
 
     // Candle source: 'live' | 'file'
     candleSource: env('CANDLE_SOURCE', 'live'),
@@ -3021,11 +3121,10 @@ let activeTuningProfileSource = null;
 let activeTuningProfileOverridePaths = new Set();
 
 function isLiveRuntimeEnv() {
-  return process.env.LIVE_TRADING === 'true' ||
-    process.env.LIVE_TRADING === '1' ||
-    process.env.EXECUTION_MODE === 'live' ||
-    process.env.TRADING_MODE === 'live' ||
-    process.env.ENABLE_LIVE_TRADING === 'true';
+  if (_cached?.config?.mode) {
+    return _cached.config.mode.liveTrading === true;
+  }
+  return resolveLaunchProfile(process.env).mode === 'live';
 }
 
 function assertLiveConfidenceOverrideAllowed(flatOverrides, source) {

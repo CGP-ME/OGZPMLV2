@@ -65,6 +65,7 @@ describe('anchor-runner P0 env contract', () => {
     expect(spec.workerEnv).toEqual(expect.objectContaining({
       TUNING_PROFILE: 'current-eval',
       BACKTEST_TUNING_PROFILE: 'current-eval',
+      PROFILE: 'backtest-all',
       ENABLE_DYNAMIC_SIZING: 'true',
       TIER1_TARGET: '0.007',
       FEE_MAKER: '0',

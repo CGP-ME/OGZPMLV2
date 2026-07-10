@@ -10,8 +10,14 @@ function loadFreshFeatureFlagManager() {
 describe('FeatureFlagManager logging', () => {
   let logSpy;
   let errorSpy;
+  let originalEnv;
 
   beforeEach(() => {
+    originalEnv = process.env;
+    process.env = {
+      ...originalEnv,
+      PROFILE: 'paper',
+    };
     logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
     errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   });
@@ -20,6 +26,7 @@ describe('FeatureFlagManager logging', () => {
     logSpy.mockRestore();
     errorSpy.mockRestore();
     jest.restoreAllMocks();
+    process.env = originalEnv;
   });
 
   test('constructor and reload logs stay emoji-free', () => {
@@ -35,12 +42,13 @@ describe('FeatureFlagManager logging', () => {
     expect(output).toContain('[FeatureFlagManager] Reloaded features');
   });
 
-  test('detects mode from EXECUTION_MODE when legacy mode flags are absent', () => {
+  test('detects mode from ConfigLoader PROFILE when legacy mode flags are absent', () => {
     const originalEnv = process.env;
     process.env = {
       ...originalEnv,
-      EXECUTION_MODE: 'backtest',
+      PROFILE: 'backtest-all',
     };
+    delete process.env.EXECUTION_MODE;
     delete process.env.BACKTEST_MODE;
     delete process.env.PAPER_TRADING;
     delete process.env.TRADING_MODE;
@@ -56,23 +64,20 @@ describe('FeatureFlagManager logging', () => {
     }
   });
 
-  test('detects test mode from EXECUTION_MODE when TEST_MODE is absent', () => {
+  test('uses explicit caller mode without mutating process.env', () => {
     const originalEnv = process.env;
     process.env = {
       ...originalEnv,
-      EXECUTION_MODE: 'test',
+      PROFILE: 'paper',
     };
-    delete process.env.BACKTEST_MODE;
-    delete process.env.TEST_MODE;
-    delete process.env.PAPER_TRADING;
-    delete process.env.TRADING_MODE;
-    delete process.env.ENABLE_LIVE_TRADING;
 
     try {
       const FeatureFlagManager = loadFreshFeatureFlagManager();
-      const flags = FeatureFlagManager.getInstance();
+      const flags = FeatureFlagManager.getInstance({ mode: 'backtest' });
 
-      expect(flags.mode).toBe('test');
+      expect(flags.mode).toBe('backtest');
+      expect(process.env.PROFILE).toBe('paper');
+      expect(process.env.BACKTEST_MODE).not.toBe('true');
     } finally {
       process.env = originalEnv;
     }
@@ -86,7 +91,7 @@ describe('FeatureFlagManager logging', () => {
     });
     const FeatureFlagManager = require('../core/FeatureFlagManager');
 
-    FeatureFlagManager.getInstance();
+    FeatureFlagManager.getInstance({ mode: 'paper' });
 
     const output = errorSpy.mock.calls.flat().map(value => String(value)).join('\n');
     expect(output).not.toMatch(EMOJI_PATTERN);

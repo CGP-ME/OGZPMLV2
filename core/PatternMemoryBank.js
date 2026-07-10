@@ -156,22 +156,9 @@ function resolvePatternBankConfig(config) {
     return Object.freeze({ ...resolved });
 }
 
-function resolveInitialMode() {
-    const executionMode = String(process.env.EXECUTION_MODE || '').trim().toLowerCase();
-    const tradingMode = String(process.env.TRADING_MODE || '').trim().toLowerCase();
-    if (process.env.BACKTEST_MODE === 'true' || executionMode === 'backtest') {
-        return 'backtest';
-    }
-    if (process.env.TEST_MODE === 'true' || executionMode === 'test') {
-        return 'test';
-    }
-    if (tradingMode === 'live' || executionMode === 'live' || process.env.ENABLE_LIVE_TRADING === 'true') {
-        return 'live';
-    }
-    if (tradingMode === 'paper' || executionMode === 'paper' || process.env.PAPER_TRADING === 'true') {
-        return 'paper';
-    }
-    return 'paper';
+function resolveInitialMode(config = {}) {
+    const explicitMode = String(config.mode || config.executionMode || '').trim().toLowerCase();
+    return explicitMode || ConfigLoader.load({ silent: true }).config.mode.execution;
 }
 
 class PatternMemoryBank {
@@ -179,7 +166,7 @@ class PatternMemoryBank {
 
     constructor(config = {}) {
         // Mode-aware pattern memory persistence to prevent contamination
-        const mode = resolveInitialMode();
+        const mode = resolveInitialMode(config);
         const featureFlags = config.featureFlags || {};
         const partitionSettings = featureFlags.PATTERN_MEMORY_PARTITION?.settings || {};
 

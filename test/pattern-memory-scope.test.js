@@ -44,6 +44,7 @@ describe('Pattern memory scope isolation', () => {
   beforeEach(() => {
     jest.resetModules();
     originalEnv = { ...process.env };
+    process.env.PROFILE = 'backtest-all';
     process.env.BACKTEST_MODE = 'true';
     process.env.CANDLE_DATA_FILE = 'tuning/tsla-15m-18mo.json';
     process.env.BACKTEST_NO_PATTERN_SAVE = 'true';
@@ -168,13 +169,14 @@ describe('Pattern memory scope isolation', () => {
     expect(memory.patterns).toEqual({});
   });
 
-  test('UnifiedPatternMemory treats EXECUTION_MODE=backtest as backtest when BACKTEST_MODE is absent', () => {
+  test('UnifiedPatternMemory treats explicit config executionMode as the mode owner', () => {
     delete process.env.BACKTEST_MODE;
     delete process.env.PAPER_TRADING;
-    process.env.EXECUTION_MODE = 'backtest';
+    process.env.EXECUTION_MODE = 'paper';
 
     const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
     const memory = new UnifiedPatternMemory({
+      executionMode: 'backtest',
       persistToDisk: false,
       minSamples: 1,
       successThreshold: 0.6,
@@ -184,17 +186,18 @@ describe('Pattern memory scope isolation', () => {
     expect(memory.storagePath).toBe(path.join(process.env.DATA_DIR, 'unified-patterns.backtest.TSLA.json'));
   });
 
-  test('pattern stores keep TEST_MODE in the same mode bucket', () => {
+  test('pattern stores honor explicit test mode scope without TEST_MODE env', () => {
     delete process.env.BACKTEST_MODE;
     delete process.env.PAPER_TRADING;
     delete process.env.TRADING_MODE;
     delete process.env.ENABLE_LIVE_TRADING;
     delete process.env.EXECUTION_MODE;
-    process.env.TEST_MODE = 'true';
+    delete process.env.TEST_MODE;
     process.env.ASSET_CLASS = 'stocks';
 
     const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
     const memory = new UnifiedPatternMemory({
+      mode: 'test',
       persistToDisk: false,
       minSamples: 1,
       successThreshold: 0.6,
@@ -351,6 +354,7 @@ describe('Pattern memory scope isolation', () => {
   test('UnifiedPatternMemory switches paper asset banks without carrying patterns across assets', async () => {
     delete process.env.BACKTEST_MODE;
     delete process.env.BACKTEST_NO_PATTERN_SAVE;
+    process.env.PROFILE = 'paper';
     process.env.PAPER_TRADING = 'true';
     process.env.ASSET_CLASS = 'crypto';
     process.env.BROKER = 'kraken';
@@ -684,10 +688,10 @@ describe('Pattern memory scope isolation', () => {
     expect(Object.values(bank.exportMemory().patterns)).toHaveLength(1);
   });
 
-  test('PatternMemoryBank treats EXECUTION_MODE=backtest as backtest when BACKTEST_MODE is absent', () => {
+  test('PatternMemoryBank treats explicit scope executionMode as the mode owner', () => {
     delete process.env.BACKTEST_MODE;
     delete process.env.PAPER_TRADING;
-    process.env.EXECUTION_MODE = 'backtest';
+    process.env.EXECUTION_MODE = 'paper';
 
     const PatternMemoryBank = require('../core/PatternMemoryBank');
     const dbPath = path.join(process.env.DATA_DIR, `pattern-bank-execution-mode-${Date.now()}.json`);
@@ -706,7 +710,7 @@ describe('Pattern memory scope isolation', () => {
     expect(bank.persistenceEnabled).toBe(false);
   });
 
-  test('UnifiedPatternMemory follows legacy live and paper mode flags', () => {
+  test('UnifiedPatternMemory follows ConfigLoader PROFILE when no explicit config mode exists', () => {
     delete process.env.BACKTEST_MODE;
     delete process.env.TEST_MODE;
     delete process.env.EXECUTION_MODE;
@@ -714,35 +718,32 @@ describe('Pattern memory scope isolation', () => {
     process.env.ASSET_CLASS = 'stocks';
 
     const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
+    const ConfigLoader = require('../foundation/ConfigLoader');
 
-    process.env.TRADING_MODE = 'paper';
+    process.env.PROFILE = 'paper';
+    ConfigLoader.load({ force: true, silent: true });
     let memory = new UnifiedPatternMemory({ persistToDisk: false });
     expect(memory.storageMode).toBe('paper');
 
-    process.env.TRADING_MODE = 'live';
+    process.env.PROFILE = 'backtest-all';
+    ConfigLoader.load({ force: true, silent: true });
     memory = new UnifiedPatternMemory({ persistToDisk: false });
-    expect(memory.storageMode).toBe('live');
-
-    delete process.env.TRADING_MODE;
-    process.env.ENABLE_LIVE_TRADING = 'true';
-    memory = new UnifiedPatternMemory({ persistToDisk: false });
-    expect(memory.storageMode).toBe('live');
+    expect(memory.storageMode).toBe('backtest');
   });
 
-  test('UnifiedPatternMemory defaults to paper when no mode flag is set', () => {
+  test('UnifiedPatternMemory defaults to ConfigLoader paper launch profile when PROFILE is absent', () => {
     delete process.env.BACKTEST_MODE;
     delete process.env.TEST_MODE;
     delete process.env.EXECUTION_MODE;
     delete process.env.PAPER_TRADING;
     delete process.env.TRADING_MODE;
     delete process.env.ENABLE_LIVE_TRADING;
+    delete process.env.PROFILE;
     process.env.ASSET_CLASS = 'stocks';
 
     const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
     const memory = new UnifiedPatternMemory({ persistToDisk: false });
-
     expect(memory.storageMode).toBe('paper');
-    expect(memory.storagePath).toBe(path.join(process.env.DATA_DIR, 'unified-patterns.paper.stocks.json'));
   });
 
   test('PatternMemoryBank uses ConfigLoader-owned bank tunables and rejects invalid overrides', () => {

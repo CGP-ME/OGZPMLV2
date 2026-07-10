@@ -147,6 +147,7 @@ const INSTRUMENT_ENV_ALLOWLIST = Object.freeze(new Set([
 ]));
 
 const SUMMARY_KEYS = [
+  'PROFILE',
   'EXECUTION_MODE',
   'CANDLE_SOURCE',
   'BACKTEST_MODE',

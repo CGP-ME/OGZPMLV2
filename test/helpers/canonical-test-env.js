@@ -21,6 +21,7 @@ const CANONICAL_TEST_ENV = {
   // (process-explicit confidence, live TTP date match) do not apply. Both
   // keys pinned: the repo .env carries EXECUTION_MODE=live, which alone
   // resurrects live-mode validation regardless of LIVE_TRADING.
+  PROFILE: 'paper',
   LIVE_TRADING: 'false',
   EXECUTION_MODE: 'paper',
 

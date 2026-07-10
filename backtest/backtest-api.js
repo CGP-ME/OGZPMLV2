@@ -25,8 +25,7 @@ const { v4: uuidv4 } = require('uuid');
 const optimizedIndicators = require('../core/OptimizedIndicators.js');
 const FeatureFlagManager = require('../core/FeatureFlagManager.js');
 
-// CRITICAL: Set BACKTEST_MODE before FeatureFlagManager initializes
-process.env.BACKTEST_MODE = 'true';
+const BACKTEST_FEATURE_FLAG_OPTIONS = Object.freeze({ mode: 'backtest' });
 
 const app = express();
 const PORT = process.env.BACKTEST_PORT || 3011;
@@ -47,8 +46,8 @@ const activeJobs = new Map();
 const completedJobs = new Map();
 
 // Initialize unified feature flag manager
-const flagManager = FeatureFlagManager.getInstance();
-console.log(`🧪 [Backtest API] Mode: ${flagManager.getMode()}, Features: ${flagManager.getEnabledFeatures().length} enabled`);
+const flagManager = FeatureFlagManager.getInstance(BACKTEST_FEATURE_FLAG_OPTIONS);
+console.log(`[Backtest API] Mode: ${flagManager.getMode()}, Features: ${flagManager.getEnabledFeatures().length} enabled`);
 
 /**
  * Broadcast message to all WebSocket clients

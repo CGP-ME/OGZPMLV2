@@ -16,6 +16,7 @@ describe('config-audit env boundary', () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'config-audit-env-'));
     const envPath = path.join(tempDir, '.env');
     fs.writeFileSync(envPath, [
+      'PROFILE=backtest-all',
       'BACKTEST_MODE=true',
       'MIN_TRADE_CONFIDENCE=0.61',
       'BASE_POSITION_SIZE=0.04',
@@ -39,6 +40,7 @@ describe('config-audit env boundary', () => {
         SENTRY_DSN: 'https://sentry.example/audit-secret',
       };
       delete process.env.BACKTEST_MODE;
+      delete process.env.PROFILE;
       delete process.env.MIN_TRADE_CONFIDENCE;
       delete process.env.BASE_POSITION_SIZE;
       delete process.env.STOP_LOSS_PERCENT;
@@ -76,19 +78,19 @@ describe('config-audit env boundary', () => {
       expect(resolved['mode.liveTading']).toBeUndefined();
       expect(resolved['mode.liveTrading']).toMatchObject({
         value: false,
-        source: 'env:LIVE_TRADING',
+        source: 'config:launchProfiles.backtest-all.mode',
       });
       expect(resolved['mode.confirmLiveTrading']).toMatchObject({
         value: false,
-        source: 'default',
+        source: 'config:launchProfiles.backtest-all.confirmLive',
       });
       expect(resolved['mode.testMode']).toMatchObject({
         value: false,
-        source: 'default',
+        source: 'config:launchProfiles.backtest-all.mode',
       });
       expect(resolved['mode.backtest']).toMatchObject({
         value: true,
-        source: 'dotenv:BACKTEST_MODE',
+        source: 'config:launchProfiles.backtest-all.mode',
       });
       expect(resolved['confidence.minTradeConfidence']).toMatchObject({
         value: 0.61,
@@ -132,6 +134,7 @@ describe('config-audit env boundary', () => {
       expect(JSON.stringify(resolved)).not.toContain('sentry.example/audit-secret');
 
       expect(process.env.BACKTEST_MODE).toBeUndefined();
+      expect(process.env.PROFILE).toBeUndefined();
       expect(process.env.MIN_TRADE_CONFIDENCE).toBeUndefined();
       expect(process.env.BASE_POSITION_SIZE).toBeUndefined();
       expect(process.env.STOP_LOSS_PERCENT).toBeUndefined();
@@ -146,6 +149,7 @@ describe('config-audit env boundary', () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'config-audit-fixture-'));
     const envPath = path.join(tempDir, '.env');
     fs.writeFileSync(envPath, [
+      'PROFILE=paper',
       'ALPACA_MODE=live',
       'ALPACA_API_KEY=audit-alpaca-key',
       'ALPACA_API_SECRET=audit-alpaca-secret',
@@ -156,6 +160,10 @@ describe('config-audit env boundary', () => {
       'MAX_DAILY_LOSS=2',
       'MAX_WEEKLY_LOSS=6',
       'MAX_MONTHLY_LOSS=12',
+      'TTP_ACCOUNT_START_OF_DAY_EQUITY=5000',
+      'TTP_DAILY_LOSS_LIMIT_DOLLARS=50',
+      'TTP_MAX_LOSS_THRESHOLD_EQUITY=4850',
+      'TTP_PROFIT_TARGET_DOLLARS=300',
       '',
     ].join('\n'));
 
@@ -188,6 +196,7 @@ describe('config-audit env boundary', () => {
     const audit = require('../tools/config-audit');
     const context = audit.createAuditContext({
       sourceEnv: {
+        PROFILE: 'backtest-all',
         BACKTEST_MODE: 'true',
         // Backtest-mode audit context must not inherit live posture from the
         // repo .env via dotenv; the fixture declares its mode explicitly
@@ -237,6 +246,7 @@ describe('config-audit env boundary', () => {
     try {
       process.env = {
         DOTENV_CONFIG_PATH: envPath,
+        PROFILE: 'backtest-all',
         BACKTEST_MODE: 'true',
       };
 

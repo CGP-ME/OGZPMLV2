@@ -9,19 +9,18 @@ const optimizedIndicators = require('../core/OptimizedIndicators');
 const fs = require('fs').promises;
 const path = require('path');
 
-// CRITICAL: Set BACKTEST_MODE before FeatureFlagManager initializes
-process.env.BACKTEST_MODE = 'true';
+const BACKTEST_FEATURE_FLAG_OPTIONS = Object.freeze({ mode: 'backtest' });
 
 class OptimizedBacktestEngine {
     constructor(tier = 'ml') {
         this.tier = tier;
         // Use unified FeatureFlagManager instead of TierFeatureFlags
-        this.featureFlags = FeatureFlagManager.getInstance();
+        this.featureFlags = FeatureFlagManager.getInstance(BACKTEST_FEATURE_FLAG_OPTIONS);
         this.results = [];
         this.bestConfig = null;
         this.bestScore = -Infinity;
 
-        console.log(`🧪 [Backtest] Mode: ${this.featureFlags.getMode()}, Tier: ${tier}`);
+        console.log(`[Backtest] Mode: ${this.featureFlags.getMode()}, Tier: ${tier}`);
     }
 
     /**

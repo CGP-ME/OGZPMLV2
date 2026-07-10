@@ -24,6 +24,29 @@
     "thresholdCount": 3,
     "windowMs": 300000
   },
+  "launchProfiles": {
+    "defaultProfile": "paper",
+    "production": {
+      "mode": "live",
+      "confirmLive": true
+    },
+    "paper": {
+      "mode": "paper",
+      "confirmLive": false
+    },
+    "backtest-all": {
+      "mode": "backtest",
+      "confirmLive": false
+    },
+    "backtest-masr": {
+      "mode": "backtest",
+      "confirmLive": false
+    },
+    "backtest-rsi": {
+      "mode": "backtest",
+      "confirmLive": false
+    }
+  },
   "tuningProfiles": {
     "defaultProfile": "current-eval",
     "definitions": {

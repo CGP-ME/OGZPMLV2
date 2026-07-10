@@ -19,14 +19,21 @@ describe('ConfigLoader runtime profile contract', () => {
 
   function withLiveRuntimeEnv(callback) {
     const previous = {
+      PROFILE: process.env.PROFILE,
       LIVE_TRADING: process.env.LIVE_TRADING,
       EXECUTION_MODE: process.env.EXECUTION_MODE,
     };
+    process.env.PROFILE = 'production';
     process.env.LIVE_TRADING = 'true';
     process.env.EXECUTION_MODE = 'live';
     try {
       return callback();
     } finally {
+      if (previous.PROFILE === undefined) {
+        delete process.env.PROFILE;
+      } else {
+        process.env.PROFILE = previous.PROFILE;
+      }
       if (previous.LIVE_TRADING === undefined) {
         delete process.env.LIVE_TRADING;
       } else {
@@ -249,6 +256,7 @@ describe('ConfigLoader runtime profile contract', () => {
   test('explicit TUNING_PROFILE selector materializes trey-spec through ConfigLoader before ConfigLoader reads', () => {
     const previous = {
       DOTENV_CONFIG_PATH: process.env.DOTENV_CONFIG_PATH,
+      PROFILE: process.env.PROFILE,
       EXECUTION_MODE: process.env.EXECUTION_MODE,
       CANDLE_SOURCE: process.env.CANDLE_SOURCE,
       BACKTEST_MODE: process.env.BACKTEST_MODE,
@@ -260,6 +268,7 @@ describe('ConfigLoader runtime profile contract', () => {
 
     jest.resetModules();
     process.env.DOTENV_CONFIG_PATH = '/tmp/ogzprime-test-missing.env';
+    process.env.PROFILE = 'backtest-all';
     process.env.EXECUTION_MODE = 'backtest';
     process.env.CANDLE_SOURCE = 'file';
     process.env.BACKTEST_MODE = 'true';

@@ -53,6 +53,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 class TradeLogger {
     constructor() {
@@ -141,7 +142,7 @@ class TradeLogger {
      */
     saveTrades(trades) {
         // FIX 2026-02-20: Skip disk writes in backtest - causes EMFILE on Windows
-        if (process.env.BACKTEST_MODE === 'true') return true;
+        if (ConfigLoader.load({ silent: true }).config.mode.backtest === true) return true;
         const filePath = this.getTodayLogFile();
         
         try {

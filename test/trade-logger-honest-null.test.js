@@ -8,6 +8,7 @@ const { TradeLogger } = require('../core/tradeLogger');
 describe('TradeLogger honest missing-data handling', () => {
   let tmpDir;
   let originalBacktestMode;
+  let originalProfile;
   let logSpy;
   let errorSpy;
   let warnSpy;
@@ -15,7 +16,10 @@ describe('TradeLogger honest missing-data handling', () => {
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'trade-logger-honest-null-'));
     originalBacktestMode = process.env.BACKTEST_MODE;
+    originalProfile = process.env.PROFILE;
     delete process.env.BACKTEST_MODE;
+    process.env.PROFILE = 'paper';
+    require('../foundation/ConfigLoader')._resetForTest();
     logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
     errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
@@ -26,6 +30,11 @@ describe('TradeLogger honest missing-data handling', () => {
       delete process.env.BACKTEST_MODE;
     } else {
       process.env.BACKTEST_MODE = originalBacktestMode;
+    }
+    if (originalProfile === undefined) {
+      delete process.env.PROFILE;
+    } else {
+      process.env.PROFILE = originalProfile;
     }
     logSpy.mockRestore();
     errorSpy.mockRestore();
@@ -78,6 +87,29 @@ describe('TradeLogger honest missing-data handling', () => {
     expect(trade.entrySignal.primaryReason).toBeNull();
     expect(trade.exitSignal.exitReason).toBe('signal');
     expect(trade.exitSignal.exitType).toBeNull();
+  });
+
+  test('skips disk writes from ConfigLoader backtest profile without BACKTEST_MODE env', () => {
+    process.env.PROFILE = 'backtest-all';
+    delete process.env.BACKTEST_MODE;
+    require('../foundation/ConfigLoader')._resetForTest();
+
+    const logger = new TradeLogger();
+    logger.logDir = tmpDir;
+
+    expect(logger.logTrade({
+      type: 'SELL',
+      entryPrice: 100,
+      exitPrice: 101,
+      currentPrice: 101,
+      size: 1,
+      pnl: 1,
+      pnlPercent: 1,
+      fees: 0,
+      entryTime: '2026-06-13T10:00:00.000Z',
+      exitTime: '2026-06-13T10:15:00.000Z',
+    })).toBe(true);
+    expect(fs.readdirSync(tmpDir).filter(file => file.startsWith('trades_'))).toHaveLength(0);
   });
 
   test('does not average missing report fields as zero', () => {

@@ -25,6 +25,7 @@ const {
 } = require('../tools/grid-search-confidence');
 
 const EXPECTED_CANONICAL_BACKTEST_ENV = Object.freeze({
+  PROFILE: 'backtest-all',
   EXECUTION_MODE: 'backtest',
   CANDLE_SOURCE: 'file',
   BACKTEST_MODE: 'true',
@@ -151,6 +152,7 @@ describe('backtest worker env contract', () => {
     const env = buildEnv();
 
     expect(env.EXECUTION_MODE).toBe('backtest');
+    expect(env.PROFILE).toBe('backtest-all');
     expect(env.CANDLE_SOURCE).toBe('file');
     expect(env.CANDLE_DATA_FILE).toBe(path.resolve(projectRoot, 'tuning/tsla-15m-2y.json'));
     expect(env.TEST_MODE).toBe('false');

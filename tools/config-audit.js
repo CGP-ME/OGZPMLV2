@@ -28,6 +28,7 @@ const SECRET_PATH_PATTERN = /(^|[._-])(apiKey|apiSecret|secret|token|dsn|webhook
 const SECRET_ENV_PATTERN = /(^|_)(API_KEY|API_SECRET|SECRET|TOKEN|DSN|WEBHOOK_URL|PASSWORD|PRIVATE_KEY)($|_)/i;
 
 const AUDIT_REQUIRED_ENV_FIXTURE = Object.freeze({
+  PROFILE: 'paper',
   ALPACA_MODE: 'paper',
   RISK_MANAGER_BYPASS: 'true',
   ACCOUNT_DRAWDOWN_BYPASS: 'true',
@@ -35,9 +36,14 @@ const AUDIT_REQUIRED_ENV_FIXTURE = Object.freeze({
   MAX_DAILY_LOSS: '1',
   MAX_WEEKLY_LOSS: '5',
   MAX_MONTHLY_LOSS: '5',
+  TTP_ACCOUNT_START_OF_DAY_EQUITY: '5000',
+  TTP_DAILY_LOSS_LIMIT_DOLLARS: '50',
+  TTP_MAX_LOSS_THRESHOLD_EQUITY: '4850',
+  TTP_PROFIT_TARGET_DOLLARS: '300',
 });
 
 const CONFIG_LOADER_ENV_PATHS = Object.freeze({
+  PROFILE: 'mode.launchProfile',
   EXECUTION_MODE: 'mode.execution',
   BACKTEST_MODE: 'mode.backtest',
   PAPER_TRADING: 'mode.paperTrading',
@@ -69,6 +75,10 @@ const CONFIG_LOADER_ENV_PATHS = Object.freeze({
   MAX_DAILY_LOSS: 'risk.maxDailyLoss',
   MAX_WEEKLY_LOSS: 'risk.maxWeeklyLoss',
   MAX_MONTHLY_LOSS: 'risk.maxMonthlyLoss',
+  TTP_ACCOUNT_START_OF_DAY_EQUITY: 'evalRules.ttp.accountLimits.accountStartOfDayEquity',
+  TTP_DAILY_LOSS_LIMIT_DOLLARS: 'evalRules.ttp.accountLimits.dailyLossDollars',
+  TTP_MAX_LOSS_THRESHOLD_EQUITY: 'evalRules.ttp.accountLimits.maxLossThresholdEquity',
+  TTP_PROFIT_TARGET_DOLLARS: 'evalRules.ttp.consistency.profitTargetDollars',
   ATR_FILTER_ENABLED: 'filters.atrEnabled',
   ATR_MIN_PERCENT: 'filters.atrMinPercent',
   CANDLE_DATA_FILE: 'backtest.candleDataFile',
@@ -212,6 +222,7 @@ function buildResolvedConfig(context = createAuditContext()) {
   const resolved = {};
 
   // === EXECUTION MODE ===
+  resolved['mode.launchProfile'] = getSource('PROFILE', null, 'missing');
   resolved['mode.execution'] = getSource('EXECUTION_MODE', 'pipeline.executionMode', 'paper');
   resolved['mode.backtest'] = getSource('BACKTEST_MODE', null, 'false');
   resolved['mode.paperTrading'] = getSource('PAPER_TRADING', null, 'false');
