@@ -185,7 +185,7 @@ describe('campaign integrity validator', () => {
     });
   });
 
-  test('validates report trade groups against decision-ledger trade groups without treating exit-event count as trade count', () => {
+  test('validates report trade groups and accepts null exitContract._validated markers', () => {
     withTempDir(dir => {
       const dataFile = writeJson(dir, 'candles.json', [
         { timestamp: 1000, close: 100 },
@@ -235,7 +235,7 @@ describe('campaign integrity validator', () => {
           timeframe: '15m',
           createdAt: 1783102853759,
           signalConfidence: 0.65,
-          _validated: '2026-03-20',
+          _validated: null,
         },
         riskGates: [
           { gate: 'direction_filter', threshold: 'both', value: 'buy', passed: true },
@@ -284,7 +284,7 @@ describe('campaign integrity validator', () => {
     });
   });
 
-  test('fails report trades that cannot join to decision-ledger trade groups', () => {
+  test('fails orphan decision-ledger groups inside a current scoped ledger file', () => {
     withTempDir(dir => {
       const dataFile = writeJson(dir, 'candles.json', [
         { timestamp: 1000, close: 100 },
@@ -292,7 +292,7 @@ describe('campaign integrity validator', () => {
         { timestamp: 3000, close: 102 },
       ]);
       fs.mkdirSync(path.join(dir, 'ledger'), { recursive: true });
-      fs.writeFileSync(path.join(dir, 'ledger', 'decisions_2026-07-03.jsonl'), `${JSON.stringify({
+      const ledgerRow = {
         tradeId: 'SIM_LEDGER_ONLY',
         candleTimestamp: 1000,
         symbol: 'TSLA',
@@ -315,7 +315,11 @@ describe('campaign integrity validator', () => {
           takeProfitPercent: 1,
           strategyName: 'RSI',
         },
-      })}\n`);
+      };
+      fs.writeFileSync(
+        path.join(dir, 'ledger', 'decisions_2026-07-03.jsonl'),
+        `${JSON.stringify({ ...ledgerRow, tradeId: 'SIM_REPORT_ONLY' })}\n${JSON.stringify(ledgerRow)}\n`
+      );
       const reportPath = writeJson(dir, 'worker.json', workerReport({
         trades: [{ ...workerReport().trades[0], tradeId: 'SIM_REPORT_ONLY' }],
       }));
@@ -328,8 +332,175 @@ describe('campaign integrity validator', () => {
 
       expect(result.status).toBe('FAILED-INTEGRITY');
       expect(result.checks.lifecycle).toBe(false);
-      expect(result.details.lifecycle.errors.join('\n')).toContain('decision ledger missing 1 report trade group(s): SIM_REPORT_ONLY');
       expect(result.details.lifecycle.errors.join('\n')).toContain('decision ledger has 1 orphan trade group(s): SIM_LEDGER_ONLY');
+    });
+  });
+
+  test('ignores whole stale ledger files from prior artifact-dir attempts', () => {
+    withTempDir(dir => {
+      const dataFile = writeJson(dir, 'candles.json', [
+        { timestamp: 1000, close: 100 },
+        { timestamp: 2000, close: 101 },
+        { timestamp: 3000, close: 102 },
+      ]);
+      fs.mkdirSync(path.join(dir, 'ledger'), { recursive: true });
+      const currentRow = {
+        tradeId: 'SIM_CURRENT',
+        candleTimestamp: 1000,
+        symbol: 'TSLA',
+        timeframe: '15m',
+        executionMode: 'backtest',
+        entryPrice: 100,
+        direction: 'long',
+        strategySignals: [{ name: 'RSI', direction: 'long', baseConfidence: 0.65, reason: 'RSI Oversold' }],
+        orchestratorDecision: { winnerStrategy: 'RSI', finalConfidence: 0.65, reason: 'RSI selected' },
+        positionSizing: {
+          basePercent: 0.05,
+          confidenceMultiplier: 1,
+          confluenceMultiplier: 1,
+          finalPercent: 0.05,
+          finalSizeUsd: 250,
+          formula: 'test',
+        },
+        exitContract: {
+          stopLossPercent: -0.8,
+          takeProfitPercent: 1,
+          strategyName: 'RSI',
+        },
+      };
+      fs.writeFileSync(path.join(dir, 'ledger', 'decisions_2026-07-06.jsonl'), `${JSON.stringify({ ...currentRow, tradeId: 'SIM_STALE' })}\n`);
+      fs.writeFileSync(path.join(dir, 'ledger', 'decisions_2026-07-08.jsonl'), `${JSON.stringify(currentRow)}\n`);
+      const reportPath = writeJson(dir, 'worker.json', workerReport({
+        trades: [{ ...workerReport().trades[0], tradeId: 'SIM_CURRENT' }],
+      }));
+      const matrixPath = writeJson(dir, 'matrix.json', {
+        dataFile,
+        results: [{ name: 'RSI', strategy: 'RSI', trades: 1, reportPath }],
+      });
+
+      const result = validateMatrixRun({ matrixReportPath: matrixPath, outputDir: dir, dataParityStamp: greenDataParity(dataFile) });
+
+      expect(result.status).toBe('PASS');
+      expect(result.checks.lifecycle).toBe(true);
+      expect(result.details.schema.rows).toBe(1);
+      expect(result.details.schema.ignoredFiles).toHaveLength(1);
+      expect(result.details.schema.ignoredRows).toBe(1);
+    });
+  });
+
+  test('does not orphan-fail shared-ledger extras for multi-config matrix rows', () => {
+    withTempDir(dir => {
+      const dataFile = writeJson(dir, 'candles.json', [
+        { timestamp: 1000, close: 100 },
+        { timestamp: 2000, close: 101 },
+        { timestamp: 3000, close: 102 },
+      ]);
+      fs.mkdirSync(path.join(dir, 'ledger'), { recursive: true });
+      const ledgerRow = {
+        tradeId: 'SIM_REPORT',
+        candleTimestamp: 1000,
+        symbol: 'TSLA',
+        timeframe: '15m',
+        executionMode: 'backtest',
+        entryPrice: 100,
+        direction: 'long',
+        strategySignals: [{ name: 'RSI', direction: 'long', baseConfidence: 0.65, reason: 'RSI Oversold' }],
+        orchestratorDecision: { winnerStrategy: 'RSI', finalConfidence: 0.65, reason: 'RSI selected' },
+        positionSizing: {
+          basePercent: 0.05,
+          confidenceMultiplier: 1,
+          confluenceMultiplier: 1,
+          finalPercent: 0.05,
+          finalSizeUsd: 250,
+          formula: 'test',
+        },
+        exitContract: {
+          stopLossPercent: -0.8,
+          takeProfitPercent: 1,
+          strategyName: 'RSI',
+        },
+      };
+      fs.writeFileSync(
+        path.join(dir, 'ledger', 'decisions_2026-07-03.jsonl'),
+        `${JSON.stringify(ledgerRow)}\n${JSON.stringify({ ...ledgerRow, tradeId: 'SIM_SHARED_LEDGER_EXTRA' })}\n`
+      );
+      const reportOnePath = writeJson(dir, 'worker-one.json', workerReport({
+        trades: [{ ...workerReport().trades[0], tradeId: 'SIM_REPORT' }],
+      }));
+      const reportTwoPath = writeJson(dir, 'worker-two.json', workerReport({
+        trades: [{ ...workerReport().trades[0], tradeId: 'SIM_REPORT' }],
+      }));
+      const matrixPath = writeJson(dir, 'matrix.json', {
+        dataFile,
+        results: [
+          { name: 'RSI-c25', strategy: 'RSI', trades: 1, reportPath: reportOnePath },
+          { name: 'RSI-c30', strategy: 'RSI', trades: 1, reportPath: reportTwoPath },
+        ],
+      });
+
+      const result = validateMatrixRun({ matrixReportPath: matrixPath, outputDir: dir, dataParityStamp: greenDataParity(dataFile) });
+
+      expect(result.status).toBe('PASS');
+      expect(result.checks.lifecycle).toBe(true);
+      expect(result.details.lifecycle.strictLedgerOrphanCheck).toBe(false);
+      expect(result.details.lifecycle.skippedLedgerOrphanCheckReason).toContain('multiple worker reports');
+    });
+  });
+
+  test('keeps matrix failed configs red even when failed workers wrote reports', () => {
+    withTempDir(dir => {
+      const dataFile = writeJson(dir, 'candles.json', [
+        { timestamp: 1000, close: 100 },
+        { timestamp: 2000, close: 101 },
+        { timestamp: 3000, close: 102 },
+      ]);
+      const reportPath = writeJson(dir, 'failed-worker.json', workerReport());
+      const matrixPath = writeJson(dir, 'matrix.json', {
+        dataFile,
+        results: [],
+        failed: [{
+          name: 'BadConfig',
+          strategy: 'RSI',
+          trades: 1,
+          exitCode: 0,
+          workerErrors: 1,
+          error: 'Worker reported 1 candle processing error(s)',
+          reportPath,
+        }],
+      });
+
+      const result = validateMatrixRun({ matrixReportPath: matrixPath, outputDir: dir, dataParityStamp: greenDataParity(dataFile) });
+
+      expect(result.status).toBe('FAILED-INTEGRITY');
+      expect(result.checks.lifecycle).toBe(false);
+      expect(result.details.lifecycle.errors.join('\n')).toContain('matrix has 1 failed config(s): BadConfig: Worker reported 1 candle processing error(s)');
+    });
+  });
+
+  test('fails a worker report trade with a missing tradeId instead of silently passing lifecycle', () => {
+    withTempDir(dir => {
+      const dataFile = writeJson(dir, 'candles.json', [
+        { timestamp: 1000, close: 100 },
+        { timestamp: 2000, close: 101 },
+        { timestamp: 3000, close: 102 },
+      ]);
+      const tradeWithoutId = { ...workerReport().trades[0] };
+      delete tradeWithoutId.tradeId;
+      const reportPath = writeJson(dir, 'worker-missing-trade-id.json', workerReport({
+        trades: [tradeWithoutId],
+      }));
+      const matrixPath = writeJson(dir, 'matrix.json', {
+        dataFile,
+        results: [{ name: 'RSI', strategy: 'RSI', trades: 1, reportPath }],
+      });
+
+      const result = validateMatrixRun({ matrixReportPath: matrixPath, outputDir: dir, dataParityStamp: greenDataParity(dataFile) });
+
+      expect(result.status).toBe('FAILED-INTEGRITY');
+      expect(result.checks.lifecycle).toBe(false);
+      expect(result.checks.fields).toBe(false);
+      expect(result.details.lifecycle.errors.join('\n')).toContain('trades[0].tradeId missing');
+      expect(result.details.fields.failed[0].errors).toContain('trades[0].tradeId missing/null');
     });
   });
 

@@ -155,14 +155,32 @@ function validateJsonSchemaObject(schema, value, label, errors) {
   }
 }
 
-function validateDecisionLedgers(ledgerDir) {
+function normalizeTradeIdSet(tradeIds) {
+  if (!tradeIds) return new Set();
+  return new Set(Array.from(tradeIds).filter(nonEmpty).map(tradeId => String(tradeId)));
+}
+
+function validateDecisionLedgers(ledgerDir, options = {}) {
   const schema = readJson(DECISION_LEDGER_SCHEMA_PATH);
   const decisionFiles = listFilesRecursive(ledgerDir, file => /decisions_.*\.jsonl$/.test(path.basename(file)));
+  const expectedTradeIds = normalizeTradeIdSet(options.expectedTradeIds);
+  const scopeToExpectedTradeIds = options.scopeToExpectedTradeIds === true;
   const errors = [];
   const tradeIds = new Set();
+  const ignoredFiles = [];
+  let ignoredRows = 0;
   let rows = 0;
   for (const file of decisionFiles) {
-    for (const parsed of loadJsonl(file)) {
+    const parsedRows = loadJsonl(file);
+    if (scopeToExpectedTradeIds) {
+      const fileHasExpectedTrade = parsedRows.some(parsed => parsed.ok && expectedTradeIds.has(String(parsed.value?.tradeId)));
+      if (!fileHasExpectedTrade) {
+        ignoredFiles.push(file);
+        ignoredRows += parsedRows.length;
+        continue;
+      }
+    }
+    for (const parsed of parsedRows) {
       if (!parsed.ok) {
         errors.push(`${file}:${parsed.line} JSON parse failed: ${parsed.error}`);
         continue;
@@ -176,6 +194,9 @@ function validateDecisionLedgers(ledgerDir) {
     ok: errors.length === 0,
     rows,
     files: decisionFiles,
+    scopedFiles: decisionFiles.filter(file => !ignoredFiles.includes(file)),
+    ignoredFiles,
+    ignoredRows,
     tradeIds: Array.from(tradeIds).sort(),
     errors,
   };
@@ -354,15 +375,10 @@ function validateMatrixRun({ matrixReportPath, outputDir = null, dataParityStamp
     totalTradesFromWorkers += worker.trades;
   }
 
-  const ledgerDir = path.join(matrixDir, 'ledger');
-  const schema = validateDecisionLedgers(ledgerDir);
   const matrixTradeCount = (matrix.results || []).reduce((sum, result) => sum + (finiteNumber(result.trades) ?? 0), 0);
   const lifecycleErrors = [];
   if (matrixTradeCount !== totalTradesFromWorkers) {
     lifecycleErrors.push(`matrix trades ${matrixTradeCount} != worker trade rows ${totalTradesFromWorkers}`);
-  }
-  if (matrixTradeCount > 0 && schema.files.length === 0) {
-    lifecycleErrors.push('no isolated decision ledger files found for run');
   }
   const reportTradeIds = new Set();
   const windowEndTradeIds = new Set();
@@ -388,20 +404,49 @@ function validateMatrixRun({ matrixReportPath, outputDir = null, dataParityStamp
       lifecycleErrors.push(`${missingReportTradeIds.length - 20} additional report tradeId omissions`);
     }
   }
+  const expectedLedgerTradeIds = new Set([...reportTradeIds, ...windowEndTradeIds]);
+  const ledgerDir = path.join(matrixDir, 'ledger');
+  const schema = validateDecisionLedgers(ledgerDir, {
+    expectedTradeIds: expectedLedgerTradeIds,
+    scopeToExpectedTradeIds: true,
+  });
+  if (matrixTradeCount > 0 && schema.scopedFiles.length === 0) {
+    lifecycleErrors.push('no isolated decision ledger files found for run');
+  }
+  const failedConfigs = Array.isArray(matrix.failed) ? matrix.failed : [];
+  if (failedConfigs.length > 0) {
+    const sample = failedConfigs.slice(0, 20).map(result => {
+      const label = result.name || result.strategy || 'unknown';
+      return `${label}: ${result.error || `exitCode=${result.exitCode ?? 'unknown'}`}`;
+    });
+    lifecycleErrors.push(`matrix has ${failedConfigs.length} failed config(s): ${sample.join('; ')}`);
+  }
   const ledgerTradeIds = new Set(schema.tradeIds || []);
   const missingLedgerTradeIds = Array.from(reportTradeIds).filter(tradeId => !ledgerTradeIds.has(tradeId));
-  const orphanLedgerTradeIds = Array.from(ledgerTradeIds).filter(tradeId => !reportTradeIds.has(tradeId) && !windowEndTradeIds.has(tradeId));
   if (missingLedgerTradeIds.length > 0) {
     lifecycleErrors.push(`decision ledger missing ${missingLedgerTradeIds.length} report trade group(s): ${missingLedgerTradeIds.slice(0, 20).join(', ')}`);
   }
-  if (orphanLedgerTradeIds.length > 0) {
+  const strictLedgerOrphanCheck = workerReports.length <= 1;
+  const orphanLedgerTradeIds = strictLedgerOrphanCheck
+    ? Array.from(ledgerTradeIds).filter(tradeId => !reportTradeIds.has(tradeId) && !windowEndTradeIds.has(tradeId))
+    : [];
+  if (strictLedgerOrphanCheck && orphanLedgerTradeIds.length > 0) {
     lifecycleErrors.push(`decision ledger has ${orphanLedgerTradeIds.length} orphan trade group(s): ${orphanLedgerTradeIds.slice(0, 20).join(', ')}`);
   }
 
   const dataParity = validateDataParityStamp(dataParityStamp, matrix);
   const checks = {
     accounting: { ok: workerReports.every(report => report.checks.accounting.ok), failed: workerReports.filter(report => !report.checks.accounting.ok).map(report => report.reportPath) },
-    lifecycle: { ok: lifecycleErrors.length === 0 && workerReports.every(report => report.checks.lifecycle.ok), errors: lifecycleErrors },
+    lifecycle: {
+      ok: lifecycleErrors.length === 0 && workerReports.every(report => report.checks.lifecycle.ok),
+      errors: lifecycleErrors,
+      ledgerTradeGroups: ledgerTradeIds.size,
+      reportTradeGroups: reportTradeIds.size,
+      strictLedgerOrphanCheck,
+      skippedLedgerOrphanCheckReason: strictLedgerOrphanCheck
+        ? null
+        : 'matrix row contains multiple worker reports in one shared artifact ledger; global ledger extras cannot be assigned to one report without run identity',
+    },
     fields: { ok: workerReports.every(report => report.checks.fields.ok), failed: workerReports.filter(report => !report.checks.fields.ok).map(report => ({ reportPath: report.reportPath, errors: report.checks.fields.errors.slice(0, 20) })) },
     coverage: { ok: workerReports.every(report => report.checks.coverage.ok), failed: workerReports.filter(report => !report.checks.coverage.ok).map(report => ({ reportPath: report.reportPath, errors: report.checks.coverage.errors })) },
     schema,

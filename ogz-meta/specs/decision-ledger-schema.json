@@ -232,7 +232,7 @@
         "timeframe": {"type": "string"},
         "createdAt": {"type": "integer"},
         "signalConfidence": {"type": "number"},
-        "_validated": {"type": "string", "format": "date"},
+        "_validated": {"type": ["string", "null"], "format": "date"},
         "validatedDate": {"type": "string", "format": "date"},
         "stopLossPercent": {"type": "number"},
         "takeProfitPercent": {"type": "number"},
