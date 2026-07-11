@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Risk And TTP Config Ownership (2026-07-11)
+
+- Moved Family 3 risk, bypass, and TTP guard values into explicit launch-profile config ownership so backtest, paper, and live profiles declare their posture instead of inheriting silent env defaults.
+- Changed stale TTP start-date, start-equity, and earnings JSON handling from entry refusal to operational quarantine: trading continues, the stale fields emit loud trace/dashboard evidence, and trade-birth ledgers carry `operationalQuarantine` with `trusted: false`.
+- Added focused coverage for stale TTP quarantine, ledger persistence, config-profile risk ownership, backtest override scoping, and canonical P0 parity.
+
 ### Strategy Lab Dossier Generator (2026-07-02)
 
 - Added `tools/strategy-lab.js` to turn explicit-fee matrix and worker backtest reports into per-strategy dossiers with sample gates, exit/session/confidence slices, hold-time asymmetry, and roster verdict candidates.
