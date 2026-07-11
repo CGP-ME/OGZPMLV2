@@ -57,11 +57,23 @@ function parseBacktestConfigOverrides(raw, options = {}) {
 function applyBacktestConfigOverrides(raw, options = {}) {
   const overrides = parseBacktestConfigOverrides(raw, options);
   if (!overrides) return null;
-  const { tradingConfig } = options;
-  if (!tradingConfig || typeof tradingConfig.setOverrides !== 'function') {
-    throw new Error('[BACKTEST-CONFIG-OVERRIDES] tradingConfig.setOverrides is required');
+  const {
+    tradingConfig,
+    isBacktest = false,
+    executionMode = null,
+    candleSource = null,
+    liveTrading = false,
+  } = options;
+  if (!tradingConfig || typeof tradingConfig.applyBacktestConfigOverrides !== 'function') {
+    throw new Error('[BACKTEST-CONFIG-OVERRIDES] tradingConfig.applyBacktestConfigOverrides is required');
   }
-  tradingConfig.setOverrides(overrides);
+  tradingConfig.applyBacktestConfigOverrides(overrides, {
+    source: 'BacktestConfigOverrides',
+    isBacktest,
+    executionMode,
+    candleSource,
+    liveTrading,
+  });
   return overrides;
 }
 

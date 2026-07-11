@@ -1788,13 +1788,15 @@ class OGZPrimeV14Bot {
     console.log('Starting OGZ Prime V14 MERGED...\n');
 
     // ENV FINGERPRINT — print all trading-relevant env vars for reproducibility
+    const runtimePipeline = ConfigLoader.get('pipeline') || {};
+    const runtimeSoloFilter = ConfigLoader.get('strategies.soloFilter') || [];
     console.log('═'.repeat(60));
     console.log('ENV FINGERPRINT:');
-    console.log(`  SOLO_STRATEGY=${process.env.SOLO_STRATEGY || 'all'}`);
-    console.log(`  EXECUTION_MODE=${process.env.EXECUTION_MODE || 'paper'}`);
-    console.log(`  CANDLE_SOURCE=${process.env.CANDLE_SOURCE || 'live'}`);
-    console.log(`  CANDLE_DATA_FILE=${process.env.CANDLE_DATA_FILE || 'default'}`);
-    console.log(`  DIRECTION_FILTER=${process.env.DIRECTION_FILTER || 'both'}`);
+    console.log(`  STRATEGY_SOLO_FILTER=${Array.isArray(runtimeSoloFilter) && runtimeSoloFilter.length > 0 ? runtimeSoloFilter.join(',') : 'all'}`);
+    console.log(`  EXECUTION_MODE=${resolvedConfig.config.mode.execution}`);
+    console.log(`  CANDLE_SOURCE=${resolvedConfig.config.mode.candleSource}`);
+    console.log(`  CANDLE_DATA_FILE=${resolvedConfig.config.backtest.candleDataFile || 'default'}`);
+    console.log(`  DIRECTION_FILTER=${runtimePipeline.directionFilter}`);
     console.log(`  BACKTEST_MODE=${process.env.BACKTEST_MODE || 'false'}`);
     console.log(`  BACKTEST_FAST=${process.env.BACKTEST_FAST || 'false'}`);
     console.log(`  BACKTEST_NO_PATTERN_SAVE=${process.env.BACKTEST_NO_PATTERN_SAVE || 'false'}`);
@@ -1802,10 +1804,10 @@ class OGZPrimeV14Bot {
     console.log(`  FEE_TAKER=${process.env.FEE_TAKER || 'default'}`);
     console.log(`  ACCOUNT_DRAWDOWN_BYPASS=${process.env.ACCOUNT_DRAWDOWN_BYPASS || 'false'}`);
     console.log(`  ENABLE_TRAI=${process.env.ENABLE_TRAI || 'true'}`);
-    console.log(`  ENABLE_SHORTS=${process.env.ENABLE_SHORTS || 'false'}`);
-    console.log(`  ENABLE_RSI=${process.env.ENABLE_RSI || 'true'}`);
-    console.log(`  ENABLE_EMA=${process.env.ENABLE_EMA || 'true'}`);
-    console.log(`  ENABLE_SMS=${process.env.ENABLE_SMS || 'false'}`);
+    console.log(`  ENABLE_SHORTS=${ConfigLoader.get('features.enableShorts')}`);
+    console.log(`  ENABLE_RSI=${runtimePipeline.enableRSI}`);
+    console.log(`  ENABLE_EMA=${runtimePipeline.enableEMACrossover}`);
+    console.log(`  ENABLE_SMS=${runtimePipeline.enableSmartMoneySweep}`);
     console.log(`  SMS_VP_RTH_ONLY=${process.env.SMS_VP_RTH_ONLY || 'true'}`);
     console.log('═'.repeat(60));
     console.log('');

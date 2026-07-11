@@ -2,6 +2,39 @@
 
 describe('StrategyOrchestrator confidence attribution', () => {
   const originalEnv = process.env;
+  let configOverrides;
+
+  function setConfigOverrides(overrides = {}) {
+    configOverrides = {
+      ...configOverrides,
+      ...overrides,
+      'orchestrator.mtfConfluenceBooster': {
+        ...(configOverrides?.['orchestrator.mtfConfluenceBooster'] || {}),
+        ...(overrides['orchestrator.mtfConfluenceBooster'] || {}),
+      },
+    };
+  }
+
+  function installConfigMock(overrides = {}) {
+    configOverrides = {
+      'orchestrator.mtfConfluenceBooster': {
+        enabled: true,
+        minScore: 0.1,
+        minConfidence: 0.1,
+        strengthMultiplier: 1,
+        maxMultiplier: 2,
+      },
+    };
+    setConfigOverrides(overrides);
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    const realGet = ConfigLoader.get.bind(ConfigLoader);
+    jest.spyOn(ConfigLoader, 'get').mockImplementation((path, defaultValue) => {
+      if (path === 'orchestrator.mtfConfluenceBooster') {
+        return { ...(realGet(path, defaultValue) || {}), ...(configOverrides[path] || {}) };
+      }
+      return realGet(path, defaultValue);
+    });
+  }
 
   beforeEach(() => {
     jest.resetModules();
@@ -11,12 +44,8 @@ describe('StrategyOrchestrator confidence attribution', () => {
       ATR_FILTER_ENABLED: 'true',
       ATR_MIN_PERCENT: '0.1',
       MIN_STRATEGY_CONFIDENCE: '0',
-      ENABLE_MTF_CONFLUENCE_BOOSTER: 'true',
-      MTF_BOOSTER_MIN_SCORE: '0.1',
-      MTF_BOOSTER_MIN_CONFIDENCE: '0.1',
-      MTF_BOOSTER_STRENGTH_MULT: '1',
-      MTF_BOOSTER_MAX_MULT: '2',
     };
+    installConfigMock();
   });
 
   afterEach(() => {
@@ -113,7 +142,9 @@ describe('StrategyOrchestrator confidence attribution', () => {
   });
 
   test('keeps ranking score private while exposing capped public confidence', () => {
-    process.env.ENABLE_MTF_CONFLUENCE_BOOSTER = 'false';
+    setConfigOverrides({
+      'orchestrator.mtfConfluenceBooster': { enabled: false },
+    });
     const ConfigLoader = require('../foundation/ConfigLoader');
     ConfigLoader.BASE_CONFIG.regimeBoosts.ranging.PublicBoundaryProbe = 1.5;
 
@@ -154,7 +185,9 @@ describe('StrategyOrchestrator confidence attribution', () => {
   });
 
   test('records candidates rejected by ATR before winner selection', () => {
-    process.env.ENABLE_MTF_CONFLUENCE_BOOSTER = 'false';
+    setConfigOverrides({
+      'orchestrator.mtfConfluenceBooster': { enabled: false },
+    });
     const ConfigLoader = require('../foundation/ConfigLoader');
     ConfigLoader.BASE_CONFIG.exitContracts.HighAtrProbe = {
       ...ConfigLoader.BASE_CONFIG.exitContracts.default,

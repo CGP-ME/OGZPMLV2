@@ -70,6 +70,7 @@ const CANONICAL_ENV = Object.freeze({
 
 const P0_TUNING_PROFILE = 'current-eval';
 const P0_FEE_PROFILE = 'ttp_real';
+const P0_LAUNCH_PROFILE = 'backtest-p0';
 
 const PROFILES = {
   fast: {
@@ -136,6 +137,7 @@ function buildP0RunSpec(profile, logTag, runStamp = buildRunStamp(), options = {
     stockMode: true,
     configEnv: CANONICAL_ENV,
     instrumentEnv,
+    launchProfileName: P0_LAUNCH_PROFILE,
     profileName: tuningProfile.name,
     feeProfileName,
   });

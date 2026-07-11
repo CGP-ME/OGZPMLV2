@@ -62,6 +62,142 @@ function configuredValue(configPath, fallback = undefined) {
   return value === undefined ? fallback : value;
 }
 
+function readConfiguredPath(root, configPath) {
+  return configPath.split('.').reduce((current, part) => (
+    current && Object.prototype.hasOwnProperty.call(current, part) ? current[part] : undefined
+  ), root);
+}
+
+function cloneConfiguredObject(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function requiredLaunchProfileValue(configPath) {
+  const profileName = activeLaunchProfileContext?.profileName;
+  const profile = activeLaunchProfileContext?.profile;
+  if (!profileName || !profile) {
+    throw new Error(`[ConfigLoader] launch profile context missing while reading ${configPath}`);
+  }
+  const value = readConfiguredPath(profile, configPath);
+  if (value === undefined) {
+    throw new Error(`[ConfigLoader] config/trading.config.json launchProfiles.${profileName}.${configPath} is required`);
+  }
+  return {
+    value,
+    source: `config:launchProfiles.${profileName}.${configPath}`,
+  };
+}
+
+function requiredLaunchProfileBool(configPath) {
+  const result = requiredLaunchProfileValue(configPath);
+  if (typeof result.value !== 'boolean') {
+    throw new Error(`[ConfigLoader] config/trading.config.json ${result.source.slice('config:'.length)} must be a boolean`);
+  }
+  return result;
+}
+
+function requiredLaunchProfileString(configPath, allowedValues = null) {
+  const result = requiredLaunchProfileValue(configPath);
+  const value = typeof result.value === 'string' ? result.value.trim() : '';
+  if (!value) {
+    throw new Error(`[ConfigLoader] config/trading.config.json ${result.source.slice('config:'.length)} must be a non-empty string`);
+  }
+  if (allowedValues && !allowedValues.has(value)) {
+    throw new Error(
+      `[ConfigLoader] config/trading.config.json ${result.source.slice('config:'.length)} must be one of ${Array.from(allowedValues).join(', ')}`
+    );
+  }
+  return { value, source: result.source };
+}
+
+function requiredLaunchProfileStringList(configPath) {
+  const result = requiredLaunchProfileValue(configPath);
+  if (!Array.isArray(result.value)) {
+    throw new Error(`[ConfigLoader] config/trading.config.json ${result.source.slice('config:'.length)} must be an array`);
+  }
+  const values = result.value.map(item => String(item).trim()).filter(Boolean);
+  if (values.length !== result.value.length) {
+    throw new Error(`[ConfigLoader] config/trading.config.json ${result.source.slice('config:'.length)} cannot contain blank strategy names`);
+  }
+  return { value: values, source: result.source };
+}
+
+function requiredLaunchProfilePlainObject(configPath) {
+  const result = requiredLaunchProfileValue(configPath);
+  if (!result.value || typeof result.value !== 'object' || Array.isArray(result.value)) {
+    throw new Error(`[ConfigLoader] config/trading.config.json ${result.source.slice('config:'.length)} must be an object`);
+  }
+  return { value: cloneConfiguredObject(result.value), source: result.source };
+}
+
+function validateMtfBoosterConfig(value, sourcePath) {
+  const numericFields = [
+    'minScore',
+    'minConfidence',
+    'strengthMultiplier',
+    'maxMultiplier',
+    'conflictMultiplier',
+  ];
+  const boolFields = [
+    'enabled',
+    'penalizeConflicts',
+    'boostMtfCandidate',
+  ];
+
+  for (const field of numericFields) {
+    if (!Number.isFinite(value[field])) {
+      throw new Error(`[ConfigLoader] config/trading.config.json ${sourcePath}.${field} must be a finite number`);
+    }
+  }
+  for (const field of boolFields) {
+    if (typeof value[field] !== 'boolean') {
+      throw new Error(`[ConfigLoader] config/trading.config.json ${sourcePath}.${field} must be a boolean`);
+    }
+  }
+  return value;
+}
+
+function requiredLaunchProfileMtfBooster() {
+  const result = requiredLaunchProfilePlainObject('confluence.mtfBooster');
+  return {
+    value: validateMtfBoosterConfig(result.value, result.source.slice('config:'.length)),
+    source: result.source,
+  };
+}
+
+function requiredLaunchProfileStrategyMtf() {
+  const result = requiredLaunchProfilePlainObject('confluence.strategyMtf');
+  if (typeof result.value.enabled !== 'boolean') {
+    throw new Error(`[ConfigLoader] config/trading.config.json ${result.source.slice('config:'.length)}.enabled must be a boolean`);
+  }
+  return result;
+}
+
+function configuredBoolResult(configPath) {
+  return {
+    value: requiredConfiguredBool(configPath),
+    source: `config:${configPath}`,
+  };
+}
+
+function configuredNumberResult(configPath) {
+  return {
+    value: requiredConfiguredNumber(configPath),
+    source: `config:${configPath}`,
+  };
+}
+
+function configuredValueResult(configPath) {
+  const value = readConfiguredPath(tradingConfigFile, configPath);
+  if (value === undefined) {
+    throw new Error(`[ConfigLoader] config/trading.config.json ${configPath} is required`);
+  }
+  return {
+    value,
+    source: `config:${configPath}`,
+  };
+}
+
 const LIVE_MIN_TRADE_CONFIDENCE_FLOOR = requiredConfiguredNumber('confidence.minTradeConfidence');
 
 // ═══════════════════════════════════════════════════════════════
@@ -144,6 +280,18 @@ function envStringList(key, fallback) {
   return { value: fallback, source: 'default' };
 }
 
+function configStringListWithBacktestEnvAlias(configPath, envKey) {
+  const configured = requiredLaunchProfileStringList(configPath);
+  const val = envSource()[envKey];
+  if (activeLaunchProfileContext?.mode === 'backtest' && val !== undefined && val !== '') {
+    return {
+      value: String(val).split(',').map(item => item.trim()).filter(Boolean),
+      source: valueSource(envKey),
+    };
+  }
+  return configured;
+}
+
 function defaultJournalDataDir(dataDir) {
   const root = dataDir || path.join(process.cwd(), 'data');
   return path.join(root, 'journal');
@@ -202,6 +350,7 @@ function applyTuningProfileEnv(sourceEnv, sourceOverrides = {}) {
 }
 
 const VALID_LAUNCH_MODES = Object.freeze(new Set(['live', 'paper', 'backtest']));
+const VALID_DIRECTION_FILTERS = Object.freeze(new Set(['both', 'long_only', 'short_only']));
 
 function requireLaunchProfiles() {
   const launchProfiles = tradingConfigFile.launchProfiles;
@@ -257,6 +406,7 @@ function resolveLaunchProfile(sourceEnv, launchProfiles = requireLaunchProfiles(
   return {
     profileName,
     profileSource: source,
+    profile,
     mode,
     confirmLive: profile.confirmLive,
   };
@@ -478,6 +628,8 @@ function buildConfig() {
         'MTF_TIMEFRAMES',
         configuredValue('orchestrator.mtfTimeframes', ['1m', '5m', '15m', '1h', '4h'])
       )),
+      mtfConfluenceBooster: track('orchestrator.mtfConfluenceBooster', requiredLaunchProfileMtfBooster()),
+      strategyMtfConfluence: track('orchestrator.strategyMtfConfluence', requiredLaunchProfileStrategyMtf()),
     },
 
     // ─── EXIT PARAMETERS ───
@@ -624,16 +776,33 @@ function buildConfig() {
 
     // ─── PIPELINE TOGGLES ───
     strategies: {
-      enableRSI: track('strategies.enableRSI', envBool('ENABLE_RSI', true)),
-      enableMADynamicSR: track('strategies.enableMADynamicSR', envBool('ENABLE_MASR', true)),
-      enableEMACrossover: track('strategies.enableEMACrossover', envBool('ENABLE_EMA', true)),
-      enableLiquiditySweep: track('strategies.enableLiquiditySweep', envBool('ENABLE_LIQSWEEP', true)),
-      enableBreakRetest: track('strategies.enableBreakRetest', envBool('ENABLE_BREAKRETEST', requiredConfiguredBool('pipeline.enableBreakRetest'))),
-      enableMarketRegime: track('strategies.enableMarketRegime', envBool('ENABLE_REGIME', requiredConfiguredBool('pipeline.enableMarketRegime'))),
-      enableMultiTimeframe: track('strategies.enableMultiTimeframe', envBool('ENABLE_MTF', true)),
-      enableOGZTPO: track('strategies.enableOGZTPO', envBool('ENABLE_TPO', true)),
-      enableORB: track('strategies.enableORB', envBool('ENABLE_ORB', requiredConfiguredBool('pipeline.enableOpeningRangeBreakout'))),
+      soloFilter: track('strategies.soloFilter', configStringListWithBacktestEnvAlias('strategies.soloFilter', 'SOLO_STRATEGY')),
+      enableRSI: track('strategies.enableRSI', requiredLaunchProfileBool('pipeline.enableRSI')),
+      enableMADynamicSR: track('strategies.enableMADynamicSR', requiredLaunchProfileBool('pipeline.enableMADynamicSR')),
+      enableEMACrossover: track('strategies.enableEMACrossover', requiredLaunchProfileBool('pipeline.enableEMACrossover')),
+      enableLiquiditySweep: track('strategies.enableLiquiditySweep', requiredLaunchProfileBool('pipeline.enableLiquiditySweep')),
+      enableCandlePattern: track('strategies.enableCandlePattern', requiredLaunchProfileBool('pipeline.enableCandlePattern')),
+      enableBreakRetest: track('strategies.enableBreakRetest', requiredLaunchProfileBool('pipeline.enableBreakRetest')),
+      enableMarketRegime: track('strategies.enableMarketRegime', requiredLaunchProfileBool('pipeline.enableMarketRegime')),
+      enableMultiTimeframe: track('strategies.enableMultiTimeframe', requiredLaunchProfileBool('pipeline.enableMultiTimeframe')),
+      enableOGZTPO: track('strategies.enableOGZTPO', requiredLaunchProfileBool('pipeline.enableOGZTPO')),
+      enableORB: track('strategies.enableORB', requiredLaunchProfileBool('pipeline.enableOpeningRangeBreakout')),
+      enableSmartMoneySweep: track('strategies.enableSmartMoneySweep', requiredLaunchProfileBool('pipeline.enableSmartMoneySweep')),
+      enableNoWickImbalance: track('strategies.enableNoWickImbalance', requiredLaunchProfileBool('pipeline.enableNoWickImbalance')),
+      enableDonchianBreakout: track('strategies.enableDonchianBreakout', requiredLaunchProfileBool('pipeline.enableDonchianBreakout')),
+      enablePropSafeEMAPullback: track('strategies.enablePropSafeEMAPullback', requiredLaunchProfileBool('pipeline.enablePropSafeEMAPullback')),
+      enableEMATrendRetest: track('strategies.enableEMATrendRetest', requiredLaunchProfileBool('pipeline.enableEMATrendRetest')),
+      enableRSI2MeanReversion: track('strategies.enableRSI2MeanReversion', requiredLaunchProfileBool('pipeline.enableRSI2MeanReversion')),
+      enableTimeSeriesMomentum: track('strategies.enableTimeSeriesMomentum', requiredLaunchProfileBool('pipeline.enableTimeSeriesMomentum')),
       enableDashboard: track('strategies.enableDashboard', envBool('ENABLE_DASHBOARD', true)),
+    },
+
+    features: {
+      enableShorts: track('features.enableShorts', requiredLaunchProfileBool('features.enableShorts')),
+    },
+
+    pipeline: {
+      directionFilter: track('pipeline.directionFilter', requiredLaunchProfileString('pipeline.directionFilter', VALID_DIRECTION_FILTERS)),
     },
 
     // ─── DASHBOARD OBSERVABILITY ───
@@ -1026,6 +1195,7 @@ function deepFreeze(obj) {
 // ═══════════════════════════════════════════════════════════════
 
 let _cached = null;
+let baseConfigFallbackWarnedPaths = new Set();
 
 function buildSnapshot(sourceEnv = process.env, opts = {}) {
   const envPath = sourceEnv.DOTENV_CONFIG_PATH || '.env';
@@ -1127,6 +1297,7 @@ function _resetForTest() {
   _cached = null;
   activeEnv = process.env;
   activeEnvSources = {};
+  baseConfigFallbackWarnedPaths.clear();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1220,21 +1391,80 @@ const CONFIG_LOADER_RUNTIME_PATHS = Object.freeze({
   'strategyBehavior.atrContracts.trailMultiplier': 'strategyBehavior.atrContracts.trailMultiplier',
   'strategyBehavior.atrContracts.trailingActivationR': 'strategyBehavior.atrContracts.trailingActivationR',
   'orchestrator.mtfTimeframes': 'orchestrator.mtfTimeframes',
+  'orchestrator.mtfConfluenceBooster': 'orchestrator.mtfConfluenceBooster',
+  'orchestrator.strategyMtfConfluence': 'orchestrator.strategyMtfConfluence',
   'trail.atrMultiplier': 'trail.atrMultiplier',
   'trail.minActivation': 'trail.minActivation',
   'trail.trendWiden': 'trail.trendWiden',
   'trail.structureTighten': 'trail.structureTighten',
+  'strategies.soloFilter': 'strategies.soloFilter',
+  'strategies.enableRSI': 'strategies.enableRSI',
+  'strategies.enableMADynamicSR': 'strategies.enableMADynamicSR',
+  'strategies.enableEMACrossover': 'strategies.enableEMACrossover',
+  'strategies.enableLiquiditySweep': 'strategies.enableLiquiditySweep',
+  'strategies.enableCandlePattern': 'strategies.enableCandlePattern',
+  'strategies.enableBreakRetest': 'strategies.enableBreakRetest',
+  'strategies.enableMarketRegime': 'strategies.enableMarketRegime',
+  'strategies.enableMultiTimeframe': 'strategies.enableMultiTimeframe',
+  'strategies.enableOGZTPO': 'strategies.enableOGZTPO',
+  'strategies.enableORB': 'strategies.enableORB',
+  'strategies.enableSmartMoneySweep': 'strategies.enableSmartMoneySweep',
+  'strategies.enableNoWickImbalance': 'strategies.enableNoWickImbalance',
+  'strategies.enableDonchianBreakout': 'strategies.enableDonchianBreakout',
+  'strategies.enablePropSafeEMAPullback': 'strategies.enablePropSafeEMAPullback',
+  'strategies.enableEMATrendRetest': 'strategies.enableEMATrendRetest',
+  'strategies.enableRSI2MeanReversion': 'strategies.enableRSI2MeanReversion',
+  'strategies.enableTimeSeriesMomentum': 'strategies.enableTimeSeriesMomentum',
+  'features.enableShorts': 'features.enableShorts',
   'pipeline.enableRSI': 'strategies.enableRSI',
+  'pipeline.enableMADynamicSR': 'strategies.enableMADynamicSR',
   'pipeline.enableMASR': 'strategies.enableMADynamicSR',
+  'pipeline.enableEMACrossover': 'strategies.enableEMACrossover',
   'pipeline.enableEMA': 'strategies.enableEMACrossover',
   'pipeline.enableLiquiditySweep': 'strategies.enableLiquiditySweep',
+  'pipeline.enableCandlePattern': 'strategies.enableCandlePattern',
   'pipeline.enableBreakRetest': 'strategies.enableBreakRetest',
   'pipeline.enableMarketRegime': 'strategies.enableMarketRegime',
+  'pipeline.enableMultiTimeframe': 'strategies.enableMultiTimeframe',
   'pipeline.enableMTF': 'strategies.enableMultiTimeframe',
+  'pipeline.enableOGZTPO': 'strategies.enableOGZTPO',
   'pipeline.enableTPO': 'strategies.enableOGZTPO',
   'pipeline.enableOpeningRangeBreakout': 'strategies.enableORB',
+  'pipeline.enableSmartMoneySweep': 'strategies.enableSmartMoneySweep',
+  'pipeline.enableNoWickImbalance': 'strategies.enableNoWickImbalance',
+  'pipeline.enableDonchianBreakout': 'strategies.enableDonchianBreakout',
+  'pipeline.enablePropSafeEMAPullback': 'strategies.enablePropSafeEMAPullback',
+  'pipeline.enableEMATrendRetest': 'strategies.enableEMATrendRetest',
+  'pipeline.enableRSI2MeanReversion': 'strategies.enableRSI2MeanReversion',
+  'pipeline.enableTimeSeriesMomentum': 'strategies.enableTimeSeriesMomentum',
+  'pipeline.directionFilter': 'pipeline.directionFilter',
   'pipeline.enableDashboard': 'strategies.enableDashboard',
   'startingBalance': 'backtest.initialBalance',
+});
+
+const LAUNCH_PROFILE_RUNTIME_PATHS = Object.freeze({
+  'strategies.soloFilter': 'strategies.soloFilter',
+  'strategies.enableRSI': 'pipeline.enableRSI',
+  'strategies.enableMADynamicSR': 'pipeline.enableMADynamicSR',
+  'strategies.enableEMACrossover': 'pipeline.enableEMACrossover',
+  'strategies.enableLiquiditySweep': 'pipeline.enableLiquiditySweep',
+  'strategies.enableCandlePattern': 'pipeline.enableCandlePattern',
+  'strategies.enableBreakRetest': 'pipeline.enableBreakRetest',
+  'strategies.enableMarketRegime': 'pipeline.enableMarketRegime',
+  'strategies.enableMultiTimeframe': 'pipeline.enableMultiTimeframe',
+  'strategies.enableOGZTPO': 'pipeline.enableOGZTPO',
+  'strategies.enableORB': 'pipeline.enableOpeningRangeBreakout',
+  'strategies.enableSmartMoneySweep': 'pipeline.enableSmartMoneySweep',
+  'strategies.enableNoWickImbalance': 'pipeline.enableNoWickImbalance',
+  'strategies.enableDonchianBreakout': 'pipeline.enableDonchianBreakout',
+  'strategies.enablePropSafeEMAPullback': 'pipeline.enablePropSafeEMAPullback',
+  'strategies.enableEMATrendRetest': 'pipeline.enableEMATrendRetest',
+  'strategies.enableRSI2MeanReversion': 'pipeline.enableRSI2MeanReversion',
+  'strategies.enableTimeSeriesMomentum': 'pipeline.enableTimeSeriesMomentum',
+  'features.enableShorts': 'features.enableShorts',
+  'pipeline.directionFilter': 'pipeline.directionFilter',
+  'orchestrator.mtfConfluenceBooster': 'confluence.mtfBooster',
+  'orchestrator.strategyMtfConfluence': 'confluence.strategyMtf',
 });
 
 function readObjectPath(root, path) {
@@ -1247,15 +1477,38 @@ function readObjectPath(root, path) {
   return value;
 }
 
+function readLaunchProfileRuntimeValue(loaderPath) {
+  const launchPath = LAUNCH_PROFILE_RUNTIME_PATHS[loaderPath];
+  if (!launchPath) return CONFIG_LOADER_MISSING;
+  const context = activeLaunchProfileContext || resolveLaunchProfile(process.env);
+  const value = readConfiguredPath(context.profile, launchPath);
+  if (value === undefined) {
+    throw new Error(`[ConfigLoader] config/trading.config.json launchProfiles.${context.profileName}.${launchPath} is required`);
+  }
+  if (value && typeof value === 'object') return cloneConfiguredObject(value);
+  return value;
+}
+
 function readConfigLoaderRuntimeValue(path) {
   const loaderPath = CONFIG_LOADER_RUNTIME_PATHS[path];
   if (!loaderPath) return CONFIG_LOADER_MISSING;
 
   const loaded = _cached;
-  if (!loaded || !loaded.config) return CONFIG_LOADER_MISSING;
+  if (loaded && loaded.config) {
+    const value = readObjectPath(loaded.config, loaderPath);
+    if (value !== undefined) return value;
+  }
 
-  const value = readObjectPath(loaded.config, loaderPath);
-  return value === undefined ? CONFIG_LOADER_MISSING : value;
+  return readLaunchProfileRuntimeValue(loaderPath);
+}
+
+function warnBaseConfigCompatibilityFallback(path) {
+  if (!path || baseConfigFallbackWarnedPaths.has(path)) return;
+  baseConfigFallbackWarnedPaths.add(path);
+  console.warn(
+    `[ConfigLoader] Compatibility BASE_CONFIG fallback used for '${path}'. ` +
+    'Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.'
+  );
 }
 
 function hasConfigLoaderSnapshot() {
@@ -2562,19 +2815,6 @@ const BASE_CONFIG = {
     tpoStrengthMultiplier: env('TPO_STRENGTH_MULT', 10),    // Scale 0.03-0.1 -> 0.3-1.0
 
     mtfTimeframes: configValue('orchestrator.mtfTimeframes', ['1m', '5m', '15m', '1h', '4h']),
-    mtfConfluenceBooster: {
-      enabled: envBool('ENABLE_MTF_CONFLUENCE_BOOSTER', true),
-      minScore: env('MTF_BOOSTER_MIN_SCORE', 0.30),
-      minConfidence: env('MTF_BOOSTER_MIN_CONFIDENCE', 0.45),
-      strengthMultiplier: env('MTF_BOOSTER_STRENGTH_MULT', 0.20),
-      maxMultiplier: env('MTF_BOOSTER_MAX_MULT', 1.15),
-      conflictMultiplier: env('MTF_BOOSTER_CONFLICT_MULT', 0.88),
-      penalizeConflicts: envBool('MTF_BOOSTER_PENALIZE_CONFLICTS', true),
-      boostMtfCandidate: envBool('MTF_BOOSTER_BOOST_MTF_CANDIDATE', false),
-    },
-    strategyMtfConfluence: {
-      enabled: envBool('ENABLE_STRATEGY_MTF_CONFLUENCE', true),
-    },
     emaCrossoverMtf: {
       hourlyTrendVetoMultiplier: env('EMA_MTF_HOURLY_TREND_VETO_MULT', 0.95),
       fourHourMacdBoostMultiplier: env('EMA_MTF_4H_MACD_BOOST_MULT', 1.15),
@@ -3054,7 +3294,7 @@ const BASE_CONFIG = {
     enableLearning: envBool('ENABLE_LEARNING', true),
     enableArbitrage: envBool('ENABLE_ARBITRAGE', true),
     enableHedging: envBool('ENABLE_HEDGING', true),
-    enableShorts: envBool('ENABLE_SHORTS', false),               // DISABLED - no margin
+    enableShorts: requiredConfiguredBool('features.enableShorts'),
   },
 
   // =========================================================================
@@ -3062,23 +3302,23 @@ const BASE_CONFIG = {
   // =========================================================================
   pipeline: {
     // Strategy toggles
-    enableRSI: envBool('ENABLE_RSI', true),
-    enableMADynamicSR: envBool('ENABLE_MASR', true),
-    enableEMACrossover: envBool('ENABLE_EMA', true),
-    enableLiquiditySweep: envBool('ENABLE_LIQSWEEP', true),
-    enableCandlePattern: envBool('ENABLE_CANDLEPATTERN', true),
-    enableBreakRetest: envBool('ENABLE_BREAKRETEST', true),
-    enableMarketRegime: envBool('ENABLE_REGIME', false),  // DEPRECATED: now orchestrator pre-filter
-    enableMultiTimeframe: envBool('ENABLE_MTF', true),
-    enableOGZTPO: envBool('ENABLE_TPO', true),
-    enableOpeningRangeBreakout: envBool('ENABLE_ORB', true),
-    enableSmartMoneySweep: envBool('ENABLE_SMS', true),
-    enableNoWickImbalance: envBool('ENABLE_NOWICK', true),
-    enableDonchianBreakout: envBool('ENABLE_DONCHIAN', true),
-    enablePropSafeEMAPullback: envBool('ENABLE_PROPSAFE_EMA', true),
-    enableEMATrendRetest: envBool('ENABLE_EMA_TREND_RETEST', true),
-    enableRSI2MeanReversion: envBool('ENABLE_RSI2_MR', true),
-    enableTimeSeriesMomentum: envBool('ENABLE_TSMOM', true),
+    enableRSI: requiredConfiguredBool('pipeline.enableRSI'),
+    enableMADynamicSR: requiredConfiguredBool('pipeline.enableMADynamicSR'),
+    enableEMACrossover: requiredConfiguredBool('pipeline.enableEMACrossover'),
+    enableLiquiditySweep: requiredConfiguredBool('pipeline.enableLiquiditySweep'),
+    enableCandlePattern: requiredConfiguredBool('pipeline.enableCandlePattern'),
+    enableBreakRetest: requiredConfiguredBool('pipeline.enableBreakRetest'),
+    enableMarketRegime: requiredConfiguredBool('pipeline.enableMarketRegime'),
+    enableMultiTimeframe: requiredConfiguredBool('pipeline.enableMultiTimeframe'),
+    enableOGZTPO: requiredConfiguredBool('pipeline.enableOGZTPO'),
+    enableOpeningRangeBreakout: requiredConfiguredBool('pipeline.enableOpeningRangeBreakout'),
+    enableSmartMoneySweep: requiredConfiguredBool('pipeline.enableSmartMoneySweep'),
+    enableNoWickImbalance: requiredConfiguredBool('pipeline.enableNoWickImbalance'),
+    enableDonchianBreakout: requiredConfiguredBool('pipeline.enableDonchianBreakout'),
+    enablePropSafeEMAPullback: requiredConfiguredBool('pipeline.enablePropSafeEMAPullback'),
+    enableEMATrendRetest: requiredConfiguredBool('pipeline.enableEMATrendRetest'),
+    enableRSI2MeanReversion: requiredConfiguredBool('pipeline.enableRSI2MeanReversion'),
+    enableTimeSeriesMomentum: requiredConfiguredBool('pipeline.enableTimeSeriesMomentum'),
 
     // Component toggles
     enableRiskManager: envBool('ENABLE_RISK', true),
@@ -3095,7 +3335,7 @@ const BASE_CONFIG = {
     candleFile: env('CANDLE_FILE', 'tuning/full-45k.json'),
 
     // Direction filter: 'long_only' | 'both'
-    directionFilter: env('DIRECTION_FILTER', 'both'),
+    directionFilter: configuredValue('pipeline.directionFilter'),
 
     // Position mode: 'single' | 'multi'
     positionMode: env('POSITION_MODE', 'single'),
@@ -3119,6 +3359,47 @@ let activeTuningProfile = null;
 let activeTuningProfileAppliedAt = null;
 let activeTuningProfileSource = null;
 let activeTuningProfileOverridePaths = new Set();
+
+function isJestRuntime() {
+  return process.env.JEST_WORKER_ID !== undefined;
+}
+
+function isFileBackedBacktestContext(options = {}) {
+  return options.isBacktest === true &&
+    String(options.executionMode || '').toLowerCase() === 'backtest' &&
+    String(options.candleSource || '').toLowerCase() === 'file' &&
+    options.liveTrading !== true;
+}
+
+function isValidatedBacktestOverrideContext(options = {}) {
+  return options.source === 'BacktestConfigOverrides' &&
+    isFileBackedBacktestContext(options);
+}
+
+function assertJestOverrideMutationAllowed() {
+  if (isJestRuntime()) return;
+
+  throw new Error(
+    '[ConfigLoader] setOverrides() is test-only; use BacktestConfigOverrides for file-backed backtest tuning'
+  );
+}
+
+function assertBacktestOverrideMutationAllowed(options = {}) {
+  if (isValidatedBacktestOverrideContext(options)) return;
+
+  throw new Error(
+    '[ConfigLoader] applyBacktestConfigOverrides() requires validated file-backed EXECUTION_MODE=backtest identity'
+  );
+}
+
+function assertTuningProfileMutationAllowed(options = {}) {
+  if (isJestRuntime()) return;
+  if (isFileBackedBacktestContext(options)) return;
+
+  throw new Error(
+    '[ConfigLoader] applyTuningProfile() requires file-backed EXECUTION_MODE=backtest identity'
+  );
+}
 
 function isLiveRuntimeEnv() {
   if (_cached?.config?.mode) {
@@ -3264,6 +3545,10 @@ class ConfigLoader {
       return activeOverrides[path];
     }
 
+    if (!path.includes('.') && path === 'pipeline') {
+      return ConfigLoader.getSection(path);
+    }
+
     const configLoaderValue = readConfigLoaderRuntimeValue(path);
     if (configLoaderValue !== CONFIG_LOADER_MISSING) {
       return configLoaderValue;
@@ -3279,6 +3564,7 @@ class ConfigLoader {
     if (!path.includes('.')) {
       const section = BASE_CONFIG[path];
       if (section && typeof section === 'object' && !Array.isArray(section)) {
+        warnBaseConfigCompatibilityFallback(path);
         return ConfigLoader.getSection(path);
       }
     }
@@ -3294,7 +3580,11 @@ class ConfigLoader {
       value = value[part];
     }
 
-    return value !== undefined ? value : defaultValue;
+    if (value !== undefined) {
+      warnBaseConfigCompatibilityFallback(path);
+      return value;
+    }
+    return defaultValue;
   }
 
   /**
@@ -3305,6 +3595,7 @@ class ConfigLoader {
     const hasConfigLoaderOwnedPaths = Object.keys(CONFIG_LOADER_RUNTIME_PATHS)
       .some(path => path.startsWith(`${section}.`));
     if (!base && !hasConfigLoaderOwnedPaths) return undefined;
+    if (base) warnBaseConfigCompatibilityFallback(section);
 
     // Merge any overrides for this section
     const result = base && typeof base === 'object' && !Array.isArray(base) ? { ...base } : {};
@@ -3498,6 +3789,7 @@ class ConfigLoader {
     if (configFrozen) {
       throw new Error('[ConfigLoader] Config is frozen; refusing tuning profile apply');
     }
+    assertTuningProfileMutationAllowed(options);
 
     const {
       requireFlat = false,
@@ -3646,13 +3938,9 @@ class ConfigLoader {
     }
   }
 
-  /**
-   * Set temporary overrides (for backtest/dashboard)
-   * Does NOT modify .env - values only persist until clearOverrides() or process restart
-   */
-  static setOverrides(overrides) {
+  static applyOverrideMap(overrides, source) {
     if (configFrozen) {
-      throw new Error('[ConfigLoader] Config is frozen; refusing setOverrides()');
+      throw new Error(`[ConfigLoader] Config is frozen; refusing ${source}`);
     }
 
     // Flatten nested objects to dot notation
@@ -3670,14 +3958,29 @@ class ConfigLoader {
     };
 
     const flatOverrides = flatten(overrides);
-    assertLiveConfidenceOverrideAllowed(flatOverrides, 'setOverrides');
-    assertConfigLoaderOwnedPathsNotOverridden(flatOverrides, 'setOverrides');
+    assertLiveConfidenceOverrideAllowed(flatOverrides, source);
+    assertConfigLoaderOwnedPathsNotOverridden(flatOverrides, source);
     activeOverrides = { ...activeOverrides, ...flatOverrides };
     for (const path of Object.keys(flatOverrides)) {
       activeTuningProfileOverridePaths.delete(path);
     }
 
     console.log(`[ConfigLoader] Overrides set: ${Object.keys(flatOverrides).join(', ')}`);
+  }
+
+  static applyBacktestConfigOverrides(overrides, options = {}) {
+    assertBacktestOverrideMutationAllowed(options);
+    ConfigLoader.applyOverrideMap(overrides, 'applyBacktestConfigOverrides');
+  }
+
+  /**
+   * Jest-only helper for focused tests. Runtime backtest overrides must enter
+   * through core/BacktestConfigOverrides so the allowlist and mode cage stay
+   * in one place.
+   */
+  static setOverrides(overrides) {
+    assertJestOverrideMutationAllowed();
+    ConfigLoader.applyOverrideMap(overrides, 'setOverrides');
   }
 
   /**

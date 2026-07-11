@@ -2,18 +2,69 @@
 
 describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
   const originalEnv = process.env;
+  let configOverrides;
+
+  function mergedOverride(path, defaultValue) {
+    const override = configOverrides?.[path];
+    if (!override || typeof override !== 'object' || Array.isArray(override)) {
+      return override;
+    }
+    return { ...(defaultValue || {}), ...override };
+  }
+
+  function setConfigOverrides(overrides = {}) {
+    configOverrides = {
+      ...configOverrides,
+      ...overrides,
+      pipeline: {
+        ...(configOverrides?.pipeline || {}),
+        ...(overrides.pipeline || {}),
+      },
+      'orchestrator.mtfConfluenceBooster': {
+        ...(configOverrides?.['orchestrator.mtfConfluenceBooster'] || {}),
+        ...(overrides['orchestrator.mtfConfluenceBooster'] || {}),
+      },
+    };
+  }
+
+  function installConfigMock(overrides = {}) {
+    configOverrides = {
+      'strategies.soloFilter': ['MultiTimeframe'],
+      'confidence.minStrategyConfidence': 0,
+      pipeline: { enableMultiTimeframe: true },
+      'orchestrator.strategyMtfConfluence': { enabled: false },
+    };
+    setConfigOverrides(overrides);
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    const realGet = ConfigLoader.get.bind(ConfigLoader);
+    jest.spyOn(ConfigLoader, 'get').mockImplementation((path, defaultValue) => {
+      if (path === 'pipeline') {
+        return { ...realGet(path, defaultValue), ...(configOverrides.pipeline || {}) };
+      }
+      if (path === 'orchestrator.mtfConfluenceBooster') {
+        return mergedOverride(path, realGet(path, defaultValue));
+      }
+      if (path === 'orchestrator.strategyMtfConfluence') {
+        return mergedOverride(path, realGet(path, defaultValue));
+      }
+      if (Object.prototype.hasOwnProperty.call(configOverrides, path)) {
+        return configOverrides[path];
+      }
+      return realGet(path, defaultValue);
+    });
+    return ConfigLoader;
+  }
 
   beforeEach(() => {
     jest.resetModules();
     process.env = {
       ...originalEnv,
       ENABLE_TRAI: 'false',
-      SOLO_STRATEGY: 'MultiTimeframe',
-      ENABLE_MTF: 'true',
       MIN_CANDLES_MTF: '1',
       ATR_FILTER_ENABLED: 'false',
       MIN_STRATEGY_CONFIDENCE: '0',
     };
+    installConfigMock();
   });
 
   afterEach(() => {
@@ -269,11 +320,10 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
 	  });
 
 	  test('can disable MTF booster while still capturing observational MTF state', () => {
-	    process.env = {
-	      ...process.env,
-	      ENABLE_MTF_CONFLUENCE_BOOSTER: 'false',
-	    };
 	    jest.resetModules();
+	    installConfigMock({
+	      'orchestrator.mtfConfluenceBooster': { enabled: false },
+	    });
 		    const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
 		    const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
 	    const confluenceSpy = jest.spyOn(orchestrator, '_getMtfConfluenceForEvaluation');
@@ -308,13 +358,12 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
 	  });
 
 	  test('does not read MTF when both MTF strategy and booster are disabled', () => {
-	    process.env = {
-	      ...process.env,
-	      SOLO_STRATEGY: '',
-	      ENABLE_MTF: 'false',
-	      ENABLE_MTF_CONFLUENCE_BOOSTER: 'false',
-	    };
 	    jest.resetModules();
+	    installConfigMock({
+	      'strategies.soloFilter': [],
+	      pipeline: { enableMultiTimeframe: false },
+	      'orchestrator.mtfConfluenceBooster': { enabled: false },
+	    });
 	    const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
 	    const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
 	    const confluenceSpy = jest.spyOn(orchestrator, '_getMtfConfluenceForEvaluation');
@@ -341,15 +390,16 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
 	    expect(result.mtfConfluenceSnapshot).toBeNull();
 	  });
 
-	  test('default-on booster adjusts aligned and conflicting candidates without mutating raw confidence', () => {
-	    process.env = {
-	      ...process.env,
-	      MTF_BOOSTER_MIN_SCORE: '0.1',
-	      MTF_BOOSTER_MIN_CONFIDENCE: '0.1',
-	      MTF_BOOSTER_STRENGTH_MULT: '1',
-	      MTF_BOOSTER_MAX_MULT: '2',
-	      MTF_BOOSTER_CONFLICT_MULT: '0.5',
-	    };
+		  test('default-on booster adjusts aligned and conflicting candidates without mutating raw confidence', () => {
+		    setConfigOverrides({
+		      'orchestrator.mtfConfluenceBooster': {
+	        minScore: 0.1,
+	        minConfidence: 0.1,
+	        strengthMultiplier: 1,
+	        maxMultiplier: 2,
+	        conflictMultiplier: 0.5,
+	      },
+	    });
 
 	    const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
 	    const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
@@ -389,10 +439,15 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
 	    process.env = {
 	      ...process.env,
 	      MIN_STRATEGY_CONFIDENCE: '0.50',
-	      MTF_BOOSTER_MIN_SCORE: '0.1',
-	      MTF_BOOSTER_MIN_CONFIDENCE: '0.1',
-	      MTF_BOOSTER_CONFLICT_MULT: '0.5',
 	    };
+		    setConfigOverrides({
+		      'confidence.minStrategyConfidence': 0.5,
+		      'orchestrator.mtfConfluenceBooster': {
+	        minScore: 0.1,
+	        minConfidence: 0.1,
+	        conflictMultiplier: 0.5,
+	      },
+	    });
 
 	    const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
 	    const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
@@ -493,15 +548,16 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
 	  });
 
 	  test('uses signed bearish MTF score instead of absolute-value direction', () => {
-	    process.env = {
-	      ...process.env,
-	      ENABLE_MTF_CONFLUENCE_BOOSTER: 'true',
-	      MTF_BOOSTER_MIN_SCORE: '0.1',
-	      MTF_BOOSTER_MIN_CONFIDENCE: '0.1',
-	      MTF_BOOSTER_STRENGTH_MULT: '1',
-	      MTF_BOOSTER_MAX_MULT: '2',
-	      MTF_BOOSTER_CONFLICT_MULT: '0.5',
-	    };
+	    setConfigOverrides({
+	      'orchestrator.mtfConfluenceBooster': {
+	        enabled: true,
+	        minScore: 0.1,
+	        minConfidence: 0.1,
+	        strengthMultiplier: 1,
+	        maxMultiplier: 2,
+	        conflictMultiplier: 0.5,
+	      },
+	    });
 
 	    const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
 	    const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
@@ -533,12 +589,13 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
 	  });
 
 	  test('does not double-ingest MTF candle when standalone MTF and booster share confluence', () => {
-	    process.env = {
-	      ...process.env,
-	      ENABLE_MTF_CONFLUENCE_BOOSTER: 'true',
-	      MTF_BOOSTER_MIN_SCORE: '0.1',
-	      MTF_BOOSTER_MIN_CONFIDENCE: '0.1',
-	    };
+	    setConfigOverrides({
+	      'orchestrator.mtfConfluenceBooster': {
+	        enabled: true,
+	        minScore: 0.1,
+	        minConfidence: 0.1,
+	      },
+	    });
 
 	    const ingestCandle = jest.fn();
 	    const getConfluenceScore = jest.fn(() => ({
@@ -584,14 +641,15 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
 	  });
 
 	  test('leaves structural exit hints unchanged when MTF booster is active', () => {
-	    process.env = {
-	      ...process.env,
-	      ENABLE_MTF_CONFLUENCE_BOOSTER: 'true',
-	      MTF_BOOSTER_MIN_SCORE: '0.1',
-	      MTF_BOOSTER_MIN_CONFIDENCE: '0.1',
-	      MTF_BOOSTER_STRENGTH_MULT: '1',
-	      MTF_BOOSTER_MAX_MULT: '2',
-	    };
+	    setConfigOverrides({
+	      'orchestrator.mtfConfluenceBooster': {
+	        enabled: true,
+	        minScore: 0.1,
+	        minConfidence: 0.1,
+	        strengthMultiplier: 1,
+	        maxMultiplier: 2,
+	      },
+	    });
 
 	    const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
 	    const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });

@@ -70,19 +70,95 @@ describe('BacktestConfigOverrides', () => {
     )).toThrow(/must be negative percent-form/);
   });
 
-  test('applies parsed overrides through ConfigLoader surface', () => {
+  test('applies parsed overrides through ConfigLoader backtest surface', () => {
     const calls = [];
     const raw = JSON.stringify({ 'exitContracts.EMASMACrossover.stopLossPercent': -2.5 });
     const applied = applyBacktestConfigOverrides(raw, {
       ...backtestIdentity(),
       tradingConfig: {
-        setOverrides(overrides) {
-          calls.push(overrides);
+        applyBacktestConfigOverrides(overrides, context) {
+          calls.push({ overrides, context });
         },
       },
     });
 
     expect(applied).toEqual({ 'exitContracts.EMASMACrossover.stopLossPercent': -2.5 });
-    expect(calls).toEqual([applied]);
+    expect(calls).toEqual([{
+      overrides: applied,
+      context: expect.objectContaining({
+        source: 'BacktestConfigOverrides',
+        isBacktest: true,
+        executionMode: 'backtest',
+        candleSource: 'file',
+        liveTrading: false,
+      }),
+    }]);
+  });
+
+  test('ConfigLoader setOverrides refuses direct non-test mutation', () => {
+    const originalJestWorkerId = process.env.JEST_WORKER_ID;
+    delete process.env.JEST_WORKER_ID;
+    jest.resetModules();
+
+    try {
+      const ConfigLoader = require('../foundation/ConfigLoader');
+      expect(() => ConfigLoader.setOverrides({
+        'exitContracts.EMASMACrossover.stopLossPercent': -2.5,
+      })).toThrow(/setOverrides\(\) is test-only/);
+    } finally {
+      if (originalJestWorkerId === undefined) {
+        delete process.env.JEST_WORKER_ID;
+      } else {
+        process.env.JEST_WORKER_ID = originalJestWorkerId;
+      }
+      jest.resetModules();
+    }
+  });
+
+  test('ConfigLoader backtest override sink refuses spoofed identity', () => {
+    const originalJestWorkerId = process.env.JEST_WORKER_ID;
+    delete process.env.JEST_WORKER_ID;
+    jest.resetModules();
+
+    try {
+      const ConfigLoader = require('../foundation/ConfigLoader');
+      expect(() => ConfigLoader.applyBacktestConfigOverrides({
+        'exitContracts.EMASMACrossover.stopLossPercent': -2.5,
+      }, {
+        source: 'BacktestConfigOverrides',
+        isBacktest: true,
+        executionMode: 'paper',
+        candleSource: 'file',
+        liveTrading: false,
+      })).toThrow(/requires validated file-backed EXECUTION_MODE=backtest identity/);
+    } finally {
+      if (originalJestWorkerId === undefined) {
+        delete process.env.JEST_WORKER_ID;
+      } else {
+        process.env.JEST_WORKER_ID = originalJestWorkerId;
+      }
+      jest.resetModules();
+    }
+  });
+
+  test('ConfigLoader tuning profile apply refuses direct non-backtest runtime mutation', () => {
+    const originalJestWorkerId = process.env.JEST_WORKER_ID;
+    delete process.env.JEST_WORKER_ID;
+    jest.resetModules();
+
+    try {
+      const ConfigLoader = require('../foundation/ConfigLoader');
+      expect(() => ConfigLoader.applyTuningProfile('current-eval', {
+        phase: 'startup',
+        source: 'unit-test',
+      })).toThrow(/applyTuningProfile\(\) requires file-backed EXECUTION_MODE=backtest identity/);
+    } finally {
+      if (originalJestWorkerId === undefined) {
+        delete process.env.JEST_WORKER_ID;
+      } else {
+        process.env.JEST_WORKER_ID = originalJestWorkerId;
+      }
+      jest.resetModules();
+    }
   });
 });

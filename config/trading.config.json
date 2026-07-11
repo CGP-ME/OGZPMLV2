@@ -28,23 +28,279 @@
     "defaultProfile": "paper",
     "production": {
       "mode": "live",
-      "confirmLive": true
+      "confirmLive": true,
+      "features": {
+        "enableShorts": false
+      },
+      "strategies": {
+        "soloFilter": []
+      },
+      "confluence": {
+        "mtfBooster": {
+          "enabled": true,
+          "minScore": 0.3,
+          "minConfidence": 0.45,
+          "strengthMultiplier": 0.2,
+          "maxMultiplier": 1.15,
+          "conflictMultiplier": 0.88,
+          "penalizeConflicts": true,
+          "boostMtfCandidate": false
+        },
+        "strategyMtf": {
+          "enabled": true
+        }
+      },
+      "pipeline": {
+        "enableRSI": true,
+        "enableMADynamicSR": true,
+        "enableEMACrossover": true,
+        "enableLiquiditySweep": true,
+        "enableCandlePattern": true,
+        "enableBreakRetest": true,
+        "enableMarketRegime": false,
+        "enableMultiTimeframe": true,
+        "enableOGZTPO": true,
+        "enableOpeningRangeBreakout": true,
+        "enableSmartMoneySweep": true,
+        "enableNoWickImbalance": true,
+        "enableDonchianBreakout": true,
+        "enablePropSafeEMAPullback": true,
+        "enableEMATrendRetest": true,
+        "enableRSI2MeanReversion": true,
+        "enableTimeSeriesMomentum": true,
+        "directionFilter": "long_only"
+      }
     },
     "paper": {
       "mode": "paper",
-      "confirmLive": false
+      "confirmLive": false,
+      "features": {
+        "enableShorts": false
+      },
+      "strategies": {
+        "soloFilter": []
+      },
+      "confluence": {
+        "mtfBooster": {
+          "enabled": true,
+          "minScore": 0.3,
+          "minConfidence": 0.45,
+          "strengthMultiplier": 0.2,
+          "maxMultiplier": 1.15,
+          "conflictMultiplier": 0.88,
+          "penalizeConflicts": true,
+          "boostMtfCandidate": false
+        },
+        "strategyMtf": {
+          "enabled": true
+        }
+      },
+      "pipeline": {
+        "enableRSI": true,
+        "enableMADynamicSR": true,
+        "enableEMACrossover": true,
+        "enableLiquiditySweep": true,
+        "enableCandlePattern": true,
+        "enableBreakRetest": true,
+        "enableMarketRegime": false,
+        "enableMultiTimeframe": true,
+        "enableOGZTPO": true,
+        "enableOpeningRangeBreakout": true,
+        "enableSmartMoneySweep": true,
+        "enableNoWickImbalance": true,
+        "enableDonchianBreakout": true,
+        "enablePropSafeEMAPullback": true,
+        "enableEMATrendRetest": true,
+        "enableRSI2MeanReversion": true,
+        "enableTimeSeriesMomentum": true,
+        "directionFilter": "long_only"
+      }
     },
     "backtest-all": {
       "mode": "backtest",
-      "confirmLive": false
+      "confirmLive": false,
+      "features": {
+        "enableShorts": false
+      },
+      "strategies": {
+        "soloFilter": []
+      },
+      "confluence": {
+        "mtfBooster": {
+          "enabled": true,
+          "minScore": 0.3,
+          "minConfidence": 0.45,
+          "strengthMultiplier": 0.2,
+          "maxMultiplier": 1.15,
+          "conflictMultiplier": 0.88,
+          "penalizeConflicts": true,
+          "boostMtfCandidate": false
+        },
+        "strategyMtf": {
+          "enabled": true
+        }
+      },
+      "pipeline": {
+        "enableRSI": true,
+        "enableMADynamicSR": true,
+        "enableEMACrossover": true,
+        "enableLiquiditySweep": true,
+        "enableCandlePattern": true,
+        "enableBreakRetest": true,
+        "enableMarketRegime": false,
+        "enableMultiTimeframe": true,
+        "enableOGZTPO": true,
+        "enableOpeningRangeBreakout": true,
+        "enableSmartMoneySweep": true,
+        "enableNoWickImbalance": true,
+        "enableDonchianBreakout": true,
+        "enablePropSafeEMAPullback": true,
+        "enableEMATrendRetest": true,
+        "enableRSI2MeanReversion": true,
+        "enableTimeSeriesMomentum": true,
+        "directionFilter": "both"
+      }
+    },
+    "backtest-p0": {
+      "mode": "backtest",
+      "confirmLive": false,
+      "features": {
+        "enableShorts": false
+      },
+      "strategies": {
+        "soloFilter": [
+          "EMASMACrossover"
+        ]
+      },
+      "confluence": {
+        "mtfBooster": {
+          "enabled": false,
+          "minScore": 0.3,
+          "minConfidence": 0.45,
+          "strengthMultiplier": 0.2,
+          "maxMultiplier": 1.15,
+          "conflictMultiplier": 0.88,
+          "penalizeConflicts": true,
+          "boostMtfCandidate": false
+        },
+        "strategyMtf": {
+          "enabled": true
+        }
+      },
+      "pipeline": {
+        "enableRSI": true,
+        "enableMADynamicSR": true,
+        "enableEMACrossover": true,
+        "enableLiquiditySweep": true,
+        "enableCandlePattern": true,
+        "enableBreakRetest": true,
+        "enableMarketRegime": false,
+        "enableMultiTimeframe": true,
+        "enableOGZTPO": true,
+        "enableOpeningRangeBreakout": true,
+        "enableSmartMoneySweep": true,
+        "enableNoWickImbalance": true,
+        "enableDonchianBreakout": true,
+        "enablePropSafeEMAPullback": true,
+        "enableEMATrendRetest": true,
+        "enableRSI2MeanReversion": true,
+        "enableTimeSeriesMomentum": true,
+        "directionFilter": "long_only"
+      }
     },
     "backtest-masr": {
       "mode": "backtest",
-      "confirmLive": false
+      "confirmLive": false,
+      "features": {
+        "enableShorts": false
+      },
+      "strategies": {
+        "soloFilter": [
+          "MADynamicSR"
+        ]
+      },
+      "confluence": {
+        "mtfBooster": {
+          "enabled": true,
+          "minScore": 0.3,
+          "minConfidence": 0.45,
+          "strengthMultiplier": 0.2,
+          "maxMultiplier": 1.15,
+          "conflictMultiplier": 0.88,
+          "penalizeConflicts": true,
+          "boostMtfCandidate": false
+        },
+        "strategyMtf": {
+          "enabled": true
+        }
+      },
+      "pipeline": {
+        "enableRSI": false,
+        "enableMADynamicSR": true,
+        "enableEMACrossover": false,
+        "enableLiquiditySweep": false,
+        "enableCandlePattern": false,
+        "enableBreakRetest": false,
+        "enableMarketRegime": false,
+        "enableMultiTimeframe": false,
+        "enableOGZTPO": false,
+        "enableOpeningRangeBreakout": false,
+        "enableSmartMoneySweep": false,
+        "enableNoWickImbalance": false,
+        "enableDonchianBreakout": false,
+        "enablePropSafeEMAPullback": false,
+        "enableEMATrendRetest": false,
+        "enableRSI2MeanReversion": false,
+        "enableTimeSeriesMomentum": false,
+        "directionFilter": "both"
+      }
     },
     "backtest-rsi": {
       "mode": "backtest",
-      "confirmLive": false
+      "confirmLive": false,
+      "features": {
+        "enableShorts": false
+      },
+      "strategies": {
+        "soloFilter": [
+          "RSI"
+        ]
+      },
+      "confluence": {
+        "mtfBooster": {
+          "enabled": true,
+          "minScore": 0.3,
+          "minConfidence": 0.45,
+          "strengthMultiplier": 0.2,
+          "maxMultiplier": 1.15,
+          "conflictMultiplier": 0.88,
+          "penalizeConflicts": true,
+          "boostMtfCandidate": false
+        },
+        "strategyMtf": {
+          "enabled": true
+        }
+      },
+      "pipeline": {
+        "enableRSI": true,
+        "enableMADynamicSR": false,
+        "enableEMACrossover": false,
+        "enableLiquiditySweep": false,
+        "enableCandlePattern": false,
+        "enableBreakRetest": false,
+        "enableMarketRegime": false,
+        "enableMultiTimeframe": false,
+        "enableOGZTPO": false,
+        "enableOpeningRangeBreakout": false,
+        "enableSmartMoneySweep": false,
+        "enableNoWickImbalance": false,
+        "enableDonchianBreakout": false,
+        "enablePropSafeEMAPullback": false,
+        "enableEMATrendRetest": false,
+        "enableRSI2MeanReversion": false,
+        "enableTimeSeriesMomentum": false,
+        "directionFilter": "both"
+      }
     }
   },
   "tuningProfiles": {
@@ -884,19 +1140,6 @@
       "1h",
       "4h"
     ],
-    "mtfConfluenceBooster": {
-      "enabled": true,
-      "minScore": 0.3,
-      "minConfidence": 0.45,
-      "strengthMultiplier": 0.2,
-      "maxMultiplier": 1.15,
-      "conflictMultiplier": 0.88,
-      "penalizeConflicts": true,
-      "boostMtfCandidate": false
-    },
-    "strategyMtfConfluence": {
-      "enabled": true
-    },
     "emaCrossoverMtf": {
       "hourlyTrendVetoMultiplier": 0.95,
       "fourHourMacdBoostMultiplier": 1.15,
@@ -1129,6 +1372,7 @@
     "enableMADynamicSR": true,
     "enableEMACrossover": true,
     "enableLiquiditySweep": true,
+    "enableCandlePattern": true,
     "enableBreakRetest": true,
     "enableMarketRegime": false,
     "enableMultiTimeframe": true,

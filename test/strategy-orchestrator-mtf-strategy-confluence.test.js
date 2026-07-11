@@ -2,18 +2,59 @@
 
 describe('StrategyOrchestrator strategy-specific MTF confluence', () => {
   const originalEnv = process.env;
+  let configOverrides;
+
+  function setConfigOverrides(overrides = {}) {
+    configOverrides = {
+      ...configOverrides,
+      ...overrides,
+      pipeline: {
+        ...(configOverrides?.pipeline || {}),
+        ...(overrides.pipeline || {}),
+      },
+      'orchestrator.mtfConfluenceBooster': {
+        ...(configOverrides?.['orchestrator.mtfConfluenceBooster'] || {}),
+        ...(overrides['orchestrator.mtfConfluenceBooster'] || {}),
+      },
+      'orchestrator.strategyMtfConfluence': {
+        ...(configOverrides?.['orchestrator.strategyMtfConfluence'] || {}),
+        ...(overrides['orchestrator.strategyMtfConfluence'] || {}),
+      },
+    };
+  }
+
+  function installConfigMock(overrides = {}) {
+    configOverrides = {
+      pipeline: { enableMultiTimeframe: true },
+      'orchestrator.mtfConfluenceBooster': { enabled: false },
+      'orchestrator.strategyMtfConfluence': { enabled: true },
+    };
+    setConfigOverrides(overrides);
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    const realGet = ConfigLoader.get.bind(ConfigLoader);
+    jest.spyOn(ConfigLoader, 'get').mockImplementation((path, defaultValue) => {
+      if (path === 'pipeline') {
+        return { ...realGet(path, defaultValue), ...(configOverrides.pipeline || {}) };
+      }
+      if (path === 'orchestrator.mtfConfluenceBooster' || path === 'orchestrator.strategyMtfConfluence') {
+        return { ...(realGet(path, defaultValue) || {}), ...(configOverrides[path] || {}) };
+      }
+      if (Object.prototype.hasOwnProperty.call(configOverrides, path)) {
+        return configOverrides[path];
+      }
+      return realGet(path, defaultValue);
+    });
+  }
 
   beforeEach(() => {
     jest.resetModules();
     process.env = {
       ...originalEnv,
       ENABLE_TRAI: 'false',
-      ENABLE_MTF: 'true',
-      ENABLE_MTF_CONFLUENCE_BOOSTER: 'false',
-      ENABLE_STRATEGY_MTF_CONFLUENCE: 'true',
       ATR_FILTER_ENABLED: 'false',
       MIN_STRATEGY_CONFIDENCE: '0',
     };
+    installConfigMock();
   });
 
   afterEach(() => {
@@ -49,7 +90,9 @@ describe('StrategyOrchestrator strategy-specific MTF confluence', () => {
   }
 
   test('does not apply strategy-specific MTF confluence when feature flag is disabled', () => {
-    process.env.ENABLE_STRATEGY_MTF_CONFLUENCE = 'false';
+    setConfigOverrides({
+      'orchestrator.strategyMtfConfluence': { enabled: false },
+    });
 
     const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
     const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });

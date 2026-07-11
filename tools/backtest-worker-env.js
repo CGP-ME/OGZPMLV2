@@ -347,6 +347,7 @@ function buildBacktestWorkerEnv(options) {
     strategyDiag = 'false',
     configEnv = {},
     instrumentEnv = {},
+    launchProfileName,
     profileName = DEFAULT_TUNING_PROFILE,
     feeProfileName,
   } = options || {};
@@ -383,6 +384,7 @@ function buildBacktestWorkerEnv(options) {
     ...normalizedConfigEnv,
     ...instrumentEnv,
     ...feeProfile.env,
+    ...(launchProfileName ? { PROFILE: String(launchProfileName).trim() } : {}),
     TUNING_PROFILE: profile.name,
     BACKTEST_TUNING_PROFILE: profile.name,
     BACKTEST_FEE_PROFILE: feeProfile.name,

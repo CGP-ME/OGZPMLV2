@@ -683,11 +683,10 @@ class StrategyOrchestrator {
     this.donchianBreakoutModule = new DonchianBreakout(
       ConfigLoader.get('strategies.DonchianBreakout') || {}
     );
-    // SOLO_STRATEGY mode: only enable specified strategies for isolated testing
-    // Usage: SOLO_STRATEGY=RSI node tools/parallel-backtest.js ...
-    // Supports comma-separated: SOLO_STRATEGY=RSI,EMASMACrossover
-    this.soloStrategies = process.env.SOLO_STRATEGY
-      ? process.env.SOLO_STRATEGY.split(',').map(s => s.trim().toLowerCase())
+    // Solo strategy mode is resolved by ConfigLoader as strategies.soloFilter.
+    const soloFilter = ConfigLoader.get('strategies.soloFilter') || [];
+    this.soloStrategies = Array.isArray(soloFilter) && soloFilter.length > 0
+      ? soloFilter.map(s => String(s).trim().toLowerCase()).filter(Boolean)
       : null;
     if (this.soloStrategies) {
       console.log(`[StrategyOrchestrator] SOLO MODE: Only ${this.soloStrategies.join(', ')} enabled`);
@@ -1244,21 +1243,21 @@ class StrategyOrchestrator {
    *   - evaluate(ctx): returns { direction, confidence, reason } or null
    */
   _registerBuiltinStrategies() {
-    // Helper: check if strategy should be registered (respects SOLO_STRATEGY mode)
+    // Helper: check if strategy should be registered (respects strategies.soloFilter)
     const shouldRegister = (name) => {
       if (!this.soloStrategies) return true;  // No filter — register all
       return this.soloStrategies.includes(name.toLowerCase());
     };
-    const shouldInstantiateDormantStrategy = (name, toggleKey, envName) => {
+    const shouldInstantiateDormantStrategy = (name, toggleKey) => {
       if (!shouldRegister(name)) return false;
       const pipeline = ConfigLoader.get('pipeline') || {};
       const toggle = pipeline[toggleKey];
       if (typeof toggle !== 'boolean') {
-        throw new Error(`[PIPELINE] ${name} pipeline toggle must be boolean; got ${toggle}. Check ConfigLoader.pipeline and ${envName}`);
+        throw new Error(`[PIPELINE] ${name} pipeline toggle must be boolean; got ${toggle}. Check config path pipeline.${toggleKey}`);
       }
       if (toggle === false) {
         if (this.soloStrategies && this.soloStrategies.includes(name.toLowerCase())) {
-          throw new Error(`[SOLO_STRATEGY] ${name} was requested but its pipeline toggle is disabled; set ${envName}=true or remove SOLO_STRATEGY`);
+          throw new Error(`[STRATEGY_SOLO_FILTER] ${name} was requested but config path pipeline.${toggleKey} is disabled; enable it or remove the strategy from strategies.soloFilter`);
         }
         return false;
       }
@@ -1805,7 +1804,7 @@ class StrategyOrchestrator {
       ).evaluate(ctx)
     });
 
-    if (shouldInstantiateDormantStrategy('PropSafeEMAPullback', 'enablePropSafeEMAPullback', 'ENABLE_PROPSAFE_EMA')) {
+    if (shouldInstantiateDormantStrategy('PropSafeEMAPullback', 'enablePropSafeEMAPullback')) {
       const propSafeEmaPullbackModule = new PropSafeEMAPullback(
         ConfigLoader.get('strategies.PropSafeEMAPullback') || {}
       );
@@ -1822,7 +1821,7 @@ class StrategyOrchestrator {
       });
     }
 
-    if (shouldInstantiateDormantStrategy('EMATrendRetest', 'enableEMATrendRetest', 'ENABLE_EMA_TREND_RETEST')) {
+    if (shouldInstantiateDormantStrategy('EMATrendRetest', 'enableEMATrendRetest')) {
       const emaTrendRetestModule = new EMATrendRetest(
         ConfigLoader.get('strategies.EMATrendRetest') || {}
       );
@@ -1839,7 +1838,7 @@ class StrategyOrchestrator {
       });
     }
 
-    if (shouldInstantiateDormantStrategy('RSI2MeanReversion', 'enableRSI2MeanReversion', 'ENABLE_RSI2_MR')) {
+    if (shouldInstantiateDormantStrategy('RSI2MeanReversion', 'enableRSI2MeanReversion')) {
       const rsi2MeanReversionModule = new RSI2MeanReversion(
         ConfigLoader.get('strategies.RSI2MeanReversion') || {}
       );
@@ -1856,7 +1855,7 @@ class StrategyOrchestrator {
       });
     }
 
-    if (shouldInstantiateDormantStrategy('TimeSeriesMomentum', 'enableTimeSeriesMomentum', 'ENABLE_TSMOM')) {
+    if (shouldInstantiateDormantStrategy('TimeSeriesMomentum', 'enableTimeSeriesMomentum')) {
       const timeSeriesMomentumModule = new TimeSeriesMomentum(
         ConfigLoader.get('strategies.TimeSeriesMomentum') || {}
       );
@@ -1903,31 +1902,17 @@ class StrategyOrchestrator {
       'RSI2MeanReversion': pipeline.enableRSI2MeanReversion,
       'TimeSeriesMomentum': pipeline.enableTimeSeriesMomentum,
     };
-    const enableEnvMap = {
-      'BreakRetest': 'ENABLE_BREAKRETEST',
-      'OpeningRangeBreakout': 'ENABLE_ORB',
-      'SmartMoneySweep': 'ENABLE_SMS',
-      'NoWickImbalance': 'ENABLE_NOWICK',
-      'DonchianBreakout': 'ENABLE_DONCHIAN',
-      'PropSafeEMAPullback': 'ENABLE_PROPSAFE_EMA',
-      'EMATrendRetest': 'ENABLE_EMA_TREND_RETEST',
-      'RSI2MeanReversion': 'ENABLE_RSI2_MR',
-      'TimeSeriesMomentum': 'ENABLE_TSMOM',
-    };
-
     const before = this.strategies.length;
     const disabled = [];
 
     this.strategies = this.strategies.filter(s => {
       const toggle = toggleMap[s.name];
       if (typeof toggle !== 'boolean') {
-        const envName = enableEnvMap[s.name] || `ENABLE_${s.name.toUpperCase()}`;
-        throw new Error(`[PIPELINE] ${s.name} pipeline toggle must be boolean; got ${toggle}. Check ConfigLoader.pipeline and ${envName}`);
+        throw new Error(`[PIPELINE] ${s.name} pipeline toggle must be boolean; got ${toggle}. Check config path pipeline.${s.name}`);
       }
       if (toggle === false) {
         if (this.soloStrategies && this.soloStrategies.includes(s.name.toLowerCase())) {
-          const envName = enableEnvMap[s.name] || `ENABLE_${s.name.toUpperCase()}`;
-          throw new Error(`[SOLO_STRATEGY] ${s.name} was requested but its pipeline toggle is disabled; set ${envName}=true or remove SOLO_STRATEGY`);
+          throw new Error(`[STRATEGY_SOLO_FILTER] ${s.name} was requested but its pipeline toggle is disabled; enable it in config or remove it from strategies.soloFilter`);
         }
         disabled.push(s.name);
         return false;
