@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Exit-Path Fallback Repair (2026-07-11)
+
+- Fixed the CRIT-06 exit-path fallback evidence by proving missing entry exit contracts stop before broker, webhook, gate, or state side effects instead of creating a phantom-confidence fallback contract.
+- Preserved ATR zero as a real value in StrategyOrchestrator: pre-entry ATR attribution now reports `atr_zero`, and exit-contract volatility can birth a contract from ATR=0 without requiring a fallback volatility value.
+- Updated `OGZPMLV2-FIX-SPEC-BY-MODULE.md` status lines for L223, L587, and L620 with current file:line evidence and focused test names.
+
 ### Risk And TTP Config Ownership (2026-07-11)
 
 - Moved Family 3 risk, bypass, and TTP guard values into explicit launch-profile config ownership so backtest, paper, and live profiles declare their posture instead of inheriting silent env defaults.

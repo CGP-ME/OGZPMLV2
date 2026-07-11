@@ -259,6 +259,71 @@ describe('StrategyOrchestrator exit contract confidence gate', () => {
     expect(fifteenMinute.timeframe).toBe('15m');
   });
 
+  test('records zero ATR as a known value instead of missing ATR', () => {
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    ConfigLoader.setOverrides({
+      filters: {
+        atrEnabled: true,
+        atrMinPercent: 0.1,
+      },
+    });
+    addContract(ConfigLoader, 'ZeroAtrProbe', {
+      minConfidence: null,
+      atrMinPercent: 2.0,
+    });
+    const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
+
+    const result = evaluateSingle(new StrategyOrchestrator({ minConfluenceCount: 1 }), 'ZeroAtrProbe', 0.90, {
+      atr: 0,
+    });
+    const atrContributor = result.allResults[0].decisionAttribution.contributors
+      .find((item) => item.name === 'atr_pre_entry_filter');
+
+    expect(result.action).toBe('BUY');
+    expect(result.winnerStrategy).toBe('ZeroAtrProbe');
+    expect(atrContributor).toEqual(expect.objectContaining({
+      passed: null,
+      atrPercent: 0,
+      reason: 'atr_zero',
+    }));
+  });
+
+  test('births an exit contract when ATR is zero and fallback volatility is absent', () => {
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    ConfigLoader.setOverrides({
+      filters: {
+        atrEnabled: false,
+        atrMinPercent: 0.1,
+      },
+    });
+    addContract(ConfigLoader, 'ZeroAtrContractProbe', { minConfidence: null });
+    const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
+    const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
+    orchestrator.strategies = [{
+      name: 'ZeroAtrContractProbe',
+      evaluate: () => ({
+        direction: 'buy',
+        confidence: 0.80,
+        reason: 'zero ATR contract probe',
+      }),
+    }];
+
+    const result = orchestrator.evaluate(
+      { atr: 0 },
+      [],
+      { currentRegime: 'ranging', confidence: 0.5, positionMultiplier: 1 },
+      [{ o: 100, h: 100, l: 100, c: 100, t: 1, timeframe: '15m' }],
+      { price: 100, timeframe: '15m' }
+    );
+
+    expect(result.action).toBe('BUY');
+    expect(result.winnerStrategy).toBe('ZeroAtrContractProbe');
+    expect(result.exitContract).toEqual(expect.objectContaining({
+      strategyName: 'ZeroAtrContractProbe',
+      signalConfidence: 0.8,
+    }));
+  });
+
   test('births the exit contract from the winning signal timeframe, not the base runtime timeframe', () => {
     const ConfigLoader = require('../foundation/ConfigLoader');
     addContract(ConfigLoader, 'ContractGateSignalTimeframe', {

@@ -2484,6 +2484,41 @@ describe('OrderExecutor pause gate', () => {
     expect(preOrderEntryGate).not.toHaveBeenCalled();
   });
 
+  test('missing entry exit contract fails before broker, gate, webhook, or state side effects', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    const sendOrder = jest.fn();
+    const webhookAdapter = { emit: jest.fn() };
+    const preOrderEntryGate = jest.fn().mockResolvedValue({ allowed: true });
+    const executor = makeExecutor(
+      { executionMode: 'live' },
+      {
+        paperTrading: false,
+        orderRouter: { sendOrder },
+        webhookAdapter,
+        preOrderEntryGate,
+      }
+    );
+
+    await expect(executor.executeTrade(
+      { action: 'BUY', confidence: 50 },
+      {},
+      100,
+      { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+      [],
+      null,
+      makeOrchResult({ exitContract: null }),
+      'TSLA'
+    )).rejects.toThrow(/orchResult\.exitContract missing/);
+
+    expect(preOrderEntryGate).not.toHaveBeenCalled();
+    expect(sendOrder).not.toHaveBeenCalled();
+    expect(webhookAdapter.emit).not.toHaveBeenCalled();
+    expect(mockStateManager.openPosition).not.toHaveBeenCalled();
+  });
+
   test('malformed entry exit contract fails before broker, gate, webhook, or state side effects', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;

@@ -220,7 +220,7 @@ Plus the MaxProfitManager CRIT-02-followup throws called from line 367 (BUY) and
 
 **File:** `core/OrderExecutor.js`
 **Lines:** 297-302 (BUY), 476-481 (SHORT)
-**Status:** HALF-FIXED — absent-orchResult halt works (264/460), but missing-exitContract fallback still uses `confidence: orchResult?.confidence || 0`
+**Status:** FIXED — current `OrderExecutor` has no `confidence: orchResult?.confidence || 0` fallback; `_buildEntryPlan` consumes `orchResult.exitContract` directly at `core/OrderExecutor.js:1932-1936`, missing entry contracts stop before order side effects at `core/OrderExecutor.js:2555-2570`, and `test/order-executor-pause-gate.test.js` covers `missing entry exit contract fails before broker, gate, webhook, or state side effects`.
 
 **str_replace target (BUY):**
 ```
@@ -584,7 +584,7 @@ Plus the MaxProfitManager CRIT-02-followup throws called from line 367 (BUY) and
 
 **File:** `core/StrategyOrchestrator.js`
 **Line:** 1066-1068
-**Status:** BROKEN — catch logs warning, leaves exitContract undefined, routes back through CRIT-06 phantom-confidence fallback
+**Status:** FIXED — current `StrategyOrchestrator` no longer catches and swallows exit-contract creation; `createExitContract()` is the direct producer at `core/StrategyOrchestrator.js:2548-2552`, and zero-ATR contract birth is covered by `test/strategy-orchestrator-contract-confidence.test.js` (`births an exit contract when ATR is zero and fallback volatility is absent`).
 
 **str_replace target:**
 ```
@@ -617,7 +617,7 @@ Plus the MaxProfitManager CRIT-02-followup throws called from line 367 (BUY) and
 
 **File:** `core/StrategyOrchestrator.js`
 **Line:** 806
-**Status:** HALF-FIXED — `??` at 802 preserves missing-vs-zero, but consumer at 806 uses `filterATR &&` which collapses genuine zero back into "missing" bucket
+**Status:** FIXED — ATR pre-entry now uses finite checks at `core/StrategyOrchestrator.js:2148-2149`, labels genuine zero as `atr_zero` at `core/StrategyOrchestrator.js:2193-2201`, and exit-contract volatility treats ATR zero as known at `core/StrategyOrchestrator.js:2511-2520`; covered by `test/strategy-orchestrator-contract-confidence.test.js` (`records zero ATR as a known value instead of missing ATR`, `births an exit contract when ATR is zero and fallback volatility is absent`).
 
 **str_replace target:**
 ```

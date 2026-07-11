@@ -2145,7 +2145,8 @@ class StrategyOrchestrator {
     if (filterATR === null) {
       console.warn('[FILTER:atr] ATR unavailable — filter cannot evaluate (likely warmup or upstream gap). Skipping ATR gate.');
     }
-    const filterATRpct = (filterATR && filterPrice > 0) ? (filterATR / filterPrice) * 100 : 0;
+    const hasFiniteFilterAtr = Number.isFinite(filterATR);
+    const filterATRpct = (hasFiniteFilterAtr && filterPrice > 0) ? (filterATR / filterPrice) * 100 : 0;
 
     // ATR filter: Per-strategy threshold via effective exitContracts.{strategy}.atrMinPercent
     // null = fall back to global filters.atrMinPercent (zero behavior change default)
@@ -2197,7 +2198,7 @@ class StrategyOrchestrator {
           enabled: true,
           atrPercent: filterATRpct,
           passed: null,
-          reason: filterATR === null ? 'atr_unavailable' : 'atr_percent_unavailable',
+          reason: filterATR === null ? 'atr_unavailable' : (filterATR === 0 ? 'atr_zero' : 'atr_percent_unavailable'),
         });
       }
     }
@@ -2508,12 +2509,10 @@ class StrategyOrchestrator {
     }
 
     // FIX 2026-02-23: Convert ATR to percentage (was passing raw $ causing inflation)
-    // HIGH-15: throw if neither ATR/price nor a finite volatility is available.
-    // Old code substituted volPct=0 silently, producing wrong-fit SL/TP that
-    // either fired immediately or never. These throw conditions are intentional:
-    // let them propagate so OrderExecutor never receives a null exit contract.
+    // HIGH-15: resolve volatility from ATR/price or finite fallback volatility.
+    // ATR=0 is a known flat-market reading, not missing data.
     let volPct;
-    if (indicators?.atr && price) {
+    if (Number.isFinite(indicators?.atr) && Number.isFinite(price) && price > 0) {
       volPct = (indicators.atr / price * 100);
     } else if (Number.isFinite(indicators?.volatility)) {
       volPct = indicators.volatility;
