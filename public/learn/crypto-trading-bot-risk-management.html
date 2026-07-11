@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Risk Management for Crypto Trading Bots | OGZPrime</title>
+  <meta name="description" content="The four risk layers every crypto trading bot needs: per-trade stops, position sizing, account-level circuit breakers, and operational safeguards like stale-data detection.">
+  <link rel="canonical" href="https://www.ogzprime.com/learn/crypto-trading-bot-risk-management.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="OGZPrime">
+  <meta property="og:title" content="Risk Management for Crypto Trading Bots | OGZPrime">
+  <meta property="og:description" content="The four risk layers every crypto trading bot needs: per-trade stops, position sizing, account-level circuit breakers, and operational safeguards like stale-data detection.">
+  <meta property="og:url" content="https://www.ogzprime.com/learn/crypto-trading-bot-risk-management.html">
+  <meta property="og:image" content="https://www.ogzprime.com/assets/logos/ogz-logo-white.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Risk Management for Crypto Trading Bots | OGZPrime">
+  <meta name="twitter:description" content="The four risk layers every crypto trading bot needs: per-trade stops, position sizing, account-level circuit breakers, and operational safeguards like stale-data detection.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"Risk Management for Crypto Trading Bots: The Settings That Keep You Alive","description":"The four risk layers every crypto trading bot needs: per-trade stops, position sizing, account-level circuit breakers, and operational safeguards like stale-data detection.","datePublished":"2026-07-03","dateModified":"2026-07-03","mainEntityOfPage":"https://www.ogzprime.com/learn/crypto-trading-bot-risk-management.html","author":{"@type":"Organization","name":"OGZPrime","url":"https://www.ogzprime.com/"},"publisher":{"@type":"Organization","name":"OGZPrime","logo":{"@type":"ImageObject","url":"https://www.ogzprime.com/assets/logos/ogz-logo-white.png"}}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.ogzprime.com/"},{"@type":"ListItem","position":2,"name":"Learn","item":"https://www.ogzprime.com/learn/"},{"@type":"ListItem","position":3,"name":"Bot Risk Management","item":"https://www.ogzprime.com/learn/crypto-trading-bot-risk-management.html"}]},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What is a reasonable max drawdown limit for a trading bot?","acceptedAnswer":{"@type":"Answer","text":"Common retail settings fall between 10% and 25% of account equity, depending on strategy volatility and personal tolerance. The right number is the one where you'd calmly stop and review rather than panic \u2014 set it before going live, and treat hitting it as mandatory review, not an obstacle."}},{"@type":"Question","name":"How much should a bot risk per trade?","acceptedAnswer":{"@type":"Answer","text":"The widely used range is 0.5%\u20132% of account equity per trade. Smaller when strategies are unproven. The goal is that a realistic losing streak \u2014 8 to 12 consecutive losses \u2014 leaves the account fully able to continue."}},{"@type":"Question","name":"Should risk limits be in the strategy code or the platform?","acceptedAnswer":{"@type":"Answer","text":"Platform. The failure mode that matters most is the strategy itself misbehaving \u2014 a bug, an overfit signal, a regime change. Limits inside the malfunctioning component protect nothing; limits enforced outside it always fire."}},{"@type":"Question","name":"What happens if a bot crashes with a position open?","acceptedAnswer":{"@type":"Answer","text":"On a well-built platform, the bot reconciles state on restart: it recovers the open position and its exit rules, and resumes managing it. If your bot can't do this, every restart is an unmanaged position \u2014 test crash recovery before trading real size."}}]}]}</script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root { --red: #dc2626; --bg: #0a0a0a; --card: #111; --text: #fff; --dim: #999; --border: #222; }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; line-height: 1.7; }
+    nav { position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 14px 32px; background: rgba(10,10,10,0.9); backdrop-filter: blur(8px); border-bottom: 1px solid #1a1a1a; }
+    nav .brand { font-family: 'Space Mono', monospace; font-weight: 700; color: var(--red); text-decoration: none; font-size: 1.1rem; }
+    nav .links a { color: var(--dim); text-decoration: none; margin-left: 24px; font-size: 0.95rem; }
+    nav .links a:hover { color: #fff; }
+    main { max-width: 760px; margin: 0 auto; padding: 56px 20px 40px; }
+    .crumb { font-size: 0.85rem; color: #555; margin-bottom: 24px; }
+    .crumb a { color: #777; text-decoration: none; }
+    h1 { font-family: 'Space Mono', monospace; font-size: 2.2rem; line-height: 1.25; margin-bottom: 12px; letter-spacing: -1px; }
+    .meta { color: #555; font-size: 0.85rem; margin-bottom: 36px; }
+    h2 { font-family: 'Space Mono', monospace; font-size: 1.4rem; margin: 44px 0 14px; color: #fff; }
+    h3 { font-size: 1.1rem; margin: 28px 0 10px; color: #eee; }
+    p { color: #bbb; margin-bottom: 16px; }
+    ul, ol { color: #bbb; margin: 0 0 16px 22px; }
+    li { margin-bottom: 8px; }
+    strong { color: #fff; }
+    a { color: var(--red); }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 0.95rem; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); color: #bbb; }
+    th { color: #fff; font-family: 'Space Mono', monospace; font-size: 0.85rem; }
+    .callout { background: var(--card); border: 1px solid var(--border); border-left: 3px solid var(--red); border-radius: 6px; padding: 20px 24px; margin: 28px 0; }
+    .callout p { margin-bottom: 0; }
+    .cta { text-align: center; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 36px 24px; margin: 48px 0 0; }
+    .cta h2 { margin-top: 0; }
+    .cta a.btn { display: inline-block; margin-top: 12px; padding: 13px 32px; background: var(--red); color: #fff; text-decoration: none; border-radius: 6px; font-weight: 700; }
+    footer { border-top: 1px solid #1a1a1a; margin-top: 64px; padding: 28px 20px; text-align: center; color: #555; font-size: 0.85rem; }
+    footer a { color: #777; text-decoration: none; margin: 0 8px; }
+    .disclaimer { max-width: 760px; margin: 0 auto 16px; font-size: 0.78rem; color: #444; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a class="brand" href="/">OGZPrime</a>
+    <div class="links">
+      <a href="/features.html">Features</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/proof/">Proof</a>
+      <a href="/learn/">Learn</a>
+    </div>
+  </nav>
+  <main>
+    <div class="crumb"><a href="/">Home</a> / <a href="/learn/">Learn</a> / Bot Risk Management</div>
+    <h1>Risk Management for Crypto Trading Bots: The Settings That Keep You Alive</h1>
+    <div class="meta">OGZPrime Team &middot; Updated July 2026</div>
+    
+    <p>Automated trading has a brutal property: a bot executes a bad idea with perfect discipline, at machine speed, all night, while you sleep. Risk management isn't a feature you add to a trading bot &mdash; it's the thing that determines whether you're still trading next month. This guide covers the layers that matter, in the order they save you.</p>
+
+    <h2>Layer 1: Per-Trade Protection</h2>
+    <h3>Stop losses on every trade, no exceptions</h3>
+    <p>Every position needs a predefined exit for when it goes wrong. "I'll watch it" is not a stop loss &mdash; you're running a bot precisely because you're not watching. Hard rule: if a trade has no stop, the bot shouldn't be allowed to open it.</p>
+    <h3>Take profits and trailing stops</h3>
+    <p>Exits deserve as much design as entries. Tiered profit-taking (closing portions of a position at successive levels) smooths your equity curve; trailing stops that activate after a profit threshold let winners run while protecting gains. Critically, exit rules should belong to the strategy that opened the trade &mdash; a scalp and a swing trade should never share exit logic.</p>
+
+    <h2>Layer 2: Position Sizing</h2>
+    <p>Size determines survival. Two principles:</p>
+    <ul>
+      <li><strong>Risk a fixed small percentage per trade.</strong> Risking 1% of the account per trade means a 10-loss streak &mdash; which <em>will</em> happen &mdash; costs about 10%. Risking 10% per trade means the same streak ends the account.</li>
+      <li><strong>Scale size with signal quality.</strong> If your strategy produces a confidence score, use it: full size on high-confidence signals, reduced exposure on marginal ones. Flat sizing treats your best and worst setups identically.</li>
+    </ul>
+
+    <h2>Layer 3: Account-Level Circuit Breakers</h2>
+    <p>This is the layer most homemade bots skip, and it's the one that prevents catastrophe. These limits must live <strong>outside the strategy code</strong> &mdash; enforced by the platform &mdash; because the scenario they protect against is the strategy itself malfunctioning:</p>
+    <ul>
+      <li><strong>Maximum drawdown limit.</strong> If the account falls X% from its peak, all trading halts until you intervene. This is the difference between a bad month and a blown account.</li>
+      <li><strong>Daily / weekly / monthly loss caps.</strong> A bot in a hostile regime can lose fast. A daily cap converts "death spiral" into "bad day, review tonight."</li>
+      <li><strong>Hard stop overrides.</strong> A universal stop loss that no strategy can disable, widen, or override. Strategies propose; the risk layer disposes.</li>
+    </ul>
+
+    <h2>Layer 4: Operational Risk</h2>
+    <p>Market risk gets all the attention, but bots die of operational causes too:</p>
+    <ul>
+      <li><strong>Stale data.</strong> If the feed drops and the bot keeps trading on old candles, every signal is fiction. The correct behavior is gap detection and automatic pause until integrity is restored.</li>
+      <li><strong>Restart amnesia.</strong> The bot crashes with a position open. Does it recover the position and its exit contract on restart, or does it start fresh with an orphaned trade on the exchange? Test this before it tests you.</li>
+      <li><strong>Config drift.</strong> Risk parameters scattered across code files get out of sync. Every limit should live in one config source so a change applies everywhere, verifiably.</li>
+      <li><strong>API key scope.</strong> Trade-only keys, never withdrawal. See <a href="/learn/kraken-trading-bot.html">connecting a bot to Kraken safely</a>.</li>
+    </ul>
+
+    <div class="callout">
+      <p><strong>How OGZPrime handles this:</strong> risk is a platform layer, not strategy code. Per-strategy exit contracts (SL, TP, trailing, tiered exits), confidence-scaled position sizing, account drawdown limits, daily/weekly/monthly loss caps, and universal circuit breakers that strategies cannot override &mdash; all configured from a single file. Candle-gap detection pauses trading on bad data, and restart integrity is <a href="/proof/">verified and published continuously</a>.</p>
+    </div>
+
+    <h2>The Uncomfortable Truth About Risk Settings</h2>
+    <p>Good risk management doesn't make a bot profitable &mdash; it makes failure survivable and gives a genuinely profitable strategy enough runway to prove itself. If you find yourself loosening limits to "let the strategy breathe" after losses, that's not tuning; that's tilt with extra steps. Set limits when calm, <a href="/learn/backtest-crypto-strategy-real-fees.html">validate the strategy honestly</a>, and let the boring settings do their job.</p>
+
+    <h2>Frequently Asked Questions</h2>
+    <h3>What is a reasonable max drawdown limit for a trading bot?</h3>
+    <p>Common retail settings fall between 10% and 25% of account equity, depending on strategy volatility and personal tolerance. The right number is the one where you'd calmly stop and review rather than panic — set it before going live, and treat hitting it as mandatory review, not an obstacle.</p>
+    <h3>How much should a bot risk per trade?</h3>
+    <p>The widely used range is 0.5%–2% of account equity per trade. Smaller when strategies are unproven. The goal is that a realistic losing streak — 8 to 12 consecutive losses — leaves the account fully able to continue.</p>
+    <h3>Should risk limits be in the strategy code or the platform?</h3>
+    <p>Platform. The failure mode that matters most is the strategy itself misbehaving — a bug, an overfit signal, a regime change. Limits inside the malfunctioning component protect nothing; limits enforced outside it always fire.</p>
+    <h3>What happens if a bot crashes with a position open?</h3>
+    <p>On a well-built platform, the bot reconciles state on restart: it recovers the open position and its exit rules, and resumes managing it. If your bot can't do this, every restart is an unmanaged position — test crash recovery before trading real size.</p>
+    <div class="cta">
+      <h2>Risk Management You Configure Once.</h2>
+      <p>Drawdown limits, loss caps, exit contracts, and circuit breakers &mdash; built into OGZPrime's platform layer, enforced no matter what your strategy does.</p>
+      <a class="btn" href="/pricing.html">Start Free Trial</a>
+    </div>
+  </main>
+  <footer>
+    <div class="disclaimer">Trading cryptocurrency involves substantial risk of loss and is not suitable for everyone. Past performance does not guarantee future results. Nothing on this page is financial advice.</div>
+    &copy; 2026 OGZPrime. All Rights Reserved.
+    <div><a href="/">Home</a> | <a href="/features.html">Features</a> | <a href="/pricing.html">Pricing</a> | <a href="/proof/">Proof</a> | <a href="/legal.html">Legal</a></div>
+  </footer>
+</body>
+</html>

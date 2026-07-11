@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How to Backtest a Crypto Strategy With Real Fees | OGZPrime</title>
+  <meta name="description" content="Why fees kill more crypto strategies than bad signals: a practical guide to backtesting with real exchange fees, slippage, and out-of-sample validation.">
+  <link rel="canonical" href="https://www.ogzprime.com/learn/backtest-crypto-strategy-real-fees.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="OGZPrime">
+  <meta property="og:title" content="How to Backtest a Crypto Strategy With Real Fees | OGZPrime">
+  <meta property="og:description" content="Why fees kill more crypto strategies than bad signals: a practical guide to backtesting with real exchange fees, slippage, and out-of-sample validation.">
+  <meta property="og:url" content="https://www.ogzprime.com/learn/backtest-crypto-strategy-real-fees.html">
+  <meta property="og:image" content="https://www.ogzprime.com/assets/logos/ogz-logo-white.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="How to Backtest a Crypto Strategy With Real Fees | OGZPrime">
+  <meta name="twitter:description" content="Why fees kill more crypto strategies than bad signals: a practical guide to backtesting with real exchange fees, slippage, and out-of-sample validation.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"How to Backtest a Crypto Trading Strategy With Real Fees","description":"Why fees kill more crypto strategies than bad signals: a practical guide to backtesting with real exchange fees, slippage, and out-of-sample validation.","datePublished":"2026-07-03","dateModified":"2026-07-03","mainEntityOfPage":"https://www.ogzprime.com/learn/backtest-crypto-strategy-real-fees.html","author":{"@type":"Organization","name":"OGZPrime","url":"https://www.ogzprime.com/"},"publisher":{"@type":"Organization","name":"OGZPrime","logo":{"@type":"ImageObject","url":"https://www.ogzprime.com/assets/logos/ogz-logo-white.png"}}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.ogzprime.com/"},{"@type":"ListItem","position":2,"name":"Learn","item":"https://www.ogzprime.com/learn/"},{"@type":"ListItem","position":3,"name":"Backtesting With Real Fees","item":"https://www.ogzprime.com/learn/backtest-crypto-strategy-real-fees.html"}]},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What fee rate should I use when backtesting on Kraken?","acceptedAnswer":{"@type":"Answer","text":"Use your actual tier from Kraken's fee schedule. Spot taker fees start around 0.40% for low-volume accounts and decrease with 30-day volume; Kraken Pro tiers are lower. When in doubt, backtest at a pessimistic rate \u2014 a strategy that survives high fees only gets better at lower ones."}},{"@type":"Question","name":"How much historical data do I need for a meaningful backtest?","acceptedAnswer":{"@type":"Answer","text":"Enough to cover multiple market regimes \u2014 trending up, trending down, and ranging. For intraday strategies that's typically tens of thousands of candles across at least 12\u201324 months, producing several hundred trades."}},{"@type":"Question","name":"Why does my strategy work in backtests but lose money live?","acceptedAnswer":{"@type":"Answer","text":"The usual suspects, in order: fees and slippage weren't modeled, lookahead bias in the backtest, overfitting to the test window, or live data-quality issues (gaps, stale candles) the backtest never faced."}},{"@type":"Question","name":"Is backtesting enough before going live?","acceptedAnswer":{"@type":"Answer","text":"No. Backtesting filters out losers; it doesn't certify winners. Paper trade or run minimal position sizes first, and use platform-level risk limits so an early failure is survivable."}}]}]}</script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root { --red: #dc2626; --bg: #0a0a0a; --card: #111; --text: #fff; --dim: #999; --border: #222; }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; line-height: 1.7; }
+    nav { position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 14px 32px; background: rgba(10,10,10,0.9); backdrop-filter: blur(8px); border-bottom: 1px solid #1a1a1a; }
+    nav .brand { font-family: 'Space Mono', monospace; font-weight: 700; color: var(--red); text-decoration: none; font-size: 1.1rem; }
+    nav .links a { color: var(--dim); text-decoration: none; margin-left: 24px; font-size: 0.95rem; }
+    nav .links a:hover { color: #fff; }
+    main { max-width: 760px; margin: 0 auto; padding: 56px 20px 40px; }
+    .crumb { font-size: 0.85rem; color: #555; margin-bottom: 24px; }
+    .crumb a { color: #777; text-decoration: none; }
+    h1 { font-family: 'Space Mono', monospace; font-size: 2.2rem; line-height: 1.25; margin-bottom: 12px; letter-spacing: -1px; }
+    .meta { color: #555; font-size: 0.85rem; margin-bottom: 36px; }
+    h2 { font-family: 'Space Mono', monospace; font-size: 1.4rem; margin: 44px 0 14px; color: #fff; }
+    h3 { font-size: 1.1rem; margin: 28px 0 10px; color: #eee; }
+    p { color: #bbb; margin-bottom: 16px; }
+    ul, ol { color: #bbb; margin: 0 0 16px 22px; }
+    li { margin-bottom: 8px; }
+    strong { color: #fff; }
+    a { color: var(--red); }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 0.95rem; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); color: #bbb; }
+    th { color: #fff; font-family: 'Space Mono', monospace; font-size: 0.85rem; }
+    .callout { background: var(--card); border: 1px solid var(--border); border-left: 3px solid var(--red); border-radius: 6px; padding: 20px 24px; margin: 28px 0; }
+    .callout p { margin-bottom: 0; }
+    .cta { text-align: center; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 36px 24px; margin: 48px 0 0; }
+    .cta h2 { margin-top: 0; }
+    .cta a.btn { display: inline-block; margin-top: 12px; padding: 13px 32px; background: var(--red); color: #fff; text-decoration: none; border-radius: 6px; font-weight: 700; }
+    footer { border-top: 1px solid #1a1a1a; margin-top: 64px; padding: 28px 20px; text-align: center; color: #555; font-size: 0.85rem; }
+    footer a { color: #777; text-decoration: none; margin: 0 8px; }
+    .disclaimer { max-width: 760px; margin: 0 auto 16px; font-size: 0.78rem; color: #444; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a class="brand" href="/">OGZPrime</a>
+    <div class="links">
+      <a href="/features.html">Features</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/proof/">Proof</a>
+      <a href="/learn/">Learn</a>
+    </div>
+  </nav>
+  <main>
+    <div class="crumb"><a href="/">Home</a> / <a href="/learn/">Learn</a> / Backtesting With Real Fees</div>
+    <h1>How to Backtest a Crypto Trading Strategy With Real Fees</h1>
+    <div class="meta">OGZPrime Team &middot; Updated July 2026</div>
+    
+    <p>Most backtests lie. Not because the math is wrong, but because they leave out the two things that decide whether a strategy survives contact with a real exchange: <strong>fees</strong> and <strong>honest data handling</strong>. A strategy showing 30% annual returns at zero fees can lose money at 0.25% per trade &mdash; and most free backtesters default to zero.</p>
+
+    <h2>Why Fees Kill More Strategies Than Bad Signals</h2>
+    <p>Fees scale with trade frequency, and frequency is exactly what automation gives you. Run the numbers:</p>
+    <ul>
+      <li>A bot that trades <strong>500 round trips a year</strong> at 0.25% per side pays roughly <strong>250% of its position size</strong> in fees annually.</li>
+      <li>To break even, your average trade has to clear 0.5% <em>before</em> it earns anything.</li>
+      <li>Scalping strategies with 0.3&ndash;0.4% average wins are mathematically dead on arrival at retail fee tiers &mdash; no matter how good the win rate looks.</li>
+    </ul>
+    <p>This is why the first honest thing a backtest can do is charge you the fees you'll actually pay. On Kraken, check your real tier (spot taker fees start around 0.40% and fall with 30-day volume) and use that number &mdash; not the platform default.</p>
+
+    <h2>The Five Backtest Sins</h2>
+    <h3>1. Zero or fantasy fees</h3>
+    <p>Covered above. If your backtester doesn't let you set maker/taker fees per side, don't trust its output.</p>
+    <h3>2. Lookahead bias</h3>
+    <p>Your strategy sees data it wouldn't have had in real time &mdash; e.g., trading on a candle's close price at its open, or using an indicator computed on the full dataset. Symptoms: impossibly smooth equity curves.</p>
+    <h3>3. Overfitting</h3>
+    <p>Tune enough parameters against enough history and any strategy looks perfect &mdash; on that history. If performance collapses when you shift the test window by a month, you fit noise, not signal.</p>
+    <h3>4. Ignoring slippage</h3>
+    <p>Backtests fill at the exact signal price. Real markets don't, especially on market orders in thin books. Add a slippage assumption (even a flat 0.05&ndash;0.1%) and see if the strategy survives.</p>
+    <h3>5. Cherry-picked windows</h3>
+    <p>Testing a long-only strategy on 2023&ndash;2025 crypto data proves nothing except that markets went up. Test across trending, ranging, and crashing regimes, or admit you have a bull-market-only system.</p>
+
+    <h2>A Sane Backtesting Workflow</h2>
+    <ol>
+      <li><strong>Write the rules first.</strong> Entry, exit, position size &mdash; fully specified before you look at results. If you can't write it as code, it isn't a strategy yet.</li>
+      <li><strong>Set real costs.</strong> Your actual exchange fee tier, both sides, plus a slippage haircut.</li>
+      <li><strong>Test in-sample, validate out-of-sample.</strong> Tune on one period, then run untouched data. Only the out-of-sample number counts.</li>
+      <li><strong>Read per-strategy attribution.</strong> If you run multiple strategies, you need to know which one made the money. Blended results hide losers inside winners.</li>
+      <li><strong>Paper trade before live.</strong> A backtest that survives fees still has to survive live data feeds, latency, and partial fills.</li>
+    </ol>
+
+    <div class="callout">
+      <p><strong>How OGZPrime handles this:</strong> the built-in backtest engine (Pro plan) runs your strategies against historical candle data with real fee calculations and per-strategy attribution &mdash; so you see exactly which strategy earns after costs, not a blended illusion. The same strategy code then deploys unchanged to <a href="/learn/kraken-trading-bot.html">live trading on Kraken</a>, wrapped in <a href="/learn/crypto-trading-bot-risk-management.html">platform-level risk controls</a>.</p>
+    </div>
+
+    <h2>What a Passing Grade Actually Looks Like</h2>
+    <p>A strategy worth deploying typically shows: positive expectancy <em>after</em> fees and slippage, out-of-sample results in the same ballpark as in-sample, a max drawdown you could psychologically and financially survive, and enough trades (hundreds, not dozens) for the stats to mean anything. If any of those fail, iterate &mdash; deployment is the reward for passing, not the next thing to try when results are mediocre.</p>
+
+    <h2>Frequently Asked Questions</h2>
+    <h3>What fee rate should I use when backtesting on Kraken?</h3>
+    <p>Use your actual tier from Kraken's fee schedule. Spot taker fees start around 0.40% for low-volume accounts and decrease with 30-day volume; Kraken Pro tiers are lower. When in doubt, backtest at a pessimistic rate — a strategy that survives high fees only gets better at lower ones.</p>
+    <h3>How much historical data do I need for a meaningful backtest?</h3>
+    <p>Enough to cover multiple market regimes — trending up, trending down, and ranging. For intraday strategies that's typically tens of thousands of candles across at least 12–24 months, producing several hundred trades.</p>
+    <h3>Why does my strategy work in backtests but lose money live?</h3>
+    <p>The usual suspects, in order: fees and slippage weren't modeled, lookahead bias in the backtest, overfitting to the test window, or live data-quality issues (gaps, stale candles) the backtest never faced.</p>
+    <h3>Is backtesting enough before going live?</h3>
+    <p>No. Backtesting filters out losers; it doesn't certify winners. Paper trade or run minimal position sizes first, and use platform-level risk limits so an early failure is survivable.</p>
+    <div class="cta">
+      <h2>Backtest With Real Fees. Deploy the Same Code.</h2>
+      <p>OGZPrime Pro runs your strategies against historical data with real fee math and per-strategy attribution &mdash; then deploys the identical code live.</p>
+      <a class="btn" href="/pricing.html">Start Free Trial</a>
+    </div>
+  </main>
+  <footer>
+    <div class="disclaimer">Trading cryptocurrency involves substantial risk of loss and is not suitable for everyone. Past performance does not guarantee future results. Nothing on this page is financial advice.</div>
+    &copy; 2026 OGZPrime. All Rights Reserved.
+    <div><a href="/">Home</a> | <a href="/features.html">Features</a> | <a href="/pricing.html">Pricing</a> | <a href="/proof/">Proof</a> | <a href="/legal.html">Legal</a></div>
+  </footer>
+</body>
+</html>
