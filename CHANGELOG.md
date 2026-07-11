@@ -64,10 +64,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added compact CSV columns for contributor names, MTF confluence, partial-close state, and frozen policy hash without changing entry, exit, sizing, or P&L math.
 - Added focused recorder and OrderExecutor coverage for attribution/MTF/policy/partial-close propagation into backtest rows.
 
+### Profit Tier Exit Reason Canonicalization (2026-07-02)
+
+- Made `ProfitExitPlanner` emit canonical `profit_tier_<index>` reasons for all tier exits, including custom/non-canonical tier names, so downstream trade telemetry does not inherit arbitrary tier label text.
+- Split `BacktestRecorder` exit-type normalization so `profit_tier` exits are harvested as `profit_tier` instead of being lumped into `take_profit`.
+- Added focused planner/recorder coverage for custom tier names, compact `profit_Tier1`, malformed tier-like labels, and env restoration without replacing the live `process.env` object.
+
+### Dashboard Data Hookup + Honesty Pass (2026-07-01)
+
+- Added Gate Meter panel (`public/js/panels/gate-meter.js`) rendering real `gate_event` frames from `TradingLoop._broadcastGateEvent()` — per-signal PASS/BLOCK with failed-gate chips (near-miss visibility while the bot scans); mounted in the v2 left rail.
+- Added honest bot-posture empty states: core.js stores validated `bot_state` frames on `OGZ.state.botState`; live-readouts renders a full-width posture row (mode, reason, next-active time) while dormant; pattern-card's scanning label says "engine idle" with the real reason when the bot is not in an active mode.
+- Replaced hardcoded Tavily news coupling with provider-explicit `core/NewsSearchProvider.js` (`NEWS_SEARCH_PROVIDER=brightdata|tavily`, required keys enforced at startup, no implicit fallback); all TRAI endpoints (`analyze`, `status`, `search`, `events`, `regime`, `session-context`, `whales`) now use the provider layer and report provider-aware `source` labels; documented in `config/.env.example`.
+- Added `news_event` WS push (`broadcastDashboardNewsEvents` in ogzprime-ssl-server.js) after fresh `/api/trai/events` fetches, fulfilling the previously emitter-less news-ticker WS path and TRAI Brain "Latest News" consumers; server-side sentiment mapping mirrors `mapTraiEventToNewsItem`.
+- Seeded chart price header + HUD from the last historical candle close in `ChartPanel.loadHistorical` (fixes "$0.00 until first live frame" while dormant/market-closed); live frames always win via `_livePricePaintedFor` guard.
+- Watchlist cards now subscribe to `broker_status` and show a FAULT/FEED pill with the broadcast reason (tooltip) on no-data cards whose broker fanout reports down/unconfigured, instead of a bare em-dash.
+- Made edge analytics symbol-class aware: liquidation + funding sections (perp-futures concepts) hide while a stock is selected, driven by `watchlist:select` broker codes and the watchlist's real initial selection (fixes crypto liq zones rendering under TSLA).
+- Removed the never-emitted `orchestrator_result` legacy fallback subscription from confidence-heatbar; removed parked `spoofing-detector.js` from the v2 shell imports (module's own header declares it not loaded); TRAI Brain escalation queue empty state now says the channel awaits its backend emitter instead of claiming a live-and-empty queue.
+- Fixed dashboard WIN% mixing scopes (browser-session-local win tally divided by lifetime tradeCount → "WIN 0%" for mid-session dashboards): StateManager `state_update` now broadcasts `closedTradeCount`/`winningTrades`/`losingTrades` from the authoritative closedTrades ledger and header-strip renders win% only from those.
+- Added `Cache-Control: no-store` to `/api/health` — the live deployment was serving a 5-day-old upstream-cached health payload to the system-health footer.
+
+### Strategy-Owned Exit Geometry Sweep Surface (2026-07-01)
+
+- Added a config-owned `parallelBacktest.sweepPresets.exitGeometry` surface and `parallel-backtest --exit-geometry` CLI path for Donchian, TimeSeriesMomentum, RSI2MeanReversion, PropSafeEMAPullback, and EMATrendRetest stop/target/trailing/max-hold tuning.
+- Added `parallel-backtest --match` / `--config-match` to run a named subset of a sweep for tight strategy tuning loops.
+- Allowed only the strategy-owned exit geometry env keys through the backtest worker contract while keeping generic `STOP_LOSS_PERCENT`, `TAKE_PROFIT_PERCENT`, and `TRAILING_STOP_PERCENT` rejected.
+- Documented the confidence-sweep finding that prior strategy sweeps did not tune SL/TP/trailing geometry under `ogz-meta/cognition-history/strategy-forensics/`.
+
+### Mercury Fable Consensus Lane (2026-07-01)
+
+- Added a default-on Fable consensus collaborator for agentic Mercury asks, with `ask.js --no-consensus` available for intentional per-run suppression.
+- Wired the Fable lane through local Claude Code (`consensus.provider=claude-code`) so it uses the logged-in Claude Code subscription instead of a stale Anthropic API key.
+- Preserved the explicit Anthropic API provider path for configured experiments while rejecting API-key env ownership on the local Claude Code provider.
+- Added `ask.js --check-providers` to warm up Mercury and Fable with structured auth/quota/model/network status before spending a full agentic run.
+- Added regression coverage for config ownership, explicit CLI opt-out, consensus prompt constraints, fake-client execution, Claude Code result parsing, and ledger persistence.
+
+### Backtest Worker Config Ownership (2026-07-01)
+
+- Removed parent-shell fee and direction inheritance from backtest worker env construction so tuning runs cannot silently change economics or side posture outside `config/trading.config.json` profiles.
+- Changed parallel backtest fee posture reporting to name the owning tuning profile instead of reconstructing fees from ad hoc env layers.
+- Added focused regression coverage that rejects config fee overrides and proves source fee leftovers do not reach stock worker economics.
+
 ### Eval Startup Gate Softening (2026-06-30)
 
 - Removed the eval-live posture exact-symbol-universe hard gate so removed or added Alpaca symbols do not block startup posture by code constant.
-- Changed missing or stale live TTP start-of-day dates from startup errors and entry vetoes to warnings/quarantine metadata so calendar-date drift does not shut down the bot.
+- Changed stale live TTP start-of-day dates from startup errors and entry vetoes to warnings/quarantine metadata so calendar-date drift does not shut down the bot.
 
 ### Live Exit Flip And Hedge Guard (2026-06-29)
 
@@ -98,6 +138,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added a frozen `mtfConfluenceSnapshot` to trade-birth exit policies so the new MPM/frozen-policy path can inspect higher-timeframe confluence without changing exit behavior.
 - Threaded cached MTF confluence from `StrategyOrchestrator` through `OrderExecutor` into `PolicyBuilder`, with strict snapshot normalization and BUY/SELL_SHORT alignment stamping.
 - Added focused regression coverage for immutable orchestrator snapshots, policy snapshot freezing, malformed MTF snapshot rejection, and entry-plan handoff into the frozen policy.
+
+### Dashboard Equity Curve State Update Reconciliation (2026-06-28)
+
+- Made the v2 Equity Curve merge top-level account frames, `data`, and `state_update.state` before computing Total P&L, so nested StateManager equity/totalPnL truth cannot be dropped when price frames also provide equity.
+- Renamed the Equity Curve stat from "Current Balance" to "Current Equity" so the label matches the account-equity value being rendered.
+- Made StateManager dashboard `state_update` frames publish fee-aware account P&L from `equity - initialBalance`, mark unpriced open-position P&L unavailable instead of fake-zero, and made the Equity Curve honor that unavailable state until a priced account frame restores it.
+
+### Dashboard Bot State Indicator (2026-06-28)
+
+- Added an authenticated `bot_state` dashboard frame so dormant/eval/live runtime posture can be displayed explicitly instead of inferred from quiet `bot_thinking` traffic.
+- Rendered the runtime posture in the v2 header strip and counted `bot_state` as dashboard data for the socket stale-data watchdog.
+
+### Dashboard Ghost Module And Confidence Ownership (2026-06-28)
+
+- Removed v2 imports and Empire manifest entries for the dead BotIntelligence and GoalTracker modules while keeping legacy dashboard ownership intact.
+- Moved v2 bot-thinking text compatibility into ChainOfThought and kept strategy-stack visualization owned by the existing confidence heatbar.
+- Made LiveReadouts own the v2 `confidenceML` bridge, clear stale same-DOM owners, and reject null/empty/non-numeric confidence values so missing telemetry cannot overwrite live confidence.
+- Mounted dashboard panels before opening the WebSocket so first-frame data cannot race panel DOM bridges or socket handlers.
+
+### Dashboard Chart Boot And Indicator Lifecycle (2026-06-28)
+
+- Prevented the v2 `ChartPanel` / legacy `Chart` alias from initializing the same chart module twice during core boot.
+- Made chart indicator toggles normalize direct string calls without dropping existing oscillator panes, keep checkboxes in sync, and recalculate overlays through one path.
+- Stopped generated Fibonacci/S/R price lines and chart oscillator panes from being clipped or accumulating across recalculations.
+
+### Dashboard Boot And Asset Guard Hardening (2026-06-28)
+
+- Made `core.js` preserve an already-booted `window.OGZ` across duplicate script evaluation and ignore duplicate module registrations before or after boot.
+- Hardened v2 and legacy dashboard startup sends so `asset_change` / `request_historical` wait for an authenticated socket and refuse `none` or non-selectable assets.
+- Prevented Empire and Live Report selected-scope state from accepting non-selectable `asset_switched` symbols such as `SOL-USD` when the dashboard selector does not offer them.
+- Fixed personal milestone/operator labeling gates to honor `ogz.layout` / `ogz.layout.mode` operator posture instead of relying only on unset `ogz.profile`.
+
+### Dashboard Modular Shell Data Wiring (2026-06-28)
+
+- Made `OGZ.register()` initialize late-registered panel modules after core boot while keeping `OGZ.init()` idempotent for already initialized modules.
+- Replaced the v2 Risk Gauge and Trade Log placeholders through the existing panel modules instead of leaving registered-but-unmounted shells visible.
+- Stopped Empire selected scope from drifting to the last incoming `price` or `ticker_price` frame; selected scope now follows explicit chart/watchlist selection and `asset_switched` acknowledgement.
+- Made Equity Curve Total P&L use explicit backend `totalPnL`/starting-equity truth when present while continuing to sample the curve from authoritative `equity` fields only.
+
+### MTF Confluence Booster And Sweep Filtering (2026-06-27)
+
+- Added a default-off `orchestrator.mtfConfluenceBooster` control that can rank aligned candidates with higher-timeframe confluence without adding an extra strategy vote or changing exit geometry.
+- Shared MTF confluence ingestion between the standalone MultiTimeframe strategy and the booster through a per-evaluation cache, preventing duplicate MTF candle ingestion in one orchestrator pass.
+- Capped the MTF booster so it cannot be the component that raises a normal candidate's internal ranking score above `1.0`; public confidence remains bounded at the orchestrator boundary.
+- Marked BreakRetest and OpeningRangeBreakout as structural-exit strategies so exit/full matrix phases skip their fixed structural geometry while confidence and ATR sweeps still include them.
+- Added worker env allowlist and summary coverage for the explicit MTF booster sweep knobs.
+
+### All Strategy Toggle Activation (2026-06-27)
+
+- Brought every registered `StrategyOrchestrator` strategy lane online by default except TRAI, including BreakRetest, OpeningRangeBreakout, SmartMoneySweep, NoWickImbalance, DonchianBreakout, PropSafeEMAPullback, EMATrendRetest, RSI2MeanReversion, and TimeSeriesMomentum.
+- Aligned `TradingConfig` defaults, `config/trading.config.json`, and the PM2 `ogz-prime-v2` ecosystem env so live reloads do not leave fee/eval candidate strategies dormant behind stale or missing toggles.
+- Added a regression guard proving the default pipeline constructs all 17 registered strategy lanes with TRAI disabled.
+- Kept `MarketRegime` out of matrix and parallel solo-strategy rosters because regime is a confidence/position-size boost input, not a standalone strategy tuning target.
+
+### MTF Source Timeframe Ownership (2026-06-27)
+
+- Made `MultiTimeframeAdapter` store source candles in their real timeframe bucket and aggregate only upward, preventing 15m candles from being silently treated as 1m inputs.
+- Required MTF ingestion to carry an explicit or stamped source timeframe, with fail-closed validation for missing, unsupported, or below-base timeframes.
+- Fixed `StrategyOrchestrator` MTF decision wiring to consume adapter `confluenceScore`, `confidence`, and `readyTimeframes`, so standalone MTF can produce BUY/SELL decisions instead of staying dead behind a nonexistent `score` field.
+- Wired the live candle processor, strategy orchestrator, tuning harnesses, and pipeline audit to pass source timeframe into MTF ingestion, with focused regression coverage for the adapter and callers.
 
 ### Dashboard Chart Position Scope (2026-06-27)
 
