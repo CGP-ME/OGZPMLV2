@@ -973,6 +973,7 @@ class StateManager {
           // L5: pre-trade + RiskManager gate observability (pass/fail per gate).
           // Pure instrumentation — never changes trade logic.
           riskGates: context.ledgerData.riskGates,
+          operationalQuarantine: context.ledgerData.operationalQuarantine,
         });
       } catch (err) {
         return this._rejectOpenPositionLedger(err, context);

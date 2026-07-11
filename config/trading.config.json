@@ -29,6 +29,57 @@
     "production": {
       "mode": "live",
       "confirmLive": true,
+      "confidence": {
+        "minTradeConfidence": 0.5
+      },
+      "risk": {
+        "riskManagerBypass": false,
+        "accountDrawdownBypass": false,
+        "maxDrawdown": 3,
+        "maxDailyLoss": 1,
+        "maxWeeklyLoss": 3,
+        "maxMonthlyLoss": 3,
+        "accountDrawdownPercent": -3
+      },
+      "venueGuards": {
+        "ttp": {
+          "enabled": true,
+          "volumeCap": {
+            "enabled": true,
+            "percent": 0.05,
+            "timeframe": "1m",
+            "fallbackToMostRecentVolume": true,
+            "maxReferenceAgeMs": 180000
+          },
+          "marketTime": {
+            "enabled": true,
+            "blockEntriesAfterCutoff": true,
+            "liquidationEnabled": true,
+            "cutoffMinutesBeforeClose": 10,
+            "entryBufferMinutesBeforeCutoff": 30
+          },
+          "accountLimits": {
+            "enabled": true,
+            "enforceDailyLossPause": true,
+            "enforceMaxLoss": true,
+            "accountStartOfDayDate": "",
+            "accountStartOfDayEquity": 5000,
+            "dailyLossDollars": 50,
+            "maxLossThresholdEquity": 4850
+          },
+          "earningsRestriction": {
+            "enabled": true,
+            "blockEntries": true,
+            "manualStatus": null
+          },
+          "consistency": {
+            "enabled": true,
+            "maxPositionProfitRatio": 0.3,
+            "profitTargetDollars": 300,
+            "maxProfitTargetInitialBalanceRatio": 0.06
+          }
+        }
+      },
       "features": {
         "enableShorts": false
       },
@@ -74,6 +125,57 @@
     "paper": {
       "mode": "paper",
       "confirmLive": false,
+      "confidence": {
+        "minTradeConfidence": 0.5
+      },
+      "risk": {
+        "riskManagerBypass": false,
+        "accountDrawdownBypass": false,
+        "maxDrawdown": 3,
+        "maxDailyLoss": 1,
+        "maxWeeklyLoss": 3,
+        "maxMonthlyLoss": 3,
+        "accountDrawdownPercent": -3
+      },
+      "venueGuards": {
+        "ttp": {
+          "enabled": false,
+          "volumeCap": {
+            "enabled": true,
+            "percent": 0.05,
+            "timeframe": "1m",
+            "fallbackToMostRecentVolume": true,
+            "maxReferenceAgeMs": 180000
+          },
+          "marketTime": {
+            "enabled": true,
+            "blockEntriesAfterCutoff": true,
+            "liquidationEnabled": true,
+            "cutoffMinutesBeforeClose": 10,
+            "entryBufferMinutesBeforeCutoff": 30
+          },
+          "accountLimits": {
+            "enabled": true,
+            "enforceDailyLossPause": true,
+            "enforceMaxLoss": true,
+            "accountStartOfDayDate": "",
+            "accountStartOfDayEquity": 5000,
+            "dailyLossDollars": 50,
+            "maxLossThresholdEquity": 4850
+          },
+          "earningsRestriction": {
+            "enabled": true,
+            "blockEntries": true,
+            "manualStatus": null
+          },
+          "consistency": {
+            "enabled": true,
+            "maxPositionProfitRatio": 0.3,
+            "profitTargetDollars": 300,
+            "maxProfitTargetInitialBalanceRatio": 0.06
+          }
+        }
+      },
       "features": {
         "enableShorts": false
       },
@@ -119,6 +221,57 @@
     "backtest-all": {
       "mode": "backtest",
       "confirmLive": false,
+      "confidence": {
+        "minTradeConfidence": 0.5
+      },
+      "risk": {
+        "riskManagerBypass": true,
+        "accountDrawdownBypass": true,
+        "maxDrawdown": 5,
+        "maxDailyLoss": 1,
+        "maxWeeklyLoss": 5,
+        "maxMonthlyLoss": 5,
+        "accountDrawdownPercent": -10
+      },
+      "venueGuards": {
+        "ttp": {
+          "enabled": false,
+          "volumeCap": {
+            "enabled": true,
+            "percent": 0.05,
+            "timeframe": "1m",
+            "fallbackToMostRecentVolume": true,
+            "maxReferenceAgeMs": 180000
+          },
+          "marketTime": {
+            "enabled": true,
+            "blockEntriesAfterCutoff": true,
+            "liquidationEnabled": true,
+            "cutoffMinutesBeforeClose": 10,
+            "entryBufferMinutesBeforeCutoff": 0
+          },
+          "accountLimits": {
+            "enabled": true,
+            "enforceDailyLossPause": true,
+            "enforceMaxLoss": true,
+            "accountStartOfDayDate": "",
+            "accountStartOfDayEquity": 5000,
+            "dailyLossDollars": 50,
+            "maxLossThresholdEquity": 4850
+          },
+          "earningsRestriction": {
+            "enabled": true,
+            "blockEntries": true,
+            "manualStatus": null
+          },
+          "consistency": {
+            "enabled": true,
+            "maxPositionProfitRatio": 0.3,
+            "profitTargetDollars": 300,
+            "maxProfitTargetInitialBalanceRatio": 0.06
+          }
+        }
+      },
       "features": {
         "enableShorts": false
       },
@@ -164,6 +317,57 @@
     "backtest-p0": {
       "mode": "backtest",
       "confirmLive": false,
+      "confidence": {
+        "minTradeConfidence": 0.6
+      },
+      "risk": {
+        "riskManagerBypass": true,
+        "accountDrawdownBypass": true,
+        "maxDrawdown": 5,
+        "maxDailyLoss": 1,
+        "maxWeeklyLoss": 5,
+        "maxMonthlyLoss": 5,
+        "accountDrawdownPercent": -10
+      },
+      "venueGuards": {
+        "ttp": {
+          "enabled": false,
+          "volumeCap": {
+            "enabled": true,
+            "percent": 0.05,
+            "timeframe": "1m",
+            "fallbackToMostRecentVolume": true,
+            "maxReferenceAgeMs": 180000
+          },
+          "marketTime": {
+            "enabled": true,
+            "blockEntriesAfterCutoff": true,
+            "liquidationEnabled": true,
+            "cutoffMinutesBeforeClose": 10,
+            "entryBufferMinutesBeforeCutoff": 0
+          },
+          "accountLimits": {
+            "enabled": true,
+            "enforceDailyLossPause": true,
+            "enforceMaxLoss": true,
+            "accountStartOfDayDate": "",
+            "accountStartOfDayEquity": 5000,
+            "dailyLossDollars": 50,
+            "maxLossThresholdEquity": 4850
+          },
+          "earningsRestriction": {
+            "enabled": true,
+            "blockEntries": true,
+            "manualStatus": null
+          },
+          "consistency": {
+            "enabled": true,
+            "maxPositionProfitRatio": 0.3,
+            "profitTargetDollars": 300,
+            "maxProfitTargetInitialBalanceRatio": 0.06
+          }
+        }
+      },
       "features": {
         "enableShorts": false
       },
@@ -211,6 +415,57 @@
     "backtest-masr": {
       "mode": "backtest",
       "confirmLive": false,
+      "confidence": {
+        "minTradeConfidence": 0.5
+      },
+      "risk": {
+        "riskManagerBypass": true,
+        "accountDrawdownBypass": true,
+        "maxDrawdown": 5,
+        "maxDailyLoss": 1,
+        "maxWeeklyLoss": 5,
+        "maxMonthlyLoss": 5,
+        "accountDrawdownPercent": -10
+      },
+      "venueGuards": {
+        "ttp": {
+          "enabled": false,
+          "volumeCap": {
+            "enabled": true,
+            "percent": 0.05,
+            "timeframe": "1m",
+            "fallbackToMostRecentVolume": true,
+            "maxReferenceAgeMs": 180000
+          },
+          "marketTime": {
+            "enabled": true,
+            "blockEntriesAfterCutoff": true,
+            "liquidationEnabled": true,
+            "cutoffMinutesBeforeClose": 10,
+            "entryBufferMinutesBeforeCutoff": 0
+          },
+          "accountLimits": {
+            "enabled": true,
+            "enforceDailyLossPause": true,
+            "enforceMaxLoss": true,
+            "accountStartOfDayDate": "",
+            "accountStartOfDayEquity": 5000,
+            "dailyLossDollars": 50,
+            "maxLossThresholdEquity": 4850
+          },
+          "earningsRestriction": {
+            "enabled": true,
+            "blockEntries": true,
+            "manualStatus": null
+          },
+          "consistency": {
+            "enabled": true,
+            "maxPositionProfitRatio": 0.3,
+            "profitTargetDollars": 300,
+            "maxProfitTargetInitialBalanceRatio": 0.06
+          }
+        }
+      },
       "features": {
         "enableShorts": false
       },
@@ -258,6 +513,57 @@
     "backtest-rsi": {
       "mode": "backtest",
       "confirmLive": false,
+      "confidence": {
+        "minTradeConfidence": 0.5
+      },
+      "risk": {
+        "riskManagerBypass": true,
+        "accountDrawdownBypass": true,
+        "maxDrawdown": 5,
+        "maxDailyLoss": 1,
+        "maxWeeklyLoss": 5,
+        "maxMonthlyLoss": 5,
+        "accountDrawdownPercent": -10
+      },
+      "venueGuards": {
+        "ttp": {
+          "enabled": false,
+          "volumeCap": {
+            "enabled": true,
+            "percent": 0.05,
+            "timeframe": "1m",
+            "fallbackToMostRecentVolume": true,
+            "maxReferenceAgeMs": 180000
+          },
+          "marketTime": {
+            "enabled": true,
+            "blockEntriesAfterCutoff": true,
+            "liquidationEnabled": true,
+            "cutoffMinutesBeforeClose": 10,
+            "entryBufferMinutesBeforeCutoff": 0
+          },
+          "accountLimits": {
+            "enabled": true,
+            "enforceDailyLossPause": true,
+            "enforceMaxLoss": true,
+            "accountStartOfDayDate": "",
+            "accountStartOfDayEquity": 5000,
+            "dailyLossDollars": 50,
+            "maxLossThresholdEquity": 4850
+          },
+          "earningsRestriction": {
+            "enabled": true,
+            "blockEntries": true,
+            "manualStatus": null
+          },
+          "consistency": {
+            "enabled": true,
+            "maxPositionProfitRatio": 0.3,
+            "profitTargetDollars": 300,
+            "maxProfitTargetInitialBalanceRatio": 0.06
+          }
+        }
+      },
       "features": {
         "enableShorts": false
       },
@@ -301,6 +607,198 @@
         "enableTimeSeriesMomentum": false,
         "directionFilter": "both"
       }
+    },
+    "backtest-ttp-5k-max": {
+      "mode": "backtest",
+      "confirmLive": false,
+      "confidence": {
+        "minTradeConfidence": 0.5
+      },
+      "risk": {
+        "riskManagerBypass": false,
+        "accountDrawdownBypass": false,
+        "maxDrawdown": 3,
+        "maxDailyLoss": 1,
+        "maxWeeklyLoss": 3,
+        "maxMonthlyLoss": 3,
+        "accountDrawdownPercent": -3
+      },
+      "venueGuards": {
+        "ttp": {
+          "enabled": false,
+          "volumeCap": {
+            "enabled": true,
+            "percent": 0.05,
+            "timeframe": "1m",
+            "fallbackToMostRecentVolume": true,
+            "maxReferenceAgeMs": 180000
+          },
+          "marketTime": {
+            "enabled": true,
+            "blockEntriesAfterCutoff": true,
+            "liquidationEnabled": true,
+            "cutoffMinutesBeforeClose": 10,
+            "entryBufferMinutesBeforeCutoff": 0
+          },
+          "accountLimits": {
+            "enabled": true,
+            "enforceDailyLossPause": true,
+            "enforceMaxLoss": true,
+            "accountStartOfDayDate": "",
+            "accountStartOfDayEquity": 5000,
+            "dailyLossDollars": 50,
+            "maxLossThresholdEquity": 4850
+          },
+          "earningsRestriction": {
+            "enabled": true,
+            "blockEntries": true,
+            "manualStatus": null
+          },
+          "consistency": {
+            "enabled": true,
+            "maxPositionProfitRatio": 0.3,
+            "profitTargetDollars": 300,
+            "maxProfitTargetInitialBalanceRatio": 0.06
+          }
+        }
+      },
+      "features": {
+        "enableShorts": false
+      },
+      "strategies": {
+        "soloFilter": []
+      },
+      "confluence": {
+        "mtfBooster": {
+          "enabled": true,
+          "minScore": 0.3,
+          "minConfidence": 0.45,
+          "strengthMultiplier": 0.2,
+          "maxMultiplier": 1.15,
+          "conflictMultiplier": 0.88,
+          "penalizeConflicts": true,
+          "boostMtfCandidate": false
+        },
+        "strategyMtf": {
+          "enabled": true
+        }
+      },
+      "pipeline": {
+        "enableRSI": true,
+        "enableMADynamicSR": true,
+        "enableEMACrossover": true,
+        "enableLiquiditySweep": true,
+        "enableCandlePattern": true,
+        "enableBreakRetest": true,
+        "enableMarketRegime": false,
+        "enableMultiTimeframe": true,
+        "enableOGZTPO": true,
+        "enableOpeningRangeBreakout": true,
+        "enableSmartMoneySweep": true,
+        "enableNoWickImbalance": true,
+        "enableDonchianBreakout": true,
+        "enablePropSafeEMAPullback": true,
+        "enableEMATrendRetest": true,
+        "enableRSI2MeanReversion": true,
+        "enableTimeSeriesMomentum": true,
+        "directionFilter": "both"
+      }
+    },
+    "backtest-trey-spec": {
+      "mode": "backtest",
+      "confirmLive": false,
+      "confidence": {
+        "minTradeConfidence": 0.5
+      },
+      "risk": {
+        "riskManagerBypass": false,
+        "accountDrawdownBypass": false,
+        "maxDrawdown": 3,
+        "maxDailyLoss": 1,
+        "maxWeeklyLoss": 3,
+        "maxMonthlyLoss": 3,
+        "accountDrawdownPercent": -3
+      },
+      "venueGuards": {
+        "ttp": {
+          "enabled": false,
+          "volumeCap": {
+            "enabled": true,
+            "percent": 0.05,
+            "timeframe": "1m",
+            "fallbackToMostRecentVolume": true,
+            "maxReferenceAgeMs": 180000
+          },
+          "marketTime": {
+            "enabled": true,
+            "blockEntriesAfterCutoff": true,
+            "liquidationEnabled": true,
+            "cutoffMinutesBeforeClose": 10,
+            "entryBufferMinutesBeforeCutoff": 30
+          },
+          "accountLimits": {
+            "enabled": true,
+            "enforceDailyLossPause": true,
+            "enforceMaxLoss": true,
+            "accountStartOfDayDate": "",
+            "accountStartOfDayEquity": 5000,
+            "dailyLossDollars": 50,
+            "maxLossThresholdEquity": 4850
+          },
+          "earningsRestriction": {
+            "enabled": true,
+            "blockEntries": true,
+            "manualStatus": null
+          },
+          "consistency": {
+            "enabled": true,
+            "maxPositionProfitRatio": 0.3,
+            "profitTargetDollars": 300,
+            "maxProfitTargetInitialBalanceRatio": 0.06
+          }
+        }
+      },
+      "features": {
+        "enableShorts": false
+      },
+      "strategies": {
+        "soloFilter": []
+      },
+      "confluence": {
+        "mtfBooster": {
+          "enabled": true,
+          "minScore": 0.3,
+          "minConfidence": 0.45,
+          "strengthMultiplier": 0.2,
+          "maxMultiplier": 1.15,
+          "conflictMultiplier": 0.88,
+          "penalizeConflicts": true,
+          "boostMtfCandidate": false
+        },
+        "strategyMtf": {
+          "enabled": true
+        }
+      },
+      "pipeline": {
+        "enableRSI": true,
+        "enableMADynamicSR": true,
+        "enableEMACrossover": true,
+        "enableLiquiditySweep": true,
+        "enableCandlePattern": true,
+        "enableBreakRetest": true,
+        "enableMarketRegime": false,
+        "enableMultiTimeframe": true,
+        "enableOGZTPO": true,
+        "enableOpeningRangeBreakout": true,
+        "enableSmartMoneySweep": true,
+        "enableNoWickImbalance": true,
+        "enableDonchianBreakout": true,
+        "enablePropSafeEMAPullback": true,
+        "enableEMATrendRetest": true,
+        "enableRSI2MeanReversion": true,
+        "enableTimeSeriesMomentum": true,
+        "directionFilter": "both"
+      }
     }
   },
   "tuningProfiles": {
@@ -329,12 +827,6 @@
           "TIER1_EXIT_FRACTION": "0.30",
           "TIER2_EXIT_FRACTION": "0.30",
           "TIER3_EXIT_FRACTION": "0.20",
-          "MAX_DRAWDOWN": "5",
-          "MAX_DAILY_LOSS": "1",
-          "MAX_WEEKLY_LOSS": "5",
-          "MAX_MONTHLY_LOSS": "5",
-          "ACCOUNT_DRAWDOWN_BYPASS": "true",
-          "RISK_MANAGER_BYPASS": "true",
           "ATR_FILTER_ENABLED": "true",
           "ATR_MIN_PERCENT": "0.15",
           "EXIT_SYSTEM": "legacy",
@@ -352,7 +844,6 @@
         ],
         "env": {
           "INITIAL_BALANCE": "5000",
-          "MIN_TRADE_CONFIDENCE": "0.5",
           "ENABLE_DYNAMIC_SIZING": "true",
           "BASE_POSITION_SIZE": "0.01",
           "MAX_POSITION_SIZE_PCT": "0.10",
@@ -372,25 +863,13 @@
           "TIER1_EXIT_FRACTION": "0.30",
           "TIER2_EXIT_FRACTION": "0.30",
           "TIER3_EXIT_FRACTION": "0.20",
-          "MAX_DRAWDOWN": "3",
-          "MAX_DAILY_LOSS": "1",
-          "MAX_WEEKLY_LOSS": "3",
-          "MAX_MONTHLY_LOSS": "3",
-          "ACCOUNT_DRAWDOWN_BYPASS": "false",
-          "ACCOUNT_DRAWDOWN_PCT": "-3.0",
-          "RISK_MANAGER_BYPASS": "false",
           "ATR_FILTER_ENABLED": "true",
           "ATR_MIN_PERCENT": "0.40",
           "EXIT_SYSTEM": "legacy",
           "FEE_MODEL": "per_share_minimum",
           "FEE_PER_SHARE": "0.005",
           "FEE_MIN_ORDER": "0.75",
-          "FEE_SLIPPAGE": "0.0005",
-          "TTP_DAILY_LOSS_LIMIT_DOLLARS": "50",
-          "TTP_MAX_LOSS_THRESHOLD_EQUITY": "4850",
-          "TTP_PROFIT_TARGET_DOLLARS": "300",
-          "TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO": "0.30",
-          "TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO": "0.06"
+          "FEE_SLIPPAGE": "0.0005"
         }
       },
       "trey-spec": {
@@ -403,7 +882,6 @@
         ],
         "env": {
           "INITIAL_BALANCE": "5000",
-          "MIN_TRADE_CONFIDENCE": "0.5",
           "ENABLE_DYNAMIC_SIZING": "true",
           "BASE_POSITION_SIZE": "0.01",
           "MAX_POSITION_SIZE_PCT": "0.10",
@@ -429,26 +907,13 @@
           "BE_SCALEOUT_ENABLED": "true",
           "BE_SCALEOUT_FRACTION": "0.25",
           "TIERED_EXIT_ENABLED": "false",
-          "MAX_DRAWDOWN": "3",
-          "MAX_DAILY_LOSS": "1",
-          "MAX_WEEKLY_LOSS": "3",
-          "MAX_MONTHLY_LOSS": "3",
-          "ACCOUNT_DRAWDOWN_BYPASS": "false",
-          "ACCOUNT_DRAWDOWN_PCT": "-3.0",
-          "RISK_MANAGER_BYPASS": "false",
           "ATR_FILTER_ENABLED": "true",
           "ATR_MIN_PERCENT": "0.40",
           "EXIT_SYSTEM": "legacy",
           "FEE_MODEL": "per_share_minimum",
           "FEE_PER_SHARE": "0.005",
           "FEE_MIN_ORDER": "0.75",
-          "FEE_SLIPPAGE": "0.0005",
-          "TTP_DAILY_LOSS_LIMIT_DOLLARS": "50",
-          "TTP_MAX_LOSS_THRESHOLD_EQUITY": "4850",
-          "TTP_PROFIT_TARGET_DOLLARS": "300",
-          "TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO": "0.30",
-          "TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO": "0.06",
-          "TTP_ENTRY_BUFFER_MINUTES_BEFORE_CUTOFF": "30"
+          "FEE_SLIPPAGE": "0.0005"
         }
       },
       "legacy-wide": {
@@ -472,12 +937,6 @@
           "TIER1_EXIT_FRACTION": "0.30",
           "TIER2_EXIT_FRACTION": "0.30",
           "TIER3_EXIT_FRACTION": "0.20",
-          "MAX_DRAWDOWN": "5",
-          "MAX_DAILY_LOSS": "1",
-          "MAX_WEEKLY_LOSS": "5",
-          "MAX_MONTHLY_LOSS": "5",
-          "ACCOUNT_DRAWDOWN_BYPASS": "true",
-          "RISK_MANAGER_BYPASS": "true",
           "EXIT_SYSTEM": "legacy",
           "FEE_SLIPPAGE": "0.0005"
         }
@@ -1214,8 +1673,18 @@
   },
   "sessions": {
     "routerEnabled": false,
-    "stockSymbols": ["TSLA","NVDA","COIN","MARA","RIOT"],
-    "cryptoSymbols": ["BTC-USD","ETH-USD","SOL-USD"],
+    "stockSymbols": [
+      "TSLA",
+      "NVDA",
+      "COIN",
+      "MARA",
+      "RIOT"
+    ],
+    "cryptoSymbols": [
+      "BTC-USD",
+      "ETH-USD",
+      "SOL-USD"
+    ],
     "checkIntervalMs": 60000,
     "forceCloseOnSessionEnd": true
   },

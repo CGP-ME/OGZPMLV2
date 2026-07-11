@@ -91,6 +91,14 @@ describe('ConfigLoader live trading safety guard', () => {
     return require('../foundation/ConfigLoader').load(opts);
   }
 
+  function useProductionProfile() {
+    process.env.PROFILE = 'production';
+  }
+
+  function useBacktestProfile(profile = 'backtest-all') {
+    process.env.PROFILE = profile;
+  }
+
   function configFileValue(configPath) {
     const tradingConfigFile = require('../config/trading.config.json');
     return configPath.split('.').reduce((current, part) => (
@@ -154,10 +162,10 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(loaded.config.exitLogic.beScaleOut.scaleOutFraction).toBe(0.25);
     expect(loaded.config.exitLogic.tieredExit.enabled).toBe(false);
     expect(loaded.config.evalRules.ttp.marketTime.entryBufferMinutesBeforeCutoff).toBe(30);
-    expect(loaded.sources['confidence.minTradeConfidence']).toBe('profile:trey-spec:MIN_TRADE_CONFIDENCE');
+    expect(loaded.sources['confidence.minTradeConfidence']).toBe('config:launchProfiles.paper.confidence.minTradeConfidence');
     expect(loaded.sources['strategyBehavior.emaCrossover.warmupBars']).toBe('profile:trey-spec:EMA_CROSSOVER_WARMUP_BARS');
     expect(loaded.sources['exitLogic.tieredExit.enabled']).toBe('profile:trey-spec:TIERED_EXIT_ENABLED');
-    expect(loaded.sources['evalRules.ttp.marketTime.entryBufferMinutesBeforeCutoff']).toBe('profile:trey-spec:TTP_ENTRY_BUFFER_MINUTES_BEFORE_CUTOFF');
+    expect(loaded.sources['evalRules.ttp.marketTime.entryBufferMinutesBeforeCutoff']).toBe('config:launchProfiles.paper.venueGuards.ttp.marketTime.entryBufferMinutesBeforeCutoff');
   });
 
   test('ConfigLoader compatibility reads use the resolved ConfigLoader snapshot', () => {
@@ -310,158 +318,81 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(ConfigLoader.get('evalRules.ttp.consistency.enabled')).toBe(loaded.config.evalRules.ttp.consistency.enabled);
   });
 
-  test('keeps risk defaults sourced from trading.config.json without weakening explicit-source guard', () => {
-    process.env.EXECUTION_MODE = 'backtest';
-    process.env.CANDLE_SOURCE = 'file';
-    process.env.BACKTEST_MODE = 'true';
+  test('risk limits are sourced from explicit launch profiles', () => {
+    useBacktestProfile('backtest-all');
     delete process.env.MAX_DRAWDOWN;
     delete process.env.MAX_DAILY_LOSS;
 
     const loaded = loadConfig();
 
-    expect(loaded.config.risk.maxDrawdown).toBe(configFileValue('risk.maxDrawdown'));
-    expect(loaded.config.risk.maxDailyLoss).toBe(configFileValue('risk.maxDailyLoss'));
-    expect(loaded.sources['risk.maxDrawdown']).toBe('default');
-    expect(loaded.sources['risk.maxDailyLoss']).toBe('default');
-    expect(loaded.errors).toEqual(expect.arrayContaining([
-      'risk.maxDrawdown requires explicit env/profile source',
-      'risk.maxDailyLoss requires explicit env/profile source',
-    ]));
+    expect(loaded.errors).toEqual([]);
+    expect(loaded.config.mode.backtest).toBe(true);
+    expect(loaded.config.risk.maxDrawdown).toBe(5);
+    expect(loaded.config.risk.maxDailyLoss).toBe(1);
+    expect(loaded.config.risk.maxWeeklyLoss).toBe(5);
+    expect(loaded.config.risk.maxMonthlyLoss).toBe(5);
+    expect(loaded.config.risk.riskManagerBypass).toBe(true);
+    expect(loaded.config.risk.accountDrawdownBypass).toBe(true);
+    expect(loaded.sources['risk.maxDrawdown']).toBe('config:launchProfiles.backtest-all.risk.maxDrawdown');
+    expect(loaded.sources['risk.riskManagerBypass']).toBe('config:launchProfiles.backtest-all.risk.riskManagerBypass');
   });
 
-  test('throws during silent startup when live trading enables account drawdown bypass', () => {
+  test('legacy live env flags cannot activate live mode without the production launch profile', () => {
     process.env.LIVE_TRADING = 'true';
     process.env.CONFIRM_LIVE_TRADING = 'true';
+    process.env.EXECUTION_MODE = 'live';
+    process.env.TRADING_MODE = 'live';
+    process.env.ENABLE_LIVE_TRADING = 'true';
+
+    const loaded = loadConfig();
+
+    expect(loaded.errors).toEqual([]);
+    expect(loaded.config.mode.liveTrading).toBe(false);
+    expect(loaded.config.mode.execution).toBe('paper');
+    expect(loaded.sources['mode.execution']).toBe('config:launchProfiles.paper.mode');
+  });
+
+  test('production profile enables live trading with bypasses disabled', () => {
+    useProductionProfile();
     process.env.ACCOUNT_DRAWDOWN_BYPASS = 'true';
-
-    expect(() => loadConfig()).toThrow(/ACCOUNT_DRAWDOWN_BYPASS=true/);
-  });
-
-  test('throws during silent startup when live trading enables risk manager bypass', () => {
-    process.env.LIVE_TRADING = 'true';
-    process.env.CONFIRM_LIVE_TRADING = 'true';
     process.env.RISK_MANAGER_BYPASS = 'true';
-
-    expect(() => loadConfig()).toThrow(/RISK_MANAGER_BYPASS=true/);
-  });
-
-  test('throws during live startup without explicit live confirmation', () => {
-    process.env.LIVE_TRADING = 'true';
-    process.env.CONFIRM_LIVE_TRADING = 'false';
-    process.env.EVAL_RULES_ENABLED = 'true';
-    process.env.TTP_RULES_ENABLED = 'true';
-
-    expect(() => loadConfig()).toThrow(/CONFIRM_LIVE_TRADING=true/);
-  });
-
-  test('allows live trading when both bypasses are disabled', () => {
-    process.env.LIVE_TRADING = 'true';
-    process.env.CONFIRM_LIVE_TRADING = 'true';
-    process.env.EVAL_RULES_ENABLED = 'true';
-    process.env.TTP_RULES_ENABLED = 'true';
 
     const loaded = loadConfig();
 
     expect(loaded.errors).toEqual([]);
     expect(loaded.config.mode.liveTrading).toBe(true);
+    expect(loaded.config.mode.confirmLive).toBe(true);
     expect(loaded.config.risk.accountDrawdownBypass).toBe(false);
     expect(loaded.config.risk.riskManagerBypass).toBe(false);
+    expect(loaded.sources['risk.accountDrawdownBypass']).toBe('config:launchProfiles.production.risk.accountDrawdownBypass');
   });
 
-  test('allows live startup at configured MIN_TRADE_CONFIDENCE eval floor', () => {
-    process.env.LIVE_TRADING = 'true';
-    process.env.CONFIRM_LIVE_TRADING = 'true';
-    process.env.EVAL_RULES_ENABLED = 'true';
-    process.env.TTP_RULES_ENABLED = 'true';
-    process.env.MIN_TRADE_CONFIDENCE = '0.5';
+  test('production profile owns min trade confidence and ignores env/dotenv attempts', () => {
+    process.env.DOTENV_CONFIG_PATH = path.join(__dirname, 'fixtures', 'live-confidence-dotenv.env');
+    useProductionProfile();
+    process.env.MIN_TRADE_CONFIDENCE = '0.49';
 
     const loaded = loadConfig();
 
     expect(loaded.errors).toEqual([]);
     expect(loaded.config.confidence.minTradeConfidence).toBe(0.5);
+    expect(loaded.sources['confidence.minTradeConfidence']).toBe('config:launchProfiles.production.confidence.minTradeConfidence');
   });
 
-  test('throws during live startup when MIN_TRADE_CONFIDENCE is missing or below eval floor', () => {
-    process.env.LIVE_TRADING = 'true';
-    process.env.CONFIRM_LIVE_TRADING = 'true';
-    process.env.EVAL_RULES_ENABLED = 'true';
-    process.env.TTP_RULES_ENABLED = 'true';
-    process.env.MIN_TRADE_CONFIDENCE = '0.49';
-
-    expect(() => loadConfig()).toThrow(/MIN_TRADE_CONFIDENCE >= 0\.5/);
-
-    jest.resetModules();
-    delete process.env.MIN_TRADE_CONFIDENCE;
-
-    expect(() => loadConfig()).toThrow(/MIN_TRADE_CONFIDENCE from process env/);
-  });
-
-  test('throws during live startup when MIN_TRADE_CONFIDENCE only comes from dotenv', () => {
-    process.env.DOTENV_CONFIG_PATH = path.join(__dirname, 'fixtures', 'live-confidence-dotenv.env');
-    process.env.LIVE_TRADING = 'true';
-    process.env.CONFIRM_LIVE_TRADING = 'true';
-    process.env.EVAL_RULES_ENABLED = 'true';
-    process.env.TTP_RULES_ENABLED = 'true';
-    delete process.env.MIN_TRADE_CONFIDENCE;
-
-    expect(() => loadConfig()).toThrow(/MIN_TRADE_CONFIDENCE from process env or selected tuning profile, got dotenv:MIN_TRADE_CONFIDENCE/);
-  });
-
-  test('throws during live startup when EVAL_RULES_ENABLED is false or unset', () => {
-    process.env.LIVE_TRADING = 'true';
-    process.env.CONFIRM_LIVE_TRADING = 'true';
-    process.env.EVAL_RULES_ENABLED = 'false';
-    process.env.TTP_RULES_ENABLED = 'true';
-
-    expect(() => loadConfig()).toThrow(/EVAL_RULES_ENABLED unset or false/);
-
-    jest.resetModules();
-    delete process.env.EVAL_RULES_ENABLED;
-
-    expect(() => loadConfig()).toThrow(/EVAL_RULES_ENABLED unset or false/);
-  });
-
-  test('derives live posture from execution-mode aliases before eval guard validation', () => {
-    process.env.LIVE_TRADING = 'false';
-    process.env.CONFIRM_LIVE_TRADING = 'true';
-    process.env.EXECUTION_MODE = 'live';
-    process.env.EVAL_RULES_ENABLED = 'false';
-    process.env.TTP_RULES_ENABLED = 'true';
-
-    expect(() => loadConfig()).toThrow(/EVAL_RULES_ENABLED unset or false/);
-
-    jest.resetModules();
-    process.env.EXECUTION_MODE = 'paper';
-    process.env.TRADING_MODE = 'live';
-
-    expect(() => loadConfig()).toThrow(/EVAL_RULES_ENABLED unset or false/);
-
-    jest.resetModules();
-    process.env.TRADING_MODE = 'paper';
-    process.env.ENABLE_LIVE_TRADING = 'true';
-
-    expect(() => loadConfig()).toThrow(/EVAL_RULES_ENABLED unset or false/);
-  });
-
-  test('throws during live startup when TTP_RULES_ENABLED is false or unset while eval rules are enabled', () => {
-    process.env.LIVE_TRADING = 'true';
-    process.env.CONFIRM_LIVE_TRADING = 'true';
-    process.env.EVAL_RULES_ENABLED = 'true';
-    process.env.TTP_RULES_ENABLED = 'false';
-
-    expect(() => loadConfig()).toThrow(/TTP_RULES_ENABLED unset or false/);
-
-    jest.resetModules();
-    delete process.env.TTP_RULES_ENABLED;
-
-    expect(() => loadConfig()).toThrow(/TTP_RULES_ENABLED unset or false/);
-  });
-
-  test('keeps eval rule flags non-blocking for paper and backtest posture', () => {
-    process.env.LIVE_TRADING = 'false';
+  test('production TTP enablement is owned by venueGuards.ttp.enabled, not legacy env flags', () => {
+    useProductionProfile();
     process.env.EVAL_RULES_ENABLED = 'false';
     process.env.TTP_RULES_ENABLED = 'false';
 
+    const loaded = loadConfig();
+
+    expect(loaded.errors).toEqual([]);
+    expect(loaded.config.evalRules.enabled).toBe(true);
+    expect(loaded.config.evalRules.ttp.enabled).toBe(true);
+    expect(loaded.sources['evalRules.enabled']).toBe('config:launchProfiles.production.venueGuards.ttp.enabled');
+  });
+
+  test('paper and backtest profiles keep eval rule posture explicit', () => {
     const paperLoaded = loadConfig();
 
     expect(paperLoaded.errors).toEqual([]);
@@ -469,12 +400,7 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(paperLoaded.config.evalRules.enabled).toBe(false);
 
     jest.resetModules();
-    process.env.EXECUTION_MODE = 'backtest';
-    process.env.BACKTEST_MODE = 'true';
-    process.env.CANDLE_SOURCE = 'file';
-    process.env.LIVE_TRADING = 'false';
-    process.env.EVAL_RULES_ENABLED = 'false';
-    process.env.TTP_RULES_ENABLED = 'false';
+    useBacktestProfile('backtest-all');
 
     const backtestLoaded = loadConfig();
 
@@ -484,6 +410,7 @@ describe('ConfigLoader live trading safety guard', () => {
   });
 
   test('throws during live startup when enabled webhook route is still dry-run', () => {
+    useProductionProfile();
     process.env.LIVE_TRADING = 'true';
     process.env.CONFIRM_LIVE_TRADING = 'true';
     process.env.WEBHOOK_ORDERS_ENABLED = 'true';
@@ -494,6 +421,7 @@ describe('ConfigLoader live trading safety guard', () => {
   });
 
   test('throws during live startup when enabled webhook route has no URL', () => {
+    useProductionProfile();
     process.env.LIVE_TRADING = 'true';
     process.env.CONFIRM_LIVE_TRADING = 'true';
     process.env.WEBHOOK_ORDERS_ENABLED = 'true';
@@ -504,6 +432,7 @@ describe('ConfigLoader live trading safety guard', () => {
   });
 
   test('throws during live startup when enabled webhook route uses placeholder URL', () => {
+    useProductionProfile();
     process.env.LIVE_TRADING = 'true';
     process.env.CONFIRM_LIVE_TRADING = 'true';
     process.env.EVAL_RULES_ENABLED = 'true';
@@ -516,6 +445,7 @@ describe('ConfigLoader live trading safety guard', () => {
   });
 
   test('throws during live startup when enabled webhook route encodes placeholder URL', () => {
+    useProductionProfile();
     process.env.LIVE_TRADING = 'true';
     process.env.CONFIRM_LIVE_TRADING = 'true';
     process.env.EVAL_RULES_ENABLED = 'true';
@@ -528,6 +458,7 @@ describe('ConfigLoader live trading safety guard', () => {
   });
 
   test('throws during live startup when enabled webhook route double-encodes placeholder URL', () => {
+    useProductionProfile();
     process.env.LIVE_TRADING = 'true';
     process.env.CONFIRM_LIVE_TRADING = 'true';
     process.env.EVAL_RULES_ENABLED = 'true';
@@ -540,6 +471,7 @@ describe('ConfigLoader live trading safety guard', () => {
   });
 
   test('throws during live startup when enabled webhook route hides placeholder in userinfo', () => {
+    useProductionProfile();
     process.env.LIVE_TRADING = 'true';
     process.env.CONFIRM_LIVE_TRADING = 'true';
     process.env.EVAL_RULES_ENABLED = 'true';
@@ -568,6 +500,7 @@ describe('ConfigLoader live trading safety guard', () => {
   });
 
   test('allows direct live broker route when webhook orders are disabled', () => {
+    useProductionProfile();
     process.env.LIVE_TRADING = 'true';
     process.env.CONFIRM_LIVE_TRADING = 'true';
     process.env.EVAL_RULES_ENABLED = 'true';
@@ -609,6 +542,7 @@ describe('ConfigLoader live trading safety guard', () => {
   });
 
   test('keeps Alpaca credentials non-blocking for backtest mode', () => {
+    useBacktestProfile('backtest-all');
     process.env.EXECUTION_MODE = 'backtest';
     process.env.CANDLE_SOURCE = 'file';
     process.env.BACKTEST_MODE = 'true';
@@ -650,8 +584,8 @@ describe('ConfigLoader live trading safety guard', () => {
           enforceMaxLoss: true,
           accountStartOfDayDate: currentNewYorkDate(),
           accountStartOfDayEquity: 50000,
-          dailyLossDollars: 500,
-          maxLossThresholdEquity: 47500,
+          dailyLossDollars: 50,
+          maxLossThresholdEquity: 4850,
         }),
         earningsRestriction: expect.objectContaining({
           enabled: true,
@@ -664,8 +598,8 @@ describe('ConfigLoader live trading safety guard', () => {
         consistency: expect.objectContaining({
           enabled: true,
           maxPositionProfitRatio: 0.30,
-          profitTargetDollars: 3000,
-          maxProfitTargetInitialBalanceRatio: 0.10,
+          profitTargetDollars: 300,
+          maxProfitTargetInitialBalanceRatio: 0.06,
         }),
       }),
     }));
@@ -739,66 +673,43 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(() => loadConfig()).toThrow(/TRACE_EVENT_MAX_BUFFERED_BYTES out of range/);
   });
 
-  test('rejects invalid TTP volume cap config when eval rules are enabled', () => {
-    process.env.EVAL_RULES_ENABLED = 'true';
-    process.env.TTP_RULES_ENABLED = 'true';
+  test('stable TTP env attempts cannot override production venue guard config', () => {
+    useProductionProfile();
     process.env.TTP_VOLUME_CAP_PERCENT = '1.5';
-
-    expect(() => loadConfig()).toThrow(/TTP_VOLUME_CAP_PERCENT out of range/);
-  });
-
-  test('does not silently fall back on non-numeric TTP volume cap percent', () => {
-    process.env.EVAL_RULES_ENABLED = 'true';
-    process.env.TTP_RULES_ENABLED = 'true';
-    process.env.TTP_VOLUME_CAP_PERCENT = 'not-a-number';
-
-    expect(() => loadConfig()).toThrow(/TTP_VOLUME_CAP_PERCENT out of range/);
-  });
-
-  test('rejects invalid TTP reference-age config when eval rules are enabled', () => {
-    process.env.EVAL_RULES_ENABLED = 'true';
-    process.env.TTP_RULES_ENABLED = 'true';
-    process.env.TTP_VOLUME_CAP_MAX_REFERENCE_AGE_MS = '0';
-
-    expect(() => loadConfig()).toThrow(/TTP_VOLUME_CAP_MAX_REFERENCE_AGE_MS out of range/);
-  });
-
-  test('rejects loose TTP reference-age config when eval rules are enabled', () => {
-    process.env.EVAL_RULES_ENABLED = 'true';
-    process.env.TTP_RULES_ENABLED = 'true';
     process.env.TTP_VOLUME_CAP_MAX_REFERENCE_AGE_MS = '600000';
-
-    expect(() => loadConfig()).toThrow(/TTP_VOLUME_CAP_MAX_REFERENCE_AGE_MS too loose/);
-  });
-
-  test('rejects invalid TTP liquidation cutoff config when eval rules are enabled', () => {
-    process.env.EVAL_RULES_ENABLED = 'true';
-    process.env.TTP_RULES_ENABLED = 'true';
     process.env.TTP_LIQUIDATION_MINUTES_BEFORE_CLOSE = '0';
+    process.env.TTP_ACCOUNT_LIMITS_ENABLED = 'false';
+    process.env.TTP_DAILY_LOSS_PAUSE_ENABLED = 'false';
+    process.env.TTP_MAX_LOSS_THRESHOLD_EQUITY = '0';
+    process.env.TTP_EARNINGS_RESTRICTION_ENABLED = 'false';
+    process.env.TTP_PROFIT_TARGET_DOLLARS = '0';
+    process.env.TTP_CONSISTENCY_ENABLED = 'false';
+    process.env.TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO = '1.5';
+    process.env.TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO = '0.50';
 
-    expect(() => loadConfig()).toThrow(/TTP_LIQUIDATION_MINUTES_BEFORE_CLOSE out of range/);
+    const loaded = loadConfig();
+
+    expect(loaded.errors).toEqual([]);
+    expect(loaded.config.evalRules.ttp.volumeCap.percent).toBe(0.05);
+    expect(loaded.config.evalRules.ttp.volumeCap.maxReferenceAgeMs).toBe(180000);
+    expect(loaded.config.evalRules.ttp.marketTime.cutoffMinutesBeforeClose).toBe(10);
+    expect(loaded.config.evalRules.ttp.accountLimits.enabled).toBe(true);
+    expect(loaded.config.evalRules.ttp.accountLimits.enforceDailyLossPause).toBe(true);
+    expect(loaded.config.evalRules.ttp.accountLimits.maxLossThresholdEquity).toBe(4850);
+    expect(loaded.config.evalRules.ttp.earningsRestriction.enabled).toBe(true);
+    expect(loaded.config.evalRules.ttp.consistency.enabled).toBe(true);
+    expect(loaded.config.evalRules.ttp.consistency.profitTargetDollars).toBe(300);
   });
 
-  test('rejects disabling both TTP cutoff blocking and liquidation enforcement', () => {
-    process.env.EVAL_RULES_ENABLED = 'true';
-    process.env.TTP_RULES_ENABLED = 'true';
-    process.env.TTP_BLOCK_ENTRIES_AFTER_CUTOFF = 'false';
-    process.env.TTP_LIQUIDATION_ENABLED = 'false';
-
-    expect(() => loadConfig()).toThrow(/cannot disable both cutoff entry blocking and liquidation enforcement/);
-  });
-
-  test('rejects missing TTP daily loss pause config when eval rules are enabled', () => {
-    process.env.EVAL_RULES_ENABLED = 'true';
-    process.env.TTP_RULES_ENABLED = 'true';
-    process.env.TTP_ACCOUNT_START_OF_DAY_EQUITY = '';
+  test('rejects invalid operational TTP account equity refresh value', () => {
+    useProductionProfile();
+    process.env.TTP_ACCOUNT_START_OF_DAY_EQUITY = 'not-a-number';
 
     expect(() => loadConfig()).toThrow(/TTP_ACCOUNT_START_OF_DAY_EQUITY must be configured/);
   });
 
   test('warns on missing TTP start-of-day date when eval rules are enabled without blocking startup', () => {
-    process.env.EVAL_RULES_ENABLED = 'true';
-    process.env.TTP_RULES_ENABLED = 'true';
+    useProductionProfile();
     process.env.TTP_ACCOUNT_START_OF_DAY_DATE = '';
 
     const loaded = loadConfig();
@@ -808,10 +719,7 @@ describe('ConfigLoader live trading safety guard', () => {
   });
 
   test('warns on stale TTP start-of-day date during live eval startup without blocking startup', () => {
-    process.env.EVAL_RULES_ENABLED = 'true';
-    process.env.TTP_RULES_ENABLED = 'true';
-    process.env.LIVE_TRADING = 'true';
-    process.env.CONFIRM_LIVE_TRADING = 'true';
+    useProductionProfile();
     process.env.TTP_ACCOUNT_START_OF_DAY_DATE = '2026-01-01';
 
     const loaded = loadConfig();
@@ -820,44 +728,8 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(loaded.warnings.join('\n')).toMatch(/TTP_ACCOUNT_START_OF_DAY_DATE 2026-01-01 does not match current New York date/);
   });
 
-  test('rejects disabling TTP account limits when eval rules are enabled', () => {
-    process.env.EVAL_RULES_ENABLED = 'true';
-    process.env.TTP_RULES_ENABLED = 'true';
-    process.env.TTP_ACCOUNT_LIMITS_ENABLED = 'false';
-
-    expect(() => loadConfig()).toThrow(/TTP_ACCOUNT_LIMITS_ENABLED=false is illegal/);
-  });
-
-  test('rejects partial TTP account limit enforcement when eval rules are enabled', () => {
-    process.env.EVAL_RULES_ENABLED = 'true';
-    process.env.TTP_RULES_ENABLED = 'true';
-    process.env.TTP_DAILY_LOSS_PAUSE_ENABLED = 'false';
-
-    expect(() => loadConfig()).toThrow(/requires both daily loss pause and max loss enforcement/);
-  });
-
-  test('rejects missing TTP max loss threshold when eval rules are enabled', () => {
-    process.env.EVAL_RULES_ENABLED = 'true';
-    process.env.TTP_RULES_ENABLED = 'true';
-    process.env.TTP_MAX_LOSS_THRESHOLD_EQUITY = '0';
-
-    expect(() => loadConfig()).toThrow(/TTP_MAX_LOSS_THRESHOLD_EQUITY must be configured/);
-  });
-
-  test('warns when TTP earnings restriction is disabled without blocking startup', () => {
-    process.env.EVAL_RULES_ENABLED = 'true';
-    process.env.TTP_RULES_ENABLED = 'true';
-    process.env.TTP_EARNINGS_RESTRICTION_ENABLED = 'false';
-
-    const loaded = loadConfig();
-
-    expect(loaded.errors).toEqual([]);
-    expect(loaded.warnings.join('\n')).toMatch(/earnings calendar lane will not block entries/);
-  });
-
   test('ignores deprecated TTP earnings known-status knob without blocking startup', () => {
-    process.env.EVAL_RULES_ENABLED = 'true';
-    process.env.TTP_RULES_ENABLED = 'true';
+    useProductionProfile();
     process.env.TTP_EARNINGS_REQUIRE_KNOWN_STATUS = 'true';
 
     const loaded = loadConfig();
@@ -867,8 +739,7 @@ describe('ConfigLoader live trading safety guard', () => {
   });
 
   test('allows missing manual TTP earnings status without blocking startup', () => {
-    process.env.EVAL_RULES_ENABLED = 'true';
-    process.env.TTP_RULES_ENABLED = 'true';
+    useProductionProfile();
     delete process.env.TTP_EARNINGS_STATUS_JSON;
 
     const loaded = loadConfig();
@@ -878,8 +749,7 @@ describe('ConfigLoader live trading safety guard', () => {
   });
 
   test('warns on malformed manual TTP earnings status JSON without blocking startup', () => {
-    process.env.EVAL_RULES_ENABLED = 'true';
-    process.env.TTP_RULES_ENABLED = 'true';
+    useProductionProfile();
     process.env.TTP_EARNINGS_STATUS_JSON = '{bad-json';
 
     const loaded = loadConfig();
@@ -889,8 +759,7 @@ describe('ConfigLoader live trading safety guard', () => {
   });
 
   test('warns on non-boolean manual TTP earnings symbol values without blocking startup', () => {
-    process.env.EVAL_RULES_ENABLED = 'true';
-    process.env.TTP_RULES_ENABLED = 'true';
+    useProductionProfile();
     process.env.TTP_EARNINGS_STATUS_JSON = JSON.stringify({ date: currentNewYorkDate(), symbols: { TSLA: 'false' } });
 
     const loaded = loadConfig();
@@ -899,56 +768,22 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(loaded.warnings.join('\n')).toMatch(/TTP_EARNINGS_STATUS_JSON\.symbols\.TSLA should be boolean/);
   });
 
-  test('rejects missing TTP profit target when consistency rules are enabled', () => {
-    process.env.EVAL_RULES_ENABLED = 'true';
-    process.env.TTP_RULES_ENABLED = 'true';
-    process.env.TTP_PROFIT_TARGET_DOLLARS = '0';
-
-    expect(() => loadConfig()).toThrow(/TTP_PROFIT_TARGET_DOLLARS must be configured/);
-  });
-
-  test('rejects disabling TTP consistency enforcement when eval rules are enabled', () => {
-    process.env.EVAL_RULES_ENABLED = 'true';
-    process.env.TTP_RULES_ENABLED = 'true';
-    process.env.TTP_CONSISTENCY_ENABLED = 'false';
-
-    expect(() => loadConfig()).toThrow(/TTP_CONSISTENCY_ENABLED=false is illegal/);
-  });
-
-  test('rejects invalid TTP consistency ratio when eval rules are enabled', () => {
-    process.env.EVAL_RULES_ENABLED = 'true';
-    process.env.TTP_RULES_ENABLED = 'true';
-    process.env.TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO = '1.5';
-
-    expect(() => loadConfig()).toThrow(/TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO out of range/);
-  });
-
-  test('rejects TTP profit targets above the configured initial-balance ratio cap', () => {
-    process.env.EVAL_RULES_ENABLED = 'true';
-    process.env.TTP_RULES_ENABLED = 'true';
-    process.env.INITIAL_BALANCE = '50000';
-    process.env.TTP_PROFIT_TARGET_DOLLARS = '6000';
-
-    expect(() => loadConfig()).toThrow(/TTP_PROFIT_TARGET_DOLLARS too high for initial balance/);
-  });
-
-  test('rejects loosening the TTP profit-target ratio cap above the funded maximum', () => {
-    process.env.EVAL_RULES_ENABLED = 'true';
-    process.env.TTP_RULES_ENABLED = 'true';
-    process.env.TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO = '0.50';
-
-    expect(() => loadConfig()).toThrow(/TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO out of range/);
-  });
-
-  test('throws when live trading is combined with backtest bypass posture', () => {
+  test('legacy live/backtest env conflict cannot override launch-profile mode', () => {
     process.env.EXECUTION_MODE = 'backtest';
     process.env.CANDLE_SOURCE = 'file';
     process.env.LIVE_TRADING = 'true';
     process.env.RISK_MANAGER_BYPASS = 'true';
     process.env.ACCOUNT_DRAWDOWN_BYPASS = 'true';
 
-    expect(() => loadConfig()).toThrow(/Cannot enable both live trading and backtest mode/);
-    expect(() => loadConfig()).toThrow(/ACCOUNT_DRAWDOWN_BYPASS=true/);
-    expect(() => loadConfig()).toThrow(/RISK_MANAGER_BYPASS=true/);
+    const paperLoaded = loadConfig();
+    expect(paperLoaded.config.mode.execution).toBe('paper');
+    expect(paperLoaded.config.mode.liveTrading).toBe(false);
+
+    jest.resetModules();
+    useBacktestProfile('backtest-all');
+    const backtestLoaded = loadConfig();
+    expect(backtestLoaded.config.mode.execution).toBe('backtest');
+    expect(backtestLoaded.config.mode.backtest).toBe(true);
+    expect(backtestLoaded.config.mode.liveTrading).toBe(false);
   });
 });

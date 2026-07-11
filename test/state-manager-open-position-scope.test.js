@@ -651,9 +651,27 @@ describe('StateManager openPosition scope contract', () => {
   });
 
   test('opens a fully scoped trade and stores the derived immutable scope key', async () => {
+    const operationalQuarantine = {
+      status: 'quarantined',
+      trusted: false,
+      source: 'EvalRuleEngine',
+      fields: [{
+        field: 'TTP_ACCOUNT_START_OF_DAY_DATE',
+        value: '2026-07-09',
+        expected: '2026-07-10',
+        ageDays: 1,
+        reason: 'stale_start_of_day_equity',
+      }],
+      alerts: [{
+        gate: 'ttp_operational_data_quarantine',
+        field: 'TTP_ACCOUNT_START_OF_DAY_DATE',
+        severity: 'critical',
+      }],
+      policy: 'stale_ttp_data_quarantined_trading_continues',
+    };
     const result = await manager.openPosition(500, 100, fullScope({
       scopeKey: expectedScopeKey,
-      ledgerData: fullLedgerData(),
+      ledgerData: fullLedgerData({ operationalQuarantine }),
     }));
 
     expect(result.success).toBe(true);
@@ -673,6 +691,7 @@ describe('StateManager openPosition scope contract', () => {
     expect(trade.decisionLedger.executionMode).toBe('paper');
     expect(trade.decisionLedger.positionSizing.finalSizeUsd).toBe(500);
     expect(trade.decisionLedger.exitContract.strategyName).toBe('ScopeTestStrategy');
+    expect(trade.decisionLedger.operationalQuarantine).toEqual(operationalQuarantine);
   });
 
   test('persists immutable frozen exit policy from entry context onto the active trade', async () => {

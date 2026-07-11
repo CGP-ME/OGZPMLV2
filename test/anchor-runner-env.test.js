@@ -13,8 +13,6 @@ const {
 const EXPECTED_ANCHOR_CANONICAL_ENV = Object.freeze({
   SOLO_STRATEGY: 'EMASMACrossover',
   ENABLE_EMA: 'true',
-  MIN_TRADE_CONFIDENCE: '0.60',
-  ACCOUNT_DRAWDOWN_BYPASS: 'true',
   DIRECTION_FILTER: 'long_only',
   ENABLE_SHORTS: 'false',
   ENABLE_TRAI: 'false',
@@ -70,11 +68,6 @@ describe('anchor-runner P0 env contract', () => {
       TIER1_TARGET: '0.007',
       FEE_MAKER: '0',
       FEE_TAKER: '0',
-      RISK_MANAGER_BYPASS: 'true',
-      MAX_DRAWDOWN: '5',
-      MAX_DAILY_LOSS: '1',
-      MAX_WEEKLY_LOSS: '5',
-      MAX_MONTHLY_LOSS: '5',
       ATR_FILTER_ENABLED: 'true',
       ATR_MIN_PERCENT: '0.15',
       SOLO_STRATEGY: 'EMASMACrossover',
@@ -91,6 +84,10 @@ describe('anchor-runner P0 env contract', () => {
     expect(spec.env.TUNING_PROFILE).toBe('current-eval');
     expect(spec.env.BACKTEST_TUNING_PROFILE).toBe('current-eval');
     expect(spec.env.CANDLE_DATA_FILE).toBe(path.join(process.cwd(), 'tuning/tsla-15m-2y.json'));
+    expect(spec.workerEnv.MIN_TRADE_CONFIDENCE).toBeUndefined();
+    expect(spec.workerEnv.ACCOUNT_DRAWDOWN_BYPASS).toBeUndefined();
+    expect(spec.workerEnv.RISK_MANAGER_BYPASS).toBeUndefined();
+    expect(spec.workerEnv.MAX_DRAWDOWN).toBeUndefined();
     expect(spec.workerEnv.STOP_LOSS_PERCENT).toBeUndefined();
     expect(Object.prototype.hasOwnProperty.call(spec.env, 'STOP_LOSS_PERCENT')).toBe(false);
   });

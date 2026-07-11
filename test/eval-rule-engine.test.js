@@ -173,7 +173,7 @@ describe('EvalRuleEngine TTP volume cap', () => {
     }));
   });
 
-  test('quarantines stale start-of-day equity from a prior ET trading date without blocking entries', async () => {
+  test('quarantines stale start-of-day equity from a prior ET trading date while allowing entries', async () => {
     const engine = makeEngine({
       cfg: config({
         accountLimits: {
@@ -196,9 +196,35 @@ describe('EvalRuleEngine TTP volume cap', () => {
       currentDateET: '2023-11-14',
       currentEquity: 50000,
       dailyLossPauseStatus: 'quarantined',
-      dailyLossPauseContributed: false,
-      policy: 'stale_daily_loss_pause_does_not_block_bot',
+      staleDataQuarantine: true,
+      quarantineStatus: 'quarantined',
+      calendarLaneStatus: 'quarantined',
+      calendarContributed: false,
+      calendarMemoryWriteAllowed: false,
+      policy: 'stale_ttp_data_quarantined_trading_continues',
     }));
+    expect(result.inputs.staleFields).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        field: 'TTP_ACCOUNT_START_OF_DAY_DATE',
+        value: '2023-11-13',
+        expected: '2023-11-14',
+        reason: 'stale_start_of_day_equity',
+        ageDays: 1,
+      }),
+      expect.objectContaining({
+        field: 'TTP_ACCOUNT_START_OF_DAY_EQUITY',
+        reason: 'anchored_to_stale_start_of_day_date',
+        anchorField: 'TTP_ACCOUNT_START_OF_DAY_DATE',
+      }),
+    ]));
+    expect(result.inputs.quarantineAlerts).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        gate: 'ttp_operational_data_quarantine',
+        field: 'TTP_ACCOUNT_START_OF_DAY_DATE',
+        ageDays: 1,
+        severity: 'critical',
+      }),
+    ]));
   });
 
   test('fails closed when current equity is missing from the entry plan', async () => {
@@ -477,7 +503,7 @@ describe('EvalRuleEngine TTP volume cap', () => {
     })]);
   });
 
-  test('allows entries when manual earnings status is for a different ET date', async () => {
+  test('quarantines stale manual earnings status while allowing entries', async () => {
     const engine = new EvalRuleEngine({
       config: config({
         earningsRestriction: {
@@ -496,18 +522,38 @@ describe('EvalRuleEngine TTP volume cap', () => {
     const result = await engine.check(plan);
 
     expect(result.allowed).toBe(true);
+    expect(result.failedRules).toEqual([]);
     expect(result.passedRules).not.toContain('TTP_EARNINGS_RESTRICTION');
     expect(result.inputs).toEqual(expect.objectContaining({
+      reason: 'stale_earnings_status',
       statusSource: 'config.ttp.earningsRestriction.manualStatus',
+      currentDateET: '2023-11-14',
       statusKnown: false,
+      staleDataQuarantine: true,
       calendarLaneStatus: 'quarantined',
-      calendarContributed: false,
       calendarMemoryWriteAllowed: false,
-      policy: 'calendar_lane_quarantined_does_not_block_bot',
+      policy: 'stale_ttp_data_quarantined_trading_continues',
     }));
+    expect(result.inputs.staleFields).toEqual([
+      expect.objectContaining({
+        field: 'TTP_EARNINGS_STATUS_JSON',
+        value: '2023-11-13',
+        expected: '2023-11-14',
+        reason: 'stale_earnings_status',
+        ageDays: 1,
+      }),
+    ]);
+    expect(result.inputs.quarantineAlerts).toEqual([
+      expect.objectContaining({
+        gate: 'ttp_operational_data_quarantine',
+        field: 'TTP_EARNINGS_STATUS_JSON',
+        ageDays: 1,
+        severity: 'critical',
+      }),
+    ]);
   });
 
-  test('stale manual earnings status cannot shut down entries', async () => {
+  test('stale manual earnings status quarantines instead of trusting contradictory entry-plan fields', async () => {
     const engine = new EvalRuleEngine({
       config: config({
         earningsRestriction: {
@@ -529,15 +575,25 @@ describe('EvalRuleEngine TTP volume cap', () => {
     }));
 
     expect(result.allowed).toBe(true);
+    expect(result.failedRules).toEqual([]);
     expect(result.passedRules).not.toContain('TTP_EARNINGS_RESTRICTION');
     expect(result.inputs).toEqual(expect.objectContaining({
+      reason: 'stale_earnings_status',
       statusSource: 'config.ttp.earningsRestriction.manualStatus',
-      statusKnown: false,
-      calendarLaneStatus: 'quarantined',
-      calendarContributed: false,
-      calendarMemoryWriteAllowed: false,
-      policy: 'calendar_lane_quarantined_does_not_block_bot',
+      currentDateET: '2023-11-14',
+      hasEarningsTonight: null,
+      staleDataQuarantine: true,
+      policy: 'stale_ttp_data_quarantined_trading_continues',
     }));
+    expect(result.inputs.staleFields).toEqual([
+      expect.objectContaining({
+        field: 'TTP_EARNINGS_STATUS_JSON',
+        value: '2023-11-13',
+        expected: '2023-11-14',
+        reason: 'stale_earnings_status',
+        ageDays: 1,
+      }),
+    ]);
   });
 
   test('blocks new openings during the TTP liquidation window', async () => {
@@ -582,6 +638,17 @@ describe('EvalRuleEngine TTP volume cap', () => {
   test('allows new openings during premarket when TTP cutoff blocking is enabled', async () => {
     const premarket = new Date('2026-05-22T13:29:00.000Z');
     const engine = makeEngine({
+      cfg: config({
+        accountLimits: {
+          accountStartOfDayDate: '2026-05-22',
+        },
+        earningsRestriction: {
+          manualStatus: {
+            date: '2026-05-22',
+            symbols: { TSLA: false },
+          },
+        },
+      }),
       candles: [candleFor(premarket.getTime(), -60000, 100000)],
       now: () => premarket.getTime(),
     });

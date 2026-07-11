@@ -747,6 +747,157 @@ describe('OrderExecutor pause gate', () => {
     );
   });
 
+  test('stale TTP operational data is loud and copied into entry ledger without blocking', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    const sendOrder = jest.fn().mockResolvedValue({ orderId: 'LIVE_QUARANTINE_1', price: 100 });
+    const dashboardWs = { readyState: 1, send: jest.fn() };
+    const preOrderEntryGate = jest.fn().mockResolvedValue({
+      allowed: true,
+      failedRules: [],
+      passedRules: ['TTP_MAX_LOSS'],
+      inputs: {
+        staleDataQuarantine: true,
+        staleFields: [
+          {
+            field: 'TTP_ACCOUNT_START_OF_DAY_DATE',
+            value: '2026-07-09',
+            expected: '2026-07-10',
+            ageDays: 1,
+            reason: 'stale_start_of_day_equity',
+            message: 'TTP_ACCOUNT_START_OF_DAY_DATE is stale; trading continues with this input quarantined',
+          },
+        ],
+      },
+    });
+    const executor = makeExecutor(
+      { executionMode: 'live' },
+      {
+        paperTrading: false,
+        orderRouter: { sendOrder },
+        preOrderEntryGate,
+        dashboardWs,
+      }
+    );
+
+    await executor.executeTrade(
+      {
+        action: 'BUY',
+        confidence: 50,
+        traceId: 'trace-quarantine',
+        signalId: 'signal-quarantine',
+        ledgerData: { traceId: 'trace-quarantine' },
+      },
+      {},
+      100,
+      { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+      [],
+      null,
+      makeOrchResult(),
+      'TSLA'
+    );
+
+    expect(sendOrder).toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining(
+      '[TTP-QUARANTINE] BUY TSLA trading continues with quarantined stale operational data'
+    ));
+
+    const frames = dashboardWs.send.mock.calls.map(call => JSON.parse(call[0]));
+    const quarantineFrame = frames.find(frame => frame.type === 'gate_event' && frame.reason === 'ttp_operational_data_quarantine');
+    expect(quarantineFrame).toEqual(expect.objectContaining({
+      type: 'gate_event',
+      traceId: 'trace-quarantine',
+      signalId: 'signal-quarantine',
+      symbol: 'TSLA',
+      action: 'BUY',
+      kind: 'quarantine',
+      passed: true,
+      reason: 'ttp_operational_data_quarantine',
+    }));
+    expect(quarantineFrame.riskGates).toEqual([
+      expect.objectContaining({
+        gate: 'ttp_operational_data_quarantine',
+        passed: true,
+        status: 'quarantined',
+        trusted: false,
+        calendarMemoryWriteAllowed: false,
+        field: 'TTP_ACCOUNT_START_OF_DAY_DATE',
+        ageDays: 1,
+        reason: 'stale_start_of_day_equity',
+      }),
+    ]);
+    expect(mockStateManager.openPosition).toHaveBeenCalledWith(
+      500,
+      100,
+      expect.objectContaining({
+        riskGates: expect.arrayContaining([
+          expect.objectContaining({
+            gate: 'ttp_operational_data_quarantine',
+            status: 'quarantined',
+            trusted: false,
+          }),
+        ]),
+        ledgerData: expect.objectContaining({
+          operationalQuarantine: expect.objectContaining({
+            status: 'quarantined',
+            trusted: false,
+            source: 'EvalRuleEngine',
+            fields: [
+              expect.objectContaining({
+                field: 'TTP_ACCOUNT_START_OF_DAY_DATE',
+                reason: 'stale_start_of_day_equity',
+              }),
+            ],
+            alerts: [
+              expect.objectContaining({
+                gate: 'ttp_operational_data_quarantine',
+                field: 'TTP_ACCOUNT_START_OF_DAY_DATE',
+              }),
+            ],
+            policy: 'stale_ttp_data_quarantined_trading_continues',
+          }),
+          riskGates: expect.arrayContaining([
+            expect.objectContaining({
+              gate: 'ttp_operational_data_quarantine',
+              status: 'quarantined',
+              trusted: false,
+            }),
+          ]),
+        }),
+      })
+    );
+  });
+
+  test('operational quarantine persists even if a future gate supplies no stale field rows', () => {
+    const executor = makeExecutor();
+
+    const quarantine = executor._buildOperationalQuarantine({
+      inputs: {
+        staleDataQuarantine: true,
+        staleFields: [],
+        quarantineAlerts: [{
+          gate: 'ttp_operational_data_quarantine',
+          reason: 'stale_ttp_operational_data',
+        }],
+        policy: 'stale_ttp_data_quarantined_trading_continues',
+      },
+    }, []);
+
+    expect(quarantine).toEqual({
+      status: 'quarantined',
+      trusted: false,
+      source: 'EvalRuleEngine',
+      fields: [],
+      alerts: [{
+        gate: 'ttp_operational_data_quarantine',
+        reason: 'stale_ttp_operational_data',
+      }],
+      policy: 'stale_ttp_data_quarantined_trading_continues',
+    });
+  });
+
   test('stock quantity planning preserves Alpaca fractional shares but floors non-fractional stock brokers', () => {
     const executor = makeExecutor();
 

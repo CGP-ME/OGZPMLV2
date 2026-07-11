@@ -23,10 +23,8 @@
  *   FEE_PER_SHARE=0.005
  *   FEE_MIN_ORDER=0.75
  *   BROKER/TRADING_PAIR/ASSET_CLASS=<derived from CANDLE_DATA_FILE>
- *   MIN_TRADE_CONFIDENCE=0.60
  *   ATR_FILTER_ENABLED=true
  *   ATR_MIN_PERCENT=0.15
- *   ACCOUNT_DRAWDOWN_BYPASS=true
  *   STATE_FILE=<state-file>           ← varies
  *   BACKTEST_NO_PATTERN_SAVE=true
  *   ENABLE_DASHBOARD=false
@@ -60,8 +58,6 @@ const REPO_ROOT = path.resolve(__dirname, '..');
 const CANONICAL_ENV = Object.freeze({
   SOLO_STRATEGY: 'EMASMACrossover',
   ENABLE_EMA: 'true',
-  MIN_TRADE_CONFIDENCE: '0.60',
-  ACCOUNT_DRAWDOWN_BYPASS: 'true',
   DIRECTION_FILTER: 'long_only',
   ENABLE_SHORTS: 'false',
   ENABLE_TRAI: 'false',

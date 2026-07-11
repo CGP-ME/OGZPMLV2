@@ -93,17 +93,9 @@ describe('ConfigLoader runtime profile contract', () => {
     expect(ConfigLoader.resolveTuningProfile('ttp-5k-max').env).toEqual(
       expect.objectContaining({
         INITIAL_BALANCE: '5000',
-        MAX_DRAWDOWN: '3',
-        MAX_DAILY_LOSS: '1',
-        RISK_MANAGER_BYPASS: 'false',
-        ACCOUNT_DRAWDOWN_BYPASS: 'false',
-        ACCOUNT_DRAWDOWN_PCT: '-3.0',
         FEE_MODEL: 'per_share_minimum',
         FEE_PER_SHARE: '0.005',
         FEE_MIN_ORDER: '0.75',
-        TTP_DAILY_LOSS_LIMIT_DOLLARS: '50',
-        TTP_MAX_LOSS_THRESHOLD_EQUITY: '4850',
-        TTP_PROFIT_TARGET_DOLLARS: '300',
       })
     );
     expect(ConfigLoader.resolveTuningProfile('trey-spec').env).toEqual(
@@ -115,7 +107,6 @@ describe('ConfigLoader runtime profile contract', () => {
         ATR_CONTRACTS_ENABLED: 'true',
         BE_SCALEOUT_FRACTION: '0.25',
         TIERED_EXIT_ENABLED: 'false',
-        TTP_ENTRY_BUFFER_MINUTES_BEFORE_CUTOFF: '30',
       })
     );
     const resolved = ConfigLoader.resolveTuningProfile('legacy-wide');
@@ -129,14 +120,7 @@ describe('ConfigLoader runtime profile contract', () => {
     expect(ConfigLoader.resolveTuningProfile('legacy-wide').env.TIER1_TARGET).toBe('0.020');
   });
 
-  test('RiskManager circuit limits are worker-env profile values, not ConfigLoader base defaults', () => {
-    expect(ConfigLoader.get('risk.maxDrawdown')).toBeUndefined();
-    expect(ConfigLoader.get('risk.maxDailyLoss')).toBeUndefined();
-    expect(ConfigLoader.get('risk.maxWeeklyLoss')).toBeUndefined();
-    expect(ConfigLoader.get('risk.maxMonthlyLoss')).toBeUndefined();
-    expect(ConfigLoader.get('risk.riskManagerBypass')).toBeUndefined();
-    expect(ConfigLoader.get('risk.accountDrawdownBypass')).toBe(false);
-
+  test('RiskManager circuit limits are launch-profile values, not worker env values', () => {
     const workerEnv = buildBacktestWorkerEnv({
       sourceEnv: {},
       projectRoot: path.join(__dirname, '..'),
@@ -155,17 +139,26 @@ describe('ConfigLoader runtime profile contract', () => {
       },
     });
 
-    expect(workerEnv.MAX_DRAWDOWN).toBe('5');
-    expect(workerEnv.MAX_DAILY_LOSS).toBe('1');
-    expect(workerEnv.MAX_WEEKLY_LOSS).toBe('5');
-    expect(workerEnv.MAX_MONTHLY_LOSS).toBe('5');
-    expect(workerEnv.RISK_MANAGER_BYPASS).toBe('true');
+    expect(workerEnv.PROFILE).toBe('backtest-all');
+    expect(workerEnv.MAX_DRAWDOWN).toBeUndefined();
+    expect(workerEnv.MAX_DAILY_LOSS).toBeUndefined();
+    expect(workerEnv.MAX_WEEKLY_LOSS).toBeUndefined();
+    expect(workerEnv.MAX_MONTHLY_LOSS).toBeUndefined();
+    expect(workerEnv.RISK_MANAGER_BYPASS).toBeUndefined();
     expect(workerEnv.ATR_FILTER_ENABLED).toBe('true');
     expect(workerEnv.ATR_MIN_PERCENT).toBe('0.15');
     expect(workerEnv.TUNING_PROFILE).toBe('current-eval');
     expect(workerEnv.BACKTEST_TUNING_PROFILE).toBe('current-eval');
     expect(workerEnv.BACKTEST_FEE_PROFILE).toBe('ttp_real');
     expect(workerEnv.FEE_MODEL).toBe('per_share_minimum');
+
+    const snapshot = ConfigLoader.snapshot(workerEnv, { silent: true, loadDotenv: false });
+    expect(snapshot.config.risk.maxDrawdown).toBe(5);
+    expect(snapshot.config.risk.maxDailyLoss).toBe(1);
+    expect(snapshot.config.risk.maxWeeklyLoss).toBe(5);
+    expect(snapshot.config.risk.maxMonthlyLoss).toBe(5);
+    expect(snapshot.config.risk.riskManagerBypass).toBe(true);
+    expect(snapshot.config.risk.accountDrawdownBypass).toBe(true);
   });
 
   test('TTP 5k MAX tuning profile exports prop-eval economics to stock backtest workers', () => {
@@ -187,27 +180,37 @@ describe('ConfigLoader runtime profile contract', () => {
       },
     });
 
+    expect(workerEnv.PROFILE).toBe('backtest-ttp-5k-max');
     expect(workerEnv.INITIAL_BALANCE).toBe('5000');
-    expect(workerEnv.MIN_TRADE_CONFIDENCE).toBe('0.5');
-    expect(workerEnv.MAX_DRAWDOWN).toBe('3');
-    expect(workerEnv.MAX_DAILY_LOSS).toBe('1');
-    expect(workerEnv.MAX_WEEKLY_LOSS).toBe('3');
-    expect(workerEnv.MAX_MONTHLY_LOSS).toBe('3');
-    expect(workerEnv.RISK_MANAGER_BYPASS).toBe('false');
-    expect(workerEnv.ACCOUNT_DRAWDOWN_BYPASS).toBe('false');
-    expect(workerEnv.ACCOUNT_DRAWDOWN_PCT).toBe('-3.0');
+    expect(workerEnv.MIN_TRADE_CONFIDENCE).toBeUndefined();
+    expect(workerEnv.MAX_DRAWDOWN).toBeUndefined();
+    expect(workerEnv.MAX_DAILY_LOSS).toBeUndefined();
+    expect(workerEnv.MAX_WEEKLY_LOSS).toBeUndefined();
+    expect(workerEnv.MAX_MONTHLY_LOSS).toBeUndefined();
+    expect(workerEnv.RISK_MANAGER_BYPASS).toBeUndefined();
+    expect(workerEnv.ACCOUNT_DRAWDOWN_BYPASS).toBeUndefined();
+    expect(workerEnv.ACCOUNT_DRAWDOWN_PCT).toBeUndefined();
     expect(workerEnv.ATR_MIN_PERCENT).toBe('0.40');
     expect(workerEnv.FEE_MODEL).toBe('per_share_minimum');
     expect(workerEnv.FEE_PER_SHARE).toBe('0.005');
     expect(workerEnv.FEE_MIN_ORDER).toBe('0.75');
     expect(workerEnv.FEE_MAKER).toBe('0');
     expect(workerEnv.FEE_TAKER).toBe('0');
-    expect(workerEnv.TTP_DAILY_LOSS_LIMIT_DOLLARS).toBe('50');
-    expect(workerEnv.TTP_MAX_LOSS_THRESHOLD_EQUITY).toBe('4850');
-    expect(workerEnv.TTP_PROFIT_TARGET_DOLLARS).toBe('300');
+    expect(workerEnv.TTP_DAILY_LOSS_LIMIT_DOLLARS).toBeUndefined();
+    expect(workerEnv.TTP_MAX_LOSS_THRESHOLD_EQUITY).toBeUndefined();
+    expect(workerEnv.TTP_PROFIT_TARGET_DOLLARS).toBeUndefined();
     expect(workerEnv.TUNING_PROFILE).toBe('ttp-5k-max');
     expect(workerEnv.BACKTEST_TUNING_PROFILE).toBe('ttp-5k-max');
     expect(workerEnv.BACKTEST_FEE_PROFILE).toBe('ttp_real');
+
+    const snapshot = ConfigLoader.snapshot(workerEnv, { silent: true, loadDotenv: false });
+    expect(snapshot.config.confidence.minTradeConfidence).toBe(0.5);
+    expect(snapshot.config.risk.maxDrawdown).toBe(3);
+    expect(snapshot.config.risk.maxWeeklyLoss).toBe(3);
+    expect(snapshot.config.risk.accountDrawdownBypass).toBe(false);
+    expect(snapshot.config.evalRules.ttp.accountLimits.dailyLossDollars).toBe(50);
+    expect(snapshot.config.evalRules.ttp.accountLimits.maxLossThresholdEquity).toBe(4850);
+    expect(snapshot.config.evalRules.ttp.consistency.profitTargetDollars).toBe(300);
   });
 
   test('TREY SPEC tuning profile exports strategy behavior and TTP entry buffer to stock backtest workers', () => {
@@ -232,6 +235,7 @@ describe('ConfigLoader runtime profile contract', () => {
     expect(workerEnv.TUNING_PROFILE).toBe('trey-spec');
     expect(workerEnv.BACKTEST_TUNING_PROFILE).toBe('trey-spec');
     expect(workerEnv.BACKTEST_FEE_PROFILE).toBe('ttp_real');
+    expect(workerEnv.PROFILE).toBe('backtest-trey-spec');
     expect(workerEnv.EMA_CROSSOVER_ENTRY_EVENTS_ONLY).toBe('true');
     expect(workerEnv.EMA_CROSSOVER_CONFIRM_BARS).toBe('1');
     expect(workerEnv.EMA_CROSSOVER_WARMUP_BARS).toBe('200');
@@ -241,7 +245,7 @@ describe('ConfigLoader runtime profile contract', () => {
     expect(workerEnv.ATR_STOP_MULTIPLIER).toBe('2.0');
     expect(workerEnv.BE_SCALEOUT_FRACTION).toBe('0.25');
     expect(workerEnv.TIERED_EXIT_ENABLED).toBe('false');
-    expect(workerEnv.TTP_ENTRY_BUFFER_MINUTES_BEFORE_CUTOFF).toBe('30');
+    expect(workerEnv.TTP_ENTRY_BUFFER_MINUTES_BEFORE_CUTOFF).toBeUndefined();
     expect(ConfigLoader.buildTuningProfileOverrides('trey-spec')).toEqual(expect.objectContaining({
       'strategyBehavior.emaCrossover.entryEventsOnly': true,
       'strategyBehavior.emaCrossover.warmupBars': 200,
@@ -249,8 +253,9 @@ describe('ConfigLoader runtime profile contract', () => {
       'strategyBehavior.atrContracts.enabled': true,
       'exitLogic.beScaleOut.scaleOutFraction': 0.25,
       'exitLogic.tieredExit.enabled': false,
-      'evalRules.ttp.marketTime.entryBufferMinutesBeforeCutoff': 30,
     }));
+    const snapshot = ConfigLoader.snapshot(workerEnv, { silent: true, loadDotenv: false });
+    expect(snapshot.config.evalRules.ttp.marketTime.entryBufferMinutesBeforeCutoff).toBe(30);
   });
 
   test('explicit TUNING_PROFILE selector materializes trey-spec through ConfigLoader before ConfigLoader reads', () => {
@@ -341,7 +346,7 @@ describe('ConfigLoader runtime profile contract', () => {
     expect(JSON.stringify(summary)).not.toContain('parent-live-key');
   });
 
-  test('TTP eval sizing values read from env without requiring tuning profile overrides', () => {
+  test('TTP eval sizing values read from launch profile while env attempts are ignored', () => {
     const envBefore = {
       TTP_DAILY_LOSS_LIMIT_DOLLARS: process.env.TTP_DAILY_LOSS_LIMIT_DOLLARS,
       TTP_MAX_LOSS_THRESHOLD_EQUITY: process.env.TTP_MAX_LOSS_THRESHOLD_EQUITY,
@@ -351,20 +356,31 @@ describe('ConfigLoader runtime profile contract', () => {
     };
 
     jest.resetModules();
-    process.env.TTP_DAILY_LOSS_LIMIT_DOLLARS = '50';
-    process.env.TTP_MAX_LOSS_THRESHOLD_EQUITY = '4850';
-    process.env.TTP_PROFIT_TARGET_DOLLARS = '300';
-    process.env.TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO = '0.30';
-    process.env.TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO = '0.06';
+    process.env.TTP_DAILY_LOSS_LIMIT_DOLLARS = '999';
+    process.env.TTP_MAX_LOSS_THRESHOLD_EQUITY = '1';
+    process.env.TTP_PROFIT_TARGET_DOLLARS = '9999';
+    process.env.TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO = '0.99';
+    process.env.TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO = '0.99';
 
     try {
       const FreshTradingConfig = require('../foundation/ConfigLoader');
 
-      expect(FreshTradingConfig.get('evalRules.ttp.accountLimits.dailyLossDollars')).toBe(50);
-      expect(FreshTradingConfig.get('evalRules.ttp.accountLimits.maxLossThresholdEquity')).toBe(4850);
-      expect(FreshTradingConfig.get('evalRules.ttp.consistency.profitTargetDollars')).toBe(300);
-      expect(FreshTradingConfig.get('evalRules.ttp.consistency.maxPositionProfitRatio')).toBe(0.30);
-      expect(FreshTradingConfig.get('evalRules.ttp.consistency.maxProfitTargetInitialBalanceRatio')).toBe(0.06);
+      const snapshot = FreshTradingConfig.snapshot({
+        ...process.env,
+        PROFILE: 'production',
+        ALPACA_MODE: 'paper',
+        ALPACA_API_KEY: 'test-alpaca-key',
+        ALPACA_API_SECRET: 'test-alpaca-secret',
+        TRADING_PAIR: 'TSLA',
+      }, {
+        silent: true,
+        loadDotenv: false,
+      });
+      expect(snapshot.config.evalRules.ttp.accountLimits.dailyLossDollars).toBe(50);
+      expect(snapshot.config.evalRules.ttp.accountLimits.maxLossThresholdEquity).toBe(4850);
+      expect(snapshot.config.evalRules.ttp.consistency.profitTargetDollars).toBe(300);
+      expect(snapshot.config.evalRules.ttp.consistency.maxPositionProfitRatio).toBe(0.30);
+      expect(snapshot.config.evalRules.ttp.consistency.maxProfitTargetInitialBalanceRatio).toBe(0.06);
       expect(FreshTradingConfig.getTuningProfileStatus().activeProfile).toBe(null);
     } finally {
       for (const [key, value] of Object.entries(envBefore)) {
@@ -395,17 +411,12 @@ describe('ConfigLoader runtime profile contract', () => {
       overrideCount: expect.any(Number),
       runtimeSnapshotEnvKeys: [
         'EXIT_SYSTEM',
-        'MAX_DAILY_LOSS',
-        'MAX_DRAWDOWN',
-        'MAX_MONTHLY_LOSS',
-        'MAX_WEEKLY_LOSS',
-        'RISK_MANAGER_BYPASS',
       ],
     }));
     expect(ConfigLoader.get('exits.profitTiers.tier1')).toBe(0.007);
     expect(ConfigLoader.get('exitLogic.tieredExit.tier1ExitFraction')).toBe(0.30);
     expect(ConfigLoader.get('fees.slippage')).toBe(0.0005);
-    expect(ConfigLoader.get('risk.accountDrawdownBypass')).toBe(true);
+    expect(ConfigLoader.get('risk.accountDrawdownBypass')).toBe(false);
     expect(ConfigLoader.get('filters.atrEnabled')).toBe(true);
     expect(ConfigLoader.get('filters.atrMinPercent')).toBe(0.15);
 
@@ -447,7 +458,7 @@ describe('ConfigLoader runtime profile contract', () => {
       phase: 'runtime',
       requireFlat: true,
       flatState: { flat: true, source: 'unit-test' },
-    })).toThrow(/includes startup-snapshot key\(s\) EXIT_SYSTEM, MAX_DAILY_LOSS, MAX_DRAWDOWN, MAX_MONTHLY_LOSS, MAX_WEEKLY_LOSS, RISK_MANAGER_BYPASS/);
+    })).toThrow(/includes startup-snapshot key\(s\) EXIT_SYSTEM/);
   });
 
   test('live runtime refuses manual minTradeConfidence overrides below the configured floor', () => {
@@ -466,7 +477,7 @@ describe('ConfigLoader runtime profile contract', () => {
     try {
       expect(() => ConfigLoader.setOverrides({
         confidence: { minTradeConfidence: 0.9 },
-      })).toThrow(/Config is frozen; refusing setOverrides\(\)/);
+      })).toThrow(/Config is frozen; refusing setOverrides/);
 
       expect(ConfigLoader.get('confidence.minTradeConfidence')).toBe(0.5);
     } finally {

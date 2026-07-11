@@ -29,10 +29,12 @@ const tradingConfigFile = require('../config/trading.config.json');
 
 const REQUIRED_RISK_SOURCE_PATHS = Object.freeze([
   'risk.riskManagerBypass',
+  'risk.accountDrawdownBypass',
   'risk.maxDrawdown',
   'risk.maxDailyLoss',
   'risk.maxWeeklyLoss',
   'risk.maxMonthlyLoss',
+  'risk.accountDrawdownPercent',
 ]);
 
 function requiredConfiguredNumber(configPath) {
@@ -96,6 +98,14 @@ function requiredLaunchProfileBool(configPath) {
   return result;
 }
 
+function requiredLaunchProfileNumber(configPath) {
+  const result = requiredLaunchProfileValue(configPath);
+  if (!Number.isFinite(result.value)) {
+    throw new Error(`[ConfigLoader] config/trading.config.json ${result.source.slice('config:'.length)} must be a finite number`);
+  }
+  return result;
+}
+
 function requiredLaunchProfileString(configPath, allowedValues = null) {
   const result = requiredLaunchProfileValue(configPath);
   const value = typeof result.value === 'string' ? result.value.trim() : '';
@@ -128,6 +138,54 @@ function requiredLaunchProfilePlainObject(configPath) {
     throw new Error(`[ConfigLoader] config/trading.config.json ${result.source.slice('config:'.length)} must be an object`);
   }
   return { value: cloneConfiguredObject(result.value), source: result.source };
+}
+
+function requiredLaunchProfileNullablePlainObject(configPath) {
+  const result = requiredLaunchProfileValue(configPath);
+  if (result.value === null) {
+    return { value: null, source: result.source };
+  }
+  if (!result.value || typeof result.value !== 'object' || Array.isArray(result.value)) {
+    throw new Error(`[ConfigLoader] config/trading.config.json ${result.source.slice('config:'.length)} must be an object or null`);
+  }
+  return { value: cloneConfiguredObject(result.value), source: result.source };
+}
+
+function operationalLaunchProfileString(configPath, envKey) {
+  const result = requiredLaunchProfileValue(configPath);
+  const val = envSource()[envKey];
+  if (val !== undefined && val !== '') {
+    return { value: String(val), source: valueSource(envKey) };
+  }
+  if (typeof result.value !== 'string') {
+    throw new Error(`[ConfigLoader] config/trading.config.json ${result.source.slice('config:'.length)} must be a string`);
+  }
+  return { value: result.value, source: result.source };
+}
+
+function operationalLaunchProfileNumber(configPath, envKey) {
+  const result = requiredLaunchProfileValue(configPath);
+  const val = envSource()[envKey];
+  if (val !== undefined && val !== '') {
+    const parsed = Number(val);
+    return { value: Number.isFinite(parsed) ? parsed : NaN, source: valueSource(envKey) };
+  }
+  if (!Number.isFinite(result.value)) {
+    throw new Error(`[ConfigLoader] config/trading.config.json ${result.source.slice('config:'.length)} must be a finite number`);
+  }
+  return result;
+}
+
+function operationalLaunchProfileNullablePlainObject(configPath, envKey) {
+  const val = envSource()[envKey];
+  if (val !== undefined && val !== '') {
+    try {
+      return { value: JSON.parse(val), source: valueSource(envKey) };
+    } catch (error) {
+      return { value: { __parseError: error.message }, source: valueSource(envKey) };
+    }
+  }
+  return requiredLaunchProfileNullablePlainObject(configPath);
 }
 
 function validateMtfBoosterConfig(value, sourcePath) {
@@ -558,7 +616,7 @@ function buildConfig() {
 
     // ─── CONFIDENCE GATES ───
     confidence: {
-      minTradeConfidence: track('confidence.minTradeConfidence', envFloat('MIN_TRADE_CONFIDENCE', LIVE_MIN_TRADE_CONFIDENCE_FLOOR)),
+      minTradeConfidence: track('confidence.minTradeConfidence', requiredLaunchProfileNumber('confidence.minTradeConfidence')),
       minStrategyConfidence: track('confidence.minStrategyConfidence', envFloat('MIN_STRATEGY_CONFIDENCE', requiredConfiguredNumber('confidence.minStrategyConfidence'))),
       maxConfidence: track('confidence.maxConfidence', envFloat('MAX_CONFIDENCE', requiredConfiguredNumber('confidence.maxConfidence'))),
     },
@@ -662,12 +720,13 @@ function buildConfig() {
 
     // ─── RISK MANAGEMENT ───
     risk: {
-      riskManagerBypass: track('risk.riskManagerBypass', envBool('RISK_MANAGER_BYPASS', true)),
-      accountDrawdownBypass: track('risk.accountDrawdownBypass', envBool('ACCOUNT_DRAWDOWN_BYPASS', false)),
-      maxDrawdown: track('risk.maxDrawdown', envFloat('MAX_DRAWDOWN', requiredConfiguredNumber('risk.maxDrawdown'))),
-      maxDailyLoss: track('risk.maxDailyLoss', envFloat('MAX_DAILY_LOSS', requiredConfiguredNumber('risk.maxDailyLoss'))),
-      maxWeeklyLoss: track('risk.maxWeeklyLoss', envFloat('MAX_WEEKLY_LOSS', 10)),
-      maxMonthlyLoss: track('risk.maxMonthlyLoss', envFloat('MAX_MONTHLY_LOSS', 20)),
+      riskManagerBypass: track('risk.riskManagerBypass', requiredLaunchProfileBool('risk.riskManagerBypass')),
+      accountDrawdownBypass: track('risk.accountDrawdownBypass', requiredLaunchProfileBool('risk.accountDrawdownBypass')),
+      maxDrawdown: track('risk.maxDrawdown', requiredLaunchProfileNumber('risk.maxDrawdown')),
+      maxDailyLoss: track('risk.maxDailyLoss', requiredLaunchProfileNumber('risk.maxDailyLoss')),
+      maxWeeklyLoss: track('risk.maxWeeklyLoss', requiredLaunchProfileNumber('risk.maxWeeklyLoss')),
+      maxMonthlyLoss: track('risk.maxMonthlyLoss', requiredLaunchProfileNumber('risk.maxMonthlyLoss')),
+      accountDrawdownPercent: track('risk.accountDrawdownPercent', requiredLaunchProfileNumber('risk.accountDrawdownPercent')),
     },
 
     // ─── FILTERS ───
@@ -678,43 +737,43 @@ function buildConfig() {
 
     // --- EVAL RULES ---
     evalRules: {
-      enabled: track('evalRules.enabled', envBool('EVAL_RULES_ENABLED', false)),
+      enabled: track('evalRules.enabled', requiredLaunchProfileBool('venueGuards.ttp.enabled')),
       ttp: {
-        enabled: track('evalRules.ttp.enabled', envBool('TTP_RULES_ENABLED', false)),
+        enabled: track('evalRules.ttp.enabled', requiredLaunchProfileBool('venueGuards.ttp.enabled')),
         volumeCap: {
-          enabled: track('evalRules.ttp.volumeCap.enabled', envBool('TTP_VOLUME_CAP_ENABLED', true)),
-          percent: track('evalRules.ttp.volumeCap.percent', envStrictFloat('TTP_VOLUME_CAP_PERCENT', 0.05)),
-          timeframe: track('evalRules.ttp.volumeCap.timeframe', envStr('TTP_VOLUME_CAP_TIMEFRAME', '1m')),
-          fallbackToMostRecentVolume: track('evalRules.ttp.volumeCap.fallbackToMostRecentVolume', envBool('TTP_VOLUME_CAP_FALLBACK_TO_RECENT', true)),
-          maxReferenceAgeMs: track('evalRules.ttp.volumeCap.maxReferenceAgeMs', envStrictFloat('TTP_VOLUME_CAP_MAX_REFERENCE_AGE_MS', 180000)),
+          enabled: track('evalRules.ttp.volumeCap.enabled', requiredLaunchProfileBool('venueGuards.ttp.volumeCap.enabled')),
+          percent: track('evalRules.ttp.volumeCap.percent', requiredLaunchProfileNumber('venueGuards.ttp.volumeCap.percent')),
+          timeframe: track('evalRules.ttp.volumeCap.timeframe', requiredLaunchProfileString('venueGuards.ttp.volumeCap.timeframe')),
+          fallbackToMostRecentVolume: track('evalRules.ttp.volumeCap.fallbackToMostRecentVolume', requiredLaunchProfileBool('venueGuards.ttp.volumeCap.fallbackToMostRecentVolume')),
+          maxReferenceAgeMs: track('evalRules.ttp.volumeCap.maxReferenceAgeMs', requiredLaunchProfileNumber('venueGuards.ttp.volumeCap.maxReferenceAgeMs')),
           maxReferenceAgeLimitMs: 300000,
         },
         marketTime: {
-          enabled: track('evalRules.ttp.marketTime.enabled', envBool('TTP_MARKET_TIME_ENABLED', true)),
-          blockEntriesAfterCutoff: track('evalRules.ttp.marketTime.blockEntriesAfterCutoff', envBool('TTP_BLOCK_ENTRIES_AFTER_CUTOFF', true)),
-          liquidationEnabled: track('evalRules.ttp.marketTime.liquidationEnabled', envBool('TTP_LIQUIDATION_ENABLED', true)),
-          cutoffMinutesBeforeClose: track('evalRules.ttp.marketTime.cutoffMinutesBeforeClose', envStrictFloat('TTP_LIQUIDATION_MINUTES_BEFORE_CLOSE', 10)),
-          entryBufferMinutesBeforeCutoff: track('evalRules.ttp.marketTime.entryBufferMinutesBeforeCutoff', envStrictFloat('TTP_ENTRY_BUFFER_MINUTES_BEFORE_CUTOFF', 0)),
+          enabled: track('evalRules.ttp.marketTime.enabled', requiredLaunchProfileBool('venueGuards.ttp.marketTime.enabled')),
+          blockEntriesAfterCutoff: track('evalRules.ttp.marketTime.blockEntriesAfterCutoff', requiredLaunchProfileBool('venueGuards.ttp.marketTime.blockEntriesAfterCutoff')),
+          liquidationEnabled: track('evalRules.ttp.marketTime.liquidationEnabled', requiredLaunchProfileBool('venueGuards.ttp.marketTime.liquidationEnabled')),
+          cutoffMinutesBeforeClose: track('evalRules.ttp.marketTime.cutoffMinutesBeforeClose', requiredLaunchProfileNumber('venueGuards.ttp.marketTime.cutoffMinutesBeforeClose')),
+          entryBufferMinutesBeforeCutoff: track('evalRules.ttp.marketTime.entryBufferMinutesBeforeCutoff', requiredLaunchProfileNumber('venueGuards.ttp.marketTime.entryBufferMinutesBeforeCutoff')),
         },
         accountLimits: {
-          enabled: track('evalRules.ttp.accountLimits.enabled', envBool('TTP_ACCOUNT_LIMITS_ENABLED', true)),
-          enforceDailyLossPause: track('evalRules.ttp.accountLimits.enforceDailyLossPause', envBool('TTP_DAILY_LOSS_PAUSE_ENABLED', true)),
-          enforceMaxLoss: track('evalRules.ttp.accountLimits.enforceMaxLoss', envBool('TTP_MAX_LOSS_ENABLED', true)),
-          accountStartOfDayDate: track('evalRules.ttp.accountLimits.accountStartOfDayDate', envStr('TTP_ACCOUNT_START_OF_DAY_DATE', '')),
-          accountStartOfDayEquity: track('evalRules.ttp.accountLimits.accountStartOfDayEquity', envStrictFloat('TTP_ACCOUNT_START_OF_DAY_EQUITY', 0)),
-          dailyLossDollars: track('evalRules.ttp.accountLimits.dailyLossDollars', envStrictFloat('TTP_DAILY_LOSS_LIMIT_DOLLARS', 0)),
-          maxLossThresholdEquity: track('evalRules.ttp.accountLimits.maxLossThresholdEquity', envStrictFloat('TTP_MAX_LOSS_THRESHOLD_EQUITY', 0)),
+          enabled: track('evalRules.ttp.accountLimits.enabled', requiredLaunchProfileBool('venueGuards.ttp.accountLimits.enabled')),
+          enforceDailyLossPause: track('evalRules.ttp.accountLimits.enforceDailyLossPause', requiredLaunchProfileBool('venueGuards.ttp.accountLimits.enforceDailyLossPause')),
+          enforceMaxLoss: track('evalRules.ttp.accountLimits.enforceMaxLoss', requiredLaunchProfileBool('venueGuards.ttp.accountLimits.enforceMaxLoss')),
+          accountStartOfDayDate: track('evalRules.ttp.accountLimits.accountStartOfDayDate', operationalLaunchProfileString('venueGuards.ttp.accountLimits.accountStartOfDayDate', 'TTP_ACCOUNT_START_OF_DAY_DATE')),
+          accountStartOfDayEquity: track('evalRules.ttp.accountLimits.accountStartOfDayEquity', operationalLaunchProfileNumber('venueGuards.ttp.accountLimits.accountStartOfDayEquity', 'TTP_ACCOUNT_START_OF_DAY_EQUITY')),
+          dailyLossDollars: track('evalRules.ttp.accountLimits.dailyLossDollars', requiredLaunchProfileNumber('venueGuards.ttp.accountLimits.dailyLossDollars')),
+          maxLossThresholdEquity: track('evalRules.ttp.accountLimits.maxLossThresholdEquity', requiredLaunchProfileNumber('venueGuards.ttp.accountLimits.maxLossThresholdEquity')),
         },
         earningsRestriction: {
-          enabled: track('evalRules.ttp.earningsRestriction.enabled', envBool('TTP_EARNINGS_RESTRICTION_ENABLED', true)),
-          blockEntries: track('evalRules.ttp.earningsRestriction.blockEntries', envBool('TTP_EARNINGS_BLOCK_ENTRIES', true)),
-          manualStatus: track('evalRules.ttp.earningsRestriction.manualStatus', envJsonObject('TTP_EARNINGS_STATUS_JSON', null)),
+          enabled: track('evalRules.ttp.earningsRestriction.enabled', requiredLaunchProfileBool('venueGuards.ttp.earningsRestriction.enabled')),
+          blockEntries: track('evalRules.ttp.earningsRestriction.blockEntries', requiredLaunchProfileBool('venueGuards.ttp.earningsRestriction.blockEntries')),
+          manualStatus: track('evalRules.ttp.earningsRestriction.manualStatus', operationalLaunchProfileNullablePlainObject('venueGuards.ttp.earningsRestriction.manualStatus', 'TTP_EARNINGS_STATUS_JSON')),
         },
         consistency: {
-          enabled: track('evalRules.ttp.consistency.enabled', envBool('TTP_CONSISTENCY_ENABLED', true)),
-          maxPositionProfitRatio: track('evalRules.ttp.consistency.maxPositionProfitRatio', envStrictFloat('TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO', 0.30)),
-          profitTargetDollars: track('evalRules.ttp.consistency.profitTargetDollars', envStrictFloat('TTP_PROFIT_TARGET_DOLLARS', 0)),
-          maxProfitTargetInitialBalanceRatio: track('evalRules.ttp.consistency.maxProfitTargetInitialBalanceRatio', envStrictFloat('TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO', 0.10)),
+          enabled: track('evalRules.ttp.consistency.enabled', requiredLaunchProfileBool('venueGuards.ttp.consistency.enabled')),
+          maxPositionProfitRatio: track('evalRules.ttp.consistency.maxPositionProfitRatio', requiredLaunchProfileNumber('venueGuards.ttp.consistency.maxPositionProfitRatio')),
+          profitTargetDollars: track('evalRules.ttp.consistency.profitTargetDollars', requiredLaunchProfileNumber('venueGuards.ttp.consistency.profitTargetDollars')),
+          maxProfitTargetInitialBalanceRatio: track('evalRules.ttp.consistency.maxProfitTargetInitialBalanceRatio', requiredLaunchProfileNumber('venueGuards.ttp.consistency.maxProfitTargetInitialBalanceRatio')),
         },
       },
     },
@@ -960,20 +1019,19 @@ function validate(config, sources = {}) {
   }
   if (config.mode.liveTrading) {
     const minTradeConfidenceSource = sources['confidence.minTradeConfidence'];
-    const minTradeConfidenceExplicit = minTradeConfidenceSource === 'env:MIN_TRADE_CONFIDENCE' ||
-      /^profile:[^:]+:MIN_TRADE_CONFIDENCE$/.test(String(minTradeConfidenceSource || ''));
+    const minTradeConfidenceExplicit = /^config:launchProfiles\.[^.]+\.confidence\.minTradeConfidence$/.test(String(minTradeConfidenceSource || ''));
     if (!minTradeConfidenceExplicit) {
-      errors.push(`LIVE_TRADING=true requires MIN_TRADE_CONFIDENCE from process env or selected tuning profile, got ${minTradeConfidenceSource || 'missing'}`);
+      errors.push(`LIVE_TRADING=true requires launchProfiles.<profile>.confidence.minTradeConfidence, got ${minTradeConfidenceSource || 'missing'}`);
     }
     if (!Number.isFinite(config.confidence.minTradeConfidence) || config.confidence.minTradeConfidence < LIVE_MIN_TRADE_CONFIDENCE_FLOOR) {
-      errors.push(`LIVE_TRADING=true requires MIN_TRADE_CONFIDENCE >= ${LIVE_MIN_TRADE_CONFIDENCE_FLOOR}, got ${config.confidence.minTradeConfidence}`);
+      errors.push(`LIVE_TRADING=true requires launchProfiles.<profile>.confidence.minTradeConfidence >= ${LIVE_MIN_TRADE_CONFIDENCE_FLOOR}, got ${config.confidence.minTradeConfidence}`);
     }
   }
   if (config.mode.liveTrading && config.evalRules.enabled !== true) {
-    errors.push('LIVE_TRADING=true cannot run with EVAL_RULES_ENABLED unset or false because EvalRuleEngine fails open when disabled');
+    errors.push('LIVE_TRADING=true cannot run with launchProfiles.<profile>.venueGuards.ttp.enabled=false because EvalRuleEngine fails open when disabled');
   }
   if (config.mode.liveTrading && config.evalRules.enabled === true && config.evalRules.ttp.enabled !== true) {
-    errors.push('LIVE_TRADING=true cannot run with TTP_RULES_ENABLED unset or false while EVAL_RULES_ENABLED=true because TTP rules fail open when disabled');
+    errors.push('LIVE_TRADING=true cannot run with launchProfiles.<profile>.venueGuards.ttp.enabled=false while eval rules are enabled because TTP rules fail open when disabled');
   }
   if (config.mode.liveTrading && config.webhookOrders.enabled && !config.webhookOrders.webhookUrl) {
     errors.push('LIVE_TRADING=true cannot run with WEBHOOK_ORDERS_ENABLED=true and missing SIGNALSTACK_WEBHOOK_URL');
@@ -1076,9 +1134,9 @@ function validate(config, sources = {}) {
     }
     if (ttpAccountLimits.enforceDailyLossPause === true) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(String(ttpAccountLimits.accountStartOfDayDate || ''))) {
-        warnings.push(`TTP_ACCOUNT_START_OF_DAY_DATE should be YYYY-MM-DD for daily loss pause, got ${ttpAccountLimits.accountStartOfDayDate || '(missing)'}; daily loss pause will be skipped until refreshed`);
+        warnings.push(`TTP_ACCOUNT_START_OF_DAY_DATE should be YYYY-MM-DD for daily loss pause, got ${ttpAccountLimits.accountStartOfDayDate || '(missing)'}; entries will be blocked by TTP account limits until refreshed`);
       } else if (config.mode.liveTrading && String(ttpAccountLimits.accountStartOfDayDate) !== currentNewYorkDate) {
-        warnings.push(`TTP_ACCOUNT_START_OF_DAY_DATE ${ttpAccountLimits.accountStartOfDayDate} does not match current New York date ${currentNewYorkDate}; daily loss pause will be skipped until refreshed`);
+        warnings.push(`TTP_ACCOUNT_START_OF_DAY_DATE ${ttpAccountLimits.accountStartOfDayDate} does not match current New York date ${currentNewYorkDate}; entries will be blocked by TTP account limits until refreshed`);
       }
       if (!Number.isFinite(ttpAccountLimits.accountStartOfDayEquity) || ttpAccountLimits.accountStartOfDayEquity <= 0) {
         errors.push(`TTP_ACCOUNT_START_OF_DAY_EQUITY must be configured for daily loss pause, got ${ttpAccountLimits.accountStartOfDayEquity}`);
@@ -1105,9 +1163,9 @@ function validate(config, sources = {}) {
         warnings.push(`TTP_EARNINGS_STATUS_JSON parse failed and will be ignored: ${manualStatus.__parseError}`);
       } else {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(String(manualStatus.date || ''))) {
-          warnings.push(`TTP_EARNINGS_STATUS_JSON.date should be YYYY-MM-DD, got ${manualStatus.date || '(missing)'}; earnings calendar will not block entries`);
+          warnings.push(`TTP_EARNINGS_STATUS_JSON.date should be YYYY-MM-DD, got ${manualStatus.date || '(missing)'}; stale manual earnings status will block entries until refreshed`);
         } else if (config.mode.liveTrading && String(manualStatus.date) !== currentNewYorkDate) {
-          warnings.push(`TTP_EARNINGS_STATUS_JSON.date ${manualStatus.date} does not match current New York date ${currentNewYorkDate}; earnings calendar will not block entries`);
+          warnings.push(`TTP_EARNINGS_STATUS_JSON.date ${manualStatus.date} does not match current New York date ${currentNewYorkDate}; stale manual earnings status will block entries until refreshed`);
         }
         if (!manualStatus.symbols || typeof manualStatus.symbols !== 'object' || Array.isArray(manualStatus.symbols) || Object.keys(manualStatus.symbols).length === 0) {
           warnings.push('TTP_EARNINGS_STATUS_JSON.symbols should be a non-empty object of SYMBOL:boolean entries; earnings calendar will not block entries');
@@ -1336,6 +1394,11 @@ const CONFIG_LOADER_RUNTIME_PATHS = Object.freeze({
   'risk.maxDailyLoss': 'risk.maxDailyLoss',
   'risk.maxWeeklyLoss': 'risk.maxWeeklyLoss',
   'risk.maxMonthlyLoss': 'risk.maxMonthlyLoss',
+  'risk.accountDrawdownPercent': 'risk.accountDrawdownPercent',
+  'exitLogic.safety.accountDrawdownBypass': 'exitLogic.safety.accountDrawdownBypass',
+  'exitLogic.safety.accountDrawdownPercent': 'exitLogic.safety.accountDrawdownPercent',
+  'universalLimits.accountDrawdownBypass': 'universalLimits.accountDrawdownBypass',
+  'universalLimits.accountDrawdownPercent': 'universalLimits.accountDrawdownPercent',
   'filters.atrEnabled': 'filters.atrEnabled',
   'filters.atrMinPercent': 'filters.atrMinPercent',
   'evalRules.enabled': 'evalRules.enabled',
@@ -1443,6 +1506,44 @@ const CONFIG_LOADER_RUNTIME_PATHS = Object.freeze({
 });
 
 const LAUNCH_PROFILE_RUNTIME_PATHS = Object.freeze({
+  'confidence.minTradeConfidence': 'confidence.minTradeConfidence',
+  'risk.riskManagerBypass': 'risk.riskManagerBypass',
+  'risk.accountDrawdownBypass': 'risk.accountDrawdownBypass',
+  'risk.maxDrawdown': 'risk.maxDrawdown',
+  'risk.maxDailyLoss': 'risk.maxDailyLoss',
+  'risk.maxWeeklyLoss': 'risk.maxWeeklyLoss',
+  'risk.maxMonthlyLoss': 'risk.maxMonthlyLoss',
+  'risk.accountDrawdownPercent': 'risk.accountDrawdownPercent',
+  'exitLogic.safety.accountDrawdownBypass': 'risk.accountDrawdownBypass',
+  'exitLogic.safety.accountDrawdownPercent': 'risk.accountDrawdownPercent',
+  'universalLimits.accountDrawdownBypass': 'risk.accountDrawdownBypass',
+  'universalLimits.accountDrawdownPercent': 'risk.accountDrawdownPercent',
+  'evalRules.enabled': 'venueGuards.ttp.enabled',
+  'evalRules.ttp.enabled': 'venueGuards.ttp.enabled',
+  'evalRules.ttp.volumeCap.enabled': 'venueGuards.ttp.volumeCap.enabled',
+  'evalRules.ttp.volumeCap.percent': 'venueGuards.ttp.volumeCap.percent',
+  'evalRules.ttp.volumeCap.timeframe': 'venueGuards.ttp.volumeCap.timeframe',
+  'evalRules.ttp.volumeCap.fallbackToMostRecentVolume': 'venueGuards.ttp.volumeCap.fallbackToMostRecentVolume',
+  'evalRules.ttp.volumeCap.maxReferenceAgeMs': 'venueGuards.ttp.volumeCap.maxReferenceAgeMs',
+  'evalRules.ttp.marketTime.enabled': 'venueGuards.ttp.marketTime.enabled',
+  'evalRules.ttp.marketTime.blockEntriesAfterCutoff': 'venueGuards.ttp.marketTime.blockEntriesAfterCutoff',
+  'evalRules.ttp.marketTime.liquidationEnabled': 'venueGuards.ttp.marketTime.liquidationEnabled',
+  'evalRules.ttp.marketTime.cutoffMinutesBeforeClose': 'venueGuards.ttp.marketTime.cutoffMinutesBeforeClose',
+  'evalRules.ttp.marketTime.entryBufferMinutesBeforeCutoff': 'venueGuards.ttp.marketTime.entryBufferMinutesBeforeCutoff',
+  'evalRules.ttp.accountLimits.enabled': 'venueGuards.ttp.accountLimits.enabled',
+  'evalRules.ttp.accountLimits.enforceDailyLossPause': 'venueGuards.ttp.accountLimits.enforceDailyLossPause',
+  'evalRules.ttp.accountLimits.enforceMaxLoss': 'venueGuards.ttp.accountLimits.enforceMaxLoss',
+  'evalRules.ttp.accountLimits.accountStartOfDayDate': 'venueGuards.ttp.accountLimits.accountStartOfDayDate',
+  'evalRules.ttp.accountLimits.accountStartOfDayEquity': 'venueGuards.ttp.accountLimits.accountStartOfDayEquity',
+  'evalRules.ttp.accountLimits.dailyLossDollars': 'venueGuards.ttp.accountLimits.dailyLossDollars',
+  'evalRules.ttp.accountLimits.maxLossThresholdEquity': 'venueGuards.ttp.accountLimits.maxLossThresholdEquity',
+  'evalRules.ttp.earningsRestriction.enabled': 'venueGuards.ttp.earningsRestriction.enabled',
+  'evalRules.ttp.earningsRestriction.blockEntries': 'venueGuards.ttp.earningsRestriction.blockEntries',
+  'evalRules.ttp.earningsRestriction.manualStatus': 'venueGuards.ttp.earningsRestriction.manualStatus',
+  'evalRules.ttp.consistency.enabled': 'venueGuards.ttp.consistency.enabled',
+  'evalRules.ttp.consistency.profitTargetDollars': 'venueGuards.ttp.consistency.profitTargetDollars',
+  'evalRules.ttp.consistency.maxPositionProfitRatio': 'venueGuards.ttp.consistency.maxPositionProfitRatio',
+  'evalRules.ttp.consistency.maxProfitTargetInitialBalanceRatio': 'venueGuards.ttp.consistency.maxProfitTargetInitialBalanceRatio',
   'strategies.soloFilter': 'strategies.soloFilter',
   'strategies.enableRSI': 'pipeline.enableRSI',
   'strategies.enableMADynamicSR': 'pipeline.enableMADynamicSR',
@@ -1515,10 +1616,19 @@ function hasConfigLoaderSnapshot() {
   return _cached !== null;
 }
 
-function assertConfigLoaderOwnedPathsNotOverridden(flatOverrides, source) {
+const BACKTEST_CONFIG_LOADER_OVERRIDE_PATHS = Object.freeze(new Set([
+  'confidence.minTradeConfidence',
+]));
+
+function assertConfigLoaderOwnedPathsNotOverridden(flatOverrides, source, options = {}) {
   if (!hasConfigLoaderSnapshot()) return;
   const ownedPaths = Object.keys(flatOverrides)
-    .filter(path => Object.prototype.hasOwnProperty.call(CONFIG_LOADER_RUNTIME_PATHS, path));
+    .filter(path => Object.prototype.hasOwnProperty.call(CONFIG_LOADER_RUNTIME_PATHS, path))
+    .filter(path => !(
+      source === 'applyBacktestConfigOverrides' &&
+      isValidatedBacktestOverrideContext(options) &&
+      BACKTEST_CONFIG_LOADER_OVERRIDE_PATHS.has(path)
+    ));
 
   if (ownedPaths.length === 0) return;
 
@@ -1623,7 +1733,6 @@ const PROFILE_FORBIDDEN_ENV_KEYS = Object.freeze([
 
 const PROFILE_ENV_CONFIG_PATHS = Object.freeze({
   INITIAL_BALANCE: Object.freeze(['startingBalance']),
-  MIN_TRADE_CONFIDENCE: Object.freeze(['confidence.minTradeConfidence']),
   ENABLE_DYNAMIC_SIZING: Object.freeze(['features.enableDynamicSizing']),
   BASE_POSITION_SIZE: Object.freeze(['positionSizing.basePositionSize']),
   MAX_POSITION_SIZE_PCT: Object.freeze(['positionSizing.maxPositionSize']),
@@ -1643,20 +1752,6 @@ const PROFILE_ENV_CONFIG_PATHS = Object.freeze({
   TIER1_EXIT_FRACTION: Object.freeze(['exitLogic.tieredExit.tier1ExitFraction']),
   TIER2_EXIT_FRACTION: Object.freeze(['exitLogic.tieredExit.tier2ExitFraction']),
   TIER3_EXIT_FRACTION: Object.freeze(['exitLogic.tieredExit.tier3ExitFraction']),
-  MAX_DRAWDOWN: Object.freeze(['risk.maxDrawdown']),
-  MAX_DAILY_LOSS: Object.freeze(['risk.maxDailyLoss']),
-  MAX_WEEKLY_LOSS: Object.freeze(['risk.maxWeeklyLoss']),
-  MAX_MONTHLY_LOSS: Object.freeze(['risk.maxMonthlyLoss']),
-  ACCOUNT_DRAWDOWN_BYPASS: Object.freeze([
-    'risk.accountDrawdownBypass',
-    'exitLogic.safety.accountDrawdownBypass',
-    'universalLimits.accountDrawdownBypass',
-  ]),
-  ACCOUNT_DRAWDOWN_PCT: Object.freeze([
-    'exitLogic.safety.accountDrawdownPercent',
-    'universalLimits.accountDrawdownPercent',
-  ]),
-  RISK_MANAGER_BYPASS: Object.freeze(['risk.riskManagerBypass']),
   ATR_FILTER_ENABLED: Object.freeze(['filters.atrEnabled']),
   ATR_MIN_PERCENT: Object.freeze(['filters.atrMinPercent']),
   EXIT_SYSTEM: Object.freeze(['exits.exitSystem']),
@@ -1668,13 +1763,6 @@ const PROFILE_ENV_CONFIG_PATHS = Object.freeze({
   FEE_SLIPPAGE: Object.freeze(['fees.slippage']),
   FEE_PER_SHARE: Object.freeze(['fees.perShare']),
   FEE_MIN_ORDER: Object.freeze(['fees.minOrderFee']),
-  TTP_DAILY_LOSS_LIMIT_DOLLARS: Object.freeze(['evalRules.ttp.accountLimits.dailyLossDollars']),
-  TTP_MAX_LOSS_THRESHOLD_EQUITY: Object.freeze(['evalRules.ttp.accountLimits.maxLossThresholdEquity']),
-  TTP_PROFIT_TARGET_DOLLARS: Object.freeze(['evalRules.ttp.consistency.profitTargetDollars']),
-  TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO: Object.freeze(['evalRules.ttp.consistency.maxPositionProfitRatio']),
-  TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO: Object.freeze(['evalRules.ttp.consistency.maxProfitTargetInitialBalanceRatio']),
-  TTP_LIQUIDATION_MINUTES_BEFORE_CLOSE: Object.freeze(['evalRules.ttp.marketTime.cutoffMinutesBeforeClose']),
-  TTP_ENTRY_BUFFER_MINUTES_BEFORE_CUTOFF: Object.freeze(['evalRules.ttp.marketTime.entryBufferMinutesBeforeCutoff']),
   EMA_CROSSOVER_ENTRY_EVENTS_ONLY: Object.freeze(['strategyBehavior.emaCrossover.entryEventsOnly']),
   EMA_CROSSOVER_CONFIRM_BARS: Object.freeze(['strategyBehavior.emaCrossover.confirmBars']),
   EMA_CROSSOVER_WARMUP_BARS: Object.freeze(['strategyBehavior.emaCrossover.warmupBars']),
@@ -1694,8 +1782,6 @@ const PROFILE_ENV_CONFIG_PATHS = Object.freeze({
 const PROFILE_BOOLEAN_ENV_KEYS = Object.freeze(new Set([
   'ENABLE_DYNAMIC_SIZING',
   'ENTRY_STOCK_SHARE_RANGE_ENABLED',
-  'ACCOUNT_DRAWDOWN_BYPASS',
-  'RISK_MANAGER_BYPASS',
   'ATR_FILTER_ENABLED',
   'EMA_CROSSOVER_ENTRY_EVENTS_ONLY',
   'TREND_REGIME_GATE_ENABLED',
@@ -1715,21 +1801,7 @@ const PROFILE_LIST_ENV_KEYS = Object.freeze(new Set([
 
 const PROFILE_RUNTIME_SNAPSHOT_ENV_KEYS = Object.freeze(new Set([
   'INITIAL_BALANCE',
-  'MIN_TRADE_CONFIDENCE',
-  'RISK_MANAGER_BYPASS',
-  'ACCOUNT_DRAWDOWN_PCT',
-  'MAX_DRAWDOWN',
-  'MAX_DAILY_LOSS',
-  'MAX_WEEKLY_LOSS',
-  'MAX_MONTHLY_LOSS',
   'EXIT_SYSTEM',
-  'TTP_DAILY_LOSS_LIMIT_DOLLARS',
-  'TTP_MAX_LOSS_THRESHOLD_EQUITY',
-  'TTP_PROFIT_TARGET_DOLLARS',
-  'TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO',
-  'TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO',
-  'TTP_LIQUIDATION_MINUTES_BEFORE_CLOSE',
-  'TTP_ENTRY_BUFFER_MINUTES_BEFORE_CUTOFF',
 ]));
 
 const PROFILE_SNAPSHOT_MISSING = Symbol('profile_snapshot_missing');
@@ -1911,7 +1983,7 @@ const BASE_CONFIG = {
   // CONFIDENCE THRESHOLDS
   // =========================================================================
   confidence: {
-    minTradeConfidence: env('MIN_TRADE_CONFIDENCE', requiredConfigNumber('confidence.minTradeConfidence')),
+    minTradeConfidence: requiredConfigNumber('confidence.minTradeConfidence'),
     maxConfidence: env('MAX_CONFIDENCE', requiredConfigNumber('confidence.maxConfidence')),
     minStrategyConfidence: env('MIN_STRATEGY_CONFIDENCE', requiredConfigNumber('confidence.minStrategyConfidence')),
     candlePatternMinConfidence: env('CANDLE_PATTERN_MIN_CONFIDENCE', requiredConfigNumber('confidence.candlePatternMinConfidence')),
@@ -1925,7 +1997,7 @@ const BASE_CONFIG = {
   // =========================================================================
   risk: {
     maxRiskPerTrade: env('MAX_RISK_PER_TRADE', 0.02),           // 2% max risk per trade
-    accountDrawdownBypass: envBool('ACCOUNT_DRAWDOWN_BYPASS', false),
+    accountDrawdownBypass: false,
     // RiskManager circuit limits are startup-owned by ConfigLoader/RiskManagerConfig.
     // Profiles may still write risk.* startup overrides, but BASE_CONFIG must not carry stale defaults.
 
@@ -2502,8 +2574,8 @@ const BASE_CONFIG = {
     // These are absolute kill-switches, not strategy-specific
     safety: {
       hardStopLossPercent: parseFloat(env('UNIVERSAL_HARD_STOP', -3.0)),  // never let any single trade lose more than 3%
-      accountDrawdownPercent: parseFloat(env('ACCOUNT_DRAWDOWN_PCT', -5.0)),  // Apex 5% wall
-      accountDrawdownBypass: envBool('ACCOUNT_DRAWDOWN_BYPASS', false),
+      accountDrawdownPercent: -5.0,  // Apex 5% wall
+      accountDrawdownBypass: false,
       maxHoldTimeMinutes: parseInt(env('UNIVERSAL_MAX_HOLD_MIN', 480), 10),  // 8 hours absolute max
     },
   },
@@ -2851,7 +2923,7 @@ const BASE_CONFIG = {
     hardStopLossPercent: -5.0,                                    // -5% absolute max loss (was -2%, too tight for BTC)
     accountDrawdownPercent: -10.0,                                // -10% force close all
     maxHoldTimeMinutes: 360,                                      // 6 hours max hold (matches MarketRegime)
-    accountDrawdownBypass: envBool('ACCOUNT_DRAWDOWN_BYPASS', false), // Skip drawdown check (for parallel backtester)
+    accountDrawdownBypass: false,
   },
 
   // =========================================================================
@@ -2945,13 +3017,13 @@ const BASE_CONFIG = {
   evalRules: {
     ttp: {
       accountLimits: {
-        dailyLossDollars: env('TTP_DAILY_LOSS_LIMIT_DOLLARS', null),
-        maxLossThresholdEquity: env('TTP_MAX_LOSS_THRESHOLD_EQUITY', null),
+        dailyLossDollars: null,
+        maxLossThresholdEquity: null,
       },
       consistency: {
-        profitTargetDollars: env('TTP_PROFIT_TARGET_DOLLARS', null),
-        maxPositionProfitRatio: env('TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO', null),
-        maxProfitTargetInitialBalanceRatio: env('TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO', null),
+        profitTargetDollars: null,
+        maxPositionProfitRatio: null,
+        maxProfitTargetInitialBalanceRatio: null,
       },
     },
   },
@@ -3033,17 +3105,9 @@ const BASE_CONFIG = {
       ENABLE_DASHBOARD: 'false',
       WEBHOOK_ORDERS_ENABLED: 'false',
       WEBHOOK_DRY_RUN: 'true',
-      EVAL_RULES_ENABLED: 'false',
-      TTP_RULES_ENABLED: 'false',
       SENTRY_DSN: '',
       NODE_ENV: 'test',
       DIRECTION_FILTER: 'both',
-      ACCOUNT_DRAWDOWN_BYPASS: 'true',
-      RISK_MANAGER_BYPASS: 'true',
-      MAX_DRAWDOWN: '5',
-      MAX_DAILY_LOSS: '1',
-      MAX_WEEKLY_LOSS: '5',
-      MAX_MONTHLY_LOSS: '5',
       EXIT_SYSTEM: 'legacy',
       FEE_MAKER: '0.0025',
       FEE_TAKER: '0.0040',
@@ -3111,8 +3175,6 @@ const BASE_CONFIG = {
         { name: 'size-7pct', env: { MAX_POSITION_SIZE_PCT: '0.07' } },
         { name: 'tiers-tight', env: { TIER1_TARGET: '0.010', TIER2_TARGET: '0.015', TIER3_TARGET: '0.020' } },
         { name: 'tiers-wide', env: { TIER1_TARGET: '0.015', TIER2_TARGET: '0.025', TIER3_TARGET: '0.040' } },
-        { name: 'risk-on', env: { RISK_MANAGER_BYPASS: 'false', ACCOUNT_DRAWDOWN_BYPASS: 'false' } },
-        { name: 'risk-bypass', env: { RISK_MANAGER_BYPASS: 'true', ACCOUNT_DRAWDOWN_BYPASS: 'true' } },
       ],
       atr: [
         { name: 'atr-off', env: { ATR_FILTER_ENABLED: 'false' } },
@@ -3138,12 +3200,6 @@ const BASE_CONFIG = {
         { name: 'tiers-above-fees', env: { TIER1_TARGET: '0.010', TIER2_TARGET: '0.015', TIER3_TARGET: '0.020' } },
         { name: 'tiers-wide', env: { TIER1_TARGET: '0.015', TIER2_TARGET: '0.020', TIER3_TARGET: '0.030' } },
         { name: 'tiers-no-early', env: { TIER1_TARGET: '0.020', TIER2_TARGET: '0.030', TIER3_TARGET: '0.050' } },
-      ],
-      risk: [
-        { name: 'all-bypass', env: { RISK_MANAGER_BYPASS: 'true', ACCOUNT_DRAWDOWN_BYPASS: 'true' } },
-        { name: 'risk-on-dd-bypass', env: { RISK_MANAGER_BYPASS: 'false', ACCOUNT_DRAWDOWN_BYPASS: 'true' } },
-        { name: 'risk-bypass-dd-on', env: { RISK_MANAGER_BYPASS: 'true', ACCOUNT_DRAWDOWN_BYPASS: 'false' } },
-        { name: 'all-on', env: { RISK_MANAGER_BYPASS: 'false', ACCOUNT_DRAWDOWN_BYPASS: 'false' } },
       ],
       strategySweep: [
         { name: 'RSI-only', env: { SOLO_STRATEGY: 'RSI' } },
@@ -3938,7 +3994,7 @@ class ConfigLoader {
     }
   }
 
-  static applyOverrideMap(overrides, source) {
+  static applyOverrideMap(overrides, source, options = {}) {
     if (configFrozen) {
       throw new Error(`[ConfigLoader] Config is frozen; refusing ${source}`);
     }
@@ -3959,7 +4015,7 @@ class ConfigLoader {
 
     const flatOverrides = flatten(overrides);
     assertLiveConfidenceOverrideAllowed(flatOverrides, source);
-    assertConfigLoaderOwnedPathsNotOverridden(flatOverrides, source);
+    assertConfigLoaderOwnedPathsNotOverridden(flatOverrides, source, options);
     activeOverrides = { ...activeOverrides, ...flatOverrides };
     for (const path of Object.keys(flatOverrides)) {
       activeTuningProfileOverridePaths.delete(path);
@@ -3970,7 +4026,7 @@ class ConfigLoader {
 
   static applyBacktestConfigOverrides(overrides, options = {}) {
     assertBacktestOverrideMutationAllowed(options);
-    ConfigLoader.applyOverrideMap(overrides, 'applyBacktestConfigOverrides');
+    ConfigLoader.applyOverrideMap(overrides, 'applyBacktestConfigOverrides', options);
   }
 
   /**

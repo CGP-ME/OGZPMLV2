@@ -50,8 +50,14 @@ const VALID_DIRECTION_FILTERS = Object.freeze(new Set([
   'short_only',
 ]));
 
+const TUNING_PROFILE_LAUNCH_PROFILE = Object.freeze({
+  'current-eval': 'backtest-all',
+  'legacy-wide': 'backtest-all',
+  'ttp-5k-max': 'backtest-ttp-5k-max',
+  'trey-spec': 'backtest-trey-spec',
+});
+
 const CONFIG_ENV_OVERRIDE_ALLOWLIST = Object.freeze(new Set([
-  'ACCOUNT_DRAWDOWN_BYPASS',
   'ATR_FILTER_ENABLED',
   'ATR_MIN_PERCENT',
   'BACKTEST_CONFIG_OVERRIDES_JSON',
@@ -86,11 +92,6 @@ const CONFIG_ENV_OVERRIDE_ALLOWLIST = Object.freeze(new Set([
   'EMA_MTF_FRESH_50_200_MIN_1H_TREND_STRENGTH',
   'EMA_MTF_HOURLY_TREND_VETO_MULT',
   'MAX_POSITION_SIZE_PCT',
-  'MAX_DRAWDOWN',
-  'MAX_DAILY_LOSS',
-  'MAX_WEEKLY_LOSS',
-  'MAX_MONTHLY_LOSS',
-  'MIN_TRADE_CONFIDENCE',
   'MTF_BOOSTER_BOOST_MTF_CANDIDATE',
   'MTF_BOOSTER_CONFLICT_MULT',
   'MTF_BOOSTER_MAX_MULT',
@@ -113,7 +114,6 @@ const CONFIG_ENV_OVERRIDE_ALLOWLIST = Object.freeze(new Set([
   'PROPSAFE_EMA_TARGET_RR',
   'PROPSAFE_EMA_TRAIL_ACTIVATION_R',
   'PROPSAFE_EMA_TRAIL_DISTANCE_R',
-  'RISK_MANAGER_BYPASS',
   'RSI_OVERBOUGHT',
   'RSI_OVERSOLD',
   'RSI2_MR_MAX_HOLD_MINUTES',
@@ -156,13 +156,6 @@ const SUMMARY_KEYS = [
   'BACKTEST_NO_PATTERN_SAVE',
   'INITIAL_BALANCE',
   'DIRECTION_FILTER',
-  'ACCOUNT_DRAWDOWN_BYPASS',
-  'ACCOUNT_DRAWDOWN_PCT',
-  'RISK_MANAGER_BYPASS',
-  'MAX_DRAWDOWN',
-  'MAX_DAILY_LOSS',
-  'MAX_WEEKLY_LOSS',
-  'MAX_MONTHLY_LOSS',
   'EXIT_SYSTEM',
   'TUNING_PROFILE',
   'BACKTEST_TUNING_PROFILE',
@@ -182,11 +175,6 @@ const SUMMARY_KEYS = [
   'FEE_MIN_ORDER',
   'BACKTEST_FEE_PROFILE',
   'BACKTEST_CONFIG_OVERRIDES_JSON',
-  'TTP_DAILY_LOSS_LIMIT_DOLLARS',
-  'TTP_MAX_LOSS_THRESHOLD_EQUITY',
-  'TTP_PROFIT_TARGET_DOLLARS',
-  'TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO',
-  'TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO',
   'ALPACA_MODE',
   'ALPACA_SYMBOLS',
   'TRADING_PAIR',
@@ -223,7 +211,6 @@ const SUMMARY_KEYS = [
   'ATR_FILTER_ENABLED',
   'ATR_MIN_PERCENT',
   'BACKTEST_CONFIG_OVERRIDES_JSON',
-  'MIN_TRADE_CONFIDENCE',
   'MTF_BOOSTER_BOOST_MTF_CANDIDATE',
   'MTF_BOOSTER_CONFLICT_MULT',
   'MTF_BOOSTER_MAX_MULT',
@@ -308,6 +295,16 @@ function resolveDirectionFilter(sourceEnv = {}, configEnv = {}) {
     || CANONICAL_BACKTEST_ENV.DIRECTION_FILTER;
 }
 
+function resolveWorkerLaunchProfile(explicitLaunchProfileName, tuningProfileName) {
+  const explicit = String(explicitLaunchProfileName || '').trim();
+  if (explicit) return explicit;
+  const mapped = TUNING_PROFILE_LAUNCH_PROFILE[tuningProfileName];
+  if (!mapped) {
+    throw new Error(`Backtest worker tuning profile '${tuningProfileName}' has no launch profile mapping`);
+  }
+  return mapped;
+}
+
 function assertStockModeMatchesInstrument(stockMode, instrumentEnv = {}) {
   const assetClass = instrumentEnv.ASSET_CLASS;
   if (!assetClass) {
@@ -365,6 +362,7 @@ function buildBacktestWorkerEnv(options) {
   assertStockModeMatchesInstrument(stockMode, instrumentEnv);
   assertInstrumentEnvMatchesDataFile(dataFile, instrumentEnv);
   const directionFilter = resolveDirectionFilter(sourceEnv, configEnv);
+  const resolvedLaunchProfileName = resolveWorkerLaunchProfile(launchProfileName, profile.name);
   const normalizedConfigEnv = { ...configEnv };
   if (normalizedConfigEnv.DIRECTION_FILTER !== undefined) {
     normalizedConfigEnv.DIRECTION_FILTER = directionFilter;
@@ -384,7 +382,7 @@ function buildBacktestWorkerEnv(options) {
     ...normalizedConfigEnv,
     ...instrumentEnv,
     ...feeProfile.env,
-    ...(launchProfileName ? { PROFILE: String(launchProfileName).trim() } : {}),
+    PROFILE: resolvedLaunchProfileName,
     TUNING_PROFILE: profile.name,
     BACKTEST_TUNING_PROFILE: profile.name,
     BACKTEST_FEE_PROFILE: feeProfile.name,
@@ -408,11 +406,13 @@ module.exports = {
   STOCK_BACKTEST_ALPACA_ENV,
   CONFIG_ENV_OVERRIDE_ALLOWLIST,
   INSTRUMENT_ENV_ALLOWLIST,
+  TUNING_PROFILE_LAUNCH_PROFILE,
   DEFAULT_TUNING_PROFILE,
   buildWorkerBaseEnv,
   assertEnvKeysAllowed,
   normalizeDirectionFilter,
   resolveDirectionFilter,
+  resolveWorkerLaunchProfile,
   buildBacktestWorkerEnv,
   summarizeWorkerEnv,
 };

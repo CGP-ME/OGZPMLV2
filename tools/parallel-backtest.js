@@ -254,7 +254,9 @@ function generateGauntlet(paramType, values) {
       let name = `${strat.substring(0,4)}-`;
 
       if (paramType === 'confidence') {
-        env.MIN_TRADE_CONFIDENCE = String(val);
+        env.BACKTEST_CONFIG_OVERRIDES_JSON = JSON.stringify({
+          'confidence.minTradeConfidence': val,
+        });
         name += `c${(val*100).toFixed(0)}`;
       } else if (paramType === 'atr') {
         if (val === 0) {
@@ -280,15 +282,15 @@ function generateGauntlet(paramType, values) {
 // ═══════════════════════════════════════════════════════════════
 // ENV VAR AUDIT (2026-04-07)
 // ═══════════════════════════════════════════════════════════════
-// HONORED: ATR_FILTER_ENABLED, ATR_MIN_PERCENT, RISK_MANAGER_BYPASS,
-//          ACCOUNT_DRAWDOWN_BYPASS, MAX_POSITION_SIZE_PCT, TIER1/2/3_TARGET
+// HONORED: ATR_FILTER_ENABLED, ATR_MIN_PERCENT, MAX_POSITION_SIZE_PCT,
+//          TIER1/2/3_TARGET
 // HONORED STRATEGY-OWNED EXIT GEOMETRY: DONCHIAN_*, TSMOM_*, RSI2_MR_*,
 //          PROPSAFE_EMA_*, EMA_TREND_RETEST_* keys exposed by --exit-geometry
 // REJECTED: generic STOP_LOSS_PERCENT, TAKE_PROFIT_PERCENT, TRAILING_STOP_PERCENT
 //           (locked exitContracts own strategy risk; worker env rejects fake tuning)
 // GHOST:   TRAILING_STOP_ENABLED, REGIME_FILTER_ENABLED, REGIME_ALLOW_*
 //          (never read by trading code)
-// PARTIAL: MIN_TRADE_CONFIDENCE (entry gate works, but strategies have own minConfidence)
+// PARTIAL: confidence.minTradeConfidence (entry gate works, but strategies have own minConfidence)
 // ═══════════════════════════════════════════════════════════════
 
 const SWEEP_PRESET_DEFINITIONS = PARALLEL_BACKTEST_CONFIG.sweepPresets;
@@ -330,8 +332,6 @@ const SWEEP_PRESETS = Object.freeze({
 
   tiers: freezeSweepConfigs(SWEEP_PRESET_DEFINITIONS.tiers),
 
-  risk: freezeSweepConfigs(SWEEP_PRESET_DEFINITIONS.risk),
-
   // ═══════════════════════════════════════════════════════════════
   // STRATEGY ISOLATION — Test each strategy individually
   // ═══════════════════════════════════════════════════════════════
@@ -357,7 +357,6 @@ const SWEEP_PRESETS = Object.freeze({
       ...SWEEP_PRESET_DEFINITIONS.atr,
       ...SWEEP_PRESET_DEFINITIONS.sizing,
       ...SWEEP_PRESET_DEFINITIONS.tiers,
-      ...SWEEP_PRESET_DEFINITIONS.risk,
     ]);
   },
 });
@@ -797,7 +796,6 @@ async function main() {
     else if (args[i] === '--sizing') sweepName = 'sizing';
     else if (args[i] === '--tiers') sweepName = 'tiers';
     else if (args[i] === '--atr') sweepName = 'atr';
-    else if (args[i] === '--risk') sweepName = 'risk';
     else if (args[i] === '--rsi') sweepName = 'rsi';
     else if (args[i] === '--strategy-sweep') sweepName = 'strategy-sweep';
     else if (args[i] === '--exit-geometry') sweepName = 'exit-geometry';
@@ -826,15 +824,14 @@ OGZPrime Parallel Backtester v2 (AUDITED 2026-04-07)
 Usage: node tools/parallel-backtest.js [options]
 
 REAL Sweeps (HONORED env vars only):
-  --real         11 configs - ATR, sizing, tiers, risk (default)
+  --real         9 configs - ATR, sizing, tiers (default)
   --quick        Alias to --real
-  --full         All HONORED sweeps combined (~30 configs)
+  --full         All HONORED sweeps combined
 
 Focused Optimization (one variable at a time):
   --atr          ATR volatility filter (8 configs: off, 0.10-0.40)
   --sizing       Position size sweep (6 configs: 2%-10%)
   --tiers        Profit tier sweep (5 configs)
-  --risk         Risk manager + drawdown bypass (4 configs)
   --rsi          RSI oversold/overbought grid (15 configs)
   --exit-geometry Strategy-owned stop/target/trail sweep (${SWEEP_PRESETS['exit-geometry'].length} configs)
 

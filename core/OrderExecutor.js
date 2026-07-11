@@ -317,6 +317,107 @@ class OrderExecutor {
     }
   }
 
+  _buildEvalQuarantineRiskGates(gateResult) {
+    const inputs = gateResult?.inputs;
+    const staleFields = Array.isArray(inputs?.staleFields) ? inputs.staleFields : [];
+    if (inputs?.staleDataQuarantine !== true || staleFields.length === 0) {
+      return [];
+    }
+
+    return staleFields.map(field => ({
+      gate: 'ttp_operational_data_quarantine',
+      passed: true,
+      status: 'quarantined',
+      trusted: false,
+      contributed: false,
+      calendarMemoryWriteAllowed: false,
+      field: field.field || null,
+      value: field.value ?? null,
+      expected: field.expected ?? null,
+      ageDays: Number.isFinite(Number(field.ageDays)) ? Number(field.ageDays) : null,
+      reason: field.reason || 'stale_ttp_operational_data',
+      message: field.message || 'Stale TTP operational data is quarantined; trading continues',
+    }));
+  }
+
+  _buildOperationalQuarantine(gateResult, riskGates) {
+    const inputs = gateResult?.inputs;
+    const fields = Array.isArray(inputs?.staleFields) ? inputs.staleFields : [];
+    if (inputs?.staleDataQuarantine !== true) {
+      return null;
+    }
+
+    return {
+      status: 'quarantined',
+      trusted: false,
+      source: 'EvalRuleEngine',
+      fields,
+      alerts: Array.isArray(inputs?.quarantineAlerts) ? inputs.quarantineAlerts : riskGates,
+      policy: inputs.policy || 'stale_ttp_data_quarantined_trading_continues',
+    };
+  }
+
+  _emitTtpQuarantineGateEvent({ traceId, signalId, symbol, action, riskGates, executionScope }) {
+    if (!Array.isArray(riskGates) || riskGates.length === 0) return false;
+    const fieldSummary = riskGates
+      .map(gate => `${gate.field || 'unknown'}${Number.isFinite(gate.ageDays) ? ` ageDays=${gate.ageDays}` : ''}`)
+      .join(', ');
+    console.warn(`[TTP-QUARANTINE] ${action} ${symbol} trading continues with quarantined stale operational data: ${fieldSummary}`);
+
+    emitTrace(this.ctx, 'TTP_STALE_DATA_QUARANTINE', {
+      traceId,
+      signalId,
+      symbol,
+      action,
+      riskGates,
+      policy: 'stale_ttp_data_quarantined_trading_continues',
+    });
+
+    const ws = this.ctx.dashboardWs;
+    if (!ws || ws.readyState !== 1 || typeof ws.send !== 'function') return false;
+
+    const frame = {
+      type: 'gate_event',
+      timestamp: Date.now(),
+      traceId: traceId || null,
+      signalId: signalId || null,
+      symbol,
+      action,
+      kind: 'quarantine',
+      passed: true,
+      reason: 'ttp_operational_data_quarantine',
+      riskGates,
+      brokerId: executionScope?.brokerId || null,
+      accountId: executionScope?.accountId || null,
+      assetClass: executionScope?.assetClass || null,
+      executionMode: executionScope?.executionMode || null,
+      timeframe: executionScope?.timeframe || null,
+      data: {
+        symbol,
+        action,
+        kind: 'quarantine',
+        passed: true,
+        reason: 'ttp_operational_data_quarantine',
+        riskGates,
+        traceId: traceId || null,
+        signalId: signalId || null,
+        brokerId: executionScope?.brokerId || null,
+        accountId: executionScope?.accountId || null,
+        assetClass: executionScope?.assetClass || null,
+        executionMode: executionScope?.executionMode || null,
+        timeframe: executionScope?.timeframe || null,
+      },
+    };
+
+    try {
+      ws.send(JSON.stringify(frame));
+      return true;
+    } catch (err) {
+      console.warn(`[GateMeter] ttp_operational_data_quarantine gate_event send failed: ${err.message}`);
+      return false;
+    }
+  }
+
   _orderQuantityUnit(scope = null) {
     const assetClass = String((scope && scope.assetClass) || this._runtimeScope().assetClass || '').trim().toLowerCase();
     if (['stocks', 'stock', 'equities', 'equity', 'etfs', 'etf'].includes(assetClass)) {
@@ -1497,14 +1598,16 @@ class OrderExecutor {
     return Number.isFinite(value) ? Number(value.toFixed(6)) : null;
   }
 
-  _ledgerDataWithEntryAnnotations(ledgerData, { riskGates = null, positionSizing = null } = {}) {
+  _ledgerDataWithEntryAnnotations(ledgerData, { riskGates = null, positionSizing = null, operationalQuarantine = null } = {}) {
     if (!ledgerData || typeof ledgerData !== 'object') return ledgerData || null;
     const hasRiskGates = Array.isArray(riskGates) && riskGates.length > 0;
     const hasPositionSizing = positionSizing && typeof positionSizing === 'object';
-    if (!hasRiskGates && !hasPositionSizing) return ledgerData;
+    const hasOperationalQuarantine = operationalQuarantine && typeof operationalQuarantine === 'object';
+    if (!hasRiskGates && !hasPositionSizing && !hasOperationalQuarantine) return ledgerData;
 
     const annotatedLedgerData = { ...ledgerData };
     if (hasPositionSizing) annotatedLedgerData.positionSizing = positionSizing;
+    if (hasOperationalQuarantine) annotatedLedgerData.operationalQuarantine = operationalQuarantine;
     if (hasRiskGates) {
       annotatedLedgerData.riskGates = [
         ...(Array.isArray(ledgerData.riskGates) ? ledgerData.riskGates : []),
@@ -2546,6 +2649,22 @@ class OrderExecutor {
       });
       const gateResult = await this._runPreOrderEntryGate(entryPlan);
       entryPlan.gateResult = gateResult;
+      const evalQuarantineRiskGates = this._buildEvalQuarantineRiskGates(gateResult);
+      if (evalQuarantineRiskGates.length > 0) {
+        this._emitTtpQuarantineGateEvent({
+          traceId,
+          signalId,
+          symbol,
+          action: entryPlan.action,
+          riskGates: evalQuarantineRiskGates,
+          executionScope,
+        });
+      }
+      entryPlan.feeEdgeRiskGates = [
+        ...feeEdgeRiskGates,
+        ...evalQuarantineRiskGates,
+      ];
+      entryPlan.operationalQuarantine = this._buildOperationalQuarantine(gateResult, evalQuarantineRiskGates);
       emitTrace(this.ctx, 'EVAL_RULE_CHECK', {
         traceId,
         signalId,
@@ -2555,6 +2674,7 @@ class OrderExecutor {
         failedRules: Array.isArray(gateResult?.failedRules) ? gateResult.failedRules.map(rule => rule.ruleId || rule) : [],
         passedRules: gateResult?.passedRules || [],
         inputs: gateResult?.inputs || null,
+        riskGates: evalQuarantineRiskGates,
       });
       if (gateResult && gateResult.allowed === false) {
         const failed = Array.isArray(gateResult.failedRules) && gateResult.failedRules.length > 0
@@ -3144,6 +3264,7 @@ class OrderExecutor {
             ledgerData: this._ledgerDataWithEntryAnnotations(decision.ledgerData, {
               riskGates: entryPlan.feeEdgeRiskGates,
               positionSizing: ledgerPositionSizing,
+              operationalQuarantine: entryPlan.operationalQuarantine,
             }),
             traceId,
             signalId,
@@ -3358,6 +3479,7 @@ class OrderExecutor {
             ledgerData: this._ledgerDataWithEntryAnnotations(decision.ledgerData, {
               riskGates: entryPlan.feeEdgeRiskGates,
               positionSizing: ledgerPositionSizing,
+              operationalQuarantine: entryPlan.operationalQuarantine,
             }),
             traceId,
             signalId,

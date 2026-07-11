@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Grid Search: MIN_TRADE_CONFIDENCE threshold optimization
+ * Grid Search: confidence.minTradeConfidence threshold optimization
  * Tests values: 0.05, 0.10, 0.15, 0.20, 0.25, 0.30
  * On 60k polygon candles
  *
@@ -43,7 +43,9 @@ function buildGridSearchEnv(threshold, reportTag, stateFile, sourceEnv = process
     configEnv: {
       PATTERN_DOMINANCE: 'false',
       CANDLE_LIMIT: String(CANDLE_LIMIT),
-      MIN_TRADE_CONFIDENCE: String(threshold),
+      BACKTEST_CONFIG_OVERRIDES_JSON: JSON.stringify({
+        'confidence.minTradeConfidence': threshold,
+      }),
       DEBUG_AGG: '0',
       DEBUG_BRAIN: '0',
     },
@@ -142,7 +144,7 @@ async function main() {
   resolveFeeProfile(FEE_PROFILE);
 
   console.log('╔════════════════════════════════════════════════════════════╗');
-  console.log('║     MIN_TRADE_CONFIDENCE GRID SEARCH                       ║');
+  console.log('║     confidence.minTradeConfidence GRID SEARCH              ║');
   console.log('║     Testing: 5%, 10%, 15%, 20%, 25%, 30%                   ║');
   console.log('║     Data: 60k polygon candles                              ║');
   console.log(`║     Mode: ${PARALLEL ? 'PARALLEL (all 6 at once)' : 'Sequential'}                         ║`);
@@ -203,7 +205,7 @@ async function main() {
       console.log(`      Score: ${r.score.toFixed(2)}`);
     }
     console.log('');
-    console.log(`RECOMMENDATION: Use MIN_TRADE_CONFIDENCE=${scored[0].thresholdNum}`);
+    console.log(`RECOMMENDATION: Use confidence.minTradeConfidence=${scored[0].thresholdNum}`);
   }
 
   // Save results

@@ -1802,7 +1802,7 @@ class OGZPrimeV14Bot {
     console.log(`  BACKTEST_NO_PATTERN_SAVE=${process.env.BACKTEST_NO_PATTERN_SAVE || 'false'}`);
     console.log(`  FEE_MAKER=${process.env.FEE_MAKER || 'default'}`);
     console.log(`  FEE_TAKER=${process.env.FEE_TAKER || 'default'}`);
-    console.log(`  ACCOUNT_DRAWDOWN_BYPASS=${process.env.ACCOUNT_DRAWDOWN_BYPASS || 'false'}`);
+    console.log(`  ACCOUNT_DRAWDOWN_BYPASS=${ConfigLoader.get('risk.accountDrawdownBypass')}`);
     console.log(`  ENABLE_TRAI=${process.env.ENABLE_TRAI || 'true'}`);
     console.log(`  ENABLE_SHORTS=${ConfigLoader.get('features.enableShorts')}`);
     console.log(`  ENABLE_RSI=${runtimePipeline.enableRSI}`);

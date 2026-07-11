@@ -134,12 +134,12 @@ function buildStrategyContract(contract, strategyName, timeframe) {
  * Phase 1 REWRITE: Eliminated hardcoded duplicates - ConfigLoader owns all trading params
  */
 const DEFAULT_CONTRACTS = ConfigLoader.BASE_CONFIG.exitContracts;
-const UNIVERSAL_LIMITS = ConfigLoader.BASE_CONFIG.universalLimits;
+const UNIVERSAL_LIMITS = ConfigLoader.getSection('universalLimits');
 
 class ExitContractManager {
   constructor() {
     // Phase 1 REWRITE: Read from ConfigLoader (single source of truth)
-    this.universalLimits = ConfigLoader.BASE_CONFIG.universalLimits;
+    this.universalLimits = ConfigLoader.getSection('universalLimits');
     this.defaultContracts = ConfigLoader.BASE_CONFIG.exitContracts;
 
     // Phase 10: Delegate to individual checkers

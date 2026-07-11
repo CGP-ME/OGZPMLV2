@@ -56,11 +56,28 @@ describe('BacktestConfigOverrides', () => {
     )).toThrow(/outside file-backed EXECUTION_MODE=backtest/);
   });
 
+  test('parses confidence threshold overrides for backtest workers', () => {
+    const raw = JSON.stringify({
+      'confidence.minTradeConfidence': 0.25,
+    });
+
+    expect(parseBacktestConfigOverrides(raw, backtestIdentity())).toEqual({
+      'confidence.minTradeConfidence': 0.25,
+    });
+  });
+
   test('refuses unsupported config paths', () => {
     expect(() => parseBacktestConfigOverrides(
-      JSON.stringify({ 'confidence.minTradeConfidence': 0.2 }),
+      JSON.stringify({ 'risk.maxDailyLoss': 1 }),
       backtestIdentity()
-    )).toThrow(/Unsupported path 'confidence\.minTradeConfidence'/);
+    )).toThrow(/Unsupported path 'risk\.maxDailyLoss'/);
+  });
+
+  test('refuses invalid confidence threshold range', () => {
+    expect(() => parseBacktestConfigOverrides(
+      JSON.stringify({ 'confidence.minTradeConfidence': 1.5 }),
+      backtestIdentity()
+    )).toThrow(/confidence\.minTradeConfidence out of range/);
   });
 
   test('refuses invalid stop loss sign', () => {

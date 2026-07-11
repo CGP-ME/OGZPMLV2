@@ -90,6 +90,44 @@ describe('DecisionLedgerSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  test('preserves operational quarantine flags through decision ledger validation', () => {
+    const ledger = validLedger({
+      operationalQuarantine: {
+        status: 'quarantined',
+        trusted: false,
+        source: 'EvalRuleEngine',
+        fields: [{
+          field: 'TTP_ACCOUNT_START_OF_DAY_DATE',
+          value: '2026-07-09',
+          expected: '2026-07-10',
+          ageDays: 1,
+          reason: 'stale_start_of_day_equity',
+        }],
+        alerts: [{
+          gate: 'ttp_operational_data_quarantine',
+          field: 'TTP_ACCOUNT_START_OF_DAY_DATE',
+          severity: 'critical',
+        }],
+        policy: 'stale_ttp_data_quarantined_trading_continues',
+      },
+    });
+
+    expect(ledger.operationalQuarantine).toEqual(expect.objectContaining({
+      status: 'quarantined',
+      trusted: false,
+      source: 'EvalRuleEngine',
+      policy: 'stale_ttp_data_quarantined_trading_continues',
+    }));
+    expect(ledger.operationalQuarantine.fields).toEqual([
+      expect.objectContaining({
+        field: 'TTP_ACCOUNT_START_OF_DAY_DATE',
+        ageDays: 1,
+        reason: 'stale_start_of_day_equity',
+      }),
+    ]);
+    expect(validateLedgerSkeleton(ledger).success).toBe(true);
+  });
+
   test('preserves shadow learning snapshots through decision ledger validation', () => {
     const learningSnapshot = {
       mode: 'shadow',

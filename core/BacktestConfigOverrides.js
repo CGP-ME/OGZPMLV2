@@ -1,6 +1,7 @@
 'use strict';
 
-const ALLOWED_OVERRIDE_PATH = /^exitContracts\.[A-Za-z0-9_]+\.(stopLossPercent|takeProfitPercent|trailingStopPercent|trailingActivation|maxHoldTimeMinutes)$/;
+const EXIT_CONTRACT_OVERRIDE_PATH = /^exitContracts\.[A-Za-z0-9_]+\.(stopLossPercent|takeProfitPercent|trailingStopPercent|trailingActivation|maxHoldTimeMinutes)$/;
+const CONFIDENCE_OVERRIDE_PATH = 'confidence.minTradeConfidence';
 
 function parseBacktestConfigOverrides(raw, options = {}) {
   const {
@@ -32,12 +33,15 @@ function parseBacktestConfigOverrides(raw, options = {}) {
 
   const validated = {};
   for (const [path, value] of Object.entries(parsed)) {
-    if (!ALLOWED_OVERRIDE_PATH.test(path)) {
+    if (!EXIT_CONTRACT_OVERRIDE_PATH.test(path) && path !== CONFIDENCE_OVERRIDE_PATH) {
       throw new Error(`[BACKTEST-CONFIG-OVERRIDES] Unsupported path '${path}'`);
     }
     const numericValue = Number(value);
     if (!Number.isFinite(numericValue)) {
       throw new Error(`[BACKTEST-CONFIG-OVERRIDES] ${path} must be finite (got ${value})`);
+    }
+    if (path === CONFIDENCE_OVERRIDE_PATH && (numericValue < 0 || numericValue > 1)) {
+      throw new Error(`[BACKTEST-CONFIG-OVERRIDES] ${path} out of range: ${value}`);
     }
     if (path.endsWith('.stopLossPercent') && numericValue >= 0) {
       throw new Error(`[BACKTEST-CONFIG-OVERRIDES] ${path} must be negative percent-form (got ${value})`);

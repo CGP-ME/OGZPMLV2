@@ -244,6 +244,22 @@ class EvalRuleEngine {
       blockEntries: cfg.blockEntries !== false,
     };
 
+    if (statusResult.stale === true) {
+      return this._quarantineStaleTtpData({
+        ...inputs,
+        statusKnown: false,
+        statusDate: statusResult.statusDate || null,
+        reason: 'stale_earnings_status',
+      }, [
+        this._staleTtpField({
+          field: 'TTP_EARNINGS_STATUS_JSON',
+          value: statusResult.statusDate || null,
+          expected: currentDateET,
+          reason: 'stale_earnings_status',
+        }),
+      ]);
+    }
+
     if (statusResult.known !== true) {
       return this._quarantineCalendarLane({
         ...inputs,
@@ -269,6 +285,56 @@ class EvalRuleEngine {
         calendarContributed: false,
         calendarMemoryWriteAllowed: false,
         policy: 'calendar_lane_quarantined_does_not_block_bot',
+      },
+    };
+  }
+
+  _staleTtpField({ field, value, expected, reason, anchorField = null }) {
+    const ageDays = this._dateAgeDays(value, expected);
+    const fieldRecord = {
+      field,
+      value: value ?? null,
+      expected: expected ?? null,
+      reason,
+      ageDays,
+      message: `${field} is stale; trading continues with this input quarantined`,
+    };
+    if (anchorField) {
+      fieldRecord.anchorField = anchorField;
+    }
+    return fieldRecord;
+  }
+
+  _dateAgeDays(value, expected) {
+    const observed = Date.parse(`${String(value || '').trim()}T00:00:00.000Z`);
+    const target = Date.parse(`${String(expected || '').trim()}T00:00:00.000Z`);
+    if (!Number.isFinite(observed) || !Number.isFinite(target)) {
+      return null;
+    }
+    return Math.max(0, Math.floor((target - observed) / 86400000));
+  }
+
+  _quarantineStaleTtpData(inputs, staleFields) {
+    const fields = Array.isArray(staleFields) ? staleFields : [];
+    return {
+      allowed: true,
+      inputs: {
+        ...inputs,
+        staleDataQuarantine: true,
+        quarantineStatus: 'quarantined',
+        staleFields: fields,
+        quarantineAlerts: fields.map(field => ({
+          gate: 'ttp_operational_data_quarantine',
+          field: field.field,
+          ageDays: field.ageDays,
+          reason: field.reason,
+          severity: 'critical',
+          message: field.message,
+        })),
+        calendarLaneStatus: 'quarantined',
+        calendarContributed: false,
+        calendarMemoryWriteAllowed: false,
+        policy: 'stale_ttp_data_quarantined_trading_continues',
       },
     };
   }
@@ -319,12 +385,55 @@ class EvalRuleEngine {
 
     if (enforceDailyLossPause) {
       if (accountStartOfDayDate !== currentDateET) {
-        Object.assign(inputs, {
-          reason: 'stale_start_of_day_equity',
-          dailyLossPauseStatus: 'quarantined',
-          dailyLossPauseContributed: false,
-          policy: 'stale_daily_loss_pause_does_not_block_bot',
-        });
+        return {
+          allowed: true,
+          inputs: {
+            ...inputs,
+            reason: 'stale_start_of_day_equity',
+            dailyLossPauseStatus: 'quarantined',
+            dailyLossPauseContributed: false,
+            staleDataQuarantine: true,
+            quarantineStatus: 'quarantined',
+            staleFields: [
+              this._staleTtpField({
+                field: 'TTP_ACCOUNT_START_OF_DAY_DATE',
+                value: accountStartOfDayDate,
+                expected: currentDateET,
+                reason: 'stale_start_of_day_equity',
+              }),
+              this._staleTtpField({
+                field: 'TTP_ACCOUNT_START_OF_DAY_EQUITY',
+                value: accountStartOfDayEquity,
+                expected: null,
+                reason: 'anchored_to_stale_start_of_day_date',
+                anchorField: 'TTP_ACCOUNT_START_OF_DAY_DATE',
+              }),
+            ],
+            quarantineAlerts: [
+              {
+                gate: 'ttp_operational_data_quarantine',
+                field: 'TTP_ACCOUNT_START_OF_DAY_DATE',
+                ageDays: this._dateAgeDays(accountStartOfDayDate, currentDateET),
+                reason: 'stale_start_of_day_equity',
+                severity: 'critical',
+                message: 'TTP_ACCOUNT_START_OF_DAY_DATE is stale; trading continues with daily loss anchor quarantined',
+              },
+              {
+                gate: 'ttp_operational_data_quarantine',
+                field: 'TTP_ACCOUNT_START_OF_DAY_EQUITY',
+                ageDays: this._dateAgeDays(accountStartOfDayDate, currentDateET),
+                reason: 'anchored_to_stale_start_of_day_date',
+                severity: 'critical',
+                message: 'TTP_ACCOUNT_START_OF_DAY_EQUITY is anchored to a stale start date; trading continues with daily loss anchor quarantined',
+              },
+            ],
+            calendarLaneStatus: 'quarantined',
+            calendarContributed: false,
+            calendarMemoryWriteAllowed: false,
+            policy: 'stale_ttp_data_quarantined_trading_continues',
+          },
+          passedRules,
+        };
       } else if (!Number.isFinite(accountStartOfDayEquity) || accountStartOfDayEquity <= 0 || !Number.isFinite(dailyLossDollars) || dailyLossDollars <= 0) {
         return this._fail('TTP_DAILY_LOSS_PAUSE', 'invalid_daily_loss_config', inputs);
       } else if (currentEquity <= dailyPauseThreshold) {
@@ -484,7 +593,10 @@ class EvalRuleEngine {
     const source = 'config.ttp.earningsRestriction.manualStatus';
     const statusDate = String(manualStatus.date || '').trim();
     const symbols = manualStatus.symbols;
-    if (statusDate !== currentDateET || !symbols || typeof symbols !== 'object' || Array.isArray(symbols)) {
+    if (statusDate !== currentDateET) {
+      return { known: false, hasEarningsTonight: null, source, stale: true, statusDate };
+    }
+    if (!symbols || typeof symbols !== 'object' || Array.isArray(symbols)) {
       return { known: false, hasEarningsTonight: null, source };
     }
 

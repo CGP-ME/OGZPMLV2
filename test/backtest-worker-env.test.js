@@ -43,17 +43,9 @@ const EXPECTED_CANONICAL_BACKTEST_ENV = Object.freeze({
   ENABLE_DASHBOARD: 'false',
   WEBHOOK_ORDERS_ENABLED: 'false',
   WEBHOOK_DRY_RUN: 'true',
-  EVAL_RULES_ENABLED: 'false',
-  TTP_RULES_ENABLED: 'false',
   SENTRY_DSN: '',
   NODE_ENV: 'test',
   DIRECTION_FILTER: 'both',
-  ACCOUNT_DRAWDOWN_BYPASS: 'true',
-  RISK_MANAGER_BYPASS: 'true',
-  MAX_DRAWDOWN: '5',
-  MAX_DAILY_LOSS: '1',
-  MAX_WEEKLY_LOSS: '5',
-  MAX_MONTHLY_LOSS: '5',
   EXIT_SYSTEM: 'legacy',
   FEE_MAKER: '0.0025',
   FEE_TAKER: '0.0040',
@@ -161,16 +153,14 @@ describe('backtest worker env contract', () => {
     expect(env.CONFIRM_LIVE_TRADING).toBe('false');
     expect(env.WEBHOOK_ORDERS_ENABLED).toBe('false');
     expect(env.WEBHOOK_DRY_RUN).toBe('true');
-    expect(env.EVAL_RULES_ENABLED).toBe('false');
-    expect(env.TTP_RULES_ENABLED).toBe('false');
     expect(env.BACKTEST_NO_PATTERN_SAVE).toBe('true');
     expect(env.DIRECTION_FILTER).toBe('both');
-    expect(env.ACCOUNT_DRAWDOWN_BYPASS).toBe('true');
-    expect(env.RISK_MANAGER_BYPASS).toBe('true');
-    expect(env.MAX_DRAWDOWN).toBe('5');
-    expect(env.MAX_DAILY_LOSS).toBe('1');
-    expect(env.MAX_WEEKLY_LOSS).toBe('5');
-    expect(env.MAX_MONTHLY_LOSS).toBe('5');
+    expect(env.ACCOUNT_DRAWDOWN_BYPASS).toBeUndefined();
+    expect(env.RISK_MANAGER_BYPASS).toBeUndefined();
+    expect(env.MAX_DRAWDOWN).toBeUndefined();
+    expect(env.MAX_DAILY_LOSS).toBeUndefined();
+    expect(env.MAX_WEEKLY_LOSS).toBeUndefined();
+    expect(env.MAX_MONTHLY_LOSS).toBeUndefined();
     expect(env.EXIT_SYSTEM).toBe('legacy');
     expect(env.BACKTEST_FEE_PROFILE).toBe('ttp_real');
     expect(env.FEE_MODEL).toBe('per_share_minimum');
@@ -291,15 +281,16 @@ describe('backtest worker env contract', () => {
 
     expect(env.TUNING_PROFILE).toBe('ttp-5k-max');
     expect(env.BACKTEST_TUNING_PROFILE).toBe('ttp-5k-max');
+    expect(env.PROFILE).toBe('backtest-ttp-5k-max');
     expect(env.INITIAL_BALANCE).toBe('5000');
-    expect(env.MIN_TRADE_CONFIDENCE).toBe('0.5');
-    expect(env.MAX_DRAWDOWN).toBe('3');
-    expect(env.MAX_DAILY_LOSS).toBe('1');
-    expect(env.MAX_WEEKLY_LOSS).toBe('3');
-    expect(env.MAX_MONTHLY_LOSS).toBe('3');
-    expect(env.RISK_MANAGER_BYPASS).toBe('false');
-    expect(env.ACCOUNT_DRAWDOWN_BYPASS).toBe('false');
-    expect(env.ACCOUNT_DRAWDOWN_PCT).toBe('-3.0');
+    expect(env.MIN_TRADE_CONFIDENCE).toBeUndefined();
+    expect(env.MAX_DRAWDOWN).toBeUndefined();
+    expect(env.MAX_DAILY_LOSS).toBeUndefined();
+    expect(env.MAX_WEEKLY_LOSS).toBeUndefined();
+    expect(env.MAX_MONTHLY_LOSS).toBeUndefined();
+    expect(env.RISK_MANAGER_BYPASS).toBeUndefined();
+    expect(env.ACCOUNT_DRAWDOWN_BYPASS).toBeUndefined();
+    expect(env.ACCOUNT_DRAWDOWN_PCT).toBeUndefined();
     expect(env.ATR_MIN_PERCENT).toBe('0.40');
     expect(env.MAX_POSITION_SIZE_PCT).toBe('0.10');
     expect(env.ABSOLUTE_POSITION_CAP).toBe('1.00');
@@ -312,10 +303,21 @@ describe('backtest worker env contract', () => {
     expect(env.FEE_MIN_ORDER).toBe('0.75');
     expect(env.FEE_MAKER).toBe('0');
     expect(env.FEE_TAKER).toBe('0');
-    expect(env.TTP_DAILY_LOSS_LIMIT_DOLLARS).toBe('50');
-    expect(env.TTP_MAX_LOSS_THRESHOLD_EQUITY).toBe('4850');
-    expect(env.TTP_PROFIT_TARGET_DOLLARS).toBe('300');
+    expect(env.TTP_DAILY_LOSS_LIMIT_DOLLARS).toBeUndefined();
+    expect(env.TTP_MAX_LOSS_THRESHOLD_EQUITY).toBeUndefined();
+    expect(env.TTP_PROFIT_TARGET_DOLLARS).toBeUndefined();
     expectLockedExitProfileKeysAbsent(env);
+
+    const snapshot = ConfigLoader.snapshot(env, { silent: true, loadDotenv: false });
+    expect(snapshot.config.confidence.minTradeConfidence).toBe(0.5);
+    expect(snapshot.config.risk.maxDrawdown).toBe(3);
+    expect(snapshot.config.risk.maxWeeklyLoss).toBe(3);
+    expect(snapshot.config.risk.riskManagerBypass).toBe(false);
+    expect(snapshot.config.risk.accountDrawdownBypass).toBe(false);
+    expect(snapshot.config.risk.accountDrawdownPercent).toBe(-3);
+    expect(snapshot.config.evalRules.ttp.accountLimits.dailyLossDollars).toBe(50);
+    expect(snapshot.config.evalRules.ttp.accountLimits.maxLossThresholdEquity).toBe(4850);
+    expect(snapshot.config.evalRules.ttp.consistency.profitTargetDollars).toBe(300);
   });
 
   test('TTP 5k MAX profile fees beat ambient source env fee leftovers', () => {
@@ -360,7 +362,7 @@ describe('backtest worker env contract', () => {
   });
 
   test('sweep config env can still override only intentional sweep dimensions', () => {
-    const env = buildEnv({
+    expect(() => buildEnv({
       stockMode: true,
       configEnv: {
         SOLO_STRATEGY: 'RSI',
@@ -369,17 +371,24 @@ describe('backtest worker env contract', () => {
         MAX_POSITION_SIZE_PCT: '0.07',
         RISK_MANAGER_BYPASS: 'false',
       },
+    })).toThrow(/Disallowed configEnv override 'RISK_MANAGER_BYPASS'/);
+
+    const env = buildEnv({
+      stockMode: true,
+      configEnv: {
+        SOLO_STRATEGY: 'RSI',
+        ATR_FILTER_ENABLED: 'true',
+        ATR_MIN_PERCENT: '0.25',
+        MAX_POSITION_SIZE_PCT: '0.07',
+      },
     });
 
     expect(env.SOLO_STRATEGY).toBe('RSI');
     expect(env.ATR_FILTER_ENABLED).toBe('true');
     expect(env.ATR_MIN_PERCENT).toBe('0.25');
     expect(env.MAX_POSITION_SIZE_PCT).toBe('0.07');
-    expect(env.RISK_MANAGER_BYPASS).toBe('false');
-    expect(env.MAX_DRAWDOWN).toBe('5');
-    expect(env.MAX_DAILY_LOSS).toBe('1');
-    expect(env.MAX_WEEKLY_LOSS).toBe('5');
-    expect(env.MAX_MONTHLY_LOSS).toBe('5');
+    expect(env.RISK_MANAGER_BYPASS).toBeUndefined();
+    expect(env.MAX_DRAWDOWN).toBeUndefined();
     expect(env.DIRECTION_FILTER).toBe('both');
     expect(env.FEE_SLIPPAGE).toBe('0.0005');
   });
@@ -710,7 +719,10 @@ describe('backtest worker env contract', () => {
     expect(env.FEE_SLIPPAGE).toBe('0.0005');
     expect(env.BACKTEST_FEE_PROFILE).toBe('ttp_real');
     expect(env.SOLO_STRATEGY).toBeUndefined();
-    expect(env.MIN_TRADE_CONFIDENCE).toBe('0.25');
+    expect(env.MIN_TRADE_CONFIDENCE).toBeUndefined();
+    expect(JSON.parse(env.BACKTEST_CONFIG_OVERRIDES_JSON)).toEqual({
+      'confidence.minTradeConfidence': 0.25,
+    });
     expect(env.CANDLE_LIMIT).toBe('60000');
     expect(env.TRADING_PAIR).toBe('BTC-USD');
     expect(env.BROKER).toBe('kraken');

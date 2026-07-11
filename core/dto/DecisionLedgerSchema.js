@@ -102,6 +102,14 @@ const DecisionLedgerSkeletonSchema = z.object({
   confidenceModifiers: z.array(z.any()).optional(),
   // L5: added later
   riskGates: z.array(z.any()).optional(),
+  operationalQuarantine: z.object({
+    status: z.literal('quarantined'),
+    trusted: z.literal(false),
+    source: z.string(),
+    fields: z.array(z.any()),
+    alerts: z.array(z.any()).optional(),
+    policy: z.string().optional(),
+  }).optional(),
   // L6: added later
   exits: z.array(z.any()).optional(),
   // L7: added later
@@ -191,6 +199,9 @@ function createLedgerSkeleton(input = {}) {
   }
   if (input.riskGates !== undefined) {
     ledger.riskGates = input.riskGates;
+  }
+  if (input.operationalQuarantine !== undefined) {
+    ledger.operationalQuarantine = input.operationalQuarantine;
   }
 
   const validation = validateLedgerSkeleton(ledger);
