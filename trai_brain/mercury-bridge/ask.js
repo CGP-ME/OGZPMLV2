@@ -48,11 +48,30 @@ const {
 } = require('./adversarial-review');
 const { runProviderPreflight } = require('./provider-preflight');
 const { retrieveSimilarTrace, formatTraceAsHint, captureTrace, markTraceUsed, evictStaleTraces, ensureTraceIndexes, getTraceStats } = require('./trace-memory');
-const { buildRunLedgerEntry, writeRunLedgerEntry } = require('./run-ledger');
+const {
+  autoBlastRadiusFailed,
+  buildRunLedgerEntry,
+  resultHasToolFailure,
+  writeRunLedgerEntry,
+} = require('./run-ledger');
 const MongoStore = require('./mongo-store');
 const { embedText } = require('./indexer');
 const { retrieveTopK } = require('./searcher');
 const { getBlastRadius, formatForMercury } = require('../../tools/serena-bridge');
+
+const UNTRACKED_SERENA_SOURCE_PATHS = Object.freeze([
+  'core',
+  'modules',
+  'brokers',
+  'foundation',
+  'tools',
+  'public/js',
+  'public/proof',
+  'dashboard',
+  'trai_brain/mercury-bridge',
+  'run-empire-v2.js',
+  'ogzprime-ssl-server.js',
+]);
 
 function parseArgs(argv) {
   const args = {
@@ -203,6 +222,7 @@ function gitNameList(repoRoot, args) {
     cwd: repoRoot,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
+    maxBuffer: 16 * 1024 * 1024,
   });
   return parseGitNameList(output);
 }
@@ -218,7 +238,7 @@ function currentChangedFiles(repoRoot = config.REPO_ROOT) {
   return selectCurrentChangeNames({
     cached: gitNameList(repoRoot, ['diff', '--name-only', '--cached']),
     working: gitNameList(repoRoot, ['diff', '--name-only']),
-    untracked: gitNameList(repoRoot, ['ls-files', '--others', '--exclude-standard']),
+    untracked: gitNameList(repoRoot, ['ls-files', '--others', '--exclude-standard', '--', ...UNTRACKED_SERENA_SOURCE_PATHS]),
   });
 }
 
@@ -468,7 +488,27 @@ async function runAgentic(query, opts) {
     }
 
     const reviewMode = reviewModeRequested(opts);
-    if (reviewMode) {
+    const toolFailureBlocksReview = resultHasToolFailure(result) || autoBlastRadiusFailed(autoBlastRadius);
+    if (reviewMode && toolFailureBlocksReview) {
+      result.adversarialReview = {
+        mode: reviewMode,
+        enabled: false,
+        ok: false,
+        provider: config.CONSENSUS_PROVIDER || null,
+        model: config.CONSENSUS_MODEL || null,
+        error: {
+          message: 'skipped: Mercury tool failure makes adversarial review inconclusive_toolfail',
+        },
+        parsed: {
+          verdict: 'inconclusive_toolfail',
+          blocking: false,
+        },
+      };
+      result.consensus = result.adversarialReview;
+      if (verbose) {
+        console.log(`[MERCURY-BRIDGE] Fable ${reviewMode} skipped: Mercury tool failure makes verdict inconclusive_toolfail`);
+      }
+    } else if (reviewMode) {
       if (verbose) {
         console.log(`[MERCURY-BRIDGE] Fable ${reviewMode} requested: ${config.CONSENSUS_MODEL}`);
       }

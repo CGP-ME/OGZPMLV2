@@ -6,7 +6,7 @@
  * Wraps tools/dep-scanner.js to give Mercury structured "who imports this
  * file" context before it attacks a proposed change. Mercury does not know
  * which callers a change affects; Serena (dep-scanner) does. Serial flow:
- * Serena first, Mercury second. 5-second timeout with fallback so a slow
+ * Serena first, Mercury second. 15-second timeout with fallback so a slow
  * scan never blocks an attack.
  *
  * Spec: ogz-meta/ledger/spec fixes/CC-SPEC-SERENA-MERCURY-INTEGRATION_1.md
@@ -22,7 +22,7 @@ const {
 } = require('./dep-scanner');
 
 const MAX_CALLERS_IN_PROMPT = 30;
-const SERENA_TIMEOUT_MS = 5000;
+const SERENA_TIMEOUT_MS = 15000;
 
 function classifyRisk(callerCount) {
   if (callerCount === 0) return 'isolated';

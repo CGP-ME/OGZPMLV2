@@ -75,7 +75,7 @@ describe('Mercury LLM config contract', () => {
       expect(config.MERCURY_LLM_PROVIDER).toBe('mercury');
       expect(config.MERCURY_LLM_BASE_URL).toBe('https://api.inceptionlabs.ai/v1');
       expect(config.MERCURY_LLM_MODEL).toBe('mercury-2');
-      expect(config.MERCURY_LLM_API_KEY_ENV).toBe('INCEPTION_API_KEY');
+      expect(config.MERCURY_LLM_API_KEY_ENV).toBe(baseMercuryConfig.llm.apiKeyEnv);
       expect(config.MERCURY_LLM_CLIENT_MAX_TOKENS).toBe(7750);
       expect(config.MERCURY_LLM_CLIENT_MIN_TOKENS).toBe(400);
       expect(config.MERCURY_LLM_REQUEST_TIMEOUT_MS).toBe(300000);

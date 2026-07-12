@@ -85,4 +85,21 @@ describe('Mercury Serena AST tools', () => {
     expect(schemaNames).toContain('serena_method_callers');
     expect(schemaNames).toContain('serena_class_fields');
   });
+
+  test('Serena AST tools enforce one symbol per invocation', async () => {
+    writeFixture(tmpRoot, 'core/symbols.js', 'state.positionId = input.positionId;\n');
+
+    const adapter = createToolAdapter({ repoRoot: tmpRoot });
+    const bundledProperty = await adapter.execute('serena_property_refs', {
+      property: 'positionId,tradeId',
+      scope: 'core/**/*.js',
+    });
+    const bundledMethod = await adapter.execute('serena_method_callers', {
+      method: 'saveToDisk getEvents',
+      scope: 'core/**/*.js',
+    });
+
+    expect(bundledProperty.error).toContain('must be one JavaScript symbol');
+    expect(bundledMethod.error).toContain('must be one JavaScript symbol');
+  });
 });

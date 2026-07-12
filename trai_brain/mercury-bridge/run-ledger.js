@@ -6,7 +6,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 
 const RUN_LEDGER_DIR = path.join('ogz-meta', 'cognition-history', 'mercury-runs');
-const PROMPT_EXCERPT_MAX = 500;
+const PROMPT_EXCERPT_MAX = 2000;
 const ANSWER_EXCERPT_MAX = 1000;
 
 function isoTimestamp(value = new Date()) {
@@ -76,16 +76,43 @@ function readRepoState(repoRoot) {
 
 function compactToolStats(toolTelemetry = {}) {
   const byTool = toolTelemetry.byTool || {};
+  const calls = Array.isArray(toolTelemetry.calls) ? toolTelemetry.calls : [];
   return Object.keys(byTool).sort().map((name) => ({
     name,
     calls: byTool[name].calls || 0,
     succeeded: byTool[name].succeeded || 0,
     failed: byTool[name].failed || 0,
+    call_details: calls
+      .filter((call) => call && call.name === name)
+      .map((call) => ({
+        iteration: call.iteration == null ? null : call.iteration,
+        status: call.status || 'unknown',
+        args: call.args || {},
+        result: call.result || {},
+      })),
   }));
 }
 
-function classifyMercuryVerdict({ result = null, error = null } = {}) {
+function resultHasToolFailure(result) {
+  const telemetry = result && result.toolTelemetry ? result.toolTelemetry : null;
+  if (!telemetry) return false;
+  if (telemetry.failed > 0) return true;
+  if (Array.isArray(telemetry.calls) && telemetry.calls.some((call) => call && call.status === 'failed')) {
+    return true;
+  }
+  const byTool = telemetry.byTool || {};
+  return Object.values(byTool).some((stats) => stats && stats.failed > 0);
+}
+
+function autoBlastRadiusFailed(autoBlastRadius) {
+  return !!(autoBlastRadius && Array.isArray(autoBlastRadius.errors) && autoBlastRadius.errors.length > 0);
+}
+
+function classifyMercuryVerdict({ result = null, error = null, autoBlastRadius = null } = {}) {
   if (error) return 'tool_failure';
+  if (resultHasToolFailure(result) || autoBlastRadiusFailed(autoBlastRadius)) {
+    return 'inconclusive_toolfail';
+  }
   if (
     result
     && result.consensus
@@ -169,7 +196,7 @@ function buildRunLedgerEntry({
 } = {}) {
   const startedIso = isoTimestamp(startedAt || finishedAt);
   const finishedIso = isoTimestamp(finishedAt);
-  const verdict = classifyMercuryVerdict({ result, error });
+  const verdict = classifyMercuryVerdict({ result, error, autoBlastRadius });
   const repoState = readRepoState(repoRoot);
   const telemetry = result && result.toolTelemetry ? result.toolTelemetry : {};
   const reviewSummary = buildReviewLedgerSummary(result && (result.adversarialReview || result.consensus));
@@ -269,6 +296,8 @@ module.exports = {
   RUN_LEDGER_DIR,
   buildRunLedgerEntry,
   classifyMercuryVerdict,
+  resultHasToolFailure,
+  autoBlastRadiusFailed,
   redactSensitiveText,
   sanitizeForLedger,
   writeRunLedgerEntry,

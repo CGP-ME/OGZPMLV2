@@ -202,8 +202,69 @@ function isFailedToolResult(toolName, result) {
   return false;
 }
 
+function compactTelemetryValue(value, maxChars = 500) {
+  if (value == null) return value;
+  if (typeof value === 'string') {
+    return value.length > maxChars ? `${value.slice(0, maxChars)}...[truncated ${value.length - maxChars} chars]` : value;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') return value;
+  if (Array.isArray(value)) {
+    return value.slice(0, 20).map((entry) => compactTelemetryValue(entry, maxChars));
+  }
+  if (typeof value === 'object') {
+    const output = {};
+    for (const [key, raw] of Object.entries(value)) {
+      if (['text', 'diff', 'body', 'stdout', 'stderr'].includes(key)) continue;
+      output[key] = compactTelemetryValue(raw, maxChars);
+    }
+    return output;
+  }
+  return String(value);
+}
+
+function summarizeToolResultForTelemetry(toolName, result, failed) {
+  if (!result || typeof result !== 'object') {
+    return { error: 'missing tool result' };
+  }
+  if (failed) {
+    return { error: result.error || 'tool returned failure result' };
+  }
+  const summary = {};
+  for (const key of [
+    'source',
+    'file',
+    'path',
+    'ref',
+    'target',
+    'requested_target',
+    'start_line',
+    'end_line',
+    'total',
+    'filesScanned',
+    'callerCount',
+    'riskLevel',
+    'file_count',
+    'truncated',
+    'latencyMs',
+    'exit_code',
+    'signal',
+    'timed_out',
+    'status',
+    'artifact_citation',
+  ]) {
+    if (Object.prototype.hasOwnProperty.call(result, key)) {
+      summary[key] = compactTelemetryValue(result[key], 200);
+    }
+  }
+  if (toolName === 'list_files') {
+    summary.total = result.total;
+  }
+  return summary;
+}
+
 function summarizeToolTelemetry(history = []) {
   const byTool = {};
+  const calls = [];
   const filesOpened = new Set();
   const runCheckArtifacts = [];
   let total = 0;
@@ -233,6 +294,14 @@ function summarizeToolTelemetry(history = []) {
       succeeded += 1;
       toolStats.succeeded += 1;
     }
+
+    calls.push({
+      iteration: entry.iteration == null ? null : entry.iteration,
+      name: entry.toolName,
+      status: isFailure ? 'failed' : 'succeeded',
+      args: compactTelemetryValue(entry.toolArgs || {}, 500),
+      result: summarizeToolResultForTelemetry(entry.toolName, result, isFailure),
+    });
 
     if (!isFailure && entry.toolName === 'open_file' && result.file) {
       filesOpened.add(`${result.file}:${result.start_line || 1}-${result.end_line || result.start_line || 1}`);
@@ -267,6 +336,7 @@ function summarizeToolTelemetry(history = []) {
     succeeded,
     failed,
     byTool,
+    calls,
     filesOpened: Array.from(filesOpened).sort(),
     runCheckArtifacts,
     runChecks,
@@ -292,6 +362,12 @@ function formatToolTelemetry(telemetry = {}) {
   const openedCount = Array.isArray(telemetry.filesOpened) ? telemetry.filesOpened.length : 0;
   const runCheckCount = Array.isArray(telemetry.runCheckArtifacts) ? telemetry.runCheckArtifacts.length : 0;
   const runChecks = Array.isArray(telemetry.runChecks) ? telemetry.runChecks : [];
+  const failedCalls = Array.isArray(telemetry.calls)
+    ? telemetry.calls
+      .filter((call) => call.status === 'failed')
+      .map((call) => `${call.name}(${JSON.stringify(call.args || {}).slice(0, 160)}):${call.result && call.result.error ? call.result.error : 'failed'}`)
+      .join('; ')
+    : '';
   const runCheckLedger = runChecks.length > 0
     ? runChecks.map((check) => {
       const outcome = check.timed_out
@@ -309,6 +385,7 @@ function formatToolTelemetry(telemetry = {}) {
     `tools=${toolSummary}`,
     `files_opened=${openedCount}`,
     `run_check_artifacts=${runCheckCount}`,
+    `failed_calls=${failedCalls || 'none'}`,
     `run_checks=${runCheckLedger}`,
   ].join(' | ');
 }

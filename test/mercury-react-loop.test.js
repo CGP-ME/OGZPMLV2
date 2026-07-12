@@ -264,6 +264,39 @@ describe('Mercury ReAct loop evidence gates', () => {
     expect(telemetry.byTool.open_file).toEqual({ calls: 2, succeeded: 1, failed: 1 });
     expect(telemetry.byTool.run_check).toEqual({ calls: 2, succeeded: 1, failed: 1 });
     expect(telemetry.byTool.git_show).toEqual({ calls: 1, succeeded: 0, failed: 1 });
+    expect(telemetry.calls).toEqual([
+      expect.objectContaining({
+        name: 'grep',
+        status: 'succeeded',
+        args: { query: 'marker' },
+      }),
+      expect.objectContaining({
+        name: 'open_file',
+        status: 'succeeded',
+        args: { path: 'core/foo.js', start_line: 7 },
+        result: expect.objectContaining({ file: 'core/foo.js', start_line: 7, end_line: 12 }),
+      }),
+      expect.objectContaining({
+        name: 'run_check',
+        status: 'succeeded',
+        result: expect.objectContaining({ exit_code: 0 }),
+      }),
+      expect.objectContaining({
+        name: 'run_check',
+        status: 'failed',
+        result: expect.objectContaining({ error: 'tool returned failure result' }),
+      }),
+      expect.objectContaining({
+        name: 'git_show',
+        status: 'failed',
+        result: { error: 'git show failed' },
+      }),
+      expect.objectContaining({
+        name: 'open_file',
+        status: 'failed',
+        result: { error: 'missing tool result' },
+      }),
+    ]);
     expect(telemetry.filesOpened).toEqual(['core/foo.js:7-12']);
     expect(telemetry.runCheckArtifacts).toEqual([
       'ogz-meta/cognition-history/mercury-execution/focused.log:1-40',
@@ -293,6 +326,7 @@ describe('Mercury ReAct loop evidence gates', () => {
     ]);
     expect(formatToolTelemetry(telemetry)).toContain('tool_calls=6');
     expect(formatToolTelemetry(telemetry)).toContain('run_check_artifacts=2');
+    expect(formatToolTelemetry(telemetry)).toContain('failed_calls=run_check');
     expect(formatToolTelemetry(telemetry)).toContain('run_checks=passed:run_check exit_code=0 artifact=ogz-meta/cognition-history/mercury-execution/focused.log:1-40');
     expect(formatToolTelemetry(telemetry)).toContain('failed:run_check exit_code=1 artifact=ogz-meta/cognition-history/mercury-execution/broken.log:1-40');
   });
@@ -320,6 +354,7 @@ describe('Mercury ReAct loop evidence gates', () => {
       succeeded: 0,
       failed: 0,
       byTool: {},
+      calls: [],
       filesOpened: [],
       runCheckArtifacts: [],
       runChecks: [],

@@ -382,6 +382,41 @@ describe('Mercury index scope hygiene', () => {
     expect(ignoredResult.error).toContain('git_show blocked by mercury.ignore');
   });
 
+  test('explicit file tools can read vetted cognition evidence without re-including ledger intake', async () => {
+    git(tmpRoot, ['init']);
+    writeFixture(tmpRoot, 'core/live-path.js', 'const live = true;\n');
+    git(tmpRoot, ['add', 'core/live-path.js']);
+    git(tmpRoot, ['-c', 'user.name=OGZ Test', '-c', 'user.email=ogz@example.test', 'commit', '-m', 'base commit']);
+    writeFixture(tmpRoot, 'ogz-meta/cognition-history/session-router-phase05/STATE-HOLDER-INVENTORY.json', '{"evidence":true}\n');
+    writeFixture(tmpRoot, 'ogz-meta/ledger/stale-audit.md', 'stale\n');
+
+    const adapter = createToolAdapter({ repoRoot: tmpRoot });
+    const evidenceRead = await adapter.execute('open_file', {
+      path: 'ogz-meta/cognition-history/session-router-phase05/STATE-HOLDER-INVENTORY.json',
+      start_line: 1,
+      end_line: 1,
+    });
+    const evidenceList = await adapter.execute('list_files', {
+      path: 'ogz-meta/cognition-history/session-router-phase05',
+    });
+    const evidenceGitShow = await adapter.execute('git_show', {
+      ref: 'HEAD',
+      path: 'ogz-meta/cognition-history/session-router-phase05/STATE-HOLDER-INVENTORY.json',
+    });
+    const ledgerRead = await adapter.execute('open_file', {
+      path: 'ogz-meta/ledger/stale-audit.md',
+      start_line: 1,
+      end_line: 1,
+    });
+
+    expect(evidenceRead.error).toBeUndefined();
+    expect(evidenceRead.text).toContain('"evidence":true');
+    expect(evidenceList.error).toBeUndefined();
+    expect(evidenceList.files).toEqual(['STATE-HOLDER-INVENTORY.json']);
+    expect(evidenceGitShow.error).toContain('git_show path not present at ref HEAD');
+    expect(ledgerRead.error).toContain('open_file blocked by mercury.ignore');
+  });
+
   test('git_diff exposes staged changes and filters ignored intake paths', async () => {
     git(tmpRoot, ['init']);
     writeFixture(tmpRoot, 'core/live-path.js', 'const marker = "MERCURY_DIFF_MARKER";\n');

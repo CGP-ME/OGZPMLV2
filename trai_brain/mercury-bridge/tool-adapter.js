@@ -144,6 +144,11 @@ const RUN_CHECK_SENSITIVE_ENV_PATTERNS = [
   /WEBHOOK/i,
   /CREDENTIAL/i,
 ];
+const EXPLICIT_IGNORED_TOOL_READ_PREFIXES = Object.freeze([
+  'ogz-meta/cognition-history/mercury-runs/',
+  'ogz-meta/cognition-history/mercury-execution/',
+  'ogz-meta/cognition-history/session-router-phase05/',
+]);
 
 // ─── Ripgrep availability check ──────────────────────────────
 // Warn loudly if rg is not installed. Grep fails closed without ripgrep so
@@ -211,8 +216,24 @@ function createToolAdapter(opts = {}) {
     return config.isPathIgnoredByMercury(relPath);
   }
 
+  function isExplicitIgnoredToolReadAllowed(absPath) {
+    const relPath = relativePathForPolicy(absPath);
+    const dirLikePath = relPath.endsWith('/') ? relPath : `${relPath}/`;
+    return EXPLICIT_IGNORED_TOOL_READ_PREFIXES.some((prefix) => (
+      relPath === prefix.slice(0, -1)
+      || relPath.startsWith(prefix)
+      || dirLikePath.startsWith(prefix)
+    ));
+  }
+
   function ensureNotIgnored(absPath, toolName) {
     if (isIgnoredByMercuryPolicy(absPath)) {
+      throw new Error(`${toolName} blocked by mercury.ignore: ${relativePathForPolicy(absPath)}`);
+    }
+  }
+
+  function ensureReadableByTool(absPath, toolName) {
+    if (isIgnoredByMercuryPolicy(absPath) && !isExplicitIgnoredToolReadAllowed(absPath)) {
       throw new Error(`${toolName} blocked by mercury.ignore: ${relativePathForPolicy(absPath)}`);
     }
   }
@@ -541,7 +562,7 @@ function createToolAdapter(opts = {}) {
     let absPath;
     try {
       absPath = ensureWithinRepo(filePath);
-      ensureNotIgnored(absPath, 'open_file');
+      ensureReadableByTool(absPath, 'open_file');
     } catch (err) {
       return { error: err.message };
     }
@@ -628,7 +649,7 @@ function createToolAdapter(opts = {}) {
     let absDir;
     try {
       absDir = ensureWithinRepo(dir);
-      ensureNotIgnored(absDir, 'list_files');
+      ensureReadableByTool(absDir, 'list_files');
     } catch (err) {
       return { error: err.message };
     }
@@ -646,7 +667,7 @@ function createToolAdapter(opts = {}) {
       if (entry.name.startsWith('.')) continue;
       if (pattern && !entry.name.includes(pattern)) continue;
       const entryPath = path.join(absDir, entry.name);
-      if (isIgnoredByMercuryPolicy(entryPath)) continue;
+      if (isIgnoredByMercuryPolicy(entryPath) && !isExplicitIgnoredToolReadAllowed(entryPath)) continue;
       if (entry.isDirectory()) {
         dirs.push(entry.name + '/');
       } else if (entry.isFile()) {
@@ -822,7 +843,7 @@ function createToolAdapter(opts = {}) {
     }
     try {
       const absPath = ensureWithinRepo(filePath);
-      ensureNotIgnored(absPath, 'git_show');
+      ensureReadableByTool(absPath, 'git_show');
     } catch (err) {
       return { error: err.message };
     }
@@ -839,6 +860,9 @@ function createToolAdapter(opts = {}) {
     }
     if (result.status !== 0) {
       const stderr = (result.stderr || '').trim();
+      if (/exists on disk, but not in/i.test(stderr)) {
+        return { error: `git_show path not present at ref ${ref}: ${filePath}; current working tree has the path, use open_file for uncommitted evidence` };
+      }
       return { error: `git show ${ref}:${filePath} returned status ${result.status}: ${stderr || 'unknown'}` };
     }
 
@@ -893,7 +917,7 @@ function createToolAdapter(opts = {}) {
       .filter(filePath => {
         try {
           const absPath = ensureWithinRepo(filePath);
-          return !isIgnoredByMercuryPolicy(absPath);
+          return !isIgnoredByMercuryPolicy(absPath) || isExplicitIgnoredToolReadAllowed(absPath);
         } catch (_) {
           return false;
         }
@@ -1293,7 +1317,7 @@ function createToolAdapter(opts = {}) {
       }
       try {
         const absPath = ensureWithinRepo(filePath);
-        ensureNotIgnored(absPath, 'git_diff');
+        ensureReadableByTool(absPath, 'git_diff');
       } catch (err) {
         return { error: err.message };
       }
@@ -1445,11 +1469,24 @@ function createToolAdapter(opts = {}) {
     return options;
   }
 
+  function validateSingleSerenaSymbol(value, label) {
+    if (typeof value !== 'string' || value.trim() === '') {
+      return `${label} must be a non-empty string`;
+    }
+    const symbol = value.trim();
+    if (!/^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?$/.test(symbol)) {
+      return `${label} must be one JavaScript symbol or receiver.symbol path`;
+    }
+    return null;
+  }
+
   async function serena_property_refs(args) {
     const property = args && (args.property || args.symbol || args.name);
     if (!property || typeof property !== 'string') {
       return { error: 'serena_property_refs requires a property string' };
     }
+    const symbolError = validateSingleSerenaSymbol(property, 'serena_property_refs property');
+    if (symbolError) return { error: symbolError };
     const options = serenaAstOptions(args || {});
     if (options.error) return { error: options.error };
     try {
@@ -1474,6 +1511,8 @@ function createToolAdapter(opts = {}) {
     if (!method || typeof method !== 'string') {
       return { error: 'serena_method_callers requires a method string' };
     }
+    const symbolError = validateSingleSerenaSymbol(method, 'serena_method_callers method');
+    if (symbolError) return { error: symbolError };
     const options = serenaAstOptions(args || {});
     if (options.error) return { error: options.error };
     try {
@@ -1498,6 +1537,8 @@ function createToolAdapter(opts = {}) {
     if (!className || typeof className !== 'string') {
       return { error: 'serena_class_fields requires a class string' };
     }
+    const symbolError = validateSingleSerenaSymbol(className, 'serena_class_fields class');
+    if (symbolError) return { error: symbolError };
     const options = serenaAstOptions(args || {});
     if (options.error) return { error: options.error };
     try {

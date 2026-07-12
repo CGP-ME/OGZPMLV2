@@ -66,6 +66,59 @@ describe('Mercury run ledger', () => {
       result: {
         termination: 'answer_given',
         answer: 'No concrete break found. core/Foo.js:1-2',
+        toolTelemetry: {
+          total: 1,
+          succeeded: 0,
+          failed: 1,
+          byTool: { git_show: { calls: 1, succeeded: 0, failed: 1 } },
+          calls: [{
+            name: 'git_show',
+            status: 'failed',
+            args: { ref: 'HEAD', path: 'missing.js' },
+            result: { error: 'git_show path not present at ref HEAD' },
+          }],
+        },
+      },
+    })).toBe('inconclusive_toolfail');
+
+    expect(classifyMercuryVerdict({
+      result: {
+        termination: 'answer_given',
+        answer: 'No concrete break found. core/Foo.js:1-2',
+        toolTelemetry: {
+          total: 1,
+          succeeded: 0,
+          failed: 1,
+          byTool: { open_file: { calls: 1, succeeded: 0, failed: 1 } },
+          calls: [{
+            name: 'open_file',
+            status: 'failed',
+            args: { path: 'ignored/evidence.json' },
+            result: { error: 'open_file blocked by mercury.ignore' },
+          }],
+        },
+        adversarialReview: {
+          enabled: true,
+          ok: true,
+          parsed: { verdict: 'found_break', blocking: true },
+        },
+      },
+    })).toBe('inconclusive_toolfail');
+
+    expect(classifyMercuryVerdict({
+      result: {
+        termination: 'answer_given',
+        answer: 'No concrete break found. core/Foo.js:1-2',
+      },
+      autoBlastRadius: {
+        errors: [{ file: '<current_changes>', error: 'spawnSync git ENOBUFS' }],
+      },
+    })).toBe('inconclusive_toolfail');
+
+    expect(classifyMercuryVerdict({
+      result: {
+        termination: 'answer_given',
+        answer: 'No concrete break found. core/Foo.js:1-2',
         consensus: {
           enabled: true,
           ok: false,
@@ -94,9 +147,10 @@ describe('Mercury run ledger', () => {
   });
 
   test('builds a compact run envelope from Mercury telemetry', () => {
+    const longPromptTail = 'x'.repeat(1200);
     const entry = buildRunLedgerEntry({
       repoRoot: tmpRoot,
-      query: 'Mercury, break my fix. SIGNALSTACK_WEBHOOK_URL=https://app.signalstack.com/hook/live-secret',
+      query: `Mercury, break my fix. SIGNALSTACK_WEBHOOK_URL=https://app.signalstack.com/hook/live-secret ${longPromptTail}`,
       opts: {
         workId: 'MER-DS-0001',
         maxIterations: 60,
@@ -129,6 +183,19 @@ describe('Mercury run ledger', () => {
             open_file: { calls: 1, succeeded: 1, failed: 0 },
             git_diff: { calls: 1, succeeded: 1, failed: 0 },
           },
+          calls: [{
+            iteration: 1,
+            name: 'git_diff',
+            status: 'succeeded',
+            args: { target: 'current' },
+            result: { target: 'working', file_count: 1 },
+          }, {
+            iteration: 1,
+            name: 'open_file',
+            status: 'succeeded',
+            args: { path: 'trai_brain/mercury-bridge/ask.js', start_line: 1, end_line: 2 },
+            result: { file: 'trai_brain/mercury-bridge/ask.js', start_line: 1, end_line: 2 },
+          }],
           filesOpened: ['trai_brain/mercury-bridge/ask.js:1-2'],
           runCheckArtifacts: ['ogz-meta/cognition-history/mercury-execution/check.log:1-3'],
           runChecks: [{
@@ -148,12 +215,35 @@ describe('Mercury run ledger', () => {
     expect(entry.work_id).toBe('MER-DS-0001');
     expect(entry.prompt_hash).toMatch(/^[a-f0-9]{64}$/);
     expect(entry.prompt_excerpt).toContain('SIGNALSTACK_WEBHOOK_URL=[REDACTED]');
+    expect(entry.prompt_excerpt.length).toBeGreaterThan(1000);
     expect(entry.prompt_excerpt).not.toContain('live-secret');
     expect(entry.verdict).toBe('no_break_found');
     expect(entry.commit_blocking).toBe(false);
     expect(entry.tools_invoked).toEqual([
-      { name: 'git_diff', calls: 1, succeeded: 1, failed: 0 },
-      { name: 'open_file', calls: 1, succeeded: 1, failed: 0 },
+      {
+        name: 'git_diff',
+        calls: 1,
+        succeeded: 1,
+        failed: 0,
+        call_details: [{
+          iteration: 1,
+          status: 'succeeded',
+          args: { target: 'current' },
+          result: { target: 'working', file_count: 1 },
+        }],
+      },
+      {
+        name: 'open_file',
+        calls: 1,
+        succeeded: 1,
+        failed: 0,
+        call_details: [{
+          iteration: 1,
+          status: 'succeeded',
+          args: { path: 'trai_brain/mercury-bridge/ask.js', start_line: 1, end_line: 2 },
+          result: { file: 'trai_brain/mercury-bridge/ask.js', start_line: 1, end_line: 2 },
+        }],
+      },
     ]);
     expect(entry.files_opened).toEqual(['trai_brain/mercury-bridge/ask.js:1-2']);
     expect(entry.run_check_artifacts).toEqual(['ogz-meta/cognition-history/mercury-execution/check.log:1-3']);
