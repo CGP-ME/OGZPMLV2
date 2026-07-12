@@ -403,7 +403,7 @@ function runSingleBacktest(config, dataFile, stockMode = false, profileName = DE
       stockMode,
       profileName,
       feeProfileName,
-      strategyDiag: process.env.STRATEGY_DIAG || 'false',
+      strategyDiag: 'false',
       configEnv: { ...dormantStrategyEnv, ...(config.env || {}) },
       instrumentEnv,
     });

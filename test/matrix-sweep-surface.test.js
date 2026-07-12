@@ -236,19 +236,23 @@ describe('matrix-sweep runnable surface', () => {
     const stopPayloads = configs.map(config => JSON.parse(config.env.BACKTEST_CONFIG_OVERRIDES_JSON));
     expect(new Set(stopPayloads.map(payload => payload['exitContracts.RSI.stopLossPercent'])).size)
       .toBe(GRID.exits.stopLoss.length);
-    expect(stopPayloads).toContainEqual({
-      'exitContracts.RSI.stopLossPercent': -2.5,
-    });
+    expect(stopPayloads.some(payload => payload['exitContracts.RSI.stopLossPercent'] === -2.5))
+      .toBe(true);
+    expect(stopPayloads.every(payload => Number.isFinite(payload['confidence.minTradeConfidence'])))
+      .toBe(true);
   });
 
   test('confidence phase keeps locked strategy contract without stop override payload', () => {
     const configs = generateMatrix(['EMASMACrossover'], GRID.conf, 'conf');
     const lockedEmaStop = Math.abs(BASE_CONFIG.exitContracts.EMASMACrossover.stopLossPercent);
+    const payloads = configs.map(config => JSON.parse(config.env.BACKTEST_CONFIG_OVERRIDES_JSON));
 
     expect(configs).toHaveLength(GRID.conf.confidence.length);
     expect(configs.every(config => config.lockedSL === lockedEmaStop)).toBe(true);
     expect(configs.every(config => config.sl === lockedEmaStop)).toBe(true);
-    expect(configs.every(config => config.env.BACKTEST_CONFIG_OVERRIDES_JSON === undefined)).toBe(true);
+    expect(configs.every(config => config.env.MIN_TRADE_CONFIDENCE === undefined)).toBe(true);
+    expect(payloads.every(payload => payload['exitContracts.EMASMACrossover.stopLossPercent'] === undefined)).toBe(true);
+    expect(payloads.map(payload => payload['confidence.minTradeConfidence'])).toEqual(GRID.conf.confidence);
   });
 
   test('report fallback preserves worker errors, report path, and zero stock fees', () => {

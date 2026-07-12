@@ -289,16 +289,30 @@ function getLockedSL(strat) {
   return Math.abs(contract.stopLossPercent);
 }
 
-function buildExitContractOverrideEnv(strategyName, stopLoss) {
-  if (stopLoss == null) return {};
+function buildBacktestOverrideEnv(strategyName, stopLoss, confidence) {
+  const numericConfidence = Number(confidence);
+  if (!Number.isFinite(numericConfidence) || numericConfidence < 0 || numericConfidence > 1) {
+    throw new Error('Matrix confidence must be a finite 0-1 value, got ' + confidence);
+  }
+
+  const overrides = {
+    'confidence.minTradeConfidence': numericConfidence,
+  };
+
+  if (stopLoss == null) {
+    return {
+      BACKTEST_CONFIG_OVERRIDES_JSON: JSON.stringify(overrides),
+    };
+  }
+
   const numericStop = Number(stopLoss);
   if (!Number.isFinite(numericStop) || numericStop <= 0) {
     throw new Error('Matrix stopLoss must be a positive finite percentage, got ' + stopLoss);
   }
+  overrides[`exitContracts.${strategyName}.stopLossPercent`] = -Math.abs(numericStop);
+
   return {
-    BACKTEST_CONFIG_OVERRIDES_JSON: JSON.stringify({
-      [`exitContracts.${strategyName}.stopLossPercent`]: -Math.abs(numericStop),
-    }),
+    BACKTEST_CONFIG_OVERRIDES_JSON: JSON.stringify(overrides),
   };
 }
 
@@ -355,8 +369,7 @@ function generateMatrix(strategies, grid, phase) {
 
           const env = {
             SOLO_STRATEGY: strat,
-            MIN_TRADE_CONFIDENCE: String(conf),
-            ...buildExitContractOverrideEnv(strat, sl),
+            ...buildBacktestOverrideEnv(strat, sl, conf),
           };
 
           // Set tier targets if sweeping (otherwise MPM uses ConfigLoader defaults)

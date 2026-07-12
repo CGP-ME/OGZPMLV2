@@ -5,9 +5,11 @@ const ConfigLoader = require('../foundation/ConfigLoader');
 const { resolveInstrumentFromDataFile } = require('./instrument-env');
 const {
   DEFAULT_TUNING_PROFILE,
+  listTuningProfileNames,
   resolveTuningProfile,
 } = require('./tuning-profiles');
 const {
+  listFeeProfileNames,
   resolveFeeProfile,
 } = require('./fee-profiles');
 
@@ -256,6 +258,54 @@ const SUMMARY_KEYS = [
   'TSMOM_TRAILING_STOP_PERCENT',
 ];
 
+const WORKER_GENERATED_ENV_KEYS = Object.freeze([
+  ...Object.keys(CANONICAL_BACKTEST_ENV),
+  ...Object.keys(STOCK_BACKTEST_ALPACA_ENV),
+  'CANDLE_DATA_FILE',
+  'STATE_FILE',
+  'DATA_DIR',
+  'BACKTEST_REPORT_TAG',
+  'STRATEGY_DIAG',
+  'DIRECTION_FILTER',
+  'PROFILE',
+  'TUNING_PROFILE',
+  'BACKTEST_TUNING_PROFILE',
+  'BACKTEST_FEE_PROFILE',
+]);
+
+const BACKTEST_PIPELINE_OPERATIONAL_ENV_KEYS = Object.freeze([
+  'TRAI_AUTO_HARVEST',
+  'TRAI_HARVEST_MIN_TRADES',
+  'TRAI_HARVEST_BOOST_WR',
+  'TRAI_HARVEST_PENALTY_WR',
+  'WEEKEND_CAMPAIGN_DISK_RESERVE_MIB',
+  'WEEKEND_CAMPAIGN_MIN_FREE_MIB',
+  'WEEKEND_CAMPAIGN_PROJECTED_MIB_PER_RUN',
+]);
+
+function sortedUnique(values) {
+  return Object.freeze([...new Set(values)].sort());
+}
+
+function listBacktestWorkerEnvWhitelist() {
+  const tuningProfileGeneratedKeys = listTuningProfileNames()
+    .flatMap(name => Object.keys(resolveTuningProfile(name).env || {}));
+  const feeProfileGeneratedKeys = listFeeProfileNames()
+    .flatMap(name => Object.keys(resolveFeeProfile(name).env || {}));
+
+  return Object.freeze({
+    ambient: sortedUnique(WORKER_ENV_ALLOWLIST),
+    configEnv: sortedUnique([...CONFIG_ENV_OVERRIDE_ALLOWLIST]),
+    instrumentEnv: sortedUnique([...INSTRUMENT_ENV_ALLOWLIST]),
+    operationalAmbient: sortedUnique(BACKTEST_PIPELINE_OPERATIONAL_ENV_KEYS),
+    generated: sortedUnique([
+      ...WORKER_GENERATED_ENV_KEYS,
+      ...tuningProfileGeneratedKeys,
+      ...feeProfileGeneratedKeys,
+    ]),
+  });
+}
+
 function buildWorkerBaseEnv(sourceEnv = process.env) {
   const workerBaseEnv = {};
   for (const key of WORKER_ENV_ALLOWLIST) {
@@ -290,7 +340,7 @@ function normalizeDirectionFilter(value, label) {
   return normalized;
 }
 
-function resolveDirectionFilter(sourceEnv = {}, configEnv = {}) {
+function resolveDirectionFilter(configEnv = {}) {
   return normalizeDirectionFilter(configEnv.DIRECTION_FILTER, 'configEnv')
     || CANONICAL_BACKTEST_ENV.DIRECTION_FILTER;
 }
@@ -361,7 +411,7 @@ function buildBacktestWorkerEnv(options) {
   assertEnvKeysAllowed(instrumentEnv, INSTRUMENT_ENV_ALLOWLIST, 'instrumentEnv');
   assertStockModeMatchesInstrument(stockMode, instrumentEnv);
   assertInstrumentEnvMatchesDataFile(dataFile, instrumentEnv);
-  const directionFilter = resolveDirectionFilter(sourceEnv, configEnv);
+  const directionFilter = resolveDirectionFilter(configEnv);
   const resolvedLaunchProfileName = resolveWorkerLaunchProfile(launchProfileName, profile.name);
   const normalizedConfigEnv = { ...configEnv };
   if (normalizedConfigEnv.DIRECTION_FILTER !== undefined) {
@@ -404,10 +454,12 @@ module.exports = {
   CANONICAL_BACKTEST_ENV,
   STOCK_ZERO_FEE_ENV,
   STOCK_BACKTEST_ALPACA_ENV,
+  BACKTEST_PIPELINE_OPERATIONAL_ENV_KEYS,
   CONFIG_ENV_OVERRIDE_ALLOWLIST,
   INSTRUMENT_ENV_ALLOWLIST,
   TUNING_PROFILE_LAUNCH_PROFILE,
   DEFAULT_TUNING_PROFILE,
+  listBacktestWorkerEnvWhitelist,
   buildWorkerBaseEnv,
   assertEnvKeysAllowed,
   normalizeDirectionFilter,

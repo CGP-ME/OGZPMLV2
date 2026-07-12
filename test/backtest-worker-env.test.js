@@ -1,10 +1,18 @@
 'use strict';
 
+const fs = require('fs');
+const os = require('os');
 const path = require('path');
+const { spawnSync } = require('child_process');
 const ConfigLoader = require('../foundation/ConfigLoader');
 const {
   CANONICAL_BACKTEST_ENV,
   STOCK_ZERO_FEE_ENV,
+  WORKER_ENV_ALLOWLIST,
+  BACKTEST_PIPELINE_OPERATIONAL_ENV_KEYS,
+  CONFIG_ENV_OVERRIDE_ALLOWLIST,
+  INSTRUMENT_ENV_ALLOWLIST,
+  listBacktestWorkerEnvWhitelist,
   buildWorkerBaseEnv,
   buildBacktestWorkerEnv,
   summarizeWorkerEnv,
@@ -56,6 +64,7 @@ const EXPECTED_CANONICAL_BACKTEST_ENV = Object.freeze({
 
 describe('backtest worker env contract', () => {
   const projectRoot = '/repo';
+  const repoRoot = path.resolve(__dirname, '..');
   const LOCKED_EXIT_PROFILE_KEYS = [
     'STOP_LOSS_PERCENT',
     'TAKE_PROFIT_PERCENT',
@@ -99,6 +108,104 @@ describe('backtest worker env contract', () => {
     });
   }
 
+  function stableStringify(value) {
+    return JSON.stringify(sortDeep(value));
+  }
+
+  function sortDeep(value) {
+    if (Array.isArray(value)) return value.map(sortDeep);
+    if (!value || typeof value !== 'object') return value;
+    return Object.keys(value)
+      .sort()
+      .reduce((acc, key) => {
+        acc[key] = sortDeep(value[key]);
+        return acc;
+      }, {});
+  }
+
+  function stripVolatileBacktestFields(report) {
+    const copy = sortDeep(JSON.parse(JSON.stringify(report)));
+    delete copy.timestamp;
+    if (copy.summary) delete copy.summary.duration;
+
+    for (const trade of copy.trades || []) {
+      delete trade.tradeId;
+      if (trade.frozenExitPolicy) {
+        delete trade.frozenExitPolicy.builtAtMs;
+        delete trade.frozenExitPolicy.policyHash;
+      }
+    }
+
+    return copy;
+  }
+
+  function listJsonFiles(dir) {
+    const found = [];
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const entryPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        found.push(...listJsonFiles(entryPath));
+      } else if (entry.isFile() && entry.name === 'report-TSLA.json') {
+        found.push(entryPath);
+      }
+    }
+    return found;
+  }
+
+  function buildHermeticBacktestEnv(sourceEnv, outputDir, reportTag) {
+    return buildBacktestWorkerEnv({
+      sourceEnv,
+      projectRoot: repoRoot,
+      dataFile: 'tuning/tsla-15m-tiny.json',
+      stateFile: path.join(outputDir, 'state.json'),
+      dataDir: path.join(outputDir, 'data'),
+      reportTag,
+      stockMode: true,
+      profileName: 'current-eval',
+      feeProfileName: 'ttp_real',
+      strategyDiag: 'false',
+      configEnv: {
+        SOLO_STRATEGY: 'RSI',
+        DEBUG_AGG: '0',
+        DEBUG_BRAIN: '0',
+      },
+      instrumentEnv: {
+        TRADING_PAIR: 'TSLA',
+        BROKER: 'alpaca',
+        ASSET_CLASS: 'stocks',
+        CANDLE_TIMEFRAME: '15m',
+      },
+    });
+  }
+
+  function runHermeticBacktest(sourceEnv, label) {
+    const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), `ogz-hermetic-${label}-`));
+    const env = buildHermeticBacktestEnv({
+      ...sourceEnv,
+      BACKTEST_OUTPUT_DIR: outputDir,
+    }, outputDir, `hermetic-${label}`);
+    const result = spawnSync(process.execPath, ['run-empire-v2.js'], {
+      cwd: repoRoot,
+      env,
+      encoding: 'utf8',
+      maxBuffer: 50 * 1024 * 1024,
+    });
+
+    if (result.status !== 0) {
+      fs.writeFileSync(path.join(outputDir, 'failed-worker.log'), `${result.stdout || ''}${result.stderr || ''}`);
+    }
+
+    expect(result.status).toBe(0);
+    const reports = listJsonFiles(outputDir);
+    expect(reports).toHaveLength(1);
+    const report = JSON.parse(fs.readFileSync(reports[0], 'utf8'));
+    fs.rmSync(outputDir, { recursive: true, force: true });
+    return {
+      env,
+      report: stripVolatileBacktestFields(report),
+    };
+  }
+
   function expectLockedExitProfileKeysAbsent(env) {
     for (const key of LOCKED_EXIT_PROFILE_KEYS) {
       expect(Object.prototype.hasOwnProperty.call(env, key)).toBe(false);
@@ -118,6 +225,136 @@ describe('backtest worker env contract', () => {
       HOME: '/home/ogz',
       NODE_OPTIONS: '--max-old-space-size=4096',
     });
+  });
+
+  test('backtest worker whitelist is the parity inventory for accepted env sources', () => {
+    const whitelist = listBacktestWorkerEnvWhitelist();
+
+    expect(whitelist.ambient).toEqual([...WORKER_ENV_ALLOWLIST].sort());
+    expect(whitelist.configEnv).toEqual([...CONFIG_ENV_OVERRIDE_ALLOWLIST].sort());
+    expect(whitelist.instrumentEnv).toEqual([...INSTRUMENT_ENV_ALLOWLIST].sort());
+    expect(whitelist.operationalAmbient).toEqual([...BACKTEST_PIPELINE_OPERATIONAL_ENV_KEYS].sort());
+    expect(whitelist.configEnv).toEqual(expect.arrayContaining([
+      'BACKTEST_CONFIG_OVERRIDES_JSON',
+      'SOLO_STRATEGY',
+      'DIRECTION_FILTER',
+    ]));
+    expect(whitelist.generated).toEqual(expect.arrayContaining([
+      'EXECUTION_MODE',
+      'PROFILE',
+      'BACKTEST_TUNING_PROFILE',
+      'BACKTEST_FEE_PROFILE',
+      'FEE_PER_SHARE',
+    ]));
+
+    for (const poisonedKey of [
+      'LIVE_TRADING',
+      'MIN_TRADE_CONFIDENCE',
+      'TTP_ACCOUNT_START_OF_DAY_DATE',
+      'TTP_ACCOUNT_START_OF_DAY_EQUITY',
+      'TTP_EARNINGS_STATUS_JSON',
+      'EXECUTION_MODE',
+      'ENABLE_LIVE_TRADING',
+      'CONFIRM_LIVE_TRADING',
+      'STRATEGY_DIAG',
+    ]) {
+      expect(whitelist.ambient).not.toContain(poisonedKey);
+      expect(whitelist.configEnv).not.toContain(poisonedKey);
+      expect(whitelist.instrumentEnv).not.toContain(poisonedKey);
+      expect(whitelist.operationalAmbient).not.toContain(poisonedKey);
+    }
+    expect(whitelist.ambient).not.toContain('BACKTEST_CONFIG_OVERRIDES_JSON');
+    expect(whitelist.instrumentEnv).not.toContain('BACKTEST_CONFIG_OVERRIDES_JSON');
+    expect(whitelist.operationalAmbient).not.toContain('BACKTEST_CONFIG_OVERRIDES_JSON');
+    expect(whitelist.operationalAmbient).toEqual(expect.arrayContaining([
+      'TRAI_AUTO_HARVEST',
+      'WEEKEND_CAMPAIGN_MIN_FREE_MIB',
+    ]));
+  });
+
+  test('poisoned ambient env is ignored for hermetic backtest worker launches', () => {
+    const outputDir = '/repo/hermetic-proof';
+    const cleanSourceEnv = {
+      PATH: '/usr/bin',
+      HOME: '/home/ogz',
+      BACKTEST_OUTPUT_DIR: outputDir,
+    };
+    const poisonSourceEnv = {
+      ...cleanSourceEnv,
+      LIVE_TRADING: 'true',
+      MIN_TRADE_CONFIDENCE: '1',
+      TTP_ACCOUNT_START_OF_DAY_DATE: '1999-01-01',
+      TTP_ACCOUNT_START_OF_DAY_EQUITY: '1',
+      TTP_EARNINGS_STATUS_JSON: '{"TSLA":{"hasEarnings":true}}',
+      BACKTEST_CONFIG_OVERRIDES_JSON: '{"confidence.minTradeConfidence":0.01}',
+      EXECUTION_MODE: 'live',
+      BACKTEST_MODE: 'false',
+      CANDLE_SOURCE: 'broker',
+      PAPER_TRADING: 'false',
+      ENABLE_LIVE_TRADING: 'true',
+      CONFIRM_LIVE_TRADING: 'true',
+      PROFILE: 'production',
+      TUNING_PROFILE: 'legacy-wide',
+      BACKTEST_TUNING_PROFILE: 'legacy-wide',
+      STRATEGY_DIAG: 'true',
+      MAX_WEEKLY_LOSS: '1',
+      MAX_MONTHLY_LOSS: '1',
+      DIRECTION_FILTER: 'short_only',
+    };
+
+    const cleanEnv = buildHermeticBacktestEnv(cleanSourceEnv, outputDir, 'hermetic-proof');
+    const poisonEnv = buildHermeticBacktestEnv(poisonSourceEnv, outputDir, 'hermetic-proof');
+
+    expect(stableStringify(poisonEnv)).toBe(stableStringify(cleanEnv));
+    expect(poisonEnv.EXECUTION_MODE).toBe('backtest');
+    expect(poisonEnv.BACKTEST_MODE).toBe('true');
+    expect(poisonEnv.LIVE_TRADING).toBe('false');
+    expect(poisonEnv.ENABLE_LIVE_TRADING).toBe('false');
+    expect(poisonEnv.CANDLE_SOURCE).toBe('file');
+    expect(poisonEnv.PROFILE).toBe('backtest-all');
+    expect(poisonEnv.TUNING_PROFILE).toBe('current-eval');
+    expect(poisonEnv.STRATEGY_DIAG).toBe('false');
+    expect(poisonEnv.MIN_TRADE_CONFIDENCE).toBeUndefined();
+    expect(poisonEnv.BACKTEST_CONFIG_OVERRIDES_JSON).toBeUndefined();
+    expect(poisonEnv.TTP_ACCOUNT_START_OF_DAY_DATE).toBeUndefined();
+    expect(poisonEnv.TTP_EARNINGS_STATUS_JSON).toBeUndefined();
+    expect(poisonEnv.MAX_WEEKLY_LOSS).toBeUndefined();
+    expect(poisonEnv.MAX_MONTHLY_LOSS).toBeUndefined();
+    expect(poisonEnv.DIRECTION_FILTER).toBe('both');
+  });
+
+  test('clean and poisoned ambient env produce byte-identical canonical backtest results', () => {
+    const cleanSourceEnv = {
+      PATH: process.env.PATH,
+      HOME: process.env.HOME,
+    };
+    const poisonSourceEnv = {
+      ...cleanSourceEnv,
+      LIVE_TRADING: 'true',
+      MIN_TRADE_CONFIDENCE: '1',
+      TTP_ACCOUNT_START_OF_DAY_DATE: '1999-01-01',
+      TTP_ACCOUNT_START_OF_DAY_EQUITY: '1',
+      TTP_EARNINGS_STATUS_JSON: '{"TSLA":{"hasEarnings":true}}',
+      BACKTEST_CONFIG_OVERRIDES_JSON: '{"confidence.minTradeConfidence":0.01}',
+      EXECUTION_MODE: 'live',
+      BACKTEST_MODE: 'false',
+      CANDLE_SOURCE: 'broker',
+      PAPER_TRADING: 'false',
+      ENABLE_LIVE_TRADING: 'true',
+      CONFIRM_LIVE_TRADING: 'true',
+      PROFILE: 'production',
+      TUNING_PROFILE: 'legacy-wide',
+      BACKTEST_TUNING_PROFILE: 'legacy-wide',
+      STRATEGY_DIAG: 'true',
+      MAX_WEEKLY_LOSS: '1',
+      MAX_MONTHLY_LOSS: '1',
+      DIRECTION_FILTER: 'short_only',
+    };
+
+    const cleanRun = runHermeticBacktest(cleanSourceEnv, 'clean');
+    const poisonRun = runHermeticBacktest(poisonSourceEnv, 'poison');
+
+    expect(stableStringify(poisonRun.report)).toBe(stableStringify(cleanRun.report));
   });
 
   test('canonical worker env values are owned by ConfigLoader and exported read-only', () => {
