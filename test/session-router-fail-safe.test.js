@@ -16,7 +16,7 @@ describe('SessionRouter failed-safe transition behavior', () => {
 
   function makeRouter(overrides = {}) {
     const router = new SessionRouter({
-      enabled: true,
+      mode: 'scheduled',
       clock: () => now.getTime(),
       stockSymbols: ['TSLA'],
       cryptoSymbols: ['BTC-USD'],

@@ -615,6 +615,38 @@ describe('EvalRuleEngine TTP volume cap', () => {
     }));
   });
 
+  test('does not apply TTP market-time entry blocks to crypto sessions', async () => {
+    const cryptoNight = new Date('2026-05-22T06:00:00.000Z');
+    const engine = makeEngine({
+      cfg: config({
+        volumeCap: { enabled: false },
+        accountLimits: { enabled: false },
+        earningsRestriction: { enabled: false },
+      }),
+      candles: [candleFor(cryptoNight.getTime(), -60000, 100000)],
+      now: () => cryptoNight.getTime(),
+    });
+
+    const result = await engine.check(entryPlan({
+      symbol: 'BTC-USD',
+      assetClass: 'crypto',
+      brokerId: 'kraken',
+      sessionRouterSession: 'crypto',
+      orderQuantity: 1,
+      quantityUnit: 'base',
+    }));
+
+    expect(result.allowed).toBe(true);
+    expect(result.failedRules).toEqual([]);
+    expect(result.passedRules).not.toContain('TTP_MARKET_TIME');
+    expect(result.inputs).toEqual(expect.objectContaining({
+      venueScope: 'non_ttp_stock_session',
+      sessionRouterSession: 'crypto',
+      assetClass: 'crypto',
+      brokerId: 'kraken',
+    }));
+  });
+
   test('blocks new openings after regular market close when TTP cutoff blocking is enabled', async () => {
     const afterClose = new Date('2026-05-22T20:00:00.000Z');
     const engine = makeEngine({

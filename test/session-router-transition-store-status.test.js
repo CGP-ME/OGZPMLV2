@@ -14,7 +14,9 @@ describe('SessionRouter TransitionStore status projection', () => {
 
   function makeRouter(options = {}) {
     return new SessionRouter({
-      enabled: false,
+      mode: 'static',
+      staticSession: 'crypto',
+      cryptoSymbols: ['BTC-USD'],
       clock: () => Date.parse('2026-05-26T14:30:00.000Z'),
       transitionStoreOptions: { dir: tempDir },
       ...options
@@ -33,12 +35,14 @@ describe('SessionRouter TransitionStore status projection', () => {
     restoreRuntimeEnv();
   });
 
-  test('disabled router exposes idle transition store status when files are missing', () => {
+  test('static router exposes idle transition store status when files are missing', () => {
     const router = makeRouter();
 
     const status = router.getStatus();
 
-    expect(status.enabled).toBe(false);
+    expect(status.enabled).toBe(true);
+    expect(status.mode).toBe('static');
+    expect(status.staticSession).toBe('crypto');
     expect(status.transitionStore).toEqual(expect.objectContaining({
       state: 'IDLE',
       recoveryRequired: false,

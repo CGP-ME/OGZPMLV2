@@ -58,6 +58,28 @@ describe('bot_state frame builder', () => {
     expect(frame.active_brokers).toEqual(['ALPACA']);
   });
 
+  test('uses session router profile data for static broker visibility instead of router env flags', () => {
+    const frame = buildBotStateFrame({
+      config: {
+        mode: { execution: 'paper' },
+        sessionRouter: {
+          mode: 'static',
+          staticSession: 'crypto',
+          cryptoSymbols: ['BTC-USD'],
+        },
+      },
+    }, {
+      env: {
+        PAPER_TRADING: 'true',
+        LIVE_TRADING: 'false',
+        SESSION_ROUTER_ENABLED: 'false',
+      },
+      now: new Date('2026-06-29T14:00:00.000Z'),
+    });
+
+    expect(frame.active_brokers).toEqual(['KRAKEN']);
+  });
+
   test('does not mark stock market open outside regular session', () => {
     expect(isStockMarketOpen(new Date('2026-06-29T13:00:00.000Z'))).toBe(false);
     expect(isStockMarketOpen(new Date('2026-06-29T14:00:00.000Z'))).toBe(true);

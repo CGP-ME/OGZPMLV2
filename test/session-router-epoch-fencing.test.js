@@ -37,7 +37,7 @@ describe('SessionRouter OHLC epoch fencing', () => {
 
   function makeRouter(overrides = {}) {
     const router = new SessionRouter({
-      enabled: true,
+      mode: 'scheduled',
       clock: () => now.getTime(),
       stockSymbols: ['TSLA'],
       cryptoSymbols: ['BTC-USD'],

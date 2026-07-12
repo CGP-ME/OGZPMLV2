@@ -26,6 +26,7 @@ const path = require('path');
 const ConfigLoader = require('../foundation/ConfigLoader');  // CHANGE 2026-02-28: Centralized config
 const { getInstance: getUnifiedPatternMemory } = require('./UnifiedPatternMemory');  // CHANGE 2026-03-18: Unified pattern store
 const TRAIPatternIntegration = require('./TRAIPatternIntegration');  // CHANGE 2026-03-30: Pattern pack integration
+const { normalizePatternScope } = require('./PatternScope');
 
 // Version hash for telemetry
 const VERSION_HASH = 'v2.0.0-telem';
@@ -966,13 +967,14 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
    * Generate pattern key for memory
    */
   generatePatternKey(signal, context) {
-    const patterns = (signal.patterns || []).map(p => p.name || p).filter(Boolean).sort().join(',');
-    const regime = context.regime ?? null;
-    const trend = context.trend ?? null;
-    if (!patterns || !regime || !trend) {
+    const patterns = (signal?.patterns || []).map(p => p.name || p).filter(Boolean).sort().join(',');
+    const regime = context?.regime ?? null;
+    const trend = context?.trend ?? null;
+    const scope = normalizePatternScope(context || {}, 'TRAIDecisionModule.generatePatternKey');
+    if (!patterns || !regime || !trend || !scope.ok) {
       return null;
     }
-    return `${patterns}_${regime}_${trend}`;
+    return `${scope.scopeKey}|${patterns}_${regime}_${trend}`;
   }
   
   /**

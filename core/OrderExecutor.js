@@ -183,7 +183,9 @@ class OrderExecutor {
 
   _runtimeScope(symbol = null, overrides = {}, options = {}) {
     const cfg = this.ctx.config || {};
-    const routerEnabled = this.ctx.runner?.sessionRouter?.enabled === true;
+    const routerEnabled = this.ctx.runner && typeof this.ctx.runner.isSessionRoutingActive === 'function'
+      ? this.ctx.runner.isSessionRoutingActive() === true
+      : this.ctx.runner?.sessionRouter?.enabled === true;
     const runnerScope = this.ctx.runner && typeof this.ctx.runner.getCandleScopeEnvelope === 'function'
       ? this.ctx.runner.getCandleScopeEnvelope()
       : {};

@@ -76,6 +76,13 @@ describe('SessionRouter runtime scope propagation', () => {
     };
   }
 
+  function incompleteStaticRouteTableScope() {
+    return {
+      isSessionRoutingActive: jest.fn(() => true),
+      getCandleScopeEnvelope: jest.fn(() => ({})),
+    };
+  }
+
   function missingAccountEnabledRouterScope() {
     return {
       sessionRouter: { enabled: true },
@@ -152,6 +159,17 @@ describe('SessionRouter runtime scope propagation', () => {
       config: staleCryptoConfig,
       candleTimeframe: '1m',
       runner: incompleteEnabledRouterScope(),
+    });
+
+    expect(() => loop._patternScope('TSLA')).toThrow(/refusing static config fallback/);
+    expect(() => loop._dashboardScope('TSLA')).toThrow(/refusing static config fallback/);
+  });
+
+  test('TradingLoop refuses stale config fallback when static route table scope is incomplete', () => {
+    const loop = new TradingLoop({
+      config: staleCryptoConfig,
+      candleTimeframe: '1m',
+      runner: incompleteStaticRouteTableScope(),
     });
 
     expect(() => loop._patternScope('TSLA')).toThrow(/refusing static config fallback/);
@@ -266,6 +284,31 @@ describe('SessionRouter runtime scope propagation', () => {
       config: staleCryptoConfig,
       candleTimeframe: '1m',
       runner: incompleteEnabledRouterScope(),
+    });
+
+    expect(() => executor._buildEntryPlan({
+      decision: { action: 'BUY', confidence: 88 },
+      symbol: 'TSLA',
+      price: 100,
+      positionSize: 250,
+      currentBalance: 10000,
+      currentEquity: 10000,
+      tradeConfidence: 0.88,
+      confidenceMultiplier: 1,
+      entryVolatility: 0.01,
+      orchResult: {
+        winnerStrategy: 'ScopeStrategy',
+        sizingMultiplier: 1,
+        exitContract: entryExitContract(),
+      },
+    })).toThrow(/refusing static config fallback/);
+  });
+
+  test('OrderExecutor refuses stale config fallback when static route table scope is incomplete', () => {
+    const executor = new OrderExecutor({
+      config: staleCryptoConfig,
+      candleTimeframe: '1m',
+      runner: incompleteStaticRouteTableScope(),
     });
 
     expect(() => executor._buildEntryPlan({

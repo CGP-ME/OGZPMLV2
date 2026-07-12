@@ -392,6 +392,39 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(loaded.sources['evalRules.enabled']).toBe('config:launchProfiles.production.venueGuards.ttp.enabled');
   });
 
+  test('session router is explicit in launch profiles and unaffected by legacy env flags', () => {
+    process.env.SESSION_ROUTER_ENABLED = 'false';
+    process.env.SESSION_ROUTER_FAST = 'true';
+
+    const loaded = loadConfig();
+
+    expect(loaded.errors).toEqual([]);
+    expect(loaded.config.sessionRouter).toEqual({
+      mode: 'static',
+      staticSession: 'stocks',
+      cryptoSymbols: ['BTC-USD'],
+      checkIntervalMs: 60000,
+      forceCloseOnSessionEnd: true,
+      fast: false,
+    });
+    expect(loaded.sources['sessionRouter.mode']).toBe('config:launchProfiles.paper.sessionRouter.mode');
+    expect(loaded.sources['sessionRouter.fast']).toBe('config:launchProfiles.paper.sessionRouter.fast');
+  });
+
+  test('resolver refuses a launch profile missing the sessionRouter block', () => {
+    const tradingConfigFile = require('../config/trading.config.json');
+    const mockedConfig = JSON.parse(JSON.stringify(tradingConfigFile));
+    delete mockedConfig.launchProfiles.paper.sessionRouter;
+
+    jest.resetModules();
+    jest.doMock('../config/trading.config.json', () => mockedConfig);
+
+    expect(() => require('../foundation/ConfigLoader').load({ force: true, silent: true }))
+      .toThrow(/launchProfiles\.paper\.sessionRouter/);
+
+    jest.dontMock('../config/trading.config.json');
+  });
+
   test('paper and backtest profiles keep eval rule posture explicit', () => {
     const paperLoaded = loadConfig();
 

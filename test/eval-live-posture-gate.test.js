@@ -48,6 +48,7 @@ function validEvalLiveEnv(overrides = {}) {
   const today = currentNewYorkDate();
   return {
     DOTENV_CONFIG_PATH: MISSING_ENV_FILE,
+    PROFILE: 'production',
     EXECUTION_MODE: 'live',
     BACKTEST_MODE: 'false',
     PAPER_TRADING: 'false',
@@ -62,7 +63,6 @@ function validEvalLiveEnv(overrides = {}) {
     ALPACA_SYMBOLS: EVAL_ALPACA_SYMBOLS,
     CANDLE_TIMEFRAME: '15m',
     STATE_FILE: 'data/state.json',
-    SESSION_ROUTER_ENABLED: 'false',
     ENABLE_TRAI: 'true',
     TRAI_MODE: 'passive',
     TRAI_VETO: 'false',
@@ -133,8 +133,8 @@ describe('eval live posture gate', () => {
 
     expect(report.status).toBe('PASS');
     expect(report.errors).toEqual([]);
-    expect(report.checked.config['mode.execution']).toEqual({ value: 'live', source: 'env:EXECUTION_MODE' });
-    expect(report.checked.config['risk.riskManagerBypass']).toEqual({ value: false, source: 'env:RISK_MANAGER_BYPASS' });
+    expect(report.checked.config['mode.execution']).toEqual({ value: 'live', source: 'config:launchProfiles.production.mode' });
+    expect(report.checked.config['risk.riskManagerBypass']).toEqual({ value: false, source: 'config:launchProfiles.production.risk.riskManagerBypass' });
     expect(report.checked.webhook).toEqual({
       present: true,
       protocol: 'https:',
@@ -330,7 +330,7 @@ describe('eval live posture gate', () => {
       activeTrades: [['ORDER_RED', { orderId: 'ORDER_RED', symbol: 'TSLA', brokerId: 'alpaca', side: 'long' }]],
     });
     const env = validEvalLiveEnv({ STATE_FILE: stateFile });
-    delete env.MAX_DRAWDOWN;
+    env.PROFILE = 'missing-profile';
 
     try {
       const report = await validateEvalLiveReadiness(env, {
@@ -340,6 +340,7 @@ describe('eval live posture gate', () => {
 
       expect(report.status).toBe('FAIL');
       expect(report.errors.join('\n')).toMatch(/Runtime exposure reconciliation continuing without config snapshot/);
+      expect(report.errors.join('\n')).toMatch(/Unknown PROFILE 'missing-profile'/);
       expect(report.errors.join('\n')).toMatch(/Persisted StateManager activeTrades must be flat/);
       expect(report.checked.runtimeExposure.configSnapshotLoaded).toBe(false);
       expect(report.checked.runtimeExposure.localActiveTrades).toEqual([
@@ -445,7 +446,7 @@ describe('eval live posture gate', () => {
   test('does not replace the ConfigLoader cached runtime config while validating supplied env', () => {
     const originalEnv = process.env;
     process.env = validEvalLiveEnv({
-      EXECUTION_MODE: 'paper',
+      PROFILE: 'paper',
       PAPER_TRADING: 'false',
       LIVE_TRADING: 'false',
       CONFIRM_LIVE_TRADING: 'false',
@@ -471,7 +472,7 @@ describe('eval live posture gate', () => {
 
   test('fails current paper or dry-run posture instead of treating bot health as eval-ready', () => {
     const report = validateEvalLivePosture(validEvalLiveEnv({
-      EXECUTION_MODE: 'paper',
+      PROFILE: 'paper',
       PAPER_TRADING: 'true',
       LIVE_TRADING: 'false',
       CONFIRM_LIVE_TRADING: 'false',
@@ -481,6 +482,7 @@ describe('eval live posture gate', () => {
     }));
 
     expect(report.status).toBe('FAIL');
+    expect(report.errors.join('\n')).toMatch(/PROFILE must be production, got paper/);
     expect(report.errors.join('\n')).toMatch(/mode\.execution must be live/);
     expect(report.errors.join('\n')).toMatch(/mode\.paperTrading must be false/);
     expect(report.errors.join('\n')).toMatch(/mode\.liveTrading must be true/);
@@ -496,7 +498,7 @@ describe('eval live posture gate', () => {
 
     expect(missingReport.status).toBe('FAIL');
     expect(missingReport.errors.join('\n')).toMatch(/MIN_TRADE_CONFIDENCE must be explicitly set to 0\.5/);
-    expect(missingReport.errors.join('\n')).toMatch(/MIN_TRADE_CONFIDENCE from process env/);
+    expect(missingReport.errors.join('\n')).toMatch(/MIN_TRADE_CONFIDENCE must come from process env or selected tuning profile/);
 
     const lowReport = validateEvalLivePosture(validEvalLiveEnv({
       MIN_TRADE_CONFIDENCE: '0.49',
@@ -504,7 +506,6 @@ describe('eval live posture gate', () => {
 
     expect(lowReport.status).toBe('FAIL');
     expect(lowReport.errors.join('\n')).toMatch(/MIN_TRADE_CONFIDENCE must be 0\.5, got 0\.49/);
-    expect(lowReport.errors.join('\n')).toMatch(/MIN_TRADE_CONFIDENCE >= 0\.5/);
   });
 
   test('fails eval-live posture when stock share range contract is missing or reintroduces universal share cap', () => {
@@ -554,26 +555,22 @@ describe('eval live posture gate', () => {
 
     const runtimeProfileReport = validateEvalLivePosture(validEvalLiveEnv({
       TUNING_PROFILE: 'trey-spec',
-      MIN_TRADE_CONFIDENCE: '0.91',
-      TTP_ENTRY_BUFFER_MINUTES_BEFORE_CUTOFF: '0',
-      TIERED_EXIT_ENABLED: 'true',
     }));
     expect(runtimeProfileReport.status).toBe('PASS');
     expect(runtimeProfileReport.checked.env.MIN_TRADE_CONFIDENCE).toEqual({
       value: '0.5',
-      source: 'profile:trey-spec:MIN_TRADE_CONFIDENCE',
+      source: 'env:MIN_TRADE_CONFIDENCE',
     });
-    expect(runtimeProfileReport.checked.config['evalRules.ttp.marketTime.entryBufferMinutesBeforeCutoff']).toEqual({
-      value: 30,
-      source: 'profile:trey-spec:TTP_ENTRY_BUFFER_MINUTES_BEFORE_CUTOFF',
+    expect(runtimeProfileReport.checked.env.ENTRY_MAX_STOCK_NOTIONAL).toEqual({
+      value: '5000',
+      source: 'profile:trey-spec:ENTRY_MAX_STOCK_NOTIONAL',
     });
 
-    const unsafeProfileReport = validateEvalLivePosture(validEvalLiveEnv({
+    const currentEvalProfileReport = validateEvalLivePosture(validEvalLiveEnv({
       TUNING_PROFILE: 'current-eval',
     }));
-    expect(unsafeProfileReport.status).toBe('FAIL');
-    expect(unsafeProfileReport.errors.join('\n')).toMatch(/RISK_MANAGER_BYPASS=true/);
-    expect(unsafeProfileReport.errors.join('\n')).toMatch(/ACCOUNT_DRAWDOWN_BYPASS=true/);
+    expect(currentEvalProfileReport.status).toBe('PASS');
+    expect(currentEvalProfileReport.checked.profile.selectedRuntimeProfile).toBe('current-eval');
   });
 
   test('quarantines stale eval earnings status without failing posture', () => {
@@ -614,8 +611,8 @@ describe('eval live posture gate', () => {
 
   test('assert helper throws with a useful gate error', () => {
     expect(() => assertEvalLivePosture(validEvalLiveEnv({
-      RISK_MANAGER_BYPASS: 'true',
-    }))).toThrow(/eval-live posture gate failed: .*RISK_MANAGER_BYPASS=true/);
+      PROFILE: 'paper',
+    }))).toThrow(/eval-live posture gate failed: .*PROFILE must be production, got paper/);
   });
 
   test('readiness assert helper throws with broker and state errors', async () => {

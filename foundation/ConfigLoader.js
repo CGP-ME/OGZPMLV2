@@ -409,6 +409,8 @@ function applyTuningProfileEnv(sourceEnv, sourceOverrides = {}) {
 
 const VALID_LAUNCH_MODES = Object.freeze(new Set(['live', 'paper', 'backtest']));
 const VALID_DIRECTION_FILTERS = Object.freeze(new Set(['both', 'long_only', 'short_only']));
+const VALID_SESSION_ROUTER_MODES = Object.freeze(new Set(['static', 'scheduled']));
+const VALID_SESSION_ROUTER_STATIC_SESSIONS = Object.freeze(new Set(['stocks', 'crypto']));
 
 function requireLaunchProfiles() {
   const launchProfiles = tradingConfigFile.launchProfiles;
@@ -450,6 +452,26 @@ function normalizeLaunchMode(profileName, profile) {
   return mode;
 }
 
+function validateLaunchProfileSessionRouter(profileName, profile) {
+  const router = profile?.sessionRouter;
+  if (!router || typeof router !== 'object' || Array.isArray(router)) {
+    throw new Error(`[ConfigLoader] launchProfiles.${profileName}.sessionRouter is required`);
+  }
+  const mode = String(router.mode || '').trim().toLowerCase();
+  if (!VALID_SESSION_ROUTER_MODES.has(mode)) {
+    throw new Error(`[ConfigLoader] launchProfiles.${profileName}.sessionRouter.mode must be static or scheduled`);
+  }
+  if (mode === 'static') {
+    const staticSession = String(router.staticSession || '').trim().toLowerCase();
+    if (!VALID_SESSION_ROUTER_STATIC_SESSIONS.has(staticSession)) {
+      throw new Error(`[ConfigLoader] launchProfiles.${profileName}.sessionRouter.staticSession must be stocks or crypto when mode=static`);
+    }
+  }
+  if (mode === 'scheduled' && (!router.schedule || typeof router.schedule !== 'object' || Array.isArray(router.schedule))) {
+    throw new Error(`[ConfigLoader] launchProfiles.${profileName}.sessionRouter.schedule is required when mode=scheduled`);
+  }
+}
+
 function resolveLaunchProfile(sourceEnv, launchProfiles = requireLaunchProfiles()) {
   const profileDefinitions = getLaunchProfileDefinitions(launchProfiles);
   const { profileName, source } = resolveLaunchProfileName(sourceEnv, launchProfiles);
@@ -461,6 +483,7 @@ function resolveLaunchProfile(sourceEnv, launchProfiles = requireLaunchProfiles(
   }
 
   const mode = normalizeLaunchMode(profileName, profile);
+  validateLaunchProfileSessionRouter(profileName, profile);
   return {
     profileName,
     profileSource: source,
@@ -522,6 +545,25 @@ function buildConfig() {
     'FEE_TOTAL_ROUNDTRIP',
     feeMakerConfig.value + feeTakerConfig.value
   );
+  const sessionRouterMode = track('sessionRouter.mode', requiredLaunchProfileString('sessionRouter.mode', VALID_SESSION_ROUTER_MODES));
+  const sessionRouterConfig = {
+    mode: sessionRouterMode,
+    cryptoSymbols: track('sessionRouter.cryptoSymbols', requiredLaunchProfileStringList('sessionRouter.cryptoSymbols')),
+    checkIntervalMs: track('sessionRouter.checkIntervalMs', requiredLaunchProfileNumber('sessionRouter.checkIntervalMs')),
+    forceCloseOnSessionEnd: track('sessionRouter.forceCloseOnSessionEnd', requiredLaunchProfileBool('sessionRouter.forceCloseOnSessionEnd')),
+    fast: track('sessionRouter.fast', requiredLaunchProfileBool('sessionRouter.fast')),
+  };
+  if (sessionRouterMode === 'static') {
+    sessionRouterConfig.staticSession = track(
+      'sessionRouter.staticSession',
+      requiredLaunchProfileString('sessionRouter.staticSession', VALID_SESSION_ROUTER_STATIC_SESSIONS)
+    );
+  } else {
+    sessionRouterConfig.schedule = track(
+      'sessionRouter.schedule',
+      requiredLaunchProfilePlainObject('sessionRouter.schedule')
+    );
+  }
 
   const config = {
     // ─── EXECUTION MODE ───
@@ -560,6 +602,8 @@ function buildConfig() {
       }),
       candleSource: track('mode.candleSource', envStr('CANDLE_SOURCE', 'websocket')),
     },
+
+    sessionRouter: sessionRouterConfig,
 
     // ─── BACKTEST ───
     backtest: {
@@ -1017,6 +1061,28 @@ function validate(config, sources = {}) {
   if (config.mode.liveTrading && config.webhookOrders.enabled && config.webhookOrders.dryRun) {
     errors.push('LIVE_TRADING=true cannot run with WEBHOOK_ORDERS_ENABLED=true and WEBHOOK_DRY_RUN=true');
   }
+  const sessionRouter = config.sessionRouter || {};
+  if (!VALID_SESSION_ROUTER_MODES.has(sessionRouter.mode)) {
+    errors.push(`sessionRouter.mode must be static or scheduled; got ${sessionRouter.mode || '(missing)'}`);
+  }
+  if (sessionRouter.mode === 'static' && !VALID_SESSION_ROUTER_STATIC_SESSIONS.has(sessionRouter.staticSession)) {
+    errors.push(`sessionRouter.staticSession must be stocks or crypto when mode=static; got ${sessionRouter.staticSession || '(missing)'}`);
+  }
+  if (sessionRouter.mode === 'scheduled' && (!sessionRouter.schedule || typeof sessionRouter.schedule !== 'object' || Array.isArray(sessionRouter.schedule))) {
+    errors.push('sessionRouter.schedule is required when mode=scheduled');
+  }
+  if (!Array.isArray(sessionRouter.cryptoSymbols) || sessionRouter.cryptoSymbols.length === 0) {
+    errors.push('sessionRouter.cryptoSymbols must be a non-empty array');
+  }
+  if (!Number.isInteger(sessionRouter.checkIntervalMs) || sessionRouter.checkIntervalMs <= 0) {
+    errors.push(`sessionRouter.checkIntervalMs must be a positive integer; got ${sessionRouter.checkIntervalMs}`);
+  }
+  if (typeof sessionRouter.forceCloseOnSessionEnd !== 'boolean') {
+    errors.push('sessionRouter.forceCloseOnSessionEnd must be boolean');
+  }
+  if (typeof sessionRouter.fast !== 'boolean') {
+    errors.push('sessionRouter.fast must be boolean');
+  }
   if (config.mode.liveTrading) {
     const minTradeConfidenceSource = sources['confidence.minTradeConfidence'];
     const minTradeConfidenceExplicit = /^config:launchProfiles\.[^.]+\.confidence\.minTradeConfidence$/.test(String(minTradeConfidenceSource || ''));
@@ -1453,6 +1519,12 @@ const CONFIG_LOADER_RUNTIME_PATHS = Object.freeze({
   'strategyBehavior.atrContracts.stopMultiplier': 'strategyBehavior.atrContracts.stopMultiplier',
   'strategyBehavior.atrContracts.trailMultiplier': 'strategyBehavior.atrContracts.trailMultiplier',
   'strategyBehavior.atrContracts.trailingActivationR': 'strategyBehavior.atrContracts.trailingActivationR',
+  'sessionRouter.mode': 'sessionRouter.mode',
+  'sessionRouter.staticSession': 'sessionRouter.staticSession',
+  'sessionRouter.cryptoSymbols': 'sessionRouter.cryptoSymbols',
+  'sessionRouter.checkIntervalMs': 'sessionRouter.checkIntervalMs',
+  'sessionRouter.forceCloseOnSessionEnd': 'sessionRouter.forceCloseOnSessionEnd',
+  'sessionRouter.fast': 'sessionRouter.fast',
   'orchestrator.mtfTimeframes': 'orchestrator.mtfTimeframes',
   'orchestrator.mtfConfluenceBooster': 'orchestrator.mtfConfluenceBooster',
   'orchestrator.strategyMtfConfluence': 'orchestrator.strategyMtfConfluence',
@@ -1564,6 +1636,12 @@ const LAUNCH_PROFILE_RUNTIME_PATHS = Object.freeze({
   'strategies.enableTimeSeriesMomentum': 'pipeline.enableTimeSeriesMomentum',
   'features.enableShorts': 'features.enableShorts',
   'pipeline.directionFilter': 'pipeline.directionFilter',
+  'sessionRouter.mode': 'sessionRouter.mode',
+  'sessionRouter.staticSession': 'sessionRouter.staticSession',
+  'sessionRouter.cryptoSymbols': 'sessionRouter.cryptoSymbols',
+  'sessionRouter.checkIntervalMs': 'sessionRouter.checkIntervalMs',
+  'sessionRouter.forceCloseOnSessionEnd': 'sessionRouter.forceCloseOnSessionEnd',
+  'sessionRouter.fast': 'sessionRouter.fast',
   'orchestrator.mtfConfluenceBooster': 'confluence.mtfBooster',
   'orchestrator.strategyMtfConfluence': 'confluence.strategyMtf',
 });
@@ -2995,18 +3073,6 @@ const BASE_CONFIG = {
       trailMultiplier: env('ATR_TRAIL_MULTIPLIER', 2.0),
       trailingActivationR: env('ATR_TRAILING_ACTIVATION_R', 1.0),
     },
-  },
-
-  // =========================================================================
-  // SESSIONS (SessionRouter — dual-broker crypto/stocks switching)
-  // =========================================================================
-  // Gated by SESSION_ROUTER_ENABLED env (default false). Dash-form symbols
-  // only — slash form is a path-traversal hazard at filename interpolation.
-  sessions: {
-    routerEnabled: envBool('SESSION_ROUTER_ENABLED', false),
-    cryptoSymbols: ['BTC-USD','ETH-USD','SOL-USD'],
-    checkIntervalMs: 60000,
-    forceCloseOnSessionEnd: true,
   },
 
   // =========================================================================

@@ -269,6 +269,55 @@ describe('TraceSpine dashboard trace_event feed', () => {
     }));
   });
 
+  test('uses static routed backtest account scope before default config scope', () => {
+    const dashboardWs = { readyState: 1, bufferedAmount: 0, send: jest.fn() };
+    const ctx = {
+      config: {
+        evalTraceEnabled: true,
+        evalTraceBacktest: true,
+        executionMode: 'backtest',
+        brokerId: 'alpaca',
+        accountId: 'default',
+        accountIdSource: 'default',
+        assetClass: 'stocks',
+        timeframe: '15m',
+        traceEventMaxBufferedBytes: 1048576,
+      },
+      runner: {
+        isSessionRoutingActive: jest.fn(() => true),
+        getCandleScopeEnvelope: jest.fn(() => ({
+          symbol: 'TSLA',
+          brokerId: 'alpaca',
+          accountId: 'backtest',
+          accountIdSource: 'backtest',
+          assetClass: 'stocks',
+          executionMode: 'backtest',
+          timeframe: '15m',
+          scopeKey: 'backtest:alpaca:backtest:stocks:TSLA:15m',
+        })),
+      },
+      dashboardWs,
+    };
+
+    emitTrace(ctx, 'CANDLE_INGRESS', {
+      traceId: 'trace_static_backtest_scope',
+    });
+
+    const payload = JSON.parse(dashboardWs.send.mock.calls[0][0]);
+    expect(ctx.runner.getCandleScopeEnvelope).toHaveBeenCalledTimes(1);
+    expect(payload).toEqual(expect.objectContaining({
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      accountId: 'backtest',
+      assetClass: 'stocks',
+      executionMode: 'backtest',
+      timeframe: '15m',
+      scopeKey: 'backtest:alpaca:backtest:stocks:TSLA:15m',
+    }));
+    expect(payload.fields.accountId).toBe('backtest');
+    expect(payload.fields.scopeStatus).toBeUndefined();
+  });
+
   test('does not invent broker or asset scope without a scope source', () => {
     const dashboardWs = { readyState: 1, bufferedAmount: 0, send: jest.fn() };
     const ctx = {
@@ -316,6 +365,44 @@ describe('TraceSpine dashboard trace_event feed', () => {
 
     emitTrace(ctx, 'ORDER_PLAN', {
       traceId: 'trace_missing_router_scope',
+      symbol: 'TSLA',
+    });
+
+    const payload = JSON.parse(dashboardWs.send.mock.calls[0][0]);
+    expect(payload.symbol).toBe('TSLA');
+    expect(payload.accountId).toBe('paper-main');
+    expect(payload.brokerId).toBeNull();
+    expect(payload.assetClass).toBeNull();
+    expect(payload.executionMode).toBeNull();
+    expect(payload.timeframe).toBeNull();
+    expect(payload.fields).toEqual(expect.objectContaining({
+      scopeStatus: 'missing_runtime_scope',
+      missingScopeFields: ['timeframe', 'brokerId', 'assetClass', 'executionMode'],
+    }));
+  });
+
+  test('marks missing static route-table scope without static config fallback', () => {
+    const dashboardWs = { readyState: 1, bufferedAmount: 0, send: jest.fn() };
+    const ctx = {
+      config: {
+        evalTraceEnabled: true,
+        evalTraceBacktest: true,
+        executionMode: 'backtest',
+        brokerId: 'alpaca',
+        accountId: 'paper-main',
+        assetClass: 'stocks',
+        timeframe: '15m',
+        traceEventMaxBufferedBytes: 1048576,
+      },
+      runner: {
+        isSessionRoutingActive: jest.fn(() => true),
+        getCandleScopeEnvelope: jest.fn(() => ({})),
+      },
+      dashboardWs,
+    };
+
+    emitTrace(ctx, 'ORDER_PLAN', {
+      traceId: 'trace_missing_static_route_scope',
       symbol: 'TSLA',
     });
 

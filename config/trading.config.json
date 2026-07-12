@@ -29,6 +29,14 @@
     "production": {
       "mode": "live",
       "confirmLive": true,
+      "sessionRouter": {
+        "mode": "static",
+        "staticSession": "stocks",
+        "cryptoSymbols": ["BTC-USD"],
+        "checkIntervalMs": 60000,
+        "forceCloseOnSessionEnd": true,
+        "fast": false
+      },
       "confidence": {
         "minTradeConfidence": 0.5
       },
@@ -125,6 +133,14 @@
     "paper": {
       "mode": "paper",
       "confirmLive": false,
+      "sessionRouter": {
+        "mode": "static",
+        "staticSession": "stocks",
+        "cryptoSymbols": ["BTC-USD"],
+        "checkIntervalMs": 60000,
+        "forceCloseOnSessionEnd": true,
+        "fast": false
+      },
       "confidence": {
         "minTradeConfidence": 0.5
       },
@@ -221,6 +237,14 @@
     "backtest-all": {
       "mode": "backtest",
       "confirmLive": false,
+      "sessionRouter": {
+        "mode": "static",
+        "staticSession": "stocks",
+        "cryptoSymbols": ["BTC-USD"],
+        "checkIntervalMs": 60000,
+        "forceCloseOnSessionEnd": true,
+        "fast": false
+      },
       "confidence": {
         "minTradeConfidence": 0.5
       },
@@ -317,6 +341,14 @@
     "backtest-p0": {
       "mode": "backtest",
       "confirmLive": false,
+      "sessionRouter": {
+        "mode": "static",
+        "staticSession": "stocks",
+        "cryptoSymbols": ["BTC-USD"],
+        "checkIntervalMs": 60000,
+        "forceCloseOnSessionEnd": true,
+        "fast": false
+      },
       "confidence": {
         "minTradeConfidence": 0.6
       },
@@ -415,6 +447,14 @@
     "backtest-masr": {
       "mode": "backtest",
       "confirmLive": false,
+      "sessionRouter": {
+        "mode": "static",
+        "staticSession": "stocks",
+        "cryptoSymbols": ["BTC-USD"],
+        "checkIntervalMs": 60000,
+        "forceCloseOnSessionEnd": true,
+        "fast": false
+      },
       "confidence": {
         "minTradeConfidence": 0.5
       },
@@ -513,6 +553,14 @@
     "backtest-rsi": {
       "mode": "backtest",
       "confirmLive": false,
+      "sessionRouter": {
+        "mode": "static",
+        "staticSession": "stocks",
+        "cryptoSymbols": ["BTC-USD"],
+        "checkIntervalMs": 60000,
+        "forceCloseOnSessionEnd": true,
+        "fast": false
+      },
       "confidence": {
         "minTradeConfidence": 0.5
       },
@@ -611,6 +659,14 @@
     "backtest-ttp-5k-max": {
       "mode": "backtest",
       "confirmLive": false,
+      "sessionRouter": {
+        "mode": "static",
+        "staticSession": "stocks",
+        "cryptoSymbols": ["BTC-USD"],
+        "checkIntervalMs": 60000,
+        "forceCloseOnSessionEnd": true,
+        "fast": false
+      },
       "confidence": {
         "minTradeConfidence": 0.5
       },
@@ -707,6 +763,14 @@
     "backtest-trey-spec": {
       "mode": "backtest",
       "confirmLive": false,
+      "sessionRouter": {
+        "mode": "static",
+        "staticSession": "stocks",
+        "cryptoSymbols": ["BTC-USD"],
+        "checkIntervalMs": 60000,
+        "forceCloseOnSessionEnd": true,
+        "fast": false
+      },
       "confidence": {
         "minTradeConfidence": 0.5
       },
@@ -1670,23 +1734,6 @@
   "filters": {
     "atrEnabled": true,
     "atrMinPercent": 0.15
-  },
-  "sessions": {
-    "routerEnabled": false,
-    "stockSymbols": [
-      "TSLA",
-      "NVDA",
-      "COIN",
-      "MARA",
-      "RIOT"
-    ],
-    "cryptoSymbols": [
-      "BTC-USD",
-      "ETH-USD",
-      "SOL-USD"
-    ],
-    "checkIntervalMs": 60000,
-    "forceCloseOnSessionEnd": true
   },
   "timeframeConfig": {
     "1m": {

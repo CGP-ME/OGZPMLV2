@@ -161,6 +161,21 @@ class EvalRuleEngine {
       return { allowed: true, inputs: { ruleId: 'TTP_MARKET_TIME', enabled: false } };
     }
 
+    const venueScope = this._ttpMarketTimeVenueScope(entryPlan);
+    if (!venueScope.isTtpStockSession) {
+      return {
+        allowed: true,
+        inputs: {
+          ruleId: 'TTP_MARKET_TIME',
+          enabled: false,
+          venueScope: 'non_ttp_stock_session',
+          sessionRouterSession: venueScope.sessionRouterSession,
+          assetClass: venueScope.assetClass,
+          brokerId: venueScope.brokerId,
+        },
+      };
+    }
+
     const state = this.getTtpMarketTimeState(new Date(this.now()));
     if (state.inLiquidationWindow) {
       return this._fail('TTP_MARKET_TIME', 'liquidation_window_no_openings', {
@@ -196,6 +211,33 @@ class EvalRuleEngine {
     }
 
     return { allowed: true, inputs: state };
+  }
+
+  _ttpMarketTimeVenueScope(entryPlan = {}) {
+    const sessionRouterSession = this._cleanLower(
+      entryPlan.sessionRouterSession || entryPlan.sessionRouter?.session || entryPlan.sessionName || entryPlan.session
+    );
+    const assetClass = this._cleanLower(entryPlan.assetClass || entryPlan.asset || entryPlan.market);
+    const brokerId = this._cleanLower(entryPlan.brokerId || entryPlan.broker || entryPlan.executionBrokerId);
+    const executionVenue = this._cleanLower(entryPlan.executionVenue || entryPlan.executionRoute || entryPlan.venue);
+
+    if (sessionRouterSession === 'crypto') {
+      return { isTtpStockSession: false, sessionRouterSession, assetClass, brokerId, executionVenue };
+    }
+    if (sessionRouterSession === 'stocks') {
+      return { isTtpStockSession: true, sessionRouterSession, assetClass, brokerId, executionVenue };
+    }
+    if (assetClass === 'crypto' || brokerId === 'kraken' || executionVenue === 'kraken') {
+      return { isTtpStockSession: false, sessionRouterSession, assetClass, brokerId, executionVenue };
+    }
+    if (assetClass === 'stocks' || brokerId === 'alpaca' || executionVenue === 'alpaca' || executionVenue === 'ttp') {
+      return { isTtpStockSession: true, sessionRouterSession, assetClass, brokerId, executionVenue };
+    }
+    return { isTtpStockSession: true, sessionRouterSession, assetClass, brokerId, executionVenue };
+  }
+
+  _cleanLower(value) {
+    return value === null || value === undefined ? null : String(value).trim().toLowerCase() || null;
   }
 
   async _checkTtpEarningsRestriction(entryPlan) {

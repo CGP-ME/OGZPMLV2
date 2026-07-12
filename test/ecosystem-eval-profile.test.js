@@ -177,6 +177,7 @@ describe('ecosystem eval live profile', () => {
     expect(report.errors).toEqual([]);
     expect(env).toEqual(expect.objectContaining({
       EXECUTION_MODE: 'live',
+      PROFILE: 'production',
       PAPER_TRADING: 'false',
       LIVE_TRADING: 'true',
       CONFIRM_LIVE_TRADING: 'true',
@@ -188,7 +189,6 @@ describe('ecosystem eval live profile', () => {
       SYMBOL_LOSS_COOLDOWN_CONSECUTIVE_LOSSES: '2',
       SYMBOL_LOSS_COOLDOWN_MINUTES: '120',
       STATE_FILE: 'data/state.json',
-      SESSION_ROUTER_ENABLED: 'false',
       ENABLE_TRAI: 'true',
       TRAI_MODE: 'passive',
       TRAI_VETO: 'false',
@@ -203,8 +203,11 @@ describe('ecosystem eval live profile', () => {
       ...LOCKED_PROFILE_ENV_VALUES,
     }));
     expect(env.INCEPTION_API_KEY).toBe('test-inception-key');
-    expect(report.checked.config['mode.execution']).toEqual({ value: 'live', source: 'env:EXECUTION_MODE' });
+    expect(report.checked.config['mode.execution']).toEqual({ value: 'live', source: 'config:launchProfiles.production.mode' });
     expect(report.checked.config['broker.id']).toEqual({ value: 'alpaca', source: 'env:BROKER' });
+    expect(report.checked.config['sessionRouter.mode']).toEqual({ value: 'static', source: 'config:launchProfiles.production.sessionRouter.mode' });
+    expect(report.checked.config['sessionRouter.staticSession']).toEqual({ value: 'stocks', source: 'config:launchProfiles.production.sessionRouter.staticSession' });
+    expect(env).not.toHaveProperty('SESSION_ROUTER_ENABLED');
     expect(JSON.stringify(report)).not.toContain(operatorEnv.ALPACA_API_KEY);
     expect(JSON.stringify(report)).not.toContain(operatorEnv.ALPACA_API_SECRET);
     expect(JSON.stringify(report)).not.toContain(operatorEnv.SIGNALSTACK_WEBHOOK_URL);

@@ -124,6 +124,21 @@ const runtimeAuditSink = new RuntimeAuditSink({
   dataDir: resolvedConfig.config.paths.dataDir || undefined,
 });
 
+function resolveRuntimeAccountIdentity(enableBacktestMode, brokerConfig = {}) {
+  if (enableBacktestMode) {
+    return {
+      accountId: 'backtest',
+      accountIdSource: 'backtest',
+    };
+  }
+
+  const accountId = brokerConfig.accountId || 'default';
+  return {
+    accountId,
+    accountIdSource: accountId && accountId !== 'default' ? 'config' : 'default',
+  };
+}
+
 function buildRuntimeAuditContext(runtimeScope, extra = {}) {
   const config = resolvedConfig.config || {};
   const broker = config.broker || {};
@@ -131,13 +146,14 @@ function buildRuntimeAuditContext(runtimeScope, extra = {}) {
   const executionMode = mode.backtest
     ? 'backtest'
     : (mode.liveTrading ? 'live' : (mode.execution || 'paper'));
+  const accountIdentity = resolveRuntimeAccountIdentity(mode.backtest, broker);
 
   return {
     runtimeScope,
     configFingerprint: resolvedConfig.fingerprint || null,
     executionMode,
     brokerId: broker.id || null,
-    accountId: broker.accountId || 'default',
+    accountId: accountIdentity.accountId,
     assetClass: broker.assetClass || null,
     symbol: broker.tradingPair || null,
     timeframe: broker.candleTimeframe || null,
@@ -283,7 +299,7 @@ const DynamicPositionSizer = ENABLE_DPS ? require('./core/DynamicPositionSizer')
 // REFACTOR Phase 15: TradingLoop - exact copy of analyzeAndTrade() extracted
 const TradingLoop = require('./core/TradingLoop');
 
-// SessionRouter — sequential dual-broker switching (gated SESSION_ROUTER_ENABLED)
+// SessionRouter — profile-owned routing layer
 const SessionRouter = require('./core/SessionRouter');
 
 // REFACTOR Phase 17: DashboardBroadcaster - edge analytics broadcasting
@@ -810,44 +826,49 @@ class OGZPrimeV14Bot {
     console.log('[DEBUG] About to create ' + resolvedConfig.config.broker.id + ' adapter...');
     console.log('[DEBUG] BrokerFactory available:', typeof createBrokerAdapter);
 
-    // BROKER SETUP — dual path gated on SESSION_ROUTER_ENABLED.
-    // Default OFF: existing single-broker path runs unchanged (Phase 0 dormant).
-    // ON: dual-broker SessionRouter swaps Kraken (crypto) <-> Alpaca (stocks RTH).
-    const sessionRouterEnabled = process.env.SESSION_ROUTER_ENABLED === 'true';
-    if (sessionRouterEnabled && resolvedConfig.config.mode.backtest) {
-      throw new Error('[SessionRouter] SESSION_ROUTER_ENABLED=true is not allowed in backtest mode — refusing live feed contamination of file backtests');
-    }
+    // BROKER SETUP — profile-owned route table.
+    // SessionRouter is the routing layer in live, paper, and backtest. File-backed
+    // backtests still inject historical candles, but broker routing and order
+    // execution go through the same OrderRouter ownership path as runtime.
+    this.sessionRouterConfig = resolvedConfig.config.sessionRouter;
+    const sessionRouterMode = this.sessionRouterConfig.mode;
+    const staticSession = sessionRouterMode === 'static' ? this.sessionRouterConfig.staticSession : null;
+    const sessionRouteUsesCrypto = sessionRouterMode === 'scheduled' || staticSession === 'crypto';
+    const sessionRouteUsesStocks = sessionRouterMode === 'scheduled' || staticSession === 'stocks';
 
-    if (sessionRouterEnabled) {
-      console.log('[EMPIRE V2] SessionRouter ENABLED — creating Kraken + Alpaca adapters');
-      const sessionsCfg = (ConfigLoader.get && ConfigLoader.get('sessions')) || {};
-      const primaryCryptoSymbol = Array.isArray(sessionsCfg.cryptoSymbols) ? sessionsCfg.cryptoSymbols[0] : null;
-      if (!primaryCryptoSymbol) {
+    {
+      console.log(`[EMPIRE V2] SessionRouter route active — mode=${sessionRouterMode} staticSession=${staticSession || '(none)'}`);
+      const primaryCryptoSymbol = Array.isArray(this.sessionRouterConfig.cryptoSymbols) ? this.sessionRouterConfig.cryptoSymbols[0] : null;
+      if (sessionRouteUsesCrypto && !primaryCryptoSymbol) {
         throw new Error('[SessionRouter] cryptoSymbols[0] missing — refusing to configure Kraken depth feed');
       }
-      const krakenAdapter = createBrokerAdapter('kraken', {
+      const krakenAdapter = sessionRouteUsesCrypto ? createBrokerAdapter('kraken', {
         apiKey: resolvedConfig.config.broker.apiKey,
         apiSecret: resolvedConfig.config.broker.apiSecret,
         tradingPair: primaryCryptoSymbol,
         symbols: [primaryCryptoSymbol],
-      });
-      const alpacaAdapterOptions = buildAlpacaAdapterOptions(resolvedConfig.config.broker, {
-        allowTradingPairFallback: false,
-      });
-      const alpacaAdapter = createBrokerAdapter('alpaca', alpacaAdapterOptions);
+      }) : null;
+      const alpacaAdapterOptions = sessionRouteUsesStocks
+        ? buildAlpacaAdapterOptions(resolvedConfig.config.broker, {
+            allowTradingPairFallback: false,
+          })
+        : null;
+      const alpacaAdapter = alpacaAdapterOptions ? createBrokerAdapter('alpaca', alpacaAdapterOptions) : null;
 
       this.orderRouter = new OrderRouter();
 
-      const stockSymbols = alpacaAdapterOptions.symbols;
+      const stockSymbols = alpacaAdapterOptions ? alpacaAdapterOptions.symbols : [];
       this.ttpCutoffSymbols = stockSymbols;
 
       this.sessionRouter = new SessionRouter({
-        enabled: true,
-        fast: process.env.SESSION_ROUTER_FAST === 'true',
-        checkIntervalMs: sessionsCfg.checkIntervalMs,
-        forceCloseOnSessionEnd: sessionsCfg.forceCloseOnSessionEnd,
+        mode: sessionRouterMode,
+        staticSession,
+        fast: this.sessionRouterConfig.fast,
+        checkIntervalMs: this.sessionRouterConfig.checkIntervalMs,
+        forceCloseOnSessionEnd: this.sessionRouterConfig.forceCloseOnSessionEnd,
         stockSymbols,
-        cryptoSymbols: sessionsCfg.cryptoSymbols,
+        cryptoSymbols: this.sessionRouterConfig.cryptoSymbols,
+        backtestMode: resolvedConfig.config.mode.backtest,
         executeTrade: this.executeTrade.bind(this),
         getExitPrice: (symbol, trade, brokerPositions) => this.getTtpExitPrice(symbol, trade, brokerPositions),
       });
@@ -964,14 +985,16 @@ class OGZPrimeV14Bot {
       };
 
       this.sessionRouter.wire(krakenAdapter, alpacaAdapter, this.orderRouter, ohlcHandler, this);
-      this.attachDashboardDepthUpdates(krakenAdapter, () => (
-        this.sessionRouter?.activeSession === 'crypto'
-        && this.sessionRouter?.activeBroker === krakenAdapter
-      ), [primaryCryptoSymbol]);
+      if (krakenAdapter) {
+        this.attachDashboardDepthUpdates(krakenAdapter, () => (
+          this.sessionRouter?.activeSession === 'crypto'
+          && this.sessionRouter?.activeBroker === krakenAdapter
+        ), [primaryCryptoSymbol]);
+      }
 
-      // Default this.kraken to alpaca; SessionRouter.start() corrects via initial
-      // activation, and the transition listener keeps this.kraken in sync after.
-      this.kraken = alpacaAdapter;
+      // SessionRouter.start() promotes the configured active broker; this startup
+      // value only exists so construction-time consumers have a concrete adapter.
+      this.kraken = alpacaAdapter || krakenAdapter;
       this.sessionRouter.on('transition', (ev) => {
         this.kraken = this.sessionRouter.activeBroker;
         this.strategyOrchestrator.resetNoWickState();
@@ -1017,44 +1040,6 @@ class OGZPrimeV14Bot {
       });
 
       console.log('[EMPIRE V2] OrderRouter initialized — SessionRouter governs subscriptions');
-
-    } else {
-      // SINGLE-BROKER PATH (Phase 0 dormant default).
-      // EMPIRE V2: Create broker adapter through BrokerFactory (SINGLE SOURCE OF TRUTH)
-      // NO FALLBACK - if BrokerFactory fails, bot fails. No bypasses.
-      // FIX 2026-04-22: broker is env-driven (BROKER=alpaca default -> stocks paper).
-      // Variable name this.kraken preserved to avoid repo-wide rename; now holds whichever
-      // adapter BrokerFactory returns.
-      const brokerId = resolvedConfig.config.broker.id;
-      const adapterOptions = brokerId === 'kraken'
-        ? {
-            apiKey: resolvedConfig.config.broker.apiKey,
-            apiSecret: resolvedConfig.config.broker.apiSecret,
-            tradingPair: resolvedConfig.config.broker.tradingPair,
-            symbols: [resolvedConfig.config.broker.tradingPair],
-          }
-        : brokerId === 'alpaca'
-          ? buildAlpacaAdapterOptions(resolvedConfig.config.broker)
-          : {};
-      this.kraken = createBrokerAdapter(brokerId, adapterOptions);
-      console.log('[EMPIRE V2] Created ' + brokerId + ' adapter via BrokerFactory');
-      console.log('[DEBUG] Broker adapter type:', this.kraken.constructor.name);
-
-      // Phase 2 REWRITE: executionLayer deleted - OrderRouter handles routing directly
-
-      // REFACTOR Phase 5: OrderRouter for multi-broker routing
-      // Future: Add more brokers with orderRouter.registerBroker(adapter, symbols)
-      this.orderRouter = new OrderRouter();
-      // Symbols match the resolved broker config. ConfigLoader owns Alpaca env reads.
-      const routedSymbols = brokerId === 'alpaca'
-        ? adapterOptions.symbols
-        : ['BTC-USD', 'XBT-USD', 'ETH-USD', 'SOL-USD'];
-      this.orderRouter.registerBroker(this.kraken, routedSymbols);
-      if (brokerId === 'kraken') {
-        this.attachDashboardDepthUpdates(this.kraken, () => true, [resolvedConfig.config.broker.tradingPair]);
-      }
-      this.ttpCutoffSymbols = brokerId === 'alpaca' ? routedSymbols : [];
-      console.log('[EMPIRE V2] OrderRouter initialized - multi-broker ready');
     }
 
     // DynamicPositionSizer NOT WIRED - needs tuning. Using inline confidence multiplier.
@@ -1116,19 +1101,28 @@ class OGZPrimeV14Bot {
     this.symbolContexts = new Map();
     {
       const brokerId = resolvedConfig.config.broker.id;
-      const sessionRouterEnabled = process.env.SESSION_ROUTER_ENABLED === 'true';
-      const sessionsCfg = (ConfigLoader.get && ConfigLoader.get('sessions')) || {};
-      const alpacaSymbols = resolveAlpacaSymbols(resolvedConfig.config.broker, {
-        allowTradingPairFallback: !sessionRouterEnabled,
-      });
-      const rawSymbols = sessionRouterEnabled
+      const routerConfig = this.sessionRouterConfig;
+      const routerMode = routerConfig?.mode || null;
+      const routerStaticSession = routerMode === 'static' ? routerConfig.staticSession : null;
+      const routeIncludesStocks = routerMode === 'scheduled' || routerStaticSession === 'stocks';
+      const routeIncludesCrypto = routerMode === 'scheduled' || routerStaticSession === 'crypto';
+      const alpacaSymbols = routeIncludesStocks
+        ? resolveAlpacaSymbols(resolvedConfig.config.broker, {
+            allowTradingPairFallback: resolvedConfig.config.mode.backtest || routerMode === 'static',
+          })
+        : [];
+      const rawSymbols = routeIncludesStocks && routeIncludesCrypto
         ? [
             ...alpacaSymbols,
-            ...(sessionsCfg.cryptoSymbols || []),
+            ...(routerConfig.cryptoSymbols || []),
           ]
-        : (brokerId === 'alpaca'
-            ? alpacaSymbols
-            : [resolvedConfig.config.broker.tradingPair]);
+        : routeIncludesStocks
+          ? alpacaSymbols
+          : routeIncludesCrypto
+            ? (routerConfig.cryptoSymbols || [])
+            : (brokerId === 'alpaca'
+                ? alpacaSymbols
+                : [resolvedConfig.config.broker.tradingPair]);
       const symbols = [...new Set(rawSymbols.map(normalizeRuntimeSymbol).filter(Boolean))];
       const timeframe = this.candleTimeframe;
       for (const sym of symbols) {
@@ -1140,7 +1134,7 @@ class OGZPrimeV14Bot {
           console.error(`[BOOT][SymbolContexts] FAILED to register ${sym}: ${err.message} — skipping (bot continues with successful subset)`);
         }
       }
-      console.log(`[VIS][BOOT][SymbolContexts] broker=${brokerId} sessionRouter=${sessionRouterEnabled} tradingPair=${this.tradingPair} registered=${describeSymbolContexts(this.symbolContexts)} alpacaSymbols=${alpacaSymbols.join(',') || '(none)'}`);
+      console.log(`[VIS][BOOT][SymbolContexts] broker=${brokerId} sessionRouterMode=${routerMode || '(missing)'} staticSession=${routerStaticSession || '(none)'} tradingPair=${this.tradingPair} registered=${describeSymbolContexts(this.symbolContexts)} alpacaSymbols=${alpacaSymbols.join(',') || '(none)'}`);
     }
 
     this.candleSaveCounter = 0; // CHANGE 2026-01-28: Track candles for periodic save
@@ -1301,13 +1295,15 @@ class OGZPrimeV14Bot {
       console.log('   Example: TEST_CONFIDENCE=75 npm start');
     }
 
+    const runtimeAccountIdentity = resolveRuntimeAccountIdentity(enableBacktestMode, resolvedConfig.config.broker);
+
     this.config = {
       // CHANGE 2026-02-28: Use ConfigLoader for minTradeConfidence
       minTradeConfidence: ConfigLoader.get('confidence.minTradeConfidence'),
       tradingPair: this.tradingPair,
       brokerId: resolvedConfig.config.broker.id,
-      accountId: resolvedConfig.config.broker.accountId || 'default',
-      accountIdSource: resolvedConfig.config.broker.accountId && resolvedConfig.config.broker.accountId !== 'default' ? 'config' : 'default',
+      accountId: runtimeAccountIdentity.accountId,
+      accountIdSource: runtimeAccountIdentity.accountIdSource,
       assetClass: resolvedConfig.config.broker.assetClass,
       executionMode: enableBacktestMode ? 'backtest' : (enableLiveTrading ? 'live' : 'paper'),
       timeframe: this.candleTimeframe,
@@ -1823,10 +1819,12 @@ class OGZPrimeV14Bot {
       await this.sessionRouter.start();
       if (this.sessionRouter.activeBroker) {
         this.kraken = this.sessionRouter.activeBroker;
-        this.promoteBrokerAccountIdentity(this.kraken, {
-          source: 'session_router_start',
-          brokerId: this.sessionRouter?.activeBroker?.id || null,
-        });
+        if (!this.config.enableBacktestMode) {
+          this.promoteBrokerAccountIdentity(this.kraken, {
+            source: 'session_router_start',
+            brokerId: this.sessionRouter?.activeBroker?.id || null,
+          });
+        }
       }
     }
 
@@ -2478,22 +2476,44 @@ class OGZPrimeV14Bot {
     return lastResult;
   }
 
+  isSessionRoutingActive() {
+    return Boolean(this.sessionRouterConfig);
+  }
+
+  _brokerIdForSession(session) {
+    if (session === 'crypto') return 'kraken';
+    if (session === 'stocks') return 'alpaca';
+    return null;
+  }
+
+  _assetClassForSession(session) {
+    if (session === 'crypto') return 'crypto';
+    if (session === 'stocks') return 'stocks';
+    return null;
+  }
+
   getCandleScopeEnvelope(overrides = {}) {
-    const activeSession = this.sessionRouter?.activeSession || null;
+    const configuredStaticSession = this.sessionRouterConfig?.mode === 'static'
+      ? this.sessionRouterConfig.staticSession
+      : null;
+    const activeSession = this.sessionRouter?.activeSession || configuredStaticSession || null;
     const activeAssetClass = activeSession === 'crypto'
       ? 'crypto'
       : activeSession === 'stocks'
         ? 'stocks'
         : null;
-    const routerEnabled = this.sessionRouter?.enabled === true;
-    const brokerId = overrides.brokerId || this.sessionRouter?.activeBroker?.id || (!routerEnabled ? this.config.brokerId : null);
+    const routerEnabled = this.isSessionRoutingActive();
+    const brokerId = overrides.brokerId ||
+      this.sessionRouter?.activeBroker?.id ||
+      this._brokerIdForSession(activeSession) ||
+      (!routerEnabled ? this.config.brokerId : null);
     const accountScope = this.resolveBrokerAccountScope(brokerId, overrides);
     const accountId = accountScope.accountId;
-    const assetClass = overrides.assetClass || activeAssetClass || (!routerEnabled ? this.config.assetClass : null);
+    const assetClass = overrides.assetClass || activeAssetClass || this._assetClassForSession(activeSession) || (!routerEnabled ? this.config.assetClass : null);
     const executionMode = overrides.executionMode || this.config.executionMode;
     const timeframe = overrides.timeframe || this.timeframeSelector?.currentTimeframe || this.candleTimeframe || this.config.timeframe || null;
 
-    if (routerEnabled) {
+    if (this.sessionRouter?.enabled === true) {
       const missing = [];
       if (!activeSession) missing.push('activeSession');
       if (!brokerId) missing.push('brokerId');
@@ -3732,6 +3752,7 @@ if (require.main === module) {
 
 OGZPrimeV14Bot._test = {
   resolveSingleBrokerSubscriptionSymbols,
+  resolveRuntimeAccountIdentity,
 };
 
 module.exports = OGZPrimeV14Bot;

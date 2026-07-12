@@ -516,6 +516,16 @@ describe('OrderExecutor TRAI learning payload', () => {
 
   test('TRAI legacy pattern key skips incomplete context instead of using unknown or neutral', () => {
     const module = Object.create(TRAIDecisionModule.prototype);
+    const scopedContext = {
+      regime: 'bull',
+      trend: 'uptrend',
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      accountId: 'eval-58356',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+    };
 
     expect(module.generatePatternKey({ patterns: [{ name: 'ema-cross' }] }, {
       regime: 'bull',
@@ -527,7 +537,46 @@ describe('OrderExecutor TRAI learning payload', () => {
     expect(module.generatePatternKey({ patterns: [{ name: 'ema-cross' }] }, {
       regime: 'bull',
       trend: 'uptrend',
-    })).toBe('ema-cross_bull_uptrend');
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+    })).toBeNull();
+    expect(module.generatePatternKey({ patterns: [{ name: 'ema-cross' }] }, scopedContext))
+      .toBe('paper:alpaca:eval-58356:stocks:TSLA:15m|ema-cross_bull_uptrend');
+  });
+
+  test('TRAI local pattern memory cannot cross-read between scoped venue keys', () => {
+    const module = Object.create(TRAIDecisionModule.prototype);
+    module.decisionHistory = [];
+    module.patternMemory = new Map();
+    const signal = { patterns: [{ name: 'ema-cross' }] };
+    const stockContext = {
+      regime: 'bull',
+      trend: 'uptrend',
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      accountId: 'eval-58356',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+    };
+    const cryptoContext = {
+      ...stockContext,
+      symbol: 'BTC-USD',
+      brokerId: 'kraken',
+      assetClass: 'crypto',
+    };
+
+    const stockKey = module.generatePatternKey(signal, stockContext);
+    const cryptoKey = module.generatePatternKey(signal, cryptoContext);
+
+    expect(stockKey).not.toBe(cryptoKey);
+    module.storeDecision({ id: 1 }, signal, stockContext);
+
+    expect(module.patternMemory.has(stockKey)).toBe(true);
+    expect(module.patternMemory.has(cryptoKey)).toBe(false);
   });
 
   test('TRAI decision store skips null pattern keys', () => {

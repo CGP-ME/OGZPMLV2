@@ -153,7 +153,9 @@ function readRunnerTraceScope(ctx) {
 function currentTraceScope(ctx) {
   const cfg = (ctx && ctx.config) || {};
   const runnerScope = readRunnerTraceScope(ctx);
-  const routerEnabled = ctx?.runner?.sessionRouter?.enabled === true;
+  const routerEnabled = ctx?.runner && typeof ctx.runner.isSessionRoutingActive === 'function'
+    ? ctx.runner.isSessionRoutingActive() === true
+    : ctx?.runner?.sessionRouter?.enabled === true;
   const configScopeAllowed = !routerEnabled;
 
   return {
@@ -185,7 +187,10 @@ function stampTraceScope(ctx, fields) {
       out[key] = scope[key];
     }
   }
-  if (ctx?.runner?.sessionRouter?.enabled === true) {
+  const routerEnabled = ctx?.runner && typeof ctx.runner.isSessionRoutingActive === 'function'
+    ? ctx.runner.isSessionRoutingActive() === true
+    : ctx?.runner?.sessionRouter?.enabled === true;
+  if (routerEnabled) {
     const missingScopeFields = TRACE_REQUIRED_SCOPE_KEYS.filter(key => firstTraceScopeField(out, key) === null);
     if (missingScopeFields.length > 0) {
       out.scopeStatus = out.scopeStatus || 'missing_runtime_scope';

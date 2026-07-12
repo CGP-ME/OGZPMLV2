@@ -17,7 +17,7 @@ if (!Number.isFinite(EVAL_MIN_TRADE_CONFIDENCE)) {
 const TUNING_PROFILE_DEFINITIONS = ConfigLoader.getConfigFileValue('tuningProfiles.definitions') || {};
 
 const REQUIRED_ENV_EXACT = Object.freeze({
-  SESSION_ROUTER_ENABLED: 'false',
+  PROFILE: 'production',
   WEBHOOK_ORDERS_ENABLED: 'true',
   WEBHOOK_DRY_RUN: 'false',
   MIN_TRADE_CONFIDENCE: String(EVAL_MIN_TRADE_CONFIDENCE),
@@ -62,6 +62,8 @@ const REQUIRED_CONFIG_EXACT = Object.freeze({
   'trai.enabled': true,
   'trai.mode': 'passive',
   'trai.vetoPower': false,
+  'sessionRouter.mode': 'static',
+  'sessionRouter.staticSession': 'stocks',
   'evalRules.enabled': true,
   'evalRules.ttp.enabled': true,
   'evalRules.ttp.volumeCap.enabled': true,

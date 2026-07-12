@@ -107,8 +107,13 @@ function collectActiveBrokers(ctx, env = process.env) {
   if (ctx && ctx.sessionRouter && ctx.sessionRouter.activeBroker && ctx.sessionRouter.activeBroker.id) {
     brokers.add(String(ctx.sessionRouter.activeBroker.id).toUpperCase());
   }
-  if (envFlag(env, 'SESSION_ROUTER_ENABLED')) {
+  const routerConfig = ctx && ctx.config && ctx.config.sessionRouter;
+  const activeRouterSession = (cleanString(ctx && ctx.sessionRouter && ctx.sessionRouter.activeSession) ||
+    (routerConfig && routerConfig.mode === 'static' ? cleanString(routerConfig.staticSession) : null) ||
+    '').toLowerCase();
+  if (activeRouterSession === 'crypto') {
     brokers.add('KRAKEN');
+  } else if (activeRouterSession === 'stocks') {
     brokers.add('ALPACA');
   }
   if (!brokers.size && cleanString(env.KRAKEN_API_KEY)) brokers.add('KRAKEN');

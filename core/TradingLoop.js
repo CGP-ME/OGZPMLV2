@@ -625,7 +625,9 @@ class TradingLoop {
 
   _patternScope(symbol) {
     const cfg = this.ctx.config || {};
-    const routerEnabled = this.ctx.runner?.sessionRouter?.enabled === true;
+    const routerEnabled = this.ctx.runner && typeof this.ctx.runner.isSessionRoutingActive === 'function'
+      ? this.ctx.runner.isSessionRoutingActive() === true
+      : this.ctx.runner?.sessionRouter?.enabled === true;
     const runtimeScope = this.ctx.runner && typeof this.ctx.runner.getCandleScopeEnvelope === 'function'
       ? this.ctx.runner.getCandleScopeEnvelope()
       : {};
@@ -654,7 +656,9 @@ class TradingLoop {
 
   _dashboardScope(symbol) {
     const cfg = this.ctx.config || {};
-    const routerEnabled = this.ctx.runner?.sessionRouter?.enabled === true;
+    const routerEnabled = this.ctx.runner && typeof this.ctx.runner.isSessionRoutingActive === 'function'
+      ? this.ctx.runner.isSessionRoutingActive() === true
+      : this.ctx.runner?.sessionRouter?.enabled === true;
     const runtimeScope = this.ctx.runner && typeof this.ctx.runner.getCandleScopeEnvelope === 'function'
       ? this.ctx.runner.getCandleScopeEnvelope()
       : {};

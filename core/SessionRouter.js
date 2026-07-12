@@ -10,9 +10,8 @@
  * close: force-close stock positions at the current market price, pause
  * Alpaca, resume Kraken.
  *
- * Gated by SESSION_ROUTER_ENABLED (default false). When disabled, the
- * router is constructed but start() is a no-op and the bot's existing
- * single-broker path is undisturbed.
+ * Always-on routing layer. Static profiles activate exactly one configured
+ * session; scheduled profiles use the NYSE calendar transition path.
  *
  * NYSE phase detection delegates to foundation/MarketCalendar — the
  * project's single source of truth for sessions, holidays, half-days,
@@ -47,12 +46,21 @@ const FIAT_BALANCE_SYMBOLS = new Set([
 class SessionRouter extends EventEmitter {
   constructor(config = {}) {
     super();
-    this.enabled = config.enabled !== false;
+    this.enabled = true;
+    this.mode = String(config.mode || '').trim().toLowerCase();
+    this.staticSession = String(config.staticSession || '').trim().toLowerCase() || null;
+    if (this.mode !== 'static' && this.mode !== 'scheduled') {
+      throw new Error(`[SessionRouter] mode must be static or scheduled, got ${this.mode || '(missing)'}`);
+    }
+    if (this.mode === 'static' && this.staticSession !== 'stocks' && this.staticSession !== 'crypto') {
+      throw new Error(`[SessionRouter] staticSession must be stocks or crypto when mode=static, got ${this.staticSession || '(missing)'}`);
+    }
     this.clock = config.clock || (() => Date.now());
     this.checkIntervalMs = config.fast ? 1000 : (config.checkIntervalMs || 60000);
     this.forceCloseOnSessionEnd = config.forceCloseOnSessionEnd !== false;
     this.executeTrade = typeof config.executeTrade === 'function' ? config.executeTrade : null;
     this.getExitPrice = typeof config.getExitPrice === 'function' ? config.getExitPrice : null;
+    this.backtestMode = config.backtestMode === true;
 
     this.krakenAdapter = null;
     this.alpacaAdapter = null;
@@ -91,16 +99,16 @@ class SessionRouter extends EventEmitter {
         .filter(symbol => typeof symbol === 'string' && symbol.trim())
         .map(symbol => symbol.trim().toUpperCase())
       : [];
-    if (this.enabled && this.stockSymbols.length === 0) {
-      throw new Error('[SessionRouter] stockSymbols must be explicitly provided when SessionRouter is enabled');
+    if ((this.mode === 'scheduled' || this.staticSession === 'stocks') && this.stockSymbols.length === 0) {
+      throw new Error('[SessionRouter] stockSymbols must be explicitly provided for scheduled routing or static stocks routing');
     }
     this.cryptoSymbols = Array.isArray(config.cryptoSymbols)
       ? config.cryptoSymbols
         .filter(symbol => typeof symbol === 'string' && symbol.trim())
         .map(symbol => symbol.trim().toUpperCase().replace(/\//g, '-').replace(/^XBT/, 'BTC'))
       : [];
-    if (this.enabled && this.cryptoSymbols.length === 0) {
-      throw new Error('[SessionRouter] cryptoSymbols must be explicitly provided when SessionRouter is enabled');
+    if ((this.mode === 'scheduled' || this.staticSession === 'crypto') && this.cryptoSymbols.length === 0) {
+      throw new Error('[SessionRouter] cryptoSymbols must be explicitly provided for scheduled routing or static crypto routing');
     }
 
     this.stateManager = getStateManager();
@@ -109,7 +117,7 @@ class SessionRouter extends EventEmitter {
     this.onOhlcCallback = null;
     this.ctx = null;
 
-    console.log(`[SessionRouter] Initialized | enabled=${this.enabled} | interval=${this.checkIntervalMs}ms`);
+    console.log(`[SessionRouter] Initialized | mode=${this.mode} | staticSession=${this.staticSession || '(none)'} | interval=${this.checkIntervalMs}ms`);
   }
 
   /**
@@ -171,20 +179,26 @@ class SessionRouter extends EventEmitter {
   }
 
   async start() {
-    if (!this.enabled) {
-      console.log('[SessionRouter] Disabled (SESSION_ROUTER_ENABLED=false) — single-broker path active');
-      return;
+    const missingAdapters = [];
+    if ((this.mode === 'scheduled' || this.staticSession === 'crypto') && !this.krakenAdapter) {
+      missingAdapters.push('kraken');
     }
-    if (!this.krakenAdapter || !this.alpacaAdapter) {
-      throw new Error('[SessionRouter] Cannot start - missing broker adapters. Call wire() first.');
+    if ((this.mode === 'scheduled' || this.staticSession === 'stocks') && !this.alpacaAdapter) {
+      missingAdapters.push('alpaca');
+    }
+    if (missingAdapters.length > 0) {
+      throw new Error(`[SessionRouter] Cannot start - missing broker adapter(s): ${missingAdapters.join(', ')}. Call wire() first.`);
     }
     this._assertTransitionStoreStartSafe();
 
-    const phase = getMarketPhase(new Date(this.clock()));
     let targetSession = 'unknown';
     try {
-      targetSession = this._targetSessionFromPhase(phase, 'startup');
-      if (targetSession === 'stocks') {
+      targetSession = this.mode === 'static'
+        ? this.staticSession
+        : this._targetSessionFromPhase(getMarketPhase(new Date(this.clock())), 'startup');
+      if (this.mode === 'static' && this.backtestMode) {
+        await this._activateStaticBacktestSession(targetSession);
+      } else if (targetSession === 'stocks') {
         await this._activateStocks();
       } else {
         await this._activateCrypto();
@@ -197,11 +211,13 @@ class SessionRouter extends EventEmitter {
       throw err;
     }
 
-    this.intervalId = setInterval(() => {
-      this._checkTransition().catch((err) => {
-        console.error('[SessionRouter] Check failed:', err.message);
-      });
-    }, this.checkIntervalMs);
+    if (this.mode === 'scheduled') {
+      this.intervalId = setInterval(() => {
+        this._checkTransition().catch((err) => {
+          console.error('[SessionRouter] Check failed:', err.message);
+        });
+      }, this.checkIntervalMs);
+    }
 
     console.log(`[SessionRouter] Started | initial session: ${this.activeSession}`);
   }
@@ -221,6 +237,7 @@ class SessionRouter extends EventEmitter {
   }
 
   async _checkTransition() {
+    if (this.mode === 'static') return;
     if (this.transitionInProgress) return;
     if (this.failedSafeMode) return;
     const now = new Date(this.clock());
@@ -1187,6 +1204,27 @@ class SessionRouter extends EventEmitter {
     }
   }
 
+  async _activateStaticBacktestSession(targetSession) {
+    const adapter = targetSession === 'stocks' ? this.alpacaAdapter : this.krakenAdapter;
+    const symbols = targetSession === 'stocks' ? this.stockSymbols : this.cryptoSymbols;
+    const brokerId = targetSession === 'stocks' ? 'alpaca' : 'kraken';
+
+    if (this.orderRouter) {
+      await this.orderRouter.registerBroker(adapter, symbols);
+    }
+
+    this.activeSession = targetSession;
+    this.activeBroker = adapter;
+    this.lastTransitionAt = this.clock();
+    this.activeCallbackEpoch = null;
+    this.activeOhlcSession = null;
+    this.activeOhlcBrokerId = null;
+    this.activeOhlcTransitionId = null;
+    this.activeOhlcCallback = null;
+
+    console.log(`[SessionRouter] Static backtest activation: ${targetSession} (${brokerId})`);
+  }
+
   async _activateStocks() {
     if (this.failedSafeMode) {
       console.error('[SessionRouter] Refusing stocks activation while failed-safe mode is active');
@@ -1257,6 +1295,8 @@ class SessionRouter extends EventEmitter {
   getStatus() {
     return {
       enabled: this.enabled,
+      mode: this.mode,
+      staticSession: this.staticSession,
       activeSession: this.activeSession,
       activeBroker: this.activeBroker && this.activeBroker.constructor && this.activeBroker.constructor.name || null,
       transitionInProgress: this.transitionInProgress,
