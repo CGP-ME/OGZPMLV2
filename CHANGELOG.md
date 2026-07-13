@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Static Router Post-Push Audit (2026-07-12)
+
+- Recorded the skipped post-push P0 standing-law audit for static router route-table ownership after commit `becd6ad4`; exact gate passed at `8338.146639366509 / 1551 trades / 52.2% WR / PF 0.64`.
+- Preserved the P0 proof log at `ogz-meta/inbox/desktop-commander/2026-07-12/p0-post-push-becd6ad4.log` and the generated gate report at `ogz-meta/gates/runs/multi-runtime-latest.json`.
+
 ### Exit-Path Fallback Repair (2026-07-11)
 
 - Fixed the CRIT-06 exit-path fallback evidence by proving missing entry exit contracts stop before broker, webhook, gate, or state side effects instead of creating a phantom-confidence fallback contract.
