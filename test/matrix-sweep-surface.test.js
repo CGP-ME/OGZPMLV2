@@ -242,6 +242,27 @@ describe('matrix-sweep runnable surface', () => {
       .toBe(true);
   });
 
+  test('timeframe grid dimension stamps rows and stays caged in config overrides', () => {
+    const grid = {
+      ...GRID.conf,
+      confidence: [0.4],
+      timeframes: ['15m', '1h'],
+    };
+
+    const configs = generateMatrix(['RSI'], grid, 'conf');
+
+    expect(configs).toHaveLength(2);
+    expect(configs.map(config => config.timeframe)).toEqual(['15m', '1h']);
+    expect(configs.map(config => config.name)).toEqual([
+      expect.stringContaining('_tf15m_'),
+      expect.stringContaining('_tf1h_'),
+    ]);
+
+    const payloads = configs.map(config => JSON.parse(config.env.BACKTEST_CONFIG_OVERRIDES_JSON));
+    expect(payloads.map(payload => payload['broker.candleTimeframe'])).toEqual(['15m', '1h']);
+    expect(configs.every(config => config.env.CANDLE_TIMEFRAME === undefined)).toBe(true);
+  });
+
   test('confidence phase keeps locked strategy contract without stop override payload', () => {
     const configs = generateMatrix(['EMASMACrossover'], GRID.conf, 'conf');
     const lockedEmaStop = Math.abs(BASE_CONFIG.exitContracts.EMASMACrossover.stopLossPercent);

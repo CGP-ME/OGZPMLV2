@@ -158,12 +158,8 @@ function runBacktestAndCaptureTrades() {
   const indicatorEngine = new IndicatorEngine({ warmupCandles: 50 });
   const exitContractManager = getExitContractManager();
 
-  const emaConfig = ConfigLoader.get('strategies.EMACrossover') || {};
-  const emaCrossover = new EMASMACrossoverSignal({
-    decayBars: emaConfig.decayBars || 10,
-    snapbackThresholdPct: emaConfig.snapbackThreshold || 2.5,
-    blowoffAccelThreshold: emaConfig.blowoffThreshold || 0.15,
-  });
+  const emaConfig = ConfigLoader.get('strategies.EMASMACrossover') || {};
+  const emaCrossover = new EMASMACrossoverSignal(emaConfig);
 
   const masrConfig = ConfigLoader.get('strategies.MADynamicSR') || {};
   const maDynamicSR = new MADynamicSR({

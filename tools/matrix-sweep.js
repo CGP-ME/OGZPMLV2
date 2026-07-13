@@ -176,6 +176,7 @@ function buildWorkerProcessErrorResult(config, env, reportTag, output, err, elap
   return {
     name: config.name,
     strategy: config.strategy,
+    timeframe: config.timeframe || null,
     lockedSL: config.lockedSL,
     tiers: config.tiers,
     conf: config.conf,
@@ -289,7 +290,7 @@ function getLockedSL(strat) {
   return Math.abs(contract.stopLossPercent);
 }
 
-function buildBacktestOverrideEnv(strategyName, stopLoss, confidence) {
+function buildBacktestOverrideEnv(strategyName, stopLoss, confidence, timeframe) {
   const numericConfidence = Number(confidence);
   if (!Number.isFinite(numericConfidence) || numericConfidence < 0 || numericConfidence > 1) {
     throw new Error('Matrix confidence must be a finite 0-1 value, got ' + confidence);
@@ -298,6 +299,14 @@ function buildBacktestOverrideEnv(strategyName, stopLoss, confidence) {
   const overrides = {
     'confidence.minTradeConfidence': numericConfidence,
   };
+
+  if (timeframe != null) {
+    const normalizedTimeframe = String(timeframe).trim();
+    if (!normalizedTimeframe) {
+      throw new Error('Matrix timeframe must be a non-empty string');
+    }
+    overrides['broker.candleTimeframe'] = normalizedTimeframe;
+  }
 
   if (stopLoss == null) {
     return {
@@ -356,80 +365,85 @@ function generateMatrix(strategies, grid, phase) {
     // config overrides so workers exercise the same frozen-policy path as live.
     const slValues = phase === 'conf' || !grid.stopLoss ? [null] : grid.stopLoss;
     const tierPresets = grid.tierPresets || [null];
+    const timeframeValues = Array.isArray(grid.timeframes) && grid.timeframes.length > 0 ? grid.timeframes : [null];
     const lockedSL = getLockedSL(strat);
 
     for (const sl of slValues) {
       const effectiveSL = sl == null ? lockedSL : sl;
       for (const tiers of tierPresets) {
         for (const conf of grid.confidence) {
-          const shortName = strat.substring(0, 4);
-          const tierLabel = tiers ? tiers.label : 'def';
-          const slLabel = sl == null ? 'lockedsl' + lockedSL : 'sl' + effectiveSL;
-          const name = shortName + '_' + slLabel + '_' + tierLabel + '_c' + (conf * 100).toFixed(0);
+          for (const timeframe of timeframeValues) {
+            const shortName = strat.substring(0, 4);
+            const tierLabel = tiers ? tiers.label : 'def';
+            const slLabel = sl == null ? 'lockedsl' + lockedSL : 'sl' + effectiveSL;
+            const timeframeLabel = timeframe == null ? '' : '_tf' + String(timeframe).replace(/[^a-zA-Z0-9_.-]/g, '_');
+            const name = shortName + '_' + slLabel + '_' + tierLabel + timeframeLabel + '_c' + (conf * 100).toFixed(0);
 
-          const env = {
-            SOLO_STRATEGY: strat,
-            ...buildBacktestOverrideEnv(strat, sl, conf),
-          };
+            const env = {
+              SOLO_STRATEGY: strat,
+              ...buildBacktestOverrideEnv(strat, sl, conf, timeframe),
+            };
 
-          // Set tier targets if sweeping (otherwise MPM uses ConfigLoader defaults)
-          if (tiers) {
-            env.TIER1_TARGET = String(tiers.t1);
-            env.TIER2_TARGET = String(tiers.t2);
-            env.TIER3_TARGET = String(tiers.t3);
+            // Set tier targets if sweeping (otherwise MPM uses ConfigLoader defaults)
+            if (tiers) {
+              env.TIER1_TARGET = String(tiers.t1);
+              env.TIER2_TARGET = String(tiers.t2);
+              env.TIER3_TARGET = String(tiers.t3);
+            }
+
+            // SMS needs explicit enable
+            if (strat === 'SmartMoneySweep') {
+              env.ENABLE_SMS = 'true';
+              env.SMS_VP_RTH_ONLY = 'true';
+            }
+
+            // NoWick needs explicit enable (off by default; sweep uses opt-in env)
+            if (strat === 'NoWickImbalance') {
+              env.ENABLE_NOWICK = 'true';
+            }
+
+            // BreakRetest needs explicit enable (off by default; sweep uses opt-in env)
+            if (strat === 'BreakRetest') {
+              env.ENABLE_BREAKRETEST = 'true';
+            }
+
+            // ORB needs explicit enable (off by default; sweep uses opt-in env)
+            if (strat === 'OpeningRangeBreakout') {
+              env.ENABLE_ORB = 'true';
+            }
+
+            // DonchianBreakout needs explicit enable (off by default; sweep uses opt-in env)
+            if (strat === 'DonchianBreakout') {
+              env.ENABLE_DONCHIAN = 'true';
+            }
+
+            if (strat === 'PropSafeEMAPullback') {
+              env.ENABLE_PROPSAFE_EMA = 'true';
+            }
+
+            if (strat === 'EMATrendRetest') {
+              env.ENABLE_EMA_TREND_RETEST = 'true';
+            }
+
+            if (strat === 'RSI2MeanReversion') {
+              env.ENABLE_RSI2_MR = 'true';
+            }
+
+            if (strat === 'TimeSeriesMomentum') {
+              env.ENABLE_TSMOM = 'true';
+            }
+
+            configs.push({
+              name,
+              strategy: strat,
+              timeframe,
+              lockedSL,
+              sl: effectiveSL,
+              tiers,
+              conf,
+              env,
+            });
           }
-
-          // SMS needs explicit enable
-          if (strat === 'SmartMoneySweep') {
-            env.ENABLE_SMS = 'true';
-            env.SMS_VP_RTH_ONLY = 'true';
-          }
-
-          // NoWick needs explicit enable (off by default; sweep uses opt-in env)
-          if (strat === 'NoWickImbalance') {
-            env.ENABLE_NOWICK = 'true';
-          }
-
-          // BreakRetest needs explicit enable (off by default; sweep uses opt-in env)
-          if (strat === 'BreakRetest') {
-            env.ENABLE_BREAKRETEST = 'true';
-          }
-
-          // ORB needs explicit enable (off by default; sweep uses opt-in env)
-          if (strat === 'OpeningRangeBreakout') {
-            env.ENABLE_ORB = 'true';
-          }
-
-          // DonchianBreakout needs explicit enable (off by default; sweep uses opt-in env)
-          if (strat === 'DonchianBreakout') {
-            env.ENABLE_DONCHIAN = 'true';
-          }
-
-          if (strat === 'PropSafeEMAPullback') {
-            env.ENABLE_PROPSAFE_EMA = 'true';
-          }
-
-          if (strat === 'EMATrendRetest') {
-            env.ENABLE_EMA_TREND_RETEST = 'true';
-          }
-
-          if (strat === 'RSI2MeanReversion') {
-            env.ENABLE_RSI2_MR = 'true';
-          }
-
-          if (strat === 'TimeSeriesMomentum') {
-            env.ENABLE_TSMOM = 'true';
-          }
-
-          configs.push({
-            name,
-            strategy: strat,
-            lockedSL,
-            sl: effectiveSL,
-            tiers,
-            conf,
-            env,
-          });
         }
       }
     }
@@ -519,6 +533,7 @@ function parseOutput(output, config) {
   var r = {
     name: config.name,
     strategy: config.strategy,
+    timeframe: config.timeframe || null,
     lockedSL: config.lockedSL,
     tiers: config.tiers,
     conf: config.conf,
@@ -790,7 +805,7 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, prof
     // Show top 5
     console.log('  |  Top 5:');
     stratResults.slice(0, 5).forEach(function(r, idx) {
-      console.log('  |   #' + (idx + 1) + ' LockedSL=' + r.lockedSL + ' Tiers=' + formatTiers(r.tiers) + ' C=' + (r.conf * 100).toFixed(0) + '%  ->  $' + r.netPnl.toFixed(2) + ' | ' + (r.trades || '?') + ' trades | WR ' + (r.winRate != null ? r.winRate.toFixed(1) : '?') + '%');
+      console.log('  |   #' + (idx + 1) + ' TF=' + (r.timeframe || 'default') + ' LockedSL=' + r.lockedSL + ' Tiers=' + formatTiers(r.tiers) + ' C=' + (r.conf * 100).toFixed(0) + '%  ->  $' + r.netPnl.toFixed(2) + ' | ' + (r.trades || '?') + ' trades | WR ' + (r.winRate != null ? r.winRate.toFixed(1) : '?') + '%');
     });
 
     // Sensitivity check: are neighboring configs also profitable?
@@ -810,7 +825,7 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, prof
 
   Object.entries(bestPerStrategy).forEach(function(e) {
     var stName = e[0], b = e[1];
-    console.log('  ' + stName + ': conf=' + (b.conf * 100).toFixed(0) + '% tiers=' + formatTiers(b.tiers) + ' lockedSL=' + b.lockedSL + '% -> $' + b.netPnl.toFixed(2));
+    console.log('  ' + stName + ': timeframe=' + (b.timeframe || 'default') + ' conf=' + (b.conf * 100).toFixed(0) + '% tiers=' + formatTiers(b.tiers) + ' lockedSL=' + b.lockedSL + '% -> $' + b.netPnl.toFixed(2));
   });
 
   // -- Save results --
@@ -846,10 +861,10 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, prof
   console.log('\nJSON: ' + reportPath);
 
   // CSV for spreadsheet analysis
-  var csvHeader = 'strategy,lockedStopLoss,tierLabel,tier1Target,tier2Target,tier3Target,confidence,netPnl,trades,winRate,maxDrawdown,profitFactor,expectancy,avgWin,avgLoss,fees,elapsed';
+  var csvHeader = 'strategy,timeframe,lockedStopLoss,tierLabel,tier1Target,tier2Target,tier3Target,confidence,netPnl,trades,winRate,maxDrawdown,profitFactor,expectancy,avgWin,avgLoss,fees,elapsed';
   var csvRows = parsed.map(function(r) {
     var tiers = r.tiers || {};
-    return [r.strategy, r.lockedSL, tiers.label || 'default', tiers.t1 || '', tiers.t2 || '', tiers.t3 || '', r.conf,
+    return [r.strategy, r.timeframe || '', r.lockedSL, tiers.label || 'default', tiers.t1 || '', tiers.t2 || '', tiers.t3 || '', r.conf,
       r.netPnl != null ? r.netPnl.toFixed(2) : '',
       r.trades || '', r.winRate != null ? r.winRate.toFixed(2) : '',
       r.maxDrawdown != null ? r.maxDrawdown.toFixed(2) : '',
@@ -866,7 +881,7 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, prof
   // -- Summary --
   var overallBest = parsed.sort(function(a, b) { return b.netPnl - a.netPnl; })[0];
   if (overallBest) {
-    console.log('\nOVERALL BEST: ' + overallBest.strategy + ' LockedSL=' + overallBest.lockedSL + '% Tiers=' + formatTiers(overallBest.tiers) + ' Conf=' + (overallBest.conf * 100).toFixed(0) + '%');
+    console.log('\nOVERALL BEST: ' + overallBest.strategy + ' TF=' + (overallBest.timeframe || 'default') + ' LockedSL=' + overallBest.lockedSL + '% Tiers=' + formatTiers(overallBest.tiers) + ' Conf=' + (overallBest.conf * 100).toFixed(0) + '%');
     console.log('   P&L: $' + overallBest.netPnl.toFixed(2) + ' | Trades: ' + overallBest.trades + ' | WR: ' + (overallBest.winRate != null ? overallBest.winRate.toFixed(1) : '?') + '%');
   }
 

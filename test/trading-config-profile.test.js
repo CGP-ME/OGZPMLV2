@@ -100,8 +100,6 @@ describe('ConfigLoader runtime profile contract', () => {
     );
     expect(ConfigLoader.resolveTuningProfile('trey-spec').env).toEqual(
       expect.objectContaining({
-        EMA_CROSSOVER_ENTRY_EVENTS_ONLY: 'true',
-        EMA_CROSSOVER_WARMUP_BARS: '200',
         ORCH_MIN_CANDLES_EMA: '200',
         TREND_REGIME_GATE_ENABLED: 'true',
         ATR_CONTRACTS_ENABLED: 'true',
@@ -236,9 +234,9 @@ describe('ConfigLoader runtime profile contract', () => {
     expect(workerEnv.BACKTEST_TUNING_PROFILE).toBe('trey-spec');
     expect(workerEnv.BACKTEST_FEE_PROFILE).toBe('ttp_real');
     expect(workerEnv.PROFILE).toBe('backtest-trey-spec');
-    expect(workerEnv.EMA_CROSSOVER_ENTRY_EVENTS_ONLY).toBe('true');
-    expect(workerEnv.EMA_CROSSOVER_CONFIRM_BARS).toBe('1');
-    expect(workerEnv.EMA_CROSSOVER_WARMUP_BARS).toBe('200');
+    expect(workerEnv.EMA_CROSSOVER_ENTRY_EVENTS_ONLY).toBeUndefined();
+    expect(workerEnv.EMA_CROSSOVER_CONFIRM_BARS).toBeUndefined();
+    expect(workerEnv.EMA_CROSSOVER_WARMUP_BARS).toBeUndefined();
     expect(workerEnv.ORCH_MIN_CANDLES_EMA).toBe('200');
     expect(workerEnv.TREND_REGIME_GATE_ENABLED).toBe('true');
     expect(workerEnv.ATR_CONTRACTS_ENABLED).toBe('true');
@@ -246,19 +244,21 @@ describe('ConfigLoader runtime profile contract', () => {
     expect(workerEnv.BE_SCALEOUT_FRACTION).toBe('0.25');
     expect(workerEnv.TIERED_EXIT_ENABLED).toBe('false');
     expect(workerEnv.TTP_ENTRY_BUFFER_MINUTES_BEFORE_CUTOFF).toBeUndefined();
-    expect(ConfigLoader.buildTuningProfileOverrides('trey-spec')).toEqual(expect.objectContaining({
-      'strategyBehavior.emaCrossover.entryEventsOnly': true,
-      'strategyBehavior.emaCrossover.warmupBars': 200,
+    const profileOverrides = ConfigLoader.buildTuningProfileOverrides('trey-spec');
+    expect(profileOverrides).toEqual(expect.objectContaining({
       'strategyBehavior.trendRegimeGate.enabled': true,
       'strategyBehavior.atrContracts.enabled': true,
       'exitLogic.beScaleOut.scaleOutFraction': 0.25,
       'exitLogic.tieredExit.enabled': false,
     }));
+    expect(profileOverrides['strategyBehavior.emaCrossover.entryEventsOnly']).toBeUndefined();
+    expect(profileOverrides['strategyBehavior.emaCrossover.confirmBars']).toBeUndefined();
+    expect(profileOverrides['strategyBehavior.emaCrossover.warmupBars']).toBeUndefined();
     const snapshot = ConfigLoader.snapshot(workerEnv, { silent: true, loadDotenv: false });
     expect(snapshot.config.evalRules.ttp.marketTime.entryBufferMinutesBeforeCutoff).toBe(30);
   });
 
-  test('explicit TUNING_PROFILE selector materializes trey-spec through ConfigLoader before ConfigLoader reads', () => {
+  test('explicit launch profile owns EMA behavior while TUNING_PROFILE still owns exit overlays', () => {
     const previous = {
       DOTENV_CONFIG_PATH: process.env.DOTENV_CONFIG_PATH,
       PROFILE: process.env.PROFILE,
@@ -291,7 +291,8 @@ describe('ConfigLoader runtime profile contract', () => {
       expect(FreshTradingConfig.get('strategyBehavior.atrContracts.enabled')).toBe(true);
       expect(FreshTradingConfig.get('exitLogic.beScaleOut.scaleOutFraction')).toBe(0.25);
       expect(FreshTradingConfig.get('exitLogic.tieredExit.enabled')).toBe(false);
-      expect(loaded.sources['strategyBehavior.emaCrossover.warmupBars']).toBe('profile:trey-spec:EMA_CROSSOVER_WARMUP_BARS');
+      expect(loaded.sources['strategyBehavior.emaCrossover.warmupBars'])
+        .toBe('config:launchProfiles.backtest-all.strategyBehavior.emaCrossover.warmupBars');
       expect(loaded.sources['exitLogic.tieredExit.enabled']).toBe('profile:trey-spec:TIERED_EXIT_ENABLED');
     } finally {
       for (const [key, value] of Object.entries(previous)) {
@@ -303,6 +304,24 @@ describe('ConfigLoader runtime profile contract', () => {
       }
       jest.resetModules();
     }
+  });
+
+  test('launch profiles explicitly own EMA crossover event mode posture', () => {
+    expect(tradingConfigJson.launchProfiles['backtest-all'].strategyBehavior.emaCrossover).toEqual({
+      entryEventsOnly: true,
+      confirmBars: 1,
+      warmupBars: 200,
+    });
+    expect(tradingConfigJson.launchProfiles['backtest-p0'].strategyBehavior.emaCrossover).toEqual({
+      entryEventsOnly: false,
+      confirmBars: 0,
+      warmupBars: 10,
+    });
+    expect(tradingConfigJson.launchProfiles['backtest-trey-spec'].strategyBehavior.emaCrossover).toEqual({
+      entryEventsOnly: true,
+      confirmBars: 1,
+      warmupBars: 200,
+    });
   });
 
   test('stock backtest workers carry explicit Alpaca adapter config without leaking credentials in summaries', () => {

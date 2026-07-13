@@ -151,7 +151,7 @@ test('ConfigLoader strategy params exist and are valid', () => {
   const ConfigLoader = require(path.join(projectRoot, 'foundation/ConfigLoader'));
 
   const configs = {
-    'strategies.EMACrossover': ['decayBars', 'snapbackThreshold'],
+    'strategies.EMASMACrossover': ['decayBars', 'velocityWindowBars', 'elasticityMinAtr', 'baseConfidence'],
     'strategies.MADynamicSR': ['entryMaPeriod', 'srMaPeriod', 'slopeLookback'],
     'strategies.LiquiditySweep': ['sweepLookbackBars', 'atrPeriod', 'entryWindowMinutes'],
   };
@@ -219,12 +219,8 @@ test('EMASMACrossoverSignal processes candles and returns structure', () => {
   const EMASMACrossoverSignal = require(path.join(projectRoot, 'modules/EMASMACrossoverSignal'));
   const ConfigLoader = require(path.join(projectRoot, 'foundation/ConfigLoader'));
 
-  const emaConfig = ConfigLoader.get('strategies.EMACrossover') || {};
-  const signal = new EMASMACrossoverSignal({
-    decayBars: emaConfig.decayBars || 10,
-    snapbackThresholdPct: emaConfig.snapbackThreshold || 2.5,
-    blowoffAccelThreshold: emaConfig.blowoffThreshold || 0.15,
-  });
+  const emaConfig = ConfigLoader.get('strategies.EMASMACrossover') || {};
+  const signal = new EMASMACrossoverSignal(emaConfig);
 
   let lastResult = null;
   for (const candle of testCandles) {

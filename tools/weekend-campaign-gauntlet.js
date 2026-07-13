@@ -185,9 +185,6 @@ function pickProofEnv(env) {
     'BACKTEST_TUNING_PROFILE',
     'BACKTEST_FEE_PROFILE',
     'SOLO_STRATEGY',
-    'EMA_CROSSOVER_ENTRY_EVENTS_ONLY',
-    'EMA_CROSSOVER_CONFIRM_BARS',
-    'EMA_CROSSOVER_WARMUP_BARS',
     'ORCH_MIN_CANDLES_EMA',
     'TREND_REGIME_GATE_ENABLED',
     'ATR_CONTRACTS_ENABLED',
@@ -600,7 +597,7 @@ async function runTreySpecSmoke({ smokeDir, dataFile, baselineProfile, treyProfi
     treyExitZero: trey.status.exitCode === 0,
     atrExitZero: atr.status.exitCode === 0,
     entryEventsReduced: baselineSignals > 0 && treySignals < baselineSignals,
-    warmup200Respected: trey.workerProofEnv.EMA_CROSSOVER_WARMUP_BARS === '200'
+    warmup200Respected: trey.workerProofEnv.PROFILE === 'backtest-trey-spec'
       && trey.workerProofEnv.ORCH_MIN_CANDLES_EMA === '200'
       && (treyEvidence.warmupBars === null || treyEvidence.warmupBars === 200),
     atrContractsEnabled: atr.workerProofEnv.ATR_CONTRACTS_ENABLED === 'true',

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### EMASMA Restoration Lane R1 (2026-07-13)
+
+- Restored EMASMACrossover event-mode confidence geometry as config-owned velocity, elasticity, and decay multipliers instead of binary gates or hidden constructor defaults.
+- Moved EMA crossover entry posture into explicit launch-profile config: P0 remains legacy alignment mode while backtest/tournament profiles use entry-only crossover events with profile-owned warmup and confirmation settings.
+- Removed the old `EMA_CROSSOVER_*` tuning-profile override surface so sweeps must vary EMA behavior through launch profiles or the caged backtest config override path.
+- Added focused coverage for event-mode posture, config receipt/source ownership, restored multiplier diagnostics, and StrategyOrchestrator trade-birth consumption.
+
 ### Broker Fallback De-Krakenification (2026-07-13)
 
 - Removed legacy Kraken-alias fallbacks from candle gap backfill and trade-journal broker reconciliation; both paths now require `sessionRouter.activeBroker` and refuse broker-ambiguous reads instead of silently using `ctx.kraken` or `bot.kraken`.

@@ -74,6 +74,19 @@ function cloneConfiguredObject(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function requiredConfiguredPlainObject(configPath) {
+  const value = configPath.split('.').reduce((current, part) => (
+    current && Object.prototype.hasOwnProperty.call(current, part) ? current[part] : undefined
+  ), tradingConfigFile);
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`[ConfigLoader] config/trading.config.json ${configPath} must be an object`);
+  }
+  return {
+    value: cloneConfiguredObject(value),
+    source: `config:${configPath}`,
+  };
+}
+
 function requiredLaunchProfileValue(configPath) {
   const profileName = activeLaunchProfileContext?.profileName;
   const profile = activeLaunchProfileContext?.profile;
@@ -705,9 +718,9 @@ function buildConfig() {
 
     strategyBehavior: {
       emaCrossover: {
-        entryEventsOnly: track('strategyBehavior.emaCrossover.entryEventsOnly', envBool('EMA_CROSSOVER_ENTRY_EVENTS_ONLY', configuredValue('strategyBehavior.emaCrossover.entryEventsOnly', false))),
-        confirmBars: track('strategyBehavior.emaCrossover.confirmBars', envFloat('EMA_CROSSOVER_CONFIRM_BARS', configuredValue('strategyBehavior.emaCrossover.confirmBars', 0))),
-        warmupBars: track('strategyBehavior.emaCrossover.warmupBars', envFloat('EMA_CROSSOVER_WARMUP_BARS', configuredValue('strategyBehavior.emaCrossover.warmupBars', 10))),
+        entryEventsOnly: track('strategyBehavior.emaCrossover.entryEventsOnly', requiredLaunchProfileBool('strategyBehavior.emaCrossover.entryEventsOnly')),
+        confirmBars: track('strategyBehavior.emaCrossover.confirmBars', requiredLaunchProfileNumber('strategyBehavior.emaCrossover.confirmBars')),
+        warmupBars: track('strategyBehavior.emaCrossover.warmupBars', requiredLaunchProfileNumber('strategyBehavior.emaCrossover.warmupBars')),
       },
       trendRegimeGate: {
         enabled: track('strategyBehavior.trendRegimeGate.enabled', envBool('TREND_REGIME_GATE_ENABLED', configuredValue('strategyBehavior.trendRegimeGate.enabled', false))),
@@ -898,6 +911,7 @@ function buildConfig() {
       enableRSI2MeanReversion: track('strategies.enableRSI2MeanReversion', requiredLaunchProfileBool('pipeline.enableRSI2MeanReversion')),
       enableTimeSeriesMomentum: track('strategies.enableTimeSeriesMomentum', requiredLaunchProfileBool('pipeline.enableTimeSeriesMomentum')),
       enableDashboard: track('strategies.enableDashboard', envBool('ENABLE_DASHBOARD', true)),
+      EMASMACrossover: track('strategies.EMASMACrossover', requiredConfiguredPlainObject('strategies.EMASMACrossover')),
     },
 
     features: {
@@ -1636,6 +1650,9 @@ const LAUNCH_PROFILE_RUNTIME_PATHS = Object.freeze({
   'strategies.enableTimeSeriesMomentum': 'pipeline.enableTimeSeriesMomentum',
   'features.enableShorts': 'features.enableShorts',
   'pipeline.directionFilter': 'pipeline.directionFilter',
+  'strategyBehavior.emaCrossover.entryEventsOnly': 'strategyBehavior.emaCrossover.entryEventsOnly',
+  'strategyBehavior.emaCrossover.confirmBars': 'strategyBehavior.emaCrossover.confirmBars',
+  'strategyBehavior.emaCrossover.warmupBars': 'strategyBehavior.emaCrossover.warmupBars',
   'sessionRouter.mode': 'sessionRouter.mode',
   'sessionRouter.staticSession': 'sessionRouter.staticSession',
   'sessionRouter.cryptoSymbols': 'sessionRouter.cryptoSymbols',
@@ -1787,6 +1804,16 @@ function requiredConfigNumber(configPath) {
   return value;
 }
 
+function requiredConfigBool(configPath) {
+  const value = configPath.split('.').reduce((current, part) => (
+    current && Object.prototype.hasOwnProperty.call(current, part) ? current[part] : undefined
+  ), tradingConfigFile);
+  if (typeof value !== 'boolean') {
+    throw new Error(`[ConfigLoader] config/trading.config.json ${configPath} must be a boolean`);
+  }
+  return value;
+}
+
 function configValue(configPath, fallback = undefined) {
   const value = configPath.split('.').reduce((current, part) => (
     current && Object.prototype.hasOwnProperty.call(current, part) ? current[part] : undefined
@@ -1841,9 +1868,6 @@ const PROFILE_ENV_CONFIG_PATHS = Object.freeze({
   FEE_SLIPPAGE: Object.freeze(['fees.slippage']),
   FEE_PER_SHARE: Object.freeze(['fees.perShare']),
   FEE_MIN_ORDER: Object.freeze(['fees.minOrderFee']),
-  EMA_CROSSOVER_ENTRY_EVENTS_ONLY: Object.freeze(['strategyBehavior.emaCrossover.entryEventsOnly']),
-  EMA_CROSSOVER_CONFIRM_BARS: Object.freeze(['strategyBehavior.emaCrossover.confirmBars']),
-  EMA_CROSSOVER_WARMUP_BARS: Object.freeze(['strategyBehavior.emaCrossover.warmupBars']),
   MTF_TIMEFRAMES: Object.freeze(['orchestrator.mtfTimeframes']),
   ORCH_MIN_CANDLES_EMA: Object.freeze(['orchestrator.minCandlesEMA']),
   TREND_REGIME_GATE_ENABLED: Object.freeze(['strategyBehavior.trendRegimeGate.enabled']),
@@ -1861,7 +1885,6 @@ const PROFILE_BOOLEAN_ENV_KEYS = Object.freeze(new Set([
   'ENABLE_DYNAMIC_SIZING',
   'ENTRY_STOCK_SHARE_RANGE_ENABLED',
   'ATR_FILTER_ENABLED',
-  'EMA_CROSSOVER_ENTRY_EVENTS_ONLY',
   'TREND_REGIME_GATE_ENABLED',
   'ATR_CONTRACTS_ENABLED',
   'BE_SCALEOUT_ENABLED',
@@ -2757,12 +2780,26 @@ const BASE_CONFIG = {
       patternPersistBars: env('MASR_PATTERN_PERSIST', 15),
       enabled: true,
     },
-    EMACrossover: {
-      // EMA/SMA crossover with snapback detection
-      decayBars: env('EMA_DECAY_BARS', 10),            // Signal decay (bars until fade)
-      snapbackThreshold: env('EMA_SNAPBACK_PCT', 2.5), // % spread for snapback signal
-      blowoffThreshold: env('EMA_BLOWOFF_ACCEL', 0.15),// Acceleration threshold
-      enabled: true,
+    EMASMACrossover: {
+      // EMA/SMA crossover event geometry. All confidence constants are config-owned.
+      decayBars: requiredConfigNumber('strategies.EMASMACrossover.decayBars'),
+      decayMinMultiplier: requiredConfigNumber('strategies.EMASMACrossover.decayMinMultiplier'),
+      velocityWindowBars: requiredConfigNumber('strategies.EMASMACrossover.velocityWindowBars'),
+      velocityAtrPeriod: requiredConfigNumber('strategies.EMASMACrossover.velocityAtrPeriod'),
+      velocityScale: requiredConfigNumber('strategies.EMASMACrossover.velocityScale'),
+      velocityMaxBoost: requiredConfigNumber('strategies.EMASMACrossover.velocityMaxBoost'),
+      velocityMaxPenalty: requiredConfigNumber('strategies.EMASMACrossover.velocityMaxPenalty'),
+      elasticityMinAtr: requiredConfigNumber('strategies.EMASMACrossover.elasticityMinAtr'),
+      elasticityMaxAtr: requiredConfigNumber('strategies.EMASMACrossover.elasticityMaxAtr'),
+      elasticityScale: requiredConfigNumber('strategies.EMASMACrossover.elasticityScale'),
+      elasticityMaxBoost: requiredConfigNumber('strategies.EMASMACrossover.elasticityMaxBoost'),
+      elasticityMaxPenalty: requiredConfigNumber('strategies.EMASMACrossover.elasticityMaxPenalty'),
+      baseConfidence: requiredConfigNumber('strategies.EMASMACrossover.baseConfidence'),
+      confluenceWeight: requiredConfigNumber('strategies.EMASMACrossover.confluenceWeight'),
+      freshCrossoverBonusPerCross: requiredConfigNumber('strategies.EMASMACrossover.freshCrossoverBonusPerCross'),
+      freshCrossoverBonusMax: requiredConfigNumber('strategies.EMASMACrossover.freshCrossoverBonusMax'),
+      maxConfidence: requiredConfigNumber('strategies.EMASMACrossover.maxConfidence'),
+      enabled: requiredConfigBool('strategies.EMASMACrossover.enabled'),
     },
     LiquiditySweep: {
       // Marco-style liquidity grabs (24/7 crypto)
@@ -3050,9 +3087,9 @@ const BASE_CONFIG = {
 
   strategyBehavior: {
     emaCrossover: {
-      entryEventsOnly: envBool('EMA_CROSSOVER_ENTRY_EVENTS_ONLY', false),
-      confirmBars: env('EMA_CROSSOVER_CONFIRM_BARS', 0),
-      warmupBars: env('EMA_CROSSOVER_WARMUP_BARS', 10),
+      entryEventsOnly: requiredConfigBool('strategyBehavior.emaCrossover.entryEventsOnly'),
+      confirmBars: requiredConfigNumber('strategyBehavior.emaCrossover.confirmBars'),
+      warmupBars: requiredConfigNumber('strategyBehavior.emaCrossover.warmupBars'),
     },
     trendRegimeGate: {
       enabled: envBool('TREND_REGIME_GATE_ENABLED', false),

@@ -702,12 +702,8 @@ class OGZPrimeV14Bot {
     // zeros (e.g., 0 decayBars = "no decay", 0 snapbackThreshold = "always
     // snap"). || coerced any 0 config value to the hardcoded default, blocking
     // intentional overrides. Same architectural class across all 6 constructors.
-    const emaConfig = ConfigLoader.get('strategies.EMACrossover') ?? {};
-    this.emaCrossover = new EMASMACrossoverSignal({
-      decayBars: emaConfig.decayBars ?? 10,
-      snapbackThresholdPct: emaConfig.snapbackThreshold ?? 2.5,
-      blowoffAccelThreshold: emaConfig.blowoffThreshold ?? 0.15,
-    });
+    const emaConfig = ConfigLoader.get('strategies.EMASMACrossover') ?? {};
+    this.emaCrossover = new EMASMACrossoverSignal(emaConfig);
 
     const masrConfig = ConfigLoader.get('strategies.MADynamicSR') ?? {};
     this.maDynamicSR = new MADynamicSR({

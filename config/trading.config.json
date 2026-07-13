@@ -94,6 +94,13 @@
       "strategies": {
         "soloFilter": []
       },
+      "strategyBehavior": {
+        "emaCrossover": {
+          "entryEventsOnly": false,
+          "confirmBars": 0,
+          "warmupBars": 10
+        }
+      },
       "confluence": {
         "mtfBooster": {
           "enabled": true,
@@ -198,6 +205,13 @@
       "strategies": {
         "soloFilter": []
       },
+      "strategyBehavior": {
+        "emaCrossover": {
+          "entryEventsOnly": false,
+          "confirmBars": 0,
+          "warmupBars": 10
+        }
+      },
       "confluence": {
         "mtfBooster": {
           "enabled": true,
@@ -301,6 +315,13 @@
       },
       "strategies": {
         "soloFilter": []
+      },
+      "strategyBehavior": {
+        "emaCrossover": {
+          "entryEventsOnly": true,
+          "confirmBars": 1,
+          "warmupBars": 200
+        }
       },
       "confluence": {
         "mtfBooster": {
@@ -408,6 +429,13 @@
           "EMASMACrossover"
         ]
       },
+      "strategyBehavior": {
+        "emaCrossover": {
+          "entryEventsOnly": false,
+          "confirmBars": 0,
+          "warmupBars": 10
+        }
+      },
       "confluence": {
         "mtfBooster": {
           "enabled": false,
@@ -513,6 +541,13 @@
         "soloFilter": [
           "MADynamicSR"
         ]
+      },
+      "strategyBehavior": {
+        "emaCrossover": {
+          "entryEventsOnly": true,
+          "confirmBars": 1,
+          "warmupBars": 200
+        }
       },
       "confluence": {
         "mtfBooster": {
@@ -620,6 +655,13 @@
           "RSI"
         ]
       },
+      "strategyBehavior": {
+        "emaCrossover": {
+          "entryEventsOnly": true,
+          "confirmBars": 1,
+          "warmupBars": 200
+        }
+      },
       "confluence": {
         "mtfBooster": {
           "enabled": true,
@@ -724,6 +766,13 @@
       "strategies": {
         "soloFilter": []
       },
+      "strategyBehavior": {
+        "emaCrossover": {
+          "entryEventsOnly": true,
+          "confirmBars": 1,
+          "warmupBars": 200
+        }
+      },
       "confluence": {
         "mtfBooster": {
           "enabled": true,
@@ -827,6 +876,13 @@
       },
       "strategies": {
         "soloFilter": []
+      },
+      "strategyBehavior": {
+        "emaCrossover": {
+          "entryEventsOnly": true,
+          "confirmBars": 1,
+          "warmupBars": 200
+        }
       },
       "confluence": {
         "mtfBooster": {
@@ -958,9 +1014,6 @@
           "ENTRY_MAX_STOCK_NOTIONAL": "5000",
           "ENTRY_CONSISTENCY_CAP_BUFFER": "0.98",
           "ENTRY_DAILY_LOSS_RISK_FRACTION": "1.0",
-          "EMA_CROSSOVER_ENTRY_EVENTS_ONLY": "true",
-          "EMA_CROSSOVER_CONFIRM_BARS": "1",
-          "EMA_CROSSOVER_WARMUP_BARS": "200",
           "ORCH_MIN_CANDLES_EMA": "200",
           "TREND_REGIME_GATE_ENABLED": "true",
           "TREND_REGIME_GATE_MIN_CONFIDENCE": "0.25",
@@ -1555,10 +1608,24 @@
       "patternPersistBars": 15,
       "enabled": true
     },
-    "EMACrossover": {
+    "EMASMACrossover": {
       "decayBars": 10,
-      "snapbackThreshold": 2.5,
-      "blowoffThreshold": 0.15,
+      "decayMinMultiplier": 0.6,
+      "velocityWindowBars": 5,
+      "velocityAtrPeriod": 14,
+      "velocityScale": 0.12,
+      "velocityMaxBoost": 0.12,
+      "velocityMaxPenalty": 0.18,
+      "elasticityMinAtr": 0.5,
+      "elasticityMaxAtr": 2.5,
+      "elasticityScale": 0.08,
+      "elasticityMaxBoost": 0.08,
+      "elasticityMaxPenalty": 0.25,
+      "baseConfidence": 0.4,
+      "confluenceWeight": 0.4,
+      "freshCrossoverBonusPerCross": 0.05,
+      "freshCrossoverBonusMax": 0.15,
+      "maxConfidence": 1,
       "enabled": true
     },
     "LiquiditySweep": {

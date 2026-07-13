@@ -362,6 +362,7 @@ function booleanConfigValue(value, fallback = false) {
 
 function getEmaCrossoverConfig() {
   return {
+    ...(ConfigLoader.get('strategies.EMASMACrossover') || {}),
     entryEventsOnly: booleanConfigValue(ConfigLoader.get('strategyBehavior.emaCrossover.entryEventsOnly'), false),
     confirmBars: finiteConfigNumber(ConfigLoader.get('strategyBehavior.emaCrossover.confirmBars'), 'emaCrossover.confirmBars', 0, 0),
     warmupBars: finiteConfigNumber(ConfigLoader.get('strategyBehavior.emaCrossover.warmupBars'), 'emaCrossover.warmupBars', 10, 1),
@@ -712,7 +713,20 @@ class StrategyOrchestrator {
 
     // DIAGNOSTIC FUNNELS - track where signals die (MUST be before _registerBuiltinStrategies)
     this.diagFunnel = {
-      EMASMACrossover: { evaluated: 0, moduleNonNull: 0, nonNeutral: 0, passedConf: 0, traded: 0 },
+      EMASMACrossover: {
+        evaluated: 0,
+        moduleNonNull: 0,
+        nonNeutral: 0,
+        passedConf: 0,
+        traded: 0,
+        crossesDetected: 0,
+        eventsFresh: 0,
+        filtersComputed: 0,
+        velocityFired: 0,
+        elasticityFired: 0,
+        decayFired: 0,
+        votesEmitted: 0,
+      },
       MADynamicSR: { evaluated: 0, moduleNonNull: 0, nonNeutral: 0, passedConf: 0, traded: 0 },
       RSI: { evaluated: 0, moduleNonNull: 0, nonNeutral: 0, passedConf: 0, traded: 0 },
       LiquiditySweep: { evaluated: 0, moduleNonNull: 0, nonNeutral: 0, passedConf: 0, traded: 0 },
@@ -1289,6 +1303,11 @@ class StrategyOrchestrator {
         );
         const sig = scopedEmaCrossover.update(latestCandle, candles);
         if (sig) diagEMA.moduleNonNull++;
+        if (sig?.diagnostics) {
+          for (const key of ['crossesDetected', 'eventsFresh', 'filtersComputed', 'velocityFired', 'elasticityFired', 'decayFired', 'votesEmitted']) {
+            diagEMA[key] = (diagEMA[key] || 0) + (Number(sig.diagnostics[key]) || 0);
+          }
+        }
 
         // DIAGNOSTIC: Log signal computation
         if (process.env.STRATEGY_DIAG === 'true' && sig && sig.direction !== 'neutral') {
@@ -1302,7 +1321,7 @@ class StrategyOrchestrator {
           ? `${crossoverCount} fresh cross${crossoverCount === 1 ? '' : 'es'}`
           : 'no fresh crosses';
         diagEMA.nonNeutral++;
-        let conf = sig.confidence || 0;
+        let conf = Number.isFinite(Number(sig.confidence)) ? Number(sig.confidence) : 0;
         if (conf < this.minStrategyConfidence) return null;
         diagEMA.passedConf++;
 

@@ -11,6 +11,11 @@ describe('StrategyOrchestrator EMASMACrossover validity', () => {
       ATR_FILTER_ENABLED: 'false',
       ENABLE_TRAI: 'false',
       MIN_STRATEGY_CONFIDENCE: '0.35',
+      DOTENV_CONFIG_PATH: '/tmp/ogzprime-test-missing.env',
+      PROFILE: 'backtest-p0',
+      EXECUTION_MODE: 'backtest',
+      CANDLE_SOURCE: 'file',
+      BACKTEST_MODE: 'true',
     };
   });
 
@@ -35,6 +40,8 @@ describe('StrategyOrchestrator EMASMACrossover validity', () => {
   }
 
   test('labels alignment continuation honestly when there are zero fresh crosses', () => {
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    ConfigLoader.load({ force: true, silent: true, loadDotenv: false });
     const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
     const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
     const priceHistory = buildAlignedCandles();
@@ -45,7 +52,7 @@ describe('StrategyOrchestrator EMASMACrossover validity', () => {
       [],
       { currentRegime: 'trending_up', confidence: 0.5, positionMultiplier: 1 },
       priceHistory,
-      { price, timeframe: '15m' }
+      { price, timeframe: '15m', symbol: 'TSLA' }
     );
 
     expect(result.action).toBe('BUY');
@@ -79,7 +86,7 @@ describe('StrategyOrchestrator EMASMACrossover validity', () => {
           [],
           { currentRegime: 'sideways', confidence: 0.8, positionMultiplier: 1 },
           priceHistory,
-          { price, timeframe: '15m' }
+          { price, timeframe: '15m', symbol: 'TSLA' }
         );
 
         expect(choppyResult.action).toBe('HOLD');
@@ -108,7 +115,7 @@ describe('StrategyOrchestrator EMASMACrossover validity', () => {
           [],
           { currentRegime: 'trending_up', confidence: 0.8, positionMultiplier: 1 },
           priceHistory,
-          { price, timeframe: '15m' }
+          { price, timeframe: '15m', symbol: 'TSLA' }
         );
 
         expect(trendResult.action).toBe('BUY');

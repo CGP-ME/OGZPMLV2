@@ -141,7 +141,7 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(loaded.sources['trai.enabled']).toBe('default');
   });
 
-  test('selected tuning profile overrides conflicting env through ConfigLoader snapshot', () => {
+  test('selected tuning profile cannot override launch-profile-owned EMA behavior', () => {
     process.env.TUNING_PROFILE = 'trey-spec';
     process.env.MIN_TRADE_CONFIDENCE = '0.91';
     process.env.MAX_POSITION_SIZE_PCT = '0.01';
@@ -156,14 +156,15 @@ describe('ConfigLoader live trading safety guard', () => {
 
     expect(loaded.config.confidence.minTradeConfidence).toBe(0.5);
     expect(loaded.config.sizing.maxPositionSize).toBe(0.10);
-    expect(loaded.config.strategyBehavior.emaCrossover.entryEventsOnly).toBe(true);
-    expect(loaded.config.strategyBehavior.emaCrossover.warmupBars).toBe(200);
+    expect(loaded.config.strategyBehavior.emaCrossover.entryEventsOnly).toBe(false);
+    expect(loaded.config.strategyBehavior.emaCrossover.warmupBars).toBe(10);
     expect(loaded.config.strategyBehavior.atrContracts.enabled).toBe(true);
     expect(loaded.config.exitLogic.beScaleOut.scaleOutFraction).toBe(0.25);
     expect(loaded.config.exitLogic.tieredExit.enabled).toBe(false);
     expect(loaded.config.evalRules.ttp.marketTime.entryBufferMinutesBeforeCutoff).toBe(30);
     expect(loaded.sources['confidence.minTradeConfidence']).toBe('config:launchProfiles.paper.confidence.minTradeConfidence');
-    expect(loaded.sources['strategyBehavior.emaCrossover.warmupBars']).toBe('profile:trey-spec:EMA_CROSSOVER_WARMUP_BARS');
+    expect(loaded.sources['strategyBehavior.emaCrossover.warmupBars'])
+      .toBe('config:launchProfiles.paper.strategyBehavior.emaCrossover.warmupBars');
     expect(loaded.sources['exitLogic.tieredExit.enabled']).toBe('profile:trey-spec:TIERED_EXIT_ENABLED');
     expect(loaded.sources['evalRules.ttp.marketTime.entryBufferMinutesBeforeCutoff']).toBe('config:launchProfiles.paper.venueGuards.ttp.marketTime.entryBufferMinutesBeforeCutoff');
   });

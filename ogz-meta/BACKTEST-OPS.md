@@ -82,7 +82,7 @@ There is NO separate backtest engine. `EXECUTION_MODE=backtest` disables broker 
 |---|---|---|---|---|
 | `RSI` | `ENABLE_RSI=true` | strategies.RSI | ✅ LOCKED | Walk-forward validated 2026-03-20. SL -0.8%, TP 1.0%, min conf 60% |
 | `MADynamicSR` | `ENABLE_MASR=true` | strategies.MADynamicSR | ✅ LOCKED | Walk-forward validated 2026-03-20. SL -0.8%, TP 1.0% |
-| `EMASMACrossover` | `ENABLE_EMA=true` | strategies.EMACrossover | ✅ LOCKED | Walk-forward validated 2026-03-20. SL -0.5%, TP 1.0% (per TradingConfig.exitContracts.EMASMACrossover). Decay 10 bars, snapback 2.5%. |
+| `EMASMACrossover` | `ENABLE_EMA=true` | strategies.EMASMACrossover | ✅ LOCKED | Walk-forward validated 2026-03-20. SL -0.5%, TP 1.0% (per TradingConfig.exitContracts.EMASMACrossover). EMA entry mode is launch-profile owned: P0 keeps legacy alignment, tournament backtest profiles use crossover events with config-owned velocity, elasticity, and decay multipliers. |
 | `LiquiditySweep` | `ENABLE_LIQSWEEP=true` | strategies.LiquiditySweep | ✅ Active | 50-bar lookback, disableSessionCheck=true |
 | `SmartMoneySweep` | `ENABLE_SMS=true` | strategies.SmartMoneySweep | ⚠️ Validating | VP-based sweeps, 5-day lookback, RTH-only VP |
 | `OpeningRangeBreakout` | `ENABLE_ORB=true` | strategies.OpeningRangeBreakout | ⚠️ Disabled | ICT-style, needs tuning |
