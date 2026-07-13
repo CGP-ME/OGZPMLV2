@@ -278,8 +278,11 @@ describe('TradeJournalBridge scoped storage', () => {
         journalDataDir: journalRoot,
       },
       ttpCutoffSymbols: ['TSLA'],
-      kraken: {
-        getPositions: jest.fn(async () => []),
+      sessionRouter: {
+        activeBroker: {
+          id: 'alpaca',
+          getPositions: jest.fn(async () => []),
+        },
       },
       executeTrade: jest.fn(async () => ({
         success: true,
@@ -329,7 +332,7 @@ describe('TradeJournalBridge scoped storage', () => {
     try {
       await bridge._startupJournalReconciliationPromise;
 
-      expect(bot.kraken.getPositions).toHaveBeenCalledTimes(1);
+      expect(bot.sessionRouter.activeBroker.getPositions).toHaveBeenCalledTimes(1);
       expect(bridge._combinedJournalSnapshot().openPositions).toBe(0);
       expect(bridge.journal.openTrades.size).toBe(0);
       const rows = readJsonl(path.join(journalDir, 'trade-ledger.jsonl'));
@@ -347,6 +350,27 @@ describe('TradeJournalBridge scoped storage', () => {
     } finally {
       bridge.destroy();
       fs.rmSync(journalRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('journal reconciliation refuses legacy kraken alias when active broker is absent', async () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const legacyBroker = { getPositions: jest.fn(async () => []) };
+    const bridge = {
+      bot: {
+        kraken: legacyBroker,
+      },
+    };
+
+    try {
+      const positions = await TradeJournalBridge.prototype._brokerPositionsForJournalReconciliation.call(bridge);
+
+      expect(positions).toBeNull();
+      expect(legacyBroker.getPositions).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('refusing broker-ambiguous position read'));
+    } finally {
+      warnSpy.mockRestore();
     }
   });
 

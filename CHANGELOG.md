@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Broker Fallback De-Krakenification (2026-07-13)
+
+- Removed legacy Kraken-alias fallbacks from candle gap backfill and trade-journal broker reconciliation; both paths now require `sessionRouter.activeBroker` and refuse broker-ambiguous reads instead of silently using `ctx.kraken` or `bot.kraken`.
+- Added focused red/green coverage proving the old runtime called legacy aliases and the fixed runtime refuses them.
+
 ### Static Router Post-Push Audit (2026-07-12)
 
 - Recorded the skipped post-push P0 standing-law audit for static router route-table ownership after commit `becd6ad4`; exact gate passed at `8338.146639366509 / 1551 trades / 52.2% WR / PF 0.64`.

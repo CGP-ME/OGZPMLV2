@@ -856,8 +856,9 @@ class TradeJournalBridge {
   }
 
   async _brokerPositionsForJournalReconciliation() {
-    const adapter = this.bot?.sessionRouter?.activeBroker || this.bot?.kraken;
+    const adapter = this.bot?.sessionRouter?.activeBroker;
     if (!adapter || typeof adapter.getPositions !== 'function') {
+      console.warn('[TradeJournalBridge] Active broker does not support getPositions() for journal reconciliation; refusing broker-ambiguous position read');
       return null;
     }
     const positions = await adapter.getPositions();

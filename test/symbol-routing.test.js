@@ -842,7 +842,8 @@ describe('symbol-aware candle routing', () => {
     const btc = makeSymCtx('BTC-USD');
     const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '1m');
     ctx.config.dataFeed.gapBackfillBufferCandles = 2;
-    ctx.kraken = { getCandles: jest.fn().mockResolvedValue([]) };
+    const activeBroker = { id: 'kraken', getCandles: jest.fn().mockResolvedValue([]) };
+    ctx.sessionRouter = { activeBroker };
     const processor = new CandleProcessor(ctx);
 
     expect(processor.candleIntervalMs).toBe(60 * 1000);
@@ -853,14 +854,15 @@ describe('symbol-aware candle routing', () => {
       assetClass: 'crypto'
     });
 
-    expect(ctx.kraken.getCandles).toHaveBeenCalledWith('BTC-USD', '1m', 3);
+    expect(activeBroker.getCandles).toHaveBeenCalledWith('BTC-USD', '1m', 3);
   });
 
   test('gap recovery uses immutable candle symbol instead of contaminated runtime default', async () => {
     const btc = makeSymCtx('BTC-USD');
     const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'NVDA', '1m');
     ctx.config.dataFeed.gapBackfillBufferCandles = 2;
-    ctx.kraken = { id: 'kraken', getCandles: jest.fn().mockResolvedValue([]) };
+    const activeBroker = { id: 'kraken', getCandles: jest.fn().mockResolvedValue([]) };
+    ctx.sessionRouter = { activeBroker };
     const processor = new CandleProcessor(ctx);
 
     await processor.attemptBackfill(0, 60 * 1000, {
@@ -870,14 +872,35 @@ describe('symbol-aware candle routing', () => {
       assetClass: 'crypto'
     });
 
-    expect(ctx.kraken.getCandles).toHaveBeenCalledWith('BTC-USD', '1m', 3);
-    expect(ctx.kraken.getCandles).not.toHaveBeenCalledWith('NVDA', '1m', expect.any(Number));
+    expect(activeBroker.getCandles).toHaveBeenCalledWith('BTC-USD', '1m', 3);
+    expect(activeBroker.getCandles).not.toHaveBeenCalledWith('NVDA', '1m', expect.any(Number));
+  });
+
+  test('gap recovery refuses legacy kraken alias when active broker is absent', async () => {
+    const btc = makeSymCtx('BTC-USD');
+    const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '1m');
+    ctx.config.dataFeed.gapBackfillBufferCandles = 2;
+    const legacyBroker = { id: 'kraken', getCandles: jest.fn().mockResolvedValue([]) };
+    ctx.kraken = legacyBroker;
+    const processor = new CandleProcessor(ctx);
+
+    const candles = await processor.attemptBackfill(0, 60 * 1000, {
+      symbol: 'BTC-USD',
+      timeframe: '1m',
+      brokerId: 'kraken',
+      assetClass: 'crypto'
+    });
+
+    expect(candles).toEqual([]);
+    expect(legacyBroker.getCandles).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('sessionRouter.activeBroker missing'));
   });
 
   test('gap recovery refuses stock symbols through Kraken', async () => {
     const btc = makeSymCtx('BTC-USD');
     const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'NVDA', '1m');
-    ctx.kraken = { id: 'kraken', getCandles: jest.fn().mockResolvedValue([]) };
+    const activeBroker = { id: 'kraken', getCandles: jest.fn().mockResolvedValue([]) };
+    ctx.sessionRouter = { activeBroker };
     const processor = new CandleProcessor(ctx);
 
     const candles = await processor.attemptBackfill(0, 60 * 1000, {
@@ -888,7 +911,7 @@ describe('symbol-aware candle routing', () => {
     });
 
     expect(candles).toEqual([]);
-    expect(ctx.kraken.getCandles).not.toHaveBeenCalled();
+    expect(activeBroker.getCandles).not.toHaveBeenCalled();
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Refusing to backfill stock symbol NVDA through Kraken'));
   });
 
@@ -896,7 +919,8 @@ describe('symbol-aware candle routing', () => {
     primeConfigForSymbolRouting({ ALPACA_SYMBOLS: 'NVDA' });
     const btc = makeSymCtx('BTC-USD');
     const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '1m');
-    ctx.kraken = { id: 'kraken', getCandles: jest.fn().mockResolvedValue([]) };
+    const activeBroker = { id: 'kraken', getCandles: jest.fn().mockResolvedValue([]) };
+    ctx.sessionRouter = { activeBroker };
     const processor = new CandleProcessor(ctx);
 
     const candles = await processor.attemptBackfill(0, 60 * 1000, {
@@ -906,14 +930,15 @@ describe('symbol-aware candle routing', () => {
     });
 
     expect(candles).toEqual([]);
-    expect(ctx.kraken.getCandles).not.toHaveBeenCalled();
+    expect(activeBroker.getCandles).not.toHaveBeenCalled();
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Refusing to backfill stock symbol NVDA-USD through Kraken'));
   });
 
   test('gap recovery refuses configured stock USD suffix through Kraken even when mislabeled crypto', async () => {
     const btc = makeSymCtx('BTC-USD');
     const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '1m');
-    ctx.kraken = { id: 'kraken', getCandles: jest.fn().mockResolvedValue([]) };
+    const activeBroker = { id: 'kraken', getCandles: jest.fn().mockResolvedValue([]) };
+    ctx.sessionRouter = { activeBroker };
     const processor = new CandleProcessor(ctx);
 
     const candles = await processor.attemptBackfill(0, 60 * 1000, {
@@ -924,7 +949,7 @@ describe('symbol-aware candle routing', () => {
     });
 
     expect(candles).toEqual([]);
-    expect(ctx.kraken.getCandles).not.toHaveBeenCalled();
+    expect(activeBroker.getCandles).not.toHaveBeenCalled();
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Refusing to backfill stock symbol TSLA-USD through Kraken'));
   });
 
@@ -951,7 +976,8 @@ describe('symbol-aware candle routing', () => {
     const btc = makeSymCtx('BTC-USD');
     const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '1m');
     delete ctx.config.brokerId;
-    ctx.kraken = { getCandles: jest.fn().mockResolvedValue([]) };
+    const activeBroker = { id: null, getCandles: jest.fn().mockResolvedValue([]) };
+    ctx.sessionRouter = { activeBroker };
     const processor = new CandleProcessor(ctx);
 
     const candles = await processor.attemptBackfill(0, 60 * 1000, {
@@ -961,7 +987,7 @@ describe('symbol-aware candle routing', () => {
     });
 
     expect(candles).toEqual([]);
-    expect(ctx.kraken.getCandles).not.toHaveBeenCalled();
+    expect(activeBroker.getCandles).not.toHaveBeenCalled();
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Missing broker identity for BTC-USD backfill'));
   });
 
@@ -976,13 +1002,14 @@ describe('symbol-aware candle routing', () => {
     const btc = makeSymCtx('BTC-USD');
     const ctx = makeCtx(new Map([['BTC-USD', btc]]), '', '1m');
     ctx.config.tradingPair = 'TSLA';
-    ctx.kraken = { getCandles: jest.fn().mockResolvedValue([]) };
+    const activeBroker = { id: 'kraken', getCandles: jest.fn().mockResolvedValue([]) };
+    ctx.sessionRouter = { activeBroker };
     const processor = new CandleProcessor(ctx);
 
     const candles = await processor.attemptBackfill(0, 60 * 1000);
 
     expect(candles).toEqual([]);
-    expect(ctx.kraken.getCandles).not.toHaveBeenCalled();
+    expect(activeBroker.getCandles).not.toHaveBeenCalled();
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Missing candle symbol'));
   });
 });

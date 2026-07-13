@@ -745,12 +745,10 @@ class CandleProcessor {
   /**
    * Attempt to backfill missing candles via REST API.
    *
-   * Broker-agnostic: calls the canonical IBrokerAdapter.getCandles()
-   * method (defined at foundation/IBrokerAdapter.js:187), which every
-   * adapter past and future implements per their own API. The legacy
-   * variable name `this.ctx.kraken` is preserved — it holds whichever
-   * broker adapter BrokerFactory returned (Alpaca on stocks mode,
-   * Kraken on crypto mode, future adapters on their asset classes).
+   * Broker-agnostic: calls the active SessionRouter broker adapter through
+   * the canonical IBrokerAdapter.getCandles() method (defined at
+   * foundation/IBrokerAdapter.js:187), which every adapter past and future
+   * implements per their own API.
    *
    * Symbol + timeframe come from config, NOT hardcoded. Returned
    * candles go through the OHLC normalizer so any broker's native
@@ -763,9 +761,9 @@ class CandleProcessor {
    */
   async attemptBackfill(gapStart, gapEnd, traceContext = {}) {
     try {
-      const broker = this.ctx.sessionRouter?.activeBroker || this.ctx.kraken;
+      const broker = this.ctx.sessionRouter?.activeBroker;
       if (!broker || typeof broker.getCandles !== 'function') {
-        console.error('[GAP-RECOVERY] Active broker does not support getCandles() — adapter misconfigured');
+        console.error('[GAP-RECOVERY] Active broker does not support getCandles() — sessionRouter.activeBroker missing or adapter misconfigured');
         return [];
       }
 
