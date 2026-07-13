@@ -187,26 +187,6 @@ function buildAlpacaAdapterOptions(brokerConfig = {}, options = {}) {
   };
 }
 
-function resolveSingleBrokerSubscriptionSymbols(brokerConfig = {}) {
-  if (brokerConfig.id === 'alpaca') {
-    const symbols = [...new Set(
-      splitSymbols(brokerConfig.alpacaSymbols)
-        .map(normalizeRuntimeSymbol)
-        .filter(Boolean)
-    )];
-    if (symbols.length === 0) {
-      throw new Error('[Alpaca] ALPACA_SYMBOLS must provide at least one symbol for single-broker subscriptions');
-    }
-    return symbols;
-  }
-
-  const symbol = normalizeRuntimeSymbol(brokerConfig.tradingPair);
-  if (!symbol) {
-    throw new Error(`[${brokerConfig.id || 'BrokerFactory'}] TRADING_PAIR must provide one symbol for single-broker subscriptions`);
-  }
-  return [symbol];
-}
-
 function captureRuntimeFatal(eventType, input, runtimeScope, extra = {}) {
   const result = runtimeAuditSink.capture(
     eventType,
@@ -873,8 +853,7 @@ class OGZPrimeV14Bot {
         getExitPrice: (symbol, trade, brokerPositions) => this.getTtpExitPrice(symbol, trade, brokerPositions),
       });
 
-      // OHLC handler closure — mirrors single-broker handler in subscribeToMarketData.
-      // SessionRouter attaches this to whichever adapter is currently active.
+      // SessionRouter attaches this OHLC handler to whichever adapter is currently active.
       const ohlcHandler = (eventData) => {
         const tf = eventData.timeframe || '1m';
         const raw = eventData.data || eventData;
@@ -1617,21 +1596,15 @@ class OGZPrimeV14Bot {
   }
 
   _getBootHydrationSymbols() {
-    if (this.sessionRouter && this.sessionRouter.enabled) {
-      if (this.sessionRouter.activeSession === 'crypto') {
-        const symbol = normalizeRuntimeSymbol(this.sessionRouter.cryptoSymbols?.[0]);
-        return symbol ? [symbol] : [];
-      }
-      if (this.sessionRouter.activeSession === 'stocks') {
-        const preferred = normalizeRuntimeSymbol(this.tradingPair);
-        const stocks = (this.sessionRouter.stockSymbols || []).map(normalizeRuntimeSymbol).filter(Boolean);
-        if (preferred && stocks.includes(preferred)) return [preferred];
-        return stocks.length > 0 ? [stocks[0]] : [];
-      }
-      throw new Error(`[BOOT][REST-HYDRATE] SessionRouter active but activeSession missing (${this.sessionRouter.activeSession})`);
+    if (this.sessionRouter?.activeSession === 'crypto') {
+      const symbol = normalizeRuntimeSymbol(this.sessionRouter.cryptoSymbols?.[0]);
+      return symbol ? [symbol] : [];
     }
-
-    return resolveSingleBrokerSubscriptionSymbols(resolvedConfig.config.broker);
+    if (this.sessionRouter?.activeSession === 'stocks') {
+      const stocks = (this.sessionRouter.stockSymbols || []).map(normalizeRuntimeSymbol).filter(Boolean);
+      return stocks.length > 0 ? [stocks[0]] : [];
+    }
+    throw new Error(`[BOOT][REST-HYDRATE] SessionRouter active session missing (${this.sessionRouter?.activeSession})`);
   }
 
   _normalizeHydrationCandle(raw, symbol, timeframe, timeframeMs) {
@@ -1683,7 +1656,7 @@ class OGZPrimeV14Bot {
       return;
     }
 
-    const broker = this.sessionRouter?.activeBroker || this.kraken;
+    const broker = this.sessionRouter?.activeBroker;
     if (!broker || typeof broker.getCandles !== 'function') {
       console.warn('[BOOT][REST-HYDRATE] skipped: active broker has no getCandles()');
       return;
@@ -1703,7 +1676,7 @@ class OGZPrimeV14Bot {
     const hydrationLimit = this.config.dataFeed.bootRestHydrationLimit;
     for (const symbol of symbols) {
       const scopeEnvelope = this._getRestRecoveryScopeEnvelope('boot_rest_hydration', symbol, timeframe, {
-        brokerId: this.sessionRouter?.activeBroker?.id || resolvedConfig.config.broker.id,
+        brokerId: broker.id,
         assetClass: this.config.assetClass,
       });
       const rawCandles = await broker.getCandles(symbol, timeframe, hydrationLimit);
@@ -2007,219 +1980,10 @@ class OGZPrimeV14Bot {
   }
 
   /**
-   * V2 ARCHITECTURE: Subscribe to market data from BrokerFactory
-   * Single source of truth - no direct connections
+   * V2 ARCHITECTURE: SessionRouter owns market-data subscriptions.
    */
   subscribeToMarketData() {
-    // SessionRouter governs subscriptions when enabled — skip the single-broker
-    // path so we don't double-attach OHLC listeners or subscribe to stale symbols.
-    if (this.sessionRouter && this.sessionRouter.enabled) {
-      console.log('V2 ARCHITECTURE: SessionRouter active — skipping manual subscription');
-      return;
-    }
-
-    console.log('V2 ARCHITECTURE: Subscribing to market data from BrokerFactory...');
-
-    if (this.kraken) {
-      const subscriptionSymbols = resolveSingleBrokerSubscriptionSymbols(resolvedConfig.config.broker);
-      const timeframe = resolvedConfig.config.broker.candleTimeframe;
-
-      // Subscribe to candles if method exists
-      if (this.kraken.subscribeToCandles) {
-        for (const subscriptionSymbol of subscriptionSymbols) {
-          console.log(`Starting ${subscriptionSymbol} ${timeframe} subscription...`);
-          this.kraken.subscribeToCandles(subscriptionSymbol, timeframe);
-        }
-      }
-
-      if (this.kraken.subscribeToTicker) {
-        for (const subscriptionSymbol of subscriptionSymbols) {
-          console.log(`Starting ${subscriptionSymbol} trade-tick subscription for exit protection...`);
-          this.kraken.subscribeToTicker(subscriptionSymbol, (tick) => {
-            const tickSymbol = normalizeRuntimeSymbol(tick?.symbol || subscriptionSymbol);
-            const tickPrice = Number(tick?.price);
-            if (!tickSymbol || !Number.isFinite(tickPrice) || tickPrice <= 0) {
-              console.error(`[EXIT-MONITOR] dropped invalid trade tick for ${subscriptionSymbol}: symbol=${tickSymbol || '(missing)'} price=${tick?.price}`);
-              return;
-            }
-            const eventTimeMs = Number.isFinite(Date.parse(tick.timestamp))
-              ? Date.parse(tick.timestamp)
-              : Date.now();
-            const tickMarketData = {
-              symbol: tickSymbol,
-              price: tickPrice,
-              timestamp: eventTimeMs,
-              timeframe: 'tick',
-              systemTime: Date.now(),
-              volume: Number.isFinite(Number(tick?.size)) ? Number(tick.size) : null,
-              priceSource: 'broker_trade_tick'
-            };
-            let priceAccepted = true;
-            if (stateManager && stateManager.updateLastPrice) {
-              priceAccepted = stateManager.updateLastPrice(tickSymbol, tickPrice, eventTimeMs);
-            }
-            if (priceAccepted === false) {
-              return;
-            }
-            const tickSymCtx = this.symbolContexts?.get(tickSymbol);
-            if (tickSymCtx) tickSymCtx.marketData = tickMarketData;
-            this.tradingLoop?.checkExitsOnly(tickSymbol)
-              .catch(error => {
-                console.error(`[EXIT-MONITOR] trade-tick exit check failed for ${tickSymbol}: ${error.message}`);
-              });
-          });
-        }
-      }
-
-      // Subscribe to OHLC events from the broker
-      if (this.kraken.on) {
-        const singleSubscriptionSymbol = subscriptionSymbols.length === 1 ? subscriptionSymbols[0] : null;
-        this.kraken.on('ohlc', (eventData) => {
-          // CHANGE 2026-01-29: Handle multi-timeframe OHLC data
-          const timeframe = eventData.timeframe || '1m';
-          const raw = eventData.data || eventData;  // Support old format too
-          const traceId = eventData.traceId || raw?.traceId || createTraceId('candle');
-          const eventSymbol = eventData && eventData.symbol;
-          const rawSymbol = raw && typeof raw === 'object' && (raw.symbol || raw.S);
-          const symbolSource = eventSymbol
-            ? 'event.symbol'
-            : (rawSymbol ? (raw.symbol ? 'raw.symbol' : 'raw.S') : (singleSubscriptionSymbol ? 'single-subscription' : 'missing'));
-          const ohlcSymbol = normalizeRuntimeSymbol(eventSymbol || rawSymbol || singleSubscriptionSymbol);
-          emitTrace(this, 'CANDLE_INGRESS', {
-            traceId,
-            source: `single:${resolvedConfig.config.broker.id}`,
-            brokerId: resolvedConfig.config.broker.id,
-            symbol: ohlcSymbol,
-            symbolSource,
-            timeframe,
-            payloadSymbol: eventSymbol || rawSymbol || null,
-          });
-
-          // CHANGE 2026-04-24: Broker-agnostic OHLC normalizer. Every
-          // adapter (Kraken arrays, Alpaca short-object, future adapters
-          // with long-name fields) converges to one canonical shape
-          // before reaching CandleProcessor / indicators. New brokers
-          // stay dumb — they emit their native shape and this one-liner
-          // handles translation. See foundation/ohlc-normalize.js.
-          const normalizedOhlcData = normalizeOhlc(raw);
-          if (!normalizedOhlcData) {
-            console.warn('[OHLC] dropped unnormalizable payload from', timeframe, 'broker:', raw);
-            return;
-          }
-          const ohlcData = normalizeOhlcForProcessor(normalizedOhlcData);
-          if (!ohlcData) {
-            console.warn('[OHLC] dropped payload with invalid timestamp from', timeframe, 'broker:', raw);
-            return;
-          }
-
-          // FIX 2026-05-05: per-symbol price tracking for cross-asset equity.
-          // Single-broker mode subscribes to one symbol — pass it through.
-          if (!ohlcSymbol) {
-            console.error(`[VIS][OHLC][Runner] dropped ${timeframe} single-broker candle: missing symbol | broker=${resolvedConfig.config.broker.id} contexts=${describeSymbolContexts(this.symbolContexts)}`);
-            return;
-          }
-          const ohlcClose = ohlcData[5];
-          emitTrace(this, 'CANDLE_NORMALIZED', {
-            traceId,
-            source: `single:${resolvedConfig.config.broker.id}`,
-            symbol: ohlcSymbol,
-            timeframe,
-            close: ohlcClose,
-            etime: ohlcData[1],
-          });
-          this.lastBrokerDataReceived = Date.now();
-          this.lastBrokerDataSymbol = ohlcSymbol;
-          this.lastBrokerDataTimeframe = timeframe;
-          let priceAccepted = true;
-          if (stateManager && stateManager.updateLastPrice) {
-            priceAccepted = stateManager.updateLastPrice(ohlcSymbol, ohlcClose, ohlcData[1]);
-          }
-          this._visOhlcSeen ??= new Set();
-          const activeTf = this.timeframeSelector?.currentTimeframe || this.candleTimeframe;
-          const visKey = `single:${resolvedConfig.config.broker.id}:${ohlcSymbol}:${timeframe}`;
-          if (!this._visOhlcSeen.has(visKey) || timeframe === activeTf) {
-            this._visOhlcSeen.add(visKey);
-            console.log(`[VIS][OHLC][Runner] source=single broker=${resolvedConfig.config.broker.id} timeframe=${timeframe} symbolSource=${symbolSource} payloadSymbol=${eventSymbol || '(missing)'} symbol=${ohlcSymbol} close=${ohlcClose} contexts=${describeSymbolContexts(this.symbolContexts)}`);
-          }
-
-          // Store in timeframe-specific history for dashboard
-          const storedCandle = this.storeTimeframeCandle(timeframe, ohlcData, ohlcSymbol);
-          const symbolStoredCandle = this.storeSymbolTimeframeCandle(ohlcSymbol, timeframe, ohlcData);
-          const streamingMarketData = {
-            symbol: ohlcSymbol,
-            price: ohlcClose,
-            timestamp: ohlcData[1],
-            timeframe,
-            systemTime: Date.now(),
-            volume: Number.isFinite(Number(ohlcData[6])) ? Number(ohlcData[6]) : null,
-            open: ohlcData[2],
-            high: ohlcData[3],
-            low: ohlcData[4],
-            priceSource: 'broker_stream'
-          };
-          const streamSymCtx = this.symbolContexts?.get(ohlcSymbol);
-          if (streamSymCtx && priceAccepted !== false) streamSymCtx.marketData = streamingMarketData;
-
-          // Feed only the active trading timeframe to indicators + strategy context.
-          if (timeframe === activeTf) {
-            this._markActiveTimeframeData(ohlcSymbol, timeframe);
-            const scopeEnvelope = this.getCandleScopeEnvelope({
-              brokerId: resolvedConfig.config.broker.id,
-              assetClass: this.config.assetClass,
-              timeframe,
-            });
-            this.syncDashboardRuntimeScope(ohlcSymbol, scopeEnvelope);
-            this.handleMarketData({
-              data: ohlcData,
-              symbol: ohlcSymbol,
-              timeframe,
-              traceId,
-              ...scopeEnvelope,
-            });
-          } else {
-            this._feedAggregatedActiveCandle({
-              symbol: ohlcSymbol,
-              sourceTimeframe: timeframe,
-              activeTimeframe: activeTf,
-              sourceLabel: `single:${resolvedConfig.config.broker.id}`,
-              traceId,
-            });
-          }
-
-          // CHANGE 2026-02-21: Re-evaluate best timeframe on 5m candle close
-          if (timeframe === '5m' && this.timeframeSelector) {
-            const tfResult = this.timeframeSelector.evaluate();
-            if (tfResult.switched) {
-              console.log(`Active trading timeframe: ${tfResult.timeframe} (score: ${tfResult.score.toFixed(2)})`);
-            }
-          }
-
-          // CHANGE 2026-02-21: Trigger trading analysis on ACTIVE timeframe candle close
-          const activeStoredCandle = symbolStoredCandle || storedCandle;
-          if (timeframe === activeTf && activeStoredCandle?.isNewCandle) {
-            console.log(`V2: ${activeTf} candle closed - running trading analysis`);
-            this.run15mTradingCycle(ohlcSymbol, traceId);
-          } else if (timeframe === activeTf && activeStoredCandle && !activeStoredCandle.isNewCandle) {
-            const skipKey = `single:${ohlcSymbol}:${timeframe}`;
-            this._visActiveTfUpdateSkipped ??= new Set();
-            if (!this._visActiveTfUpdateSkipped.has(skipKey)) {
-              this._visActiveTfUpdateSkipped.add(skipKey);
-              console.log(`[VIS][TradingCycle] waiting for new ${timeframe} candle boundary before analysis | symbol=${ohlcSymbol} etime=${activeStoredCandle.candle?.etime || '(missing)'}`);
-            }
-          }
-        });
-
-        this.kraken.on('ticker', (data) => {
-          if (data && data.price) {
-            console.log(`V2 Ticker: $${data.price}`);
-          }
-        });
-
-        console.log('V2: Subscribed to BrokerFactory events (single source of truth)');
-      }
-    } else {
-      console.error('[Broker] not initialized');
-    }
+    console.log('V2 ARCHITECTURE: SessionRouter owns market-data subscriptions');
   }
 
 
@@ -2287,7 +2051,7 @@ class OGZPrimeV14Bot {
   }
 
   _requestAggregateSourceBackfill({ symbol, sourceTimeframe, activeTimeframe, periodStart, traceId, sourceLabel }) {
-    const broker = this.sessionRouter?.activeBroker || this.kraken;
+    const broker = this.sessionRouter?.activeBroker;
     if (!broker || typeof broker.getCandles !== 'function') {
       console.error(`[VIS][OHLC][Aggregate] cannot repair ${sourceTimeframe}->${activeTimeframe} aggregate for ${symbol}: active broker has no getCandles()`);
       return;
@@ -2996,7 +2760,7 @@ class OGZPrimeV14Bot {
       return false;
     }
 
-    const brokerId = this.sessionRouter?.activeBroker?.id || resolvedConfig.config.broker.id;
+    const brokerId = this.sessionRouter?.activeBroker?.id || null;
     const assetClass = resolvedConfig.config.broker.assetClass || '';
     const isStockFeed = this.sessionRouter?.activeSession === 'stocks' || assetClass === 'stocks' || brokerId === 'alpaca';
     if (!isStockFeed) return false;
@@ -3026,7 +2790,7 @@ class OGZPrimeV14Bot {
   }
 
   async _attemptLivenessBackfill(symbol, timeframe) {
-    const broker = this.sessionRouter?.activeBroker || this.kraken;
+    const broker = this.sessionRouter?.activeBroker;
     if (!broker || typeof broker.getCandles !== 'function') {
       throw new Error('active broker has no getCandles()');
     }
@@ -3056,7 +2820,7 @@ class OGZPrimeV14Bot {
 
     let applied = 0;
     const scopeEnvelope = this._getRestRecoveryScopeEnvelope('liveness_rest_backfill', symbol, timeframe, {
-      brokerId: this.sessionRouter?.activeBroker?.id || this.config.brokerId,
+      brokerId: broker.id,
       assetClass: this.config.assetClass,
     });
     for (let index = 0; index < candles.length; index += 1) {
@@ -3751,7 +3515,6 @@ if (require.main === module) {
 }
 
 OGZPrimeV14Bot._test = {
-  resolveSingleBrokerSubscriptionSymbols,
   resolveRuntimeAccountIdentity,
 };
 

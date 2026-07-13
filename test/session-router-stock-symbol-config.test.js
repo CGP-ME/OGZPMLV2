@@ -168,18 +168,14 @@ describe('SessionRouter stock symbol config ownership', () => {
     expect(alpacaAdapter.on).not.toHaveBeenCalled();
   });
 
-  test('routed-static stocks preserves the prior single-broker Alpaca symbol route in backtest', async () => {
+  test('routed-static stocks preserves explicit Alpaca route-table symbols in backtest', async () => {
     jest.resetModules();
-    const OGZPrimeV14Bot = loadBotForRouteIdentity();
-    const legacySymbols = OGZPrimeV14Bot._test.resolveSingleBrokerSubscriptionSymbols({
-      id: 'alpaca',
-      alpacaSymbols: 'TSLA, nvda, SPY, TSLA',
-      tradingPair: 'TSLA',
-    });
+    loadBotForRouteIdentity();
+    const routeSymbols = ['TSLA', 'NVDA', 'SPY'];
     const router = new SessionRouter({
       mode: 'static',
       staticSession: 'stocks',
-      stockSymbols: legacySymbols,
+      stockSymbols: routeSymbols,
       cryptoSymbols: ['BTC-USD'],
       backtestMode: true,
       transitionStore: {
@@ -215,11 +211,10 @@ describe('SessionRouter stock symbol config ownership', () => {
 
     await router.start();
 
-    expect(legacySymbols).toEqual(['TSLA', 'NVDA', 'SPY']);
     expect(router.activeSession).toBe('stocks');
     expect(router.activeBroker).toBe(alpacaAdapter);
     expect(orderRouter.registerBroker).toHaveBeenCalledTimes(1);
-    expect(orderRouter.registerBroker).toHaveBeenCalledWith(alpacaAdapter, legacySymbols);
+    expect(orderRouter.registerBroker).toHaveBeenCalledWith(alpacaAdapter, routeSymbols);
     expect(alpacaAdapter.getPositions).not.toHaveBeenCalled();
     expect(alpacaAdapter.getOpenOrders).not.toHaveBeenCalled();
     expect(alpacaAdapter.getBalance).not.toHaveBeenCalled();
