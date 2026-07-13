@@ -6,7 +6,13 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 
 const config = require('../trai_brain/mercury-bridge/config');
-const { walkRepo } = require('../trai_brain/mercury-bridge/indexer');
+const {
+  buildIndexRunMetadata,
+  embedBatchWithRetry,
+  isRetriableEmbedError,
+  packBatches,
+  walkRepo,
+} = require('../trai_brain/mercury-bridge/indexer');
 const { routeQuery } = require('../trai_brain/mercury-bridge/query-router');
 const { retrieveTopK } = require('../trai_brain/mercury-bridge/searcher');
 const { buildCurrentChangeBlastRadius, isSerenaSourcePath, selectCurrentChangeNames } = require('../trai_brain/mercury-bridge/ask');
@@ -18,6 +24,14 @@ const NON_CANONICAL_INDEX_DIRS = [
   'ledger',
   'cognition-history',
   'proposals',
+  'inbox',
+  'evidence',
+  'codex-design',
+  'cognition',
+  'ast',
+  'automation',
+  'gates',
+  'QuarantinedExpansionFiles',
   'manifests',
   'sessions',
   'replacements',
@@ -95,13 +109,21 @@ describe('Mercury index scope hygiene', () => {
     writeFixture(tmpRoot, 'ogz-meta/cognition-history/mercury/old-response.md', '# old Mercury answer');
     writeFixture(tmpRoot, 'ogz-meta/sessions/session-old.md', '# old session');
     writeFixture(tmpRoot, 'ogz-meta/proposals/MISSION-1-PROPOSAL.md', '# proposal');
+    writeFixture(tmpRoot, 'ogz-meta/inbox/queued.md', '# inbox');
+    writeFixture(tmpRoot, 'ogz-meta/evidence/proof.md', '# evidence');
+    writeFixture(tmpRoot, 'ogz-meta/codex-design/plan.md', '# design');
+    writeFixture(tmpRoot, 'ogz-meta/cognition/rules.md', '# cognition');
+    writeFixture(tmpRoot, 'ogz-meta/ast/symbols.json', '{"ast":true}');
+    writeFixture(tmpRoot, 'ogz-meta/automation/job.md', '# automation');
+    writeFixture(tmpRoot, 'ogz-meta/gates/p0.js', 'module.exports = true;');
+    writeFixture(tmpRoot, 'ogz-meta/QuarantinedExpansionFiles/file.md', '# quarantine');
     writeFixture(tmpRoot, 'ogz-meta/todocontext47.md', '# stale top-level handoff');
     writeFixture(tmpRoot, 'ogz-meta/MISSION-177-PROPOSAL.md', '# stale mission');
 
     const indexed = toRelSet(tmpRoot, walkRepo(tmpRoot));
 
     expect(indexed.has('core/live-path.js')).toBe(true);
-    expect(indexed.has('ogz-meta/BACKTEST-OPS.md')).toBe(true);
+    expect(indexed.has('ogz-meta/BACKTEST-OPS.md')).toBe(false);
     expect(indexed.has('ogz-meta/specs/current-contract.md')).toBe(true);
     expect(indexed.has('ogz-meta/Alignment/README.md')).toBe(true);
 
@@ -109,8 +131,78 @@ describe('Mercury index scope hygiene', () => {
     expect(indexed.has('ogz-meta/cognition-history/mercury/old-response.md')).toBe(false);
     expect(indexed.has('ogz-meta/sessions/session-old.md')).toBe(false);
     expect(indexed.has('ogz-meta/proposals/MISSION-1-PROPOSAL.md')).toBe(false);
+    expect(indexed.has('ogz-meta/inbox/queued.md')).toBe(false);
+    expect(indexed.has('ogz-meta/evidence/proof.md')).toBe(false);
+    expect(indexed.has('ogz-meta/codex-design/plan.md')).toBe(false);
+    expect(indexed.has('ogz-meta/cognition/rules.md')).toBe(false);
+    expect(indexed.has('ogz-meta/ast/symbols.json')).toBe(false);
+    expect(indexed.has('ogz-meta/automation/job.md')).toBe(false);
+    expect(indexed.has('ogz-meta/gates/p0.js')).toBe(false);
+    expect(indexed.has('ogz-meta/QuarantinedExpansionFiles/file.md')).toBe(false);
     expect(indexed.has('ogz-meta/todocontext47.md')).toBe(false);
     expect(indexed.has('ogz-meta/MISSION-177-PROPOSAL.md')).toBe(false);
+  });
+
+  test('index metadata stamps git freshness and explicit ogz-meta eligibility', () => {
+    git(tmpRoot, ['init']);
+    writeFixture(tmpRoot, 'core/live-path.js', 'module.exports = true;\n');
+    git(tmpRoot, ['add', 'core/live-path.js']);
+    git(tmpRoot, ['-c', 'user.name=OGZ Test', '-c', 'user.email=ogz@example.test', 'commit', '-m', 'base commit']);
+
+    const metadata = buildIndexRunMetadata({
+      repoRoot: tmpRoot,
+      files: [path.join(tmpRoot, 'core/live-path.js')],
+      chunks: [{ embedding: [1, 2, 3] }],
+      embedErrors: 0,
+      elapsedMs: 10,
+    });
+
+    expect(metadata.index_scope.ogz_meta_eligible_dirs).toEqual([
+      'ogz-meta/Alignment',
+      'ogz-meta/specs',
+    ]);
+    expect(metadata.index_freshness.head_sha).toMatch(/^[a-f0-9]{40}$/);
+    expect(metadata.index_freshness.dirty_tracked).toBe(false);
+    expect(metadata.files_walked).toBe(1);
+    expect(metadata.chunks_embedded).toBe(1);
+  });
+
+  test('packBatches respects token budget before configured chunk count', () => {
+    const chunks = [
+      { text: 'a'.repeat(1200) },
+      { text: 'b'.repeat(1200) },
+      { text: 'c'.repeat(1200) },
+      { text: 'd'.repeat(1200) },
+    ];
+
+    const batches = packBatches(chunks, 600, 64);
+
+    expect(batches).toEqual([[0, 1], [2, 3]]);
+  });
+
+  test('embedBatchWithRetry retries one 5xx failure against the same embed function', async () => {
+    const embedFn = jest.fn()
+      .mockRejectedValueOnce(new Error('Embed endpoint returned 503: upstream connect error'))
+      .mockResolvedValueOnce([[1, 2, 3]]);
+    const retrySpy = jest.fn();
+
+    await expect(embedBatchWithRetry(['fixture'], { embedFn, onRetry: retrySpy }))
+      .resolves.toEqual([[1, 2, 3]]);
+
+    expect(isRetriableEmbedError(new Error('Embed endpoint returned 503'))).toBe(true);
+    expect(embedFn).toHaveBeenCalledTimes(2);
+    expect(embedFn).toHaveBeenNthCalledWith(1, ['fixture']);
+    expect(embedFn).toHaveBeenNthCalledWith(2, ['fixture']);
+    expect(retrySpy).toHaveBeenCalledTimes(1);
+  });
+
+  test('embedBatchWithRetry does not retry non-5xx provider failures', async () => {
+    const embedFn = jest.fn().mockRejectedValue(new Error('Embed endpoint returned 401: unauthorized'));
+
+    await expect(embedBatchWithRetry(['fixture'], { embedFn }))
+      .rejects.toThrow('401');
+
+    expect(embedFn).toHaveBeenCalledTimes(1);
   });
 
   test('grep tool excludes stale intake/history artifacts with ripgrep', async () => {
@@ -139,6 +231,24 @@ describe('Mercury index scope hygiene', () => {
     expect(files).toContain('core/live-path.js');
     expect(files).not.toContain('ogz-meta/ledger/stale-audit.md');
     expect(schemaNames).toContain('search');
+  });
+
+  test('broad search streams to the requested global cap instead of buffering all matches', async () => {
+    for (let i = 0; i < 80; i += 1) {
+      writeFixture(tmpRoot, `core/many-${i}.js`, `const marker${i} = "MERCURY_BROAD_STREAM_MARKER";`);
+    }
+
+    const adapter = createToolAdapter({ repoRoot: tmpRoot });
+    const result = await adapter.execute('search', {
+      query: 'MERCURY_BROAD_STREAM_MARKER',
+      file_pattern: '*',
+      limit: 20,
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(result.matches).toHaveLength(20);
+    expect(result.total).toBeGreaterThanOrEqual(20);
+    expect(result.truncated).toBe(true);
   });
 
   test('grep file_pattern cannot re-include ignored intake/history artifacts', async () => {

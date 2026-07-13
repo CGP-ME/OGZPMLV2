@@ -258,10 +258,15 @@ describe('Mercury run ledger', () => {
       model: 'claude-fable-5',
       latency_ms: 250,
       parsed: null,
+      effective_verdict: null,
+      effective_blocking: false,
+      raw_parsed_verdict: null,
       recheck_prompt_excerpt: null,
+      recheck_prompt_full: null,
       recheck: null,
       rechecks: [],
       answer_excerpt: 'VERDICT: agree\nCONSENSUS_BLOCKING: no',
+      answer_full: 'VERDICT: agree\nCONSENSUS_BLOCKING: no',
     });
     expect(entry.adversarial_review).toEqual(entry.consensus);
   });
@@ -325,12 +330,18 @@ describe('Mercury run ledger', () => {
         message: 'spawn claude ENOENT',
       },
       parsed: null,
+      effective_verdict: null,
+      effective_blocking: false,
+      raw_parsed_verdict: null,
       max_rechecks: null,
       recheck_prompt_excerpt: null,
+      recheck_prompt_full: null,
       recheck_prompts: [],
+      recheck_prompts_full: [],
       recheck: null,
       rechecks: [],
       answer_excerpt: null,
+      answer_full: null,
     });
     expect(entry.adversarial_review).toEqual(entry.consensus);
     expect(entry.consensus.ok).toBe(false);
@@ -392,18 +403,22 @@ describe('Mercury run ledger', () => {
         blocking: true,
       },
       recheck_prompts: ['Mercury, inspect the spawn site.'],
+      recheck_prompts_full: ['Mercury, inspect the spawn site.'],
       recheck_prompt_excerpt: 'Mercury, inspect the spawn site.',
+      recheck_prompt_full: 'Mercury, inspect the spawn site.',
       recheck: {
         termination: 'answer_given',
         iterations: 2,
         latency_ms: 500,
         answer_excerpt: 'Spawn site uses execSync(..., { env }); parent env cannot override after overlay.',
+        answer_full: 'Spawn site uses execSync(..., { env }); parent env cannot override after overlay.',
       },
       rechecks: [{
         termination: 'answer_given',
         iterations: 2,
         latency_ms: 500,
         answer_excerpt: 'Spawn site uses execSync(..., { env }); parent env cannot override after overlay.',
+        answer_full: 'Spawn site uses execSync(..., { env }); parent env cannot override after overlay.',
       }],
     });
     expect(entry.adversarial_review).toEqual(entry.consensus);
@@ -449,10 +464,65 @@ describe('Mercury run ledger', () => {
       mode: 'adversarial_review',
       ok: true,
       recheck_prompt_excerpt: null,
+      recheck_prompt_full: null,
       recheck_prompts: [],
+      recheck_prompts_full: [],
       recheck: null,
       rechecks: [],
     });
     expect(entry.consensus).toEqual(entry.adversarial_review);
+  });
+
+  test('persists full adversarial review text and marks toolfail reviews as non-authoritative', () => {
+    const longReview = [
+      'VERDICT: found_break',
+      'CONSENSUS_BLOCKING: yes',
+      'Evidence:',
+      'A'.repeat(1500),
+    ].join('\n');
+    const entry = buildRunLedgerEntry({
+      repoRoot: tmpRoot,
+      query: 'Mercury, break my fix.',
+      startedAt: new Date('2026-07-02T00:00:00.000Z'),
+      finishedAt: new Date('2026-07-02T00:00:01.000Z'),
+      result: {
+        termination: 'answer_given',
+        iterations: 3,
+        totalLatencyMs: 1000,
+        answer: 'No concrete break found. core/Foo.js:1-2',
+        adversarialReview: {
+          mode: 'adversarial_review',
+          enabled: true,
+          ok: true,
+          provider: 'claude-code',
+          model: 'claude-fable-5',
+          latencyMs: 250,
+          answer: longReview,
+          parsed: {
+            verdict: 'found_break',
+            blocking: true,
+          },
+        },
+        answerQuality: { flags: [] },
+        toolTelemetry: {
+          failed: 1,
+          byTool: { open_file: { calls: 1, succeeded: 0, failed: 1 } },
+          calls: [{
+            name: 'open_file',
+            status: 'failed',
+            args: { path: 'missing.js' },
+            result: { error: 'cannot read file' },
+          }],
+        },
+      },
+    });
+
+    expect(entry.verdict).toBe('inconclusive_toolfail');
+    expect(entry.commit_blocking).toBe(true);
+    expect(entry.adversarial_review.answer_excerpt).toContain('[truncated');
+    expect(entry.adversarial_review.answer_full).toBe(longReview);
+    expect(entry.adversarial_review.raw_parsed_verdict).toBe('found_break');
+    expect(entry.adversarial_review.effective_verdict).toBe('inconclusive_toolfail');
+    expect(entry.adversarial_review.effective_blocking).toBe(false);
   });
 });

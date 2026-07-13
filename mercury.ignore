@@ -16,6 +16,14 @@ backtest/
 pinescript/
 .claude/
 proposals/
+inbox/
+evidence/
+codex-design/
+cognition/
+ast/
+automation/
+gates/
+QuarantinedExpansionFiles/
 manifests/
 ledger/
 cognition-history/

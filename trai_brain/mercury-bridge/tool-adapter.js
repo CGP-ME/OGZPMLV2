@@ -238,16 +238,48 @@ function createToolAdapter(opts = {}) {
     }
   }
 
+  function parseRipgrepLine(line) {
+    const firstColon = line.indexOf(':');
+    if (firstColon === -1) return null;
+    const secondColon = line.indexOf(':', firstColon + 1);
+    if (secondColon === -1) return null;
+
+    const filePath = line.slice(0, firstColon);
+    const lineNum = parseInt(line.slice(firstColon + 1, secondColon), 10);
+    const text = line.slice(secondColon + 1).trim();
+
+    try {
+      const absPath = ensureWithinRepo(filePath);
+      if (isIgnoredByMercuryPolicy(absPath)) {
+        return { ignored: true };
+      }
+      return {
+        ignored: false,
+        match: {
+          file: path.relative(repoRoot, absPath).split(path.sep).join('/'),
+          line: lineNum,
+          text: text.slice(0, 300),
+        },
+      };
+    } catch (_) {
+      return { ignored: true };
+    }
+  }
+
   function runRipgrep({ query, limit, filePattern, fixedStrings }) {
     if (!query || typeof query !== 'string') {
-      return { error: 'ripgrep search requires a non-empty query string' };
+      return Promise.resolve({ error: 'ripgrep search requires a non-empty query string' });
+    }
+    if (typeof spawn !== 'function') {
+      return Promise.resolve({ error: 'ripgrep unavailable: install rg before using Mercury grep evidence' });
     }
 
+    const matchLimit = Math.max(1, Math.min(Number.isInteger(limit) ? limit : 40, 500));
     const rgArgs = [
-      '--max-count', String(limit),
       '--line-number',
       '--no-heading',
       '--color', 'never',
+      '--no-messages',
     ];
     if (fixedStrings) {
       rgArgs.push('--fixed-strings');
@@ -258,107 +290,148 @@ function createToolAdapter(opts = {}) {
     }
     rgArgs.push('--', query, repoRoot);
 
-    let result;
-    try {
-      result = spawnSync('rg', rgArgs, { encoding: 'utf8', maxBuffer: 4 * 1024 * 1024 });
-    } catch (err) {
-      return { error: `ripgrep failed before execution: ${err.message}` };
-    }
+    return new Promise((resolve) => {
+      const matches = [];
+      let filteredIgnored = 0;
+      let total = 0;
+      let truncated = false;
+      let settled = false;
+      let pending = '';
+      let stderr = '';
+      let child;
 
-    if (spawnFailedBeforeExit(result)) {
-      // ENOENT means rg is not installed. Fail closed instead of switching
-      // to a second search implementation with different behavior.
-      if (result.error.code === 'ENOENT') {
-        return { error: 'ripgrep unavailable: install rg before using Mercury grep evidence' };
-      }
-      return { error: `ripgrep error: ${result.error.message}` };
-    }
-
-    // rg exits 1 when no matches found — not an error for us
-    if (result.status !== 0 && result.status !== 1) {
-      return {
-        error: `ripgrep exited with status ${result.status}`,
-        stderr: (result.stderr || '').slice(0, 500),
+      const finish = (payload) => {
+        if (settled) return;
+        settled = true;
+        resolve(payload);
       };
-    }
 
-    const stdout = result.stdout || '';
-    if (!stdout.trim()) {
-      return { matches: [], total: 0, truncated: false };
-    }
+      const consumeLine = (line) => {
+        if (!line) return;
+        const parsed = parseRipgrepLine(line);
+        if (!parsed) return;
+        if (parsed.ignored) {
+          filteredIgnored += 1;
+          return;
+        }
+        total += 1;
+        if (matches.length < matchLimit) {
+          matches.push(parsed.match);
+        } else {
+          truncated = true;
+          if (child && !child.killed) child.kill('SIGTERM');
+        }
+      };
 
-    // Parse matches: format is path:line:text
-    const matches = [];
-    let filteredIgnored = 0;
-    const lines = stdout.split('\n').filter(Boolean);
-    for (const line of lines) {
-      // ripgrep output can contain colons in the text portion, so we only
-      // split on the first two
-      const firstColon = line.indexOf(':');
-      if (firstColon === -1) continue;
-      const secondColon = line.indexOf(':', firstColon + 1);
-      if (secondColon === -1) continue;
-
-      const filePath = line.slice(0, firstColon);
-      const lineNum = parseInt(line.slice(firstColon + 1, secondColon), 10);
-      const text = line.slice(secondColon + 1).trim();
-
-      // Make path relative to repo root for cleaner output
-      const absPath = ensureWithinRepo(filePath);
-      if (isIgnoredByMercuryPolicy(absPath)) {
-        filteredIgnored += 1;
-        continue;
+      try {
+        child = spawn('rg', rgArgs, { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+      } catch (err) {
+        finish({ error: `ripgrep failed before execution: ${err.message}` });
+        return;
       }
-      const relPath = path.relative(repoRoot, absPath).split(path.sep).join('/');
 
-      matches.push({
-        file: relPath,
-        line: lineNum,
-        text: text.slice(0, 300), // cap per-match text
+      child.on('error', (err) => {
+        if (err.code === 'ENOENT') {
+          finish({ error: 'ripgrep unavailable: install rg before using Mercury grep evidence' });
+          return;
+        }
+        finish({ error: `ripgrep error: ${err.message}` });
       });
-    }
 
-    return {
-      source: fixedStrings ? 'direct_ripgrep_fixed' : 'direct_ripgrep_regex',
-      matches: matches.slice(0, limit),
-      total: matches.length,
-      truncated: matches.length > limit,
-      filtered_ignored: filteredIgnored,
-    };
+      child.stdout.on('data', (chunk) => {
+        pending += chunk.toString('utf8');
+        const lines = pending.split('\n');
+        pending = lines.pop() || '';
+        for (const line of lines) {
+          consumeLine(line);
+          if (truncated) break;
+        }
+      });
+
+      child.stderr.on('data', (chunk) => {
+        stderr += chunk.toString('utf8');
+        if (stderr.length > 2000) stderr = stderr.slice(-2000);
+      });
+
+      child.on('close', (code, signal) => {
+        if (pending && !truncated) {
+          consumeLine(pending);
+        }
+        if (settled) return;
+        if (signal === 'SIGTERM' && truncated) {
+          finish({
+            source: fixedStrings ? 'direct_ripgrep_fixed' : 'direct_ripgrep_regex',
+            matches,
+            total,
+            truncated: true,
+            filtered_ignored: filteredIgnored,
+          });
+          return;
+        }
+        if (code !== 0 && code !== 1) {
+          finish({
+            error: `ripgrep exited with status ${code}`,
+            stderr: (stderr || '').slice(0, 500),
+          });
+          return;
+        }
+        finish({
+          source: fixedStrings ? 'direct_ripgrep_fixed' : 'direct_ripgrep_regex',
+          matches,
+          total,
+          truncated,
+          filtered_ignored: filteredIgnored,
+        });
+      });
+    });
   }
 
-  // ─────────────────────────────────────────────────────────
-  // grep — literal string search across the repo
-  // ─────────────────────────────────────────────────────────
-  // Strategy: use the local implementation so grep always obeys the same
-  // repository skip policy as the Mercury indexer.
+  function normalizeSearchArgs(args, toolName) {
+    const query = args && args.query;
+    if (!query || typeof query !== 'string') {
+      return { error: `${toolName} requires a non-empty ${toolName === 'regex_grep' ? 'regex ' : ''}query string` };
+    }
+    return null;
+  }
+
+  function normalizeLimit(args, fallback) {
+    return Number.isInteger(args.limit) ? args.limit : fallback;
+  }
+
+  function normalizeFilePattern(args) {
+    return args.file_pattern || null;
+  }
+
   async function grep(args) {
-    const query = args.query;
-    const limit = Number.isInteger(args.limit) ? args.limit : 40;
-    const filePattern = args.file_pattern || null; // e.g. "*.js" or "core/**/*.js"
-
-    if (!query || typeof query !== 'string') {
-      return { error: 'grep requires a non-empty query string' };
-    }
-
-    return runRipgrep({ query, limit, filePattern, fixedStrings: true });
+    const error = normalizeSearchArgs(args, 'grep');
+    if (error) return error;
+    return runRipgrep({
+      query: args.query,
+      limit: normalizeLimit(args, 40),
+      filePattern: normalizeFilePattern(args),
+      fixedStrings: true,
+    });
   }
 
-  // ─────────────────────────────────────────────────────────
-  // regex_grep — regex search across the repo
-  // ─────────────────────────────────────────────────────────
   async function regex_grep(args) {
-    const query = args.query;
-    const limit = Number.isInteger(args.limit) ? args.limit : 40;
-    const filePattern = args.file_pattern || null;
-
-    if (!query || typeof query !== 'string') {
-      return { error: 'regex_grep requires a non-empty regex query string' };
-    }
-
-    return runRipgrep({ query, limit, filePattern, fixedStrings: false });
+    const error = normalizeSearchArgs(args, 'regex_grep');
+    if (error) return error;
+    return runRipgrep({
+      query: args.query,
+      limit: normalizeLimit(args, 40),
+      filePattern: normalizeFilePattern(args),
+      fixedStrings: false,
+    });
   }
 
+  /*
+   * grep and regex_grep are defined above the symbol helpers because ripgrep is
+   * streamed now. The old synchronous spawn buffered broad searches until
+   * ENOBUFS; this path caps global matches at collection time.
+   */
+  // ─────────────────────────────────────────────────────────
+  // Symbol regex helpers
+  // ─────────────────────────────────────────────────────────
   function escapeRegexLiteral(value) {
     return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
@@ -383,7 +456,7 @@ function createToolAdapter(opts = {}) {
       `\\bexports\\.${escaped}\\s*=`,
       `\\b${escaped}\\s*\\([^)]*\\)\\s*\\{`,
     ].join('|');
-    const result = runRipgrep({
+    const result = await runRipgrep({
       query,
       limit,
       filePattern,
@@ -410,7 +483,7 @@ function createToolAdapter(opts = {}) {
       return { error: 'find_references requires a symbol string' };
     }
     const query = `\\b${escapeRegexLiteral(symbol)}\\b`;
-    const result = runRipgrep({
+    const result = await runRipgrep({
       query,
       limit,
       filePattern,
@@ -500,7 +573,7 @@ function createToolAdapter(opts = {}) {
         });
         continue;
       }
-      const scan = runRipgrep({
+      const scan = await runRipgrep({
         query: rule.pattern,
         limit: perRuleLimit,
         filePattern: rule.file_pattern || null,

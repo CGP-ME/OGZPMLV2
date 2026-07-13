@@ -27,6 +27,11 @@ require('dotenv').config({ path: path.resolve(__dirname, '..', '..', '.env') });
 const config = require('./config');
 const MongoStore = require('./mongo-store');
 
+const OGZ_META_INDEX_DIRS = Object.freeze([
+  'ogz-meta/Alignment',
+  'ogz-meta/specs',
+]);
+
 // ─────────────────────────────────────────────────────────────
 // CONTENT TYPE RESOLVER
 // ─────────────────────────────────────────────────────────────
@@ -48,6 +53,84 @@ function resolveContentType(relPath) {
   if (p === 'CLAUDITO_MISSION_LOG.md') return 'mission_log';
 
   return 'general';
+}
+
+function normalizeRepoRelPath(repoRoot, fullPath) {
+  return path.relative(repoRoot, fullPath).replace(/\\/g, '/');
+}
+
+function isOgzMetaIndexEligible(relPath) {
+  const normalized = String(relPath || '').replace(/\\/g, '/').replace(/\/+$/, '');
+  if (normalized === 'ogz-meta') return true;
+  if (!normalized.startsWith('ogz-meta/')) return true;
+  return OGZ_META_INDEX_DIRS.some((eligibleDir) => (
+    normalized === eligibleDir || normalized.startsWith(`${eligibleDir}/`)
+  ));
+}
+
+function shouldDescendDirectory(repoRoot, fullPath) {
+  const relPath = normalizeRepoRelPath(repoRoot, fullPath);
+  if (!relPath || relPath === '.') return true;
+  if (!relPath.startsWith('ogz-meta/')) return true;
+  if (relPath === 'ogz-meta') return true;
+  return OGZ_META_INDEX_DIRS.some((eligibleDir) => (
+    eligibleDir === relPath || eligibleDir.startsWith(`${relPath}/`) || relPath.startsWith(`${eligibleDir}/`)
+  ));
+}
+
+function isIndexEligiblePath(repoRoot, fullPath) {
+  return isOgzMetaIndexEligible(normalizeRepoRelPath(repoRoot, fullPath));
+}
+
+function gitText(repoRoot, args, fallback = null) {
+  try {
+    return require('child_process').execFileSync('git', args, {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      maxBuffer: 1024 * 1024,
+    }).trim();
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function hashFileIfPresent(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) return null;
+    return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+  } catch (_) {
+    return null;
+  }
+}
+
+function buildIndexRunMetadata({ repoRoot, files, chunks, embedErrors, elapsedMs }) {
+  const dirtyTracked = gitText(repoRoot, ['status', '--short', '--untracked-files=no'], '') || '';
+  return {
+    index_scope: {
+      repo_root: repoRoot,
+      ogz_meta_eligible_dirs: OGZ_META_INDEX_DIRS,
+      ogz_meta_rule: 'only Alignment and specs are eligible for Mercury RAG indexing',
+    },
+    index_freshness: {
+      indexed_at: new Date(),
+      branch: gitText(repoRoot, ['branch', '--show-current'], 'unknown') || 'detached',
+      head_sha: gitText(repoRoot, ['rev-parse', 'HEAD'], 'unknown') || 'unknown',
+      dirty_tracked: dirtyTracked !== '',
+      dirty_tracked_summary: dirtyTracked,
+      mercury_ignore_sha256: hashFileIfPresent(config.MERCURY_IGNORE_FILE),
+    },
+    files_walked: files.length,
+    chunks_produced: chunks.length,
+    chunks_embedded: chunks.filter((c) => c.embedding !== null).length,
+    embed_errors: embedErrors,
+    embed_index_id: config.EMBED_INDEX_ID,
+    embed_provider: config.EMBED_PROVIDER,
+    embed_endpoint_id: config.EMBED_ENDPOINT_ID,
+    embed_model: config.EMBED_MODEL,
+    embed_dimensions: config.EMBED_DIMENSIONS,
+    elapsed_ms: elapsedMs,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -76,11 +159,13 @@ function walkRepo(rootDir) {
       if (entry.isDirectory()) {
         if (config.SKIP_DIRS.has(entry.name)) continue;
         if (entry.name.startsWith('.')) continue;  // skip hidden dirs
+        if (!shouldDescendDirectory(rootDir, fullPath)) continue;
         walk(fullPath);
         continue;
       }
 
       if (!entry.isFile()) continue;
+      if (!isIndexEligiblePath(rootDir, fullPath)) continue;
 
       const ext = path.extname(entry.name).toLowerCase();
       if (config.SKIP_FILE_EXTENSIONS.has(ext)) continue;
@@ -621,6 +706,29 @@ async function embedText(text) {
   return embedding;
 }
 
+function isRetriableEmbedError(err) {
+  const message = String(err && err.message ? err.message : err);
+  return /\b5\d\d\b/.test(message)
+    || /upstream connect|disconnect\/reset|connection termination|ECONNRESET|ETIMEDOUT/i.test(message);
+}
+
+async function embedBatchWithRetry(texts, {
+  embedFn = embedBatch,
+  onRetry = null,
+} = {}) {
+  try {
+    return await embedFn(texts);
+  } catch (err) {
+    if (!isRetriableEmbedError(err)) {
+      throw err;
+    }
+    if (typeof onRetry === 'function') {
+      onRetry(err);
+    }
+    return embedFn(texts);
+  }
+}
+
 /**
  * Estimate token count for a string. Rough heuristic: ~4 chars per token.
  * Used to pack batches without exceeding the per-request token limit.
@@ -752,6 +860,7 @@ async function main() {
   console.log('[MERCURY-BRIDGE] Walking repo...');
   const files = walkRepo(config.REPO_ROOT);
   console.log(`[MERCURY-BRIDGE] Found ${files.length} files to process`);
+  console.log(`[MERCURY-BRIDGE] ogz-meta index scope: ${OGZ_META_INDEX_DIRS.join(', ')} only`);
   console.log('');
 
   // Process files → chunks
@@ -798,7 +907,11 @@ async function main() {
     const batchTexts = batchIndices.map((i) => allChunks[i].text);
 
     try {
-      const embeddings = await embedBatch(batchTexts);
+      const embeddings = await embedBatchWithRetry(batchTexts, {
+        onRetry: (err) => {
+          console.warn(`\n[MERCURY-BRIDGE] Batch ${batchesSent + 1}/${batches.length} hit transient embed error; retrying once: ${err.message}`);
+        },
+      });
       assertEmbeddingDimensions(embeddings, batchTexts.length);
       // Assign embeddings back to the chunks in order
       batchIndices.forEach((chunkIdx, j) => {
@@ -862,18 +975,15 @@ async function main() {
 
   // Record run metadata
   const elapsedMs = Date.now() - startTime;
-  await store.recordIndexRun({
-    files_walked: files.length,
-    chunks_produced: allChunks.length,
-    chunks_embedded: embedded.length,
-    embed_errors: embedErrors,
-    embed_index_id: config.EMBED_INDEX_ID,
-    embed_provider: config.EMBED_PROVIDER,
-    embed_endpoint_id: config.EMBED_ENDPOINT_ID,
-    embed_model: config.EMBED_MODEL,
-    embed_dimensions: config.EMBED_DIMENSIONS,
-    elapsed_ms: elapsedMs,
+  const indexMetadata = buildIndexRunMetadata({
+    repoRoot: config.REPO_ROOT,
+    files,
+    chunks: allChunks,
+    embedErrors,
+    elapsedMs,
   });
+  await store.recordIndexRun(indexMetadata);
+  console.log(`[MERCURY-BRIDGE] Index freshness: branch=${indexMetadata.index_freshness.branch} head=${indexMetadata.index_freshness.head_sha} dirtyTracked=${indexMetadata.index_freshness.dirty_tracked}`);
 
   await store.disconnect();
 
@@ -893,4 +1003,19 @@ if (require.main === module) {
   });
 }
 
-module.exports = { walkRepo, chunkJavaScript, chunkMarkdown, chunkJsonl, embedText, processFile, assertEmbeddingDimensions };
+module.exports = {
+  walkRepo,
+  chunkJavaScript,
+  chunkMarkdown,
+  chunkJsonl,
+  embedText,
+  processFile,
+  assertEmbeddingDimensions,
+  embedBatchWithRetry,
+  isRetriableEmbedError,
+  packBatches,
+  isIndexEligiblePath,
+  shouldDescendDirectory,
+  buildIndexRunMetadata,
+  OGZ_META_INDEX_DIRS,
+};

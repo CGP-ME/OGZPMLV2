@@ -6,14 +6,21 @@
     "statsCollection": "index_stats_local_nomic"
   },
   "embeddings": {
-    "provider": "ollama",
-    "endpoint": "http://localhost:11434/api/embed",
-    "model": "nomic-embed-text",
-    "dimensions": 768,
-    "apiKeyEnv": null
+    "provider": "openai-compatible",
+    "endpoint": "https://api.openai.com/v1/embeddings",
+    "model": "text-embedding-3-large",
+    "dimensions": 3072,
+    "apiKeyEnv": "OPENAI_API_KEY",
+    "fallback": {
+      "provider": "ollama",
+      "endpoint": "http://localhost:11434/api/embed",
+      "model": "nomic-embed-text",
+      "dimensions": 768,
+      "apiKeyEnv": null
+    }
   },
   "batching": {
-    "maxChunks": 1,
+    "maxChunks": 64,
     "maxTokens": 2000,
     "failOnBatchError": true,
     "minIntervalMs": 0

@@ -139,7 +139,7 @@ function isCommitBlockingVerdict(verdict) {
   return verdict !== 'no_break_found';
 }
 
-function buildReviewLedgerSummary(review) {
+function buildReviewLedgerSummary(review, { effectiveVerdictOverride = null } = {}) {
   if (!review) return null;
   const rechecks = Array.isArray(review.rechecks)
     ? review.rechecks
@@ -147,6 +147,11 @@ function buildReviewLedgerSummary(review) {
   const recheckPrompts = Array.isArray(review.recheckPrompts)
     ? review.recheckPrompts
     : (review.recheckPrompt ? [review.recheckPrompt] : []);
+  const redactedAnswer = review.answer ? redactSensitiveText(review.answer) : null;
+  const redactedRecheckPrompt = review.recheckPrompt ? redactSensitiveText(review.recheckPrompt) : null;
+  const redactedRecheckPrompts = recheckPrompts.map((prompt) => redactSensitiveText(prompt));
+  const rawParsedVerdict = review.parsed && review.parsed.verdict ? review.parsed.verdict : null;
+  const effectiveVerdict = effectiveVerdictOverride || rawParsedVerdict;
 
   return {
     mode: review.mode || 'adversarial_review',
@@ -157,11 +162,16 @@ function buildReviewLedgerSummary(review) {
     latency_ms: review.latencyMs == null ? null : review.latencyMs,
     error: review.error || null,
     parsed: review.parsed || null,
+    effective_verdict: effectiveVerdict,
+    effective_blocking: effectiveVerdictOverride ? false : !!(review.parsed && review.parsed.blocking),
+    raw_parsed_verdict: rawParsedVerdict,
     max_rechecks: recheckPrompts.length || null,
-    recheck_prompt_excerpt: review.recheckPrompt
-      ? truncateText(redactSensitiveText(review.recheckPrompt), ANSWER_EXCERPT_MAX)
+    recheck_prompt_excerpt: redactedRecheckPrompt
+      ? truncateText(redactedRecheckPrompt, ANSWER_EXCERPT_MAX)
       : null,
-    recheck_prompts: recheckPrompts.map((prompt) => truncateText(redactSensitiveText(prompt), ANSWER_EXCERPT_MAX)),
+    recheck_prompt_full: redactedRecheckPrompt,
+    recheck_prompts: redactedRecheckPrompts.map((prompt) => truncateText(prompt, ANSWER_EXCERPT_MAX)),
+    recheck_prompts_full: redactedRecheckPrompts,
     recheck: review.recheck ? {
       termination: review.recheck.termination || null,
       iterations: review.recheck.iterations == null ? null : review.recheck.iterations,
@@ -169,6 +179,7 @@ function buildReviewLedgerSummary(review) {
       answer_excerpt: review.recheck.answer
         ? truncateText(redactSensitiveText(review.recheck.answer), ANSWER_EXCERPT_MAX)
         : null,
+      answer_full: review.recheck.answer ? redactSensitiveText(review.recheck.answer) : null,
     } : null,
     rechecks: rechecks.map((recheck) => ({
       termination: recheck.termination || null,
@@ -177,10 +188,12 @@ function buildReviewLedgerSummary(review) {
       answer_excerpt: recheck.answer
         ? truncateText(redactSensitiveText(recheck.answer), ANSWER_EXCERPT_MAX)
         : null,
+      answer_full: recheck.answer ? redactSensitiveText(recheck.answer) : null,
     })),
-    answer_excerpt: review.answer
-      ? truncateText(redactSensitiveText(review.answer), ANSWER_EXCERPT_MAX)
+    answer_excerpt: redactedAnswer
+      ? truncateText(redactedAnswer, ANSWER_EXCERPT_MAX)
       : null,
+    answer_full: redactedAnswer,
   };
 }
 
@@ -199,7 +212,9 @@ function buildRunLedgerEntry({
   const verdict = classifyMercuryVerdict({ result, error, autoBlastRadius });
   const repoState = readRepoState(repoRoot);
   const telemetry = result && result.toolTelemetry ? result.toolTelemetry : {};
-  const reviewSummary = buildReviewLedgerSummary(result && (result.adversarialReview || result.consensus));
+  const reviewSummary = buildReviewLedgerSummary(result && (result.adversarialReview || result.consensus), {
+    effectiveVerdictOverride: verdict === 'inconclusive_toolfail' ? 'inconclusive_toolfail' : null,
+  });
   const answerQualityFlags = result && result.answerQuality && Array.isArray(result.answerQuality.flags)
     ? result.answerQuality.flags
     : [];
