@@ -85,6 +85,19 @@ describe('pipeline operator-review contract', () => {
     expect(mercuryCritic).not.toMatch(/fail-findings/);
   });
 
+  test('pipeline tooling cannot preserve legacy Mercury halt machinery', () => {
+    const sources = [
+      readRepoFile('ogz-meta', 'pipeline.js'),
+      readRepoFile('ogz-meta', 'slash-router.js'),
+    ].join('\n');
+
+    expect(sources).not.toContain('forensics_critical');
+    expect(sources).not.toContain('mercury-ack');
+    expect(sources).not.toContain('human_ack');
+    expect(sources).not.toContain('fail-findings');
+    expect(sources).not.toContain('resume-after-ack');
+  });
+
   test('verification tooling has zero live-trading-path references', () => {
     const targets = [
       path.join(repoRoot, 'run-empire-v2.js'),

@@ -1881,10 +1881,6 @@ async function forensics(manifest, params) {
     severity: risks.some(r => r.severity === 'critical') ? 'P0' : silentBugs.length > 0 ? 'P1' : 'P2',
   });
 
-  if (risks.some(r => r.severity === 'critical') || loopBack) {
-    manifest.stop_conditions.forensics_critical = true;
-  }
-
   console.log(`✅ Forensics: ${silentBugs.length} silent bugs, ${allRisks.length} risks`);
   if (catalyzeVerification) {
     console.log('   🔄 Will trigger verification pass 2');

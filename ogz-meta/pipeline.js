@@ -218,7 +218,6 @@ async function execute(issue, specSource) {
         // Reset stop conditions for fresh execute run
         manifest.stop_conditions = {
           critic_failures: 0,
-          forensics_critical: false,
           verification_failed: false,
           cicd_failed: false,
           manifest_mismatch: false,
