@@ -57,6 +57,16 @@ describe('Mercury run ledger', () => {
 
     expect(classifyMercuryVerdict({
       result: {
+        termination: 'answer_given',
+        answer: [
+          'There is no code path where matrix-sweep bypasses run-empire-v2.js.',
+          'No evidence of a bypass or stale routing was found in current repo files.',
+        ].join(' '),
+      },
+    })).toBe('no_break_found');
+
+    expect(classifyMercuryVerdict({
+      result: {
         termination: 'max_iterations',
         answer: '',
       },

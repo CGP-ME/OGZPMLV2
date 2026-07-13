@@ -123,7 +123,7 @@ function classifyMercuryVerdict({ result = null, error = null, autoBlastRadius =
   if (!result || result.termination !== 'answer_given') return 'blocked';
 
   const answer = String(result.answer || '').toLowerCase();
-  if (/\b(no concrete break|could not find|cannot find|no break found|did not find|no reachable break)\b/.test(answer)) {
+  if (/\b(no concrete break|could not find|cannot find|no break found|did not find|no reachable break|no evidence of|there is no code path|no code path|no concrete code path|no concrete execution path|no evidence [^.]*bypass|no code path [^.]*bypass)\b/.test(answer)) {
     return 'no_break_found';
   }
   if (/\b(cannot verify|cannot prove|unable to verify|unable to prove|insufficient evidence|cannot answer)\b/.test(answer)) {
