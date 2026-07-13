@@ -136,7 +136,7 @@ function classifyMercuryVerdict({ result = null, error = null, autoBlastRadius =
 }
 
 function isCommitBlockingVerdict(verdict) {
-  return verdict !== 'no_break_found';
+  return ['found_break', 'consensus_failed', 'blocked'].includes(verdict);
 }
 
 function buildReviewLedgerSummary(review, { effectiveVerdictOverride = null } = {}) {

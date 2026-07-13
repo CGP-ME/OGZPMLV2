@@ -518,11 +518,39 @@ describe('Mercury run ledger', () => {
     });
 
     expect(entry.verdict).toBe('inconclusive_toolfail');
-    expect(entry.commit_blocking).toBe(true);
+    expect(entry.commit_blocking).toBe(false);
     expect(entry.adversarial_review.answer_excerpt).toContain('[truncated');
     expect(entry.adversarial_review.answer_full).toBe(longReview);
     expect(entry.adversarial_review.raw_parsed_verdict).toBe('found_break');
     expect(entry.adversarial_review.effective_verdict).toBe('inconclusive_toolfail');
     expect(entry.adversarial_review.effective_blocking).toBe(false);
+  });
+
+  test('does not commit-block tool failures or cannot-verify outcomes', () => {
+    const toolFailureEntry = buildRunLedgerEntry({
+      repoRoot: tmpRoot,
+      query: 'Mercury, break my fix.',
+      startedAt: new Date('2026-07-02T00:00:00.000Z'),
+      finishedAt: new Date('2026-07-02T00:00:01.000Z'),
+      error: new Error('embed query failed'),
+    });
+    expect(toolFailureEntry.verdict).toBe('tool_failure');
+    expect(toolFailureEntry.commit_blocking).toBe(false);
+
+    const cannotVerifyEntry = buildRunLedgerEntry({
+      repoRoot: tmpRoot,
+      query: 'Mercury, break my fix.',
+      startedAt: new Date('2026-07-02T00:00:00.000Z'),
+      finishedAt: new Date('2026-07-02T00:00:01.000Z'),
+      result: {
+        termination: 'answer_given',
+        iterations: 1,
+        totalLatencyMs: 100,
+        answer: 'Cannot verify this from the available files.',
+        toolTelemetry: { byTool: {}, filesOpened: [], runCheckArtifacts: [], runChecks: [] },
+      },
+    });
+    expect(cannotVerifyEntry.verdict).toBe('cannot_verify');
+    expect(cannotVerifyEntry.commit_blocking).toBe(false);
   });
 });
