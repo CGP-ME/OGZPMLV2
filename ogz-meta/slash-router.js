@@ -56,9 +56,9 @@ async function route(command, args) {
     '/commander': commander,
     '/architect': architect,
     '/architect-verify': architectVerify,  // Deterministic: confirms spec target exists in current code
-    '/spec-update-status': specUpdateStatus,  // Deterministic: marks Fix N status as FIXED with commit SHA
+    '/spec-update-status': specUpdateStatus,  // Deterministic: updates Fix N status lines for operator review
     '/mercury-attack': mercuryAttack,      // Adversarial Mercury attack on the just-applied change (EXECUTE only)
-    '/mercury-critic': mercuryCritic,      // Gates pipeline on Mercury findings; requires operator ack on fail-findings
+    '/mercury-critic': mercuryCritic,      // Records Mercury findings for operator review
     '/anchor-verify-post': anchorVerifyPost,  // Fast P0 + Full P0 drift check after code change (EXECUTE only)
     '/bombardier': bombardier,  // Blast radius analysis - shows impact before fixing
     '/entomologist': entomologist,
@@ -70,7 +70,7 @@ async function route(command, args) {
     '/validator': validator,
     '/forensics': forensics,
     '/cicd': cicd,
-    '/committer': committer,
+    '/committer': operatorReviewGate,
     '/repo-history-snapshot': repoHistorySnapshot,
     '/scribe': scribe,
     '/janitor': janitor,
@@ -1916,210 +1916,53 @@ async function cicd(manifest, params) {
 }
 
 /**
- * Committer: Commits changes (Fix 37a: shell-safe via execFileSync)
+ * Operator Review Gate: reports files ready for Trey approval.
  */
-async function committer(manifest, params) {
-  const { execFileSync } = require('child_process');
-
-  // FIX 37A-BRANCH-READ: argv-style invocation, no shell, no expansion.
+async function operatorReviewGate(manifest, params) {
   let branch;
   try {
-    branch = execFileSync('git', ['branch', '--show-current'], { encoding: 'utf8' }).trim();
+    branch = execSync('git branch --show-current', { encoding: 'utf8' }).trim();
   } catch (err) {
     updateSection(manifest, 'committer', {
       branch: null,
       blocked: true,
       reason: `git branch read failed: ${err.message}`
     });
-    console.log('COMMITTER: BLOCKED (git unavailable)');
+    console.log('OPERATOR-REVIEW: git branch unavailable');
     return manifest;
   }
 
-  // CRITICAL: Clauditos cannot write to main (safety floor, preserved unchanged)
-  if (branch === 'main') {
-    manifest.stop_conditions.warden_blocked = true;
-    updateSection(manifest, 'committer', {
-      branch,
-      blocked: true,
-      reason: 'Clauditos cannot commit to production branch main'
-    });
-    console.log('COMMITTER: BLOCKED (on main)');
-    return manifest;
-  }
-
-  // FIX 37/37A-ENV-NORM: env-var-gated branch policy. Codex F3: normalize so
-  // 'true'/'TRUE'/'1'/'yes' all gate correctly (case-insensitive). Strict
-  // === 'true' silently bypassed gate when operator set =1 or =yes.
-  const requireMissionBranch = ['true', '1', 'yes'].includes(
-    String(process.env.PIPELINE_REQUIRE_MISSION_BRANCH || '').toLowerCase()
-  );
-  if (requireMissionBranch && !branch.startsWith('mission/')) {
-    console.log(`COMMITTER: PIPELINE_REQUIRE_MISSION_BRANCH set and branch '${branch}' is not mission/* — skipping commit`);
-    updateSection(manifest, 'committer', {
-      branch,
-      commit_hash: null,
-      reason: 'PIPELINE_REQUIRE_MISSION_BRANCH set and not on mission/*'
-    });
-    return manifest;
-  }
-
-  // Stage manifest-tracked files only. Per CLAUDE.md: never `git add -A` — the
-  // committer must only stage files the pipeline itself recorded as modified
-  // or created, otherwise unrelated working-tree changes get pulled into the
-  // commit unintentionally.
   const filesModified = (manifest.artifacts && manifest.artifacts.files_modified) || [];
   const filesCreated = (manifest.artifacts && manifest.artifacts.files_created) || [];
-  const filesToStage = [...filesModified, ...filesCreated].filter(Boolean);
+  const filesForReview = [...filesModified, ...filesCreated].filter(Boolean);
 
-  if (filesToStage.length === 0) {
-    console.log(`COMMITTER: no files in manifest.artifacts.files_modified/created — nothing to commit on ${branch}`);
-    updateSection(manifest, 'committer', {
-      branch,
-      commit_hash: null,
-      reason: 'no files to commit (manifest.artifacts empty)'
-    });
-    return manifest;
-  }
-
-  // Build commit message: pipeline(fix-N): <issue>  OR  pipeline(mission): <issue>
   const fixId = manifest.spec_source && manifest.spec_source.fixId;
   const subject = fixId
     ? `pipeline(fix-${fixId}): ${manifest.issue || manifest.mission_id}`
     : `pipeline(mission): ${manifest.issue || manifest.mission_id}`;
-  const bodyLine1 = `Mission: ${manifest.mission_id}`;
-  const bodyLine2 = `Files: ${filesToStage.join(', ')}`;
 
-  try {
-    // FIX 37A-STAGE / 37B-MAXBUFFER: argv-style, no shell. Each filename is a
-    // separate argv element; metacharacters cannot expand. '--' separator prevents
-    // future filenames starting with '-' from being interpreted as git flags.
-    // maxBuffer 10MB guards against pipe deadlock if git emits verbose output
-    // (large file lists, warning floods). Default Node maxBuffer is 1MB.
-    execFileSync('git', ['add', '--', ...filesToStage], { stdio: 'pipe', maxBuffer: 10 * 1024 * 1024 });
-
-    // FIX 37A-COMMIT / 37B-MAXBUFFER: argv-style with repeated -m. git
-    // concatenates -m bodies with blank lines between, producing the same
-    // subject/body separation as before, without shell quoting.
-    execFileSync(
-      'git',
-      ['commit', '-m', subject, '-m', bodyLine1, '-m', bodyLine2],
-      { stdio: 'pipe', maxBuffer: 10 * 1024 * 1024 }
-    );
-
-    const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 }).trim();
-    updateSection(manifest, 'committer', {
-      branch,
-      commit_hash: sha,
-      files: filesToStage,
-      message: subject
-    });
-    console.log(`COMMITTER: committed ${sha.slice(0, 7)} on ${branch} (${filesToStage.length} file(s))`);
-  } catch (err) {
-    console.error(`COMMITTER: git commit failed — ${err.message}`);
-    updateSection(manifest, 'committer', {
-      branch,
-      commit_hash: null,
-      error: err.message
-    });
-    manifest.stop_conditions.cicd_failed = true;
-  }
+  updateSection(manifest, 'committer', {
+    branch,
+    commit_hash: null,
+    files: filesForReview,
+    proposed_message: subject,
+    operator_review_required: true,
+    reason: 'Pipeline stops at diff, proofs, and Mercury findings; Trey stages and commits after review.'
+  });
+  console.log(`OPERATOR-REVIEW: ${filesForReview.length} file(s) ready for Trey review on ${branch}`);
 
   return manifest;
 }
 
 /**
- * Repo-History-Snapshot: creates a tracked git-history artifact for GitHub zip downloads.
- *
- * This runs after a pipeline committer stage succeeds. It creates a separate
- * metadata commit containing only ogz-meta/REPO-HISTORY.md so the runtime/code
- * commit remains a clean rollback point.
+ * Repo-History-Snapshot: disabled inside the pipeline.
  */
 async function repoHistorySnapshot(manifest, params) {
-  const { execFileSync } = require('child_process');
-  const scriptPath = path.join(process.cwd(), 'scripts', 'update-repo-history.js');
-  const historyPath = path.join('ogz-meta', 'REPO-HISTORY.md');
-  const sourceCommit = manifest.committer && manifest.committer.commit_hash;
-
-  if (!sourceCommit) {
-    console.log('Repo-History-Snapshot: skipped - no committer.commit_hash on manifest');
-    updateSection(manifest, 'repo_history', {
-      skipped: true,
-      reason: 'no committer.commit_hash'
-    });
-    return manifest;
-  }
-
-  if (!fs.existsSync(scriptPath)) {
-    console.log(`Repo-History-Snapshot: skipped - missing ${path.relative(process.cwd(), scriptPath)}`);
-    updateSection(manifest, 'repo_history', {
-      skipped: true,
-      reason: 'missing update script'
-    });
-    return manifest;
-  }
-
-  try {
-    execFileSync('node', [scriptPath], {
-      cwd: process.cwd(),
-      stdio: 'inherit',
-      maxBuffer: 20 * 1024 * 1024
-    });
-
-    const status = execFileSync('git', ['status', '--short', '--', historyPath], {
-      cwd: process.cwd(),
-      encoding: 'utf8',
-      maxBuffer: 10 * 1024 * 1024
-    }).trim();
-
-    if (!status) {
-      console.log('Repo-History-Snapshot: no history snapshot changes to commit');
-      updateSection(manifest, 'repo_history', {
-        skipped: true,
-        reason: 'snapshot unchanged',
-        source_commit: sourceCommit
-      });
-      return manifest;
-    }
-
-    execFileSync('git', ['add', '--', historyPath], {
-      cwd: process.cwd(),
-      stdio: 'pipe',
-      maxBuffer: 10 * 1024 * 1024
-    });
-    execFileSync('git', [
-      'commit',
-      '-m',
-      'Updated repo history snapshot',
-      '-m',
-      `Source commit: ${sourceCommit}`,
-      '--',
-      historyPath
-    ], {
-      cwd: process.cwd(),
-      stdio: 'pipe',
-      maxBuffer: 10 * 1024 * 1024
-    });
-
-    const snapshotCommit = execFileSync('git', ['rev-parse', 'HEAD'], {
-      cwd: process.cwd(),
-      encoding: 'utf8',
-      maxBuffer: 10 * 1024 * 1024
-    }).trim();
-
-    console.log(`Repo-History-Snapshot: committed ${snapshotCommit.slice(0, 7)} for ${sourceCommit.slice(0, 7)}`);
-    updateSection(manifest, 'repo_history', {
-      source_commit: sourceCommit,
-      snapshot_commit: snapshotCommit,
-      file: historyPath
-    });
-  } catch (err) {
-    console.error(`Repo-History-Snapshot: failed - ${err.message}`);
-    updateSection(manifest, 'repo_history', {
-      source_commit: sourceCommit,
-      error: err.message
-    });
-    manifest.stop_conditions.cicd_failed = true;
-  }
+  updateSection(manifest, 'repo_history', {
+    skipped: true,
+    reason: 'Pipeline cannot create repository history snapshots; operator review owns all git writes.'
+  });
+  console.log('Repo-History-Snapshot: disabled; operator review owns repository history updates');
 
   return manifest;
 }
@@ -2428,10 +2271,9 @@ async function fixerWrite(manifest, params) {
       filesWritten.push(fileEntry.file);
     }
 
-    // FIX 40/40A: /fixer-write must feed the manifest-scoped committer with a
-    // canonical repo-relative path. The committer stages manifest.artifacts
-    // entries directly through git add, so reject empty/outside-repo paths and
-    // normalize separators before deduping.
+    // FIX 40/40A: /fixer-write must feed the operator review packet with a
+    // canonical repo-relative path. Reject empty/outside-repo paths and
+    // normalize separators before recording modified files.
     const repoRoot = process.cwd();
     if (!manifest.artifacts) manifest.artifacts = {};
     if (!Array.isArray(manifest.artifacts.files_modified)) {
@@ -2551,9 +2393,8 @@ node ogz-meta/reject.js ${manifest.mission_id} "<reason>"
  * **Status:** line, and rewrites it to:
  *   **Status:** FIXED in <sha> — <ISO-date>
  *
- * Stages the spec doc, runs git commit + push with a summary message listing
- * every fixId updated. One pipeline run = one consolidated commit, no matter
- * how many fixes are in the batch.
+ * Writes the spec doc update and records a review section. Trey owns staging,
+ * committing, and pushing after reviewing the diff.
  *
  * Halts pipeline (manifest_mismatch=true) if:
  * - spec_source.fixMap missing or empty
@@ -2651,56 +2492,20 @@ async function specUpdateStatus(manifest, params) {
     });
   }
 
-  // Write the updated spec doc and stage it.
+  // Write the updated spec doc for operator review.
   fs.writeFileSync(specAbs, raw, 'utf8');
 
   const fixIdList = updates.map(u => u.fixId).join(', ');
-  try {
-    execSync(`git add "${spec.path}"`, { encoding: 'utf8' });
-    const commitMsg = `chore(spec): mark Fixes ${fixIdList} as FIXED with commit SHAs
+  updateSection(manifest, 'committer', {
+    commit_hash: null,
+    files: [spec.path],
+    proposed_message: `chore(spec): mark Fixes ${fixIdList} as FIXED with commit SHAs`,
+    operator_review_required: true,
+    reason: 'Spec status updated on disk only; Trey stages and commits after review.'
+  });
 
-Spec doc status update via --mark-fixed pipeline. No code change.
-
-Updates:
-${updates.map(u => `- Fix ${u.fixId}: ${u.sha} — ${u.title}`).join('\n')}
-
-Pipeline trail:
-- Spec source:  ${spec.path}
-- Mission:      ${manifest.mission_id}
-- Operator:     spec-update-status (deterministic, no Mercury)
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>`;
-
-    // Write the commit message to a temp file and use -F to avoid shell escaping issues.
-    const msgFile = path.join('/tmp', `mark-fixed-msg-${Date.now()}.txt`);
-    fs.writeFileSync(msgFile, commitMsg, 'utf8');
-    execSync(`git commit -F "${msgFile}"`, { encoding: 'utf8' });
-    fs.unlinkSync(msgFile);
-    const sha = execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
-    const branch = execSync('git branch --show-current', { encoding: 'utf8' }).trim();
-
-    // Push so the spec doc update is visible on remote immediately — no
-    // "I committed but forgot to push" gap. If push fails (e.g., network),
-    // commit is still local and operator can push manually.
-    try {
-      execSync(`git push origin ${branch}`, { encoding: 'utf8' });
-      console.log(`✅ Spec-Update-Status: pushed to origin/${branch}`);
-    } catch (pushErr) {
-      console.warn(`⚠️ Spec-Update-Status: commit succeeded but push failed — ${pushErr.message}. Run \`git push origin ${branch}\` manually.`);
-    }
-
-    updateSection(manifest, 'committer', {
-      commit_hash: sha,
-      branch
-    });
-
-    console.log(`✅ Spec-Update-Status: marked ${updates.length} fix(es) as FIXED — commit ${sha.slice(0, 7)}`);
-    updates.forEach(u => console.log(`   Fix ${u.fixId} (${u.sha}): ${u.title}`));
-  } catch (err) {
-    console.error(`❌ spec-update-status: git operation failed — ${err.message}`);
-    manifest.stop_conditions.verification_failed = true;
-    return manifest;
-  }
+  console.log(`✅ Spec-Update-Status: updated ${updates.length} fix(es) for operator review`);
+  updates.forEach(u => console.log(`   Fix ${u.fixId} (${u.sha}): ${u.title}`));
 
   return manifest;
 }
@@ -2892,29 +2697,23 @@ async function mercuryAttack(manifest, params) {
 }
 
 /**
- * Mercury-Critic: Structural gate on Mercury's adversarial findings.
+ * Mercury-Critic: report-only Mercury findings section.
  *
  * Runs immediately after /mercury-attack. Reads ONLY the `## Mercury Verdict`
  * section of the transcript (never the prompt-scaffold above it), classifies
- * the verdict into one of five states, and halts the pipeline on anything
- * other than `pass` or `ack`.
+ * the verdict into report states, and records the findings section for Trey.
  *
  * Gate states:
- *   pass             — no findings, no infra error, no truncation suspicion
- *   ack              — operator wrote an ack file ratifying findings as reviewed
- *   fail-infra       — Mercury dispatch failed or returned an error stub
- *   fail-truncation  — Mercury answered too quickly with too little content
- *   fail-findings    — Mercury surfaced findings; operator ack required
- *
- * On fail-* the stage sets stop_conditions.forensics_critical so the pipeline
- * halts before /anchor-verify-post. Operator must either revise the fix and
- * re-run, or write a mercury-ack file ratifying the findings as accepted.
+ *   clean            — no findings, no infra error, no truncation suspicion
+ *   infra_issue      — Mercury dispatch failed or returned an error stub
+ *   truncation_risk  — Mercury answered too quickly with too little content
+ *   findings         — Mercury surfaced findings for the operator report
  *
  * Skipped automatically in ADVISORY mode (no code applied → nothing to gate).
  */
 async function mercuryCritic(manifest, params) {
   if (manifest.mode !== 'EXECUTE') {
-    console.log('⏭️  Mercury-Critic: ADVISORY mode, no Mercury attack to gate — skipping');
+    console.log('⏭️  Mercury-Critic: ADVISORY mode, no Mercury attack report — skipping');
     return manifest;
   }
 
@@ -2923,35 +2722,33 @@ async function mercuryCritic(manifest, params) {
 
   const ma = manifest.critic && manifest.critic.mercury_attack ? manifest.critic.mercury_attack : null;
 
-  // Case 1: Mercury was never dispatched (no spec_source, or dispatch threw).
   if (!ma || ma.dispatched === false) {
     const reason = ma && ma.error
       ? `Mercury dispatch failed: ${ma.error}`
       : 'Mercury attack stage did not run (no spec_source or unknown failure)';
-    manifest.stop_conditions.forensics_critical = true;
     updateSection(manifest, 'critic', {
       mercury_critic: {
-        gate: 'fail-infra',
+        gate: 'infra_issue',
         reason: reason,
+        report_required: true,
         timestamp: new Date().toISOString(),
       }
     });
-    console.log(`🛑 Mercury-Critic: gate=fail-infra — ${reason}`);
+    console.log(`⚠️  Mercury-Critic: gate=infra_issue — ${reason}`);
     return manifest;
   }
 
-  // Case 2: Transcript path missing or unreadable.
   if (!ma.transcript || !fs.existsSync(path.resolve(process.cwd(), ma.transcript))) {
     const reason = `Mercury transcript missing at ${ma.transcript || '(none)'}`;
-    manifest.stop_conditions.forensics_critical = true;
     updateSection(manifest, 'critic', {
       mercury_critic: {
-        gate: 'fail-infra',
+        gate: 'infra_issue',
         reason: reason,
+        report_required: true,
         timestamp: new Date().toISOString(),
       }
     });
-    console.log(`🛑 Mercury-Critic: gate=fail-infra — ${reason}`);
+    console.log(`⚠️  Mercury-Critic: gate=infra_issue — ${reason}`);
     return manifest;
   }
 
@@ -2969,16 +2766,16 @@ async function mercuryCritic(manifest, params) {
     verdict = fullTranscript.slice(verdictMatch.index + verdictMatch[0].length).trim();
   } else {
     const reason = 'Transcript has no `## Mercury Verdict` section';
-    manifest.stop_conditions.forensics_critical = true;
     updateSection(manifest, 'critic', {
       mercury_critic: {
-        gate: 'fail-infra',
+        gate: 'infra_issue',
         reason: reason,
         transcript: ma.transcript,
+        report_required: true,
         timestamp: new Date().toISOString(),
       }
     });
-    console.log(`🛑 Mercury-Critic: gate=fail-infra — ${reason}`);
+    console.log(`⚠️  Mercury-Critic: gate=infra_issue — ${reason}`);
     return manifest;
   }
 
@@ -2995,25 +2792,18 @@ async function mercuryCritic(manifest, params) {
   const mercuryInfraError = infraFailurePatterns.some(function (re) { return re.test(verdict); });
   if (mercuryInfraError) {
     const reason = `Mercury infrastructure failure — no real verdict produced. Verdict head: "${verdict.slice(0, 160).replace(/\s+/g, ' ')}…". Retry dispatch.`;
-    manifest.stop_conditions.forensics_critical = true;
     updateSection(manifest, 'critic', {
       mercury_critic: {
-        gate: 'fail-infra',
+        gate: 'infra_issue',
         reason: reason,
         transcript: ma.transcript,
         verdictBodyLength: verdict.length,
+        report_required: true,
         timestamp: new Date().toISOString(),
       }
     });
-    console.log(`🛑 Mercury-Critic: gate=fail-infra — ${reason}`);
+    console.log(`⚠️  Mercury-Critic: gate=infra_issue — ${reason}`);
     return manifest;
-  }
-
-  // Case 4: Operator ack file.
-  const ackPath = path.join(__dirname, 'manifests', `${manifest.mission_id}-mercury-ack.txt`);
-  let operatorAck = null;
-  if (fs.existsSync(ackPath)) {
-    operatorAck = fs.readFileSync(ackPath, 'utf8').trim();
   }
 
   // Heuristic finding detection on the VERDICT BODY ONLY.
@@ -3036,71 +2826,53 @@ async function mercuryCritic(manifest, params) {
   const truncationSuspect = iters > 0 && iters < 15 && verdict.length < 3000;
   if (truncationSuspect && findingsScore === 0) {
     const reason = `Suspected response truncation — iters=${iters}/60, body=${verdict.length} chars, findings=0. Re-dispatch with narrower scope.`;
-    manifest.stop_conditions.forensics_critical = true;
     updateSection(manifest, 'critic', {
       mercury_critic: {
-        gate: 'fail-truncation',
+        gate: 'truncation_risk',
         reason: reason,
         transcript: ma.transcript,
         verdictBodyLength: verdict.length,
         iterations: iters,
+        report_required: true,
         timestamp: new Date().toISOString(),
       }
     });
-    console.log(`🛑 Mercury-Critic: gate=fail-truncation — ${reason}`);
+    console.log(`⚠️  Mercury-Critic: gate=truncation_risk — ${reason}`);
     return manifest;
   }
 
-  // Case 6: Findings present.
   if (findingsScore > 0) {
-    if (operatorAck) {
-      updateSection(manifest, 'critic', {
-        mercury_critic: {
-          gate: 'ack',
-          reason: `Operator ack: ${operatorAck.slice(0, 200)}`,
-          transcript: ma.transcript,
-          findingsScore: findingsScore,
-          breakdown: { numberedBullets: numberedBullets, tableRows: tableRows, adversarialHits: adversarialHits, fileLineCitations: fileLineCitations },
-          verdictBodyLength: verdict.length,
-          human_ack: operatorAck,
-          timestamp: new Date().toISOString(),
-        }
-      });
-      console.log(`✅ Mercury-Critic: gate=ack — operator ratified ${findingsScore} finding(s) score`);
-      return manifest;
-    }
-    const reason = `Mercury surfaced findings — score=${findingsScore} (bullets=${numberedBullets}, rows=${tableRows}, adversarial=${adversarialHits}, citations=${fileLineCitations}). Operator review required. Write ack to ${path.relative(process.cwd(), ackPath)} to proceed.`;
-    manifest.stop_conditions.forensics_critical = true;
+    const reason = `Mercury surfaced findings — score=${findingsScore} (bullets=${numberedBullets}, rows=${tableRows}, adversarial=${adversarialHits}, citations=${fileLineCitations}). Findings are bound to the operator review packet.`;
     updateSection(manifest, 'critic', {
       mercury_critic: {
-        gate: 'fail-findings',
+        gate: 'findings',
         reason: reason,
         transcript: ma.transcript,
         findingsScore: findingsScore,
         breakdown: { numberedBullets: numberedBullets, tableRows: tableRows, adversarialHits: adversarialHits, fileLineCitations: fileLineCitations },
         verdictBodyLength: verdict.length,
-        ackPath: path.relative(process.cwd(), ackPath),
+        report_required: true,
         timestamp: new Date().toISOString(),
       }
     });
-    console.log(`🛑 Mercury-Critic: gate=fail-findings — ${reason}`);
+    console.log(`⚠️  Mercury-Critic: gate=findings — ${reason}`);
     return manifest;
   }
 
-  // Case 7: Pass.
   updateSection(manifest, 'critic', {
     mercury_critic: {
-      gate: 'pass',
+      gate: 'clean',
       reason: 'No findings, no infra error, no truncation suspicion',
       transcript: ma.transcript,
       findingsScore: 0,
       breakdown: { numberedBullets: numberedBullets, tableRows: tableRows, adversarialHits: adversarialHits, fileLineCitations: fileLineCitations },
       verdictBodyLength: verdict.length,
       iterations: iters,
+      report_required: true,
       timestamp: new Date().toISOString(),
     }
   });
-  console.log(`✅ Mercury-Critic: gate=pass — Mercury found nothing actionable (verdict body ${verdict.length} chars, ${iters}/60 iters)`);
+  console.log(`✅ Mercury-Critic: gate=clean — Mercury found nothing actionable (verdict body ${verdict.length} chars, ${iters}/60 iters)`);
   return manifest;
 }
 
