@@ -13,6 +13,7 @@ const {
 
 describe('Mercury run ledger', () => {
   let tmpRoot;
+  const removedCommitField = ['commit', 'blocking'].join('_');
 
   beforeEach(() => {
     tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'mercury-run-ledger-'));
@@ -228,7 +229,7 @@ describe('Mercury run ledger', () => {
     expect(entry.prompt_excerpt.length).toBeGreaterThan(1000);
     expect(entry.prompt_excerpt).not.toContain('live-secret');
     expect(entry.verdict).toBe('no_break_found');
-    expect(entry.commit_blocking).toBe(false);
+    expect(entry).not.toHaveProperty(removedCommitField);
     expect(entry.tools_invoked).toEqual([
       {
         name: 'git_diff',
@@ -269,7 +270,6 @@ describe('Mercury run ledger', () => {
       latency_ms: 250,
       parsed: null,
       effective_verdict: null,
-      effective_blocking: false,
       raw_parsed_verdict: null,
       recheck_prompt_excerpt: null,
       recheck_prompt_full: null,
@@ -341,7 +341,6 @@ describe('Mercury run ledger', () => {
       },
       parsed: null,
       effective_verdict: null,
-      effective_blocking: false,
       raw_parsed_verdict: null,
       max_rechecks: null,
       recheck_prompt_excerpt: null,
@@ -356,7 +355,7 @@ describe('Mercury run ledger', () => {
     expect(entry.adversarial_review).toEqual(entry.consensus);
     expect(entry.consensus.ok).toBe(false);
     expect(entry.verdict).toBe('consensus_failed');
-    expect(entry.commit_blocking).toBe(true);
+    expect(entry).not.toHaveProperty(removedCommitField);
   });
 
   test('persists Fable-triggered Mercury recheck metadata', () => {
@@ -410,7 +409,6 @@ describe('Mercury run ledger', () => {
       ok: true,
       parsed: {
         verdict: 'needs_more_evidence',
-        blocking: true,
       },
       recheck_prompts: ['Mercury, inspect the spawn site.'],
       recheck_prompts_full: ['Mercury, inspect the spawn site.'],
@@ -528,12 +526,11 @@ describe('Mercury run ledger', () => {
     });
 
     expect(entry.verdict).toBe('inconclusive_toolfail');
-    expect(entry.commit_blocking).toBe(false);
+    expect(entry).not.toHaveProperty(removedCommitField);
     expect(entry.adversarial_review.answer_excerpt).toContain('[truncated');
     expect(entry.adversarial_review.answer_full).toBe(longReview);
     expect(entry.adversarial_review.raw_parsed_verdict).toBe('found_break');
     expect(entry.adversarial_review.effective_verdict).toBe('inconclusive_toolfail');
-    expect(entry.adversarial_review.effective_blocking).toBe(false);
   });
 
   test('does not commit-block tool failures or cannot-verify outcomes', () => {
@@ -545,7 +542,7 @@ describe('Mercury run ledger', () => {
       error: new Error('embed query failed'),
     });
     expect(toolFailureEntry.verdict).toBe('tool_failure');
-    expect(toolFailureEntry.commit_blocking).toBe(false);
+    expect(toolFailureEntry).not.toHaveProperty(removedCommitField);
 
     const cannotVerifyEntry = buildRunLedgerEntry({
       repoRoot: tmpRoot,
@@ -561,6 +558,6 @@ describe('Mercury run ledger', () => {
       },
     });
     expect(cannotVerifyEntry.verdict).toBe('cannot_verify');
-    expect(cannotVerifyEntry.commit_blocking).toBe(false);
+    expect(cannotVerifyEntry).not.toHaveProperty(removedCommitField);
   });
 });

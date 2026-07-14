@@ -11,7 +11,6 @@ describe('Mercury substrate digest', () => {
       {
         run_id: 'run-1',
         verdict: 'found_break',
-        commit_blocking: true,
         tools_invoked: [
           { name: 'git_diff', calls: 1, succeeded: 1, failed: 0 },
           { name: 'open_file', calls: 2, succeeded: 2, failed: 0 },
@@ -23,7 +22,6 @@ describe('Mercury substrate digest', () => {
       {
         run_id: 'run-2',
         verdict: 'cannot_verify',
-        commit_blocking: true,
         tools_invoked: [
           { name: 'run_check', calls: 1, succeeded: 0, failed: 1 },
         ],
@@ -35,7 +33,6 @@ describe('Mercury substrate digest', () => {
       {
         run_id: 'run-3',
         verdict: 'no_break_found',
-        commit_blocking: false,
         tools_invoked: [],
         answer_quality: [],
         files_opened: [],
@@ -60,7 +57,11 @@ describe('Mercury substrate digest', () => {
       uncited_run_check_claim: 1,
       missing_file_line_citation: 1,
     });
-    expect(digest.commit_blocking_runs).toEqual(['run-1', 'run-2']);
+    expect(digest.runs_by_verdict).toEqual({
+      found_break: ['run-1'],
+      cannot_verify: ['run-2'],
+      no_break_found: ['run-3'],
+    });
     expect(digest.code_claim_without_open_file).toEqual(['run-2']);
     expect(digest.repeated_rule_candidates).toEqual({ 'no-silent-fallback': 2 });
     expect(digest.canaries.names).toEqual(['p0-anchor-finder']);

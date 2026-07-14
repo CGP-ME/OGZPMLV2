@@ -89,6 +89,10 @@ describe('pipeline operator-review contract', () => {
     const sources = [
       readRepoFile('ogz-meta', 'pipeline.js'),
       readRepoFile('ogz-meta', 'slash-router.js'),
+      readRepoFile('trai_brain', 'mercury-bridge', 'run-ledger.js'),
+      readRepoFile('trai_brain', 'mercury-bridge', 'substrate-digest.js'),
+      readRepoFile('scripts', 'mercury-substrate-digest.js'),
+      readRepoFile('ogz-meta', 'specs', 'mercury-deepsearch-substrate-spec.md'),
     ].join('\n');
 
     expect(sources).not.toContain('forensics_critical');
@@ -96,6 +100,7 @@ describe('pipeline operator-review contract', () => {
     expect(sources).not.toContain('human_ack');
     expect(sources).not.toContain('fail-findings');
     expect(sources).not.toContain('resume-after-ack');
+    expect(sources).not.toContain('commit_blocking');
   });
 
   test('verification tooling has zero live-trading-path references', () => {

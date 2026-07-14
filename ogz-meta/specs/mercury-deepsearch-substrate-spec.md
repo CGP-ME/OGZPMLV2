@@ -185,9 +185,8 @@ Each entry should be one JSON object with:
 - `files_opened`: exact file ranges.
 - `run_check_artifacts`: artifact citations and exit codes.
 - `answer_quality`: warnings emitted by the bridge.
-- `verdict`: `found_break`, `no_break_found`, `cannot_verify`,
-  `tool_failure`, or `blocked`.
-- `commit_blocking`: boolean.
+- `verdict`: classification taxonomy such as `found_break`,
+  `no_break_found`, `cannot_verify`, `tool_failure`, or `blocked`.
 - `next_rule_candidate`: optional bug class that may need a rule-as-grep.
 
 The ledger is not a chat transcript. It is the machine-readable audit contract

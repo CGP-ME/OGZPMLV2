@@ -135,8 +135,15 @@ function classifyMercuryVerdict({ result = null, error = null, autoBlastRadius =
   return 'cannot_verify';
 }
 
-function isCommitBlockingVerdict(verdict) {
-  return ['found_break', 'consensus_failed', 'blocked'].includes(verdict);
+function parsedReviewClassification(parsed) {
+  if (!parsed || typeof parsed !== 'object') return null;
+  const clean = {};
+  for (const key of ['verdict', 'parseWarnings', 'disagreement', 'requiredRecheck', 'recheckPrompt', 'nextCheck']) {
+    if (Object.prototype.hasOwnProperty.call(parsed, key)) {
+      clean[key] = parsed[key];
+    }
+  }
+  return clean;
 }
 
 function buildReviewLedgerSummary(review, { effectiveVerdictOverride = null } = {}) {
@@ -150,7 +157,8 @@ function buildReviewLedgerSummary(review, { effectiveVerdictOverride = null } = 
   const redactedAnswer = review.answer ? redactSensitiveText(review.answer) : null;
   const redactedRecheckPrompt = review.recheckPrompt ? redactSensitiveText(review.recheckPrompt) : null;
   const redactedRecheckPrompts = recheckPrompts.map((prompt) => redactSensitiveText(prompt));
-  const rawParsedVerdict = review.parsed && review.parsed.verdict ? review.parsed.verdict : null;
+  const parsed = parsedReviewClassification(review.parsed);
+  const rawParsedVerdict = parsed && parsed.verdict ? parsed.verdict : null;
   const effectiveVerdict = effectiveVerdictOverride || rawParsedVerdict;
 
   return {
@@ -161,9 +169,8 @@ function buildReviewLedgerSummary(review, { effectiveVerdictOverride = null } = 
     model: review.model || null,
     latency_ms: review.latencyMs == null ? null : review.latencyMs,
     error: review.error || null,
-    parsed: review.parsed || null,
+    parsed,
     effective_verdict: effectiveVerdict,
-    effective_blocking: effectiveVerdictOverride ? false : !!(review.parsed && review.parsed.blocking),
     raw_parsed_verdict: rawParsedVerdict,
     max_rechecks: recheckPrompts.length || null,
     recheck_prompt_excerpt: redactedRecheckPrompt
@@ -262,7 +269,6 @@ function buildRunLedgerEntry({
     iterations: result ? result.iterations : null,
     latency_ms: result ? result.totalLatencyMs : null,
     verdict,
-    commit_blocking: isCommitBlockingVerdict(verdict),
     error: error ? {
       name: error.name || 'Error',
       message: error.message || String(error),

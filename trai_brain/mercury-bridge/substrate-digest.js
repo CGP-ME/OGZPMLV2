@@ -31,20 +31,25 @@ function increment(map, key, amount = 1) {
   map[normalized] = (map[normalized] || 0) + amount;
 }
 
+function appendRun(map, key, runId) {
+  const normalized = key || 'unknown';
+  if (!Array.isArray(map[normalized])) map[normalized] = [];
+  map[normalized].push(runId);
+}
+
 function buildDigest(rows = [], canaries = []) {
   const byVerdict = {};
+  const runsByVerdict = {};
   const tools = {};
   const toolFailures = {};
   const answerQualityFlags = {};
-  const commitBlocking = [];
   const codeClaimWithoutOpenFile = [];
   const ruleCandidates = {};
 
   for (const row of rows) {
+    const runId = row.run_id || row.created_at || 'unknown-run';
     increment(byVerdict, row.verdict);
-    if (row.commit_blocking === true) {
-      commitBlocking.push(row.run_id || row.created_at || 'unknown-run');
-    }
+    appendRun(runsByVerdict, row.verdict, runId);
     for (const tool of row.tools_invoked || []) {
       increment(tools, tool.name, tool.calls || 0);
       if ((tool.failed || 0) > 0) {
@@ -57,7 +62,7 @@ function buildDigest(rows = [], canaries = []) {
     const opened = Array.isArray(row.files_opened) ? row.files_opened : [];
     const answer = String(row.answer_excerpt || '');
     if (opened.length === 0 && /\b[\w./-]+\.[A-Za-z0-9][A-Za-z0-9._-]*:\d+/.test(answer)) {
-      codeClaimWithoutOpenFile.push(row.run_id || row.created_at || 'unknown-run');
+      codeClaimWithoutOpenFile.push(runId);
     }
     if (row.next_rule_candidate) {
       increment(ruleCandidates, row.next_rule_candidate);
@@ -69,10 +74,10 @@ function buildDigest(rows = [], canaries = []) {
     generated_at: new Date().toISOString(),
     total_runs: rows.length,
     by_verdict: byVerdict,
+    runs_by_verdict: runsByVerdict,
     tool_invocations: tools,
     tool_failures: toolFailures,
     answer_quality_flags: answerQualityFlags,
-    commit_blocking_runs: commitBlocking,
     code_claim_without_open_file: codeClaimWithoutOpenFile,
     repeated_rule_candidates: Object.fromEntries(
       Object.entries(ruleCandidates).filter(([, count]) => count > 1)
@@ -100,6 +105,9 @@ function formatDigestMarkdown(digest) {
     '## Verdicts',
     JSON.stringify(digest.by_verdict, null, 2),
     '',
+    '## Runs by Verdict',
+    JSON.stringify(digest.runs_by_verdict, null, 2),
+    '',
     '## Tool Invocations',
     JSON.stringify(digest.tool_invocations, null, 2),
     '',
@@ -110,7 +118,6 @@ function formatDigestMarkdown(digest) {
     JSON.stringify(digest.answer_quality_flags, null, 2),
     '',
     '## Attention Items',
-    `Commit-blocking runs: ${digest.commit_blocking_runs.length}`,
     `Code claims without open_file: ${digest.code_claim_without_open_file.length}`,
     '',
     '## Canaries',
