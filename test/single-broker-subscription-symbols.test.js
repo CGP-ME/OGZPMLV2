@@ -64,6 +64,14 @@ describe('SessionRouter-only market-data subscription ownership', () => {
     expect(source).not.toContain('source=single broker');
   });
 
+  test('SessionRouter OHLC ingestion refuses missing timeframe with a loud diagnostic drop', () => {
+    const source = fs.readFileSync(path.resolve(__dirname, '..', 'run-empire-v2.js'), 'utf8');
+
+    expect(source).not.toMatch(/eventData\.timeframe\s*\|\|\s*['"]1m['"]/);
+    expect(source).toContain('this.timeframeDiagnostics.missingSessionRouterTimeframeDrops += 1');
+    expect(source).toContain('[OHLC][TIMEFRAME-MISSING] dropped SessionRouter payload with missing timeframe');
+  });
+
   test('subscribeToMarketData cannot revive the pre-router broker subscription path', () => {
     const OGZPrimeV14Bot = loadBot();
     const subscribeToCandles = jest.fn();

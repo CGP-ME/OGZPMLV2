@@ -851,7 +851,13 @@ class OGZPrimeV14Bot {
 
       // SessionRouter attaches this OHLC handler to whichever adapter is currently active.
       const ohlcHandler = (eventData) => {
-        const tf = eventData.timeframe || '1m';
+        const rawTimeframe = eventData?.timeframe;
+        if (typeof rawTimeframe !== 'string' || rawTimeframe.trim() === '') {
+          this.timeframeDiagnostics.missingSessionRouterTimeframeDrops += 1;
+          console.error(`[OHLC][TIMEFRAME-MISSING] dropped SessionRouter payload with missing timeframe count=${this.timeframeDiagnostics.missingSessionRouterTimeframeDrops}`);
+          return;
+        }
+        const tf = rawTimeframe.trim();
         const raw = eventData.data || eventData;
         const traceId = eventData.traceId || raw?.traceId || createTraceId('candle');
         const eventSymbol = eventData && eventData.symbol;
@@ -1234,6 +1240,9 @@ class OGZPrimeV14Bot {
 
     // Debug flags
     this.ohlcDebugCount = 0; // Log first 5 messages for debugging
+    this.timeframeDiagnostics = {
+      missingSessionRouterTimeframeDrops: 0,
+    };
 
     // CHANGE 2025-12-11: MessageQueue for WebSocket race condition prevention
     this.messageQueue = new MessageQueue({
