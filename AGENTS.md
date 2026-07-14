@@ -25,11 +25,11 @@ does not match current doctrine.
 
 - Verify before claiming. Cite file:line evidence for code behavior.
 - One logical change per commit.
-- One active construction branch/worktree at a time. Split worktrees are
-  temporary isolation only; after an approved lane lands, collapse it back into
-  the active branch, preserve lane evidence under `ogz-meta/inbox/codex/<date>/`,
-  and remove the branch/worktree before starting the next construction lane
-  unless Trey explicitly keeps it open.
+- No worktrees, period. Work on the main branch only unless Trey explicitly
+  names a different ref. Do not create or keep split construction worktrees; if
+  a temporary isolation path already exists, salvage evidence under
+  `ogz-meta/inbox/codex/<date>/`, collapse approved work onto the named branch,
+  and remove the branch/worktree before starting the next lane.
 - Show the diff before committing.
 - No `git reset --hard`, no force pushes, no destructive deletes without operator
   approval.

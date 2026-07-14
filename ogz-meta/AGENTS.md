@@ -236,11 +236,11 @@ Pipeline order:
 - Do not stage loose ledger/intake/proposal/backup piles, public backup files, or proof-track-record artifacts unless Trey explicitly tasks that cleanup. Source: `ogz-meta/sessions/session-2026-05-27-active-handoff-runtime-audit.md:17,347-351`.
 - For a path-limited one-file commit, prefer `git commit -- <path>` when the index may contain unrelated staged files.
 - One logical change per commit.
-- One active construction branch/worktree at a time. Split worktrees are temporary
-  isolation only; after an approved lane lands, collapse it back into the active
-  branch, preserve lane evidence under `ogz-meta/inbox/codex/<date>/`, and remove
-  the branch/worktree before starting the next construction lane unless Trey
-  explicitly keeps it open.
+- No worktrees, period. Work on the main branch only unless Trey explicitly
+  names a different ref. Do not create or keep split construction worktrees; if
+  a temporary isolation path already exists, salvage evidence under
+  `ogz-meta/inbox/codex/<date>/`, collapse approved work onto the named branch,
+  and remove the branch/worktree before starting the next lane.
 - Linked changes still ship as separate commits in dependency order. Reference the prior SHA in the dependent commit body instead of bundling.
 - Commit messages follow the user preference: `Fixed [what was broken]` or `Added [what feature]`.
 - Do not bundle unrelated fixes with docs or cleanup.
