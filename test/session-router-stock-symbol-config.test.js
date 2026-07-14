@@ -127,6 +127,54 @@ describe('SessionRouter stock symbol config ownership', () => {
     });
   });
 
+  test('static routed scope refuses implicit timeframe fallback chain loudly', () => {
+    jest.resetModules();
+    const OGZPrimeV14Bot = loadBotForRouteIdentity();
+    const bot = Object.assign(Object.create(OGZPrimeV14Bot.prototype), {
+      sessionRouterConfig: {
+        mode: 'static',
+        staticSession: 'stocks',
+      },
+      sessionRouter: {
+        enabled: true,
+        activeSession: 'stocks',
+        activeBroker: null,
+      },
+      brokerAccountIdentities: new Map(),
+      config: {
+        brokerId: 'alpaca',
+        accountId: 'backtest',
+        accountIdSource: 'backtest',
+        assetClass: 'stocks',
+        executionMode: 'backtest',
+        timeframe: '1h',
+      },
+      timeframeSelector: { currentTimeframe: '30m' },
+      candleTimeframe: '15m',
+      timeframeDiagnostics: {
+        missingScopeTimeframeDrops: 0,
+      },
+    });
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    expect(() => bot.getCandleScopeEnvelope()).toThrow(/timeframe/);
+    expect(bot.timeframeDiagnostics.missingScopeTimeframeDrops).toBe(1);
+    expect(errorSpy).toHaveBeenCalledWith('[SCOPE][TIMEFRAME-MISSING] dropped runtime scope envelope with missing explicit timeframe count=1');
+
+    errorSpy.mockRestore();
+  });
+
+  test('runtime scope consumers pass explicit timeframe into runner envelope reads', () => {
+    const root = path.resolve(__dirname, '..');
+    const sources = [
+      fs.readFileSync(path.join(root, 'core', 'OrderExecutor.js'), 'utf8'),
+      fs.readFileSync(path.join(root, 'core', 'TradingLoop.js'), 'utf8'),
+      fs.readFileSync(path.join(root, 'core', 'TraceSpine.js'), 'utf8'),
+    ].join('\n');
+
+    expect(sources).not.toMatch(/getCandleScopeEnvelope\(\s*\)/);
+  });
+
   test('static backtest activation registers broker routing without live REST or subscriptions', async () => {
     const router = new SessionRouter({
       mode: 'static',

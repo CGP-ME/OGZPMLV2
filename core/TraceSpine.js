@@ -142,7 +142,10 @@ function readRunnerTraceScope(ctx) {
   const runner = ctx && ctx.runner;
   if (!runner || typeof runner.getCandleScopeEnvelope !== 'function') return {};
   try {
-    const scope = runner.getCandleScopeEnvelope();
+    const ctxTimeframe = typeof ctx?.candleTimeframe === 'string' && ctx.candleTimeframe.trim() !== ''
+      ? ctx.candleTimeframe.trim()
+      : null;
+    const scope = runner.getCandleScopeEnvelope({ timeframe: ctxTimeframe });
     if (scope && typeof scope === 'object' && !Array.isArray(scope)) return scope;
   } catch (err) {
     warnTraceOnce(ctx, '_traceScopeEnvelopeWarned', `[EVAL-TRACE] trace scope envelope read failed: ${err.message}`);

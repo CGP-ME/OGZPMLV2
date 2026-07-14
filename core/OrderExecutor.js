@@ -186,8 +186,15 @@ class OrderExecutor {
     const routerEnabled = this.ctx.runner && typeof this.ctx.runner.isSessionRoutingActive === 'function'
       ? this.ctx.runner.isSessionRoutingActive() === true
       : this.ctx.runner?.sessionRouter?.enabled === true;
+    const overrideTimeframe = typeof overrides?.timeframe === 'string' && overrides.timeframe.trim() !== ''
+      ? overrides.timeframe.trim()
+      : null;
+    const ctxTimeframe = typeof this.ctx.candleTimeframe === 'string' && this.ctx.candleTimeframe.trim() !== ''
+      ? this.ctx.candleTimeframe.trim()
+      : null;
+    const runnerTimeframe = overrideTimeframe !== null ? overrideTimeframe : ctxTimeframe;
     const runnerScope = this.ctx.runner && typeof this.ctx.runner.getCandleScopeEnvelope === 'function'
-      ? this.ctx.runner.getCandleScopeEnvelope()
+      ? this.ctx.runner.getCandleScopeEnvelope({ timeframe: runnerTimeframe })
       : {};
     const cleanOverrides = Object.fromEntries(
       Object.entries(overrides || {}).filter(([, value]) => value !== undefined && value !== null)

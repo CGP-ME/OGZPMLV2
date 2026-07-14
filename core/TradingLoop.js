@@ -623,14 +623,21 @@ class TradingLoop {
     };
   }
 
+  _runnerScope() {
+    const ctxTimeframe = typeof this.ctx.candleTimeframe === 'string' && this.ctx.candleTimeframe.trim() !== ''
+      ? this.ctx.candleTimeframe.trim()
+      : null;
+    return this.ctx.runner && typeof this.ctx.runner.getCandleScopeEnvelope === 'function'
+      ? this.ctx.runner.getCandleScopeEnvelope({ timeframe: ctxTimeframe })
+      : {};
+  }
+
   _patternScope(symbol) {
     const cfg = this.ctx.config || {};
     const routerEnabled = this.ctx.runner && typeof this.ctx.runner.isSessionRoutingActive === 'function'
       ? this.ctx.runner.isSessionRoutingActive() === true
       : this.ctx.runner?.sessionRouter?.enabled === true;
-    const runtimeScope = this.ctx.runner && typeof this.ctx.runner.getCandleScopeEnvelope === 'function'
-      ? this.ctx.runner.getCandleScopeEnvelope()
-      : {};
+    const runtimeScope = this._runnerScope();
     const scope = {
       symbol,
       brokerId: runtimeScope.brokerId || (!routerEnabled ? cfg.brokerId : null),
@@ -659,9 +666,7 @@ class TradingLoop {
     const routerEnabled = this.ctx.runner && typeof this.ctx.runner.isSessionRoutingActive === 'function'
       ? this.ctx.runner.isSessionRoutingActive() === true
       : this.ctx.runner?.sessionRouter?.enabled === true;
-    const runtimeScope = this.ctx.runner && typeof this.ctx.runner.getCandleScopeEnvelope === 'function'
-      ? this.ctx.runner.getCandleScopeEnvelope()
-      : {};
+    const runtimeScope = this._runnerScope();
     const scope = {
       symbol,
       asset: symbol,

@@ -1242,6 +1242,7 @@ class OGZPrimeV14Bot {
     this.ohlcDebugCount = 0; // Log first 5 messages for debugging
     this.timeframeDiagnostics = {
       missingSessionRouterTimeframeDrops: 0,
+      missingScopeTimeframeDrops: 0,
     };
 
     // CHANGE 2025-12-11: MessageQueue for WebSocket race condition prevention
@@ -1348,6 +1349,7 @@ class OGZPrimeV14Bot {
       backtestMode: resolvedConfig.config.mode.backtest,
       paperTrading: resolvedConfig.config.mode.paperTrading,
       testMode: resolvedConfig.config.mode.testMode,
+      candleTimeframe: this.candleTimeframe,
       // Phase 4 REWRITE: Standalone dependencies (was inside deleted modules)
       orderRouter: this.orderRouter,
       // CC-C: webhook execution route, owned by OrderExecutor when enabled
@@ -2280,7 +2282,22 @@ class OGZPrimeV14Bot {
     const accountId = accountScope.accountId;
     const assetClass = overrides.assetClass || activeAssetClass || this._assetClassForSession(activeSession) || (!routerEnabled ? this.config.assetClass : null);
     const executionMode = overrides.executionMode || this.config.executionMode;
-    const timeframe = overrides.timeframe || this.timeframeSelector?.currentTimeframe || this.candleTimeframe || this.config.timeframe || null;
+    const rawTimeframe = Object.prototype.hasOwnProperty.call(overrides, 'timeframe')
+      ? overrides.timeframe
+      : null;
+    const timeframe = typeof rawTimeframe === 'string' && rawTimeframe.trim() !== ''
+      ? rawTimeframe.trim()
+      : null;
+    if (!timeframe) {
+      if (!this.timeframeDiagnostics) {
+        this.timeframeDiagnostics = {};
+      }
+      const currentDrops = Number.isInteger(this.timeframeDiagnostics.missingScopeTimeframeDrops)
+        ? this.timeframeDiagnostics.missingScopeTimeframeDrops
+        : 0;
+      this.timeframeDiagnostics.missingScopeTimeframeDrops = currentDrops + 1;
+      console.error(`[SCOPE][TIMEFRAME-MISSING] dropped runtime scope envelope with missing explicit timeframe count=${this.timeframeDiagnostics.missingScopeTimeframeDrops}`);
+    }
 
     if (this.sessionRouter?.enabled === true) {
       const missing = [];
@@ -3031,7 +3048,10 @@ class OGZPrimeV14Bot {
         }
         const scope = {
           symbol: dashboardSymbol,
-          ...this.getCandleScopeEnvelope({ symbol: dashboardSymbol })
+          ...this.getCandleScopeEnvelope({
+            symbol: dashboardSymbol,
+            timeframe: this.candleTimeframe,
+          })
         };
         scope.asset = scope.symbol;
         const missingScope = ['symbol', 'brokerId', 'accountId', 'assetClass', 'executionMode', 'timeframe']
