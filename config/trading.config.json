@@ -15,10 +15,7 @@
     "recoveryModeReduction": 0.5,
     "counterTrendReduction": 0.3,
     "lowConfidenceReduction": 0.25,
-    "highConfidenceBoost": 1.3,
-    "feeGate": {
-      "minEdgeMultiple": 2
-    }
+    "highConfidenceBoost": 1.3
   },
   "authFailureGuard": {
     "thresholdCount": 3,
@@ -1791,12 +1788,11 @@
     ]
   },
   "fees": {
-    "makerFee": 0.0025,
-    "takerFee": 0.004,
+    "makerFee": 0,
+    "takerFee": 0,
     "slippage": 0.0005,
-    "totalRoundTrip": 0.005,
-    "safetyBuffer": 0.001,
-    "minProfitAfterFees": 0.006
+    "totalRoundTrip": 0,
+    "safetyBuffer": 0
   },
   "filters": {
     "atrEnabled": true,

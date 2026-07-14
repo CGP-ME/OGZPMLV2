@@ -552,8 +552,8 @@ function buildConfig() {
 
   const dataDirConfig = envStr('DATA_DIR', '');
   const journalDataDirConfig = envStr('JOURNAL_DATA_DIR', defaultJournalDataDir(dataDirConfig.value));
-  const feeMakerConfig = envFloat('FEE_MAKER', 0.0025);
-  const feeTakerConfig = envFloat('FEE_TAKER', 0.004);
+  const feeMakerConfig = envFloat('FEE_MAKER', 0);
+  const feeTakerConfig = envFloat('FEE_TAKER', 0);
   const feeTotalRoundTripConfig = envFloat(
     'FEE_TOTAL_ROUNDTRIP',
     feeMakerConfig.value + feeTakerConfig.value
@@ -2107,9 +2107,6 @@ const BASE_CONFIG = {
     counterTrendReduction: 0.30,                                  // 30% reduction against trend
     lowConfidenceReduction: 0.25,                                 // 25% reduction on weak signals
     highConfidenceBoost: 1.30,                                    // 1.3x on strong signals
-    feeGate: {
-      minEdgeMultiple: requiredConfigNumber('risk.feeGate.minEdgeMultiple'),
-    },
   },
 
   // =========================================================================
@@ -3063,18 +3060,13 @@ const BASE_CONFIG = {
   // =========================================================================
   fees: {
     model: env('FEE_MODEL', 'percent'),
-    makerFee: env('FEE_MAKER', 0.0025),                          // 0.25% maker (Kraken actual)
-    takerFee: env('FEE_TAKER', 0.0040),                          // 0.40% taker (Kraken actual)
-    slippage: env('FEE_SLIPPAGE', 0.0005),                       // 0.05% slippage
-    totalRoundTrip: env('FEE_TOTAL_ROUNDTRIP', 0.0065),          // 0.65% total (maker 0.25% + taker 0.40%)
-    safetyBuffer: env('FEE_SAFETY_BUFFER', 0.001),               // 0.10% buffer
+    makerFee: env('FEE_MAKER', 0),
+    takerFee: env('FEE_TAKER', 0),
+    slippage: env('FEE_SLIPPAGE', 0.0005),
+    totalRoundTrip: env('FEE_TOTAL_ROUNDTRIP', 0),
+    safetyBuffer: env('FEE_SAFETY_BUFFER', 0),
     perShare: env('FEE_PER_SHARE', 0),
     minOrderFee: env('FEE_MIN_ORDER', 0),
-
-    // Computed: minimum profit to be a "winner" after fees
-    get minProfitAfterFees() {
-      return this.totalRoundTrip + this.safetyBuffer;            // ~0.52%
-    },
   },
 
   // =========================================================================
@@ -3212,10 +3204,10 @@ const BASE_CONFIG = {
       NODE_ENV: 'test',
       DIRECTION_FILTER: 'both',
       EXIT_SYSTEM: 'legacy',
-      FEE_MAKER: '0.0025',
-      FEE_TAKER: '0.0040',
-      FEE_TOTAL_ROUNDTRIP: '0.0065',
-      FEE_SAFETY_BUFFER: '0.001',
+      FEE_MAKER: '0',
+      FEE_TAKER: '0',
+      FEE_TOTAL_ROUNDTRIP: '0',
+      FEE_SAFETY_BUFFER: '0',
       FEE_SLIPPAGE: '0.0005',
     }),
     stockZeroFee: freezeStringMap({

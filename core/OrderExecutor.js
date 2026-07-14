@@ -271,54 +271,6 @@ class OrderExecutor {
     }
   }
 
-  _emitFeeEdgeGateEvent({ traceId, signalId, symbol, action, gate, executionScope }) {
-    const ws = this.ctx.dashboardWs;
-    if (!ws || ws.readyState !== 1 || typeof ws.send !== 'function') return false;
-
-    const passed = gate?.passed === true;
-    const reason = passed ? 'fee_edge_passed' : 'fee_edge';
-    const frame = {
-      type: 'gate_event',
-      timestamp: Date.now(),
-      traceId: traceId || null,
-      signalId: signalId || null,
-      symbol,
-      action,
-      kind: passed ? 'eval_pass' : 'risk_block',
-      passed,
-      reason,
-      riskGates: [gate],
-      brokerId: executionScope?.brokerId || null,
-      accountId: executionScope?.accountId || null,
-      assetClass: executionScope?.assetClass || null,
-      executionMode: executionScope?.executionMode || null,
-      timeframe: executionScope?.timeframe || null,
-      data: {
-        symbol,
-        action,
-        kind: passed ? 'eval_pass' : 'risk_block',
-        passed,
-        reason,
-        riskGates: [gate],
-        traceId: traceId || null,
-        signalId: signalId || null,
-        brokerId: executionScope?.brokerId || null,
-        accountId: executionScope?.accountId || null,
-        assetClass: executionScope?.assetClass || null,
-        executionMode: executionScope?.executionMode || null,
-        timeframe: executionScope?.timeframe || null,
-      },
-    };
-
-    try {
-      ws.send(JSON.stringify(frame));
-      return true;
-    } catch (err) {
-      console.warn(`[GateMeter] fee_edge gate_event send failed: ${err.message}`);
-      return false;
-    }
-  }
-
   _buildEvalQuarantineRiskGates(gateResult) {
     const inputs = gateResult?.inputs;
     const staleFields = Array.isArray(inputs?.staleFields) ? inputs.staleFields : [];
@@ -1588,18 +1540,6 @@ class OrderExecutor {
     });
   }
 
-  _resolveFeeGateMinEdgeMultiple() {
-    const value = Number(ConfigLoader.get('risk.feeGate.minEdgeMultiple'));
-    if (!Number.isFinite(value) || value <= 0) {
-      throw new Error(`[FEE-GATE] risk.feeGate.minEdgeMultiple must be a finite positive number; got ${ConfigLoader.get('risk.feeGate.minEdgeMultiple')}`);
-    }
-    return value;
-  }
-
-  _roundGateNumber(value) {
-    return Number.isFinite(value) ? Number(value.toFixed(6)) : null;
-  }
-
   _ledgerDataWithEntryAnnotations(ledgerData, { riskGates = null, positionSizing = null, operationalQuarantine = null } = {}) {
     if (!ledgerData || typeof ledgerData !== 'object') return ledgerData || null;
     const hasRiskGates = Array.isArray(riskGates) && riskGates.length > 0;
@@ -1617,55 +1557,6 @@ class OrderExecutor {
       ];
     }
     return annotatedLedgerData;
-  }
-
-  _buildFeeEdgeGate(entryPlan) {
-    if (!entryPlan || !this._isEntryAction(entryPlan.action)) return null;
-
-    const minEdgeMultiple = this._resolveFeeGateMinEdgeMultiple();
-    const takeProfitPercent = Number(entryPlan.exitContract?.takeProfitPercent);
-    if (!Number.isFinite(takeProfitPercent) || takeProfitPercent <= 0) {
-      throw new Error(`[FEE-GATE] exitContract.takeProfitPercent must be a finite positive number for ${entryPlan.action} ${entryPlan.symbol}; got ${entryPlan.exitContract?.takeProfitPercent}`);
-    }
-
-    const positionNotionalDollars = Number(entryPlan.sizeUsd);
-    const orderQuantity = Number(entryPlan.orderQuantity);
-    if (!Number.isFinite(positionNotionalDollars) || positionNotionalDollars <= 0 || !Number.isFinite(orderQuantity) || orderQuantity <= 0) {
-      return null;
-    }
-
-    const expectedMoveDollars = positionNotionalDollars * (takeProfitPercent / 100);
-    const roundTripFeeDollars = this._calculateRoundTripFees({
-      entryNotionalUsd: positionNotionalDollars,
-      exitNotionalUsd: positionNotionalDollars,
-      entryQuantity: orderQuantity,
-      exitQuantity: orderQuantity,
-    });
-    const requiredMoveDollars = roundTripFeeDollars * minEdgeMultiple;
-    const passed = expectedMoveDollars >= requiredMoveDollars;
-    const edgeMultiple = roundTripFeeDollars > 0
-      ? expectedMoveDollars / roundTripFeeDollars
-      : null;
-
-    const gate = {
-      gate: 'fee_edge',
-      threshold: this._roundGateNumber(requiredMoveDollars),
-      value: this._roundGateNumber(expectedMoveDollars),
-      passed,
-      minEdgeMultiple,
-      expectedMoveDollars: this._roundGateNumber(expectedMoveDollars),
-      roundTripFeeDollars: this._roundGateNumber(roundTripFeeDollars),
-      requiredMoveDollars: this._roundGateNumber(requiredMoveDollars),
-      edgeMultiple: this._roundGateNumber(edgeMultiple),
-      takeProfitPercent,
-      positionNotionalDollars: this._roundGateNumber(positionNotionalDollars),
-      orderQuantity,
-      quantityUnit: entryPlan.quantityUnit,
-    };
-    if (!passed) {
-      gate.rejectReason = `expected move $${expectedMoveDollars.toFixed(2)} below ${minEdgeMultiple}x round-trip fee $${roundTripFeeDollars.toFixed(2)}`;
-    }
-    return gate;
   }
 
   _buildExitIntentId(exitPlan, decision) {
@@ -2007,7 +1898,6 @@ class OrderExecutor {
       exitContract,
       frozenExitPolicy
     };
-    entryPlan.feeEdgeGate = this._buildFeeEdgeGate(entryPlan);
     return entryPlan;
   }
 
@@ -2611,31 +2501,6 @@ class OrderExecutor {
       });
     }
     if (entryPlan) {
-      this._emitFeeEdgeGateEvent({
-        traceId,
-        signalId,
-        symbol,
-        action: entryPlan.action,
-        gate: entryPlan.feeEdgeGate,
-        executionScope,
-      });
-      if (entryPlan.feeEdgeGate && entryPlan.feeEdgeGate.passed === false) {
-        console.warn(`[FEE-GATE] BLOCKED ${entryPlan.action} ${symbol}: ${entryPlan.feeEdgeGate.rejectReason}`);
-        emitTrace(this.ctx, 'ORDER_BLOCKED', {
-          traceId,
-          signalId,
-          symbol,
-          action: entryPlan.action,
-          reason: 'fee_edge',
-          riskGates: [entryPlan.feeEdgeGate],
-        });
-        return blockedReturn('fee_edge', {
-          riskGates: [entryPlan.feeEdgeGate],
-          feeEdgeGate: entryPlan.feeEdgeGate,
-        });
-      }
-      const feeEdgeRiskGates = entryPlan.feeEdgeGate ? [entryPlan.feeEdgeGate] : [];
-      entryPlan.feeEdgeRiskGates = feeEdgeRiskGates;
       emitTrace(this.ctx, 'ORDER_PLAN', {
         traceId,
         signalId,
@@ -2647,7 +2512,7 @@ class OrderExecutor {
         quantityUnit: entryPlan.quantityUnit,
         stockShareRange: entryPlan.stockShareRange,
         entryStrategy: entryPlan.entryStrategy,
-        riskGates: feeEdgeRiskGates,
+        riskGates: [],
       });
       const gateResult = await this._runPreOrderEntryGate(entryPlan);
       entryPlan.gateResult = gateResult;
@@ -2662,10 +2527,7 @@ class OrderExecutor {
           executionScope,
         });
       }
-      entryPlan.feeEdgeRiskGates = [
-        ...feeEdgeRiskGates,
-        ...evalQuarantineRiskGates,
-      ];
+      entryPlan.riskGates = evalQuarantineRiskGates;
       entryPlan.operationalQuarantine = this._buildOperationalQuarantine(gateResult, evalQuarantineRiskGates);
       emitTrace(this.ctx, 'EVAL_RULE_CHECK', {
         traceId,
@@ -3261,10 +3123,9 @@ class OrderExecutor {
             entryStrategy: entryStrategy,
             exitContract: exitContract,
             frozenExitPolicy,
-            feeEdgeGate: entryPlan.feeEdgeGate || null,
-            riskGates: entryPlan.feeEdgeRiskGates || [],
+            riskGates: entryPlan.riskGates || [],
             ledgerData: this._ledgerDataWithEntryAnnotations(decision.ledgerData, {
-              riskGates: entryPlan.feeEdgeRiskGates,
+              riskGates: entryPlan.riskGates,
               positionSizing: ledgerPositionSizing,
               operationalQuarantine: entryPlan.operationalQuarantine,
             }),
@@ -3476,10 +3337,9 @@ class OrderExecutor {
             entryStrategy: entryStrategy,
             exitContract: exitContract,
             frozenExitPolicy,
-            feeEdgeGate: entryPlan.feeEdgeGate || null,
-            riskGates: entryPlan.feeEdgeRiskGates || [],
+            riskGates: entryPlan.riskGates || [],
             ledgerData: this._ledgerDataWithEntryAnnotations(decision.ledgerData, {
-              riskGates: entryPlan.feeEdgeRiskGates,
+              riskGates: entryPlan.riskGates,
               positionSizing: ledgerPositionSizing,
               operationalQuarantine: entryPlan.operationalQuarantine,
             }),
@@ -3770,7 +3630,6 @@ class OrderExecutor {
                 confidence: this._firstFiniteNumber(buyTrade.confidence),
                 signalBreakdown: buyTrade.signalBreakdown ?? null,
                 mtfConfluenceSnapshot: buyTrade.frozenExitPolicy?.mtfConfluenceSnapshot ?? null,
-                feeEdgeGate: buyTrade.feeEdgeGate ?? null,
                 riskGates: Array.isArray(buyTrade.riskGates) ? buyTrade.riskGates : null,
                 maxFavorableExcursionPercent: this._firstFiniteNumber(
                   buyTrade.maxFavorableExcursionPercent,
@@ -4332,7 +4191,6 @@ class OrderExecutor {
               confidence: this._firstFiniteNumber(shortTrade.confidence),
               signalBreakdown: shortTrade.signalBreakdown ?? null,
               mtfConfluenceSnapshot: shortTrade.frozenExitPolicy?.mtfConfluenceSnapshot ?? null,
-              feeEdgeGate: shortTrade.feeEdgeGate ?? null,
               riskGates: Array.isArray(shortTrade.riskGates) ? shortTrade.riskGates : null,
               maxFavorableExcursionPercent: this._firstFiniteNumber(
                 shortTrade.maxFavorableExcursionPercent,

@@ -241,7 +241,6 @@ describe('campaign integrity validator', () => {
           { gate: 'direction_filter', threshold: 'both', value: 'buy', passed: true },
           { gate: 'shorts_enabled', threshold: true, value: 'not_applicable', passed: true },
           { gate: 'same_direction_block', threshold: null, value: 'buy', passed: true },
-          { gate: 'fee_edge', threshold: 3, value: 4.5, passed: true },
         ],
       })}\n`);
       const matrixPath = writeJson(dir, 'matrix.json', {

@@ -126,25 +126,21 @@ describe('Backtest report scope contract', () => {
     expect(record.maePercent).toBe(-0.75);
   });
 
-  test('preserves fee edge gate evidence on backtest trade rows', () => {
+  test('preserves generic risk gate evidence on backtest trade rows', () => {
     const recorder = new BacktestRecorder({ startingBalance: 10000, feePerSide: 0 });
-    const feeEdgeGate = {
-      gate: 'fee_edge',
-      threshold: 3,
-      value: 10,
+    const riskGate = {
+      gate: 'direction_filter',
+      threshold: 'both',
+      value: 'buy',
       passed: true,
-      expectedMoveDollars: 10,
-      roundTripFeeDollars: 1.5,
-      minEdgeMultiple: 2,
     };
 
     const record = recorder.recordTrade(scopedTrade({
-      feeEdgeGate,
-      riskGates: [feeEdgeGate],
+      riskGates: [riskGate],
     }));
 
-    expect(record.feeEdgeGate).toEqual(feeEdgeGate);
-    expect(record.riskGates).toEqual([feeEdgeGate]);
+    expect(record.feeEdgeGate).toBeUndefined();
+    expect(record.riskGates).toEqual([riskGate]);
   });
 
   test('uses executed closed quantity as source of truth for stock notional and PnL', () => {

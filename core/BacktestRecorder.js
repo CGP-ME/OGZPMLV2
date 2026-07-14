@@ -224,7 +224,6 @@ class BacktestRecorder {
             trade.mtfConfluenceSnapshot ?? trade.frozenExitPolicy?.mtfConfluenceSnapshot
         );
         const rawFrozenExitPolicy = BacktestRecorder.jsonCloneOrNull(trade.frozenExitPolicy);
-        const rawFeeEdgeGate = BacktestRecorder.jsonCloneOrNull(trade.feeEdgeGate);
         const rawRiskGates = BacktestRecorder.jsonCloneOrNull(trade.riskGates);
         const strategyName = trade.strategyName || trade.winner || 'unknown';
         const winnerDecisionAttribution = BacktestRecorder.winnerAttributionFromSignalBreakdown(
@@ -283,7 +282,6 @@ class BacktestRecorder {
             confidenceContributors: BacktestRecorder.contributorNames(winnerDecisionAttribution),
             mtfConfluenceSnapshot: rawMtfConfluenceSnapshot,
             frozenExitPolicy: rawFrozenExitPolicy,
-            feeEdgeGate: rawFeeEdgeGate,
             riskGates: rawRiskGates,
             maxFavorableExcursionPercent,
             maxAdverseExcursionPercent,

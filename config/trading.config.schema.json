@@ -67,15 +67,7 @@
         "recoveryModeReduction": { "type": "number", "minimum": 0, "maximum": 1 },
         "counterTrendReduction": { "type": "number", "minimum": 0, "maximum": 1 },
         "lowConfidenceReduction": { "type": "number", "minimum": 0, "maximum": 1 },
-        "highConfidenceBoost": { "type": "number", "minimum": 1 },
-        "feeGate": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["minEdgeMultiple"],
-          "properties": {
-            "minEdgeMultiple": { "type": "number", "exclusiveMinimum": 0 }
-          }
-        }
+        "highConfidenceBoost": { "type": "number", "minimum": 1 }
       }
     },
     "authFailureGuard": {
@@ -420,8 +412,7 @@
         "totalRoundTrip": { "type": "number", "minimum": 0 },
         "safetyBuffer": { "type": "number", "minimum": 0 },
         "perShare": { "type": "number", "minimum": 0 },
-        "minOrderFee": { "type": "number", "minimum": 0 },
-        "minProfitAfterFees": { "type": "number" }
+        "minOrderFee": { "type": "number", "minimum": 0 }
       }
     },
     "filters": {
