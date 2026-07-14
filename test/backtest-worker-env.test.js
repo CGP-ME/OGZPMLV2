@@ -8,6 +8,7 @@ const ConfigLoader = require('../foundation/ConfigLoader');
 const {
   CANONICAL_BACKTEST_ENV,
   STOCK_ZERO_FEE_ENV,
+  BACKTEST_TRAI_LLM_ENV,
   WORKER_ENV_ALLOWLIST,
   BACKTEST_PIPELINE_OPERATIONAL_ENV_KEYS,
   CONFIG_ENV_OVERRIDE_ALLOWLIST,
@@ -100,6 +101,7 @@ describe('backtest worker env contract', () => {
       feeProfileName: 'ttp_real',
       instrumentEnv: {
         TRADING_PAIR: 'TSLA',
+        ALPACA_SYMBOLS: 'TSLA',
         BROKER: 'alpaca',
         ASSET_CLASS: 'stocks',
         CANDLE_TIMEFRAME: '15m',
@@ -171,6 +173,7 @@ describe('backtest worker env contract', () => {
       },
       instrumentEnv: {
         TRADING_PAIR: 'TSLA',
+        ALPACA_SYMBOLS: 'TSLA',
         BROKER: 'alpaca',
         ASSET_CLASS: 'stocks',
         CANDLE_TIMEFRAME: '15m',
@@ -245,6 +248,7 @@ describe('backtest worker env contract', () => {
       'BACKTEST_TUNING_PROFILE',
       'BACKTEST_FEE_PROFILE',
       'FEE_PER_SHARE',
+      'INCEPTION_API_KEY',
     ]));
 
     for (const poisonedKey of [
@@ -257,6 +261,7 @@ describe('backtest worker env contract', () => {
       'ENABLE_LIVE_TRADING',
       'CONFIRM_LIVE_TRADING',
       'STRATEGY_DIAG',
+      'INCEPTION_API_KEY',
     ]) {
       expect(whitelist.ambient).not.toContain(poisonedKey);
       expect(whitelist.configEnv).not.toContain(poisonedKey);
@@ -320,6 +325,7 @@ describe('backtest worker env contract', () => {
     expect(poisonEnv.TTP_EARNINGS_STATUS_JSON).toBeUndefined();
     expect(poisonEnv.MAX_WEEKLY_LOSS).toBeUndefined();
     expect(poisonEnv.MAX_MONTHLY_LOSS).toBeUndefined();
+    expect(poisonEnv.INCEPTION_API_KEY).toBe(BACKTEST_TRAI_LLM_ENV.INCEPTION_API_KEY);
     expect(poisonEnv.DIRECTION_FILTER).toBe('both');
   });
 
@@ -327,6 +333,7 @@ describe('backtest worker env contract', () => {
     const cleanSourceEnv = {
       PATH: process.env.PATH,
       HOME: process.env.HOME,
+      ...(process.env.NODE_PATH ? { NODE_PATH: process.env.NODE_PATH } : {}),
     };
     const poisonSourceEnv = {
       ...cleanSourceEnv,
@@ -349,6 +356,7 @@ describe('backtest worker env contract', () => {
       MAX_WEEKLY_LOSS: '1',
       MAX_MONTHLY_LOSS: '1',
       DIRECTION_FILTER: 'short_only',
+      INCEPTION_API_KEY: 'placeholder-inception-key',
     };
 
     const cleanRun = runHermeticBacktest(cleanSourceEnv, 'clean');

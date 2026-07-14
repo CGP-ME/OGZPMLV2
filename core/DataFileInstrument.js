@@ -95,6 +95,7 @@ function resolveInstrumentFromDataFile(dataFile) {
     ASSET_CLASS: 'crypto',
   } : {
     TRADING_PAIR: baseTicker.toUpperCase(),
+    ALPACA_SYMBOLS: baseTicker.toUpperCase(),
     BROKER: 'alpaca',
     ASSET_CLASS: 'stocks',
   };

@@ -118,15 +118,15 @@ function calcATR(candles, period = 14) {
   return trSum / period;
 }
 
-function calcEMASlope(closes, period, slopeLookback = 5) {
+function calcEMASlope(closes, period, slopeLookback, minSlopePct) {
   if (closes.length < period + slopeLookback) return 'unknown';
   const currentEMA = calcEMA(closes, period);
   const olderCloses = closes.slice(0, closes.length - slopeLookback);
   const olderEMA = calcEMA(olderCloses, period);
   if (!currentEMA || !olderEMA || olderEMA === 0) return 'unknown';
   const slopePct = ((currentEMA - olderEMA) / olderEMA) * 100;
-  if (slopePct > 0.03) return 'rising';
-  if (slopePct < -0.03) return 'falling';
+  if (slopePct > minSlopePct) return 'rising';
+  if (slopePct < -minSlopePct) return 'falling';
   return 'flat';
 }
 
@@ -136,10 +136,10 @@ function isTouchingEMA(price, ema, touchZonePct = 0.6) {
   return distance <= touchZonePct;
 }
 
-function isExtended(price, ema, extensionPct = 2.0) {
-  if (!ema || ema === 0) return false;
-  const distance = Math.abs(price - ema) / ema * 100;
-  return distance > extensionPct;
+function isExtendedAtr(price, ema, atr, maxExtensionAtr) {
+  if (!ema || ema === 0 || !atr || atr <= 0) return false;
+  const extensionAtr = Math.abs(price - ema) / atr;
+  return extensionAtr > maxExtensionAtr;
 }
 
 // ── RUN BACKTEST AND CAPTURE TRADES ──
@@ -161,21 +161,8 @@ function runBacktestAndCaptureTrades() {
   const emaConfig = ConfigLoader.get('strategies.EMASMACrossover') || {};
   const emaCrossover = new EMASMACrossoverSignal(emaConfig);
 
-  const masrConfig = ConfigLoader.get('strategies.MADynamicSR') || {};
-  const maDynamicSR = new MADynamicSR({
-    entryMaPeriod: masrConfig.entryMaPeriod || 20,
-    srMaPeriod: masrConfig.srMaPeriod || 200,
-    touchZonePct: masrConfig.touchZonePct || 0.6,
-    srTestCount: masrConfig.srTestCount || 2,
-    swingLookback: masrConfig.swingLookback || 3,
-    srZonePct: masrConfig.srZonePct || 1.0,
-    slopeLookback: masrConfig.slopeLookback || 5,
-    minSlopePct: masrConfig.minSlopePct || 0.03,
-    extensionPct: masrConfig.extensionPct || 2.0,
-    skipFirstTouch: masrConfig.skipFirstTouch ?? true,
-    atrPeriod: masrConfig.atrPeriod || 14,
-    patternPersistBars: masrConfig.patternPersistBars || 15,
-  });
+  const masrConfig = ConfigLoader.get('strategies.MADynamicSR');
+  const maDynamicSR = new MADynamicSR(masrConfig);
 
   const liqConfig = ConfigLoader.get('strategies.LiquiditySweep') || {};
   const liquiditySweep = new LiquiditySweepDetector({
@@ -345,15 +332,16 @@ function validateTrade(trade, candles) {
     }
 
     case 'MADynamicSR': {
-      const masrConfig = ConfigLoader.get('strategies.MADynamicSR') || {};
-      const entryPeriod = masrConfig.entryMaPeriod || 20;
-      const touchZone = masrConfig.touchZonePct || 0.6;
-      const extensionPct = masrConfig.extensionPct || 2.0;
-      const slopeLookback = masrConfig.slopeLookback || 5;
+      const masrConfig = ConfigLoader.get('strategies.MADynamicSR');
+      const entryPeriod = masrConfig.entryMaPeriod;
+      const touchZone = masrConfig.touchZonePct;
+      const maxExtensionAtr = masrConfig.maxExtensionAtr;
+      const slopeLookback = masrConfig.slopeLookback;
+      const minSlopePct = masrConfig.minSlopePct;
 
       // Check 20 MA exists and slope
       const ema20 = calcEMA(closesUpToEntry, entryPeriod);
-      const slope = calcEMASlope(closesUpToEntry, entryPeriod, slopeLookback);
+      const slope = calcEMASlope(closesUpToEntry, entryPeriod, slopeLookback, minSlopePct);
 
       checks.push({
         name: '20 MA exists',
@@ -388,17 +376,17 @@ function validateTrade(trade, candles) {
         actual: touching.toString() + (ema20 ? ` (distance: ${(Math.abs(price - ema20) / ema20 * 100).toFixed(3)}%)` : ''),
       });
 
-      // Check NOT extended
-      const extended = isExtended(price, ema20, extensionPct);
+      // Check ATR-normalized extension
+      const atr = calcATR(candlesUpToEntry, masrConfig.atrPeriod);
+      const extended = isExtendedAtr(price, ema20, atr, maxExtensionAtr);
       checks.push({
-        name: `Price NOT extended (< ${extensionPct}% from 20 MA)`,
+        name: `Price not over maxExtensionAtr (${maxExtensionAtr} ATR from 20 MA)`,
         passed: !extended,
         expected: 'false',
         actual: extended.toString(),
       });
 
       // Check ATR acceleration (candle range > 1.2x ATR)
-      const atr = calcATR(candlesUpToEntry, 14);
       const candleRange = h(trade.entryCandle) - l(trade.entryCandle);
       if (atr) {
         checks.push({
