@@ -1,0 +1,90 @@
+Running p0.single_lane.tsla_ema_anchor... [ConfigLoader] Compatibility BASE_CONFIG fallback used for 'universalLimits'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'authFailureGuard'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'entryLogic.sizing.absoluteCapPercent'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'fees.slippage'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'features.enableDynamicSizing'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'pipeline'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'patternMemory'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'confidence.regimeMinConfidence'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'confidence.confluenceMinScore'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'confidence.tpoStrengthMin'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'strategies.OpeningRangeBreakout'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'strategies.LiquiditySweep'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'strategies.SmartMoneySweep'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'strategies.DonchianBreakout'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'orchestrator.minCandlesEMA'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'orchestrator.minCandlesMASR'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'orchestrator.minCandlesSweep'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'orchestrator.minCandlesMTF'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'orchestrator.minCandlesTPO'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'orchestrator.fibDistanceEMA'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'orchestrator.fibDistanceMASR'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'orchestrator.fibDistanceSweep'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'orchestrator.fibBoostNormal'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'orchestrator.fibBoostGolden'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'orchestrator.tpoStrengthMultiplier'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'strategies.MADynamicSR'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'strategies.VolumeProfile'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[FATAL] Fatal error: Error: [Alpaca] ALPACA_SYMBOLS must provide at least one symbol
+    at resolveAlpacaSymbols (/opt/ogzprime/OGZPMLV2-tfe-phase2/run-empire-v2.js:173:11)
+    at buildAlpacaAdapterOptions (/opt/ogzprime/OGZPMLV2-tfe-phase2/run-empire-v2.js:179:19)
+    at new OGZPrimeV14Bot (/opt/ogzprime/OGZPMLV2-tfe-phase2/run-empire-v2.js:828:11)
+    at main (/opt/ogzprime/OGZPMLV2-tfe-phase2/run-empire-v2.js:3484:15)
+    at Object.<anonymous> (/opt/ogzprime/OGZPMLV2-tfe-phase2/run-empire-v2.js:3511:3)
+    at Module._compile (node:internal/modules/cjs/loader:1705:14)
+    at Object..js (node:internal/modules/cjs/loader:1838:10)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+FAIL
+Error: anchor-runner: backtest failed (Command failed: node run-empire-v2.js
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'universalLimits'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'authFailureGuard'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'entryLogic.sizing.absoluteCapPercent'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'fees.slippage'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'features.enableDynamicSizing'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'pipeline'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'patternMemory'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'confidence.regimeMinConfidence'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'confidence.confluenceMinScore'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'confidence.tpoStrengthMin'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'strategies.OpeningRangeBreakout'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'strategies.LiquiditySweep'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'strategies.SmartMoneySweep'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'strategies.DonchianBreakout'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'orchestrator.minCandlesEMA'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'orchestrator.minCandlesMASR'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'orchestrator.minCandlesSweep'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'orchestrator.minCandlesMTF'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'orchestrator.minCandlesTPO'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'orchestrator.fibDistanceEMA'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'orchestrator.fibDistanceMASR'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'orchestrator.fibDistanceSweep'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'orchestrator.fibBoostNormal'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'orchestrator.fibBoostGolden'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'orchestrator.tpoStrengthMultiplier'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'strategies.MADynamicSR'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[ConfigLoader] Compatibility BASE_CONFIG fallback used for 'strategies.VolumeProfile'. Migrate this caller to ConfigLoader-owned snapshot paths or retire it in the config compatibility cleanup slice.
+[FATAL] Fatal error: Error: [Alpaca] ALPACA_SYMBOLS must provide at least one symbol
+    at resolveAlpacaSymbols (/opt/ogzprime/OGZPMLV2-tfe-phase2/run-empire-v2.js:173:11)
+    at buildAlpacaAdapterOptions (/opt/ogzprime/OGZPMLV2-tfe-phase2/run-empire-v2.js:179:19)
+    at new OGZPrimeV14Bot (/opt/ogzprime/OGZPMLV2-tfe-phase2/run-empire-v2.js:828:11)
+    at main (/opt/ogzprime/OGZPMLV2-tfe-phase2/run-empire-v2.js:3484:15)
+    at Object.<anonymous> (/opt/ogzprime/OGZPMLV2-tfe-phase2/run-empire-v2.js:3511:3)
+    at Module._compile (node:internal/modules/cjs/loader:1705:14)
+    at Object..js (node:internal/modules/cjs/loader:1838:10)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+); see /opt/ogzprime/OGZPMLV2-tfe-phase2/ogz-meta/ledger/phase0-canonical-multi-runtime-gate-2026-07-14T03-47-53-817Z.log
+    at runP0 (/opt/ogzprime/OGZPMLV2-tfe-phase2/ogz-meta/anchor-runner.js:205:11)
+    at Object.run (/opt/ogzprime/OGZPMLV2-tfe-phase2/ogz-meta/gates/multi-runtime-gate-runner.js:619:22)
+    at runGate (/opt/ogzprime/OGZPMLV2-tfe-phase2/ogz-meta/gates/multi-runtime-gate-runner.js:1689:31)
+    at main (/opt/ogzprime/OGZPMLV2-tfe-phase2/ogz-meta/gates/multi-runtime-gate-runner.js:1757:26)
+    at Object.<anonymous> (/opt/ogzprime/OGZPMLV2-tfe-phase2/ogz-meta/gates/multi-runtime-gate-runner.js:1784:3)
+    at Module._compile (node:internal/modules/cjs/loader:1705:14)
+    at Object..js (node:internal/modules/cjs/loader:1838:10)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+Report written: /opt/ogzprime/OGZPMLV2-tfe-phase2/ogz-meta/gates/runs/multi-runtime-latest.json
