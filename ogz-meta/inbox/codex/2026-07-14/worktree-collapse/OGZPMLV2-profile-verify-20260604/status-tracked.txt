@@ -1,0 +1,7 @@
+## HEAD (no branch)
+ M test/matrix-sweep-surface.test.js
+ M test/order-executor-pause-gate.test.js
+ M test/parallel-backtest-solo-env.test.js
+ M tools/grid-search-confidence.js
+ M tools/matrix-sweep.js
+ M tools/parallel-backtest.js

@@ -1,0 +1,4 @@
+## HEAD (no branch)
+ M core/StateManager.js
+ M test/order-executor-pause-gate.test.js
+ M test/state-manager-open-position-scope.test.js

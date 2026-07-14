@@ -1,0 +1,36 @@
+diff --git a/run-empire-v2.js b/run-empire-v2.js
+index 8f5cee57..d8062cd1 100644
+--- a/run-empire-v2.js
++++ b/run-empire-v2.js
+@@ -851,7 +851,12 @@ class OGZPrimeV14Bot {
+ 
+       // SessionRouter attaches this OHLC handler to whichever adapter is currently active.
+       const ohlcHandler = (eventData) => {
+-        const tf = eventData.timeframe || '1m';
++        const rawTimeframe = eventData?.timeframe;
++        if (typeof rawTimeframe !== 'string' || rawTimeframe.trim() === '') {
++          console.error('[OHLC] dropped SessionRouter payload with missing timeframe');
++          return;
++        }
++        const tf = rawTimeframe.trim();
+         const raw = eventData.data || eventData;
+         const traceId = eventData.traceId || raw?.traceId || createTraceId('candle');
+         const eventSymbol = eventData && eventData.symbol;
+diff --git a/test/single-broker-subscription-symbols.test.js b/test/single-broker-subscription-symbols.test.js
+index 91b2f1bf..1e5afe7e 100644
+--- a/test/single-broker-subscription-symbols.test.js
++++ b/test/single-broker-subscription-symbols.test.js
+@@ -64,6 +64,13 @@ describe('SessionRouter-only market-data subscription ownership', () => {
+     expect(source).not.toContain('source=single broker');
+   });
+ 
++  test('SessionRouter OHLC ingestion refuses missing timeframe instead of defaulting to 1m', () => {
++    const source = fs.readFileSync(path.resolve(__dirname, '..', 'run-empire-v2.js'), 'utf8');
++
++    expect(source).not.toMatch(/eventData\.timeframe\s*\|\|\s*['"]1m['"]/);
++    expect(source).toContain('[OHLC] dropped SessionRouter payload with missing timeframe');
++  });
++
+   test('subscribeToMarketData cannot revive the pre-router broker subscription path', () => {
+     const OGZPrimeV14Bot = loadBot();
+     const subscribeToCandles = jest.fn();

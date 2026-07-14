@@ -1,0 +1,67 @@
+total 386488
+drwxr-xr-x 34 linuxuser linuxuser      4096 Jul 14 03:45 .
+drwxr-xr-x  7 root      root           4096 Apr 30 02:49 ..
+-rw-rw-r--  1 linuxuser linuxuser   1042138 Nov  7  2025 amp.zip
+-rw-rw-r--  1 linuxuser linuxuser  24858739 Nov  6  2025 app.zip
+-rw-rw-rw-  1 linuxuser linuxuser    126579 Nov  7  2025 assisdtants memory and conversation context.md
+drwxrwxr-x  4 linuxuser linuxuser      4096 Mar 30 23:38 backups
+-rw-rw-rw-  1 linuxuser linuxuser    183911 Nov  7  2025 careful refactoring in final refactor directory.md
+-rw-rw-rw-  1 linuxuser linuxuser    110954 Nov  7  2025 checking amp assistant availabiltity.md
+drwx------  2 linuxuser linuxuser      4096 Dec 11  2025 .claude
+-rw-rw-r--  1 linuxuser linuxuser  54677683 Nov  7  2025 claude.zip
+-rw-rw-rw-  1 linuxuser linuxuser    183506 Nov  7  2025 comprehensive bot quality assurance and scaling.md
+-rw-rw-rw-  1 linuxuser linuxuser 232860720 Nov  7  2025 conversations.json
+-rwxrwxr-x  1 linuxuser linuxuser       311 Feb  5 23:46 detect-keys.sh
+-rw-rw-rw-  1 linuxuser linuxuser    293625 Nov  7  2025 dropped file in core folder mnt block.md
+-rw-rw-r--  1 linuxuser linuxuser     27786 Nov  5  2025 empirearchitecture.md
+-rw-rw-rw-  1 linuxuser linuxuser    944248 Nov  7  2025 finalize refactor branch cleanup and commit.md
+-rw-rw-r--  1 linuxuser linuxuser  18738201 Nov  7  2025 gptconvo.zip
+-rw-rw-r--  1 linuxuser linuxuser    954621 Nov  7  2025 gptprojects.zip
+-rw-rw-rw-  1 linuxuser linuxuser    191341 Nov  7  2025 gpu implementatio stabilization next steps.md
+-rw-rw-rw-  1 linuxuser linuxuser    114043 Nov  7  2025 implement tier aware ai pattern engine selection.md
+-rw-rw-rw-  1 linuxuser linuxuser    429355 Nov  7  2025 inspect enhancedpatternrecognition module details.md
+drwx------ 29 linuxuser linuxuser      4096 Jun 23 23:15 mercury-final-proof
+-rw-rw-rw-  1 linuxuser linuxuser    248655 Nov  7  2025 methodical code refactor the rage.md
+-rw-rw-rw-  1 linuxuser linuxuser    248627 Nov  7  2025 methodical code refactor wwith zero silent failures.md
+drwxrwxr-x  2 linuxuser linuxuser      4096 Jan 23 00:47 models
+drwxrwxr-x  8 linuxuser linuxuser      4096 Feb  5 23:44 nerd-dictation
+drwxrwxr-x  2 linuxuser linuxuser      4096 Mar  5 13:13 ogz-gates-data
+drwxrwxr-x 27 linuxuser linuxuser     12288 Nov 11  2025 OGZPML-CLEAN-FOR-PUSH
+drwxrwxr-x 31 linuxuser linuxuser     36864 Dec  3  2025 OGZPML-FINAL-REFACTOR-PRODUCTIONRDY
+-rw-rw-r--  1 linuxuser linuxuser   4329188 Nov  6  2025 OGZPML-FINAL-REFACTOR-PRODUCTIONRDY.zip
+-rw-rw-r--  1 linuxuser linuxuser   4401212 Nov  6  2025 OGZPML-FINAL-REFACTOR.zip
+-rw-rw-r--  1 linuxuser linuxuser   9960393 Nov  6  2025 OGZPML-OGZ-API-WRAPPER.zip
+-rw-rw-r--  1 linuxuser linuxuser   9920902 Nov  6  2025 OGZPML-OGZPML.zip
+-rw-rw-r--  1 linuxuser linuxuser   8613074 Nov  6  2025 OGZPML-OGZPRIME-AMP-STOCKS.zip
+-rw-rw-r--  1 linuxuser linuxuser   9987608 Nov  6  2025 OGZPML-OGZPRIME-STOCKS.zip
+drwxrwxr-x 42 linuxuser linuxuser  10817536 Jul 14 05:15 OGZPMLV2
+drwx------ 29 linuxuser linuxuser      4096 Jun 13 10:39 OGZPMLV2-c49c9ab-diagnostic
+drwxrwxr-x 40 linuxuser linuxuser     49152 Jun 13 10:46 OGZPMLV2-diagnostics-ema-mpm-global-stop
+drwxrwxr-x 40 linuxuser linuxuser     49152 Jun 13 10:26 OGZPMLV2-diagnostics-ema-stop
+drwxrwxr-x  4 linuxuser linuxuser      4096 Dec 10  2025 OGZPMLV2-FROMSNAPSHOT
+drwxrwxr-x 31 linuxuser linuxuser      4096 Jan 15 01:40 OGZPMLV2_GATES
+drwx------ 31 linuxuser linuxuser      4096 Jun 30 20:44 OGZPMLV2-hotfix-verify
+drwx------ 31 linuxuser linuxuser      4096 Jun 28 20:41 OGZPMLV2-p0-baseline
+drwx------ 31 linuxuser linuxuser      4096 Jun 28 21:05 OGZPMLV2-p0-baseline2
+drwx------ 31 linuxuser linuxuser      4096 Jun  8 21:08 OGZPMLV2-p0-bisect-20260608
+drwx------ 31 linuxuser linuxuser      4096 Jun 28 21:15 OGZPMLV2-p0-cleanlog
+drwx------ 31 linuxuser linuxuser      4096 Jun  4 02:55 OGZPMLV2-profile-verify-20260604
+drwx------ 32 linuxuser linuxuser      4096 Jul 14 03:47 OGZPMLV2-r2-masr
+drwx------ 30 linuxuser linuxuser      4096 Jul 13 19:37 OGZPMLV2-tfe-codex2
+drwx------ 31 linuxuser linuxuser      4096 Jul 14 03:47 OGZPMLV2-tfe-phase2
+drwxrwxr-x  3 linuxuser linuxuser      4096 Jun  9 13:55 OGZPMLV2.worktrees
+-rw-rw-rw-  1 linuxuser linuxuser    380947 Nov  7  2025 ogzprimev14 trading bot execution extraction.md
+drwxrwxr-x  2 linuxuser linuxuser      4096 Dec  3  2025 OGZPV2
+-rw-------  1 linuxuser linuxuser     33689 Jun 28 20:39 orderexecutor-applyfill.patch
+drwxrwxr-x  4 linuxuser linuxuser      4096 Jan  5  2026 prodlock-portable-dev
+drwxrwxr-x  6 linuxuser linuxuser      4096 Nov 17  2025 production-countdown.git
+drwx------  4 linuxuser linuxuser      4096 Jun 13 05:31 quarantine
+-rw-rw-r--  1 linuxuser linuxuser         3 Nov  7  2025 README.ogz
+-rw-rw-rw-  1 linuxuser linuxuser    222116 Nov  7  2025 refactor trading bot architecture with modular flags.md
+drwxrwxr-x  2 linuxuser linuxuser      4096 Mar 17 01:55 sonarqube
+drwxr-xr-x  6 linuxuser linuxuser      4096 Aug  4  2023 sonar-scanner
+-rw-rw-rw-  1 linuxuser linuxuser    284450 Nov  7  2025 stock bot modules for existing architecture.md
+drwxrwxr-x  2 linuxuser linuxuser      4096 Nov 24  2025 trai
+-rw-rw-rw-  1 linuxuser linuxuser    167995 Nov  7  2025 TRAI co-founder system foundation work.md
+-rw-rw-r--  1 linuxuser linuxuser     57050 Sep 12  2025 unified-dashboard (1).html
+drwx------  3 linuxuser linuxuser      4096 May 26 08:44 worktrees

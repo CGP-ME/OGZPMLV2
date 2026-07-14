@@ -1,0 +1,38 @@
+diff --git a/core/OrderExecutor.js b/core/OrderExecutor.js
+index f2265c5..ebe1c60 100644
+--- a/core/OrderExecutor.js
++++ b/core/OrderExecutor.js
+@@ -803,14 +803,18 @@ class OrderExecutor {
+     }
+     // decision.confidence comes as percentage (e.g., 75 = 75%), convert to decimal
+     const tradeConfidence = rawConfidence > 1 ? rawConfidence / 100 : rawConfidence;
+-    // Linear scale: confidence 0.5 → multiplier 0.5, confidence 1.0 → multiplier 2.5
+-    const confidenceMultiplier = Math.max(0.5, Math.min(2.5,
+-      0.5 + (tradeConfidence - 0.5) * 4.0
+-    ));
+-    basePositionPercent = basePositionPercent * confidenceMultiplier;
++    const dynamicSizingEnabled = TradingConfig.get('features.enableDynamicSizing', true) !== false;
++    let confidenceMultiplier = 1.0;
++    if (dynamicSizingEnabled) {
++      // Linear scale: confidence 0.5 -> multiplier 0.5, confidence 1.0 -> multiplier 2.5
++      confidenceMultiplier = Math.max(0.5, Math.min(2.5,
++        0.5 + (tradeConfidence - 0.5) * 4.0
++      ));
++      basePositionPercent = basePositionPercent * confidenceMultiplier;
++    }
+ 
+     // FIX 2026-03-06: ENFORCE MAX_POSITION_SIZE cap after confidence multiplier
+-    const maxPositionPercent = TradingConfig.get('positionSizing.maxPositionSize') * 2.5;
++    const maxPositionPercent = TradingConfig.get('positionSizing.maxPositionSize') * (dynamicSizingEnabled ? 2.5 : 1);
+     if (basePositionPercent > maxPositionPercent) {
+       console.log(`Position capped: ${(basePositionPercent * 100).toFixed(2)}% -> ${(maxPositionPercent * 100).toFixed(2)}% (MAX_POSITION_SIZE limit)`);
+       basePositionPercent = maxPositionPercent;
+@@ -823,7 +827,7 @@ class OrderExecutor {
+       console.log(`Position absolute-capped: ${(basePositionPercent * 100).toFixed(2)}% -> ${(absoluteCap * 100).toFixed(2)}% (ABSOLUTE_POSITION_CAP)`);
+       basePositionPercent = absoluteCap;
+     }
+-    console.log(`Confidence sizing: ${(tradeConfidence * 100).toFixed(0)}% -> ${confidenceMultiplier.toFixed(1)}x -> ${(basePositionPercent * 100).toFixed(2)}% of balance`);
++    console.log(`Confidence sizing: ${(tradeConfidence * 100).toFixed(0)}% -> ${confidenceMultiplier.toFixed(1)}x -> ${(basePositionPercent * 100).toFixed(2)}% of balance${dynamicSizingEnabled ? '' : ' (flat profile)'}`);
+ 
+     // Phase 4 REWRITE: AGGRESSIVE_LEARNING_MODE removed - use TradingConfig for all sizing
+     const baseSizeUSD = currentBalance * basePositionPercent;

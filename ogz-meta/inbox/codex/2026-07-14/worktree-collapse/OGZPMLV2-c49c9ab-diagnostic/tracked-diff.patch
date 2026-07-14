@@ -1,0 +1,14 @@
+diff --git a/core/ExitContractManager.js b/core/ExitContractManager.js
+index 02975355..2693e63a 100644
+--- a/core/ExitContractManager.js
++++ b/core/ExitContractManager.js
+@@ -165,6 +165,9 @@ class ExitContractManager {
+       switch (condition) {
+         case 'ema_cross_reversal':
+           // EMA crossover reversed (e.g., golden cross → death cross)
++          if (process.env.EMAS_INV_DEBUG === 'true' && trade.entryStrategy === 'EMASMACrossover') {
++            console.error(`[EMAS_INV_DEBUG] trade=${trade.id || trade.orderId || 'unknown'} action=${trade.action} direction=${trade.direction} entryTime=${trade.entryTime} entryEma9=${trade.entryIndicators?.ema9} entryEma20=${trade.entryIndicators?.ema20} currentEma9=${indicators.ema9} currentEma20=${indicators.ema20}`);
++          }
+           if (trade.entryIndicators?.ema9 > trade.entryIndicators?.ema20 &&
+               indicators.ema9 < indicators.ema20) {
+             return { triggered: true, reason: 'EMA cross reversed (bullish → bearish)' };

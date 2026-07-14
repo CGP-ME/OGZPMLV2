@@ -1,0 +1,701 @@
+diff --git a/test/matrix-sweep-surface.test.js b/test/matrix-sweep-surface.test.js
+index 03851b28..5f2ccb9b 100644
+--- a/test/matrix-sweep-surface.test.js
++++ b/test/matrix-sweep-surface.test.js
+@@ -9,6 +9,9 @@ const {
+   generateMatrix,
+   getDataLabel,
+ } = require('../tools/matrix-sweep');
++const {
++  CONFIG_ENV_OVERRIDE_ALLOWLIST,
++} = require('../tools/backtest-worker-env');
+ 
+ describe('matrix-sweep runnable surface', () => {
+   test('tsla shortcut uses the current stock eval baseline', () => {
+@@ -56,4 +59,17 @@ describe('matrix-sweep runnable surface', () => {
+     expect(generateMatrix(['LiquiditySweep'], GRID.full, 'full')).toHaveLength(0);
+     expect(generateMatrix(['SmartMoneySweep'], GRID.quick, 'quick')).toHaveLength(0);
+   });
++
++  test('all generated matrix env keys are explicit worker override keys', () => {
++    const keys = new Set();
++
++    for (const phase of Object.keys(GRID)) {
++      const configs = generateMatrix(ALL_STRATEGIES, GRID[phase], phase);
++      for (const config of configs || []) {
++        for (const key of Object.keys(config.env || {})) keys.add(key);
++      }
++    }
++
++    expect([...keys].sort()).toEqual([...keys].filter(key => CONFIG_ENV_OVERRIDE_ALLOWLIST.has(key)).sort());
++  });
+ });
+diff --git a/test/order-executor-pause-gate.test.js b/test/order-executor-pause-gate.test.js
+index 9c0e2eb7..d1321d77 100644
+--- a/test/order-executor-pause-gate.test.js
++++ b/test/order-executor-pause-gate.test.js
+@@ -47,6 +47,7 @@ jest.mock('../ogz-meta/claudito-logger', () => ({
+ 
+ const OrderExecutor = require('../core/OrderExecutor');
+ const MaxProfitManager = require('../core/MaxProfitManager');
++const TradingConfig = require('../core/TradingConfig');
+ const { getNarrator } = require('../core/TradeNarrator');
+ const { TradingProofLogger } = require('../ogz-meta/claudito-logger');
+ 
+@@ -143,9 +144,11 @@ function makeShortTrade(overrides = {}) {
+ describe('OrderExecutor pause gate', () => {
+   let errorSpy;
+   let warnSpy;
++  let clearTradingConfigOverrides;
+ 
+   beforeEach(() => {
+     jest.clearAllMocks();
++    clearTradingConfigOverrides = false;
+     errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+     warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+     mockStateManager.get.mockImplementation((key) => {
+@@ -165,6 +168,7 @@ describe('OrderExecutor pause gate', () => {
+   });
+ 
+   afterEach(() => {
++    if (clearTradingConfigOverrides) TradingConfig.clearOverrides();
+     errorSpy.mockRestore();
+     warnSpy.mockRestore();
+   });
+@@ -415,6 +419,53 @@ describe('OrderExecutor pause gate', () => {
+     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('BLOCKED BUY TSLA before broker/webhook/state side effects'));
+   });
+ 
++  test('flat sizing profile disables confidence multiplier before confluence sizing', async () => {
++    TradingConfig.setOverrides({
++      features: { enableDynamicSizing: false },
++      positionSizing: { maxPositionSize: 0.05, absoluteCapPercent: 0.15 },
++    });
++    clearTradingConfigOverrides = true;
++    mockStateManager.get.mockImplementation((key) => {
++      if (key === 'isTrading') return true;
++      return null;
++    });
++    const preOrderEntryGate = jest.fn().mockResolvedValue({
++      allowed: false,
++      failedRules: [{ ruleId: 'SIZE_PROBE' }],
++    });
++    const executor = makeExecutor(
++      { executionMode: 'live' },
++      {
++        paperTrading: false,
++        preOrderEntryGate,
++      }
++    );
++
++    const result = await executor.executeTrade(
++      { action: 'BUY', confidence: 75 },
++      {},
++      100,
++      { rsi: 55, macd: {}, trend: 'sideways' },
++      [],
++      null,
++      makeOrchResult({ sizingMultiplier: 2 }),
++      'TSLA'
++    );
++
++    expect(result).toEqual(expect.objectContaining({
++      success: false,
++      reason: 'eval_rule_gate',
++      failedRules: 'SIZE_PROBE',
++    }));
++    expect(preOrderEntryGate).toHaveBeenCalledWith(expect.objectContaining({
++      baseSizeUsd: 500,
++      sizeUsd: 1000,
++      confidenceMultiplier: 1,
++      sizingMultiplier: 2,
++      orderQuantity: 10,
++    }));
++  });
++
+   test('malformed entry exit contract fails before broker, gate, webhook, or state side effects', async () => {
+     mockStateManager.get.mockImplementation((key) => {
+       if (key === 'isTrading') return true;
+diff --git a/test/parallel-backtest-solo-env.test.js b/test/parallel-backtest-solo-env.test.js
+index f66479ff..505d5012 100644
+--- a/test/parallel-backtest-solo-env.test.js
++++ b/test/parallel-backtest-solo-env.test.js
+@@ -11,6 +11,9 @@ const {
+   buildWorkerBaseEnv,
+   applySoloStrategyToConfigs,
+ } = require('../tools/parallel-backtest');
++const {
++  CONFIG_ENV_OVERRIDE_ALLOWLIST,
++} = require('../tools/backtest-worker-env');
+ 
+ describe('parallel-backtest solo strategy env wiring', () => {
+   test('tsla shortcut uses the current stock eval baseline', () => {
+@@ -130,4 +133,17 @@ describe('parallel-backtest solo strategy env wiring', () => {
+       { name: 'baseline', env: { SOLO_STRATEGY: 'RSI' } },
+     ]);
+   });
++
++  test('all generated parallel sweep env keys are explicit worker override keys', () => {
++    const keys = new Set();
++
++    for (const preset of Object.values(SWEEP_PRESETS)) {
++      const configs = typeof preset === 'function' ? preset() : preset;
++      for (const config of configs || []) {
++        for (const key of Object.keys(config.env || {})) keys.add(key);
++      }
++    }
++
++    expect([...keys].sort()).toEqual([...keys].filter(key => CONFIG_ENV_OVERRIDE_ALLOWLIST.has(key)).sort());
++  });
+ });
+diff --git a/tools/grid-search-confidence.js b/tools/grid-search-confidence.js
+index 2e41c2a1..339d8f65 100644
+--- a/tools/grid-search-confidence.js
++++ b/tools/grid-search-confidence.js
+@@ -12,6 +12,11 @@
+ const { spawn } = require('child_process');
+ const fs = require('fs');
+ const path = require('path');
++const { resolveInstrumentFromDataFile } = require('./instrument-env');
++const {
++  buildBacktestWorkerEnv,
++  summarizeWorkerEnv,
++} = require('./backtest-worker-env');
+ 
+ const THRESHOLDS = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30];
+ const CANDLE_LIMIT = 60000;
+@@ -20,26 +25,37 @@ const DATA_FILE = path.join(WORK_DIR, 'data/polygon-btc-1y.json');
+ 
+ const PARALLEL = process.argv.includes('--parallel') || process.argv.includes('-p');
+ 
++function buildGridSearchEnv(threshold, reportTag, stateFile, sourceEnv = process.env) {
++  return buildBacktestWorkerEnv({
++    sourceEnv,
++    projectRoot: WORK_DIR,
++    dataFile: DATA_FILE,
++    stateFile,
++    dataDir: path.join(WORK_DIR, 'data', 'backtest'),
++    reportTag,
++    stockMode: false,
++    configEnv: {
++      PATTERN_DOMINANCE: 'false',
++      CANDLE_LIMIT: String(CANDLE_LIMIT),
++      MIN_TRADE_CONFIDENCE: String(threshold),
++      DEBUG_AGG: '0',
++      DEBUG_BRAIN: '0',
++    },
++    instrumentEnv: resolveInstrumentFromDataFile(DATA_FILE),
++  });
++}
++
+ function runBacktest(threshold) {
+   return new Promise((resolve) => {
+     const pct = (threshold * 100).toFixed(0);
+     const logFile = path.join(WORK_DIR, `grid-${pct}pct.log`);
++    const reportTag = `grid-${pct}pct-${Date.now()}`;
++    const stateFile = path.join(WORK_DIR, 'data', `state-${reportTag}.json`);
+     const startTime = Date.now();
+ 
+     console.log(`[${pct}%] Starting backtest...`);
+ 
+-    const env = {
+-      ...process.env,
+-      BACKTEST_MODE: 'true',
+-      BACKTEST_FAST: 'true',
+-      EXIT_SYSTEM: 'legacy',
+-      PATTERN_DOMINANCE: 'false',
+-      CANDLE_LIMIT: String(CANDLE_LIMIT),
+-      CANDLE_DATA_FILE: DATA_FILE,
+-      MIN_TRADE_CONFIDENCE: String(threshold),
+-      DEBUG_AGG: '0',
+-      DEBUG_BRAIN: '0'
+-    };
++    const env = buildGridSearchEnv(threshold, reportTag, stateFile);
+ 
+     const child = spawn('node', ['run-empire-v2.js'], {
+       cwd: WORK_DIR,
+@@ -53,13 +69,7 @@ function runBacktest(threshold) {
+     child.stdout.on('data', (data) => { stdout += data.toString(); });
+     child.stderr.on('data', (data) => { stderr += data.toString(); });
+ 
+-    const timeout = setTimeout(() => {
+-      child.kill('SIGTERM');
+-      console.log(`[${pct}%] TIMEOUT after 40 minutes`);
+-    }, 40 * 60 * 1000);
+-
+     child.on('close', (code) => {
+-      clearTimeout(timeout);
+       const log = stdout + stderr;
+       fs.writeFileSync(logFile, log);
+ 
+@@ -105,9 +115,12 @@ function runBacktest(threshold) {
+         winRateNum: winRate,
+         pnl: metrics.pnl.toFixed(2) + '%',
+         pnlNum: metrics.pnl,
+-        duration: duration + 's'
++        duration: duration + 's',
++        exitCode: code,
++        workerEnv: summarizeWorkerEnv(env)
+       };
+ 
++      try { fs.unlinkSync(stateFile); } catch (e) {}
+       console.log(`[${pct}%] Done: ${result.trades} trades, ${result.winRate} win rate, ${result.pnl} P&L (${duration}s)`);
+       resolve(result);
+     });
+@@ -185,4 +198,14 @@ async function main() {
+   console.log(`\nResults saved to ${resultsFile}`);
+ }
+ 
+-main().catch(console.error);
++if (require.main === module) {
++  main().catch(console.error);
++}
++
++module.exports = {
++  THRESHOLDS,
++  CANDLE_LIMIT,
++  DATA_FILE,
++  buildGridSearchEnv,
++  runBacktest,
++};
+diff --git a/tools/matrix-sweep.js b/tools/matrix-sweep.js
+index 10a44b23..962ab426 100644
+--- a/tools/matrix-sweep.js
++++ b/tools/matrix-sweep.js
+@@ -73,6 +73,16 @@ const RUNNER = path.join(PROJECT_ROOT, 'run-empire-v2.js');
+ // FIX 2026-04-16: Route matrix output to unified output directory
+ const { getMatrixDir } = require('../core/OutputPaths');
+ const { resolveInstrumentFromDataFile } = require('./instrument-env');
++const {
++  buildBacktestWorkerEnv,
++  summarizeWorkerEnv,
++} = require('./backtest-worker-env');
++const {
++  DEFAULT_TUNING_PROFILE,
++  listTuningProfileNames,
++  resolveTuningProfile,
++  summarizeTuningProfile,
++} = require('./tuning-profiles');
+ const RESULTS_DIR = getMatrixDir();
+ 
+ // ===================================================================
+@@ -304,52 +314,27 @@ function generateMatrix(strategies, grid, phase) {
+ // (Same pattern as parallel-backtest.js)
+ // ===================================================================
+ 
+-function runWorker(config, dataFile, stockMode) {
++function runWorker(config, dataFile, stockMode, profileName) {
+   return new Promise(function(resolve) {
+     var startTime = Date.now();
+     var uid = 'matrix-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
+     var stateFile = path.join(PROJECT_ROOT, 'data', 'state-' + uid + '.json');
+ 
+-    // FIX 2026-04-16: Build worker env from scratch (not clone-and-scrub).
+-    // Previous approach cloned process.env and deleted 6 known-bad vars.
+-    // ~180+ trading env vars could leak from a dirty shell (ENABLE_*,
+-    // REGIME_*, VP_*, TRAIL_*, BE_*, etc). Now we build from a whitelist
+-    // of only what matrix workers need. Leakage is impossible regardless
+-    // of shell state.
+-    var workerBaseEnv = {};
+-    var SYSTEM_VARS = ['PATH', 'NODE_PATH', 'HOME', 'USERPROFILE',
+-                       'APPDATA', 'LOCALAPPDATA', 'TEMP', 'TMP',
+-                       'BACKTEST_OUTPUT_DIR', 'NODE_OPTIONS'];
+-    for (var i = 0; i < SYSTEM_VARS.length; i++) {
+-      var key = SYSTEM_VARS[i];
+-      if (process.env[key] !== undefined) {
+-        workerBaseEnv[key] = process.env[key];
+-      }
+-    }
+-
+     var instrumentEnv = resolveInstrumentFromDataFile(dataFile);
+ 
+-    var env = Object.assign({}, workerBaseEnv, {
+-      EXECUTION_MODE: 'backtest',
+-      CANDLE_SOURCE: 'file',
+-      BACKTEST_MODE: 'true',
+-      BACKTEST_SILENT: 'true',
+-      BACKTEST_VERBOSE: 'false',
+-      BACKTEST_FAST: 'true',
+-      INITIAL_BALANCE: '10000',
+-      CANDLE_DATA_FILE: path.resolve(PROJECT_ROOT, dataFile),
+-      STATE_FILE: stateFile,
+-      DATA_DIR: path.join(PROJECT_ROOT, 'data', 'backtest'),
+-      PAPER_TRADING: 'true',
+-      TEST_MODE: 'true',
+-      BACKTEST_NO_PATTERN_SAVE: 'true',
+-      SKIP_CSV_EXPORT: 'true',
+-      ENABLE_DASHBOARD: 'false',
+-      SENTRY_DSN: '',
+-      NODE_ENV: 'test',
+-      BACKTEST_REPORT_TAG: uid,
+-      STRATEGY_DIAG: 'false',
+-    }, stockMode ? { FEE_MAKER: '0', FEE_TAKER: '0' } : {}, config.env, instrumentEnv);
++    var env = buildBacktestWorkerEnv({
++      sourceEnv: process.env,
++      projectRoot: PROJECT_ROOT,
++      dataFile: dataFile,
++      stateFile: stateFile,
++      dataDir: path.join(PROJECT_ROOT, 'data', 'backtest'),
++      reportTag: uid,
++      stockMode: stockMode,
++      profileName: profileName,
++      strategyDiag: 'false',
++      configEnv: config.env,
++      instrumentEnv: instrumentEnv,
++    });
+ 
+     var output = '';
+     var child = spawn('node', [RUNNER], {
+@@ -373,6 +358,7 @@ function runWorker(config, dataFile, stockMode) {
+ 
+       result.elapsed = elapsed;
+       result.exitCode = code;
++      result.workerEnv = summarizeWorkerEnv(env);
+ 
+       // Cleanup
+       try { fs.unlinkSync(stateFile); } catch (e) {}
+@@ -385,6 +371,7 @@ function runWorker(config, dataFile, stockMode) {
+         name: config.name,
+         strategy: config.strategy,
+         sl: config.sl, tp: config.tp, conf: config.conf,
++        workerEnv: summarizeWorkerEnv(env),
+         error: err.message,
+         elapsed: ((Date.now() - startTime) / 1000).toFixed(1),
+       });
+@@ -527,7 +514,8 @@ function tryReadReport(projectRoot, tag) {
+ // PARALLEL RUNNER
+ // ===================================================================
+ 
+-async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase) {
++async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, profileName) {
++  var tuningProfile = resolveTuningProfile(profileName);
+   var totalStart = Date.now();
+ 
+   console.log('\n' + '='.repeat(72));
+@@ -535,6 +523,7 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase) {
+   console.log('  ' + cpuModel + ' | ' + threadCount + ' threads | ' + MAX_WORKERS + ' workers');
+   console.log('  ' + configs.length + ' configurations to test');
+   console.log('  Data: ' + dataFile);
++  console.log('  Profile: ' + tuningProfile.name);
+   console.log('  ETA: ~' + Math.ceil(configs.length / MAX_WORKERS * 30 / 60) + ' minutes');
+   console.log('='.repeat(72) + '\n');
+ 
+@@ -556,7 +545,7 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase) {
+     process.stdout.write('  Batch ' + batchNum + '/' + totalBatches + ' (' + pct + '% done, ' + batch.length + ' workers)...');
+ 
+     var batchResults = await Promise.all(
+-      batch.map(function(c) { return runWorker(c, dataFile, stockMode); })
++      batch.map(function(c) { return runWorker(c, dataFile, stockMode, tuningProfile.name); })
+     );
+ 
+     batchResults.forEach(function(r) { results.push(r); });
+@@ -659,6 +648,7 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase) {
+     hardware: { cpu: cpuModel, threads: threadCount, workers: MAX_WORKERS },
+     dataFile: dataFile,
+     stockMode: stockMode,
++    tuningProfile: summarizeTuningProfile(tuningProfile),
+     totalConfigs: configs.length,
+     parsedConfigs: parsed.length,
+     totalTime: totalTime + 's',
+@@ -733,6 +723,7 @@ async function main() {
+   var phase = 'full';       // full | exits | conf | quick
+   var soloStrategy = null;  // null = all validated strategies
+   var useAllStrategies = false;
++  var profileName = process.env.TUNING_PROFILE || process.env.BACKTEST_TUNING_PROFILE || DEFAULT_TUNING_PROFILE;
+ 
+   for (var i = 0; i < args.length; i++) {
+     if (args[i] === '--data' && args[i + 1]) {
+@@ -747,6 +738,10 @@ async function main() {
+       phase = args[++i];
+     } else if (args[i].indexOf('--phase=') === 0) {
+       phase = args[i].split('=')[1];
++    } else if (args[i] === '--profile' && args[i + 1]) {
++      profileName = args[++i];
++    } else if (args[i].indexOf('--profile=') === 0) {
++      profileName = args[i].split('=')[1];
+     } else if (args[i] === '--quick') {
+       phase = 'quick';
+     } else if (args[i] === '--full') {
+@@ -780,6 +775,8 @@ async function main() {
+       console.log('  --solo=RSI          Test only RSI');
+       console.log('  --solo=EMA          Test only EMASMACrossover');
+       console.log('  --all-strategies    Test ALL strategies\n');
++      console.log('Profiles:');
++      console.log('  --profile=NAME      Tuning profile (' + listTuningProfileNames().join(', ') + ')\n');
+       console.log('Data:');
+       console.log('  --data tsla    TSLA 15m 18-month (default)');
+       console.log('  --data spy     SPY, --data qqq, nvda, riot, etc.');
+@@ -787,7 +784,7 @@ async function main() {
+       console.log('Examples:');
+       console.log('  node tools/matrix-sweep.js --data tsla');
+       console.log('  node tools/matrix-sweep.js --data tsla --solo=RSI --conf');
+-      console.log('  node tools/matrix-sweep.js --data tsla --solo=EMA --exits');
++      console.log('  node tools/matrix-sweep.js --data tsla --solo=EMA --exits --profile=config-d-flat');
+       console.log('  node tools/matrix-sweep.js --data tsla --quick');
+       console.log('  node tools/matrix-sweep.js --data spy --stocks\n');
+       console.log('Walk-Forward Workflow:');
+@@ -841,9 +838,10 @@ async function main() {
+ 
+   console.log('\n  Phase: ' + phase);
+   console.log('  Strategies: ' + strategies.join(', '));
++  console.log('  Profile: ' + resolveTuningProfile(profileName).name);
+   console.log('  Total configs: ' + configs.length);
+ 
+-  await runMatrix(configs, dataFile, stockMode, soloStrategy, phase);
++  await runMatrix(configs, dataFile, stockMode, soloStrategy, phase, profileName);
+ }
+ 
+ if (require.main === module) {
+@@ -864,4 +862,7 @@ module.exports = {
+   getDataLabel,
+   buildMonotonicTierCube,
+   generateMatrix,
++  listTuningProfileNames,
++  resolveTuningProfile,
++  summarizeTuningProfile,
+ };
+diff --git a/tools/parallel-backtest.js b/tools/parallel-backtest.js
+index 62c3ddfd..34705ef6 100644
+--- a/tools/parallel-backtest.js
++++ b/tools/parallel-backtest.js
+@@ -28,6 +28,17 @@ const fs = require('fs');
+ const path = require('path');
+ const os = require('os');
+ const { resolveInstrumentFromDataFile } = require('./instrument-env');
++const {
++  buildWorkerBaseEnv,
++  buildBacktestWorkerEnv,
++  summarizeWorkerEnv,
++} = require('./backtest-worker-env');
++const {
++  DEFAULT_TUNING_PROFILE,
++  listTuningProfileNames,
++  resolveTuningProfile,
++  summarizeTuningProfile,
++} = require('./tuning-profiles');
+ 
+ // ═══════════════════════════════════════════════════════════════
+ // HARDWARE DETECTION
+@@ -45,25 +56,6 @@ const RUNNER = path.join(PROJECT_ROOT, 'run-empire-v2.js');
+ const DEFAULT_DATA = 'tuning/tsla-15m-2y.json';
+ const RESULTS_DIR = path.join(PROJECT_ROOT, 'backtest-results');
+ const TIMEOUT_MS = 0; // No timeout - let it finish
+-const WORKER_ENV_ALLOWLIST = [
+-  'PATH',
+-  'NODE_PATH',
+-  'HOME',
+-  'USER',
+-  'USERPROFILE',
+-  'APPDATA',
+-  'LOCALAPPDATA',
+-  'TEMP',
+-  'TMP',
+-  'BACKTEST_OUTPUT_DIR',
+-  'NODE_OPTIONS',
+-  'SystemRoot',
+-  'SYSTEMROOT',
+-  'ComSpec',
+-  'COMSPEC',
+-  'PATHEXT',
+-  'WINDIR',
+-];
+ 
+ function prepareResultsDir() {
+   if (!fs.existsSync(RESULTS_DIR)) fs.mkdirSync(RESULTS_DIR, { recursive: true });
+@@ -133,16 +125,6 @@ function assertDormantStrategyEnvCompatible(soloStrategy, configEnv = {}) {
+   }
+ }
+ 
+-function buildWorkerBaseEnv(sourceEnv = process.env) {
+-  const workerBaseEnv = {};
+-  for (const key of WORKER_ENV_ALLOWLIST) {
+-    if (sourceEnv[key] !== undefined) {
+-      workerBaseEnv[key] = sourceEnv[key];
+-    }
+-  }
+-  return workerBaseEnv;
+-}
+-
+ function applySoloStrategyToConfigs(configs, soloStrategy) {
+   if (!soloStrategy) return configs;
+   return configs.map(config => {
+@@ -365,58 +347,31 @@ function generateRSISweep() {
+ // WORKER — Runs a single backtest as a child process
+ // ═══════════════════════════════════════════════════════════════
+ 
+-function runSingleBacktest(config, dataFile, stockMode = false) {
++function runSingleBacktest(config, dataFile, stockMode = false, profileName = DEFAULT_TUNING_PROFILE) {
+   return new Promise((resolve) => {
+     const startTime = Date.now();
+     const uniqueId = `${config.name}-${Date.now()}-${Math.random().toString(36).substr(2,4)}`;
+     const stateFile = path.join(PROJECT_ROOT, 'data', `state-parallel-${uniqueId}.json`);
+     const reportTag = `parallel-${uniqueId}`;
+     
+-    // Build workers from system/runtime essentials only. Trading vars enter
+-    // through this worker contract below or through the selected sweep config.
+-    const workerBaseEnv = buildWorkerBaseEnv(process.env);
+-
+     const instrumentEnv = resolveInstrumentFromDataFile(dataFile);
+     const selectedSoloStrategy = config.env?.SOLO_STRATEGY;
+     assertDormantStrategyEnvCompatible(selectedSoloStrategy, config.env || {});
+     const dormantStrategyEnv = buildDormantStrategyEnableEnv(selectedSoloStrategy);
+ 
+-    const env = {
+-      ...workerBaseEnv,
+-      EXECUTION_MODE: 'backtest',
+-      CANDLE_SOURCE: 'file',
+-      BACKTEST_MODE: 'true',
+-      BACKTEST_SILENT: 'true',
+-      BACKTEST_VERBOSE: 'false',
+-      BACKTEST_FAST: 'true',
+-      INITIAL_BALANCE: '10000',
+-      CANDLE_DATA_FILE: path.resolve(PROJECT_ROOT, dataFile),
+-      STATE_FILE: stateFile,
+-      DATA_DIR: path.join(PROJECT_ROOT, 'data', 'backtest'),
+-      PAPER_TRADING: 'true',
+-      // FIX 2026-03-20: Add TEST_MODE to skip lock file check (allows running while live is active)
+-      TEST_MODE: 'true',
+-      // Skip pattern saving and CSV export to avoid EMFILE on Windows
+-      BACKTEST_NO_PATTERN_SAVE: 'true',
+-      SKIP_CSV_EXPORT: 'true',
+-      // Disable dashboard WebSocket (no server on local PC = infinite reconnect loop)
+-      ENABLE_DASHBOARD: 'false',
+-      // SOLO-targeted strategies whose pipeline toggles default false.
+-      // Use the worker's selected strategy, not the parent shell alone, so
+-      // generated gauntlet/strategy-sweep configs match matrix-sweep wiring.
+-      ...dormantStrategyEnv,
+-      // Disable Sentry (hooks every async op = massive overhead on 45K candles)
+-      SENTRY_DSN: '',
+-      NODE_ENV: 'test',
+-      // Tag for finding the right report file
+-      BACKTEST_REPORT_TAG: reportTag,
+-      // Pass through STRATEGY_DIAG if set
+-      STRATEGY_DIAG: process.env.STRATEGY_DIAG || 'false',
+-      // Stock mode: zero commission
+-      ...(stockMode ? { FEE_MAKER: '0', FEE_TAKER: '0' } : {}),
+-      ...config.env,
+-      ...instrumentEnv,
+-    };
++    const env = buildBacktestWorkerEnv({
++      sourceEnv: process.env,
++      projectRoot: PROJECT_ROOT,
++      dataFile,
++      stateFile,
++      dataDir: path.join(PROJECT_ROOT, 'data', 'backtest'),
++      reportTag,
++      stockMode,
++      profileName,
++      strategyDiag: process.env.STRATEGY_DIAG || 'false',
++      configEnv: { ...dormantStrategyEnv, ...(config.env || {}) },
++      instrumentEnv,
++    });
+ 
+     let output = '';
+ 
+@@ -473,6 +428,7 @@ function runSingleBacktest(config, dataFile, stockMode = false) {
+       result.elapsed = elapsed;
+       result.exitCode = code;
+       result.config = config;
++      result.workerEnv = summarizeWorkerEnv(env);
+ 
+       // Clean up state file
+       try { fs.unlinkSync(stateFile); } catch(e) {}
+@@ -485,6 +441,7 @@ function runSingleBacktest(config, dataFile, stockMode = false) {
+       resolve({
+         name: config.name,
+         config: config,
++        workerEnv: summarizeWorkerEnv(env),
+         error: err.message,
+         elapsed: ((Date.now() - startTime) / 1000).toFixed(1),
+       });
+@@ -590,12 +547,15 @@ function parseBacktestOutput(output, name) {
+ // PARALLEL RUNNER
+ // ═══════════════════════════════════════════════════════════════
+ 
+-async function runParallelSweep(configs, dataFile, stockMode = false) {
++async function runParallelSweep(configs, dataFile, stockMode = false, profileName = DEFAULT_TUNING_PROFILE) {
++  const tuningProfile = resolveTuningProfile(profileName);
++
+   console.log(`\n${'═'.repeat(70)}`);
+   console.log(`  OGZPrime PARALLEL BACKTESTER v2${stockMode ? ' [STOCK MODE - Zero Fees]' : ''}`);
+   console.log(`  ${cpuModel} | ${threadCount} threads | ${MAX_WORKERS} workers`);
+   console.log(`  ${configs.length} configurations to test`);
+   console.log(`  Data: ${dataFile}`);
++  console.log(`  Profile: ${tuningProfile.name}`);
+   console.log(`  Timeout: None (runs until complete)`);
+   if (stockMode) console.log(`  Fees: $0 (zero commission stocks)`);
+   console.log(`${'═'.repeat(70)}\n`);
+@@ -613,7 +573,7 @@ async function runParallelSweep(configs, dataFile, stockMode = false) {
+     console.log(`  ⏳ Running... (no timeout, will finish when done)`);
+ 
+     const batchResults = await Promise.all(
+-      batch.map(config => runSingleBacktest(config, dataFile, stockMode))
++      batch.map(config => runSingleBacktest(config, dataFile, stockMode, tuningProfile.name))
+     );
+ 
+     batchResults.forEach(r => {
+@@ -662,6 +622,7 @@ async function runParallelSweep(configs, dataFile, stockMode = false) {
+     timestamp: new Date().toISOString(),
+     hardware: { cpu: cpuModel, threads: threadCount, workers: MAX_WORKERS },
+     dataFile,
++    tuningProfile: summarizeTuningProfile(tuningProfile),
+     totalConfigs: configs.length,
+     parsedConfigs: ranked.length,
+     totalTime: `${totalTime}s`,
+@@ -708,6 +669,7 @@ async function main() {
+   let dataFile = DEFAULT_DATA;
+   let stockMode = false;
+   let cliSoloStrategy = null;
++  let profileName = process.env.TUNING_PROFILE || process.env.BACKTEST_TUNING_PROFILE || DEFAULT_TUNING_PROFILE;
+ 
+   for (let i = 0; i < args.length; i++) {
+     if (args[i] === '--sweep' && args[i+1]) sweepName = args[++i];
+@@ -721,6 +683,12 @@ async function main() {
+       dataFile = DATA_SHORTCUTS[val] || args[i].split('=')[1];
+       if (['tsla', 'tsla-train', 'tsla-test', 'tsla-unseen', 'spy', 'qqq'].includes(val)) stockMode = true;
+     }
++    else if (args[i] === '--profile' && args[i+1]) {
++      profileName = args[++i];
++    }
++    else if (args[i].startsWith('--profile=')) {
++      profileName = args[i].split('=')[1];
++    }
+     else if (args[i] === '--real') sweepName = 'real';
+     else if (args[i] === '--quick') sweepName = 'quick';  // alias to real
+     else if (args[i] === '--full') sweepName = 'full';
+@@ -777,6 +745,7 @@ Options:
+   --data FILE    Candle data file (default: ${DEFAULT_DATA})
+                  Shortcuts: tsla, spy, qqq, btc, btc-5sec
+   --solo=NAME    Test single strategy (RSI, MADynamicSR, EMASMACrossover, SmartMoneySweep, etc)
++  --profile=NAME Tuning profile (${listTuningProfileNames().join(', ')})
+   --stocks       Zero commission mode (for stocks)
+   --help         Show this help
+ 
+@@ -784,8 +753,8 @@ NOTE: STOP_LOSS_PERCENT, TAKE_PROFIT_PERCENT, TRAILING_STOP_* are IGNORED
+       (overridden by locked exitContracts per strategy). See ENV-VAR-AUDIT.md.
+ 
+ Examples:
+-  node tools/parallel-backtest.js --real --stocks --data=tsla
+-  node tools/parallel-backtest.js --atr --solo=RSI --stocks
++  node tools/parallel-backtest.js --real --stocks --data=tsla --profile=current-eval
++  node tools/parallel-backtest.js --atr --solo=RSI --stocks --profile=config-d-flat
+ 
+ Walk-Forward Validation:
+   After finding winners, test on unseen data:
+@@ -813,7 +782,7 @@ Notes:
+ 
+   configs = applySoloStrategyToConfigs(configs, cliSoloStrategy);
+ 
+-  await runParallelSweep(configs, dataFile, stockMode);
++  await runParallelSweep(configs, dataFile, stockMode, profileName);
+ }
+ 
+ if (require.main === module) {
+@@ -833,4 +802,7 @@ module.exports = {
+   assertDormantStrategyEnvCompatible,
+   buildWorkerBaseEnv,
+   applySoloStrategyToConfigs,
++  listTuningProfileNames,
++  resolveTuningProfile,
++  summarizeTuningProfile,
+ };

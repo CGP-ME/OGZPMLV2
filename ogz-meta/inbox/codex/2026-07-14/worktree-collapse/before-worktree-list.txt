@@ -1,0 +1,76 @@
+worktree /opt/ogzprime/OGZPMLV2
+HEAD a5d85a28a5365a8689966604c92d5e43e1d5c6b1
+branch refs/heads/codex/multi-asset-symbol-state
+
+worktree /opt/ogzprime/OGZPMLV2-c49c9ab-diagnostic
+HEAD c49c9ab667c774b51a6f171366f8f67d7ca7f956
+detached
+
+worktree /opt/ogzprime/OGZPMLV2-hotfix-verify
+HEAD 53a506c8ca3a99df830993a0cfc59be93e139b7a
+branch refs/heads/codex/live-broker-state-reconciliation
+
+worktree /opt/ogzprime/OGZPMLV2-p0-baseline
+HEAD 2c1570e4e71f9b4f9e8e00b8f5d6a21905bd79cb
+detached
+
+worktree /opt/ogzprime/OGZPMLV2-p0-baseline2
+HEAD 2c1570e4e71f9b4f9e8e00b8f5d6a21905bd79cb
+detached
+
+worktree /opt/ogzprime/OGZPMLV2-p0-bisect-20260608
+HEAD 550698ca00099d252dbca17c36b4e57c749066bd
+detached
+
+worktree /opt/ogzprime/OGZPMLV2-p0-cleanlog
+HEAD 2c1570e4e71f9b4f9e8e00b8f5d6a21905bd79cb
+detached
+
+worktree /opt/ogzprime/OGZPMLV2-profile-verify-20260604
+HEAD cfca5a57069da8756403c27d701e6a944eeb0f07
+detached
+
+worktree /opt/ogzprime/OGZPMLV2-r2-masr
+HEAD f0ce5bddfb312c745f1b6b14abb1b5bfe247d062
+branch refs/heads/codex/r2-masr-restoration
+
+worktree /opt/ogzprime/OGZPMLV2-tfe-codex2
+HEAD c63e30120510a85f2112ee28dab18fb88791e5c9
+branch refs/heads/codex/tfe-phase1
+
+worktree /opt/ogzprime/OGZPMLV2-tfe-phase2
+HEAD 5b185695c86e6b3514c6cf6a6e9036dc9745f635
+branch refs/heads/codex/tfe-phase2
+
+worktree /opt/ogzprime/OGZPMLV2.worktrees/agents-i-want-you-to-specifically-go-to-ogz-09019f7b
+HEAD a538d90f75837250c049b752b2bbe0f9999a72bf
+branch refs/heads/agents/i-want-you-to-specifically-go-to-ogz-09019f7b
+
+worktree /opt/ogzprime/mercury-final-proof
+HEAD 325741d27b291ee712dc3b165e6f4891b981fb3f
+detached
+
+worktree /opt/ogzprime/worktrees/rebuild-visible-rollback
+HEAD 7f7cd6a47aeab883782f53c24bb7fa9a3f326893
+detached
+
+worktree /tmp/ogz-bisect/pre-phase3
+HEAD be83caf46be88daf190264375ed22ae38ab13b79
+detached
+
+worktree /tmp/ogz-e2ffdc7
+HEAD e2ffdc7adc9dbf843febd191a7296fcbd117ba7d
+detached
+
+worktree /tmp/ogz-pre-multisymbol
+HEAD dd2642543a7f0022c8a4843c754a10799fb56015
+detached
+
+worktree /tmp/ogz-r1b-parent-red-Unpyoc
+HEAD ac638441ed30d0c5c35ed0c60df031d00827de24
+detached
+
+worktree /tmp/ogz-router-parent-red.SO29ZQ
+HEAD ad3934551492c83b5a3a68ab95e723d35ae74b43
+detached
+

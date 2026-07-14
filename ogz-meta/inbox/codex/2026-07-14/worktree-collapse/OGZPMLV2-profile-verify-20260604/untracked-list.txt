@@ -1,0 +1,5 @@
+ogz-meta/cognition-history/live-eval/profile-orderexecutor-hunk-2026-06-04.patch
+ogz-meta/cognition-history/live-eval/profile-slice-2026-06-04.patch
+test/backtest-worker-env.test.js
+tools/backtest-worker-env.js
+tools/tuning-profiles.js
