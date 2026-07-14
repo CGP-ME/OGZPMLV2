@@ -663,7 +663,8 @@ class StrategyOrchestrator {
     // Each strategy owns its signal computation — no ctx.extras handoff
     this.emaCrossoverConfig = getEmaCrossoverConfig();
     this.emaCrossoverModule = new EMASMACrossoverSignal(this.emaCrossoverConfig);
-    this.maDynamicSRModule = new MADynamicSR();
+    this.maDynamicSRConfig = ConfigLoader.get('strategies.MADynamicSR');
+    this.maDynamicSRModule = new MADynamicSR(this.maDynamicSRConfig);
     this.liquiditySweepModule = new LiquiditySweepDetector({
       ...(ConfigLoader.get('strategies.LiquiditySweep') || {}),
       disableSessionCheck: true,
@@ -1363,7 +1364,7 @@ class StrategyOrchestrator {
           'MADynamicSR',
           ctx.extras?.symbol,
           maDynamicSRModule,
-          () => new MADynamicSR()
+          () => new MADynamicSR(this.maDynamicSRConfig)
         );
         const sig = scopedMaDynamicSR.update(latestCandle, candles);
         if (sig && sig.direction) diagMASR.moduleNonNull++;

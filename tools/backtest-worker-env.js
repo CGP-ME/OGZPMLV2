@@ -40,6 +40,9 @@ const STOCK_BACKTEST_ALPACA_ENV = Object.freeze({
   ALPACA_API_KEY: 'backtest-alpaca-key',
   ALPACA_API_SECRET: 'backtest-alpaca-secret',
 });
+const BACKTEST_TRAI_LLM_ENV = Object.freeze({
+  INCEPTION_API_KEY: 'backtest-inception-key',
+});
 
 const DIRECTION_FILTER_ALIASES = Object.freeze({
   long: 'long_only',
@@ -143,6 +146,7 @@ const CONFIG_ENV_OVERRIDE_ALLOWLIST = Object.freeze(new Set([
 
 const INSTRUMENT_ENV_ALLOWLIST = Object.freeze(new Set([
   'TRADING_PAIR',
+  'ALPACA_SYMBOLS',
   'BROKER',
   'ASSET_CLASS',
   'CANDLE_TIMEFRAME',
@@ -261,6 +265,7 @@ const SUMMARY_KEYS = [
 const WORKER_GENERATED_ENV_KEYS = Object.freeze([
   ...Object.keys(CANONICAL_BACKTEST_ENV),
   ...Object.keys(STOCK_BACKTEST_ALPACA_ENV),
+  ...Object.keys(BACKTEST_TRAI_LLM_ENV),
   'CANDLE_DATA_FILE',
   'STATE_FILE',
   'DATA_DIR',
@@ -428,6 +433,7 @@ function buildBacktestWorkerEnv(options) {
     BACKTEST_REPORT_TAG: reportTag,
     STRATEGY_DIAG: strategyDiag,
     ...(stockMode ? STOCK_BACKTEST_ALPACA_ENV : {}),
+    ...BACKTEST_TRAI_LLM_ENV,
     DIRECTION_FILTER: directionFilter,
     ...normalizedConfigEnv,
     ...instrumentEnv,
@@ -454,6 +460,7 @@ module.exports = {
   CANONICAL_BACKTEST_ENV,
   STOCK_ZERO_FEE_ENV,
   STOCK_BACKTEST_ALPACA_ENV,
+  BACKTEST_TRAI_LLM_ENV,
   BACKTEST_PIPELINE_OPERATIONAL_ENV_KEYS,
   CONFIG_ENV_OVERRIDE_ALLOWLIST,
   INSTRUMENT_ENV_ALLOWLIST,

@@ -1599,10 +1599,41 @@
       "srZonePct": 1,
       "slopeLookback": 5,
       "minSlopePct": 0.03,
-      "extensionPct": 2,
-      "skipFirstTouch": true,
+      "maxExtensionAtr": 2,
       "atrPeriod": 14,
       "patternPersistBars": 15,
+      "baseConfidence": 0.5,
+      "touchQualityWeight": 0.3,
+      "maxConfidence": 1,
+      "conditionFlags": {
+        "trendGate": true,
+        "extension": true,
+        "firstTouchAfterParabolic": true,
+        "pullbackCooldown": true,
+        "confirmationCandle": true,
+        "srAlignment": true,
+        "structuralValidity": true
+      },
+      "multipliers": {
+        "extensionMin": 0.7,
+        "extensionPenaltyScale": 0.12,
+        "firstTouchAfterParabolic": 0.7,
+        "pullbackCooldown": 0.6,
+        "confirmationAligned": 1.08,
+        "confirmationMissing": 0.9,
+        "confirmationConflict": 0.75,
+        "srAligned": 1.08,
+        "srMissing": 0.95,
+        "srWrongSide": 0.8,
+        "structuralValid": 1.05,
+        "structuralInvalid": 0.7
+      },
+      "structural": {
+        "atrBufferMultiplier": 1,
+        "rewardRiskTarget": 3,
+        "minRewardRisk": 1.5,
+        "minTakeProfitPct": 0.007
+      },
       "enabled": true
     },
     "EMASMACrossover": {

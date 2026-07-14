@@ -24,34 +24,221 @@
 'use strict';
 
 const { c, o, h, l } = require('../core/CandleHelper');
+const ConfigLoader = require('../foundation/ConfigLoader');
+
+const REQUIRED_NUMBER_KEYS = [
+  'entryMaPeriod',
+  'srMaPeriod',
+  'touchZonePct',
+  'srTestCount',
+  'swingLookback',
+  'srZonePct',
+  'slopeLookback',
+  'minSlopePct',
+  'maxExtensionAtr',
+  'atrPeriod',
+  'patternPersistBars',
+  'baseConfidence',
+  'touchQualityWeight',
+  'maxConfidence',
+];
+
+const CONDITION_FLAG_KEYS = [
+  'trendGate',
+  'extension',
+  'firstTouchAfterParabolic',
+  'pullbackCooldown',
+  'confirmationCandle',
+  'srAlignment',
+  'structuralValidity',
+];
+
+const REQUIRED_MULTIPLIER_KEYS = [
+  'extensionMin',
+  'extensionPenaltyScale',
+  'firstTouchAfterParabolic',
+  'pullbackCooldown',
+  'confirmationAligned',
+  'confirmationMissing',
+  'confirmationConflict',
+  'srAligned',
+  'srMissing',
+  'srWrongSide',
+  'structuralValid',
+  'structuralInvalid',
+];
+
+const REQUIRED_STRUCTURAL_KEYS = [
+  'atrBufferMultiplier',
+  'rewardRiskTarget',
+  'minRewardRisk',
+  'minTakeProfitPct',
+];
+
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function deepMergeConfig(base, override) {
+  const merged = { ...base, ...override };
+  if (isPlainObject(base.conditionFlags) || isPlainObject(override.conditionFlags)) {
+    merged.conditionFlags = { ...(base.conditionFlags || {}), ...(override.conditionFlags || {}) };
+  }
+  if (isPlainObject(base.multipliers) || isPlainObject(override.multipliers)) {
+    merged.multipliers = { ...(base.multipliers || {}), ...(override.multipliers || {}) };
+  }
+  if (isPlainObject(base.structural) || isPlainObject(override.structural)) {
+    merged.structural = { ...(base.structural || {}), ...(override.structural || {}) };
+  }
+  return merged;
+}
+
+function requireFiniteConfig(config, key) {
+  const value = Number(config[key]);
+  if (!Number.isFinite(value)) {
+    throw new Error(`[MADynamicSR] Missing numeric config key strategies.MADynamicSR.${key}`);
+  }
+  return value;
+}
+
+function requireNestedFinite(config, section, key) {
+  if (!isPlainObject(config[section])) {
+    throw new Error(`[MADynamicSR] Missing config block strategies.MADynamicSR.${section}`);
+  }
+  const value = Number(config[section][key]);
+  if (!Number.isFinite(value)) {
+    throw new Error(`[MADynamicSR] Missing numeric config key strategies.MADynamicSR.${section}.${key}`);
+  }
+  return value;
+}
+
+function requireNestedBool(config, section, key) {
+  if (!isPlainObject(config[section])) {
+    throw new Error(`[MADynamicSR] Missing config block strategies.MADynamicSR.${section}`);
+  }
+  if (typeof config[section][key] !== 'boolean') {
+    throw new Error(`[MADynamicSR] Missing boolean config key strategies.MADynamicSR.${section}.${key}`);
+  }
+  return config[section][key];
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function readPath(root, configPath) {
+  return configPath.split('.').reduce((current, part) => (
+    current && Object.prototype.hasOwnProperty.call(current, part) ? current[part] : undefined
+  ), root);
+}
+
+function loadResolvedConfig(overrides = {}) {
+  const cached = typeof ConfigLoader.getCachedSnapshot === 'function'
+    ? ConfigLoader.getCachedSnapshot()
+    : null;
+  const loaded = cached?.config
+    ? readPath(cached.config, 'strategies.MADynamicSR')
+    : readPath(ConfigLoader.BASE_CONFIG, 'strategies.MADynamicSR');
+  if (!isPlainObject(loaded)) {
+    throw new Error('[MADynamicSR] Missing config block strategies.MADynamicSR');
+  }
+
+  const merged = deepMergeConfig(loaded, isPlainObject(overrides) ? overrides : {});
+  const normalized = {};
+  for (const key of REQUIRED_NUMBER_KEYS) {
+    normalized[key] = requireFiniteConfig(merged, key);
+  }
+  normalized.enabled = Boolean(merged.enabled);
+  normalized.conditionFlags = {};
+  for (const key of CONDITION_FLAG_KEYS) {
+    normalized.conditionFlags[key] = requireNestedBool(merged, 'conditionFlags', key);
+  }
+  normalized.multipliers = {};
+  for (const key of REQUIRED_MULTIPLIER_KEYS) {
+    normalized.multipliers[key] = requireNestedFinite(merged, 'multipliers', key);
+  }
+  normalized.structural = {};
+  for (const key of REQUIRED_STRUCTURAL_KEYS) {
+    normalized.structural[key] = requireNestedFinite(merged, 'structural', key);
+  }
+  validateResolvedConfig(normalized);
+  return normalized;
+}
+
+function requirePositive(value, configPath) {
+  if (!(value > 0)) {
+    throw new Error(`[MADynamicSR] ${configPath} must be greater than 0`);
+  }
+}
+
+function requirePositiveInteger(value, configPath) {
+  requirePositive(value, configPath);
+  if (!Number.isInteger(value)) {
+    throw new Error(`[MADynamicSR] ${configPath} must be an integer`);
+  }
+}
+
+function validateResolvedConfig(config) {
+  for (const key of [
+    'entryMaPeriod',
+    'srMaPeriod',
+    'touchZonePct',
+    'srTestCount',
+    'swingLookback',
+    'srZonePct',
+    'slopeLookback',
+    'minSlopePct',
+    'maxExtensionAtr',
+    'atrPeriod',
+    'patternPersistBars',
+    'baseConfidence',
+    'touchQualityWeight',
+    'maxConfidence',
+  ]) {
+    requirePositive(config[key], `strategies.MADynamicSR.${key}`);
+  }
+  for (const key of ['entryMaPeriod', 'srMaPeriod', 'srTestCount', 'swingLookback', 'slopeLookback', 'atrPeriod', 'patternPersistBars']) {
+    requirePositiveInteger(config[key], `strategies.MADynamicSR.${key}`);
+  }
+  if (config.slopeLookback < 2) {
+    throw new Error('[MADynamicSR] strategies.MADynamicSR.slopeLookback must be at least 2 bars');
+  }
+  for (const key of REQUIRED_MULTIPLIER_KEYS) {
+    requirePositive(config.multipliers[key], `strategies.MADynamicSR.multipliers.${key}`);
+  }
+  for (const key of REQUIRED_STRUCTURAL_KEYS) {
+    requirePositive(config.structural[key], `strategies.MADynamicSR.structural.${key}`);
+  }
+}
 
 class MADynamicSR {
   constructor(config = {}) {
+    this.config = loadResolvedConfig(config);
+
     // MA periods per CORRECTED Trader DNA interpretation
-    this.entryMaPeriod = config.entryMaPeriod || 20;     // 20 MA — the trend + entry line
-    this.srMaPeriod = config.srMaPeriod || 200;          // 200 MA — support/resistance level (NOT trend)
-    this.atrPeriod = config.atrPeriod || 14;             // For SL buffer and acceleration
+    this.entryMaPeriod = this.config.entryMaPeriod;     // 20 MA — the trend + entry line
+    this.srMaPeriod = this.config.srMaPeriod;           // 200 MA — support/resistance level (NOT trend)
+    this.atrPeriod = this.config.atrPeriod;             // For SL buffer and structural validity
 
     // Swing detection settings
-    this.swingLookback = config.swingLookback || 3;      // Bars to confirm swing (3 for 15m)
-    this.srTestCount = config.srTestCount || 2;          // Times a level must be tested
-    this.srZonePct = config.srZonePct || 1.0;            // Zone width as % of price
+    this.swingLookback = this.config.swingLookback;     // Bars to confirm swing (3 for 15m)
+    this.srTestCount = this.config.srTestCount;         // Times a level must be tested
+    this.srZonePct = this.config.srZonePct;             // Zone width as % of price
 
     // Touch detection
-    this.touchZonePct = config.touchZonePct || 0.6;      // % distance to count as "touching"
+    this.touchZonePct = this.config.touchZonePct;       // % distance to count as "touching"
 
     // Pattern persistence
-    this.patternPersistBars = config.patternPersistBars || 15;
+    this.patternPersistBars = this.config.patternPersistBars;
 
-    // NEW: 20 MA slope detection
-    this.slopeLookback = config.slopeLookback || 5;      // Compare current 20 MA to 5 bars ago
-    this.minSlopePct = config.minSlopePct || 0.03;       // 20 MA must move >= 0.03% to count as trending
+    // 20 MA slope detection
+    this.slopeLookback = this.config.slopeLookback;     // Compare current 20 MA to prior MA
+    this.minSlopePct = this.config.minSlopePct;         // 20 MA must move to count as trending
 
-    // NEW: Extension detection (distance from 20 MA that's "too far")
-    this.extensionPct = config.extensionPct || 2.0;      // If price > 2% from 20 MA = extended/exhausted
-
-    // NEW: First-touch skip after extension
-    this.skipFirstTouch = config.skipFirstTouch ?? true;
+    this.maxExtensionAtr = this.config.maxExtensionAtr;
+    this.conditionFlags = this.config.conditionFlags;
+    this.multipliers = this.config.multipliers;
+    this.structural = this.config.structural;
 
     // State tracking
     this.swings = [];           // Array of { type: 'high'|'low', price, bar, wick }
@@ -73,8 +260,12 @@ class MADynamicSR {
       trendBullish: 0,      // Now means "20 MA rising"
       trendBearish: 0,      // Now means "20 MA falling"
       trendFlat: 0,         // NEW: 20 MA flat (no trade)
+      trendGateRejects: 0,
       extensionSkips: 0,    // NEW: Skipped due to extension
+      extensionPenalties: 0,
       firstTouchSkips: 0,   // NEW: Skipped first touch after extension
+      firstTouchPenalties: 0,
+      pullbackCooldownPenalties: 0,
       patternUptrend: 0,
       patternDowntrend: 0,
       patternNull: 0,
@@ -82,8 +273,13 @@ class MADynamicSR {
       swingLows: 0,
       emaTouches: 0,
       srAligned: 0,
+      srMissing: 0,
+      srWrongSide: 0,
       confirmBullish: 0,
       confirmBearish: 0,
+      confirmationAligned: 0,
+      confirmationMissing: 0,
+      confirmationConflicts: 0,
       allAlignedLong: 0,
       allAlignedShort: 0,
       // Sanity check failures (after allAligned)
@@ -92,9 +288,24 @@ class MADynamicSR {
       tpInvalid: 0,         // TP <= price (long) or TP >= price (short)
       rrTooLow: 0,          // actualRR < MIN_RR
       tpTooSmall: 0,        // tpDistance < MIN_TP_PCT
+      structuralValid: 0,
+      structuralInvalid: 0,
       signalsEmitted: 0     // Signals that passed ALL checks
     };
 
+    this.configReceipt = {
+      entryMaPeriod: this.entryMaPeriod,
+      srMaPeriod: this.srMaPeriod,
+      atrPeriod: this.atrPeriod,
+      touchZonePct: this.touchZonePct,
+      slopeLookback: this.slopeLookback,
+      minSlopePct: this.minSlopePct,
+      maxExtensionAtr: this.maxExtensionAtr,
+      conditionFlags: this.conditionFlags,
+      multipliers: this.multipliers,
+      structural: this.structural
+    };
+    console.log(`[MADynamicSR][CONFIG] ${JSON.stringify(this.configReceipt)}`);
     console.log(`[MADynamicSR] initialized (Trader DNA CORRECTED) - Entry MA: ${this.entryMaPeriod}, S/R MA: ${this.srMaPeriod}`);
   }
 
@@ -129,145 +340,77 @@ class MADynamicSR {
     if (!ma20) return this._emptySignal();
     // ma200 can be null if not enough data — that's okay, we just skip S/R features
 
-    // ═══════════════════════════════════════════════════════════════════
-    // STRIPPED DOWN: Core MA touch detection only
-    // All filters commented out - platform handles filtering, not strategy
-    // ═══════════════════════════════════════════════════════════════════
-
     const touchingMA = this._isTouchingEMA(price, ma20);
     if (touchingMA) this.diag.emaTouches++;
 
-    // COMMENTED FILTERS - move to orchestrator if needed later
-    // ─────────────────────────────────────────────────────────────────────
-    // // STEP 1: 20 MA SLOPE — Is the 20 MA trending or flat?
-    // const maSlope = this._getMaSlope(closes, this.entryMaPeriod);
-    // if (maSlope === 'rising') this.diag.trendBullish++;
-    // else if (maSlope === 'falling') this.diag.trendBearish++;
-    // else this.diag.trendFlat++;
-    // if (maSlope === 'flat') {
-    //   return this._emptySignal();  // 20 MA is flat — strategy is useless in chop
-    // }
-    //
-    // // STEP 2: EXTENSION CHECK — Is price too far from the 20 MA?
-    // const extended = this._isExtended(price, ma20);
-    // if (extended) {
-    //   this._wasExtended = true;
-    //   this.diag.extensionSkips++;
-    //   return this._emptySignal();  // Don't enter when extended
-    // }
-    //
-    // // STEP 3: FIRST-TOUCH SKIP after extension
-    // if (this._wasExtended && touchingMA && this.skipFirstTouch) {
-    //   this._firstTouchAfterExtension = true;
-    //   this._wasExtended = false;
-    //   this.diag.firstTouchSkips++;
-    //   return this._emptySignal();
-    // }
-    // if (touchingMA && this._firstTouchAfterExtension) {
-    //   this._firstTouchAfterExtension = false;
-    // }
-    //
-    // // Structure-based cooldown: one trade per pullback
-    // if (!touchingMA && this.inPullbackTaken) {
-    //   this.inPullbackTaken = false;
-    // }
-    // if (touchingMA && this.inPullbackTaken) {
-    //   return this._emptySignal();
-    // }
-    //
-    // // STEP 4: 123 PATTERN — Trend structure confirmation
-    // const pattern = this._detect123Pattern();
-    // this.pattern123 = pattern;
-    // if (pattern === 'uptrend') this.diag.patternUptrend++;
-    // else if (pattern === 'downtrend') this.diag.patternDowntrend++;
-    // else this.diag.patternNull++;
-    //
-    // // STEP 5: S/R ALIGNMENT (bonus, not required)
-    // const srAlignment = this._checkSRAlignment(price);
-    // if (srAlignment.aligned) this.diag.srAligned++;
-    //
-    // // STEP 6: CONFIRMATION CANDLE
-    // const confirmation = this._checkConfirmationCandle(candle, priceHistory);
-    // if (confirmation.bullish) this.diag.confirmBullish++;
-    // if (confirmation.bearish) this.diag.confirmBearish++;
-    //
-    // // STEP 7: ACCELERATION — Candle must show real momentum
-    // const candleRange = high - low;
-    // const accelerating = atr ? (candleRange > atr * 1.2) : true;
-    // const strongAcceleration = atr ? (candleRange > atr * 1.5) : false;
-    // ─────────────────────────────────────────────────────────────────────
+    const maSlope = this._getMaSlope(closes, this.entryMaPeriod);
+    if (maSlope === 'rising') this.diag.trendBullish++;
+    else if (maSlope === 'falling') this.diag.trendBearish++;
+    else this.diag.trendFlat++;
 
-    // ═══════════════════════════════════════════════════════════════════
-    // SIMPLE ENTRY: Price touching 20 MA = signal
-    // Direction based on price position relative to MA
-    // Confidence based on how clean the touch is
-    // ═══════════════════════════════════════════════════════════════════
+    const extension = this._extensionInfo(price, ma20, atr);
+    const wasExtendedBefore = this._wasExtended;
+    if (extension.extended) {
+      this._wasExtended = true;
+      this.diag.extensionSkips++;
+    }
+
+    if (!touchingMA && this.inPullbackTaken) {
+      this.inPullbackTaken = false;
+    }
+
+    const srAlignment = this._checkSRAlignment(ma20);
+    if (srAlignment.aligned) this.diag.srAligned++;
+
+    const confirmation = this._checkConfirmationCandle(candle, priceHistory);
+    if (confirmation.bullish) this.diag.confirmBullish++;
+    if (confirmation.bearish) this.diag.confirmBearish++;
+
     let direction = 'neutral';
     let confidence = 0;
     let reason = '';
+    let confidenceProfile = this._emptyConfidenceProfile();
+    let structural = null;
 
     if (touchingMA) {
       // Calculate touch quality (closer = higher confidence)
       const distancePct = Math.abs(price - ma20) / ma20 * 100;
-      const touchQuality = 1 - (distancePct / this.touchZonePct);  // 1.0 = perfect touch, 0 = edge of zone
+      const touchQuality = clamp(1 - (distancePct / this.touchZonePct), 0, 1);  // 1.0 = perfect touch, 0 = edge of zone
 
-      // Direction: price above MA = bullish bounce, price below = bearish bounce
-      if (price >= ma20) {
+      if (maSlope === 'rising') {
         direction = 'buy';
-        reason = `MA Touch LONG: Price at 20 EMA ($${ma20.toFixed(2)})`;
-      } else {
+        reason = `MA Touch LONG: rising ${this.entryMaPeriod} EMA ($${ma20.toFixed(2)})`;
+      } else if (maSlope === 'falling') {
         direction = 'sell';
-        reason = `MA Touch SHORT: Price at 20 EMA ($${ma20.toFixed(2)})`;
+        reason = `MA Touch SHORT: falling ${this.entryMaPeriod} EMA ($${ma20.toFixed(2)})`;
+      } else {
+        this.diag.trendGateRejects++;
+        return this._emptySignal('trend_slope_flat', {
+          touchingMA,
+          maSlope,
+          extension,
+          srAlignment,
+          confirmation
+        });
       }
 
-      // Confidence: 50-80% based on touch quality
-      confidence = 0.50 + (touchQuality * 0.30);
-
-      // Bonus: 200 MA confluence
-      if (ma200) {
-        const near200 = Math.abs(price - ma200) / ma200 * 100 < 1.5;
-        if (near200) {
-          confidence += 0.10;
-          reason += ' + 200 MA confluence';
-        }
-      }
+      confidence = this.config.baseConfidence + (touchQuality * this.config.touchQualityWeight);
+      structural = this._structuralProfile(direction, price, ma20, atr);
+      confidenceProfile = this._confidenceProfile({
+        direction,
+        maSlope,
+        touchingMA,
+        extension,
+        wasExtendedBefore,
+        srAlignment,
+        confirmation,
+        structural
+      });
+      confidence = clamp(confidence * confidenceProfile.composite, 0, this.config.maxConfidence);
 
       this.diag.signalsEmitted++;
+      this.inPullbackTaken = true;
     }
-
-    // COMMENTED: Structural SL/TP - let exit contracts handle this
-    // ─────────────────────────────────────────────────────────────────────
-    // let stopLoss = null;
-    // let takeProfit = null;
-    // const atrBuffer = atr ? atr * 1.0 : price * 0.01;
-    // const MIN_TP_PCT = 0.007;
-    // const MIN_RR = 1.5;
-    //
-    // if (direction !== 'neutral') {
-    //   if (direction === 'buy') {
-    //     stopLoss = ma20 - atrBuffer;
-    //     const risk = price - stopLoss;
-    //     takeProfit = price + (risk * 3);
-    //     if (stopLoss >= price) { this.diag.slInvalid++; return this._emptySignal(); }
-    //     if (takeProfit <= price) { this.diag.tpInvalid++; return this._emptySignal(); }
-    //     const tpDistance = (takeProfit - price) / price;
-    //     const actualRR = risk > 0 ? (takeProfit - price) / risk : 0;
-    //     if (actualRR < MIN_RR) { this.diag.rrTooLow++; return this._emptySignal(); }
-    //     if (tpDistance < MIN_TP_PCT) { this.diag.tpTooSmall++; return this._emptySignal(); }
-    //   } else {
-    //     stopLoss = ma20 + atrBuffer;
-    //     const risk = stopLoss - price;
-    //     takeProfit = price - (risk * 3);
-    //     if (stopLoss <= price) { this.diag.slInvalid++; return this._emptySignal(); }
-    //     if (takeProfit >= price) { this.diag.tpInvalid++; return this._emptySignal(); }
-    //     const tpDistance = (price - takeProfit) / price;
-    //     const actualRR = risk > 0 ? (price - takeProfit) / risk : 0;
-    //     if (actualRR < MIN_RR) { this.diag.rrTooLow++; return this._emptySignal(); }
-    //     if (tpDistance < MIN_TP_PCT) { this.diag.tpTooSmall++; return this._emptySignal(); }
-    //   }
-    //   this.inPullbackTaken = true;
-    // }
-    // ─────────────────────────────────────────────────────────────────────
 
     const signal = {
       module: 'MADynamicSR',
@@ -279,9 +422,15 @@ class MADynamicSR {
         ma20,
         ma200,
         atr,
-        // stopLoss/takeProfit removed - let exit contracts handle
+        structural,
       },
-      // Removed: pattern, srAlignment, confirmation, maSlope, extended - filters commented out
+      maSlope,
+      trend: maSlope,
+      extension,
+      srAlignment,
+      confirmation,
+      confidenceProfile,
+      conditionFlags: this.conditionFlags
     };
 
     this.lastSignal = signal;
@@ -472,10 +621,20 @@ class MADynamicSR {
    * Trader DNA: "distance between price and 20 MA = extension = overbought"
    * "I would never be buying up here because we're super far away from the 20 MA"
    */
-  _isExtended(price, ma20) {
-    if (!ma20 || ma20 === 0) return false;
-    const distancePct = Math.abs(price - ma20) / ma20 * 100;
-    return distancePct > this.extensionPct;
+  _extensionInfo(price, ma20, atr) {
+    const distance = Math.abs(price - ma20);
+    const distancePct = ma20 ? (distance / ma20) * 100 : null;
+    const extensionAtr = atr && atr > 0 ? distance / atr : null;
+    const extended = Number.isFinite(extensionAtr)
+      ? extensionAtr > this.maxExtensionAtr
+      : false;
+    return {
+      extended,
+      distance,
+      distancePct,
+      extensionAtr,
+      maxExtensionAtr: this.maxExtensionAtr
+    };
   }
 
   /**
@@ -484,6 +643,232 @@ class MADynamicSR {
   _isTouchingEMA(price, ema) {
     const distance = Math.abs(price - ema) / ema * 100;
     return distance <= this.touchZonePct;
+  }
+
+  _emptyConfidenceProfile() {
+    return {
+      composite: 1,
+      components: {
+        trendGate: {
+          enabled: this.conditionFlags.trendGate,
+          fired: false,
+          hardCondition: true,
+          multiplier: 1
+        },
+        extension: { enabled: this.conditionFlags.extension, fired: false, multiplier: 1 },
+        firstTouchAfterParabolic: { enabled: this.conditionFlags.firstTouchAfterParabolic, fired: false, multiplier: 1 },
+        pullbackCooldown: { enabled: this.conditionFlags.pullbackCooldown, fired: false, multiplier: 1 },
+        confirmationCandle: { enabled: this.conditionFlags.confirmationCandle, fired: false, multiplier: 1 },
+        srAlignment: { enabled: this.conditionFlags.srAlignment, fired: false, multiplier: 1 },
+        structuralValidity: { enabled: this.conditionFlags.structuralValidity, fired: false, multiplier: 1 }
+      }
+    };
+  }
+
+  _confidenceProfile({
+    direction,
+    maSlope,
+    touchingMA,
+    extension,
+    wasExtendedBefore,
+    srAlignment,
+    confirmation,
+    structural
+  }) {
+    const profile = this._emptyConfidenceProfile();
+    profile.components.trendGate = {
+      enabled: this.conditionFlags.trendGate,
+      fired: this.conditionFlags.trendGate,
+      hardCondition: true,
+      passed: maSlope === 'rising' || maSlope === 'falling',
+      maSlope,
+      direction,
+      multiplier: 1
+    };
+
+    if (this.conditionFlags.extension && extension.extended) {
+      const overshoot = Math.max(0, extension.extensionAtr - this.maxExtensionAtr);
+      const multiplier = clamp(
+        1 - (overshoot * this.multipliers.extensionPenaltyScale),
+        this.multipliers.extensionMin,
+        1
+      );
+      profile.components.extension = {
+        enabled: true,
+        fired: true,
+        multiplier,
+        extensionAtr: extension.extensionAtr,
+        maxExtensionAtr: this.maxExtensionAtr
+      };
+      this.diag.extensionPenalties++;
+    }
+
+    if (this.conditionFlags.firstTouchAfterParabolic && wasExtendedBefore && touchingMA) {
+      profile.components.firstTouchAfterParabolic = {
+        enabled: true,
+        fired: true,
+        multiplier: this.multipliers.firstTouchAfterParabolic
+      };
+      this._firstTouchAfterExtension = true;
+      this._wasExtended = false;
+      this.diag.firstTouchSkips++;
+      this.diag.firstTouchPenalties++;
+    } else if (touchingMA && this._firstTouchAfterExtension) {
+      this._firstTouchAfterExtension = false;
+    }
+
+    if (this.conditionFlags.pullbackCooldown && touchingMA && this.inPullbackTaken) {
+      profile.components.pullbackCooldown = {
+        enabled: true,
+        fired: true,
+        multiplier: this.multipliers.pullbackCooldown
+      };
+      this.diag.pullbackCooldownPenalties++;
+    }
+
+    if (this.conditionFlags.confirmationCandle) {
+      const aligned = direction === 'buy' ? confirmation.bullish : confirmation.bearish;
+      const conflicted = direction === 'buy' ? confirmation.bearish : confirmation.bullish;
+      if (aligned) {
+        profile.components.confirmationCandle = {
+          enabled: true,
+          fired: true,
+          state: 'aligned',
+          pattern: confirmation.pattern,
+          multiplier: this.multipliers.confirmationAligned
+        };
+        this.diag.confirmationAligned++;
+      } else if (conflicted) {
+        profile.components.confirmationCandle = {
+          enabled: true,
+          fired: true,
+          state: 'conflict',
+          pattern: confirmation.pattern,
+          multiplier: this.multipliers.confirmationConflict
+        };
+        this.diag.confirmationConflicts++;
+      } else {
+        profile.components.confirmationCandle = {
+          enabled: true,
+          fired: false,
+          state: 'missing',
+          pattern: confirmation.pattern,
+          multiplier: this.multipliers.confirmationMissing
+        };
+        this.diag.confirmationMissing++;
+      }
+    }
+
+    if (this.conditionFlags.srAlignment) {
+      const correctType = direction === 'buy' ? 'support' : 'resistance';
+      if (srAlignment.aligned && srAlignment.type === correctType) {
+        profile.components.srAlignment = {
+          enabled: true,
+          fired: true,
+          state: 'aligned',
+          multiplier: this.multipliers.srAligned,
+          level: srAlignment
+        };
+      } else if (srAlignment.aligned) {
+        profile.components.srAlignment = {
+          enabled: true,
+          fired: true,
+          state: 'wrong_side',
+          multiplier: this.multipliers.srWrongSide,
+          level: srAlignment
+        };
+        this.diag.srWrongSide++;
+      } else {
+        profile.components.srAlignment = {
+          enabled: true,
+          fired: false,
+          state: 'missing',
+          multiplier: this.multipliers.srMissing,
+          level: srAlignment
+        };
+        this.diag.srMissing++;
+      }
+    }
+
+    if (this.conditionFlags.structuralValidity) {
+      if (structural.valid) {
+        profile.components.structuralValidity = {
+          enabled: true,
+          fired: true,
+          state: 'valid',
+          multiplier: this.multipliers.structuralValid,
+          structural
+        };
+        this.diag.structuralValid++;
+      } else {
+        profile.components.structuralValidity = {
+          enabled: true,
+          fired: true,
+          state: structural.failure,
+          multiplier: this.multipliers.structuralInvalid,
+          structural
+        };
+        this.diag.structuralInvalid++;
+      }
+    }
+
+    profile.composite = Object.values(profile.components)
+      .reduce((product, component) => product * component.multiplier, 1);
+    return profile;
+  }
+
+  _structuralProfile(direction, price, ma20, atr) {
+    const atrBuffer = atr && atr > 0 ? atr * this.structural.atrBufferMultiplier : price * 0.01;
+    let stopLoss;
+    let takeProfit;
+    let risk;
+    if (direction === 'buy') {
+      stopLoss = ma20 - atrBuffer;
+      risk = price - stopLoss;
+      takeProfit = price + (risk * this.structural.rewardRiskTarget);
+      if (stopLoss >= price) {
+        this.diag.slInvalid++;
+        return { valid: false, failure: 'sl_invalid', stopLoss, takeProfit, risk };
+      }
+      if (takeProfit <= price) {
+        this.diag.tpInvalid++;
+        return { valid: false, failure: 'tp_invalid', stopLoss, takeProfit, risk };
+      }
+      const tpDistance = (takeProfit - price) / price;
+      const actualRR = risk > 0 ? (takeProfit - price) / risk : 0;
+      if (actualRR < this.structural.minRewardRisk) {
+        this.diag.rrTooLow++;
+        return { valid: false, failure: 'rr_too_low', stopLoss, takeProfit, risk, actualRR, tpDistance };
+      }
+      if (tpDistance < this.structural.minTakeProfitPct) {
+        this.diag.tpTooSmall++;
+        return { valid: false, failure: 'tp_too_small', stopLoss, takeProfit, risk, actualRR, tpDistance };
+      }
+      return { valid: true, stopLoss, takeProfit, risk, actualRR, tpDistance };
+    }
+
+    stopLoss = ma20 + atrBuffer;
+    risk = stopLoss - price;
+    takeProfit = price - (risk * this.structural.rewardRiskTarget);
+    if (stopLoss <= price) {
+      this.diag.slInvalid++;
+      return { valid: false, failure: 'sl_invalid', stopLoss, takeProfit, risk };
+    }
+    if (takeProfit >= price) {
+      this.diag.tpInvalid++;
+      return { valid: false, failure: 'tp_invalid', stopLoss, takeProfit, risk };
+    }
+    const tpDistance = (price - takeProfit) / price;
+    const actualRR = risk > 0 ? (price - takeProfit) / risk : 0;
+    if (actualRR < this.structural.minRewardRisk) {
+      this.diag.rrTooLow++;
+      return { valid: false, failure: 'rr_too_low', stopLoss, takeProfit, risk, actualRR, tpDistance };
+    }
+    if (tpDistance < this.structural.minTakeProfitPct) {
+      this.diag.tpTooSmall++;
+      return { valid: false, failure: 'tp_too_small', stopLoss, takeProfit, risk, actualRR, tpDistance };
+    }
+    return { valid: true, stopLoss, takeProfit, risk, actualRR, tpDistance };
   }
 
   /**
@@ -622,18 +1007,22 @@ class MADynamicSR {
     return trSum / period;
   }
 
-  _emptySignal() {
+  _emptySignal(reason = 'insufficient_data', context = {}) {
     return {
       module: 'MADynamicSR',
       direction: 'neutral',
       confidence: 0,
-      reason: 'insufficient_data',
+      reason,
       pattern: null,
       touchingEMA: false,
-      srAlignment: { aligned: false },
-      confirmation: { bullish: false, bearish: false },
+      srAlignment: context.srAlignment || { aligned: false },
+      confirmation: context.confirmation || { bullish: false, bearish: false },
       levels: {},
-      trend: null
+      trend: context.maSlope || null,
+      maSlope: context.maSlope || null,
+      extension: context.extension || null,
+      confidenceProfile: this._emptyConfidenceProfile(),
+      conditionFlags: this.conditionFlags
     };
   }
 

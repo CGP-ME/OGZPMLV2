@@ -57,6 +57,16 @@ function requiredConfiguredBool(configPath) {
   return value;
 }
 
+function requiredConfiguredPlainObject(configPath) {
+  const value = configPath.split('.').reduce((current, part) => (
+    current && Object.prototype.hasOwnProperty.call(current, part) ? current[part] : undefined
+  ), tradingConfigFile);
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`[ConfigLoader] config/trading.config.json ${configPath} must be an object`);
+  }
+  return cloneConfiguredObject(value);
+}
+
 function configuredValue(configPath, fallback = undefined) {
   const value = configPath.split('.').reduce((current, part) => (
     current && Object.prototype.hasOwnProperty.call(current, part) ? current[part] : undefined
@@ -72,19 +82,6 @@ function readConfiguredPath(root, configPath) {
 
 function cloneConfiguredObject(value) {
   return JSON.parse(JSON.stringify(value));
-}
-
-function requiredConfiguredPlainObject(configPath) {
-  const value = configPath.split('.').reduce((current, part) => (
-    current && Object.prototype.hasOwnProperty.call(current, part) ? current[part] : undefined
-  ), tradingConfigFile);
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(`[ConfigLoader] config/trading.config.json ${configPath} must be an object`);
-  }
-  return {
-    value: cloneConfiguredObject(value),
-    source: `config:${configPath}`,
-  };
 }
 
 function requiredLaunchProfileValue(configPath) {
@@ -266,6 +263,17 @@ function configuredValueResult(configPath) {
   return {
     value,
     source: `config:${configPath}`,
+  };
+}
+
+function configuredPlainObjectResult(configPath) {
+  const result = configuredValueResult(configPath);
+  if (!result.value || typeof result.value !== 'object' || Array.isArray(result.value)) {
+    throw new Error(`[ConfigLoader] config/trading.config.json ${configPath} must be an object`);
+  }
+  return {
+    value: cloneConfiguredObject(result.value),
+    source: result.source,
   };
 }
 
@@ -895,6 +903,7 @@ function buildConfig() {
       soloFilter: track('strategies.soloFilter', configStringListWithBacktestEnvAlias('strategies.soloFilter', 'SOLO_STRATEGY')),
       enableRSI: track('strategies.enableRSI', requiredLaunchProfileBool('pipeline.enableRSI')),
       enableMADynamicSR: track('strategies.enableMADynamicSR', requiredLaunchProfileBool('pipeline.enableMADynamicSR')),
+      MADynamicSR: track('strategies.MADynamicSR', configuredPlainObjectResult('strategies.MADynamicSR')),
       enableEMACrossover: track('strategies.enableEMACrossover', requiredLaunchProfileBool('pipeline.enableEMACrossover')),
       enableLiquiditySweep: track('strategies.enableLiquiditySweep', requiredLaunchProfileBool('pipeline.enableLiquiditySweep')),
       enableCandlePattern: track('strategies.enableCandlePattern', requiredLaunchProfileBool('pipeline.enableCandlePattern')),
@@ -2761,22 +2770,7 @@ const BASE_CONFIG = {
   // STRATEGY-SPECIFIC PARAMETERS (per STRATEGY-REWRITE-SPEC.md)
   // =========================================================================
   strategies: {
-    MADynamicSR: {
-      // Trader DNA CORRECTED - 20 MA for trend/entry, 200 MA for S/R level
-      entryMaPeriod: env('MASR_ENTRY_MA', 20),         // 20 MA — trend + entry line
-      srMaPeriod: env('MASR_SR_MA', 200),              // 200 MA — support/resistance level (NOT trend)
-      touchZonePct: env('MASR_TOUCH_ZONE', 0.6),       // % distance to count as "touching"
-      srTestCount: env('MASR_SR_TESTS', 2),            // Min S/R zone touches
-      swingLookback: env('MASR_SWING_LOOKBACK', 3),    // Bars to confirm a swing
-      srZonePct: env('MASR_SR_ZONE_PCT', 1.0),         // Zone width as % of price
-      slopeLookback: env('MASR_SLOPE_LOOKBACK', 5),    // Bars to compare 20 MA slope
-      minSlopePct: env('MASR_MIN_SLOPE', 0.03),        // Min slope % to count as trending
-      extensionPct: env('MASR_EXTENSION_PCT', 2.0),    // Max distance from 20 MA (%)
-      skipFirstTouch: true,                            // Skip first touch after extension
-      atrPeriod: env('MASR_ATR_PERIOD', 14),           // ATR for SL buffer
-      patternPersistBars: env('MASR_PATTERN_PERSIST', 15),
-      enabled: true,
-    },
+    MADynamicSR: requiredConfiguredPlainObject('strategies.MADynamicSR'),
     EMASMACrossover: {
       // EMA/SMA crossover event geometry. All confidence constants are config-owned.
       decayBars: requiredConfigNumber('strategies.EMASMACrossover.decayBars'),

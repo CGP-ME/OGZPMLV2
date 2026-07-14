@@ -9,6 +9,7 @@ describe('instrument env resolution', () => {
   test('resolves configured stock data files as Alpaca stocks', () => {
     expect(resolveInstrumentFromDataFile('tuning/tsla-15m-2y.json')).toEqual({
       TRADING_PAIR: 'TSLA',
+      ALPACA_SYMBOLS: 'TSLA',
       BROKER: 'alpaca',
       ASSET_CLASS: 'stocks',
       CANDLE_TIMEFRAME: '15m',
