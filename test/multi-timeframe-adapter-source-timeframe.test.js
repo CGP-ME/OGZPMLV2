@@ -39,6 +39,31 @@ describe('MultiTimeframeAdapter source timeframe ownership', () => {
     }));
   });
 
+  test('does not own private aggregation state or synthesize higher timeframe bars', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const source = fs.readFileSync(path.resolve(__dirname, '..', 'modules', 'MultiTimeframeAdapter.js'), 'utf8');
+
+    expect(source).not.toContain('TIMEFRAME_CONFIG');
+    expect(source).not.toContain('pendingCandles');
+    expect(source).not.toContain('_aggregateInto');
+
+    const MultiTimeframeAdapter = require('../modules/MultiTimeframeAdapter');
+    const adapter = new MultiTimeframeAdapter({
+      activeTimeframes: ['15m', '1h'],
+      minCandlesForAnalysis: 1,
+    });
+
+    adapter.ingestCandle(candle(0), '15m');
+    adapter.ingestCandle(candle(1), '15m');
+    adapter.ingestCandle(candle(2), '15m');
+    adapter.ingestCandle(candle(3), '15m');
+
+    expect(adapter.getCandles('15m')).toHaveLength(4);
+    expect(adapter.getCandles('1h')).toHaveLength(0);
+    expect(adapter.getSnapshot().stats.aggregationsPerformed).toBeUndefined();
+  });
+
   test('baseTimeframe filters impossible lower buckets at construction', () => {
     const MultiTimeframeAdapter = require('../modules/MultiTimeframeAdapter');
     const adapter = new MultiTimeframeAdapter({

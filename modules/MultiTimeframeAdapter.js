@@ -3,7 +3,7 @@
 /**
  * MultiTimeframeAdapter.js — V2-Compatible Rebuild
  * =================================================
- * Stores source candles in their real timeframe and aggregates upward.
+ * Stores TFE-delivered candles in their born timeframe.
  * Calculates indicators per timeframe. Returns confluence score.
  *
  * V2 FIXES:
@@ -25,6 +25,22 @@ const EventEmitter = require('events');
 // FIX 2026-02-16: Use centralized candle helper for format compatibility
 const { c, o, h, l, v, t } = require('../core/CandleHelper');
 
+const SUPPORTED_TIMEFRAMES = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
+const TIMEFRAME_RANK = new Map(SUPPORTED_TIMEFRAMES.map((timeframe, index) => [timeframe, index]));
+const DEFAULT_MAX_CANDLES = Object.freeze({
+  '1m': 1440,
+  '5m': 576,
+  '15m': 384,
+  '30m': 336,
+  '1h': 720,
+  '4h': 360,
+  '1d': 365,
+});
+
+function cleanTimeframe(value) {
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : '';
+}
+
 function uniqueTimeframes(timeframes) {
   return Array.from(new Set(timeframes.filter(Boolean)));
 }
@@ -33,19 +49,8 @@ class MultiTimeframeAdapter extends EventEmitter {
   constructor(config = {}) {
     super();
 
-    this.TIMEFRAME_CONFIG = {
-      '1m':  { ms: 60000,      maxCandles: 1440 },
-      '5m':  { ms: 300000,     maxCandles: 576  },
-      '15m': { ms: 900000,     maxCandles: 384  },
-      '30m': { ms: 1800000,    maxCandles: 336  },
-      '1h':  { ms: 3600000,    maxCandles: 720  },
-      '4h':  { ms: 14400000,   maxCandles: 360  },
-      '1d':  { ms: 86400000,   maxCandles: 365  },
-    };
-
-    const baseTimeframe = config.baseTimeframe || '1m';
-    const baseConfig = this.TIMEFRAME_CONFIG[baseTimeframe];
-    if (!baseConfig) {
+    const baseTimeframe = cleanTimeframe(config.baseTimeframe) || '1m';
+    if (!TIMEFRAME_RANK.has(baseTimeframe)) {
       throw new Error(`[MultiTimeframeAdapter] unsupported baseTimeframe '${baseTimeframe}'`);
     }
     const requestedTimeframes = uniqueTimeframes([
@@ -53,13 +58,17 @@ class MultiTimeframeAdapter extends EventEmitter {
       ...(config.activeTimeframes || ['1m', '5m', '15m', '1h', '4h', '1d']),
     ]);
     const activeTimeframes = requestedTimeframes.filter((timeframe) => {
-      const timeframeConfig = this.TIMEFRAME_CONFIG[timeframe];
-      return timeframeConfig && timeframeConfig.ms >= baseConfig.ms;
+      const cleaned = cleanTimeframe(timeframe);
+      return TIMEFRAME_RANK.has(cleaned) && TIMEFRAME_RANK.get(cleaned) >= TIMEFRAME_RANK.get(baseTimeframe);
     });
 
     this.config = {
       baseTimeframe,
       activeTimeframes,
+      maxCandlesByTimeframe: {
+        ...DEFAULT_MAX_CANDLES,
+        ...(config.maxCandlesByTimeframe || {}),
+      },
       indicatorPeriods: {
         rsi: 14,
         smaFast: 10,
@@ -77,14 +86,15 @@ class MultiTimeframeAdapter extends EventEmitter {
 
     // Storage
     this.candles = new Map();
-    this.pendingCandles = new Map();
     this.indicators = new Map();
     this.readyTimeframes = new Set();
     this.lastUpdate = new Map();
+    this.timeframeDiagnostics = {
+      rejectedDeliveredBars: 0,
+    };
 
     this.stats = {
       candlesProcessed: 0,
-      aggregationsPerformed: 0,
       indicatorCalculations: 0,
       confluenceChecks: 0,
       errors: 0,
@@ -92,48 +102,44 @@ class MultiTimeframeAdapter extends EventEmitter {
 
     for (const tf of this.config.activeTimeframes) {
       this.candles.set(tf, []);
-      this.pendingCandles.set(tf, null);
       this.indicators.set(tf, null);
       this.lastUpdate.set(tf, 0);
     }
   }
 
   // ═══════════════════════════════════════════════════════════
-  // SECTION 1: CANDLE INGESTION + AGGREGATION
+  // SECTION 1: TFE-DELIVERED CANDLE INGESTION
   // ═══════════════════════════════════════════════════════════
 
   /**
-   * Feed a source candle from the configured runtime timeframe.
+   * Feed a TFE-delivered candle in its born timeframe.
    * @param {Object} candle — { c, o, h, l, v, t } (V2 Kraken)
    */
   ingestCandle(candle, sourceTimeframe = candle?.timeframe) {
     if (!candle || c(candle) == null || t(candle) == null) return;
 
-    const normalizedSourceTimeframe = typeof sourceTimeframe === 'string' ? sourceTimeframe.trim() : '';
+    const normalizedSourceTimeframe = cleanTimeframe(sourceTimeframe);
     if (!normalizedSourceTimeframe) {
+      this._rejectDeliveredBar('missing sourceTimeframe');
       throw new Error('[MultiTimeframeAdapter] sourceTimeframe required');
     }
-    const sourceConfig = this.TIMEFRAME_CONFIG[normalizedSourceTimeframe];
-    if (!sourceConfig) {
+    if (!TIMEFRAME_RANK.has(normalizedSourceTimeframe)) {
+      this._rejectDeliveredBar(`unsupported sourceTimeframe '${normalizedSourceTimeframe}'`);
       throw new Error(`[MultiTimeframeAdapter] unsupported sourceTimeframe '${normalizedSourceTimeframe}'`);
     }
-    const baseConfig = this.TIMEFRAME_CONFIG[this.config.baseTimeframe];
-    if (sourceConfig.ms < baseConfig.ms) {
+    if (TIMEFRAME_RANK.get(normalizedSourceTimeframe) < TIMEFRAME_RANK.get(this.config.baseTimeframe)) {
+      this._rejectDeliveredBar(`sourceTimeframe '${normalizedSourceTimeframe}' below baseTimeframe '${this.config.baseTimeframe}'`);
       throw new Error(`[MultiTimeframeAdapter] sourceTimeframe '${normalizedSourceTimeframe}' is below baseTimeframe '${this.config.baseTimeframe}'`);
+    }
+    if (!this.candles.has(normalizedSourceTimeframe)) {
+      this._rejectDeliveredBar(`sourceTimeframe '${normalizedSourceTimeframe}' not configured`);
+      throw new Error(`[MultiTimeframeAdapter] sourceTimeframe '${normalizedSourceTimeframe}' is not configured as a TFE-delivered timeframe`);
     }
 
     this.stats.candlesProcessed++;
     const stampedCandle = { ...candle, timeframe: normalizedSourceTimeframe };
 
-    this._addCandle(normalizedSourceTimeframe, stampedCandle);
-
-    // Aggregate into higher timeframes
-    for (const tf of this.config.activeTimeframes) {
-      const tfConfig = this.TIMEFRAME_CONFIG[tf];
-      if (!tfConfig) continue;
-      if (tfConfig.ms <= sourceConfig.ms) continue;
-      this._aggregateInto(tf, stampedCandle);
-    }
+    this._storeDeliveredBar(normalizedSourceTimeframe, stampedCandle);
 
     // Recalc indicators on ready timeframes
     this._recalculateIndicators();
@@ -146,56 +152,20 @@ class MultiTimeframeAdapter extends EventEmitter {
     });
   }
 
-  /**
-   * Aggregate a 1m candle into a higher timeframe's pending candle.
-   * @private
-   */
-  _aggregateInto(timeframe, minuteCandle) {
-    const tfConfig = this.TIMEFRAME_CONFIG[timeframe];
-    const interval = tfConfig.ms;
-    const candleStart = Math.floor(t(minuteCandle) / interval) * interval;
-
-    let pending = this.pendingCandles.get(timeframe);
-
-    if (!pending || t(pending) !== candleStart) {
-      // Previous candle complete — store it
-      if (pending && t(pending)) {
-        this._addCandle(timeframe, { ...pending });
-        this.stats.aggregationsPerformed++;
-      }
-
-      // New candle
-      pending = {
-        t: candleStart,
-        o: o(minuteCandle),
-        h: h(minuteCandle),
-        l: l(minuteCandle),
-        c: c(minuteCandle),
-        v: v(minuteCandle) || 0,
-        tickCount: 1,
-      };
-    } else {
-      // Direct property writes - CandleHelper functions are for READS only
-      pending.h = Math.max(h(pending), h(minuteCandle));
-      pending.l = Math.min(l(pending), l(minuteCandle));
-      pending.c = c(minuteCandle);
-      pending.v += (v(minuteCandle) || 0);
-      pending.tickCount++;
-    }
-
-    this.pendingCandles.set(timeframe, pending);
+  _rejectDeliveredBar(reason) {
+    this.timeframeDiagnostics.rejectedDeliveredBars += 1;
+    console.error(`[MTF][TIMEFRAME-REJECTED] refused delivered bar reason=${reason} count=${this.timeframeDiagnostics.rejectedDeliveredBars}`);
   }
 
   /**
-   * Add a completed candle to storage with max-size enforcement.
+   * Store a TFE-delivered bar with max-size enforcement.
    * @private
    */
-  _addCandle(timeframe, candle) {
+  _storeDeliveredBar(timeframe, candle) {
     const arr = this.candles.get(timeframe);
     if (!arr) return;
 
-    const tfConfig = this.TIMEFRAME_CONFIG[timeframe];
-    const max = tfConfig ? tfConfig.maxCandles : 500;
+    const max = this.config.maxCandlesByTimeframe[timeframe];
 
     arr.push(candle);
     if (arr.length > max) arr.splice(0, arr.length - max);
@@ -501,7 +471,6 @@ class MultiTimeframeAdapter extends EventEmitter {
   destroy() {
     this.removeAllListeners();
     this.candles.clear();
-    this.pendingCandles.clear();
     this.indicators.clear();
     this.readyTimeframes.clear();
   }
