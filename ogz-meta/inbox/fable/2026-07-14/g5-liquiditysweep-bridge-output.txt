@@ -1,0 +1,210 @@
+[MERCURY-BRIDGE] Index contains 10111 chunks
+[MERCURY-BRIDGE] Query router: type=landmine mode=hybrid-classified boost=landmine top-k=8
+[MERCURY-BRIDGE] Rationale: landmine/rules pattern detected; boost landmine and guardrails
+[MERCURY-BRIDGE] Embedding query for starter context...
+[MERCURY-BRIDGE] Starter context: 8 chunks
+  1. trai_brain/mercury-bridge/README.md:349-372 (doc_section: Testing checklist) sim=0.634
+  2. AGENTS.md:90-132 (doc_section: Trading-Path Gates#part1) sim=0.612
+  3. trai_brain/mercury-bridge/README.md:76-104 (doc_section: 3b. Local Fable adversarial review through Claude Code#part1) sim=0.586
+  4. ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md:1-40 (doc_section: OGZPrime — Cold-Start Brief#part14) sim=0.584
+  5. ogz-meta/specs/decision-ledger-integration-plan.md:52-68 (doc_section: Phase L2 — Strategy signals + orchestrator decision) sim=0.595
+  6. ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md:1-40 (doc_section: OGZPrime — Cold-Start Brief#part12) sim=0.603
+  7. ogz-meta/specs/GRAND-SCHEME-AUDIT-2026-05-14.md:53-92 (doc_section: Middle layer — strategies and orchestration#part1) sim=0.569
+  8. ogz-meta/specs/apex-shipping-boundary.md:19-35 (doc_section: Strategy infrastructure parity — all 11 strategies) sim=0.572
+[TRACE-MEMORY] Eviction: 0 stale + 0 over-cap, 0 remaining
+[MERCURY-BRIDGE] No similar prior trace found
+[MERCURY-BRIDGE] Tool adapter ready. Tools: search, grep, regex_grep, find_definition, find_references, rule_scan, open_file, get_chunk, list_files, tavily_search, git_show, git_diff, serena_blast_radius, serena_property_refs, serena_method_callers, serena_class_fields, run_check, web_fetch
+[TRAI] LLM client initializing...
+   Provider: Mercury-2 (Inception Labs)
+   Model:    mercury-2
+   Endpoint: https://api.inceptionlabs.ai/v1
+[TRAI] LLM warm-up complete (447ms)
+[TRAI] LLM client ready. Provider: Mercury-2 (Inception Labs) | Model: mercury-2
+[MERCURY-BRIDGE] Starting ReAct loop (max 60 iterations)...
+[MERCURY-BRIDGE] Serena current-change blast radius: 2 file(s)
+  run-empire-v2.js: 3 caller(s), risk=low, 766ms
+  test/aggregate-source-backfill.test.js: 0 caller(s), risk=isolated, 742ms
+[REACT] Iteration 1/60
+[REACT] Message history: 4 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing list_files({"path":"","pattern":""})
+[REACT] Iteration 2/60
+[REACT] Message history: 6 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/LiquiditySweepDetector.js","start_line":1,"end_line":509})
+[REACT] Iteration 3/60
+[REACT] Message history: 8 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/LiquiditySweepDetector.js","start_line":1,"end_line":200})
+[REACT] Iteration 4/60
+[REACT] Message history: 10 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/LiquiditySweepDetector.js","start_line":200,"end_line":400})
+[REACT] Iteration 5/60
+[REACT] Message history: 12 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/LiquiditySweepDetector.js","start_line":400,"end_line":510})
+[REACT] Iteration 6/60
+[REACT] Message history: 14 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":650,"end_line":720})
+[REACT] Iteration 7/60
+[REACT] Message history: 16 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":1400,"end_line":1460})
+[REACT] Iteration 8/60
+[REACT] Message history: 18 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":1900,"end_line":1920})
+[REACT] Iteration 9/60
+[REACT] Message history: 20 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":2440,"end_line":2465})
+[REACT] Iteration 10/60
+[REACT] Message history: 22 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/CandleProcessor.js","start_line":580,"end_line":630})
+[REACT] Iteration 11/60
+[REACT] Message history: 24 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/PipelineSnapshot.js","start_line":250,"end_line":300})
+[REACT] Iteration 12/60
+[REACT] Message history: 26 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"config/trading.config.json","start_line":1240,"end_line":1275})
+[REACT] Iteration 13/60
+[REACT] Message history: 28 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"config/trading.config.json","start_line":1650,"end_line":1680})
+[REACT] Iteration 14/60
+[REACT] Message history: 30 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"ogz-meta/specs/TREY-ARCHITECTURE-SPEC-2026-07-02.md","start_line":130,"end_line":160})
+[REACT] Iteration 15/60
+[REACT] Message history: 32 messages
+[REACT] Final answer on iteration 15
+[MERCURY-BRIDGE] Fable adversarial_review skipped: Mercury tool failure makes verdict inconclusive_toolfail
+[MERCURY-BRIDGE] Trace not captured: manual_capture_not_requested
+[MERCURY-BRIDGE] Manual capture mode: rerun with --capture-trace only if this answer should teach trace memory.
+
+═══ ANSWER ═══
+
+**Verdict – incoherent**
+
+The Liquidity‑Sweep implementation does **not** reliably realise the “failed‑break / liquidity‑grab” thesis, its confidence math can auto‑pass votes, its exit geometry does not honour the contract, and the platform wiring silently breaks the strategy’s assumptions.
+
+---
+
+### 1. THESIS → TRIGGER  
+
+*Trigger detection* is performed in `LiquiditySweepDetector._processOpeningCandle` (lines 298‑299) where a **manipulation candle** is accepted only if the candle range exceeds `atrMultiplier × dailyATR`.  No check is made that the candle *failed* a breakout (i.e. that price subsequently reversed).  Consequently any large‑range candle in a trending market will be classified as a manipulation candle, even when the thesis says “no liquidity‑sweep”.  
+
+```
+298‑299  const threshold = this.config.atrMultiplier * dailyATR;
+299      const isManipCandle = range >= threshold;   // any big candle → true
+```
+
+*Missed thesis‑valid case*: a genuine failed‑break that occurs **inside the box** (e.g. a short‑term wick‑only spike that never exceeds the ATR‑scaled threshold) never sets `isManipCandle`, so the strategy never enters a sweep even though the thesis would consider it a liquidity grab.
+
+*Counter‑example*: a 5‑minute bullish candle with range = 4 × ATR (well above the 0.25 × ATR threshold) in a strong up‑trend – the code flags it as a manipulation candle and proceeds to look for a sweep, yet the price never reverses; the thesis would deem this a normal breakout, not a sweep.
+
+*Counter‑example (missed)*: a 1‑minute candle that spikes 1 % above the box high and immediately re‑enters the box (wick‑only). Because the range is < threshold, `isManipCandle` stays false and the sweep is never considered, despite the thesis calling it a failed break.
+
+---
+
+### 2. TRIGGER → DIRECTION  
+
+Direction is derived purely from the **reversal pattern** detected in `_detectReversalPattern` (lines 378‑398).  The function is gated by `exitSide` (lines 378‑398) so that only bullish patterns are examined when the price broke **below** the box and only bearish patterns when it broke **above**.  However, the pattern logic uses the *previous* candle (`prev`) without confirming that `prev` actually belongs to the same session or that the exit side is still valid after a long pause.  A plausible failure:
+
+1. Price breaks above the box (`exitSide = 'above'`).  
+2. Several candles later a *bullish* hammer appears (the code’s hammer check for `exitSide === 'above'` is for an **inverted hammer** only).  
+3. Because the hammer check is mistakenly inverted, the code may still return a hammer‑type signal (`type: 'hammer'`) while `exitSide` is `'above'`.  
+4. `_generateSignal` (lines 412‑415) then forces `direction = 'bullish'` for any hammer, **ignoring** that the exit side indicated a price breakout to the upside.  
+
+```
+378‑398  if (exitSide === 'below') { … bullish patterns … }
+          if (exitSide === 'above') { … bearish patterns … }   // inverted logic
+412‑415  if (pattern.type === 'hammer') { direction = 'bullish'; … }
+          else if (pattern.type === 'inverted_hammer') { direction = 'bearish'; … }
+```
+
+Thus a **bullish hammer** could be emitted after an **upward breakout**, producing a *wrong‑side* entry.
+
+---
+
+### 3. CONFIDENCE MATH  
+
+Confidence starts at the **manip‑candle weight** (default 0.20) and is incremented by several independent weights (lines 423‑427).  Because each weight can be set arbitrarily in the config, the sum can easily exceed 1.0, after which the clamp at line 438 forces the confidence to **1.0** regardless of actual evidence:
+
+```
+423‑427  let confidence = this.config.weights.manipCandle;
+          if (box.validations.sweepsHighs || box.validations.sweepsLows) confidence += this.config.weights.wickSweep;
+          if (box.validations.closesInsideRange) confidence += this.config.weights.sweepReject;
+          if (pattern.type.includes('hammer')) confidence += this.config.weights.hammerPattern;
+          else confidence += this.config.weights.engulfPattern;
+438      confidence = Math.min(1.0, Math.max(0, confidence));
+```
+
+A risk/reward adjustment (lines 429‑435) can *subtract* up to 0.10, but this is never enough to offset a configuration that sets the weights to large values (e.g. `weights.manipCandle = 0.9`).  Consequently a **single weak signal** can be auto‑passed if the config is mis‑tuned, violating the intention that confidence reflect genuine multi‑factor agreement.
+
+---
+
+### 4. EXIT FIT  
+
+The **exit contract** in `config/trading.config.json` (lines 1258‑1265) expects percent‑based SL/TP (`stopLossPercent: -2`, `takeProfitPercent: 2.5`).  The detector, however, builds **absolute price levels** in `_generateSignal` (lines 412‑415) using box geometry and a fixed buffer (`stopBufferPct`).  No conversion to a percentage of entry price occurs, so the generated SL/TP do **not** respect the contract’s percentage semantics:
+
+```
+1258‑1265  "stopLossPercent": -2, "takeProfitPercent": 2.5, …
+412‑415  stopLoss = pattern.wickExtreme * bufDn;   // absolute price
+          takeProfit = box.high;                  // absolute price
+```
+
+Because the contract also mandates `useStructuralExits: true` (line 1263), the strategy should rely on *structural* stop/target levels derived from the box, yet the contract’s percentage fields are ignored, creating a mismatch between the declared exit policy and the actual implementation.
+
+---
+
+### 5. PLATFORM INTERACTION  
+
+*Duplicate feeding*: `CandleProcessor` (line 612) writes a **global** `ctx.liquiditySweepSignal` after feeding the detector:
+
+```
+612  if (shouldUpdateLegacyRoot && this.ctx.liquiditySweep) this.ctx.liquiditySweepSignal = this.ctx.liquiditySweep.feedCandle(candle);
+```
+
+*Orchestrator* creates a **per‑symbol** module via `_getSymbolStrategyModule` (lines 1406‑1410) and calls `feedCandle` on that instance (line 1431).  The two instances are **independent**; the orchestrator’s instance never receives the candle stream that `CandleProcessor` fed to the global detector.  Consequently the orchestrator’s signal may be based on a **stale or empty** internal state, while the platform’s snapshot (`PipelineSnapshot` line 266‑272) reports the global signal:
+
+```
+1406‑1410  const liquiditySweepModule = this.liquiditySweepModule;
+          const scopedLiquiditySweep = this._getSymbolStrategyModule('LiquiditySweep', ctx.extras?.symbol, liquiditySweepModule, () => new LiquiditySweepDetector(...));
+          const sig = scopedLiquiditySweep.feedCandle(latestCandle);
+266‑272   const sig = bot.liquiditySweepSignal || bot.liquiditySweep.getSignal?.() || {};
+```
+
+Thus the **assumption that a single detector instance serves both the orchestrator and the snapshot is broken**, leading to possible mismatches between the reported signal and the one actually evaluated for trade execution.
+
+Additionally, the orchestrator’s **pipeline toggle** for LiquiditySweep (`pipeline.enableLiquiditySweep`) can silently disable the strategy (lines 1906‑1914) without any warning in the snapshot, allowing a market‑condition that satisfies the thesis to be ignored entirely.
+
+---
+
+### Summary of Findings  
+
+| Aspect | Evidence | Issue |
+|--------|----------|-------|
+| Trigger detection | `LiquiditySweepDetector._processOpeningCandle` (298‑299) | No “failed‑break” guard; any large‑range candle fires. |
+| Missed thesis case | Same code – threshold may be too high for wick‑only spikes. |
+| Direction assignment | `_detectReversalPattern` (378‑398) & `_generateSignal` (412‑415) | Hammer logic can mismatch exit side, yielding wrong‑side signals. |
+| Confidence math | `_generateSignal` (423‑427,��429‑435, 438) | Weights can exceed 1.0 → auto‑pass; negative adjustments limited. |
+| Exit contract mismatch | `config/trading.config.json` (1258‑1265) vs. `_generateSignal` (412‑415) | Percent‑based SL/TP never used; absolute geometry used instead. |
+| Platform wiring | `CandleProcessor` (612) vs. orchestrator `_getSymbolStrategyModule` (1406‑1410) & `PipelineSnapshot` (266‑272) | Two independent detector instances; stale state and silent disable via pipeline toggle. |
+
+Because the core detection logic does not enforce the “failed‑break” condition, confidence can be artificially inflated, exit geometry does not follow the declared contract, and the platform feeds the detector inconsistently, the Liquidity‑Sweep strategy **fails to uphold its doctrinal requirements**. Hence the overall system is **incoherent**.
+
+[iterations: 15 | termination: answer_given | latency: 22202ms]
+[answer quality warnings: missing_file_line_citation]
+[tool telemetry: tool_calls=14 | succeeded=13 | failed=1 | tools=list_files:1/1/0, open_file:13/12/1 | files_opened=12 | run_check_artifacts=0 | failed_calls=open_file({"path":"modules/LiquiditySweepDetector.js","start_line":1,"end_line":509}):range too large (max 500 lines per call) | run_checks=none]
+[run ledger: ogz-meta/cognition-history/mercury-runs/2026-07-14.jsonl:5]
+
+═══ FABLE ADVERSARIAL REVIEW ═══
+
+Adversarial review unavailable: skipped: Mercury tool failure makes adversarial review inconclusive_toolfail
+[adversarial_review: claude-code/claude-fable-5]

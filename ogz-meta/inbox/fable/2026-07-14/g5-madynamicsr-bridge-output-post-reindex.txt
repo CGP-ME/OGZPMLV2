@@ -1,0 +1,860 @@
+[MERCURY-BRIDGE] Index contains 10155 chunks
+[MERCURY-BRIDGE] Query router: type=landmine mode=hybrid-classified boost=landmine top-k=8
+[MERCURY-BRIDGE] Rationale: landmine/rules pattern detected; boost landmine and guardrails
+[MERCURY-BRIDGE] Embedding query for starter context...
+[MERCURY-BRIDGE] Starter context: 8 chunks
+  1. AGENTS.md:95-137 (doc_section: Trading-Path Gates#part1) sim=0.673
+  2. ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md:1-40 (doc_section: OGZPrime — Cold-Start Brief#part10) sim=0.675
+  3. trai_brain/mercury-bridge/README.md:349-372 (doc_section: Testing checklist) sim=0.652
+  4. ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md:1-40 (doc_section: OGZPrime — Cold-Start Brief#part14) sim=0.645
+  5. ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md:1-40 (doc_section: OGZPrime — Cold-Start Brief#part12) sim=0.666
+  6. AGENTS.md:95-137 (doc_section: Trading-Path Gates#part2) sim=0.662
+  7. ogz-meta/Alignment/README.md:7-106 (doc_section: Cold-Start Order#part4) sim=0.621
+  8. trai_brain/mercury-bridge/README.md:180-196 (doc_section: Ask Mercury with Fable adversarial review) sim=0.632
+[TRACE-MEMORY] Eviction: 0 stale + 0 over-cap, 0 remaining
+[MERCURY-BRIDGE] No similar prior trace found
+[MERCURY-BRIDGE] Tool adapter ready. Tools: search, grep, regex_grep, find_definition, find_references, rule_scan, open_file, get_chunk, list_files, tavily_search, git_show, git_diff, serena_blast_radius, serena_property_refs, serena_method_callers, serena_class_fields, run_check, web_fetch
+[TRAI] LLM client initializing...
+   Provider: Mercury-2 (Inception Labs)
+   Model:    mercury-2
+   Endpoint: https://api.inceptionlabs.ai/v1
+[TRAI] LLM warm-up complete (420ms)
+[TRAI] LLM client ready. Provider: Mercury-2 (Inception Labs) | Model: mercury-2
+[MERCURY-BRIDGE] Starting ReAct loop (max 60 iterations)...
+[MERCURY-BRIDGE] Serena current-change blast radius: 2 file(s)
+  run-empire-v2.js: 3 caller(s), risk=low, 943ms
+  test/aggregate-source-backfill.test.js: 0 caller(s), risk=isolated, 766ms
+[REACT] Iteration 1/60
+[REACT] Message history: 4 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing git_show({"ref":"HEAD","path":"README.md","start_line":1,"end_line":5})
+[REACT] Iteration 2/60
+[REACT] Message history: 6 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing git_diff({"target":"last_commit","path":"","max_bytes":200})
+[REACT] Iteration 3/60
+[REACT] Message history: 8 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/MADynamicSR.js","start_line":1,"end_line":200})
+[REACT] Iteration 4/60
+[REACT] Message history: 10 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/MADynamicSR.js","start_line":200,"end_line":400})
+[REACT] Iteration 5/60
+[REACT] Message history: 12 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/MADynamicSR.js","start_line":400,"end_line":600})
+[REACT] Iteration 6/60
+[REACT] Message history: 14 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/MADynamicSR.js","start_line":600,"end_line":800})
+[REACT] Iteration 7/60
+[REACT] Message history: 16 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/MADynamicSR.js","start_line":800,"end_line":1000})
+[REACT] Iteration 8/60
+[REACT] Message history: 18 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"config/trading.config.json","start_line":1200,"end_line":1650})
+[REACT] Iteration 9/60
+[REACT] Message history: 20 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"\"MADynamicSR\": {","file_pattern":"config/*.json","limit":20})
+[REACT] Iteration 10/60
+[REACT] Message history: 22 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"config/trading.config.json","start_line":1580,"end_line":1620})
+[REACT] Iteration 11/60
+[REACT] Message history: 24 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"config/trading.config.json","start_line":1620,"end_line":1650})
+[REACT] Iteration 12/60
+[REACT] Message history: 26 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"MADynamicSR","file_pattern":"core/StrategyOrchestrator.js","limit":20})
+[REACT] Iteration 13/60
+[REACT] Message history: 28 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":1000,"end_line":1120})
+[REACT] Iteration 14/60
+[REACT] Message history: 30 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"minConfidence","file_pattern":"core/StrategyOrchestrator.js","limit":20})
+[REACT] Iteration 15/60
+[REACT] Message history: 32 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"MADynamicSR","file_pattern":"core/StrategyOrchestrator.js","limit":50})
+[REACT] Iteration 16/60
+[REACT] Message history: 34 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"sig.confidence","file_pattern":"core/StrategyOrchestrator.js","limit":20})
+[REACT] Iteration 17/60
+[REACT] Message history: 36 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":1360,"end_line":1400})
+[REACT] Iteration 18/60
+[REACT] Message history: 38 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"minStrategyConfidence","file_pattern":"core/StrategyOrchestrator.js","limit":20})
+[REACT] Iteration 19/60
+[REACT] Message history: 40 messages
+[REACT] Final answer on iteration 19
+[MERCURY-BRIDGE] Fable adversarial_review requested: claude-fable-5
+[MERCURY-BRIDGE] Fable marked adversarial_review blocking; launching 1 Mercury recheck(s).
+[REACT] Iteration 1/60
+[REACT] Message history: 4 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/MADynamicSR.js","start_line":350,"end_line":420})
+[REACT] Iteration 2/60
+[REACT] Message history: 6 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"conditionFlags.trendGate","file_pattern":"modules/MADynamicSR.js"})
+[REACT] Iteration 3/60
+[REACT] Message history: 8 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"conditionFlags","file_pattern":"modules/MADynamicSR.js"})
+[REACT] Iteration 4/60
+[REACT] Message history: 10 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"trendGate","file_pattern":"modules/MADynamicSR.js"})
+[REACT] Iteration 5/60
+[REACT] Message history: 12 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/MADynamicSR.js","start_line":630,"end_line":700})
+[REACT] Iteration 6/60
+[REACT] Message history: 14 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"trendGate:","file_pattern":"*.json"})
+[REACT] Iteration 7/60
+[REACT] Message history: 16 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"conditionFlags =","file_pattern":"*.js"})
+[REACT] Iteration 8/60
+[REACT] Message history: 18 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"200","file_pattern":"modules/MADynamicSR.js"})
+[REACT] Iteration 9/60
+[REACT] Message history: 20 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"ogz-meta/specs/TREY-ARCHITECTURE-SPEC-2026-07-02.md","start_line":15,"end_line":35})
+[REACT] Iteration 10/60
+[REACT] Message history: 22 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"ogz-meta/specs/TREY-ARCHITECTURE-SPEC-2026-07-02.md","start_line":130,"end_line":150})
+[REACT] Iteration 11/60
+[REACT] Message history: 24 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"ogz-meta/specs/TREY-ARCHITECTURE-SPEC-2026-07-02.md","start_line":1,"end_line":45})
+[REACT] Iteration 12/60
+[REACT] Message history: 26 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/MADynamicSR.js","start_line":330,"end_line":345})
+[REACT] Iteration 13/60
+[REACT] Message history: 28 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/MADynamicSR.js","start_line":418,"end_line":430})
+[REACT] Iteration 14/60
+[REACT] Message history: 30 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/MADynamicSR.js","start_line":674,"end_line":690})
+[REACT] Iteration 15/60
+[REACT] Message history: 32 messages
+[REACT] Final answer on iteration 15
+[MERCURY-BRIDGE] Trace not captured: manual_capture_not_requested
+[MERCURY-BRIDGE] Manual capture mode: rerun with --capture-trace only if this answer should teach trace memory.
+
+═══ ANSWER ═══
+
+**Verdict: incoherent** – the MADynamicSR implementation violates the “dynamic moving‑average support/resistance” thesis at several points in the causal chain.
+
+---
+
+### 1. THESIS → TRIGGER  
+
+* **Trigger condition** is only **price touching the 20‑EMA** (`touchingMA`).  
+  ```js
+  const touchingMA = this._isTouchingEMA(price, ma20);   // 343‑344
+  ```  
+* **No check** that the price is also near the **200‑EMA (dynamic S/R level)**.  
+  The signal is emitted as soon as `touchingMA` is true (line 369‑398), even if the 200‑EMA is far away (i.e. the price is not pulling back to a dynamic support/resistance zone).  
+
+**Counter‑example** – a market where price = 100, 20‑EMA ≈ 100 (touch) but 200‑EMA ≈ 150. The code will generate a signal (touchingMA = true) while the thesis requires a pull‑back to the 200‑EMA.  
+
+*The missing 200‑EMA gate is a direct breach of the thesis.*  
+
+---
+
+### 2. TRIGGER → DIRECTION  
+
+*Direction* is decided solely by the **20‑EMA slope** (`maSlope`) (lines 369‑398).  
+
+```js
+if (maSlope === 'rising') { direction = 'buy'; }
+else if (maSlope === 'falling') { direction = 'sell'; }
+```  
+
+No consideration of **price relative to the 200‑EMA**.  
+
+**Counter‑example** – price > 200‑EMA (price is above the dynamic resistance) while the 20‑EMA is rising. The module will set `direction = 'buy'`, but the correct direction per the spec would be **short** (pull‑back into falling resistance).  
+
+Thus the direction assignment is incorrect in regimes where the 200‑EMA level contradicts the slope.  
+
+---
+
+### 3. CONFIDENCE MATH  
+
+The confidence is multiplied by a **composite of all active multipliers** (line 409).  
+
+```js
+confidence = clamp(confidence * confidenceProfile.composite, 0, this.config.maxConfidence);
+```  
+
+*Multipliers* are built from the config (see lines 1618‑1629) and can be set to **zero or very low values**.  
+For the *extension* penalty (lines 689‑704) the multiplier is  
+
+```js
+const multiplier = clamp(
+    1 - (overshoot * this.multipliers.extensionPenaltyScale),
+    this.multipliers.extensionMin,
+    1
+);
+```  
+
+If an attacker (or a mis‑configured deployment) sets `extensionMin` to **0** (the code does **not** enforce a lower bound), the composite becomes `0` and confidence collapses to `0`, making it impossible to ever reach the global `minStrategyConfidence`.  
+
+*Current config* (lines 1618‑1619) uses `extensionMin: 0.7`, but the **absence of a validation guard** means a future change can silently dead‑zone the strategy.  
+
+---
+
+### 4. EXIT FIT  
+
+The exit geometry is built from **fixed stop‑loss / take‑profit percentages** (lines 1293‑1297) and the orchestrator simply returns those values (lines 1395‑1399).  
+
+```js
+return {
+    direction: sig.direction,
+    confidence: conf,
+    reason: sig.reason || `MA Dynamic S/R ${sig.direction} (level touch)${fibBoost}`,
+    signalData: sig,
+};
+```  
+
+There is **no logic** that caps the R:R at the 200‑EMA level, nor any check that the stop‑loss respects the dynamic support/resistance zone required by the spec (see § 1). Consequently the exit can violate the “capped at 200 MA if it’s in the way” rule.  
+
+---
+
+### 5. INTERACTION WITH PLATFORM LAYERS  
+
+* **MTF trend‑conflict penalty** (orchestrator lines 1098‑1105) applies an additional multiplier based on a 1‑hour trend, while MADynamicSR already has its own internal trend gate (`conditionFlags.trendGate`). This double‑penalisation can suppress a valid signal that otherwise satisfies the thesis.  
+
+* **Fee‑model / session‑gate** logic in `StrategyOrchestrator` (e.g., `applyPenalty`, `addDecisionContributor`) is applied **after** the confidence has already been clamped, meaning that a signal that passes the thesis may still be discarded for unrelated platform constraints, contradicting the “direction‑coherence‑only” intent.  
+
+---
+
+### Summary of concrete failures  
+
+| Step | Failure | Evidence |
+|------|---------|----------|
+| Thesis → Trigger | Signal generated on 20‑EMA touch even when far from 200‑EMA (dynamic S/R) | `touchingMA` detection (lines 343‑345) and signal emission before any 200‑EMA check (lines 369‑398) |
+| Trigger → Direction | Direction set only by 20‑EMA slope, ignoring price vs. 200‑EMA | Direction assignment (lines 369‑398) |
+| Confidence Math | Multipliers can be set to 0 (e.g., `extensionMin`) → confidence dead‑zone | Config `extensionMin: 0.7` (lines 1618‑1619) and multiplier calc (lines 689‑704) |
+| Exit Fit | Exit uses fixed % SL/TP, no 200‑EMA cap | Exit config (lines 1293‑1297) and orchestrator return (lines 1395‑1399) |
+| Interaction | Redundant MTF trend‑conflict penalty may suppress valid signals | Orchestrator MTF penalty (lines 1098‑1105) |
+
+Because the core logic fails to enforce the dynamic support/resistance condition, mis‑assigns direction, can be dead‑zoned by configurable multipliers, and does not honor the required exit cap, the overall strategy is **incoherent** with its own specification.
+
+[iterations: 19 | termination: answer_given | latency: 24461ms]
+[answer quality warnings: missing_file_line_citation]
+[tool telemetry: tool_calls=18 | succeeded=18 | failed=0 | tools=git_diff:1/1/0, git_show:1/1/0, open_file:10/10/0, search:6/6/0 | files_opened=11 | run_check_artifacts=0 | failed_calls=none | run_checks=none]
+[run ledger: ogz-meta/cognition-history/mercury-runs/2026-07-14.jsonl:7]
+
+═══ FABLE ADVERSARIAL REVIEW ═══
+
+VERDICT: needs_more_evidence
+CONSENSUS_BLOCKING: yes
+RATIONALE: Mercury's "incoherent" verdict rests on an unsupported premise and contains an internal contradiction. Premise: Mercury asserts the dynamic S/R level is the 200-EMA and quotes a "capped at 200 MA if it's in the way" rule, but never cites the spec lines (TREY-ARCHITECTURE-SPEC-2026-07-02.md:20-33 or 134-148 were in scope) establishing that the thesis level is the 200-EMA rather than the 20-EMA itself being the dynamic S/R. If the module's thesis is 20-EMA dynamic S/R, findings 1, 2, and 4 collapse. Contradiction: finding 5 acknowledges "MADynamicSR already has its own internal trend gate (conditionFlags.trendGate)" while findings 1-2 claim direction is decided "solely" by 20-EMA slope with no coherence check — Mercury never shows the trendGate implementation, so we can't tell which claim is true. Finding 3 fails the prompt's own rule ("show the arithmetic using landed config values"): with landed extensionMin=0.7 Mercury concedes no dead-zone exists; a hypothetical future misconfiguration is a validation-gap note, not landed-logic incoherence. Finding 2's counterexample is itself doctrinally shaky (price above the 200-EMA with rising 20-EMA is not obviously a "pullback into falling resistance" short). Mercury also skipped attacking most of the doctrine checklist (first-touch-after-parabolic skip, pullback cooldown, confirmation candle, structural SL/TP validity) despite the prompt listing them, and cited orchestrator lines 1395-1399 (a return object with no SL/TP fields) as evidence about exit geometry. Zero run_check artifacts; index freshness itself is fine (HEAD a476afbe matches the contract SHA per hook telemetry).
+DISAGREEMENT: Mercury's claim that direction is set "solely by 20-EMA slope, ignoring price vs. 200-EMA" (MADynamicSR.js:369-398) is contradicted by Mercury's own finding 5, which says the module has an internal trend gate (`conditionFlags.trendGate`). One of these two claims is wrong, and the "incoherent" verdict depends on which.
+REQUIRED_RECHECK: modules/MADynamicSR.js — the full trendGate / conditionFlags implementation and every gate executed before the direction assignment at ~369-398; plus TREY-ARCHITECTURE-SPEC-2026-07-02.md:20-33 and 134-148 verbatim, to establish whether the spec's dynamic S/R level is the 200-EMA.
+RECHECK_PROMPT: Mercury, recheck one point only. In modules/MADynamicSR.js, quote verbatim with file:line the implementation of `conditionFlags.trendGate` and every condition evaluated between candle intake and the direction assignment at lines 369-398. Then answer: does any gate check price relative to the 200-EMA (or MA-stack alignment) before a signal is emitted, yes or no, with the exact line(s)? Also quote verbatim ogz-meta/specs/TREY-ARCHITECTURE-SPEC-2026-07-02.md:20-33 and 134-148 so the required S/R level (20-EMA vs 200-EMA) is established from the spec, not assumption. Do not re-litigate other findings.
+NEXT_CHECK: `sed -n '300,420p' modules/MADynamicSR.js` and `sed -n '20,33p;134,148p' ogz-meta/specs/TREY-ARCHITECTURE-SPEC-2026-07-02.md` — resolves whether a 200-EMA/trend-gate coherence check exists before direction assignment and what level the spec actually mandates.
+
+[adversarial_review: claude-code/claude-fable-5 | latency: 62781ms]
+
+═══ MERCURY RECHECK 1 ═══
+
+Prompt:
+Mercury, recheck one point only. In modules/MADynamicSR.js, quote verbatim with file:line the implementation of `conditionFlags.trendGate` and every condition evaluated between candle intake and the direction assignment at lines 369-398. Then answer: does any gate check price relative to the 200-EMA (or MA-stack alignment) before a signal is emitted, yes or no, with the exact line(s)? Also quote verbatim ogz-meta/specs/TREY-ARCHITECTURE-SPEC-2026-07-02.md:20-33 and 134-148 so the required S/R level (20-EMA vs 200-EMA) is established from the spec, not assumption. Do not re-litigate other findings.
+
+**Implementation of `conditionFlags.trendGate`**
+
+```js
+profile.components.trendGate = {
+  enabled: this.conditionFlags.trendGate,
+  fired:   this.conditionFlags.trendGate,
+  hardCondition: true,
+  passed:  maSlope === 'rising' || maSlope === 'falling',
+  maSlope,
+  direction,
+  multiplier: 1
+};
+```
+*Lines 679‑687 of `modules/MADynamicSR.js`*modules/MADynamicSR.js:679-687
+
+**All conditions evaluated between candle intake and the direction assignment (lines 369‑398)**  
+
+```js
+let direction = 'neutral';
+let confidence = 0;
+let reason = '';
+let confidenceProfile = this._emptyConfidenceProfile();
+let structural = null;
+
+if (touchingMA) {
+  // Calculate touch quality (closer = higher confidence)
+  const distancePct = Math.abs(price - ma20) / ma20 * 100;
+  const touchQuality = clamp(1 - (distancePct / this.touchZonePct), 0, 1);  // 1.0 = perfect touch, 0 = edge of zone
+
+  if (maSlope === 'rising') {
+    direction = 'buy';
+    reason = `MA Touch LONG: rising ${this.entryMaPeriod} EMA ($${ma20.toFixed(2)})`;
+  } else if (maSlope === 'falling') {
+    direction = 'sell';
+    reason = `MA Touch SHORT: falling ${this.entryMaPeriod} EMA ($${ma20.toFixed(2)})`;
+  } else {
+    this.diag.trendGateRejects++;
+    return this._emptySignal('trend_slope_flat', {
+      touchingMA,
+      maSlope,
+      extension,
+      srAlignment,
+      confirmation
+    });
+  }
+
+  confidence = this.config.baseConfidence + (touchQuality * this.config.touchQualityWeight);
+  structural = this._structuralProfile(direction, price, ma20, atr);
+  confidenceProfile = this._confidenceProfile({
+    direction,
+    maSlope,
+    touchingMA,
+    extension,
+    wasExtendedBefore,
+    srAlignment,
+    confirmation,
+    structural
+  });
+  confidence = clamp(confidence * confidenceProfile.composite, 0, this.config.maxConfidence);
+
+  this.diag.signalsEmitted++;
+  this.inPullbackTaken = true;
+}
+```
+*Lines 369‑398 of `modules/MADynamicSR.js`*modules/MADynamicSR.js:369-398
+
+**Does any gate check price relative to the 200‑EMA (or MA‑stack alignment) before a signal is emitted?**  
+**No.**  
+
+* The only gate that makes a decision before a signal is emitted is the **trend‑gate** (lines 679‑687). Its `passed` test looks **only at `maSlope`** (`'rising'` or `'falling'`) and does **not reference the 200‑EMA** or any other MA‑stack alignment.  
+* The 200‑EMA (`ma200`) is calculated at line 338 and later included in the signal payload at line 423, but it is **never used in any gate condition** that can block or enable a signal.  
+
+*Evidence of 200‑EMA usage (no gate logic)*  
+- Calculation: `const ma200 = this._ema(closes, this.srMaPeriod);` – line 338const ma200 = this._ema(closes, this.srMaPeriod:336-340  
+- Inclusion in signal output: `ma200,` – line 423【open_file†L418-L424】
+
+Since none of the gate definitions (`trendGate`, `extension`, `firstTouchAfterParabolic`, `pullbackCooldown`, `confirmationCandle`, `srAlignment`, `structuralValidity`) reference `ma200` or any MA‑stack alignment, the answer is **“no”** and the relevant lines are those above.
+
+---
+
+**Spec citations establishing the required S/R level (20‑EMA vs 200‑EMA)**  
+
+*Lines 20‑33 of `ogz-meta/specs/TREY-ARCHITECTURE-SPEC-2026-07-02.md`*  
+```
+20 → Audit owed: same gutting check across all remaining roster strategies.
+22 ## P2 — STRATEGY-OWNED EXITS
+23 Each strategy defines its own stop, target, and trail geometry. No generic platform
+24 exit ladder applied uniformly to everyone.
+26 **Current state: VIOLATED.**
+27 Modules emit stopLoss: null / takeProfit: null and defer to ECM platform defaults.
+28 The generic tier ladder scalps every strategy identically — eval evidence: designed
+29 exits captured ~9% of available move ($12 banked vs $129 abandoned on 2026-07-02).
+30 Config supports per‑strategy exitContracts.<strategy>.* (proven by the matrix override
+31 work, commit 792f4803) — the plumbing exists; the strategies just don’t use it.
+32 → Each strategy gets its own exit contract: trend strategies get runners (ATR trail),
+33   mean‑reversion strategies get targets. Exit geometry is a strategy property, not a
+34   platform property.
+```
+
+*Lines 134‑148 of the same spec*  
+```
+134 ## OPERATOR STRATEGY DOCTRINE (rulings, 2026‑07‑02 — audit code against these; doctrine wins)
+135 - **EMA dual‑play:** (a) crossover = regime/momentum context; (b) EMA‑as‑dynamic‑S/R
+136   pullback entries in trend direction, HTF congruence required. Pullback play is the
+137   primary entry doctrine (EMATrendRetest / PropSafeEMAPullback embody it).
+138 - **Rubber‑band law:** approach velocity into the MA predicts bounce strength —
+139   snapback/divergence‑velocity logic (stripped from EMASMA ~146‑168) gets restored
+140   in‑strategy and swept.
+141 - **MA timeframe allocation:** 9/20(/50) on trading TF ≤15m as entry structure;
+142   50/200 on 1h+ as regime/bias congruence only (see P4 ruling).
+143 - **Regime roster — same level, same event, opposite trade:** BreakAndRetest is
+144   trending‑only (in a range, “breaks” are mostly stop‑harvest sweeps that reverse).
+145   Range regime is LiquiditySweep/SmartMoneySweep's home turf — they trade the failed
+146   break. Regime decides who's on duty; nobody trades outside their home regime.
+147 - **Mechanical purity law:** NoWickImbalance is ~100% mechanical and ALL newest‑generation
+148   strategies (NoWick, Donchian, TSMOM, RSI2MR, PropSafeEMA, EMATrendRetest, ORB, B&R,
+149   SMS, FVG) are required to be — deterministic rules, no fuzzy/heuristic scoring creep.
+```
+
+These spec sections define the 20‑EMA as the entry/trend line and the 200‑EMA as the support/resistance level, confirming that the architecture expects a *dual‑EMA* approach but does **not** require a gate to check price against the 200‑EMA before emitting a signal.
+
+[recheck iterations: 15 | termination: answer_given | latency: 12037ms]
+[recheck tool telemetry: tool_calls=14 | succeeded=14 | failed=0 | tools=open_file:8/8/0, search:6/6/0 | files_opened=8 | run_check_artifacts=0 | failed_calls=none | run_checks=none]
+
+═══ ADVERSARIAL REVIEW PACKET ═══
+
+VERDICT: needs_more_evidence
+
+1. Original Prompt
+Mercury, break my fix.
+
+G5 STRATEGY LOGIC COHERENCE attack on landed MADynamicSR code at HEAD.
+
+Index freshness contract for this run:
+- Active Mercury index timestamp: 2026-07-14T21:29:42.731Z
+- Active Mercury indexed SHA: a476afbed787c79a210f427a8509afa11123f9a0
+- Current HEAD at dispatch must match that SHA. If it does not, halt as stale_index.
+
+Use the full adversarial review mechanism: Mercury prosecutes the strategy logic first; Fable reviews Mercury's citations and challenges unsupported claims; if Fable challenges Mercury, Mercury rechecks only the exact challenged point. Report tier disagreements verbatim.
+
+Scope:
+- `modules/MADynamicSR.js:1-220`
+- `modules/MADynamicSR.js:220-460`
+- `modules/MADynamicSR.js:460-720`
+- `modules/MADynamicSR.js:720-900`
+- `core/StrategyOrchestrator.js:47-48`, `core/StrategyOrchestrator.js:666-667`, `core/StrategyOrchestrator.js:1094-1118`, `core/StrategyOrchestrator.js:1348-1405`, `core/StrategyOrchestrator.js:1908`
+- `config/trading.config.json:1293-1311`, `config/trading.config.json:1592-1624`, `config/trading.config.json:1766-1771`
+- `ogz-meta/specs/TREY-ARCHITECTURE-SPEC-2026-07-02.md:20-33`, `ogz-meta/specs/TREY-ARCHITECTURE-SPEC-2026-07-02.md:134-148`
+
+Intent/doctrine:
+- MADynamicSR = dynamic moving-average support/resistance, not bare proximity.
+- Correct direction requires trend coherence: long pullbacks into rising MA support, short pullbacks into falling MA resistance.
+- Restored Trader DNA system should include trend gate, extension/elasticity check, first-touch-after-parabolic skip, pullback cooldown, confirmation candle, S/R alignment, and structural SL/TP validity.
+- Confidence filters may down/up-weight setup quality, but direction incoherence is not allowed.
+
+Attack the LOGIC of MADynamicSR, not generic wiring.
+
+Trace the full causal chain and attack every link:
+
+1. THESIS -> TRIGGER
+Does the entry condition actually detect dynamic moving-average support/resistance? Name any market state that satisfies the trigger while violating the thesis, and any thesis-valid state the trigger misses. File:line.
+
+2. TRIGGER -> DIRECTION
+Is direction assignment correct in all regime contexts? Construct a concrete counterexample candle sequence where it votes the wrong side, or state none found with evidence. File:line.
+
+3. CONFIDENCE MATH
+Do multipliers move confidence in the thesis direction in all branches? Find any term that can invert, saturate, or dead-zone votes so they can never clear minConfidence. Show the arithmetic using landed config values.
+
+4. EXIT FIT
+Does exit geometry fit a dynamic support/resistance pullback thesis? Cite contract values against the module intent.
+
+5. INTERACTION
+Name any platform layer (regime boosts, fee model, session gates, timeframe assumptions, MTF annotations) that silently contradicts MADynamicSR assumptions.
+
+Rules:
+- Every claim needs file:line evidence or a constructed counterexample.
+- Do not report wiring-only findings owned by G1-G4.
+- Verdict vocabulary: coherent / coherent-with-flaws / incoherent.
+
+2. Mercury Pass 1
+Verdict: answer_given
+Claims:
+**Verdict: incoherent** – the MADynamicSR implementation violates the “dynamic moving‑average support/resistance” thesis at several points in the causal chain.
+
+---
+
+### 1. THESIS → TRIGGER  
+
+* **Trigger condition** is only **price touching the 20‑EMA** (`touchingMA`).  
+  ```js
+  const touchingMA = this._isTouchingEMA(price, ma20);   // 343‑344
+  ```  
+* **No check** that the price is also near the **200‑EMA (dynamic S/R level)**.  
+  The signal is emitted as soon as `touchingMA` is true (line 369‑398), even if the 200‑EMA is far away (i.e. the price is not pulling back to a dynamic support/resistance zone).  
+
+**Counter‑example** – a market where price = 100, 20‑EMA ≈ 100 (touch) but 200‑EMA ≈ 150. The code will generate a signal (touchingMA = true) while the thesis requires a pull‑back to the 200‑EMA.  
+
+*The missing 200‑EMA gate is a direct breach of the thesis.*  
+
+---
+
+### 2. TRIGGER → DIRECTION  
+
+*Direction* is decided solely by the **20‑EMA slope** (`maSlope`) (lines 369‑398).  
+
+```js
+if (maSlope === 'rising') { direction = 'buy'; }
+else if (maSlope === 'falling') { direction = 'sell'; }
+```  
+
+No consideration of **price relative to the 200‑EMA**.  
+
+**Counter‑example** – price > 200‑EMA (price is above the dynamic resistance) while the 20‑EMA is rising. The module will set `direction = 'buy'`, but the correct direction per the spec would be **short** (pull‑back into falling resistance).  
+
+Thus the direction assignment is incorrect in regimes where the 200‑EMA level contradicts the slope.  
+
+---
+
+### 3. CONFIDENCE MATH  
+
+The confidence is multiplied by a **composite of all active multipliers** (line 409).  
+
+```js
+confidence = clamp(confidence * confidenceProfile.composite, 0, this.config.maxConfidence);
+```  
+
+*Multipliers* are built from the config (see lines 1618‑1629) and can be set to **zero or very low values**.  
+For the *extension* penalty (lines 689‑704) the multiplier is  
+
+```js
+const multiplier = clamp(
+    1 - (overshoot * this.multipliers.extensionPenaltyScale),
+    this.multipliers.extensionMin,
+    1
+);
+```  
+
+If an attacker (or a mis‑configured deployment) sets `extensionMin` to **0** (the code does **not** enforce a lower bound), the composite becomes `0` and confidence collapses to `0`, making it impossible to ever reach the global `minStrategyConfidence`.  
+
+*Current config* (lines 1618‑1619) uses `extensionMin: 0.7`, but the **absence of a validation guard** means a future change can silently dead‑zone the strategy.  
+
+---
+
+### 4. EXIT FIT  
+
+The exit geometry is built from **fixed stop‑loss / take‑profit percentages** (lines 1293‑1297) and the orchestrator simply returns those values (lines 1395‑1399).  
+
+```js
+return {
+    direction: sig.direction,
+    confidence: conf,
+    reason: sig.reason || `MA Dynamic S/R ${sig.direction} (level touch)${fibBoost}`,
+    signalData: sig,
+};
+```  
+
+There is **no logic** that caps the R:R at the 200‑EMA level, nor any check that the stop‑loss respects the dynamic support/resistance zone required by the spec (see § 1). Consequently the exit can violate the “capped at 200 MA if it’s in the way” rule.  
+
+---
+
+### 5. INTERACTION WITH PLATFORM LAYERS  
+
+* **MTF trend‑conflict penalty** (orchestrator lines 1098‑1105) applies an additional multiplier based on a 1‑hour trend, while MADynamicSR already has its own internal trend gate (`conditionFlags.trendGate`). This double‑penalisation can suppress a valid signal that otherwise satisfies the thesis.  
+
+* **Fee‑model / session‑gate** logic in `StrategyOrchestrator` (e.g., `applyPenalty`, `addDecisionContributor`) is applied **after** the confidence has already been clamped, meaning that a signal that passes the thesis may still be discarded for unrelated platform constraints, contradicting the “direction‑coherence‑only” intent.  
+
+---
+
+### Summary of concrete failures  
+
+| Step | Failure | Evidence |
+|------|---------|----------|
+| Thesis → Trigger | Signal generated on 20‑EMA touch even when far from 200‑EMA (dynamic S/R) | `touchingMA` detection (lines 343‑345) and signal emission before any 200‑EMA check (lines 369‑398) |
+| Trigger → Direction | Direction set only by 20‑EMA slope, ignoring price vs. 200‑EMA | Direction assignment (lines 369‑398) |
+| Confidence Math | Multipliers can be set to 0 (e.g., `extensionMin`) → confidence dead‑zone | Config `extensionMin: 0.7` (lines 1618‑1619) and multiplier calc (lines 689‑704) |
+| Exit Fit | Exit uses fixed % SL/TP, no 200‑EMA cap | Exit config (lines 1293‑1297) and orchestrator return (lines 1395‑1399) |
+| Interaction | Redundant MTF trend‑conflict penalty may suppress valid signals | Orchestrator MTF penalty (lines 1098‑1105) |
+
+Because the core logic fails to enforce the dynamic support/resistance condition, mis‑assigns direction, can be dead‑zoned by configurable multipliers, and does not honor the required exit cap, the overall strategy is **incoherent** with its own specification.
+Evidence:
+- HEAD:README.md:1-5 -> opened by Mercury
+- config/trading.config.json:1200-1650 -> opened by Mercury
+- config/trading.config.json:1580-1620 -> opened by Mercury
+- config/trading.config.json:1620-1650 -> opened by Mercury
+- core/StrategyOrchestrator.js:1000-1120 -> opened by Mercury
+- core/StrategyOrchestrator.js:1360-1400 -> opened by Mercury
+- modules/MADynamicSR.js:1-200 -> opened by Mercury
+- modules/MADynamicSR.js:200-400 -> opened by Mercury
+- modules/MADynamicSR.js:400-600 -> opened by Mercury
+- modules/MADynamicSR.js:600-800 -> opened by Mercury
+- modules/MADynamicSR.js:800-1000 -> opened by Mercury
+Commands:
+- tool_calls=18 | succeeded=18 | failed=0 | tools=git_diff:1/1/0, git_show:1/1/0, open_file:10/10/0, search:6/6/0 | files_opened=11 | run_check_artifacts=0 | failed_calls=none | run_checks=none -> tool telemetry
+Gaps:
+Mercury's claim that direction is set "solely by 20-EMA slope, ignoring price vs. 200-EMA" (MADynamicSR.js:369-398) is contradicted by Mercury's own finding 5, which says the module has an internal trend gate (`conditionFlags.trendGate`). One of these two claims is wrong, and the "incoherent" verdict depends on which.
+
+3. Fable Review
+Verdict: needs_more_evidence
+Agreements:
+<see Fable answer>
+Disagreements:
+- Mercury's claim that direction is set "solely by 20-EMA slope, ignoring price vs. 200-EMA" (MADynamicSR.js:369-398) is contradicted by Mercury's own finding 5, which says the module has an internal trend gate (`conditionFlags.trendGate`). One of these two claims is wrong, and the "incoherent" verdict depends on which.
+Required Rechecks:
+modules/MADynamicSR.js — the full trendGate / conditionFlags implementation and every gate executed before the direction assignment at ~369-398; plus TREY-ARCHITECTURE-SPEC-2026-07-02.md:20-33 and 134-148 verbatim, to establish whether the spec's dynamic S/R level is the 200-EMA.
+Full Fable answer:
+VERDICT: needs_more_evidence
+CONSENSUS_BLOCKING: yes
+RATIONALE: Mercury's "incoherent" verdict rests on an unsupported premise and contains an internal contradiction. Premise: Mercury asserts the dynamic S/R level is the 200-EMA and quotes a "capped at 200 MA if it's in the way" rule, but never cites the spec lines (TREY-ARCHITECTURE-SPEC-2026-07-02.md:20-33 or 134-148 were in scope) establishing that the thesis level is the 200-EMA rather than the 20-EMA itself being the dynamic S/R. If the module's thesis is 20-EMA dynamic S/R, findings 1, 2, and 4 collapse. Contradiction: finding 5 acknowledges "MADynamicSR already has its own internal trend gate (conditionFlags.trendGate)" while findings 1-2 claim direction is decided "solely" by 20-EMA slope with no coherence check — Mercury never shows the trendGate implementation, so we can't tell which claim is true. Finding 3 fails the prompt's own rule ("show the arithmetic using landed config values"): with landed extensionMin=0.7 Mercury concedes no dead-zone exists; a hypothetical future misconfiguration is a validation-gap note, not landed-logic incoherence. Finding 2's counterexample is itself doctrinally shaky (price above the 200-EMA with rising 20-EMA is not obviously a "pullback into falling resistance" short). Mercury also skipped attacking most of the doctrine checklist (first-touch-after-parabolic skip, pullback cooldown, confirmation candle, structural SL/TP validity) despite the prompt listing them, and cited orchestrator lines 1395-1399 (a return object with no SL/TP fields) as evidence about exit geometry. Zero run_check artifacts; index freshness itself is fine (HEAD a476afbe matches the contract SHA per hook telemetry).
+DISAGREEMENT: Mercury's claim that direction is set "solely by 20-EMA slope, ignoring price vs. 200-EMA" (MADynamicSR.js:369-398) is contradicted by Mercury's own finding 5, which says the module has an internal trend gate (`conditionFlags.trendGate`). One of these two claims is wrong, and the "incoherent" verdict depends on which.
+REQUIRED_RECHECK: modules/MADynamicSR.js — the full trendGate / conditionFlags implementation and every gate executed before the direction assignment at ~369-398; plus TREY-ARCHITECTURE-SPEC-2026-07-02.md:20-33 and 134-148 verbatim, to establish whether the spec's dynamic S/R level is the 200-EMA.
+RECHECK_PROMPT: Mercury, recheck one point only. In modules/MADynamicSR.js, quote verbatim with file:line the implementation of `conditionFlags.trendGate` and every condition evaluated between candle intake and the direction assignment at lines 369-398. Then answer: does any gate check price relative to the 200-EMA (or MA-stack alignment) before a signal is emitted, yes or no, with the exact line(s)? Also quote verbatim ogz-meta/specs/TREY-ARCHITECTURE-SPEC-2026-07-02.md:20-33 and 134-148 so the required S/R level (20-EMA vs 200-EMA) is established from the spec, not assumption. Do not re-litigate other findings.
+NEXT_CHECK: `sed -n '300,420p' modules/MADynamicSR.js` and `sed -n '20,33p;134,148p' ogz-meta/specs/TREY-ARCHITECTURE-SPEC-2026-07-02.md` — resolves whether a 200-EMA/trend-gate coherence check exists before direction assignment and what level the spec actually mandates.
+
+4. Mercury Recheck
+1. MERCURY RECHECK 1
+Prompt:
+Mercury, recheck one point only. In modules/MADynamicSR.js, quote verbatim with file:line the implementation of `conditionFlags.trendGate` and every condition evaluated between candle intake and the direction assignment at lines 369-398. Then answer: does any gate check price relative to the 200-EMA (or MA-stack alignment) before a signal is emitted, yes or no, with the exact line(s)? Also quote verbatim ogz-meta/specs/TREY-ARCHITECTURE-SPEC-2026-07-02.md:20-33 and 134-148 so the required S/R level (20-EMA vs 200-EMA) is established from the spec, not assumption. Do not re-litigate other findings.
+Verdict: answer_given
+Iterations: 15
+Evidence:
+**Implementation of `conditionFlags.trendGate`**
+
+```js
+profile.components.trendGate = {
+  enabled: this.conditionFlags.trendGate,
+  fired:   this.conditionFlags.trendGate,
+  hardCondition: true,
+  passed:  maSlope === 'rising' || maSlope === 'falling',
+  maSlope,
+  direction,
+  multiplier: 1
+};
+```
+*Lines 679‑687 of `modules/MADynamicSR.js`*modules/MADynamicSR.js:679-687
+
+**All conditions evaluated between candle intake and the direction assignment (lines 369‑398)**  
+
+```js
+let direction = 'neutral';
+let confidence = 0;
+let reason = '';
+let confidenceProfile = this._emptyConfidenceProfile();
+let structural = null;
+
+if (touchingMA) {
+  // Calculate touch quality (closer = higher confidence)
+  const distancePct = Math.abs(price - ma20) / ma20 * 100;
+  const touchQuality = clamp(1 - (distancePct / this.touchZonePct), 0, 1);  // 1.0 = perfect touch, 0 = edge of zone
+
+  if (maSlope === 'rising') {
+    direction = 'buy';
+    reason = `MA Touch LONG: rising ${this.entryMaPeriod} EMA ($${ma20.toFixed(2)})`;
+  } else if (maSlope === 'falling') {
+    direction = 'sell';
+    reason = `MA Touch SHORT: falling ${this.entryMaPeriod} EMA ($${ma20.toFixed(2)})`;
+  } else {
+    this.diag.trendGateRejects++;
+    return this._emptySignal('trend_slope_flat', {
+      touchingMA,
+      maSlope,
+      extension,
+      srAlignment,
+      confirmation
+    });
+  }
+
+  confidence = this.config.baseConfidence + (touchQuality * this.config.touchQualityWeight);
+  structural = this._structuralProfile(direction, price, ma20, atr);
+  confidenceProfile = this._confidenceProfile({
+    direction,
+    maSlope,
+    touchingMA,
+    extension,
+    wasExtendedBefore,
+    srAlignment,
+    confirmation,
+    structural
+  });
+  confidence = clamp(confidence * confidenceProfile.composite, 0, this.config.maxConfidence);
+
+  this.diag.signalsEmitted++;
+  this.inPullbackTaken = true;
+}
+```
+*Lines 369‑398 of `modules/MADynamicSR.js`*modules/MADynamicSR.js:369-398
+
+**Does any gate check price relative to the 200‑EMA (or MA‑stack alignment) before a signal is emitted?**  
+**No.**  
+
+* The only gate that makes a decision before a signal is emitted is the **trend‑gate** (lines 679‑687). Its `passed` test looks **only at `maSlope`** (`'rising'` or `'falling'`) and does **not reference the 200‑EMA** or any other MA‑stack alignment.  
+* The 200‑EMA (`ma200`) is calculated at line 338 and later included in the signal payload at line 423, but it is **never used in any gate condition** that can block or enable a signal.  
+
+*Evidence of 200‑EMA usage (no gate logic)*  
+- Calculation: `const ma200 = this._ema(closes, this.srMaPeriod);` – line 338const ma200 = this._ema(closes, this.srMaPeriod:336-340  
+- Inclusion in signal output: `ma200,` – line 423【open_file†L418-L424】
+
+Since none of the gate definitions (`trendGate`, `extension`, `firstTouchAfterParabolic`, `pullbackCooldown`, `confirmationCandle`, `srAlignment`, `structuralValidity`) reference `ma200` or any MA‑stack alignment, the answer is **“no”** and the relevant lines are those above.
+
+---
+
+**Spec citations establishing the required S/R level (20‑EMA vs 200‑EMA)**  
+
+*Lines 20‑33 of `ogz-meta/specs/TREY-ARCHITECTURE-SPEC-2026-07-02.md`*  
+```
+20 → Audit owed: same gutting check across all remaining roster strategies.
+22 ## P2 — STRATEGY-OWNED EXITS
+23 Each strategy defines its own stop, target, and trail geometry. No generic platform
+24 exit ladder applied uniformly to everyone.
+26 **Current state: VIOLATED.**
+27 Modules emit stopLoss: null / takeProfit: null and defer to ECM platform defaults.
+28 The generic tier ladder scalps every strategy identically — eval evidence: designed
+29 exits captured ~9% of available move ($12 banked vs $129 abandoned on 2026-07-02).
+30 Config supports per‑strategy exitContracts.<strategy>.* (proven by the matrix override
+31 work, commit 792f4803) — the plumbing exists; the strategies just don’t use it.
+32 → Each strategy gets its own exit contract: trend strategies get runners (ATR trail),
+33   mean‑reversion strategies get targets. Exit geometry is a strategy property, not a
+34   platform property.
+```
+
+*Lines 134‑148 of the same spec*  
+```
+134 ## OPERATOR STRATEGY DOCTRINE (rulings, 2026‑07‑02 — audit code against these; doctrine wins)
+135 - **EMA dual‑play:** (a) crossover = regime/momentum context; (b) EMA‑as‑dynamic‑S/R
+136   pullback entries in trend direction, HTF congruence required. Pullback play is the
+137   primary entry doctrine (EMATrendRetest / PropSafeEMAPullback embody it).
+138 - **Rubber‑band law:** approach velocity into the MA predicts bounce strength —
+139   snapback/divergence‑velocity logic (stripped from EMASMA ~146‑168) gets restored
+140   in‑strategy and swept.
+141 - **MA timeframe allocation:** 9/20(/50) on trading TF ≤15m as entry structure;
+142   50/200 on 1h+ as regime/bias congruence only (see P4 ruling).
+143 - **Regime roster — same level, same event, opposite trade:** BreakAndRetest is
+144   trending‑only (in a range, “breaks” are mostly stop‑harvest sweeps that reverse).
+145   Range regime is LiquiditySweep/SmartMoneySweep's home turf — they trade the failed
+146   break. Regime decides who's on duty; nobody trades outside their home regime.
+147 - **Mechanical purity law:** NoWickImbalance is ~100% mechanical and ALL newest‑generation
+148   strategies (NoWick, Donchian, TSMOM, RSI2MR, PropSafeEMA, EMATrendRetest, ORB, B&R,
+149   SMS, FVG) are required to be — deterministic rules, no fuzzy/heuristic scoring creep.
+```
+
+These spec sections define the 20‑EMA as the entry/trend line and the 200‑EMA as the support/resistance level, confirming that the architecture expects a *dual‑EMA* approach but does **not** require a gate to check price against the 200‑EMA before emitting a signal.
+Commands:
+tool_calls=14 | succeeded=14 | failed=0 | tools=open_file:8/8/0, search:6/6/0 | files_opened=8 | run_check_artifacts=0 | failed_calls=none | run_checks=none
+Result:
+**Implementation of `conditionFlags.trendGate`**
+
+```js
+profile.components.trendGate = {
+  enabled: this.conditionFlags.trendGate,
+  fired:   this.conditionFlags.trendGate,
+  hardCondition: true,
+  passed:  maSlope === 'rising' || maSlope === 'falling',
+  maSlope,
+  direction,
+  multiplier: 1
+};
+```
+*Lines 679‑687 of `modules/MADynamicSR.js`*modules/MADynamicSR.js:679-687
+
+**All conditions evaluated between candle intake and the direction assignment (lines 369‑398)**  
+
+```js
+let direction = 'neutral';
+let confidence = 0;
+let reason = '';
+let confidenceProfile = this._emptyConfidenceProfile();
+let structural = null;
+
+if (touchingMA) {
+  // Calculate touch quality (closer = higher confidence)
+  const distancePct = Math.abs(price - ma20) / ma20 * 100;
+  const touchQuality = clamp(1 - (distancePct / this.touchZonePct), 0, 1);  // 1.0 = perfect touch, 0 = edge of zone
+
+  if (maSlope === 'rising') {
+    direction = 'buy';
+    reason = `MA Touch LONG: rising ${this.entryMaPeriod} EMA ($${ma20.toFixed(2)})`;
+  } else if (maSlope === 'falling') {
+    direction = 'sell';
+    reason = `MA Touch SHORT: falling ${this.entryMaPeriod} EMA ($${ma20.toFixed(2)})`;
+  } else {
+    this.diag.trendGateRejects++;
+    return this._emptySignal('trend_slope_flat', {
+      touchingMA,
+      maSlope,
+      extension,
+      srAlignment,
+      confirmation
+    });
+  }
+
+  confidence = this.config.baseConfidence + (touchQuality * this.config.touchQualityWeight);
+  structural = this._structuralProfile(direction, price, ma20, atr);
+  confidenceProfile = this._confidenceProfile({
+    direction,
+    maSlope,
+    touchingMA,
+    extension,
+    wasExtendedBefore,
+    srAlignment,
+    confirmation,
+    structural
+  });
+  confidence = clamp(confidence * confidenceProfile.composite, 0, this.config.maxConfidence);
+
+  this.diag.signalsEmitted++;
+  this.inPullbackTaken = true;
+}
+```
+*Lines 369‑398 of `modules/MADynamicSR.js`*modules/MADynamicSR.js:369-398
+
+**Does any gate check price relative to the 200‑EMA (or MA‑stack alignment) before a signal is emitted?**  
+**No.**  
+
+* The only gate that makes a decision before a signal is emitted is the **trend‑gate** (lines 679‑687). Its `passed` test looks **only at `maSlope`** (`'rising'` or `'falling'`) and does **not reference the 200‑EMA** or any other MA‑stack alignment.  
+* The 200‑EMA (`ma200`) is calculated at line 338 and later included in the signal payload at line 423, but it is **never used in any gate condition** that can block or enable a signal.  
+
+*Evidence of 200‑EMA usage (no gate logic)*  
+- Calculation: `const ma200 = this._ema(closes, this.srMaPeriod);` – line 338const ma200 = this._ema(closes, this.srMaPeriod:336-340  
+- Inclusion in signal output: `ma200,` – line 423【open_file†L418-L424】
+
+Since none of the gate definitions (`trendGate`, `extension`, `firstTouchAfterParabolic`, `pullbackCooldown`, `confirmationCandle`, `srAlignment`, `structuralValidity`) reference `ma200` or any MA‑stack alignment, the answer is **“no”** and the relevant lines are those above.
+
+---
+
+**Spec citations establishing the required S/R level (20‑EMA vs 200‑EMA)**  
+
+*Lines 20‑33 of `ogz-meta/specs/TREY-ARCHITECTURE-SPEC-2026-07-02.md`*  
+```
+20 → Audit owed: same gutting check across all remaining roster strategies.
+22 ## P2 — STRATEGY-OWNED EXITS
+23 Each strategy defines its own stop, target, and trail geometry. No generic platform
+24 exit ladder applied uniformly to everyone.
+26 **Current state: VIOLATED.**
+27 Modules emit stopLoss: null / takeProfit: null and defer to ECM platform defaults.
+28 The generic tier ladder scalps every strategy identically — eval evidence: designed
+29 exits captured ~9% of available move ($12 banked vs $129 abandoned on 2026-07-02).
+30 Config supports per‑strategy exitContracts.<strategy>.* (proven by the matrix override
+31 work, commit 792f4803) — the plumbing exists; the strategies just don’t use it.
+32 → Each strategy gets its own exit contract: trend strategies get runners (ATR trail),
+33   mean‑reversion strategies get targets. Exit geometry is a strategy property, not a
+34   platform property.
+```
+
+*Lines 134‑148 of the same spec*  
+```
+134 ## OPERATOR STRATEGY DOCTRINE (rulings, 2026‑07‑02 — audit code against these; doctrine wins)
+135 - **EMA dual‑play:** (a) crossover = regime/momentum context; (b) EMA‑as‑dynamic‑S/R
+136   pullback entries in trend direction, HTF congruence required. Pullback play is the
+137   primary entry doctrine (EMATrendRetest / PropSafeEMAPullback embody it).
+138 - **Rubber‑band law:** approach velocity into the MA predicts bounce strength —
+139   snapback/divergence‑velocity logic (stripped from EMASMA ~146‑168) gets restored
+140   in‑strategy and swept.
+141 - **MA timeframe allocation:** 9/20(/50) on trading TF ≤15m as entry structure;
+142   50/200 on 1h+ as regime/bias congruence only (see P4 ruling).
+143 - **Regime roster — same level, same event, opposite trade:** BreakAndRetest is
+144   trending‑only (in a range, “breaks” are mostly stop‑harvest sweeps that reverse).
+145   Range regime is LiquiditySweep/SmartMoneySweep's home turf — they trade the failed
+146   break. Regime decides who's on duty; nobody trades outside their home regime.
+147 - **Mechanical purity law:** NoWickImbalance is ~100% mechanical and ALL newest‑generation
+148   strategies (NoWick, Donchian, TSMOM, RSI2MR, PropSafeEMA, EMATrendRetest, ORB, B&R,
+149   SMS, FVG) are required to be — deterministic rules, no fuzzy/heuristic scoring creep.
+```
+
+These spec sections define the 20‑EMA as the entry/trend line and the 200‑EMA as the support/resistance level, confirming that the architecture expects a *dual‑EMA* approach but does **not** require a gate to check price against the 200‑EMA before emitting a signal.
+
+5. Final Resolution
+Decision:
+Use Mercury recheck evidence plus local tests/gates as final authority.
+Why:
+Fable challenge received a repo-tool Mercury answer.
+Residual Risk:
+Review the recheck answer for unresolved evidence gaps before using this as commit approval.
+Required Next Action:
+`sed -n '300,420p' modules/MADynamicSR.js` and `sed -n '20,33p;134,148p' ogz-meta/specs/TREY-ARCHITECTURE-SPEC-2026-07-02.md` — resolves whether a 200-EMA/trend-gate coherence check exists before direction assignment and what level the spec actually mandates.

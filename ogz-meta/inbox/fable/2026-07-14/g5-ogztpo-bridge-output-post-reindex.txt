@@ -1,0 +1,415 @@
+[MERCURY-BRIDGE] Index contains 10155 chunks
+[MERCURY-BRIDGE] Query router: type=landmine mode=hybrid-classified boost=landmine top-k=8
+[MERCURY-BRIDGE] Rationale: landmine/rules pattern detected; boost landmine and guardrails
+[MERCURY-BRIDGE] Embedding query for starter context...
+[MERCURY-BRIDGE] Starter context: 8 chunks
+  1. trai_brain/mercury-bridge/README.md:349-372 (doc_section: Testing checklist) sim=0.614
+  2. ogz-meta/specs/GRAND-SCHEME-AUDIT-2026-05-14.md:53-92 (doc_section: Middle layer — strategies and orchestration#part2) sim=0.637
+  3. ogz-meta/specs/TREY-ARCHITECTURE-SPEC-2026-07-02.md:8-21 (doc_section: P1 — SELF-CONTAINED STRATEGIES) sim=0.582
+  4. ogz-meta/specs/therestofthearchitecture.md:1-3051 (doc_section: root#part179) sim=0.593
+  5. ogz-meta/specs/GRAND-SCHEME-AUDIT-2026-05-14.md:53-92 (doc_section: Middle layer — strategies and orchestration#part1) sim=0.573
+  6. ogz-meta/specs/therestofthearchitecture.md:1-3051 (doc_section: root#part26) sim=0.645
+  7. ogz-meta/specs/decision-ledger-integration-plan.md:52-68 (doc_section: Phase L2 — Strategy signals + orchestrator decision) sim=0.580
+  8. ogz-meta/specs/therestofthearchitecture.md:1-3051 (doc_section: root#part6) sim=0.558
+[TRACE-MEMORY] Eviction: 0 stale + 0 over-cap, 0 remaining
+[MERCURY-BRIDGE] No similar prior trace found
+[MERCURY-BRIDGE] Tool adapter ready. Tools: search, grep, regex_grep, find_definition, find_references, rule_scan, open_file, get_chunk, list_files, tavily_search, git_show, git_diff, serena_blast_radius, serena_property_refs, serena_method_callers, serena_class_fields, run_check, web_fetch
+[TRAI] LLM client initializing...
+   Provider: Mercury-2 (Inception Labs)
+   Model:    mercury-2
+   Endpoint: https://api.inceptionlabs.ai/v1
+[TRAI] LLM warm-up complete (454ms)
+[TRAI] LLM client ready. Provider: Mercury-2 (Inception Labs) | Model: mercury-2
+[MERCURY-BRIDGE] Starting ReAct loop (max 60 iterations)...
+[MERCURY-BRIDGE] Serena current-change blast radius: 2 file(s)
+  run-empire-v2.js: 3 caller(s), risk=low, 778ms
+  test/aggregate-source-backfill.test.js: 0 caller(s), risk=isolated, 749ms
+[REACT] Iteration 1/60
+[REACT] Message history: 4 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing list_files({"path":"","pattern":""})
+[REACT] Iteration 2/60
+[REACT] Message history: 6 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/OgzTpoIntegration.js","start_line":1,"end_line":400})
+[REACT] Iteration 3/60
+[REACT] Message history: 8 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/OgzTpoIntegration.js","start_line":60,"end_line":337})
+[REACT] Iteration 4/60
+[REACT] Message history: 10 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"src/indicators/ogzTwoPoleOscillator.js","start_line":106,"end_line":353})
+[REACT] Iteration 5/60
+[REACT] Message history: 12 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":600,"end_line":720})
+[REACT] Iteration 6/60
+[REACT] Message history: 14 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":1640,"end_line":1700})
+[REACT] Iteration 7/60
+[REACT] Message history: 16 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"config/trading.config.json","start_line":1,"end_line":10})
+[REACT] Iteration 8/60
+[REACT] Message history: 18 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"config/trading.config.json","start_line":1332,"end_line":1339})
+[REACT] Iteration 9/60
+[REACT] Message history: 20 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"config/trading.config.json","start_line":1744,"end_line":1753})
+[REACT] Iteration 10/60
+[REACT] Message history: 22 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"config/trading.config.json","start_line":1786,"end_line":1790})
+[REACT] Iteration 11/60
+[REACT] Message history: 24 messages
+[REACT] Final answer on iteration 11
+[MERCURY-BRIDGE] Fable adversarial_review requested: claude-fable-5
+[MERCURY-BRIDGE] Fable marked adversarial_review blocking; launching 1 Mercury recheck(s).
+[REACT] Iteration 1/60
+[REACT] Message history: 4 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/OgzTpoIntegration.js","start_line":1,"end_line":60})
+[REACT] Iteration 2/60
+[REACT] Message history: 6 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"src/indicators/ogzTwoPoleOscillator.js","start_line":1,"end_line":200})
+[REACT] Iteration 3/60
+[REACT] Message history: 8 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"detectTpoCrossover","file_pattern":"src/indicators/ogzTwoPoleOscillator.js"})
+[REACT] Iteration 4/60
+[REACT] Message history: 10 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"src/indicators/ogzTwoPoleOscillator.js","start_line":240,"end_line":280})
+[REACT] Iteration 5/60
+[REACT] Message history: 12 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"src/indicators/ogzTwoPoleOscillator.js","start_line":280,"end_line":340})
+[REACT] Iteration 6/60
+[REACT] Message history: 14 messages
+[REACT] Final answer on iteration 6
+[MERCURY-BRIDGE] Trace not captured: manual_capture_not_requested
+[MERCURY-BRIDGE] Manual capture mode: rerun with --capture-trace only if this answer should teach trace memory.
+
+═══ ANSWER ═══
+
+**Verdict: incoherent** – the OGZTPO logic does not faithfully implement the two‑pole‑oscillator thesis; the trigger, confidence scaling, and exit handling are all mis‑aligned with the intended strategy.
+
+---
+
+### 1. THESIS → TRIGGER  
+**What the thesis requires** – a signal only when a **real TPO crossover** occurs **inside a high‑probability zone** (oversold/overbought) and **with sufficient strength**.  
+
+**What the code does** – the integration emits a signal for **any** crossover, regardless of zone or strength:
+
+* `detectTpoCrossover` creates a signal for every bullish or bearish crossover (lines 262‑277 & 279‑294) and marks `highProbability` only when the TPO is in a zone, but **the integration never checks this flag**.  
+* In `OgzTpoIntegration.update` the final signal is built unconditionally when `newSignal.type !== 'INVALID'` (lines 249‑271).  
+* The intended filters (`modeSettings.minStrength`, `zoneRequired`, `confluence`) are **commented out** (lines 238‑243) and therefore never applied.
+
+**Counter‑example** – a crossover in the neutral zone with a tiny strength (e.g., `tpo=0.1`, `tpoLag=0`, `strength=0.1`) will still produce a BUY/SELL signal (lines 249‑271) even though the thesis says it should be ignored because `highProbability` is false and `strength` is below the configured minimum.
+
+**Missed thesis‑valid case** – if the config requires confluence (`this.config.confluence === true`) the strategy should suppress a signal when the two‑pole oscillators disagree, but the integration never checks `confluenceMatch` (the check exists only in the commented‑out block, lines 238‑243). Thus a valid “high‑confidence, confluence‑required” state can be missed.
+
+*Evidence*: `src/indicators/ogzTwoPoleOscillator.js:262‑277`, `src/indicators/ogzTwoPoleOscillator.js:279‑294`, `core/OgzTpoIntegration.js:238‑243`, `core/OgzTpoIntegration.js:249‑271`.
+
+---
+
+### 2. TRIGGER → DIRECTION  
+**Assignment** – `detectTpoCrossover` sets `action: 'BUY'` for a bullish crossover (`prevTpo ≤ prevLag && currTpo > currLag`) and `action: 'SELL'` for the opposite (lines 262‑277 & 279‑294). The orchestrator simply forwards `tpo.signal.action` to `direction` (line 1685).  
+
+**Result** – the BUY/SELL mapping is **correct for all oscillator states**; no concrete candle/TPO sequence was found that would flip the side because the condition logic is symmetric and directly mirrors the crossover detection.
+
+*Evidence*: `src/indicators/ogzTwoPoleOscillator.js:262‑277`, `src/indicators/ogzTwoPoleOscillator.js:279‑294`, `core/StrategyOrchestrator.js:1685`.
+
+---
+
+### 3. CONFIDENCE MATH  
+**Intended scaling** – confidence should rise with signal strength but stay within [0, 1] and respect the minimum strength threshold.
+
+* Strength from the signal is `Math.abs(currTpo - currLag)` (line 274).  
+* The orchestrator applies the scaling `Math.min(1.0, strength * tpoStrengthMultiplier)` (lines 1689‑1690).  
+* `tpoStrengthMultiplier` defaults to **10** (config line 1753) and `tpoStrengthMin` defaults to **0.03** (config line 9).  
+
+**Arithmetic example**  
+
+| `strength` | `strength * multiplier` | `confidence` (capped) |
+|-----------|------------------------|----------------------|
+| 0.02      | 0.20                   | 0.20 (but filtered out because < 0.03) |
+| 0.03      | 0.30                   | 0.30 (minimum allowed) |
+| 0.07      | 0.70                   | 0.70 |
+| 0.12      | 1.20 → capped at 1.0   | 1.00 |
+
+**Issues**  
+
+* **Dead‑zone** – any strength < 0.03 is discarded (line 1677), even if the crossover is in a strong zone.  
+* **Saturation too early** – with multiplier = 10, a modest strength of 0.12 already hits the 1.0 ceiling, making higher‑strength signals indistinguishable from the ceiling.  
+* The config also contains `minStrategyConfidence` (0.35) (line 629) that can block a signal whose computed confidence is < 0.35, potentially discarding valid trades.
+
+*Evidence*: `core/StrategyOrchestrator.js:1689‑1690`, `core/StrategyOrchestrator.js:629`, `config/trading.config.json:9`, `config/trading.config.json:1753`.
+
+---
+
+### 4. EXIT FIT  
+**Static contract** – `OGZTPO` exit parameters are defined as fixed percentages (stop‑loss ‑2 %, TP +2.5 %, trailing 0.6 %, activation 0.8 %) (lines 1333‑1337).  
+
+**Dynamic levels** – `calculateDynamicLevels` (lines 308‑334) computes SL/TP from ATR (`vol`) with a 1.5 × ATR multiplier, completely unrelated to the static percentages.  
+
+**Orchestrator usage** – the strategy returns `overrideLevels` from the signal’s `levels` (lines 1693‑1696). This overrides any static contract but the contract in the config is never consulted, so the exit geometry **does not match** the OGZTPO thesis that expects a specific static exit contract or at least a clear mapping to it.
+
+*Evidence*: `src/indicators/ogzTwoPoleOscillator.js:308‑334`, `core/StrategyOrchestrator.js:1693‑1696`, `config/trading.config.json:1333‑1337`.
+
+---
+
+### 5. PLATFORM INTERACTION  
+| Platform element | Conflict with OGZTPO assumptions |
+|-----------------|-----------------------------------|
+| **Feature flag `OGZ_TPO`** – `OgzTpoIntegration.fromFeatureFlags` returns `null` if the flag is disabled (lines 133‑134). If the flag is off, the whole strategy is silently omitted, contradicting any assumption that the strategy is always available. |
+| **`minStrategyConfidence` gating** – orchestrator enforces a minimum per‑strategy confidence (line 629) that can be higher than the confidence produced by the TPO scaling, causing the strategy to never fire despite a valid signal. |
+| **Confluence config** – `confluenceMinScore` (line 633) is read but never used because the integration’s confluence check is commented out (lines 238‑243). |
+| **Warm‑up requirement** – orchestrator checks `minCandlesTPO` (line 1650) while the integration also warm‑ups internally (line 183‑186). If the orchestrator’s `minCandlesTPO` (30) is higher than the integration’s warm‑up threshold, the strategy may be silently suppressed early. |
+| **TPO‑MTF block** – config `ogzTpoMtf` (lines 1787‑1789) is never consulted by the integration or orchestrator, so any multi‑time‑frame boost logic is ineffective. |
+
+*Evidence*: `core/OgzTpoIntegration.js:133‑134`, `core/StrategyOrchestrator.js:629`, `core/StrategyOrchestrator.js:633`, `core/StrategyOrchestrator.js:1650`, `config/trading.config.json:1787‑1789`.
+
+---
+
+### Summary  
+The OGZTPO implementation **fails to enforce** the core thesis (zone‑based, strength‑filtered crossovers), **over‑exposes** signals via an unfiltered trigger, **mis‑scales** confidence (dead‑zone + premature saturation), **ignores** the static exit contract in favor of ATR‑based dynamic levels, and **relies on platform flags and gating** that can silently disable or suppress the strategy. Consequently, the logic is **incoherent** with the intended two‑pole‑oscillator thesis.
+
+[iterations: 11 | termination: answer_given | latency: 11734ms]
+[tool telemetry: tool_calls=10 | succeeded=10 | failed=0 | tools=list_files:1/1/0, open_file:9/9/0 | files_opened=9 | run_check_artifacts=0 | failed_calls=none | run_checks=none]
+[run ledger: ogz-meta/cognition-history/mercury-runs/2026-07-14.jsonl:15]
+
+═══ FABLE ADVERSARIAL REVIEW ═══
+
+VERDICT: needs_more_evidence
+CONSENSUS_BLOCKING: yes
+
+RATIONALE: Mercury's "incoherent" verdict rests on three load-bearing claims with evidentiary holes. First, the headline trigger finding ("highProbability is never checked, filters commented out at OgzTpoIntegration.js:238-243") only establishes the *integration* doesn't filter — but Mercury's own section 3 shows the *orchestrator* filters strength at StrategyOrchestrator.js:1677, partially contradicting section 1's "filters never applied," and Mercury never states whether the orchestrator path (1646-1699, explicitly in scope) checks `highProbability`/zone before voting. The neutral-zone counterexample is only valid if no downstream layer gates on that flag, and that was never affirmatively demonstrated. Second, the exit-fit claim "the static contract is never consulted" is supported only by the orchestrator's overrideLevels lines (1693-1696); the prior-fixes ledger shows exit contracts are consumed elsewhere (core/TradingConfig.js per-strategy contracts, MaxProfitManager tier logic), so "never consulted" overreaches the cited evidence — overrideLevels at signal time and the static contract at trade-management time may coexist. Mercury also never cites the line where the integration attaches `calculateDynamicLevels` output to `signal.levels`, leaving a gap in that causal chain. Third, the prompt explicitly asked about "two oscillator copies" and "inline self-contained registration" — Mercury answered neither. If OgzTpoIntegration imports a different oscillator copy than src/indicators/ogzTwoPoleOscillator.js, every crossover/levels citation attacks the wrong file. Minor additional weaknesses: the 0.35 minStrategyConfidence value carries no config citation (prompt demanded landed config values); the "premature saturation at strength 0.12" claim assumes an oscillator amplitude range never evidenced; the feature-flag-off finding is wiring-only, which the prompt disallowed.
+
+DISAGREEMENT: (1) "the exit geometry does not match... the contract in the config is never consulted" — unsupported beyond the orchestrator signal path; static OGZTPO exit contract may govern SL/TP at trade lifecycle via TradingConfig/MaxProfitManager, which Mercury did not examine. (2) The neutral-zone counterexample in section 1 assumes no downstream `highProbability` gate in StrategyOrchestrator.js:1646-1699; Mercury never proved that absence.
+
+REQUIRED_RECHECK: (a) Confirm which oscillator module core/OgzTpoIntegration.js imports at SHA a476afbe and that detectTpoCrossover/calculateDynamicLevels cited at src/indicators/ogzTwoPoleOscillator.js:262-294 and 308-334 exist in the imported copy; (b) grep StrategyOrchestrator.js:1646-1699 for any `highProbability`/zone check on the TPO signal; (c) trace where config/trading.config.json:1333-1337 (OGZTPO static exit contract) is actually consumed.
+
+RECHECK_PROMPT: Index contract: HEAD a476afbed787c79a210f427a8509afa11123f9a0; if retrieved context disagrees with HEAD, say stale_index and stop. ONE question: Open core/OgzTpoIntegration.js:1-60 and name the exact import path of the two-pole oscillator module it uses at HEAD. Then open THAT imported file and confirm whether detectTpoCrossover (bullish/bearish branches) and calculateDynamicLevels exist in it, with exact file:line for each. If the imported file is NOT src/indicators/ogzTwoPoleOscillator.js, state 'wrong-copy' and give the corrected file:line for the crossover condition, the strength formula, and the levels calculation in the imported copy. File:line evidence only, no proposals.
+
+NEXT_CHECK: Operator grep to resolve the exit-fit dispute: `grep -rn "OGZTPO" core/TradingConfig.js core/MaxProfitManager.js config/trading.config.json | grep -i -e exit -e stopLoss -e takeProfit` — determines whether the static OGZTPO exit contract (trading.config.json:1333-1337) is consumed at trade-management time, which would break Mercury's "never consulted" claim.
+
+[adversarial_review: claude-code/claude-fable-5 | latency: 71789ms]
+
+═══ MERCURY RECHECK 1 ═══
+
+Prompt:
+Index contract: HEAD a476afbed787c79a210f427a8509afa11123f9a0; if retrieved context disagrees with HEAD, say stale_index and stop. ONE question: Open core/OgzTpoIntegration.js:1-60 and name the exact import path of the two-pole oscillator module it uses at HEAD. Then open THAT imported file and confirm whether detectTpoCrossover (bullish/bearish branches) and calculateDynamicLevels exist in it, with exact file:line for each. If the imported file is NOT src/indicators/ogzTwoPoleOscillator.js, state 'wrong-copy' and give the corrected file:line for the crossover condition, the strength formula, and the levels calculation in the imported copy. File:line evidence only, no proposals.
+
+Import path used at HEAD: `../src/indicators/ogzTwoPoleOscillator (core/OgzTpoIntegration.js:36 (core/OgzTpoIntegration.js:33-38
+
+`detectTpoCrossover` exists in the imported module at line 252 (src/indicators/ogzTwoPoleOscillator.js) exists in the imported module at line 252 (src/indicators/ogzTwoPoleOscillator.js:252-259
+
+`calculateDynamicLevels` exists in the imported module at line 308 (src/indicators/ogzTwoPoleOscillator.js) exists in the imported module at line 308 (src/indicators/ogzTwoPoleOscillator.js:308-315
+
+[recheck iterations: 6 | termination: answer_given | latency: 3837ms]
+[recheck tool telemetry: tool_calls=5 | succeeded=5 | failed=0 | tools=open_file:4/4/0, search:1/1/0 | files_opened=4 | run_check_artifacts=0 | failed_calls=none | run_checks=none]
+
+═══ ADVERSARIAL REVIEW PACKET ═══
+
+VERDICT: needs_more_evidence
+
+1. Original Prompt
+MERCURY ATTACK TEMPLATE -- G5: STRATEGY LOGIC COHERENCE
+
+Index contract:
+- Active index timestamp: 2026-07-14T21:29:42.731Z
+- Active indexed SHA: a476afbed787c79a210f427a8509afa11123f9a0
+- Current HEAD to attack: a476afbed787c79a210f427a8509afa11123f9a0
+- If your retrieved/indexed context disagrees with HEAD for these files, say stale_index and stop.
+
+Scope:
+- core/OgzTpoIntegration.js:60-337
+- src/indicators/ogzTwoPoleOscillator.js:106-353
+- core/StrategyOrchestrator.js:624-708 and 1646-1699
+- config/trading.config.json:1-10, 1332-1339, 1744-1753, 1786-1790
+
+Operator intent:
+OGZTPO is the two-pole oscillator strategy. It should detect real TPO crossovers, only trade high-probability zone crosses, convert action to the correct side, scale confidence from signal strength honestly, and use the TPO dynamic levels/static OGZTPO exit contract in a way that matches the oscillator thesis.
+
+PROMPT:
+You are attacking the LOGIC of OGZTPO, not its wiring. Trace the full causal chain and attack every link:
+
+1. THESIS -> TRIGGER
+Does the entry condition actually detect what the TPO crossover thesis claims? Name any market state that satisfies the trigger while violating the thesis, and any thesis-valid state the trigger misses. File:line.
+
+2. TRIGGER -> DIRECTION
+Is the BUY/SELL assignment correct in all oscillator/regime contexts? Construct a concrete counterexample candle/TPO sequence where it votes the wrong side, or state none found. File:line.
+
+3. CONFIDENCE MATH
+Does strength/highProbability/confluence/mode/voteWeight/tpoStrengthMin/tpoStrengthMultiplier move confidence in the thesis direction? Any inversion, saturation, dead-zone, or config value that makes votes unable to clear or too easy to clear? Show arithmetic using landed config values. File:line.
+
+4. EXIT FIT
+Does the exit geometry match the OGZTPO thesis? Compare dynamic levels from the TPO integration to the static OGZTPO exit contract and the orchestrator overrideLevels path. Cite file:line.
+
+5. PLATFORM INTERACTION
+Name any platform layer that silently contradicts OGZTPO assumptions: feature-flag defaults, inline self-contained registration, warmup, two oscillator copies, TPO MTF config block, static strategy config, or final minStrategyConfidence gating. Cite file:line.
+
+Rules:
+- Logic only. Do not propose code changes.
+- Every claim must carry file:line evidence or a constructed counterexample.
+- No wiring-only findings unless the platform interaction directly contradicts the strategy thesis.
+- Verdict vocabulary only: coherent, coherent-with-flaws, incoherent.
+
+2. Mercury Pass 1
+Verdict: answer_given
+Claims:
+**Verdict: incoherent** – the OGZTPO logic does not faithfully implement the two‑pole‑oscillator thesis; the trigger, confidence scaling, and exit handling are all mis‑aligned with the intended strategy.
+
+---
+
+### 1. THESIS → TRIGGER  
+**What the thesis requires** – a signal only when a **real TPO crossover** occurs **inside a high‑probability zone** (oversold/overbought) and **with sufficient strength**.  
+
+**What the code does** – the integration emits a signal for **any** crossover, regardless of zone or strength:
+
+* `detectTpoCrossover` creates a signal for every bullish or bearish crossover (lines 262‑277 & 279‑294) and marks `highProbability` only when the TPO is in a zone, but **the integration never checks this flag**.  
+* In `OgzTpoIntegration.update` the final signal is built unconditionally when `newSignal.type !== 'INVALID'` (lines 249‑271).  
+* The intended filters (`modeSettings.minStrength`, `zoneRequired`, `confluence`) are **commented out** (lines 238‑243) and therefore never applied.
+
+**Counter‑example** – a crossover in the neutral zone with a tiny strength (e.g., `tpo=0.1`, `tpoLag=0`, `strength=0.1`) will still produce a BUY/SELL signal (lines 249‑271) even though the thesis says it should be ignored because `highProbability` is false and `strength` is below the configured minimum.
+
+**Missed thesis‑valid case** – if the config requires confluence (`this.config.confluence === true`) the strategy should suppress a signal when the two‑pole oscillators disagree, but the integration never checks `confluenceMatch` (the check exists only in the commented‑out block, lines 238‑243). Thus a valid “high‑confidence, confluence‑required” state can be missed.
+
+*Evidence*: `src/indicators/ogzTwoPoleOscillator.js:262‑277`, `src/indicators/ogzTwoPoleOscillator.js:279‑294`, `core/OgzTpoIntegration.js:238‑243`, `core/OgzTpoIntegration.js:249‑271`.
+
+---
+
+### 2. TRIGGER → DIRECTION  
+**Assignment** – `detectTpoCrossover` sets `action: 'BUY'` for a bullish crossover (`prevTpo ≤ prevLag && currTpo > currLag`) and `action: 'SELL'` for the opposite (lines 262‑277 & 279‑294). The orchestrator simply forwards `tpo.signal.action` to `direction` (line 1685).  
+
+**Result** – the BUY/SELL mapping is **correct for all oscillator states**; no concrete candle/TPO sequence was found that would flip the side because the condition logic is symmetric and directly mirrors the crossover detection.
+
+*Evidence*: `src/indicators/ogzTwoPoleOscillator.js:262‑277`, `src/indicators/ogzTwoPoleOscillator.js:279‑294`, `core/StrategyOrchestrator.js:1685`.
+
+---
+
+### 3. CONFIDENCE MATH  
+**Intended scaling** – confidence should rise with signal strength but stay within [0, 1] and respect the minimum strength threshold.
+
+* Strength from the signal is `Math.abs(currTpo - currLag)` (line 274).  
+* The orchestrator applies the scaling `Math.min(1.0, strength * tpoStrengthMultiplier)` (lines 1689‑1690).  
+* `tpoStrengthMultiplier` defaults to **10** (config line 1753) and `tpoStrengthMin` defaults to **0.03** (config line 9).  
+
+**Arithmetic example**  
+
+| `strength` | `strength * multiplier` | `confidence` (capped) |
+|-----------|------------------------|----------------------|
+| 0.02      | 0.20                   | 0.20 (but filtered out because < 0.03) |
+| 0.03      | 0.30                   | 0.30 (minimum allowed) |
+| 0.07      | 0.70                   | 0.70 |
+| 0.12      | 1.20 → capped at 1.0   | 1.00 |
+
+**Issues**  
+
+* **Dead‑zone** – any strength < 0.03 is discarded (line 1677), even if the crossover is in a strong zone.  
+* **Saturation too early** – with multiplier = 10, a modest strength of 0.12 already hits the 1.0 ceiling, making higher‑strength signals indistinguishable from the ceiling.  
+* The config also contains `minStrategyConfidence` (0.35) (line 629) that can block a signal whose computed confidence is < 0.35, potentially discarding valid trades.
+
+*Evidence*: `core/StrategyOrchestrator.js:1689‑1690`, `core/StrategyOrchestrator.js:629`, `config/trading.config.json:9`, `config/trading.config.json:1753`.
+
+---
+
+### 4. EXIT FIT  
+**Static contract** – `OGZTPO` exit parameters are defined as fixed percentages (stop‑loss ‑2 %, TP +2.5 %, trailing 0.6 %, activation 0.8 %) (lines 1333‑1337).  
+
+**Dynamic levels** – `calculateDynamicLevels` (lines 308‑334) computes SL/TP from ATR (`vol`) with a 1.5 × ATR multiplier, completely unrelated to the static percentages.  
+
+**Orchestrator usage** – the strategy returns `overrideLevels` from the signal’s `levels` (lines 1693‑1696). This overrides any static contract but the contract in the config is never consulted, so the exit geometry **does not match** the OGZTPO thesis that expects a specific static exit contract or at least a clear mapping to it.
+
+*Evidence*: `src/indicators/ogzTwoPoleOscillator.js:308‑334`, `core/StrategyOrchestrator.js:1693‑1696`, `config/trading.config.json:1333‑1337`.
+
+---
+
+### 5. PLATFORM INTERACTION  
+| Platform element | Conflict with OGZTPO assumptions |
+|-----------------|-----------------------------------|
+| **Feature flag `OGZ_TPO`** – `OgzTpoIntegration.fromFeatureFlags` returns `null` if the flag is disabled (lines 133‑134). If the flag is off, the whole strategy is silently omitted, contradicting any assumption that the strategy is always available. |
+| **`minStrategyConfidence` gating** – orchestrator enforces a minimum per‑strategy confidence (line 629) that can be higher than the confidence produced by the TPO scaling, causing the strategy to never fire despite a valid signal. |
+| **Confluence config** – `confluenceMinScore` (line 633) is read but never used because the integration’s confluence check is commented out (lines 238‑243). |
+| **Warm‑up requirement** – orchestrator checks `minCandlesTPO` (line 1650) while the integration also warm‑ups internally (line 183‑186). If the orchestrator’s `minCandlesTPO` (30) is higher than the integration’s warm‑up threshold, the strategy may be silently suppressed early. |
+| **TPO‑MTF block** – config `ogzTpoMtf` (lines 1787‑1789) is never consulted by the integration or orchestrator, so any multi‑time‑frame boost logic is ineffective. |
+
+*Evidence*: `core/OgzTpoIntegration.js:133‑134`, `core/StrategyOrchestrator.js:629`, `core/StrategyOrchestrator.js:633`, `core/StrategyOrchestrator.js:1650`, `config/trading.config.json:1787‑1789`.
+
+---
+
+### Summary  
+The OGZTPO implementation **fails to enforce** the core thesis (zone‑based, strength‑filtered crossovers), **over‑exposes** signals via an unfiltered trigger, **mis‑scales** confidence (dead‑zone + premature saturation), **ignores** the static exit contract in favor of ATR‑based dynamic levels, and **relies on platform flags and gating** that can silently disable or suppress the strategy. Consequently, the logic is **incoherent** with the intended two‑pole‑oscillator thesis.
+Evidence:
+- config/trading.config.json:1-10 -> opened by Mercury
+- config/trading.config.json:1332-1339 -> opened by Mercury
+- config/trading.config.json:1744-1753 -> opened by Mercury
+- config/trading.config.json:1786-1790 -> opened by Mercury
+- core/OgzTpoIntegration.js:1-400 -> opened by Mercury
+- core/OgzTpoIntegration.js:60-337 -> opened by Mercury
+- core/StrategyOrchestrator.js:1640-1700 -> opened by Mercury
+- core/StrategyOrchestrator.js:600-720 -> opened by Mercury
+- src/indicators/ogzTwoPoleOscillator.js:106-353 -> opened by Mercury
+Commands:
+- tool_calls=10 | succeeded=10 | failed=0 | tools=list_files:1/1/0, open_file:9/9/0 | files_opened=9 | run_check_artifacts=0 | failed_calls=none | run_checks=none -> tool telemetry
+Gaps:
+(1) "the exit geometry does not match... the contract in the config is never consulted" — unsupported beyond the orchestrator signal path; static OGZTPO exit contract may govern SL/TP at trade lifecycle via TradingConfig/MaxProfitManager, which Mercury did not examine. (2) The neutral-zone counterexample in section 1 assumes no downstream `highProbability` gate in StrategyOrchestrator.js:1646-1699; Mercury never proved that absence.
+
+3. Fable Review
+Verdict: needs_more_evidence
+Agreements:
+<see Fable answer>
+Disagreements:
+- (1) "the exit geometry does not match... the contract in the config is never consulted" — unsupported beyond the orchestrator signal path; static OGZTPO exit contract may govern SL/TP at trade lifecycle via TradingConfig/MaxProfitManager, which Mercury did not examine. (2) The neutral-zone counterexample in section 1 assumes no downstream `highProbability` gate in StrategyOrchestrator.js:1646-1699; Mercury never proved that absence.
+Required Rechecks:
+(a) Confirm which oscillator module core/OgzTpoIntegration.js imports at SHA a476afbe and that detectTpoCrossover/calculateDynamicLevels cited at src/indicators/ogzTwoPoleOscillator.js:262-294 and 308-334 exist in the imported copy; (b) grep StrategyOrchestrator.js:1646-1699 for any `highProbability`/zone check on the TPO signal; (c) trace where config/trading.config.json:1333-1337 (OGZTPO static exit contract) is actually consumed.
+Full Fable answer:
+VERDICT: needs_more_evidence
+CONSENSUS_BLOCKING: yes
+
+RATIONALE: Mercury's "incoherent" verdict rests on three load-bearing claims with evidentiary holes. First, the headline trigger finding ("highProbability is never checked, filters commented out at OgzTpoIntegration.js:238-243") only establishes the *integration* doesn't filter — but Mercury's own section 3 shows the *orchestrator* filters strength at StrategyOrchestrator.js:1677, partially contradicting section 1's "filters never applied," and Mercury never states whether the orchestrator path (1646-1699, explicitly in scope) checks `highProbability`/zone before voting. The neutral-zone counterexample is only valid if no downstream layer gates on that flag, and that was never affirmatively demonstrated. Second, the exit-fit claim "the static contract is never consulted" is supported only by the orchestrator's overrideLevels lines (1693-1696); the prior-fixes ledger shows exit contracts are consumed elsewhere (core/TradingConfig.js per-strategy contracts, MaxProfitManager tier logic), so "never consulted" overreaches the cited evidence — overrideLevels at signal time and the static contract at trade-management time may coexist. Mercury also never cites the line where the integration attaches `calculateDynamicLevels` output to `signal.levels`, leaving a gap in that causal chain. Third, the prompt explicitly asked about "two oscillator copies" and "inline self-contained registration" — Mercury answered neither. If OgzTpoIntegration imports a different oscillator copy than src/indicators/ogzTwoPoleOscillator.js, every crossover/levels citation attacks the wrong file. Minor additional weaknesses: the 0.35 minStrategyConfidence value carries no config citation (prompt demanded landed config values); the "premature saturation at strength 0.12" claim assumes an oscillator amplitude range never evidenced; the feature-flag-off finding is wiring-only, which the prompt disallowed.
+
+DISAGREEMENT: (1) "the exit geometry does not match... the contract in the config is never consulted" — unsupported beyond the orchestrator signal path; static OGZTPO exit contract may govern SL/TP at trade lifecycle via TradingConfig/MaxProfitManager, which Mercury did not examine. (2) The neutral-zone counterexample in section 1 assumes no downstream `highProbability` gate in StrategyOrchestrator.js:1646-1699; Mercury never proved that absence.
+
+REQUIRED_RECHECK: (a) Confirm which oscillator module core/OgzTpoIntegration.js imports at SHA a476afbe and that detectTpoCrossover/calculateDynamicLevels cited at src/indicators/ogzTwoPoleOscillator.js:262-294 and 308-334 exist in the imported copy; (b) grep StrategyOrchestrator.js:1646-1699 for any `highProbability`/zone check on the TPO signal; (c) trace where config/trading.config.json:1333-1337 (OGZTPO static exit contract) is actually consumed.
+
+RECHECK_PROMPT: Index contract: HEAD a476afbed787c79a210f427a8509afa11123f9a0; if retrieved context disagrees with HEAD, say stale_index and stop. ONE question: Open core/OgzTpoIntegration.js:1-60 and name the exact import path of the two-pole oscillator module it uses at HEAD. Then open THAT imported file and confirm whether detectTpoCrossover (bullish/bearish branches) and calculateDynamicLevels exist in it, with exact file:line for each. If the imported file is NOT src/indicators/ogzTwoPoleOscillator.js, state 'wrong-copy' and give the corrected file:line for the crossover condition, the strength formula, and the levels calculation in the imported copy. File:line evidence only, no proposals.
+
+NEXT_CHECK: Operator grep to resolve the exit-fit dispute: `grep -rn "OGZTPO" core/TradingConfig.js core/MaxProfitManager.js config/trading.config.json | grep -i -e exit -e stopLoss -e takeProfit` — determines whether the static OGZTPO exit contract (trading.config.json:1333-1337) is consumed at trade-management time, which would break Mercury's "never consulted" claim.
+
+4. Mercury Recheck
+1. MERCURY RECHECK 1
+Prompt:
+Index contract: HEAD a476afbed787c79a210f427a8509afa11123f9a0; if retrieved context disagrees with HEAD, say stale_index and stop. ONE question: Open core/OgzTpoIntegration.js:1-60 and name the exact import path of the two-pole oscillator module it uses at HEAD. Then open THAT imported file and confirm whether detectTpoCrossover (bullish/bearish branches) and calculateDynamicLevels exist in it, with exact file:line for each. If the imported file is NOT src/indicators/ogzTwoPoleOscillator.js, state 'wrong-copy' and give the corrected file:line for the crossover condition, the strength formula, and the levels calculation in the imported copy. File:line evidence only, no proposals.
+Verdict: answer_given
+Iterations: 6
+Evidence:
+Import path used at HEAD: `../src/indicators/ogzTwoPoleOscillator (core/OgzTpoIntegration.js:36 (core/OgzTpoIntegration.js:33-38
+
+`detectTpoCrossover` exists in the imported module at line 252 (src/indicators/ogzTwoPoleOscillator.js) exists in the imported module at line 252 (src/indicators/ogzTwoPoleOscillator.js:252-259
+
+`calculateDynamicLevels` exists in the imported module at line 308 (src/indicators/ogzTwoPoleOscillator.js) exists in the imported module at line 308 (src/indicators/ogzTwoPoleOscillator.js:308-315
+Commands:
+tool_calls=5 | succeeded=5 | failed=0 | tools=open_file:4/4/0, search:1/1/0 | files_opened=4 | run_check_artifacts=0 | failed_calls=none | run_checks=none
+Result:
+Import path used at HEAD: `../src/indicators/ogzTwoPoleOscillator (core/OgzTpoIntegration.js:36 (core/OgzTpoIntegration.js:33-38
+
+`detectTpoCrossover` exists in the imported module at line 252 (src/indicators/ogzTwoPoleOscillator.js) exists in the imported module at line 252 (src/indicators/ogzTwoPoleOscillator.js:252-259
+
+`calculateDynamicLevels` exists in the imported module at line 308 (src/indicators/ogzTwoPoleOscillator.js) exists in the imported module at line 308 (src/indicators/ogzTwoPoleOscillator.js:308-315
+
+5. Final Resolution
+Decision:
+Use Mercury recheck evidence plus local tests/gates as final authority.
+Why:
+Fable challenge received a repo-tool Mercury answer.
+Residual Risk:
+Review the recheck answer for unresolved evidence gaps before using this as commit approval.
+Required Next Action:
+Operator grep to resolve the exit-fit dispute: `grep -rn "OGZTPO" core/TradingConfig.js core/MaxProfitManager.js config/trading.config.json | grep -i -e exit -e stopLoss -e takeProfit` — determines whether the static OGZTPO exit contract (trading.config.json:1333-1337) is consumed at trade-management time, which would break Mercury's "never consulted" claim.

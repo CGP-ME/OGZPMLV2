@@ -1,0 +1,186 @@
+[MERCURY-BRIDGE] Index contains 10155 chunks
+[MERCURY-BRIDGE] Query router: type=landmine mode=hybrid-classified boost=landmine top-k=8
+[MERCURY-BRIDGE] Rationale: landmine/rules pattern detected; boost landmine and guardrails
+[MERCURY-BRIDGE] Embedding query for starter context...
+[MERCURY-BRIDGE] Starter context: 8 chunks
+  1. trai_brain/mercury-bridge/README.md:349-372 (doc_section: Testing checklist) sim=0.642
+  2. ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md:1-40 (doc_section: OGZPrime — Cold-Start Brief#part14) sim=0.598
+  3. ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md:1-40 (doc_section: OGZPrime — Cold-Start Brief#part12) sim=0.619
+  4. AGENTS.md:95-137 (doc_section: Trading-Path Gates#part1) sim=0.614
+  5. ogz-meta/specs/decision-ledger-integration-plan.md:52-68 (doc_section: Phase L2 — Strategy signals + orchestrator decision) sim=0.585
+  6. ogz-meta/specs/GRAND-SCHEME-AUDIT-2026-05-14.md:53-92 (doc_section: Middle layer — strategies and orchestration#part1) sim=0.570
+  7. ogz-meta/specs/therestofthearchitecture.md:1-3051 (doc_section: root#part179) sim=0.601
+  8. ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md:1-40 (doc_section: OGZPrime — Cold-Start Brief#part10) sim=0.610
+[TRACE-MEMORY] Eviction: 0 stale + 0 over-cap, 0 remaining
+[MERCURY-BRIDGE] No similar prior trace found
+[MERCURY-BRIDGE] Tool adapter ready. Tools: search, grep, regex_grep, find_definition, find_references, rule_scan, open_file, get_chunk, list_files, tavily_search, git_show, git_diff, serena_blast_radius, serena_property_refs, serena_method_callers, serena_class_fields, run_check, web_fetch
+[TRAI] LLM client initializing...
+   Provider: Mercury-2 (Inception Labs)
+   Model:    mercury-2
+   Endpoint: https://api.inceptionlabs.ai/v1
+[TRAI] LLM warm-up complete (432ms)
+[TRAI] LLM client ready. Provider: Mercury-2 (Inception Labs) | Model: mercury-2
+[MERCURY-BRIDGE] Starting ReAct loop (max 60 iterations)...
+[MERCURY-BRIDGE] Serena current-change blast radius: 2 file(s)
+  run-empire-v2.js: 3 caller(s), risk=low, 1565ms
+  test/aggregate-source-backfill.test.js: 0 caller(s), risk=isolated, 750ms
+[REACT] Iteration 1/60
+[REACT] Message history: 4 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing list_files({"path":"","pattern":""})
+[REACT] Iteration 2/60
+[REACT] Message history: 6 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/LiquiditySweepDetector.js","start_line":1,"end_line":600})
+[REACT] Iteration 3/60
+[REACT] Message history: 8 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/LiquiditySweepDetector.js","start_line":1,"end_line":260})
+[REACT] Iteration 4/60
+[REACT] Message history: 10 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/LiquiditySweepDetector.js","start_line":260,"end_line":540})
+[REACT] Iteration 5/60
+[REACT] Message history: 12 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":650,"end_line":690})
+[REACT] Iteration 6/60
+[REACT] Message history: 14 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":1400,"end_line":1460})
+[REACT] Iteration 7/60
+[REACT] Message history: 16 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":1900,"end_line":1920})
+[REACT] Iteration 8/60
+[REACT] Message history: 18 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":2440,"end_line":2470})
+[REACT] Iteration 9/60
+[REACT] Message history: 20 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/CandleProcessor.js","start_line":590,"end_line":630})
+[REACT] Iteration 10/60
+[REACT] Message history: 22 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/PipelineSnapshot.js","start_line":250,"end_line":290})
+[REACT] Iteration 11/60
+[REACT] Message history: 24 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"config/trading.config.json","start_line":1240,"end_line":1280})
+[REACT] Iteration 12/60
+[REACT] Message history: 26 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"config/trading.config.json","start_line":1640,"end_line":1680})
+[REACT] Iteration 13/60
+[REACT] Message history: 28 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"ogz-meta/specs/TREY-ARCHITECTURE-SPEC-2026-07-02.md","start_line":130,"end_line":170})
+[REACT] Iteration 14/60
+[REACT] Message history: 30 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/LiquiditySweepDetector.js","start_line":340,"end_line":360})
+[REACT] Iteration 15/60
+[REACT] Message history: 32 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/LiquiditySweepDetector.js","start_line":370,"end_line":390})
+[REACT] Iteration 16/60
+[REACT] Message history: 34 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/LiquiditySweepDetector.js","start_line":420,"end_line":440})
+[REACT] Iteration 17/60
+[REACT] Message history: 36 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/LiquiditySweepDetector.js","start_line":408,"end_line":420})
+[REACT] Iteration 18/60
+[REACT] Message history: 38 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":1410,"end_line":1440})
+[REACT] Iteration 19/60
+[REACT] Message history: 40 messages
+[REACT] Final answer on iteration 19
+[MERCURY-BRIDGE] Fable adversarial_review skipped: Mercury tool failure makes verdict inconclusive_toolfail
+[MERCURY-BRIDGE] Trace not captured: manual_capture_not_requested
+[MERCURY-BRIDGE] Manual capture mode: rerun with --capture-trace only if this answer should teach trace memory.
+
+═══ ANSWER ═══
+
+**Verdict:** **incoherent** – the LiquiditySweep implementation fails to enforce the thesis, mis‑assigns direction, inflates confidence, mis‑matches exit geometry, and collides with platform wiring.
+
+---
+
+### 1. THESIS → TRIGGER  
+The detector treats **any** candle that crosses the opening‑box high or low as a “sweep” (lines 344‑351) and immediately moves to pattern detection, without checking whether the breakout actually **fails** and re‑reverts.
+
+* **Trigger fires on a simple continuation** – a price that breaks out and then continues upward still satisfies `c(bar) > box.high` (line 344) → `exitSide = 'above'` → pattern search, even though the thesis requires a *failed* break.  
+* **Valid thesis state missed** – if a manipulation candle occurs but price never crosses the box (i.e., the break never materialises), the detector never leaves `watching_for_exit` and never produces a signal, so a true liquidity‑grab can be ignored.
+
+> `if (c(bar) > box.high) { … } else if (c(bar) < box.low) { … }` – **LiquiditySweepDetector.js:344‑351**  
+
+---
+
+### 2. TRIGGER → DIRECTION  
+Direction is forced by the exit side: `exitSide === 'below'` always yields a **bullish** signal, `exitSide === 'above'` always yields **bearish** (lines 378‑383). This ignores the actual candle shape after the breakout.
+
+* **Counter‑example** – price breaks down (exitSide = 'below'), then a **bearish hammer** appears (low‑wick dominates, but the code still returns `direction: 'bullish'` because the exit side forces bullish).  
+  * The hammer‑detection block (lines 378‑381) never checks the exit side’s polarity, so a bearish hammer after a down‑break is mis‑labelled.
+
+> `if (exitSide === 'below') { … return { type: 'hammer', direction: 'bullish', … } }` – **LiquiditySweepDetector.js:378‑381**  
+
+---
+
+### 3. CONFIDENCE MATH  
+Confidence is built from a set of **positive** weights, including `sweepReject` (lines 424‑425) which is meant to penalise a “rejection” but instead **adds** to confidence. The sum can exceed 1.0 before the final clamp (line 438), allowing an inflated score.
+
+* **Weight inversion** – `sweepReject` is added when `box.validations.closesInsideRange` is true, but the name suggests a *penalty*. This can push confidence well above the intended range.  
+* **No negative weighting** – there is no branch that reduces confidence for a failed rejection, so a weak signal can still pass the `minStrategyConfidence` gate.  
+* **Clamp only at the end** – the intermediate sum may be > 1.0, then truncated (line 438), masking the logical error.
+
+> `let confidence = this.config.weights.manipCandle; … if (box.validations.closesInsideRange) confidence += this.config.weights.sweepReject;` – **LiquiditySweepDetector.js:423‑425**  
+
+---
+
+### 4. EXIT FIT  
+The exit geometry is derived from absolute price levels (lines 412‑417) while the static exit contract in `trading.config.json` expects **percentage‑based** stop‑loss / take‑profit (e.g., `stopLossPercent: -2`). No conversion is performed, so the generated `stopLoss`/`takeProfit` do not align with the contract’s expectations.
+
+* **Hammer case** – `stopLoss = pattern.wickExtreme * bufDn` (line 412) yields a price that may be far outside the configured `‑2 %` band, and `entry` is left `null`, relying on a “next‑candle open” that the orchestrator never translates to a concrete order.  
+* The orchestrator simply forwards the raw `signal` (line 1431) without applying the contract’s percentages, so the exit hints are effectively ignored.
+
+> `if (pattern.type === 'hammer') { direction = 'bullish'; entry = null; stopLoss = pattern.wickExtreme * bufDn; takeProfit = box.high; }` – **LiquiditySweepDetector.js:412‑417**  
+
+---
+
+### 5. PLATFORM INTERACTION  
+Two distinct layers feed the same detector, causing state drift and duplicated processing:
+
+* **CandleProcessor** (line 612) calls `this.ctx.liquiditySweep.feedCandle(candle)` on every new candle.  
+* **StrategyOrchestrator** (line 1431) also calls `scopedLiquiditySweep.feedCandle(latestCandle)` for the same candle when evaluating the strategy.
+
+Thus each candle advances the detector twice, breaking interval detection (`_detectInterval`) and potentially skipping the “first‑candle” logic. Moreover, the orchestrator’s pipeline toggle (`pipeline.enableLiquiditySweep`) can disable the strategy while the processor still computes a signal, silently contradicting the operator’s regime assignment.
+
+> `if (shouldUpdateLegacyRoot && this.ctx.liquiditySweep) this.ctx.liquiditySweepSignal = this.ctx.liquiditySweep.feedCandle(candle);` – **CandleProcessor.js:612**  
+> `const sig = scopedLiquiditySweep.feedCandle(latestCandle);` – **StrategyOrchestrator.js:1431**  
+
+---
+
+### Summary of Failure Modes  
+
+| Failure | Evidence |
+|---------|----------|
+| Trigger fires on any breakout, not only failed breaks | LiquiditySweepDetector.js 344‑351 |
+| Direction forced by exit side, ignoring candle shape | LiquiditySweepDetector.js 378‑383 |
+| Confidence weights all positive, `sweepReject` adds instead of subtracts | LiquiditySweepDetector.js 423‑425 |
+| Exit geometry uses absolute prices, mismatching percentage‑based contract | LiquiditySweepDetector.js 412‑417; config/trading.config.json 1257‑1268 |
+| Duplicate feeding of detector (CandleProcessor + Orchestrator) → state drift | CandleProcessor.js 612; StrategyOrchestrator.js 1431 |
+| Pipeline toggle may disable strategy while processor still runs | StrategyOrchestrator.js 1906‑1914 (toggle map) |
+
+Because the implementation violates the core thesis, mis‑labels direction, inflates confidence, does not respect the declared exit contract, and collides with platform wiring, the overall LiquiditySweep strategy is **incoherent**.
+
+[iterations: 19 | termination: answer_given | latency: 18532ms]
+[tool telemetry: tool_calls=18 | succeeded=17 | failed=1 | tools=list_files:1/1/0, open_file:17/16/1 | files_opened=16 | run_check_artifacts=0 | failed_calls=open_file({"path":"modules/LiquiditySweepDetector.js","start_line":1,"end_line":600}):range too large (max 500 lines per call) | run_checks=none]
+[run ledger: ogz-meta/cognition-history/mercury-runs/2026-07-14.jsonl:10]
+
+═══ FABLE ADVERSARIAL REVIEW ═══
+
+Adversarial review unavailable: skipped: Mercury tool failure makes adversarial review inconclusive_toolfail
+[adversarial_review: claude-code/claude-fable-5]

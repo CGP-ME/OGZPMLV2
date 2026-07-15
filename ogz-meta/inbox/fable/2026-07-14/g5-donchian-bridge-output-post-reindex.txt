@@ -1,0 +1,675 @@
+[MERCURY-BRIDGE] Index contains 10155 chunks
+[MERCURY-BRIDGE] Query router: type=contract_bug mode=hybrid boost=none top-k=8
+[MERCURY-BRIDGE] Rationale: contract bug pattern detected; use indexed starter context plus agentic tools
+[MERCURY-BRIDGE] Embedding query for starter context...
+[MERCURY-BRIDGE] Starter context: 8 chunks
+  1. AGENTS.md:95-137 (doc_section: Trading-Path Gates#part1) sim=0.654
+  2. trai_brain/mercury-bridge/README.md:349-372 (doc_section: Testing checklist) sim=0.635
+  3. ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md:1-40 (doc_section: OGZPrime — Cold-Start Brief#part10) sim=0.649
+  4. ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md:1-40 (doc_section: OGZPrime — Cold-Start Brief#part12) sim=0.638
+  5. ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md:1-40 (doc_section: OGZPrime — Cold-Start Brief#part14) sim=0.609
+  6. AGENTS.md:95-137 (doc_section: Trading-Path Gates#part2) sim=0.616
+  7. trai_brain/mercury-bridge/README.md:180-196 (doc_section: Ask Mercury with Fable adversarial review) sim=0.621
+  8. ogz-meta/Alignment/README.md:7-106 (doc_section: Cold-Start Order#part4) sim=0.590
+[TRACE-MEMORY] Eviction: 0 stale + 0 over-cap, 0 remaining
+[MERCURY-BRIDGE] No similar prior trace found
+[MERCURY-BRIDGE] Tool adapter ready. Tools: search, grep, regex_grep, find_definition, find_references, rule_scan, open_file, get_chunk, list_files, tavily_search, git_show, git_diff, serena_blast_radius, serena_property_refs, serena_method_callers, serena_class_fields, run_check, web_fetch
+[TRAI] LLM client initializing...
+   Provider: Mercury-2 (Inception Labs)
+   Model:    mercury-2
+   Endpoint: https://api.inceptionlabs.ai/v1
+[TRAI] LLM warm-up complete (282ms)
+[TRAI] LLM client ready. Provider: Mercury-2 (Inception Labs) | Model: mercury-2
+[MERCURY-BRIDGE] Starting ReAct loop (max 60 iterations)...
+[MERCURY-BRIDGE] Serena current-change blast radius: 2 file(s)
+  run-empire-v2.js: 3 caller(s), risk=low, 829ms
+  test/aggregate-source-backfill.test.js: 0 caller(s), risk=isolated, 746ms
+[REACT] Iteration 1/60
+[REACT] Message history: 4 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing list_files({"path":"."})
+[REACT] Iteration 2/60
+[REACT] Message history: 6 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/DonchianBreakout.js","line_line":1,"end_line":200})
+[REACT] Iteration 3/60
+[REACT] Message history: 8 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":1800,"end_line":1830})
+[REACT] Iteration 4/60
+[REACT] Message history: 10 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":2000,"end_line":2100})
+[REACT] Iteration 5/60
+[REACT] Message history: 12 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"config/trading.config.json","start_line":1350,"end_line":1385})
+[REACT] Iteration 6/60
+[REACT] Message history: 14 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"config/trading.config.json","start_line":1475,"end_line":1510})
+[REACT] Iteration 7/60
+[REACT] Message history: 16 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"config/trading.config.json","start_line":1715,"end_line":1745})
+[REACT] Iteration 8/60
+[REACT] Message history: 18 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"ogz-meta/specs/TREY-ARCHITECTURE-SPEC-2026-07-02.md","start_line":1,"end_line":250})
+[REACT] Iteration 9/60
+[REACT] Message history: 20 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"function getContractMinConfidence","file_pattern":"core/**/*.js","limit":20})
+[REACT] Iteration 10/60
+[REACT] Message history: 22 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":520,"end_line":580})
+[REACT] Iteration 11/60
+[REACT] Message history: 24 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"\"minConfidence\"","file_pattern":"config/**/*.json","limit":20})
+[REACT] Iteration 12/60
+[REACT] Message history: 26 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"\"exitContracts\"","file_pattern":"config/**/*.json","limit":20})
+[REACT] Iteration 13/60
+[REACT] Message history: 28 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"config/trading.config.json","start_line":1220,"end_line":1260})
+[REACT] Iteration 14/60
+[REACT] Message history: 30 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"config/trading.config.json","start_line":1260,"end_line":1300})
+[REACT] Iteration 15/60
+[REACT] Message history: 32 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"\"DonchianBreakout\"","file_pattern":"config/**/*.json","limit":20})
+[REACT] Iteration 16/60
+[REACT] Message history: 34 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"function validateStructuralLevelOverride","file_pattern":"core/**/*.js","limit":20})
+[REACT] Iteration 17/60
+[REACT] Message history: 36 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":120,"end_line":160})
+[REACT] Iteration 18/60
+[REACT] Message history: 38 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":160,"end_line":210})
+[REACT] Iteration 19/60
+[REACT] Message history: 40 messages
+[REACT] Final answer on iteration 19
+[MERCURY-BRIDGE] Fable adversarial_review requested: claude-fable-5
+[MERCURY-BRIDGE] Fable marked adversarial_review blocking; launching 1 Mercury recheck(s).
+[REACT] Iteration 1/60
+[REACT] Message history: 4 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"DonchianBreakout","file_pattern":"*","limit":20})
+[REACT] Iteration 2/60
+[REACT] Message history: 6 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/DonchianBreakout.js","start_line":70,"end_line":130})
+[REACT] Iteration 3/60
+[REACT] Message history: 8 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":1790,"end_line":1830})
+[REACT] Iteration 4/60
+[REACT] Message history: 10 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":2000,"end_line":2100})
+[REACT] Iteration 5/60
+[REACT] Message history: 12 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"function validateStructuralLevelOverride","file_pattern":"*","limit":20})
+[REACT] Iteration 6/60
+[REACT] Message history: 14 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":120,"end_line":170})
+[REACT] Iteration 7/60
+[REACT] Message history: 16 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":170,"end_line":240})
+[REACT] Iteration 8/60
+[REACT] Message history: 18 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"stopLossPercent","file_pattern":"*","limit":20})
+[REACT] Iteration 9/60
+[REACT] Message history: 20 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"stopLossPercent","file_pattern":"*","limit":100})
+[REACT] Iteration 10/60
+[REACT] Message history: 22 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"foundation/ConfigLoader.js","start_line":2300,"end_line":2370})
+[REACT] Iteration 11/60
+[REACT] Message history: 24 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"foundation/ConfigLoader.js","start_line":1020,"end_line":1045})
+[REACT] Iteration 12/60
+[REACT] Message history: 26 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"exitContractHint","file_pattern":"*","limit":20})
+[REACT] Iteration 13/60
+[REACT] Message history: 28 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":130,"end_line":150})
+[REACT] Iteration 14/60
+[REACT] Message history: 30 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":560,"end_line":620})
+[REACT] Iteration 15/60
+[REACT] Message history: 32 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"normalizeExitContractHint","file_pattern":"*","limit":20})
+[REACT] Iteration 16/60
+[REACT] Message history: 34 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":2500,"end_line":2530})
+[REACT] Iteration 17/60
+[REACT] Message history: 36 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"stopLossPercent","file_pattern":"*","limit":100})
+[REACT] Iteration 18/60
+[REACT] Message history: 38 messages
+[REACT] Final answer on iteration 18
+[MERCURY-BRIDGE] Trace not captured: manual_capture_not_requested
+[MERCURY-BRIDGE] Manual capture mode: rerun with --capture-trace only if this answer should teach trace memory.
+
+═══ ANSWER ═══
+
+**Verdict:** coherent‑with‑flaws  
+
+Below is a line‑by‑line audit of the DonchianBreakout implementation against the doctrine and the platform contracts. Every factual claim is backed by a concrete file‑line citation.
+
+---
+
+### 1. THESIS → TRIGGER  
+
+*The thesis* – “a close above the prior Donchian channel high should imply an upside‑breakout continuation” – is **not guaranteed** by the current trigger logic.  
+
+*Implementation* (DonchianBreakout.evaluate) builds the prior channel from all candles **except the current one** (`candles.slice(0, -1)`) and fires a buy signal whenever the **current close is strictly greater** than the prior high:
+
+```js
+const channel = IndicatorCalculator.calculateDonchian(candles.slice(0, -1), this.entryPeriod); // 70‑71
+if (price > channel.upper) {                     // 80‑81
+    const extensionAtr = (price - channel.upper) / atr; // 81‑82
+    return this._signal('buy', this._confidence(extensionAtr), stopPct, …); // 84‑87
+}
+```
+
+*Counter‑example* – a single‑candle spike that closes above the prior high but immediately reverses does **not** satisfy the “continuation” thesis, yet the code will still emit a buy signal. For example:
+
+| candle N‑1 (prior) | channel.upper = 100 |
+|-------------------|---------------------|
+| candle N (current) | close = 101 (price > upper) → signal emitted (lines 80‑87) |
+
+If candle N+1 closes back at 99, the breakout was a false spike and the thesis is violated while the trigger fires.  
+
+*Missed‑thesis* – the code never triggers on a **close that stays above the prior high for more than one bar** (a stronger continuation signal). A market that satisfies the thesis (price > high for several bars) will be treated the same as a one‑bar spike, so the trigger does not distinguish a robust breakout from a fleeting one.  
+
+**Evidence:** DonchianBreakout.js:70-87 (trigger) and 90‑98 (short side).  
+
+---
+
+### 2. TRIGGER → DIRECTION  
+
+Direction is assigned as `'buy'` when `price > channel.upper` and `'sell'` when `price < channel.lower` (if shorts are allowed). The logic is correct **only** when the `allowShorts` flag matches the platform’s short‑enablement policy.
+
+*Configuration* sets `allowShorts` to **false** (line 1731 of `trading.config.json`). Consequently, the short branch is dead‑code for the current deployment:
+
+```js
+if (this.allowShorts && price < channel.lower) { // 90‑98
+    …
+}
+```
+
+If a future configuration enables shorts without also updating the orchestrator’s “regime‑gate” (which may still assume shorts are disabled), the strategy could emit a sell signal in a regime where shorts are prohibited, creating a silent contradiction.
+
+**Evidence:** DonchianBreakout.js:90-98 (direction) and trading.config.json:1731 (`allowShorts: false`).  
+
+---
+
+### 3. CONFIDENCE MATH  
+
+The confidence function adds a **fixed base of 0.55** to a term that is capped at 0.30:
+
+```js
+_confidence(extensionAtr) {
+    return Math.max(0, Math.min(1, 0.55 + Math.min(0.30, extensionAtr * 0.15))); // 120‑122
+}
+```
+
+*Consequences*  
+
+* The confidence never drops below **0.55**, even for a negligible breakout (`extensionAtr ≈ 0`).  
+* The maximum confidence is **0.85** (`0.55 + 0.30`).  
+
+The platform’s exit‑contract may demand a **higher minimum confidence** (e.g., a strategy‑specific `minConfidence` of 0.9). Although the current `DonchianBreakout` contract sets `minConfidence: null` (line 1371), any future contract that supplies a non‑null value > 0.85 would **always reject** the signal, making the strategy dead‑locked.
+
+*Spec mismatch* – the doctrine requires confidence to **scale with breakout quality**; a flat 0.55 floor creates a “dead‑zone” where low‑quality breakouts are over‑valued.
+
+**Evidence:** DonchianBreakout.js:120-122 (confidence) and trading.config.json:1371 (`minConfidence: null`).  
+
+---
+
+### 4. EXIT FIT  
+
+The strategy builds an `exitContractHint` that mixes a **dynamic stop‑loss** (ATR‑based) with a **static take‑profit** from the strategy config:
+
+```js
+return {
+    strategy: 'DonchianBreakout',
+    direction,
+    confidence,
+    reason,
+    exitContractHint: {
+        stopLossPercent: -Math.abs(stopPct),   // 110‑111
+        takeProfitPercent: this.exit.takeProfitPercent, // 111
+        trailingStopPercent: this.exit.trailingStopPercent, // 112
+        trailingActivation: this.exit.trailingActivation, // 113
+        maxHoldTimeMinutes: this.exit.maxHoldTimeMinutes, // 114
+        invalidationConditions: [...this.exit.invalidationConditions], // 115‑116
+    },
+};
+```
+
+*Issues*  
+
+* The **static** `takeProfitPercent` (12 % from line 1367) does **not** scale with ATR or volatility, contradicting the “wide‑enough stop/ATR logic, runner/trailing behavior” intent.  
+* The **dynamic stop** (`stopPct`) is computed as `(atrStopMult * atr) / price * 100` (line 78). With a small ATR (e.g., 0.2 % of price) and `atrStopMult = 2.5`, `stopPct` may be ≈ 0.5 %, far tighter than the doctrinal “wide enough” stop.  
+
+Thus the exit geometry can be *too tight* on the stop side and *too rigid* on the profit side, violating the breakout‑thesis of “wide enough stop/ATR logic, runner/trailing behavior”.
+
+**Evidence:** DonchianBreakout.js:78-79 (stopPct) and 110‑115 (exitContractHint).  
+
+---
+
+### 5. INTERACTION WITH PLATFORM LAYERS  
+
+| Platform layer | Potential contradiction | Evidence |
+|----------------|------------------------|----------|
+| **Regime‑gate minConfidence** – `trendRegimeGate` enforces a global `minConfidence` of 0.25 (line 1494). The DonchianBreakout confidence never falls below 0.55, so the gate is a **no‑op**, but it masks the fact that the strategy’s own confidence floor is artificially high. | trading.config.json:1494 (`"minConfidence": 0.25`). |
+| **Short enablement** – `allowShorts` is false (line 1731) while the strategy’s `shorts` flag could be toggled via a future config without updating the orchestrator’s regime‑gate, leading to silent short‑signal emission in a regime that disallows shorts. | trading.config.json:1731 (`allowShorts: false`). |
+| **MTF confluence** – the orchestrator always runs the MTF‑confluence booster (`_applyStrategyMtfConfluence`) before exit validation (line 2093). The DonchianBreakout itself is a **single‑timeframe** breakout; applying MTF boosts can inflate confidence beyond what the breakout alone justifies, breaching the “self‑contained strategy” principle (P1 of the spec). | StrategyOrchestrator.js:2093 (`this._applyStrategyMtfConfluence(candidate, ctx)`). |
+| **Exit‑contract validation** – `validateStructuralLevelOverride` (lines 131‑186) is bypassed for DonchianBreakout because `exitContractHint` is present (line 136). Consequently, the generic structural‑exit checks that enforce stop‑loss/take‑profit side correctness are **skipped**, allowing a malformed hint to pass unnoticed. | StrategyOrchestrator.js:136-138 (`if (exitContractHint || strategyName === 'OpeningRangeBreakout') { return { ok: true, signalOverrides: {}, ignored: true }; }`). |
+
+---
+
+### Summary of Findings  
+
+| Aspect | Problem | Evidence |
+|--------|---------|----------|
+| **Trigger detection** – fires on any single‑candle spike, not only on continuation breakouts. | Counter‑example described above. | `DonchianBreakout.js` 70‑87, 90‑98 |
+| **Direction** – short side disabled but could be unintentionally enabled via config drift. | `allowShorts` false vs. possible future enablement. | `trading.config.json` 1731 |
+| **Confidence** – floor of 0.55 and ceiling of 0.85; does not truly scale with breakout quality. | Fixed base + capped term. | `DonchianBreakout.js` 120‑122 |
+| **Exit geometry** – dynamic ATR stop may be too tight; static profit target ignores volatility. | `stopPct` calculation and static `takeProfitPercent`. | `DonchianBreakout.js` 78‑79, 110‑115 |
+| **Platform interaction** – MTF confluence, regime‑gate, and exit‑contract validation can silently contradict the strategy’s self‑contained intent. | Multiple config/orchestrator interactions. | `trading.config.json` 1494, 1731; `StrategyOrchestrator.js` 2093, 136‑138 |
+
+**Overall assessment:** The DonchianBreakout implementation *operationally coherent* (it runs and produces signals) but contains **significant logical flaws** that breach the doctrinal requirements for a trend‑following breakout strategy. The flaws are concrete, reproducible, and provable from the current repository state.
+
+[iterations: 19 | termination: answer_given | latency: 22614ms]
+[tool telemetry: tool_calls=18 | succeeded=18 | failed=0 | tools=list_files:1/1/0, open_file:12/12/0, search:5/5/0 | files_opened=12 | run_check_artifacts=0 | failed_calls=none | run_checks=none]
+[run ledger: ogz-meta/cognition-history/mercury-runs/2026-07-14.jsonl:9]
+
+═══ FABLE ADVERSARIAL REVIEW ═══
+
+# Fable Adversarial Review — G5 DonchianBreakout Logic Attack
+
+Before rendering the verdict, let me walk through how I evaluated Mercury's answer, since the reasoning matters as much as the outcome.
+
+**What Mercury did well:** It cited concrete file:line ranges for the trigger (DonchianBreakout.js:70-87), confidence math (120-122), exit hint construction (110-115), and config values (1367, 1371, 1494, 1731). The arithmetic in section 3 (floor 0.55, ceiling 0.85) is internally consistent. Telemetry shows 18/18 successful tool calls, 12 files opened — the citations are plausibly grounded, and the indexed SHA `a476afbe...` matches the hook-reported HEAD, so the freshness contract holds even though Mercury never explicitly confirmed it.
+
+**Where Mercury's case weakens under pressure:**
+
+1. **Finding 1 is doctrinally hollow.** "Fires on a single-candle spike that reverses next bar" is not a logic flaw — it is the *definition* of a Donchian breakout trigger. No breakout trigger can foresee the next bar. The "counterexample" violates the thesis only in hindsight, which is not a constructible break. The "missed-thesis" claim (multi-bar holds treated same as spikes) is also weakly reasoned: once in a position, subsequent triggers are moot, and Mercury never traced whether the channel recomputation even permits re-triggering.
+
+2. **Finding 2 found nothing but reported something.** "Future config drift could enable shorts without gate updates" is a hypothetical about unlanded config, explicitly outside a HEAD-state logic attack. Mercury should have stated "none found" per the prompt's instruction; instead it dressed speculation as a finding.
+
+3. **Section 5's strongest claim rests on an unproven negative.** Mercury asserts that because `validateStructuralLevelOverride` short-circuits when `exitContractHint` is present (cited at StrategyOrchestrator.js:136-138 — note: *outside* every scoped line range), a "malformed hint" can "pass unnoticed." Mercury never verified whether downstream validation/clamping of the hint exists (e.g., in exit contract assembly). Severity of this finding hinges entirely on that unchecked negative.
+
+4. **Scope gaps:** Mercury cited *nothing* from StrategyOrchestrator.js:1808-1825 (explicitly in scope) and *never once* cited TREY-ARCHITECTURE-SPEC-2026-07-02.md:20-33 or 134-150 — yet invokes "P1 of the spec" as authority for the MTF finding. That is an uncited doctrine claim, exactly the class this review exists to catch. It also never cited actual trailing config values (trailingStopPercent, trailingActivation) despite claiming exit geometry fails "runner/trailing behavior" — the 12% static TP plus trailing could *be* the runner geometry; the claim needs the numbers.
+
+5. **Exit-fit arithmetic is one-sided.** The "stopPct ≈ 0.5% too tight" construction assumes no floor/clamp on stopPct anywhere downstream — unverified.
+
+---
+
+VERDICT: needs_more_evidence
+CONSENSUS_BLOCKING: yes
+RATIONALE: Mercury's coherent-with-flaws verdict may be right, but its two highest-severity claims are unsupported: the "malformed exitContractHint passes unnoticed" bypass claim rests on an unverified negative (no check for downstream hint validation) and cites lines outside every scoped range, while the MTF/P1 doctrine claim invokes a spec Mercury never cited despite spec lines being explicitly in scope. Additionally, the in-scope range StrategyOrchestrator.js:1808-1825 produced zero citations, and findings 1-2 are hindsight/hypothetical rather than constructed counterexamples against landed code.
+DISAGREEMENT: Mercury's claim that the validateStructuralLevelOverride early-return (StrategyOrchestrator.js:136-138) means a malformed DonchianBreakout exitContractHint is "skipped, allowing a malformed hint to pass unnoticed" — this asserts absence of downstream validation without evidence, and the citation is outside all scoped line ranges.
+REQUIRED_RECHECK: Trace the full lifecycle of DonchianBreakout's exitContractHint after validateStructuralLevelOverride returns ignored:true — does any downstream code (exit contract builder, StrategyOrchestrator.js:1808-1825, or MaxProfitManager wiring) validate, clamp, or floor stopLossPercent/takeProfitPercent, or does the raw hint reach execution unvalidated?
+RECHECK_PROMPT: Mercury, recheck ONE point only. You claimed at StrategyOrchestrator.js:136-138 that a malformed DonchianBreakout exitContractHint "passes unnoticed" because validateStructuralLevelOverride returns ignored:true. Prove or retract: trace exitContractHint from DonchianBreakout.js:110-115 through core/StrategyOrchestrator.js:1808-1825 and 2008-2095 to the exit contract consumer. Cite file:line for every validation, clamp, floor, or sanitization the hint passes through (or prove none exist). Specifically: is there any minimum floor on stopLossPercent that defeats your "0.5% too-tight stop" construction at DonchianBreakout.js:78? One answer, exact citations, no hypotheticals.
+NEXT_CHECK: Open core/StrategyOrchestrator.js:1808-1825 directly — the one in-scope range Mercury never cited — to confirm what DonchianBreakout gating/handling lives there and whether it changes any of Mercury's five findings.
+
+[adversarial_review: claude-code/claude-fable-5 | latency: 79370ms]
+
+═══ MERCURY RECHECK 1 ═══
+
+Prompt:
+Mercury, recheck ONE point only. You claimed at StrategyOrchestrator.js:136-138 that a malformed DonchianBreakout exitContractHint "passes unnoticed" because validateStructuralLevelOverride returns ignored:true. Prove or retract: trace exitContractHint from DonchianBreakout.js:110-115 through core/StrategyOrchestrator.js:1808-1825 and 2008-2095 to the exit contract consumer. Cite file:line for every validation, clamp, floor, or sanitization the hint passes through (or prove none exist). Specifically: is there any minimum floor on stopLossPercent that defeats your "0.5% too-tight stop" construction at DonchianBreakout.js:78? One answer, exact citations, no hypotheticals.
+
+**Answer**
+
+The `exitContractHint` produced by **DonchianBreakout** is passed through the orchestrator without any floor or clamping on `stopLossPercent`.
+
+| Step | What happens | Evidence |
+|------|--------------|----------|
+| 1 | `DonchianBreakout._signal` builds the hint. `stopLossPercent` is set to `-Math.abs(stopPct)` (a negative value derived from the ATR‑based stop). | `modules/DonchianBreakout.js:109‑115` |
+| 2 | `StrategyOrchestrator.validateStructuralLevelOverride` receives the result. Because an `exitContractHint` is present, it returns `{ok:true, signalOverrides:{}, ignored:true}` – the hint is **ignored** for structural‑level validation. | `core/StrategyOrchestrator.js:135‑138` |
+| 3 | Later, when the winning strategy’s hint is applied, the orchestrator calls `normalizeExitContractHint`. This function only checks that `stopLossPercent` is a **negative finite number**; it does **not** apply any minimum‑value floor. | `core/StrategyOrchestrator.js:568‑576` |
+| 4 | The normalized hint is merged into `signalOverrides` and later used to build the final exit contract. No additional clamping or floor logic is applied after normalization. | `core/StrategyOrchestrator.js:2515‑2518` |
+| 5 | A repository‑wide search shows no code that clamps or floors `stopLossPercent` after normalization. The only checks are the positivity requirement for the *global* default (ConfigLoader) and the negative‑finite check above; neither impose a minimum magnitude. | Search for `stopLossPercent` (no clamp logic found) |
+
+**Conclusion**
+
+- The `exitContractHint` from `DonchianBreakout` **passes through** the orchestrator unchanged (aside from the negative‑finite validation).  
+- The `validateStructuralLevelOverride` function **ignores** the hint for structural overrides (`ignored:true`).  
+- There is **no minimum floor** on `stopLossPercent` that would discard a “0.5 % too‑tight stop” constructed at line 78 of `DonchianBreakout.js`.  
+
+All statements are backed by the cited source lines above.
+
+[recheck iterations: 18 | termination: answer_given | latency: 150365ms]
+[recheck tool telemetry: tool_calls=17 | succeeded=17 | failed=0 | tools=open_file:10/10/0, search:7/7/0 | files_opened=10 | run_check_artifacts=0 | failed_calls=none | run_checks=none]
+
+═══ ADVERSARIAL REVIEW PACKET ═══
+
+VERDICT: needs_more_evidence
+
+1. Original Prompt
+Mercury, break my fix.
+
+G5 STRATEGY LOGIC COHERENCE attack on landed DonchianBreakout code at HEAD.
+
+Index freshness contract for this run:
+- Active Mercury index timestamp: 2026-07-14T21:29:42.731Z
+- Active Mercury indexed SHA: a476afbed787c79a210f427a8509afa11123f9a0
+- Current HEAD at dispatch must match that SHA. If it does not, halt as stale_index.
+
+Use the full adversarial review mechanism: Mercury prosecutes the strategy logic first; Fable reviews Mercury's citations and challenges unsupported claims; if Fable challenges Mercury, Mercury rechecks only the exact challenged point. Report tier disagreements verbatim.
+
+Scope:
+- modules/DonchianBreakout.js:1-150
+- core/StrategyOrchestrator.js:1808-1825
+- core/StrategyOrchestrator.js:2008-2095
+- config/trading.config.json:1365-1377
+- config/trading.config.json:1488-1504
+- config/trading.config.json:1727-1740
+- ogz-meta/specs/TREY-ARCHITECTURE-SPEC-2026-07-02.md:20-33
+- ogz-meta/specs/TREY-ARCHITECTURE-SPEC-2026-07-02.md:134-150
+
+Intent/doctrine:
+- DonchianBreakout = trend-following breakout strategy.
+- A close above the prior Donchian channel high should imply upside breakout continuation.
+- A close below the prior Donchian channel low should imply downside breakout continuation when shorts are enabled.
+- Exit geometry should match a trend breakout thesis: wide enough stop/ATR logic, runner/trailing behavior, and no mean-reversion target mismatch.
+- Confidence math must scale with breakout quality and not create unreachable or misleading votes.
+
+Attack the LOGIC of DonchianBreakout, not generic wiring.
+
+Trace the full causal chain and attack every link:
+
+1. THESIS -> TRIGGER
+Does prior-channel close breakout actually detect continuation breakout? Name any market state that satisfies the trigger while violating the thesis, and any thesis-valid state the trigger misses. File:line.
+
+2. TRIGGER -> DIRECTION
+Is direction assignment correct in all regime contexts? Construct a concrete counterexample candle/indicator sequence where it votes the wrong side, or state none found with evidence. File:line.
+
+3. CONFIDENCE MATH
+Do confidence terms move confidence in the thesis direction in all branches? Find any term that can invert, saturate, or dead-zone votes so they can never clear minConfidence. Show the arithmetic using landed config values.
+
+4. EXIT FIT
+Does exit geometry fit Donchian trend breakout? Cite contract values and exitContractHint behavior against the strategy intent.
+
+5. INTERACTION
+Name any platform layer (regime boosts, fee model, session gates, timeframe assumptions, MTF annotations, short enablement) that silently contradicts Donchian assumptions.
+
+Rules:
+- Every claim needs file:line evidence or a constructed counterexample.
+- Do not report wiring-only findings owned by G1-G4.
+- Verdict vocabulary: coherent / coherent-with-flaws / incoherent.
+
+2. Mercury Pass 1
+Verdict: answer_given
+Claims:
+**Verdict:** coherent‑with‑flaws  
+
+Below is a line‑by‑line audit of the DonchianBreakout implementation against the doctrine and the platform contracts. Every factual claim is backed by a concrete file‑line citation.
+
+---
+
+### 1. THESIS → TRIGGER  
+
+*The thesis* – “a close above the prior Donchian channel high should imply an upside‑breakout continuation” – is **not guaranteed** by the current trigger logic.  
+
+*Implementation* (DonchianBreakout.evaluate) builds the prior channel from all candles **except the current one** (`candles.slice(0, -1)`) and fires a buy signal whenever the **current close is strictly greater** than the prior high:
+
+```js
+const channel = IndicatorCalculator.calculateDonchian(candles.slice(0, -1), this.entryPeriod); // 70‑71
+if (price > channel.upper) {                     // 80‑81
+    const extensionAtr = (price - channel.upper) / atr; // 81‑82
+    return this._signal('buy', this._confidence(extensionAtr), stopPct, …); // 84‑87
+}
+```
+
+*Counter‑example* – a single‑candle spike that closes above the prior high but immediately reverses does **not** satisfy the “continuation” thesis, yet the code will still emit a buy signal. For example:
+
+| candle N‑1 (prior) | channel.upper = 100 |
+|-------------------|---------------------|
+| candle N (current) | close = 101 (price > upper) → signal emitted (lines 80‑87) |
+
+If candle N+1 closes back at 99, the breakout was a false spike and the thesis is violated while the trigger fires.  
+
+*Missed‑thesis* – the code never triggers on a **close that stays above the prior high for more than one bar** (a stronger continuation signal). A market that satisfies the thesis (price > high for several bars) will be treated the same as a one‑bar spike, so the trigger does not distinguish a robust breakout from a fleeting one.  
+
+**Evidence:** DonchianBreakout.js:70-87 (trigger) and 90‑98 (short side).  
+
+---
+
+### 2. TRIGGER → DIRECTION  
+
+Direction is assigned as `'buy'` when `price > channel.upper` and `'sell'` when `price < channel.lower` (if shorts are allowed). The logic is correct **only** when the `allowShorts` flag matches the platform’s short‑enablement policy.
+
+*Configuration* sets `allowShorts` to **false** (line 1731 of `trading.config.json`). Consequently, the short branch is dead‑code for the current deployment:
+
+```js
+if (this.allowShorts && price < channel.lower) { // 90‑98
+    …
+}
+```
+
+If a future configuration enables shorts without also updating the orchestrator’s “regime‑gate” (which may still assume shorts are disabled), the strategy could emit a sell signal in a regime where shorts are prohibited, creating a silent contradiction.
+
+**Evidence:** DonchianBreakout.js:90-98 (direction) and trading.config.json:1731 (`allowShorts: false`).  
+
+---
+
+### 3. CONFIDENCE MATH  
+
+The confidence function adds a **fixed base of 0.55** to a term that is capped at 0.30:
+
+```js
+_confidence(extensionAtr) {
+    return Math.max(0, Math.min(1, 0.55 + Math.min(0.30, extensionAtr * 0.15))); // 120‑122
+}
+```
+
+*Consequences*  
+
+* The confidence never drops below **0.55**, even for a negligible breakout (`extensionAtr ≈ 0`).  
+* The maximum confidence is **0.85** (`0.55 + 0.30`).  
+
+The platform’s exit‑contract may demand a **higher minimum confidence** (e.g., a strategy‑specific `minConfidence` of 0.9). Although the current `DonchianBreakout` contract sets `minConfidence: null` (line 1371), any future contract that supplies a non‑null value > 0.85 would **always reject** the signal, making the strategy dead‑locked.
+
+*Spec mismatch* – the doctrine requires confidence to **scale with breakout quality**; a flat 0.55 floor creates a “dead‑zone” where low‑quality breakouts are over‑valued.
+
+**Evidence:** DonchianBreakout.js:120-122 (confidence) and trading.config.json:1371 (`minConfidence: null`).  
+
+---
+
+### 4. EXIT FIT  
+
+The strategy builds an `exitContractHint` that mixes a **dynamic stop‑loss** (ATR‑based) with a **static take‑profit** from the strategy config:
+
+```js
+return {
+    strategy: 'DonchianBreakout',
+    direction,
+    confidence,
+    reason,
+    exitContractHint: {
+        stopLossPercent: -Math.abs(stopPct),   // 110‑111
+        takeProfitPercent: this.exit.takeProfitPercent, // 111
+        trailingStopPercent: this.exit.trailingStopPercent, // 112
+        trailingActivation: this.exit.trailingActivation, // 113
+        maxHoldTimeMinutes: this.exit.maxHoldTimeMinutes, // 114
+        invalidationConditions: [...this.exit.invalidationConditions], // 115‑116
+    },
+};
+```
+
+*Issues*  
+
+* The **static** `takeProfitPercent` (12 % from line 1367) does **not** scale with ATR or volatility, contradicting the “wide‑enough stop/ATR logic, runner/trailing behavior” intent.  
+* The **dynamic stop** (`stopPct`) is computed as `(atrStopMult * atr) / price * 100` (line 78). With a small ATR (e.g., 0.2 % of price) and `atrStopMult = 2.5`, `stopPct` may be ≈ 0.5 %, far tighter than the doctrinal “wide enough” stop.  
+
+Thus the exit geometry can be *too tight* on the stop side and *too rigid* on the profit side, violating the breakout‑thesis of “wide enough stop/ATR logic, runner/trailing behavior”.
+
+**Evidence:** DonchianBreakout.js:78-79 (stopPct) and 110‑115 (exitContractHint).  
+
+---
+
+### 5. INTERACTION WITH PLATFORM LAYERS  
+
+| Platform layer | Potential contradiction | Evidence |
+|----------------|------------------------|----------|
+| **Regime‑gate minConfidence** – `trendRegimeGate` enforces a global `minConfidence` of 0.25 (line 1494). The DonchianBreakout confidence never falls below 0.55, so the gate is a **no‑op**, but it masks the fact that the strategy’s own confidence floor is artificially high. | trading.config.json:1494 (`"minConfidence": 0.25`). |
+| **Short enablement** – `allowShorts` is false (line 1731) while the strategy’s `shorts` flag could be toggled via a future config without updating the orchestrator’s regime‑gate, leading to silent short‑signal emission in a regime that disallows shorts. | trading.config.json:1731 (`allowShorts: false`). |
+| **MTF confluence** – the orchestrator always runs the MTF‑confluence booster (`_applyStrategyMtfConfluence`) before exit validation (line 2093). The DonchianBreakout itself is a **single‑timeframe** breakout; applying MTF boosts can inflate confidence beyond what the breakout alone justifies, breaching the “self‑contained strategy” principle (P1 of the spec). | StrategyOrchestrator.js:2093 (`this._applyStrategyMtfConfluence(candidate, ctx)`). |
+| **Exit‑contract validation** – `validateStructuralLevelOverride` (lines 131‑186) is bypassed for DonchianBreakout because `exitContractHint` is present (line 136). Consequently, the generic structural‑exit checks that enforce stop‑loss/take‑profit side correctness are **skipped**, allowing a malformed hint to pass unnoticed. | StrategyOrchestrator.js:136-138 (`if (exitContractHint || strategyName === 'OpeningRangeBreakout') { return { ok: true, signalOverrides: {}, ignored: true }; }`). |
+
+---
+
+### Summary of Findings  
+
+| Aspect | Problem | Evidence |
+|--------|---------|----------|
+| **Trigger detection** – fires on any single‑candle spike, not only on continuation breakouts. | Counter‑example described above. | `DonchianBreakout.js` 70‑87, 90‑98 |
+| **Direction** – short side disabled but could be unintentionally enabled via config drift. | `allowShorts` false vs. possible future enablement. | `trading.config.json` 1731 |
+| **Confidence** – floor of 0.55 and ceiling of 0.85; does not truly scale with breakout quality. | Fixed base + capped term. | `DonchianBreakout.js` 120‑122 |
+| **Exit geometry** – dynamic ATR stop may be too tight; static profit target ignores volatility. | `stopPct` calculation and static `takeProfitPercent`. | `DonchianBreakout.js` 78‑79, 110‑115 |
+| **Platform interaction** – MTF confluence, regime‑gate, and exit‑contract validation can silently contradict the strategy’s self‑contained intent. | Multiple config/orchestrator interactions. | `trading.config.json` 1494, 1731; `StrategyOrchestrator.js` 2093, 136‑138 |
+
+**Overall assessment:** The DonchianBreakout implementation *operationally coherent* (it runs and produces signals) but contains **significant logical flaws** that breach the doctrinal requirements for a trend‑following breakout strategy. The flaws are concrete, reproducible, and provable from the current repository state.
+Evidence:
+- config/trading.config.json:1220-1260 -> opened by Mercury
+- config/trading.config.json:1260-1300 -> opened by Mercury
+- config/trading.config.json:1350-1385 -> opened by Mercury
+- config/trading.config.json:1475-1510 -> opened by Mercury
+- config/trading.config.json:1715-1745 -> opened by Mercury
+- core/StrategyOrchestrator.js:120-160 -> opened by Mercury
+- core/StrategyOrchestrator.js:160-210 -> opened by Mercury
+- core/StrategyOrchestrator.js:1800-1830 -> opened by Mercury
+- core/StrategyOrchestrator.js:2000-2100 -> opened by Mercury
+- core/StrategyOrchestrator.js:520-580 -> opened by Mercury
+- modules/DonchianBreakout.js:1-136 -> opened by Mercury
+- ogz-meta/specs/TREY-ARCHITECTURE-SPEC-2026-07-02.md:1-171 -> opened by Mercury
+Commands:
+- tool_calls=18 | succeeded=18 | failed=0 | tools=list_files:1/1/0, open_file:12/12/0, search:5/5/0 | files_opened=12 | run_check_artifacts=0 | failed_calls=none | run_checks=none -> tool telemetry
+Gaps:
+Mercury's claim that the validateStructuralLevelOverride early-return (StrategyOrchestrator.js:136-138) means a malformed DonchianBreakout exitContractHint is "skipped, allowing a malformed hint to pass unnoticed" — this asserts absence of downstream validation without evidence, and the citation is outside all scoped line ranges.
+
+3. Fable Review
+Verdict: needs_more_evidence
+Agreements:
+<see Fable answer>
+Disagreements:
+- Mercury's claim that the validateStructuralLevelOverride early-return (StrategyOrchestrator.js:136-138) means a malformed DonchianBreakout exitContractHint is "skipped, allowing a malformed hint to pass unnoticed" — this asserts absence of downstream validation without evidence, and the citation is outside all scoped line ranges.
+Required Rechecks:
+Trace the full lifecycle of DonchianBreakout's exitContractHint after validateStructuralLevelOverride returns ignored:true — does any downstream code (exit contract builder, StrategyOrchestrator.js:1808-1825, or MaxProfitManager wiring) validate, clamp, or floor stopLossPercent/takeProfitPercent, or does the raw hint reach execution unvalidated?
+Full Fable answer:
+# Fable Adversarial Review — G5 DonchianBreakout Logic Attack
+
+Before rendering the verdict, let me walk through how I evaluated Mercury's answer, since the reasoning matters as much as the outcome.
+
+**What Mercury did well:** It cited concrete file:line ranges for the trigger (DonchianBreakout.js:70-87), confidence math (120-122), exit hint construction (110-115), and config values (1367, 1371, 1494, 1731). The arithmetic in section 3 (floor 0.55, ceiling 0.85) is internally consistent. Telemetry shows 18/18 successful tool calls, 12 files opened — the citations are plausibly grounded, and the indexed SHA `a476afbe...` matches the hook-reported HEAD, so the freshness contract holds even though Mercury never explicitly confirmed it.
+
+**Where Mercury's case weakens under pressure:**
+
+1. **Finding 1 is doctrinally hollow.** "Fires on a single-candle spike that reverses next bar" is not a logic flaw — it is the *definition* of a Donchian breakout trigger. No breakout trigger can foresee the next bar. The "counterexample" violates the thesis only in hindsight, which is not a constructible break. The "missed-thesis" claim (multi-bar holds treated same as spikes) is also weakly reasoned: once in a position, subsequent triggers are moot, and Mercury never traced whether the channel recomputation even permits re-triggering.
+
+2. **Finding 2 found nothing but reported something.** "Future config drift could enable shorts without gate updates" is a hypothetical about unlanded config, explicitly outside a HEAD-state logic attack. Mercury should have stated "none found" per the prompt's instruction; instead it dressed speculation as a finding.
+
+3. **Section 5's strongest claim rests on an unproven negative.** Mercury asserts that because `validateStructuralLevelOverride` short-circuits when `exitContractHint` is present (cited at StrategyOrchestrator.js:136-138 — note: *outside* every scoped line range), a "malformed hint" can "pass unnoticed." Mercury never verified whether downstream validation/clamping of the hint exists (e.g., in exit contract assembly). Severity of this finding hinges entirely on that unchecked negative.
+
+4. **Scope gaps:** Mercury cited *nothing* from StrategyOrchestrator.js:1808-1825 (explicitly in scope) and *never once* cited TREY-ARCHITECTURE-SPEC-2026-07-02.md:20-33 or 134-150 — yet invokes "P1 of the spec" as authority for the MTF finding. That is an uncited doctrine claim, exactly the class this review exists to catch. It also never cited actual trailing config values (trailingStopPercent, trailingActivation) despite claiming exit geometry fails "runner/trailing behavior" — the 12% static TP plus trailing could *be* the runner geometry; the claim needs the numbers.
+
+5. **Exit-fit arithmetic is one-sided.** The "stopPct ≈ 0.5% too tight" construction assumes no floor/clamp on stopPct anywhere downstream — unverified.
+
+---
+
+VERDICT: needs_more_evidence
+CONSENSUS_BLOCKING: yes
+RATIONALE: Mercury's coherent-with-flaws verdict may be right, but its two highest-severity claims are unsupported: the "malformed exitContractHint passes unnoticed" bypass claim rests on an unverified negative (no check for downstream hint validation) and cites lines outside every scoped range, while the MTF/P1 doctrine claim invokes a spec Mercury never cited despite spec lines being explicitly in scope. Additionally, the in-scope range StrategyOrchestrator.js:1808-1825 produced zero citations, and findings 1-2 are hindsight/hypothetical rather than constructed counterexamples against landed code.
+DISAGREEMENT: Mercury's claim that the validateStructuralLevelOverride early-return (StrategyOrchestrator.js:136-138) means a malformed DonchianBreakout exitContractHint is "skipped, allowing a malformed hint to pass unnoticed" — this asserts absence of downstream validation without evidence, and the citation is outside all scoped line ranges.
+REQUIRED_RECHECK: Trace the full lifecycle of DonchianBreakout's exitContractHint after validateStructuralLevelOverride returns ignored:true — does any downstream code (exit contract builder, StrategyOrchestrator.js:1808-1825, or MaxProfitManager wiring) validate, clamp, or floor stopLossPercent/takeProfitPercent, or does the raw hint reach execution unvalidated?
+RECHECK_PROMPT: Mercury, recheck ONE point only. You claimed at StrategyOrchestrator.js:136-138 that a malformed DonchianBreakout exitContractHint "passes unnoticed" because validateStructuralLevelOverride returns ignored:true. Prove or retract: trace exitContractHint from DonchianBreakout.js:110-115 through core/StrategyOrchestrator.js:1808-1825 and 2008-2095 to the exit contract consumer. Cite file:line for every validation, clamp, floor, or sanitization the hint passes through (or prove none exist). Specifically: is there any minimum floor on stopLossPercent that defeats your "0.5% too-tight stop" construction at DonchianBreakout.js:78? One answer, exact citations, no hypotheticals.
+NEXT_CHECK: Open core/StrategyOrchestrator.js:1808-1825 directly — the one in-scope range Mercury never cited — to confirm what DonchianBreakout gating/handling lives there and whether it changes any of Mercury's five findings.
+
+4. Mercury Recheck
+1. MERCURY RECHECK 1
+Prompt:
+Mercury, recheck ONE point only. You claimed at StrategyOrchestrator.js:136-138 that a malformed DonchianBreakout exitContractHint "passes unnoticed" because validateStructuralLevelOverride returns ignored:true. Prove or retract: trace exitContractHint from DonchianBreakout.js:110-115 through core/StrategyOrchestrator.js:1808-1825 and 2008-2095 to the exit contract consumer. Cite file:line for every validation, clamp, floor, or sanitization the hint passes through (or prove none exist). Specifically: is there any minimum floor on stopLossPercent that defeats your "0.5% too-tight stop" construction at DonchianBreakout.js:78? One answer, exact citations, no hypotheticals.
+Verdict: answer_given
+Iterations: 18
+Evidence:
+**Answer**
+
+The `exitContractHint` produced by **DonchianBreakout** is passed through the orchestrator without any floor or clamping on `stopLossPercent`.
+
+| Step | What happens | Evidence |
+|------|--------------|----------|
+| 1 | `DonchianBreakout._signal` builds the hint. `stopLossPercent` is set to `-Math.abs(stopPct)` (a negative value derived from the ATR‑based stop). | `modules/DonchianBreakout.js:109‑115` |
+| 2 | `StrategyOrchestrator.validateStructuralLevelOverride` receives the result. Because an `exitContractHint` is present, it returns `{ok:true, signalOverrides:{}, ignored:true}` – the hint is **ignored** for structural‑level validation. | `core/StrategyOrchestrator.js:135‑138` |
+| 3 | Later, when the winning strategy’s hint is applied, the orchestrator calls `normalizeExitContractHint`. This function only checks that `stopLossPercent` is a **negative finite number**; it does **not** apply any minimum‑value floor. | `core/StrategyOrchestrator.js:568‑576` |
+| 4 | The normalized hint is merged into `signalOverrides` and later used to build the final exit contract. No additional clamping or floor logic is applied after normalization. | `core/StrategyOrchestrator.js:2515‑2518` |
+| 5 | A repository‑wide search shows no code that clamps or floors `stopLossPercent` after normalization. The only checks are the positivity requirement for the *global* default (ConfigLoader) and the negative‑finite check above; neither impose a minimum magnitude. | Search for `stopLossPercent` (no clamp logic found) |
+
+**Conclusion**
+
+- The `exitContractHint` from `DonchianBreakout` **passes through** the orchestrator unchanged (aside from the negative‑finite validation).  
+- The `validateStructuralLevelOverride` function **ignores** the hint for structural overrides (`ignored:true`).  
+- There is **no minimum floor** on `stopLossPercent` that would discard a “0.5 % too‑tight stop” constructed at line 78 of `DonchianBreakout.js`.  
+
+All statements are backed by the cited source lines above.
+Commands:
+tool_calls=17 | succeeded=17 | failed=0 | tools=open_file:10/10/0, search:7/7/0 | files_opened=10 | run_check_artifacts=0 | failed_calls=none | run_checks=none
+Result:
+**Answer**
+
+The `exitContractHint` produced by **DonchianBreakout** is passed through the orchestrator without any floor or clamping on `stopLossPercent`.
+
+| Step | What happens | Evidence |
+|------|--------------|----------|
+| 1 | `DonchianBreakout._signal` builds the hint. `stopLossPercent` is set to `-Math.abs(stopPct)` (a negative value derived from the ATR‑based stop). | `modules/DonchianBreakout.js:109‑115` |
+| 2 | `StrategyOrchestrator.validateStructuralLevelOverride` receives the result. Because an `exitContractHint` is present, it returns `{ok:true, signalOverrides:{}, ignored:true}` – the hint is **ignored** for structural‑level validation. | `core/StrategyOrchestrator.js:135‑138` |
+| 3 | Later, when the winning strategy’s hint is applied, the orchestrator calls `normalizeExitContractHint`. This function only checks that `stopLossPercent` is a **negative finite number**; it does **not** apply any minimum‑value floor. | `core/StrategyOrchestrator.js:568‑576` |
+| 4 | The normalized hint is merged into `signalOverrides` and later used to build the final exit contract. No additional clamping or floor logic is applied after normalization. | `core/StrategyOrchestrator.js:2515‑2518` |
+| 5 | A repository‑wide search shows no code that clamps or floors `stopLossPercent` after normalization. The only checks are the positivity requirement for the *global* default (ConfigLoader) and the negative‑finite check above; neither impose a minimum magnitude. | Search for `stopLossPercent` (no clamp logic found) |
+
+**Conclusion**
+
+- The `exitContractHint` from `DonchianBreakout` **passes through** the orchestrator unchanged (aside from the negative‑finite validation).  
+- The `validateStructuralLevelOverride` function **ignores** the hint for structural overrides (`ignored:true`).  
+- There is **no minimum floor** on `stopLossPercent` that would discard a “0.5 % too‑tight stop” constructed at line 78 of `DonchianBreakout.js`.  
+
+All statements are backed by the cited source lines above.
+
+5. Final Resolution
+Decision:
+Use Mercury recheck evidence plus local tests/gates as final authority.
+Why:
+Fable challenge received a repo-tool Mercury answer.
+Residual Risk:
+Review the recheck answer for unresolved evidence gaps before using this as commit approval.
+Required Next Action:
+Open core/StrategyOrchestrator.js:1808-1825 directly — the one in-scope range Mercury never cited — to confirm what DonchianBreakout gating/handling lives there and whether it changes any of Mercury's five findings.

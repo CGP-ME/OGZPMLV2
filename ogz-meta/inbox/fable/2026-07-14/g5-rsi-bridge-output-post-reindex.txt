@@ -1,0 +1,153 @@
+[MERCURY-BRIDGE] Index contains 10155 chunks
+[MERCURY-BRIDGE] Query router: type=landmine mode=hybrid-classified boost=landmine top-k=8
+[MERCURY-BRIDGE] Rationale: landmine/rules pattern detected; boost landmine and guardrails
+[MERCURY-BRIDGE] Embedding query for starter context...
+[MERCURY-BRIDGE] Starter context: 8 chunks
+  1. ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md:1-40 (doc_section: OGZPrime — Cold-Start Brief#part12) sim=0.661
+  2. trai_brain/mercury-bridge/README.md:349-372 (doc_section: Testing checklist) sim=0.631
+  3. AGENTS.md:95-137 (doc_section: Trading-Path Gates#part1) sim=0.629
+  4. ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md:1-40 (doc_section: OGZPrime — Cold-Start Brief#part10) sim=0.630
+  5. ogz-meta/specs/GRAND-SCHEME-AUDIT-2026-05-14.md:53-92 (doc_section: Middle layer — strategies and orchestration#part2) sim=0.641
+  6. ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md:1-40 (doc_section: OGZPrime — Cold-Start Brief#part14) sim=0.613
+  7. AGENTS.md:95-137 (doc_section: Trading-Path Gates#part2) sim=0.636
+  8. CHANGELOG.md:1438-1467 (doc_section: Commit range: `36e57aa..c653800` (2 commits on `alpaca/stocks-paper-flip`)#part4) sim=0.643
+[TRACE-MEMORY] Eviction: 0 stale + 0 over-cap, 0 remaining
+[MERCURY-BRIDGE] No similar prior trace found
+[MERCURY-BRIDGE] Tool adapter ready. Tools: search, grep, regex_grep, find_definition, find_references, rule_scan, open_file, get_chunk, list_files, tavily_search, git_show, git_diff, serena_blast_radius, serena_property_refs, serena_method_callers, serena_class_fields, run_check, web_fetch
+[TRAI] LLM client initializing...
+   Provider: Mercury-2 (Inception Labs)
+   Model:    mercury-2
+   Endpoint: https://api.inceptionlabs.ai/v1
+[TRAI] LLM warm-up complete (421ms)
+[TRAI] LLM client ready. Provider: Mercury-2 (Inception Labs) | Model: mercury-2
+[MERCURY-BRIDGE] Starting ReAct loop (max 60 iterations)...
+[MERCURY-BRIDGE] Serena current-change blast radius: 2 file(s)
+  run-empire-v2.js: 3 caller(s), risk=low, 859ms
+  test/aggregate-source-backfill.test.js: 0 caller(s), risk=isolated, 750ms
+[REACT] Iteration 1/60
+[REACT] Message history: 4 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing list_files({"path":"."})
+[REACT] Iteration 2/60
+[REACT] Message history: 6 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":1100,"end_line":1200})
+[REACT] Iteration 3/60
+[REACT] Message history: 8 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"config/trading.config.json","start_line":1270,"end_line":1300})
+[REACT] Iteration 4/60
+[REACT] Message history: 10 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"config/trading.config.json","start_line":1660,"end_line":1685})
+[REACT] Iteration 5/60
+[REACT] Message history: 12 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"ogz-meta/specs/TREY-ARCHITECTURE-SPEC-2026-07-02.md","start_line":1,"end_line":250})
+[REACT] Iteration 6/60
+[REACT] Message history: 14 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing regex_grep({"query":"RSI.*direction","file_pattern":"core/StrategyOrchestrator.js"})
+[REACT] Iteration 7/60
+[REACT] Message history: 16 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":1100,"end_line":1120})
+[REACT] Iteration 8/60
+[REACT] Message history: 18 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing regex_grep({"query":"RSI\"","file_pattern":"core/StrategyOrchestrator.js"})
+[REACT] Iteration 9/60
+[REACT] Message history: 20 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing regex_grep({"query":"rsi","file_pattern":"core/StrategyOrchestrator.js"})
+[REACT] Iteration 10/60
+[REACT] Message history: 22 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":1490,"end_line":1540})
+[REACT] Iteration 11/60
+[REACT] Message history: 24 messages
+[REACT] Final answer on iteration 11
+[MERCURY-BRIDGE] Fable adversarial_review requested: claude-fable-5
+[MERCURY-BRIDGE] Fable marked adversarial_review blocking; launching 1 Mercury recheck(s).
+[REACT] Iteration 1/60
+[REACT] Message history: 4 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing list_files({"path":"","pattern":""})
+[REACT] Iteration 2/60
+[REACT] Message history: 6 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":1990,"end_line":2060})
+[REACT] Iteration 3/60
+[REACT] Message history: 8 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"config/trading.config.json","start_line":1280,"end_line":1300})
+[REACT] Iteration 4/60
+[REACT] Message history: 10 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"0.5 + strength*0.4","file_pattern":"*.js","limit":20})
+[REACT] Iteration 5/60
+[REACT] Message history: 12 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"strength","file_pattern":"*.js","limit":20})
+[REACT] Iteration 6/60
+[REACT] Message history: 14 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"0.5 + strength","file_pattern":"*.js","limit":20})
+[REACT] Iteration 7/60
+[REACT] Message history: 16 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"RSI","file_pattern":"core/*.js","limit":20})
+[REACT] Iteration 8/60
+[REACT] Message history: 18 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"strength*0.4","file_pattern":"*.js","limit":20})
+[REACT] Iteration 9/60
+[REACT] Message history: 20 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"rsi_mtf_1h_rsi_boost","file_pattern":"*","limit":20})
+[REACT] Iteration 10/60
+[REACT] Message history: 22 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":1110,"end_line":1160})
+[REACT] Iteration 11/60
+[REACT] Message history: 24 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"hourlyRsiAlignBoost","file_pattern":"*.json","limit":20})
+[REACT] Iteration 12/60
+[REACT] Message history: 26 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"strength * 0.4","file_pattern":"*.js","limit":20})
+[REACT] Iteration 13/60
+[REACT] Message history: 28 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":1510,"end_line":1540})
+[REACT] Iteration 14/60
+[REACT] Message history: 30 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"function add(","file_pattern":"core/*.js","limit":20})
+[REACT] Iteration 15/60
+[REACT] Message history: 32 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"add('rsi_mtf_1h_rsi_boost'","file_pattern":"*.js","limit":20})
+[REACT] Iteration 16/60
+[REACT] Message history: 34 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"add(","file_pattern":"core/StrategyOrchestrator.js","limit":20})
+[REACT] Iteration 17/60
+[REACT] Message history: 36 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"add(","file_pattern":"core/StrategyOrchestrator.js","limit":200})
+[REACT] Iteration 18/60
+[REACT] Message history: 38 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"function addDecisionContributor","file_pattern":"core/*.js","limit":20})
+[REACT] Iteration 19/60
+[REACT] Message history: 40 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":230,"end_line":280})
+[REACT] Iteration 20/60
+[REACT] Message history: 42 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"function add(","file_pattern":"*.js","limit":20})
+[REACT] Iteration 21/60
+[REACT] Message history: 44 messages

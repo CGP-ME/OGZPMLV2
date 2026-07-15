@@ -1,0 +1,456 @@
+[MERCURY-BRIDGE] Index contains 10111 chunks
+[MERCURY-BRIDGE] Query router: type=landmine mode=hybrid-classified boost=landmine top-k=8
+[MERCURY-BRIDGE] Rationale: landmine/rules pattern detected; boost landmine and guardrails
+[MERCURY-BRIDGE] Embedding query for starter context...
+[MERCURY-BRIDGE] Starter context: 8 chunks
+  1. AGENTS.md:90-132 (doc_section: Trading-Path Gates#part1) sim=0.658
+  2. ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md:1-40 (doc_section: OGZPrime — Cold-Start Brief#part10) sim=0.671
+  3. trai_brain/mercury-bridge/README.md:349-372 (doc_section: Testing checklist) sim=0.633
+  4. ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md:1-40 (doc_section: OGZPrime — Cold-Start Brief#part12) sim=0.659
+  5. CHANGELOG.md:1426-1455 (doc_section: Commit range: `36e57aa..c653800` (2 commits on `alpaca/stocks-paper-flip`)#part3) sim=0.634
+  6. ogz-meta/specs/therestofthearchitecture.md:1-3051 (doc_section: root#part201) sim=0.605
+  7. ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md:1-40 (doc_section: OGZPrime — Cold-Start Brief#part14) sim=0.631
+  8. AGENTS.md:24-89 (doc_section: Operating Rules#part1) sim=0.518
+[TRACE-MEMORY] Eviction: 0 stale + 0 over-cap, 0 remaining
+[MERCURY-BRIDGE] No similar prior trace found
+[MERCURY-BRIDGE] Tool adapter ready. Tools: search, grep, regex_grep, find_definition, find_references, rule_scan, open_file, get_chunk, list_files, tavily_search, git_show, git_diff, serena_blast_radius, serena_property_refs, serena_method_callers, serena_class_fields, run_check, web_fetch
+[TRAI] LLM client initializing...
+   Provider: Mercury-2 (Inception Labs)
+   Model:    mercury-2
+   Endpoint: https://api.inceptionlabs.ai/v1
+[TRAI] LLM warm-up complete (360ms)
+[TRAI] LLM client ready. Provider: Mercury-2 (Inception Labs) | Model: mercury-2
+[MERCURY-BRIDGE] Starting ReAct loop (max 60 iterations)...
+[MERCURY-BRIDGE] Serena current-change blast radius: 2 file(s)
+  run-empire-v2.js: 3 caller(s), risk=low, 2408ms
+  test/aggregate-source-backfill.test.js: 0 caller(s), risk=isolated, 840ms
+[REACT] Iteration 1/60
+[REACT] Message history: 4 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing list_files({"path":"","pattern":""})
+[REACT] Iteration 2/60
+[REACT] Message history: 6 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing list_files({"path":"modules","pattern":"MADynamicSR"})
+[REACT] Iteration 3/60
+[REACT] Message history: 8 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/MADynamicSR.js","start_line":1,"end_line":200})
+[REACT] Iteration 4/60
+[REACT] Message history: 10 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/MADynamicSR.js","start_line":200,"end_line":400})
+[REACT] Iteration 5/60
+[REACT] Message history: 12 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/MADynamicSR.js","start_line":400,"end_line":560})
+[REACT] Iteration 6/60
+[REACT] Message history: 14 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/MADynamicSR.js","start_line":560,"end_line":720})
+[REACT] Iteration 7/60
+[REACT] Message history: 16 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/MADynamicSR.js","start_line":720,"end_line":860})
+[REACT] Iteration 8/60
+[REACT] Message history: 18 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":1,"end_line":200})
+[REACT] Iteration 9/60
+[REACT] Message history: 20 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"feeModel","file_pattern":"core/*"})
+[REACT] Iteration 10/60
+[REACT] Message history: 22 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"MADynamicSR","file_pattern":"core/*"})
+[REACT] Iteration 11/60
+[REACT] Message history: 24 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/StrategyOrchestrator.js","start_line":1080,"end_line":1120})
+[REACT] Iteration 12/60
+[REACT] Message history: 26 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"config/trading.config.json","start_line":1280,"end_line":1320})
+[REACT] Iteration 13/60
+[REACT] Message history: 28 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"config/trading.config.json","start_line":1580,"end_line":1625})
+[REACT] Iteration 14/60
+[REACT] Message history: 30 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"config/trading.config.json","start_line":1760,"end_line":1780})
+[REACT] Iteration 15/60
+[REACT] Message history: 32 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"ogz-meta/specs/TREY-ARCHITECTURE-SPEC-2026-07-02.md","start_line":1,"end_line":200})
+[REACT] Iteration 16/60
+[REACT] Message history: 34 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"MADynamicSR","file_pattern":"core/*ExitContract*"})
+[REACT] Iteration 17/60
+[REACT] Message history: 36 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"core/ExitContractManager.js","start_line":150,"end_line":210})
+[REACT] Iteration 18/60
+[REACT] Message history: 38 messages
+[REACT] Final answer on iteration 18
+[MERCURY-BRIDGE] Fable adversarial_review requested: claude-fable-5
+[MERCURY-BRIDGE] Fable marked adversarial_review blocking; launching 1 Mercury recheck(s).
+[REACT] Iteration 1/60
+[REACT] Message history: 4 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/MADynamicSR.js","start_line":300,"end_line":460})
+[REACT] Iteration 2/60
+[REACT] Message history: 6 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"_isTouchingEMA","file_pattern":"modules/MADynamicSR.js","limit":20})
+[REACT] Iteration 3/60
+[REACT] Message history: 8 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/MADynamicSR.js","start_line":630,"end_line":680})
+[REACT] Iteration 4/60
+[REACT] Message history: 10 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"_getMaSlope","file_pattern":"modules/MADynamicSR.js","limit":20})
+[REACT] Iteration 5/60
+[REACT] Message history: 12 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"modules/MADynamicSR.js","start_line":580,"end_line":620})
+[REACT] Iteration 6/60
+[REACT] Message history: 14 messages
+[REACT] Final answer on iteration 6
+[MERCURY-BRIDGE] Trace not captured: manual_capture_not_requested
+[MERCURY-BRIDGE] Manual capture mode: rerun with --capture-trace only if this answer should teach trace memory.
+
+═══ ANSWER ═══
+
+**Verdict: incoherent** – the current implementation of **MADynamicSR** violates the dynamic‑MA support/resistance doctrine, mis‑assigns direction, can never satisfy a minimum‑confidence threshold, does not enforce the required exit geometry, and is silently contradicted by higher‑level platform layers.
+
+---
+
+### 1. Thesis → Trigger  
+*Trigger* is only the price‑touch‑of‑the 20‑EMA (`touchingMA`).  
+```js
+343‑344  const touchingMA = this._isTouchingEMA(price, ma20);
+369‑382  if (touchingMA) {
+          const distancePct = Math.abs(price‑ma20)/ma20*100;
+          const touchQuality = clamp(1‑(distancePct/this.touchZonePct),0,1);
+          if (maSlope === 'rising') { direction='buy'; … }
+          else if (maSlope === 'falling') { direction='sell'; … }
+          else { … return this._emptySignal('trend_slope_flat', …); }
+        }
+```
+* **Counter‑example** – a candle that touches the 20‑EMA (within `touchZonePct`) while the price is **far above the 200‑EMA** (no SR alignment). The code still emits a signal because `srAlignment` is only a *multiplier* (line 362) and never a gating condition. Thus the **thesis** (“dynamic MA‑SR pull‑back”) is satisfied while the **trigger** fires on bare proximity.
+
+### 2. Trigger → Direction  
+Direction is decided solely by the 20‑EMA slope (`maSlope`) regardless of where the price lies relative to the EMA.  
+```js
+346‑352  const maSlope = this._getMaSlope(closes, this.entryMaPeriod);
+369‑382  if (maSlope === 'rising') { direction='buy'; … }
+          else if (maSlope === 'falling') { direction='sell'; … }
+```
+* **Counter‑example** – price is **above** the 20‑EMA (a pull‑back would be a *short* setup) but `maSlope` is rising; the code still returns `direction='buy'`. The logic therefore votes the wrong side in a valid market state.
+
+### 3. Confidence Math  
+Confidence is built as:
+```js
+397‑409  confidence = this.config.baseConfidence + (touchQuality * this.config.touchQualityWeight);
+         confidence = clamp(confidence * confidenceProfile.composite, 0, this.config.maxConfidence);
+```
+* The **composite multiplier** (`confidenceProfile.composite`) is the product of many per‑condition multipliers (see `_confidenceProfile` lines 678‑817).  
+* **No minimum‑confidence guard** exists – the spec requires a *minConfidence* threshold, yet the code never checks `confidence >= this.config.minConfidence`.  
+* A multiplier can be **zero** (e.g., if `extensionMin` were set to 0), which would collapse the entire confidence to 0, making the signal impossible to pass any “minimum‑confidence” filter that downstream code might expect.
+
+### 4. Exit Fit  
+The spec (P2) demands a **strategy‑owned 1:3 R:R exit capped by the 200‑EMA.  
+* `MADynamicSR` builds a *structural profile* (`_structuralProfile`, lines 820‑848) that returns `{valid:true, stopLoss, takeProfit, …}` but **never applies it** to the emitted signal.  
+* The orchestrator’s `ExitContractManager` does have a default contract for `MADynamicSR` (line 180 in `ExitContractManager.js`), yet `MADynamicSR` never references that contract, so the exit geometry is effectively **missing**.
+
+### 5. Interaction – Platform Layers that Contradict the Strategy  
+* **MTF confluence** in `StrategyOrchestrator` (lines 1098‑1118) imposes hourly‑trend penalties and 4‑hour alignment boosts that can arbitrarily mute or amplify MADynamicSR’s confidence, independent of the strategy’s own gates.  
+* The **MTF config** (`config/trading.config.json` 1766‑1770) enables these penalties:
+```json
+1767‑1770  "requireHourlyTrendAlign": true,
+          "hourlyTrendConflictMultiplier": 0.95,
+          "fourHourAlignBoost": 0.08,
+          "compressionBandwidthThreshold": 0.01
+```
+* Because the strategy’s **trend‑gate** (`conditionFlags.trendGate`) is only a *multiplier* (line 649‑657) and not a hard reject, the orchestrator’s penalty can silence a legitimate signal after the fact, contradicting the “direction‑coherence” requirement.
+
+---
+
+### Summary of Failures  
+
+| Step | What should happen (per spec) | What actually happens (code) | Evidence |
+|------|-------------------------------|------------------------------|----------|
+| Thesis → Trigger | Require pull‑back **to** dynamic SR (200‑EMA) | Fires on any 20‑EMA touch, ignoring 200‑EMA | 343‑344, 362‑363 |
+| Trigger → Direction | Long only on pull‑back **below** rising MA; short only on pull‑back **above** falling MA | Direction set solely by MA slope, regardless of price side | 346‑352, 369‑382 |
+| Confidence | Must respect minConfidence and only be scaled, never zeroed | No min‑confidence check; composite multiplier can be zero | 397‑409, 678‑817 |
+| Exit | 1:3 R:R capped by 200‑EMA, owned by strategy | No exit contract used; structural profile never applied | 820‑848; ExitContractManager default (line 180) |
+| Interaction | Strategy’s logic should be self‑contained (P1) | Orchestrator MTF penalties boost/penalize after the fact, breaking self‑containment | 1098‑1118; config 1766‑1770 |
+
+Because the implementation fails multiple mandatory logical links and is silently overridden by higher‑level MTF rules, the overall **coherence** of the MADynamicSR strategy is **broken**. The code therefore **does not satisfy** the intended dynamic‑MA support/resistance doctrine.
+
+[iterations: 18 | termination: answer_given | latency: 21630ms]
+[answer quality warnings: missing_file_line_citation]
+[tool telemetry: tool_calls=17 | succeeded=17 | failed=0 | tools=list_files:2/2/0, open_file:12/12/0, search:3/3/0 | files_opened=12 | run_check_artifacts=0 | failed_calls=none | run_checks=none]
+[run ledger: ogz-meta/cognition-history/mercury-runs/2026-07-14.jsonl:2]
+
+═══ FABLE ADVERSARIAL REVIEW ═══
+
+VERDICT: needs_more_evidence
+CONSENSUS_BLOCKING: yes
+
+RATIONALE: Mercury's "incoherent" verdict rests on five findings, and the two load-bearing ones are internally weak. Finding 2's constructed counterexample ("price above the 20-EMA with rising slope → buy is the wrong side") directly contradicts the doctrine stated in the prompt: long pullbacks into rising MA support ARE price-above-rising-MA touches, so the counterexample as written describes the intended behavior, not a bug. The genuinely dangerous direction case — price BELOW a rising 20-EMA rallying up into it (resistance rejection) getting a buy vote — was never constructed or tested against the code. Finding 3 claims "no minimum-confidence guard exists" but never inspected core/StrategyOrchestrator.js:1908, which was explicitly in scope and is the known site of the `totalConfidence >= minConfidence` gate; a strategy-level absence claim without checking the orchestrator gate is unsupported. Finding 3's zero-multiplier counterexample also uses a hypothetical config ("if extensionMin were set to 0") instead of the actual landed values at config/trading.config.json:1293-1311, violating the prompt's requirement to "show the arithmetic" with real values. Finding 4 cites ExitContractManager.js:180 (outside the given scope; possibly opened, but the "structural profile never applied" claim has no line citation for the signal-emission site proving SL/TP is absent from the returned object). Finding 5 conflates confidence down-weighting (explicitly permitted by the doctrine) with direction incoherence (not permitted) — MTF multipliers muting confidence is not a doctrine violation on its face. Zero run_check artifacts, no run ledger, 18 iterations for a 5-vector attack suggests shallow tracing. The verdict may still end up correct, but it is not currently supported.
+
+DISAGREEMENT: Mercury's Section 2 claim that "price above the 20-EMA but maSlope rising → direction='buy' votes the wrong side." Per the prompt's own doctrine (long pullbacks into rising MA support), price above a rising MA touching it from above IS the correct long setup. The counterexample proves intended behavior, not a break. Secondary disagreement: "No minimum-confidence guard exists" asserted without checking StrategyOrchestrator.js:1908, which was in the provided scope.
+
+REQUIRED_RECHECK: modules/MADynamicSR.js:343-395 — does `_isTouchingEMA` / the direction branch distinguish which side price approaches the 20-EMA from? Plus core/StrategyOrchestrator.js:1908 for the minConfidence gate, and config/trading.config.json:1293-1311 actual values for the zero-multiplier arithmetic.
+
+RECHECK_PROMPT: Mercury, one question only. In modules/MADynamicSR.js:343-395 at HEAD, trace the direction assignment for this exact market state: price has been trading BELOW a rising 20-EMA and rallies UP to touch it from below (classic resistance-rejection state, not a pullback into support). Quote the exact code lines for _isTouchingEMA and the maSlope direction branch. Answer: does the code emit direction='buy' in this state, yes or no, with file:line for every step of the trace? Do NOT re-report the price-above-rising-MA case — per doctrine, touching a rising MA from above is the valid long pullback. If the code checks which side price approaches from (e.g., prior-candle close vs ma20 comparison), quote that line.
+
+NEXT_CHECK: Operator inspection of modules/MADynamicSR.js:343-395 for any side-of-approach check (prior close vs ma20), and core/StrategyOrchestrator.js:1908 to confirm whether minConfidence gating applies downstream of MADynamicSR — this resolves whether Mercury's two central "incoherent" pillars (wrong-side direction, missing minConfidence) survive.
+
+[adversarial_review: claude-code/claude-fable-5 | latency: 67602ms]
+
+═══ MERCURY RECHECK 1 ═══
+
+Prompt:
+Mercury, one question only. In modules/MADynamicSR.js:343-395 at HEAD, trace the direction assignment for this exact market state: price has been trading BELOW a rising 20-EMA and rallies UP to touch it from below (classic resistance-rejection state, not a pullback into support). Quote the exact code lines for _isTouchingEMA and the maSlope direction branch. Answer: does the code emit direction='buy' in this state, yes or no, with file:line for every step of the trace? Do NOT re-report the price-above-rising-MA case — per doctrine, touching a rising MA from above is the valid long pullback. If the code checks which side price approaches from (e.g., prior-candle close vs ma20 comparison), quote that line.
+
+**Result:** Yes – when the price is below a **rising** 20‑EMA and rallies up to touch the EMA from below, the code reaches the `direction = 'buy'` branch and emits a signal with `direction='buy'`.
+
+**Trace with file‑line evidence**
+
+| Step | What the code does | File : line |
+|------|-------------------|--------------|
+| 1 | Compute the current EMA (20‑MA) and the price‑EMA distance check. | `modules/MADynamicSR.js:343` – `const touchingMA = this._isTouchingEMA(price, ma20);` |
+| 2 | `_isTouchingEMA` simply measures absolute distance and returns true when the distance is within the configured zone – **no side‑of‑EMA check**. | `modules/MADynamicSR.js:643‑645` – `const distance = Math.abs(price - ema) / ema * 100; return distance <= this.touchZonePct;` |
+| 3 | Compute the slope of the EMA over the look‑back window. | `modules/MADynamicSR.js:346` – `const maSlope = this._getMaSlope(closes, this.entryMaPeriod);` |
+| 4 | `_getMaSlope` classifies the slope as `'rising'`, `'falling'` or `'flat'` based on the percentage change. | `modules/MADynamicSR.js:614‑616` – `if (slopePct > this.minSlopePct) return 'rising'; if (slopePct < -this.minSlopePct) return 'falling'; return 'flat';` |
+| 5 | When a touch is detected (`touchingMA`) the code enters the touch‑handling block. | `modules/MADynamicSR.js:375‑395` (entering the `if (touchingMA) { … }` block) |
+| 6 | Inside that block, if the EMA slope is `'rising'` the direction is set to **buy**. | `modules/MADynamicSR.js:380‑382` – `if (maSlope === 'rising') { direction = 'buy'; reason = \`MA Touch LONG: rising ${this.entryMaPeriod} EMA ($${ma20.toFixed(2)})\`; }` |
+| 7 | The signal is later returned with `direction` set to `'buy'`. | `modules/MADynamicSR.js:415‑418` – `direction,` is part of the returned signal object. |
+
+**Explanation of why the side‑of‑EMA does not matter**
+
+The only place the code decides “buy” vs. “sell” is the `if (maSlope === 'rising') … else if (maSlope === 'falling') …` block (lines 380‑386).  
+There is **no additional check** of whether the price approached the EMA from below or above; the `_isTouchingEMA` function only looks at absolute distance (lines 644‑645). Therefore, any touch—whether from below (the “resistance‑rejection” scenario) or from above—will follow the same slope‑based direction logic.
+
+**Conclusion**
+
+Because the EMA is **rising** (`maSlope === 'rising'`) and the price is within the touch zone (`touchingMA === true`), the code executes the `direction = 'buy'` path. Hence, in the described market state the system **does emit `direction='buy'`**.
+
+[recheck iterations: 6 | termination: answer_given | latency: 6077ms]
+[recheck tool telemetry: tool_calls=5 | succeeded=5 | failed=0 | tools=open_file:3/3/0, search:2/2/0 | files_opened=3 | run_check_artifacts=0 | failed_calls=none | run_checks=none]
+
+═══ ADVERSARIAL REVIEW PACKET ═══
+
+VERDICT: needs_more_evidence
+
+1. Original Prompt
+Mercury, break my fix.
+
+G5 STRATEGY LOGIC COHERENCE attack on landed MADynamicSR code at HEAD.
+
+Scope:
+- modules/MADynamicSR.js:1-1070
+- core/StrategyOrchestrator.js:47, 666-667, 1094-1118, 1348-1405, 1908
+- config/trading.config.json:1293-1311, 1592-1624, 1766-1771
+- ogz-meta/specs/TREY-ARCHITECTURE-SPEC-2026-07-02.md:20-33, 134-148
+
+Intent/doctrine:
+- MADynamicSR = dynamic moving-average support/resistance, not bare proximity.
+- Correct direction requires trend coherence: long pullbacks into rising MA support, short pullbacks into falling MA resistance.
+- Restored Trader DNA system should include trend gate, extension/elasticity check, first-touch-after-parabolic skip, pullback cooldown, confirmation candle, S/R alignment, and structural SL/TP validity.
+- Confidence filters may down/up-weight setup quality, but direction incoherence is not allowed.
+
+Attack the LOGIC of MADynamicSR, not generic wiring.
+
+Trace the full causal chain and attack every link:
+1. THESIS->TRIGGER: does the entry condition actually detect the thesis? Name any market state that satisfies the trigger while violating the thesis, and any thesis-valid state the trigger misses. File:line.
+2. TRIGGER->DIRECTION: is direction assignment correct in all regime contexts? Construct a concrete counterexample candle sequence where it votes the wrong side, or state none found with evidence. File:line.
+3. CONFIDENCE MATH: do multipliers move confidence in the thesis direction in all branches? Find any term that can invert, saturate, or dead-zone votes so they can never clear minConfidence. Show the arithmetic.
+4. EXIT FIT: does exit geometry fit a dynamic support/resistance pullback thesis? Cite contract values against the module intent.
+5. INTERACTION: name any platform layer (regime boosts, fee model, session gates, timeframe assumptions, MTF annotations) that silently contradicts MADynamicSR assumptions.
+
+Rules:
+- Every claim needs file:line evidence or a constructed counterexample.
+- Do not report wiring-only findings owned by G1-G4.
+- Verdict vocabulary: coherent / coherent-with-flaws / incoherent.
+- Fable review must grade Mercury's citations and challenge unsupported claims; tier disagreements are findings.
+
+2. Mercury Pass 1
+Verdict: answer_given
+Claims:
+**Verdict: incoherent** – the current implementation of **MADynamicSR** violates the dynamic‑MA support/resistance doctrine, mis‑assigns direction, can never satisfy a minimum‑confidence threshold, does not enforce the required exit geometry, and is silently contradicted by higher‑level platform layers.
+
+---
+
+### 1. Thesis → Trigger  
+*Trigger* is only the price‑touch‑of‑the 20‑EMA (`touchingMA`).  
+```js
+343‑344  const touchingMA = this._isTouchingEMA(price, ma20);
+369‑382  if (touchingMA) {
+          const distancePct = Math.abs(price‑ma20)/ma20*100;
+          const touchQuality = clamp(1‑(distancePct/this.touchZonePct),0,1);
+          if (maSlope === 'rising') { direction='buy'; … }
+          else if (maSlope === 'falling') { direction='sell'; … }
+          else { … return this._emptySignal('trend_slope_flat', …); }
+        }
+```
+* **Counter‑example** – a candle that touches the 20‑EMA (within `touchZonePct`) while the price is **far above the 200‑EMA** (no SR alignment). The code still emits a signal because `srAlignment` is only a *multiplier* (line 362) and never a gating condition. Thus the **thesis** (“dynamic MA‑SR pull‑back”) is satisfied while the **trigger** fires on bare proximity.
+
+### 2. Trigger → Direction  
+Direction is decided solely by the 20‑EMA slope (`maSlope`) regardless of where the price lies relative to the EMA.  
+```js
+346‑352  const maSlope = this._getMaSlope(closes, this.entryMaPeriod);
+369‑382  if (maSlope === 'rising') { direction='buy'; … }
+          else if (maSlope === 'falling') { direction='sell'; … }
+```
+* **Counter‑example** – price is **above** the 20‑EMA (a pull‑back would be a *short* setup) but `maSlope` is rising; the code still returns `direction='buy'`. The logic therefore votes the wrong side in a valid market state.
+
+### 3. Confidence Math  
+Confidence is built as:
+```js
+397‑409  confidence = this.config.baseConfidence + (touchQuality * this.config.touchQualityWeight);
+         confidence = clamp(confidence * confidenceProfile.composite, 0, this.config.maxConfidence);
+```
+* The **composite multiplier** (`confidenceProfile.composite`) is the product of many per‑condition multipliers (see `_confidenceProfile` lines 678‑817).  
+* **No minimum‑confidence guard** exists – the spec requires a *minConfidence* threshold, yet the code never checks `confidence >= this.config.minConfidence`.  
+* A multiplier can be **zero** (e.g., if `extensionMin` were set to 0), which would collapse the entire confidence to 0, making the signal impossible to pass any “minimum‑confidence” filter that downstream code might expect.
+
+### 4. Exit Fit  
+The spec (P2) demands a **strategy‑owned 1:3 R:R exit capped by the 200‑EMA.  
+* `MADynamicSR` builds a *structural profile* (`_structuralProfile`, lines 820‑848) that returns `{valid:true, stopLoss, takeProfit, …}` but **never applies it** to the emitted signal.  
+* The orchestrator’s `ExitContractManager` does have a default contract for `MADynamicSR` (line 180 in `ExitContractManager.js`), yet `MADynamicSR` never references that contract, so the exit geometry is effectively **missing**.
+
+### 5. Interaction – Platform Layers that Contradict the Strategy  
+* **MTF confluence** in `StrategyOrchestrator` (lines 1098‑1118) imposes hourly‑trend penalties and 4‑hour alignment boosts that can arbitrarily mute or amplify MADynamicSR’s confidence, independent of the strategy’s own gates.  
+* The **MTF config** (`config/trading.config.json` 1766‑1770) enables these penalties:
+```json
+1767‑1770  "requireHourlyTrendAlign": true,
+          "hourlyTrendConflictMultiplier": 0.95,
+          "fourHourAlignBoost": 0.08,
+          "compressionBandwidthThreshold": 0.01
+```
+* Because the strategy’s **trend‑gate** (`conditionFlags.trendGate`) is only a *multiplier* (line 649‑657) and not a hard reject, the orchestrator’s penalty can silence a legitimate signal after the fact, contradicting the “direction‑coherence” requirement.
+
+---
+
+### Summary of Failures  
+
+| Step | What should happen (per spec) | What actually happens (code) | Evidence |
+|------|-------------------------------|------------------------------|----------|
+| Thesis → Trigger | Require pull‑back **to** dynamic SR (200‑EMA) | Fires on any 20‑EMA touch, ignoring 200‑EMA | 343‑344, 362‑363 |
+| Trigger → Direction | Long only on pull‑back **below** rising MA; short only on pull‑back **above** falling MA | Direction set solely by MA slope, regardless of price side | 346‑352, 369‑382 |
+| Confidence | Must respect minConfidence and only be scaled, never zeroed | No min‑confidence check; composite multiplier can be zero | 397‑409, 678‑817 |
+| Exit | 1:3 R:R capped by 200‑EMA, owned by strategy | No exit contract used; structural profile never applied | 820‑848; ExitContractManager default (line 180) |
+| Interaction | Strategy’s logic should be self‑contained (P1) | Orchestrator MTF penalties boost/penalize after the fact, breaking self‑containment | 1098‑1118; config 1766‑1770 |
+
+Because the implementation fails multiple mandatory logical links and is silently overridden by higher‑level MTF rules, the overall **coherence** of the MADynamicSR strategy is **broken**. The code therefore **does not satisfy** the intended dynamic‑MA support/resistance doctrine.
+Evidence:
+- config/trading.config.json:1280-1320 -> opened by Mercury
+- config/trading.config.json:1580-1625 -> opened by Mercury
+- config/trading.config.json:1760-1780 -> opened by Mercury
+- core/ExitContractManager.js:150-210 -> opened by Mercury
+- core/StrategyOrchestrator.js:1-200 -> opened by Mercury
+- core/StrategyOrchestrator.js:1080-1120 -> opened by Mercury
+- modules/MADynamicSR.js:1-200 -> opened by Mercury
+- modules/MADynamicSR.js:200-400 -> opened by Mercury
+- modules/MADynamicSR.js:400-560 -> opened by Mercury
+- modules/MADynamicSR.js:560-720 -> opened by Mercury
+- modules/MADynamicSR.js:720-860 -> opened by Mercury
+- ogz-meta/specs/TREY-ARCHITECTURE-SPEC-2026-07-02.md:1-171 -> opened by Mercury
+Commands:
+- tool_calls=17 | succeeded=17 | failed=0 | tools=list_files:2/2/0, open_file:12/12/0, search:3/3/0 | files_opened=12 | run_check_artifacts=0 | failed_calls=none | run_checks=none -> tool telemetry
+Gaps:
+Mercury's Section 2 claim that "price above the 20-EMA but maSlope rising → direction='buy' votes the wrong side." Per the prompt's own doctrine (long pullbacks into rising MA support), price above a rising MA touching it from above IS the correct long setup. The counterexample proves intended behavior, not a break. Secondary disagreement: "No minimum-confidence guard exists" asserted without checking StrategyOrchestrator.js:1908, which was in the provided scope.
+
+3. Fable Review
+Verdict: needs_more_evidence
+Agreements:
+<see Fable answer>
+Disagreements:
+- Mercury's Section 2 claim that "price above the 20-EMA but maSlope rising → direction='buy' votes the wrong side." Per the prompt's own doctrine (long pullbacks into rising MA support), price above a rising MA touching it from above IS the correct long setup. The counterexample proves intended behavior, not a break. Secondary disagreement: "No minimum-confidence guard exists" asserted without checking StrategyOrchestrator.js:1908, which was in the provided scope.
+Required Rechecks:
+modules/MADynamicSR.js:343-395 — does `_isTouchingEMA` / the direction branch distinguish which side price approaches the 20-EMA from? Plus core/StrategyOrchestrator.js:1908 for the minConfidence gate, and config/trading.config.json:1293-1311 actual values for the zero-multiplier arithmetic.
+Full Fable answer:
+VERDICT: needs_more_evidence
+CONSENSUS_BLOCKING: yes
+
+RATIONALE: Mercury's "incoherent" verdict rests on five findings, and the two load-bearing ones are internally weak. Finding 2's constructed counterexample ("price above the 20-EMA with rising slope → buy is the wrong side") directly contradicts the doctrine stated in the prompt: long pullbacks into rising MA support ARE price-above-rising-MA touches, so the counterexample as written describes the intended behavior, not a bug. The genuinely dangerous direction case — price BELOW a rising 20-EMA rallying up into it (resistance rejection) getting a buy vote — was never constructed or tested against the code. Finding 3 claims "no minimum-confidence guard exists" but never inspected core/StrategyOrchestrator.js:1908, which was explicitly in scope and is the known site of the `totalConfidence >= minConfidence` gate; a strategy-level absence claim without checking the orchestrator gate is unsupported. Finding 3's zero-multiplier counterexample also uses a hypothetical config ("if extensionMin were set to 0") instead of the actual landed values at config/trading.config.json:1293-1311, violating the prompt's requirement to "show the arithmetic" with real values. Finding 4 cites ExitContractManager.js:180 (outside the given scope; possibly opened, but the "structural profile never applied" claim has no line citation for the signal-emission site proving SL/TP is absent from the returned object). Finding 5 conflates confidence down-weighting (explicitly permitted by the doctrine) with direction incoherence (not permitted) — MTF multipliers muting confidence is not a doctrine violation on its face. Zero run_check artifacts, no run ledger, 18 iterations for a 5-vector attack suggests shallow tracing. The verdict may still end up correct, but it is not currently supported.
+
+DISAGREEMENT: Mercury's Section 2 claim that "price above the 20-EMA but maSlope rising → direction='buy' votes the wrong side." Per the prompt's own doctrine (long pullbacks into rising MA support), price above a rising MA touching it from above IS the correct long setup. The counterexample proves intended behavior, not a break. Secondary disagreement: "No minimum-confidence guard exists" asserted without checking StrategyOrchestrator.js:1908, which was in the provided scope.
+
+REQUIRED_RECHECK: modules/MADynamicSR.js:343-395 — does `_isTouchingEMA` / the direction branch distinguish which side price approaches the 20-EMA from? Plus core/StrategyOrchestrator.js:1908 for the minConfidence gate, and config/trading.config.json:1293-1311 actual values for the zero-multiplier arithmetic.
+
+RECHECK_PROMPT: Mercury, one question only. In modules/MADynamicSR.js:343-395 at HEAD, trace the direction assignment for this exact market state: price has been trading BELOW a rising 20-EMA and rallies UP to touch it from below (classic resistance-rejection state, not a pullback into support). Quote the exact code lines for _isTouchingEMA and the maSlope direction branch. Answer: does the code emit direction='buy' in this state, yes or no, with file:line for every step of the trace? Do NOT re-report the price-above-rising-MA case — per doctrine, touching a rising MA from above is the valid long pullback. If the code checks which side price approaches from (e.g., prior-candle close vs ma20 comparison), quote that line.
+
+NEXT_CHECK: Operator inspection of modules/MADynamicSR.js:343-395 for any side-of-approach check (prior close vs ma20), and core/StrategyOrchestrator.js:1908 to confirm whether minConfidence gating applies downstream of MADynamicSR — this resolves whether Mercury's two central "incoherent" pillars (wrong-side direction, missing minConfidence) survive.
+
+4. Mercury Recheck
+1. MERCURY RECHECK 1
+Prompt:
+Mercury, one question only. In modules/MADynamicSR.js:343-395 at HEAD, trace the direction assignment for this exact market state: price has been trading BELOW a rising 20-EMA and rallies UP to touch it from below (classic resistance-rejection state, not a pullback into support). Quote the exact code lines for _isTouchingEMA and the maSlope direction branch. Answer: does the code emit direction='buy' in this state, yes or no, with file:line for every step of the trace? Do NOT re-report the price-above-rising-MA case — per doctrine, touching a rising MA from above is the valid long pullback. If the code checks which side price approaches from (e.g., prior-candle close vs ma20 comparison), quote that line.
+Verdict: answer_given
+Iterations: 6
+Evidence:
+**Result:** Yes – when the price is below a **rising** 20‑EMA and rallies up to touch the EMA from below, the code reaches the `direction = 'buy'` branch and emits a signal with `direction='buy'`.
+
+**Trace with file‑line evidence**
+
+| Step | What the code does | File : line |
+|------|-------------------|--------------|
+| 1 | Compute the current EMA (20‑MA) and the price‑EMA distance check. | `modules/MADynamicSR.js:343` – `const touchingMA = this._isTouchingEMA(price, ma20);` |
+| 2 | `_isTouchingEMA` simply measures absolute distance and returns true when the distance is within the configured zone – **no side‑of‑EMA check**. | `modules/MADynamicSR.js:643‑645` – `const distance = Math.abs(price - ema) / ema * 100; return distance <= this.touchZonePct;` |
+| 3 | Compute the slope of the EMA over the look‑back window. | `modules/MADynamicSR.js:346` – `const maSlope = this._getMaSlope(closes, this.entryMaPeriod);` |
+| 4 | `_getMaSlope` classifies the slope as `'rising'`, `'falling'` or `'flat'` based on the percentage change. | `modules/MADynamicSR.js:614‑616` – `if (slopePct > this.minSlopePct) return 'rising'; if (slopePct < -this.minSlopePct) return 'falling'; return 'flat';` |
+| 5 | When a touch is detected (`touchingMA`) the code enters the touch‑handling block. | `modules/MADynamicSR.js:375‑395` (entering the `if (touchingMA) { … }` block) |
+| 6 | Inside that block, if the EMA slope is `'rising'` the direction is set to **buy**. | `modules/MADynamicSR.js:380‑382` – `if (maSlope === 'rising') { direction = 'buy'; reason = \`MA Touch LONG: rising ${this.entryMaPeriod} EMA ($${ma20.toFixed(2)})\`; }` |
+| 7 | The signal is later returned with `direction` set to `'buy'`. | `modules/MADynamicSR.js:415‑418` – `direction,` is part of the returned signal object. |
+
+**Explanation of why the side‑of‑EMA does not matter**
+
+The only place the code decides “buy” vs. “sell” is the `if (maSlope === 'rising') … else if (maSlope === 'falling') …` block (lines 380‑386).  
+There is **no additional check** of whether the price approached the EMA from below or above; the `_isTouchingEMA` function only looks at absolute distance (lines 644‑645). Therefore, any touch—whether from below (the “resistance‑rejection” scenario) or from above—will follow the same slope‑based direction logic.
+
+**Conclusion**
+
+Because the EMA is **rising** (`maSlope === 'rising'`) and the price is within the touch zone (`touchingMA === true`), the code executes the `direction = 'buy'` path. Hence, in the described market state the system **does emit `direction='buy'`**.
+Commands:
+tool_calls=5 | succeeded=5 | failed=0 | tools=open_file:3/3/0, search:2/2/0 | files_opened=3 | run_check_artifacts=0 | failed_calls=none | run_checks=none
+Result:
+**Result:** Yes – when the price is below a **rising** 20‑EMA and rallies up to touch the EMA from below, the code reaches the `direction = 'buy'` branch and emits a signal with `direction='buy'`.
+
+**Trace with file‑line evidence**
+
+| Step | What the code does | File : line |
+|------|-------------------|--------------|
+| 1 | Compute the current EMA (20‑MA) and the price‑EMA distance check. | `modules/MADynamicSR.js:343` – `const touchingMA = this._isTouchingEMA(price, ma20);` |
+| 2 | `_isTouchingEMA` simply measures absolute distance and returns true when the distance is within the configured zone – **no side‑of‑EMA check**. | `modules/MADynamicSR.js:643‑645` – `const distance = Math.abs(price - ema) / ema * 100; return distance <= this.touchZonePct;` |
+| 3 | Compute the slope of the EMA over the look‑back window. | `modules/MADynamicSR.js:346` – `const maSlope = this._getMaSlope(closes, this.entryMaPeriod);` |
+| 4 | `_getMaSlope` classifies the slope as `'rising'`, `'falling'` or `'flat'` based on the percentage change. | `modules/MADynamicSR.js:614‑616` – `if (slopePct > this.minSlopePct) return 'rising'; if (slopePct < -this.minSlopePct) return 'falling'; return 'flat';` |
+| 5 | When a touch is detected (`touchingMA`) the code enters the touch‑handling block. | `modules/MADynamicSR.js:375‑395` (entering the `if (touchingMA) { … }` block) |
+| 6 | Inside that block, if the EMA slope is `'rising'` the direction is set to **buy**. | `modules/MADynamicSR.js:380‑382` – `if (maSlope === 'rising') { direction = 'buy'; reason = \`MA Touch LONG: rising ${this.entryMaPeriod} EMA ($${ma20.toFixed(2)})\`; }` |
+| 7 | The signal is later returned with `direction` set to `'buy'`. | `modules/MADynamicSR.js:415‑418` – `direction,` is part of the returned signal object. |
+
+**Explanation of why the side‑of‑EMA does not matter**
+
+The only place the code decides “buy” vs. “sell” is the `if (maSlope === 'rising') … else if (maSlope === 'falling') …` block (lines 380‑386).  
+There is **no additional check** of whether the price approached the EMA from below or above; the `_isTouchingEMA` function only looks at absolute distance (lines 644‑645). Therefore, any touch—whether from below (the “resistance‑rejection” scenario) or from above—will follow the same slope‑based direction logic.
+
+**Conclusion**
+
+Because the EMA is **rising** (`maSlope === 'rising'`) and the price is within the touch zone (`touchingMA === true`), the code executes the `direction = 'buy'` path. Hence, in the described market state the system **does emit `direction='buy'`**.
+
+5. Final Resolution
+Decision:
+Use Mercury recheck evidence plus local tests/gates as final authority.
+Why:
+Fable challenge received a repo-tool Mercury answer.
+Residual Risk:
+Review the recheck answer for unresolved evidence gaps before using this as commit approval.
+Required Next Action:
+Operator inspection of modules/MADynamicSR.js:343-395 for any side-of-approach check (prior close vs ma20), and core/StrategyOrchestrator.js:1908 to confirm whether minConfidence gating applies downstream of MADynamicSR — this resolves whether Mercury's two central "incoherent" pillars (wrong-side direction, missing minConfidence) survive.
