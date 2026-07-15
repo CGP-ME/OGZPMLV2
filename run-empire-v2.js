@@ -684,9 +684,6 @@ class OGZPrimeV14Bot {
       activeTimeframes: ['1m', '5m', '15m', '1h', '4h', '1d'],
     });
     this.candleAggregator = new CandleAggregator();
-    this._emittedAggregatedActiveCandles = new Set();
-    this._settledAggregatedActiveCandles = new Set();
-    this._aggregateSourceBackfills = new Set();
 
     // CHANGE 2026-02-21: Adaptive timeframe selection based on market conditions
     // Runtime analysis is pinned to broker.candleTimeframe until SymbolTradingContext
@@ -938,12 +935,15 @@ class OGZPrimeV14Bot {
             ...scopeEnvelope,
           });
         } else {
-          this._feedAggregatedActiveCandle({
+          this.timeframeDiagnostics.nonActiveTimeframeDrops += 1;
+          console.error(`[OHLC][TIMEFRAME-NON-ACTIVE] dropped non-active timeframe payload count=${this.timeframeDiagnostics.nonActiveTimeframeDrops} symbol=${sym} sourceTimeframe=${tf} activeTimeframe=${activeTf}`);
+          emitTrace(this, 'NON_ACTIVE_TIMEFRAME_DROPPED', {
+            traceId,
+            source: `sessionRouter:${this.sessionRouter?.activeSession || 'unknown'}`,
             symbol: sym,
             sourceTimeframe: tf,
             activeTimeframe: activeTf,
-            sourceLabel: `sessionRouter:${this.sessionRouter?.activeSession || 'unknown'}`,
-            traceId,
+            reason: 'tfe_owns_bar_production',
           });
         }
         if (tf === '5m' && this.timeframeSelector) {
@@ -1243,6 +1243,7 @@ class OGZPrimeV14Bot {
     this.timeframeDiagnostics = {
       missingSessionRouterTimeframeDrops: 0,
       missingScopeTimeframeDrops: 0,
+      nonActiveTimeframeDrops: 0,
     };
 
     // CHANGE 2025-12-11: MessageQueue for WebSocket race condition prevention
@@ -2046,205 +2047,6 @@ class OGZPrimeV14Bot {
     const canonicalSymbol = normalizeRuntimeSymbol(symbol);
     if (!canonicalSymbol || !this.symbolTimeframeHistories) return [];
     return this.symbolTimeframeHistories.get(canonicalSymbol)?.get(timeframe) || [];
-  }
-
-  _trimAggregateTrackingSets() {
-    for (const key of ['_emittedAggregatedActiveCandles', '_settledAggregatedActiveCandles']) {
-      const set = this[key];
-      if (set && set.size > 1000) {
-        this[key] = new Set(Array.from(set).slice(-500));
-      }
-    }
-  }
-
-  _requestAggregateSourceBackfill({ symbol, sourceTimeframe, activeTimeframe, periodStart, traceId, sourceLabel }) {
-    const broker = this.sessionRouter?.activeBroker;
-    if (!broker || typeof broker.getCandles !== 'function') {
-      console.error(`[VIS][OHLC][Aggregate] cannot repair ${sourceTimeframe}->${activeTimeframe} aggregate for ${symbol}: active broker has no getCandles()`);
-      return;
-    }
-
-    const sourceMs = this.candleAggregator.getIntervalMs(sourceTimeframe);
-    const activeMs = this.candleAggregator.getIntervalMs(activeTimeframe);
-    if (!Number.isFinite(sourceMs) || sourceMs <= 0 || !Number.isFinite(activeMs) || activeMs <= 0) {
-      return;
-    }
-
-    const backfillKey = `${symbol}:${sourceTimeframe}:${activeTimeframe}:${periodStart}`;
-    if (this._aggregateSourceBackfills.has(backfillKey)) {
-      return;
-    }
-
-    const feed = this.config?.dataFeed || {};
-    const expectedSourceCount = Math.ceil(activeMs / sourceMs);
-    const configuredLimit = Number(feed.livenessBackfillLimit);
-    const configuredBuffer = Number(feed.gapBackfillBufferCandles);
-    const limit = Math.max(
-      Number.isFinite(configuredLimit) && configuredLimit > 0 ? configuredLimit : 0,
-      expectedSourceCount + (Number.isFinite(configuredBuffer) && configuredBuffer > 0 ? configuredBuffer : 0)
-    );
-
-    this._aggregateSourceBackfills.add(backfillKey);
-    emitTrace(this, 'ACTIVE_CANDLE_SOURCE_BACKFILL_REQUESTED', {
-      traceId,
-      source: sourceLabel,
-      symbol,
-      sourceTimeframe,
-      activeTimeframe,
-      periodStart,
-      limit,
-    });
-
-    broker.getCandles(symbol, sourceTimeframe, limit)
-      .then(rawCandles => {
-        const candles = (Array.isArray(rawCandles) ? rawCandles : [])
-          .map(c => this._normalizeHydrationCandle(c, symbol, sourceTimeframe, sourceMs))
-          .filter(Boolean)
-          .filter(c => {
-            if (c.t % sourceMs !== 0) {
-              console.error(`[VIS][OHLC][Aggregate] refusing unaligned ${sourceTimeframe} source backfill candle for ${symbol}: ${new Date(c.t).toISOString()}`);
-              return false;
-            }
-            return true;
-          })
-          .filter(c => c.t >= periodStart && c.t < periodStart + activeMs)
-          .sort((a, b) => a.etime - b.etime);
-
-        let applied = 0;
-        for (const candle of candles) {
-          const ohlc = candleToProcessorOhlc(candle, sourceMs);
-          if (!ohlc) continue;
-          this.storeTimeframeCandle(sourceTimeframe, ohlc, symbol);
-          this.storeSymbolTimeframeCandle(symbol, sourceTimeframe, ohlc);
-          applied++;
-        }
-
-        emitTrace(this, 'ACTIVE_CANDLE_SOURCE_BACKFILLED', {
-          traceId,
-          source: sourceLabel,
-          symbol,
-          sourceTimeframe,
-          activeTimeframe,
-          periodStart,
-          applied,
-        });
-        if (applied > 0) {
-          console.log(`[VIS][OHLC][Aggregate] repaired ${sourceTimeframe} source history for ${symbol} periodStart=${new Date(periodStart).toISOString()} candles=${applied}; stale aggregate remains skipped`);
-        }
-      })
-      .catch(error => {
-        console.error(`[VIS][OHLC][Aggregate] source backfill failed for ${symbol} ${sourceTimeframe}->${activeTimeframe} periodStart=${new Date(periodStart).toISOString()}: ${error.message}`);
-      })
-      .finally(() => {
-        this._aggregateSourceBackfills.delete(backfillKey);
-      });
-  }
-
-  _feedAggregatedActiveCandle({ symbol, sourceTimeframe, activeTimeframe, sourceLabel, traceId }) {
-    if (!this.candleAggregator || sourceTimeframe === activeTimeframe) {
-      return null;
-    }
-
-    const sourceMs = this.candleAggregator.getIntervalMs(sourceTimeframe);
-    const activeMs = this.candleAggregator.getIntervalMs(activeTimeframe);
-    if (!sourceMs || !activeMs || sourceMs >= activeMs) {
-      return null;
-    }
-
-    const sourceHistory = this.getSymbolTimeframeCandles(symbol, sourceTimeframe);
-    if (sourceHistory.length === 0) {
-      return null;
-    }
-
-    const completed = this.candleAggregator
-      .aggregate(sourceHistory, activeTimeframe)
-      .filter(candle => candle && this.candleAggregator.isPeriodComplete(candle.t, activeTimeframe));
-    if (completed.length === 0) {
-      return null;
-    }
-
-    let lastResult = null;
-    for (const activeCandle of completed) {
-      const dedupeKey = `${symbol}:${activeTimeframe}:${activeCandle.t}`;
-      if (this._settledAggregatedActiveCandles.has(dedupeKey)) {
-        continue;
-      }
-
-      const sourceCompleteness = this.candleAggregator.checkSourceCompleteness(
-        sourceHistory,
-        sourceTimeframe,
-        activeCandle.t,
-        activeTimeframe
-      );
-      if (!sourceCompleteness.complete) {
-        console.error(`[VIS][OHLC][Aggregate] refusing incomplete ${sourceTimeframe}->${activeTimeframe} aggregate for ${symbol} periodStart=${new Date(activeCandle.t).toISOString()} expected=${sourceCompleteness.expectedCount} actual=${sourceCompleteness.actualCount} missing=${sourceCompleteness.missingPeriods.map(ts => new Date(ts).toISOString()).join(',')}`);
-        emitTrace(this, 'ACTIVE_CANDLE_AGGREGATE_REJECTED', {
-          traceId,
-          source: sourceLabel,
-          symbol,
-          sourceTimeframe,
-          activeTimeframe,
-          periodStart: activeCandle.t,
-          reason: sourceCompleteness.reason,
-          expectedCount: sourceCompleteness.expectedCount,
-          actualCount: sourceCompleteness.actualCount,
-          missingPeriods: sourceCompleteness.missingPeriods,
-        });
-        this._settledAggregatedActiveCandles.add(dedupeKey);
-        this._requestAggregateSourceBackfill({
-          symbol,
-          sourceTimeframe,
-          activeTimeframe,
-          periodStart: activeCandle.t,
-          traceId,
-          sourceLabel,
-        });
-        this._trimAggregateTrackingSets();
-        continue;
-      }
-
-      const activeOhlc = candleToProcessorOhlc(activeCandle, activeMs);
-      if (!activeOhlc) {
-        console.error(`[VIS][OHLC][Aggregate] failed to convert aggregate ${sourceTimeframe}->${activeTimeframe} for ${symbol}`);
-        this._settledAggregatedActiveCandles.add(dedupeKey);
-        this._trimAggregateTrackingSets();
-        continue;
-      }
-
-      const storedCandle = this.storeTimeframeCandle(activeTimeframe, activeOhlc, symbol);
-      const symbolStoredCandle = this.storeSymbolTimeframeCandle(symbol, activeTimeframe, activeOhlc);
-      this._markActiveTimeframeData(symbol, activeTimeframe);
-      emitTrace(this, 'ACTIVE_CANDLE_AGGREGATED', {
-        traceId,
-        source: sourceLabel,
-        symbol,
-        sourceTimeframe,
-        activeTimeframe,
-        periodStart: activeCandle.t,
-        close: activeCandle.c,
-      });
-      this.handleMarketData({
-        data: activeOhlc,
-        symbol,
-        timeframe: activeTimeframe,
-        traceId,
-        ...this.getCandleScopeEnvelope({ timeframe: activeTimeframe }),
-      });
-      this._emittedAggregatedActiveCandles.add(dedupeKey);
-      this._settledAggregatedActiveCandles.add(dedupeKey);
-      this._trimAggregateTrackingSets();
-
-      console.log(`[VIS][OHLC][Aggregate] source=${sourceLabel} from=${sourceTimeframe} to=${activeTimeframe} symbol=${symbol} periodStart=${new Date(activeCandle.t).toISOString()} periodEnd=${new Date(activeCandle.t + activeMs).toISOString()} close=${activeCandle.c} sourceCandles=${sourceHistory.length} activeCandles=${this.priceHistory.length}`);
-
-      const activeStoredCandle = symbolStoredCandle || storedCandle;
-      if (activeStoredCandle?.isNewCandle) {
-        console.log(`V2: ${activeTimeframe} aggregate closed - running trading analysis`);
-        this.run15mTradingCycle(symbol, traceId);
-      }
-      lastResult = { storedCandle: activeStoredCandle, globalStoredCandle: storedCandle, activeCandle };
-    }
-
-    return lastResult;
   }
 
   isSessionRoutingActive() {
