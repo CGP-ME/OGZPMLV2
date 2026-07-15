@@ -84,19 +84,24 @@ describe('TimeSeriesMomentum', () => {
     const originalEnv = process.env;
     process.env = {
       ...originalEnv,
-      SOLO_STRATEGY: 'TimeSeriesMomentum',
-      ENABLE_TSMOM: 'true',
       ENABLE_TRAI: 'false',
       ATR_FILTER_ENABLED: 'false',
       MIN_STRATEGY_CONFIDENCE: '0.35',
     };
+    let ConfigLoader;
 
     try {
+      ConfigLoader = require('../foundation/ConfigLoader');
+      ConfigLoader.setOverrides({
+        strategies: { soloFilter: ['TimeSeriesMomentum'] },
+        pipeline: { enableTimeSeriesMomentum: true },
+      });
       const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
       const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
 
       expect(orchestrator.strategies.map(item => item.name)).toEqual(['TimeSeriesMomentum']);
     } finally {
+      if (ConfigLoader) ConfigLoader.clearOverrides();
       process.env = originalEnv;
     }
   });
@@ -106,21 +111,26 @@ describe('TimeSeriesMomentum', () => {
     const originalEnv = process.env;
     process.env = {
       ...originalEnv,
-      SOLO_STRATEGY: 'TimeSeriesMomentum',
-      ENABLE_TSMOM: 'false',
       ENABLE_TRAI: 'false',
     };
+    let ConfigLoader;
 
     try {
+      ConfigLoader = require('../foundation/ConfigLoader');
+      ConfigLoader.setOverrides({
+        strategies: { soloFilter: ['TimeSeriesMomentum'] },
+        pipeline: { enableTimeSeriesMomentum: false },
+      });
       const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
       expect(() => new StrategyOrchestrator({ minConfluenceCount: 1 }))
         .toThrow(/TimeSeriesMomentum was requested but its pipeline toggle is disabled/);
     } finally {
+      if (ConfigLoader) ConfigLoader.clearOverrides();
       process.env = originalEnv;
     }
   });
 
-  test('StrategyOrchestrator keeps dormant strategy modules isolated per symbol', () => {
+  test('StrategyOrchestrator keeps wake strategy modules isolated per symbol', () => {
     jest.resetModules();
     const originalEnv = process.env;
     process.env = {

@@ -24,19 +24,62 @@
  * @module modules/NoWickImbalance
  */
 
+const ConfigLoader = require('../foundation/ConfigLoader');
+
+const REQUIRED_NUMERIC_KEYS = [
+  'maxCandleAge',
+  'slBreathingATR',
+  'swingLookback',
+  'minBodyPercent',
+  'confidence',
+];
+
+function readConfig(overrides) {
+  const base = ConfigLoader.get('strategies.NoWickImbalance');
+  const cfg = { ...(base || {}), ...(overrides || {}) };
+  const missingNumeric = REQUIRED_NUMERIC_KEYS.filter(key => !Number.isFinite(Number(cfg[key])));
+  if (missingNumeric.length > 0) {
+    throw new Error(`[NoWickImbalance] missing finite config key(s): ${missingNumeric.join(', ')}`);
+  }
+  for (const key of ['maxCandleAge', 'swingLookback']) {
+    if (!Number.isInteger(Number(cfg[key])) || Number(cfg[key]) <= 0) {
+      throw new Error(`[NoWickImbalance] ${key} must be a positive integer (got ${cfg[key]})`);
+    }
+  }
+  if (Number(cfg.slBreathingATR) < 0) {
+    throw new Error(`[NoWickImbalance] slBreathingATR must be non-negative (got ${cfg.slBreathingATR})`);
+  }
+  for (const key of ['minBodyPercent', 'confidence']) {
+    const value = Number(cfg[key]);
+    if (value < 0 || value > 1) {
+      throw new Error(`[NoWickImbalance] ${key} must be 0..1 (got ${cfg[key]})`);
+    }
+  }
+  return {
+    ...cfg,
+    maxCandleAge: Number(cfg.maxCandleAge),
+    slBreathingATR: Number(cfg.slBreathingATR),
+    swingLookback: Number(cfg.swingLookback),
+    minBodyPercent: Number(cfg.minBodyPercent),
+    confidence: Number(cfg.confidence),
+    debug: cfg.debug === true,
+  };
+}
+
 class NoWickImbalance {
   constructor(config = {}) {
     this.name = 'NoWickImbalance';
-    this.maxCandleAge = config.maxCandleAge || 9;       // Valid for 9 candles, 10th = invalid
-    this.slBreathingATR = config.slBreathingATR || 0.3;  // ATR multiplier for SL breathing room
-    this.swingLookback = config.swingLookback || 20;     // Candles to look back for swing points
-    this.minBodyPercent = config.minBodyPercent || 0.3;   // Min body size as % of total range (filter dojis)
+    this.cfg = Object.freeze(readConfig(config));
+    this.maxCandleAge = this.cfg.maxCandleAge;       // Valid for configured candle count; next candle invalidates
+    this.slBreathingATR = this.cfg.slBreathingATR;   // ATR multiplier for SL breathing room
+    this.swingLookback = this.cfg.swingLookback;     // Candles to look back for swing points
+    this.minBodyPercent = this.cfg.minBodyPercent;   // Min body size as % of total range (filter dojis)
 
     // Active NoWick levels waiting for retrace tap, isolated by symbol+timeframe.
     // Each scope entry: { pendingLevels, candleCount }.
     this.scopedState = new Map();
 
-    this.DEBUG = config.debug || process.env.NOWICK_DEBUG === 'true';
+    this.DEBUG = this.cfg.debug;
   }
 
   /**
@@ -335,7 +378,7 @@ class NoWickImbalance {
       // Remove the tapped level — one shot only
       state.pendingLevels.splice(i, 1);
 
-      const confidence = 0.70;  // Fixed — no discretion in confidence
+      const confidence = this.cfg.confidence;
 
       if (this.DEBUG) {
         console.log(`[NoWick] SIGNAL ${direction.toUpperCase()} @ ${level.level.toFixed(2)} | SL=${stopLoss.toFixed(2)} TP=${takeProfit.toFixed(2)} | age=${age} candles | trend=${currentTrend}`);

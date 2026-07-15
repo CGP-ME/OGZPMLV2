@@ -299,6 +299,48 @@ describe('ExitContractManager exit ownership contract', () => {
     expect(result.exitIntent).toBeUndefined();
   });
 
+  test('honors RSI2 long exit threshold as a frozen contract invalidation', () => {
+    const manager = new ExitContractManager();
+    const now = Date.parse('2026-06-28T12:00:00.000Z');
+    const defaultContract = manager.createExitContract('RSI2MeanReversion', {}, {
+      timeframe: '15m',
+      volatility: 1,
+    });
+    expect(defaultContract).toEqual(expect.objectContaining({
+      strategyName: 'RSI2MeanReversion',
+      rsiPeriod: 2,
+      rsiExitLong: 80,
+      invalidationConditions: expect.arrayContaining(['rsi2_exit_long']),
+    }));
+
+    const trade = profitTrade({
+      entryStrategy: 'RSI2MeanReversion',
+      exitContract: defaultContract,
+    });
+
+    const hold = manager.checkExitConditions({ ...trade }, 100, {
+      currentTime: now,
+      indicators: { rsi: 80 },
+      accountBalance: 10000,
+      initialBalance: 10000,
+      intentId: 'intent-rsi2-hold',
+    });
+    expect(hold.shouldExit).toBe(false);
+
+    const exit = manager.checkExitConditions(trade, 100, {
+      currentTime: now,
+      indicators: { rsi2: 80 },
+      accountBalance: 10000,
+      initialBalance: 10000,
+      intentId: 'intent-rsi2-exit',
+    });
+    expect(exit).toMatchObject({
+      shouldExit: true,
+      exitReason: 'invalidation',
+    });
+    expect(exit.details).toContain('RSI2 long exit threshold reached');
+  });
+
   test('normalizes maxProfitPercent from trade percent-form before planner trailing checks', () => {
     const manager = new ExitContractManager();
     const now = Date.parse('2026-06-28T12:00:00.000Z');

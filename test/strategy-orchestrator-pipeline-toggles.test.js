@@ -43,6 +43,14 @@ const PIPELINE_STRATEGY_KEYS = [
   'enableTimeSeriesMomentum',
 ];
 
+const WAKE_STRATEGIES = [
+  'NoWickImbalance',
+  'PropSafeEMAPullback',
+  'EMATrendRetest',
+  'RSI2MeanReversion',
+  'TimeSeriesMomentum',
+];
+
 function withoutStrategyEnv(originalEnv) {
   const nextEnv = { ...originalEnv };
   for (const key of STRATEGY_ENV_KEYS) {
@@ -161,9 +169,56 @@ describe('StrategyOrchestrator pipeline toggles', () => {
       const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
       const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
       expect(orchestrator.strategies.map((s) => s.name)).toEqual(expectedStrategies);
+      expect(orchestrator.noWickModule.cfg).toEqual(
+        expect.objectContaining(ConfigLoader.get('strategies.NoWickImbalance'))
+      );
     } finally {
       process.env = originalEnv;
     }
+  });
+
+  test('wake roster removed dormant strategy activation vocabulary', () => {
+    const files = [
+      path.join(__dirname, '..', 'core', 'StrategyOrchestrator.js'),
+      path.join(__dirname, '..', 'tools', 'parallel-backtest.js'),
+    ];
+    const forbidden = [
+      'shouldInstantiateDormantStrategy',
+      'buildDormantStrategyEnableEnv',
+      'assertDormantStrategyEnvCompatible',
+      'dormantStrategyEnv',
+    ];
+
+    for (const file of files) {
+      const source = fs.readFileSync(file, 'utf8');
+      for (const token of forbidden) {
+        expect(source).not.toContain(token);
+      }
+    }
+  });
+
+  test('wake roster strategies have explicit config and exit contract ownership', () => {
+    const tradingConfig = require('../config/trading.config.json');
+    for (const strategy of WAKE_STRATEGIES) {
+      expect(tradingConfig.strategies[strategy]).toEqual(expect.objectContaining({ enabled: true }));
+      expect(tradingConfig.exitContracts[strategy]).toEqual(expect.objectContaining({
+        maxHoldTimeMinutes: expect.any(Number),
+        invalidationConditions: expect.any(Array),
+      }));
+    }
+
+    expect(tradingConfig.strategies.RSI2MeanReversion).toEqual(expect.objectContaining({
+      rsiPeriod: 2,
+      rsiEntry: 10,
+      rsiExitLong: 80,
+    }));
+    expect(tradingConfig.strategies.NoWickImbalance).toEqual(expect.objectContaining({
+      maxCandleAge: 9,
+      slBreathingATR: 0.3,
+      swingLookback: 20,
+      minBodyPercent: 0.3,
+      confidence: 0.7,
+    }));
   });
 
   test('MTF confluence booster is a default-on non-blocking orchestrator control', () => {

@@ -28,7 +28,7 @@ function strategy(overrides = {}) {
     confidenceBase: 0.50,
     confidenceDepthMultiplier: 0.40,
     maxConfidence: 0.90,
-    invalidationConditions: ['regime_change'],
+    invalidationConditions: ['rsi2_exit_long', 'regime_change'],
     ...overrides,
   });
 }
@@ -47,7 +47,11 @@ describe('RSI2MeanReversion', () => {
     expect(signal.confidence).toBeLessThanOrEqual(0.90);
     expect(signal.exitContractHint.stopLossPercent).toBeLessThan(0);
     expect(signal.exitContractHint.takeProfitPercent).toBeGreaterThan(0);
+    expect(signal.exitContractHint.rsiPeriod).toBe(2);
+    expect(signal.exitContractHint.rsiExitLong).toBe(80);
+    expect(signal.exitContractHint.invalidationConditions).toContain('rsi2_exit_long');
     expect(signal.signalData.rsi).toBeLessThan(5);
+    expect(signal.signalData.rsiExitLong).toBe(80);
   });
 
   test('blocks short signal unless allowShorts is explicit', () => {
@@ -85,19 +89,24 @@ describe('RSI2MeanReversion', () => {
     const originalEnv = process.env;
     process.env = {
       ...originalEnv,
-      SOLO_STRATEGY: 'RSI2MeanReversion',
-      ENABLE_RSI2_MR: 'true',
       ENABLE_TRAI: 'false',
       ATR_FILTER_ENABLED: 'false',
       MIN_STRATEGY_CONFIDENCE: '0.35',
     };
+    let ConfigLoader;
 
     try {
+      ConfigLoader = require('../foundation/ConfigLoader');
+      ConfigLoader.setOverrides({
+        strategies: { soloFilter: ['RSI2MeanReversion'] },
+        pipeline: { enableRSI2MeanReversion: true },
+      });
       const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
       const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
 
       expect(orchestrator.strategies.map(item => item.name)).toEqual(['RSI2MeanReversion']);
     } finally {
+      if (ConfigLoader) ConfigLoader.clearOverrides();
       process.env = originalEnv;
     }
   });
@@ -107,16 +116,21 @@ describe('RSI2MeanReversion', () => {
     const originalEnv = process.env;
     process.env = {
       ...originalEnv,
-      SOLO_STRATEGY: 'RSI2MeanReversion',
-      ENABLE_RSI2_MR: 'false',
       ENABLE_TRAI: 'false',
     };
+    let ConfigLoader;
 
     try {
+      ConfigLoader = require('../foundation/ConfigLoader');
+      ConfigLoader.setOverrides({
+        strategies: { soloFilter: ['RSI2MeanReversion'] },
+        pipeline: { enableRSI2MeanReversion: false },
+      });
       const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
       expect(() => new StrategyOrchestrator({ minConfluenceCount: 1 }))
         .toThrow(/RSI2MeanReversion was requested but its pipeline toggle is disabled/);
     } finally {
+      if (ConfigLoader) ConfigLoader.clearOverrides();
       process.env = originalEnv;
     }
   });

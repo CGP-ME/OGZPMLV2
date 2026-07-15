@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Wake Roster Lane (2026-07-15)
+
+- Removed the separate dormant-strategy instantiation gate from StrategyOrchestrator; PropSafeEMAPullback, EMATrendRetest, RSI2MeanReversion, and TimeSeriesMomentum now enter the roster through the same normal pipeline toggle path as other strategies.
+- Added explicit `config/trading.config.json` strategy blocks and exit contracts for NoWickImbalance, PropSafeEMAPullback, EMATrendRetest, RSI2MeanReversion, and TimeSeriesMomentum, with RSI2 seeded as RSI(2) buy below 10 and exit visibility above 80.
+- Routed NoWickImbalance construction through ConfigLoader-owned strategy config and renamed the parallel backtest solo-helper API away from dormant vocabulary.
+
 ### EMASMA Restoration Lane R1 (2026-07-13)
 
 - Restored EMASMACrossover event-mode confidence geometry as config-owned velocity, elasticity, and decay multipliers instead of binary gates or hidden constructor defaults.

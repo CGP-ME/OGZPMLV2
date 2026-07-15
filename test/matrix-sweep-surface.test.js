@@ -169,7 +169,7 @@ describe('matrix-sweep runnable surface', () => {
     expect(configs.every(config => config.env.ENABLE_NOWICK === 'true')).toBe(true);
   });
 
-  test('DonchianBreakout solo matrix configs carry the explicit dormant enable flag', () => {
+  test('DonchianBreakout solo matrix configs carry the explicit roster enable flag', () => {
     const configs = generateMatrix(['DonchianBreakout'], GRID.conf, 'conf');
 
     expect(configs).toHaveLength(GRID.conf.confidence.length);
@@ -178,7 +178,7 @@ describe('matrix-sweep runnable surface', () => {
     expect(configs.every(config => config.env.ENABLE_DONCHIAN === 'true')).toBe(true);
   });
 
-  test('new dormant research strategies carry explicit solo matrix enable flags', () => {
+  test('wake roster strategies carry explicit solo matrix enable flags', () => {
     const configs = generateMatrix(['RSI2MeanReversion', 'TimeSeriesMomentum'], GRID.conf, 'conf');
 
     expect(configs).toHaveLength(GRID.conf.confidence.length * 2);

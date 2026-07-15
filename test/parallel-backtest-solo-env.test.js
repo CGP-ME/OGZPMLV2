@@ -10,8 +10,8 @@ const {
   STRATEGIES,
   SWEEP_PRESETS,
   parseSoloStrategies,
-  buildDormantStrategyEnableEnv,
-  assertDormantStrategyEnvCompatible,
+  buildSoloStrategyEnableEnv,
+  assertSoloStrategyEnvCompatible,
   buildWorkerBaseEnv,
   applySoloStrategyToConfigs,
   filterConfigsByName,
@@ -128,46 +128,46 @@ describe('parallel-backtest solo strategy env wiring', () => {
     ]);
   });
 
-  test('solo NoWick enables the dormant pipeline toggle for the child worker', () => {
-    expect(buildDormantStrategyEnableEnv('NoWickImbalance')).toEqual({
+  test('solo NoWick enables the wake roster pipeline toggle for the child worker', () => {
+    expect(buildSoloStrategyEnableEnv('NoWickImbalance')).toEqual({
       ENABLE_NOWICK: 'true',
     });
   });
 
-  test('solo ORB and BreakRetest enable their dormant toggles for generated configs', () => {
-    expect(buildDormantStrategyEnableEnv('OpeningRangeBreakout,BreakRetest')).toEqual({
+  test('solo ORB and BreakRetest enable their roster toggles for generated configs', () => {
+    expect(buildSoloStrategyEnableEnv('OpeningRangeBreakout,BreakRetest')).toEqual({
       ENABLE_ORB: 'true',
       ENABLE_BREAKRETEST: 'true',
     });
   });
 
-  test('solo DonchianBreakout enables its dormant toggle for the child worker', () => {
-    expect(buildDormantStrategyEnableEnv('DonchianBreakout')).toEqual({
+  test('solo DonchianBreakout enables its roster toggle for the child worker', () => {
+    expect(buildSoloStrategyEnableEnv('DonchianBreakout')).toEqual({
       ENABLE_DONCHIAN: 'true',
     });
   });
 
-  test('solo RSI2MeanReversion and TimeSeriesMomentum enable dormant toggles for child workers', () => {
-    expect(buildDormantStrategyEnableEnv('RSI2MeanReversion,TimeSeriesMomentum')).toEqual({
+  test('solo RSI2MeanReversion and TimeSeriesMomentum enable roster toggles for child workers', () => {
+    expect(buildSoloStrategyEnableEnv('RSI2MeanReversion,TimeSeriesMomentum')).toEqual({
       ENABLE_RSI2_MR: 'true',
       ENABLE_TSMOM: 'true',
     });
   });
 
   test('solo SmartMoneySweep explicitly enables SMS for the child worker', () => {
-    expect(buildDormantStrategyEnableEnv('SmartMoneySweep')).toEqual({
+    expect(buildSoloStrategyEnableEnv('SmartMoneySweep')).toEqual({
       ENABLE_SMS: 'true',
       SMS_VP_RTH_ONLY: 'true',
     });
   });
 
   test('non-solo runs do not silently override operator env flags', () => {
-    expect(buildDormantStrategyEnableEnv('')).toEqual({});
-    expect(buildDormantStrategyEnableEnv(null)).toEqual({});
+    expect(buildSoloStrategyEnableEnv('')).toEqual({});
+    expect(buildSoloStrategyEnableEnv(null)).toEqual({});
   });
 
   test('contradictory solo config fails instead of silently disabling the selected strategy', () => {
-    expect(() => assertDormantStrategyEnvCompatible('NoWickImbalance', {
+    expect(() => assertSoloStrategyEnvCompatible('NoWickImbalance', {
       ENABLE_NOWICK: 'false',
     })).toThrow(/ENABLE_NOWICK=false conflicts with SOLO_STRATEGY=NoWickImbalance/);
   });

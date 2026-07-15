@@ -113,19 +113,24 @@ describe('EMATrendRetest', () => {
     const originalEnv = process.env;
     process.env = {
       ...originalEnv,
-      SOLO_STRATEGY: 'EMATrendRetest',
-      ENABLE_EMA_TREND_RETEST: 'true',
       ENABLE_TRAI: 'false',
       ATR_FILTER_ENABLED: 'false',
       MIN_STRATEGY_CONFIDENCE: '0.35',
     };
+    let ConfigLoader;
 
     try {
+      ConfigLoader = require('../foundation/ConfigLoader');
+      ConfigLoader.setOverrides({
+        strategies: { soloFilter: ['EMATrendRetest'] },
+        pipeline: { enableEMATrendRetest: true },
+      });
       const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
       const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
 
       expect(orchestrator.strategies.map(item => item.name)).toEqual(['EMATrendRetest']);
     } finally {
+      if (ConfigLoader) ConfigLoader.clearOverrides();
       process.env = originalEnv;
     }
   });
@@ -135,32 +140,40 @@ describe('EMATrendRetest', () => {
     const originalEnv = process.env;
     process.env = {
       ...originalEnv,
-      SOLO_STRATEGY: 'EMATrendRetest',
-      ENABLE_EMA_TREND_RETEST: 'false',
       ENABLE_TRAI: 'false',
     };
+    let ConfigLoader;
 
     try {
+      ConfigLoader = require('../foundation/ConfigLoader');
+      ConfigLoader.setOverrides({
+        strategies: { soloFilter: ['EMATrendRetest'] },
+        pipeline: { enableEMATrendRetest: false },
+      });
       const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
       expect(() => new StrategyOrchestrator({ minConfluenceCount: 1 }))
         .toThrow(/EMATrendRetest was requested but its pipeline toggle is disabled/);
     } finally {
+      if (ConfigLoader) ConfigLoader.clearOverrides();
       process.env = originalEnv;
     }
   });
 
-  test('StrategyOrchestrator fails loudly when pipeline toggle is missing instead of silently enabling dormant lane', () => {
+  test('StrategyOrchestrator fails loudly when pipeline toggle is missing instead of silently enabling a missing-toggle lane', () => {
     jest.resetModules();
     const originalEnv = process.env;
     process.env = {
       ...originalEnv,
-      SOLO_STRATEGY: 'EMATrendRetest',
-      ENABLE_EMA_TREND_RETEST: 'true',
       ENABLE_TRAI: 'false',
     };
+    let ConfigLoader;
 
     try {
-      const ConfigLoader = require('../foundation/ConfigLoader');
+      ConfigLoader = require('../foundation/ConfigLoader');
+      ConfigLoader.setOverrides({
+        strategies: { soloFilter: ['EMATrendRetest'] },
+        pipeline: { enableEMATrendRetest: true },
+      });
       const realGet = ConfigLoader.get.bind(ConfigLoader);
       jest.spyOn(ConfigLoader, 'get').mockImplementation((path, defaultValue) => {
         if (path === 'pipeline') {
@@ -176,6 +189,7 @@ describe('EMATrendRetest', () => {
         .toThrow(/EMATrendRetest pipeline toggle must be boolean/);
     } finally {
       jest.restoreAllMocks();
+      if (ConfigLoader) ConfigLoader.clearOverrides();
       process.env = originalEnv;
     }
   });
@@ -185,13 +199,16 @@ describe('EMATrendRetest', () => {
     const originalEnv = process.env;
     process.env = {
       ...originalEnv,
-      SOLO_STRATEGY: 'RSI',
-      ENABLE_EMA_TREND_RETEST: 'false',
       ENABLE_TRAI: 'false',
     };
+    let ConfigLoader;
 
     try {
-      const ConfigLoader = require('../foundation/ConfigLoader');
+      ConfigLoader = require('../foundation/ConfigLoader');
+      ConfigLoader.setOverrides({
+        strategies: { soloFilter: ['RSI'] },
+        pipeline: { enableEMATrendRetest: false },
+      });
       const realGet = ConfigLoader.get.bind(ConfigLoader);
       jest.spyOn(ConfigLoader, 'get').mockImplementation((path, defaultValue) => {
         if (path === 'strategies.EMATrendRetest') {
@@ -206,6 +223,7 @@ describe('EMATrendRetest', () => {
       expect(orchestrator.strategies.map(item => item.name)).toEqual(['RSI']);
     } finally {
       jest.restoreAllMocks();
+      if (ConfigLoader) ConfigLoader.clearOverrides();
       process.env = originalEnv;
     }
   });

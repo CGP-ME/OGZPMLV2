@@ -169,19 +169,24 @@ describe('PropSafeEMAPullback', () => {
     const originalEnv = process.env;
     process.env = {
       ...originalEnv,
-      SOLO_STRATEGY: 'PropSafeEMAPullback',
-      ENABLE_PROPSAFE_EMA: 'true',
       ENABLE_TRAI: 'false',
       ATR_FILTER_ENABLED: 'false',
       MIN_STRATEGY_CONFIDENCE: '0.35',
     };
+    let ConfigLoader;
 
     try {
+      ConfigLoader = require('../foundation/ConfigLoader');
+      ConfigLoader.setOverrides({
+        strategies: { soloFilter: ['PropSafeEMAPullback'] },
+        pipeline: { enablePropSafeEMAPullback: true },
+      });
       const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
       const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
 
       expect(orchestrator.strategies.map(item => item.name)).toEqual(['PropSafeEMAPullback']);
     } finally {
+      if (ConfigLoader) ConfigLoader.clearOverrides();
       process.env = originalEnv;
     }
   });
@@ -191,16 +196,21 @@ describe('PropSafeEMAPullback', () => {
     const originalEnv = process.env;
     process.env = {
       ...originalEnv,
-      SOLO_STRATEGY: 'PropSafeEMAPullback',
-      ENABLE_PROPSAFE_EMA: 'false',
       ENABLE_TRAI: 'false',
     };
+    let ConfigLoader;
 
     try {
+      ConfigLoader = require('../foundation/ConfigLoader');
+      ConfigLoader.setOverrides({
+        strategies: { soloFilter: ['PropSafeEMAPullback'] },
+        pipeline: { enablePropSafeEMAPullback: false },
+      });
       const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
       expect(() => new StrategyOrchestrator({ minConfluenceCount: 1 }))
         .toThrow(/PropSafeEMAPullback was requested but its pipeline toggle is disabled/);
     } finally {
+      if (ConfigLoader) ConfigLoader.clearOverrides();
       process.env = originalEnv;
     }
   });

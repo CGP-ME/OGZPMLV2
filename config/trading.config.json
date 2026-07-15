@@ -1375,6 +1375,77 @@
       ],
       "_validated": null
     },
+    "PropSafeEMAPullback": {
+      "stopLossPercent": -1.1,
+      "takeProfitPercent": 3.3,
+      "trailingStopPercent": 1.1,
+      "trailingActivation": 1.65,
+      "maxHoldTimeMinutes": 240,
+      "useStructuralExits": false,
+      "minConfidence": 0.68,
+      "atrMinPercent": null,
+      "invalidationConditions": [
+        "ema_pullback_invalidated"
+      ],
+      "_validated": null
+    },
+    "EMATrendRetest": {
+      "stopLossPercent": -1,
+      "takeProfitPercent": 3,
+      "trailingStopPercent": 1,
+      "trailingActivation": 1.5,
+      "maxHoldTimeMinutes": 240,
+      "useStructuralExits": false,
+      "minConfidence": 0.7,
+      "atrMinPercent": null,
+      "invalidationConditions": [
+        "ema_retest_failed"
+      ],
+      "_validated": null
+    },
+    "RSI2MeanReversion": {
+      "stopLossPercent": -1,
+      "takeProfitPercent": 1.5,
+      "trailingStopPercent": 0.6,
+      "trailingActivation": 0.8,
+      "maxHoldTimeMinutes": 240,
+      "useStructuralExits": false,
+      "minConfidence": 0.62,
+      "atrMinPercent": null,
+      "rsiPeriod": 2,
+      "rsiExitLong": 80,
+      "invalidationConditions": [
+        "rsi2_exit_long",
+        "regime_change"
+      ],
+      "_validated": null
+    },
+    "TimeSeriesMomentum": {
+      "stopLossPercent": -2,
+      "takeProfitPercent": 4,
+      "trailingStopPercent": 1,
+      "trailingActivation": 1.5,
+      "maxHoldTimeMinutes": 240,
+      "useStructuralExits": false,
+      "minConfidence": 0.6,
+      "atrMinPercent": null,
+      "invalidationConditions": [
+        "regime_change"
+      ],
+      "_validated": null
+    },
+    "NoWickImbalance": {
+      "stopLossPercent": -1.5,
+      "takeProfitPercent": 1.5,
+      "trailingStopPercent": null,
+      "trailingActivation": null,
+      "maxHoldTimeMinutes": 240,
+      "useStructuralExits": true,
+      "minConfidence": null,
+      "atrMinPercent": null,
+      "invalidationConditions": [],
+      "_validated": null
+    },
     "default": {
       "stopLossPercent": -2,
       "takeProfitPercent": 2.5,
@@ -1733,6 +1804,107 @@
       "trailingStopPercent": 1.5,
       "trailingActivation": 1,
       "maxHoldTimeMinutes": 10080,
+      "invalidationConditions": [
+        "regime_change"
+      ],
+      "enabled": true
+    },
+    "NoWickImbalance": {
+      "maxCandleAge": 9,
+      "slBreathingATR": 0.3,
+      "swingLookback": 20,
+      "minBodyPercent": 0.3,
+      "confidence": 0.7,
+      "debug": false,
+      "enabled": true
+    },
+    "PropSafeEMAPullback": {
+      "fastEmaPeriod": 9,
+      "pullbackEmaPeriod": 21,
+      "trendEmaPeriod": 50,
+      "atrPeriod": 14,
+      "crossLookbackBars": 3,
+      "pullbackLookbackBars": 4,
+      "pullbackMinAtr": 0,
+      "pullbackMaxAtr": 1,
+      "atrStopMult": 1.1,
+      "targetRR": 3,
+      "trailActivationR": 1.5,
+      "trailDistanceR": 1,
+      "maxHoldTimeMinutes": 240,
+      "confidenceBase": 0.62,
+      "confidenceTrendBonus": 0.06,
+      "confidencePullbackBonus": 0.08,
+      "confidenceConfirmationBonus": 0.08,
+      "confidenceFreshCrossBonus": 0.06,
+      "maxConfidence": 0.9,
+      "requireRth": true,
+      "rthStartET": "09:30",
+      "rthEndET": "16:00",
+      "sessionTimeZone": "America/New_York",
+      "allowShorts": false,
+      "enabled": true
+    },
+    "EMATrendRetest": {
+      "emaPeriods": "9,20,21,50,100,200",
+      "atrPeriod": 14,
+      "slopeLookbackBars": 5,
+      "minSlopePct": 0.03,
+      "retestLookbackBars": 4,
+      "touchZoneAtr": 0.35,
+      "closeAwayAtr": 0.12,
+      "maxExtensionAtr": 2.5,
+      "confidenceBase": 0.58,
+      "confidenceSlopeBonus": 0.08,
+      "confidenceRetestBonus": 0.12,
+      "confidenceConfirmationBonus": 0.08,
+      "maxConfidence": 0.88,
+      "atrStopMult": 1,
+      "targetRR": 3,
+      "trailActivationR": 1.5,
+      "trailDistanceR": 1,
+      "maxHoldTimeMinutes": 240,
+      "requireRth": true,
+      "rthStartET": "09:30",
+      "rthEndET": "16:00",
+      "sessionTimeZone": "America/New_York",
+      "allowShorts": false,
+      "enabled": true
+    },
+    "RSI2MeanReversion": {
+      "rsiPeriod": 2,
+      "rsiEntry": 10,
+      "rsiExitLong": 80,
+      "rsiEntryOB": 95,
+      "trendPeriod": 200,
+      "allowShorts": false,
+      "stopLossPercent": -1,
+      "takeProfitPercent": 1.5,
+      "trailingStopPercent": 0.6,
+      "trailingActivation": 0.8,
+      "maxHoldTimeMinutes": 240,
+      "confidenceBase": 0.5,
+      "confidenceDepthMultiplier": 0.4,
+      "maxConfidence": 0.9,
+      "invalidationConditions": [
+        "rsi2_exit_long",
+        "regime_change"
+      ],
+      "enabled": true
+    },
+    "TimeSeriesMomentum": {
+      "lookback": 100,
+      "trendPeriod": 200,
+      "minReturn": 0,
+      "allowShorts": false,
+      "stopLossPercent": -2,
+      "takeProfitPercent": 4,
+      "trailingStopPercent": 1,
+      "trailingActivation": 1.5,
+      "maxHoldTimeMinutes": 240,
+      "confidenceBase": 0.5,
+      "confidenceReturnMultiplier": 4,
+      "maxConfidence": 0.85,
       "invalidationConditions": [
         "regime_change"
       ],

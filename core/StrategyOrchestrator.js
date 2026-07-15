@@ -617,6 +617,13 @@ function normalizeExitContractHint(hint, strategyName) {
     }
     normalized.invalidationConditions = [...hint.invalidationConditions];
   }
+  if (hint.rsiExitLong !== undefined) {
+    const rsiExitLong = Number(hint.rsiExitLong);
+    if (!Number.isFinite(rsiExitLong) || rsiExitLong <= 50 || rsiExitLong >= 100) {
+      throw new Error(`[EXIT-HINT] ${strategyName}.exitContractHint.rsiExitLong must be between 50 and 100 when provided (got ${hint.rsiExitLong})`);
+    }
+    normalized.rsiExitLong = rsiExitLong;
+  }
 
   return normalized;
 }
@@ -671,12 +678,8 @@ class StrategyOrchestrator {
     });
     this.breakAndRetestModule = new BreakAndRetest();
     const NoWickImbalance = require('../modules/NoWickImbalance');
-    this.noWickModule = new NoWickImbalance({
-      maxCandleAge: 9,
-      slBreathingATR: 0.3,
-      swingLookback: 20,
-      minBodyPercent: 0.3
-    });
+    this.noWickConfig = ConfigLoader.get('strategies.NoWickImbalance');
+    this.noWickModule = new NoWickImbalance(this.noWickConfig);
     this.mtfAdapter = new MultiTimeframeAdapter(this._buildMtfAdapterConfig());
     this.tpoIntegration = new OgzTpoIntegration();
     this.smartMoneySweepModule = new SmartMoneySweep(
@@ -1263,22 +1266,6 @@ class StrategyOrchestrator {
       if (!this.soloStrategies) return true;  // No filter — register all
       return this.soloStrategies.includes(name.toLowerCase());
     };
-    const shouldInstantiateDormantStrategy = (name, toggleKey) => {
-      if (!shouldRegister(name)) return false;
-      const pipeline = ConfigLoader.get('pipeline') || {};
-      const toggle = pipeline[toggleKey];
-      if (typeof toggle !== 'boolean') {
-        throw new Error(`[PIPELINE] ${name} pipeline toggle must be boolean; got ${toggle}. Check config path pipeline.${toggleKey}`);
-      }
-      if (toggle === false) {
-        if (this.soloStrategies && this.soloStrategies.includes(name.toLowerCase())) {
-          throw new Error(`[STRATEGY_SOLO_FILTER] ${name} was requested but config path pipeline.${toggleKey} is disabled; enable it or remove the strategy from strategies.soloFilter`);
-        }
-        return false;
-      }
-      return true;
-    };
-
     // ─── 1. EMA/SMA Crossover Strategy ───
     // FIX 2026-03-19: Self-contained — computes crossovers internally from raw candles
     const emaCrossoverModule = this.emaCrossoverModule;
@@ -1824,9 +1811,9 @@ class StrategyOrchestrator {
       ).evaluate(ctx)
     });
 
-    if (shouldInstantiateDormantStrategy('PropSafeEMAPullback', 'enablePropSafeEMAPullback')) {
+    if (shouldRegister('PropSafeEMAPullback')) {
       const propSafeEmaPullbackModule = new PropSafeEMAPullback(
-        ConfigLoader.get('strategies.PropSafeEMAPullback') || {}
+        ConfigLoader.get('strategies.PropSafeEMAPullback')
       );
       this.strategies.push({
         name: 'PropSafeEMAPullback',
@@ -1835,15 +1822,15 @@ class StrategyOrchestrator {
           ctx.extras?.symbol,
           propSafeEmaPullbackModule,
           () => new PropSafeEMAPullback(
-            ConfigLoader.get('strategies.PropSafeEMAPullback') || {}
+            ConfigLoader.get('strategies.PropSafeEMAPullback')
           )
         ).evaluate(ctx)
       });
     }
 
-    if (shouldInstantiateDormantStrategy('EMATrendRetest', 'enableEMATrendRetest')) {
+    if (shouldRegister('EMATrendRetest')) {
       const emaTrendRetestModule = new EMATrendRetest(
-        ConfigLoader.get('strategies.EMATrendRetest') || {}
+        ConfigLoader.get('strategies.EMATrendRetest')
       );
       this.strategies.push({
         name: 'EMATrendRetest',
@@ -1852,15 +1839,15 @@ class StrategyOrchestrator {
           ctx.extras?.symbol,
           emaTrendRetestModule,
           () => new EMATrendRetest(
-            ConfigLoader.get('strategies.EMATrendRetest') || {}
+            ConfigLoader.get('strategies.EMATrendRetest')
           )
         ).evaluate(ctx)
       });
     }
 
-    if (shouldInstantiateDormantStrategy('RSI2MeanReversion', 'enableRSI2MeanReversion')) {
+    if (shouldRegister('RSI2MeanReversion')) {
       const rsi2MeanReversionModule = new RSI2MeanReversion(
-        ConfigLoader.get('strategies.RSI2MeanReversion') || {}
+        ConfigLoader.get('strategies.RSI2MeanReversion')
       );
       this.strategies.push({
         name: 'RSI2MeanReversion',
@@ -1869,15 +1856,15 @@ class StrategyOrchestrator {
           ctx.extras?.symbol,
           rsi2MeanReversionModule,
           () => new RSI2MeanReversion(
-            ConfigLoader.get('strategies.RSI2MeanReversion') || {}
+            ConfigLoader.get('strategies.RSI2MeanReversion')
           )
         ).evaluate(ctx)
       });
     }
 
-    if (shouldInstantiateDormantStrategy('TimeSeriesMomentum', 'enableTimeSeriesMomentum')) {
+    if (shouldRegister('TimeSeriesMomentum')) {
       const timeSeriesMomentumModule = new TimeSeriesMomentum(
-        ConfigLoader.get('strategies.TimeSeriesMomentum') || {}
+        ConfigLoader.get('strategies.TimeSeriesMomentum')
       );
       this.strategies.push({
         name: 'TimeSeriesMomentum',
@@ -1886,7 +1873,7 @@ class StrategyOrchestrator {
           ctx.extras?.symbol,
           timeSeriesMomentumModule,
           () => new TimeSeriesMomentum(
-            ConfigLoader.get('strategies.TimeSeriesMomentum') || {}
+            ConfigLoader.get('strategies.TimeSeriesMomentum')
           )
         ).evaluate(ctx)
       });

@@ -19,6 +19,7 @@
 // Phase 1 REWRITE: Single source of truth for all trading params
 const ConfigLoader = require('../foundation/ConfigLoader');
 const { assertExplicitExitOwnership } = require('./dto/ExitContractOwnership');
+const { IndicatorCalculator } = require('./IndicatorCalculator');
 const ProfitExitPlanner = require('./ProfitExitPlanner');
 
 // Phase 10: Delegate to individual exit checkers
@@ -45,6 +46,18 @@ function finiteOrNull(value) {
 function positiveFiniteOrNull(value) {
   const numeric = finiteOrNull(value);
   return numeric !== null && numeric > 0 ? numeric : null;
+}
+
+function positiveIntegerOrNull(value) {
+  const numeric = Number(value);
+  return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
+}
+
+function resolveRsiForPeriod(indicators, priceHistory, period) {
+  const keyedValue = finiteOrNull(indicators?.[`rsi${period}`]);
+  if (keyedValue !== null) return keyedValue;
+  if (!Array.isArray(priceHistory)) return null;
+  return finiteOrNull(IndicatorCalculator.calculateRSI(priceHistory, period));
 }
 
 function normalizeTimeframeValue(value) {
@@ -246,7 +259,8 @@ class ExitContractManager {
       const invalidation = this.checkInvalidationConditions(
         contract.invalidationConditions,
         trade,
-        context.indicators
+        context.indicators,
+        context
       );
       if (invalidation.triggered) {
         return {
@@ -302,7 +316,7 @@ class ExitContractManager {
    * @param {Object} indicators - Current market indicators
    * @returns {Object} { triggered, reason }
    */
-  checkInvalidationConditions(conditions, trade, indicators) {
+  checkInvalidationConditions(conditions, trade, indicators, context = {}) {
     for (const condition of conditions) {
       switch (condition) {
         case 'ema_cross_reversal':
@@ -321,6 +335,17 @@ class ExitContractManager {
             return { triggered: true, reason: `Regime changed: ${trade.entryIndicators.regime} → ${indicators.regime}` };
           }
           break;
+
+        case 'rsi2_exit_long': {
+          const isLong = trade.direction === 'long' || trade.action === 'BUY';
+          const threshold = finiteOrNull(trade.exitContract?.rsiExitLong);
+          const period = positiveIntegerOrNull(trade.exitContract?.rsiPeriod) || 2;
+          const currentRsi = resolveRsiForPeriod(indicators, context.priceHistory, period);
+          if (isLong && threshold !== null && currentRsi !== null && currentRsi >= threshold) {
+            return { triggered: true, reason: `RSI${period} long exit threshold reached: ${currentRsi.toFixed(1)} >= ${threshold}` };
+          }
+          break;
+        }
 
         case 'sr_level_broken':
           // Support/resistance level that triggered entry is now broken
@@ -694,6 +719,18 @@ class ExitContractManager {
     }
     if (signal.invalidationConditions) {
       contract.invalidationConditions = signal.invalidationConditions;
+    }
+    if (signal.rsiExitLong !== undefined) {
+      const rsiExitLong = Number(signal.rsiExitLong);
+      if (Number.isFinite(rsiExitLong) && rsiExitLong > 50 && rsiExitLong < 100) {
+        contract.rsiExitLong = rsiExitLong;
+      }
+    }
+    if (signal.rsiPeriod !== undefined) {
+      const rsiPeriod = positiveIntegerOrNull(signal.rsiPeriod);
+      if (rsiPeriod !== null) {
+        contract.rsiPeriod = rsiPeriod;
+      }
     }
     if (signal.maxHoldTimeMinutes !== undefined) {
       contract.maxHoldTimeMinutes = signal.maxHoldTimeMinutes;

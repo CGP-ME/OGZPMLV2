@@ -189,7 +189,7 @@ function parseSoloStrategies(value) {
     .filter(Boolean);
 }
 
-function buildDormantStrategyEnableEnv(soloStrategy) {
+function buildSoloStrategyEnableEnv(soloStrategy) {
   const soloStrategies = new Set(parseSoloStrategies(soloStrategy));
   if (soloStrategies.size === 0) return {};
 
@@ -209,8 +209,8 @@ function buildDormantStrategyEnableEnv(soloStrategy) {
   return env;
 }
 
-function assertDormantStrategyEnvCompatible(soloStrategy, configEnv = {}) {
-  const requiredEnv = buildDormantStrategyEnableEnv(soloStrategy);
+function assertSoloStrategyEnvCompatible(soloStrategy, configEnv = {}) {
+  const requiredEnv = buildSoloStrategyEnableEnv(soloStrategy);
   for (const [key, requiredValue] of Object.entries(requiredEnv)) {
     if (!Object.prototype.hasOwnProperty.call(configEnv, key)) continue;
     if (String(configEnv[key]).toLowerCase() === requiredValue) continue;
@@ -390,8 +390,8 @@ function runSingleBacktest(config, dataFile, stockMode = false, profileName = DE
     
     const instrumentEnv = resolveInstrumentFromDataFile(dataFile);
     const selectedSoloStrategy = config.env?.SOLO_STRATEGY;
-    assertDormantStrategyEnvCompatible(selectedSoloStrategy, config.env || {});
-    const dormantStrategyEnv = buildDormantStrategyEnableEnv(selectedSoloStrategy);
+    assertSoloStrategyEnvCompatible(selectedSoloStrategy, config.env || {});
+    const soloStrategyEnv = buildSoloStrategyEnableEnv(selectedSoloStrategy);
 
     const env = buildBacktestWorkerEnv({
       sourceEnv: process.env,
@@ -404,7 +404,7 @@ function runSingleBacktest(config, dataFile, stockMode = false, profileName = DE
       profileName,
       feeProfileName,
       strategyDiag: 'false',
-      configEnv: { ...dormantStrategyEnv, ...(config.env || {}) },
+      configEnv: { ...soloStrategyEnv, ...(config.env || {}) },
       instrumentEnv,
     });
 
@@ -913,8 +913,8 @@ module.exports = {
   STRATEGIES,
   SWEEP_PRESETS,
   parseSoloStrategies,
-  buildDormantStrategyEnableEnv,
-  assertDormantStrategyEnvCompatible,
+  buildSoloStrategyEnableEnv,
+  assertSoloStrategyEnvCompatible,
   buildWorkerBaseEnv,
   applySoloStrategyToConfigs,
   filterConfigsByName,

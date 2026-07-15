@@ -7,6 +7,7 @@ const ConfigLoader = require('../foundation/ConfigLoader');
 const REQUIRED_NUMERIC_KEYS = [
   'rsiPeriod',
   'rsiEntry',
+  'rsiExitLong',
   'rsiEntryOB',
   'trendPeriod',
   'stopLossPercent',
@@ -39,6 +40,9 @@ function readConfig(overrides) {
   if (Number(cfg.rsiEntry) <= 0 || Number(cfg.rsiEntry) >= 50) {
     throw new Error(`[RSI2MeanReversion] rsiEntry must be between 0 and 50 (got ${cfg.rsiEntry})`);
   }
+  if (Number(cfg.rsiExitLong) <= 50 || Number(cfg.rsiExitLong) >= 100) {
+    throw new Error(`[RSI2MeanReversion] rsiExitLong must be between 50 and 100 (got ${cfg.rsiExitLong})`);
+  }
   if (Number(cfg.rsiEntryOB) <= 50 || Number(cfg.rsiEntryOB) >= 100) {
     throw new Error(`[RSI2MeanReversion] rsiEntryOB must be between 50 and 100 (got ${cfg.rsiEntryOB})`);
   }
@@ -64,6 +68,7 @@ function readConfig(overrides) {
     ...cfg,
     rsiPeriod: Number(cfg.rsiPeriod),
     rsiEntry: Number(cfg.rsiEntry),
+    rsiExitLong: Number(cfg.rsiExitLong),
     rsiEntryOB: Number(cfg.rsiEntryOB),
     trendPeriod: Number(cfg.trendPeriod),
     allowShorts: cfg.allowShorts === true,
@@ -136,6 +141,8 @@ class RSI2MeanReversion {
         trendSMA,
         rsiPeriod: this.cfg.rsiPeriod,
         trendPeriod: this.cfg.trendPeriod,
+        rsiEntry: this.cfg.rsiEntry,
+        rsiExitLong: this.cfg.rsiExitLong,
       },
       exitContractHint: {
         stopLossPercent: this.cfg.stopLossPercent,
@@ -143,6 +150,8 @@ class RSI2MeanReversion {
         trailingStopPercent: this.cfg.trailingStopPercent,
         trailingActivation: this.cfg.trailingActivation,
         maxHoldTimeMinutes: this.cfg.maxHoldTimeMinutes,
+        rsiPeriod: this.cfg.rsiPeriod,
+        rsiExitLong: this.cfg.rsiExitLong,
         invalidationConditions: [...this.cfg.invalidationConditions],
       },
     };
@@ -153,6 +162,7 @@ class RSI2MeanReversion {
       strategy: 'RSI2MeanReversion',
       rsiPeriod: this.cfg.rsiPeriod,
       rsiEntry: this.cfg.rsiEntry,
+      rsiExitLong: this.cfg.rsiExitLong,
       rsiEntryOB: this.cfg.rsiEntryOB,
       trendPeriod: this.cfg.trendPeriod,
       allowShorts: this.cfg.allowShorts,
