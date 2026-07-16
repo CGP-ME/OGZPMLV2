@@ -1565,7 +1565,13 @@ class TradingLoop {
           minConfidencePct: minConfidence * 100
         });
         // ─── RISK CHECK ───
-        decision = this._checkRiskAndBuildDecision(finalDirection, orchResult, minConfidence, confidence);
+        decision = this._checkRiskAndBuildDecision(finalDirection, orchResult, minConfidence, confidence, {
+          symbol,
+          venue: analysisScope.brokerId || analysisScope.assetClass || null,
+          executionVenue: analysisScope.brokerId || null,
+          sessionVenue: analysisScope.assetClass || null,
+          sessionId: analysisScope.executionMode || null,
+        });
         if (decision && decision.action === 'HOLD' && Array.isArray(decision.riskGates) && decision.riskGates.length > 0) {
           decision.traceId = decision.traceId || traceId;
           decision.signalId = decision.signalId || `${traceId}:signal`;
@@ -1689,8 +1695,8 @@ class TradingLoop {
       if (isEntryAction) {
         // L5: Capture risk gates that were checked during entry evaluation.
         // Pre-trade gates built here (warmup, min_confidence, direction_filter, shorts_enabled, same_direction_block,
-        // max_positions). RiskManager contributes its own gates (drawdown_circuit, daily/weekly/monthly
-        // loss limits, recovery min_confidence) via decision.riskGates — appended below.
+        // max_positions). RiskManager contributes Trey drawdown-law and producer-validity gates
+        // via decision.riskGates — appended below.
         riskGates = this._entryRiskGates(
           finalDirection,
           directionFilter,
@@ -1813,7 +1819,7 @@ class TradingLoop {
    * Risk check + build decision — SAME LOGIC for buy and sell.
    * The ONLY difference is the action string and direction label.
    */
-  _checkRiskAndBuildDecision(direction, orchResult, minConfidence, confidence) {
+  _checkRiskAndBuildDecision(direction, orchResult, minConfidence, confidence, riskContext = {}) {
     // Map direction to action/label
     const actionMap = {
       buy:  { action: 'BUY',        direction: 'long'  },
@@ -1826,7 +1832,7 @@ class TradingLoop {
       // L5 observability: collect riskGates arrays from both RiskManager calls.
       // Each call returns its own array of {gate, threshold, value, passed, rejectReason}.
       // Concatenated and surfaced to caller so StateManager can attach to the trade ledger.
-      const riskCheck = this.ctx.riskManager.isTradingAllowed();
+      const riskCheck = this.ctx.riskManager.isTradingAllowed(riskContext);
       const riskGates = [...(riskCheck.riskGates || [])];
       this._diag('RISK_ALLOWED', {
         direction,
@@ -1841,8 +1847,10 @@ class TradingLoop {
 
       const riskAssessment = this.ctx.riskManager.assessTradeRisk({
         confidence,
-        direction
-      });
+        direction,
+        strategyName: orchResult.winnerStrategy || orchResult.strategy || 'unknown_strategy',
+        symbol: riskContext.symbol || null,
+      }, riskContext);
       riskGates.push(...(riskAssessment.riskGates || []));
       this._diag('RISK_ASSESSMENT', {
         direction,

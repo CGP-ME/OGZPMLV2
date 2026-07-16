@@ -3865,7 +3865,7 @@ class OrderExecutor {
             this.ctx.performanceAnalyzer.processTrade(completeTradeResult);
 
             // 3.5 CHANGE 2026-02-14: Wire RiskManager trade tracking (was NEVER CALLED)
-            // Updates daily/weekly/monthly loss limits, drawdown, streaks, recovery mode
+            // Updates RiskManager's own-fill realized P&L ledger for Trey drawdown-law reporting.
             const longResultPnlDollars = this._firstFiniteNumber(completeTradeResult.pnlDollars);
             const longResultPnlPercent = this._firstFiniteNumber(completeTradeResult.pnl);
             const longResultHoldDuration = this._firstFiniteNumber(completeTradeResult.holdDuration);
@@ -3873,10 +3873,15 @@ class OrderExecutor {
             const longResultStrategy = this._firstNonEmptyString(buyTrade.entryStrategy, buyTrade.strategy);
 
             if (this.ctx.riskManager && longResultPnlDollars !== null) {
-              this.ctx.riskManager.recordTradeResult({
-                success: pnl >= 0,
-                pnl: longResultPnlDollars
-              });
+	              this.ctx.riskManager.recordTradeResult({
+	                success: pnl >= 0,
+	                pnl: longResultPnlDollars,
+	                pnlPercent: longResultPnlPercent,
+	                symbol,
+	                strategy: longResultStrategy,
+	                venue: buyTrade.executionVenue || buyTrade.venue || buyTrade.brokerId || null,
+	                timestamp: new Date().toISOString()
+	              });
             } else if (this.ctx.riskManager) {
               console.warn('[RISK] Skipped trade result update: missing finite P&L dollars');
             }
@@ -4434,10 +4439,15 @@ class OrderExecutor {
           this._checkPatternOutcomeHealth();
 
           if (this.ctx.riskManager && shortResultPnlDollars !== null) {
-            this.ctx.riskManager.recordTradeResult({
-              success: pnl >= 0,
-              pnl: shortResultPnlDollars
-            });
+	            this.ctx.riskManager.recordTradeResult({
+	              success: pnl >= 0,
+	              pnl: shortResultPnlDollars,
+	              pnlPercent: this._firstFiniteNumber(completeTradeResult.pnl),
+	              symbol,
+	              strategy: shortResultStrategy,
+	              venue: shortTrade.executionVenue || shortTrade.venue || shortTrade.brokerId || null,
+	              timestamp: new Date().toISOString()
+	            });
           } else if (this.ctx.riskManager) {
             console.warn('[RISK] Skipped short trade result update: missing finite P&L dollars');
           }

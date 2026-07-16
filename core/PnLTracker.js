@@ -1,257 +1,81 @@
-/**
- * PnLTracker - Profit/Loss and Time-Based Statistics Tracking
- *
- * SINGLE RESPONSIBILITY: Track P&L, streaks, and daily/weekly/monthly stats.
- * Extracted from RiskManager.js as part of Phase 8 modular refactor.
- *
- * @module core/PnLTracker
- */
-
 'use strict';
 
 class PnLTracker {
-  constructor(config = {}) {
-    if (!Number.isFinite(config.dailyLossLimitPercent) || config.dailyLossLimitPercent < 1 || config.dailyLossLimitPercent > 100) {
-      throw new Error(`[RISK-CONFIG] PnLTracker requires dailyLossLimitPercent from RiskManager config; got ${config.dailyLossLimitPercent}`);
+  constructor() {
+    this.reset();
+  }
+
+  initialize(balance, sessionId = 'default') {
+    if (!Number.isFinite(balance) || balance <= 0) {
+      console.warn(`[PnLTracker] Refusing non-finite or non-positive starting balance: ${balance}`);
+      return false;
     }
-    if (!Number.isFinite(config.weeklyLossLimitPercent) || config.weeklyLossLimitPercent < 1 || config.weeklyLossLimitPercent > 100) {
-      throw new Error(`[RISK-CONFIG] PnLTracker requires weeklyLossLimitPercent from RiskManager config; got ${config.weeklyLossLimitPercent}`);
-    }
-    if (!Number.isFinite(config.monthlyLossLimitPercent) || config.monthlyLossLimitPercent < 1 || config.monthlyLossLimitPercent > 100) {
-      throw new Error(`[RISK-CONFIG] PnLTracker requires monthlyLossLimitPercent from RiskManager config; got ${config.monthlyLossLimitPercent}`);
+    this.state.startingBalance = balance;
+    this.state.currentBalance = balance;
+    this.state.peakBalance = balance;
+    this.state.sessionId = sessionId;
+    return true;
+  }
+
+  recordTrade(trade = {}) {
+    const pnl = Number(trade.pnl);
+    if (!Number.isFinite(pnl)) {
+      console.warn(`[PnLTracker] Ignoring trade without finite confirmed P&L: ${trade.pnl}`);
+      return { recorded: false, alerts: [] };
     }
 
-    this.config = {
-      dailyLossLimitPercent: config.dailyLossLimitPercent,
-      weeklyLossLimitPercent: config.weeklyLossLimitPercent,
-      monthlyLossLimitPercent: config.monthlyLossLimitPercent,
-      alertThresholds: {
-        consecutiveLosses: config.consecutiveLossesAlert ?? 3,
-      },
+    const fill = {
+      pnl,
+      symbol: trade.symbol || null,
+      strategy: trade.strategy || trade.entryStrategy || null,
+      venue: trade.venue || trade.executionVenue || null,
+      sessionId: trade.sessionId || this.state.sessionId,
+      timestamp: trade.timestamp || new Date().toISOString(),
     };
 
-    this.state = {
-      consecutiveWins: 0,
-      consecutiveLosses: 0,
-      totalTrades: 0,
-      successfulTrades: 0,
-      winRate: 0,
-
-      dailyStats: this._createPeriodStats(this._getUTCDateString()),
-      weeklyStats: this._createPeriodStats(this._getUTCWeekStart()),
-      monthlyStats: this._createPeriodStats(this._getUTCMonthStart()),
-    };
-
-    this.tradeHistory = [];
-  }
-
-  _createPeriodStats(lastReset) {
-    return {
-      startBalance: 0,
-      currentBalance: 0,
-      pnl: 0,
-      trades: 0,
-      wins: 0,
-      losses: 0,
-      breachedLimit: false,
-      lastReset,
-    };
-  }
-
-  _getUTCDateString() {
-    const now = new Date();
-    return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
-  }
-
-  _getUTCWeekStart() {
-    const now = new Date();
-    const utcDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-    const day = utcDate.getUTCDay();
-    utcDate.setUTCDate(utcDate.getUTCDate() - day);
-    return `${utcDate.getUTCFullYear()}-${String(utcDate.getUTCMonth() + 1).padStart(2, '0')}-${String(utcDate.getUTCDate()).padStart(2, '0')}`;
-  }
-
-  _getUTCMonthStart() {
-    const now = new Date();
-    return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
-  }
-
-  /**
-   * Initialize with starting balance
-   * @param {number} balance
-   */
-  initialize(balance) {
-    this.state.dailyStats.startBalance = balance;
-    this.state.dailyStats.currentBalance = balance;
-    this.state.weeklyStats.startBalance = balance;
-    this.state.weeklyStats.currentBalance = balance;
-    this.state.monthlyStats.startBalance = balance;
-    this.state.monthlyStats.currentBalance = balance;
-  }
-
-  /**
-   * Record a completed trade
-   * @param {Object} trade - { success: boolean, pnl: number }
-   * @returns {Object} - { alerts: string[] }
-   */
-  recordTrade(trade) {
-    if (!trade || typeof trade.success !== 'boolean' || typeof trade.pnl !== 'number') {
-      console.error('[PnLTracker] Invalid trade data');
-      return { alerts: [] };
+    this.tradeHistory.push(fill);
+    this.state.realizedPnl += pnl;
+    this.state.currentBalance += pnl;
+    if (this.state.currentBalance > this.state.peakBalance) {
+      this.state.peakBalance = this.state.currentBalance;
     }
+    this.state.maxIntradayDrawdownPercent = Math.max(
+      this.state.maxIntradayDrawdownPercent,
+      this.getTrailingDrawdownPercent()
+    );
 
-    const alerts = [];
-
-    // Streak tracking
-    if (trade.success) {
-      this.state.consecutiveWins++;
-      this.state.consecutiveLosses = 0;
-      this.state.successfulTrades++;
-    } else {
-      this.state.consecutiveLosses++;
-      this.state.consecutiveWins = 0;
-
-      if (this.state.consecutiveLosses >= this.config.alertThresholds.consecutiveLosses) {
-        alerts.push(`consecutive_losses:${this.state.consecutiveLosses}`);
-      }
-    }
-
-    this.state.totalTrades++;
-    this.state.winRate = (this.state.successfulTrades / this.state.totalTrades) * 100;
-
-    // Update time-based stats
-    this._updateTimeBasedStats(trade);
-
-    // Store in history for recent win rate calculation
-    this.tradeHistory.push({ success: trade.success, pnl: trade.pnl, timestamp: Date.now() });
-    if (this.tradeHistory.length > 100) {
-      this.tradeHistory.shift();
-    }
-
-    return { alerts };
+    return { recorded: true, fill, alerts: [] };
   }
 
-  _updateTimeBasedStats(trade) {
-    const currentDate = this._getUTCDateString();
-    const currentWeek = this._getUTCWeekStart();
-    const currentMonth = this._getUTCMonthStart();
-
-    // Reset daily if new day
-    if (this.state.dailyStats.lastReset !== currentDate) {
-      this._resetPeriod('dailyStats', currentDate);
-    }
-
-    // Reset weekly if new week
-    if (this.state.weeklyStats.lastReset !== currentWeek) {
-      this._resetPeriod('weeklyStats', currentWeek);
-    }
-
-    // Reset monthly if new month
-    if (this.state.monthlyStats.lastReset !== currentMonth) {
-      this._resetPeriod('monthlyStats', currentMonth);
-    }
-
-    // Update all periods
-    for (const period of ['dailyStats', 'weeklyStats', 'monthlyStats']) {
-      const stats = this.state[period];
-      stats.pnl += trade.pnl;
-      stats.currentBalance += trade.pnl;
-      stats.trades++;
-      if (trade.success) stats.wins++;
-      else stats.losses++;
-
-      // Check loss limits
-      this._checkLossLimit(period);
-    }
+  getTrailingDrawdownPercent() {
+    if (!Number.isFinite(this.state.peakBalance) || this.state.peakBalance <= 0) return 0;
+    const drawdown = ((this.state.peakBalance - this.state.currentBalance) / this.state.peakBalance) * 100;
+    return Math.max(0, drawdown);
   }
 
-  _resetPeriod(period, newReset) {
-    const currentBalance = this.state[period].currentBalance || 0;
-    this.state[period] = this._createPeriodStats(newReset);
-    this.state[period].startBalance = currentBalance;
-    this.state[period].currentBalance = currentBalance;
-  }
-
-  _checkLossLimit(period) {
-    const stats = this.state[period];
-    if (stats.startBalance <= 0) return;
-
-    const lossPercent = this._getLossPercent(period);
-    let limit;
-
-    if (period === 'dailyStats') limit = this.config.dailyLossLimitPercent;
-    else if (period === 'weeklyStats') limit = this.config.weeklyLossLimitPercent;
-    else limit = this.config.monthlyLossLimitPercent;
-
-    if (lossPercent >= limit) {
-      stats.breachedLimit = true;
-    }
-  }
-
-  _getLossPercent(period) {
-    const stats = this.state[period];
-    if (!stats || stats.startBalance <= 0) return 0;
-    return (Math.abs(Math.min(0, stats.pnl)) / stats.startBalance) * 100;
-  }
-
-  /**
-   * Get recent win rate
-   * @param {number} count - Number of recent trades to consider
-   * @returns {number} Win rate 0-100
-   */
-  getRecentWinRate(count = 10) {
-    const recent = this.tradeHistory.slice(-count);
-    if (recent.length === 0) return 0;
-    const wins = recent.filter(t => t.success).length;
-    return (wins / recent.length) * 100;
-  }
-
-  /**
-   * Check if any loss limit is breached
-   * @returns {{ daily: boolean, weekly: boolean, monthly: boolean }}
-   */
-  getLimitBreaches() {
-    return {
-      daily: this.state.dailyStats.breachedLimit,
-      weekly: this.state.weeklyStats.breachedLimit,
-      monthly: this.state.monthlyStats.breachedLimit,
-    };
-  }
-
-  /**
-   * Get current state
-   */
   getState() {
     return {
-      consecutiveWins: this.state.consecutiveWins,
-      consecutiveLosses: this.state.consecutiveLosses,
-      totalTrades: this.state.totalTrades,
-      winRate: this.state.winRate,
-      dailyPnL: this.state.dailyStats.pnl,
-      weeklyPnL: this.state.weeklyStats.pnl,
-      monthlyPnL: this.state.monthlyStats.pnl,
-      dailyLossPercent: this._getLossPercent('dailyStats'),
-      weeklyLossPercent: this._getLossPercent('weeklyStats'),
-      monthlyLossPercent: this._getLossPercent('monthlyStats'),
-      limitBreaches: this.getLimitBreaches(),
+      startingBalance: this.state.startingBalance,
+      currentBalance: this.state.currentBalance,
+      peakBalance: this.state.peakBalance,
+      realizedPnl: this.state.realizedPnl,
+      trailingDrawdownPercent: this.getTrailingDrawdownPercent(),
+      maxIntradayDrawdownPercent: this.state.maxIntradayDrawdownPercent,
+      totalTrades: this.tradeHistory.length,
+      sessionId: this.state.sessionId,
     };
   }
 
-  /**
-   * Reset all stats
-   * @param {number} [newBalance]
-   */
-  reset(newBalance = null) {
-    this.state.consecutiveWins = 0;
-    this.state.consecutiveLosses = 0;
-    this.state.totalTrades = 0;
-    this.state.successfulTrades = 0;
-    this.state.winRate = 0;
+  reset(newBalance = null, sessionId = 'default') {
     this.tradeHistory = [];
-
-    if (newBalance !== null) {
-      this.initialize(newBalance);
-    }
+    this.state = {
+      startingBalance: Number.isFinite(newBalance) && newBalance > 0 ? newBalance : 0,
+      currentBalance: Number.isFinite(newBalance) && newBalance > 0 ? newBalance : 0,
+      peakBalance: Number.isFinite(newBalance) && newBalance > 0 ? newBalance : 0,
+      realizedPnl: 0,
+      maxIntradayDrawdownPercent: 0,
+      sessionId,
+    };
   }
 }
 

@@ -23,7 +23,6 @@ class PerformanceDashboardIntegration extends EventEmitter {
     this.config = {
       updateInterval: config.updateInterval || 5000, // 5 second updates
       enableVisualizations: config.enableVisualizations !== false,
-      enableSafetyTracking: false, // CHANGE 2025-12-11: Disabled - TradingSafetyNet doesn't exist
       ...config,
       enableProfileTracking: config.enableProfileTracking === true
     };
@@ -43,19 +42,10 @@ class PerformanceDashboardIntegration extends EventEmitter {
     
     this.validator = new PerformanceValidator();
 
-    // CHANGE 2025-12-11: TradingSafetyNet commented out - module doesn't exist
-    // this.safetyNet = new TradingSafetyNet({
-    //   maxDailyLoss: 0.05,
-    //   maxDrawdown: 0.10,
-    //   enableLogging: true
-    // });
-    this.safetyNet = null;
-    
     // Real-time metrics storage
     this.liveMetrics = {
       performance: {},
       profiles: {},
-      safety: {},
       visualizations: {},
       lastUpdate: Date.now()
     };
@@ -79,12 +69,6 @@ class PerformanceDashboardIntegration extends EventEmitter {
       // Update validator
       this.validator.recordTrade(tradeData);
       
-      // Update safety net
-      if (this.config.enableSafetyTracking) {
-        this.safetyNet.updateBalance(currentBalance);
-        this.safetyNet.recordTrade(tradeData);
-      }
-      
       // Emit update for dashboard
       this.emit('metricsUpdate', this.getLiveMetrics());
       
@@ -100,16 +84,6 @@ class PerformanceDashboardIntegration extends EventEmitter {
     try {
       // Get performance metrics
       const performanceReport = this.validator.getPerformanceReport();
-      
-      // Get safety metrics
-      const safetyMetrics = this.safetyNet?.getMetrics?.() || {
-        emergencyStop: false,
-        dailyPnL: 0,
-        currentDrawdown: 0,
-        consecutiveLosses: 0,
-        tradesThisHour: 0,
-        violations: []
-      };
       
       // Get visualization data
       const visualizationData = this.visualizer?.getMetrics?.() || {
@@ -132,16 +106,6 @@ class PerformanceDashboardIntegration extends EventEmitter {
         },
         
         profiles: this.getRuntimeProfileStatus(),
-        
-        safety: {
-          emergencyStop: safetyMetrics.emergencyStop,
-          dailyPnL: safetyMetrics.dailyPnL.toFixed(2),
-          currentDrawdown: (safetyMetrics.currentDrawdown * 100).toFixed(2),
-          consecutiveLosses: safetyMetrics.consecutiveLosses,
-          tradesThisHour: safetyMetrics.tradesThisHour,
-          violations: safetyMetrics.violations.length,
-          riskLevel: this.calculateRiskLevel(safetyMetrics)
-        },
         
         visualizations: {
           totalTrades: visualizationData.totalTrades,
@@ -172,34 +136,6 @@ class PerformanceDashboardIntegration extends EventEmitter {
       availableProfiles: [],
       profileStats: null
     };
-  }
-  
-  /**
-   * 🚨 CALCULATE RISK LEVEL: For dashboard display
-   */
-  calculateRiskLevel(safetyMetrics) {
-    let riskScore = 0;
-    
-    // Drawdown risk
-    if (safetyMetrics.currentDrawdown > 0.05) riskScore += 2;
-    if (safetyMetrics.currentDrawdown > 0.08) riskScore += 3;
-    
-    // Consecutive losses
-    if (safetyMetrics.consecutiveLosses >= 3) riskScore += 2;
-    if (safetyMetrics.consecutiveLosses >= 5) riskScore += 4;
-    
-    // Daily loss
-    if (safetyMetrics.dailyPnL < -100) riskScore += 1;
-    if (safetyMetrics.dailyPnL < -500) riskScore += 3;
-    
-    // Violations
-    riskScore += safetyMetrics.violations.length;
-    
-    // Convert to level
-    if (riskScore === 0) return 'LOW';
-    if (riskScore <= 3) return 'MEDIUM';
-    if (riskScore <= 6) return 'HIGH';
-    return 'CRITICAL';
   }
   
   /**
@@ -241,7 +177,6 @@ class PerformanceDashboardIntegration extends EventEmitter {
     return {
       performance: this.validator.getPerformanceReport(),
       profiles: this.getRuntimeProfileStatus(),
-      safety: this.safetyNet.getDetailedMetrics(),
       visualizations: this.visualizer.getDetailedMetrics()
     };
   }
@@ -250,10 +185,7 @@ class PerformanceDashboardIntegration extends EventEmitter {
    * 🎯 VALIDATE TRADE: Before execution
    */
   validateTrade(tradeParams) {
-    if (this.config.enableSafetyTracking) {
-      return this.safetyNet.validateTrade(tradeParams);
-    }
-    return { approved: true, reason: 'Safety tracking disabled' };
+    return { approved: true, reason: 'Performance dashboard is telemetry-only' };
   }
   
   /**

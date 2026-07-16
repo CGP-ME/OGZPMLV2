@@ -150,13 +150,10 @@ describe('ConfigLoader runtime profile contract', () => {
     expect(workerEnv.BACKTEST_FEE_PROFILE).toBe('ttp_real');
     expect(workerEnv.FEE_MODEL).toBe('per_share_minimum');
 
-    const snapshot = ConfigLoader.snapshot(workerEnv, { silent: true, loadDotenv: false });
-    expect(snapshot.config.risk.maxDrawdown).toBe(5);
-    expect(snapshot.config.risk.maxDailyLoss).toBe(1);
-    expect(snapshot.config.risk.maxWeeklyLoss).toBe(5);
-    expect(snapshot.config.risk.maxMonthlyLoss).toBe(5);
-    expect(snapshot.config.risk.riskManagerBypass).toBe(true);
-    expect(snapshot.config.risk.accountDrawdownBypass).toBe(true);
+	    const snapshot = ConfigLoader.snapshot(workerEnv, { silent: true, loadDotenv: false });
+	    expect(snapshot.config.risk.guardMode).toBe('off');
+	    expect(snapshot.config.risk.venueRailBuffer.enabled).toBe(false);
+	    expect(snapshot.config.risk.sessionRiskResponse.enabled).toBe(false);
   });
 
   test('TTP 5k MAX tuning profile exports prop-eval economics to stock backtest workers', () => {
@@ -201,12 +198,11 @@ describe('ConfigLoader runtime profile contract', () => {
     expect(workerEnv.BACKTEST_TUNING_PROFILE).toBe('ttp-5k-max');
     expect(workerEnv.BACKTEST_FEE_PROFILE).toBe('ttp_real');
 
-    const snapshot = ConfigLoader.snapshot(workerEnv, { silent: true, loadDotenv: false });
-    expect(snapshot.config.confidence.minTradeConfidence).toBe(0.5);
-    expect(snapshot.config.risk.maxDrawdown).toBe(3);
-    expect(snapshot.config.risk.maxWeeklyLoss).toBe(3);
-    expect(snapshot.config.risk.accountDrawdownBypass).toBe(false);
-    expect(snapshot.config.evalRules.ttp.accountLimits.dailyLossDollars).toBe(50);
+	    const snapshot = ConfigLoader.snapshot(workerEnv, { silent: true, loadDotenv: false });
+	    expect(snapshot.config.confidence.minTradeConfidence).toBe(0.5);
+	    expect(snapshot.config.risk.guardMode).toBe('off');
+	    expect(snapshot.config.risk.venueRailBuffer.enabled).toBe(false);
+	    expect(snapshot.config.evalRules.ttp.accountLimits.dailyLossDollars).toBe(50);
     expect(snapshot.config.evalRules.ttp.accountLimits.maxLossThresholdEquity).toBe(4850);
     expect(snapshot.config.evalRules.ttp.consistency.profitTargetDollars).toBe(300);
   });
@@ -435,7 +431,7 @@ describe('ConfigLoader runtime profile contract', () => {
     expect(ConfigLoader.get('exits.profitTiers.tier1')).toBe(0.007);
     expect(ConfigLoader.get('exitLogic.tieredExit.tier1ExitFraction')).toBe(0.30);
     expect(ConfigLoader.get('fees.slippage')).toBe(0.0005);
-    expect(ConfigLoader.get('risk.accountDrawdownBypass')).toBe(false);
+	    expect(ConfigLoader.get('risk.guardMode')).toBe('off');
     expect(ConfigLoader.get('filters.atrEnabled')).toBe(true);
     expect(ConfigLoader.get('filters.atrMinPercent')).toBe(0.15);
 

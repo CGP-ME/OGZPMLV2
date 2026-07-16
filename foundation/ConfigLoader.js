@@ -28,13 +28,18 @@ const path = require('path');
 const tradingConfigFile = require('../config/trading.config.json');
 
 const REQUIRED_RISK_SOURCE_PATHS = Object.freeze([
-  'risk.riskManagerBypass',
-  'risk.accountDrawdownBypass',
-  'risk.maxDrawdown',
-  'risk.maxDailyLoss',
-  'risk.maxWeeklyLoss',
-  'risk.maxMonthlyLoss',
-  'risk.accountDrawdownPercent',
+  'risk.guardMode',
+  'risk.venueRailBuffer.enabled',
+  'risk.venueRailBuffer.railDrawdownPercent',
+  'risk.venueRailBuffer.triggerPercent',
+  'risk.venueRailBuffer.releaseOnSessionReset',
+  'risk.reconciliationReporter.enabled',
+  'risk.reconciliationReporter.alertDeltaDollars',
+  'risk.reconciliationReporter.alertDeltaPercent',
+  'risk.sessionRiskResponse.enabled',
+  'risk.sessionRiskResponse.triggerPercent',
+  'risk.sessionRiskResponse.action',
+  'risk.sessionRiskResponse.actionParams',
 ]);
 
 function requiredConfiguredNumber(configPath) {
@@ -112,6 +117,15 @@ function requiredLaunchProfileNumber(configPath) {
   const result = requiredLaunchProfileValue(configPath);
   if (!Number.isFinite(result.value)) {
     throw new Error(`[ConfigLoader] config/trading.config.json ${result.source.slice('config:'.length)} must be a finite number`);
+  }
+  return result;
+}
+
+function requiredLaunchProfileNullableNumber(configPath) {
+  const result = requiredLaunchProfileValue(configPath);
+  if (result.value === null) return result;
+  if (!Number.isFinite(result.value)) {
+    throw new Error(`[ConfigLoader] config/trading.config.json ${result.source.slice('config:'.length)} must be a finite number or null`);
   }
   return result;
 }
@@ -432,6 +446,8 @@ const VALID_LAUNCH_MODES = Object.freeze(new Set(['live', 'paper', 'backtest']))
 const VALID_DIRECTION_FILTERS = Object.freeze(new Set(['both', 'long_only', 'short_only']));
 const VALID_SESSION_ROUTER_MODES = Object.freeze(new Set(['static', 'scheduled']));
 const VALID_SESSION_ROUTER_STATIC_SESSIONS = Object.freeze(new Set(['stocks', 'crypto']));
+const VALID_RISK_GUARD_MODES = Object.freeze(new Set(['off', 'venueRailBuffer']));
+const VALID_SESSION_RISK_ACTIONS = Object.freeze(new Set(['halt', 'pause', 'reduce', 'tighten', 'alert']));
 
 function requireLaunchProfiles() {
   const launchProfiles = tradingConfigFile.launchProfiles;
@@ -785,13 +801,24 @@ function buildConfig() {
 
     // ─── RISK MANAGEMENT ───
     risk: {
-      riskManagerBypass: track('risk.riskManagerBypass', requiredLaunchProfileBool('risk.riskManagerBypass')),
-      accountDrawdownBypass: track('risk.accountDrawdownBypass', requiredLaunchProfileBool('risk.accountDrawdownBypass')),
-      maxDrawdown: track('risk.maxDrawdown', requiredLaunchProfileNumber('risk.maxDrawdown')),
-      maxDailyLoss: track('risk.maxDailyLoss', requiredLaunchProfileNumber('risk.maxDailyLoss')),
-      maxWeeklyLoss: track('risk.maxWeeklyLoss', requiredLaunchProfileNumber('risk.maxWeeklyLoss')),
-      maxMonthlyLoss: track('risk.maxMonthlyLoss', requiredLaunchProfileNumber('risk.maxMonthlyLoss')),
-      accountDrawdownPercent: track('risk.accountDrawdownPercent', requiredLaunchProfileNumber('risk.accountDrawdownPercent')),
+      guardMode: track('risk.guardMode', requiredLaunchProfileString('risk.guardMode', VALID_RISK_GUARD_MODES)),
+      venueRailBuffer: {
+        enabled: track('risk.venueRailBuffer.enabled', requiredLaunchProfileBool('risk.venueRailBuffer.enabled')),
+        railDrawdownPercent: track('risk.venueRailBuffer.railDrawdownPercent', requiredLaunchProfileNullableNumber('risk.venueRailBuffer.railDrawdownPercent')),
+        triggerPercent: track('risk.venueRailBuffer.triggerPercent', requiredLaunchProfileNullableNumber('risk.venueRailBuffer.triggerPercent')),
+        releaseOnSessionReset: track('risk.venueRailBuffer.releaseOnSessionReset', requiredLaunchProfileBool('risk.venueRailBuffer.releaseOnSessionReset')),
+      },
+      reconciliationReporter: {
+        enabled: track('risk.reconciliationReporter.enabled', requiredLaunchProfileBool('risk.reconciliationReporter.enabled')),
+        alertDeltaDollars: track('risk.reconciliationReporter.alertDeltaDollars', requiredLaunchProfileNullableNumber('risk.reconciliationReporter.alertDeltaDollars')),
+        alertDeltaPercent: track('risk.reconciliationReporter.alertDeltaPercent', requiredLaunchProfileNullableNumber('risk.reconciliationReporter.alertDeltaPercent')),
+      },
+      sessionRiskResponse: {
+        enabled: track('risk.sessionRiskResponse.enabled', requiredLaunchProfileBool('risk.sessionRiskResponse.enabled')),
+        triggerPercent: track('risk.sessionRiskResponse.triggerPercent', requiredLaunchProfileNullableNumber('risk.sessionRiskResponse.triggerPercent')),
+        action: track('risk.sessionRiskResponse.action', requiredLaunchProfileString('risk.sessionRiskResponse.action', VALID_SESSION_RISK_ACTIONS)),
+        actionParams: track('risk.sessionRiskResponse.actionParams', requiredLaunchProfilePlainObject('risk.sessionRiskResponse.actionParams')),
+      },
     },
 
     // ─── FILTERS ───
@@ -1081,11 +1108,16 @@ function validate(config, sources = {}) {
   if (config.mode.liveTrading && config.mode.confirmLiveTrading !== true) {
     errors.push('LIVE_TRADING=true cannot run unless CONFIRM_LIVE_TRADING=true');
   }
-  if (config.mode.liveTrading && config.risk.accountDrawdownBypass) {
-    errors.push('LIVE_TRADING=true cannot run with ACCOUNT_DRAWDOWN_BYPASS=true');
+  if (!VALID_RISK_GUARD_MODES.has(config.risk.guardMode)) {
+    errors.push(`risk.guardMode must be off or venueRailBuffer; got ${config.risk.guardMode || '(missing)'}`);
   }
-  if (config.mode.liveTrading && config.risk.riskManagerBypass) {
-    errors.push('LIVE_TRADING=true cannot run with RISK_MANAGER_BYPASS=true');
+  if (config.risk.venueRailBuffer?.enabled) {
+    if (!Number.isFinite(config.risk.venueRailBuffer.railDrawdownPercent)) {
+      errors.push('risk.venueRailBuffer.railDrawdownPercent is required when venue rail buffer is enabled');
+    }
+    if (!Number.isFinite(config.risk.venueRailBuffer.triggerPercent)) {
+      errors.push('risk.venueRailBuffer.triggerPercent is required when venue rail buffer is enabled');
+    }
   }
   if (config.mode.liveTrading && config.webhookOrders.enabled && config.webhookOrders.dryRun) {
     errors.push('LIVE_TRADING=true cannot run with WEBHOOK_ORDERS_ENABLED=true and WEBHOOK_DRY_RUN=true');
@@ -1483,17 +1515,18 @@ const CONFIG_LOADER_RUNTIME_PATHS = Object.freeze({
   'fees.totalRoundTrip': 'fees.totalRoundTrip',
   'fees.perShare': 'fees.perShare',
   'fees.minOrderFee': 'fees.minOrderFee',
-  'risk.riskManagerBypass': 'risk.riskManagerBypass',
-  'risk.accountDrawdownBypass': 'risk.accountDrawdownBypass',
-  'risk.maxDrawdown': 'risk.maxDrawdown',
-  'risk.maxDailyLoss': 'risk.maxDailyLoss',
-  'risk.maxWeeklyLoss': 'risk.maxWeeklyLoss',
-  'risk.maxMonthlyLoss': 'risk.maxMonthlyLoss',
-  'risk.accountDrawdownPercent': 'risk.accountDrawdownPercent',
-  'exitLogic.safety.accountDrawdownBypass': 'exitLogic.safety.accountDrawdownBypass',
-  'exitLogic.safety.accountDrawdownPercent': 'exitLogic.safety.accountDrawdownPercent',
-  'universalLimits.accountDrawdownBypass': 'universalLimits.accountDrawdownBypass',
-  'universalLimits.accountDrawdownPercent': 'universalLimits.accountDrawdownPercent',
+  'risk.guardMode': 'risk.guardMode',
+  'risk.venueRailBuffer.enabled': 'risk.venueRailBuffer.enabled',
+  'risk.venueRailBuffer.railDrawdownPercent': 'risk.venueRailBuffer.railDrawdownPercent',
+  'risk.venueRailBuffer.triggerPercent': 'risk.venueRailBuffer.triggerPercent',
+  'risk.venueRailBuffer.releaseOnSessionReset': 'risk.venueRailBuffer.releaseOnSessionReset',
+  'risk.reconciliationReporter.enabled': 'risk.reconciliationReporter.enabled',
+  'risk.reconciliationReporter.alertDeltaDollars': 'risk.reconciliationReporter.alertDeltaDollars',
+  'risk.reconciliationReporter.alertDeltaPercent': 'risk.reconciliationReporter.alertDeltaPercent',
+  'risk.sessionRiskResponse.enabled': 'risk.sessionRiskResponse.enabled',
+  'risk.sessionRiskResponse.triggerPercent': 'risk.sessionRiskResponse.triggerPercent',
+  'risk.sessionRiskResponse.action': 'risk.sessionRiskResponse.action',
+  'risk.sessionRiskResponse.actionParams': 'risk.sessionRiskResponse.actionParams',
   'filters.atrEnabled': 'filters.atrEnabled',
   'filters.atrMinPercent': 'filters.atrMinPercent',
   'evalRules.enabled': 'evalRules.enabled',
@@ -1614,17 +1647,18 @@ const CONFIG_LOADER_RUNTIME_PATHS = Object.freeze({
 
 const LAUNCH_PROFILE_RUNTIME_PATHS = Object.freeze({
   'confidence.minTradeConfidence': 'confidence.minTradeConfidence',
-  'risk.riskManagerBypass': 'risk.riskManagerBypass',
-  'risk.accountDrawdownBypass': 'risk.accountDrawdownBypass',
-  'risk.maxDrawdown': 'risk.maxDrawdown',
-  'risk.maxDailyLoss': 'risk.maxDailyLoss',
-  'risk.maxWeeklyLoss': 'risk.maxWeeklyLoss',
-  'risk.maxMonthlyLoss': 'risk.maxMonthlyLoss',
-  'risk.accountDrawdownPercent': 'risk.accountDrawdownPercent',
-  'exitLogic.safety.accountDrawdownBypass': 'risk.accountDrawdownBypass',
-  'exitLogic.safety.accountDrawdownPercent': 'risk.accountDrawdownPercent',
-  'universalLimits.accountDrawdownBypass': 'risk.accountDrawdownBypass',
-  'universalLimits.accountDrawdownPercent': 'risk.accountDrawdownPercent',
+  'risk.guardMode': 'risk.guardMode',
+  'risk.venueRailBuffer.enabled': 'risk.venueRailBuffer.enabled',
+  'risk.venueRailBuffer.railDrawdownPercent': 'risk.venueRailBuffer.railDrawdownPercent',
+  'risk.venueRailBuffer.triggerPercent': 'risk.venueRailBuffer.triggerPercent',
+  'risk.venueRailBuffer.releaseOnSessionReset': 'risk.venueRailBuffer.releaseOnSessionReset',
+  'risk.reconciliationReporter.enabled': 'risk.reconciliationReporter.enabled',
+  'risk.reconciliationReporter.alertDeltaDollars': 'risk.reconciliationReporter.alertDeltaDollars',
+  'risk.reconciliationReporter.alertDeltaPercent': 'risk.reconciliationReporter.alertDeltaPercent',
+  'risk.sessionRiskResponse.enabled': 'risk.sessionRiskResponse.enabled',
+  'risk.sessionRiskResponse.triggerPercent': 'risk.sessionRiskResponse.triggerPercent',
+  'risk.sessionRiskResponse.action': 'risk.sessionRiskResponse.action',
+  'risk.sessionRiskResponse.actionParams': 'risk.sessionRiskResponse.actionParams',
   'evalRules.enabled': 'venueGuards.ttp.enabled',
   'evalRules.ttp.enabled': 'venueGuards.ttp.enabled',
   'evalRules.ttp.volumeCap.enabled': 'venueGuards.ttp.volumeCap.enabled',
@@ -2118,12 +2152,6 @@ const BASE_CONFIG = {
   // =========================================================================
   risk: {
     maxRiskPerTrade: env('MAX_RISK_PER_TRADE', 0.02),           // 2% max risk per trade
-    accountDrawdownBypass: false,
-    // RiskManager circuit limits are startup-owned by ConfigLoader/RiskManagerConfig.
-    // Profiles may still write risk.* startup overrides, but BASE_CONFIG must not carry stale defaults.
-
-    // Recovery mode (after losses)
-    recoveryModeReduction: 0.50,                                  // 50% size reduction in recovery
     counterTrendReduction: 0.30,                                  // 30% reduction against trend
     lowConfidenceReduction: 0.25,                                 // 25% reduction on weak signals
     highConfidenceBoost: 1.30,                                    // 1.3x on strong signals
@@ -2633,14 +2661,7 @@ const BASE_CONFIG = {
       exitFraction: parseFloat(env('REVERSAL_EXIT_FRACTION', 1.0)),  // close 100% on reversal by default
     },
 
-    // ─── Universal safety limits (read by ExitContractManager — circuit breakers only) ───
-    // These are absolute kill-switches, not strategy-specific
-    safety: {
-      hardStopLossPercent: parseFloat(env('UNIVERSAL_HARD_STOP', -3.0)),  // never let any single trade lose more than 3%
-      accountDrawdownPercent: -5.0,  // Apex 5% wall
-      accountDrawdownBypass: false,
-      maxHoldTimeMinutes: parseInt(env('UNIVERSAL_MAX_HOLD_MIN', 480), 10),  // 8 hours absolute max
-    },
+    safety: {},
   },
 
   // =========================================================================
@@ -2979,14 +3000,9 @@ const BASE_CONFIG = {
   },
 
   // =========================================================================
-  // UNIVERSAL CIRCUIT BREAKERS (override strategy contracts)
+  // UNIVERSAL ALERT SURFACE (exit authority lives in strategy contracts)
   // =========================================================================
-  universalLimits: {
-    hardStopLossPercent: -5.0,                                    // -5% absolute max loss (was -2%, too tight for BTC)
-    accountDrawdownPercent: -10.0,                                // -10% force close all
-    maxHoldTimeMinutes: 360,                                      // 6 hours max hold (matches MarketRegime)
-    accountDrawdownBypass: false,
-  },
+  universalLimits: {},
 
   // =========================================================================
   // MAX HOLD TIMES

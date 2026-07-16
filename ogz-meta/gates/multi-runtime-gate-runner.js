@@ -231,7 +231,6 @@ function resetStateManager() {
     totalPnL: 0,
     closedTrades: [],
     isTrading: false,
-    recoveryMode: false,
     lastError: null,
     lastUpdate: Date.now()
   };

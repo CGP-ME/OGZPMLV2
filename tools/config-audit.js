@@ -30,12 +30,6 @@ const SECRET_ENV_PATTERN = /(^|_)(API_KEY|API_SECRET|SECRET|TOKEN|DSN|WEBHOOK_UR
 const AUDIT_REQUIRED_ENV_FIXTURE = Object.freeze({
   PROFILE: 'paper',
   ALPACA_MODE: 'paper',
-  RISK_MANAGER_BYPASS: 'true',
-  ACCOUNT_DRAWDOWN_BYPASS: 'true',
-  MAX_DRAWDOWN: '5',
-  MAX_DAILY_LOSS: '1',
-  MAX_WEEKLY_LOSS: '5',
-  MAX_MONTHLY_LOSS: '5',
   TTP_ACCOUNT_START_OF_DAY_EQUITY: '5000',
   TTP_DAILY_LOSS_LIMIT_DOLLARS: '50',
   TTP_MAX_LOSS_THRESHOLD_EQUITY: '4850',
@@ -69,12 +63,6 @@ const CONFIG_LOADER_ENV_PATHS = Object.freeze({
   FEE_TOTAL_ROUNDTRIP: 'fees.totalRoundTrip',
   FEE_PER_SHARE: 'fees.perShare',
   FEE_MIN_ORDER: 'fees.minOrderFee',
-  RISK_MANAGER_BYPASS: 'risk.riskManagerBypass',
-  ACCOUNT_DRAWDOWN_BYPASS: 'risk.accountDrawdownBypass',
-  MAX_DRAWDOWN: 'risk.maxDrawdown',
-  MAX_DAILY_LOSS: 'risk.maxDailyLoss',
-  MAX_WEEKLY_LOSS: 'risk.maxWeeklyLoss',
-  MAX_MONTHLY_LOSS: 'risk.maxMonthlyLoss',
   TTP_ACCOUNT_START_OF_DAY_EQUITY: 'evalRules.ttp.accountLimits.accountStartOfDayEquity',
   TTP_DAILY_LOSS_LIMIT_DOLLARS: 'evalRules.ttp.accountLimits.dailyLossDollars',
   TTP_MAX_LOSS_THRESHOLD_EQUITY: 'evalRules.ttp.accountLimits.maxLossThresholdEquity',
@@ -259,19 +247,6 @@ function buildResolvedConfig(context = createAuditContext()) {
   resolved['fees.perShare'] = getSource('FEE_PER_SHARE', 'fees.perShare', 0);
   resolved['fees.minOrderFee'] = getSource('FEE_MIN_ORDER', 'fees.minOrderFee', 0);
 
-  // === RISK MANAGEMENT ===
-  resolved['risk.riskManagerBypass'] = getSource('RISK_MANAGER_BYPASS', null, 'true (BYPASSED)');
-  resolved['risk.accountDrawdownBypass'] = getSource('ACCOUNT_DRAWDOWN_BYPASS', null, 'false (ACTIVE)');
-  resolved['risk.maxDrawdown'] = getSource('MAX_DRAWDOWN', 'risk.maxDrawdown', 10);
-  resolved['risk.maxDailyLoss'] = getSource('MAX_DAILY_LOSS', 'risk.maxDailyLoss', 3);
-  resolved['risk.maxWeeklyLoss'] = getSource('MAX_WEEKLY_LOSS', 'risk.maxWeeklyLoss', 10);
-  resolved['risk.maxMonthlyLoss'] = getSource('MAX_MONTHLY_LOSS', 'risk.maxMonthlyLoss', 20);
-
-  // === UNIVERSAL LIMITS ===
-  resolved['limits.hardStopLoss'] = { value: ConfigLoader.get('universalLimits.hardStopLossPercent'), source: 'ConfigLoader:universalLimits.hardStopLossPercent' };
-  resolved['limits.accountDrawdown'] = { value: ConfigLoader.get('universalLimits.accountDrawdownPercent'), source: 'ConfigLoader:universalLimits.accountDrawdownPercent' };
-  resolved['limits.maxHoldTime'] = { value: ConfigLoader.get('universalLimits.maxHoldTimeMinutes'), source: 'ConfigLoader:universalLimits.maxHoldTimeMinutes' };
-
   // === STRATEGY TOGGLES ===
   const pipeline = ConfigLoader.get('pipeline') || {};
   resolved['strategies.RSI'] = { value: pipeline.enableRSI, source: 'ConfigLoader:pipeline.enableRSI' };
@@ -324,7 +299,7 @@ function buildResolvedConfig(context = createAuditContext()) {
 
 function getRiskConfigViolations(context = createAuditContext()) {
   return (context.configSnapshot.errors || [])
-    .filter(error => /^risk\.[^.]+ requires explicit env\/profile source$/.test(error));
+    .filter(error => /^risk\..+ requires explicit profile source$/.test(error));
 }
 
 // ═══════════════════════════════════════════════════════════════

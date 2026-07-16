@@ -72,7 +72,6 @@
  * @property {number} state.realizedPnL - Cumulative realized profit/loss
  * @property {number} state.unrealizedPnL - Current unrealized P&L
  * @property {boolean} state.isTrading - Whether trading is active
- * @property {boolean} state.recoveryMode - Emergency recovery mode flag
  */
 
 const ConfigLoader = require('../foundation/ConfigLoader');
@@ -450,7 +449,6 @@ class StateManager {
       // SYSTEM STATE
       // ─────────────────────────────────────────────────────────────────────
       isTrading: false,         // false = paused/stopped
-      recoveryMode: false,      // true = emergency mode active
       lastError: null,          // Last error message (for pause reason)
       pauseReason: null,
       pauseSource: null,
@@ -536,7 +534,6 @@ class StateManager {
       totalPnL: 0,
       closedTrades: [],
       isTrading: false,
-      recoveryMode: false,
       lastError: null,
       pauseReason: null,
       pauseSource: null,
@@ -1589,18 +1586,6 @@ class StateManager {
   }
 
   /**
-   * Update balance (deposits, withdrawals, fees)
-   */
-  async updateBalance(amount, reason = 'adjustment') {
-    const updates = {
-      balance: this.state.balance + amount,
-      totalBalance: this.state.totalBalance + amount
-    };
-
-    return this.updateState(updates, { action: 'BALANCE_UPDATE', amount, reason });
-  }
-
-  /**
    * Reset daily counters
    */
   async resetDaily() {
@@ -1609,17 +1594,6 @@ class StateManager {
     };
 
     return this.updateState(updates, { action: 'DAILY_RESET' });
-  }
-
-  /**
-   * Set recovery mode
-   */
-  async setRecoveryMode(enabled) {
-    const updates = {
-      recoveryMode: enabled
-    };
-
-    return this.updateState(updates, { action: 'RECOVERY_MODE', enabled });
   }
 
   _activeTradeQuantityIssuesForTrade(trade, fallbackTradeId = '<unknown>') {
@@ -1763,8 +1737,7 @@ class StateManager {
       balance: safeBalance || this.state.totalBalance,
       totalBalance: safeBalance || this.state.totalBalance,
       inPosition: 0,
-      activeTrades: new Map(),
-      recoveryMode: true
+      activeTrades: new Map()
     };
 
     return this.updateState(updates, { action: 'EMERGENCY_RESET' });
@@ -3417,6 +3390,11 @@ class StateManager {
 
         // Restore state
         this.state = { ...this.state, ...savedState };
+        if (Object.prototype.hasOwnProperty.call(this.state, 'recoveryMode')) {
+          delete this.state.recoveryMode;
+          correctedStateShape = true;
+          console.warn('[StateManager] Dropped persisted recoveryMode field; Trey drawdown law owns risk halt authority.');
+        }
         if (!(this.state.activeTrades instanceof Map)) {
           throw new Error(
             `[StateManager.load] activeTrades container invariant failed: expected serialized array/Map, got ${Object.prototype.toString.call(this.state.activeTrades)}`
@@ -3568,27 +3546,11 @@ class StateManager {
         if (correctedStateShape) {
           this.save();
         }
-        const validation = this.validateState();
-        if (
-          this.state.recoveryMode === true &&
-          activeTradeCount === 0 &&
-          symbolHaltCount === 0 &&
-          !this.state.lastError &&
-          !this.state.pauseReason &&
-          this.state.isTrading !== false &&
-          validation.valid
-        ) {
-          this.state.recoveryMode = false;
-          console.warn('[StateManager] Cleared stale recoveryMode on flat, valid state with no active halts.');
-          this.save();
-        }
-
         // Verify Map restoration
         console.log(`[StateManager] Active trades restored: ${this.state.activeTrades.size} trades`);
       }
     } catch (error) {
       console.error('[StateManager] Failed to load state:', error);
-      this.state.recoveryMode = true;
       this.state.lastError = error.message;
       throw error;
     }
@@ -3959,7 +3921,6 @@ class StateManager {
         winningTrades,
         losingTrades,
         dailyTradeCount: state.dailyTradeCount,
-        recoveryMode: state.recoveryMode,
         ttpCutoffQuarantine: state.ttpCutoffQuarantine || null,
         symbolEntryHalts: state.symbolEntryHalts || {},
         runtimeScope,
@@ -4015,7 +3976,6 @@ class StateManager {
     console.log(`Balance: $${this.state.balance.toFixed(2)} (Total: $${this.state.totalBalance.toFixed(2)})`);
     console.log(`P&L: $${this.state.totalPnL.toFixed(2)} (Realized: $${this.state.realizedPnL.toFixed(2)})`);
     console.log(`Trades: ${this.state.tradeCount} total, ${this.state.dailyTradeCount} today`);
-    console.log(`Recovery Mode: ${this.state.recoveryMode}`);
     console.log('======================\n');
   }
 }

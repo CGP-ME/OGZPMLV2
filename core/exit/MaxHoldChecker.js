@@ -1,7 +1,7 @@
 /**
  * MaxHoldChecker.js - Maximum Hold Time Exit Condition
  * ====================================================
- * Checks both universal and strategy-specific max hold times.
+ * Checks strategy-specific max hold times.
  * Tags exits as winner/loser based on NET P&L (after fees).
  *
  * FIX 2026-02-28: Use net PnL (after 0.52% round-trip fees) not raw PnL
@@ -18,12 +18,7 @@ function getRoundTripFee(trade) {
 }
 
 class MaxHoldChecker {
-  /**
-   * @param {Object} universalLimits - { maxHoldTimeMinutes }
-   */
-  constructor(universalLimits) {
-    this.universalLimits = universalLimits;
-  }
+  constructor() {}
 
   /**
    * Check max hold time conditions
@@ -34,16 +29,6 @@ class MaxHoldChecker {
    */
   check(trade, holdTimeMinutes, pnlPercent) {
     const contract = trade.exitContract || {};
-
-    // === UNIVERSAL MAX HOLD (always checked first) ===
-    if (holdTimeMinutes >= this.universalLimits.maxHoldTimeMinutes) {
-      return {
-        shouldExit: true,
-        exitReason: 'max_hold_universal',
-        details: `Universal max hold: ${holdTimeMinutes.toFixed(0)} min >= ${this.universalLimits.maxHoldTimeMinutes} min`,
-        confidence: 100
-      };
-    }
 
     // === STRATEGY-SPECIFIC MAX HOLD ===
     if (contract.maxHoldTimeMinutes && holdTimeMinutes >= contract.maxHoldTimeMinutes) {

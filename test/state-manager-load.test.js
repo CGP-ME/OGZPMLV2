@@ -451,6 +451,7 @@ describe('StateManager load validation', () => {
 
   test('BACKTEST_MODE uses explicit INITIAL_BALANCE instead of constructor bootstrap', () => {
     jest.resetModules();
+    process.env.PROFILE = 'backtest-all';
     process.env.BACKTEST_MODE = 'true';
     process.env.EXECUTION_MODE = 'backtest';
     process.env.INITIAL_BALANCE = '5000';
@@ -467,6 +468,7 @@ describe('StateManager load validation', () => {
 
   test('BACKTEST_MODE refuses default initial balance', () => {
     jest.resetModules();
+    process.env.PROFILE = 'backtest-all';
     process.env.BACKTEST_MODE = 'true';
     process.env.EXECUTION_MODE = 'backtest';
     delete process.env.INITIAL_BALANCE;

@@ -502,15 +502,17 @@ describe('OrderExecutor TRAI learning payload', () => {
     const missingPosition = await module.assessRisk({ stopLossPercent: 0.01 }, {
       volatility: 0.02,
     }, 0.8);
-    expect(missingPosition.approved).toBe(false);
-    expect(missingPosition.vetoReason).toBe('Missing finite positionSize for TRAI risk assessment');
+    expect(missingPosition.approved).toBe(true);
+    expect(missingPosition.opinionOnly).toBe(true);
+    expect(missingPosition.vetoReason).toBeNull();
     expect(missingPosition.factors).toContain('missing_position_size');
 
     const missingVolatility = await module.assessRisk({ stopLossPercent: 0.01 }, {
       positionSize: 100,
     }, 0.8);
-    expect(missingVolatility.approved).toBe(false);
-    expect(missingVolatility.vetoReason).toBe('Missing finite volatility for TRAI risk assessment');
+    expect(missingVolatility.approved).toBe(true);
+    expect(missingVolatility.opinionOnly).toBe(true);
+    expect(missingVolatility.vetoReason).toBeNull();
     expect(missingVolatility.factors).toContain('missing_volatility');
   });
 
@@ -860,8 +862,9 @@ describe('OrderExecutor TRAI learning payload', () => {
     expect(decision.originalConfidence).toBeNull();
     expect(decision.traiRecommendation).toBe('HOLD');
     expect(decision.finalConfidence).toBe(0);
-    expect(decision.riskAssessment.approved).toBe(false);
-    expect(decision.riskAssessment.vetoReason).toBe('Invalid signal confidence');
+    expect(decision.riskAssessment.approved).toBe(true);
+    expect(decision.riskAssessment.opinionOnly).toBe(true);
+    expect(decision.riskAssessment.vetoReason).toBeNull();
     expect(decision.riskAssessment.factors).toContain('invalid_confidence_input');
     expect(decision.reasoning).toContain('invalid confidence input');
     expect(decision.reasoning).not.toContain('base 0.0%');

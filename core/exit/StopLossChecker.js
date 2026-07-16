@@ -1,7 +1,7 @@
 /**
  * StopLossChecker.js - Stop Loss Exit Condition
  * ==============================================
- * Checks universal hard stop AND strategy-specific stop loss.
+ * Checks strategy-specific stop loss.
  * Phase 11: Uses BreakEvenManager for break-even state (single source of truth).
  *
  * @module core/exit/StopLossChecker
@@ -12,11 +12,7 @@
 const BreakEvenManager = require('./BreakEvenManager');
 
 class StopLossChecker {
-  /**
-   * @param {Object} universalLimits - { hardStopLossPercent, accountDrawdownPercent }
-   */
-  constructor(universalLimits) {
-    this.universalLimits = universalLimits;
+  constructor() {
     this.breakEvenManager = new BreakEvenManager();
   }
 
@@ -30,37 +26,6 @@ class StopLossChecker {
    */
   check(trade, currentPrice, pnlPercent, context = {}) {
     const contract = trade.exitContract || {};
-
-    // === UNIVERSAL HARD STOP (always first) ===
-    if (pnlPercent <= this.universalLimits.hardStopLossPercent) {
-      return {
-        shouldExit: true,
-        exitReason: 'hard_stop',
-        details: `Universal hard stop: ${pnlPercent.toFixed(2)}% <= ${this.universalLimits.hardStopLossPercent}%`,
-        confidence: 100
-      };
-    }
-
-    // === ACCOUNT DRAWDOWN ===
-    // FIX 2026-03-13: Use total equity (cash + position value), not just cash
-    // FIX 2026-03-28: Position is already USD, no price multiplication needed
-    // Account drawdown check (controlled by config injection, not process.env)
-    const drawdownEnabled = !this.universalLimits.accountDrawdownBypass;
-    if (drawdownEnabled && context.accountBalance && context.initialBalance) {
-      // FIX 2026-04-09: accountBalance already represents total equity
-      // Backtest: backtestRecorder.balance (includes all P&L)
-      // Live: stateManager.getEquity() (initialBalance + realizedPnL + unrealizedPnL)
-      const totalEquity = context.accountBalance;
-      const accountDrawdown = ((totalEquity - context.initialBalance) / context.initialBalance) * 100;
-      if (accountDrawdown <= this.universalLimits.accountDrawdownPercent) {
-        return {
-          shouldExit: true,
-          exitReason: 'account_drawdown',
-          details: `Account drawdown: ${accountDrawdown.toFixed(2)}% <= ${this.universalLimits.accountDrawdownPercent}%`,
-          confidence: 100
-        };
-      }
-    }
 
     // === STRATEGY STOP LOSS (with break-even via BreakEvenManager) ===
     // Skip entire block for "no stop" contracts (null/undefined/0) — BreakEvenManager

@@ -98,12 +98,23 @@ function buildRuntimeConfigProof(snapshot, ConfigLoader, options = {}) {
         atrMinPercent: withSource(snapshot, 'filters.atrMinPercent'),
       },
       risk: {
-        riskManagerBypass: withSource(snapshot, 'risk.riskManagerBypass'),
-        accountDrawdownBypass: withSource(snapshot, 'risk.accountDrawdownBypass'),
-        maxDrawdown: withSource(snapshot, 'risk.maxDrawdown'),
-        maxDailyLoss: withSource(snapshot, 'risk.maxDailyLoss'),
-        maxWeeklyLoss: withSource(snapshot, 'risk.maxWeeklyLoss'),
-        maxMonthlyLoss: withSource(snapshot, 'risk.maxMonthlyLoss'),
+        guardMode: withSource(snapshot, 'risk.guardMode'),
+        venueRailBuffer: {
+          enabled: withSource(snapshot, 'risk.venueRailBuffer.enabled'),
+          railDrawdownPercent: withSource(snapshot, 'risk.venueRailBuffer.railDrawdownPercent'),
+          triggerPercent: withSource(snapshot, 'risk.venueRailBuffer.triggerPercent'),
+          releaseOnSessionReset: withSource(snapshot, 'risk.venueRailBuffer.releaseOnSessionReset'),
+        },
+        reconciliationReporter: {
+          enabled: withSource(snapshot, 'risk.reconciliationReporter.enabled'),
+          alertDeltaDollars: withSource(snapshot, 'risk.reconciliationReporter.alertDeltaDollars'),
+          alertDeltaPercent: withSource(snapshot, 'risk.reconciliationReporter.alertDeltaPercent'),
+        },
+        sessionRiskResponse: {
+          enabled: withSource(snapshot, 'risk.sessionRiskResponse.enabled'),
+          triggerPercent: withSource(snapshot, 'risk.sessionRiskResponse.triggerPercent'),
+          action: withSource(snapshot, 'risk.sessionRiskResponse.action'),
+        },
       },
       evalRules: {
         enabled: withSource(snapshot, 'evalRules.enabled'),

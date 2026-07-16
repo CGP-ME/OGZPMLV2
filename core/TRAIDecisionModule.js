@@ -14,7 +14,7 @@
  * Integration Points:
  * - PRE-BRAIN: Enriches patterns before brain processing
  * - POST-BRAIN: Validates and adjusts confidence scores
- * - PRE-EXECUTION: Final risk assessment and veto power
+ * - PRE-EXECUTION: Opinion-only risk assessment telemetry
  * 
  * @author Trey (OGZPrime Technologies)
  * @version 1.0.0
@@ -47,7 +47,7 @@ class TRAIDecisionModule extends EventEmitter {
       confidenceWeight: 0.3,          // TRAI's weight in final confidence (30%)
       
       // Risk governance
-      enableVetoPower: true,          // TRAI can veto risky trades
+      enableVetoPower: false,         // TRAI risk assessment is opinion-only until Trey re-authorizes veto power
       maxRiskTolerance: 0.03,         // 3% max risk per trade
       emergencyStopLoss: 0.05,        // 5% emergency stop
       
@@ -62,7 +62,8 @@ class TRAIDecisionModule extends EventEmitter {
       trackDecisions: true,
       logPath: './logs/trai-decisions.log',
       
-      ...config
+      ...config,
+      enableVetoPower: false
     };
     
     // State management
@@ -248,8 +249,9 @@ class TRAIDecisionModule extends EventEmitter {
 
       if (decision.confidenceInputInvalid) {
         decision.finalConfidence = 0;
-        decision.riskAssessment.approved = false;
-        decision.riskAssessment.vetoReason = 'Invalid signal confidence';
+        decision.riskAssessment.approved = true;
+        decision.riskAssessment.vetoReason = null;
+        decision.riskAssessment.opinionOnly = true;
         decision.riskAssessment.factors = [
           ...(decision.riskAssessment.factors || []),
           'invalid_confidence_input'
@@ -265,16 +267,8 @@ class TRAIDecisionModule extends EventEmitter {
           signal.action
         );
       
-      // Step 6: Check for veto conditions
-      if (this.config.enableVetoPower) {
-        decision.vetoApplied = this.checkVetoConditions(decision.riskAssessment);
-        if (decision.vetoApplied) {
-          decision.traiRecommendation = 'VETO';
-          decision.finalConfidence = 0;
-          decision.reasoning = `VETO: ${decision.riskAssessment.vetoReason}`;
-          this.state.vetoes++;
-        }
-      }
+      // Step 6: risk assessment is opinion-only. RiskManager owns entry authority.
+      decision.vetoApplied = false;
       
       // Step 7: Generate reasoning (use LLM for uncertain decisions, rule-based for clear ones)
       if (this.traiCore && !decision.vetoApplied) {
@@ -715,7 +709,8 @@ class TRAIDecisionModule extends EventEmitter {
       probability: confidence,
       factors: [],
       approved: true,
-      vetoReason: null
+      vetoReason: null,
+      opinionOnly: true
     };
     
     // Calculate risk score (0-1, higher is riskier)
@@ -724,8 +719,6 @@ class TRAIDecisionModule extends EventEmitter {
     // Volatility risk
     const volatility = Number.isFinite(context.volatility) ? context.volatility : null;
     if (volatility == null) {
-      assessment.approved = false;
-      assessment.vetoReason = 'Missing finite volatility for TRAI risk assessment';
       assessment.factors.push('missing_volatility');
     } else {
       riskScore += volatility * 10; // Scale volatility to 0-0.5 range
@@ -756,12 +749,8 @@ class TRAIDecisionModule extends EventEmitter {
       ? signal.stopLossPercent
       : (Number.isFinite(this.config.emergencyStopLoss) ? this.config.emergencyStopLoss : null);
     if (positionSize == null) {
-      assessment.approved = false;
-      assessment.vetoReason = 'Missing finite positionSize for TRAI risk assessment';
       assessment.factors.push('missing_position_size');
     } else if (stopLoss == null) {
-      assessment.approved = false;
-      assessment.vetoReason = 'Missing finite stopLoss for TRAI risk assessment';
       assessment.factors.push('missing_stop_loss');
     } else {
       assessment.maxLoss = positionSize * stopLoss;
@@ -769,8 +758,7 @@ class TRAIDecisionModule extends EventEmitter {
     
     // Check if risk exceeds tolerance
     if (assessment.maxLoss > this.config.maxRiskTolerance) {
-      assessment.approved = false;
-      assessment.vetoReason = `Max loss ${(assessment.maxLoss * 100).toFixed(2)}% exceeds tolerance ${(this.config.maxRiskTolerance * 100).toFixed(2)}%`;
+      assessment.factors.push('max_loss_above_tolerance');
     }
     
     assessment.riskScore = Math.min(1, riskScore);
@@ -783,11 +771,6 @@ class TRAIDecisionModule extends EventEmitter {
    * Change 586: Fixed to handle SELL signals properly
    */
   makeRecommendation(confidence, riskAssessment, originalAction) {
-    // Check if risk veto
-    if (!riskAssessment.approved) {
-      return 'HOLD';
-    }
-
     // Change 598->2026-02-28: Honor minConfidenceOverride from config
     // Determine minimum confidence threshold:
     // 1) prefer explicit override from config (TRAI_MIN_CONF)
@@ -825,24 +808,7 @@ class TRAIDecisionModule extends EventEmitter {
    * Check for veto conditions
    */
   checkVetoConditions(riskAssessment) {
-    // Veto if risk is too high
-    if (riskAssessment.riskScore > 0.8) {
-      riskAssessment.vetoReason = 'Risk score exceeds safety threshold';
-      return true;
-    }
-    
-    // Veto if max loss exceeds emergency stop
-    if (riskAssessment.maxLoss > this.config.emergencyStopLoss) {
-      riskAssessment.vetoReason = 'Potential loss exceeds emergency stop';
-      return true;
-    }
-    
-    // Veto if too many risk factors
-    if (riskAssessment.factors.length >= 3) {
-      riskAssessment.vetoReason = 'Too many risk factors present';
-      return true;
-    }
-    
+    riskAssessment.opinionOnly = true;
     return false;
   }
   

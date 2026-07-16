@@ -143,23 +143,21 @@ function buildStrategyContract(contract, strategyName, timeframe) {
 }
 
 /**
- * Exit contracts and universal limits now come from ConfigLoader (single source of truth)
+ * Exit contracts now come from ConfigLoader (single source of truth)
  * Phase 1 REWRITE: Eliminated hardcoded duplicates - ConfigLoader owns all trading params
  */
 const DEFAULT_CONTRACTS = ConfigLoader.BASE_CONFIG.exitContracts;
-const UNIVERSAL_LIMITS = ConfigLoader.getSection('universalLimits');
 
 class ExitContractManager {
   constructor() {
     // Phase 1 REWRITE: Read from ConfigLoader (single source of truth)
-    this.universalLimits = ConfigLoader.getSection('universalLimits');
     this.defaultContracts = ConfigLoader.BASE_CONFIG.exitContracts;
 
     // Phase 10: Delegate to individual checkers
-    this.stopLossChecker = new StopLossChecker(this.universalLimits);
+    this.stopLossChecker = new StopLossChecker();
     this.takeProfitChecker = new TakeProfitChecker();
     this.trailConfig = ConfigLoader.BASE_CONFIG.exitLogic.trail;
-    this.maxHoldChecker = new MaxHoldChecker(this.universalLimits);
+    this.maxHoldChecker = new MaxHoldChecker();
     // Phase 11: Break-even state machine (for external access/dashboard)
     this.breakEvenManager = new BreakEvenManager();
   }
@@ -778,5 +776,4 @@ module.exports = {
   ExitContractManager,
   getInstance,
   DEFAULT_CONTRACTS,
-  UNIVERSAL_LIMITS
 };

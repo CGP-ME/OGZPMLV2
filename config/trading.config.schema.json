@@ -58,12 +58,9 @@
     "risk": {
       "type": "object",
       "additionalProperties": true,
-      "required": ["maxRiskPerTrade", "maxDrawdown", "maxDailyLoss"],
+      "required": ["maxRiskPerTrade"],
       "properties": {
         "maxRiskPerTrade": { "type": "number", "minimum": 0, "maximum": 1, "description": "Decimal (0.02 = 2%)" },
-        "maxDrawdown": { "type": "number", "description": "DECIMAL form. 0.18 = 18%. Values > 1.0 rejected in Phase 3 validator." },
-        "maxDailyLoss": { "type": "number", "description": "DECIMAL form. See maxDrawdown." },
-        "recoveryModeReduction": { "type": "number", "minimum": 0, "maximum": 1 },
         "counterTrendReduction": { "type": "number", "minimum": 0, "maximum": 1 },
         "lowConfidenceReduction": { "type": "number", "minimum": 0, "maximum": 1 },
         "highConfidenceBoost": { "type": "number", "minimum": 1 }
@@ -381,14 +378,8 @@
     },
     "universalLimits": {
       "type": "object",
-      "additionalProperties": true,
-      "required": ["hardStopLossPercent", "accountDrawdownPercent", "maxHoldTimeMinutes"],
-      "properties": {
-        "hardStopLossPercent": { "type": "number" },
-        "accountDrawdownPercent": { "type": "number" },
-        "maxHoldTimeMinutes": { "type": "integer", "minimum": 1 },
-        "accountDrawdownBypass": { "type": "boolean" }
-      }
+      "additionalProperties": false,
+      "properties": {}
     },
     "holdTimes": {
       "type": "object",

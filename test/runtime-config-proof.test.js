@@ -34,12 +34,23 @@ function snapshotFixture() {
         atrMinPercent: 0.15,
       },
       risk: {
-        riskManagerBypass: false,
-        accountDrawdownBypass: false,
-        maxDrawdown: 5,
-        maxDailyLoss: 1,
-        maxWeeklyLoss: 5,
-        maxMonthlyLoss: 5,
+        guardMode: 'venueRailBuffer',
+        venueRailBuffer: {
+          enabled: true,
+          railDrawdownPercent: 3,
+          triggerPercent: 0.25,
+          releaseOnSessionReset: true,
+        },
+        reconciliationReporter: {
+          enabled: true,
+          alertDeltaDollars: 1,
+          alertDeltaPercent: 0.1,
+        },
+        sessionRiskResponse: {
+          enabled: false,
+          triggerPercent: null,
+          action: 'alert',
+        },
       },
       evalRules: {
         enabled: true,
@@ -98,12 +109,17 @@ function snapshotFixture() {
       'confidence.minStrategyConfidence': 'env:MIN_STRATEGY_CONFIDENCE',
       'filters.atrEnabled': 'default',
       'filters.atrMinPercent': 'env:ATR_MIN_PERCENT',
-      'risk.riskManagerBypass': 'env:RISK_MANAGER_BYPASS',
-      'risk.accountDrawdownBypass': 'env:ACCOUNT_DRAWDOWN_BYPASS',
-      'risk.maxDrawdown': 'env:MAX_DRAWDOWN',
-      'risk.maxDailyLoss': 'env:MAX_DAILY_LOSS',
-      'risk.maxWeeklyLoss': 'env:MAX_WEEKLY_LOSS',
-      'risk.maxMonthlyLoss': 'env:MAX_MONTHLY_LOSS',
+      'risk.guardMode': 'config:launchProfiles.production.risk.guardMode',
+      'risk.venueRailBuffer.enabled': 'config:launchProfiles.production.risk.venueRailBuffer.enabled',
+      'risk.venueRailBuffer.railDrawdownPercent': 'config:launchProfiles.production.risk.venueRailBuffer.railDrawdownPercent',
+      'risk.venueRailBuffer.triggerPercent': 'config:launchProfiles.production.risk.venueRailBuffer.triggerPercent',
+      'risk.venueRailBuffer.releaseOnSessionReset': 'config:launchProfiles.production.risk.venueRailBuffer.releaseOnSessionReset',
+      'risk.reconciliationReporter.enabled': 'config:launchProfiles.production.risk.reconciliationReporter.enabled',
+      'risk.reconciliationReporter.alertDeltaDollars': 'config:launchProfiles.production.risk.reconciliationReporter.alertDeltaDollars',
+      'risk.reconciliationReporter.alertDeltaPercent': 'config:launchProfiles.production.risk.reconciliationReporter.alertDeltaPercent',
+      'risk.sessionRiskResponse.enabled': 'config:launchProfiles.production.risk.sessionRiskResponse.enabled',
+      'risk.sessionRiskResponse.triggerPercent': 'config:launchProfiles.production.risk.sessionRiskResponse.triggerPercent',
+      'risk.sessionRiskResponse.action': 'config:launchProfiles.production.risk.sessionRiskResponse.action',
       'evalRules.enabled': 'env:EVAL_RULES_ENABLED',
       'evalRules.ttp.enabled': 'env:TTP_RULES_ENABLED',
       'evalRules.ttp.accountLimits.dailyLossDollars': 'env:TTP_DAILY_LOSS_LIMIT_DOLLARS',
@@ -174,7 +190,8 @@ describe('RuntimeConfigProof', () => {
     expect(proof.event).toBe('RUNTIME_CONFIG_PROOF');
     expect(proof.timestamp).toBe('2026-06-12T15:30:00.000Z');
     expect(proof.configLoader.filters.atrEnabled).toEqual({ value: false, source: 'default' });
-    expect(proof.configLoader.risk.riskManagerBypass).toEqual({ value: false, source: 'env:RISK_MANAGER_BYPASS' });
+    expect(proof.configLoader.risk.guardMode).toEqual({ value: 'venueRailBuffer', source: 'config:launchProfiles.production.risk.guardMode' });
+    expect(proof.configLoader.risk.venueRailBuffer.enabled).toEqual({ value: true, source: 'config:launchProfiles.production.risk.venueRailBuffer.enabled' });
     expect(proof.configLoader.evalRules.dailyLossDollars).toEqual({ value: 50, source: 'env:TTP_DAILY_LOSS_LIMIT_DOLLARS' });
     expect(proof.configLoader.broker.alpacaApiKey).toEqual({ present: true, source: 'env:ALPACA_API_KEY' });
     expect(proof.configLoader.broker.alpacaApiSecret).toEqual({ present: true, source: 'env:ALPACA_API_SECRET' });

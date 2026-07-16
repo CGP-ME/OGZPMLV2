@@ -319,23 +319,19 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(ConfigLoader.get('evalRules.ttp.consistency.enabled')).toBe(loaded.config.evalRules.ttp.consistency.enabled);
   });
 
-  test('risk limits are sourced from explicit launch profiles', () => {
+  test('risk guard law is sourced from explicit launch profiles', () => {
     useBacktestProfile('backtest-all');
-    delete process.env.MAX_DRAWDOWN;
-    delete process.env.MAX_DAILY_LOSS;
+    delete process.env.RISK_GUARD_MODE;
 
     const loaded = loadConfig();
 
     expect(loaded.errors).toEqual([]);
     expect(loaded.config.mode.backtest).toBe(true);
-    expect(loaded.config.risk.maxDrawdown).toBe(5);
-    expect(loaded.config.risk.maxDailyLoss).toBe(1);
-    expect(loaded.config.risk.maxWeeklyLoss).toBe(5);
-    expect(loaded.config.risk.maxMonthlyLoss).toBe(5);
-    expect(loaded.config.risk.riskManagerBypass).toBe(true);
-    expect(loaded.config.risk.accountDrawdownBypass).toBe(true);
-    expect(loaded.sources['risk.maxDrawdown']).toBe('config:launchProfiles.backtest-all.risk.maxDrawdown');
-    expect(loaded.sources['risk.riskManagerBypass']).toBe('config:launchProfiles.backtest-all.risk.riskManagerBypass');
+    expect(loaded.config.risk.guardMode).toBe('off');
+    expect(loaded.config.risk.venueRailBuffer.enabled).toBe(false);
+    expect(loaded.config.risk.sessionRiskResponse.enabled).toBe(false);
+    expect(loaded.sources['risk.guardMode']).toBe('config:launchProfiles.backtest-all.risk.guardMode');
+    expect(loaded.sources['risk.venueRailBuffer.enabled']).toBe('config:launchProfiles.backtest-all.risk.venueRailBuffer.enabled');
   });
 
   test('legacy live env flags cannot activate live mode without the production launch profile', () => {
@@ -353,7 +349,7 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(loaded.sources['mode.execution']).toBe('config:launchProfiles.paper.mode');
   });
 
-  test('production profile enables live trading with bypasses disabled', () => {
+  test('production profile enables live trading with venue rail buffer active', () => {
     useProductionProfile();
     process.env.ACCOUNT_DRAWDOWN_BYPASS = 'true';
     process.env.RISK_MANAGER_BYPASS = 'true';
@@ -363,9 +359,10 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(loaded.errors).toEqual([]);
     expect(loaded.config.mode.liveTrading).toBe(true);
     expect(loaded.config.mode.confirmLive).toBe(true);
-    expect(loaded.config.risk.accountDrawdownBypass).toBe(false);
-    expect(loaded.config.risk.riskManagerBypass).toBe(false);
-    expect(loaded.sources['risk.accountDrawdownBypass']).toBe('config:launchProfiles.production.risk.accountDrawdownBypass');
+    expect(loaded.config.risk.guardMode).toBe('venueRailBuffer');
+    expect(loaded.config.risk.venueRailBuffer.enabled).toBe(true);
+    expect(loaded.config.risk.venueRailBuffer.railDrawdownPercent).toBe(3);
+    expect(loaded.sources['risk.guardMode']).toBe('config:launchProfiles.production.risk.guardMode');
   });
 
   test('production profile owns min trade confidence and ignores env/dotenv attempts', () => {

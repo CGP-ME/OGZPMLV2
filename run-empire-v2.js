@@ -209,12 +209,11 @@ console.log(`   TEST_MODE: ${resolvedConfig.config.mode.testMode || false}`);
 
 // DEBUG: Log key config toggles to verify env vars are being read
 if (resolvedConfig.config.mode.backtest) {
-  console.log('[CONFIG VERIFY] Backtest mode - key toggle values:');
-  console.log(`   ATR_FILTER_ENABLED: ${resolvedConfig.config.filters.atrEnabled}`);
-  console.log(`   RISK_MANAGER_BYPASS: ${resolvedConfig.config.risk.riskManagerBypass}`);
-  console.log(`   MIN_TRADE_CONFIDENCE: ${resolvedConfig.config.confidence.minTradeConfidence}`);
-  console.log(`   ACCOUNT_DRAWDOWN_BYPASS: ${resolvedConfig.config.risk.accountDrawdownBypass}`);
-}
+	  console.log('[CONFIG VERIFY] Backtest mode - key toggle values:');
+	  console.log(`   ATR_FILTER_ENABLED: ${resolvedConfig.config.filters.atrEnabled}`);
+	  console.log(`   RISK_GUARD_MODE: ${resolvedConfig.config.risk.guardMode}`);
+	  console.log(`   MIN_TRADE_CONFIDENCE: ${resolvedConfig.config.confidence.minTradeConfidence}`);
+	}
 
 // Load feature flags configuration via unified FeatureFlagManager
 const FeatureFlagManager = require('./core/FeatureFlagManager');
@@ -1779,7 +1778,7 @@ class OGZPrimeV14Bot {
     console.log(`  BACKTEST_NO_PATTERN_SAVE=${process.env.BACKTEST_NO_PATTERN_SAVE || 'false'}`);
     console.log(`  FEE_MAKER=${process.env.FEE_MAKER || 'default'}`);
     console.log(`  FEE_TAKER=${process.env.FEE_TAKER || 'default'}`);
-    console.log(`  ACCOUNT_DRAWDOWN_BYPASS=${ConfigLoader.get('risk.accountDrawdownBypass')}`);
+	    console.log(`  RISK_GUARD_MODE=${ConfigLoader.get('risk.guardMode')}`);
     console.log(`  ENABLE_TRAI=${process.env.ENABLE_TRAI || 'true'}`);
     console.log(`  ENABLE_SHORTS=${ConfigLoader.get('features.enableShorts')}`);
     console.log(`  ENABLE_RSI=${runtimePipeline.enableRSI}`);

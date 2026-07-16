@@ -60,20 +60,20 @@ describe('config-audit env boundary', () => {
         .filter(configPath => !Object.prototype.hasOwnProperty.call(resolved, configPath));
 
       expect(Object.keys(resolved).length).toBeGreaterThan(82);
-      expect(context.auditFixtureKeys).toEqual(expect.arrayContaining([
-        'ALPACA_MODE',
-        'MAX_WEEKLY_LOSS',
-        'MAX_MONTHLY_LOSS',
+      expect(context.auditFixtureKeys).toEqual(expect.arrayContaining(['ALPACA_MODE']));
+      expect(context.auditFixtureKeys).not.toEqual(expect.arrayContaining([
+        'RISK_MANAGER_BYPASS',
+        'TTP_DAILY_LOSS_LIMIT_DOLLARS',
+        'TTP_MAX_LOSS_THRESHOLD_EQUITY',
       ]));
-      expect(context.auditFixtureKeys).not.toEqual(expect.arrayContaining(['RISK_MANAGER_BYPASS']));
       expect(missingConfigLoaderLeaves).toEqual([]);
       expect(resolved['broker.alpacaMode']).toMatchObject({
         value: 'paper',
         source: 'audit-fixture:ALPACA_MODE',
       });
-      expect(resolved['risk.maxWeeklyLoss']).toMatchObject({
-        value: 5,
-        source: 'audit-fixture:MAX_WEEKLY_LOSS',
+      expect(resolved['risk.guardMode']).toMatchObject({
+        value: 'off',
+        source: 'config:launchProfiles.backtest-all.risk.guardMode',
       });
       expect(resolved['mode.liveTading']).toBeUndefined();
       expect(resolved['mode.liveTrading']).toMatchObject({
@@ -93,8 +93,8 @@ describe('config-audit env boundary', () => {
         source: 'config:launchProfiles.backtest-all.mode',
       });
       expect(resolved['confidence.minTradeConfidence']).toMatchObject({
-        value: 0.61,
-        source: 'dotenv:MIN_TRADE_CONFIDENCE',
+        value: 0.5,
+        source: 'config:launchProfiles.backtest-all.confidence.minTradeConfidence',
       });
       expect(resolved['sizing.basePositionSize']).toMatchObject({
         value: 0.04,
@@ -151,16 +151,10 @@ describe('config-audit env boundary', () => {
     fs.writeFileSync(envPath, [
       'PROFILE=paper',
       'ALPACA_MODE=live',
-      'ALPACA_API_KEY=audit-alpaca-key',
-      'ALPACA_API_SECRET=audit-alpaca-secret',
-      'ALPACA_SYMBOLS=TSLA',
-      'RISK_MANAGER_BYPASS=false',
-      'ACCOUNT_DRAWDOWN_BYPASS=false',
-      'MAX_DRAWDOWN=9',
-      'MAX_DAILY_LOSS=2',
-      'MAX_WEEKLY_LOSS=6',
-      'MAX_MONTHLY_LOSS=12',
-      'TTP_ACCOUNT_START_OF_DAY_EQUITY=5000',
+	      'ALPACA_API_KEY=audit-alpaca-key',
+	      'ALPACA_API_SECRET=audit-alpaca-secret',
+	      'ALPACA_SYMBOLS=TSLA',
+	      'TTP_ACCOUNT_START_OF_DAY_EQUITY=5000',
       'TTP_DAILY_LOSS_LIMIT_DOLLARS=50',
       'TTP_MAX_LOSS_THRESHOLD_EQUITY=4850',
       'TTP_PROFIT_TARGET_DOLLARS=300',
@@ -183,10 +177,10 @@ describe('config-audit env boundary', () => {
         value: 'live',
         source: 'dotenv:ALPACA_MODE',
       });
-      expect(context.configSnapshot.config.risk.maxDrawdown).toBe(9);
-      expect(context.configSnapshot.sources['risk.maxDrawdown']).toBe('dotenv:MAX_DRAWDOWN');
-      expect(process.env.ALPACA_MODE).toBeUndefined();
-      expect(process.env.MAX_DRAWDOWN).toBeUndefined();
+	      expect(context.configSnapshot.config.risk.guardMode).toBe('off');
+	      expect(context.configSnapshot.sources['risk.guardMode']).toBe('config:launchProfiles.paper.risk.guardMode');
+	      expect(process.env.ALPACA_MODE).toBeUndefined();
+	      expect(process.env.MAX_DRAWDOWN).toBeUndefined();
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
@@ -210,18 +204,18 @@ describe('config-audit env boundary', () => {
     });
     const resolved = audit.buildResolvedConfig(context);
 
-    expect(context.auditFixtureKeys).not.toEqual(expect.arrayContaining([
-      'ALPACA_MODE',
-      'MAX_WEEKLY_LOSS',
-      'MAX_MONTHLY_LOSS',
-    ]));
+	    expect(context.auditFixtureKeys).not.toEqual(expect.arrayContaining([
+	      'ALPACA_MODE',
+	      'TTP_DAILY_LOSS_LIMIT_DOLLARS',
+	      'TTP_MAX_LOSS_THRESHOLD_EQUITY',
+	    ]));
     expect(resolved['broker.alpacaMode']).toMatchObject({
       value: 'live',
       source: 'env:ALPACA_MODE',
     });
-    expect(resolved['risk.maxWeeklyLoss']).toMatchObject({
-      value: 6,
-      source: 'env:MAX_WEEKLY_LOSS',
+    expect(resolved['risk.guardMode']).toMatchObject({
+      value: 'off',
+      source: 'config:launchProfiles.backtest-all.risk.guardMode',
     });
   });
 
@@ -233,7 +227,7 @@ describe('config-audit env boundary', () => {
     const missing = calls.filter(envKey => !audit.CONFIG_LOADER_ENV_PATHS[envKey]);
 
     expect(missing).toEqual([]);
-    expect(audit.sourceLabelFor('audit-fixture:MAX_WEEKLY_LOSS')).toBe('AUD');
+	    expect(audit.sourceLabelFor('audit-fixture:TTP_DAILY_LOSS_LIMIT_DOLLARS')).toBe('AUD');
     expect(audit.sourceLabelFor('ConfigLoader:mode.liveTrading')).toBe('CFG');
     expect(audit.sourceLabelFor('ConfigLoader:pipeline.enableRSI')).toBe('CFG');
   });
@@ -253,13 +247,7 @@ describe('config-audit env boundary', () => {
       const audit = require('../tools/config-audit');
       const context = audit.createAuditContext({ useAuditFixture: false });
 
-      expect(audit.getRiskConfigViolations(context)).toEqual([
-        'risk.riskManagerBypass requires explicit env/profile source',
-        'risk.maxDrawdown requires explicit env/profile source',
-        'risk.maxDailyLoss requires explicit env/profile source',
-        'risk.maxWeeklyLoss requires explicit env/profile source',
-        'risk.maxMonthlyLoss requires explicit env/profile source',
-      ]);
+	    expect(audit.getRiskConfigViolations(context)).toEqual([]);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }

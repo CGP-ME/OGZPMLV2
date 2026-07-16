@@ -1,28 +1,26 @@
-/**
- * RiskManager - Risk Assessment and Capital Protection
- *
- * REFACTORED: Phase 8 modular architecture
- * Original: 1952 lines → Now: ~200 lines + 2 focused modules
- *
- * Composes:
- *   - DrawdownTracker: Drawdown monitoring and protection multipliers
- *   - PnLTracker: P&L and time-based statistics (daily/weekly/monthly)
- *
- * @module core/RiskManager
- */
-
 'use strict';
 
-const DrawdownTracker = require('./DrawdownTracker');
 const PnLTracker = require('./PnLTracker');
+const DrawdownTracker = require('./DrawdownTracker');
 const { isRiskManagerConfig } = require('./RiskManagerConfig');
 
-function requireBooleanConfig(config, key) {
-  const value = config[key];
-  if (typeof value !== 'boolean') {
-    throw new Error(`[RISK-CONFIG] RiskManager requires ${key} from RiskManager config; got ${value}`);
+function describeProducer(tradeParams = {}) {
+  return tradeParams.strategyName ||
+    tradeParams.strategy ||
+    tradeParams.entryStrategy ||
+    tradeParams.module ||
+    tradeParams.source ||
+    'unknown_strategy';
+}
+
+function scrubInputs(input = {}) {
+  const result = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (typeof value === 'function') continue;
+    if (value && typeof value === 'object') continue;
+    result[key] = value;
   }
-  return value;
+  return result;
 }
 
 class RiskManager {
@@ -30,273 +28,225 @@ class RiskManager {
     if (!isRiskManagerConfig(config)) {
       throw new Error('[RISK-CONFIG] RiskManager requires config from buildRiskManagerConfig');
     }
-    const riskManagerBypass = requireBooleanConfig(config, 'riskManagerBypass');
 
-    this.config = {
-      maxDrawdownPercent: config.maxDrawdownPercent,
-      dailyLossLimitPercent: config.dailyLossLimitPercent,
-      weeklyLossLimitPercent: config.weeklyLossLimitPercent,
-      monthlyLossLimitPercent: config.monthlyLossLimitPercent,
-      recoveryConfidenceMultiplier: config.recoveryConfidenceMultiplier ?? 1.5,
-      baseConfidenceThreshold: config.baseConfidenceThreshold ?? 0.3,
-      riskManagerBypass,
-      alertThresholds: {
-        drawdown: config.drawdownAlert ?? 5,
-        dailyLoss: config.dailyLossAlert ?? 3,
-      },
-    };
-
-    // Compose with focused trackers
-    this.drawdownTracker = new DrawdownTracker(config);
-    this.pnlTracker = new PnLTracker(config);
-
-    // Alert state
+    this.config = config;
+    this.pnlTracker = new PnLTracker();
+    this.drawdownTracker = new DrawdownTracker();
     this.alertsTriggered = [];
+    this.reconciliationReports = [];
+    this.railLocks = new Map();
 
-    console.log('[RiskManager] Initialized (Phase 8 modular)');
+    console.log(`[RiskManager] Initialized Trey drawdown-law seat (guardMode=${config.guardMode})`);
   }
 
-  /**
-   * Initialize with starting balance
-   * @param {number} balance
-   */
-  initializeBalance(balance) {
+  initializeBalance(balance, context = {}) {
+    this.pnlTracker.initialize(balance, context.sessionId || context.session || 'default');
     this.drawdownTracker.initialize(balance);
-    this.pnlTracker.initialize(balance);
-    console.log(`[RiskManager] Balance initialized: $${balance.toFixed(2)}`);
+    console.log(`[RiskManager] Own-fill balance initialized: $${Number(balance).toFixed(2)}`);
   }
 
-  /**
-   * Record a completed trade
-   * @param {Object} trade - { success: boolean, pnl: number }
-   */
-  recordTradeResult(trade) {
-    const { alerts } = this.pnlTracker.recordTrade(trade);
-    this.drawdownTracker.updateBalance(trade.pnl);
-
-    // Check recovery mode with current stats
-    const pnlState = this.pnlTracker.getState();
-    this.drawdownTracker.checkRecoveryMode(
-      pnlState.consecutiveWins,
-      this.pnlTracker.getRecentWinRate(10)
-    );
-
-    // Process alerts
-    for (const alert of alerts) {
-      this._triggerAlert(alert.split(':')[0], alert);
+  recordTradeResult(trade = {}) {
+    const recorded = this.pnlTracker.recordTrade(trade);
+    if (recorded.recorded) {
+      this.drawdownTracker.recordConfirmedPnl(recorded.fill.pnl);
     }
-    this._checkRiskAlerts();
+    return recorded;
   }
 
-  /**
-   * Update balance (for external sync)
-   * @param {number} newBalance
-   */
-  updateBalance(newBalance) {
-    this.drawdownTracker.setBalance(newBalance);
-  }
-
-  /**
-   * Assess risk for a proposed trade
-   * @param {Object} tradeParams - { direction, confidence, ... }
-   * @returns {Object} - { approved, reason, riskLevel, ... }
-   */
-  assessTradeRisk(tradeParams) {
-    // L5 observability: accumulate pass/fail for every gate evaluated.
-    // Pure instrumentation — never changes gate behavior or trade decisions.
-    // Matches decision-ledger-schema riskGates enum + shape.
-    const riskGates = [];
-    const _gate = (gate, threshold, value, passed, rejectReason) => {
-      riskGates.push({ gate, threshold, value, passed, ...(rejectReason ? { rejectReason } : {}) });
+  reportExternalLedgerDelta(externalLedger = {}) {
+    const own = this.pnlTracker.getState();
+    const externalBalance = Number(externalLedger.balance ?? externalLedger.equity);
+    const source = externalLedger.source || externalLedger.venue || 'external_ledger';
+    const report = {
+      source,
+      ownBalance: own.currentBalance,
+      externalBalance: Number.isFinite(externalBalance) ? externalBalance : null,
+      deltaDollars: Number.isFinite(externalBalance) ? externalBalance - own.currentBalance : null,
+      timestamp: new Date().toISOString(),
+      authority: 'report_only',
     };
 
-    // Bypass for backtest (controlled by config injection)
-    if (this.config.riskManagerBypass) return { approved: true, riskLevel: 'LOW', riskGates };
-    // RISK-HIGH-01: refuse risk scoring on non-finite confidence. Old destructure
-    // default = 0 silently approved phantom-zero trades at REDUCE_SIZE instead of
-    // blocking them. Halt-class reject per spec Rule #1.
-    const { confidence } = tradeParams;
-    if (!Number.isFinite(confidence)) {
-      _gate('confidence_validity', 'finite', confidence, false, `Invalid confidence: ${confidence}`);
-      return {
-        approved: false,
-        reason: `[RISK-HIGH-01] Invalid confidence (${confidence}) — refusing risk assessment`,
-        riskLevel: 'CRITICAL',
-        blockType: 'INVALID_INPUT',
-        riskGates,
-      };
-    }
-    const ddState = this.drawdownTracker.getState();
-    const breaches = this.pnlTracker.getLimitBreaches();
-    const pnlState = this.pnlTracker.getState();
+    this.reconciliationReports.push(report);
+    if (this.reconciliationReports.length > 100) this.reconciliationReports.shift();
 
-    // Max drawdown check
-    const maxDDExceeded = this.drawdownTracker.isMaxDrawdownExceeded();
-    _gate('drawdown_circuit', this.config.maxDrawdownPercent, ddState.currentDrawdown, !maxDDExceeded,
-          maxDDExceeded ? `Max drawdown exceeded (${ddState.currentDrawdown.toFixed(2)}%)` : null);
-    if (maxDDExceeded) {
-      return {
-        approved: false,
-        reason: `Max drawdown exceeded (${ddState.currentDrawdown.toFixed(2)}%)`,
-        riskLevel: 'CRITICAL',
-        blockType: 'DRAWDOWN_LIMIT',
-        riskGates,
-      };
-    }
-
-    // Loss limit checks
-    _gate('daily_loss_limit', this.config.dailyLossLimitPercent, breaches.daily ? 1 : 0, !breaches.daily,
-          breaches.daily ? 'Daily loss limit exceeded' : null);
-    if (breaches.daily) {
-      return { approved: false, reason: 'Daily loss limit exceeded', riskLevel: 'HIGH', blockType: 'DAILY_LIMIT', riskGates };
-    }
-    _gate('weekly_loss_limit', this.config.weeklyLossLimitPercent, breaches.weekly ? 1 : 0, !breaches.weekly,
-          breaches.weekly ? 'Weekly loss limit exceeded' : null);
-    if (breaches.weekly) {
-      return { approved: false, reason: 'Weekly loss limit exceeded', riskLevel: 'HIGH', blockType: 'WEEKLY_LIMIT', riskGates };
-    }
-    _gate('monthly_loss_limit', this.config.monthlyLossLimitPercent, breaches.monthly ? 1 : 0, !breaches.monthly,
-          breaches.monthly ? 'Monthly loss limit exceeded' : null);
-    if (breaches.monthly) {
-      return { approved: false, reason: 'Monthly loss limit exceeded', riskLevel: 'HIGH', blockType: 'MONTHLY_LIMIT', riskGates };
-    }
-
-    // Recovery mode confidence check
-    if (ddState.recoveryMode) {
-      const required = this.config.baseConfidenceThreshold * this.config.recoveryConfidenceMultiplier;
-      const passedRecovery = confidence >= required;
-      _gate('min_confidence', required, confidence, passedRecovery,
-            passedRecovery ? null : `Recovery mode: Confidence ${(confidence * 100).toFixed(1)}% below required ${(required * 100).toFixed(1)}%`);
-      if (!passedRecovery) {
-        return {
-          approved: false,
-          reason: `Recovery mode: Confidence ${(confidence * 100).toFixed(1)}% below required ${(required * 100).toFixed(1)}%`,
-          riskLevel: 'MEDIUM',
-          blockType: 'RECOVERY_CONFIDENCE',
-          riskGates,
-        };
+    if (this.config.reconciliationReporter.enabled) {
+      const dollars = Math.abs(report.deltaDollars ?? 0);
+      const percent = own.currentBalance > 0 && report.deltaDollars !== null
+        ? Math.abs(report.deltaDollars / own.currentBalance) * 100
+        : null;
+      const dollarLimit = this.config.reconciliationReporter.alertDeltaDollars;
+      const percentLimit = this.config.reconciliationReporter.alertDeltaPercent;
+      const dollarBreach = dollarLimit !== null && dollars >= dollarLimit;
+      const percentBreach = percentLimit !== null && percent !== null && percent >= percentLimit;
+      if (dollarBreach || percentBreach) {
+        this._triggerAlert(
+          'reconciliation_delta',
+          `[RiskManager] Reconciliation delta from ${source}: own=${own.currentBalance}, external=${report.externalBalance}, delta=${report.deltaDollars}`
+        );
       }
     }
 
-    // Calculate risk score
-    let riskScore = 0;
-    if (confidence < 0.5) riskScore += 2;
-    else if (confidence < 0.7) riskScore += 1;
-    if (pnlState.consecutiveLosses >= 3) riskScore += 2;
-    else if (pnlState.consecutiveLosses >= 2) riskScore += 1;
-    if (ddState.currentDrawdown >= 10) riskScore += 2;
-    else if (ddState.currentDrawdown >= 5) riskScore += 1;
+    return report;
+  }
 
-    let riskLevel = 'LOW';
-    if (riskScore >= 4) riskLevel = 'HIGH';
-    else if (riskScore >= 2) riskLevel = 'MEDIUM';
+  assessTradeRisk(tradeParams = {}, context = {}) {
+    const riskGates = [];
+    const gate = (entry) => riskGates.push(entry);
+    const { confidence } = tradeParams;
+
+    if (!Number.isFinite(confidence)) {
+      const producer = describeProducer(tradeParams);
+      const inputs = scrubInputs({ ...tradeParams, ...context });
+      const reason = `[RISK-HIGH-01] Non-finite confidence from ${producer}: confidence=${confidence}; inputs=${JSON.stringify(inputs)}`;
+      gate({
+        gate: 'confidence_validity',
+        threshold: 'finite',
+        value: confidence,
+        passed: false,
+        rejectReason: reason,
+        producer,
+      });
+      return {
+        approved: false,
+        reason,
+        riskLevel: 'CRITICAL',
+        blockType: 'INVALID_CONFIDENCE_PRODUCER',
+        producer,
+        riskGates,
+      };
+    }
+
+    const allowed = this.isTradingAllowed(context);
+    riskGates.push(...(allowed.riskGates || []));
+    if (!allowed.allowed) {
+      return {
+        approved: false,
+        reason: allowed.reason,
+        riskLevel: 'CRITICAL',
+        blockType: allowed.blockType || 'VENUE_RAIL_BUFFER',
+        riskGates,
+      };
+    }
 
     return {
       approved: true,
-      riskLevel,
-      riskScore,
+      riskLevel: 'LOW',
+      riskScore: 0,
       confidence,
-      recoveryMode: ddState.recoveryMode,
-      consecutiveLosses: pnlState.consecutiveLosses,
-      currentDrawdown: ddState.currentDrawdown,
-      recommendation: riskLevel === 'HIGH' ? 'REDUCE_SIZE' : riskLevel === 'MEDIUM' ? 'STANDARD_SIZE' : 'FULL_SIZE',
+      recommendation: 'FULL_SIZE',
       riskGates,
     };
   }
 
-  /**
-   * Check if trading is allowed
-   * @returns {{ allowed: boolean, reason?: string, riskGates: Array }}
-   */
-  isTradingAllowed() {
-    // L5 observability: same pattern as assessTradeRisk — record pass/fail per gate.
+  isTradingAllowed(context = {}) {
     const riskGates = [];
-    const _gate = (gate, threshold, value, passed, rejectReason) => {
-      riskGates.push({ gate, threshold, value, passed, ...(rejectReason ? { rejectReason } : {}) });
-    };
 
-    // Bypass for backtest (controlled by config injection)
-    if (this.config.riskManagerBypass) return { allowed: true, riskGates };
-
-    const ddState = this.drawdownTracker.getState();
-    const maxDDExceeded = this.drawdownTracker.isMaxDrawdownExceeded();
-    _gate('drawdown_circuit', this.config.maxDrawdownPercent, ddState.currentDrawdown, !maxDDExceeded,
-          maxDDExceeded ? 'Max drawdown exceeded' : null);
-    if (maxDDExceeded) {
-      return { allowed: false, reason: 'Max drawdown exceeded', riskGates };
+    if (this.config.guardMode === 'off' || !this.config.venueRailBuffer.enabled) {
+      riskGates.push({
+        gate: 'trey_drawdown_law',
+        threshold: 'profile_guard_off',
+        value: this.config.guardMode,
+        passed: true,
+      });
+      return { allowed: true, riskGates };
     }
 
-    const breaches = this.pnlTracker.getLimitBreaches();
-    _gate('daily_loss_limit', this.config.dailyLossLimitPercent, breaches.daily ? 1 : 0, !breaches.daily,
-          breaches.daily ? 'Daily loss limit' : null);
-    if (breaches.daily) return { allowed: false, reason: 'Daily loss limit', riskGates };
+    const sessionId = context.sessionId || context.session || context.activeSession || 'default';
+    const venue = context.venue || context.executionVenue || context.sessionVenue || 'default';
+    const lockKey = `${venue}:${sessionId}`;
+    for (const key of Array.from(this.railLocks.keys())) {
+      if (key.startsWith(`${venue}:`) && key !== lockKey && this.config.venueRailBuffer.releaseOnSessionReset) {
+        this.railLocks.delete(key);
+      }
+    }
 
-    _gate('weekly_loss_limit', this.config.weeklyLossLimitPercent, breaches.weekly ? 1 : 0, !breaches.weekly,
-          breaches.weekly ? 'Weekly loss limit' : null);
-    if (breaches.weekly) return { allowed: false, reason: 'Weekly loss limit', riskGates };
+    const existing = this.railLocks.get(lockKey);
+    if (existing) {
+      riskGates.push({
+        gate: 'venue_rail_buffer',
+        threshold: existing.threshold,
+        value: existing.value,
+        passed: false,
+        rejectReason: existing.reason,
+      });
+      return {
+        allowed: false,
+        reason: existing.reason,
+        blockType: 'VENUE_RAIL_BUFFER',
+        riskGates,
+      };
+    }
 
-    _gate('monthly_loss_limit', this.config.monthlyLossLimitPercent, breaches.monthly ? 1 : 0, !breaches.monthly,
-          breaches.monthly ? 'Monthly loss limit' : null);
-    if (breaches.monthly) return { allowed: false, reason: 'Monthly loss limit', riskGates };
+    const state = this.pnlTracker.getState();
+    const drawdownPercent = state.trailingDrawdownPercent;
+    const railPercent = this.config.venueRailBuffer.railDrawdownPercent;
+    const triggerPercent = this.config.venueRailBuffer.triggerPercent;
+    const remainingToRail = railPercent - drawdownPercent;
+    const passed = remainingToRail > triggerPercent;
+    const reason = passed
+      ? null
+      : `Trey drawdown law: ${venue} drawdown ${drawdownPercent.toFixed(2)}% is within ${triggerPercent}% of ${railPercent}% rail`;
+
+    riskGates.push({
+      gate: 'venue_rail_buffer',
+      threshold: triggerPercent,
+      value: remainingToRail,
+      passed,
+      ...(reason ? { rejectReason: reason } : {}),
+    });
+
+    if (!passed) {
+      this.railLocks.set(lockKey, {
+        threshold: triggerPercent,
+        value: remainingToRail,
+        reason,
+        createdAt: new Date().toISOString(),
+      });
+      this._triggerAlert('venue_rail_buffer', reason);
+      return {
+        allowed: false,
+        reason,
+        blockType: 'VENUE_RAIL_BUFFER',
+        riskGates,
+      };
+    }
 
     return { allowed: true, riskGates };
   }
 
-  /**
-   * Get position size multiplier from drawdown protection
-   * @returns {number}
-   */
   getPositionSizeMultiplier() {
-    return this.drawdownTracker.calculateProtectionMultiplier();
+    return null;
   }
 
-  /**
-   * Get comprehensive risk summary
-   */
   getRiskSummary() {
     return {
-      ...this.drawdownTracker.getState(),
       ...this.pnlTracker.getState(),
+      ...this.drawdownTracker.getState(),
+      guardMode: this.config.guardMode,
+      railLocks: Array.from(this.railLocks.entries()).map(([key, value]) => ({ key, ...value })),
+      reconciliationReports: [...this.reconciliationReports],
       tradingAllowed: this.isTradingAllowed(),
     };
   }
 
-  /**
-   * Reset all state
-   * @param {number} [newBalance]
-   */
-  reset(newBalance = null) {
+  reset(newBalance = null, context = {}) {
+    this.pnlTracker.reset(newBalance, context.sessionId || context.session || 'default');
     this.drawdownTracker.reset(newBalance);
-    this.pnlTracker.reset(newBalance);
     this.alertsTriggered = [];
+    this.reconciliationReports = [];
+    this.railLocks.clear();
   }
 
-  /**
-   * Shutdown (no-op, kept for backward compatibility)
-   */
   shutdown() {
     console.log('[RiskManager] Shutdown complete');
-  }
-
-  // ─── Internal alert methods ───
-
-  _checkRiskAlerts() {
-    const ddState = this.drawdownTracker.getState();
-    const pnlState = this.pnlTracker.getState();
-
-    if (ddState.currentDrawdown >= this.config.alertThresholds.drawdown) {
-      this._triggerAlert('drawdown', `Drawdown at ${ddState.currentDrawdown.toFixed(2)}%`);
-    }
-    if (pnlState.dailyLossPercent >= this.config.alertThresholds.dailyLoss) {
-      this._triggerAlert('daily_loss', `Daily loss at ${pnlState.dailyLossPercent.toFixed(2)}%`);
-    }
   }
 
   _triggerAlert(type, message) {
     const now = Date.now();
     const recentSame = this.alertsTriggered.find(a => a.type === type && (now - a.timestamp) < 300000);
     if (!recentSame) {
-      this.alertsTriggered.push({ type, message, timestamp: now });
+      const alert = { type, message, timestamp: now };
+      this.alertsTriggered.push(alert);
       console.warn(`[RiskManager] ALERT: ${type} - ${message}`);
       if (this.alertsTriggered.length > 50) this.alertsTriggered.shift();
     }
