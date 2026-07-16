@@ -1677,12 +1677,21 @@
       "maxConfidence": 1,
       "conditionFlags": {
         "trendGate": true,
+        "approachSide": true,
         "extension": true,
         "firstTouchAfterParabolic": true,
         "pullbackCooldown": true,
         "confirmationCandle": true,
         "srAlignment": true,
         "structuralValidity": true
+      },
+      "approachRules": {
+        "allowLongFromAbove": true,
+        "allowLongFromBelowBullReclaim": false,
+        "allowLongFromBelowOutsideBull": false,
+        "allowShortFromBelow": true,
+        "allowShortFromAboveBearReclaim": false,
+        "allowShortFromAboveOutsideBear": false
       },
       "multipliers": {
         "extensionMin": 0.7,

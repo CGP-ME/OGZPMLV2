@@ -24,6 +24,10 @@ function masrConfig(overrides = {}) {
       ...base.conditionFlags,
       ...(overrides.conditionFlags || {}),
     },
+    approachRules: {
+      ...base.approachRules,
+      ...(overrides.approachRules || {}),
+    },
     multipliers: {
       ...base.multipliers,
       ...(overrides.multipliers || {}),
@@ -52,6 +56,15 @@ function fallingMaTouchCandles() {
     t: 230,
   }));
   return history;
+}
+
+function flatHistory(length = 230, close = 99) {
+  return Array.from({ length }, (_, index) => candle(close, {
+    open: close,
+    high: close + 0.4,
+    low: close - 0.4,
+    t: index,
+  }));
 }
 
 describe('MADynamicSR Trader DNA restoration', () => {
@@ -144,5 +157,73 @@ describe('MADynamicSR Trader DNA restoration', () => {
     expect(components.srAlignment.state).toBe('aligned');
     expect(components.structuralValidity.state).toBe('valid');
     expect(signal.confidenceProfile.composite).toBeLessThan(1);
+  });
+
+  test('rejects from-below rally into rising EMA when price is below the 200MA regime line', () => {
+    const strategy = new MADynamicSR(masrConfig({
+      conditionFlags: {
+        extension: false,
+        firstTouchAfterParabolic: false,
+        pullbackCooldown: false,
+        confirmationCandle: false,
+        srAlignment: false,
+        structuralValidity: false,
+      },
+    }));
+    const candles = flatHistory();
+    candles[candles.length - 2] = candle(98.8, { open: 98.6, high: 99.2, low: 98.4, t: 228 });
+    candles[candles.length - 1] = candle(99.9, { open: 99.1, high: 100.1, low: 98.9, t: 229 });
+
+    jest.spyOn(strategy, '_ema')
+      .mockImplementation((closes, period) => (period === strategy.entryMaPeriod ? 100 : 110));
+    jest.spyOn(strategy, '_getMaSlope').mockReturnValue('rising');
+    jest.spyOn(strategy, '_atr').mockReturnValue(1);
+    jest.spyOn(strategy, '_isTouchingEMA').mockReturnValue(true);
+
+    const signal = strategy.update(candles[candles.length - 1], candles);
+
+    expect(signal.direction).toBe('neutral');
+    expect(signal.reason).toBe('approach_side_reject');
+    expect(signal.approachSide).toMatchObject({
+      priorSide: 'below',
+      currentRegime: 'below_sr_ma',
+      allowed: false,
+    });
+    expect(strategy.getSnapshot().diagnostics.approachSideRejects).toBe(1);
+  });
+
+  test('keeps from-below bull reclaim behind an explicit config arm', () => {
+    const strategy = new MADynamicSR(masrConfig({
+      approachRules: {
+        allowLongFromBelowBullReclaim: true,
+      },
+      conditionFlags: {
+        extension: false,
+        firstTouchAfterParabolic: false,
+        pullbackCooldown: false,
+        confirmationCandle: false,
+        srAlignment: false,
+        structuralValidity: false,
+      },
+    }));
+    const candles = flatHistory();
+    candles[candles.length - 2] = candle(98.8, { open: 98.6, high: 99.2, low: 98.4, t: 228 });
+    candles[candles.length - 1] = candle(99.9, { open: 99.1, high: 100.1, low: 98.9, t: 229 });
+
+    jest.spyOn(strategy, '_ema')
+      .mockImplementation((closes, period) => (period === strategy.entryMaPeriod ? 100 : 90));
+    jest.spyOn(strategy, '_getMaSlope').mockReturnValue('rising');
+    jest.spyOn(strategy, '_atr').mockReturnValue(1);
+    jest.spyOn(strategy, '_isTouchingEMA').mockReturnValue(true);
+
+    const signal = strategy.update(candles[candles.length - 1], candles);
+
+    expect(signal.direction).toBe('buy');
+    expect(signal.approachSide).toMatchObject({
+      priorSide: 'below',
+      currentRegime: 'above_sr_ma',
+      allowed: true,
+      rule: 'allowLongFromBelowBullReclaim',
+    });
   });
 });

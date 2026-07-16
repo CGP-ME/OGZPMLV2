@@ -45,6 +45,7 @@ const REQUIRED_NUMBER_KEYS = [
 
 const CONDITION_FLAG_KEYS = [
   'trendGate',
+  'approachSide',
   'extension',
   'firstTouchAfterParabolic',
   'pullbackCooldown',
@@ -75,6 +76,15 @@ const REQUIRED_STRUCTURAL_KEYS = [
   'minTakeProfitPct',
 ];
 
+const REQUIRED_APPROACH_RULE_KEYS = [
+  'allowLongFromAbove',
+  'allowLongFromBelowBullReclaim',
+  'allowLongFromBelowOutsideBull',
+  'allowShortFromBelow',
+  'allowShortFromAboveBearReclaim',
+  'allowShortFromAboveOutsideBear',
+];
+
 function isPlainObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
@@ -83,6 +93,9 @@ function deepMergeConfig(base, override) {
   const merged = { ...base, ...override };
   if (isPlainObject(base.conditionFlags) || isPlainObject(override.conditionFlags)) {
     merged.conditionFlags = { ...(base.conditionFlags || {}), ...(override.conditionFlags || {}) };
+  }
+  if (isPlainObject(base.approachRules) || isPlainObject(override.approachRules)) {
+    merged.approachRules = { ...(base.approachRules || {}), ...(override.approachRules || {}) };
   }
   if (isPlainObject(base.multipliers) || isPlainObject(override.multipliers)) {
     merged.multipliers = { ...(base.multipliers || {}), ...(override.multipliers || {}) };
@@ -152,6 +165,10 @@ function loadResolvedConfig(overrides = {}) {
   normalized.conditionFlags = {};
   for (const key of CONDITION_FLAG_KEYS) {
     normalized.conditionFlags[key] = requireNestedBool(merged, 'conditionFlags', key);
+  }
+  normalized.approachRules = {};
+  for (const key of REQUIRED_APPROACH_RULE_KEYS) {
+    normalized.approachRules[key] = requireNestedBool(merged, 'approachRules', key);
   }
   normalized.multipliers = {};
   for (const key of REQUIRED_MULTIPLIER_KEYS) {
@@ -237,6 +254,7 @@ class MADynamicSR {
 
     this.maxExtensionAtr = this.config.maxExtensionAtr;
     this.conditionFlags = this.config.conditionFlags;
+    this.approachRules = this.config.approachRules;
     this.multipliers = this.config.multipliers;
     this.structural = this.config.structural;
 
@@ -261,6 +279,11 @@ class MADynamicSR {
       trendBearish: 0,      // Now means "20 MA falling"
       trendFlat: 0,         // NEW: 20 MA flat (no trade)
       trendGateRejects: 0,
+      approachSideRejects: 0,
+      approachLongFromAbove: 0,
+      approachLongFromBelowBullReclaim: 0,
+      approachShortFromBelow: 0,
+      approachShortFromAboveBearReclaim: 0,
       extensionSkips: 0,    // NEW: Skipped due to extension
       extensionPenalties: 0,
       firstTouchSkips: 0,   // NEW: Skipped first touch after extension
@@ -302,6 +325,7 @@ class MADynamicSR {
       minSlopePct: this.minSlopePct,
       maxExtensionAtr: this.maxExtensionAtr,
       conditionFlags: this.conditionFlags,
+      approachRules: this.approachRules,
       multipliers: this.multipliers,
       structural: this.structural
     };
@@ -394,11 +418,26 @@ class MADynamicSR {
         });
       }
 
+      const approachSide = this._approachSideInfo(priceHistory, price, ma20, ma200, direction);
+      if (this.conditionFlags.approachSide && !approachSide.allowed) {
+        this.diag.approachSideRejects++;
+        return this._emptySignal('approach_side_reject', {
+          touchingMA,
+          maSlope,
+          extension,
+          srAlignment,
+          confirmation,
+          approachSide
+        });
+      }
+      this._recordApproachSide(approachSide);
+
       confidence = this.config.baseConfidence + (touchQuality * this.config.touchQualityWeight);
       structural = this._structuralProfile(direction, price, ma20, atr);
       confidenceProfile = this._confidenceProfile({
         direction,
         maSlope,
+        approachSide,
         touchingMA,
         extension,
         wasExtendedBefore,
@@ -427,6 +466,7 @@ class MADynamicSR {
       maSlope,
       trend: maSlope,
       extension,
+      approachSide: confidenceProfile.components.approachSide?.approachSide || null,
       srAlignment,
       confirmation,
       confidenceProfile,
@@ -645,12 +685,100 @@ class MADynamicSR {
     return distance <= this.touchZonePct;
   }
 
+  _approachSideInfo(priceHistory, price, ma20, ma200, direction) {
+    const priorCandle = Array.isArray(priceHistory) && priceHistory.length >= 2
+      ? priceHistory[priceHistory.length - 2]
+      : null;
+    const priorClose = priorCandle ? c(priorCandle) : null;
+    const priorCloses = Array.isArray(priceHistory) && priceHistory.length >= 2
+      ? priceHistory.slice(0, -1).map(item => c(item))
+      : [];
+    const priorMa20 = priorCloses.length >= this.entryMaPeriod
+      ? this._ema(priorCloses, this.entryMaPeriod)
+      : ma20;
+
+    const priorSide = Number.isFinite(priorClose) && Number.isFinite(priorMa20)
+      ? this._sideOfLevel(priorClose, priorMa20)
+      : 'unknown';
+    const currentSide = Number.isFinite(price) && Number.isFinite(ma20)
+      ? this._sideOfLevel(price, ma20)
+      : 'unknown';
+    const currentRegime = Number.isFinite(price) && Number.isFinite(ma200)
+      ? this._regimeAgainstSrMa(price, ma200)
+      : 'unknown';
+
+    const decision = this._approachDecision(direction, priorSide, currentRegime);
+    return {
+      direction,
+      priorClose,
+      priorMa20,
+      priorSide,
+      currentSide,
+      currentRegime,
+      allowed: decision.allowed,
+      rule: decision.rule
+    };
+  }
+
+  _sideOfLevel(price, level) {
+    if (price > level) return 'above';
+    if (price < level) return 'below';
+    return 'at';
+  }
+
+  _regimeAgainstSrMa(price, ma200) {
+    if (price > ma200) return 'above_sr_ma';
+    if (price < ma200) return 'below_sr_ma';
+    return 'at_sr_ma';
+  }
+
+  _approachDecision(direction, priorSide, currentRegime) {
+    const rules = this.approachRules;
+    if (direction === 'buy') {
+      if (priorSide === 'above' || priorSide === 'at') {
+        return { allowed: rules.allowLongFromAbove, rule: 'allowLongFromAbove' };
+      }
+      if (currentRegime === 'above_sr_ma') {
+        return { allowed: rules.allowLongFromBelowBullReclaim, rule: 'allowLongFromBelowBullReclaim' };
+      }
+      return { allowed: rules.allowLongFromBelowOutsideBull, rule: 'allowLongFromBelowOutsideBull' };
+    }
+    if (direction === 'sell') {
+      if (priorSide === 'below' || priorSide === 'at') {
+        return { allowed: rules.allowShortFromBelow, rule: 'allowShortFromBelow' };
+      }
+      if (currentRegime === 'below_sr_ma') {
+        return { allowed: rules.allowShortFromAboveBearReclaim, rule: 'allowShortFromAboveBearReclaim' };
+      }
+      return { allowed: rules.allowShortFromAboveOutsideBear, rule: 'allowShortFromAboveOutsideBear' };
+    }
+    return { allowed: false, rule: 'neutral_direction' };
+  }
+
+  _recordApproachSide(approachSide) {
+    if (approachSide.direction === 'buy' && approachSide.rule === 'allowLongFromAbove') {
+      this.diag.approachLongFromAbove++;
+    } else if (approachSide.direction === 'buy' && approachSide.rule === 'allowLongFromBelowBullReclaim') {
+      this.diag.approachLongFromBelowBullReclaim++;
+    } else if (approachSide.direction === 'sell' && approachSide.rule === 'allowShortFromBelow') {
+      this.diag.approachShortFromBelow++;
+    } else if (approachSide.direction === 'sell' && approachSide.rule === 'allowShortFromAboveBearReclaim') {
+      this.diag.approachShortFromAboveBearReclaim++;
+    }
+  }
+
   _emptyConfidenceProfile() {
     return {
       composite: 1,
       components: {
         trendGate: {
           enabled: this.conditionFlags.trendGate,
+          fired: false,
+          hardCondition: true,
+          multiplier: 1
+        },
+        approachSide: {
+          enabled: this.conditionFlags.approachSide,
           fired: false,
           hardCondition: true,
           multiplier: 1
@@ -668,6 +796,7 @@ class MADynamicSR {
   _confidenceProfile({
     direction,
     maSlope,
+    approachSide,
     touchingMA,
     extension,
     wasExtendedBefore,
@@ -683,6 +812,14 @@ class MADynamicSR {
       passed: maSlope === 'rising' || maSlope === 'falling',
       maSlope,
       direction,
+      multiplier: 1
+    };
+    profile.components.approachSide = {
+      enabled: this.conditionFlags.approachSide,
+      fired: this.conditionFlags.approachSide,
+      hardCondition: true,
+      passed: !this.conditionFlags.approachSide || Boolean(approachSide?.allowed),
+      approachSide: approachSide || null,
       multiplier: 1
     };
 
@@ -1021,6 +1158,7 @@ class MADynamicSR {
       trend: context.maSlope || null,
       maSlope: context.maSlope || null,
       extension: context.extension || null,
+      approachSide: context.approachSide || null,
       confidenceProfile: this._emptyConfidenceProfile(),
       conditionFlags: this.conditionFlags
     };
