@@ -172,6 +172,84 @@ describe('StrategyOrchestrator pipeline toggles', () => {
       expect(orchestrator.noWickModule.cfg).toEqual(
         expect.objectContaining(ConfigLoader.get('strategies.NoWickImbalance'))
       );
+      expect(orchestrator.tpoIntegration.config).toEqual(
+        expect.objectContaining(ConfigLoader.get('strategies.OGZTPO'))
+      );
+    } finally {
+      process.env = originalEnv;
+    }
+  });
+
+  test('OGZTPO update failures surface instead of returning a silent null signal', () => {
+    jest.resetModules();
+    const originalEnv = process.env;
+    process.env = {
+      ...withoutStrategyEnv(originalEnv),
+      ENABLE_TRAI: 'false',
+    };
+
+    try {
+      const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
+      const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
+      const ogzTpo = orchestrator.strategies.find((strategy) => strategy.name === 'OGZTPO');
+      expect(ogzTpo).toBeDefined();
+      jest.spyOn(orchestrator, '_getSymbolStrategyModule').mockReturnValue({
+        update: () => {
+          throw new Error('ogztpo update exploded');
+        },
+      });
+
+      const candles = Array.from({ length: 30 }, (_, i) => ({
+        o: 100 + i,
+        h: 101 + i,
+        l: 99 + i,
+        c: 100.5 + i,
+        v: 1000,
+        t: i + 1,
+      }));
+
+      expect(() => ogzTpo.evaluate({
+        priceHistory: candles,
+        extras: { symbol: 'TSLA' },
+      })).toThrow(/ogztpo update exploded/);
+    } finally {
+      process.env = originalEnv;
+    }
+  });
+
+  test('OGZTPO receives a stable fallback bar timestamp when raw candle omits time fields', () => {
+    jest.resetModules();
+    const originalEnv = process.env;
+    process.env = {
+      ...withoutStrategyEnv(originalEnv),
+      ENABLE_TRAI: 'false',
+    };
+
+    try {
+      const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
+      const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
+      const ogzTpo = orchestrator.strategies.find((strategy) => strategy.name === 'OGZTPO');
+      expect(ogzTpo).toBeDefined();
+      const update = jest.fn(() => ({ enabled: true, ready: true, signal: null }));
+      jest.spyOn(orchestrator, '_getSymbolStrategyModule').mockReturnValue({ update });
+
+      const candles = Array.from({ length: 30 }, (_, i) => ({
+        o: 100 + i,
+        h: 101 + i,
+        l: 99 + i,
+        c: 100.5 + i,
+        v: 1000,
+      }));
+
+      expect(ogzTpo.evaluate({
+        priceHistory: candles,
+        extras: { symbol: 'TSLA' },
+      })).toBeNull();
+
+      expect(update).toHaveBeenCalledTimes(1);
+      expect(update.mock.calls[0][0]).toEqual(expect.objectContaining({
+        t: candles.length - 1,
+      }));
     } finally {
       process.env = originalEnv;
     }

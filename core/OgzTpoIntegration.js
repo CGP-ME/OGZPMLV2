@@ -26,65 +26,137 @@
 
 const EventEmitter = require('events');
 const FeatureFlagManager = require('./FeatureFlagManager');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 // FIX 2026-02-16: Use centralized candle helper for format compatibility
 const { c, h, l, t } = require('./CandleHelper');
 
-// Import the pure-function TPO
-let computeOgzTpo, detectTpoCrossover, calculateDynamicLevels;
-try {
-    const ogzTpo = require('../src/indicators/ogzTwoPoleOscillator');
-    computeOgzTpo = ogzTpo.computeOgzTpo;
-    detectTpoCrossover = ogzTpo.detectTpoCrossover;
-    calculateDynamicLevels = ogzTpo.calculateDynamicLevels;
-} catch (e) {
-    console.warn('⚠️ OgzTwoPoleOscillator not found, trying alternate path...');
-    try {
-        const ogzTpo = require('./src/indicators/ogzTwoPoleOscillator');
-        computeOgzTpo = ogzTpo.computeOgzTpo;
-        detectTpoCrossover = ogzTpo.detectTpoCrossover;
-        calculateDynamicLevels = ogzTpo.calculateDynamicLevels;
-    } catch (e2) {
-        console.error('❌ OgzTwoPoleOscillator module not found!');
+const {
+    computeOgzTpo,
+    detectTpoCrossover,
+    calculateDynamicLevels,
+} = require('../src/indicators/ogzTwoPoleOscillator');
+const ExistingTwoPoleOscillator = require('./indicators/TwoPoleOscillator');
+
+const REQUIRED_MODES = ['conservative', 'standard', 'aggressive'];
+const MISSING_TIMESTAMP_BAR = 'missing-timestamp-bar';
+
+function requirePlainObject(value, path) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        throw new Error(`[OGZTPO-CONFIG] ${path} must be an object`);
     }
+    return value;
 }
 
-// Try to import existing TPO for A/B testing
-let ExistingTwoPoleOscillator;
-try {
-    ExistingTwoPoleOscillator = require('./TwoPoleOscillator');
-} catch (e) {
-    console.log('ℹ️ Existing TwoPoleOscillator not available for A/B');
+function requireBoolean(value, path) {
+    if (typeof value !== 'boolean') {
+        throw new Error(`[OGZTPO-CONFIG] ${path} must be a boolean`);
+    }
+    return value;
+}
+
+function requireFiniteNumber(value, path, { minExclusive = null, minInclusive = null } = {}) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+        throw new Error(`[OGZTPO-CONFIG] ${path} must be a finite number`);
+    }
+    if (minExclusive !== null && !(numeric > minExclusive)) {
+        throw new Error(`[OGZTPO-CONFIG] ${path} must be greater than ${minExclusive}`);
+    }
+    if (minInclusive !== null && !(numeric >= minInclusive)) {
+        throw new Error(`[OGZTPO-CONFIG] ${path} must be at least ${minInclusive}`);
+    }
+    return numeric;
+}
+
+function requireInteger(value, path, options = {}) {
+    const numeric = requireFiniteNumber(value, path, options);
+    if (!Number.isInteger(numeric)) {
+        throw new Error(`[OGZTPO-CONFIG] ${path} must be an integer`);
+    }
+    return numeric;
+}
+
+function normalizeTimestampIdentity(value) {
+    if (value === undefined || value === null) {
+        return null;
+    }
+    const text = String(value).trim();
+    if (text.length === 0) {
+        return null;
+    }
+    const numeric = Number(text);
+    if (Number.isFinite(numeric)) {
+        return numeric;
+    }
+    const parsedDate = Date.parse(text);
+    return Number.isFinite(parsedDate) ? parsedDate : null;
+}
+
+function candleBarTimestamp(candle) {
+    return normalizeTimestampIdentity(t(candle) ?? candle?.etime);
+}
+
+function normalizeModeSettings(modes) {
+    const source = requirePlainObject(modes, 'strategies.OGZTPO.modes');
+    const normalized = {};
+    for (const mode of REQUIRED_MODES) {
+        const modePath = `strategies.OGZTPO.modes.${mode}`;
+        const cfg = requirePlainObject(source[mode], modePath);
+        normalized[mode] = {
+            minStrength: requireFiniteNumber(cfg.minStrength, `${modePath}.minStrength`, { minInclusive: 0 }),
+            zoneRequired: requireBoolean(cfg.zoneRequired, `${modePath}.zoneRequired`),
+            voteMultiplier: requireFiniteNumber(cfg.voteMultiplier, `${modePath}.voteMultiplier`, { minExclusive: 0 }),
+        };
+    }
+    return normalized;
+}
+
+function normalizeDynamicLevelMultipliers(multipliers) {
+    const source = requirePlainObject(multipliers, 'strategies.OGZTPO.dynamicLevelMultipliers');
+    const normalized = {};
+    for (const mode of REQUIRED_MODES) {
+        normalized[mode] = requireFiniteNumber(
+            source[mode],
+            `strategies.OGZTPO.dynamicLevelMultipliers.${mode}`,
+            { minExclusive: 0 }
+        );
+    }
+    return normalized;
+}
+
+function normalizeConfig(config) {
+    const source = requirePlainObject(config, 'strategies.OGZTPO');
+    const mode = String(source.mode || '').trim();
+    if (!REQUIRED_MODES.includes(mode)) {
+        throw new Error(`[OGZTPO-CONFIG] strategies.OGZTPO.mode must be one of ${REQUIRED_MODES.join(', ')}`);
+    }
+
+    return {
+        enabled: requireBoolean(source.enabled, 'strategies.OGZTPO.enabled'),
+        mode,
+        dynamicSL: requireBoolean(source.dynamicSL, 'strategies.OGZTPO.dynamicSL'),
+        confluence: requireBoolean(source.confluence, 'strategies.OGZTPO.confluence'),
+        voteWeight: requireFiniteNumber(source.voteWeight, 'strategies.OGZTPO.voteWeight', { minInclusive: 0 }),
+        adaptive: requireBoolean(source.adaptive, 'strategies.OGZTPO.adaptive'),
+        tpoLength: requireFiniteNumber(source.tpoLength, 'strategies.OGZTPO.tpoLength', { minExclusive: 0 }),
+        normLength: requireFiniteNumber(source.normLength, 'strategies.OGZTPO.normLength', { minExclusive: 0 }),
+        volLength: requireFiniteNumber(source.volLength, 'strategies.OGZTPO.volLength', { minExclusive: 0 }),
+        lagBars: requireFiniteNumber(source.lagBars, 'strategies.OGZTPO.lagBars', { minInclusive: 1 }),
+        maxHistory: requireFiniteNumber(source.maxHistory, 'strategies.OGZTPO.maxHistory', { minExclusive: 0 }),
+        lastSignalTtlBars: requireInteger(source.lastSignalTtlBars, 'strategies.OGZTPO.lastSignalTtlBars', { minInclusive: 0 }),
+        confluenceBonusStrength: requireFiniteNumber(source.confluenceBonusStrength, 'strategies.OGZTPO.confluenceBonusStrength', { minInclusive: 0 }),
+        strengthConfidenceMultiplier: requireFiniteNumber(source.strengthConfidenceMultiplier, 'strategies.OGZTPO.strengthConfidenceMultiplier', { minExclusive: 0 }),
+        tradingLoopOverrideMinStrength: requireFiniteNumber(source.tradingLoopOverrideMinStrength, 'strategies.OGZTPO.tradingLoopOverrideMinStrength', { minInclusive: 0 }),
+        modes: normalizeModeSettings(source.modes),
+        dynamicLevelMultipliers: normalizeDynamicLevelMultipliers(source.dynamicLevelMultipliers),
+    };
 }
 
 class OgzTpoIntegration extends EventEmitter {
-    constructor(config = {}) {
+    constructor(config = ConfigLoader.get('strategies.OGZTPO')) {
         super();
-        
-        // Configuration with defaults
-        this.config = {
-            enabled: config.enabled ?? true,
-            mode: config.mode || 'standard',           // 'standard' | 'aggressive' | 'conservative'
-            dynamicSL: config.dynamicSL ?? true,
-            confluence: config.confluence ?? false,     // Require both TPOs to agree
-            voteWeight: config.voteWeight ?? 0.25,
-            adaptive: config.adaptive ?? false,
-            
-            // TPO parameters
-            tpoLength: config.tpoLength || 20,
-            normLength: config.normLength || 25,
-            volLength: config.volLength || 20,
-            lagBars: config.lagBars || 4,
-            
-            // Mode-specific adjustments
-            modes: {
-                conservative: { minStrength: 0.03, zoneRequired: true, voteMultiplier: 0.8 },
-                standard: { minStrength: 0.02, zoneRequired: false, voteMultiplier: 1.0 },
-                aggressive: { minStrength: 0.01, zoneRequired: false, voteMultiplier: 1.2 }
-            },
-            
-            ...config
-        };
+        this.config = normalizeConfig(config);
         
         // Candle history for batch processing
         this.candleHistory = {
@@ -93,18 +165,22 @@ class OgzTpoIntegration extends EventEmitter {
             lows: [],
             timestamps: []
         };
-        this.maxHistory = config.maxHistory || 200;
+        this.maxHistory = this.config.maxHistory;
+        this.barCounter = 0;
+        this.lastBarTimestamp = null;
         
         // Last computed results
         this.lastResult = null;
         this.lastSignal = null;
+        this.lastSignalBarIndex = null;
         
         // Existing TPO for A/B testing
-        this.existingTpo = ExistingTwoPoleOscillator ? 
-            new ExistingTwoPoleOscillator({
-                smaLength: this.config.normLength,
-                filterLength: this.config.tpoLength
-            }) : null;
+        this.existingTpo = new ExistingTwoPoleOscillator({
+            normLength: this.config.normLength,
+            tpoLength: this.config.tpoLength,
+            volLength: this.config.volLength,
+            lagBars: this.config.lagBars,
+        });
         
         // Statistics for A/B comparison
         this.stats = {
@@ -114,7 +190,7 @@ class OgzTpoIntegration extends EventEmitter {
             totalUpdates: 0
         };
         
-        console.log(`🎯 OgzTpoIntegration initialized`);
+        console.log('[OGZTPO] OgzTpoIntegration initialized');
         console.log(`   Mode: ${this.config.mode}`);
         console.log(`   Dynamic SL: ${this.config.dynamicSL ? 'YES' : 'NO'}`);
         console.log(`   Confluence: ${this.config.confluence ? 'ENABLED' : 'DISABLED'}`);
@@ -133,14 +209,7 @@ class OgzTpoIntegration extends EventEmitter {
             return null;
         }
 
-        return new OgzTpoIntegration({
-            enabled: true,
-            mode: flagManager.getSetting('OGZ_TPO', 'mode', 'standard'),
-            dynamicSL: flagManager.getSetting('OGZ_TPO', 'dynamicSL', true),
-            confluence: flagManager.getSetting('OGZ_TPO', 'confluence', false),
-            voteWeight: flagManager.getSetting('OGZ_TPO', 'voteWeight', 0.25),
-            adaptive: flagManager.getSetting('OGZ_TPO', 'adaptive', false)
-        });
+        return new OgzTpoIntegration(ConfigLoader.get('strategies.OGZTPO'));
     }
 
     /**
@@ -159,15 +228,31 @@ class OgzTpoIntegration extends EventEmitter {
      * @returns {Object} Update result with signals and votes
      */
     update(candle) {
-        if (!this.config.enabled || !computeOgzTpo) {
+        if (!this.config.enabled) {
             return { enabled: false };
         }
+        const rawBarTimestamp = candleBarTimestamp(candle);
+        const candleTimestamp = rawBarTimestamp ?? this.lastBarTimestamp ?? MISSING_TIMESTAMP_BAR;
+        const isSameBarUpdate = this.lastBarTimestamp !== null && this.lastBarTimestamp === candleTimestamp;
+        if (!isSameBarUpdate) {
+            this.barCounter += 1;
+            this.lastBarTimestamp = candleTimestamp;
+        }
+        const currentBarIndex = this.barCounter;
         
-        // Add to history
-        this.candleHistory.closes.push(c(candle));
-        this.candleHistory.highs.push(h(candle));
-        this.candleHistory.lows.push(l(candle));
-        this.candleHistory.timestamps.push(t(candle));
+        // Add to history, replacing same-timestamp updates so TTL tracks closed bars.
+        if (isSameBarUpdate && this.candleHistory.closes.length > 0) {
+            const lastIdx = this.candleHistory.closes.length - 1;
+            this.candleHistory.closes[lastIdx] = c(candle);
+            this.candleHistory.highs[lastIdx] = h(candle);
+            this.candleHistory.lows[lastIdx] = l(candle);
+            this.candleHistory.timestamps[lastIdx] = candleTimestamp;
+        } else {
+            this.candleHistory.closes.push(c(candle));
+            this.candleHistory.highs.push(h(candle));
+            this.candleHistory.lows.push(l(candle));
+            this.candleHistory.timestamps.push(candleTimestamp);
+        }
         
         // Trim to max history
         if (this.candleHistory.closes.length > this.maxHistory) {
@@ -181,6 +266,7 @@ class OgzTpoIntegration extends EventEmitter {
         
         // Need minimum data for calculation
         if (this.candleHistory.closes.length < this.config.normLength + 5) {
+            this._expireLastSignal(currentBarIndex);
             return { 
                 enabled: true, 
                 ready: false, 
@@ -208,10 +294,8 @@ class OgzTpoIntegration extends EventEmitter {
         
         // Update existing TPO if available (for A/B)
         let existingSignal = null;
-        if (this.existingTpo) {
-            const existingResult = this.existingTpo.update(c(candle));
-            existingSignal = existingResult.signal;
-        }
+        this.existingTpo.update(candle);
+        existingSignal = this.existingTpo.getValues()?.signal || null;
         
         // Track statistics
         if (newSignal && newSignal.type !== 'INVALID') this.stats.newTpoSignals++;
@@ -221,65 +305,62 @@ class OgzTpoIntegration extends EventEmitter {
         let confluenceMatch = false;
         if (newSignal && existingSignal) {
             const newAction = newSignal.action;
-            const existingAction = existingSignal.type;
+            const existingAction = existingSignal.action;
             if (newAction === existingAction) {
                 confluenceMatch = true;
                 this.stats.confluenceMatches++;
             }
         }
         
-        // ═══════════════════════════════════════════════════════════════════
-        // STRIPPED DOWN: Core TPO crossover detection only
-        // All filters commented out - platform handles filtering, not strategy
-        // ═══════════════════════════════════════════════════════════════════
-
-        // COMMENTED FILTERS - move to orchestrator if needed later
-        // ─────────────────────────────────────────────────────────────────────
-        // const modeSettings = this.config.modes[this.config.mode] || this.config.modes.standard;
-        // const meetsStrength = newSignal.strength >= modeSettings.minStrength;
-        // const meetsZone = !modeSettings.zoneRequired || newSignal.highProbability;
-        // const meetsConfluence = !this.config.confluence || confluenceMatch;
-        // if (meetsStrength && meetsZone && meetsConfluence) { ... }
-        // ─────────────────────────────────────────────────────────────────────
-
-        // Determine final signal - STRIPPED: just pass through crossover detection
+        const filters = this._evaluateSignalFilters(newSignal, confluenceMatch);
         let finalSignal = null;
 
-        if (newSignal && newSignal.type !== 'INVALID') {
-            // SIMPLE: If TPO detects a crossover, return it (no filtering)
+        if (filters.passed) {
             finalSignal = {
                 ...newSignal,
                 source: 'ogzTpo',
                 confluenceConfirmed: confluenceMatch,
                 mode: this.config.mode,
+                filters,
                 price: c(candle),
+                barIndex: currentBarIndex,
+                ttlBars: this.config.lastSignalTtlBars,
                 timestamp: Date.now()
             };
 
-            // Calculate dynamic levels if enabled (keep - this is data, not filter)
             if (this.config.dynamicSL) {
                 const vol = tpoResult.vol[lastIdx];
                 const direction = newSignal.action === 'BUY' ? 'LONG' : 'SHORT';
-                const levels = calculateDynamicLevels(c(candle), vol, direction);
+                const levels = calculateDynamicLevels(
+                    c(candle),
+                    vol,
+                    direction,
+                    this._dynamicLevelMultiplier()
+                );
                 finalSignal.levels = levels;
             }
 
             this.lastSignal = finalSignal;
+            this.lastSignalBarIndex = currentBarIndex;
 
             // Emit event for decoupled architecture
             this.emit('signal', finalSignal);
 
-            console.log(`\n🎯 OGZ TPO SIGNAL: ${finalSignal.action}`);
+            console.log(`\n[OGZTPO] Signal: ${finalSignal.action}`);
             console.log(`   Zone: ${finalSignal.zone}`);
             console.log(`   Strength: ${(finalSignal.strength * 100).toFixed(2)}%`);
-            console.log(`   High Probability: ${finalSignal.highProbability ? '⭐ YES' : 'NO'}`);
-            console.log(`   Confluence: ${finalSignal.confluenceConfirmed ? '✅ CONFIRMED' : '❌ NEW TPO ONLY'}`);
+            console.log(`   High Probability: ${finalSignal.highProbability ? 'YES' : 'NO'}`);
+            console.log(`   Confluence: ${finalSignal.confluenceConfirmed ? 'CONFIRMED' : 'NEW TPO ONLY'}`);
             if (finalSignal.levels) {
                 console.log(`   Dynamic SL: $${finalSignal.levels.stopLoss.toFixed(2)}`);
                 console.log(`   Dynamic TP: $${finalSignal.levels.takeProfit.toFixed(2)}`);
             }
         }
         
+        if (!finalSignal) {
+            this._expireLastSignal(currentBarIndex);
+        }
+
         return {
             enabled: true,
             ready: true,
@@ -292,8 +373,51 @@ class OgzTpoIntegration extends EventEmitter {
             newTpoRaw: newSignal,
             existingTpoRaw: existingSignal,
             confluenceMatch,
+            filters,
             stats: this.stats
         };
+    }
+
+    _evaluateSignalFilters(newSignal, confluenceMatch) {
+        const modeSettings = this.config.modes[this.config.mode];
+        const validCrossover = Boolean(newSignal && newSignal.type !== 'INVALID');
+        const strength = validCrossover ? Number(newSignal.strength) : null;
+        const meetsStrength = validCrossover && Number.isFinite(strength) && strength >= modeSettings.minStrength;
+        const meetsZone = validCrossover && (!modeSettings.zoneRequired || newSignal.highProbability === true);
+        const meetsConfluence = validCrossover && (!this.config.confluence || confluenceMatch === true);
+
+        return {
+            mode: this.config.mode,
+            minStrength: modeSettings.minStrength,
+            zoneRequired: modeSettings.zoneRequired,
+            confluenceRequired: this.config.confluence,
+            validCrossover,
+            meetsStrength,
+            meetsZone,
+            meetsConfluence,
+            passed: validCrossover && meetsStrength && meetsZone && meetsConfluence,
+        };
+    }
+
+    _dynamicLevelMultiplier() {
+        return this.config.dynamicLevelMultipliers[this.config.mode];
+    }
+
+    _isLastSignalFresh(currentBarIndex = this.barCounter) {
+        if (!this.lastSignal || this.lastSignalBarIndex === null) {
+            return false;
+        }
+        const barsElapsed = currentBarIndex - this.lastSignalBarIndex;
+        return barsElapsed >= 0 && barsElapsed <= this.config.lastSignalTtlBars;
+    }
+
+    _expireLastSignal(currentBarIndex = this.barCounter) {
+        if (this._isLastSignalFresh(currentBarIndex)) {
+            return this.lastSignal;
+        }
+        this.lastSignal = null;
+        this.lastSignalBarIndex = null;
+        return null;
     }
     
     /**
@@ -302,7 +426,8 @@ class OgzTpoIntegration extends EventEmitter {
      * @returns {Array} Array of vote objects
      */
     getVotes() {
-        if (!this.lastSignal || !this.config.enabled) {
+        const activeSignal = this._expireLastSignal();
+        if (!activeSignal || !this.config.enabled) {
             return [];
         }
         
@@ -311,26 +436,26 @@ class OgzTpoIntegration extends EventEmitter {
         const weight = this.config.voteWeight * modeSettings.voteMultiplier;
         
         // Main signal vote
-        if (this.lastSignal.action === 'BUY') {
+        if (activeSignal.action === 'BUY') {
             votes.push({
-                tag: `TPO:${this.lastSignal.zone}`,
+                tag: `TPO:${activeSignal.zone}`,
                 vote: 1,
-                strength: weight * (this.lastSignal.highProbability ? 1.5 : 1.0)
+                strength: weight * (activeSignal.highProbability ? 1.5 : 1.0)
             });
-        } else if (this.lastSignal.action === 'SELL') {
+        } else if (activeSignal.action === 'SELL') {
             votes.push({
-                tag: `TPO:${this.lastSignal.zone}`,
+                tag: `TPO:${activeSignal.zone}`,
                 vote: -1,
-                strength: weight * (this.lastSignal.highProbability ? 1.5 : 1.0)
+                strength: weight * (activeSignal.highProbability ? 1.5 : 1.0)
             });
         }
         
         // Confluence bonus vote
-        if (this.lastSignal.confluenceConfirmed) {
+        if (activeSignal.confluenceConfirmed) {
             votes.push({
                 tag: 'TPO:confluence',
-                vote: this.lastSignal.action === 'BUY' ? 1 : -1,
-                strength: 0.1 // Bonus for confirmation
+                vote: activeSignal.action === 'BUY' ? 1 : -1,
+                strength: this.config.confluenceBonusStrength
             });
         }
         
@@ -347,6 +472,7 @@ class OgzTpoIntegration extends EventEmitter {
         }
         
         const lastIdx = this.candleHistory.closes.length - 1;
+        const activeSignal = this._expireLastSignal();
         
         return {
             ready: true,
@@ -359,7 +485,7 @@ class OgzTpoIntegration extends EventEmitter {
                 vol: this.lastResult.vol[lastIdx]
             },
             bands: this.lastResult.bands,
-            lastSignal: this.lastSignal,
+            lastSignal: activeSignal,
             stats: this.stats,
             history: {
                 tpo: this.lastResult.tpo.slice(-50),
@@ -384,15 +510,11 @@ class OgzTpoIntegration extends EventEmitter {
         const vol = this.lastResult.vol[lastIdx];
         
         // Use mode-appropriate multiplier if not specified
-        if (!multiplier) {
-            switch (this.config.mode) {
-                case 'conservative': multiplier = 2.0; break;
-                case 'aggressive': multiplier = 1.0; break;
-                default: multiplier = 1.5;
-            }
-        }
+        const resolvedMultiplier = multiplier === null || multiplier === undefined
+            ? this._dynamicLevelMultiplier()
+            : multiplier;
         
-        return calculateDynamicLevels(entryPrice, vol, direction, multiplier);
+        return calculateDynamicLevels(entryPrice, vol, direction, resolvedMultiplier);
     }
     
     /**
@@ -400,8 +522,11 @@ class OgzTpoIntegration extends EventEmitter {
      */
     reset() {
         this.candleHistory = { closes: [], highs: [], lows: [], timestamps: [] };
+        this.barCounter = 0;
+        this.lastBarTimestamp = null;
         this.lastResult = null;
         this.lastSignal = null;
+        this.lastSignalBarIndex = null;
         this.stats = {
             newTpoSignals: 0,
             existingTpoSignals: 0,
@@ -409,16 +534,9 @@ class OgzTpoIntegration extends EventEmitter {
             totalUpdates: 0
         };
         
-        if (this.existingTpo) {
-            // Reset existing TPO state
-            this.existingTpo.oscillatorHistory = [];
-            this.existingTpo.filteredHistory = [];
-            this.existingTpo.priceHistory = [];
-            this.existingTpo.smooth1 = null;
-            this.existingTpo.smooth2 = null;
-        }
+        this.existingTpo.reset();
         
-        console.log('🔄 OgzTpoIntegration reset');
+        console.log('[OGZTPO] OgzTpoIntegration reset');
     }
     
     /**
@@ -431,6 +549,8 @@ class OgzTpoIntegration extends EventEmitter {
             dynamicSL: this.config.dynamicSL,
             confluence: this.config.confluence,
             voteWeight: this.config.voteWeight,
+            strengthConfidenceMultiplier: this.config.strengthConfidenceMultiplier,
+            lastSignalTtlBars: this.config.lastSignalTtlBars,
             parameters: {
                 tpoLength: this.config.tpoLength,
                 normLength: this.config.normLength,

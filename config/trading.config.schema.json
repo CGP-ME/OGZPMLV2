@@ -52,8 +52,7 @@
         "minStrategyConfidence": { "type": "number", "minimum": 0, "maximum": 1 },
         "candlePatternMinConfidence": { "type": "number", "minimum": 0, "maximum": 1 },
         "regimeMinConfidence": { "type": "number", "minimum": 0, "maximum": 1 },
-        "confluenceMinScore": { "type": "number", "minimum": 0, "maximum": 1 },
-        "tpoStrengthMin": { "type": "number", "minimum": 0, "maximum": 1 }
+        "confluenceMinScore": { "type": "number", "minimum": 0, "maximum": 1 }
       }
     },
     "risk": {

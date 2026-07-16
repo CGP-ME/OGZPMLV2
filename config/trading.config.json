@@ -5,8 +5,7 @@
     "minStrategyConfidence": 0.35,
     "candlePatternMinConfidence": 0.7,
     "regimeMinConfidence": 0.3,
-    "confluenceMinScore": 0.3,
-    "tpoStrengthMin": 0.03
+    "confluenceMinScore": 0.3
   },
   "risk": {
     "maxRiskPerTrade": 0.02,
@@ -1809,6 +1808,45 @@
       ],
       "enabled": true
     },
+    "OGZTPO": {
+      "enabled": true,
+      "mode": "standard",
+      "dynamicSL": true,
+      "confluence": false,
+      "voteWeight": 0.25,
+      "adaptive": false,
+      "tpoLength": 20,
+      "normLength": 25,
+      "volLength": 20,
+      "lagBars": 4,
+      "maxHistory": 200,
+      "lastSignalTtlBars": 0,
+      "confluenceBonusStrength": 0.1,
+      "strengthConfidenceMultiplier": 10,
+      "tradingLoopOverrideMinStrength": 0.03,
+      "dynamicLevelMultipliers": {
+        "conservative": 2,
+        "standard": 1.5,
+        "aggressive": 1
+      },
+      "modes": {
+        "conservative": {
+          "minStrength": 0.03,
+          "zoneRequired": true,
+          "voteMultiplier": 0.8
+        },
+        "standard": {
+          "minStrength": 0.02,
+          "zoneRequired": false,
+          "voteMultiplier": 1
+        },
+        "aggressive": {
+          "minStrength": 0.01,
+          "zoneRequired": false,
+          "voteMultiplier": 1.2
+        }
+      }
+    },
     "NoWickImbalance": {
       "maxCandleAge": 9,
       "slBreathingATR": 0.3,
@@ -1922,7 +1960,6 @@
     "fibDistanceSweep": 0.8,
     "fibBoostNormal": 0.1,
     "fibBoostGolden": 0.15,
-    "tpoStrengthMultiplier": 10,
     "mtfTimeframes": [
       "1m",
       "5m",

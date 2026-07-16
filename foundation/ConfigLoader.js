@@ -921,6 +921,7 @@ function buildConfig() {
       enableTimeSeriesMomentum: track('strategies.enableTimeSeriesMomentum', requiredLaunchProfileBool('pipeline.enableTimeSeriesMomentum')),
       enableDashboard: track('strategies.enableDashboard', envBool('ENABLE_DASHBOARD', true)),
       EMASMACrossover: track('strategies.EMASMACrossover', requiredConfiguredPlainObject('strategies.EMASMACrossover')),
+      OGZTPO: track('strategies.OGZTPO', configuredPlainObjectResult('strategies.OGZTPO')),
       NoWickImbalance: track('strategies.NoWickImbalance', configuredPlainObjectResult('strategies.NoWickImbalance')),
       PropSafeEMAPullback: track('strategies.PropSafeEMAPullback', configuredPlainObjectResult('strategies.PropSafeEMAPullback')),
       EMATrendRetest: track('strategies.EMATrendRetest', configuredPlainObjectResult('strategies.EMATrendRetest')),
@@ -1578,6 +1579,7 @@ const CONFIG_LOADER_RUNTIME_PATHS = Object.freeze({
   'strategies.enableEMATrendRetest': 'strategies.enableEMATrendRetest',
   'strategies.enableRSI2MeanReversion': 'strategies.enableRSI2MeanReversion',
   'strategies.enableTimeSeriesMomentum': 'strategies.enableTimeSeriesMomentum',
+  'strategies.OGZTPO': 'strategies.OGZTPO',
   'strategies.NoWickImbalance': 'strategies.NoWickImbalance',
   'strategies.PropSafeEMAPullback': 'strategies.PropSafeEMAPullback',
   'strategies.EMATrendRetest': 'strategies.EMATrendRetest',
@@ -2109,7 +2111,6 @@ const BASE_CONFIG = {
     candlePatternMinConfidence: env('CANDLE_PATTERN_MIN_CONFIDENCE', requiredConfigNumber('confidence.candlePatternMinConfidence')),
     regimeMinConfidence: env('REGIME_MIN_CONFIDENCE', requiredConfigNumber('confidence.regimeMinConfidence')),
     confluenceMinScore: env('CONFLUENCE_MIN_SCORE', requiredConfigNumber('confidence.confluenceMinScore')),
-    tpoStrengthMin: env('TPO_STRENGTH_MIN', requiredConfigNumber('confidence.tpoStrengthMin')),
   },
 
   // =========================================================================
@@ -2820,6 +2821,7 @@ const BASE_CONFIG = {
       invalidationConditions: ['regime_change'],
       enabled: true,
     },
+    OGZTPO: requiredConfiguredPlainObject('strategies.OGZTPO'),
     NoWickImbalance: requiredConfiguredPlainObject('strategies.NoWickImbalance'),
     PropSafeEMAPullback: {
       fastEmaPeriod: env('PROPSAFE_EMA_FAST_PERIOD', requiredConfiguredNumber('strategies.PropSafeEMAPullback.fastEmaPeriod')),
@@ -2945,9 +2947,6 @@ const BASE_CONFIG = {
     fibDistanceSweep: env('FIB_DISTANCE_SWEEP', 0.8),       // 0.8% distance for Sweep fib boost
     fibBoostNormal: env('FIB_BOOST_NORMAL', 0.10),          // 10% confidence boost at fib level
     fibBoostGolden: env('FIB_BOOST_GOLDEN', 0.15),          // 15% confidence boost at golden zone
-
-    // TPO strength scaling
-    tpoStrengthMultiplier: env('TPO_STRENGTH_MULT', 10),    // Scale 0.03-0.1 -> 0.3-1.0
 
     mtfTimeframes: configValue('orchestrator.mtfTimeframes', ['1m', '5m', '15m', '1h', '4h']),
     emaCrossoverMtf: {

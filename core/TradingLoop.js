@@ -1293,7 +1293,9 @@ class TradingLoop {
     let finalDirection = tradingDirection;
 
     if (tpoResult?.signal?.highProbability) {
-      if (tpoResult.signal.strength > ConfigLoader.get('confidence.tpoStrengthMin')) {
+      const ogzTpoConfig = ConfigLoader.get('strategies.OGZTPO');
+      const ogzTpoMinStrength = ogzTpoConfig?.tradingLoopOverrideMinStrength;
+      if (Number.isFinite(ogzTpoMinStrength) && tpoResult.signal.strength > ogzTpoMinStrength) {
         overrideSignal = tpoResult.signal;
         signalSource = 'TPO';
         finalDirection = tpoResult.signal.action === 'BUY' ? 'buy' : 'sell';
@@ -2017,7 +2019,7 @@ class TradingLoop {
       const latestCandle = priceHistory[priceHistory.length - 1];
       tpoResult = this.ctx.ogzTpo.update({
         o: _o(latestCandle), h: _h(latestCandle), l: _l(latestCandle), c: _c(latestCandle),
-        t: latestCandle.time || Date.now()
+        t: latestCandle.etime ?? latestCandle.timestamp ?? latestCandle.time ?? latestCandle.t ?? Date.now()
       });
       if (tpoResult?.signal) {
         console.log(`\n🎯 OGZ TPO Signal: ${tpoResult.signal.action} (${tpoResult.signal.zone}) | Strength: ${(tpoResult.signal.strength * 100).toFixed(2)}%`);

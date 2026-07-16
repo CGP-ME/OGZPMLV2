@@ -638,7 +638,6 @@ class StrategyOrchestrator {
     // FIX 2026-03-19: Extracted hardcoded thresholds to config
     this.regimeMinConfidence = ConfigLoader.get('confidence.regimeMinConfidence') ?? 0.30;
     this.confluenceMinScore = ConfigLoader.get('confidence.confluenceMinScore') ?? 0.30;
-    this.tpoStrengthMin = ConfigLoader.get('confidence.tpoStrengthMin') ?? 0.03;
 
     // Minimum confluence signals to allow entry (default: 1 = winner alone is enough)
     this.minConfluenceCount = config.minConfluenceCount ?? 1;
@@ -681,7 +680,8 @@ class StrategyOrchestrator {
     this.noWickConfig = ConfigLoader.get('strategies.NoWickImbalance');
     this.noWickModule = new NoWickImbalance(this.noWickConfig);
     this.mtfAdapter = new MultiTimeframeAdapter(this._buildMtfAdapterConfig());
-    this.tpoIntegration = new OgzTpoIntegration();
+    this.ogzTpoConfig = ConfigLoader.get('strategies.OGZTPO');
+    this.tpoIntegration = new OgzTpoIntegration(this.ogzTpoConfig);
     this.smartMoneySweepModule = new SmartMoneySweep(
       ConfigLoader.get('strategies.SmartMoneySweep') || {}
     );
@@ -708,7 +708,6 @@ class StrategyOrchestrator {
     this.fibDistanceSweep = ConfigLoader.get('orchestrator.fibDistanceSweep') ?? 0.8;
     this.fibBoostNormal = ConfigLoader.get('orchestrator.fibBoostNormal') ?? 0.10;
     this.fibBoostGolden = ConfigLoader.get('orchestrator.fibBoostGolden') ?? 0.15;
-    this.tpoStrengthMultiplier = ConfigLoader.get('orchestrator.tpoStrengthMultiplier') ?? 10;
 
     // Stats tracking
     this.lastEvaluation = null;
@@ -1634,7 +1633,7 @@ class StrategyOrchestrator {
     // FIX 2026-03-19: Self-contained — owns its TPO integration internally
     const tpoIntegrationModule = this.tpoIntegration;
     const minCandlesTPO = this.minCandlesTPO;
-    const tpoStrengthMultiplier = this.tpoStrengthMultiplier;
+    const ogzTpoConfig = this.ogzTpoConfig;
     if (shouldRegister('OGZTPO')) this.strategies.push({
       name: 'OGZTPO',  // OGZ TPO strategy
       evaluate: (ctx) => {
@@ -1643,25 +1642,26 @@ class StrategyOrchestrator {
         if (!candles || candles.length < minCandlesTPO) return null;
 
         const latestCandle = candles[candles.length - 1];
-        let tpo;
-        try {
-          const scopedTpoIntegration = this._getSymbolStrategyModule(
-            'OGZTPO',
-            ctx.extras?.symbol,
-            tpoIntegrationModule,
-            () => new OgzTpoIntegration()
-          );
-          tpo = scopedTpoIntegration.update(latestCandle);
-        } catch (e) {
-          return null;
-        }
+        const scopedTpoIntegration = this._getSymbolStrategyModule(
+          'OGZTPO',
+          ctx.extras?.symbol,
+          tpoIntegrationModule,
+          () => new OgzTpoIntegration(ogzTpoConfig)
+        );
+        const tpoBarTimestamp = latestCandle.etime
+          ?? latestCandle.timestamp
+          ?? latestCandle.time
+          ?? latestCandle.t
+          ?? candles.length - 1;
+        const tpo = scopedTpoIntegration.update({
+          ...latestCandle,
+          t: tpoBarTimestamp,
+        });
 
         if (!tpo || !tpo.signal) return null;
-        if (!tpo.signal.highProbability) return null; // Only fire on high probability
 
         const action = tpo.signal.action;
         const strength = tpo.signal.strength || 0;
-        if (strength < this.tpoStrengthMin) return null;
 
         const direction = action === 'BUY' ? 'buy' : action === 'SELL' ? 'sell' : null;
         if (!direction) return null;
@@ -1673,7 +1673,7 @@ class StrategyOrchestrator {
 
         return {
           direction,
-          confidence: Math.min(1.0, strength * tpoStrengthMultiplier), // Scale 0.03-0.1 → 0.3-1.0
+          confidence: Math.min(1.0, strength * ogzTpoConfig.strengthConfidenceMultiplier),
           reason: `OGZ TPO ${tpo.signal.zone} (strength: ${(strength * 100).toFixed(1)}%)`,
           signalData: tpo.signal,
           // TPO provides its own levels
