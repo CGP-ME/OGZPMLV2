@@ -1336,7 +1336,7 @@ describe('StateManager openPosition scope contract', () => {
     expect(manager.get('position')).toBe(500);
   });
 
-  test('openPosition blocks same-symbol duplicate entries', async () => {
+  test('openPosition allows same-symbol same-direction entries', async () => {
     const openedLong = await manager.openPosition(500, 100, fullScope({
       orderId: 'LONG_SCOPE_1',
       action: 'BUY',
@@ -1348,7 +1348,7 @@ describe('StateManager openPosition scope contract', () => {
     }));
     expect(openedLong.success).toBe(true);
 
-    const duplicateLong = await manager.openPosition(300, 30, fullScope({
+    const secondLong = await manager.openPosition(300, 30, fullScope({
       orderId: 'LONG_SCOPE_2',
       action: 'BUY',
       direction: 'long',
@@ -1358,15 +1358,11 @@ describe('StateManager openPosition scope contract', () => {
       ledgerData: fullLedgerData(),
     }));
 
-    expect(duplicateLong.success).toBe(false);
-    expect(duplicateLong.blockedReason).toBe('same_symbol_duplicate_blocked');
-    expect(duplicateLong.existingTradeId).toBe('LONG_SCOPE_1');
-    expect(duplicateLong.existingDirection).toBe('long');
-    expect(duplicateLong.nextDirection).toBe('long');
-    expect(manager.get('activeTrades').size).toBe(1);
+    expect(secondLong.success).toBe(true);
+    expect(manager.get('activeTrades').size).toBe(2);
     expect(manager.get('activeTrades').has('LONG_SCOPE_1')).toBe(true);
-    expect(manager.get('activeTrades').has('LONG_SCOPE_2')).toBe(false);
-    expect(manager.get('position')).toBe(500);
+    expect(manager.get('activeTrades').has('LONG_SCOPE_2')).toBe(true);
+    expect(manager.get('position')).toBe(800);
   });
 
   test('reconcileBrokerFlat removes stale active trade without recording verified PnL', async () => {

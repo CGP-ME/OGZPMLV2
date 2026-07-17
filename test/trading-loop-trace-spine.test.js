@@ -592,7 +592,7 @@ describe('TradingLoop trace spine', () => {
       'min_confidence',
       'direction_filter',
       'shorts_enabled',
-      'same_direction_block',
+      'opposite_position_block',
       'max_positions',
     ]));
     expect(autopsy.strategySignals[0].decisionAttribution.contributors.map(c => c.name)).toEqual([
@@ -778,7 +778,7 @@ describe('TradingLoop trace spine', () => {
       'min_confidence',
       'direction_filter',
       'shorts_enabled',
-      'same_direction_block',
+      'opposite_position_block',
       'max_positions',
       'daily_loss_limit',
       'max_drawdown',
@@ -1058,7 +1058,7 @@ describe('TradingLoop trace spine', () => {
     }));
   });
 
-  test('emits DECISION_SKIP when a valid signal is structurally blocked by an existing same-direction position', async () => {
+  test('allows same-direction entries to reach contract-owned execution checks', async () => {
     mockStateManager.getTradesBySymbol.mockReturnValue([{
       id: 'BUY_OPEN_SAME_DIRECTION_1',
       orderId: 'BUY_OPEN_SAME_DIRECTION_1',
@@ -1078,28 +1078,154 @@ describe('TradingLoop trace spine', () => {
 
     await loop._analyze('TSLA', 'trace_same_direction_block_1');
 
-    expect(ctx.executeTrade).not.toHaveBeenCalled();
-    const frames = sentFrames(ctx);
-    const skipEvent = frames.find(frame => frame.type === 'trace_event' && frame.event === 'DECISION_SKIP');
-    expect(skipEvent).toEqual(expect.objectContaining({
+    expect(ctx.executeTrade).toHaveBeenCalledTimes(1);
+    const decision = ctx.executeTrade.mock.calls[0][0];
+    expect(decision).toEqual(expect.objectContaining({
+      action: 'BUY',
       traceId: 'trace_same_direction_block_1',
+      signalId: 'trace_same_direction_block_1:signal',
+    }));
+    const frames = sentFrames(ctx);
+    expect(frames.find(frame => frame.type === 'trace_event' && frame.event === 'DECISION_SKIP')).toBeUndefined();
+    const gateEvent = frames.find(frame => frame.type === 'gate_event');
+    expect(gateEvent.riskGates.map(gate => gate.gate)).toEqual(expect.arrayContaining([
+      'opposite_position_block',
+      'max_positions',
+    ]));
+  });
+
+  test('allows same-direction entries from different strategies on one ticker', async () => {
+    mockStateManager.getTradesBySymbol.mockReturnValue([{
+      id: 'RSI_LONG_1',
+      orderId: 'RSI_LONG_1',
+      action: 'BUY',
+      direction: 'long',
       symbol: 'TSLA',
-      brokerId: 'alpaca',
-      accountId: 'paper-main',
-      assetClass: 'stocks',
-      executionMode: 'paper',
-      timeframe: '15m',
+      entryStrategy: 'RSI',
+      entryPrice: 100,
+      sizeUsd: 500,
+    }]);
+    const ctx = baseEntryContext({
+      executeTrade: jest.fn().mockResolvedValue({ success: true, orderId: 'EMA_LONG_1' }),
+    });
+    ctx.strategyOrchestrator.evaluate = jest.fn(() => ({
+      direction: 'buy',
+      confidence: 80,
+      winnerStrategy: 'EMASMACrossover',
+      allResults: [{ strategyName: 'EMASMACrossover', direction: 'buy', confidence: 0.8, reason: 'fresh cross' }],
+      exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1, useStructuralExits: false, maxConcurrentEntries: 1, scaleIn: { enabled: false } },
+      confluence: { count: 1, strategies: ['EMASMACrossover'] },
+      sizingMultiplier: 1,
     }));
-    expect(skipEvent.fields).toEqual(expect.objectContaining({
-      reason: 'same_direction_position',
-      finalDirection: 'buy',
-      confidencePct: 80,
-      minConfidencePct: 50,
+    const loop = new TradingLoop(ctx);
+    stubGatherData(loop);
+
+    await loop._analyze('TSLA', 'trace_two_strategy_same_direction_1');
+
+    expect(ctx.executeTrade).toHaveBeenCalledTimes(1);
+    expect(ctx.executeTrade.mock.calls[0][6]).toEqual(expect.objectContaining({
+      winnerStrategy: 'EMASMACrossover',
     }));
-    expect(frames.find(frame => frame.type === 'bot_thinking')).toEqual(expect.objectContaining({
-      message: 'Blocked: same_direction_position',
-      asset: 'TSLA',
+  });
+
+  test('executes NoWick twin fanout as two entry handoffs', async () => {
+    const ctx = baseEntryContext({
+      executeTrade: jest.fn().mockResolvedValue({ success: true, orderId: 'NOWICK_TWIN' }),
+    });
+    const firstContract = { stopLossPercent: -1, takeProfitPercent: 1, useStructuralExits: true, maxConcurrentEntries: 2, scaleIn: { enabled: false } };
+    const secondContract = { stopLossPercent: -1.5, takeProfitPercent: 1.5, useStructuralExits: true, maxConcurrentEntries: 2, scaleIn: { enabled: false } };
+    ctx.strategyOrchestrator.evaluate = jest.fn(() => ({
+      direction: 'buy',
+      confidence: 80,
+      winnerStrategy: 'NoWickImbalance',
+      allResults: [{ strategyName: 'NoWickImbalance', direction: 'buy', confidence: 0.8, reason: 'twin proof' }],
+      exitContract: firstContract,
+      confluence: { count: 1, strategies: ['NoWickImbalance'] },
+      sizingMultiplier: 1,
+      entryFanout: [{
+        fanoutIndex: 0,
+        fanoutCount: 2,
+        entryGroupType: 'twin',
+        entryGroupId: 'bullish:1:2',
+        entryTriggerClass: 'nowick_retrace',
+        sizingMultiplier: 0.5,
+        exitContract: firstContract,
+      }, {
+        fanoutIndex: 1,
+        fanoutCount: 2,
+        entryGroupType: 'twin',
+        entryGroupId: 'bullish:1:2',
+        entryTriggerClass: 'nowick_retrace',
+        sizingMultiplier: 0.5,
+        exitContract: secondContract,
+      }],
     }));
+    const loop = new TradingLoop(ctx);
+    stubGatherData(loop);
+
+    await loop._analyze('TSLA', 'trace_nowick_twin_fanout_1');
+
+    expect(ctx.executeTrade).toHaveBeenCalledTimes(2);
+    expect(ctx.executeTrade.mock.calls.map(call => call[0].signalId)).toEqual([
+      'trace_nowick_twin_fanout_1:signal:fanout:1',
+      'trace_nowick_twin_fanout_1:signal:fanout:2',
+    ]);
+    expect(ctx.executeTrade.mock.calls.map(call => call[6].sizingMultiplier)).toEqual([0.5, 0.5]);
+    expect(ctx.executeTrade.mock.calls.map(call => call[6].exitContract.stopLossPercent)).toEqual([-1, -1.5]);
+  });
+
+  test('allows short entry on the next evaluation after the long exit contract closes', async () => {
+    const configSpy = mockDirectionConfig({ directionFilter: 'both', enableShorts: true });
+    try {
+      const ctx = baseEntryContext({
+        executeTrade: jest.fn().mockResolvedValue({ success: true, orderId: 'SEQ_REVERSAL' }),
+      });
+      ctx.strategyOrchestrator.evaluate = jest.fn(() => ({
+        direction: 'sell',
+        confidence: 80,
+        winnerStrategy: 'RSI',
+        allResults: [{ strategyName: 'RSI', direction: 'sell', confidence: 0.8, reason: 'short setup' }],
+        exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1, useStructuralExits: false, maxConcurrentEntries: 1, scaleIn: { enabled: false } },
+        confluence: { count: 1, strategies: ['RSI'] },
+        sizingMultiplier: 1,
+      }));
+      const openLong = {
+        id: 'LONG_TO_EXIT_1',
+        orderId: 'LONG_TO_EXIT_1',
+        action: 'BUY',
+        direction: 'long',
+        symbol: 'TSLA',
+        entryPrice: 100,
+        entryTime: Date.now() - 60000,
+      };
+      mockStateManager.getTradesBySymbol.mockReturnValueOnce([openLong]);
+      mockExitContractManager.checkExitConditions.mockReturnValueOnce({
+        shouldExit: true,
+        exitReason: 'stop_loss',
+        confidence: 100,
+        details: 'contract closed long',
+      });
+      const loop = new TradingLoop(ctx);
+      stubGatherData(loop);
+
+      await loop._analyze('TSLA', 'trace_sequence_exit_1');
+      expect(ctx.executeTrade.mock.calls[0][0]).toEqual(expect.objectContaining({
+        action: 'SELL',
+        tradeId: 'LONG_TO_EXIT_1',
+      }));
+
+      mockStateManager.getTradesBySymbol.mockReturnValue([]);
+      mockExitContractManager.checkExitConditions.mockReturnValue({ shouldExit: false, details: 'flat' });
+      await loop._analyze('TSLA', 'trace_sequence_short_1');
+
+      expect(ctx.executeTrade.mock.calls[1][0]).toEqual(expect.objectContaining({
+        action: 'SELL_SHORT',
+        direction: 'short',
+        traceId: 'trace_sequence_short_1',
+      }));
+    } finally {
+      configSpy.mockRestore();
+    }
   });
 
   test('renders minimum confidence in percent on HOLD thinking frames', () => {

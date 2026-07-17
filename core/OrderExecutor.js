@@ -1249,6 +1249,158 @@ class OrderExecutor {
     };
   }
 
+  _activeTradeStrategy(trade) {
+    return trade?.entryStrategy
+      || trade?.strategyName
+      || trade?.strategy
+      || trade?.exitContract?.strategyName
+      || trade?.decisionLedger?.exitContract?.strategyName
+      || null;
+  }
+
+  _sameStrategyDirectionTrades(entryPlan) {
+    const activeTrades = typeof stateManager.getTradesBySymbol === 'function'
+      ? stateManager.getTradesBySymbol(entryPlan.symbol)
+      : [];
+    if (!Array.isArray(activeTrades)) {
+      return [];
+    }
+    return activeTrades.filter((trade) => (
+      trade &&
+      typeof trade === 'object' &&
+      this._activeTradeDirection(trade) === entryPlan.direction &&
+      this._activeTradeStrategy(trade) === entryPlan.entryStrategy
+    ));
+  }
+
+  _riskIfStoppedUsd(sizeUsd, exitContract) {
+    const stopPercent = Math.abs(Number(exitContract?.stopLossPercent));
+    if (!Number.isFinite(sizeUsd) || sizeUsd <= 0 || !Number.isFinite(stopPercent) || stopPercent <= 0) {
+      return null;
+    }
+    return sizeUsd * (stopPercent / 100);
+  }
+
+  _entryConcurrencyBlock(entryPlan) {
+    if (!entryPlan || !this._isEntryAction(entryPlan.action)) return null;
+
+    const contract = entryPlan.exitContract || {};
+    const maxConcurrentEntries = Number(contract.maxConcurrentEntries);
+    if (!Number.isInteger(maxConcurrentEntries) || maxConcurrentEntries < 1) {
+      return {
+        reason: 'contract_max_concurrent_entries_invalid',
+        entryStrategy: entryPlan.entryStrategy,
+        maxConcurrentEntries: contract.maxConcurrentEntries,
+      };
+    }
+
+    const sameStrategyTrades = this._sameStrategyDirectionTrades(entryPlan);
+    if (sameStrategyTrades.length >= maxConcurrentEntries) {
+      return {
+        reason: 'contract_max_concurrent_entries',
+        entryStrategy: entryPlan.entryStrategy,
+        direction: entryPlan.direction,
+        activeEntries: sameStrategyTrades.length,
+        maxConcurrentEntries,
+      };
+    }
+    if (sameStrategyTrades.length === 0 || entryPlan.entryGroupType === 'twin') {
+      return null;
+    }
+
+    const scaleIn = contract.scaleIn;
+    if (!scaleIn || scaleIn.enabled !== true) {
+      return {
+        reason: 'scale_in_disabled',
+        entryStrategy: entryPlan.entryStrategy,
+        direction: entryPlan.direction,
+        activeEntries: sameStrategyTrades.length,
+      };
+    }
+
+    const maxAdds = Number(scaleIn.maxAdds);
+    if (!Number.isInteger(maxAdds) || maxAdds < 0 || sameStrategyTrades.length > maxAdds) {
+      return {
+        reason: 'scale_in_max_adds',
+        entryStrategy: entryPlan.entryStrategy,
+        activeEntries: sameStrategyTrades.length,
+        maxAdds: scaleIn.maxAdds,
+      };
+    }
+
+    const entryTriggerClass = typeof entryPlan.entryTriggerClass === 'string'
+      ? entryPlan.entryTriggerClass.trim()
+      : '';
+    const addTriggerClass = typeof scaleIn.addTriggerClass === 'string'
+      ? scaleIn.addTriggerClass.trim()
+      : '';
+    if (!addTriggerClass || addTriggerClass === entryTriggerClass) {
+      return {
+        reason: 'scale_in_trigger_class_invalid',
+        entryStrategy: entryPlan.entryStrategy,
+        entryTriggerClass,
+        addTriggerClass,
+      };
+    }
+
+    if (scaleIn.requireProfitConfirmation !== true) {
+      return {
+        reason: 'scale_in_profit_confirmation_required',
+        entryStrategy: entryPlan.entryStrategy,
+      };
+    }
+
+    const aggregateRiskCap = Number(scaleIn.aggregateRiskCap);
+    if (!Number.isFinite(aggregateRiskCap) || aggregateRiskCap <= 0) {
+      return {
+        reason: 'scale_in_aggregate_risk_cap_invalid',
+        entryStrategy: entryPlan.entryStrategy,
+        aggregateRiskCap: scaleIn.aggregateRiskCap,
+      };
+    }
+
+    const profitViolation = sameStrategyTrades.find((trade) => {
+      const entryPrice = Number(trade.entryPrice ?? trade.price);
+      if (!Number.isFinite(entryPrice) || entryPrice <= 0) return true;
+      return entryPlan.direction === 'long'
+        ? entryPlan.price <= entryPrice
+        : entryPlan.price >= entryPrice;
+    });
+    if (profitViolation) {
+      return {
+        reason: 'scale_in_profit_confirmation',
+        entryStrategy: entryPlan.entryStrategy,
+        direction: entryPlan.direction,
+        entryPrice: profitViolation.entryPrice ?? profitViolation.price ?? null,
+        proposedPrice: entryPlan.price,
+      };
+    }
+
+    const activeRisk = sameStrategyTrades.reduce((sum, trade) => {
+      const risk = this._riskIfStoppedUsd(Number(trade.sizeUsd ?? trade.size), trade.exitContract || contract);
+      return risk === null ? NaN : sum + risk;
+    }, 0);
+    const proposedRisk = this._riskIfStoppedUsd(entryPlan.sizeUsd, contract);
+    const singleEntryRisk = this._riskIfStoppedUsd(entryPlan.baseSizeUsd, contract);
+    if (
+      !Number.isFinite(activeRisk) ||
+      proposedRisk === null ||
+      singleEntryRisk === null ||
+      activeRisk + proposedRisk > singleEntryRisk * aggregateRiskCap + 1e-9
+    ) {
+      return {
+        reason: 'scale_in_aggregate_risk_cap',
+        entryStrategy: entryPlan.entryStrategy,
+        activeRiskUsd: Number.isFinite(activeRisk) ? activeRisk : null,
+        proposedRiskUsd: proposedRisk,
+        singleEntryRiskUsd: singleEntryRisk,
+        aggregateRiskCap,
+      };
+    }
+
+    return null;
+  }
+
   _dashboardTradePayload(payload, trade = {}) {
     const hasTradeRecord = trade && typeof trade === 'object' && Object.keys(trade).length > 0;
     const runtimeScope = hasTradeRecord ? {} : this._runtimeScope(trade.symbol || payload.symbol || null);
@@ -1899,6 +2051,11 @@ class OrderExecutor {
       confidenceMultiplier,
       entryVolatility,
       sizingMultiplier,
+      entryGroupType: orchResult.entryGroupType || decision.entryGroupType || null,
+      entryGroupId: orchResult.entryGroupId || decision.entryGroupId || null,
+      fanoutIndex: Number.isInteger(orchResult.fanoutIndex) ? orchResult.fanoutIndex : null,
+      fanoutCount: Number.isInteger(orchResult.fanoutCount) ? orchResult.fanoutCount : null,
+      entryTriggerClass: orchResult.entryTriggerClass || decision.entryTriggerClass || null,
       orderQuantity,
       quantityUnit,
       entryStrategy,
@@ -2506,6 +2663,20 @@ class OrderExecutor {
         sizeUsd: entryPlan.sizeUsd,
         stockShareRange: entryPlan.stockShareRange,
       });
+    }
+    if (entryPlan) {
+      const concurrencyBlock = this._entryConcurrencyBlock(entryPlan);
+      if (concurrencyBlock) {
+        console.warn(`[ENTRY-CONCURRENCY] Refusing ${entryPlan.action} ${symbol}: ${concurrencyBlock.reason}`);
+        emitTrace(this.ctx, 'ORDER_BLOCKED', {
+          traceId,
+          signalId,
+          symbol,
+          action: entryPlan.action,
+          ...concurrencyBlock,
+        });
+        return blockedReturn(concurrencyBlock.reason, concurrencyBlock);
+      }
     }
     if (entryPlan) {
       emitTrace(this.ctx, 'ORDER_PLAN', {
@@ -3128,6 +3299,11 @@ class OrderExecutor {
             bearishScore: orchResult?.bearishScore || 0,
             reasoning: orchResult?.reasoning || '',
             entryStrategy: entryStrategy,
+            entryGroupType: entryPlan.entryGroupType,
+            entryGroupId: entryPlan.entryGroupId,
+            fanoutIndex: entryPlan.fanoutIndex,
+            fanoutCount: entryPlan.fanoutCount,
+            entryTriggerClass: entryPlan.entryTriggerClass,
             exitContract: exitContract,
             frozenExitPolicy,
             riskGates: entryPlan.riskGates || [],
@@ -3342,6 +3518,11 @@ class OrderExecutor {
             bearishScore: orchResult?.bearishScore || 0,
             reasoning: orchResult?.reasoning || '',
             entryStrategy: entryStrategy,
+            entryGroupType: entryPlan.entryGroupType,
+            entryGroupId: entryPlan.entryGroupId,
+            fanoutIndex: entryPlan.fanoutIndex,
+            fanoutCount: entryPlan.fanoutCount,
+            entryTriggerClass: entryPlan.entryTriggerClass,
             exitContract: exitContract,
             frozenExitPolicy,
             riskGates: entryPlan.riskGates || [],

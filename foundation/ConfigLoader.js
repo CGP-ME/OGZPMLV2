@@ -2558,6 +2558,15 @@ const BASE_CONFIG = {
       trailingActivation: 0.8,
       maxHoldTimeMinutes: 240,
       useStructuralExits: false,
+      maxConcurrentEntries: 1,
+      scaleIn: {
+        enabled: false,
+        maxAdds: 0,
+        addTriggerClass: 'none',
+        requireProfitConfirmation: true,
+        aggregateRiskCap: 1,
+        addSizingLadder: [],
+      },
       minConfidence: null,            // No locked per-strategy confidence gate yet.
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: [],
@@ -3396,6 +3405,10 @@ const BASE_CONFIG = {
         strategyParams: {
           PropSafeEMAPullback: {
             'strategies.PropSafeEMAPullback.pullbackLookbackBars': [3, 5, 8],
+          },
+          NoWickImbalance: {
+            'strategies.NoWickImbalance.entryMode': ['tap', 'rejection'],
+            'strategies.NoWickImbalance.targetRR': [1.0, 1.5, 2.0],
           },
         },
       },

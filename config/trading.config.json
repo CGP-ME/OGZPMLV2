@@ -1525,6 +1525,15 @@
       "trailingActivation": null,
       "maxHoldTimeMinutes": 240,
       "useStructuralExits": true,
+      "maxConcurrentEntries": 2,
+      "scaleIn": {
+        "enabled": false,
+        "maxAdds": 0,
+        "addTriggerClass": "none",
+        "requireProfitConfirmation": true,
+        "aggregateRiskCap": 1,
+        "addSizingLadder": []
+      },
       "minConfidence": null,
       "atrMinPercent": null,
       "invalidationConditions": [],
@@ -1536,6 +1545,16 @@
       "trailingStopPercent": 0.6,
       "trailingActivation": 0.8,
       "maxHoldTimeMinutes": 240,
+      "useStructuralExits": false,
+      "maxConcurrentEntries": 1,
+      "scaleIn": {
+        "enabled": false,
+        "maxAdds": 0,
+        "addTriggerClass": "none",
+        "requireProfitConfirmation": true,
+        "aggregateRiskCap": 1,
+        "addSizingLadder": []
+      },
       "invalidationConditions": []
     }
   },
@@ -1938,9 +1957,17 @@
     },
     "NoWickImbalance": {
       "maxCandleAge": 9,
-      "slBreathingATR": 0.3,
       "swingLookback": 20,
       "minBodyPercent": 0.3,
+      "entrySideWickMaxPct": 5,
+      "entryMode": "rejection",
+      "swingExtremeLookback": 20,
+      "almostTouchPct": 0.05,
+      "stopLookbackBars": 10,
+      "stopBufferAtr": 0.1,
+      "targetRR": 1,
+      "twinSplitEnabled": true,
+      "twinProximityBars": 1,
       "confidence": 0.7,
       "debug": false,
       "enabled": true

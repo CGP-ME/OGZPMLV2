@@ -424,7 +424,7 @@ class TradingLoop {
       { gate: 'min_confidence', threshold: minConfidence, value: confidence, passed: confidence >= minConfidence },
       { gate: 'direction_filter', threshold: directionFilter, value: finalDirection, passed: executionDirectionGate.filterPassed },
       { gate: 'shorts_enabled', threshold: true, value: finalDirection === 'sell' ? enableShorts : 'not_applicable', passed: executionDirectionGate.shortsPassed },
-      { gate: 'same_direction_block', threshold: null, value: finalDirection, passed: !activeTrades.some(t => (finalDirection === 'buy' && (t.direction === 'long' || t.action === 'BUY')) || (finalDirection === 'sell' && (t.direction === 'short' || t.action === 'SELL_SHORT'))) },
+      { gate: 'opposite_position_block', threshold: null, value: finalDirection, passed: !activeTrades.some(t => (finalDirection === 'buy' && (t.direction === 'short' || t.action === 'SELL_SHORT')) || (finalDirection === 'sell' && (t.direction === 'long' || t.action === 'BUY'))) },
       { gate: 'max_positions', threshold: maxPositions, value: activeTrades.length, passed: activeTrades.length < maxPositions },
       ...riskGates,
     ];
@@ -1500,13 +1500,6 @@ class TradingLoop {
       const globalHaltReason = stateManager.isHalted() ? stateManager.getHaltReason() : null;
       const symbolHaltReason = stateManager.isSymbolHalted(symbol) ? stateManager.getSymbolHaltReason(symbol) : null;
 
-      // Same-direction stacking check
-      const hasPositionInDirection = activeTrades.some(t => {
-        if (finalDirection === 'buy') return t.direction === 'long' || t.action === 'BUY';
-        if (finalDirection === 'sell') return t.direction === 'short' || t.action === 'SELL_SHORT';
-        return false;
-      });
-
       // Opposite entry signals do not own exits. Exit contracts own exits.
       const hasOppositePosition = activeTrades.some(t => {
         if (finalDirection === 'buy') return t.direction === 'short' || t.action === 'SELL_SHORT';
@@ -1530,15 +1523,6 @@ class TradingLoop {
         });
         console.error(`[ENTRY] Blocked: ${symbol} entries halted - ${symbolHaltReason}`);
         decision = { action: 'HOLD', confidence: orchResult.confidence, blockReason: symbolHaltReason };
-      } else if (hasPositionInDirection) {
-        this._diag('ENTRY_BLOCK', {
-          symbol,
-          reason: 'same_direction_position',
-          direction: finalDirection,
-          activeTrades: activeTrades.length
-        });
-        console.log(`[ENTRY] Blocked: already holding ${finalDirection === 'buy' ? 'long' : 'short'} position`);
-        decision = { action: 'HOLD', confidence: orchResult.confidence, blockReason: 'same_direction_position' };
       } else if (hasOppositePosition) {
         this._diag('ENTRY_BLOCK', {
           symbol,
@@ -1694,7 +1678,7 @@ class TradingLoop {
       let riskGates = Array.isArray(decision.riskGates) ? decision.riskGates : [];
       if (isEntryAction) {
         // L5: Capture risk gates that were checked during entry evaluation.
-        // Pre-trade gates built here (warmup, min_confidence, direction_filter, shorts_enabled, same_direction_block,
+        // Pre-trade gates built here (warmup, min_confidence, direction_filter, shorts_enabled, opposite_position_block,
         // max_positions). RiskManager contributes Trey drawdown-law and producer-validity gates
         // via decision.riskGates — appended below.
         riskGates = this._entryRiskGates(
@@ -1763,55 +1747,95 @@ class TradingLoop {
           riskGates,
         };
       }
-      emitTrace(this.ctx, 'EXECUTE_HANDOFF', {
-        traceId: decision.traceId,
-        signalId: decision.signalId,
-        symbol,
-        action: decision.action,
-        direction: decision.direction || null,
-        confidencePct: decision.confidence,
-        winner: orchResult.winnerStrategy || null,
-        signalBasis: orchResult.allResults?.find(r => r.strategyName === orchResult.winnerStrategy)?.signalData?.signalBasis || null,
-        crossoverCount: orchResult.allResults?.find(r => r.strategyName === orchResult.winnerStrategy)?.signalData?.crossoverCount ?? null,
-        riskGateCount: riskGates.length,
-      });
-      if (isEntryAction) {
-        this._broadcastGateEvent({
-          traceId: decision.traceId,
-          signalId: decision.signalId,
+      const executionItems = isEntryAction && Array.isArray(orchResult.entryFanout) && orchResult.entryFanout.length > 0
+        ? orchResult.entryFanout.map((entry, index) => {
+          const fanoutSignalId = `${decision.signalId}:fanout:${index + 1}`;
+          const fanoutOrchResult = {
+            ...orchResult,
+            ...entry,
+            entryFanout: [],
+            signalBreakdown: {
+              ...(orchResult.signalBreakdown || {}),
+              fanoutIndex: entry.fanoutIndex,
+              fanoutCount: entry.fanoutCount,
+              fanoutSizingMultiplier: entry.sizingMultiplier,
+            },
+          };
+          const fanoutDecision = {
+            ...decision,
+            signalId: fanoutSignalId,
+            entryGroupType: entry.entryGroupType || orchResult.entryGroupType || null,
+            entryGroupId: entry.entryGroupId || orchResult.entryGroupId || null,
+            fanoutIndex: entry.fanoutIndex,
+            fanoutCount: entry.fanoutCount,
+            entryTriggerClass: entry.entryTriggerClass || orchResult.entryTriggerClass || null,
+            ledgerData: decision.ledgerData ? {
+              ...decision.ledgerData,
+              signalId: fanoutSignalId,
+              exitContract: entry.exitContract || decision.ledgerData.exitContract,
+              confluence: {
+                ...(decision.ledgerData.confluence || {}),
+                sizingMultiplier: entry.sizingMultiplier ?? decision.ledgerData.confluence?.sizingMultiplier ?? 1.0,
+              },
+            } : null,
+          };
+          return { decision: fanoutDecision, orchResult: fanoutOrchResult };
+        })
+        : [{ decision, orchResult }];
+
+      for (const item of executionItems) {
+        const executionDecision = item.decision;
+        const executionOrchResult = item.orchResult;
+        emitTrace(this.ctx, 'EXECUTE_HANDOFF', {
+          traceId: executionDecision.traceId,
+          signalId: executionDecision.signalId,
           symbol,
-          action: decision.action,
-          kind: 'eval_pass',
-          decision,
-          riskGates,
+          action: executionDecision.action,
+          direction: executionDecision.direction || null,
+          confidencePct: executionDecision.confidence,
+          winner: executionOrchResult.winnerStrategy || null,
+          signalBasis: executionOrchResult.allResults?.find(r => r.strategyName === executionOrchResult.winnerStrategy)?.signalData?.signalBasis || null,
+          crossoverCount: executionOrchResult.allResults?.find(r => r.strategyName === executionOrchResult.winnerStrategy)?.signalData?.crossoverCount ?? null,
+          riskGateCount: riskGates.length,
+        });
+        if (isEntryAction) {
+          this._broadcastGateEvent({
+            traceId: executionDecision.traceId,
+            signalId: executionDecision.signalId,
+            symbol,
+            action: executionDecision.action,
+            kind: 'eval_pass',
+            decision: executionDecision,
+            riskGates,
+          });
+        }
+        const executionResult = await this.ctx.executeTrade(executionDecision, confidenceData, price, indicators, patterns, null, executionOrchResult, symbol);
+        const executionSuccess = typeof executionResult?.success === 'boolean'
+          ? executionResult.success
+          : false;
+        const executionReason = executionResult?.reason
+          || (typeof executionResult?.success === 'boolean' ? null : 'execute_trade_return_missing_success');
+        this._diag('EXECUTE_RETURN', {
+          symbol,
+          action: executionDecision.action,
+          success: executionSuccess,
+          orderId: executionResult?.orderId || null,
+          reason: executionReason,
+          orderAccepted: executionResult?.orderAccepted ?? null,
+          stateMutationSucceeded: executionResult?.stateMutationSucceeded ?? null
+        });
+        emitTrace(this.ctx, 'EXECUTE_RETURN', {
+          traceId: executionDecision.traceId,
+          signalId: executionDecision.signalId,
+          symbol,
+          action: executionDecision.action,
+          success: executionSuccess,
+          orderId: executionResult?.orderId || null,
+          reason: executionReason,
+          orderAccepted: executionResult?.orderAccepted ?? null,
+          stateMutationSucceeded: executionResult?.stateMutationSucceeded ?? null,
         });
       }
-      const executionResult = await this.ctx.executeTrade(decision, confidenceData, price, indicators, patterns, null, orchResult, symbol);
-      const executionSuccess = typeof executionResult?.success === 'boolean'
-        ? executionResult.success
-        : false;
-      const executionReason = executionResult?.reason
-        || (typeof executionResult?.success === 'boolean' ? null : 'execute_trade_return_missing_success');
-      this._diag('EXECUTE_RETURN', {
-        symbol,
-        action: decision.action,
-        success: executionSuccess,
-        orderId: executionResult?.orderId || null,
-        reason: executionReason,
-        orderAccepted: executionResult?.orderAccepted ?? null,
-        stateMutationSucceeded: executionResult?.stateMutationSucceeded ?? null
-      });
-      emitTrace(this.ctx, 'EXECUTE_RETURN', {
-        traceId: decision.traceId,
-        signalId: decision.signalId,
-        symbol,
-        action: decision.action,
-        success: executionSuccess,
-        orderId: executionResult?.orderId || null,
-        reason: executionReason,
-        orderAccepted: executionResult?.orderAccepted ?? null,
-        stateMutationSucceeded: executionResult?.stateMutationSucceeded ?? null,
-      });
     }
   }
 

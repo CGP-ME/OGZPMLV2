@@ -70,6 +70,15 @@ function makeExitContract(overrides = {}) {
     minConfidence: 0.6,
     atrMinPercent: null,
     useStructuralExits: false,
+    maxConcurrentEntries: 1,
+    scaleIn: {
+      enabled: false,
+      maxAdds: 0,
+      addTriggerClass: 'none',
+      requireProfitConfirmation: true,
+      aggregateRiskCap: 1,
+      addSizingLadder: [],
+    },
     invalidationConditions: [],
     ...overrides,
   };
@@ -107,7 +116,7 @@ function makeBuyTrade(overrides = {}) {
     executionMode: 'live',
     timeframe: '1m',
     entryStrategy: 'RSI',
-    exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1, useStructuralExits: false },
+    exitContract: makeExitContract({ takeProfitPercent: 1 }),
     ...overrides,
   };
 }
@@ -1131,6 +1140,156 @@ describe('OrderExecutor pause gate', () => {
       existingTradeId: 'AMBIGUOUS_1',
     }));
     expect(webhookAdapter.emit).not.toHaveBeenCalled();
+    expect(executor.ctx.orderRouter.sendOrder).not.toHaveBeenCalled();
+    expect(mockStateManager.openPosition).not.toHaveBeenCalled();
+  });
+
+  test('refuses scale-in adds below the existing entry price', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getTradesBySymbol.mockReturnValue([makeBuyTrade({
+      orderId: 'RSI_LONG_1',
+      entryPrice: 100,
+      sizeUsd: 500,
+      exitContract: makeExitContract({ maxConcurrentEntries: 2 }),
+    })]);
+    const executor = makeExecutor({}, {
+      orderRouter: { sendOrder: jest.fn() },
+    });
+
+    const result = await executor.executeTrade(
+      { action: 'BUY', confidence: 75 },
+      {},
+      99,
+      { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+      [],
+      null,
+      makeOrchResult({
+        entryTriggerClass: 'breakout',
+        exitContract: makeExitContract({
+          maxConcurrentEntries: 2,
+          scaleIn: {
+            enabled: true,
+            maxAdds: 1,
+            addTriggerClass: 'pullback_add',
+            requireProfitConfirmation: true,
+            aggregateRiskCap: 2,
+            addSizingLadder: [0.5],
+          },
+        }),
+      }),
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'scale_in_profit_confirmation',
+      entryStrategy: 'RSI',
+      proposedPrice: 99,
+      entryPrice: 100,
+    }));
+    expect(executor.ctx.orderRouter.sendOrder).not.toHaveBeenCalled();
+    expect(mockStateManager.openPosition).not.toHaveBeenCalled();
+  });
+
+  test('refuses scale-in adds that exceed the aggregate risk cap', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getTradesBySymbol.mockReturnValue([makeBuyTrade({
+      orderId: 'RSI_LONG_1',
+      entryPrice: 100,
+      sizeUsd: 500,
+      exitContract: makeExitContract({ stopLossPercent: -1, maxConcurrentEntries: 2 }),
+    })]);
+    const executor = makeExecutor({}, {
+      orderRouter: { sendOrder: jest.fn() },
+    });
+
+    const result = await executor.executeTrade(
+      { action: 'BUY', confidence: 75 },
+      {},
+      101,
+      { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+      [],
+      null,
+      makeOrchResult({
+        sizingMultiplier: 2,
+        entryTriggerClass: 'breakout',
+        exitContract: makeExitContract({
+          stopLossPercent: -1,
+          maxConcurrentEntries: 2,
+          scaleIn: {
+            enabled: true,
+            maxAdds: 1,
+            addTriggerClass: 'pullback_add',
+            requireProfitConfirmation: true,
+            aggregateRiskCap: 1,
+            addSizingLadder: [0.5],
+          },
+        }),
+      }),
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'scale_in_aggregate_risk_cap',
+      entryStrategy: 'RSI',
+      aggregateRiskCap: 1,
+    }));
+    expect(executor.ctx.orderRouter.sendOrder).not.toHaveBeenCalled();
+    expect(mockStateManager.openPosition).not.toHaveBeenCalled();
+  });
+
+  test('refuses enabled scale-in contracts missing aggregate risk cap', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getTradesBySymbol.mockReturnValue([makeBuyTrade({
+      orderId: 'RSI_LONG_1',
+      entryPrice: 100,
+      sizeUsd: 500,
+      exitContract: makeExitContract({ stopLossPercent: -1, maxConcurrentEntries: 2 }),
+    })]);
+    const executor = makeExecutor({}, {
+      orderRouter: { sendOrder: jest.fn() },
+    });
+
+    const result = await executor.executeTrade(
+      { action: 'BUY', confidence: 75 },
+      {},
+      101,
+      { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+      [],
+      null,
+      makeOrchResult({
+        sizingMultiplier: 0.5,
+        entryTriggerClass: 'breakout',
+        exitContract: makeExitContract({
+          stopLossPercent: -1,
+          maxConcurrentEntries: 2,
+          scaleIn: {
+            enabled: true,
+            maxAdds: 1,
+            addTriggerClass: 'pullback_add',
+            requireProfitConfirmation: true,
+            addSizingLadder: [0.5],
+          },
+        }),
+      }),
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'scale_in_aggregate_risk_cap_invalid',
+      entryStrategy: 'RSI',
+    }));
     expect(executor.ctx.orderRouter.sendOrder).not.toHaveBeenCalled();
     expect(mockStateManager.openPosition).not.toHaveBeenCalled();
   });

@@ -91,6 +91,8 @@ const EXIT_CONTRACT_VALUE_FIELDS = [
   'trailingActivation',
   'maxHoldTimeMinutes',
   'useStructuralExits',
+  'maxConcurrentEntries',
+  'scaleIn',
   'invalidationConditions',
   'minConfidence',
   'atrMinPercent',
@@ -142,6 +144,29 @@ function buildStrategyContract(contract, strategyName, timeframe) {
   );
 }
 
+function cloneScaleInPolicy(policy) {
+  if (!policy || typeof policy !== 'object' || Array.isArray(policy)) return null;
+  return {
+    ...policy,
+    addSizingLadder: Array.isArray(policy.addSizingLadder)
+      ? policy.addSizingLadder.slice()
+      : policy.addSizingLadder,
+  };
+}
+
+function applyConcurrencyContractDefaults(contract, defaults) {
+  const resolved = { ...contract };
+  if (!Object.prototype.hasOwnProperty.call(resolved, 'maxConcurrentEntries')) {
+    resolved.maxConcurrentEntries = defaults.maxConcurrentEntries;
+  }
+  if (!Object.prototype.hasOwnProperty.call(resolved, 'scaleIn')) {
+    resolved.scaleIn = cloneScaleInPolicy(defaults.scaleIn);
+  } else {
+    resolved.scaleIn = cloneScaleInPolicy(resolved.scaleIn);
+  }
+  return resolved;
+}
+
 /**
  * Exit contracts now come from ConfigLoader (single source of truth)
  * Phase 1 REWRITE: Eliminated hardcoded duplicates - ConfigLoader owns all trading params
@@ -176,31 +201,55 @@ class ExitContractManager {
 
     // Try exact match first
     if (this.defaultContracts[strategyName]) {
-      return buildStrategyContract(this.defaultContracts[strategyName], strategyName, timeframe);
+      return applyConcurrencyContractDefaults(
+        buildStrategyContract(this.defaultContracts[strategyName], strategyName, timeframe),
+        this.defaultContracts.default
+      );
     }
 
     // Try partial match
     const lowerName = strategyName.toLowerCase();
     if (lowerName.includes('ema') || lowerName.includes('crossover')) {
-      return buildStrategyContract(this.defaultContracts.EMASMACrossover, strategyName, timeframe);
+      return applyConcurrencyContractDefaults(
+        buildStrategyContract(this.defaultContracts.EMASMACrossover, strategyName, timeframe),
+        this.defaultContracts.default
+      );
     }
     if (lowerName.includes('sweep') || lowerName.includes('liquidity')) {
-      return buildStrategyContract(this.defaultContracts.LiquiditySweep, strategyName, timeframe);
+      return applyConcurrencyContractDefaults(
+        buildStrategyContract(this.defaultContracts.LiquiditySweep, strategyName, timeframe),
+        this.defaultContracts.default
+      );
     }
     if (lowerName.includes('sr') || lowerName.includes('support') || lowerName.includes('resistance')) {
-      return buildStrategyContract(this.defaultContracts.MADynamicSR, strategyName, timeframe);
+      return applyConcurrencyContractDefaults(
+        buildStrategyContract(this.defaultContracts.MADynamicSR, strategyName, timeframe),
+        this.defaultContracts.default
+      );
     }
     if (lowerName.includes('candle') || lowerName.includes('pattern')) {
-      return buildStrategyContract(this.defaultContracts.CandlePattern, strategyName, timeframe);
+      return applyConcurrencyContractDefaults(
+        buildStrategyContract(this.defaultContracts.CandlePattern, strategyName, timeframe),
+        this.defaultContracts.default
+      );
     }
     if (lowerName.includes('regime')) {
-      return buildStrategyContract(this.defaultContracts.MarketRegime, strategyName, timeframe);
+      return applyConcurrencyContractDefaults(
+        buildStrategyContract(this.defaultContracts.MarketRegime, strategyName, timeframe),
+        this.defaultContracts.default
+      );
     }
     if (lowerName.includes('mtf') || lowerName.includes('timeframe')) {
-      return buildStrategyContract(this.defaultContracts.MultiTimeframe, strategyName, timeframe);
+      return applyConcurrencyContractDefaults(
+        buildStrategyContract(this.defaultContracts.MultiTimeframe, strategyName, timeframe),
+        this.defaultContracts.default
+      );
     }
 
-    return buildStrategyContract(this.defaultContracts.default, strategyName, timeframe);
+    return applyConcurrencyContractDefaults(
+      buildStrategyContract(this.defaultContracts.default, strategyName, timeframe),
+      this.defaultContracts.default
+    );
   }
 
   /**

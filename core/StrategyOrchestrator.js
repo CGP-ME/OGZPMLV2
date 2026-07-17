@@ -186,6 +186,41 @@ function validateStructuralLevelOverride(result, entryPriceInput) {
   };
 }
 
+function validateEntryFanout(result, entryPriceInput) {
+  if (!Array.isArray(result.entryFanout) || result.entryFanout.length === 0) {
+    return { ok: true, entryFanout: [] };
+  }
+
+  const entryFanout = [];
+  for (const entry of result.entryFanout) {
+    const validation = validateStructuralLevelOverride({
+      ...result,
+      ...entry,
+      strategyName: result.strategyName,
+      direction: entry.direction || result.direction,
+      overrideLevels: entry.overrideLevels,
+      signalData: entry.signalData || result.signalData,
+    }, entryPriceInput);
+    if (!validation.ok) {
+      return {
+        ok: false,
+        reason: `[ENTRY-FANOUT] ${result.strategyName} fanout ${entry.fanoutIndex ?? entryFanout.length}: ${validation.reason}`,
+      };
+    }
+    entryFanout.push({
+      ...entry,
+      structuralExitOverrides: validation.signalOverrides || {},
+      structuralExitLevels: {
+        entryPrice: validation.entryPrice,
+        stopLoss: validation.stopLossLevel,
+        takeProfit: validation.takeProfitLevel,
+      },
+    });
+  }
+
+  return { ok: true, entryFanout };
+}
+
 function cloneDecisionAttribution(attribution) {
   if (!attribution || typeof attribution !== 'object') return null;
   return {
@@ -2077,6 +2112,33 @@ class StrategyOrchestrator {
               timeframe: signalTimeframe,
             });
           }
+          const fanoutValidation = validateEntryFanout(candidate, structuralPriceBasis);
+          if (!fanoutValidation.ok) {
+            addDecisionContributor(candidate, {
+              name: 'entry_fanout_geometry',
+              type: 'gate',
+              passed: false,
+              reason: fanoutValidation.reason,
+              timeframe: signalTimeframe,
+            });
+            filteredResults.push({
+              ...candidate,
+              rejectedBy: 'entry_fanout_geometry',
+              rejectReason: fanoutValidation.reason,
+            });
+            console.warn(`[ENTRY-FANOUT] Rejected ${strategy.name}: ${fanoutValidation.reason}`);
+            continue;
+          }
+          if (fanoutValidation.entryFanout.length > 0) {
+            candidate.entryFanout = fanoutValidation.entryFanout;
+            addDecisionContributor(candidate, {
+              name: 'entry_fanout_geometry',
+              type: 'gate',
+              passed: true,
+              fanoutCount: fanoutValidation.entryFanout.length,
+              timeframe: signalTimeframe,
+            });
+          }
           this._applyStrategyMtfConfluence(candidate, ctx);
           results.push(candidate);
         }
@@ -2556,6 +2618,35 @@ class StrategyOrchestrator {
       { ...signalOverrides, confidence: publicWinnerConfidence },
       { volatility: volPct, timeframe: winnerTimeframe }
     );
+    const outputEntryFanout = Array.isArray(winner.entryFanout) && winner.entryFanout.length > 0
+      ? winner.entryFanout.map((entry, index) => {
+        const entrySizingMultiplier = Number.isFinite(Number(entry.sizingMultiplier)) && Number(entry.sizingMultiplier) > 0
+          ? Number(entry.sizingMultiplier)
+          : 1.0;
+        const entryExitContract = ecm.createExitContract(
+          winner.strategyName,
+          { ...(entry.structuralExitOverrides || {}), confidence: publicWinnerConfidence },
+          { volatility: volPct, timeframe: winnerTimeframe }
+        );
+        return {
+          action: winner.direction === 'buy' ? 'BUY' : winner.direction === 'sell' ? 'SELL_SHORT' : 'HOLD',
+          direction: entry.direction || winner.direction,
+          confidence: publicWinnerConfidence * 100,
+          winnerStrategy: winner.strategyName,
+          timeframe: winnerTimeframe,
+          exitContract: entryExitContract,
+          sizingMultiplier: sizingMultiplier * entrySizingMultiplier,
+          entryGroupType: entry.entryGroupType || winner.entryGroupType || null,
+          entryGroupId: entry.entryGroupId || winner.entryGroupId || null,
+          fanoutIndex: Number.isInteger(entry.fanoutIndex) ? entry.fanoutIndex : index,
+          fanoutCount: Number.isInteger(entry.fanoutCount) ? entry.fanoutCount : winner.entryFanout.length,
+          entryTriggerClass: entry.entryTriggerClass || winner.entryTriggerClass || entry.signalData?.triggerClass || null,
+          reason: entry.reason || winner.reason,
+          signalData: entry.signalData || null,
+          overrideLevels: entry.overrideLevels || null,
+        };
+      })
+      : [];
 
     // ─── Step 8: Build reasons list ───
     const reasons = [
@@ -2563,6 +2654,9 @@ class StrategyOrchestrator {
       `Confluence: ${confluenceCount} strategies agree on ${winner.direction.toUpperCase()}`,
       `Sizing: ${sizingMultiplier}x base position`,
     ];
+    if (outputEntryFanout.length > 0) {
+      reasons.push(`  Entry fanout: ${outputEntryFanout.length} ${winner.strategyName} entries`);
+    }
 
     // Add supporting strategies
     agreeing.slice(1).forEach(r => {
@@ -2593,6 +2687,10 @@ class StrategyOrchestrator {
         })),
       },
       mtfConfluenceSnapshot,
+      entryFanout: outputEntryFanout,
+      entryGroupType: winner.entryGroupType || null,
+      entryGroupId: winner.entryGroupId || null,
+      entryTriggerClass: winner.entryTriggerClass || winner.signalData?.triggerClass || null,
       allResults: results.map(publicResult),
       filteredResults: publicFilteredResults,
       reasons,
@@ -2603,6 +2701,7 @@ class StrategyOrchestrator {
         winnerConfidence: publicWinnerConfidence,
         confluenceCount,
         sizingMultiplier,
+        fanoutCount: outputEntryFanout.length,
         signals: publicResults.map(r => ({
           name: r.strategyName,
           direction: r.direction,

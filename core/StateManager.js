@@ -1011,11 +1011,6 @@ class StateManager {
         if (activeTrade.symbol !== tradeSymbol) return false;
         return activeTradeDirection(activeTrade) === null;
       });
-      const sameSymbolSameDirectionTrade = Array.from(nextActiveTrades.values()).find((activeTrade) => {
-        if (!activeTrade || typeof activeTrade !== 'object') return false;
-        if (activeTrade.symbol !== tradeSymbol) return false;
-        return activeTradeDirection(activeTrade) === tradeDirection;
-      });
       if (sameSymbolUnknownTrade) {
         const existingId = sameSymbolUnknownTrade.orderId || sameSymbolUnknownTrade.id || 'unknown';
         return {
@@ -1024,17 +1019,6 @@ class StateManager {
           blockedReason: 'same_symbol_trade_direction_unknown',
           existingTradeId: existingId,
           existingDirection: null,
-          nextDirection: tradeDirection,
-        };
-      }
-      if (sameSymbolSameDirectionTrade) {
-        const existingId = sameSymbolSameDirectionTrade.orderId || sameSymbolSameDirectionTrade.id || 'unknown';
-        return {
-          success: false,
-          error: `StateManager.openPosition same-symbol duplicate blocked: ${tradeSymbol} already has ${tradeDirection} trade ${existingId}; refusing duplicate entry ${tradeId}`,
-          blockedReason: 'same_symbol_duplicate_blocked',
-          existingTradeId: existingId,
-          existingDirection: tradeDirection,
           nextDirection: tradeDirection,
         };
       }
