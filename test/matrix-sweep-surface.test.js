@@ -88,6 +88,10 @@ describe('matrix-sweep runnable surface', () => {
     expect(GRID.conf.strategyParams).toEqual(matrixConfig.grid.conf.strategyParams);
     expect(GRID.conf.strategyParams.PropSafeEMAPullback['strategies.PropSafeEMAPullback.pullbackLookbackBars'])
       .toEqual([3, 5, 8]);
+    expect(GRID.conf.strategyParams.NoWickImbalance['strategies.NoWickImbalance.entryMode'])
+      .toEqual(['tap', 'rejection']);
+    expect(GRID.conf.strategyParams.NoWickImbalance['strategies.NoWickImbalance.targetRR'])
+      .toEqual([1.0, 1.5, 2.0]);
     expect(GRID.exits.confidence).toEqual(matrixConfig.grid.exits.confidence);
     expect(GRID.exits.stopLoss).toEqual(matrixConfig.grid.exits.stopLoss);
     expect(GRID.exits.tierPresets).toEqual(buildMonotonicTierCube(matrixConfig.grid.exits.tierGrid));
@@ -109,6 +113,9 @@ describe('matrix-sweep runnable surface', () => {
     }).toThrow(TypeError);
     expect(() => {
       GRID.conf.strategyParams.PropSafeEMAPullback['strategies.PropSafeEMAPullback.pullbackLookbackBars'].push(13);
+    }).toThrow(TypeError);
+    expect(() => {
+      GRID.conf.strategyParams.NoWickImbalance['strategies.NoWickImbalance.entryMode'].push('other');
     }).toThrow(TypeError);
   });
 
@@ -170,7 +177,7 @@ describe('matrix-sweep runnable surface', () => {
   test('structural-exit strategies can still run confidence sweeps', () => {
     const configs = generateMatrix(['NoWickImbalance'], GRID.conf, 'conf');
 
-    expect(configs).toHaveLength(GRID.conf.confidence.length);
+    expect(configs).toHaveLength(GRID.conf.confidence.length * 2 * 3);
     expect(configs.every(config => config.strategy === 'NoWickImbalance')).toBe(true);
     expect(configs.every(config => config.env.ENABLE_NOWICK === 'true')).toBe(true);
   });
@@ -205,6 +212,23 @@ describe('matrix-sweep runnable surface', () => {
     expect(configs.every(config => config.env.PROPSAFE_EMA_PULLBACK_LOOKBACK === undefined)).toBe(true);
     expect(configs.every(config => config.strategyParams != null)).toBe(true);
     expect(configs.every(config => config.strategyParams['strategies.PropSafeEMAPullback.pullbackLookbackBars'] != null)).toBe(true);
+  });
+
+  test('NoWickImbalance entry mode and RR sweeps stay inside caged backtest overrides', () => {
+    const configs = generateMatrix(['NoWickImbalance'], GRID.conf, 'conf');
+    const payloads = configs.map(config => JSON.parse(config.env.BACKTEST_CONFIG_OVERRIDES_JSON));
+    const entryModes = payloads.map(payload => payload['strategies.NoWickImbalance.entryMode']);
+    const targetRRs = payloads.map(payload => payload['strategies.NoWickImbalance.targetRR']);
+
+    expect(configs).toHaveLength(GRID.conf.confidence.length * 2 * 3);
+    expect(new Set(entryModes)).toEqual(new Set(['tap', 'rejection']));
+    expect(new Set(targetRRs)).toEqual(new Set([1.0, 1.5, 2.0]));
+    expect(configs.every(config => config.env.ENABLE_NOWICK === 'true')).toBe(true);
+    expect(configs.every(config => config.env.NOWICK_ENTRY_MODE === undefined)).toBe(true);
+    expect(configs.every(config => config.env.NOWICK_TARGET_RR === undefined)).toBe(true);
+    expect(configs.every(config => config.strategyParams != null)).toBe(true);
+    expect(configs.every(config => config.strategyParams['strategies.NoWickImbalance.entryMode'] != null)).toBe(true);
+    expect(configs.every(config => config.strategyParams['strategies.NoWickImbalance.targetRR'] != null)).toBe(true);
   });
 
   test('structural-exit strategies generate no false full or exit matrices', () => {

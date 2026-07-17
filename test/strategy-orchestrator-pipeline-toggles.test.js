@@ -292,9 +292,17 @@ describe('StrategyOrchestrator pipeline toggles', () => {
     }));
     expect(tradingConfig.strategies.NoWickImbalance).toEqual(expect.objectContaining({
       maxCandleAge: 9,
-      slBreathingATR: 0.3,
       swingLookback: 20,
       minBodyPercent: 0.3,
+      entrySideWickMaxPct: 5,
+      entryMode: 'rejection',
+      swingExtremeLookback: 20,
+      almostTouchPct: 0.05,
+      stopLookbackBars: 10,
+      stopBufferAtr: 0.1,
+      targetRR: 1,
+      twinSplitEnabled: true,
+      twinProximityBars: 1,
       confidence: 0.7,
     }));
   });

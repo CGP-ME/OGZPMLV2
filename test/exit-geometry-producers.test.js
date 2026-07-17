@@ -86,18 +86,26 @@ describe('exit geometry producer contracts', () => {
     )).toBeNull();
   });
 
-  test('NoWickImbalance removes tapped levels when ATR breathing room makes stop non-positive', () => {
-    const strategy = new NoWickImbalance({ swingLookback: 5 });
-    jest.spyOn(strategy, '_detectNoWick').mockReturnValue({
-      type: 'bullish',
-      level: 10,
-      candleHigh: 22,
-      candleLow: 10,
-      body: 10,
-      timestamp: 5,
+  test('NoWickImbalance removes tapped levels when structural stop becomes non-positive', () => {
+    const strategy = new NoWickImbalance({
+      swingLookback: 5,
+      entryMode: 'tap',
+      stopLookbackBars: 5,
+      stopBufferAtr: 1,
     });
+    jest.spyOn(strategy, '_detectNoWick').mockReturnValue(null);
     jest.spyOn(strategy, '_detectTrend').mockReturnValue('uptrend');
-    jest.spyOn(strategy, '_findRecentSwing').mockReturnValue(10);
+    strategy.scopedState.set('TSLA:15M', {
+      candleCount: 5,
+      pendingLevels: [{
+        type: 'bullish',
+        level: 10,
+        formationCount: 4,
+        trend: 'uptrend',
+        timestamp: 1,
+      }],
+      invalidatedLevels: [],
+    });
 
     const candles = [
       { o: 9, h: 11, l: 8, c: 10, v: 1000, t: 1, symbol: 'TSLA', timeframe: '15m' },
