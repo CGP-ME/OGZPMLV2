@@ -259,12 +259,9 @@ test('LiquiditySweepDetector processes candles and tracks levels', () => {
   const LiquiditySweepDetector = require(path.join(projectRoot, 'modules/LiquiditySweepDetector'));
   const ConfigLoader = require(path.join(projectRoot, 'foundation/ConfigLoader'));
 
-  const liqConfig = ConfigLoader.get('strategies.LiquiditySweep') || {};
-  const detector = new LiquiditySweepDetector({
-    sweepLookbackBars: liqConfig.sweepLookbackBars || 50,
-    atrPeriod: liqConfig.atrPeriod || 14,
-    disableSessionCheck: true,
-  });
+  const detector = new LiquiditySweepDetector(
+    ConfigLoader.get('strategies.LiquiditySweep')
+  );
 
   let lastResult = null;
   for (const candle of testCandles) {

@@ -706,10 +706,9 @@ class StrategyOrchestrator {
     this.emaCrossoverModule = new EMASMACrossoverSignal(this.emaCrossoverConfig);
     this.maDynamicSRConfig = ConfigLoader.get('strategies.MADynamicSR');
     this.maDynamicSRModule = new MADynamicSR(this.maDynamicSRConfig);
-    this.liquiditySweepModule = new LiquiditySweepDetector({
-      ...(ConfigLoader.get('strategies.LiquiditySweep') || {}),
-      disableSessionCheck: true,
-    });
+    this.liquiditySweepModule = new LiquiditySweepDetector(
+      ConfigLoader.get('strategies.LiquiditySweep')
+    );
     this.breakAndRetestModule = new BreakAndRetest();
     const NoWickImbalance = require('../modules/NoWickImbalance');
     this.noWickConfig = ConfigLoader.get('strategies.NoWickImbalance');
@@ -1444,10 +1443,9 @@ class StrategyOrchestrator {
           'LiquiditySweep',
           ctx.extras?.symbol,
           liquiditySweepModule,
-          () => new LiquiditySweepDetector({
-            ...(ConfigLoader.get('strategies.LiquiditySweep') || {}),
-            disableSessionCheck: true,
-          })
+          () => new LiquiditySweepDetector(
+            ConfigLoader.get('strategies.LiquiditySweep')
+          )
         );
         const sig = scopedLiquiditySweep.feedCandle(latestCandle);
 

@@ -6,6 +6,30 @@ const NoWickImbalance = require('../modules/NoWickImbalance');
 const SmartMoneySweep = require('../modules/SmartMoneySweep');
 const { calculateDynamicLevels } = require('../src/indicators/ogzTwoPoleOscillator');
 
+function liquidityConfig(overrides = {}) {
+  return {
+    atrMultiplier: 0.25,
+    atrPeriod: 14,
+    entryWindowMinutes: 90,
+    openingRangeMinutes: 15,
+    hammerBodyMaxPct: 0.35,
+    hammerWickMinRatio: 2,
+    engulfMinRatio: 1,
+    stopBufferPct: 0.05,
+    sweepMinExtensionPct: 0.1,
+    sweepExtensionBandMult: 5,
+    sweepLookbackBars: 50,
+    weights: {
+      manipCandle: 0.2,
+      wickSweep: 0.15,
+      sweepReject: 0.15,
+      hammerPattern: 0.25,
+      engulfPattern: 0.25,
+    },
+    ...overrides,
+  };
+}
+
 describe('exit geometry producer contracts', () => {
   let warnSpy;
 
@@ -18,7 +42,7 @@ describe('exit geometry producer contracts', () => {
   });
 
   test('LiquiditySweep next-candle-open patterns do not emit market-entry override levels', () => {
-    const detector = new LiquiditySweepDetector({ disableSessionCheck: true });
+    const detector = new LiquiditySweepDetector(liquidityConfig());
     detector.state.box = {
       high: 110,
       low: 90,
@@ -43,7 +67,7 @@ describe('exit geometry producer contracts', () => {
   });
 
   test('LiquiditySweep known-entry patterns stop at producer on invalid exit geometry', () => {
-    const detector = new LiquiditySweepDetector({ disableSessionCheck: true });
+    const detector = new LiquiditySweepDetector(liquidityConfig());
     detector.state.box = {
       high: 105,
       low: 90,

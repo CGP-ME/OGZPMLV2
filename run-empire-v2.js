@@ -728,19 +728,8 @@ class OGZPrimeV14Bot {
       });
     }
 
-    const liqConfig = ConfigLoader.get('strategies.LiquiditySweep') ?? {};
-    this.liquiditySweep = new LiquiditySweepDetector({
-      sweepLookbackBars: liqConfig.sweepLookbackBars ?? 50,
-      sweepMinExtensionPct: liqConfig.sweepMinExtensionPct ?? 0.1,
-      atrMultiplier: liqConfig.atrMultiplier ?? 0.25,
-      atrPeriod: liqConfig.atrPeriod ?? 14,
-      entryWindowMinutes: liqConfig.entryWindowMinutes ?? 90,
-      hammerBodyMaxPct: liqConfig.hammerBodyMaxPct ?? 0.35,
-      hammerWickMinRatio: liqConfig.hammerWickMinRatio ?? 2.0,
-      engulfMinRatio: liqConfig.engulfMinRatio ?? 1.0,
-      stopBufferPct: liqConfig.stopBufferPct ?? 0.05,
-      disableSessionCheck: liqConfig.disableSessionCheck ?? true,
-    });
+    const liqConfig = ConfigLoader.get('strategies.LiquiditySweep');
+    this.liquiditySweep = new LiquiditySweepDetector(liqConfig);
 
     // CHANGE 2026-02-23: Volume Profile (Fabio Valentino / Auction Market Theory)
     // Filters out trend strategies when market is BALANCED (inside value area = chop)

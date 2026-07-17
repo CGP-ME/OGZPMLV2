@@ -164,19 +164,9 @@ function runBacktestAndCaptureTrades() {
   const masrConfig = ConfigLoader.get('strategies.MADynamicSR');
   const maDynamicSR = new MADynamicSR(masrConfig);
 
-  const liqConfig = ConfigLoader.get('strategies.LiquiditySweep') || {};
-  const liquiditySweep = new LiquiditySweepDetector({
-    sweepLookbackBars: liqConfig.sweepLookbackBars || 50,
-    sweepMinExtensionPct: liqConfig.sweepMinExtensionPct || 0.1,
-    atrMultiplier: liqConfig.atrMultiplier || 0.25,
-    atrPeriod: liqConfig.atrPeriod || 14,
-    entryWindowMinutes: liqConfig.entryWindowMinutes || 90,
-    hammerBodyMaxPct: liqConfig.hammerBodyMaxPct || 0.35,
-    hammerWickMinRatio: liqConfig.hammerWickMinRatio || 2.0,
-    engulfMinRatio: liqConfig.engulfMinRatio || 1.0,
-    stopBufferPct: liqConfig.stopBufferPct || 0.05,
-    disableSessionCheck: liqConfig.disableSessionCheck ?? true,
-  });
+  const liquiditySweep = new LiquiditySweepDetector(
+    ConfigLoader.get('strategies.LiquiditySweep')
+  );
 
   const orchestrator = new StrategyOrchestrator({
     minStrategyConfidence: 50 / 100,

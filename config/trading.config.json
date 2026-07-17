@@ -1837,6 +1837,7 @@
     "LiquiditySweep": {
       "sweepLookbackBars": 50,
       "sweepMinExtensionPct": 0.1,
+      "sweepExtensionBandMult": 5,
       "atrMultiplier": 0.25,
       "atrPeriod": 14,
       "entryWindowMinutes": 90,
@@ -1844,7 +1845,13 @@
       "hammerWickMinRatio": 2,
       "engulfMinRatio": 1,
       "stopBufferPct": 0.05,
-      "disableSessionCheck": true,
+      "weights": {
+        "manipCandle": 0.2,
+        "wickSweep": 0.15,
+        "sweepReject": 0.15,
+        "hammerPattern": 0.25,
+        "engulfPattern": 0.25
+      },
       "enabled": true
     },
     "RSI": {

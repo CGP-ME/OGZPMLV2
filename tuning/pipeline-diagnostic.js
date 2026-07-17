@@ -104,7 +104,9 @@ const indicatorEngine = new IndicatorEngine({ warmupCandles: 50 });
 const exitContractManager = getExitContractManager();
 const emaCrossover = new EMASMACrossoverSignal();
 const maDynamicSR = new MADynamicSR({ emaPeriod: 20, trendEmaPeriod: 50 });
-const liquiditySweep = new LiquiditySweepDetector();
+const liquiditySweep = new LiquiditySweepDetector(
+  ConfigLoader.get('strategies.LiquiditySweep')
+);
 const breakAndRetest = new BreakAndRetest();
 const mtfAdapter = new MultiTimeframeAdapter();
 const volumeProfile = new VolumeProfile();

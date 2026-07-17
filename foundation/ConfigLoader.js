@@ -2778,20 +2778,7 @@ const BASE_CONFIG = {
       maxConfidence: requiredConfigNumber('strategies.EMASMACrossover.maxConfidence'),
       enabled: requiredConfigBool('strategies.EMASMACrossover.enabled'),
     },
-    LiquiditySweep: {
-      // Marco-style liquidity grabs (24/7 crypto)
-      sweepLookbackBars: env('LIQSWEEP_LOOKBACK', 50),         // Was lookbackCandles — renamed to match constructor
-      sweepMinExtensionPct: env('LIQSWEEP_WICK_MIN', 0.1),     // Was sweepWickMinPct — renamed to match constructor
-      atrMultiplier: env('LIQSWEEP_ATR_MULT', 0.25),           // NEW — was only hardcoded default
-      atrPeriod: env('LIQSWEEP_ATR_PERIOD', 14),               // NEW
-      entryWindowMinutes: env('LIQSWEEP_ENTRY_WINDOW_MIN', 90),  // 90 min entry window
-      hammerBodyMaxPct: env('LIQSWEEP_HAMMER_BODY', 0.35),     // NEW
-      hammerWickMinRatio: env('LIQSWEEP_HAMMER_WICK', 2.0),    // NEW
-      engulfMinRatio: env('LIQSWEEP_ENGULF_RATIO', 1.0),       // NEW
-      stopBufferPct: env('LIQSWEEP_STOP_BUFFER', 0.05),        // NEW
-      disableSessionCheck: true,                                 // 24/7 crypto — no session filter
-      enabled: true,
-    },
+    LiquiditySweep: requiredConfiguredPlainObject('strategies.LiquiditySweep'),
     RSI: {
       // RSI mean reversion on extremes
       period: 14,                                       // Standard RSI period

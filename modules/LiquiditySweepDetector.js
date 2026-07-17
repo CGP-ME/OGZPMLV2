@@ -11,7 +11,7 @@
  *   • No hardcoded timeframe assumptions anywhere
  *
  * Integration:
- *   const sweep = new LiquiditySweepDetector({ disableSessionCheck: true });
+ *   const sweep = new LiquiditySweepDetector(config.strategies.LiquiditySweep);
  *   // In your candle loop (any timeframe):
  *   const signal = sweep.feedCandle(candle);
  */
@@ -28,6 +28,19 @@ function positiveConfigNumber(config, key, defaultValue) {
   const value = Number(config[key]);
   if (!Number.isFinite(value) || value <= 0) {
     throw new Error(`[LiquiditySweep] ${key} must be a finite positive number; got ${config[key]}`);
+  }
+  return value;
+}
+
+function requiredConfigNumber(config, key, { min = 0, exclusiveMin = false } = {}) {
+  if (!Object.prototype.hasOwnProperty.call(config, key) || config[key] == null) {
+    throw new Error(`[LiquiditySweep] ${key} is required`);
+  }
+
+  const value = Number(config[key]);
+  if (!Number.isFinite(value) || (exclusiveMin ? value <= min : value < min)) {
+    const comparator = exclusiveMin ? `greater than ${min}` : `at least ${min}`;
+    throw new Error(`[LiquiditySweep] ${key} must be a finite number ${comparator}; got ${config[key]}`);
   }
   return value;
 }
@@ -51,12 +64,13 @@ class LiquiditySweepDetector {
   #dailyATR = null;
 
   constructor(config = {}) {
+    const weightConfig = config.weights || {};
     const weights = Object.freeze({
-      manipCandle:   config.weights?.manipCandle   || 0.20,
-      wickSweep:     config.weights?.wickSweep     || 0.15,
-      sweepReject:   config.weights?.sweepReject   || 0.15,
-      hammerPattern: config.weights?.hammerPattern  || 0.25,
-      engulfPattern: config.weights?.engulfPattern  || 0.25,
+      manipCandle: requiredConfigNumber(weightConfig, 'manipCandle'),
+      wickSweep: requiredConfigNumber(weightConfig, 'wickSweep'),
+      sweepReject: requiredConfigNumber(weightConfig, 'sweepReject'),
+      hammerPattern: requiredConfigNumber(weightConfig, 'hammerPattern'),
+      engulfPattern: requiredConfigNumber(weightConfig, 'engulfPattern'),
     });
 
     this.config = Object.freeze({
@@ -68,12 +82,12 @@ class LiquiditySweepDetector {
       hammerWickMinRatio: config.hammerWickMinRatio || 2.0,
       engulfMinRatio: config.engulfMinRatio || 1.0,
       stopBufferPct: config.stopBufferPct || 0.05,
-      sweepMinExtensionPct: config.sweepMinExtensionPct || 0.05,
+      sweepMinExtensionPct: requiredConfigNumber(config, 'sweepMinExtensionPct'),
+      sweepExtensionBandMult: requiredConfigNumber(config, 'sweepExtensionBandMult', { min: 0, exclusiveMin: true }),
       sweepLookbackBars: config.sweepLookbackBars || 20,
       weights,
       sessionOpenHour: config.sessionOpenHour ?? 14,
       sessionOpenMinute: config.sessionOpenMinute ?? 30,
-      disableSessionCheck: config.disableSessionCheck || false,
     });
 
     this._candleIntervalMs = null;
@@ -101,9 +115,8 @@ class LiquiditySweepDetector {
   }
 
   reset() {
-    const initialPhase = this.config?.disableSessionCheck ? 'building_box' : 'waiting_for_open';
     this.state = {
-      phase: initialPhase,
+      phase: 'waiting_for_open',
       sessionDate: null,
       dailyCandles: this.state?.dailyCandles || [],
       manipThreshold: this.state?.manipThreshold || null,
@@ -190,13 +203,11 @@ class LiquiditySweepDetector {
     this._currentDay = dayStr;
     this._updateDailyCandle(candle);
 
-    if (!this.config.disableSessionCheck) {
-      const isSessionOpen = (utcHour === this.config.sessionOpenHour && utcMinute === this.config.sessionOpenMinute);
-      if (isSessionOpen && this.state.phase === 'waiting_for_open') {
-        this.state.phase = 'building_box';
-        this._openingCandleFed = false;
-        this._openingBuffer = [];
-      }
+    const isSessionOpen = (utcHour === this.config.sessionOpenHour && utcMinute === this.config.sessionOpenMinute);
+    if (isSessionOpen && this.state.phase === 'waiting_for_open') {
+      this.state.phase = 'building_box';
+      this._openingCandleFed = false;
+      this._openingBuffer = [];
     }
 
     if (this.state.phase === 'building_box' && !this._openingCandleFed) {
@@ -265,8 +276,7 @@ class LiquiditySweepDetector {
   }
 
   _newSession(dayStr) {
-    const initialPhase = this.config?.disableSessionCheck ? 'building_box' : 'waiting_for_open';
-    this.state.phase = initialPhase;
+    this.state.phase = 'waiting_for_open';
     this.state.sessionDate = dayStr;
     this.state.box = null;
     this.state.exitSide = null;
@@ -313,20 +323,26 @@ class LiquiditySweepDetector {
     const upperWick = candleHigh - Math.max(candleOpen, candleClose);
     const lowerWick = Math.min(candleOpen, candleClose) - candleLow;
     const sweepExt = candleHigh * (this.config.sweepMinExtensionPct / 100);
-    const sweepsHighs = this.state.priorHighs.some(ph => candleHigh > ph && candleHigh <= ph + sweepExt * 5 && upperWick > 0);
-    const sweepsLows = this.state.priorLows.some(pl => candleLow < pl && candleLow >= pl - sweepExt * 5 && lowerWick > 0);
+    const extensionBand = sweepExt * this.config.sweepExtensionBandMult;
+    const sweptHighLevels = this.state.priorHighs.filter(ph => candleHigh > ph && candleHigh <= ph + extensionBand && upperWick > 0);
+    const sweptLowLevels = this.state.priorLows.filter(pl => candleLow < pl && candleLow >= pl - extensionBand && lowerWick > 0);
+    const sweepsHighs = sweptHighLevels.length > 0;
+    const sweepsLows = sweptLowLevels.length > 0;
     this.state.box.validations.sweepsHighs = sweepsHighs;
     this.state.box.validations.sweepsLows = sweepsLows;
-    const bodyMid = (candleOpen + candleClose) / 2;
-    const rangeMid = (candleHigh + candleLow) / 2;
-    const closeFromExtreme = Math.abs(bodyMid - rangeMid) / range;
-    this.state.box.validations.closesInsideRange = closeFromExtreme < 0.35;
-    const validationsPassed = [sweepsHighs || sweepsLows, this.state.box.validations.closesInsideRange].filter(Boolean).length;
+    const highRejectClose = sweepsHighs && candleClose < Math.max(...sweptHighLevels);
+    const lowRejectClose = sweepsLows && candleClose > Math.min(...sweptLowLevels);
+    this.state.box.validations.closesInsideRange = highRejectClose || lowRejectClose;
+    const hasSweep = sweepsHighs || sweepsLows;
+    const hasRejectClose = this.state.box.validations.closesInsideRange;
+    const validationsPassed = [hasSweep, hasRejectClose].filter(Boolean).length;
     this.state.box.validationScore = validationsPassed;
-    if (validationsPassed > 0) {
-      this.stats.manipCandlesValidated++;
-      console.log(`🔴 MANIPULATION CANDLE CONFIRMED (${validationsPassed}/2) — ${this.state.box.atrPct}% of daily ATR`);
+    if (!hasSweep || !hasRejectClose) {
+      this.state.phase = 'done';
+      return;
     }
+    this.stats.manipCandlesValidated++;
+    console.log(`[LiquiditySweep] MANIPULATION CANDLE CONFIRMED (${validationsPassed}/2) - ${this.state.box.atrPct}% of daily ATR`);
     this.state.phase = 'watching_for_exit';
     this.state.barsAfterOpen = 0;
   }
@@ -448,7 +464,7 @@ class LiquiditySweepDetector {
     this.state.phase = 'signal_active';
     this.stats.signalsGenerated++;
     this.stats.lastSignalTime = Date.now();
-    console.log(`🎯 LIQUIDITY SWEEP: ${direction.toUpperCase()} via ${pattern.type} | Conf: ${(confidence * 100).toFixed(1)}% | Interval: ${this._candleIntervalMin||'?'}m`);
+    console.log(`[LiquiditySweep] SIGNAL ${direction.toUpperCase()} via ${pattern.type} | Conf: ${(confidence * 100).toFixed(1)}% | Interval: ${this._candleIntervalMin||'?'}m`);
   }
 
   _computeDailyATR() {
