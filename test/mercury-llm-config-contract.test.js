@@ -80,11 +80,11 @@ describe('Mercury LLM config contract', () => {
       expect(config.MERCURY_LLM_CLIENT_MIN_TOKENS).toBe(400);
       expect(config.MERCURY_LLM_REQUEST_TIMEOUT_MS).toBe(300000);
       expect(config.MERCURY_LLM_TEMPERATURE).toBe(baseMercuryConfig.llm.temperature);
-      expect(config.CONSENSUS_DEFAULT_ENABLED).toBe(true);
-      expect(config.CONSENSUS_PROVIDER).toBe('claude-code');
-      expect(config.CONSENSUS_BASE_URL).toBe('https://api.anthropic.com/v1');
-      expect(config.CONSENSUS_MODEL).toBe('claude-fable-5');
-      expect(config.CONSENSUS_API_KEY_ENV).toBeNull();
+      expect(config.CONSENSUS_DEFAULT_ENABLED).toBe(false);
+      expect(config.CONSENSUS_PROVIDER).toBe('openai');
+      expect(config.CONSENSUS_BASE_URL).toBe('https://api.moonshot.ai/v1');
+      expect(config.CONSENSUS_MODEL).toBe('kimi-k3');
+      expect(config.CONSENSUS_API_KEY_ENV).toBe('MOONSHOT_API_KEY');
       expect(config.CONSENSUS_COMMAND).toBe('claude');
       expect(config.CONSENSUS_PERMISSION_MODE).toBe('dontAsk');
       expect(config.AGENTIC_MAX_ITERATIONS).toBe(60);
@@ -151,25 +151,27 @@ describe('Mercury LLM config contract', () => {
     });
   });
 
-  test('default consensus client options use local Claude Code Fable without API key', async () => {
+  test('explicit consensus client options use the configured Kimi reviewer key', async () => {
     await withMercuryConfig({}, () => {
       const { resolveConsensusLlmClientOptions } = require('../trai_brain/mercury-bridge/llm-client');
       const options = resolveConsensusLlmClientOptions();
 
       expect(options).toMatchObject({
-        provider: 'claude-code',
-        model: 'claude-fable-5',
-        apiKey: '',
-        authRequired: false,
+        provider: 'openai',
+        baseUrl: 'https://api.moonshot.ai/v1',
+        model: 'kimi-k3',
+        apiKey: 'placeholder-moonshot-key',
+        authRequired: true,
         command: 'claude',
         permissionMode: 'dontAsk',
         maxTokens: 2000,
         minimumTokens: 200,
-        temperature: 0,
+        temperature: 1,
         requestTimeoutMs: 300000,
       });
       expect(options.systemPrompt).toContain('adversarial reviewer');
     }, {
+      MOONSHOT_API_KEY: 'placeholder-moonshot-key',
       ANTHROPIC_API_KEY: undefined,
       CLAUDE_API_KEY: undefined,
       LLM_API_KEY: 'fallback-must-not-be-read',
@@ -196,7 +198,10 @@ describe('Mercury LLM config contract', () => {
     await withMercuryConfig({
       consensus: {
         provider: 'claude',
+        baseUrl: 'https://api.anthropic.com/v1',
+        model: 'claude-fable-5',
         apiKeyEnv: 'MERCURY_TEST_FABLE_KEY',
+        temperature: 0,
       },
     }, () => {
       const { resolveConsensusLlmClientOptions } = require('../trai_brain/mercury-bridge/llm-client');
@@ -222,10 +227,108 @@ describe('Mercury LLM config contract', () => {
     });
   });
 
-  test('API consensus client key is required only when provider is claude', async () => {
+  test('OpenAI-compatible consensus client can target Kimi with configured key only', async () => {
+    await withMercuryConfig({
+      consensus: {
+        provider: 'openai',
+        baseUrl: 'https://api.moonshot.ai/v1',
+        model: 'kimi-k3',
+        temperature: 1,
+        apiKeyEnv: 'MOONSHOT_TEST_KEY',
+      },
+    }, () => {
+      const { resolveConsensusLlmClientOptions } = require('../trai_brain/mercury-bridge/llm-client');
+      const options = resolveConsensusLlmClientOptions();
+
+      expect(options).toMatchObject({
+        provider: 'openai',
+        baseUrl: 'https://api.moonshot.ai/v1',
+        model: 'kimi-k3',
+        apiKey: 'placeholder-moonshot-key',
+        authRequired: true,
+        maxTokens: 2000,
+        minimumTokens: 200,
+        temperature: 1,
+        requestTimeoutMs: 300000,
+      });
+      expect(options.systemPrompt).toContain('adversarial reviewer');
+    }, {
+      MOONSHOT_TEST_KEY: 'placeholder-moonshot-key',
+      ANTHROPIC_API_KEY: 'fallback-must-not-be-read',
+      CLAUDE_API_KEY: 'fallback-must-not-be-read',
+      LLM_API_KEY: 'fallback-must-not-be-read',
+    });
+  });
+
+  test('Ollama Cloud consensus client uses bearer key and OpenAI-format provider path', async () => {
+    await withMercuryConfig({
+      consensus: {
+        provider: 'ollamacloud',
+        baseUrl: 'https://ollama.com/v1',
+        model: 'qwen3-coder:480b-cloud',
+        apiKeyEnv: 'OLLAMA_CLOUD_TEST_KEY',
+      },
+    }, () => {
+      const { resolveConsensusLlmClientOptions } = require('../trai_brain/mercury-bridge/llm-client');
+      const options = resolveConsensusLlmClientOptions();
+
+      expect(options).toMatchObject({
+        provider: 'ollamacloud',
+        baseUrl: 'https://ollama.com/v1',
+        model: 'qwen3-coder:480b-cloud',
+        apiKey: 'placeholder-ollama-cloud-key',
+        authRequired: true,
+      });
+    }, {
+      OLLAMA_CLOUD_TEST_KEY: 'placeholder-ollama-cloud-key',
+      OLLAMA_API_KEY: 'fallback-must-not-be-read',
+      LLM_API_KEY: 'fallback-must-not-be-read',
+    });
+  });
+
+  test('Ollama consensus client is auth-free and local-only', async () => {
+    await withMercuryConfig({
+      consensus: {
+        provider: 'ollama',
+        baseUrl: 'http://localhost:11434',
+        model: 'qwen-coder-480b',
+        apiKeyEnv: null,
+      },
+    }, () => {
+      const { resolveConsensusLlmClientOptions } = require('../trai_brain/mercury-bridge/llm-client');
+      const options = resolveConsensusLlmClientOptions();
+
+      expect(options).toMatchObject({
+        provider: 'ollama',
+        baseUrl: 'http://localhost:11434',
+        model: 'qwen-coder-480b',
+        apiKey: '',
+        authRequired: false,
+      });
+    }, {
+      OLLAMA_API_KEY: 'fallback-must-not-be-read',
+      LLM_API_KEY: 'fallback-must-not-be-read',
+    });
+
+    await withMercuryConfig({
+      consensus: {
+        provider: 'ollama',
+        baseUrl: 'https://remote-ollama.example',
+        model: 'qwen-coder-480b',
+        apiKeyEnv: null,
+      },
+    }, () => {
+      expect(() => require('../trai_brain/mercury-bridge/config'))
+        .toThrow(/consensus\.provider=ollama requires a local endpoint/);
+    });
+  });
+
+  test('API consensus client key is required for remote providers', async () => {
     await withMercuryConfig({
       consensus: {
         provider: 'claude',
+        baseUrl: 'https://api.anthropic.com/v1',
+        model: 'claude-fable-5',
         apiKeyEnv: 'MERCURY_TEST_FABLE_KEY',
       },
     }, () => {
@@ -238,6 +341,22 @@ describe('Mercury LLM config contract', () => {
     }, {
       MERCURY_TEST_FABLE_KEY: undefined,
       ANTHROPIC_API_KEY: 'fallback-must-not-be-read',
+    });
+
+    await withMercuryConfig({
+      consensus: {
+        provider: 'openai',
+        baseUrl: 'https://api.moonshot.ai/v1',
+        model: 'kimi-k3',
+        apiKeyEnv: 'MOONSHOT_TEST_KEY',
+      },
+    }, () => {
+      const { resolveConsensusLlmClientOptions } = require('../trai_brain/mercury-bridge/llm-client');
+
+      expect(() => resolveConsensusLlmClientOptions())
+        .toThrow(/Configured consensus LLM API key env is missing: MOONSHOT_TEST_KEY/);
+    }, {
+      MOONSHOT_TEST_KEY: undefined,
     });
   });
 

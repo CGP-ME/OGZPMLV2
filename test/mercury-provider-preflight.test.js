@@ -21,6 +21,8 @@ function fakeClient({ provider, model, initialize }) {
 describe('Mercury provider preflight', () => {
   test('classifies provider access failures into operator-action buckets', () => {
     expect(classifyProviderError(new Error('HTTP 402: free_tier_quota_exceeded'))).toBe('quota_or_billing');
+    expect(classifyProviderError(new Error('HTTP 429: insufficient balance'))).toBe('quota_or_billing');
+    expect(classifyProviderError(new Error('HTTP 403: this model requires a subscription'))).toBe('quota_or_billing');
     expect(classifyProviderError(new Error('HTTP 401: authentication_error invalid x-api-key'))).toBe('auth');
     expect(classifyProviderError(new Error('model not found'))).toBe('model');
     expect(classifyProviderError(new Error('ETIMEDOUT'))).toBe('network');
@@ -30,6 +32,10 @@ describe('Mercury provider preflight', () => {
   test('redacts provider request ids from preflight error messages', () => {
     expect(sanitizeProviderMessage('HTTP 401: {"request_id":"req_secret"}'))
       .toBe('HTTP 401: {"request_id":"[REDACTED]"}');
+    expect(sanitizeProviderMessage('HTTP 429: org-abc123 <ak-secret-handle> insufficient balance'))
+      .toBe('HTTP 429: org-[REDACTED] <account-[REDACTED]> insufficient balance');
+    expect(sanitizeProviderMessage('HTTP 403: upgrade for access (ref: 582be732-c5d4-4def-8440-4e8583b126ba)'))
+      .toBe('HTTP 403: upgrade for access (ref: [REDACTED])');
   });
 
   test('preflight returns ok only when Mercury and Fable both warm up', async () => {

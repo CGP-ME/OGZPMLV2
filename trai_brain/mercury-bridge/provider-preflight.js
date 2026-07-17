@@ -4,7 +4,7 @@ const { createMercuryLlmClient, createConsensusLlmClient } = require('./llm-clie
 
 function classifyProviderError(err) {
   const message = err && err.message ? err.message : String(err);
-  if (/free_tier_quota_exceeded|free tier limit|HTTP 402/i.test(message)) {
+  if (/free_tier_quota_exceeded|free tier limit|insufficient balance|rate limit|requires a subscription|upgrade for access|HTTP 402|HTTP 403|HTTP 429/i.test(message)) {
     return 'quota_or_billing';
   }
   if (/authentication_error|invalid x-api-key|HTTP 401|api key env is missing|missing/i.test(message)) {
@@ -21,7 +21,10 @@ function classifyProviderError(err) {
 
 function sanitizeProviderMessage(message) {
   return String(message == null ? '' : message)
-    .replace(/("request_id"\s*:\s*")[^"]+(")/gi, '$1[REDACTED]$2');
+    .replace(/("request_id"\s*:\s*")[^"]+(")/gi, '$1[REDACTED]$2')
+    .replace(/\borg-[a-z0-9_-]+\b/gi, 'org-[REDACTED]')
+    .replace(/<ak-[^>]+>/gi, '<account-[REDACTED]>')
+    .replace(/\(ref:\s*[0-9a-f-]{16,}\)/gi, '(ref: [REDACTED])');
 }
 
 function cleanProviderError(err) {

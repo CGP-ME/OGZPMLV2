@@ -62,17 +62,17 @@
     "temperature": 0.8
   },
   "consensus": {
-    "defaultEnabled": true,
-    "provider": "claude-code",
-    "baseUrl": "https://api.anthropic.com/v1",
-    "model": "claude-fable-5",
-    "apiKeyEnv": null,
+    "defaultEnabled": false,
+    "provider": "openai",
+    "baseUrl": "https://api.moonshot.ai/v1",
+    "model": "kimi-k3",
+    "apiKeyEnv": "MOONSHOT_API_KEY",
     "command": "claude",
     "permissionMode": "dontAsk",
     "clientMaxTokens": 2000,
     "clientMinTokens": 200,
     "requestTimeoutMs": 300000,
-    "temperature": 0,
+    "temperature": 1,
     "systemPrompt": [
       "You are Fable, the adversarial reviewer for OGZPrime Mercury reviews.",
       "",

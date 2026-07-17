@@ -58,7 +58,7 @@ describe('Mercury Fable consensus', () => {
   test('consensusRequested honors explicit run flag over config default', () => {
     expect(consensusRequested({ consensusExplicit: true, consensus: true })).toBe(true);
     expect(consensusRequested({ consensusExplicit: true, consensus: false })).toBe(false);
-    expect(consensusRequested({})).toBe(true);
+    expect(consensusRequested({})).toBe(false);
     expect(adversarialReviewRequested({ adversarialReviewExplicit: true, adversarialReview: true })).toBe(true);
     expect(adversarialReviewRequested({ adversarialReviewExplicit: true, adversarialReview: false })).toBe(false);
     expect(reviewModeRequested({ adversarialReviewExplicit: true, adversarialReview: true })).toBe('adversarial_review');
@@ -294,8 +294,8 @@ describe('Mercury Fable consensus', () => {
     expect(result).toMatchObject({
       enabled: true,
       ok: true,
-      provider: 'claude-code',
-      model: 'claude-fable-5',
+      provider: 'openai',
+      model: 'kimi-k3',
       latencyMs: 250,
       parsed: {
         verdict: 'pass',
@@ -310,8 +310,8 @@ describe('Mercury Fable consensus', () => {
       enabled: true,
       mode: 'adversarial_review',
       ok: false,
-      provider: 'claude-code',
-      model: 'claude-fable-5',
+      provider: 'openai',
+      model: 'kimi-k3',
       error: {
         name: 'Error',
         message: 'quota exceeded',

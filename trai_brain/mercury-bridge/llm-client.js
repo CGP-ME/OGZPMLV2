@@ -204,8 +204,9 @@ function resolveConsensusLlmClientOptions({ systemPrompt = config.CONSENSUS_SYST
     throw new Error('Consensus LLM systemPrompt must be supplied from mercury.config.json');
   }
 
+  const authRequired = config.CONSENSUS_PROVIDER !== 'claude-code' && config.CONSENSUS_PROVIDER !== 'ollama';
   let apiKey = '';
-  if (config.CONSENSUS_PROVIDER !== 'claude-code') {
+  if (authRequired) {
     apiKey = process.env[config.CONSENSUS_API_KEY_ENV];
     if (!apiKey) {
       throw new Error(`Configured consensus LLM API key env is missing: ${config.CONSENSUS_API_KEY_ENV}`);
@@ -217,7 +218,7 @@ function resolveConsensusLlmClientOptions({ systemPrompt = config.CONSENSUS_SYST
     baseUrl: config.CONSENSUS_BASE_URL,
     model: config.CONSENSUS_MODEL,
     apiKey,
-    authRequired: config.CONSENSUS_PROVIDER !== 'claude-code',
+    authRequired,
     command: config.CONSENSUS_COMMAND,
     permissionMode: config.CONSENSUS_PERMISSION_MODE,
     maxTokens: config.CONSENSUS_CLIENT_MAX_TOKENS,

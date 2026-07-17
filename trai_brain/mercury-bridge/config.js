@@ -340,13 +340,11 @@ const CONSENSUS_SYSTEM_PROMPT = optionalText(MERCURY_CONFIG, 'consensus.systemPr
   'Evaluate Mercury evidence. Do not invent repo facts or file:line citations.',
 ].join('\n'));
 
-if (!new Set(['claude', 'claude-code']).has(CONSENSUS_PROVIDER)) {
-  throw new Error(`Unsupported consensus.provider=${CONSENSUS_PROVIDER}. Use claude or claude-code.`);
+const supportedConsensusProviders = new Set([...supportedLlmProviders, 'claude-code']);
+if (!supportedConsensusProviders.has(CONSENSUS_PROVIDER)) {
+  throw new Error(`Unsupported consensus.provider=${CONSENSUS_PROVIDER}. Use ${Array.from(supportedConsensusProviders).join(', ')}.`);
 }
-if (CONSENSUS_PROVIDER === 'claude') {
-  if (!CONSENSUS_API_KEY_ENV) {
-    throw new Error('consensus.apiKeyEnv is required when consensus.provider=claude');
-  }
+if (CONSENSUS_PROVIDER !== 'claude-code') {
   try {
     const consensusBaseUrl = new URL(CONSENSUS_BASE_URL);
     if (consensusBaseUrl.username || consensusBaseUrl.password || consensusBaseUrl.search || consensusBaseUrl.hash) {
@@ -355,8 +353,27 @@ if (CONSENSUS_PROVIDER === 'claude') {
   } catch (err) {
     throw new Error(`Invalid mercury.config.json value: consensus.baseUrl: ${err.message}`);
   }
-} else if (CONSENSUS_API_KEY_ENV) {
-  throw new Error('consensus.apiKeyEnv must be empty when consensus.provider=claude-code');
+}
+if (CONSENSUS_PROVIDER === 'ollama') {
+  if (CONSENSUS_API_KEY_ENV) {
+    throw new Error('consensus.apiKeyEnv must be empty when consensus.provider=ollama');
+  }
+  try {
+    const consensusBaseUrl = new URL(CONSENSUS_BASE_URL);
+    if (!['localhost', '127.0.0.1', '::1'].includes(consensusBaseUrl.hostname)) {
+      throw new Error(`consensus.provider=ollama requires a local endpoint, got ${CONSENSUS_BASE_URL}`);
+    }
+  } catch (err) {
+    throw new Error(`Invalid mercury.config.json value: consensus.baseUrl: ${err.message}`);
+  }
+} else if (CONSENSUS_PROVIDER === 'claude-code') {
+  if (CONSENSUS_API_KEY_ENV) {
+    throw new Error('consensus.apiKeyEnv must be empty when consensus.provider=claude-code');
+  }
+} else {
+  if (!CONSENSUS_API_KEY_ENV) {
+    throw new Error(`consensus.apiKeyEnv is required when consensus.provider=${CONSENSUS_PROVIDER}`);
+  }
 }
 
 // ─── Skip patterns ────────────────────────────────────────────
