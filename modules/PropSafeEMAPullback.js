@@ -253,7 +253,7 @@ class PropSafeEMAPullback {
     if (!(price > trend && fast > pullback)) return null;
     if (!this._emaSlope('buy', candles, this.cfg.pullbackEmaPeriod)) return null;
     if (!this._emaSlope('buy', candles, this.cfg.trendEmaPeriod)) return null;
-    const pullbackDistance = this._pullbackDistance([latest], pullback, atr);
+    const pullbackDistance = this._pullbackDistance(candles, pullback, atr);
     if (
       pullbackDistance === null ||
       pullbackDistance < this.cfg.pullbackMinAtr ||
@@ -277,7 +277,7 @@ class PropSafeEMAPullback {
     if (!(price < trend && fast < pullback)) return null;
     if (!this._emaSlope('sell', candles, this.cfg.pullbackEmaPeriod)) return null;
     if (!this._emaSlope('sell', candles, this.cfg.trendEmaPeriod)) return null;
-    const pullbackDistance = this._pullbackDistance([latest], pullback, atr);
+    const pullbackDistance = this._pullbackDistance(candles, pullback, atr);
     if (
       pullbackDistance === null ||
       pullbackDistance < this.cfg.pullbackMinAtr ||

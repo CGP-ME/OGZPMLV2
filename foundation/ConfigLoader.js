@@ -3393,6 +3393,11 @@ const BASE_CONFIG = {
         stopLoss: null,
         tierPresets: null,
         confidence: [0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80],
+        strategyParams: {
+          PropSafeEMAPullback: {
+            'strategies.PropSafeEMAPullback.pullbackLookbackBars': [3, 5, 8],
+          },
+        },
       },
     },
   }),

@@ -1,6 +1,7 @@
 'use strict';
 
 const PropSafeEMAPullback = require('../modules/PropSafeEMAPullback');
+const { IndicatorCalculator } = require('../core/IndicatorCalculator');
 
 function candle(o, h, l, close, minutesFromOpen) {
   const ts = Date.UTC(2026, 5, 15, 13, 30 + minutesFromOpen);
@@ -58,6 +59,10 @@ function strategy(overrides = {}) {
 }
 
 describe('PropSafeEMAPullback', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   test('emits long signal only after EMA trend, pullback, and bullish confirmation align', () => {
     const signal = strategy().evaluate({
       priceHistory: buildTrendCandles(),
@@ -93,9 +98,9 @@ describe('PropSafeEMAPullback', () => {
     });
   });
 
-  test('does not re-emit on later green candles that no longer touch the pullback EMA', () => {
+  test('does not re-emit once the prior pullback leaves the configured lookback window', () => {
     const base = buildTrendCandles();
-    const instance = strategy({ crossLookbackBars: 2 });
+    const instance = strategy({ crossLookbackBars: 2, pullbackMaxAtr: 0.05 });
 
     expect(instance.evaluate({
       priceHistory: base,
@@ -105,14 +110,13 @@ describe('PropSafeEMAPullback', () => {
       direction: 'buy',
     });
 
-    const laterCandles = [
-      ...base,
-      candle(108.00, 108.80, 107.95, 108.50, 46),
-      candle(108.50, 109.05, 108.40, 108.85, 47),
-      candle(108.85, 109.40, 108.80, 109.20, 48),
-    ];
+    const laterCandles = [...base];
+    for (let offset = 0; offset < instance.cfg.pullbackLookbackBars + 3; offset += 1) {
+      const close = 160.00 + offset * 3;
+      laterCandles.push(candle(close - 0.10, close + 0.55, close - 0.05, close + 0.35, 46 + offset));
+    }
 
-    for (let length = base.length + 1; length <= laterCandles.length; length += 1) {
+    for (let length = base.length + instance.cfg.pullbackLookbackBars + 1; length <= laterCandles.length; length += 1) {
       expect(instance.evaluate({
         priceHistory: laterCandles.slice(0, length),
         indicators: { atr: 0.8 },
@@ -134,6 +138,83 @@ describe('PropSafeEMAPullback', () => {
       priceHistory: buildTrendCandles(),
       indicators: { atr: 0.8 },
     })).toBeNull();
+  });
+
+  test('finds a valid pullback inside the configured lookback window even when the latest candle is outside the band', () => {
+    const candles = Array.from({ length: 20 }, (_, index) => {
+      if (index === 17) {
+        return candle(100.30, 100.45, 99.95, 100.20, index);
+      }
+      if (index === 19) {
+        return candle(120.10, 120.40, 119.90, 120.30, index);
+      }
+      const close = 118 + index * 0.04;
+      return candle(close - 0.05, close + 0.20, close - 0.20, close, index);
+    });
+    const instance = strategy({
+      crossLookbackBars: 4,
+      pullbackLookbackBars: 4,
+      pullbackMaxAtr: 0.25,
+    });
+
+    jest.spyOn(IndicatorCalculator, 'calculateEMA').mockImplementation((input, period) => {
+      if (period === instance.cfg.fastEmaPeriod) return 110;
+      if (period === instance.cfg.pullbackEmaPeriod) return input.length === candles.length ? 100 : 99;
+      if (period === instance.cfg.trendEmaPeriod) return input.length === candles.length ? 90 : 89;
+      return NaN;
+    });
+
+    const signal = instance.evaluate({
+      priceHistory: candles,
+      indicators: { atr: 1 },
+    });
+
+    expect(signal).toMatchObject({
+      strategy: 'PropSafeEMAPullback',
+      direction: 'buy',
+      signalData: {
+        pullbackDistanceAtr: 0,
+      },
+    });
+  });
+
+  test('finds a valid short pullback inside the configured lookback window when shorts are enabled', () => {
+    const candles = Array.from({ length: 20 }, (_, index) => {
+      if (index === 17) {
+        return candle(100.30, 100.45, 99.95, 100.20, index);
+      }
+      if (index === 19) {
+        return candle(80.30, 80.40, 79.90, 80.10, index);
+      }
+      const close = 82 - index * 0.04;
+      return candle(close + 0.05, close + 0.20, close - 0.20, close, index);
+    });
+    const instance = strategy({
+      allowShorts: true,
+      crossLookbackBars: 4,
+      pullbackLookbackBars: 4,
+      pullbackMaxAtr: 0.25,
+    });
+
+    jest.spyOn(IndicatorCalculator, 'calculateEMA').mockImplementation((input, period) => {
+      if (period === instance.cfg.fastEmaPeriod) return 90;
+      if (period === instance.cfg.pullbackEmaPeriod) return input.length === candles.length ? 100 : 101;
+      if (period === instance.cfg.trendEmaPeriod) return input.length === candles.length ? 110 : 111;
+      return NaN;
+    });
+
+    const signal = instance.evaluate({
+      priceHistory: candles,
+      indicators: { atr: 1 },
+    });
+
+    expect(signal).toMatchObject({
+      strategy: 'PropSafeEMAPullback',
+      direction: 'sell',
+      signalData: {
+        pullbackDistanceAtr: 0,
+      },
+    });
   });
 
   test('fails loudly on invalid EMA ordering', () => {

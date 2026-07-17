@@ -85,6 +85,9 @@ describe('matrix-sweep runnable surface', () => {
     expect(GRID.conf.tierPresets).toBeNull();
     expect(GRID.conf.stopLoss).toBeNull();
     expect(GRID.conf.confidence).toEqual(matrixConfig.grid.conf.confidence);
+    expect(GRID.conf.strategyParams).toEqual(matrixConfig.grid.conf.strategyParams);
+    expect(GRID.conf.strategyParams.PropSafeEMAPullback['strategies.PropSafeEMAPullback.pullbackLookbackBars'])
+      .toEqual([3, 5, 8]);
     expect(GRID.exits.confidence).toEqual(matrixConfig.grid.exits.confidence);
     expect(GRID.exits.stopLoss).toEqual(matrixConfig.grid.exits.stopLoss);
     expect(GRID.exits.tierPresets).toEqual(buildMonotonicTierCube(matrixConfig.grid.exits.tierGrid));
@@ -103,6 +106,9 @@ describe('matrix-sweep runnable surface', () => {
     }).toThrow(TypeError);
     expect(() => {
       GRID.full.confidence.push(0.99);
+    }).toThrow(TypeError);
+    expect(() => {
+      GRID.conf.strategyParams.PropSafeEMAPullback['strategies.PropSafeEMAPullback.pullbackLookbackBars'].push(13);
     }).toThrow(TypeError);
   });
 
@@ -186,6 +192,19 @@ describe('matrix-sweep runnable surface', () => {
       .every(config => config.env.ENABLE_RSI2_MR === 'true')).toBe(true);
     expect(configs.filter(config => config.strategy === 'TimeSeriesMomentum')
       .every(config => config.env.ENABLE_TSMOM === 'true')).toBe(true);
+  });
+
+  test('PropSafeEMAPullback pullback lookback sweep stays inside caged backtest overrides', () => {
+    const configs = generateMatrix(['PropSafeEMAPullback'], GRID.conf, 'conf');
+    const payloads = configs.map(config => JSON.parse(config.env.BACKTEST_CONFIG_OVERRIDES_JSON));
+    const values = payloads.map(payload => payload['strategies.PropSafeEMAPullback.pullbackLookbackBars']);
+
+    expect(configs).toHaveLength(GRID.conf.confidence.length * 3);
+    expect(new Set(values)).toEqual(new Set([3, 5, 8]));
+    expect(configs.every(config => config.env.ENABLE_PROPSAFE_EMA === 'true')).toBe(true);
+    expect(configs.every(config => config.env.PROPSAFE_EMA_PULLBACK_LOOKBACK === undefined)).toBe(true);
+    expect(configs.every(config => config.strategyParams != null)).toBe(true);
+    expect(configs.every(config => config.strategyParams['strategies.PropSafeEMAPullback.pullbackLookbackBars'] != null)).toBe(true);
   });
 
   test('structural-exit strategies generate no false full or exit matrices', () => {
