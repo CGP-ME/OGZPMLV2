@@ -1,0 +1,120 @@
+{
+  "generatedAt": "2026-07-18T10:20:56.372Z",
+  "gitHead": "ce9281ed51bb4db0a0b070c0936269ac46cea76d",
+  "policy": "tournament split manifest only; raw candle files are not moved or rewritten",
+  "sweep": {
+    "name": "tsla-1m-2y-months-1-18",
+    "file": "tuning/tsla-1m-2y.json",
+    "fileSha256": "5c1ee4e1d6c04b76671f1ba43de8b6008093f4fda41b148e110176d925d5dea5",
+    "startInclusive": "2024-07-15T13:28:00.000Z",
+    "endExclusive": "2026-01-15T13:28:00.000Z",
+    "candleCount": 145207,
+    "rangeSha256": "c6be0e8b037519084eb936547a2bbab7ae37aa24632ca8d57939a4630fd04bb3",
+    "firstCandle": "2024-07-15T13:28:00.000Z",
+    "lastCandle": "2026-01-15T13:23:00.000Z"
+  },
+  "walkForward": {
+    "name": "tsla-1m-4y-outside-sweep-window",
+    "file": "tuning/tsla-1m-4y.json",
+    "fileSha256": "d156d68fa530a1cbff0a34e9e86be33b08fcfe8f77e9e4ef67d8e2b126e4db07",
+    "excludedWindow": {
+      "startInclusive": "2024-07-15T13:28:00.000Z",
+      "endExclusive": "2026-01-15T13:28:00.000Z"
+    },
+    "outsideCandleCount": 240170,
+    "outsideRangeSha256": "24a3bcdd054550db1f76b9fe10831fca0cad6b56311fbceb3e8ab294821b6bce",
+    "beforeWindow": {
+      "candleCount": 190828,
+      "firstCandle": "2022-07-18T13:01:00.000Z",
+      "lastCandle": "2024-07-12T20:06:00.000Z",
+      "rangeSha256": "67b27af89ba5a0c3317944a65f52b8ad40149bfa3e0fbd8e20308b21480e3675"
+    },
+    "afterWindow": {
+      "candleCount": 49342,
+      "firstCandle": "2026-01-15T13:49:00.000Z",
+      "lastCandle": "2026-07-15T19:59:00.000Z",
+      "rangeSha256": "25517df0ca09eeef80c1a0709eb25ad99dc7a75c7010360dff302c727907a307"
+    }
+  },
+  "examTickers": {
+    "disposition": "untouched",
+    "files": [
+      {
+        "file": "tuning/alpaca-coin-15m-2y.json",
+        "sha256": "3dec5f3e030c2007c1983fa6eb69ec0aeb7f600cd04dac82a5afa44f855713aa"
+      },
+      {
+        "file": "tuning/alpaca-mara-15m-2y.json",
+        "sha256": "0437a29d47862bbce688825041efa33d244c430665f972ec67f9230a64311616"
+      },
+      {
+        "file": "tuning/alpaca-nvda-15m-2y.json",
+        "sha256": "024a7d3d6b5f3404dfca803365ef40c906da5d440f746b1eeff1e55970b2c4da"
+      },
+      {
+        "file": "tuning/alpaca-qqq-15m-2y.json",
+        "sha256": "c77c7c06b5c4452f47723ac5d55ad338f1ec56d2d59bdbb085d1b67e6380e4a4"
+      },
+      {
+        "file": "tuning/alpaca-riot-15m-2y.json",
+        "sha256": "129a985b4de1912ab3da22ed5ff70b3d7ba413e1117dded2cc013f81a2ae9c45"
+      },
+      {
+        "file": "tuning/alpaca-spy-15m-2y.json",
+        "sha256": "b1917d38e23257c4528e47e174fc068475acb083e2c61c63b7970d8fefc885d1"
+      },
+      {
+        "file": "tuning/alpaca-tsla-15m-2y.json",
+        "sha256": "1bf200ffa744984209415b67b4e141e7443b8f5863bdad2efbfbc7b1a328797e"
+      },
+      {
+        "file": "tuning/amd-15m-2y.json",
+        "sha256": "545505c24355dbcf409ecec9a148d42b33bfe9df7ef6c8379811c8886368d47c"
+      },
+      {
+        "file": "tuning/coin-15m-2y.json",
+        "sha256": "290c9fcdaf730098f3eeb3efdc3f0a32903249877aece723af98a60446c38d38"
+      },
+      {
+        "file": "tuning/mara-15m-2y.json",
+        "sha256": "81d3d79d65bbf18b888b872077a5faa816039fde2dd2b6ad75742a8a44ca3bb1"
+      },
+      {
+        "file": "tuning/nvda-15m-2y.json",
+        "sha256": "e65519fd68385e87d58c72e658889cf76e785d23f08f9a7987e537f76c850982"
+      },
+      {
+        "file": "tuning/nvda-1m-2y.json",
+        "sha256": "c388d095c8634243089d795708194151fdda486b38faf80521934cc91a575a29"
+      },
+      {
+        "file": "tuning/pltr-15m-2y.json",
+        "sha256": "994f482bc63ebc73273cd80db9c93293b7c7564207d97f414d535f3ca874b3bc"
+      },
+      {
+        "file": "tuning/qqq-15m-2y.json",
+        "sha256": "deae0725684b63d45a3a45dcd56404031cd2de4bd76b5bf9eab4e6f5ba78d398"
+      },
+      {
+        "file": "tuning/qqq-1m-2y.json",
+        "sha256": "f88aaa8d72a32fdbf94624cec604d438873be2a01bb2e1fc48fbfab843f8b8c1"
+      },
+      {
+        "file": "tuning/riot-15m-2y.json",
+        "sha256": "3d27d06c908acceadd922fb9f33d9b687e31494b628e5314f5f3dfd5489ae686"
+      },
+      {
+        "file": "tuning/spy-15m-2y.json",
+        "sha256": "bdf5f827dc665392b3e096ab2c94e9d41d9ee0a399055c62fbf1a4bbefa14649"
+      },
+      {
+        "file": "tuning/spy-1m-2y.json",
+        "sha256": "53982b7ef763a8a0deeb15679f5ef6f1b670d30c298c164a08c59d2d89a49384"
+      },
+      {
+        "file": "tuning/tsla-15m-2y.json",
+        "sha256": "1c4f7288987b576e81a2fff2695e80c8fb0692af224849899e613d1ed3de3d20"
+      }
+    ]
+  }
+}
