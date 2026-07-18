@@ -18,6 +18,10 @@ class TakeProfitChecker {
   check(trade, pnlPercent) {
     const contract = trade.exitContract || {};
 
+    if (contract.tpMode === 'off') {
+      return { shouldExit: false };
+    }
+
     if (contract.takeProfitPercent !== undefined && pnlPercent >= contract.takeProfitPercent) {
       return {
         shouldExit: true,

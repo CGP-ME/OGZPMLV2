@@ -29,6 +29,11 @@ class MaxHoldChecker {
    */
   check(trade, holdTimeMinutes, pnlPercent) {
     const contract = trade.exitContract || {};
+    const maxHoldMode = typeof contract.maxHoldMode === 'string' ? contract.maxHoldMode : 'minutes';
+
+    if (maxHoldMode === 'off') {
+      return { shouldExit: false };
+    }
 
     // === STRATEGY-SPECIFIC MAX HOLD ===
     if (contract.maxHoldTimeMinutes && holdTimeMinutes >= contract.maxHoldTimeMinutes) {

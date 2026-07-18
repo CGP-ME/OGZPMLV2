@@ -13,6 +13,27 @@ function rangeCandles(count, high = 105, low = 95, close = 100) {
   ));
 }
 
+function donchianConfig(overrides = {}) {
+  return {
+    entryPeriod: 20,
+    atrPeriod: 20,
+    atrStopMult: 2.5,
+    stopType: 'structural',
+    trailType: 'channel',
+    trailChannelBars: 10,
+    tpMode: 'off',
+    maxHoldMode: 'off',
+    partialExit: {
+      enabled: false,
+      triggerR: 1,
+      fraction: 0.5,
+      remainderTrail: 'terrain',
+    },
+    invalidationConditions: ['donchian_channel_reentry'],
+    ...overrides,
+  };
+}
+
 describe('DonchianBreakout', () => {
   test('IndicatorCalculator calculates Donchian channel over the requested window', () => {
     const candles = [
@@ -32,16 +53,7 @@ describe('DonchianBreakout', () => {
   });
 
   test('generates a long breakout only when close exceeds the prior channel high', () => {
-    const strategy = new DonchianBreakout({
-      entryPeriod: 20,
-      atrPeriod: 20,
-      atrStopMult: 2.5,
-      takeProfitPercent: 12,
-      trailingStopPercent: 1.5,
-      trailingActivation: 1,
-      maxHoldTimeMinutes: 10080,
-      invalidationConditions: ['regime_change'],
-    });
+    const strategy = new DonchianBreakout(donchianConfig());
     const candles = [
       ...rangeCandles(22, 105, 95, 100),
       candle(100, 109, 99, 108, 23),
@@ -55,44 +67,20 @@ describe('DonchianBreakout', () => {
     });
     expect(signal.confidence).toBeGreaterThan(0.55);
     expect(signal.exitContractHint.stopLossPercent).toBeCloseTo(-4.6296296296);
-    expect(signal.exitContractHint.takeProfitPercent).toBe(12);
+    expect(signal.exitContractHint.tpMode).toBe('off');
+    expect(signal.exitContractHint.takeProfitPercent).toBeNull();
+    expect(signal.exitContractHint.trailType).toBe('channel');
+    expect(signal.exitContractHint.donchianChannelUpper).toBe(105);
   });
 
   test('fails loudly when ATR stop multiplier would create a zero or inverted stop', () => {
-    expect(() => new DonchianBreakout({
-      entryPeriod: 20,
-      atrPeriod: 20,
-      atrStopMult: 0,
-      takeProfitPercent: 12,
-      trailingStopPercent: 1.5,
-      trailingActivation: 1,
-      maxHoldTimeMinutes: 10080,
-      invalidationConditions: ['regime_change'],
-    })).toThrow(/atrStopMult must be positive/);
+    expect(() => new DonchianBreakout(donchianConfig({ atrStopMult: 0 }))).toThrow(/atrStopMult must be positive/);
 
-    expect(() => new DonchianBreakout({
-      entryPeriod: 20,
-      atrPeriod: 20,
-      atrStopMult: -2.5,
-      takeProfitPercent: 12,
-      trailingStopPercent: 1.5,
-      trailingActivation: 1,
-      maxHoldTimeMinutes: 10080,
-      invalidationConditions: ['regime_change'],
-    })).toThrow(/atrStopMult must be positive/);
+    expect(() => new DonchianBreakout(donchianConfig({ atrStopMult: -2.5 }))).toThrow(/atrStopMult must be positive/);
   });
 
   test('does not include the current candle in the breakout channel', () => {
-    const strategy = new DonchianBreakout({
-      entryPeriod: 20,
-      atrPeriod: 20,
-      atrStopMult: 2.5,
-      takeProfitPercent: 12,
-      trailingStopPercent: 1.5,
-      trailingActivation: 1,
-      maxHoldTimeMinutes: 10080,
-      invalidationConditions: ['regime_change'],
-    });
+    const strategy = new DonchianBreakout(donchianConfig());
     const candles = [
       ...rangeCandles(22, 105, 95, 100),
       candle(100, 110, 99, 106, 23),
@@ -105,16 +93,7 @@ describe('DonchianBreakout', () => {
   });
 
   test('returns null instead of emitting a false trade when ATR is zero', () => {
-    const strategy = new DonchianBreakout({
-      entryPeriod: 20,
-      atrPeriod: 20,
-      atrStopMult: 2.5,
-      takeProfitPercent: 12,
-      trailingStopPercent: 1.5,
-      trailingActivation: 1,
-      maxHoldTimeMinutes: 10080,
-      invalidationConditions: ['regime_change'],
-    });
+    const strategy = new DonchianBreakout(donchianConfig());
     const candles = [
       ...rangeCandles(22, 105, 95, 100),
       candle(100, 109, 99, 108, 23),
@@ -124,16 +103,7 @@ describe('DonchianBreakout', () => {
   });
 
   test('returns null instead of emitting a false trade when ATR is missing and cannot warm up', () => {
-    const strategy = new DonchianBreakout({
-      entryPeriod: 20,
-      atrPeriod: 20,
-      atrStopMult: 2.5,
-      takeProfitPercent: 12,
-      trailingStopPercent: 1.5,
-      trailingActivation: 1,
-      maxHoldTimeMinutes: 10080,
-      invalidationConditions: ['regime_change'],
-    });
+    const strategy = new DonchianBreakout(donchianConfig());
 
     expect(strategy.evaluate({ priceHistory: rangeCandles(21), indicators: {} })).toBeNull();
   });
@@ -143,19 +113,24 @@ describe('DonchianBreakout', () => {
     const originalEnv = process.env;
     process.env = {
       ...originalEnv,
-      SOLO_STRATEGY: 'DonchianBreakout',
-      ENABLE_DONCHIAN: 'true',
       ENABLE_TRAI: 'false',
       ATR_FILTER_ENABLED: 'false',
       MIN_STRATEGY_CONFIDENCE: '0.35',
     };
+    let ConfigLoader;
 
     try {
+      ConfigLoader = require('../foundation/ConfigLoader');
+      ConfigLoader.setOverrides({
+        strategies: { soloFilter: ['DonchianBreakout'] },
+        pipeline: { enableDonchianBreakout: true },
+      });
       const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
       const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
 
       expect(orchestrator.strategies.map(strategy => strategy.name)).toEqual(['DonchianBreakout']);
     } finally {
+      if (ConfigLoader) ConfigLoader.clearOverrides();
       process.env = originalEnv;
     }
   });
@@ -165,16 +140,21 @@ describe('DonchianBreakout', () => {
     const originalEnv = process.env;
     process.env = {
       ...originalEnv,
-      SOLO_STRATEGY: 'DonchianBreakout',
-      ENABLE_DONCHIAN: 'false',
       ENABLE_TRAI: 'false',
     };
+    let ConfigLoader;
 
     try {
+      ConfigLoader = require('../foundation/ConfigLoader');
+      ConfigLoader.setOverrides({
+        strategies: { soloFilter: ['DonchianBreakout'] },
+        pipeline: { enableDonchianBreakout: false },
+      });
       const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
       expect(() => new StrategyOrchestrator({ minConfluenceCount: 1 }))
         .toThrow(/DonchianBreakout was requested but its pipeline toggle is disabled/);
     } finally {
+      if (ConfigLoader) ConfigLoader.clearOverrides();
       process.env = originalEnv;
     }
   });

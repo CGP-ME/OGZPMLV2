@@ -140,6 +140,37 @@ describe('StrategyOrchestrator OpeningRangeBreakout exit hint', () => {
     )).toThrow(/exitContractHint\.invalidationConditions must be an array when provided/);
   });
 
+  test('rejects Donchian hints missing structural mode ownership before candidate output', () => {
+    const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
+    const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
+
+    orchestrator.strategies = [{
+      name: 'DonchianBreakout',
+      evaluate: () => ({
+        direction: 'buy',
+        confidence: 0.8,
+        reason: 'bad donchian hint',
+        exitContractHint: {
+          stopLossPercent: -1.5,
+          tpMode: 'off',
+          takeProfitPercent: null,
+          trailType: 'channel',
+          maxHoldMode: 'off',
+          maxHoldTimeMinutes: null,
+          invalidationConditions: ['donchian_channel_reentry'],
+        },
+      }),
+    }];
+
+    expect(() => orchestrator.evaluate(
+      { atr: 1, volatility: 1 },
+      [],
+      { currentRegime: 'trending', confidence: 0.5, positionMultiplier: 1 },
+      [{ o: 99, h: 100, l: 98, c: 99, t: 1 }],
+      { price: 99, timeframe: '15m' }
+    )).toThrow(/DonchianBreakout exitContractHint must remain structural\/channel\/tp-off\/maxHold-off/);
+  });
+
   test('ignores ORB override-level fallback when entry-based hint is missing', () => {
     const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
     const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });

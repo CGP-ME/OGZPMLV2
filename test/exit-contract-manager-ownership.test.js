@@ -52,6 +52,41 @@ describe('ExitContractManager exit ownership contract', () => {
     },
   });
 
+  const frozenPolicyWithContract = (contract, profitOverrides = {}) => freezePolicy({
+    version: 1,
+    source: 'test',
+    strategyName: contract.strategyName || 'Lane5Strategy',
+    builtAtMs: Date.parse('2026-06-28T12:00:00.000Z'),
+    contract,
+    profitManagement: {
+      beScaleOut: {
+        enabled: false,
+        triggerType: 'one_to_one_r',
+        fixedPercentTrigger: 0.5,
+        scaleOutFraction: 0.5,
+        feeBufferPercent: 0.05,
+      },
+      breakEvenStop: { enabled: false, triggerPercent: 0.2 },
+      tieredExit: {
+        enabled: false,
+        enableMarketAdaptation: false,
+        allocationBasis: 'cumulative_original_quantity',
+        tiers: [],
+      },
+      ...profitOverrides,
+    },
+    fees: {
+      model: 'percent',
+      makerFee: 0.0025,
+      takerFee: 0.004,
+      slippage: 0.0005,
+      totalRoundTrip: 0.0065,
+      safetyBuffer: 0.001,
+      perShare: 0,
+      minOrderFee: 0,
+    },
+  });
+
   const profitTrade = (overrides = {}) => ({
     id: 'PROFIT_1',
     orderId: 'PROFIT_1',
@@ -76,6 +111,19 @@ describe('ExitContractManager exit ownership contract', () => {
     },
     tierStates: [{ tierIndex: 0, name: 'tier1', status: 'idle', filledQuantity: 0, brokerOrderIds: [] }],
     ...overrides,
+  });
+
+  test('all configured exit contracts carry the Lane 5 mode schema explicitly', () => {
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    const requiredKeys = ['stopType', 'trailType', 'tpMode', 'maxHoldMode', 'partialExit'];
+    const missing = Object.entries(ConfigLoader.BASE_CONFIG.exitContracts)
+      .flatMap(([strategyName, contract]) => (
+        requiredKeys
+          .filter(key => !Object.prototype.hasOwnProperty.call(contract, key))
+          .map(key => `${strategyName}.${key}`)
+      ));
+
+    expect(missing).toEqual([]);
   });
 
   test('rejects explicit trade exit contracts without structural ownership', () => {
@@ -218,6 +266,26 @@ describe('ExitContractManager exit ownership contract', () => {
     }
   });
 
+  test('refuses runtime overrides that turn Donchian structural exits into percent exits', () => {
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    ConfigLoader.setOverrides({
+      exitContracts: {
+        DonchianBreakout: {
+          stopType: 'percent',
+        },
+      },
+    });
+
+    try {
+      const manager = new ExitContractManager();
+
+      expect(() => manager.createExitContract('DonchianBreakout', {}, { timeframe: '15m', volatility: 1 }))
+        .toThrow(/DonchianBreakout contract must remain structural\/channel\/tp-off\/maxHold-off/);
+    } finally {
+      ConfigLoader.clearOverrides();
+    }
+  });
+
   test('honors runtime timeframeConfig overrides for generic strategy contracts', () => {
     const ConfigLoader = require('../foundation/ConfigLoader');
     ConfigLoader.setOverrides({
@@ -297,6 +365,196 @@ describe('ExitContractManager exit ownership contract', () => {
       exitReason: 'stop_loss',
     });
     expect(result.exitIntent).toBeUndefined();
+  });
+
+  test('uses global ATR trail multiplier when contract trailAtrMult is explicitly null', () => {
+    const manager = new ExitContractManager();
+    manager.trailConfig = {
+      enabled: true,
+      minActivationPercent: 1,
+      atrMultiplier: 2,
+      minTrailPercent: 0.1,
+      maxTrailPercent: 5,
+      trendWidenMultiplier: 1,
+      profitRatchetThreshold: null,
+      profitRatchetRate: null,
+      profitRatchetFloor: null,
+      structureDistanceThreshold: null,
+      structureTightenMultiplier: null,
+    };
+    const trade = profitTrade({
+      exitContract: exitContract({
+        trailType: 'percent',
+        trailAtrMult: null,
+      }),
+      highestPrice: 110,
+      currentStop: 95,
+    });
+
+    const result = manager._updateTrailingStopState(trade, 110, 5, {
+      indicators: { atr: 1 },
+    });
+
+    expect(result.updated).toBe(true);
+    expect(trade.trailingActive).toBe(true);
+    expect(trade.currentStop).toBeGreaterThan(95);
+  });
+
+  test('Donchian structural stop exits when price closes back inside the entry channel', () => {
+    const manager = new ExitContractManager();
+    const now = Date.parse('2026-06-28T12:00:00.000Z');
+    const contract = exitContract({
+      strategyName: 'DonchianBreakout',
+      stopType: 'structural',
+      trailType: 'channel',
+      tpMode: 'off',
+      maxHoldMode: 'off',
+      takeProfitPercent: null,
+      maxHoldTimeMinutes: 10080,
+      useStructuralExits: true,
+      donchianChannelUpper: 105,
+      donchianChannelLower: 95,
+      invalidationConditions: ['donchian_channel_reentry'],
+    });
+    const trade = profitTrade({
+      entryStrategy: 'DonchianBreakout',
+      direction: 'long',
+      entryPrice: 106,
+      exitContract: contract,
+      frozenExitPolicy: frozenPolicyWithContract(contract),
+    });
+
+    const result = manager.checkExitConditions(trade, 104.9, {
+      currentTime: now,
+      intentId: 'intent-donchian-reentry',
+      priceSource: 'test',
+    });
+
+    expect(result).toMatchObject({
+      shouldExit: true,
+      exitReason: 'invalidation',
+    });
+    expect(result.details).toContain('Donchian breakout closed back inside entry channel');
+  });
+
+  test('tpMode off suppresses take-profit even when a stale percent value is present', () => {
+    const manager = new ExitContractManager();
+    const now = Date.parse('2026-06-28T12:00:00.000Z');
+    const contract = exitContract({
+      strategyName: 'TimeSeriesMomentum',
+      stopType: 'atr',
+      trailType: 'atr',
+      tpMode: 'off',
+      maxHoldMode: 'off',
+      takeProfitPercent: 1,
+      maxHoldTimeMinutes: null,
+      useStructuralExits: false,
+      invalidationConditions: [],
+    });
+    const trade = profitTrade({
+      entryStrategy: 'TimeSeriesMomentum',
+      exitContract: contract,
+      frozenExitPolicy: frozenPolicyWithContract(contract),
+    });
+
+    const result = manager.checkExitConditions(trade, 110, {
+      currentTime: now,
+      intentId: 'intent-tp-off',
+      priceSource: 'test',
+    });
+
+    expect(result.shouldExit).toBe(false);
+    expect(result.exitReason).toBeNull();
+  });
+
+  test('TimeSeriesMomentum maxHoldMode off ignores decorative maxHoldTimeMinutes', () => {
+    const manager = new ExitContractManager();
+    const now = Date.parse('2026-06-28T20:00:00.000Z');
+    const contract = exitContract({
+      strategyName: 'TimeSeriesMomentum',
+      stopType: 'atr',
+      trailType: 'atr',
+      tpMode: 'off',
+      maxHoldMode: 'off',
+      takeProfitPercent: null,
+      maxHoldTimeMinutes: 240,
+      useStructuralExits: false,
+      invalidationConditions: [],
+    });
+    const trade = profitTrade({
+      entryStrategy: 'TimeSeriesMomentum',
+      entryTime: Date.parse('2026-06-28T11:00:00.000Z'),
+      exitContract: contract,
+      frozenExitPolicy: frozenPolicyWithContract(contract),
+    });
+
+    const result = manager.checkExitConditions(trade, 100.2, {
+      currentTime: now,
+      intentId: 'intent-tsm-maxhold-off',
+      priceSource: 'test',
+    });
+
+    expect(result.shouldExit).toBe(false);
+    expect(result.exitReason).toBeNull();
+  });
+
+  test('contract partialExit mode exits 50 percent at 1R without global beScaleOut', () => {
+    const manager = new ExitContractManager();
+    const now = Date.parse('2026-06-28T12:00:00.000Z');
+    const contract = exitContract({
+      strategyName: 'TimeSeriesMomentum',
+      stopType: 'atr',
+      trailType: 'atr',
+      tpMode: 'off',
+      maxHoldMode: 'off',
+      takeProfitPercent: null,
+      useStructuralExits: false,
+      partialExit: {
+        enabled: true,
+        triggerR: 1,
+        fraction: 0.5,
+        remainderTrail: 'atr',
+      },
+      invalidationConditions: [],
+    });
+    const trade = profitTrade({
+      entryStrategy: 'TimeSeriesMomentum',
+      exitContract: contract,
+      frozenExitPolicy: frozenPolicyWithContract(contract),
+    });
+
+    const result = manager.checkExitConditions(trade, 101, {
+      currentTime: now,
+      intentId: 'intent-contract-partial',
+      priceSource: 'test',
+    });
+
+    expect(result).toMatchObject({
+      shouldExit: true,
+      exitReason: 'partial_exit_1r',
+      exitFraction: 0.5,
+      exitIntent: {
+        action: 'exit_partial',
+        stateKey: 'beScaleOutState',
+      },
+    });
+  });
+
+  test('refuses malformed partialExit fractions before trade birth freezes the contract', () => {
+    const manager = new ExitContractManager();
+
+    expect(() => manager.createExitContract('TimeSeriesMomentum', {
+      stopType: 'atr',
+      trailType: 'atr',
+      tpMode: 'off',
+      maxHoldMode: 'off',
+      partialExit: {
+        enabled: true,
+        triggerR: 1,
+        fraction: 2,
+        remainderTrail: 'atr',
+      },
+    }, { timeframe: '15m', volatility: 1 })).toThrow(/partialExit.fraction must be between 0 and 1/);
   });
 
   test('honors RSI2 long exit threshold as a frozen contract invalidation', () => {

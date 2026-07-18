@@ -26,6 +26,11 @@ class StopLossChecker {
    */
   check(trade, currentPrice, pnlPercent, context = {}) {
     const contract = trade.exitContract || {};
+    const stopType = typeof contract.stopType === 'string' ? contract.stopType : 'percent';
+
+    if (stopType === 'structural') {
+      return { shouldExit: false };
+    }
 
     // === STRATEGY STOP LOSS (with break-even via BreakEvenManager) ===
     // Skip entire block for "no stop" contracts (null/undefined/0) — BreakEvenManager

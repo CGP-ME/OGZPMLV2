@@ -8,10 +8,14 @@ const REQUIRED_NUMERIC_KEYS = [
   'entryPeriod',
   'atrPeriod',
   'atrStopMult',
-  'takeProfitPercent',
-  'trailingStopPercent',
-  'trailingActivation',
-  'maxHoldTimeMinutes',
+  'trailChannelBars',
+];
+
+const REQUIRED_STRING_KEYS = [
+  'stopType',
+  'trailType',
+  'tpMode',
+  'maxHoldMode',
 ];
 
 function readConfig(overrides) {
@@ -21,19 +25,32 @@ function readConfig(overrides) {
   if (missing.length > 0) {
     throw new Error(`[DonchianBreakout] missing finite config key(s): ${missing.join(', ')}`);
   }
+  const missingStrings = REQUIRED_STRING_KEYS.filter(key => typeof cfg[key] !== 'string' || cfg[key].trim() === '');
+  if (missingStrings.length > 0) {
+    throw new Error(`[DonchianBreakout] missing string config key(s): ${missingStrings.join(', ')}`);
+  }
   if (!Number.isInteger(Number(cfg.entryPeriod)) || Number(cfg.entryPeriod) <= 0) {
     throw new Error(`[DonchianBreakout] entryPeriod must be a positive integer (got ${cfg.entryPeriod})`);
   }
   if (!Number.isInteger(Number(cfg.atrPeriod)) || Number(cfg.atrPeriod) <= 0) {
     throw new Error(`[DonchianBreakout] atrPeriod must be a positive integer (got ${cfg.atrPeriod})`);
   }
-  for (const key of ['atrStopMult', 'takeProfitPercent', 'trailingStopPercent', 'maxHoldTimeMinutes']) {
+  for (const key of ['atrStopMult', 'trailChannelBars']) {
     if (Number(cfg[key]) <= 0) {
       throw new Error(`[DonchianBreakout] ${key} must be positive (got ${cfg[key]})`);
     }
   }
-  if (Number(cfg.trailingActivation) < 0) {
-    throw new Error(`[DonchianBreakout] trailingActivation must be non-negative (got ${cfg.trailingActivation})`);
+  if (cfg.stopType !== 'structural') {
+    throw new Error(`[DonchianBreakout] stopType must be structural (got ${cfg.stopType})`);
+  }
+  if (cfg.trailType !== 'channel') {
+    throw new Error(`[DonchianBreakout] trailType must be channel (got ${cfg.trailType})`);
+  }
+  if (cfg.tpMode !== 'off') {
+    throw new Error(`[DonchianBreakout] tpMode must be off (got ${cfg.tpMode})`);
+  }
+  if (cfg.maxHoldMode !== 'off') {
+    throw new Error(`[DonchianBreakout] maxHoldMode must be off (got ${cfg.maxHoldMode})`);
   }
   if (cfg.invalidationConditions !== undefined && !Array.isArray(cfg.invalidationConditions)) {
     throw new Error('[DonchianBreakout] invalidationConditions must be an array when provided');
@@ -52,11 +69,15 @@ class DonchianBreakout {
     this.minHistory = Math.max(this.entryPeriod + 2, this.atrPeriod + 2);
 
     this.exit = {
-      takeProfitPercent: Number(cfg.takeProfitPercent),
-      trailingStopPercent: Number(cfg.trailingStopPercent),
-      trailingActivation: Number(cfg.trailingActivation),
-      maxHoldTimeMinutes: Number(cfg.maxHoldTimeMinutes),
-      invalidationConditions: [...(cfg.invalidationConditions || ['regime_change'])],
+      stopType: cfg.stopType,
+      trailType: cfg.trailType,
+      trailChannelBars: Number(cfg.trailChannelBars),
+      tpMode: cfg.tpMode,
+      maxHoldMode: cfg.maxHoldMode,
+      partialExit: cfg.partialExit && typeof cfg.partialExit === 'object'
+        ? { ...cfg.partialExit }
+        : { enabled: false, triggerR: 1, fraction: 0.5, remainderTrail: 'terrain' },
+      invalidationConditions: [...(cfg.invalidationConditions || ['donchian_channel_reentry'])],
     };
   }
 
@@ -83,6 +104,7 @@ class DonchianBreakout {
         'buy',
         this._confidence(extensionAtr),
         stopPct,
+        channel,
         `Donchian breakout buy: close ${price.toFixed(2)} > prior ${this.entryPeriod}-bar high ${channel.upper.toFixed(2)}`
       );
     }
@@ -93,6 +115,7 @@ class DonchianBreakout {
         'sell',
         this._confidence(extensionAtr),
         stopPct,
+        channel,
         `Donchian breakout sell: close ${price.toFixed(2)} < prior ${this.entryPeriod}-bar low ${channel.lower.toFixed(2)}`
       );
     }
@@ -100,7 +123,7 @@ class DonchianBreakout {
     return null;
   }
 
-  _signal(direction, confidence, stopPct, reason) {
+  _signal(direction, confidence, stopPct, channel, reason) {
     return {
       strategy: 'DonchianBreakout',
       direction,
@@ -108,10 +131,19 @@ class DonchianBreakout {
       reason,
       exitContractHint: {
         stopLossPercent: -Math.abs(stopPct),
-        takeProfitPercent: this.exit.takeProfitPercent,
-        trailingStopPercent: this.exit.trailingStopPercent,
-        trailingActivation: this.exit.trailingActivation,
-        maxHoldTimeMinutes: this.exit.maxHoldTimeMinutes,
+        stopType: this.exit.stopType,
+        atrStopMult: this.atrStopMult,
+        takeProfitPercent: null,
+        tpMode: this.exit.tpMode,
+        trailingStopPercent: null,
+        trailingActivation: null,
+        trailType: this.exit.trailType,
+        trailChannelBars: this.exit.trailChannelBars,
+        maxHoldTimeMinutes: null,
+        maxHoldMode: this.exit.maxHoldMode,
+        partialExit: { ...this.exit.partialExit },
+        donchianChannelUpper: channel.upper,
+        donchianChannelLower: channel.lower,
         invalidationConditions: [...this.exit.invalidationConditions],
       },
     };

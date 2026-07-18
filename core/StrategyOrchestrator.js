@@ -600,6 +600,59 @@ function getContractAtrMinPercent(strategyName, timeframe = null) {
   return contractAtrMin;
 }
 
+function requireExitHintEnum(hint, strategyName, key, allowed) {
+  if (hint[key] === undefined) return null;
+  if (typeof hint[key] !== 'string' || !allowed.includes(hint[key])) {
+    throw new Error(`[EXIT-HINT] ${strategyName}.exitContractHint.${key} must be one of ${allowed.join(', ')} (got ${hint[key]})`);
+  }
+  return hint[key];
+}
+
+function validateExitHintFamilyShape(hint, strategyName) {
+  if (strategyName === 'DonchianBreakout') {
+    if (
+      hint.stopType !== 'structural'
+      || hint.trailType !== 'channel'
+      || hint.tpMode !== 'off'
+      || hint.maxHoldMode !== 'off'
+    ) {
+      throw new Error('[EXIT-HINT] DonchianBreakout exitContractHint must remain structural/channel/tp-off/maxHold-off');
+    }
+  }
+  if (strategyName === 'TimeSeriesMomentum') {
+    if (hint.tpMode !== 'off' || hint.maxHoldMode !== 'off') {
+      throw new Error('[EXIT-HINT] TimeSeriesMomentum exitContractHint must keep tpMode/maxHoldMode off');
+    }
+  }
+}
+
+function normalizeExitHintPartialExit(partialExit, strategyName) {
+  if (partialExit === undefined) return undefined;
+  if (!partialExit || typeof partialExit !== 'object' || Array.isArray(partialExit)) {
+    throw new Error(`[EXIT-HINT] ${strategyName}.exitContractHint.partialExit must be an object when provided`);
+  }
+  const triggerR = Number(partialExit.triggerR);
+  if (!Number.isFinite(triggerR) || triggerR <= 0) {
+    throw new Error(`[EXIT-HINT] ${strategyName}.exitContractHint.partialExit.triggerR must be positive when provided (got ${partialExit.triggerR})`);
+  }
+  const fraction = Number(partialExit.fraction);
+  if (!Number.isFinite(fraction) || fraction < 0 || fraction > 1) {
+    throw new Error(`[EXIT-HINT] ${strategyName}.exitContractHint.partialExit.fraction must be between 0 and 1 when provided (got ${partialExit.fraction})`);
+  }
+  if (typeof partialExit.enabled !== 'boolean') {
+    throw new Error(`[EXIT-HINT] ${strategyName}.exitContractHint.partialExit.enabled must be boolean when provided`);
+  }
+  if (!['terrain', 'atr'].includes(partialExit.remainderTrail)) {
+    throw new Error(`[EXIT-HINT] ${strategyName}.exitContractHint.partialExit.remainderTrail must be terrain or atr when provided`);
+  }
+  return {
+    enabled: partialExit.enabled,
+    triggerR,
+    fraction,
+    remainderTrail: partialExit.remainderTrail,
+  };
+}
+
 function normalizeExitContractHint(hint, strategyName) {
   if (!hint || typeof hint !== 'object') {
     throw new Error(`[EXIT-HINT] ${strategyName}.exitContractHint must be an object`);
@@ -610,8 +663,23 @@ function normalizeExitContractHint(hint, strategyName) {
     throw new Error(`[EXIT-HINT] ${strategyName}.exitContractHint.stopLossPercent must be a negative finite risk distance (got ${hint.stopLossPercent})`);
   }
 
-  const takeProfitPercent = Number(hint.takeProfitPercent);
-  if (!Number.isFinite(takeProfitPercent) || takeProfitPercent <= 0) {
+  const stopType = requireExitHintEnum(hint, strategyName, 'stopType', ['structural', 'atr', 'percent']);
+  const trailType = requireExitHintEnum(hint, strategyName, 'trailType', ['percent', 'atr', 'channel']);
+  const explicitTpMode = requireExitHintEnum(hint, strategyName, 'tpMode', ['off', 'atrMultiple', 'percent']);
+  const maxHoldMode = requireExitHintEnum(hint, strategyName, 'maxHoldMode', ['off', 'session', 'minutes']);
+  validateExitHintFamilyShape({
+    ...hint,
+    ...(stopType !== null ? { stopType } : {}),
+    ...(trailType !== null ? { trailType } : {}),
+    ...(explicitTpMode !== null ? { tpMode: explicitTpMode } : {}),
+    ...(maxHoldMode !== null ? { maxHoldMode } : {}),
+  }, strategyName);
+
+  const tpMode = explicitTpMode || 'percent';
+  const takeProfitPercent = hint.takeProfitPercent === null && tpMode === 'off'
+    ? null
+    : Number(hint.takeProfitPercent);
+  if (tpMode !== 'off' && (!Number.isFinite(takeProfitPercent) || takeProfitPercent <= 0)) {
     throw new Error(`[EXIT-HINT] ${strategyName}.exitContractHint.takeProfitPercent must be a positive finite target distance (got ${hint.takeProfitPercent})`);
   }
 
@@ -620,11 +688,19 @@ function normalizeExitContractHint(hint, strategyName) {
     stopLossPercent,
     takeProfitPercent,
   };
+  if (stopType !== null) normalized.stopType = stopType;
+  if (trailType !== null) normalized.trailType = trailType;
+  if (explicitTpMode !== null) normalized.tpMode = explicitTpMode;
+  if (maxHoldMode !== null) normalized.maxHoldMode = maxHoldMode;
 
   const optionalPositiveFields = new Set(['trailingStopPercent', 'maxHoldTimeMinutes']);
   const optionalNonNegativeFields = new Set(['trailingActivation']);
   for (const key of [...optionalPositiveFields, ...optionalNonNegativeFields]) {
     if (hint[key] === undefined) continue;
+    if (key === 'maxHoldTimeMinutes' && hint.maxHoldMode === 'off' && hint[key] === null) {
+      normalized[key] = null;
+      continue;
+    }
     if (hint[key] === null) {
       throw new Error(`[EXIT-HINT] ${strategyName}.exitContractHint.${key} must be numeric when provided (got null)`);
     }
@@ -639,6 +715,22 @@ function normalizeExitContractHint(hint, strategyName) {
       throw new Error(`[EXIT-HINT] ${strategyName}.exitContractHint.${key} must be non-negative when provided (got ${hint[key]})`);
     }
     normalized[key] = numericValue;
+  }
+
+  for (const key of ['atrStopMult', 'trailAtrMult', 'trailChannelBars', 'tpAtrMultiple', 'donchianChannelUpper', 'donchianChannelLower', 'tsmLookback', 'tsmEntryTrailingReturn']) {
+    if (hint[key] === undefined || hint[key] === null) continue;
+    const numericValue = Number(hint[key]);
+    if (!Number.isFinite(numericValue)) {
+      throw new Error(`[EXIT-HINT] ${strategyName}.exitContractHint.${key} must be finite when provided (got ${hint[key]})`);
+    }
+    normalized[key] = numericValue;
+  }
+  if (tpMode === 'atrMultiple' && normalized.tpAtrMultiple === undefined) {
+    throw new Error(`[EXIT-HINT] ${strategyName}.exitContractHint.tpAtrMultiple is required when tpMode is atrMultiple`);
+  }
+  const partialExit = normalizeExitHintPartialExit(hint.partialExit, strategyName);
+  if (partialExit !== undefined) {
+    normalized.partialExit = partialExit;
   }
 
   if (hint.invalidationConditions !== undefined) {
@@ -2581,7 +2673,10 @@ class StrategyOrchestrator {
     const exitContractHint = winner.exitContractHint || winner.signalData?.exitContractHint;
     if (exitContractHint) {
       Object.assign(signalOverrides, normalizeExitContractHint(exitContractHint, winner.strategyName));
-      console.log(`[EXIT-DEBUG] ${winner.strategyName} using exitContractHint SL%=${signalOverrides.stopLossPercent.toFixed(2)} TP%=${signalOverrides.takeProfitPercent.toFixed(2)}`);
+      const tpLog = Number.isFinite(Number(signalOverrides.takeProfitPercent))
+        ? Number(signalOverrides.takeProfitPercent).toFixed(2)
+        : String(signalOverrides.takeProfitPercent);
+      console.log(`[EXIT-DEBUG] ${winner.strategyName} using exitContractHint SL%=${signalOverrides.stopLossPercent.toFixed(2)} TP%=${tpLog}`);
     } else if (winner.strategyName === 'OpeningRangeBreakout' && winner.overrideLevels) {
       console.warn('[EXIT-HINT] OpeningRangeBreakout overrideLevels ignored without entry-based exitContractHint');
     } else if (winner.structuralExitOverrides) {

@@ -1333,6 +1333,16 @@
       "trailingStopPercent": 0.8,
       "trailingActivation": 1,
       "maxHoldTimeMinutes": 300,
+      "stopType": "percent",
+      "trailType": "percent",
+      "tpMode": "percent",
+      "maxHoldMode": "minutes",
+      "partialExit": {
+        "enabled": false,
+        "triggerR": 1,
+        "fraction": 0.5,
+        "remainderTrail": "atr"
+      },
       "invalidationConditions": [
         "ema_cross_reversal"
       ],
@@ -1345,6 +1355,16 @@
       "trailingActivation": 0.7,
       "maxHoldTimeMinutes": 180,
       "useStructuralExits": true,
+      "stopType": "percent",
+      "trailType": "percent",
+      "tpMode": "percent",
+      "maxHoldMode": "minutes",
+      "partialExit": {
+        "enabled": false,
+        "triggerR": 1,
+        "fraction": 0.5,
+        "remainderTrail": "atr"
+      },
       "invalidationConditions": [
         "liquidity_absorbed"
       ],
@@ -1359,6 +1379,16 @@
       "useStructuralExits": true,
       "minConfidence": null,
       "atrMinPercent": null,
+      "stopType": "percent",
+      "trailType": "percent",
+      "tpMode": "percent",
+      "maxHoldMode": "minutes",
+      "partialExit": {
+        "enabled": false,
+        "triggerR": 1,
+        "fraction": 0.5,
+        "remainderTrail": "atr"
+      },
       "invalidationConditions": [
         "break_retest_invalidated"
       ],
@@ -1371,6 +1401,16 @@
       "trailingActivation": 0.8,
       "maxHoldTimeMinutes": 240,
       "minConfidence": 0.6,
+      "stopType": "percent",
+      "trailType": "percent",
+      "tpMode": "percent",
+      "maxHoldMode": "minutes",
+      "partialExit": {
+        "enabled": false,
+        "triggerR": 1,
+        "fraction": 0.5,
+        "remainderTrail": "atr"
+      },
       "invalidationConditions": [],
       "_validated": "2026-03-20"
     },
@@ -1380,6 +1420,16 @@
       "trailingStopPercent": 0.5,
       "trailingActivation": 0.7,
       "maxHoldTimeMinutes": 180,
+      "stopType": "percent",
+      "trailType": "percent",
+      "tpMode": "percent",
+      "maxHoldMode": "minutes",
+      "partialExit": {
+        "enabled": false,
+        "triggerR": 1,
+        "fraction": 0.5,
+        "remainderTrail": "atr"
+      },
       "invalidationConditions": [
         "sr_break"
       ],
@@ -1391,6 +1441,16 @@
       "trailingStopPercent": 0.5,
       "trailingActivation": 0.7,
       "maxHoldTimeMinutes": 150,
+      "stopType": "percent",
+      "trailType": "percent",
+      "tpMode": "percent",
+      "maxHoldMode": "minutes",
+      "partialExit": {
+        "enabled": false,
+        "triggerR": 1,
+        "fraction": 0.5,
+        "remainderTrail": "atr"
+      },
       "invalidationConditions": [
         "pattern_invalidated"
       ]
@@ -1401,6 +1461,16 @@
       "trailingStopPercent": 0.6,
       "trailingActivation": 0.8,
       "maxHoldTimeMinutes": 360,
+      "stopType": "percent",
+      "trailType": "percent",
+      "tpMode": "percent",
+      "maxHoldMode": "minutes",
+      "partialExit": {
+        "enabled": false,
+        "triggerR": 1,
+        "fraction": 0.5,
+        "remainderTrail": "atr"
+      },
       "invalidationConditions": [
         "regime_change"
       ]
@@ -1411,6 +1481,16 @@
       "trailingStopPercent": 0.8,
       "trailingActivation": 1,
       "maxHoldTimeMinutes": 300,
+      "stopType": "percent",
+      "trailType": "percent",
+      "tpMode": "percent",
+      "maxHoldMode": "minutes",
+      "partialExit": {
+        "enabled": false,
+        "triggerR": 1,
+        "fraction": 0.5,
+        "remainderTrail": "atr"
+      },
       "invalidationConditions": []
     },
     "OGZTPO": {
@@ -1419,6 +1499,16 @@
       "trailingStopPercent": 0.6,
       "trailingActivation": 0.8,
       "maxHoldTimeMinutes": 240,
+      "stopType": "percent",
+      "trailType": "percent",
+      "tpMode": "percent",
+      "maxHoldMode": "minutes",
+      "partialExit": {
+        "enabled": false,
+        "triggerR": 1,
+        "fraction": 0.5,
+        "remainderTrail": "atr"
+      },
       "invalidationConditions": []
     },
     "OpeningRangeBreakout": {
@@ -1430,6 +1520,16 @@
       "useStructuralExits": true,
       "minConfidence": null,
       "atrMinPercent": null,
+      "stopType": "percent",
+      "trailType": "percent",
+      "tpMode": "percent",
+      "maxHoldMode": "minutes",
+      "partialExit": {
+        "enabled": false,
+        "triggerR": 1,
+        "fraction": 0.5,
+        "remainderTrail": "atr"
+      },
       "invalidationConditions": [
         "fvg_filled",
         "or_break_reversal"
@@ -1442,20 +1542,45 @@
       "trailingActivation": 0.5,
       "maxHoldTimeMinutes": 900,
       "useStructuralExits": true,
+      "stopType": "percent",
+      "trailType": "percent",
+      "tpMode": "percent",
+      "maxHoldMode": "minutes",
+      "partialExit": {
+        "enabled": false,
+        "triggerR": 1,
+        "fraction": 0.5,
+        "remainderTrail": "atr"
+      },
       "invalidationConditions": [
         "sweep_absorbed"
       ]
     },
     "DonchianBreakout": {
       "stopLossPercent": -2.5,
-      "takeProfitPercent": 12,
-      "trailingStopPercent": 1.5,
-      "trailingActivation": 1,
-      "maxHoldTimeMinutes": 10080,
+      "stopType": "structural",
+      "atrStopMult": 2.5,
+      "takeProfitPercent": null,
+      "tpMode": "off",
+      "tpAtrMultiple": null,
+      "trailingStopPercent": null,
+      "trailingActivation": null,
+      "trailType": "channel",
+      "trailAtrMult": null,
+      "trailChannelBars": 10,
+      "maxHoldTimeMinutes": null,
+      "maxHoldMode": "off",
+      "partialExit": {
+        "enabled": false,
+        "triggerR": 1,
+        "fraction": 0.5,
+        "remainderTrail": "terrain"
+      },
+      "useStructuralExits": true,
       "minConfidence": null,
       "atrMinPercent": null,
       "invalidationConditions": [
-        "regime_change"
+        "donchian_channel_reentry"
       ],
       "_validated": null
     },
@@ -1468,6 +1593,16 @@
       "useStructuralExits": false,
       "minConfidence": 0.68,
       "atrMinPercent": null,
+      "stopType": "percent",
+      "trailType": "percent",
+      "tpMode": "percent",
+      "maxHoldMode": "minutes",
+      "partialExit": {
+        "enabled": false,
+        "triggerR": 1,
+        "fraction": 0.5,
+        "remainderTrail": "atr"
+      },
       "invalidationConditions": [
         "ema_pullback_invalidated"
       ],
@@ -1482,6 +1617,16 @@
       "useStructuralExits": false,
       "minConfidence": 0.7,
       "atrMinPercent": null,
+      "stopType": "percent",
+      "trailType": "percent",
+      "tpMode": "percent",
+      "maxHoldMode": "minutes",
+      "partialExit": {
+        "enabled": false,
+        "triggerR": 1,
+        "fraction": 0.5,
+        "remainderTrail": "atr"
+      },
       "invalidationConditions": [
         "ema_retest_failed"
       ],
@@ -1498,6 +1643,16 @@
       "atrMinPercent": null,
       "rsiPeriod": 2,
       "rsiExitLong": 80,
+      "stopType": "percent",
+      "trailType": "percent",
+      "tpMode": "percent",
+      "maxHoldMode": "minutes",
+      "partialExit": {
+        "enabled": false,
+        "triggerR": 1,
+        "fraction": 0.5,
+        "remainderTrail": "atr"
+      },
       "invalidationConditions": [
         "rsi2_exit_long",
         "regime_change"
@@ -1506,15 +1661,29 @@
     },
     "TimeSeriesMomentum": {
       "stopLossPercent": -2,
-      "takeProfitPercent": 4,
-      "trailingStopPercent": 1,
-      "trailingActivation": 1.5,
-      "maxHoldTimeMinutes": 240,
+      "stopType": "atr",
+      "atrStopMult": 2,
+      "takeProfitPercent": null,
+      "tpMode": "off",
+      "tpAtrMultiple": null,
+      "trailingStopPercent": null,
+      "trailingActivation": null,
+      "trailType": "atr",
+      "trailAtrMult": 1,
+      "trailChannelBars": null,
+      "maxHoldTimeMinutes": null,
+      "maxHoldMode": "off",
       "useStructuralExits": false,
+      "partialExit": {
+        "enabled": false,
+        "triggerR": 1,
+        "fraction": 0.5,
+        "remainderTrail": "atr"
+      },
       "minConfidence": 0.6,
       "atrMinPercent": null,
       "invalidationConditions": [
-        "regime_change"
+        "tsm_return_flip"
       ],
       "_validated": null
     },
@@ -1526,6 +1695,16 @@
       "maxHoldTimeMinutes": 240,
       "useStructuralExits": true,
       "maxConcurrentEntries": 2,
+      "stopType": "percent",
+      "trailType": "percent",
+      "tpMode": "percent",
+      "maxHoldMode": "minutes",
+      "partialExit": {
+        "enabled": false,
+        "triggerR": 1,
+        "fraction": 0.5,
+        "remainderTrail": "terrain"
+      },
       "scaleIn": {
         "enabled": false,
         "maxAdds": 0,
@@ -1547,6 +1726,16 @@
       "maxHoldTimeMinutes": 240,
       "useStructuralExits": false,
       "maxConcurrentEntries": 1,
+      "stopType": "percent",
+      "trailType": "percent",
+      "tpMode": "percent",
+      "maxHoldMode": "minutes",
+      "partialExit": {
+        "enabled": false,
+        "triggerR": 1,
+        "fraction": 0.5,
+        "remainderTrail": "atr"
+      },
       "scaleIn": {
         "enabled": false,
         "maxAdds": 0,
@@ -1917,12 +2106,19 @@
       "atrPeriod": 20,
       "atrStopMult": 2.5,
       "allowShorts": false,
-      "takeProfitPercent": 12,
-      "trailingStopPercent": 1.5,
-      "trailingActivation": 1,
-      "maxHoldTimeMinutes": 10080,
+      "stopType": "structural",
+      "trailType": "channel",
+      "trailChannelBars": 10,
+      "tpMode": "off",
+      "maxHoldMode": "off",
+      "partialExit": {
+        "enabled": false,
+        "triggerR": 1,
+        "fraction": 0.5,
+        "remainderTrail": "terrain"
+      },
       "invalidationConditions": [
-        "regime_change"
+        "donchian_channel_reentry"
       ],
       "enabled": true
     },
@@ -2059,18 +2255,26 @@
     "TimeSeriesMomentum": {
       "lookback": 100,
       "trendPeriod": 200,
+      "atrPeriod": 14,
       "minReturn": 0,
       "allowShorts": false,
-      "stopLossPercent": -2,
-      "takeProfitPercent": 4,
-      "trailingStopPercent": 1,
-      "trailingActivation": 1.5,
-      "maxHoldTimeMinutes": 240,
+      "stopType": "atr",
+      "atrStopMult": 2,
+      "trailType": "atr",
+      "trailAtrMult": 1,
+      "tpMode": "off",
+      "maxHoldMode": "off",
+      "partialExit": {
+        "enabled": false,
+        "triggerR": 1,
+        "fraction": 0.5,
+        "remainderTrail": "atr"
+      },
       "confidenceBase": 0.5,
       "confidenceReturnMultiplier": 4,
       "maxConfidence": 0.85,
       "invalidationConditions": [
-        "regime_change"
+        "tsm_return_flip"
       ],
       "enabled": true
     }

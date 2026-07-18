@@ -153,6 +153,14 @@ function requireString(value, label) {
   return value;
 }
 
+function requireEnum(value, label, allowed) {
+  const normalized = requireString(value, label);
+  if (!allowed.includes(normalized)) {
+    throw new Error(`[PolicyBuilder] ${label} must be one of ${allowed.join(', ')} (got ${value})`);
+  }
+  return normalized;
+}
+
 function readConfig(configReader, path) {
   const value = configReader.get(path);
   if (value === undefined) {
@@ -168,6 +176,24 @@ function readConfigGroup(configReader, paths) {
   }, {});
 }
 
+function normalizePartialExit(value) {
+  if (value === undefined || value === null) {
+    return {
+      enabled: false,
+      triggerR: 1,
+      fraction: 0.5,
+      remainderTrail: 'atr',
+    };
+  }
+  assertPlainObject(value, 'exitContract.partialExit');
+  return {
+    enabled: requireBoolean(value.enabled, 'exitContract.partialExit.enabled'),
+    triggerR: requirePositiveNumber(value.triggerR, 'exitContract.partialExit.triggerR'),
+    fraction: requireFraction(value.fraction, 'exitContract.partialExit.fraction'),
+    remainderTrail: requireEnum(value.remainderTrail, 'exitContract.partialExit.remainderTrail', ['terrain', 'atr']),
+  };
+}
+
 function normalizeContract(strategyName, contract) {
   assertPlainObject(contract, 'exitContract');
 
@@ -180,13 +206,51 @@ function normalizeContract(strategyName, contract) {
     throw new Error('[PolicyBuilder] exitContract.invalidationConditions must be an array');
   }
 
+  const stopType = hasOwn(contract, 'stopType')
+    ? requireEnum(contract.stopType, 'exitContract.stopType', ['structural', 'atr', 'percent'])
+    : 'percent';
+  const trailType = hasOwn(contract, 'trailType')
+    ? requireEnum(contract.trailType, 'exitContract.trailType', ['percent', 'atr', 'channel'])
+    : 'percent';
+  const tpMode = hasOwn(contract, 'tpMode')
+    ? requireEnum(contract.tpMode, 'exitContract.tpMode', ['off', 'atrMultiple', 'percent'])
+    : 'percent';
+  const maxHoldMode = hasOwn(contract, 'maxHoldMode')
+    ? requireEnum(contract.maxHoldMode, 'exitContract.maxHoldMode', ['off', 'session', 'minutes'])
+    : 'minutes';
+  const tpAtrMultiple = hasOwn(contract, 'tpAtrMultiple') && contract.tpAtrMultiple !== null
+    ? requirePositiveNumber(contract.tpAtrMultiple, 'exitContract.tpAtrMultiple')
+    : null;
+  if (tpMode === 'atrMultiple' && tpAtrMultiple === null) {
+    throw new Error('[PolicyBuilder] exitContract.tpAtrMultiple is required when tpMode is atrMultiple');
+  }
+
   return {
     strategyName,
     stopLossPercent: requireNegativePercent(contract.stopLossPercent, 'exitContract.stopLossPercent'),
-    takeProfitPercent: requirePositiveNumber(contract.takeProfitPercent, 'exitContract.takeProfitPercent'),
+    stopType,
+    atrStopMult: hasOwn(contract, 'atrStopMult') && contract.atrStopMult !== null
+      ? requirePositiveNumber(contract.atrStopMult, 'exitContract.atrStopMult')
+      : null,
+    takeProfitPercent: tpMode === 'off' || tpMode === 'atrMultiple'
+      ? null
+      : requirePositiveNumber(contract.takeProfitPercent, 'exitContract.takeProfitPercent'),
+    tpMode,
+    tpAtrMultiple,
     trailingStopPercent: requireNullablePercent(contract.trailingStopPercent, 'exitContract.trailingStopPercent'),
     trailingActivation: requireNullablePercent(contract.trailingActivation, 'exitContract.trailingActivation'),
-    maxHoldTimeMinutes: requirePositiveNumber(contract.maxHoldTimeMinutes, 'exitContract.maxHoldTimeMinutes'),
+    trailType,
+    trailAtrMult: hasOwn(contract, 'trailAtrMult') && contract.trailAtrMult !== null
+      ? requirePositiveNumber(contract.trailAtrMult, 'exitContract.trailAtrMult')
+      : null,
+    trailChannelBars: hasOwn(contract, 'trailChannelBars') && contract.trailChannelBars !== null
+      ? requirePositiveNumber(contract.trailChannelBars, 'exitContract.trailChannelBars')
+      : null,
+    maxHoldMode,
+    maxHoldTimeMinutes: maxHoldMode === 'off'
+      ? (contract.maxHoldTimeMinutes ?? null)
+      : requirePositiveNumber(contract.maxHoldTimeMinutes, 'exitContract.maxHoldTimeMinutes'),
+    partialExit: normalizePartialExit(contract.partialExit),
     minConfidence: hasOwn(contract, 'minConfidence')
       ? requireNullableFraction(contract.minConfidence, 'exitContract.minConfidence')
       : null,
@@ -200,6 +264,10 @@ function normalizeContract(strategyName, contract) {
     invalidationConditions: invalidationConditions.map((condition, index) => (
       requireString(condition, `exitContract.invalidationConditions[${index}]`)
     )),
+    donchianChannelUpper: hasOwn(contract, 'donchianChannelUpper') ? contract.donchianChannelUpper : null,
+    donchianChannelLower: hasOwn(contract, 'donchianChannelLower') ? contract.donchianChannelLower : null,
+    tsmLookback: hasOwn(contract, 'tsmLookback') ? contract.tsmLookback : null,
+    tsmEntryTrailingReturn: hasOwn(contract, 'tsmEntryTrailingReturn') ? contract.tsmEntryTrailingReturn : null,
     validatedAt: hasOwn(contract, '_validated') ? contract._validated : null,
   };
 }
@@ -530,4 +598,5 @@ function buildForTrade(options = {}) {
 module.exports = {
   buildForTrade,
   CONFIG_PATHS,
+  normalizeContract,
 };

@@ -17,13 +17,21 @@ function strategy(overrides = {}) {
   return new TimeSeriesMomentum({
     lookback: 3,
     trendPeriod: 5,
+    atrPeriod: 3,
     minReturn: 0.005,
     allowShorts: false,
-    stopLossPercent: -2.0,
-    takeProfitPercent: 4.0,
-    trailingStopPercent: 1.0,
-    trailingActivation: 1.5,
-    maxHoldTimeMinutes: 240,
+    stopType: 'atr',
+    atrStopMult: 2.0,
+    trailType: 'atr',
+    trailAtrMult: 1.0,
+    tpMode: 'off',
+    maxHoldMode: 'off',
+    partialExit: {
+      enabled: false,
+      triggerR: 1,
+      fraction: 0.5,
+      remainderTrail: 'atr',
+    },
     confidenceBase: 0.50,
     confidenceReturnMultiplier: 4.0,
     maxConfidence: 0.85,
@@ -44,7 +52,11 @@ describe('TimeSeriesMomentum', () => {
     });
     expect(signal.confidence).toBeGreaterThan(0.50);
     expect(signal.confidence).toBeLessThanOrEqual(0.85);
-    expect(signal.exitContractHint.maxHoldTimeMinutes).toBe(240);
+    expect(signal.exitContractHint.maxHoldMode).toBe('off');
+    expect(signal.exitContractHint.maxHoldTimeMinutes).toBeNull();
+    expect(signal.exitContractHint.tpMode).toBe('off');
+    expect(signal.exitContractHint.takeProfitPercent).toBeNull();
+    expect(signal.exitContractHint.trailType).toBe('atr');
     expect(signal.signalData.trailingReturn).toBeGreaterThan(0.005);
   });
 
@@ -62,7 +74,7 @@ describe('TimeSeriesMomentum', () => {
 
   test('fails loudly on invalid config instead of accepting a fallback', () => {
     expect(() => strategy({ lookback: 0 })).toThrow(/lookback must be a positive integer/);
-    expect(() => strategy({ stopLossPercent: 2 })).toThrow(/stopLossPercent must be negative/);
+    expect(() => strategy({ atrStopMult: 0 })).toThrow(/atrStopMult must be positive/);
     expect(() => strategy({ invalidationConditions: 'regime_change' })).toThrow(/must be an array/);
   });
 

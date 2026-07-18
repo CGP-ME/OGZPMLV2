@@ -20,6 +20,7 @@
 const ConfigLoader = require('../foundation/ConfigLoader');
 const { assertExplicitExitOwnership } = require('./dto/ExitContractOwnership');
 const { IndicatorCalculator } = require('./IndicatorCalculator');
+const PolicyBuilder = require('./PolicyBuilder');
 const ProfitExitPlanner = require('./ProfitExitPlanner');
 
 // Phase 10: Delegate to individual exit checkers
@@ -51,6 +52,18 @@ function positiveFiniteOrNull(value) {
 function positiveIntegerOrNull(value) {
   const numeric = Number(value);
   return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
+}
+
+function candleClose(candle) {
+  return finiteOrNull(candle?.c ?? candle?.close ?? candle?.price);
+}
+
+function candleHigh(candle) {
+  return finiteOrNull(candle?.h ?? candle?.high ?? candleClose(candle));
+}
+
+function candleLow(candle) {
+  return finiteOrNull(candle?.l ?? candle?.low ?? candleClose(candle));
 }
 
 function resolveRsiForPeriod(indicators, priceHistory, period) {
@@ -90,12 +103,25 @@ const EXIT_CONTRACT_VALUE_FIELDS = [
   'trailingStopPercent',
   'trailingActivation',
   'maxHoldTimeMinutes',
+  'stopType',
+  'atrStopMult',
+  'trailType',
+  'trailAtrMult',
+  'trailChannelBars',
+  'tpMode',
+  'tpAtrMultiple',
+  'maxHoldMode',
+  'partialExit',
   'useStructuralExits',
   'maxConcurrentEntries',
   'scaleIn',
   'invalidationConditions',
   'minConfidence',
   'atrMinPercent',
+  'donchianChannelUpper',
+  'donchianChannelLower',
+  'tsmLookback',
+  'tsmEntryTrailingReturn',
 ];
 
 function readRuntimeContractValue(path) {
@@ -136,12 +162,35 @@ function applyRuntimeExitContractOverrides(contract, strategyName, timeframe) {
   return resolved;
 }
 
+function normalizeRuntimeContract(contract, strategyName) {
+  const normalized = PolicyBuilder.normalizeContract(strategyName, contract);
+  if (strategyName === 'DonchianBreakout') {
+    if (
+      normalized.stopType !== 'structural'
+      || normalized.trailType !== 'channel'
+      || normalized.tpMode !== 'off'
+      || normalized.maxHoldMode !== 'off'
+    ) {
+      throw new Error('[ExitContractManager] DonchianBreakout contract must remain structural/channel/tp-off/maxHold-off');
+    }
+  }
+  if (strategyName === 'TimeSeriesMomentum') {
+    if (normalized.tpMode !== 'off' || normalized.maxHoldMode !== 'off') {
+      throw new Error('[ExitContractManager] TimeSeriesMomentum contract must keep tpMode/maxHoldMode off');
+    }
+  }
+  return {
+    ...contract,
+    ...normalized,
+  };
+}
+
 function buildStrategyContract(contract, strategyName, timeframe) {
-  return applyRuntimeExitContractOverrides(
+  return normalizeRuntimeContract(applyRuntimeExitContractOverrides(
     resolveTimeframeContract(contract, timeframe),
     strategyName,
     timeframe
-  );
+  ), strategyName);
 }
 
 function cloneScaleInPolicy(policy) {
@@ -302,12 +351,12 @@ class ExitContractManager {
     if (mhResult.shouldExit) return mhResult;
 
     // 5. Invalidation conditions (stays in ECM — strategy-specific)
-    if (contract.invalidationConditions && contract.invalidationConditions.length > 0 && context.indicators) {
+    if (contract.invalidationConditions && contract.invalidationConditions.length > 0) {
       const invalidation = this.checkInvalidationConditions(
         contract.invalidationConditions,
         trade,
-        context.indicators,
-        context
+        context.indicators || {},
+        { ...context, currentPrice }
       );
       if (invalidation.triggered) {
         return {
@@ -318,6 +367,9 @@ class ExitContractManager {
         };
       }
     }
+
+    const channelTrailResult = this._checkChannelTrail(contract, trade, currentPrice, context);
+    if (channelTrailResult.shouldExit) return channelTrailResult;
 
     const profitStopResult = this._checkProfitStopState(trade, currentPrice);
     if (profitStopResult.shouldExit) return profitStopResult;
@@ -366,6 +418,38 @@ class ExitContractManager {
   checkInvalidationConditions(conditions, trade, indicators, context = {}) {
     for (const condition of conditions) {
       switch (condition) {
+        case 'donchian_channel_reentry': {
+          const price = finiteOrNull(context.currentPrice ?? indicators.price);
+          const upper = finiteOrNull(trade.exitContract?.donchianChannelUpper);
+          const lower = finiteOrNull(trade.exitContract?.donchianChannelLower);
+          const isShort = trade.direction === 'short' || trade.action === 'SELL_SHORT';
+          if (!isShort && price !== null && upper !== null && price <= upper) {
+            return { triggered: true, reason: 'Donchian breakout closed back inside entry channel' };
+          }
+          if (isShort && price !== null && lower !== null && price >= lower) {
+            return { triggered: true, reason: 'Donchian breakdown closed back inside entry channel' };
+          }
+          break;
+        }
+
+        case 'tsm_return_flip': {
+          const lookback = positiveIntegerOrNull(trade.exitContract?.tsmLookback);
+          const candles = Array.isArray(context.priceHistory) ? context.priceHistory : [];
+          if (lookback === null || candles.length <= lookback) break;
+          const current = candleClose(candles[candles.length - 1]);
+          const past = candleClose(candles[candles.length - 1 - lookback]);
+          if (current === null || past === null || past <= 0) break;
+          const trailingReturn = (current - past) / past;
+          const isShort = trade.direction === 'short' || trade.action === 'SELL_SHORT';
+          if (!isShort && trailingReturn <= 0) {
+            return { triggered: true, reason: `TSM lookback return flipped non-positive: ${(trailingReturn * 100).toFixed(2)}%` };
+          }
+          if (isShort && trailingReturn >= 0) {
+            return { triggered: true, reason: `TSM lookback return flipped non-negative: ${(trailingReturn * 100).toFixed(2)}%` };
+          }
+          break;
+        }
+
         case 'ema_cross_reversal':
           // EMA crossover reversed (e.g., golden cross → death cross)
           if (trade.entryIndicators?.ema9 > trade.entryIndicators?.ema20 &&
@@ -435,6 +519,47 @@ class ExitContractManager {
     }
 
     return { triggered: false, reason: null };
+  }
+
+  _checkChannelTrail(contract, trade, currentPrice, context = {}) {
+    if (contract.trailType !== 'channel') {
+      return { shouldExit: false };
+    }
+    const bars = positiveIntegerOrNull(contract.trailChannelBars);
+    const candles = Array.isArray(context.priceHistory) ? context.priceHistory : [];
+    const price = positiveFiniteOrNull(currentPrice);
+    if (bars === null || candles.length <= bars || price === null) {
+      return { shouldExit: false };
+    }
+
+    const completed = candles.slice(Math.max(0, candles.length - bars - 1), candles.length - 1);
+    if (completed.length < bars) {
+      return { shouldExit: false };
+    }
+    const lows = completed.map(candleLow).filter(value => value !== null);
+    const highs = completed.map(candleHigh).filter(value => value !== null);
+    if (lows.length !== completed.length || highs.length !== completed.length) {
+      return { shouldExit: false };
+    }
+
+    const isShort = trade.direction === 'short' || trade.action === 'SELL_SHORT';
+    const channelStop = isShort ? Math.max(...highs) : Math.min(...lows);
+    const crossed = isShort ? price >= channelStop : price <= channelStop;
+    if (!crossed) {
+      return { shouldExit: false };
+    }
+
+    return {
+      shouldExit: true,
+      exitReason: 'channel_trail',
+      details: `${trade.entryStrategy || 'Strategy'} channel trail: current price ${price.toFixed(2)} crossed ${bars}-bar ${isShort ? 'high' : 'low'} ${channelStop.toFixed(2)}`,
+      confidence: 100,
+      meta: {
+        trailType: 'channel',
+        trailChannelBars: bars,
+        channelStop,
+      },
+    };
   }
 
   /**
@@ -532,6 +657,10 @@ class ExitContractManager {
   }
 
   _updateTrailingStopState(trade, currentPrice, pnlPercent, context = {}) {
+    const contract = trade.exitContract || {};
+    if (contract.trailType === 'channel') {
+      return { updated: false, reason: 'channel_trail_owned_by_contract' };
+    }
     const trailConfig = this.trailConfig || {};
     if (trailConfig.enabled !== true) {
       return { updated: false, reason: 'trailing_disabled' };
@@ -546,7 +675,10 @@ class ExitContractManager {
     const atr = positiveFiniteOrNull(indicators.atr)
       || positiveFiniteOrNull(indicators.volatility)
       || positiveFiniteOrNull(context.volatility);
-    const atrMultiplier = finiteOrNull(trailConfig.atrMultiplier);
+    const contractAtrMultiplier = contract.trailAtrMult === null || contract.trailAtrMult === undefined
+      ? null
+      : finiteOrNull(contract.trailAtrMult);
+    const atrMultiplier = contractAtrMultiplier ?? finiteOrNull(trailConfig.atrMultiplier);
     if (atr === null || atrMultiplier === null || atrMultiplier <= 0) {
       return { updated: false, reason: 'missing_atr' };
     }
@@ -782,6 +914,25 @@ class ExitContractManager {
     if (signal.maxHoldTimeMinutes !== undefined) {
       contract.maxHoldTimeMinutes = signal.maxHoldTimeMinutes;
     }
+    for (const field of [
+      'stopType',
+      'atrStopMult',
+      'trailType',
+      'trailAtrMult',
+      'trailChannelBars',
+      'tpMode',
+      'tpAtrMultiple',
+      'maxHoldMode',
+      'partialExit',
+      'donchianChannelUpper',
+      'donchianChannelLower',
+      'tsmLookback',
+      'tsmEntryTrailingReturn',
+    ]) {
+      if (signal[field] !== undefined) {
+        contract[field] = signal[field];
+      }
+    }
 
     // Adjust for volatility if provided
     // FIX 2026-02-21: Raised threshold from 2.0 to 5.0 for 1-minute data
@@ -794,8 +945,12 @@ class ExitContractManager {
     const volTpMult = ConfigLoader.get('exits.volatilityTpMultiplier') ?? 1.20;
     if (context.volatility && context.volatility > volThreshold) {
       // High volatility - widen stops
-      contract.stopLossPercent *= volSlMult;
-      contract.takeProfitPercent *= volTpMult;
+      if (Number.isFinite(Number(contract.stopLossPercent))) {
+        contract.stopLossPercent *= volSlMult;
+      }
+      if (contract.tpMode !== 'off' && Number.isFinite(Number(contract.takeProfitPercent))) {
+        contract.takeProfitPercent *= volTpMult;
+      }
     }
 
     // Freeze contract metadata
@@ -803,11 +958,17 @@ class ExitContractManager {
     // FIX 2026-02-24: Ensure strategyName is string (Phase 12 fuzzing - NaN prevention)
     contract.strategyName = (typeof strategyName === 'string' && strategyName) ? strategyName : 'default';
     contract.signalConfidence = (typeof signal.confidence === 'number' && !isNaN(signal.confidence)) ? signal.confidence : 0;
+    const normalizedContract = normalizeRuntimeContract(contract, contract.strategyName);
 
     // DEBUG: Log FINAL exit contract values after all overrides and adjustments
-    console.log(`[ECM-FINAL] ${strategyName} → SL%=${contract.stopLossPercent?.toFixed(2)} TP%=${contract.takeProfitPercent?.toFixed(2)} Trail%=${contract.trailingStopPercent?.toFixed(2)} (signal had SL%=${signal.stopLossPercent?.toFixed(2)} TP%=${signal.takeProfitPercent?.toFixed(2)})`);
+    const finalSl = Number.isFinite(Number(normalizedContract.stopLossPercent)) ? Number(normalizedContract.stopLossPercent).toFixed(2) : String(normalizedContract.stopLossPercent);
+    const finalTp = Number.isFinite(Number(normalizedContract.takeProfitPercent)) ? Number(normalizedContract.takeProfitPercent).toFixed(2) : String(normalizedContract.takeProfitPercent);
+    const finalTrail = Number.isFinite(Number(normalizedContract.trailingStopPercent)) ? Number(normalizedContract.trailingStopPercent).toFixed(2) : String(normalizedContract.trailingStopPercent);
+    const signalSl = Number.isFinite(Number(signal.stopLossPercent)) ? Number(signal.stopLossPercent).toFixed(2) : String(signal.stopLossPercent);
+    const signalTp = Number.isFinite(Number(signal.takeProfitPercent)) ? Number(signal.takeProfitPercent).toFixed(2) : String(signal.takeProfitPercent);
+    console.log(`[ECM-FINAL] ${strategyName} → SL%=${finalSl} TP%=${finalTp} Trail%=${finalTrail} (signal had SL%=${signalSl} TP%=${signalTp})`);
 
-    return contract;
+    return normalizedContract;
   }
 }
 

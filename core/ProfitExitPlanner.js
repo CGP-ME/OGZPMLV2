@@ -151,7 +151,9 @@ function remainingFractionForQuantity(snapshot, targetQuantity, filledQuantity =
 
 function planBeScaleOut(snapshot, profitPercent) {
   const policy = snapshot.frozenExitPolicy;
-  const config = policy.profitManagement.beScaleOut;
+  const contractPartial = policy.contract.partialExit;
+  const usesContractPartial = contractPartial && contractPartial.enabled === true;
+  const config = usesContractPartial ? contractPartial : policy.profitManagement.beScaleOut;
   if (!config || config.enabled !== true) {
     return null;
   }
@@ -162,7 +164,9 @@ function planBeScaleOut(snapshot, profitPercent) {
 
   const riskPercent = Math.abs(requireFiniteNumber(policy.contract.stopLossPercent, 'policy.contract.stopLossPercent')) / 100;
   let trigger;
-  if (config.triggerType === 'one_to_one_r') {
+  if (usesContractPartial) {
+    trigger = riskPercent * requirePositiveNumber(config.triggerR, 'policy.contract.partialExit.triggerR');
+  } else if (config.triggerType === 'one_to_one_r') {
     trigger = riskPercent;
   } else if (config.triggerType === 'fixed_percent') {
     trigger = requireFiniteNumber(config.fixedPercentTrigger, 'policy.profitManagement.beScaleOut.fixedPercentTrigger') / 100;
@@ -176,13 +180,17 @@ function planBeScaleOut(snapshot, profitPercent) {
 
   return intent(snapshot, {
     action: 'exit_partial',
-    reason: 'be_scaleout',
+    reason: usesContractPartial ? 'partial_exit_1r' : 'be_scaleout',
     exitRole: 'profit',
     stateKey: 'beScaleOutState',
-    exitFraction: requireFraction(config.scaleOutFraction, 'policy.profitManagement.beScaleOut.scaleOutFraction'),
+    exitFraction: requireFraction(
+      usesContractPartial ? config.fraction : config.scaleOutFraction,
+      usesContractPartial ? 'policy.contract.partialExit.fraction' : 'policy.profitManagement.beScaleOut.scaleOutFraction'
+    ),
     evidence: {
       profitPercent,
       trigger,
+      ...(usesContractPartial ? { remainderTrail: config.remainderTrail } : {}),
       policyHash: policy.policyHash,
     },
   });
