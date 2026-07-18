@@ -1,4 +1,6 @@
 // core/PineTALib.js
+const { IndicatorCalculator } = require('../../core/IndicatorCalculator');
+
 class PineTALib {
   // Simple moving average
   static sma(series, length) {
@@ -23,14 +25,7 @@ class PineTALib {
   // Relative Strength Index
   static rsi(series, length) {
     if (length <= 0) return null;
-    let gain = 0, loss = 0;
-    for (let i = series.length - length; i < series.length; i++) {
-      const delta = series[i] - series[i - 1];
-      if (delta > 0) gain += delta;
-      else loss -= delta;
-    }
-    const rs = loss === 0 ? 100 : gain / loss;
-    return 100 - (100 / (1 + rs));
+    return IndicatorCalculator.calculateWilderRSIFromCloses(series, length);
   }
 
   // Average True Range

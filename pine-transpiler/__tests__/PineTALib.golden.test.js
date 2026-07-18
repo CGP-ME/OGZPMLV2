@@ -1,4 +1,5 @@
 const PineTALib = require('../core/PineTALib');
+const { IndicatorCalculator } = require('../../core/IndicatorCalculator');
 
 function tvSma(series, length) {
   if (series.length < length) return null;
@@ -102,8 +103,8 @@ describe('PineTALib TradingView goldens — EMA', () => {
   });
 });
 
-describe('PineTALib TradingView goldens — RSI delegation hold', () => {
-  test('documents current RSI defect against TV Wilder/RMA reference', () => {
+describe('PineTALib TradingView goldens — RSI', () => {
+  test('rsi delegates to the shared Wilder/RMA reference', () => {
     const series = [10, 12, 11, 13, 14, 13, 15];
     const length = 3;
     // TV ta.rsi = 100 - 100 / (1 + RMA(gains, length) / RMA(losses, length)).
@@ -113,12 +114,12 @@ describe('PineTALib TradingView goldens — RSI delegation hold', () => {
     // RSI = 100 - 100 / (1 + 1.2098765432 / 0.3209876543) = 79.0322580645.
     const tvReference = tvRsi(series, length);
     expect(tvReference).toBeCloseTo(79.0322580645, 10);
-    expect(PineTALib.rsi(series, length)).not.toBeCloseTo(tvReference, 10);
+    expect(PineTALib.rsi(series, length)).toBeCloseTo(tvReference, 10);
   });
 
-  test.skip('pending Lane 8 Wilder module: rsi should match TV RMA/Wilder reference', () => {
-    const series = [10, 12, 11, 13, 14, 13, 15];
-    expect(PineTALib.rsi(series, 3)).toBeCloseTo(tvRsi(series, 3), 10);
+  test('rsi preserves the shared neutral warmup contract', () => {
+    // Lane 8's shared module deliberately returns neutral 50 until period+1 closes exist.
+    expect(PineTALib.rsi([10, 11, 12], 3)).toBe(50);
   });
 });
 
@@ -138,11 +139,13 @@ describe('PineTALib TradingView goldens — ATR delegation hold', () => {
     expect(PineTALib.atr(high, low, close, length)).not.toBeCloseTo(tvReference, 10);
   });
 
-  test.skip('pending Lane 8 Wilder module: atr should match TV true-range RMA reference', () => {
+  test('keeps ATR delegation as a named gap until a shared Wilder ATR export exists', () => {
     const high = [10, 12, 11, 14, 13];
     const low = [8, 9, 9, 10, 11];
     const close = [9, 11, 10, 12, 12];
-    expect(PineTALib.atr(high, low, close, 3)).toBeCloseTo(tvAtr(high, low, close, 3), 10);
+    expect(IndicatorCalculator.calculateWilderATR).toBeUndefined();
+    expect(IndicatorCalculator.calculateWilderATRFromOHLC).toBeUndefined();
+    expect(PineTALib.atr(high, low, close, 3)).not.toBeCloseTo(tvAtr(high, low, close, 3), 10);
   });
 });
 
