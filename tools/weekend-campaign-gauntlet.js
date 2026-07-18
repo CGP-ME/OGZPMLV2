@@ -54,7 +54,6 @@ const EXPECTED_SIGNAL_FREQUENCY = Object.freeze({
   MADynamicSR: { minPerSession: 10, maxPerSession: 70, source: 'class-band' },
   LiquiditySweep: { minPerSession: 0.5, maxPerSession: 5, source: 'class-band' },
   SmartMoneySweep: { minPerSession: 2, maxPerSession: 15, source: 'class-band' },
-  MultiTimeframe: { minPerSession: 1, maxPerSession: 10, source: 'class-band' },
   OGZTPO: { minPerSession: 0.1, maxPerSession: 2, source: 'class-band' },
   OpeningRangeBreakout: { minPerSession: 0.1, maxPerSession: 2, source: 'class-band' },
   CandlePattern: { minPerSession: 10, maxPerSession: 80, source: 'class-band' },

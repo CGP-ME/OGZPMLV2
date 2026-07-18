@@ -28,6 +28,9 @@ const {
 const {
   PROFILE_FORBIDDEN_ENV_KEYS,
 } = require('../tools/tuning-profiles');
+const {
+  parseBacktestConfigOverrides,
+} = require('../core/BacktestConfigOverrides');
 const ConfigLoader = require('../foundation/ConfigLoader');
 const { BASE_CONFIG } = ConfigLoader;
 
@@ -60,6 +63,10 @@ describe('matrix-sweep runnable surface', () => {
     }
   }
 
+  function paramArmCount(paramMap) {
+    return Object.values(paramMap || {}).reduce((product, values) => product * values.length, 1);
+  }
+
   test('tsla shortcut uses the current stock eval baseline', () => {
     const matrixConfig = ConfigLoader.getMatrixSweepConfig();
 
@@ -85,6 +92,9 @@ describe('matrix-sweep runnable surface', () => {
     expect(GRID.conf.tierPresets).toBeNull();
     expect(GRID.conf.stopLoss).toBeNull();
     expect(GRID.conf.confidence).toEqual(matrixConfig.grid.conf.confidence);
+    expect(GRID.conf.globalParams).toEqual(matrixConfig.grid.conf.globalParams);
+    expect(GRID.conf.globalParams['orchestrator.mtfConfluenceService.minReadyTimeframes'])
+      .toEqual([2, 3]);
     expect(GRID.conf.strategyParams).toEqual(matrixConfig.grid.conf.strategyParams);
     expect(GRID.conf.strategyParams.PropSafeEMAPullback['strategies.PropSafeEMAPullback.pullbackLookbackBars'])
       .toEqual([3, 5, 8]);
@@ -125,6 +135,9 @@ describe('matrix-sweep runnable surface', () => {
     expect(() => {
       GRID.conf.strategyParams.NoWickImbalance['strategies.NoWickImbalance.entryMode'].push('other');
     }).toThrow(TypeError);
+    expect(() => {
+      GRID.conf.globalParams['orchestrator.mtfConfluenceService.minReadyTimeframes'].push(4);
+    }).toThrow(TypeError);
   });
 
   test('sweep roster excludes MarketRegime because it is a regime booster, not a solo strategy', () => {
@@ -141,7 +154,6 @@ describe('matrix-sweep runnable surface', () => {
       'MADynamicSR',
       'LiquiditySweep',
       'SmartMoneySweep',
-      'MultiTimeframe',
       'OGZTPO',
       'OpeningRangeBreakout',
       'CandlePattern',
@@ -154,6 +166,7 @@ describe('matrix-sweep runnable surface', () => {
       'TimeSeriesMomentum',
     ]);
     expect(ALL_STRATEGIES).not.toContain('MarketRegime');
+    expect(ALL_STRATEGIES).not.toContain('MultiTimeframe');
   });
 
   test('structural-exit strategies are excluded from exit-geometry phases', () => {
@@ -185,7 +198,7 @@ describe('matrix-sweep runnable surface', () => {
   test('structural-exit strategies can still run confidence sweeps', () => {
     const configs = generateMatrix(['NoWickImbalance'], GRID.conf, 'conf');
 
-    expect(configs).toHaveLength(GRID.conf.confidence.length * 2 * 3);
+    expect(configs).toHaveLength(GRID.conf.confidence.length * 2 * 3 * paramArmCount(GRID.conf.globalParams));
     expect(configs.every(config => config.strategy === 'NoWickImbalance')).toBe(true);
     expect(configs.every(config => config.env.ENABLE_NOWICK === 'true')).toBe(true);
   });
@@ -193,7 +206,7 @@ describe('matrix-sweep runnable surface', () => {
   test('DonchianBreakout solo matrix configs carry the explicit roster enable flag', () => {
     const configs = generateMatrix(['DonchianBreakout'], GRID.conf, 'conf');
 
-    expect(configs).toHaveLength(GRID.conf.confidence.length);
+    expect(configs).toHaveLength(GRID.conf.confidence.length * paramArmCount(GRID.conf.globalParams));
     expect(configs.every(config => config.strategy === 'DonchianBreakout')).toBe(true);
     expect(configs.every(config => config.env.SOLO_STRATEGY === 'DonchianBreakout')).toBe(true);
     expect(configs.every(config => config.env.ENABLE_DONCHIAN === 'true')).toBe(true);
@@ -205,7 +218,7 @@ describe('matrix-sweep runnable surface', () => {
     const gates = payloads.map(payload => payload['strategies.SmartMoneySweep.minConditionsGate']);
     const modes = payloads.map(payload => payload['strategies.SmartMoneySweep.confidenceMode']);
 
-    expect(configs).toHaveLength(GRID.conf.confidence.length * 4 * 2);
+    expect(configs).toHaveLength(GRID.conf.confidence.length * 4 * 2 * paramArmCount(GRID.conf.globalParams));
     expect(new Set(gates)).toEqual(new Set([0, 1, 2, 3]));
     expect(new Set(modes)).toEqual(new Set(['tiered', 'continuous']));
     expect(configs.every(config => config.env.ENABLE_SMS === 'true')).toBe(true);
@@ -220,7 +233,7 @@ describe('matrix-sweep runnable surface', () => {
   test('wake roster strategies carry explicit solo matrix enable flags', () => {
     const configs = generateMatrix(['RSI2MeanReversion', 'TimeSeriesMomentum'], GRID.conf, 'conf');
 
-    expect(configs).toHaveLength(GRID.conf.confidence.length * 2);
+    expect(configs).toHaveLength(GRID.conf.confidence.length * 2 * paramArmCount(GRID.conf.globalParams));
     expect(configs.filter(config => config.strategy === 'RSI2MeanReversion')
       .every(config => config.env.ENABLE_RSI2_MR === 'true')).toBe(true);
     expect(configs.filter(config => config.strategy === 'TimeSeriesMomentum')
@@ -232,7 +245,7 @@ describe('matrix-sweep runnable surface', () => {
     const payloads = configs.map(config => JSON.parse(config.env.BACKTEST_CONFIG_OVERRIDES_JSON));
     const values = payloads.map(payload => payload['strategies.PropSafeEMAPullback.pullbackLookbackBars']);
 
-    expect(configs).toHaveLength(GRID.conf.confidence.length * 3);
+    expect(configs).toHaveLength(GRID.conf.confidence.length * 3 * paramArmCount(GRID.conf.globalParams));
     expect(new Set(values)).toEqual(new Set([3, 5, 8]));
     expect(configs.every(config => config.env.ENABLE_PROPSAFE_EMA === 'true')).toBe(true);
     expect(configs.every(config => config.env.PROPSAFE_EMA_PULLBACK_LOOKBACK === undefined)).toBe(true);
@@ -246,7 +259,7 @@ describe('matrix-sweep runnable surface', () => {
     const entryModes = payloads.map(payload => payload['strategies.NoWickImbalance.entryMode']);
     const targetRRs = payloads.map(payload => payload['strategies.NoWickImbalance.targetRR']);
 
-    expect(configs).toHaveLength(GRID.conf.confidence.length * 2 * 3);
+    expect(configs).toHaveLength(GRID.conf.confidence.length * 2 * 3 * paramArmCount(GRID.conf.globalParams));
     expect(new Set(entryModes)).toEqual(new Set(['tap', 'rejection']));
     expect(new Set(targetRRs)).toEqual(new Set([1.0, 1.5, 2.0]));
     expect(configs.every(config => config.env.ENABLE_NOWICK === 'true')).toBe(true);
@@ -263,7 +276,7 @@ describe('matrix-sweep runnable surface', () => {
     const durations = payloads.map(payload => payload['strategies.OpeningRangeBreakout.orDurationMinutes']);
     const widthFilters = payloads.map(payload => payload['strategies.OpeningRangeBreakout.orMinWidthAtr']);
 
-    expect(configs).toHaveLength(GRID.conf.confidence.length * 3 * 3);
+    expect(configs).toHaveLength(GRID.conf.confidence.length * 3 * 3 * paramArmCount(GRID.conf.globalParams));
     expect(new Set(durations)).toEqual(new Set([5, 15, 30]));
     expect(new Set(widthFilters)).toEqual(new Set([0, 0.5, 1.0]));
     expect(configs.every(config => config.env.ENABLE_ORB === 'true')).toBe(true);
@@ -272,6 +285,29 @@ describe('matrix-sweep runnable surface', () => {
     expect(configs.every(config => config.strategyParams != null)).toBe(true);
     expect(configs.every(config => config.strategyParams['strategies.OpeningRangeBreakout.orDurationMinutes'] != null)).toBe(true);
     expect(configs.every(config => config.strategyParams['strategies.OpeningRangeBreakout.orMinWidthAtr'] != null)).toBe(true);
+  });
+
+  test('MTF service min-ready sweep stays inside caged backtest overrides', () => {
+    const configs = generateMatrix(['RSI'], GRID.conf, 'conf');
+    const payloads = configs.map(config => JSON.parse(config.env.BACKTEST_CONFIG_OVERRIDES_JSON));
+    const minReady = payloads.map(payload => payload['orchestrator.mtfConfluenceService.minReadyTimeframes']);
+
+    expect(new Set(minReady)).toEqual(new Set([2, 3]));
+    expect(configs.every(config => config.env.MTF_MIN_READY_TIMEFRAMES === undefined)).toBe(true);
+    expect(configs.every(config => config.globalParams != null)).toBe(true);
+    expect(configs.every(config => config.globalParams['orchestrator.mtfConfluenceService.minReadyTimeframes'] != null)).toBe(true);
+  });
+
+  test('global matrix params are allowlisted to MTF service and per-strategy confluence boosts', () => {
+    const grid = {
+      ...GRID.conf,
+      confidence: [0.4],
+      globalParams: {
+        'risk.guardMode': ['off'],
+      },
+    };
+
+    expect(() => generateMatrix(['RSI'], grid, 'conf')).toThrow(/global param override is not allowed/);
   });
 
   test('structural-exit strategies generate no false full or exit matrices', () => {
@@ -289,6 +325,14 @@ describe('matrix-sweep runnable surface', () => {
       const configs = generateMatrix(ALL_STRATEGIES, GRID[phase], phase);
       for (const config of configs || []) {
         for (const key of Object.keys(config.env || {})) keys.add(key);
+        if (config.env?.BACKTEST_CONFIG_OVERRIDES_JSON) {
+          expect(() => parseBacktestConfigOverrides(config.env.BACKTEST_CONFIG_OVERRIDES_JSON, {
+            isBacktest: true,
+            executionMode: 'backtest',
+            candleSource: 'file',
+            liveTrading: false,
+          })).not.toThrow();
+        }
       }
     }
 
@@ -332,6 +376,7 @@ describe('matrix-sweep runnable surface', () => {
     const grid = {
       ...GRID.conf,
       confidence: [0.4],
+      globalParams: {},
       timeframes: ['15m', '1h'],
     };
 
@@ -354,12 +399,12 @@ describe('matrix-sweep runnable surface', () => {
     const lockedEmaStop = Math.abs(BASE_CONFIG.exitContracts.EMASMACrossover.stopLossPercent);
     const payloads = configs.map(config => JSON.parse(config.env.BACKTEST_CONFIG_OVERRIDES_JSON));
 
-    expect(configs).toHaveLength(GRID.conf.confidence.length);
+    expect(configs).toHaveLength(GRID.conf.confidence.length * paramArmCount(GRID.conf.globalParams));
     expect(configs.every(config => config.lockedSL === lockedEmaStop)).toBe(true);
     expect(configs.every(config => config.sl === lockedEmaStop)).toBe(true);
     expect(configs.every(config => config.env.MIN_TRADE_CONFIDENCE === undefined)).toBe(true);
     expect(payloads.every(payload => payload['exitContracts.EMASMACrossover.stopLossPercent'] === undefined)).toBe(true);
-    expect(payloads.map(payload => payload['confidence.minTradeConfidence'])).toEqual(GRID.conf.confidence);
+    expect(new Set(payloads.map(payload => payload['confidence.minTradeConfidence']))).toEqual(new Set(GRID.conf.confidence));
   });
 
   test('report fallback preserves worker errors, report path, and zero stock fees', () => {

@@ -288,13 +288,6 @@ class ExitContractManager {
         this.defaultContracts.default
       );
     }
-    if (lowerName.includes('mtf') || lowerName.includes('timeframe')) {
-      return applyConcurrencyContractDefaults(
-        buildStrategyContract(this.defaultContracts.MultiTimeframe, strategyName, timeframe),
-        this.defaultContracts.default
-      );
-    }
-
     return applyConcurrencyContractDefaults(
       buildStrategyContract(this.defaultContracts.default, strategyName, timeframe),
       this.defaultContracts.default

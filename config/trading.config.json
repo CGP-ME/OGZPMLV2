@@ -113,11 +113,22 @@
           "strengthMultiplier": 0.2,
           "maxMultiplier": 1.15,
           "conflictMultiplier": 0.88,
-          "penalizeConflicts": true,
-          "boostMtfCandidate": false
+          "penalizeConflicts": true
         },
         "strategyMtf": {
           "enabled": true
+        },
+        "mtfService": {
+          "minReadyTimeframes": 2,
+          "weights": {
+            "1m": 0.05,
+            "5m": 0.08,
+            "15m": 0.1,
+            "30m": 0.1,
+            "1h": 0.15,
+            "4h": 0.17,
+            "1d": 0.15
+          }
         }
       },
       "pipeline": {
@@ -128,7 +139,6 @@
         "enableCandlePattern": true,
         "enableBreakRetest": true,
         "enableMarketRegime": false,
-        "enableMultiTimeframe": true,
         "enableOGZTPO": true,
         "enableOpeningRangeBreakout": true,
         "enableSmartMoneySweep": true,
@@ -235,11 +245,22 @@
           "strengthMultiplier": 0.2,
           "maxMultiplier": 1.15,
           "conflictMultiplier": 0.88,
-          "penalizeConflicts": true,
-          "boostMtfCandidate": false
+          "penalizeConflicts": true
         },
         "strategyMtf": {
           "enabled": true
+        },
+        "mtfService": {
+          "minReadyTimeframes": 2,
+          "weights": {
+            "1m": 0.05,
+            "5m": 0.08,
+            "15m": 0.1,
+            "30m": 0.1,
+            "1h": 0.15,
+            "4h": 0.17,
+            "1d": 0.15
+          }
         }
       },
       "pipeline": {
@@ -250,7 +271,6 @@
         "enableCandlePattern": true,
         "enableBreakRetest": true,
         "enableMarketRegime": false,
-        "enableMultiTimeframe": true,
         "enableOGZTPO": true,
         "enableOpeningRangeBreakout": true,
         "enableSmartMoneySweep": true,
@@ -357,11 +377,22 @@
           "strengthMultiplier": 0.2,
           "maxMultiplier": 1.15,
           "conflictMultiplier": 0.88,
-          "penalizeConflicts": true,
-          "boostMtfCandidate": false
+          "penalizeConflicts": true
         },
         "strategyMtf": {
           "enabled": true
+        },
+        "mtfService": {
+          "minReadyTimeframes": 2,
+          "weights": {
+            "1m": 0.05,
+            "5m": 0.08,
+            "15m": 0.1,
+            "30m": 0.1,
+            "1h": 0.15,
+            "4h": 0.17,
+            "1d": 0.15
+          }
         }
       },
       "pipeline": {
@@ -372,7 +403,6 @@
         "enableCandlePattern": true,
         "enableBreakRetest": true,
         "enableMarketRegime": false,
-        "enableMultiTimeframe": true,
         "enableOGZTPO": true,
         "enableOpeningRangeBreakout": true,
         "enableSmartMoneySweep": true,
@@ -481,11 +511,22 @@
           "strengthMultiplier": 0.2,
           "maxMultiplier": 1.15,
           "conflictMultiplier": 0.88,
-          "penalizeConflicts": true,
-          "boostMtfCandidate": false
+          "penalizeConflicts": true
         },
         "strategyMtf": {
           "enabled": true
+        },
+        "mtfService": {
+          "minReadyTimeframes": 2,
+          "weights": {
+            "1m": 0.05,
+            "5m": 0.08,
+            "15m": 0.1,
+            "30m": 0.1,
+            "1h": 0.15,
+            "4h": 0.17,
+            "1d": 0.15
+          }
         }
       },
       "pipeline": {
@@ -496,7 +537,6 @@
         "enableCandlePattern": true,
         "enableBreakRetest": true,
         "enableMarketRegime": false,
-        "enableMultiTimeframe": true,
         "enableOGZTPO": true,
         "enableOpeningRangeBreakout": true,
         "enableSmartMoneySweep": true,
@@ -605,11 +645,22 @@
           "strengthMultiplier": 0.2,
           "maxMultiplier": 1.15,
           "conflictMultiplier": 0.88,
-          "penalizeConflicts": true,
-          "boostMtfCandidate": false
+          "penalizeConflicts": true
         },
         "strategyMtf": {
           "enabled": true
+        },
+        "mtfService": {
+          "minReadyTimeframes": 2,
+          "weights": {
+            "1m": 0.05,
+            "5m": 0.08,
+            "15m": 0.1,
+            "30m": 0.1,
+            "1h": 0.15,
+            "4h": 0.17,
+            "1d": 0.15
+          }
         }
       },
       "pipeline": {
@@ -620,7 +671,6 @@
         "enableCandlePattern": false,
         "enableBreakRetest": false,
         "enableMarketRegime": false,
-        "enableMultiTimeframe": false,
         "enableOGZTPO": false,
         "enableOpeningRangeBreakout": false,
         "enableSmartMoneySweep": false,
@@ -729,11 +779,22 @@
           "strengthMultiplier": 0.2,
           "maxMultiplier": 1.15,
           "conflictMultiplier": 0.88,
-          "penalizeConflicts": true,
-          "boostMtfCandidate": false
+          "penalizeConflicts": true
         },
         "strategyMtf": {
           "enabled": true
+        },
+        "mtfService": {
+          "minReadyTimeframes": 2,
+          "weights": {
+            "1m": 0.05,
+            "5m": 0.08,
+            "15m": 0.1,
+            "30m": 0.1,
+            "1h": 0.15,
+            "4h": 0.17,
+            "1d": 0.15
+          }
         }
       },
       "pipeline": {
@@ -744,7 +805,6 @@
         "enableCandlePattern": false,
         "enableBreakRetest": false,
         "enableMarketRegime": false,
-        "enableMultiTimeframe": false,
         "enableOGZTPO": false,
         "enableOpeningRangeBreakout": false,
         "enableSmartMoneySweep": false,
@@ -851,11 +911,22 @@
           "strengthMultiplier": 0.2,
           "maxMultiplier": 1.15,
           "conflictMultiplier": 0.88,
-          "penalizeConflicts": true,
-          "boostMtfCandidate": false
+          "penalizeConflicts": true
         },
         "strategyMtf": {
           "enabled": true
+        },
+        "mtfService": {
+          "minReadyTimeframes": 2,
+          "weights": {
+            "1m": 0.05,
+            "5m": 0.08,
+            "15m": 0.1,
+            "30m": 0.1,
+            "1h": 0.15,
+            "4h": 0.17,
+            "1d": 0.15
+          }
         }
       },
       "pipeline": {
@@ -866,7 +937,6 @@
         "enableCandlePattern": true,
         "enableBreakRetest": true,
         "enableMarketRegime": false,
-        "enableMultiTimeframe": true,
         "enableOGZTPO": true,
         "enableOpeningRangeBreakout": true,
         "enableSmartMoneySweep": true,
@@ -973,11 +1043,22 @@
           "strengthMultiplier": 0.2,
           "maxMultiplier": 1.15,
           "conflictMultiplier": 0.88,
-          "penalizeConflicts": true,
-          "boostMtfCandidate": false
+          "penalizeConflicts": true
         },
         "strategyMtf": {
           "enabled": true
+        },
+        "mtfService": {
+          "minReadyTimeframes": 2,
+          "weights": {
+            "1m": 0.05,
+            "5m": 0.08,
+            "15m": 0.1,
+            "30m": 0.1,
+            "1h": 0.15,
+            "4h": 0.17,
+            "1d": 0.15
+          }
         }
       },
       "pipeline": {
@@ -988,7 +1069,6 @@
         "enableCandlePattern": true,
         "enableBreakRetest": true,
         "enableMarketRegime": false,
-        "enableMultiTimeframe": true,
         "enableOGZTPO": true,
         "enableOpeningRangeBreakout": true,
         "enableSmartMoneySweep": true,
@@ -1475,24 +1555,6 @@
         "regime_change"
       ]
     },
-    "MultiTimeframe": {
-      "stopLossPercent": -2,
-      "takeProfitPercent": 2.5,
-      "trailingStopPercent": 0.8,
-      "trailingActivation": 1,
-      "maxHoldTimeMinutes": 300,
-      "stopType": "percent",
-      "trailType": "percent",
-      "tpMode": "percent",
-      "maxHoldMode": "minutes",
-      "partialExit": {
-        "enabled": false,
-        "triggerR": 1,
-        "fraction": 0.5,
-        "remainderTrail": "atr"
-      },
-      "invalidationConditions": []
-    },
     "OGZTPO": {
       "stopLossPercent": -2,
       "takeProfitPercent": 2.5,
@@ -1853,7 +1915,6 @@
       "strategies": [
         "EMASMACrossover",
         "MADynamicSR",
-        "MultiTimeframe",
         "DonchianBreakout",
         "PropSafeEMAPullback",
         "EMATrendRetest",
@@ -2001,6 +2062,10 @@
         "minRewardRisk": 1.5,
         "minTakeProfitPct": 0.007
       },
+      "confluenceBoost": {
+        "enabled": false,
+        "weight": 0
+      },
       "enabled": true
     },
     "EMASMACrossover": {
@@ -2021,6 +2086,10 @@
       "freshCrossoverBonusPerCross": 0.05,
       "freshCrossoverBonusMax": 0.15,
       "maxConfidence": 1,
+      "confluenceBoost": {
+        "enabled": false,
+        "weight": 0
+      },
       "enabled": true
     },
     "LiquiditySweep": {
@@ -2041,12 +2110,20 @@
         "hammerPattern": 0.25,
         "engulfPattern": 0.25
       },
+      "confluenceBoost": {
+        "enabled": false,
+        "weight": 0
+      },
       "enabled": true
     },
     "RSI": {
       "period": 14,
       "oversoldLevel": 30,
       "overboughtLevel": 70,
+      "confluenceBoost": {
+        "enabled": false,
+        "weight": 0
+      },
       "enabled": true
     },
     "VolumeProfile": {
@@ -2055,6 +2132,10 @@
       "valueAreaPct": 0.7,
       "outOfBalancePct": 0.5,
       "recalcInterval": 5,
+      "confluenceBoost": {
+        "enabled": false,
+        "weight": 0
+      },
       "enabled": true
     },
     "SmartMoneySweep": {
@@ -2092,6 +2173,10 @@
       "breakHigh": 5,
       "breakMid": 3,
       "confidenceMode": "tiered",
+      "confluenceBoost": {
+        "enabled": false,
+        "weight": 0
+      },
       "enabled": true
     },
     "OpeningRangeBreakout": {
@@ -2106,6 +2191,10 @@
       "entryLevel": "top",
       "stopBufferPct": 0.05,
       "targetRR": 2,
+      "confluenceBoost": {
+        "enabled": false,
+        "weight": 0
+      },
       "enabled": true
     },
     "DonchianBreakout": {
@@ -2127,6 +2216,10 @@
       "invalidationConditions": [
         "donchian_channel_reentry"
       ],
+      "confluenceBoost": {
+        "enabled": false,
+        "weight": 0
+      },
       "enabled": true
     },
     "OGZTPO": {
@@ -2166,6 +2259,10 @@
           "zoneRequired": false,
           "voteMultiplier": 1.2
         }
+      },
+      "confluenceBoost": {
+        "enabled": false,
+        "weight": 0
       }
     },
     "NoWickImbalance": {
@@ -2183,6 +2280,10 @@
       "twinProximityBars": 1,
       "confidence": 0.7,
       "debug": false,
+      "confluenceBoost": {
+        "enabled": false,
+        "weight": 0
+      },
       "enabled": true
     },
     "PropSafeEMAPullback": {
@@ -2210,6 +2311,10 @@
       "rthEndET": "16:00",
       "sessionTimeZone": "America/New_York",
       "allowShorts": false,
+      "confluenceBoost": {
+        "enabled": false,
+        "weight": 0
+      },
       "enabled": true
     },
     "EMATrendRetest": {
@@ -2236,6 +2341,10 @@
       "rthEndET": "16:00",
       "sessionTimeZone": "America/New_York",
       "allowShorts": false,
+      "confluenceBoost": {
+        "enabled": false,
+        "weight": 0
+      },
       "enabled": true
     },
     "RSI2MeanReversion": {
@@ -2257,6 +2366,10 @@
         "rsi2_exit_long",
         "regime_change"
       ],
+      "confluenceBoost": {
+        "enabled": false,
+        "weight": 0
+      },
       "enabled": true
     },
     "TimeSeriesMomentum": {
@@ -2283,6 +2396,10 @@
       "invalidationConditions": [
         "tsm_return_flip"
       ],
+      "confluenceBoost": {
+        "enabled": false,
+        "weight": 0
+      },
       "enabled": true
     }
   },
@@ -2321,13 +2438,6 @@
       "hourlyRsiAlignBoost": 0.1,
       "hourlyRsiBuyMax": 40,
       "hourlyRsiSellMin": 60
-    },
-    "multiTimeframeMtf": {
-      "requireHigherTFReady": [
-        "1h",
-        "4h"
-      ],
-      "missingHigherTfMultiplier": 1
     },
     "ogzTpoMtf": {
       "fourHourTrendBoostMultiplier": 1.12,
@@ -2526,7 +2636,6 @@
     "enableCandlePattern": true,
     "enableBreakRetest": true,
     "enableMarketRegime": false,
-    "enableMultiTimeframe": true,
     "enableOGZTPO": true,
     "enableOpeningRangeBreakout": true,
     "enableSmartMoneySweep": true,

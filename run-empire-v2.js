@@ -678,9 +678,12 @@ class OGZPrimeV14Bot {
     console.log(`Trade Intelligence Engine: ${this.tradeIntelligenceShadowMode ? 'SHADOW MODE' : 'ACTIVE'}`);
 
     // CHANGE 2026-02-10: Modular Entry System (V2 format: c/o/h/l/v/t)
+    const mtfServiceConfig = ConfigLoader.get('orchestrator.mtfConfluenceService') || {};
     this.mtfAdapter = new MultiTimeframeAdapter({
       baseTimeframe: this.candleTimeframe,
-      activeTimeframes: ['1m', '5m', '15m', '1h', '4h', '1d'],
+      activeTimeframes: ConfigLoader.get('orchestrator.mtfTimeframes') || ['1m', '5m', '15m', '1h', '4h', '1d'],
+      minReadyTimeframes: mtfServiceConfig.minReadyTimeframes,
+      weights: mtfServiceConfig.weights,
     });
     this.candleAggregator = new CandleAggregator();
 

@@ -348,12 +348,6 @@ function isMtfMacdAligned(indicators, direction) {
   return direction === 'buy' ? indicators.macd.bullish : !indicators.macd.bullish;
 }
 
-function mtfReadyTimeframes(confluence) {
-  if (Array.isArray(confluence?.readyTimeframes)) return confluence.readyTimeframes;
-  if (Array.isArray(confluence?.timeframes)) return confluence.timeframes;
-  return [];
-}
-
 function requireOptionalTimeframe(value, label) {
   if (value === undefined || value === null) {
     return null;
@@ -408,10 +402,9 @@ function getTrendRegimeGateConfig() {
   const strategyListConfig = ConfigLoader.get('strategyBehavior.trendRegimeGate.strategies');
   const strategyList = Array.isArray(strategyListConfig)
     ? strategyListConfig
-    : [
+      : [
         'EMASMACrossover',
         'MADynamicSR',
-        'MultiTimeframe',
         'DonchianBreakout',
         'PropSafeEMAPullback',
         'EMATrendRetest',
@@ -463,6 +456,7 @@ function buildAtrContractOverrides({ indicators, price, strategyName }) {
 
 function firstFiniteNumber(...values) {
   for (const value of values) {
+    if (value === undefined || value === null || value === '') continue;
     const numeric = Number(value);
     if (Number.isFinite(numeric)) return numeric;
   }
@@ -869,9 +863,12 @@ class StrategyOrchestrator {
   }
 
   _buildMtfAdapterConfig() {
+    const serviceConfig = ConfigLoader.get('orchestrator.mtfConfluenceService') || {};
     return {
       ...(this.mtfBaseTimeframe ? { baseTimeframe: this.mtfBaseTimeframe } : {}),
       activeTimeframes: ConfigLoader.get('orchestrator.mtfTimeframes') || ['1m', '5m', '15m', '1h', '4h'],
+      minReadyTimeframes: serviceConfig.minReadyTimeframes,
+      weights: serviceConfig.weights,
     };
   }
 
@@ -940,7 +937,7 @@ class StrategyOrchestrator {
     }
 
     const scopedMtfAdapter = this._getSymbolStrategyModule(
-      'MultiTimeframe',
+      'MtfConfluenceService',
       ctx.extras?.symbol,
       this.mtfAdapter,
       () => new MultiTimeframeAdapter(this._buildMtfAdapterConfig())
@@ -955,7 +952,7 @@ class StrategyOrchestrator {
 
     let confluence;
     try {
-      confluence = scopedMtfAdapter.getConfluence ? scopedMtfAdapter.getConfluence() : scopedMtfAdapter.getConfluenceScore();
+      confluence = scopedMtfAdapter.crossFrameScore();
     } catch (e) {
       if (process.env.STRATEGY_DIAG === 'true') console.log(`[DIAG] MultiTimeframe: getConfluence error: ${e.message}`);
       return cacheResult(null, `confluence_error:${e.message}`, scopedMtfAdapter);
@@ -989,8 +986,8 @@ class StrategyOrchestrator {
       available: false,
       unavailableReason: reason || 'unavailable',
       direction: 'neutral',
-      confluenceScore: 0,
-      confidence: 0,
+      confluenceScore: null,
+      confidence: null,
       readyTimeframes: [],
       totalTimeframes: null,
       shouldTrade: null,
@@ -1022,8 +1019,8 @@ class StrategyOrchestrator {
           ? confluence.reasoning[0]
           : 'no_ready_timeframes'),
       direction,
-      confluenceScore: score == null ? 0 : score,
-      confidence: firstFiniteNumber(confluence.confidence, score == null ? 0 : Math.abs(score)) ?? 0,
+      confluenceScore: score == null ? null : score,
+      confidence: firstFiniteNumber(confluence.confidence, score == null ? null : Math.abs(score)),
       readyTimeframes,
       totalTimeframes: Number.isInteger(confluence.totalTimeframes) && confluence.totalTimeframes >= 0
         ? confluence.totalTimeframes
@@ -1041,9 +1038,9 @@ class StrategyOrchestrator {
   }
 
   _shouldObserveMtfConfluence() {
-    const pipeline = ConfigLoader.get('pipeline') || {};
     const booster = ConfigLoader.get('orchestrator.mtfConfluenceBooster') || {};
-    return pipeline.enableMultiTimeframe === true || booster.enabled === true;
+    const strategyMtf = ConfigLoader.get('orchestrator.strategyMtfConfluence') || {};
+    return booster.enabled === true || strategyMtf.enabled === true;
   }
 
   _applyMtfConfluenceBooster(results, ctx) {
@@ -1057,8 +1054,6 @@ class StrategyOrchestrator {
     const maxMultiplier = finiteConfigNumber(config.maxMultiplier, 'maxMultiplier', 1.15, 1);
     const conflictMultiplier = finiteConfigNumber(config.conflictMultiplier, 'conflictMultiplier', 0.85, 0);
     const penalizeConflicts = config.penalizeConflicts !== false;
-    const boostMtfCandidate = config.boostMtfCandidate === true;
-
     const confluence = this._getMtfConfluenceForEvaluation(ctx);
     const signedScore = firstFiniteNumber(confluence?.confluenceScore, confluence?.score);
     if (signedScore == null || signedScore === 0) return false;
@@ -1072,12 +1067,15 @@ class StrategyOrchestrator {
     stats.boosterEvaluations += 1;
     let changed = false;
     for (const result of results) {
-      if (result.strategyName === 'MultiTimeframe' && !boostMtfCandidate) continue;
+      const strategyConfig = ConfigLoader.get(`strategies.${result.strategyName}`) || {};
+      const strategyBoost = strategyConfig.confluenceBoost || {};
+      if (strategyBoost.enabled !== true) continue;
       stats.candidatesSeen += 1;
 
       const aligned = result.direction === mtfDirection;
+      const strategyWeight = finiteConfigNumber(strategyBoost.weight, `${result.strategyName}.confluenceBoost.weight`, undefined, 0);
       const multiplier = aligned
-        ? Math.min(maxMultiplier, 1 + (scoreMagnitude * strengthMultiplier))
+        ? Math.min(maxMultiplier, 1 + (scoreMagnitude * strengthMultiplier * strategyWeight))
         : (penalizeConflicts ? conflictMultiplier : 1);
 
       if (multiplier === 1) continue;
@@ -1111,6 +1109,7 @@ class StrategyOrchestrator {
         confidence,
         multiplier: cappedScore / previousRankingScore,
         configuredMultiplier: multiplier,
+        strategyWeight,
         aligned,
         floorProtected,
       };
@@ -1296,23 +1295,6 @@ class StrategyOrchestrator {
             hourlyRsi,
             direction: result.direction,
           });
-        }
-        break;
-      }
-      case 'MultiTimeframe': {
-        const cfg = ConfigLoader.get('orchestrator.multiTimeframeMtf') || {};
-        const required = Array.isArray(cfg.requireHigherTFReady) ? cfg.requireHigherTFReady : [];
-        if (required.length > 0) {
-          const ready = mtfReadyTimeframes(result.signalData);
-          const missing = required.filter((timeframe) => !ready.includes(timeframe));
-          if (missing.length > 0) {
-            const multiplier = finiteConfigNumber(cfg.missingHigherTfMultiplier, 'multiTimeframeMtf.missingHigherTfMultiplier', 1.0, 0);
-            applyPenalty('mtf_standalone_higher_tf_missing_observation', multiplier, `MultiTimeframe higher timeframes are not ready: ${missing.join(',')}`, {
-              requiredTimeframes: required,
-              readyTimeframes: ready,
-              missingTimeframes: missing,
-            });
-          }
         }
         break;
       }
@@ -1741,37 +1723,6 @@ class StrategyOrchestrator {
       }
     });
 
-    // ─── 7. Multi-Timeframe Confluence Strategy ───
-    // FIX 2026-03-19: Self-contained — owns its MTF adapter internally
-    if (shouldRegister('MultiTimeframe')) this.strategies.push({
-      name: 'MultiTimeframe',
-      evaluate: (ctx) => {
-        // Self-contained: ingest candle and compute confluence internally
-        const confluence = this._getMtfConfluenceForEvaluation(ctx);
-
-        const rawScore = Number.isFinite(confluence?.score)
-          ? confluence.score
-          : confluence?.confluenceScore;
-        const scoreMagnitude = Number.isFinite(rawScore) ? Math.abs(rawScore) : 0;
-        const confidence = Number.isFinite(confluence?.confidence)
-          ? confluence.confidence
-          : scoreMagnitude;
-        const timeframes = Array.isArray(confluence?.timeframes)
-          ? confluence.timeframes
-          : confluence?.readyTimeframes;
-
-        if (!confluence || !confluence.direction || confluence.direction === 'neutral') return null;
-        if (scoreMagnitude < this.confluenceMinScore) return null;
-
-        return {
-          direction: confluence.direction,
-          confidence,
-          reason: `MTF Confluence: ${confluence.direction} (${timeframes?.join(', ') || 'multiple'})`,
-          signalData: confluence
-        };
-      }
-    });
-
     // ─── 8. OGZ TPO Strategy ───
     // FIX 2026-03-19: Self-contained — owns its TPO integration internally
     const tpoIntegrationModule = this.tpoIntegration;
@@ -2042,7 +1993,6 @@ class StrategyOrchestrator {
       'CandlePattern': pipeline.enableCandlePattern,
       'BreakRetest': pipeline.enableBreakRetest,
       'MarketRegime': pipeline.enableMarketRegime,
-      'MultiTimeframe': pipeline.enableMultiTimeframe,
       'OGZTPO': pipeline.enableOGZTPO,
       'OpeningRangeBreakout': pipeline.enableOpeningRangeBreakout,
       'SmartMoneySweep': pipeline.enableSmartMoneySweep,
@@ -2113,7 +2063,7 @@ class StrategyOrchestrator {
     // DISABLED 2026-03-09: VP chop filter was one of 6 stacked gates killing signals
     // MADynamicSR now has its own slope/extension filters. VP chop filter is redundant.
     // TODO: Full gate audit needed — one filter, one job, no overlap.
-    // const TREND_STRATEGIES = ['MADynamicSR', 'EMASMACrossover', 'MultiTimeframe', 'MarketRegime'];
+    // const TREND_STRATEGIES = ['MADynamicSR', 'EMASMACrossover', 'MarketRegime'];
     let vpMarketState = null;
     let skipTrendStrategies = false;  // Always false now — strategies handle their own filtering
 

@@ -259,6 +259,18 @@ function freezeStrategyParams(strategyParams) {
   return Object.freeze(result);
 }
 
+function freezeGlobalParams(globalParams) {
+  if (globalParams == null) return Object.freeze({});
+  const result = {};
+  for (const [configPath, values] of Object.entries(globalParams)) {
+    if (!Array.isArray(values) || values.length === 0) {
+      throw new Error('Matrix global param ' + configPath + ' must provide a non-empty value list');
+    }
+    result[configPath] = Object.freeze([...values]);
+  }
+  return Object.freeze(result);
+}
+
 function buildGridPhaseFromConfig(phaseConfig) {
   const tierPresets = Object.prototype.hasOwnProperty.call(phaseConfig, 'tierGrid')
     ? buildMonotonicTierCube(phaseConfig.tierGrid)
@@ -269,6 +281,7 @@ function buildGridPhaseFromConfig(phaseConfig) {
     tierPresets: freezeTierPresetList(tierPresets),
     confidence: Object.freeze([...phaseConfig.confidence]),
     strategyParams: freezeStrategyParams(phaseConfig.strategyParams),
+    globalParams: freezeGlobalParams(phaseConfig.globalParams),
   });
 }
 
@@ -307,7 +320,14 @@ function getLockedSL(strat) {
   return Math.abs(contract.stopLossPercent);
 }
 
-function buildBacktestOverrideEnv(strategyName, stopLoss, confidence, timeframe, strategyParamOverrides) {
+function isAllowedGlobalParamOverride(configPath, strategyName) {
+  const path = String(configPath);
+  if (path.startsWith('orchestrator.mtfConfluenceService.')) return true;
+  const boostPrefix = 'strategies.' + strategyName + '.confluenceBoost.';
+  return path.startsWith(boostPrefix);
+}
+
+function buildBacktestOverrideEnv(strategyName, stopLoss, confidence, timeframe, strategyParamOverrides, globalParamOverrides) {
   const numericConfidence = Number(confidence);
   if (!Number.isFinite(numericConfidence) || numericConfidence < 0 || numericConfidence > 1) {
     throw new Error('Matrix confidence must be a finite 0-1 value, got ' + confidence);
@@ -333,6 +353,18 @@ function buildBacktestOverrideEnv(strategyName, stopLoss, confidence, timeframe,
       }
       if (Object.prototype.hasOwnProperty.call(overrides, configPath)) {
         throw new Error('Matrix strategy param override duplicates ' + configPath);
+      }
+      overrides[configPath] = value;
+    }
+  }
+
+  if (globalParamOverrides) {
+    for (const [configPath, value] of Object.entries(globalParamOverrides)) {
+      if (!isAllowedGlobalParamOverride(configPath, strategyName)) {
+        throw new Error('Matrix global param override is not allowed for ' + strategyName + ': ' + configPath);
+      }
+      if (Object.prototype.hasOwnProperty.call(overrides, configPath)) {
+        throw new Error('Matrix global param override duplicates ' + configPath);
       }
       overrides[configPath] = value;
     }
@@ -368,6 +400,34 @@ function getStrategyParamCombos(grid, strategyName) {
 
   let combos = [{ label: '', overrides: {}, values: {} }];
   for (const [configPath, values] of entries) {
+    const keyLabel = sanitizeParamLabel(String(configPath).split('.').pop());
+    const nextCombos = [];
+    for (const combo of combos) {
+      for (const value of values) {
+        nextCombos.push({
+          label: combo.label + '_' + keyLabel + sanitizeParamLabel(value),
+          overrides: { ...combo.overrides, [configPath]: value },
+          values: { ...combo.values, [configPath]: value },
+        });
+      }
+    }
+    combos = nextCombos;
+  }
+  return combos;
+}
+
+function getGlobalParamCombos(grid, strategyName) {
+  const params = grid.globalParams || null;
+  const entries = params ? Object.entries(params) : [];
+  if (entries.length === 0) {
+    return [{ label: '', overrides: null, values: null }];
+  }
+
+  let combos = [{ label: '', overrides: {}, values: {} }];
+  for (const [configPath, values] of entries) {
+    if (!isAllowedGlobalParamOverride(configPath, strategyName)) {
+      throw new Error('Matrix global param override is not allowed for ' + strategyName + ': ' + configPath);
+    }
     const keyLabel = sanitizeParamLabel(String(configPath).split('.').pop());
     const nextCombos = [];
     for (const combo of combos) {
@@ -426,6 +486,7 @@ function generateMatrix(strategies, grid, phase) {
     const tierPresets = grid.tierPresets || [null];
     const timeframeValues = Array.isArray(grid.timeframes) && grid.timeframes.length > 0 ? grid.timeframes : [null];
     const strategyParamCombos = getStrategyParamCombos(grid, strat);
+    const globalParamCombos = getGlobalParamCombos(grid, strat);
     const lockedSL = getLockedSL(strat);
 
     for (const sl of slValues) {
@@ -434,77 +495,80 @@ function generateMatrix(strategies, grid, phase) {
         for (const conf of grid.confidence) {
           for (const timeframe of timeframeValues) {
             for (const paramCombo of strategyParamCombos) {
-              const shortName = strat.substring(0, 4);
-              const tierLabel = tiers ? tiers.label : 'def';
-              const slLabel = sl == null ? 'lockedsl' + lockedSL : 'sl' + effectiveSL;
-              const timeframeLabel = timeframe == null ? '' : '_tf' + String(timeframe).replace(/[^a-zA-Z0-9_.-]/g, '_');
-              const name = shortName + '_' + slLabel + '_' + tierLabel + timeframeLabel + paramCombo.label + '_c' + (conf * 100).toFixed(0);
+              for (const globalCombo of globalParamCombos) {
+                const shortName = strat.substring(0, 4);
+                const tierLabel = tiers ? tiers.label : 'def';
+                const slLabel = sl == null ? 'lockedsl' + lockedSL : 'sl' + effectiveSL;
+                const timeframeLabel = timeframe == null ? '' : '_tf' + String(timeframe).replace(/[^a-zA-Z0-9_.-]/g, '_');
+                const name = shortName + '_' + slLabel + '_' + tierLabel + timeframeLabel + paramCombo.label + globalCombo.label + '_c' + (conf * 100).toFixed(0);
 
-              const env = {
-                SOLO_STRATEGY: strat,
-                ...buildBacktestOverrideEnv(strat, sl, conf, timeframe, paramCombo.overrides),
-              };
+                const env = {
+                  SOLO_STRATEGY: strat,
+                  ...buildBacktestOverrideEnv(strat, sl, conf, timeframe, paramCombo.overrides, globalCombo.overrides),
+                };
 
-              // Set tier targets if sweeping (otherwise MPM uses ConfigLoader defaults)
-              if (tiers) {
-                env.TIER1_TARGET = String(tiers.t1);
-                env.TIER2_TARGET = String(tiers.t2);
-                env.TIER3_TARGET = String(tiers.t3);
+                // Set tier targets if sweeping (otherwise MPM uses ConfigLoader defaults)
+                if (tiers) {
+                  env.TIER1_TARGET = String(tiers.t1);
+                  env.TIER2_TARGET = String(tiers.t2);
+                  env.TIER3_TARGET = String(tiers.t3);
+                }
+
+                // SMS needs explicit enable
+                if (strat === 'SmartMoneySweep') {
+                  env.ENABLE_SMS = 'true';
+                  env.SMS_VP_RTH_ONLY = 'true';
+                }
+
+                // NoWick needs explicit enable (off by default; sweep uses opt-in env)
+                if (strat === 'NoWickImbalance') {
+                  env.ENABLE_NOWICK = 'true';
+                }
+
+                // BreakRetest needs explicit enable (off by default; sweep uses opt-in env)
+                if (strat === 'BreakRetest') {
+                  env.ENABLE_BREAKRETEST = 'true';
+                }
+
+                // ORB needs explicit enable (off by default; sweep uses opt-in env)
+                if (strat === 'OpeningRangeBreakout') {
+                  env.ENABLE_ORB = 'true';
+                }
+
+                // DonchianBreakout needs explicit enable (off by default; sweep uses opt-in env)
+                if (strat === 'DonchianBreakout') {
+                  env.ENABLE_DONCHIAN = 'true';
+                }
+
+                if (strat === 'PropSafeEMAPullback') {
+                  env.ENABLE_PROPSAFE_EMA = 'true';
+                }
+
+                if (strat === 'EMATrendRetest') {
+                  env.ENABLE_EMA_TREND_RETEST = 'true';
+                }
+
+                if (strat === 'RSI2MeanReversion') {
+                  env.ENABLE_RSI2_MR = 'true';
+                }
+
+                if (strat === 'TimeSeriesMomentum') {
+                  env.ENABLE_TSMOM = 'true';
+                }
+
+                configs.push({
+                  name,
+                  strategy: strat,
+                  timeframe,
+                  strategyParams: paramCombo.values,
+                  globalParams: globalCombo.values,
+                  lockedSL,
+                  sl: effectiveSL,
+                  tiers,
+                  conf,
+                  env,
+                });
               }
-
-              // SMS needs explicit enable
-              if (strat === 'SmartMoneySweep') {
-                env.ENABLE_SMS = 'true';
-                env.SMS_VP_RTH_ONLY = 'true';
-              }
-
-              // NoWick needs explicit enable (off by default; sweep uses opt-in env)
-              if (strat === 'NoWickImbalance') {
-                env.ENABLE_NOWICK = 'true';
-              }
-
-              // BreakRetest needs explicit enable (off by default; sweep uses opt-in env)
-              if (strat === 'BreakRetest') {
-                env.ENABLE_BREAKRETEST = 'true';
-              }
-
-              // ORB needs explicit enable (off by default; sweep uses opt-in env)
-              if (strat === 'OpeningRangeBreakout') {
-                env.ENABLE_ORB = 'true';
-              }
-
-              // DonchianBreakout needs explicit enable (off by default; sweep uses opt-in env)
-              if (strat === 'DonchianBreakout') {
-                env.ENABLE_DONCHIAN = 'true';
-              }
-
-              if (strat === 'PropSafeEMAPullback') {
-                env.ENABLE_PROPSAFE_EMA = 'true';
-              }
-
-              if (strat === 'EMATrendRetest') {
-                env.ENABLE_EMA_TREND_RETEST = 'true';
-              }
-
-              if (strat === 'RSI2MeanReversion') {
-                env.ENABLE_RSI2_MR = 'true';
-              }
-
-              if (strat === 'TimeSeriesMomentum') {
-                env.ENABLE_TSMOM = 'true';
-              }
-
-              configs.push({
-                name,
-                strategy: strat,
-                timeframe,
-                strategyParams: paramCombo.values,
-                lockedSL,
-                sl: effectiveSL,
-                tiers,
-                conf,
-                env,
-              });
             }
           }
         }

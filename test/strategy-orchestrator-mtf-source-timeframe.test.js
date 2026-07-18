@@ -29,10 +29,8 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
 
   function installConfigMock(overrides = {}) {
     configOverrides = {
-      'strategies.soloFilter': ['MultiTimeframe'],
-      'confidence.minStrategyConfidence': 0,
-      pipeline: { enableMultiTimeframe: true },
-      'orchestrator.strategyMtfConfluence': { enabled: false },
+      'strategies.soloFilter': [],
+      'confidence.minStrategyConfidence': 0,      'orchestrator.strategyMtfConfluence': { enabled: false },
     };
     setConfigOverrides(overrides);
     const ConfigLoader = require('../foundation/ConfigLoader');
@@ -48,7 +46,7 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
         return mergedOverride(path, realGet(path, defaultValue));
       }
       if (Object.prototype.hasOwnProperty.call(configOverrides, path)) {
-        return configOverrides[path];
+        return mergedOverride(path, realGet(path, defaultValue));
       }
       return realGet(path, defaultValue);
     });
@@ -75,13 +73,13 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
 
   test('constructs root and symbol-scoped MTF adapters with runtime base timeframe', () => {
     const ingestCandle = jest.fn();
-    const getConfluenceScore = jest.fn(() => ({
+    const crossFrameScore = jest.fn(() => ({
       direction: 'neutral',
       score: 0,
     }));
     const MultiTimeframeAdapter = jest.fn().mockImplementation(() => ({
       ingestCandle,
-      getConfluenceScore,
+      crossFrameScore,
     }));
     jest.doMock('../modules/MultiTimeframeAdapter', () => MultiTimeframeAdapter);
 
@@ -122,13 +120,13 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
 
   test('passes evaluation timeframe into the MTF adapter ingest call', () => {
     const ingestCandle = jest.fn();
-    const getConfluenceScore = jest.fn(() => ({
+    const crossFrameScore = jest.fn(() => ({
       direction: 'neutral',
       score: 0,
     }));
     jest.doMock('../modules/MultiTimeframeAdapter', () => jest.fn().mockImplementation(() => ({
       ingestCandle,
-      getConfluenceScore,
+      crossFrameScore,
     })));
 
     const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
@@ -158,13 +156,13 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
 
   test('prefers stamped candle timeframe over malformed extras timeframe', () => {
     const ingestCandle = jest.fn();
-    const getConfluenceScore = jest.fn(() => ({
+    const crossFrameScore = jest.fn(() => ({
       direction: 'neutral',
       score: 0,
     }));
     jest.doMock('../modules/MultiTimeframeAdapter', () => jest.fn().mockImplementation(() => ({
       ingestCandle,
-      getConfluenceScore,
+      crossFrameScore,
     })));
 
     const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
@@ -194,13 +192,13 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
 
   test('fails loudly when the latest candle has no stamped timeframe', () => {
     const ingestCandle = jest.fn();
-    const getConfluenceScore = jest.fn(() => ({
+    const crossFrameScore = jest.fn(() => ({
       direction: 'neutral',
       score: 0,
     }));
     jest.doMock('../modules/MultiTimeframeAdapter', () => jest.fn().mockImplementation(() => ({
       ingestCandle,
-      getConfluenceScore,
+      crossFrameScore,
     })));
 
     const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
@@ -226,9 +224,9 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
     expect(ingestCandle).not.toHaveBeenCalled();
   });
 
-  test('uses adapter confluenceScore when producing an MTF decision', () => {
+  test('captures adapter confluenceScore without producing an MTF decision', () => {
     const ingestCandle = jest.fn();
-    const getConfluenceScore = jest.fn(() => ({
+    const crossFrameScore = jest.fn(() => ({
       direction: 'buy',
       confluenceScore: 0.42,
       confidence: 0.75,
@@ -236,7 +234,7 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
     }));
     jest.doMock('../modules/MultiTimeframeAdapter', () => jest.fn().mockImplementation(() => ({
       ingestCandle,
-      getConfluenceScore,
+      crossFrameScore,
     })));
 
     const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
@@ -266,16 +264,23 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
     );
 
     expect(result).toEqual(expect.objectContaining({
-      winnerStrategy: 'MultiTimeframe',
-      direction: 'buy',
-      confidence: 75,
+      winnerStrategy: null,
+      direction: 'hold',
+      confidence: 0,
     }));
-    expect(result.reasons.join(' ')).toContain('15m, 1h, 4h');
+    expect(crossFrameScore).toHaveBeenCalledTimes(1);
+    expect(result.mtfConfluenceSnapshot).toEqual(expect.objectContaining({
+      available: true,
+      direction: 'buy',
+      confluenceScore: 0.42,
+      confidence: 0.75,
+      readyTimeframes: ['15m', '1h', '4h'],
+    }));
   });
 
-	  test('uses confluence score magnitude for bearish MTF decisions', () => {
+	  test('preserves signed bearish MTF score as observational state', () => {
     const ingestCandle = jest.fn();
-    const getConfluenceScore = jest.fn(() => ({
+    const crossFrameScore = jest.fn(() => ({
 	      direction: 'sell',
 	      confluenceScore: -0.44,
 	      confidence: 0.70,
@@ -283,7 +288,7 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
 	    }));
     jest.doMock('../modules/MultiTimeframeAdapter', () => jest.fn().mockImplementation(() => ({
       ingestCandle,
-      getConfluenceScore,
+      crossFrameScore,
     })));
 
     const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
@@ -313,16 +318,23 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
     );
 
 	    expect(result).toEqual(expect.objectContaining({
-	      winnerStrategy: 'MultiTimeframe',
-	      direction: 'sell',
-	      confidence: 70,
+	      winnerStrategy: null,
+	      direction: 'hold',
+	      confidence: 0,
 	    }));
+      expect(result.mtfConfluenceSnapshot).toEqual(expect.objectContaining({
+        available: true,
+        direction: 'sell',
+        confluenceScore: -0.44,
+        confidence: 0.70,
+      }));
 	  });
 
 	  test('can disable MTF booster while still capturing observational MTF state', () => {
 	    jest.resetModules();
 	    installConfigMock({
 	      'orchestrator.mtfConfluenceBooster': { enabled: false },
+	      'orchestrator.strategyMtfConfluence': { enabled: true },
 	    });
 		    const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
 		    const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
@@ -352,7 +364,8 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
 	    expect(result.mtfConfluenceSnapshot).toEqual(expect.objectContaining({
 	      available: false,
 	      direction: 'neutral',
-	      confluenceScore: 0,
+	      confluenceScore: null,
+	      confidence: null,
 	      readyTimeframes: [],
 	    }));
 	  });
@@ -360,9 +373,7 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
 	  test('does not read MTF when both MTF strategy and booster are disabled', () => {
 	    jest.resetModules();
 	    installConfigMock({
-	      'strategies.soloFilter': [],
-	      pipeline: { enableMultiTimeframe: false },
-	      'orchestrator.mtfConfluenceBooster': { enabled: false },
+	      'strategies.soloFilter': [],	      'orchestrator.mtfConfluenceBooster': { enabled: false },
 	    });
 	    const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
 	    const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
@@ -392,6 +403,8 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
 
 		  test('default-on booster adjusts aligned and conflicting candidates without mutating raw confidence', () => {
 		    setConfigOverrides({
+          'strategies.ProbeBuy': { confluenceBoost: { enabled: true, weight: 1 } },
+          'strategies.ProbeSell': { confluenceBoost: { enabled: true, weight: 1 } },
 		      'orchestrator.mtfConfluenceBooster': {
 	        minScore: 0.1,
 	        minConfidence: 0.1,
@@ -442,6 +455,7 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
 	    };
 		    setConfigOverrides({
 		      'confidence.minStrategyConfidence': 0.5,
+          'strategies.ProbeBuy': { confluenceBoost: { enabled: true, weight: 1 } },
 		      'orchestrator.mtfConfluenceBooster': {
 	        minScore: 0.1,
 	        minConfidence: 0.1,
@@ -549,6 +563,8 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
 
 	  test('uses signed bearish MTF score instead of absolute-value direction', () => {
 	    setConfigOverrides({
+        'strategies.ProbeBuy': { confluenceBoost: { enabled: true, weight: 1 } },
+        'strategies.ProbeSell': { confluenceBoost: { enabled: true, weight: 1 } },
 	      'orchestrator.mtfConfluenceBooster': {
 	        enabled: true,
 	        minScore: 0.1,
@@ -588,7 +604,7 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
 	    ]);
 	  });
 
-	  test('does not double-ingest MTF candle when standalone MTF and booster share confluence', () => {
+	  test('does not double-ingest MTF candle when observation and booster share confluence', () => {
 	    setConfigOverrides({
 	      'orchestrator.mtfConfluenceBooster': {
 	        enabled: true,
@@ -598,7 +614,7 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
 	    });
 
 	    const ingestCandle = jest.fn();
-	    const getConfluenceScore = jest.fn(() => ({
+	    const crossFrameScore = jest.fn(() => ({
 	      direction: 'buy',
 	      confluenceScore: 0.42,
 	      confidence: 0.75,
@@ -606,7 +622,7 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
 	    }));
 	    jest.doMock('../modules/MultiTimeframeAdapter', () => jest.fn().mockImplementation(() => ({
 	      ingestCandle,
-	      getConfluenceScore,
+	      crossFrameScore,
 	    })));
 
 	    const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
@@ -635,13 +651,14 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
 	      { symbol: 'TSLA', timeframe: '15m', price: 100.5 }
 	    );
 
-	    expect(result.winnerStrategy).toBe('MultiTimeframe');
+	    expect(result.winnerStrategy).toBeNull();
 	    expect(ingestCandle).toHaveBeenCalledTimes(1);
-	    expect(getConfluenceScore).toHaveBeenCalledTimes(1);
+	    expect(crossFrameScore).toHaveBeenCalledTimes(1);
 	  });
 
 	  test('leaves structural exit hints unchanged when MTF booster is active', () => {
 	    setConfigOverrides({
+        'strategies.OpeningRangeBreakout': { confluenceBoost: { enabled: true, weight: 1 } },
 	      'orchestrator.mtfConfluenceBooster': {
 	        enabled: true,
 	        minScore: 0.1,

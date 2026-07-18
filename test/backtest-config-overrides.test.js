@@ -66,6 +66,26 @@ describe('BacktestConfigOverrides', () => {
     });
   });
 
+  test('parses caged strategy, timeframe, and MTF service overrides for matrix workers', () => {
+    const raw = JSON.stringify({
+      'broker.candleTimeframe': '1h',
+      'orchestrator.mtfConfluenceService.minReadyTimeframes': 3,
+      'strategies.NoWickImbalance.entryMode': 'rejection',
+      'strategies.NoWickImbalance.targetRR': 1.5,
+      'strategies.EMASMACrossover.confluenceBoost.enabled': true,
+      'strategies.EMASMACrossover.confluenceBoost.weight': 0.2,
+    });
+
+    expect(parseBacktestConfigOverrides(raw, backtestIdentity())).toEqual({
+      'broker.candleTimeframe': '1h',
+      'orchestrator.mtfConfluenceService.minReadyTimeframes': 3,
+      'strategies.NoWickImbalance.entryMode': 'rejection',
+      'strategies.NoWickImbalance.targetRR': 1.5,
+      'strategies.EMASMACrossover.confluenceBoost.enabled': true,
+      'strategies.EMASMACrossover.confluenceBoost.weight': 0.2,
+    });
+  });
+
   test('refuses unsupported config paths', () => {
     expect(() => parseBacktestConfigOverrides(
       JSON.stringify({ 'risk.maxDailyLoss': 1 }),
@@ -78,6 +98,23 @@ describe('BacktestConfigOverrides', () => {
       JSON.stringify({ 'confidence.minTradeConfidence': 1.5 }),
       backtestIdentity()
     )).toThrow(/confidence\.minTradeConfidence out of range/);
+  });
+
+  test('refuses malformed MTF service and confluence boost overrides', () => {
+    expect(() => parseBacktestConfigOverrides(
+      JSON.stringify({ 'orchestrator.mtfConfluenceService.minReadyTimeframes': 0 }),
+      backtestIdentity()
+    )).toThrow(/minReadyTimeframes must be a positive integer/);
+
+    expect(() => parseBacktestConfigOverrides(
+      JSON.stringify({ 'strategies.EMASMACrossover.confluenceBoost.enabled': 'true' }),
+      backtestIdentity()
+    )).toThrow(/confluenceBoost\.enabled must be boolean/);
+
+    expect(() => parseBacktestConfigOverrides(
+      JSON.stringify({ 'strategies.EMASMACrossover.confluenceBoost.weight': -1 }),
+      backtestIdentity()
+    )).toThrow(/confluenceBoost\.weight must be a finite non-negative number/);
   });
 
   test('refuses invalid stop loss sign', () => {
@@ -110,6 +147,26 @@ describe('BacktestConfigOverrides', () => {
         liveTrading: false,
       }),
     }]);
+  });
+
+  test('applies MTF service override through the real ConfigLoader resolved path', () => {
+    jest.resetModules();
+    const ConfigLoader = require('../foundation/ConfigLoader');
+    const raw = JSON.stringify({
+      'orchestrator.mtfConfluenceService.minReadyTimeframes': 3,
+    });
+
+    try {
+      expect(ConfigLoader.get('orchestrator.mtfConfluenceService').minReadyTimeframes).toBe(2);
+      applyBacktestConfigOverrides(raw, {
+        ...backtestIdentity(),
+        tradingConfig: ConfigLoader,
+      });
+      expect(ConfigLoader.get('orchestrator.mtfConfluenceService').minReadyTimeframes).toBe(3);
+    } finally {
+      ConfigLoader.clearOverrides();
+      jest.resetModules();
+    }
   });
 
   test('ConfigLoader setOverrides refuses direct non-test mutation', () => {

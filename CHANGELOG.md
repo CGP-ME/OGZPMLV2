@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### MTF Demotion Lane 7 (2026-07-18)
+
+- Demoted MultiTimeframe from a standalone trade-birth strategy into a confluence-only service that exposes `crossFrameScore(symbol)` and returns `null` when required timeframe readiness is not met.
+- Removed MultiTimeframe roster, SOLO_STRATEGY, exit-contract, pipeline-toggle, matrix-roster, and weekend-gauntlet surfaces so it cannot birth trades or own exits.
+- Added explicit per-profile `confluence.mtfService` weights and `minReadyTimeframes`, plus per-strategy `confluenceBoost` config defaulted off so MTF can only affect confidence through opt-in sweep arms.
+- Extended caged backtest overrides and matrix-sweep global params so `orchestrator.mtfConfluenceService.minReadyTimeframes` travels through `BACKTEST_CONFIG_OVERRIDES_JSON` instead of env leakage.
+- Preserved missing-vs-zero MTF semantics: unavailable confluence remains `null`/absent, not a behavioral zero or neutral one.
+
 ### Wake Roster Lane (2026-07-15)
 
 - Removed the separate dormant-strategy instantiation gate from StrategyOrchestrator; PropSafeEMAPullback, EMATrendRetest, RSI2MeanReversion, and TimeSeriesMomentum now enter the roster through the same normal pipeline toggle path as other strategies.

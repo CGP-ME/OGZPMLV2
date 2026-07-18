@@ -11,7 +11,6 @@ const STRATEGY_ENV_KEYS = [
   'ENABLE_CANDLEPATTERN',
   'ENABLE_BREAKRETEST',
   'ENABLE_REGIME',
-  'ENABLE_MTF',
   'ENABLE_TPO',
   'ENABLE_ORB',
   'ENABLE_SMS',
@@ -31,7 +30,6 @@ const PIPELINE_STRATEGY_KEYS = [
   'enableCandlePattern',
   'enableBreakRetest',
   'enableMarketRegime',
-  'enableMultiTimeframe',
   'enableOGZTPO',
   'enableOpeningRangeBreakout',
   'enableSmartMoneySweep',
@@ -147,7 +145,6 @@ describe('StrategyOrchestrator pipeline toggles', () => {
         'BreakRetest',
         'RSI',
         'CandlePattern',
-        'MultiTimeframe',
         'OGZTPO',
         'OpeningRangeBreakout',
         'SmartMoneySweep',
@@ -169,12 +166,33 @@ describe('StrategyOrchestrator pipeline toggles', () => {
       const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
       const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
       expect(orchestrator.strategies.map((s) => s.name)).toEqual(expectedStrategies);
+      expect(orchestrator.strategies.map((s) => s.name)).not.toContain('MultiTimeframe');
       expect(orchestrator.noWickModule.cfg).toEqual(
         expect.objectContaining(ConfigLoader.get('strategies.NoWickImbalance'))
       );
+      const tpoConfig = ConfigLoader.get('strategies.OGZTPO');
       expect(orchestrator.tpoIntegration.config).toEqual(
-        expect.objectContaining(ConfigLoader.get('strategies.OGZTPO'))
+        expect.objectContaining({
+          enabled: tpoConfig.enabled,
+          mode: tpoConfig.mode,
+          dynamicSL: tpoConfig.dynamicSL,
+          confluence: tpoConfig.confluence,
+          voteWeight: tpoConfig.voteWeight,
+          adaptive: tpoConfig.adaptive,
+          tpoLength: tpoConfig.tpoLength,
+          normLength: tpoConfig.normLength,
+          volLength: tpoConfig.volLength,
+          lagBars: tpoConfig.lagBars,
+          maxHistory: tpoConfig.maxHistory,
+          lastSignalTtlBars: tpoConfig.lastSignalTtlBars,
+          confluenceBonusStrength: tpoConfig.confluenceBonusStrength,
+          strengthConfidenceMultiplier: tpoConfig.strengthConfidenceMultiplier,
+          tradingLoopOverrideMinStrength: tpoConfig.tradingLoopOverrideMinStrength,
+          dynamicLevelMultipliers: tpoConfig.dynamicLevelMultipliers,
+          modes: tpoConfig.modes,
+        })
       );
+      expect(tpoConfig.confluenceBoost).toEqual({ enabled: false, weight: 0 });
     } finally {
       process.env = originalEnv;
     }
@@ -280,9 +298,12 @@ describe('StrategyOrchestrator pipeline toggles', () => {
     for (const strategy of WAKE_STRATEGIES) {
       expect(tradingConfig.strategies[strategy]).toEqual(expect.objectContaining({ enabled: true }));
       expect(tradingConfig.exitContracts[strategy]).toEqual(expect.objectContaining({
-        maxHoldTimeMinutes: expect.any(Number),
         invalidationConditions: expect.any(Array),
       }));
+      expect(Object.prototype.hasOwnProperty.call(
+        tradingConfig.exitContracts[strategy],
+        'maxHoldTimeMinutes'
+      )).toBe(true);
     }
 
     expect(tradingConfig.strategies.RSI2MeanReversion).toEqual(expect.objectContaining({
@@ -325,7 +346,6 @@ describe('StrategyOrchestrator pipeline toggles', () => {
         maxMultiplier: 1.15,
         conflictMultiplier: 0.88,
         penalizeConflicts: true,
-        boostMtfCandidate: false,
       });
     } finally {
       process.env = originalEnv;

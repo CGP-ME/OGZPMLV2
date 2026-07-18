@@ -334,6 +334,36 @@ describe('PolicyBuilder frozen exit policy', () => {
     })).toThrow(/mtfConfluenceSnapshot\.confidence must be between 0 and 1/);
   });
 
+  test('treats null MTF score as unavailable confluence, not malformed input', () => {
+    const policy = PolicyBuilder.buildForTrade({
+      strategyName: 'EMASMACrossover',
+      exitContract: exitContract(),
+      nowMs: fixedNowMs,
+      ...policyContext,
+      entryDirection: 'long',
+      mtfConfluenceSnapshot: {
+        source: 'StrategyOrchestrator.mtfConfluence',
+        available: false,
+        direction: 'neutral',
+        confluenceScore: null,
+        confidence: null,
+        readyTimeframes: ['15m'],
+        unavailableReason: 'insufficient_ready_timeframes',
+      },
+      configReader: reader(),
+    });
+
+    expect(policy.mtfConfluenceSnapshot).toEqual(expect.objectContaining({
+      available: false,
+      direction: 'neutral',
+      alignment: 'unknown',
+      score: 0,
+      magnitude: 0,
+      confidence: 0,
+      readyTimeframes: ['15m'],
+    }));
+  });
+
   test('all base exit contracts declare structural-exit ownership explicitly', () => {
     const contracts = ConfigLoader.BASE_CONFIG.exitContracts;
 

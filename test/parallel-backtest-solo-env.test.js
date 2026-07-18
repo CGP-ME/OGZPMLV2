@@ -100,7 +100,6 @@ describe('parallel-backtest solo strategy env wiring', () => {
       'MADynamicSR',
       'LiquiditySweep',
       'SmartMoneySweep',
-      'MultiTimeframe',
       'OGZTPO',
       'OpeningRangeBreakout',
       'CandlePattern',
@@ -113,6 +112,7 @@ describe('parallel-backtest solo strategy env wiring', () => {
       'TimeSeriesMomentum',
     ]);
     expect(STRATEGIES).not.toContain('MarketRegime');
+    expect(STRATEGIES).not.toContain('MultiTimeframe');
   });
 
   test('strategy-sweep excludes MarketRegime solo coverage', () => {

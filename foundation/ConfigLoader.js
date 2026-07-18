@@ -82,6 +82,18 @@ function requiredConfiguredPlainObject(configPath) {
   return cloneConfiguredObject(value);
 }
 
+function requiredConfluenceBoostConfig(strategyName) {
+  const configPath = `strategies.${strategyName}.confluenceBoost`;
+  const value = requiredConfiguredPlainObject(configPath);
+  if (typeof value.enabled !== 'boolean') {
+    throw new Error(`[ConfigLoader] config/trading.config.json ${configPath}.enabled must be a boolean`);
+  }
+  if (!Number.isFinite(value.weight) || value.weight < 0) {
+    throw new Error(`[ConfigLoader] config/trading.config.json ${configPath}.weight must be a finite non-negative number`);
+  }
+  return value;
+}
+
 function configuredValue(configPath, fallback = undefined) {
   const value = configPath.split('.').reduce((current, part) => (
     current && Object.prototype.hasOwnProperty.call(current, part) ? current[part] : undefined
@@ -233,7 +245,6 @@ function validateMtfBoosterConfig(value, sourcePath) {
   const boolFields = [
     'enabled',
     'penalizeConflicts',
-    'boostMtfCandidate',
   ];
 
   for (const field of numericFields) {
@@ -263,6 +274,30 @@ function requiredLaunchProfileStrategyMtf() {
     throw new Error(`[ConfigLoader] config/trading.config.json ${result.source.slice('config:'.length)}.enabled must be a boolean`);
   }
   return result;
+}
+
+function validateMtfServiceConfig(value, sourcePath) {
+  if (!Number.isInteger(value.minReadyTimeframes) || value.minReadyTimeframes < 1) {
+    throw new Error(`[ConfigLoader] config/trading.config.json ${sourcePath}.minReadyTimeframes must be a positive integer`);
+  }
+  if (!value.weights || typeof value.weights !== 'object' || Array.isArray(value.weights)) {
+    throw new Error(`[ConfigLoader] config/trading.config.json ${sourcePath}.weights must be an object`);
+  }
+  for (const timeframe of ['1m', '5m', '15m', '30m', '1h', '4h', '1d']) {
+    const weight = Number(value.weights[timeframe]);
+    if (!Number.isFinite(weight) || weight <= 0) {
+      throw new Error(`[ConfigLoader] config/trading.config.json ${sourcePath}.weights.${timeframe} must be a finite positive number`);
+    }
+  }
+  return value;
+}
+
+function requiredLaunchProfileMtfService() {
+  const result = requiredLaunchProfilePlainObject('confluence.mtfService');
+  return {
+    value: validateMtfServiceConfig(result.value, result.source.slice('config:'.length)),
+    source: result.source,
+  };
 }
 
 function configuredBoolResult(configPath) {
@@ -777,6 +812,7 @@ function buildConfig() {
         'MTF_TIMEFRAMES',
         configuredValue('orchestrator.mtfTimeframes', ['1m', '5m', '15m', '1h', '4h'])
       )),
+      mtfConfluenceService: track('orchestrator.mtfConfluenceService', requiredLaunchProfileMtfService()),
       mtfConfluenceBooster: track('orchestrator.mtfConfluenceBooster', requiredLaunchProfileMtfBooster()),
       strategyMtfConfluence: track('orchestrator.strategyMtfConfluence', requiredLaunchProfileStrategyMtf()),
     },
@@ -946,7 +982,6 @@ function buildConfig() {
       enableCandlePattern: track('strategies.enableCandlePattern', requiredLaunchProfileBool('pipeline.enableCandlePattern')),
       enableBreakRetest: track('strategies.enableBreakRetest', requiredLaunchProfileBool('pipeline.enableBreakRetest')),
       enableMarketRegime: track('strategies.enableMarketRegime', requiredLaunchProfileBool('pipeline.enableMarketRegime')),
-      enableMultiTimeframe: track('strategies.enableMultiTimeframe', requiredLaunchProfileBool('pipeline.enableMultiTimeframe')),
       enableOGZTPO: track('strategies.enableOGZTPO', requiredLaunchProfileBool('pipeline.enableOGZTPO')),
       enableORB: track('strategies.enableORB', requiredLaunchProfileBool('pipeline.enableOpeningRangeBreakout')),
       enableSmartMoneySweep: track('strategies.enableSmartMoneySweep', requiredLaunchProfileBool('pipeline.enableSmartMoneySweep')),
@@ -1154,6 +1189,22 @@ function validate(config, sources = {}) {
   }
   if (typeof sessionRouter.fast !== 'boolean') {
     errors.push('sessionRouter.fast must be boolean');
+  }
+  for (const [strategyName, strategyConfig] of Object.entries(config.strategies || {})) {
+    if (!strategyConfig || typeof strategyConfig !== 'object' || Array.isArray(strategyConfig)) {
+      continue;
+    }
+    const boost = strategyConfig.confluenceBoost;
+    if (!boost || typeof boost !== 'object' || Array.isArray(boost)) {
+      errors.push(`strategies.${strategyName}.confluenceBoost must be configured as an object`);
+      continue;
+    }
+    if (typeof boost.enabled !== 'boolean') {
+      errors.push(`strategies.${strategyName}.confluenceBoost.enabled must be boolean`);
+    }
+    if (!Number.isFinite(boost.weight) || boost.weight < 0) {
+      errors.push(`strategies.${strategyName}.confluenceBoost.weight must be a finite non-negative number`);
+    }
   }
   if (config.mode.liveTrading) {
     const minTradeConfidenceSource = sources['confidence.minTradeConfidence'];
@@ -1599,6 +1650,7 @@ const CONFIG_LOADER_RUNTIME_PATHS = Object.freeze({
   'sessionRouter.forceCloseOnSessionEnd': 'sessionRouter.forceCloseOnSessionEnd',
   'sessionRouter.fast': 'sessionRouter.fast',
   'orchestrator.mtfTimeframes': 'orchestrator.mtfTimeframes',
+  'orchestrator.mtfConfluenceService': 'orchestrator.mtfConfluenceService',
   'orchestrator.mtfConfluenceBooster': 'orchestrator.mtfConfluenceBooster',
   'orchestrator.strategyMtfConfluence': 'orchestrator.strategyMtfConfluence',
   'trail.atrMultiplier': 'trail.atrMultiplier',
@@ -1613,7 +1665,6 @@ const CONFIG_LOADER_RUNTIME_PATHS = Object.freeze({
   'strategies.enableCandlePattern': 'strategies.enableCandlePattern',
   'strategies.enableBreakRetest': 'strategies.enableBreakRetest',
   'strategies.enableMarketRegime': 'strategies.enableMarketRegime',
-  'strategies.enableMultiTimeframe': 'strategies.enableMultiTimeframe',
   'strategies.enableOGZTPO': 'strategies.enableOGZTPO',
   'strategies.enableORB': 'strategies.enableORB',
   'strategies.enableSmartMoneySweep': 'strategies.enableSmartMoneySweep',
@@ -1639,8 +1690,6 @@ const CONFIG_LOADER_RUNTIME_PATHS = Object.freeze({
   'pipeline.enableCandlePattern': 'strategies.enableCandlePattern',
   'pipeline.enableBreakRetest': 'strategies.enableBreakRetest',
   'pipeline.enableMarketRegime': 'strategies.enableMarketRegime',
-  'pipeline.enableMultiTimeframe': 'strategies.enableMultiTimeframe',
-  'pipeline.enableMTF': 'strategies.enableMultiTimeframe',
   'pipeline.enableOGZTPO': 'strategies.enableOGZTPO',
   'pipeline.enableTPO': 'strategies.enableOGZTPO',
   'pipeline.enableOpeningRangeBreakout': 'strategies.enableORB',
@@ -1704,7 +1753,6 @@ const LAUNCH_PROFILE_RUNTIME_PATHS = Object.freeze({
   'strategies.enableCandlePattern': 'pipeline.enableCandlePattern',
   'strategies.enableBreakRetest': 'pipeline.enableBreakRetest',
   'strategies.enableMarketRegime': 'pipeline.enableMarketRegime',
-  'strategies.enableMultiTimeframe': 'pipeline.enableMultiTimeframe',
   'strategies.enableOGZTPO': 'pipeline.enableOGZTPO',
   'strategies.enableORB': 'pipeline.enableOpeningRangeBreakout',
   'strategies.enableSmartMoneySweep': 'pipeline.enableSmartMoneySweep',
@@ -1725,6 +1773,7 @@ const LAUNCH_PROFILE_RUNTIME_PATHS = Object.freeze({
   'sessionRouter.checkIntervalMs': 'sessionRouter.checkIntervalMs',
   'sessionRouter.forceCloseOnSessionEnd': 'sessionRouter.forceCloseOnSessionEnd',
   'sessionRouter.fast': 'sessionRouter.fast',
+  'orchestrator.mtfConfluenceService': 'confluence.mtfService',
   'orchestrator.mtfConfluenceBooster': 'confluence.mtfBooster',
   'orchestrator.strategyMtfConfluence': 'confluence.strategyMtf',
 });
@@ -1737,6 +1786,33 @@ function readObjectPath(root, path) {
     value = value[part];
   }
   return value;
+}
+
+function applyActiveChildOverrides(path, value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return value;
+  }
+  const prefix = `${path}.`;
+  const childEntries = Object.entries(activeOverrides)
+    .filter(([overridePath]) => overridePath.startsWith(prefix));
+  if (childEntries.length === 0) {
+    return value;
+  }
+
+  const clone = cloneConfiguredObject(value);
+  for (const [overridePath, overrideValue] of childEntries) {
+    const relativeParts = overridePath.slice(prefix.length).split('.');
+    let cursor = clone;
+    for (let i = 0; i < relativeParts.length - 1; i += 1) {
+      const part = relativeParts[i];
+      if (!cursor[part] || typeof cursor[part] !== 'object' || Array.isArray(cursor[part])) {
+        cursor[part] = {};
+      }
+      cursor = cursor[part];
+    }
+    cursor[relativeParts[relativeParts.length - 1]] = overrideValue;
+  }
+  return clone;
 }
 
 function readLaunchProfileRuntimeValue(loaderPath) {
@@ -2567,27 +2643,6 @@ const BASE_CONFIG = {
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['regime_change'],
     },
-    MultiTimeframe: {
-      stopLossPercent: -2.0,
-      takeProfitPercent: 2.5,
-      trailingStopPercent: 0.8,
-      trailingActivation: 1.0,
-      maxHoldTimeMinutes: 300,
-      stopType: 'percent',
-      trailType: 'percent',
-      tpMode: 'percent',
-      maxHoldMode: 'minutes',
-      partialExit: {
-        enabled: false,
-        triggerR: 1,
-        fraction: 0.5,
-        remainderTrail: 'atr',
-      },
-      useStructuralExits: false,
-      minConfidence: null,            // No locked per-strategy confidence gate yet.
-      atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
-      invalidationConditions: [],
-    },
     OGZTPO: {
       stopLossPercent: -2.0,
       takeProfitPercent: 2.5,
@@ -2921,6 +2976,7 @@ const BASE_CONFIG = {
       freshCrossoverBonusPerCross: requiredConfigNumber('strategies.EMASMACrossover.freshCrossoverBonusPerCross'),
       freshCrossoverBonusMax: requiredConfigNumber('strategies.EMASMACrossover.freshCrossoverBonusMax'),
       maxConfidence: requiredConfigNumber('strategies.EMASMACrossover.maxConfidence'),
+      confluenceBoost: requiredConfluenceBoostConfig('EMASMACrossover'),
       enabled: requiredConfigBool('strategies.EMASMACrossover.enabled'),
     },
     LiquiditySweep: requiredConfiguredPlainObject('strategies.LiquiditySweep'),
@@ -2929,6 +2985,7 @@ const BASE_CONFIG = {
       period: 14,                                       // Standard RSI period
       oversoldLevel: env('RSI_OVERSOLD', 30),          // Oversold threshold (widened from 25)
       overboughtLevel: env('RSI_OVERBOUGHT', 70),      // Overbought threshold (widened from 75)
+      confluenceBoost: requiredConfluenceBoostConfig('RSI'),
       enabled: true,
     },
     VolumeProfile: {
@@ -2938,6 +2995,7 @@ const BASE_CONFIG = {
       valueAreaPct: env('VP_VALUE_AREA_PCT', 0.70),    // 70% value area
       outOfBalancePct: env('VP_OUT_OF_BALANCE_PCT', 0.5), // Was 0.1%, needs 0.5%
       recalcInterval: env('VP_RECALC_INTERVAL', 5),    // Candles between recalc
+      confluenceBoost: requiredConfluenceBoostConfig('VolumeProfile'),
       enabled: true,
     },
     SmartMoneySweep: {
@@ -2976,6 +3034,7 @@ const BASE_CONFIG = {
       breakHigh: requiredConfiguredNumber('strategies.SmartMoneySweep.breakHigh'),
       breakMid: requiredConfiguredNumber('strategies.SmartMoneySweep.breakMid'),
       confidenceMode: requiredConfiguredString('strategies.SmartMoneySweep.confidenceMode'),
+      confluenceBoost: requiredConfluenceBoostConfig('SmartMoneySweep'),
       enabled: true,
     },
     DonchianBreakout: {
@@ -2990,6 +3049,7 @@ const BASE_CONFIG = {
       maxHoldMode: configuredValue('strategies.DonchianBreakout.maxHoldMode'),
       partialExit: requiredConfiguredPlainObject('strategies.DonchianBreakout.partialExit'),
       invalidationConditions: configuredValue('strategies.DonchianBreakout.invalidationConditions'),
+      confluenceBoost: requiredConfluenceBoostConfig('DonchianBreakout'),
       enabled: true,
     },
     OGZTPO: requiredConfiguredPlainObject('strategies.OGZTPO'),
@@ -3019,6 +3079,7 @@ const BASE_CONFIG = {
       rthEndET: env('PROPSAFE_EMA_RTH_END_ET', configuredValue('strategies.PropSafeEMAPullback.rthEndET')),
       sessionTimeZone: env('PROPSAFE_EMA_SESSION_TIMEZONE', configuredValue('strategies.PropSafeEMAPullback.sessionTimeZone')),
       allowShorts: envBool('PROPSAFE_EMA_ALLOW_SHORTS', requiredConfiguredBool('strategies.PropSafeEMAPullback.allowShorts')),
+      confluenceBoost: requiredConfluenceBoostConfig('PropSafeEMAPullback'),
       enabled: true,
     },
     EMATrendRetest: {
@@ -3045,6 +3106,7 @@ const BASE_CONFIG = {
       rthEndET: env('EMA_TREND_RETEST_RTH_END_ET', configuredValue('strategies.EMATrendRetest.rthEndET')),
       sessionTimeZone: env('EMA_TREND_RETEST_SESSION_TIMEZONE', configuredValue('strategies.EMATrendRetest.sessionTimeZone')),
       allowShorts: envBool('EMA_TREND_RETEST_ALLOW_SHORTS', requiredConfiguredBool('strategies.EMATrendRetest.allowShorts')),
+      confluenceBoost: requiredConfluenceBoostConfig('EMATrendRetest'),
       enabled: true,
     },
     RSI2MeanReversion: {
@@ -3063,6 +3125,7 @@ const BASE_CONFIG = {
       confidenceDepthMultiplier: env('RSI2_MR_CONFIDENCE_DEPTH_MULT', requiredConfiguredNumber('strategies.RSI2MeanReversion.confidenceDepthMultiplier')),
       maxConfidence: env('RSI2_MR_MAX_CONFIDENCE', requiredConfiguredNumber('strategies.RSI2MeanReversion.maxConfidence')),
       invalidationConditions: ['regime_change'],
+      confluenceBoost: requiredConfluenceBoostConfig('RSI2MeanReversion'),
       enabled: true,
     },
     TimeSeriesMomentum: {
@@ -3082,6 +3145,7 @@ const BASE_CONFIG = {
       confidenceReturnMultiplier: env('TSMOM_CONFIDENCE_RETURN_MULT', requiredConfiguredNumber('strategies.TimeSeriesMomentum.confidenceReturnMultiplier')),
       maxConfidence: env('TSMOM_MAX_CONFIDENCE', requiredConfiguredNumber('strategies.TimeSeriesMomentum.maxConfidence')),
       invalidationConditions: configuredValue('strategies.TimeSeriesMomentum.invalidationConditions'),
+      confluenceBoost: requiredConfluenceBoostConfig('TimeSeriesMomentum'),
       enabled: true,
     },
     OpeningRangeBreakout: requiredConfiguredPlainObject('strategies.OpeningRangeBreakout'),
@@ -3124,10 +3188,6 @@ const BASE_CONFIG = {
       hourlyRsiAlignBoost: env('RSI_MTF_1H_RSI_ALIGN_BOOST', 0.10),
       hourlyRsiBuyMax: env('RSI_MTF_1H_RSI_BUY_MAX', 40),
       hourlyRsiSellMin: env('RSI_MTF_1H_RSI_SELL_MIN', 60),
-    },
-    multiTimeframeMtf: {
-      requireHigherTFReady: process.env.MTF_REQUIRE_HIGHER_TF_READY?.split(',') || ['1h', '4h'],
-      missingHigherTfMultiplier: env('MTF_MISSING_HIGHER_TF_MULT', 1.0),
     },
     ogzTpoMtf: {
       fourHourTrendBoostMultiplier: env('OGZTPO_MTF_4H_TREND_BOOST_MULT', 1.12),
@@ -3192,7 +3252,6 @@ const BASE_CONFIG = {
       strategies: [
         'EMASMACrossover',
         'MADynamicSR',
-        'MultiTimeframe',
         'DonchianBreakout',
         'PropSafeEMAPullback',
         'EMATrendRetest',
@@ -3350,7 +3409,6 @@ const BASE_CONFIG = {
       'MADynamicSR',
       'LiquiditySweep',
       'SmartMoneySweep',
-      'MultiTimeframe',
       'OGZTPO',
       'OpeningRangeBreakout',
       'CandlePattern',
@@ -3405,7 +3463,6 @@ const BASE_CONFIG = {
         { name: 'MASR-only', env: { SOLO_STRATEGY: 'MADynamicSR' } },
         { name: 'Sweep-only', env: { SOLO_STRATEGY: 'LiquiditySweep' } },
         { name: 'SMS-only', env: { SOLO_STRATEGY: 'SmartMoneySweep' } },
-        { name: 'MTF-only', env: { SOLO_STRATEGY: 'MultiTimeframe' } },
         { name: 'TPO-only', env: { SOLO_STRATEGY: 'OGZTPO' } },
         { name: 'ORB-only', env: { SOLO_STRATEGY: 'OpeningRangeBreakout' } },
         { name: 'Candle-only', env: { SOLO_STRATEGY: 'CandlePattern' } },
@@ -3489,7 +3546,6 @@ const BASE_CONFIG = {
       'SmartMoneySweep',
     ],
     exploratoryStrategies: [
-      'MultiTimeframe',
       'OGZTPO',
       'OpeningRangeBreakout',
       'CandlePattern',
@@ -3530,6 +3586,9 @@ const BASE_CONFIG = {
         stopLoss: null,
         tierPresets: null,
         confidence: [0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80],
+        globalParams: {
+          'orchestrator.mtfConfluenceService.minReadyTimeframes': [2, 3],
+        },
         strategyParams: {
           PropSafeEMAPullback: {
             'strategies.PropSafeEMAPullback.pullbackLookbackBars': [3, 5, 8],
@@ -3580,7 +3639,6 @@ const BASE_CONFIG = {
     enableCandlePattern: requiredConfiguredBool('pipeline.enableCandlePattern'),
     enableBreakRetest: requiredConfiguredBool('pipeline.enableBreakRetest'),
     enableMarketRegime: requiredConfiguredBool('pipeline.enableMarketRegime'),
-    enableMultiTimeframe: requiredConfiguredBool('pipeline.enableMultiTimeframe'),
     enableOGZTPO: requiredConfiguredBool('pipeline.enableOGZTPO'),
     enableOpeningRangeBreakout: requiredConfiguredBool('pipeline.enableOpeningRangeBreakout'),
     enableSmartMoneySweep: requiredConfiguredBool('pipeline.enableSmartMoneySweep'),
@@ -3822,13 +3880,13 @@ class ConfigLoader {
 
     const configLoaderValue = readConfigLoaderRuntimeValue(path);
     if (configLoaderValue !== CONFIG_LOADER_MISSING) {
-      return configLoaderValue;
+      return applyActiveChildOverrides(path, configLoaderValue);
     }
 
     if (_cached && _cached.config) {
       const cachedValue = readObjectPath(_cached.config, path);
       if (cachedValue !== undefined) {
-        return cachedValue;
+        return applyActiveChildOverrides(path, cachedValue);
       }
     }
 
@@ -3853,7 +3911,7 @@ class ConfigLoader {
 
     if (value !== undefined) {
       warnBaseConfigCompatibilityFallback(path);
-      return value;
+      return applyActiveChildOverrides(path, value);
     }
     return defaultValue;
   }

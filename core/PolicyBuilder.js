@@ -401,14 +401,17 @@ function normalizeMtfConfluenceSnapshot(rawSnapshot, entryDirection) {
   }
   assertPlainObject(rawSnapshot, 'mtfConfluenceSnapshot');
 
-  const score = rawSnapshot.confluenceScore !== undefined
-    ? requireFiniteNumber(rawSnapshot.confluenceScore, 'mtfConfluenceSnapshot.confluenceScore')
-    : rawSnapshot.score !== undefined
-      ? requireFiniteNumber(rawSnapshot.score, 'mtfConfluenceSnapshot.score')
-      : 0;
-  const confidence = rawSnapshot.confidence !== undefined
-    ? requireFraction(rawSnapshot.confidence, 'mtfConfluenceSnapshot.confidence')
-    : Math.min(1, Math.abs(score));
+  const rawScore = rawSnapshot.confluenceScore !== undefined
+    ? rawSnapshot.confluenceScore
+    : rawSnapshot.score;
+  const score = rawScore === undefined || rawScore === null
+    ? 0
+    : requireFiniteNumber(rawScore, rawSnapshot.confluenceScore !== undefined
+      ? 'mtfConfluenceSnapshot.confluenceScore'
+      : 'mtfConfluenceSnapshot.score');
+  const confidence = rawSnapshot.confidence === undefined || rawSnapshot.confidence === null
+    ? Math.min(1, Math.abs(score))
+    : requireFraction(rawSnapshot.confidence, 'mtfConfluenceSnapshot.confidence');
   const direction = normalizeMtfDirection(rawSnapshot.direction, score);
   const readyTimeframes = normalizeStringArray(
     rawSnapshot.readyTimeframes !== undefined ? rawSnapshot.readyTimeframes : rawSnapshot.timeframes,
@@ -416,7 +419,7 @@ function normalizeMtfConfluenceSnapshot(rawSnapshot, entryDirection) {
   );
   const available = rawSnapshot.available !== undefined
     ? requireBoolean(rawSnapshot.available, 'mtfConfluenceSnapshot.available')
-    : direction !== 'neutral' || score !== 0 || readyTimeframes.length > 0;
+    : rawScore != null && (direction !== 'neutral' || score !== 0 || readyTimeframes.length > 0);
   const totalTimeframes = normalizeOptionalNonNegativeInteger(rawSnapshot.totalTimeframes, 'mtfConfluenceSnapshot.totalTimeframes');
   const shouldTrade = requireOptionalBoolean(rawSnapshot.shouldTrade, 'mtfConfluenceSnapshot.shouldTrade');
   const overallBias = rawSnapshot.overallBias === undefined || rawSnapshot.overallBias === null

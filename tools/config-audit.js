@@ -255,7 +255,6 @@ function buildResolvedConfig(context = createAuditContext()) {
   resolved['strategies.LiquiditySweep'] = { value: pipeline.enableLiquiditySweep, source: 'ConfigLoader:pipeline.enableLiquiditySweep' };
   resolved['strategies.BreakRetest'] = { value: pipeline.enableBreakRetest, source: 'ConfigLoader:pipeline.enableBreakRetest' };
   resolved['strategies.MarketRegime'] = { value: pipeline.enableMarketRegime, source: 'ConfigLoader:pipeline.enableMarketRegime' };
-  resolved['strategies.MultiTimeframe'] = { value: pipeline.enableMultiTimeframe, source: 'ConfigLoader:pipeline.enableMultiTimeframe' };
   resolved['strategies.OGZTPO'] = { value: pipeline.enableOGZTPO, source: 'ConfigLoader:pipeline.enableOGZTPO' };
   resolved['strategies.ORB'] = { value: pipeline.enableOpeningRangeBreakout, source: 'ConfigLoader:pipeline.enableOpeningRangeBreakout' };
   resolved['strategies.TRAI'] = { value: pipeline.enableTRAI, source: 'ConfigLoader:pipeline.enableTRAI' };

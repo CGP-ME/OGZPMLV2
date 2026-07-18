@@ -2,6 +2,41 @@
 
 const EXIT_CONTRACT_OVERRIDE_PATH = /^exitContracts\.[A-Za-z0-9_]+\.(stopLossPercent|takeProfitPercent|trailingStopPercent|trailingActivation|maxHoldTimeMinutes)$/;
 const CONFIDENCE_OVERRIDE_PATH = 'confidence.minTradeConfidence';
+const BROKER_TIMEFRAME_OVERRIDE_PATH = 'broker.candleTimeframe';
+const STRATEGY_PARAM_OVERRIDE_PATH = /^strategies\.[A-Za-z0-9_]+\.[A-Za-z0-9_.]+$/;
+const MTF_SERVICE_MIN_READY_PATH = 'orchestrator.mtfConfluenceService.minReadyTimeframes';
+
+function validateStrategyParamOverride(path, value) {
+  if (path.endsWith('.confluenceBoost.enabled')) {
+    if (typeof value !== 'boolean') {
+      throw new Error(`[BACKTEST-CONFIG-OVERRIDES] ${path} must be boolean`);
+    }
+    return value;
+  }
+  if (path.endsWith('.confluenceBoost.weight')) {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue) || numericValue < 0) {
+      throw new Error(`[BACKTEST-CONFIG-OVERRIDES] ${path} must be a finite non-negative number`);
+    }
+    return numericValue;
+  }
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      throw new Error(`[BACKTEST-CONFIG-OVERRIDES] ${path} must be finite (got ${value})`);
+    }
+    return value;
+  }
+  if (typeof value === 'string') {
+    if (value.trim() === '') {
+      throw new Error(`[BACKTEST-CONFIG-OVERRIDES] ${path} must be a non-empty string`);
+    }
+    return value;
+  }
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  throw new Error(`[BACKTEST-CONFIG-OVERRIDES] ${path} must be a scalar strategy parameter`);
+}
 
 function parseBacktestConfigOverrides(raw, options = {}) {
   const {
@@ -33,8 +68,33 @@ function parseBacktestConfigOverrides(raw, options = {}) {
 
   const validated = {};
   for (const [path, value] of Object.entries(parsed)) {
-    if (!EXIT_CONTRACT_OVERRIDE_PATH.test(path) && path !== CONFIDENCE_OVERRIDE_PATH) {
+    if (
+      !EXIT_CONTRACT_OVERRIDE_PATH.test(path) &&
+      path !== CONFIDENCE_OVERRIDE_PATH &&
+      path !== BROKER_TIMEFRAME_OVERRIDE_PATH &&
+      path !== MTF_SERVICE_MIN_READY_PATH &&
+      !STRATEGY_PARAM_OVERRIDE_PATH.test(path)
+    ) {
       throw new Error(`[BACKTEST-CONFIG-OVERRIDES] Unsupported path '${path}'`);
+    }
+    if (path === BROKER_TIMEFRAME_OVERRIDE_PATH) {
+      if (typeof value !== 'string' || value.trim() === '') {
+        throw new Error(`[BACKTEST-CONFIG-OVERRIDES] ${path} must be a non-empty string`);
+      }
+      validated[path] = value;
+      continue;
+    }
+    if (path === MTF_SERVICE_MIN_READY_PATH) {
+      const numericValue = Number(value);
+      if (!Number.isInteger(numericValue) || numericValue < 1) {
+        throw new Error(`[BACKTEST-CONFIG-OVERRIDES] ${path} must be a positive integer`);
+      }
+      validated[path] = numericValue;
+      continue;
+    }
+    if (STRATEGY_PARAM_OVERRIDE_PATH.test(path)) {
+      validated[path] = validateStrategyParamOverride(path, value);
+      continue;
     }
     const numericValue = Number(value);
     if (!Number.isFinite(numericValue)) {

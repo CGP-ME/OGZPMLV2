@@ -25,7 +25,6 @@ describe('StrategyOrchestrator strategy-specific MTF confluence', () => {
 
   function installConfigMock(overrides = {}) {
     configOverrides = {
-      pipeline: { enableMultiTimeframe: true },
       'orchestrator.mtfConfluenceBooster': { enabled: false },
       'orchestrator.strategyMtfConfluence': { enabled: true },
     };
@@ -203,41 +202,11 @@ describe('StrategyOrchestrator strategy-specific MTF confluence', () => {
     ]));
   });
 
-  test('keeps standalone MultiTimeframe live while observing missing higher timeframes', () => {
+  test('does not register standalone MultiTimeframe as a trade-birth strategy after demotion', () => {
     const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
     const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
-    attachMtf(orchestrator, {
-      direction: 'buy',
-      confluenceScore: 0.5,
-      confidence: 0.8,
-      readyTimeframes: ['15m', '1h'],
-    }, {});
-    orchestrator.strategies = [{
-      name: 'MultiTimeframe',
-      evaluate: () => ({
-        direction: 'buy',
-        confidence: 0.8,
-        reason: 'MTF confluence',
-        signalData: {
-          direction: 'buy',
-          confidence: 0.8,
-          confluenceScore: 0.5,
-          readyTimeframes: ['15m', '1h'],
-        },
-      }),
-    }];
 
-    const ctx = makeContext();
-    const result = orchestrator.evaluate(ctx.indicators, ctx.patterns, ctx.regime, ctx.priceHistory, ctx.extras);
-
-    expect(result.action).toBe('BUY');
-    expect(result.winnerStrategy).toBe('MultiTimeframe');
-    expect(result.confidence).toBeCloseTo(80, 6);
-    expect(result.filteredResults).toHaveLength(0);
-    expect(result.allResults[0].decisionAttribution.contributors).toContainEqual(expect.objectContaining({
-      name: 'mtf_standalone_higher_tf_missing_observation',
-      missingTimeframes: ['4h'],
-    }));
+    expect(orchestrator.strategies.map((strategy) => strategy.name)).not.toContain('MultiTimeframe');
   });
 
   test('applies OGZTPO MTF boosts and records 4h volatility without mutating exits', () => {

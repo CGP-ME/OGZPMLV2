@@ -4,29 +4,44 @@
  * MultiTimeframeAdapter.js — V2-Compatible Rebuild
  * =================================================
  * Stores TFE-delivered candles in their born timeframe.
- * Calculates indicators per timeframe. Returns confluence score.
+ * Calculates indicators per timeframe. Returns confluence score only.
+ *
+ * TREY LAW: MTF is a confluence service, not a strategy. It must not birth
+ * trades, own an exit contract, or emit standalone trade intent. If
+ * confluence-boosted rows fail to beat flat twins in Pass-1, delete this
+ * module whole instead of preserving decorative complexity.
  *
  * V2 FIXES:
  *   • All candles use V2 format: { c, o, h, l, v, t } (Kraken OHLCV)
  *   • No external indicator dependencies — self-contained math
  *   • Bounded arrays (maxCandles per timeframe)
- *   • Clean API: ingestCandle(candle) + getConfluenceScore()
+ *   • Clean API: ingestCandle(candle) + crossFrameScore()
  *   • EventEmitter for dashboard integration
  *   • Optional Polygon backfill kept but normalized to V2 format
  *
  * Integration:
- *   const mtf = new MultiTimeframeAdapter({ baseTimeframe: '15m', activeTimeframes: ['15m','1h','4h','1d'] });
+ *   const mtf = new MultiTimeframeAdapter({ baseTimeframe: '15m', activeTimeframes: ['15m','1h','4h','1d'], minReadyTimeframes: 2, weights: {...} });
  *   mtf.ingestCandle(candle, '15m');  // candle = { c, o, h, l, v, t }
- *   const confluence = mtf.getConfluenceScore();
+ *   const confluence = mtf.crossFrameScore();
  */
 
 const EventEmitter = require('events');
 
 // FIX 2026-02-16: Use centralized candle helper for format compatibility
 const { c, o, h, l, v, t } = require('../core/CandleHelper');
+const { IndicatorCalculator } = require('../core/IndicatorCalculator');
 
 const SUPPORTED_TIMEFRAMES = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
 const TIMEFRAME_RANK = new Map(SUPPORTED_TIMEFRAMES.map((timeframe, index) => [timeframe, index]));
+const DEFAULT_WEIGHTS = Object.freeze({
+  '1m': 0.05,
+  '5m': 0.08,
+  '15m': 0.10,
+  '30m': 0.10,
+  '1h': 0.15,
+  '4h': 0.17,
+  '1d': 0.15,
+});
 const DEFAULT_MAX_CANDLES = Object.freeze({
   '1m': 1440,
   '5m': 576,
@@ -45,6 +60,32 @@ function uniqueTimeframes(timeframes) {
   return Array.from(new Set(timeframes.filter(Boolean)));
 }
 
+function normalizeWeights(weights, activeTimeframes) {
+  if (!weights || typeof weights !== 'object' || Array.isArray(weights)) {
+    throw new Error('[MultiTimeframeAdapter] weights must be an object keyed by timeframe');
+  }
+  const normalized = {};
+  for (const timeframe of activeTimeframes) {
+    const value = Number(weights[timeframe]);
+    if (!Number.isFinite(value) || value <= 0) {
+      throw new Error(`[MultiTimeframeAdapter] weights.${timeframe} must be a finite positive number`);
+    }
+    normalized[timeframe] = value;
+  }
+  return Object.freeze(normalized);
+}
+
+function normalizeMinReadyTimeframes(value, activeCount) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error(`[MultiTimeframeAdapter] minReadyTimeframes must be a positive integer (got ${value})`);
+  }
+  if (parsed > activeCount) {
+    throw new Error(`[MultiTimeframeAdapter] minReadyTimeframes ${parsed} exceeds activeTimeframes count ${activeCount}`);
+  }
+  return parsed;
+}
+
 class MultiTimeframeAdapter extends EventEmitter {
   constructor(config = {}) {
     super();
@@ -61,6 +102,12 @@ class MultiTimeframeAdapter extends EventEmitter {
       const cleaned = cleanTimeframe(timeframe);
       return TIMEFRAME_RANK.has(cleaned) && TIMEFRAME_RANK.get(cleaned) >= TIMEFRAME_RANK.get(baseTimeframe);
     });
+    if (config.weights == null) {
+      throw new Error('[MultiTimeframeAdapter] weights are required; pass ConfigLoader orchestrator.mtfConfluenceService.weights');
+    }
+    if (config.minReadyTimeframes == null) {
+      throw new Error('[MultiTimeframeAdapter] minReadyTimeframes is required; pass ConfigLoader orchestrator.mtfConfluenceService.minReadyTimeframes');
+    }
 
     this.config = {
       baseTimeframe,
@@ -83,6 +130,11 @@ class MultiTimeframeAdapter extends EventEmitter {
       },
       minCandlesForAnalysis: config.minCandlesForAnalysis || 30,
     };
+    this.config.weights = normalizeWeights(config.weights, this.config.activeTimeframes);
+    this.config.minReadyTimeframes = normalizeMinReadyTimeframes(
+      config.minReadyTimeframes,
+      this.config.activeTimeframes.length
+    );
 
     // Storage
     this.candles = new Map();
@@ -199,7 +251,7 @@ class MultiTimeframeAdapter extends EventEmitter {
           timestamp: Date.now(),
           candleCount: candleArr.length,
           price: closes[closes.length - 1],
-          rsi: this._calcRSI(closes, p.rsi),
+          rsi: IndicatorCalculator.calculateRSI(candleArr, p.rsi),
           smaFast: this._calcSMA(closes, p.smaFast),
           smaSlow: this._calcSMA(closes, p.smaSlow),
           ema: this._calcEMA(closes, p.ema),
@@ -236,19 +288,6 @@ class MultiTimeframeAdapter extends EventEmitter {
   }
 
   // ── Self-contained indicator math ───────────────────────────
-
-  _calcRSI(closes, period) {
-    if (closes.length < period + 1) return null;
-    let gains = 0, losses = 0;
-    for (let i = closes.length - period; i < closes.length; i++) {
-      const change = closes[i] - closes[i - 1];
-      if (change > 0) gains += change; else losses += Math.abs(change);
-    }
-    const avgGain = gains / period;
-    const avgLoss = losses / period;
-    if (avgLoss === 0) return 100;
-    return 100 - (100 / (1 + avgGain / avgLoss));
-  }
 
   _calcSMA(data, period) {
     if (data.length < period) return null;
@@ -307,40 +346,40 @@ class MultiTimeframeAdapter extends EventEmitter {
 
   /**
    * Get weighted confluence score across all ready timeframes.
-   * @returns {Object} analysis with direction, confidence, shouldTrade
+   * @returns {Object} analysis with signed score, or null score when not ready
    */
-  getConfluenceScore() {
+  crossFrameScore() {
     this.stats.confluenceChecks++;
 
     const analysis = {
       module: 'MultiTimeframe',
+      source: 'MultiTimeframeAdapter.crossFrameScore',
       timestamp: Date.now(),
       readyTimeframes: Array.from(this.readyTimeframes),
       totalTimeframes: this.config.activeTimeframes.length,
+      minReadyTimeframes: this.config.minReadyTimeframes,
+      available: false,
+      unavailableReason: null,
       bullishCount: 0,
       bearishCount: 0,
       neutralCount: 0,
       overallBias: 'neutral',
-      confluenceScore: 0,
-      confidence: 0,
+      confluenceScore: null,
+      confidence: null,
       rsiAverage: 0,
       rsiExtreme: false,
       trendAlignment: 0,
       timeframeSignals: {},
-      shouldTrade: false,
+      shouldTrade: null,
       direction: 'neutral',
       reasoning: [],
     };
 
-    if (this.readyTimeframes.size === 0) {
-      analysis.reasoning.push('No timeframes ready yet');
+    if (this.readyTimeframes.size < this.config.minReadyTimeframes) {
+      analysis.unavailableReason = 'insufficient_ready_timeframes';
+      analysis.reasoning.push(`Ready timeframes ${this.readyTimeframes.size}/${this.config.minReadyTimeframes}`);
       return analysis;
     }
-
-    const weights = {
-      '1m': 0.05, '5m': 0.08, '15m': 0.10, '30m': 0.10,
-      '1h': 0.15, '4h': 0.17, '1d': 0.15,
-    };
 
     let weightedScore = 0, totalWeight = 0;
     let rsiSum = 0, rsiCount = 0;
@@ -351,7 +390,7 @@ class MultiTimeframeAdapter extends EventEmitter {
       const ind = this.indicators.get(tf);
       if (!ind) continue;
 
-      const weight = weights[tf] || 0.05;
+      const weight = this.config.weights[tf];
       let signal = 0;
 
       // RSI
@@ -430,6 +469,7 @@ class MultiTimeframeAdapter extends EventEmitter {
     if (analysis.shouldTrade) {
       analysis.direction = score > 0 ? 'buy' : 'sell';
     }
+    analysis.available = true;
 
     return analysis;
   }
