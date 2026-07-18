@@ -37,6 +37,8 @@ const { getNarrator } = require('./TradeNarrator');
 const narrator = getNarrator();
 const MAExtensionFilter = require('./MAExtensionFilter');
 const ConfigLoader = require('../foundation/ConfigLoader');
+const { IndicatorCalculator } = require('./IndicatorCalculator');
+const { c } = require('./CandleHelper');
 const OpeningRangeBreakout = require('../modules/OpeningRangeBreakout');
 const BreakAndRetest = require('../modules/BreakAndRetest');
 const MISSING_EXIT_CONTRACT_VALUE = Symbol('missing_exit_contract_value');
@@ -378,6 +380,61 @@ function finiteConfigNumber(value, label, fallback, min = null) {
     throw new Error(`[MTF-BOOSTER] ${label} must be >= ${min} (got ${numeric})`);
   }
   return numeric;
+}
+
+function requiredRsiNumber(config, key, { min = null, max = null, integer = false, path = `strategies.RSI.${key}` } = {}) {
+  const value = config?.[key];
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    throw new Error(`[RSI-CONFIG] ${path} must be a finite number (got ${value})`);
+  }
+  if (integer && !Number.isInteger(numeric)) {
+    throw new Error(`[RSI-CONFIG] ${path} must be an integer (got ${numeric})`);
+  }
+  if (min != null && numeric < min) {
+    throw new Error(`[RSI-CONFIG] ${path} must be >= ${min} (got ${numeric})`);
+  }
+  if (max != null && numeric > max) {
+    throw new Error(`[RSI-CONFIG] ${path} must be <= ${max} (got ${numeric})`);
+  }
+  return numeric;
+}
+
+function requiredRsiConfig() {
+  const config = ConfigLoader.get('strategies.RSI');
+  if (!config || typeof config !== 'object' || Array.isArray(config)) {
+    throw new Error('[RSI-CONFIG] strategies.RSI must be an object');
+  }
+  const regimeMaFilter = config.regimeMaFilter;
+  if (!regimeMaFilter || typeof regimeMaFilter !== 'object' || Array.isArray(regimeMaFilter)) {
+    throw new Error('[RSI-CONFIG] strategies.RSI.regimeMaFilter must be an object');
+  }
+  const allowedTimeframes = ['trading', '1h', '4h'];
+  if (typeof regimeMaFilter.timeframe !== 'string' || !allowedTimeframes.includes(regimeMaFilter.timeframe)) {
+    throw new Error(`[RSI-CONFIG] strategies.RSI.regimeMaFilter.timeframe must be one of ${allowedTimeframes.join(', ')}`);
+  }
+  if (typeof regimeMaFilter.enabled !== 'boolean') {
+    throw new Error('[RSI-CONFIG] strategies.RSI.regimeMaFilter.enabled must be boolean');
+  }
+
+  const resolved = {
+    period: requiredRsiNumber(config, 'period', { min: 1, integer: true }),
+    buyBelow: requiredRsiNumber(config, 'buyBelow', { min: 1, max: 99 }),
+    exitAbove: requiredRsiNumber(config, 'exitAbove', { min: 1, max: 99 }),
+    confidenceBase: requiredRsiNumber(config, 'confidenceBase', { min: 0, max: 1 }),
+    confidenceDepthRange: requiredRsiNumber(config, 'confidenceDepthRange', { min: 0.000001 }),
+    confidenceDepthMultiplier: requiredRsiNumber(config, 'confidenceDepthMultiplier', { min: 0, max: 1 }),
+    maxConfidence: requiredRsiNumber(config, 'maxConfidence', { min: 0, max: 1 }),
+    regimeMaFilter: {
+      enabled: regimeMaFilter.enabled,
+      period: requiredRsiNumber(regimeMaFilter, 'period', { min: 1, integer: true, path: 'strategies.RSI.regimeMaFilter.period' }),
+      timeframe: regimeMaFilter.timeframe,
+    },
+  };
+  if (resolved.buyBelow >= resolved.exitAbove) {
+    throw new Error(`[RSI-CONFIG] strategies.RSI.buyBelow (${resolved.buyBelow}) must be < exitAbove (${resolved.exitAbove})`);
+  }
+  return resolved;
 }
 
 function booleanConfigValue(value, fallback = false) {
@@ -978,6 +1035,71 @@ class StrategyOrchestrator {
       }
       return null;
     }
+  }
+
+  _getMtfCandlesForEvaluation(ctx, timeframe) {
+    this._getMtfConfluenceForEvaluation(ctx);
+    const adapter = this.mtfEvaluationCache?.evalCount === this.evalCount
+      ? this.mtfEvaluationCache.adapter
+      : null;
+    if (!adapter || typeof adapter.getCandles !== 'function') return [];
+    try {
+      return adapter.getCandles(timeframe);
+    } catch (e) {
+      if (process.env.STRATEGY_DIAG === 'true') {
+        console.log(`[DIAG] MultiTimeframe: getCandles(${timeframe}) error: ${e.message}`);
+      }
+      return [];
+    }
+  }
+
+  _resolveRsiRegimeMa(ctx, filter) {
+    if (!filter.enabled) {
+      return { allowed: true, enabled: false, timeframe: filter.timeframe, period: filter.period };
+    }
+
+    const timeframe = filter.timeframe;
+    const period = filter.period;
+    const tradingCandles = Array.isArray(ctx.priceHistory) ? ctx.priceHistory : [];
+    let candles = tradingCandles;
+    let latestPrice = tradingCandles.length > 0 ? c(tradingCandles[tradingCandles.length - 1]) : null;
+    let ma = null;
+
+    if (timeframe === 'trading') {
+      if (period === 200 && Number.isFinite(Number(ctx.indicators?.sma200))) {
+        ma = Number(ctx.indicators.sma200);
+      } else {
+        ma = IndicatorCalculator.calculateSMA(candles, period);
+      }
+    } else {
+      candles = this._getMtfCandlesForEvaluation(ctx, timeframe);
+      latestPrice = candles.length > 0 ? c(candles[candles.length - 1]) : null;
+      ma = IndicatorCalculator.calculateSMA(candles, period);
+    }
+
+    if (!Number.isFinite(Number(latestPrice)) || !Number.isFinite(Number(ma))) {
+      return {
+        allowed: false,
+        enabled: true,
+        timeframe,
+        period,
+        price: Number.isFinite(Number(latestPrice)) ? Number(latestPrice) : null,
+        ma: Number.isFinite(Number(ma)) ? Number(ma) : null,
+        reason: 'regime_ma_unavailable',
+      };
+    }
+
+    const price = Number(latestPrice);
+    const maValue = Number(ma);
+    return {
+      allowed: price > maValue,
+      enabled: true,
+      timeframe,
+      period,
+      price,
+      ma: maValue,
+      reason: price > maValue ? 'price_above_regime_ma' : 'price_not_above_regime_ma',
+    };
   }
 
   _buildMtfUnavailableSnapshot(reason = null) {
@@ -1612,41 +1734,51 @@ class StrategyOrchestrator {
       });
     }
 
-    // ─── 5. RSI Extreme Strategy ───
-    // FIX 2026-03-06: Read thresholds from ConfigLoader per STRATEGY-REWRITE-SPEC
+    // ─── 5. RSI Mean Reversion Strategy ───
+    // Trey RSI truth: RSI(5) long mean reversion with strategy-owned 200MA regime filter.
     if (shouldRegister('RSI')) this.strategies.push({
-      name: 'RSI',  // RSI Extreme strategy
+      name: 'RSI',
       evaluate: (ctx) => {
-        const rsi = ctx.indicators?.rsi;
-        if (rsi == null) return null;
+        const diagRSI = this.diagFunnel.RSI;
+        diagRSI.evaluated++;
+        const candles = ctx.priceHistory;
+        const rsiConfig = requiredRsiConfig();
+        if (!Array.isArray(candles) || candles.length < rsiConfig.period + 1) return null;
 
-        const rsiConfig = ConfigLoader.get('strategies.RSI') || {};
-        const oversold = rsiConfig.oversoldLevel || 25;
-        const overbought = rsiConfig.overboughtLevel || 75;
+        const rsi = IndicatorCalculator.calculateRSI(candles, rsiConfig.period);
+        if (!Number.isFinite(rsi)) return null;
+        diagRSI.moduleNonNull++;
 
-        // Only fire on extremes — not the gradient nonsense
-        // FIX 2026-03-13: Boost confidence so RSI=25 passes 50% gate
-        // OLD: 0.3 + (strength * 0.5) gave 0.30 at threshold — too weak
-        // NEW: 0.5 + (strength * 0.4) gives 0.50 at threshold, 0.90 at extreme
-        if (rsi < oversold) {
-          const strength = Math.min(1.0, (oversold - rsi) / 15); // Stronger as RSI drops
-          return {
-            direction: 'buy',
-            confidence: 0.5 + (strength * 0.4), // 0.50 - 0.90
-            reason: `RSI Oversold (${rsi.toFixed(1)} < ${oversold})`,
-            signalData: { rsi }
-          };
-        }
-        if (rsi > overbought) {
-          const strength = Math.min(1.0, (rsi - overbought) / 15);
-          return {
-            direction: 'sell',
-            confidence: 0.5 + (strength * 0.4), // 0.50 - 0.90
-            reason: `RSI Overbought (${rsi.toFixed(1)} > ${overbought})`,
-            signalData: { rsi }
-          };
-        }
-        return null;
+        if (rsi >= rsiConfig.buyBelow) return null;
+        diagRSI.nonNeutral++;
+
+        const regimeMa = this._resolveRsiRegimeMa(ctx, rsiConfig.regimeMaFilter);
+        if (!regimeMa.allowed) return null;
+
+        const strength = Math.min(1.0, (rsiConfig.buyBelow - rsi) / rsiConfig.confidenceDepthRange);
+        const confidence = Math.min(
+          rsiConfig.maxConfidence,
+          rsiConfig.confidenceBase + (strength * rsiConfig.confidenceDepthMultiplier)
+        );
+        if (confidence < this.minStrategyConfidence) return null;
+        diagRSI.passedConf++;
+
+        return {
+          direction: 'buy',
+          confidence,
+          reason: `RSI(${rsiConfig.period}) mean reversion buy (${rsi.toFixed(1)} < ${rsiConfig.buyBelow}) above ${rsiConfig.regimeMaFilter.period}MA`,
+          signalData: {
+            rsi,
+            rsiPeriod: rsiConfig.period,
+            buyBelow: rsiConfig.buyBelow,
+            exitAbove: rsiConfig.exitAbove,
+            regimeMa,
+          },
+          exitContractHint: {
+            rsiPeriod: rsiConfig.period,
+            rsiExitLong: rsiConfig.exitAbove,
+          },
+        };
       }
     });
 

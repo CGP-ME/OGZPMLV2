@@ -2117,9 +2117,18 @@
       "enabled": true
     },
     "RSI": {
-      "period": 14,
-      "oversoldLevel": 30,
-      "overboughtLevel": 70,
+      "period": 5,
+      "buyBelow": 35,
+      "exitAbove": 50,
+      "regimeMaFilter": {
+        "enabled": true,
+        "period": 200,
+        "timeframe": "trading"
+      },
+      "confidenceBase": 0.5,
+      "confidenceDepthRange": 15,
+      "confidenceDepthMultiplier": 0.4,
+      "maxConfidence": 0.9,
       "confluenceBoost": {
         "enabled": false,
         "weight": 0

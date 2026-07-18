@@ -29,6 +29,7 @@
 
 // FIX 2026-02-16: Use centralized candle helper for format compatibility
 const { c: _c, o: _o, h: _h, l: _l, v: _v } = require('./CandleHelper');
+const { IndicatorCalculator } = require('./IndicatorCalculator');
 
 class OptimizedIndicators {
   constructor() {
@@ -133,59 +134,7 @@ class OptimizedIndicators {
   }
 
   _calculateRSICore(priceData, period = 14) {
-
-    // TESTING MODE: Reduce minimum candle requirement to 2
-    const minCandles = process.env.TESTING === 'true' ? 2 : period;
-
-    if (priceData.length < minCandles) {
-      return 50;
-    }
-
-    // Validate data structure
-    const firstCandle = priceData[0];
-    const lastCandle = priceData[priceData.length - 1];
-
-    let gains = 0;
-    let losses = 0;
-
-    const dataLength = Math.min(priceData.length, period);
-    // CHANGE 654: Debug RSI calculation issue
-    let debugPrices = [];
-    for (let i = 1; i < dataLength; i++) {
-      const change = _c(priceData[i]) - _c(priceData[i-1]); // Close price changes
-      if (i <= 3) debugPrices.push(`${_c(priceData[i-1]).toFixed(2)}→${_c(priceData[i]).toFixed(2)}=${change.toFixed(2)}`);
-      if (change > 0) {
-        gains += change;
-      } else {
-        losses += Math.abs(change);
-      }
-    }
-    if (dataLength > 0 && gains + losses < 0.01 * _c(priceData[0])) {
-      console.log(`⚠️ RSI Debug: Prices flat! Changes: [${debugPrices.join(', ')}] Gains=${gains.toFixed(2)} Losses=${losses.toFixed(2)}`);
-    }
-
-    const avgGain = gains / Math.max(1, dataLength - 1);
-    const avgLoss = losses / Math.max(1, dataLength - 1);
-
-    // CHANGE 654: Fix RSI extremes when price is flat
-    // If total movement is less than 0.01% of price, return neutral RSI
-    const avgPrice = _c(priceData[dataLength - 1]);
-    const totalMovement = gains + losses;
-    const movementPercent = (totalMovement / avgPrice) * 100;
-
-    if (movementPercent < 0.01) {
-      console.log(`⚠️ RSI: Price too flat (${movementPercent.toFixed(4)}% movement), returning neutral 50`);
-      return 50; // Neutral when price is flat
-    }
-
-    if (avgLoss === 0) {
-      return 100;
-    }
-
-    const rs = avgGain / avgLoss;
-    const rsi = 100 - (100 / (1 + rs));
-
-    return Math.max(0, Math.min(100, rsi));
+    return IndicatorCalculator.calculateWilderRSI(priceData, period);
   }
 
   /**

@@ -340,7 +340,7 @@ const SWEEP_PRESETS = Object.freeze({
   // Strategy-owned stop/target/trail geometry.
   'exit-geometry': freezeSweepConfigs(SWEEP_PRESET_DEFINITIONS.exitGeometry),
 
-  // RSI thresholds sweep - oversold x overbought grid
+  // RSI truth sweep - buyBelow x exitAbove through caged config overrides
   rsi: freezeSweepConfigs(generateRSISweep()),
 
   // ═══════════════════════════════════════════════════════════════
@@ -363,14 +363,18 @@ const SWEEP_PRESETS = Object.freeze({
 
 function generateRSISweep(options = PARALLEL_BACKTEST_CONFIG.rsiSweep) {
   const configs = [];
-  const { oversoldLevels, overboughtLevels, minSpread } = options;
-  for (const os of oversoldLevels) {
-    for (const ob of overboughtLevels) {
-      // Only valid combinations where oversold < overbought with reasonable spread
-      if (ob - os < minSpread) continue;
+  const { buyBelowLevels, exitAboveLevels, minSpread } = options;
+  for (const buyBelow of buyBelowLevels) {
+    for (const exitAbove of exitAboveLevels) {
+      if (exitAbove - buyBelow < minSpread) continue;
       configs.push({
-        name: `rsi-${os}-${ob}`,
-        env: { RSI_OVERSOLD: String(os), RSI_OVERBOUGHT: String(ob) }
+        name: `rsi-b${buyBelow}-x${exitAbove}`,
+        env: {
+          BACKTEST_CONFIG_OVERRIDES_JSON: JSON.stringify({
+            'strategies.RSI.buyBelow': buyBelow,
+            'strategies.RSI.exitAbove': exitAbove,
+          }),
+        }
       });
     }
   }

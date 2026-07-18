@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### RSI Truth Lane 8 (2026-07-18)
+
+- Added shared Wilder RSI exports at `core/IndicatorCalculator.js` via `IndicatorCalculator.calculateWilderRSI` and `IndicatorCalculator.calculateWilderRSIFromCloses`; `calculateRSI` now delegates to the same implementation for downstream consumers.
+- Routed inline RSI, RSI2, MTF confluence, optimized indicators, and trade validation through the shared RSI math instead of private simple-average copies.
+- Rebuilt inline RSI around Trey's explicit RSI(5) seeds: `buyBelow=35`, `exitAbove=50`, long-only entries, and required 200MA regime filtering with sweepable `trading`/`1h`/`4h` timeframe ownership.
+- Removed the old RSI 25/75 fallback surface from StrategyOrchestrator, backtest worker env, and parallel sweep generation; RSI sweep values now travel through caged config overrides.
+
 ### MTF Demotion Lane 7 (2026-07-18)
 
 - Demoted MultiTimeframe from a standalone trade-birth strategy into a confluence-only service that exposes `crossFrameScore(symbol)` and returns `null` when required timeframe readiness is not met.

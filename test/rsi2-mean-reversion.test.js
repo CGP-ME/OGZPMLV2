@@ -33,11 +33,29 @@ function strategy(overrides = {}) {
   });
 }
 
+function upTrendWithDeepPullback() {
+  const closes = [];
+  for (let i = 0; i < 200; i++) {
+    closes.push(100 + i * 0.2);
+  }
+  closes.push(136, 134);
+  return closes.map(candle);
+}
+
+function downTrendWithDeepBounce() {
+  const closes = [];
+  for (let i = 0; i < 200; i++) {
+    closes.push(150 - i * 0.2);
+  }
+  closes.push(114, 116);
+  return closes.map(candle);
+}
+
 describe('RSI2MeanReversion', () => {
   test('emits long signal when RSI2 is deeply oversold above trend SMA', () => {
-    const candles = [100, 101, 102, 103, 104, 105, 104.8, 104.6].map(candle);
+    const candles = upTrendWithDeepPullback();
 
-    const signal = strategy().evaluate({ priceHistory: candles, indicators: {} });
+    const signal = strategy({ trendPeriod: 200 }).evaluate({ priceHistory: candles, indicators: {} });
 
     expect(signal).toMatchObject({
       strategy: 'RSI2MeanReversion',
@@ -55,11 +73,11 @@ describe('RSI2MeanReversion', () => {
   });
 
   test('blocks short signal unless allowShorts is explicit', () => {
-    const candles = [105, 104, 103, 102, 101, 100, 100.2, 100.4].map(candle);
+    const candles = downTrendWithDeepBounce();
 
-    expect(strategy().evaluate({ priceHistory: candles, indicators: {} })).toBeNull();
+    expect(strategy({ trendPeriod: 200 }).evaluate({ priceHistory: candles, indicators: {} })).toBeNull();
 
-    const signal = strategy({ allowShorts: true }).evaluate({ priceHistory: candles, indicators: {} });
+    const signal = strategy({ allowShorts: true, trendPeriod: 200 }).evaluate({ priceHistory: candles, indicators: {} });
     expect(signal).toMatchObject({
       strategy: 'RSI2MeanReversion',
       direction: 'sell',

@@ -37,6 +37,7 @@ const projectRoot = path.resolve(__dirname, '..');
 // Load modules for independent calculation
 const ConfigLoader = require(path.join(projectRoot, 'foundation/ConfigLoader'));
 const { c, o, h, l, v, t } = require(path.join(projectRoot, 'core/CandleHelper'));
+const { IndicatorCalculator } = require(path.join(projectRoot, 'core/IndicatorCalculator'));
 
 // ── CONFIG ──
 const CANDLE_FILE = process.env.CANDLE_FILE || 'tuning/full-45k.json';
@@ -71,35 +72,9 @@ function calcEMA(closes, period) {
   return ema;
 }
 
-/**
- * calcRSI - Uses Wilder's smoothing to match IndicatorEngine exactly
- * Seed with simple average over first `period` bars, then Wilder smooth
- */
-function calcRSI(closes, period = 14) {
+function calcSharedRSI(closes, period = 14) {
   if (closes.length < period + 1) return null;
-
-  // Seed with simple average over first period
-  let avgGain = 0, avgLoss = 0;
-  for (let i = 1; i <= period; i++) {
-    const diff = closes[i] - closes[i - 1];
-    if (diff > 0) avgGain += diff;
-    else avgLoss += Math.abs(diff);
-  }
-  avgGain /= period;
-  avgLoss /= period;
-
-  // Wilder's smoothing for remaining bars
-  for (let i = period + 1; i < closes.length; i++) {
-    const diff = closes[i] - closes[i - 1];
-    const gain = Math.max(diff, 0);
-    const loss = Math.max(-diff, 0);
-    avgGain = (avgGain * (period - 1) + gain) / period;
-    avgLoss = (avgLoss * (period - 1) + loss) / period;
-  }
-
-  if (avgLoss === 0) return 100;
-  const rs = avgGain / avgLoss;
-  return 100 - (100 / (1 + rs));
+  return IndicatorCalculator.calculateWilderRSIFromCloses(closes, period);
 }
 
 function calcATR(candles, period = 14) {
@@ -278,11 +253,9 @@ function validateTrade(trade, candles) {
 
   switch (trade.strategyName) {
     case 'RSI': {
-      // Independent RSI calculation (Wilder's smoothing - matches IndicatorEngine)
-      const rsi = calcRSI(closesUpToEntry, 14);
-      const rsiConfig = ConfigLoader.get('strategies.RSI') || {};
-      const oversold = rsiConfig.oversoldLevel || 25;
-      const overbought = rsiConfig.overboughtLevel || 75;
+      const rsiConfig = ConfigLoader.get('strategies.RSI');
+      const rsi = calcSharedRSI(closesUpToEntry, rsiConfig.period);
+      const buyBelow = rsiConfig.buyBelow;
 
       checks.push({
         name: 'RSI value exists',
@@ -293,17 +266,17 @@ function validateTrade(trade, candles) {
 
       if (trade.direction === 'buy') {
         checks.push({
-          name: `RSI < ${oversold} (oversold)`,
-          passed: rsi !== null && rsi < oversold,
-          expected: `< ${oversold}`,
+          name: `RSI(${rsiConfig.period}) < ${buyBelow} (mean reversion buy)`,
+          passed: rsi !== null && rsi < buyBelow,
+          expected: `< ${buyBelow}`,
           actual: rsi !== null ? rsi.toFixed(2) : 'null',
         });
-      } else if (trade.direction === 'sell') {
+      } else {
         checks.push({
-          name: `RSI > ${overbought} (overbought)`,
-          passed: rsi !== null && rsi > overbought,
-          expected: `> ${overbought}`,
-          actual: rsi !== null ? rsi.toFixed(2) : 'null',
+          name: 'RSI strategy direction is long-only',
+          passed: false,
+          expected: 'buy',
+          actual: trade.direction,
         });
       }
 

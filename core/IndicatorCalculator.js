@@ -71,31 +71,59 @@ class IndicatorCalculator {
   // ═══════════════════════════════════════════════════════════════════════════
 
   /**
-   * Calculate Relative Strength Index
+   * Calculate Relative Strength Index using Wilder smoothing.
    * @param {Array} candles - Array of OHLCV candles
    * @param {number} period - RSI period (default: 14)
    * @returns {number} RSI value (0-100)
    */
   static calculateRSI(candles, period = 14) {
+    return this.calculateWilderRSI(candles, period);
+  }
+
+  /**
+   * Shared Wilder RSI implementation for strategies, MTF confluence, and tools.
+   * Export path for downstream lanes: IndicatorCalculator.calculateWilderRSI.
+   */
+  static calculateWilderRSI(candles, period = 14) {
     if (!candles || candles.length < period + 1) {
-      return 50; // Neutral default
+      return 50; // Neutral until warm.
+    }
+    const closes = candles.map(candle => _c(candle));
+    return this.calculateWilderRSIFromCloses(closes, period);
+  }
+
+  static calculateWilderRSIFromCloses(closes, period = 14) {
+    if (!Array.isArray(closes) || closes.length < period + 1) {
+      return 50; // Neutral until warm.
     }
 
-    const slice = candles.slice(-(period + 1));
-    let gains = 0;
-    let losses = 0;
+    const normalizedPeriod = Number(period);
+    if (!Number.isInteger(normalizedPeriod) || normalizedPeriod <= 0 || closes.length < normalizedPeriod + 1) {
+      return 50;
+    }
 
-    for (let i = 1; i < slice.length; i++) {
-      const change = _c(slice[i]) - _c(slice[i - 1]);
+    let avgGain = 0;
+    let avgLoss = 0;
+
+    for (let i = 1; i <= normalizedPeriod; i++) {
+      const change = Number(closes[i]) - Number(closes[i - 1]);
       if (change > 0) {
-        gains += change;
+        avgGain += change;
       } else {
-        losses += Math.abs(change);
+        avgLoss += Math.abs(change);
       }
     }
 
-    const avgGain = gains / period;
-    const avgLoss = losses / period;
+    avgGain /= normalizedPeriod;
+    avgLoss /= normalizedPeriod;
+
+    for (let i = normalizedPeriod + 1; i < closes.length; i++) {
+      const change = Number(closes[i]) - Number(closes[i - 1]);
+      const gain = Math.max(change, 0);
+      const loss = Math.max(-change, 0);
+      avgGain = ((avgGain * (normalizedPeriod - 1)) + gain) / normalizedPeriod;
+      avgLoss = ((avgLoss * (normalizedPeriod - 1)) + loss) / normalizedPeriod;
+    }
 
     if (avgLoss === 0) {
       return 100; // All gains, max RSI

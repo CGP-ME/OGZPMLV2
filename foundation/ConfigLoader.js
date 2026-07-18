@@ -94,6 +94,41 @@ function requiredConfluenceBoostConfig(strategyName) {
   return value;
 }
 
+function requiredRsiRegimeMaFilterConfig() {
+  const configPath = 'strategies.RSI.regimeMaFilter';
+  const value = requiredConfiguredPlainObject(configPath);
+  if (typeof value.enabled !== 'boolean') {
+    throw new Error(`[ConfigLoader] config/trading.config.json ${configPath}.enabled must be a boolean`);
+  }
+  if (!Number.isInteger(value.period) || value.period <= 0) {
+    throw new Error(`[ConfigLoader] config/trading.config.json ${configPath}.period must be a positive integer`);
+  }
+  const allowedTimeframes = ['trading', '1h', '4h'];
+  if (typeof value.timeframe !== 'string' || !allowedTimeframes.includes(value.timeframe)) {
+    throw new Error(`[ConfigLoader] config/trading.config.json ${configPath}.timeframe must be one of ${allowedTimeframes.join(', ')}`);
+  }
+  return value;
+}
+
+function requiredRsiStrategyConfig() {
+  const value = {
+    period: requiredConfiguredNumber('strategies.RSI.period'),
+    buyBelow: requiredConfiguredNumber('strategies.RSI.buyBelow'),
+    exitAbove: requiredConfiguredNumber('strategies.RSI.exitAbove'),
+    regimeMaFilter: requiredRsiRegimeMaFilterConfig(),
+    confidenceBase: requiredConfiguredNumber('strategies.RSI.confidenceBase'),
+    confidenceDepthRange: requiredConfiguredNumber('strategies.RSI.confidenceDepthRange'),
+    confidenceDepthMultiplier: requiredConfiguredNumber('strategies.RSI.confidenceDepthMultiplier'),
+    maxConfidence: requiredConfiguredNumber('strategies.RSI.maxConfidence'),
+    confluenceBoost: requiredConfluenceBoostConfig('RSI'),
+    enabled: requiredConfiguredBool('strategies.RSI.enabled'),
+  };
+  if (value.buyBelow >= value.exitAbove) {
+    throw new Error(`[ConfigLoader] config/trading.config.json strategies.RSI.buyBelow (${value.buyBelow}) must be < strategies.RSI.exitAbove (${value.exitAbove})`);
+  }
+  return value;
+}
+
 function configuredValue(configPath, fallback = undefined) {
   const value = configPath.split('.').reduce((current, part) => (
     current && Object.prototype.hasOwnProperty.call(current, part) ? current[part] : undefined
@@ -1675,6 +1710,7 @@ const CONFIG_LOADER_RUNTIME_PATHS = Object.freeze({
   'strategies.enableRSI2MeanReversion': 'strategies.enableRSI2MeanReversion',
   'strategies.enableTimeSeriesMomentum': 'strategies.enableTimeSeriesMomentum',
   'strategies.OGZTPO': 'strategies.OGZTPO',
+  'strategies.RSI': 'strategies.RSI',
   'strategies.NoWickImbalance': 'strategies.NoWickImbalance',
   'strategies.PropSafeEMAPullback': 'strategies.PropSafeEMAPullback',
   'strategies.EMATrendRetest': 'strategies.EMATrendRetest',
@@ -1835,6 +1871,11 @@ function readConfigLoaderRuntimeValue(path) {
   if (loaded && loaded.config) {
     const value = readObjectPath(loaded.config, loaderPath);
     if (value !== undefined) return value;
+  }
+
+  if (path === 'strategies.RSI') {
+    const value = readObjectPath(tradingConfigFile, loaderPath);
+    if (value !== undefined) return cloneConfiguredObject(value);
   }
 
   return readLaunchProfileRuntimeValue(loaderPath);
@@ -2980,14 +3021,7 @@ const BASE_CONFIG = {
       enabled: requiredConfigBool('strategies.EMASMACrossover.enabled'),
     },
     LiquiditySweep: requiredConfiguredPlainObject('strategies.LiquiditySweep'),
-    RSI: {
-      // RSI mean reversion on extremes
-      period: 14,                                       // Standard RSI period
-      oversoldLevel: env('RSI_OVERSOLD', 30),          // Oversold threshold (widened from 25)
-      overboughtLevel: env('RSI_OVERBOUGHT', 70),      // Overbought threshold (widened from 75)
-      confluenceBoost: requiredConfluenceBoostConfig('RSI'),
-      enabled: true,
-    },
+    RSI: requiredRsiStrategyConfig(),
     VolumeProfile: {
       // Fabio Valentino - Auction Market Theory
       sessionLookback: env('VP_SESSION_LOOKBACK', 96), // 24h of 15m candles
@@ -3499,9 +3533,9 @@ const BASE_CONFIG = {
       ],
     },
     rsiSweep: {
-      oversoldLevels: [15, 20, 25, 30, 35],
-      overboughtLevels: [65, 70, 75, 80, 85],
-      minSpread: 30,
+      buyBelowLevels: [25, 30, 35, 40],
+      exitAboveLevels: [45, 50, 55, 60],
+      minSpread: 10,
     },
     gauntlet: {
       atrValues: [0, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40],
