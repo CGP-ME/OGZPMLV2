@@ -2085,6 +2085,13 @@
       "vpRthOnly": true,
       "vpLookbackBars": 0,
       "sweepMaxOffset": 3,
+      "minConditionsGate": 0,
+      "tierHigh": 0.975,
+      "tierMid": 0.775,
+      "tierFloor": 0.625,
+      "breakHigh": 5,
+      "breakMid": 3,
+      "confidenceMode": "tiered",
       "enabled": true
     },
     "OpeningRangeBreakout": {

@@ -112,11 +112,12 @@ function clearModuleCache(absPath) {
  */
 function runSmartMoneyPair(work, opts) {
   const SmartMoneySweep = require(path.join(projectRoot, 'modules/SmartMoneySweep'));
+  const ConfigLoader = require(path.join(projectRoot, 'foundation/ConfigLoader'));
   const pinePath = path.join(projectRoot, 'pine-transpiler/modules/SmartMoneySweep-v4.js');
   clearModuleCache(pinePath);
   const PineMod = require(pinePath);
 
-  const native = new SmartMoneySweep();
+  const native = new SmartMoneySweep(ConfigLoader.get('strategies.SmartMoneySweep'));
   const minBar = opts.minBar != null ? opts.minBar : 200;
   const mismatches = [];
   let compared = 0;

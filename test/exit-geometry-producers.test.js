@@ -6,6 +6,47 @@ const NoWickImbalance = require('../modules/NoWickImbalance');
 const SmartMoneySweep = require('../modules/SmartMoneySweep');
 const { calculateDynamicLevels } = require('../src/indicators/ogzTwoPoleOscillator');
 
+function smartMoneyConfig(overrides = {}) {
+  return {
+    vpDays: 5,
+    vpBins: 50,
+    valueAreaPct: 70,
+    bodyWeightPct: 70,
+    lvnPctile: 20,
+    ivbMinutes: 30,
+    volAvgLen: 20,
+    absorbBodyPct: 35,
+    absorbWickPct: 60,
+    absorbVolMult: 1.2,
+    initBodyPct: 60,
+    absorbBodyProgPct: 50,
+    absorbWickProgPct: 40,
+    absorbVolProgMult: 0.9,
+    initBodyProgPct: 45,
+    cvdDivLen: 10,
+    atrLen: 14,
+    lowConvATRMult: 0.5,
+    midConvATRMult: 1,
+    highConvATRMult: 1.5,
+    slBufferPct: 0.15,
+    maxLossPct: 0.3,
+    maxHoldBars: 60,
+    maxDailyLosses: 3,
+    vpRthOnly: true,
+    vpLookbackBars: 0,
+    sweepMaxOffset: 3,
+    minConditionsGate: 0,
+    tierHigh: 0.975,
+    tierMid: 0.775,
+    tierFloor: 0.625,
+    breakHigh: 5,
+    breakMid: 3,
+    confidenceMode: 'tiered',
+    enabled: true,
+    ...overrides,
+  };
+}
+
 function liquidityConfig(overrides = {}) {
   return {
     atrMultiplier: 0.25,
@@ -92,7 +133,7 @@ describe('exit geometry producer contracts', () => {
   });
 
   test('SmartMoneySweep refuses invalid current price before emitting override levels', () => {
-    const sms = new SmartMoneySweep({});
+    const sms = new SmartMoneySweep(smartMoneyConfig());
     const candles = [
       { o: 100, h: 101, l: 99, c: 100, v: 1000, t: 1 },
       { o: 101, h: 102, l: 100, c: 101, v: 1000, t: 2 },

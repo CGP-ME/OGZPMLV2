@@ -62,6 +62,16 @@ function requiredConfiguredBool(configPath) {
   return value;
 }
 
+function requiredConfiguredString(configPath) {
+  const value = configPath.split('.').reduce((current, part) => (
+    current && Object.prototype.hasOwnProperty.call(current, part) ? current[part] : undefined
+  ), tradingConfigFile);
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new Error(`[ConfigLoader] config/trading.config.json ${configPath} must be a non-empty string`);
+  }
+  return value;
+}
+
 function requiredConfiguredPlainObject(configPath) {
   const value = configPath.split('.').reduce((current, part) => (
     current && Object.prototype.hasOwnProperty.call(current, part) ? current[part] : undefined
@@ -2959,6 +2969,13 @@ const BASE_CONFIG = {
       vpRthOnly: envBool('SMS_VP_RTH_ONLY', true),
       vpLookbackBars: env('SMS_VP_LOOKBACK_BARS', 0),
       sweepMaxOffset: env('SMS_SWEEP_MAX_OFFSET', 3),
+      minConditionsGate: requiredConfiguredNumber('strategies.SmartMoneySweep.minConditionsGate'),
+      tierHigh: requiredConfiguredNumber('strategies.SmartMoneySweep.tierHigh'),
+      tierMid: requiredConfiguredNumber('strategies.SmartMoneySweep.tierMid'),
+      tierFloor: requiredConfiguredNumber('strategies.SmartMoneySweep.tierFloor'),
+      breakHigh: requiredConfiguredNumber('strategies.SmartMoneySweep.breakHigh'),
+      breakMid: requiredConfiguredNumber('strategies.SmartMoneySweep.breakMid'),
+      confidenceMode: requiredConfiguredString('strategies.SmartMoneySweep.confidenceMode'),
       enabled: true,
     },
     DonchianBreakout: {
@@ -3520,6 +3537,10 @@ const BASE_CONFIG = {
           NoWickImbalance: {
             'strategies.NoWickImbalance.entryMode': ['tap', 'rejection'],
             'strategies.NoWickImbalance.targetRR': [1.0, 1.5, 2.0],
+          },
+          SmartMoneySweep: {
+            'strategies.SmartMoneySweep.minConditionsGate': [0, 1, 2, 3],
+            'strategies.SmartMoneySweep.confidenceMode': ['tiered', 'continuous'],
           },
           OpeningRangeBreakout: {
             'strategies.OpeningRangeBreakout.orDurationMinutes': [5, 15, 30],

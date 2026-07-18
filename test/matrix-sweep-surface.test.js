@@ -92,6 +92,10 @@ describe('matrix-sweep runnable surface', () => {
       .toEqual(['tap', 'rejection']);
     expect(GRID.conf.strategyParams.NoWickImbalance['strategies.NoWickImbalance.targetRR'])
       .toEqual([1.0, 1.5, 2.0]);
+    expect(GRID.conf.strategyParams.SmartMoneySweep['strategies.SmartMoneySweep.minConditionsGate'])
+      .toEqual([0, 1, 2, 3]);
+    expect(GRID.conf.strategyParams.SmartMoneySweep['strategies.SmartMoneySweep.confidenceMode'])
+      .toEqual(['tiered', 'continuous']);
     expect(GRID.conf.strategyParams.OpeningRangeBreakout['strategies.OpeningRangeBreakout.orDurationMinutes'])
       .toEqual([5, 15, 30]);
     expect(GRID.conf.strategyParams.OpeningRangeBreakout['strategies.OpeningRangeBreakout.orMinWidthAtr'])
@@ -193,6 +197,24 @@ describe('matrix-sweep runnable surface', () => {
     expect(configs.every(config => config.strategy === 'DonchianBreakout')).toBe(true);
     expect(configs.every(config => config.env.SOLO_STRATEGY === 'DonchianBreakout')).toBe(true);
     expect(configs.every(config => config.env.ENABLE_DONCHIAN === 'true')).toBe(true);
+  });
+
+  test('SmartMoneySweep conviction ladder sweep stays inside caged backtest overrides', () => {
+    const configs = generateMatrix(['SmartMoneySweep'], GRID.conf, 'conf');
+    const payloads = configs.map(config => JSON.parse(config.env.BACKTEST_CONFIG_OVERRIDES_JSON));
+    const gates = payloads.map(payload => payload['strategies.SmartMoneySweep.minConditionsGate']);
+    const modes = payloads.map(payload => payload['strategies.SmartMoneySweep.confidenceMode']);
+
+    expect(configs).toHaveLength(GRID.conf.confidence.length * 4 * 2);
+    expect(new Set(gates)).toEqual(new Set([0, 1, 2, 3]));
+    expect(new Set(modes)).toEqual(new Set(['tiered', 'continuous']));
+    expect(configs.every(config => config.env.ENABLE_SMS === 'true')).toBe(true);
+    expect(configs.every(config => config.env.SMS_VP_RTH_ONLY === 'true')).toBe(true);
+    expect(configs.every(config => config.env.SMS_MIN_CONDITIONS_GATE === undefined)).toBe(true);
+    expect(configs.every(config => config.env.SMS_CONFIDENCE_MODE === undefined)).toBe(true);
+    expect(configs.every(config => config.strategyParams != null)).toBe(true);
+    expect(configs.every(config => config.strategyParams['strategies.SmartMoneySweep.minConditionsGate'] != null)).toBe(true);
+    expect(configs.every(config => config.strategyParams['strategies.SmartMoneySweep.confidenceMode'] != null)).toBe(true);
   });
 
   test('wake roster strategies carry explicit solo matrix enable flags', () => {

@@ -35,6 +35,14 @@ function hasValidExitGeometry(direction, entry, levels) {
   return false;
 }
 
+function requireFiniteConfig(config, key) {
+  const value = config[key];
+  if (!Number.isFinite(value)) {
+    throw new Error(`[SmartMoneySweep] config.${key} must be a finite number`);
+  }
+  return value;
+}
+
 class SmartMoneySweep {
   constructor(config = {}) {
     // ─── Volume Profile Config ───
@@ -107,6 +115,19 @@ class SmartMoneySweep {
     this.sweepMaxOffset = config.sweepMaxOffset != null ? Number(config.sweepMaxOffset) : 3;
     this.vpRthOnly = config.vpRthOnly !== false;
     this.vpLookbackBars = config.vpLookbackBars || 0;
+
+    // Conviction ladder is config-owned so tournament arms can sweep the SMS gate
+    // and confidence shape without changing strategy code.
+    this.minConditionsGate = requireFiniteConfig(config, 'minConditionsGate');
+    this.tierHigh = requireFiniteConfig(config, 'tierHigh');
+    this.tierMid = requireFiniteConfig(config, 'tierMid');
+    this.tierFloor = requireFiniteConfig(config, 'tierFloor');
+    this.breakHigh = requireFiniteConfig(config, 'breakHigh');
+    this.breakMid = requireFiniteConfig(config, 'breakMid');
+    this.confidenceMode = config.confidenceMode;
+    if (!['tiered', 'continuous'].includes(this.confidenceMode)) {
+      throw new Error('[SmartMoneySweep] config.confidenceMode must be tiered or continuous');
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -233,6 +254,7 @@ class SmartMoneySweep {
 
     const result = winner === 'long' ? longResult : shortResult;
     const direction = winner === 'long' ? 'buy' : 'sell';
+    if (result.conditionsMet < this.minConditionsGate) return null;
 
     // ─── Step 7: Compute SL/TP BEFORE consuming sweep ───
     // _computeExitLevels returns null when ATR is unusable (warmup or bad data).
@@ -249,19 +271,7 @@ class SmartMoneySweep {
     // DEBUG: Log computed exit levels
     console.log(`[SMS-LEVELS] price=$${price?.toFixed(2)} SL=$${levels?.stopLoss?.toFixed(2)} TP=$${levels?.takeProfit?.toFixed(2)}`);
 
-    // ─── Normalize confidence to match PineScript position sizing tiers ───
-    // OrderExecutor formula: multiplier = 0.5 + (conf - 0.5) × 4.0
-    // To get 5% base (1.0x):  need conf ≈ 0.625
-    // To get 8% (1.6x):       need conf ≈ 0.775
-    // To get 12% (2.4x):      need conf ≈ 0.975
-    let normalizedConf;
-    if (result.conditionsMet >= 5) {
-      normalizedConf = 0.975;  // High conviction → ~12%
-    } else if (result.conditionsMet >= 3) {
-      normalizedConf = 0.775;  // Medium conviction → ~8%
-    } else {
-      normalizedConf = 0.625;  // Base conviction → ~5%
-    }
+    const normalizedConf = this._normalizeConfidence(result);
 
     return {
       direction,
@@ -283,6 +293,18 @@ class SmartMoneySweep {
         rawConfidence: result.rawConfidence,
       }
     };
+  }
+
+  _normalizeConfidence(result) {
+    if (this.confidenceMode === 'continuous') {
+      const conditionProgress = Math.max(0, Math.min(result.conditionsMet / 7, 1));
+      const rawProgress = Math.max(0, Math.min(result.rawConfidence / 100, 1));
+      const blended = Math.max(conditionProgress, rawProgress);
+      return this.tierFloor + (this.tierHigh - this.tierFloor) * blended;
+    }
+    if (result.conditionsMet >= this.breakHigh) return this.tierHigh;
+    if (result.conditionsMet >= this.breakMid) return this.tierMid;
+    return this.tierFloor;
   }
 
   /**
