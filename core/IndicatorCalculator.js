@@ -267,6 +267,46 @@ class IndicatorCalculator {
   }
 
   /**
+   * Calculate Average True Range using Wilder smoothing.
+   * Export path for downstream lanes: IndicatorCalculator.calculateWilderATR.
+   * @param {Array} candles - Array of OHLCV candles
+   * @param {number} period - ATR period (default: 14)
+   * @returns {number} ATR value in price units
+   */
+  static calculateWilderATR(candles, period = 14) {
+    const normalizedPeriod = Number(period);
+    if (!Array.isArray(candles) || !Number.isInteger(normalizedPeriod) || normalizedPeriod <= 0 || candles.length < normalizedPeriod + 1) {
+      return 0;
+    }
+
+    const trueRanges = [];
+    for (let i = 1; i < candles.length; i++) {
+      const high = _h(candles[i]);
+      const low = _l(candles[i]);
+      const prevClose = _c(candles[i - 1]);
+
+      if (![high, low, prevClose].every(Number.isFinite)) {
+        return 0;
+      }
+
+      trueRanges.push(Math.max(
+        high - low,
+        Math.abs(high - prevClose),
+        Math.abs(low - prevClose)
+      ));
+    }
+
+    let atr = trueRanges.slice(0, normalizedPeriod)
+      .reduce((sum, tr) => sum + tr, 0) / normalizedPeriod;
+
+    for (let i = normalizedPeriod; i < trueRanges.length; i++) {
+      atr = ((atr * (normalizedPeriod - 1)) + trueRanges[i]) / normalizedPeriod;
+    }
+
+    return atr;
+  }
+
+  /**
    * Calculate ATR as percentage of price
    * @param {Array} candles - Array of OHLCV candles
    * @param {number} period - ATR period (default: 14)

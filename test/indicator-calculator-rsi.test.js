@@ -28,3 +28,23 @@ describe('IndicatorCalculator shared Wilder RSI', () => {
       .toBeCloseTo(rsi, 10);
   });
 });
+
+describe('IndicatorCalculator shared Wilder ATR', () => {
+  test('calculateWilderATR uses seeded Wilder smoothing instead of trailing simple-average ATR', () => {
+    const candles = [
+      { o: 100, h: 101, l: 99, c: 100 },
+      { o: 100, h: 104, l: 99, c: 103 },
+      { o: 103, h: 106, l: 102, c: 105 },
+      { o: 105, h: 107, l: 101, c: 102 },
+      { o: 102, h: 105, l: 100, c: 104 },
+      { o: 104, h: 110, l: 103, c: 109 },
+      { o: 109, h: 111, l: 108, c: 110 },
+      { o: 110, h: 115, l: 109, c: 114 },
+    ];
+
+    const wilderAtr = IndicatorCalculator.calculateWilderATR(candles, 3);
+
+    expect(wilderAtr).toBeCloseTo(5.185185185185185, 12);
+    expect(wilderAtr).not.toBeCloseTo(5.333333333333333, 12);
+  });
+});
