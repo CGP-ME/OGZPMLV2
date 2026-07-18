@@ -118,6 +118,15 @@ function optionalText(config, dottedPath, defaultValue) {
   return requiredText(config, dottedPath);
 }
 
+function optionalPlainObject(config, dottedPath, defaultValue = null) {
+  const value = getConfigValue(config, dottedPath);
+  if (value == null) return defaultValue;
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`Invalid mercury.config.json value: ${dottedPath} must be an object`);
+  }
+  return JSON.parse(JSON.stringify(value));
+}
+
 function loadMercuryIgnore(filePath) {
   if (!fs.existsSync(filePath)) {
     throw new Error(`Missing Mercury ignore contract: ${filePath}`);
@@ -335,6 +344,7 @@ const CONSENSUS_CLIENT_MAX_TOKENS = optionalNumber(MERCURY_CONFIG, 'consensus.cl
 const CONSENSUS_CLIENT_MIN_TOKENS = optionalNumber(MERCURY_CONFIG, 'consensus.clientMinTokens', 0, { integer: true, min: 0 });
 const CONSENSUS_REQUEST_TIMEOUT_MS = optionalNumber(MERCURY_CONFIG, 'consensus.requestTimeoutMs', 300000, { integer: true, min: 1000 });
 const CONSENSUS_TEMPERATURE = optionalNumber(MERCURY_CONFIG, 'consensus.temperature', 0, { min: 0 });
+const CONSENSUS_OPENAI_EXTRA_BODY = optionalPlainObject(MERCURY_CONFIG, 'consensus.openaiExtraBody', {});
 const CONSENSUS_SYSTEM_PROMPT = optionalText(MERCURY_CONFIG, 'consensus.systemPrompt', [
   'You are Fable, the consensus collaborator for OGZPrime Mercury reviews.',
   'Evaluate Mercury evidence. Do not invent repo facts or file:line citations.',
@@ -485,6 +495,7 @@ module.exports = {
   CONSENSUS_CLIENT_MIN_TOKENS,
   CONSENSUS_REQUEST_TIMEOUT_MS,
   CONSENSUS_TEMPERATURE,
+  CONSENSUS_OPENAI_EXTRA_BODY,
   CONSENSUS_SYSTEM_PROMPT,
   AGENTIC_MAX_ITERATIONS,
   AGENTIC_MAX_TOKENS,

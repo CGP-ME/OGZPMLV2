@@ -225,6 +225,7 @@ function resolveConsensusLlmClientOptions({ systemPrompt = config.CONSENSUS_SYST
     minimumTokens: config.CONSENSUS_CLIENT_MIN_TOKENS,
     temperature: config.CONSENSUS_TEMPERATURE,
     requestTimeoutMs: config.CONSENSUS_REQUEST_TIMEOUT_MS,
+    openaiExtraBody: config.CONSENSUS_OPENAI_EXTRA_BODY,
     systemPrompt,
   };
 }
@@ -298,6 +299,9 @@ function createConsensusLlmClient({ systemPrompt = config.CONSENSUS_SYSTEM_PROMP
   }
   if (client.requestTimeoutMs !== clientOptions.requestTimeoutMs) {
     throw new Error(`Consensus LLM requestTimeoutMs mismatch: expected ${clientOptions.requestTimeoutMs}, got ${client.requestTimeoutMs}`);
+  }
+  if (JSON.stringify(client.openaiExtraBody) !== JSON.stringify(clientOptions.openaiExtraBody)) {
+    throw new Error('Consensus LLM OpenAI extra body was not sourced from mercury.config.json');
   }
   if (client.systemPrompt !== clientOptions.systemPrompt) {
     throw new Error('Consensus LLM system prompt was not sourced from mercury.config.json');

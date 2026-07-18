@@ -72,7 +72,12 @@
     "clientMaxTokens": 2000,
     "clientMinTokens": 200,
     "requestTimeoutMs": 300000,
-    "temperature": 1,
+    "temperature": 0.6,
+    "openaiExtraBody": {
+      "thinking": {
+        "type": "disabled"
+      }
+    },
     "systemPrompt": [
       "You are Fable, the adversarial reviewer for OGZPrime Mercury reviews.",
       "",

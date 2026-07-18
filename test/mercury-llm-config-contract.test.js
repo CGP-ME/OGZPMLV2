@@ -87,6 +87,7 @@ describe('Mercury LLM config contract', () => {
       expect(config.CONSENSUS_API_KEY_ENV).toBe('MOONSHOT_API_KEY');
       expect(config.CONSENSUS_COMMAND).toBe('claude');
       expect(config.CONSENSUS_PERMISSION_MODE).toBe('dontAsk');
+      expect(config.CONSENSUS_OPENAI_EXTRA_BODY).toEqual({ thinking: { type: 'disabled' } });
       expect(config.AGENTIC_MAX_ITERATIONS).toBe(60);
       expect(config.AGENTIC_MAX_TOKENS).toBe(7750);
       expect(config.SINGLE_SHOT_MAX_TOKENS).toBe(2000);
@@ -166,8 +167,9 @@ describe('Mercury LLM config contract', () => {
         permissionMode: 'dontAsk',
         maxTokens: 2000,
         minimumTokens: 200,
-        temperature: 1,
+        temperature: 0.6,
         requestTimeoutMs: 300000,
+        openaiExtraBody: { thinking: { type: 'disabled' } },
       });
       expect(options.systemPrompt).toContain('adversarial reviewer');
     }, {
@@ -233,8 +235,9 @@ describe('Mercury LLM config contract', () => {
         provider: 'openai',
         baseUrl: 'https://api.moonshot.ai/v1',
         model: 'kimi-k3',
-        temperature: 1,
+        temperature: 0.6,
         apiKeyEnv: 'MOONSHOT_TEST_KEY',
+        openaiExtraBody: { thinking: { type: 'disabled' } },
       },
     }, () => {
       const { resolveConsensusLlmClientOptions } = require('../trai_brain/mercury-bridge/llm-client');
@@ -248,8 +251,9 @@ describe('Mercury LLM config contract', () => {
         authRequired: true,
         maxTokens: 2000,
         minimumTokens: 200,
-        temperature: 1,
+        temperature: 0.6,
         requestTimeoutMs: 300000,
+        openaiExtraBody: { thinking: { type: 'disabled' } },
       });
       expect(options.systemPrompt).toContain('adversarial reviewer');
     }, {
@@ -257,6 +261,37 @@ describe('Mercury LLM config contract', () => {
       ANTHROPIC_API_KEY: 'fallback-must-not-be-read',
       CLAUDE_API_KEY: 'fallback-must-not-be-read',
       LLM_API_KEY: 'fallback-must-not-be-read',
+    });
+  });
+
+  test('OpenAI-compatible client sends configured extra request body', async () => {
+    const PersistentLLMClient = require('../core/persistent_llm_client');
+    const client = new PersistentLLMClient({
+      provider: 'openai',
+      baseUrl: 'https://api.moonshot.ai/v1',
+      model: 'kimi-k3',
+      apiKey: 'placeholder-moonshot-key',
+      authRequired: true,
+      maxTokens: 2000,
+      minimumTokens: 0,
+      temperature: 0.6,
+      requestTimeoutMs: 300000,
+      systemPrompt: 'system prompt',
+      openaiExtraBody: { thinking: { type: 'disabled' } },
+    });
+    let capturedBody = null;
+    client._httpRequest = async (url, method, body) => {
+      capturedBody = body;
+      return JSON.stringify({ choices: [{ message: { content: 'KIMI_OK' } }] });
+    };
+
+    await expect(client.generateRawResponse('hello', 32)).resolves.toBe('KIMI_OK');
+
+    expect(capturedBody).toMatchObject({
+      model: 'kimi-k3',
+      temperature: 0.6,
+      max_tokens: 32,
+      thinking: { type: 'disabled' },
     });
   });
 

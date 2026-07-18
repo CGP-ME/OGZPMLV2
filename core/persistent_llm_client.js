@@ -101,6 +101,11 @@ class PersistentLLMClient {
     this.temperature = requireNumber(resolvedConfig, 'temperature', { min: 0, max: 2 });
     this.requestTimeoutMs = requireInteger(resolvedConfig, 'requestTimeoutMs', { min: 1000, max: 300000 });
     this.systemPrompt = requireString(resolvedConfig, 'systemPrompt');
+    this.openaiExtraBody = resolvedConfig.openaiExtraBody
+      && typeof resolvedConfig.openaiExtraBody === 'object'
+      && !Array.isArray(resolvedConfig.openaiExtraBody)
+      ? JSON.parse(JSON.stringify(resolvedConfig.openaiExtraBody))
+      : {};
 
     // Stats
     this.isReady = false;
@@ -266,6 +271,7 @@ class PersistentLLMClient {
     }
 
     const body = {
+      ...this.openaiExtraBody,
       model: this.model,
       messages: messages,
       tools: tools,
@@ -335,6 +341,7 @@ class PersistentLLMClient {
 
   async _callOpenAI(prompt, maxTokens) {
     const body = {
+      ...this.openaiExtraBody,
       model: this.model,
       max_tokens: maxTokens,
       temperature: this.temperature,
