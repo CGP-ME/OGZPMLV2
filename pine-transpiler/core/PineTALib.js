@@ -22,6 +22,22 @@ class PineTALib {
     return ema;
   }
 
+  static emaSeries(series, length) {
+    const values = new Array(Array.isArray(series) ? series.length : 0).fill(null);
+    if (length <= 0 || !Array.isArray(series) || series.length < length) return values;
+
+    const k = 2 / (length + 1);
+    let ema = this.sma(series.slice(0, length), length);
+    values[length - 1] = ema;
+
+    for (let i = length; i < series.length; i++) {
+      ema = series[i] * k + ema * (1 - k);
+      values[i] = ema;
+    }
+
+    return values;
+  }
+
   // Relative Strength Index
   static rsi(series, length) {
     if (length <= 0) return null;
@@ -39,6 +55,26 @@ class PineTALib {
       tr.push(Math.max(val1, val2, val3));
     }
     return this.sma(tr, length);
+  }
+
+  static macd(series, fastLength = 12, slowLength = 26, signalLength = 9) {
+    if (!Array.isArray(series) || fastLength <= 0 || slowLength <= 0 || signalLength <= 0) {
+      return [null, null, null];
+    }
+
+    const fast = this.emaSeries(series, fastLength);
+    const slow = this.emaSeries(series, slowLength);
+    const macdSeries = series.map((_, index) => (
+      fast[index] === null || slow[index] === null ? null : fast[index] - slow[index]
+    ));
+    const validMacd = macdSeries.filter((value) => value !== null);
+    const signalSeries = this.emaSeries(validMacd, signalLength);
+
+    const macdLine = macdSeries[macdSeries.length - 1] ?? null;
+    const signalLine = signalSeries[signalSeries.length - 1] ?? null;
+    const histogram = macdLine === null || signalLine === null ? null : macdLine - signalLine;
+
+    return [macdLine, signalLine, histogram];
   }
 
   // Highest value in a look-back window

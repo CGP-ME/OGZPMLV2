@@ -47,6 +47,11 @@ class PineParser {
       return this.varDeclaration();
     }
 
+    // Tuple destructuring declaration: [a, b] = expr
+    if (tok.type === 'punct' && tok.value === '[') {
+      return this.tupleAssignment();
+    }
+
     // if / else
     if (tok.type === 'keyword' && tok.value === 'if') {
       return this.ifStatement();
@@ -104,6 +109,26 @@ class PineParser {
 
     // expression statement (including strategy.* calls)
     return this.expressionStatement();
+  }
+
+  // Tuple destructuring declaration: [a, b, c] = ta.macd(...)
+  tupleAssignment() {
+    const ids = [];
+    this.consume('punct', '[');
+    while (this.peek().type !== 'punct' || this.peek().value !== ']') {
+      const tok = this.peek();
+      if (tok.type !== 'identifier' && tok.type !== 'keyword') {
+        this.error('Expected identifier in tuple assignment');
+      }
+      ids.push(this.consume().value);
+      if (this.peek().type === 'punct' && this.peek().value === ',') {
+        this.consume('punct', ',');
+      }
+    }
+    this.consume('punct', ']');
+    this.consume('operator', '=');
+    const init = this.expression();
+    return { type: 'TupleAssignment', ids, init };
   }
 
   // Regular (non-persistent) variable declaration: x = expr or type x = expr
@@ -479,6 +504,9 @@ class PineParser {
 
       // Array/series access: arr[index]
       if (tok.type === 'punct' && tok.value === '[') {
+        if (node.type === 'CallExpression') {
+          break;
+        }
         this.consume('punct', '[');
         const index = this.expression();
         this.consume('punct', ']');

@@ -75,6 +75,19 @@ class PineRuntime {
         // Non-persistent variable - recalculate every candle
         this.state[node.id] = node.init ? this._evalExpression(node.init) : null;
         break;
+      case 'TupleAssignment':
+        {
+          const values = this._evalExpression(node.init);
+          if (!Array.isArray(values)) {
+            throw new Error('Tuple assignment expected a tuple-returning expression');
+          }
+          node.ids.forEach((id, index) => {
+            if (id !== '_') {
+              this.state[id] = values[index] === undefined ? null : values[index];
+            }
+          });
+        }
+        break;
       case 'ExpressionStatement':
         this._evalExpression(node.expression);
         break;
@@ -481,6 +494,16 @@ class PineRuntime {
         const length = this._evalExpression(rawArgs[0]);
         // Round to mintick to match TradingView precision
         return this._roundToTick(PineTALib.atr(getSeries('high'), getSeries('low'), getSeries('close'), length));
+      }
+      case 'macd': {
+        const seriesArg = rawArgs[0];
+        const series = seriesArg.type === 'Identifier' && seriesNames.includes(seriesArg.name)
+          ? getSeries(seriesArg.name)
+          : evalOrSeries(seriesArg);
+        const fastLength = this._evalExpression(rawArgs[1]);
+        const slowLength = this._evalExpression(rawArgs[2]);
+        const signalLength = this._evalExpression(rawArgs[3]);
+        return PineTALib.macd(series, fastLength, slowLength, signalLength);
       }
       case 'vwap': {
         // Pine: ta.vwap(src) or ta.vwap() - default src is hlc3

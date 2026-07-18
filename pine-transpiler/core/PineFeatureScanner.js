@@ -125,13 +125,6 @@ class PineFeatureScanner {
         reason: 'switch statement semantics are untested by this transpiler',
       });
     }
-    if (features.tupleAssignments) {
-      refusalFeatures.push({
-        feature: 'tuples',
-        reason: 'tuple assignment semantics are untested by this transpiler',
-      });
-    }
-
     return {
       features,
       unsupportedSignalMode,

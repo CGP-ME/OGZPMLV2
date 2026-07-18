@@ -33,10 +33,6 @@ describe('PineFeatureScanner refusal gate', () => {
       feature: 'switch',
       source: 'signal = switch close > open\n    true => 1\n    false => -1',
     },
-    {
-      feature: 'tuples',
-      source: '[macdLine, signalLine] = ta.macd(close, 12, 26, 9)',
-    },
   ];
 
   test.each(refusalCases)('refuses $feature', ({ feature, source }) => {
@@ -81,6 +77,15 @@ describe('PineFeatureScanner refusal gate', () => {
       plot(close)
     `);
 
+    expect(result.refusalRequired).toBe(false);
+  });
+
+  test('detects tuple assignment without refusing after T-B1 support', () => {
+    const result = new PineFeatureScanner().scan(
+      '[macdLine, signalLine, histLine] = ta.macd(close, 3, 5, 3)'
+    );
+
+    expect(result.features.tupleAssignments).toBe(true);
     expect(result.refusalRequired).toBe(false);
   });
 });
