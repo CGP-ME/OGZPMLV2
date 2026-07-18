@@ -83,7 +83,7 @@
   "jest": {
     "testPathIgnorePatterns": [
       "/node_modules/",
-      "/ogz-meta/cognition-history/"
+      "/ogz-meta/"
     ],
     "setupFiles": [
       "<rootDir>/test/helpers/canonical-test-env.js"
