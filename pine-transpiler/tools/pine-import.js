@@ -13,7 +13,7 @@ function main() {
 
   const source = fs.readFileSync(srcPath, 'utf8');
   const scanner = new PineFeatureScanner();
-  const scanResult = scanner.scan(source);
+  const scanResult = scanner.assertImportable(source);
 
   console.log('\n--- Pine Feature Scan ---');
   console.log('Features detected:', JSON.stringify(scanResult.features, null, 2));
@@ -59,4 +59,15 @@ module.exports = {
   console.log(`\n--- Transpiled module written to ${outPath}`);
 }
 
-main();
+try {
+  main();
+} catch (err) {
+  if (err && err.code === 'PINE_IMPORT_REFUSED') {
+    console.error(err.message);
+    for (const entry of err.features || []) {
+      console.error(`  - ${entry.feature}: ${entry.reason}`);
+    }
+    process.exit(2);
+  }
+  throw err;
+}
