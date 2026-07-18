@@ -18,6 +18,103 @@ function readJsonFile(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
 
+function parseCsvLine(line) {
+  const values = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    const next = line[i + 1];
+
+    if (char === '"' && next === '"') {
+      current += '"';
+      i++;
+    } else if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      values.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  values.push(current);
+  return values.map((value) => value.trim());
+}
+
+function readCsvRows(filePath) {
+  const lines = fs.readFileSync(filePath, 'utf8')
+    .split(/\r?\n/)
+    .filter((line) => line.trim() !== '');
+
+  if (lines.length === 0) return [];
+
+  const headers = parseCsvLine(lines[0]).map((header) => header.trim().toLowerCase());
+  return lines.slice(1).map((line) => {
+    const row = {};
+    parseCsvLine(line).forEach((value, index) => {
+      row[headers[index]] = value;
+    });
+    return row;
+  });
+}
+
+function parseNumber(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseTimestamp(value) {
+  const numeric = Number(value);
+  if (Number.isFinite(numeric)) return numeric;
+
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : value;
+}
+
+function readCandleFile(filePath, format) {
+  if (format === 'json' || (!format && filePath.endsWith('.json'))) {
+    return readJsonFile(filePath);
+  }
+
+  if (format === 'tradingview_csv' || format === 'csv' || filePath.endsWith('.csv')) {
+    return readCsvRows(filePath).map((row) => ({
+      timestamp: parseTimestamp(row.time ?? row.timestamp ?? row.date),
+      open: parseNumber(row.open ?? row.o),
+      high: parseNumber(row.high ?? row.h),
+      low: parseNumber(row.low ?? row.l),
+      close: parseNumber(row.close ?? row.c),
+      volume: parseNumber(row.volume ?? row.v),
+    }));
+  }
+
+  throw Object.assign(new Error(`Unsupported candle file format: ${format || filePath}`), {
+    code: 'PINE_PARITY_FIXTURE_INVALID',
+  });
+}
+
+function readExpectedSignalFile(filePath, format) {
+  if (format === 'json' || (!format && filePath.endsWith('.json'))) {
+    return readJsonFile(filePath);
+  }
+
+  if (format === 'tradingview_trade_csv' || format === 'csv' || filePath.endsWith('.csv')) {
+    return readCsvRows(filePath)
+      .map((row) => ({
+        barIndex: parseNumber(row.barindex ?? row.bar_index ?? row.bar),
+        timestamp: parseTimestamp(row.time ?? row.timestamp ?? row.date),
+        direction: row.direction ?? row.side ?? row.signal ?? row.action,
+      }))
+      .filter((signal) => signal.direction);
+  }
+
+  throw Object.assign(new Error(`Unsupported expected signal file format: ${format || filePath}`), {
+    code: 'PINE_PARITY_FIXTURE_INVALID',
+  });
+}
+
 function readPineSource(sourcePath) {
   const body = fs.readFileSync(sourcePath, 'utf8');
   const generatedMatch = body.match(/const SOURCE = `([\s\S]*?)`;/);
@@ -153,17 +250,27 @@ function loadParityFixture(fixturePath) {
 
   const pineSourcePath = resolveRepoPath(fixture.pineSourcePath, baseDir);
   const candleFilePath = resolveRepoPath(fixture.candleFilePath, baseDir);
+  const expectedSignalListPath = fixture.expectedSignalListPath
+    ? resolveRepoPath(fixture.expectedSignalListPath, baseDir)
+    : null;
 
-  const candleFileSha256 = sha256File(candleFilePath);
+  const candleFileExists = fs.existsSync(candleFilePath);
+  const expectedSignalListExists = expectedSignalListPath ? fs.existsSync(expectedSignalListPath) : false;
+  const candleFileSha256 = candleFileExists ? sha256File(candleFilePath) : null;
   const pineSourceSha256 = sha256File(pineSourcePath);
+  const expectedSignalListFileSha256 = expectedSignalListExists ? sha256File(expectedSignalListPath) : null;
 
   return {
     ...fixture,
     fixturePath: absoluteFixturePath,
     pineSourcePath,
     candleFilePath,
+    expectedSignalListPath,
+    candleFileExists,
+    expectedSignalListExists,
     candleFileSha256,
     pineSourceSha256,
+    expectedSignalListFileSha256,
   };
 }
 
@@ -186,11 +293,38 @@ function verifyFixtureHashes(fixture) {
     });
   }
 
+  if (
+    fixture.expectedSignalListSha256 &&
+    fixture.expectedSignalListSha256 !== fixture.expectedSignalListFileSha256
+  ) {
+    failures.push({
+      file: fixture.expectedSignalListPath,
+      expected: fixture.expectedSignalListSha256,
+      actual: fixture.expectedSignalListFileSha256,
+    });
+  }
+
   return failures;
 }
 
 function runParityFixture(fixturePath) {
   const fixture = loadParityFixture(fixturePath);
+  const missingFixtureFiles = [];
+  if (!fixture.candleFileExists) missingFixtureFiles.push(fixture.candleFilePath);
+  if (!Array.isArray(fixture.expectedSignals) && !fixture.expectedSignalListExists) {
+    missingFixtureFiles.push(fixture.expectedSignalListPath || 'expectedSignals');
+  }
+
+  if (missingFixtureFiles.length > 0) {
+    return {
+      fixture,
+      status: 'blocked',
+      reason: 'missing_fixture_exports',
+      missingFixtureFiles,
+      message: 'Fixture cannot certify parity without TradingView candle and signal exports.',
+    };
+  }
+
   const hashFailures = verifyFixtureHashes(fixture);
 
   if (hashFailures.length > 0) {
@@ -202,7 +336,11 @@ function runParityFixture(fixturePath) {
     };
   }
 
-  if (!Array.isArray(fixture.expectedSignals)) {
+  const expectedSignals = Array.isArray(fixture.expectedSignals)
+    ? fixture.expectedSignals
+    : readExpectedSignalFile(fixture.expectedSignalListPath, fixture.expectedSignalListFormat);
+
+  if (!Array.isArray(expectedSignals)) {
     return {
       fixture,
       status: 'blocked',
@@ -212,9 +350,9 @@ function runParityFixture(fixturePath) {
   }
 
   const pineSource = readPineSource(fixture.pineSourcePath);
-  const candles = readJsonFile(fixture.candleFilePath);
+  const candles = readCandleFile(fixture.candleFilePath, fixture.candleFileFormat);
   const actualSignals = runPineParity({ pineSource, candles });
-  const comparison = compareSignalLists(fixture.expectedSignals, actualSignals);
+  const comparison = compareSignalLists(expectedSignals, actualSignals);
 
   return {
     fixture,
@@ -230,6 +368,8 @@ module.exports = {
   formatDivergentBars,
   loadParityFixture,
   normalizeCandle,
+  readCandleFile,
+  readExpectedSignalFile,
   readPineSource,
   runPineParity,
   runParityFixture,

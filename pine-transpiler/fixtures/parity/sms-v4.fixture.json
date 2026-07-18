@@ -3,8 +3,12 @@
   "pathsRelativeTo": "repo",
   "pineSourcePath": "pinescript/SmartMoneySweep-v4.pine",
   "expectedPineSourceSha256": "e6ba157b99e39e2701098bee227bc9396fbb0058f54f6066c9fc9909593a4a90",
-  "candleFilePath": "tuning/tsla-15m-18mo.json",
-  "expectedCandleFileSha256": "400610dca8a086238b6c9f5c0e3dac0d05b1824af476454ca42c43cbccf9c28f",
-  "expectedSignalSource": "TradingView bar-by-bar signal export not present in repo. Existing docs only preserve aggregate target count near 397 and 5.5 percent delta.",
+  "candleFilePath": "pine-transpiler/fixtures/parity/tradingview/sms-v4-candles.csv",
+  "candleFileFormat": "tradingview_csv",
+  "expectedCandleFileSha256": null,
+  "expectedSignalListPath": "pine-transpiler/fixtures/parity/tradingview/sms-v4-trades.csv",
+  "expectedSignalListFormat": "tradingview_trade_csv",
+  "expectedSignalListSha256": null,
+  "expectedSignalSource": "TradingView candle CSV and TradingView trade-list CSV are required. Alpaca candle JSON is intentionally not a parity fixture because feed mismatch makes TV-signal comparison unmeasurable.",
   "expectedSignals": null
 }

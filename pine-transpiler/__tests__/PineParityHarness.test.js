@@ -76,6 +76,70 @@ describe('PineParityHarness', () => {
     expect(result.comparison.countDelta).toBe(0);
   });
 
+  test('passes a TradingView CSV candle and trade-list fixture', () => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    fs.mkdirSync(tmpDir, { recursive: true });
+
+    const pinePath = path.join(tmpDir, 'fixture.pine');
+    const candlePath = path.join(tmpDir, 'tv-candles.csv');
+    const tradePath = path.join(tmpDir, 'tv-trades.csv');
+    const fixturePath = path.join(tmpDir, 'fixture.json');
+
+    fs.writeFileSync(
+      pinePath,
+      [
+        '//@version=5',
+        'strategy("TV CSV parity fixture")',
+        'if close > open',
+        '    strategy.entry("L", strategy.long)',
+        'if close < open',
+        '    strategy.entry("S", strategy.short)',
+        '',
+      ].join('\n'),
+      'utf8'
+    );
+    fs.writeFileSync(
+      candlePath,
+      [
+        'time,open,high,low,close,volume',
+        '2026-01-02T14:30:00Z,1,2,1,2,10',
+        '2026-01-02T14:45:00Z,2,2,1,1,11',
+        '',
+      ].join('\n'),
+      'utf8'
+    );
+    fs.writeFileSync(
+      tradePath,
+      [
+        'bar_index,time,direction',
+        '0,2026-01-02T14:30:00Z,long',
+        '1,2026-01-02T14:45:00Z,short',
+        '',
+      ].join('\n'),
+      'utf8'
+    );
+
+    writeJson(fixturePath, {
+      name: 'synthetic TradingView CSV parity fixture',
+      pathsRelativeTo: 'fixture',
+      pineSourcePath: 'fixture.pine',
+      expectedPineSourceSha256: sha256File(pinePath),
+      candleFilePath: 'tv-candles.csv',
+      candleFileFormat: 'tradingview_csv',
+      expectedCandleFileSha256: sha256File(candlePath),
+      expectedSignalListPath: 'tv-trades.csv',
+      expectedSignalListFormat: 'tradingview_trade_csv',
+      expectedSignalListSha256: sha256File(tradePath),
+      expectedSignals: null,
+    });
+
+    const result = runParityFixture(fixturePath);
+
+    expect(result.status).toBe('passed');
+    expect(result.comparison.actualCount).toBe(2);
+    expect(result.comparison.countDelta).toBe(0);
+  });
+
   test('fails closed on candle SHA mismatch', () => {
     const fixturePath = writeFixture({
       expectedCandleFileSha256: '0'.repeat(64),
@@ -109,7 +173,7 @@ describe('PineParityHarness', () => {
     ]);
   });
 
-  test('blocks SMS-v4 fixture until the TradingView expected signal list is present', () => {
+  test('blocks SMS-v4 fixture until the TradingView candle and trade exports are present', () => {
     const fixturePath = path.join(
       repoRoot,
       'pine-transpiler',
@@ -121,7 +185,10 @@ describe('PineParityHarness', () => {
     const result = runParityFixture(fixturePath);
 
     expect(result.status).toBe('blocked');
-    expect(result.reason).toBe('missing_expected_signal_list');
-    expect(result.fixture.candleFileSha256).toBe(result.fixture.expectedCandleFileSha256);
+    expect(result.reason).toBe('missing_fixture_exports');
+    expect(result.missingFixtureFiles).toEqual([
+      path.join(repoRoot, 'pine-transpiler', 'fixtures', 'parity', 'tradingview', 'sms-v4-candles.csv'),
+      path.join(repoRoot, 'pine-transpiler', 'fixtures', 'parity', 'tradingview', 'sms-v4-trades.csv'),
+    ]);
   });
 });

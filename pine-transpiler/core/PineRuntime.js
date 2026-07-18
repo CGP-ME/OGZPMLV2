@@ -484,12 +484,9 @@ class PineRuntime {
       }
       case 'vwap': {
         // Pine: ta.vwap(src) or ta.vwap() - default src is hlc3
-        return this._roundToTick(PineTALib.vwap(
-          getSeries('high'),
-          getSeries('low'),
-          getSeries('close'),
-          getSeries('volume')
-        ));
+        let source = rawArgs[0] ? evalOrSeries(rawArgs[0]) : getSeries('hlc3');
+        if (!Array.isArray(source)) source = [source];
+        return this._roundToTick(PineTALib.vwap(source, getSeries('volume')));
       }
       case 'crossover':
       case 'crossunder': {
