@@ -695,7 +695,8 @@ class StrategyOrchestrator {
 
     // Opening Range Breakout stateful strategy instance
     // MUST be initialized BEFORE _registerBuiltinStrategies() so closure captures it
-    this.orbStrategy = new OpeningRangeBreakout();
+    this.openingRangeBreakoutConfig = ConfigLoader.get('strategies.OpeningRangeBreakout');
+    this.orbStrategy = new OpeningRangeBreakout(this.openingRangeBreakoutConfig);
 
     // MA Extension Filter for trend confirmation + first-touch skip
     this.maExtensionFilter = new MAExtensionFilter();
@@ -797,6 +798,23 @@ class StrategyOrchestrator {
       bySymbol.set(canonicalSymbol, factory());
     }
     return bySymbol.get(canonicalSymbol);
+  }
+
+  _resolveStrategyStateSymbol(ctx, latestCandle = null) {
+    const candidates = [
+      ctx?.extras?.symbol,
+      ctx?.symbol,
+      latestCandle?.symbol,
+      latestCandle?.asset,
+      latestCandle?.ticker,
+    ];
+
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string' && candidate.trim()) {
+        return candidate.trim();
+      }
+    }
+    return null;
   }
 
   _getMtfConfluenceForEvaluation(ctx) {
@@ -1729,11 +1747,12 @@ class StrategyOrchestrator {
         if (!candles || candles.length === 0) return null;
 
         const latestCandle = candles[candles.length - 1];
+        const orbSymbol = this._resolveStrategyStateSymbol(ctx, latestCandle);
         const scopedOrb = this._getSymbolStrategyModule(
           'OpeningRangeBreakout',
-          ctx.extras?.symbol,
+          orbSymbol,
           orbInstance,
-          () => new OpeningRangeBreakout()
+          () => new OpeningRangeBreakout(this.openingRangeBreakoutConfig)
         );
         const signal = scopedOrb.update(latestCandle);
 

@@ -12,11 +12,12 @@ const ConfigLoader = require('../foundation/ConfigLoader');
  * This is a SESSION-BASED strategy that tracks state across candles.
  *
  * STATE MACHINE:
- * 1. WAITING_FOR_OPEN → Wait for session open (first 15-min candle after session start)
- * 2. WATCHING_FOR_BREAK → OR defined. Watch for breakout (close beyond OR high/low)
- * 3. WATCHING_FOR_FVG → Breakout detected. Scan for FVG in breakout direction
- * 4. SIGNAL_READY → FVG found. Return signal with LIMIT entry hint
- * 5. DONE → Signal consumed. Wait for next session
+ * 1. WAITING_FOR_OPEN → Wait for session open
+ * 2. COLLECTING_OR → Accumulate high/low across the configured opening window
+ * 3. WATCHING_FOR_BREAK → OR defined. Watch for breakout (close beyond OR high/low)
+ * 4. WATCHING_FOR_FVG → Breakout detected. Scan for FVG in breakout direction
+ * 5. SIGNAL_READY → FVG found. Return signal with LIMIT entry hint
+ * 6. DONE → Signal consumed. Wait for next session
  *
  * Source: ogz-meta/ledger/opening-range-fvg-spec.md
  *
@@ -25,25 +26,90 @@ const ConfigLoader = require('../foundation/ConfigLoader');
 
 const STATES = {
   WAITING_FOR_OPEN: 'WAITING_FOR_OPEN',
+  COLLECTING_OR: 'COLLECTING_OR',
   WATCHING_FOR_BREAK: 'WATCHING_FOR_BREAK',
   WATCHING_FOR_FVG: 'WATCHING_FOR_FVG',
   SIGNAL_READY: 'SIGNAL_READY',
   DONE: 'DONE',
 };
 
+const REQUIRED_CONFIG_KEYS = Object.freeze([
+  'sessionOpenHourUTC',
+  'sessionOpenET',
+  'sessionTimeZone',
+  'orDurationMinutes',
+  'orMinWidthAtr',
+  'fvgScanBars',
+  'minFVGPercent',
+  'maxFVGPercent',
+  'entryLevel',
+  'stopBufferPct',
+  'targetRR',
+]);
+
+function hasOwn(obj, key) {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+function requiredRaw(config, key) {
+  if (!hasOwn(config, key)) {
+    throw new Error(`[ORB] strategies.OpeningRangeBreakout.${key} is required`);
+  }
+  return config[key];
+}
+
+function requiredNumber(config, key, { min = 0, exclusiveMin = false } = {}) {
+  const raw = requiredRaw(config, key);
+  const value = Number(raw);
+  const belowMin = exclusiveMin ? value <= min : value < min;
+  if (!Number.isFinite(value) || belowMin) {
+    const comparator = exclusiveMin ? `greater than ${min}` : `at least ${min}`;
+    throw new Error(`[ORB] strategies.OpeningRangeBreakout.${key} must be a finite number ${comparator}; got ${raw}`);
+  }
+  return value;
+}
+
+function requiredString(config, key, { allowBlank = false } = {}) {
+  const raw = requiredRaw(config, key);
+  if (raw === null && allowBlank) return '';
+  if (typeof raw !== 'string') {
+    throw new Error(`[ORB] strategies.OpeningRangeBreakout.${key} must be a string`);
+  }
+  const value = raw.trim();
+  if (!value && !allowBlank) {
+    throw new Error(`[ORB] strategies.OpeningRangeBreakout.${key} cannot be blank`);
+  }
+  return value;
+}
+
+function resolveConfig(config) {
+  const provided = config && Object.keys(config).length > 0
+    ? config
+    : ConfigLoader.get('strategies.OpeningRangeBreakout');
+  if (!provided || typeof provided !== 'object' || Array.isArray(provided)) {
+    throw new Error('[ORB] strategies.OpeningRangeBreakout config object is required');
+  }
+  for (const key of REQUIRED_CONFIG_KEYS) {
+    requiredRaw(provided, key);
+  }
+  return provided;
+}
+
 class OpeningRangeBreakout {
   constructor(config = {}) {
-    // Read from ConfigLoader with fallbacks
-    const orbConfig = ConfigLoader.get('strategies.OpeningRangeBreakout') || {};
+    const orbConfig = resolveConfig(config);
 
-    this.sessionOpenHourUTC = config.sessionOpenHourUTC ?? orbConfig.sessionOpenHourUTC ?? 14; // legacy: 9am EST = 14:00 UTC
+    this.sessionOpenHourUTC = requiredNumber(orbConfig, 'sessionOpenHourUTC', { min: 0 });
     // 2026-05-04: NYSE 9:30 ET session detection. Handles DST automatically via Intl
     // (Intl.DateTimeFormat returns 13:30 UTC during EDT, 14:30 UTC during EST).
     // When sessionOpenET is set (e.g. '09:30'), it takes precedence over sessionOpenHourUTC.
-    this.sessionOpenET = config.sessionOpenET ?? orbConfig.sessionOpenET ?? null;
-    this.sessionTimeZone = config.sessionTimeZone ?? orbConfig.sessionTimeZone ?? 'America/New_York';
+    this.sessionOpenET = requiredString(orbConfig, 'sessionOpenET', { allowBlank: true });
+    this.sessionTimeZone = requiredString(orbConfig, 'sessionTimeZone');
     if (this.sessionOpenET) {
       const [h, m] = this.sessionOpenET.split(':').map(s => parseInt(s, 10));
+      if (!Number.isInteger(h) || !Number.isInteger(m) || h < 0 || h > 23 || m < 0 || m > 59) {
+        throw new Error(`[ORB] strategies.OpeningRangeBreakout.sessionOpenET must be HH:MM; got ${this.sessionOpenET}`);
+      }
       this.sessionOpenHourET = h;
       this.sessionOpenMinuteET = m;
       this._etTimeFmt = new Intl.DateTimeFormat('en-US', {
@@ -53,21 +119,32 @@ class OpeningRangeBreakout {
         hour12: false,
       });
     }
-    this.orDurationMinutes = config.orDurationMinutes ?? orbConfig.orDurationMinutes ?? 15;
-    this.fvgScanBars = config.fvgScanBars ?? orbConfig.fvgScanBars ?? 10;
-    this.minFVGPercent = config.minFVGPercent ?? orbConfig.minFVGPercent ?? 0.05;
-    this.maxFVGPercent = config.maxFVGPercent ?? orbConfig.maxFVGPercent ?? 2.0;
-    this.entryLevel = config.entryLevel ?? orbConfig.entryLevel ?? 'top'; // 'top', 'middle', 'bottom'
-    this.stopBufferPct = config.stopBufferPct ?? orbConfig.stopBufferPct ?? 0.05;
-    this.targetRR = config.targetRR ?? orbConfig.targetRR ?? 2.0;
+    this.orDurationMinutes = requiredNumber(orbConfig, 'orDurationMinutes', { min: 0, exclusiveMin: true });
+    this.orMinWidthAtr = requiredNumber(orbConfig, 'orMinWidthAtr', { min: 0 });
+    this.fvgScanBars = requiredNumber(orbConfig, 'fvgScanBars', { min: 0, exclusiveMin: true });
+    this.minFVGPercent = requiredNumber(orbConfig, 'minFVGPercent', { min: 0 });
+    this.maxFVGPercent = requiredNumber(orbConfig, 'maxFVGPercent', { min: 0, exclusiveMin: true });
+    if (this.maxFVGPercent < this.minFVGPercent) {
+      throw new Error('[ORB] strategies.OpeningRangeBreakout.maxFVGPercent must be >= minFVGPercent');
+    }
+    this.entryLevel = requiredString(orbConfig, 'entryLevel'); // 'top', 'middle', 'bottom'
+    if (!['top', 'middle', 'bottom'].includes(this.entryLevel)) {
+      throw new Error(`[ORB] strategies.OpeningRangeBreakout.entryLevel must be top, middle, or bottom; got ${this.entryLevel}`);
+    }
+    this.stopBufferPct = requiredNumber(orbConfig, 'stopBufferPct', { min: 0 });
+    this.targetRR = requiredNumber(orbConfig, 'targetRR', { min: 0, exclusiveMin: true });
 
     // State
     this.state = STATES.WAITING_FOR_OPEN;
     this.currentSessionDate = null;
     this.openingRange = null;     // { high, low, timestamp }
+    this.orWindowStartMs = null;
+    this.orWindowEndMs = null;
     this.breakoutDirection = null; // 'bullish' or 'bearish'
     this.pendingSignal = null;
     this.recentCandles = [];      // Rolling buffer for FVG scan
+    this.fvgScanCandles = [];
+    this.barsSinceBreakout = 0;
 
     // FVG detector instance
     this.fvgDetector = new FairValueGapDetector({
@@ -87,9 +164,13 @@ class OpeningRangeBreakout {
   reset() {
     this.state = STATES.WAITING_FOR_OPEN;
     this.openingRange = null;
+    this.orWindowStartMs = null;
+    this.orWindowEndMs = null;
     this.breakoutDirection = null;
     this.pendingSignal = null;
     this.recentCandles = [];
+    this.fvgScanCandles = [];
+    this.barsSinceBreakout = 0;
   }
 
   /**
@@ -122,6 +203,9 @@ class OpeningRangeBreakout {
       case STATES.WAITING_FOR_OPEN:
         return this._handleWaitingForOpen(candle, candleDate);
 
+      case STATES.COLLECTING_OR:
+        return this._handleCollectingOpeningRange(candle, candleDate);
+
       case STATES.WATCHING_FOR_BREAK:
         return this._handleWatchingForBreak(candle);
 
@@ -146,33 +230,105 @@ class OpeningRangeBreakout {
    * @private
    */
   _handleWaitingForOpen(candle, candleDate) {
-    let hour, minute;
-    if (this.sessionOpenET) {
-      // ET-based session detection — DST-aware via Intl
-      const parts = this._etTimeFmt.formatToParts(candleDate);
-      hour = parseInt(parts.find(p => p.type === 'hour').value, 10);
-      minute = parseInt(parts.find(p => p.type === 'minute').value, 10);
-    } else {
-      // Legacy UTC-hour path (crypto sessions)
-      hour = candleDate.getUTCHours();
-      minute = candleDate.getUTCMinutes();
-    }
-
-    // Is this the first candle of the OR period?
-    const targetHour = this.sessionOpenET ? this.sessionOpenHourET : this.sessionOpenHourUTC;
-    const targetMinute = this.sessionOpenET ? this.sessionOpenMinuteET : 0;
-    if (hour === targetHour && minute >= targetMinute && minute < (targetMinute + this.orDurationMinutes)) {
-      // First 15-min candle defines the Opening Range
-      this.openingRange = {
-        high: _h(candle),
-        low: _l(candle),
-        timestamp: _t(candle),
-      };
-      this.state = STATES.WATCHING_FOR_BREAK;
-      console.log(`[ORB] Opening Range set: high=${this.openingRange.high.toFixed(2)}, low=${this.openingRange.low.toFixed(2)}`);
+    if (this._isInsideOpeningRangeWindow(candleDate)) {
+      this._startOpeningRange(candle, candleDate);
     }
 
     return null;
+  }
+
+  /**
+   * Accumulate the configured opening window before breakout logic can run.
+   * @private
+   */
+  _handleCollectingOpeningRange(candle, candleDate) {
+    if (this._isInsideOpeningRangeWindow(candleDate)) {
+      this._extendOpeningRange(candle);
+      return null;
+    }
+
+    if (!this._finalizeOpeningRange()) {
+      return null;
+    }
+
+    return this._handleWatchingForBreak(candle);
+  }
+
+  _startOpeningRange(candle, candleDate) {
+    const clockMinutes = this._getSessionClockMinutes(candleDate);
+    const openMinutes = this._getSessionOpenMinutes();
+    const elapsedMinutes = Math.max(0, clockMinutes - openMinutes);
+
+    this.orWindowStartMs = _t(candle) - (elapsedMinutes * 60 * 1000);
+    this.orWindowEndMs = this.orWindowStartMs + (this.orDurationMinutes * 60 * 1000);
+    this.openingRange = {
+      high: _h(candle),
+      low: _l(candle),
+      timestamp: _t(candle),
+      windowStart: this.orWindowStartMs,
+      windowEnd: this.orWindowEndMs,
+      width: _h(candle) - _l(candle),
+    };
+    this.state = STATES.COLLECTING_OR;
+    console.log(`[ORB] Opening Range collection started: high=${this.openingRange.high.toFixed(2)}, low=${this.openingRange.low.toFixed(2)}`);
+  }
+
+  _extendOpeningRange(candle) {
+    if (!this.openingRange) return;
+
+    this.openingRange.high = Math.max(this.openingRange.high, _h(candle));
+    this.openingRange.low = Math.min(this.openingRange.low, _l(candle));
+    this.openingRange.timestamp = _t(candle);
+    this.openingRange.width = this.openingRange.high - this.openingRange.low;
+  }
+
+  _finalizeOpeningRange() {
+    if (!this.openingRange) return false;
+
+    this.openingRange.width = this.openingRange.high - this.openingRange.low;
+    if (!this._passesOpeningRangeWidthFilter()) {
+      this.state = STATES.DONE;
+      console.log(`[ORB] Opening Range width ${this.openingRange.width.toFixed(2)} failed ${this.orMinWidthAtr}x ATR width filter. Session done.`);
+      return false;
+    }
+
+    this.state = STATES.WATCHING_FOR_BREAK;
+    console.log(`[ORB] Opening Range set: high=${this.openingRange.high.toFixed(2)}, low=${this.openingRange.low.toFixed(2)}, width=${this.openingRange.width.toFixed(2)}`);
+    return true;
+  }
+
+  _passesOpeningRangeWidthFilter() {
+    if (this.orMinWidthAtr <= 0) return true;
+
+    const ranges = this.recentCandles
+      .map(candle => _h(candle) - _l(candle))
+      .filter(value => Number.isFinite(value) && value > 0);
+    if (!ranges.length) return false;
+
+    const meanRange = ranges.reduce((sum, value) => sum + value, 0) / ranges.length;
+    return this.openingRange.width >= meanRange * this.orMinWidthAtr;
+  }
+
+  _getSessionClockMinutes(candleDate) {
+    if (this.sessionOpenET) {
+      const parts = this._etTimeFmt.formatToParts(candleDate);
+      const hour = parseInt(parts.find(p => p.type === 'hour').value, 10);
+      const minute = parseInt(parts.find(p => p.type === 'minute').value, 10);
+      return (hour * 60) + minute;
+    }
+    return (candleDate.getUTCHours() * 60) + candleDate.getUTCMinutes();
+  }
+
+  _getSessionOpenMinutes() {
+    const targetHour = this.sessionOpenET ? this.sessionOpenHourET : this.sessionOpenHourUTC;
+    const targetMinute = this.sessionOpenET ? this.sessionOpenMinuteET : 0;
+    return (targetHour * 60) + targetMinute;
+  }
+
+  _isInsideOpeningRangeWindow(candleDate) {
+    const clockMinutes = this._getSessionClockMinutes(candleDate);
+    const openMinutes = this._getSessionOpenMinutes();
+    return clockMinutes >= openMinutes && clockMinutes < openMinutes + this.orDurationMinutes;
   }
 
   /**
@@ -188,6 +344,8 @@ class OpeningRangeBreakout {
     if (close > this.openingRange.high) {
       this.breakoutDirection = 'bullish';
       this.state = STATES.WATCHING_FOR_FVG;
+      this.fvgScanCandles = [candle];
+      this.barsSinceBreakout = 0;
       console.log(`[ORB] BULLISH breakout! Close ${close.toFixed(2)} > OR high ${this.openingRange.high.toFixed(2)}`);
       // Immediately check for FVG in this bar
       return this._handleWatchingForFVG(candle);
@@ -197,6 +355,8 @@ class OpeningRangeBreakout {
     if (close < this.openingRange.low) {
       this.breakoutDirection = 'bearish';
       this.state = STATES.WATCHING_FOR_FVG;
+      this.fvgScanCandles = [candle];
+      this.barsSinceBreakout = 0;
       console.log(`[ORB] BEARISH breakout! Close ${close.toFixed(2)} < OR low ${this.openingRange.low.toFixed(2)}`);
       return this._handleWatchingForFVG(candle);
     }
@@ -210,10 +370,15 @@ class OpeningRangeBreakout {
    */
   _handleWatchingForFVG(candle) {
     if (!this.breakoutDirection) return null;
-    if (this.recentCandles.length < 3) return null;
+
+    if (this.fvgScanCandles[this.fvgScanCandles.length - 1] !== candle) {
+      this.fvgScanCandles.push(candle);
+    }
+    this.barsSinceBreakout += 1;
+    if (this.fvgScanCandles.length < 3) return null;
 
     // Look for FVG in the direction of breakout
-    const fvg = this.fvgDetector.detect(this.recentCandles, this.breakoutDirection);
+    const fvg = this.fvgDetector.detect(this.fvgScanCandles, this.breakoutDirection);
 
     if (fvg) {
       // Found FVG! Generate signal
@@ -230,8 +395,7 @@ class OpeningRangeBreakout {
     }
 
     // Check scan limit
-    const barsSinceBreakout = this.recentCandles.length;
-    if (barsSinceBreakout >= this.fvgScanBars) {
+    if (this.barsSinceBreakout >= this.fvgScanBars) {
       // No FVG found within window - session done
       this.state = STATES.DONE;
       console.log(`[ORB] No FVG found within ${this.fvgScanBars} bars. Session done.`);
@@ -358,9 +522,13 @@ class OpeningRangeBreakout {
       state: this.state,
       sessionDate: this.currentSessionDate,
       openingRange: this.openingRange,
+      orWindowStartMs: this.orWindowStartMs,
+      orWindowEndMs: this.orWindowEndMs,
       breakoutDirection: this.breakoutDirection,
       hasPendingSignal: !!this.pendingSignal,
       recentCandleCount: this.recentCandles.length,
+      fvgScanCandleCount: this.fvgScanCandles.length,
+      barsSinceBreakout: this.barsSinceBreakout,
     };
   }
 }

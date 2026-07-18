@@ -15,19 +15,23 @@ describe('OpeningRangeBreakout', () => {
 
   // Helper: create candle
   const candle = (o, h, l, c, t) => ({ o, h, l, c, v: 1000, t });
+  const orbConfig = (overrides = {}) => ({
+    sessionOpenHourUTC: 14,
+    sessionOpenET: '',
+    sessionTimeZone: 'America/New_York',
+    orDurationMinutes: 15,
+    orMinWidthAtr: 0,
+    fvgScanBars: 10,
+    minFVGPercent: 0.01,
+    maxFVGPercent: 5.0,
+    entryLevel: 'top',
+    stopBufferPct: 0.05,
+    targetRR: 2.0,
+    ...overrides,
+  });
 
   beforeEach(() => {
-    orb = new OpeningRangeBreakout({
-      sessionOpenHourUTC: 14, // 9am EST
-      sessionOpenET: '',
-      orDurationMinutes: 15,
-      fvgScanBars: 10,
-      minFVGPercent: 0.01,  // Very permissive for tests
-      maxFVGPercent: 5.0,
-      entryLevel: 'top',
-      stopBufferPct: 0.05,
-      targetRR: 2.0,
-    });
+    orb = new OpeningRangeBreakout(orbConfig());
   });
 
   describe('State Machine - Opening Range Detection', () => {
@@ -37,22 +41,66 @@ describe('OpeningRangeBreakout', () => {
       orb.update(preSession);
       expect(orb.getState().openingRange).toBeNull();
 
-      // At session open (14:00 UTC) - OR set
+      // At session open (14:00 UTC) - OR collection starts
       const sessionOpen = candle(100, 105, 98, 103, makeTimestamp(14, 0));
       orb.update(sessionOpen);
 
       const state = orb.getState();
-      expect(state.state).toBe('WATCHING_FOR_BREAK');
+      expect(state.state).toBe('COLLECTING_OR');
       expect(state.openingRange).not.toBeNull();
       expect(state.openingRange.high).toBe(105);
       expect(state.openingRange.low).toBe(98);
     });
 
-    test('transitions to WATCHING_FOR_BREAK after OR candle', () => {
+    test('accumulates the full opening window before watching for breakout', () => {
+      orb = new OpeningRangeBreakout(orbConfig());
+
+      orb.update(candle(100, 101, 99, 100, makeTimestamp(14, 0)));
+      orb.update(candle(100, 110, 98, 109, makeTimestamp(14, 5)));
+      orb.update(candle(109, 109.5, 97, 108, makeTimestamp(14, 10)));
+
+      let state = orb.getState();
+      expect(state.state).toBe('COLLECTING_OR');
+      expect(state.breakoutDirection).toBeNull();
+      expect(state.openingRange.high).toBe(110);
+      expect(state.openingRange.low).toBe(97);
+
+      orb.update(candle(108, 108.5, 98, 108, makeTimestamp(14, 15)));
+
+      state = orb.getState();
+      expect(state.state).toBe('WATCHING_FOR_BREAK');
+      expect(state.breakoutDirection).toBeNull();
+      expect(state.openingRange.high).toBe(110);
+      expect(state.openingRange.low).toBe(97);
+    });
+
+    test('transitions to WATCHING_FOR_BREAK after OR window boundary', () => {
       const sessionOpen = candle(100, 105, 98, 103, makeTimestamp(14, 0));
       orb.update(sessionOpen);
+      expect(orb.getState().state).toBe('COLLECTING_OR');
 
+      orb.update(candle(103, 104, 99, 102, makeTimestamp(14, 15)));
       expect(orb.getState().state).toBe('WATCHING_FOR_BREAK');
+    });
+
+    test('orMinWidthAtr rejects narrow opening ranges when enabled', () => {
+      orb = new OpeningRangeBreakout(orbConfig({ orMinWidthAtr: 2 }));
+
+      orb.update(candle(100, 100.5, 99.5, 100, makeTimestamp(14, 0)));
+      orb.update(candle(100, 100.5, 99.5, 100, makeTimestamp(14, 5)));
+      orb.update(candle(100, 100.5, 99.5, 100, makeTimestamp(14, 10)));
+      orb.update(candle(100, 100.5, 99.5, 101, makeTimestamp(14, 15)));
+
+      const state = orb.getState();
+      expect(state.state).toBe('DONE');
+      expect(state.breakoutDirection).toBeNull();
+    });
+
+    test('orMinWidthAtr is required, not silently defaulted', () => {
+      const config = orbConfig();
+      delete config.orMinWidthAtr;
+
+      expect(() => new OpeningRangeBreakout(config)).toThrow(/orMinWidthAtr is required/);
     });
   });
 
@@ -122,10 +170,10 @@ describe('OpeningRangeBreakout', () => {
       // Bearish breakout: close=95 < OR low=98
       orb.update(candle(100, 100, 93, 95, makeTimestamp(14, 15)));
 
-      // Candles to create bearish FVG: c1.low=93, c2 gap down, c3.high=88
+      // Candles to create bearish FVG after breakout: c1.low=93, c2 gap down, c3.high=89
       orb.update(candle(95, 96, 93, 94, makeTimestamp(14, 30)));    // c1
       orb.update(candle(93, 93, 85, 86, makeTimestamp(14, 45)));     // c2 (gap creator)
-      const signal = orb.update(candle(86, 88, 84, 85, makeTimestamp(15, 0))); // c3 (gap: 88-93)
+      const signal = orb.update(candle(86, 89, 84, 85, makeTimestamp(15, 0))); // c3 (gap: 89-93)
 
       expect(signal).not.toBeNull();
       expect(signal.direction).toBe('sell');
@@ -133,13 +181,9 @@ describe('OpeningRangeBreakout', () => {
     });
 
     test('transitions to DONE when FVG scan limit exceeded', () => {
-      orb = new OpeningRangeBreakout({
-        sessionOpenHourUTC: 14,
-        sessionOpenET: '',
+      orb = new OpeningRangeBreakout(orbConfig({
         fvgScanBars: 3, // Very short scan window
-        minFVGPercent: 0.01,
-        maxFVGPercent: 5.0,
-      });
+      }));
 
       // OR and breakout - use overlapping candles to avoid accidental FVG
       orb.update(candle(100, 105, 98, 103, makeTimestamp(14, 0)));
@@ -160,7 +204,7 @@ describe('OpeningRangeBreakout', () => {
     test('resets state machine on new session date', () => {
       // Day 1 session
       orb.update(candle(100, 105, 98, 103, makeTimestamp(14, 0)));
-      expect(orb.getState().state).toBe('WATCHING_FOR_BREAK');
+      expect(orb.getState().state).toBe('COLLECTING_OR');
 
       // Day 2 session (next day at 14:00)
       const nextDay = new Date('2026-03-13T14:00:00Z').getTime();

@@ -1900,7 +1900,10 @@
     },
     "OpeningRangeBreakout": {
       "sessionOpenHourUTC": 14,
+      "sessionOpenET": "09:30",
+      "sessionTimeZone": "America/New_York",
       "orDurationMinutes": 15,
+      "orMinWidthAtr": 0,
       "fvgScanBars": 10,
       "minFVGPercent": 0.05,
       "maxFVGPercent": 2,

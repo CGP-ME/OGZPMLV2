@@ -948,6 +948,7 @@ function buildConfig() {
       enableTimeSeriesMomentum: track('strategies.enableTimeSeriesMomentum', requiredLaunchProfileBool('pipeline.enableTimeSeriesMomentum')),
       enableDashboard: track('strategies.enableDashboard', envBool('ENABLE_DASHBOARD', true)),
       EMASMACrossover: track('strategies.EMASMACrossover', requiredConfiguredPlainObject('strategies.EMASMACrossover')),
+      OpeningRangeBreakout: track('strategies.OpeningRangeBreakout', configuredPlainObjectResult('strategies.OpeningRangeBreakout')),
       OGZTPO: track('strategies.OGZTPO', configuredPlainObjectResult('strategies.OGZTPO')),
       NoWickImbalance: track('strategies.NoWickImbalance', configuredPlainObjectResult('strategies.NoWickImbalance')),
       PropSafeEMAPullback: track('strategies.PropSafeEMAPullback', configuredPlainObjectResult('strategies.PropSafeEMAPullback')),
@@ -2927,23 +2928,7 @@ const BASE_CONFIG = {
       invalidationConditions: ['regime_change'],
       enabled: true,
     },
-    OpeningRangeBreakout: {
-      // ICT-style Opening Range + FVG entry (Trey's approach)
-      sessionOpenHourUTC: env('ORB_SESSION_OPEN_HOUR', 14),  // legacy crypto path: 9am EST = 14:00 UTC
-      // 2026-05-04: NYSE-aware session detection. When sessionOpenET is set, ORB uses
-      // Intl.DateTimeFormat('America/New_York') for DST-aware open detection. Takes
-      // precedence over sessionOpenHourUTC. Default 09:30 ET = NYSE regular open.
-      sessionOpenET: env('ORB_SESSION_OPEN_ET', '09:30'),
-      sessionTimeZone: env('ORB_SESSION_TIMEZONE', 'America/New_York'),
-      orDurationMinutes: env('ORB_DURATION_MIN', 15),        // First 15 min defines OR
-      fvgScanBars: env('ORB_FVG_SCAN_BARS', 10),             // Bars to scan for FVG after breakout
-      minFVGPercent: env('ORB_MIN_FVG_PCT', 0.05),           // Minimum FVG size %
-      maxFVGPercent: env('ORB_MAX_FVG_PCT', 2.0),            // Maximum FVG size %
-      entryLevel: env('ORB_ENTRY_LEVEL', 'top'),             // 'top', 'middle', 'bottom' of FVG
-      stopBufferPct: env('ORB_STOP_BUFFER_PCT', 0.05),       // Stop buffer beyond first candle
-      targetRR: env('ORB_TARGET_RR', 2.0),                   // Risk:Reward ratio
-      enabled: true,
-    },
+    OpeningRangeBreakout: requiredConfiguredPlainObject('strategies.OpeningRangeBreakout'),
   },
 
   // =========================================================================
@@ -3396,6 +3381,10 @@ const BASE_CONFIG = {
           NoWickImbalance: {
             'strategies.NoWickImbalance.entryMode': ['tap', 'rejection'],
             'strategies.NoWickImbalance.targetRR': [1.0, 1.5, 2.0],
+          },
+          OpeningRangeBreakout: {
+            'strategies.OpeningRangeBreakout.orDurationMinutes': [5, 15, 30],
+            'strategies.OpeningRangeBreakout.orMinWidthAtr': [0, 0.5, 1.0],
           },
         },
       },

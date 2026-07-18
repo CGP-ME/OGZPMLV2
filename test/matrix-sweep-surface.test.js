@@ -92,6 +92,10 @@ describe('matrix-sweep runnable surface', () => {
       .toEqual(['tap', 'rejection']);
     expect(GRID.conf.strategyParams.NoWickImbalance['strategies.NoWickImbalance.targetRR'])
       .toEqual([1.0, 1.5, 2.0]);
+    expect(GRID.conf.strategyParams.OpeningRangeBreakout['strategies.OpeningRangeBreakout.orDurationMinutes'])
+      .toEqual([5, 15, 30]);
+    expect(GRID.conf.strategyParams.OpeningRangeBreakout['strategies.OpeningRangeBreakout.orMinWidthAtr'])
+      .toEqual([0, 0.5, 1.0]);
     expect(GRID.exits.confidence).toEqual(matrixConfig.grid.exits.confidence);
     expect(GRID.exits.stopLoss).toEqual(matrixConfig.grid.exits.stopLoss);
     expect(GRID.exits.tierPresets).toEqual(buildMonotonicTierCube(matrixConfig.grid.exits.tierGrid));
@@ -229,6 +233,23 @@ describe('matrix-sweep runnable surface', () => {
     expect(configs.every(config => config.strategyParams != null)).toBe(true);
     expect(configs.every(config => config.strategyParams['strategies.NoWickImbalance.entryMode'] != null)).toBe(true);
     expect(configs.every(config => config.strategyParams['strategies.NoWickImbalance.targetRR'] != null)).toBe(true);
+  });
+
+  test('OpeningRangeBreakout OR duration and width sweeps stay inside caged backtest overrides', () => {
+    const configs = generateMatrix(['OpeningRangeBreakout'], GRID.conf, 'conf');
+    const payloads = configs.map(config => JSON.parse(config.env.BACKTEST_CONFIG_OVERRIDES_JSON));
+    const durations = payloads.map(payload => payload['strategies.OpeningRangeBreakout.orDurationMinutes']);
+    const widthFilters = payloads.map(payload => payload['strategies.OpeningRangeBreakout.orMinWidthAtr']);
+
+    expect(configs).toHaveLength(GRID.conf.confidence.length * 3 * 3);
+    expect(new Set(durations)).toEqual(new Set([5, 15, 30]));
+    expect(new Set(widthFilters)).toEqual(new Set([0, 0.5, 1.0]));
+    expect(configs.every(config => config.env.ENABLE_ORB === 'true')).toBe(true);
+    expect(configs.every(config => config.env.ORB_DURATION_MIN === undefined)).toBe(true);
+    expect(configs.every(config => config.env.ORB_MIN_WIDTH_ATR === undefined)).toBe(true);
+    expect(configs.every(config => config.strategyParams != null)).toBe(true);
+    expect(configs.every(config => config.strategyParams['strategies.OpeningRangeBreakout.orDurationMinutes'] != null)).toBe(true);
+    expect(configs.every(config => config.strategyParams['strategies.OpeningRangeBreakout.orMinWidthAtr'] != null)).toBe(true);
   });
 
   test('structural-exit strategies generate no false full or exit matrices', () => {
