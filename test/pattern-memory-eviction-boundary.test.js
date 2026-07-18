@@ -100,6 +100,8 @@ describe('Pattern memory eviction boundary', () => {
   beforeEach(() => {
     jest.resetModules();
     originalEnv = { ...process.env };
+    process.env.ASSET_CLASS = 'stocks';
+    process.env.BROKER = 'alpaca';
     process.env.BACKTEST_MODE = 'true';
     process.env.BACKTEST_NO_PATTERN_SAVE = 'true';
     process.env.DATA_DIR = path.join(

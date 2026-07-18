@@ -9,11 +9,18 @@
 // to 0.05 buckets before stringifying, collapsing similar market states to
 // the same key and bounding map size to a few hundred regardless of candle count.
 
+const originalEnv = { ...process.env };
+process.env.ASSET_CLASS = 'stocks';
+process.env.BROKER = 'alpaca';
+process.env.BACKTEST_MODE = 'true';
+process.env.CANDLE_DATA_FILE = 'tuning/tsla-15m-18mo.json';
+process.env.BACKTEST_NO_PATTERN_SAVE = 'true';
+
 const { EnhancedPatternChecker } = require('../core/EnhancedPatternRecognition');
 
-const originalEnv = { ...process.env };
-
 beforeAll(() => {
+  process.env.ASSET_CLASS = 'stocks';
+  process.env.BROKER = 'alpaca';
   process.env.BACKTEST_MODE = 'true';
   process.env.CANDLE_DATA_FILE = 'tuning/tsla-15m-18mo.json';
   process.env.BACKTEST_NO_PATTERN_SAVE = 'true';

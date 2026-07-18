@@ -55,6 +55,7 @@ async function withMercuryConfig(overrides, fn, env = {}) {
     return await withEnv({
       MERCURY_CONFIG_FILE: configPath,
       MERCURY_TEST_EMBED_API_KEY: 'test-key',
+      OPENAI_API_KEY: 'test-openai-key',
       ...env,
     }, fn);
   } finally {
@@ -76,9 +77,19 @@ const openAiSmallConfig = {
   },
 };
 
+const localOllamaConfig = {
+  embeddings: {
+    provider: 'ollama',
+    endpoint: 'http://localhost:11434/api/embed',
+    model: 'nomic-embed-text',
+    dimensions: 768,
+    apiKeyEnv: null,
+  },
+};
+
 describe('Mercury embedding index identity', () => {
   test('local Nomic index has a distinct provider/model/dimension identity', async () => {
-    await withMercuryConfig({}, () => {
+    await withMercuryConfig(localOllamaConfig, () => {
       const config = require('../trai_brain/mercury-bridge/config');
 
       expect(config.EMBED_PROVIDER).toBe('ollama');
@@ -100,7 +111,7 @@ describe('Mercury embedding index identity', () => {
   });
 
   test('environment embedding values do not override mercury.config.json lane identity', async () => {
-    await withMercuryConfig({}, () => {
+    await withMercuryConfig(localOllamaConfig, () => {
       const config = require('../trai_brain/mercury-bridge/config');
 
       expect(config.EMBED_PROVIDER).toBe('ollama');
@@ -283,7 +294,7 @@ describe('Mercury embedding index identity', () => {
 
       expect(() => store.assertActiveEmbedChunks([{
         ...activeChunk,
-        embed_provider: 'openai-compatible',
+        embed_provider: 'ollama',
       }])).toThrow(/embed_provider=.*does not match active/);
 
       expect(() => store.assertActiveEmbedChunks([{

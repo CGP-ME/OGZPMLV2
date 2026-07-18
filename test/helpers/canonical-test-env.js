@@ -28,6 +28,10 @@ const CANONICAL_TEST_ENV = {
   // Explicit-mode requirement when BROKER=alpaca outside backtest.
   ALPACA_MODE: 'paper',
 
+  // Mercury defaults to OpenAI-compatible embeddings. Unit tests must verify
+  // config contracts without requiring the operator's real API key in process.
+  OPENAI_API_KEY: 'test-openai-key',
+
   // Risk limits that require an explicit env/profile source and are absent
   // from the repo .env.
   MAX_WEEKLY_LOSS: '5',

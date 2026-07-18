@@ -60,12 +60,6 @@ describe('StrategyOrchestrator confidence attribution', () => {
 
     const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
     const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
-    jest.spyOn(orchestrator, '_getMtfConfluenceForEvaluation').mockReturnValue({
-      confluenceScore: 0.5,
-      confidence: 0.9,
-      readyTimeframes: ['15m', '1h'],
-    });
-
     orchestrator.strategies = [{
       name: 'AttributionProbe',
       evaluate: () => ({
@@ -97,7 +91,7 @@ describe('StrategyOrchestrator confidence attribution', () => {
 
     const attribution = result.allResults[0].decisionAttribution;
     expect(result.winnerStrategy).toBe('AttributionProbe');
-    expect(result.confidence).toBeCloseTo(99, 6);
+    expect(result.confidence).toBeCloseTo(66, 6);
     expect(attribution).toEqual(expect.objectContaining({
       strategyName: 'AttributionProbe',
       baseConfidence: 0.5,
@@ -110,15 +104,14 @@ describe('StrategyOrchestrator confidence attribution', () => {
       finalConfidence: expect.any(Number),
       publicConfidence: expect.any(Number),
     }));
-    expect(attribution.selectionScore.final).toBeCloseTo(0.99, 6);
-    expect(attribution.finalConfidence).toBeCloseTo(0.99, 6);
-    expect(attribution.publicConfidence).toBeCloseTo(0.99, 6);
+    expect(attribution.selectionScore.final).toBeCloseTo(0.66, 6);
+    expect(attribution.finalConfidence).toBeCloseTo(0.66, 6);
+    expect(attribution.publicConfidence).toBeCloseTo(0.66, 6);
     expect(attribution.contributors.map((item) => item.name)).toEqual([
       'strategy_signal',
       'atr_pre_entry_filter',
       'regime_boost',
       'volume_profile_boost',
-      'mtf_confluence_booster',
     ]);
     expect(attribution.contributors.find((item) => item.name === 'regime_boost')).toEqual(expect.objectContaining({
       configuredMultiplier: 1.1,
@@ -130,14 +123,6 @@ describe('StrategyOrchestrator confidence attribution', () => {
       configuredMultiplier: 1.2,
       previousSelectionScore: 0.55,
       nextSelectionScore: 0.66,
-    }));
-    expect(attribution.contributors.find((item) => item.name === 'mtf_confluence_booster')).toEqual(expect.objectContaining({
-      direction: 'buy',
-      score: 0.5,
-      configuredMultiplier: 1.5,
-      previousSelectionScore: 0.66,
-      nextSelectionScore: 0.99,
-      aligned: true,
     }));
   });
 

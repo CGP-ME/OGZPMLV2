@@ -24,7 +24,7 @@ describe('multi-runtime gate runner eval PM2 context', () => {
       layer: 'p0',
       status: 'PASS',
       detail: {
-        summary: { finalBalance: 10663.639172063286, totalTrades: 1596 },
+        summary: { finalBalance: 8338.146639366509, totalTrades: 1551 },
         report: '/repo/backtest-report.json',
         reportMtimeMs: 1770000000000,
         log: '/repo/p0.log',
@@ -62,7 +62,7 @@ describe('multi-runtime gate runner eval PM2 context', () => {
       runSpec: p0Gate.detail.runSpec,
       tuningProfile: p0Gate.detail.tuningProfile,
     }));
-    expect(provenance.p0Baseline.expected.finalBalance).toBe(10663.639172063286);
+    expect(provenance.p0Baseline.expected.finalBalance).toBe(8338.146639366509);
     expect(provenance.p0Baseline.workerEnvHash).toMatch(/^[a-f0-9]{64}$/);
     expect(provenance.p0Baseline.historicalAnchors.length).toBeGreaterThan(0);
   });

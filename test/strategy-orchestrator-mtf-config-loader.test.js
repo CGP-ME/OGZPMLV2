@@ -9,6 +9,7 @@ describe('StrategyOrchestrator MTF ConfigLoader ownership', () => {
     process.env = {
       ...originalEnv,
       DOTENV_CONFIG_PATH: '/tmp/ogzprime-test-missing.env',
+      PROFILE: 'backtest-all',
       EXECUTION_MODE: 'backtest',
       CANDLE_SOURCE: 'file',
       BACKTEST_MODE: 'true',

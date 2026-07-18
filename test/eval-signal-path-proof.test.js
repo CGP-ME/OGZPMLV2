@@ -62,6 +62,7 @@ function buildOrchResult() {
       trailingStopPercent: 0.5,
       trailingActivation: 1,
       maxHoldTimeMinutes: 120,
+      maxConcurrentEntries: 1,
       useStructuralExits: false,
       invalidationConditions: [],
     },
