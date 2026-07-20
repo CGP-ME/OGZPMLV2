@@ -147,7 +147,6 @@ function createManifest(missionId) {
     // Stop conditions
     stop_conditions: {
       critic_failures: 0,
-      forensics_critical: false,
       verification_failed: false,
       cicd_failed: false,
       manifest_mismatch: false,
@@ -220,10 +219,6 @@ function shouldStop(manifest) {
 
   if (stops.critic_failures >= 2) {
     return { stop: true, reason: 'Critic failed twice' };
-  }
-
-  if (stops.forensics_critical) {
-    return { stop: true, reason: 'Forensics found critical issue' };
   }
 
   if (stops.verification_failed) {

@@ -89,6 +89,7 @@ describe('pipeline operator-review contract', () => {
     const sources = [
       readRepoFile('ogz-meta', 'pipeline.js'),
       readRepoFile('ogz-meta', 'slash-router.js'),
+      readRepoFile('ogz-meta', 'manifest-schema.js'),
       readRepoFile('trai_brain', 'mercury-bridge', 'run-ledger.js'),
       readRepoFile('trai_brain', 'mercury-bridge', 'substrate-digest.js'),
       readRepoFile('scripts', 'mercury-substrate-digest.js'),
