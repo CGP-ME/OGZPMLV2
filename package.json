@@ -22,6 +22,7 @@
     "start:prod": "node tools/eval-live-deploy.js --with-websocket",
     "telemetry:report": "node scripts/telemetry-report.js",
     "scan:secrets": "node scripts/scan-secrets.js --tracked",
+    "scan:config-boundary": "node scripts/check-config-boundary.js --fail-on-findings",
     "lint:dto": "node scripts/lint-dto.js",
     "scan:dto": "node ogz-meta/ast/scan-dto-violations.js",
     "fix:props": "node ogz-meta/ast/property-to-function.js",
