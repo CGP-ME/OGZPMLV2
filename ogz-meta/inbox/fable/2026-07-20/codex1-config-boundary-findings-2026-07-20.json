@@ -1,0 +1,1398 @@
+{
+  "generated_at": "2026-07-20T06:19:00.416Z",
+  "detector": "scripts/check-config-boundary.js",
+  "mercury_final_run": "ogz-meta/cognition-history/mercury-runs/2026-07-20.jsonl:4",
+  "total": 198,
+  "counts": {
+    "process_env_read": 99,
+    "silent_or_default_override": 99
+  },
+  "findings": [
+    {
+      "kind": "process_env_read",
+      "file": "brokers/GeminiAdapter.js",
+      "line": 22,
+      "detail": "GEMINI_EXCHANGE_API_KEY",
+      "code": "apiKey: config.apiKey || process.env.GEMINI_EXCHANGE_API_KEY,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "brokers/GeminiAdapter.js",
+      "line": 22,
+      "detail": "|| fallback on env/config read",
+      "code": "apiKey: config.apiKey || process.env.GEMINI_EXCHANGE_API_KEY,"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "brokers/GeminiAdapter.js",
+      "line": 23,
+      "detail": "GEMINI_EXCHANGE_API_SECRET",
+      "code": "apiSecret: config.apiSecret || process.env.GEMINI_EXCHANGE_API_SECRET,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "brokers/GeminiAdapter.js",
+      "line": 23,
+      "detail": "|| fallback on env/config read",
+      "code": "apiSecret: config.apiSecret || process.env.GEMINI_EXCHANGE_API_SECRET,"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "brokers/GeminiAdapter.js",
+      "line": 24,
+      "detail": "GEMINI_SANDBOX",
+      "code": "sandbox: config.sandbox || process.env.GEMINI_SANDBOX === 'true' || false,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "brokers/GeminiAdapter.js",
+      "line": 24,
+      "detail": "|| fallback on env/config read",
+      "code": "sandbox: config.sandbox || process.env.GEMINI_SANDBOX === 'true' || false,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "brokers/GeminiAdapter.js",
+      "line": 24,
+      "detail": "|| fallback on env/config read",
+      "code": "sandbox: config.sandbox || process.env.GEMINI_SANDBOX === 'true' || false,"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "brokers/SchwabAdapter.js",
+      "line": 25,
+      "detail": "SCHWAB_CLIENT_ID",
+      "code": "clientId: config.clientId || process.env.SCHWAB_CLIENT_ID,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "brokers/SchwabAdapter.js",
+      "line": 25,
+      "detail": "|| fallback on env/config read",
+      "code": "clientId: config.clientId || process.env.SCHWAB_CLIENT_ID,"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "brokers/SchwabAdapter.js",
+      "line": 26,
+      "detail": "SCHWAB_CLIENT_SECRET",
+      "code": "clientSecret: config.clientSecret || process.env.SCHWAB_CLIENT_SECRET,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "brokers/SchwabAdapter.js",
+      "line": 26,
+      "detail": "|| fallback on env/config read",
+      "code": "clientSecret: config.clientSecret || process.env.SCHWAB_CLIENT_SECRET,"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "brokers/SchwabAdapter.js",
+      "line": 27,
+      "detail": "SCHWAB_REFRESH_TOKEN",
+      "code": "refreshToken: config.refreshToken || process.env.SCHWAB_REFRESH_TOKEN,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "brokers/SchwabAdapter.js",
+      "line": 27,
+      "detail": "|| fallback on env/config read",
+      "code": "refreshToken: config.refreshToken || process.env.SCHWAB_REFRESH_TOKEN,"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "brokers/SchwabAdapter.js",
+      "line": 28,
+      "detail": "SCHWAB_ACCOUNT_NUMBER",
+      "code": "accountNumber: config.accountNumber || process.env.SCHWAB_ACCOUNT_NUMBER,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "brokers/SchwabAdapter.js",
+      "line": 28,
+      "detail": "|| fallback on env/config read",
+      "code": "accountNumber: config.accountNumber || process.env.SCHWAB_ACCOUNT_NUMBER,"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "brokers/UpholdAdapter.js",
+      "line": 22,
+      "detail": "UPHOLD_CLIENT_ID",
+      "code": "clientId: config.clientId || process.env.UPHOLD_CLIENT_ID,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "brokers/UpholdAdapter.js",
+      "line": 22,
+      "detail": "|| fallback on env/config read",
+      "code": "clientId: config.clientId || process.env.UPHOLD_CLIENT_ID,"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "brokers/UpholdAdapter.js",
+      "line": 23,
+      "detail": "UPHOLD_CLIENT_SECRET",
+      "code": "clientSecret: config.clientSecret || process.env.UPHOLD_CLIENT_SECRET,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "brokers/UpholdAdapter.js",
+      "line": 23,
+      "detail": "|| fallback on env/config read",
+      "code": "clientSecret: config.clientSecret || process.env.UPHOLD_CLIENT_SECRET,"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "brokers/UpholdAdapter.js",
+      "line": 24,
+      "detail": "UPHOLD_ACCESS_TOKEN",
+      "code": "accessToken: config.accessToken || process.env.UPHOLD_ACCESS_TOKEN,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "brokers/UpholdAdapter.js",
+      "line": 24,
+      "detail": "|| fallback on env/config read",
+      "code": "accessToken: config.accessToken || process.env.UPHOLD_ACCESS_TOKEN,"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/BacktestRunner.js",
+      "line": 341,
+      "detail": "BACKTEST_OUTPUT_DIR",
+      "code": "const envRoot = process.env.BACKTEST_OUTPUT_DIR;"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/BacktestRunner.js",
+      "line": 342,
+      "detail": "BACKTEST_REPORT_TAG",
+      "code": "const rawReportTag = process.env.BACKTEST_REPORT_TAG || '';"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/BacktestRunner.js",
+      "line": 342,
+      "detail": "|| fallback on env/config read",
+      "code": "const rawReportTag = process.env.BACKTEST_REPORT_TAG || '';"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/BacktestRunner.js",
+      "line": 354,
+      "detail": "CANDLE_DATA_FILE",
+      "code": "if (process.env.CANDLE_DATA_FILE) {"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/BacktestRunner.js",
+      "line": 355,
+      "detail": "CANDLE_DATA_FILE",
+      "code": "const reportAssetSlug = deriveReportAssetSlugFromDataFile(process.env.CANDLE_DATA_FILE);"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/BacktestRunner.js",
+      "line": 474,
+      "detail": "BACKTEST_OUTPUT_DIR",
+      "code": "const csvPath = process.env.BACKTEST_OUTPUT_DIR"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/BotStateFrame.js",
+      "line": 134,
+      "detail": "|| fallback on env/config read",
+      "code": "const env = options.env || process.env;"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/DashboardDepthCoalescer.js",
+      "line": 5,
+      "detail": "DASHBOARD_DEPTH_MIN_INTERVAL_MS",
+      "code": "function resolveDashboardDepthMinIntervalMs(rawValue = process.env.DASHBOARD_DEPTH_MIN_INTERVAL_MS) {"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/DataFileInstrument.js",
+      "line": 14,
+      "detail": "OGZ_CRYPTO_BASES",
+      "code": "const raw = process.env.OGZ_CRYPTO_BASES || 'btc,eth,sol,doge,xrp,ada,ltc,bch,link,avax,matic,dot,shib';"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/DataFileInstrument.js",
+      "line": 14,
+      "detail": "|| fallback on env/config read",
+      "code": "const raw = process.env.OGZ_CRYPTO_BASES || 'btc,eth,sol,doge,xrp,ada,ltc,bch,link,avax,matic,dot,shib';"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/DecisionAutopsyLogger.js",
+      "line": 8,
+      "detail": "DECISION_AUTOPSY_ENABLED",
+      "code": "const AUTOPSY_ENABLED = process.env.DECISION_AUTOPSY_ENABLED !== 'false';"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/DecisionAutopsyLogger.js",
+      "line": 17,
+      "detail": "DECISION_AUTOPSY_FALLBACK_DIR",
+      "code": "const dir = process.env.DECISION_AUTOPSY_FALLBACK_DIR"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/DecisionAutopsyLogger.js",
+      "line": 18,
+      "detail": "DECISION_AUTOPSY_FALLBACK_DIR",
+      "code": "? process.env.DECISION_AUTOPSY_FALLBACK_DIR.replace(/\\\\/g, '/')"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/DecisionLedgerLogger.js",
+      "line": 9,
+      "detail": "LEDGER_BUFFER_SIZE",
+      "code": "const LEDGER_BUFFER_SIZE = parseInt(process.env.LEDGER_BUFFER_SIZE || '1', 10);"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/DecisionLedgerLogger.js",
+      "line": 9,
+      "detail": "|| fallback on env/config read",
+      "code": "const LEDGER_BUFFER_SIZE = parseInt(process.env.LEDGER_BUFFER_SIZE || '1', 10);"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/DecisionLedgerLogger.js",
+      "line": 10,
+      "detail": "LEDGER_VALIDATE",
+      "code": "const LEDGER_VALIDATE = process.env.LEDGER_VALIDATE !== 'false';"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/EnhancedPatternRecognition.js",
+      "line": 480,
+      "detail": "BACKTEST_FAST",
+      "code": "if (process.env.BACKTEST_FAST !== 'true') {"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/exit/DynamicTrailingStop.js",
+      "line": 41,
+      "detail": "TRAIL_ATR_MULTIPLIER",
+      "code": "atrMultiplier: parseFloat(process.env.TRAIL_ATR_MULTIPLIER) || config.atrMultiplier || 2.0,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/exit/DynamicTrailingStop.js",
+      "line": 41,
+      "detail": "|| fallback on env/config read",
+      "code": "atrMultiplier: parseFloat(process.env.TRAIL_ATR_MULTIPLIER) || config.atrMultiplier || 2.0,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/exit/DynamicTrailingStop.js",
+      "line": 41,
+      "detail": "|| fallback on env/config read",
+      "code": "atrMultiplier: parseFloat(process.env.TRAIL_ATR_MULTIPLIER) || config.atrMultiplier || 2.0,"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/exit/DynamicTrailingStop.js",
+      "line": 45,
+      "detail": "TRAIL_MIN_ACTIVATION",
+      "code": "minActivation: parseFloat(process.env.TRAIL_MIN_ACTIVATION) || config.minActivation || 1.5,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/exit/DynamicTrailingStop.js",
+      "line": 45,
+      "detail": "|| fallback on env/config read",
+      "code": "minActivation: parseFloat(process.env.TRAIL_MIN_ACTIVATION) || config.minActivation || 1.5,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/exit/DynamicTrailingStop.js",
+      "line": 45,
+      "detail": "|| fallback on env/config read",
+      "code": "minActivation: parseFloat(process.env.TRAIL_MIN_ACTIVATION) || config.minActivation || 1.5,"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/exit/DynamicTrailingStop.js",
+      "line": 48,
+      "detail": "TRAIL_TREND_WIDEN",
+      "code": "trendWidenMultiplier: parseFloat(process.env.TRAIL_TREND_WIDEN) || config.trendWidenMultiplier || 1.5,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/exit/DynamicTrailingStop.js",
+      "line": 48,
+      "detail": "|| fallback on env/config read",
+      "code": "trendWidenMultiplier: parseFloat(process.env.TRAIL_TREND_WIDEN) || config.trendWidenMultiplier || 1.5,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/exit/DynamicTrailingStop.js",
+      "line": 48,
+      "detail": "|| fallback on env/config read",
+      "code": "trendWidenMultiplier: parseFloat(process.env.TRAIL_TREND_WIDEN) || config.trendWidenMultiplier || 1.5,"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/exit/DynamicTrailingStop.js",
+      "line": 51,
+      "detail": "TRAIL_STRUCTURE_TIGHTEN",
+      "code": "structureTightenMultiplier: parseFloat(process.env.TRAIL_STRUCTURE_TIGHTEN) || config.structureTightenMultiplier || 0.5,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/exit/DynamicTrailingStop.js",
+      "line": 51,
+      "detail": "|| fallback on env/config read",
+      "code": "structureTightenMultiplier: parseFloat(process.env.TRAIL_STRUCTURE_TIGHTEN) || config.structureTightenMultiplier || 0.5,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/exit/DynamicTrailingStop.js",
+      "line": 51,
+      "detail": "|| fallback on env/config read",
+      "code": "structureTightenMultiplier: parseFloat(process.env.TRAIL_STRUCTURE_TIGHTEN) || config.structureTightenMultiplier || 0.5,"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/FeatureFlagManager.js",
+      "line": 68,
+      "detail": "TRADING_TIER",
+      "code": "this.tier = process.env.TRADING_TIER || 'ml';"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/FeatureFlagManager.js",
+      "line": 68,
+      "detail": "|| fallback on env/config read",
+      "code": "this.tier = process.env.TRADING_TIER || 'ml';"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/MarketRegimeDetector.js",
+      "line": 278,
+      "detail": "BACKTEST_VERBOSE",
+      "code": "if (process.env.BACKTEST_VERBOSE && this.updateCount % 500 === 0) {"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/MultiAssetManager.js",
+      "line": 40,
+      "detail": "BROKER",
+      "code": "const activeBroker = (process.env.BROKER || 'kraken').toLowerCase();"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/MultiAssetManager.js",
+      "line": 40,
+      "detail": "|| fallback on env/config read",
+      "code": "const activeBroker = (process.env.BROKER || 'kraken').toLowerCase();"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/MultiAssetManager.js",
+      "line": 47,
+      "detail": "TRADING_PAIR",
+      "code": "const configuredAsset = process.env.TRADING_PAIR || defaultAsset;"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/MultiAssetManager.js",
+      "line": 47,
+      "detail": "|| fallback on env/config read",
+      "code": "const configuredAsset = process.env.TRADING_PAIR || defaultAsset;"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/MultiAssetManager.js",
+      "line": 52,
+      "detail": "BROKER",
+      "code": "const configuredBroker = process.env.BROKER ? process.env.BROKER.toLowerCase() : null;"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/MultiAssetManager.js",
+      "line": 52,
+      "detail": "BROKER",
+      "code": "const configuredBroker = process.env.BROKER ? process.env.BROKER.toLowerCase() : null;"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/OptimizedIndicators.js",
+      "line": 151,
+      "detail": "TESTING",
+      "code": "const minCandles = process.env.TESTING === 'true' ? 1 : 26;"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/OutputPaths.js",
+      "line": 12,
+      "detail": "BACKTEST_OUTPUT_DIR",
+      "code": "const envRoot = process.env.BACKTEST_OUTPUT_DIR;"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/OutputPaths.js",
+      "line": 36,
+      "detail": "BACKTEST_OUTPUT_DIR",
+      "code": "const envRoot = process.env.BACKTEST_OUTPUT_DIR;"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/OutputPaths.js",
+      "line": 48,
+      "detail": "BACKTEST_OUTPUT_DIR",
+      "code": "const envRoot = process.env.BACKTEST_OUTPUT_DIR;"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/OutputPaths.js",
+      "line": 61,
+      "detail": "BACKTEST_OUTPUT_DIR",
+      "code": "const envRoot = process.env.BACKTEST_OUTPUT_DIR;"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/PatternMemoryBank.js",
+      "line": 183,
+      "detail": "DATA_DIR",
+      "code": "const dataDir = process.env.DATA_DIR || path.join(__dirname, '..');"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/PatternMemoryBank.js",
+      "line": 183,
+      "detail": "|| fallback on env/config read",
+      "code": "const dataDir = process.env.DATA_DIR || path.join(__dirname, '..');"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/PIDController.js",
+      "line": 127,
+      "detail": "|| fallback on env/config read",
+      "code": "this.updateInterval = config.updateInterval || ConfigLoader.get('pid.updateInterval') || 10;"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/PIDController.js",
+      "line": 127,
+      "detail": "|| fallback on env/config read",
+      "code": "this.updateInterval = config.updateInterval || ConfigLoader.get('pid.updateInterval') || 10;"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/PIDController.js",
+      "line": 128,
+      "detail": "|| fallback on env/config read",
+      "code": "this.warmupTrades = config.warmupTrades || ConfigLoader.get('pid.warmupTrades') || 50;"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/PIDController.js",
+      "line": 128,
+      "detail": "|| fallback on env/config read",
+      "code": "this.warmupTrades = config.warmupTrades || ConfigLoader.get('pid.warmupTrades') || 50;"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/PIDController.js",
+      "line": 135,
+      "detail": "|| fallback on env/config read",
+      "code": "Kp: ConfigLoader.get('pid.positionKp') || 0.30,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/PIDController.js",
+      "line": 136,
+      "detail": "|| fallback on env/config read",
+      "code": "Ki: ConfigLoader.get('pid.positionKi') || 0.05,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/PIDController.js",
+      "line": 137,
+      "detail": "|| fallback on env/config read",
+      "code": "Kd: ConfigLoader.get('pid.positionKd') || 0.10,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/PIDController.js",
+      "line": 138,
+      "detail": "|| fallback on env/config read",
+      "code": "setpoint: ConfigLoader.get('pid.targetEquitySlope') || 0.005,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/PIDController.js",
+      "line": 151,
+      "detail": "|| fallback on env/config read",
+      "code": "Kp: ConfigLoader.get('pid.regimeKp') || 0.02,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/PIDController.js",
+      "line": 152,
+      "detail": "|| fallback on env/config read",
+      "code": "Ki: ConfigLoader.get('pid.regimeKi') || 0.005,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/PIDController.js",
+      "line": 153,
+      "detail": "|| fallback on env/config read",
+      "code": "Kd: ConfigLoader.get('pid.regimeKd') || 0.01,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/PIDController.js",
+      "line": 165,
+      "detail": "|| fallback on env/config read",
+      "code": "Kp: ConfigLoader.get('pid.trailKp') || 0.15,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/PIDController.js",
+      "line": 166,
+      "detail": "|| fallback on env/config read",
+      "code": "Ki: ConfigLoader.get('pid.trailKi') || 0.03,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/PIDController.js",
+      "line": 167,
+      "detail": "|| fallback on env/config read",
+      "code": "Kd: ConfigLoader.get('pid.trailKd') || 0.05,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/PIDController.js",
+      "line": 168,
+      "detail": "|| fallback on env/config read",
+      "code": "setpoint: ConfigLoader.get('pid.targetMFERatio') || 0.60,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/PIDController.js",
+      "line": 177,
+      "detail": "|| fallback on env/config read",
+      "code": "this.windowSize = config.windowSize || ConfigLoader.get('pid.windowSize') || 20;"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/PIDController.js",
+      "line": 177,
+      "detail": "|| fallback on env/config read",
+      "code": "this.windowSize = config.windowSize || ConfigLoader.get('pid.windowSize') || 20;"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/RuntimeAuditSink.js",
+      "line": 129,
+      "detail": "|| fallback on env/config read",
+      "code": "this.env = options.env || process.env;"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/RuntimeConfigProof.js",
+      "line": 55,
+      "detail": "|| fallback on env/config read",
+      "code": "if (!ConfigLoader || typeof ConfigLoader.get !== 'function') {"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/SingletonLock.js",
+      "line": 14,
+      "detail": "DATA_DIR",
+      "code": "const lockDir = process.env.DATA_DIR || process.cwd();"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/SingletonLock.js",
+      "line": 14,
+      "detail": "|| fallback on env/config read",
+      "code": "const lockDir = process.env.DATA_DIR || process.cwd();"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/SingletonLock.js",
+      "line": 26,
+      "detail": "CANDLE_SOURCE",
+      "code": "const isFileSource = process.env.CANDLE_SOURCE === 'file';"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/SingletonLock.js",
+      "line": 27,
+      "detail": "EXECUTION_MODE",
+      "code": "const isBacktestMode = process.env.EXECUTION_MODE === 'backtest' ||"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/SingletonLock.js",
+      "line": 27,
+      "detail": "|| fallback on env/config read",
+      "code": "const isBacktestMode = process.env.EXECUTION_MODE === 'backtest' ||"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/SingletonLock.js",
+      "line": 27,
+      "detail": "|| fallback on env/config read",
+      "code": "const isBacktestMode = process.env.EXECUTION_MODE === 'backtest' ||"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/SingletonLock.js",
+      "line": 28,
+      "detail": "BACKTEST_MODE",
+      "code": "process.env.BACKTEST_MODE === 'true' ||"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/SingletonLock.js",
+      "line": 29,
+      "detail": "TEST_MODE",
+      "code": "process.env.TEST_MODE === 'true';"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/SingletonLock.js",
+      "line": 40,
+      "detail": "BACKTEST_SILENT",
+      "code": "if (process.env.BACKTEST_SILENT !== 'true') {"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 451,
+      "detail": "|| fallback on env/config read",
+      "code": "...(ConfigLoader.get('strategies.EMASMACrossover') || {}),"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 864,
+      "detail": "|| fallback on env/config read",
+      "code": "ConfigLoader.get('strategies.SmartMoneySweep') || {}"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 867,
+      "detail": "|| fallback on env/config read",
+      "code": "ConfigLoader.get('strategies.DonchianBreakout') || {}"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 870,
+      "detail": "|| fallback on env/config read",
+      "code": "const soloFilter = ConfigLoader.get('strategies.soloFilter') || [];"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 923,
+      "detail": "|| fallback on env/config read",
+      "code": "const serviceConfig = ConfigLoader.get('orchestrator.mtfConfluenceService') || {};"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 926,
+      "detail": "|| fallback on env/config read",
+      "code": "activeTimeframes: ConfigLoader.get('orchestrator.mtfTimeframes') || ['1m', '5m', '15m', '1h', '4h'],"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 985,
+      "detail": "STRATEGY_DIAG",
+      "code": "if (process.env.STRATEGY_DIAG === 'true') {"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 1006,
+      "detail": "STRATEGY_DIAG",
+      "code": "if (process.env.STRATEGY_DIAG === 'true') console.log(`[DIAG] MultiTimeframe: ingestCandle error: ${e.message}`);"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 1014,
+      "detail": "STRATEGY_DIAG",
+      "code": "if (process.env.STRATEGY_DIAG === 'true') console.log(`[DIAG] MultiTimeframe: getConfluence error: ${e.message}`);"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 1018,
+      "detail": "STRATEGY_DIAG",
+      "code": "if (process.env.STRATEGY_DIAG === 'true') {"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 1033,
+      "detail": "STRATEGY_DIAG",
+      "code": "if (process.env.STRATEGY_DIAG === 'true') {"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 1049,
+      "detail": "STRATEGY_DIAG",
+      "code": "if (process.env.STRATEGY_DIAG === 'true') {"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 1163,
+      "detail": "|| fallback on env/config read",
+      "code": "const booster = ConfigLoader.get('orchestrator.mtfConfluenceBooster') || {};"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 1164,
+      "detail": "|| fallback on env/config read",
+      "code": "const strategyMtf = ConfigLoader.get('orchestrator.strategyMtfConfluence') || {};"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 1169,
+      "detail": "|| fallback on env/config read",
+      "code": "const config = ConfigLoader.get('orchestrator.mtfConfluenceBooster') || {};"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 1192,
+      "detail": "|| fallback on env/config read",
+      "code": "const strategyConfig = ConfigLoader.get(`strategies.${result.strategyName}`) || {};"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 1253,
+      "detail": "|| fallback on env/config read",
+      "code": "const strategyMtfConfig = ConfigLoader.get('orchestrator.strategyMtfConfluence') || {};"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 1315,
+      "detail": "|| fallback on env/config read",
+      "code": "const cfg = ConfigLoader.get('orchestrator.emaCrossoverMtf') || {};"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 1362,
+      "detail": "|| fallback on env/config read",
+      "code": "const cfg = ConfigLoader.get('orchestrator.maDynamicSRMtf') || {};"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 1395,
+      "detail": "|| fallback on env/config read",
+      "code": "const cfg = ConfigLoader.get('orchestrator.rsiMtf') || {};"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 1424,
+      "detail": "|| fallback on env/config read",
+      "code": "const cfg = ConfigLoader.get('orchestrator.ogzTpoMtf') || {};"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 1486,
+      "detail": "STRATEGY_DIAG",
+      "code": "const verbose = process.env.STRATEGY_DIAG === 'true';"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 1548,
+      "detail": "STRATEGY_DIAG",
+      "code": "if (process.env.STRATEGY_DIAG === 'true' && sig && sig.direction !== 'neutral') {"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 1607,
+      "detail": "STRATEGY_DIAG",
+      "code": "if (process.env.STRATEGY_DIAG === 'true' && sig && sig.direction !== 'neutral') {"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 1651,
+      "detail": "STRATEGY_DIAG",
+      "code": "if (process.env.STRATEGY_DIAG === 'true') console.log(`[DIAG] LiquiditySweep: NOT ENOUGH CANDLES (${candles?.length || 0} < ${minCandlesSweep})`);"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 1651,
+      "detail": "|| fallback on env/config read",
+      "code": "if (process.env.STRATEGY_DIAG === 'true') console.log(`[DIAG] LiquiditySweep: NOT ENOUGH CANDLES (${candles?.length || 0} < ${minCandlesSweep})`);"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 1667,
+      "detail": "STRATEGY_DIAG",
+      "code": "if (process.env.STRATEGY_DIAG === 'true') {"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 1817,
+      "detail": "STRATEGY_DIAG",
+      "code": "if (process.env.STRATEGY_DIAG === 'true') {"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 1896,
+      "detail": "STRATEGY_DIAG",
+      "code": "if (process.env.STRATEGY_DIAG === 'true') {"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 1935,
+      "detail": "STRATEGY_DIAG",
+      "code": "if (process.env.STRATEGY_DIAG === 'true') {"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 1974,
+      "detail": "|| fallback on env/config read",
+      "code": "ConfigLoader.get('strategies.SmartMoneySweep') || {}"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 1981,
+      "detail": "STRATEGY_DIAG",
+      "code": "if (process.env.STRATEGY_DIAG === 'true' && sig) {"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 2020,
+      "detail": "STRATEGY_DIAG",
+      "code": "if (process.env.STRATEGY_DIAG === 'true') {"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 2036,
+      "detail": "|| fallback on env/config read",
+      "code": "ConfigLoader.get('strategies.DonchianBreakout') || {}"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 2119,
+      "detail": "|| fallback on env/config read",
+      "code": "const pipeline = ConfigLoader.get('pipeline') || {};"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 2250,
+      "detail": "STRATEGY_DIAG",
+      "code": "if (process.env.STRATEGY_DIAG === 'true' || this.evalCount % 200 === 0) {"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 2250,
+      "detail": "|| fallback on env/config read",
+      "code": "if (process.env.STRATEGY_DIAG === 'true' || this.evalCount % 200 === 0) {"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 2356,
+      "detail": "STRATEGY_DIAG",
+      "code": "if (process.env.STRATEGY_DIAG === 'true' && rawStrategyResults.length > 0) {"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 2363,
+      "detail": "STRATEGY_DIAG",
+      "code": "if (process.env.STRATEGY_DIAG === 'true' && contractConfidenceDropped.length > 0) {"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 2437,
+      "detail": "STRATEGY_DIAG",
+      "code": "if (process.env.STRATEGY_DIAG === 'true' || this.evalCount % 200 === 0) {"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 2437,
+      "detail": "|| fallback on env/config read",
+      "code": "if (process.env.STRATEGY_DIAG === 'true' || this.evalCount % 200 === 0) {"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 2465,
+      "detail": "STRATEGY_DIAG",
+      "code": "if (process.env.STRATEGY_DIAG === 'true' && atrDropped.length > 0) {"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 2541,
+      "detail": "STRATEGY_DIAG",
+      "code": "if (process.env.STRATEGY_DIAG === 'true' && trendRegimeDropped.length > 0) {"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 2658,
+      "detail": "STRATEGY_DIAG",
+      "code": "if (process.env.STRATEGY_DIAG === 'true' && rawStrategyResults.length > 0) {"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/StrategyOrchestrator.js",
+      "line": 2970,
+      "detail": "|| fallback on env/config read",
+      "code": "ConfigLoader.get('strategies.SmartMoneySweep') || {}"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/TradeNarrator.js",
+      "line": 69,
+      "detail": "<computed>",
+      "code": "const v = process.env[name];"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/TradeNarrator.js",
+      "line": 299,
+      "detail": "NARRATOR_LABEL_SEED",
+      "code": "const seed = process.env.NARRATOR_LABEL_SEED"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/TradeNarrator.js",
+      "line": 299,
+      "detail": "|| fallback on env/config read",
+      "code": "const seed = process.env.NARRATOR_LABEL_SEED"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/TradingLoop.js",
+      "line": 70,
+      "detail": "STRATEGY_DIAG",
+      "code": "if (process.env.STRATEGY_DIAG !== 'true') return;"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/TradingLoop.js",
+      "line": 1960,
+      "detail": "|| fallback on env/config read",
+      "code": "const minPatternConf = ConfigLoader.get('confidence.candlePatternMinConfidence') || 0.70;"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/TradingLoop.js",
+      "line": 1969,
+      "detail": "BACKTEST_NO_PATTERN_SAVE",
+      "code": "process.env.BACKTEST_NO_PATTERN_SAVE !== 'true' &&"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/TradingLoop.js",
+      "line": 2110,
+      "detail": "|| fallback on env/config read",
+      "code": "{ volatility: indicators.volatility, trend: indicators.trend, volume: marketData?.volume || 'normal', regime: regime.currentRegime || 'unknown', indicators, positionSize: stateManager.get('balance') * ConfigLoader.get('positionSizing.basePositionSize'), currentPosition: stateManager.get('position'), ...patternScope }"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/TradingLoop.js",
+      "line": 2110,
+      "detail": "|| fallback on env/config read",
+      "code": "{ volatility: indicators.volatility, trend: indicators.trend, volume: marketData?.volume || 'normal', regime: regime.currentRegime || 'unknown', indicators, positionSize: stateManager.get('balance') * ConfigLoader.get('positionSizing.basePositionSize'), currentPosition: stateManager.get('position'), ...patternScope }"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/trai_core.js",
+      "line": 88,
+      "detail": "ELEVENLABS_API_KEY",
+      "code": "elevenlabsApiKey: config.elevenlabsApiKey || process.env.ELEVENLABS_API_KEY,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/trai_core.js",
+      "line": 88,
+      "detail": "|| fallback on env/config read",
+      "code": "elevenlabsApiKey: config.elevenlabsApiKey || process.env.ELEVENLABS_API_KEY,"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/trai_core.js",
+      "line": 89,
+      "detail": "DID_API_KEY",
+      "code": "didApiKey: config.didApiKey || process.env.DID_API_KEY,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/trai_core.js",
+      "line": 89,
+      "detail": "|| fallback on env/config read",
+      "code": "didApiKey: config.didApiKey || process.env.DID_API_KEY,"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/trai_llm_config.js",
+      "line": 56,
+      "detail": "|| fallback on env/config read",
+      "code": "const env = options.env || process.env;"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/TRAIDecisionModule.js",
+      "line": 90,
+      "detail": "TRAI_PATTERN_PACK_PATH",
+      "code": "process.env.TRAI_PATTERN_PACK_PATH || './data/pattern-pack.json'"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/TRAIDecisionModule.js",
+      "line": 90,
+      "detail": "|| fallback on env/config read",
+      "code": "process.env.TRAI_PATTERN_PACK_PATH || './data/pattern-pack.json'"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/TRAIDecisionModule.js",
+      "line": 1029,
+      "detail": "BACKTEST_MODE",
+      "code": "const tradingMode = process.env.BACKTEST_MODE === 'true' ? 'backtest' :"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/TRAIDecisionModule.js",
+      "line": 1030,
+      "detail": "TRADING_MODE",
+      "code": "(process.env.TRADING_MODE === 'live' || process.env.ENABLE_LIVE_TRADING === 'true') ? 'live' : 'paper';"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/TRAIDecisionModule.js",
+      "line": 1030,
+      "detail": "ENABLE_LIVE_TRADING",
+      "code": "(process.env.TRADING_MODE === 'live' || process.env.ENABLE_LIVE_TRADING === 'true') ? 'live' : 'paper';"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/TRAIDecisionModule.js",
+      "line": 1030,
+      "detail": "|| fallback on env/config read",
+      "code": "(process.env.TRADING_MODE === 'live' || process.env.ENABLE_LIVE_TRADING === 'true') ? 'live' : 'paper';"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/UnifiedPatternMemory.js",
+      "line": 193,
+      "detail": "TRADING_PAIR",
+      "code": "let ticker = sanitizePatternBucket(process.env.TRADING_PAIR || '');"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/UnifiedPatternMemory.js",
+      "line": 193,
+      "detail": "|| fallback on env/config read",
+      "code": "let ticker = sanitizePatternBucket(process.env.TRADING_PAIR || '');"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/UnifiedPatternMemory.js",
+      "line": 194,
+      "detail": "CANDLE_DATA_FILE",
+      "code": "if (!ticker && process.env.CANDLE_DATA_FILE) {"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/UnifiedPatternMemory.js",
+      "line": 195,
+      "detail": "CANDLE_DATA_FILE",
+      "code": "ticker = sanitizePatternBucket(deriveReportAssetSlugFromDataFile(process.env.CANDLE_DATA_FILE));"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/UnifiedPatternMemory.js",
+      "line": 200,
+      "detail": "ASSET_CLASS",
+      "code": "const cls = process.env.ASSET_CLASS"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/UnifiedPatternMemory.js",
+      "line": 200,
+      "detail": "|| fallback on env/config read",
+      "code": "const cls = process.env.ASSET_CLASS"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/UnifiedPatternMemory.js",
+      "line": 201,
+      "detail": "BROKER",
+      "code": "|| ((process.env.BROKER || '').toLowerCase() === 'kraken' ? 'crypto' :"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/UnifiedPatternMemory.js",
+      "line": 201,
+      "detail": "|| fallback on env/config read",
+      "code": "|| ((process.env.BROKER || '').toLowerCase() === 'kraken' ? 'crypto' :"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/UnifiedPatternMemory.js",
+      "line": 202,
+      "detail": "BROKER",
+      "code": "(process.env.BROKER || '').toLowerCase() === 'alpaca' ? 'stocks' : null);"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/UnifiedPatternMemory.js",
+      "line": 202,
+      "detail": "|| fallback on env/config read",
+      "code": "(process.env.BROKER || '').toLowerCase() === 'alpaca' ? 'stocks' : null);"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/UnifiedPatternMemory.js",
+      "line": 230,
+      "detail": "BACKTEST_NO_PATTERN_SAVE",
+      "code": "persistToDisk: patternMemoryConfig.persistToDisk && process.env.BACKTEST_NO_PATTERN_SAVE !== 'true',"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/UnifiedPatternMemory.js",
+      "line": 248,
+      "detail": "DATA_DIR",
+      "code": "this.dataDir = config.dataDir || process.env.DATA_DIR || (config.storagePath ? path.dirname(config.storagePath) : path.join(process.cwd(), 'data'));"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/UnifiedPatternMemory.js",
+      "line": 248,
+      "detail": "|| fallback on env/config read",
+      "code": "this.dataDir = config.dataDir || process.env.DATA_DIR || (config.storagePath ? path.dirname(config.storagePath) : path.join(process.cwd(), 'data'));"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/UnifiedPatternMemory.js",
+      "line": 248,
+      "detail": "|| fallback on env/config read",
+      "code": "this.dataDir = config.dataDir || process.env.DATA_DIR || (config.storagePath ? path.dirname(config.storagePath) : path.join(process.cwd(), 'data'));"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/WebSocketManager.js",
+      "line": 109,
+      "detail": "WS_URL",
+      "code": "const wsUrl = process.env.WS_URL || 'ws://localhost:3010/ws';"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "core/WebSocketManager.js",
+      "line": 109,
+      "detail": "|| fallback on env/config read",
+      "code": "const wsUrl = process.env.WS_URL || 'ws://localhost:3010/ws';"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "core/WebSocketManager.js",
+      "line": 122,
+      "detail": "WEBSOCKET_AUTH_TOKEN",
+      "code": "const authToken = process.env.WEBSOCKET_AUTH_TOKEN;"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "modules/LiquiditySweepDetector.js",
+      "line": 229,
+      "detail": "BACKTEST_VERBOSE",
+      "code": "if (process.env.BACKTEST_VERBOSE) {"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "modules/SmartMoneySweep.js",
+      "line": 112,
+      "detail": "SMS_DEBUG",
+      "code": "this.DEBUG = config.debug || process.env.SMS_DEBUG === 'true';"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "modules/SmartMoneySweep.js",
+      "line": 112,
+      "detail": "|| fallback on env/config read",
+      "code": "this.DEBUG = config.debug || process.env.SMS_DEBUG === 'true';"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "run-empire-v2.js",
+      "line": 275,
+      "detail": "ENABLE_DPS",
+      "code": "const ENABLE_DPS = process.env.ENABLE_DPS === 'true';"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "run-empire-v2.js",
+      "line": 349,
+      "detail": "BACKTEST_CONFIG_OVERRIDES_JSON",
+      "code": "applyBacktestConfigOverrides(process.env.BACKTEST_CONFIG_OVERRIDES_JSON, {"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "run-empire-v2.js",
+      "line": 681,
+      "detail": "|| fallback on env/config read",
+      "code": "const mtfServiceConfig = ConfigLoader.get('orchestrator.mtfConfluenceService') || {};"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "run-empire-v2.js",
+      "line": 684,
+      "detail": "|| fallback on env/config read",
+      "code": "activeTimeframes: ConfigLoader.get('orchestrator.mtfTimeframes') || ['1m', '5m', '15m', '1h', '4h', '1d'],"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "run-empire-v2.js",
+      "line": 1759,
+      "detail": "|| fallback on env/config read",
+      "code": "const runtimePipeline = ConfigLoader.get('pipeline') || {};"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "run-empire-v2.js",
+      "line": 1760,
+      "detail": "|| fallback on env/config read",
+      "code": "const runtimeSoloFilter = ConfigLoader.get('strategies.soloFilter') || [];"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "run-empire-v2.js",
+      "line": 1768,
+      "detail": "BACKTEST_MODE",
+      "code": "console.log(`  BACKTEST_MODE=${process.env.BACKTEST_MODE || 'false'}`);"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "run-empire-v2.js",
+      "line": 1768,
+      "detail": "|| fallback on env/config read",
+      "code": "console.log(`  BACKTEST_MODE=${process.env.BACKTEST_MODE || 'false'}`);"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "run-empire-v2.js",
+      "line": 1769,
+      "detail": "BACKTEST_FAST",
+      "code": "console.log(`  BACKTEST_FAST=${process.env.BACKTEST_FAST || 'false'}`);"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "run-empire-v2.js",
+      "line": 1769,
+      "detail": "|| fallback on env/config read",
+      "code": "console.log(`  BACKTEST_FAST=${process.env.BACKTEST_FAST || 'false'}`);"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "run-empire-v2.js",
+      "line": 1770,
+      "detail": "BACKTEST_NO_PATTERN_SAVE",
+      "code": "console.log(`  BACKTEST_NO_PATTERN_SAVE=${process.env.BACKTEST_NO_PATTERN_SAVE || 'false'}`);"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "run-empire-v2.js",
+      "line": 1770,
+      "detail": "|| fallback on env/config read",
+      "code": "console.log(`  BACKTEST_NO_PATTERN_SAVE=${process.env.BACKTEST_NO_PATTERN_SAVE || 'false'}`);"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "run-empire-v2.js",
+      "line": 1771,
+      "detail": "FEE_MAKER",
+      "code": "console.log(`  FEE_MAKER=${process.env.FEE_MAKER || 'default'}`);"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "run-empire-v2.js",
+      "line": 1771,
+      "detail": "|| fallback on env/config read",
+      "code": "console.log(`  FEE_MAKER=${process.env.FEE_MAKER || 'default'}`);"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "run-empire-v2.js",
+      "line": 1772,
+      "detail": "FEE_TAKER",
+      "code": "console.log(`  FEE_TAKER=${process.env.FEE_TAKER || 'default'}`);"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "run-empire-v2.js",
+      "line": 1772,
+      "detail": "|| fallback on env/config read",
+      "code": "console.log(`  FEE_TAKER=${process.env.FEE_TAKER || 'default'}`);"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "run-empire-v2.js",
+      "line": 1774,
+      "detail": "ENABLE_TRAI",
+      "code": "console.log(`  ENABLE_TRAI=${process.env.ENABLE_TRAI || 'true'}`);"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "run-empire-v2.js",
+      "line": 1774,
+      "detail": "|| fallback on env/config read",
+      "code": "console.log(`  ENABLE_TRAI=${process.env.ENABLE_TRAI || 'true'}`);"
+    },
+    {
+      "kind": "process_env_read",
+      "file": "run-empire-v2.js",
+      "line": 1779,
+      "detail": "SMS_VP_RTH_ONLY",
+      "code": "console.log(`  SMS_VP_RTH_ONLY=${process.env.SMS_VP_RTH_ONLY || 'true'}`);"
+    },
+    {
+      "kind": "silent_or_default_override",
+      "file": "run-empire-v2.js",
+      "line": 1779,
+      "detail": "|| fallback on env/config read",
+      "code": "console.log(`  SMS_VP_RTH_ONLY=${process.env.SMS_VP_RTH_ONLY || 'true'}`);"
+    }
+  ]
+}
