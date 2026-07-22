@@ -1,136 +1,30 @@
 # OGZ Alignment Entry Point
 
-This folder is the cold-start doorway for an AI agent entering OGZPMLV2.
+This folder contains the alignment doorway for agents entering OGZPrime.
 
-It is not, by itself, the source of truth. The source of truth is live repo state verified in the current session. These docs tell you what to read, what to distrust, and how to become useful without inventing project state.
+Read this first:
 
-## Cold-Start Order
+`ogz-meta/Alignment/TheDoctrine.md`
 
-Before answering questions or touching files, walk this path:
+The Doctrine is the canonical, load-bearing operating law. Other files in this
+folder are historical, supporting, or bootstrap material unless The Doctrine says
+otherwise.
 
-0. Apply the Fourth Shape before any throw doctrine is used:
-   - Enumerate every code path that could trigger the throw, with file:line for each producer.
-   - Fix each producer so the invalid state cannot occur.
-   - If the condition is impossible after producer fixes, do not add the throw.
-   - If the condition originates outside the system, such as broker responses,
-     network state, or exchange data, handle it as detect -> flatten -> halt
-     symbol -> trace, not as a throw.
-   - A throw guarding an internal invariant is an admission of an unfixed producer bug.
-
-1. Run the live-state check:
+Cold start:
 
 ```bash
 pwd
+git rev-parse --show-toplevel
 git branch --show-current
-git log --oneline -8
 git status --short --branch
+git log --oneline -8
 git stash list
+cat ogz-meta/Alignment/TheDoctrine.md
 ```
 
-2. Read `ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md`.
+After reading The Doctrine, verify current state from live source, command/help
+output, current session/status docs, runtime/log evidence, and task-specific
+specs. Dated alignment files and digests are leads, not timeless law.
 
-This is the doctrine/cold-start behavior brief. It tells you how to avoid the project's known AI failure modes.
-
-3. Read the newest dated master alignment file.
-
-As of this folder, that is `ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT-2026-05-19.md`. Treat it as a dated state snapshot, not live truth.
-
-4. Read the verified digest, not the stale digest.
-
-Use `ogz-meta/Alignment/OGZ-DIGEST-2026-05-19-VERIFIED.md`. Do not use `OGZ-DIGEST-2026-05-19.md` as canonical unless you are doing archaeology and explicitly mark it unverified.
-
-5. Read the newest session forms.
-
-```bash
-ls -t ogz-meta/sessions/ | head -5
-```
-
-Read those session docs newest-to-oldest until you can explain the current work queue, current branch posture, dirty tree, stashes, Mercury state, and what is blocked.
-
-For daily alignment maintenance runs, also inventory session/report/form candidates across all of `ogz-meta/`, not only `ogz-meta/sessions/`:
-
-```bash
-rg --files ogz-meta | rg '(^|/)(SESSION-|session-|CODEX-WORKLOG-|session-form).*\.(json|md)$|(^|/)session-form\.js$'
-```
-
-Inspect those candidates newest-first by file mtime. Treat ledger handoffs and ledger session forms as leads only unless current session docs, alignment docs, live code, or explicit operator direction corroborate them.
-
-6. Read the current executable P0 gate.
-
-```bash
-rg -n "EXPECTED_P0|assertP0Summary|runP0\\('full'" ogz-meta/gates/multi-runtime-gate-runner.js
-cat ogz-meta/gates/runs/multi-runtime-latest.json
-```
-
-Then open `ogz-meta/gates/multi-runtime-gate-runner.js` for `EXPECTED_P0`
-and `ogz-meta/gates/runs/multi-runtime-latest.json` for the latest result.
-For trading-path changes, run `node ogz-meta/gates/multi-runtime-gate-runner.js --p0`
-before claiming the anchor holds. Do not quote P0 numbers from memory, dated
-digests, or old baseline specs.
-
-Maintenance caveat 2026-06-16: `multi-runtime-latest.json` once lagged a fresh
-P0 PASS. The gate is now expected to update that pointer after each run. If it
-ever predates the current terminal PASS, treat that as a gate bug; use the
-direct worker report path printed by the gate command as proof and open the
-report summary (`ogz-meta/sessions/session-2026-06-16-catchup-handoff-and-gap-register.md:135-139`).
-
-7. Read the active fix queue.
-
-```bash
-rg -n "^### Fix|Status:|BROKEN|HALF-FIXED|UNFIXED|FIXED" ogz-meta/ledger/OGZPMLV2-FIX-SPEC-BY-MODULE.md
-```
-
-8. Read the law and safety docs.
-
-```bash
-cat CLAUDE.md
-cat ogz-meta/04_guardrails-and-rules.md
-cat ogz-meta/05_landmines-and-gotchas.md
-```
-
-9. Verify Mercury's indexed paths before citing Mercury coverage.
-
-```bash
-cat trai_brain/mercury-bridge/config.js
-```
-
-Also inspect current Mercury run-ledger/compass/substrate notes when the task
-depends on Mercury behavior or answer quality. The 2026-06-27 substrate handoff
-records durable run-ledger support, rules-as-greps, Serena AST evidence tools,
-and the constraint that RAG, traces, compasses, and rules are evidence surfaces,
-not replacements for current file:line proof.
-
-10. Only then read the live code for the module you are touching.
-
-No doc, digest, session form, or chat transcript outranks the live file.
-
-## Canonical Use
-
-- `OGZ-MASTER-ALIGNMENT.md` = how a cold agent must behave.
-- `OGZ-MASTER-ALIGNMENT-YYYY-MM-DD.md` = dated state snapshot.
-- `OGZ-DIGEST-YYYY-MM-DD-VERIFIED.md` = verified transcript digest.
-- `OGZ-DIGEST-YYYY-MM-DD.md` without `VERIFIED` = non-canonical starter material unless re-verified.
-- `ogz-meta/sessions/` = current-state chain.
-- `ogz-meta/gates/multi-runtime-gate-runner.js` + latest gate report from the current command = P0 anchor source.
-- `ogz-meta/ledger/OGZPMLV2-FIX-SPEC-BY-MODULE.md` = fix queue source.
-
-## Maintenance Automation
-
-A VPS cron job runs `ogz-meta/automation/daily-alignment-maintenance.sh` daily at 09:17 UTC. It launches Codex non-interactively with `ogz-meta/automation/daily-alignment-maintenance-prompt.md` to scan new session reports/forms, durable Claude memory/rule sources, and this Alignment folder for cold-start drift.
-
-Outputs live under `ogz-meta/cognition-history/alignment-maintenance/`. The job is doc-only: it uses append-only session reports/forms as evidence to keep pivotal mutable prompt/alignment docs relevant when evidence is current and target files are clean. It does not commit, push, touch production paths, restart services, run backtests, or force conflicted rule changes into canonical docs.
-
-## Required Exit Check
-
-Before reporting that you are "caught up," you must be able to state:
-
-- Current branch and last pushed commit.
-- Dirty tracked files and untracked file classes.
-- Stashes and their labels.
-- Current P0 anchor source file and expected final balance.
-- Whether Mercury was recently reindexed or needs reindex.
-- Active runtime blockers.
-- Active pipeline/doc/cleanup work.
-- The exact live files you opened for the task at hand.
-
-If you cannot state those from commands run in this session, you are not aligned yet.
+If any alignment file conflicts with The Doctrine, stop and report the
+contradiction. The Doctrine wins for agent behavior.
