@@ -27,8 +27,8 @@ require('dotenv').config({ path: path.resolve(__dirname, '..', '..', '.env') });
 const config = require('./config');
 const MongoStore = require('./mongo-store');
 
-const OGZ_META_INDEX_DIRS = Object.freeze([
-  'ogz-meta/Alignment',
+const OGZ_META_INDEX_TARGETS = Object.freeze([
+  'ogz-meta/Alignment/TheDoctrine.md',
   'ogz-meta/specs',
 ]);
 
@@ -63,8 +63,8 @@ function isOgzMetaIndexEligible(relPath) {
   const normalized = String(relPath || '').replace(/\\/g, '/').replace(/\/+$/, '');
   if (normalized === 'ogz-meta') return true;
   if (!normalized.startsWith('ogz-meta/')) return true;
-  return OGZ_META_INDEX_DIRS.some((eligibleDir) => (
-    normalized === eligibleDir || normalized.startsWith(`${eligibleDir}/`)
+  return OGZ_META_INDEX_TARGETS.some((eligiblePath) => (
+    normalized === eligiblePath || normalized.startsWith(`${eligiblePath}/`)
   ));
 }
 
@@ -73,8 +73,8 @@ function shouldDescendDirectory(repoRoot, fullPath) {
   if (!relPath || relPath === '.') return true;
   if (!relPath.startsWith('ogz-meta/')) return true;
   if (relPath === 'ogz-meta') return true;
-  return OGZ_META_INDEX_DIRS.some((eligibleDir) => (
-    eligibleDir === relPath || eligibleDir.startsWith(`${relPath}/`) || relPath.startsWith(`${eligibleDir}/`)
+  return OGZ_META_INDEX_TARGETS.some((eligiblePath) => (
+    eligiblePath === relPath || eligiblePath.startsWith(`${relPath}/`) || relPath.startsWith(`${eligiblePath}/`)
   ));
 }
 
@@ -109,8 +109,8 @@ function buildIndexRunMetadata({ repoRoot, files, chunks, embedErrors, elapsedMs
   return {
     index_scope: {
       repo_root: repoRoot,
-      ogz_meta_eligible_dirs: OGZ_META_INDEX_DIRS,
-      ogz_meta_rule: 'only Alignment and specs are eligible for Mercury RAG indexing',
+      ogz_meta_eligible_targets: OGZ_META_INDEX_TARGETS,
+      ogz_meta_rule: 'only TheDoctrine and specs are eligible for Mercury RAG indexing',
     },
     index_freshness: {
       indexed_at: new Date(),
@@ -860,7 +860,7 @@ async function main() {
   console.log('[MERCURY-BRIDGE] Walking repo...');
   const files = walkRepo(config.REPO_ROOT);
   console.log(`[MERCURY-BRIDGE] Found ${files.length} files to process`);
-  console.log(`[MERCURY-BRIDGE] ogz-meta index scope: ${OGZ_META_INDEX_DIRS.join(', ')} only`);
+  console.log(`[MERCURY-BRIDGE] ogz-meta index scope: ${OGZ_META_INDEX_TARGETS.join(', ')} only`);
   console.log('');
 
   // Process files → chunks
@@ -1017,5 +1017,5 @@ module.exports = {
   isIndexEligiblePath,
   shouldDescendDirectory,
   buildIndexRunMetadata,
-  OGZ_META_INDEX_DIRS,
+  OGZ_META_INDEX_TARGETS,
 };
