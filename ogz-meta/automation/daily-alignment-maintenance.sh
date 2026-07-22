@@ -16,6 +16,12 @@ if [[ "${1:-}" == "--dry-run" ]]; then
   exit 0
 fi
 
+if [[ "${1:-}" != "--run-approved" && "${OGZ_ALIGNMENT_ALLOW_AUTORUN:-}" != "1" ]]; then
+  printf 'daily alignment maintenance is disabled by default; run only on explicit operator command with --run-approved or OGZ_ALIGNMENT_ALLOW_AUTORUN=1
+' >&2
+  exit 2
+fi
+
 mkdir -p "$LOG_DIR"
 
 RUN_ID="$(date -u +%Y-%m-%dT%H-%M-%SZ)"
