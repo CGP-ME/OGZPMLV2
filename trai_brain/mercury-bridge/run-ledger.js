@@ -5,8 +5,18 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-const RUN_LEDGER_DIR = path.join('ogz-meta', 'cognition-history', 'mercury-runs');
+const DEFAULT_RUN_LEDGER_DIR = path.join('ogz-meta', 'cognition-history', 'mercury-runs');
+const RUN_LEDGER_DIR = resolveRunLedgerDir(process.env.MERCURY_RUN_LEDGER_DIR || DEFAULT_RUN_LEDGER_DIR);
 const PROMPT_EXCERPT_MAX = 2000;
+
+function resolveRunLedgerDir(value) {
+  const normalized = String(value || '').replace(/\\/g, '/').replace(/\/+$/, '');
+  if (!normalized || normalized.startsWith('/') || normalized.split('/').includes('..')) {
+    throw new Error('MERCURY_RUN_LEDGER_DIR must be a repo-relative directory without .. segments');
+  }
+  return normalized;
+}
+
 const ANSWER_EXCERPT_MAX = 1000;
 
 function isoTimestamp(value = new Date()) {
@@ -314,6 +324,7 @@ function writeRunLedgerEntry({
 }
 
 module.exports = {
+  DEFAULT_RUN_LEDGER_DIR,
   RUN_LEDGER_DIR,
   buildRunLedgerEntry,
   classifyMercuryVerdict,
