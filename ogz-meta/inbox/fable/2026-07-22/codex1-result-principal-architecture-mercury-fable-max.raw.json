@@ -1,0 +1,13 @@
+{
+  "report": "Principal Systems Architecture Review",
+  "author": "Mercury + Fable max",
+  "mode": "mercury_fable_max",
+  "prompt_file": "ogz-meta/inbox/fable/2026-07-22/principal-systems-architecture-review-prompt.md",
+  "mercury_file": "ogz-meta/inbox/fable/2026-07-22/codex1-result-principal-architecture-mercury-solo.raw.txt",
+  "started_at": "2026-07-23T01:01:59.430Z",
+  "ended_at": "2026-07-23T01:29:35.223Z",
+  "exit_status": 143,
+  "signal": null,
+  "stdout": "",
+  "stderr": ""
+}
