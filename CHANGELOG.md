@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Architecture And Planning Review Modes (2026-07-23)
+
+- Added `--architecture` and `--planning` review intents to the Mercury bridge CLI so broad architecture reviews and lane plans are framed as synthesis work instead of break-my-fix verdict runs.
+- Added Fable review contracts for architecture and planning modes that produce evolved synthesis packets without `CONSENSUS_BLOCKING`, recheck prompts, or commit-blocking semantics.
+- Documented the operator command shape and added focused tests for CLI parsing, Mercury prompt framing, Fable prompt contracts, and synthesis packet formatting.
+
 ### RSI Truth Lane 8 (2026-07-18)
 
 - Added shared Wilder RSI exports at `core/IndicatorCalculator.js` via `IndicatorCalculator.calculateWilderRSI` and `IndicatorCalculator.calculateWilderRSIFromCloses`; `calculateRSI` now delegates to the same implementation for downstream consumers.

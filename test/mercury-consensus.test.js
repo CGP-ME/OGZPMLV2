@@ -11,8 +11,9 @@ const {
   buildConsensusPrompt,
   runFableConsensus,
   consensusFailure,
+  normalizeReviewIntent,
 } = require('../trai_brain/mercury-bridge/consensus');
-const { parseArgs } = require('../trai_brain/mercury-bridge/ask');
+const { parseArgs, buildMercuryIntentPrompt } = require('../trai_brain/mercury-bridge/ask');
 
 describe('Mercury Fable consensus', () => {
   test('CLI adversarial review flags expose explicit controls while preserving consensus aliases', () => {
@@ -52,6 +53,18 @@ describe('Mercury Fable consensus', () => {
     expect(parseArgs(['node', 'ask.js', '--check-providers'])).toMatchObject({
       checkProviders: true,
       query: '',
+    });
+
+    expect(parseArgs(['node', 'ask.js', '--agentic', '--architecture', 'review the system'])).toMatchObject({
+      agentic: true,
+      reviewIntent: 'architecture',
+      query: 'review the system',
+    });
+
+    expect(parseArgs(['node', 'ask.js', '--agentic', '--planning', 'plan the lane'])).toMatchObject({
+      agentic: true,
+      reviewIntent: 'planning',
+      query: 'plan the lane',
     });
   });
 
@@ -111,6 +124,61 @@ describe('Mercury Fable consensus', () => {
     expect(prompt).toContain('Mercury run ledger: ogz-meta/cognition-history/mercury-runs/2026-07-01.jsonl:3');
     expect(prompt).toContain('open_file:1/1/0');
     expect(prompt).toContain('No concrete break found. core/Foo.js:10-12');
+  });
+
+  test('architecture mode changes Mercury framing and Fable output contract', () => {
+    expect(normalizeReviewIntent('architecture')).toBe('architecture');
+    expect(normalizeReviewIntent('planning')).toBe('planning');
+    expect(normalizeReviewIntent('')).toBe('adversarial');
+
+    const mercuryPrompt = buildMercuryIntentPrompt('Design the engineering runtime.', 'architecture');
+    expect(mercuryPrompt).toContain('MERCURY ARCHITECTURE MODE');
+    expect(mercuryPrompt).toContain('not a break-my-fix verdict run');
+    expect(mercuryPrompt).toContain('Design the engineering runtime.');
+
+    const prompt = buildConsensusPrompt({
+      query: 'Design the engineering runtime.',
+      reviewIntent: 'architecture',
+      runLedgerCitation: 'ogz-meta/cognition-history/mercury-runs/2026-07-23.jsonl:1',
+      mercuryResult: {
+        termination: 'answer_given',
+        iterations: 4,
+        answer: 'Architecture proposal with evidence.',
+        toolTelemetry: {
+          byTool: { open_file: { calls: 1, succeeded: 1, failed: 0 } },
+          filesOpened: ['run-empire-v2.js:1-5'],
+          runCheckArtifacts: [],
+          runChecks: [],
+        },
+      },
+    });
+
+    expect(prompt).toContain('READ-ONLY ARCHITECTURE REVIEW');
+    expect(prompt).toContain('evolved Mercury+Fable architecture report');
+    expect(prompt).toContain('EVOLVED_ARCHITECTURE');
+    expect(prompt).not.toContain('CONSENSUS_BLOCKING: yes | no');
+    expect(prompt).not.toContain('RECHECK_PROMPT: <exact prompt to send Mercury next, or none>');
+  });
+
+  test('planning mode changes Mercury framing and Fable output contract', () => {
+    const mercuryPrompt = buildMercuryIntentPrompt('Plan this migration.', 'planning');
+    expect(mercuryPrompt).toContain('MERCURY PLANNING MODE');
+    expect(mercuryPrompt).toContain('implementation plan');
+
+    const prompt = buildConsensusPrompt({
+      query: 'Plan this migration.',
+      reviewIntent: 'planning',
+      mercuryResult: {
+        termination: 'answer_given',
+        iterations: 2,
+        answer: 'Plan with caveats.',
+      },
+    });
+
+    expect(prompt).toContain('READ-ONLY PLANNING REVIEW');
+    expect(prompt).toContain('IMPLEMENTATION_PLAN');
+    expect(prompt).toContain('ROLLBACK_PLAN');
+    expect(prompt).not.toContain('CONSENSUS_BLOCKING: yes | no');
   });
 
   test('parses blocking Fable critiques into a Mercury recheck prompt', () => {
@@ -260,6 +328,36 @@ describe('Mercury Fable consensus', () => {
     expect(packet).toContain('5. Final Resolution');
     expect(packet).toContain('Missing spawn-site proof.');
     expect(packet).toContain('Spawn site uses execSync');
+  });
+
+  test('architecture packet is synthesis-oriented and does not require Mercury rechecks', () => {
+    const packet = formatAdversarialReviewPacket({
+      reviewIntent: 'architecture',
+      originalQuery: 'Design the runtime.',
+      mercuryResult: {
+        termination: 'answer_given',
+        iterations: 3,
+        answer: 'Mercury architecture pass.',
+      },
+      consensus: {
+        answer: [
+          'VERDICT: architecture_synthesis',
+          'MERCURY_CRITIQUE: too thin',
+          'EVOLVED_ARCHITECTURE: event-sourced runtime',
+        ].join('\n'),
+        parsed: {
+          verdict: 'architecture_synthesis',
+          blocking: true,
+        },
+      },
+    });
+
+    expect(packet).toContain('MODE: architecture');
+    expect(packet).toContain('VERDICT: synthesis');
+    expect(packet).toContain('Fable Synthesis Review');
+    expect(packet).toContain('architecture_synthesis_complete');
+    expect(packet).not.toContain('Mercury Recheck');
+    expect(packet).not.toContain('needs_more_evidence');
   });
 
   test('runFableConsensus uses an injected client and does not require a real provider call', async () => {

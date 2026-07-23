@@ -9,6 +9,7 @@ function consensusRequested(opts = {}) {
 module.exports = {
   adversarialReviewRequested: review.adversarialReviewRequested,
   reviewModeRequested: review.reviewModeRequested,
+  normalizeReviewIntent: review.normalizeReviewIntent,
   consensusRequested,
   extractField: review.extractField,
   parseConsensusAnswer: review.parseAdversarialReviewAnswer,

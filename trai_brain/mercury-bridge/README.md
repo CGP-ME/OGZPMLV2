@@ -194,6 +194,27 @@ To suppress adversarial review for a specific agentic run:
 node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens=7750 --no-adversarial-review "Mercury, break my fix."
 ```
 
+### Ask for architecture or planning synthesis
+Architecture and planning prompts are not break-my-fix verdict runs. Use these
+when the operator needs a longform system answer, design review, or lane plan
+that Mercury attacks with repo tools and Fable critiques as a second synthesis
+tier.
+
+```bash
+node trai_brain/mercury-bridge/ask.js --agentic --architecture --adversarial-review --max-iterations=60 --max-tokens=7750 "Principal architecture prompt..."
+node trai_brain/mercury-bridge/ask.js --agentic --planning --adversarial-review --max-iterations=60 --max-tokens=7750 "Plan this lane..."
+```
+
+These modes change both halves of the bridge:
+
+- Mercury receives explicit architecture/planning framing and is told not to
+  compress the answer into a short verdict.
+- Fable receives an architecture/planning review contract and returns evolved
+  synthesis sections instead of `CONSENSUS_BLOCKING` / `RECHECK_PROMPT`.
+- The final packet is advisory. It does not launch Mercury rechecks and does not
+  produce commit-blocking semantics. The operator turns selected recommendations
+  into scoped implementation lanes.
+
 ### Check provider access before a full run
 ```bash
 node trai_brain/mercury-bridge/ask.js --check-providers

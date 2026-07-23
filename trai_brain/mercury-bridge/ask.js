@@ -21,6 +21,8 @@
  *   --show-history         Agentic mode only: print the full tool-call trace
  *   --adversarial-review   Agentic mode only: ask Fable to attack Mercury's answer
  *   --consensus            Agentic mode only: legacy alias for Fable review
+ *   --architecture         Agentic mode only: longform architecture review framing
+ *   --planning             Agentic mode only: implementation planning/design framing
  *   --check-providers      Warm up Mercury and Fable clients, then exit
  */
 
@@ -87,6 +89,7 @@ function parseArgs(argv) {
     adversarialReviewExplicit: false,
     consensus: false,
     consensusExplicit: false,
+    reviewIntent: 'adversarial',
     retrievalMode: null,   // semantic | hybrid | hybrid-classified
     boostType: null,       // manual content_type boost (e.g. recent_changes)
     explainRoute: false,   // print routing decision and exit
@@ -119,6 +122,10 @@ function parseArgs(argv) {
     } else if (arg === '--no-consensus') {
       args.consensus = false;
       args.consensusExplicit = true;
+    } else if (arg === '--architecture') {
+      args.reviewIntent = 'architecture';
+    } else if (arg === '--planning') {
+      args.reviewIntent = 'planning';
     } else if (arg.startsWith('--top-k=')) {
       args.topK = parseInt(arg.split('=')[1], 10);
     } else if (arg.startsWith('--max-tokens=')) {
@@ -150,6 +157,31 @@ function parseArgs(argv) {
 
   args.query = positional.join(' ').trim();
   return args;
+}
+
+function buildMercuryIntentPrompt(query, reviewIntent = 'adversarial') {
+  const text = String(query || '').trim();
+  if (reviewIntent === 'architecture') {
+    return [
+      'MERCURY ARCHITECTURE MODE.',
+      'This is not a break-my-fix verdict run and not a commit gate.',
+      'Use repo tools to build a broad architecture review with evidence, ownership boundaries, data flow, invariants, build-vs-buy analysis, migration path, risks, and strongest criticisms.',
+      'Do not compress into a short answer. If evidence is missing, label the gap instead of inventing current repo facts.',
+      '',
+      text,
+    ].join('\n');
+  }
+  if (reviewIntent === 'planning') {
+    return [
+      'MERCURY PLANNING MODE.',
+      'This is not a break-my-fix verdict run and not a commit gate.',
+      'Use repo tools to produce an implementation plan with prior art, ownership boundaries, sequencing, required proofs, rollback shape, risks, and open decisions.',
+      'Do not edit code. If evidence is missing, label the gap instead of inventing current repo facts.',
+      '',
+      text,
+    ].join('\n');
+  }
+  return text;
 }
 
 function optionalPositiveInteger(value, name) {
@@ -200,6 +232,8 @@ function usage() {
   console.log('  --no-adversarial-review Agentic only: suppress env/config adversarial review for this run');
   console.log('  --consensus            Agentic only: legacy alias for a Fable review');
   console.log('  --no-consensus         Agentic only: suppress config-default legacy consensus for this run');
+  console.log('  --architecture         Agentic only: architecture-review framing; final packet is synthesis, not pass/fail');
+  console.log('  --planning             Agentic only: planning/design framing; final packet is a build plan, not pass/fail');
   console.log('  --check-providers      Warm up Mercury and Fable clients, then exit');
   console.log('  --capture-trace        Agentic only: manually store a successful investigation trace');
   console.log('                         RAG/chunk writes are never done by ask.js; run indexer.js explicitly.');
@@ -350,6 +384,8 @@ async function runAgentic(query, opts) {
   const verbose = !opts.quiet;
   const maxIterations = configExactInteger(opts.maxIterations, config.AGENTIC_MAX_ITERATIONS, '--max-iterations');
   const maxTokens = configExactInteger(opts.maxTokens, config.AGENTIC_MAX_TOKENS, '--max-tokens');
+  const reviewIntent = opts.reviewIntent || 'adversarial';
+  const mercuryQuery = buildMercuryIntentPrompt(query, reviewIntent);
 
   // Route the query unless caller has overridden
   const route = routeQuery(query);
@@ -474,7 +510,7 @@ async function runAgentic(query, opts) {
     const result = await runReactLoop({
       client,
       toolAdapter,
-      userQuery: query,
+      userQuery: mercuryQuery,
       starterContext,
       traceHint: traceHintText,
       blastRadius,
@@ -516,9 +552,10 @@ async function runAgentic(query, opts) {
         const review = await runFableAdversarialReview({
           query,
           mercuryResult: result,
+          reviewIntent,
         });
         review.mode = reviewMode;
-        if (review.ok && review.parsed && review.parsed.blocking) {
+        if (review.ok && reviewIntent === 'adversarial' && review.parsed && review.parsed.blocking) {
           const recheckPrompts = buildMercuryRecheckPrompts({
             originalQuery: query,
             mercuryAnswer: result.answer,
@@ -555,6 +592,7 @@ async function runAgentic(query, opts) {
           originalQuery: query,
           mercuryResult: result,
           review,
+          reviewIntent,
         });
       } catch (err) {
         const failure = adversarialReviewFailure(err);
@@ -747,7 +785,12 @@ async function main() {
       if (result.adversarialReview || result.consensus) {
         const review = result.adversarialReview || result.consensus;
         console.log('');
-        console.log(review.mode === 'consensus' ? '═══ FABLE LEGACY REVIEW ═══' : '═══ FABLE ADVERSARIAL REVIEW ═══');
+        const reviewTitle = args.reviewIntent === 'architecture'
+          ? '═══ FABLE ARCHITECTURE REVIEW ═══'
+          : (args.reviewIntent === 'planning'
+            ? '═══ FABLE PLANNING REVIEW ═══'
+            : (review.mode === 'consensus' ? '═══ FABLE LEGACY REVIEW ═══' : '═══ FABLE ADVERSARIAL REVIEW ═══'));
+        console.log(reviewTitle);
         console.log('');
         if (review.ok) {
           console.log(review.answer);
@@ -867,6 +910,7 @@ if (require.main === module) {
 module.exports = {
   parseArgs,
   runAgentic,
+  buildMercuryIntentPrompt,
   buildCurrentChangeBlastRadius,
   currentChangedFiles,
   isSerenaSourcePath,

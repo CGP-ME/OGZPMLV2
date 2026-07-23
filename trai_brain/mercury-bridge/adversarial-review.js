@@ -28,6 +28,12 @@ function reviewModeRequested(opts = {}) {
   return config.CONSENSUS_DEFAULT_ENABLED === true ? 'consensus' : null;
 }
 
+function normalizeReviewIntent(value) {
+  const intent = String(value || '').trim().toLowerCase();
+  if (intent === 'architecture' || intent === 'planning') return intent;
+  return 'adversarial';
+}
+
 function extractField(text, fieldName) {
   const source = String(text || '');
   const escapedField = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -147,9 +153,46 @@ function formatAdversarialReviewPacket({
   mercuryResult,
   review,
   consensus,
+  reviewIntent = 'adversarial',
 } = {}) {
+  const intent = normalizeReviewIntent(reviewIntent);
   const reviewData = review || consensus;
   const parsed = reviewData && reviewData.parsed ? reviewData.parsed : parseAdversarialReviewAnswer(reviewData && reviewData.answer);
+  if (intent === 'architecture' || intent === 'planning') {
+    return [
+      `MODE: ${intent}`,
+      'VERDICT: synthesis',
+      '',
+      '1. Original Prompt',
+      String(originalQuery || '').trim() || '<empty>',
+      '',
+      '2. Mercury Pass 1',
+      `Verdict: ${mercuryResult && mercuryResult.termination ? mercuryResult.termination : 'unknown'}`,
+      'Claims:',
+      String(mercuryResult && mercuryResult.answer || '').trim() || '<empty>',
+      'Evidence:',
+      mercuryResult && mercuryResult.toolTelemetry && Array.isArray(mercuryResult.toolTelemetry.filesOpened)
+        ? mercuryResult.toolTelemetry.filesOpened.map((ref) => `- ${ref} -> opened by Mercury`).join('\n') || '- <none recorded>'
+        : '- <none recorded>',
+      'Commands:',
+      mercuryResult && mercuryResult.toolTelemetry ? `- ${formatToolTelemetry(mercuryResult.toolTelemetry)} -> tool telemetry` : '- <none recorded>',
+      '',
+      '3. Fable Synthesis Review',
+      `Verdict: ${parsed.verdict || 'synthesis'}`,
+      'Full Fable answer:',
+      String(reviewData && reviewData.answer || '').trim() || '<empty>',
+      '',
+      '4. Final Resolution',
+      'Decision:',
+      intent === 'architecture' ? 'architecture_synthesis_complete' : 'planning_synthesis_complete',
+      'Why:',
+      'This mode is advisory/synthesis-oriented. It does not create commit-blocking verdicts or Mercury rechecks.',
+      'Residual Risk:',
+      'Operator must decide which recommendations become implementation lanes with their own scoped proofs.',
+      'Required Next Action:',
+      'Convert selected recommendations into one-lane implementation missions.',
+    ].join('\n');
+  }
   const rechecks = Array.isArray(reviewData && reviewData.rechecks)
     ? reviewData.rechecks
     : (reviewData && reviewData.recheck ? [reviewData.recheck] : []);
@@ -226,6 +269,7 @@ function buildAdversarialReviewPrompt({
   query,
   mercuryResult,
   runLedgerCitation = null,
+  reviewIntent = 'adversarial',
 } = {}) {
   if (typeof query !== 'string' || query.trim() === '') {
     throw new Error('Adversarial review prompt requires the original query');
@@ -237,6 +281,73 @@ function buildAdversarialReviewPrompt({
   const telemetry = mercuryResult.toolTelemetry
     ? formatToolTelemetry(mercuryResult.toolTelemetry)
     : 'unavailable';
+  const intent = normalizeReviewIntent(reviewIntent);
+
+  if (intent === 'architecture') {
+    return [
+      'READ-ONLY ARCHITECTURE REVIEW. Do not edit code.',
+      'Review Mercury as the second tier in an architecture synthesis, not as a commit gate.',
+      '',
+      'Rules for this pass:',
+      '- You do not have repo tools in this review pass.',
+      '- Treat Mercury citations, run telemetry, and the original prompt as your evidence base.',
+      '- Critique Mercury concretely: unsupported claims, stale context, missing ownership boundaries, missing data flow, missing invariants, missing build-vs-buy, missing migration detail, and weak governance.',
+      '- Do not invent file:line citations or current-code facts.',
+      '- If evidence is insufficient, label the evidence gap and state what a later repo-tool pass must inspect.',
+      '- Produce an evolved Mercury+Fable architecture report, not a pass/fail verdict and not a short summary.',
+      '',
+      'Return these sections:',
+      'VERDICT: architecture_synthesis | needs_more_evidence',
+      'MERCURY_CRITIQUE: <specific weaknesses and what you kept>',
+      'EVIDENCE_LIMITS: <what Mercury proved vs what remains unproven>',
+      'EVOLVED_ARCHITECTURE: <full architecture synthesis>',
+      'BUILD_VS_BUY: <recommendations>',
+      'MIGRATION_ROADMAP: <incremental phases>',
+      'RISKS_AND_CRITICISMS: <strongest criticisms>',
+      'NEXT_LANES: <operator-sized follow-up lanes>',
+      '',
+      `Original user prompt:\n${query.trim()}`,
+      '',
+      `Mercury termination: ${mercuryResult.termination || 'unknown'}`,
+      `Mercury iterations: ${mercuryResult.iterations == null ? 'unknown' : mercuryResult.iterations}`,
+      `Mercury run ledger: ${runLedgerCitation || 'not written yet'}`,
+      `Mercury tool telemetry: ${telemetry}`,
+      '',
+      `Mercury answer:\n${String(mercuryResult.answer || '').trim() || '<empty>'}`,
+    ].join('\n');
+  }
+
+  if (intent === 'planning') {
+    return [
+      'READ-ONLY PLANNING REVIEW. Do not edit code.',
+      'Review Mercury as the second tier in an implementation planning pass, not as a commit gate.',
+      '',
+      'Rules for this pass:',
+      '- You do not have repo tools in this review pass.',
+      '- Critique Mercury for missing prior art, wrong sequencing, missing tests, missing rollback, hidden scope expansion, and unresolved operator decisions.',
+      '- Do not invent file:line citations or current-code facts.',
+      '- Produce an evolved Mercury+Fable plan that can be handed to an implementation agent.',
+      '',
+      'Return these sections:',
+      'VERDICT: planning_synthesis | needs_more_evidence',
+      'MERCURY_CRITIQUE: <specific weaknesses and what you kept>',
+      'EVIDENCE_LIMITS: <what Mercury proved vs what remains unproven>',
+      'IMPLEMENTATION_PLAN: <ordered lanes and exact proof requirements>',
+      'ROLLBACK_PLAN: <how to revert safely>',
+      'TEST_PLAN: <behavior tests, static tests, gates>',
+      'OPEN_DECISIONS: <operator rulings needed>',
+      'NEXT_LANES: <operator-sized follow-up lanes>',
+      '',
+      `Original user prompt:\n${query.trim()}`,
+      '',
+      `Mercury termination: ${mercuryResult.termination || 'unknown'}`,
+      `Mercury iterations: ${mercuryResult.iterations == null ? 'unknown' : mercuryResult.iterations}`,
+      `Mercury run ledger: ${runLedgerCitation || 'not written yet'}`,
+      `Mercury tool telemetry: ${telemetry}`,
+      '',
+      `Mercury answer:\n${String(mercuryResult.answer || '').trim() || '<empty>'}`,
+    ].join('\n');
+  }
 
   return [
     'READ-ONLY AUDIT. Do not edit code.',
@@ -276,11 +387,12 @@ async function runFableAdversarialReview({
   query,
   mercuryResult,
   runLedgerCitation = null,
+  reviewIntent = 'adversarial',
   createClient = createConsensusLlmClient,
   now = Date.now,
 } = {}) {
   const client = createClient({ systemPrompt: config.CONSENSUS_SYSTEM_PROMPT });
-  const prompt = buildAdversarialReviewPrompt({ query, mercuryResult, runLedgerCitation });
+  const prompt = buildAdversarialReviewPrompt({ query, mercuryResult, runLedgerCitation, reviewIntent });
   const started = now();
 
   await client.initialize();
@@ -288,6 +400,7 @@ async function runFableAdversarialReview({
 
   return {
     mode: 'adversarial_review',
+    reviewIntent: normalizeReviewIntent(reviewIntent),
     enabled: true,
     ok: true,
     provider: config.CONSENSUS_PROVIDER,
@@ -315,6 +428,7 @@ function adversarialReviewFailure(err) {
 module.exports = {
   adversarialReviewRequested,
   reviewModeRequested,
+  normalizeReviewIntent,
   extractField,
   parseAdversarialReviewAnswer,
   buildMercuryRecheckPrompt,
