@@ -2,17 +2,17 @@
 <html lang="en">
 <head>
 <title>OGZPrime — Risk Management Execution Engine for Traders</title>
-<meta name="description" content="Autonomous trading execution engine built first not to blow up your capital. 11 broker adapters, Pine Script transpiler, exit contracts sealed at entry, every decision logged. First month free.">
+<meta name="description" content="Risk management execution engine for traders. Plug in your strategies, backtest with real fees, deploy to live markets. 11 broker adapters, Pine Script transpiler, exit contracts sealed at entry, every decision logged. First month free.">
 <link rel="canonical" href="https://www.ogzprime.com/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="OGZPrime">
 <meta property="og:title" content="OGZPrime — Risk Management Execution Engine for Traders">
-<meta property="og:description" content="Autonomous trading execution engine built first not to blow up your capital. 11 broker adapters, Pine Script transpiler, exit contracts sealed at entry, every decision logged. First month free.">
+<meta property="og:description" content="Risk management execution engine for traders. Plug in your strategies, backtest with real fees, deploy to live markets. 11 broker adapters, Pine Script transpiler, exit contracts sealed at entry, every decision logged. First month free.">
 <meta property="og:url" content="https://www.ogzprime.com/">
 <meta property="og:image" content="https://www.ogzprime.com/assets/ogz-logo-white.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="OGZPrime — Risk Management Execution Engine for Traders">
-<meta name="twitter:description" content="Autonomous trading execution engine built first not to blow up your capital. 11 broker adapters, Pine Script transpiler, exit contracts sealed at entry, every decision logged. First month free.">
+<meta name="twitter:description" content="Risk management execution engine for traders. Plug in your strategies, backtest with real fees, deploy to live markets. 11 broker adapters, Pine Script transpiler, exit contracts sealed at entry, every decision logged. First month free.">
 <meta name="twitter:image" content="https://www.ogzprime.com/assets/ogz-logo-white.png">
 <meta name="robots" content="index,follow">
 <meta name="theme-color" content="#0a0a0a">
@@ -50,13 +50,16 @@
 
   <!-- HERO -->
   <section style="text-align:center; padding:80px 24px 60px; position:relative; overflow:hidden; background:radial-gradient(circle at 50% 0%, rgba(220,38,38,0.10) 0%, transparent 55%);">
+    <video autoplay muted loop playsinline style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; filter:brightness(0.25); z-index:0;">
+      <source src="/assets/video/ogz-stinger-merged.mp4" type="video/mp4">
+    </video>
     <div style="position:absolute; inset:0; overflow:hidden; pointer-events:none;">
       <div style="position:absolute; left:0; right:0; height:1px; background:linear-gradient(90deg, transparent, rgba(220,38,38,0.12), transparent); animation:scan 8s linear infinite; opacity:0.4;"></div>
     </div>
-    <div style="font-family:'Orbitron',monospace; font-weight:900; font-size:52px; letter-spacing:8px; text-transform:uppercase; color:#fff; text-shadow:0 0 32px rgba(179,21,18,0.5); margin-bottom:8px;">OGZPRIME</div>
-    <p style="color:#999; font-size:19px; max-width:660px; margin:20px auto 6px;">A risk management execution engine. Built first not to blow up your capital — then iterated toward profitability.</p>
-    <p style="color:#555; font-size:14px; font-family:'JetBrains Mono',monospace; margin-bottom:36px;">Multi-broker · Multi-asset · Multi-direction · Multi-timeframe</p>
-    <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
+    <div style="position:relative; z-index:1; font-family:'Orbitron',monospace; font-weight:900; font-size:52px; letter-spacing:8px; text-transform:uppercase; color:#fff; text-shadow:0 0 32px rgba(179,21,18,0.5); margin-bottom:8px;">OGZPRIME</div>
+    <p style="position:relative; z-index:1; color:#ccc; font-size:19px; max-width:660px; margin:20px auto 6px;">A risk management execution engine. Plug in your strategies, backtest with real fees, deploy to live markets.</p>
+    <p style="position:relative; z-index:1; color:#888; font-size:14px; font-family:'JetBrains Mono',monospace; margin-bottom:36px;">Multi-broker · Multi-asset · Multi-direction · Multi-timeframe</p>
+    <div style="position:relative; z-index:1; display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
       <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Button" size="lg" uppercase="{{ true }}" hint-size="200px,54px"><a href="pricing.html" style="color:inherit; text-decoration:none;">Start Free Month</a></x-import>
       <x-import component-from-global-scope="OGZPrimeDesignSystem_802711.Button" size="lg" variant="outline" hint-size="200px,54px"><a href="#" style="color:inherit; text-decoration:none;" onclick="document.getElementById('leadModal').style.display='flex'; return false;">Watch Live Demo</a></x-import>
     </div>
