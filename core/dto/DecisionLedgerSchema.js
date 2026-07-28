@@ -2,6 +2,14 @@
 
 const { z } = require('zod');
 
+const PositionEffectSchema = z.enum([
+  'open_long',
+  'close_long',
+  'open_short',
+  'close_short',
+  'unknown_effect',
+]);
+
 const LearningSnapshotSchema = z.object({
   mode: z.literal('shadow'),
   applied: z.literal(false),
@@ -90,6 +98,7 @@ const DecisionLedgerSkeletonSchema = z.object({
   executionMode: z.enum(['live', 'paper', 'backtest']),
   entryPrice: z.number(),
   direction: z.enum(['long', 'short']),
+  positionEffect: PositionEffectSchema,
 
   // L1: populated at birth
   strategySignals: z.array(StrategySignalSchema),
@@ -124,6 +133,7 @@ const REQUIRED_LEDGER_FIELDS = [
   'executionMode',
   'entryPrice',
   'direction',
+  'positionEffect',
   'strategySignals',
   'orchestratorDecision',
   'positionSizing',
@@ -185,6 +195,7 @@ function createLedgerSkeleton(input = {}) {
     executionMode: input.executionMode,
     entryPrice: input.entryPrice,
     direction: input.direction,
+    positionEffect: input.positionEffect,
     strategySignals: input.strategySignals,
     orchestratorDecision: input.orchestratorDecision,
     positionSizing: input.positionSizing,
@@ -228,6 +239,7 @@ module.exports = {
   OrchestratorDecisionSchema,
   PositionSizingSchema,
   ExitContractSchema,
+  PositionEffectSchema,
   createLedgerSkeleton,
   validateLedgerSkeleton,
 };

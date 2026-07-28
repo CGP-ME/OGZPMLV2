@@ -269,6 +269,7 @@ function emitTraceEventToDashboardUnsafe(ctx, event, fields, fieldsCoerced = fal
     executionMode: firstTraceScopeField(payloadFields, 'executionMode'),
     scopeKey: firstTraceScopeField(payloadFields, 'scopeKey'),
     action: payloadFields.action || null,
+    positionEffect: traceFieldValue(payloadFields, 'positionEffect'),
     fields: payloadFields,
   };
 

@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "lastUpdated": "2026-04-13",
   "type": "object",
-  "required": ["tradeId", "candleTimestamp", "symbol", "timeframe", "strategySignals", "orchestratorDecision", "positionSizing", "exitContract"],
+  "required": ["tradeId", "candleTimestamp", "symbol", "timeframe", "positionEffect", "strategySignals", "orchestratorDecision", "positionSizing", "exitContract"],
   "properties": {
     "tradeId": {
       "type": "string",
@@ -39,6 +39,11 @@
       "type": "string",
       "enum": ["long", "short"],
       "description": "Trade direction. Added 2026-04-20 — always emitted by writer."
+    },
+    "positionEffect": {
+      "type": "string",
+      "enum": ["open_long", "close_long", "open_short", "close_short", "unknown_effect"],
+      "description": "Lifecycle meaning of the broker action: open_long, close_long, open_short, close_short, or unknown_effect when an unsupported action reaches observability. Added for short/close disambiguation."
     },
     "_persistedAt": {
       "type": "string",
@@ -291,6 +296,10 @@
             ]
           },
           "exitPrice": {"type": "number"},
+          "positionEffect": {
+            "type": "string",
+            "enum": ["close_long", "close_short", "unknown_effect"]
+          },
           "exitFraction": {"type": "number", "minimum": 0, "maximum": 1, "description": "0.30 = closed 30% of remaining position"},
           "exitSize": {"type": "number", "description": "Absolute size closed (USD or shares)"},
           "realizedPnL": {"type": "number"},
@@ -319,6 +328,10 @@
         "totalHoldMinutes": {"type": "integer"},
         "legCount": {"type": "integer"},
         "finalReason": {"type": "string", "description": "Aggregated exit reason for the parent trade"},
+        "positionEffect": {
+          "type": "string",
+          "enum": ["close_long", "close_short", "unknown_effect"]
+        },
         "maxProfitPercent": {"type": "number", "description": "Peak unrealized profit during trade"},
         "mfeRatio": {"type": "number", "description": "Final realized / max profit (capture ratio)"},
         "totalFees": {"type": "number"},

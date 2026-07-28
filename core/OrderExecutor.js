@@ -24,6 +24,7 @@ const { getNarrator } = require('./TradeNarrator');
 const FeeModel = require('./FeeModel');
 const { assertExplicitExitOwnership } = require('./dto/ExitContractOwnership');
 const PolicyBuilder = require('./PolicyBuilder');
+const { positionEffectFromAction } = require('./PositionEffect');
 
 const stateManager = getStateManager();
 const SUPPORTED_ACTIONS = new Set(['BUY', 'SELL_SHORT', 'SELL', 'COVER']);
@@ -1623,6 +1624,7 @@ class OrderExecutor {
       acceptedWithoutOrderId,
       symbol: baseFields.symbol || null,
       action: baseFields.action || null,
+      positionEffect: positionEffectFromAction(baseFields.action),
       webhookAction: baseFields.webhookAction || null,
       quantity: baseFields.quantity ?? null,
       quantityUnit: baseFields.quantityUnit || null,
@@ -1790,6 +1792,7 @@ class OrderExecutor {
       intentId,
       sourceEventId,
       lifecycleState: resolvedLifecycleState,
+      positionEffect: positionEffectFromAction(exitPlan?.action),
       exitReason: this._firstNonEmptyString(executedExitPlan?.exitReason, exitPlan?.exitReason, exitPlan?.reason),
       triggeredBy: this._firstNonEmptyString(exitPlan?.triggeredBy, exitPlan?.source, 'OrderExecutor.executeTrade'),
       filledQuantity,
@@ -1968,6 +1971,7 @@ class OrderExecutor {
       signalId,
       symbol,
       action,
+      positionEffect: positionEffectFromAction(action),
       reason: haltReason,
       plannedOrderQuantity: entryPlan.orderQuantity,
       acceptedOrderQuantity: executedEntryPlan.orderQuantity,
@@ -2027,6 +2031,7 @@ class OrderExecutor {
       action: decision.action,
       side: this._entrySide(decision.action),
       direction: decision.action === 'BUY' ? 'long' : 'short',
+      positionEffect: positionEffectFromAction(decision.action),
       symbol,
       brokerId: scope.brokerId,
       marketDataBrokerId: scope.brokerId,
@@ -2135,6 +2140,7 @@ class OrderExecutor {
       action: decision.action,
       side: this._exitSide(decision.action),
       direction: 'close',
+      positionEffect: positionEffectFromAction(decision.action),
       symbol,
       brokerId: scope.brokerId,
       executionRoute: trade.executionRoute || null,
@@ -2236,6 +2242,7 @@ class OrderExecutor {
       decisionId: traceFields.decisionId || null,
       symbol: signal?.symbol || traceFields.symbol || null,
       action,
+      positionEffect: positionEffectFromAction(action),
       webhookAction: signal?.action || null,
       quantity: signal?.quantity ?? null,
       quantityUnit: signal?.quantityUnit || null,
@@ -2361,6 +2368,8 @@ class OrderExecutor {
     decision.traceId = decision.traceId || createTraceId('trace');
     decision.signalId = decision.signalId || `${decision.traceId}:signal`;
     decision.decisionId = decision.decisionId || `dec_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    decision.positionEffect = positionEffectFromAction(decision.action);
+    const positionEffect = decision.positionEffect;
     const traceId = decision.traceId;
     const signalId = decision.signalId;
     const isWebhookExecutionRoute = !this.ctx.backtestMode && this.ctx.webhookAdapter?.enabled === true;
@@ -2404,6 +2413,7 @@ class OrderExecutor {
       decisionId: decision.decisionId,
       symbol,
       action: decision.action,
+      positionEffect,
       brokerId: executionScope.brokerId,
       accountId: executionScope.accountId,
       assetClass: executionScope.assetClass,
@@ -2421,6 +2431,7 @@ class OrderExecutor {
       decisionId: decision.decisionId,
       symbol,
       action: decision.action,
+      positionEffect,
       price,
       confidencePct: decision.confidence,
       brokerId: executionScope.brokerId,
@@ -2444,7 +2455,7 @@ class OrderExecutor {
       if (executionMode !== 'backtest' && stateManager.get('isTrading') === false) {
         const pauseReason = stateManager.get('pauseReason') || stateManager.get('lastError') || 'StateManager.isTrading=false';
         console.error(`[ENTRY] Refusing ${decision.action} for ${symbol}: trading paused (${pauseReason})`);
-        emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: 'trading_paused', detail: pauseReason });
+        emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, positionEffect, reason: 'trading_paused', detail: pauseReason });
         return blockedReturn('trading_paused', { detail: pauseReason });
       }
       const globalHaltReason = stateManager.isHalted() ? stateManager.getHaltReason() : null;
@@ -2455,7 +2466,7 @@ class OrderExecutor {
       if (globalHaltReason || symbolHaltReason) {
         console.error(`[ENTRY] Refusing ${decision.action} for ${symbol}: ${globalHaltReason || symbolHaltReason}`);
         const blockReason = symbolHaltCode || 'halted';
-        emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: blockReason, detail: globalHaltReason || symbolHaltReason });
+        emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, positionEffect, reason: blockReason, detail: globalHaltReason || symbolHaltReason });
         if (blockReason === 'symbol_cooldown') {
           this._emitSymbolCooldownGateEvent({
             traceId,
@@ -2477,6 +2488,7 @@ class OrderExecutor {
           signalId,
           symbol,
           action: decision.action,
+          positionEffect,
           reason: hedgeBlock.reason,
           existingDirection: hedgeBlock.existingDirection,
           existingTradeId: hedgeBlock.existingTradeId,
@@ -2505,7 +2517,7 @@ class OrderExecutor {
     const currentBalance = stateManager.getAvailableCapital(price);
     if (isEntryAction && currentBalance <= 0) {
       console.error('[HALT] No available capital — refusing entry');
-      emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: 'no_available_capital', availableCapital: currentBalance });
+      emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, positionEffect, reason: 'no_available_capital', availableCapital: currentBalance });
       return blockedReturn('no_available_capital', { availableCapital: currentBalance });
     }
     // CHANGE 2026-02-28: Use ConfigLoader for position sizing
@@ -2522,7 +2534,7 @@ class OrderExecutor {
     // catch NaN, undefined, and negative values (root-cause coverage).
     if (isEntryAction && (!Number.isFinite(rawConfidence) || rawConfidence <= 0)) {
       console.error(`[HALT] Invalid confidence: ${rawConfidence} — skipping trade`);
-      emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: 'invalid_confidence', confidencePct: rawConfidence });
+      emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, positionEffect, reason: 'invalid_confidence', confidencePct: rawConfidence });
       return blockedReturn('invalid_confidence', { confidencePct: rawConfidence });
     }
     // decision.confidence comes as percentage (e.g., 75 = 75%), convert to decimal
@@ -2544,6 +2556,7 @@ class OrderExecutor {
           signalId,
           symbol,
           action: decision.action,
+          positionEffect,
           reason: 'low_confidence',
           confidencePct: rawConfidence,
           minConfidencePct: minTradeConfidence * 100,
@@ -2602,7 +2615,7 @@ class OrderExecutor {
     if (decision.action === 'BUY') {
       if (!orchResult) {
         console.error('[HALT] orchResult absent on BUY — refusing entry (no winner strategy, no exit contract)');
-        emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: 'missing_orch_result' });
+        emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, positionEffect, reason: 'missing_orch_result' });
         return blockedReturn('missing_orch_result');
       }
       if (!orchResult.winnerStrategy) {
@@ -2615,7 +2628,7 @@ class OrderExecutor {
     if (decision.action === 'SELL_SHORT') {
       if (!orchResult) {
         console.error('[HALT] orchResult absent on SELL_SHORT — refusing entry (no winner strategy, no exit contract)');
-        emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: 'missing_orch_result' });
+        emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, positionEffect, reason: 'missing_orch_result' });
         return blockedReturn('missing_orch_result');
       }
       if (!orchResult.winnerStrategy) {
@@ -2651,6 +2664,7 @@ class OrderExecutor {
         signalId,
         symbol,
         action: decision.action,
+        positionEffect,
         reason: blockReason,
         quantityUnit: entryPlan.quantityUnit,
         orderQuantity: entryPlan.orderQuantity,
@@ -2673,6 +2687,7 @@ class OrderExecutor {
           signalId,
           symbol,
           action: entryPlan.action,
+          positionEffect,
           ...concurrencyBlock,
         });
         return blockedReturn(concurrencyBlock.reason, concurrencyBlock);
@@ -2684,6 +2699,7 @@ class OrderExecutor {
         signalId,
         symbol,
         action: entryPlan.action,
+        positionEffect,
         side: entryPlan.side,
         sizeUsd: entryPlan.sizeUsd,
         orderQuantity: entryPlan.orderQuantity,
@@ -2712,6 +2728,7 @@ class OrderExecutor {
         signalId,
         symbol,
         action: entryPlan.action,
+        positionEffect,
         allowed: gateResult?.allowed !== false,
         failedRules: Array.isArray(gateResult?.failedRules) ? gateResult.failedRules.map(rule => rule.ruleId || rule) : [],
         passedRules: gateResult?.passedRules || [],
@@ -2723,7 +2740,7 @@ class OrderExecutor {
           ? gateResult.failedRules.map(rule => rule.ruleId || rule).join(',')
           : (gateResult.reason || 'pre_order_entry_gate');
         console.warn(`[ENTRY-GATE] BLOCKED ${entryPlan.action} ${symbol} before broker/webhook/state side effects: ${failed}`);
-        emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: entryPlan.action, reason: 'eval_rule_gate', failedRules: failed });
+        emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: entryPlan.action, positionEffect, reason: 'eval_rule_gate', failedRules: failed });
         return blockedReturn('eval_rule_gate', { failedRules: failed });
       }
     }
@@ -2738,7 +2755,7 @@ class OrderExecutor {
       const routeName = isLiveBrokerRoute ? 'broker' : (shouldPlanWebhookExit ? 'webhook' : 'execution');
       console.error(`[ORDER-PLAN] ${haltReason} for ${symbol} before ${routeName} route`);
       console.error(`[ORDER-PLAN] ${haltReason} is telemetry-only; not persisting a symbol entry halt`);
-      emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: haltReason });
+      emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, positionEffect, reason: haltReason });
       return blockedReturn(haltReason);
     }
     const brokerOrderPlan = entryPlan || exitPlan;
@@ -2751,6 +2768,7 @@ class OrderExecutor {
           signalId,
           symbol,
           action: decision.action,
+          positionEffect,
           reason: webhookBlockReason,
           route: 'webhook',
           orderQuantity: brokerOrderPlan?.orderQuantity ?? null,
@@ -2815,6 +2833,7 @@ class OrderExecutor {
           signalId,
           symbol,
           action: decision.action,
+          positionEffect,
           reason: 'exit_intent_not_reserved',
           detail: reason,
           tradeId: exitPlan.tradeId,
@@ -2884,6 +2903,7 @@ class OrderExecutor {
             signalId,
             symbol,
             action: decision.action,
+            positionEffect,
             reason: tradeResult.reason,
             route: 'webhook',
             stateMutationSucceeded: false,
@@ -2896,6 +2916,7 @@ class OrderExecutor {
             decisionId,
             symbol,
             action: decision.action,
+            positionEffect,
             reason: 'broker_flat_no_open_position',
             responseBody,
           });
@@ -2913,6 +2934,7 @@ class OrderExecutor {
               signalId,
               symbol,
               action: decision.action,
+              positionEffect,
               success: true,
               operation: 'reconcileBrokerFlat',
               orderId: exitPlan.tradeId,
@@ -2932,6 +2954,7 @@ class OrderExecutor {
               signalId,
               symbol,
               action: decision.action,
+              positionEffect,
               success: false,
               operation: 'reconcileBrokerFlat',
               orderId: exitPlan.tradeId,
@@ -2962,6 +2985,7 @@ class OrderExecutor {
             decisionId,
             symbol,
             action: decision.action,
+            positionEffect,
             orderId: localOrderId,
             route: 'webhook',
             responseBody,
@@ -2984,6 +3008,7 @@ class OrderExecutor {
             brokerFillStatus: null,
             responseBody,
             action: decision.action,
+            positionEffect,
             symbol,
             price,
             amount: brokerOrderPlan.sizeUsd,
@@ -3018,6 +3043,7 @@ class OrderExecutor {
             decisionId,
             symbol,
             action: decision.action,
+            positionEffect,
             localOrderId,
             route: 'webhook',
             responseBody: tradeResult.responseBody,
@@ -3081,6 +3107,8 @@ class OrderExecutor {
             traceId,
             signalId,
             symbol,
+            action: decision.action,
+            positionEffect,
             side,
             amount: brokerOrderPlan.orderQuantity,
             quantityUnit: brokerOrderPlan.quantityUnit,
@@ -3119,6 +3147,8 @@ class OrderExecutor {
             traceId,
             signalId,
             symbol,
+            action: decision.action,
+            positionEffect,
             success: true,
             orderId: tradeResult.orderId,
             orderAccepted: true,
@@ -3135,6 +3165,8 @@ class OrderExecutor {
             traceId,
             signalId,
             symbol,
+            action: decision.action,
+            positionEffect,
             success: false,
             orderAccepted: false,
             stateMutationSucceeded: null,
@@ -3171,6 +3203,7 @@ class OrderExecutor {
         const unifiedResult = {
           orderId: tradeResult.orderId,
           action: decision.action,
+          positionEffect,
           traceId,
           signalId,
           decisionId,
@@ -3290,6 +3323,7 @@ class OrderExecutor {
             orderId: unifiedResult.orderId,
             action: 'BUY',
             direction: 'long',
+            positionEffect,
             confidence: decision.confidence,
             patterns: patterns || [],
             entryIndicators: indicators,
@@ -3348,6 +3382,7 @@ class OrderExecutor {
 	            signalId,
 	            symbol,
 	            action: decision.action,
+              positionEffect,
               success: false,
               operation: 'openPosition',
               error: positionResult.error,
@@ -3371,6 +3406,7 @@ class OrderExecutor {
             signalId,
             symbol,
             action: decision.action,
+            positionEffect,
             success: true,
             operation: 'openPosition',
             orderId: unifiedResult.orderId,
@@ -3428,6 +3464,7 @@ class OrderExecutor {
             const sentDashboardTrade = this._broadcastDashboardTrade({
               action: 'BUY',
               direction: 'long',
+              positionEffect,
               symbol,
               price: price,
               pnl: 0,  // No P&L on entry
@@ -3443,6 +3480,7 @@ class OrderExecutor {
           // CC-SPEC-EVAL-CAPTURE (2/3): forensic identity for entry/exit pairing
           TradingProofLogger.trade({
             action: 'BUY',
+            positionEffect,
             symbol,
             price: price,
             size: adjustedPositionSize,
@@ -3510,6 +3548,7 @@ class OrderExecutor {
             confidence: decision.confidence,
             direction: 'short',
             action: 'SELL_SHORT',
+            positionEffect,
             patterns: patterns || [],
             entryIndicators: indicators,
             entryTime: this.ctx.marketData?.timestamp ?? Date.now(),
@@ -3565,6 +3604,7 @@ class OrderExecutor {
 	            signalId,
 	            symbol,
 	            action: decision.action,
+              positionEffect,
               success: false,
               operation: 'openPosition',
               error: positionResult.error,
@@ -3585,6 +3625,7 @@ class OrderExecutor {
             signalId,
             symbol,
             action: decision.action,
+            positionEffect,
             success: true,
             operation: 'openPosition',
             orderId: unifiedResult.orderId,
@@ -3638,6 +3679,7 @@ class OrderExecutor {
             const sentDashboardTrade = this._broadcastDashboardTrade({
               action: 'SELL_SHORT',
               direction: 'short',
+              positionEffect,
               symbol,
               price: price,
               pnl: 0,
@@ -3653,6 +3695,7 @@ class OrderExecutor {
           // CC-SPEC-EVAL-CAPTURE (2/3): forensic identity for entry/exit pairing
           TradingProofLogger.trade({
             action: 'SELL_SHORT',
+            positionEffect,
             symbol,
             price: price,
             size: adjustedPositionSize,
@@ -3714,7 +3757,7 @@ class OrderExecutor {
 
             const haltReason = 'KILL-5: SELL with no matching BUY';
             console.error(`[KILL-5-MITIGATION] ${haltReason} for ${symbol}; not persisting a symbol entry halt`);
-            emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: haltReason });
+            emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, positionEffect, reason: haltReason });
             return blockedReturn(haltReason);
           }
 
@@ -3791,6 +3834,7 @@ class OrderExecutor {
             if (this.ctx.backtestRecorder) {
               this.ctx.backtestRecorder.recordTrade({
                 tradeId: buyTrade.orderId || buyTrade.id || decision.tradeId || null,
+                positionEffect,
                 entryTime: buyTrade.entryTime ? new Date(buyTrade.entryTime).toISOString() : '',
                 exitTime: exitTimestamp ? new Date(exitTimestamp).toISOString() : '',
                 direction: 'long',
@@ -3895,6 +3939,7 @@ class OrderExecutor {
                   decisionId,
                   symbol,
                   action: decision.action,
+                  positionEffect,
                 });
               }
               emitTrace(this.ctx, 'STATE_MUTATION', {
@@ -3902,6 +3947,7 @@ class OrderExecutor {
                 signalId,
                 symbol,
                 action: decision.action,
+                positionEffect,
                 success: false,
                 operation: 'applyFill',
                 orderId: buyTrade.orderId,
@@ -3926,6 +3972,7 @@ class OrderExecutor {
               signalId,
               symbol,
               action: decision.action,
+              positionEffect,
               success: true,
               operation: 'applyFill',
               orderId: buyTrade.orderId,
@@ -3975,6 +4022,7 @@ class OrderExecutor {
               const sentDashboardTrade = this._broadcastDashboardTrade({
                 action: 'SELL',
                 direction: 'long',
+                positionEffect,
                 symbol,
                 price: price,
                 pnl: completeTradeResult.pnlDollars,
@@ -3991,6 +4039,7 @@ class OrderExecutor {
             // CC-SPEC-EVAL-CAPTURE (2/3): forensic identity for entry/exit pairing
             TradingProofLogger.trade({
               action: 'SELL',
+              positionEffect,
               symbol,
               price: price,
               size: usdAmount,
@@ -4120,6 +4169,7 @@ class OrderExecutor {
                 // Basic trade info
                 type: 'SELL',
                 action: 'SELL',
+                positionEffect,
                 orderId: buyTrade.orderId,
                 tradeId: buyTrade.orderId,
                 direction: 'long',
@@ -4283,7 +4333,7 @@ class OrderExecutor {
             console.log(`   Active trades for ${symbol}:`, symbolTrades.map(t => ({ id: t.orderId, action: t.action, price: t.entryPrice })));
             const haltReason = 'KILL-5: COVER with no matching SELL_SHORT';
             console.error(`[KILL-5-MITIGATION] ${haltReason} for ${symbol}; not persisting a symbol entry halt`);
-            emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: haltReason });
+            emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, positionEffect, reason: haltReason });
             return blockedReturn(haltReason);
           }
 
@@ -4359,6 +4409,7 @@ class OrderExecutor {
           if (this.ctx.backtestRecorder) {
             this.ctx.backtestRecorder.recordTrade({
               tradeId: shortTrade.orderId || shortTrade.id || decision.tradeId || null,
+              positionEffect,
               entryTime: shortTrade.entryTime ? new Date(shortTrade.entryTime).toISOString() : '',
               exitTime: exitTimestamp ? new Date(exitTimestamp).toISOString() : '',
               direction: 'short',
@@ -4455,6 +4506,7 @@ class OrderExecutor {
                 decisionId,
                 symbol,
                 action: decision.action,
+                positionEffect,
               });
             }
             emitTrace(this.ctx, 'STATE_MUTATION', {
@@ -4462,6 +4514,7 @@ class OrderExecutor {
               signalId,
               symbol,
               action: decision.action,
+              positionEffect,
               success: false,
               operation: 'applyFill',
               orderId: shortTrade.orderId,
@@ -4484,6 +4537,7 @@ class OrderExecutor {
             signalId,
             symbol,
             action: decision.action,
+            positionEffect,
             success: true,
             operation: 'applyFill',
             orderId: shortTrade.orderId,
@@ -4516,6 +4570,7 @@ class OrderExecutor {
             const sentDashboardTrade = this._broadcastDashboardTrade({
               action: 'COVER',
               direction: 'short',
+              positionEffect,
               symbol,
               price: price,
               pnl: completeTradeResult.pnlDollars,
@@ -4532,6 +4587,7 @@ class OrderExecutor {
             this.ctx.logTrade({
               type: 'COVER',
               action: 'COVER',
+              positionEffect,
               orderId: shortTrade.orderId,
               tradeId: shortTrade.orderId,
               direction: 'short',
@@ -4588,6 +4644,7 @@ class OrderExecutor {
           // bug). isPartialClose:false reflects actual behavior; revisit when that bug is fixed.
           TradingProofLogger.trade({
             action: 'COVER',
+            positionEffect,
             symbol,
             price: price,
             size: shortSize,
@@ -4742,6 +4799,7 @@ class OrderExecutor {
         // Record in performance analyzer
         const performanceData = {
           type: decision.action,
+          positionEffect,
           price,
           size: tradeResult.amount ?? positionSize,
           confidence: decision.confidence,
@@ -4785,6 +4843,7 @@ class OrderExecutor {
               signalId,
               symbol,
               action: decision.action,
+              positionEffect,
               success: false,
               operation: 'releaseExitSlot',
               orderId: exitPlan.tradeId,
@@ -4806,6 +4865,7 @@ class OrderExecutor {
           signalId,
           symbol,
           action: decision.action,
+          positionEffect,
           reason: blockReason,
         });
         return blockedReturn(blockReason, {
@@ -4841,6 +4901,7 @@ class OrderExecutor {
           signalId,
           symbol,
           action: decision?.action || null,
+          positionEffect,
           message: error.message,
           failLoud: true,
         });
@@ -4857,6 +4918,7 @@ class OrderExecutor {
         signalId,
         symbol,
         action: decision?.action || null,
+        positionEffect,
         message: error.message,
       });
       return blockedReturn('order_exception', { message: error.message, orderAccepted: false });

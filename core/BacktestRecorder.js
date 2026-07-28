@@ -16,6 +16,7 @@ const fs = require('fs');
 const path = require('path');
 const ConfigLoader = require('../foundation/ConfigLoader');
 const FeeModel = require('./FeeModel');
+const { exitPositionEffectForDirection } = require('./PositionEffect');
 
 class BacktestRecorder {
     static finiteNumberOrNull(value) {
@@ -36,6 +37,21 @@ class BacktestRecorder {
         } catch (_) {
             return null;
         }
+    }
+
+    static closedTradeDirectionOrNull(trade) {
+        const rawDirection = BacktestRecorder.cleanTextOrNull(trade?.direction)?.toLowerCase();
+        let directionFromField = null;
+        if (rawDirection === 'long' || rawDirection === 'buy') directionFromField = 'long';
+        if (rawDirection === 'short' || rawDirection === 'sell' || rawDirection === 'sell_short') directionFromField = 'short';
+        const rawAction = BacktestRecorder.cleanTextOrNull(trade?.action)?.toUpperCase();
+        let directionFromAction = null;
+        if (rawAction === 'SELL') directionFromAction = 'long';
+        if (rawAction === 'COVER') directionFromAction = 'short';
+        if (rawAction && !directionFromAction) return null;
+        if (directionFromField && directionFromAction && directionFromField !== directionFromAction) return null;
+
+        return directionFromField || directionFromAction;
     }
 
     static winnerAttributionFromSignalBreakdown(signalBreakdown, strategyName) {
@@ -153,6 +169,10 @@ class BacktestRecorder {
         const tradeScope = BacktestRecorder.validateTradeScope(trade, 'BacktestRecorder.recordTrade');
         const entryPrice = trade.entryPrice || 0;
         const exitPrice = trade.exitPrice || 0;
+        const direction = BacktestRecorder.closedTradeDirectionOrNull(trade);
+        if (!direction) {
+            throw new Error(`[POSITION-EFFECT] BacktestRecorder.recordTrade requires closed trade direction or close action (got direction=${trade?.direction}, action=${trade?.action})`);
+        }
 
         // Calculate raw P&L using percentage-based math
         // MED-14: throw on non-positive entryPrice instead of logging \$0 P&L.
@@ -168,7 +188,7 @@ class BacktestRecorder {
             ? entryPrice * closedOrderQuantity
             : (trade.size || trade.sizeUsd || 1);
         let rawPnlDollars;
-        if (trade.direction === 'long' || trade.direction === 'buy') {
+        if (direction === 'long') {
             // Long: profit when price goes UP
             rawPnlDollars = positionSizeUsd * ((exitPrice - entryPrice) / entryPrice);
         } else {
@@ -240,13 +260,15 @@ class BacktestRecorder {
             ?? trade.maxDrawdownPercent
             ?? trade.maxAdverseExcursion
         );
+        const positionEffect = exitPositionEffectForDirection(direction);
 
         const record = {
             tradeNumber: this.trades.length + 1,
             tradeId: BacktestRecorder.cleanTextOrNull(trade.tradeId ?? trade.orderId ?? trade.id),
             entryTime: trade.entryTime || trade.entryCandle?.time || '',
             exitTime: trade.exitTime || trade.exitCandle?.time || '',
-            direction: trade.direction || 'unknown',
+            direction,
+            positionEffect,
             entryPrice: trade.entryPrice || 0,
             exitPrice: trade.exitPrice || 0,
             stopLoss: trade.stopLoss || trade.exitContract?.stopLoss || 0,
@@ -413,6 +435,7 @@ class BacktestRecorder {
             'entry_time',
             'exit_time',
             'direction',
+            'position_effect',
             'entry_price',
             'exit_price',
             'stop_loss',
@@ -473,6 +496,7 @@ class BacktestRecorder {
             t.entryTime,
             t.exitTime,
             t.direction,
+            t.positionEffect ?? '',
             t.entryPrice.toFixed(2),
             t.exitPrice.toFixed(2),
             t.stopLoss,

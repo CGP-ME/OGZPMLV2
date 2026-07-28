@@ -201,6 +201,7 @@ describe('campaign integrity validator', () => {
         executionMode: 'backtest',
         entryPrice: 100,
         direction: 'long',
+        positionEffect: 'open_long',
         strategySignals: [{
           name: 'RSI',
           direction: 'long',
@@ -239,7 +240,6 @@ describe('campaign integrity validator', () => {
         },
         riskGates: [
           { gate: 'direction_filter', threshold: 'both', value: 'buy', passed: true },
-          { gate: 'shorts_enabled', threshold: true, value: 'not_applicable', passed: true },
           { gate: 'same_direction_block', threshold: null, value: 'buy', passed: true },
         ],
       })}\n`);
@@ -283,6 +283,81 @@ describe('campaign integrity validator', () => {
     });
   });
 
+  test('fails decision-ledger JSONL rows with missing or null positionEffect', () => {
+    withTempDir(dir => {
+      const dataFile = writeJson(dir, 'candles.json', [
+        { timestamp: 1000, close: 100 },
+        { timestamp: 2000, close: 101 },
+        { timestamp: 3000, close: 102 },
+      ]);
+      fs.mkdirSync(path.join(dir, 'ledger'), { recursive: true });
+      const baseRow = {
+        tradeId: 'SIM_POSITION_EFFECT',
+        candleTimestamp: 1000,
+        symbol: 'TSLA',
+        timeframe: '15m',
+        executionMode: 'backtest',
+        entryPrice: 100,
+        direction: 'long',
+        positionEffect: 'open_long',
+        strategySignals: [{
+          name: 'RSI',
+          direction: 'long',
+          baseConfidence: 0.65,
+          reason: 'RSI Oversold',
+        }],
+        orchestratorDecision: {
+          winnerStrategy: 'RSI',
+          finalConfidence: 0.65,
+          reason: 'RSI selected',
+        },
+        positionSizing: {
+          basePercent: 0.05,
+          confidenceMultiplier: 1,
+          confluenceMultiplier: 1,
+          finalPercent: 0.05,
+          finalSizeUsd: 250,
+          formula: 'test',
+        },
+        exitContract: {
+          stopLossPercent: -0.8,
+          takeProfitPercent: 1,
+          strategyName: 'RSI',
+        },
+      };
+      const missingPositionEffect = { ...baseRow, tradeId: 'SIM_MISSING_EFFECT' };
+      delete missingPositionEffect.positionEffect;
+      const nullPositionEffect = { ...baseRow, tradeId: 'SIM_NULL_EFFECT', positionEffect: null };
+      fs.writeFileSync(
+        path.join(dir, 'ledger', 'decisions_2026-07-03.jsonl'),
+        `${JSON.stringify(missingPositionEffect)}\n${JSON.stringify(nullPositionEffect)}\n`
+      );
+      const reportPath = writeJson(dir, 'worker.json', workerReport({
+        summary: {
+          startingBalance: 10000,
+          finalBalance: 10008,
+          totalTrades: 2,
+          candlesProcessed: 3,
+        },
+        metrics: { totalTrades: 2 },
+        trades: [
+          { ...workerReport().trades[0], tradeId: 'SIM_MISSING_EFFECT' },
+          { ...workerReport().trades[0], tradeId: 'SIM_NULL_EFFECT' },
+        ],
+      }));
+      const matrixPath = writeJson(dir, 'matrix.json', {
+        dataFile,
+        results: [{ name: 'RSI', strategy: 'RSI', trades: 2, reportPath }],
+      });
+
+      const result = validateMatrixRun({ matrixReportPath: matrixPath, outputDir: dir, dataParityStamp: greenDataParity(dataFile) });
+
+      expect(result.status).toBe('FAILED-INTEGRITY');
+      expect(result.checks.schema).toBe(false);
+      expect(result.details.schema.errors.join('\n')).toContain('positionEffect');
+    });
+  });
+
   test('fails orphan decision-ledger groups inside a current scoped ledger file', () => {
     withTempDir(dir => {
       const dataFile = writeJson(dir, 'candles.json', [
@@ -299,6 +374,7 @@ describe('campaign integrity validator', () => {
         executionMode: 'backtest',
         entryPrice: 100,
         direction: 'long',
+        positionEffect: 'open_long',
         strategySignals: [{ name: 'RSI', direction: 'long', baseConfidence: 0.65, reason: 'RSI Oversold' }],
         orchestratorDecision: { winnerStrategy: 'RSI', finalConfidence: 0.65, reason: 'RSI selected' },
         positionSizing: {
@@ -351,6 +427,7 @@ describe('campaign integrity validator', () => {
         executionMode: 'backtest',
         entryPrice: 100,
         direction: 'long',
+        positionEffect: 'open_long',
         strategySignals: [{ name: 'RSI', direction: 'long', baseConfidence: 0.65, reason: 'RSI Oversold' }],
         orchestratorDecision: { winnerStrategy: 'RSI', finalConfidence: 0.65, reason: 'RSI selected' },
         positionSizing: {
@@ -403,6 +480,7 @@ describe('campaign integrity validator', () => {
         executionMode: 'backtest',
         entryPrice: 100,
         direction: 'long',
+        positionEffect: 'open_long',
         strategySignals: [{ name: 'RSI', direction: 'long', baseConfidence: 0.65, reason: 'RSI Oversold' }],
         orchestratorDecision: { winnerStrategy: 'RSI', finalConfidence: 0.65, reason: 'RSI selected' },
         positionSizing: {
@@ -519,6 +597,7 @@ describe('campaign integrity validator', () => {
         executionMode: 'backtest',
         entryPrice: 100,
         direction: 'long',
+        positionEffect: 'open_long',
         strategySignals: [{ name: 'RSI', direction: 'long', baseConfidence: 0.65, reason: 'RSI Oversold' }],
         orchestratorDecision: { winnerStrategy: 'RSI', finalConfidence: 0.65, reason: 'RSI selected' },
         positionSizing: {
@@ -543,6 +622,7 @@ describe('campaign integrity validator', () => {
         executionMode: 'backtest',
         entryPrice: 100,
         direction: 'long',
+        positionEffect: 'open_long',
         strategySignals: [{ name: 'RSI', direction: 'long', baseConfidence: 0.65, reason: 'RSI Oversold' }],
         orchestratorDecision: { winnerStrategy: 'RSI', finalConfidence: 0.65, reason: 'RSI selected' },
         positionSizing: {
@@ -566,6 +646,7 @@ describe('campaign integrity validator', () => {
           exitOrderQuantity: 2.5,
           remainingOrderQuantity: 0,
           exitPrice: 101,
+          positionEffect: 'close_long',
           exitReason: 'session_end',
           rawExitReason: 'BACKTEST_END_CLOSE',
           realizedPnL: 2.5,
@@ -581,6 +662,7 @@ describe('campaign integrity validator', () => {
           exitFee: 0,
           netPnlDollars: 2.5,
           exitReason: 'session_end',
+          positionEffect: 'close_long',
           holdTimeMs: 2000,
         },
       })}\n`);

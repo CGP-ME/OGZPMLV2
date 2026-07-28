@@ -80,6 +80,7 @@ const { getNarrator } = require('./TradeNarrator');
 const FeeModel = require('./FeeModel');
 const { assertExplicitExitOwnership } = require('./dto/ExitContractOwnership');
 const { freezePolicy } = require('./dto/FrozenExitPolicy');
+const { positionEffectFromAction, exitPositionEffectForDirection } = require('./PositionEffect');
 // Cache singleton at module load — narrator.enabled is sealed from env vars.
 // Both hook sites (openPosition / closePosition) check cached narrator.enabled
 // first; try frame only entered when enabled (C1 zero-cost when OFF).
@@ -906,6 +907,7 @@ class StateManager {
       ? { ...context, frozenExitPolicy: freezePolicy(context.frozenExitPolicy) }
       : context;
     const profitStopPrice = initialProfitStopPrice(price, tradeDirection, stateContext.exitContract);
+    const positionEffect = positionEffectFromAction(tradeAction);
 
     const trade = {
       id: tradeId,
@@ -921,6 +923,7 @@ class StateManager {
       timestamp: Date.now(),
       status: 'open',
       ...stateContext,
+      positionEffect,
       ...initialExitLifecycleFields(stateContext.frozenExitPolicy || null),
       maxProfitPercent: 0,
       maxFavorableExcursionPercent: 0,
@@ -962,6 +965,7 @@ class StateManager {
           executionMode: tradeScope.executionMode,
           entryPrice: price,
           direction: tradeDirection,
+          positionEffect,
           strategySignals: context.ledgerData.strategySignals,
           orchestratorDecision: context.ledgerData.orchestratorDecision,
           confluence: context.ledgerData.confluence,
@@ -1231,6 +1235,7 @@ class StateManager {
       const tradeSizeUsd = trade.sizeUsd || trade.size;
       const tradeDirection = trade.direction;
       const isShort = tradeDirection === 'short';
+      const positionEffect = exitPositionEffectForDirection(tradeDirection);
       const closeSize = Math.abs(tradeSizeUsd);
 
       // CRITICAL: PnL depends on direction, using TRADE's entryPrice
@@ -1288,6 +1293,7 @@ class StateManager {
           outcome: {
             exitPrice: price,
             exitTime: closedAt,
+            positionEffect,
             pnlDollars: pnl,
             pnlPercent,
             exitFee,
@@ -1317,6 +1323,7 @@ class StateManager {
         pnl,
         pnlPercent,
         direction: tradeDirection,
+        positionEffect,
         entryPrice: tradeEntryPrice,
         exitPrice: price,
         strategy: tradeStrategy,
@@ -1349,6 +1356,7 @@ class StateManager {
         pnl,
         partial,
         ...context,
+        positionEffect,
         symbolEntryHaltsMutationToken: cooldownUpdates.symbolEntryHalts
           ? SYMBOL_ENTRY_HALTS_MUTATION_TOKEN
           : undefined,
@@ -1358,6 +1366,7 @@ class StateManager {
         tradeId,
         strategy: tradeStrategy,
         direction: tradeDirection,
+        positionEffect,
         entryPrice: tradeEntryPrice,
         exitPrice: price,
         pnl,
@@ -1478,6 +1487,7 @@ class StateManager {
       const closeSize = tradeSizeUsd * fraction;
       const tradeEntryPrice = trade.entryPrice;
       const isShort = trade.direction === 'short';
+      const positionEffect = exitPositionEffectForDirection(trade.direction);
       const priceChangePercent = isShort
         ? (tradeEntryPrice > 0 ? (tradeEntryPrice - price) / tradeEntryPrice : 0)
         : (tradeEntryPrice > 0 ? (price - tradeEntryPrice) / tradeEntryPrice : 0);
@@ -1533,6 +1543,7 @@ class StateManager {
           exitOrderQuantity: hasClosedBrokerQuantity ? closedOrderQuantity : null,
           remainingOrderQuantity,
           exitPrice: price,
+          positionEffect,
           exitReason: firstNonEmptyString(context.exitReason, context.reason),
           netPnlDollars: netRealizedResult,
           timestamp: Date.now()
@@ -1562,7 +1573,8 @@ class StateManager {
         price,
         pnl,
         netRealizedResult,
-        ...context
+        ...context,
+        positionEffect
       });
     } finally {
       this.releaseLock();
@@ -2652,6 +2664,7 @@ class StateManager {
         ? 0
         : computedRemainingQuantity * tradeEntryPrice;
       const isShort = trade.direction === 'short';
+      const positionEffect = exitPositionEffectForDirection(trade.direction);
       const pnl = isShort
         ? closedEntryNotionalUsd - filledSizeUsd
         : filledSizeUsd - closedEntryNotionalUsd;
@@ -2670,6 +2683,7 @@ class StateManager {
             exitOrderQuantity: filledQuantity,
             remainingOrderQuantity: computedRemainingQuantity,
             exitPrice: fillPrice,
+            positionEffect,
             exitReason,
             rawExitReason,
             realizedPnL: netRealizedResult,
@@ -2705,6 +2719,7 @@ class StateManager {
             outcome: {
               exitPrice: fillPrice,
               exitTime: confirmedAtMs,
+              positionEffect,
               pnlDollars: pnl,
               pnlPercent,
               exitFee: fee,
@@ -2721,6 +2736,7 @@ class StateManager {
           pnl,
           pnlPercent,
           direction: trade.direction,
+          positionEffect,
           entryPrice: trade.entryPrice,
           exitPrice: fillPrice,
           strategy: firstNonEmptyString(trade.entryStrategy, trade.strategy),
@@ -2817,6 +2833,7 @@ class StateManager {
         filledQuantityUnit,
         filledSizeUsd,
         fillPrice,
+        positionEffect,
         fee,
         pnl,
         netRealizedResult,
@@ -2845,6 +2862,7 @@ class StateManager {
         intentId,
         filledQuantity,
         remainingOrderQuantity: computedRemainingQuantity,
+        positionEffect,
         pnl,
         netRealizedResult,
       };

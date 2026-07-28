@@ -591,7 +591,6 @@ describe('TradingLoop trace spine', () => {
       'warmup',
       'min_confidence',
       'direction_filter',
-      'shorts_enabled',
       'opposite_position_block',
       'max_positions',
     ]));
@@ -777,7 +776,6 @@ describe('TradingLoop trace spine', () => {
       'warmup',
       'min_confidence',
       'direction_filter',
-      'shorts_enabled',
       'opposite_position_block',
       'max_positions',
       'daily_loss_limit',
@@ -792,11 +790,10 @@ describe('TradingLoop trace spine', () => {
     gateNarratorSpy.mockRestore();
   });
 
-  test('blocks short entries when ENABLE_SHORTS is false even if DIRECTION_FILTER is both', async () => {
+  test('allows short entries when DIRECTION_FILTER is both', async () => {
     const configSpy = mockDirectionConfig({ directionFilter: 'both', enableShorts: false });
     try {
       const ctx = baseEntryContext();
-      ctx.config.evalTraceEnabled = true;
       ctx.strategyOrchestrator.evaluate = jest.fn(() => ({
         direction: 'sell',
         confidence: 80,
@@ -809,59 +806,22 @@ describe('TradingLoop trace spine', () => {
       const loop = new TradingLoop(ctx);
       stubGatherData(loop);
 
-      await loop._analyze('TSLA', 'trace_shorts_disabled_1');
-
-      expect(ctx.executeTrade).not.toHaveBeenCalled();
-      expect(loop._runTRAI).not.toHaveBeenCalled();
-      const skipEvent = sentFrames(ctx).find(frame => frame.type === 'trace_event' && frame.event === 'DECISION_SKIP');
-      expect(skipEvent).toEqual(expect.objectContaining({
-        traceId: 'trace_shorts_disabled_1',
-        symbol: 'TSLA',
-      }));
-      expect(skipEvent.fields).toEqual(expect.objectContaining({
-        reason: 'shorts_disabled',
-        filter: 'both',
-        enableShorts: false,
-        direction: 'sell',
-        finalDirection: 'sell',
-        confidencePct: 80,
-        minConfidencePct: 50,
-      }));
-    } finally {
-      configSpy.mockRestore();
-    }
-  });
-
-  test('allows short entries when ENABLE_SHORTS is true and DIRECTION_FILTER is both', async () => {
-    const configSpy = mockDirectionConfig({ directionFilter: 'both', enableShorts: true });
-    try {
-      const ctx = baseEntryContext();
-      ctx.strategyOrchestrator.evaluate = jest.fn(() => ({
-        direction: 'sell',
-        confidence: 80,
-        winnerStrategy: 'RSI',
-        allResults: [{ strategyName: 'RSI', direction: 'sell', confidence: 0.8, reason: 'test short signal' }],
-        exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1 },
-        confluence: { count: 1, strategies: ['RSI'] },
-        sizingMultiplier: 1,
-      }));
-      const loop = new TradingLoop(ctx);
-      stubGatherData(loop);
-
-      await loop._analyze('TSLA', 'trace_shorts_enabled_1');
+      await loop._analyze('TSLA', 'trace_direction_both_short_1');
 
       expect(ctx.executeTrade).toHaveBeenCalledTimes(1);
       const decision = ctx.executeTrade.mock.calls[0][0];
       expect(decision).toEqual(expect.objectContaining({
         action: 'SELL_SHORT',
         direction: 'short',
-        traceId: 'trace_shorts_enabled_1',
+        positionEffect: 'open_short',
+        traceId: 'trace_direction_both_short_1',
       }));
-      const shortGate = decision.ledgerData.riskGates.find(g => g.gate === 'shorts_enabled');
-      expect(shortGate).toEqual({
-        gate: 'shorts_enabled',
-        threshold: true,
-        value: true,
+      expect(decision.ledgerData.positionEffect).toBe('open_short');
+      const directionGate = decision.ledgerData.riskGates.find(g => g.gate === 'direction_filter');
+      expect(directionGate).toEqual({
+        gate: 'direction_filter',
+        threshold: 'both',
+        value: 'sell',
         passed: true,
       });
     } finally {

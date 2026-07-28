@@ -30,6 +30,10 @@ const { getInstance: getExitContractManager } = require('./ExitContractManager')
 const CandlePatternDetector = require('./CandlePatternDetector');
 const { getNarrator } = require('./TradeNarrator');
 const { createTraceId, emitTrace } = require('./TraceSpine');
+const {
+  UNKNOWN_POSITION_EFFECT,
+  positionEffectFromAction,
+} = require('./PositionEffect');
 const { stampPatternMaturity } = require('./PatternMaturity');
 const DecisionAutopsyLogger = require('./DecisionAutopsyLogger');
 const flagManager = FeatureFlagManager.getInstance();
@@ -423,7 +427,6 @@ class TradingLoop {
       { gate: 'warmup', threshold: 15, value: priceHistory.length, passed: priceHistory.length >= 15 },
       { gate: 'min_confidence', threshold: minConfidence, value: confidence, passed: confidence >= minConfidence },
       { gate: 'direction_filter', threshold: directionFilter, value: finalDirection, passed: executionDirectionGate.filterPassed },
-      { gate: 'shorts_enabled', threshold: true, value: finalDirection === 'sell' ? enableShorts : 'not_applicable', passed: executionDirectionGate.shortsPassed },
       { gate: 'opposite_position_block', threshold: null, value: finalDirection, passed: !activeTrades.some(t => (finalDirection === 'buy' && (t.direction === 'short' || t.action === 'SELL_SHORT')) || (finalDirection === 'sell' && (t.direction === 'long' || t.action === 'BUY'))) },
       { gate: 'max_positions', threshold: maxPositions, value: activeTrades.length, passed: activeTrades.length < maxPositions },
       ...riskGates,
@@ -599,9 +602,6 @@ class TradingLoop {
     if (typeof directionFilter !== 'string' || !validFilters.has(directionFilter)) {
       throw new Error(`[DIRECTION-GATE] pipeline.directionFilter expected one of both,long_only,short_only; got ${JSON.stringify(directionFilter)}`);
     }
-    if (typeof enableShorts !== 'boolean') {
-      throw new Error(`[DIRECTION-GATE] features.enableShorts expected boolean, got ${typeof enableShorts} (${enableShorts})`);
-    }
     if (typeof direction !== 'string' || !validDirections.has(direction)) {
       throw new Error(`[DIRECTION-GATE] decision direction expected one of buy,sell,hold; got ${JSON.stringify(direction)}`);
     }
@@ -609,18 +609,22 @@ class TradingLoop {
     const filterBlocksLong = directionFilter === 'short_only' && direction === 'buy';
     const filterBlocksShort = directionFilter === 'long_only' && direction === 'sell';
     const filterPassed = !(filterBlocksLong || filterBlocksShort);
-    const shortsPassed = direction !== 'sell' || enableShorts === true;
-    const reason = filterPassed ? (shortsPassed ? null : 'shorts_disabled') : 'direction_filter';
+    const reason = filterPassed ? null : 'direction_filter';
 
     return {
-      allowed: filterPassed && shortsPassed,
+      allowed: filterPassed,
       reason,
       direction,
       directionFilter,
       enableShorts,
       filterPassed,
-      shortsPassed,
     };
+  }
+
+  _entryPositionEffect(direction) {
+    if (direction === 'buy') return positionEffectFromAction('BUY');
+    if (direction === 'sell') return positionEffectFromAction('SELL_SHORT');
+    return UNKNOWN_POSITION_EFFECT;
   }
 
   _runnerScope() {
@@ -858,9 +862,11 @@ class TradingLoop {
     if (!consistencyCheck.shouldExit) return null;
 
     const isClosingShort = this._isClosingShort(activeTrade);
+    const action = isClosingShort ? 'COVER' : 'SELL';
     return {
-      action: isClosingShort ? 'COVER' : 'SELL',
+      action,
       direction: 'close',
+      positionEffect: positionEffectFromAction(action),
       confidence: 100,
       exitReason: 'ttp_consistency_profit_cap',
       tradeId: activeTrade.id || activeTrade.orderId,
@@ -1271,6 +1277,7 @@ class TradingLoop {
       traceId,
       symbol,
       direction: tradingDirection,
+      positionEffect: this._entryPositionEffect(tradingDirection),
       confidencePct: orchResult.confidence,
       winnerStrategy: orchResult.winnerStrategy || null,
       candidateCount: Array.isArray(orchResult.allResults) ? orchResult.allResults.length : 0,
@@ -1319,6 +1326,7 @@ class TradingLoop {
         filter: directionFilter,
         enableShorts,
         direction: finalDirection,
+        positionEffect: this._entryPositionEffect(finalDirection),
         finalDirection,
         confidencePct: orchResult.confidence,
         minConfidencePct: minConfidence * 100,
@@ -1471,6 +1479,7 @@ class TradingLoop {
           decision = {
             action: isClosingShort ? 'COVER' : 'SELL',
             direction: 'close',
+            positionEffect: positionEffectFromAction(isClosingShort ? 'COVER' : 'SELL'),
             confidence: exitCheck.confidence || 100,
             exitReason: exitCheck.exitReason,
             exitFraction: exitCheck.exitFraction,
@@ -1582,6 +1591,10 @@ class TradingLoop {
       }
     }
 
+    if (decision.action !== 'HOLD') {
+      decision.positionEffect = positionEffectFromAction(decision.action);
+    }
+
     if (decision.action === 'HOLD') {
       const reasons = [];
       if (finalDirection === 'hold') reasons.push('hold_direction');
@@ -1671,6 +1684,7 @@ class TradingLoop {
         symbol,
         action: decision.action,
         direction: decision.direction || 'none',
+        positionEffect: positionEffectFromAction(decision.action),
         confidencePct: decision.confidence,
         winner: orchResult.winnerStrategy || 'none',
         exitContract: !!orchResult.exitContract
@@ -1678,7 +1692,7 @@ class TradingLoop {
       let riskGates = Array.isArray(decision.riskGates) ? decision.riskGates : [];
       if (isEntryAction) {
         // L5: Capture risk gates that were checked during entry evaluation.
-        // Pre-trade gates built here (warmup, min_confidence, direction_filter, shorts_enabled, opposite_position_block,
+        // Pre-trade gates built here (warmup, min_confidence, direction_filter, opposite_position_block,
         // max_positions). RiskManager contributes Trey drawdown-law and producer-validity gates
         // via decision.riskGates — appended below.
         riskGates = this._entryRiskGates(
@@ -1710,6 +1724,7 @@ class TradingLoop {
           assetClass: ledgerScope.assetClass || null,
           timeframe: ledgerScope.timeframe || null,
           executionMode: ledgerScope.executionMode || 'paper',
+          positionEffect: positionEffectFromAction(decision.action),
           traceId: decision.traceId,
           signalId: decision.signalId,
           // L2: every strategy that fired — winner AND losers with indicator values
@@ -1792,6 +1807,7 @@ class TradingLoop {
           symbol,
           action: executionDecision.action,
           direction: executionDecision.direction || null,
+          positionEffect: positionEffectFromAction(executionDecision.action),
           confidencePct: executionDecision.confidence,
           winner: executionOrchResult.winnerStrategy || null,
           signalBasis: executionOrchResult.allResults?.find(r => r.strategyName === executionOrchResult.winnerStrategy)?.signalData?.signalBasis || null,
@@ -1818,6 +1834,7 @@ class TradingLoop {
         this._diag('EXECUTE_RETURN', {
           symbol,
           action: executionDecision.action,
+          positionEffect: positionEffectFromAction(executionDecision.action),
           success: executionSuccess,
           orderId: executionResult?.orderId || null,
           reason: executionReason,
@@ -1897,6 +1914,7 @@ class TradingLoop {
       return {
         action: mapped.action,
         direction: mapped.direction,
+        positionEffect: positionEffectFromAction(mapped.action),
         confidence: orchResult.confidence,
         riskLevel: riskAssessment.riskLevel,
         riskRecommendation: riskAssessment.recommendation,
@@ -1909,6 +1927,7 @@ class TradingLoop {
     return {
       action: mapped.action,
       direction: mapped.direction,
+      positionEffect: positionEffectFromAction(mapped.action),
       confidence: orchResult.confidence
     };
   }

@@ -14,6 +14,7 @@ function validLedger(overrides = {}) {
     executionMode: 'backtest',
     entryPrice: 100,
     direction: 'long',
+    positionEffect: 'open_long',
     strategySignals: [{
       name: 'MADynamicSR',
       direction: 'long',
@@ -59,6 +60,7 @@ describe('DecisionLedgerSchema', () => {
     'symbol',
     'timeframe',
     'executionMode',
+    'positionEffect',
     'strategySignals',
     'orchestratorDecision',
     'positionSizing',
@@ -73,6 +75,7 @@ describe('DecisionLedgerSchema', () => {
     expect(ledger.symbol).toBe('TSLA');
     expect(ledger.timeframe).toBe('15m');
     expect(ledger.executionMode).toBe('backtest');
+    expect(ledger.positionEffect).toBe('open_long');
     expect(ledger.orchestratorDecision.reason).toBe('test decision');
     expect(ledger.positionSizing.finalSizeUsd).toBe(10);
     expect(ledger.exitContract.strategyName).toBe('MADynamicSR');
@@ -82,6 +85,21 @@ describe('DecisionLedgerSchema', () => {
 
   test('throws validation issues for invalid explicit fields instead of coercing them', () => {
     expect(() => validLedger({ executionMode: 'simulated' })).toThrow('executionMode');
+  });
+
+  test('rejects malformed positionEffect instead of treating action as enough proof', () => {
+    expect(() => validLedger({ positionEffect: 'sell' })).toThrow('positionEffect');
+  });
+
+  test('rejects null positionEffect instead of writing unlabeled lifecycle evidence', () => {
+    expect(() => validLedger({ positionEffect: null })).toThrow('Decision ledger skeleton missing required field(s): positionEffect');
+  });
+
+  test('allows explicit unknown_effect when the translator cannot classify a verb', () => {
+    const ledger = validLedger({ positionEffect: 'unknown_effect' });
+
+    expect(ledger.positionEffect).toBe('unknown_effect');
+    expect(validateLedgerSkeleton(ledger).success).toBe(true);
   });
 
   test('validates indicatorValues records without throwing under zod v4', () => {
