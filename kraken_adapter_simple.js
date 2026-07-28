@@ -390,7 +390,7 @@ class KrakenAdapterSimple {
     return positions;
   }
 
-  // Alias for compatibility with ExchangeReconciler
+  // Balance shape used by broker reconciliation callers.
   async getBalance() {
     const balances = await this.getAccountBalance();
     let totalUSD = 0;
