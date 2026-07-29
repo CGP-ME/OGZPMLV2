@@ -107,7 +107,8 @@ require('./instrument.js');
 
 // ConfigLoader already loaded at line 4 (before Sentry)
 const envPath = resolvedConfig.config.paths.envFile;
-const { createTraceId, emitTrace } = require('./core/TraceSpine');
+const { createTraceId, emitTrace, subscribeTrace } = require('./core/TraceSpine');
+const { createNtfyTraceNotifier } = require('./core/NtfyTraceNotifier');
 const {
   DashboardDepthCoalescer,
   resolveDashboardDepthMinIntervalMs
@@ -1036,6 +1037,20 @@ class OGZPrimeV14Bot {
     this.dashboardWsConnected = false;
     // REFACTOR Phase 20: WebSocketManager - must be instantiated before initializeDashboardWebSocket call
     this.webSocketManager = new WebSocketManager(this);
+    this.ntfyTraceNotifier = null;
+    this._unsubscribeNtfyTrace = null;
+    const traceNotifierBacktestMode = resolvedConfig.config.mode?.backtest === true
+      || resolvedConfig.config.enableBacktestMode === true
+      || resolvedConfig.config.executionMode === 'backtest';
+    if (!traceNotifierBacktestMode) {
+      this.ntfyTraceNotifier = createNtfyTraceNotifier({ env: process.env, logger: console });
+      if (this.ntfyTraceNotifier) {
+        this._unsubscribeNtfyTrace = subscribeTrace((payload) => {
+          this.ntfyTraceNotifier.handleTraceEvent(payload);
+        });
+        console.log('[NTFY] Trace notifier installed');
+      }
+    }
     // CHANGE 661: Connect to dashboard WebSocket (defaults to localhost)
     // PIPELINE: Skip dashboard in backtest mode for faster runs
     if (this.pipeline.enableDashboard !== false) {

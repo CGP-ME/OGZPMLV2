@@ -5,6 +5,7 @@ const TRACE_EVENT_MAX_ARRAY_ITEMS = 100;
 const TRACE_EVENT_MAX_OBJECT_KEYS = 100;
 const TRACE_SCOPE_KEYS = ['symbol', 'timeframe', 'brokerId', 'accountId', 'assetClass', 'executionMode', 'scopeKey'];
 const TRACE_REQUIRED_SCOPE_KEYS = ['symbol', 'timeframe', 'brokerId', 'accountId', 'assetClass', 'executionMode'];
+const traceSubscribers = new Set();
 
 function createTraceId(prefix = 'trace', now = () => Date.now()) {
   const safePrefix = String(prefix || 'trace').replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -216,6 +217,54 @@ function resolveTraceEventMaxBufferedBytes(ctx) {
   return null;
 }
 
+function buildTraceEventPayload(ctx, event, fields, fieldsCoerced = false) {
+  const payloadFields = fieldsCoerced ? fields : coerceTraceFields(ctx, fields);
+
+  return {
+    type: 'trace_event',
+    timestamp: Date.now(),
+    event,
+    traceId: payloadFields.traceId || null,
+    signalId: payloadFields.signalId || null,
+    decisionId: payloadFields.decisionId || null,
+    symbol: firstTraceScopeField(payloadFields, 'symbol'),
+    timeframe: firstTraceScopeField(payloadFields, 'timeframe'),
+    brokerId: firstTraceScopeField(payloadFields, 'brokerId'),
+    accountId: firstTraceScopeField(payloadFields, 'accountId'),
+    assetClass: firstTraceScopeField(payloadFields, 'assetClass'),
+    executionMode: firstTraceScopeField(payloadFields, 'executionMode'),
+    scopeKey: firstTraceScopeField(payloadFields, 'scopeKey'),
+    action: payloadFields.action || null,
+    positionEffect: traceFieldValue(payloadFields, 'positionEffect'),
+    fields: payloadFields,
+  };
+}
+
+function notifyTraceSubscribers(ctx, event, fields, fieldsCoerced = false) {
+  if (traceSubscribers.size === 0) return;
+
+  const payload = buildTraceEventPayload(ctx, event, fields, fieldsCoerced);
+  for (const subscriber of traceSubscribers) {
+    try {
+      subscriber(payload);
+    } catch (err) {
+      console.error(`[EVAL-TRACE] trace subscriber failed: ${err.message}`);
+    }
+  }
+}
+
+function subscribeTrace(listener) {
+  if (typeof listener !== 'function') {
+    console.error('[EVAL-TRACE] trace subscriber registration ignored: listener must be a function');
+    return () => {};
+  }
+
+  traceSubscribers.add(listener);
+  return () => {
+    traceSubscribers.delete(listener);
+  };
+}
+
 function emitTraceEventToDashboard(ctx, event, fields, fieldsCoerced = false) {
   try {
     emitTraceEventToDashboardUnsafe(ctx, event, fields, fieldsCoerced);
@@ -252,26 +301,7 @@ function emitTraceEventToDashboardUnsafe(ctx, event, fields, fieldsCoerced = fal
     return;
   }
 
-  const payloadFields = fieldsCoerced ? fields : coerceTraceFields(ctx, fields);
-
-  const payload = {
-    type: 'trace_event',
-    timestamp: Date.now(),
-    event,
-    traceId: payloadFields.traceId || null,
-    signalId: payloadFields.signalId || null,
-    decisionId: payloadFields.decisionId || null,
-    symbol: firstTraceScopeField(payloadFields, 'symbol'),
-    timeframe: firstTraceScopeField(payloadFields, 'timeframe'),
-    brokerId: firstTraceScopeField(payloadFields, 'brokerId'),
-    accountId: firstTraceScopeField(payloadFields, 'accountId'),
-    assetClass: firstTraceScopeField(payloadFields, 'assetClass'),
-    executionMode: firstTraceScopeField(payloadFields, 'executionMode'),
-    scopeKey: firstTraceScopeField(payloadFields, 'scopeKey'),
-    action: payloadFields.action || null,
-    positionEffect: traceFieldValue(payloadFields, 'positionEffect'),
-    fields: payloadFields,
-  };
+  const payload = buildTraceEventPayload(ctx, event, fields, fieldsCoerced);
 
   try {
     ws.send(JSON.stringify(payload));
@@ -281,8 +311,11 @@ function emitTraceEventToDashboardUnsafe(ctx, event, fields, fieldsCoerced = fal
 }
 
 function emitTrace(ctx, event, fields = {}) {
-  if (!isTraceEnabled(ctx)) return;
+  const traceEnabled = isTraceEnabled(ctx);
+  if (!traceEnabled && traceSubscribers.size === 0) return;
   const traceFields = coerceTraceFields(ctx, fields);
+  notifyTraceSubscribers(ctx, event, traceFields, true);
+  if (!traceEnabled) return;
   const parts = safeTraceEntries(ctx, traceFields)
     .filter(([, value]) => value !== undefined)
     .map(([key, value]) => `${key}=${renderTraceValue(value)}`);
@@ -291,8 +324,10 @@ function emitTrace(ctx, event, fields = {}) {
 }
 
 module.exports = {
+  buildTraceEventPayload,
   createTraceId,
   emitTrace,
   isTraceEnabled,
   sanitizeTracePayload,
+  subscribeTrace,
 };

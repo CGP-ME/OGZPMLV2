@@ -3410,6 +3410,10 @@ class OrderExecutor {
             success: true,
             operation: 'openPosition',
             orderId: unifiedResult.orderId,
+            price,
+            sizeUsd: adjustedPositionSize,
+            orderQuantity: entryOrderQuantity,
+            quantityUnit: entryOrderQuantityUnit,
             position: stateAfter.position,
             balance: stateAfter.balance,
           });
@@ -3629,6 +3633,10 @@ class OrderExecutor {
             success: true,
             operation: 'openPosition',
             orderId: unifiedResult.orderId,
+            price,
+            sizeUsd: adjustedPositionSize,
+            orderQuantity: entryOrderQuantity,
+            quantityUnit: entryOrderQuantityUnit,
 	            position: stateAfter.position,
 	            balance: stateAfter.balance,
 	          });
@@ -3978,6 +3986,12 @@ class OrderExecutor {
               orderId: buyTrade.orderId,
               intentId: exitIntent?.intentId || null,
               fillId: closeResult.fillId || null,
+              price,
+              pnlDollars: completeTradeResult.pnlDollars ?? closeResult.pnl ?? null,
+              exitReason: completeTradeResult.exitReason ?? null,
+              closed: Number.isFinite(Number(closeResult.remainingOrderQuantity))
+                ? Number(closeResult.remainingOrderQuantity) <= 0
+                : null,
               filledQuantity: closeResult.filledQuantity ?? null,
               remainingOrderQuantity: closeResult.remainingOrderQuantity ?? null,
               position: afterSellState.position,
@@ -4543,6 +4557,12 @@ class OrderExecutor {
             orderId: shortTrade.orderId,
             intentId: exitIntent?.intentId || null,
             fillId: closeResult.fillId || null,
+            price,
+            pnlDollars: completeTradeResult.pnlDollars ?? closeResult.pnl ?? null,
+            exitReason: completeTradeResult.exitReason ?? null,
+            closed: Number.isFinite(Number(closeResult.remainingOrderQuantity))
+              ? Number(closeResult.remainingOrderQuantity) <= 0
+              : null,
             filledQuantity: closeResult.filledQuantity ?? null,
             remainingOrderQuantity: closeResult.remainingOrderQuantity ?? null,
             position: afterCoverState.position,

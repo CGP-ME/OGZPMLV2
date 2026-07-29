@@ -1,19 +1,22 @@
 'use strict';
 
-const { emitTrace, sanitizeTracePayload } = require('../core/TraceSpine');
+const { emitTrace, sanitizeTracePayload, subscribeTrace } = require('../core/TraceSpine');
 
 describe('TraceSpine dashboard trace_event feed', () => {
   let logSpy;
   let warnSpy;
+  let errorSpy;
 
   beforeEach(() => {
     logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
     warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
     logSpy.mockRestore();
     warnSpy.mockRestore();
+    errorSpy.mockRestore();
   });
 
   test('does not log or send when eval trace is disabled', () => {
@@ -27,6 +30,65 @@ describe('TraceSpine dashboard trace_event feed', () => {
 
     expect(logSpy).not.toHaveBeenCalled();
     expect(dashboardWs.send).not.toHaveBeenCalled();
+  });
+
+  test('notifies subscribers without enabling dashboard trace logging', () => {
+    const received = [];
+    const unsubscribe = subscribeTrace((payload) => {
+      received.push(payload);
+    });
+    const dashboardWs = { readyState: 1, send: jest.fn() };
+    const ctx = {
+      config: { evalTraceEnabled: false, executionMode: 'paper' },
+      dashboardWs,
+    };
+
+    try {
+      emitTrace(ctx, 'STATE_MUTATION', {
+        traceId: 'trace_subscriber',
+        symbol: 'TSLA',
+        action: 'BUY',
+        positionEffect: 'open_long',
+      });
+
+      expect(logSpy).not.toHaveBeenCalled();
+      expect(dashboardWs.send).not.toHaveBeenCalled();
+      expect(received).toHaveLength(1);
+      expect(received[0]).toEqual(expect.objectContaining({
+        type: 'trace_event',
+        event: 'STATE_MUTATION',
+        traceId: 'trace_subscriber',
+        symbol: 'TSLA',
+        action: 'BUY',
+        positionEffect: 'open_long',
+      }));
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  test('keeps subscriber exceptions out of trace emission and dashboard delivery', () => {
+    const unsubscribe = subscribeTrace(() => {
+      throw new Error('subscriber down');
+    });
+    const dashboardWs = { readyState: 1, bufferedAmount: 0, send: jest.fn() };
+    const ctx = {
+      config: { evalTraceEnabled: true, executionMode: 'paper', traceEventMaxBufferedBytes: 1048576 },
+      dashboardWs,
+    };
+
+    try {
+      expect(() => emitTrace(ctx, 'ORDER_PLAN', {
+        traceId: 'trace_subscriber_throw',
+        symbol: 'TSLA',
+      })).not.toThrow();
+
+      expect(errorSpy).toHaveBeenCalledWith('[EVAL-TRACE] trace subscriber failed: subscriber down');
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('[EVAL-TRACE][ORDER_PLAN]'));
+      expect(dashboardWs.send).toHaveBeenCalledTimes(1);
+    } finally {
+      unsubscribe();
+    }
   });
 
   test('logs and sends a structured trace_event when dashboard websocket is open', () => {
