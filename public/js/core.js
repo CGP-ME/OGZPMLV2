@@ -280,10 +280,17 @@ window.OGZ = (window.OGZ && window.OGZ.__coreGuard === 'ogz-core-v2')
                 if (this.get('Edge')) this.get('Edge').updateMarketInternals(d);
             });
 
-            // DORMANT: Whale Walls & Depth (awaits Kraken L2 feed)
+            // LIVE 2026-07-30: Whale Walls & Depth (direct Kraken L2 feed via
+            // CryptoMarketFeed). Frames are per-asset; only render on the
+            // chart currently showing that asset — depth for BTC-USD must
+            // not draw walls over a TSLA chart.
             socket.registerHandler('depth_update', (d) => {
+                const selected = document.getElementById('cp-assetSelector')?.value
+                    || document.getElementById('assetSelector')?.value || '';
+                if (d && d.asset && selected && d.asset !== selected) return;
                 if (this.get('Chart')) this.get('Chart').renderLiquidity(d);
-                if (this.get('Edge')) this.get('Edge').updateWallRadar(d);
+                const edge = this.get('Edge');
+                if (edge && typeof edge.updateWallRadar === 'function') edge.updateWallRadar(d);
             });
 
             // LIVE: Historical candle loading

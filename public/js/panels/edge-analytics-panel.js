@@ -217,9 +217,19 @@
         } catch (_) { /* swallow */ }
     }
 
+    // Per-asset frames (direct Kraken feed) only apply when their asset is
+    // the one on screen; assetless frames (bot broadcaster) pass through.
+    function frameMatchesSelectedAsset(data) {
+        if (!data || !data.asset) return true;
+        const selected = document.getElementById('cp-assetSelector')?.value
+            || document.getElementById('assetSelector')?.value || '';
+        return !selected || data.asset === selected;
+    }
+
     function onCVDUpdate(d) {
         try {
             const data = (d && d.data) ? d.data : d;
+            if (!frameMatchesSelectedAsset(data)) return;
             const valEl = document.getElementById('cvdValue');
             const trEl = document.getElementById('cvdTrend');
 
@@ -307,6 +317,7 @@
     function onMarketInternals(d) {
         try {
             const data = (d && d.data) ? d.data : d;
+            if (!frameMatchesSelectedAsset(data)) return;
             const aggEl = document.getElementById('aggressorSide');
 
             // Absorption detection: SELLERS aggressing BUT price moves up = absorbed

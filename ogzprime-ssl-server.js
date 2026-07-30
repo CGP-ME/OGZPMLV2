@@ -2069,6 +2069,96 @@ const krakenSocket = {
   close: () => {}
 };
 
+// CHANGE 2026-07-30: Direct public Kraken feed revived via CryptoMarketFeed.
+// The stub above ("bot sends all data") dates from an era whose bot-side
+// relay never materialized — the hub tracked 0 assets and the dashboard's
+// depth/CVD/whale consumers sat dormant. This feed is market-data only
+// (public WS, no keys), lives in the web server only, and fills exactly
+// the frames those consumers already handle: price/ticker_price,
+// depth_update (walls+density for renderLiquidity), cvd_update (TRUE
+// taker-side delta, not the close>=open proxy), whale_trade, and
+// market_internals (book imbalance). If/when the bot relay comes online
+// the board decides precedence; today there is no conflict because the
+// bot sends nothing.
+const { createCryptoMarketFeed } = require('./core/CryptoMarketFeed');
+
+function broadcastCryptoFrame(frame, dashboardOnly = true) {
+  const messageStr = JSON.stringify(frame);
+  let sent = 0;
+  wss.clients.forEach((client) => {
+    if (client.readyState !== WebSocket.OPEN || !client.authenticated) return;
+    if (dashboardOnly && client.clientType !== 'dashboard') return;
+    try {
+      client.send(messageStr);
+      sent++;
+    } catch (err) {
+      console.error('[CryptoFeed] Broadcast send failed:', err.message);
+    }
+  });
+  return sent;
+}
+
+const cryptoFeed = createCryptoMarketFeed({
+  symbols: DASHBOARD_CRYPTO_PRICE_SYMBOLS,
+  onPrice: ({ asset, price, volume }) => {
+    tickCount++;
+    assetPrices[asset] = price;
+    if (asset === currentAsset || asset === 'BTC-USD') {
+      lastKnownPrice = price;
+    }
+    const priceTimestamp = Date.now();
+    broadcastCryptoFrame({
+      type: 'price',
+      symbol: asset,
+      price,
+      close: price,
+      volume,
+      timestamp: priceTimestamp,
+      source: 'kraken',
+      timeframe: null,
+      candle: null,
+      indicators: null,
+      candles: [],
+      overlays: null,
+      data: {
+        symbol: asset,
+        asset,
+        price,
+        close: price,
+        volume,
+        timestamp: priceTimestamp,
+        source: 'kraken',
+        timeframe: null,
+        candle: null,
+        indicators: null,
+        candles: [],
+        overlays: null,
+        allPrices: assetPrices,
+        tickCount,
+      },
+    }, false);
+    const tickerPriceMessage = buildTickerPriceFrame({
+      symbol: asset,
+      price,
+      close: price,
+      volume,
+      timestamp: priceTimestamp,
+      source: 'kraken',
+      brokerId: 'kraken',
+      assetClass: 'crypto',
+    }, {}, { allowedSymbols: DASHBOARD_TICKER_PRICE_SYMBOLS });
+    if (tickerPriceMessage) broadcastCryptoFrame(tickerPriceMessage);
+    if (tickCount % 100 === 0) {
+      console.log(`[CryptoFeed] TICK #${tickCount}: ${asset} $${price.toFixed(2)}`);
+    }
+  },
+  onDepth: (frame) => broadcastCryptoFrame({ type: 'depth_update', ...frame }),
+  onCvd: (frame) => broadcastCryptoFrame({ type: 'cvd_update', ...frame }),
+  onWhaleTrade: (frame) => broadcastCryptoFrame({ type: 'whale_trade', ...frame }),
+  onInternals: (frame) => broadcastCryptoFrame({ type: 'market_internals', ...frame }),
+});
+cryptoFeed.connect();
+
 krakenSocket.on('open', () => {
   console.log('� Connected to Kraken public WebSocket feed');
   
@@ -2270,7 +2360,7 @@ setInterval(() => {
   const botClients = connectedClients.filter(c => c.clientType === 'bot');
   
   console.log('[Status] SYSTEM STATUS:');
-  console.log(`   Kraken: ${krakenSocket.readyState === WebSocket.OPEN ? 'Connected' : 'Disconnected'}`);
+  console.log(`   Kraken: ${cryptoFeed.isConnected() ? 'Connected' : 'Disconnected'}`);
   console.log(`   Ticks: ${tickCount}`);
   console.log(`   Last Price: $${lastKnownPrice ? lastKnownPrice.toFixed(2) : 'N/A'}`);
   console.log(`   Total Connections: ${connectedClients.length}`);
