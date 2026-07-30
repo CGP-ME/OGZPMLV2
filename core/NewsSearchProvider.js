@@ -11,6 +11,8 @@
  *                                          BRIGHTDATA_SERP_ZONE REQUIRED, else throw
  *   NEWS_SEARCH_PROVIDER=alpaca         -> ALPACA_API_KEY and
  *                                          ALPACA_API_SECRET REQUIRED, else throw
+ *   NEWS_SEARCH_PROVIDER=alpaca-edgar   -> ALPACA_API_KEY, ALPACA_API_SECRET
+ *                                          and EDGAR_USER_AGENT REQUIRED, else throw
  *   NEWS_SEARCH_PROVIDER=<anything else> -> throw at startup
  *
  * Both providers return the SAME contract the TRAI endpoints already consume:
@@ -39,12 +41,26 @@
  *   market-wide news is returned. Honest trade-off for a zero-cost provider.
  *   Docs: docs.alpaca.markets/reference/news-3
  *
+ * Alpaca+EDGAR composite ('alpaca-edgar'): the Alpaca wire above, thickened
+ * with SEC EDGAR filings — the authoritative primary source for material
+ * events (8-K), insider transactions (Form 4/144) and 5%+ stakes (13D/G).
+ * Free, no API key; the SEC fair-access policy requires a User-Agent that
+ * identifies the app + a contact address (EDGAR_USER_AGENT).
+ *   Ticker -> CIK via www.sec.gov/files/company_tickers.json (cached 24h);
+ *   filings via data.sec.gov/submissions/CIK##########.json (cached 15 min).
+ *   Symbol queries return newest filings (90-day lookback) merged ahead-of
+ *   news up to half the result slots; free-text queries are news-only.
+ *   Symbols with no CIK mapping (crypto, most ETFs) degrade to news-only —
+ *   an absent mapping is a fact, not a transport error. Transport/shape
+ *   errors on either leg THROW per this module's no-partial-results rule.
+ *   Docs: www.sec.gov/search-filings/edgar-application-programming-interfaces
+ *
  * @module core/NewsSearchProvider
  */
 
 'use strict';
 
-const SUPPORTED_PROVIDERS = new Set(['tavily', 'brightdata', 'alpaca']);
+const SUPPORTED_PROVIDERS = new Set(['tavily', 'brightdata', 'alpaca', 'alpaca-edgar']);
 
 function cleanString(value) {
   return typeof value === 'string' && value.trim() ? value.trim() : '';
@@ -55,7 +71,7 @@ function cleanString(value) {
  * Throws on any misconfiguration — never silently degrades.
  *
  * @param {NodeJS.ProcessEnv} env
- * @returns {{provider: null}|{provider: 'tavily', apiKey: string}|{provider: 'brightdata', apiKey: string, serpZone: string}|{provider: 'alpaca', apiKey: string, apiSecret: string}}
+ * @returns {{provider: null}|{provider: 'tavily', apiKey: string}|{provider: 'brightdata', apiKey: string, serpZone: string}|{provider: 'alpaca', apiKey: string, apiSecret: string}|{provider: 'alpaca-edgar', apiKey: string, apiSecret: string, edgarUserAgent: string}}
  */
 function resolveNewsSearchConfig(env) {
   const provider = cleanString(env.NEWS_SEARCH_PROVIDER).toLowerCase();
@@ -82,17 +98,23 @@ function resolveNewsSearchConfig(env) {
     return { provider: 'tavily', apiKey };
   }
 
-  if (provider === 'alpaca') {
+  if (provider === 'alpaca' || provider === 'alpaca-edgar') {
     const apiKey = cleanString(env.ALPACA_API_KEY);
     const apiSecret = cleanString(env.ALPACA_API_SECRET);
     const missing = [];
     if (!apiKey) missing.push('ALPACA_API_KEY');
     if (!apiSecret) missing.push('ALPACA_API_SECRET');
+    if (provider === 'alpaca-edgar' && !cleanString(env.EDGAR_USER_AGENT)) {
+      missing.push('EDGAR_USER_AGENT (e.g. "OGZPrime admin@ogzprime.com" — SEC fair-access policy)');
+    }
     if (missing.length > 0) {
       throw new Error(
-        `[NewsSearchProvider] NEWS_SEARCH_PROVIDER=alpaca requires ${missing.join(' and ')}. ` +
+        `[NewsSearchProvider] NEWS_SEARCH_PROVIDER=${provider} requires ${missing.join(' and ')}. ` +
         'Set them or unset NEWS_SEARCH_PROVIDER.'
       );
+    }
+    if (provider === 'alpaca-edgar') {
+      return { provider: 'alpaca-edgar', apiKey, apiSecret, edgarUserAgent: cleanString(env.EDGAR_USER_AGENT) };
     }
     return { provider: 'alpaca', apiKey, apiSecret };
   }
@@ -257,15 +279,172 @@ async function alpacaSearchImpl(config, query, maxResults) {
   };
 }
 
+// ── SEC EDGAR leg (alpaca-edgar composite) ─────────────────────────────
+// Module-level caches: the ticker->CIK map is ~1MB and changes rarely
+// (24h TTL); per-CIK submissions change intraday (15 min TTL). Both are
+// plain in-process memoization — a restart clears them.
+const EDGAR_TICKER_MAP_TTL_MS = 24 * 60 * 60 * 1000;
+const EDGAR_SUBMISSIONS_TTL_MS = 15 * 60 * 1000;
+const EDGAR_LOOKBACK_DAYS = 90;
+let _edgarTickerMap = null; // { at, bySymbol: Map<ticker, {cik, title}> }
+const _edgarSubmissionsCache = new Map(); // cik -> { at, data }
+
+// Human labels for the filing forms that matter to the TRAI consumers.
+// Unknown forms fall through with the raw form code — honest, not hidden.
+const EDGAR_FORM_LABELS = {
+  '8-K': 'Material event report (8-K)',
+  '4': 'Insider transaction (Form 4)',
+  '144': 'Notice of proposed insider sale (Form 144)',
+  '10-Q': 'Quarterly report (10-Q)',
+  '10-K': 'Annual report (10-K)',
+  'SC 13D': 'Activist 5%+ stake (13D)',
+  'SC 13D/A': 'Activist 5%+ stake amendment (13D/A)',
+  'SC 13G': 'Passive 5%+ stake (13G)',
+  'SC 13G/A': 'Passive 5%+ stake amendment (13G/A)',
+  'SCHEDULE 13D': 'Activist 5%+ stake (13D)',
+  'SCHEDULE 13D/A': 'Activist 5%+ stake amendment (13D/A)',
+  'SCHEDULE 13G': 'Passive 5%+ stake (13G)',
+  'SCHEDULE 13G/A': 'Passive 5%+ stake amendment (13G/A)',
+};
+
+// 8-K item codes worth naming for Mercury's extraction prompt.
+const EDGAR_8K_ITEM_LABELS = {
+  '1.01': 'material agreement',
+  '2.01': 'acquisition/disposition',
+  '2.02': 'results of operations',
+  '5.02': 'officer/director change',
+  '7.01': 'Reg FD disclosure',
+  '8.01': 'other material event',
+};
+
+async function _edgarFetchJson(url, userAgent) {
+  const response = await fetch(url, {
+    headers: { 'User-Agent': userAgent, 'Accept-Encoding': 'gzip, deflate' },
+  });
+  if (!response.ok) {
+    throw new Error(`SEC EDGAR error: HTTP ${response.status} for ${url}`);
+  }
+  return response.json();
+}
+
+async function _edgarCikForSymbol(symbol, userAgent) {
+  if (!_edgarTickerMap || Date.now() - _edgarTickerMap.at > EDGAR_TICKER_MAP_TTL_MS) {
+    const raw = await _edgarFetchJson('https://www.sec.gov/files/company_tickers.json', userAgent);
+    if (!raw || typeof raw !== 'object') {
+      throw new Error('SEC EDGAR company_tickers.json response has unexpected shape');
+    }
+    const bySymbol = new Map();
+    for (const entry of Object.values(raw)) {
+      if (entry && entry.ticker) {
+        bySymbol.set(String(entry.ticker).toUpperCase(), {
+          cik: String(entry.cik_str).padStart(10, '0'),
+          title: cleanString(entry.title),
+        });
+      }
+    }
+    if (bySymbol.size === 0) {
+      throw new Error('SEC EDGAR company_tickers.json produced an empty ticker map');
+    }
+    _edgarTickerMap = { at: Date.now(), bySymbol };
+  }
+  return _edgarTickerMap.bySymbol.get(symbol) || null;
+}
+
+function _edgarDescribeFiling(form, items, filingDate, companyTitle) {
+  const formLabel = EDGAR_FORM_LABELS[form] || `SEC filing (${form})`;
+  const itemCodes = cleanString(items) ? items.split(',').map(s => s.trim()) : [];
+  const itemLabels = itemCodes.map(c => EDGAR_8K_ITEM_LABELS[c] || c).join(', ');
+  return {
+    title: `${formLabel} — ${companyTitle} filed ${filingDate}`,
+    snippet: itemLabels
+      ? `SEC EDGAR primary source. ${form} items: ${itemLabels}.`
+      : `SEC EDGAR primary source. Form ${form} filed ${filingDate}.`,
+  };
+}
+
+async function _edgarRecentFilings(symbol, userAgent, maxResults) {
+  const mapped = await _edgarCikForSymbol(symbol, userAgent);
+  if (!mapped) {
+    return []; // No CIK mapping (crypto/ETF) is a fact, not an error.
+  }
+
+  let cached = _edgarSubmissionsCache.get(mapped.cik);
+  if (!cached || Date.now() - cached.at > EDGAR_SUBMISSIONS_TTL_MS) {
+    const data = await _edgarFetchJson(`https://data.sec.gov/submissions/CIK${mapped.cik}.json`, userAgent);
+    cached = { at: Date.now(), data };
+    _edgarSubmissionsCache.set(mapped.cik, cached);
+  }
+
+  const recent = cached.data && cached.data.filings && cached.data.filings.recent;
+  if (!recent || !Array.isArray(recent.form)) {
+    throw new Error('SEC EDGAR submissions response missing filings.recent arrays');
+  }
+
+  const cutoff = new Date(Date.now() - EDGAR_LOOKBACK_DAYS * 24 * 60 * 60 * 1000)
+    .toISOString().slice(0, 10);
+  const companyTitle = cleanString(cached.data.name) || mapped.title || symbol;
+  const results = [];
+  const cikNumeric = String(Number(mapped.cik));
+  for (let i = 0; i < recent.form.length && results.length < maxResults; i++) {
+    const filingDate = recent.filingDate[i];
+    if (filingDate < cutoff) break; // arrays are newest-first
+    const accession = String(recent.accessionNumber[i] || '').replace(/-/g, '');
+    const primaryDoc = cleanString(recent.primaryDocument[i]);
+    if (!accession || !primaryDoc) continue;
+    const { title, snippet } = _edgarDescribeFiling(
+      recent.form[i],
+      recent.items ? recent.items[i] : '',
+      filingDate,
+      companyTitle
+    );
+    results.push({
+      title,
+      url: `https://www.sec.gov/Archives/edgar/data/${cikNumeric}/${accession}/${primaryDoc}`,
+      snippet: snippet.substring(0, 300),
+    });
+  }
+  return results;
+}
+
+async function alpacaEdgarSearchImpl(config, query, maxResults) {
+  const symbol = leadingTickerSymbol(query);
+  if (!symbol) {
+    return alpacaSearchImpl(config, query, maxResults); // market-wide: news only
+  }
+
+  // Both legs run concurrently; either leg's transport failure throws
+  // (no-partial-results rule — the server boundary owns error surfacing).
+  const [newsResult, filings] = await Promise.all([
+    alpacaSearchImpl(config, query, maxResults),
+    _edgarRecentFilings(symbol, config.edgarUserAgent, maxResults),
+  ]);
+
+  // Filings are the primary source — they take up to half the slots
+  // (rounded up), newest first; the news wire backfills the rest.
+  const filingSlots = Math.min(filings.length, Math.ceil(maxResults / 2));
+  const merged = filings.slice(0, filingSlots);
+  for (const r of newsResult.results) {
+    if (merged.length >= maxResults) break;
+    merged.push(r);
+  }
+  for (const f of filings.slice(filingSlots)) {
+    if (merged.length >= maxResults) break;
+    merged.push(f);
+  }
+
+  return { answer: null, results: merged };
+}
+
 const PROVIDER_IMPLS = {
   tavily: tavilySearchImpl,
   brightdata: brightDataSearchImpl,
   alpaca: alpacaSearchImpl,
+  'alpaca-edgar': alpacaEdgarSearchImpl,
 };
 
 /**
  * Create a search client for a resolved provider config.
- * @param {{provider: 'tavily'|'brightdata'|'alpaca'}} config from resolveNewsSearchConfig
+ * @param {{provider: 'tavily'|'brightdata'|'alpaca'|'alpaca-edgar'}} config from resolveNewsSearchConfig
  * @returns {{provider: string, search(query: string, maxResults: number): Promise<{answer: string|null, results: Array<{title: string, url: string, snippet: string}>}>}}
  */
 function createNewsSearchClient(config) {
