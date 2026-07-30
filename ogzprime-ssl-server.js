@@ -766,7 +766,10 @@ ${results.results.map((r, i) => `${i + 1}. ${r.title}: ${r.snippet}`).join('\n')
 <<<END UNTRUSTED>>>
 
 If no events found, return []. ONLY output the JSON array.`;
-        const response = await client.generateResponse(prompt, 400);
+        // generateRawResponse: _cleanResponse()'s sentence-truncation chops
+        // JSON mid-string (parse: "Unterminated string"). Raw + own fence
+        // stripping + _validateEventsArray is the correct pipeline here.
+        const response = await client.generateRawResponse(prompt, 7750);
         let events = [];
         try {
           const cleaned = String(response || '').replace(/```json|```/g, '').trim();
@@ -863,7 +866,7 @@ News: ${newsBlock}
 <<<END UNTRUSTED>>>
 
 ONLY output the JSON object.`;
-      const response = await client.generateResponse(prompt, 200);
+      const response = await client.generateRawResponse(prompt, 7750);
       try {
         const cleaned = String(response || '').replace(/```json|```/g, '').trim();
         const parsed = JSON.parse(cleaned);
@@ -1017,7 +1020,7 @@ ${JSON.stringify(tradeEntry)}
 <<<END UNTRUSTED>>>
 
 ONLY output the JSON object.`;
-      const response = await client.generateResponse(prompt, 300);
+      const response = await client.generateRawResponse(prompt, 7750);
       try {
         const cleaned = String(response || '').replace(/```json|```/g, '').trim();
         const validated = _validateTradeSummary(JSON.parse(cleaned));
@@ -1059,7 +1062,7 @@ ${results.results.map((r, i) => `${i + 1}. ${r.title}: ${r.snippet}`).join('\n')
 <<<END UNTRUSTED>>>
 
 If no activity found, return []. ONLY output the JSON array.`;
-      const response = await client.generateResponse(prompt, 400);
+      const response = await client.generateRawResponse(prompt, 7750);
       let activities = [];
       try {
         const cleaned = String(response || '').replace(/```json|```/g, '').trim();

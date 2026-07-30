@@ -2630,8 +2630,8 @@
       "model": "mercury-2",
       "apiKeyEnv": "INCEPTION_API_KEY",
       "authRequired": true,
-      "maxTokens": 1000,
-      "minimumTokens": 400,
+      "maxTokens": 7750,
+      "minimumTokens": 7750,
       "temperature": 0.8,
       "requestTimeoutMs": 60000,
       "systemPrompt": "You are TRAI, the AI trading advisor for OGZPrime. You analyze market conditions, evaluate trade setups, explain trading decisions, and provide actionable insights. You have access to technical indicators, volume profile data, pattern recognition, and market regime analysis. Be direct, data-driven, and specific. When analyzing trades, reference the actual numbers: entry price, stop loss, take profit, confidence score, and the conditions that triggered the signal."

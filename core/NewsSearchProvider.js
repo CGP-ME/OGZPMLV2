@@ -9,6 +9,8 @@
  *   NEWS_SEARCH_PROVIDER=tavily         -> TAVILY_API_KEY REQUIRED, else throw
  *   NEWS_SEARCH_PROVIDER=brightdata     -> BRIGHTDATA_API_KEY and
  *                                          BRIGHTDATA_SERP_ZONE REQUIRED, else throw
+ *   NEWS_SEARCH_PROVIDER=alpaca         -> ALPACA_API_KEY and
+ *                                          ALPACA_API_SECRET REQUIRED, else throw
  *   NEWS_SEARCH_PROVIDER=<anything else> -> throw at startup
  *
  * Both providers return the SAME contract the TRAI endpoints already consume:
@@ -26,12 +28,23 @@
  *   array carries { link, title, description }.
  *   Docs: docs.brightdata.com/scraping-automation/serp-api/send-your-first-request
  *
+ * Alpaca integration: News API (Benzinga-sourced), included free with any
+ * Alpaca account — paper keys work; no per-request billing.
+ *   GET https://data.alpaca.markets/v1beta1/news?symbols=<SYM>&limit=<n>
+ *   Headers: APCA-API-KEY-ID / APCA-API-SECRET-KEY
+ *   Response: { news: [{ headline, url, summary, source, created_at }] }
+ *   Unlike the SERP providers this is not free-text search: when the query's
+ *   leading token looks like a ticker (all callers that have a symbol put it
+ *   first), it is passed as `symbols=`; otherwise the query is dropped and
+ *   market-wide news is returned. Honest trade-off for a zero-cost provider.
+ *   Docs: docs.alpaca.markets/reference/news-3
+ *
  * @module core/NewsSearchProvider
  */
 
 'use strict';
 
-const SUPPORTED_PROVIDERS = new Set(['tavily', 'brightdata']);
+const SUPPORTED_PROVIDERS = new Set(['tavily', 'brightdata', 'alpaca']);
 
 function cleanString(value) {
   return typeof value === 'string' && value.trim() ? value.trim() : '';
@@ -42,7 +55,7 @@ function cleanString(value) {
  * Throws on any misconfiguration — never silently degrades.
  *
  * @param {NodeJS.ProcessEnv} env
- * @returns {{provider: null}|{provider: 'tavily', apiKey: string}|{provider: 'brightdata', apiKey: string, serpZone: string}}
+ * @returns {{provider: null}|{provider: 'tavily', apiKey: string}|{provider: 'brightdata', apiKey: string, serpZone: string}|{provider: 'alpaca', apiKey: string, apiSecret: string}}
  */
 function resolveNewsSearchConfig(env) {
   const provider = cleanString(env.NEWS_SEARCH_PROVIDER).toLowerCase();
@@ -67,6 +80,21 @@ function resolveNewsSearchConfig(env) {
       );
     }
     return { provider: 'tavily', apiKey };
+  }
+
+  if (provider === 'alpaca') {
+    const apiKey = cleanString(env.ALPACA_API_KEY);
+    const apiSecret = cleanString(env.ALPACA_API_SECRET);
+    const missing = [];
+    if (!apiKey) missing.push('ALPACA_API_KEY');
+    if (!apiSecret) missing.push('ALPACA_API_SECRET');
+    if (missing.length > 0) {
+      throw new Error(
+        `[NewsSearchProvider] NEWS_SEARCH_PROVIDER=alpaca requires ${missing.join(' and ')}. ` +
+        'Set them or unset NEWS_SEARCH_PROVIDER.'
+      );
+    }
+    return { provider: 'alpaca', apiKey, apiSecret };
   }
 
   // provider === 'brightdata'
@@ -186,9 +214,58 @@ async function brightDataSearchImpl(config, query, maxResults) {
   };
 }
 
+// Leading token of a symbol-driven query ("TSLA stock news today ...").
+// Deliberately strict: 1-5 uppercase letters as the FIRST token only. Later
+// uppercase words (FOMC, FDA, SEC) never reach this test.
+const LEADING_TICKER_RE = /^[A-Z]{1,5}(?:\.[A-Z])?$/;
+
+function leadingTickerSymbol(query) {
+  const first = query.split(/\s+/, 1)[0];
+  return LEADING_TICKER_RE.test(first) ? first : '';
+}
+
+async function alpacaSearchImpl(config, query, maxResults) {
+  const symbol = leadingTickerSymbol(query);
+  const url = 'https://data.alpaca.markets/v1beta1/news' +
+    `?limit=${maxResults}` +
+    (symbol ? `&symbols=${encodeURIComponent(symbol)}` : '');
+
+  const response = await fetch(url, {
+    headers: {
+      'APCA-API-KEY-ID': config.apiKey,
+      'APCA-API-SECRET-KEY': config.apiSecret,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Alpaca News API error: HTTP ${response.status}`);
+  }
+
+  const data = await response.json();
+  if (!data || !Array.isArray(data.news)) {
+    throw new Error('Alpaca News API response missing news array');
+  }
+
+  return {
+    // Alpaca returns articles, not an answer box. Consumers handle answer:null.
+    answer: null,
+    results: data.news.slice(0, maxResults).map(n => ({
+      title: cleanString(n && n.headline),
+      url: cleanString(n && n.url),
+      snippet: cleanString(n && (n.summary || n.headline)).substring(0, 300),
+    })).filter(r => r.title && r.url),
+  };
+}
+
+const PROVIDER_IMPLS = {
+  tavily: tavilySearchImpl,
+  brightdata: brightDataSearchImpl,
+  alpaca: alpacaSearchImpl,
+};
+
 /**
  * Create a search client for a resolved provider config.
- * @param {{provider: 'tavily'|'brightdata'}} config from resolveNewsSearchConfig
+ * @param {{provider: 'tavily'|'brightdata'|'alpaca'}} config from resolveNewsSearchConfig
  * @returns {{provider: string, search(query: string, maxResults: number): Promise<{answer: string|null, results: Array<{title: string, url: string, snippet: string}>}>}}
  */
 function createNewsSearchClient(config) {
@@ -198,7 +275,7 @@ function createNewsSearchClient(config) {
     );
   }
 
-  const impl = config.provider === 'tavily' ? tavilySearchImpl : brightDataSearchImpl;
+  const impl = PROVIDER_IMPLS[config.provider];
 
   return {
     provider: config.provider,
