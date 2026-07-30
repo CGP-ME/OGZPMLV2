@@ -60,6 +60,8 @@
 
 'use strict';
 
+const { whaleActivityForSymbol } = require('./WhaleFilings');
+
 const SUPPORTED_PROVIDERS = new Set(['tavily', 'brightdata', 'alpaca', 'alpaca-edgar']);
 
 function cleanString(value) {
@@ -537,19 +539,27 @@ async function alpacaEdgarSearchImpl(config, query, maxResults) {
     return alpacaSearchImpl(config, query, maxResults); // market-wide: news only
   }
 
-  // Both legs run concurrently; either leg's transport failure throws
+  // Core legs run concurrently; either leg's transport failure throws
   // (no-partial-results rule — the server boundary owns error surfacing).
-  const [newsResult, rawFilings] = await Promise.all([
+  // The named-whale leg (ARK daily holdings + 13F) is additive decoration
+  // for insider-intent queries: its sources fail soft inside the module
+  // and an empty array is its honest no-activity state.
+  const insiderIntent = EDGAR_INSIDER_INTENT_RE.test(query);
+  const [newsResult, rawFilings, whaleRows] = await Promise.all([
     alpacaSearchImpl(config, query, maxResults),
     _edgarRecentFilings(symbol, config.edgarUserAgent, maxResults),
+    insiderIntent
+      ? whaleActivityForSymbol(symbol, { userAgent: config.edgarUserAgent, maxRows: 3 }).catch(() => [])
+      : Promise.resolve([]),
   ]);
   const filings = _edgarPrioritizeForQuery(rawFilings, query)
     .map(({ title, url, snippet }) => ({ title, url, snippet }));
 
-  // Filings are the primary source — they take up to half the slots
-  // (rounded up); the news wire backfills the rest.
-  const filingSlots = Math.min(filings.length, Math.ceil(maxResults / 2));
-  const merged = filings.slice(0, filingSlots);
+  // Whale rows lead (freshest conviction data), filings take up to half
+  // the remaining slots (rounded up); the news wire backfills the rest.
+  const merged = whaleRows.slice(0, Math.max(0, maxResults - 1));
+  const filingSlots = Math.min(filings.length, Math.ceil((maxResults - merged.length) / 2));
+  merged.push(...filings.slice(0, filingSlots));
   for (const r of newsResult.results) {
     if (merged.length >= maxResults) break;
     merged.push(r);
@@ -559,7 +569,7 @@ async function alpacaEdgarSearchImpl(config, query, maxResults) {
     merged.push(f);
   }
 
-  return { answer: null, results: merged };
+  return { answer: null, results: merged.slice(0, maxResults) };
 }
 
 const PROVIDER_IMPLS = {
