@@ -362,6 +362,94 @@ function _edgarDescribeFiling(form, items, filingDate, companyTitle) {
   };
 }
 
+// Form 4 XML parsing: filings are immutable, so parsed results cache by
+// accession number forever (bounded). Transaction codes per SEC spec.
+const EDGAR_FORM4_CACHE_MAX = 200;
+const EDGAR_FORM4_PARSE_PER_CALL = 3;
+const _edgarForm4Cache = new Map(); // accession -> { title, snippet } | null
+const EDGAR_TXN_CODE_LABELS = {
+  P: 'open-market BUY',
+  S: 'open-market SALE',
+  M: 'option exercise',
+  F: 'tax-withholding disposal',
+  A: 'award/grant',
+  G: 'gift',
+};
+
+function _edgarXmlValue(block, tag) {
+  const m = block.match(new RegExp(`<${tag}>\\s*(?:<value>)?([^<]*)`));
+  return m ? cleanString(m[1]) : '';
+}
+
+function _edgarParseForm4Xml(xml, filingDate) {
+  const owner = _edgarXmlValue(xml, 'rptOwnerName');
+  if (!owner) return null;
+  const roleBits = [];
+  if (_edgarXmlValue(xml, 'officerTitle')) roleBits.push(_edgarXmlValue(xml, 'officerTitle'));
+  else if (_edgarXmlValue(xml, 'isDirector') === '1') roleBits.push('Director');
+  else if (_edgarXmlValue(xml, 'isTenPercentOwner') === '1') roleBits.push('10% owner');
+  const role = roleBits.length ? ` (${roleBits.join(', ')})` : '';
+
+  const txns = [];
+  const txnBlocks = xml.match(/<nonDerivativeTransaction>[\s\S]*?<\/nonDerivativeTransaction>/g) || [];
+  for (const block of txnBlocks) {
+    const code = _edgarXmlValue(block, 'transactionCode');
+    const shares = Number(_edgarXmlValue(block, 'transactionShares'));
+    const price = Number(_edgarXmlValue(block, 'transactionPricePerShare'));
+    const disposed = _edgarXmlValue(block, 'transactionAcquiredDisposedCode') === 'D';
+    if (!code || !Number.isFinite(shares) || shares <= 0) continue;
+    txns.push({ code, shares, price: Number.isFinite(price) ? price : null, disposed });
+  }
+  if (txns.length === 0) return null;
+
+  // Open-market buys/sales (P/S) are the signal; sort them first, then by size.
+  txns.sort((a, b) => {
+    const aSignal = a.code === 'P' || a.code === 'S' ? 1 : 0;
+    const bSignal = b.code === 'P' || b.code === 'S' ? 1 : 0;
+    if (aSignal !== bSignal) return bSignal - aSignal;
+    return (b.shares * (b.price || 1)) - (a.shares * (a.price || 1));
+  });
+  const parts = txns.slice(0, 2).map(t => {
+    const label = EDGAR_TXN_CODE_LABELS[t.code] || `code ${t.code}`;
+    const dir = t.disposed ? '-' : '+';
+    const priceStr = t.price ? ` @ $${t.price}` : '';
+    return `${label}: ${dir}${t.shares.toLocaleString('en-US')} shares${priceStr}`;
+  });
+
+  return {
+    title: `Insider Form 4 — ${owner}${role}: ${parts[0]}`,
+    snippet: `SEC EDGAR primary source. ${owner}${role}, ${filingDate}: ${parts.join('; ')}${txns.length > 2 ? `; +${txns.length - 2} more transactions` : ''}.`,
+  };
+}
+
+async function _edgarEnrichForm4(result, rawDocPath, cikNumeric, accession, filingDate, userAgent) {
+  if (_edgarForm4Cache.has(accession)) {
+    const hit = _edgarForm4Cache.get(accession);
+    return hit ? { ...result, ...hit } : result;
+  }
+  let parsed = null;
+  try {
+    // primaryDocument for Form 4 is the XSL-rendered path (xslF345X06/x.xml);
+    // the raw parseable XML is the same filename without the xsl prefix.
+    const response = await fetch(
+      `https://www.sec.gov/Archives/edgar/data/${cikNumeric}/${accession}/${rawDocPath}`,
+      { headers: { 'User-Agent': userAgent } }
+    );
+    if (response.ok) {
+      parsed = _edgarParseForm4Xml(await response.text(), filingDate);
+    }
+  } catch (_) {
+    // Enrichment is decoration on an already-valid filing entry: a failed
+    // detail fetch keeps the honest generic entry rather than killing the
+    // whole search (the no-partial rule governs contract data, not garnish).
+  }
+  if (_edgarForm4Cache.size >= EDGAR_FORM4_CACHE_MAX) {
+    _edgarForm4Cache.delete(_edgarForm4Cache.keys().next().value);
+  }
+  _edgarForm4Cache.set(accession, parsed);
+  return parsed ? { ...result, ...parsed } : result;
+}
+
 async function _edgarRecentFilings(symbol, userAgent, maxResults) {
   const mapped = await _edgarCikForSymbol(symbol, userAgent);
   if (!mapped) {
@@ -384,8 +472,12 @@ async function _edgarRecentFilings(symbol, userAgent, maxResults) {
     .toISOString().slice(0, 10);
   const companyTitle = cleanString(cached.data.name) || mapped.title || symbol;
   const results = [];
+  const form4Slots = []; // { index, rawDoc, accession, filingDate }
   const cikNumeric = String(Number(mapped.cik));
-  for (let i = 0; i < recent.form.length && results.length < maxResults; i++) {
+  // Collect up to 3x the requested count so query-aware prioritization has
+  // insider filings to promote even when routine paper is newer.
+  const collectMax = maxResults * 3;
+  for (let i = 0; i < recent.form.length && results.length < collectMax; i++) {
     const filingDate = recent.filingDate[i];
     if (filingDate < cutoff) break; // arrays are newest-first
     const accession = String(recent.accessionNumber[i] || '').replace(/-/g, '');
@@ -397,13 +489,46 @@ async function _edgarRecentFilings(symbol, userAgent, maxResults) {
       filingDate,
       companyTitle
     );
+    if (recent.form[i] === '4' && form4Slots.length < EDGAR_FORM4_PARSE_PER_CALL) {
+      form4Slots.push({
+        index: results.length,
+        rawDoc: primaryDoc.replace(/^xsl[^/]*\//, ''),
+        accession,
+        filingDate,
+      });
+    }
     results.push({
+      form: recent.form[i],
       title,
       url: `https://www.sec.gov/Archives/edgar/data/${cikNumeric}/${accession}/${primaryDoc}`,
       snippet: snippet.substring(0, 300),
     });
   }
+
+  // Enrich Form 4 entries with who/what/how-much from the raw filing XML.
+  await Promise.all(form4Slots.map(async slot => {
+    results[slot.index] = await _edgarEnrichForm4(
+      results[slot.index], slot.rawDoc, cikNumeric, slot.accession, slot.filingDate, userAgent
+    );
+  }));
+
   return results;
+}
+
+// Insider/ownership-intent queries (the whales endpoint's phrasing) want
+// Form 4/144/13D/G filings ahead of routine 10-Q/8-K paper; other queries
+// keep pure newest-first ordering.
+const EDGAR_INSIDER_INTENT_RE = /insider|institutional|ownership|13[DFG]|block trade|form 4/i;
+const EDGAR_INSIDER_FORMS_RE = /^(4|4\/A|144|SC 13[DG](\/A)?|SCHEDULE 13[DG](\/A)?)$/;
+
+function _edgarPrioritizeForQuery(filings, query) {
+  if (!EDGAR_INSIDER_INTENT_RE.test(query)) return filings;
+  const insider = [];
+  const rest = [];
+  for (const f of filings) {
+    (EDGAR_INSIDER_FORMS_RE.test(f.form || '') || /^Insider Form 4/.test(f.title) ? insider : rest).push(f);
+  }
+  return insider.concat(rest);
 }
 
 async function alpacaEdgarSearchImpl(config, query, maxResults) {
@@ -414,13 +539,15 @@ async function alpacaEdgarSearchImpl(config, query, maxResults) {
 
   // Both legs run concurrently; either leg's transport failure throws
   // (no-partial-results rule — the server boundary owns error surfacing).
-  const [newsResult, filings] = await Promise.all([
+  const [newsResult, rawFilings] = await Promise.all([
     alpacaSearchImpl(config, query, maxResults),
     _edgarRecentFilings(symbol, config.edgarUserAgent, maxResults),
   ]);
+  const filings = _edgarPrioritizeForQuery(rawFilings, query)
+    .map(({ title, url, snippet }) => ({ title, url, snippet }));
 
   // Filings are the primary source — they take up to half the slots
-  // (rounded up), newest first; the news wire backfills the rest.
+  // (rounded up); the news wire backfills the rest.
   const filingSlots = Math.min(filings.length, Math.ceil(maxResults / 2));
   const merged = filings.slice(0, filingSlots);
   for (const r of newsResult.results) {
