@@ -25,6 +25,22 @@ class PineParser {
     throw new SyntaxError(`${msg} at token ${tok.type} (${tok.value})`);
   }
 
+  // True when the identifier+paren at the current position closes with a ')'
+  // whose very next token is '=>' - i.e. this statement IS the definition.
+  isFunctionDefAhead() {
+    let i = this.pos + 2; // past 'name' and '('
+    let depth = 1;
+    while (depth > 0) {
+      const t = this.tokens[i];
+      if (!t || t.type === 'eof') return false;
+      if (t.type === 'punct' && t.value === '(') depth++;
+      if (t.type === 'punct' && t.value === ')') depth--;
+      i++;
+    }
+    const after = this.tokens[i];
+    return !!after && after.type === 'operator' && after.value === '=>';
+  }
+
   // -----------------------------------------------------------------
   // Entry point
   // -----------------------------------------------------------------
@@ -75,9 +91,10 @@ class PineParser {
 
     // function definition (arrow)
     if (tok.type === 'identifier' && this.peek(1).type === 'punct' && this.peek(1).value === '(') {
-      // could be a call or a definition - we look ahead for => token
-      const idx = this.tokens.findIndex((t, i) => i > this.pos && t.type === 'operator' && t.value === '=>');
-      if (idx !== -1) return this.functionDefinition();
+      // A definition only when '=>' directly follows THIS call's closing
+      // paren: f(a, b) => body. Anything else (study(...), fill(...)) is a
+      // plain call, even if another definition appears later in the file.
+      if (this.isFunctionDefAhead()) return this.functionDefinition();
     }
 
     // Regular variable declaration: identifier = expression or type identifier = expression
@@ -246,7 +263,7 @@ class PineParser {
       if (this.peek().type === 'punct' && this.peek().value === ',') this.consume('punct', ',');
     }
     this.consume('punct', ')');
-    this.consume('operator', '=>');
+    const arrow = this.consume('operator', '=>');
 
     // Multi-line functions have statements followed by a return expression.
     // With indentation tracking, we consume indent and parse until dedent.
@@ -268,30 +285,10 @@ class PineParser {
         break;
       }
 
-      // For non-indented functions, use heuristics:
-      if (!hasIndent) {
-        // Stop if we hit a new function definition (identifier followed by () =>)
-        if (this.peek().type === 'identifier') {
-          let i = 1;
-          if (this.peek(i).type === 'punct' && this.peek(i).value === '(') {
-            let depth = 1;
-            i++;
-            while (depth > 0 && this.peek(i).type !== 'eof') {
-              if (this.peek(i).value === '(') depth++;
-              if (this.peek(i).value === ')') depth--;
-              i++;
-            }
-            if (this.peek(i).type === 'operator' && this.peek(i).value === '=>') {
-              break;
-            }
-          }
-        }
-
-        // Stop if we hit control flow keywords at top level
-        if (this.peek().type === 'keyword' &&
-            ['if', 'for', 'while', 'var', 'strategy', 'plot', 'plotshape', 'bgcolor', 'alertcondition'].includes(this.peek().value)) {
-          break;
-        }
+      // A non-indented body is single-line: it ends at the line break.
+      // Anything on a later line is top-level, not part of this function.
+      if (!hasIndent && this.peek().line > arrow.line) {
+        break;
       }
 
       statements.push(this.statement());

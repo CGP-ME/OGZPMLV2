@@ -11,7 +11,47 @@ const PINE_NOOP = Object.freeze({ __pineNoop: true });
 // Namespaces ignored by design: visualization and string formatting only.
 // They never feed trading logic, so their members are sanctioned no-ops,
 // not refusals. Everything else unmapped refuses at load.
-const NOOP_NAMESPACES = new Set(['color', 'table', 'str', 'label', 'line', 'box']);
+const NOOP_NAMESPACES = new Set([
+  'color', 'table', 'str', 'label', 'line', 'box',
+  'plot', 'hline', 'shape', 'size', 'location', 'display', 'format',
+]);
+
+// v2-v4 dialect: bare builtin calls (sma(...), rsi(...)) alias onto the
+// same ta.* dispatcher, so old-Pine scripts compute with the identical
+// TV-verified definitions as their ta.* spellings.
+const BARE_TA_ALIASES = new Set([
+  'sma', 'ema', 'rsi', 'stdev', 'highest', 'lowest', 'atr', 'macd', 'vwap',
+  'crossover', 'crossunder', 'cross', 'change', 'valuewhen',
+  'wma', 'rma', 'linreg', 'stoch',
+]);
+
+// v2-v4 bare scalar math builtins. TV round() rounds half away from zero;
+// JS Math.round rounds half toward +Infinity for negatives.
+const BARE_SCALAR_FNS = {
+  abs: Math.abs,
+  log: Math.log,
+  log10: Math.log10,
+  sqrt: Math.sqrt,
+  pow: Math.pow,
+  exp: Math.exp,
+  floor: Math.floor,
+  ceil: Math.ceil,
+  max: Math.max,
+  min: Math.min,
+  round: (x) => (x < 0 ? -Math.round(-x) : Math.round(x)),
+  avg: (...xs) => xs.reduce((a, b) => a + b, 0) / xs.length,
+  iff: (cond, a, b) => (cond ? a : b),
+};
+
+// Bare color names and plot-style words from v2-v4 scripts. Visualization
+// values only - they resolve to the no-op sentinel, never trading logic.
+const BARE_VISUAL_IDENTIFIERS = new Set([
+  'red', 'green', 'blue', 'lime', 'gray', 'grey', 'orange', 'aqua',
+  'maroon', 'black', 'white', 'yellow', 'purple', 'silver', 'teal',
+  'navy', 'olive', 'fuchsia',
+  'histogram', 'area', 'columns', 'stepline', 'linebr', 'circles',
+  'dashed', 'dotted', 'solid', 'cross',
+]);
 
 // Direct-call names ignored by design (visualization/alerting).
 const IGNORED_CALL_NAMES = new Set([
@@ -152,7 +192,8 @@ class PineRuntime {
           if (declared.has(name)) return;
           if (SERIES_IDENTIFIERS.has(name)) return;
           if (name === 'bar_index' || name === 'na') return;
-          if (ctx && ctx.inTaArgs && TA_ONLY_SERIES.has(name)) return;
+          if (TA_ONLY_SERIES.has(name) || name === 'tr' || name === 'time') return;
+          if (BARE_VISUAL_IDENTIFIERS.has(name)) return;
           if (NOOP_NAMESPACES.has(name)) return;
           if (ROOT_NAMESPACES.has(name)) return;
           refuse(`identifier '${name}'`);
@@ -196,7 +237,9 @@ class PineRuntime {
             if (
               IGNORED_CALL_NAMES.has(name) ||
               NOOP_NAMESPACES.has(name) ||
-              ['strategy', 'input', 'nz', 'na', 'time'].includes(name) ||
+              BARE_TA_ALIASES.has(name) ||
+              Object.prototype.hasOwnProperty.call(BARE_SCALAR_FNS, name) ||
+              ['strategy', 'study', 'indicator', 'input', 'nz', 'na', 'time', 'timestamp'].includes(name) ||
               declared.has(name)
             ) {
               walkArgs(undefined);
@@ -475,6 +518,28 @@ class PineRuntime {
         if (node.name === 'syminfo') return { ticker: 'TSLA', mintick: 0.01 };
         // na in value position is Pine's empty value
         if (node.name === 'na') return null;
+        // Computed bar values and visual words - user declarations shadow
+        // them (v4 scripts commonly reassign builtin names like atr).
+        if (!(node.name in this.state)) {
+          const cur = this._getCurrentCandle();
+          if (node.name === 'hl2') return cur ? (cur.high + cur.low) / 2 : null;
+          if (node.name === 'hlc3') return cur ? (cur.high + cur.low + cur.close) / 3 : null;
+          if (node.name === 'ohlc4') {
+            return cur ? (cur.open + cur.high + cur.low + cur.close) / 4 : null;
+          }
+          if (node.name === 'tr') {
+            if (!cur) return null;
+            const prev = this.history[this.history.length - 2];
+            if (!prev) return cur.high - cur.low;
+            return Math.max(
+              cur.high - cur.low,
+              Math.abs(cur.high - prev.close),
+              Math.abs(cur.low - prev.close)
+            );
+          }
+          if (node.name === 'time') return cur ? cur.timestamp ?? null : null;
+          if (BARE_VISUAL_IDENTIFIERS.has(node.name)) return PINE_NOOP;
+        }
         // visualization/formatting namespaces are sanctioned no-ops
         if (NOOP_NAMESPACES.has(node.name)) return PINE_NOOP;
         // user variable - must be declared; anything else bypassed the gate
@@ -636,6 +701,8 @@ class PineRuntime {
     if (typeof callee === 'object' && callee.type === 'MemberExpression') {
       // Special handling for input.* - return the default value (before evaluating obj)
       if (callee.object.type === 'Identifier' && callee.object.name === 'input') {
+        const named = evaluatedArgs.find(a => a && a.name === 'defval');
+        if (named) return named.value;
         const positional = evaluatedArgs.filter(a => !a || !a.name);
         return positional[0]; // First arg is the default value
       }
@@ -690,8 +757,21 @@ class PineRuntime {
         return null;
       }
 
+      // study(...) / indicator(...) headers are metadata, not calls
+      if (callee.name === 'study' || callee.name === 'indicator') {
+        const meta = {};
+        evaluatedArgs.forEach((a, i) => {
+          if (a && a.name) meta[a.name] = a.value;
+          else if (i === 0) meta.title = a;
+        });
+        this.scriptMeta = meta;
+        return null;
+      }
+
       // Special case: input.*() returns the default value
       if (callee.name === 'input') {
+        const named = evaluatedArgs.find(a => a && a.name === 'defval');
+        if (named) return named.value;
         const positional = evaluatedArgs.filter(a => !a || !a.name);
         return positional[0];
       }
@@ -701,6 +781,20 @@ class PineRuntime {
            'bgcolor', 'fill', 'hline', 'line', 'label', 'box', 'table',
            'alertcondition', 'alert'].includes(callee.name)) {
         return null;
+      }
+
+      // v2-v4 dialect: bare builtins route through the ta.* dispatcher with
+      // the same TV-verified definitions. User declarations shadow: a var
+      // named atr wins in value position, but a bare atr(...) CALL is only
+      // shadowed by a user FUNCTION of that name, never by a plain value.
+      const shadow = this.state[callee.name];
+      const shadowIsUserFn = shadow && typeof shadow === 'object' && !!shadow.params;
+      if (!shadowIsUserFn && BARE_TA_ALIASES.has(callee.name)) {
+        return this._callTAMethod(callee.name, args);
+      }
+      if (!shadowIsUserFn && Object.prototype.hasOwnProperty.call(BARE_SCALAR_FNS, callee.name)) {
+        const positional = evaluatedArgs.filter(a => !a || !a.name);
+        return BARE_SCALAR_FNS[callee.name](...positional);
       }
 
       const target = this._resolveCallee(callee.name);
@@ -758,16 +852,7 @@ class PineRuntime {
   // -----------------------------------------------------------------
   _callTAMethod(method, rawArgs) {
     // Helper to get series from identifier or evaluate expression
-    const seriesNames = ['close', 'open', 'high', 'low', 'volume', 'hl2', 'hlc3', 'ohlc4'];
-
-    const evalOrSeries = (arg) => {
-      // If arg is an Identifier that's a known series, return the series array
-      if (arg.type === 'Identifier' && seriesNames.includes(arg.name)) {
-        return this._getSeries(arg.name);
-      }
-      // Otherwise evaluate normally
-      return this._evalExpression(arg);
-    };
+    const seriesNames = ['close', 'open', 'high', 'low', 'volume', 'hl2', 'hlc3', 'ohlc4', 'tr'];
 
     // Special series calculations
     const getComputedSeries = (name) => {
@@ -775,6 +860,11 @@ class PineRuntime {
         case 'hl2': return this.history.map(c => (c.high + c.low) / 2);
         case 'hlc3': return this.history.map(c => (c.high + c.low + c.close) / 3);
         case 'ohlc4': return this.history.map(c => (c.open + c.high + c.low + c.close) / 4);
+        case 'tr': return this.history.map((c, i) => {
+          if (i === 0) return c.high - c.low;
+          const pc = this.history[i - 1].close;
+          return Math.max(c.high - c.low, Math.abs(c.high - pc), Math.abs(c.low - pc));
+        });
         default: return this.history.map(c => c[name]);
       }
     };
@@ -782,29 +872,90 @@ class PineRuntime {
     // Override _getSeries for computed series
     const getSeries = (name) => getComputedSeries(name);
 
+    // Per-bar history of a user variable: state snapshots for past bars
+    // plus the value computed so far on the current bar - TV series
+    // semantics for expressions like sma(wt1, 4).
+    const userVarSeries = (name) => {
+      const values = this.stateHistory.map((s) => (name in s ? s[name] : null));
+      values.push(this.state[name]);
+      return values;
+    };
+
+    const isUserVar = (name) => {
+      if (!(name in this.state)) return false;
+      const v = this.state[name];
+      return !(v && typeof v === 'object' && v.params);
+    };
+
+    const evalOrSeries = (arg) => {
+      // If arg is an Identifier that's a known series, return the series array
+      if (arg.type === 'Identifier' && seriesNames.includes(arg.name)) {
+        return this._getSeries(arg.name);
+      }
+      if (arg.type === 'Identifier' && isUserVar(arg.name)) {
+        return userVarSeries(arg.name);
+      }
+      // x[1] over a resolvable base: the same series shifted one bar back
+      if (arg.type === 'SeriesLookup') {
+        let base = null;
+        if (seriesNames.includes(arg.series)) base = getSeries(arg.series);
+        else if (isUserVar(arg.series)) base = userVarSeries(arg.series);
+        if (base) {
+          const off = Math.floor(this._evalExpression(arg.offset));
+          return off > 0 ? base.slice(0, base.length - off) : base;
+        }
+      }
+      // Otherwise evaluate normally
+      return this._evalExpression(arg);
+    };
+
+    // Series-argument resolution for window functions. Non-series scalars
+    // keep the legacy close fallback until every expression shape carries
+    // per-bar history.
+    const resolveSeriesArg = (arg) => {
+      if (arg.type === 'Identifier' && seriesNames.includes(arg.name)) {
+        return getSeries(arg.name);
+      }
+      if (arg.type === 'Identifier' && isUserVar(arg.name)) {
+        return userVarSeries(arg.name);
+      }
+      if (arg.type === 'SeriesLookup') {
+        const shifted = evalOrSeries(arg);
+        if (Array.isArray(shifted)) return shifted;
+      }
+      const evaluated = this._evalExpression(arg);
+      return Array.isArray(evaluated) ? evaluated : getSeries('close');
+    };
+
     switch (method) {
       case 'sma':
       case 'ema':
       case 'rsi':
       case 'stdev':
       case 'highest':
-      case 'lowest': {
+      case 'lowest':
+      case 'wma':
+      case 'rma': {
         // First arg is series, second is length
-        const seriesArg = rawArgs[0];
-        const lengthArg = rawArgs[1];
-
-        let series;
-        if (seriesArg.type === 'Identifier' && seriesNames.includes(seriesArg.name)) {
-          series = getSeries(seriesArg.name);
-        } else {
-          // Evaluate - might be an expression or user variable
-          const evaluated = this._evalExpression(seriesArg);
-          series = Array.isArray(evaluated) ? evaluated : getSeries('close');
-        }
-
-        const length = this._evalExpression(lengthArg);
+        const series = resolveSeriesArg(rawArgs[0]);
+        const length = this._evalExpression(rawArgs[1]);
         // Round to mintick to match TradingView precision
         return this._roundToTick(PineTALib[method](series, length));
+      }
+      case 'linreg': {
+        // ta.linreg(source, length, offset)
+        const series = resolveSeriesArg(rawArgs[0]);
+        const length = this._evalExpression(rawArgs[1]);
+        const offset = rawArgs[2] ? this._evalExpression(rawArgs[2]) : 0;
+        return this._roundToTick(PineTALib.linreg(series, length, offset));
+      }
+      case 'stoch': {
+        // ta.stoch(source, high, low, length)
+        const source = resolveSeriesArg(rawArgs[0]);
+        const highs = resolveSeriesArg(rawArgs[1]);
+        const lows = resolveSeriesArg(rawArgs[2]);
+        const length = this._evalExpression(rawArgs[3]);
+        return PineTALib.stoch(source, highs, lows, length);
       }
       case 'atr': {
         // Pine: ta.atr(length) - implicitly uses high, low, close
@@ -829,13 +980,22 @@ class PineRuntime {
         return this._roundToTick(PineTALib.vwap(source, getSeries('volume')));
       }
       case 'crossover':
-      case 'crossunder': {
+      case 'crossunder':
+      case 'cross': {
         // Both args could be series or single values
         let seriesA = evalOrSeries(rawArgs[0]);
         let seriesB = evalOrSeries(rawArgs[1]);
         // Wrap single values in arrays for comparison
         if (!Array.isArray(seriesA)) seriesA = [seriesA];
         if (!Array.isArray(seriesB)) seriesB = [seriesB];
+        // A constant leg (crossover(wt1, 0)) stretches to the series leg's
+        // length so the prior-bar comparison exists - TV semantics.
+        if (seriesA.length === 1 && seriesB.length > 1) {
+          seriesA = new Array(seriesB.length).fill(seriesA[0]);
+        }
+        if (seriesB.length === 1 && seriesA.length > 1) {
+          seriesB = new Array(seriesA.length).fill(seriesB[0]);
+        }
         return PineTALib[method](seriesA, seriesB);
       }
       case 'change': {
@@ -916,6 +1076,18 @@ class PineRuntime {
     if (name === 'nz') return (val, replacement = 0) => (val === null || val === undefined || Number.isNaN(val)) ? replacement : val;
     if (name === 'na') return (val) => val === null || val === undefined || Number.isNaN(val);
     if (name === 'time') return (session) => this._getCurrentCandle()?.timestamp || Date.now();
+    if (name === 'timestamp') {
+      // timestamp("2021-10-01T00:00:00") or timestamp(year, month, day, hour, minute[, sec])
+      return (...a) => {
+        if (typeof a[0] === 'string') {
+          const parsed = Date.parse(a[0]);
+          return Number.isNaN(parsed) ? null : parsed;
+        }
+        const [y, m = 1, d = 1, h = 0, min = 0, s = 0] = a;
+        if (typeof y !== 'number') return null;
+        return Date.UTC(y, (m || 1) - 1, d, h, min, s);
+      };
+    }
     if (name === 'timeframe') return { multiplier: 15, isminutes: true }; // default 15m
     if (name === 'syminfo') return { ticker: 'TSLA', mintick: 0.01 };
     if (name === 'dayofweek') return new Date(this._getCurrentCandle()?.timestamp || Date.now()).getDay();

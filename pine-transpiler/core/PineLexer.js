@@ -19,6 +19,12 @@ class PineLexer {
     // Indentation tracking
     this.indentStack = [0]; // Stack of indentation levels
     this.atLineStart = true; // Are we at the start of a line?
+    // Inside an open ( or [ a newline is expression continuation, not block
+    // structure - indent/dedent tokens are suppressed until it closes.
+    this.bracketDepth = 0;
+    // 1-based source line, stamped on every token so the parser can tell
+    // same-line constructs (single-line function bodies) from next-line ones.
+    this.line = 1;
   }
 
   isWhitespace(ch) {
@@ -42,7 +48,7 @@ class PineLexer {
   }
 
   addToken(type, value) {
-    this.tokens.push({ type, value });
+    this.tokens.push({ type, value, line: this.line });
   }
 
   lex() {
@@ -58,6 +64,11 @@ class PineLexer {
         }
         // Skip empty lines and comment-only lines
         if (this.peek() === '\n' || (this.peek() === '/' && this.peek(1) === '/')) {
+          this.atLineStart = false;
+          continue;
+        }
+        // Continuation line inside an open bracket - no indent/dedent
+        if (this.bracketDepth > 0) {
           this.atLineStart = false;
           continue;
         }
@@ -80,6 +91,7 @@ class PineLexer {
       // Newline - next iteration will check indentation
       if (ch === '\n') {
         this.advance();
+        this.line++;
         this.atLineStart = true;
         continue;
       }
@@ -97,7 +109,10 @@ class PineLexer {
       }
       if (ch === '/' && this.peek(1) === '*') {
         this.advance(2);
-        while (!(this.peek() === '*' && this.peek(1) === '/') && this.pos < this.source.length) this.advance();
+        while (!(this.peek() === '*' && this.peek(1) === '/') && this.pos < this.source.length) {
+          if (this.peek() === '\n') this.line++;
+          this.advance();
+        }
         this.advance(2);
         continue;
       }
@@ -171,6 +186,8 @@ class PineLexer {
         continue;
       }
       if (this.punctuations.has(ch)) {
+        if (ch === '(' || ch === '[') this.bracketDepth++;
+        if ((ch === ')' || ch === ']') && this.bracketDepth > 0) this.bracketDepth--;
         this.addToken('punct', ch);
         this.advance();
         continue;

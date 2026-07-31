@@ -57,6 +57,73 @@ class PineTALib {
     return IndicatorCalculator.calculateWilderATR(candles, length);
   }
 
+  // Weighted moving average - TV: weight length for the newest value down
+  // to 1 for the oldest, denominator length*(length+1)/2, na until a full
+  // window exists.
+  static wma(series, length) {
+    if (length <= 0) return null;
+    if (!Array.isArray(series) || series.length < length) return null;
+    const window = series.slice(-length);
+    let weighted = 0;
+    for (let i = 0; i < length; i++) {
+      weighted += window[i] * (i + 1);
+    }
+    return weighted / ((length * (length + 1)) / 2);
+  }
+
+  // Wilder smoothing (TV ta.rma): seed SMA(length), then
+  // rma = (prev * (length-1) + value) / length. na until seeded.
+  static rma(series, length) {
+    if (length <= 0) return null;
+    if (!Array.isArray(series) || series.length < length) return null;
+    let rma = this.sma(series.slice(0, length), length);
+    for (let i = length; i < series.length; i++) {
+      rma = (rma * (length - 1) + series[i]) / length;
+    }
+    return rma;
+  }
+
+  // Linear regression curve - least squares over the last `length` values
+  // with x = 0 (oldest) .. length-1 (newest).
+  // TV: value = intercept + slope * (length - 1 - offset).
+  static linreg(series, length, offset = 0) {
+    if (length <= 0) return null;
+    if (!Array.isArray(series) || series.length < length) return null;
+    const window = series.slice(-length);
+    let sumX = 0;
+    let sumY = 0;
+    let sumXY = 0;
+    let sumX2 = 0;
+    for (let i = 0; i < length; i++) {
+      sumX += i;
+      sumY += window[i];
+      sumXY += i * window[i];
+      sumX2 += i * i;
+    }
+    const denom = length * sumX2 - sumX * sumX;
+    if (denom === 0) return null;
+    const slope = (length * sumXY - sumX * sumY) / denom;
+    const intercept = (sumY - slope * sumX) / length;
+    return intercept + slope * (length - 1 - (offset || 0));
+  }
+
+  // Stochastic %K - TV ta.stoch(source, high, low, length):
+  // 100 * (source - lowest(low, length)) / (highest(high, length) - lowest(low, length))
+  static stoch(source, high, low, length) {
+    if (length <= 0) return null;
+    if (!Array.isArray(source) || !Array.isArray(high) || !Array.isArray(low)) return null;
+    if (source.length < 1 || high.length < length || low.length < length) return null;
+    const hh = Math.max(...high.slice(-length));
+    const ll = Math.min(...low.slice(-length));
+    if (hh === ll) return null;
+    return (100 * (source[source.length - 1] - ll)) / (hh - ll);
+  }
+
+  // TV ta.cross(a, b): a crossing over OR under b on this bar.
+  static cross(seriesA, seriesB) {
+    return this.crossover(seriesA, seriesB) || this.crossunder(seriesA, seriesB);
+  }
+
   static macd(series, fastLength = 12, slowLength = 26, signalLength = 9) {
     if (!Array.isArray(series) || fastLength <= 0 || slowLength <= 0 || signalLength <= 0) {
       return [null, null, null];
