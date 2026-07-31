@@ -4,6 +4,39 @@ const PineTALib = require('./PineTALib');
 const SessionTracker = require('../helpers/SessionTracker');
 const PineStrategyBridge = require('./PineStrategyBridge');
 
+// Sentinel for visualization/formatting namespaces that are ignored by
+// design. Member access on it stays chainable; member calls resolve to null.
+const PINE_NOOP = Object.freeze({ __pineNoop: true });
+
+// Namespaces ignored by design: visualization and string formatting only.
+// They never feed trading logic, so their members are sanctioned no-ops,
+// not refusals. Everything else unmapped refuses at load.
+const NOOP_NAMESPACES = new Set(['color', 'table', 'str', 'label', 'line', 'box']);
+
+// Direct-call names ignored by design (visualization/alerting).
+const IGNORED_CALL_NAMES = new Set([
+  'plot', 'plotshape', 'plotchar', 'plotarrow', 'plotbar', 'plotcandle',
+  'bgcolor', 'fill', 'hline', 'line', 'label', 'box', 'table',
+  'alertcondition', 'alert',
+]);
+
+// Built-in bar series usable anywhere.
+const SERIES_IDENTIFIERS = new Set(['close', 'open', 'high', 'low', 'volume']);
+
+// Computed series only supported as direct ta.* arguments.
+const TA_ONLY_SERIES = new Set(['hl2', 'hlc3', 'ohlc4']);
+
+// ta.* methods special-cased by the runtime dispatcher beyond PineTALib statics.
+const TA_SPECIAL_METHODS = new Set([
+  'sma', 'ema', 'rsi', 'stdev', 'highest', 'lowest', 'atr', 'macd', 'vwap',
+  'crossover', 'crossunder', 'change', 'valuewhen',
+]);
+
+// Namespace roots valid in value position.
+const ROOT_NAMESPACES = new Set([
+  'math', 'ta', 'array', 'strategy', 'session', 'timeframe', 'syminfo', 'input',
+]);
+
 class PineRuntime {
   constructor(source) {
     const Lexer = require('./PineLexer');
@@ -28,6 +61,266 @@ class PineRuntime {
 
     // Strategy bridge - collects entry/exit requests
     this.bridge = new PineStrategyBridge();
+
+    // Load gate: every unsupported feature refuses here, by name, before
+    // a single candle is evaluated. Silent nulls at runtime are banned.
+    this._validateSupportedSurface();
+  }
+
+  // -----------------------------------------------------------------
+  // Load gate - walk the AST and refuse every unsupported feature by name
+  // -----------------------------------------------------------------
+  _validateSupportedSurface() {
+    const declared = new Set();
+
+    const collectStmt = (node) => {
+      if (!node || typeof node !== 'object') return;
+      switch (node.type) {
+        case 'VarDecl':
+        case 'RegularVarDecl':
+          declared.add(node.id);
+          break;
+        case 'TupleAssignment':
+          node.ids.forEach((id) => declared.add(id));
+          break;
+        case 'FunctionDecl':
+          declared.add(node.name);
+          (node.params || []).forEach((p) => declared.add(p));
+          (node.locals || []).forEach(collectStmt);
+          break;
+        case 'IfStatement':
+          collectStmts(node.consequent && node.consequent.body);
+          if (node.alternate) collectStmts(node.alternate.body);
+          break;
+        case 'ForStatement':
+          declared.add(node.id);
+          collectStmts(node.body && node.body.body);
+          break;
+        case 'WhileStatement':
+          collectStmts(node.body && node.body.body);
+          break;
+        case 'ExpressionStatement':
+          if (
+            node.expression &&
+            node.expression.type === 'AssignmentExpression' &&
+            node.expression.left &&
+            node.expression.left.type === 'Identifier'
+          ) {
+            declared.add(node.expression.left.name);
+          }
+          break;
+        case 'AssignmentExpression':
+          if (node.left && node.left.type === 'Identifier') declared.add(node.left.name);
+          break;
+        default:
+          break;
+      }
+    };
+    const collectStmts = (stmts) => (stmts || []).forEach(collectStmt);
+    collectStmts(this.ast.body);
+
+    const staticNames = (klass) =>
+      Object.getOwnPropertyNames(klass).filter((n) => typeof klass[n] === 'function');
+    const surfaces = {
+      ta: new Set([...staticNames(PineTALib), ...TA_SPECIAL_METHODS]),
+      array: new Set(staticNames(PineArray)),
+      strategy: new Set(
+        Object.getOwnPropertyNames(PineStrategyBridge.prototype).filter(
+          (n) => !['constructor', 'flushSignal', 'updatePosition'].includes(n)
+        )
+      ),
+      session: new Set([
+        ...Object.getOwnPropertyNames(Object.getPrototypeOf(this.session)).filter(
+          (n) => n !== 'constructor'
+        ),
+        ...Object.getOwnPropertyNames(this.session),
+      ]),
+      timeframe: new Set(['multiplier', 'period', 'isminutes']),
+      syminfo: new Set(['ticker', 'mintick']),
+    };
+
+    const violations = new Set();
+    const refuse = (label) => violations.add(label);
+
+    const walkExpr = (node, ctx) => {
+      if (!node || typeof node !== 'object') return;
+      switch (node.type) {
+        case 'Literal':
+          return;
+        case 'Identifier': {
+          const name = node.name;
+          if (declared.has(name)) return;
+          if (SERIES_IDENTIFIERS.has(name)) return;
+          if (name === 'bar_index' || name === 'na') return;
+          if (ctx && ctx.inTaArgs && TA_ONLY_SERIES.has(name)) return;
+          if (NOOP_NAMESPACES.has(name)) return;
+          if (ROOT_NAMESPACES.has(name)) return;
+          refuse(`identifier '${name}'`);
+          return;
+        }
+        case 'SeriesLookup':
+          if (!SERIES_IDENTIFIERS.has(node.series) && !declared.has(node.series)) {
+            refuse(`series '${node.series}[...]'`);
+          }
+          walkExpr(node.offset, ctx);
+          return;
+        case 'MemberExpression': {
+          const objNode = node.object;
+          if (objNode && objNode.type === 'Identifier') {
+            const ns = objNode.name;
+            if (NOOP_NAMESPACES.has(ns) || ns === 'input') return;
+            if (ns === 'math') {
+              // Surface = what the runtime actually resolves: JS Math members
+              // verbatim. Pine spellings like math.pi are mission-two coverage.
+              if (!(node.property in Math)) refuse(`'math.${node.property}'`);
+              return;
+            }
+            if (surfaces[ns]) {
+              if (!surfaces[ns].has(node.property)) refuse(`'${ns}.${node.property}'`);
+              return;
+            }
+            // Member access on a user value - dynamic, backstop covers it.
+            walkExpr(objNode, ctx);
+            return;
+          }
+          walkExpr(objNode, ctx);
+          return;
+        }
+        case 'CallExpression': {
+          const callee = node.callee;
+          const args = node.arguments || [];
+          const walkArgs = (argCtx) =>
+            args.forEach((a) => walkExpr(a && a.type === 'NamedArgument' ? a.value : a, argCtx));
+          if (callee && callee.type === 'Identifier') {
+            const name = callee.name;
+            if (
+              IGNORED_CALL_NAMES.has(name) ||
+              NOOP_NAMESPACES.has(name) ||
+              ['strategy', 'input', 'nz', 'na', 'time'].includes(name) ||
+              declared.has(name)
+            ) {
+              walkArgs(undefined);
+              return;
+            }
+            refuse(`function '${name}()'`);
+            walkArgs(undefined);
+            return;
+          }
+          if (callee && callee.type === 'MemberExpression') {
+            const isTa =
+              callee.object && callee.object.type === 'Identifier' && callee.object.name === 'ta';
+            walkExpr(callee, undefined);
+            walkArgs(isTa ? { inTaArgs: true } : undefined);
+            return;
+          }
+          walkExpr(callee, undefined);
+          walkArgs(undefined);
+          return;
+        }
+        case 'NamedArgument':
+          walkExpr(node.value, ctx);
+          return;
+        case 'UnaryExpression':
+          walkExpr(node.argument, ctx);
+          return;
+        case 'BinaryExpression':
+        case 'LogicalExpression':
+          walkExpr(node.left, ctx);
+          walkExpr(node.right, ctx);
+          return;
+        case 'ConditionalExpression':
+          walkExpr(node.test, ctx);
+          walkExpr(node.consequent, ctx);
+          walkExpr(node.alternate, ctx);
+          return;
+        case 'IndexExpression':
+          walkExpr(node.object, ctx);
+          walkExpr(node.index, ctx);
+          return;
+        case 'AssignmentExpression':
+          walkExpr(node.left, ctx);
+          walkExpr(node.right, ctx);
+          return;
+        default:
+          refuse(`expression type '${node.type}'`);
+      }
+    };
+
+    const walkStmt = (node) => {
+      if (!node || typeof node !== 'object') return;
+      switch (node.type) {
+        case 'VarDecl':
+        case 'RegularVarDecl':
+          walkExpr(node.init, undefined);
+          return;
+        case 'TupleAssignment':
+          walkExpr(node.init, undefined);
+          return;
+        case 'ExpressionStatement':
+          walkExpr(node.expression, undefined);
+          return;
+        case 'IfStatement':
+          walkExpr(node.test, undefined);
+          walkStmts(node.consequent && node.consequent.body);
+          if (node.alternate) walkStmts(node.alternate.body);
+          return;
+        case 'ForStatement':
+          walkExpr(node.start, undefined);
+          walkExpr(node.end, undefined);
+          walkStmts(node.body && node.body.body);
+          return;
+        case 'WhileStatement':
+          walkExpr(node.test, undefined);
+          walkStmts(node.body && node.body.body);
+          return;
+        case 'FunctionDecl':
+          (node.locals || []).forEach(walkStmt);
+          walkStmt(node.body);
+          return;
+        case 'AssignmentExpression':
+          walkExpr(node.left, undefined);
+          walkExpr(node.right, undefined);
+          return;
+        case 'break':
+        case 'continue':
+          return;
+        default:
+          refuse(`statement type '${node.type}'`);
+      }
+    };
+    const walkStmts = (stmts) => (stmts || []).forEach(walkStmt);
+    walkStmts(this.ast.body);
+
+    if (violations.size > 0) {
+      const names = [...violations].sort();
+      const error = new Error(`Pine load refused: unsupported feature(s): ${names.join(', ')}`);
+      error.code = 'PINE_LOAD_REFUSED';
+      error.unsupported = names;
+      throw error;
+    }
+  }
+
+  // -----------------------------------------------------------------
+  // Backstop error - fires only if the load gate missed something.
+  // A firing here is evidence of a gate bypass, not a random error.
+  // -----------------------------------------------------------------
+  _bypassError(detail) {
+    const error = new Error(
+      `Unsupported Pine feature reached runtime (${detail}) - unreachable: ` +
+        'constructor gate should have refused this; a firing here is evidence of a load-gate bypass'
+    );
+    error.code = 'PINE_RUNTIME_BYPASS';
+    return error;
+  }
+
+  _describeNode(node) {
+    if (!node || typeof node !== 'object') return String(node);
+    if (node.type === 'Identifier') return node.name;
+    if (node.type === 'MemberExpression') {
+      return `${this._describeNode(node.object)}.${node.property}`;
+    }
+    if (node.type === 'CallExpression') return `${this._describeNode(node.callee)}()`;
+    return node.type;
   }
 
   // -----------------------------------------------------------------
@@ -180,7 +473,14 @@ class PineRuntime {
         // built-in objects for member access
         if (node.name === 'timeframe') return { multiplier: 15, period: '15', isminutes: true };
         if (node.name === 'syminfo') return { ticker: 'TSLA', mintick: 0.01 };
-        // user variable
+        // na in value position is Pine's empty value
+        if (node.name === 'na') return null;
+        // visualization/formatting namespaces are sanctioned no-ops
+        if (NOOP_NAMESPACES.has(node.name)) return PINE_NOOP;
+        // user variable - must be declared; anything else bypassed the gate
+        if (!(node.name in this.state)) {
+          throw this._bypassError(`identifier '${node.name}'`);
+        }
         return this.state[node.name];
       case 'SeriesLookup':
         return this._lookupSeries(node.series, this._evalExpression(node.offset));
@@ -253,8 +553,19 @@ class PineRuntime {
       case 'MemberExpression':
         {
           const obj = this._evalExpression(node.object);
-          if (obj === null || obj === undefined) return null;
-          return obj[node.property];
+          if (obj === PINE_NOOP) return PINE_NOOP;
+          if (obj === null || obj === undefined) {
+            throw this._bypassError(
+              `member access '${this._describeNode(node.object)}.${node.property}' on empty value`
+            );
+          }
+          const value = obj[node.property];
+          if (value === undefined && !(node.property in Object(obj))) {
+            throw this._bypassError(
+              `member '${this._describeNode(node.object)}.${node.property}'`
+            );
+          }
+          return value;
         }
       case 'AssignmentExpression':
         {
@@ -332,9 +643,13 @@ class PineRuntime {
       const obj = this._evalExpression(callee.object);
       const method = callee.property;
 
+      // Sanctioned visualization/formatting no-op namespaces
+      if (obj === PINE_NOOP) return null;
+
       if (obj === null || obj === undefined) {
-        // Some Pine built-ins resolve to null - just return null for their method calls
-        return null;
+        throw this._bypassError(
+          `call '${this._describeNode(callee.object)}.${method}()' on empty value`
+        );
       }
 
       // Special handling for ta.* - pass series arrays instead of scalars
@@ -355,8 +670,10 @@ class PineRuntime {
         return obj[method](...positional);
       }
 
-      // For objects without the method, return null (handles things like plot.style_linebr)
-      return obj[method] !== undefined ? obj[method] : null;
+      if (obj[method] !== undefined) return obj[method];
+      throw this._bypassError(
+        `method '${this._describeNode(callee.object)}.${method}()'`
+      );
     }
 
     // If callee is an Identifier (simple function call or user function)
@@ -540,7 +857,7 @@ class PineRuntime {
           const evaluated = rawArgs.map(a => this._evalExpression(a));
           return PineTALib[method](...evaluated);
         }
-        throw new Error(`Unknown ta method: ${method}`);
+        throw this._bypassError(`ta method 'ta.${method}()'`);
     }
   }
 
@@ -581,11 +898,11 @@ class PineRuntime {
         return this.bridge.close(id, getOpts());
       }
       default:
-        // For other strategy properties/methods, return null or try direct access
         if (typeof this.bridge[method] === 'function') {
           return this.bridge[method](...args.filter(a => !a || !a.name));
         }
-        return this.bridge[method];
+        if (method in this.bridge) return this.bridge[method];
+        throw this._bypassError(`strategy member 'strategy.${method}'`);
     }
   }
 
@@ -603,7 +920,10 @@ class PineRuntime {
     if (name === 'syminfo') return { ticker: 'TSLA', mintick: 0.01 };
     if (name === 'dayofweek') return new Date(this._getCurrentCandle()?.timestamp || Date.now()).getDay();
 
-    // user variable / function
+    // user variable / function - must be declared; anything else bypassed the gate
+    if (!(name in this.state)) {
+      throw this._bypassError(`function '${name}()'`);
+    }
     return this.state[name];
   }
 

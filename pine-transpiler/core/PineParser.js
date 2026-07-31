@@ -505,7 +505,32 @@ class PineParser {
       // Array/series access: arr[index]
       if (tok.type === 'punct' && tok.value === '[') {
         if (node.type === 'CallExpression') {
-          break;
+          // A bracket after a call is either the next line's tuple
+          // assignment ([a, b] = fn(...)) - a statement boundary - or
+          // same-line history access (fn()[1]), which is unsupported.
+          // Tokens carry no line numbers, so scan to the matching bracket:
+          // a following '=' means tuple assignment.
+          let scan = this.pos + 1;
+          let depth = 1;
+          while (scan < this.tokens.length && depth > 0) {
+            const t = this.tokens[scan];
+            if (t.type === 'punct' && t.value === '[') depth++;
+            if (t.type === 'punct' && t.value === ']') depth--;
+            scan++;
+          }
+          const after = this.tokens[scan];
+          if (after && after.type === 'operator' && after.value === '=') {
+            break; // statement boundary: the bracket starts a tuple assignment
+          }
+          // Refuse by name instead of stranding the bracket at statement
+          // position, where it would die as a misnamed tuple error.
+          // Real call-history semantics are mission-two item one.
+          const error = new Error(
+            'Pine load refused: unsupported feature(s): history access on call expressions (e.g. fn()[1])'
+          );
+          error.code = 'PINE_LOAD_REFUSED';
+          error.unsupported = ['history access on call expressions'];
+          throw error;
         }
         this.consume('punct', '[');
         const index = this.expression();
