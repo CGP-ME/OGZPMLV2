@@ -1,0 +1,35 @@
+study(title="Fisher Transform (LastBattle)", shorttitle="Fisher (LastBattle)")
+
+/// Define graph data
+src = close
+src_high = high
+src_low = low
+
+/// User input length
+fisherlen = input(21, minval=1, title="Fisher Length")
+
+// Fisher
+Price = (src_high + src_low) / 2
+MaxH = highest(src_high, fisherlen)
+MinL = lowest(src_low, fisherlen)
+
+Value1 = max(-0.9999, min(0.9999, 0.5 * 2 * ((Price - MinL) / (MaxH - MinL) - 0.5) + 0.5 *  nz(Value1[1])))
+
+Fish = 0.25 * log((1 + Value1) / (1 - Value1)) + 0.5 * nz(Fish[1])
+
+/// Plot
+plot(Value1, color=green)
+plot(nz(Fish[1]), color=red) // trigger/signal line
+
+// Background color
+//sellSignal = (nz(Fish[1]) < -0.3 and nz(Fish[1]) > 0.9 * nz(Fish[1]))
+//bgcolor(sellSignal ? red : white, transp=90)
+
+// Band range
+band_green_top = hline(.6999)
+band_green_bottom = hline(.9999)
+fill(band_green_top, band_green_bottom, color=green, transp=90)
+
+band_red_top = hline(-.6999)
+band_red_bottom = hline(-.9999)
+fill(band_red_top, band_red_bottom, color=red, transp=90)

@@ -1,0 +1,64 @@
+// Copyright © Robert Hill, 2006
+
+//@version=4
+study("Braid Filter")
+
+//-- Inputs
+maType            = input("EMA", "MA Type", options = ["EMA", "DEMA", "TEMA", "WMA", "VWMA", "SMA", "SMMA", "HMA", "LSMA", "Kijun", "McGinley", "RMA"])
+Period1           = input(3,  "Period 1")
+Period2           = input(7,  "Period 2")
+Period3           = input(14, "Period 3")
+PipsMinSepPercent = input(40)
+
+//-- Moving Average
+ma(type, src, len) =>
+    float result = 0
+    if type=="SMA" // Simple
+        result := sma(src, len)
+    if type=="EMA" // Exponential
+        result := ema(src, len)
+    if type=="DEMA" // Double Exponential
+        e = ema(src, len)
+        result := 2 * e - ema(e, len)
+    if type=="TEMA" // Triple Exponential
+        e = ema(src, len)
+        result := 3 * (e - ema(e, len)) + ema(ema(e, len), len)
+    if type=="WMA" // Weighted
+        result := wma(src, len)
+    if type=="VWMA" // Volume Weighted
+        result := vwma(src, len)
+    if type=="SMMA" // Smoothed
+        w = wma(src, len)
+        result := na(w[1]) ? sma(src, len) : (w[1] * (len - 1) + src) / len
+    if type == "RMA"
+        result := rma(src, len)
+    if type=="HMA" // Hull
+        result := wma(2 * wma(src, len / 2) - wma(src, len), round(sqrt(len)))
+    if type=="LSMA" // Least Squares
+        result := linreg(src, len, 0)
+    if type=="Kijun" //Kijun-sen
+        kijun = avg(lowest(len), highest(len))
+        result :=kijun
+    if type=="McGinley"
+        mg = 0.0
+        mg := na(mg[1]) ? ema(src, len) : mg[1] + (src - mg[1]) / (len * pow(src/mg[1], 4))
+        result :=mg
+    result
+
+//-- Braid Filter
+ma01 = ma(maType, close, Period1)
+ma02 = ma(maType, open, Period2)
+ma03 = ma(maType, close, Period3)
+
+max  = max(max(ma01, ma02), ma03)
+min  = min(min(ma01, ma02), ma03)
+dif  = max - min
+
+filter = atr(14) * PipsMinSepPercent / 100
+
+//-- Plots
+BraidColor = ma01 > ma02 and dif > filter ? color.green : ma02 > ma01 and dif > filter ? color.red : color.gray
+
+plot(dif, "Braid", BraidColor, 5, plot.style_columns)
+plot(filter, "Filter", color.blue, 2, plot.style_line)
+bgcolor(BraidColor)

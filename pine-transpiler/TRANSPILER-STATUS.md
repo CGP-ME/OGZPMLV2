@@ -89,10 +89,23 @@ the mission-two build list.
    delegation assertions; all pine suites green.
 2. Call-history semantics (`fn()[1]`) - mission two item one; unblocks
    SMS-v4.
-3. Mission two fetch loop: pull 10 real TradingView scripts, run them through
-   the loud gate, catalog every named miss, build each against its true Pine
-   definition, operator-verified before merge. Repeat until real scripts stop
-   missing.
+3. Mission two fetch loop: EXECUTED 2026-07-31. 20 real TradingView scripts
+   fetched verbatim (pine-facade API / page-embedded JSON), 19 unique after
+   dedup, all in `corpus/` and scored by
+   `__tests__/PineCorpus.catalog.test.js` on every test run. Result:
+   1 LOADS (TV built-in MACD Strategy v6), 9 REFUSED_NAMED, 9 PARSE_ERROR.
+   Ranked build list from the catalog:
+   - Parser: multi-line user function bodies (`f(x) =>` with indented
+     block) - crash signature "token string", gates 5 scripts incl. v6
+     QQE MOD.
+   - Parser: "token operator (=)" signature (tuple destructuring /
+     named-arg forms) - gates 3 scripts; "token indent" continuation
+     lines gate 1 more.
+   - v2-v4 dialect layer: `study()` header + bare TA builtins aliased to
+     `ta.*` (8 of 9 named refusals) + bare color names as no-ops (5).
+   - plot-as-value handles fed to `fill()`; bare `hl2`/`hlc3`/`ohlc4`
+     roots; v6 `indicator()` header; hex color literals (`#cad850`
+     currently mis-lexes); `strategy.cash`/`close_all`; `timestamp()`.
 
 ## Test Commands
 
