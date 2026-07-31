@@ -123,29 +123,28 @@ describe('PineTALib TradingView goldens — RSI', () => {
   });
 });
 
-describe('PineTALib TradingView goldens — ATR delegation hold', () => {
-  test('documents current ATR defect against TV true-range RMA reference', () => {
+describe('PineTALib TradingView goldens — ATR', () => {
+  test('atr matches the TV true-range RMA reference', () => {
     const high = [10, 12, 11, 14, 13];
     const low = [8, 9, 9, 10, 11];
     const close = [9, 11, 10, 12, 12];
     const length = 3;
     // TV ta.atr = RMA(ta.tr(true), length).
-    // TR values are 2, 3, 2, 4, 2.
+    // TR values are 2, 3, 2, 4, 2 (first bar TR = high-low, na prev close).
     // Seed ATR=(2+3+2)/3=2.3333333333.
     // After TR 4: ATR=(2.3333333333*2+4)/3=2.8888888889.
     // After TR 2: ATR=(2.8888888889*2+2)/3=2.5925925926.
     const tvReference = tvAtr(high, low, close, length);
     expect(tvReference).toBeCloseTo(2.5925925926, 10);
-    expect(PineTALib.atr(high, low, close, length)).not.toBeCloseTo(tvReference, 10);
+    expect(PineTALib.atr(high, low, close, length)).toBeCloseTo(tvReference, 10);
   });
 
-  test('keeps ATR delegation as a named gap until a shared Wilder ATR export exists', () => {
-    const high = [10, 12, 11, 14, 13];
-    const low = [8, 9, 9, 10, 11];
-    const close = [9, 11, 10, 12, 12];
-    expect(IndicatorCalculator.calculateWilderATR).toBeUndefined();
-    expect(IndicatorCalculator.calculateWilderATRFromOHLC).toBeUndefined();
-    expect(PineTALib.atr(high, low, close, 3)).not.toBeCloseTo(tvAtr(high, low, close, 3), 10);
+  test('atr delegates to the shared Wilder ATR export and keeps na warmup', () => {
+    // The tripwire that held this seat fired when the shared export landed
+    // (commit 04d5a1cf); the delegation is now wired and asserted.
+    expect(typeof IndicatorCalculator.calculateWilderATR).toBe('function');
+    // TV returns na until `length` true ranges exist (first bar counts).
+    expect(PineTALib.atr([10, 12], [8, 9], [9, 11], 3)).toBeNull();
   });
 });
 

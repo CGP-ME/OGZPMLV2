@@ -82,11 +82,11 @@ the mission-two build list.
 
 ## Known gaps (ruled, sequenced)
 
-1. ATR truth: `PineTALib.atr` is SMA-of-TR, not TradingView's Wilder RMA.
-   The golden-test tripwire (`PineTALib.golden.test.js`) fired when
-   `IndicatorCalculator.calculateWilderATR` landed (commit `04d5a1cf`) and
-   stays red until the delegation follow-up cut lands. Ruled: transpiler
-   lane, own cut, after the refusal cut.
+1. CLOSED: ATR truth. `PineTALib.atr` now delegates to
+   `IndicatorCalculator.calculateWilderATR` (Wilder RMA), matching
+   TradingView's `ta.atr` including the first-bar TR (high-low, na prev
+   close). The golden-test tripwire that held the seat is replaced by
+   delegation assertions; all pine suites green.
 2. Call-history semantics (`fn()[1]`) - mission two item one; unblocks
    SMS-v4.
 3. Mission two fetch loop: pull 10 real TradingView scripts, run them through

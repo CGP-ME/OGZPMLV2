@@ -44,17 +44,17 @@ class PineTALib {
     return IndicatorCalculator.calculateWilderRSIFromCloses(series, length);
   }
 
-  // Average True Range
+  // Average True Range - delegates to the shared Wilder RMA export
   static atr(high, low, close, length) {
     if (length <= 0) return null;
-    const tr = [];
-    for (let i = 1; i < high.length; i++) {
-      const val1 = high[i] - low[i];
-      const val2 = Math.abs(high[i] - close[i - 1]);
-      const val3 = Math.abs(low[i] - close[i - 1]);
-      tr.push(Math.max(val1, val2, val3));
-    }
-    return this.sma(tr, length);
+    if (!Array.isArray(high) || !Array.isArray(low) || !Array.isArray(close)) return null;
+    if (high.length < length) return null;
+    const candles = high.map((h, i) => ({ high: h, low: low[i], close: close[i] }));
+    // TV counts the first bar's TR as high-low (na prev close). The shared
+    // export derives TR from candle pairs, so a seed candle whose close sits
+    // at high[0] collapses that pair's TR to exactly high[0]-low[0].
+    candles.unshift({ high: high[0], low: high[0], close: high[0] });
+    return IndicatorCalculator.calculateWilderATR(candles, length);
   }
 
   static macd(series, fastLength = 12, slowLength = 26, signalLength = 9) {
