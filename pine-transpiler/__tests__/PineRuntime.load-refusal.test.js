@@ -33,9 +33,11 @@ describe('PineRuntime load gate refuses unsupported features by name', () => {
       names: ["identifier 'somethingUndeclared'"],
     },
     {
+      // math.pi resolved here until PINE_MATH shipped it; math.sum is a
+      // real TV function this runtime genuinely does not define yet.
       title: 'math member the runtime cannot resolve',
-      source: 'p = math.pi\nplot(p)',
-      names: ["'math.pi'"],
+      source: 'p = math.sum(close, 5)\nplot(p)',
+      names: ["'math.sum'"],
     },
   ];
 

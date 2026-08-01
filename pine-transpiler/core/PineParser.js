@@ -104,8 +104,29 @@ class PineParser {
         this.peek(1).type === 'operator' && this.peek(1).value === '=') {
       return this.regularVarDeclaration();
     }
-    // Type-annotated declaration: float x = expr or float[] x = expr
-    if (tok.type === 'identifier' && typeKeywords.includes(tok.value)) {
+    // v5 type-qualifier prefix: const/simple/series before a typed
+    // declaration (const string g = '...', const color c = color.white).
+    // Qualifier only when the full shape follows - the bare words stay
+    // usable as ordinary identifiers. Runtime semantics are unchanged
+    // (recalculated per candle); TV's reassignment ban on const is
+    // compile-side strictness we do not enforce yet.
+    if (
+      tok.type === 'identifier' &&
+      ['const', 'simple', 'series'].includes(tok.value) &&
+      // type words lex as identifier OR keyword (color/table are lexer
+      // keywords) - match on value, not token type
+      typeKeywords.includes(this.peek(1).value) &&
+      this.peek(2).type === 'identifier' &&
+      this.peek(3).type === 'operator' &&
+      this.peek(3).value === '='
+    ) {
+      this.consume(); // qualifier
+      return this.regularVarDeclaration();
+    }
+    // Type-annotated declaration: float x = expr or float[] x = expr.
+    // Type words lex as identifier OR keyword (color/table are lexer
+    // keywords) - match on value.
+    if ((tok.type === 'identifier' || tok.type === 'keyword') && typeKeywords.includes(tok.value)) {
       // Look ahead to find = after type and optional [] and identifier
       let lookAhead = 1;
       if (this.peek(lookAhead).type === 'punct' && this.peek(lookAhead).value === '[') {
@@ -255,6 +276,15 @@ class PineParser {
     while (this.peek().type !== 'punct' || this.peek().value !== ')') {
       // Handle typed parameters: float x, int y
       const typeKeywords = ['float', 'int', 'bool', 'string', 'color', 'line', 'label', 'box', 'table'];
+      // Type-qualifier prefix on params (f(simple int x)) - qualifier only
+      // when a type keyword follows, so a param actually named const/simple/
+      // series stays an ordinary identifier.
+      if (
+        ['const', 'simple', 'series'].includes(this.peek().value) &&
+        typeKeywords.includes(this.peek(1).value)
+      ) {
+        this.consume(); // skip qualifier
+      }
       if (typeKeywords.includes(this.peek().value)) {
         this.consume(); // skip type
       }

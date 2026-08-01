@@ -60,11 +60,20 @@ const IGNORED_CALL_NAMES = new Set([
   'alertcondition', 'alert',
 ]);
 
-// TV math.* surface: verbatim JS Math members plus Pine spellings JS lacks.
-// math.avg shares the one TV-verified definition with v2 bare avg() - same
-// delegation pattern as BARE_TA_ALIASES onto the ta.* dispatcher.
+// TV math.* surface: verbatim JS Math members plus Pine spellings JS lacks,
+// with TV-divergent members overridden. math.avg and math.round share the
+// one TV-verified definition with their v2 bare spellings - same delegation
+// pattern as BARE_TA_ALIASES onto the ta.* dispatcher.
 const PINE_MATH = Object.create(Math);
 PINE_MATH.avg = BARE_SCALAR_FNS.avg;
+// TV rounds half away from zero; JS Math.round rounds half toward +Infinity
+// for negatives - inheriting it verbatim would be a parity bug.
+PINE_MATH.round = BARE_SCALAR_FNS.round;
+// TV constants are lowercase; JS Math only has PI/E uppercase.
+PINE_MATH.pi = Math.PI;
+PINE_MATH.e = Math.E;
+PINE_MATH.phi = (1 + Math.sqrt(5)) / 2;
+PINE_MATH.rphi = 2 / (1 + Math.sqrt(5));
 
 // Built-in bar series usable anywhere.
 const SERIES_IDENTIFIERS = new Set(['close', 'open', 'high', 'low', 'volume']);
@@ -80,7 +89,7 @@ const TA_SPECIAL_METHODS = new Set([
 
 // Namespace roots valid in value position.
 const ROOT_NAMESPACES = new Set([
-  'math', 'ta', 'array', 'strategy', 'session', 'timeframe', 'syminfo', 'input',
+  'math', 'ta', 'array', 'strategy', 'session', 'timeframe', 'syminfo', 'input', 'barstate',
 ]);
 
 class PineRuntime {
@@ -183,6 +192,10 @@ class PineRuntime {
       ]),
       timeframe: new Set(['multiplier', 'period', 'isminutes']),
       syminfo: new Set(['ticker', 'mintick']),
+      barstate: new Set([
+        'isconfirmed', 'ishistory', 'isrealtime', 'isfirst', 'islast',
+        'islastconfirmedhistory', 'isnew',
+      ]),
     };
 
     const violations = new Set();
@@ -303,6 +316,15 @@ class PineRuntime {
               ['strategy', 'study', 'indicator', 'input', 'nz', 'na', 'time', 'timestamp'].includes(name) ||
               declared.has(name)
             ) {
+              if (name === 'input') {
+                // v3 input metadata: type=bool / type=integer names bare
+                // type words, not value identifiers - metadata, skip it.
+                args.forEach((a) => {
+                  if (a && a.type === 'NamedArgument' && a.name === 'type') return;
+                  walkExpr(a && a.type === 'NamedArgument' ? a.value : a, undefined);
+                });
+                return;
+              }
               walkArgs(undefined);
               return;
             }
@@ -614,6 +636,20 @@ class PineRuntime {
         // built-in objects for member access
         if (node.name === 'timeframe') return { multiplier: 15, period: '15', isminutes: true };
         if (node.name === 'syminfo') return { ticker: 'TSLA', mintick: 0.01 };
+        // barstate under a closed-bar evaluation model: every candle this
+        // engine sees is a confirmed historical bar, and the current bar is
+        // always the last one known - these are truths, not stubs.
+        if (node.name === 'barstate') {
+          return {
+            isconfirmed: true,
+            ishistory: true,
+            isrealtime: false,
+            isfirst: this.history.length === 1,
+            islast: true,
+            islastconfirmedhistory: true,
+            isnew: true,
+          };
+        }
         // na in value position is Pine's empty value
         if (node.name === 'na') return null;
         // Computed bar values and visual words - user declarations shadow
@@ -830,6 +866,26 @@ class PineRuntime {
   // Function / method call
   // -----------------------------------------------------------------
   _callFunction(callee, args) {
+    // input(...) / input.*(...) returns its default value; evaluate ONLY
+    // the default, before the eager arg map below - v3 metadata like
+    // type=bool names bare type words that must never reach identifier
+    // evaluation.
+    const isInputCall =
+      (typeof callee === 'object' &&
+        callee.type === 'Identifier' &&
+        callee.name === 'input') ||
+      (typeof callee === 'object' &&
+        callee.type === 'MemberExpression' &&
+        callee.object &&
+        callee.object.type === 'Identifier' &&
+        callee.object.name === 'input');
+    if (isInputCall) {
+      const named = args.find((a) => a.type === 'NamedArgument' && a.name === 'defval');
+      if (named) return this._evalExpression(named.value);
+      const positional = args.find((a) => a.type !== 'NamedArgument');
+      return positional !== undefined ? this._evalExpression(positional) : null;
+    }
+
     // Evaluate arguments, handling NamedArguments
     const evaluatedArgs = args.map((a) => {
       if (a.type === 'NamedArgument') {
@@ -844,14 +900,6 @@ class PineRuntime {
 
     // If callee is a MemberExpression (ta.sma, strategy.entry, etc.)
     if (typeof callee === 'object' && callee.type === 'MemberExpression') {
-      // Special handling for input.* - return the default value (before evaluating obj)
-      if (callee.object.type === 'Identifier' && callee.object.name === 'input') {
-        const named = evaluatedArgs.find(a => a && a.name === 'defval');
-        if (named) return named.value;
-        const positional = evaluatedArgs.filter(a => !a || !a.name);
-        return positional[0]; // First arg is the default value
-      }
-
       const obj = this._evalExpression(callee.object);
       const method = callee.property;
 
@@ -922,14 +970,6 @@ class PineRuntime {
         });
         this.scriptMeta = meta;
         return null;
-      }
-
-      // Special case: input.*() returns the default value
-      if (callee.name === 'input') {
-        const named = evaluatedArgs.find(a => a && a.name === 'defval');
-        if (named) return named.value;
-        const positional = evaluatedArgs.filter(a => !a || !a.name);
-        return positional[0];
       }
 
       // Ignore visualization/alerting functions - they don't affect trading logic

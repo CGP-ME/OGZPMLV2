@@ -90,10 +90,18 @@ class PineStrategyBridge {
     return -1;
   }
 
-  // TV constants: strategy.cash ("cash" qty type) and the strategy.oca.*
+  // TV constants: the full qty-type trio and the strategy.oca.*
   // one-cancels-all group constants - verbatim TV reference values.
   get cash() {
     return 'cash';
+  }
+
+  get percent_of_equity() {
+    return 'percent_of_equity';
+  }
+
+  get fixed() {
+    return 'fixed';
   }
 
   get oca() {
