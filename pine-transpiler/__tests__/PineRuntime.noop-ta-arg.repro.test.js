@@ -55,3 +55,63 @@ test('laundered color as TA series argument fails loud instead of substituting c
   expect(thrown.code).toBe('PINE_TYPE_VIOLATION');
   expect(thrown.message).toContain('ta.sma');
 });
+
+// Mercury attack on 4a15684d claimed user-defined functions bypass both
+// layers. Split verdict, proven by execution below: an UNUSED color param
+// is legal TV Pine (type-inferred, compiles fine there), so accepting it is
+// parity, not a leak. A color param USED computationally inside the body is
+// the dangerous variant - it must still fail loud via the runtime backstops.
+
+test('unused color argument to a user function is legal TV Pine - runs clean', () => {
+  const script = [
+    '//@version=5',
+    'strategy("Bypass test")',
+    'myFunc(x) => 1',
+    'plot(myFunc(color.red) + close)',
+  ].join('\n');
+
+  const runtime = new PineRuntime(script);
+  expect(() => {
+    for (const candle of CANDLES) runtime.evaluate(candle);
+  }).not.toThrow();
+});
+
+test('color argument used in arithmetic inside a user function fails loud', () => {
+  const script = [
+    '//@version=5',
+    'strategy("Bypass test")',
+    'f(x) => x + 1',
+    'y = f(color.red)',
+    'plot(y)',
+  ].join('\n');
+
+  const runtime = new PineRuntime(script);
+  let thrown;
+  try {
+    for (const candle of CANDLES) runtime.evaluate(candle);
+  } catch (e) {
+    thrown = e;
+  }
+  expect(thrown).toBeDefined();
+  expect(thrown.code).toBe('PINE_TYPE_VIOLATION');
+});
+
+test('color argument fed to TA math inside a user function fails loud', () => {
+  const script = [
+    '//@version=5',
+    'strategy("Bypass test")',
+    'g(x) => ta.sma(x, 2)',
+    'y = g(color.red)',
+    'plot(y)',
+  ].join('\n');
+
+  const runtime = new PineRuntime(script);
+  let thrown;
+  try {
+    for (const candle of CANDLES) runtime.evaluate(candle);
+  } catch (e) {
+    thrown = e;
+  }
+  expect(thrown).toBeDefined();
+  expect(thrown.code).toBe('PINE_TYPE_VIOLATION');
+});
