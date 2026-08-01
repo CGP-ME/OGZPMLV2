@@ -22,7 +22,7 @@ const NOOP_NAMESPACES = new Set([
 const BARE_TA_ALIASES = new Set([
   'sma', 'ema', 'rsi', 'stdev', 'highest', 'lowest', 'atr', 'macd', 'vwap',
   'crossover', 'crossunder', 'cross', 'change', 'valuewhen',
-  'wma', 'rma', 'linreg', 'stoch',
+  'wma', 'rma', 'linreg', 'stoch', 'barssince',
 ]);
 
 // v2-v4 bare scalar math builtins. TV round() rounds half away from zero;
@@ -56,7 +56,7 @@ const BARE_VISUAL_IDENTIFIERS = new Set([
 // Direct-call names ignored by design (visualization/alerting).
 const IGNORED_CALL_NAMES = new Set([
   'plot', 'plotshape', 'plotchar', 'plotarrow', 'plotbar', 'plotcandle',
-  'bgcolor', 'fill', 'hline', 'line', 'label', 'box', 'table',
+  'bgcolor', 'barcolor', 'fill', 'hline', 'line', 'label', 'box', 'table',
   'alertcondition', 'alert',
 ]);
 
@@ -75,7 +75,7 @@ const TA_ONLY_SERIES = new Set(['hl2', 'hlc3', 'ohlc4']);
 // ta.* methods special-cased by the runtime dispatcher beyond PineTALib statics.
 const TA_SPECIAL_METHODS = new Set([
   'sma', 'ema', 'rsi', 'stdev', 'highest', 'lowest', 'atr', 'macd', 'vwap',
-  'crossover', 'crossunder', 'change', 'valuewhen',
+  'crossover', 'crossunder', 'change', 'valuewhen', 'barssince',
 ]);
 
 // Namespace roots valid in value position.
@@ -934,7 +934,7 @@ class PineRuntime {
 
       // Ignore visualization/alerting functions - they don't affect trading logic
       if (['plot', 'plotshape', 'plotchar', 'plotarrow', 'plotbar', 'plotcandle',
-           'bgcolor', 'fill', 'hline', 'line', 'label', 'box', 'table',
+           'bgcolor', 'barcolor', 'fill', 'hline', 'line', 'label', 'box', 'table',
            'alertcondition', 'alert'].includes(callee.name)) {
         return null;
       }
@@ -1126,6 +1126,16 @@ class PineRuntime {
         const length = evalScalar(rawArgs[1]);
         // Round to mintick to match TradingView precision
         return this._roundToTick(PineTALib[method](series, length));
+      }
+      case 'barssince': {
+        // TV: bars since condition was last true - 0 when true on the
+        // current bar, na when never true in loaded history.
+        const series = evalOrSeries(rawArgs[0]);
+        if (!Array.isArray(series)) return series ? 0 : null;
+        for (let k = series.length - 1; k >= 0; k--) {
+          if (series[k]) return series.length - 1 - k;
+        }
+        return null;
       }
       case 'linreg': {
         // ta.linreg(source, length, offset)
