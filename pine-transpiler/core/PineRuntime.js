@@ -498,6 +498,10 @@ class PineRuntime {
   _evalExpression(node) {
     switch (node.type) {
       case 'Literal':
+        // Hex color literals are cosmetic - resolve to the inert PINE_NOOP
+        // sentinel (parity with named colors) so a color never leaks a raw
+        // string into arithmetic/comparison. Real string literals are unaffected.
+        if (node.isColor) return PINE_NOOP;
         return node.value;
       case 'Identifier':
         // built-in objects (math, ta, array, strategy, etc.)
@@ -561,6 +565,9 @@ class PineRuntime {
       case 'UnaryExpression':
         {
           const arg = this._evalExpression(node.argument);
+          // A cosmetic value (color/PINE_NOOP) is not-a-number - Pine treats it
+          // as na rather than coercing the sentinel object.
+          if (arg === PINE_NOOP) return null;
           switch (node.operator) {
             case '+':
               return +arg;
@@ -576,6 +583,11 @@ class PineRuntime {
         {
           const left = this._evalExpression(node.left);
           const right = this._evalExpression(node.right);
+          // A cosmetic value (color/PINE_NOOP) has no numeric or ordinal meaning.
+          // Pine's type checker rejects color-in-arithmetic at compile time; since
+          // we evaluate at runtime, treat any PINE_NOOP operand as na (null) rather
+          // than concatenating it as "[object Object]..." or comparing the sentinel.
+          if (left === PINE_NOOP || right === PINE_NOOP) return null;
           switch (node.operator) {
             case '+':
               return left + right;

@@ -589,6 +589,15 @@ class PineParser {
       this.consume();
       return { type: 'Literal', value: tok.value };
     }
+    // Hex color literal (#RRGGBB / #RRGGBBAA). Colors are cosmetic - the runtime
+    // resolves this to the inert PINE_NOOP sentinel (same as named colors like
+    // color.red), so it flows only into visual noops and never carries a raw
+    // string into computation. The isColor flag tells the runtime to do that
+    // without string-sniffing (a real string literal '#foo' must stay a string).
+    if (tok.type === 'color') {
+      this.consume();
+      return { type: 'Literal', value: tok.value, isColor: true };
+    }
     // Boolean/null literals (can be keyword or identifier depending on lexer)
     if ((tok.type === 'keyword' || tok.type === 'identifier') &&
         ['true', 'false', 'na', 'null'].includes(tok.value)) {

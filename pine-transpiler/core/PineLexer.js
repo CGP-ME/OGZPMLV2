@@ -39,6 +39,10 @@ class PineLexer {
     return ch !== undefined && /[a-zA-Z_]/.test(ch);
   }
 
+  isHexDigit(ch) {
+    return ch !== undefined && /[0-9a-fA-F]/.test(ch);
+  }
+
   peek(offset = 0) {
     return this.source[this.pos + offset];
   }
@@ -115,6 +119,26 @@ class PineLexer {
         }
         this.advance(2);
         continue;
+      }
+
+      // Hex color literals - TradingView's valid forms are #RRGGBB / #RRGGBBAA.
+      // We absorb ANY '#' followed by hex digits as an inert 'color' token, even
+      // a malformed run (wrong digit count). That keeps a malformed color TYPED
+      // as a color (a dead string that only flows into visual noops) instead of
+      // falling through and letting the digits silently re-lex as a bogus number
+      // or identifier that could corrupt a following token or reach arithmetic.
+      // No throw, no refusal - the value simply can never lie as a number.
+      if (ch === '#') {
+        let hex = '';
+        let i = 1;
+        while (this.isHexDigit(this.peek(i))) { hex += this.peek(i); i++; }
+        if (hex.length > 0) {
+          this.addToken('color', '#' + hex);
+          this.advance(1 + hex.length);
+          continue;
+        }
+        // Bare '#' with no hex digits: no trailing digits to corrupt, so fall
+        // through to the unknown-char skip below.
       }
 
       // Numbers (int & float)
