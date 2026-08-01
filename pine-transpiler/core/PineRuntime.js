@@ -60,6 +60,12 @@ const IGNORED_CALL_NAMES = new Set([
   'alertcondition', 'alert',
 ]);
 
+// TV math.* surface: verbatim JS Math members plus Pine spellings JS lacks.
+// math.avg shares the one TV-verified definition with v2 bare avg() - same
+// delegation pattern as BARE_TA_ALIASES onto the ta.* dispatcher.
+const PINE_MATH = Object.create(Math);
+PINE_MATH.avg = BARE_SCALAR_FNS.avg;
+
 // Built-in bar series usable anywhere.
 const SERIES_IDENTIFIERS = new Set(['close', 'open', 'high', 'low', 'volume']);
 
@@ -251,9 +257,9 @@ class PineRuntime {
             const ns = objNode.name;
             if (NOOP_NAMESPACES.has(ns) || ns === 'input') return;
             if (ns === 'math') {
-              // Surface = what the runtime actually resolves: JS Math members
-              // verbatim. Pine spellings like math.pi are mission-two coverage.
-              if (!(node.property in Math)) refuse(`'math.${node.property}'`);
+              // Surface = what the runtime actually resolves: PINE_MATH (JS
+              // Math verbatim plus Pine spellings like math.avg).
+              if (!(node.property in PINE_MATH)) refuse(`'math.${node.property}'`);
               return;
             }
             if (surfaces[ns]) {
@@ -593,7 +599,7 @@ class PineRuntime {
         return node.value;
       case 'Identifier':
         // built-in objects (math, ta, array, strategy, etc.)
-        if (node.name === 'math') return Math;
+        if (node.name === 'math') return PINE_MATH;
         if (node.name === 'ta') return PineTALib;
         if (node.name === 'array') return PineArray;
         if (node.name === 'strategy') return this.bridge;
@@ -1247,7 +1253,7 @@ class PineRuntime {
 
   _resolveCallee(name) {
     // built-ins
-    if (name === 'math') return Math;
+    if (name === 'math') return PINE_MATH;
     if (name === 'ta') return PineTALib;
     if (name === 'array') return PineArray;
     if (name === 'strategy') return this.bridge;
