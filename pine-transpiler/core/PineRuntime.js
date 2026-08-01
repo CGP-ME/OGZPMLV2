@@ -182,6 +182,45 @@ class PineRuntime {
     const violations = new Set();
     const refuse = (label) => violations.add(label);
 
+    // TradingView's compiler is statically typed: a color/visual value in a
+    // computational position is a COMPILE-time type error - typed-wrong code
+    // never runs a single bar. Mirror that timing here. Anything this walk
+    // cannot see statically (a color laundered through a variable) is caught
+    // by the runtime PINE_TYPE_VIOLATION backstops instead - loud either way.
+    const isCosmeticExpr = (node) => {
+      if (!node || typeof node !== 'object') return false;
+      switch (node.type) {
+        case 'Literal':
+          return !!node.isColor;
+        case 'Identifier':
+          return !declared.has(node.name) && BARE_VISUAL_IDENTIFIERS.has(node.name);
+        case 'MemberExpression':
+          return (
+            node.object &&
+            node.object.type === 'Identifier' &&
+            NOOP_NAMESPACES.has(node.object.name)
+          );
+        case 'CallExpression': {
+          const callee = node.callee;
+          if (!callee) return false;
+          if (callee.type === 'Identifier') {
+            return (
+              !declared.has(callee.name) &&
+              (IGNORED_CALL_NAMES.has(callee.name) || NOOP_NAMESPACES.has(callee.name))
+            );
+          }
+          return isCosmeticExpr(callee);
+        }
+        case 'ConditionalExpression':
+          return isCosmeticExpr(node.consequent) || isCosmeticExpr(node.alternate);
+        default:
+          return false;
+      }
+    };
+    const refuseCosmetic = (node, position) => {
+      if (isCosmeticExpr(node)) refuse(`color/visual value in ${position}`);
+    };
+
     const walkExpr = (node, ctx) => {
       if (!node || typeof node !== 'object') return;
       switch (node.type) {
@@ -203,6 +242,7 @@ class PineRuntime {
           if (!SERIES_IDENTIFIERS.has(node.series) && !declared.has(node.series)) {
             refuse(`series '${node.series}[...]'`);
           }
+          refuseCosmetic(node.offset, 'series offset');
           walkExpr(node.offset, ctx);
           return;
         case 'MemberExpression': {
@@ -232,8 +272,23 @@ class PineRuntime {
           const args = node.arguments || [];
           const walkArgs = (argCtx) =>
             args.forEach((a) => walkExpr(a && a.type === 'NamedArgument' ? a.value : a, argCtx));
+          const refuseCosmeticArgs = (label, onlyFirst = false) =>
+            args.forEach((a, i) => {
+              if (onlyFirst && i > 0) return;
+              refuseCosmetic(a && a.type === 'NamedArgument' ? a.value : a, label);
+            });
           if (callee && callee.type === 'Identifier') {
             const name = callee.name;
+            if (!declared.has(name)) {
+              if (BARE_TA_ALIASES.has(name) || ['nz', 'na', 'time', 'timestamp'].includes(name)) {
+                refuseCosmeticArgs(`argument to '${name}()'`);
+              } else if (Object.prototype.hasOwnProperty.call(BARE_SCALAR_FNS, name)) {
+                // iff(cond, a, b) is the v2 ternary: its value branches are
+                // cosmetic-legal (plot color selection), only the condition
+                // is a computational position.
+                refuseCosmeticArgs(`argument to '${name}()'`, name === 'iff');
+              }
+            }
             if (
               IGNORED_CALL_NAMES.has(name) ||
               NOOP_NAMESPACES.has(name) ||
@@ -250,8 +305,12 @@ class PineRuntime {
             return;
           }
           if (callee && callee.type === 'MemberExpression') {
-            const isTa =
-              callee.object && callee.object.type === 'Identifier' && callee.object.name === 'ta';
+            const ns =
+              callee.object && callee.object.type === 'Identifier' ? callee.object.name : null;
+            if (ns && ROOT_NAMESPACES.has(ns) && ns !== 'input') {
+              refuseCosmeticArgs(`argument to '${ns}.${callee.property}()'`);
+            }
+            const isTa = ns === 'ta';
             walkExpr(callee, undefined);
             walkArgs(isTa ? { inTaArgs: true } : undefined);
             return;
@@ -264,19 +323,29 @@ class PineRuntime {
           walkExpr(node.value, ctx);
           return;
         case 'UnaryExpression':
+          refuseCosmetic(node.argument, `unary '${node.operator}'`);
           walkExpr(node.argument, ctx);
           return;
         case 'BinaryExpression':
+          refuseCosmetic(node.left, `binary '${node.operator}'`);
+          refuseCosmetic(node.right, `binary '${node.operator}'`);
+          walkExpr(node.left, ctx);
+          walkExpr(node.right, ctx);
+          return;
         case 'LogicalExpression':
+          refuseCosmetic(node.left, `logical '${node.operator}'`);
+          refuseCosmetic(node.right, `logical '${node.operator}'`);
           walkExpr(node.left, ctx);
           walkExpr(node.right, ctx);
           return;
         case 'ConditionalExpression':
+          refuseCosmetic(node.test, 'ternary condition');
           walkExpr(node.test, ctx);
           walkExpr(node.consequent, ctx);
           walkExpr(node.alternate, ctx);
           return;
         case 'IndexExpression':
+          refuseCosmetic(node.index, 'index position');
           walkExpr(node.object, ctx);
           walkExpr(node.index, ctx);
           return;
@@ -303,16 +372,20 @@ class PineRuntime {
           walkExpr(node.expression, undefined);
           return;
         case 'IfStatement':
+          refuseCosmetic(node.test, "'if' condition");
           walkExpr(node.test, undefined);
           walkStmts(node.consequent && node.consequent.body);
           if (node.alternate) walkStmts(node.alternate.body);
           return;
         case 'ForStatement':
+          refuseCosmetic(node.start, "'for' bound");
+          refuseCosmetic(node.end, "'for' bound");
           walkExpr(node.start, undefined);
           walkExpr(node.end, undefined);
           walkStmts(node.body && node.body.body);
           return;
         case 'WhileStatement':
+          refuseCosmetic(node.test, "'while' condition");
           walkExpr(node.test, undefined);
           walkStmts(node.body && node.body.body);
           return;
@@ -759,6 +832,10 @@ class PineRuntime {
       return this._evalExpression(a);
     });
 
+    // Backstop for the load gate's blind spot: a cosmetic value laundered
+    // through a variable reaches a computational callee only at runtime.
+    const noopValueIn = (list) => list.some((a) => (a && a.name ? a.value : a) === PINE_NOOP);
+
     // If callee is a MemberExpression (ta.sma, strategy.entry, etc.)
     if (typeof callee === 'object' && callee.type === 'MemberExpression') {
       // Special handling for input.* - return the default value (before evaluating obj)
@@ -772,8 +849,11 @@ class PineRuntime {
       const obj = this._evalExpression(callee.object);
       const method = callee.property;
 
-      // Sanctioned visualization/formatting no-op namespaces
-      if (obj === PINE_NOOP) return null;
+      // Sanctioned visualization/formatting no-op namespaces. The call's
+      // RESULT is itself cosmetic (color.new(...) yields a color), so it
+      // must stay the sentinel - returning null here would let it launder
+      // into computation as a silent null.
+      if (obj === PINE_NOOP) return PINE_NOOP;
 
       if (obj === null || obj === undefined) {
         throw this._bypassError(
@@ -789,6 +869,9 @@ class PineRuntime {
 
       // Special handling for strategy.* - pass evaluated args including named ones
       if (obj === this.bridge) {
+        if (noopValueIn(evaluatedArgs)) {
+          throw this._typeViolationError(`argument to 'strategy.${method}()' is a color/visual value`);
+        }
         return this._callStrategyMethod(method, evaluatedArgs);
       }
 
@@ -796,6 +879,11 @@ class PineRuntime {
       if (typeof obj[method] === 'function') {
         // Extract positional args (ignore named args for simple methods)
         const positional = evaluatedArgs.filter(a => !a || !a.name);
+        if (noopValueIn(positional)) {
+          throw this._typeViolationError(
+            `argument to '${this._describeNode(callee.object)}.${method}()' is a color/visual value`
+          );
+        }
         return obj[method](...positional);
       }
 
@@ -856,6 +944,12 @@ class PineRuntime {
       }
       if (!shadowIsUserFn && Object.prototype.hasOwnProperty.call(BARE_SCALAR_FNS, callee.name)) {
         const positional = evaluatedArgs.filter(a => !a || !a.name);
+        // iff's value branches are cosmetic-legal (v2 plot color selection);
+        // only its condition is computational.
+        const guarded = callee.name === 'iff' ? positional.slice(0, 1) : positional;
+        if (noopValueIn(guarded)) {
+          throw this._typeViolationError(`argument to '${callee.name}()' is a color/visual value`);
+        }
         return BARE_SCALAR_FNS[callee.name](...positional);
       }
 
@@ -864,6 +958,9 @@ class PineRuntime {
       // If target is a function (built-in)
       if (typeof target === 'function') {
         const positional = evaluatedArgs.filter(a => !a || !a.name);
+        if (noopValueIn(positional)) {
+          throw this._typeViolationError(`argument to '${callee.name}()' is a color/visual value`);
+        }
         return target.apply(null, positional);
       }
 
@@ -896,6 +993,9 @@ class PineRuntime {
     if (typeof callee === 'string') {
       const target = this._resolveCallee(callee);
       if (typeof target === 'function') {
+        if (noopValueIn(evaluatedArgs)) {
+          throw this._typeViolationError(`argument to '${callee}()' is a color/visual value`);
+        }
         return target.apply(null, evaluatedArgs);
       }
     }
@@ -915,6 +1015,18 @@ class PineRuntime {
   _callTAMethod(method, rawArgs) {
     // Helper to get series from identifier or evaluate expression
     const seriesNames = ['close', 'open', 'high', 'low', 'volume', 'hl2', 'hlc3', 'ohlc4', 'tr'];
+
+    // No cosmetic value may enter TA math - not as a series (the legacy
+    // close-substitution fallback would fabricate numbers from data the
+    // script never named) and not as a scalar (frozen-object comparisons
+    // silently produce NaN). Fail loud at the argument boundary.
+    const requireComputable = (value, what) => {
+      if (value === PINE_NOOP) {
+        throw this._typeViolationError(`ta.${method} ${what} is a color/visual value`);
+      }
+      return value;
+    };
+    const evalScalar = (arg) => requireComputable(this._evalExpression(arg), 'argument');
 
     // Special series calculations
     const getComputedSeries = (name) => {
@@ -940,6 +1052,11 @@ class PineRuntime {
     const userVarSeries = (name) => {
       const values = this.stateHistory.map((s) => (name in s ? s[name] : null));
       values.push(this.state[name]);
+      // A user var holding a color yields a series of sentinels - an array,
+      // so it would sail past Array.isArray checks straight into TA math.
+      if (values.some((v) => v === PINE_NOOP)) {
+        throw this._typeViolationError(`ta.${method} argument '${name}' is a color/visual value`);
+      }
       return values;
     };
 
@@ -963,12 +1080,12 @@ class PineRuntime {
         if (seriesNames.includes(arg.series)) base = getSeries(arg.series);
         else if (isUserVar(arg.series)) base = userVarSeries(arg.series);
         if (base) {
-          const off = Math.floor(this._evalExpression(arg.offset));
+          const off = Math.floor(requireComputable(this._evalExpression(arg.offset), 'offset'));
           return off > 0 ? base.slice(0, base.length - off) : base;
         }
       }
       // Otherwise evaluate normally
-      return this._evalExpression(arg);
+      return requireComputable(this._evalExpression(arg), 'argument');
     };
 
     // Series-argument resolution for window functions. Non-series scalars
@@ -985,7 +1102,7 @@ class PineRuntime {
         const shifted = evalOrSeries(arg);
         if (Array.isArray(shifted)) return shifted;
       }
-      const evaluated = this._evalExpression(arg);
+      const evaluated = requireComputable(this._evalExpression(arg), 'series argument');
       return Array.isArray(evaluated) ? evaluated : getSeries('close');
     };
 
@@ -1000,15 +1117,15 @@ class PineRuntime {
       case 'rma': {
         // First arg is series, second is length
         const series = resolveSeriesArg(rawArgs[0]);
-        const length = this._evalExpression(rawArgs[1]);
+        const length = evalScalar(rawArgs[1]);
         // Round to mintick to match TradingView precision
         return this._roundToTick(PineTALib[method](series, length));
       }
       case 'linreg': {
         // ta.linreg(source, length, offset)
         const series = resolveSeriesArg(rawArgs[0]);
-        const length = this._evalExpression(rawArgs[1]);
-        const offset = rawArgs[2] ? this._evalExpression(rawArgs[2]) : 0;
+        const length = evalScalar(rawArgs[1]);
+        const offset = rawArgs[2] ? evalScalar(rawArgs[2]) : 0;
         return this._roundToTick(PineTALib.linreg(series, length, offset));
       }
       case 'stoch': {
@@ -1016,12 +1133,12 @@ class PineRuntime {
         const source = resolveSeriesArg(rawArgs[0]);
         const highs = resolveSeriesArg(rawArgs[1]);
         const lows = resolveSeriesArg(rawArgs[2]);
-        const length = this._evalExpression(rawArgs[3]);
+        const length = evalScalar(rawArgs[3]);
         return PineTALib.stoch(source, highs, lows, length);
       }
       case 'atr': {
         // Pine: ta.atr(length) - implicitly uses high, low, close
-        const length = this._evalExpression(rawArgs[0]);
+        const length = evalScalar(rawArgs[0]);
         // Round to mintick to match TradingView precision
         return this._roundToTick(PineTALib.atr(getSeries('high'), getSeries('low'), getSeries('close'), length));
       }
@@ -1030,9 +1147,9 @@ class PineRuntime {
         const series = seriesArg.type === 'Identifier' && seriesNames.includes(seriesArg.name)
           ? getSeries(seriesArg.name)
           : evalOrSeries(seriesArg);
-        const fastLength = this._evalExpression(rawArgs[1]);
-        const slowLength = this._evalExpression(rawArgs[2]);
-        const signalLength = this._evalExpression(rawArgs[3]);
+        const fastLength = evalScalar(rawArgs[1]);
+        const slowLength = evalScalar(rawArgs[2]);
+        const signalLength = evalScalar(rawArgs[3]);
         return PineTALib.macd(series, fastLength, slowLength, signalLength);
       }
       case 'vwap': {
@@ -1063,7 +1180,7 @@ class PineRuntime {
       case 'change': {
         // ta.change(source, length=1)
         const series = evalOrSeries(rawArgs[0]);
-        const length = rawArgs[1] ? this._evalExpression(rawArgs[1]) : 1;
+        const length = rawArgs[1] ? evalScalar(rawArgs[1]) : 1;
         if (!Array.isArray(series) || series.length < length + 1) return null;
         return this._roundToTick(series[series.length - 1] - series[series.length - 1 - length]);
       }
@@ -1076,7 +1193,7 @@ class PineRuntime {
       default:
         // Try calling directly with evaluated args
         if (typeof PineTALib[method] === 'function') {
-          const evaluated = rawArgs.map(a => this._evalExpression(a));
+          const evaluated = rawArgs.map(a => evalScalar(a));
           return PineTALib[method](...evaluated);
         }
         throw this._bypassError(`ta method 'ta.${method}()'`);
