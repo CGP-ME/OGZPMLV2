@@ -1242,6 +1242,12 @@ class PineRuntime {
         const id = positional[0];
         return this.bridge.close(id, getOpts());
       }
+      case 'cancel': {
+        // strategy.cancel(id=...) - id arrives named or positional
+        const positional = args.filter(a => !a || !a.name);
+        const id = positional[0] !== undefined ? positional[0] : getOpts().id;
+        return this.bridge.cancel(id);
+      }
       default:
         if (typeof this.bridge[method] === 'function') {
           return this.bridge[method](...args.filter(a => !a || !a.name));

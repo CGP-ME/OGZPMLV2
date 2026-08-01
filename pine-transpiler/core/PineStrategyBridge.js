@@ -26,7 +26,17 @@ class PineStrategyBridge {
     if (this.positionSize < 0 && direction === -1) return; // Already short, ignore
 
     const qty = opts.qty || 1;
-    this.pendingEntry = { id, direction, qty };
+    // stop/oca fields ride along so strategy.cancel() can target the order.
+    // Stop-entry fill simulation (order waits until price crosses stop) is
+    // output-parity phase work - entries still flush as market entries.
+    this.pendingEntry = {
+      id,
+      direction,
+      qty,
+      stop: opts.stop,
+      ocaName: opts.oca_name,
+      ocaType: opts.oca_type,
+    };
   }
 
   exit(id, fromId, opts = {}) {
@@ -40,6 +50,21 @@ class PineStrategyBridge {
     // Go flat immediately (TradingView behavior)
     this.positionSize = 0;
     this.positionAvgPrice = null;
+  }
+
+  close_all(opts = {}) {
+    // TV: market-closes the whole position regardless of entry id.
+    this.pendingClose = { id: null };
+    this.positionSize = 0;
+    this.positionAvgPrice = null;
+  }
+
+  cancel(id) {
+    // TV: cancels pending (unfilled) orders by id. In this bridge an entry
+    // that has not been flushed yet is exactly an unfilled order.
+    if (this.pendingEntry && this.pendingEntry.id === id) {
+      this.pendingEntry = null;
+    }
   }
 
   // -----------------------------------------------------------------
@@ -63,6 +88,16 @@ class PineStrategyBridge {
 
   get short() {
     return -1;
+  }
+
+  // TV constants: strategy.cash ("cash" qty type) and the strategy.oca.*
+  // one-cancels-all group constants - verbatim TV reference values.
+  get cash() {
+    return 'cash';
+  }
+
+  get oca() {
+    return { cancel: 'cancel', none: 'none', reduce: 'reduce' };
   }
 
   get closedtrades() {
