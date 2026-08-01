@@ -356,6 +356,21 @@ class PineRuntime {
     return error;
   }
 
+  // -----------------------------------------------------------------
+  // Loud type violation - a cosmetic value (color/PINE_NOOP) reached a
+  // computational position. TradingView rejects this at compile time, so
+  // resolving it silently (to na or anything else) would make us MORE
+  // permissive than the real thing. No quiet na coercion, ever.
+  // -----------------------------------------------------------------
+  _typeViolationError(detail) {
+    const error = new Error(
+      `Cosmetic value reached computation (${detail}) - TradingView rejects this at ` +
+        'compile time; refusing to resolve it silently (no quiet na coercion)'
+    );
+    error.code = 'PINE_TYPE_VIOLATION';
+    return error;
+  }
+
   _describeNode(node) {
     if (!node || typeof node !== 'object') return String(node);
     if (node.type === 'Identifier') return node.name;
@@ -565,9 +580,11 @@ class PineRuntime {
       case 'UnaryExpression':
         {
           const arg = this._evalExpression(node.argument);
-          // A cosmetic value (color/PINE_NOOP) is not-a-number - Pine treats it
-          // as na rather than coercing the sentinel object.
-          if (arg === PINE_NOOP) return null;
+          // A cosmetic value in a unary op is invalid Pine - fail loud, never
+          // quietly resolve to na.
+          if (arg === PINE_NOOP) {
+            throw this._typeViolationError(`unary '${node.operator}' on a color/visual value`);
+          }
           switch (node.operator) {
             case '+':
               return +arg;
@@ -584,10 +601,12 @@ class PineRuntime {
           const left = this._evalExpression(node.left);
           const right = this._evalExpression(node.right);
           // A cosmetic value (color/PINE_NOOP) has no numeric or ordinal meaning.
-          // Pine's type checker rejects color-in-arithmetic at compile time; since
-          // we evaluate at runtime, treat any PINE_NOOP operand as na (null) rather
-          // than concatenating it as "[object Object]..." or comparing the sentinel.
-          if (left === PINE_NOOP || right === PINE_NOOP) return null;
+          // TradingView's type checker rejects color-in-arithmetic at compile
+          // time; matching parity means failing loud here, never quietly
+          // resolving the sentinel to na (or concatenating it as a string).
+          if (left === PINE_NOOP || right === PINE_NOOP) {
+            throw this._typeViolationError(`binary '${node.operator}' on a color/visual value`);
+          }
           switch (node.operator) {
             case '+':
               return left + right;
@@ -617,16 +636,47 @@ class PineRuntime {
         }
       case 'LogicalExpression':
         {
+          // A cosmetic value (color/PINE_NOOP) is a frozen object - JS would
+          // treat it as truthy, silently letting a color act as `true`. Invalid
+          // Pine (TV rejects color-in-bool-context at compile time) - fail loud.
+          // Short-circuit semantics preserved: the right side is only evaluated
+          // (and only guarded) when the operator actually needs it.
           const left = this._evalExpression(node.left);
-          if (node.operator === 'and') return left && this._evalExpression(node.right);
-          if (node.operator === 'or') return left || this._evalExpression(node.right);
+          if (left === PINE_NOOP) {
+            throw this._typeViolationError(`logical '${node.operator}' on a color/visual value`);
+          }
+          if (node.operator === 'and') {
+            if (!left) return left;
+            const right = this._evalExpression(node.right);
+            if (right === PINE_NOOP) {
+              throw this._typeViolationError(`logical 'and' on a color/visual value`);
+            }
+            return right;
+          }
+          if (node.operator === 'or') {
+            if (left) return left;
+            const right = this._evalExpression(node.right);
+            if (right === PINE_NOOP) {
+              throw this._typeViolationError(`logical 'or' on a color/visual value`);
+            }
+            return right;
+          }
           throw new Error(`Unsupported logical operator ${node.operator}`);
         }
       case 'ConditionalExpression':
-        // Ternary: test ? consequent : alternate
-        return this._evalExpression(node.test)
-          ? this._evalExpression(node.consequent)
-          : this._evalExpression(node.alternate);
+        {
+          // Ternary: test ? consequent : alternate. Only the TEST is guarded -
+          // color-valued BRANCHES are valid Pine everywhere (cond ? color.red :
+          // color.green feeding plot/bgcolor), but a color as the condition is
+          // invalid Pine and must fail loud, not act truthy.
+          const test = this._evalExpression(node.test);
+          if (test === PINE_NOOP) {
+            throw this._typeViolationError('ternary condition is a color/visual value');
+          }
+          return test
+            ? this._evalExpression(node.consequent)
+            : this._evalExpression(node.alternate);
+        }
       case 'MemberExpression':
         {
           const obj = this._evalExpression(node.object);
