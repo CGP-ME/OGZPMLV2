@@ -628,9 +628,15 @@ class PineParser {
       this.consume();
       return { type: 'Literal', value: tok.value, isColor: true };
     }
-    // Boolean/null literals (can be keyword or identifier depending on lexer)
+    // Boolean/null literals (can be keyword or identifier depending on lexer).
+    // na followed by ( is the is-na FUNCTION call, not the empty-value
+    // literal - it must fall through to the identifier/call path, else
+    // na(x) parses as Literal(null) invoked as a callee and every na()
+    // check in every script silently evaluates to null instead of a boolean.
     if ((tok.type === 'keyword' || tok.type === 'identifier') &&
-        ['true', 'false', 'na', 'null'].includes(tok.value)) {
+        ['true', 'false', 'na', 'null'].includes(tok.value) &&
+        !(tok.value === 'na' &&
+          this.peek(1).type === 'punct' && this.peek(1).value === '(')) {
       this.consume();
       const map = { true: true, false: false, na: null, null: null };
       return { type: 'Literal', value: map[tok.value] };

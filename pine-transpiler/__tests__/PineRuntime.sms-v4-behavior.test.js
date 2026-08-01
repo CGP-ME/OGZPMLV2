@@ -77,4 +77,25 @@ describe('behavior freeze on the corpus that parses', () => {
     expect(sequence).toEqual(['-', 'buy', '-', '-', 'sell', '-', 'buy', '-']);
     expect(runtime.state.peak).toBe(14);
   });
+
+  test('na(x) is the is-na FUNCTION, not the null literal swallowing a call', () => {
+    // Mercury batch-attack side-door (2026-08-01): primary() turned na into
+    // Literal(null) unconditionally, so every na(x) call in every script
+    // evaluated to null - script 20's timetoclose logic was silently dead.
+    const runtime = new PineRuntime(
+      [
+        '//@version=5',
+        'strategy("na-call corpus")',
+        'var float unset = na',
+        'a = na(close)',
+        'b = na(unset)',
+        'c = a ? 1 : 2',
+        'plot(c)',
+      ].join('\n')
+    );
+    runtime.evaluate(CANDLES[0]);
+    expect(runtime.state.a).toBe(false);
+    expect(runtime.state.b).toBe(true);
+    expect(runtime.state.c).toBe(2);
+  });
 });

@@ -39,7 +39,18 @@ const BARE_SCALAR_FNS = {
   max: Math.max,
   min: Math.min,
   round: (x) => (x < 0 ? -Math.round(-x) : Math.round(x)),
-  avg: (...xs) => xs.reduce((a, b) => a + b, 0) / xs.length,
+  avg: (...xs) => {
+    // TV rejects zero-arity at compile time; silently dividing 0/0 into
+    // NaN would be exactly the quiet-leak class this runtime bans.
+    if (xs.length === 0) {
+      const error = new Error(
+        'avg() requires at least one argument - TradingView rejects this at compile time'
+      );
+      error.code = 'PINE_ARITY_VIOLATION';
+      throw error;
+    }
+    return xs.reduce((a, b) => a + b, 0) / xs.length;
+  },
   iff: (cond, a, b) => (cond ? a : b),
 };
 
