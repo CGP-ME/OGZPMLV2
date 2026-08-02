@@ -3,6 +3,11 @@ class PineParser {
   constructor(tokens) {
     this.tokens = tokens;
     this.pos = 0;
+    // Old-Pine comma-separated declarations (a = 1, b = 2, ... on one
+    // line) parse as plain RegularVarDecls; the trailing ones queue here
+    // and statement() drains them in order - no new node type, so the
+    // gate walk and runtime exec see ordinary declarations.
+    this.pendingStatements = [];
   }
 
   // -----------------------------------------------------------------
@@ -56,6 +61,7 @@ class PineParser {
   // Statements
   // -----------------------------------------------------------------
   statement() {
+    if (this.pendingStatements.length) return this.pendingStatements.shift();
     const tok = this.peek();
 
     // var declaration (persistent)
@@ -204,7 +210,26 @@ class PineParser {
 
     this.consume('operator', '=');
     const init = this.expression();
-    return { type: 'RegularVarDecl', id, init };
+    const decl = { type: 'RegularVarDecl', id, init };
+    // Old-Pine multi-declaration: `a = expr, b = expr, ...`. A statement-
+    // level comma followed by the `identifier =` shape continues the
+    // declaration list (inside brackets commas are consumed by the call
+    // parser and never reach here). Queue the trailing declarations.
+    while (
+      this.peek().type === 'punct' && this.peek().value === ',' &&
+      (this.peek(1).type === 'identifier' || this.peek(1).type === 'keyword') &&
+      this.peek(2).type === 'operator' && this.peek(2).value === '='
+    ) {
+      this.consume('punct', ',');
+      const nextId = this.consume().value;
+      this.consume('operator', '=');
+      this.pendingStatements.push({
+        type: 'RegularVarDecl',
+        id: nextId,
+        init: this.expression(),
+      });
+    }
+    return decl;
   }
 
   // Compound assignment: x += expr or x -= expr

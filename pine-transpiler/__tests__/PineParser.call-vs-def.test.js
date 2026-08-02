@@ -46,6 +46,21 @@ describe('tuple returns from multi-line function bodies (qqe shape)', () => {
   });
 });
 
+describe('old-Pine comma-separated declarations (madrid-ribbon shape)', () => {
+  test('a = 1, b = 2, c = 3 on one line parses as three RegularVarDecls in order', () => {
+    const ast = parse('GRN01 = #7CFC00, GRN02 = #32CD32, GRN03 = #228B22\nplot(close)\n');
+    const decls = ast.body.filter((s) => s.type === 'RegularVarDecl');
+    expect(decls.map((d) => d.id)).toEqual(['GRN01', 'GRN02', 'GRN03']);
+  });
+
+  test('commas inside call arguments never trigger the declaration list', () => {
+    const ast = parse('x = max(1, 2)\ny = 3\n');
+    expect(ast.body[0].type).toBe('RegularVarDecl');
+    expect(ast.body[0].id).toBe('x');
+    expect(ast.body[1].id).toBe('y');
+  });
+});
+
 describe('PineParser call-vs-definition dispatch', () => {
   test('study(...) stays a call even when a definition exists later', () => {
     const ast = parse(
