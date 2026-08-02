@@ -76,6 +76,16 @@ class PineLexer {
           this.atLineStart = false;
           continue;
         }
+        // TV's documented line-wrap rule: block indents are ALWAYS multiples
+        // of 4; a wrapped statement's continuation must be indented by an
+        // amount that is NOT a multiple of 4. Such lines are expression
+        // flow, not block structure - no indent/dedent, stack untouched
+        // (range-filter's 3-space ternary wraps, parabolic-sar's 14-space
+        // condition columns).
+        if (indent % 4 !== 0) {
+          this.atLineStart = false;
+          continue;
+        }
         // Check indentation level
         const currentIndent = this.indentStack[this.indentStack.length - 1];
         if (indent > currentIndent) {
