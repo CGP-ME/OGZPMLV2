@@ -185,6 +185,22 @@ describe('PineTALib TradingView goldens — VWAP', () => {
   });
 });
 
+describe('PineTALib TradingView goldens — VWMA', () => {
+  test('vwma is sma(source * volume, len) / sma(volume, len) over the last window', () => {
+    // TV documents vwma(x, y) = sma(x * volume, y) / sma(volume, y).
+    // Window of 3: (10*100 + 11*200 + 12*300) / (100+200+300) = 6800/600.
+    const source = [99, 10, 11, 12]; // leading value outside the window is ignored
+    const volume = [999, 100, 200, 300];
+    const manual = (10 * 100 + 11 * 200 + 12 * 300) / 600;
+    expect(PineTALib.vwma(source, volume, 3)).toBeCloseTo(manual, 10);
+  });
+
+  test('vwma returns null until a full window exists and when window volume is zero', () => {
+    expect(PineTALib.vwma([1, 2], [10, 20], 3)).toBeNull();
+    expect(PineTALib.vwma([1, 2, 3], [0, 0, 0], 3)).toBeNull();
+  });
+});
+
 describe('PineTALib TradingView goldens — crossover / crossunder', () => {
   test('crossover: classic and touch-then-cross', () => {
     // TV ta.crossover(a,b): a > b on current bar and a[1] <= b[1] on prior bar.

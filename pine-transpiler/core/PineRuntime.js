@@ -22,7 +22,7 @@ const NOOP_NAMESPACES = new Set([
 const BARE_TA_ALIASES = new Set([
   'sma', 'ema', 'rsi', 'stdev', 'highest', 'lowest', 'atr', 'macd', 'vwap',
   'crossover', 'crossunder', 'cross', 'change', 'valuewhen',
-  'wma', 'rma', 'linreg', 'stoch', 'barssince',
+  'wma', 'rma', 'linreg', 'stoch', 'barssince', 'vwma',
 ]);
 
 // v2-v4 bare scalar math builtins. TV round() rounds half away from zero;
@@ -1285,6 +1285,18 @@ class PineRuntime {
           if (series[k]) return series.length - 1 - k;
         }
         return null;
+      }
+      case 'vwma': {
+        // TV: vwma(x, y) = sma(x * volume, y) / sma(volume, y)
+        const series = resolveSeriesArg(rawArgs[0]);
+        const length = evalScalar(rawArgs[1]);
+        let volume = getSeries('volume');
+        // A shifted source (src[n]) arrives end-sliced; align volume to the
+        // same end so each weight pairs with the bar its source value is from.
+        if (Array.isArray(series) && series.length < volume.length) {
+          volume = volume.slice(0, series.length);
+        }
+        return this._roundToTick(PineTALib.vwma(series, volume, length));
       }
       case 'linreg': {
         // ta.linreg(source, length, offset)

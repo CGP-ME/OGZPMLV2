@@ -71,6 +71,23 @@ class PineTALib {
     return weighted / ((length * (length + 1)) / 2);
   }
 
+  // Volume-weighted moving average - TV documents vwma(x, y) as
+  // sma(x * volume, y) / sma(volume, y); na until a full window exists.
+  static vwma(series, volume, length) {
+    if (length <= 0) return null;
+    if (!Array.isArray(series) || !Array.isArray(volume)) return null;
+    if (series.length < length || volume.length < length) return null;
+    const s = series.slice(-length);
+    const v = volume.slice(-length);
+    let weighted = 0;
+    let totalVolume = 0;
+    for (let i = 0; i < length; i++) {
+      weighted += s[i] * v[i];
+      totalVolume += v[i];
+    }
+    return totalVolume === 0 ? null : weighted / totalVolume;
+  }
+
   // Wilder smoothing (TV ta.rma): seed SMA(length), then
   // rma = (prev * (length-1) + value) / length. na until seeded.
   static rma(series, length) {
