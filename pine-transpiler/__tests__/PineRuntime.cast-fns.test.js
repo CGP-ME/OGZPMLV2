@@ -54,6 +54,24 @@ describe('type-cast builtins', () => {
     expect(state.b).toBeNull();
   });
 
+  test('checked math boundary: na propagates through scalar fns instead of JS-coercing', () => {
+    // The leak class this seals: raw Math members silently coerce null -
+    // Math.abs(null) = 0, Math.max(null, 5) = 5, Math.pow(null, 2) = 0.
+    // Pine: any na argument -> na.
+    const state = run([
+      'var float naVal = na',
+      'a = abs(naVal)',
+      'b = max(naVal, 5)',
+      'c = math.pow(naVal, 2)',
+      'd = math.abs(naVal)',
+      'plot(close)',
+    ]);
+    expect(state.a).toBeNull();
+    expect(state.b).toBeNull();
+    expect(state.c).toBeNull();
+    expect(state.d).toBeNull();
+  });
+
   test('cast on an uncastable type throws loud, never resolves silently', () => {
     const runtime = new PineRuntime(
       ['//@version=5', 'strategy("cast corpus")', 's = "text"', 'x = int(s)', 'plot(close)'].join('\n')

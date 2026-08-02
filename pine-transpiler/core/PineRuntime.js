@@ -40,6 +40,62 @@ const castViolation = (fn, v) => {
   return error;
 };
 
+// Checked numeric functions - Pine's rules at the FUNCTION boundary, never
+// JavaScript's. Raw Math members silently coerce (Math.abs(null) = 0,
+// Math.max(null, 5) = 5, Math.pow(null, 2) = 0) - the same host-language
+// leakage the checked operators seal, still open at the call boundary
+// until wrapped. na propagates (any na argument -> na; PROBE-VERIFY for
+// variadic max/min/avg specifically - sourced only from the operator na
+// rule so far), non-numbers throw loud, non-finite results (domain
+// errors) resolve to na, matching the oracle's sqrt(-1)/log(0) rows.
+const scalarTypeViolation = (fn, v) => {
+  const error = new Error(
+    `${fn}() argument of type ${typeof v} - TradingView rejects this at compile time`
+  );
+  error.code = 'PINE_TYPE_VIOLATION';
+  return error;
+};
+const checkedNumericFn = (name, fn) => (...xs) => {
+  for (const x of xs) {
+    if (isNaValue(x)) return null;
+    if (typeof x !== 'number') throw scalarTypeViolation(name, x);
+  }
+  const r = fn(...xs);
+  return typeof r === 'number' && !Number.isFinite(r) ? null : r;
+};
+const CHECKED_MATH = {};
+for (const [name, fn] of Object.entries({
+  abs: Math.abs, log: Math.log, log10: Math.log10, sqrt: Math.sqrt,
+  pow: Math.pow, exp: Math.exp, floor: Math.floor, ceil: Math.ceil,
+  max: Math.max, min: Math.min, sign: Math.sign,
+  sin: Math.sin, cos: Math.cos, tan: Math.tan,
+  asin: Math.asin, acos: Math.acos, atan: Math.atan,
+  // TV spellings JS Math lacks.
+  todegrees: (x) => (x * 180) / Math.PI,
+  toradians: (x) => (x * Math.PI) / 180,
+  // TV rounds half away from zero; JS Math.round rounds half toward
+  // +Infinity for negatives - inheriting it verbatim is a parity bug.
+  round: (x) => (x < 0 ? -Math.round(-x) : Math.round(x)),
+})) {
+  CHECKED_MATH[name] = checkedNumericFn(name, fn);
+}
+CHECKED_MATH.avg = (...xs) => {
+  // TV rejects zero-arity at compile time; silently dividing 0/0 into
+  // NaN would be exactly the quiet-leak class this runtime bans.
+  if (xs.length === 0) {
+    const error = new Error(
+      'avg() requires at least one argument - TradingView rejects this at compile time'
+    );
+    error.code = 'PINE_ARITY_VIOLATION';
+    throw error;
+  }
+  for (const x of xs) {
+    if (isNaValue(x)) return null;
+    if (typeof x !== 'number') throw scalarTypeViolation('avg', x);
+  }
+  return xs.reduce((a, b) => a + b, 0) / xs.length;
+};
+
 // v2-v4 bare scalar math builtins. TV round() rounds half away from zero;
 // JS Math.round rounds half toward +Infinity for negatives.
 const BARE_SCALAR_FNS = {
@@ -69,29 +125,30 @@ const BARE_SCALAR_FNS = {
     if (typeof x === 'string') return x;
     throw castViolation('string', x);
   },
-  abs: Math.abs,
-  log: Math.log,
-  log10: Math.log10,
-  sqrt: Math.sqrt,
-  pow: Math.pow,
-  exp: Math.exp,
-  floor: Math.floor,
-  ceil: Math.ceil,
-  max: Math.max,
-  min: Math.min,
-  round: (x) => (x < 0 ? -Math.round(-x) : Math.round(x)),
-  avg: (...xs) => {
-    // TV rejects zero-arity at compile time; silently dividing 0/0 into
-    // NaN would be exactly the quiet-leak class this runtime bans.
-    if (xs.length === 0) {
-      const error = new Error(
-        'avg() requires at least one argument - TradingView rejects this at compile time'
-      );
-      error.code = 'PINE_ARITY_VIOLATION';
-      throw error;
-    }
-    return xs.reduce((a, b) => a + b, 0) / xs.length;
-  },
+  // Checked numeric family - v2-v4 bare spellings share the one checked
+  // definition with their math.* spellings (same delegation pattern as
+  // BARE_TA_ALIASES onto the ta.* dispatcher).
+  abs: CHECKED_MATH.abs,
+  log: CHECKED_MATH.log,
+  log10: CHECKED_MATH.log10,
+  sqrt: CHECKED_MATH.sqrt,
+  pow: CHECKED_MATH.pow,
+  exp: CHECKED_MATH.exp,
+  floor: CHECKED_MATH.floor,
+  ceil: CHECKED_MATH.ceil,
+  max: CHECKED_MATH.max,
+  min: CHECKED_MATH.min,
+  sign: CHECKED_MATH.sign,
+  sin: CHECKED_MATH.sin,
+  cos: CHECKED_MATH.cos,
+  tan: CHECKED_MATH.tan,
+  asin: CHECKED_MATH.asin,
+  acos: CHECKED_MATH.acos,
+  atan: CHECKED_MATH.atan,
+  round: CHECKED_MATH.round,
+  avg: CHECKED_MATH.avg,
+  // iff's na condition takes the false branch (oracle ternary row) - its
+  // VALUE branches are cosmetic-legal, so no numeric check on a/b.
   iff: (cond, a, b) => (cond ? a : b),
 };
 
@@ -112,15 +169,12 @@ const IGNORED_CALL_NAMES = new Set([
   'alertcondition', 'alert',
 ]);
 
-// TV math.* surface: verbatim JS Math members plus Pine spellings JS lacks,
-// with TV-divergent members overridden. math.avg and math.round share the
-// one TV-verified definition with their v2 bare spellings - same delegation
-// pattern as BARE_TA_ALIASES onto the ta.* dispatcher.
+// TV math.* surface: the CHECKED numeric family overrides every inherited
+// raw Math member it covers (raw members silently JS-coerce na - the
+// leak class the checked layer exists to kill), plus TV constants JS
+// spells differently.
 const PINE_MATH = Object.create(Math);
-PINE_MATH.avg = BARE_SCALAR_FNS.avg;
-// TV rounds half away from zero; JS Math.round rounds half toward +Infinity
-// for negatives - inheriting it verbatim would be a parity bug.
-PINE_MATH.round = BARE_SCALAR_FNS.round;
+Object.assign(PINE_MATH, CHECKED_MATH);
 // TV constants are lowercase; JS Math only has PI/E uppercase.
 PINE_MATH.pi = Math.PI;
 PINE_MATH.e = Math.E;
