@@ -114,15 +114,13 @@ describe('PineParser call-vs-definition dispatch', () => {
     expect(ast.body[1].type).toBe('RegularVarDecl');
   });
 
-  test('call-history access still refuses by name', () => {
-    let err = null;
-    try {
-      parse('a = foo()[1]\n');
-    } catch (e) {
-      err = e;
-    }
-    expect(err).not.toBeNull();
-    expect(err.code).toBe('PINE_LOAD_REFUSED');
-    expect(err.unsupported).toEqual(['history access on call expressions']);
+  test('call-history access parses to CallSeriesLookup (fn()[1] is a series read)', () => {
+    const ast = parse('a = foo()[1]\n');
+    const decl = ast.body[0];
+    expect(decl.type).toBe('RegularVarDecl');
+    expect(decl.init.type).toBe('CallSeriesLookup');
+    expect(decl.init.call.type).toBe('CallExpression');
+    expect(decl.init.call.callee.name).toBe('foo');
+    expect(decl.init.offset.value).toBe(1);
   });
 });

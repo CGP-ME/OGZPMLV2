@@ -15,12 +15,11 @@ function loadSmsSource() {
 }
 
 describe('SMS-v4 flagship status under the refuse-loudly cut', () => {
-  test('refuses by name: history access on call expressions (mission-two item one)', () => {
-    // SMS-v4 lines 334-337 use isBearish()[1]-style call history. Before this
-    // cut the parser died with a misnamed tuple error (since T-B1) and before
-    // that silently mis-evaluated the exhaustion block as undefined. Now it
-    // refuses loudly, naming the feature, until mission two builds the real
-    // semantics.
+  test('call-history built - refusal advances to the next named feature set', () => {
+    // History of this pin: parser died with a misnamed tuple error (T-B1),
+    // then refused by name on call history (mission-two item one), and now
+    // that fn()[1] semantics are BUILT the gate names the flagship's real
+    // remaining wall. Every generation of this test pins the frontier.
     let thrown;
     try {
       new PineRuntime(loadSmsSource());
@@ -29,7 +28,16 @@ describe('SMS-v4 flagship status under the refuse-loudly cut', () => {
     }
     expect(thrown).toBeDefined();
     expect(thrown.code).toBe('PINE_LOAD_REFUSED');
-    expect(thrown.message).toContain('history access on call expressions');
+    expect(thrown.message).not.toContain('history access on call expressions');
+    for (const feature of [
+      "'strategy.commission'",
+      "color/visual value in binary '+'",
+      "identifier 'dayofweek'",
+      "identifier 'order'",
+      "identifier 'position'",
+    ]) {
+      expect(thrown.message).toContain(feature);
+    }
   });
 });
 
@@ -79,6 +87,31 @@ describe('behavior freeze on the corpus that parses', () => {
     // comparison is false, no entry during warmup. Buy moves bar 2 -> 3.
     expect(sequence).toEqual(['-', '-', 'buy', '-', 'sell', '-', 'buy', '-']);
     expect(runtime.state.peak).toBe(14);
+  });
+
+  test('call history fn()[1] reads the previous bar value of THIS call instance', () => {
+    // f(close)[1] must be yesterday's f(close), na on the first bar
+    // (no recording yet), and two different call sites of the same
+    // function must keep separate histories.
+    const runtime = new PineRuntime(
+      [
+        '//@version=5',
+        'strategy("call-history corpus")',
+        'f(x) => x * 2',
+        'cur = f(close)',
+        'prev = f(close)[1]',
+        'other = f(open)[1]',
+        'plot(cur)',
+      ].join('\n')
+    );
+    runtime.evaluate(CANDLES[0]); // close 11, open 10
+    expect(runtime.state.cur).toBe(22);
+    expect(runtime.state.prev).toBeNull(); // warmup: no prior recording
+    expect(runtime.state.other).toBeNull();
+    runtime.evaluate(CANDLES[1]); // close 12, open 11
+    expect(runtime.state.cur).toBe(24);
+    expect(runtime.state.prev).toBe(22); // bar-1 value of f(close)
+    expect(runtime.state.other).toBe(20); // bar-1 value of f(open) - separate series
   });
 
   test('na(x) is the is-na FUNCTION, not the null literal swallowing a call', () => {

@@ -217,6 +217,16 @@ class PineRuntime {
     // State history - snapshot of state after each candle (for series lookback on user vars)
     this.stateHistory = [];
 
+    // Call-history series (fn()[1]): a call expression is itself a series
+    // on TV, and every call INSTANCE keeps its own history. Keyed by call
+    // site (AST node) plus the instantiation path of enclosing user-fn
+    // call sites, so two calls of the same function record separately.
+    this.callSeries = new Map();
+    this._nodeIds = new WeakMap();
+    this._nextNodeId = 1;
+    this._callPath = [];
+    this._barOrdinal = 0;
+
     // Session tracker (IVB, daily loss, etc.)
     this.session = new SessionTracker();
 
@@ -394,6 +404,14 @@ class PineRuntime {
             refuse(`series '${node.series}[...]'`);
           }
           refuseCosmetic(node.offset, 'series offset');
+          walkExpr(node.offset, ctx);
+          return;
+        case 'CallSeriesLookup':
+          // fn()[n] - the call itself walks under normal call rules; a
+          // cosmetic call's history is as cosmetic as the call.
+          refuseCosmetic(node.call, 'call-history base');
+          refuseCosmetic(node.offset, 'series offset');
+          walkExpr(node.call, ctx);
           walkExpr(node.offset, ctx);
           return;
         case 'MemberExpression': {
@@ -700,6 +718,10 @@ class PineRuntime {
     const maxLookback = 500; // safe default - can be increased later
     if (this.history.length > maxLookback) this.history.shift();
 
+    // Monotonic bar counter for call-history bookkeeping - history.length
+    // stops growing once the cap trims, so it cannot serve as an ordinal.
+    this._barOrdinal += 1;
+
     // Update session state
     this.session.update(candle);
 
@@ -894,6 +916,26 @@ class PineRuntime {
         return this.state[node.name];
       case 'SeriesLookup':
         return this._lookupSeries(node.series, this._evalExpression(node.offset));
+      case 'CallSeriesLookup': {
+        // fn()[n]: the call is evaluated once per bar (per instance) and
+        // its results form a series; [n] reads n recordings back. Warmup
+        // (fewer than n+1 recordings) is na - TV parity. A call reached
+        // conditionally records only on the bars it executes, which is
+        // TV's own (warned-about) conditional-execution behavior.
+        const off = this._evalExpression(node.offset);
+        if (this._isNa(off)) return null;
+        if (typeof off !== 'number') {
+          throw this._typeViolationError(`call-history offset of type ${typeof off}`);
+        }
+        const entry = this._callSeriesEntry(node);
+        if (entry.lastBar !== this._barOrdinal) {
+          entry.values.push(this._evalExpression(node.call));
+          if (entry.values.length > 500) entry.values.shift();
+          entry.lastBar = this._barOrdinal;
+        }
+        const idx = entry.values.length - 1 - Math.floor(off);
+        return idx >= 0 && idx < entry.values.length ? entry.values[idx] : null;
+      }
       case 'TupleExpression':
         // Tuple literal - evaluates to an array; TupleAssignment
         // destructures it, user functions return it.
@@ -1069,6 +1111,30 @@ class PineRuntime {
   // -----------------------------------------------------------------
   // Function / method call
   // -----------------------------------------------------------------
+  // Call-history bookkeeping: stable id per AST call site, entry keyed by
+  // site + the enclosing user-fn instantiation path (so calculateQQE(...)
+  // invoked from two sites records two separate histories - TV's
+  // per-instance rule).
+  _nodeId(node) {
+    let id = this._nodeIds.get(node);
+    if (!id) {
+      id = this._nextNodeId;
+      this._nextNodeId += 1;
+      this._nodeIds.set(node, id);
+    }
+    return id;
+  }
+
+  _callSeriesEntry(node) {
+    const key = `${this._callPath.join('.')}:${this._nodeId(node)}`;
+    let entry = this.callSeries.get(key);
+    if (!entry) {
+      entry = { lastBar: -1, values: [] };
+      this.callSeries.set(key, entry);
+    }
+    return entry;
+  }
+
   _callFunction(callee, args) {
     // input(...) / input.*(...) returns its default value; evaluate ONLY
     // the default, before the eager arg map below - v3 metadata like
@@ -1221,6 +1287,9 @@ class PineRuntime {
         target.params.forEach((p, i) => {
           this.state[p] = positional[i];
         });
+        // Instantiation path for call-history: this call site's id scopes
+        // any fn()[n] inside the body to THIS invocation site.
+        this._callPath.push(this._nodeId(callee));
         // Execute local variable declarations first
         if (target.locals) {
           for (const local of target.locals) {
@@ -1234,7 +1303,18 @@ class PineRuntime {
         } else if (target.body) {
           result = this._evalExpression(target.body);
         }
-        this.state = previousState;
+        // Restore IN PLACE - never swap the state object. The enclosing
+        // statement (cur = f(...)) resolved `this.state` as its assignment
+        // target BEFORE this call returned; replacing the object would
+        // strand that write on a discarded snapshot. This was a live bug:
+        // every var assigned from a user-fn call result silently vanished
+        // at runtime (invisible to the load gate - loading is not
+        // evaluating).
+        for (const k of Object.keys(this.state)) {
+          if (!(k in previousState)) delete this.state[k];
+        }
+        Object.assign(this.state, previousState);
+        this._callPath.pop();
         return result;
       }
     }

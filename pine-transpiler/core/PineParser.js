@@ -608,16 +608,14 @@ class PineParser {
           }
         }
         if (node.type === 'CallExpression') {
-          // Same-line history access on a call (fn()[1]) - refuse by name
-          // instead of stranding the bracket at statement position, where
-          // it would die as a misnamed tuple error. Real call-history
-          // semantics are mission-two item one.
-          const error = new Error(
-            'Pine load refused: unsupported feature(s): history access on call expressions (e.g. fn()[1])'
-          );
-          error.code = 'PINE_LOAD_REFUSED';
-          error.unsupported = ['history access on call expressions'];
-          throw error;
+          // Call-history access (fn()[1]): a call expression is itself a
+          // series on TV - [n] reads that call INSTANCE's value n bars
+          // back. The runtime keeps per-site, per-instantiation history.
+          this.consume('punct', '[');
+          const offset = this.expression();
+          this.consume('punct', ']');
+          node = { type: 'CallSeriesLookup', call: node, offset };
+          continue;
         }
         this.consume('punct', '[');
         const index = this.expression();
