@@ -156,7 +156,9 @@ class PineRuntime {
           break;
         case 'IfStatement':
           collectStmts(node.consequent && node.consequent.body);
-          if (node.alternate) collectStmts(node.alternate.body);
+          // alternate is a block OR a directly-nested IfStatement (else-if)
+          if (node.alternate && node.alternate.type === 'IfStatement') collectStmt(node.alternate);
+          else if (node.alternate) collectStmts(node.alternate.body);
           break;
         case 'ForStatement':
           declared.add(node.id);
@@ -361,6 +363,9 @@ class PineRuntime {
         case 'NamedArgument':
           walkExpr(node.value, ctx);
           return;
+        case 'TupleExpression':
+          node.elements.forEach((e) => walkExpr(e, ctx));
+          return;
         case 'UnaryExpression':
           refuseCosmetic(node.argument, `unary '${node.operator}'`);
           walkExpr(node.argument, ctx);
@@ -414,7 +419,9 @@ class PineRuntime {
           refuseCosmetic(node.test, "'if' condition");
           walkExpr(node.test, undefined);
           walkStmts(node.consequent && node.consequent.body);
-          if (node.alternate) walkStmts(node.alternate.body);
+          // alternate is a block OR a directly-nested IfStatement (else-if)
+          if (node.alternate && node.alternate.type === 'IfStatement') walkStmt(node.alternate);
+          else if (node.alternate) walkStmts(node.alternate.body);
           return;
         case 'ForStatement':
           refuseCosmetic(node.start, "'for' bound");
@@ -624,6 +631,9 @@ class PineRuntime {
       case 'IfStatement':
         if (this._evalExpression(node.test)) {
           this._execBlock(node.consequent.body);
+        } else if (node.alternate && node.alternate.type === 'IfStatement') {
+          // else-if chain: the alternate IS the next if statement
+          this._execStatement(node.alternate);
         } else if (node.alternate) {
           this._execBlock(node.alternate.body);
         }
@@ -761,6 +771,10 @@ class PineRuntime {
         return this.state[node.name];
       case 'SeriesLookup':
         return this._lookupSeries(node.series, this._evalExpression(node.offset));
+      case 'TupleExpression':
+        // Tuple literal - evaluates to an array; TupleAssignment
+        // destructures it, user functions return it.
+        return node.elements.map((e) => this._evalExpression(e));
       case 'CallExpression':
         // callee can be Identifier, MemberExpression, or legacy string
         return this._callFunction(node.callee, node.arguments);

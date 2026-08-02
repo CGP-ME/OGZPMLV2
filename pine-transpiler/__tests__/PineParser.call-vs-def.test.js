@@ -12,6 +12,40 @@ function parse(source) {
   return new PineParser(new PineLexer(source).lex()).parse();
 }
 
+describe('tuple returns from multi-line function bodies (qqe shape)', () => {
+  test('else-if chain does not swallow the trailing declaration and tuple return', () => {
+    // The real trigger from 06-qqe-mod: an else-if chain routed its
+    // alternate through block() with no indent token, and the heuristic
+    // block consumed everything after the chain - the function's trailing
+    // declaration and tuple return vanished into the else branch.
+    const ast = parse(
+      [
+        'calc(len) =>',
+        '    a = len * 2',
+        '    d = 0',
+        '    if a > 3',
+        '        d := 1',
+        '    else if a > 1',
+        '        d := -1',
+        '    else',
+        '        d := 2',
+        '    tl = d == 1 ? a : len',
+        '    [tl, a]',
+        '[x, y] = calc(5)',
+        'plot(x)',
+      ].join('\n')
+    );
+    const fn = ast.body.find((s) => s.type === 'FunctionDecl');
+    expect(fn).toBeDefined();
+    expect(fn.body.type).toBe('ExpressionStatement');
+    expect(fn.body.expression.type).toBe('TupleExpression');
+    expect(fn.locals.map((s) => s.id)).toContain('tl');
+    const tupleAssign = ast.body.find((s) => s.type === 'TupleAssignment');
+    expect(tupleAssign).toBeDefined();
+    expect(tupleAssign.ids).toEqual(['x', 'y']);
+  });
+});
+
 describe('PineParser call-vs-definition dispatch', () => {
   test('study(...) stays a call even when a definition exists later', () => {
     const ast = parse(

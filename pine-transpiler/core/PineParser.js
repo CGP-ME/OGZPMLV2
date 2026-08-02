@@ -63,9 +63,24 @@ class PineParser {
       return this.varDeclaration();
     }
 
-    // Tuple destructuring declaration: [a, b] = expr
+    // Tuple destructuring declaration [a, b] = expr - only when `=` follows
+    // the closing bracket. A bare [a, b] is a tuple-literal EXPRESSION
+    // (user-function bodies end with one to return multiple values).
     if (tok.type === 'punct' && tok.value === '[') {
-      return this.tupleAssignment();
+      let look = 1;
+      let depth = 1;
+      while (depth > 0) {
+        const t = this.peek(look);
+        if (!t || t.type === 'eof') break;
+        if (t.type === 'punct' && t.value === '[') depth += 1;
+        if (t.type === 'punct' && t.value === ']') depth -= 1;
+        look += 1;
+      }
+      const after = this.peek(look);
+      if (after && after.type === 'operator' && after.value === '=') {
+        return this.tupleAssignment();
+      }
+      return this.expressionStatement();
     }
 
     // if / else
@@ -246,7 +261,15 @@ class PineParser {
     let alternate = null;
     if (this.peek().type === 'keyword' && this.peek().value === 'else') {
       this.consume('keyword', 'else');
-      alternate = this.block();
+      if (this.peek().type === 'keyword' && this.peek().value === 'if') {
+        // else-if chain: nest the if directly. Routing it through block()
+        // left the alternate with no indent token, and the heuristic block
+        // swallowed same-level statements AFTER the chain (qqe-mod's
+        // trailing declaration + tuple return disappeared into the else).
+        alternate = this.ifStatement();
+      } else {
+        alternate = this.block();
+      }
     }
     return { type: 'IfStatement', test, consequent, alternate };
   }
@@ -531,27 +554,39 @@ class PineParser {
 
       // Array/series access: arr[index]
       if (tok.type === 'punct' && tok.value === '[') {
-        if (node.type === 'CallExpression') {
-          // A bracket after a call is either the next line's tuple
-          // assignment ([a, b] = fn(...)) - a statement boundary - or
-          // same-line history access (fn()[1]), which is unsupported.
-          // Tokens carry no line numbers, so scan to the matching bracket:
-          // a following '=' means tuple assignment.
+        // A bracket here is same-line indexing/history (x[1]) OR the next
+        // line's tuple - an assignment ([a,b] = fn(...)) or a bare tuple
+        // return ([a, b] ending a function body). Tokens carry no line
+        // numbers, so scan the bracket: a following '=' or a top-level
+        // comma inside (outside any parens) marks a statement boundary,
+        // never an index on this expression.
+        {
           let scan = this.pos + 1;
           let depth = 1;
+          let parens = 0;
+          let topLevelComma = false;
           while (scan < this.tokens.length && depth > 0) {
             const t = this.tokens[scan];
             if (t.type === 'punct' && t.value === '[') depth++;
             if (t.type === 'punct' && t.value === ']') depth--;
+            if (t.type === 'punct' && t.value === '(') parens++;
+            if (t.type === 'punct' && t.value === ')') parens--;
+            if (depth === 1 && parens === 0 && t.type === 'punct' && t.value === ',') {
+              topLevelComma = true;
+            }
             scan++;
           }
           const after = this.tokens[scan];
-          if (after && after.type === 'operator' && after.value === '=') {
-            break; // statement boundary: the bracket starts a tuple assignment
+          const isAssignment = after && after.type === 'operator' && after.value === '=';
+          if (topLevelComma || isAssignment) {
+            break; // statement boundary: the bracket starts a tuple
           }
-          // Refuse by name instead of stranding the bracket at statement
-          // position, where it would die as a misnamed tuple error.
-          // Real call-history semantics are mission-two item one.
+        }
+        if (node.type === 'CallExpression') {
+          // Same-line history access on a call (fn()[1]) - refuse by name
+          // instead of stranding the bracket at statement position, where
+          // it would die as a misnamed tuple error. Real call-history
+          // semantics are mission-two item one.
           const error = new Error(
             'Pine load refused: unsupported feature(s): history access on call expressions (e.g. fn()[1])'
           );
@@ -648,6 +683,22 @@ class PineParser {
       const expr = this.expression();
       this.consume('punct', ')');
       return expr;
+    }
+
+    // Tuple / array literal: [e1, e2, ...]. Two real-world producers:
+    // tuple returns from user functions ([qqeTrendLine, smoothedRsi]) and
+    // input options=[...] metadata lists.
+    if (tok.type === 'punct' && tok.value === '[') {
+      this.consume('punct', '[');
+      const elements = [];
+      while (this.peek().type !== 'punct' || this.peek().value !== ']') {
+        elements.push(this.expression());
+        if (this.peek().type === 'punct' && this.peek().value === ',') {
+          this.consume('punct', ',');
+        }
+      }
+      this.consume('punct', ']');
+      return { type: 'TupleExpression', elements };
     }
 
     // identifier or keyword used as identifier (strategy, ta, array, etc.)
