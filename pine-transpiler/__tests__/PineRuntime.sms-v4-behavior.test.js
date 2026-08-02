@@ -72,9 +72,12 @@ describe('behavior freeze on the corpus that parses', () => {
 
     console.log(`[behavior-freeze] sequence=${sequence.join(',')} peak=${runtime.state.peak}`);
 
-    // Frozen known answer - measured at the cut that introduced the load
-    // gate, asserted exact ever since.
-    expect(sequence).toEqual(['-', 'buy', '-', '-', 'sell', '-', 'buy', '-']);
+    // Frozen known answer - measured at the load-gate cut, RE-MEASURED
+    // 2026-08-02 at the checked-operator cut: the original freeze had a JS
+    // coercion leak baked in - bar 2 fired a buy off `fast > null` (slow
+    // sma(3) still warming up; JS coerced null to 0). TV semantics: na
+    // comparison is false, no entry during warmup. Buy moves bar 2 -> 3.
+    expect(sequence).toEqual(['-', '-', 'buy', '-', 'sell', '-', 'buy', '-']);
     expect(runtime.state.peak).toBe(14);
   });
 

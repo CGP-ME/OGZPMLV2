@@ -1,0 +1,41 @@
+//@version=5
+// OGZ Semantics Probe Battery - forces TradingView's undocumented operator
+// corners into observable values. Every probe is data-independent (pure
+// constants), so the chart it runs on is irrelevant: a vacuum observation.
+//
+// USAGE: paste into any TV chart as an indicator. Read the table that
+// appears top-right on the last bar. Each row is one frozen answer for
+// pine-transpiler/core/PineRuntime.js _applyBinary (the PROBE-VERIFY
+// markers). Transcribe results verbatim into the golden fixtures.
+indicator("OGZ Semantics Probe Battery", overlay=false)
+
+var table t = table.new(position.top_right, 2, 14, border_width=1)
+
+f_show(row, name, txt) =>
+    table.cell(t, 0, row, name, text_color=color.white, bgcolor=color.new(color.blue, 60))
+    table.cell(t, 1, row, txt, text_color=color.white, bgcolor=color.new(color.black, 40))
+
+if barstate.islast
+    float naVal = na
+    // P1-P3: division and modulo by zero (engine assumes na)
+    f_show(0, "1/0", str.tostring(1/0))
+    f_show(1, "-1/0", str.tostring(-1/0))
+    f_show(2, "5%0", str.tostring(5 % 0))
+    // P4-P8: na in comparisons (engine assumes IEEE: only != is true)
+    f_show(3, "na > 5", str.tostring(naVal > 5))
+    f_show(4, "na < 5", str.tostring(naVal < 5))
+    f_show(5, "na == na", str.tostring(naVal == naVal))
+    f_show(6, "na != 5", str.tostring(naVal != 5))
+    f_show(7, "na >= na", str.tostring(naVal >= naVal))
+    // P9-P10: na in logical ops (engine assumes na acts as false)
+    f_show(8, "na>0 and true", str.tostring(naVal > 0 and true))
+    f_show(9, "na>0 or true", str.tostring(naVal > 0 or true))
+    // P11: ternary with na condition (sourced: false branch - confirm)
+    f_show(10, "na?1:2", str.tostring(naVal > 0 ? 1 : 2))
+    // P12-P13: math domain errors (engine assumes na)
+    f_show(11, "sqrt(-1)", str.tostring(math.sqrt(-1)))
+    f_show(12, "log(0)", str.tostring(math.log(0)))
+    // P14: arithmetic na propagation (documented - control row, expect na)
+    f_show(13, "na + 5", str.tostring(naVal + 5))
+
+plot(close)

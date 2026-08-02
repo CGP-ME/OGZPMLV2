@@ -474,6 +474,73 @@ class PineRuntime {
   // resolving it silently (to na or anything else) would make us MORE
   // permissive than the real thing. No quiet na coercion, ever.
   // -----------------------------------------------------------------
+  // -----------------------------------------------------------------
+  // Checked operator semantics - Pine's rules, never JavaScript's.
+  // Every operator result is one of: number, bool, string, null (na),
+  // or a loud named throw. JS coercion (null*5=0, "a"+5="a5", true+1=2,
+  // x/0=Infinity) is structurally unreachable from Pine programs.
+  // -----------------------------------------------------------------
+  _isNa(v) {
+    // TV's float na is IEEE NaN under the hood; out-of-range history and
+    // warmup gaps arrive here as null/undefined. All of them are na.
+    return v === null || v === undefined || (typeof v === 'number' && !Number.isFinite(v));
+  }
+
+  _applyBinary(op, left, right) {
+    const lNa = this._isNa(left);
+    const rNa = this._isNa(right);
+    switch (op) {
+      case '+':
+        // Documented TV: + concatenates strings.
+        if (typeof left === 'string' && typeof right === 'string') return left + right;
+      // falls through
+      case '-':
+      case '*':
+      case '/':
+      case '%': {
+        // Documented TV: "If at least one operand is na, the result is also na."
+        if (lNa || rNa) return null;
+        if (typeof left !== 'number' || typeof right !== 'number') {
+          // Documented TV: no automatic type conversion - bool/string in
+          // arithmetic never compiles there.
+          throw this._typeViolationError(
+            `binary '${op}' on ${typeof left} and ${typeof right} - TradingView rejects mixed types`
+          );
+        }
+        // PROBE-VERIFY: division/modulo by zero assumed na (IEEE model);
+        // confirm with the TV probe battery.
+        if ((op === '/' || op === '%') && right === 0) return null;
+        const result =
+          op === '+' ? left + right :
+          op === '-' ? left - right :
+          op === '*' ? left * right :
+          op === '/' ? left / right : left % right;
+        return Number.isFinite(result) ? result : null;
+      }
+      case '>':
+      case '<':
+      case '>=':
+      case '<=':
+      case '==':
+      case '!=': {
+        // PROBE-VERIFY: na comparisons assumed IEEE (na==na false, na!=x
+        // true, ordering false); confirm with the TV probe battery.
+        if (lNa || rNa) return op === '!=';
+        switch (op) {
+          case '>': return left > right;
+          case '<': return left < right;
+          case '>=': return left >= right;
+          case '<=': return left <= right;
+          case '==': return left === right;
+          case '!=': return left !== right;
+        }
+      }
+      // eslint-disable-next-line no-fallthrough
+      default:
+        throw this._bypassError(`binary operator '${op}'`);
+    }
+  }
+
   _typeViolationError(detail) {
     const error = new Error(
       `Cosmetic value reached computation (${detail}) - TradingView rejects this at ` +
@@ -711,15 +778,25 @@ class PineRuntime {
           if (arg === PINE_NOOP) {
             throw this._typeViolationError(`unary '${node.operator}' on a color/visual value`);
           }
+          // TV: na operand propagates through numeric unary; `not na` is
+          // true because na is false in boolean contexts.
           switch (node.operator) {
             case '+':
+              if (this._isNa(arg)) return null;
+              if (typeof arg !== 'number') {
+                throw this._typeViolationError(`unary '+' on ${typeof arg}`);
+              }
               return +arg;
             case '-':
+              if (this._isNa(arg)) return null;
+              if (typeof arg !== 'number') {
+                throw this._typeViolationError(`unary '-' on ${typeof arg}`);
+              }
               return -arg;
             case '!':
-              return !arg;
+              return this._isNa(arg) ? true : !arg;
             default:
-              throw new Error(`Unsupported unary operator ${node.operator}`);
+              throw this._bypassError(`unary operator '${node.operator}'`);
           }
         }
       case 'BinaryExpression':
@@ -733,32 +810,7 @@ class PineRuntime {
           if (left === PINE_NOOP || right === PINE_NOOP) {
             throw this._typeViolationError(`binary '${node.operator}' on a color/visual value`);
           }
-          switch (node.operator) {
-            case '+':
-              return left + right;
-            case '-':
-              return left - right;
-            case '*':
-              return left * right;
-            case '/':
-              return left / right;
-            case '%':
-              return left % right;
-            case '>':
-              return left > right;
-            case '<':
-              return left < right;
-            case '>=':
-              return left >= right;
-            case '<=':
-              return left <= right;
-            case '==':
-              return left === right;
-            case '!=':
-              return left !== right;
-            default:
-              throw new Error(`Unsupported binary operator ${node.operator}`);
-          }
+          return this._applyBinary(node.operator, left, right);
         }
       case 'LogicalExpression':
         {
@@ -771,23 +823,27 @@ class PineRuntime {
           if (left === PINE_NOOP) {
             throw this._typeViolationError(`logical '${node.operator}' on a color/visual value`);
           }
+          // na is false in boolean contexts; results normalize to real
+          // booleans (Pine's and/or return bool, never a JS-style operand
+          // value or a leaked na).
+          const leftBool = this._isNa(left) ? false : Boolean(left);
           if (node.operator === 'and') {
-            if (!left) return left;
+            if (!leftBool) return false;
             const right = this._evalExpression(node.right);
             if (right === PINE_NOOP) {
               throw this._typeViolationError(`logical 'and' on a color/visual value`);
             }
-            return right;
+            return this._isNa(right) ? false : Boolean(right);
           }
           if (node.operator === 'or') {
-            if (left) return left;
+            if (leftBool) return true;
             const right = this._evalExpression(node.right);
             if (right === PINE_NOOP) {
               throw this._typeViolationError(`logical 'or' on a color/visual value`);
             }
-            return right;
+            return this._isNa(right) ? false : Boolean(right);
           }
-          throw new Error(`Unsupported logical operator ${node.operator}`);
+          throw this._bypassError(`logical operator '${node.operator}'`);
         }
       case 'ConditionalExpression':
         {
