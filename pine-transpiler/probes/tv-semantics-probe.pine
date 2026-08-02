@@ -5,8 +5,17 @@
 //
 // USAGE: paste into any TV chart as an indicator. Read the table that
 // appears top-right on the last bar. Each row is one frozen answer for
-// pine-transpiler/core/PineRuntime.js _applyBinary (the PROBE-VERIFY
-// markers). Transcribe results verbatim into the golden fixtures.
+// pine-transpiler/core/PineRuntime.js _applyBinary.
+//
+// STATUS: RUN on a live TV chart 2026-08-02 - all 14 rows observed.
+// Results live as golden fixtures in
+// __tests__/PineRuntime.tv-oracle.test.js and as ORACLE-dated comments in
+// _applyBinary. 13/14 engine assumptions confirmed; one corrected
+// (na != x is false on TV, not IEEE-true). Paired finding: TV's compiler
+// refuses CONSTANT division by zero, so the division rows must be fed
+// through variables (float one = 1.0, etc.) to reach the runtime.
+// Keep this file: it is the reusable instrument for re-verifying against
+// future Pine versions.
 indicator("OGZ Semantics Probe Battery", overlay=false)
 
 var table t = table.new(position.top_right, 2, 14, border_width=1)
@@ -30,7 +39,7 @@ if barstate.islast
     // P9-P10: na in logical ops (engine assumes na acts as false)
     f_show(8, "na>0 and true", str.tostring(naVal > 0 and true))
     f_show(9, "na>0 or true", str.tostring(naVal > 0 or true))
-    // P11: ternary with na condition (sourced: false branch - confirm)
+    // P11: ternary with na condition (CONFIRMED 2026-08-02: false branch, -> 2)
     f_show(10, "na?1:2", str.tostring(naVal > 0 ? 1 : 2))
     // P12-P13: math domain errors (engine assumes na)
     f_show(11, "sqrt(-1)", str.tostring(math.sqrt(-1)))

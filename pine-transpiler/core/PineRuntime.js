@@ -253,6 +253,30 @@ class PineRuntime {
       if (isCosmeticExpr(node)) refuse(`color/visual value in ${position}`);
     };
 
+    // ORACLE 2026-08-02 (live TV chart): constant division/modulo by zero is
+    // refused at COMPILE time (literal 1/0 never runs); only variable-fed
+    // division by zero reaches the runtime, where it yields na. Mirror the
+    // compile-side half here; _applyBinary carries the runtime half.
+    const constNumeric = (node) => {
+      if (!node || typeof node !== 'object') return undefined;
+      if (node.type === 'Literal' && typeof node.value === 'number') return node.value;
+      if (
+        node.type === 'UnaryExpression' &&
+        (node.operator === '-' || node.operator === '+')
+      ) {
+        const inner = constNumeric(node.argument);
+        if (inner === undefined) return undefined;
+        return node.operator === '-' ? -inner : inner;
+      }
+      return undefined;
+    };
+    const refuseConstDivByZero = (node) => {
+      if (node.operator !== '/' && node.operator !== '%') return;
+      if (constNumeric(node.right) === 0 && constNumeric(node.left) !== undefined) {
+        refuse(`constant division by zero ('${node.operator}')`);
+      }
+    };
+
     const walkExpr = (node, ctx) => {
       if (!node || typeof node !== 'object') return;
       switch (node.type) {
@@ -373,6 +397,7 @@ class PineRuntime {
         case 'BinaryExpression':
           refuseCosmetic(node.left, `binary '${node.operator}'`);
           refuseCosmetic(node.right, `binary '${node.operator}'`);
+          refuseConstDivByZero(node);
           walkExpr(node.left, ctx);
           walkExpr(node.right, ctx);
           return;
@@ -514,8 +539,9 @@ class PineRuntime {
             `binary '${op}' on ${typeof left} and ${typeof right} - TradingView rejects mixed types`
           );
         }
-        // PROBE-VERIFY: division/modulo by zero assumed na (IEEE model);
-        // confirm with the TV probe battery.
+        // ORACLE 2026-08-02 (live TV chart): 1/0, -1/0, 5%0 all render NaN
+        // (na) at runtime when fed through variables. Constant forms are
+        // refused at compile time by the load gate above - paired finding.
         if ((op === '/' || op === '%') && right === 0) return null;
         const result =
           op === '+' ? left + right :
@@ -530,9 +556,11 @@ class PineRuntime {
       case '<=':
       case '==':
       case '!=': {
-        // PROBE-VERIFY: na comparisons assumed IEEE (na==na false, na!=x
-        // true, ordering false); confirm with the TV probe battery.
-        if (lNa || rNa) return op === '!=';
+        // ORACLE 2026-08-02 (live TV chart): EVERY comparison with an na
+        // operand renders false - including na != x, where the IEEE model
+        // said true. TV is not IEEE here: na comparisons yield na, and na
+        // used as a bool acts as false. The one assumption the oracle killed.
+        if (lNa || rNa) return false;
         switch (op) {
           case '>': return left > right;
           case '<': return left < right;
