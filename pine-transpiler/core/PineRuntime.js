@@ -25,9 +25,50 @@ const BARE_TA_ALIASES = new Set([
   'wma', 'rma', 'linreg', 'stoch', 'barssince', 'vwma',
 ]);
 
+// Shared na test for values already evaluated (mirror of _isNa, needed
+// before the class body for the scalar-fn table below).
+const isNaValue = (v) =>
+  v === null || v === undefined || (typeof v === 'number' && !Number.isFinite(v));
+
+// A cast applied to a type it cannot take is a COMPILE-time error on TV -
+// resolving it silently would be the quiet-leak class this runtime bans.
+const castViolation = (fn, v) => {
+  const error = new Error(
+    `${fn}() cast on ${typeof v} - TradingView rejects this cast at compile time`
+  );
+  error.code = 'PINE_TYPE_VIOLATION';
+  return error;
+};
+
 // v2-v4 bare scalar math builtins. TV round() rounds half away from zero;
 // JS Math.round rounds half toward +Infinity for negatives.
 const BARE_SCALAR_FNS = {
+  // v5 type-cast family - computational members only (color()/line()/
+  // label()/etc. are cosmetic surface). Sourced semantics: int() TRUNCATES
+  // the fractional part (rounding is math.round/floor/ceil's job);
+  // bool() casts 0, 0.0, and na to false and any other number to true;
+  // int()/float()/string() propagate na.
+  int: (x) => {
+    if (isNaValue(x)) return null;
+    if (typeof x === 'number') return Math.trunc(x);
+    throw castViolation('int', x);
+  },
+  float: (x) => {
+    if (isNaValue(x)) return null;
+    if (typeof x === 'number') return x;
+    throw castViolation('float', x);
+  },
+  bool: (x) => {
+    if (isNaValue(x)) return false;
+    if (typeof x === 'number') return x !== 0;
+    if (typeof x === 'boolean') return x;
+    throw castViolation('bool', x);
+  },
+  string: (x) => {
+    if (isNaValue(x)) return null;
+    if (typeof x === 'string') return x;
+    throw castViolation('string', x);
+  },
   abs: Math.abs,
   log: Math.log,
   log10: Math.log10,
