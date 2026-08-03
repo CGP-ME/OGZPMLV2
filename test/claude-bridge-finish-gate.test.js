@@ -3,7 +3,6 @@ const path = require('path');
 
 const {
   isAdversarialMercuryProof,
-  isP0Proof,
   hasFallbackProof,
   isHotPath,
   hotPathEditedChanges,
@@ -40,7 +39,7 @@ describe('claude bridge finish gate', () => {
     return relPath;
   }
 
-  test('classifies hot path files that require Mercury and P0 proof', () => {
+  test('classifies hot path files that require Mercury proof', () => {
     expect(isHotPath('core/OrderExecutor.js')).toBe(true);
     expect(isHotPath('brokers/AlpacaAdapter.js')).toBe(true);
     expect(isHotPath('run-empire-v2.js')).toBe(true);
@@ -59,40 +58,6 @@ describe('claude bridge finish gate', () => {
       mercury: {
         completed: true,
         prompt: 'Please verify the fix is correct and confirm it looks good.',
-      },
-    })).toBe(false);
-  });
-
-  test('requires P0 command, zero exit, and existing log path', () => {
-    const tmpDir = makeTempDir();
-    const relLog = path.relative(repoRoot, path.join(tmpDir, 'p0.log'));
-    fs.writeFileSync(path.join(tmpDir, 'p0.log'), 'P0 passed\n');
-
-    expect(isP0Proof({
-      p0: {
-        completed: true,
-        exitCode: 0,
-        command: 'node ogz-meta/gates/multi-runtime-gate-runner.js --p0',
-        logPath: relLog,
-      },
-    })).toBe(true);
-
-    expect(isP0Proof({
-      p0: {
-        completed: true,
-        exitCode: 0,
-        command: 'npm test',
-        logPath: relLog,
-      },
-    })).toBe(false);
-
-    fs.writeFileSync(path.join(tmpDir, 'empty-p0.log'), '');
-    expect(isP0Proof({
-      p0: {
-        completed: true,
-        exitCode: 0,
-        command: 'node ogz-meta/gates/multi-runtime-gate-runner.js --p0',
-        logPath: path.relative(repoRoot, path.join(tmpDir, 'empty-p0.log')),
       },
     })).toBe(false);
   });

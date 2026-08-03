@@ -28,7 +28,7 @@ Subcommands:
   pre-bash        PreToolUse(Bash) — ignore gate on read-style commands
   post-read       PostToolUse(Read) — appends to session read-ledger
   post-edit       PostToolUse(Edit|Write|NotebookEdit) — records successful edits
-  finish-gate     Stop handler — requires hot-path Mercury/P0 proof
+  finish-gate     Stop handler — requires hot-path Mercury proof
   record-proof    Controlled writer for .claude/session-state/hot-path-proof.json
   warden          Alias for finish-gate
   task-contract   Validates active task-contract JSON when called directly

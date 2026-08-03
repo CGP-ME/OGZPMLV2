@@ -1,0 +1,91 @@
+diff --git a/trai_brain/claude-bridge/finish-gate.js b/trai_brain/claude-bridge/finish-gate.js
+--- a/trai_brain/claude-bridge/finish-gate.js
++++ b/trai_brain/claude-bridge/finish-gate.js
+@@ -196,14 +196,4 @@
+   return false;
+ }
+
+-function isP0Proof(proof) {
+-  const p0 = proof?.p0 || {};
+-  const command = String(p0.command || '');
+-  const logPath = resolveProofEvidencePath(p0.logPath);
+-  return p0.completed === true
+-    && p0.exitCode === 0
+-    && command.includes('node ogz-meta/gates/multi-runtime-gate-runner.js --p0')
+-    && Boolean(logPath && fs.existsSync(logPath) && fs.readFileSync(logPath, 'utf8').trim());
+-}
+-
+ function perFileProofFor(proof, file) {
+@@ -227,9 +217,6 @@
+       invalid.push(`mercury.${fieldName}`);
+     }
+   }
+
+-  const logPath = proof?.p0?.logPath;
+-  if (!proofEvidenceFileHasText(logPath)) invalid.push('p0.logPath');
+-
+   return invalid;
+ }
+@@ -293,7 +280,6 @@
+     for (const fieldName of invalidEvidencePathFields(fileProof)) {
+       failures.push(`invalid_proof_evidence_path:${file}:${fieldName}`);
+     }
+-    if (!isP0Proof(fileProof)) failures.push(`missing_p0_gate_proof:${file}`);
+     if (!hasFallbackProof(fileProof, suspiciousLines)) {
+       failures.push(`unapproved_fallback_or_default_added_lines:${file}`);
+     }
+@@ -407,7 +393,6 @@
+   isAdversarialMercuryProof,
+   hasMercuryResult,
+-  isP0Proof,
+   resolveProofEvidencePath,
+   proofEvidenceFileHasText,
+diff --git a/trai_brain/claude-bridge/proof-writer.js b/trai_brain/claude-bridge/proof-writer.js
+--- a/trai_brain/claude-bridge/proof-writer.js
++++ b/trai_brain/claude-bridge/proof-writer.js
+@@ -8,7 +8,6 @@
+   isHotPath,
+   isAdversarialMercuryProof,
+   hasMercuryResult,
+-  isP0Proof,
+   proofEvidenceFileHasText,
+   proofFailuresForHotFiles,
+   resolveProofEvidencePath,
+@@ -53,9 +52,6 @@
+   if (!hasMercuryResult(fileProof)) {
+     throw new Error(`record-proof missing Mercury result for ${file}`);
+   }
+-  if (!isP0Proof(fileProof)) {
+-    throw new Error(`record-proof missing P0 command/log proof for ${file}`);
+-  }
+   validateEvidencePaths(file, fileProof);
+
+   const failures = proofFailuresForHotFiles({
+@@ -72,7 +68,6 @@
+   for (const fieldName of ['promptPath', 'resultPath', 'responsePath']) {
+     validateOptionalEvidencePath(file, `mercury.${fieldName}`, mercury[fieldName]);
+   }
+-  validateRequiredEvidencePath(file, 'p0.logPath', fileProof?.p0?.logPath);
+ }
+diff --git a/trai_brain/claude-bridge/pre-bash.js b/trai_brain/claude-bridge/pre-bash.js
+--- a/trai_brain/claude-bridge/pre-bash.js
++++ b/trai_brain/claude-bridge/pre-bash.js
+@@ -406,7 +406,7 @@
+     emit(
+       `BLOCKED (claude-bridge Warden): git mutation requires completed Warden proof first. ` +
+       `${result.reason}. ` +
+-      `Run adversarial Mercury, P0 when required, and record .claude/session-state/hot-path-proof.json before git add/commit/push.`,
++      `Run adversarial Mercury and record .claude/session-state/hot-path-proof.json before git add/commit/push.`,
+       2
+     );
+   }
+diff --git a/trai_brain/claude-bridge/cli.js b/trai_brain/claude-bridge/cli.js
+--- a/trai_brain/claude-bridge/cli.js
++++ b/trai_brain/claude-bridge/cli.js
+@@ -28,7 +28,7 @@
+   post-read       PostToolUse(Read) — appends to session read-ledger
+   post-edit       PostToolUse(Edit|Write|NotebookEdit) — records successful edits
+-  finish-gate     Stop handler — requires hot-path Mercury/P0 proof
++  finish-gate     Stop handler — requires hot-path Mercury proof
+   record-proof    Controlled writer for .claude/session-state/hot-path-proof.json
+   warden          Alias for finish-gate

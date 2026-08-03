@@ -98,7 +98,7 @@ Doc priority:
   - `reference`: pointers to external systems or docs.
 - These memories survive across sessions but are point-in-time snapshots. Verify recalled facts against current repo state, current branch, current commit, current logs, and current files before acting.
 - If a memory says the branch/head/bookmark was a specific SHA, re-check the tree before making the next move. Do not operate from a stale bookmark.
-- Memory can conflict with newer reality. Branch names, P0 baseline numbers, backtest commands, and learned-state path rules must be re-verified against current repo docs and code before use.
+- Memory can conflict with newer reality. Branch names, backtest commands, and learned-state path rules must be re-verified against current repo docs and code before use.
 - Known stale-conflict pattern: one older architecture memory said pattern memory was not asset-namespaced, while a later asset-bank memory says learned state must be asset-aware. Never share learned-state storage across asset classes unless a current, verified spec explicitly says to.
 - If the VPS memory path is unavailable from the current environment, say that directly and use local repo docs plus the latest session docs as fallback.
 - Local user-level Claude hooks under `C:\Users\og_za\.claude\global-hooks\` may be extension-managed and can contain pasted/corrupted fragments. Inspect hook content before trusting it as policy or automation.
@@ -290,7 +290,7 @@ Pipeline order:
 - Asset-aware audit terms: `storagePath`, `saveToDisk`, `persistPath`, `logFilePath`, `ledgerPath`, `BACKTEST_MODE`, `PAPER_TRADING`, and `EXECUTION_MODE`.
 - Backups are mandatory for gitignored learned-state files. Gitignore prevents leaks; it does not protect data.
 - Single-symbol guardrails can be deliberate safety, not defaults. Do not flip `SESSION_ROUTER_ENABLED` or expand `ALPACA_SYMBOLS` until current candle-pipeline and symbol-aware persistence specs are verified landed.
-- SessionRouter code finalization is not runtime activation proof. Even when durable transition locks, broker REST reconciliation, OHLC epoch fencing, broker intent idempotency, pattern memory handoff, runtime scope stamping, focused tests, and P0 are green, keep `SESSION_ROUTER_ENABLED=false` until a controlled paper rehearsal proves transition-store status, broker REST snapshots, pattern handoff target, OHLC fence accept/reject behavior, trace events, active broker/symbol scope, and dashboard/live-report scope. PM2 env changes still require explicit operator approval. Source: `ogz-meta/sessions/session-2026-05-31-sessionrouter-finalization-gap-reconciliation.md:161-186`.
+- SessionRouter code finalization is not runtime activation proof. Even when durable transition locks, broker REST reconciliation, OHLC epoch fencing, broker intent idempotency, pattern memory handoff, runtime scope stamping, and focused tests are green, keep `SESSION_ROUTER_ENABLED=false` until a controlled paper rehearsal proves transition-store status, broker REST snapshots, pattern handoff target, OHLC fence accept/reject behavior, trace events, active broker/symbol scope, and dashboard/live-report scope. PM2 env changes still require explicit operator approval. Source: `ogz-meta/sessions/session-2026-05-31-sessionrouter-finalization-gap-reconciliation.md:161-186`.
 
 ## WebSocket And Dashboard Rules
 - All dashboard WebSocket URLs must use `/ws`.
@@ -415,8 +415,6 @@ tail -f /var/log/nginx/error.log
 - Duplicate methods: search before adding helpers.
 - Ledger trap: historical files in `ogz-meta/ledger/` may describe pre-fix state. Verify current code before citing them.
 - Branch-memory trap: Claude memory may name old production branches. Always run branch/status checks before commit/push decisions.
-- Baseline-memory trap: old P0 numbers can be superseded. Use the current canonical backtest doc/session record, then reproduce exactly.
-- P0 latest-pointer trap: `ogz-meta/gates/runs/multi-runtime-latest.json` is expected to update after each `node ogz-meta/gates/multi-runtime-gate-runner.js --p0` run. If it ever predates the current terminal PASS, treat that as a gate bug; use the direct worker report path printed by the gate command as proof and open the report summary. Historical stale-pointer incident source: `ogz-meta/sessions/session-2026-06-16-catchup-handoff-and-gap-register.md:135-139`.
 - TRAI GPU: ctransformers needs `gpu_layers=50` or higher; verify with `nvidia-smi`.
 - TRAI path mismatch: `start-ogzprime.sh` creates inference symlinks into `core/`.
 - Web file permissions: public JS/CSS on VPS need readable permissions, typically `644`.

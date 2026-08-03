@@ -8,7 +8,6 @@ const {
   isHotPath,
   isAdversarialMercuryProof,
   hasMercuryResult,
-  isP0Proof,
   proofEvidenceFileHasText,
   proofFailuresForHotFiles,
   resolveProofEvidencePath,
@@ -53,9 +52,6 @@ function validateHotPathProof(file, fileProof) {
   if (!hasMercuryResult(fileProof)) {
     throw new Error(`record-proof missing Mercury result for ${file}`);
   }
-  if (!isP0Proof(fileProof)) {
-    throw new Error(`record-proof missing P0 command/log proof for ${file}`);
-  }
   validateEvidencePaths(file, fileProof);
 
   const failures = proofFailuresForHotFiles({
@@ -72,7 +68,6 @@ function validateEvidencePaths(file, fileProof) {
   for (const fieldName of ['promptPath', 'resultPath', 'responsePath']) {
     validateOptionalEvidencePath(file, `mercury.${fieldName}`, mercury[fieldName]);
   }
-  validateRequiredEvidencePath(file, 'p0.logPath', fileProof?.p0?.logPath);
 }
 
 function validateOptionalEvidencePath(file, fieldName, proofPath) {

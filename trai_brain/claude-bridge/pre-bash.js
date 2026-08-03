@@ -406,7 +406,7 @@ function assertWardenAllowsGitMutation(input) {
     emit(
       `BLOCKED (claude-bridge Warden): git mutation requires completed Warden proof first. ` +
       `${result.reason}. ` +
-      `Run adversarial Mercury, P0 when required, and record .claude/session-state/hot-path-proof.json before git add/commit/push.`,
+      `Run adversarial Mercury and record .claude/session-state/hot-path-proof.json before git add/commit/push.`,
       2
     );
   }

@@ -11,8 +11,10 @@
 This file is an operational command reference, not the canonical Phase 0
 regression anchor.
 
-Canonical P0 is enforced by `ogz-meta/anchor-runner.js` and
-`ogz-meta/gates/multi-runtime-gate-runner.js`; its current full anchor is
+The P0 gate is NO LONGER ENFORCED anywhere (removed 2026-08-03 by Trey's
+directive; the claude-bridge no longer requires P0 proof to ship).
+`ogz-meta/anchor-runner.js` and the gate-runner `--p0` lane remain available
+as optional, manually-run regression tools only. Last recorded full anchor:
 `$10710.667785934895 / 1692 trades / 62.8% WR / PF 1.15`.
 
 Rechecked 2026-06-08 with:

@@ -196,16 +196,6 @@ function hasMercuryResult(proof) {
   return false;
 }
 
-function isP0Proof(proof) {
-  const p0 = proof?.p0 || {};
-  const command = String(p0.command || '');
-  const logPath = resolveProofEvidencePath(p0.logPath);
-  return p0.completed === true
-    && p0.exitCode === 0
-    && command.includes('node ogz-meta/gates/multi-runtime-gate-runner.js --p0')
-    && Boolean(logPath && fs.existsSync(logPath) && fs.readFileSync(logPath, 'utf8').trim());
-}
-
 function perFileProofFor(proof, file) {
   if (!proof?.hotPathProofs || typeof proof.hotPathProofs !== 'object' || Array.isArray(proof.hotPathProofs)) {
     return null;
@@ -227,9 +217,6 @@ function invalidEvidencePathFields(proof) {
       invalid.push(`mercury.${fieldName}`);
     }
   }
-
-  const logPath = proof?.p0?.logPath;
-  if (!proofEvidenceFileHasText(logPath)) invalid.push('p0.logPath');
 
   return invalid;
 }
@@ -293,7 +280,6 @@ function proofFailuresForHotFiles(proof, hotFiles) {
     for (const fieldName of invalidEvidencePathFields(fileProof)) {
       failures.push(`invalid_proof_evidence_path:${file}:${fieldName}`);
     }
-    if (!isP0Proof(fileProof)) failures.push(`missing_p0_gate_proof:${file}`);
     if (!hasFallbackProof(fileProof, suspiciousLines)) {
       failures.push(`unapproved_fallback_or_default_added_lines:${file}`);
     }
@@ -406,7 +392,6 @@ module.exports = {
   hotPathEditedChanges,
   isAdversarialMercuryProof,
   hasMercuryResult,
-  isP0Proof,
   resolveProofEvidencePath,
   proofEvidenceFileHasText,
   invalidEvidencePathFields,

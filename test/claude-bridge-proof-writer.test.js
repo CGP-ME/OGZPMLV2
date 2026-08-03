@@ -119,21 +119,6 @@ describe('claude bridge proof writer', () => {
     })).toThrow(/mercury\.resultPath must stay inside repo/);
   });
 
-  test('rejects empty P0 log evidence', () => {
-    const tmpDir = makeTempDir();
-    const hotFile = makeHotFile();
-    const emptyLogPath = path.join(tmpDir, 'empty-p0.log');
-    fs.writeFileSync(emptyLogPath, '');
-    const proof = validFileProof(path.relative(REPO_ROOT, emptyLogPath));
-
-    expect(() => validateProofPayload({
-      changedFiles: [hotFile],
-      hotPathProofs: {
-        [hotFile]: proof,
-      },
-    })).toThrow(/missing P0 command\/log proof/);
-  });
-
   test('rejects non-hot files', () => {
     const tmpDir = makeTempDir();
     const logPath = writeTempLog(tmpDir);
