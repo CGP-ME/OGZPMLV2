@@ -9,7 +9,7 @@
 // public client-side key) into POSTHOG_KEY below. Until then this file
 // no-ops with a console warning.
 (function () {
-  var POSTHOG_KEY = 'PASTE_PHC_KEY_HERE';
+  var POSTHOG_KEY = 'phc_JKHka01Dc2uIcatSA8sd8ub4yGsy5c6Jm21Fi3TyHwR';
   var POSTHOG_HOST = 'https://us.i.posthog.com';
 
   if (!/^phc_/.test(POSTHOG_KEY)) {
@@ -25,6 +25,8 @@
     if (window.posthog && window.posthog.init) {
       window.posthog.init(POSTHOG_KEY, {
         api_host: POSTHOG_HOST,
+        defaults: '2026-05-30',
+        person_profiles: 'identified_only',
         capture_pageview: true,
         capture_pageleave: true,
         persistence: 'localStorage+cookie'

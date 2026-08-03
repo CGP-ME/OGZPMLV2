@@ -1,0 +1,28 @@
+{
+  "changeset": "PostHog activation: paste real phc_ project key (US Cloud, project 357111) into posthog-init.js + adopt PostHog-recommended defaults '2026-05-30' and person_profiles identified_only",
+  "changedFiles": [
+    "public/js/posthog-init.js"
+  ],
+  "hotPathProofs": {
+    "public/js/posthog-init.js": {
+      "mercury": {
+        "promptPath": "ogz-meta/evidence/mercury-runs/2026-08-02-posthog-dashboard-attack-prompt.md",
+        "resultPath": "ogz-meta/evidence/mercury-runs/2026-08-02-posthog-dashboard-attack-result.md",
+        "completed": true,
+        "note": "Same adversarial Mercury attack evidence as the 2026-08-02 loader ship; that attack covered the keyed activation path (the /^phc_/ guard branch flipping from warn-return to live init). This change only replaces the placeholder with the real key and adds the two config options from PostHog's current recommended snippet."
+      },
+      "fallbackDefaultScan": {
+        "completed": true,
+        "reviewedAddedLines": [
+          "  var POSTHOG_KEY = 'phc_JKHka01Dc2uIcatSA8sd8ub4yGsy5c6Jm21Fi3TyHwR';",
+          "        defaults: '2026-05-30',",
+          "        person_profiles: 'identified_only',"
+        ],
+        "noUnapprovedFallbacksOrDefaults": true
+      },
+      "verification": {
+        "liveChecks": "Playwright against production 2026-08-03: /js/posthog-init.js serves keyed (200); us-assets array.js 200; config.js fetched with project key 200; /flags POSTs 200 (hasFlags true, quotaLimited null); direct capture endpoint POST /i/v0/e/ returned 200 {status:Ok} (event activation_smoke_rest in project Activity)."
+      }
+    }
+  }
+}
