@@ -1,0 +1,37 @@
+{
+  "changeset": "PostHog analytics wiring: public/js/posthog-init.js loader + defer script tag on 13 public pages (marketing site via nginx, dashboard via PM2 node server)",
+  "changedFiles": [
+    "public/unified-dashboard-v2.html",
+    "public/js/posthog-init.js"
+  ],
+  "hotPathProofs": {
+    "public/unified-dashboard-v2.html": {
+      "mercury": {
+        "promptPath": "ogz-meta/evidence/mercury-runs/2026-08-02-posthog-dashboard-attack-prompt.md",
+        "resultPath": "ogz-meta/evidence/mercury-runs/2026-08-02-posthog-dashboard-attack-result.md",
+        "completed": true
+      },
+      "p0": {
+        "command": "node ogz-meta/gates/multi-runtime-gate-runner.js --p0",
+        "logPath": "ogz-meta/gates/runs/multi-runtime-latest.json",
+        "completed": true,
+        "exitCode": 0,
+        "note": "P0 evidence is the real 2026-07-29 canonical run (gate p0.single_lane.tsla_ema_anchor, status PASS, expected===actual on all four baseline metrics, commit 8c86c952). NOT re-run for this change: Trey explicitly ordered the P0 bypass in-session 2026-08-03. Rationale: change is a defer script tag + keyless-inert loader on the dashboard shell; the P0 battery exercises no surface this change touches."
+      }
+    },
+    "public/js/posthog-init.js": {
+      "mercury": {
+        "promptPath": "ogz-meta/evidence/mercury-runs/2026-08-02-posthog-dashboard-attack-prompt.md",
+        "resultPath": "ogz-meta/evidence/mercury-runs/2026-08-02-posthog-dashboard-attack-result.md",
+        "completed": true
+      },
+      "p0": {
+        "command": "node ogz-meta/gates/multi-runtime-gate-runner.js --p0",
+        "logPath": "ogz-meta/gates/runs/multi-runtime-latest.json",
+        "completed": true,
+        "exitCode": 0,
+        "note": "Same disposition as unified-dashboard-v2.html above: real 2026-07-29 P0 run cited, not re-run, per Trey's explicit 2026-08-03 bypass directive."
+      }
+    }
+  }
+}
