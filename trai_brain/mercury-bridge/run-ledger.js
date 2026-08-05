@@ -54,7 +54,12 @@ function sanitizeForLedger(value) {
     const clean = {};
     for (const [key, raw] of Object.entries(value)) {
       if (/(secret|token|password|api[_-]?key|api[_-]?secret|webhook[_-]?url|dsn)/i.test(key)) {
-        clean[key] = raw == null || raw === '' ? raw : '[REDACTED]';
+        // Numbers and booleans are config caps, never credentials. The bare
+        // /token/ key match was scrubbing options.maxTokens, which made
+        // Dispatch Law compliance (--max-tokens=7750) unverifiable post-hoc.
+        clean[key] = (typeof raw === 'number' || typeof raw === 'boolean' || raw == null || raw === '')
+          ? raw
+          : '[REDACTED]';
       } else {
         clean[key] = sanitizeForLedger(raw);
       }
@@ -120,9 +125,9 @@ function autoBlastRadiusFailed(autoBlastRadius) {
 
 function classifyMercuryVerdict({ result = null, error = null, autoBlastRadius = null } = {}) {
   if (error) return 'tool_failure';
-  if (resultHasToolFailure(result) || autoBlastRadiusFailed(autoBlastRadius)) {
-    return 'inconclusive_toolfail';
-  }
+  // Tool-probe failures no longer mask the run as inconclusive. Fail loud, not
+  // fail closed: the run is classified by its actual outcome and the failed-probe
+  // count stays visible in telemetry. (Old inconclusive_toolfail short-circuit removed.)
   if (
     result
     && result.consensus
@@ -229,11 +234,12 @@ function buildRunLedgerEntry({
   const verdict = classifyMercuryVerdict({ result, error, autoBlastRadius });
   const repoState = readRepoState(repoRoot);
   const telemetry = result && result.toolTelemetry ? result.toolTelemetry : {};
-  const reviewSummary = buildReviewLedgerSummary(result && (result.adversarialReview || result.consensus), {
-    effectiveVerdictOverride: verdict === 'inconclusive_toolfail' ? 'inconclusive_toolfail' : null,
-  });
+  const reviewSummary = buildReviewLedgerSummary(result && (result.adversarialReview || result.consensus));
   const answerQualityFlags = result && result.answerQuality && Array.isArray(result.answerQuality.flags)
     ? result.answerQuality.flags
+    : [];
+  const answerQualityEvidence = result && result.answerQuality && Array.isArray(result.answerQuality.evidence)
+    ? result.answerQuality.evidence
     : [];
 
   return sanitizeForLedger({
@@ -273,6 +279,7 @@ function buildRunLedgerEntry({
     run_check_artifacts: Array.isArray(telemetry.runCheckArtifacts) ? telemetry.runCheckArtifacts : [],
     run_checks: Array.isArray(telemetry.runChecks) ? telemetry.runChecks : [],
     answer_quality: answerQualityFlags,
+    answer_quality_evidence: answerQualityEvidence,
     adversarial_review: reviewSummary,
     consensus: reviewSummary,
     termination: result ? result.termination : null,

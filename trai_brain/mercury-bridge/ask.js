@@ -420,6 +420,24 @@ async function runAgentic(query, opts) {
       throw new Error('No chunks in index. Run indexer.js first.');
     }
 
+    // Index freshness for the receipt: a stale RAG index silently narrows
+    // coverage routing. Surface it on every dispatch, not on archaeology.
+    let indexFreshness = null;
+    try {
+      const latestStats = await store.stats.find().sort({ _id: -1 }).limit(1).toArray();
+      if (latestStats.length > 0) {
+        const statsDoc = latestStats[0];
+        indexFreshness = {
+          indexed_at: (statsDoc.index_freshness && statsDoc.index_freshness.indexed_at) || statsDoc.run_at || null,
+          index_head_sha: (statsDoc.index_freshness && statsDoc.index_freshness.head_sha) || null,
+          files_walked: statsDoc.files_walked == null ? null : statsDoc.files_walked,
+          chunks: statsDoc.chunks_embedded == null ? statsDoc.chunks_produced : statsDoc.chunks_embedded,
+        };
+      }
+    } catch (freshnessErr) {
+      indexFreshness = { error: freshnessErr.message };
+    }
+
     if (verbose) {
       console.log(`[MERCURY-BRIDGE] Index contains ${health.chunkCount} chunks`);
       console.log(`[MERCURY-BRIDGE] Query router: type=${route.queryType} mode=${mode} boost=${boostType || 'none'} top-k=${topK}`);
@@ -524,27 +542,16 @@ async function runAgentic(query, opts) {
     }
 
     const reviewMode = reviewModeRequested(opts);
-    const toolFailureBlocksReview = resultHasToolFailure(result) || autoBlastRadiusFailed(autoBlastRadius);
-    if (reviewMode && toolFailureBlocksReview) {
-      result.adversarialReview = {
-        mode: reviewMode,
-        enabled: false,
-        ok: false,
-        provider: config.CONSENSUS_PROVIDER || null,
-        model: config.CONSENSUS_MODEL || null,
-        error: {
-          message: 'skipped: Mercury tool failure makes adversarial review inconclusive_toolfail',
-        },
-        parsed: {
-          verdict: 'inconclusive_toolfail',
-          blocking: false,
-        },
-      };
-      result.consensus = result.adversarialReview;
-      if (verbose) {
-        console.log(`[MERCURY-BRIDGE] Fable ${reviewMode} skipped: Mercury tool failure makes verdict inconclusive_toolfail`);
+    if (reviewMode) {
+      // Fail loud, not fail closed. A tool failure during Mercury's run no longer
+      // cancels the adversarial review (the old inconclusive_toolfail skip). That
+      // skip silently dropped the safety check whenever Mercury's own exploratory
+      // probes failed - exactly the fail-closed pattern we reject. Instead we
+      // surface the failure LOUDLY and let the review proceed; the reviewer/human
+      // scrutinizes any finding that leaned on a failed probe.
+      if (resultHasToolFailure(result) || autoBlastRadiusFailed(autoBlastRadius)) {
+        console.log('[MERCURY-BRIDGE] WARNING: Mercury tool failure(s) this run - adversarial review PROCEEDS anyway (fail loud, not fail closed). Scrutinize findings that depend on failed probes.');
       }
-    } else if (reviewMode) {
       if (verbose) {
         console.log(`[MERCURY-BRIDGE] Fable ${reviewMode} requested: ${config.CONSENSUS_MODEL}`);
       }
@@ -658,6 +665,11 @@ async function runAgentic(query, opts) {
       repoRoot: config.REPO_ROOT,
       entry: ledgerEntry,
     });
+    // Keep the full ledger entry on the result: the stdout receipt must carry
+    // everything the ledger knows (verdict, quality evidence, tool failures) —
+    // the ledger dir is gitignored and bridge-blocked for session reads.
+    result.runLedgerEntry = ledgerEntry;
+    result.indexFreshness = indexFreshness;
 
     return result;
 
@@ -680,6 +692,97 @@ async function runAgentic(query, opts) {
     if (storeConnected) {
       await store.disconnect();
     }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Dispatch receipt — everything the run ledger knows, in stdout,
+// every dispatch, quiet mode included. The ledger dir is gitignored
+// and bridge-blocked; a receipt that hides in it is not a receipt.
+// ─────────────────────────────────────────────────────────────
+
+function printDispatchReceipt(result) {
+  const entry = result.runLedgerEntry || {};
+  console.log('');
+  console.log('═══ RECEIPT ═══');
+  console.log(`verdict:         ${entry.verdict || 'unknown'}`);
+
+  const qualityFlags = Array.isArray(entry.answer_quality) ? entry.answer_quality : [];
+  const qualityEvidence = Array.isArray(entry.answer_quality_evidence) && entry.answer_quality_evidence.length > 0
+    ? entry.answer_quality_evidence
+    : qualityFlags.map((flag) => ({ flag, evidence: null }));
+  if (qualityFlags.length === 0) {
+    console.log('quality flags:   none');
+  } else {
+    for (const item of qualityEvidence) {
+      console.log(`quality flag:    ${item.flag} — ${item.evidence ? `"${item.evidence}"` : '(no quote captured)'}`);
+    }
+  }
+
+  const runChecks = Array.isArray(entry.run_checks) ? entry.run_checks : [];
+  const assertsWithoutExecution = runChecks.length === 0
+    && qualityFlags.some((flag) => /unsupported|uncited/.test(flag));
+  console.log(`run checks:      ${runChecks.length} executed${assertsWithoutExecution ? ' — answer asserts outcomes with no execution backing' : ''}`);
+
+  const toolsInvoked = Array.isArray(entry.tools_invoked) ? entry.tools_invoked : [];
+  const failedCalls = [];
+  let totalCalls = 0;
+  for (const tool of toolsInvoked) {
+    totalCalls += tool.calls || 0;
+    for (const call of tool.call_details || []) {
+      if (call.status === 'failed') {
+        const reason = call.result && call.result.error ? call.result.error : 'failed';
+        failedCalls.push(`${tool.name}(${JSON.stringify(call.args)}): ${reason}`);
+      }
+    }
+  }
+  console.log(`tool failures:   ${failedCalls.length}/${totalCalls}`);
+  failedCalls.forEach((line) => console.log(`  - ${line}`));
+  if (result.toolTelemetry) {
+    console.log(`tool calls:      ${formatToolTelemetry(result.toolTelemetry)}`);
+  }
+
+  const sourceRefs = entry.source_refs || {};
+  const blastFiles = Array.isArray(sourceRefs.auto_blast_radius_files) ? sourceRefs.auto_blast_radius_files.length : 0;
+  const blastErrors = Array.isArray(sourceRefs.auto_blast_radius_errors) ? sourceRefs.auto_blast_radius_errors : [];
+  console.log(`blast radius:    ${blastFiles} file(s) scanned, ${blastErrors.length} error(s)`);
+  blastErrors.forEach((blastError) => console.log(`  - ${blastError.file}: ${blastError.error}`));
+
+  const reviewEntry = entry.adversarial_review;
+  if (!reviewEntry) {
+    console.log('review layer:    not requested');
+  } else if (reviewEntry.ok) {
+    console.log(`review layer:    ok — ${reviewEntry.mode || 'adversarial_review'} verdict=${reviewEntry.effective_verdict || 'n/a'}`);
+  } else {
+    const reviewError = reviewEntry.error && reviewEntry.error.message
+      ? reviewEntry.error.message
+      : JSON.stringify(reviewEntry.error);
+    console.log(`review layer:    FAILED — ${reviewError}`);
+  }
+
+  const dirty = String(entry.dirty_status_summary || '').trim();
+  console.log(dirty
+    ? `tree state:      DIRTY — ${dirty.split('\n').map((line) => line.trim()).join(', ')}`
+    : 'tree state:      clean');
+
+  const freshness = result.indexFreshness;
+  if (freshness && !freshness.error) {
+    const idxSha = String(freshness.index_head_sha || '').slice(0, 8) || 'unknown';
+    const headSha = String(entry.head_sha || '').slice(0, 8) || 'unknown';
+    const indexedAt = freshness.indexed_at ? new Date(freshness.indexed_at) : null;
+    const staleDays = indexedAt && !Number.isNaN(indexedAt.getTime())
+      ? Math.floor((Date.now() - indexedAt.getTime()) / 86400000)
+      : null;
+    const staleLabel = staleDays == null
+      ? ''
+      : ` (${staleDays}d ${idxSha !== 'unknown' && idxSha === headSha ? 'old, same head' : 'stale'})`;
+    console.log(`index freshness: indexed ${freshness.indexed_at || 'unknown'} @ ${idxSha} — HEAD ${headSha}${staleLabel}`);
+  } else {
+    console.log(`index freshness: unavailable${freshness && freshness.error ? ` (${freshness.error})` : ''}`);
+  }
+
+  if (result.runLedger) {
+    console.log(`run ledger:      ${result.runLedger.citation}`);
   }
 }
 
@@ -773,15 +876,7 @@ async function main() {
       console.log(result.answer);
       console.log('');
       console.log(`[iterations: ${result.iterations} | termination: ${result.termination} | latency: ${result.totalLatencyMs}ms]`);
-      if (result.answerQuality && Array.isArray(result.answerQuality.flags) && result.answerQuality.flags.length > 0) {
-        console.log(`[answer quality warnings: ${result.answerQuality.flags.join(', ')}]`);
-      }
-      if (result.toolTelemetry) {
-        console.log(`[tool telemetry: ${formatToolTelemetry(result.toolTelemetry)}]`);
-      }
-      if (result.runLedger) {
-        console.log(`[run ledger: ${result.runLedger.citation}]`);
-      }
+      printDispatchReceipt(result);
       if (result.adversarialReview || result.consensus) {
         const review = result.adversarialReview || result.consensus;
         console.log('');

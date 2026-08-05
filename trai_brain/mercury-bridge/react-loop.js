@@ -175,18 +175,70 @@ function finalAnswerEvidenceFailures(content) {
   return failures;
 }
 
+// A flag whose trigger is unrecoverable is testimony about evidence that no
+// longer exists: every flag carries the quoted sentence that fired it.
+function matchClaimWindow(content, pattern) {
+  const text = String(content || '');
+  const match = text.match(pattern);
+  if (!match) return null;
+  const start = Math.max(0, match.index - 100);
+  const end = Math.min(text.length, match.index + match[0].length + 140);
+  return text.slice(start, end).replace(/\s+/g, ' ').trim();
+}
+
+const REFERENCE_CLAIM_PATTERN = /\b(?:\d+\s+callers?|no callers?|zero call ?sites?|only caller|nothing (?:calls|imports|references|invokes)|never (?:called|invoked|imported|referenced|used)|imported by nothing|not (?:imported|referenced|called|invoked|used)\s+(?:by\s+)?(?:anything|anywhere)|un(?:used|wired|referenced)\b|dead code)\b/i;
+const REFERENCE_EVIDENCE_TOOLS = /^(?:serena_blast_radius|serena_property_refs|serena_method_callers|serena_class_fields|find_references|find_definition)$/;
+
+function matchUnsupportedReferenceClaim(content, history = []) {
+  const quote = matchClaimWindow(content, REFERENCE_CLAIM_PATTERN);
+  if (!quote) return null;
+  const hasAstEvidence = history.some((entry) => (
+    entry
+    && entry.toolName
+    && REFERENCE_EVIDENCE_TOOLS.test(entry.toolName)
+    && !(entry.toolResult && entry.toolResult.error)
+  ));
+  return hasAstEvidence ? null : quote;
+}
+
 function assessFinalAnswerQuality(content, history = []) {
-  const flags = finalAnswerEvidenceFailures(content);
-  if (hasUnsupportedTestOutcomeClaim(content, history)) flags.push('unsupported_test_outcome_claim');
-  if (hasConceptualProofClaim(content)) flags.push('conceptual_proof_claim');
+  const flags = [];
+  const evidence = [];
+  const add = (flag, quote) => {
+    flags.push(flag);
+    evidence.push({ flag, evidence: quote || null });
+  };
+
+  if (!hasFileLineCitation(content)) {
+    add('missing_file_line_citation', 'no file:line citation anywhere in the final answer');
+  }
+  if (hasToolHandleCitation(content)) {
+    add('tool_handle_citation', matchClaimWindow(content, /【[^】]+†L\d+(?:[-‑–—]L?\d+)?】/));
+  }
+  if (hasUnsupportedRunCheckClaim(content)) {
+    add('uncited_run_check_claim', matchClaimWindow(content, /\brun_check\b[\s\S]{0,160}\b(?:result|artifact|command|stdout|stderr|exit_code|exit code|timed_out|timed out|passed|failed|green|red|proves?|proved|evidence)\b/i));
+  }
+  if (hasUnsupportedTestOutcomeClaim(content, history)) {
+    add('unsupported_test_outcome_claim', matchClaimWindow(content, /\btest(?:s| suite| case)?\b[\s\S]{0,180}\b(?:fails?|failed|passes?|passed|green|red)\b/i)
+      || matchClaimWindow(content, /\b(?:fails?|failed|passes?|passed|green|red)\b[\s\S]{0,180}\btest(?:s| suite| case)?\b/i));
+  }
+  if (hasConceptualProofClaim(content)) {
+    add('conceptual_proof_claim', matchClaimWindow(content, /\bconceptual\b[\s\S]{0,240}\bno additional evidence needed\b/i)
+      || matchClaimWindow(content, /\bno additional evidence (?:is )?required\b/i));
+  }
+  const referenceClaim = matchUnsupportedReferenceClaim(content, history);
+  if (referenceClaim) {
+    add('unsupported_reference_claim', referenceClaim);
+  }
 
   const contradictedTool = findToolAvailabilityContradiction(content, history);
   if (contradictedTool) {
-    flags.push(`tool_availability_contradiction:${contradictedTool}`);
+    add(`tool_availability_contradiction:${contradictedTool}`, matchClaimWindow(content, new RegExp(escapeRegexLiteral(contradictedTool), 'i')));
   }
 
   return {
     flags,
+    evidence,
     ok: flags.length === 0,
   };
 }

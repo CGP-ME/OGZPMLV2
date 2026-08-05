@@ -90,7 +90,7 @@ describe('Mercury run ledger', () => {
           }],
         },
       },
-    })).toBe('inconclusive_toolfail');
+    })).toBe('no_break_found');
 
     expect(classifyMercuryVerdict({
       result: {
@@ -114,7 +114,7 @@ describe('Mercury run ledger', () => {
           parsed: { verdict: 'found_break', blocking: true },
         },
       },
-    })).toBe('inconclusive_toolfail');
+    })).toBe('no_break_found');
 
     expect(classifyMercuryVerdict({
       result: {
@@ -124,7 +124,7 @@ describe('Mercury run ledger', () => {
       autoBlastRadius: {
         errors: [{ file: '<current_changes>', error: 'spawnSync git ENOBUFS' }],
       },
-    })).toBe('inconclusive_toolfail');
+    })).toBe('no_break_found');
 
     expect(classifyMercuryVerdict({
       result: {
@@ -228,6 +228,9 @@ describe('Mercury run ledger', () => {
     expect(entry.prompt_excerpt).toContain('SIGNALSTACK_WEBHOOK_URL=[REDACTED]');
     expect(entry.prompt_excerpt.length).toBeGreaterThan(1000);
     expect(entry.prompt_excerpt).not.toContain('live-secret');
+    // Dispatch Law compliance must stay auditable: numeric config caps are
+    // never credentials, so the /token/ key-scrubber must not eat maxTokens.
+    expect(entry.options.maxTokens).toBe(7750);
     expect(entry.verdict).toBe('no_break_found');
     expect(entry).not.toHaveProperty(removedCommitField);
     expect(entry.tools_invoked).toEqual([
@@ -481,7 +484,7 @@ describe('Mercury run ledger', () => {
     expect(entry.consensus).toEqual(entry.adversarial_review);
   });
 
-  test('persists full adversarial review text and marks toolfail reviews as non-authoritative', () => {
+  test('persists full adversarial review text; tool failures stay visible in telemetry without masking the outcome verdict', () => {
     const longReview = [
       'VERDICT: found_break',
       'CONSENSUS_BLOCKING: yes',
@@ -525,12 +528,12 @@ describe('Mercury run ledger', () => {
       },
     });
 
-    expect(entry.verdict).toBe('inconclusive_toolfail');
+    expect(entry.verdict).toBe('no_break_found');
     expect(entry).not.toHaveProperty(removedCommitField);
     expect(entry.adversarial_review.answer_excerpt).toContain('[truncated');
     expect(entry.adversarial_review.answer_full).toBe(longReview);
     expect(entry.adversarial_review.raw_parsed_verdict).toBe('found_break');
-    expect(entry.adversarial_review.effective_verdict).toBe('inconclusive_toolfail');
+    expect(entry.adversarial_review.effective_verdict).toBe('found_break');
   });
 
   test('does not commit-block tool failures or cannot-verify outcomes', () => {
