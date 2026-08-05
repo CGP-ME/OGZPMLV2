@@ -4,6 +4,21 @@ Dispatch: ask.js --agentic --max-iterations=60 --max-tokens=7750, spec inlined
 (inbox paths are mercury.ignore-blocked, correctly). 26 iterations, 15 files
 opened. Run ledger: ogz-meta/cognition-history/mercury-runs/2026-08-04.jsonl:2.
 
+## Run-ledger provenance (preserved 2026-08-05 — ledger dir is gitignored)
+
+run_id 2026-08-04T00-34-12-968Z-cdf2113b6ca5 at head 5a7e5aff. The ledger's
+answer_quality flag was `unsupported_test_outcome_claim` with verdict
+`cannot_verify`: the run executed ZERO checks (run_checks: [], no artifacts)
+while the answer asserted behavioral outcomes — the quality gate correctly
+flagged assertion-without-execution. All 15 file ranges opened were LIVE reads
+(StateManager 560-880/1190-1280/3400-3600, OrderExecutor 40-80/970-1010,
+SessionRouter 140-180, BacktestRunner 220-300), which is why every citation
+verified exact-line at head despite the RAG index being stale since 2026-07-18
+(index_stats: 621 files / 10,329 chunks at commit 04d5a1cf). Staleness cost
+coverage routing, not citation accuracy. Mercury-2 rerun post-reindex is queued;
+the spec is frozen at this reviewed version until Mercury-2 lands so the
+two-run diff measures index staleness cleanly.
+
 ## Mercury's five angles, verbatim summary
 
 1. SessionRouter.js:161-162 else-SELL guessed order — Mercury notes covered by Batch 2.

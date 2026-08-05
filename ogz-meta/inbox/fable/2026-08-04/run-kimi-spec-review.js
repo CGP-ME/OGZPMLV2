@@ -56,7 +56,7 @@ async function main() {
     body: JSON.stringify({
       model: 'kimi-k3',
       temperature: 1,
-      max_tokens: 4096,
+      max_tokens: 16384,
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: user },
@@ -71,12 +71,15 @@ async function main() {
     process.exit(1);
   }
   const parsed = JSON.parse(raw);
-  const answer = parsed?.choices?.[0]?.message?.content || '';
+  const message = parsed?.choices?.[0]?.message || {};
+  const answer = message.content || '';
+  const reasoning = message.reasoning_content || '';
+  const finishReason = parsed?.choices?.[0]?.finish_reason || 'unknown';
   fs.writeFileSync(
     path.resolve(__dirname, 'spec-review-kimi-result.md'),
-    `# Kimi spec review — directional-fix-spec (2026-08-04)\n\nModel: ${parsed.model || 'kimi-k3'}\n\n${answer}\n`
+    `# Kimi spec review — directional-fix-spec (2026-08-04)\n\nModel: ${parsed.model || 'kimi-k3'} | finish_reason: ${finishReason}\n\n${answer || '(no final answer emitted)'}\n\n## Reasoning trace\n\n${reasoning}\n`
   );
-  console.log(answer);
+  console.log(answer || `(finish_reason=${finishReason}; no final content — see reasoning trace in spec-review-kimi-result.md)`);
 }
 
 main().catch((err) => {
