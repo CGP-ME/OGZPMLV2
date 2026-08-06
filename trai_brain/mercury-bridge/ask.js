@@ -965,11 +965,17 @@ async function main() {
     }
 
   } catch (err) {
+    // Failure receipt — same doctrine as the success-path RECEIPT block:
+    // a dispatch that dies must document itself in the output package.
     console.error('');
-    console.error('[MERCURY-BRIDGE] ERROR:', err.message);
+    console.error('═══ RECEIPT (DISPATCH FAILED) ═══');
+    console.error(`verdict:     tool_failure`);
+    console.error(`error:       ${err.message}`);
+    console.error(`error name:  ${err.name || 'Error'}`);
     if (err.mercuryRunLedger) {
-      console.error(`[MERCURY-BRIDGE] Run ledger: ${err.mercuryRunLedger.citation}`);
+      console.error(`run ledger:  ${err.mercuryRunLedger.citation}`);
     }
+    console.error('[MERCURY-BRIDGE] ERROR:', err.message);
     if (err.message.includes('No chunks in index')) {
       console.error('');
       console.error('Run the indexer first:');

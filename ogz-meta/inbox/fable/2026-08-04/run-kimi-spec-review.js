@@ -117,6 +117,25 @@ async function main() {
 }
 
 main().catch((err) => {
+  // Failure receipt: a dispatch that dies must document itself in the repo —
+  // stderr alone lands in task files the session bridge cannot read.
+  const failureReceipt = [
+    '═══ RECEIPT (DISPATCH FAILED) ═══',
+    `error:       ${err.message}`,
+    `error name:  ${err.name || 'Error'}`,
+    `cause:       ${err.cause ? String(err.cause) : 'n/a'}`,
+    `stage:       pre-response (raw.json untouched) or write stage — see error`,
+    `dispatched:  ${new Date().toISOString()}`,
+  ].join('\n');
+  try {
+    fs.writeFileSync(
+      path.resolve(__dirname, 'spec-review-kimi-result.md'),
+      `# Kimi spec review — directional-fix-spec (2026-08-04)\n\n${failureReceipt}\n`
+    );
+  } catch (writeErr) {
+    console.error('Failed to write failure receipt:', writeErr.message);
+  }
   console.error('Kimi dispatch failed:', err.message);
+  console.error(failureReceipt);
   process.exit(1);
 });
