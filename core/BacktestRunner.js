@@ -425,7 +425,9 @@ class BacktestRunner {
               console.warn('[BTR-LOW-01] BacktestRunner: misc.subscriptionTier missing — defaulting to ML');
             }
             return (_tier ?? 'ML').toUpperCase();
-          })()
+          })(),
+          directionFilter: getConfigValue('pipeline.directionFilter'),
+          enableShorts: getConfigValue('features.enableShorts')
         },
         timestamp: new Date().toISOString()
       };

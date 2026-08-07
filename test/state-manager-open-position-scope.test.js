@@ -212,6 +212,22 @@ describe('StateManager openPosition scope contract', () => {
     expect(manager.get('position')).toBe(0);
   });
 
+  test.each([
+    ['padded short direction', { action: 'SELL_SHORT', direction: ' short ' }],
+    ['uppercase long direction', { action: 'BUY', direction: 'LONG' }],
+    ['direction slot filled with action token', { action: 'BUY', direction: 'buy' }],
+    ['close token direction', { action: 'BUY', direction: 'close' }],
+    ['sell action token', { action: 'SELL', direction: 'short' }],
+  ])('rejects malformed immutable entry identity: %s', async (_label, override) => {
+    const result = await manager.openPosition(500, 100, fullScope(override));
+
+    expect(result.success).toBe(false);
+    expect(result.identityRejected).toBe(true);
+    expect(result.error).toContain('active trade identity invariant failed');
+    expect(manager.get('activeTrades').size).toBe(0);
+    expect(manager.get('position')).toBe(0);
+  });
+
   test('rejects missing exit-contract ownership before mutating active trades', async () => {
     const result = await manager.openPosition(500, 100, fullScope({
       exitContract: undefined,
@@ -282,6 +298,26 @@ describe('StateManager openPosition scope contract', () => {
     expect(manager._buildScopedDashboardPositions(manager.state)).toEqual(beforePositions);
   });
 
+  test('updateActiveTrade rejects malformed active trade identity before mutating active trades', () => {
+    const beforePositions = manager._buildScopedDashboardPositions(manager.state);
+
+    expect(() => manager.updateActiveTrade('BYPASS_BAD_IDENTITY', {
+      ...fullScope({
+        orderId: 'BYPASS_BAD_IDENTITY',
+        direction: ' short ',
+      }),
+      id: 'BYPASS_BAD_IDENTITY',
+      sizeUsd: 500,
+      size: 500,
+      entryPrice: 100,
+      status: 'open',
+    })).toThrow('active trade identity invariant failed');
+
+    expect(manager.get('activeTrades').size).toBe(0);
+    expect(manager.get('position')).toBe(0);
+    expect(manager._buildScopedDashboardPositions(manager.state)).toEqual(beforePositions);
+  });
+
   test('updateActiveTrade bypass telemetry does not halt new entries', () => {
     const alertListener = jest.fn();
     manager.onAlert(alertListener);
@@ -330,6 +366,51 @@ describe('StateManager openPosition scope contract', () => {
     expect(manager.get('activeTrades').size).toBe(0);
     expect(manager.get('position')).toBe(0);
     expect(manager._buildScopedDashboardPositions(manager.state)).toEqual(beforePositions);
+  });
+
+  test('set rejects malformed activeTrades identity before mutating active trades', () => {
+    const beforePositions = manager._buildScopedDashboardPositions(manager.state);
+
+    expect(() => manager.set('activeTrades', new Map([[
+      'SET_BAD_IDENTITY',
+      {
+        ...fullScope({
+          orderId: 'SET_BAD_IDENTITY',
+          action: 'SELL_SHORT',
+          direction: 'long',
+        }),
+        id: 'SET_BAD_IDENTITY',
+        sizeUsd: 500,
+        size: 500,
+        entryPrice: 100,
+        status: 'open',
+      },
+    ]]))).toThrow('active trade identity invariant failed');
+
+    expect(manager.get('activeTrades').size).toBe(0);
+    expect(manager.get('position')).toBe(0);
+    expect(manager._buildScopedDashboardPositions(manager.state)).toEqual(beforePositions);
+  });
+
+  test('save refuses directly mutated malformed activeTrades identity before persistence', () => {
+    manager.state.activeTrades = new Map([[
+      'SAVE_BAD_IDENTITY',
+      {
+        ...fullScope({
+          orderId: 'SAVE_BAD_IDENTITY',
+          action: 'BUY',
+          direction: 'short',
+        }),
+        id: 'SAVE_BAD_IDENTITY',
+        sizeUsd: 500,
+        size: 500,
+        entryPrice: 100,
+        status: 'open',
+      },
+    ]]);
+
+    const realSave = Object.getPrototypeOf(manager).save.bind(manager);
+    expect(() => realSave()).toThrow('active trade invariant failed: identity:SAVE_BAD_IDENTITY: action/direction mismatch');
   });
 
   test('set fills missing active trade lifecycle fields through StateManager normalization', () => {
@@ -632,6 +713,33 @@ describe('StateManager openPosition scope contract', () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain('active trade quantity invariant failed');
+    expect(manager.get('activeTrades').size).toBe(0);
+    expect(manager.get('position')).toBe(0);
+    expect(manager._buildScopedDashboardPositions(manager.state)).toEqual(beforePositions);
+  });
+
+  test('updateState rejects malformed activeTrades identity before mutating active trades', async () => {
+    const beforePositions = manager._buildScopedDashboardPositions(manager.state);
+
+    const result = await manager.updateState({
+      activeTrades: new Map([[
+        'UPDATE_BAD_IDENTITY',
+        {
+          ...fullScope({
+            orderId: 'UPDATE_BAD_IDENTITY',
+            direction: 'close',
+          }),
+          id: 'UPDATE_BAD_IDENTITY',
+          sizeUsd: 500,
+          size: 500,
+          entryPrice: 100,
+          status: 'open',
+        },
+      ]]),
+    }, { action: 'TEST_BAD_ACTIVE_TRADE_IDENTITY' });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('active trade identity invariant failed');
     expect(manager.get('activeTrades').size).toBe(0);
     expect(manager.get('position')).toBe(0);
     expect(manager._buildScopedDashboardPositions(manager.state)).toEqual(beforePositions);

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Directional Active-Trade Boundaries (2026-08-07)
+
+- Added directional run-stamp fields to backtest reports with `directionFilter` and `enableShorts` copied from live config.
+- Hardened active-trade action/direction identity validation across open, update, set, updateState, load, validateState, and save boundaries so malformed long/short state refuses before persistence or mutation.
+
 ### Mercury Architecture And Planning Review Modes (2026-07-23)
 
 - Added `--architecture` and `--planning` review intents to the Mercury bridge CLI so broad architecture reviews and lane plans are framed as synthesis work instead of break-my-fix verdict runs.

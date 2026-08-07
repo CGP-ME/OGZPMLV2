@@ -371,6 +371,8 @@ describe('StateManager load validation', () => {
       {
         id: 'OPEN_1',
         orderId: 'OPEN_1',
+        action: 'BUY',
+        direction: 'long',
         symbol: 'TSLA',
         brokerId: 'alpaca',
         accountId: 'acct-main',
@@ -550,6 +552,48 @@ describe('StateManager load validation', () => {
     const { StateManager } = require('../core/StateManager');
 
     expect(() => new StateManager()).toThrow('activeTrades container invariant failed');
+  });
+
+  test('refuses persisted active trades with malformed immutable identity', () => {
+    fs.writeFileSync(stateFile, JSON.stringify({
+      balance: 10000,
+      totalBalance: 10000,
+      position: 500,
+      inPosition: 500,
+      activeTrades: [[
+        'BAD_IDENTITY_1',
+        {
+          id: 'BAD_IDENTITY_1',
+          orderId: 'BAD_IDENTITY_1',
+          action: 'BUY',
+          direction: ' short ',
+          status: 'open',
+          symbol: 'TSLA',
+          brokerId: 'alpaca',
+          accountId: 'acct-main',
+          accountIdSource: 'config',
+          assetClass: 'stocks',
+          executionMode: 'paper',
+          timeframe: '15m',
+          scopeKey: 'paper:alpaca:acct-main:stocks:TSLA:15m',
+          sizeUsd: 500,
+          size: 500,
+          entryPrice: 100,
+          entryOrderQuantity: 5,
+          entryOrderQuantityUnit: 'shares',
+          remainingOrderQuantity: 5,
+          remainingOrderQuantityUnit: 'shares',
+          entryStrategy: 'LoadIdentityStrategy',
+        },
+      ]],
+      lastPrices: { TSLA: 100 },
+      isTrading: false,
+      recoveryMode: false,
+    }), 'utf8');
+
+    const { StateManager } = require('../core/StateManager');
+
+    expect(() => new StateManager()).toThrow(/Active trade identity invariant failed: BAD_IDENTITY_1: invalid direction= short .*Reconcile or quarantine state\.json manually/);
   });
 
   test('loads legacy active trades with explicit unknown lifecycle state', () => {

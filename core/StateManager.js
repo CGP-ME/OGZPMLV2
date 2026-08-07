@@ -276,6 +276,67 @@ function activeTradeDirection(trade) {
   return directionSide || actionSide;
 }
 
+const ACTIVE_TRADE_ENTRY_ACTION_DIRECTION = Object.freeze({
+  BUY: 'long',
+  SELL_SHORT: 'short',
+});
+
+function describeIdentityValue(value) {
+  if (value === null) return 'null';
+  if (value === undefined) return 'undefined';
+  return String(value);
+}
+
+function activeTradeIdentityIssuesForTrade(trade, fallbackTradeId = '<unknown>') {
+  const tradeId = trade?.orderId || trade?.id || fallbackTradeId || '<unknown>';
+  if (!trade || typeof trade !== 'object') {
+    return [`${tradeId}: trade record is not an object`];
+  }
+
+  const issues = [];
+  const rawAction = trade.action;
+  const rawDirection = trade.direction;
+  const actionIsText = typeof rawAction === 'string' && rawAction.trim() !== '';
+  const directionIsText = typeof rawDirection === 'string' && rawDirection.trim() !== '';
+  const actionExact = actionIsText
+    && rawAction === rawAction.trim()
+    && Object.prototype.hasOwnProperty.call(ACTIVE_TRADE_ENTRY_ACTION_DIRECTION, rawAction);
+  const directionExact = directionIsText
+    && rawDirection === rawDirection.trim()
+    && (rawDirection === 'long' || rawDirection === 'short');
+
+  if (!actionIsText) {
+    issues.push(`${tradeId}: missing action`);
+  } else if (!actionExact) {
+    issues.push(`${tradeId}: invalid action=${describeIdentityValue(rawAction)}`);
+  }
+
+  if (!directionIsText) {
+    issues.push(`${tradeId}: missing direction`);
+  } else if (!directionExact) {
+    issues.push(`${tradeId}: invalid direction=${describeIdentityValue(rawDirection)}`);
+  }
+
+  if (actionExact && directionExact && ACTIVE_TRADE_ENTRY_ACTION_DIRECTION[rawAction] !== rawDirection) {
+    issues.push(`${tradeId}: action/direction mismatch action=${rawAction} direction=${rawDirection}`);
+  }
+
+  return issues;
+}
+
+function identityIssueFields(issues) {
+  const fields = new Set();
+  for (const issue of issues) {
+    if (issue.includes(' action') || issue.includes('action=')) {
+      fields.add('action');
+    }
+    if (issue.includes(' direction') || issue.includes('direction=')) {
+      fields.add('direction');
+    }
+  }
+  return fields.size > 0 ? Array.from(fields) : ['identity'];
+}
+
 function initialExitLifecycleFields(policy = null) {
   return {
     tradeRevision: 0,
@@ -829,12 +890,12 @@ class StateManager {
         identityMissing.push(field);
         return null;
       }
-      const cleaned = String(value).trim();
-      if (!cleaned) {
+      const text = String(value);
+      if (!text.trim()) {
         identityMissing.push(field);
         return null;
       }
-      return cleaned;
+      return text;
     };
     const tradeId = cleanIdentityText(context.orderId, 'orderId');
     const tradeAction = cleanIdentityText(context.action, 'action');
@@ -847,24 +908,16 @@ class StateManager {
         context
       );
     }
-    if (!['BUY', 'SELL_SHORT'].includes(tradeAction)) {
+    const identityIssues = activeTradeIdentityIssuesForTrade({
+      id: tradeId,
+      orderId: tradeId,
+      action: tradeAction,
+      direction: tradeDirection,
+    }, tradeId);
+    if (identityIssues.length > 0) {
       return this._rejectOpenPositionIdentity(
-        `StateManager.openPosition unsupported action ${tradeAction}`,
-        ['action'],
-        context
-      );
-    }
-    if (!['long', 'short'].includes(tradeDirection)) {
-      return this._rejectOpenPositionIdentity(
-        `StateManager.openPosition unsupported direction ${tradeDirection}`,
-        ['direction'],
-        context
-      );
-    }
-    if ((tradeAction === 'BUY' && tradeDirection !== 'long') || (tradeAction === 'SELL_SHORT' && tradeDirection !== 'short')) {
-      return this._rejectOpenPositionIdentity(
-        `StateManager.openPosition action/direction mismatch: action=${tradeAction} direction=${tradeDirection}`,
-        ['action', 'direction'],
+        `StateManager.openPosition active trade identity invariant failed: ${identityIssues.join('; ')}`,
+        identityIssueFields(identityIssues),
         context
       );
     }
@@ -910,10 +963,6 @@ class StateManager {
     const positionEffect = positionEffectFromAction(tradeAction);
 
     const trade = {
-      id: tradeId,
-      action: tradeAction,  // BUY or SELL_SHORT
-      type: tradeAction,    // Keep both for compatibility
-      direction: tradeDirection,  // 'long' or 'short'
       sizeUsd: size,        // Position size in USD
       size: size,           // Keep for compatibility
       price: price,
@@ -923,6 +972,10 @@ class StateManager {
       timestamp: Date.now(),
       status: 'open',
       ...stateContext,
+      id: tradeId,
+      action: tradeAction,  // BUY or SELL_SHORT
+      type: tradeAction,    // Keep both for compatibility
+      direction: tradeDirection,  // 'long' or 'short'
       positionEffect,
       ...initialExitLifecycleFields(stateContext.frozenExitPolicy || null),
       maxProfitPercent: 0,
@@ -1641,6 +1694,10 @@ class StateManager {
     return issues;
   }
 
+  _activeTradeIdentityIssuesForTrade(trade, fallbackTradeId = '<unknown>') {
+    return activeTradeIdentityIssuesForTrade(trade, fallbackTradeId);
+  }
+
   _normalizeActiveTradesInput(value, caller = 'StateManager.activeTrades', { resetLifecycle = false } = {}) {
     let activeTrades;
     if (Array.isArray(value)) {
@@ -1653,15 +1710,20 @@ class StateManager {
       );
     }
 
-    const issues = [];
+    const identityIssues = [];
+    const quantityIssues = [];
     const normalizedTrades = new Map();
     for (const [tradeId, trade] of activeTrades.entries()) {
       const normalizedTrade = withExitLifecycleFields(trade, { reset: resetLifecycle });
-      issues.push(...this._activeTradeQuantityIssuesForTrade(normalizedTrade, tradeId));
+      identityIssues.push(...this._activeTradeIdentityIssuesForTrade(normalizedTrade, tradeId));
+      quantityIssues.push(...this._activeTradeQuantityIssuesForTrade(normalizedTrade, tradeId));
       normalizedTrades.set(tradeId, normalizedTrade);
     }
-    if (issues.length > 0) {
-      throw new Error(`[${caller}] active trade quantity invariant failed: ${issues.join('; ')}`);
+    if (identityIssues.length > 0) {
+      throw new Error(`[${caller}] active trade identity invariant failed: ${identityIssues.join('; ')}`);
+    }
+    if (quantityIssues.length > 0) {
+      throw new Error(`[${caller}] active trade quantity invariant failed: ${quantityIssues.join('; ')}`);
     }
 
     return normalizedTrades;
@@ -1678,6 +1740,21 @@ class StateManager {
     const issues = [];
     for (const [tradeId, trade] of this.state.activeTrades.entries()) {
       issues.push(...this._activeTradeQuantityIssuesForTrade(trade, tradeId));
+    }
+    return issues;
+  }
+
+  _activeTradeIdentityIssues() {
+    if (!this.state.activeTrades) {
+      return [];
+    }
+    if (!(this.state.activeTrades instanceof Map)) {
+      return [`activeTrades: invalid container ${Object.prototype.toString.call(this.state.activeTrades)}; expected Map`];
+    }
+
+    const issues = [];
+    for (const [tradeId, trade] of this.state.activeTrades.entries()) {
+      issues.push(...this._activeTradeIdentityIssuesForTrade(trade, tradeId));
     }
     return issues;
   }
@@ -1711,6 +1788,7 @@ class StateManager {
     if (this.state.balance < 0) {
       issues.push('Negative balance detected!');
     }
+    issues.push(...this._activeTradeIdentityIssues());
     issues.push(...this._activeTradeQuantityIssues());
 
     return {
@@ -2058,6 +2136,10 @@ class StateManager {
           ...(normalizedFrozenExitPolicy !== undefined ? { frozenExitPolicy: normalizedFrozenExitPolicy } : {}),
         }, { reset: true })
       : tradeData;
+    const identityIssues = this._activeTradeIdentityIssuesForTrade(tradeRecord, orderId);
+    if (identityIssues.length > 0) {
+      throw new Error(`[StateManager.updateActiveTrade] active trade identity invariant failed: ${identityIssues.join('; ')}`);
+    }
     const quantityIssues = this._activeTradeQuantityIssuesForTrade(tradeRecord, orderId);
     if (quantityIssues.length > 0) {
       throw new Error(`[StateManager.updateActiveTrade] active trade quantity invariant failed: ${quantityIssues.join('; ')}`);
@@ -3308,6 +3390,20 @@ class StateManager {
       // Prepare state for serialization
       const stateToSave = { ...this.state };
 
+      const persistenceIdentityIssues = this._activeTradeIdentityIssues();
+      const persistenceQuantityIssues = this._activeTradeQuantityIssues();
+      if (persistenceIdentityIssues.length > 0 || persistenceQuantityIssues.length > 0) {
+        const invariantIssues = [
+          ...persistenceIdentityIssues.map((issue) => `identity:${issue}`),
+          ...persistenceQuantityIssues.map((issue) => `quantity:${issue}`),
+        ];
+        const invariantError = new Error(
+          `[StateManager.save] active trade invariant failed: ${invariantIssues.join('; ')}`
+        );
+        invariantError.activeTradeInvariantFailed = true;
+        throw invariantError;
+      }
+
       // CRITICAL: Convert Map to Array for JSON serialization
       if (this.state.activeTrades instanceof Map) {
         stateToSave.activeTrades = Array.from(this.state.activeTrades.entries());
@@ -3325,6 +3421,9 @@ class StateManager {
       console.log('[StateManager] State saved to disk');
     } catch (error) {
       console.error('[StateManager] Failed to save state:', error);
+      if (error?.activeTradeInvariantFailed) {
+        throw error;
+      }
     }
   }
 
@@ -3461,9 +3560,14 @@ class StateManager {
         // assetClass, executionMode, and timeframe may no longer match the
         // trade's true origin.
         const invalidScopeTrades = [];
+        const invalidIdentityTrades = [];
         let normalizedExisting = 0;
         for (const trade of this.state.activeTrades.values()) {
-          const tradeId = trade.id || trade.orderId || '<unknown>';
+          const tradeId = trade?.id || trade?.orderId || '<unknown>';
+          invalidIdentityTrades.push(...this._activeTradeIdentityIssuesForTrade(trade, tradeId));
+          if (!trade || typeof trade !== 'object') {
+            continue;
+          }
           if (!trade.symbol) {
             invalidScopeTrades.push(`${tradeId}:symbol`);
           } else {
@@ -3498,6 +3602,11 @@ class StateManager {
         if (invalidScopeTrades.length > 0) {
           throw new Error(
             `[StateManager.load] Active trade(s) missing immutable scope: ${invalidScopeTrades.join('; ')}. Refusing to infer from current boot config because symbol/broker switching can corrupt positions. Reconcile or quarantine state.json manually.`
+          );
+        }
+        if (invalidIdentityTrades.length > 0) {
+          throw new Error(
+            `[StateManager.load] Active trade identity invariant failed: ${invalidIdentityTrades.join('; ')}. Reconcile or quarantine state.json manually.`
           );
         }
         const invalidQuantityTrades = this._activeTradeQuantityIssues();
