@@ -391,6 +391,10 @@ if (CONSENSUS_PROVIDER === 'ollama') {
 // visible and shared by the indexer, Mercury grep, and legacy repo search.
 const { skipDirs: SKIP_DIRS } = loadMercuryIgnore(MERCURY_IGNORE_FILE);
 
+// CHANGELOG.md recency window: only the newest N lines are indexed
+// (newest-first file; Mercury has no temporal reasoning over chunks).
+const CHANGELOG_RECENT_LINES = 800;
+
 const SKIP_FILE_EXTENSIONS = new Set([
   '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico',
   '.pdf', '.zip', '.gz', '.tar', '.rar', '.7z',
@@ -404,6 +408,14 @@ const SKIP_FILE_PATTERNS = [
   /\.bak-/,
   /\.backup$/,
   /^PROOF-.*\.json$/,
+
+  // Rolling docs that go stale over time (Trey decontamination ruling
+  // 2026-08-07): backlog/audit/baseline files whose content is superseded by
+  // reality — indexing them serves stale claims as retrieved truth.
+  /^POST-MATRIX-BACKLOG\.md$/,
+  /^ENV-VAR-AUDIT\.md$/,
+  /^BACKTESTING-GUIDE\.md$/,
+  /^BASELINE\.md$/,
 
   /\.min\.js$/,
   /package-lock\.json$/,
@@ -504,6 +516,7 @@ module.exports = {
   SKIP_DIRS,
   SKIP_FILE_EXTENSIONS,
   SKIP_FILE_PATTERNS,
+  CHANGELOG_RECENT_LINES,
   INDEX_FILE_EXTENSIONS,
   MERCURY_SYSTEM_PROMPT,
   isPathIgnoredByMercury,

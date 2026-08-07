@@ -781,6 +781,20 @@ async function processFile(fullPath, repoRoot) {
 
   if (text.trim().length === 0) return [];
 
+  // CHANGELOG recency window (Trey ruling 2026-08-07): Mercury has no temporal
+  // reasoning over chunks — a fix entry from months ago retrieves as
+  // confidently as yesterday's, and superseded fixes read as current truth.
+  // CHANGELOG is newest-first, so index only the recent window; full history
+  // stays in git, not in RAG.
+  const relPathNormalized = relPath.replace(/\\/g, '/');
+  if (relPathNormalized === 'CHANGELOG.md') {
+    const lines = text.split('\n');
+    if (lines.length > config.CHANGELOG_RECENT_LINES) {
+      text = lines.slice(0, config.CHANGELOG_RECENT_LINES).join('\n')
+        + '\n\n[RAG NOTE: only the newest CHANGELOG window is indexed; older history is intentionally excluded — consult git for full history]';
+    }
+  }
+
   let rawChunks;
   if (ext === '.md') {
     rawChunks = chunkMarkdown(text, relPath);
