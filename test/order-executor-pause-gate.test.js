@@ -38,6 +38,7 @@ const OrderExecutor = require('../core/OrderExecutor');
 const ConfigLoader = require('../foundation/ConfigLoader');
 const { getNarrator } = require('../core/TradeNarrator');
 const { TradingProofLogger } = require('../ogz-meta/claudito-logger');
+const { subscribeTrace } = require('../core/TraceSpine');
 
 function makeExecutor(config = {}, ctx = {}) {
   return new OrderExecutor({
@@ -4211,6 +4212,75 @@ describe('OrderExecutor pause gate', () => {
     expect(mockStateManager.closePosition).not.toHaveBeenCalled();
     expect(mockStateManager.reducePosition).not.toHaveBeenCalled();
     expect(webhookAdapter.emit).not.toHaveBeenCalled();
+  });
+
+  test('exit with missing requested tradeId emits refusal trace and routes no order', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: 500, balance: 10000 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([
+      makeBuyTrade({ orderId: 'BUY_1', id: 'BUY_1' }),
+    ]);
+    const traceEvents = [];
+    const unsubscribe = subscribeTrace((event) => traceEvents.push(event));
+    const webhookAdapter = { enabled: true, emit: jest.fn() };
+    const executor = makeExecutor(
+      {},
+      {
+        webhookAdapter,
+      }
+    );
+
+    try {
+      const result = await executor.executeTrade(
+        {
+          action: 'SELL',
+          confidence: 100,
+          tradeId: 'BUY_MISSING',
+          exitReason: 'test_exit',
+          traceId: 'trace-missing-trade',
+          signalId: 'signal-missing-trade',
+          decisionId: 'decision-missing-trade',
+        },
+        { totalConfidence: 100 },
+        125,
+        { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+        [],
+        null,
+        null,
+        'TSLA'
+      );
+
+      expect(result).toEqual(expect.objectContaining({
+        success: false,
+        reason: 'KILL-5: SELL with no matching BUY',
+        symbol: 'TSLA',
+        action: 'SELL',
+      }));
+      expect(traceEvents).toContainEqual(expect.objectContaining({
+        event: 'EXIT_TRADE_ID_MISS_REFUSAL',
+        traceId: 'trace-missing-trade',
+        signalId: 'signal-missing-trade',
+        decisionId: 'decision-missing-trade',
+        symbol: 'TSLA',
+        action: 'SELL',
+        fields: expect.objectContaining({
+          requestedTradeId: 'BUY_MISSING',
+          openAction: 'BUY',
+          candidateTradeIds: ['BUY_1'],
+          candidateCount: 1,
+          reason: 'exit_trade_id_not_found',
+        }),
+      }));
+      expect(mockStateManager.haltSymbol).not.toHaveBeenCalled();
+      expect(mockStateManager.closePosition).not.toHaveBeenCalled();
+      expect(mockStateManager.reducePosition).not.toHaveBeenCalled();
+      expect(webhookAdapter.emit).not.toHaveBeenCalled();
+    } finally {
+      unsubscribe();
+    }
   });
 
   test('enabled webhook cover with no matching short blocks without persisting symbol halt', async () => {

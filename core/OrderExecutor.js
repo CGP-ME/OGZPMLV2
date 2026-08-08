@@ -2233,6 +2233,23 @@ class OrderExecutor {
     if (decision.tradeId) {
       const matched = trades.find(t => t.orderId === decision.tradeId || t.id === decision.tradeId);
       if (matched) return matched;
+      const candidateTradeIds = trades
+        .map(t => t.orderId || t.id || null)
+        .filter(Boolean);
+      emitTrace(this.ctx, 'EXIT_TRADE_ID_MISS_REFUSAL', {
+        traceId: decision.traceId || null,
+        signalId: decision.signalId || decision.decisionId || null,
+        decisionId: decision.decisionId || null,
+        symbol,
+        action: decision.action,
+        positionEffect: positionEffectFromAction(decision.action),
+        requestedTradeId: decision.tradeId,
+        openAction,
+        candidateTradeIds,
+        candidateCount: trades.length,
+        reason: 'exit_trade_id_not_found',
+      });
+      console.error(`[ORDER-PLAN] Refusing ${decision.action} ${symbol}: requested tradeId=${decision.tradeId} matched no open ${openAction} trade; candidates=${candidateTradeIds.join(',') || 'none'}`);
       return null;
     }
     return trades[0];
