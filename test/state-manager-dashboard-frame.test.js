@@ -269,6 +269,38 @@ describe('StateManager dashboard state_update frame', () => {
     }));
   });
 
+  test('dashboard projection does not default missing active trade direction from action', () => {
+    manager.state.lastPrices = new Map([['TSLA', 110]]);
+    manager.state.activeTrades = new Map([
+      ['BAD-DIRECTION', {
+        id: 'BAD-DIRECTION',
+        orderId: 'BAD-DIRECTION',
+        symbol: 'TSLA',
+        action: 'BUY',
+        entryPrice: 100,
+        sizeUsd: 1000,
+        brokerId: 'alpaca',
+        accountId: 'paper-1',
+        accountIdSource: 'config',
+        assetClass: 'stocks',
+        executionMode: 'paper',
+        timeframe: '15m',
+        scopeKey: 'paper:alpaca:paper-1:stocks:TSLA:15m',
+      }],
+    ]);
+
+    const [position] = manager._buildScopedDashboardPositions();
+
+    expect(position).toEqual(expect.objectContaining({
+      tradeId: 'BAD-DIRECTION',
+      action: 'BUY',
+      side: null,
+      directionIntegrityRefusal: true,
+      refusalCode: 'active_trade_direction_unknown',
+      unrealizedPnL: null,
+    }));
+  });
+
   test('rejects incomplete runtime scope instead of defaulting flat dashboard state', () => {
     expect(() => manager.setDashboardRuntimeScope({
       symbol: 'TSLA',

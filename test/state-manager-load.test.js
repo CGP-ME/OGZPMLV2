@@ -972,6 +972,61 @@ describe('StateManager load validation', () => {
     expect(closedTrade.holdMs).toBeNull();
   });
 
+  test('state exit math refuses active trades with missing direction instead of defaulting long', async () => {
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    const opened = await manager.openPosition(500, 100, {
+      orderId: 'BAD_DIRECTION_EXIT',
+      action: 'BUY',
+      direction: 'long',
+      entryStrategy: 'LoadTestStrategy',
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+      exitContract,
+      entryOrderQuantity: 5,
+      entryOrderQuantityUnit: 'shares',
+      remainingOrderQuantity: 5,
+      remainingOrderQuantityUnit: 'shares',
+    });
+    expect(opened.success).toBe(true);
+
+    const trade = manager.state.activeTrades.get('BAD_DIRECTION_EXIT');
+    trade.direction = 'BUY';
+    expect(() => manager.getEquity(110)).toThrow(/missing valid direction/);
+    trade.direction = ' long ';
+    expect(() => manager.getEquity(110)).toThrow(/missing valid direction/);
+    delete trade.direction;
+
+    expect(() => manager.getEquity(110)).toThrow(/missing valid direction/);
+
+    const closed = await manager.closePosition(110, false, null, {
+      tradeId: 'BAD_DIRECTION_EXIT',
+      orderId: 'BAD_DIRECTION_EXIT',
+    });
+    expect(closed).toEqual(expect.objectContaining({
+      success: false,
+      code: 'active_trade_direction_unknown',
+      tradeId: 'BAD_DIRECTION_EXIT',
+    }));
+    expect(manager.get('activeTrades').has('BAD_DIRECTION_EXIT')).toBe(true);
+
+    const reduced = await manager.reducePosition('BAD_DIRECTION_EXIT', 0.4, 110, {
+      orderId: 'BAD_DIRECTION_EXIT',
+      orderQuantity: 2,
+      quantityUnit: 'shares',
+    });
+    expect(reduced).toEqual(expect.objectContaining({
+      success: false,
+      code: 'active_trade_direction_unknown',
+      tradeId: 'BAD_DIRECTION_EXIT',
+    }));
+    expect(manager.get('activeTrades').get('BAD_DIRECTION_EXIT').sizeUsd).toBe(500);
+  });
+
   test('failed partial reduce does not shrink active trade before locked state update succeeds', async () => {
     const { StateManager } = require('../core/StateManager');
     const manager = new StateManager();

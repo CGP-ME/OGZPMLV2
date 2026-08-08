@@ -217,4 +217,50 @@ describe('StateManager applyFill decision ledger persistence', () => {
       triggeredBy: 'test.finalExit',
     }));
   });
+
+  test('applyFill refuses active trades with missing direction before PnL math', async () => {
+    const openResult = await manager.openPosition(500, 100, fullScope());
+    expect(openResult.success).toBe(true);
+    const reserved = await manager.reserveExitSlot('OPEN_FILL_LEDGER_1', 'intent-bad-direction-fill', {
+      submittedAtMs: 1000,
+      sourceEventId: 'source-bad-direction-fill',
+      exitFraction: 0.4,
+      expectedRemainingQuantity: 3,
+    });
+    expect(reserved.success).toBe(true);
+    const trade = manager.get('activeTrades').get('OPEN_FILL_LEDGER_1');
+    delete trade.direction;
+
+    const result = await manager.applyFill({
+      fillId: 'fill-bad-direction',
+      brokerOrderId: 'broker-bad-direction',
+      tradeId: 'OPEN_FILL_LEDGER_1',
+      intentId: 'intent-bad-direction-fill',
+      sourceEventId: 'source-bad-direction-fill',
+      lifecycleState: 'partial_fill',
+      filledQuantity: 2,
+      filledQuantityUnit: 'shares',
+      filledSizeUsd: 220,
+      fillPrice: 110,
+      fee: 1,
+      expectedQuantity: 2,
+      remainingQuantity: 3,
+      submittedAtMs: 1000,
+      confirmedAtMs: 2000,
+      eventTimeMs: 2000,
+      expectedTradeRevision: 0,
+      executionMode: 'backtest',
+      simulated: true,
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      applied: false,
+      code: 'active_trade_direction_unknown',
+      tradeId: 'OPEN_FILL_LEDGER_1',
+      fillId: 'fill-bad-direction',
+      intentId: 'intent-bad-direction-fill',
+    }));
+    expect(manager.get('activeTrades').get('OPEN_FILL_LEDGER_1').remainingOrderQuantity).toBe(5);
+  });
 });

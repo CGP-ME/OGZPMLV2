@@ -278,6 +278,25 @@ function activeTradeDirection(trade) {
   return directionSide || actionSide;
 }
 
+function strictActiveTradeDirection(trade) {
+  const direction = typeof trade?.direction === 'string' ? trade.direction : '';
+  return direction === 'long' || direction === 'short' ? direction : null;
+}
+
+function activeTradeDirectionRefusal(tradeId, trade, caller, extra = {}) {
+  const resolvedTradeId = tradeId || trade?.orderId || trade?.id || '<unknown>';
+  const error = `[${caller}] active trade ${resolvedTradeId} missing valid direction; refusing direction-dependent math`;
+  console.error(error);
+  return {
+    success: false,
+    error,
+    code: 'active_trade_direction_unknown',
+    tradeId: resolvedTradeId,
+    symbol: trade?.symbol || null,
+    ...extra,
+  };
+}
+
 const ACTIVE_TRADE_ENTRY_ACTION_DIRECTION = Object.freeze({
   BUY: 'long',
   SELL_SHORT: 'short',
@@ -652,7 +671,10 @@ class StateManager {
       for (const trade of this.state.activeTrades.values()) {
         const entry = trade.entryPrice;
         const size = trade.sizeUsd || trade.size;
-        const direction = trade.direction;
+        const direction = strictActiveTradeDirection(trade);
+        if (!direction) {
+          throw new Error(`[StateManager.getEquity] active trade ${trade.orderId || trade.id || '<unknown>'} missing valid direction; refusing unrealized P&L math`);
+        }
         const tradePrice = (trade.symbol && this.state.lastPrices && this.state.lastPrices.get(trade.symbol))
           || currentPrice
           || entry;
@@ -1288,7 +1310,10 @@ class StateManager {
       // Use trade's values - NO fallback to global state
       const tradeEntryPrice = trade.entryPrice;
       const tradeSizeUsd = trade.sizeUsd || trade.size;
-      const tradeDirection = trade.direction;
+      const tradeDirection = strictActiveTradeDirection(trade);
+      if (!tradeDirection) {
+        return activeTradeDirectionRefusal(tradeId, trade, 'StateManager.closePosition');
+      }
       const isShort = tradeDirection === 'short';
       const positionEffect = exitPositionEffectForDirection(tradeDirection);
       const closeSize = Math.abs(tradeSizeUsd);
@@ -1541,8 +1566,12 @@ class StateManager {
       const tradeSizeUsd = trade.sizeUsd || trade.size;
       const closeSize = tradeSizeUsd * fraction;
       const tradeEntryPrice = trade.entryPrice;
-      const isShort = trade.direction === 'short';
-      const positionEffect = exitPositionEffectForDirection(trade.direction);
+      const tradeDirection = strictActiveTradeDirection(trade);
+      if (!tradeDirection) {
+        return activeTradeDirectionRefusal(tradeId, trade, 'StateManager.reducePosition');
+      }
+      const isShort = tradeDirection === 'short';
+      const positionEffect = exitPositionEffectForDirection(tradeDirection);
       const priceChangePercent = isShort
         ? (tradeEntryPrice > 0 ? (tradeEntryPrice - price) / tradeEntryPrice : 0)
         : (tradeEntryPrice > 0 ? (price - tradeEntryPrice) / tradeEntryPrice : 0);
@@ -2851,8 +2880,16 @@ class StateManager {
       const remainingSizeUsd = computedRemainingQuantity <= tolerance
         ? 0
         : computedRemainingQuantity * tradeEntryPrice;
-      const isShort = trade.direction === 'short';
-      const positionEffect = exitPositionEffectForDirection(trade.direction);
+      const tradeDirection = strictActiveTradeDirection(trade);
+      if (!tradeDirection) {
+        return activeTradeDirectionRefusal(tradeId, trade, 'StateManager.applyFill', {
+          applied: false,
+          fillId,
+          intentId,
+        });
+      }
+      const isShort = tradeDirection === 'short';
+      const positionEffect = exitPositionEffectForDirection(tradeDirection);
       const pnl = isShort
         ? closedEntryNotionalUsd - filledSizeUsd
         : filledSizeUsd - closedEntryNotionalUsd;
@@ -2923,7 +2960,7 @@ class StateManager {
           symbol: trade.symbol || null,
           pnl,
           pnlPercent,
-          direction: trade.direction,
+          direction: tradeDirection,
           positionEffect,
           entryPrice: trade.entryPrice,
           exitPrice: fillPrice,
@@ -3991,16 +4028,17 @@ class StateManager {
       }
 
       const action = trade.action || trade.type || null;
-      const side = trade.direction || (action === 'SELL_SHORT' ? 'short' : 'long');
+      const side = strictActiveTradeDirection(trade);
       const entryPrice = Number(trade.entryPrice ?? trade.price ?? 0);
       const sizeUsd = Number(trade.sizeUsd ?? trade.size ?? 0);
       const currentPriceRaw = symbol && lastPrices.has(symbol)
         ? lastPrices.get(symbol)
         : (trade.currentPrice ?? trade.lastPrice ?? entryPrice);
       const currentPrice = Number(currentPriceRaw);
-      let unrealizedPnL = 0;
+      let unrealizedPnL = side === null ? null : 0;
 
       if (
+        side !== null &&
         Number.isFinite(entryPrice) &&
         entryPrice > 0 &&
         Number.isFinite(currentPrice) &&
@@ -4037,6 +4075,8 @@ class StateManager {
         scopeComplete: Boolean(symbol && brokerId && hasExplicitAccountId && assetClass && executionMode && timeframe && scopeKeyVersion >= 2),
         action,
         side,
+        directionIntegrityRefusal: side === null,
+        refusalCode: side === null ? 'active_trade_direction_unknown' : null,
         status: trade.status || 'open',
         sizeUsd: Number.isFinite(sizeUsd) ? sizeUsd : 0,
         size: Number.isFinite(sizeUsd) ? sizeUsd : 0,
