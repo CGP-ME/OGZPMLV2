@@ -12,6 +12,7 @@ const {
   findToolAvailabilityContradiction,
   hasUnsupportedTestOutcomeClaim,
   hasConceptualProofClaim,
+  matchUnsupportedExhaustiveSearchClaim,
   finalAnswerEvidenceFailures,
   summarizeToolTelemetry,
   formatToolTelemetry,
@@ -201,6 +202,31 @@ describe('Mercury ReAct loop evidence gates', () => {
     )).toBe(false);
     expect(hasConceptualProofClaim('Reproduction steps are conceptual; no additional evidence needed.')).toBe(true);
     expect(hasConceptualProofClaim('The cited code path is reachable. core/foo.js:10-20')).toBe(false);
+  });
+
+  test('exhaustive search claim detector rejects ambiguous or truncated grep evidence', () => {
+    const claim = 'No production-code file contains a .direction assignment. core/foo.js:10-20';
+
+    expect(matchUnsupportedExhaustiveSearchClaim(claim, [])).toContain('No production-code file');
+    expect(matchUnsupportedExhaustiveSearchClaim(claim, [{
+      toolName: 'regex_grep',
+      toolArgs: { query: String.raw`\.direction\s*=` },
+      toolResult: {
+        matches: [{ file: 'test/foo.test.js', line: 12 }],
+        truncated: false,
+        warnings: ['ambiguous_assignment_regex: this pattern can match equality/comparison text such as ===.'],
+      },
+    }])).toContain('No production-code file');
+    expect(matchUnsupportedExhaustiveSearchClaim(claim, [{
+      toolName: 'grep',
+      toolArgs: { query: 'PnLCalculator' },
+      toolResult: { matches: [], truncated: true },
+    }])).toContain('No production-code file');
+    expect(matchUnsupportedExhaustiveSearchClaim(claim, [{
+      toolName: 'regex_grep',
+      toolArgs: { query: String.raw`\.direction\s*=(?!=)` },
+      toolResult: { matches: [{ file: 'core/foo.js', line: 12 }], truncated: false },
+    }])).toBe(null);
   });
 
   test('final answer evidence failures identify exact citation gate reasons', () => {
@@ -564,6 +590,43 @@ describe('Mercury ReAct loop evidence gates', () => {
       'conceptual_proof_claim',
     ]));
     expect(client.messageSnapshots).toHaveLength(1);
+  });
+
+  test('returns final answer with quality warning for exhaustive claim over ambiguous grep', async () => {
+    const ambiguousGrep = {
+      id: 'call-1',
+      function: {
+        name: 'regex_grep',
+        arguments: JSON.stringify({ query: String.raw`\.direction\s*=`, file_pattern: '*.js' }),
+      },
+    };
+    const client = createClient([
+      { role: 'assistant', tool_calls: [ambiguousGrep] },
+      {
+        role: 'assistant',
+        content: 'No production-code file contains a direction writer. test/foo.test.js:12',
+      },
+    ]);
+    const adapter = createToolAdapter();
+    adapter.execute.mockResolvedValue({
+      matches: [{ file: 'test/foo.test.js', line: 12 }],
+      truncated: false,
+      warnings: ['ambiguous_assignment_regex: this pattern can match equality/comparison text such as ===.'],
+    });
+
+    const result = await runReactLoop({
+      client,
+      toolAdapter: adapter,
+      userQuery: 'Mercury, break my receipt.',
+      systemPrompt: 'test system',
+      maxIterations: 3,
+      verbose: false,
+    });
+
+    expect(result.termination).toBe('answer_given');
+    expect(result.answerQuality.flags).toEqual(expect.arrayContaining([
+      'unsupported_exhaustive_search_claim',
+    ]));
   });
 
   test('repeated tool calls continue without bridge synthesis coaching', async () => {

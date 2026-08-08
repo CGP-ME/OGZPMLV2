@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Exhaustive Search Receipts (2026-08-08)
+
+- Added a Mercury answer-quality flag for broad exhaustive search claims when supporting grep evidence is truncated or carries tool warnings.
+- Warned `regex_grep` on assignment-style regexes that can match equality, and enabled PCRE2 lookaround for precise assignment-writer proofs.
+
 ### Directional Active-Trade Boundaries (2026-08-07)
 
 - Added directional run-stamp fields to backtest reports with `directionFilter` and `enableShorts` copied from live config.

@@ -283,6 +283,8 @@ function createToolAdapter(opts = {}) {
     ];
     if (fixedStrings) {
       rgArgs.push('--fixed-strings');
+    } else if (/\(\?[=!<]/.test(query)) {
+      rgArgs.push('--pcre2');
     }
     rgArgs.push(...buildSkipDirGlobArgs());
     if (filePattern) {
@@ -402,6 +404,14 @@ function createToolAdapter(opts = {}) {
     return args.file_pattern || null;
   }
 
+  function ambiguousAssignmentRegexWarning(query) {
+    const text = String(query || '');
+    if (!text.includes('=')) return null;
+    if (text.includes('(?!=') || text.includes('(?![=>]') || text.includes('(?!==)')) return null;
+    if (!/\\s\*\s*=|\\s\+\s*=|\[\^=/.test(text)) return null;
+    return 'ambiguous_assignment_regex: this pattern can match equality/comparison text such as ===. For assignment-writer proof, use a negative lookahead such as =(?!=) and cite the exact scope.';
+  }
+
   async function grep(args) {
     const error = normalizeSearchArgs(args, 'grep');
     if (error) return error;
@@ -416,12 +426,17 @@ function createToolAdapter(opts = {}) {
   async function regex_grep(args) {
     const error = normalizeSearchArgs(args, 'regex_grep');
     if (error) return error;
-    return runRipgrep({
+    const result = await runRipgrep({
       query: args.query,
       limit: normalizeLimit(args, 40),
       filePattern: normalizeFilePattern(args),
       fixedStrings: false,
     });
+    const warning = ambiguousAssignmentRegexWarning(args.query);
+    if (warning && result && !result.error) {
+      result.warnings = [...(Array.isArray(result.warnings) ? result.warnings : []), warning];
+    }
+    return result;
   }
 
   /*

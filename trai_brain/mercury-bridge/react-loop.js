@@ -188,6 +188,8 @@ function matchClaimWindow(content, pattern) {
 
 const REFERENCE_CLAIM_PATTERN = /\b(?:\d+\s+callers?|no callers?|zero call ?sites?|only caller|nothing (?:calls|imports|references|invokes)|never (?:called|invoked|imported|referenced|used)|imported by nothing|not (?:imported|referenced|called|invoked|used)\s+(?:by\s+)?(?:anything|anywhere)|un(?:used|wired|referenced)\b|dead code)\b/i;
 const REFERENCE_EVIDENCE_TOOLS = /^(?:serena_blast_radius|serena_property_refs|serena_method_callers|serena_class_fields|find_references|find_definition)$/;
+const EXHAUSTIVE_SEARCH_CLAIM_PATTERN = /\b(?:only (?:place|occurrence|match|file|caller)|no (?:production(?:-code)?|source|other|current repo|repo)[^.]{0,120}(?:contains|matches|calls|imports|references|invokes|uses|has|contains a)|no other (?:source )?files?|all other matches|none of (?:the|those|them)|zero matches|there are no)\b/i;
+const SEARCH_EVIDENCE_TOOLS = /^(?:search|grep|regex_grep)$/;
 
 function matchUnsupportedReferenceClaim(content, history = []) {
   const quote = matchClaimWindow(content, REFERENCE_CLAIM_PATTERN);
@@ -199,6 +201,28 @@ function matchUnsupportedReferenceClaim(content, history = []) {
     && !(entry.toolResult && entry.toolResult.error)
   ));
   return hasAstEvidence ? null : quote;
+}
+
+function matchUnsupportedExhaustiveSearchClaim(content, history = []) {
+  const quote = matchClaimWindow(content, EXHAUSTIVE_SEARCH_CLAIM_PATTERN);
+  if (!quote) return null;
+
+  const searchEntries = history.filter((entry) => (
+    entry
+    && entry.toolName
+    && SEARCH_EVIDENCE_TOOLS.test(entry.toolName)
+    && entry.toolResult
+    && !entry.toolResult.error
+  ));
+  if (searchEntries.length === 0) {
+    return quote;
+  }
+
+  const weakSearch = searchEntries.some((entry) => (
+    entry.toolResult.truncated
+    || (Array.isArray(entry.toolResult.warnings) && entry.toolResult.warnings.length > 0)
+  ));
+  return weakSearch ? quote : null;
 }
 
 function assessFinalAnswerQuality(content, history = []) {
@@ -229,6 +253,10 @@ function assessFinalAnswerQuality(content, history = []) {
   const referenceClaim = matchUnsupportedReferenceClaim(content, history);
   if (referenceClaim) {
     add('unsupported_reference_claim', referenceClaim);
+  }
+  const exhaustiveSearchClaim = matchUnsupportedExhaustiveSearchClaim(content, history);
+  if (exhaustiveSearchClaim) {
+    add('unsupported_exhaustive_search_claim', exhaustiveSearchClaim);
   }
 
   const contradictedTool = findToolAvailabilityContradiction(content, history);
@@ -682,6 +710,7 @@ module.exports = {
   findToolAvailabilityContradiction,
   hasUnsupportedTestOutcomeClaim,
   hasConceptualProofClaim,
+  matchUnsupportedExhaustiveSearchClaim,
   finalAnswerEvidenceFailures,
   assessFinalAnswerQuality,
   summarizeToolTelemetry,

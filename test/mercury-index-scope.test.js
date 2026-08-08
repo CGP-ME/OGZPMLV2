@@ -391,6 +391,32 @@ describe('Mercury index scope hygiene', () => {
     expect(result.filtered_ignored).toBeGreaterThan(0);
   });
 
+  test('regex_grep warns when assignment-writer regex can also match equality', async () => {
+    writeFixture(tmpRoot, 'core/live-path.js', [
+      "if (trade.direction === 'short') return;",
+      "trade.direction = 'long';",
+    ].join('\n'));
+
+    const adapter = createToolAdapter({ repoRoot: tmpRoot });
+    const ambiguous = await adapter.execute('regex_grep', {
+      query: String.raw`\.direction\s*=`,
+      file_pattern: 'core/**/*.js',
+      limit: 20,
+    });
+    const precise = await adapter.execute('regex_grep', {
+      query: String.raw`\.direction\s*=(?!=)`,
+      file_pattern: 'core/**/*.js',
+      limit: 20,
+    });
+
+    expect(ambiguous.warnings).toEqual(expect.arrayContaining([
+      expect.stringContaining('ambiguous_assignment_regex'),
+    ]));
+    expect(ambiguous.matches.map((match) => match.line)).toEqual([1, 2]);
+    expect(precise.warnings).toBeUndefined();
+    expect(precise.matches.map((match) => match.line)).toEqual([2]);
+  });
+
   test('grep tool does not delegate around the shared skip policy', async () => {
     writeFixture(tmpRoot, 'core/live-path.js', 'const marker = "MERCURY_TOOLBOX_MARKER";');
     writeFixture(tmpRoot, 'ogz-meta/ledger/stale-audit.md', 'MERCURY_TOOLBOX_MARKER');
