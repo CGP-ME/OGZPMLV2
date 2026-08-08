@@ -144,6 +144,28 @@ class TradingLoop {
     return confidence;
   }
 
+  _exitConfidenceOrNull(exitCheck) {
+    const value = exitCheck?.confidence;
+    if (value === undefined || value === null || value === '') return null;
+    const confidence = Number(value);
+    return Number.isFinite(confidence) ? confidence : null;
+  }
+
+  _dashboardStrategyDirection(fired) {
+    if (!fired) {
+      return { direction: 'hold', directionIntegrityRefusal: false, refusalCode: null };
+    }
+    const direction = typeof fired.direction === 'string' ? fired.direction : '';
+    if (direction === 'buy' || direction === 'sell' || direction === 'hold') {
+      return { direction, directionIntegrityRefusal: false, refusalCode: null };
+    }
+    return {
+      direction: null,
+      directionIntegrityRefusal: true,
+      refusalCode: 'strategy_direction_unknown',
+    };
+  }
+
   _ledgerDirection(direction, label) {
     const normalized = this._ledgerText(direction, label).toLowerCase();
     if (normalized === 'buy' || normalized === 'long') return 'long';
@@ -1068,10 +1090,11 @@ class TradingLoop {
           throw new Error('[MED-01] exitCheck.shouldExit=true but exitCheck.exitReason missing — exit-checker contract violation');
         }
         const isClosingShort = this._isClosingShort(activeTrade);
+        const exitConfidence = this._exitConfidenceOrNull(exitCheck);
         const exitDecision = {
           action: isClosingShort ? 'COVER' : 'SELL',
           direction: 'close',
-          confidence: exitCheck.confidence || 100,
+          confidence: exitConfidence,
           exitReason: exitCheck.exitReason,
           exitFraction: exitCheck.exitFraction,
           exitIntent: exitCheck.exitIntent,
@@ -1101,7 +1124,7 @@ class TradingLoop {
           exitEvaluations,
           source: 'exit_only',
         });
-        await this.ctx.executeTrade(exitDecision, { totalConfidence: exitCheck.confidence || 100 }, price, indicators, [], null, null, symbol);
+        await this.ctx.executeTrade(exitDecision, { totalConfidence: exitConfidence }, price, indicators, [], null, null, symbol);
         return;
       }
       exitEvaluations.push({
@@ -1476,11 +1499,12 @@ class TradingLoop {
           if (exitCheck.shouldExit && !exitCheck.exitReason) {
             throw new Error('[MED-01] exitCheck.shouldExit=true but exitCheck.exitReason missing — exit-checker contract violation');
           }
+          const exitConfidence = this._exitConfidenceOrNull(exitCheck);
           decision = {
             action: isClosingShort ? 'COVER' : 'SELL',
             direction: 'close',
             positionEffect: positionEffectFromAction(isClosingShort ? 'COVER' : 'SELL'),
-            confidence: exitCheck.confidence || 100,
+            confidence: exitConfidence,
             exitReason: exitCheck.exitReason,
             exitFraction: exitCheck.exitFraction,
             exitIntent: exitCheck.exitIntent,
@@ -2235,12 +2259,15 @@ class TradingLoop {
         return orch.strategies
           .map(s => {
             const fired = firing.get(s.name);
+            const directionState = this._dashboardStrategyDirection(fired);
             return {
               id: s.name,
               realName: s.name,
               name: labelOf(s.name),
               confidence: fired ? fired.confidence : 0,
-              direction: fired ? (fired.direction || 'hold') : 'hold',
+              direction: directionState.direction,
+              directionIntegrityRefusal: directionState.directionIntegrityRefusal,
+              refusalCode: directionState.refusalCode,
               signalBasis: fired?.signalData?.signalBasis || null,
               crossoverCount: fired?.signalData?.crossoverCount ?? null
             };

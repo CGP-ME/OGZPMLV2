@@ -1210,6 +1210,51 @@ describe('TradingLoop trace spine', () => {
     }));
   });
 
+  test('does not render a fired strategy with missing direction as hold', () => {
+    const ctx = baseEntryContext({
+      strategyOrchestrator: {
+        strategies: [{ name: 'RSI' }, { name: 'EMASMACrossover' }],
+      },
+    });
+    const loop = new TradingLoop(ctx);
+
+    loop._broadcastDecision(
+      'TSLA',
+      100,
+      { rsi: 55, atr: 1, volume: 1000 },
+      [],
+      { currentRegime: 'trend', confidence: 0.75 },
+      {
+        direction: 'hold',
+        confidence: 40,
+        winnerStrategy: null,
+        allResults: [{ strategyName: 'RSI', confidence: 0.6, reason: 'missing direction' }],
+        reasons: ['below_min_confidence'],
+      },
+      { action: 'HOLD', confidence: 40 },
+      { totalConfidence: 40 },
+      0.5
+    );
+
+    const thinking = sentFrames(ctx).find(frame => frame.type === 'bot_thinking');
+    expect(thinking.strategy_stack).toEqual([
+      expect.objectContaining({
+        id: 'RSI',
+        confidence: 0.6,
+        direction: null,
+        directionIntegrityRefusal: true,
+        refusalCode: 'strategy_direction_unknown',
+      }),
+      expect.objectContaining({
+        id: 'EMASMACrossover',
+        confidence: 0,
+        direction: 'hold',
+        directionIntegrityRefusal: false,
+        refusalCode: null,
+      }),
+    ]);
+  });
+
   test('does not emit entry gate_event frames for exit decisions', async () => {
     const executeTrade = jest.fn().mockResolvedValue({ success: true, orderId: 'EXIT_CONSISTENCY_GATE_1' });
     mockStateManager.getTradesBySymbol.mockReturnValue([{
@@ -1426,6 +1471,63 @@ describe('TradingLoop trace spine', () => {
     expect(executeTrade.mock.calls[0][0].ledgerData).toBeUndefined();
   });
 
+  test('main candle exit records missing checker confidence as null', async () => {
+    const executeTrade = jest.fn().mockResolvedValue({ success: true, orderId: 'EXIT_PROFIT_MAIN_NULL_CONF' });
+    mockExitContractManager.checkExitConditions.mockReturnValue({
+      shouldExit: true,
+      exitReason: 'profit_tier_1',
+      exitFraction: 0.3,
+      details: 'profit target without confidence',
+    });
+    mockStateManager.getTradesBySymbol.mockReturnValue([{
+      id: 'BUY_MAIN_NULL_CONF',
+      orderId: 'BUY_MAIN_NULL_CONF',
+      action: 'BUY',
+      direction: 'long',
+      symbol: 'TSLA',
+      assetClass: 'stocks',
+      entryPrice: 100,
+      sizeUsd: 1000,
+    }]);
+
+    const ctx = baseEntryContext({
+      marketData: {
+        symbol: 'TSLA',
+        price: 101,
+        timestamp: 1700000000000,
+        volume: 1000,
+      },
+      strategyOrchestrator: {
+        evaluate: jest.fn(() => ({
+          direction: 'hold',
+          confidence: 0,
+          winnerStrategy: null,
+          allResults: [],
+          confluence: { count: 0, strategies: [] },
+          sizingMultiplier: 1,
+        })),
+      },
+      executeTrade,
+    });
+    const loop = new TradingLoop(ctx);
+    stubGatherData(loop);
+    loop._broadcastDecision = jest.fn();
+
+    await loop._analyze('TSLA', 'trace_profit_exit_null_conf');
+
+    expect(executeTrade).toHaveBeenCalledTimes(1);
+    expect(executeTrade.mock.calls[0][0]).toEqual(expect.objectContaining({
+      action: 'SELL',
+      direction: 'close',
+      confidence: null,
+      exitReason: 'profit_tier_1',
+      tradeId: 'BUY_MAIN_NULL_CONF',
+    }));
+    expect(mockDecisionAutopsyLogger.writeAutopsy.mock.calls.at(-1)[0].exitEvaluations[0]).toEqual(
+      expect.objectContaining({ confidence: null })
+    );
+  });
+
   test('forces a TTP consistency exit when an open stock position reaches the configured profit cap', async () => {
     const executeTrade = jest.fn().mockResolvedValue({ success: true, orderId: 'EXIT_CONSISTENCY_1' });
     mockStateManager.getTradesBySymbol.mockReturnValue([{
@@ -1580,6 +1682,57 @@ describe('TradingLoop trace spine', () => {
       tradeId: 'BUY_STOP_1',
     }));
     expect(executeTrade.mock.calls[0][2]).toBe(98.9);
+  });
+
+  test('exit-only records missing checker confidence as null', async () => {
+    const executeTrade = jest.fn().mockResolvedValue({ success: true, orderId: 'EXIT_FRESH_PRICE_NULL_CONF' });
+    mockStateManager.getTradesBySymbol.mockReturnValue([{
+      id: 'BUY_STOP_NULL_CONF',
+      orderId: 'BUY_STOP_NULL_CONF',
+      action: 'BUY',
+      direction: 'long',
+      symbol: 'TSLA',
+      assetClass: 'stocks',
+      entryPrice: 100,
+      sizeUsd: 1000,
+    }]);
+    mockStateManager.getLastPrice.mockReturnValue(98.9);
+    mockExitContractManager.checkExitConditions.mockReturnValue({
+      shouldExit: true,
+      exitReason: 'stop_loss',
+      details: 'fresh price without confidence',
+    });
+
+    const ctx = {
+      priceHistory: candles(30),
+      marketData: { symbol: 'TSLA', price: 100.2, timestamp: 1700000000000, volume: 1000 },
+      config: {
+        brokerId: 'alpaca',
+        assetClass: 'stocks',
+        timeframe: '15m',
+        executionMode: 'paper',
+        enableBacktestMode: false,
+        evalTraceEnabled: false,
+      },
+      indicatorEngine: {
+        getSnapshot: jest.fn(() => ({ indicators: { atr: 1, rsi: 55, superTrendDirection: 'sideways' } })),
+        getRawState: jest.fn(() => null),
+      },
+      executeTrade,
+    };
+    const loop = new TradingLoop(ctx);
+
+    await loop._checkExitsOnly('TSLA');
+
+    expect(executeTrade).toHaveBeenCalledTimes(1);
+    expect(executeTrade.mock.calls[0][0]).toEqual(expect.objectContaining({
+      action: 'SELL',
+      direction: 'close',
+      confidence: null,
+      exitReason: 'stop_loss',
+      tradeId: 'BUY_STOP_NULL_CONF',
+    }));
+    expect(executeTrade.mock.calls[0][1]).toEqual({ totalConfidence: null });
   });
 
   test('does not let a missing active-trade asset class bypass the TTP consistency cap in stock runtime', async () => {
