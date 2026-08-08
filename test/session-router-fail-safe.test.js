@@ -169,7 +169,7 @@ describe('SessionRouter failed-safe transition behavior', () => {
     const router = makeRouter({ forceCloseOnSessionEnd: true });
     router.activeSession = 'stocks';
     router.stateManager.state.activeTrades = new Map([
-      ['STOCK_1', { tradeId: 'STOCK_1', symbol: 'TSLA', assetClass: 'stock' }]
+      ['STOCK_1', { tradeId: 'STOCK_1', symbol: 'TSLA', action: 'BUY', direction: 'long', assetClass: 'stock' }]
     ]);
     router.stateManager.getLastPrice.mockReturnValue(null);
 
@@ -189,7 +189,7 @@ describe('SessionRouter failed-safe transition behavior', () => {
     const router = makeRouter({ forceCloseOnSessionEnd: false });
     router.activeSession = 'stocks';
     router.stateManager.state.activeTrades = new Map([
-      ['STOCK_1', { tradeId: 'STOCK_1', symbol: 'TSLA', assetClass: 'stock' }]
+      ['STOCK_1', { tradeId: 'STOCK_1', symbol: 'TSLA', action: 'BUY', direction: 'long', assetClass: 'stock' }]
     ]);
 
     await router._transitionToCrypto(now);
@@ -208,7 +208,7 @@ describe('SessionRouter failed-safe transition behavior', () => {
     const router = makeRouter({ forceCloseOnSessionEnd: true });
     router.activeSession = 'stocks';
     router.stateManager.state.activeTrades = new Map([
-      ['STOCK_1', { tradeId: 'STOCK_1', symbol: 'TSLA', assetClass: 'stock' }]
+      ['STOCK_1', { tradeId: 'STOCK_1', symbol: 'TSLA', action: 'BUY', direction: 'long', assetClass: 'stock' }]
     ]);
     router.executeTrade.mockResolvedValue({ success: true });
 

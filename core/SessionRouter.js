@@ -146,6 +146,24 @@ class SessionRouter extends EventEmitter {
     return null;
   }
 
+  _sourceTradeCloseAction(orderId, trade) {
+    const tradeId = trade?.tradeId || trade?.orderId || trade?.id || orderId;
+    const rawAction = typeof trade?.action === 'string' ? trade.action.trim() : '';
+    const rawDirection = typeof trade?.direction === 'string' ? trade.direction.trim() : '';
+    const actionSide = rawAction === 'BUY'
+      ? 'long'
+      : (rawAction === 'SELL_SHORT' ? 'short' : null);
+    const directionSide = rawDirection === 'long' || rawDirection === 'short' ? rawDirection : null;
+
+    if (actionSide && directionSide && actionSide !== directionSide) {
+      throw new Error(`[SessionRouter] source force-close active trade direction mismatch for ${tradeId}: action=${rawAction} direction=${rawDirection}`);
+    }
+    const side = directionSide || actionSide;
+    if (side === 'long') return 'SELL';
+    if (side === 'short') return 'COVER';
+    throw new Error(`[SessionRouter] source force-close active trade direction unprovable for ${tradeId}`);
+  }
+
   async _closeSourceTradeThroughExecution(orderId, trade) {
     if (typeof this.executeTrade !== 'function') {
       throw new Error('SessionRouter source force-close requires executeTrade');
@@ -158,7 +176,7 @@ class SessionRouter extends EventEmitter {
     }
 
     const tradeId = trade?.tradeId || trade?.orderId || trade?.id || orderId;
-    const action = trade?.action === 'SELL_SHORT' || trade?.direction === 'short' ? 'COVER' : 'SELL';
+    const action = this._sourceTradeCloseAction(orderId, trade);
     await this.executeTrade(
       { action, confidence: 100, tradeId, exitReason: 'session_close' },
       { totalConfidence: 100 },

@@ -1560,6 +1560,48 @@ describe('OrderExecutor pause gate', () => {
     expect(logTrade).not.toHaveBeenCalled();
   });
 
+  test('webhook full exit stays open when broker position size is unparseable', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: 500, balance: 10000 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([makeBuyTrade()]);
+    const webhookAdapter = {
+      enabled: true,
+      dryRun: false,
+      emit: jest.fn().mockResolvedValue({
+        sent: true,
+        response: { status: 202, body: '{"orderId":"WEBHOOK_EXIT_MALFORMED_POSITION","status":"filled","filledQuantity":5}' },
+      }),
+    };
+    const orderRouter = {
+      getAllPositions: jest.fn().mockResolvedValue([{ symbol: 'TSLA', qty: 'not-a-number' }]),
+      sendOrder: jest.fn(),
+    };
+    const executor = makeExecutor({}, { webhookAdapter, orderRouter });
+
+    const result = await executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'BUY_1', exitReason: 'risk_flatten' },
+      {},
+      125,
+      { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: true,
+      reason: 'exit_pending_broker_flat_confirmation',
+      brokerFlatVerified: false,
+      brokerConfirmationPending: true,
+    }));
+    expect(orderRouter.sendOrder).not.toHaveBeenCalled();
+    expect(mockStateManager.applyFill).not.toHaveBeenCalled();
+  });
+
   test('enabled webhook exit accepted without broker fill proof leaves state and journal open pending confirmation', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;
@@ -1806,6 +1848,66 @@ describe('OrderExecutor pause gate', () => {
     });
   });
 
+  test('stale broker exit reservation with unparseable open-order side halts for reconciliation', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: 500, balance: 10000 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([makeBuyTrade()]);
+    mockStateManager.reserveExitSlot.mockResolvedValueOnce({
+      success: true,
+      reserved: false,
+      reason: 'exit_already_pending',
+      pendingExitIntent: {
+        intentId: 'stale-intent-broker',
+        sourceEventId: 'old-decision',
+        brokerOrderId: 'CLAIMED_OPEN_ORDER',
+        lifecycleState: 'accepted',
+        submittedAtMs: Date.now() - 1000,
+        acceptedAtMs: Date.now() - 900,
+        tradeRevision: 0,
+      },
+    });
+    const adapter = {
+      getOpenOrders: jest.fn().mockResolvedValue([
+        { id: 'CLAIMED_OPEN_ORDER', symbol: 'TSLA', side: 'hold', status: 'open' },
+      ]),
+    };
+    const orderRouter = {
+      adapters: new Map([['alpaca', adapter]]),
+      sendOrder: jest.fn(),
+    };
+    const executor = makeExecutor({}, { paperTrading: false, orderRouter });
+
+    const result = await executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'BUY_1', exitReason: 'risk_flatten', decisionId: 'decision_bad_open_side' },
+      {},
+      125,
+      { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'exit_intent_reconciliation_required',
+      stateMutationSucceeded: false,
+    }));
+    expect(mockStateManager.haltSymbol).toHaveBeenCalledWith(
+      'TSLA',
+      expect.stringContaining('pending exit intent cannot be reconciled automatically'),
+      expect.objectContaining({
+        code: 'exit_intent_reconciliation_required',
+        tradeId: 'BUY_1',
+      })
+    );
+    expect(mockStateManager.releaseExitSlot).not.toHaveBeenCalled();
+    expect(orderRouter.sendOrder).not.toHaveBeenCalled();
+  });
+
   test('expired webhook exit reservation halts for operator reconciliation instead of guessing release', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;
@@ -1900,6 +2002,54 @@ describe('OrderExecutor pause gate', () => {
     expect(webhookAdapter.emit).not.toHaveBeenCalled();
     expect(mockStateManager.applyFill).not.toHaveBeenCalled();
     expect(logTrade).not.toHaveBeenCalled();
+  });
+
+  test('startup exit-intent reconciliation halts malformed active trade direction instead of guessing sell', async () => {
+    const malformedTrade = makeBuyTrade({
+      orderId: 'BAD_DIRECTION',
+      id: 'BAD_DIRECTION',
+      action: 'BUY',
+      direction: 'short',
+      pendingExitIntent: {
+        intentId: 'intent-bad-direction',
+        sourceEventId: 'old-decision',
+        brokerOrderId: 'BROKER_BAD_DIRECTION',
+        lifecycleState: 'accepted',
+        submittedAtMs: Date.now() - 1000,
+        acceptedAtMs: Date.now() - 900,
+        tradeRevision: 0,
+      },
+    });
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'activeTrades') return new Map([['BAD_DIRECTION', malformedTrade]]);
+      return null;
+    });
+    const orderRouter = {
+      adapters: new Map([['alpaca', { getOpenOrders: jest.fn() }]]),
+      sendOrder: jest.fn(),
+    };
+    const executor = makeExecutor({}, { orderRouter });
+
+    const result = await executor.reconcilePersistedExitIntents({
+      traceId: 'trace-startup',
+      signalId: 'signal-startup',
+      decisionId: 'startup',
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      checked: 1,
+      halted: 1,
+    }));
+    expect(mockStateManager.haltSymbol).toHaveBeenCalledWith(
+      'TSLA',
+      expect.stringContaining('direction integrity exit refusal'),
+      expect.objectContaining({
+        code: 'direction_integrity_exit_refusal',
+        tradeId: 'BAD_DIRECTION',
+        intentId: 'intent-bad-direction',
+      })
+    );
+    expect(orderRouter.sendOrder).not.toHaveBeenCalled();
   });
 
   test('enabled webhook exit with filled status but missing fill quantity stays pending', async () => {

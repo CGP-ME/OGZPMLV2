@@ -400,6 +400,67 @@ describe('StateManager load validation', () => {
     expect(manager.get('activeTrades').size).toBe(0);
   });
 
+  test('save identity refusal persists last-good state with direction halt instead of throwing', async () => {
+    const goodTrade = {
+      id: 'GOOD_LONG',
+      orderId: 'GOOD_LONG',
+      action: 'BUY',
+      direction: 'long',
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      accountId: 'acct-main',
+      accountIdSource: 'config',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+      sizeUsd: 500,
+      size: 500,
+      entryPrice: 100,
+      entryOrderQuantity: 5,
+      entryOrderQuantityUnit: 'shares',
+      remainingOrderQuantity: 5,
+      remainingOrderQuantityUnit: 'shares',
+      entryTime: Date.now() - 60000,
+      exitContract,
+    };
+    fs.writeFileSync(stateFile, JSON.stringify({
+      balance: 10000,
+      totalBalance: 10000,
+      initialBalance: 10000,
+      position: 500,
+      inPosition: 500,
+      activeTrades: [['GOOD_LONG', goodTrade]],
+      lastPrices: { TSLA: 100 },
+      lastPriceTimes: { TSLA: 1000 },
+      isTrading: true,
+      symbolEntryHalts: {},
+      symbolLossStreaks: {},
+    }), 'utf8');
+
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+    manager.state.activeTrades.set('BAD_DIRECTION', {
+      ...goodTrade,
+      id: 'BAD_DIRECTION',
+      orderId: 'BAD_DIRECTION',
+      direction: 'short',
+    });
+
+    expect(() => manager.save()).not.toThrow();
+    await new Promise(resolve => setImmediate(resolve));
+    await new Promise(resolve => setImmediate(resolve));
+
+    const saved = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+    expect(saved.activeTrades.map(([tradeId]) => tradeId)).toEqual(['GOOD_LONG']);
+    expect(saved.symbolEntryHalts.TSLA).toEqual(expect.objectContaining({
+      code: 'direction_integrity_exit_refusal',
+      authority: 'financial_integrity',
+      operatorActionRequired: true,
+      tradeId: 'BAD_DIRECTION',
+    }));
+    expect(manager.getSymbolHaltCode('TSLA')).toBe('direction_integrity_exit_refusal');
+  });
+
   test('last price updates reject older event timestamps', () => {
     const { StateManager } = require('../core/StateManager');
     const manager = new StateManager();

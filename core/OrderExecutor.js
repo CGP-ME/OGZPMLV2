@@ -28,6 +28,7 @@ const { positionEffectFromAction } = require('./PositionEffect');
 
 const stateManager = getStateManager();
 const SUPPORTED_ACTIONS = new Set(['BUY', 'SELL_SHORT', 'SELL', 'COVER']);
+const DIRECTION_INTEGRITY_EXIT_REFUSAL = 'direction_integrity_exit_refusal';
 
 // CHANGE 2026-03-17: Module-level constants removed, use ctx.backtestFast/backtestMode/paperTrading
 // These are now injected via constructor from ConfigLoader
@@ -63,6 +64,72 @@ class OrderExecutor {
       return null;
     }
     return directionSide || actionSide;
+  }
+
+  async _haltDirectionIntegrityExitRefusal({ symbol, reason, traceId, signalId, decisionId, tradeId, action, metadata = {} }) {
+    const haltSymbol = this._firstNonEmptyString(symbol, this.ctx.tradingPair);
+    if (!haltSymbol) {
+      emitTrace(this.ctx, 'DIRECTION_INTEGRITY_EXIT_REFUSAL_UNHALTED', {
+        traceId,
+        signalId,
+        decisionId,
+        action,
+        tradeId,
+        reason,
+      });
+      console.error(`[EXECUTION-FILL] Direction integrity refusal could not halt missing symbol: ${reason}`);
+      return { success: false, reason: 'missing_symbol' };
+    }
+
+    if (
+      typeof stateManager.getSymbolHaltCode === 'function'
+      && stateManager.getSymbolHaltCode(haltSymbol) === DIRECTION_INTEGRITY_EXIT_REFUSAL
+    ) {
+      emitTrace(this.ctx, 'DIRECTION_INTEGRITY_EXIT_REFUSAL_STANDING', {
+        traceId,
+        signalId,
+        decisionId,
+        symbol: haltSymbol,
+        action,
+        tradeId,
+        reason,
+      });
+      return { success: true, alreadyHalted: true, reason: DIRECTION_INTEGRITY_EXIT_REFUSAL };
+    }
+
+    const haltReason = `[EXECUTION-FILL] ${haltSymbol} direction integrity exit refusal (${reason}); operator must reconcile active trade identity before exits resume`;
+    const haltResult = typeof stateManager.haltSymbol === 'function'
+      ? await stateManager.haltSymbol(haltSymbol, haltReason, {
+        code: DIRECTION_INTEGRITY_EXIT_REFUSAL,
+        authority: 'financial_integrity',
+        financialIntegrityCritical: true,
+        entryBlockScope: 'symbol',
+        operatorActionRequired: true,
+        manualReconciliationRequired: true,
+        traceId,
+        signalId,
+        decisionId,
+        tradeId,
+        action,
+        reason,
+        ...metadata,
+      })
+      : { success: false, reason: 'missing_halt_symbol' };
+
+    emitTrace(this.ctx, 'DIRECTION_INTEGRITY_EXIT_REFUSAL', {
+      traceId,
+      signalId,
+      decisionId,
+      symbol: haltSymbol,
+      action,
+      tradeId,
+      reason,
+      symbolHaltSucceeded: haltResult?.success === true,
+      alreadyHalted: haltResult?.alreadyHalted === true,
+      ...metadata,
+    });
+    console.error(`[EXECUTION-FILL] ${haltReason}`);
+    return haltResult;
   }
 
   _shouldStoreTraiDecisionForOrder(traiDecision, decision, symbol, nowMs = Date.now()) {
@@ -688,7 +755,7 @@ class OrderExecutor {
         return Math.abs(value);
       }
     }
-    return 0;
+    return null;
   }
 
   _matchingBrokerPositionForExit(exitPlan, positions = []) {
@@ -696,7 +763,17 @@ class OrderExecutor {
     if (!targetSymbol || !Array.isArray(positions)) return null;
     return positions.find((position) => {
       const symbol = this._normalizeBrokerPositionSymbol(position?.symbol);
-      return symbol === targetSymbol && this._brokerPositionSize(position) > 1e-9;
+      const size = this._brokerPositionSize(position);
+      return symbol === targetSymbol && size !== null && size > 1e-9;
+    }) || null;
+  }
+
+  _unparseableBrokerPositionForExit(exitPlan, positions = []) {
+    const targetSymbol = this._normalizeBrokerPositionSymbol(exitPlan?.symbol);
+    if (!targetSymbol || !Array.isArray(positions)) return null;
+    return positions.find((position) => {
+      const symbol = this._normalizeBrokerPositionSymbol(position?.symbol);
+      return symbol === targetSymbol && this._brokerPositionSize(position) === null;
     }) || null;
   }
 
@@ -767,16 +844,34 @@ class OrderExecutor {
 
   _matchingOpenExitOrderForIntent(exitPlan, pendingExitIntent, orders = []) {
     const targetSymbol = this._normalizeBrokerPositionSymbol(exitPlan?.symbol);
-    const targetSide = exitPlan?.side || null;
+    const targetSide = exitPlan?.side === 'buy' || exitPlan?.side === 'sell' ? exitPlan.side : null;
     const pendingOrderId = this._firstNonEmptyString(pendingExitIntent?.brokerOrderId, pendingExitIntent?.orderId);
     if (!targetSymbol || !Array.isArray(orders)) return null;
     return orders.find((order) => {
       if (!this._openOrderIsPending(order)) return false;
       const orderId = this._openOrderId(order);
-      if (pendingOrderId && orderId && orderId === pendingOrderId) return true;
       const symbol = this._normalizeBrokerPositionSymbol(order?.symbol);
       const side = this._openOrderSide(order);
-      return symbol === targetSymbol && (!targetSide || side === targetSide);
+      if (pendingOrderId && orderId && orderId === pendingOrderId) {
+        return side !== null && (!targetSide || side === targetSide);
+      }
+      return symbol === targetSymbol && targetSide && side === targetSide;
+    }) || null;
+  }
+
+  _unmatchableOpenExitOrderForIntent(exitPlan, pendingExitIntent, orders = []) {
+    const targetSymbol = this._normalizeBrokerPositionSymbol(exitPlan?.symbol);
+    const targetSide = exitPlan?.side === 'buy' || exitPlan?.side === 'sell' ? exitPlan.side : null;
+    const pendingOrderId = this._firstNonEmptyString(pendingExitIntent?.brokerOrderId, pendingExitIntent?.orderId);
+    if (!targetSymbol || !targetSide || !Array.isArray(orders)) return null;
+    return orders.find((order) => {
+      if (!this._openOrderIsPending(order)) return false;
+      const orderId = this._openOrderId(order);
+      const symbol = this._normalizeBrokerPositionSymbol(order?.symbol);
+      if (pendingOrderId && orderId && orderId === pendingOrderId) {
+        return this._openOrderSide(order) === null;
+      }
+      return symbol === targetSymbol && this._openOrderSide(order) === null;
     }) || null;
   }
 
@@ -784,6 +879,9 @@ class OrderExecutor {
     const truthSource = this._exitIntentTruthSource(exitPlan);
     if (truthSource.available !== true) {
       return { available: false, orders: [], matchingOrder: null, error: 'webhook_order_status_unavailable', truthSource };
+    }
+    if (exitPlan?.side !== 'buy' && exitPlan?.side !== 'sell') {
+      return { available: false, orders: [], matchingOrder: null, error: 'exit_plan_side_unmatchable', truthSource };
     }
     const router = this.ctx.orderRouter;
     const adapters = router?.adapters instanceof Map ? router.adapters : null;
@@ -819,6 +917,18 @@ class OrderExecutor {
         orders: [],
         matchingOrder: null,
         error: errors[0] || 'no_open_order_reader_for_exit_broker',
+        truthSource,
+      };
+    }
+
+    const unmatchableOrder = this._unmatchableOpenExitOrderForIntent(exitPlan, exitPlan?.pendingExitIntent, orders);
+    if (unmatchableOrder) {
+      return {
+        available: false,
+        orders,
+        matchingOrder: null,
+        error: 'open_order_side_unmatchable',
+        unmatchableOrderId: this._openOrderId(unmatchableOrder),
         truthSource,
       };
     }
@@ -930,6 +1040,19 @@ class OrderExecutor {
     const planWithPending = { ...exitPlan, pendingExitIntent };
 
     const openOrderState = await this._readBrokerOpenOrdersForExit(planWithPending);
+    if (openOrderState.error === 'open_order_side_unmatchable' || openOrderState.error === 'exit_plan_side_unmatchable') {
+      return this._haltExitIntentReconciliationRequired({
+        exitPlan,
+        pendingExitIntent,
+        reason: openOrderState.error,
+        traceId,
+        signalId,
+        decisionId,
+        symbol,
+        action,
+        truthSource: openOrderState.truthSource || this._exitIntentTruthSource(exitPlan),
+      });
+    }
     if (openOrderState.available === true) {
       const matchingOrder = this._matchingOpenExitOrderForIntent(exitPlan, pendingExitIntent, openOrderState.orders);
       if (!matchingOrder) {
@@ -994,6 +1117,7 @@ class OrderExecutor {
     const symbol = this._firstNonEmptyString(trade?.symbol, this.ctx.tradingPair);
     if (!tradeId || !symbol || !trade?.pendingExitIntent?.intentId) return null;
     const direction = this._activeTradeDirection(trade);
+    if (!direction) return null;
     const action = direction === 'short' ? 'COVER' : 'SELL';
     return {
       tradeId,
@@ -1017,6 +1141,26 @@ class OrderExecutor {
     let released = 0;
     let halted = 0;
     for (const [tradeKey, trade] of activeTrades.entries()) {
+      const tradeId = this._firstNonEmptyString(trade?.id, trade?.orderId, tradeKey);
+      const symbol = this._firstNonEmptyString(trade?.symbol, this.ctx.tradingPair);
+      if (trade?.pendingExitIntent?.intentId && !this._activeTradeDirection(trade)) {
+        checked += 1;
+        await this._haltDirectionIntegrityExitRefusal({
+          symbol,
+          reason: 'persisted_pending_exit_intent_active_trade_direction_unprovable',
+          traceId: context.traceId || createTraceId('startup_exit_intent'),
+          signalId: context.signalId || 'startup_exit_intent_reconcile',
+          decisionId: context.decisionId || 'startup',
+          tradeId,
+          action: null,
+          metadata: {
+            intentId: trade.pendingExitIntent.intentId,
+            tradeKey,
+          },
+        });
+        halted += 1;
+        continue;
+      }
       const exitPlan = this._exitPlanFromActiveTrade(trade, tradeKey);
       if (!exitPlan) continue;
       checked += 1;
@@ -1052,6 +1196,16 @@ class OrderExecutor {
     }
     try {
       const positions = await router.getAllPositions(scope);
+      const unparseablePosition = this._unparseableBrokerPositionForExit(exitPlan, positions);
+      if (unparseablePosition) {
+        return {
+          available: false,
+          positions,
+          matchingPosition: null,
+          error: 'broker_position_size_unparseable',
+          unparseablePosition,
+        };
+      }
       const matchingPosition = this._matchingBrokerPositionForExit(exitPlan, positions);
       return { available: true, positions, matchingPosition, error: null };
     } catch (err) {
@@ -1065,7 +1219,7 @@ class OrderExecutor {
     let flattenOrderId = null;
     let flattenError = null;
 
-    if (positionSize > 0 && this.ctx.orderRouter && typeof this.ctx.orderRouter.sendOrder === 'function') {
+    if (positionSize !== null && positionSize > 0 && this.ctx.orderRouter && typeof this.ctx.orderRouter.sendOrder === 'function') {
       flattenAttempted = true;
       try {
         const flattenResult = await this.ctx.orderRouter.sendOrder({
@@ -2079,6 +2233,7 @@ class OrderExecutor {
     if (decision.tradeId) {
       const matched = trades.find(t => t.orderId === decision.tradeId || t.id === decision.tradeId);
       if (matched) return matched;
+      return null;
     }
     return trades[0];
   }
@@ -2109,15 +2264,21 @@ class OrderExecutor {
       throw new Error(`[ORDER-PLAN] active trade ${trade.orderId || trade.id || 'unknown'} missing immutable scope field(s): ${missingStoredScope.join(', ')} - refusing to plan exit against current SessionRouter scope`);
     }
     const fullSizeUsd = this._resolveStoredSizeUsd(trade, 'exit');
-    const exitFraction = typeof decision.exitFraction === 'number' && decision.exitFraction > 0 && decision.exitFraction < 1
-      ? decision.exitFraction
-      : 1;
+    const exitFractionWasProvided = decision.exitFraction !== undefined && decision.exitFraction !== null;
+    const exitFraction = exitFractionWasProvided ? Number(decision.exitFraction) : 1;
+    if (!Number.isFinite(exitFraction) || exitFraction <= 0 || exitFraction > 1) {
+      throw new Error(`[ORDER-PLAN] exitFraction must be finite and inside (0,1] for ${trade.orderId || trade.id || 'unknown'}; got ${JSON.stringify(decision.exitFraction)}`);
+    }
     const quantityUnit = this._orderQuantityUnit(scope);
     const remainingOrderQuantity = this._tradeRemainingOrderQuantity(trade);
     if (remainingOrderQuantity === null) {
       throw new Error(`[ORDER-PLAN] active trade ${trade.orderId || trade.id || 'unknown'} missing remainingOrderQuantity; refusing to recalc live exit quantity from current price`);
     }
-    const remainingOrderQuantityUnit = trade.remainingOrderQuantityUnit || trade.entryOrderQuantityUnit || quantityUnit;
+    const storedRemainingUnit = this._firstNonEmptyString(trade.remainingOrderQuantityUnit, trade.entryOrderQuantityUnit);
+    if (!storedRemainingUnit) {
+      throw new Error(`[ORDER-PLAN] active trade ${trade.orderId || trade.id || 'unknown'} missing stored quantity unit; refusing to infer from current route`);
+    }
+    const remainingOrderQuantityUnit = storedRemainingUnit;
     if (remainingOrderQuantityUnit !== quantityUnit) {
       throw new Error(`[ORDER-PLAN] active trade ${trade.orderId || trade.id || 'unknown'} quantity unit mismatch: stored=${remainingOrderQuantityUnit} planned=${quantityUnit}`);
     }
@@ -2127,6 +2288,28 @@ class OrderExecutor {
       allowMinimumShare: true,
       remainingOrderQuantity,
     });
+    if (
+      quantityUnit === 'shares'
+      && Number.isFinite(rawOrderQuantity)
+      && rawOrderQuantity > 0
+      && rawOrderQuantity < 1
+      && orderQuantity === 1
+    ) {
+      emitTrace(this.ctx, 'EXIT_MIN_SHARE_PROMOTION', {
+        traceId: decision.traceId || null,
+        signalId: decision.signalId || decision.decisionId || null,
+        decisionId: decision.decisionId || null,
+        symbol,
+        action: decision.action,
+        tradeId: trade.orderId || trade.id,
+        remainingOrderQuantity,
+        requestedExitFraction: exitFraction,
+        rawOrderQuantity,
+        promotedOrderQuantity: orderQuantity,
+        stateExitFraction: Math.min(1, orderQuantity / remainingOrderQuantity),
+      });
+      console.warn(`[ORDER-PLAN] Promoted ${decision.action} ${symbol} exit quantity from ${rawOrderQuantity} to 1 share for broker whole-share minimum`);
+    }
     if (!Number.isFinite(orderQuantity) || orderQuantity <= 0) {
       throw new Error(`[ORDER-PLAN] active trade ${trade.orderId || trade.id || 'unknown'} planned non-positive exit quantity ${orderQuantity} from remaining=${remainingOrderQuantity} fraction=${exitFraction}`);
     }
@@ -3102,6 +3285,8 @@ class OrderExecutor {
         // CRIT-03 wrong-market hazard (defaulting missing tradingPair to
         // BTC-USD) is structurally prevented by the param requirement.
         const side = brokerOrderPlan.side; // 'buy' or 'sell'
+        let brokerOrderAcceptedBeforeValidation = false;
+        let brokerOrderId = null;
         try {
           emitTrace(this.ctx, 'BROKER_ORDER_REQUEST', {
             traceId,
@@ -3127,10 +3312,11 @@ class OrderExecutor {
               quantityUnit: brokerOrderPlan.quantityUnit
             }
           });
-          const brokerOrderId = orderResult?.orderId || orderResult?.id;
+          brokerOrderId = orderResult?.orderId || orderResult?.id;
           if (!brokerOrderId) {
             throw new Error(`missing_broker_order_id for ${side} ${symbol}`);
           }
+          brokerOrderAcceptedBeforeValidation = true;
           const acceptedOrderQuantity = this._acceptedOrderQuantity(orderResult, brokerOrderPlan.orderQuantity);
           const acceptedSizeUsd = this._acceptedOrderSizeUsd(brokerOrderPlan, acceptedOrderQuantity);
           tradeResult = {
@@ -3159,6 +3345,37 @@ class OrderExecutor {
             sizeUsd: tradeResult.amount,
           });
         } catch (orderErr) {
+          if (brokerOrderAcceptedBeforeValidation) {
+            await this._haltDirectionIntegrityExitRefusal({
+              symbol,
+              reason: 'post_send_broker_order_reconciliation_failed',
+              traceId,
+              signalId,
+              decisionId,
+              tradeId: exitPlan?.tradeId || null,
+              action: decision.action,
+              metadata: {
+                brokerOrderId,
+                side,
+                route: 'broker',
+                postSendError: orderErr.message,
+              },
+            });
+            emitTrace(this.ctx, 'BROKER_ORDER_POST_SEND_RECONCILIATION_FAILED', {
+              traceId,
+              signalId,
+              decisionId,
+              symbol,
+              action: decision.action,
+              positionEffect,
+              brokerOrderId,
+              side,
+              orderAccepted: true,
+              stateMutationSucceeded: false,
+              reason: orderErr.message,
+            });
+            throw orderErr;
+          }
           console.error(`Order execution failed: ${orderErr.message}`);
           tradeResult = { success: false, reason: orderErr.message, traceId, signalId };
           emitTrace(this.ctx, 'BROKER_ORDER_RESULT', {
@@ -3181,7 +3398,7 @@ class OrderExecutor {
       if (tradeResult && tradeResult.success) {
         console.log(`CP4.5: Trade SUCCESS confirmed, creating unified result`);
         if (!tradeResult.orderId) {
-          throw new Error(`successful_trade_result_missing_order_id for ${decision.action} ${symbol}`);
+          throw new Error(`[EXECUTION-FILL] successful_trade_result_missing_order_id for ${decision.action} ${symbol}`);
         }
         const executedExitPlan = exitPlan
           ? this._resolveExecutedExitPlan(exitPlan, tradeResult)
@@ -4909,11 +5126,11 @@ class OrderExecutor {
           action: decision?.action || null,
         });
       }
-      // FIX TIER-2-EXECUTE-CATCH: audit-prefixed throws (CRIT/HIGH/MED/RUN/EXIT/MOD/TRAI/PNLC/RISK/BTR/SESSION/DPS/PS)
-      // are intentional halts on bad state. Without this differentiation, the wrapper
+      // FIX TIER-2-EXECUTE-CATCH: audit-prefixed throws are intentional halts on bad state.
+      // Without this differentiation, the wrapper
       // turns every "fail-loud" spec into fail-silent behavior. Re-throw audit prefixes
       // so they reach run-empire-v2's promise-rejection handler (operator-visible).
-      const isAuditThrow = error.message && /^\[(?:CRIT|HIGH|MED|RUN|EXIT|MOD|TRAI|PNLC|RISK|BTR|SESSION|DPS|PS|ORDER)-/.test(error.message);
+      const isAuditThrow = error.message && /^\[[A-Z][A-Z-]*\]/.test(error.message);
       if (isAuditThrow) {
         console.error(`[FAIL-LOUD] ${error.message}`);
         emitTrace(this.ctx, 'ORDER_EXCEPTION', {

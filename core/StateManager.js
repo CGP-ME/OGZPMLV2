@@ -97,6 +97,7 @@ const INVALID_SCOPE_PLACEHOLDER_VALUES = new Set([
 ]);
 
 const TTP_CUTOFF_FLATNESS_PAUSE_SOURCE = 'ttp_cutoff_unverified_broker_flatness';
+const DIRECTION_INTEGRITY_EXIT_REFUSAL = 'direction_integrity_exit_refusal';
 const TTP_CUTOFF_FLATNESS_PAUSE_PREFIX = '[TTP_MARKET_TIME] broker flatness unverified after cutoff';
 const DATA_FEED_LIVENESS_PAUSE_SOURCE = 'data_feed_liveness';
 const DATA_FEED_LIVENESS_PAUSE_PREFIXES = [
@@ -107,6 +108,7 @@ const DATA_FEED_LIVENESS_PAUSE_PREFIXES = [
 const AUTHORIZED_SYMBOL_HALT_CODES = new Set([
   'exit_rail_broker_desync',
   'exit_intent_reconciliation_required',
+  DIRECTION_INTEGRITY_EXIT_REFUSAL,
   'symbol_cooldown',
   TTP_CUTOFF_FLATNESS_PAUSE_SOURCE
 ]);
@@ -1759,6 +1761,110 @@ class StateManager {
     return issues;
   }
 
+  _activeTradeIdentityRefusalRecords() {
+    if (!this.state.activeTrades || !(this.state.activeTrades instanceof Map)) {
+      return [];
+    }
+
+    const records = [];
+    for (const [tradeId, trade] of this.state.activeTrades.entries()) {
+      const issues = this._activeTradeIdentityIssuesForTrade(trade, tradeId);
+      if (issues.length === 0) continue;
+      let symbol = null;
+      if (trade && typeof trade === 'object' && typeof trade.symbol === 'string' && trade.symbol.trim()) {
+        try {
+          symbol = this.normalizeSymbol(trade.symbol, 'StateManager.save identity refusal');
+        } catch (_) {
+          symbol = trade.symbol.trim().toUpperCase();
+        }
+      }
+      records.push({
+        tradeId: trade?.orderId || trade?.id || tradeId,
+        symbol,
+        issues,
+      });
+    }
+    return records;
+  }
+
+  _stateSnapshotForPersistence(state = this.state) {
+    const stateToSave = { ...state };
+    if (state.activeTrades instanceof Map) {
+      stateToSave.activeTrades = Array.from(state.activeTrades.entries());
+    }
+    if (state.lastPrices instanceof Map) {
+      stateToSave.lastPrices = Object.fromEntries(state.lastPrices);
+    }
+    if (state.lastPriceTimes instanceof Map) {
+      stateToSave.lastPriceTimes = Object.fromEntries(state.lastPriceTimes);
+    }
+    return stateToSave;
+  }
+
+  _routeActiveTradeIdentitySaveRefusal(stateFile, identityRecords, identityIssues) {
+    const fs = require('fs');
+    const { writeJsonAtomic } = require('./AtomicWrite');
+    const now = Date.now();
+    const persistedState = fs.existsSync(stateFile)
+      ? JSON.parse(fs.readFileSync(stateFile, 'utf8'))
+      : null;
+
+    if (!persistedState || typeof persistedState !== 'object' || Array.isArray(persistedState)) {
+      console.error(`[StateManager.save] active trade identity refusal has no last-good state file to persist: ${identityIssues.join('; ')}`);
+      return { persisted: false, halted: 0, reason: 'missing_last_good_state' };
+    }
+
+    const nextHalts = { ...(persistedState.symbolEntryHalts || {}) };
+    let halted = 0;
+    for (const record of identityRecords) {
+      if (!record.symbol) continue;
+      const existingCode = this.getSymbolHaltCode(record.symbol);
+      const reason = `[StateManager.save] active trade identity refusal for ${record.symbol}: ${record.issues.join('; ')}`;
+      nextHalts[record.symbol] = {
+        ...(nextHalts[record.symbol] || {}),
+        reason,
+        code: DIRECTION_INTEGRITY_EXIT_REFUSAL,
+        haltedAt: now,
+        expiresAt: null,
+        authority: 'financial_integrity',
+        financialIntegrityCritical: true,
+        entryBlockScope: 'symbol',
+        operatorActionRequired: true,
+        tradeId: record.tradeId,
+        identityIssues: record.issues,
+      };
+      if (existingCode !== DIRECTION_INTEGRITY_EXIT_REFUSAL) {
+        halted += 1;
+        Promise.resolve(this.haltSymbol(record.symbol, reason, {
+          code: DIRECTION_INTEGRITY_EXIT_REFUSAL,
+          authority: 'financial_integrity',
+          financialIntegrityCritical: true,
+          entryBlockScope: 'symbol',
+          operatorActionRequired: true,
+          tradeId: record.tradeId,
+          identityIssues: record.issues,
+        })).catch((err) => {
+          console.error(`[StateManager.save] direction integrity halt dispatch failed for ${record.symbol}: ${err.message}`);
+        });
+      } else {
+        console.debug(`[StateManager.save] direction integrity halt already standing for ${record.symbol}`);
+      }
+    }
+
+    const normalizedHalts = this._normalizeSymbolEntryHaltsCollection(
+      nextHalts,
+      'StateManager.save directionIntegrity'
+    );
+    this.state.symbolEntryHalts = this._normalizeSymbolEntryHaltsCollection({
+      ...(this.state.symbolEntryHalts || {}),
+      ...normalizedHalts,
+    }, 'StateManager.save directionIntegrity memory');
+    persistedState.symbolEntryHalts = normalizedHalts;
+    writeJsonAtomic(stateFile, persistedState);
+    console.error(`[StateManager.save] active trade identity refusal persisted last-good state with ${halted} new symbol halt(s): ${identityIssues.join('; ')}`);
+    return { persisted: true, halted, reason: DIRECTION_INTEGRITY_EXIT_REFUSAL };
+  }
+
   /**
    * Validate state consistency
    */
@@ -3387,14 +3493,18 @@ class StateManager {
         fs.mkdirSync(dataDir, { recursive: true });
       }
 
-      // Prepare state for serialization
-      const stateToSave = { ...this.state };
-
       const persistenceIdentityIssues = this._activeTradeIdentityIssues();
       const persistenceQuantityIssues = this._activeTradeQuantityIssues();
-      if (persistenceIdentityIssues.length > 0 || persistenceQuantityIssues.length > 0) {
+      if (persistenceIdentityIssues.length > 0) {
+        this._routeActiveTradeIdentitySaveRefusal(
+          stateFile,
+          this._activeTradeIdentityRefusalRecords(),
+          persistenceIdentityIssues
+        );
+        return;
+      }
+      if (persistenceQuantityIssues.length > 0) {
         const invariantIssues = [
-          ...persistenceIdentityIssues.map((issue) => `identity:${issue}`),
           ...persistenceQuantityIssues.map((issue) => `quantity:${issue}`),
         ];
         const invariantError = new Error(
@@ -3404,16 +3514,7 @@ class StateManager {
         throw invariantError;
       }
 
-      // CRITICAL: Convert Map to Array for JSON serialization
-      if (this.state.activeTrades instanceof Map) {
-        stateToSave.activeTrades = Array.from(this.state.activeTrades.entries());
-      }
-      if (this.state.lastPrices instanceof Map) {
-        stateToSave.lastPrices = Object.fromEntries(this.state.lastPrices);
-      }
-      if (this.state.lastPriceTimes instanceof Map) {
-        stateToSave.lastPriceTimes = Object.fromEntries(this.state.lastPriceTimes);
-      }
+      const stateToSave = this._stateSnapshotForPersistence();
 
       // Save to disk atomically (Mercury Vector 6 — crash-safe state persistence)
       const { writeJsonAtomic } = require('./AtomicWrite');
