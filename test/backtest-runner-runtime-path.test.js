@@ -13,6 +13,7 @@ describe('BacktestRunner runtime path parity', () => {
   let warnSpy;
   let errorSpy;
   let originalMtfStats;
+  let stateManagerMock;
 
   beforeEach(() => {
     jest.resetModules();
@@ -51,10 +52,12 @@ describe('BacktestRunner runtime path parity', () => {
       })),
     }));
 
+    stateManagerMock = {
+      getAllTrades: jest.fn(() => []),
+      closePosition: jest.fn(),
+    };
     jest.doMock('../core/StateManager', () => ({
-      getInstance: jest.fn(() => ({
-        getAllTrades: jest.fn(() => []),
-      })),
+      getInstance: jest.fn(() => stateManagerMock),
     }));
 
     jest.doMock('../core/DecisionLedgerLogger', () => ({
@@ -191,5 +194,78 @@ describe('BacktestRunner runtime path parity', () => {
     expect(source).not.toContain('analyzeAndTrade(');
     expect(source).not.toContain('priceHistory.length >= 15');
     expect(source).toContain('runTradingCycle(symbol, traceId)');
+  });
+
+  test('refuses window-end close rows with unknown active trade direction', async () => {
+    stateManagerMock.getAllTrades.mockReturnValue([{
+      id: 'BAD_WINDOW_END',
+      orderId: 'BAD_WINDOW_END',
+      action: 'BUY',
+      symbol: 'TSLA',
+      entryTime: Date.parse('2026-06-15T13:30:00.000Z'),
+      entryPrice: 400,
+      sizeUsd: 1000,
+      entryOrderQuantity: 2.5,
+      entryOrderQuantityUnit: 'shares',
+      remainingOrderQuantity: 2.5,
+      remainingOrderQuantityUnit: 'shares',
+      brokerId: 'alpaca',
+      accountId: 'paper-1',
+      accountIdSource: 'config',
+      assetClass: 'stocks',
+      executionMode: 'backtest',
+      timeframe: '15m',
+      scopeKey: 'backtest:alpaca:paper-1:stocks:TSLA:15m',
+      scopeKeyVersion: 2,
+    }]);
+
+    const BacktestRunner = require('../core/BacktestRunner');
+    const ctx = {
+      __dirname: path.resolve(__dirname, '..'),
+      symbol: 'TSLA',
+      timeframe: '15m',
+      priceHistory: [],
+      candleAggregator: {
+        getIntervalMs: jest.fn(() => 15 * 60 * 1000),
+      },
+      storeTimeframeCandle: jest.fn(() => ({
+        isNewCandle: true,
+        candle: {},
+      })),
+      handleMarketData: jest.fn((payload) => {
+        ctx.priceHistory.push(payload);
+        return { acceptedAsNew: true };
+      }),
+      runTradingCycle: jest.fn(),
+      backtestRecorder: {
+        startingBalance: 10000,
+        trades: [],
+        getSummary: jest.fn(() => ({})),
+        printSummary: jest.fn(),
+        exportCSV: jest.fn(),
+      },
+    };
+
+    const runner = new BacktestRunner(ctx);
+
+    await expect(runner.loadHistoricalDataAndBacktest()).rejects.toThrow('PROCESS_EXIT_1');
+
+    expect(stateManagerMock.closePosition).not.toHaveBeenCalled();
+    const reportFiles = fs.readdirSync(process.env.BACKTEST_OUTPUT_DIR, { recursive: true })
+      .filter((file) => String(file).endsWith('.json'));
+    expect(reportFiles).toHaveLength(1);
+    const report = JSON.parse(fs.readFileSync(
+      path.join(process.env.BACKTEST_OUTPUT_DIR, reportFiles[0]),
+      'utf8'
+    ));
+    expect(report.windowEndPositions).toEqual([
+      expect.objectContaining({
+        tradeId: 'BAD_WINDOW_END',
+        status: 'refused_at_window_end',
+        direction: null,
+        directionIntegrityRefusal: true,
+        refusalCode: 'active_trade_direction_unknown',
+      }),
+    ]);
   });
 });

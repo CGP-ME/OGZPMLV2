@@ -93,6 +93,54 @@ class BacktestRunner {
     }
   }
 
+  _activeTradeDirectionForWindowEnd(trade) {
+    const direction = typeof trade?.direction === 'string' ? trade.direction : '';
+    return direction === 'long' || direction === 'short' ? direction : null;
+  }
+
+  _windowEndDirectionRefusal(trade, lastPrice, exitTimestamp) {
+    const entryPrice = Number(trade.entryPrice ?? trade.price);
+    const remainingOrderQuantity = Number(trade.remainingOrderQuantity);
+    const sizeUsd = Number(trade.sizeUsd ?? trade.size);
+    const exitOrderQuantity = Number.isFinite(remainingOrderQuantity) && remainingOrderQuantity > 0
+      ? remainingOrderQuantity
+      : (Number.isFinite(entryPrice) && entryPrice > 0 ? sizeUsd / entryPrice : null);
+
+    return {
+      tradeId: trade.orderId || trade.id,
+      entryTime: trade.entryTime ? new Date(trade.entryTime).toISOString() : '',
+      exitTime: new Date(exitTimestamp).toISOString(),
+      status: 'refused_at_window_end',
+      exitReason: 'BACKTEST_END_CLOSE',
+      direction: null,
+      directionIntegrityRefusal: true,
+      refusalCode: 'active_trade_direction_unknown',
+      entryPrice,
+      exitPrice: lastPrice,
+      size: sizeUsd,
+      entryOrderQuantity: trade.entryOrderQuantity,
+      entryOrderQuantityUnit: trade.entryOrderQuantityUnit,
+      remainingOrderQuantityBeforeExit: trade.remainingOrderQuantity,
+      remainingOrderQuantityUnit: trade.remainingOrderQuantityUnit,
+      exitOrderQuantity,
+      exitOrderQuantityUnit: trade.remainingOrderQuantityUnit || trade.entryOrderQuantityUnit,
+      quantityUnit: trade.remainingOrderQuantityUnit || trade.entryOrderQuantityUnit,
+      strategyName: trade.entryStrategy || trade.strategy,
+      confidence: trade.confidence,
+      maxFavorableExcursionPercent: trade.maxFavorableExcursionPercent ?? trade.maxProfitPercent ?? null,
+      maxAdverseExcursionPercent: trade.maxAdverseExcursionPercent ?? null,
+      symbol: trade.symbol,
+      brokerId: trade.brokerId,
+      accountId: trade.accountId,
+      accountIdSource: trade.accountIdSource,
+      assetClass: trade.assetClass,
+      executionMode: trade.executionMode,
+      timeframe: trade.timeframe,
+      scopeKey: trade.scopeKey,
+      scopeKeyVersion: trade.scopeKeyVersion,
+    };
+  }
+
   /**
    * BACKTEST MODE: Load historical data and run simulation
    * Ported from Change 572 - loads Polygon historical data and feeds through trading logic
@@ -228,10 +276,18 @@ class BacktestRunner {
         const lastPrice = lastCandle.close ?? lastCandle.c;
         const exitTimestamp = lastCandle.timestamp ?? lastCandle.t ?? lastCandle.time ?? Date.now();
         for (const trade of activeTrades) {
-          const direction = trade.direction === 'short' || trade.action === 'SELL_SHORT' ? 'SHORT' : 'LONG';
-          console.log(`\n⚠️ BACKTEST_END_CLOSE: Force-closing ${direction} trade ${trade.orderId || trade.id} at $${lastPrice.toFixed(2)}`);
+          const tradeId = trade.orderId || trade.id;
+          const tradeDirection = this._activeTradeDirectionForWindowEnd(trade);
+          if (!tradeDirection) {
+            console.error(`[BacktestRunner] BACKTEST_END_CLOSE refused for trade ${tradeId || '<unknown>'}: active_trade_direction_unknown`);
+            windowEndPositions.push(this._windowEndDirectionRefusal(trade, lastPrice, exitTimestamp));
+            continue;
+          }
+
+          const direction = tradeDirection.toUpperCase();
+          console.log(`\nBACKTEST_END_CLOSE: Force-closing ${direction} trade ${tradeId} at $${lastPrice.toFixed(2)}`);
           try {
-            const closed = await stateManager.closePosition(lastPrice, false, null, { tradeId: trade.orderId || trade.id, reason: 'BACKTEST_END_CLOSE' });
+            const closed = await stateManager.closePosition(lastPrice, false, null, { tradeId, reason: 'BACKTEST_END_CLOSE' });
             if (closed?.success) {
               const entryPrice = Number(trade.entryPrice ?? trade.price);
               const remainingOrderQuantity = Number(trade.remainingOrderQuantity);
@@ -240,12 +296,12 @@ class BacktestRunner {
                 ? remainingOrderQuantity
                 : (Number.isFinite(entryPrice) && entryPrice > 0 ? sizeUsd / entryPrice : null);
               windowEndPositions.push({
-                tradeId: trade.orderId || trade.id,
+                tradeId,
                 entryTime: trade.entryTime ? new Date(trade.entryTime).toISOString() : '',
                 exitTime: new Date(exitTimestamp).toISOString(),
                 status: 'closed_at_window_end',
                 exitReason: 'BACKTEST_END_CLOSE',
-                direction: trade.direction === 'short' ? 'short' : 'long',
+                direction: tradeDirection,
                 entryPrice,
                 exitPrice: lastPrice,
                 size: sizeUsd,
