@@ -4573,6 +4573,71 @@ describe('OrderExecutor pause gate', () => {
     );
   });
 
+  test('entry notifications carry canonical direction and execution symbol', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+
+    const buyNotifyTrade = jest.fn(() => Promise.resolve());
+    const buyExecutor = makeExecutor(
+      { executionMode: 'live', assetClass: 'stocks' },
+      {
+        paperTrading: false,
+        backtestFast: false,
+        orderRouter: { sendOrder: jest.fn().mockResolvedValue({ orderId: 'LIVE_NOTIFY_BUY', price: 100 }) },
+        notifyTrade: buyNotifyTrade,
+        discordNotifier: { notifyTrade: jest.fn() },
+      }
+    );
+
+    await buyExecutor.executeTrade(
+      { action: 'BUY', confidence: 50 },
+      {},
+      100,
+      { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+      [],
+      null,
+      makeOrchResult(),
+      'TSLA'
+    );
+
+    expect(buyNotifyTrade).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'BUY',
+      direction: 'long',
+      asset: 'TSLA',
+    }));
+
+    const shortNotifyTrade = jest.fn(() => Promise.resolve());
+    const shortExecutor = makeExecutor(
+      { executionMode: 'live', assetClass: 'stocks' },
+      {
+        paperTrading: false,
+        backtestFast: false,
+        orderRouter: { sendOrder: jest.fn().mockResolvedValue({ orderId: 'LIVE_NOTIFY_SHORT', price: 100 }) },
+        notifyTrade: shortNotifyTrade,
+        discordNotifier: { notifyTrade: jest.fn() },
+      }
+    );
+
+    await shortExecutor.executeTrade(
+      { action: 'SELL_SHORT', confidence: 50 },
+      {},
+      100,
+      { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+      [],
+      null,
+      makeOrchResult(),
+      'TSLA'
+    );
+
+    expect(shortNotifyTrade).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'SELL_SHORT',
+      direction: 'short',
+      asset: 'TSLA',
+    }));
+  });
+
   test('accepted order quantity rejects broker amount that differs from planned quantity', () => {
     const executor = makeExecutor();
 

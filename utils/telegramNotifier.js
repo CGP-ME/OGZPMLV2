@@ -134,12 +134,16 @@ class TelegramNotifier {
   async notifyTrade(trade) {
     if (!this.isEnabled) return;
 
-    const emoji = trade.direction === 'BUY' ? '🟢' : '🔴';
-    const message = `${emoji} *${trade.direction} ${trade.asset || 'BTC'}*
-📊 Entry: $${trade.price?.toLocaleString()}
-📈 Size: ${(trade.size * 100).toFixed(2)}%
-🎯 Confidence: ${(trade.confidence * 100).toFixed(1)}%
-⏰ ${new Date().toLocaleTimeString()}`;
+    const direction = typeof trade.direction === 'string' ? trade.direction.trim().toLowerCase() : '';
+    const action = typeof trade.action === 'string' && trade.action.trim()
+      ? trade.action.trim().toUpperCase()
+      : (direction === 'long' ? 'BUY' : (direction === 'short' ? 'SELL_SHORT' : 'UNKNOWN'));
+    const asset = typeof trade.asset === 'string' && trade.asset.trim() ? trade.asset.trim() : 'UNKNOWN';
+    const message = `[TRADE] *${action} ${asset}*
+Entry: $${trade.price?.toLocaleString()}
+Size: ${(trade.size * 100).toFixed(2)}%
+Confidence: ${(trade.confidence * 100).toFixed(1)}%
+Time: ${new Date().toLocaleTimeString()}`;
 
     await this.sendMessage(message);
   }

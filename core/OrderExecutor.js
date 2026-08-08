@@ -3664,8 +3664,9 @@ class OrderExecutor {
           // Skip notifications during fast backtest
           if (!this.ctx.backtestFast) {
             this.ctx.notifyTrade({
-              direction: 'BUY',
-              asset: this.ctx.config.symbol || 'BTC',
+              action: 'BUY',
+              direction: 'long',
+              asset: symbol,
               price: price,
               size: adjustedPositionSize / stateAfter.balance,
               confidence: decision.confidence / 100
@@ -3886,8 +3887,9 @@ class OrderExecutor {
           // Notifications
           if (!this.ctx.backtestFast) {
             this.ctx.notifyTrade({
-              direction: 'SELL_SHORT',
-              asset: this.ctx.config.symbol || 'BTC',
+              action: 'SELL_SHORT',
+              direction: 'short',
+              asset: symbol,
               price: price,
               size: adjustedPositionSize / stateAfter.balance,
               confidence: decision.confidence / 100
