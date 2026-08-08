@@ -60,6 +60,52 @@ describe('PipelineSnapshot state source', () => {
     });
   });
 
+  test('projects active trades with unknown direction as coded refusal', () => {
+    jest.resetModules();
+
+    const missingDirectionTrade = {
+      orderId: 'SNAP_BAD_DIRECTION',
+      action: 'BUY',
+      entryPrice: 410.25,
+      entryTime: Date.now() - 60000,
+    };
+    const paddedDirectionTrade = {
+      ...missingDirectionTrade,
+      orderId: 'SNAP_PADDED_DIRECTION',
+      direction: ' long ',
+    };
+    const actionVocabDirectionTrade = {
+      ...missingDirectionTrade,
+      orderId: 'SNAP_ACTION_DIRECTION',
+      direction: 'BUY',
+    };
+    const activeTrades = [missingDirectionTrade, paddedDirectionTrade, actionVocabDirectionTrade];
+    const stateManager = {
+      get: jest.fn((key) => ({
+        position: 1000,
+        balance: 9000,
+        activeTrades: new Map(activeTrades.map((trade) => [trade.orderId, trade])),
+      }[key])),
+      getAllTrades: jest.fn(() => activeTrades),
+    };
+
+    jest.doMock('../core/StateManager', () => ({
+      getInstance: jest.fn(() => stateManager),
+    }));
+
+    const PipelineSnapshot = require('../core/PipelineSnapshot');
+    const snapshot = buildSnapshotInstance(PipelineSnapshot)._buildSnapshot();
+
+    expect(snapshot.activeTrades).toHaveLength(3);
+    for (const projectedTrade of snapshot.activeTrades) {
+      expect(projectedTrade).toEqual(expect.objectContaining({
+        direction: null,
+        directionIntegrityRefusal: true,
+        refusalCode: 'active_trade_direction_unknown',
+      }));
+    }
+  });
+
   test('keeps explicit bot.stateManager as the first state source', () => {
     jest.resetModules();
 

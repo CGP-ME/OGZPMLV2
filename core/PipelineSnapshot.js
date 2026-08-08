@@ -301,25 +301,31 @@ class PipelineSnapshot {
     try {
       const trades = this._getTrades(stateManager);
       if (Array.isArray(trades)) {
-        return trades.map(t => ({
-          orderId: t.orderId,
-          direction: t.direction || 'long',
-          entryPrice: t.entryPrice || t.price,
-          entryTime: t.entryTime,
-          holdMinutes: t.entryTime ? Math.round((Date.now() - t.entryTime) / 60000) : 0
-        }));
+        return trades.map(t => this._projectActiveTrade(t));
       }
       if (trades instanceof Map) {
-        return Array.from(trades.values()).map(t => ({
-          orderId: t.orderId,
-          direction: t.direction || 'long',
-          entryPrice: t.entryPrice || t.price,
-          entryTime: t.entryTime,
-          holdMinutes: t.entryTime ? Math.round((Date.now() - t.entryTime) / 60000) : 0
-        }));
+        return Array.from(trades.values()).map(t => this._projectActiveTrade(t));
       }
       return [];
     } catch(e) { return []; }
+  }
+
+  _activeTradeDirection(trade) {
+    const direction = typeof trade?.direction === 'string' ? trade.direction : '';
+    return direction === 'long' || direction === 'short' ? direction : null;
+  }
+
+  _projectActiveTrade(t) {
+    const direction = this._activeTradeDirection(t);
+    return {
+      orderId: t.orderId,
+      direction,
+      directionIntegrityRefusal: direction === null,
+      refusalCode: direction === null ? 'active_trade_direction_unknown' : null,
+      entryPrice: t.entryPrice || t.price,
+      entryTime: t.entryTime,
+      holdMinutes: t.entryTime ? Math.round((Date.now() - t.entryTime) / 60000) : 0
+    };
   }
 
   _getTradeStats(bot, stateManager) {
