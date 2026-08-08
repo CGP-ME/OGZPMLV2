@@ -172,6 +172,14 @@ function finiteNumberOrNull(v) {
   return null;
 }
 
+function exactTradeDirectionOrNull(...values) {
+  for (const value of values) {
+    const direction = typeof value === 'string' ? value : '';
+    if (direction === 'long' || direction === 'short') return direction;
+  }
+  return null;
+}
+
 function roundedNumberOrNull(v, digits = 2) {
   const n = finiteNumberOrNull(v);
   if (n == null) return null;
@@ -665,7 +673,9 @@ class TradeNarrator {
       const held = holdMs != null ? holdMs
                   : ctxRec && ctxRec.enteredAt ? (Date.now() - ctxRec.enteredAt)
                   : 0;
-      const dir = direction || (ctxRec && ctxRec.direction) || 'long';
+      const dir = exactTradeDirectionOrNull(direction, ctxRec && ctxRec.direction);
+      const directionIntegrityRefusal = dir === null;
+      const directionLabel = dir ? dir.toUpperCase() : 'UNTRUSTED';
       const numericPnl = finiteNumberOrNull(pnl);
       const numericPnlPercent = finiteNumberOrNull(pnlPercent);
       const outcome = closeOutcome(numericPnl, numericPnlPercent);
@@ -674,7 +684,7 @@ class TradeNarrator {
         const body = [
           `   tradeId:    ${tradeId || '—'}`,
           `   strategy:   ${strat}`,
-          `   direction:  ${String(dir).toUpperCase()}`,
+          `   direction:  ${directionLabel}`,
           `   entry ⇒ exit: ${fmtPrice(entry)} → ${fmtPrice(exitPrice)}`,
           `   P&L:        ${fmtUsd(numericPnl)}  (${fmtPct(numericPnlPercent, 2)})`,
           `   hold:       ${fmtMs(held)}`,
@@ -698,7 +708,9 @@ class TradeNarrator {
           event: 'closed',
           timestamp: Date.now(),
           strategy_label: label,
-          direction: String(dir).toLowerCase(),
+          direction: dir,
+          directionIntegrityRefusal,
+          refusalCode: directionIntegrityRefusal ? 'active_trade_direction_unknown' : null,
           result: outcome.result,
           pnl_pct: numericPnlPercent != null ? Number(numericPnlPercent.toFixed(2)) : null,
           pnl_usd: numericPnl != null ? Number(numericPnl.toFixed(2)) : null,
@@ -707,7 +719,7 @@ class TradeNarrator {
         };
         const line = renderUserLine(lineKey, {
           strategy_label: label,
-          direction: payload.direction.toUpperCase(),
+          direction: directionLabel,
           pnl_pct: fmtPct(payload.pnl_pct || 0, 2),
           pnl_usd: fmtUsd(payload.pnl_usd || 0),
           hold: fmtMs(held),

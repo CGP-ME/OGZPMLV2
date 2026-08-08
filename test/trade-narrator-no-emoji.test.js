@@ -137,6 +137,48 @@ describe('TradeNarrator dashboard prose', () => {
     expect(consoleLines.some((line) => line.includes('TRADE CLOSED (LOSS)'))).toBe(false);
   });
 
+  test('closed narrator refuses non-exact directions instead of defaulting long', () => {
+    const sends = [];
+    const ws = {
+      readyState: 1,
+      bufferedAmount: 0,
+      send: jest.fn((raw) => sends.push(JSON.parse(raw))),
+    };
+    const narrator = new TradeNarrator();
+    narrator.setWebSocketClient(ws);
+
+    [
+      { tradeId: 'missing-direction-close' },
+      { tradeId: 'action-direction-close', direction: 'BUY' },
+      { tradeId: 'padded-direction-close', direction: ' long ' },
+    ].forEach((badCase) => {
+      narrator.closed({
+        strategy: 'MADynamicSR',
+        entryPrice: 100,
+        exitPrice: 101,
+        pnl: 1,
+        pnlPercent: 1,
+        reason: 'manual',
+        holdMs: 1000,
+        ...badCase,
+      });
+    });
+
+    const closes = sends.filter((payload) => payload.type === 'narrator_event' && payload.event === 'closed');
+    expect(closes).toHaveLength(3);
+
+    for (const userClose of closes) {
+      expect(userClose).toEqual(expect.objectContaining({
+        direction: null,
+        directionIntegrityRefusal: true,
+        refusalCode: 'active_trade_direction_unknown',
+      }));
+      expect(userClose.text).toContain('UNTRUSTED');
+      expect(userClose.text).not.toContain('LONG');
+    }
+    expect(logSpy.mock.calls.map((call) => call.join(' ')).join('\n')).toContain('direction:  UNTRUSTED');
+  });
+
   test('does not claim pattern maturity without sample evidence', () => {
     const sends = [];
     const ws = {
