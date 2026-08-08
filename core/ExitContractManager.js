@@ -54,6 +54,36 @@ function positiveIntegerOrNull(value) {
   return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
 }
 
+function activeTradeDirection(trade) {
+  const direction = typeof trade?.direction === 'string' ? trade.direction.trim() : '';
+  return direction === 'long' || direction === 'short' ? direction : null;
+}
+
+function activeTradeDirectionRefusal(trade, caller) {
+  const tradeId = firstNonEmptyString(trade?.id, trade?.orderId) || '<unknown>';
+  const details = `[ExitContractManager] ${caller}: active trade ${tradeId} missing valid direction; refusing direction-dependent exit math`;
+  console.error(details);
+  return {
+    code: 'active_trade_direction_unknown',
+    tradeId,
+    symbol: firstNonEmptyString(trade?.symbol),
+    details,
+  };
+}
+
+function activeTradeDirectionRefusalExitResult(trade, caller) {
+  const refusal = activeTradeDirectionRefusal(trade, caller);
+  return {
+    shouldExit: false,
+    exitReason: null,
+    details: refusal.details,
+    directionIntegrityRefusal: true,
+    refusalCode: refusal.code,
+    tradeId: refusal.tradeId,
+    symbol: refusal.symbol,
+  };
+}
+
 function candleClose(candle) {
   return finiteOrNull(candle?.c ?? candle?.close ?? candle?.price);
 }
@@ -308,8 +338,12 @@ class ExitContractManager {
     }
 
     const entryPrice = trade.entryPrice;
+    const direction = activeTradeDirection(trade);
+    if (!direction) {
+      return activeTradeDirectionRefusalExitResult(trade, 'checkExitConditions');
+    }
     // PnL depends on direction: LONG = (exit-entry), SHORT = (entry-exit)
-    const isShort = trade.direction === 'short' || trade.action === 'SELL_SHORT';
+    const isShort = direction === 'short';
     const pnlPercent = isShort
       ? ((entryPrice - currentPrice) / entryPrice) * 100  // SHORT: profit when price drops
       : ((currentPrice - entryPrice) / entryPrice) * 100; // LONG: profit when price rises
@@ -415,7 +449,11 @@ class ExitContractManager {
           const price = finiteOrNull(context.currentPrice ?? indicators.price);
           const upper = finiteOrNull(trade.exitContract?.donchianChannelUpper);
           const lower = finiteOrNull(trade.exitContract?.donchianChannelLower);
-          const isShort = trade.direction === 'short' || trade.action === 'SELL_SHORT';
+          const direction = activeTradeDirection(trade);
+          if (!direction) {
+            return { triggered: false, reason: 'active_trade_direction_unknown', refused: true };
+          }
+          const isShort = direction === 'short';
           if (!isShort && price !== null && upper !== null && price <= upper) {
             return { triggered: true, reason: 'Donchian breakout closed back inside entry channel' };
           }
@@ -433,7 +471,11 @@ class ExitContractManager {
           const past = candleClose(candles[candles.length - 1 - lookback]);
           if (current === null || past === null || past <= 0) break;
           const trailingReturn = (current - past) / past;
-          const isShort = trade.direction === 'short' || trade.action === 'SELL_SHORT';
+          const direction = activeTradeDirection(trade);
+          if (!direction) {
+            return { triggered: false, reason: 'active_trade_direction_unknown', refused: true };
+          }
+          const isShort = direction === 'short';
           if (!isShort && trailingReturn <= 0) {
             return { triggered: true, reason: `TSM lookback return flipped non-positive: ${(trailingReturn * 100).toFixed(2)}%` };
           }
@@ -535,7 +577,11 @@ class ExitContractManager {
       return { shouldExit: false };
     }
 
-    const isShort = trade.direction === 'short' || trade.action === 'SELL_SHORT';
+    const direction = activeTradeDirection(trade);
+    if (!direction) {
+      return activeTradeDirectionRefusalExitResult(trade, '_checkChannelTrail');
+    }
+    const isShort = direction === 'short';
     const channelStop = isShort ? Math.max(...highs) : Math.min(...lows);
     const crossed = isShort ? price >= channelStop : price <= channelStop;
     if (!crossed) {
@@ -571,12 +617,17 @@ class ExitContractManager {
       return Number.isFinite(Number(trade.maxProfitPercent)) ? Number(trade.maxProfitPercent) : 0;
     }
 
-    const isShort = trade.direction === 'short' || trade.action === 'SELL_SHORT';
+    const previousMax = Number.isFinite(Number(trade.maxProfitPercent)) ? Number(trade.maxProfitPercent) : 0;
+    const direction = activeTradeDirection(trade);
+    if (!direction) {
+      activeTradeDirectionRefusal(trade, 'updateMaxProfit');
+      return previousMax;
+    }
+    const isShort = direction === 'short';
     const pnlPercent = isShort
       ? ((entryPrice - price) / entryPrice) * 100
       : ((price - entryPrice) / entryPrice) * 100;
 
-    const previousMax = Number.isFinite(Number(trade.maxProfitPercent)) ? Number(trade.maxProfitPercent) : 0;
     trade.maxProfitPercent = Math.max(previousMax, pnlPercent);
     trade.maxFavorableExcursionPercent = trade.maxProfitPercent;
 
@@ -612,7 +663,11 @@ class ExitContractManager {
       return { shouldExit: false };
     }
 
-    const isShort = trade.direction === 'short' || trade.action === 'SELL_SHORT';
+    const direction = activeTradeDirection(trade);
+    if (!direction) {
+      return activeTradeDirectionRefusalExitResult(trade, '_checkProfitStopState');
+    }
+    const isShort = direction === 'short';
     const crossedStop = isShort ? price >= stop : price <= stop;
     if (!crossedStop) {
       return { shouldExit: false };
@@ -678,7 +733,11 @@ class ExitContractManager {
 
     let trailDistance = (atr / currentPrice) * atrMultiplier;
 
-    const direction = trade.direction === 'short' || trade.action === 'SELL_SHORT' ? 'short' : 'long';
+    const direction = activeTradeDirection(trade);
+    if (!direction) {
+      activeTradeDirectionRefusal(trade, '_updateTrailingStopState');
+      return { updated: false, reason: 'active_trade_direction_unknown' };
+    }
     const trend = String(indicators.trend || context.trend || '').toLowerCase();
     const isBullTrend = trend === 'bullish' || trend === 'uptrend' || trend === 'trending_up' || trend === 'up';
     const isBearTrend = trend === 'bearish' || trend === 'downtrend' || trend === 'trending_down' || trend === 'down';
@@ -759,7 +818,12 @@ class ExitContractManager {
 
     const feeBufferPercent = ConfigLoader.BASE_CONFIG.exitLogic.trail.feeBufferPercent;
     const feeBuffer = Math.max(0, finiteOrNull(feeBufferPercent) ?? 0) / 100;
-    const isShort = trade.direction === 'short' || trade.action === 'SELL_SHORT';
+    const direction = activeTradeDirection(trade);
+    if (!direction) {
+      activeTradeDirectionRefusal(trade, '_updateBreakevenStopState');
+      return { updated: false, reason: 'active_trade_direction_unknown' };
+    }
+    const isShort = direction === 'short';
     const breakevenStop = isShort ? entryPrice * (1 - feeBuffer) : entryPrice * (1 + feeBuffer);
 
     if (isShort ? !(breakevenStop > currentPrice) : !(breakevenStop < currentPrice)) {

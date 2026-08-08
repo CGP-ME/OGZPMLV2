@@ -367,6 +367,31 @@ describe('ExitContractManager exit ownership contract', () => {
     expect(result.exitIntent).toBeUndefined();
   });
 
+  test('refuses direction-dependent exit math when active trade direction is missing', () => {
+    const manager = new ExitContractManager();
+    const now = Date.parse('2026-06-28T12:00:00.000Z');
+    const trade = profitTrade({
+      direction: undefined,
+      action: 'BUY',
+    });
+
+    const result = manager.checkExitConditions(trade, 110, {
+      currentTime: now,
+      accountBalance: 10000,
+      initialBalance: 10000,
+      intentId: 'intent-missing-direction',
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      shouldExit: false,
+      exitReason: null,
+      directionIntegrityRefusal: true,
+      refusalCode: 'active_trade_direction_unknown',
+      tradeId: 'PROFIT_1',
+    }));
+    expect(result.details).toContain('missing valid direction');
+  });
+
   test('uses global ATR trail multiplier when contract trailAtrMult is explicitly null', () => {
     const manager = new ExitContractManager();
     manager.trailConfig = {
