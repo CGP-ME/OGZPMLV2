@@ -44,6 +44,9 @@ function isClosedFill(payload) {
   if (fields.closed === true) return true;
   const remaining = firstFiniteNumber(fields.remainingOrderQuantity, fields.remainingQuantity, fields.remainingSize);
   if (remaining !== null) return remaining <= 0;
+  if (fields.operation === 'applyFill' && fields.success === true && tracePositionEffect(payload) === 'unknown_effect') {
+    return true;
+  }
   return tracePositionEffect(payload).startsWith('close_');
 }
 
@@ -54,7 +57,7 @@ function normalPriorityPositionNotification(payload) {
   const symbol = traceSymbol(payload);
   const effect = tracePositionEffect(payload);
 
-  if (fields.operation === 'openPosition' && effect.startsWith('open_')) {
+  if (fields.operation === 'openPosition' && (effect.startsWith('open_') || effect === 'unknown_effect')) {
     const size = firstFiniteNumber(fields.sizeUsd, fields.filledSizeUsd, fields.orderQuantity, fields.positionSize);
     const price = firstFiniteNumber(fields.price, fields.fillPrice, fields.entryPrice);
     return {
@@ -64,7 +67,11 @@ function normalPriorityPositionNotification(payload) {
     };
   }
 
-  if (fields.operation === 'applyFill' && effect.startsWith('close_') && isClosedFill(payload)) {
+  if (
+    fields.operation === 'applyFill'
+    && (effect.startsWith('close_') || effect === 'unknown_effect')
+    && isClosedFill(payload)
+  ) {
     const pnl = firstFiniteNumber(fields.pnlDollars, fields.pnl, fields.netRealizedResult, fields.netPnl);
     const reason = fields.exitReason || fields.reason || 'unknown';
     return {
