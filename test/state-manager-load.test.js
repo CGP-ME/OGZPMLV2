@@ -452,6 +452,15 @@ describe('StateManager load validation', () => {
 
     const saved = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
     expect(saved.activeTrades.map(([tradeId]) => tradeId)).toEqual(['GOOD_LONG']);
+    expect(saved.quarantinedTrades).toEqual([
+      expect.objectContaining({
+        tradeId: 'BAD_DIRECTION',
+        symbol: 'TSLA',
+        code: 'direction_integrity_exit_refusal',
+        status: 'quarantined',
+        source: 'StateManager.save',
+      }),
+    ]);
     expect(saved.symbolEntryHalts.TSLA).toEqual(expect.objectContaining({
       code: 'direction_integrity_exit_refusal',
       authority: 'financial_integrity',
@@ -541,7 +550,7 @@ describe('StateManager load validation', () => {
     expect(() => new StateManager()).toThrow(/BACKTEST_MODE=true requires explicit INITIAL_BALANCE/);
   });
 
-  test('refuses persisted active trades with positive USD exposure but zero broker quantity', () => {
+  test('quarantines persisted active trades with positive USD exposure but zero broker quantity', () => {
     fs.writeFileSync(stateFile, JSON.stringify({
       balance: 10000,
       totalBalance: 10000,
@@ -580,10 +589,25 @@ describe('StateManager load validation', () => {
 
     const { StateManager } = require('../core/StateManager');
 
-    expect(() => new StateManager()).toThrow('Active trade quantity invariant failed');
+    const manager = new StateManager();
+
+    expect(manager.get('activeTrades').has('SIM_ZERO_QTY')).toBe(false);
+    expect(manager.get('quarantinedTrades')).toEqual([
+      expect.objectContaining({
+        tradeId: 'SIM_ZERO_QTY',
+        symbol: 'TSLA',
+        code: 'direction_integrity_exit_refusal',
+        status: 'quarantined',
+        source: 'StateManager.load',
+        issues: expect.arrayContaining([
+          expect.stringContaining('invalid remainingOrderQuantity=0'),
+        ]),
+      }),
+    ]);
+    expect(manager.getSymbolHaltCode('TSLA')).toBe('direction_integrity_exit_refusal');
   });
 
-  test('refuses persisted activeTrades with unsupported container shape', () => {
+  test('quarantines persisted activeTrades with unsupported record shape', () => {
     fs.writeFileSync(stateFile, JSON.stringify({
       balance: 10000,
       totalBalance: 10000,
@@ -612,18 +636,34 @@ describe('StateManager load validation', () => {
 
     const { StateManager } = require('../core/StateManager');
 
-    expect(() => new StateManager()).toThrow('activeTrades container invariant failed');
+    const manager = new StateManager();
+
+    expect(manager.get('activeTrades').has('BAD_CONTAINER_TRADE')).toBe(false);
+    expect(manager.get('quarantinedTrades')).toEqual([
+      expect.objectContaining({
+        tradeId: 'BAD_CONTAINER_TRADE',
+        symbol: 'TSLA',
+        code: 'direction_integrity_exit_refusal',
+        status: 'quarantined',
+        source: 'StateManager.load',
+        issues: expect.arrayContaining([
+          expect.stringContaining('missing direction'),
+        ]),
+      }),
+    ]);
+    expect(manager.getSymbolHaltCode('TSLA')).toBe('direction_integrity_exit_refusal');
   });
 
-  test('refuses persisted active trades with malformed immutable identity', () => {
+  test('quarantines persisted active trades with malformed immutable identity while clean trades boot', () => {
     fs.writeFileSync(stateFile, JSON.stringify({
       balance: 10000,
       totalBalance: 10000,
       position: 500,
       inPosition: 500,
-      activeTrades: [[
-        'BAD_IDENTITY_1',
-        {
+      activeTrades: [
+        [
+          'BAD_IDENTITY_1',
+          {
           id: 'BAD_IDENTITY_1',
           orderId: 'BAD_IDENTITY_1',
           action: 'BUY',
@@ -645,16 +685,60 @@ describe('StateManager load validation', () => {
           remainingOrderQuantity: 5,
           remainingOrderQuantityUnit: 'shares',
           entryStrategy: 'LoadIdentityStrategy',
-        },
-      ]],
-      lastPrices: { TSLA: 100 },
+          },
+        ],
+        [
+          'CLEAN_IDENTITY_1',
+          {
+            id: 'CLEAN_IDENTITY_1',
+            orderId: 'CLEAN_IDENTITY_1',
+            action: 'BUY',
+            direction: 'long',
+            status: 'open',
+            symbol: 'MSFT',
+            brokerId: 'alpaca',
+            accountId: 'acct-main',
+            accountIdSource: 'config',
+            assetClass: 'stocks',
+            executionMode: 'paper',
+            timeframe: '15m',
+            scopeKey: 'paper:alpaca:acct-main:stocks:MSFT:15m',
+            sizeUsd: 300,
+            size: 300,
+            entryPrice: 100,
+            entryOrderQuantity: 3,
+            entryOrderQuantityUnit: 'shares',
+            remainingOrderQuantity: 3,
+            remainingOrderQuantityUnit: 'shares',
+            entryStrategy: 'LoadIdentityStrategy',
+          },
+        ],
+      ],
+      lastPrices: { TSLA: 100, MSFT: 110 },
       isTrading: false,
       recoveryMode: false,
     }), 'utf8');
 
     const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
 
-    expect(() => new StateManager()).toThrow(/Active trade identity invariant failed: BAD_IDENTITY_1: invalid direction= short .*Reconcile or quarantine state\.json manually/);
+    expect(manager.get('activeTrades').has('BAD_IDENTITY_1')).toBe(false);
+    expect(manager.get('activeTrades').has('CLEAN_IDENTITY_1')).toBe(true);
+    expect(manager.getSymbolHaltCode('TSLA')).toBe('direction_integrity_exit_refusal');
+    expect(manager.getSymbolHaltCode('MSFT')).toBeNull();
+    expect(manager.get('quarantinedTrades')).toEqual([
+      expect.objectContaining({
+        tradeId: 'BAD_IDENTITY_1',
+        symbol: 'TSLA',
+        code: 'direction_integrity_exit_refusal',
+        status: 'quarantined',
+        source: 'StateManager.load',
+        issues: expect.arrayContaining([
+          expect.stringContaining('invalid direction= short '),
+        ]),
+      }),
+    ]);
+    expect(manager.getEquity(110)).toBe(10000 + 300 * 0.1);
   });
 
   test('loads legacy active trades with explicit unknown lifecycle state', () => {
@@ -996,12 +1080,29 @@ describe('StateManager load validation', () => {
 
     const trade = manager.state.activeTrades.get('BAD_DIRECTION_EXIT');
     trade.direction = 'BUY';
-    expect(() => manager.getEquity(110)).toThrow(/missing valid direction/);
-    trade.direction = ' long ';
-    expect(() => manager.getEquity(110)).toThrow(/missing valid direction/);
-    delete trade.direction;
+    const equity = manager.getEquity(110);
 
-    expect(() => manager.getEquity(110)).toThrow(/missing valid direction/);
+    expect(equity).toBe(manager.get('initialBalance') + manager.get('realizedPnL'));
+    expect(manager.get('activeTrades').has('BAD_DIRECTION_EXIT')).toBe(false);
+    expect(manager.get('quarantinedTrades')).toEqual([
+      expect.objectContaining({
+        tradeId: 'BAD_DIRECTION_EXIT',
+        symbol: 'TSLA',
+        code: 'direction_integrity_exit_refusal',
+        status: 'quarantined',
+        source: 'StateManager.getEquity',
+      }),
+    ]);
+    expect(manager.get('equityIntegrity')).toEqual(expect.objectContaining({
+      status: 'untrusted',
+      code: 'direction_integrity_exit_refusal',
+      reason: 'active_trade_direction_unknown',
+      excludedTrades: [expect.objectContaining({
+        tradeId: 'BAD_DIRECTION_EXIT',
+        symbol: 'TSLA',
+      })],
+    }));
+    expect(manager.getSymbolHaltCode('TSLA')).toBe('direction_integrity_exit_refusal');
 
     const closed = await manager.closePosition(110, false, null, {
       tradeId: 'BAD_DIRECTION_EXIT',
@@ -1009,10 +1110,9 @@ describe('StateManager load validation', () => {
     });
     expect(closed).toEqual(expect.objectContaining({
       success: false,
-      code: 'active_trade_direction_unknown',
-      tradeId: 'BAD_DIRECTION_EXIT',
+      error: 'No position to close',
     }));
-    expect(manager.get('activeTrades').has('BAD_DIRECTION_EXIT')).toBe(true);
+    expect(manager.get('activeTrades').has('BAD_DIRECTION_EXIT')).toBe(false);
 
     const reduced = await manager.reducePosition('BAD_DIRECTION_EXIT', 0.4, 110, {
       orderId: 'BAD_DIRECTION_EXIT',
@@ -1021,10 +1121,95 @@ describe('StateManager load validation', () => {
     });
     expect(reduced).toEqual(expect.objectContaining({
       success: false,
-      code: 'active_trade_direction_unknown',
-      tradeId: 'BAD_DIRECTION_EXIT',
+      error: 'Trade BAD_DIRECTION_EXIT not found',
     }));
-    expect(manager.get('activeTrades').get('BAD_DIRECTION_EXIT').sizeUsd).toBe(500);
+    expect(manager.get('quarantinedTrades')).toHaveLength(1);
+  });
+
+  test('getEquity marks missing initialBalance untrusted instead of throwing through callers', () => {
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+    manager.state.initialBalance = null;
+    manager.state.balance = 7500;
+    manager.state.totalBalance = 7600;
+    manager.state.realizedPnL = -25;
+
+    expect(() => manager.getEquity(100)).not.toThrow();
+    expect(manager.getEquity(100)).toBe(7500);
+    expect(manager.get('equityIntegrity')).toEqual(expect.objectContaining({
+      status: 'untrusted',
+      code: 'equity_initial_balance_missing',
+      excludedTrades: [],
+      issues: [expect.objectContaining({
+        code: 'equity_initial_balance_missing',
+        fallbackEquity: 7500,
+      })],
+    }));
+  });
+
+  test('close math quarantines corrupt sibling active trade instead of throwing exposure invariant', async () => {
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    const openedClean = await manager.openPosition(500, 100, {
+      orderId: 'CLOSE_CLEAN_WITH_CORRUPT_SIBLING',
+      action: 'BUY',
+      direction: 'long',
+      entryStrategy: 'LoadTestStrategy',
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+      exitContract,
+      entryOrderQuantity: 5,
+      entryOrderQuantityUnit: 'shares',
+      remainingOrderQuantity: 5,
+      remainingOrderQuantityUnit: 'shares',
+    });
+    expect(openedClean.success).toBe(true);
+
+    const openedCorrupt = await manager.openPosition(300, 50, {
+      orderId: 'CORRUPT_SIBLING_EXPOSURE',
+      action: 'BUY',
+      direction: 'long',
+      entryStrategy: 'LoadTestStrategy',
+      symbol: 'MSFT',
+      brokerId: 'alpaca',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+      exitContract,
+      entryOrderQuantity: 6,
+      entryOrderQuantityUnit: 'shares',
+      remainingOrderQuantity: 6,
+      remainingOrderQuantityUnit: 'shares',
+    });
+    expect(openedCorrupt.success).toBe(true);
+    manager.state.activeTrades.get('CORRUPT_SIBLING_EXPOSURE').direction = 'BUY';
+
+    await expect(manager.closePosition(110, false, null, {
+      tradeId: 'CLOSE_CLEAN_WITH_CORRUPT_SIBLING',
+      orderId: 'CLOSE_CLEAN_WITH_CORRUPT_SIBLING',
+      orderQuantity: 5,
+      quantityUnit: 'shares',
+      exitReason: 'clean_close_with_corrupt_sibling',
+    })).resolves.toEqual(expect.objectContaining({ success: true }));
+
+    expect(manager.get('activeTrades').size).toBe(0);
+    expect(manager.get('position')).toBe(0);
+    expect(manager.get('inPosition')).toBe(0);
+    expect(manager.get('quarantinedTrades')).toEqual([
+      expect.objectContaining({
+        tradeId: 'CORRUPT_SIBLING_EXPOSURE',
+        symbol: 'MSFT',
+        code: 'direction_integrity_exit_refusal',
+        status: 'quarantined',
+        source: 'StateManager._getActiveTradeExposureUsd',
+      }),
+    ]);
+    expect(manager.getSymbolHaltCode('MSFT')).toBe('direction_integrity_exit_refusal');
+    expect(manager.getSymbolHaltCode('TSLA')).toBeNull();
   });
 
   test('failed partial reduce does not shrink active trade before locked state update succeeds', async () => {
@@ -1180,7 +1365,7 @@ describe('StateManager load validation', () => {
     expect(saved.activeTrades).toEqual([]);
   });
 
-  test('load refuses source-less scalar exposure when active trades are empty', () => {
+  test('load quarantines source-less scalar exposure when active trades are empty', () => {
     fs.writeFileSync(stateFile, JSON.stringify({
       balance: 10000,
       totalBalance: 10000,
@@ -1198,7 +1383,24 @@ describe('StateManager load validation', () => {
     }), 'utf8');
 
     const { StateManager } = require('../core/StateManager');
-    expect(() => new StateManager()).toThrow('Source-less position exposure');
+    const manager = new StateManager();
+
+    expect(manager.get('activeTrades').size).toBe(0);
+    expect(manager.get('position')).toBe(0);
+    expect(manager.get('inPosition')).toBe(0);
+    expect(manager.get('positionCount')).toBe(0);
+    expect(manager.get('quarantinedTrades')).toEqual([
+      expect.objectContaining({
+        tradeId: '<source_less_position>',
+        symbol: null,
+        code: 'direction_integrity_exit_refusal',
+        status: 'quarantined',
+        source: 'StateManager.load',
+        issues: expect.arrayContaining([
+          expect.stringContaining('Source-less position exposure quarantined'),
+        ]),
+      }),
+    ]);
   });
 
   test('load migrates legacy TTP flatness pause to non-blocking quarantine when flat', () => {

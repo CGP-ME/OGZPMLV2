@@ -81,6 +81,7 @@ const FeeModel = require('./FeeModel');
 const { assertExplicitExitOwnership } = require('./dto/ExitContractOwnership');
 const { freezePolicy } = require('./dto/FrozenExitPolicy');
 const { positionEffectFromAction, exitPositionEffectForDirection } = require('./PositionEffect');
+const { emitTrace } = require('./TraceSpine');
 // Cache singleton at module load — narrator.enabled is sealed from env vars.
 // Both hook sites (openPosition / closePosition) check cached narrator.enabled
 // first; try frame only entered when enabled (C1 zero-cost when OFF).
@@ -504,6 +505,7 @@ class StateManager {
       // activeTrades Map persists across restarts via save()/load()
       // ─────────────────────────────────────────────────────────────────────
       activeTrades: new Map(),  // orderId → { size, price, entryTime, symbol, ... }
+      quarantinedTrades: [],
       symbolEntryHalts: {},     // canonical symbol -> { reason, haltedAt }
       symbolLossStreaks: {},    // canonical symbol -> { consecutiveLosses, lastClosedAt, lastPnl }
       ttpCutoffQuarantine: null,
@@ -524,6 +526,7 @@ class StateManager {
       // ─────────────────────────────────────────────────────────────────────
       realizedPnL: 0,           // Cumulative closed trade P&L
       unrealizedPnL: 0,         // Current open position P&L (updated externally)
+      equityIntegrity: { status: 'trusted', excludedTrades: [] },
       totalPnL: 0,              // realizedPnL + unrealizedPnL
       closedTrades: [],         // Append-only log of full-close records (for win-rate math)
       reconciledTrades: [],     // Broker/local state reconciliations that are not verified fills
@@ -605,6 +608,7 @@ class StateManager {
       initialBalance,
       inPosition: 0,
       activeTrades: new Map(),
+      quarantinedTrades: [],
       symbolEntryHalts: {},
       symbolLossStreaks: {},
       ttpCutoffQuarantine: null,
@@ -614,6 +618,7 @@ class StateManager {
       dailyTradeCount: 0,
       realizedPnL: 0,
       unrealizedPnL: 0,
+      equityIntegrity: { status: 'trusted', excludedTrades: [] },
       totalPnL: 0,
       closedTrades: [],
       isTrading: false,
@@ -650,14 +655,33 @@ class StateManager {
    * Does NOT change get('balance') behavior
    */
   getEquity(currentPrice) {
-    // CRIT-08: Phantom $10K capital. Corrupt or missing state previously
-    // upgraded undefined initialBalance to $10K, so the bot believed the
-    // account was funded regardless of reality. Pre-money: fail loud.
-    if (!this.state.initialBalance) {
-      throw new Error('initialBalance not set in state');
+    // CRIT-08: Phantom $10K capital. Corrupt or missing state must never be
+    // upgraded to a default account size, and it must not kill the process.
+    const realizedPnL = finiteNumberOrNull(this.state.realizedPnL) ?? 0;
+    const rawInitialBalance = finiteNumberOrNull(this.state.initialBalance);
+    const baseEquityFallback = finiteNumberOrNull(this.state.balance)
+      ?? finiteNumberOrNull(this.state.totalBalance)
+      ?? realizedPnL;
+    const initialBalanceIssue = rawInitialBalance === null || rawInitialBalance <= 0
+      ? {
+          code: 'equity_initial_balance_missing',
+          reason: `initialBalance not set in state; using finite state balance fallback ${baseEquityFallback}`,
+          fallbackEquity: baseEquityFallback,
+        }
+      : null;
+    if (initialBalanceIssue) {
+      emitTrace({}, 'EQUITY_INTEGRITY_UNTRUSTED', {
+        code: initialBalanceIssue.code,
+        reason: initialBalanceIssue.reason,
+        fallbackEquity: initialBalanceIssue.fallbackEquity,
+        manualReconciliationRequired: true,
+        operatorActionRequired: true,
+      });
+      console.error(`[StateManager.getEquity] ${initialBalanceIssue.reason}`);
     }
-    const initialBalance = this.state.initialBalance;
-    const realizedPnL = this.state.realizedPnL || 0;
+    const initialBalance = initialBalanceIssue
+      ? baseEquityFallback - realizedPnL
+      : rawInitialBalance;
 
     // Compute unrealizedPnL live from activeTrades.
     // FIX 2026-05-05 (Mercury cross-asset attack): each trade priced at its
@@ -667,13 +691,26 @@ class StateManager {
     // equals the global price. Cross-asset (SessionRouter) modes no
     // longer apply BTC price to TSLA trades.
     let unrealizedPnL = 0;
+    const excludedTrades = [];
     if (this.state.activeTrades && this.state.activeTrades.size > 0) {
-      for (const trade of this.state.activeTrades.values()) {
+      for (const [tradeId, trade] of Array.from(this.state.activeTrades.entries())) {
         const entry = trade.entryPrice;
         const size = trade.sizeUsd || trade.size;
         const direction = strictActiveTradeDirection(trade);
         if (!direction) {
-          throw new Error(`[StateManager.getEquity] active trade ${trade.orderId || trade.id || '<unknown>'} missing valid direction; refusing unrealized P&L math`);
+          const record = this._quarantineActiveTrade(
+            tradeId,
+            trade,
+            [`${trade?.orderId || trade?.id || tradeId || '<unknown>'}: missing valid direction`],
+            'StateManager.getEquity'
+          );
+          excludedTrades.push({
+            tradeId: record.tradeId,
+            symbol: record.symbol,
+            code: record.code,
+            issues: record.issues,
+          });
+          continue;
         }
         const tradePrice = (trade.symbol && this.state.lastPrices && this.state.lastPrices.get(trade.symbol))
           || currentPrice
@@ -685,6 +722,23 @@ class StateManager {
           unrealizedPnL += size * ((entry - tradePrice) / entry);
         }
       }
+    }
+
+    if (excludedTrades.length > 0 || initialBalanceIssue) {
+      this._reconcileOpenPositionFromActiveTrades();
+      this.state.equityIntegrity = {
+        status: 'untrusted',
+        code: excludedTrades.length > 0 ? DIRECTION_INTEGRITY_EXIT_REFUSAL : initialBalanceIssue.code,
+        excludedTrades,
+        reason: excludedTrades.length > 0 ? 'active_trade_direction_unknown' : initialBalanceIssue.reason,
+        issues: [
+          ...(initialBalanceIssue ? [initialBalanceIssue] : []),
+        ],
+        updatedAt: new Date().toISOString(),
+      };
+      this.save();
+    } else {
+      this.state.equityIntegrity = { status: 'trusted', excludedTrades: [] };
     }
 
     return initialBalance + realizedPnL + unrealizedPnL;
@@ -714,14 +768,39 @@ class StateManager {
       return 0;
     }
     if (!(activeTrades instanceof Map)) {
-      throw new Error(`[StateManager] activeTrades exposure invariant failed: expected Map, got ${Object.prototype.toString.call(activeTrades)}`);
+      const reason = `[StateManager] activeTrades exposure invariant failed: expected Map, got ${Object.prototype.toString.call(activeTrades)}`;
+      console.error(reason);
+      emitTrace({}, 'DIRECTION_INTEGRITY_ACTIVE_TRADES_CONTAINER_REFUSAL', {
+        code: DIRECTION_INTEGRITY_EXIT_REFUSAL,
+        reason,
+        manualReconciliationRequired: true,
+        operatorActionRequired: true,
+      });
+      return 0;
     }
 
     let exposureUsd = 0;
-    for (const [tradeId, trade] of activeTrades.entries()) {
+    for (const [tradeId, trade] of Array.from(activeTrades.entries())) {
       const sizeUsd = Number(trade?.sizeUsd ?? trade?.size);
       if (!Number.isFinite(sizeUsd) || sizeUsd < 0) {
-        throw new Error(`[StateManager] activeTrades exposure invariant failed for ${tradeId}: invalid sizeUsd=${trade?.sizeUsd} size=${trade?.size}`);
+        this._quarantineActiveTrade(
+          tradeId,
+          trade,
+          [`${trade?.orderId || trade?.id || tradeId || '<unknown>'}: invalid sizeUsd=${trade?.sizeUsd} size=${trade?.size}`],
+          'StateManager._getActiveTradeExposureUsd'
+        );
+        activeTrades.delete(tradeId);
+        continue;
+      }
+      if (!strictActiveTradeDirection(trade)) {
+        this._quarantineActiveTrade(
+          tradeId,
+          trade,
+          [`${trade?.orderId || trade?.id || tradeId || '<unknown>'}: invalid direction=${trade?.direction}`],
+          'StateManager._getActiveTradeExposureUsd'
+        );
+        activeTrades.delete(tradeId);
+        continue;
       }
       exposureUsd += Math.abs(sizeUsd);
     }
@@ -733,19 +812,42 @@ class StateManager {
       return 0;
     }
     if (!(activeTrades instanceof Map)) {
-      throw new Error(`[StateManager] activeTrades signed exposure invariant failed: expected Map, got ${Object.prototype.toString.call(activeTrades)}`);
+      const reason = `[StateManager] activeTrades signed exposure invariant failed: expected Map, got ${Object.prototype.toString.call(activeTrades)}`;
+      console.error(reason);
+      emitTrace({}, 'DIRECTION_INTEGRITY_ACTIVE_TRADES_CONTAINER_REFUSAL', {
+        code: DIRECTION_INTEGRITY_EXIT_REFUSAL,
+        reason,
+        manualReconciliationRequired: true,
+        operatorActionRequired: true,
+      });
+      return 0;
     }
 
     let signedExposureUsd = 0;
-    for (const [tradeId, trade] of activeTrades.entries()) {
+    for (const [tradeId, trade] of Array.from(activeTrades.entries())) {
       const sizeUsd = Number(trade?.sizeUsd ?? trade?.size);
       if (!Number.isFinite(sizeUsd) || sizeUsd < 0) {
-        throw new Error(`[StateManager] activeTrades signed exposure invariant failed for ${tradeId}: invalid sizeUsd=${trade?.sizeUsd} size=${trade?.size}`);
+        this._quarantineActiveTrade(
+          tradeId,
+          trade,
+          [`${trade?.orderId || trade?.id || tradeId || '<unknown>'}: invalid sizeUsd=${trade?.sizeUsd} size=${trade?.size}`],
+          'StateManager._getActiveTradeSignedExposureUsd'
+        );
+        activeTrades.delete(tradeId);
+        continue;
       }
-      if (trade?.direction !== 'long' && trade?.direction !== 'short') {
-        throw new Error(`[StateManager] activeTrades signed exposure invariant failed for ${tradeId}: invalid direction=${trade?.direction}`);
+      const direction = strictActiveTradeDirection(trade);
+      if (!direction) {
+        this._quarantineActiveTrade(
+          tradeId,
+          trade,
+          [`${trade?.orderId || trade?.id || tradeId || '<unknown>'}: invalid direction=${trade?.direction}`],
+          'StateManager._getActiveTradeSignedExposureUsd'
+        );
+        activeTrades.delete(tradeId);
+        continue;
       }
-      signedExposureUsd += trade.direction === 'short' ? -Math.abs(sizeUsd) : Math.abs(sizeUsd);
+      signedExposureUsd += direction === 'short' ? -Math.abs(sizeUsd) : Math.abs(sizeUsd);
     }
     return signedExposureUsd;
   }
@@ -1385,12 +1487,10 @@ class StateManager {
       }
 
       // Position scalar update (kept for compatibility)
+      const remainingExposureUsd = nextActiveTrades.size === 0 ? 0 : this._getActiveTradeExposureUsd(nextActiveTrades);
+      const remainingSignedExposureUsd = nextActiveTrades.size === 0 ? 0 : this._getActiveTradeSignedExposureUsd(nextActiveTrades);
       const noActiveTradesRemaining = nextActiveTrades.size === 0;
-      const remainingExposureUsd = noActiveTradesRemaining ? 0 : this._getActiveTradeExposureUsd(nextActiveTrades);
-      const calculatedPosition = isShort
-        ? Math.min(0, this.state.position + closeSize)
-        : Math.max(0, this.state.position - closeSize);
-      const finalPosition = noActiveTradesRemaining ? 0 : calculatedPosition;
+      const finalPosition = noActiveTradesRemaining ? 0 : remainingSignedExposureUsd;
 
       console.log('[EQUITY-DEBUG] CLOSE isShort=' + isShort + ' pnl=' + pnl.toFixed(2) + ' exitFee=' + exitFee.toFixed(4) + ' netResult=' + netRealizedResult.toFixed(2));
 
@@ -1497,9 +1597,9 @@ class StateManager {
 
       const nextActiveTrades = new Map(trades);
       nextActiveTrades.delete(tradeId);
+      const remainingExposureUsd = nextActiveTrades.size === 0 ? 0 : this._getActiveTradeExposureUsd(nextActiveTrades);
+      const remainingSignedExposureUsd = nextActiveTrades.size === 0 ? 0 : this._getActiveTradeSignedExposureUsd(nextActiveTrades);
       const noActiveTradesRemaining = nextActiveTrades.size === 0;
-      const remainingExposureUsd = noActiveTradesRemaining ? 0 : this._getActiveTradeExposureUsd(nextActiveTrades);
-      const remainingSignedExposureUsd = noActiveTradesRemaining ? 0 : this._getActiveTradeSignedExposureUsd(nextActiveTrades);
       const reconciledAt = Date.now();
       const reconciliation = {
         tradeId,
@@ -1636,13 +1736,13 @@ class StateManager {
       }
 
       // Update global state metrics
-      const positionDelta = isShort ? closeSize : -closeSize;
+      const remainingExposureUsd = nextActiveTrades.size === 0 ? 0 : this._getActiveTradeExposureUsd(nextActiveTrades);
+      const remainingSignedExposureUsd = nextActiveTrades.size === 0 ? 0 : this._getActiveTradeSignedExposureUsd(nextActiveTrades);
       const noActiveTradesRemaining = nextActiveTrades.size === 0;
-      const remainingExposureUsd = noActiveTradesRemaining ? 0 : this._getActiveTradeExposureUsd(nextActiveTrades);
       const updates = {
         activeTrades: nextActiveTrades,
-        position: noActiveTradesRemaining ? 0 : this.state.position + positionDelta,
-        positionCount: noActiveTradesRemaining ? 0 : this.state.positionCount,
+        position: noActiveTradesRemaining ? 0 : remainingSignedExposureUsd,
+        positionCount: nextActiveTrades.size,
         entryPrice: noActiveTradesRemaining ? 0 : this.state.entryPrice,
         entryTime: noActiveTradesRemaining ? null : this.state.entryTime,
         inPosition: remainingExposureUsd,
@@ -1790,30 +1890,148 @@ class StateManager {
     return issues;
   }
 
-  _activeTradeIdentityRefusalRecords() {
-    if (!this.state.activeTrades || !(this.state.activeTrades instanceof Map)) {
-      return [];
+  _normalizeQuarantinedTrades(value) {
+    return Array.isArray(value)
+      ? value.filter((record) => record && typeof record === 'object' && !Array.isArray(record))
+      : [];
+  }
+
+  _recordDirectionIntegritySymbolHalt(symbol, reason, metadata = {}) {
+    if (typeof symbol !== 'string' || !symbol.trim()) {
+      return { halted: false, standing: false, reason: 'missing_symbol' };
     }
 
-    const records = [];
-    for (const [tradeId, trade] of this.state.activeTrades.entries()) {
-      const issues = this._activeTradeIdentityIssuesForTrade(trade, tradeId);
-      if (issues.length === 0) continue;
-      let symbol = null;
-      if (trade && typeof trade === 'object' && typeof trade.symbol === 'string' && trade.symbol.trim()) {
-        try {
-          symbol = this.normalizeSymbol(trade.symbol, 'StateManager.save identity refusal');
-        } catch (_) {
-          symbol = trade.symbol.trim().toUpperCase();
-        }
-      }
-      records.push({
-        tradeId: trade?.orderId || trade?.id || tradeId,
-        symbol,
-        issues,
-      });
+    const normalized = this.normalizeSymbol(symbol, 'StateManager.directionIntegrityHalt');
+    const existingCode = this.getSymbolHaltCode(normalized);
+    if (existingCode === DIRECTION_INTEGRITY_EXIT_REFUSAL) {
+      console.debug(`[StateManager] direction integrity halt already standing for ${normalized}`);
+      return { halted: false, standing: true, symbol: normalized, code: DIRECTION_INTEGRITY_EXIT_REFUSAL };
     }
-    return records;
+
+    const now = Date.now();
+    this.state.symbolEntryHalts = this._normalizeSymbolEntryHaltsCollection({
+      ...(this.state.symbolEntryHalts || {}),
+      [normalized]: {
+        reason,
+        code: DIRECTION_INTEGRITY_EXIT_REFUSAL,
+        haltedAt: now,
+        expiresAt: null,
+        authority: 'financial_integrity',
+        financialIntegrityCritical: true,
+        entryBlockScope: 'symbol',
+        operatorActionRequired: true,
+        manualReconciliationRequired: true,
+        ...metadata,
+      },
+    }, 'StateManager.directionIntegrityHalt');
+
+    emitTrace({}, 'DIRECTION_INTEGRITY_SYMBOL_HALT', {
+      symbol: normalized,
+      code: DIRECTION_INTEGRITY_EXIT_REFUSAL,
+      reason,
+      tradeId: metadata.tradeId || null,
+      source: metadata.source || null,
+      manualReconciliationRequired: true,
+      operatorActionRequired: true,
+    });
+    console.error(`[StateManager] SYMBOL ENTRY HALT: ${normalized} - ${reason}`);
+    return { halted: true, standing: false, symbol: normalized, code: DIRECTION_INTEGRITY_EXIT_REFUSAL };
+  }
+
+  _activeTradeExposureSummary(activeTrades = this.state.activeTrades) {
+    let exposureUsd = 0;
+    let signedExposureUsd = 0;
+    let count = 0;
+    if (!(activeTrades instanceof Map)) {
+      return { exposureUsd, signedExposureUsd, count };
+    }
+
+    for (const trade of activeTrades.values()) {
+      const direction = strictActiveTradeDirection(trade);
+      const sizeUsd = Number(trade?.sizeUsd ?? trade?.size);
+      if (!direction || !Number.isFinite(sizeUsd) || sizeUsd < 0) {
+        continue;
+      }
+      count += 1;
+      exposureUsd += Math.abs(sizeUsd);
+      signedExposureUsd += direction === 'short' ? -Math.abs(sizeUsd) : Math.abs(sizeUsd);
+    }
+
+    return { exposureUsd, signedExposureUsd, count };
+  }
+
+  _reconcileOpenPositionFromActiveTrades() {
+    const summary = this._activeTradeExposureSummary();
+    this.state.inPosition = summary.exposureUsd;
+    this.state.position = summary.signedExposureUsd;
+    this.state.positionCount = summary.count;
+    if (summary.count === 0) {
+      this.state.entryPrice = 0;
+      this.state.entryTime = null;
+    }
+    return summary;
+  }
+
+  _quarantineActiveTrade(tradeId, trade, issues, source) {
+    const resolvedTradeId = trade?.orderId || trade?.id || tradeId || '<unknown>';
+    const quarantinedAt = new Date().toISOString();
+    let symbol = null;
+    if (trade && typeof trade === 'object' && typeof trade.symbol === 'string' && trade.symbol.trim()) {
+      try {
+        symbol = this.normalizeSymbol(trade.symbol, `${source} quarantine symbol`);
+      } catch (_) {
+        symbol = trade.symbol.trim().toUpperCase();
+      }
+    }
+
+    const normalizedIssues = Array.isArray(issues) && issues.length > 0
+      ? issues.map((issue) => String(issue))
+      : [`${resolvedTradeId}: active trade direction_integrity quarantine`];
+    const record = {
+      tradeId: resolvedTradeId,
+      symbol,
+      code: DIRECTION_INTEGRITY_EXIT_REFUSAL,
+      status: 'quarantined',
+      source,
+      quarantinedAt,
+      issues: normalizedIssues,
+      trade: clonePlain(trade),
+    };
+
+    const existingRecords = this._normalizeQuarantinedTrades(this.state.quarantinedTrades);
+    const duplicate = existingRecords.some((entry) => (
+      entry.tradeId === record.tradeId
+      && entry.code === record.code
+      && entry.source === record.source
+    ));
+    this.state.quarantinedTrades = duplicate ? existingRecords : [...existingRecords, record];
+    if (this.state.activeTrades instanceof Map) {
+      this.state.activeTrades.delete(tradeId);
+      if (resolvedTradeId !== tradeId) {
+        this.state.activeTrades.delete(resolvedTradeId);
+      }
+    }
+
+    const reason = `[${source}] quarantined active trade ${resolvedTradeId}: ${normalizedIssues.join('; ')}`;
+    const haltResult = this._recordDirectionIntegritySymbolHalt(symbol, reason, {
+      source,
+      tradeId: resolvedTradeId,
+      identityIssues: normalizedIssues,
+      quarantineStatus: 'quarantined',
+    });
+
+    emitTrace({}, 'DIRECTION_INTEGRITY_TRADE_QUARANTINED', {
+      symbol,
+      tradeId: resolvedTradeId,
+      source,
+      code: DIRECTION_INTEGRITY_EXIT_REFUSAL,
+      issues: normalizedIssues.join('; '),
+      haltStanding: haltResult.standing === true,
+      haltCreated: haltResult.halted === true,
+      manualReconciliationRequired: true,
+    });
+    console.error(reason);
+    return record;
   }
 
   _stateSnapshotForPersistence(state = this.state) {
@@ -1828,70 +2046,6 @@ class StateManager {
       stateToSave.lastPriceTimes = Object.fromEntries(state.lastPriceTimes);
     }
     return stateToSave;
-  }
-
-  _routeActiveTradeIdentitySaveRefusal(stateFile, identityRecords, identityIssues) {
-    const fs = require('fs');
-    const { writeJsonAtomic } = require('./AtomicWrite');
-    const now = Date.now();
-    const persistedState = fs.existsSync(stateFile)
-      ? JSON.parse(fs.readFileSync(stateFile, 'utf8'))
-      : null;
-
-    if (!persistedState || typeof persistedState !== 'object' || Array.isArray(persistedState)) {
-      console.error(`[StateManager.save] active trade identity refusal has no last-good state file to persist: ${identityIssues.join('; ')}`);
-      return { persisted: false, halted: 0, reason: 'missing_last_good_state' };
-    }
-
-    const nextHalts = { ...(persistedState.symbolEntryHalts || {}) };
-    let halted = 0;
-    for (const record of identityRecords) {
-      if (!record.symbol) continue;
-      const existingCode = this.getSymbolHaltCode(record.symbol);
-      const reason = `[StateManager.save] active trade identity refusal for ${record.symbol}: ${record.issues.join('; ')}`;
-      nextHalts[record.symbol] = {
-        ...(nextHalts[record.symbol] || {}),
-        reason,
-        code: DIRECTION_INTEGRITY_EXIT_REFUSAL,
-        haltedAt: now,
-        expiresAt: null,
-        authority: 'financial_integrity',
-        financialIntegrityCritical: true,
-        entryBlockScope: 'symbol',
-        operatorActionRequired: true,
-        tradeId: record.tradeId,
-        identityIssues: record.issues,
-      };
-      if (existingCode !== DIRECTION_INTEGRITY_EXIT_REFUSAL) {
-        halted += 1;
-        Promise.resolve(this.haltSymbol(record.symbol, reason, {
-          code: DIRECTION_INTEGRITY_EXIT_REFUSAL,
-          authority: 'financial_integrity',
-          financialIntegrityCritical: true,
-          entryBlockScope: 'symbol',
-          operatorActionRequired: true,
-          tradeId: record.tradeId,
-          identityIssues: record.issues,
-        })).catch((err) => {
-          console.error(`[StateManager.save] direction integrity halt dispatch failed for ${record.symbol}: ${err.message}`);
-        });
-      } else {
-        console.debug(`[StateManager.save] direction integrity halt already standing for ${record.symbol}`);
-      }
-    }
-
-    const normalizedHalts = this._normalizeSymbolEntryHaltsCollection(
-      nextHalts,
-      'StateManager.save directionIntegrity'
-    );
-    this.state.symbolEntryHalts = this._normalizeSymbolEntryHaltsCollection({
-      ...(this.state.symbolEntryHalts || {}),
-      ...normalizedHalts,
-    }, 'StateManager.save directionIntegrity memory');
-    persistedState.symbolEntryHalts = normalizedHalts;
-    writeJsonAtomic(stateFile, persistedState);
-    console.error(`[StateManager.save] active trade identity refusal persisted last-good state with ${halted} new symbol halt(s): ${identityIssues.join('; ')}`);
-    return { persisted: true, halted, reason: DIRECTION_INTEGRITY_EXIT_REFUSAL };
   }
 
   /**
@@ -3530,25 +3684,28 @@ class StateManager {
         fs.mkdirSync(dataDir, { recursive: true });
       }
 
-      const persistenceIdentityIssues = this._activeTradeIdentityIssues();
-      const persistenceQuantityIssues = this._activeTradeQuantityIssues();
-      if (persistenceIdentityIssues.length > 0) {
-        this._routeActiveTradeIdentitySaveRefusal(
-          stateFile,
-          this._activeTradeIdentityRefusalRecords(),
-          persistenceIdentityIssues
-        );
-        return;
+      const persistenceQuarantineCandidates = [];
+      if (this.state.activeTrades instanceof Map) {
+        for (const [tradeId, trade] of Array.from(this.state.activeTrades.entries())) {
+          const issues = [
+            ...this._activeTradeIdentityIssuesForTrade(trade, tradeId),
+            ...this._activeTradeQuantityIssuesForTrade(trade, tradeId),
+          ];
+          if (issues.length > 0) {
+            persistenceQuarantineCandidates.push({ tradeId, trade, issues });
+          }
+        }
       }
-      if (persistenceQuantityIssues.length > 0) {
-        const invariantIssues = [
-          ...persistenceQuantityIssues.map((issue) => `quantity:${issue}`),
-        ];
-        const invariantError = new Error(
-          `[StateManager.save] active trade invariant failed: ${invariantIssues.join('; ')}`
-        );
-        invariantError.activeTradeInvariantFailed = true;
-        throw invariantError;
+      if (persistenceQuarantineCandidates.length > 0) {
+        for (const candidate of persistenceQuarantineCandidates) {
+          this._quarantineActiveTrade(
+            candidate.tradeId,
+            candidate.trade,
+            candidate.issues,
+            'StateManager.save'
+          );
+        }
+        this._reconcileOpenPositionFromActiveTrades();
       }
 
       const stateToSave = this._stateSnapshotForPersistence();
@@ -3559,9 +3716,6 @@ class StateManager {
       console.log('[StateManager] State saved to disk');
     } catch (error) {
       console.error('[StateManager] Failed to save state:', error);
-      if (error?.activeTradeInvariantFailed) {
-        throw error;
-      }
     }
   }
 
@@ -3612,8 +3766,26 @@ class StateManager {
         // CRITICAL: Convert Array back to Map
         if (Array.isArray(savedState.activeTrades)) {
           savedState.activeTrades = new Map(savedState.activeTrades);
+        } else if (savedState.activeTrades && typeof savedState.activeTrades === 'object' && !Array.isArray(savedState.activeTrades)) {
+          savedState.activeTrades = new Map(Object.entries(savedState.activeTrades));
         } else if (!savedState.activeTrades) {
           savedState.activeTrades = new Map();
+        } else {
+          savedState.quarantinedTrades = [
+            ...this._normalizeQuarantinedTrades(savedState.quarantinedTrades),
+            {
+              tradeId: '<activeTrades_container>',
+              symbol: null,
+              code: DIRECTION_INTEGRITY_EXIT_REFUSAL,
+              status: 'quarantined',
+              source: 'StateManager.load',
+              quarantinedAt: new Date().toISOString(),
+              issues: [`activeTrades container invariant failed: ${Object.prototype.toString.call(savedState.activeTrades)}`],
+              trade: savedState.activeTrades,
+            },
+          ];
+          savedState.activeTrades = new Map();
+          correctedStateShape = true;
         }
         // Rehydrate lastPrices Map (same pattern as activeTrades)
         if (savedState.lastPrices && !(savedState.lastPrices instanceof Map)) {
@@ -3627,6 +3799,8 @@ class StateManager {
           savedState.lastPriceTimes = new Map();
         }
 
+        savedState.quarantinedTrades = this._normalizeQuarantinedTrades(savedState.quarantinedTrades);
+
         // Restore state
         this.state = { ...this.state, ...savedState };
         if (Object.prototype.hasOwnProperty.call(this.state, 'recoveryMode')) {
@@ -3635,9 +3809,24 @@ class StateManager {
           console.warn('[StateManager] Dropped persisted recoveryMode field; Trey drawdown law owns risk halt authority.');
         }
         if (!(this.state.activeTrades instanceof Map)) {
-          throw new Error(
-            `[StateManager.load] activeTrades container invariant failed: expected serialized array/Map, got ${Object.prototype.toString.call(this.state.activeTrades)}`
-          );
+          const invalidActiveTrades = this.state.activeTrades;
+          const reason = `[StateManager.load] activeTrades container invariant failed after restore: expected serialized array/Map, got ${Object.prototype.toString.call(invalidActiveTrades)}`;
+          this.state.quarantinedTrades = [
+            ...this._normalizeQuarantinedTrades(this.state.quarantinedTrades),
+            {
+              tradeId: '<activeTrades_container_post_restore>',
+              symbol: null,
+              code: DIRECTION_INTEGRITY_EXIT_REFUSAL,
+              status: 'quarantined',
+              source: 'StateManager.load',
+              quarantinedAt: new Date().toISOString(),
+              issues: [reason],
+              trade: clonePlain(invalidActiveTrades),
+            },
+          ];
+          this.state.activeTrades = new Map();
+          correctedStateShape = true;
+          console.error(reason);
         }
         this.state.activeTrades = new Map(
           Array.from(this.state.activeTrades.entries()).map(([tradeId, trade]) => [
@@ -3697,17 +3886,18 @@ class StateManager {
         // from current boot config: after symbol/broker switching, brokerId,
         // assetClass, executionMode, and timeframe may no longer match the
         // trade's true origin.
-        const invalidScopeTrades = [];
-        const invalidIdentityTrades = [];
+        const quarantineCandidates = [];
         let normalizedExisting = 0;
-        for (const trade of this.state.activeTrades.values()) {
+        for (const [mapTradeId, trade] of Array.from(this.state.activeTrades.entries())) {
           const tradeId = trade?.id || trade?.orderId || '<unknown>';
-          invalidIdentityTrades.push(...this._activeTradeIdentityIssuesForTrade(trade, tradeId));
+          const tradeIssues = [];
+          tradeIssues.push(...this._activeTradeIdentityIssuesForTrade(trade, tradeId));
           if (!trade || typeof trade !== 'object') {
+            quarantineCandidates.push({ tradeId: mapTradeId, trade, issues: tradeIssues });
             continue;
           }
           if (!trade.symbol) {
-            invalidScopeTrades.push(`${tradeId}:symbol`);
+            tradeIssues.push(`${tradeId}:symbol`);
           } else {
             const normalizedTradeSymbol = this.normalizeSymbol(String(trade.symbol), 'StateManager.load trade.symbol');
             if (trade.symbol !== normalizedTradeSymbol) {
@@ -3734,24 +3924,24 @@ class StateManager {
             trade.timeframe = scope.timeframe;
             trade.scopeKey = scope.key;
           } catch (err) {
-            invalidScopeTrades.push(`${tradeId}:${err.message}`);
+            tradeIssues.push(`${tradeId}:${err.message}`);
+          }
+          tradeIssues.push(...this._activeTradeQuantityIssuesForTrade(trade, tradeId));
+          if (tradeIssues.length > 0) {
+            quarantineCandidates.push({ tradeId: mapTradeId, trade, issues: tradeIssues });
           }
         }
-        if (invalidScopeTrades.length > 0) {
-          throw new Error(
-            `[StateManager.load] Active trade(s) missing immutable scope: ${invalidScopeTrades.join('; ')}. Refusing to infer from current boot config because symbol/broker switching can corrupt positions. Reconcile or quarantine state.json manually.`
-          );
-        }
-        if (invalidIdentityTrades.length > 0) {
-          throw new Error(
-            `[StateManager.load] Active trade identity invariant failed: ${invalidIdentityTrades.join('; ')}. Reconcile or quarantine state.json manually.`
-          );
-        }
-        const invalidQuantityTrades = this._activeTradeQuantityIssues();
-        if (invalidQuantityTrades.length > 0) {
-          throw new Error(
-            `[StateManager.load] Active trade quantity invariant failed: ${invalidQuantityTrades.join('; ')}. Refusing to load positions whose USD exposure cannot be matched to broker quantity. Reconcile or quarantine state.json manually.`
-          );
+        if (quarantineCandidates.length > 0) {
+          for (const candidate of quarantineCandidates) {
+            this._quarantineActiveTrade(
+              candidate.tradeId,
+              candidate.trade,
+              candidate.issues,
+              'StateManager.load'
+            );
+          }
+          this._reconcileOpenPositionFromActiveTrades();
+          correctedStateShape = true;
         }
         if (normalizedExisting > 0) {
           console.warn(`[StateManager] Normalized ${normalizedExisting} persisted trade symbol(s) to dash form.`);
@@ -3762,14 +3952,54 @@ class StateManager {
           const persistedPosition = Number(this.state.position);
           const persistedInPosition = Number(this.state.inPosition);
           if (!Number.isFinite(persistedPosition) || persistedPosition !== 0) {
-            throw new Error(
-              `[StateManager.load] Source-less position exposure: activeTrades empty but position=${this.state.position}. Refusing to infer a flat state without active trade evidence.`
-            );
+            const reason = `[StateManager.load] Source-less position exposure quarantined: activeTrades empty but position=${this.state.position}`;
+            this.state.quarantinedTrades = [
+              ...this._normalizeQuarantinedTrades(this.state.quarantinedTrades),
+              {
+                tradeId: '<source_less_position>',
+                symbol: null,
+                code: DIRECTION_INTEGRITY_EXIT_REFUSAL,
+                status: 'quarantined',
+                source: 'StateManager.load',
+                quarantinedAt: new Date().toISOString(),
+                issues: [reason],
+                trade: {
+                  position: this.state.position,
+                  inPosition: this.state.inPosition,
+                  positionCount: this.state.positionCount,
+                  entryPrice: this.state.entryPrice,
+                  entryTime: this.state.entryTime,
+                },
+              },
+            ];
+            this.state.position = 0;
+            correctedStateShape = true;
+            console.error(reason);
           }
           if (!Number.isFinite(persistedInPosition) || persistedInPosition < 0) {
-            throw new Error(
-              `[StateManager.load] Invalid flat-state inPosition=${this.state.inPosition}. Refusing to infer locked exposure without active trade evidence.`
-            );
+            const reason = `[StateManager.load] Invalid flat-state inPosition quarantined: activeTrades empty but inPosition=${this.state.inPosition}`;
+            this.state.quarantinedTrades = [
+              ...this._normalizeQuarantinedTrades(this.state.quarantinedTrades),
+              {
+                tradeId: '<source_less_in_position>',
+                symbol: null,
+                code: DIRECTION_INTEGRITY_EXIT_REFUSAL,
+                status: 'quarantined',
+                source: 'StateManager.load',
+                quarantinedAt: new Date().toISOString(),
+                issues: [reason],
+                trade: {
+                  position: this.state.position,
+                  inPosition: this.state.inPosition,
+                  positionCount: this.state.positionCount,
+                  entryPrice: this.state.entryPrice,
+                  entryTime: this.state.entryTime,
+                },
+              },
+            ];
+            this.state.inPosition = 0;
+            correctedStateShape = true;
+            console.error(reason);
           }
           if (persistedInPosition > 0 || this.state.positionCount !== 0 || this.state.entryPrice !== 0 || this.state.entryTime !== null) {
             const staleFlatState = {
@@ -4168,11 +4398,13 @@ class StateManager {
         totalPnL: dashboardTotalPnL,
         pnlStatus: pricingStatus.pnlStatus,
         pnlMissingPriceSymbols: pricingStatus.pnlMissingPriceSymbols,
+        equityIntegrity: state.equityIntegrity || { status: 'trusted', excludedTrades: [] },
         tradeCount: state.tradeCount,
         closedTradeCount: closedTrades.length,
         winningTrades,
         losingTrades,
         dailyTradeCount: state.dailyTradeCount,
+        quarantinedTrades: state.quarantinedTrades || [],
         ttpCutoffQuarantine: state.ttpCutoffQuarantine || null,
         symbolEntryHalts: state.symbolEntryHalts || {},
         runtimeScope,
@@ -4196,8 +4428,10 @@ class StateManager {
         totalPnL: dashboardState.totalPnL,
         pnlStatus: dashboardState.pnlStatus,
         pnlMissingPriceSymbols: dashboardState.pnlMissingPriceSymbols,
+        equityIntegrity: dashboardState.equityIntegrity,
         tradeCount: dashboardState.tradeCount,
         dailyTradeCount: dashboardState.dailyTradeCount,
+        quarantinedTrades: dashboardState.quarantinedTrades,
         ttpCutoffQuarantine: dashboardState.ttpCutoffQuarantine,
         symbolEntryHalts: dashboardState.symbolEntryHalts,
         runtimeScope,

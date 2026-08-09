@@ -392,7 +392,7 @@ describe('StateManager openPosition scope contract', () => {
     expect(manager._buildScopedDashboardPositions(manager.state)).toEqual(beforePositions);
   });
 
-  test('save refuses directly mutated malformed activeTrades identity before persistence', () => {
+  test('save quarantines directly mutated malformed activeTrades identity before persistence', () => {
     manager.state.activeTrades = new Map([[
       'SAVE_BAD_IDENTITY',
       {
@@ -410,7 +410,28 @@ describe('StateManager openPosition scope contract', () => {
     ]]);
 
     const realSave = Object.getPrototypeOf(manager).save.bind(manager);
-    expect(() => realSave()).toThrow('active trade invariant failed: identity:SAVE_BAD_IDENTITY: action/direction mismatch');
+    expect(() => realSave()).not.toThrow();
+
+    const saved = JSON.parse(fs.readFileSync(process.env.STATE_FILE, 'utf8'));
+    expect(saved.activeTrades).toEqual([]);
+    expect(saved.quarantinedTrades).toEqual([
+      expect.objectContaining({
+        tradeId: 'SAVE_BAD_IDENTITY',
+        symbol: 'TSLA',
+        code: 'direction_integrity_exit_refusal',
+        status: 'quarantined',
+        source: 'StateManager.save',
+        issues: expect.arrayContaining([
+          expect.stringContaining('action/direction mismatch action=BUY direction=short'),
+        ]),
+      }),
+    ]);
+    expect(saved.symbolEntryHalts.TSLA).toEqual(expect.objectContaining({
+      code: 'direction_integrity_exit_refusal',
+      authority: 'financial_integrity',
+      operatorActionRequired: true,
+      tradeId: 'SAVE_BAD_IDENTITY',
+    }));
   });
 
   test('set fills missing active trade lifecycle fields through StateManager normalization', () => {

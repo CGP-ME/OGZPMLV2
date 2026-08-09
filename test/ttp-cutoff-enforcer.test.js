@@ -996,8 +996,9 @@ describe('TtpCutoffEnforcer', () => {
     expect(stateManager.pauseTrading).not.toHaveBeenCalled();
   });
 
-  test('fails loud on unsupported activeTrades container instead of marking cutoff complete', async () => {
+  test('refuses unsupported activeTrades container without marking cutoff complete or throwing', async () => {
     const now = () => new Date('2026-05-22T19:50:00.000Z').getTime();
+    const logger = { log: jest.fn(), error: jest.fn() };
     const enforcer = new TtpCutoffEnforcer({
       evalRuleEngine: makeRuleEngine(now),
       stateManager: { get: jest.fn(() => ({ BUY_1: makeTrade() })) },
@@ -1011,11 +1012,23 @@ describe('TtpCutoffEnforcer', () => {
       symbols: ['TSLA'],
       brokerReconciliationEnabled: false,
       now,
-      logger: { log: jest.fn() },
+      logger,
     });
 
-    await expect(enforcer.enforce()).rejects.toThrow(/activeTrades container invariant failed/);
+    await expect(enforcer.enforce()).resolves.toEqual(expect.objectContaining({
+      enforced: false,
+      reason: 'active_trades_container_invalid',
+      requiresManualReconciliation: true,
+      brokerFlatVerified: false,
+      refusal: expect.objectContaining({
+        code: 'active_trades_container_invalid',
+        manualReconciliationRequired: true,
+        operatorActionRequired: true,
+      }),
+    }));
     expect(enforcer.completedKeys.size).toBe(0);
+    expect(enforcer.unverifiedKeys.has('2026-05-22:950')).toBe(true);
+    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('activeTrades container invariant failed'));
   });
 
   test('fails loud and leaves cutoff uncompleted when a liquidation trade has no price', async () => {

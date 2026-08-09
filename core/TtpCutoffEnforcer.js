@@ -34,6 +34,7 @@ class TtpCutoffEnforcer {
     this.logger = logger;
     this.completedKeys = new Set();
     this.unverifiedKeys = new Set();
+    this.activeTradeContainerRefusal = null;
     this.inFlight = false;
   }
 
@@ -56,7 +57,20 @@ class TtpCutoffEnforcer {
     const symbolScope = this._currentSymbolScope();
     const brokerPositionReadAvailable = this._brokerPositionReadAvailable();
     const targetAllBrokerStocks = brokerPositionReadAvailable && this.brokerNames.length > 0;
+    this.activeTradeContainerRefusal = null;
     const activeTrades = this._activeTrades();
+    if (this.activeTradeContainerRefusal) {
+      this.unverifiedKeys.add(key);
+      this.completedKeys.delete(key);
+      return {
+        enforced: false,
+        state,
+        reason: 'active_trades_container_invalid',
+        requiresManualReconciliation: true,
+        brokerFlatVerified: false,
+        refusal: this.activeTradeContainerRefusal,
+      };
+    }
     const hasTrackedTtpStockTrades = activeTrades.some(trade => this._isTtpStockTrade(trade));
     const hasOvernightTtpStockTrades = activeTrades.some(trade => (
       this._isTtpStockTrade(trade) && this._tradeOpenedBeforeEtDate(trade, state.currentDateET)
@@ -272,7 +286,19 @@ class TtpCutoffEnforcer {
     if (!trades) return new Map();
     if (trades instanceof Map) return trades;
     if (Array.isArray(trades)) return new Map(trades);
-    throw new Error(`[TTP_MARKET_TIME] activeTrades container invariant failed: expected Map/array, got ${Object.prototype.toString.call(trades)}`);
+    const reason = `[TTP_MARKET_TIME] activeTrades container invariant failed: expected Map/array, got ${Object.prototype.toString.call(trades)}`;
+    this.activeTradeContainerRefusal = {
+      code: 'active_trades_container_invalid',
+      reason,
+      manualReconciliationRequired: true,
+      operatorActionRequired: true,
+    };
+    if (typeof this.logger?.error === 'function') {
+      this.logger.error(reason);
+    } else {
+      console.error(reason);
+    }
+    return new Map();
   }
 
   _activeTrades() {
