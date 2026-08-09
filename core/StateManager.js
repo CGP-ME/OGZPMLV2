@@ -409,7 +409,7 @@ function normalizeDecisionLedgerExitReason(reason) {
   if (value === 'max_hold' || value.startsWith('max_hold_')) return 'max_hold';
   if (value === 'profit_tier_4') return 'take_profit';
   if (value === 'hard_stop' || value === 'break_even' || value === 'stop_loss' || value === 'stoploss') return 'stop_loss';
-  return 'manual_close';
+  return value ? `unmapped:${value}` : 'unmapped:missing';
 }
 
 function withExitLifecycleFields(trade, { legacy = false, reset = false } = {}) {
@@ -1720,6 +1720,7 @@ class StateManager {
 
       // Append exit info to decision ledger
       if (nextTrade.decisionLedger) {
+        const rawExitReason = firstNonEmptyString(context.exitReason, context.reason);
         const exitEntry = {
           exitSize: closeSize,
           exitFraction: fraction,
@@ -1728,7 +1729,8 @@ class StateManager {
           remainingOrderQuantity,
           exitPrice: price,
           positionEffect,
-          exitReason: firstNonEmptyString(context.exitReason, context.reason),
+          exitReason: normalizeDecisionLedgerExitReason(rawExitReason),
+          rawExitReason,
           netPnlDollars: netRealizedResult,
           timestamp: Date.now()
         };

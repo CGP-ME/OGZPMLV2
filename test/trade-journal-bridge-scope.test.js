@@ -1601,6 +1601,44 @@ describe('TradeJournalBridge scoped storage', () => {
     }
   });
 
+  test('maps plain sell direction to COVER in close visibility failures', () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const visibilityFailurePath = tempVisibilityFailurePath();
+    const bridge = {
+      journal: {
+        scope: { executionMode: 'paper', brokerId: 'kraken', accountId: 'default', assetClass: 'crypto', symbol: 'BTC-USD', timeframe: '1m' },
+      },
+      visibilityFailurePath,
+      _send: jest.fn(),
+    };
+
+    try {
+      expect(TradeJournalBridge.prototype._recordTradeLogClose.call(bridge, {
+        type: 'EXIT',
+        orderId: 'ORDER-VIS-SELL-DIRECTION',
+        symbol: 'BTC-USD',
+        direction: 'sell',
+        entryPrice: 100,
+        exitPrice: 95,
+        pnl: 5,
+        reason: 'cover_exit',
+        holdTime: 60000,
+      }, 'test.logTrade')).toBe(false);
+
+      const [record] = readJsonl(visibilityFailurePath);
+      expect(record).toMatchObject({
+        type: 'trade_visibility_failure',
+        eventType: 'closed_trade_record_incomplete',
+        orderId: 'ORDER-VIS-SELL-DIRECTION',
+        action: 'COVER',
+        missing: ['size'],
+      });
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
   test('records durable visibility failures when exit journal and replay refuse the close', () => {
     const { TradeJournalBridge } = require('../core/TradeJournalBridge');
     const visibilityFailurePath = tempVisibilityFailurePath();

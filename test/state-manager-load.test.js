@@ -1256,7 +1256,7 @@ describe('StateManager load validation', () => {
     expect(manager.get('inPosition')).toBeCloseTo(1000);
   });
 
-  test('partial reduce preserves missing exit reason as null in decision ledger', async () => {
+  test('partial reduce preserves missing exit reason as unmapped in decision ledger', async () => {
     const { StateManager } = require('../core/StateManager');
     const manager = new StateManager();
 
@@ -1290,7 +1290,8 @@ describe('StateManager load validation', () => {
     expect(reduced.success).toBe(true);
     const reducedTrade = manager.get('activeTrades').get('REDUCE_NULL_REASON');
     expect(reducedTrade.decisionLedger.exits).toHaveLength(1);
-    expect(reducedTrade.decisionLedger.exits[0].exitReason).toBeNull();
+    expect(reducedTrade.decisionLedger.exits[0].exitReason).toBe('unmapped:missing');
+    expect(reducedTrade.decisionLedger.exits[0].rawExitReason).toBeNull();
   });
 
   test('full close clears stale locked USD exposure when no active trades remain', async () => {

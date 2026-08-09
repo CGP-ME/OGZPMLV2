@@ -218,6 +218,52 @@ describe('StateManager applyFill decision ledger persistence', () => {
     }));
   });
 
+  test('preserves unmapped exit reason tokens instead of laundering to manual close', async () => {
+    const openResult = await manager.openPosition(500, 100, fullScope({
+      ledgerData: fullLedgerData(),
+    }));
+    expect(openResult.success).toBe(true);
+
+    const reserved = await manager.reserveExitSlot('OPEN_FILL_LEDGER_1', 'intent-unmapped-exit-reason', {
+      submittedAtMs: 1000,
+      sourceEventId: 'source-unmapped-exit-reason',
+      exitFraction: 0.4,
+      expectedRemainingQuantity: 3,
+    });
+    expect(reserved.success).toBe(true);
+
+    const fill = await manager.applyFill({
+      fillId: 'fill-unmapped-exit-reason',
+      brokerOrderId: 'broker-unmapped-exit-reason',
+      tradeId: 'OPEN_FILL_LEDGER_1',
+      intentId: 'intent-unmapped-exit-reason',
+      sourceEventId: 'source-unmapped-exit-reason',
+      lifecycleState: 'partial_fill',
+      exitReason: 'broker_vapor_token',
+      triggeredBy: 'test.unmappedExitReason',
+      filledQuantity: 2,
+      filledQuantityUnit: 'shares',
+      filledSizeUsd: 220,
+      fillPrice: 110,
+      fee: 1,
+      expectedQuantity: 2,
+      remainingQuantity: 3,
+      submittedAtMs: 1000,
+      confirmedAtMs: 2000,
+      eventTimeMs: 2000,
+      expectedTradeRevision: 0,
+      executionMode: 'backtest',
+      simulated: true,
+    });
+
+    expect(fill.success).toBe(true);
+    const trade = manager.get('activeTrades').get('OPEN_FILL_LEDGER_1');
+    expect(trade.decisionLedger.exits[0]).toEqual(expect.objectContaining({
+      exitReason: 'unmapped:broker_vapor_token',
+      rawExitReason: 'broker_vapor_token',
+    }));
+  });
+
   test('applyFill refuses active trades with missing direction before PnL math', async () => {
     const openResult = await manager.openPosition(500, 100, fullScope());
     expect(openResult.success).toBe(true);

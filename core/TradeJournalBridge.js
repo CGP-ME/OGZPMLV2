@@ -341,7 +341,7 @@ function exitActionOrNull(exitRecord, normalizedData = {}) {
 
   const direction = nonEmptyStringOrNull(normalizedData.direction || exitRecord?.direction)?.toLowerCase();
   if (direction === 'buy' || direction === 'long') return 'SELL';
-  if (direction === 'sell_short' || direction === 'short') return 'COVER';
+  if (direction === 'sell' || direction === 'sell_short' || direction === 'short') return 'COVER';
   return null;
 }
 
