@@ -1145,6 +1145,45 @@ describe('OrderExecutor pause gate', () => {
     expect(mockStateManager.openPosition).not.toHaveBeenCalled();
   });
 
+  test('refuses same-direction entries when active trade strategy is unknown', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getTradesBySymbol.mockReturnValue([makeBuyTrade({
+      orderId: 'UNKNOWN_STRATEGY_1',
+      entryStrategy: undefined,
+      strategyName: undefined,
+      strategy: undefined,
+      exitContract: makeExitContract({ strategyName: undefined }),
+      decisionLedger: null,
+    })]);
+    const executor = makeExecutor({}, {
+      orderRouter: { sendOrder: jest.fn() },
+    });
+
+    const result = await executor.executeTrade(
+      { action: 'BUY', confidence: 75 },
+      {},
+      100,
+      { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+      [],
+      null,
+      makeOrchResult(),
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'active_trade_strategy_unknown',
+      entryStrategy: 'RSI',
+      direction: 'long',
+      existingTradeId: 'UNKNOWN_STRATEGY_1',
+    }));
+    expect(executor.ctx.orderRouter.sendOrder).not.toHaveBeenCalled();
+    expect(mockStateManager.openPosition).not.toHaveBeenCalled();
+  });
+
   test('refuses scale-in adds below the existing entry price', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;

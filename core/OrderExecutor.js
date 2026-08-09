@@ -1413,13 +1413,14 @@ class OrderExecutor {
       || null;
   }
 
-  _sameStrategyDirectionTrades(entryPlan) {
+  _activeTradesForSymbol(symbol) {
     const activeTrades = typeof stateManager.getTradesBySymbol === 'function'
-      ? stateManager.getTradesBySymbol(entryPlan.symbol)
+      ? stateManager.getTradesBySymbol(symbol)
       : [];
-    if (!Array.isArray(activeTrades)) {
-      return [];
-    }
+    return Array.isArray(activeTrades) ? activeTrades : [];
+  }
+
+  _sameStrategyDirectionTrades(entryPlan, activeTrades = this._activeTradesForSymbol(entryPlan.symbol)) {
     return activeTrades.filter((trade) => (
       trade &&
       typeof trade === 'object' &&
@@ -1449,7 +1450,23 @@ class OrderExecutor {
       };
     }
 
-    const sameStrategyTrades = this._sameStrategyDirectionTrades(entryPlan);
+    const activeTrades = this._activeTradesForSymbol(entryPlan.symbol);
+    const unknownStrategyTrade = activeTrades.find((trade) => (
+      trade &&
+      typeof trade === 'object' &&
+      this._activeTradeDirection(trade) === entryPlan.direction &&
+      !this._activeTradeStrategy(trade)
+    ));
+    if (unknownStrategyTrade) {
+      return {
+        reason: 'active_trade_strategy_unknown',
+        entryStrategy: entryPlan.entryStrategy,
+        direction: entryPlan.direction,
+        existingTradeId: unknownStrategyTrade.orderId || unknownStrategyTrade.id || null,
+      };
+    }
+
+    const sameStrategyTrades = this._sameStrategyDirectionTrades(entryPlan, activeTrades);
     if (sameStrategyTrades.length >= maxConcurrentEntries) {
       return {
         reason: 'contract_max_concurrent_entries',
