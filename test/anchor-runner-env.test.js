@@ -14,7 +14,6 @@ const EXPECTED_ANCHOR_CANONICAL_ENV = Object.freeze({
   SOLO_STRATEGY: 'EMASMACrossover',
   ENABLE_EMA: 'true',
   DIRECTION_FILTER: 'long_only',
-  ENABLE_SHORTS: 'false',
   ENABLE_TRAI: 'false',
   ENABLE_MTF_CONFLUENCE_BOOSTER: 'false',
 });
@@ -74,7 +73,6 @@ describe('anchor-runner P0 env contract', () => {
       ENABLE_EMA: 'true',
       ENABLE_MTF_CONFLUENCE_BOOSTER: 'false',
       DIRECTION_FILTER: 'long_only',
-      ENABLE_SHORTS: 'false',
       ENABLE_TRAI: 'false',
       TRADING_PAIR: 'TSLA',
       BROKER: 'alpaca',

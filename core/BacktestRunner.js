@@ -482,8 +482,7 @@ class BacktestRunner {
             }
             return (_tier ?? 'ML').toUpperCase();
           })(),
-          directionFilter: getConfigValue('pipeline.directionFilter'),
-          enableShorts: getConfigValue('features.enableShorts')
+          directionFilter: getConfigValue('pipeline.directionFilter')
         },
         timestamp: new Date().toISOString()
       };

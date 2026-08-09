@@ -481,8 +481,7 @@
         "enableVolatilityScaling": { "type": "boolean" },
         "enableLearning": { "type": "boolean" },
         "enableArbitrage": { "type": "boolean" },
-        "enableHedging": { "type": "boolean" },
-        "enableShorts": { "type": "boolean" }
+        "enableHedging": { "type": "boolean" }
       }
     },
     "trai": {

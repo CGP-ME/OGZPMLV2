@@ -41,7 +41,6 @@ describe('BacktestRunner runtime path parity', () => {
         if (key === 'backtest.fastBacktest') return false;
         if (key === 'misc.subscriptionTier') return 'ML';
         if (key === 'pipeline.directionFilter') return 'long_only';
-        if (key === 'features.enableShorts') return false;
         return undefined;
       }),
       getParallelBacktestConfig: jest.fn(() => ({
@@ -174,7 +173,7 @@ describe('BacktestRunner runtime path parity', () => {
       conflictPenalties: 1,
     });
     expect(report.config.directionFilter).toBe('long_only');
-    expect(report.config.enableShorts).toBe(false);
+    expect(report.config).not.toHaveProperty('enableShorts');
   });
 
   test('refuses to run when candle file identity and runtime scope disagree', () => {

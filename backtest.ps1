@@ -95,10 +95,8 @@ $env:ACCOUNT_DRAWDOWN_BYPASS = "true"
 
 if ($useShorts) {
     $env:DIRECTION_FILTER = "both"
-    $env:ENABLE_SHORTS = "true"
 } else {
     $env:DIRECTION_FILTER = "long"
-    $env:ENABLE_SHORTS = "false"
 }
 
 # SMS-specific env vars (required for SmartMoneySweep to fire)
@@ -138,6 +136,5 @@ Remove-Item Env:FEE_TAKER -ErrorAction SilentlyContinue
 Remove-Item Env:ENABLE_TRAI -ErrorAction SilentlyContinue
 Remove-Item Env:ACCOUNT_DRAWDOWN_BYPASS -ErrorAction SilentlyContinue
 Remove-Item Env:DIRECTION_FILTER -ErrorAction SilentlyContinue
-Remove-Item Env:ENABLE_SHORTS -ErrorAction SilentlyContinue
 Remove-Item Env:ENABLE_SMS -ErrorAction SilentlyContinue
 Remove-Item Env:SMS_VP_RTH_ONLY -ErrorAction SilentlyContinue

@@ -577,7 +577,7 @@ function assertP0LongOnlyNoShortArtifacts(reportPath) {
   assert.strictEqual(
     nonLongTrades.length,
     0,
-    `P0 long_only/ENABLE_SHORTS=false report contained ${nonLongTrades.length} non-long trade direction(s)`
+    `P0 long_only report contained ${nonLongTrades.length} non-long trade direction(s)`
   );
 
   const shortActions = trades.filter((trade) => {
@@ -588,14 +588,14 @@ function assertP0LongOnlyNoShortArtifacts(reportPath) {
   assert.strictEqual(
     shortActions.length,
     0,
-    `P0 long_only/ENABLE_SHORTS=false report contained ${shortActions.length} short action/side marker(s)`
+    `P0 long_only report contained ${shortActions.length} short action/side marker(s)`
   );
 
   const flipExits = trades.filter((trade) => normalizedExitReason(trade.exitReason || trade.reason).includes('flip'));
   assert.strictEqual(
     flipExits.length,
     0,
-    `P0 long_only/ENABLE_SHORTS=false report contained ${flipExits.length} flip exit(s)`
+    `P0 long_only report contained ${flipExits.length} flip exit(s)`
   );
 }
 

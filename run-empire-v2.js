@@ -1304,7 +1304,6 @@ class OGZPrimeV14Bot {
       evalTraceBacktest: resolvedConfig.config.observability.evalTraceBacktest,
       traceEventMaxBufferedBytes: resolvedConfig.config.observability.traceEventMaxBufferedBytes,
       dataFeed: resolvedConfig.config.dataFeed,
-      enableShorts: ConfigLoader.get('features.enableShorts'),
       enableLiveTrading,
       enableBacktestMode,
       tradingMode
@@ -1787,7 +1786,6 @@ class OGZPrimeV14Bot {
     console.log(`  FEE_TAKER=${process.env.FEE_TAKER || 'default'}`);
 	    console.log(`  RISK_GUARD_MODE=${ConfigLoader.get('risk.guardMode')}`);
     console.log(`  ENABLE_TRAI=${process.env.ENABLE_TRAI || 'true'}`);
-    console.log(`  ENABLE_SHORTS=${ConfigLoader.get('features.enableShorts')}`);
     console.log(`  ENABLE_RSI=${runtimePipeline.enableRSI}`);
     console.log(`  ENABLE_EMA=${runtimePipeline.enableEMACrossover}`);
     console.log(`  ENABLE_SMS=${runtimePipeline.enableSmartMoneySweep}`);

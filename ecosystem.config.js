@@ -91,7 +91,6 @@ module.exports = {
         STATE_FILE: 'data/state.json',
         JOURNAL_DATA_DIR: '/opt/ogzprime/OGZPMLV2/data/journal',
         DIRECTION_FILTER: 'both',
-        ENABLE_SHORTS: 'true',
         SYMBOL_LOSS_COOLDOWN_ENABLED: 'true',
         SYMBOL_LOSS_COOLDOWN_CONSECUTIVE_LOSSES: '2',
         SYMBOL_LOSS_COOLDOWN_MINUTES: '120',

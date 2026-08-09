@@ -176,7 +176,6 @@ function buildRuntimeConfigProof(snapshot, ConfigLoader, options = {}) {
       },
       features: {
         enableDynamicSizing: tradingConfigValue(ConfigLoader, 'features.enableDynamicSizing'),
-        enableShorts: tradingConfigValue(ConfigLoader, 'features.enableShorts'),
       },
     },
   };

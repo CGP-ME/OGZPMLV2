@@ -479,8 +479,8 @@ class TradingLoop {
     return { passed: true, reason: null, tradeId: null };
   }
 
-  _entryRiskGates(finalDirection, directionFilter, enableShorts, priceHistory, activeTrades, maxPositions, minConfidence, confidence, riskGates = []) {
-    const executionDirectionGate = this._directionGateStatus(finalDirection, directionFilter, enableShorts);
+  _entryRiskGates(finalDirection, directionFilter, priceHistory, activeTrades, maxPositions, minConfidence, confidence, riskGates = []) {
+    const executionDirectionGate = this._directionGateStatus(finalDirection, directionFilter);
     const oppositeStatus = this._oppositePositionStatus(finalDirection, activeTrades);
     return [
       { gate: 'warmup', threshold: 15, value: priceHistory.length, passed: priceHistory.length >= 15 },
@@ -515,7 +515,6 @@ class TradingLoop {
     activeTrades = [],
     maxPositions = null,
     directionFilter = null,
-    enableShorts = null,
     riskGates = [],
     exitEvaluations = [],
     skipReason = null,
@@ -596,7 +595,6 @@ class TradingLoop {
           },
           directionFilter: {
             filter: directionFilter,
-            enableShorts,
             finalDirection,
           },
           activePositions: {
@@ -662,7 +660,7 @@ class TradingLoop {
     }
   }
 
-  _directionGateStatus(direction, directionFilter, enableShorts) {
+  _directionGateStatus(direction, directionFilter) {
     const validFilters = new Set(['both', 'long_only', 'short_only']);
     const validDirections = new Set(['buy', 'sell', 'hold']);
     if (typeof directionFilter !== 'string' || !validFilters.has(directionFilter)) {
@@ -682,7 +680,6 @@ class TradingLoop {
       reason,
       direction,
       directionFilter,
-      enableShorts,
       filterPassed,
     };
   }
@@ -1383,7 +1380,6 @@ class TradingLoop {
 
     // ─── DIRECTION FILTER (configurable, not hardcoded) ───
     const directionFilter = ConfigLoader.get('pipeline.directionFilter');
-    const enableShorts = ConfigLoader.get('features.enableShorts');
     const minConfidence = this.ctx.config.minTradeConfidence;
 
     // ─── LOG ───
@@ -1436,7 +1432,6 @@ class TradingLoop {
             activeTrades: stateManager.getTradesBySymbol(symbol),
             maxPositions: ConfigLoader.get('positionSizing.maxPositions') ?? 3,
             directionFilter,
-            enableShorts,
             skipReason: blockReason,
             source: 'tpo_override',
           });
@@ -1449,13 +1444,12 @@ class TradingLoop {
       }
     }
 
-    const directionGate = this._directionGateStatus(finalDirection, directionFilter, enableShorts);
+    const directionGate = this._directionGateStatus(finalDirection, directionFilter);
     if (!directionGate.allowed) {
       this._diag('DIRECTION_GATE_BLOCK', {
         symbol,
         reason: directionGate.reason,
         filter: directionFilter,
-        enableShorts,
         direction: finalDirection,
         confidencePct: orchResult.confidence
       });
@@ -1464,7 +1458,6 @@ class TradingLoop {
         symbol,
         reason: directionGate.reason,
         filter: directionFilter,
-        enableShorts,
         direction: finalDirection,
         positionEffect: this._entryPositionEffect(finalDirection),
         finalDirection,
@@ -1487,10 +1480,9 @@ class TradingLoop {
         activeTrades: stateManager.getTradesBySymbol(symbol),
         maxPositions: ConfigLoader.get('positionSizing.maxPositions') ?? 3,
         directionFilter,
-        enableShorts,
         skipReason: directionGate.reason,
       });
-      console.log(`[DIRECTION-GATE] Blocked ${finalDirection}: reason=${directionGate.reason} filter=${directionFilter} enableShorts=${enableShorts}`);
+      console.log(`[DIRECTION-GATE] Blocked ${finalDirection}: reason=${directionGate.reason} filter=${directionFilter}`);
       this._broadcastAndReturn(symbol, price, indicators, patterns, regime, orchResult, confidenceData, marketData);
       return;
     }
@@ -1526,7 +1518,6 @@ class TradingLoop {
       activeTrades: activeTrades.length,
       maxPositions,
       directionFilter,
-      enableShorts
     });
 
     // ─── STEP 1: EXIT CHECK ───
@@ -1780,7 +1771,6 @@ class TradingLoop {
       ? this._entryRiskGates(
         finalDirection,
         directionFilter,
-        enableShorts,
         priceHistory,
         activeTrades,
         maxPositions,
@@ -1806,7 +1796,6 @@ class TradingLoop {
       activeTrades,
       maxPositions,
       directionFilter,
-      enableShorts,
       riskGates: autopsyRiskGates,
       exitEvaluations,
       skipReason: decision.action === 'HOLD'
@@ -1857,7 +1846,6 @@ class TradingLoop {
         riskGates = this._entryRiskGates(
           finalDirection,
           directionFilter,
-          enableShorts,
           priceHistory,
           activeTrades,
           maxPositions,

@@ -1037,10 +1037,6 @@ function buildConfig() {
       TimeSeriesMomentum: track('strategies.TimeSeriesMomentum', configuredPlainObjectResult('strategies.TimeSeriesMomentum')),
     },
 
-    features: {
-      enableShorts: track('features.enableShorts', requiredLaunchProfileBool('features.enableShorts')),
-    },
-
     pipeline: {
       directionFilter: track('pipeline.directionFilter', requiredLaunchProfileString('pipeline.directionFilter', VALID_DIRECTION_FILTERS)),
     },
@@ -1716,7 +1712,6 @@ const CONFIG_LOADER_RUNTIME_PATHS = Object.freeze({
   'strategies.EMATrendRetest': 'strategies.EMATrendRetest',
   'strategies.RSI2MeanReversion': 'strategies.RSI2MeanReversion',
   'strategies.TimeSeriesMomentum': 'strategies.TimeSeriesMomentum',
-  'features.enableShorts': 'features.enableShorts',
   'pipeline.enableRSI': 'strategies.enableRSI',
   'pipeline.enableMADynamicSR': 'strategies.enableMADynamicSR',
   'pipeline.enableMASR': 'strategies.enableMADynamicSR',
@@ -1798,7 +1793,6 @@ const LAUNCH_PROFILE_RUNTIME_PATHS = Object.freeze({
   'strategies.enableEMATrendRetest': 'pipeline.enableEMATrendRetest',
   'strategies.enableRSI2MeanReversion': 'pipeline.enableRSI2MeanReversion',
   'strategies.enableTimeSeriesMomentum': 'pipeline.enableTimeSeriesMomentum',
-  'features.enableShorts': 'features.enableShorts',
   'pipeline.directionFilter': 'pipeline.directionFilter',
   'strategyBehavior.emaCrossover.entryEventsOnly': 'strategyBehavior.emaCrossover.entryEventsOnly',
   'strategyBehavior.emaCrossover.confirmBars': 'strategyBehavior.emaCrossover.confirmBars',
@@ -3658,7 +3652,6 @@ const BASE_CONFIG = {
     enableLearning: envBool('ENABLE_LEARNING', true),
     enableArbitrage: envBool('ENABLE_ARBITRAGE', true),
     enableHedging: envBool('ENABLE_HEDGING', true),
-    enableShorts: requiredConfiguredBool('features.enableShorts'),
   },
 
   // =========================================================================

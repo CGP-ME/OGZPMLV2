@@ -113,11 +113,10 @@ function sentFrames(ctx) {
   return ctx.dashboardWs.send.mock.calls.map(call => JSON.parse(call[0]));
 }
 
-function mockDirectionConfig({ directionFilter = 'both', enableShorts = true } = {}) {
+function mockDirectionConfig({ directionFilter = 'both' } = {}) {
   const originalGet = ConfigLoader.get.bind(ConfigLoader);
   return jest.spyOn(ConfigLoader, 'get').mockImplementation((key, defaultValue) => {
     if (key === 'pipeline.directionFilter') return directionFilter;
-    if (key === 'features.enableShorts') return enableShorts;
     return originalGet(key, defaultValue);
   });
 }
@@ -797,7 +796,7 @@ describe('TradingLoop trace spine', () => {
   });
 
   test('allows short entries when DIRECTION_FILTER is both', async () => {
-    const configSpy = mockDirectionConfig({ directionFilter: 'both', enableShorts: false });
+    const configSpy = mockDirectionConfig({ directionFilter: 'both' });
     try {
       const ctx = baseEntryContext();
       ctx.strategyOrchestrator.evaluate = jest.fn(() => ({
@@ -836,7 +835,7 @@ describe('TradingLoop trace spine', () => {
   });
 
   test('blocks opposite-side entry signals instead of creating flip exits', async () => {
-    const configSpy = mockDirectionConfig({ directionFilter: 'both', enableShorts: true });
+    const configSpy = mockDirectionConfig({ directionFilter: 'both' });
     try {
       const ctx = baseEntryContext();
       ctx.config.evalTraceEnabled = true;
@@ -888,7 +887,7 @@ describe('TradingLoop trace spine', () => {
   });
 
   test('blocks entries when active trade direction is unknown', async () => {
-    const configSpy = mockDirectionConfig({ directionFilter: 'both', enableShorts: true });
+    const configSpy = mockDirectionConfig({ directionFilter: 'both' });
     try {
       const ctx = baseEntryContext();
       ctx.config.evalTraceEnabled = true;
@@ -931,7 +930,7 @@ describe('TradingLoop trace spine', () => {
   });
 
   test('refuses unmapped execution actions before OrderExecutor handoff', async () => {
-    const configSpy = mockDirectionConfig({ directionFilter: 'both', enableShorts: true });
+    const configSpy = mockDirectionConfig({ directionFilter: 'both' });
     try {
       const ctx = baseEntryContext();
       ctx.config.evalTraceEnabled = true;
@@ -965,7 +964,7 @@ describe('TradingLoop trace spine', () => {
   });
 
   test('refuses non-BUY TPO overrides before they become shorts', async () => {
-    const configSpy = mockDirectionConfig({ directionFilter: 'both', enableShorts: true });
+    const configSpy = mockDirectionConfig({ directionFilter: 'both' });
     try {
       const ctx = baseEntryContext();
       ctx.config.evalTraceEnabled = true;
@@ -1021,7 +1020,7 @@ describe('TradingLoop trace spine', () => {
   });
 
   test('rejects invalid direction filter tokens instead of treating them as both', async () => {
-    const configSpy = mockDirectionConfig({ directionFilter: 'sideways', enableShorts: true });
+    const configSpy = mockDirectionConfig({ directionFilter: 'sideways' });
     try {
       const ctx = baseEntryContext();
       const loop = new TradingLoop(ctx);
@@ -1145,7 +1144,7 @@ describe('TradingLoop trace spine', () => {
   });
 
   test('allows same-direction short entries when an active short has matching side fields', async () => {
-    const configSpy = mockDirectionConfig({ directionFilter: 'both', enableShorts: true });
+    const configSpy = mockDirectionConfig({ directionFilter: 'both' });
     try {
       mockStateManager.getTradesBySymbol.mockReturnValue([{
         id: 'SHORT_OPEN_SAME_DIRECTION_1',
@@ -1269,7 +1268,7 @@ describe('TradingLoop trace spine', () => {
   });
 
   test('allows short entry on the next evaluation after the long exit contract closes', async () => {
-    const configSpy = mockDirectionConfig({ directionFilter: 'both', enableShorts: true });
+    const configSpy = mockDirectionConfig({ directionFilter: 'both' });
     try {
       const ctx = baseEntryContext({
         executeTrade: jest.fn().mockResolvedValue({ success: true, orderId: 'SEQ_REVERSAL' }),

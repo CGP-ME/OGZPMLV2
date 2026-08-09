@@ -92,9 +92,6 @@
           }
         }
       },
-      "features": {
-        "enableShorts": false
-      },
       "strategies": {
         "soloFilter": []
       },
@@ -223,9 +220,6 @@
             "maxProfitTargetInitialBalanceRatio": 0.06
           }
         }
-      },
-      "features": {
-        "enableShorts": false
       },
       "strategies": {
         "soloFilter": []
@@ -356,9 +350,6 @@
           }
         }
       },
-      "features": {
-        "enableShorts": false
-      },
       "strategies": {
         "soloFilter": []
       },
@@ -487,9 +478,6 @@
             "maxProfitTargetInitialBalanceRatio": 0.06
           }
         }
-      },
-      "features": {
-        "enableShorts": false
       },
       "strategies": {
         "soloFilter": [
@@ -622,9 +610,6 @@
           }
         }
       },
-      "features": {
-        "enableShorts": false
-      },
       "strategies": {
         "soloFilter": [
           "MADynamicSR"
@@ -755,9 +740,6 @@
             "maxProfitTargetInitialBalanceRatio": 0.06
           }
         }
-      },
-      "features": {
-        "enableShorts": false
       },
       "strategies": {
         "soloFilter": [
@@ -890,9 +872,6 @@
           }
         }
       },
-      "features": {
-        "enableShorts": false
-      },
       "strategies": {
         "soloFilter": []
       },
@@ -1021,9 +1000,6 @@
             "maxProfitTargetInitialBalanceRatio": 0.06
           }
         }
-      },
-      "features": {
-        "enableShorts": false
       },
       "strategies": {
         "soloFilter": []
@@ -2613,8 +2589,7 @@
     "enableVolatilityScaling": true,
     "enableLearning": true,
     "enableArbitrage": true,
-    "enableHedging": true,
-    "enableShorts": false
+    "enableHedging": true
   },
   "trai": {
     "enabled": true,

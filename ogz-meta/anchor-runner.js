@@ -29,7 +29,6 @@
  *   BACKTEST_NO_PATTERN_SAVE=true
  *   ENABLE_DASHBOARD=false
  *   DIRECTION_FILTER=long_only
- *   ENABLE_SHORTS=false
  *   ENABLE_TRAI=false
  *   node run-empire-v2.js
  *
@@ -59,7 +58,6 @@ const CANONICAL_ENV = Object.freeze({
   SOLO_STRATEGY: 'EMASMACrossover',
   ENABLE_EMA: 'true',
   DIRECTION_FILTER: 'long_only',
-  ENABLE_SHORTS: 'false',
   ENABLE_TRAI: 'false',
   ENABLE_MTF_CONFLUENCE_BOOSTER: 'false'
 });

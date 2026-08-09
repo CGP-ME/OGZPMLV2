@@ -166,7 +166,6 @@ function tradingConfigFixture() {
     'fees.perShare': 0.005,
     'fees.minOrderFee': 0.75,
     'features.enableDynamicSizing': true,
-    'features.enableShorts': true,
   };
 
   return {
