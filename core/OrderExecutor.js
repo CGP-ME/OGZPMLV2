@@ -4708,8 +4708,8 @@ class OrderExecutor {
                 shortTrade.maxProfitPercent
               ),
               maxAdverseExcursionPercent: this._firstFiniteNumber(shortTrade.maxAdverseExcursionPercent),
-              isPartialClose: false,
-              partialFraction: null,
+              isPartialClose: coverPartialClose,
+              partialFraction: coverPartialClose ? coverStateExitFraction : null,
               exitReason: completeTradeResult.exitReason,
               reason: this._firstNonEmptyString(shortTrade.reason),
               holdTimeMinutes: holdDuration / 60000,
@@ -4912,9 +4912,6 @@ class OrderExecutor {
 
           // Proof logger for COVER
           // CC-SPEC-EVAL-CAPTURE (2/3): forensic identity for entry/exit pairing.
-          // NOTE: COVER always full-closes in current code (TradingLoop emits exitFraction
-          // for COVER but OrderExecutor's COVER branch ignores it — separate trading-pipeline
-          // bug). isPartialClose:false reflects actual behavior; revisit when that bug is fixed.
           TradingProofLogger.trade({
             action: 'COVER',
             positionEffect,
@@ -4940,8 +4937,8 @@ class OrderExecutor {
             entryPrice: shortTrade.entryPrice,
             pnl: completeTradeResult.pnlDollars,
             pnlPercent: pnl,
-            isPartialClose: false,
-            partialFraction: null,
+            isPartialClose: coverPartialClose,
+            partialFraction: coverPartialClose ? coverStateExitFraction : null,
             exitReason: completeTradeResult.exitReason
           });
 

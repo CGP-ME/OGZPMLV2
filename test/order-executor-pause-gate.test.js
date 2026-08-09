@@ -3368,6 +3368,71 @@ describe('OrderExecutor pause gate', () => {
     }));
   });
 
+  test('backtest stock cover partial close records short partial fraction honestly', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: -600, balance: 10000 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([makeShortTrade()]);
+    const backtestRecorder = { recordTrade: jest.fn() };
+    const executor = makeExecutor(
+      { enableBacktestMode: true, executionMode: 'backtest' },
+      {
+        backtestMode: true,
+        paperTrading: false,
+        backtestRecorder,
+      }
+    );
+
+    const result = await executor.executeTrade(
+      { action: 'COVER', confidence: 100, tradeId: 'SHORT_1', exitReason: 'tier_cover', exitFraction: 0.5 },
+      { totalConfidence: 100 },
+      120,
+      { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: true,
+      amount: 300,
+      orderQuantity: 3,
+      quantityUnit: 'shares',
+    }));
+    expectExitFillApplied({
+      tradeId: 'SHORT_1',
+      filledQuantity: 3,
+      fillPrice: 120 * (1 + 0.0005),
+      remainingQuantity: 3,
+      direction: 'short',
+      executionMode: 'live',
+      simulated: true,
+      expectedReserveFraction: 0.5,
+      expectedReserveRemainingQuantity: 3,
+    });
+    expect(backtestRecorder.recordTrade).toHaveBeenCalledWith(expect.objectContaining({
+      direction: 'short',
+      size: 300,
+      exitReason: 'tier_cover',
+      exitOrderQuantity: 3,
+      closedOrderQuantity: 3,
+      quantityUnit: 'shares',
+      isPartialClose: true,
+      partialFraction: 0.5,
+    }));
+    expect(TradingProofLogger.trade).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'COVER',
+      size: 300,
+      value_usd: 300,
+      isPartialClose: true,
+      partialFraction: 0.5,
+      exitReason: 'tier_cover',
+    }));
+  });
+
   test('live Alpaca stock partial exit preserves requested fractional share quantity', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;
