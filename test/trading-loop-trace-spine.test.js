@@ -881,8 +881,8 @@ describe('TradingLoop trace spine', () => {
     }
   });
 
-  test('blocks a TPO override that flips an allowed signal into a disallowed short', async () => {
-    const configSpy = mockDirectionConfig({ directionFilter: 'long_only', enableShorts: false });
+  test('refuses non-BUY TPO overrides before they become shorts', async () => {
+    const configSpy = mockDirectionConfig({ directionFilter: 'both', enableShorts: true });
     try {
       const ctx = baseEntryContext();
       ctx.config.evalTraceEnabled = true;
@@ -917,13 +917,20 @@ describe('TradingLoop trace spine', () => {
       expect(loop._runTRAI).not.toHaveBeenCalled();
       const skipEvent = sentFrames(ctx).find(frame => frame.type === 'trace_event' && frame.event === 'DECISION_SKIP');
       expect(skipEvent.fields).toEqual(expect.objectContaining({
-        reason: 'direction_filter',
-        filter: 'long_only',
-        enableShorts: false,
-        direction: 'sell',
-        finalDirection: 'sell',
+        reason: 'tpo_override_non_buy_action',
+        source: 'TPO',
+        overrideAction: 'SELL',
+        finalDirection: null,
         confidencePct: 80,
         minConfidencePct: 50,
+      }));
+      expect(mockDecisionAutopsyLogger.writeAutopsy).toHaveBeenCalledWith(expect.objectContaining({
+        source: 'tpo_override',
+        decision: expect.objectContaining({
+          action: 'HOLD',
+          blockReason: 'tpo_override_non_buy_action',
+        }),
+        skipReason: 'tpo_override_non_buy_action',
       }));
     } finally {
       configSpy.mockRestore();

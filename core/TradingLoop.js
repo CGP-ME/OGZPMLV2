@@ -1326,9 +1326,52 @@ class TradingLoop {
       const ogzTpoConfig = ConfigLoader.get('strategies.OGZTPO');
       const ogzTpoMinStrength = ogzTpoConfig?.tradingLoopOverrideMinStrength;
       if (Number.isFinite(ogzTpoMinStrength) && tpoResult.signal.strength > ogzTpoMinStrength) {
+        if (tpoResult.signal.action !== 'BUY') {
+          const blockReason = 'tpo_override_non_buy_action';
+          this._diag('TPO_OVERRIDE_REFUSAL', {
+            symbol,
+            reason: blockReason,
+            overrideAction: tpoResult.signal.action || null,
+            overrideStrength: tpoResult.signal.strength,
+            confidencePct: orchResult.confidence,
+          });
+          emitTrace(this.ctx, 'DECISION_SKIP', {
+            traceId,
+            symbol,
+            reason: blockReason,
+            source: 'TPO',
+            overrideAction: tpoResult.signal.action || null,
+            overrideStrength: tpoResult.signal.strength,
+            finalDirection: null,
+            confidencePct: orchResult.confidence,
+            minConfidencePct: minConfidence * 100,
+          });
+          this._writeDecisionAutopsy({
+            traceId,
+            symbol,
+            price,
+            priceHistory,
+            marketData,
+            indicators,
+            patterns,
+            regime,
+            orchResult,
+            decision: { action: 'HOLD', confidence: orchResult.confidence, blockReason },
+            finalDirection: null,
+            minConfidence,
+            activeTrades: stateManager.getTradesBySymbol(symbol),
+            maxPositions: ConfigLoader.get('positionSizing.maxPositions') ?? 3,
+            directionFilter,
+            enableShorts,
+            skipReason: blockReason,
+            source: 'tpo_override',
+          });
+          this._broadcastAndReturn(symbol, price, indicators, patterns, regime, orchResult, confidenceData, marketData);
+          return;
+        }
         overrideSignal = tpoResult.signal;
         signalSource = 'TPO';
-        finalDirection = tpoResult.signal.action === 'BUY' ? 'buy' : 'sell';
+        finalDirection = 'buy';
       }
     }
 
