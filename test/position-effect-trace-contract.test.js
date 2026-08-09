@@ -21,9 +21,10 @@ describe('positionEffect trace contract', () => {
     expect(positionEffectFromAction('COVER')).toBe('close_short');
     expect(exitPositionEffectForDirection('long')).toBe('close_long');
     expect(exitPositionEffectForDirection('short')).toBe('close_short');
-    expect(positionEffectFromAction('HOLD')).toBe('unknown_effect');
+    expect(positionEffectFromAction('HOLD')).toBe('hold');
     expect(exitPositionEffectForDirection('flat')).toBe('unknown_effect');
     expect(isPositionEffect('open_short')).toBe(true);
+    expect(isPositionEffect('hold')).toBe(true);
     expect(isPositionEffect('unknown_effect')).toBe(true);
     expect(isPositionEffect('sell')).toBe(false);
   });

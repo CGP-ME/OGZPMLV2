@@ -95,10 +95,10 @@ describe('DecisionLedgerSchema', () => {
     expect(() => validLedger({ positionEffect: null })).toThrow('Decision ledger skeleton missing required field(s): positionEffect');
   });
 
-  test('allows explicit unknown_effect when the translator cannot classify a verb', () => {
-    const ledger = validLedger({ positionEffect: 'unknown_effect' });
+  test('allows explicit hold positionEffect without collapsing it into unknown_effect', () => {
+    const ledger = validLedger({ positionEffect: 'hold' });
 
-    expect(ledger.positionEffect).toBe('unknown_effect');
+    expect(ledger.positionEffect).toBe('hold');
     expect(validateLedgerSkeleton(ledger).success).toBe(true);
   });
 

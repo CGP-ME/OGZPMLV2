@@ -930,6 +930,40 @@ describe('TradingLoop trace spine', () => {
     }
   });
 
+  test('refuses unmapped execution actions before OrderExecutor handoff', async () => {
+    const configSpy = mockDirectionConfig({ directionFilter: 'both', enableShorts: true });
+    try {
+      const ctx = baseEntryContext();
+      ctx.config.evalTraceEnabled = true;
+      const loop = new TradingLoop(ctx);
+      stubGatherData(loop);
+      loop._checkRiskAndBuildDecision = jest.fn(() => ({
+        action: 'REVERSE',
+        direction: 'long',
+        confidence: 80,
+      }));
+
+      await loop._analyze('TSLA', 'trace_unknown_action_1');
+
+      expect(ctx.executeTrade).not.toHaveBeenCalled();
+      const skipEvent = sentFrames(ctx).find(frame => frame.type === 'trace_event' && frame.event === 'DECISION_SKIP');
+      expect(skipEvent.fields).toEqual(expect.objectContaining({
+        reason: 'position_effect_unknown_action',
+        finalDirection: 'buy',
+      }));
+      expect(mockDecisionAutopsyLogger.writeAutopsy).toHaveBeenCalledWith(expect.objectContaining({
+        symbol: 'TSLA',
+        decision: expect.objectContaining({
+          action: 'HOLD',
+          blockReason: 'position_effect_unknown_action',
+        }),
+        skipReason: 'position_effect_unknown_action',
+      }));
+    } finally {
+      configSpy.mockRestore();
+    }
+  });
+
   test('refuses non-BUY TPO overrides before they become shorts', async () => {
     const configSpy = mockDirectionConfig({ directionFilter: 'both', enableShorts: true });
     try {

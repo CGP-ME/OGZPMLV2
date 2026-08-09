@@ -41,6 +41,7 @@ const flagManager = FeatureFlagManager.getInstance();
 const candlePatternDetector = new CandlePatternDetector();
 const stateManager = getStateManager();
 const exitContractManager = getExitContractManager();
+const EXECUTION_ACTIONS = new Set(['BUY', 'SELL', 'SELL_SHORT', 'COVER']);
 const SCOPED_DASHBOARD_FRAME_TYPES = new Set([
   'signal_analysis',
   'bot_thinking',
@@ -689,6 +690,7 @@ class TradingLoop {
   _entryPositionEffect(direction) {
     if (direction === 'buy') return positionEffectFromAction('BUY');
     if (direction === 'sell') return positionEffectFromAction('SELL_SHORT');
+    if (direction === 'hold') return positionEffectFromAction('HOLD');
     return UNKNOWN_POSITION_EFFECT;
   }
 
@@ -1729,6 +1731,23 @@ class TradingLoop {
           decision.rsiAtEntry = indicators?.rsi ?? null;
         }
       }
+    }
+
+    if (decision.action !== 'HOLD' && !EXECUTION_ACTIONS.has(decision.action)) {
+      const blockReason = 'position_effect_unknown_action';
+      this._diag('ENTRY_BLOCK', {
+        symbol,
+        reason: blockReason,
+        action: decision.action,
+        finalDirection,
+      });
+      console.error(`[ENTRY] Blocked: decision action ${JSON.stringify(decision.action)} has no position effect mapping`);
+      decision = {
+        action: 'HOLD',
+        confidence: Number.isFinite(decision.confidence) ? decision.confidence : orchResult.confidence,
+        blockReason,
+        unknownAction: decision.action,
+      };
     }
 
     if (decision.action !== 'HOLD') {

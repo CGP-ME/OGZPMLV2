@@ -7,6 +7,7 @@ const PositionEffectSchema = z.enum([
   'close_long',
   'open_short',
   'close_short',
+  'hold',
   'unknown_effect',
 ]);
 
