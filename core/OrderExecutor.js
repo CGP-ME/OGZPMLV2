@@ -3681,7 +3681,7 @@ class OrderExecutor {
           if (this.ctx.patternExitModel) {
             const exitTracking = this.ctx.patternExitModel.startTracking({
               entryPrice: price,
-              direction: 'buy',
+              direction: 'long',
               size: adjustedPositionSize,
               patterns: patterns || [],
               confidence: decision.confidence / 100,
@@ -3903,7 +3903,7 @@ class OrderExecutor {
           if (this.ctx.patternExitModel) {
             const exitTracking = this.ctx.patternExitModel.startTracking({
               entryPrice: price,
-              direction: 'sell',
+              direction: 'short',
               size: adjustedPositionSize,
               patterns: patterns || [],
               confidence: decision.confidence / 100,
@@ -5044,8 +5044,8 @@ class OrderExecutor {
           }
 
           // Pattern exit model
-          if (this.ctx.patternExitModel && this.ctx.patternExitModel.isTracking) {
-            this.ctx.patternExitModel.endTracking(price, {
+          if (this.ctx.patternExitModel && typeof this.ctx.patternExitModel.stopTracking === 'function') {
+            this.ctx.patternExitModel.stopTracking({
               pnl: pnl,
               exitReason: 'cover'
             });

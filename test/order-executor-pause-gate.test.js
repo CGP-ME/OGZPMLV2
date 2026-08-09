@@ -3235,11 +3235,16 @@ describe('OrderExecutor pause gate', () => {
     mockStateManager.getState.mockReturnValue({ position: -600, balance: 10000 });
     mockStateManager.getTradesBySymbol.mockReturnValue([makeShortTrade()]);
     const sendOrder = jest.fn().mockResolvedValue({ orderId: 'LIVE_COVER_1', price: 120 });
+    const patternExitModel = {
+      stopTracking: jest.fn(),
+      endTracking: jest.fn(),
+    };
     const executor = makeExecutor(
       { executionMode: 'live' },
       {
         paperTrading: false,
         orderRouter: { sendOrder },
+        patternExitModel,
       }
     );
 
@@ -3264,6 +3269,10 @@ describe('OrderExecutor pause gate', () => {
       }),
     }));
     expectExitFillApplied({ tradeId: 'SHORT_1', filledQuantity: 6, fillPrice: 120, remainingQuantity: 0, direction: 'short' });
+    expect(patternExitModel.stopTracking).toHaveBeenCalledWith(expect.objectContaining({
+      exitReason: 'cover',
+    }));
+    expect(patternExitModel.endTracking).not.toHaveBeenCalled();
   });
 
   test('live stock cover partial fill reduces short state by accepted broker quantity', async () => {
@@ -4580,6 +4589,9 @@ describe('OrderExecutor pause gate', () => {
     });
 
     const buyNotifyTrade = jest.fn(() => Promise.resolve());
+    const buyPatternExitModel = {
+      startTracking: jest.fn(() => ({ patternTarget: 0.01, patternStop: 0.005 })),
+    };
     const buyExecutor = makeExecutor(
       { executionMode: 'live', assetClass: 'stocks' },
       {
@@ -4588,6 +4600,7 @@ describe('OrderExecutor pause gate', () => {
         orderRouter: { sendOrder: jest.fn().mockResolvedValue({ orderId: 'LIVE_NOTIFY_BUY', price: 100 }) },
         notifyTrade: buyNotifyTrade,
         discordNotifier: { notifyTrade: jest.fn() },
+        patternExitModel: buyPatternExitModel,
       }
     );
 
@@ -4607,8 +4620,14 @@ describe('OrderExecutor pause gate', () => {
       direction: 'long',
       asset: 'TSLA',
     }));
+    expect(buyPatternExitModel.startTracking).toHaveBeenCalledWith(expect.objectContaining({
+      direction: 'long',
+    }));
 
     const shortNotifyTrade = jest.fn(() => Promise.resolve());
+    const shortPatternExitModel = {
+      startTracking: jest.fn(() => ({ patternTarget: 0.01, patternStop: 0.005 })),
+    };
     const shortExecutor = makeExecutor(
       { executionMode: 'live', assetClass: 'stocks' },
       {
@@ -4617,6 +4636,7 @@ describe('OrderExecutor pause gate', () => {
         orderRouter: { sendOrder: jest.fn().mockResolvedValue({ orderId: 'LIVE_NOTIFY_SHORT', price: 100 }) },
         notifyTrade: shortNotifyTrade,
         discordNotifier: { notifyTrade: jest.fn() },
+        patternExitModel: shortPatternExitModel,
       }
     );
 
@@ -4635,6 +4655,9 @@ describe('OrderExecutor pause gate', () => {
       action: 'SELL_SHORT',
       direction: 'short',
       asset: 'TSLA',
+    }));
+    expect(shortPatternExitModel.startTracking).toHaveBeenCalledWith(expect.objectContaining({
+      direction: 'short',
     }));
   });
 
