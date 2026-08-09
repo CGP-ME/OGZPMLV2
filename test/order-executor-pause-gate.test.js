@@ -3969,6 +3969,87 @@ describe('OrderExecutor pause gate', () => {
     }));
   });
 
+  test('backtest recorder failure marks the trade untrusted and does not stop state fill', async () => {
+    const traceEvents = [];
+    const unsubscribe = subscribeTrace((payload) => traceEvents.push(payload));
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      if (key === 'activeTrades') return new Map();
+      if (key === 'balance') return 10000;
+      return null;
+    });
+    mockStateManager.getTradesBySymbol.mockReturnValue([
+      makeBuyTrade({
+        orderId: 'RECORDER_FAIL_1',
+        id: 'RECORDER_FAIL_1',
+        size: 300,
+        sizeUsd: 300,
+        entryOrderQuantity: 3,
+        remainingOrderQuantity: 3,
+      }),
+    ]);
+    const capturedRecord = {};
+    const backtestRecorder = {
+      recordTrade: jest.fn((trade) => {
+        capturedRecord.trade = trade;
+        throw new Error('recorder disk unavailable');
+      }),
+    };
+    const executor = makeExecutor(
+      {
+        enableBacktestMode: true,
+        executionMode: 'backtest',
+        evalTraceEnabled: true,
+        evalTraceBacktest: true,
+      },
+      {
+        backtestMode: true,
+        paperTrading: false,
+        backtestRecorder,
+      }
+    );
+
+    try {
+      const result = await executor.executeTrade(
+        { action: 'SELL', confidence: 100, tradeId: 'RECORDER_FAIL_1', exitReason: 'tier_exit', exitFraction: 0.3 },
+        { totalConfidence: 100 },
+        125,
+        { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+        [],
+        null,
+        null,
+        'TSLA'
+      );
+
+      expect(result.success).toBe(true);
+      expect(mockStateManager.applyFill).toHaveBeenCalledWith(expect.objectContaining({
+        tradeId: 'RECORDER_FAIL_1',
+        remainingQuantity: 2.1,
+        recordingFailure: expect.objectContaining({
+          source: 'BacktestRecorder.recordTrade',
+          message: 'recorder disk unavailable',
+        }),
+      }));
+      expect(capturedRecord.trade).toEqual(expect.objectContaining({
+        backtestRecorderStatus: 'unrecorded',
+        journalStatus: 'unjournaled',
+        trustStatus: 'untrusted',
+        manualReconciliationRequired: true,
+      }));
+      expect(traceEvents).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          event: 'BACKTEST_RECORDER_RECONCILIATION_REQUIRED',
+          fields: expect.objectContaining({
+            tradeId: 'RECORDER_FAIL_1',
+            manualReconciliationRequired: true,
+          }),
+        }),
+      ]));
+    } finally {
+      unsubscribe();
+    }
+  });
+
   test('backtest Alpaca stock multi-exit records no more than the original entry size', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;

@@ -1464,6 +1464,7 @@ describe('TradeJournalBridge scoped storage', () => {
       })),
       stateManager: {
         get: jest.fn((key) => key === 'activeTrades' ? activeTrades : null),
+        markActiveTradeJournalFailure: jest.fn(() => ({ success: true })),
       },
       regimeDetector: {
         detectRegime: jest.fn(() => ({ currentRegime: 'test-regime' })),
@@ -1501,11 +1502,247 @@ describe('TradeJournalBridge scoped storage', () => {
       orderId: 'ORDER-VIS-1',
       message: 'TradeJournal.recordEntry returned null',
       visibilityLedgerPersisted: true,
+      journalStatus: 'unjournaled',
+      trustStatus: 'untrusted',
+      manualReconciliationRequired: true,
     });
     expect(record.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     expect(bridge._send).toHaveBeenCalledWith(expect.objectContaining({
       type: 'trade_visibility_error',
       data: expect.objectContaining({ eventType: 'trade_entry_journal_refused', orderId: 'ORDER-VIS-1' }),
+    }));
+    expect(bot.stateManager.markActiveTradeJournalFailure).toHaveBeenCalledWith('ORDER-VIS-1', expect.objectContaining({
+      eventType: 'trade_entry_journal_refused',
+      phase: 'entry',
+      source: 'bot.executeTrade',
+      message: 'TradeJournal.recordEntry returned null',
+    }));
+  });
+
+  test('entry journal write exception marks the active trade unjournaled without killing execution', async () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const visibilityFailurePath = tempVisibilityFailurePath();
+    const activeTrades = new Map([
+      ['ORDER-VIS-THROW', {
+        orderId: 'ORDER-VIS-THROW',
+        symbol: 'BTC-USD',
+        traceId: 'trace-order-vis-throw',
+        signalId: 'signal-order-vis-throw',
+        decisionId: 'decision-order-vis-throw',
+        action: 'BUY',
+        direction: 'long',
+        sizeUsd: 1250,
+        usdValue: 1250,
+        entryPrice: 100,
+        confidence: 75,
+        entryFee: 3.125,
+        timestamp: 1780000400000,
+        entryStrategy: 'RSI',
+        regimeAtEntry: 'visibility-regime',
+        entryIndicators: { rsi: 44 },
+        patterns: [],
+      }],
+    ]);
+    const pauseTrading = jest.fn(() => Promise.resolve({ success: true }));
+    const bot = {
+      executeTrade: jest.fn(async () => ({
+        success: true,
+        orderId: 'ORDER-VIS-THROW',
+        orderAccepted: true,
+        stateMutationSucceeded: true,
+      })),
+      stateManager: {
+        get: jest.fn((key) => key === 'activeTrades' ? activeTrades : null),
+        markActiveTradeJournalFailure: jest.fn(() => ({ success: true })),
+        pauseTrading,
+      },
+      regimeDetector: {
+        detectRegime: jest.fn(() => ({ currentRegime: 'test-regime' })),
+      },
+      priceHistory: [{ open: 100, high: 101, low: 99, close: 100, volume: 1, timestamp: 1 }],
+    };
+    const err = Object.assign(new Error('append ledger failed'), { code: 'EIO' });
+    const bridge = {
+      bot,
+      journal: {
+        scope: { executionMode: 'paper', brokerId: 'kraken', accountId: 'default', assetClass: 'crypto', symbol: 'BTC-USD', timeframe: '1m' },
+        recordEntry: jest.fn(() => { throw err; }),
+      },
+      replay: {
+        captureEntry: jest.fn(() => ({ orderId: 'ORDER-VIS-THROW' })),
+      },
+      visibilityFailurePath,
+      _send: jest.fn(),
+      _journalPersistenceFailureStreak: 0,
+    };
+
+    TradeJournalBridge.prototype._wireTradeEvents.call(bridge);
+    const result = await bot.executeTrade(
+      { action: 'BUY', confidence: 71 },
+      { totalConfidence: 73 },
+      100,
+      {},
+      []
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: true,
+      orderId: 'ORDER-VIS-THROW',
+    }));
+    const [record] = readJsonl(visibilityFailurePath);
+    expect(record).toMatchObject({
+      type: 'trade_visibility_failure',
+      eventType: 'trade_entry_recording_exception',
+      phase: 'entry',
+      source: 'bot.executeTrade',
+      orderId: 'ORDER-VIS-THROW',
+      message: 'append ledger failed',
+      visibilityLedgerPersisted: true,
+      journalStatus: 'unjournaled',
+      trustStatus: 'untrusted',
+      manualReconciliationRequired: true,
+    });
+    expect(bot.stateManager.markActiveTradeJournalFailure).toHaveBeenCalledWith('ORDER-VIS-THROW', expect.objectContaining({
+      eventType: 'trade_entry_recording_exception',
+      phase: 'entry',
+      source: 'bot.executeTrade',
+      message: 'append ledger failed',
+    }));
+    expect(bridge._journalPersistenceFailureStreak).toBe(1);
+    expect(pauseTrading).not.toHaveBeenCalled();
+  });
+
+  test('open-state journal reconciliation write exception marks that trade and continues', () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const visibilityFailurePath = tempVisibilityFailurePath();
+    const activeTrades = new Map([
+      ['ORDER-RECONCILE-THROW', {
+        orderId: 'ORDER-RECONCILE-THROW',
+        symbol: 'BTC-USD',
+        traceId: 'trace-order-reconcile-throw',
+        signalId: 'signal-order-reconcile-throw',
+        decisionId: 'decision-order-reconcile-throw',
+        action: 'BUY',
+        direction: 'long',
+        sizeUsd: 1250,
+        usdValue: 1250,
+        entryPrice: 100,
+        confidence: 75,
+        entryFee: 3.125,
+        timestamp: 1780000400000,
+        entryStrategy: 'RSI',
+        regimeAtEntry: 'visibility-regime',
+        entryIndicators: { rsi: 44 },
+        patterns: [],
+      }],
+    ]);
+    const pauseTrading = jest.fn(() => Promise.resolve({ success: true }));
+    const bridge = {
+      bot: {
+        stateManager: {
+          get: jest.fn((key) => key === 'activeTrades' ? activeTrades : null),
+          markActiveTradeJournalFailure: jest.fn(() => ({ success: true })),
+          pauseTrading,
+        },
+      },
+      journal: {
+        scope: { executionMode: 'paper', brokerId: 'kraken', accountId: 'default', assetClass: 'crypto', symbol: 'BTC-USD', timeframe: '1m' },
+        entryOrderIds: new Set(),
+        openTrades: new Map(),
+        trades: [],
+        recordEntry: jest.fn(() => { throw Object.assign(new Error('append ledger failed'), { code: 'EIO' }); }),
+      },
+      visibilityFailurePath,
+      _send: jest.fn(),
+      _journalPersistenceFailureStreak: 0,
+    };
+
+    expect(() => TradeJournalBridge.prototype._reconcileOpenStateTrades.call(bridge)).not.toThrow();
+
+    const [record] = readJsonl(visibilityFailurePath);
+    expect(record).toMatchObject({
+      type: 'trade_visibility_failure',
+      eventType: 'trade_entry_recording_exception',
+      phase: 'entry',
+      source: 'StateManager.activeTrades',
+      orderId: 'ORDER-RECONCILE-THROW',
+      message: 'append ledger failed',
+      visibilityLedgerPersisted: true,
+      journalStatus: 'unjournaled',
+      trustStatus: 'untrusted',
+      manualReconciliationRequired: true,
+    });
+    expect(bridge.bot.stateManager.markActiveTradeJournalFailure).toHaveBeenCalledWith('ORDER-RECONCILE-THROW', expect.objectContaining({
+      eventType: 'trade_entry_recording_exception',
+      phase: 'entry',
+      source: 'StateManager.activeTrades',
+      message: 'append ledger failed',
+    }));
+    expect(pauseTrading).not.toHaveBeenCalled();
+  });
+
+  test('three journal persistence failures pause new entries and a later journal success resumes that source', async () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const pauseTrading = jest.fn(() => Promise.resolve({ success: true }));
+    const resumeTradingIfPausedBy = jest.fn(() => Promise.resolve({ success: true, resumed: true }));
+    const bridge = {
+      bot: {
+        config: {
+          evalTraceEnabled: true,
+          evalTraceBacktest: true,
+          enableBacktestMode: true,
+        },
+        stateManager: {
+          pauseTrading,
+          resumeTradingIfPausedBy,
+        },
+      },
+      _journalPersistenceFailureStreak: 0,
+    };
+    const record = (orderId) => ({
+      orderId,
+      action: 'BUY',
+      phase: 'entry',
+      source: 'bot.executeTrade',
+      context: { entry: { symbol: 'BTC-USD' } },
+    });
+    const firstRecord = record('ORDER-JOURNAL-DOWN-1');
+    const secondRecord = record('ORDER-JOURNAL-DOWN-2');
+    const thirdRecord = {
+      ...record('ORDER-JOURNAL-DOWN'),
+      orderId: 'ORDER-JOURNAL-DOWN',
+      action: 'BUY',
+      phase: 'entry',
+      source: 'bot.executeTrade',
+      context: { entry: { symbol: 'BTC-USD' } },
+    };
+    const err = Object.assign(new Error('append ledger failed'), { code: 'EIO' });
+
+    TradeJournalBridge.prototype._recordJournalPersistenceFailure.call(bridge, firstRecord, err);
+    TradeJournalBridge.prototype._recordJournalPersistenceFailure.call(bridge, secondRecord, err);
+    expect(pauseTrading).not.toHaveBeenCalled();
+
+    TradeJournalBridge.prototype._recordJournalPersistenceFailure.call(bridge, thirdRecord, err);
+    await Promise.resolve();
+    expect(pauseTrading).toHaveBeenCalledWith(
+      expect.stringContaining('journal persistence failed 3 consecutive'),
+      expect.objectContaining({
+        source: 'journal_persistence_down',
+        recoverable: true,
+      })
+    );
+
+    TradeJournalBridge.prototype._recordJournalPersistenceSuccess.call(bridge, {
+      phase: 'entry',
+      source: 'bot.executeTrade',
+      orderId: 'ORDER-JOURNAL-RECOVERED',
+      action: 'BUY',
+      symbol: 'BTC-USD',
+    });
+    await Promise.resolve();
+    expect(bridge._journalPersistenceFailureStreak).toBe(0);
+    expect(resumeTradingIfPausedBy).toHaveBeenCalledWith('journal_persistence_down', expect.objectContaining({
+      resumeSource: 'journal_persistence_recovered',
     }));
   });
 
@@ -1706,6 +1943,7 @@ describe('TradeJournalBridge scoped storage', () => {
       visibilityFailurePath,
       visibilityFailureFallbackPath,
       _send: jest.fn(),
+      _journalPersistenceFailureStreak: 0,
     };
 
     try {
@@ -1722,8 +1960,17 @@ describe('TradeJournalBridge scoped storage', () => {
         visibilityLedgerPersisted: false,
         visibilityFallbackPersisted: true,
         visibilityAllPersistenceFailed: false,
+        journalPersistenceFailureRecorded: true,
+        journalPersistenceFailureStreak: 1,
       });
       expect(record.visibilityLedgerError).toEqual(expect.any(String));
+      expect(bridge._journalPersistenceFailureStreak).toBe(1);
+      TradeJournalBridge.prototype._recordJournalPersistenceFailure.call(
+        bridge,
+        record,
+        Object.assign(new Error('same journal failure already counted'), { code: 'EIO' })
+      );
+      expect(bridge._journalPersistenceFailureStreak).toBe(1);
       expect(stderrSpy).not.toHaveBeenCalled();
       const [fallbackRecord] = readJsonl(visibilityFailureFallbackPath);
       expect(fallbackRecord).toMatchObject({
@@ -1731,6 +1978,8 @@ describe('TradeJournalBridge scoped storage', () => {
         orderId: 'ORDER-VIS-4',
         visibilityLedgerPersisted: false,
         visibilityFallbackPersisted: true,
+        journalPersistenceFailureRecorded: true,
+        journalPersistenceFailureStreak: 1,
       });
       expect(bridge._send).toHaveBeenCalledWith(expect.objectContaining({
         type: 'trade_visibility_error',

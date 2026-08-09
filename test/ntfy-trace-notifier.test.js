@@ -178,14 +178,14 @@ describe('NtfyTraceNotifier', () => {
 
   test('routes alarms and reconciliation events to max priority', () => {
     expect(notificationForTrace({
-      event: 'BROKER_POSITION_DESYNC',
+      event: 'TRADE_JOURNAL_RECONCILIATION_REQUIRED',
       symbol: 'RIOT',
       positionEffect: 'close_short',
-      fields: { manualReconciliationRequired: true, reason: 'broker_position_mismatch' },
+      fields: { manualReconciliationRequired: true, reason: 'journal_write_failed' },
     })).toEqual({
       priority: 'max',
-      title: 'OGZ BROKER_POSITION_DESYNC',
-      message: 'RIOT close_short reason=broker_position_mismatch',
+      title: 'OGZ TRADE_JOURNAL_RECONCILIATION_REQUIRED',
+      message: 'RIOT close_short reason=journal_write_failed',
     });
   });
 

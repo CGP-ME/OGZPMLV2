@@ -109,6 +109,8 @@ describe('StateManager openPosition scope contract', () => {
     process.env.CANDLE_SOURCE = 'live';
     process.env.BROKER = 'alpaca';
     process.env.ALPACA_MODE = 'paper';
+    process.env.ALPACA_API_KEY = 'test-alpaca-key';
+    process.env.ALPACA_API_SECRET = 'test-alpaca-secret';
     process.env.MAX_WEEKLY_LOSS = '5';
     process.env.MAX_MONTHLY_LOSS = '5';
     process.env.FRESH_START = 'false';
@@ -344,6 +346,49 @@ describe('StateManager openPosition scope contract', () => {
     expect(manager.getHaltReason()).toBeNull();
   });
 
+  test('marks an active trade unjournaled without resetting exit lifecycle fields', async () => {
+    const opened = await manager.openPosition(500, 100, fullScope({
+      orderId: 'JOURNAL_FAIL_1',
+      scopeKey: expectedScopeKey,
+      ledgerData: fullLedgerData(),
+    }));
+    expect(opened.success).toBe(true);
+    manager.state.activeTrades.get('JOURNAL_FAIL_1').pendingExitIntent = {
+      intentId: 'intent-journal-fail',
+      status: 'accepted',
+      lifecycleState: 'accepted',
+      brokerOrderId: 'broker-order-1',
+      tradeRevision: 0,
+    };
+
+    const result = manager.markActiveTradeJournalFailure('JOURNAL_FAIL_1', {
+      eventType: 'trade_entry_recording_exception',
+      phase: 'entry',
+      source: 'bot.executeTrade',
+      message: 'ledger unavailable',
+    });
+
+    expect(result.success).toBe(true);
+    const trade = manager.get('activeTrades').get('JOURNAL_FAIL_1');
+    expect(trade).toEqual(expect.objectContaining({
+      journalStatus: 'unjournaled',
+      journaled: false,
+      trustStatus: 'untrusted',
+      untrusted: true,
+      manualReconciliationRequired: true,
+      requiresManualReconciliation: true,
+      pendingExitIntent: expect.objectContaining({
+        intentId: 'intent-journal-fail',
+        status: 'accepted',
+      }),
+    }));
+    expect(trade.journalFailure).toEqual(expect.objectContaining({
+      eventType: 'trade_entry_recording_exception',
+      source: 'bot.executeTrade',
+      message: 'ledger unavailable',
+    }));
+  });
+
   test('set rejects malformed activeTrades maps before mutating active trades', () => {
     const beforePositions = manager._buildScopedDashboardPositions(manager.state);
 
@@ -392,7 +437,7 @@ describe('StateManager openPosition scope contract', () => {
     expect(manager._buildScopedDashboardPositions(manager.state)).toEqual(beforePositions);
   });
 
-  test('save quarantines directly mutated malformed activeTrades identity before persistence', () => {
+  test('save quarantines directly mutated malformed activeTrades identity before persistence', async () => {
     manager.state.activeTrades = new Map([[
       'SAVE_BAD_IDENTITY',
       {
@@ -410,7 +455,7 @@ describe('StateManager openPosition scope contract', () => {
     ]]);
 
     const realSave = Object.getPrototypeOf(manager).save.bind(manager);
-    expect(() => realSave()).not.toThrow();
+    await expect(Promise.resolve(realSave())).resolves.toBeUndefined();
 
     const saved = JSON.parse(fs.readFileSync(process.env.STATE_FILE, 'utf8'));
     expect(saved.activeTrades).toEqual([]);
@@ -1172,6 +1217,11 @@ describe('StateManager openPosition scope contract', () => {
 
     const applied = await manager.applyFill(executionFill({
       expectedTradeRevision: beforeTrade.tradeRevision,
+      recordingFailure: {
+        source: 'BacktestRecorder.recordTrade',
+        message: 'recorder disk unavailable',
+        recordedAt: '2026-06-28T07:00:30.000Z',
+      },
     }));
 
     expect(applied.success).toBe(true);
@@ -1194,6 +1244,18 @@ describe('StateManager openPosition scope contract', () => {
     expect(trade.remainingOrderQuantity).toBe(3);
     expect(trade.sizeUsd).toBe(300);
     expect(trade.size).toBe(300);
+    expect(trade).toEqual(expect.objectContaining({
+      backtestRecorderStatus: 'unrecorded',
+      journalStatus: 'unjournaled',
+      trustStatus: 'untrusted',
+      manualReconciliationRequired: true,
+      requiresManualReconciliation: true,
+    }));
+    expect(trade.journalFailure).toEqual(expect.objectContaining({
+      source: 'BacktestRecorder.recordTrade',
+      message: 'recorder disk unavailable',
+      recordedAt: '2026-06-28T07:00:30.000Z',
+    }));
     expect(manager.get('position')).toBe(300);
     expect(manager.get('inPosition')).toBe(300);
     expect(manager.get('realizedPnL')).toBe(beforeRealizedPnL + 19);

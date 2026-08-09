@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Journal Failure Isolation (2026-08-09)
+
+- Isolated journal and backtest-recorder write failures to the affected trade by marking it unjournaled, untrusted, and manual-reconcile while keeping confirmed fills alive.
+- Escalated three consecutive journal persistence failures to a recoverable new-entry halt that clears only after a later journal write succeeds.
+
 ### Mercury Exhaustive Search Receipts (2026-08-08)
 
 - Added a Mercury answer-quality flag for broad exhaustive search claims when supporting grep evidence is truncated or carries tool warnings.

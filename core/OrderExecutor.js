@@ -167,6 +167,46 @@ class OrderExecutor {
     return null;
   }
 
+  _recordBacktestTrade(tradeRecord, context = {}) {
+    if (!this.ctx.backtestRecorder) return null;
+    try {
+      return this.ctx.backtestRecorder.recordTrade(tradeRecord);
+    } catch (err) {
+      const tradeId = this._firstNonEmptyString(tradeRecord?.tradeId, tradeRecord?.orderId, tradeRecord?.id, context.tradeId);
+      const symbol = this._firstNonEmptyString(tradeRecord?.symbol, context.symbol);
+      tradeRecord.backtestRecorderStatus = 'unrecorded';
+      tradeRecord.journalStatus = 'unjournaled';
+      tradeRecord.trustStatus = 'untrusted';
+      tradeRecord.untrusted = true;
+      tradeRecord.manualReconciliationRequired = true;
+      tradeRecord.requiresManualReconciliation = true;
+      tradeRecord.journalFailure = {
+        source: 'BacktestRecorder.recordTrade',
+        message: err.message,
+        recordedAt: new Date().toISOString(),
+      };
+      console.error(`[BACKTEST-RECORDER] ${symbol || 'UNKNOWN'} trade ${tradeId || 'unknown'} unrecorded/untrusted; manual reconciliation required: ${err.message}`);
+      emitTrace(this.ctx, 'BACKTEST_RECORDER_RECONCILIATION_REQUIRED', {
+        traceId: context.traceId,
+        signalId: context.signalId,
+        decisionId: context.decisionId,
+        symbol,
+        action: context.action,
+        positionEffect: context.positionEffect,
+        tradeId,
+        reason: err.message,
+        journalStatus: 'unjournaled',
+        trustStatus: 'untrusted',
+        manualReconciliationRequired: true,
+      });
+      return {
+        success: false,
+        recorded: false,
+        failure: tradeRecord.journalFailure,
+      };
+    }
+  }
+
   _normalizePatternFeatureVector(features) {
     if (!Array.isArray(features) || features.length === 0 || features.length > 50) {
       return null;
@@ -1925,7 +1965,7 @@ class OrderExecutor {
     return stopPercent;
   }
 
-  _buildExecutionFill({ exitPlan, executedExitPlan, tradeResult, fillPrice, fee, exitIntent, lifecycleState, confirmedAtMs, eventTimeMs, simulated }) {
+  _buildExecutionFill({ exitPlan, executedExitPlan, tradeResult, fillPrice, fee, exitIntent, lifecycleState, confirmedAtMs, eventTimeMs, simulated, recordingFailure }) {
     const tradeId = this._firstNonEmptyString(executedExitPlan?.tradeId, exitPlan?.tradeId);
     const intentId = this._firstNonEmptyString(exitIntent?.intentId);
     const brokerOrderId = this._firstNonEmptyString(tradeResult?.orderId);
@@ -1979,6 +2019,7 @@ class OrderExecutor {
       expectedTradeRevision: exitIntent.tradeRevision,
       executionMode: executedExitPlan.executionMode,
       simulated,
+      ...(recordingFailure ? { recordingFailure } : {}),
     };
   }
 
@@ -4091,8 +4132,9 @@ class OrderExecutor {
             };
 
             // CHANGE 2026-02-23: Record trade in BacktestRecorder (with fees, running balance)
+            let backtestRecordResult = null;
             if (this.ctx.backtestRecorder) {
-              this.ctx.backtestRecorder.recordTrade({
+              backtestRecordResult = this._recordBacktestTrade({
                 tradeId: buyTrade.orderId || buyTrade.id || decision.tradeId || null,
                 positionEffect,
                 entryTime: buyTrade.entryTime ? new Date(buyTrade.entryTime).toISOString() : '',
@@ -4158,6 +4200,14 @@ class OrderExecutor {
                 traceId,
                 signalId,
                 decisionId
+              }, {
+                traceId,
+                signalId,
+                decisionId,
+                symbol,
+                action: decision.action,
+                positionEffect,
+                tradeId: buyTrade.orderId || buyTrade.id || decision.tradeId || null,
               });
               const loggedStrategy = this._firstNonEmptyString(buyTrade.entryStrategy, buyTrade.strategy) ?? 'missing';
               const loggedConfidence = this._firstFiniteNumber(buyTrade.confidence);
@@ -4184,6 +4234,7 @@ class OrderExecutor {
               confirmedAtMs,
               eventTimeMs: exitTimestamp,
               simulated: this.ctx.backtestMode === true || this.ctx.paperTrading === true || isWebhookExecutionRoute,
+              recordingFailure: backtestRecordResult?.failure || null,
             }));
 
             // Confirmed execution fill is the only active-trade mutation path.
@@ -4672,8 +4723,9 @@ class OrderExecutor {
           const shortResultStrategy = this._firstNonEmptyString(shortTrade.entryStrategy, shortTrade.strategy);
 
           // Record trade
+          let backtestRecordResult = null;
           if (this.ctx.backtestRecorder) {
-            this.ctx.backtestRecorder.recordTrade({
+            backtestRecordResult = this._recordBacktestTrade({
               tradeId: shortTrade.orderId || shortTrade.id || decision.tradeId || null,
               positionEffect,
               entryTime: shortTrade.entryTime ? new Date(shortTrade.entryTime).toISOString() : '',
@@ -4733,6 +4785,14 @@ class OrderExecutor {
               traceId,
               signalId,
               decisionId
+            }, {
+              traceId,
+              signalId,
+              decisionId,
+              symbol,
+              action: decision.action,
+              positionEffect,
+              tradeId: shortTrade.orderId || shortTrade.id || decision.tradeId || null,
             });
             const loggedStrategy = this._firstNonEmptyString(shortTrade.entryStrategy, shortTrade.strategy) ?? 'missing';
             const loggedExitReason = this._firstNonEmptyString(completeTradeResult.exitReason) ?? 'missing';
@@ -4758,6 +4818,7 @@ class OrderExecutor {
             confirmedAtMs: coverConfirmedAtMs,
             eventTimeMs: exitTimestamp,
             simulated: this.ctx.backtestMode === true || this.ctx.paperTrading === true || isWebhookExecutionRoute,
+            recordingFailure: backtestRecordResult?.failure || null,
           }));
 
           if (!closeResult.success) {

@@ -2445,6 +2445,65 @@ class StateManager {
     console.log(`[StateManager] Updated trade ${orderId} (no save - openPosition will save)`);
   }
 
+  markActiveTradeJournalFailure(orderId, failure = {}) {
+    const target = firstNonEmptyString(orderId, failure.orderId);
+    if (!target) {
+      return { success: false, reason: 'missing_order_id' };
+    }
+
+    const trades = new Map(this.state.activeTrades || []);
+    let targetKey = trades.has(target) ? target : null;
+    if (!targetKey) {
+      for (const [key, trade] of trades.entries()) {
+        if (trade?.orderId === target || trade?.id === target) {
+          targetKey = key;
+          break;
+        }
+      }
+    }
+    if (!targetKey) {
+      return { success: false, reason: 'active_trade_not_found', orderId: target };
+    }
+
+    const trade = trades.get(targetKey);
+    const failureRecord = {
+      status: 'unjournaled',
+      trustStatus: 'untrusted',
+      journalStatus: 'unjournaled',
+      journaled: false,
+      untrusted: true,
+      manualReconciliationRequired: true,
+      requiresManualReconciliation: true,
+      eventType: firstNonEmptyString(failure.eventType),
+      phase: firstNonEmptyString(failure.phase),
+      source: firstNonEmptyString(failure.source),
+      message: firstNonEmptyString(failure.message),
+      recordedAt: new Date().toISOString(),
+    };
+    const markedTrade = {
+      ...trade,
+      journalStatus: 'unjournaled',
+      journaled: false,
+      trustStatus: 'untrusted',
+      untrusted: true,
+      manualReconciliationRequired: true,
+      requiresManualReconciliation: true,
+      journalFailure: failureRecord,
+    };
+    trades.set(targetKey, markedTrade);
+
+    return this._applyStateUpdatesLocked(
+      { activeTrades: trades },
+      {
+        action: 'MARK_ACTIVE_TRADE_JOURNAL_FAILURE',
+        tradeId: target,
+        source: failureRecord.source,
+        reason: failureRecord.message,
+      },
+      { resetActiveTradeLifecycle: false }
+    );
+  }
+
   /**
    * Remove an active trade
    */
@@ -3089,6 +3148,34 @@ class StateManager {
           }
         : trade.decisionLedger;
       const nextActiveTrades = new Map(trades);
+      const recordingFailure = fill.recordingFailure && typeof fill.recordingFailure === 'object' && !Array.isArray(fill.recordingFailure)
+        ? {
+            status: 'unjournaled',
+            trustStatus: 'untrusted',
+            journalStatus: 'unjournaled',
+            journaled: false,
+            untrusted: true,
+            manualReconciliationRequired: true,
+            requiresManualReconciliation: true,
+            eventType: firstNonEmptyString(fill.recordingFailure.eventType),
+            phase: firstNonEmptyString(fill.recordingFailure.phase),
+            source: firstNonEmptyString(fill.recordingFailure.source),
+            message: firstNonEmptyString(fill.recordingFailure.message),
+            recordedAt: firstNonEmptyString(fill.recordingFailure.recordedAt) || new Date().toISOString(),
+          }
+        : null;
+      const recordingFailureFields = recordingFailure
+        ? {
+            backtestRecorderStatus: firstNonEmptyString(fill.recordingFailure.backtestRecorderStatus) || 'unrecorded',
+            journalStatus: 'unjournaled',
+            journaled: false,
+            trustStatus: 'untrusted',
+            untrusted: true,
+            manualReconciliationRequired: true,
+            requiresManualReconciliation: true,
+            journalFailure: recordingFailure,
+          }
+        : null;
       let closedTradeRecord = null;
       let ledgerToWrite = null;
 
@@ -3130,6 +3217,7 @@ class StateManager {
           lifecycleState,
           executionMode,
           simulated: fill.simulated,
+          ...(recordingFailureFields || {}),
         };
       } else {
         const nextRevision = currentRevision + 1;
@@ -3156,6 +3244,7 @@ class StateManager {
           size: remainingSizeUsd,
           remainingOrderQuantity: computedRemainingQuantity,
           remainingOrderQuantityUnit: filledQuantityUnit,
+          ...(recordingFailureFields || {}),
         };
         if (nextTrade.beScaleOutState && nextTrade.beScaleOutState.intentId === intentId) {
           const filledTotal = Number(nextTrade.beScaleOutState.filledQuantity || 0) + filledQuantity;

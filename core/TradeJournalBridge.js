@@ -29,6 +29,23 @@ const path = require('path');
 const fs = require('fs');
 const ConfigLoader = require('../foundation/ConfigLoader');  // CHANGE 2026-02-28: Centralized config
 const { requirePatternScope } = require('./PatternScope');
+const { emitTrace } = require('./TraceSpine');
+
+const JOURNAL_INFRASTRUCTURE_FAILURE_SOURCE = 'journal_persistence_down';
+const JOURNAL_INFRASTRUCTURE_FAILURE_THRESHOLD = 3;
+const JOURNAL_WRITE_ERROR_CODES = new Set([
+  'EACCES',
+  'EBUSY',
+  'EIO',
+  'EISDIR',
+  'EMFILE',
+  'ENFILE',
+  'ENOENT',
+  'ENOSPC',
+  'ENOTDIR',
+  'EPERM',
+  'EROFS',
+]);
 
 function safeScopePathSegment(scope) {
   return [
@@ -81,6 +98,22 @@ function nonEmptyStringOrNull(v) {
   if (typeof v !== 'string') return null;
   const trimmed = v.trim();
   return trimmed ? trimmed : null;
+}
+
+function isJournalFailureEventType(eventType) {
+  const normalized = nonEmptyStringOrNull(eventType);
+  return normalized === 'trade_entry_journal_refused'
+    || normalized === 'trade_entry_recording_exception'
+    || normalized === 'trade_entry_state_reconciliation_refused'
+    || normalized === 'trade_exit_journal_refused'
+    || normalized === 'trade_exit_recording_exception';
+}
+
+function isJournalPersistenceError(err) {
+  const code = nonEmptyStringOrNull(err?.code);
+  if (code && JOURNAL_WRITE_ERROR_CODES.has(code)) return true;
+  const message = nonEmptyStringOrNull(err?.message) || '';
+  return /append|ledger|write|persist|no space|permission|read-only|eacces|enospc|eperm|erofs/i.test(message);
 }
 
 function positiveNumberOrNull(v) {
@@ -523,6 +556,7 @@ class TradeJournalBridge {
     this._maxPendingVisibilityErrors = 50;
     this._closedTradeLogKeySet = new Set();
     this._closedTradeLogKeys = [];
+    this._journalPersistenceFailureStreak = 0;
     this._preloadConfiguredJournalBundles();
     this._reconcileOpenStateTrades();
     this._startupJournalReconciliationPromise = this._reconcileJournalOpenTradesWithAuthoritativeState()
@@ -683,13 +717,36 @@ class TradeJournalBridge {
           const bundle = TradeJournalBridge.prototype._getJournalBundleForEntry.call(bridge, entryData);
 
           // Record in the symbol-scoped journal.
-          const journalEntry = bundle.journal.recordEntry(entryData);
-          if (!journalEntry) {
+          let journalEntry = null;
+          let journalEntryThrew = false;
+          try {
+            journalEntry = bundle.journal.recordEntry(entryData);
+          } catch (err) {
+            journalEntryThrew = true;
+            const record = TradeJournalBridge.prototype._recordVisibilityFailure.call(bridge, 'trade_entry_recording_exception', {
+              ...failureContext,
+              orderId: entryData.orderId,
+              message: errorMessageOrNull(err),
+              context: { entry: compactTradeRecord(entryData) },
+            });
+            if (isJournalPersistenceError(err)) {
+              TradeJournalBridge.prototype._recordJournalPersistenceFailure.call(bridge, record, err);
+            }
+          }
+          if (!journalEntry && !journalEntryThrew) {
             TradeJournalBridge.prototype._recordVisibilityFailure.call(bridge, 'trade_entry_journal_refused', {
               ...failureContext,
               orderId: entryData.orderId,
               message: 'TradeJournal.recordEntry returned null',
               context: { entry: compactTradeRecord(entryData) },
+            });
+          } else if (journalEntry) {
+            TradeJournalBridge.prototype._recordJournalPersistenceSuccess.call(bridge, {
+              phase: 'entry',
+              source: 'bot.executeTrade',
+              orderId: entryData.orderId,
+              action: entryAction,
+              symbol: entryData.symbol,
             });
           }
 
@@ -752,10 +809,13 @@ class TradeJournalBridge {
         }
       } catch (err) {
         console.warn(`[TradeJournalBridge] Entry recording failed (non-critical): ${err.message}`);
-        TradeJournalBridge.prototype._recordVisibilityFailure.call(bridge, 'trade_entry_recording_exception', {
+        const record = TradeJournalBridge.prototype._recordVisibilityFailure.call(bridge, 'trade_entry_recording_exception', {
           ...failureContext,
           message: errorMessageOrNull(err),
         });
+        if (isJournalPersistenceError(err)) {
+          TradeJournalBridge.prototype._recordJournalPersistenceFailure.call(bridge, record, err);
+        }
       }
 
       return result;
@@ -824,19 +884,41 @@ class TradeJournalBridge {
         continue;
       }
 
-      const journalEntry = bundle.journal.recordEntry({
-        ...normalizedEntry.data,
-        source: 'StateManager.activeTrades',
-      });
-      if (!journalEntry) {
-        TradeJournalBridge.prototype._recordVisibilityFailure.call(this, 'trade_entry_state_reconciliation_refused', {
+      try {
+        const journalEntry = bundle.journal.recordEntry({
+          ...normalizedEntry.data,
+          source: 'StateManager.activeTrades',
+        });
+        if (!journalEntry) {
+          TradeJournalBridge.prototype._recordVisibilityFailure.call(this, 'trade_entry_state_reconciliation_refused', {
+            phase: 'entry',
+            source: 'StateManager.activeTrades',
+            orderId: expectedOrderId,
+            action: normalizedEntry.data.direction,
+            message: 'TradeJournal.recordEntry returned null during open state reconciliation',
+            context: { activeTrade: compactTradeRecord(trade), activeTradeKey: keyOrderId },
+          });
+        } else {
+          TradeJournalBridge.prototype._recordJournalPersistenceSuccess.call(this, {
+            phase: 'entry',
+            source: 'StateManager.activeTrades',
+            orderId: expectedOrderId,
+            action: normalizedEntry.data.direction,
+            symbol: normalizedEntry.data.symbol,
+          });
+        }
+      } catch (err) {
+        const record = TradeJournalBridge.prototype._recordVisibilityFailure.call(this, 'trade_entry_recording_exception', {
           phase: 'entry',
           source: 'StateManager.activeTrades',
           orderId: expectedOrderId,
           action: normalizedEntry.data.direction,
-          message: 'TradeJournal.recordEntry returned null during open state reconciliation',
+          message: errorMessageOrNull(err),
           context: { activeTrade: compactTradeRecord(trade), activeTradeKey: keyOrderId },
         });
+        if (isJournalPersistenceError(err)) {
+          TradeJournalBridge.prototype._recordJournalPersistenceFailure.call(this, record, err);
+        }
       }
     }
   }
@@ -976,6 +1058,14 @@ class TradeJournalBridge {
           message: 'TradeJournal.recordExit returned null',
           context: { exitRecord: compactTradeRecord(exitRecord) },
         });
+      } else {
+        TradeJournalBridge.prototype._recordJournalPersistenceSuccess.call(this, {
+          phase: 'exit',
+          source,
+          orderId: data.orderId,
+          action: exitActionOrNull(exitRecord, data),
+          symbol: data.symbol || bundle.scope?.symbol,
+        });
       }
 
       const replayPriceHistory = resolveReplayPriceHistory(this.bot, data.symbol || bundle.scope?.symbol);
@@ -1034,7 +1124,7 @@ class TradeJournalBridge {
       return true;
     } catch (err) {
       console.warn(`[TradeJournalBridge] Exit recording failed (non-critical): ${err.message}`);
-      TradeJournalBridge.prototype._recordVisibilityFailure.call(this, 'trade_exit_recording_exception', {
+      const record = TradeJournalBridge.prototype._recordVisibilityFailure.call(this, 'trade_exit_recording_exception', {
         phase: 'exit',
         source,
         orderId: data.orderId,
@@ -1042,6 +1132,9 @@ class TradeJournalBridge {
         message: errorMessageOrNull(err),
         context: { exitRecord: compactTradeRecord(exitRecord) },
       });
+      if (isJournalPersistenceError(err)) {
+        TradeJournalBridge.prototype._recordJournalPersistenceFailure.call(this, record, err);
+      }
       return false;
     }
   }
@@ -1078,7 +1171,15 @@ class TradeJournalBridge {
       visibilityTradingPauseError: null,
       visibilityDashboardDelivered: false,
       visibilityDashboardQueued: false,
+      journalStatus: isJournalFailureEventType(eventType) ? 'unjournaled' : null,
+      trustStatus: isJournalFailureEventType(eventType) ? 'untrusted' : null,
+      manualReconciliationRequired: isJournalFailureEventType(eventType),
     };
+
+    if (record.manualReconciliationRequired) {
+      TradeJournalBridge.prototype._markTradeUnjournaled.call(this, record);
+      TradeJournalBridge.prototype._emitJournalReconciliationTrace.call(this, record);
+    }
 
     if (filepath) {
       try {
@@ -1089,6 +1190,9 @@ class TradeJournalBridge {
         record.visibilityLedgerPersisted = false;
         record.visibilityLedgerError = errorMessageOrNull(err);
         console.error(`[TradeJournalBridge] Failed to append trade visibility failure ledger: ${err.message}`);
+        if (record.manualReconciliationRequired && isJournalPersistenceError(err)) {
+          TradeJournalBridge.prototype._recordJournalPersistenceFailure.call(this, record, err);
+        }
         const fallbackPersisted = TradeJournalBridge.prototype._writeVisibilityFailureFallback.call(this, record);
         record.visibilityAllPersistenceFailed = fallbackPersisted !== true;
       }
@@ -1105,6 +1209,131 @@ class TradeJournalBridge {
 
     TradeJournalBridge.prototype._sendVisibilityFailure.call(this, record);
     return record;
+  }
+
+  _markTradeUnjournaled(record) {
+    const stateManager = this.bot?.stateManager;
+    if (!stateManager || typeof stateManager.markActiveTradeJournalFailure !== 'function') {
+      return { success: false, reason: 'mark_active_trade_journal_failure_unavailable' };
+    }
+
+    try {
+      return stateManager.markActiveTradeJournalFailure(record.orderId, {
+        eventType: record.eventType,
+        phase: record.phase,
+        source: record.source,
+        message: record.message,
+        orderId: record.orderId,
+      });
+    } catch (err) {
+      console.error(`[TradeJournalBridge] Failed to mark active trade unjournaled: ${err.message}`);
+      return { success: false, reason: 'mark_active_trade_journal_failure_failed', error: err.message };
+    }
+  }
+
+  _emitJournalReconciliationTrace(record) {
+    emitTrace(this.bot || {}, 'TRADE_JOURNAL_RECONCILIATION_REQUIRED', {
+      symbol: record.context?.entry?.symbol || record.context?.exitRecord?.symbol || record.scope?.symbol || null,
+      orderId: record.orderId,
+      action: record.action,
+      phase: record.phase,
+      source: record.source,
+      eventType: record.eventType,
+      reason: record.message,
+      journalStatus: 'unjournaled',
+      trustStatus: 'untrusted',
+      manualReconciliationRequired: true,
+    });
+  }
+
+  _recordJournalPersistenceFailure(record, err) {
+    if (record?.journalPersistenceFailureRecorded === true) {
+      return {
+        paused: false,
+        alreadyRecorded: true,
+        failureStreak: this._journalPersistenceFailureStreak,
+      };
+    }
+    if (record) {
+      record.journalPersistenceFailureRecorded = true;
+    }
+    this._journalPersistenceFailureStreak = Number.isInteger(this._journalPersistenceFailureStreak)
+      ? this._journalPersistenceFailureStreak + 1
+      : 1;
+    record.journalPersistenceFailureStreak = this._journalPersistenceFailureStreak;
+    record.journalPersistenceErrorCode = nonEmptyStringOrNull(err?.code);
+
+    if (this._journalPersistenceFailureStreak < JOURNAL_INFRASTRUCTURE_FAILURE_THRESHOLD) {
+      return { paused: false, failureStreak: this._journalPersistenceFailureStreak };
+    }
+    if (this._journalPersistenceFailureStreak > JOURNAL_INFRASTRUCTURE_FAILURE_THRESHOLD) {
+      return { paused: false, alreadyPaused: true, failureStreak: this._journalPersistenceFailureStreak };
+    }
+
+    const stateManager = this.bot?.stateManager;
+    const reason = `[TradeJournalBridge] journal persistence failed ${this._journalPersistenceFailureStreak} consecutive time(s); new entries halted until a journal write succeeds`;
+    emitTrace(this.bot || {}, 'TRADE_JOURNAL_INFRASTRUCTURE_HALTED', {
+      symbol: record.context?.entry?.symbol || record.context?.exitRecord?.symbol || record.scope?.symbol || null,
+      orderId: record.orderId,
+      action: record.action,
+      phase: record.phase,
+      source: JOURNAL_INFRASTRUCTURE_FAILURE_SOURCE,
+      reason,
+      failureStreak: this._journalPersistenceFailureStreak,
+      journalStatus: 'infrastructure_down',
+      manualReconciliationRequired: true,
+    });
+
+    if (!stateManager || typeof stateManager.pauseTrading !== 'function') {
+      console.error(`${reason}; StateManager.pauseTrading unavailable`);
+      return { paused: false, reason: 'pause_trading_unavailable', failureStreak: this._journalPersistenceFailureStreak };
+    }
+
+    Promise.resolve(stateManager.pauseTrading(reason, {
+      source: JOURNAL_INFRASTRUCTURE_FAILURE_SOURCE,
+      recoverable: true,
+    })).catch((pauseErr) => {
+      console.error(`[TradeJournalBridge] journal infrastructure entry halt failed: ${pauseErr.message}`);
+    });
+    return { paused: true, failureStreak: this._journalPersistenceFailureStreak };
+  }
+
+  _recordJournalPersistenceSuccess(context = {}) {
+    if (!Number.isInteger(this._journalPersistenceFailureStreak) || this._journalPersistenceFailureStreak === 0) {
+      return { resumed: false, reason: 'no_failure_streak' };
+    }
+
+    const previousStreak = this._journalPersistenceFailureStreak;
+    this._journalPersistenceFailureStreak = 0;
+    if (previousStreak < JOURNAL_INFRASTRUCTURE_FAILURE_THRESHOLD) {
+      return { resumed: false, reason: 'threshold_not_reached', previousStreak };
+    }
+
+    const stateManager = this.bot?.stateManager;
+    if (!stateManager || typeof stateManager.resumeTradingIfPausedBy !== 'function') {
+      return { resumed: false, reason: 'resume_if_paused_unavailable', previousStreak };
+    }
+
+    Promise.resolve(stateManager.resumeTradingIfPausedBy(JOURNAL_INFRASTRUCTURE_FAILURE_SOURCE, {
+      resumeSource: 'journal_persistence_recovered',
+      reason: 'journal write succeeded after infrastructure failure',
+    })).then((result) => {
+      if (result?.resumed === true) {
+        emitTrace(this.bot || {}, 'TRADE_JOURNAL_INFRASTRUCTURE_RECOVERED', {
+          symbol: context.symbol || null,
+          orderId: context.orderId || null,
+          action: context.action || null,
+          phase: context.phase || null,
+          source: context.source || null,
+          previousFailureStreak: previousStreak,
+          reason: 'journal write succeeded after infrastructure failure',
+        });
+      }
+    }).catch((resumeErr) => {
+      console.error(`[TradeJournalBridge] journal infrastructure resume failed: ${resumeErr.message}`);
+    });
+
+    return { resumed: true, previousStreak };
   }
 
   _markVisibilityPersistenceFailureAlert(record) {
