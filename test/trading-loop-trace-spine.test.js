@@ -1520,12 +1520,13 @@ describe('TradingLoop trace spine', () => {
     expect(executeTrade).toHaveBeenCalledTimes(1);
     expect(executeTrade.mock.calls[0][0]).toEqual(expect.objectContaining({
       action: 'SELL',
-      direction: 'close',
+      positionEffect: 'close_long',
       exitReason: 'ttp_consistency_profit_cap',
       tradeId: 'BUY_MAIN_1',
       traceId: 'trace_consistency_main',
       signalId: 'trace_consistency_main:exit',
     }));
+    expect(executeTrade.mock.calls[0][0]).not.toHaveProperty('direction');
     expect(executeTrade.mock.calls[0][0].ledgerData).toBeUndefined();
     expect(mockExitContractManager.checkExitConditions).not.toHaveBeenCalled();
   });
@@ -1589,7 +1590,7 @@ describe('TradingLoop trace spine', () => {
     expect(executeTrade).toHaveBeenCalledTimes(1);
     expect(executeTrade.mock.calls[0][0]).toEqual(expect.objectContaining({
       action: 'SELL',
-      direction: 'close',
+      positionEffect: 'close_long',
       confidence: 100,
       exitReason: 'profit_tier_1',
       exitFraction: 0.3,
@@ -1597,6 +1598,7 @@ describe('TradingLoop trace spine', () => {
       traceId: 'trace_profit_exit_zero_hold_conf',
       signalId: 'trace_profit_exit_zero_hold_conf:exit',
     }));
+    expect(executeTrade.mock.calls[0][0]).not.toHaveProperty('direction');
     expect(executeTrade.mock.calls[0][0].exitIntent).toEqual(expect.objectContaining({
       reason: 'profit_tier_1',
       stateKey: 'tierStates',
@@ -1652,11 +1654,12 @@ describe('TradingLoop trace spine', () => {
     expect(executeTrade).toHaveBeenCalledTimes(1);
     expect(executeTrade.mock.calls[0][0]).toEqual(expect.objectContaining({
       action: 'SELL',
-      direction: 'close',
+      positionEffect: 'close_long',
       confidence: null,
       exitReason: 'profit_tier_1',
       tradeId: 'BUY_MAIN_NULL_CONF',
     }));
+    expect(executeTrade.mock.calls[0][0]).not.toHaveProperty('direction');
     expect(mockDecisionAutopsyLogger.writeAutopsy.mock.calls.at(-1)[0].exitEvaluations[0]).toEqual(
       expect.objectContaining({ confidence: null })
     );
@@ -1715,10 +1718,11 @@ describe('TradingLoop trace spine', () => {
     expect(executeTrade).toHaveBeenCalledTimes(1);
     expect(executeTrade.mock.calls[0][0]).toEqual(expect.objectContaining({
       action: 'SELL',
-      direction: 'close',
+      positionEffect: 'close_long',
       exitReason: 'ttp_consistency_profit_cap',
       tradeId: 'BUY_1',
     }));
+    expect(executeTrade.mock.calls[0][0]).not.toHaveProperty('direction');
     expect(mockExitContractManager.checkExitConditions).not.toHaveBeenCalled();
     const autopsy = mockDecisionAutopsyLogger.writeAutopsy.mock.calls.at(-1)[0];
     expect(autopsy).toEqual(expect.objectContaining({
@@ -1908,10 +1912,11 @@ describe('TradingLoop trace spine', () => {
     expect(executeTrade).toHaveBeenCalledTimes(1);
     expect(executeTrade.mock.calls[0][0]).toEqual(expect.objectContaining({
       action: 'SELL',
-      direction: 'close',
+      positionEffect: 'close_long',
       exitReason: 'stop_loss',
       tradeId: 'BUY_STOP_1',
     }));
+    expect(executeTrade.mock.calls[0][0]).not.toHaveProperty('direction');
     expect(executeTrade.mock.calls[0][2]).toBe(98.9);
   });
 
@@ -1958,11 +1963,12 @@ describe('TradingLoop trace spine', () => {
     expect(executeTrade).toHaveBeenCalledTimes(1);
     expect(executeTrade.mock.calls[0][0]).toEqual(expect.objectContaining({
       action: 'SELL',
-      direction: 'close',
+      positionEffect: 'close_long',
       confidence: null,
       exitReason: 'stop_loss',
       tradeId: 'BUY_STOP_NULL_CONF',
     }));
+    expect(executeTrade.mock.calls[0][0]).not.toHaveProperty('direction');
     expect(executeTrade.mock.calls[0][1]).toEqual({ totalConfidence: null });
   });
 

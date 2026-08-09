@@ -4777,6 +4777,26 @@ describe('OrderExecutor pause gate', () => {
     expect(executor._acceptedOrderQuantity({}, 3)).toBe(3);
   });
 
+  test('exit order plan carries positionEffect without close direction token', () => {
+    mockStateManager.getTradesBySymbol.mockReturnValue([makeBuyTrade()]);
+    const executor = makeExecutor();
+
+    const plan = executor._buildExitPlan({
+      decision: { action: 'SELL', tradeId: 'BUY_1', exitReason: 'tier_exit', exitFraction: 0.5 },
+      symbol: 'TSLA',
+      price: 125,
+    });
+
+    expect(plan).toEqual(expect.objectContaining({
+      action: 'SELL',
+      side: 'sell',
+      positionEffect: 'close_long',
+      tradeId: 'BUY_1',
+      stateExitFraction: 0.5,
+    }));
+    expect(plan).not.toHaveProperty('direction');
+  });
+
   test('live broker quantity planning rejects unsupported asset classes before routing', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;

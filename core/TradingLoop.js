@@ -932,7 +932,6 @@ class TradingLoop {
     const action = isClosingShort ? 'COVER' : 'SELL';
     return {
       action,
-      direction: 'close',
       positionEffect: positionEffectFromAction(action),
       confidence: 100,
       exitReason: 'ttp_consistency_profit_cap',
@@ -1164,10 +1163,11 @@ class TradingLoop {
           throw new Error('[MED-01] exitCheck.shouldExit=true but exitCheck.exitReason missing — exit-checker contract violation');
         }
         const isClosingShort = this._isClosingShort(activeTrade);
+        const action = isClosingShort ? 'COVER' : 'SELL';
         const exitConfidence = this._exitConfidenceOrNull(exitCheck);
         const exitDecision = {
-          action: isClosingShort ? 'COVER' : 'SELL',
-          direction: 'close',
+          action,
+          positionEffect: positionEffectFromAction(action),
           confidence: exitConfidence,
           exitReason: exitCheck.exitReason,
           exitFraction: exitCheck.exitFraction,
@@ -1609,6 +1609,7 @@ class TradingLoop {
           console.log(`[EXIT-CONTRACT] ${exitCheck.details}`);
           // Determine correct exit action based on what we're closing
           const isClosingShort = this._isClosingShort(activeTrade);
+          const action = isClosingShort ? 'COVER' : 'SELL';
           // MED-01: throw on missing exitReason. All exit checkers
           // (TakeProfitChecker/StopLossChecker/MaxHoldChecker/etc.) MUST emit
           // a specific reason. Halt-class — refuses to silently attribute the
@@ -1618,9 +1619,8 @@ class TradingLoop {
           }
           const exitConfidence = this._exitConfidenceOrNull(exitCheck);
           decision = {
-            action: isClosingShort ? 'COVER' : 'SELL',
-            direction: 'close',
-            positionEffect: positionEffectFromAction(isClosingShort ? 'COVER' : 'SELL'),
+            action,
+            positionEffect: positionEffectFromAction(action),
             confidence: exitConfidence,
             exitReason: exitCheck.exitReason,
             exitFraction: exitCheck.exitFraction,
@@ -1842,7 +1842,7 @@ class TradingLoop {
       this._diag('EXECUTE_HANDOFF', {
         symbol,
         action: decision.action,
-        direction: decision.direction || 'none',
+        direction: decision.direction ?? null,
         positionEffect: positionEffectFromAction(decision.action),
         confidencePct: decision.confidence,
         winner: orchResult.winnerStrategy || 'none',

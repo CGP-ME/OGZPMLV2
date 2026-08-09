@@ -624,6 +624,7 @@ describe('SessionRouter runtime scope propagation', () => {
       orderQuantity: 2,
       tradeId: 'BUY_1',
     }));
+    expect(plan).not.toHaveProperty('direction');
   });
 
   test('OrderExecutor exit plan rejects stored trades with incomplete scope', () => {

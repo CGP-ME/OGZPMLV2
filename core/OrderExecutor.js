@@ -2356,7 +2356,6 @@ class OrderExecutor {
       decisionId: decision.decisionId || null,
       action: decision.action,
       side: this._exitSide(decision.action),
-      direction: 'close',
       positionEffect: positionEffectFromAction(decision.action),
       symbol,
       brokerId: scope.brokerId,
