@@ -443,13 +443,56 @@ class TradingLoop {
     return 'hold';
   }
 
+  _activeTradePositionSide(activeTrade) {
+    const direction = typeof activeTrade?.direction === 'string'
+      ? activeTrade.direction.trim().toLowerCase()
+      : null;
+    const action = typeof activeTrade?.action === 'string'
+      ? activeTrade.action.trim().toUpperCase()
+      : null;
+    const isLong = direction === 'long' || action === 'BUY';
+    const isShort = direction === 'short' || action === 'SELL_SHORT';
+    if (isLong && !isShort) return 'long';
+    if (isShort && !isLong) return 'short';
+    return null;
+  }
+
+  _oppositePositionStatus(finalDirection, activeTrades) {
+    for (const activeTrade of activeTrades) {
+      const side = this._activeTradePositionSide(activeTrade);
+      if (!side) {
+        return {
+          passed: false,
+          reason: 'active_trade_direction_unknown',
+          tradeId: activeTrade?.id || activeTrade?.orderId || null,
+        };
+      }
+      if ((finalDirection === 'buy' && side === 'short') || (finalDirection === 'sell' && side === 'long')) {
+        return {
+          passed: false,
+          reason: 'opposite_position_no_flip',
+          tradeId: activeTrade?.id || activeTrade?.orderId || null,
+        };
+      }
+    }
+    return { passed: true, reason: null, tradeId: null };
+  }
+
   _entryRiskGates(finalDirection, directionFilter, enableShorts, priceHistory, activeTrades, maxPositions, minConfidence, confidence, riskGates = []) {
     const executionDirectionGate = this._directionGateStatus(finalDirection, directionFilter, enableShorts);
+    const oppositeStatus = this._oppositePositionStatus(finalDirection, activeTrades);
     return [
       { gate: 'warmup', threshold: 15, value: priceHistory.length, passed: priceHistory.length >= 15 },
       { gate: 'min_confidence', threshold: minConfidence, value: confidence, passed: confidence >= minConfidence },
       { gate: 'direction_filter', threshold: directionFilter, value: finalDirection, passed: executionDirectionGate.filterPassed },
-      { gate: 'opposite_position_block', threshold: null, value: finalDirection, passed: !activeTrades.some(t => (finalDirection === 'buy' && (t.direction === 'short' || t.action === 'SELL_SHORT')) || (finalDirection === 'sell' && (t.direction === 'long' || t.action === 'BUY'))) },
+      {
+        gate: 'opposite_position_block',
+        threshold: null,
+        value: finalDirection,
+        passed: oppositeStatus.passed,
+        rejectReason: oppositeStatus.reason,
+        tradeId: oppositeStatus.tradeId,
+      },
       { gate: 'max_positions', threshold: maxPositions, value: activeTrades.length, passed: activeTrades.length < maxPositions },
       ...riskGates,
     ];
@@ -1606,11 +1649,7 @@ class TradingLoop {
       const symbolHaltReason = stateManager.isSymbolHalted(symbol) ? stateManager.getSymbolHaltReason(symbol) : null;
 
       // Opposite entry signals do not own exits. Exit contracts own exits.
-      const hasOppositePosition = activeTrades.some(t => {
-        if (finalDirection === 'buy') return t.direction === 'short' || t.action === 'SELL_SHORT';
-        if (finalDirection === 'sell') return t.direction === 'long' || t.action === 'BUY';
-        return false;
-      });
+      const oppositeStatus = this._oppositePositionStatus(finalDirection, activeTrades);
 
       if (globalHaltReason) {
         this._diag('ENTRY_BLOCK', {
@@ -1628,15 +1667,20 @@ class TradingLoop {
         });
         console.error(`[ENTRY] Blocked: ${symbol} entries halted - ${symbolHaltReason}`);
         decision = { action: 'HOLD', confidence: orchResult.confidence, blockReason: symbolHaltReason };
-      } else if (hasOppositePosition) {
+      } else if (!oppositeStatus.passed) {
         this._diag('ENTRY_BLOCK', {
           symbol,
-          reason: 'opposite_position_no_flip',
+          reason: oppositeStatus.reason,
           direction: finalDirection,
-          activeTrades: activeTrades.length
+          activeTrades: activeTrades.length,
+          tradeId: oppositeStatus.tradeId,
         });
-        console.log(`[ENTRY] Blocked: opposite ${finalDirection} signal while position is open; exit contract must close first`);
-        decision = { action: 'HOLD', confidence: orchResult.confidence, blockReason: 'opposite_position_no_flip' };
+        if (oppositeStatus.reason === 'opposite_position_no_flip') {
+          console.log(`[ENTRY] Blocked: opposite ${finalDirection} signal while position is open; exit contract must close first`);
+        } else {
+          console.error(`[ENTRY] Blocked: active trade direction unknown for ${symbol}; refusing entry until state is reconciled`);
+        }
+        decision = { action: 'HOLD', confidence: orchResult.confidence, blockReason: oppositeStatus.reason };
       } else if (activeTrades.length >= maxPositions) {
         this._diag('ENTRY_BLOCK', {
           symbol,

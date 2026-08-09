@@ -887,6 +887,49 @@ describe('TradingLoop trace spine', () => {
     }
   });
 
+  test('blocks entries when active trade direction is unknown', async () => {
+    const configSpy = mockDirectionConfig({ directionFilter: 'both', enableShorts: true });
+    try {
+      const ctx = baseEntryContext();
+      ctx.config.evalTraceEnabled = true;
+      mockStateManager.getTradesBySymbol.mockReturnValue([{
+        id: 'MALFORMED_ACTIVE_1',
+        orderId: 'MALFORMED_ACTIVE_1',
+        symbol: 'TSLA',
+        action: 'SELL',
+        direction: null,
+        entryPrice: 100,
+        entryTime: Date.now() - 60000,
+      }]);
+      mockExitContractManager.checkExitConditions.mockReturnValue({ shouldExit: false, details: 'Holding' });
+      const loop = new TradingLoop(ctx);
+      stubGatherData(loop);
+
+      await loop._analyze('TSLA', 'trace_unknown_active_direction_1');
+
+      expect(ctx.executeTrade).not.toHaveBeenCalled();
+      const skipEvent = sentFrames(ctx).find(frame => frame.type === 'trace_event' && frame.event === 'DECISION_SKIP');
+      expect(skipEvent).toEqual(expect.objectContaining({
+        traceId: 'trace_unknown_active_direction_1',
+        symbol: 'TSLA',
+      }));
+      expect(skipEvent.fields).toEqual(expect.objectContaining({
+        reason: 'active_trade_direction_unknown',
+        finalDirection: 'buy',
+      }));
+      expect(mockDecisionAutopsyLogger.writeAutopsy).toHaveBeenCalledWith(expect.objectContaining({
+        symbol: 'TSLA',
+        decision: expect.objectContaining({
+          action: 'HOLD',
+          blockReason: 'active_trade_direction_unknown',
+        }),
+        skipReason: 'active_trade_direction_unknown',
+      }));
+    } finally {
+      configSpy.mockRestore();
+    }
+  });
+
   test('refuses non-BUY TPO overrides before they become shorts', async () => {
     const configSpy = mockDirectionConfig({ directionFilter: 'both', enableShorts: true });
     try {
@@ -1065,6 +1108,50 @@ describe('TradingLoop trace spine', () => {
       'opposite_position_block',
       'max_positions',
     ]));
+  });
+
+  test('allows same-direction short entries when an active short has matching side fields', async () => {
+    const configSpy = mockDirectionConfig({ directionFilter: 'both', enableShorts: true });
+    try {
+      mockStateManager.getTradesBySymbol.mockReturnValue([{
+        id: 'SHORT_OPEN_SAME_DIRECTION_1',
+        orderId: 'SHORT_OPEN_SAME_DIRECTION_1',
+        action: 'SELL_SHORT',
+        direction: 'short',
+        symbol: 'TSLA',
+        assetClass: 'stocks',
+        entryPrice: 100,
+        sizeUsd: 1000,
+      }]);
+      const ctx = baseEntryContext({
+        executeTrade: jest.fn(),
+      });
+      ctx.config.evalTraceEnabled = true;
+      ctx.strategyOrchestrator.evaluate = jest.fn(() => ({
+        direction: 'sell',
+        confidence: 80,
+        winnerStrategy: 'RSI',
+        allResults: [{ strategyName: 'RSI', direction: 'sell', confidence: 0.8, reason: 'test short signal' }],
+        exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1 },
+        confluence: { count: 1, strategies: ['RSI'] },
+        sizingMultiplier: 1,
+      }));
+      mockExitContractManager.checkExitConditions.mockReturnValue({ shouldExit: false, details: 'Holding' });
+      const loop = new TradingLoop(ctx);
+      stubGatherData(loop);
+
+      await loop._analyze('TSLA', 'trace_same_short_direction_1');
+
+      expect(ctx.executeTrade).toHaveBeenCalledTimes(1);
+      expect(ctx.executeTrade.mock.calls[0][0]).toEqual(expect.objectContaining({
+        action: 'SELL_SHORT',
+        direction: 'short',
+        traceId: 'trace_same_short_direction_1',
+      }));
+      expect(sentFrames(ctx).find(frame => frame.type === 'trace_event' && frame.event === 'DECISION_SKIP')).toBeUndefined();
+    } finally {
+      configSpy.mockRestore();
+    }
   });
 
   test('allows same-direction entries from different strategies on one ticker', async () => {
