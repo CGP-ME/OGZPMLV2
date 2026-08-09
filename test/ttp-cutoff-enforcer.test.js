@@ -157,7 +157,7 @@ describe('TtpCutoffEnforcer', () => {
     expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('cleared cutoff reconciliation quarantine'));
   });
 
-  test('fails loud instead of guessing a cutoff exit side for ambiguous active trades', async () => {
+  test('quarantines instead of guessing a cutoff exit side for ambiguous active trades', async () => {
     const now = () => new Date('2026-05-22T19:50:00.000Z').getTime();
     const activeTrades = new Map([['AMBIGUOUS_1', makeTrade({
       id: 'AMBIGUOUS_1',
@@ -172,7 +172,11 @@ describe('TtpCutoffEnforcer', () => {
     };
     const enforcer = new TtpCutoffEnforcer({
       evalRuleEngine: makeRuleEngine(now),
-      stateManager: { get: jest.fn(() => activeTrades) },
+      stateManager: {
+        get: jest.fn(() => activeTrades),
+        updateState: jest.fn(async () => ({ success: true })),
+        haltSymbol: jest.fn(async () => ({ success: true })),
+      },
       orderRouter,
       executeTrade,
       getExitPrice: jest.fn(() => 125),
@@ -183,8 +187,20 @@ describe('TtpCutoffEnforcer', () => {
       logger: { log: jest.fn() },
     });
 
-    await expect(enforcer.enforce()).rejects.toThrow(/active_trade_direction_unknown_for_cutoff/);
+    const result = await enforcer.enforce();
+
+    expect(result).toEqual(expect.objectContaining({
+      enforced: true,
+      brokerFlatVerified: false,
+      requiresManualReconciliation: true,
+      failures: expect.arrayContaining([
+        expect.objectContaining({ reason: 'active_trade_direction_unknown_for_cutoff' }),
+      ]),
+      quarantine: expect.objectContaining({ status: 'quarantined' }),
+    }));
     expect(executeTrade).not.toHaveBeenCalled();
+    expect(enforcer.completedKeys.size).toBe(0);
+    expect(enforcer.unverifiedKeys.has('2026-05-22:950')).toBe(true);
   });
 
   test('webhook-routed cutoff closes tracked state without treating unrelated broker positions as truth', async () => {
@@ -890,12 +906,16 @@ describe('TtpCutoffEnforcer', () => {
     expect(enforcer.completedKeys.size).toBe(0);
   });
 
-  test('webhook-routed cutoff fails loud when tracked state remains open after close attempt', async () => {
+  test('webhook-routed cutoff quarantines when tracked state remains open after close attempt', async () => {
     const now = () => new Date('2026-05-22T19:50:00.000Z').getTime();
     const activeTrades = new Map([['BUY_1', makeTrade({ remainingOrderQuantity: 1 })]]);
     const enforcer = new TtpCutoffEnforcer({
       evalRuleEngine: makeRuleEngine(now),
-      stateManager: { get: jest.fn(() => activeTrades) },
+      stateManager: {
+        get: jest.fn(() => activeTrades),
+        updateState: jest.fn(async () => ({ success: true })),
+        haltSymbol: jest.fn(async () => ({ success: true })),
+      },
       orderRouter: {
         cancelAllOpenOrders: jest.fn(),
         getAllPositions: jest.fn(),
@@ -910,8 +930,19 @@ describe('TtpCutoffEnforcer', () => {
       logger: { log: jest.fn() },
     });
 
-    await expect(enforcer.enforce()).rejects.toThrow(/state_trade_still_open_after_liquidation/);
+    const result = await enforcer.enforce();
+
+    expect(result).toEqual(expect.objectContaining({
+      enforced: true,
+      brokerFlatVerified: false,
+      requiresManualReconciliation: true,
+      failures: expect.arrayContaining([
+        expect.objectContaining({ reason: 'state_trade_still_open_after_liquidation' }),
+      ]),
+      quarantine: expect.objectContaining({ status: 'quarantined' }),
+    }));
     expect(enforcer.completedKeys.size).toBe(0);
+    expect(enforcer.unverifiedKeys.has('2026-05-22:950')).toBe(true);
   });
 
   test('webhook-routed cutoff handles serialized activeTrades array shape instead of treating it as flat', async () => {
@@ -1031,12 +1062,16 @@ describe('TtpCutoffEnforcer', () => {
     expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('activeTrades container invariant failed'));
   });
 
-  test('fails loud and leaves cutoff uncompleted when a liquidation trade has no price', async () => {
+  test('quarantines and leaves cutoff uncompleted when a liquidation trade has no price', async () => {
     const now = () => new Date('2026-05-22T19:50:00.000Z').getTime();
     const activeTrades = new Map([['BUY_1', makeTrade()]]);
     const enforcer = new TtpCutoffEnforcer({
       evalRuleEngine: makeRuleEngine(now),
-      stateManager: { get: jest.fn(() => activeTrades) },
+      stateManager: {
+        get: jest.fn(() => activeTrades),
+        updateState: jest.fn(async () => ({ success: true })),
+        haltSymbol: jest.fn(async () => ({ success: true })),
+      },
       orderRouter: {
         cancelAllOpenOrders: jest.fn(async () => ({ success: true, cancelled: 0, failed: 0, results: [] })),
         getAllPositions: jest.fn()
@@ -1052,8 +1087,19 @@ describe('TtpCutoffEnforcer', () => {
       logger: { log: jest.fn() },
     });
 
-    await expect(enforcer.enforce()).rejects.toThrow(/missing_exit_price/);
+    const result = await enforcer.enforce();
+
+    expect(result).toEqual(expect.objectContaining({
+      enforced: true,
+      brokerFlatVerified: false,
+      requiresManualReconciliation: true,
+      failures: expect.arrayContaining([
+        expect.objectContaining({ reason: 'missing_exit_price' }),
+      ]),
+      quarantine: expect.objectContaining({ status: 'quarantined' }),
+    }));
     expect(enforcer.completedKeys.size).toBe(0);
+    expect(enforcer.unverifiedKeys.has('2026-05-22:950')).toBe(true);
   });
 
   test('uses runtime asset class for legacy active trades missing assetClass', async () => {
@@ -1095,7 +1141,7 @@ describe('TtpCutoffEnforcer', () => {
     );
   });
 
-  test('fails loud when pending order cancellation skips a target broker', async () => {
+  test('quarantines when pending order cancellation skips a target broker', async () => {
     const now = () => new Date('2026-05-22T19:50:00.000Z').getTime();
     const enforcer = new TtpCutoffEnforcer({
       evalRuleEngine: makeRuleEngine(now),
@@ -1117,8 +1163,70 @@ describe('TtpCutoffEnforcer', () => {
       logger: { log: jest.fn() },
     });
 
-    await expect(enforcer.enforce()).rejects.toThrow(/pending-order cancellation failed/);
+    const result = await enforcer.enforce();
+
+    expect(result).toEqual(expect.objectContaining({
+      enforced: true,
+      brokerFlatVerified: false,
+      requiresManualReconciliation: true,
+      failures: expect.arrayContaining([
+        expect.objectContaining({ reason: 'pending_order_cancellation_failed' }),
+      ]),
+      quarantine: expect.objectContaining({ status: 'quarantined' }),
+    }));
     expect(enforcer.completedKeys.size).toBe(0);
+    expect(enforcer.unverifiedKeys.has('2026-05-22:950')).toBe(true);
+  });
+
+  test('quarantine persistence throw stays loud but does not reject cutoff enforcement', async () => {
+    const now = () => new Date('2026-05-22T19:50:00.000Z').getTime();
+    const logger = { log: jest.fn(), warn: jest.fn(), error: jest.fn() };
+    const stateManager = {
+      get: jest.fn(() => new Map()),
+      updateState: jest.fn(async () => {
+        throw new Error('state disk unavailable');
+      }),
+      haltSymbol: jest.fn(async () => {
+        throw new Error('halt write unavailable');
+      }),
+    };
+    const enforcer = new TtpCutoffEnforcer({
+      evalRuleEngine: makeRuleEngine(now),
+      stateManager,
+      orderRouter: {
+        cancelAllOpenOrders: jest.fn(async () => ({
+          success: false,
+          cancelled: 0,
+          failed: 1,
+          results: [{ broker: 'alpaca', success: false, reason: 'adapter_missing_order_cancel_api' }],
+        })),
+        getAllPositions: jest.fn(),
+      },
+      executeTrade: jest.fn(),
+      getExitPrice: jest.fn(),
+      assetClass: 'stocks',
+      symbols: ['TSLA'],
+      now,
+      logger,
+    });
+
+    const result = await enforcer.enforce();
+
+    expect(result).toEqual(expect.objectContaining({
+      enforced: true,
+      brokerFlatVerified: false,
+      requiresManualReconciliation: true,
+      quarantine: expect.objectContaining({
+        status: 'quarantined',
+        persistenceStatus: 'failed',
+        persistenceError: 'state disk unavailable',
+        haltErrors: [expect.objectContaining({ symbol: 'TSLA', error: 'halt write unavailable' })],
+      }),
+    }));
+    expect(enforcer.completedKeys.size).toBe(0);
+    expect(enforcer.unverifiedKeys.has('2026-05-22:950')).toBe(true);
+    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('quarantine record failed'));
+    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('symbol halt failed for TSLA'));
   });
 
   test('directly closes broker positions that have no active state trade', async () => {
@@ -1338,8 +1446,19 @@ describe('TtpCutoffEnforcer', () => {
       logger: { log: jest.fn() },
     });
 
-    await expect(enforcer.enforce()).rejects.toThrow(/broker_positions_still_open_after_cutoff/);
+    const result = await enforcer.enforce();
+
+    expect(result).toEqual(expect.objectContaining({
+      enforced: true,
+      brokerFlatVerified: false,
+      requiresManualReconciliation: true,
+      failures: expect.arrayContaining([
+        expect.objectContaining({ reason: 'broker_positions_still_open_after_cutoff' }),
+      ]),
+      quarantine: expect.objectContaining({ status: 'quarantined' }),
+    }));
     expect(enforcer.completedKeys.size).toBe(0);
+    expect(enforcer.unverifiedKeys.has('2026-05-22:950')).toBe(true);
   });
 
   test('does not cancel or liquidate when runtime asset class is crypto', async () => {
