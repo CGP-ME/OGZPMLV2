@@ -479,6 +479,7 @@ describe('TradingLoop trace spine', () => {
 
   test('drains same-symbol exit-only work after analysis releases', async () => {
     const ctx = baseEntryContext();
+    ctx.config.evalTraceEnabled = true;
     const loop = new TradingLoop(ctx);
     let releaseAnalysis;
     loop._analyze = jest.fn(() => new Promise(resolve => {
@@ -493,6 +494,11 @@ describe('TradingLoop trace spine', () => {
 
     expect(loop.pendingExitSymbols.has('TSLA')).toBe(true);
     expect(loop._checkExitsOnly).not.toHaveBeenCalled();
+    expect(sentFrames(ctx).find(frame => frame.type === 'trace_event' && frame.event === 'EXIT_ONLY_QUEUED')).toEqual(
+      expect.objectContaining({
+        fields: expect.objectContaining({ symbol: 'TSLA' }),
+      })
+    );
 
     releaseAnalysis();
     await analysis;
@@ -1611,6 +1617,103 @@ describe('TradingLoop trace spine', () => {
         exitReason: 'ttp_consistency_profit_cap',
       }),
     ]);
+  });
+
+  test('writes trace and autopsy when exit-only has no scoped price', async () => {
+    for (const price of [NaN, undefined, null, '0', -1, {}]) {
+      jest.clearAllMocks();
+      mockStateManager.getTradesBySymbol.mockReturnValue([]);
+      mockStateManager.getLastPrice.mockReturnValue(null);
+      const executeTrade = jest.fn();
+      const ctx = {
+        priceHistory: candles(30),
+        marketData: {
+          symbol: 'TSLA',
+          price,
+          timestamp: 1700000000000,
+          volume: 1000,
+        },
+        config: {
+          brokerId: 'alpaca',
+          accountId: 'paper-main',
+          accountIdSource: 'config',
+          assetClass: 'stocks',
+          timeframe: '15m',
+          executionMode: 'paper',
+          enableBacktestMode: false,
+          evalTraceEnabled: true,
+          traceEventMaxBufferedBytes: 1048576,
+        },
+        indicatorEngine: {
+          getSnapshot: jest.fn(() => ({ indicators: { atr: 1, rsi: 55, superTrendDirection: 'sideways' } })),
+          getRawState: jest.fn(() => null),
+        },
+        dashboardWs: { readyState: 1, bufferedAmount: 0, send: jest.fn() },
+        executeTrade,
+      };
+      const loop = new TradingLoop(ctx);
+
+      await loop._checkExitsOnly('TSLA');
+
+      expect(executeTrade).not.toHaveBeenCalled();
+      expect(mockStateManager.getTradesBySymbol).not.toHaveBeenCalled();
+      const skipEvent = sentFrames(ctx).find(frame => frame.type === 'trace_event' && frame.event === 'ANALYSIS_SKIP');
+      expect(skipEvent.fields).toEqual(expect.objectContaining({
+        symbol: 'TSLA',
+        reason: 'no_scoped_price',
+        source: 'exit_only',
+        route: 'global',
+        marketSymbol: 'TSLA',
+      }));
+      const autopsy = mockDecisionAutopsyLogger.writeAutopsy.mock.calls.at(-1)[0];
+      expect(autopsy).toEqual(expect.objectContaining({
+        source: 'exit_only',
+        symbol: 'TSLA',
+        skipReason: 'no_scoped_price',
+        decision: expect.objectContaining({ action: 'HOLD' }),
+      }));
+    }
+  });
+
+  test('contains exit-only no-price autopsy persistence failure', async () => {
+    const executeTrade = jest.fn();
+    mockDecisionAutopsyLogger.writeAutopsy.mockReturnValueOnce(false);
+    const ctx = {
+      priceHistory: candles(30),
+      marketData: {
+        symbol: 'TSLA',
+        price: null,
+        timestamp: 1700000000000,
+        volume: 1000,
+      },
+      config: {
+        brokerId: 'alpaca',
+        accountId: 'paper-main',
+        accountIdSource: 'config',
+        assetClass: 'stocks',
+        timeframe: '15m',
+        executionMode: 'paper',
+        enableBacktestMode: false,
+        evalTraceEnabled: true,
+        traceEventMaxBufferedBytes: 1048576,
+      },
+      indicatorEngine: {
+        getSnapshot: jest.fn(() => ({ indicators: { atr: 1, rsi: 55, superTrendDirection: 'sideways' } })),
+        getRawState: jest.fn(() => null),
+      },
+      dashboardWs: { readyState: 1, bufferedAmount: 0, send: jest.fn() },
+      executeTrade,
+    };
+    const loop = new TradingLoop(ctx);
+
+    await expect(loop._checkExitsOnly('TSLA')).resolves.toBeUndefined();
+
+    expect(executeTrade).not.toHaveBeenCalled();
+    expect(mockStateManager.getTradesBySymbol).not.toHaveBeenCalled();
+    const events = sentFrames(ctx).map(frame => frame.event);
+    expect(events).toContain('ANALYSIS_SKIP');
+    expect(events).toContain('DECISION_AUTOPSY_WRITE_FAILED');
+    expect(events).toContain('DECISION_AUTOPSY_FAILED');
   });
 
   test('uses the fresh per-symbol last price for exit-only checks instead of stale active-timeframe marketData', async () => {

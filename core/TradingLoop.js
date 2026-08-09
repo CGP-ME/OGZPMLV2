@@ -947,6 +947,7 @@ class TradingLoop {
     if (this._isSymbolAnalyzing(symbol)) {
       this.pendingExitSymbols.add(symbol);
       this._diag('EXIT_ONLY_QUEUED', { symbol });
+      emitTrace(this.ctx, 'EXIT_ONLY_QUEUED', { symbol });
       return;
     }
     this._setSymbolAnalyzing(symbol, true);
@@ -986,11 +987,40 @@ class TradingLoop {
     const priceSource = Number.isFinite(stateLastPrice) && stateLastPrice > 0
       ? 'state_last_price'
       : (marketData?.priceSource || 'market_data');
+    const priceHistory = symCtx?.priceHistory ?? this.ctx.priceHistory;
     if (!Number.isFinite(price) || price <= 0) {
       this._diag('EXIT_ONLY_NO_PRICE', {
         symbol,
         marketSymbol: this.ctx.marketData?.symbol || 'missing'
       });
+      emitTrace(this.ctx, 'ANALYSIS_SKIP', {
+        traceId,
+        symbol,
+        reason: 'no_scoped_price',
+        source: 'exit_only',
+        route: symCtx ? 'symbolContext' : 'global',
+        marketSymbol: this.ctx.marketData?.symbol || null,
+      });
+      try {
+        this._writeDecisionAutopsy({
+          traceId,
+          symbol,
+          price,
+          priceHistory,
+          marketData,
+          skipReason: 'no_scoped_price',
+          decision: { action: 'HOLD' },
+          source: 'exit_only',
+        });
+      } catch (error) {
+        if (error.code !== 'DECISION_AUTOPSY_PERSIST_FAILED') {
+          throw error;
+        }
+        this._diag('EXIT_ONLY_NO_PRICE_AUTOPSY_FAILED', {
+          symbol,
+          reason: error.message,
+        });
+      }
       return;
     }
 
@@ -998,7 +1028,6 @@ class TradingLoop {
     if (activeTrades.length === 0) return;
     const exitEvaluations = [];
 
-    const priceHistory = symCtx?.priceHistory ?? this.ctx.priceHistory;
     const indicatorEngine = symCtx?.indicatorEngine ?? this.ctx.indicatorEngine;
     const fibonacciDetector = symCtx?.fibonacciDetector ?? this.ctx.fibonacciDetector;
     const dtoState = indicatorEngine.getSnapshot();
