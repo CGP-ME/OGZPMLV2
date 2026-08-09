@@ -462,6 +462,63 @@ describe('ExitContractManager exit ownership contract', () => {
     expect(result.details).toContain('Donchian breakout closed back inside entry channel');
   });
 
+  test('ema cross reversal invalidates against the active trade direction', () => {
+    const manager = new ExitContractManager();
+    const now = Date.parse('2026-06-28T12:00:00.000Z');
+    const contract = exitContract({
+      invalidationConditions: ['ema_cross_reversal'],
+    });
+
+    const longExit = manager.checkExitConditions(profitTrade({
+      direction: 'long',
+      entryIndicators: { ema9: 106, ema20: 100 },
+      exitContract: contract,
+      frozenExitPolicy: frozenPolicyWithContract(contract),
+    }), 100, {
+      currentTime: now,
+      indicators: { ema9: 99, ema20: 101 },
+      intentId: 'intent-ema-long',
+    });
+
+    const shortExit = manager.checkExitConditions(profitTrade({
+      direction: 'short',
+      action: 'SELL_SHORT',
+      entryIndicators: { ema9: 99, ema20: 101 },
+      exitContract: contract,
+      frozenExitPolicy: frozenPolicyWithContract(contract),
+    }), 100, {
+      currentTime: now,
+      indicators: { ema9: 106, ema20: 100 },
+      intentId: 'intent-ema-short',
+    });
+    const flatEntryLongExit = manager.checkExitConditions(profitTrade({
+      direction: 'long',
+      entryIndicators: { ema9: 100, ema20: 100 },
+      exitContract: contract,
+      frozenExitPolicy: frozenPolicyWithContract(contract),
+    }), 100, {
+      currentTime: now,
+      indicators: { ema9: 99, ema20: 101 },
+      intentId: 'intent-ema-flat-long',
+    });
+
+    expect(longExit).toMatchObject({
+      shouldExit: true,
+      exitReason: 'invalidation',
+    });
+    expect(longExit.details).toContain('against long');
+    expect(shortExit).toMatchObject({
+      shouldExit: true,
+      exitReason: 'invalidation',
+    });
+    expect(shortExit.details).toContain('against short');
+    expect(flatEntryLongExit).toMatchObject({
+      shouldExit: true,
+      exitReason: 'invalidation',
+    });
+    expect(flatEntryLongExit.details).toContain('against long');
+  });
+
   test('tpMode off suppresses take-profit even when a stale percent value is present', () => {
     const manager = new ExitContractManager();
     const now = Date.parse('2026-06-28T12:00:00.000Z');

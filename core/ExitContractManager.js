@@ -485,13 +485,30 @@ class ExitContractManager {
           break;
         }
 
-        case 'ema_cross_reversal':
-          // EMA crossover reversed (e.g., golden cross → death cross)
-          if (trade.entryIndicators?.ema9 > trade.entryIndicators?.ema20 &&
-              indicators.ema9 < indicators.ema20) {
-            return { triggered: true, reason: 'EMA cross reversed (bullish → bearish)' };
+        case 'ema_cross_reversal': {
+          const direction = activeTradeDirection(trade);
+          if (!direction) {
+            return { triggered: false, reason: 'active_trade_direction_unknown', refused: true };
+          }
+          const entryEma9 = finiteOrNull(trade.entryIndicators?.ema9);
+          const entryEma20 = finiteOrNull(trade.entryIndicators?.ema20);
+          const currentEma9 = finiteOrNull(indicators.ema9);
+          const currentEma20 = finiteOrNull(indicators.ema20);
+          if (entryEma9 === null || entryEma20 === null || currentEma9 === null || currentEma20 === null) {
+            break;
+          }
+          const enteredBullishOrFlat = entryEma9 >= entryEma20;
+          const enteredBearishOrFlat = entryEma9 <= entryEma20;
+          const currentBullish = currentEma9 > currentEma20;
+          const currentBearish = currentEma9 < currentEma20;
+          if (direction === 'long' && enteredBullishOrFlat && currentBearish) {
+            return { triggered: true, reason: 'EMA cross reversed against long (bullish/flat to bearish)' };
+          }
+          if (direction === 'short' && enteredBearishOrFlat && currentBullish) {
+            return { triggered: true, reason: 'EMA cross reversed against short (bearish/flat to bullish)' };
           }
           break;
+        }
 
         case 'regime_change':
           // Market regime changed from entry
