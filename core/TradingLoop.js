@@ -458,8 +458,26 @@ class TradingLoop {
     return null;
   }
 
-  _oppositePositionStatus(finalDirection, activeTrades) {
+  _entryDecisionInstantKey(source) {
+    const value = source?.decisionInstantKey
+      ?? source?.ledgerData?.candleTimestamp
+      ?? source?.decisionLedger?.candleTimestamp
+      ?? source?.candleTimestamp
+      ?? source?.entryTime
+      ?? source?.timestamp
+      ?? source?.marketData?.timestamp
+      ?? null;
+    if (value === null || value === undefined || value === '') return null;
+    return String(value);
+  }
+
+  _oppositePositionStatus(finalDirection, activeTrades, decisionInstantKey = null) {
+    const currentInstantKey = this._entryDecisionInstantKey({ decisionInstantKey });
     for (const activeTrade of activeTrades) {
+      const activeInstantKey = this._entryDecisionInstantKey(activeTrade);
+      if (!currentInstantKey || !activeInstantKey || activeInstantKey !== currentInstantKey) {
+        continue;
+      }
       const side = this._activeTradePositionSide(activeTrade);
       if (!side) {
         return {
@@ -471,7 +489,7 @@ class TradingLoop {
       if ((finalDirection === 'buy' && side === 'short') || (finalDirection === 'sell' && side === 'long')) {
         return {
           passed: false,
-          reason: 'opposite_position_no_flip',
+          reason: 'opposite_entry_same_instant',
           tradeId: activeTrade?.id || activeTrade?.orderId || null,
         };
       }
@@ -479,9 +497,9 @@ class TradingLoop {
     return { passed: true, reason: null, tradeId: null };
   }
 
-  _entryRiskGates(finalDirection, directionFilter, priceHistory, activeTrades, maxPositions, minConfidence, confidence, riskGates = []) {
+  _entryRiskGates(finalDirection, directionFilter, priceHistory, activeTrades, maxPositions, minConfidence, confidence, riskGates = [], decisionInstantKey = null) {
     const executionDirectionGate = this._directionGateStatus(finalDirection, directionFilter);
-    const oppositeStatus = this._oppositePositionStatus(finalDirection, activeTrades);
+    const oppositeStatus = this._oppositePositionStatus(finalDirection, activeTrades, decisionInstantKey);
     return [
       { gate: 'warmup', threshold: 15, value: priceHistory.length, passed: priceHistory.length >= 15 },
       { gate: 'min_confidence', threshold: minConfidence, value: confidence, passed: confidence >= minConfidence },
@@ -1640,9 +1658,12 @@ class TradingLoop {
     if (decision.action === 'HOLD' && finalDirection !== 'hold' && confidence >= minConfidence) {
       const globalHaltReason = stateManager.isHalted() ? stateManager.getHaltReason() : null;
       const symbolHaltReason = stateManager.isSymbolHalted(symbol) ? stateManager.getSymbolHaltReason(symbol) : null;
+      const decisionInstantKey = this._entryDecisionInstantKey({
+        decisionInstantKey: marketData?.timestamp ?? (Array.isArray(priceHistory) && priceHistory.length > 0 ? priceHistory[priceHistory.length - 1]?.time : null),
+      });
 
       // Opposite entry signals do not own exits. Exit contracts own exits.
-      const oppositeStatus = this._oppositePositionStatus(finalDirection, activeTrades);
+      const oppositeStatus = this._oppositePositionStatus(finalDirection, activeTrades, decisionInstantKey);
 
       if (globalHaltReason) {
         this._diag('ENTRY_BLOCK', {
@@ -1668,8 +1689,8 @@ class TradingLoop {
           activeTrades: activeTrades.length,
           tradeId: oppositeStatus.tradeId,
         });
-        if (oppositeStatus.reason === 'opposite_position_no_flip') {
-          console.log(`[ENTRY] Blocked: opposite ${finalDirection} signal while position is open; exit contract must close first`);
+        if (oppositeStatus.reason === 'opposite_entry_same_instant') {
+          console.error(`[ENTRY] Blocked: simultaneous opposite ${finalDirection} entry for ${symbol}; trade=${oppositeStatus.tradeId || 'unknown'}`);
         } else {
           console.error(`[ENTRY] Blocked: active trade direction unknown for ${symbol}; refusing entry until state is reconciled`);
         }
@@ -1776,7 +1797,10 @@ class TradingLoop {
         maxPositions,
         minConfidence,
         confidence,
-        Array.isArray(decision.riskGates) ? decision.riskGates : []
+        Array.isArray(decision.riskGates) ? decision.riskGates : [],
+        this._entryDecisionInstantKey({
+          decisionInstantKey: marketData?.timestamp ?? (Array.isArray(priceHistory) && priceHistory.length > 0 ? priceHistory[priceHistory.length - 1]?.time : null),
+        })
       )
       : (Array.isArray(decision.riskGates) ? decision.riskGates : []);
 
@@ -1851,7 +1875,10 @@ class TradingLoop {
           maxPositions,
           minConfidence,
           confidence,
-          riskGates
+          riskGates,
+          this._entryDecisionInstantKey({
+            decisionInstantKey: marketData?.timestamp ?? (Array.isArray(priceHistory) && priceHistory.length > 0 ? priceHistory[priceHistory.length - 1]?.time : null),
+          })
         );
 
         // L1+L2: Attach full ledger data to entry decisions for StateManager.openPosition.

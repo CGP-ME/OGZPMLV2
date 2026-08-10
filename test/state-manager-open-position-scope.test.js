@@ -1489,7 +1489,7 @@ describe('StateManager openPosition scope contract', () => {
     expect(manager.get('realizedPnL')).toBe(beforeRealizedPnL + 19);
   });
 
-  test('openPosition blocks same-symbol opposite-direction hedges', async () => {
+  test('openPosition only blocks same-symbol opposite entries in the same decision instant', async () => {
     const openedLong = await manager.openPosition(500, 100, fullScope({
       orderId: 'LONG_SCOPE_1',
       entryOrderQuantity: 5,
@@ -1499,32 +1499,153 @@ describe('StateManager openPosition scope contract', () => {
     }));
     expect(openedLong.success).toBe(true);
 
-    const openedShort = await manager.openPosition(300, 30, fullScope({
-      orderId: 'SHORT_SCOPE_1',
+    const sameInstantShort = await manager.openPosition(300, 30, fullScope({
+      orderId: 'SHORT_SCOPE_SAME_INSTANT',
+      action: 'SELL_SHORT',
+      direction: 'short',
+      symbol: 'TSLA',
+      entryTime: Date.parse('2026-05-29T12:00:00.000Z'),
+      entryOrderQuantity: 10,
+      remainingOrderQuantity: 10,
+    }));
+
+    expect(sameInstantShort.success).toBe(false);
+    expect(sameInstantShort.blockedReason).toBe('opposite_entry_same_instant');
+    expect(sameInstantShort.existingTradeId).toBe('LONG_SCOPE_1');
+    expect(sameInstantShort.existingDirection).toBe('long');
+    expect(sameInstantShort.nextDirection).toBe('short');
+    expect(manager.get('activeTrades').size).toBe(1);
+    expect(manager.get('activeTrades').has('LONG_SCOPE_1')).toBe(true);
+    expect(manager.get('activeTrades').has('SHORT_SCOPE_SAME_INSTANT')).toBe(false);
+    expect(manager.get('position')).toBe(500);
+
+    const laterShort = await manager.openPosition(300, 30, fullScope({
+      orderId: 'SHORT_SCOPE_LATER',
       action: 'SELL_SHORT',
       direction: 'short',
       symbol: 'TSLA',
       entryOrderQuantity: 10,
       remainingOrderQuantity: 10,
       ledgerData: fullLedgerData({
+        candleTimestamp: Date.parse('2026-05-29T12:15:00.000Z'),
         strategySignals: [{
           name: 'ScopeTestStrategy',
           direction: 'short',
           baseConfidence: 0.75,
-          reason: 'same-symbol hedge test signal',
+          reason: 'later same-symbol hedge test signal',
         }],
       }),
     }));
 
-    expect(openedShort.success).toBe(false);
-    expect(openedShort.blockedReason).toBe('same_symbol_hedge_blocked');
-    expect(openedShort.existingTradeId).toBe('LONG_SCOPE_1');
-    expect(openedShort.existingDirection).toBe('long');
-    expect(openedShort.nextDirection).toBe('short');
+    expect(laterShort.success).toBe(true);
+    expect(manager.get('activeTrades').size).toBe(2);
+    expect(manager.get('activeTrades').has('LONG_SCOPE_1')).toBe(true);
+    expect(manager.get('activeTrades').has('SHORT_SCOPE_LATER')).toBe(true);
+    expect(manager.get('position')).toBe(200);
+
+    const closedShort = await manager.closePosition(25, false, null, {
+      orderId: 'SHORT_SCOPE_LATER',
+      orderQuantity: 10,
+      quantityUnit: 'shares',
+      exitReason: 'cover_later_short_probe',
+    });
+
+    expect(closedShort.success).toBe(true);
     expect(manager.get('activeTrades').size).toBe(1);
     expect(manager.get('activeTrades').has('LONG_SCOPE_1')).toBe(true);
-    expect(manager.get('activeTrades').has('SHORT_SCOPE_1')).toBe(false);
+    expect(manager.get('activeTrades').has('SHORT_SCOPE_LATER')).toBe(false);
     expect(manager.get('position')).toBe(500);
+  });
+
+  test('openPosition stamps omitted entry instants before same-instant opposite checks', async () => {
+    const instant = Date.parse('2026-05-29T12:30:00.000Z');
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(instant);
+    try {
+      const openedLong = await manager.openPosition(500, 100, fullScope({
+        orderId: 'LONG_NO_TIMESTAMP_1',
+        action: 'BUY',
+        direction: 'long',
+        symbol: 'TSLA',
+        entryOrderQuantity: 5,
+        remainingOrderQuantity: 5,
+      }));
+      expect(openedLong.success).toBe(true);
+      expect(manager.getActiveTrade('LONG_NO_TIMESTAMP_1')).toEqual(expect.objectContaining({
+        entryTime: instant,
+        timestamp: instant,
+      }));
+
+      const openedShort = await manager.openPosition(300, 30, fullScope({
+        orderId: 'SHORT_NO_TIMESTAMP_1',
+        action: 'SELL_SHORT',
+        direction: 'short',
+        symbol: 'TSLA',
+        entryOrderQuantity: 10,
+        remainingOrderQuantity: 10,
+      }));
+
+      expect(openedShort.success).toBe(false);
+      expect(openedShort.blockedReason).toBe('opposite_entry_same_instant');
+      expect(openedShort.existingTradeId).toBe('LONG_NO_TIMESTAMP_1');
+      expect(openedShort.decisionInstantKey).toBe(String(instant));
+      expect(manager.get('activeTrades').size).toBe(1);
+      expect(manager.get('activeTrades').has('SHORT_NO_TIMESTAMP_1')).toBe(false);
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
+  test('openPosition treats unkeyed legacy opposite trades as earlier standing state', async () => {
+    manager.state.activeTrades.set('LONG_LEGACY_UNKEYED', {
+      id: 'LONG_LEGACY_UNKEYED',
+      orderId: 'LONG_LEGACY_UNKEYED',
+      action: 'BUY',
+      direction: 'long',
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      accountId: 'acct-main',
+      accountIdSource: 'config',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+      scopeKey: expectedScopeKey,
+      entryStrategy: 'ScopeTestStrategy',
+      exitContract: frozenExitPolicy().contract,
+      sizeUsd: 500,
+      size: 500,
+      entryOrderQuantity: 5,
+      entryOrderQuantityUnit: 'shares',
+      remainingOrderQuantity: 5,
+      remainingOrderQuantityUnit: 'shares',
+      entryPrice: 100,
+      status: 'open',
+    });
+    manager.state.position = 500;
+    manager.state.inPosition = 500;
+
+    const openedShort = await manager.openPosition(300, 30, fullScope({
+      orderId: 'SHORT_AFTER_LEGACY_UNKEYED',
+      action: 'SELL_SHORT',
+      direction: 'short',
+      symbol: 'TSLA',
+      entryTime: Date.parse('2026-05-29T12:45:00.000Z'),
+      entryOrderQuantity: 10,
+      remainingOrderQuantity: 10,
+      ledgerData: fullLedgerData({
+        candleTimestamp: Date.parse('2026-05-29T12:45:00.000Z'),
+        strategySignals: [{
+          name: 'ScopeTestStrategy',
+          direction: 'short',
+          baseConfidence: 0.75,
+          reason: 'later short after legacy unkeyed trade',
+        }],
+      }),
+    }));
+
+    expect(openedShort.success).toBe(true);
+    expect(manager.get('activeTrades').size).toBe(2);
+    expect(manager.get('activeTrades').has('LONG_LEGACY_UNKEYED')).toBe(true);
+    expect(manager.get('activeTrades').has('SHORT_AFTER_LEGACY_UNKEYED')).toBe(true);
   });
 
   test('openPosition allows same-symbol same-direction entries', async () => {

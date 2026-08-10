@@ -834,7 +834,7 @@ describe('TradingLoop trace spine', () => {
     }
   });
 
-  test('blocks opposite-side entry signals instead of creating flip exits', async () => {
+  test('blocks opposite-side entry signals in the same decision instant', async () => {
     const configSpy = mockDirectionConfig({ directionFilter: 'both' });
     try {
       const ctx = baseEntryContext();
@@ -856,37 +856,141 @@ describe('TradingLoop trace spine', () => {
         direction: 'long',
         entryPrice: 100,
         entryTime: Date.now() - 60000,
+        ledgerData: { candleTimestamp: 1700000000000 },
       }]);
       mockExitContractManager.checkExitConditions.mockReturnValue({ shouldExit: false, details: 'Holding' });
       const loop = new TradingLoop(ctx);
       stubGatherData(loop);
 
-      await loop._analyze('TSLA', 'trace_no_flip_1');
+      await loop._analyze('TSLA', 'trace_same_instant_opposite_1');
 
       expect(ctx.executeTrade).not.toHaveBeenCalled();
       const skipEvent = sentFrames(ctx).find(frame => frame.type === 'trace_event' && frame.event === 'DECISION_SKIP');
       expect(skipEvent).toEqual(expect.objectContaining({
-        traceId: 'trace_no_flip_1',
+        traceId: 'trace_same_instant_opposite_1',
         symbol: 'TSLA',
       }));
       expect(skipEvent.fields).toEqual(expect.objectContaining({
-        reason: 'opposite_position_no_flip',
+        reason: 'opposite_entry_same_instant',
         finalDirection: 'sell',
       }));
       expect(mockDecisionAutopsyLogger.writeAutopsy).toHaveBeenCalledWith(expect.objectContaining({
         symbol: 'TSLA',
         decision: expect.objectContaining({
           action: 'HOLD',
-          blockReason: 'opposite_position_no_flip',
+          blockReason: 'opposite_entry_same_instant',
         }),
-        skipReason: 'opposite_position_no_flip',
+        skipReason: 'opposite_entry_same_instant',
       }));
     } finally {
       configSpy.mockRestore();
     }
   });
 
-  test('blocks entries when active trade direction is unknown', async () => {
+  test('allows opposite-side entry signals from earlier decision instants', async () => {
+    const configSpy = mockDirectionConfig({ directionFilter: 'both' });
+    try {
+      const ctx = baseEntryContext();
+      ctx.config.evalTraceEnabled = true;
+      ctx.strategyOrchestrator.evaluate = jest.fn(() => ({
+        direction: 'sell',
+        confidence: 80,
+        winnerStrategy: 'RSI',
+        allResults: [{ strategyName: 'RSI', direction: 'sell', confidence: 0.8, reason: 'later short signal' }],
+        exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1 },
+        confluence: { count: 1, strategies: ['RSI'] },
+        sizingMultiplier: 1,
+      }));
+      mockStateManager.getTradesBySymbol.mockReturnValue([{
+        id: 'BUY_OPEN_EARLIER_1',
+        orderId: 'BUY_OPEN_EARLIER_1',
+        symbol: 'TSLA',
+        action: 'BUY',
+        direction: 'long',
+        entryPrice: 100,
+        entryTime: Date.now() - 60000,
+        ledgerData: { candleTimestamp: 1699999100000 },
+      }]);
+      mockExitContractManager.checkExitConditions.mockReturnValue({ shouldExit: false, details: 'Holding' });
+      const loop = new TradingLoop(ctx);
+      stubGatherData(loop);
+
+      await loop._analyze('TSLA', 'trace_later_opposite_allowed_1');
+
+      expect(ctx.executeTrade).toHaveBeenCalledTimes(1);
+      expect(ctx.executeTrade.mock.calls[0][0]).toEqual(expect.objectContaining({
+        action: 'SELL_SHORT',
+        direction: 'short',
+        positionEffect: 'open_short',
+        traceId: 'trace_later_opposite_allowed_1',
+      }));
+      expect(sentFrames(ctx).find(frame => frame.type === 'trace_event' && frame.event === 'DECISION_SKIP')).toBeUndefined();
+      const autopsy = mockDecisionAutopsyLogger.writeAutopsy.mock.calls.at(-1)[0];
+      const oppositeGate = autopsy.gates.riskGates.find(gate => gate.gate === 'opposite_position_block');
+      expect(oppositeGate).toEqual(expect.objectContaining({
+        passed: true,
+        rejectReason: null,
+      }));
+    } finally {
+      configSpy.mockRestore();
+    }
+  });
+
+  test.each([
+    {
+      label: 'later opposite entry allowed',
+      finalDirection: 'sell',
+      activeTrades: [{ id: 'LONG_EARLIER', action: 'BUY', direction: 'long', ledgerData: { candleTimestamp: 1699999100000 } }],
+      maxPositions: 3,
+      expectedOpposite: { passed: true, rejectReason: null },
+      expectedMaxPassed: true,
+    },
+    {
+      label: 'same-instant opposite entry refused loudly',
+      finalDirection: 'sell',
+      activeTrades: [{ id: 'LONG_SAME_INSTANT', action: 'BUY', direction: 'long', entryTime: 1700000000000 }],
+      maxPositions: 3,
+      expectedOpposite: { passed: false, rejectReason: 'opposite_entry_same_instant', tradeId: 'LONG_SAME_INSTANT' },
+      expectedMaxPassed: true,
+    },
+    {
+      label: 'position cap still enforced',
+      finalDirection: 'buy',
+      activeTrades: [{ id: 'LONG_CAP_1', action: 'BUY', direction: 'long', ledgerData: { candleTimestamp: 1699999100000 } }],
+      maxPositions: 1,
+      expectedOpposite: { passed: true, rejectReason: null },
+      expectedMaxPassed: false,
+    },
+    {
+      label: 'unkeyed legacy leg treated as earlier standing state',
+      finalDirection: 'sell',
+      activeTrades: [{ id: 'LONG_LEGACY_UNKEYED', action: 'BUY', direction: 'long' }],
+      maxPositions: 3,
+      expectedOpposite: { passed: true, rejectReason: null },
+      expectedMaxPassed: true,
+    },
+  ])('opposite-position gate table: $label', ({ finalDirection, activeTrades, maxPositions, expectedOpposite, expectedMaxPassed }) => {
+    const loop = new TradingLoop(baseEntryContext());
+
+    const gates = loop._entryRiskGates(
+      finalDirection,
+      'both',
+      candles(),
+      activeTrades,
+      maxPositions,
+      0.5,
+      0.8,
+      [],
+      1700000000000
+    );
+
+    expect(gates.find(gate => gate.gate === 'opposite_position_block')).toEqual(expect.objectContaining(expectedOpposite));
+    expect(gates.find(gate => gate.gate === 'max_positions')).toEqual(expect.objectContaining({
+      passed: expectedMaxPassed,
+    }));
+  });
+
+  test('blocks entries when same-instant active trade direction is unknown', async () => {
     const configSpy = mockDirectionConfig({ directionFilter: 'both' });
     try {
       const ctx = baseEntryContext();
@@ -899,6 +1003,7 @@ describe('TradingLoop trace spine', () => {
         direction: null,
         entryPrice: 100,
         entryTime: Date.now() - 60000,
+        ledgerData: { candleTimestamp: 1700000000000 },
       }]);
       mockExitContractManager.checkExitConditions.mockReturnValue({ shouldExit: false, details: 'Holding' });
       const loop = new TradingLoop(ctx);

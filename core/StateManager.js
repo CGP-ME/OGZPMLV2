@@ -279,6 +279,18 @@ function activeTradeDirection(trade) {
   return directionSide || actionSide;
 }
 
+function activeTradeEntryInstantKey(source) {
+  const value = source?.decisionInstantKey
+    ?? source?.ledgerData?.candleTimestamp
+    ?? source?.decisionLedger?.candleTimestamp
+    ?? source?.candleTimestamp
+    ?? source?.entryTime
+    ?? source?.timestamp
+    ?? null;
+  if (value === null || value === undefined || value === '') return null;
+  return String(value);
+}
+
 function strictActiveTradeDirection(trade) {
   const direction = typeof trade?.direction === 'string' ? trade.direction : '';
   return direction === 'long' || direction === 'short' ? direction : null;
@@ -1082,9 +1094,15 @@ class StateManager {
     // and SessionRouter need symbol-aware pricing.
     const tradeSymbol = tradeScope.symbol;
 
-    const stateContext = context.frozenExitPolicy !== undefined
+    const openedAt = Date.now();
+    const baseStateContext = context.frozenExitPolicy !== undefined
       ? { ...context, frozenExitPolicy: freezePolicy(context.frozenExitPolicy) }
-      : context;
+      : { ...context };
+    const stateContext = {
+      ...baseStateContext,
+      entryTime: baseStateContext.entryTime ?? openedAt,
+      timestamp: baseStateContext.timestamp ?? openedAt,
+    };
     const profitStopPrice = initialProfitStopPrice(price, tradeDirection, stateContext.exitContract);
     const positionEffect = positionEffectFromAction(tradeAction);
 
@@ -1094,8 +1112,8 @@ class StateManager {
       price: price,
       entryPrice: price,
       entryFee: entryFee,   // Store fee for accounting
-      entryTime: Date.now(),
-      timestamp: Date.now(),
+      entryTime: stateContext.entryTime,
+      timestamp: stateContext.timestamp,
       status: 'open',
       ...stateContext,
       id: tradeId,
@@ -1183,9 +1201,11 @@ class StateManager {
 
       const nextActiveTrades = new Map(this.state.activeTrades || []);
       const oppositeDirection = tradeDirection === 'long' ? 'short' : 'long';
+      const entryInstantKey = activeTradeEntryInstantKey(stateContext);
       const sameSymbolOppositeTrade = Array.from(nextActiveTrades.values()).find((activeTrade) => {
         if (!activeTrade || typeof activeTrade !== 'object') return false;
         if (activeTrade.symbol !== tradeSymbol) return false;
+        if (!entryInstantKey || activeTradeEntryInstantKey(activeTrade) !== entryInstantKey) return false;
         const activeDirection = activeTradeDirection(activeTrade);
         return activeDirection === oppositeDirection;
       });
@@ -1209,11 +1229,12 @@ class StateManager {
         const existingId = sameSymbolOppositeTrade.orderId || sameSymbolOppositeTrade.id || 'unknown';
         return {
           success: false,
-          error: `StateManager.openPosition same-symbol hedge blocked: ${tradeSymbol} already has ${oppositeDirection} trade ${existingId}; refusing ${tradeDirection} entry ${tradeId}`,
-          blockedReason: 'same_symbol_hedge_blocked',
+          error: `StateManager.openPosition opposite entry same instant: ${tradeSymbol} already has ${oppositeDirection} trade ${existingId} for instant ${entryInstantKey}; refusing ${tradeDirection} entry ${tradeId}`,
+          blockedReason: 'opposite_entry_same_instant',
           existingTradeId: existingId,
           existingDirection: oppositeDirection,
           nextDirection: tradeDirection,
+          decisionInstantKey: entryInstantKey,
         };
       }
       nextActiveTrades.set(tradeId, trade);
