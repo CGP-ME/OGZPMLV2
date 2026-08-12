@@ -108,6 +108,7 @@ const DATA_FEED_LIVENESS_PAUSE_PREFIXES = [
 ];
 const AUTHORIZED_SYMBOL_HALT_CODES = new Set([
   'exit_rail_broker_desync',
+  'exit_monitor_reconciliation_required',
   'exit_intent_reconciliation_required',
   DIRECTION_INTEGRITY_EXIT_REFUSAL,
   'symbol_cooldown',

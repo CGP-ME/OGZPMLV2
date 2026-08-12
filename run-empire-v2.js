@@ -2412,12 +2412,7 @@ class OGZPrimeV14Bot {
         console.error(error.stack);
       }
 
-      const activeTrades = stateManager.get('activeTrades');
-      const exitSymbols = activeTrades instanceof Map
-        ? [...new Set(Array.from(activeTrades.values())
-            .map(t => normalizeRuntimeSymbol(t.symbol))
-            .filter(Boolean))]
-        : [];
+      const exitSymbols = this._exitMonitorSymbolsFromState();
 
       if (exitSymbols.length === 0) {
         const activeSymbol = normalizeRuntimeSymbol(this.tradingPair);
@@ -2430,20 +2425,9 @@ class OGZPrimeV14Bot {
         return;
       }
 
-      try {
-        this.tradingLoop.ctx.marketData = this.marketData;
-        this.tradingLoop.ctx.priceHistory = this.priceHistory;
-        this.tradingLoop.ctx.symbolContexts = this.symbolContexts;
-        this.tradingLoop.ctx.dashboardWs = this.dashboardWs;
-        this.tradingLoop.ctx.dashboardWsConnected = this.dashboardWsConnected;
-        this.tradingLoop.ctx._lastTraiDecision = this._lastTraiDecision;
-        this.tradingLoop.ctx.executeTrade = this.executeTrade.bind(this);
-        for (const symbol of exitSymbols) {
-          await this.tradingLoop.checkExitsOnly(symbol);
-        }
-      } catch (error) {
-        console.error('[EXIT-MONITOR] error:', error.message);
-        console.error(error.stack);
+      this._syncExitMonitorTradingLoopContext();
+      for (const symbol of exitSymbols) {
+        await this._runExitMonitorForSymbol(symbol);
       }
     }, interval);
 
@@ -2451,6 +2435,121 @@ class OGZPrimeV14Bot {
 
     // CHANGE 2026-01-16: Liveness watchdog - catches "no data at all" scenario
     this.startLivenessWatchdog();
+  }
+
+  _exitMonitorSymbolsFromState() {
+    const activeTrades = stateManager.get('activeTrades');
+    if (!(activeTrades instanceof Map)) {
+      if (activeTrades !== null && activeTrades !== undefined) {
+        emitTrace(this, 'EXIT_MONITOR_ACTIVE_TRADES_REFUSAL', {
+          traceId: createTraceId('exit_monitor_active_trades'),
+          reason: 'activeTrades_not_map',
+          route: 'exit_monitor_skip_until_state_shape_repaired',
+          manualReconciliationRequired: true,
+        });
+        console.error(`[EXIT-MONITOR] activeTrades container invalid: ${Object.prototype.toString.call(activeTrades)}`);
+      }
+      return [];
+    }
+
+    return [...new Set(Array.from(activeTrades.values())
+      .map(t => normalizeRuntimeSymbol(t.symbol))
+      .filter(Boolean))];
+  }
+
+  _syncExitMonitorTradingLoopContext() {
+    this.tradingLoop.ctx.marketData = this.marketData;
+    this.tradingLoop.ctx.priceHistory = this.priceHistory;
+    this.tradingLoop.ctx.symbolContexts = this.symbolContexts;
+    this.tradingLoop.ctx.dashboardWs = this.dashboardWs;
+    this.tradingLoop.ctx.dashboardWsConnected = this.dashboardWsConnected;
+    this.tradingLoop.ctx._lastTraiDecision = this._lastTraiDecision;
+    this.tradingLoop.ctx.executeTrade = this.executeTrade.bind(this);
+  }
+
+  async _runExitMonitorForSymbol(symbol) {
+    try {
+      await this.tradingLoop.checkExitsOnly(symbol);
+    } catch (error) {
+      await this._routeExitMonitorSymbolFailure(symbol, error);
+    }
+  }
+
+  async _routeExitMonitorSymbolFailure(symbol, error) {
+    const normalizedSymbol = normalizeRuntimeSymbol(symbol);
+    const reason = error && error.message ? error.message : String(error || 'unknown exit monitor failure');
+    const traceId = createTraceId('exit_monitor_failure');
+    console.error(`[EXIT-MONITOR] ${normalizedSymbol || '(missing-symbol)'} failed: ${reason}`);
+    if (error && error.stack) console.error(error.stack);
+
+    emitTrace(this, 'EXIT_MONITOR_SYMBOL_HALT', {
+      traceId,
+      symbol: normalizedSymbol,
+      reason,
+      route: 'symbol_entry_halt_exits_require_reconciliation',
+      manualReconciliationRequired: true,
+      operatorActionRequired: true,
+      financialIntegrityCritical: true,
+    });
+
+    if (!normalizedSymbol || typeof stateManager.haltSymbol !== 'function') {
+      emitTrace(this, 'EXIT_MONITOR_SYMBOL_HALT_FAILED', {
+        traceId,
+        symbol: normalizedSymbol,
+        reason: normalizedSymbol ? 'haltSymbol_unavailable' : 'missing_symbol',
+        originalReason: reason,
+        route: 'exit_monitor_halt_unavailable',
+        manualReconciliationRequired: true,
+        operatorActionRequired: true,
+        financialIntegrityCritical: true,
+      });
+      return { halted: false, reason };
+    }
+
+    try {
+      const haltResult = await stateManager.haltSymbol(
+        normalizedSymbol,
+        `[EXIT-MONITOR] ${normalizedSymbol} exit check failed; operator must reconcile active trade and exit rail before new entries resume: ${reason}`,
+        {
+          code: 'exit_monitor_reconciliation_required',
+          authority: 'financial_integrity',
+          financialIntegrityCritical: true,
+          manualReconciliationRequired: true,
+          operatorActionRequired: true,
+          entryBlockScope: 'symbol',
+          traceId,
+          source: 'exit_monitor',
+          originalReason: reason,
+        }
+      );
+      if (!haltResult || haltResult.success === false) {
+        emitTrace(this, 'EXIT_MONITOR_SYMBOL_HALT_FAILED', {
+          traceId,
+          symbol: normalizedSymbol,
+          reason: haltResult?.reason || 'haltSymbol_failed',
+          originalReason: reason,
+          route: 'exit_monitor_halt_failed',
+          manualReconciliationRequired: true,
+          operatorActionRequired: true,
+          financialIntegrityCritical: true,
+        });
+        return { halted: false, reason };
+      }
+      return { halted: true, reason };
+    } catch (haltError) {
+      emitTrace(this, 'EXIT_MONITOR_SYMBOL_HALT_FAILED', {
+        traceId,
+        symbol: normalizedSymbol,
+        reason: haltError?.message || String(haltError),
+        originalReason: reason,
+        route: 'exit_monitor_halt_exception',
+        manualReconciliationRequired: true,
+        operatorActionRequired: true,
+        financialIntegrityCritical: true,
+      });
+      console.error(`[EXIT-MONITOR] ${normalizedSymbol} symbol halt failed: ${haltError?.message || String(haltError)}`);
+      return { halted: false, reason };
+    }
   }
 
   getTtpExitPrice(symbol, trade, brokerPositions = []) {

@@ -1882,6 +1882,23 @@ describe('StateManager openPosition scope contract', () => {
     expect(manager.get('symbolEntryHalts')).not.toHaveProperty('MARA');
   });
 
+  test('haltSymbol accepts exit monitor reconciliation as a symbol-scoped financial integrity route', async () => {
+    const result = await manager.haltSymbol('TSLA', 'exit monitor failed; reconcile before entries resume', {
+      code: 'exit_monitor_reconciliation_required',
+      authority: 'financial_integrity',
+      financialIntegrityCritical: true,
+      manualReconciliationRequired: true,
+      operatorActionRequired: true,
+      entryBlockScope: 'symbol',
+      source: 'exit_monitor',
+    });
+
+    expect(result).toEqual(expect.objectContaining({ success: true }));
+    expect(manager.isSymbolHalted('TSLA')).toBe(true);
+    expect(manager.getSymbolHaltCode('TSLA')).toBe('exit_monitor_reconciliation_required');
+    expect(manager.getSymbolHaltReason('TSLA')).toBe('exit monitor failed; reconcile before entries resume');
+  });
+
   test('updateState cannot directly inject symbol entry halts', async () => {
     const result = await manager.updateState({
       symbolEntryHalts: {

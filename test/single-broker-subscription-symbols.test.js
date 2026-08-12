@@ -89,6 +89,76 @@ describe('SessionRouter-only market-data subscription ownership', () => {
     expect(handlerSource).toContain('symbol: ev.symbol || ev.runtimeScope?.symbol || null');
   });
 
+  test('exit monitor runs exit checks per symbol instead of one whole-interval catch', () => {
+    const source = fs.readFileSync(path.resolve(__dirname, '..', 'run-empire-v2.js'), 'utf8');
+    const cycleStart = source.indexOf('  startTradingCycle() {');
+    const cycleEnd = source.indexOf('  _exitMonitorSymbolsFromState() {', cycleStart);
+    const cycleSource = source.slice(cycleStart, cycleEnd);
+    const perSymbolStart = source.indexOf('  async _runExitMonitorForSymbol(symbol) {');
+    const perSymbolEnd = source.indexOf('  async _routeExitMonitorSymbolFailure(symbol, error) {', perSymbolStart);
+    const perSymbolSource = source.slice(perSymbolStart, perSymbolEnd);
+
+    expect(cycleStart).toBeGreaterThanOrEqual(0);
+    expect(cycleEnd).toBeGreaterThan(cycleStart);
+    expect(cycleSource).toContain('const exitSymbols = this._exitMonitorSymbolsFromState();');
+    expect(cycleSource).toContain('this._syncExitMonitorTradingLoopContext();');
+    expect(cycleSource).toContain('await this._runExitMonitorForSymbol(symbol);');
+    expect(cycleSource).not.toMatch(/try\s*\{[\s\S]*checkExitsOnly\(symbol\)[\s\S]*\}\s*catch/);
+    expect(perSymbolSource).toContain('await this.tradingLoop.checkExitsOnly(symbol);');
+    expect(perSymbolSource).toContain('await this._routeExitMonitorSymbolFailure(symbol, error);');
+  });
+
+  test('exit monitor failure routes to max trace and symbol halt without global pause', async () => {
+    const stateManager = {
+      haltSymbol: jest.fn().mockResolvedValue({ success: true }),
+    };
+    jest.doMock('../core/StateManager', () => ({
+      getInstance: () => stateManager,
+    }));
+    const OGZPrimeV14Bot = loadBot();
+    const { subscribeTrace } = require('../core/TraceSpine');
+    const bot = Object.assign(Object.create(OGZPrimeV14Bot.prototype), {
+      config: { executionMode: 'paper' },
+    });
+    const traces = [];
+    const unsubscribe = subscribeTrace((payload) => traces.push(payload));
+
+    try {
+      const result = await bot._routeExitMonitorSymbolFailure('TSLA', new Error('missing close side'));
+
+      expect(result).toEqual({ halted: true, reason: 'missing close side' });
+      expect(stateManager.haltSymbol).toHaveBeenCalledWith(
+        'TSLA',
+        expect.stringContaining('exit check failed'),
+        expect.objectContaining({
+          code: 'exit_monitor_reconciliation_required',
+          authority: 'financial_integrity',
+          financialIntegrityCritical: true,
+          manualReconciliationRequired: true,
+          operatorActionRequired: true,
+          entryBlockScope: 'symbol',
+          source: 'exit_monitor',
+          originalReason: 'missing close side',
+        })
+      );
+      expect(stateManager.pauseTrading).toBeUndefined();
+      expect(traces).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          event: 'EXIT_MONITOR_SYMBOL_HALT',
+          fields: expect.objectContaining({
+            symbol: 'TSLA',
+            reason: 'missing close side',
+            route: 'symbol_entry_halt_exits_require_reconciliation',
+            manualReconciliationRequired: true,
+            financialIntegrityCritical: true,
+          }),
+        })
+      ]));
+    } finally {
+      unsubscribe();
+    }
+  });
+
   test('SessionRouter failed-safe local block stops entries before analysis when StateManager pause is unconfirmed', async () => {
     const OGZPrimeV14Bot = loadBot();
     const { subscribeTrace } = require('../core/TraceSpine');
