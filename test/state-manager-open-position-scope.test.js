@@ -455,7 +455,10 @@ describe('StateManager openPosition scope contract', () => {
     ]]);
 
     const realSave = Object.getPrototypeOf(manager).save.bind(manager);
-    await expect(Promise.resolve(realSave())).resolves.toBeUndefined();
+    await expect(Promise.resolve(realSave())).resolves.toEqual(expect.objectContaining({
+      success: true,
+      stateFile: process.env.STATE_FILE,
+    }));
 
     const saved = JSON.parse(fs.readFileSync(process.env.STATE_FILE, 'utf8'));
     expect(saved.activeTrades).toEqual([]);
@@ -2424,6 +2427,40 @@ describe('StateManager openPosition scope contract', () => {
     expect(manager.get('activeTrades').size).toBe(0);
     expect(manager.get('position')).toBe(0);
     expect(manager._buildScopedDashboardPositions(manager.state)).toEqual(beforePositions);
+  });
+
+  test('rolls back openPosition when state persistence fails', async () => {
+    manager.save.mockReturnValueOnce({
+      success: false,
+      code: 'STATE_PERSIST_FAILED',
+      error: 'disk unavailable',
+    });
+
+    const result = await manager.openPosition(500, 100, fullScope({
+      orderId: 'OPEN_PERSIST_FAIL_1',
+      scopeKey: expectedScopeKey,
+      ledgerData: fullLedgerData(),
+    }));
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      code: 'STATE_PERSIST_FAILED',
+      persistenceSucceeded: false,
+      stateMutationSucceeded: false,
+      manualReconciliationRequired: true,
+      operatorActionRequired: true,
+      symbolHalted: true,
+      haltedSymbol: 'TSLA',
+    }));
+    expect(manager.get('activeTrades').size).toBe(0);
+    expect(manager.get('position')).toBe(0);
+    expect(manager.get('positionCount')).toBe(0);
+    expect(manager.get('symbolEntryHalts').TSLA).toEqual(expect.objectContaining({
+      reason: 'state_persistence_failed',
+      manualReconciliationRequired: true,
+      operatorActionRequired: true,
+    }));
+    expect(manager.notifyListeners).not.toHaveBeenCalled();
   });
 
 });

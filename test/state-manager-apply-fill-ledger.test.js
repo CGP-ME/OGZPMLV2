@@ -309,4 +309,81 @@ describe('StateManager applyFill decision ledger persistence', () => {
     }));
     expect(manager.get('activeTrades').get('OPEN_FILL_LEDGER_1').remainingOrderQuantity).toBe(5);
   });
+
+  test('applyFill rolls back and refuses applied=true when state persistence fails', async () => {
+    const openResult = await manager.openPosition(500, 100, fullScope({
+      ledgerData: fullLedgerData(),
+    }));
+    expect(openResult.success).toBe(true);
+    const reserved = await manager.reserveExitSlot('OPEN_FILL_LEDGER_1', 'intent-persist-fail-fill', {
+      submittedAtMs: 1000,
+      sourceEventId: 'source-persist-fail-fill',
+      exitFraction: 1,
+      expectedRemainingQuantity: 0,
+    });
+    expect(reserved.success).toBe(true);
+
+    const beforeTrade = { ...manager.get('activeTrades').get('OPEN_FILL_LEDGER_1') };
+    manager.save.mockClear();
+    manager.notifyListeners.mockClear();
+    manager.save.mockReturnValueOnce({
+      success: false,
+      code: 'STATE_PERSIST_FAILED',
+      error: 'disk unavailable',
+    });
+
+    const result = await manager.applyFill({
+      fillId: 'fill-persist-fail',
+      brokerOrderId: 'broker-persist-fail',
+      tradeId: 'OPEN_FILL_LEDGER_1',
+      intentId: 'intent-persist-fail-fill',
+      sourceEventId: 'source-persist-fail-fill',
+      lifecycleState: 'full_fill',
+      exitReason: 'take_profit',
+      triggeredBy: 'test.persistenceFailure',
+      filledQuantity: 5,
+      filledQuantityUnit: 'shares',
+      filledSizeUsd: 550,
+      fillPrice: 110,
+      fee: 1,
+      expectedQuantity: 5,
+      remainingQuantity: 0,
+      submittedAtMs: 1000,
+      confirmedAtMs: 2000,
+      eventTimeMs: 2000,
+      expectedTradeRevision: 0,
+      executionMode: 'backtest',
+      simulated: true,
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      applied: false,
+      code: 'FILL_STATE_UPDATE_FAILED',
+      persistenceSucceeded: false,
+      stateMutationSucceeded: false,
+      manualReconciliationRequired: true,
+      operatorActionRequired: true,
+      symbolHalted: true,
+      haltedSymbol: 'TSLA',
+      fillId: 'fill-persist-fail',
+      tradeId: 'OPEN_FILL_LEDGER_1',
+      intentId: 'intent-persist-fail-fill',
+    }));
+    expect(manager.get('activeTrades').has('OPEN_FILL_LEDGER_1')).toBe(true);
+    expect(manager.get('activeTrades').get('OPEN_FILL_LEDGER_1')).toEqual(expect.objectContaining({
+      remainingOrderQuantity: beforeTrade.remainingOrderQuantity,
+      pendingExitIntent: expect.objectContaining({
+        intentId: beforeTrade.pendingExitIntent.intentId,
+        lifecycleState: beforeTrade.pendingExitIntent.lifecycleState,
+      }),
+    }));
+    expect(manager.get('closedTrades')).toEqual([]);
+    expect(manager.get('symbolEntryHalts').TSLA).toEqual(expect.objectContaining({
+      reason: 'state_persistence_failed',
+      manualReconciliationRequired: true,
+      operatorActionRequired: true,
+    }));
+    expect(manager.notifyListeners).not.toHaveBeenCalled();
+  });
 });

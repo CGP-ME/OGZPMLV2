@@ -750,7 +750,24 @@ class StateManager {
         ],
         updatedAt: new Date().toISOString(),
       };
-      this.save();
+      const saveResult = this.save({ suppressPersistenceFailureTrace: true });
+      if (saveResult && saveResult.success === false) {
+        const persistenceFailure = this._recordStatePersistenceBoundaryFailure(
+          saveResult,
+          'StateManager.getEquity',
+          {
+            excludedTrades,
+            initialBalanceIssue,
+          }
+        );
+        this.state.equityIntegrity = {
+          ...this.state.equityIntegrity,
+          persistenceSucceeded: false,
+          persistenceFailure,
+          manualReconciliationRequired: true,
+          operatorActionRequired: true,
+        };
+      }
     } else {
       this.state.equityIntegrity = { status: 'trusted', excludedTrades: [] };
     }
@@ -911,10 +928,89 @@ class StateManager {
     }
   }
 
+  _statePersistenceFailureResult(saveResult = {}, context = {}, snapshot = null) {
+    if (snapshot && typeof snapshot === 'object') {
+      this.state = snapshot;
+    }
+
+    const action = context.action || 'STATE_UPDATE';
+    const tradeId = context.tradeId || context.orderId || context.intentId || null;
+    const errorMessage = saveResult.error || saveResult.reason || 'state persistence failed';
+    let symbol = context.symbol || context.tradeSymbol || context.ledgerData?.symbol || null;
+    if (!symbol && tradeId && snapshot?.activeTrades instanceof Map) {
+      const snapshotTrade = snapshot.activeTrades.get(tradeId);
+      symbol = snapshotTrade?.symbol || null;
+    }
+
+    let haltResult = { halted: false, standing: false, reason: 'missing_symbol' };
+    if (symbol) {
+      haltResult = this._recordDirectionIntegritySymbolHalt(symbol, 'state_persistence_failed', {
+        source: 'StateManager._applyStateUpdatesLocked',
+        action,
+        tradeId,
+        fillId: context.fillId || null,
+        brokerOrderId: context.brokerOrderId || null,
+        persistenceFailure: true,
+        manualReconciliationRequired: true,
+        operatorActionRequired: true,
+      });
+    }
+
+    emitTrace({}, 'STATE_PERSISTENCE_RECONCILIATION_REQUIRED', {
+      code: saveResult.code || 'STATE_PERSIST_FAILED',
+      action,
+      symbol: haltResult.symbol || symbol || null,
+      tradeId,
+      fillId: context.fillId || null,
+      brokerOrderId: context.brokerOrderId || null,
+      error: errorMessage,
+      persistenceSucceeded: false,
+      stateMutationSucceeded: false,
+      symbolHalted: haltResult.halted === true || haltResult.standing === true,
+      manualReconciliationRequired: true,
+      operatorActionRequired: true,
+    });
+
+    console.error(`[StateManager] STATE PERSISTENCE FAILED during ${action}: ${errorMessage}`);
+
+    return {
+      success: false,
+      error: `State persistence failed after ${action}: ${errorMessage}`,
+      code: saveResult.code || 'STATE_PERSIST_FAILED',
+      persistenceSucceeded: false,
+      stateMutationSucceeded: false,
+      manualReconciliationRequired: true,
+      operatorActionRequired: true,
+      symbolHalted: haltResult.halted === true || haltResult.standing === true,
+      haltedSymbol: haltResult.symbol || symbol || null,
+    };
+  }
+
+  _recordStatePersistenceBoundaryFailure(saveResult = {}, source = 'StateManager.save', metadata = {}) {
+    const errorMessage = saveResult.error || saveResult.reason || 'state persistence failed';
+    const failure = {
+      status: 'untrusted',
+      code: saveResult.code || 'STATE_PERSIST_FAILED',
+      source,
+      error: errorMessage,
+      persistenceSucceeded: false,
+      manualReconciliationRequired: true,
+      operatorActionRequired: true,
+      updatedAt: new Date().toISOString(),
+      ...metadata,
+    };
+
+    this.state.statePersistenceIntegrity = failure;
+    emitTrace({}, 'STATE_PERSISTENCE_RECONCILIATION_REQUIRED', failure);
+    console.error(`[StateManager] STATE PERSISTENCE FAILED during ${source}: ${errorMessage}`);
+    return failure;
+  }
+
   _applyStateUpdatesLocked(updates, context = {}, options = {}) {
+    let snapshot = null;
     try {
       // Snapshot for rollback
-      const snapshot = { ...this.state };
+      snapshot = { ...this.state };
       const timestamp = Date.now();
       const preparedUpdates = { ...updates };
 
@@ -950,6 +1046,13 @@ class StateManager {
 
       this.state.lastUpdate = timestamp;
 
+      // CHANGE 2026-08-12: Durable state is part of the transaction. A failed
+      // save cannot be reported as a successful in-memory mutation.
+      const saveResult = this.save({ suppressPersistenceFailureTrace: true });
+      if (saveResult && saveResult.success === false) {
+        return this._statePersistenceFailureResult(saveResult, context, snapshot);
+      }
+
       // Log transaction
       this.logTransaction({
         timestamp,
@@ -961,15 +1064,27 @@ class StateManager {
       // Notify listeners
       this.notifyListeners(preparedUpdates, context);
 
-      // CHANGE 2025-12-13: Save state to disk after updates
-      this.save();
-
       return { success: true, state: this.getState() };
 
     } catch (error) {
+      if (snapshot && typeof snapshot === 'object') {
+        this.state = snapshot;
+      }
       console.error('[StateManager] Update failed:', error);
-      // Rollback would go here if needed
-      return { success: false, error: error.message };
+      emitTrace({}, 'STATE_UPDATE_FAILED', {
+        action: context.action || 'STATE_UPDATE',
+        tradeId: context.tradeId || context.orderId || null,
+        fillId: context.fillId || null,
+        brokerOrderId: context.brokerOrderId || null,
+        error: error.message,
+        stateMutationSucceeded: false,
+      });
+      return {
+        success: false,
+        error: error.message,
+        code: error.code || 'STATE_UPDATE_FAILED',
+        stateMutationSucceeded: false,
+      };
     }
   }
 
@@ -3780,12 +3895,12 @@ class StateManager {
   /**
    * Save state to disk with Map serialization
    */
-  save() {
+  save(options = {}) {
     try {
       ensureConfigLoaded();
       // Skip state saving in backtest mode - don't corrupt real state
       if (getConfigValue('mode.backtest')) {
-        return;
+        return { success: true, skipped: true, reason: 'backtest_mode' };
       }
 
       const fs = require('fs');
@@ -3828,8 +3943,26 @@ class StateManager {
       const { writeJsonAtomic } = require('./AtomicWrite');
       writeJsonAtomic(stateFile, stateToSave);
       console.log('[StateManager] State saved to disk');
+      return { success: true, stateFile };
     } catch (error) {
       console.error('[StateManager] Failed to save state:', error);
+      if (!options || options.suppressPersistenceFailureTrace !== true) {
+        emitTrace({}, 'STATE_PERSISTENCE_RECONCILIATION_REQUIRED', {
+          code: 'STATE_PERSIST_FAILED',
+          error: error.message,
+          persistenceSucceeded: false,
+          manualReconciliationRequired: true,
+          operatorActionRequired: true,
+        });
+      }
+      return {
+        success: false,
+        code: 'STATE_PERSIST_FAILED',
+        error: error.message,
+        persistenceSucceeded: false,
+        manualReconciliationRequired: true,
+        operatorActionRequired: true,
+      };
     }
   }
 
@@ -4137,7 +4270,17 @@ class StateManager {
           correctedStateShape = true;
         }
         if (correctedStateShape) {
-          this.save();
+          const saveResult = this.save({ suppressPersistenceFailureTrace: true });
+          if (saveResult && saveResult.success === false) {
+            this._recordStatePersistenceBoundaryFailure(
+              saveResult,
+              'StateManager.load',
+              {
+                correctedStateShape: true,
+                activeTradeCount: this.state.activeTrades instanceof Map ? this.state.activeTrades.size : null,
+              }
+            );
+          }
         }
         // Verify Map restoration
         console.log(`[StateManager] Active trades restored: ${this.state.activeTrades.size} trades`);

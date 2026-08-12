@@ -30,6 +30,12 @@ describe('StateManager load validation', () => {
     process.env.FRESH_START = 'false';
     process.env.BROKER = 'alpaca';
     process.env.ALPACA_MODE = 'paper';
+    process.env.ALPACA_API_KEY = 'test-alpaca-key';
+    process.env.ALPACA_API_SECRET = 'test-alpaca-secret';
+    process.env.INITIAL_BALANCE = '10000';
+    process.env.ARCHITECT_NARRATOR = 'false';
+    process.env.USER_NARRATOR = 'false';
+    process.env.NARRATOR_LABEL_SEED = '';
     process.env.MIN_TRADE_CONFIDENCE = '0.5';
     process.env.MAX_WEEKLY_LOSS = '10';
     process.env.MAX_MONTHLY_LOSS = '20';
@@ -45,6 +51,7 @@ describe('StateManager load validation', () => {
       require('../foundation/ConfigLoader').clearOverrides();
       require('../foundation/ConfigLoader')._resetForTest();
     } catch (_) {}
+    jest.dontMock('../core/AtomicWrite');
     process.env = originalEnv;
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
@@ -70,6 +77,39 @@ describe('StateManager load validation', () => {
     expect(saved.isTrading).toBe(false);
     expect(saved.pauseReason).toContain('invalid persisted isTrading');
   });
+
+  test('load marks corrected-state persistence failure for manual reconciliation and keeps boot alive', () => {
+    fs.writeFileSync(stateFile, JSON.stringify({
+      balance: 10000,
+      totalBalance: 10000,
+      activeTrades: [],
+      lastPrices: { TSLA: 425.95 },
+      isTrading: 'false',
+      recoveryMode: false,
+    }), 'utf8');
+    jest.doMock('../core/AtomicWrite', () => ({
+      writeJsonAtomic: jest.fn(() => {
+        throw new Error('disk unavailable');
+      }),
+    }));
+
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    expect(manager.get('isTrading')).toBe(false);
+    expect(manager.get('statePersistenceIntegrity')).toEqual(expect.objectContaining({
+      status: 'untrusted',
+      code: 'STATE_PERSIST_FAILED',
+      source: 'StateManager.load',
+      error: 'disk unavailable',
+      persistenceSucceeded: false,
+      manualReconciliationRequired: true,
+      operatorActionRequired: true,
+      correctedStateShape: true,
+      activeTradeCount: 0,
+    }));
+  });
+
 
   test('load clears persisted data-feed liveness pause with stale missing scope', () => {
     fs.writeFileSync(stateFile, JSON.stringify({
@@ -1145,6 +1185,63 @@ describe('StateManager load validation', () => {
         fallbackEquity: 7500,
       })],
     }));
+  });
+
+  test('getEquity marks quarantine persistence failure for manual reconciliation', () => {
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+    manager.save = jest.fn(() => ({
+      success: false,
+      code: 'STATE_PERSIST_FAILED',
+      error: 'disk unavailable',
+    }));
+    manager.state.activeTrades = new Map([[
+      'BAD_EQUITY_DIRECTION',
+      {
+        id: 'BAD_EQUITY_DIRECTION',
+        orderId: 'BAD_EQUITY_DIRECTION',
+        action: 'BUY',
+        direction: 'BUY',
+        symbol: 'TSLA',
+        brokerId: 'alpaca',
+        accountId: 'acct-main',
+        assetClass: 'stocks',
+        executionMode: 'paper',
+        timeframe: '15m',
+        sizeUsd: 500,
+        size: 500,
+        entryPrice: 100,
+        remainingOrderQuantity: 5,
+        remainingOrderQuantityUnit: 'shares',
+      },
+    ]]);
+
+    expect(manager.getEquity(110)).toBe(manager.get('initialBalance') + manager.get('realizedPnL'));
+    expect(manager.save).toHaveBeenCalledWith({ suppressPersistenceFailureTrace: true });
+    expect(manager.get('activeTrades').has('BAD_EQUITY_DIRECTION')).toBe(false);
+    expect(manager.get('equityIntegrity')).toEqual(expect.objectContaining({
+      status: 'untrusted',
+      code: 'direction_integrity_exit_refusal',
+      persistenceSucceeded: false,
+      manualReconciliationRequired: true,
+      operatorActionRequired: true,
+      persistenceFailure: expect.objectContaining({
+        source: 'StateManager.getEquity',
+        code: 'STATE_PERSIST_FAILED',
+        error: 'disk unavailable',
+        manualReconciliationRequired: true,
+        operatorActionRequired: true,
+      }),
+    }));
+    expect(manager.get('statePersistenceIntegrity')).toEqual(expect.objectContaining({
+      status: 'untrusted',
+      source: 'StateManager.getEquity',
+      code: 'STATE_PERSIST_FAILED',
+      persistenceSucceeded: false,
+      manualReconciliationRequired: true,
+      operatorActionRequired: true,
+    }));
+    expect(manager.getSymbolHaltCode('TSLA')).toBe('direction_integrity_exit_refusal');
   });
 
   test('close math quarantines corrupt sibling active trade instead of throwing exposure invariant', async () => {
