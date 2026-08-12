@@ -56,7 +56,16 @@ describe('SessionRouter OHLC epoch fencing', () => {
       resumeTrading: jest.fn().mockImplementation(async () => {
         router.stateManager.state.isTrading = true;
         return { success: true };
-      })
+      }),
+      setDashboardRuntimeScope: jest.fn((scope) => ({
+        ...scope,
+        broker: scope.brokerId,
+        scopeKey: `${scope.executionMode}:${scope.brokerId}:${scope.accountId}:${scope.assetClass}:${scope.symbol}:${scope.timeframe}`,
+        scopeKeyVersion: 2,
+        scopeComplete: true,
+        runtimeScopeStatus: 'complete',
+        missingFields: []
+      }))
     };
     router.orderRouter = { registerBroker: jest.fn() };
     router.onOhlcCallback = jest.fn();

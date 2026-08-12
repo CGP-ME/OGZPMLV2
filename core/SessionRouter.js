@@ -570,6 +570,140 @@ class SessionRouter extends EventEmitter {
     return timeframe;
   }
 
+  _brokerIdForSession(sessionName) {
+    if (sessionName === 'crypto') return 'kraken';
+    if (sessionName === 'stocks') return 'alpaca';
+    return null;
+  }
+
+  _assetClassForSession(sessionName) {
+    if (sessionName === 'crypto') return 'crypto';
+    if (sessionName === 'stocks') return 'stocks';
+    return null;
+  }
+
+  _symbolsForSession(sessionName) {
+    return sessionName === 'crypto' ? this.cryptoSymbols : this.stockSymbols;
+  }
+
+  _cleanRuntimeAccountId(value) {
+    if (value === null || value === undefined) return null;
+    const cleaned = String(value).trim();
+    return cleaned && cleaned !== 'default' ? cleaned : null;
+  }
+
+  _accountIdentityForRuntimeScope(adapter, brokerId) {
+    const config = this.ctx && this.ctx.config ? this.ctx.config : {};
+    const adapterIdentity = typeof adapter?.getAccountIdentity === 'function'
+      ? adapter.getAccountIdentity()
+      : null;
+    const adapterAccountId = this._cleanRuntimeAccountId(adapterIdentity?.accountId || adapter?.accountId);
+    if (adapterAccountId) {
+      return {
+        accountId: adapterAccountId,
+        accountIdSource: adapterIdentity?.accountIdSource || adapterIdentity?.source || 'broker:adapter'
+      };
+    }
+
+    const configBrokerId = this._cleanRuntimeAccountId(config.brokerId)?.toLowerCase() || null;
+    const configAccountId = this._cleanRuntimeAccountId(config.accountId);
+    if (configAccountId && (!configBrokerId || configBrokerId === brokerId)) {
+      return {
+        accountId: configAccountId,
+        accountIdSource: config.accountIdSource || 'config'
+      };
+    }
+
+    return { accountId: null, accountIdSource: null };
+  }
+
+  _buildRuntimeScopeForSession(sessionName, timeframe, adapter) {
+    const brokerId = this._brokerIdForSession(sessionName);
+    const assetClass = this._assetClassForSession(sessionName);
+    const symbols = this._symbolsForSession(sessionName);
+    const symbol = Array.isArray(symbols) && symbols.length > 0 ? symbols[0] : null;
+    const config = this.ctx && this.ctx.config ? this.ctx.config : {};
+    const executionMode = config.executionMode || null;
+    const accountIdentity = this._accountIdentityForRuntimeScope(adapter, brokerId);
+    const scope = {
+      symbol,
+      brokerId,
+      accountId: accountIdentity.accountId,
+      accountIdSource: accountIdentity.accountIdSource,
+      assetClass,
+      executionMode,
+      timeframe
+    };
+    const missing = [];
+    for (const field of ['symbol', 'brokerId', 'accountId', 'accountIdSource', 'assetClass', 'executionMode', 'timeframe']) {
+      if (!scope[field]) missing.push(field);
+    }
+    if (scope.accountId === 'default' || scope.accountIdSource === 'default') {
+      missing.push('verifiedAccountIdentity');
+    }
+    if (missing.length > 0) {
+      throw new Error(`SessionRouter ${sessionName} runtime scope missing required field(s): ${Array.from(new Set(missing)).join(', ')}`);
+    }
+    return scope;
+  }
+
+  _syncDashboardRuntimeScopeForSession(sessionName, scope) {
+    if (!this.stateManager || typeof this.stateManager.setDashboardRuntimeScope !== 'function') {
+      throw new Error('SessionRouter dashboard runtime scope writer unavailable');
+    }
+    const dashboardScope = this.stateManager.setDashboardRuntimeScope(scope);
+    if (!dashboardScope || dashboardScope.scopeComplete !== true) {
+      const missingFields = Array.isArray(dashboardScope?.missingFields)
+        ? dashboardScope.missingFields.join(', ')
+        : 'unknown';
+      throw new Error(`SessionRouter ${sessionName} dashboard runtime scope incomplete: ${missingFields}`);
+    }
+    return {
+      ...scope,
+      scopeKey: dashboardScope.scopeKey || null,
+      scopeKeyVersion: dashboardScope.scopeKeyVersion || null,
+      runtimeScopeStatus: dashboardScope.runtimeScopeStatus || null,
+      scopeComplete: dashboardScope.scopeComplete === true
+    };
+  }
+
+  _assertRuntimeScopeForSession(sessionName, runtimeScope) {
+    const expectedSymbol = this._symbolsForSession(sessionName)?.[0] || null;
+    const expectedBrokerId = this._brokerIdForSession(sessionName);
+    const expectedAssetClass = this._assetClassForSession(sessionName);
+    const missing = [];
+    for (const field of ['symbol', 'brokerId', 'accountId', 'accountIdSource', 'assetClass', 'executionMode', 'timeframe']) {
+      if (!runtimeScope || !runtimeScope[field]) missing.push(field);
+    }
+    if (missing.length > 0) {
+      throw new Error(`SessionRouter ${sessionName} transition runtime scope missing field(s): ${missing.join(', ')}`);
+    }
+    const mismatches = [];
+    if (runtimeScope.symbol !== expectedSymbol) mismatches.push(`symbol expected ${expectedSymbol} got ${runtimeScope.symbol}`);
+    if (runtimeScope.brokerId !== expectedBrokerId) mismatches.push(`brokerId expected ${expectedBrokerId} got ${runtimeScope.brokerId}`);
+    if (runtimeScope.assetClass !== expectedAssetClass) mismatches.push(`assetClass expected ${expectedAssetClass} got ${runtimeScope.assetClass}`);
+    if (runtimeScope.accountId === 'default' || runtimeScope.accountIdSource === 'default') mismatches.push('account identity is default');
+    if (runtimeScope.scopeComplete !== true) mismatches.push('scopeComplete is not true');
+    if (this.activeSession && this.activeSession !== sessionName) {
+      mismatches.push(`activeSession expected ${sessionName} got ${this.activeSession}`);
+    }
+    if (mismatches.length > 0) {
+      throw new Error(`SessionRouter ${sessionName} transition runtime scope mismatch: ${mismatches.join('; ')}`);
+    }
+    return true;
+  }
+
+  _transitionEvent(from, to, now, runtimeScope) {
+    this._assertRuntimeScopeForSession(to, runtimeScope);
+    return {
+      from,
+      to,
+      at: now.toISOString(),
+      symbol: runtimeScope.symbol,
+      runtimeScope
+    };
+  }
+
   _getPatternMemoryForHandoff() {
     if (this.ctx && this.ctx.patternChecker && !this.ctx.patternChecker.memory) {
       throw new Error('SessionRouter patternChecker memory unavailable for session handoff');
@@ -1051,6 +1185,7 @@ class SessionRouter extends EventEmitter {
     const timeframe = this._currentTimeframe();
 
     try {
+      const runtimeScope = this._buildRuntimeScopeForSession('stocks', timeframe, this.alpacaAdapter);
       transitionContext = this._beginTransitionContext('crypto', 'stocks', now, {
         brokerId: 'alpaca',
         symbols: this.stockSymbols,
@@ -1109,14 +1244,19 @@ class SessionRouter extends EventEmitter {
       this.activeBroker = this.alpacaAdapter;
       this.lastTransitionAt = Date.now();
 
-      this._recordTransitionEvent('SESSION_TARGET_ACTIVATED', transitionContext, {
-        activeSession: this.activeSession
-      });
       this._attachActiveOhlcCallback('stocks', this.alpacaAdapter, transitionContext);
+      const committedRuntimeScope = this._syncDashboardRuntimeScopeForSession('stocks', runtimeScope);
+      const transitionEvent = this._transitionEvent('crypto', 'stocks', now, committedRuntimeScope);
+      this._recordTransitionEvent('SESSION_TARGET_ACTIVATED', transitionContext, {
+        activeSession: this.activeSession,
+        runtimeScope: committedRuntimeScope,
+        runtimeScopeStatus: committedRuntimeScope.runtimeScopeStatus,
+        scopeComplete: committedRuntimeScope.scopeComplete
+      });
       this._releaseTransitionLock(transitionContext);
       await this.stateManager.resumeTrading();
       pauseConfirmed = false;
-      this.emit('transition', { from: 'crypto', to: 'stocks', at: now.toISOString() });
+      this.emit('transition', transitionEvent);
       console.log('[SessionRouter] ACTIVE: stocks session');
 
     } catch (err) {
@@ -1137,6 +1277,7 @@ class SessionRouter extends EventEmitter {
     const timeframe = this._currentTimeframe();
 
     try {
+      const runtimeScope = this._buildRuntimeScopeForSession('crypto', timeframe, this.krakenAdapter);
       transitionContext = this._beginTransitionContext('stocks', 'crypto', now, {
         brokerId: 'kraken',
         symbols: this.cryptoSymbols,
@@ -1244,14 +1385,19 @@ class SessionRouter extends EventEmitter {
       this.activeBroker = this.krakenAdapter;
       this.lastTransitionAt = Date.now();
 
-      this._recordTransitionEvent('SESSION_TARGET_ACTIVATED', transitionContext, {
-        activeSession: this.activeSession
-      });
       this._attachActiveOhlcCallback('crypto', this.krakenAdapter, transitionContext);
+      const committedRuntimeScope = this._syncDashboardRuntimeScopeForSession('crypto', runtimeScope);
+      const transitionEvent = this._transitionEvent('stocks', 'crypto', now, committedRuntimeScope);
+      this._recordTransitionEvent('SESSION_TARGET_ACTIVATED', transitionContext, {
+        activeSession: this.activeSession,
+        runtimeScope: committedRuntimeScope,
+        runtimeScopeStatus: committedRuntimeScope.runtimeScopeStatus,
+        scopeComplete: committedRuntimeScope.scopeComplete
+      });
       this._releaseTransitionLock(transitionContext);
       await this.stateManager.resumeTrading();
       pauseConfirmed = false;
-      this.emit('transition', { from: 'stocks', to: 'crypto', at: now.toISOString() });
+      this.emit('transition', transitionEvent);
       console.log('[SessionRouter] ACTIVE: crypto session');
 
     } catch (err) {

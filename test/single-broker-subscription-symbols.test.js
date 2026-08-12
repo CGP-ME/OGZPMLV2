@@ -72,86 +72,21 @@ describe('SessionRouter-only market-data subscription ownership', () => {
     expect(source).toContain('[OHLC][TIMEFRAME-MISSING] dropped SessionRouter payload with missing timeframe');
   });
 
-  test('SessionRouter transition scope sync failure traces, broadcasts, and pauses instead of console-only swallow', async () => {
-    const OGZPrimeV14Bot = loadBot();
-    const { subscribeTrace } = require('../core/TraceSpine');
-    const pauseTrading = jest.fn().mockResolvedValue({ success: true });
-    const broadcastToDashboard = jest.fn();
-    const clearDashboardRuntimeScope = jest.fn();
-    const bot = Object.assign(Object.create(OGZPrimeV14Bot.prototype), {
-      sessionRouter: {
-        activeSession: 'stocks',
-        activeBroker: { id: 'alpaca' },
-        stockSymbols: ['TSLA'],
-        cryptoSymbols: ['BTC-USD'],
-      },
-      stateManager: {
-        dashboardWs: true,
-        broadcastToDashboard,
-        clearDashboardRuntimeScope,
-        pauseTrading,
-      },
-      timeframeSelector: { currentTimeframe: '5m' },
-      candleTimeframe: '15m',
-      config: {
-        executionMode: 'paper',
-      },
-    });
-    const traces = [];
-    const unsubscribe = subscribeTrace((payload) => traces.push(payload));
+  test('SessionRouter transition consumer uses proven payload without a whole-handler try wrap', () => {
+    const source = fs.readFileSync(path.resolve(__dirname, '..', 'run-empire-v2.js'), 'utf8');
+    const handlerStart = source.indexOf("this.sessionRouter.on('transition', (ev) => {");
+    const handlerEnd = source.indexOf("console.log('[EMPIRE V2] OrderRouter initialized", handlerStart);
+    const handlerSource = source.slice(handlerStart, handlerEnd);
 
-    try {
-      const result = bot._routeSessionTransitionScopeSyncFailure(
-        { from: 'crypto', to: 'stocks' },
-        new Error('runtime scope incomplete'),
-        { accountId: 'acct-main', accountIdSource: 'config' }
-      );
-      await Promise.resolve();
-      await Promise.resolve();
-
-      expect(result).toEqual(expect.objectContaining({
-        halted: true,
-        reason: 'runtime scope incomplete',
-        traceId: expect.any(String),
-      }));
-      expect(clearDashboardRuntimeScope).not.toHaveBeenCalled();
-      expect(broadcastToDashboard).toHaveBeenCalledWith({}, {
-        reason: 'session_transition_scope_halt',
-        from: 'crypto',
-        to: 'stocks',
-        error: 'runtime scope incomplete',
-      });
-      expect(pauseTrading).toHaveBeenCalledWith(
-        'SessionRouter transition scope sync failed: crypto -> stocks: runtime scope incomplete',
-        expect.objectContaining({
-          source: 'session_router_transition_scope',
-          recoverable: false,
-          scope: expect.objectContaining({
-            symbol: 'TSLA',
-            timeframe: '5m',
-            brokerId: 'alpaca',
-            accountId: 'acct-main',
-            assetClass: 'stocks',
-            executionMode: 'paper',
-          }),
-        })
-      );
-      expect(traces).toEqual(expect.arrayContaining([
-        expect.objectContaining({
-          event: 'SESSION_ROUTER_TRANSITION_SCOPE_HALT',
-          fields: expect.objectContaining({
-            reason: 'runtime scope incomplete',
-            from: 'crypto',
-            to: 'stocks',
-            symbol: 'TSLA',
-            route: 'pause_trading_hold_last_good_scope',
-            manualReconciliationRequired: true,
-          }),
-        })
-      ]));
-    } finally {
-      unsubscribe();
-    }
+    expect(handlerStart).toBeGreaterThanOrEqual(0);
+    expect(handlerEnd).toBeGreaterThan(handlerStart);
+    expect(source).not.toContain('_routeSessionTransitionScopeSyncFailure');
+    expect(handlerSource).not.toMatch(/\btry\s*\{/);
+    expect(handlerSource).not.toMatch(/\bcatch\s*\(/);
+    expect(handlerSource).not.toContain('getCandleScopeEnvelope');
+    expect(handlerSource).not.toContain('syncDashboardRuntimeScope');
+    expect(handlerSource).toContain('runtimeScope: ev.runtimeScope || null');
+    expect(handlerSource).toContain('symbol: ev.symbol || ev.runtimeScope?.symbol || null');
   });
 
   test('SessionRouter failed-safe local block stops entries before analysis when StateManager pause is unconfirmed', async () => {

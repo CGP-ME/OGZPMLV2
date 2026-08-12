@@ -357,6 +357,11 @@ class TransitionStore {
       brokerId: event.brokerId || null,
       symbols: Array.isArray(event.symbols) ? event.symbols : [],
       timeframe: event.timeframe || null,
+      runtimeScope: event.runtimeScope && typeof event.runtimeScope === 'object'
+        ? { ...event.runtimeScope }
+        : null,
+      runtimeScopeStatus: event.runtimeScopeStatus || event.runtimeScope?.runtimeScopeStatus || null,
+      scopeComplete: event.scopeComplete === true || event.runtimeScope?.scopeComplete === true,
       safeModeReason: event.reason || event.safeModeReason || null,
       lastEvent: event.event,
       lastEventAt: event.at || null,

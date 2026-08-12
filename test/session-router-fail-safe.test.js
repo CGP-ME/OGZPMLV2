@@ -36,7 +36,16 @@ describe('SessionRouter failed-safe transition behavior', () => {
         router.stateManager.state.lastError = reason;
         return { success: true };
       }),
-      resumeTrading: jest.fn().mockResolvedValue({ success: true })
+      resumeTrading: jest.fn().mockResolvedValue({ success: true }),
+      setDashboardRuntimeScope: jest.fn((scope) => ({
+        ...scope,
+        broker: scope.brokerId,
+        scopeKey: `${scope.executionMode}:${scope.brokerId}:${scope.accountId}:${scope.assetClass}:${scope.symbol}:${scope.timeframe}`,
+        scopeKeyVersion: 2,
+        scopeComplete: true,
+        runtimeScopeStatus: 'complete',
+        missingFields: []
+      }))
     };
     router.executeTrade = jest.fn().mockImplementation(async (decision) => {
       router.stateManager.state.activeTrades.delete(decision.tradeId);
@@ -301,6 +310,106 @@ describe('SessionRouter failed-safe transition behavior', () => {
     expect(router.krakenAdapter.getPositions).not.toHaveBeenCalled();
     expect(router.krakenAdapter.unsubscribeAll).not.toHaveBeenCalled();
     expect(router.orderRouter.registerBroker).not.toHaveBeenCalled();
+    expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
+  });
+
+  test('transition emits only after SessionRouter writes a verified runtime scope upstream', async () => {
+    const router = makeRouter();
+    router.activeSession = 'crypto';
+    const transitionEvents = [];
+    router.on('transition', (ev) => transitionEvents.push(ev));
+
+    await router._transitionToStocks(now);
+
+    expect(router.failedSafeMode).toBe(false);
+    expect(router.stateManager.setDashboardRuntimeScope).toHaveBeenCalledWith({
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      accountId: 'acct-main',
+      accountIdSource: 'config',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m'
+    });
+    expect(router.stateManager.setDashboardRuntimeScope.mock.invocationCallOrder[0]).toBeLessThan(
+      router.stateManager.resumeTrading.mock.invocationCallOrder[0]
+    );
+    expect(transitionEvents).toEqual([
+      expect.objectContaining({
+        from: 'crypto',
+        to: 'stocks',
+        at: now.toISOString(),
+        symbol: 'TSLA',
+        runtimeScope: expect.objectContaining({
+          symbol: 'TSLA',
+          brokerId: 'alpaca',
+          accountId: 'acct-main',
+          accountIdSource: 'config',
+          assetClass: 'stocks',
+          executionMode: 'paper',
+          timeframe: '15m',
+          scopeComplete: true
+        })
+      })
+    ]);
+  });
+
+  test('missing transition runtime scope is refused in SessionRouter before success emit', async () => {
+    const router = makeRouter();
+    router.activeSession = 'crypto';
+    router.ctx.config.accountId = null;
+    const transitionSpy = jest.fn();
+    router.on('transition', transitionSpy);
+
+    await router._transitionToStocks(now);
+
+    expect(router.failedSafeMode).toBe(true);
+    expect(router.failedSafeReason).toBe('SessionRouter stocks runtime scope missing required field(s): accountId, accountIdSource');
+    expect(router.stateManager.setDashboardRuntimeScope).not.toHaveBeenCalled();
+    expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
+    expect(transitionSpy).not.toHaveBeenCalled();
+  });
+
+  test('transition event refuses a runtime scope that does not match the active target session', () => {
+    const router = makeRouter();
+    router.activeSession = 'stocks';
+
+    expect(() => router._transitionEvent('crypto', 'stocks', now, {
+      symbol: 'BTC-USD',
+      brokerId: 'kraken',
+      accountId: 'acct-main',
+      accountIdSource: 'config',
+      assetClass: 'crypto',
+      executionMode: 'paper',
+      timeframe: '15m',
+      scopeComplete: true
+    })).toThrow('SessionRouter stocks transition runtime scope mismatch: symbol expected TSLA got BTC-USD; brokerId expected alpaca got kraken; assetClass expected stocks got crypto');
+  });
+
+  test('runtime scope validation failure after dashboard write does not persist target activated', async () => {
+    const router = makeRouter();
+    router.activeSession = 'crypto';
+    let brokerLookupCount = 0;
+    router._brokerIdForSession = jest.fn((sessionName) => {
+      if (sessionName === 'stocks') {
+        brokerLookupCount += 1;
+        return brokerLookupCount === 1 ? 'alpaca' : 'wrong-broker';
+      }
+      if (sessionName === 'crypto') return 'kraken';
+      return null;
+    });
+
+    await router._transitionToStocks(now);
+
+    const events = router.transitionStore.readEvents();
+    expect(events.map((event) => event.event)).not.toContain('SESSION_TARGET_ACTIVATED');
+    expect(router.transitionStore.readStatus()).toEqual(expect.objectContaining({
+      state: 'RECOVERY_REQUIRED',
+      recoveryRequired: true,
+      freezeNewEntries: true,
+      safeModeReason: expect.stringContaining('runtime scope mismatch')
+    }));
+    expect(router.failedSafeMode).toBe(true);
     expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
   });
 

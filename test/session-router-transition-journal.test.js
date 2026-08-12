@@ -35,7 +35,16 @@ describe('SessionRouter transition journal', () => {
       resumeTrading: jest.fn().mockImplementation(async () => {
         router.stateManager.state.isTrading = true;
         return { success: true };
-      })
+      }),
+      setDashboardRuntimeScope: jest.fn((scope) => ({
+        ...scope,
+        broker: scope.brokerId,
+        scopeKey: `${scope.executionMode}:${scope.brokerId}:${scope.accountId}:${scope.assetClass}:${scope.symbol}:${scope.timeframe}`,
+        scopeKeyVersion: 2,
+        scopeComplete: true,
+        runtimeScopeStatus: 'complete',
+        missingFields: []
+      }))
     };
     router.orderRouter = { registerBroker: jest.fn() };
     router.onOhlcCallback = jest.fn();
@@ -175,7 +184,19 @@ describe('SessionRouter transition journal', () => {
     expect(events[5]).toEqual(expect.objectContaining({
       activeSession: 'stocks',
       brokerId: 'alpaca',
-      symbols: ['TSLA']
+      symbols: ['TSLA'],
+      runtimeScope: expect.objectContaining({
+        symbol: 'TSLA',
+        brokerId: 'alpaca',
+        accountId: 'acct-main',
+        accountIdSource: 'config',
+        assetClass: 'stocks',
+        executionMode: 'paper',
+        timeframe: '15m',
+        scopeComplete: true
+      }),
+      runtimeScopeStatus: 'complete',
+      scopeComplete: true
     }));
     expect(status).toEqual(expect.objectContaining({
       state: 'TARGET_ACTIVATED',
@@ -186,6 +207,18 @@ describe('SessionRouter transition journal', () => {
       activeSession: 'stocks',
       brokerId: 'alpaca',
       lastEvent: 'SESSION_TARGET_ACTIVATED',
+      runtimeScope: expect.objectContaining({
+        symbol: 'TSLA',
+        brokerId: 'alpaca',
+        accountId: 'acct-main',
+        accountIdSource: 'config',
+        assetClass: 'stocks',
+        executionMode: 'paper',
+        timeframe: '15m',
+        scopeComplete: true
+      }),
+      runtimeScopeStatus: 'complete',
+      scopeComplete: true,
       eventsCount: 6
     }));
     expect(intentCall).toBeGreaterThanOrEqual(0);
@@ -582,7 +615,7 @@ describe('SessionRouter transition journal', () => {
     router.stateManager.getLastPrice = jest.fn(() => 125);
     router.stateManager.closePosition = jest.fn().mockResolvedValue({ success: true });
     router.stateManager.state.activeTrades = new Map([
-      ['STOCK_1', { tradeId: 'STOCK_1', symbol: 'TSLA', assetClass: 'stocks' }]
+      ['STOCK_1', { tradeId: 'STOCK_1', symbol: 'TSLA', action: 'BUY', direction: 'long', assetClass: 'stocks' }]
     ]);
     const memory = {
       switchSessionScope: jest.fn(() => ({

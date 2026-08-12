@@ -971,42 +971,16 @@ class OGZPrimeV14Bot {
       this.sessionRouter.on('transition', (ev) => {
         this.kraken = this.sessionRouter.activeBroker;
         this.strategyOrchestrator.resetNoWickState();
-        const brokerIdentity = this.promoteBrokerAccountIdentity(this.kraken, {
-          source: 'session_transition',
-          brokerId: this.sessionRouter?.activeBroker?.id || null,
-        });
-        let transitionScopeSynced = true;
-        try {
-          const transitionSymbol = ev.to === 'stocks'
-            ? normalizeRuntimeSymbol(this.sessionRouter.stockSymbols?.[0])
-            : normalizeRuntimeSymbol(this.sessionRouter.cryptoSymbols?.[0]);
-          if (!transitionSymbol) {
-            throw new Error(`missing primary symbol for session ${ev.to || '(missing)'}`);
-          }
-          const transitionScope = this.getCandleScopeEnvelope({
-            brokerId: this.sessionRouter?.activeBroker?.id || null,
-            accountId: brokerIdentity?.accountId,
-            accountIdSource: brokerIdentity?.accountIdSource,
-            assetClass: ev.to === 'stocks' ? 'stocks' : ev.to === 'crypto' ? 'crypto' : null,
-            timeframe: this.timeframeSelector?.currentTimeframe || this.candleTimeframe,
+        if (this.stateManager.dashboardWs) {
+          this.stateManager.broadcastToDashboard({}, {
+            reason: 'session_transition',
+            from: ev.from,
+            to: ev.to,
+            symbol: ev.symbol || ev.runtimeScope?.symbol || null,
+            runtimeScope: ev.runtimeScope || null,
           });
-          this.syncDashboardRuntimeScope(transitionSymbol, transitionScope);
-          if (this.stateManager.dashboardWs) {
-            this.stateManager.broadcastToDashboard({}, {
-              reason: 'session_transition',
-              from: ev.from,
-              to: ev.to,
-            });
-          }
-        } catch (error) {
-          transitionScopeSynced = false;
-          this._routeSessionTransitionScopeSyncFailure(ev, error, brokerIdentity);
         }
-        if (transitionScopeSynced) {
-          console.log(`[EMPIRE V2] Session transition: ${ev.from} -> ${ev.to}`);
-        } else {
-          console.error(`[EMPIRE V2] Session transition held pending runtime-scope repair: ${ev.from} -> ${ev.to}`);
-        }
+        console.log(`[EMPIRE V2] Session transition: ${ev.from} -> ${ev.to}`);
       });
 
       console.log('[EMPIRE V2] OrderRouter initialized — SessionRouter governs subscriptions');
@@ -2123,73 +2097,6 @@ class OGZPrimeV14Bot {
       executionMode,
       timeframe,
     };
-  }
-
-  _routeSessionTransitionScopeSyncFailure(ev = {}, error = null, brokerIdentity = {}) {
-    const reason = error && error.message ? error.message : String(error || 'unknown session transition scope failure');
-    const traceId = createTraceId('session_transition_scope');
-    const activeBrokerId = this.sessionRouter?.activeBroker?.id || null;
-    const activeSession = this.sessionRouter?.activeSession || null;
-    const pauseReason = `SessionRouter transition scope sync failed: ${ev.from || '(missing)'} -> ${ev.to || '(missing)'}: ${reason}`;
-    const scope = {
-      symbol: ev.to === 'stocks'
-        ? normalizeRuntimeSymbol(this.sessionRouter?.stockSymbols?.[0])
-        : normalizeRuntimeSymbol(this.sessionRouter?.cryptoSymbols?.[0]),
-      timeframe: this.timeframeSelector?.currentTimeframe || this.candleTimeframe || null,
-      brokerId: activeBrokerId,
-      accountId: brokerIdentity?.accountId || null,
-      assetClass: ev.to === 'stocks' ? 'stocks' : ev.to === 'crypto' ? 'crypto' : null,
-      executionMode: this.config?.executionMode || null,
-    };
-
-    console.error(`[EMPIRE V2] Dashboard runtime scope transition sync failed: ${reason}`);
-    emitTrace(this, 'SESSION_ROUTER_TRANSITION_SCOPE_HALT', {
-      traceId,
-      reason,
-      from: ev.from || null,
-      to: ev.to || null,
-      activeSession,
-      activeBrokerId,
-      accountId: brokerIdentity?.accountId || null,
-      accountIdSource: brokerIdentity?.accountIdSource || null,
-      symbol: scope.symbol,
-      route: 'pause_trading_hold_last_good_scope',
-      scope,
-      manualReconciliationRequired: true
-    });
-
-    if (this.stateManager.dashboardWs) {
-      this.stateManager.broadcastToDashboard({}, {
-        reason: 'session_transition_scope_halt',
-        from: ev.from,
-        to: ev.to,
-        error: reason,
-      });
-    }
-
-    Promise.resolve()
-      .then(() => this.stateManager.pauseTrading(pauseReason, {
-        source: 'session_router_transition_scope',
-        recoverable: false,
-        scope,
-      }))
-      .catch((pauseErr) => {
-        const pauseError = pauseErr && pauseErr.message ? pauseErr.message : String(pauseErr);
-        console.error(`[EMPIRE V2] Session transition scope halt pause failed: ${pauseError}`);
-        emitTrace(this, 'SESSION_ROUTER_TRANSITION_SCOPE_PAUSE_HALT_FAILED', {
-          traceId,
-          reason: pauseError,
-          originalReason: reason,
-          from: ev.from || null,
-          to: ev.to || null,
-          activeSession,
-          activeBrokerId,
-          route: 'session_transition_scope_pause_failure',
-          manualReconciliationRequired: true
-        });
-      });
-
-    return { halted: true, traceId, reason };
   }
 
   cleanRuntimeAccountId(value) {
