@@ -975,7 +975,7 @@ class OGZPrimeV14Bot {
           source: 'session_transition',
           brokerId: this.sessionRouter?.activeBroker?.id || null,
         });
-        this.stateManager.clearDashboardRuntimeScope();
+        let transitionScopeSynced = true;
         try {
           const transitionSymbol = ev.to === 'stocks'
             ? normalizeRuntimeSymbol(this.sessionRouter.stockSymbols?.[0])
@@ -999,17 +999,14 @@ class OGZPrimeV14Bot {
             });
           }
         } catch (error) {
-          console.error(`[EMPIRE V2] Dashboard runtime scope transition sync failed: ${error.message}`);
-          if (this.stateManager.dashboardWs) {
-            this.stateManager.broadcastToDashboard({}, {
-              reason: 'session_transition_scope_unset',
-              from: ev.from,
-              to: ev.to,
-              error: error.message,
-            });
-          }
+          transitionScopeSynced = false;
+          this._routeSessionTransitionScopeSyncFailure(ev, error, brokerIdentity);
         }
-        console.log(`[EMPIRE V2] Session transition: ${ev.from} -> ${ev.to}`);
+        if (transitionScopeSynced) {
+          console.log(`[EMPIRE V2] Session transition: ${ev.from} -> ${ev.to}`);
+        } else {
+          console.error(`[EMPIRE V2] Session transition held pending runtime-scope repair: ${ev.from} -> ${ev.to}`);
+        }
       });
 
       console.log('[EMPIRE V2] OrderRouter initialized — SessionRouter governs subscriptions');
@@ -2128,6 +2125,73 @@ class OGZPrimeV14Bot {
     };
   }
 
+  _routeSessionTransitionScopeSyncFailure(ev = {}, error = null, brokerIdentity = {}) {
+    const reason = error && error.message ? error.message : String(error || 'unknown session transition scope failure');
+    const traceId = createTraceId('session_transition_scope');
+    const activeBrokerId = this.sessionRouter?.activeBroker?.id || null;
+    const activeSession = this.sessionRouter?.activeSession || null;
+    const pauseReason = `SessionRouter transition scope sync failed: ${ev.from || '(missing)'} -> ${ev.to || '(missing)'}: ${reason}`;
+    const scope = {
+      symbol: ev.to === 'stocks'
+        ? normalizeRuntimeSymbol(this.sessionRouter?.stockSymbols?.[0])
+        : normalizeRuntimeSymbol(this.sessionRouter?.cryptoSymbols?.[0]),
+      timeframe: this.timeframeSelector?.currentTimeframe || this.candleTimeframe || null,
+      brokerId: activeBrokerId,
+      accountId: brokerIdentity?.accountId || null,
+      assetClass: ev.to === 'stocks' ? 'stocks' : ev.to === 'crypto' ? 'crypto' : null,
+      executionMode: this.config?.executionMode || null,
+    };
+
+    console.error(`[EMPIRE V2] Dashboard runtime scope transition sync failed: ${reason}`);
+    emitTrace(this, 'SESSION_ROUTER_TRANSITION_SCOPE_HALT', {
+      traceId,
+      reason,
+      from: ev.from || null,
+      to: ev.to || null,
+      activeSession,
+      activeBrokerId,
+      accountId: brokerIdentity?.accountId || null,
+      accountIdSource: brokerIdentity?.accountIdSource || null,
+      symbol: scope.symbol,
+      route: 'pause_trading_hold_last_good_scope',
+      scope,
+      manualReconciliationRequired: true
+    });
+
+    if (this.stateManager.dashboardWs) {
+      this.stateManager.broadcastToDashboard({}, {
+        reason: 'session_transition_scope_halt',
+        from: ev.from,
+        to: ev.to,
+        error: reason,
+      });
+    }
+
+    Promise.resolve()
+      .then(() => this.stateManager.pauseTrading(pauseReason, {
+        source: 'session_router_transition_scope',
+        recoverable: false,
+        scope,
+      }))
+      .catch((pauseErr) => {
+        const pauseError = pauseErr && pauseErr.message ? pauseErr.message : String(pauseErr);
+        console.error(`[EMPIRE V2] Session transition scope halt pause failed: ${pauseError}`);
+        emitTrace(this, 'SESSION_ROUTER_TRANSITION_SCOPE_PAUSE_HALT_FAILED', {
+          traceId,
+          reason: pauseError,
+          originalReason: reason,
+          from: ev.from || null,
+          to: ev.to || null,
+          activeSession,
+          activeBrokerId,
+          route: 'session_transition_scope_pause_failure',
+          manualReconciliationRequired: true
+        });
+      });
+
+    return { halted: true, traceId, reason };
+  }
+
   cleanRuntimeAccountId(value) {
     if (value === null || value === undefined) return null;
     const cleaned = String(value).trim();
@@ -2769,6 +2833,37 @@ class OGZPrimeV14Bot {
    * live/paper mode. Defined as alias to analyzeAndTrade since the trading
    * loop doesn't differentiate timeframes.
    */
+  _sessionRouterEntryBlock(symbol, traceId = null, action = null) {
+    if (!this.sessionRouter || typeof this.sessionRouter.getEntryBlockStatus !== 'function') {
+      return { blocked: false };
+    }
+    const status = this.sessionRouter.getEntryBlockStatus();
+    if (!status || status.blocked !== true) {
+      return { blocked: false };
+    }
+    const canonicalSymbol = normalizeRuntimeSymbol(symbol);
+    const reason = status.reason || 'SessionRouter failed-safe entry block';
+    emitTrace(this, 'SESSION_ROUTER_ENTRY_HALT', {
+      traceId: traceId || createTraceId('session_router_entry_halt'),
+      symbol: canonicalSymbol,
+      action,
+      reason,
+      failedSafeAt: status.at || null,
+      failedSafePauseConfirmed: status.pauseConfirmed === true,
+      failedSafePauseError: status.pauseError || null,
+      activeSession: status.activeSession || null,
+      route: 'entry_block_exits_still_allowed',
+      manualReconciliationRequired: status.pauseConfirmed !== true
+    });
+    console.error(`[SESSION_ROUTER] Refusing new entry while failed-safe is active | symbol=${canonicalSymbol || '(missing)'} reason=${reason}`);
+    return {
+      blocked: true,
+      reason,
+      symbol: canonicalSymbol,
+      status
+    };
+  }
+
   async run15mTradingCycle(symbol = this.tradingPair, traceId = null) {
     // CC-C Commit 5/6: pass single-symbol canonical explicitly. Multi-symbol
     // mode (commit 6+) will dispatch per-symbol from the OHLC handler.
@@ -2777,6 +2872,15 @@ class OGZPrimeV14Bot {
       throw new Error(`run15mTradingCycle requires canonical symbol; got ${JSON.stringify(symbol)}`);
     }
     const cycleTraceId = traceId || createTraceId('candle');
+    const sessionEntryBlock = this._sessionRouterEntryBlock(analysisSymbol, cycleTraceId, 'ANALYZE_ENTRY');
+    if (sessionEntryBlock.blocked) {
+      return {
+        success: false,
+        reason: 'session_router_failed_safe_entry_block',
+        detail: sessionEntryBlock.reason,
+        symbol: analysisSymbol
+      };
+    }
     emitTrace(this, 'TRADING_CYCLE_TRIGGER', {
       traceId: cycleTraceId,
       symbol: analysisSymbol,
@@ -2824,6 +2928,20 @@ class OGZPrimeV14Bot {
    * Phase 3 REWRITE: Renamed brainDecision → orchResult (orchestrator result)
    */
   async executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision = null, orchResult = null, symbol) {
+    const action = typeof decision?.action === 'string' ? decision.action.trim().toUpperCase() : '';
+    if (action === 'BUY' || action === 'SELL_SHORT') {
+      const sessionEntryBlock = this._sessionRouterEntryBlock(symbol, decision?.traceId || null, action);
+      if (sessionEntryBlock.blocked) {
+        return {
+          success: false,
+          reason: 'session_router_failed_safe_entry_block',
+          detail: sessionEntryBlock.reason,
+          symbol: sessionEntryBlock.symbol,
+          orderAccepted: false,
+          stateMutationSucceeded: false
+        };
+      }
+    }
     // Update context with current runtime values
     this.orderExecutor.ctx.marketData = this.marketData;
     this.orderExecutor.ctx.dashboardWs = this.dashboardWs;

@@ -22,6 +22,7 @@ const EventEmitter = require('events');
 const path = require('path');
 const { getMarketPhase, getNYTimeParts } = require('../foundation/MarketCalendar');
 const { getInstance: getStateManager } = require('./StateManager');
+const { createTraceId, emitTrace } = require('./TraceSpine');
 const TransitionStore = require('./session-router/TransitionStore');
 
 const TERMINAL_ORDER_STATUSES = new Set([
@@ -75,6 +76,8 @@ class SessionRouter extends EventEmitter {
     this.failedSafePauseConfirmed = false;
     this.failedSafePauseError = null;
     this.failedSafePauseFallbackApplied = false;
+    this.failedSafeEntryBlockReason = null;
+    this.failedSafeEntryBlockAt = null;
     this.lastTransitionAt = 0;
     this.intervalId = null;
     this.activeCallbackEpoch = null;
@@ -232,7 +235,18 @@ class SessionRouter extends EventEmitter {
     if (this.mode === 'scheduled') {
       this.intervalId = setInterval(() => {
         this._checkTransition().catch((err) => {
-          console.error('[SessionRouter] Check failed:', err.message);
+          this._routeScheduledTransitionFailure(err).catch((routeErr) => {
+            const reason = routeErr && routeErr.message ? routeErr.message : String(routeErr);
+            console.error('[SessionRouter] Check failure routing failed:', reason);
+            this._emitSessionRouterTrace('SESSION_ROUTER_TRANSITION_CHECK_ROUTE_HALT', {
+              reason,
+              originalReason: err && err.message ? err.message : String(err),
+              from: this.activeSession || 'unknown',
+              to: 'unknown',
+              route: 'scheduled_transition_check_failure_router',
+              manualReconciliationRequired: true
+            });
+          });
         });
       }, this.checkIntervalMs);
     }
@@ -291,6 +305,40 @@ class SessionRouter extends EventEmitter {
   _applyLocalPauseFallback(reason) {
     console.error(`[SessionRouter] Refusing direct StateManager pause fallback: ${reason}`);
     return false;
+  }
+
+  _emitSessionRouterTrace(eventName, fields = {}) {
+    const traceId = fields.traceId || createTraceId('session_router', () => this.clock());
+    emitTrace(this.ctx || {}, eventName, {
+      traceId,
+      ...fields
+    });
+    return traceId;
+  }
+
+  async _routeScheduledTransitionFailure(err) {
+    const reason = err && err.message ? err.message : String(err);
+    const now = new Date(this.clock());
+    const from = this.activeSession || 'unknown';
+    console.error('[SessionRouter] Check failed:', reason);
+    await this._enterFailedSafe(from, 'unknown', err, now, {
+      pauseConfirmed: false,
+      failureSource: 'scheduled_transition_check'
+    });
+  }
+
+  getEntryBlockStatus() {
+    if (this.failedSafeMode !== true) {
+      return { blocked: false };
+    }
+    return {
+      blocked: true,
+      reason: this.failedSafeEntryBlockReason || `SessionRouter failed safe: ${this.failedSafeReason || 'unknown'}`,
+      at: this.failedSafeEntryBlockAt || this.failedSafeAt || null,
+      pauseConfirmed: this.failedSafePauseConfirmed,
+      pauseError: this.failedSafePauseError,
+      activeSession: this.activeSession
+    };
   }
 
   _transitionAt(now) {
@@ -365,6 +413,24 @@ class SessionRouter extends EventEmitter {
           });
         } catch (markErr) {
           console.error('[SessionRouter] Failed to mark transition lock recovery:', markErr.message);
+          this._emitSessionRouterTrace('SESSION_ROUTER_TRANSITION_RECOVERY_HALT', {
+            reason: markErr.message,
+            originalReason: err.message,
+            transitionId: transitionContext.transitionId,
+            epoch: transitionContext.epoch,
+            from: transitionContext.from,
+            to: transitionContext.to,
+            route: 'transition_lock_recovery_mark_failed',
+            manualReconciliationRequired: true
+          });
+          this.emit('transition_lock_recovery_mark_failed', {
+            transitionId: transitionContext.transitionId,
+            epoch: transitionContext.epoch,
+            from: transitionContext.from,
+            to: transitionContext.to,
+            reason: markErr.message,
+            originalReason: err.message
+          });
         }
       }
     }
@@ -895,6 +961,8 @@ class SessionRouter extends EventEmitter {
     this.failedSafePauseConfirmed = Boolean(options.pauseConfirmed);
     this.failedSafePauseError = null;
     this.failedSafePauseFallbackApplied = false;
+    this.failedSafeEntryBlockReason = `SessionRouter failed safe: ${from} -> ${to}: ${reason}`;
+    this.failedSafeEntryBlockAt = at;
 
     let journalError = null;
     const lockUnavailable = reason.startsWith('SessionRouter transition lock unavailable');
@@ -912,6 +980,15 @@ class SessionRouter extends EventEmitter {
     }
 
     console.error(`[SessionRouter] SESSION_FAILED_SAFE: ${from} -> ${to}: ${reason}`);
+    this._emitSessionRouterTrace('SESSION_ROUTER_FAILED_SAFE_HALT', {
+      reason,
+      from,
+      to,
+      at,
+      activeSession: this.activeSession,
+      failureSource: options.failureSource || null,
+      journalError: journalError ? journalError.message : null
+    });
     this.emit('session_failed_safe', {
       from,
       to,
@@ -951,6 +1028,17 @@ class SessionRouter extends EventEmitter {
         pauseError: this.failedSafePauseError
       });
       console.error('[SessionRouter] Failed-safe pause was not confirmed by StateManager pauseTrading');
+      if (!this.failedSafePauseConfirmed) {
+        this._emitSessionRouterTrace('SESSION_ROUTER_FAILED_SAFE_PAUSE_HALT_UNCONFIRMED', {
+          reason,
+          from,
+          to,
+          at,
+          pauseError: this.failedSafePauseError,
+          fallbackApplied: this.failedSafePauseFallbackApplied,
+          manualReconciliationRequired: true
+        });
+      }
     }
   }
 
@@ -1323,6 +1411,8 @@ class SessionRouter extends EventEmitter {
       failedSafeAt: this.failedSafeAt,
       failedSafePauseConfirmed: this.failedSafePauseConfirmed,
       failedSafePauseError: this.failedSafePauseError,
+      failedSafeEntryBlockReason: this.failedSafeEntryBlockReason,
+      failedSafeEntryBlockAt: this.failedSafeEntryBlockAt,
       failedSafePauseFallbackApplied: this.failedSafePauseFallbackApplied,
       callbackFence: {
         activeEpoch: this.activeCallbackEpoch,

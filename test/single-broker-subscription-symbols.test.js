@@ -72,6 +72,183 @@ describe('SessionRouter-only market-data subscription ownership', () => {
     expect(source).toContain('[OHLC][TIMEFRAME-MISSING] dropped SessionRouter payload with missing timeframe');
   });
 
+  test('SessionRouter transition scope sync failure traces, broadcasts, and pauses instead of console-only swallow', async () => {
+    const OGZPrimeV14Bot = loadBot();
+    const { subscribeTrace } = require('../core/TraceSpine');
+    const pauseTrading = jest.fn().mockResolvedValue({ success: true });
+    const broadcastToDashboard = jest.fn();
+    const clearDashboardRuntimeScope = jest.fn();
+    const bot = Object.assign(Object.create(OGZPrimeV14Bot.prototype), {
+      sessionRouter: {
+        activeSession: 'stocks',
+        activeBroker: { id: 'alpaca' },
+        stockSymbols: ['TSLA'],
+        cryptoSymbols: ['BTC-USD'],
+      },
+      stateManager: {
+        dashboardWs: true,
+        broadcastToDashboard,
+        clearDashboardRuntimeScope,
+        pauseTrading,
+      },
+      timeframeSelector: { currentTimeframe: '5m' },
+      candleTimeframe: '15m',
+      config: {
+        executionMode: 'paper',
+      },
+    });
+    const traces = [];
+    const unsubscribe = subscribeTrace((payload) => traces.push(payload));
+
+    try {
+      const result = bot._routeSessionTransitionScopeSyncFailure(
+        { from: 'crypto', to: 'stocks' },
+        new Error('runtime scope incomplete'),
+        { accountId: 'acct-main', accountIdSource: 'config' }
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(result).toEqual(expect.objectContaining({
+        halted: true,
+        reason: 'runtime scope incomplete',
+        traceId: expect.any(String),
+      }));
+      expect(clearDashboardRuntimeScope).not.toHaveBeenCalled();
+      expect(broadcastToDashboard).toHaveBeenCalledWith({}, {
+        reason: 'session_transition_scope_halt',
+        from: 'crypto',
+        to: 'stocks',
+        error: 'runtime scope incomplete',
+      });
+      expect(pauseTrading).toHaveBeenCalledWith(
+        'SessionRouter transition scope sync failed: crypto -> stocks: runtime scope incomplete',
+        expect.objectContaining({
+          source: 'session_router_transition_scope',
+          recoverable: false,
+          scope: expect.objectContaining({
+            symbol: 'TSLA',
+            timeframe: '5m',
+            brokerId: 'alpaca',
+            accountId: 'acct-main',
+            assetClass: 'stocks',
+            executionMode: 'paper',
+          }),
+        })
+      );
+      expect(traces).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          event: 'SESSION_ROUTER_TRANSITION_SCOPE_HALT',
+          fields: expect.objectContaining({
+            reason: 'runtime scope incomplete',
+            from: 'crypto',
+            to: 'stocks',
+            symbol: 'TSLA',
+            route: 'pause_trading_hold_last_good_scope',
+            manualReconciliationRequired: true,
+          }),
+        })
+      ]));
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  test('SessionRouter failed-safe local block stops entries before analysis when StateManager pause is unconfirmed', async () => {
+    const OGZPrimeV14Bot = loadBot();
+    const { subscribeTrace } = require('../core/TraceSpine');
+    const analyzeAndTrade = jest.fn();
+    const bot = Object.assign(Object.create(OGZPrimeV14Bot.prototype), {
+      sessionRouter: {
+        getEntryBlockStatus: jest.fn(() => ({
+          blocked: true,
+          reason: 'SessionRouter failed safe: crypto -> stocks: state write failed',
+          at: '2026-05-26T14:30:00.000Z',
+          pauseConfirmed: false,
+          pauseError: 'state write failed',
+          activeSession: 'crypto',
+        })),
+      },
+      timeframeSelector: { currentTimeframe: '5m' },
+      candleTimeframe: '15m',
+      tradingPair: 'TSLA',
+      analyzeAndTrade,
+      config: { executionMode: 'paper' },
+    });
+    const traces = [];
+    const unsubscribe = subscribeTrace((payload) => traces.push(payload));
+
+    try {
+      const result = await bot.run15mTradingCycle('TSLA', 'trace_session_router_failed_safe');
+
+      expect(result).toEqual({
+        success: false,
+        reason: 'session_router_failed_safe_entry_block',
+        detail: 'SessionRouter failed safe: crypto -> stocks: state write failed',
+        symbol: 'TSLA',
+      });
+      expect(analyzeAndTrade).not.toHaveBeenCalled();
+      expect(traces).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          event: 'SESSION_ROUTER_ENTRY_HALT',
+          fields: expect.objectContaining({
+            traceId: 'trace_session_router_failed_safe',
+            symbol: 'TSLA',
+            action: 'ANALYZE_ENTRY',
+            reason: 'SessionRouter failed safe: crypto -> stocks: state write failed',
+            failedSafePauseConfirmed: false,
+            failedSafePauseError: 'state write failed',
+            route: 'entry_block_exits_still_allowed',
+            manualReconciliationRequired: true,
+          }),
+        })
+      ]));
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  test('SessionRouter failed-safe local block refuses direct entries but allows exits through executeTrade', async () => {
+    const OGZPrimeV14Bot = loadBot();
+    const executeTrade = jest.fn().mockResolvedValue({ success: true });
+    const bot = Object.assign(Object.create(OGZPrimeV14Bot.prototype), {
+      sessionRouter: {
+        getEntryBlockStatus: jest.fn(() => ({
+          blocked: true,
+          reason: 'SessionRouter failed safe: stocks -> crypto: state write failed',
+          at: '2026-05-26T20:00:00.000Z',
+          pauseConfirmed: false,
+          pauseError: 'state write failed',
+          activeSession: 'stocks',
+        })),
+      },
+      orderExecutor: {
+        ctx: {},
+        executeTrade,
+      },
+      marketData: { close: 100 },
+      dashboardWs: null,
+      dashboardWsConnected: false,
+      _lastTraiDecision: null,
+      config: { executionMode: 'paper' },
+    });
+
+    const entryResult = await bot.executeTrade({ action: 'BUY', traceId: 'entry_trace' }, {}, 100, {}, [], null, null, 'TSLA');
+    expect(entryResult).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'session_router_failed_safe_entry_block',
+      detail: 'SessionRouter failed safe: stocks -> crypto: state write failed',
+      symbol: 'TSLA',
+      orderAccepted: false,
+      stateMutationSucceeded: false,
+    }));
+    expect(executeTrade).not.toHaveBeenCalled();
+
+    const exitResult = await bot.executeTrade({ action: 'SELL', tradeId: 'OPEN-LONG-1' }, {}, 100, {}, [], null, null, 'TSLA');
+    expect(exitResult).toEqual({ success: true });
+    expect(executeTrade).toHaveBeenCalledTimes(1);
+  });
+
   test('subscribeToMarketData cannot revive the pre-router broker subscription path', () => {
     const OGZPrimeV14Bot = loadBot();
     const subscribeToCandles = jest.fn();

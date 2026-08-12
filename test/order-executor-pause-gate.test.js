@@ -288,6 +288,87 @@ describe('OrderExecutor pause gate', () => {
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('trading paused (manual pause)'));
   });
 
+  test('blocks entries from direct OrderExecutor calls when SessionRouter failed-safe is active', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      if (key === 'balance') return 10000;
+      if (key === 'position') return 0;
+      return null;
+    });
+    const sessionRouter = {
+      getEntryBlockStatus: jest.fn(() => ({
+        blocked: true,
+        reason: 'SessionRouter failed safe: crypto -> stocks: state write failed',
+        at: '2026-05-26T14:30:00.000Z',
+        pauseConfirmed: false,
+        pauseError: 'state write failed',
+        activeSession: 'crypto',
+      })),
+    };
+    const executor = makeExecutor({}, {
+      runner: { sessionRouter },
+    });
+
+    const result = await executor.executeTrade(
+      { action: 'SELL_SHORT', confidence: 75 },
+      {},
+      425,
+      {},
+      [],
+      null,
+      {},
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'session_router_failed_safe_entry_block',
+      detail: 'SessionRouter failed safe: crypto -> stocks: state write failed',
+      symbol: 'TSLA',
+      action: 'SELL_SHORT',
+      orderAccepted: false,
+      stateMutationSucceeded: false,
+    }));
+    expect(sessionRouter.getEntryBlockStatus).toHaveBeenCalledTimes(1);
+    expect(mockStateManager.getAvailableCapital).not.toHaveBeenCalled();
+    expect(executor.ctx.orderRouter.sendOrder).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('failed-safe entry block'));
+  });
+
+  test('does not apply SessionRouter failed-safe entry block to direct exits', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    const sessionRouter = {
+      getEntryBlockStatus: jest.fn(() => ({
+        blocked: true,
+        reason: 'SessionRouter failed safe: crypto -> stocks: state write failed',
+        pauseConfirmed: false,
+      })),
+    };
+    const executor = makeExecutor({}, {
+      runner: { sessionRouter },
+    });
+    const exitPlanSpy = jest.spyOn(executor, '_buildExitPlan').mockImplementation(() => {
+      throw new Error('exit path reached');
+    });
+
+    await expect(executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'OPEN-LONG-1' },
+      {},
+      425,
+      {},
+      [],
+      null,
+      {},
+      'TSLA'
+    )).rejects.toThrow('exit path reached');
+
+    expect(sessionRouter.getEntryBlockStatus).not.toHaveBeenCalled();
+    expect(exitPlanSpy).toHaveBeenCalledTimes(1);
+  });
+
   test('emits gate_event row when symbol cooldown blocks an entry', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;

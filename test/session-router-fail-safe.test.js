@@ -5,6 +5,7 @@ const os = require('os');
 const path = require('path');
 
 const SessionRouter = require('../core/SessionRouter');
+const { subscribeTrace } = require('../core/TraceSpine');
 const { applyExplicitRuntimeTestEnv } = require('./fixtures/explicit-runtime-env');
 
 describe('SessionRouter failed-safe transition behavior', () => {
@@ -98,6 +99,7 @@ describe('SessionRouter failed-safe transition behavior', () => {
   });
 
   afterEach(() => {
+    jest.useRealTimers();
     consoleLogSpy.mockRestore();
     consoleErrorSpy.mockRestore();
     fs.rmSync(tempDir, { recursive: true, force: true });
@@ -247,6 +249,13 @@ describe('SessionRouter failed-safe transition behavior', () => {
     expect(router.failedSafePauseConfirmed).toBe(false);
     expect(router.failedSafePauseError).toBe('state write failed');
     expect(router.failedSafePauseFallbackApplied).toBe(false);
+    expect(router.getEntryBlockStatus()).toEqual(expect.objectContaining({
+      blocked: true,
+      reason: 'SessionRouter failed safe: crypto -> stocks: state write failed',
+      pauseConfirmed: false,
+      pauseError: 'state write failed',
+      activeSession: 'crypto'
+    }));
     expect(router.stateManager.state.isTrading).toBe(true);
     expect(router.stateManager.state.pauseReason).toBeUndefined();
     expect(fallbackEvents).toEqual([
@@ -364,5 +373,53 @@ describe('SessionRouter failed-safe transition behavior', () => {
     router._checkTransition();
 
     expect(transitionSpy).not.toHaveBeenCalled();
+  });
+
+  test('scheduled transition interval failure routes to failed-safe halt trace instead of log-only swallow', async () => {
+    jest.useFakeTimers();
+    const router = makeRouter({ checkIntervalMs: 5 });
+    router.activeSession = 'stocks';
+    jest.spyOn(router, '_activateStocks').mockImplementation(async () => {
+      router.activeSession = 'stocks';
+      router.activeBroker = router.alpacaAdapter;
+    });
+    jest.spyOn(router, '_checkTransition').mockRejectedValue(new Error('transition store read exploded'));
+    const traces = [];
+    const unsubscribe = subscribeTrace((payload) => traces.push(payload));
+
+    try {
+      await router.start();
+      jest.advanceTimersByTime(5);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(router.failedSafeMode).toBe(true);
+      expect(router.failedSafeReason).toBe('transition store read exploded');
+      expect(router.stateManager.pauseTrading).toHaveBeenCalledWith(
+        'SessionRouter failed safe: stocks -> unknown: transition store read exploded'
+      );
+      expect(traces).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          event: 'SESSION_ROUTER_FAILED_SAFE_HALT',
+          fields: expect.objectContaining({
+            reason: 'transition store read exploded',
+            from: 'stocks',
+            to: 'unknown',
+            failureSource: 'scheduled_transition_check'
+          })
+        })
+      ]));
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[SessionRouter] Check failed:',
+        'transition store read exploded'
+      );
+      expect(consoleErrorSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining('Check failure routing failed:'),
+        expect.anything()
+      );
+    } finally {
+      unsubscribe();
+      router.stop();
+    }
   });
 });

@@ -289,6 +289,39 @@ class OrderExecutor {
     throw new Error(`[ORDER-PLAN] unsupported exit action ${action}`);
   }
 
+  _sessionRouterEntryBlock(symbol, decision, positionEffect) {
+    const router = this.ctx.runner?.sessionRouter;
+    if (!router || typeof router.getEntryBlockStatus !== 'function') {
+      return { blocked: false };
+    }
+    const status = router.getEntryBlockStatus();
+    if (!status || status.blocked !== true) {
+      return { blocked: false };
+    }
+    const reason = status.reason || 'SessionRouter failed-safe entry block';
+    emitTrace(this.ctx, 'SESSION_ROUTER_ENTRY_HALT', {
+      traceId: decision.traceId,
+      signalId: decision.signalId,
+      decisionId: decision.decisionId,
+      symbol,
+      action: decision.action,
+      positionEffect,
+      reason,
+      failedSafeAt: status.at || null,
+      failedSafePauseConfirmed: status.pauseConfirmed === true,
+      failedSafePauseError: status.pauseError || null,
+      activeSession: status.activeSession || null,
+      route: 'order_executor_entry_block_exits_still_allowed',
+      manualReconciliationRequired: status.pauseConfirmed !== true
+    });
+    console.error(`[SESSION_ROUTER] Refusing ${decision.action} for ${symbol}: failed-safe entry block (${reason})`);
+    return {
+      blocked: true,
+      reason,
+      status
+    };
+  }
+
   _runtimeScope(symbol = null, overrides = {}, options = {}) {
     const cfg = this.ctx.config || {};
     const routerEnabled = this.ctx.runner && typeof this.ctx.runner.isSessionRoutingActive === 'function'
@@ -2630,6 +2663,24 @@ class OrderExecutor {
     const traceId = decision.traceId;
     const signalId = decision.signalId;
     const isWebhookExecutionRoute = !this.ctx.backtestMode && this.ctx.webhookAdapter?.enabled === true;
+    if (isEntryAction) {
+      const sessionEntryBlock = this._sessionRouterEntryBlock(symbol, decision, positionEffect);
+      if (sessionEntryBlock.blocked) {
+        return {
+          success: false,
+          reason: 'session_router_failed_safe_entry_block',
+          traceId,
+          signalId,
+          decisionId: decision.decisionId,
+          symbol,
+          action: decision.action,
+          positionEffect,
+          detail: sessionEntryBlock.reason,
+          orderAccepted: false,
+          stateMutationSucceeded: false
+        };
+      }
+    }
     const exitPlan = isExitAction
       ? this._buildExitPlan({
         decision,
