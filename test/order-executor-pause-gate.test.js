@@ -3067,12 +3067,16 @@ describe('OrderExecutor pause gate', () => {
     );
   });
 
-  test('live broker response without order id returns explicit failure before state open', async () => {
+  test('live broker response without order id halts for broker reconciliation before state open', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;
       return null;
     });
-    const sendOrder = jest.fn().mockResolvedValue({ price: 100 });
+    const sendOrder = jest.fn().mockResolvedValue({
+      price: 100,
+      brokerName: 'alpaca',
+      brokerRequestAttempted: true,
+    });
     const preOrderEntryGate = jest.fn().mockResolvedValue({ allowed: true });
     const executor = makeExecutor(
       { executionMode: 'live' },
@@ -3101,8 +3105,14 @@ describe('OrderExecutor pause gate', () => {
 
     expect(result).toEqual(expect.objectContaining({
       success: false,
-      reason: 'missing_broker_order_id for buy TSLA',
+      reason: 'broker_order_reconciliation_required',
+      detail: 'missing_broker_order_id for buy TSLA',
       orderId: null,
+      orderAccepted: null,
+      brokerReceiptUnknown: true,
+      stateMutationSucceeded: false,
+      manualReconciliationRequired: true,
+      symbolHaltSucceeded: true,
       traceId: 'trace_missing_order_id',
       signalId: 'signal_missing_order_id',
       symbol: 'TSLA',
@@ -3110,16 +3120,147 @@ describe('OrderExecutor pause gate', () => {
     }));
     expect(sendOrder).toHaveBeenCalledTimes(1);
     expect(mockStateManager.openPosition).not.toHaveBeenCalled();
-    expect(errorSpy).toHaveBeenCalledWith('Order execution failed: missing_broker_order_id for buy TSLA');
+    expect(mockStateManager.haltSymbol).toHaveBeenCalledWith(
+      'TSLA',
+      expect.stringContaining('broker order receipt/state uncertain'),
+      expect.objectContaining({
+        code: 'broker_order_reconciliation_required',
+        brokerName: 'alpaca',
+        brokerReceiptUnknown: true,
+        manualReconciliationRequired: true,
+      })
+    );
   });
 
-  test('live broker success followed by state open failure returns phase-specific failure', async () => {
+  test('live broker adapter throw with attempted receipt halts for broker reconciliation before state open', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    const adapterError = new Error('adapter network timeout');
+    adapterError.brokerRequestAttempted = true;
+    adapterError.unknownBrokerReceipt = true;
+    adapterError.brokerName = 'alpaca';
+    const sendOrder = jest.fn().mockRejectedValue(adapterError);
+    const preOrderEntryGate = jest.fn().mockResolvedValue({ allowed: true });
+    const executor = makeExecutor(
+      { executionMode: 'live' },
+      {
+        paperTrading: false,
+        orderRouter: { sendOrder },
+        preOrderEntryGate,
+      }
+    );
+
+    const result = await executor.executeTrade(
+      {
+        action: 'BUY',
+        confidence: 50,
+        traceId: 'trace_adapter_throw',
+        signalId: 'signal_adapter_throw',
+      },
+      {},
+      100,
+      { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+      [],
+      null,
+      makeOrchResult(),
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'broker_order_reconciliation_required',
+      detail: 'adapter network timeout',
+      orderAccepted: null,
+      brokerReceiptUnknown: true,
+      stateMutationSucceeded: false,
+      manualReconciliationRequired: true,
+      symbolHaltSucceeded: true,
+      traceId: 'trace_adapter_throw',
+      signalId: 'signal_adapter_throw',
+      symbol: 'TSLA',
+      action: 'BUY',
+    }));
+    expect(sendOrder).toHaveBeenCalledTimes(1);
+    expect(mockStateManager.openPosition).not.toHaveBeenCalled();
+    expect(mockStateManager.haltSymbol).toHaveBeenCalledWith(
+      'TSLA',
+      expect.stringContaining('broker order receipt/state uncertain'),
+      expect.objectContaining({
+        code: 'broker_order_reconciliation_required',
+        brokerName: 'alpaca',
+        brokerReceiptUnknown: true,
+        manualReconciliationRequired: true,
+      })
+    );
+  });
+
+  test('live known broker rejection returns broker reason without reconciliation halt', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    const sendOrder = jest.fn().mockResolvedValue({
+      success: false,
+      reason: 'insufficient buying power',
+      brokerName: 'alpaca',
+      brokerRequestAttempted: true,
+    });
+    const preOrderEntryGate = jest.fn().mockResolvedValue({ allowed: true });
+    const executor = makeExecutor(
+      { executionMode: 'live' },
+      {
+        paperTrading: false,
+        orderRouter: { sendOrder },
+        preOrderEntryGate,
+      }
+    );
+
+    const result = await executor.executeTrade(
+      {
+        action: 'BUY',
+        confidence: 50,
+        traceId: 'trace_known_reject',
+        signalId: 'signal_known_reject',
+      },
+      {},
+      100,
+      { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+      [],
+      null,
+      makeOrchResult(),
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'insufficient buying power',
+      orderAccepted: false,
+      stateMutationSucceeded: false,
+      traceId: 'trace_known_reject',
+      signalId: 'signal_known_reject',
+      symbol: 'TSLA',
+      action: 'BUY',
+    }));
+    expect(result.reason).not.toBe('broker_order_reconciliation_required');
+    expect(sendOrder).toHaveBeenCalledTimes(1);
+    expect(mockStateManager.openPosition).not.toHaveBeenCalled();
+    expect(mockStateManager.haltSymbol).not.toHaveBeenCalled();
+  });
+
+  test('live broker success followed by returned state open failure halts for broker reconciliation', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;
       return null;
     });
     mockStateManager.openPosition.mockResolvedValueOnce({ success: false, error: 'state write failed' });
-    const sendOrder = jest.fn().mockResolvedValue({ orderId: 'LIVE_STATE_FAIL', price: 100 });
+    const sendOrder = jest.fn().mockResolvedValue({
+      orderId: 'LIVE_STATE_FAIL',
+      price: 100,
+      brokerName: 'alpaca',
+      brokerRequestAttempted: true,
+    });
     const preOrderEntryGate = jest.fn().mockResolvedValue({ allowed: true });
     const executor = makeExecutor(
       { executionMode: 'live' },
@@ -3148,10 +3289,14 @@ describe('OrderExecutor pause gate', () => {
 
     expect(result).toEqual(expect.objectContaining({
       success: false,
-      reason: 'state_open_failed',
+      reason: 'broker_order_reconciliation_required',
+      detail: 'state write failed',
+      operation: 'openPosition',
       orderId: 'LIVE_STATE_FAIL',
       orderAccepted: true,
       stateMutationSucceeded: false,
+      manualReconciliationRequired: true,
+      symbolHaltSucceeded: true,
       traceId: 'trace_state_open_fail',
       signalId: 'signal_state_open_fail',
       symbol: 'TSLA',
@@ -3159,7 +3304,89 @@ describe('OrderExecutor pause gate', () => {
     }));
     expect(sendOrder).toHaveBeenCalledTimes(1);
     expect(mockStateManager.openPosition).toHaveBeenCalledTimes(1);
-    expect(mockStateManager.removeActiveTrade).toHaveBeenCalledWith('LIVE_STATE_FAIL');
+    expect(mockStateManager.removeActiveTrade).not.toHaveBeenCalledWith('LIVE_STATE_FAIL');
+    expect(mockStateManager.haltSymbol).toHaveBeenCalledWith(
+      'TSLA',
+      expect.stringContaining('broker order receipt/state uncertain'),
+      expect.objectContaining({
+        code: 'broker_order_reconciliation_required',
+        brokerOrderId: 'LIVE_STATE_FAIL',
+        brokerName: 'alpaca',
+        orderAccepted: true,
+        operation: 'openPosition',
+        stateMutationSucceeded: false,
+        manualReconciliationRequired: true,
+      })
+    );
+  });
+
+  test('live broker success followed by thrown state mutation halts instead of reporting order unaccepted', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.openPosition.mockRejectedValueOnce(new Error('state disk down'));
+    const sendOrder = jest.fn().mockResolvedValue({
+      orderId: 'LIVE_STATE_THROW',
+      price: 100,
+      brokerName: 'alpaca',
+      brokerRequestAttempted: true,
+    });
+    const preOrderEntryGate = jest.fn().mockResolvedValue({ allowed: true });
+    const executor = makeExecutor(
+      { executionMode: 'live' },
+      {
+        paperTrading: false,
+        orderRouter: { sendOrder },
+        preOrderEntryGate,
+      }
+    );
+
+    const result = await executor.executeTrade(
+      {
+        action: 'BUY',
+        confidence: 50,
+        traceId: 'trace_state_open_throw',
+        signalId: 'signal_state_open_throw',
+      },
+      {},
+      100,
+      { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+      [],
+      null,
+      makeOrchResult(),
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'broker_order_reconciliation_required',
+      detail: 'state disk down',
+      orderId: 'LIVE_STATE_THROW',
+      orderAccepted: true,
+      brokerReceiptUnknown: false,
+      stateMutationSucceeded: false,
+      manualReconciliationRequired: true,
+      symbolHaltSucceeded: true,
+      traceId: 'trace_state_open_throw',
+      signalId: 'signal_state_open_throw',
+      symbol: 'TSLA',
+      action: 'BUY',
+    }));
+    expect(sendOrder).toHaveBeenCalledTimes(1);
+    expect(mockStateManager.openPosition).toHaveBeenCalledTimes(1);
+    expect(mockStateManager.releaseExitSlot).not.toHaveBeenCalled();
+    expect(mockStateManager.haltSymbol).toHaveBeenCalledWith(
+      'TSLA',
+      expect.stringContaining('broker order receipt/state uncertain'),
+      expect.objectContaining({
+        code: 'broker_order_reconciliation_required',
+        brokerOrderId: 'LIVE_STATE_THROW',
+        orderAccepted: true,
+        stateMutationException: 'state disk down',
+        manualReconciliationRequired: true,
+      })
+    );
   });
 
   test('eval rule engine blocks entries through the same pre-order side-effect gate', async () => {
@@ -3347,6 +3574,80 @@ describe('OrderExecutor pause gate', () => {
     expectExitFillApplied({ tradeId: 'BUY_1', filledQuantity: 5, fillPrice: 125, remainingQuantity: 0 });
   });
 
+  test('live broker exit accepted followed by returned state fill failure halts without releasing exit intent', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: 500, balance: 10000 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([makeBuyTrade()]);
+    mockStateManager.applyFill.mockResolvedValueOnce({ success: false, error: 'apply fill failed' });
+    const sendOrder = jest.fn().mockResolvedValue({
+      orderId: 'LIVE_EXIT_STATE_FAIL',
+      price: 125,
+      brokerName: 'alpaca',
+      brokerRequestAttempted: true,
+    });
+    const executor = makeExecutor(
+      { executionMode: 'live' },
+      {
+        paperTrading: false,
+        orderRouter: { sendOrder },
+      }
+    );
+
+    const result = await executor.executeTrade(
+      {
+        action: 'SELL',
+        confidence: 100,
+        tradeId: 'BUY_1',
+        exitReason: 'test_exit',
+        traceId: 'trace_exit_fill_fail',
+        signalId: 'signal_exit_fill_fail',
+      },
+      { totalConfidence: 100 },
+      125,
+      { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'broker_order_reconciliation_required',
+      detail: 'apply fill failed',
+      operation: 'applyFill',
+      orderId: 'BUY_1',
+      orderAccepted: true,
+      stateMutationSucceeded: false,
+      manualReconciliationRequired: true,
+      symbolHaltSucceeded: true,
+      traceId: 'trace_exit_fill_fail',
+      signalId: 'signal_exit_fill_fail',
+      symbol: 'TSLA',
+      action: 'SELL',
+    }));
+    expect(sendOrder).toHaveBeenCalledTimes(1);
+    expect(mockStateManager.applyFill).toHaveBeenCalledTimes(1);
+    expect(mockStateManager.releaseExitSlot).not.toHaveBeenCalled();
+    expect(mockStateManager.haltSymbol).toHaveBeenCalledWith(
+      'TSLA',
+      expect.stringContaining('broker order receipt/state uncertain'),
+      expect.objectContaining({
+        code: 'broker_order_reconciliation_required',
+        brokerOrderId: 'LIVE_EXIT_STATE_FAIL',
+        brokerName: 'alpaca',
+        tradeId: 'BUY_1',
+        orderAccepted: true,
+        operation: 'applyFill',
+        stateMutationSucceeded: false,
+        manualReconciliationRequired: true,
+      })
+    );
+  });
+
   test('live stock cover plan routes buy quantity from matched short trade', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;
@@ -3393,6 +3694,80 @@ describe('OrderExecutor pause gate', () => {
       exitReason: 'cover',
     }));
     expect(patternExitModel.endTracking).not.toHaveBeenCalled();
+  });
+
+  test('live broker cover accepted followed by returned state fill failure halts without releasing exit intent', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: -600, balance: 10000 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([makeShortTrade()]);
+    mockStateManager.applyFill.mockResolvedValueOnce({ success: false, error: 'cover fill failed' });
+    const sendOrder = jest.fn().mockResolvedValue({
+      orderId: 'LIVE_COVER_STATE_FAIL',
+      price: 120,
+      brokerName: 'alpaca',
+      brokerRequestAttempted: true,
+    });
+    const executor = makeExecutor(
+      { executionMode: 'live' },
+      {
+        paperTrading: false,
+        orderRouter: { sendOrder },
+      }
+    );
+
+    const result = await executor.executeTrade(
+      {
+        action: 'COVER',
+        confidence: 100,
+        tradeId: 'SHORT_1',
+        exitReason: 'test_cover',
+        traceId: 'trace_cover_fill_fail',
+        signalId: 'signal_cover_fill_fail',
+      },
+      { totalConfidence: 100 },
+      120,
+      { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'broker_order_reconciliation_required',
+      detail: 'cover fill failed',
+      operation: 'applyFill',
+      orderId: 'SHORT_1',
+      orderAccepted: true,
+      stateMutationSucceeded: false,
+      manualReconciliationRequired: true,
+      symbolHaltSucceeded: true,
+      traceId: 'trace_cover_fill_fail',
+      signalId: 'signal_cover_fill_fail',
+      symbol: 'TSLA',
+      action: 'COVER',
+    }));
+    expect(sendOrder).toHaveBeenCalledTimes(1);
+    expect(mockStateManager.applyFill).toHaveBeenCalledTimes(1);
+    expect(mockStateManager.releaseExitSlot).not.toHaveBeenCalled();
+    expect(mockStateManager.haltSymbol).toHaveBeenCalledWith(
+      'TSLA',
+      expect.stringContaining('broker order receipt/state uncertain'),
+      expect.objectContaining({
+        code: 'broker_order_reconciliation_required',
+        brokerOrderId: 'LIVE_COVER_STATE_FAIL',
+        brokerName: 'alpaca',
+        tradeId: 'SHORT_1',
+        orderAccepted: true,
+        operation: 'applyFill',
+        stateMutationSucceeded: false,
+        manualReconciliationRequired: true,
+      })
+    );
   });
 
   test('live stock cover partial fill reduces short state by accepted broker quantity', async () => {

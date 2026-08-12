@@ -61,8 +61,118 @@ describe('OrderRouter explicit registration contract', () => {
     expect(kraken.placeBuyOrder).toHaveBeenCalledWith('XBT/USD', 0.002, null, {});
     expect(result).toEqual(expect.objectContaining({
       orderId: 'KRAKEN_BUY_1',
+      brokerName: 'kraken',
+      brokerRequestAttempted: true,
       traceId: 'TRACE-ROUTER-1'
     }));
+  });
+
+  test('preserves unknown broker receipt when adapter returns no order result', async () => {
+    const router = new OrderRouter();
+    const alpaca = {
+      getBrokerName: () => 'alpaca',
+      placeBuyOrder: jest.fn(async () => null),
+      placeSellOrder: jest.fn(),
+    };
+
+    router.registerBroker(alpaca, ['TSLA']);
+
+    const result = await router.sendOrder({
+      symbol: 'TSLA',
+      side: 'buy',
+      amount: 1,
+      type: 'market',
+      traceId: 'TRACE-MISSING-RESULT',
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'broker_order_result_missing',
+      brokerName: 'alpaca',
+      brokerRequestAttempted: true,
+      unknownBrokerReceipt: true,
+      traceId: 'TRACE-MISSING-RESULT',
+    }));
+  });
+
+  test('preserves known broker rejection without unknown receipt annotation', async () => {
+    const router = new OrderRouter();
+    const alpaca = {
+      getBrokerName: () => 'alpaca',
+      placeBuyOrder: jest.fn(async () => ({ success: false, reason: 'insufficient buying power' })),
+      placeSellOrder: jest.fn(),
+    };
+
+    router.registerBroker(alpaca, ['TSLA']);
+
+    const result = await router.sendOrder({
+      symbol: 'TSLA',
+      side: 'buy',
+      amount: 1,
+      type: 'market',
+      traceId: 'TRACE-KNOWN-REJECT',
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'insufficient buying power',
+      brokerName: 'alpaca',
+      brokerRequestAttempted: true,
+      traceId: 'TRACE-KNOWN-REJECT',
+    }));
+    expect(result).not.toHaveProperty('unknownBrokerReceipt');
+  });
+
+  test('annotates adapter dispatch throws as unknown broker receipt', async () => {
+    const router = new OrderRouter();
+    const alpaca = {
+      getBrokerName: () => 'alpaca',
+      placeBuyOrder: jest.fn(async () => {
+        throw new Error('adapter network timeout');
+      }),
+      placeSellOrder: jest.fn(),
+    };
+
+    router.registerBroker(alpaca, ['TSLA']);
+
+    await expect(router.sendOrder({
+      symbol: 'TSLA',
+      side: 'buy',
+      amount: 1,
+      type: 'market',
+    })).rejects.toEqual(expect.objectContaining({
+      message: 'adapter network timeout',
+      brokerName: 'alpaca',
+      brokerRequestAttempted: true,
+      unknownBrokerReceipt: true,
+    }));
+  });
+
+  test('rejects invalid side before broker dispatch annotation', async () => {
+    const router = new OrderRouter();
+    const alpaca = buildAdapter('alpaca');
+
+    router.registerBroker(alpaca, ['TSLA']);
+
+    let caughtError;
+    try {
+      await router.sendOrder({
+        symbol: 'TSLA',
+        side: 'hold',
+        amount: 1,
+        type: 'market',
+      });
+    } catch (error) {
+      caughtError = error;
+    }
+
+    expect(caughtError).toEqual(expect.objectContaining({
+      message: '[OrderRouter] Invalid side: hold',
+    }));
+    expect(caughtError).not.toHaveProperty('brokerRequestAttempted');
+    expect(caughtError).not.toHaveProperty('unknownBrokerReceipt');
+    expect(alpaca.placeBuyOrder).not.toHaveBeenCalled();
+    expect(alpaca.placeSellOrder).not.toHaveBeenCalled();
   });
 
   test('setDefaultAdapter fails loud instead of creating a fallback', async () => {

@@ -132,6 +132,64 @@ class OrderExecutor {
     return haltResult;
   }
 
+  async _haltBrokerOrderReconciliationRequired({ symbol, reason, traceId, signalId, decisionId, tradeId = null, action, positionEffect, brokerOrderId = null, brokerName = null, orderAccepted = null, metadata = {} }) {
+    const haltSymbol = this._firstNonEmptyString(symbol, this.ctx.tradingPair);
+    if (!haltSymbol) {
+      emitTrace(this.ctx, 'BROKER_ORDER_RECONCILIATION_UNHALTED', {
+        traceId,
+        signalId,
+        decisionId,
+        action,
+        tradeId,
+        reason,
+      });
+      console.error(`[BROKER-ORDER] broker order reconciliation could not halt missing symbol: ${reason}`);
+      return { success: false, reason: 'missing_symbol' };
+    }
+
+    const haltReason = `[BROKER-ORDER] ${haltSymbol} broker order receipt/state uncertain (${reason}); operator must reconcile venue order and local state before entries resume`;
+    const haltResult = typeof stateManager.haltSymbol === 'function'
+      ? await stateManager.haltSymbol(haltSymbol, haltReason, {
+        code: 'broker_order_reconciliation_required',
+        authority: 'financial_integrity',
+        financialIntegrityCritical: true,
+        manualReconciliationRequired: true,
+        operatorActionRequired: true,
+        entryBlockScope: 'symbol',
+        traceId,
+        signalId,
+        decisionId,
+        tradeId,
+        action,
+        positionEffect,
+        brokerOrderId,
+        brokerName,
+        orderAccepted,
+        ...metadata,
+      })
+      : { success: false, reason: 'haltSymbol_unavailable' };
+
+    emitTrace(this.ctx, 'BROKER_ORDER_RECONCILIATION_REQUIRED', {
+      traceId,
+      signalId,
+      decisionId,
+      symbol: haltSymbol,
+      action,
+      positionEffect,
+      tradeId,
+      brokerOrderId,
+      brokerName,
+      orderAccepted,
+      reason,
+      manualReconciliationRequired: true,
+      operatorActionRequired: true,
+      symbolHaltSucceeded: haltResult?.success === true,
+      ...metadata,
+    });
+    console.error(`[BROKER-ORDER] ${haltReason} haltSucceeded=${haltResult?.success === true}`);
+    return haltResult;
+  }
+
   _shouldStoreTraiDecisionForOrder(traiDecision, decision, symbol, nowMs = Date.now()) {
     const traiSignal = traiDecision?.originalSignal || {};
     const traiDecisionAgeMs = Number.isFinite(traiDecision?.createdAt)
@@ -3096,6 +3154,10 @@ class OrderExecutor {
 
     let exitIntent = null;
     let reservationBlockOverride = null;
+    let liveBrokerOrderAccepted = false;
+    let liveBrokerOrderId = null;
+    let liveBrokerReceiptUnknown = false;
+    let liveBrokerName = null;
     if (exitPlan) {
       const submittedAtMs = Date.now();
       const intentId = this._buildExitIntentId(exitPlan, decision);
@@ -3410,8 +3472,6 @@ class OrderExecutor {
         // CRIT-03 wrong-market hazard (defaulting missing tradingPair to
         // BTC-USD) is structurally prevented by the param requirement.
         const side = brokerOrderPlan.side; // 'buy' or 'sell'
-        let brokerOrderAcceptedBeforeValidation = false;
-        let brokerOrderId = null;
         try {
           emitTrace(this.ctx, 'BROKER_ORDER_REQUEST', {
             traceId,
@@ -3437,53 +3497,85 @@ class OrderExecutor {
               quantityUnit: brokerOrderPlan.quantityUnit
             }
           });
-          brokerOrderId = orderResult?.orderId || orderResult?.id;
-          if (!brokerOrderId) {
-            throw new Error(`missing_broker_order_id for ${side} ${symbol}`);
-          }
-          brokerOrderAcceptedBeforeValidation = true;
-          const acceptedOrderQuantity = this._acceptedOrderQuantity(orderResult, brokerOrderPlan.orderQuantity);
-          const acceptedSizeUsd = this._acceptedOrderSizeUsd(brokerOrderPlan, acceptedOrderQuantity);
-          tradeResult = {
-            success: true,
-            orderId: brokerOrderId,
-            price: orderResult.price ?? price,
-            amount: acceptedSizeUsd,
-            orderQuantity: acceptedOrderQuantity,
-            quantityUnit: brokerOrderPlan.quantityUnit,
-            traceId,
-            signalId
-          };
-          emitTrace(this.ctx, 'BROKER_ORDER_RESULT', {
-            traceId,
-            signalId,
-            symbol,
-            action: decision.action,
-            positionEffect,
-            success: true,
-            orderId: tradeResult.orderId,
-            orderAccepted: true,
-            stateMutationSucceeded: null,
-            acceptedOrderQuantity: tradeResult.orderQuantity,
-            quantityUnit: tradeResult.quantityUnit,
-            amount: tradeResult.amount,
-            sizeUsd: tradeResult.amount,
-          });
-        } catch (orderErr) {
-          if (brokerOrderAcceptedBeforeValidation) {
-            await this._haltDirectionIntegrityExitRefusal({
+          liveBrokerName = orderResult?.brokerName || null;
+          liveBrokerReceiptUnknown = orderResult?.unknownBrokerReceipt === true;
+          if (orderResult?.success === false && orderResult?.unknownBrokerReceipt !== true) {
+            const knownRejectReason = orderResult.reason || orderResult.error || 'broker_order_rejected';
+            tradeResult = { success: false, reason: knownRejectReason, traceId, signalId };
+            emitTrace(this.ctx, 'BROKER_ORDER_RESULT', {
+              traceId,
+              signalId,
               symbol,
-              reason: 'post_send_broker_order_reconciliation_failed',
+              action: decision.action,
+              positionEffect,
+              success: false,
+              orderAccepted: false,
+              stateMutationSucceeded: null,
+              reason: knownRejectReason,
+              brokerName: liveBrokerName,
+            });
+          } else {
+            liveBrokerOrderId = orderResult?.orderId || orderResult?.id || null;
+            if (!liveBrokerOrderId) {
+              const missingOrderId = new Error(`missing_broker_order_id for ${side} ${symbol}`);
+              missingOrderId.brokerRequestAttempted = orderResult?.brokerRequestAttempted === true;
+              missingOrderId.unknownBrokerReceipt = orderResult?.brokerRequestAttempted === true;
+              missingOrderId.brokerName = liveBrokerName;
+              throw missingOrderId;
+            }
+            liveBrokerOrderAccepted = true;
+            liveBrokerReceiptUnknown = false;
+            const acceptedOrderQuantity = this._acceptedOrderQuantity(orderResult, brokerOrderPlan.orderQuantity);
+            const acceptedSizeUsd = this._acceptedOrderSizeUsd(brokerOrderPlan, acceptedOrderQuantity);
+            tradeResult = {
+              success: true,
+              orderId: liveBrokerOrderId,
+              price: orderResult.price ?? price,
+              amount: acceptedSizeUsd,
+              orderQuantity: acceptedOrderQuantity,
+              quantityUnit: brokerOrderPlan.quantityUnit,
+              traceId,
+              signalId
+            };
+            emitTrace(this.ctx, 'BROKER_ORDER_RESULT', {
+              traceId,
+              signalId,
+              symbol,
+              action: decision.action,
+              positionEffect,
+              success: true,
+              orderId: tradeResult.orderId,
+              orderAccepted: true,
+              stateMutationSucceeded: null,
+              acceptedOrderQuantity: tradeResult.orderQuantity,
+              quantityUnit: tradeResult.quantityUnit,
+              amount: tradeResult.amount,
+              sizeUsd: tradeResult.amount,
+              brokerName: liveBrokerName,
+            });
+          }
+        } catch (orderErr) {
+          const receiptUnknown = orderErr?.unknownBrokerReceipt === true || orderErr?.brokerRequestAttempted === true;
+          if (liveBrokerOrderAccepted || receiptUnknown) {
+            const haltResult = await this._haltBrokerOrderReconciliationRequired({
+              symbol,
+              reason: liveBrokerOrderAccepted
+                ? 'post_send_broker_order_reconciliation_failed'
+                : 'broker_order_receipt_unknown',
               traceId,
               signalId,
               decisionId,
               tradeId: exitPlan?.tradeId || null,
               action: decision.action,
+              positionEffect,
+              brokerOrderId: liveBrokerOrderId,
+              brokerName: orderErr?.brokerName || liveBrokerName,
+              orderAccepted: liveBrokerOrderAccepted ? true : null,
               metadata: {
-                brokerOrderId,
                 side,
                 route: 'broker',
-                postSendError: orderErr.message,
+                error: orderErr.message,
+                brokerReceiptUnknown: !liveBrokerOrderAccepted,
               },
             });
             emitTrace(this.ctx, 'BROKER_ORDER_POST_SEND_RECONCILIATION_FAILED', {
@@ -3493,13 +3585,23 @@ class OrderExecutor {
               symbol,
               action: decision.action,
               positionEffect,
-              brokerOrderId,
+              brokerOrderId: liveBrokerOrderId,
               side,
-              orderAccepted: true,
+              orderAccepted: liveBrokerOrderAccepted ? true : null,
+              brokerReceiptUnknown: !liveBrokerOrderAccepted,
               stateMutationSucceeded: false,
               reason: orderErr.message,
             });
-            throw orderErr;
+            return blockedReturn('broker_order_reconciliation_required', {
+              detail: orderErr.message,
+              orderId: liveBrokerOrderId,
+              orderAccepted: liveBrokerOrderAccepted ? true : null,
+              brokerReceiptUnknown: !liveBrokerOrderAccepted,
+              stateMutationSucceeded: false,
+              manualReconciliationRequired: true,
+              operatorActionRequired: true,
+              symbolHaltSucceeded: haltResult?.success === true,
+            });
           }
           console.error(`Order execution failed: ${orderErr.message}`);
           tradeResult = { success: false, reason: orderErr.message, traceId, signalId };
@@ -3717,6 +3819,45 @@ class OrderExecutor {
           // CHANGE 2025-12-12: Validate StateManager.openPosition() success
           if (!positionResult.success) {
             console.error('StateManager.openPosition failed:', positionResult.error);
+            if (liveBrokerOrderAccepted) {
+              const haltResult = await this._haltBrokerOrderReconciliationRequired({
+                symbol,
+                reason: positionResult.error || 'state_open_failed',
+                traceId,
+                signalId,
+                decisionId,
+                action: decision.action,
+                positionEffect,
+                brokerOrderId: liveBrokerOrderId,
+                brokerName: liveBrokerName,
+                orderAccepted: true,
+                metadata: {
+                  route: 'broker',
+                  operation: 'openPosition',
+                  stateMutationSucceeded: false,
+                },
+              });
+              emitTrace(this.ctx, 'STATE_MUTATION', {
+                traceId,
+                signalId,
+                symbol,
+                action: decision.action,
+                positionEffect,
+                success: false,
+                operation: 'openPosition',
+                error: positionResult.error,
+              });
+              return blockedReturn('broker_order_reconciliation_required', {
+                detail: positionResult.error || 'state_open_failed',
+                operation: 'openPosition',
+                orderId: unifiedResult.orderId,
+                orderAccepted: true,
+                stateMutationSucceeded: false,
+                manualReconciliationRequired: true,
+                operatorActionRequired: true,
+                symbolHaltSucceeded: haltResult?.success === true,
+              });
+            }
             // CHANGE 2025-12-13: Remove from StateManager (single source of truth)
             stateManager.removeActiveTrade(unifiedResult.orderId);
 	          emitTrace(this.ctx, 'STATE_MUTATION', {
@@ -3945,6 +4086,45 @@ class OrderExecutor {
 
           if (!positionResult.success) {
             console.error('StateManager.openPosition (SHORT) failed:', positionResult.error);
+            if (liveBrokerOrderAccepted) {
+              const haltResult = await this._haltBrokerOrderReconciliationRequired({
+                symbol,
+                reason: positionResult.error || 'state_open_failed',
+                traceId,
+                signalId,
+                decisionId,
+                action: decision.action,
+                positionEffect,
+                brokerOrderId: liveBrokerOrderId,
+                brokerName: liveBrokerName,
+                orderAccepted: true,
+                metadata: {
+                  route: 'broker',
+                  operation: 'openPosition',
+                  stateMutationSucceeded: false,
+                },
+              });
+              emitTrace(this.ctx, 'STATE_MUTATION', {
+                traceId,
+                signalId,
+                symbol,
+                action: decision.action,
+                positionEffect,
+                success: false,
+                operation: 'openPosition',
+                error: positionResult.error,
+              });
+              return blockedReturn('broker_order_reconciliation_required', {
+                detail: positionResult.error || 'state_open_failed',
+                operation: 'openPosition',
+                orderId: unifiedResult.orderId,
+                orderAccepted: true,
+                stateMutationSucceeded: false,
+                manualReconciliationRequired: true,
+                operatorActionRequired: true,
+                symbolHaltSucceeded: haltResult?.success === true,
+              });
+            }
             stateManager.removeActiveTrade(unifiedResult.orderId);
 	          emitTrace(this.ctx, 'STATE_MUTATION', {
 	            traceId,
@@ -4291,6 +4471,50 @@ class OrderExecutor {
             // Confirmed execution fill is the only active-trade mutation path.
             if (!closeResult.success) {
               console.error('StateManager.applyFill failed:', closeResult.error);
+              if (liveBrokerOrderAccepted) {
+                const haltResult = await this._haltBrokerOrderReconciliationRequired({
+                  symbol,
+                  reason: closeResult.error || 'state_close_failed',
+                  traceId,
+                  signalId,
+                  decisionId,
+                  tradeId: buyTrade.orderId,
+                  action: decision.action,
+                  positionEffect,
+                  brokerOrderId: liveBrokerOrderId,
+                  brokerName: liveBrokerName,
+                  orderAccepted: true,
+                  metadata: {
+                    route: 'broker',
+                    operation: 'applyFill',
+                    intentId: exitIntent?.intentId || null,
+                    stateMutationSucceeded: false,
+                  },
+                });
+                emitTrace(this.ctx, 'STATE_MUTATION', {
+                  traceId,
+                  signalId,
+                  symbol,
+                  action: decision.action,
+                  positionEffect,
+                  success: false,
+                  operation: 'applyFill',
+                  orderId: buyTrade.orderId,
+                  intentId: exitIntent?.intentId || null,
+                  error: closeResult.error,
+                });
+                return blockedReturn('broker_order_reconciliation_required', {
+                  detail: closeResult.error || 'state_close_failed',
+                  operation: 'applyFill',
+                  orderId: buyTrade.orderId,
+                  intentId: exitIntent?.intentId || null,
+                  orderAccepted: true,
+                  stateMutationSucceeded: false,
+                  manualReconciliationRequired: true,
+                  operatorActionRequired: true,
+                  symbolHaltSucceeded: haltResult?.success === true,
+                });
+              }
               if (exitIntent) {
                 await this._releaseExitIntentWithTrace({
                   exitPlan,
@@ -4874,6 +5098,50 @@ class OrderExecutor {
 
           if (!closeResult.success) {
             console.error('StateManager.applyFill (COVER) failed:', closeResult.error);
+            if (liveBrokerOrderAccepted) {
+              const haltResult = await this._haltBrokerOrderReconciliationRequired({
+                symbol,
+                reason: closeResult.error || 'state_close_failed',
+                traceId,
+                signalId,
+                decisionId,
+                tradeId: shortTrade.orderId,
+                action: decision.action,
+                positionEffect,
+                brokerOrderId: liveBrokerOrderId,
+                brokerName: liveBrokerName,
+                orderAccepted: true,
+                metadata: {
+                  route: 'broker',
+                  operation: 'applyFill',
+                  intentId: exitIntent?.intentId || null,
+                  stateMutationSucceeded: false,
+                },
+              });
+              emitTrace(this.ctx, 'STATE_MUTATION', {
+                traceId,
+                signalId,
+                symbol,
+                action: decision.action,
+                positionEffect,
+                success: false,
+                operation: 'applyFill',
+                orderId: shortTrade.orderId,
+                intentId: exitIntent?.intentId || null,
+                error: closeResult.error,
+              });
+              return blockedReturn('broker_order_reconciliation_required', {
+                detail: closeResult.error || 'state_close_failed',
+                operation: 'applyFill',
+                orderId: shortTrade.orderId,
+                intentId: exitIntent?.intentId || null,
+                orderAccepted: true,
+                stateMutationSucceeded: false,
+                manualReconciliationRequired: true,
+                operatorActionRequired: true,
+                symbolHaltSucceeded: haltResult?.success === true,
+              });
+            }
             if (exitIntent) {
               await this._releaseExitIntentWithTrace({
                 exitPlan,
@@ -5258,6 +5526,36 @@ class OrderExecutor {
       }
 
     } catch (error) {
+      if (liveBrokerOrderAccepted || liveBrokerReceiptUnknown) {
+        const haltResult = await this._haltBrokerOrderReconciliationRequired({
+          symbol,
+          reason: error?.message || 'post_broker_order_state_exception',
+          traceId,
+          signalId,
+          decisionId: decision?.decisionId || null,
+          tradeId: exitPlan?.tradeId || null,
+          action: decision?.action || null,
+          positionEffect,
+          brokerOrderId: liveBrokerOrderId,
+          brokerName: liveBrokerName,
+          orderAccepted: liveBrokerOrderAccepted ? true : null,
+          metadata: {
+            route: 'broker',
+            brokerReceiptUnknown: liveBrokerReceiptUnknown && !liveBrokerOrderAccepted,
+            stateMutationException: error?.message || String(error),
+          },
+        });
+        return blockedReturn('broker_order_reconciliation_required', {
+          detail: error?.message || String(error),
+          orderId: liveBrokerOrderId,
+          orderAccepted: liveBrokerOrderAccepted ? true : null,
+          brokerReceiptUnknown: liveBrokerReceiptUnknown && !liveBrokerOrderAccepted,
+          stateMutationSucceeded: false,
+          manualReconciliationRequired: true,
+          operatorActionRequired: true,
+          symbolHaltSucceeded: haltResult?.success === true,
+        });
+      }
       if (exitIntent) {
         await this._releaseExitIntentWithTrace({
           exitPlan,

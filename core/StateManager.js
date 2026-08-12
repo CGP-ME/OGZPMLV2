@@ -107,6 +107,7 @@ const DATA_FEED_LIVENESS_PAUSE_PREFIXES = [
   'Data gap:'
 ];
 const AUTHORIZED_SYMBOL_HALT_CODES = new Set([
+  'broker_order_reconciliation_required',
   'exit_rail_broker_desync',
   'exit_monitor_reconciliation_required',
   'exit_intent_reconciliation_required',

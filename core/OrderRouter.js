@@ -148,18 +148,41 @@ class OrderRouter extends EventEmitter {
     const traceSuffix = traceId ? ` traceId=${traceId}` : '';
     console.log(`[OrderRouter] Routing ${side} ${amount} ${symbol} -> ${brokerName}${traceSuffix}`);
 
-    // Route to appropriate method
-    let result;
-    if (side === 'buy') {
-      result = await adapter.placeBuyOrder(symbol, amount, type === 'limit' ? price : null, options);
-    } else if (side === 'sell') {
-      result = await adapter.placeSellOrder(symbol, amount, type === 'limit' ? price : null, options);
-    } else {
+    if (side !== 'buy' && side !== 'sell') {
       throw new Error(`[OrderRouter] Invalid side: ${side}`);
     }
 
+    let result;
+    try {
+      if (side === 'buy') {
+        result = await adapter.placeBuyOrder(symbol, amount, type === 'limit' ? price : null, options);
+      } else {
+        result = await adapter.placeSellOrder(symbol, amount, type === 'limit' ? price : null, options);
+      }
+    } catch (error) {
+      error.brokerRequestAttempted = true;
+      error.unknownBrokerReceipt = true;
+      error.brokerName = brokerName;
+      throw error;
+    }
+
+    if (!result || typeof result !== 'object') {
+      return {
+        success: false,
+        reason: 'broker_order_result_missing',
+        brokerRequestAttempted: true,
+        unknownBrokerReceipt: true,
+        brokerName,
+        ...(traceId ? { traceId } : {}),
+        ...(signalId ? { signalId } : {}),
+        ...(decisionId ? { decisionId } : {}),
+      };
+    }
+
     return {
-      ...(result || {}),
+      ...result,
+      brokerRequestAttempted: true,
+      brokerName,
       ...(traceId ? { traceId } : {}),
       ...(signalId ? { signalId } : {}),
       ...(decisionId ? { decisionId } : {}),
