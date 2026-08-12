@@ -89,6 +89,68 @@ describe('SessionRouter-only market-data subscription ownership', () => {
     expect(handlerSource).toContain('symbol: ev.symbol || ev.runtimeScope?.symbol || null');
   });
 
+  test('startup symbol context failures are removed before route wiring instead of gated downstream', () => {
+    const stateManager = {
+      quarantineActiveTradesForSymbol: jest.fn(() => ({ quarantined: 1, records: [{ tradeId: 'BUY_FAKE' }] })),
+    };
+    jest.doMock('../core/StateManager', () => ({
+      getInstance: () => stateManager,
+    }));
+    const OGZPrimeV14Bot = loadBot();
+    const { subscribeTrace } = require('../core/TraceSpine');
+    const bot = Object.assign(Object.create(OGZPrimeV14Bot.prototype), {
+      _candleStore: { getCandles: jest.fn(() => []) },
+      symbolContexts: new Map(),
+      symbolContextQuarantine: new Map(),
+    });
+    const traces = [];
+    const unsubscribe = subscribeTrace((payload) => traces.push(payload));
+
+    try {
+      const routable = bot._registerRoutableSymbolContexts(['TSLA', 'FAKE-USD'], {
+        timeframe: '15m',
+        brokerId: 'alpaca',
+        sessionRouterMode: 'static',
+        staticSession: 'stocks',
+      });
+      const source = fs.readFileSync(path.resolve(__dirname, '..', 'run-empire-v2.js'), 'utf8');
+
+      expect(routable).toEqual(['TSLA']);
+      expect(bot.symbolContexts.has('TSLA')).toBe(true);
+      expect(bot.symbolContexts.has('FAKE-USD')).toBe(false);
+      expect(bot.symbolContextQuarantine.get('FAKE-USD')).toEqual(expect.objectContaining({
+        symbol: 'FAKE-USD',
+        source: 'symbol_context_registration',
+        brokerId: 'alpaca',
+        sessionRouterMode: 'static',
+        manualReconciliationRequired: true,
+        operatorActionRequired: true,
+        quarantinedActiveTrades: 1,
+      }));
+      expect(stateManager.quarantineActiveTradesForSymbol).toHaveBeenCalledWith(
+        'FAKE-USD',
+        [expect.stringContaining('symbol_context_registration_failed:SymbolTradingContext: unregistered symbol')],
+        'OGZPrimeV14Bot.symbolContextRegistration'
+      );
+      expect(traces).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          event: 'SYMBOL_CONTEXT_QUARANTINED',
+          fields: expect.objectContaining({
+            symbol: 'FAKE-USD',
+            route: 'startup_symbol_context_quarantine',
+            manualReconciliationRequired: true,
+            operatorActionRequired: true,
+            quarantinedActiveTrades: 1,
+          }),
+        }),
+      ]));
+      expect(source).not.toContain('symbol_context_quarantine_entry_block');
+      expect(source).not.toContain('SYMBOL_CONTEXT_ENTRY_HALT');
+    } finally {
+      unsubscribe();
+    }
+  });
+
   test('exit monitor runs exit checks per symbol instead of one whole-interval catch', () => {
     const source = fs.readFileSync(path.resolve(__dirname, '..', 'run-empire-v2.js'), 'utf8');
     const cycleStart = source.indexOf('  startTradingCycle() {');

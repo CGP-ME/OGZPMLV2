@@ -177,7 +177,9 @@ function resolveAlpacaSymbols(brokerConfig = {}, options = {}) {
 }
 
 function buildAlpacaAdapterOptions(brokerConfig = {}, options = {}) {
-  const symbols = resolveAlpacaSymbols(brokerConfig, options);
+  const symbols = Array.isArray(options.symbols)
+    ? options.symbols
+    : resolveAlpacaSymbols(brokerConfig, options);
   return {
     apiKey: brokerConfig.alpacaApiKey,
     apiSecret: brokerConfig.alpacaApiSecret,
@@ -801,9 +803,42 @@ class OGZPrimeV14Bot {
     const sessionRouteUsesCrypto = sessionRouterMode === 'scheduled' || staticSession === 'crypto';
     const sessionRouteUsesStocks = sessionRouterMode === 'scheduled' || staticSession === 'stocks';
 
+    // Trading state
+    this.isRunning = false;
+    this.marketData = null;
+    this.priceHistory = [];
+    this.tradingPair = normalizeRuntimeSymbol(resolvedConfig.config.broker.tradingPair);
+    if (!this.tradingPair) {
+      throw new Error('[BOOT][SymbolContexts] broker.tradingPair missing/invalid — refusing to start without canonical symbol');
+    }
+    this._candleStore = new CandleStore({ maxCandles: 250 });  // REFACTOR: shadow priceHistory
+    this.symbolContexts = new Map();
+    this.symbolContextQuarantine = new Map();
+
+    const rawStockSymbols = sessionRouteUsesStocks
+      ? resolveAlpacaSymbols(resolvedConfig.config.broker, {
+          allowTradingPairFallback: resolvedConfig.config.mode.backtest || sessionRouterMode === 'static',
+        })
+      : [];
+    const stockSymbols = this._registerRoutableSymbolContexts(rawStockSymbols, {
+      timeframe: this.candleTimeframe,
+      brokerId: 'alpaca',
+      sessionRouterMode,
+      staticSession,
+    });
+    const cryptoSymbols = this._registerRoutableSymbolContexts(
+      sessionRouteUsesCrypto ? (this.sessionRouterConfig.cryptoSymbols || []) : [],
+      {
+        timeframe: this.candleTimeframe,
+        brokerId: 'kraken',
+        sessionRouterMode,
+        staticSession,
+      }
+    );
+
     {
       console.log(`[EMPIRE V2] SessionRouter route active — mode=${sessionRouterMode} staticSession=${staticSession || '(none)'}`);
-      const primaryCryptoSymbol = Array.isArray(this.sessionRouterConfig.cryptoSymbols) ? this.sessionRouterConfig.cryptoSymbols[0] : null;
+      const primaryCryptoSymbol = cryptoSymbols[0] || null;
       if (sessionRouteUsesCrypto && !primaryCryptoSymbol) {
         throw new Error('[SessionRouter] cryptoSymbols[0] missing — refusing to configure Kraken depth feed');
       }
@@ -816,13 +851,13 @@ class OGZPrimeV14Bot {
       const alpacaAdapterOptions = sessionRouteUsesStocks
         ? buildAlpacaAdapterOptions(resolvedConfig.config.broker, {
             allowTradingPairFallback: false,
+            symbols: stockSymbols,
           })
         : null;
       const alpacaAdapter = alpacaAdapterOptions ? createBrokerAdapter('alpaca', alpacaAdapterOptions) : null;
 
       this.orderRouter = new OrderRouter();
 
-      const stockSymbols = alpacaAdapterOptions ? alpacaAdapterOptions.symbols : [];
       this.ttpCutoffSymbols = stockSymbols;
 
       this.sessionRouter = new SessionRouter({
@@ -832,7 +867,7 @@ class OGZPrimeV14Bot {
         checkIntervalMs: this.sessionRouterConfig.checkIntervalMs,
         forceCloseOnSessionEnd: this.sessionRouterConfig.forceCloseOnSessionEnd,
         stockSymbols,
-        cryptoSymbols: this.sessionRouterConfig.cryptoSymbols,
+        cryptoSymbols,
         backtestMode: resolvedConfig.config.mode.backtest,
         executeTrade: this.executeTrade.bind(this),
         getExitPrice: (symbol, trade, brokerPositions) => this.getTtpExitPrice(symbol, trade, brokerPositions),
@@ -1029,16 +1064,6 @@ class OGZPrimeV14Bot {
       this.initializeDashboardWebSocket();
     }
 
-    // Trading state
-    this.isRunning = false;
-    this.marketData = null;
-    this.priceHistory = [];
-    this.tradingPair = normalizeRuntimeSymbol(resolvedConfig.config.broker.tradingPair);
-    if (!this.tradingPair) {
-      throw new Error('[BOOT][SymbolContexts] broker.tradingPair missing/invalid — refusing to start without canonical symbol');
-    }
-    this._candleStore = new CandleStore({ maxCandles: 250 });  // REFACTOR: shadow priceHistory
-
     // CC-C Multi-Symbol Commit 2/6: per-symbol contexts
     // Each subscribed symbol gets its own SymbolTradingContext holding an
     // IndicatorEngine, signal modules, and asset metadata. priceHistory on
@@ -1049,51 +1074,14 @@ class OGZPrimeV14Bot {
     // (initialized empty above, hydrated from CandleStore in loadCandleHistory
     // at lines ~1146) is unchanged.
     //
-    // Mercury #6 fix (deferred from commit 1): try/catch wraps construction
-    // so a partial-build (e.g., signal-module ctor throws) is logged + skipped
-    // instead of polluting the Map with a half-initialized context.
+    // Symbol contexts are registered before broker/router wiring; any symbol
+    // that cannot build a context is removed from the routable set instead of
+    // being subscribed and handled downstream by fallback/gate logic.
     //
     // SymbolTradingContext must read the same timeframe CandleProcessor writes.
     // broker.candleTimeframe is the single active timeframe until active
     // multi-timeframe context swaps are implemented.
-    this.symbolContexts = new Map();
-    {
-      const brokerId = resolvedConfig.config.broker.id;
-      const routerConfig = this.sessionRouterConfig;
-      const routerMode = routerConfig?.mode || null;
-      const routerStaticSession = routerMode === 'static' ? routerConfig.staticSession : null;
-      const routeIncludesStocks = routerMode === 'scheduled' || routerStaticSession === 'stocks';
-      const routeIncludesCrypto = routerMode === 'scheduled' || routerStaticSession === 'crypto';
-      const alpacaSymbols = routeIncludesStocks
-        ? resolveAlpacaSymbols(resolvedConfig.config.broker, {
-            allowTradingPairFallback: resolvedConfig.config.mode.backtest || routerMode === 'static',
-          })
-        : [];
-      const rawSymbols = routeIncludesStocks && routeIncludesCrypto
-        ? [
-            ...alpacaSymbols,
-            ...(routerConfig.cryptoSymbols || []),
-          ]
-        : routeIncludesStocks
-          ? alpacaSymbols
-          : routeIncludesCrypto
-            ? (routerConfig.cryptoSymbols || [])
-            : (brokerId === 'alpaca'
-                ? alpacaSymbols
-                : [resolvedConfig.config.broker.tradingPair]);
-      const symbols = [...new Set(rawSymbols.map(normalizeRuntimeSymbol).filter(Boolean))];
-      const timeframe = this.candleTimeframe;
-      for (const sym of symbols) {
-        try {
-          const ctx = new SymbolTradingContext(sym, this._candleStore, { timeframe });
-          this.symbolContexts.set(sym, ctx);
-          console.log(`[BOOT][SymbolContexts] registered ${sym} @ ${timeframe}`);
-        } catch (err) {
-          console.error(`[BOOT][SymbolContexts] FAILED to register ${sym}: ${err.message} — skipping (bot continues with successful subset)`);
-        }
-      }
-      console.log(`[VIS][BOOT][SymbolContexts] broker=${brokerId} sessionRouterMode=${routerMode || '(missing)'} staticSession=${routerStaticSession || '(none)'} tradingPair=${this.tradingPair} registered=${describeSymbolContexts(this.symbolContexts)} alpacaSymbols=${alpacaSymbols.join(',') || '(none)'}`);
-    }
+    console.log(`[VIS][BOOT][SymbolContexts] broker=${resolvedConfig.config.broker.id} sessionRouterMode=${sessionRouterMode || '(missing)'} staticSession=${staticSession || '(none)'} tradingPair=${this.tradingPair} registered=${describeSymbolContexts(this.symbolContexts)} quarantined=${Array.from(this.symbolContextQuarantine.keys()).join(',') || '(none)'}`);
 
     this.candleSaveCounter = 0; // CHANGE 2026-01-28: Track candles for periodic save
     // CHANGE 2026-01-28: Load saved candles on startup
@@ -2950,6 +2938,62 @@ class OGZPrimeV14Bot {
       symbol: canonicalSymbol,
       status
     };
+  }
+
+  _registerRoutableSymbolContexts(rawSymbols, metadata = {}) {
+    const symbols = [...new Set((rawSymbols || []).map(normalizeRuntimeSymbol).filter(Boolean))];
+    const routable = [];
+    for (const sym of symbols) {
+      try {
+        const ctx = new SymbolTradingContext(sym, this._candleStore, { timeframe: metadata.timeframe });
+        this.symbolContexts.set(sym, ctx);
+        routable.push(sym);
+        console.log(`[BOOT][SymbolContexts] registered ${sym} @ ${metadata.timeframe}`);
+      } catch (err) {
+        this._recordSymbolContextRegistrationFailure(sym, err, metadata);
+      }
+    }
+    return routable;
+  }
+
+  _recordSymbolContextRegistrationFailure(symbol, error, metadata = {}) {
+    const canonicalSymbol = normalizeRuntimeSymbol(symbol);
+    const reason = error && error.message ? error.message : String(error);
+    const quarantinedAt = new Date().toISOString();
+    const record = {
+      symbol: canonicalSymbol || symbol || null,
+      reason,
+      quarantinedAt,
+      source: 'symbol_context_registration',
+      manualReconciliationRequired: true,
+      operatorActionRequired: true,
+      financialIntegrityCritical: true,
+      ...metadata,
+    };
+    if (!this.symbolContextQuarantine || !(this.symbolContextQuarantine instanceof Map)) {
+      this.symbolContextQuarantine = new Map();
+    }
+    if (canonicalSymbol) {
+      this.symbolContextQuarantine.set(canonicalSymbol, record);
+    }
+    if (canonicalSymbol && stateManager && typeof stateManager.quarantineActiveTradesForSymbol === 'function') {
+      const activeTradeQuarantine = stateManager.quarantineActiveTradesForSymbol(
+        canonicalSymbol,
+        [`symbol_context_registration_failed:${reason}`],
+        'OGZPrimeV14Bot.symbolContextRegistration'
+      );
+      record.quarantinedActiveTrades = activeTradeQuarantine?.quarantined || 0;
+      if (activeTradeQuarantine?.error) {
+        record.activeTradeQuarantineError = activeTradeQuarantine.error;
+      }
+    }
+    emitTrace(this, 'SYMBOL_CONTEXT_QUARANTINED', {
+      traceId: createTraceId('symbol_context_quarantine'),
+      ...record,
+      route: 'startup_symbol_context_quarantine',
+    });
+    console.error(`[BOOT][SymbolContexts] QUARANTINED ${canonicalSymbol || symbol || '(missing)'}: ${reason} - removed from route set before broker subscription`);
+    return record;
   }
 
   async run15mTradingCycle(symbol = this.tradingPair, traceId = null) {

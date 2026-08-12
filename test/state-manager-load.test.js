@@ -1854,4 +1854,54 @@ describe('StateManager load validation', () => {
     expect(manager.get('isTrading')).toBe(true);
     expect(manager.get('pauseReason')).toBeNull();
   });
+
+  test('quarantineActiveTradesForSymbol removes stale active trades and preserves other symbols', () => {
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+    manager.state.activeTrades = new Map([
+      ['BUY_FAKE', {
+        orderId: 'BUY_FAKE',
+        symbol: 'FAKE-USD',
+        action: 'BUY',
+        direction: 'long',
+        entryPrice: 100,
+        remainingOrderQuantity: 1,
+      }],
+      ['BUY_TSLA', {
+        orderId: 'BUY_TSLA',
+        symbol: 'TSLA',
+        action: 'BUY',
+        direction: 'long',
+        entryPrice: 420,
+        sizeUsd: 420,
+        entryOrderQuantity: 1,
+        entryOrderQuantityUnit: 'shares',
+        remainingOrderQuantity: 1,
+        remainingOrderQuantityUnit: 'shares',
+      }],
+    ]);
+
+    const result = manager.quarantineActiveTradesForSymbol(
+      'FAKE-USD',
+      ['symbol_context_registration_failed:unregistered symbol'],
+      'test.symbolContextRegistration'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      quarantined: 1,
+      symbol: 'FAKE-USD',
+    }));
+    expect(manager.state.activeTrades.has('BUY_FAKE')).toBe(false);
+    expect(manager.state.activeTrades.has('BUY_TSLA')).toBe(true);
+    expect(manager.state.quarantinedTrades).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        tradeId: 'BUY_FAKE',
+        symbol: 'FAKE-USD',
+        status: 'quarantined',
+        source: 'test.symbolContextRegistration',
+        issues: ['symbol_context_registration_failed:unregistered symbol'],
+      }),
+    ]));
+    expect(manager.getSymbolHaltCode('FAKE-USD')).toBe('direction_integrity_exit_refusal');
+  });
 });

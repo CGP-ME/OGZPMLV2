@@ -2174,6 +2174,47 @@ class StateManager {
     return record;
   }
 
+  quarantineActiveTradesForSymbol(symbol, issues = [], source = 'StateManager.quarantineActiveTradesForSymbol') {
+    let normalized;
+    try {
+      normalized = this.normalizeSymbol(symbol, source);
+    } catch (err) {
+      return { quarantined: 0, records: [], error: err.message };
+    }
+    const activeTrades = this.state.activeTrades;
+    if (!(activeTrades instanceof Map)) {
+      return { quarantined: 0, records: [], error: 'activeTrades_not_map', symbol: normalized };
+    }
+
+    const records = [];
+    for (const [tradeId, trade] of Array.from(activeTrades.entries())) {
+      let tradeSymbol = null;
+      try {
+        tradeSymbol = trade?.symbol ? this.normalizeSymbol(String(trade.symbol), `${source} active trade`) : null;
+      } catch (_) {
+        tradeSymbol = trade?.symbol ? String(trade.symbol).trim().toUpperCase() : null;
+      }
+      if (tradeSymbol !== normalized) continue;
+      records.push(this._quarantineActiveTrade(tradeId, trade, issues, source));
+    }
+
+    if (records.length > 0) {
+      this._reconcileOpenPositionFromActiveTrades();
+      const saveResult = this.save({ suppressPersistenceFailureTrace: true });
+      if (!saveResult || saveResult.success !== true) {
+        this._recordStatePersistenceBoundaryFailure(saveResult, source, {
+          symbol: normalized,
+          quarantined: records.length,
+          manualReconciliationRequired: true,
+          operatorActionRequired: true,
+        });
+      }
+      return { quarantined: records.length, records, symbol: normalized, persistence: saveResult };
+    }
+
+    return { quarantined: 0, records, symbol: normalized };
+  }
+
   _stateSnapshotForPersistence(state = this.state) {
     const stateToSave = { ...state };
     if (state.activeTrades instanceof Map) {
