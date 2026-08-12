@@ -2408,8 +2408,7 @@ class OGZPrimeV14Bot {
       try {
         await this.ttpCutoffEnforcer?.enforce();
       } catch (error) {
-        console.error('[TTP_MARKET_TIME] cutoff enforcement error:', error.message);
-        console.error(error.stack);
+        await this._routeTtpCutoffIntervalFailure(error);
       }
 
       const exitSymbols = this._exitMonitorSymbolsFromState();
@@ -2550,6 +2549,89 @@ class OGZPrimeV14Bot {
       console.error(`[EXIT-MONITOR] ${normalizedSymbol} symbol halt failed: ${haltError?.message || String(haltError)}`);
       return { halted: false, reason };
     }
+  }
+
+  async _routeTtpCutoffIntervalFailure(error) {
+    const reason = error && error.message ? error.message : String(error || 'unknown TTP cutoff enforcement failure');
+    const traceId = createTraceId('ttp_cutoff_failure');
+    const symbols = typeof this.ttpCutoffEnforcer?._currentSymbolScope === 'function'
+      ? this.ttpCutoffEnforcer._currentSymbolScope()
+      : [normalizeRuntimeSymbol(this.tradingPair)].filter(Boolean);
+    console.error(`[TTP_MARKET_TIME] cutoff enforcement escaped enforcer quarantine: ${reason}`);
+    if (error && error.stack) console.error(error.stack);
+
+    emitTrace(this, 'TTP_CUTOFF_ENFORCEMENT_HALT', {
+      traceId,
+      reason,
+      symbols,
+      route: 'symbol_entry_halt_cutoff_reconciliation',
+      manualReconciliationRequired: true,
+      operatorActionRequired: true,
+      financialIntegrityCritical: true,
+    });
+
+    if (typeof stateManager.haltSymbol !== 'function') {
+      emitTrace(this, 'TTP_CUTOFF_ENFORCEMENT_HALT_FAILED', {
+        traceId,
+        reason: 'haltSymbol_unavailable',
+        originalReason: reason,
+        symbols,
+        route: 'ttp_cutoff_halt_unavailable',
+        manualReconciliationRequired: true,
+        operatorActionRequired: true,
+        financialIntegrityCritical: true,
+      });
+      return { halted: false, reason };
+    }
+
+    let halted = 0;
+    for (const symbol of symbols) {
+      try {
+        const haltResult = await stateManager.haltSymbol(
+          symbol,
+          `[TTP_MARKET_TIME] cutoff enforcement failed; reconcile broker flatness before new entries resume: ${reason}`,
+          {
+            code: 'ttp_cutoff_unverified_broker_flatness',
+            authority: 'financial_integrity',
+            financialIntegrityCritical: true,
+            manualReconciliationRequired: true,
+            operatorActionRequired: true,
+            entryBlockScope: 'symbol',
+            source: 'ttp_cutoff_interval_failure',
+            traceId,
+            originalReason: reason,
+          }
+        );
+        if (haltResult && haltResult.success !== false) {
+          halted += 1;
+        } else {
+          emitTrace(this, 'TTP_CUTOFF_ENFORCEMENT_HALT_FAILED', {
+            traceId,
+            symbol,
+            reason: haltResult?.reason || 'haltSymbol_failed',
+            originalReason: reason,
+            route: 'ttp_cutoff_halt_failed',
+            manualReconciliationRequired: true,
+            operatorActionRequired: true,
+            financialIntegrityCritical: true,
+          });
+        }
+      } catch (haltError) {
+        emitTrace(this, 'TTP_CUTOFF_ENFORCEMENT_HALT_FAILED', {
+          traceId,
+          symbol,
+          reason: haltError?.message || String(haltError),
+          originalReason: reason,
+          route: 'ttp_cutoff_halt_exception',
+          manualReconciliationRequired: true,
+          operatorActionRequired: true,
+          financialIntegrityCritical: true,
+        });
+        console.error(`[TTP_MARKET_TIME] ${symbol} cutoff halt failed: ${haltError?.message || String(haltError)}`);
+      }
+    }
+
+    return { halted: halted > 0, haltedSymbols: halted, reason };
   }
 
   getTtpExitPrice(symbol, trade, brokerPositions = []) {

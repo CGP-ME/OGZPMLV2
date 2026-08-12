@@ -159,6 +159,60 @@ describe('SessionRouter-only market-data subscription ownership', () => {
     }
   });
 
+  test('TTP cutoff interval escape routes to trace and symbol halt instead of console-only swallow', async () => {
+    const stateManager = {
+      haltSymbol: jest.fn().mockResolvedValue({ success: true }),
+    };
+    jest.doMock('../core/StateManager', () => ({
+      getInstance: () => stateManager,
+    }));
+    const OGZPrimeV14Bot = loadBot();
+    const { subscribeTrace } = require('../core/TraceSpine');
+    const bot = Object.assign(Object.create(OGZPrimeV14Bot.prototype), {
+      tradingPair: 'TSLA',
+      ttpCutoffEnforcer: {
+        _currentSymbolScope: jest.fn(() => ['TSLA', 'NVDA']),
+      },
+    });
+    const traces = [];
+    const unsubscribe = subscribeTrace((payload) => traces.push(payload));
+
+    try {
+      const result = await bot._routeTtpCutoffIntervalFailure(new Error('cutoff engine exploded'));
+
+      expect(result).toEqual({
+        halted: true,
+        haltedSymbols: 2,
+        reason: 'cutoff engine exploded',
+      });
+      expect(stateManager.haltSymbol).toHaveBeenCalledTimes(2);
+      expect(stateManager.haltSymbol).toHaveBeenCalledWith(
+        'TSLA',
+        expect.stringContaining('cutoff enforcement failed'),
+        expect.objectContaining({
+          code: 'ttp_cutoff_unverified_broker_flatness',
+          source: 'ttp_cutoff_interval_failure',
+          manualReconciliationRequired: true,
+          financialIntegrityCritical: true,
+        })
+      );
+      expect(traces).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          event: 'TTP_CUTOFF_ENFORCEMENT_HALT',
+          fields: expect.objectContaining({
+            reason: 'cutoff engine exploded',
+            symbols: ['TSLA', 'NVDA'],
+            route: 'symbol_entry_halt_cutoff_reconciliation',
+            manualReconciliationRequired: true,
+            financialIntegrityCritical: true,
+          }),
+        })
+      ]));
+    } finally {
+      unsubscribe();
+    }
+  });
+
   test('SessionRouter failed-safe local block stops entries before analysis when StateManager pause is unconfirmed', async () => {
     const OGZPrimeV14Bot = loadBot();
     const { subscribeTrace } = require('../core/TraceSpine');

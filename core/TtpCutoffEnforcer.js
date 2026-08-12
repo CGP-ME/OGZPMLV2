@@ -43,7 +43,19 @@ class TtpCutoffEnforcer {
       return { enforced: false, reason: 'missing_eval_rule_engine' };
     }
 
-    const state = this.evalRuleEngine.getTtpMarketTimeState(new Date(this.now()));
+    let state;
+    try {
+      state = this.evalRuleEngine.getTtpMarketTimeState(new Date(this.now()));
+    } catch (error) {
+      return this._routeEnforcementException(error, {
+        state: this._exceptionState(),
+        key: null,
+        symbolScope: this._currentSymbolScope(),
+        cancelResult: null,
+        closed: [],
+        orphanClosed: [],
+      });
+    }
     if (state.enabled !== true || state.liquidationEnabled !== true) {
       return { enforced: false, state };
     }
@@ -116,8 +128,11 @@ class TtpCutoffEnforcer {
     }
 
     this.inFlight = true;
+    let cancelResult = null;
+    const closed = [];
+    const orphanClosed = [];
     try {
-      const cancelResult = await this._cancelOpenOrders(symbolScope);
+      cancelResult = await this._cancelOpenOrders(symbolScope);
       if (cancelResult && cancelResult.success === false) {
         const failures = [{
           reason: 'pending_order_cancellation_failed',
@@ -145,7 +160,6 @@ class TtpCutoffEnforcer {
         : [];
       const targetBrokerPositions = this._ttpBrokerPositions(brokerPositions, symbolScope, targetAllBrokerStocks);
       const failures = [];
-      const closed = [];
       const activeTradeSymbols = new Set();
       const premarketTrackedStaleRecovery = premarketRecoveryCheck
         && state.blocksNewEntries !== true
@@ -220,7 +234,6 @@ class TtpCutoffEnforcer {
         ? this._ttpBrokerPositions(refreshedPositions, symbolScope, targetAllBrokerStocks)
           .filter(position => !activeTradeSymbols.has(this._normalizeSymbol(position.symbol)))
         : [];
-      const orphanClosed = [];
       for (const position of brokerOrphans) {
         try {
           const closeResult = await this._closeBrokerPosition(position);
@@ -308,9 +321,69 @@ class TtpCutoffEnforcer {
       await this._clearVerifiedBrokerFlatnessQuarantine(state, closed, orphanClosed, cancelResult);
       this.logger.log(`[TTP_MARKET_TIME] cutoff enforcement complete date=${state.currentDateET} closed=${closed.length} orphanClosed=${orphanClosed.length} cancelled=${cancelResult?.cancelled || 0} brokerFlatVerified=${brokerFlatVerified}`);
       return { enforced: true, alreadyCompleted, state, cancelResult, closed, orphanClosed, brokerFlatVerified };
+    } catch (error) {
+      return this._routeEnforcementException(error, {
+        state,
+        key,
+        symbolScope,
+        cancelResult,
+        closed,
+        orphanClosed,
+      });
     } finally {
       this.inFlight = false;
     }
+  }
+
+  _exceptionState() {
+    return {
+      enabled: true,
+      liquidationEnabled: true,
+      inLiquidationWindow: false,
+      blocksNewEntries: true,
+      currentDateET: null,
+      cutoffMinute: null,
+      currentMinuteET: null,
+      phase: 'unknown',
+    };
+  }
+
+  async _routeEnforcementException(error, context = {}) {
+    const state = context.state || this._exceptionState();
+    const key = context.key || `${state.currentDateET || 'unknown'}:${Number.isFinite(state.cutoffMinute) ? state.cutoffMinute : 'unknown'}`;
+    const reason = error && error.message ? error.message : String(error || 'unknown cutoff enforcement exception');
+    const failure = {
+      reason: 'cutoff_enforcement_exception',
+      error: reason,
+      manualReconciliationRequired: true,
+      operatorActionRequired: true,
+    };
+    if (typeof this.logger?.error === 'function') {
+      this.logger.error(`[TTP_MARKET_TIME] cutoff enforcement exception routed to quarantine: ${reason}`);
+    } else {
+      console.error(`[TTP_MARKET_TIME] cutoff enforcement exception routed to quarantine: ${reason}`);
+    }
+    const quarantine = await this._quarantineUnverifiedBrokerFlatness(
+      state,
+      context.closed || [],
+      context.orphanClosed || [],
+      context.cancelResult || null,
+      [failure]
+    );
+    this.unverifiedKeys.add(key);
+    this.completedKeys.delete(key);
+    return {
+      enforced: true,
+      state,
+      cancelResult: context.cancelResult || null,
+      closed: context.closed || [],
+      orphanClosed: context.orphanClosed || [],
+      brokerFlatVerified: false,
+      requiresManualReconciliation: true,
+      failures: [failure],
+      quarantine,
+      enforcementException: reason,
+    };
   }
 
   _activeTradeMap() {

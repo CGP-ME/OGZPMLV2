@@ -107,6 +107,62 @@ describe('TtpCutoffEnforcer', () => {
     expect(result.orphanClosed).toEqual([]);
   });
 
+  test('quarantines cutoff enforcement exceptions instead of throwing to the runner interval', async () => {
+    const now = () => new Date('2026-05-22T19:50:00.000Z').getTime();
+    const activeTrades = new Map([['BUY_1', makeTrade()]]);
+    const updateState = jest.fn(async () => ({ success: true }));
+    const haltSymbol = jest.fn(async () => ({ success: true }));
+    const logger = { log: jest.fn(), error: jest.fn() };
+    const enforcer = new TtpCutoffEnforcer({
+      evalRuleEngine: makeRuleEngine(now),
+      stateManager: { get: jest.fn(() => activeTrades), updateState, haltSymbol },
+      orderRouter: {
+        cancelAllOpenOrders: jest.fn(async () => {
+          throw new Error('broker cancel API down');
+        }),
+        getAllPositions: jest.fn(),
+      },
+      executeTrade: jest.fn(),
+      getExitPrice: jest.fn(() => 125),
+      assetClass: 'stocks',
+      symbols: ['TSLA'],
+      now,
+      logger,
+    });
+
+    await expect(enforcer.enforce()).resolves.toEqual(expect.objectContaining({
+      enforced: true,
+      brokerFlatVerified: false,
+      requiresManualReconciliation: true,
+      enforcementException: 'broker cancel API down',
+      failures: [expect.objectContaining({
+        reason: 'cutoff_enforcement_exception',
+        error: 'broker cancel API down',
+        manualReconciliationRequired: true,
+      })],
+      quarantine: expect.objectContaining({
+        source: 'ttp_cutoff_unverified_broker_flatness',
+        status: 'quarantined',
+        affectedSymbols: ['TSLA'],
+      }),
+    }));
+    expect(enforcer.inFlight).toBe(false);
+    expect(updateState).toHaveBeenCalledWith(
+      { ttpCutoffQuarantine: expect.objectContaining({ affectedSymbols: ['TSLA'] }) },
+      expect.objectContaining({ action: 'TTP_CUTOFF_QUARANTINE' })
+    );
+    expect(haltSymbol).toHaveBeenCalledWith(
+      'TSLA',
+      expect.stringContaining('broker flatness unverified after cutoff'),
+      expect.objectContaining({
+        code: 'ttp_cutoff_unverified_broker_flatness',
+        manualReconciliationRequired: true,
+        entryBlockScope: 'symbol',
+      })
+    );
+    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('cutoff enforcement exception routed to quarantine'));
+  });
+
   test('clears stale cutoff quarantine when broker flatness is verified', async () => {
     const now = () => new Date('2026-05-22T19:50:00.000Z').getTime();
     const activeTrades = new Map();
