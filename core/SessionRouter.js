@@ -200,20 +200,20 @@ class SessionRouter extends EventEmitter {
   }
 
   async start() {
-    const missingAdapters = [];
-    if ((this.mode === 'scheduled' || this.staticSession === 'crypto') && !this.krakenAdapter) {
-      missingAdapters.push('kraken');
-    }
-    if ((this.mode === 'scheduled' || this.staticSession === 'stocks') && !this.alpacaAdapter) {
-      missingAdapters.push('alpaca');
-    }
-    if (missingAdapters.length > 0) {
-      throw new Error(`[SessionRouter] Cannot start - missing broker adapter(s): ${missingAdapters.join(', ')}. Call wire() first.`);
-    }
-    this._assertTransitionStoreStartSafe();
-
     let targetSession = 'unknown';
     try {
+      const missingAdapters = [];
+      if ((this.mode === 'scheduled' || this.staticSession === 'crypto') && !this.krakenAdapter) {
+        missingAdapters.push('kraken');
+      }
+      if ((this.mode === 'scheduled' || this.staticSession === 'stocks') && !this.alpacaAdapter) {
+        missingAdapters.push('alpaca');
+      }
+      if (missingAdapters.length > 0) {
+        throw new Error(`[SessionRouter] Cannot start - missing broker adapter(s): ${missingAdapters.join(', ')}. Call wire() first.`);
+      }
+      this._assertTransitionStoreStartSafe();
+
       targetSession = this.mode === 'static'
         ? this.staticSession
         : this._targetSessionFromPhase(getMarketPhase(new Date(this.clock())), 'startup');
@@ -229,7 +229,12 @@ class SessionRouter extends EventEmitter {
       await this._enterFailedSafe('startup', targetSession, err, new Date(this.clock()), {
         pauseConfirmed: false
       });
-      throw err;
+      return {
+        started: false,
+        failedSafe: true,
+        reason: err.message || String(err),
+        activeSession: this.activeSession || null,
+      };
     }
 
     if (this.mode === 'scheduled') {
@@ -252,6 +257,11 @@ class SessionRouter extends EventEmitter {
     }
 
     console.log(`[SessionRouter] Started | initial session: ${this.activeSession}`);
+    return {
+      started: true,
+      failedSafe: false,
+      activeSession: this.activeSession,
+    };
   }
 
   _targetSessionFromPhase(phase, source) {

@@ -1267,7 +1267,15 @@ class OGZPrimeV14Bot {
       enableBacktestMode,
       tradingMode
     };
-    this.syncDashboardRuntimeScope(this.tradingPair, { timeframe: this.candleTimeframe });
+    const startupAccountScope = this.resolveBrokerAccountScope(this.config.brokerId);
+    if (
+      !this.isSessionRoutingActive()
+      || (startupAccountScope.accountId && startupAccountScope.accountIdSource !== 'default')
+    ) {
+      this.syncDashboardRuntimeScope(this.tradingPair, { timeframe: this.candleTimeframe });
+    } else {
+      console.warn('[SCOPE][BOOT] Dashboard runtime scope sync deferred until SessionRouter verifies broker account identity');
+    }
 
     console.log(`Trading Mode: ${tradingMode}`);
 
@@ -1759,17 +1767,47 @@ class OGZPrimeV14Bot {
     // because _activate methods do NOT emit 'transition' (only the swap methods do),
     // so without this assignment this.kraken would stay pinned to the construction-
     // time default (alpacaAdapter) until the first real RTH boundary fires.
+    let sessionStartResult = null;
     if (this.sessionRouter) {
-      await this.sessionRouter.start();
+      sessionStartResult = await this.sessionRouter.start();
       if (this.sessionRouter.activeBroker) {
         this.kraken = this.sessionRouter.activeBroker;
         if (!this.config.enableBacktestMode) {
-          this.promoteBrokerAccountIdentity(this.kraken, {
+          const brokerIdentity = this.promoteBrokerAccountIdentity(this.kraken, {
             source: 'session_router_start',
             brokerId: this.sessionRouter?.activeBroker?.id || null,
           });
+          if (brokerIdentity) {
+            this.syncDashboardRuntimeScope(this.tradingPair, {
+              brokerId: brokerIdentity.brokerId,
+              accountId: brokerIdentity.accountId,
+              accountIdSource: brokerIdentity.accountIdSource,
+              timeframe: this.candleTimeframe,
+            });
+          }
         }
       }
+    }
+
+    if (
+      this.sessionRouter
+      && (sessionStartResult?.failedSafe === true || !this.sessionRouter.activeBroker)
+    ) {
+      const reason = sessionStartResult?.reason || 'SessionRouter did not produce an active broker';
+      this.kraken = null;
+      this.isRunning = false;
+      emitTrace(this, 'SESSION_ROUTER_STARTUP_HOLD', {
+        traceId: createTraceId('session_router_startup_hold'),
+        reason,
+        route: 'process_alive_broker_connect_skipped_entries_blocked',
+        manualReconciliationRequired: true,
+      });
+      console.error(`[SessionRouter] Startup failed-safe hold active; broker connect skipped; entries blocked | reason=${reason}`);
+      const holdInterval = resolvedConfig.config.broker.tradingInterval;
+      this.tradingInterval = setInterval(() => {
+        console.error(`[SessionRouter] Startup failed-safe hold active; waiting for operator reconciliation | reason=${reason}`);
+      }, holdInterval);
+      return;
     }
 
     this.isRunning = true;
