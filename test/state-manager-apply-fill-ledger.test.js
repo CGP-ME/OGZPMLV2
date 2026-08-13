@@ -109,6 +109,7 @@ describe('StateManager applyFill decision ledger persistence', () => {
     try {
       require('../foundation/ConfigLoader').clearOverrides();
     } catch (_) {}
+    jest.dontMock('../core/DecisionLedgerLogger');
     for (const spy of consoleSpies) {
       spy.mockRestore();
     }
@@ -385,5 +386,121 @@ describe('StateManager applyFill decision ledger persistence', () => {
       operatorActionRequired: true,
     }));
     expect(manager.notifyListeners).not.toHaveBeenCalled();
+  });
+
+  test('closePosition decision-ledger write failure screams without undoing the close', async () => {
+    const { subscribeTrace } = require('../core/TraceSpine');
+    const traces = [];
+    const unsubscribe = subscribeTrace((payload) => traces.push(payload));
+    jest.doMock('../core/DecisionLedgerLogger', () => ({
+      writeOnClose: jest.fn(() => {
+        throw new Error('decision ledger disk unavailable');
+      }),
+    }));
+    const openResult = await manager.openPosition(500, 100, fullScope({
+      orderId: 'LEDGER_CLOSE_FAIL_1',
+      ledgerData: fullLedgerData(),
+    }));
+    expect(openResult.success).toBe(true);
+
+    try {
+      const result = await manager.closePosition(110, false, null, {
+        tradeId: 'LEDGER_CLOSE_FAIL_1',
+        exitReason: 'session_close',
+      });
+
+      expect(result.success).toBe(true);
+      expect(manager.get('activeTrades').has('LEDGER_CLOSE_FAIL_1')).toBe(false);
+      expect(manager.get('closedTrades')).toHaveLength(1);
+      expect(traces).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          event: 'DECISION_LEDGER_RECONCILIATION_REQUIRED',
+          fields: expect.objectContaining({
+            tradeId: 'LEDGER_CLOSE_FAIL_1',
+            symbol: 'TSLA',
+            source: 'closePosition',
+            reason: 'decision ledger disk unavailable',
+            journalStatus: 'unjournaled',
+            trustStatus: 'untrusted',
+            manualReconciliationRequired: true,
+            operatorActionRequired: true,
+          })
+        })
+      ]));
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  test('applyFill decision-ledger write failure screams without undoing the fill', async () => {
+    const { subscribeTrace } = require('../core/TraceSpine');
+    const traces = [];
+    const unsubscribe = subscribeTrace((payload) => traces.push(payload));
+    jest.doMock('../core/DecisionLedgerLogger', () => ({
+      writeOnClose: jest.fn(() => {
+        throw new Error('decision ledger fill write unavailable');
+      }),
+    }));
+    const openResult = await manager.openPosition(500, 100, fullScope({
+      ledgerData: fullLedgerData(),
+    }));
+    expect(openResult.success).toBe(true);
+    const reserved = await manager.reserveExitSlot('OPEN_FILL_LEDGER_1', 'intent-ledger-write-fail-fill', {
+      submittedAtMs: 1000,
+      lifecycleState: 'full_fill',
+      exitReason: 'take_profit',
+      exitFraction: 1,
+      expectedRemainingQuantity: 0,
+      sourceEventId: 'source-ledger-write-fail-fill',
+    });
+    expect(reserved.success).toBe(true);
+
+    try {
+      const result = await manager.applyFill({
+        fillId: 'fill-ledger-write-fail',
+        brokerOrderId: 'broker-ledger-write-fail',
+        tradeId: 'OPEN_FILL_LEDGER_1',
+        intentId: 'intent-ledger-write-fail-fill',
+        sourceEventId: 'source-ledger-write-fail-fill',
+        lifecycleState: 'full_fill',
+        exitReason: 'take_profit',
+        triggeredBy: 'test.ledgerFailure',
+        filledQuantity: 5,
+        filledQuantityUnit: 'shares',
+        filledSizeUsd: 550,
+        fillPrice: 110,
+        fee: 1,
+        expectedQuantity: 5,
+        remainingQuantity: 0,
+        submittedAtMs: 1000,
+        confirmedAtMs: 2000,
+        eventTimeMs: 2000,
+        expectedTradeRevision: 0,
+        executionMode: 'backtest',
+        simulated: true,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.applied).toBe(true);
+      expect(manager.get('activeTrades').has('OPEN_FILL_LEDGER_1')).toBe(false);
+      expect(manager.get('closedTrades')).toHaveLength(1);
+      expect(traces).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          event: 'DECISION_LEDGER_RECONCILIATION_REQUIRED',
+          fields: expect.objectContaining({
+            tradeId: 'OPEN_FILL_LEDGER_1',
+            symbol: 'TSLA',
+            source: 'applyFill',
+            reason: 'decision ledger fill write unavailable',
+            journalStatus: 'unjournaled',
+            trustStatus: 'untrusted',
+            manualReconciliationRequired: true,
+            operatorActionRequired: true,
+          })
+        })
+      ]));
+    } finally {
+      unsubscribe();
+    }
   });
 });

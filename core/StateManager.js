@@ -1492,6 +1492,25 @@ class StateManager {
     return result;
   }
 
+  _routeDecisionLedgerWriteFailure(err, ledgerToWrite, source) {
+    const reason = err && err.message ? err.message : String(err);
+    const outcome = ledgerToWrite && ledgerToWrite.outcome ? ledgerToWrite.outcome : {};
+    const tradeId = firstNonEmptyString(ledgerToWrite?.tradeId, ledgerToWrite?.orderId, outcome.tradeId);
+    const symbol = firstNonEmptyString(ledgerToWrite?.symbol, outcome.symbol);
+    console.error('[LEDGER] Failed to persist decision ledger:', reason);
+    emitTrace({}, 'DECISION_LEDGER_RECONCILIATION_REQUIRED', {
+      tradeId,
+      symbol,
+      reason,
+      source,
+      journalStatus: 'unjournaled',
+      trustStatus: 'untrusted',
+      manualReconciliationRequired: true,
+      operatorActionRequired: true,
+      route: 'state_manager_decision_ledger_write_failure_trade_isolated'
+    });
+  }
+
   /**
    * Close position (SELL) - partial or full.
    *
@@ -1701,7 +1720,7 @@ class StateManager {
         const ledgerLogger = require('./DecisionLedgerLogger');
         ledgerLogger.writeOnClose(ledgerToWrite);
       } catch (e) {
-        console.warn('[LEDGER] Failed to persist decision ledger:', e.message);
+        this._routeDecisionLedgerWriteFailure(e, ledgerToWrite, 'closePosition');
       }
     }
 
@@ -3498,7 +3517,7 @@ class StateManager {
           const ledgerLogger = require('./DecisionLedgerLogger');
           ledgerLogger.writeOnClose(ledgerToWrite);
         } catch (e) {
-          console.warn('[LEDGER] Failed to persist decision ledger:', e.message);
+          this._routeDecisionLedgerWriteFailure(e, ledgerToWrite, 'applyFill');
         }
       }
 
