@@ -383,7 +383,7 @@ describe('Mercury run ledger', () => {
             verdict: 'needs_more_evidence',
             blocking: true,
             disagreement: 'Missing spawn-site proof.',
-            requiredRecheck: 'inspect ogz-meta/anchor-runner.js:188-197',
+            requiredRecheck: 'inspect core/OrderExecutor.js:1-2',
             recheckPrompt: 'Mercury, inspect the spawn site.',
             nextCheck: 'none',
           },

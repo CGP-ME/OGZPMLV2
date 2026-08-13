@@ -28,12 +28,6 @@ function makeTempDir() {
   return dir;
 }
 
-function writeTempLog(dir, name = 'p0.log') {
-  const logPath = path.join(dir, name);
-  fs.writeFileSync(logPath, 'P0 PASS\n');
-  return path.relative(REPO_ROOT, logPath);
-}
-
 function makeHotFile() {
   const relPath = `core/.tmp-claude-proof-writer-${process.pid}-${Date.now()}-${tempFiles.length}.js`;
   const absPath = path.join(REPO_ROOT, relPath);
@@ -42,18 +36,12 @@ function makeHotFile() {
   return relPath;
 }
 
-function validFileProof(logPath) {
+function validFileProof() {
   return {
     mercury: {
       completed: true,
       prompt: 'Mercury, break my fix. Find a concrete state where this lies, construct a bypass, and name new failure modes in the underlying mechanism.',
       result: 'No bypass found with file:line evidence.',
-    },
-    p0: {
-      completed: true,
-      exitCode: 0,
-      command: 'node ogz-meta/gates/multi-runtime-gate-runner.js --p0',
-      logPath,
     },
     fallbackDefaultScan: {
       completed: true,
@@ -75,10 +63,8 @@ describe('claude bridge proof writer', () => {
   });
 
   test('rejects hot-path proof without a Mercury result', () => {
-    const tmpDir = makeTempDir();
     const hotFile = makeHotFile();
-    const logPath = writeTempLog(tmpDir);
-    const proof = validFileProof(logPath);
+    const proof = validFileProof();
     delete proof.mercury.result;
 
     expect(() => validateProofPayload({
@@ -90,10 +76,8 @@ describe('claude bridge proof writer', () => {
   });
 
   test('rejects outside Mercury prompt path even when inline prompt is valid', () => {
-    const tmpDir = makeTempDir();
     const hotFile = makeHotFile();
-    const logPath = writeTempLog(tmpDir);
-    const proof = validFileProof(logPath);
+    const proof = validFileProof();
     proof.mercury.promptPath = '/tmp/outside-mercury-prompt.md';
 
     expect(() => validateProofPayload({
@@ -105,10 +89,8 @@ describe('claude bridge proof writer', () => {
   });
 
   test('rejects outside Mercury result path even when inline result is valid', () => {
-    const tmpDir = makeTempDir();
     const hotFile = makeHotFile();
-    const logPath = writeTempLog(tmpDir);
-    const proof = validFileProof(logPath);
+    const proof = validFileProof();
     proof.mercury.resultPath = '../outside-mercury-result.md';
 
     expect(() => validateProofPayload({
@@ -120,13 +102,10 @@ describe('claude bridge proof writer', () => {
   });
 
   test('rejects non-hot files', () => {
-    const tmpDir = makeTempDir();
-    const logPath = writeTempLog(tmpDir);
-
     expect(() => validateProofPayload({
       changedFiles: ['docs/readme.md'],
       hotPathProofs: {
-        'docs/readme.md': validFileProof(logPath),
+        'docs/readme.md': validFileProof(),
       },
     })).toThrow(/only accepts hot-path files/);
   });
@@ -135,13 +114,12 @@ describe('claude bridge proof writer', () => {
     const tmpDir = makeTempDir();
     const hotFile = makeHotFile();
     const proofPath = path.join(tmpDir, 'hot-path-proof.json');
-    const logPath = writeTempLog(tmpDir);
 
     const written = recordProof({
       changeset: 'test bridge proof',
       changedFiles: [hotFile],
       hotPathProofs: {
-        [hotFile]: validFileProof(logPath),
+        [hotFile]: validFileProof(),
       },
     }, { proofPath });
 
@@ -155,7 +133,6 @@ describe('claude bridge proof writer', () => {
     const tmpDir = makeTempDir();
     const hotFile = makeHotFile();
     const proofPath = path.join(tmpDir, 'hot-path-proof.json');
-    const logPath = writeTempLog(tmpDir);
     fs.writeFileSync(proofPath, JSON.stringify({
       changedFiles: [hotFile],
       hotPathProofs: {
@@ -166,12 +143,6 @@ describe('claude bridge proof writer', () => {
             prompt: 'Mercury, break my fix. Find a concrete state where this lies, construct a bypass, and name new failure modes in the underlying mechanism.',
             result: 'Old result.',
           },
-          p0: {
-            completed: true,
-            exitCode: 0,
-            command: 'node ogz-meta/gates/multi-runtime-gate-runner.js --p0',
-            logPath,
-          },
         },
       },
     }));
@@ -179,7 +150,7 @@ describe('claude bridge proof writer', () => {
     const written = recordProof({
       changedFiles: [hotFile],
       hotPathProofs: {
-        [hotFile]: validFileProof(logPath),
+        [hotFile]: validFileProof(),
       },
     }, { proofPath });
 

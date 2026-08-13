@@ -106,10 +106,6 @@ describe('claude bridge finish gate', () => {
   });
 
   test('rejects legacy top-level hot-path proof without per-file evidence', () => {
-    const tmpDir = makeTempDir();
-    const relLog = path.relative(repoRoot, path.join(tmpDir, 'p0.log'));
-    fs.writeFileSync(path.join(tmpDir, 'p0.log'), 'P0 passed\n');
-
     const result = evaluateFinishGate(
       ['core/OrderExecutor.js'],
       ['core/OrderExecutor.js'],
@@ -120,12 +116,6 @@ describe('claude bridge finish gate', () => {
             completed: true,
             prompt: 'Mercury, break my fix. Find a concrete state where this lies, construct a bypass, and name new failure modes in the underlying mechanism.',
             result: 'No bypass found.',
-          },
-          p0: {
-            completed: true,
-            exitCode: 0,
-            command: 'node ogz-meta/gates/multi-runtime-gate-runner.js --p0',
-            logPath: relLog,
           },
         },
       }
@@ -178,11 +168,8 @@ describe('claude bridge finish gate', () => {
     });
   });
 
-  test('accepts complete per-file hot-path proof with Mercury result and P0 log', () => {
-    const tmpDir = makeTempDir();
+  test('accepts complete per-file hot-path proof with Mercury result', () => {
     const hotFile = makeHotFile();
-    const relLog = path.relative(repoRoot, path.join(tmpDir, 'p0.log'));
-    fs.writeFileSync(path.join(tmpDir, 'p0.log'), 'P0 passed\n');
 
     const result = evaluateFinishGate(
       [hotFile],
@@ -197,12 +184,6 @@ describe('claude bridge finish gate', () => {
                 completed: true,
                 prompt: 'Mercury, break my fix. Find a concrete state where this lies, construct a bypass, and name new failure modes in the underlying mechanism.',
                 result: 'No bypass found.',
-              },
-              p0: {
-                completed: true,
-                exitCode: 0,
-                command: 'node ogz-meta/gates/multi-runtime-gate-runner.js --p0',
-                logPath: relLog,
               },
             },
           },
@@ -220,9 +201,7 @@ describe('claude bridge finish gate', () => {
   test('rejects invalid evidence paths even when inline proof fields are present', () => {
     const tmpDir = makeTempDir();
     const hotFile = makeHotFile();
-    const relLog = path.relative(repoRoot, path.join(tmpDir, 'p0.log'));
     const emptyPromptPath = path.relative(repoRoot, path.join(tmpDir, 'empty-prompt.md'));
-    fs.writeFileSync(path.join(tmpDir, 'p0.log'), 'P0 passed\n');
     fs.writeFileSync(path.join(tmpDir, 'empty-prompt.md'), '');
 
     const result = evaluateFinishGate(
@@ -241,12 +220,6 @@ describe('claude bridge finish gate', () => {
                 result: 'No bypass found.',
                 resultPath: '../outside-result.md',
               },
-              p0: {
-                completed: true,
-                exitCode: 0,
-                command: 'node ogz-meta/gates/multi-runtime-gate-runner.js --p0',
-                logPath: relLog,
-              },
             },
           },
         },
@@ -261,10 +234,7 @@ describe('claude bridge finish gate', () => {
   });
 
   test('rejects stale per-file proof that does not match current diff fingerprint', () => {
-    const tmpDir = makeTempDir();
     const hotFile = makeHotFile();
-    const relLog = path.relative(repoRoot, path.join(tmpDir, 'p0.log'));
-    fs.writeFileSync(path.join(tmpDir, 'p0.log'), 'P0 passed\n');
 
     const result = evaluateFinishGate(
       [hotFile],
@@ -280,12 +250,6 @@ describe('claude bridge finish gate', () => {
                 prompt: 'Mercury, break my fix. Find a concrete state where this lies, construct a bypass, and name new failure modes in the underlying mechanism.',
                 result: 'No bypass found.',
               },
-              p0: {
-                completed: true,
-                exitCode: 0,
-                command: 'node ogz-meta/gates/multi-runtime-gate-runner.js --p0',
-                logPath: relLog,
-              },
             },
           },
         },
@@ -297,11 +261,8 @@ describe('claude bridge finish gate', () => {
   });
 
   test('rejects proof recorded before a second hot-path edit', () => {
-    const tmpDir = makeTempDir();
     const hotFile = makeHotFile();
-    const relLog = path.relative(repoRoot, path.join(tmpDir, 'p0.log'));
     const recordedFingerprint = currentDiffFingerprint(hotFile);
-    fs.writeFileSync(path.join(tmpDir, 'p0.log'), 'P0 passed\n');
 
     fs.appendFileSync(path.join(repoRoot, hotFile), 'module.exports.secondEdit = true;\n');
 
@@ -318,12 +279,6 @@ describe('claude bridge finish gate', () => {
                 completed: true,
                 prompt: 'Mercury, break my fix. Find a concrete state where this lies, construct a bypass, and name new failure modes in the underlying mechanism.',
                 result: 'No bypass found.',
-              },
-              p0: {
-                completed: true,
-                exitCode: 0,
-                command: 'node ogz-meta/gates/multi-runtime-gate-runner.js --p0',
-                logPath: relLog,
               },
             },
           },

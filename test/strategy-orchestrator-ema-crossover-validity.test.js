@@ -12,7 +12,7 @@ describe('StrategyOrchestrator EMASMACrossover validity', () => {
       ENABLE_TRAI: 'false',
       MIN_STRATEGY_CONFIDENCE: '0.35',
       DOTENV_CONFIG_PATH: '/tmp/ogzprime-test-missing.env',
-      PROFILE: 'backtest-p0',
+      PROFILE: 'backtest-all',
       EXECUTION_MODE: 'backtest',
       CANDLE_SOURCE: 'file',
       BACKTEST_MODE: 'true',
@@ -38,32 +38,6 @@ describe('StrategyOrchestrator EMASMACrossover validity', () => {
       };
     });
   }
-
-  test('labels alignment continuation honestly when there are zero fresh crosses', () => {
-    const ConfigLoader = require('../foundation/ConfigLoader');
-    ConfigLoader.load({ force: true, silent: true, loadDotenv: false });
-    const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
-    const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
-    const priceHistory = buildAlignedCandles();
-    const price = priceHistory[priceHistory.length - 1].c;
-
-    const result = orchestrator.evaluate(
-      { atr: 1, volatility: 1, trend: 'uptrend' },
-      [],
-      { currentRegime: 'trending_up', confidence: 0.5, positionMultiplier: 1 },
-      priceHistory,
-      { price, timeframe: '15m', symbol: 'TSLA' }
-    );
-
-    expect(result.action).toBe('BUY');
-    expect(result.winnerStrategy).toBe('EMASMACrossover');
-    expect(result.reasons.join(' ')).not.toMatch(/0 crosses/);
-    expect(result.reasons.join(' ')).toMatch(/EMA\/SMA Alignment buy \(no fresh crosses\)/);
-    expect(result.allResults[0].signalData.signalBasis).toBe('ma_alignment');
-    expect(result.allResults[0].signalData.crossoverCount).toBe(0);
-    expect(result.signalBreakdown.signals[0].signalBasis).toBe('ma_alignment');
-    expect(result.signalBreakdown.signals[0].crossoverCount).toBe(0);
-  });
 
   test('trey-spec blocks trend strategies in chop and uses ATR-scaled runner contract in trend', async () => {
     const ConfigLoader = require('../foundation/ConfigLoader');

@@ -59,7 +59,6 @@ async function route(command, args) {
     '/spec-update-status': specUpdateStatus,  // Deterministic: updates Fix N status lines for operator review
     '/mercury-attack': mercuryAttack,      // Adversarial Mercury attack on the just-applied change (EXECUTE only)
     '/mercury-critic': mercuryCritic,      // Records Mercury findings for operator review
-    '/anchor-verify-post': anchorVerifyPost,  // Fast P0 + Full P0 drift check after code change (EXECUTE only)
     '/bombardier': bombardier,  // Blast radius analysis - shows impact before fixing
     '/entomologist': entomologist,
     '/exterminator': exterminator,
@@ -1670,7 +1669,7 @@ async function debuggerHandler(manifest, params) {
   //      legitimate fixes could ship.
   // Fix: unit_tests is now advisory (optional: true) — results land in manifest
   // for visibility but don't halt the pipeline. Real quality gate is the
-  // post-execute P0 anchor verification (operator-side). Hard timeout + 10MB
+  // post-execute verification (operator-side). Hard timeout + 10MB
   // maxBuffer prevent any future hang or buffer deadlock.
   let tests = [
     { name: 'syntax_check', command: 'node --check run-empire-v2.js' },
@@ -1878,7 +1877,7 @@ async function forensics(manifest, params) {
     semantic_risks: risks,
     catalyze_verification: catalyzeVerification,
     loop_back_required: loopBack,
-    severity: risks.some(r => r.severity === 'critical') ? 'P0' : silentBugs.length > 0 ? 'P1' : 'P2',
+    severity: risks.some(r => r.severity === 'critical') ? 'critical' : silentBugs.length > 0 ? 'high' : 'medium',
   });
 
   console.log(`✅ Forensics: ${silentBugs.length} silent bugs, ${allRisks.length} risks`);
@@ -2869,128 +2868,6 @@ async function mercuryCritic(manifest, params) {
     }
   });
   console.log(`✅ Mercury-Critic: gate=clean — Mercury found nothing actionable (verdict body ${verdict.length} chars, ${iters}/60 iters)`);
-  return manifest;
-}
-
-/**
- * Anchor-Verify-Post: Fast P0 + Full P0 drift check after the code change.
- *
- * Runs in EXECUTE mode only. Calls ogz-meta/anchor-runner.runP0 for both
- * profiles and compares finalBalance to the canonical anchor doc. If either
- * drifts, halts the pipeline. Records summaries to manifest.anchor_verification.
- *
- * Skipped automatically for files outside the trade path (cognition infra,
- * tooling, docs) because anchor is invariant to non-trade-path changes by
- * construction — running anchors there wastes ~3min of pipeline time.
- */
-async function anchorVerifyPost(manifest, params) {
-  if (manifest.mode !== 'EXECUTE') {
-    console.log('⏭️  Anchor-Verify-Post: ADVISORY mode — skipping');
-    return manifest;
-  }
-
-  const { parseFix } = require('./spec-parser');
-  const path = require('path');
-
-  const spec = manifest.spec_source;
-  if (!spec || !spec.path || !spec.fixId) {
-    console.log('⏭️  Anchor-Verify-Post: no spec_source — skipping');
-    return manifest;
-  }
-
-  let parsed;
-  try {
-    parsed = parseFix(spec.path, spec.fixId);
-  } catch (err) {
-    console.error(`❌ anchor-verify-post: spec parse failed — ${err.message}`);
-    manifest.stop_conditions.manifest_mismatch = true;
-    return manifest;
-  }
-
-  const parsedFiles = parsed.files || [{ file: parsed.file, lineHint: parsed.lineHint, edits: parsed.edits }];
-  const targetFiles = parsedFiles.map(f => f.file);
-
-  // Trade-path = core/, brokers/, modules/, run-empire-v2.js per Trade-Path P0 Law.
-  // Other files (foundation/, ogz-meta/, tools/, trai_brain/) feed trade-path but
-  // their changes typically don't move the backtest anchor. Running anchors anyway
-  // is the discipline — but if a fix is clearly cognition-infra-only, skip to save
-  // ~3 minutes of pipeline time. The litmus: does the file path start with one of
-  // the trade-path prefixes?
-  const tradePathPrefixes = ['core/', 'brokers/', 'modules/', 'run-empire-v2.js', 'foundation/'];
-  const isTradePath = targetFiles.some(file => tradePathPrefixes.some(p => file.startsWith(p)));
-  if (!isTradePath) {
-    console.log(`⏭️  Anchor-Verify-Post: ${targetFiles.join(', ')} is not trade-path — skipping anchors`);
-    return manifest;
-  }
-
-  const { runP0 } = require('./anchor-runner');
-  const { readCurrentAnchor } = require('./anchor-doc');
-
-  // Read canonical anchor for comparison. If the doc is missing, log but
-  // don't halt — fall back to recording only.
-  let canonical = null;
-  try {
-    const anchor = readCurrentAnchor();
-    canonical = {
-      finalBalanceFull: anchor.finalBalance ? parseFloat(anchor.finalBalance.replace(/,/g, '')) : null
-    };
-  } catch (err) {
-    console.warn(`   Could not read canonical anchor doc: ${err.message} — recording only`);
-  }
-
-  const logTag = `mission-${manifest.mission_id.slice(-8)}`;
-  let fastResult, fullResult;
-
-  console.log(`📊 Anchor-Verify-Post: running Fast P0 (750-candle)...`);
-  try {
-    fastResult = runP0('fast', logTag);
-    console.log(`   Fast P0: $${fastResult.summary.finalBalance} (${fastResult.summary.totalTrades} trades, WR ${fastResult.summary.winRate}%, PF ${fastResult.summary.profitFactor})`);
-  } catch (err) {
-    console.error(`❌ anchor-verify-post: Fast P0 failed — ${err.message}`);
-    manifest.stop_conditions.verification_failed = true;
-    return manifest;
-  }
-
-  console.log(`📊 Anchor-Verify-Post: running Full P0 (canonical 2y)...`);
-  try {
-    fullResult = runP0('full', logTag);
-    console.log(`   Full P0: $${fullResult.summary.finalBalance} (${fullResult.summary.totalTrades} trades, WR ${fullResult.summary.winRate}%, PF ${fullResult.summary.profitFactor})`);
-  } catch (err) {
-    console.error(`❌ anchor-verify-post: Full P0 failed — ${err.message}`);
-    manifest.stop_conditions.verification_failed = true;
-    return manifest;
-  }
-
-  // Compare Full P0 to canonical (Fast P0 isn't tracked in the doc, but we
-  // record it for the audit trail).
-  let drift = null;
-  if (canonical && canonical.finalBalanceFull != null) {
-    const delta = fullResult.summary.finalBalance - canonical.finalBalanceFull;
-    if (Math.abs(delta) > 0.001) {
-      drift = { canonical: canonical.finalBalanceFull, actual: fullResult.summary.finalBalance, delta };
-      console.error(`❌ Anchor-Verify-Post: Full P0 DRIFTED — canonical $${canonical.finalBalanceFull}, actual $${fullResult.summary.finalBalance}, delta $${delta.toFixed(6)}`);
-      manifest.stop_conditions.verification_failed = true;
-    } else {
-      console.log(`✅ Anchor-Verify-Post: Full P0 HELD bit-for-bit ($${fullResult.summary.finalBalance} = canonical)`);
-    }
-  } else {
-    console.log(`✅ Anchor-Verify-Post: both profiles ran clean (no canonical comparison — record-only)`);
-  }
-
-  updateSection(manifest, 'validator', {
-    anchor_verification: {
-      fastP0: fastResult.summary,
-      fullP0: fullResult.summary,
-      fastLog: path.relative(process.cwd(), fastResult.log),
-      fullLog: path.relative(process.cwd(), fullResult.log),
-      fastReport: path.relative(process.cwd(), fastResult.report),
-      fullReport: path.relative(process.cwd(), fullResult.report),
-      canonical: canonical || null,
-      drift: drift || null,
-      heldBitForBit: !drift,
-    }
-  });
-
   return manifest;
 }
 

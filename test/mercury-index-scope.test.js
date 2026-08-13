@@ -115,7 +115,7 @@ describe('Mercury index scope hygiene', () => {
     writeFixture(tmpRoot, 'ogz-meta/cognition/rules.md', '# cognition');
     writeFixture(tmpRoot, 'ogz-meta/ast/symbols.json', '{"ast":true}');
     writeFixture(tmpRoot, 'ogz-meta/automation/job.md', '# automation');
-    writeFixture(tmpRoot, 'ogz-meta/gates/p0.js', 'module.exports = true;');
+    writeFixture(tmpRoot, 'ogz-meta/gates/legacy-anchor.js', 'module.exports = true;');
     writeFixture(tmpRoot, 'ogz-meta/QuarantinedExpansionFiles/file.md', '# quarantine');
     writeFixture(tmpRoot, 'ogz-meta/todocontext47.md', '# stale top-level handoff');
     writeFixture(tmpRoot, 'ogz-meta/MISSION-177-PROPOSAL.md', '# stale mission');
@@ -137,7 +137,7 @@ describe('Mercury index scope hygiene', () => {
     expect(indexed.has('ogz-meta/cognition/rules.md')).toBe(false);
     expect(indexed.has('ogz-meta/ast/symbols.json')).toBe(false);
     expect(indexed.has('ogz-meta/automation/job.md')).toBe(false);
-    expect(indexed.has('ogz-meta/gates/p0.js')).toBe(false);
+    expect(indexed.has('ogz-meta/gates/legacy-anchor.js')).toBe(false);
     expect(indexed.has('ogz-meta/QuarantinedExpansionFiles/file.md')).toBe(false);
     expect(indexed.has('ogz-meta/todocontext47.md')).toBe(false);
     expect(indexed.has('ogz-meta/MISSION-177-PROPOSAL.md')).toBe(false);

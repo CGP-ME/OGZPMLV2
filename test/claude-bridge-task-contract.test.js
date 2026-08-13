@@ -15,7 +15,7 @@ function activeContract(overrides = {}) {
     blockedPaths: ['data/', 'ogz-meta/cognition-history/'],
     bashAllowedPatterns: ['^git status', '^git diff', '^rg ', '^sed ', '^npx jest test/claude-bridge'],
     bashBlockedPatterns: ['rm ', 'git reset'],
-    requiredProof: { mercury: false, p0: false },
+    requiredProof: { mercury: false },
     ...overrides,
   };
 }

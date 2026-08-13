@@ -15,30 +15,13 @@ const {
   readPm2ProcessEnv,
 } = require('./eval-live-posture-gate');
 
-const EXPECTED_P0 = Object.freeze({
-  finalBalance: 8338.146639366509,
-  totalTrades: 1551,
-  winRate: 52.2,
-  profitFactor: 0.64
-});
-
-const P0_GATE_ID = 'p0.single_lane.tsla_ema_anchor';
 const REPORT_SCHEMA_VERSION = 2;
-
-const P0_TIER_FRACTION_CAPS = Object.freeze({
-  profit_tier_1: 0.30,
-  profit_tier_2: 0.30,
-  profit_tier_3: 0.20,
-  profit_tier_4: 0.20
-});
 
 let runtime = null;
 
 function loadRuntime() {
   if (!runtime) {
-    const { runP0 } = require('../anchor-runner');
     runtime = {
-      runP0,
       get stateManager() {
         if (!this._stateManager) {
           const { getInstance: getStateManager } = require('../../core/StateManager');
@@ -63,25 +46,8 @@ function loadRuntime() {
   return runtime;
 }
 
-function stableStringify(value) {
-  if (value === null || typeof value !== 'object') {
-    return JSON.stringify(value);
-  }
-  if (Array.isArray(value)) {
-    return `[${value.map((item) => stableStringify(item)).join(',')}]`;
-  }
-  return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
-}
-
 function sha256Text(value) {
   return crypto.createHash('sha256').update(String(value)).digest('hex');
-}
-
-function sha256FileIfPresent(filePath) {
-  if (!filePath || !fs.existsSync(filePath)) {
-    return null;
-  }
-  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
 }
 
 function splitLines(value) {
@@ -120,61 +86,11 @@ function buildGitProvenance(deps = {}) {
   };
 }
 
-function buildP0BaselineProvenance(gates, deps = {}) {
-  const p0Gate = gates.find((gate) => gate.id === P0_GATE_ID);
-  if (!p0Gate) {
-    return null;
-  }
-  const detail = p0Gate.detail || {};
-  const hashFile = deps.hashFile || sha256FileIfPresent;
-
-  return {
-    gateId: P0_GATE_ID,
-    classification: 'canonical',
-    expected: { ...EXPECTED_P0 },
-    actual: detail.summary || null,
-    reportPath: detail.report || null,
-    reportMtimeMs: detail.reportMtimeMs || null,
-    reportSha256: hashFile(detail.report),
-    logPath: detail.log || null,
-    logSha256: hashFile(detail.log),
-    runSpec: detail.runSpec || null,
-    tuningProfile: detail.tuningProfile || null,
-    workerEnvHash: detail.workerEnv ? sha256Text(stableStringify(detail.workerEnv)) : null,
-    historicalAnchors: [
-      {
-        finalBalance: 10061.215823687478,
-        reason: 'historical ATR-off profile drift anchor before current-eval owned canonical ATR filter'
-      },
-      {
-        finalBalance: 13255.255799695915,
-        reason: 'historical contaminated partial-exit over-credit anchor'
-      },
-      {
-        finalBalance: 13213.042341608163,
-        reason: 'historical modifiers-off anchor unless explicitly rebaselined'
-      },
-      {
-        finalBalance: 10663.30975684895,
-        reason: 'historical requested-notional recorder anchor before executed closed quantity owned stock PnL'
-      },
-      {
-        finalBalance: 10663.639172063286,
-        totalTrades: 1596,
-        winRate: 70.1,
-        profitFactor: 1.16,
-        reason: 'historical zero-fee stock P0 before TTP venue fee parity became canonical'
-      }
-    ]
-  };
-}
-
 function buildReportProvenance(gates, deps = {}) {
   return {
     schemaVersion: REPORT_SCHEMA_VERSION,
     generatedBy: 'ogz-meta/gates/multi-runtime-gate-runner.js',
-    git: buildGitProvenance(deps),
-    p0Baseline: buildP0BaselineProvenance(gates, deps)
+    git: buildGitProvenance(deps)
   };
 }
 
@@ -364,241 +280,6 @@ function addTrades(...trades) {
   }
 }
 
-function assertNumberClose(actual, expected, label) {
-  assert.strictEqual(Number(actual).toFixed(12), Number(expected).toFixed(12), label);
-}
-
-function assertP0Summary(summary) {
-  assertNumberClose(summary.finalBalance, EXPECTED_P0.finalBalance, 'P0 finalBalance drifted');
-  assert.strictEqual(summary.totalTrades, EXPECTED_P0.totalTrades, 'P0 totalTrades drifted');
-  assert.strictEqual(Number(summary.winRate).toFixed(1), EXPECTED_P0.winRate.toFixed(1), 'P0 winRate drifted');
-  assert.strictEqual(Number(summary.profitFactor).toFixed(2), EXPECTED_P0.profitFactor.toFixed(2), 'P0 profitFactor drifted');
-}
-
-function tradeGroupKey(trade) {
-  return [
-    trade.entryTime,
-    trade.entryPrice,
-    trade.strategyName,
-    trade.direction,
-    trade.symbol,
-    trade.brokerId,
-    trade.accountId,
-    trade.assetClass,
-    trade.executionMode,
-    trade.timeframe
-  ].join('|');
-}
-
-function tradeEntryIdentityKey(trade) {
-  return [
-    trade.entryTime,
-    trade.entryPrice,
-    trade.strategyName,
-    trade.direction,
-    trade.symbol
-  ].join('|');
-}
-
-function tradeRuntimeScopeKey(trade) {
-  return [
-    trade.brokerId,
-    trade.accountId,
-    trade.assetClass,
-    trade.executionMode,
-    trade.timeframe
-  ].join('|');
-}
-
-function normalizedExitReason(value) {
-  if (value === null || value === undefined) return '';
-  return String(value).trim().toLowerCase();
-}
-
-function requireFiniteNumber(value, label) {
-  const numberValue = Number(value);
-  assert(Number.isFinite(numberValue), `${label} must be finite, got ${value}`);
-  return numberValue;
-}
-
-function assertClose(actual, expected, label, tolerance = 1e-8) {
-  assert(
-    Math.abs(actual - expected) <= tolerance,
-    `${label}: actual=${actual}, expected=${expected}, diff=${actual - expected}`
-  );
-}
-
-function assertP0LedgerConservation(reportPath) {
-  const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
-  const trades = Array.isArray(report.trades) ? report.trades : [];
-  assert(trades.length > 0, 'P0 report must contain trades for ledger conservation validation');
-
-  const groups = new Map();
-  for (const trade of trades) {
-    const key = tradeGroupKey(trade);
-    const group = groups.get(key) || [];
-    group.push(trade);
-    groups.set(key, group);
-  }
-
-  for (const [key, group] of groups.entries()) {
-    group.sort((a, b) => {
-      const exitA = Date.parse(a.exitTime || '');
-      const exitB = Date.parse(b.exitTime || '');
-      if (Number.isFinite(exitA) && Number.isFinite(exitB) && exitA !== exitB) {
-        return exitA - exitB;
-      }
-      return Number(a.tradeNumber || 0) - Number(b.tradeNumber || 0);
-    });
-
-    const first = group[0];
-    const entryPrice = requireFiniteNumber(first.entryPrice, `P0 ${key} entryPrice`);
-    assert(entryPrice > 0, `P0 ${key} entryPrice must be positive`);
-    const originalQuantity = requireFiniteNumber(first.entryOrderQuantity, `P0 ${key} entryOrderQuantity`);
-    assert(originalQuantity > 0, `P0 ${key} entryOrderQuantity must be positive`);
-    const direction = normalizedExitReason(first.direction);
-    assert(['long', 'buy', 'short', 'sell'].includes(direction), `P0 ${key} has unsupported direction ${first.direction}`);
-
-    let remainingQuantity = originalQuantity;
-    for (const trade of group) {
-      const rowEntryQuantity = requireFiniteNumber(trade.entryOrderQuantity, `P0 ${key} row ${trade.tradeNumber} entryOrderQuantity`);
-      assertClose(rowEntryQuantity, originalQuantity, `P0 ${key} row ${trade.tradeNumber} entry quantity drift`);
-
-      const beforeExit = requireFiniteNumber(trade.remainingOrderQuantityBeforeExit, `P0 ${key} row ${trade.tradeNumber} remainingOrderQuantityBeforeExit`);
-      assertClose(beforeExit, remainingQuantity, `P0 ${key} row ${trade.tradeNumber} remaining quantity before exit`);
-
-      const closedQuantity = requireFiniteNumber(
-        trade.closedOrderQuantity ?? trade.exitOrderQuantity,
-        `P0 ${key} row ${trade.tradeNumber} closedOrderQuantity`
-      );
-      assert(closedQuantity > 0, `P0 ${key} row ${trade.tradeNumber} closedOrderQuantity must be positive`);
-      assert(
-        closedQuantity <= remainingQuantity + 1e-8,
-        `P0 ${key} row ${trade.tradeNumber} closes more quantity than remains: closed=${closedQuantity}, remaining=${remainingQuantity}`
-      );
-
-      const exitQuantity = requireFiniteNumber(trade.exitOrderQuantity, `P0 ${key} row ${trade.tradeNumber} exitOrderQuantity`);
-      assertClose(exitQuantity, closedQuantity, `P0 ${key} row ${trade.tradeNumber} exit quantity mismatch`);
-
-      const size = requireFiniteNumber(trade.size, `P0 ${key} row ${trade.tradeNumber} size`);
-      assert(size > 0, `P0 ${key} row ${trade.tradeNumber} size must be positive`);
-      assertClose(size, entryPrice * closedQuantity, `P0 ${key} row ${trade.tradeNumber} closed notional`, 1e-6);
-
-      const exitPrice = requireFiniteNumber(trade.exitPrice, `P0 ${key} row ${trade.tradeNumber} exitPrice`);
-      assert(exitPrice > 0, `P0 ${key} row ${trade.tradeNumber} exitPrice must be positive`);
-      const expectedRawPnl = (direction === 'long' || direction === 'buy')
-        ? (exitPrice - entryPrice) * closedQuantity
-        : (entryPrice - exitPrice) * closedQuantity;
-      const rawPnl = requireFiniteNumber(trade.rawPnlDollars, `P0 ${key} row ${trade.tradeNumber} rawPnlDollars`);
-      assertClose(rawPnl, expectedRawPnl, `P0 ${key} row ${trade.tradeNumber} raw PnL`, 1e-6);
-
-      const fees = requireFiniteNumber(trade.feesDollars, `P0 ${key} row ${trade.tradeNumber} feesDollars`);
-      assert(fees >= 0, `P0 ${key} row ${trade.tradeNumber} feesDollars must be non-negative`);
-      const netPnl = requireFiniteNumber(trade.netPnlDollars, `P0 ${key} row ${trade.tradeNumber} netPnlDollars`);
-      assertClose(netPnl, rawPnl - fees, `P0 ${key} row ${trade.tradeNumber} net PnL`, 1e-6);
-
-      const pnlPerShare = requireFiniteNumber(trade.pnlPerShare, `P0 ${key} row ${trade.tradeNumber} pnlPerShare`);
-      assertClose(pnlPerShare, netPnl / closedQuantity, `P0 ${key} row ${trade.tradeNumber} PnL per share`, 1e-6);
-
-      const balanceBefore = requireFiniteNumber(trade.balanceBefore, `P0 ${key} row ${trade.tradeNumber} balanceBefore`);
-      const balanceAfter = requireFiniteNumber(trade.balanceAfter, `P0 ${key} row ${trade.tradeNumber} balanceAfter`);
-      assertClose(balanceAfter - balanceBefore, netPnl, `P0 ${key} row ${trade.tradeNumber} balance delta`, 1e-6);
-
-      remainingQuantity -= closedQuantity;
-      if (Math.abs(remainingQuantity) <= 1e-8) {
-        remainingQuantity = 0;
-      }
-    }
-
-    assertClose(remainingQuantity, 0, `P0 ${key} final remaining quantity`, 1e-8);
-  }
-}
-
-function assertP0TieredExitAccounting(reportPath) {
-  const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
-  const trades = Array.isArray(report.trades) ? report.trades : [];
-  assert(trades.length > 0, 'P0 report must contain trades for accounting validation');
-
-  const groups = new Map();
-  const entryScopes = new Map();
-  for (const trade of trades) {
-    const key = tradeGroupKey(trade);
-    const group = groups.get(key) || { size: 0, tiers: new Map() };
-    const size = Number(trade.size);
-    assert(Number.isFinite(size) && size > 0, `P0 report trade has invalid size ${trade.size}`);
-    group.size += size;
-
-    const exitReason = normalizedExitReason(trade.exitReason);
-    assert(exitReason, `P0 report trade missing exitReason for ${key}`);
-    if (exitReason.includes('tier') && !Object.prototype.hasOwnProperty.call(P0_TIER_FRACTION_CAPS, exitReason)) {
-      throw new Error(`P0 report trade has unrecognized tier exitReason ${JSON.stringify(trade.exitReason)} for ${key}`);
-    }
-    if (Object.prototype.hasOwnProperty.call(P0_TIER_FRACTION_CAPS, exitReason)) {
-      group.tiers.set(exitReason, (group.tiers.get(exitReason) || 0) + size);
-    }
-    groups.set(key, group);
-
-    const entryIdentityKey = tradeEntryIdentityKey(trade);
-    const scopes = entryScopes.get(entryIdentityKey) || new Set();
-    scopes.add(tradeRuntimeScopeKey(trade));
-    entryScopes.set(entryIdentityKey, scopes);
-  }
-
-  for (const [entryIdentityKey, scopes] of entryScopes.entries()) {
-    assert.strictEqual(
-      scopes.size,
-      1,
-      `P0 report entry identity split across runtime scopes for ${entryIdentityKey}: ${Array.from(scopes).join(', ')}`
-    );
-  }
-
-  for (const [key, group] of groups.entries()) {
-    if (group.tiers.size === 0) continue;
-    for (const [tier, tierSize] of group.tiers.entries()) {
-      const cap = P0_TIER_FRACTION_CAPS[tier];
-      const fraction = tierSize / group.size;
-      assert(
-        fraction <= cap + 1e-10,
-        `P0 tiered exit over-credited ${tier} for ${key}: tierSize=${tierSize}, groupSize=${group.size}, fraction=${fraction}, cap=${cap}`
-      );
-    }
-  }
-}
-
-function assertP0LongOnlyNoShortArtifacts(reportPath) {
-  const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
-  const trades = Array.isArray(report.trades) ? report.trades : [];
-  assert(trades.length > 0, 'P0 report must contain trades for direction validation');
-
-  const nonLongTrades = trades.filter((trade) => {
-    const direction = String(trade.direction || '').trim().toLowerCase();
-    return direction !== 'long';
-  });
-  assert.strictEqual(
-    nonLongTrades.length,
-    0,
-    `P0 long_only report contained ${nonLongTrades.length} non-long trade direction(s)`
-  );
-
-  const shortActions = trades.filter((trade) => {
-    const action = String(trade.action || trade.entryAction || '').trim().toUpperCase();
-    const side = String(trade.side || trade.entrySide || '').trim().toLowerCase();
-    return action === 'SELL_SHORT' || side === 'short';
-  });
-  assert.strictEqual(
-    shortActions.length,
-    0,
-    `P0 long_only report contained ${shortActions.length} short action/side marker(s)`
-  );
-
-  const flipExits = trades.filter((trade) => normalizedExitReason(trade.exitReason || trade.reason).includes('flip'));
-  assert.strictEqual(
-    flipExits.length,
-    0,
-    `P0 long_only report contained ${flipExits.length} flip exit(s)`
-  );
-}
-
 const GATES = [
   {
     id: 'eval.live.posture_config',
@@ -608,28 +289,6 @@ const GATES = [
       context.evalSourceEnv || process.env,
       context.evalOptions || {}
     )
-  },
-  {
-    id: P0_GATE_ID,
-    layer: 'p0',
-    description: 'Canonical TSLA 2-year EMASMACrossover single-lane regression anchor.',
-    run: async () => {
-      const { runP0 } = loadRuntime();
-      const result = runP0('full', 'multi-runtime-gate');
-      assertP0LedgerConservation(result.report);
-      assertP0TieredExitAccounting(result.report);
-      assertP0LongOnlyNoShortArtifacts(result.report);
-      assertP0Summary(result.summary);
-      return {
-        summary: result.summary,
-        log: result.log,
-        report: result.report,
-        reportMtimeMs: result.reportMtimeMs,
-        runSpec: result.runSpec,
-        tuningProfile: result.tuningProfile,
-        workerEnv: result.workerEnv
-      };
-    }
   },
   {
     id: 'scope.state_manager.dashboard_positions',
@@ -1608,7 +1267,6 @@ function selectedGates(argv) {
   const ids = [];
   let runEval = false;
   let runScope = false;
-  let runP0Gate = false;
   let runAll = false;
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -1622,8 +1280,6 @@ function selectedGates(argv) {
       runEval = true;
     } else if (arg === '--scope') {
       runScope = true;
-    } else if (arg === '--p0') {
-      runP0Gate = true;
     } else if (arg === '--all') {
       runAll = true;
     } else if (arg === '--pm2') {
@@ -1645,7 +1301,6 @@ function selectedGates(argv) {
   if (runScope) {
     for (const gate of GATES.filter((g) => g.layer === 'scope')) selected.add(gate.id);
   }
-  if (runP0Gate) selected.add(P0_GATE_ID);
 
   if (selected.size === 0) return [];
 
@@ -1738,7 +1393,7 @@ async function main() {
   if (argv.includes('--list') || argv.length === 0) {
     printList();
     if (argv.length === 0) {
-      console.log('\nRun --eval for eval-live posture, --scope for focused multi-runtime scope gates, or --p0 for the full canonical anchor.');
+      console.log('\nRun --eval for eval-live posture or --scope for focused multi-runtime scope gates.');
     }
     return;
   }
@@ -1787,15 +1442,10 @@ if (require.main === module) {
 }
 
 module.exports = {
-  assertP0LedgerConservation,
-  assertP0TieredExitAccounting,
-  assertP0LongOnlyNoShortArtifacts,
   buildReportProvenance,
   buildGateContext,
   maybeWriteReport,
-  P0_GATE_ID,
   pm2ProcessName,
   runGate,
-  selectedGates,
-  P0_TIER_FRACTION_CAPS
+  selectedGates
 };

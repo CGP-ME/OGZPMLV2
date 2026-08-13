@@ -14,7 +14,7 @@ or prior agent summaries without checking the current files.
 - Start with: `ogz-meta/Alignment/README.md`
 - Then read: `ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md`
 - Then read the newest dated master alignment, verified digest, active session
-  docs, active fix plan, P0 anchor docs, Mercury config, and the relevant live
+  docs, active fix plan, Mercury config, and the relevant live
   code before making claims.
 
 Do not use `/opt/ogzprime/OGZPMLV2_GATES/AGENTS.md` as current guidance. That is
@@ -115,25 +115,13 @@ For changes on the trading/backtest execution path:
   file:line proof still wins, and broad `Mercury, break my fix.` reviews must
   not be re-caged with hidden targets. Source:
   `ogz-meta/sessions/session-2026-06-27-mercury-deepsearch-substrate.md:16-50,111-121,123-160`.
-- Run the full P0 TSLA 2-year anchor after each trading-path fix.
-- Current required P0 gate: `node ogz-meta/gates/multi-runtime-gate-runner.js --p0`.
-- Current full-anchor expectation: `8338.146639366509 / 1551 trades / 52.2% WR / PF 0.64`.
 - `ogz-meta/gates/runs/multi-runtime-latest.json` is expected to update after
-  each gate run. If it ever predates the current terminal PASS, treat that as a
-  gate bug; use the direct worker report path printed by the gate command as
-  proof and open that report summary. Historical stale-pointer incident source:
+  each multi-runtime gate run. If it ever predates the current terminal PASS,
+  treat that as a gate bug; use the direct worker report path printed by the
+  gate command as proof and open that report summary. Historical stale-pointer incident source:
   `ogz-meta/sessions/session-2026-06-16-catchup-handoff-and-gap-register.md:135-139`.
-- Older `10061.215823687478` references are historical ATR-off profile drift anchors from before `current-eval` owned the canonical ATR filter.
-- Older `13255.255799695915` references are historical contaminated partial-exit over-credit anchors.
-- Older `13213.042341608163` references are historical/modifiers-off anchors unless the current
-  executable gate is explicitly rebaselined.
-- Older `10687.113526633222` references are historical pre-current-fee-profile anchors from before
-  the executable P0 gate expected the fee-inclusive `ttp_real` current-eval baseline.
-- Older `10663.639172063286` references are historical zero-fee or pre-current-fee-profile anchors
-  from before the executable P0 gate expected the fee-inclusive `ttp_real` current-eval baseline.
-- Older `10663.30975684895` references are historical requested-notional recorder anchors from before
-  backtest reports used executed closed quantity as the source of truth for stock P&L.
-- If the anchor moves, stop and root-cause before continuing.
+- The retired TSLA anchor lane is not a current gate and must not be invoked as
+  a commit or trading-path requirement.
 
 ## Pipeline Discipline
 
@@ -141,7 +129,7 @@ Use the Claudito pipeline when a fix is being authored through the fix queue.
 If the pipeline lacks a capability needed to safely process a fix, halt the fix
 work, build the pipeline capability, get operator sign-off, then resume.
 
-Do not bypass Mercury, P0, manifest tracking, or commit staging discipline because
+Do not bypass Mercury, manifest tracking, or commit staging discipline because
 a change appears obvious.
 
 ## Cold-Start Checklist

@@ -67,7 +67,6 @@ const WRITE_PIPELINE = [
   '/fixer-write',          // Deterministic: ADVISORY writes proposal; EXECUTE applies str_replace
   '/mercury-attack',       // EXECUTE only: adversarial Mercury attack on the just-applied change
   '/mercury-critic',       // EXECUTE only: records Mercury findings for operator review
-  '/anchor-verify-post',   // EXECUTE only: Fast P0 + Full P0 drift gate (trade-path only)
   '/debugger',
   '/critic',
   '/validator',

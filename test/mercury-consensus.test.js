@@ -186,9 +186,9 @@ describe('Mercury Fable consensus', () => {
       'VERDICT: needs_more_evidence',
       'CONSENSUS_BLOCKING: yes',
       'RATIONALE: Mercury did not cite the spawn site.',
-      'DISAGREEMENT: Mercury claimed env cannot override P0 without citing execSync.',
-      'REQUIRED_RECHECK: open ogz-meta/anchor-runner.js:188-197',
-      'RECHECK_PROMPT: Mercury, recheck the P0 spawn env path. Open ogz-meta/anchor-runner.js:188-197 and prove whether process.env can override the P0 overlay.',
+      'DISAGREEMENT: Mercury claimed env cannot override the worker overlay without citing execSync.',
+      'REQUIRED_RECHECK: open core/OrderExecutor.js:1-2',
+      'RECHECK_PROMPT: Mercury, recheck the worker spawn env path. Open core/OrderExecutor.js:1-2 and prove whether process.env can override the worker overlay.',
       'NEXT_CHECK: run parent-env proof command',
     ].join('\n');
 
@@ -196,8 +196,8 @@ describe('Mercury Fable consensus', () => {
     expect(parsed).toMatchObject({
       verdict: 'needs_more_evidence',
       blocking: true,
-      disagreement: 'Mercury claimed env cannot override P0 without citing execSync.',
-      requiredRecheck: 'open ogz-meta/anchor-runner.js:188-197',
+      disagreement: 'Mercury claimed env cannot override the worker overlay without citing execSync.',
+      requiredRecheck: 'open core/OrderExecutor.js:1-2',
       nextCheck: 'run parent-env proof command',
     });
     expect(buildMercuryRecheckPrompt({
@@ -205,7 +205,7 @@ describe('Mercury Fable consensus', () => {
       mercuryAnswer: 'No break found.',
       fableAnswer: answer,
       parsedConsensus: parsed,
-    })).toBe('Mercury, recheck the P0 spawn env path. Open ogz-meta/anchor-runner.js:188-197 and prove whether process.env can override the P0 overlay.');
+    })).toBe('Mercury, recheck the worker spawn env path. Open core/OrderExecutor.js:1-2 and prove whether process.env can override the worker overlay.');
   });
 
   test('parses formatted blocking fields and fails closed when the field is missing', () => {
@@ -299,7 +299,7 @@ describe('Mercury Fable consensus', () => {
           'VERDICT: needs_more_evidence',
           'CONSENSUS_BLOCKING: yes',
           'DISAGREEMENT: Missing spawn-site proof.',
-          'REQUIRED_RECHECK: inspect ogz-meta/anchor-runner.js:188-197',
+          'REQUIRED_RECHECK: inspect core/OrderExecutor.js:1-2',
           'RECHECK_PROMPT: Mercury, inspect the spawn site.',
           'NEXT_CHECK: none',
         ].join('\n'),
@@ -307,7 +307,7 @@ describe('Mercury Fable consensus', () => {
           verdict: 'needs_more_evidence',
           blocking: true,
           disagreement: 'Missing spawn-site proof.',
-          requiredRecheck: 'inspect ogz-meta/anchor-runner.js:188-197',
+          requiredRecheck: 'inspect core/OrderExecutor.js:1-2',
           recheckPrompt: 'Mercury, inspect the spawn site.',
           nextCheck: 'none',
         },

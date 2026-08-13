@@ -308,11 +308,6 @@ describe('ConfigLoader runtime profile contract', () => {
       confirmBars: 1,
       warmupBars: 200,
     });
-    expect(tradingConfigJson.launchProfiles['backtest-p0'].strategyBehavior.emaCrossover).toEqual({
-      entryEventsOnly: false,
-      confirmBars: 0,
-      warmupBars: 10,
-    });
     expect(tradingConfigJson.launchProfiles['backtest-trey-spec'].strategyBehavior.emaCrossover).toEqual({
       entryEventsOnly: true,
       confirmBars: 1,

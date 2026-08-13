@@ -37,7 +37,7 @@ describe('EMASMACrossover TREY SPEC 001 entry events', () => {
     process.env = {
       ...originalEnv,
       DOTENV_CONFIG_PATH: '/tmp/ogzprime-test-missing.env',
-      PROFILE: 'backtest-p0',
+      PROFILE: 'backtest-all',
       EXECUTION_MODE: 'backtest',
       CANDLE_SOURCE: 'file',
       BACKTEST_MODE: 'true',
@@ -118,32 +118,6 @@ describe('EMASMACrossover TREY SPEC 001 entry events', () => {
     expect(signal.crossovers).toEqual([]);
     expect(ConfigLoader.getSource('strategyBehavior.emaCrossover.entryEventsOnly'))
       .toBe('config:launchProfiles.backtest-all.strategyBehavior.emaCrossover.entryEventsOnly');
-  });
-
-  test('backtest-p0 launch profile keeps legacy alignment mode for the anchor', () => {
-    jest.resetModules();
-    process.env = {
-      ...originalEnv,
-      DOTENV_CONFIG_PATH: '/tmp/ogzprime-test-missing.env',
-      PROFILE: 'backtest-p0',
-      EXECUTION_MODE: 'backtest',
-      CANDLE_SOURCE: 'file',
-      BACKTEST_MODE: 'true',
-      EMA_CROSSOVER_ENTRY_EVENTS_ONLY: 'true',
-    };
-    const ConfigLoader = require('../foundation/ConfigLoader');
-    ConfigLoader.load({ force: true, silent: true, loadDotenv: false });
-    const ProfiledEMASMACrossoverSignal = require('../modules/EMASMACrossoverSignal');
-    const module = new ProfiledEMASMACrossoverSignal();
-    const history = alignedCandles();
-
-    const signal = module.update(history[history.length - 1], history);
-
-    expect(signal.entryEventsOnly).toBe(false);
-    expect(signal.direction).toBe('buy');
-    expect(signal.confidenceMultipliers.composite).toBe(1);
-    expect(ConfigLoader.getSource('strategyBehavior.emaCrossover.entryEventsOnly'))
-      .toBe('config:launchProfiles.backtest-p0.strategyBehavior.emaCrossover.entryEventsOnly');
   });
 
   test('restored velocity, elasticity, and decay filters fire as confidence multipliers', () => {

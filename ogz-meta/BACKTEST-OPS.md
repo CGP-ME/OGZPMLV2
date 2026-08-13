@@ -6,49 +6,16 @@
 
 ---
 
-## CURRENT STATUS NOTE — 2026-06-08
+## CURRENT STATUS NOTE — 2026-08-13
 
-This file is an operational command reference, not the canonical Phase 0
-regression anchor.
-
-The P0 gate is NO LONGER ENFORCED anywhere (removed 2026-08-03 by Trey's
-directive; the claude-bridge no longer requires P0 proof to ship).
-`ogz-meta/anchor-runner.js` and the gate-runner `--p0` lane remain available
-as optional, manually-run regression tools only. Last recorded full anchor:
-`$10710.667785934895 / 1692 trades / 62.8% WR / PF 1.15`.
-
-Rechecked 2026-06-08 with:
-
-```bash
-node ogz-meta/gates/multi-runtime-gate-runner.js --p0
-```
-
-Fresh worker report:
-`backtest-results/worker-reports/backtest-report-1780954098888-phase0-canonical-multi-runtime-gate-2026-06-08T21-27-03-025Z.json`.
-
-The prior `$10061.215823687478 / 1688 trades / 62.1% WR / PF 1.01`
-anchor is retired. It was produced while the canonical P0 expected ATR-on
-behavior but the `current-eval` tuning profile did not own
-`ATR_FILTER_ENABLED=true` and `ATR_MIN_PERCENT=0.15`, allowing the executable
-gate to run ATR-off.
-
-The prior `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`
-anchor is retired. It reproduced the same trade count and win rate, but it
-over-credited tiered partial exits by recording more closed cost basis than the
-original entry. The current P0 gate validates the summary and rejects reports
-where `profit_tier_1`, `profit_tier_2`, `profit_tier_3`, or `profit_tier_4`
-exceed their configured original-position fractions.
-
-The intermediate `$10000.26792578263 / 1410 trades / 60.6% WR / PF 1.00`
-anchor is also retired. It was produced before `anchor-runner.js` was hardened
-to build P0 from the explicit `current-eval` tuning profile and a scrubbed
-worker env. The hardened P0 runner stamps its worker env/profile and writes a
-unique timestamped ledger log per run.
+This file is an operational command reference for targeted backtests, exploratory
+runs, and tuning. The retired TSLA anchor lane is not a current verification
+gate and is not required for commits or trading-path fixes.
 
 Manual commands in this file are for targeted backtests, exploratory runs, and
 tuning. A command that omits `SOLO_STRATEGY` is a no-SOLO, winner-takes-all
 orchestrator run. It enables multiple strategies to compete, but it does not
-blend strategies into one combined signal and it is not the P0 anchor.
+blend strategies into one combined signal.
 
 For strategy tuning, prefer the sweep tools. `tools/matrix-sweep.js` and the
 SOLO modes in `tools/parallel-backtest.js` run strategy-isolated configs by
@@ -84,7 +51,7 @@ There is NO separate backtest engine. `EXECUTION_MODE=backtest` disables broker 
 |---|---|---|---|---|
 | `RSI` | `ENABLE_RSI=true` | strategies.RSI | ✅ LOCKED | Walk-forward validated 2026-03-20. SL -0.8%, TP 1.0%, min conf 60% |
 | `MADynamicSR` | `ENABLE_MASR=true` | strategies.MADynamicSR | ✅ LOCKED | Walk-forward validated 2026-03-20. SL -0.8%, TP 1.0% |
-| `EMASMACrossover` | `ENABLE_EMA=true` | strategies.EMASMACrossover | ✅ LOCKED | Walk-forward validated 2026-03-20. SL -0.5%, TP 1.0% (per TradingConfig.exitContracts.EMASMACrossover). EMA entry mode is launch-profile owned: P0 keeps legacy alignment, tournament backtest profiles use crossover events with config-owned velocity, elasticity, and decay multipliers. |
+| `EMASMACrossover` | `ENABLE_EMA=true` | strategies.EMASMACrossover | ✅ LOCKED | Walk-forward validated 2026-03-20. SL -0.5%, TP 1.0% (per TradingConfig.exitContracts.EMASMACrossover). EMA entry mode is launch-profile owned; tournament backtest profiles use crossover events with config-owned velocity, elasticity, and decay multipliers. |
 | `LiquiditySweep` | `ENABLE_LIQSWEEP=true` | strategies.LiquiditySweep | ✅ Active | 50-bar lookback, disableSessionCheck=true |
 | `SmartMoneySweep` | `ENABLE_SMS=true` | strategies.SmartMoneySweep | ⚠️ Validating | VP-based sweeps, 5-day lookback, RTH-only VP |
 | `OpeningRangeBreakout` | `ENABLE_ORB=true` | strategies.OpeningRangeBreakout | ⚠️ Disabled | ICT-style, needs tuning |
@@ -298,12 +265,12 @@ ACCOUNT_DRAWDOWN_BYPASS=true \
 node run-empire-v2.js
 ```
 
-### Exploratory No-SOLO Winner-Takes-All Run (Not P0)
+### Exploratory No-SOLO Winner-Takes-All Run
 
 This command evaluates all enabled strategies through the orchestrator and lets
 the highest-confidence qualified strategy own each trade. Use it only as an
 exploratory multi-strategy competition run. Do not treat this as strategy
-blending, a per-strategy tuning result, or the canonical P0 anchor.
+blending or a per-strategy tuning result.
 
 ```bash
 EXECUTION_MODE=backtest CANDLE_SOURCE=file \
@@ -363,7 +330,7 @@ node tools/parallel-backtest.js --full        # Full 60+ configs
 
 | Profile | File | Usage |
 |---|---|---|
-| No-SOLO winner-takes-all backtest | `profiles/backtest-all.env` | Exploratory multi-strategy competition run, not P0 |
+| No-SOLO winner-takes-all backtest | `profiles/backtest-all.env` | Exploratory multi-strategy competition run |
 | RSI only | `profiles/backtest-rsi.env` | RSI isolation |
 | MASR only | `profiles/backtest-masr.env` | MADynamicSR isolation |
 | Paper trading | `profiles/paper.env` | Live feed, simulated execution |
@@ -407,13 +374,6 @@ Open `public/command-center.html` in browser, drag `backtest-trades.csv` onto it
 
 ### 1. Wrong Data File
 `full-45k.json` is BTC. Stock strategies on BTC = meaningless results. Always specify `CANDLE_DATA_FILE`.
-
-### 1a. P0 Anchor vs Manual Exploratory Runs
-Use `ogz-meta/anchor-runner.js` for canonical P0 verification. Manual commands
-in this file can intentionally exercise different strategy sets, data files,
-direction filters, and toggles such as `ENABLE_SMS=true`; those runs are not
-P0 unless they are launched through the anchor runner or exactly match its
-documented env.
 
 ### 2. ACCOUNT_DRAWDOWN_BYPASS
 Drawdown calculation was fixed at core/StateManager.js:99 on 2026-03-14. Setting `ACCOUNT_DRAWDOWN_BYPASS=false` enables the halt — bot force-closes at `accountDrawdownPercent` threshold (default -10%, StopLossChecker.js:48-62).

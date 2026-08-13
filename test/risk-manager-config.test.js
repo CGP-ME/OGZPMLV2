@@ -131,7 +131,7 @@ describe('RiskManager guard rebuild wiring', () => {
     expect(Array.from(riskManager.railLocks.keys())).toEqual(['stocks:stocks-day-2']);
   });
 
-  test('guardMode off is a named law, not a bypass, and leaves P0/backtest-style profiles open', () => {
+  test('guardMode off is a named law, not a bypass, and leaves backtest-style profiles open', () => {
     const config = buildRiskManagerConfig(activeRiskConfig({
       guardMode: 'off',
       venueRailBuffer: {

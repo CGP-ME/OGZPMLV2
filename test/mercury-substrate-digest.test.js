@@ -39,7 +39,7 @@ describe('Mercury substrate digest', () => {
         answer_excerpt: 'No break found.',
         next_rule_candidate: 'no-silent-fallback',
       },
-    ], [{ name: 'p0-anchor-finder' }]);
+    ], [{ name: 'legacy-anchor-finder' }]);
 
     expect(digest.total_runs).toBe(3);
     expect(digest.by_verdict).toEqual({
@@ -64,7 +64,7 @@ describe('Mercury substrate digest', () => {
     });
     expect(digest.code_claim_without_open_file).toEqual(['run-2']);
     expect(digest.repeated_rule_candidates).toEqual({ 'no-silent-fallback': 2 });
-    expect(digest.canaries.names).toEqual(['p0-anchor-finder']);
+    expect(digest.canaries.names).toEqual(['legacy-anchor-finder']);
   });
 
   test('formats a compact markdown digest', () => {

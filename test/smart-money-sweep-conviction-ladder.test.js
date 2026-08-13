@@ -116,7 +116,7 @@ function sweepModule({ conditionsMet = 0, rawConfidence = 0, overrides = {} } = 
 describe('SmartMoneySweep conviction ladder', () => {
   test('ConfigLoader exposes the explicit SMS conviction ladder keys', () => {
     const originalProfile = process.env.PROFILE;
-    process.env.PROFILE = 'backtest-p0';
+    process.env.PROFILE = 'backtest-all';
     ConfigLoader.load({ force: true, silent: true, loadDotenv: false });
 
     try {

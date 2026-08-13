@@ -59,7 +59,7 @@ Proof hints:
 
 - Prove target path, asset class, symbol, broker, execution mode, timeframe, and
   persistence destination before claiming behavior is correct.
-- A green test or P0 gate is not enough if it ran on the wrong symbol, broker,
+- A green test or gate is not enough if it ran on the wrong symbol, broker,
   mode, or data source.
-- For hot-path code changes, Mercury attack and the current P0 gate are
-  blocking before commit.
+- For hot-path code changes, adversarial Mercury proof is blocking before
+  commit.

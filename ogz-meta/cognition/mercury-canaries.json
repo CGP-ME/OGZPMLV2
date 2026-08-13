@@ -1,8 +1,8 @@
 [
   {
-    "name": "p0-anchor-finder",
-    "purpose": "Mercury can find the current P0 expected anchor from repo code.",
-    "prompt": "Find the current P0 expected final balance, trade count, win rate, and profit factor. Cite the gate runner lines.",
+    "name": "multi-runtime-gate-finder",
+    "purpose": "Mercury can find the current multi-runtime gate list from repo code.",
+    "prompt": "Find the current multi-runtime gate ids and layers. Cite the gate runner lines.",
     "expected_evidence": [
       "ogz-meta/gates/multi-runtime-gate-runner.js"
     ]
