@@ -463,6 +463,36 @@ describe('SessionRouter transition journal', () => {
     ]);
   });
 
+  test('transition to stocks force-closes crypto source trades before REST reconcile and target handoff', async () => {
+    const router = makeRouter({ forceCloseOnSessionEnd: true });
+    router.activeSession = 'crypto';
+    router.getExitPrice = jest.fn(() => 70000);
+    router.stateManager.state.activeTrades = new Map([
+      ['BTC_1', { tradeId: 'BTC_1', symbol: 'BTC-USD', action: 'BUY', direction: 'long', assetClass: 'crypto' }]
+    ]);
+
+    await router._transitionToStocks(now);
+
+    expect(router.executeTrade).toHaveBeenCalledWith(
+      { action: 'SELL', confidence: 100, tradeId: 'BTC_1', exitReason: 'session_close' },
+      { totalConfidence: 100 },
+      70000,
+      {},
+      [],
+      null,
+      null,
+      'BTC-USD'
+    );
+    expect(router.executeTrade.mock.invocationCallOrder[0]).toBeLessThan(
+      router.krakenAdapter.getPositions.mock.invocationCallOrder[0]
+    );
+    expect(router.krakenAdapter.getPositions.mock.invocationCallOrder[0]).toBeLessThan(
+      router.ctx.patternChecker.memory.switchSessionScope.mock.invocationCallOrder[0]
+    );
+    expect(router.activeSession).toBe('stocks');
+    expect(router.failedSafeMode).toBe(false);
+  });
+
   test('source broker open position blocks target activation before pattern handoff', async () => {
     const router = makeRouter();
     router.activeSession = 'crypto';
@@ -704,8 +734,36 @@ describe('SessionRouter transition journal', () => {
     expect(router.activeSession).toBe('crypto');
     expect(router.transitionStore.readEvents().map((event) => event.event)).toEqual([
       'SESSION_BROKER_RECONCILED',
+      'SESSION_PATTERN_MEMORY_HANDOFF',
       'SESSION_TARGET_ACTIVATED'
     ]);
+  });
+
+  test('startup activation clears only a stale SessionRouter-owned pause after target activation', async () => {
+    const router = makeRouter();
+    router.stateManager.state.isTrading = false;
+    router.stateManager.state.pauseReason = 'SessionRouter wind-down soft_stop: 30 min until crypto';
+    router.stateManager.resumeTradingIfPausedBy = jest.fn().mockImplementation(async () => {
+      router.stateManager.state.isTrading = true;
+      router.stateManager.state.pauseReason = null;
+      return { success: true, resumed: true };
+    });
+
+    await router._activateCrypto();
+
+    expect(router.stateManager.resumeTradingIfPausedBy).toHaveBeenCalledWith(
+      'session_router_wind_down',
+      expect.objectContaining({
+        allowLegacyUnscoped: true,
+        legacyReasonPrefixes: ['SessionRouter wind-down', 'SessionRouter: transitioning'],
+        resumeSource: 'session_router_startup_activation',
+        reason: 'SessionRouter startup activation confirmed crypto'
+      })
+    );
+    expect(router.krakenAdapter.subscribeToCandles.mock.invocationCallOrder[0]).toBeLessThan(
+      router.stateManager.resumeTradingIfPausedBy.mock.invocationCallOrder[0]
+    );
+    expect(router.stateManager.state.isTrading).toBe(true);
   });
 
   test('initial activation aborts before pattern handoff when target REST is unavailable', async () => {
@@ -736,7 +794,8 @@ describe('SessionRouter transition journal', () => {
     expect(router.activeBroker).toBe(null);
     expect(router.krakenAdapter.subscribeToCandles).not.toHaveBeenCalled();
     expect(router.transitionStore.readEvents().map((event) => event.event)).toEqual([
-      'SESSION_BROKER_RECONCILED'
+      'SESSION_BROKER_RECONCILED',
+      'SESSION_PATTERN_MEMORY_HANDOFF'
     ]);
   });
 
@@ -747,7 +806,12 @@ describe('SessionRouter transition journal', () => {
       epoch: 9
     });
 
-    await expect(router.start()).rejects.toThrow('SessionRouter transition store requires recovery before start: prior transition failed');
+    await expect(router.start()).resolves.toEqual(expect.objectContaining({
+      started: false,
+      failedSafe: true,
+      reason: 'SessionRouter transition store requires recovery before start: prior transition failed',
+      activeSession: null
+    }));
 
     expect(router.activeSession).toBe(null);
     expect(router.orderRouter.registerBroker).not.toHaveBeenCalled();

@@ -43,6 +43,11 @@ const FIAT_BALANCE_SYMBOLS = new Set([
   'JPY', 'ZJPY',
   'CHF', 'ZCHF'
 ]);
+const SESSION_ROUTER_WIND_DOWN_SOURCE = 'session_router_wind_down';
+const RTH_OPEN_MINUTE = 9 * 60 + 30;
+const WIND_DOWN_SOFT_STOP_MINUTES = 30;
+const WIND_DOWN_WARN_MINUTES = 15;
+const WIND_DOWN_FORCE_FLATTEN_MINUTES = 5;
 
 class SessionRouter extends EventEmitter {
   constructor(config = {}) {
@@ -78,6 +83,12 @@ class SessionRouter extends EventEmitter {
     this.failedSafePauseFallbackApplied = false;
     this.failedSafeEntryBlockReason = null;
     this.failedSafeEntryBlockAt = null;
+    this.windDownPhase = null;
+    this.windDownDirection = null;
+    this.windDownStartedAt = null;
+    this.windDownLastTraceAt = null;
+    this.windDownFlattenComplete = false;
+    this.windDownFlattenFailures = [];
     this.lastTransitionAt = 0;
     this.intervalId = null;
     this.activeCallbackEpoch = null;
@@ -199,6 +210,68 @@ class SessionRouter extends EventEmitter {
     return { tradeId, symbol, action, exitPrice };
   }
 
+  _activeTradeEntries() {
+    const activeTrades = this.stateManager && this.stateManager.state
+      ? this.stateManager.state.activeTrades
+      : null;
+    if (!activeTrades) return [];
+    if (activeTrades instanceof Map) return Array.from(activeTrades.entries());
+    if (Array.isArray(activeTrades)) return activeTrades;
+    return [];
+  }
+
+  _activeTradeCount() {
+    return this._activeTradeEntries().length;
+  }
+
+  async _forceCloseSourceTradesThroughExecution(transitionContext, sourceLabel) {
+    const activeTradeEntries = this._activeTradeEntries();
+    if (activeTradeEntries.length === 0) {
+      return { closed: [], failures: [] };
+    }
+    if (!this.forceCloseOnSessionEnd) {
+      const failures = activeTradeEntries.map(([orderId, trade]) => ({
+        orderId,
+        symbol: trade && trade.symbol,
+        reason: 'forceCloseOnSessionEnd disabled with active source position'
+      }));
+      this._recordTransitionEvent('SESSION_SOURCE_FLAT_FAILED', transitionContext, {
+        activeSession: this.activeSession,
+        sourceLabel,
+        failures
+      });
+      throw new Error(`SessionRouter source force-close disabled with ${activeTradeEntries.length} active position(s)`);
+    }
+
+    console.log(`[SessionRouter] Force-closing ${activeTradeEntries.length} ${sourceLabel} position(s)...`);
+    const closed = [];
+    const failures = [];
+    for (const [orderId, trade] of activeTradeEntries) {
+      try {
+        const closeResult = await this._closeSourceTradeThroughExecution(orderId, trade);
+        closed.push({ orderId, ...closeResult });
+        console.log(`[SessionRouter] Closed ${orderId} (${closeResult.symbol}) at $${closeResult.exitPrice}`);
+      } catch (closeErr) {
+        const failure = {
+          orderId,
+          symbol: trade && trade.symbol,
+          reason: closeErr.message
+        };
+        failures.push(failure);
+        console.error(`[SessionRouter] Failed to close ${orderId}:`, closeErr.message);
+      }
+    }
+    if (failures.length > 0) {
+      this._recordTransitionEvent('SESSION_SOURCE_FLAT_FAILED', transitionContext, {
+        activeSession: this.activeSession,
+        sourceLabel,
+        failures
+      });
+      throw new Error(`SessionRouter source force-close failed for ${failures.length} position(s)`);
+    }
+    return { closed, failures };
+  }
+
   async start() {
     let targetSession = 'unknown';
     try {
@@ -284,6 +357,8 @@ class SessionRouter extends EventEmitter {
     if (this.failedSafeMode) return;
     const now = new Date(this.clock());
     const phase = getMarketPhase(now);
+    const windDownHandled = await this._handleWindDownCountdown(now, phase);
+    if (windDownHandled) return;
     let targetSession;
     try {
       targetSession = this._targetSessionFromPhase(phase, 'transition check');
@@ -295,13 +370,209 @@ class SessionRouter extends EventEmitter {
     }
 
     if (this.activeSession === 'crypto' && targetSession === 'stocks') {
+      if (!(await this._readyForBoundarySwitch(now, 'crypto', 'stocks'))) return;
       await this._transitionToStocks(now);
+      this._resetWindDownState();
       return;
     }
     if (this.activeSession === 'stocks' && targetSession === 'crypto') {
+      if (!(await this._readyForBoundarySwitch(now, 'stocks', 'crypto'))) return;
       await this._transitionToCrypto(now);
+      this._resetWindDownState();
       return;
     }
+    if (this.windDownPhase) this._resetWindDownState();
+  }
+
+  _windDownCountdown(now, phase) {
+    if (!this.activeSession || !phase) return null;
+    const ny = getNYTimeParts(now);
+    const minuteOfDay = Number(ny.minuteOfDay);
+    if (!Number.isFinite(minuteOfDay)) return null;
+
+    if (this.activeSession === 'crypto' && phase.phase === 'pre' && phase.isRTH === false) {
+      return {
+        from: 'crypto',
+        to: 'stocks',
+        minutesUntil: RTH_OPEN_MINUTE - minuteOfDay,
+        boundaryMinute: RTH_OPEN_MINUTE,
+        phase
+      };
+    }
+    if (this.activeSession === 'stocks' && phase.isRTH === true) {
+      const closeMinute = Number(phase.rthCloseMinute);
+      if (!Number.isFinite(closeMinute)) return null;
+      return {
+        from: 'stocks',
+        to: 'crypto',
+        minutesUntil: closeMinute - minuteOfDay,
+        boundaryMinute: closeMinute,
+        phase
+      };
+    }
+    return null;
+  }
+
+  async _handleWindDownCountdown(now, phase) {
+    const countdown = this._windDownCountdown(now, phase);
+    if (!countdown || countdown.minutesUntil > WIND_DOWN_SOFT_STOP_MINUTES || countdown.minutesUntil <= 0) {
+      return false;
+    }
+    const phaseName = countdown.minutesUntil <= WIND_DOWN_FORCE_FLATTEN_MINUTES
+      ? 'force_flatten'
+      : countdown.minutesUntil <= WIND_DOWN_WARN_MINUTES
+        ? 'warn'
+        : 'soft_stop';
+    const direction = `${countdown.from}->${countdown.to}`;
+    const firstPhaseHit = this.windDownPhase !== phaseName || this.windDownDirection !== direction;
+    this.windDownPhase = phaseName;
+    this.windDownDirection = direction;
+    this.windDownStartedAt = this.windDownStartedAt || this._transitionAt(now);
+    this.windDownLastTraceAt = this._transitionAt(now);
+
+    if (firstPhaseHit) {
+      this._emitSessionRouterTrace(`SESSION_WIND_DOWN_${phaseName.toUpperCase()}`, {
+        from: countdown.from,
+        to: countdown.to,
+        at: this._transitionAt(now),
+        minutesUntil: countdown.minutesUntil,
+        boundaryMinute: countdown.boundaryMinute,
+        activeTrades: this._activeTradeCount(),
+        route: 'session_router_boundary_wind_down_entries_blocked_exits_routable'
+      });
+    }
+    if (this.stateManager && typeof this.stateManager.pauseTrading === 'function') {
+      await this.stateManager.pauseTrading(
+        `SessionRouter wind-down ${phaseName}: ${countdown.minutesUntil} min until ${countdown.to}`,
+        {
+          source: SESSION_ROUTER_WIND_DOWN_SOURCE,
+          recoverable: true,
+          scope: this._windDownPauseScope(countdown.from)
+        }
+      );
+    }
+    if (phaseName === 'force_flatten' && !this.windDownFlattenComplete) {
+      await this._windDownForceFlatten(now, countdown);
+    }
+    return true;
+  }
+
+  async _windDownForceFlatten(now, countdown) {
+    const transitionContext = this._createTransitionContext(countdown.from, countdown.to, now, {
+      reason: 'wind_down_force_flatten',
+      source: SESSION_ROUTER_WIND_DOWN_SOURCE,
+      brokerId: this._brokerIdForSession(countdown.to),
+      symbols: this._symbolsForSession(countdown.to),
+      timeframe: this._currentTimeframe()
+    });
+    this._emitSessionRouterTrace('SESSION_WIND_DOWN_FORCE_FLATTEN_ATTEMPT', {
+      from: countdown.from,
+      to: countdown.to,
+      at: this._transitionAt(now),
+      activeTrades: this._activeTradeCount()
+    });
+    try {
+      const result = await this._forceCloseSourceTradesThroughExecution(transitionContext, countdown.from);
+      this.windDownFlattenComplete = this._activeTradeCount() === 0;
+      this.windDownFlattenFailures = [];
+      this._emitSessionRouterTrace('SESSION_WIND_DOWN_FORCE_FLATTEN_COMPLETE', {
+        from: countdown.from,
+        to: countdown.to,
+        at: this._transitionAt(now),
+        closedCount: result.closed.length,
+        remainingActiveTrades: this._activeTradeCount()
+      });
+    } catch (err) {
+      this.windDownFlattenComplete = false;
+      this.windDownFlattenFailures = [{ reason: err.message }];
+      this._emitSessionRouterTrace('SESSION_WIND_DOWN_FORCE_FLATTEN_PARTIAL', {
+        from: countdown.from,
+        to: countdown.to,
+        at: this._transitionAt(now),
+        reason: err.message,
+        remainingActiveTrades: this._activeTradeCount(),
+        manualReconciliationRequired: true
+      });
+    }
+  }
+
+  async _readyForBoundarySwitch(now, from, to) {
+    const activeTrades = this._activeTradeCount();
+    if (activeTrades === 0) return true;
+    this.windDownPhase = 'switch_blocked';
+    this.windDownDirection = `${from}->${to}`;
+    this.windDownLastTraceAt = this._transitionAt(now);
+    this._emitSessionRouterTrace('SESSION_WIND_DOWN_SWITCH_BLOCKED_ACTIVE_TRADES', {
+      from,
+      to,
+      at: this._transitionAt(now),
+      activeTrades,
+      route: 'session_router_boundary_switch_waiting_for_flat_source',
+      manualReconciliationRequired: true
+    });
+    await this._windDownForceFlatten(now, {
+      from,
+      to,
+      minutesUntil: 0,
+      boundaryMinute: null,
+      phase: null
+    });
+    return this._activeTradeCount() === 0;
+  }
+
+  _resetWindDownState() {
+    this.windDownPhase = null;
+    this.windDownDirection = null;
+    this.windDownStartedAt = null;
+    this.windDownLastTraceAt = null;
+    this.windDownFlattenComplete = false;
+    this.windDownFlattenFailures = [];
+  }
+
+  _windDownPauseScope(sessionName) {
+    const config = this.ctx && this.ctx.config ? this.ctx.config : {};
+    const symbols = this._symbolsForSession(sessionName);
+    return {
+      symbol: Array.isArray(symbols) && symbols.length > 0 ? symbols[0] : null,
+      timeframe: this.ctx?.timeframeSelector?.currentTimeframe || this.ctx?.candleTimeframe || config.timeframe || null,
+      brokerId: this._brokerIdForSession(sessionName),
+      accountId: config.accountId || null,
+      assetClass: this._assetClassForSession(sessionName),
+      executionMode: config.executionMode || null
+    };
+  }
+
+  async _resumeSessionRouterPauseAfterActivation(sessionName) {
+    if (!this._stateManagerReportsPaused()) return { resumed: false, reason: 'not_paused' };
+    if (!this.stateManager || typeof this.stateManager.resumeTradingIfPausedBy !== 'function') {
+      this._emitSessionRouterTrace('SESSION_ROUTER_STARTUP_PAUSE_LEFT_IN_PLACE', {
+        activeSession: sessionName,
+        reason: 'resumeTradingIfPausedBy unavailable',
+        route: 'startup_activation_does_not_clear_unowned_pause',
+        manualReconciliationRequired: true
+      });
+      return { resumed: false, reason: 'resume_unavailable' };
+    }
+
+    const result = await this.stateManager.resumeTradingIfPausedBy(SESSION_ROUTER_WIND_DOWN_SOURCE, {
+      allowLegacyUnscoped: true,
+      legacyReasonPrefixes: [
+        'SessionRouter wind-down',
+        'SessionRouter: transitioning'
+      ],
+      scope: this._windDownPauseScope(sessionName),
+      resumeSource: 'session_router_startup_activation',
+      reason: `SessionRouter startup activation confirmed ${sessionName}`
+    });
+    this._emitSessionRouterTrace(result && result.success === true
+      ? 'SESSION_ROUTER_STARTUP_PAUSE_RESUME'
+      : 'SESSION_ROUTER_STARTUP_PAUSE_LEFT_IN_PLACE', {
+      activeSession: sessionName,
+      result: result || null,
+      route: 'startup_activation_session_router_pause_recovery',
+      manualReconciliationRequired: !(result && result.success === true)
+    });
+    return result;
   }
 
   _stateManagerReportsPaused() {
@@ -338,6 +609,21 @@ class SessionRouter extends EventEmitter {
   }
 
   getEntryBlockStatus() {
+    if (this.windDownPhase) {
+      return {
+        blocked: true,
+        reason: `SessionRouter wind-down phase=${this.windDownPhase} direction=${this.windDownDirection || 'unknown'}`,
+        at: this.windDownLastTraceAt || this.windDownStartedAt || null,
+        pauseConfirmed: this._stateManagerReportsPaused(),
+        pauseError: null,
+        activeSession: this.activeSession,
+        source: SESSION_ROUTER_WIND_DOWN_SOURCE,
+        windDownPhase: this.windDownPhase,
+        windDownDirection: this.windDownDirection,
+        windDownFlattenComplete: this.windDownFlattenComplete,
+        windDownFlattenFailures: this.windDownFlattenFailures
+      };
+    }
     if (this.failedSafeMode !== true) {
       return { blocked: false };
     }
@@ -1215,12 +1501,15 @@ class SessionRouter extends EventEmitter {
         pauseConfirmed: true
       });
 
+      await this._forceCloseSourceTradesThroughExecution(transitionContext, 'crypto');
       await this._reconcileBrokerRestBeforeActivation(this.krakenAdapter, this.alpacaAdapter, transitionContext, {
         sourceBrokerId: 'kraken',
         targetBrokerId: 'alpaca'
       });
 
-      this._handoffPatternMemory('stocks', transitionContext, timeframe);
+      this._handoffPatternMemory('stocks', transitionContext, timeframe, {
+        sourceFlatConfirmed: true
+      });
 
       if (typeof this.krakenAdapter.unsubscribeAll === 'function') {
         await this._executeBrokerIntent(transitionContext, 'kraken', 'unsubscribe_all', () => (
@@ -1307,47 +1596,7 @@ class SessionRouter extends EventEmitter {
         pauseConfirmed: true
       });
 
-      // Force-close tracked stock positions through the same execution path as
-      // TTP cutoff liquidation. State-only closes can make the router look flat
-      // while broker/journal/trace ownership diverges.
-      const activeTrades = this.stateManager.state && this.stateManager.state.activeTrades;
-      if (activeTrades && activeTrades.size > 0) {
-        if (!this.forceCloseOnSessionEnd) {
-          const failures = Array.from(activeTrades.entries()).map(([orderId, trade]) => ({
-            orderId,
-            symbol: trade && trade.symbol,
-            reason: 'forceCloseOnSessionEnd disabled with active source position'
-          }));
-          this._recordTransitionEvent('SESSION_SOURCE_FLAT_FAILED', transitionContext, {
-            activeSession: this.activeSession,
-            failures
-          });
-          throw new Error(`SessionRouter source force-close disabled with ${activeTrades.size} active position(s)`);
-        }
-
-          console.log(`[SessionRouter] Force-closing ${activeTrades.size} stock position(s)...`);
-          const closeFailures = [];
-          for (const [orderId, trade] of activeTrades.entries()) {
-            try {
-              const closeResult = await this._closeSourceTradeThroughExecution(orderId, trade);
-              console.log(`[SessionRouter] Closed ${orderId} (${closeResult.symbol}) at $${closeResult.exitPrice}`);
-            } catch (closeErr) {
-              closeFailures.push({
-                orderId,
-                symbol: trade && trade.symbol,
-                reason: closeErr.message
-              });
-              console.error(`[SessionRouter] Failed to close ${orderId}:`, closeErr.message);
-            }
-          }
-          if (closeFailures.length > 0) {
-            this._recordTransitionEvent('SESSION_SOURCE_FLAT_FAILED', transitionContext, {
-              activeSession: this.activeSession,
-              failures: closeFailures
-            });
-            throw new Error(`SessionRouter source force-close failed for ${closeFailures.length} position(s)`);
-          }
-      }
+      await this._forceCloseSourceTradesThroughExecution(transitionContext, 'stock');
 
       await this._reconcileBrokerRestBeforeActivation(this.alpacaAdapter, this.krakenAdapter, transitionContext, {
         sourceBrokerId: 'alpaca',
@@ -1439,7 +1688,7 @@ class SessionRouter extends EventEmitter {
       await this._reconcileBrokerRestBeforeActivation(null, this.krakenAdapter, transitionContext, {
         targetBrokerId: 'kraken'
       });
-      this._handoffPatternMemory('crypto', null, timeframe, {
+      this._handoffPatternMemory('crypto', transitionContext, timeframe, {
         reason: 'initial_activation'
       });
       if (this.orderRouter) {
@@ -1459,6 +1708,7 @@ class SessionRouter extends EventEmitter {
         activeSession: this.activeSession
       });
       this._attachActiveOhlcCallback('crypto', this.krakenAdapter, transitionContext);
+      await this._resumeSessionRouterPauseAfterActivation('crypto');
       this._releaseTransitionLock(transitionContext);
       console.log('[SessionRouter] Initial activation: crypto');
     } finally {
@@ -1502,7 +1752,7 @@ class SessionRouter extends EventEmitter {
       await this._reconcileBrokerRestBeforeActivation(null, this.alpacaAdapter, transitionContext, {
         targetBrokerId: 'alpaca'
       });
-      this._handoffPatternMemory('stocks', null, timeframe, {
+      this._handoffPatternMemory('stocks', transitionContext, timeframe, {
         reason: 'initial_activation'
       });
       if (this.orderRouter) {
@@ -1523,6 +1773,7 @@ class SessionRouter extends EventEmitter {
         activeSession: this.activeSession
       });
       this._attachActiveOhlcCallback('stocks', this.alpacaAdapter, transitionContext);
+      await this._resumeSessionRouterPauseAfterActivation('stocks');
       this._releaseTransitionLock(transitionContext);
       console.log('[SessionRouter] Initial activation: stocks');
     } finally {
@@ -1570,6 +1821,14 @@ class SessionRouter extends EventEmitter {
       failedSafeEntryBlockReason: this.failedSafeEntryBlockReason,
       failedSafeEntryBlockAt: this.failedSafeEntryBlockAt,
       failedSafePauseFallbackApplied: this.failedSafePauseFallbackApplied,
+      windDown: {
+        phase: this.windDownPhase,
+        direction: this.windDownDirection,
+        startedAt: this.windDownStartedAt,
+        lastTraceAt: this.windDownLastTraceAt,
+        flattenComplete: this.windDownFlattenComplete,
+        flattenFailures: this.windDownFlattenFailures
+      },
       callbackFence: {
         activeEpoch: this.activeCallbackEpoch,
         activeSession: this.activeOhlcSession,

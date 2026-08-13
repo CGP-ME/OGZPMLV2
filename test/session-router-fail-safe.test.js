@@ -446,9 +446,12 @@ describe('SessionRouter failed-safe transition behavior', () => {
         throw new Error('SessionRouter startup market phase missing boolean isRTH (phase=holiday)');
       });
 
-    await expect(router.start())
-      .rejects
-      .toThrow('SessionRouter startup market phase missing boolean isRTH (phase=holiday)');
+    await expect(router.start()).resolves.toEqual(expect.objectContaining({
+      started: false,
+      failedSafe: true,
+      reason: 'SessionRouter startup market phase missing boolean isRTH (phase=holiday)',
+      activeSession: null
+    }));
 
     expect(router.activeSession).toBe(null);
     expect(router.failedSafeMode).toBe(true);
@@ -482,6 +485,93 @@ describe('SessionRouter failed-safe transition behavior', () => {
     router._checkTransition();
 
     expect(transitionSpy).not.toHaveBeenCalled();
+  });
+
+  test('pre-RTH wind-down soft-stops entries without switching sessions before the boundary', async () => {
+    const windDownNow = new Date('2026-05-26T13:00:00.000Z');
+    const router = makeRouter({
+      clock: () => windDownNow.getTime()
+    });
+    router.activeSession = 'crypto';
+    router.activeBroker = router.krakenAdapter;
+    const transitionSpy = jest.spyOn(router, '_transitionToStocks');
+
+    await router._checkTransition();
+
+    expect(transitionSpy).not.toHaveBeenCalled();
+    expect(router.stateManager.pauseTrading).toHaveBeenCalledWith(
+      expect.stringContaining('SessionRouter wind-down soft_stop'),
+      expect.objectContaining({
+        source: 'session_router_wind_down',
+        recoverable: true,
+        scope: expect.objectContaining({
+          symbol: 'BTC-USD',
+          brokerId: 'kraken',
+          assetClass: 'crypto',
+          executionMode: 'paper'
+        })
+      })
+    );
+    expect(router.getEntryBlockStatus()).toEqual(expect.objectContaining({
+      blocked: true,
+      source: 'session_router_wind_down',
+      windDownPhase: 'soft_stop',
+      windDownDirection: 'crypto->stocks',
+      activeSession: 'crypto',
+      pauseConfirmed: true
+    }));
+  });
+
+  test('T-5 wind-down force-flattens through executeTrade and waits for the boundary to switch', async () => {
+    const flattenNow = new Date('2026-05-26T13:25:00.000Z');
+    const router = makeRouter({
+      clock: () => flattenNow.getTime(),
+      forceCloseOnSessionEnd: true
+    });
+    router.activeSession = 'crypto';
+    router.activeBroker = router.krakenAdapter;
+    router.getExitPrice = jest.fn(() => 70000);
+    router.stateManager.state.activeTrades = new Map([
+      ['BTC_1', { tradeId: 'BTC_1', symbol: 'BTC-USD', action: 'BUY', direction: 'long', assetClass: 'crypto' }]
+    ]);
+    const transitionSpy = jest.spyOn(router, '_transitionToStocks');
+
+    await router._checkTransition();
+
+    expect(transitionSpy).not.toHaveBeenCalled();
+    expect(router.executeTrade).toHaveBeenCalledWith(
+      { action: 'SELL', confidence: 100, tradeId: 'BTC_1', exitReason: 'session_close' },
+      { totalConfidence: 100 },
+      70000,
+      {},
+      [],
+      null,
+      null,
+      'BTC-USD'
+    );
+    expect(router.stateManager.state.activeTrades.size).toBe(0);
+    expect(router.activeSession).toBe('crypto');
+    expect(router.windDownFlattenComplete).toBe(true);
+  });
+
+  test('expired wind-down reaches the transition path and clears wind-down state', async () => {
+    const boundaryNow = new Date('2026-05-26T13:30:00.000Z');
+    const router = makeRouter({
+      clock: () => boundaryNow.getTime()
+    });
+    router.activeSession = 'crypto';
+    router.activeBroker = router.krakenAdapter;
+    router.windDownPhase = 'force_flatten';
+    router.windDownDirection = 'crypto->stocks';
+    router.windDownStartedAt = new Date(boundaryNow.getTime() - 5 * 60 * 1000).toISOString();
+    router.windDownLastTraceAt = router.windDownStartedAt;
+
+    await router._checkTransition();
+
+    expect(router.activeSession).toBe('stocks');
+    expect(router.windDownPhase).toBeNull();
+    expect(router.windDownDirection).toBeNull();
+    expect(router.stateManager.resumeTrading).toHaveBeenCalledTimes(1);
   });
 
   test('scheduled transition interval failure routes to failed-safe halt trace instead of log-only swallow', async () => {
