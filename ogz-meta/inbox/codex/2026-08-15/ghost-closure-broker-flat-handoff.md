@@ -211,6 +211,32 @@ Current ruling from broker-flat law:
 - The four `data/state.json` active records remain evidence, not garbage.
 - If startup/state repair proceeds before API access is restored, the safe branch is quarantine/mark untradeable as `STALE_BROKER_ORPHAN` with loud manual-reconcile evidence; no deletion.
 
+### Step 0b Diagnosis - Paper Keys Were Aimed At The Live Endpoint
+
+Safe prefix checks were run without printing full key values.
+
+Receipts:
+
+- Repo env after sourcing `config/.env` / `.env`: `ALPACA_API_KEY_prefix=PK`, `PAPER_TRADING=false`, `EXECUTION_MODE=live`.
+- PM2 stopped process `ogz-prime-v2`: `ALPACA_API_KEY_prefix=PK`, `PAPER_TRADING=true`, `EXECUTION_MODE=paper`.
+- `~/.pm2/dump.pm2` contains paper-mode process settings but does not contain saved Alpaca key values.
+- `brokers/AlpacaAdapter.js:41-57` selects `https://api.alpaca.markets` only for `mode === 'live'`, and `https://paper-api.alpaca.markets` for `mode === 'paper'`.
+
+Diagnostic rerun against the paper endpoint with the same `PK` key:
+
+```text
+paper /v2/positions HTTP 200 -> []
+paper /v2/account HTTP 200 -> status ACTIVE, trading_blocked false, equity 100000
+paper fills since 2026-08-07 HTTP 200 -> count 0
+```
+
+Current conclusion:
+
+- The credentials available to this process are valid paper credentials.
+- The live broker-flat proof is still unavailable because no `AK` live key was found in the repo env, PM2 `jlist`, or `~/.pm2/dump.pm2` prefix checks.
+- Paper mode can verify clean today; live eval-era records cannot be proven flat from the current credentials.
+- Do not represent 401 as broker flat, and do not convict the four live-scoped records as individual broker orphans. The correct pre-access state is lane-level `BROKER_UNVERIFIABLE`: loud, process alive, no trading on that broker/mode lane until live broker truth is reachable.
+
 ## Step 1 - Trey Decision Gate
 
 Trey decides per leg or all:
