@@ -2824,6 +2824,32 @@ class OrderExecutor {
         emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, positionEffect, reason: 'trading_paused', detail: pauseReason });
         return blockedReturn('trading_paused', { detail: pauseReason });
       }
+      const brokerVerificationBlock = typeof stateManager.getBrokerVerificationEntryBlock === 'function'
+        ? stateManager.getBrokerVerificationEntryBlock({
+          brokerId: executionScope.brokerId,
+          executionMode,
+          symbol,
+        })
+        : null;
+      if (brokerVerificationBlock?.blocked) {
+        console.error(`[ENTRY] Refusing ${decision.action} for ${symbol}: ${brokerVerificationBlock.reason}`);
+        emitTrace(this.ctx, 'ORDER_BLOCKED', {
+          traceId,
+          signalId,
+          symbol,
+          action: decision.action,
+          positionEffect,
+          reason: brokerVerificationBlock.code || 'broker_unverifiable',
+          detail: brokerVerificationBlock.reason,
+          brokerId: brokerVerificationBlock.brokerId,
+          executionMode: brokerVerificationBlock.executionMode,
+        });
+        return blockedReturn(brokerVerificationBlock.code || 'broker_unverifiable', {
+          detail: brokerVerificationBlock.reason,
+          brokerId: brokerVerificationBlock.brokerId,
+          executionMode: brokerVerificationBlock.executionMode,
+        });
+      }
       const globalHaltReason = stateManager.isHalted() ? stateManager.getHaltReason() : null;
       const symbolHaltReason = stateManager.isSymbolHalted(symbol) ? stateManager.getSymbolHaltReason(symbol) : null;
       const symbolHaltCode = symbolHaltReason && typeof stateManager.getSymbolHaltCode === 'function'

@@ -99,6 +99,7 @@ const INVALID_SCOPE_PLACEHOLDER_VALUES = new Set([
 
 const TTP_CUTOFF_FLATNESS_PAUSE_SOURCE = 'ttp_cutoff_unverified_broker_flatness';
 const DIRECTION_INTEGRITY_EXIT_REFUSAL = 'direction_integrity_exit_refusal';
+const BROKER_UNVERIFIABLE = 'broker_unverifiable';
 const TTP_CUTOFF_FLATNESS_PAUSE_PREFIX = '[TTP_MARKET_TIME] broker flatness unverified after cutoff';
 const DATA_FEED_LIVENESS_PAUSE_SOURCE = 'data_feed_liveness';
 const DATA_FEED_LIVENESS_PAUSE_PREFIXES = [
@@ -112,6 +113,7 @@ const AUTHORIZED_SYMBOL_HALT_CODES = new Set([
   'exit_monitor_reconciliation_required',
   'exit_intent_reconciliation_required',
   DIRECTION_INTEGRITY_EXIT_REFUSAL,
+  BROKER_UNVERIFIABLE,
   'symbol_cooldown',
   TTP_CUTOFF_FLATNESS_PAUSE_SOURCE
 ]);
@@ -544,6 +546,8 @@ class StateManager {
       totalPnL: 0,              // realizedPnL + unrealizedPnL
       closedTrades: [],         // Append-only log of full-close records (for win-rate math)
       reconciledTrades: [],     // Broker/local state reconciliations that are not verified fills
+      brokerVerificationIntegrity: { status: 'trusted', lanes: [] },
+      brokerUnverifiableEvidenceRecords: [],
 
       // ─────────────────────────────────────────────────────────────────────
       // SYSTEM STATE
@@ -635,6 +639,8 @@ class StateManager {
       equityIntegrity: { status: 'trusted', excludedTrades: [] },
       totalPnL: 0,
       closedTrades: [],
+      brokerVerificationIntegrity: { status: 'trusted', lanes: [] },
+      brokerUnverifiableEvidenceRecords: [],
       isTrading: false,
       lastError: null,
       pauseReason: null,
@@ -2206,6 +2212,7 @@ class StateManager {
     }
 
     const records = [];
+    const preservedEvidenceRecords = [];
     for (const [tradeId, trade] of Array.from(activeTrades.entries())) {
       let tradeSymbol = null;
       try {
@@ -2214,24 +2221,258 @@ class StateManager {
         tradeSymbol = trade?.symbol ? String(trade.symbol).trim().toUpperCase() : null;
       }
       if (tradeSymbol !== normalized) continue;
+      const brokerUnverifiableLane = this._brokerUnverifiableLaneForTrade(trade);
+      if (brokerUnverifiableLane) {
+        const resolvedTradeId = String(trade?.orderId || trade?.id || tradeId);
+        const preserved = {
+          tradeId: resolvedTradeId,
+          symbol: normalized,
+          code: BROKER_UNVERIFIABLE,
+          brokerId: brokerUnverifiableLane.brokerId,
+          executionMode: brokerUnverifiableLane.executionMode,
+          reason: brokerUnverifiableLane.reason,
+        };
+        preservedEvidenceRecords.push(preserved);
+        emitTrace({}, 'BROKER_UNVERIFIABLE_EVIDENCE_PRESERVED', {
+          ...preserved,
+          source,
+          manualReconciliationRequired: true,
+          operatorActionRequired: true,
+        });
+        console.error(`[StateManager] Preserved broker-unverifiable active trade ${resolvedTradeId} for ${normalized}; not quarantining/deleting evidence record`);
+        continue;
+      }
       records.push(this._quarantineActiveTrade(tradeId, trade, issues, source));
     }
 
-    if (records.length > 0) {
-      this._reconcileOpenPositionFromActiveTrades();
+    if (preservedEvidenceRecords.length > 0) {
+      const existingEvidence = Array.isArray(this.state.brokerUnverifiableEvidenceRecords)
+        ? this.state.brokerUnverifiableEvidenceRecords.filter((record) => record && typeof record === 'object' && !Array.isArray(record))
+        : [];
+      const nextEvidence = [...existingEvidence];
+      for (const preserved of preservedEvidenceRecords) {
+        const duplicate = nextEvidence.some((record) => (
+          record.tradeId === preserved.tradeId
+          && record.symbol === preserved.symbol
+          && record.code === preserved.code
+          && record.source === source
+        ));
+        if (!duplicate) {
+          nextEvidence.push({
+            ...preserved,
+            source,
+            preservedAt: new Date().toISOString(),
+            status: 'preserved',
+            manualReconciliationRequired: true,
+            operatorActionRequired: true,
+          });
+        }
+      }
+      this.state.brokerUnverifiableEvidenceRecords = nextEvidence;
+    }
+
+    if (records.length > 0 || preservedEvidenceRecords.length > 0) {
+      if (records.length > 0) {
+        this._reconcileOpenPositionFromActiveTrades();
+      }
       const saveResult = this.save({ suppressPersistenceFailureTrace: true });
       if (!saveResult || saveResult.success !== true) {
         this._recordStatePersistenceBoundaryFailure(saveResult, source, {
           symbol: normalized,
           quarantined: records.length,
+          preservedEvidenceRecords: preservedEvidenceRecords.length,
           manualReconciliationRequired: true,
           operatorActionRequired: true,
         });
       }
-      return { quarantined: records.length, records, symbol: normalized, persistence: saveResult };
+      return { quarantined: records.length, records, symbol: normalized, persistence: saveResult, preservedEvidenceRecords };
     }
 
-    return { quarantined: 0, records, symbol: normalized };
+    return { quarantined: 0, records, symbol: normalized, preservedEvidenceRecords };
+  }
+
+  _alpacaCredentialMismatchForExecutionMode(executionMode) {
+    const mode = typeof executionMode === 'string' ? executionMode.trim().toLowerCase() : '';
+    if (mode !== 'live' && mode !== 'paper') {
+      return null;
+    }
+
+    ensureConfigLoaded();
+    const apiKey = getConfigValue('broker.alpacaApiKey');
+    const keyText = typeof apiKey === 'string' ? apiKey.trim() : '';
+    if (!keyText) {
+      if (mode === 'paper') {
+        return null;
+      }
+      return {
+        executionMode: mode,
+        expectedKeyPrefix: mode === 'live' ? 'AK' : 'PK',
+        actualKeyPrefix: 'missing',
+        reason: `Alpaca ${mode} broker verification unavailable: ALPACA_API_KEY is missing`,
+      };
+    }
+
+    const prefix = keyText.slice(0, 2).toUpperCase();
+    if (prefix !== 'AK' && prefix !== 'PK') {
+      return null;
+    }
+
+    const expected = mode === 'live' ? 'AK' : 'PK';
+    if (prefix === expected) {
+      return null;
+    }
+
+    return {
+      executionMode: mode,
+      expectedKeyPrefix: expected,
+      actualKeyPrefix: prefix,
+      reason: `Alpaca ${mode} broker verification unavailable: ${prefix} key cannot prove ${mode} broker flatness`,
+    };
+  }
+
+  _brokerUnverifiableLaneForTrade(trade) {
+    const integrity = this.state.brokerVerificationIntegrity;
+    if (!integrity || integrity.status !== 'untrusted' || integrity.code !== BROKER_UNVERIFIABLE) {
+      return null;
+    }
+    const brokerId = firstNonEmptyString(trade?.brokerId, trade?.brokerName, trade?.broker);
+    const executionMode = firstNonEmptyString(trade?.executionMode);
+    if (!brokerId || !executionMode) {
+      return null;
+    }
+    const normalizedBrokerId = brokerId.trim().toLowerCase();
+    const normalizedExecutionMode = executionMode.trim().toLowerCase();
+    return Array.isArray(integrity.affectedLanes)
+      ? integrity.affectedLanes.find((candidate) => (
+        candidate
+        && candidate.brokerId === normalizedBrokerId
+        && candidate.executionMode === normalizedExecutionMode
+      )) || null
+      : null;
+  }
+
+  _recordBrokerUnverifiableActiveTradeLanes() {
+    if (!(this.state.activeTrades instanceof Map) || this.state.activeTrades.size === 0) {
+      if (this.state.brokerVerificationIntegrity?.code === BROKER_UNVERIFIABLE) {
+        this.state.brokerVerificationIntegrity = { status: 'trusted', lanes: [], clearedAt: new Date().toISOString() };
+        return true;
+      }
+      return false;
+    }
+
+    const lanes = new Map();
+    for (const [tradeId, trade] of this.state.activeTrades.entries()) {
+      if (!trade || typeof trade !== 'object') continue;
+      const brokerId = firstNonEmptyString(trade.brokerId, trade.brokerName, trade.broker);
+      if (!brokerId || brokerId.trim().toLowerCase() !== 'alpaca') continue;
+      const mismatch = this._alpacaCredentialMismatchForExecutionMode(trade.executionMode);
+      if (!mismatch) continue;
+
+      const laneKey = `alpaca:${mismatch.executionMode}`;
+      if (!lanes.has(laneKey)) {
+        lanes.set(laneKey, {
+          brokerId: 'alpaca',
+          executionMode: mismatch.executionMode,
+          expectedKeyPrefix: mismatch.expectedKeyPrefix,
+          actualKeyPrefix: mismatch.actualKeyPrefix,
+          reason: mismatch.reason,
+          affectedSymbols: new Set(),
+          tradeIds: [],
+        });
+      }
+      const lane = lanes.get(laneKey);
+      lane.tradeIds.push(String(trade?.orderId || trade?.id || tradeId));
+      const tradeSymbol = firstNonEmptyString(trade.symbol);
+      if (tradeSymbol) {
+        lane.affectedSymbols.add(tradeSymbol.trim().toUpperCase());
+      }
+    }
+
+    if (lanes.size === 0) {
+      if (this.state.brokerVerificationIntegrity?.code === BROKER_UNVERIFIABLE) {
+        this.state.brokerVerificationIntegrity = { status: 'trusted', lanes: [], clearedAt: new Date().toISOString() };
+        return true;
+      }
+      return false;
+    }
+
+    const recordedAt = new Date().toISOString();
+    const affectedLanes = Array.from(lanes.values()).map((lane) => ({
+      ...lane,
+      affectedSymbols: Array.from(lane.affectedSymbols).sort(),
+    }));
+    this.state.brokerVerificationIntegrity = {
+      status: 'untrusted',
+      code: BROKER_UNVERIFIABLE,
+      source: 'StateManager.load',
+      entryBlocking: true,
+      brokerFlatVerified: false,
+      manualReconciliationRequired: true,
+      operatorActionRequired: true,
+      recordedAt,
+      reason: 'Broker verification is unavailable for restored active trade lane(s)',
+      affectedLanes,
+    };
+
+    const nextHalts = { ...(this.state.symbolEntryHalts || {}) };
+    for (const lane of affectedLanes) {
+      for (const symbol of lane.affectedSymbols) {
+        nextHalts[symbol] = {
+          reason: `[BROKER_UNVERIFIABLE] ${lane.reason}; active records remain evidence until broker flatness is witnessed`,
+          code: BROKER_UNVERIFIABLE,
+          haltedAt: Date.now(),
+          expiresAt: null,
+          authority: 'broker_verification',
+          financialIntegrityCritical: true,
+          entryBlockScope: 'symbol',
+          brokerId: lane.brokerId,
+          executionMode: lane.executionMode,
+          brokerFlatVerified: false,
+          manualReconciliationRequired: true,
+          operatorActionRequired: true,
+          affectedTradeIds: lane.tradeIds,
+        };
+      }
+    }
+    this.state.symbolEntryHalts = this._normalizeSymbolEntryHaltsCollection(
+      nextHalts,
+      'StateManager.brokerVerification'
+    );
+
+    emitTrace({}, 'BROKER_UNVERIFIABLE', this.state.brokerVerificationIntegrity);
+    console.error(`[StateManager] BROKER_UNVERIFIABLE: ${affectedLanes.map(lane => `${lane.brokerId}:${lane.executionMode}:${lane.actualKeyPrefix}->${lane.expectedKeyPrefix}`).join(', ')}`);
+    return true;
+  }
+
+  getBrokerVerificationEntryBlock(scope = {}) {
+    const integrity = this.state.brokerVerificationIntegrity;
+    if (!integrity || integrity.status !== 'untrusted' || integrity.code !== BROKER_UNVERIFIABLE || integrity.entryBlocking !== true) {
+      return null;
+    }
+    const brokerId = typeof scope.brokerId === 'string' ? scope.brokerId.trim().toLowerCase() : '';
+    const executionMode = typeof scope.executionMode === 'string' ? scope.executionMode.trim().toLowerCase() : '';
+    if (!brokerId || !executionMode) {
+      return null;
+    }
+    const lane = Array.isArray(integrity.affectedLanes)
+      ? integrity.affectedLanes.find((candidate) => (
+        candidate
+        && candidate.brokerId === brokerId
+        && candidate.executionMode === executionMode
+      ))
+      : null;
+    if (!lane) {
+      return null;
+    }
+    return {
+      blocked: true,
+      code: BROKER_UNVERIFIABLE,
+      reason: lane.reason || integrity.reason,
+      brokerId,
+      executionMode,
+      affectedSymbols: lane.affectedSymbols || [],
+      tradeIds: lane.tradeIds || [],
+    };
   }
 
   _stateSnapshotForPersistence(state = this.state) {
@@ -4255,6 +4496,9 @@ class StateManager {
         }
         const activeTradeCount = this.state.activeTrades instanceof Map ? this.state.activeTrades.size : 0;
         const symbolHaltCount = Object.keys(this.state.symbolEntryHalts || {}).length;
+        if (this._recordBrokerUnverifiableActiveTradeLanes()) {
+          correctedStateShape = true;
+        }
         if (activeTradeCount === 0) {
           const persistedPosition = Number(this.state.position);
           const persistedInPosition = Number(this.state.inPosition);
@@ -4723,6 +4967,7 @@ class StateManager {
         dailyTradeCount: state.dailyTradeCount,
         quarantinedTrades: state.quarantinedTrades || [],
         ttpCutoffQuarantine: state.ttpCutoffQuarantine || null,
+        brokerVerificationIntegrity: state.brokerVerificationIntegrity || { status: 'trusted', lanes: [] },
         symbolEntryHalts: state.symbolEntryHalts || {},
         runtimeScope,
         runtimeScopeStatus,
@@ -4750,6 +4995,7 @@ class StateManager {
         dailyTradeCount: dashboardState.dailyTradeCount,
         quarantinedTrades: dashboardState.quarantinedTrades,
         ttpCutoffQuarantine: dashboardState.ttpCutoffQuarantine,
+        brokerVerificationIntegrity: dashboardState.brokerVerificationIntegrity,
         symbolEntryHalts: dashboardState.symbolEntryHalts,
         runtimeScope,
         runtimeScopeStatus,

@@ -9,6 +9,7 @@ const mockStateManager = {
   isSymbolHalted: jest.fn(() => false),
   getSymbolHaltReason: jest.fn(() => null),
   getSymbolHaltCode: jest.fn(() => null),
+  getBrokerVerificationEntryBlock: jest.fn(() => null),
   getState: jest.fn(),
   openPosition: jest.fn(),
   closePosition: jest.fn(),
@@ -209,6 +210,7 @@ describe('OrderExecutor pause gate', () => {
     mockStateManager.isSymbolHalted.mockReturnValue(false);
     mockStateManager.getSymbolHaltReason.mockReturnValue(null);
     mockStateManager.getSymbolHaltCode.mockReturnValue(null);
+    mockStateManager.getBrokerVerificationEntryBlock.mockReturnValue(null);
     mockStateManager.getEquity.mockReturnValue(10000);
     mockStateManager.getAvailableCapital.mockReturnValue(10000);
     mockStateManager.getState.mockReturnValue({ position: 0, balance: 10000 });
@@ -367,6 +369,53 @@ describe('OrderExecutor pause gate', () => {
 
     expect(sessionRouter.getEntryBlockStatus).not.toHaveBeenCalled();
     expect(exitPlanSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test('blocks broker-unverifiable entry lane before routing an order', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      if (key === 'balance') return 10000;
+      if (key === 'position') return 0;
+      return null;
+    });
+    mockStateManager.getBrokerVerificationEntryBlock.mockReturnValue({
+      blocked: true,
+      code: 'broker_unverifiable',
+      reason: 'Alpaca live broker verification unavailable: PK key cannot prove live broker flatness',
+      brokerId: 'alpaca',
+      executionMode: 'live',
+    });
+    const executor = makeExecutor({
+      executionMode: 'live',
+    }, {
+      paperTrading: false,
+    });
+
+    const result = await executor.executeTrade(
+      { action: 'BUY', confidence: 75 },
+      {},
+      425,
+      {},
+      [],
+      null,
+      makeOrchResult(),
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'broker_unverifiable',
+      detail: 'Alpaca live broker verification unavailable: PK key cannot prove live broker flatness',
+      symbol: 'TSLA',
+      action: 'BUY',
+    }));
+    expect(mockStateManager.getBrokerVerificationEntryBlock).toHaveBeenCalledWith({
+      brokerId: 'alpaca',
+      executionMode: 'live',
+      symbol: 'TSLA',
+    });
+    expect(mockStateManager.getAvailableCapital).not.toHaveBeenCalled();
+    expect(executor.ctx.orderRouter.sendOrder).not.toHaveBeenCalled();
   });
 
   test('emits gate_event row when symbol cooldown blocks an entry', async () => {

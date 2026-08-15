@@ -781,6 +781,137 @@ describe('StateManager load validation', () => {
     expect(manager.getEquity(110)).toBe(10000 + 300 * 0.1);
   });
 
+  test('load marks live Alpaca records broker-unverifiable with paper keys without deleting evidence records', () => {
+    process.env.ALPACA_API_KEY = 'PKTESTPAPERKEY1234567890';
+    process.env.ALPACA_MODE = 'paper';
+    process.env.EXECUTION_MODE = 'paper';
+    process.env.PAPER_TRADING = 'true';
+    process.env.LIVE_TRADING = 'false';
+    fs.writeFileSync(stateFile, JSON.stringify({
+      balance: 10000,
+      totalBalance: 10000,
+      initialBalance: 10000,
+      position: 500,
+      inPosition: 500,
+      activeTrades: [[
+        'LIVE_ALPACA_1',
+        {
+          id: 'LIVE_ALPACA_1',
+          orderId: 'LIVE_ALPACA_1',
+          action: 'BUY',
+          direction: 'long',
+          status: 'open',
+          symbol: 'TSLA',
+          brokerId: 'alpaca',
+          accountId: 'acct-live',
+          accountIdSource: 'config',
+          assetClass: 'stocks',
+          executionMode: 'live',
+          timeframe: '15m',
+          scopeKey: 'live:alpaca:acct-live:stocks:TSLA:15m',
+          sizeUsd: 500,
+          size: 500,
+          entryPrice: 100,
+          entryOrderQuantity: 5,
+          entryOrderQuantityUnit: 'shares',
+          remainingOrderQuantity: 5,
+          remainingOrderQuantityUnit: 'shares',
+          entryStrategy: 'LoadBrokerVerification',
+          exitContract,
+        },
+      ]],
+      lastPrices: { TSLA: 100 },
+      isTrading: true,
+      symbolEntryHalts: {},
+      symbolLossStreaks: {},
+    }), 'utf8');
+
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    expect(manager.get('activeTrades').has('LIVE_ALPACA_1')).toBe(true);
+    expect(manager.get('quarantinedTrades')).toEqual([]);
+    expect(manager.get('brokerVerificationIntegrity')).toEqual(expect.objectContaining({
+      status: 'untrusted',
+      code: 'broker_unverifiable',
+      entryBlocking: true,
+      brokerFlatVerified: false,
+      manualReconciliationRequired: true,
+      operatorActionRequired: true,
+      affectedLanes: [
+        expect.objectContaining({
+          brokerId: 'alpaca',
+          executionMode: 'live',
+          expectedKeyPrefix: 'AK',
+          actualKeyPrefix: 'PK',
+          affectedSymbols: ['TSLA'],
+          tradeIds: ['LIVE_ALPACA_1'],
+        }),
+      ],
+    }));
+    expect(manager.getSymbolHaltCode('TSLA')).toBe('broker_unverifiable');
+    expect(manager.getBrokerVerificationEntryBlock({
+      brokerId: 'alpaca',
+      executionMode: 'live',
+      symbol: 'TSLA',
+    })).toEqual(expect.objectContaining({
+      blocked: true,
+      code: 'broker_unverifiable',
+      brokerId: 'alpaca',
+      executionMode: 'live',
+    }));
+    const quarantineAttempt = manager.quarantineActiveTradesForSymbol(
+      'TSLA',
+      ['symbol_context_registration_failed:test'],
+      'test.symbolContextRegistration'
+    );
+    expect(quarantineAttempt).toEqual(expect.objectContaining({
+      quarantined: 0,
+      symbol: 'TSLA',
+      preservedEvidenceRecords: [
+        expect.objectContaining({
+          tradeId: 'LIVE_ALPACA_1',
+          code: 'broker_unverifiable',
+          brokerId: 'alpaca',
+          executionMode: 'live',
+        }),
+      ],
+    }));
+    expect(manager.get('activeTrades').has('LIVE_ALPACA_1')).toBe(true);
+    expect(manager.get('quarantinedTrades')).toEqual([]);
+    expect(manager.get('brokerUnverifiableEvidenceRecords')).toEqual([
+      expect.objectContaining({
+        tradeId: 'LIVE_ALPACA_1',
+        code: 'broker_unverifiable',
+        status: 'preserved',
+        source: 'test.symbolContextRegistration',
+      }),
+    ]);
+
+    const saved = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+    expect(saved.activeTrades.map(([tradeId]) => tradeId)).toEqual(['LIVE_ALPACA_1']);
+    expect(saved.quarantinedTrades).toEqual([]);
+    expect(saved.brokerUnverifiableEvidenceRecords).toEqual([
+      expect.objectContaining({
+        tradeId: 'LIVE_ALPACA_1',
+        code: 'broker_unverifiable',
+        status: 'preserved',
+        source: 'test.symbolContextRegistration',
+      }),
+    ]);
+    expect(saved.brokerVerificationIntegrity).toEqual(expect.objectContaining({
+      status: 'untrusted',
+      code: 'broker_unverifiable',
+      entryBlocking: true,
+    }));
+    expect(saved.symbolEntryHalts.TSLA).toEqual(expect.objectContaining({
+      code: 'broker_unverifiable',
+      brokerId: 'alpaca',
+      executionMode: 'live',
+      brokerFlatVerified: false,
+    }));
+  });
+
   test('loads legacy active trades with explicit unknown lifecycle state', () => {
     fs.writeFileSync(stateFile, JSON.stringify({
       balance: 10000,
