@@ -1408,6 +1408,7 @@ class SessionRouter extends EventEmitter {
         console.error('[SessionRouter] Failed to record SESSION_FAILED_SAFE:', recordErr.message);
       }
     }
+    const failedSafeJournalWriteFailed = Boolean(journalError);
 
     console.error(`[SessionRouter] SESSION_FAILED_SAFE: ${from} -> ${to}: ${reason}`);
     this._emitSessionRouterTrace('SESSION_ROUTER_FAILED_SAFE_HALT', {
@@ -1417,7 +1418,10 @@ class SessionRouter extends EventEmitter {
       at,
       activeSession: this.activeSession,
       failureSource: options.failureSource || null,
-      journalError: journalError ? journalError.message : null
+      journalError: journalError ? journalError.message : null,
+      failedSafeJournalWriteFailed,
+      manualReconciliationRequired: failedSafeJournalWriteFailed,
+      reconciliationMarker: failedSafeJournalWriteFailed ? 'failed_safe_journal_write_failed' : null
     });
     this.emit('session_failed_safe', {
       from,
@@ -1425,7 +1429,9 @@ class SessionRouter extends EventEmitter {
       at,
       reason,
       activeSession: this.activeSession,
-      journalError: journalError ? journalError.message : null
+      journalError: journalError ? journalError.message : null,
+      failedSafeJournalWriteFailed,
+      manualReconciliationRequired: failedSafeJournalWriteFailed
     });
 
     if (!this.failedSafePauseConfirmed) {

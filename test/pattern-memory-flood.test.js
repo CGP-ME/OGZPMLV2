@@ -16,7 +16,9 @@ process.env.BACKTEST_MODE = 'true';
 process.env.CANDLE_DATA_FILE = 'tuning/tsla-15m-18mo.json';
 process.env.BACKTEST_NO_PATTERN_SAVE = 'true';
 
-const { EnhancedPatternChecker } = require('../core/EnhancedPatternRecognition');
+const optimizedIndicators = require('../core/OptimizedIndicators');
+const RuntimeFeatureExtractor = require('../core/FeatureExtractor');
+const { EnhancedPatternChecker, FeatureExtractor } = require('../core/EnhancedPatternRecognition');
 
 beforeAll(() => {
   process.env.ASSET_CLASS = 'stocks';
@@ -111,6 +113,129 @@ test('Pattern signature is deterministic — identical inputs produce identical 
   const p2 = checker.analyzePatterns(input);
 
   expect(p1[0].signature).toBe(p2[0].signature);
+});
+
+test('OptimizedIndicators reports named unavailable instead of fabricated neutral defaults', () => {
+  const result = optimizedIndicators.calculateTechnicalIndicators([
+    makeCandle(100, 0),
+    makeCandle(101, 900_000),
+  ]);
+
+  expect(result).toEqual(expect.objectContaining({
+    available: false,
+    status: 'unavailable',
+    code: 'indicators_unavailable',
+    reason: 'insufficient_indicator_candles',
+    rsi: null,
+    macd: null,
+    volatility: null,
+  }));
+  expect(result).not.toEqual(expect.objectContaining({
+    rsi: 50,
+    macd: 0,
+    volatility: 0.02,
+  }));
+});
+
+test('Pattern feature extraction returns unavailable instead of learning fabricated features', () => {
+  const features = FeatureExtractor.extract({
+    candles: [],
+    rsi: 50,
+    macd: 0,
+    signal: 0,
+    trend: 'sideways',
+  });
+
+  expect(features).toEqual(expect.objectContaining({
+    available: false,
+    status: 'unavailable',
+    code: 'pattern_features_unavailable',
+    reason: 'missing_pattern_candles',
+  }));
+});
+
+test('Pattern checker emits no learning pattern when indicator features are unavailable', () => {
+  const checker = new EnhancedPatternChecker();
+  const candles = [];
+  for (let i = 0; i < 30; i++) {
+    candles.push(makeCandle(100 + i * 0.05, i * 900_000));
+  }
+
+  const patterns = checker.analyzePatterns({
+    candles,
+    volume: 1000000,
+  });
+
+  expect(patterns).toEqual([]);
+});
+
+test('Runtime FeatureExtractor returns unavailable instead of clamping null indicators to neutral features', () => {
+  const candles = [];
+  for (let i = 0; i < 10; i++) {
+    candles.push(makeCandle(100 + i * 0.05, i * 900_000));
+  }
+
+  const result = RuntimeFeatureExtractor.extract({
+    indicators: {
+      rsi: null,
+      trend: 'sideways',
+      atrNormalized: null,
+      bb: { percentB: null },
+      macd: null,
+    },
+    candles,
+  });
+
+  expect(result).toEqual(expect.objectContaining({
+    available: false,
+    status: 'unavailable',
+    code: 'feature_vector_unavailable',
+    reason: 'feature_input_unavailable',
+    features: null,
+    unavailableFields: expect.arrayContaining([
+      'rsiNormalized',
+      'volatilityLevel',
+      'bbPosition',
+      'momentumScore',
+    ]),
+  }));
+  expect(RuntimeFeatureExtractor.extractArray({
+    indicators: {
+      rsi: null,
+      trend: 'sideways',
+      atrNormalized: null,
+      bb: { percentB: null },
+      macd: null,
+    },
+    candles,
+  })).toBeNull();
+});
+
+test('Runtime FeatureExtractor accepts flat IndicatorEngine snapshot fields', () => {
+  const candles = [];
+  for (let i = 0; i < 10; i++) {
+    candles.push(makeCandle(100 + i * 0.05, i * 900_000));
+  }
+
+  const result = RuntimeFeatureExtractor.extract({
+    indicators: {
+      rsi: 55,
+      superTrendDirection: 'sideways',
+      atrPercent: 1.25,
+      bbPercentB: 0.52,
+      macd: 0.14,
+      macdSignal: 0.08,
+    },
+    candles,
+  });
+
+  expect(result).toEqual(expect.objectContaining({
+    available: true,
+    status: 'trusted',
+    features: expect.any(Array),
+  }));
+  expect(result.features).toHaveLength(9);
+  expect(result.features.every((feature) => typeof feature === 'number' && feature >= 0 && feature <= 1)).toBe(true);
 });
 
 test('Quantization collapses near-identical features to same signature', () => {

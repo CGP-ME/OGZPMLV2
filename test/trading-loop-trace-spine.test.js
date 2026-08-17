@@ -1,5 +1,20 @@
 'use strict';
 
+const TEST_ENV_DEFAULTS = Object.freeze({
+  ALPACA_API_KEY: 'test-alpaca-key',
+  ALPACA_API_SECRET: 'test-alpaca-secret',
+  ALPACA_MODE: 'paper',
+  BROKER: 'alpaca',
+  EXECUTION_MODE: 'paper',
+  PAPER_TRADING: 'true',
+  LIVE_TRADING: 'false',
+  CONFIRM_LIVE_TRADING: 'false',
+});
+
+for (const [key, value] of Object.entries(TEST_ENV_DEFAULTS)) {
+  process.env[key] = value;
+}
+
 const mockStateManager = {
   getTradesBySymbol: jest.fn(() => []),
   get: jest.fn((key) => {
@@ -2167,6 +2182,55 @@ describe('TradingLoop trace spine', () => {
       exitReason: 'ttp_consistency_profit_cap',
       tradeId: 'SHORT_1',
     }));
+  });
+
+  test('skips pattern observation when runtime feature extraction is unavailable', () => {
+    const recordObservation = jest.fn();
+    const getPatternStats = jest.fn(() => null);
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const priorPatternSave = process.env.BACKTEST_NO_PATTERN_SAVE;
+    process.env.BACKTEST_NO_PATTERN_SAVE = 'false';
+
+    try {
+      const loop = new TradingLoop(baseEntryContext({
+        priceHistory: candles(10),
+        indicatorEngine: {
+          getSnapshot: jest.fn(() => ({
+            indicators: {
+              rsi: null,
+              superTrendDirection: 'sideways',
+              atrPercent: null,
+              bbPercentB: null,
+              macd: null,
+              macdSignal: null,
+            },
+          })),
+          getRawState: jest.fn(() => null),
+        },
+        fibonacciDetector: { detect: jest.fn(() => ({ levels: [] })) },
+        patternChecker: {
+          analyzePatterns: jest.fn(() => [{ name: 'Null Feature Pattern', confidence: 0.9 }]),
+          memory: { recordObservation, getPatternStats },
+        },
+        broadcastPatternAnalysis: jest.fn(),
+        backtestFast: false,
+      }));
+
+      const data = loop._gatherData(109, null, 'TSLA', { volume: 1000, timestamp: 1700000000009 });
+      const pattern = data.patterns.find((candidate) => candidate.name === 'Null Feature Pattern');
+
+      expect(pattern.features).toBeNull();
+      expect(recordObservation).not.toHaveBeenCalled();
+      expect(getPatternStats).not.toHaveBeenCalled();
+      expect(loop._patternObservationCount).toBeUndefined();
+    } finally {
+      if (priorPatternSave === undefined) {
+        delete process.env.BACKTEST_NO_PATTERN_SAVE;
+      } else {
+        process.env.BACKTEST_NO_PATTERN_SAVE = priorPatternSave;
+      }
+      errorSpy.mockRestore();
+    }
   });
 
   test('fails loud when runtime asset class is missing while TTP consistency rules are enabled', async () => {

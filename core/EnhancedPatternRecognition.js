@@ -33,6 +33,16 @@ const path = require('path');
 const indicators = require('./OptimizedIndicators'); // Fixed: Import singleton directly
 const { c, o, h, l, v } = require('./CandleHelper');
 const { getInstance: getUnifiedPatternMemory } = require('./UnifiedPatternMemory');
+const { createTraceId, emitTrace } = require('./TraceSpine');
+
+const PATTERN_FEATURE_CONFIG_QUESTIONS = Object.freeze({
+  useOptimizedIndicators: 'patternRecognition.useOptimizedIndicators',
+  flatCandleWickRatio: 'patternRecognition.flatCandleWickRatio',
+  defaultPatternQuality: 'patternRecognition.defaultPatternQuality',
+});
+const USE_OPTIMIZED_INDICATORS_QUESTION_DEFAULT = true;
+const FLAT_CANDLE_WICK_RATIO_QUESTION_DEFAULT = 0.5;
+const DEFAULT_PATTERN_QUALITY_QUESTION_DEFAULT = 0.3;
 
 // Pattern performance tracking for visualization and marketing
 const pattern_performance = {};
@@ -137,6 +147,25 @@ function findBestDTWMatch(newFeatures, storedPatterns) {
  * Pattern feature extraction with optimized signal processing
  */
 class FeatureExtractor {
+  static unavailable(reason, details = {}) {
+    return {
+      available: false,
+      status: 'unavailable',
+      code: 'pattern_features_unavailable',
+      reason,
+      features: null,
+      ...details,
+    };
+  }
+
+  static isUnavailable(value) {
+    return Boolean(value && (value.available === false || value.status === 'unavailable'));
+  }
+
+  static isFiniteNumber(value) {
+    return typeof value === 'number' && Number.isFinite(value);
+  }
+
   /**
    * Extract normalized feature vector from market data
    * @param {Object} params - Input parameters
@@ -149,14 +178,12 @@ class FeatureExtractor {
     signal,
     rsi,
     lastTrade = null,
-    useOptimizedIndicators = true
+    useOptimizedIndicators = USE_OPTIMIZED_INDICATORS_QUESTION_DEFAULT
   }) {
-    // FIX 2026-02-19: Never return empty array - always generate features
-    // Empty features breaks pattern learning pipeline (outcomes never recorded)
     if (!candles || candles.length === 0) {
-      // No candles at all - return default feature vector
-      // [rsi, macdDelta, trend, bbWidth, vol, wickRatio, priceChange, volumeChange, lastDirection]
-      return [0.5, 0, 0, 0.02, 0.01, 0.5, 0, 0, 0];
+      return FeatureExtractor.unavailable('missing_pattern_candles', {
+        candleCount: 0,
+      });
     }
 
     const latestCandle = candles[candles.length - 1];
@@ -165,18 +192,39 @@ class FeatureExtractor {
     // Use optimized indicators if available
     if (useOptimizedIndicators && typeof indicators !== 'undefined') {
       // Technical indicators (use provided values or calculate)
-      const calculatedRsi = rsi || indicators.calculateRSI(candles);
-      const calculatedMacd = typeof macd === 'number' ? macd : indicators.calculateMACD(candles).macdLine;
-      const calculatedSignal = typeof signal === 'number' ? signal : indicators.calculateMACD(candles).signalLine;
-      const calculatedTrend = trend || indicators.determineTrend(candles);
+      const macdPacket = (typeof macd === 'number' && typeof signal === 'number')
+        ? null
+        : indicators.calculateMACD(candles);
+      const calculatedRsi = typeof rsi === 'number' ? rsi : indicators.calculateRSI(candles);
+      const calculatedMacd = typeof macd === 'number' ? macd : macdPacket?.macdLine;
+      const calculatedSignal = typeof signal === 'number' ? signal : macdPacket?.signalLine;
+      const calculatedTrend = typeof trend === 'string' && trend.trim()
+        ? trend
+        : indicators.determineTrend(candles);
 
       // Bollinger data for volatility context
       const bb = indicators.calculateBollingerBands(candles);
-      const bbWidth = bb.width || 0;
+      const bbWidth = bb?.width;
 
       // Volatility measure - FIX 2026-02-26 P1: Normalize to 0-1 scale
       // Raw stddev ~0.02 for normal, ~0.05 for high vol. Cap at 1.0
       const rawVol = indicators.calculateVolatility(candles);
+      const unavailableFields = [];
+      if (!FeatureExtractor.isFiniteNumber(calculatedRsi)) unavailableFields.push('rsi');
+      if (!FeatureExtractor.isFiniteNumber(calculatedMacd)) unavailableFields.push('macd');
+      if (!FeatureExtractor.isFiniteNumber(calculatedSignal)) unavailableFields.push('macdSignal');
+      if (typeof calculatedTrend !== 'string' || !calculatedTrend.trim()) unavailableFields.push('trend');
+      if (!FeatureExtractor.isFiniteNumber(bbWidth)) unavailableFields.push('bollingerWidth');
+      if (!FeatureExtractor.isFiniteNumber(rawVol)) unavailableFields.push('volatility');
+
+      if (unavailableFields.length > 0) {
+        return FeatureExtractor.unavailable('indicator_feature_unavailable', {
+          unavailableFields,
+          candleCount: candles.length,
+          configQuestionKey: PATTERN_FEATURE_CONFIG_QUESTIONS.useOptimizedIndicators,
+        });
+      }
+
       const vol = Math.min(rawVol / 0.05, 1.0);  // Normalize: 0.05 stddev = 1.0
 
       // Normalize and encode features
@@ -189,7 +237,7 @@ class FeatureExtractor {
       const bodySize = Math.abs(c(latestCandle) - o(latestCandle)) / c(latestCandle);
       const wickRatio = h(latestCandle) !== l(latestCandle)
         ? (Math.abs(c(latestCandle) - o(latestCandle)) / (h(latestCandle) - l(latestCandle)))
-        : 0.5;
+        : FLAT_CANDLE_WICK_RATIO_QUESTION_DEFAULT;
 
       // Price momentum
       const priceChange = previousCandle && c(previousCandle) > 0
@@ -220,21 +268,29 @@ class FeatureExtractor {
     }
     // Fallback to basic calculation if optimized indicators not available
     else {
-      // Use provided values or defaults
-      const rsiValue = rsi || 50;
-      const macdValue = macd || 0;
-      const signalValue = signal || 0;
-      const trendValue = trend || 'sideways';
+      const unavailableFields = [];
+      if (!FeatureExtractor.isFiniteNumber(rsi)) unavailableFields.push('rsi');
+      if (!FeatureExtractor.isFiniteNumber(macd)) unavailableFields.push('macd');
+      if (!FeatureExtractor.isFiniteNumber(signal)) unavailableFields.push('macdSignal');
+      if (typeof trend !== 'string' || !trend.trim()) unavailableFields.push('trend');
+
+      if (unavailableFields.length > 0) {
+        return FeatureExtractor.unavailable('provided_feature_unavailable', {
+          unavailableFields,
+          candleCount: candles.length,
+          configQuestionKey: PATTERN_FEATURE_CONFIG_QUESTIONS.useOptimizedIndicators,
+        });
+      }
 
       // Simple feature vector with provided data
       return [
-        rsiValue / 100,                                              // Normalized RSI
-        macdValue - signalValue,                                     // MACD delta
+        rsi / 100,                                                   // Normalized RSI
+        macd - signal,                                               // MACD delta
         // CHANGE 614: Fix case-sensitivity
-        trendValue?.toLowerCase?.() === 'uptrend' ? 1 : trendValue?.toLowerCase?.() === 'downtrend' ? -1 : 0,  // Trend
-        0.02,                                                        // Default BB width
-        0.01,                                                        // Default volatility
-        0.5,                                                         // Default wick ratio
+        trend?.toLowerCase?.() === 'uptrend' ? 1 : trend?.toLowerCase?.() === 'downtrend' ? -1 : 0,  // Trend
+        0,                                                           // BB width unavailable outside optimized path
+        0,                                                           // Volatility unavailable outside optimized path
+        FLAT_CANDLE_WICK_RATIO_QUESTION_DEFAULT,                     // Question key: patternRecognition.flatCandleWickRatio
         0,                                                           // No price change
         0,                                                           // No volume change
         // CHANGE 614: Fix case-sensitivity
@@ -267,6 +323,9 @@ class FeatureExtractor {
       rsi,
       lastTrade
     });
+    if (FeatureExtractor.isUnavailable(features1m)) {
+      return features1m;
+    }
 
     const features5m = candles5m?.length >= 30 ? this.extract({
       candles: candles5m,
@@ -276,6 +335,9 @@ class FeatureExtractor {
       rsi,
       lastTrade
     }) : [];
+    if (FeatureExtractor.isUnavailable(features5m)) {
+      return features5m;
+    }
 
     const features15m = candles15m?.length >= 30 ? this.extract({
       candles: candles15m,
@@ -285,6 +347,9 @@ class FeatureExtractor {
       rsi,
       lastTrade
     }) : [];
+    if (FeatureExtractor.isUnavailable(features15m)) {
+      return features15m;
+    }
 
     // Combine features with precedence to higher timeframes for trend/context
     const combinedFeatures = [...features1m];
@@ -354,12 +419,23 @@ class EnhancedPatternChecker {
     // Extract features from market data
     const features = FeatureExtractor.extract({
       candles: marketData.candles || [],
-      trend: marketData.trend || 'sideways',
-      macd: marketData.macd || 0,
-      signal: marketData.macdSignal || 0,
+      trend: marketData.trend,
+      macd: marketData.macd,
+      signal: marketData.macdSignal,
       rsi: marketData.rsi,
-      volume: marketData.volume || 1000000
     });
+
+    if (FeatureExtractor.isUnavailable(features)) {
+      console.error(`[PatternRecognition] PATTERN_FEATURES_UNAVAILABLE: ${features.reason}`);
+      emitTrace({}, 'PATTERN_FEATURES_UNAVAILABLE', {
+        traceId: createTraceId('pattern_features_unavailable'),
+        reason: features.reason,
+        code: features.code,
+        unavailableFields: features.unavailableFields || [],
+        candleCount: features.candleCount ?? (marketData.candles || []).length,
+      });
+      return [];
+    }
 
     // Evaluate the pattern
     const result = this.evaluatePattern(features, marketData);
@@ -372,7 +448,7 @@ class EnhancedPatternChecker {
       direction: result?.direction || 'neutral',
       signature: EnhancedPatternChecker._signatureFromFeatures(features),
       features: features,
-      quality: result?.quality || 0.3,
+      quality: result?.quality ?? DEFAULT_PATTERN_QUALITY_QUESTION_DEFAULT,
       isNew: true,  // Always flag as new for learning
       reason: result?.reason || 'New pattern being learned'
     });

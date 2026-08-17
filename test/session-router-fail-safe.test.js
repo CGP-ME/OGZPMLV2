@@ -621,4 +621,42 @@ describe('SessionRouter failed-safe transition behavior', () => {
       router.stop();
     }
   });
+
+  test('failed-safe journal write failure marks trace for manual reconciliation', async () => {
+    const router = makeRouter();
+    router.activeSession = 'stocks';
+    router._recordTransitionEvent = jest.fn(() => {
+      throw new Error('journal disk unavailable');
+    });
+    const traces = [];
+    const unsubscribe = subscribeTrace((payload) => traces.push(payload));
+
+    try {
+      await router._enterFailedSafe(
+        'stocks',
+        'crypto',
+        new Error('transition failure'),
+        now,
+        { pauseConfirmed: true, failureSource: 'test_failed_safe_journal' }
+      );
+
+      expect(traces).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          event: 'SESSION_ROUTER_FAILED_SAFE_HALT',
+          fields: expect.objectContaining({
+            reason: 'transition failure',
+            from: 'stocks',
+            to: 'crypto',
+            journalError: 'journal disk unavailable',
+            failedSafeJournalWriteFailed: true,
+            manualReconciliationRequired: true,
+            reconciliationMarker: 'failed_safe_journal_write_failed',
+          }),
+        }),
+      ]));
+      expect(router.stateManager.pauseTrading).not.toHaveBeenCalled();
+    } finally {
+      unsubscribe();
+    }
+  });
 });

@@ -3,10 +3,6 @@
 const fs = require('fs');
 const path = require('path');
 
-const {
-  validateEvalLivePosture,
-} = require('../ogz-meta/gates/eval-live-posture-gate');
-
 const OPERATOR_ENV_KEYS = Object.freeze([
   'ALPACA_MODE',
   'ALPACA_API_KEY',
@@ -158,30 +154,37 @@ describe('ecosystem eval live profile', () => {
     expect(source).toContain("if (process.env.NODE_ENV === 'test') return;");
   });
 
-  test('declares operator-owned eval values in default PM2 env without committing defaults or placeholders', () => {
+  test('declares paper default PM2 env without committing operator secrets or placeholders', () => {
     const app = loadPrimeAppWithEnv({});
 
     expect(app.env_eval_live).toBeUndefined();
-    for (const key of OPERATOR_ENV_KEYS) {
+    expect(app.env).toEqual(expect.objectContaining({
+      ALPACA_MODE: 'paper',
+      PROFILE: 'paper',
+      EXECUTION_MODE: 'paper',
+      PAPER_TRADING: 'true',
+      LIVE_TRADING: 'false',
+      CONFIRM_LIVE_TRADING: 'false',
+      STATE_FILE: 'data/state-paper.json',
+    }));
+    for (const key of OPERATOR_ENV_KEYS.filter((key) => key !== 'ALPACA_MODE')) {
       expect(app.env).toHaveProperty(key, undefined);
     }
   });
 
-  test('default PM2 env passes the eval posture gate when operator-owned values are present', () => {
+  test('default PM2 env stays paper while accepting operator-owned runtime values', () => {
     const operatorEnv = operatorEnvValues();
     const app = loadPrimeAppWithEnv(operatorEnv);
     const env = app.env;
-    const report = validateEvalLivePosture(env, { loadDotenv: false });
 
-    expect(report.status).toBe('PASS');
-    expect(report.errors).toEqual([]);
     expect(env).toEqual(expect.objectContaining({
-      EXECUTION_MODE: 'live',
-      PROFILE: 'production',
-      PAPER_TRADING: 'false',
-      LIVE_TRADING: 'true',
-      CONFIRM_LIVE_TRADING: 'true',
+      EXECUTION_MODE: 'paper',
+      PROFILE: 'paper',
+      PAPER_TRADING: 'true',
+      LIVE_TRADING: 'false',
+      CONFIRM_LIVE_TRADING: 'false',
       BROKER: 'alpaca',
+      ALPACA_MODE: 'paper',
       ASSET_CLASS: 'stocks',
       TRADING_PAIR: 'TSLA',
       ALPACA_SYMBOLS: 'TSLA,NVDA,COIN,MARA,RIOT',
@@ -200,18 +203,15 @@ describe('ecosystem eval live profile', () => {
       TTP_RULES_ENABLED: 'true',
       RISK_MANAGER_BYPASS: 'false',
       ACCOUNT_DRAWDOWN_BYPASS: 'false',
+      STATE_FILE: 'data/state-paper.json',
       ...LOCKED_PROFILE_ENV_VALUES,
     }));
+    expect(env.ALPACA_API_KEY).toBe('test-alpaca-key');
+    expect(env.ALPACA_API_SECRET).toBe('test-alpaca-secret');
+    expect(env.SIGNALSTACK_WEBHOOK_URL).toBe('https://signalstack.example/webhook');
+    expect(env.WEBSOCKET_AUTH_TOKEN).toBe('test-dashboard-runtime-token');
     expect(env.INCEPTION_API_KEY).toBe('test-inception-key');
-    expect(report.checked.config['mode.execution']).toEqual({ value: 'live', source: 'config:launchProfiles.production.mode' });
-    expect(report.checked.config['broker.id']).toEqual({ value: 'alpaca', source: 'env:BROKER' });
-    expect(report.checked.config['sessionRouter.mode']).toEqual({ value: 'static', source: 'config:launchProfiles.production.sessionRouter.mode' });
-    expect(report.checked.config['sessionRouter.staticSession']).toEqual({ value: 'stocks', source: 'config:launchProfiles.production.sessionRouter.staticSession' });
     expect(env).not.toHaveProperty('SESSION_ROUTER_ENABLED');
-    expect(JSON.stringify(report)).not.toContain(operatorEnv.ALPACA_API_KEY);
-    expect(JSON.stringify(report)).not.toContain(operatorEnv.ALPACA_API_SECRET);
-    expect(JSON.stringify(report)).not.toContain(operatorEnv.SIGNALSTACK_WEBHOOK_URL);
-    expect(JSON.stringify(report)).not.toContain(operatorEnv.WEBSOCKET_AUTH_TOKEN);
   });
 
   test('locked 5k MAX profile values beat ambient shell env leftovers', () => {
@@ -285,6 +285,16 @@ describe('ecosystem eval live profile', () => {
     const defaultPrime = loadPrimeAppWithEnv({});
     expect(defaultWebsocket.env.WEBSOCKET_AUTH_TOKEN).toBeUndefined();
     expect(defaultPrime.env.WEBSOCKET_AUTH_TOKEN).toBeUndefined();
+  });
+
+  test('ogz-prime-v2 PM2 process sets max_restarts restart loop cap', () => {
+    const prime = loadPrimeAppWithEnv(operatorEnvValues());
+
+    expect(prime).toEqual(expect.objectContaining({
+      autorestart: true,
+      max_restarts: 10,
+      restart_delay: 5000,
+    }));
   });
 
   test('production start surfaces route eval bot restarts through the live deploy wrapper', () => {

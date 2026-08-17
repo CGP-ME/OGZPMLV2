@@ -8,13 +8,13 @@
  * ARCHITECTURAL ROLE:
  * - Provides RSI, MACD, EMA, and volatility calculations
  * - Implements scalper-optimized caching for high-frequency trading
- * - Handles edge cases and provides safe defaults
+ * - Handles edge cases with named unavailable records
  * - Supports both standalone and batch calculations
  *
  * PERFORMANCE FEATURES:
  * - Scalper caching: Avoids redundant calculations in fast markets
  * - Memory-efficient: Bounded cache with FIFO eviction
- * - Error-resilient: Graceful fallbacks for invalid data
+ * - Error-resilient: Loud unavailable records for invalid data
  *
  * BUSINESS VALUE:
  * - Accurate technical signals drive profitable trading decisions
@@ -27,26 +27,67 @@
  * ============================================================================
  */
 
-// FIX 2026-02-16: Use centralized candle helper for format compatibility
 const { c: _c, o: _o, h: _h, l: _l, v: _v } = require('./CandleHelper');
 const { IndicatorCalculator } = require('./IndicatorCalculator');
+const { createTraceId, emitTrace } = require('./TraceSpine');
+
+const INDICATORS_UNAVAILABLE = 'indicators_unavailable';
+const OPTIMIZED_INDICATOR_CONFIG_QUESTIONS = Object.freeze({
+  rsiPeriod: 'indicator.rsiPeriod',
+  macdFastPeriod: 'indicator.macdFast',
+  macdSlowPeriod: 'indicator.macdSlow',
+  macdSignalPeriod: 'indicator.macdSignal',
+  volatilityPeriod: 'indicator.volatilityPeriod',
+  bollingerPeriod: 'indicator.bbPeriod',
+  bollingerStdDev: 'indicator.bbStdDev',
+  atrPeriod: 'indicator.atrPeriod',
+  trendShortPeriod: 'indicator.trendShortPeriod',
+  trendLongPeriod: 'indicator.trendLongPeriod',
+  cacheSize: 'indicator.cacheSize',
+  macdHistorySize: 'indicator.macdHistorySize',
+  twoPoleSmaLength: 'indicator.twoPoleSmaLength',
+  twoPoleFilterLength: 'indicator.twoPoleFilterLength',
+  twoPoleUpperThreshold: 'indicator.twoPoleUpperThreshold',
+  twoPoleLowerThreshold: 'indicator.twoPoleLowerThreshold',
+});
+const RSI_PERIOD_QUESTION_DEFAULT = 14;
+const MACD_FAST_PERIOD_QUESTION_DEFAULT = 12;
+const MACD_SLOW_PERIOD_QUESTION_DEFAULT = 26;
+const MACD_SIGNAL_PERIOD_QUESTION_DEFAULT = 9;
+const VOLATILITY_PERIOD_QUESTION_DEFAULT = 20;
+const BOLLINGER_PERIOD_QUESTION_DEFAULT = 20;
+const BOLLINGER_STD_DEV_QUESTION_DEFAULT = 2;
+const ATR_PERIOD_QUESTION_DEFAULT = 14;
+const TREND_SHORT_PERIOD_QUESTION_DEFAULT = 20;
+const TREND_LONG_PERIOD_QUESTION_DEFAULT = 50;
+const CACHE_SIZE_QUESTION_DEFAULT = 1000;
+const MACD_HISTORY_SIZE_QUESTION_DEFAULT = 50;
+const TWO_POLE_SMA_LENGTH_QUESTION_DEFAULT = 25;
+const TWO_POLE_FILTER_LENGTH_QUESTION_DEFAULT = 20;
+const TWO_POLE_UPPER_THRESHOLD_QUESTION_DEFAULT = 0.5;
+const TWO_POLE_LOWER_THRESHOLD_QUESTION_DEFAULT = -0.5;
+
+function finiteNumberOrNull(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
 
 class OptimizedIndicators {
   constructor() {
     this.cache = new Map();
-    this.maxCacheSize = 1000; // Prevent memory leaks in long-running bots
+    this.maxCacheSize = CACHE_SIZE_QUESTION_DEFAULT; // Question key: indicator.cacheSize
 
     // MACD signal line history for proper EMA calculation
     this.macdHistory = [];
-    this.maxMacdHistory = 50; // Keep enough for 9-period EMA
+    this.maxMacdHistory = MACD_HISTORY_SIZE_QUESTION_DEFAULT; // Question key: indicator.macdHistorySize
 
     // Initialize Two-Pole Oscillator
     const TwoPoleOscillator = require('./TwoPoleOscillator');
     this.twoPoleOscillator = new TwoPoleOscillator({
-      smaLength: 25,
-      filterLength: 20,
-      upperThreshold: 0.5,
-      lowerThreshold: -0.5
+      smaLength: TWO_POLE_SMA_LENGTH_QUESTION_DEFAULT,
+      filterLength: TWO_POLE_FILTER_LENGTH_QUESTION_DEFAULT,
+      upperThreshold: TWO_POLE_UPPER_THRESHOLD_QUESTION_DEFAULT,
+      lowerThreshold: TWO_POLE_LOWER_THRESHOLD_QUESTION_DEFAULT
     });
 
     console.log('📊 OptimizedIndicators initialized with scalper caching');
@@ -88,30 +129,46 @@ class OptimizedIndicators {
    */
   calculateTechnicalIndicators(priceData = null) {
     try {
-      // Use passed data or bot's price history
-      const data = priceData || this.priceHistory;
+      const data = priceData ?? this.priceHistory;
 
-      if (!data || data.length < 2) {
-        return { rsi: 50, macd: 0, macdSignal: 0, volatility: 0.02, twoPole: null }; // Safe defaults
+      if (!Array.isArray(data) || data.length < MACD_SLOW_PERIOD_QUESTION_DEFAULT) {
+        return this._indicatorsUnavailable('insufficient_indicator_candles', {
+          candleCount: Array.isArray(data) ? data.length : 0,
+          requiredCandles: MACD_SLOW_PERIOD_QUESTION_DEFAULT,
+          configQuestionKey: OPTIMIZED_INDICATOR_CONFIG_QUESTIONS.macdSlowPeriod,
+        });
       }
 
-      // Calculate RSI from real data
-      const rsi = this.calculateRSI(data.slice(-14));
+      const rsi = this.calculateRSI(data.slice(-(RSI_PERIOD_QUESTION_DEFAULT + 1)));
 
-      // Calculate MACD with signal line from real data
-      const macdData = this.calculateMACD(data.slice(-26));
+      const macdData = this.calculateMACD(data.slice(-MACD_SLOW_PERIOD_QUESTION_DEFAULT));
 
-      // Calculate volatility from real price movements
-      const volatility = this.calculateVolatility(data.slice(-20));
+      const volatility = this.calculateVolatility(data.slice(-VOLATILITY_PERIOD_QUESTION_DEFAULT));
 
-      // Update Two-Pole Oscillator with latest price
       let twoPole = null;
       if (data.length > 0) {
-        const currentPrice = _c(data[data.length - 1]) || data[data.length - 1];
+        const currentPrice = _c(data[data.length - 1]) ?? data[data.length - 1];
         twoPole = this.twoPoleOscillator.update(currentPrice);
       }
 
+      if (
+        finiteNumberOrNull(rsi) === null
+        || finiteNumberOrNull(macdData?.macd) === null
+        || finiteNumberOrNull(macdData?.signal) === null
+        || finiteNumberOrNull(volatility) === null
+      ) {
+        return this._indicatorsUnavailable('indicator_component_unavailable', {
+          candleCount: data.length,
+          rsi,
+          macd: macdData?.macd ?? null,
+          macdSignal: macdData?.signal ?? null,
+          volatility,
+        });
+      }
+
       return {
+        available: true,
+        status: 'trusted',
         rsi,
         macd: macdData.macd,
         macdSignal: macdData.signal,
@@ -120,20 +177,46 @@ class OptimizedIndicators {
       };
 
     } catch (error) {
-      console.error('❌ Technical indicator calculation error:', error);
-      return { rsi: 50, macd: 0, volatility: 0.02 }; // Safe defaults
+      return this._indicatorsUnavailable('technical_indicator_calculation_failed', {
+        error: error && error.message ? error.message : String(error),
+      });
     }
+  }
+
+  _indicatorsUnavailable(reason, details = {}) {
+    const record = {
+      available: false,
+      status: 'unavailable',
+      code: INDICATORS_UNAVAILABLE,
+      reason,
+      rsi: null,
+      macd: null,
+      macdSignal: null,
+      macdHistogram: null,
+      volatility: null,
+      twoPole: null,
+      ...details,
+    };
+    console.error(`[OptimizedIndicators] INDICATORS_UNAVAILABLE: ${reason}`);
+    emitTrace({}, 'INDICATORS_UNAVAILABLE', {
+      traceId: createTraceId('indicators_unavailable'),
+      ...record,
+    });
+    return record;
   }
 
   /**
    * RSI CALCULATION
    * Relative Strength Index for momentum analysis
    */
-  calculateRSI(priceData, period = 14) {
+  calculateRSI(priceData, period = RSI_PERIOD_QUESTION_DEFAULT) {
+    if (!Array.isArray(priceData) || priceData.length < period + 1) {
+      return null;
+    }
     return this.getScalperCached('RSI', priceData, this._calculateRSICore, period);
   }
 
-  _calculateRSICore(priceData, period = 14) {
+  _calculateRSICore(priceData, period = RSI_PERIOD_QUESTION_DEFAULT) {
     return IndicatorCalculator.calculateWilderRSI(priceData, period);
   }
 
@@ -142,16 +225,41 @@ class OptimizedIndicators {
    * Moving Average Convergence Divergence for trend analysis
    */
   calculateMACD(priceData) {
+    if (!Array.isArray(priceData) || priceData.length < MACD_SLOW_PERIOD_QUESTION_DEFAULT) {
+      return {
+        available: false,
+        status: 'unavailable',
+        code: INDICATORS_UNAVAILABLE,
+        reason: 'insufficient_macd_candles',
+        configQuestionKey: OPTIMIZED_INDICATOR_CONFIG_QUESTIONS.macdSlowPeriod,
+        macdLine: null,
+        signalLine: null,
+        histogram: null,
+        macd: null,
+        signal: null,
+      };
+    }
     return this.getScalperCached('MACD', priceData, this._calculateMACDCore);
   }
 
   _calculateMACDCore(priceData) {
 
     // TESTING MODE: Reduce minimum candle requirement to 1
-    const minCandles = process.env.TESTING === 'true' ? 1 : 26;
+    const minCandles = process.env.TESTING === 'true' ? 1 : MACD_SLOW_PERIOD_QUESTION_DEFAULT;
 
     if (priceData.length < minCandles) {
-      return { macdLine: 0, signalLine: 0, histogram: 0, macd: 0, signal: 0 };
+      return {
+        available: false,
+        status: 'unavailable',
+        code: INDICATORS_UNAVAILABLE,
+        reason: 'insufficient_macd_candles',
+        configQuestionKey: OPTIMIZED_INDICATOR_CONFIG_QUESTIONS.macdSlowPeriod,
+        macdLine: null,
+        signalLine: null,
+        histogram: null,
+        macd: null,
+        signal: null,
+      };
     }
 
     // Validate data structure
@@ -159,9 +267,8 @@ class OptimizedIndicators {
     const lastCandle = priceData[priceData.length - 1];
 
     // CRITICAL FIX: Use most recent data, not oldest!
-    // priceData stores newest at the end, so use slice(-26) not slice(0,26)
-    const ema12 = this.calculateEMA(priceData.slice(-12), 12);
-    const ema26 = this.calculateEMA(priceData.slice(-26), 26);
+    const ema12 = this.calculateEMA(priceData.slice(-MACD_FAST_PERIOD_QUESTION_DEFAULT), MACD_FAST_PERIOD_QUESTION_DEFAULT);
+    const ema26 = this.calculateEMA(priceData.slice(-MACD_SLOW_PERIOD_QUESTION_DEFAULT), MACD_SLOW_PERIOD_QUESTION_DEFAULT);
 
     const macdLine = ema12 - ema26;
 
@@ -172,14 +279,23 @@ class OptimizedIndicators {
       this.macdHistory.shift(); // Remove oldest
     }
 
-    // Calculate 9-period EMA of MACD values for signal line
-    let signalLine = macdLine; // Default to current MACD if not enough history
-    if (this.macdHistory.length >= 9) {
-      // Calculate EMA of MACD history
-      const macdForSignal = this.macdHistory.slice(-9); // Last 9 MACD values
-      signalLine = this.calculateEMA(macdForSignal.map(val => ({ c: val })), 9);
-    } else {
+    if (this.macdHistory.length < MACD_SIGNAL_PERIOD_QUESTION_DEFAULT) {
+      return {
+        available: false,
+        status: 'unavailable',
+        code: INDICATORS_UNAVAILABLE,
+        reason: 'insufficient_macd_signal_history',
+        configQuestionKey: OPTIMIZED_INDICATOR_CONFIG_QUESTIONS.macdSignalPeriod,
+        macdLine,
+        signalLine: null,
+        histogram: null,
+        macd: macdLine,
+        signal: null,
+      };
     }
+
+    const macdForSignal = this.macdHistory.slice(-MACD_SIGNAL_PERIOD_QUESTION_DEFAULT);
+    const signalLine = this.calculateEMA(macdForSignal.map(val => ({ c: val })), MACD_SIGNAL_PERIOD_QUESTION_DEFAULT);
 
     const histogram = macdLine - signalLine;
     return { macdLine, signalLine, histogram, macd: macdLine, signal: signalLine };
@@ -190,20 +306,23 @@ class OptimizedIndicators {
    * Exponential Moving Average for trend smoothing
    */
   calculateEMA(priceData, period) {
+    if (!Array.isArray(priceData) || priceData.length === 0) {
+      return null;
+    }
     return this.getScalperCached('EMA', priceData, this._calculateEMACore, period);
   }
 
   _calculateEMACore(priceData, period) {
 
     if (priceData.length === 0) {
-      return 0;
+      return null;
     }
 
     // Validate data structure
     const lastCandle = priceData[priceData.length - 1];
 
     if (!_c(lastCandle)) {
-      return 0;
+      return null;
     }
 
     const multiplier = 2 / (period + 1);
@@ -223,12 +342,15 @@ class OptimizedIndicators {
    * VOLATILITY CALCULATION
    * Price volatility for risk assessment
    */
-  calculateVolatility(priceData, period = 20) {
+  calculateVolatility(priceData, period = VOLATILITY_PERIOD_QUESTION_DEFAULT) {
+    if (!Array.isArray(priceData) || priceData.length < 2) {
+      return null;
+    }
     return this.getScalperCached('VOLATILITY', priceData, this._calculateVolatilityCore, period);
   }
 
-  _calculateVolatilityCore(priceData, period = 20) {
-    if (priceData.length < 2) return 0.02;
+  _calculateVolatilityCore(priceData, period = VOLATILITY_PERIOD_QUESTION_DEFAULT) {
+    if (priceData.length < 2) return null;
 
     // Use last 'period' candles or all available
     const data = priceData.slice(-period);
@@ -240,7 +362,7 @@ class OptimizedIndicators {
       returns.push(return_rate);
     }
 
-    if (returns.length === 0) return 0.02;
+    if (returns.length === 0) return null;
 
     // Calculate standard deviation
     const mean = returns.reduce((sum, r) => sum + r, 0) / returns.length;
@@ -253,14 +375,19 @@ class OptimizedIndicators {
    * BOLLINGER BANDS CALCULATION
    * Volatility bands for price containment analysis
    */
-  calculateBollingerBands(candles, period = 20, stdDevMultiplier = 2) {
+  calculateBollingerBands(candles, period = BOLLINGER_PERIOD_QUESTION_DEFAULT, stdDevMultiplier = BOLLINGER_STD_DEV_QUESTION_DEFAULT) {
 
     if (!candles || candles.length < period) {
       return {
-        upper: 0,
-        middle: 0,
-        lower: 0,
-        width: 0
+        available: false,
+        status: 'unavailable',
+        code: INDICATORS_UNAVAILABLE,
+        reason: 'insufficient_bollinger_candles',
+        configQuestionKey: OPTIMIZED_INDICATOR_CONFIG_QUESTIONS.bollingerPeriod,
+        upper: null,
+        middle: null,
+        lower: null,
+        width: null
       };
     }
 
@@ -269,12 +396,21 @@ class OptimizedIndicators {
     const lastCandle = candles[candles.length - 1];
 
     // Calculate SMA (middle band)
-    const prices = candles.slice(-period).map(c => c.close || _c(c));
+    const prices = candles.slice(-period).map(c => c.close ?? _c(c));
 
     // Check for undefined/NaN prices
     const invalidPrices = prices.filter(p => !p || isNaN(p));
     if (invalidPrices.length > 0) {
-      return { upper: 0, middle: 0, lower: 0, width: 0 };
+      return {
+        available: false,
+        status: 'unavailable',
+        code: INDICATORS_UNAVAILABLE,
+        reason: 'invalid_bollinger_price',
+        upper: null,
+        middle: null,
+        lower: null,
+        width: null,
+      };
     }
 
     const sma = prices.reduce((sum, price) => sum + price, 0) / period;
@@ -301,9 +437,9 @@ class OptimizedIndicators {
    * TREND DETERMINATION
    * Market trend analysis for directional bias
    */
-  determineTrend(priceData, shortPeriod = 20, longPeriod = 50) {
+  determineTrend(priceData, shortPeriod = TREND_SHORT_PERIOD_QUESTION_DEFAULT, longPeriod = TREND_LONG_PERIOD_QUESTION_DEFAULT) {
     if (!priceData || priceData.length < longPeriod) {
-      return 'sideways';
+      return null;
     }
 
     const shortEMA = this.calculateEMA(priceData.slice(-shortPeriod), shortPeriod);
@@ -365,7 +501,7 @@ class OptimizedIndicators {
       votes.push(...this.getMACDVotes({
         macd: marketData.macd,
         signal: marketData.macdSignal,
-        histogram: marketData.macdHistogram || 0
+        histogram: marketData.macdHistogram ?? null
       }));
     }
 
@@ -377,16 +513,16 @@ class OptimizedIndicators {
    * ATR measures market volatility using the true range over a period
    *
    * @param {Array} priceData - Array of OHLC data: [{o, h, l, c, t}, ...]
-   * @param {number} period - ATR period (default: 14)
+   * @param {number} period - ATR period (question default: indicator.atrPeriod)
    * @returns {number} - ATR value as decimal (e.g., 0.02 = 2% volatility)
    */
-  calculateATR(priceData, period = 14) {
+  calculateATR(priceData, period = ATR_PERIOD_QUESTION_DEFAULT) {
     console.log(`🔍 [ATR] Entry: priceData.length=${priceData?.length || 0}, period=${period}`);
 
     // Need at least period + 1 candles for ATR calculation
     if (!priceData || priceData.length < period + 1) {
       console.log(`⚠️ [ATR] Insufficient data (need ${period + 1}, have ${priceData?.length || 0})`);
-      return 0.02; // Default 2% volatility assumption
+      return null;
     }
 
     // Calculate True Range for each candle
@@ -417,7 +553,7 @@ class OptimizedIndicators {
 
     if (trueRanges.length < period) {
       console.log(`⚠️ [ATR] Not enough true ranges calculated: ${trueRanges.length}`);
-      return 0.02;
+      return null;
     }
 
     // Calculate initial ATR as SMA of first 'period' true ranges

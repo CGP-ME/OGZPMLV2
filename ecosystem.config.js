@@ -71,6 +71,9 @@ module.exports = {
       script: 'run-empire-v2.js',
       cwd: '/opt/ogzprime/OGZPMLV2',
       watch: false,
+      autorestart: true,
+      max_restarts: 10,
+      restart_delay: 5000,
       env: {
         ...evalOperatorEnv,
         ...dashboardStockRuntimeEnv,
