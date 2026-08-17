@@ -3,6 +3,9 @@ const PineArray = require('./PineArray');
 const PineTALib = require('./PineTALib');
 const SessionTracker = require('../helpers/SessionTracker');
 const PineStrategyBridge = require('./PineStrategyBridge');
+const { createTraceId, emitTrace } = require('../../core/TraceSpine');
+
+const STRATEGY_UNAVAILABLE = 'strategy_unavailable';
 
 // Sentinel for visualization/formatting namespaces that are ignored by
 // design. Member access on it stays chainable; member calls resolve to null.
@@ -199,7 +202,7 @@ const ROOT_NAMESPACES = new Set([
 ]);
 
 class PineRuntime {
-  constructor(source) {
+  constructor(source, options = {}) {
     const Lexer = require('./PineLexer');
     const Parser = require('./PineParser');
 
@@ -232,6 +235,14 @@ class PineRuntime {
 
     // Strategy bridge - collects entry/exit requests
     this.bridge = new PineStrategyBridge();
+
+    // Host-supplied chart identity. Missing values stay missing; the runtime
+    // must not pretend every script is TSLA/15m/0.01.
+    this.hostContext = {};
+    this._mergeHostContext(options.hostContext || options.context || options);
+    this.currentBarUnavailableRecords = [];
+    this.unavailableRecords = [];
+    this.lastUnavailableRecord = null;
 
     // Load gate: every unsupported feature refuses here, by name, before
     // a single candle is evaluated. Silent nulls at runtime are banned.
@@ -309,7 +320,7 @@ class PineRuntime {
         ...Object.getOwnPropertyNames(this.session),
       ]),
       timeframe: new Set(['multiplier', 'period', 'isminutes']),
-      syminfo: new Set(['ticker', 'mintick']),
+      syminfo: new Set(['ticker', 'tickerid', 'mintick']),
       barstate: new Set([
         'isconfirmed', 'ishistory', 'isrealtime', 'isfirst', 'islast',
         'islastconfirmedhistory', 'isnew',
@@ -698,6 +709,111 @@ class PineRuntime {
     return error;
   }
 
+  _normalizeHostContext(input = {}) {
+    if (!input || typeof input !== 'object') return {};
+    const source = input.hostContext || input.context || input;
+    const normalized = {};
+
+    const symbol = source.symbol ?? source.ticker ?? source.tickerid;
+    if (symbol !== undefined) {
+      normalized.symbol = symbol;
+      normalized.ticker = source.ticker ?? symbol;
+      normalized.tickerid = source.tickerid ?? symbol;
+    }
+
+    const mintick = source.mintick ?? source.minTick ?? source.tickSize;
+    if (mintick !== undefined) normalized.mintick = Number(mintick);
+
+    const timeframe = source.timeframe ?? source.period ?? source.timeframePeriod;
+    if (timeframe !== undefined) normalized.timeframe = String(timeframe);
+
+    const multiplier = source.timeframeMultiplier ?? source.multiplier;
+    if (multiplier !== undefined) normalized.timeframeMultiplier = Number(multiplier);
+
+    const isminutes = source.timeframeIsMinutes ?? source.isminutes;
+    if (isminutes !== undefined) normalized.timeframeIsMinutes = Boolean(isminutes);
+
+    return normalized;
+  }
+
+  _mergeHostContext(input = {}) {
+    const normalized = this._normalizeHostContext(input);
+    Object.entries(normalized).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') this.hostContext[key] = value;
+    });
+  }
+
+  _requireHostContextValue(key, label) {
+    const value = this.hostContext[key];
+    if (value === undefined || value === null || value === '') {
+      this._recordRuntimeUnavailable({
+        source: 'host_context',
+        reason: 'pine_host_context_unavailable',
+        detail: `missing ${label}`,
+      });
+      return null;
+    }
+    return value;
+  }
+
+  _parseTimeframeInfo() {
+    const raw = this._requireHostContextValue('timeframe', 'timeframe');
+    if (raw === null || raw === undefined || raw === '') {
+      return { multiplier: null, period: null, isminutes: null };
+    }
+    const text = String(raw).trim();
+    let multiplier = this.hostContext.timeframeMultiplier;
+    let isminutes = this.hostContext.timeframeIsMinutes;
+    let period = text;
+
+    const minuteMatch = text.match(/^(\d+)(?:m|min)?$/i);
+    const hourMatch = text.match(/^(\d+)h$/i);
+    const dayMatch = text.match(/^(\d*)d$/i);
+
+    if (!Number.isFinite(multiplier)) {
+      if (minuteMatch) multiplier = Number(minuteMatch[1]);
+      else if (hourMatch) multiplier = Number(hourMatch[1]) * 60;
+      else if (dayMatch) multiplier = Number(dayMatch[1] || 1);
+    }
+
+    if (isminutes === undefined) {
+      isminutes = !!(minuteMatch || hourMatch);
+    }
+
+    if (minuteMatch) period = String(Number(minuteMatch[1]));
+    else if (hourMatch) period = String(Number(hourMatch[1]) * 60);
+    else if (dayMatch) period = `${dayMatch[1] || ''}D`;
+
+    if (!Number.isFinite(multiplier)) {
+      this._recordRuntimeUnavailable({
+        source: 'host_context',
+        reason: 'pine_timeframe_unavailable',
+        detail: 'missing timeframe.multiplier',
+      });
+      multiplier = null;
+    }
+
+    return { multiplier, period, isminutes };
+  }
+
+  _timeframeObject() {
+    const runtime = this;
+    return {
+      get multiplier() { return runtime._parseTimeframeInfo().multiplier; },
+      get period() { return runtime._parseTimeframeInfo().period; },
+      get isminutes() { return runtime._parseTimeframeInfo().isminutes; },
+    };
+  }
+
+  _syminfoObject() {
+    const runtime = this;
+    return {
+      get ticker() { return runtime._requireHostContextValue('ticker', 'syminfo.ticker'); },
+      get tickerid() { return runtime._requireHostContextValue('tickerid', 'syminfo.tickerid'); },
+      get mintick() { return runtime._requireHostContextValue('mintick', 'syminfo.mintick'); },
+    };
+  }
+
   _describeNode(node) {
     if (!node || typeof node !== 'object') return String(node);
     if (node.type === 'Identifier') return node.name;
@@ -708,10 +824,55 @@ class PineRuntime {
     return node.type;
   }
 
+  _recordRuntimeUnavailable({ source, reason, detail, method = null, node = null }) {
+    const record = {
+      strategyName: this.hostContext.strategyName || this.hostContext.moduleName || 'PineRuntime',
+      status: 'unavailable',
+      code: STRATEGY_UNAVAILABLE,
+      reason,
+      source,
+      errorMessage: detail,
+      symbol: this.hostContext.symbol || this.hostContext.ticker || null,
+      timeframe: this.hostContext.timeframe || null,
+      phase: 'eval',
+      pine: {
+        unavailableCode: 'pine_runtime_unavailable',
+        method,
+        node: node ? this._describeNode(node) : null,
+      },
+    };
+    const sink = Array.isArray(this.currentBarUnavailableRecords)
+      ? this.currentBarUnavailableRecords
+      : null;
+    if (sink) {
+      const existing = sink.find(item => (
+        item.source === record.source &&
+        item.reason === record.reason &&
+        item.errorMessage === record.errorMessage &&
+        item.pine?.method === record.pine.method &&
+        item.pine?.node === record.pine.node
+      ));
+      if (existing) return existing;
+      sink.push(record);
+    }
+    this.lastUnavailableRecord = record;
+    this.unavailableRecords.push(record);
+    console.error(`[PineRuntime] STRATEGY_UNAVAILABLE source=${source} reason=${reason}${detail ? ` error=${detail}` : ''}`);
+    emitTrace({}, 'STRATEGY_UNAVAILABLE', {
+      traceId: createTraceId('pine_runtime_unavailable'),
+      ...record,
+    });
+    return record;
+  }
+
   // -----------------------------------------------------------------
   // Public API - call once per candle
   // -----------------------------------------------------------------
   evaluate(candle) {
+    this._mergeHostContext(candle);
+    this.currentBarUnavailableRecords = [];
+    this.lastUnavailableRecord = null;
+
     // push candle to history (the newest is at the end)
     this.history.push(candle);
     // keep only as many bars as the script may need (max look-back)
@@ -731,6 +892,10 @@ class PineRuntime {
     // Save state snapshot for series lookback on user variables
     this.stateHistory.push({ ...this.state });
     if (this.stateHistory.length > maxLookback) this.stateHistory.shift();
+
+    if (this.currentBarUnavailableRecords.length > 0) {
+      return this.currentBarUnavailableRecords[0];
+    }
 
     // after execution, ask the bridge for the signal
     return this.bridge.flushSignal();
@@ -867,8 +1032,8 @@ class PineRuntime {
         if (node.name === 'volume') return this._getCurrentCandle()?.volume;
         if (node.name === 'bar_index') return this.history.length - 1;
         // built-in objects for member access
-        if (node.name === 'timeframe') return { multiplier: 15, period: '15', isminutes: true };
-        if (node.name === 'syminfo') return { ticker: 'TSLA', mintick: 0.01 };
+        if (node.name === 'timeframe') return this._timeframeObject();
+        if (node.name === 'syminfo') return this._syminfoObject();
         // barstate under a closed-bar evaluation model: every candle this
         // engine sees is a confirmed historical bar, and the current bar is
         // always the last one known - these are truths, not stubs.
@@ -942,7 +1107,11 @@ class PineRuntime {
         return node.elements.map((e) => this._evalExpression(e));
       case 'CallExpression':
         // callee can be Identifier, MemberExpression, or legacy string
-        return this._callFunction(node.callee, node.arguments);
+        {
+          const result = this._callFunction(node.callee, node.arguments);
+          this._recordCallSeriesResult(node, result);
+          return result;
+        }
       case 'IndexExpression':
         // array[index] access
         const arrObj = this._evalExpression(node.object);
@@ -1081,7 +1250,16 @@ class PineRuntime {
   // -----------------------------------------------------------------
   _roundToTick(value) {
     if (value === null || value === undefined || isNaN(value)) return value;
-    const tick = 0.01; // syminfo.mintick for TSLA
+    const tick = this.hostContext.mintick;
+    if (tick === undefined || tick === null || tick === '') return value;
+    if (!Number.isFinite(Number(tick)) || Number(tick) <= 0) {
+      this._recordRuntimeUnavailable({
+        source: 'host_context',
+        reason: 'pine_tick_size_unavailable',
+        detail: 'invalid syminfo.mintick',
+      });
+      return null;
+    }
     return Math.round(value / tick) * tick;
   }
 
@@ -1133,6 +1311,17 @@ class PineRuntime {
       this.callSeries.set(key, entry);
     }
     return entry;
+  }
+
+  _recordCallSeriesResult(node, value) {
+    const entry = this._callSeriesEntry(node);
+    if (entry.lastBar !== this._barOrdinal) {
+      entry.values.push(value);
+      if (entry.values.length > 500) entry.values.shift();
+      entry.lastBar = this._barOrdinal;
+    } else if (entry.values.length > 0) {
+      entry.values[entry.values.length - 1] = value;
+    }
   }
 
   _callFunction(callee, args) {
@@ -1396,6 +1585,190 @@ class PineRuntime {
       return !(v && typeof v === 'object' && v.params);
     };
 
+    const constantSeries = (value) => new Array(this.history.length).fill(value);
+
+    const padSeriesStart = (series, length = this.history.length) => {
+      if (!Array.isArray(series)) return constantSeries(series);
+      if (series.length >= length) return series.slice(series.length - length);
+      return new Array(length - series.length).fill(null).concat(series);
+    };
+
+    const mapSeries = (series, fn) => padSeriesStart(series).map(fn);
+
+    const binarySeries = (left, right, operator) => {
+      const length = Math.max(
+        Array.isArray(left) ? left.length : this.history.length,
+        Array.isArray(right) ? right.length : this.history.length,
+        this.history.length
+      );
+      const l = padSeriesStart(left, length);
+      const r = padSeriesStart(right, length);
+      return l.map((value, i) => this._applyBinary(operator, value, r[i]));
+    };
+
+    const boolValue = (value) => (this._isNa(value) ? false : Boolean(value));
+
+    const evalSeriesExpression = (arg) => {
+      const unavailableSeries = (reason, detail, node = arg) => {
+        this._recordRuntimeUnavailable({
+          source: `ta.${method}.series`,
+          reason,
+          detail,
+          method,
+          node,
+        });
+        return constantSeries(null);
+      };
+
+      if (!arg || typeof arg !== 'object') {
+        return constantSeries(requireComputable(arg, 'series argument'));
+      }
+
+      switch (arg.type) {
+        case 'Literal':
+          if (arg.isColor) {
+            return unavailableSeries(
+              'pine_series_unavailable',
+              `ta.${method} series argument is a color/visual value`
+            );
+          }
+          return constantSeries(arg.value);
+        case 'Identifier':
+          if (seriesNames.includes(arg.name)) return getSeries(arg.name);
+          if (arg.name === 'bar_index') return this.history.map((_, i) => i);
+          if (arg.name === 'na') return constantSeries(null);
+          if (arg.name === 'time') return this.history.map((c) => c.timestamp ?? null);
+          if (arg.name === 'timeframe') return constantSeries(this._timeframeObject());
+          if (arg.name === 'syminfo') return constantSeries(this._syminfoObject());
+          if (arg.name === 'math') return constantSeries(PINE_MATH);
+          if (arg.name === 'ta') return constantSeries(PineTALib);
+          if (arg.name === 'array') return constantSeries(PineArray);
+          if (arg.name === 'strategy') return constantSeries(this.bridge);
+          if (arg.name === 'session') return constantSeries(this.session);
+          if (arg.name in this.state) {
+            if (isUserVar(arg.name)) return userVarSeries(arg.name);
+            return unavailableSeries(
+              'pine_series_unavailable',
+              `function '${arg.name}' used as ta.${method} series argument`
+            );
+          }
+          if (BARE_VISUAL_IDENTIFIERS.has(arg.name) || NOOP_NAMESPACES.has(arg.name)) {
+            return unavailableSeries(
+              'pine_series_unavailable',
+              `ta.${method} series argument '${arg.name}' is a color/visual value`
+            );
+          }
+          return unavailableSeries(
+            'pine_series_unavailable',
+            `identifier '${arg.name}' used as ta.${method} series argument`
+          );
+        case 'MemberExpression':
+          return constantSeries(requireComputable(this._evalExpression(arg), 'series argument'));
+        case 'SeriesLookup': {
+          let base = null;
+          if (seriesNames.includes(arg.series)) base = getSeries(arg.series);
+          else if (isUserVar(arg.series)) base = userVarSeries(arg.series);
+          if (!base) {
+            return unavailableSeries(
+              'pine_series_unavailable',
+              `series '${arg.series}[...]' used as ta.${method} series argument`
+            );
+          }
+          const off = Math.floor(requireComputable(this._evalExpression(arg.offset), 'offset'));
+          return base.map((_, i) => {
+            const idx = i - off;
+            return idx >= 0 && idx < base.length ? base[idx] : null;
+          });
+        }
+        case 'UnaryExpression': {
+          const series = evalSeriesExpression(arg.argument);
+          return mapSeries(series, (value) => {
+            if (value === PINE_NOOP) {
+              this._recordRuntimeUnavailable({
+                source: `ta.${method}.series`,
+                reason: 'pine_series_unavailable',
+                detail: `unary '${arg.operator}' on a color/visual value`,
+                method,
+                node: arg,
+              });
+              return null;
+            }
+            if (arg.operator === '+') {
+              if (this._isNa(value)) return null;
+              if (typeof value !== 'number') {
+                this._recordRuntimeUnavailable({
+                  source: `ta.${method}.series`,
+                  reason: 'pine_series_unavailable',
+                  detail: `unary '+' on ${typeof value}`,
+                  method,
+                  node: arg,
+                });
+                return null;
+              }
+              return +value;
+            }
+            if (arg.operator === '-') {
+              if (this._isNa(value)) return null;
+              if (typeof value !== 'number') {
+                this._recordRuntimeUnavailable({
+                  source: `ta.${method}.series`,
+                  reason: 'pine_series_unavailable',
+                  detail: `unary '-' on ${typeof value}`,
+                  method,
+                  node: arg,
+                });
+                return null;
+              }
+              return -value;
+            }
+            if (arg.operator === '!') return this._isNa(value) ? true : !value;
+            this._recordRuntimeUnavailable({
+              source: `ta.${method}.series`,
+              reason: 'pine_series_unavailable',
+              detail: `unary operator '${arg.operator}'`,
+              method,
+              node: arg,
+            });
+            return null;
+          });
+        }
+        case 'BinaryExpression':
+          return binarySeries(evalSeriesExpression(arg.left), evalSeriesExpression(arg.right), arg.operator);
+        case 'LogicalExpression': {
+          const left = padSeriesStart(evalSeriesExpression(arg.left));
+          if (arg.operator === 'and') {
+            const right = padSeriesStart(evalSeriesExpression(arg.right), left.length);
+            return left.map((value, i) => boolValue(value) && boolValue(right[i]));
+          }
+          if (arg.operator === 'or') {
+            const right = padSeriesStart(evalSeriesExpression(arg.right), left.length);
+            return left.map((value, i) => boolValue(value) || boolValue(right[i]));
+          }
+          return unavailableSeries(
+            'pine_series_unavailable',
+            `logical operator '${arg.operator}'`
+          );
+        }
+        case 'ConditionalExpression': {
+          const test = padSeriesStart(evalSeriesExpression(arg.test));
+          const yes = padSeriesStart(evalSeriesExpression(arg.consequent), test.length);
+          const no = padSeriesStart(evalSeriesExpression(arg.alternate), test.length);
+          return test.map((value, i) => (boolValue(value) ? yes[i] : no[i]));
+        }
+        case 'CallExpression': {
+          const current = requireComputable(this._evalExpression(arg), 'series argument');
+          const entry = this._callSeriesEntry(arg);
+          const series = entry && entry.values.length ? entry.values : [current];
+          return padSeriesStart(series);
+        }
+        default:
+          return unavailableSeries(
+            'pine_series_unavailable',
+            `expression type '${arg.type}' used as ta.${method} series argument`
+          );
+      }
+    };
+
     const evalOrSeries = (arg) => {
       // If arg is an Identifier that's a known series, return the series array
       if (arg.type === 'Identifier' && seriesNames.includes(arg.name)) {
@@ -1414,26 +1787,13 @@ class PineRuntime {
           return off > 0 ? base.slice(0, base.length - off) : base;
         }
       }
-      // Otherwise evaluate normally
-      return requireComputable(this._evalExpression(arg), 'argument');
+      return evalSeriesExpression(arg);
     };
 
-    // Series-argument resolution for window functions. Non-series scalars
-    // keep the legacy close fallback until every expression shape carries
-    // per-bar history.
+    // Series-argument resolution for window functions. Unresolvable arguments
+    // refuse loudly; substituting close would fabricate a confident number.
     const resolveSeriesArg = (arg) => {
-      if (arg.type === 'Identifier' && seriesNames.includes(arg.name)) {
-        return getSeries(arg.name);
-      }
-      if (arg.type === 'Identifier' && isUserVar(arg.name)) {
-        return userVarSeries(arg.name);
-      }
-      if (arg.type === 'SeriesLookup') {
-        const shifted = evalOrSeries(arg);
-        if (Array.isArray(shifted)) return shifted;
-      }
-      const evaluated = requireComputable(this._evalExpression(arg), 'series argument');
-      return Array.isArray(evaluated) ? evaluated : getSeries('close');
+      return evalSeriesExpression(arg);
     };
 
     switch (method) {
@@ -1538,9 +1898,28 @@ class PineRuntime {
       }
       case 'valuewhen': {
         // ta.valuewhen(condition, source, occurrence)
-        // Simplified: return source value when condition was last true
-        const source = evalOrSeries(rawArgs[1]);
-        return Array.isArray(source) ? source[source.length - 1] : source;
+        const condition = padSeriesStart(evalSeriesExpression(rawArgs[0]));
+        const source = padSeriesStart(resolveSeriesArg(rawArgs[1]), condition.length);
+        const occurrence = rawArgs[2] ? evalScalar(rawArgs[2]) : 0;
+        if (this._isNa(occurrence)) return null;
+        if (typeof occurrence !== 'number' || occurrence < 0) {
+          this._recordRuntimeUnavailable({
+            source: 'ta.valuewhen',
+            reason: 'pine_indicator_unavailable',
+            detail: `ta.valuewhen occurrence of type ${typeof occurrence}`,
+            method,
+            node: rawArgs[2] || null,
+          });
+          return null;
+        }
+        let seen = 0;
+        for (let i = condition.length - 1; i >= 0; i--) {
+          if (boolValue(condition[i])) {
+            if (seen === Math.floor(occurrence)) return source[i];
+            seen += 1;
+          }
+        }
+        return null;
       }
       default:
         // Try calling directly with evaluated args
@@ -1625,8 +2004,8 @@ class PineRuntime {
         return Date.UTC(y, (m || 1) - 1, d, h, min, s);
       };
     }
-    if (name === 'timeframe') return { multiplier: 15, isminutes: true }; // default 15m
-    if (name === 'syminfo') return { ticker: 'TSLA', mintick: 0.01 };
+    if (name === 'timeframe') return this._timeframeObject();
+    if (name === 'syminfo') return this._syminfoObject();
     if (name === 'dayofweek') return new Date(this._getCurrentCandle()?.timestamp || Date.now()).getDay();
 
     // user variable / function - must be declared; anything else bypassed the gate

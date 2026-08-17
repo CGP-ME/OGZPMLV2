@@ -2,10 +2,28 @@
 const { IndicatorCalculator } = require('../../core/IndicatorCalculator');
 
 class PineTALib {
+  static isFiniteNumber(value) {
+    return typeof value === 'number' && Number.isFinite(value);
+  }
+
+  static hasNumericWindow(series, length) {
+    if (!Array.isArray(series) || series.length < length) return false;
+    return series.slice(-length).every((value) => this.isFiniteNumber(value));
+  }
+
+  static firstNumericWindowStart(series, length) {
+    if (!Array.isArray(series) || series.length < length) return -1;
+    for (let start = 0; start <= series.length - length; start += 1) {
+      const window = series.slice(start, start + length);
+      if (window.every((value) => this.isFiniteNumber(value))) return start;
+    }
+    return -1;
+  }
+
   // Simple moving average
   static sma(series, length) {
     if (length <= 0) return null;
-    if (!Array.isArray(series) || series.length < length) return null;
+    if (!this.hasNumericWindow(series, length)) return null;
     const sum = series.slice(-length).reduce((a, b) => a + b, 0);
     return sum / length;
   }
@@ -15,8 +33,11 @@ class PineTALib {
     if (length <= 0) return null;
     if (!Array.isArray(series) || series.length < length) return null;
     const k = 2 / (length + 1);
-    let ema = this.sma(series.slice(0, length), length);
-    for (let i = length; i < series.length; i++) {
+    const seedStart = this.firstNumericWindowStart(series, length);
+    if (seedStart === -1) return null;
+    let ema = this.sma(series.slice(seedStart, seedStart + length), length);
+    for (let i = seedStart + length; i < series.length; i++) {
+      if (!this.isFiniteNumber(series[i])) return null;
       ema = series[i] * k + ema * (1 - k);
     }
     return ema;
@@ -27,12 +48,23 @@ class PineTALib {
     if (length <= 0 || !Array.isArray(series) || series.length < length) return values;
 
     const k = 2 / (length + 1);
-    let ema = this.sma(series.slice(0, length), length);
-    values[length - 1] = ema;
+    let seedStart = this.firstNumericWindowStart(series, length);
+    while (seedStart !== -1) {
+      let ema = this.sma(series.slice(seedStart, seedStart + length), length);
+      values[seedStart + length - 1] = ema;
 
-    for (let i = length; i < series.length; i++) {
-      ema = series[i] * k + ema * (1 - k);
-      values[i] = ema;
+      let brokeOnMissing = false;
+      for (let i = seedStart + length; i < series.length; i++) {
+        if (!this.isFiniteNumber(series[i])) {
+          seedStart = this.firstNumericWindowStart(series.slice(i + 1), length);
+          if (seedStart !== -1) seedStart += i + 1;
+          brokeOnMissing = true;
+          break;
+        }
+        ema = series[i] * k + ema * (1 - k);
+        values[i] = ema;
+      }
+      if (!brokeOnMissing) break;
     }
 
     return values;
@@ -62,7 +94,7 @@ class PineTALib {
   // window exists.
   static wma(series, length) {
     if (length <= 0) return null;
-    if (!Array.isArray(series) || series.length < length) return null;
+    if (!this.hasNumericWindow(series, length)) return null;
     const window = series.slice(-length);
     let weighted = 0;
     for (let i = 0; i < length; i++) {
@@ -79,6 +111,8 @@ class PineTALib {
     if (series.length < length || volume.length < length) return null;
     const s = series.slice(-length);
     const v = volume.slice(-length);
+    if (!s.every((value) => this.isFiniteNumber(value))) return null;
+    if (!v.every((value) => this.isFiniteNumber(value))) return null;
     let weighted = 0;
     let totalVolume = 0;
     for (let i = 0; i < length; i++) {
@@ -93,8 +127,11 @@ class PineTALib {
   static rma(series, length) {
     if (length <= 0) return null;
     if (!Array.isArray(series) || series.length < length) return null;
-    let rma = this.sma(series.slice(0, length), length);
-    for (let i = length; i < series.length; i++) {
+    const seedStart = this.firstNumericWindowStart(series, length);
+    if (seedStart === -1) return null;
+    let rma = this.sma(series.slice(seedStart, seedStart + length), length);
+    for (let i = seedStart + length; i < series.length; i++) {
+      if (!this.isFiniteNumber(series[i])) return null;
       rma = (rma * (length - 1) + series[i]) / length;
     }
     return rma;
@@ -105,7 +142,7 @@ class PineTALib {
   // TV: value = intercept + slope * (length - 1 - offset).
   static linreg(series, length, offset = 0) {
     if (length <= 0) return null;
-    if (!Array.isArray(series) || series.length < length) return null;
+    if (!this.hasNumericWindow(series, length)) return null;
     const window = series.slice(-length);
     let sumX = 0;
     let sumY = 0;
@@ -130,6 +167,8 @@ class PineTALib {
     if (length <= 0) return null;
     if (!Array.isArray(source) || !Array.isArray(high) || !Array.isArray(low)) return null;
     if (source.length < 1 || high.length < length || low.length < length) return null;
+    if (!this.isFiniteNumber(source[source.length - 1])) return null;
+    if (!this.hasNumericWindow(high, length) || !this.hasNumericWindow(low, length)) return null;
     const hh = Math.max(...high.slice(-length));
     const ll = Math.min(...low.slice(-length));
     if (hh === ll) return null;
@@ -164,21 +203,21 @@ class PineTALib {
   // Highest value in a look-back window
   static highest(series, lookback) {
     if (lookback <= 0) return null;
-    if (!Array.isArray(series) || series.length < lookback) return null;
+    if (!this.hasNumericWindow(series, lookback)) return null;
     return Math.max(...series.slice(-lookback));
   }
 
   // Lowest value in a look-back window
   static lowest(series, lookback) {
     if (lookback <= 0) return null;
-    if (!Array.isArray(series) || series.length < lookback) return null;
+    if (!this.hasNumericWindow(series, lookback)) return null;
     return Math.min(...series.slice(-lookback));
   }
 
   // Standard deviation
   static stdev(series, length) {
     if (length <= 0) return null;
-    if (!Array.isArray(series) || series.length < length) return null;
+    if (!this.hasNumericWindow(series, length)) return null;
     const mean = this.sma(series, length);
     const variance = series
       .slice(-length)
@@ -194,6 +233,7 @@ class PineTALib {
     for (let i = 0; i < source.length; i++) {
       const vol = volume[i];
       if (vol === undefined) return null;
+      if (!this.isFiniteNumber(source[i]) || !this.isFiniteNumber(vol)) return null;
       cumPV += source[i] * vol;
       cumVol += vol;
     }

@@ -110,7 +110,7 @@ class PineStrategyBridge {
 
   get closedtrades() {
     return {
-      profit: (idx) => this.closedTrades[idx]?.profit ?? 0,
+      profit: (idx) => this.closedTrades[idx]?.profit ?? null,
       length: this.closedTrades.length,
     };
   }
