@@ -96,7 +96,7 @@
     ]
   },
   "adversarialReview": {
-    "defaultEnabled": false,
+    "defaultEnabled": true,
     "maxRechecks": 2
   },
   "agentic": {

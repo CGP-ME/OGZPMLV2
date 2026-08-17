@@ -44,6 +44,7 @@ const { createMercuryLlmClient } = require('./llm-client');
 const {
   reviewModeRequested,
   runFableAdversarialReview,
+  runKimiFinalAdjudication,
   adversarialReviewFailure,
   buildMercuryRecheckPrompts,
   formatAdversarialReviewPacket,
@@ -593,6 +594,24 @@ async function runAgentic(query, opts) {
           }
           review.recheck = review.rechecks[0] || null;
         }
+        if (review.ok && reviewIntent === 'adversarial' && review.parsed && review.parsed.blocking) {
+          if (verbose) {
+            console.log(`[MERCURY-BRIDGE] Fable and Mercury did not converge; launching Kimi final adjudication: ${config.CONSENSUS_MODEL}`);
+          }
+          try {
+            review.finalReview = await runKimiFinalAdjudication({
+              query,
+              mercuryResult: result,
+              review,
+            });
+          } catch (finalErr) {
+            review.finalReview = adversarialReviewFailure(finalErr);
+            review.finalReview.mode = 'kimi_final_adjudication';
+            if (verbose) {
+              console.log(`[MERCURY-BRIDGE] Kimi final adjudication failed: ${finalErr.message}`);
+            }
+          }
+        }
         result.adversarialReview = review;
         result.consensus = review;
         result.adversarialReviewPacket = formatAdversarialReviewPacket({
@@ -753,6 +772,21 @@ function printDispatchReceipt(result) {
     console.log('review layer:    not requested');
   } else if (reviewEntry.ok) {
     console.log(`review layer:    ok — ${reviewEntry.mode || 'adversarial_review'} verdict=${reviewEntry.effective_verdict || 'n/a'}`);
+    if (reviewEntry.final_review) {
+      const final = reviewEntry.final_review;
+      const finalStatus = final.ok ? 'ok' : 'FAILED';
+      console.log(`final adjud.:    ${finalStatus} — ${final.mode || 'kimi_final_adjudication'} verdict=${final.effective_verdict || 'n/a'}`);
+      const sharedSupport = final.parsed && (final.parsed.consensus || final.parsed.sharedConclusion);
+      if (sharedSupport) {
+        console.log(`shared support:  ${sharedSupport}`);
+      }
+      if (final.parsed && final.parsed.contradictions && !/^none\b/i.test(final.parsed.contradictions)) {
+        console.log(`contradictions:  ${final.parsed.contradictions}`);
+      }
+      if (final.parsed && final.parsed.blindSpots && !/^none\b/i.test(final.parsed.blindSpots)) {
+        console.log(`blind spots:     ${final.parsed.blindSpots}`);
+      }
+    }
   } else {
     const reviewError = reviewEntry.error && reviewEntry.error.message
       ? reviewEntry.error.message

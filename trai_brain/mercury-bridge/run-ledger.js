@@ -135,6 +135,21 @@ function classifyMercuryVerdict({ result = null, error = null, autoBlastRadius =
   ) {
     return 'consensus_failed';
   }
+  const review = result && (result.adversarialReview || result.consensus);
+  if (review && review.finalReview) {
+    if (review.finalReview.ok !== true) return 'consensus_failed';
+    const finalParsed = review.finalReview.parsed || {};
+    const finalVerdict = String(finalParsed.verdict || '').toLowerCase();
+    if (finalVerdict === 'models_disagree') return 'models_disagree';
+    if (finalVerdict === 'found_break') return 'found_break';
+    if (finalVerdict === 'blocked') return 'blocked';
+    if (finalParsed.blocking || finalVerdict === 'needs_more_evidence') return 'cannot_verify';
+    if (['pass', 'no_break_found'].includes(finalVerdict)) return 'no_break_found';
+    return 'cannot_verify';
+  }
+  if (review && review.ok === true && review.parsed && review.parsed.blocking) {
+    return 'cannot_verify';
+  }
   if (!result || result.termination !== 'answer_given') return 'blocked';
 
   const answer = String(result.answer || '').toLowerCase();
@@ -153,12 +168,51 @@ function classifyMercuryVerdict({ result = null, error = null, autoBlastRadius =
 function parsedReviewClassification(parsed) {
   if (!parsed || typeof parsed !== 'object') return null;
   const clean = {};
-  for (const key of ['verdict', 'parseWarnings', 'disagreement', 'requiredRecheck', 'recheckPrompt', 'nextCheck']) {
+  for (const key of [
+    'consensus',
+    'contradictions',
+    'partial',
+    'unique',
+    'blindSpots',
+    'verdict',
+    'blocking',
+    'parseWarnings',
+    'disagreement',
+    'requiredRecheck',
+    'recheckPrompt',
+    'nextCheck',
+    'sharedConclusion',
+    'mercurySupported',
+    'fableSupported',
+    'kimiSupported',
+    'citedReasoning',
+  ]) {
     if (Object.prototype.hasOwnProperty.call(parsed, key)) {
       clean[key] = parsed[key];
     }
   }
   return clean;
+}
+
+function buildFinalReviewLedgerSummary(finalReview) {
+  if (!finalReview) return null;
+  const redactedAnswer = finalReview.answer ? redactSensitiveText(finalReview.answer) : null;
+  const parsed = parsedReviewClassification(finalReview.parsed);
+  return {
+    mode: finalReview.mode || 'kimi_final_adjudication',
+    enabled: finalReview.enabled === true,
+    ok: finalReview.ok === true,
+    provider: finalReview.provider || null,
+    model: finalReview.model || null,
+    latency_ms: finalReview.latencyMs == null ? null : finalReview.latencyMs,
+    error: finalReview.error || null,
+    parsed,
+    effective_verdict: parsed && parsed.verdict ? parsed.verdict : null,
+    answer_excerpt: redactedAnswer
+      ? truncateText(redactedAnswer, ANSWER_EXCERPT_MAX)
+      : null,
+    answer_full: redactedAnswer,
+  };
 }
 
 function buildReviewLedgerSummary(review, { effectiveVerdictOverride = null } = {}) {
@@ -212,6 +266,7 @@ function buildReviewLedgerSummary(review, { effectiveVerdictOverride = null } = 
         : null,
       answer_full: recheck.answer ? redactSensitiveText(recheck.answer) : null,
     })),
+    final_review: buildFinalReviewLedgerSummary(review.finalReview),
     answer_excerpt: redactedAnswer
       ? truncateText(redactedAnswer, ANSWER_EXCERPT_MAX)
       : null,

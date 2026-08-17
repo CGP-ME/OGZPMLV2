@@ -51,26 +51,58 @@ function hasStructuredField(text, fieldName) {
   return new RegExp(`(?:^|\\n)\\s*(?:\\*\\*)?${escapedField}(?:\\*\\*)?\\s*:`, 'i').test(source);
 }
 
+function hasMeaningfulFieldValue(value) {
+  const text = String(value || '').trim();
+  return text !== '' && !/^none\b/i.test(text);
+}
+
 function parseAdversarialReviewAnswer(answer) {
   const text = String(answer || '');
-  const verdict = extractField(text, 'VERDICT').split(/\s+/)[0].toLowerCase() || 'unknown';
+  const verdict = (extractField(text, 'VERDICT') || extractField(text, 'FINAL_VERDICT'))
+    .split(/\s+/)[0].toLowerCase() || 'unknown';
   const blockingRaw = extractField(text, 'CONSENSUS_BLOCKING').toLowerCase()
-    || extractField(text, 'ADVERSARIAL_REVIEW_BLOCKING').toLowerCase();
+    || extractField(text, 'ADVERSARIAL_REVIEW_BLOCKING').toLowerCase()
+    || extractField(text, 'FINAL_BLOCKING').toLowerCase();
   const explicitBlocking = /^(yes|true|blocking)\b/.test(blockingRaw);
   const missingBlockingField = !hasStructuredField(text, 'CONSENSUS_BLOCKING')
-    && !hasStructuredField(text, 'ADVERSARIAL_REVIEW_BLOCKING');
-  const blocking = missingBlockingField || explicitBlocking || ['disagree', 'needs_more_evidence', 'found_break', 'blocked'].includes(verdict);
+    && !hasStructuredField(text, 'ADVERSARIAL_REVIEW_BLOCKING')
+    && !hasStructuredField(text, 'FINAL_BLOCKING');
+  const consensus = extractField(text, 'CONSENSUS');
+  const contradictions = extractField(text, 'CONTRADICTIONS');
+  const partial = extractField(text, 'PARTIAL');
+  const unique = extractField(text, 'UNIQUE');
+  const blindSpots = extractField(text, 'BLIND_SPOTS');
+  const disagreement = extractField(text, 'DISAGREEMENT');
+  const parseWarnings = [];
+  if (missingBlockingField) parseWarnings.push('missing_adversarial_review_blocking_field');
+  if (verdict === 'pass' && hasMeaningfulFieldValue(contradictions)) {
+    parseWarnings.push('pass_with_contradictions');
+  }
+  const blocking = missingBlockingField
+    || explicitBlocking
+    || hasMeaningfulFieldValue(disagreement)
+    || ['disagree', 'needs_more_evidence', 'found_break', 'blocked', 'models_disagree'].includes(verdict);
   const recheckPrompt = extractField(text, 'RECHECK_PROMPT');
   const nextCheck = extractField(text, 'NEXT_CHECK');
   return {
+    consensus,
+    contradictions,
+    partial,
+    unique,
+    blindSpots,
     verdict,
     blocking,
-    parseWarnings: missingBlockingField ? ['missing_adversarial_review_blocking_field'] : [],
-    disagreement: extractField(text, 'DISAGREEMENT'),
+    parseWarnings,
+    disagreement,
     requiredRecheck: extractField(text, 'REQUIRED_RECHECK')
       || extractField(text, 'REQUIRED_RECHECKS'),
     recheckPrompt,
     nextCheck,
+    sharedConclusion: extractField(text, 'SHARED_CONCLUSION'),
+    mercurySupported: extractField(text, 'MERCURY_SUPPORTED'),
+    fableSupported: extractField(text, 'FABLE_SUPPORTED'),
+    kimiSupported: extractField(text, 'KIMI_SUPPORTED'),
+    citedReasoning: extractField(text, 'CITED_REASONING') || extractField(text, 'RATIONALE'),
   };
 }
 
@@ -148,6 +180,105 @@ function formatRecheck(recheck, index, prompt) {
   ].join('\n');
 }
 
+function formatFinalReview(finalReview) {
+  if (!finalReview) {
+    return [
+      'Verdict: missing',
+      'Blocking: yes',
+      'Shared conclusion: none',
+      'Mercury supported:',
+      '<not adjudicated>',
+      'Fable supported:',
+      '<not adjudicated>',
+      'Kimi supported:',
+      '<not adjudicated>',
+      'Full Kimi answer:',
+      '<missing>',
+    ].join('\n');
+  }
+
+  const parsed = finalReview.parsed || parseAdversarialReviewAnswer(finalReview.answer);
+  return [
+    'Consensus:',
+    parsed.consensus || '<not specified>',
+    'Contradictions:',
+    parsed.contradictions || '<not specified>',
+    'Partial:',
+    parsed.partial || '<not specified>',
+    'Unique:',
+    parsed.unique || '<not specified>',
+    'Blind spots:',
+    parsed.blindSpots || '<not specified>',
+    `Verdict: ${parsed.verdict || 'unknown'}`,
+    `Blocking: ${parsed.blocking ? 'yes' : 'no'}`,
+    'Shared conclusion:',
+    parsed.sharedConclusion || '<none>',
+    'Mercury supported:',
+    parsed.mercurySupported || '<not specified>',
+    'Fable supported:',
+    parsed.fableSupported || '<not specified>',
+    'Kimi supported:',
+    parsed.kimiSupported || '<not specified>',
+    'Cited reasoning:',
+    parsed.citedReasoning || '<not specified>',
+    'Full Kimi answer:',
+    String(finalReview.answer || '').trim() || '<empty>',
+  ].join('\n');
+}
+
+function finalReviewDecision(finalReview, parsedFirstReview, rechecks) {
+  if (!finalReview || finalReview.ok !== true) {
+    if (!parsedFirstReview.blocking) {
+      return {
+        verdict: parsedFirstReview.verdict || 'pass',
+        decision: 'pass_pending_local_proof',
+        why: 'Fable did not identify a blocking challenge, so Kimi tie-break adjudication was not required.',
+        residualRisk: 'Local tests/gates still control commit approval.',
+        nextAction: parsedFirstReview.nextCheck || '<none>',
+      };
+    }
+    return {
+      verdict: 'needs_more_evidence',
+      decision: 'needs_more_evidence',
+      why: 'Kimi final adjudication did not complete.',
+      residualRisk: 'Mercury and Fable disagreement remains unresolved.',
+      nextAction: parsedFirstReview.nextCheck || parsedFirstReview.requiredRecheck || '<rerun final adjudication>',
+    };
+  }
+
+  const parsedFinal = finalReview.parsed || parseAdversarialReviewAnswer(finalReview.answer);
+  const verdict = parsedFinal.verdict || 'unknown';
+  if (verdict === 'models_disagree') {
+    return {
+      verdict,
+      decision: 'models_disagree',
+      why: parsedFinal.sharedConclusion || 'No shared conclusion across Mercury, Fable, and Kimi.',
+      residualRisk: 'Do not treat this review as green; inspect each model-supported claim separately.',
+      nextAction: parsedFinal.nextCheck || parsedFirstReview.nextCheck || '<operator adjudication required>',
+    };
+  }
+
+  if (parsedFinal.blocking) {
+    return {
+      verdict,
+      decision: verdict === 'found_break' ? 'found_break' : 'needs_more_evidence',
+      why: parsedFinal.citedReasoning || parsedFinal.disagreement || 'Kimi final adjudication remained blocking.',
+      residualRisk: parsedFinal.sharedConclusion || 'Blocking adjudication remains unresolved.',
+      nextAction: parsedFinal.nextCheck || parsedFirstReview.nextCheck || '<resolve final blocking finding>',
+    };
+  }
+
+  return {
+    verdict,
+    decision: verdict === 'found_break' ? 'found_break' : 'pass_pending_local_proof',
+    why: parsedFinal.citedReasoning || (rechecks.length > 0
+      ? 'Kimi adjudicated the Fable challenge after Mercury recheck evidence.'
+      : 'Fable did not identify a blocking challenge and Kimi found no unresolved disagreement.'),
+    residualRisk: parsedFinal.sharedConclusion || 'Local tests/gates still control commit approval.',
+    nextAction: parsedFinal.nextCheck || '<none>',
+  };
+}
+
 function formatAdversarialReviewPacket({
   originalQuery,
   mercuryResult,
@@ -199,9 +330,11 @@ function formatAdversarialReviewPacket({
   const recheckPrompts = Array.isArray(reviewData && reviewData.recheckPrompts)
     ? reviewData.recheckPrompts
     : (reviewData && reviewData.recheckPrompt ? [reviewData.recheckPrompt] : []);
+  const finalReview = reviewData && reviewData.finalReview ? reviewData.finalReview : null;
+  const finalDecision = finalReviewDecision(finalReview, parsed, rechecks);
 
   const sections = [
-    `VERDICT: ${parsed.blocking && rechecks.length === 0 ? 'needs_more_evidence' : (parsed.verdict || 'unknown')}`,
+    `VERDICT: ${finalDecision.verdict}`,
     '',
     '1. Original Prompt',
     String(originalQuery || '').trim() || '<empty>',
@@ -245,21 +378,18 @@ function formatAdversarialReviewPacket({
 
   sections.push(
     '',
-    '5. Final Resolution',
+    '5. Kimi Final Adjudication',
+    formatFinalReview(finalReview),
+    '',
+    '6. Final Resolution',
     'Decision:',
-    rechecks.length > 0
-      ? 'Use Mercury recheck evidence plus local tests/gates as final authority.'
-      : (parsed.blocking ? 'needs_more_evidence' : 'pass_pending_local_proof'),
+    finalDecision.decision,
     'Why:',
-    rechecks.length > 0
-      ? 'Fable challenge received a repo-tool Mercury answer.'
-      : (parsed.blocking ? 'Fable found a blocking gap without a completed recheck.' : 'Fable did not identify a blocking challenge.'),
+    finalDecision.why,
     'Residual Risk:',
-    rechecks.length > 0
-      ? 'Review the recheck answer for unresolved evidence gaps before using this as commit approval.'
-      : (parsed.blocking ? 'Blocking critique remains unresolved.' : 'No Fable-blocking critique was raised.'),
+    finalDecision.residualRisk,
     'Required Next Action:',
-    parsed.nextCheck || '<none>'
+    finalDecision.nextAction
   );
 
   return sections.join('\n');
@@ -383,6 +513,83 @@ function buildAdversarialReviewPrompt({
   ].join('\n');
 }
 
+function buildKimiFinalAdjudicationPrompt({
+  query,
+  mercuryResult,
+  review,
+} = {}) {
+  if (typeof query !== 'string' || query.trim() === '') {
+    throw new Error('Kimi final adjudication prompt requires the original query');
+  }
+  if (!mercuryResult || typeof mercuryResult !== 'object') {
+    throw new Error('Kimi final adjudication prompt requires a Mercury result object');
+  }
+  if (!review || typeof review !== 'object') {
+    throw new Error('Kimi final adjudication prompt requires the Fable review object');
+  }
+
+  const rechecks = Array.isArray(review.rechecks)
+    ? review.rechecks
+    : (review.recheck ? [review.recheck] : []);
+  const recheckPrompts = Array.isArray(review.recheckPrompts)
+    ? review.recheckPrompts
+    : (review.recheckPrompt ? [review.recheckPrompt] : []);
+  const mercuryTelemetry = mercuryResult.toolTelemetry
+    ? formatToolTelemetry(mercuryResult.toolTelemetry)
+    : 'unavailable';
+  const answerQualityFlags = mercuryResult.answerQuality && Array.isArray(mercuryResult.answerQuality.flags)
+    ? mercuryResult.answerQuality.flags.join(', ') || 'none'
+    : 'unavailable';
+  const answerQualityEvidence = mercuryResult.answerQuality && Array.isArray(mercuryResult.answerQuality.evidence)
+    ? JSON.stringify(mercuryResult.answerQuality.evidence)
+    : 'unavailable';
+
+  const recheckSections = rechecks.length > 0
+    ? rechecks.map((recheck, index) => formatRecheck(recheck, index + 1, recheckPrompts[index])).join('\n\n')
+    : '<none>';
+
+  return [
+    'READ-ONLY FINAL ADJUDICATION. Do not edit code.',
+    'You are Kimi, the reasoning adjudicator for the OGZPrime adversarial layer.',
+    '',
+    'Your job is not to agree with Mercury or Fable. Compare their answers before verdict and decide whether the end state is supported by cited evidence.',
+    'Use only the material below: the original prompt, Mercury pass 1, Mercury tool telemetry, answer-quality flags, Fable critique, and Mercury rechecks.',
+    'Do not invent repo facts or file:line citations. If evidence is missing, say so.',
+    'Do not merge the answers into a blended narrative. Attribute every item to the reporter that holds it by name.',
+    'If Mercury, Fable, and you still do not converge, return VERDICT: disagree and preserve what each model individually supported.',
+    '',
+    'Return exactly these fields in this order, one label per line. VERDICT must be last:',
+    'CONSENSUS: claims all reporters agree on, with citations, or none',
+    'CONTRADICTIONS: reporter disagreements with each position and repo-supported resolution, or none',
+    'PARTIAL: claims only one reporter reached and others did not verify, or none',
+    'UNIQUE: supported insight one reporter surfaced that the others missed, or none',
+    'BLIND_SPOTS: required question areas no reporter addressed, or none',
+    'DISAGREEMENT: one-line live dispute if any, else none',
+    'CONSENSUS_BLOCKING: yes | no',
+    'REQUIRED_RECHECKS: list, may be empty',
+    'RECHECK_PROMPT: exact question for the recheck, or empty',
+    'VERDICT: pass | disagree | needs_more_evidence',
+    '',
+    'Rules: VERDICT: pass with non-empty CONTRADICTIONS contradicts the tape; resolve or route to recheck. BLIND_SPOTS must be recorded but does not block by itself. Never quote model confidence as evidence.',
+    '',
+    `Original user prompt:\n${query.trim()}`,
+    '',
+    `Mercury termination: ${mercuryResult.termination || 'unknown'}`,
+    `Mercury iterations: ${mercuryResult.iterations == null ? 'unknown' : mercuryResult.iterations}`,
+    `Mercury tool telemetry: ${mercuryTelemetry}`,
+    `Mercury answer quality flags: ${answerQualityFlags}`,
+    `Mercury answer quality evidence: ${answerQualityEvidence}`,
+    '',
+    `Mercury pass 1 answer:\n${String(mercuryResult.answer || '').trim() || '<empty>'}`,
+    '',
+    `Fable parsed verdict: ${review.parsed && review.parsed.verdict ? review.parsed.verdict : 'unknown'}`,
+    `Fable blocking: ${review.parsed && review.parsed.blocking ? 'yes' : 'no'}`,
+    `Fable answer:\n${String(review.answer || '').trim() || '<empty>'}`,
+    '',
+    `Mercury rechecks:\n${recheckSections}`,
+  ].join('\n');
+}
+
 async function runFableAdversarialReview({
   query,
   mercuryResult,
@@ -401,6 +608,32 @@ async function runFableAdversarialReview({
   return {
     mode: 'adversarial_review',
     reviewIntent: normalizeReviewIntent(reviewIntent),
+    enabled: true,
+    ok: true,
+    provider: config.CONSENSUS_PROVIDER,
+    model: config.CONSENSUS_MODEL,
+    latencyMs: now() - started,
+    answer,
+    parsed: parseAdversarialReviewAnswer(answer),
+  };
+}
+
+async function runKimiFinalAdjudication({
+  query,
+  mercuryResult,
+  review,
+  createClient = createConsensusLlmClient,
+  now = Date.now,
+} = {}) {
+  const client = createClient({ systemPrompt: config.CONSENSUS_SYSTEM_PROMPT });
+  const prompt = buildKimiFinalAdjudicationPrompt({ query, mercuryResult, review });
+  const started = now();
+
+  await client.initialize();
+  const answer = await client.generateResponse(prompt, config.CONSENSUS_CLIENT_MAX_TOKENS);
+
+  return {
+    mode: 'kimi_final_adjudication',
     enabled: true,
     ok: true,
     provider: config.CONSENSUS_PROVIDER,
@@ -435,6 +668,8 @@ module.exports = {
   buildMercuryRecheckPrompts,
   formatAdversarialReviewPacket,
   buildAdversarialReviewPrompt,
+  buildKimiFinalAdjudicationPrompt,
   runFableAdversarialReview,
+  runKimiFinalAdjudication,
   adversarialReviewFailure,
 };

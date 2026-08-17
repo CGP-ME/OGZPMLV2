@@ -9,7 +9,9 @@ const {
   buildMercuryRecheckPrompts,
   formatAdversarialReviewPacket,
   buildConsensusPrompt,
+  buildKimiFinalAdjudicationPrompt,
   runFableConsensus,
+  runKimiFinalConsensus,
   consensusFailure,
   normalizeReviewIntent,
 } = require('../trai_brain/mercury-bridge/consensus');
@@ -70,12 +72,13 @@ describe('Mercury Fable consensus', () => {
 
   test('consensusRequested honors explicit run flag over config default', () => {
     expect(consensusRequested({ consensusExplicit: true, consensus: true })).toBe(true);
-    expect(consensusRequested({ consensusExplicit: true, consensus: false })).toBe(false);
-    expect(consensusRequested({})).toBe(false);
+    expect(consensusRequested({ consensusExplicit: true, consensus: false })).toBe(true);
+    expect(consensusRequested({ adversarialReviewExplicit: true, adversarialReview: false, consensusExplicit: true, consensus: false })).toBe(false);
+    expect(consensusRequested({})).toBe(true);
     expect(adversarialReviewRequested({ adversarialReviewExplicit: true, adversarialReview: true })).toBe(true);
     expect(adversarialReviewRequested({ adversarialReviewExplicit: true, adversarialReview: false })).toBe(false);
     expect(reviewModeRequested({ adversarialReviewExplicit: true, adversarialReview: true })).toBe('adversarial_review');
-    expect(reviewModeRequested({ consensusExplicit: true, consensus: true })).toBe('consensus');
+    expect(reviewModeRequested({ adversarialReviewExplicit: true, adversarialReview: false, consensusExplicit: true, consensus: true })).toBe('consensus');
   });
 
   test('malformed MERCURY_ADVERSARIAL_REVIEW env does not crash review selection', () => {
@@ -83,7 +86,7 @@ describe('Mercury Fable consensus', () => {
     try {
       process.env.MERCURY_ADVERSARIAL_REVIEW = '';
       expect(() => adversarialReviewRequested({})).not.toThrow();
-      expect(adversarialReviewRequested({})).toBe(false);
+      expect(adversarialReviewRequested({})).toBe(true);
 
       process.env.MERCURY_ADVERSARIAL_REVIEW = 'maybe';
       expect(() => adversarialReviewRequested({})).not.toThrow();
@@ -240,6 +243,61 @@ describe('Mercury Fable consensus', () => {
     });
   });
 
+  test('parses adjudicator tape fields before verdict and warns on pass contradictions', () => {
+    const parsed = parseConsensusAnswer([
+      'CONSENSUS: Mercury and Fable both cite core/Foo.js:1-2.',
+      'CONTRADICTIONS: Mercury says no reachable state; Fable says core/Foo.js:2 remains reachable.',
+      'PARTIAL: Mercury alone checked test/Foo.test.js:5.',
+      'UNIQUE: Fable surfaced missing producer census in core/Foo.js:3.',
+      'BLIND_SPOTS: neither reporter checked journal persistence.',
+      'DISAGREEMENT: reachability remains disputed.',
+      'CONSENSUS_BLOCKING: no',
+      'REQUIRED_RECHECKS: Mercury, inspect core/Foo.js:1-3.',
+      'RECHECK_PROMPT: Mercury, inspect the disputed reachability path.',
+      'VERDICT: pass',
+    ].join('\n'));
+
+    expect(parsed).toMatchObject({
+      consensus: 'Mercury and Fable both cite core/Foo.js:1-2.',
+      contradictions: 'Mercury says no reachable state; Fable says core/Foo.js:2 remains reachable.',
+      partial: 'Mercury alone checked test/Foo.test.js:5.',
+      unique: 'Fable surfaced missing producer census in core/Foo.js:3.',
+      blindSpots: 'neither reporter checked journal persistence.',
+      disagreement: 'reachability remains disputed.',
+      requiredRecheck: 'Mercury, inspect core/Foo.js:1-3.',
+      recheckPrompt: 'Mercury, inspect the disputed reachability path.',
+      verdict: 'pass',
+      blocking: true,
+      parseWarnings: ['pass_with_contradictions'],
+    });
+  });
+
+  test('meaningful disagreement blocks even when model claims non-blocking', () => {
+    expect(parseConsensusAnswer([
+      'VERDICT: agree',
+      'CONSENSUS_BLOCKING: no',
+      'DISAGREEMENT: Mercury did not prove the run_check artifact.',
+      'RECHECK_PROMPT: Mercury, recheck the artifact.',
+    ].join('\n'))).toMatchObject({
+      verdict: 'agree',
+      blocking: true,
+      disagreement: 'Mercury did not prove the run_check artifact.',
+      parseWarnings: [],
+    });
+
+    expect(parseConsensusAnswer([
+      'VERDICT: agree',
+      'CONSENSUS_BLOCKING: no',
+      'DISAGREEMENT: none',
+      'RECHECK_PROMPT: none',
+    ].join('\n'))).toMatchObject({
+      verdict: 'agree',
+      blocking: false,
+      disagreement: 'none',
+      parseWarnings: [],
+    });
+  });
+
   test('fallback Mercury recheck prompt carries parse warnings and full Fable critique', () => {
     const fableAnswer = [
       'VERDICT: agree',
@@ -318,6 +376,30 @@ describe('Mercury Fable consensus', () => {
           iterations: 2,
           answer: 'Spawn site uses execSync(..., { env }); parent env cannot override after overlay.',
         }],
+        finalReview: {
+          mode: 'kimi_final_adjudication',
+          ok: true,
+          answer: [
+            'FINAL_VERDICT: models_disagree',
+            'FINAL_BLOCKING: yes',
+            'SHARED_CONCLUSION: none',
+            'MERCURY_SUPPORTED: recheck cites execSync evidence',
+            'FABLE_SUPPORTED: initial answer missed spawn-site proof',
+            'KIMI_SUPPORTED: no shared conclusion',
+            'CITED_REASONING: the supplied answers disagree',
+            'NEXT_CHECK: operator adjudication',
+          ].join('\n'),
+          parsed: {
+            verdict: 'models_disagree',
+            blocking: true,
+            sharedConclusion: 'none',
+            mercurySupported: 'recheck cites execSync evidence',
+            fableSupported: 'initial answer missed spawn-site proof',
+            kimiSupported: 'no shared conclusion',
+            citedReasoning: 'the supplied answers disagree',
+            nextCheck: 'operator adjudication',
+          },
+        },
       },
     });
 
@@ -325,9 +407,48 @@ describe('Mercury Fable consensus', () => {
     expect(packet).toContain('2. Mercury Pass 1');
     expect(packet).toContain('3. Fable Review');
     expect(packet).toContain('4. Mercury Recheck');
-    expect(packet).toContain('5. Final Resolution');
+    expect(packet).toContain('5. Kimi Final Adjudication');
+    expect(packet).toContain('6. Final Resolution');
+    expect(packet).toContain('models_disagree');
+    expect(packet).toContain('Mercury supported:');
     expect(packet).toContain('Missing spawn-site proof.');
     expect(packet).toContain('Spawn site uses execSync');
+  });
+
+  test('buildKimiFinalAdjudicationPrompt demands cited per-model support on disagreement', () => {
+    const prompt = buildKimiFinalAdjudicationPrompt({
+      query: 'Mercury, break my fix.',
+      mercuryResult: {
+        termination: 'answer_given',
+        iterations: 2,
+        answer: 'No break found. core/Foo.js:1-2',
+        answerQuality: {
+          flags: ['missing_file_line_citation'],
+          evidence: [{ flag: 'missing_file_line_citation', evidence: 'no file:line citation anywhere in the final answer' }],
+        },
+        toolTelemetry: {
+          byTool: { open_file: { calls: 1, succeeded: 1, failed: 0 } },
+          filesOpened: ['core/Foo.js:1-2'],
+          runCheckArtifacts: [],
+          runChecks: [],
+        },
+      },
+      review: {
+        answer: 'VERDICT: needs_more_evidence\nCONSENSUS_BLOCKING: yes\nDISAGREEMENT: missing proof',
+        parsed: { verdict: 'needs_more_evidence', blocking: true },
+        rechecks: [{ termination: 'answer_given', iterations: 1, answer: 'Still no proof.' }],
+        recheckPrompts: ['Mercury, recheck proof.'],
+      },
+    });
+
+    expect(prompt).toContain('READ-ONLY FINAL ADJUDICATION');
+    expect(prompt).toContain('You are Kimi, the reasoning adjudicator');
+    expect(prompt).toContain('CONSENSUS: claims all reporters agree on, with citations, or none');
+    expect(prompt).toContain('CONTRADICTIONS: reporter disagreements with each position and repo-supported resolution, or none');
+    expect(prompt).toContain('BLIND_SPOTS: required question areas no reporter addressed, or none');
+    expect(prompt).toContain('VERDICT: pass | disagree | needs_more_evidence');
+    expect(prompt.indexOf('CONSENSUS: claims all reporters agree on')).toBeLessThan(prompt.indexOf('VERDICT: pass | disagree | needs_more_evidence'));
+    expect(prompt).toContain('Mercury answer quality flags: missing_file_line_citation');
   });
 
   test('architecture packet is synthesis-oriented and does not require Mercury rechecks', () => {
@@ -401,6 +522,53 @@ describe('Mercury Fable consensus', () => {
       },
     });
     expect(result.answer).toContain('VERDICT: pass');
+  });
+
+  test('runKimiFinalConsensus uses an injected client and parses models_disagree', async () => {
+    const fakeClient = {
+      initialize: jest.fn(async () => {}),
+      generateResponse: jest.fn(async () => [
+        'FINAL_VERDICT: models_disagree',
+        'FINAL_BLOCKING: yes',
+        'SHARED_CONCLUSION: none',
+        'MERCURY_SUPPORTED: no break claim',
+        'FABLE_SUPPORTED: missing proof challenge',
+        'KIMI_SUPPORTED: disagreement remains',
+        'CITED_REASONING: supplied evidence does not converge',
+        'NEXT_CHECK: operator adjudication',
+      ].join('\n')),
+    };
+
+    const result = await runKimiFinalConsensus({
+      query: 'Mercury, break my fix.',
+      mercuryResult: {
+        termination: 'answer_given',
+        iterations: 1,
+        answer: 'No concrete break found. core/Foo.js:1-2',
+      },
+      review: {
+        answer: 'VERDICT: needs_more_evidence\nCONSENSUS_BLOCKING: yes',
+        parsed: { verdict: 'needs_more_evidence', blocking: true },
+      },
+      createClient: jest.fn(() => fakeClient),
+      now: jest.fn()
+        .mockReturnValueOnce(2000)
+        .mockReturnValueOnce(2400),
+    });
+
+    expect(fakeClient.generateResponse).toHaveBeenCalledWith(expect.stringContaining('Kimi'), 2000);
+    expect(result).toMatchObject({
+      mode: 'kimi_final_adjudication',
+      ok: true,
+      latencyMs: 400,
+      parsed: {
+        verdict: 'models_disagree',
+        blocking: true,
+        mercurySupported: 'no break claim',
+        fableSupported: 'missing proof challenge',
+        kimiSupported: 'disagreement remains',
+      },
+    });
   });
 
   test('consensusFailure preserves visible error metadata', () => {

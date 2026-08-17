@@ -190,7 +190,7 @@ describe('Mercury LLM config contract', () => {
 
     await withMercuryConfig({}, () => {
       const config = require('../trai_brain/mercury-bridge/config');
-      expect(config.ADVERSARIAL_REVIEW_DEFAULT_ENABLED).toBe(false);
+      expect(config.ADVERSARIAL_REVIEW_DEFAULT_ENABLED).toBe(true);
     }, {
       MERCURY_ADVERSARIAL_REVIEW: '',
     });

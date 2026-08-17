@@ -114,7 +114,7 @@ describe('Mercury run ledger', () => {
           parsed: { verdict: 'found_break', blocking: true },
         },
       },
-    })).toBe('no_break_found');
+    })).toBe('cannot_verify');
 
     expect(classifyMercuryVerdict({
       result: {
@@ -352,6 +352,7 @@ describe('Mercury run ledger', () => {
       recheck_prompts_full: [],
       recheck: null,
       rechecks: [],
+      final_review: null,
       answer_excerpt: null,
       answer_full: null,
     });
@@ -380,6 +381,11 @@ describe('Mercury run ledger', () => {
           latencyMs: 250,
           answer: 'VERDICT: needs_more_evidence\nCONSENSUS_BLOCKING: yes',
           parsed: {
+            consensus: 'Mercury and Fable cite core/OrderExecutor.js:1-2.',
+            contradictions: 'Mercury omitted spawn proof; Fable required it.',
+            partial: 'Fable alone requested the spawn proof.',
+            unique: 'Mercury recheck surfaced execSync overlay evidence.',
+            blindSpots: 'none',
             verdict: 'needs_more_evidence',
             blocking: true,
             disagreement: 'Missing spawn-site proof.',
@@ -401,6 +407,39 @@ describe('Mercury run ledger', () => {
             totalLatencyMs: 500,
             answer: 'Spawn site uses execSync(..., { env }); parent env cannot override after overlay.',
           }],
+          finalReview: {
+            mode: 'kimi_final_adjudication',
+            enabled: true,
+            ok: true,
+            provider: 'openai',
+            model: 'kimi-k3',
+            latencyMs: 300,
+            answer: [
+              'FINAL_VERDICT: models_disagree',
+              'FINAL_BLOCKING: yes',
+              'SHARED_CONCLUSION: none',
+              'MERCURY_SUPPORTED: recheck cites execSync evidence',
+              'FABLE_SUPPORTED: initial answer missed spawn-site proof',
+              'KIMI_SUPPORTED: no shared conclusion',
+              'CITED_REASONING: supplied evidence does not converge',
+              'NEXT_CHECK: operator adjudication',
+            ].join('\n'),
+            parsed: {
+              consensus: 'none',
+              contradictions: 'Mercury and Fable diverged on whether proof was sufficient.',
+              partial: 'none',
+              unique: 'Kimi preserved the unresolved disagreement.',
+              blindSpots: 'none',
+              verdict: 'models_disagree',
+              blocking: true,
+              sharedConclusion: 'none',
+              mercurySupported: 'recheck cites execSync evidence',
+              fableSupported: 'initial answer missed spawn-site proof',
+              kimiSupported: 'no shared conclusion',
+              citedReasoning: 'supplied evidence does not converge',
+              nextCheck: 'operator adjudication',
+            },
+          },
         },
         answerQuality: { flags: [] },
         toolTelemetry: { byTool: {}, filesOpened: [], runCheckArtifacts: [], runChecks: [] },
@@ -411,6 +450,11 @@ describe('Mercury run ledger', () => {
       mode: 'adversarial_review',
       ok: true,
       parsed: {
+        consensus: 'Mercury and Fable cite core/OrderExecutor.js:1-2.',
+        contradictions: 'Mercury omitted spawn proof; Fable required it.',
+        partial: 'Fable alone requested the spawn proof.',
+        unique: 'Mercury recheck surfaced execSync overlay evidence.',
+        blindSpots: 'none',
         verdict: 'needs_more_evidence',
       },
       recheck_prompts: ['Mercury, inspect the spawn site.'],
@@ -431,7 +475,44 @@ describe('Mercury run ledger', () => {
         answer_excerpt: 'Spawn site uses execSync(..., { env }); parent env cannot override after overlay.',
         answer_full: 'Spawn site uses execSync(..., { env }); parent env cannot override after overlay.',
       }],
+      final_review: {
+        mode: 'kimi_final_adjudication',
+        ok: true,
+        provider: 'openai',
+        model: 'kimi-k3',
+        effective_verdict: 'models_disagree',
+        parsed: {
+          consensus: 'none',
+          contradictions: 'Mercury and Fable diverged on whether proof was sufficient.',
+          partial: 'none',
+          unique: 'Kimi preserved the unresolved disagreement.',
+          blindSpots: 'none',
+          verdict: 'models_disagree',
+          blocking: true,
+          sharedConclusion: 'none',
+          mercurySupported: 'recheck cites execSync evidence',
+          fableSupported: 'initial answer missed spawn-site proof',
+          kimiSupported: 'no shared conclusion',
+        },
+      },
     });
+    expect(Object.keys(entry.consensus.parsed).slice(0, 6)).toEqual([
+      'consensus',
+      'contradictions',
+      'partial',
+      'unique',
+      'blindSpots',
+      'verdict',
+    ]);
+    expect(Object.keys(entry.consensus.final_review.parsed).slice(0, 6)).toEqual([
+      'consensus',
+      'contradictions',
+      'partial',
+      'unique',
+      'blindSpots',
+      'verdict',
+    ]);
+    expect(entry.verdict).toBe('models_disagree');
     expect(entry.adversarial_review).toEqual(entry.consensus);
   });
 
@@ -528,7 +609,7 @@ describe('Mercury run ledger', () => {
       },
     });
 
-    expect(entry.verdict).toBe('no_break_found');
+    expect(entry.verdict).toBe('cannot_verify');
     expect(entry).not.toHaveProperty(removedCommitField);
     expect(entry.adversarial_review.answer_excerpt).toContain('[truncated');
     expect(entry.adversarial_review.answer_full).toBe(longReview);
