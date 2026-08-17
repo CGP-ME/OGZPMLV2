@@ -39,6 +39,7 @@ const MAExtensionFilter = require('./MAExtensionFilter');
 const ConfigLoader = require('../foundation/ConfigLoader');
 const { IndicatorCalculator } = require('./IndicatorCalculator');
 const { c } = require('./CandleHelper');
+const { createTraceId, emitTrace } = require('./TraceSpine');
 const OpeningRangeBreakout = require('../modules/OpeningRangeBreakout');
 const BreakAndRetest = require('../modules/BreakAndRetest');
 const MISSING_EXIT_CONTRACT_VALUE = Symbol('missing_exit_contract_value');
@@ -57,6 +58,7 @@ const EMATrendRetest = require('../modules/EMATrendRetest');
 const RSI2MeanReversion = require('../modules/RSI2MeanReversion');
 const TimeSeriesMomentum = require('../modules/TimeSeriesMomentum');
 const MTF_CONFLUENCE_STATS_KEY = '__OGZ_MTF_CONFLUENCE_STATS';
+const STRATEGY_UNAVAILABLE = 'strategy_unavailable';
 
 function assertBaseConfidence01(confidence, label) {
   if (!Number.isFinite(confidence)) {
@@ -322,6 +324,19 @@ function publicResult(result) {
     decisionAttribution: cloneDecisionAttribution(result.decisionAttribution),
     confidence: boundedConfidenceFromRankingScore(result.rankingScore, `${result.strategyName}.publicRankingScore`),
   };
+}
+
+function errorMessage(error) {
+  return error && error.message ? error.message : String(error);
+}
+
+function isStrategyUnavailableRecord(value) {
+  return Boolean(
+    value &&
+    typeof value === 'object' &&
+    value.code === STRATEGY_UNAVAILABLE &&
+    value.status === 'unavailable'
+  );
 }
 
 function normalizeTimeframeValue(value) {
@@ -891,6 +906,7 @@ class StrategyOrchestrator {
     this.lastEvaluation = null;
     this.evalCount = 0;
     this.mtfEvaluationCache = null;
+    this.currentEvaluationUnavailableStrategies = null;
 
     // DIAGNOSTIC FUNNELS - track where signals die (MUST be before _registerBuiltinStrategies)
     this.diagFunnel = {
@@ -981,6 +997,10 @@ class StrategyOrchestrator {
     };
 
     const candles = ctx.priceHistory;
+    const timeframeAbsence = this._recordLatestCandleTimeframeAbsence(ctx);
+    if (timeframeAbsence) {
+      return cacheResult(null, 'mtf_missing_candle_timeframe');
+    }
     if (!candles || candles.length < this.minCandlesMTF) {
       if (process.env.STRATEGY_DIAG === 'true') {
         console.log(`[DIAG] MultiTimeframe: NOT ENOUGH CANDLES (${candles?.length || 0} < ${this.minCandlesMTF})`);
@@ -989,10 +1009,6 @@ class StrategyOrchestrator {
     }
 
     const latestCandle = candles[candles.length - 1];
-    if (!latestCandle || typeof latestCandle.timeframe !== 'string' || !latestCandle.timeframe.trim()) {
-      throw new Error('[STRATEGY-SCOPE] MultiTimeframe latest candle missing timeframe');
-    }
-
     const scopedMtfAdapter = this._getSymbolStrategyModule(
       'MtfConfluenceService',
       ctx.extras?.symbol,
@@ -1003,16 +1019,30 @@ class StrategyOrchestrator {
     try {
       scopedMtfAdapter.ingestCandle(latestCandle, latestCandle.timeframe);
     } catch (e) {
-      if (process.env.STRATEGY_DIAG === 'true') console.log(`[DIAG] MultiTimeframe: ingestCandle error: ${e.message}`);
-      return cacheResult(null, `ingest_error:${e.message}`, scopedMtfAdapter);
+      this._recordStrategyUnavailable({
+        strategyName: 'MultiTimeframe',
+        source: 'mtf_confluence.ingestCandle',
+        reason: 'mtf_ingest_unavailable',
+        error: e,
+        ctx,
+        timeframe: latestCandle.timeframe,
+      });
+      return cacheResult(null, `mtf_ingest_unavailable:${errorMessage(e)}`, scopedMtfAdapter);
     }
 
     let confluence;
     try {
       confluence = scopedMtfAdapter.crossFrameScore();
     } catch (e) {
-      if (process.env.STRATEGY_DIAG === 'true') console.log(`[DIAG] MultiTimeframe: getConfluence error: ${e.message}`);
-      return cacheResult(null, `confluence_error:${e.message}`, scopedMtfAdapter);
+      this._recordStrategyUnavailable({
+        strategyName: 'MultiTimeframe',
+        source: 'mtf_confluence.crossFrameScore',
+        reason: 'mtf_confluence_unavailable',
+        error: e,
+        ctx,
+        timeframe: latestCandle.timeframe,
+      });
+      return cacheResult(null, `mtf_confluence_unavailable:${errorMessage(e)}`, scopedMtfAdapter);
     }
 
     if (process.env.STRATEGY_DIAG === 'true') {
@@ -1030,9 +1060,14 @@ class StrategyOrchestrator {
     try {
       return adapter.getTimeframeIndicators(timeframe);
     } catch (e) {
-      if (process.env.STRATEGY_DIAG === 'true') {
-        console.log(`[DIAG] MultiTimeframe: getTimeframeIndicators(${timeframe}) error: ${e.message}`);
-      }
+      this._recordStrategyUnavailable({
+        strategyName: 'MultiTimeframe',
+        source: 'mtf_indicators.getTimeframeIndicators',
+        reason: 'mtf_indicators_unavailable',
+        error: e,
+        ctx,
+        timeframe,
+      });
       return null;
     }
   }
@@ -1046,9 +1081,14 @@ class StrategyOrchestrator {
     try {
       return adapter.getCandles(timeframe);
     } catch (e) {
-      if (process.env.STRATEGY_DIAG === 'true') {
-        console.log(`[DIAG] MultiTimeframe: getCandles(${timeframe}) error: ${e.message}`);
-      }
+      this._recordStrategyUnavailable({
+        strategyName: 'MultiTimeframe',
+        source: 'mtf_candles.getCandles',
+        reason: 'mtf_candles_unavailable',
+        error: e,
+        ctx,
+        timeframe,
+      });
       return [];
     }
   }
@@ -1157,6 +1197,67 @@ class StrategyOrchestrator {
       return null;
     }
     return this.mtfEvaluationCache.snapshot || null;
+  }
+
+  _recordLatestCandleTimeframeAbsence(ctx) {
+    const candles = ctx?.priceHistory;
+    if (!Array.isArray(candles) || candles.length === 0) {
+      return null;
+    }
+    const latestCandle = candles[candles.length - 1];
+    if (latestCandle && typeof latestCandle.timeframe === 'string' && latestCandle.timeframe.trim()) {
+      return null;
+    }
+    return this._recordStrategyUnavailable({
+      strategyName: 'MultiTimeframe',
+      source: 'mtf_confluence.latestCandle',
+      reason: 'mtf_missing_candle_timeframe',
+      error: new Error('latest candle missing timeframe'),
+      ctx,
+    });
+  }
+
+  _recordStrategyUnavailable({
+    strategyName,
+    source,
+    reason,
+    error = null,
+    ctx = null,
+    timeframe = null,
+  }) {
+    const message = error ? errorMessage(error) : null;
+    const record = {
+      strategyName: strategyName || 'unknown_strategy',
+      status: 'unavailable',
+      code: STRATEGY_UNAVAILABLE,
+      reason,
+      source,
+      errorMessage: message,
+      symbol: ctx?.extras?.symbol || ctx?.symbol || null,
+      timeframe: timeframe || ctx?.extras?.timeframe || null,
+      evalCount: this.evalCount,
+    };
+    const sink = Array.isArray(this.currentEvaluationUnavailableStrategies)
+      ? this.currentEvaluationUnavailableStrategies
+      : null;
+    if (sink) {
+      const existing = sink.find(item => (
+        item.strategyName === record.strategyName &&
+        item.source === record.source &&
+        item.reason === record.reason &&
+        item.errorMessage === record.errorMessage
+      ));
+      if (existing) {
+        return existing;
+      }
+      sink.push(record);
+    }
+    console.error(`[StrategyOrchestrator] STRATEGY_UNAVAILABLE strategy=${record.strategyName} source=${source} reason=${reason}${message ? ` error=${message}` : ''}`);
+    emitTrace({}, 'STRATEGY_UNAVAILABLE', {
+      traceId: createTraceId('strategy_unavailable'),
+      ...record,
+    });
+    return record;
   }
 
   _shouldObserveMtfConfluence() {
@@ -2017,10 +2118,13 @@ class StrategyOrchestrator {
           if (e.message && e.message.startsWith('[STRATEGY-SCOPE]')) {
             throw e;
           }
-          if (process.env.STRATEGY_DIAG === 'true') {
-            console.warn('[NoWickImbalance] evaluate threw:', e.message);
-          }
-          return null;
+          return this._recordStrategyUnavailable({
+            strategyName: 'NoWickImbalance',
+            source: 'NoWickImbalance.evaluate',
+            reason: 'strategy_exception',
+            error: e,
+            ctx,
+          });
         }
       }
     });
@@ -2173,6 +2277,9 @@ class StrategyOrchestrator {
     this.evalCount++;
 
     const ctx = { indicators, patterns, regime, priceHistory, extras };
+    const unavailableStrategies = [];
+    this.currentEvaluationUnavailableStrategies = unavailableStrategies;
+    this._recordLatestCandleTimeframeAbsence(ctx);
 
     // Narrator: pattern-spotted event. narrator is the module-cached
     // singleton; disabled path is property-access + branch-taken (zero
@@ -2213,6 +2320,10 @@ class StrategyOrchestrator {
 
       try {
         const result = strategy.evaluate(ctx);
+        if (isStrategyUnavailableRecord(result)) {
+          noSignalStrategies.push(`${strategy.name}:unavailable:${result.reason}`);
+          continue;
+        }
         if (!result || !result.direction) {
           noSignalStrategies.push(strategy.name);
           continue;
@@ -2341,8 +2452,14 @@ class StrategyOrchestrator {
         )) {
           throw err;
         }
-        thrownStrategies.push(`${strategy.name}:${err.message}`);
-        console.warn(`[StrategyOrchestrator] ${strategy.name} threw: ${err.message}`);
+        const absence = this._recordStrategyUnavailable({
+          strategyName: strategy.name,
+          source: 'strategy.evaluate',
+          reason: 'strategy_exception',
+          error: err,
+          ctx,
+        });
+        thrownStrategies.push(`${absence.strategyName}:${absence.reason}:${absence.errorMessage}`);
       }
     }
 
@@ -2652,7 +2769,7 @@ class StrategyOrchestrator {
 
     // DEBUG 2026-03-06: Why is confidence 0?
     if (results.length > 0) {
-      console.log(`🔍 [ORCH] ${results.length} strategies returned signals:`);
+      console.log(`[ORCH] ${results.length} strategies returned signals:`);
       results.slice(0, 5).forEach(r => console.log(`   - ${r.strategyName}: ${(r.confidence * 100).toFixed(1)}% ${r.direction}`));
     } else {
       if (process.env.STRATEGY_DIAG === 'true' && rawStrategyResults.length > 0) {
@@ -2662,7 +2779,11 @@ class StrategyOrchestrator {
           .join(',');
         console.log(`[ORCH][FILTER_EMPTY] eval=${this.evalCount} rawCandidates=${rawStrategyResults.length} afterFilters=0 raw=${rawList}`);
       }
-      console.log(`🔍 [ORCH] 0 strategies returned signals (all returned null or conf=0)`);
+      const unavailableCount = unavailableStrategies.length;
+      const emptyReason = unavailableCount > 0
+        ? `${unavailableCount} strategy/service unavailable; remaining strategies returned null or conf=0`
+        : 'all returned null or conf=0';
+      console.log(`[ORCH] 0 strategies returned signals (${emptyReason})`);
       this._logNoSignalSummary(ctx, noSignalStrategies, thrownStrategies);
     }
 
@@ -2678,6 +2799,7 @@ class StrategyOrchestrator {
 
     const publicResults = results.map(publicResult);
     const publicFilteredResults = filteredResults.map(publicResult);
+    const publicUnavailableStrategies = unavailableStrategies.map(item => ({ ...item }));
 
     // ─── Step 3: Filter by ranking score threshold ───
     // Regime/VP multipliers historically affected eligibility before winner
@@ -2686,7 +2808,17 @@ class StrategyOrchestrator {
     const qualified = results.filter(r => r.rankingScore >= this.minStrategyConfidence);
 
     if (qualified.length === 0) {
-      this.lastEvaluation = { action: 'HOLD', results: publicResults, qualified: [] };
+      const reasons = results.length > 0
+        ? [`No strategy above ${(this.minStrategyConfidence * 100).toFixed(0)}% ranking threshold (best: ${results[0]?.strategyName} confidence ${(boundedConfidenceFromRankingScore(results[0]?.rankingScore, `${results[0]?.strategyName}.bestRankingScore`) * 100).toFixed(0)}%)`]
+        : (publicUnavailableStrategies.length > 0
+          ? [`No executable strategy signals; unavailable strategies: ${publicUnavailableStrategies.map(item => `${item.strategyName}:${item.reason}`).join(', ')}`]
+          : ['No signals detected']);
+      this.lastEvaluation = {
+        action: 'HOLD',
+        results: publicResults,
+        qualified: [],
+        unavailableStrategies: publicUnavailableStrategies,
+      };
       return {
         action: 'HOLD',
         direction: 'hold',
@@ -2698,9 +2830,8 @@ class StrategyOrchestrator {
         mtfConfluenceSnapshot,
         allResults: publicResults,
         filteredResults: publicFilteredResults,
-        reasons: results.length > 0
-          ? [`No strategy above ${(this.minStrategyConfidence * 100).toFixed(0)}% ranking threshold (best: ${results[0]?.strategyName} confidence ${(boundedConfidenceFromRankingScore(results[0]?.rankingScore, `${results[0]?.strategyName}.bestRankingScore`) * 100).toFixed(0)}%)`]
-          : ['No signals detected']
+        unavailableStrategies: publicUnavailableStrategies,
+        reasons
       };
     }
 
@@ -2721,6 +2852,7 @@ class StrategyOrchestrator {
         qualified: qualified.map(publicResult),
         winner: publicResult(winner),
         confluenceCount,
+        unavailableStrategies: publicUnavailableStrategies,
       };
       return {
         action: 'HOLD',
@@ -2733,6 +2865,7 @@ class StrategyOrchestrator {
         mtfConfluenceSnapshot,
         allResults: publicResults,
         filteredResults: publicFilteredResults,
+        unavailableStrategies: publicUnavailableStrategies,
         reasons: [`Need ${this.minConfluenceCount} confluent signals, got ${confluenceCount}`]
       };
     }
@@ -2887,6 +3020,7 @@ class StrategyOrchestrator {
       entryTriggerClass: winner.entryTriggerClass || winner.signalData?.triggerClass || null,
       allResults: results.map(publicResult),
       filteredResults: publicFilteredResults,
+      unavailableStrategies: publicUnavailableStrategies,
       reasons,
       // Signal breakdown for trade logging (compatible with existing signalBreakdown format)
       signalBreakdown: {
@@ -2896,6 +3030,7 @@ class StrategyOrchestrator {
         confluenceCount,
         sizingMultiplier,
         fanoutCount: outputEntryFanout.length,
+        unavailableStrategies: publicUnavailableStrategies,
         signals: publicResults.map(r => ({
           name: r.strategyName,
           direction: r.direction,

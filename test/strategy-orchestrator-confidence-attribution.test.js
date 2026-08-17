@@ -232,4 +232,100 @@ describe('StrategyOrchestrator confidence attribution', () => {
       }),
     ]));
   });
+
+  test('records a thrown strategy as named absence while clean strategies still vote', () => {
+    setConfigOverrides({
+      'orchestrator.mtfConfluenceBooster': { enabled: false },
+    });
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
+    const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
+    orchestrator.strategies = [
+      {
+        name: 'ThrowingProbe',
+        evaluate: () => {
+          throw new Error('probe exploded');
+        },
+      },
+      {
+        name: 'CleanProbe',
+        evaluate: () => ({
+          direction: 'buy',
+          confidence: 0.7,
+          reason: 'clean strategy still votes',
+        }),
+      },
+    ];
+
+    const result = orchestrator.evaluate(
+      { atr: 1, volatility: 1 },
+      [],
+      { currentRegime: 'unknown', confidence: 0.5, positionMultiplier: 1 },
+      [{ symbol: 'TSLA', timeframe: '15m', o: 100, h: 101, l: 99, c: 100, t: 1 }],
+      { symbol: 'TSLA', timeframe: '15m', price: 100 }
+    );
+
+    expect(result.action).toBe('BUY');
+    expect(result.winnerStrategy).toBe('CleanProbe');
+    expect(result.allResults.map(item => item.strategyName)).toEqual(['CleanProbe']);
+    expect(result.unavailableStrategies).toEqual([
+      expect.objectContaining({
+        strategyName: 'ThrowingProbe',
+        status: 'unavailable',
+        code: 'strategy_unavailable',
+        reason: 'strategy_exception',
+        source: 'strategy.evaluate',
+        errorMessage: 'probe exploded',
+        symbol: 'TSLA',
+        timeframe: '15m',
+      }),
+    ]);
+    expect(result.signalBreakdown.unavailableStrategies).toEqual(result.unavailableStrategies);
+    expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('STRATEGY_UNAVAILABLE strategy=ThrowingProbe'));
+  });
+
+  test('does not manufacture HOLD strategy votes when every strategy is unavailable', () => {
+    setConfigOverrides({
+      'orchestrator.mtfConfluenceBooster': { enabled: false },
+    });
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
+    const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
+    orchestrator.strategies = [{
+      name: 'OnlyThrowingProbe',
+      evaluate: () => {
+        throw new Error('only strategy failed');
+      },
+    }];
+
+    const result = orchestrator.evaluate(
+      { atr: 1, volatility: 1 },
+      [],
+      { currentRegime: 'unknown', confidence: 0.5, positionMultiplier: 1 },
+      [{ symbol: 'TSLA', timeframe: '15m', o: 100, h: 101, l: 99, c: 100, t: 1 }],
+      { symbol: 'TSLA', timeframe: '15m', price: 100 }
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      action: 'HOLD',
+      direction: 'hold',
+      confidence: 0,
+      winnerStrategy: null,
+      allResults: [],
+      filteredResults: [],
+    }));
+    expect(result.unavailableStrategies).toEqual([
+      expect.objectContaining({
+        strategyName: 'OnlyThrowingProbe',
+        status: 'unavailable',
+        code: 'strategy_unavailable',
+        reason: 'strategy_exception',
+        source: 'strategy.evaluate',
+        errorMessage: 'only strategy failed',
+      }),
+    ]);
+    expect(result.reasons).toEqual([
+      'No executable strategy signals; unavailable strategies: OnlyThrowingProbe:strategy_exception',
+    ]);
+  });
 });

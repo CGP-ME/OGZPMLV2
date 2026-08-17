@@ -190,7 +190,8 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
     expect(ingestCandle).toHaveBeenCalledWith(latestCandle, '15m');
   });
 
-  test('fails loudly when the latest candle has no stamped timeframe', () => {
+  test('records missing stamped timeframe as MTF absence while clean strategies still vote', () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
     const ingestCandle = jest.fn();
     const crossFrameScore = jest.fn(() => ({
       direction: 'neutral',
@@ -203,6 +204,14 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
 
     const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
     const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
+    orchestrator.strategies = [{
+      name: 'ProbeBuy',
+      evaluate: () => ({
+        direction: 'buy',
+        confidence: 0.62,
+        reason: 'clean strategy still votes without MTF candle timeframe',
+      }),
+    }];
     const latestCandle = {
       symbol: 'TSLA',
       t: Date.UTC(2026, 0, 1, 14, 30, 0),
@@ -214,14 +223,36 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
       v: 1000,
     };
 
-    expect(() => orchestrator.evaluate(
+    const result = orchestrator.evaluate(
       { atr: 1, trend: 'bullish' },
       [],
       null,
       [latestCandle],
       { symbol: 'TSLA', timeframe: '15m', price: 100.5 }
-    )).toThrow(/MultiTimeframe latest candle missing timeframe/);
+    );
+
+    expect(result.action).toBe('BUY');
+    expect(result.winnerStrategy).toBe('ProbeBuy');
+    expect(result.unavailableStrategies).toEqual([
+      expect.objectContaining({
+        strategyName: 'MultiTimeframe',
+        status: 'unavailable',
+        code: 'strategy_unavailable',
+        reason: 'mtf_missing_candle_timeframe',
+        source: 'mtf_confluence.latestCandle',
+        errorMessage: 'latest candle missing timeframe',
+        symbol: 'TSLA',
+        timeframe: '15m',
+      }),
+    ]);
+    expect(result.mtfConfluenceSnapshot).toEqual(expect.objectContaining({
+      available: false,
+      unavailableReason: 'mtf_missing_candle_timeframe',
+    }));
     expect(ingestCandle).not.toHaveBeenCalled();
+    expect(crossFrameScore).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('STRATEGY_UNAVAILABLE strategy=MultiTimeframe'));
   });
 
   test('captures adapter confluenceScore without producing an MTF decision', () => {
@@ -276,6 +307,65 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
       confidence: 0.75,
       readyTimeframes: ['15m', '1h', '4h'],
     }));
+  });
+
+  test('records MTF confluence exceptions as named unavailable state', () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const ingestCandle = jest.fn();
+    const crossFrameScore = jest.fn(() => {
+      throw new Error('mtf score failed');
+    });
+    jest.doMock('../modules/MultiTimeframeAdapter', () => jest.fn().mockImplementation(() => ({
+      ingestCandle,
+      crossFrameScore,
+    })));
+
+    const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
+    const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
+    const latestCandle = {
+      symbol: 'TSLA',
+      timeframe: '15m',
+      t: Date.UTC(2026, 0, 1, 14, 30, 0),
+      etime: Date.UTC(2026, 0, 1, 14, 45, 0),
+      o: 100,
+      h: 101,
+      l: 99,
+      c: 100.5,
+      v: 1000,
+    };
+
+    const result = orchestrator.evaluate(
+      { atr: 1, trend: 'bullish' },
+      [],
+      null,
+      Array.from({ length: 30 }, (_, index) => ({
+        ...latestCandle,
+        t: latestCandle.t + index * 900000,
+        etime: latestCandle.etime + index * 900000,
+      })),
+      { symbol: 'TSLA', timeframe: '15m', price: 100.5 }
+    );
+
+    expect(result.allResults).toEqual([]);
+    expect(result.unavailableStrategies).toEqual([
+      expect.objectContaining({
+        strategyName: 'MultiTimeframe',
+        status: 'unavailable',
+        code: 'strategy_unavailable',
+        reason: 'mtf_confluence_unavailable',
+        source: 'mtf_confluence.crossFrameScore',
+        errorMessage: 'mtf score failed',
+        symbol: 'TSLA',
+        timeframe: '15m',
+      }),
+    ]);
+    expect(result.mtfConfluenceSnapshot).toEqual(expect.objectContaining({
+      available: false,
+      unavailableReason: 'mtf_confluence_unavailable:mtf score failed',
+      direction: 'neutral',
+      confluenceScore: null,
+    }));
+    expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('STRATEGY_UNAVAILABLE strategy=MultiTimeframe'));
   });
 
 	  test('preserves signed bearish MTF score as observational state', () => {
@@ -399,6 +489,56 @@ describe('StrategyOrchestrator MultiTimeframe source timeframe wiring', () => {
 	    expect(confluenceSpy).not.toHaveBeenCalled();
 	    expect(result.winnerStrategy).toBe('ProbeBuy');
 	    expect(result.mtfConfluenceSnapshot).toBeNull();
+	    expect(result.unavailableStrategies).toEqual([]);
+	  });
+
+	  test('records missing stamped timeframe even when MTF observation is disabled', () => {
+	    jest.resetModules();
+	    installConfigMock({
+	      'strategies.soloFilter': [],
+	      'orchestrator.mtfConfluenceBooster': { enabled: false },
+	      'orchestrator.strategyMtfConfluence': { enabled: false },
+	    });
+	    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+	    const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
+	    const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
+	    const confluenceSpy = jest.spyOn(orchestrator, '_getMtfConfluenceForEvaluation');
+
+	    orchestrator.strategies = [{
+	      name: 'ProbeBuy',
+	      evaluate: () => ({
+	        direction: 'buy',
+	        confidence: 0.62,
+	        reason: 'probe buy',
+	      }),
+	    }];
+
+	    const result = orchestrator.evaluate(
+	      { atr: 1, volatility: 1 },
+	      [],
+	      { currentRegime: 'ranging', confidence: 0.5, positionMultiplier: 1 },
+	      [{ symbol: 'TSLA', o: 100, h: 101, l: 99, c: 100, t: 1 }],
+	      { symbol: 'TSLA', timeframe: '15m', price: 100 }
+	    );
+
+	    expect(confluenceSpy).not.toHaveBeenCalled();
+	    expect(result.winnerStrategy).toBe('ProbeBuy');
+	    expect(result.allResults.map(item => item.strategyName)).toEqual(['ProbeBuy']);
+	    expect(result.mtfConfluenceSnapshot).toBeNull();
+	    expect(result.unavailableStrategies).toEqual([
+	      expect.objectContaining({
+	        strategyName: 'MultiTimeframe',
+	        status: 'unavailable',
+	        code: 'strategy_unavailable',
+	        reason: 'mtf_missing_candle_timeframe',
+	        source: 'mtf_confluence.latestCandle',
+	        errorMessage: 'latest candle missing timeframe',
+	        symbol: 'TSLA',
+	        timeframe: '15m',
+	      }),
+	    ]);
+	    expect(consoleError).toHaveBeenCalledTimes(1);
+	    expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('STRATEGY_UNAVAILABLE strategy=MultiTimeframe'));
 	  });
 
 		  test('default-on booster adjusts aligned and conflicting candidates without mutating raw confidence', () => {
