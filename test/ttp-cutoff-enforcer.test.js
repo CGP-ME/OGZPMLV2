@@ -120,7 +120,7 @@ describe('TtpCutoffEnforcer', () => {
         cancelAllOpenOrders: jest.fn(async () => {
           throw new Error('broker cancel API down');
         }),
-        getAllPositions: jest.fn(),
+        getAllPositions: jest.fn(async () => []),
       },
       executeTrade: jest.fn(),
       getExitPrice: jest.fn(() => 125),
@@ -379,7 +379,6 @@ describe('TtpCutoffEnforcer', () => {
     }));
     expect(orderRouter.getAllPositions).toHaveBeenCalledWith(expect.objectContaining({
       symbols: expect.arrayContaining(['TSLA']),
-      strict: true,
     }));
     expect(orderRouter.cancelAllOpenOrders).not.toHaveBeenCalled();
     expect(orderRouter.sendOrder).not.toHaveBeenCalled();
@@ -387,6 +386,95 @@ describe('TtpCutoffEnforcer', () => {
     expect(logger.warn).not.toHaveBeenCalledWith(expect.stringContaining('BROKER FLATNESS QUARANTINED'));
     expect(enforcer.completedKeys.has('2026-05-22:950')).toBe(true);
     expect(enforcer.unverifiedKeys.size).toBe(0);
+  });
+
+  test('broker truth unavailable routes cutoff to manual reconciliation without closing trades', async () => {
+    const now = () => new Date('2026-05-22T19:50:00.000Z').getTime();
+    const activeTrades = new Map([['BUY_1', makeTrade({ remainingOrderQuantity: 1 })]]);
+    const brokerRead = {
+      positions: [],
+      brokerStatuses: [
+        {
+          broker: 'alpaca',
+          status: 'unavailable',
+          code: 'broker_position_truth_unavailable',
+          reason: 'broker_position_read_failed',
+          error: 'alpaca offline',
+        },
+      ],
+      unavailableBrokers: [
+        {
+          broker: 'alpaca',
+          status: 'unavailable',
+          code: 'broker_position_truth_unavailable',
+          reason: 'broker_position_read_failed',
+          error: 'alpaca offline',
+        },
+      ],
+      scope: { symbols: ['TSLA'], brokerNames: ['alpaca'] },
+    };
+    const orderRouter = {
+      cancelAllOpenOrders: jest.fn(),
+      getAllPositions: jest.fn(async () => brokerRead),
+      sendOrder: jest.fn(),
+    };
+    const stateManager = {
+      get: jest.fn((key) => (key === 'activeTrades' ? activeTrades : null)),
+      updateState: jest.fn(async () => ({ success: true })),
+      haltSymbol: jest.fn(async () => ({ success: true })),
+    };
+    const logger = { log: jest.fn(), warn: jest.fn(), error: jest.fn() };
+    const enforcer = new TtpCutoffEnforcer({
+      evalRuleEngine: makeRuleEngine(now),
+      stateManager,
+      orderRouter,
+      executeTrade: jest.fn(),
+      getExitPrice: jest.fn(() => 126),
+      assetClass: 'stocks',
+      symbols: ['TSLA'],
+      brokerNames: ['alpaca'],
+      brokerReconciliationEnabled: false,
+      brokerPositionReadEnabled: true,
+      brokerOrderManagementEnabled: false,
+      now,
+      logger,
+    });
+
+    const result = await enforcer.enforce();
+
+    expect(result).toEqual(expect.objectContaining({
+      enforced: true,
+      brokerFlatVerified: false,
+      requiresManualReconciliation: true,
+      reason: 'broker_position_truth_unavailable',
+      failures: [expect.objectContaining({
+        reason: 'broker_position_truth_unavailable',
+        manualReconciliationRequired: true,
+        brokerStatuses: brokerRead.brokerStatuses,
+        unavailableBrokers: brokerRead.unavailableBrokers,
+      })],
+    }));
+    expect(result.quarantine).toEqual(expect.objectContaining({
+      source: 'ttp_cutoff_unverified_broker_flatness',
+      status: 'quarantined',
+      brokerFlatVerified: false,
+      manualReconciliationRequired: true,
+      affectedSymbols: ['TSLA'],
+    }));
+    expect(orderRouter.getAllPositions).toHaveBeenCalledWith({ brokerNames: ['alpaca'] });
+    expect(orderRouter.cancelAllOpenOrders).not.toHaveBeenCalled();
+    expect(orderRouter.sendOrder).not.toHaveBeenCalled();
+    expect(stateManager.updateState).toHaveBeenCalledWith(
+      { ttpCutoffQuarantine: expect.objectContaining({ affectedSymbols: ['TSLA'] }) },
+      expect.objectContaining({ action: 'TTP_CUTOFF_QUARANTINE' })
+    );
+    expect(stateManager.haltSymbol).toHaveBeenCalledWith(
+      'TSLA',
+      expect.stringContaining('broker flatness unverified after cutoff'),
+      expect.objectContaining({ code: 'ttp_cutoff_unverified_broker_flatness' })
+    );
+    expect(enforcer.completedKeys.size).toBe(0);
+    expect(enforcer.unverifiedKeys.has('2026-05-22:950')).toBe(true);
   });
 
   test('webhook-routed cutoff returns manual reconciliation when read-only broker check disagrees with active state', async () => {
@@ -939,7 +1027,7 @@ describe('TtpCutoffEnforcer', () => {
       },
       orderRouter: {
         cancelAllOpenOrders: jest.fn(),
-        getAllPositions: jest.fn(),
+        getAllPositions: jest.fn(async () => []),
         sendOrder: jest.fn(),
       },
       executeTrade,
@@ -974,7 +1062,7 @@ describe('TtpCutoffEnforcer', () => {
       },
       orderRouter: {
         cancelAllOpenOrders: jest.fn(),
-        getAllPositions: jest.fn(),
+        getAllPositions: jest.fn(async () => []),
         sendOrder: jest.fn(),
       },
       executeTrade: jest.fn(async () => ({ success: false, reason: 'webhook_http_403' })),
@@ -1017,7 +1105,7 @@ describe('TtpCutoffEnforcer', () => {
       stateManager,
       orderRouter: {
         cancelAllOpenOrders: jest.fn(),
-        getAllPositions: jest.fn(),
+        getAllPositions: jest.fn(async () => []),
         sendOrder: jest.fn(),
       },
       executeTrade,
@@ -1209,7 +1297,7 @@ describe('TtpCutoffEnforcer', () => {
           failed: 1,
           results: [{ broker: 'alpaca', success: false, reason: 'adapter_missing_order_cancel_api' }],
         })),
-        getAllPositions: jest.fn(),
+        getAllPositions: jest.fn(async () => []),
       },
       executeTrade: jest.fn(),
       getExitPrice: jest.fn(),
@@ -1436,7 +1524,7 @@ describe('TtpCutoffEnforcer', () => {
     const result = await enforcer.enforce();
 
     expect(orderRouter.cancelAllOpenOrders).toHaveBeenCalledWith({ brokerNames: ['alpaca'] });
-    expect(orderRouter.getAllPositions).toHaveBeenCalledWith({ brokerNames: ['alpaca'], strict: true });
+    expect(orderRouter.getAllPositions).toHaveBeenCalledWith({ brokerNames: ['alpaca'] });
     expect(orderRouter.sendOrder).toHaveBeenCalledWith({
       symbol: 'MSFT',
       side: 'sell',
@@ -1457,6 +1545,7 @@ describe('TtpCutoffEnforcer', () => {
     const orderRouter = {
       cancelAllOpenOrders: jest.fn(async () => ({ success: true, cancelled: 1, failed: 0, results: [] })),
       getAllPositions: jest.fn()
+        .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([]),

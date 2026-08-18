@@ -1,6 +1,7 @@
 'use strict';
 
 const OrderRouter = require('../core/OrderRouter');
+const { subscribeTrace } = require('../core/TraceSpine');
 
 describe('OrderRouter cancelAllOpenOrders', () => {
   test('cancels every open order through each adapter', async () => {
@@ -264,16 +265,20 @@ describe('OrderRouter getAllPositions broker scope', () => {
     router.registerBroker(cryptoAdapter, ['BTC-USD']);
     router.registerBroker(stockAdapter, ['TSLA']);
 
-    const positions = await router.getAllPositions({ brokerNames: ['alpaca'], strict: true });
+    const result = await router.getAllPositions({ brokerNames: ['alpaca'] });
 
     expect(cryptoAdapter.getPositions).not.toHaveBeenCalled();
-    expect(positions).toEqual([
+    expect(result.positions).toEqual([
       { symbol: 'TSLA', size: 1, broker: 'alpaca' },
       { symbol: 'MSFT', size: 2, broker: 'alpaca' },
     ]);
+    expect(result.complete).toBe(true);
+    expect(result.brokerStatuses).toEqual([
+      { broker: 'alpaca', status: 'complete', positionCount: 2 },
+    ]);
   });
 
-  test('throws in strict mode when broker scope matches no adapters', async () => {
+  test('marks position truth unavailable when broker scope matches no adapters', async () => {
     const router = new OrderRouter();
     const stockAdapter = {
       getBrokerName: () => 'Alpaca',
@@ -283,8 +288,64 @@ describe('OrderRouter getAllPositions broker scope', () => {
     router.registerBroker(stockAdapter, ['TSLA']);
 
     expect(router.getBrokerNamesByAssetType(['stocks'])).toEqual(['alpaca']);
-    await expect(router.getAllPositions({ brokerNames: ['kraken'], strict: true }))
-      .rejects.toThrow(/broker scope matched no adapters/);
+    const result = await router.getAllPositions({ brokerNames: ['kraken'] });
+
+    expect(result.positions).toEqual([]);
+    expect(result.complete).toBe(false);
+    expect(result.unavailableBrokers).toEqual([
+      expect.objectContaining({
+        broker: 'kraken',
+        status: 'unavailable',
+        code: 'broker_position_truth_unavailable',
+        reason: 'broker_scope_matched_no_adapters',
+      }),
+    ]);
+  });
+
+  test('keeps usable broker positions but marks aggregate incomplete when one broker read fails', async () => {
+    const router = new OrderRouter();
+    const traces = [];
+    const unsubscribe = subscribeTrace((event) => traces.push(event));
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const stockAdapter = {
+      getBrokerName: () => 'alpaca',
+      getPositions: jest.fn(async () => [{ symbol: 'TSLA', size: 1 }]),
+    };
+    const cryptoAdapter = {
+      getBrokerName: () => 'kraken',
+      getPositions: jest.fn(async () => {
+        throw new Error('kraken offline');
+      }),
+    };
+    router.registerBroker(stockAdapter, ['TSLA']);
+    router.registerBroker(cryptoAdapter, ['BTC-USD']);
+
+    const result = await router.getAllPositions();
+
+    expect(result.positions).toEqual([{ symbol: 'TSLA', size: 1, broker: 'alpaca' }]);
+    expect(result.complete).toBe(false);
+    expect(result.brokerStatuses).toEqual([
+      { broker: 'alpaca', status: 'complete', positionCount: 1 },
+      expect.objectContaining({
+        broker: 'kraken',
+        status: 'unavailable',
+        code: 'broker_position_truth_unavailable',
+        reason: 'broker_position_read_failed',
+        error: 'kraken offline',
+      }),
+    ]);
+    expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('POSITION_TRUTH_UNAVAILABLE'));
+    expect(traces).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        event: 'ORDER_ROUTER_POSITION_TRUTH_UNAVAILABLE',
+        fields: expect.objectContaining({
+          broker: 'kraken',
+          reason: 'broker_position_read_failed',
+        }),
+      }),
+    ]));
+    unsubscribe();
+    consoleError.mockRestore();
   });
 });
 

@@ -19,6 +19,9 @@
  */
 
 const EventEmitter = require('events');
+const { createTraceId, emitTrace } = require('./TraceSpine');
+
+const POSITION_TRUTH_UNAVAILABLE = 'broker_position_truth_unavailable';
 
 class OrderRouter extends EventEmitter {
   constructor() {
@@ -191,12 +194,13 @@ class OrderRouter extends EventEmitter {
 
   /**
    * Get all positions across all registered brokers
-   * @returns {Promise<Array>} Aggregated positions
+   * @returns {Promise<Object>} Aggregated positions plus per-broker completeness
    */
   async getAllPositions(options = {}) {
     const symbolSet = this._symbolSet(options.symbols);
     const brokerNameSet = this._brokerNameSet(options.brokerNames);
     const allPositions = [];
+    const brokerStatuses = [];
     let matchedAdapters = 0;
 
     for (const [name, adapter] of this.adapters) {
@@ -209,29 +213,61 @@ class OrderRouter extends EventEmitter {
       matchedAdapters += 1;
 
       try {
+        if (!adapter || typeof adapter.getPositions !== 'function') {
+          const status = this._positionUnavailableStatus(name, 'adapter_missing_get_positions');
+          brokerStatuses.push(status);
+          this._recordPositionTruthUnavailable(status, options);
+          continue;
+        }
+
         const positions = await adapter.getPositions();
+        if (!Array.isArray(positions)) {
+          const status = this._positionUnavailableStatus(name, 'broker_positions_not_array', {
+            returnedType: Object.prototype.toString.call(positions),
+          });
+          brokerStatuses.push(status);
+          this._recordPositionTruthUnavailable(status, options);
+          continue;
+        }
+        let positionCount = 0;
         for (const pos of positions) {
           if (symbolSet && pos?.symbol && !symbolSet.has(this.normalizeSymbol(pos.symbol))) {
             continue;
           }
+          positionCount += 1;
           allPositions.push({
             ...pos,
             broker: name
           });
         }
+        brokerStatuses.push({ broker: name, status: 'complete', positionCount });
       } catch (error) {
-        if (options.strict === true) {
-          throw new Error(`[OrderRouter] Failed to get positions from ${name}: ${error.message}`);
-        }
-        console.error(`[OrderRouter] Failed to get positions from ${name}:`, error.message);
+        const status = this._positionUnavailableStatus(name, 'broker_position_read_failed', {
+          error: error?.message || String(error),
+        });
+        brokerStatuses.push(status);
+        this._recordPositionTruthUnavailable(status, options);
       }
     }
 
-    if (brokerNameSet && matchedAdapters === 0 && options.strict === true) {
-      throw new Error(`[OrderRouter] broker scope matched no adapters: ${Array.from(brokerNameSet).join(',')}`);
+    if (matchedAdapters === 0) {
+      const broker = brokerNameSet ? Array.from(brokerNameSet).join(',') : 'none';
+      const status = this._positionUnavailableStatus(broker, brokerNameSet
+        ? 'broker_scope_matched_no_adapters'
+        : (symbolSet ? 'symbol_scope_matched_no_adapters' : 'no_adapters_registered'));
+      brokerStatuses.push(status);
+      this._recordPositionTruthUnavailable(status, options);
     }
 
-    return allPositions;
+    const unavailableBrokers = brokerStatuses.filter(status => status.status === 'unavailable');
+    return {
+      positions: allPositions,
+      brokerStatuses,
+      complete: unavailableBrokers.length === 0,
+      unavailableBrokers,
+      matchedAdapters,
+      scope: this._positionScopeDescriptor(options),
+    };
   }
 
   async cancelAllOpenOrders(options = {}) {
@@ -313,6 +349,40 @@ class OrderRouter extends EventEmitter {
 
   _normalizeBrokerName(name) {
     return String(name || '').trim().toLowerCase();
+  }
+
+  _positionScopeDescriptor(options = {}) {
+    return {
+      symbols: Array.isArray(options.symbols)
+        ? options.symbols.map(symbol => this.normalizeSymbol(symbol)).filter(Boolean)
+        : [],
+      brokerNames: Array.isArray(options.brokerNames)
+        ? options.brokerNames.map(name => this._normalizeBrokerName(name)).filter(Boolean)
+        : [],
+    };
+  }
+
+  _positionUnavailableStatus(broker, reason, extra = {}) {
+    return {
+      broker,
+      status: 'unavailable',
+      code: POSITION_TRUTH_UNAVAILABLE,
+      reason,
+      ...extra,
+    };
+  }
+
+  _recordPositionTruthUnavailable(status, options = {}) {
+    const payload = {
+      traceId: createTraceId('order_router_position_truth'),
+      ...status,
+      scope: this._positionScopeDescriptor(options),
+    };
+    console.error(
+      `[OrderRouter] POSITION_TRUTH_UNAVAILABLE broker=${status.broker} reason=${status.reason}${status.error ? ` error=${status.error}` : ''}`
+    );
+    emitTrace({}, 'ORDER_ROUTER_POSITION_TRUTH_UNAVAILABLE', payload);
+    this.emit('positionTruthUnavailable', payload);
   }
 
   getBrokerNamesByAssetType(assetTypes = []) {

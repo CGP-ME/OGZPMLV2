@@ -1563,7 +1563,6 @@ describe('OrderExecutor pause gate', () => {
     }));
     expect(orderRouter.getAllPositions).toHaveBeenCalledWith({
       symbols: ['TSLA'],
-      strict: true,
       brokerNames: ['alpaca'],
     });
     expect(orderRouter.sendOrder).not.toHaveBeenCalled();
@@ -1644,7 +1643,6 @@ describe('OrderExecutor pause gate', () => {
     }));
     expect(orderRouter.getAllPositions).toHaveBeenCalledWith({
       symbols: ['MARA'],
-      strict: true,
       brokerNames: ['alpaca'],
     });
     expect(orderRouter.sendOrder).toHaveBeenCalledWith(expect.objectContaining({
@@ -1728,6 +1726,134 @@ describe('OrderExecutor pause gate', () => {
     expect(mockStateManager.releaseExitSlot).not.toHaveBeenCalled();
     expect(backtestRecorder.recordTrade).not.toHaveBeenCalled();
     expect(logTrade).not.toHaveBeenCalled();
+  });
+
+  test('webhook full exit stays pending when broker position truth is incomplete', async () => {
+    const traces = [];
+    const unsubscribe = subscribeTrace((event) => traces.push(event));
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: 500, balance: 10000 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([makeBuyTrade()]);
+    const brokerRead = {
+      positions: [],
+      complete: false,
+      brokerStatuses: [
+        {
+          broker: 'alpaca',
+          status: 'unavailable',
+          code: 'broker_position_truth_unavailable',
+          reason: 'broker_position_read_failed',
+          error: 'alpaca timeout',
+        },
+      ],
+      unavailableBrokers: [
+        {
+          broker: 'alpaca',
+          status: 'unavailable',
+          code: 'broker_position_truth_unavailable',
+          reason: 'broker_position_read_failed',
+          error: 'alpaca timeout',
+        },
+      ],
+      scope: { symbols: ['TSLA'], brokerNames: ['alpaca'] },
+    };
+    const webhookAdapter = {
+      enabled: true,
+      dryRun: false,
+      emit: jest.fn().mockResolvedValue({
+        sent: true,
+        response: { status: 202, body: '{"orderId":"WEBHOOK_EXIT_TRUTH_UNKNOWN","status":"filled","filledQuantity":5}' },
+      }),
+    };
+    const orderRouter = {
+      getAllPositions: jest.fn().mockResolvedValue(brokerRead),
+      sendOrder: jest.fn(),
+    };
+    const logTrade = jest.fn();
+    const backtestRecorder = { recordTrade: jest.fn() };
+    const executor = makeExecutor({}, { webhookAdapter, orderRouter, logTrade, backtestRecorder });
+
+    const result = await executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'BUY_1', exitReason: 'risk_flatten' },
+      {},
+      125,
+      { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+
+    unsubscribe();
+    expect(result).toEqual(expect.objectContaining({
+      success: true,
+      reason: 'exit_pending_broker_flat_confirmation',
+      orderId: 'WEBHOOK_EXIT_TRUTH_UNKNOWN',
+      orderAccepted: true,
+      stateMutationSucceeded: false,
+      brokerFlatVerified: false,
+      brokerConfirmationPending: true,
+    }));
+    expect(orderRouter.getAllPositions).toHaveBeenCalledWith({
+      symbols: ['TSLA'],
+      brokerNames: ['alpaca'],
+    });
+    expect(orderRouter.sendOrder).not.toHaveBeenCalled();
+    expect(mockStateManager.applyFill).not.toHaveBeenCalled();
+    expect(mockStateManager.releaseExitSlot).not.toHaveBeenCalled();
+    expect(backtestRecorder.recordTrade).not.toHaveBeenCalled();
+    expect(logTrade).not.toHaveBeenCalled();
+    expect(traces).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        event: 'EXIT_PENDING_BROKER_FLAT_CONFIRMATION',
+        fields: expect.objectContaining({
+          reason: 'broker_position_truth_unavailable',
+          brokerStatuses: brokerRead.brokerStatuses,
+          unavailableBrokers: brokerRead.unavailableBrokers,
+        }),
+      }),
+    ]));
+  });
+
+  test('broker read normalization treats unavailable brokers as incomplete even without complete flag', async () => {
+    const executor = makeExecutor({}, {
+      orderRouter: {
+        getAllPositions: jest.fn().mockResolvedValue({
+          positions: [{ symbol: 'TSLA', size: 5, side: 'long', broker: 'alpaca' }],
+          brokerStatuses: [
+            { broker: 'alpaca', status: 'complete', positionCount: 1 },
+            {
+              broker: 'kraken',
+              status: 'unavailable',
+              code: 'broker_position_truth_unavailable',
+              reason: 'broker_position_read_failed',
+            },
+          ],
+        }),
+      },
+    });
+
+    const result = await executor._readBrokerPositionForExit({
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      tradeId: 'BUY_1',
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      available: false,
+      error: 'broker_position_truth_unavailable',
+      matchingPosition: null,
+      unavailableBrokers: [
+        expect.objectContaining({
+          broker: 'kraken',
+          status: 'unavailable',
+          reason: 'broker_position_read_failed',
+        }),
+      ],
+    }));
   });
 
   test('webhook full exit stays open when broker position size is unparseable', async () => {

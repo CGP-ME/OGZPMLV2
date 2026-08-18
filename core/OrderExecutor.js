@@ -908,6 +908,40 @@ class OrderExecutor {
     }) || null;
   }
 
+  _normalizeBrokerPositionReadResult(result) {
+    if (Array.isArray(result)) {
+      return {
+        positions: result,
+        complete: true,
+        brokerStatuses: [],
+        unavailableBrokers: [],
+      };
+    }
+    if (!result || typeof result !== 'object') {
+      return {
+        positions: [],
+        complete: false,
+        brokerStatuses: [],
+        unavailableBrokers: [{ broker: 'unknown', reason: 'broker_position_result_missing' }],
+      };
+    }
+    const positions = Array.isArray(result.positions) ? result.positions : [];
+    const brokerStatuses = Array.isArray(result.brokerStatuses) ? result.brokerStatuses : [];
+    const unavailableBrokers = Array.isArray(result.unavailableBrokers)
+      ? result.unavailableBrokers
+      : brokerStatuses.filter(status => status?.status === 'unavailable');
+    const complete = result.complete === false || unavailableBrokers.length > 0
+      ? false
+      : true;
+    return {
+      positions,
+      complete,
+      brokerStatuses,
+      unavailableBrokers,
+      scope: result.scope || null,
+    };
+  }
+
   _exitIntentTtlMs() {
     const webhookTimeout = Number(this.ctx.webhookAdapter?.timeout);
     return Number.isFinite(webhookTimeout) && webhookTimeout > 0 ? webhookTimeout * 3 : 15000;
@@ -1320,13 +1354,24 @@ class OrderExecutor {
     }
     const scope = {
       symbols: [exitPlan.symbol],
-      strict: true,
     };
     if (exitPlan.brokerId) {
       scope.brokerNames = [exitPlan.brokerId];
     }
     try {
-      const positions = await router.getAllPositions(scope);
+      const brokerRead = this._normalizeBrokerPositionReadResult(await router.getAllPositions(scope));
+      const { positions } = brokerRead;
+      if (brokerRead.complete === false) {
+        return {
+          available: false,
+          positions,
+          matchingPosition: null,
+          error: 'broker_position_truth_unavailable',
+          brokerStatuses: brokerRead.brokerStatuses,
+          unavailableBrokers: brokerRead.unavailableBrokers,
+          scope: brokerRead.scope,
+        };
+      }
       const unparseablePosition = this._unparseableBrokerPositionForExit(exitPlan, positions);
       if (unparseablePosition) {
         return {
@@ -1437,6 +1482,8 @@ class OrderExecutor {
         orderId: tradeResult.orderId,
         tradeId: executedExitPlan.tradeId,
         reason: brokerState.error,
+        brokerStatuses: brokerState.brokerStatuses,
+        unavailableBrokers: brokerState.unavailableBrokers,
         orderAccepted: true,
         stateMutationSucceeded: false,
       });

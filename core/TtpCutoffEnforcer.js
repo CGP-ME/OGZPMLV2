@@ -88,9 +88,14 @@ class TtpCutoffEnforcer {
       this._isTtpStockTrade(trade) && this._tradeOpenedBeforeEtDate(trade, state.currentDateET)
     ));
     let initialBrokerPositions = [];
+    let initialBrokerRead = this._completeBrokerPositionRead([]);
     const premarketRecoveryCheck = String(state.phase || '').toLowerCase() === 'pre';
     if (brokerPositionReadAvailable && (state.blocksNewEntries === true || premarketRecoveryCheck)) {
-      initialBrokerPositions = await this._getBrokerPositions(symbolScope);
+      initialBrokerRead = await this._getBrokerPositions(symbolScope);
+      if (initialBrokerRead.complete === false) {
+        return this._routeBrokerPositionTruthUnavailable(state, key, symbolScope, null, [], [], initialBrokerRead);
+      }
+      initialBrokerPositions = initialBrokerRead.positions;
     }
     const targetBrokerPositionsForDecision = brokerPositionReadAvailable
       ? this._ttpBrokerPositions(initialBrokerPositions, symbolScope, targetAllBrokerStocks)
@@ -155,9 +160,13 @@ class TtpCutoffEnforcer {
         };
       }
 
-      const brokerPositions = brokerPositionReadAvailable
-        ? (initialBrokerPositions.length > 0 ? initialBrokerPositions : await this._getBrokerPositions(symbolScope))
-        : [];
+      const brokerRead = brokerPositionReadAvailable
+        ? (initialBrokerPositions.length > 0 ? initialBrokerRead : await this._getBrokerPositions(symbolScope))
+        : this._completeBrokerPositionRead([]);
+      if (brokerRead.complete === false) {
+        return this._routeBrokerPositionTruthUnavailable(state, key, symbolScope, cancelResult, closed, orphanClosed, brokerRead);
+      }
+      const brokerPositions = brokerRead.positions;
       const targetBrokerPositions = this._ttpBrokerPositions(brokerPositions, symbolScope, targetAllBrokerStocks);
       const failures = [];
       const activeTradeSymbols = new Set();
@@ -227,9 +236,13 @@ class TtpCutoffEnforcer {
         }
       }
 
-      const refreshedPositions = brokerPositionReadAvailable
+      const refreshedRead = brokerPositionReadAvailable
         ? await this._getBrokerPositions(symbolScope)
-        : [];
+        : this._completeBrokerPositionRead([]);
+      if (refreshedRead.complete === false) {
+        return this._routeBrokerPositionTruthUnavailable(state, key, symbolScope, cancelResult, closed, orphanClosed, refreshedRead);
+      }
+      const refreshedPositions = refreshedRead.positions;
       const brokerOrphans = brokerPositionReadAvailable
         ? this._ttpBrokerPositions(refreshedPositions, symbolScope, targetAllBrokerStocks)
           .filter(position => !activeTradeSymbols.has(this._normalizeSymbol(position.symbol)))
@@ -248,8 +261,14 @@ class TtpCutoffEnforcer {
         }
       }
 
+      const finalRead = brokerPositionReadAvailable
+        ? await this._getBrokerPositions(symbolScope)
+        : this._completeBrokerPositionRead([]);
+      if (finalRead.complete === false) {
+        return this._routeBrokerPositionTruthUnavailable(state, key, symbolScope, cancelResult, closed, orphanClosed, finalRead);
+      }
       const finalPositions = brokerPositionReadAvailable
-        ? this._ttpBrokerPositions(await this._getBrokerPositions(symbolScope), symbolScope, targetAllBrokerStocks)
+        ? this._ttpBrokerPositions(finalRead.positions, symbolScope, targetAllBrokerStocks)
         : [];
       if (finalPositions.length > 0) {
         failures.push({
@@ -583,11 +602,80 @@ class TtpCutoffEnforcer {
       && typeof this.orderRouter.getAllPositions === 'function';
   }
 
+  _completeBrokerPositionRead(positions = []) {
+    return {
+      positions: Array.isArray(positions) ? positions : [],
+      complete: true,
+      brokerStatuses: [],
+      unavailableBrokers: [],
+    };
+  }
+
+  _normalizeBrokerPositionReadResult(result) {
+    if (Array.isArray(result)) {
+      return this._completeBrokerPositionRead(result);
+    }
+    if (!result || typeof result !== 'object') {
+      return {
+        positions: [],
+        complete: false,
+        brokerStatuses: [],
+        unavailableBrokers: [{ broker: 'unknown', reason: 'broker_position_result_missing' }],
+      };
+    }
+    const brokerStatuses = Array.isArray(result.brokerStatuses) ? result.brokerStatuses : [];
+    return {
+      positions: Array.isArray(result.positions) ? result.positions : [],
+      complete: result.complete === false
+        || (Array.isArray(result.unavailableBrokers) && result.unavailableBrokers.length > 0)
+        || brokerStatuses.some(status => status?.status === 'unavailable')
+        ? false
+        : true,
+      brokerStatuses,
+      unavailableBrokers: Array.isArray(result.unavailableBrokers)
+        ? result.unavailableBrokers
+        : brokerStatuses.filter(status => status?.status === 'unavailable'),
+      scope: result.scope || null,
+    };
+  }
+
   async _getBrokerPositions(symbolScope) {
     if (!this.orderRouter || typeof this.orderRouter.getAllPositions !== 'function') {
-      return [];
+      return this._completeBrokerPositionRead([]);
     }
-    return this.orderRouter.getAllPositions({ ...this._routerScope(symbolScope), strict: true });
+    return this._normalizeBrokerPositionReadResult(
+      await this.orderRouter.getAllPositions(this._routerScope(symbolScope))
+    );
+  }
+
+  _brokerPositionTruthUnavailableFailure(brokerRead) {
+    return {
+      reason: 'broker_position_truth_unavailable',
+      manualReconciliationRequired: true,
+      brokerStatuses: brokerRead.brokerStatuses,
+      unavailableBrokers: brokerRead.unavailableBrokers,
+      scope: brokerRead.scope || null,
+    };
+  }
+
+  async _routeBrokerPositionTruthUnavailable(state, key, symbolScope, cancelResult, closed, orphanClosed, brokerRead) {
+    const failures = [this._brokerPositionTruthUnavailableFailure(brokerRead)];
+    const quarantine = await this._quarantineUnverifiedBrokerFlatness(state, closed, orphanClosed, cancelResult, failures);
+    this.unverifiedKeys.add(key);
+    this.completedKeys.delete(key);
+    return {
+      enforced: true,
+      state,
+      cancelResult,
+      closed,
+      orphanClosed,
+      brokerFlatVerified: false,
+      requiresManualReconciliation: true,
+      reason: 'broker_position_truth_unavailable',
+      symbolScope,
+      failures,
+      quarantine,
+    };
   }
 
   async _closeBrokerPosition(position) {
