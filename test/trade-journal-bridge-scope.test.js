@@ -353,6 +353,150 @@ describe('TradeJournalBridge scoped storage', () => {
     }
   });
 
+  test('startup journal broker-position rejection writes visibility failure instead of warn-only swallow', async () => {
+    const {
+      TradeJournalBridge,
+      resolveJournalScope,
+      resolveJournalDataDir,
+    } = require('../core/TradeJournalBridge');
+    const journalRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'trade-journal-startup-broker-unavailable-'));
+    const activeTrades = new Map([
+      ['OPEN-TSLA-1', {
+        orderId: 'OPEN-TSLA-1',
+        symbol: 'TSLA',
+        traceId: 'trace-open-tsla-1',
+        signalId: 'sig-open-tsla-1',
+        decisionId: 'decision-open-tsla-1',
+        action: 'BUY',
+        direction: 'long',
+        size: 1250,
+        sizeUsd: 1250,
+        entryPrice: 250,
+        confidence: 84,
+        entryFee: 1.25,
+        timestamp: 1780000000000,
+        entryStrategy: 'EMASMACrossover',
+        decisionLedger: {
+          signalId: 'sig-open-tsla-1',
+          traceId: 'trace-open-tsla-1',
+          strategySignals: [{ strategyName: 'EMASMACrossover', confidence: 84 }],
+          orchestratorDecision: {
+            winnerStrategy: 'EMASMACrossover',
+            competingStrategies: [{ strategyName: 'RSI', adjustedConfidence: 62 }],
+          },
+          positionSizing: { finalSizeUsd: 1250 },
+          exitContract: { strategyName: 'EMASMACrossover', stopLossPercent: -0.5 },
+          riskGates: { ttp: { allowed: true } },
+        },
+        regimeAtEntry: 'state-regime',
+        entryIndicators: { rsi: 52, macd: { macd: 0.12 }, trend: 'state-up', volatility: 0.19 },
+        patterns: [],
+      }],
+    ]);
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const bot = {
+      tradingPair: 'TSLA',
+      candleTimeframe: '15m',
+      config: {
+        tradingPair: 'TSLA',
+        brokerId: 'alpaca',
+        accountId: 'acct-1',
+        assetClass: 'stocks',
+        executionMode: 'live',
+        timeframe: '15m',
+        journalDataDir: journalRoot,
+      },
+      ttpCutoffSymbols: ['TSLA'],
+      sessionRouter: {
+        activeBroker: {
+          id: 'alpaca',
+          getBrokerName: () => 'alpaca',
+          getPositions: jest.fn(async () => {
+            const err = new Error('[Alpaca] alpaca_positions_unavailable: REST unreachable');
+            err.code = 'broker_position_truth_unavailable';
+            err.reason = 'alpaca_positions_unavailable';
+            err.operation = 'getPositions';
+            throw err;
+          }),
+        },
+      },
+      executeTrade: jest.fn(async () => ({
+        success: true,
+        orderId: 'unused',
+        orderAccepted: true,
+        stateMutationSucceeded: true,
+      })),
+      stateManager: {
+        get: jest.fn((key) => {
+          if (key === 'activeTrades') return activeTrades;
+          if (key === 'positionCount') return 0;
+          return null;
+        }),
+      },
+      priceHistory: [],
+    };
+    const scope = resolveJournalScope(bot);
+    const journalDir = resolveJournalDataDir(bot, { dataDir: journalRoot }, scope);
+    const visibilityFailurePath = path.join(journalDir, 'trade-visibility-failures.jsonl');
+    const bridge = new TradeJournalBridge(bot, {
+      dataDir: journalRoot,
+      startingBalance: 5000,
+      autoSaveInterval: 600000,
+    });
+
+    try {
+      await bridge._startupJournalReconciliationPromise;
+
+      expect(bot.sessionRouter.activeBroker.getPositions).toHaveBeenCalledTimes(1);
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Startup journal-open reconciliation skipped'));
+      const [record] = readJsonl(visibilityFailurePath);
+      expect(record).toMatchObject({
+        type: 'trade_visibility_failure',
+        eventType: 'journal_broker_positions_unavailable',
+        phase: 'startup_authoritative_reconciliation',
+        source: 'broker.getPositions',
+        message: '[Alpaca] alpaca_positions_unavailable: REST unreachable',
+        manualReconciliationRequired: true,
+        visibilityLedgerPersisted: true,
+        context: {
+          broker: 'alpaca',
+          code: 'broker_position_truth_unavailable',
+          reason: 'alpaca_positions_unavailable',
+          operation: 'getPositions',
+        },
+      });
+      const openTradeBundle = TradeJournalBridge.prototype._allJournalBundles.call(bridge)
+        .find(bundle => bundle.journal?.openTrades?.has?.('OPEN-TSLA-1'));
+      expect(openTradeBundle).toBeTruthy();
+      const ledgerRecords = readJsonl(openTradeBundle.journal.paths.ledger);
+      expect(ledgerRecords).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          event: 'OPEN_TRADE_BROKER_UNVERIFIED',
+          orderId: 'OPEN-TSLA-1',
+          reason: 'alpaca_positions_unavailable',
+          source: 'TradeJournalBridge.startup_authoritative_reconciliation',
+          broker: 'alpaca',
+          code: 'broker_position_truth_unavailable',
+          trustStatus: 'untrusted',
+          brokerVerificationStatus: 'unavailable',
+          manualReconciliationRequired: true,
+        }),
+      ]));
+      expect(openTradeBundle.journal.openTrades.get('OPEN-TSLA-1')).toEqual(expect.objectContaining({
+        trustStatus: 'untrusted',
+        brokerVerificationStatus: 'unavailable',
+        brokerVerificationReason: 'alpaca_positions_unavailable',
+        brokerVerificationCode: 'broker_position_truth_unavailable',
+        brokerVerificationBroker: 'alpaca',
+        manualReconciliationRequired: true,
+      }));
+    } finally {
+      bridge.destroy();
+      warnSpy.mockRestore();
+      fs.rmSync(journalRoot, { recursive: true, force: true });
+    }
+  });
+
   test('journal reconciliation refuses legacy kraken alias when active broker is absent', async () => {
     const { TradeJournalBridge } = require('../core/TradeJournalBridge');
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});

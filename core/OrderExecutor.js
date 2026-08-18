@@ -1057,6 +1057,7 @@ class OrderExecutor {
     const orders = [];
     let readableAdapters = 0;
     const errors = [];
+    const unavailableReads = [];
 
     for (const [brokerName, adapter] of adapters.entries()) {
       if (targetBroker && String(brokerName || '').trim().toLowerCase() !== targetBroker.trim().toLowerCase()) {
@@ -1072,8 +1073,27 @@ class OrderExecutor {
           orders.push({ ...order, broker: brokerName });
         }
       } catch (err) {
-        errors.push(`${brokerName}:${err?.message || 'open_order_read_failed'}`);
+        const unavailable = {
+          broker: brokerName,
+          code: err?.code || 'broker_open_orders_truth_unavailable',
+          reason: err?.reason || err?.code || 'broker_open_orders_truth_unavailable',
+          error: err?.message || 'open_order_read_failed',
+        };
+        errors.push(`${brokerName}:${unavailable.error}`);
+        unavailableReads.push(unavailable);
+        this._recordBrokerOpenOrdersTruthUnavailable(exitPlan, unavailable);
       }
+    }
+
+    if (unavailableReads.length > 0) {
+      return {
+        available: false,
+        orders,
+        matchingOrder: null,
+        error: unavailableReads[0].reason,
+        unavailableOpenOrderReads: unavailableReads,
+        truthSource,
+      };
     }
 
     if (readableAdapters === 0) {
@@ -1105,6 +1125,24 @@ class OrderExecutor {
       error: null,
       truthSource,
     };
+  }
+
+  _recordBrokerOpenOrdersTruthUnavailable(exitPlan, unavailable) {
+    const payload = {
+      traceId: exitPlan?.traceId || createTraceId('broker_open_orders_truth'),
+      symbol: exitPlan?.symbol || null,
+      action: exitPlan?.action || null,
+      tradeId: exitPlan?.tradeId || null,
+      broker: unavailable.broker,
+      code: unavailable.code || 'broker_open_orders_truth_unavailable',
+      reason: unavailable.reason || 'broker_open_orders_truth_unavailable',
+      error: unavailable.error || null,
+      truthSource: this._exitIntentTruthSource(exitPlan),
+    };
+    console.error(
+      `[OrderExecutor] OPEN_ORDERS_TRUTH_UNAVAILABLE broker=${payload.broker} reason=${payload.reason}${payload.error ? ` error=${payload.error}` : ''}`
+    );
+    emitTrace(this.ctx, 'BROKER_OPEN_ORDERS_TRUTH_UNAVAILABLE', payload);
   }
 
   async _releaseExitIntentWithTrace({ exitPlan, pendingExitIntent, reason, traceId, signalId, decisionId, symbol, action }) {
@@ -2895,6 +2933,37 @@ class OrderExecutor {
           detail: brokerVerificationBlock.reason,
           brokerId: brokerVerificationBlock.brokerId,
           executionMode: brokerVerificationBlock.executionMode,
+        });
+      }
+      const brokerTruthEntryBlock = typeof this.ctx.orderRouter?.getBrokerTruthEntryBlock === 'function'
+        ? this.ctx.orderRouter.getBrokerTruthEntryBlock({
+          brokerId: executionScope.brokerId,
+          symbol,
+          action: decision.action,
+          positionEffect,
+        })
+        : null;
+      if (brokerTruthEntryBlock?.blocked) {
+        console.error(`[ENTRY] Refusing ${decision.action} for ${symbol}: ${brokerTruthEntryBlock.reason}`);
+        emitTrace(this.ctx, 'BROKER_TRUTH_ENTRY_BLOCKED', {
+          traceId,
+          signalId,
+          decisionId: decision.decisionId,
+          symbol,
+          action: decision.action,
+          positionEffect,
+          reason: brokerTruthEntryBlock.code || 'broker_truth_unavailable',
+          detail: brokerTruthEntryBlock.reason,
+          brokerId: brokerTruthEntryBlock.brokerId,
+          entryBlockScope: brokerTruthEntryBlock.entryBlockScope || 'broker',
+          brokerTruthEvent: brokerTruthEntryBlock.event || null,
+          brokerTruthAt: brokerTruthEntryBlock.at || null,
+          route: 'order_executor_entry_block_exits_still_allowed',
+        });
+        return blockedReturn(brokerTruthEntryBlock.code || 'broker_truth_unavailable', {
+          detail: brokerTruthEntryBlock.reason,
+          brokerId: brokerTruthEntryBlock.brokerId,
+          entryBlockScope: brokerTruthEntryBlock.entryBlockScope || 'broker',
         });
       }
       const globalHaltReason = stateManager.isHalted() ? stateManager.getHaltReason() : null;

@@ -2,22 +2,28 @@
 
 jest.mock('axios', () => ({
   get: jest.fn(),
+  delete: jest.fn(),
 }));
 
 const axios = require('axios');
 const AlpacaAdapter = require('../brokers/AlpacaAdapter');
+const { subscribeTrace } = require('../core/TraceSpine');
 
 describe('AlpacaAdapter candle history', () => {
   let logSpy;
+  let errorSpy;
 
   beforeEach(() => {
     jest.useFakeTimers().setSystemTime(new Date('2026-05-23T12:00:00.000Z'));
     axios.get.mockReset();
+    axios.delete.mockReset();
     logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
     logSpy.mockRestore();
+    errorSpy.mockRestore();
     jest.useRealTimers();
   });
 
@@ -41,6 +47,122 @@ describe('AlpacaAdapter candle history', () => {
       } else {
         process.env.BROKER_ACCOUNT_ID = priorAccountId;
       }
+    }
+  });
+
+  test('getPositions rejects with named broker-position truth unavailable instead of returning flat', async () => {
+    axios.get.mockRejectedValue(new Error('alpaca REST unavailable'));
+    const adapter = new AlpacaAdapter({ apiKey: 'key', apiSecret: 'secret', mode: 'paper' });
+    const traces = [];
+    const unsubscribe = subscribeTrace((payload) => traces.push(payload));
+
+    try {
+      await expect(adapter.getPositions()).rejects.toMatchObject({
+        code: 'broker_position_truth_unavailable',
+        reason: 'alpaca_positions_unavailable',
+        broker: 'alpaca',
+        operation: 'getPositions',
+      });
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('ALPACA_POSITION_TRUTH_UNAVAILABLE'));
+      expect(traces).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          event: 'ALPACA_POSITION_TRUTH_UNAVAILABLE',
+          fields: expect.objectContaining({
+            code: 'broker_position_truth_unavailable',
+            reason: 'alpaca_positions_unavailable',
+            operation: 'getPositions',
+          }),
+        }),
+      ]));
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  test('getBalance rejects with named balance truth unavailable instead of a generic error', async () => {
+    axios.get.mockRejectedValue(new Error('account read unavailable'));
+    const adapter = new AlpacaAdapter({ apiKey: 'key', apiSecret: 'secret', mode: 'paper' });
+    const traces = [];
+    const unsubscribe = subscribeTrace((payload) => traces.push(payload));
+
+    try {
+      await expect(adapter.getBalance()).rejects.toMatchObject({
+        code: 'broker_balance_truth_unavailable',
+        reason: 'alpaca_balance_unavailable',
+        broker: 'alpaca',
+        operation: 'getBalance',
+      });
+      expect(traces).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          event: 'ALPACA_BALANCE_TRUTH_UNAVAILABLE',
+          fields: expect.objectContaining({
+            code: 'broker_balance_truth_unavailable',
+            reason: 'alpaca_balance_unavailable',
+            operation: 'getBalance',
+          }),
+        }),
+      ]));
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  test('getOpenOrders rejects with named open-orders truth unavailable instead of a generic error', async () => {
+    axios.get.mockRejectedValue(new Error('open orders read unavailable'));
+    const adapter = new AlpacaAdapter({ apiKey: 'key', apiSecret: 'secret', mode: 'paper' });
+    const traces = [];
+    const unsubscribe = subscribeTrace((payload) => traces.push(payload));
+
+    try {
+      await expect(adapter.getOpenOrders()).rejects.toMatchObject({
+        code: 'broker_open_orders_truth_unavailable',
+        reason: 'alpaca_open_orders_unavailable',
+        broker: 'alpaca',
+        operation: 'getOpenOrders',
+      });
+      expect(traces).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          event: 'ALPACA_OPEN_ORDERS_TRUTH_UNAVAILABLE',
+          fields: expect.objectContaining({
+            code: 'broker_open_orders_truth_unavailable',
+            reason: 'alpaca_open_orders_unavailable',
+            operation: 'getOpenOrders',
+          }),
+        }),
+      ]));
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  test('cancelOrder returns typed unknown when Alpaca cannot prove cancel truth', async () => {
+    axios.delete.mockRejectedValue(new Error('network read failed after cancel'));
+    const adapter = new AlpacaAdapter({ apiKey: 'key', apiSecret: 'secret', mode: 'paper' });
+    const traces = [];
+    const unsubscribe = subscribeTrace((payload) => traces.push(payload));
+
+    try {
+      await expect(adapter.cancelOrder('ORDER-UNKNOWN')).resolves.toMatchObject({
+        cancelled: false,
+        status: 'unknown',
+        code: 'broker_cancel_truth_unknown',
+        reason: 'alpaca_cancel_order_unknown',
+        orderId: 'ORDER-UNKNOWN',
+        error: 'network read failed after cancel',
+      });
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('ALPACA_CANCEL_TRUTH_UNKNOWN'));
+      expect(traces).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          event: 'ALPACA_CANCEL_TRUTH_UNKNOWN',
+          fields: expect.objectContaining({
+            code: 'broker_cancel_truth_unknown',
+            reason: 'alpaca_cancel_order_unknown',
+            orderId: 'ORDER-UNKNOWN',
+          }),
+        }),
+      ]));
+    } finally {
+      unsubscribe();
     }
   });
 

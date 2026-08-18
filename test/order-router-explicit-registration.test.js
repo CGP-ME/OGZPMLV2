@@ -1,6 +1,7 @@
 'use strict';
 
 const OrderRouter = require('../core/OrderRouter');
+const { subscribeTrace } = require('../core/TraceSpine');
 
 describe('OrderRouter explicit registration contract', () => {
   function buildAdapter(name) {
@@ -227,5 +228,45 @@ describe('OrderRouter explicit registration contract', () => {
 
     expect(() => router.registerBroker(kraken, ['']))
       .toThrow('[OrderRouter] kraken attempted to register an empty symbol');
+  });
+
+  test('getAllBalances records balance truth unavailable instead of returning a quiet error object', async () => {
+    const router = new OrderRouter();
+    const traces = [];
+    const unsubscribe = subscribeTrace((event) => traces.push(event));
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const alpaca = {
+      getBrokerName: () => 'alpaca',
+      getBalance: jest.fn(async () => {
+        const err = new Error('[Alpaca] alpaca_balance_unavailable: account read failed');
+        err.code = 'broker_balance_truth_unavailable';
+        throw err;
+      }),
+    };
+    router.registerBroker(alpaca, ['TSLA']);
+
+    try {
+      const balances = await router.getAllBalances();
+
+      expect(balances.alpaca).toEqual({
+        error: '[Alpaca] alpaca_balance_unavailable: account read failed',
+        code: 'broker_balance_truth_unavailable',
+        reason: 'broker_balance_truth_unavailable',
+        status: 'unavailable',
+      });
+      expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('BALANCE_TRUTH_UNAVAILABLE'));
+      expect(traces).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          event: 'ORDER_ROUTER_BALANCE_TRUTH_UNAVAILABLE',
+          fields: expect.objectContaining({
+            broker: 'alpaca',
+            reason: 'broker_balance_truth_unavailable',
+          }),
+        }),
+      ]));
+    } finally {
+      unsubscribe();
+      consoleError.mockRestore();
+    }
   });
 });

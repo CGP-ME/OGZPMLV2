@@ -157,6 +157,39 @@ describe('SessionRouter failed-safe transition behavior', () => {
     }));
   });
 
+  test('broker position read rejection during REST reconciliation enters failed-safe halt', async () => {
+    const router = makeRouter();
+    router.activeSession = 'crypto';
+    router.alpacaAdapter.getPositions.mockRejectedValue(new Error('alpaca positions unavailable'));
+    const traces = [];
+    const unsubscribe = subscribeTrace((payload) => traces.push(payload));
+
+    try {
+      await router._transitionToStocks(now);
+
+      expect(router.failedSafeMode).toBe(true);
+      expect(router.failedSafeReason).toBe('alpaca positions unavailable');
+      expect(router.failedSafePauseConfirmed).toBe(true);
+      expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
+      expect(router.stateManager.pauseTrading).toHaveBeenCalledWith(
+        'SessionRouter: transitioning to stocks'
+      );
+      expect(router.stateManager.pauseTrading).toHaveBeenCalledTimes(1);
+      expect(traces).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          event: 'SESSION_ROUTER_FAILED_SAFE_HALT',
+          fields: expect.objectContaining({
+            reason: 'alpaca positions unavailable',
+            from: 'crypto',
+            to: 'stocks',
+          }),
+        }),
+      ]));
+    } finally {
+      unsubscribe();
+    }
+  });
+
   test('transition to crypto failure enters failed-safe mode without resuming trading', async () => {
     const router = makeRouter();
     router.activeSession = 'stocks';

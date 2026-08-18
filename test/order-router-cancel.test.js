@@ -1,5 +1,6 @@
 'use strict';
 
+const EventEmitter = require('events');
 const OrderRouter = require('../core/OrderRouter');
 const { subscribeTrace } = require('../core/TraceSpine');
 
@@ -41,6 +42,56 @@ describe('OrderRouter cancelAllOpenOrders', () => {
     expect(result.results).toEqual([
       { broker: 'alpaca', success: false, reason: 'adapter_missing_order_cancel_api' },
     ]);
+  });
+
+  test('traces open-order truth unavailable when cancel sweep cannot list orders', async () => {
+    const router = new OrderRouter();
+    const traces = [];
+    const unsubscribe = subscribeTrace((event) => traces.push(event));
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const adapter = {
+      getBrokerName: () => 'alpaca',
+      getOpenOrders: jest.fn(async () => {
+        const err = new Error('[Alpaca] alpaca_open_orders_unavailable: REST unavailable');
+        err.code = 'broker_open_orders_truth_unavailable';
+        throw err;
+      }),
+      cancelOrder: jest.fn(),
+    };
+    router.registerBroker(adapter, ['TSLA']);
+
+    try {
+      const result = await router.cancelAllOpenOrders({ symbols: ['TSLA'] });
+
+      expect(adapter.cancelOrder).not.toHaveBeenCalled();
+      expect(result).toEqual(expect.objectContaining({
+        success: false,
+        cancelled: 0,
+        failed: 1,
+      }));
+      expect(result.results).toEqual([
+        expect.objectContaining({
+          broker: 'alpaca',
+          success: false,
+          reason: 'broker_open_orders_truth_unavailable',
+          code: 'broker_open_orders_truth_unavailable',
+          error: '[Alpaca] alpaca_open_orders_unavailable: REST unavailable',
+        }),
+      ]);
+      expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('OPEN_ORDERS_TRUTH_UNAVAILABLE'));
+      expect(traces).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          event: 'ORDER_ROUTER_OPEN_ORDERS_TRUTH_UNAVAILABLE',
+          fields: expect.objectContaining({
+            broker: 'alpaca',
+            reason: 'broker_open_orders_truth_unavailable',
+          }),
+        }),
+      ]));
+    } finally {
+      unsubscribe();
+      consoleError.mockRestore();
+    }
   });
 
   test('does not fail on nonmatching adapters when a symbol scope is supplied', async () => {
@@ -228,6 +279,106 @@ describe('OrderRouter cancelAllOpenOrders', () => {
         reason: 'cancel_returned_non_true',
       },
     ]);
+  });
+
+  test('preserves typed cancel unknown instead of collapsing it to false', async () => {
+    const router = new OrderRouter();
+    const traces = [];
+    const unsubscribe = subscribeTrace((event) => traces.push(event));
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const adapter = {
+      getBrokerName: () => 'alpaca',
+      getOpenOrders: jest.fn(async () => [
+        { orderId: 'ALPACA_UNKNOWN', symbol: 'TSLA' },
+      ]),
+      cancelOrder: jest.fn(async () => ({
+        cancelled: false,
+        status: 'unknown',
+        code: 'broker_cancel_truth_unknown',
+        reason: 'alpaca_cancel_order_unknown',
+        error: 'readback failed',
+      })),
+    };
+    router.registerBroker(adapter, ['TSLA']);
+
+    try {
+      const result = await router.cancelAllOpenOrders({ symbols: ['TSLA'] });
+
+      expect(result).toEqual(expect.objectContaining({
+        success: false,
+        cancelled: 0,
+        failed: 1,
+      }));
+      expect(result.results).toEqual([
+        expect.objectContaining({
+          broker: 'alpaca',
+          orderId: 'ALPACA_UNKNOWN',
+          success: false,
+          reason: 'alpaca_cancel_order_unknown',
+          cancelStatus: 'unknown',
+          code: 'broker_cancel_truth_unknown',
+          error: 'readback failed',
+        }),
+      ]);
+      expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('CANCEL_TRUTH_UNKNOWN'));
+      expect(traces).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          event: 'ORDER_ROUTER_CANCEL_TRUTH_UNKNOWN',
+          fields: expect.objectContaining({
+            broker: 'alpaca',
+            orderId: 'ALPACA_UNKNOWN',
+            reason: 'alpaca_cancel_order_unknown',
+          }),
+        }),
+      ]));
+    } finally {
+      unsubscribe();
+      consoleError.mockRestore();
+    }
+  });
+
+  test('records adapter broker-truth outage as a broker-scoped entry block', () => {
+    const router = new OrderRouter();
+    const traces = [];
+    const unsubscribe = subscribeTrace((event) => traces.push(event));
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const adapter = new EventEmitter();
+    adapter.getBrokerName = () => 'alpaca';
+
+    try {
+      router.registerBroker(adapter, ['TSLA']);
+      adapter.emit('broker_truth_unavailable', {
+        broker: 'alpaca',
+        code: 'broker_truth_unavailable',
+        reason: 'alpaca_ws_transport_unavailable',
+        event: 'ALPACA_WS_TRANSPORT_UNAVAILABLE',
+        operation: 'alpaca_ws_data_stream',
+      });
+
+      expect(router.getBrokerTruthEntryBlock({ symbol: 'TSLA', action: 'BUY' })).toEqual(expect.objectContaining({
+        blocked: true,
+        code: 'broker_truth_unavailable',
+        brokerId: 'alpaca',
+        event: 'ALPACA_WS_TRANSPORT_UNAVAILABLE',
+        operation: 'alpaca_ws_data_stream',
+        entryBlockScope: 'broker',
+      }));
+      expect(router.getBrokerTruthEntryBlock({ symbol: 'TSLA', action: 'SELL' })).toEqual({ blocked: false });
+      expect(router.getBrokerTruthEntryBlock({ symbol: 'BTC-USD', action: 'BUY' })).toEqual({ blocked: false });
+      expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('BROKER_TRUTH_UNAVAILABLE'));
+      expect(traces).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          event: 'ORDER_ROUTER_BROKER_TRUTH_UNAVAILABLE',
+          fields: expect.objectContaining({
+            broker: 'alpaca',
+            reason: 'alpaca_ws_transport_unavailable',
+          }),
+        }),
+      ]));
+    } finally {
+      unsubscribe();
+      consoleError.mockRestore();
+    }
   });
 
   test('normalizes Kraken aliases in the requested symbol scope before filtering open orders', async () => {

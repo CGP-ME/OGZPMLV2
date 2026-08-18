@@ -418,6 +418,110 @@ describe('OrderExecutor pause gate', () => {
     expect(executor.ctx.orderRouter.sendOrder).not.toHaveBeenCalled();
   });
 
+  test('blocks new broker entries when OrderRouter reports broker truth unavailable', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      if (key === 'balance') return 10000;
+      if (key === 'position') return 0;
+      return null;
+    });
+    const traces = [];
+    const unsubscribe = subscribeTrace((event) => traces.push(event));
+    const orderRouter = {
+      sendOrder: jest.fn(),
+      getBrokerTruthEntryBlock: jest.fn(() => ({
+        blocked: true,
+        code: 'broker_truth_unavailable',
+        reason: '[BROKER_TRUTH_UNAVAILABLE] alpaca: alpaca_ws_transport_unavailable',
+        brokerId: 'alpaca',
+        entryBlockScope: 'broker',
+        event: 'ALPACA_WS_TRANSPORT_UNAVAILABLE',
+        at: '2026-08-18T11:30:00.000Z',
+      })),
+    };
+    const executor = makeExecutor({}, { orderRouter });
+
+    try {
+      const result = await executor.executeTrade(
+        { action: 'BUY', confidence: 75 },
+        {},
+        425,
+        {},
+        [],
+        null,
+        makeOrchResult(),
+        'TSLA'
+      );
+
+      expect(result).toEqual(expect.objectContaining({
+        success: false,
+        reason: 'broker_truth_unavailable',
+        detail: '[BROKER_TRUTH_UNAVAILABLE] alpaca: alpaca_ws_transport_unavailable',
+        symbol: 'TSLA',
+        action: 'BUY',
+        brokerId: 'alpaca',
+        entryBlockScope: 'broker',
+      }));
+      expect(orderRouter.getBrokerTruthEntryBlock).toHaveBeenCalledWith({
+        brokerId: 'alpaca',
+        symbol: 'TSLA',
+        action: 'BUY',
+        positionEffect: 'open_long',
+      });
+      expect(mockStateManager.getAvailableCapital).not.toHaveBeenCalled();
+      expect(orderRouter.sendOrder).not.toHaveBeenCalled();
+      expect(traces).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          event: 'BROKER_TRUTH_ENTRY_BLOCKED',
+          fields: expect.objectContaining({
+            symbol: 'TSLA',
+            action: 'BUY',
+            reason: 'broker_truth_unavailable',
+            brokerId: 'alpaca',
+            route: 'order_executor_entry_block_exits_still_allowed',
+          }),
+        }),
+      ]));
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  test('does not apply OrderRouter broker-truth entry block to direct exits', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    const orderRouter = {
+      sendOrder: jest.fn(),
+      getBrokerTruthEntryBlock: jest.fn(() => ({
+        blocked: true,
+        code: 'broker_truth_unavailable',
+        reason: '[BROKER_TRUTH_UNAVAILABLE] alpaca: alpaca_ws_transport_unavailable',
+        brokerId: 'alpaca',
+        entryBlockScope: 'broker',
+      })),
+    };
+    const executor = makeExecutor({}, { orderRouter });
+    const exitPlanSpy = jest.spyOn(executor, '_buildExitPlan').mockImplementation(() => {
+      throw new Error('exit path reached');
+    });
+
+    await expect(executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'OPEN-LONG-1' },
+      {},
+      425,
+      {},
+      [],
+      null,
+      {},
+      'TSLA'
+    )).rejects.toThrow('exit path reached');
+
+    expect(orderRouter.getBrokerTruthEntryBlock).not.toHaveBeenCalled();
+    expect(exitPlanSpy).toHaveBeenCalledTimes(1);
+  });
+
   test('emits gate_event row when symbol cooldown blocks an entry', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;
@@ -2142,6 +2246,71 @@ describe('OrderExecutor pause gate', () => {
       expectedReserveFraction: 1,
       expectedReserveRemainingQuantity: 0,
     });
+  });
+
+  test('open-order read failure is unavailable truth and not a releasable stale exit intent', async () => {
+    const traces = [];
+    const unsubscribe = subscribeTrace((payload) => traces.push(payload));
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const adapter = {
+      getOpenOrders: jest.fn(async () => {
+        const err = new Error('[Alpaca] alpaca_open_orders_unavailable: REST unavailable');
+        err.code = 'broker_open_orders_truth_unavailable';
+        err.reason = 'alpaca_open_orders_unavailable';
+        throw err;
+      }),
+    };
+    const executor = makeExecutor({}, {
+      paperTrading: false,
+      orderRouter: {
+        adapters: new Map([['alpaca', adapter]]),
+      },
+    });
+
+    try {
+      const result = await executor._readBrokerOpenOrdersForExit({
+        tradeId: 'BUY_1',
+        symbol: 'TSLA',
+        action: 'SELL',
+        side: 'sell',
+        brokerId: 'alpaca',
+        pendingExitIntent: { brokerOrderId: 'PENDING_EXIT_ORDER' },
+      });
+
+      expect(result).toEqual(expect.objectContaining({
+        available: false,
+        orders: [],
+        matchingOrder: null,
+        error: 'alpaca_open_orders_unavailable',
+        truthSource: expect.objectContaining({
+          available: true,
+          source: 'broker_open_orders_api',
+          venue: 'alpaca',
+        }),
+      }));
+      expect(result.unavailableOpenOrderReads).toEqual([
+        expect.objectContaining({
+          broker: 'alpaca',
+          code: 'broker_open_orders_truth_unavailable',
+          reason: 'alpaca_open_orders_unavailable',
+          error: '[Alpaca] alpaca_open_orders_unavailable: REST unavailable',
+        }),
+      ]);
+      expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('OPEN_ORDERS_TRUTH_UNAVAILABLE'));
+      expect(traces).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          event: 'BROKER_OPEN_ORDERS_TRUTH_UNAVAILABLE',
+          fields: expect.objectContaining({
+            broker: 'alpaca',
+            reason: 'alpaca_open_orders_unavailable',
+            tradeId: 'BUY_1',
+          }),
+        }),
+      ]));
+    } finally {
+      unsubscribe();
+      consoleError.mockRestore();
+    }
   });
 
   test('stale broker exit reservation with unparseable open-order side halts for reconciliation', async () => {

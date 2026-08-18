@@ -8,19 +8,23 @@ jest.mock('../foundation/ResilientWebSocket', () => {
     this.ws = { readyState: 1, close: jest.fn() };
     this.ready = false;
     this.start = jest.fn();
-    this.stop = jest.fn(() => {
-      this.ready = false;
-      this.health = {
-        status: 'DEAD',
+	    this.stop = jest.fn(() => {
+	      this.ready = false;
+	      this.health = {
+	        status: 'DEAD',
         failureReason: 'intentional stop',
         details: this.health.details,
         lastSuccessAt: 0,
       };
-    });
-    this.send = jest.fn();
-    this.isReady = jest.fn(() => this.ready);
-    this.on = jest.fn();
-    this.health = {
+	    });
+	    this.send = jest.fn();
+	    this.isReady = jest.fn(() => this.ready);
+	    this.handlers = {};
+	    this.on = jest.fn((event, handler) => {
+	      this.handlers[event] = handler;
+	      return this;
+	    });
+	    this.health = {
       status: 'HEALTHY',
       failureReason: null,
       details: {
@@ -40,6 +44,7 @@ jest.mock('../foundation/ResilientWebSocket', () => {
 
 const ResilientWebSocket = require('../foundation/ResilientWebSocket');
 const AlpacaAdapter = require('../brokers/AlpacaAdapter');
+const { subscribeTrace } = require('../core/TraceSpine');
 
 function buildAdapter() {
   return new AlpacaAdapter({ apiKey: 'key', apiSecret: 'secret', mode: 'paper' });
@@ -85,6 +90,38 @@ describe('AlpacaAdapter data stream resilience', () => {
     expect(rws.send).toHaveBeenCalledWith({ action: 'subscribe', bars: ['SPY'] });
     expect(adapter.subscriptions.has('bars-TSLA')).toBe(true);
     expect(adapter.subscriptions.has('bars-SPY')).toBe(true);
+  });
+
+  test('initial subscription send failure is traced and does not mark symbol subscribed', () => {
+    const adapter = buildAdapter();
+    const traces = [];
+    const unsubscribe = subscribeTrace((payload) => traces.push(payload));
+
+    try {
+      adapter.subscribeToCandles('TSLA', '1m', jest.fn());
+      const rws = mockRwsInstances[0];
+      rws.ready = true;
+      rws.send.mockImplementationOnce(() => {
+        throw new Error('socket send failed');
+      });
+
+      expect(() => rws.config.onAuthenticated({ isReconnect: false })).not.toThrow();
+      expect(adapter.subscriptions.has('bars-TSLA')).toBe(false);
+      expect(adapter.barSubscriptions.has('TSLA')).toBe(false);
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('ALPACA_INITIAL_SUBSCRIBE_FAILED'));
+      expect(traces).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          event: 'ALPACA_INITIAL_SUBSCRIBE_FAILED',
+          fields: expect.objectContaining({
+            reason: 'alpaca_initial_subscribe_failed',
+            subscriptionKey: 'bars-TSLA',
+            error: 'socket send failed',
+          }),
+        }),
+      ]));
+    } finally {
+      unsubscribe();
+    }
   });
 
   test('replays active subscriptions on reconnect without creating another socket', () => {
@@ -166,7 +203,7 @@ describe('AlpacaAdapter data stream resilience', () => {
     expect(errorSpy).toHaveBeenCalledWith('[Alpaca] Received unaligned 1m bar timestamp for TSLA: 2026-06-12T14:30:45Z');
   });
 
-  test('closes unauthenticated stream on auth-class error so resilient owner can reconnect', () => {
+	  test('closes unauthenticated stream on auth-class error so resilient owner can reconnect', () => {
     const adapter = buildAdapter();
 
     adapter.subscribeToCandles('TSLA', '1m', jest.fn());
@@ -181,9 +218,62 @@ describe('AlpacaAdapter data stream resilience', () => {
 
     expect(rws.send).toHaveBeenCalledWith({ action: 'subscribe', bars: ['TSLA'] });
     expect(adapter.subscriptions.has('bars-TSLA')).toBe(true);
-  });
+	  });
 
-  test('does not replay newly drained pending callbacks as duplicate reconnect subscriptions', () => {
+	  test('routes non-auth stream failures through broker-truth trace instead of log-only', () => {
+	    const adapter = buildAdapter();
+	    const traces = [];
+	    const unsubscribe = subscribeTrace((payload) => traces.push(payload));
+
+	    try {
+	      adapter.subscribeToCandles('TSLA', '1m', jest.fn());
+	      const rws = mockRwsInstances[0];
+
+	      rws.handlers.error(new Error('socket transport reset'));
+	      rws.handlers['data-stale']({ silentForMs: 61000 });
+	      rws.config.onMessage([{ T: 'error', code: 500, msg: 'feed unavailable' }]);
+	      rws.config.onMessage([{}]);
+
+	      expect(traces).toEqual(expect.arrayContaining([
+	        expect.objectContaining({
+	          event: 'ALPACA_WS_TRANSPORT_UNAVAILABLE',
+	          fields: expect.objectContaining({
+	            reason: 'alpaca_ws_transport_unavailable',
+	            operation: 'ws-data-upgrade-auth',
+	            error: 'socket transport reset',
+	          }),
+	        }),
+	        expect.objectContaining({
+	          event: 'ALPACA_DATA_STREAM_STALE',
+	          fields: expect.objectContaining({
+	            reason: 'alpaca_data_stream_stale',
+	            operation: 'dataStreamWatchdog',
+	            silentForMs: 61000,
+	          }),
+	        }),
+	        expect.objectContaining({
+	          event: 'ALPACA_DATA_STREAM_ERROR',
+	          fields: expect.objectContaining({
+	            reason: 'alpaca_data_stream_error',
+	            operation: 'dataStreamError',
+	            streamCode: 500,
+	            error: 'feed unavailable',
+	          }),
+	        }),
+	        expect.objectContaining({
+	          event: 'ALPACA_DATA_STREAM_MESSAGE_UNAVAILABLE',
+	          fields: expect.objectContaining({
+	            reason: 'alpaca_data_stream_message_unavailable',
+	            operation: 'dataStreamMessage',
+	          }),
+	        }),
+	      ]));
+	    } finally {
+	      unsubscribe();
+	    }
+	  });
+
+	  test('does not replay newly drained pending callbacks as duplicate reconnect subscriptions', () => {
     const adapter = buildAdapter();
 
     adapter.subscribeToCandles('TSLA', '1m', jest.fn());

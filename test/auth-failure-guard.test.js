@@ -318,6 +318,9 @@ describe('AuthFailureGuard', () => {
     cleanFlag();
     const authFailureGuard = require('../core/AuthFailureGuard');
     const recordSpy = jest.spyOn(authFailureGuard, 'recordFailure').mockImplementation(() => {});
+    const { subscribeTrace } = require('../core/TraceSpine');
+    const traces = [];
+    const unsubscribe = subscribeTrace((payload) => traces.push(payload));
     const AlpacaAdapter = require('../brokers/AlpacaAdapter');
     const adapter = new AlpacaAdapter({ apiKey: 'key', apiSecret: 'secret', mode: 'paper' });
 
@@ -354,7 +357,19 @@ describe('AuthFailureGuard', () => {
       authFailure: true,
       evidence: 'alpaca-ws-data-auth-body',
     });
+    expect(traces.filter((payload) => payload.event === 'ALPACA_DATA_STREAM_AUTH_UNAVAILABLE')).toHaveLength(4);
+    expect(traces).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        event: 'ALPACA_DATA_STREAM_AUTH_UNAVAILABLE',
+        fields: expect.objectContaining({
+          code: 'alpaca_broker_truth_unavailable',
+          reason: 'alpaca_data_stream_auth_unavailable',
+          operation: 'dataStreamAuth',
+        }),
+      }),
+    ]));
 
+    unsubscribe();
     recordSpy.mockRestore();
   });
 
@@ -363,6 +378,9 @@ describe('AuthFailureGuard', () => {
     cleanFlag();
     const authFailureGuard = require('../core/AuthFailureGuard');
     const recordSpy = jest.spyOn(authFailureGuard, 'recordFailure').mockImplementation(() => {});
+    const { subscribeTrace } = require('../core/TraceSpine');
+    const traces = [];
+    const unsubscribe = subscribeTrace((payload) => traces.push(payload));
     const AlpacaAdapter = require('../brokers/AlpacaAdapter');
     const adapter = new AlpacaAdapter({ apiKey: 'key', apiSecret: 'secret', mode: 'paper' });
 
@@ -398,11 +416,29 @@ describe('AuthFailureGuard', () => {
       authFailure: true,
       evidence: 'alpaca-ws-upgrade-error',
     });
+    expect(traces.filter((payload) => payload.event === 'ALPACA_WS_TRANSPORT_AUTH_UNAVAILABLE')).toHaveLength(2);
+    expect(traces).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        event: 'ALPACA_WS_TRANSPORT_AUTH_UNAVAILABLE',
+        fields: expect.objectContaining({
+          code: 'alpaca_broker_truth_unavailable',
+          reason: 'alpaca_ws_transport_auth_unavailable',
+          operation: 'ws-account-upgrade-auth',
+        }),
+      }),
+      expect.objectContaining({
+        event: 'ALPACA_WS_TRANSPORT_AUTH_UNAVAILABLE',
+        fields: expect.objectContaining({
+          operation: 'ws-data-upgrade-auth',
+        }),
+      }),
+    ]));
 
+    unsubscribe();
     recordSpy.mockRestore();
   });
 
-  test('Alpaca connect records account auth failures through getBalance before returning false', async () => {
+  test('Alpaca connect records account auth failures through getBalance before typed rejection', async () => {
     jest.resetModules();
     cleanFlag();
     const authFailureGuard = require('../core/AuthFailureGuard');
@@ -416,7 +452,12 @@ describe('AuthFailureGuard', () => {
     const AlpacaAdapter = require('../brokers/AlpacaAdapter');
     const adapter = new AlpacaAdapter({ apiKey: 'key', apiSecret: 'secret', mode: 'paper' });
 
-    await expect(adapter.connect()).resolves.toBe(false);
+    await expect(adapter.connect()).rejects.toMatchObject({
+      code: 'alpaca_broker_truth_unavailable',
+      reason: 'alpaca_connect_failed',
+      broker: 'alpaca',
+      operation: 'connect',
+    });
     expect(recordSpy).toHaveBeenCalledWith('alpaca', 'rest-balance', {
       status: 401,
       message: 'Unauthorized',

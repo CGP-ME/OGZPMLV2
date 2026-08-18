@@ -604,6 +604,64 @@ class TradeJournal {
     return record;
   }
 
+  recordOpenTradeBrokerUnverified(details = {}) {
+    const missing = [];
+    const orderId = nonEmptyStringOrNull(details.orderId);
+    const reason = nonEmptyStringOrNull(details.reason);
+    const source = nonEmptyStringOrNull(details.source);
+    const broker = nonEmptyStringOrNull(details.broker);
+    const code = nonEmptyStringOrNull(details.code);
+
+    if (!orderId) missing.push('orderId');
+    if (!reason) missing.push('reason');
+    if (!source) missing.push('source');
+    if (!broker) missing.push('broker');
+    if (!code) missing.push('code');
+
+    if (missing.length > 0) {
+      console.warn(`[TradeJournal] Refusing open-trade broker-unverified mark; missing field(s): ${missing.join(', ')}`);
+      return null;
+    }
+
+    const entry = this.openTrades.get(orderId);
+    if (!entry) {
+      console.warn(`[TradeJournal] Refusing open-trade broker-unverified mark for ${orderId}; no matching open entry in journal`);
+      return null;
+    }
+
+    const timestamp = Date.now();
+    const record = {
+      event: 'OPEN_TRADE_BROKER_UNVERIFIED',
+      timestamp,
+      orderId,
+      reason,
+      source,
+      broker,
+      code,
+      message: nonEmptyStringOrNull(details.message),
+      trustStatus: 'untrusted',
+      brokerVerificationStatus: 'unavailable',
+      manualReconciliationRequired: true,
+      ...this._scopeRecordFields()
+    };
+
+    this._appendLedger(record);
+    this.openTrades.set(orderId, {
+      ...entry,
+      trustStatus: 'untrusted',
+      brokerVerificationStatus: 'unavailable',
+      brokerVerificationReason: reason,
+      brokerVerificationCode: code,
+      brokerVerificationSource: source,
+      brokerVerificationBroker: broker,
+      brokerVerificationAt: timestamp,
+      manualReconciliationRequired: true,
+    });
+
+    console.warn(`[TradeJournal] OPEN_TRADE_BROKER_UNVERIFIED logged for ${orderId}; broker truth unavailable, manual reconciliation required`);
+    return record;
+  }
+
 
   // ════════════════════════════════════════════════════════════════════════
   // PUBLIC API: ANALYTICS
@@ -1413,6 +1471,33 @@ class TradeJournal {
           this.entryOrderIds.add(orderId);
           this.openTrades.delete(orderId);
           entries.delete(orderId);
+        } else if (record.event === 'OPEN_TRADE_BROKER_UNVERIFIED') {
+          this._assertLedgerRecordScope(record, index + 1);
+          const orderId = nonEmptyStringOrNull(record.orderId);
+          const reason = nonEmptyStringOrNull(record.reason);
+          const source = nonEmptyStringOrNull(record.source);
+          const broker = nonEmptyStringOrNull(record.broker);
+          const code = nonEmptyStringOrNull(record.code);
+          if (!orderId || !reason || !source || !broker || !code) {
+            throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournal ledger line ${index + 1} OPEN_TRADE_BROKER_UNVERIFIED missing proof`);
+          }
+          const entry = entries.get(orderId);
+          if (!entry) {
+            throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournal ledger line ${index + 1} OPEN_TRADE_BROKER_UNVERIFIED has no matching open ENTRY for orderId ${orderId}`);
+          }
+          const markedEntry = {
+            ...entry,
+            trustStatus: 'untrusted',
+            brokerVerificationStatus: 'unavailable',
+            brokerVerificationReason: reason,
+            brokerVerificationCode: code,
+            brokerVerificationSource: source,
+            brokerVerificationBroker: broker,
+            brokerVerificationAt: nonNegativeNumberOrNull(record.timestamp),
+            manualReconciliationRequired: true,
+          };
+          entries.set(orderId, markedEntry);
+          this.openTrades.set(orderId, markedEntry);
         }
       }
 

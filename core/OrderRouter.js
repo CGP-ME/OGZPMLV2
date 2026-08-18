@@ -22,6 +22,10 @@ const EventEmitter = require('events');
 const { createTraceId, emitTrace } = require('./TraceSpine');
 
 const POSITION_TRUTH_UNAVAILABLE = 'broker_position_truth_unavailable';
+const CANCEL_TRUTH_UNKNOWN = 'broker_cancel_truth_unknown';
+const OPEN_ORDERS_TRUTH_UNAVAILABLE = 'broker_open_orders_truth_unavailable';
+const BALANCE_TRUTH_UNAVAILABLE = 'broker_balance_truth_unavailable';
+const BROKER_TRUTH_UNAVAILABLE = 'broker_truth_unavailable';
 
 class OrderRouter extends EventEmitter {
   constructor() {
@@ -36,6 +40,10 @@ class OrderRouter extends EventEmitter {
     // Map adapter name -> normalized symbols it owns
     this.adapterSymbols = new Map();
 
+    // Map adapter name -> latest broker truth outage event
+    this.brokerTruthUnavailable = new Map();
+    this.brokerTruthUnavailableHandlers = new WeakMap();
+
     console.log('[OrderRouter] Initialized');
   }
 
@@ -49,6 +57,7 @@ class OrderRouter extends EventEmitter {
 
     // Store adapter reference
     this.adapters.set(name, adapter);
+    this._wireBrokerTruthUnavailable(name, adapter);
     if (!this.adapterSymbols.has(name)) {
       this.adapterSymbols.set(name, new Set());
     }
@@ -92,6 +101,40 @@ class OrderRouter extends EventEmitter {
   getBrokerForSymbol(symbol) {
     const normalized = this.normalizeSymbol(symbol);
     return this.symbolToAdapter.get(normalized) || null;
+  }
+
+  getBrokerTruthEntryBlock(scope = {}) {
+    const action = String(scope.action || '').trim().toUpperCase();
+    const positionEffect = String(scope.positionEffect || '').trim().toLowerCase();
+    const entryScoped = action === 'BUY'
+      || action === 'SELL_SHORT'
+      || positionEffect.startsWith('open');
+    if (!entryScoped) {
+      return { blocked: false };
+    }
+    const adapter = scope.symbol ? this.getBrokerForSymbol(scope.symbol) : null;
+    const broker = this._normalizeBrokerName(
+      scope.brokerName
+      || scope.brokerId
+      || (adapter && typeof adapter.getBrokerName === 'function' ? adapter.getBrokerName() : null)
+    );
+    if (!broker) {
+      return { blocked: false };
+    }
+    const record = this.brokerTruthUnavailable.get(broker);
+    if (!record) {
+      return { blocked: false };
+    }
+    return {
+      blocked: true,
+      code: record.code || BROKER_TRUTH_UNAVAILABLE,
+      reason: `[BROKER_TRUTH_UNAVAILABLE] ${broker}: ${record.reason || BROKER_TRUTH_UNAVAILABLE}`,
+      brokerId: broker,
+      event: record.event,
+      operation: record.operation,
+      at: record.at,
+      entryBlockScope: 'broker',
+    };
   }
 
   /**
@@ -303,19 +346,33 @@ class OrderRouter extends EventEmitter {
             continue;
           }
           const cancelResult = await adapter.cancelOrder(orderId);
-          if (cancelResult === true) {
-            results.push({ broker: name, orderId, success: true });
+          const normalizedCancel = this._normalizeCancelResult(cancelResult);
+          if (normalizedCancel.success === true) {
+            results.push({ broker: name, orderId, success: true, ...normalizedCancel.extra });
           } else {
-            results.push({
+            const result = {
               broker: name,
               orderId,
               success: false,
-              reason: cancelResult === false ? 'cancel_returned_false' : 'cancel_returned_non_true',
-            });
+              reason: normalizedCancel.reason,
+              ...normalizedCancel.extra,
+            };
+            results.push(result);
+            if (normalizedCancel.unknown === true) {
+              this._recordCancelTruthUnknown(name, orderId, result, options);
+            }
           }
         }
       } catch (error) {
-        results.push({ broker: name, success: false, reason: error.message });
+        const result = {
+          broker: name,
+          success: false,
+          reason: error?.code || 'open_orders_read_failed',
+          code: error?.code || OPEN_ORDERS_TRUTH_UNAVAILABLE,
+          error: error?.message || String(error),
+        };
+        results.push(result);
+        this._recordOpenOrdersTruthUnavailable(name, result, options);
       }
     }
     if (matchedAdapters === 0) {
@@ -351,6 +408,42 @@ class OrderRouter extends EventEmitter {
     return String(name || '').trim().toLowerCase();
   }
 
+  _wireBrokerTruthUnavailable(name, adapter) {
+    if (!adapter || typeof adapter !== 'object' || typeof adapter.on !== 'function') {
+      return;
+    }
+    if (this.brokerTruthUnavailableHandlers.has(adapter)) {
+      return;
+    }
+    const handler = (payload = {}) => {
+      this._recordBrokerTruthUnavailable(name, payload);
+    };
+    adapter.on('broker_truth_unavailable', handler);
+    this.brokerTruthUnavailableHandlers.set(adapter, handler);
+  }
+
+  _recordBrokerTruthUnavailable(name, payload = {}) {
+    const broker = this._normalizeBrokerName(payload.broker || name || 'unknown');
+    const record = {
+      broker,
+      status: 'unavailable',
+      code: payload.code || BROKER_TRUTH_UNAVAILABLE,
+      reason: payload.reason || BROKER_TRUTH_UNAVAILABLE,
+      event: payload.event || payload.operation || BROKER_TRUTH_UNAVAILABLE,
+      operation: payload.operation || null,
+      at: new Date().toISOString(),
+      payload,
+    };
+    this.brokerTruthUnavailable.set(broker, record);
+    console.error(`[OrderRouter] BROKER_TRUTH_UNAVAILABLE broker=${broker} reason=${record.reason}`);
+    emitTrace({}, 'ORDER_ROUTER_BROKER_TRUTH_UNAVAILABLE', {
+      traceId: createTraceId('order_router_broker_truth'),
+      ...record,
+    });
+    this.emit('brokerTruthUnavailable', record);
+    return record;
+  }
+
   _positionScopeDescriptor(options = {}) {
     return {
       symbols: Array.isArray(options.symbols)
@@ -383,6 +476,88 @@ class OrderRouter extends EventEmitter {
     );
     emitTrace({}, 'ORDER_ROUTER_POSITION_TRUTH_UNAVAILABLE', payload);
     this.emit('positionTruthUnavailable', payload);
+  }
+
+  _normalizeCancelResult(cancelResult) {
+    if (cancelResult === true) {
+      return { success: true, reason: null, extra: {} };
+    }
+    if (cancelResult && typeof cancelResult === 'object') {
+      if (cancelResult.cancelled === true || cancelResult.status === 'cancelled') {
+        return {
+          success: true,
+          reason: null,
+          extra: {
+            cancelStatus: cancelResult.status || 'cancelled',
+          },
+        };
+      }
+      if (cancelResult.status === 'unknown' || cancelResult.unknown === true || cancelResult.code === CANCEL_TRUTH_UNKNOWN) {
+        return {
+          success: false,
+          unknown: true,
+          reason: cancelResult.reason || CANCEL_TRUTH_UNKNOWN,
+          extra: {
+            cancelStatus: 'unknown',
+            code: cancelResult.code || CANCEL_TRUTH_UNKNOWN,
+            error: cancelResult.error || null,
+          },
+        };
+      }
+    }
+    return {
+      success: false,
+      reason: cancelResult === false ? 'cancel_returned_false' : 'cancel_returned_non_true',
+      extra: {},
+    };
+  }
+
+  _recordCancelTruthUnknown(broker, orderId, result, options = {}) {
+    const payload = {
+      traceId: createTraceId('order_router_cancel_truth'),
+      broker,
+      orderId,
+      code: result.code || CANCEL_TRUTH_UNKNOWN,
+      reason: result.reason || CANCEL_TRUTH_UNKNOWN,
+      error: result.error || null,
+      scope: this._positionScopeDescriptor(options),
+    };
+    console.error(
+      `[OrderRouter] CANCEL_TRUTH_UNKNOWN broker=${broker} orderId=${orderId} reason=${payload.reason}${payload.error ? ` error=${payload.error}` : ''}`
+    );
+    emitTrace({}, 'ORDER_ROUTER_CANCEL_TRUTH_UNKNOWN', payload);
+    this.emit('cancelTruthUnknown', payload);
+  }
+
+  _recordOpenOrdersTruthUnavailable(broker, result, options = {}) {
+    const payload = {
+      traceId: createTraceId('order_router_open_orders_truth'),
+      broker,
+      code: result.code || OPEN_ORDERS_TRUTH_UNAVAILABLE,
+      reason: result.reason || OPEN_ORDERS_TRUTH_UNAVAILABLE,
+      error: result.error || null,
+      scope: this._positionScopeDescriptor(options),
+    };
+    console.error(
+      `[OrderRouter] OPEN_ORDERS_TRUTH_UNAVAILABLE broker=${broker} reason=${payload.reason}${payload.error ? ` error=${payload.error}` : ''}`
+    );
+    emitTrace({}, 'ORDER_ROUTER_OPEN_ORDERS_TRUTH_UNAVAILABLE', payload);
+    this.emit('openOrdersTruthUnavailable', payload);
+  }
+
+  _recordBalanceTruthUnavailable(broker, error) {
+    const payload = {
+      traceId: createTraceId('order_router_balance_truth'),
+      broker,
+      code: error?.code || BALANCE_TRUTH_UNAVAILABLE,
+      reason: error?.code || BALANCE_TRUTH_UNAVAILABLE,
+      error: error?.message || String(error),
+    };
+    console.error(
+      `[OrderRouter] BALANCE_TRUTH_UNAVAILABLE broker=${broker} reason=${payload.reason}${payload.error ? ` error=${payload.error}` : ''}`
+    );
+    emitTrace({}, 'ORDER_ROUTER_BALANCE_TRUTH_UNAVAILABLE', payload);
+    this.emit('balanceTruthUnavailable', payload);
   }
 
   getBrokerNamesByAssetType(assetTypes = []) {
@@ -423,8 +598,13 @@ class OrderRouter extends EventEmitter {
       try {
         balances[name] = await adapter.getBalance();
       } catch (error) {
-        console.error(`[OrderRouter] Failed to get balance from ${name}:`, error.message);
-        balances[name] = { error: error.message };
+        this._recordBalanceTruthUnavailable(name, error);
+        balances[name] = {
+          error: error.message,
+          code: error?.code || BALANCE_TRUTH_UNAVAILABLE,
+          reason: error?.code || BALANCE_TRUTH_UNAVAILABLE,
+          status: 'unavailable',
+        };
       }
     }
 

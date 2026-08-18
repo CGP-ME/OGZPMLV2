@@ -19,11 +19,17 @@ const axios = require('axios');
 const WebSocket = require('ws');
 const ResilientWebSocket = require('../foundation/ResilientWebSocket');
 const authFailureGuard = require('../core/AuthFailureGuard');
+const { createTraceId, emitTrace } = require('../core/TraceSpine');
 
 const ALPACA_WS_AUTH_ERROR_CODES = new Set([401, 402, 403, 404, 406, 409]);
 const ALPACA_AUTH_MESSAGE_RE = /(invalid api( |-)?key|unauthorized|authentication failed|api key not authorized|forbidden|invalid credentials|not authorized)/i;
 const ALPACA_WS_TRANSPORT_AUTH_RE = /(^|\D)(401|403)($|\D)|unauthorized|authentication failed|invalid api key|not authorized/i;
 const STREAM_BAR_TIMEFRAME = '1m';
+const ALPACA_BROKER_TRUTH_UNAVAILABLE = 'alpaca_broker_truth_unavailable';
+const ALPACA_BALANCE_TRUTH_UNAVAILABLE = 'broker_balance_truth_unavailable';
+const ALPACA_POSITION_TRUTH_UNAVAILABLE = 'broker_position_truth_unavailable';
+const ALPACA_OPEN_ORDERS_TRUTH_UNAVAILABLE = 'broker_open_orders_truth_unavailable';
+const ALPACA_CANCEL_TRUTH_UNKNOWN = 'broker_cancel_truth_unknown';
 
 class AlpacaAdapter extends IBrokerAdapter {
     constructor(config = {}) {
@@ -162,6 +168,13 @@ class AlpacaAdapter extends IBrokerAdapter {
             authFailure: true,
             evidence: isAuthCode ? 'alpaca-ws-data-error-code' : 'alpaca-ws-data-auth-body',
         });
+        this._emitBrokerTruthUnavailable('ALPACA_DATA_STREAM_AUTH_UNAVAILABLE', {
+            code: ALPACA_BROKER_TRUTH_UNAVAILABLE,
+            reason: 'alpaca_data_stream_auth_unavailable',
+            operation: 'dataStreamAuth',
+            authCode: code,
+            error: message || 'Alpaca data stream authentication failed',
+        });
         return true;
     }
 
@@ -173,6 +186,75 @@ class AlpacaAdapter extends IBrokerAdapter {
             authFailure: true,
             evidence,
         });
+        this._emitBrokerTruthUnavailable('ALPACA_WS_TRANSPORT_AUTH_UNAVAILABLE', {
+            code: ALPACA_BROKER_TRUTH_UNAVAILABLE,
+            reason: 'alpaca_ws_transport_auth_unavailable',
+            operation: kind,
+            evidence,
+            error: message || 'Alpaca WebSocket transport authentication failed',
+        });
+    }
+
+    _recordStreamTruthUnavailable(event, reason, fields = {}) {
+        return this._emitBrokerTruthUnavailable(event, {
+            code: ALPACA_BROKER_TRUTH_UNAVAILABLE,
+            reason,
+            ...fields,
+        });
+    }
+
+    _recordWsTransportFailure(error, kind, evidence) {
+        const message = error && typeof error.message === 'string' ? error.message : this._errorMessage(error);
+        const authFailure = ALPACA_WS_TRANSPORT_AUTH_RE.test(message || '');
+        if (authFailure) {
+            this._recordWsTransportAuthFailureIfRelevant(error, kind, evidence);
+            return;
+        }
+        this._recordStreamTruthUnavailable('ALPACA_WS_TRANSPORT_UNAVAILABLE', 'alpaca_ws_transport_unavailable', {
+            operation: kind,
+            evidence,
+            error: message || 'Alpaca WebSocket transport unavailable',
+        });
+    }
+
+    _errorMessage(error) {
+        if (!error) return null;
+        return error.response?.data?.message || error.message || String(error);
+    }
+
+    _emitBrokerTruthUnavailable(event, fields = {}) {
+        const payload = {
+            traceId: createTraceId('alpaca_broker_truth'),
+            broker: 'alpaca',
+            mode: this.config?.mode || null,
+            baseUrl: this.baseUrl,
+            ...fields,
+        };
+        console.error(
+            `[Alpaca] ${event}: reason=${payload.reason || '(missing)'}${payload.error ? ` error=${payload.error}` : ''}`
+        );
+        emitTrace({}, event, payload);
+        this.emit('broker_truth_unavailable', payload);
+        return payload;
+    }
+
+    _typedBrokerTruthError(reason, error, fields = {}) {
+        const message = this._errorMessage(error) || reason;
+        this._emitBrokerTruthUnavailable(fields.event || 'ALPACA_BROKER_TRUTH_UNAVAILABLE', {
+            code: fields.code || ALPACA_BROKER_TRUTH_UNAVAILABLE,
+            reason,
+            operation: fields.operation || null,
+            error: message,
+            ...fields,
+            event: undefined,
+        });
+        const typedError = new Error(`[Alpaca] ${reason}: ${message}`);
+        typedError.code = fields.code || ALPACA_BROKER_TRUTH_UNAVAILABLE;
+        typedError.reason = reason;
+        typedError.broker = 'alpaca';
+        typedError.operation = fields.operation || null;
+        typedError.cause = error;
+        return typedError;
     }
 
     // =========================================================================
@@ -188,11 +270,20 @@ class AlpacaAdapter extends IBrokerAdapter {
                 this.emit('connected', { broker: 'alpaca', ready: true });
                 return true;
             }
-            return false;
-        } catch (error) {
-            console.error('[Alpaca] Connection failed:', error.message);
             this.connected = false;
-            return false;
+            throw this._typedBrokerTruthError('alpaca_connect_account_unverified', null, {
+                code: ALPACA_BROKER_TRUTH_UNAVAILABLE,
+                operation: 'connect',
+                event: 'ALPACA_CONNECT_TRUTH_UNAVAILABLE',
+            });
+        } catch (error) {
+            this.connected = false;
+            if (error?.code === ALPACA_BROKER_TRUTH_UNAVAILABLE) throw error;
+            throw this._typedBrokerTruthError('alpaca_connect_failed', error, {
+                code: ALPACA_BROKER_TRUTH_UNAVAILABLE,
+                operation: 'connect',
+                event: 'ALPACA_CONNECT_TRUTH_UNAVAILABLE',
+            });
         }
     }
 
@@ -294,7 +385,11 @@ class AlpacaAdapter extends IBrokerAdapter {
             };
         } catch (error) {
             this._recordAuthFailureIfRelevant(error, 'rest-balance');
-            throw new Error(`[Alpaca] Failed to get balance: ${error.message}`);
+            throw this._typedBrokerTruthError('alpaca_balance_unavailable', error, {
+                code: ALPACA_BALANCE_TRUTH_UNAVAILABLE,
+                operation: 'getBalance',
+                event: 'ALPACA_BALANCE_TRUTH_UNAVAILABLE',
+            });
         }
     }
 
@@ -314,7 +409,11 @@ class AlpacaAdapter extends IBrokerAdapter {
             }));
         } catch (error) {
             this._recordAuthFailureIfRelevant(error, 'rest-positions');
-            throw new Error(`[Alpaca] Failed to get positions: ${error.message}`);
+            throw this._typedBrokerTruthError('alpaca_positions_unavailable', error, {
+                code: ALPACA_POSITION_TRUTH_UNAVAILABLE,
+                operation: 'getPositions',
+                event: 'ALPACA_POSITION_TRUTH_UNAVAILABLE',
+            });
         }
     }
 
@@ -335,7 +434,11 @@ class AlpacaAdapter extends IBrokerAdapter {
             }));
         } catch (error) {
             this._recordAuthFailureIfRelevant(error, 'rest-open-orders');
-            throw new Error(`[Alpaca] Failed to get open orders: ${error.message}`);
+            throw this._typedBrokerTruthError('alpaca_open_orders_unavailable', error, {
+                code: ALPACA_OPEN_ORDERS_TRUTH_UNAVAILABLE,
+                operation: 'getOpenOrders',
+                event: 'ALPACA_OPEN_ORDERS_TRUTH_UNAVAILABLE',
+            });
         }
     }
 
@@ -398,11 +501,31 @@ class AlpacaAdapter extends IBrokerAdapter {
             await axios.delete(`${this.baseUrl}/v2/orders/${orderId}`, {
                 headers: this._authHeaders()
             });
-            return true;
+            return {
+                cancelled: true,
+                status: 'cancelled',
+                orderId,
+                broker: 'alpaca',
+            };
         } catch (error) {
             this._recordAuthFailureIfRelevant(error, 'rest-cancel-order');
-            console.error(`[Alpaca] Failed to cancel order: ${error.message}`);
-            return false;
+            const message = this._errorMessage(error) || 'cancel order failed';
+            this._emitBrokerTruthUnavailable('ALPACA_CANCEL_TRUTH_UNKNOWN', {
+                code: ALPACA_CANCEL_TRUTH_UNKNOWN,
+                reason: 'alpaca_cancel_order_unknown',
+                operation: 'cancelOrder',
+                orderId,
+                error: message,
+            });
+            return {
+                cancelled: false,
+                status: 'unknown',
+                code: ALPACA_CANCEL_TRUTH_UNKNOWN,
+                reason: 'alpaca_cancel_order_unknown',
+                orderId,
+                broker: 'alpaca',
+                error: message,
+            };
         }
     }
 
@@ -552,8 +675,8 @@ class AlpacaAdapter extends IBrokerAdapter {
         const sym = this.toBrokerSymbol(symbol);
         const key = `trades-${sym}`;
         this._ensureDataStream(() => {
-            this.subscriptions.set(key, callback);
             this.rws.send({ action: 'subscribe', trades: [sym] });
+            this.subscriptions.set(key, callback);
         }, key);
     }
 
@@ -562,15 +685,15 @@ class AlpacaAdapter extends IBrokerAdapter {
         const key = `bars-${sym}`;
         const intervalMs = this._timeframeIntervalMs(STREAM_BAR_TIMEFRAME);
         this._ensureDataStream(() => {
+            const payload = { action: 'subscribe', bars: [sym] };
+            console.log('[Alpaca] TX subscribe(bars):', JSON.stringify(payload), '| url:', this.wsUrl);
+            this.rws.send(payload);
             this.subscriptions.set(key, callback);
             this.barSubscriptions.set(sym, {
                 requestedTimeframe: timeframe,
                 streamTimeframe: STREAM_BAR_TIMEFRAME,
                 intervalMs,
             });
-            const payload = { action: 'subscribe', bars: [sym] };
-            console.log('[Alpaca] TX subscribe(bars):', JSON.stringify(payload), '| url:', this.wsUrl);
-            this.rws.send(payload);
         }, key);
     }
 
@@ -578,8 +701,8 @@ class AlpacaAdapter extends IBrokerAdapter {
         const sym = this.toBrokerSymbol(symbol);
         const key = `quotes-${sym}`;
         this._ensureDataStream(() => {
-            this.subscriptions.set(key, callback);
             this.rws.send({ action: 'subscribe', quotes: [sym] });
+            this.subscriptions.set(key, callback);
         }, key);
     }
 
@@ -624,6 +747,10 @@ class AlpacaAdapter extends IBrokerAdapter {
                         evidence: 'alpaca-ws-authorization-status',
                         payload: msg.data,
                     });
+                    this._recordStreamTruthUnavailable('ALPACA_ACCOUNT_STREAM_AUTH_UNAVAILABLE', 'alpaca_account_stream_auth_unavailable', {
+                        operation: 'accountStreamAuth',
+                        error: JSON.stringify(msg.data || {}),
+                    });
                     return;
                 }
                 if (msg.stream === 'account_updates' && msg.data) {
@@ -641,16 +768,24 @@ class AlpacaAdapter extends IBrokerAdapter {
                 }
             } catch (err) {
                 console.error('[Alpaca] Account stream parse error:', err.message);
+                this._recordStreamTruthUnavailable('ALPACA_ACCOUNT_STREAM_PARSE_UNAVAILABLE', 'alpaca_account_stream_parse_unavailable', {
+                    operation: 'accountStreamParse',
+                    error: this._errorMessage(err) || 'account stream parse failed',
+                });
             }
         });
 
         this.accountWs.on('error', (err) => {
             console.error('[Alpaca] Account stream error:', err.message);
-            this._recordWsTransportAuthFailureIfRelevant(err, 'ws-account-upgrade-auth', 'alpaca-ws-upgrade-error');
+            this._recordWsTransportFailure(err, 'ws-account-upgrade-auth', 'alpaca-ws-upgrade-error');
         });
 
         this.accountWs.on('close', () => {
-            console.log('[Alpaca] Account stream disconnected');
+            console.error('[Alpaca] Account stream disconnected');
+            this._recordStreamTruthUnavailable('ALPACA_ACCOUNT_STREAM_UNAVAILABLE', 'alpaca_account_stream_disconnected', {
+                operation: 'accountStreamClose',
+                error: 'account stream disconnected',
+            });
             this.accountWs = null;
         });
     }
@@ -846,9 +981,19 @@ class AlpacaAdapter extends IBrokerAdapter {
                     : null;
                 if (pending.length) {
                     console.log(`[Alpaca] Draining ${pending.length} pending subscribe callback(s)`);
-                    for (const { callback: cb } of pending) {
-                        try { cb(); }
-                        catch (err) { console.error('[Alpaca] initial subscribe callback threw:', err.message); }
+                    for (const { key, callback: cb } of pending) {
+                        try {
+                            cb();
+                        } catch (err) {
+                            this._emitBrokerTruthUnavailable('ALPACA_INITIAL_SUBSCRIBE_FAILED', {
+                                code: ALPACA_BROKER_TRUTH_UNAVAILABLE,
+                                reason: 'alpaca_initial_subscribe_failed',
+                                operation: 'initialSubscribe',
+                                subscriptionKey: key || null,
+                                isReconnect,
+                                error: this._errorMessage(err) || 'initial subscribe callback failed',
+                            });
+                        }
                     }
                 }
                 if (isReconnect && replayKeys.size > 0) {
@@ -868,13 +1013,18 @@ class AlpacaAdapter extends IBrokerAdapter {
 
         this.rws.on('error', (err) => {
             console.error('[Alpaca] WS error:', err.message);
-            this._recordWsTransportAuthFailureIfRelevant(err, 'ws-data-upgrade-auth', 'alpaca-ws-upgrade-error');
+            this._recordWsTransportFailure(err, 'ws-data-upgrade-auth', 'alpaca-ws-upgrade-error');
         });
         this.rws.on('reconnecting', ({ attempt, delayMs }) => {
             console.log(`[Alpaca] Reconnecting in ${delayMs}ms (attempt #${attempt}, infinite, capped 30s)`);
         });
         this.rws.on('data-stale', ({ silentForMs }) => {
             console.warn(`[Alpaca] Data stream went silent for ${silentForMs}ms - forcing reconnect`);
+            this._recordStreamTruthUnavailable('ALPACA_DATA_STREAM_STALE', 'alpaca_data_stream_stale', {
+                operation: 'dataStreamWatchdog',
+                silentForMs,
+                error: `data stream silent for ${silentForMs}ms`,
+            });
         });
     }
 
@@ -887,7 +1037,13 @@ class AlpacaAdapter extends IBrokerAdapter {
     }
 
     _handleOneStreamMessage(msg) {
-        if (!msg || !msg.T) return;
+        if (!msg || !msg.T) {
+            this._recordStreamTruthUnavailable('ALPACA_DATA_STREAM_MESSAGE_UNAVAILABLE', 'alpaca_data_stream_message_unavailable', {
+                operation: 'dataStreamMessage',
+                error: 'data stream message missing type',
+            });
+            return;
+        }
         if (msg.T !== 't' && msg.T !== 'q' && msg.T !== 'b') {
             console.log('[Alpaca] RX ctrl:', msg.T, JSON.stringify(msg).slice(0, 240));
         }
@@ -895,6 +1051,13 @@ class AlpacaAdapter extends IBrokerAdapter {
         if (msg.T === 'error') {
             console.error('[Alpaca] Stream error:', msg.msg, '| code:', msg.code);
             const authError = this._recordDataStreamAuthErrorIfRelevant(msg);
+            if (!authError) {
+                this._recordStreamTruthUnavailable('ALPACA_DATA_STREAM_ERROR', 'alpaca_data_stream_error', {
+                    operation: 'dataStreamError',
+                    streamCode: msg.code ?? null,
+                    error: msg.msg || 'Alpaca data stream error',
+                });
+            }
             if (authError && this.rws && this.rws.ws && typeof this.rws.ws.close === 'function') {
                 try { this.rws.ws.close(); }
                 catch (err) { console.error('[Alpaca] Failed to close auth-failed data stream:', err.message); }

@@ -562,6 +562,7 @@ class TradeJournalBridge {
     this._startupJournalReconciliationPromise = this._reconcileJournalOpenTradesWithAuthoritativeState()
       .catch(err => {
         console.warn(`[TradeJournalBridge] Startup journal-open reconciliation skipped: ${err.message}`);
+        TradeJournalBridge.prototype._recordStartupJournalBrokerPositionFailure.call(this, err);
       });
 
     // ── Wire everything ─────────────────────────────────────────────
@@ -952,6 +953,68 @@ class TradeJournalBridge {
       .filter(Boolean);
   }
 
+  _recordStartupJournalBrokerPositionFailure(err) {
+    const adapter = this.bot?.sessionRouter?.activeBroker;
+    const broker = adapter?.getBrokerName?.() || adapter?.id || this.bot?.config?.brokerId || null;
+    const record = TradeJournalBridge.prototype._recordVisibilityFailure.call(this, 'journal_broker_positions_unavailable', {
+      phase: 'startup_authoritative_reconciliation',
+      source: 'broker.getPositions',
+      message: errorMessageOrNull(err),
+      context: {
+        broker,
+        code: nonEmptyStringOrNull(err?.code),
+        reason: nonEmptyStringOrNull(err?.reason),
+        operation: nonEmptyStringOrNull(err?.operation),
+      },
+      manualReconciliationRequired: true,
+    });
+    TradeJournalBridge.prototype._markOpenJournalTradesBrokerUnverified.call(this, record, err);
+    return record;
+  }
+
+  _markOpenJournalTradesBrokerUnverified(visibilityRecord, err) {
+    const broker = nonEmptyStringOrNull(visibilityRecord?.context?.broker) || nonEmptyStringOrNull(this.bot?.config?.brokerId);
+    const code = nonEmptyStringOrNull(visibilityRecord?.context?.code) || 'broker_position_truth_unavailable';
+    const reason = nonEmptyStringOrNull(visibilityRecord?.context?.reason) || 'journal_broker_positions_unavailable';
+    const message = errorMessageOrNull(err) || visibilityRecord?.message || 'broker positions unavailable';
+    let marked = 0;
+
+    for (const bundle of TradeJournalBridge.prototype._allJournalBundles.call(this)) {
+      const journal = bundle.journal;
+      if (!journal?.openTrades || typeof journal.recordOpenTradeBrokerUnverified !== 'function') continue;
+      for (const orderId of Array.from(journal.openTrades.keys())) {
+        try {
+          const record = journal.recordOpenTradeBrokerUnverified({
+            orderId,
+            reason,
+            source: 'TradeJournalBridge.startup_authoritative_reconciliation',
+            broker,
+            code,
+            message,
+          });
+          if (record) marked += 1;
+        } catch (markErr) {
+          const failure = TradeJournalBridge.prototype._recordVisibilityFailure.call(this, 'journal_broker_unverified_mark_failed', {
+            phase: 'startup_authoritative_reconciliation',
+            source: 'TradeJournal.recordOpenTradeBrokerUnverified',
+            orderId,
+            message: errorMessageOrNull(markErr),
+            context: {
+              broker,
+              code,
+              reason,
+            },
+            manualReconciliationRequired: true,
+          });
+          if (isJournalPersistenceError(markErr)) {
+            TradeJournalBridge.prototype._recordJournalPersistenceFailure.call(this, failure, markErr);
+          }
+        }
+      }
+    }
+    return { marked };
+  }
+
   async _reconcileJournalOpenTradesWithAuthoritativeState() {
     const brokerPositions = await this._brokerPositionsForJournalReconciliation();
     if (!brokerPositions) {
@@ -1173,11 +1236,13 @@ class TradeJournalBridge {
       visibilityDashboardQueued: false,
       journalStatus: isJournalFailureEventType(eventType) ? 'unjournaled' : null,
       trustStatus: isJournalFailureEventType(eventType) ? 'untrusted' : null,
-      manualReconciliationRequired: isJournalFailureEventType(eventType),
+      manualReconciliationRequired: details.manualReconciliationRequired === true || isJournalFailureEventType(eventType),
     };
 
     if (record.manualReconciliationRequired) {
-      TradeJournalBridge.prototype._markTradeUnjournaled.call(this, record);
+      if (record.orderId) {
+        TradeJournalBridge.prototype._markTradeUnjournaled.call(this, record);
+      }
       TradeJournalBridge.prototype._emitJournalReconciliationTrace.call(this, record);
     }
 
