@@ -24,6 +24,7 @@ const { getMarketPhase, getNYTimeParts } = require('../foundation/MarketCalendar
 const { getInstance: getStateManager } = require('./StateManager');
 const { createTraceId, emitTrace } = require('./TraceSpine');
 const TransitionStore = require('./session-router/TransitionStore');
+const { getInstance: getExitContractManager } = require('./ExitContractManager');
 
 const TERMINAL_ORDER_STATUSES = new Set([
   'closed',
@@ -191,7 +192,7 @@ class SessionRouter extends EventEmitter {
 
     const tradeId = trade?.tradeId || trade?.orderId || trade?.id || orderId;
     const action = this._sourceTradeCloseAction(orderId, trade);
-    await this.executeTrade(
+    const execution = await this.executeTrade(
       { action, confidence: 100, tradeId, exitReason: 'session_close' },
       { totalConfidence: 100 },
       exitPrice,
@@ -207,7 +208,7 @@ class SessionRouter extends EventEmitter {
       throw new Error('executeTrade did not close source position');
     }
 
-    return { tradeId, symbol, action, exitPrice };
+    return { tradeId, symbol, action, exitPrice, execution };
   }
 
   _activeTradeEntries() {
@@ -473,15 +474,38 @@ class SessionRouter extends EventEmitter {
     });
     try {
       const result = await this._forceCloseSourceTradesThroughExecution(transitionContext, countdown.from);
-      this.windDownFlattenComplete = this._activeTradeCount() === 0;
-      this.windDownFlattenFailures = [];
-      this._emitSessionRouterTrace('SESSION_WIND_DOWN_FORCE_FLATTEN_COMPLETE', {
-        from: countdown.from,
-        to: countdown.to,
-        at: this._transitionAt(now),
-        closedCount: result.closed.length,
-        remainingActiveTrades: this._activeTradeCount()
-      });
+      // Boundary-flat is proven at the broker, never in the ledger. The state
+      // count only knows legs this process opened; broker legs unknown to state
+      // are the ghost class, and only a broker read can see them.
+      const brokerProof = await this._proveSourceFlatAtBroker(now, countdown, transitionContext);
+      if (brokerProof.flat) {
+        this.windDownFlattenComplete = true;
+        this.windDownFlattenFailures = [];
+        this._emitSessionRouterTrace('SESSION_WIND_DOWN_FORCE_FLATTEN_COMPLETE', {
+          from: countdown.from,
+          to: countdown.to,
+          at: this._transitionAt(now),
+          closedCount: result.closed.length,
+          remainingActiveTrades: this._activeTradeCount(),
+          brokerId: brokerProof.brokerId,
+          brokerFlatProven: true,
+          orphansFlattened: brokerProof.orphansFlattened
+        });
+      } else {
+        this.windDownFlattenComplete = false;
+        this.windDownFlattenFailures = [{ reason: brokerProof.reason }];
+        this._emitSessionRouterTrace('SESSION_WIND_DOWN_FORCE_FLATTEN_PARTIAL', {
+          from: countdown.from,
+          to: countdown.to,
+          at: this._transitionAt(now),
+          reason: brokerProof.reason,
+          remainingActiveTrades: this._activeTradeCount(),
+          brokerId: brokerProof.brokerId,
+          brokerVerified: brokerProof.verified,
+          orphansFlattened: brokerProof.orphansFlattened,
+          manualReconciliationRequired: true
+        });
+      }
     } catch (err) {
       this.windDownFlattenComplete = false;
       this.windDownFlattenFailures = [{ reason: err.message }];
@@ -496,20 +520,407 @@ class SessionRouter extends EventEmitter {
     }
   }
 
-  async _readyForBoundarySwitch(now, from, to) {
-    const activeTrades = this._activeTradeCount();
-    if (activeTrades === 0) return true;
-    this.windDownPhase = 'switch_blocked';
-    this.windDownDirection = `${from}->${to}`;
-    this.windDownLastTraceAt = this._transitionAt(now);
-    this._emitSessionRouterTrace('SESSION_WIND_DOWN_SWITCH_BLOCKED_ACTIVE_TRADES', {
-      from,
-      to,
-      at: this._transitionAt(now),
-      activeTrades,
-      route: 'session_router_boundary_switch_waiting_for_flat_source',
+  _sourceAdapterForSession(sessionName) {
+    if (sessionName === 'stocks') return this.alpacaAdapter;
+    if (sessionName === 'crypto') return this.krakenAdapter;
+    return null;
+  }
+
+  async _readSourceBrokerSnapshot(adapter, brokerId, stage, now, countdown, transitionContext) {
+    try {
+      return { ok: true, snapshot: await this._fetchBrokerRestSnapshot(adapter, brokerId) };
+    } catch (err) {
+      // Unreachable is not flat. The broker is an external boundary: detect,
+      // trace, and let failed-safe govern the boundary. Nothing crosses on an
+      // unverified leg and the process stays alive.
+      this._emitSessionRouterTrace('SESSION_WIND_DOWN_BROKER_FLAT_UNVERIFIABLE_HALT', {
+        from: countdown.from,
+        to: countdown.to,
+        at: this._transitionAt(now),
+        brokerId,
+        stage,
+        reason: err.message,
+        brokerErrorReason: err.reason || null,
+        brokerErrorCode: err.code || null,
+        route: 'session_router_wind_down_broker_unverifiable_boundary_refused',
+        manualReconciliationRequired: true
+      });
+      await this._enterFailedSafe(countdown.from, countdown.to, err, now, {
+        pauseConfirmed: this._stateManagerReportsPaused(),
+        transitionContext,
+        failureSource: 'wind_down_broker_flat_proof'
+      });
+      return { ok: false, reason: err.message };
+    }
+  }
+
+  _normalizeSymbolForStateMatch(symbol) {
+    if (this.stateManager && typeof this.stateManager.normalizeSymbol === 'function') {
+      try {
+        return this.stateManager.normalizeSymbol(String(symbol), 'SessionRouter ghost leg match');
+      } catch (_) {
+        // fall through to the plain form; a mismatch here only means "not tracked"
+      }
+    }
+    return String(symbol || '').trim().toUpperCase().replace('/', '-');
+  }
+
+  _stateTracksBrokerLeg(position) {
+    const target = this._normalizeSymbolForStateMatch(position.symbol);
+    for (const [, trade] of this._activeTradeEntries()) {
+      if (!trade || typeof trade !== 'object') continue;
+      if (this._normalizeSymbolForStateMatch(trade.symbol) !== target) continue;
+      const direction = trade.direction === 'long' || trade.direction === 'short'
+        ? trade.direction
+        : (trade.action === 'BUY' ? 'long' : (trade.action === 'SELL_SHORT' ? 'short' : null));
+      if (direction === position.side) return true;
+    }
+    return false;
+  }
+
+  _staleBrokerOrphanExitContract(timeframe) {
+    const contract = getExitContractManager().createExitContract('STALE_BROKER_ORPHAN', {}, { timeframe });
+    return {
+      ...contract,
+      // A ghost leg has no structural levels; declaring false is the truth,
+      // and the explicit boolean is what exit ownership requires.
+      useStructuralExits: typeof contract.useStructuralExits === 'boolean' ? contract.useStructuralExits : false,
+      strategyName: 'STALE_BROKER_ORPHAN',
+      owner: SESSION_ROUTER_WIND_DOWN_SOURCE
+    };
+  }
+
+  async _registerStaleBrokerOrphan({ position, tradeId, brokerId, adapter, countdown, transitionContext, orphanFields }) {
+    if (!this.stateManager || typeof this.stateManager.openPosition !== 'function') {
+      return { ok: false, reason: 'stateManager.openPosition unavailable' };
+    }
+    // Ruled: symbol, side, quantity, and entry come from the broker's own
+    // answer. Anything the broker did not say is named missing, not filled.
+    const entryPrice = Number(position.entryPrice);
+    if (!Number.isFinite(entryPrice) || entryPrice <= 0) {
+      return { ok: false, reason: `broker answer carries no entry price for ${position.symbol}; refusing to fabricate a cost basis` };
+    }
+    const quantity = Number(position.size);
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      return { ok: false, reason: `broker answer carries no positive quantity for ${position.symbol}` };
+    }
+    const direction = position.side === 'long' || position.side === 'short' ? position.side : null;
+    if (!direction) {
+      return { ok: false, reason: `broker answer side unprovable for ${position.symbol} (${position.side})` };
+    }
+    let scope;
+    try {
+      scope = this._buildRuntimeScopeForSession(countdown.from, this._currentTimeframe(), adapter);
+    } catch (err) {
+      return { ok: false, reason: `runtime scope unavailable: ${err.message}` };
+    }
+    let exitContract;
+    try {
+      exitContract = this._staleBrokerOrphanExitContract(scope.timeframe);
+    } catch (err) {
+      return { ok: false, reason: `exit contract unavailable: ${err.message}` };
+    }
+    // Same two-value table OrderExecutor._orderQuantityUnit applies to the
+    // session asset classes; the exit plan rejects any other unit.
+    const quantityUnit = scope.assetClass === 'stocks' ? 'shares' : 'base';
+    const sizeUsd = quantity * entryPrice;
+    const registeredAt = orphanFields.at;
+    const context = {
+      orderId: tradeId,
+      tradeId,
+      action: direction === 'long' ? 'BUY' : 'SELL_SHORT',
+      direction,
+      entryStrategy: 'STALE_BROKER_ORPHAN',
+      symbol: position.symbol,
+      brokerId: scope.brokerId,
+      accountId: scope.accountId,
+      accountIdSource: scope.accountIdSource,
+      assetClass: scope.assetClass,
+      executionMode: scope.executionMode,
+      timeframe: scope.timeframe,
+      entryOrderQuantity: quantity,
+      entryOrderQuantityUnit: quantityUnit,
+      remainingOrderQuantity: quantity,
+      remainingOrderQuantityUnit: quantityUnit,
+      exitContract,
+      provenance: 'STALE_BROKER_ORPHAN',
+      quarantined: true,
+      operationalQuarantine: {
+        code: 'STALE_BROKER_ORPHAN',
+        reason: 'broker leg unknown to state; registered from broker truth for exit only',
+        registeredBy: SESSION_ROUTER_WIND_DOWN_SOURCE,
+        brokerId,
+        registeredAt,
+        entryPriceSource: 'broker_answer',
+        quantitySource: 'broker_answer',
+        eligibleFor: ['exit']
+      },
+      entryTime: this.clock(),
+      traceId: createTraceId('trace')
+    };
+
+    let result;
+    try {
+      result = await this.stateManager.openPosition(sizeUsd, entryPrice, context);
+    } catch (err) {
+      return { ok: false, reason: `openPosition threw: ${err.message}` };
+    }
+    if (!result || result.success !== true) {
+      return { ok: false, reason: result && result.error ? result.error : 'openPosition rejected registration' };
+    }
+    const activeTrades = this.stateManager.state?.activeTrades;
+    const trade = activeTrades instanceof Map ? activeTrades.get(tradeId) : null;
+    if (!trade) {
+      return { ok: false, reason: 'registered orphan missing from activeTrades after openPosition' };
+    }
+
+    this._recordTransitionEvent('SESSION_STALE_BROKER_ORPHAN_REGISTERED', transitionContext, {
+      activeSession: this.activeSession,
+      brokerId,
+      tradeId,
+      symbol: position.symbol,
+      side: direction,
+      size: quantity,
+      entryPrice,
+      sizeUsd,
+      quantityUnit,
+      scope
+    });
+    this._emitSessionRouterTrace('SESSION_WIND_DOWN_STALE_BROKER_ORPHAN_RECONCILIATION', {
+      ...orphanFields,
+      stage: 'registered',
+      sizeUsd,
+      quantityUnit,
+      eligibleFor: ['exit'],
       manualReconciliationRequired: true
     });
+    return { ok: true, trade, tradeId };
+  }
+
+  async _proveSourceFlatAtBroker(now, countdown, transitionContext) {
+    const adapter = this._sourceAdapterForSession(countdown.from);
+    const brokerId = this._brokerIdFor(adapter, this._brokerIdForSession(countdown.from));
+    const base = {
+      from: countdown.from,
+      to: countdown.to,
+      at: this._transitionAt(now),
+      brokerId
+    };
+
+    const initial = await this._readSourceBrokerSnapshot(adapter, brokerId, 'initial', now, countdown, transitionContext);
+    if (!initial.ok) {
+      return { flat: false, verified: false, reason: initial.reason, brokerId, orphansFlattened: 0 };
+    }
+
+    const standing = initial.snapshot.openPositions;
+    let orphansFlattened = 0;
+    if (standing.length > 0 && !this.forceCloseOnSessionEnd) {
+      this._emitSessionRouterTrace('SESSION_WIND_DOWN_STALE_BROKER_ORPHAN_RECONCILIATION', {
+        ...base,
+        tag: 'STALE_BROKER_ORPHAN',
+        stage: 'detected_force_close_disabled',
+        orphans: standing.map((position) => ({ symbol: position.symbol, side: position.side, size: position.size })),
+        manualReconciliationRequired: true
+      });
+    }
+    if (standing.length > 0 && this.forceCloseOnSessionEnd) {
+      if (!(this.windDownOrphanAttempts instanceof Map)) this.windDownOrphanAttempts = new Map();
+      for (const position of standing) {
+        // Each ghost leg is its own cell: registered into state from broker
+        // truth, then closed through the ordinary exit path, with its own
+        // journal entries and traces at registration and at close.
+        const orphanKey = `${brokerId}:${position.symbol}:${position.side}`;
+        const tradeId = `STALE_BROKER_ORPHAN:${orphanKey}`;
+        const orphanFields = {
+          ...base,
+          tag: 'STALE_BROKER_ORPHAN',
+          tradeId,
+          symbol: position.symbol,
+          side: position.side,
+          size: position.size,
+          entryPrice: position.entryPrice
+        };
+        const failureDetails = (reason) => ({
+          activeSession: this.activeSession,
+          brokerId,
+          tradeId,
+          symbol: position.symbol,
+          side: position.side,
+          size: position.size,
+          reason
+        });
+
+        if (this._stateTracksBrokerLeg(position)) {
+          // State already knows this leg; it is not a ghost. The state flatten
+          // owns it and the re-read below still decides flat.
+          this._emitSessionRouterTrace('SESSION_WIND_DOWN_STALE_BROKER_ORPHAN_RECONCILIATION', {
+            ...orphanFields,
+            stage: 'state_tracked_skip'
+          });
+          continue;
+        }
+
+        const priorAttempt = this.windDownOrphanAttempts.get(orphanKey);
+        if (priorAttempt) {
+          // Ruled: if the close fails again the boundary stays shut and
+          // failed-safe governs. A leg still standing after the ordinary
+          // close claimed success is that failure; never register it twice.
+          const reason = `broker leg ${position.symbol} ${position.side} still standing after ordinary close of ${priorAttempt.tradeId} at ${priorAttempt.at}`;
+          this._recordTransitionEvent('SESSION_STALE_BROKER_ORPHAN_FLATTEN_FAILED', transitionContext, failureDetails(reason));
+          this._emitSessionRouterTrace('SESSION_WIND_DOWN_STALE_BROKER_ORPHAN_RECONCILIATION', {
+            ...orphanFields,
+            stage: 'still_standing_after_close',
+            reason,
+            manualReconciliationRequired: true
+          });
+          await this._enterFailedSafe(countdown.from, countdown.to, new Error(reason), now, {
+            pauseConfirmed: this._stateManagerReportsPaused(),
+            transitionContext,
+            failureSource: 'wind_down_orphan_close_failed_again'
+          });
+          return { flat: false, verified: true, reason, brokerId, orphansFlattened };
+        }
+
+        this._emitSessionRouterTrace('SESSION_WIND_DOWN_STALE_BROKER_ORPHAN_RECONCILIATION', {
+          ...orphanFields,
+          stage: 'detected',
+          manualReconciliationRequired: true
+        });
+
+        const registration = await this._registerStaleBrokerOrphan({
+          position, tradeId, brokerId, adapter, countdown, transitionContext, orphanFields
+        });
+        if (!registration.ok) {
+          // Fallback floor: detected, loud, journaled, boundary shut. The leg
+          // waits for an operator; nothing is fabricated to force it through.
+          this._recordTransitionEvent('SESSION_STALE_BROKER_ORPHAN_FLATTEN_FAILED', transitionContext, failureDetails(registration.reason));
+          this._emitSessionRouterTrace('SESSION_WIND_DOWN_STALE_BROKER_ORPHAN_RECONCILIATION', {
+            ...orphanFields,
+            stage: 'register_refused',
+            reason: registration.reason,
+            manualReconciliationRequired: true
+          });
+          continue;
+        }
+        this.windDownOrphanAttempts.set(orphanKey, { tradeId, at: base.at });
+
+        let closeResult = null;
+        let closeFailure = null;
+        try {
+          closeResult = await this._closeSourceTradeThroughExecution(tradeId, registration.trade);
+        } catch (closeErr) {
+          closeFailure = closeErr;
+        }
+        if (!closeFailure && closeResult.execution && closeResult.execution.success === false) {
+          const stillInState = this.stateManager?.state?.activeTrades instanceof Map
+            && this.stateManager.state.activeTrades.has(tradeId);
+          if (stillInState) {
+            closeFailure = new Error(`executeTrade refused orphan close: ${closeResult.execution.reason || closeResult.execution.detail || 'unknown'}`);
+          } else {
+            // Another exit path closed the registered leg first. That is an
+            // exit, which is the only thing the record was eligible for; the
+            // re-read below is still the only proof of flat.
+            this._emitSessionRouterTrace('SESSION_WIND_DOWN_STALE_BROKER_ORPHAN_RECONCILIATION', {
+              ...orphanFields,
+              stage: 'closed_outside_wind_down',
+              reason: closeResult.execution.reason || null
+            });
+            continue;
+          }
+        }
+        if (closeFailure) {
+          // Ruled: the registered identity satisfied KILL-5 and the ordinary
+          // close still failed. Boundary shut, failed-safe governs, loud.
+          this._recordTransitionEvent('SESSION_STALE_BROKER_ORPHAN_FLATTEN_FAILED', transitionContext, failureDetails(closeFailure.message));
+          this._emitSessionRouterTrace('SESSION_WIND_DOWN_STALE_BROKER_ORPHAN_RECONCILIATION', {
+            ...orphanFields,
+            stage: 'flatten_failed',
+            reason: closeFailure.message,
+            manualReconciliationRequired: true
+          });
+          await this._enterFailedSafe(countdown.from, countdown.to, closeFailure, now, {
+            pauseConfirmed: this._stateManagerReportsPaused(),
+            transitionContext,
+            failureSource: 'wind_down_orphan_close_failed'
+          });
+          return { flat: false, verified: true, reason: closeFailure.message, brokerId, orphansFlattened };
+        }
+        orphansFlattened += 1;
+        this._recordTransitionEvent('SESSION_STALE_BROKER_ORPHAN_FLATTENED', transitionContext, {
+          activeSession: this.activeSession,
+          brokerId,
+          tradeId,
+          symbol: closeResult.symbol,
+          side: position.side,
+          size: position.size,
+          action: closeResult.action,
+          exitPrice: closeResult.exitPrice
+        });
+        this._emitSessionRouterTrace('SESSION_WIND_DOWN_STALE_BROKER_ORPHAN_RECONCILIATION', {
+          ...orphanFields,
+          stage: 'flattened',
+          action: closeResult.action,
+          exitPrice: closeResult.exitPrice
+        });
+      }
+    }
+
+    // Final rung: only the broker reporting [] proves flat. A successful close
+    // call is state-side evidence and does not count; re-read after any flatten.
+    const needsReread = standing.length > 0 || initial.snapshot.openOrders.length > 0;
+    const proof = needsReread
+      ? await this._readSourceBrokerSnapshot(adapter, brokerId, 'post_flatten', now, countdown, transitionContext)
+      : initial;
+    if (!proof.ok) {
+      return { flat: false, verified: false, reason: proof.reason, brokerId, orphansFlattened };
+    }
+
+    const openPositions = proof.snapshot.openPositions.length;
+    const openOrders = proof.snapshot.openOrders.length;
+    const flat = openPositions === 0 && openOrders === 0;
+    if (flat) {
+      this._emitSessionRouterTrace('SESSION_WIND_DOWN_BROKER_FLAT_PROVEN', {
+        ...base,
+        openPositions,
+        openOrders,
+        orphansFlattened
+      });
+    } else {
+      this._emitSessionRouterTrace('SESSION_WIND_DOWN_BROKER_NOT_FLAT_RECONCILIATION', {
+        ...base,
+        openPositions,
+        openOrders,
+        orphansFlattened,
+        route: 'session_router_wind_down_broker_not_flat_boundary_refused',
+        manualReconciliationRequired: true
+      });
+    }
+    return {
+      flat,
+      verified: true,
+      reason: flat ? null : `broker ${brokerId} not flat: positions=${openPositions} orders=${openOrders}`,
+      brokerId,
+      orphansFlattened
+    };
+  }
+
+  async _readyForBoundarySwitch(now, from, to) {
+    const activeTrades = this._activeTradeCount();
+    if (activeTrades > 0) {
+      this.windDownPhase = 'switch_blocked';
+      this.windDownDirection = `${from}->${to}`;
+      this.windDownLastTraceAt = this._transitionAt(now);
+      this._emitSessionRouterTrace('SESSION_WIND_DOWN_SWITCH_BLOCKED_ACTIVE_TRADES', {
+        from,
+        to,
+        at: this._transitionAt(now),
+        activeTrades,
+        route: 'session_router_boundary_switch_waiting_for_flat_source',
+        manualReconciliationRequired: true
+      });
+    }
+    // Boundary-flat is proven at the broker on every crossing, in both
+    // directions. A zero state count is not evidence.
     await this._windDownForceFlatten(now, {
       from,
       to,
@@ -517,7 +928,7 @@ class SessionRouter extends EventEmitter {
       boundaryMinute: null,
       phase: null
     });
-    return this._activeTradeCount() === 0;
+    return this.windDownFlattenComplete;
   }
 
   _resetWindDownState() {
@@ -527,6 +938,7 @@ class SessionRouter extends EventEmitter {
     this.windDownLastTraceAt = null;
     this.windDownFlattenComplete = false;
     this.windDownFlattenFailures = [];
+    this.windDownOrphanAttempts = new Map();
   }
 
   _windDownPauseScope(sessionName) {
@@ -1268,11 +1680,21 @@ class SessionRouter extends EventEmitter {
           position.position
         );
         const side = position.side || (size !== null && size < 0 ? 'short' : 'long');
+        // Entry price is carried only when the broker's own answer has it;
+        // null here means "broker did not say", never a substitute.
+        const entryPrice = this._numericField(
+          position.entryPrice,
+          position.avgEntryPrice,
+          position.avg_entry_price,
+          position.averagePrice,
+          position.costBasisPrice
+        );
         return {
           brokerId,
           symbol: symbol || '(missing)',
           side,
           size,
+          entryPrice,
           unsafe: true
         };
       })

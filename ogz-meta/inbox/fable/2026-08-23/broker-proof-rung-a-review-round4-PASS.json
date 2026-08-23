@@ -1,0 +1,53 @@
+{
+  "query": "ONE QUESTION (round 3, evidence attached): Does the broker-proof wind-down rung in the CURRENT working tree satisfy Trey's ruling (a) and its five non-negotiable conditions? Conditions: (1) ghost broker leg registered INTO state FROM broker truth (symbol/side/qty/entry from the broker answer, scope from session runtime scope), born quarantined and tagged STALE_BROKER_ORPHAN, eligible for exit only; (2) journal + max-priority ntfy trace at registration and at close; (3) close through the ORDINARY exit path with KILL-5 satisfied by the registered identity, no special close mechanism; (4) broker RE-READ is the only proof of flat, windDownFlattenComplete true on broker [] only; (5) close failing again -> flatten_failed, boundary shut, failed-safe, floor never removed. Plus: no new gate/flag/config knob/throw; broker read rejection = unverifiable -> failed-safe, process alive; both directions; no fabricated entry price.\n\nMercury's round-2 answer is followed by a VERBATIM EVIDENCE PACKET that was machine-extracted with sed/grep/git from the working tree (not LLM-authored). Treat the packet as the quoted code the prior rounds lacked. If every condition is evidenced by the quoted code, say VERDICT: pass. If any is broken, name the exact quoted line.",
+  "startedAt": "2026-08-23T16:10:39.981Z",
+  "fableReview": {
+    "model": "kimi-k3",
+    "latencyMs": 16770,
+    "parsed": {
+      "consensus": "",
+      "contradictions": "",
+      "partial": "",
+      "unique": "",
+      "blindSpots": "",
+      "verdict": "pass",
+      "blocking": true,
+      "parseWarnings": [],
+      "disagreement": "Mercury's claim (2) that registration uses `STALE_BROKER_ORPHAN:${brokerId}:${symbol}:${side}` is imprecise — packet line 733 shows `STALE_BROKER_ORPHAN:${orphanKey}`; the identity flow still holds because the same tradeId is used for registration and close, so this is non-blocking.",
+      "requiredRecheck": "none",
+      "recheckPrompt": "none",
+      "nextCheck": "Operator runs `npx jest test/session-router-broker-proof-wind-down.test.js` on the current working tree to confirm the probe suite passes locally, since the packet shows only the aggregate 8-suite summary (109/110) rather than this suite's individual result.",
+      "sharedConclusion": "",
+      "mercurySupported": "",
+      "fableSupported": "",
+      "kimiSupported": "",
+      "citedReasoning": "The machine-extracted packet (not Mercury-authored) quotes code satisfying all five conditions: (1) registration from broker truth with quarantine/STALE_BROKER_ORPHAN tag and exit-only eligibility (R1, 2f), (2) journal + trace at registration and close with max-priority ntfy mapping via RECONCILIATION/manualReconciliationRequired (R1, R3, R6, R7), (3) ordinary close path through executeTrade/_findExitTrade with KILL-5 satisfied by the registered identity, no special close mechanism (2a-2e), (4) broker re-read as sole flat proof with windDownFlattenComplete=true only on broker [] (1a-1c, R3 tail), (5) close failure → flatten_failed + _enterFailedSafe, floor never removed (R3). No new env/flags/throws (5a), both directions and no-fabricated-entry covered by probes (4), and the single failing test is evidenced as pre-existing and unrelated via path-limited stash reproduction (R8, R9)."
+    },
+    "answer": "VERDICT: pass\nCONSENSUS_BLOCKING: no\nRATIONALE: The machine-extracted packet (not Mercury-authored) quotes code satisfying all five conditions: (1) registration from broker truth with quarantine/STALE_BROKER_ORPHAN tag and exit-only eligibility (R1, 2f), (2) journal + trace at registration and close with max-priority ntfy mapping via RECONCILIATION/manualReconciliationRequired (R1, R3, R6, R7), (3) ordinary close path through executeTrade/_findExitTrade with KILL-5 satisfied by the registered identity, no special close mechanism (2a-2e), (4) broker re-read as sole flat proof with windDownFlattenComplete=true only on broker [] (1a-1c, R3 tail), (5) close failure → flatten_failed + _enterFailedSafe, floor never removed (R3). No new env/flags/throws (5a), both directions and no-fabricated-entry covered by probes (4), and the single failing test is evidenced as pre-existing and unrelated via path-limited stash reproduction (R8, R9).\nDISAGREEMENT: Mercury's claim (2) that registration uses `STALE_BROKER_ORPHAN:${brokerId}:${symbol}:${side}` is imprecise — packet line 733 shows `STALE_BROKER_ORPHAN:${orphanKey}`; the identity flow still holds because the same tradeId is used for registration and close, so this is non-blocking.\nREQUIRED_RECHECK: none\nRECHECK_PROMPT: none\nNEXT_CHECK: Operator runs `npx jest test/session-router-broker-proof-wind-down.test.js` on the current working tree to confirm the probe suite passes locally, since the packet shows only the aggregate 8-suite summary (109/110) rather than this suite's individual result."
+  },
+  "kimiAdjudication": {
+    "model": "kimi-k3",
+    "latencyMs": 24116,
+    "parsed": {
+      "consensus": "Mercury and Fable agree the wind-down rung satisfies all five conditions, supported by the machine-extracted packet: (1) ghost registration from broker truth with quarantine/STALE_BROKER_ORPHAN tag and exit-only eligibility (R1, 2f), (2) journal + trace at registration and close with max-priority ntfy mapping (R1, R3, R6, R7), (3) ordinary close path through executeTrade/_findExitTrade with KILL-5 satisfied by registered identity (2a-2e), (4) broker re-read as sole flat proof with windDownFlattenComplete=true only on broker [] (1a-1c, R3 tail), (5) close failure → flatten_failed + _enterFailedSafe, floor never removed (R3). Both agree no new env/flags/throws (5a), both directions and no-fabricated-entry covered by probes (4), and the single failing test is pre-existing and unrelated (R8, R9).",
+      "contradictions": "none",
+      "partial": "none",
+      "unique": "Fable identified that Mercury's claim (2) imprecisely described the tradeId format as `STALE_BROKER_ORPHAN:${brokerId}:${symbol}:${side}` when packet line 733 shows `STALE_BROKER_ORPHAN:${orphanKey}`; Fable correctly noted this is non-blocking because the same tradeId is used for registration and close.",
+      "blindSpots": "The packet shows only the aggregate 8-suite test summary (109/110) rather than the individual result for test/session-router-broker-proof-wind-down.test.js specifically; no reporter verified this suite passes in isolation on the current working tree.",
+      "verdict": "unknown",
+      "blocking": false,
+      "parseWarnings": [],
+      "disagreement": "none",
+      "requiredRecheck": "Run `npx jest test/session-router-broker-proof-wind-down.test.js` on the current working tree to confirm the probe suite passes locally in isolation.",
+      "recheckPrompt": "Run the command `npx jest test/session-router-broker-proof-wind-down.test.js` on the current working tree and report the exact pass/fail output for this suite alone.",
+      "nextCheck": "",
+      "sharedConclusion": "",
+      "mercurySupported": "",
+      "fableSupported": "",
+      "kimiSupported": "",
+      "citedReasoning": ""
+    },
+    "answer": "CONSENSUS: Mercury and Fable agree the wind-down rung satisfies all five conditions, supported by the machine-extracted packet: (1) ghost registration from broker truth with quarantine/STALE_BROKER_ORPHAN tag and exit-only eligibility (R1, 2f), (2) journal + trace at registration and close with max-priority ntfy mapping (R1, R3, R6, R7), (3) ordinary close path through executeTrade/_findExitTrade with KILL-5 satisfied by registered identity (2a-2e), (4) broker re-read as sole flat proof with windDownFlattenComplete=true only on broker [] (1a-1c, R3 tail), (5) close failure → flatten_failed + _enterFailedSafe, floor never removed (R3). Both agree no new env/flags/throws (5a), both directions and no-fabricated-entry covered by probes (4), and the single failing test is pre-existing and unrelated (R8, R9).\n\nCONTRADICTIONS: none\n\nPARTIAL: none\n\nUNIQUE: Fable identified that Mercury's claim (2) imprecisely described the tradeId format as `STALE_BROKER_ORPHAN:${brokerId}:${symbol}:${side}` when packet line 733 shows `STALE_BROKER_ORPHAN:${orphanKey}`; Fable correctly noted this is non-blocking because the same tradeId is used for registration and close.\n\nBLIND_SPOTS: The packet shows only the aggregate 8-suite test summary (109/110) rather than the individual result for test/session-router-broker-proof-wind-down.test.js specifically; no reporter verified this suite passes in isolation on the current working tree.\n\nDISAGREEMENT: none\n\nCONSENSUS_BLOCKING: no\n\nREQUIRED_RECHECKS: Run `npx jest test/session-router-broker-proof-wind-down.test.js` on the current working tree to confirm the probe suite passes locally in isolation.\n\nRECHECK_PROMPT: Run the command `npx jest test/session-router-broker-proof-wind-down.test.js` on the current working tree and report the exact pass/fail output for this suite alone."
+  },
+  "finishedAt": "2026-08-23T16:11:20.892Z"
+}

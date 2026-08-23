@@ -1,0 +1,644 @@
+VERBATIM EVIDENCE PACKET — machine-extracted with sed/grep/git (no LLM authorship). Generated 2026-08-23T16:07:49Z at HEAD 343bb12c + uncommitted working tree.
+
+### (1a) core/SessionRouter.js 474-500 — windDownFlattenComplete assignment inside if (brokerProof.flat)
+    });
+    try {
+      const result = await this._forceCloseSourceTradesThroughExecution(transitionContext, countdown.from);
+      // Boundary-flat is proven at the broker, never in the ledger. The state
+      // count only knows legs this process opened; broker legs unknown to state
+      // are the ghost class, and only a broker read can see them.
+      const brokerProof = await this._proveSourceFlatAtBroker(now, countdown, transitionContext);
+      if (brokerProof.flat) {
+        this.windDownFlattenComplete = true;
+        this.windDownFlattenFailures = [];
+        this._emitSessionRouterTrace('SESSION_WIND_DOWN_FORCE_FLATTEN_COMPLETE', {
+          from: countdown.from,
+          to: countdown.to,
+          at: this._transitionAt(now),
+          closedCount: result.closed.length,
+          remainingActiveTrades: this._activeTradeCount(),
+          brokerId: brokerProof.brokerId,
+          brokerFlatProven: true,
+          orphansFlattened: brokerProof.orphansFlattened
+        });
+      } else {
+        this.windDownFlattenComplete = false;
+        this.windDownFlattenFailures = [{ reason: brokerProof.reason }];
+        this._emitSessionRouterTrace('SESSION_WIND_DOWN_FORCE_FLATTEN_PARTIAL', {
+          from: countdown.from,
+          to: countdown.to,
+          at: this._transitionAt(now),
+
+### (1b) core/SessionRouter.js 862-892 — flat computed from broker re-read only
+          action: closeResult.action,
+          exitPrice: closeResult.exitPrice
+        });
+      }
+    }
+
+    // Final rung: only the broker reporting [] proves flat. A successful close
+    // call is state-side evidence and does not count; re-read after any flatten.
+    const needsReread = standing.length > 0 || initial.snapshot.openOrders.length > 0;
+    const proof = needsReread
+      ? await this._readSourceBrokerSnapshot(adapter, brokerId, 'post_flatten', now, countdown, transitionContext)
+      : initial;
+    if (!proof.ok) {
+      return { flat: false, verified: false, reason: proof.reason, brokerId, orphansFlattened };
+    }
+
+    const openPositions = proof.snapshot.openPositions.length;
+    const openOrders = proof.snapshot.openOrders.length;
+    const flat = openPositions === 0 && openOrders === 0;
+    if (flat) {
+      this._emitSessionRouterTrace('SESSION_WIND_DOWN_BROKER_FLAT_PROVEN', {
+        ...base,
+        openPositions,
+        openOrders,
+        orphansFlattened
+      });
+    } else {
+      this._emitSessionRouterTrace('SESSION_WIND_DOWN_BROKER_NOT_FLAT_RECONCILIATION', {
+        ...base,
+        openPositions,
+        openOrders,
+
+### (1c) grep: every line in core/SessionRouter.js that assigns windDownFlattenComplete
+91:    this.windDownFlattenComplete = false;
+482:        this.windDownFlattenComplete = true;
+495:        this.windDownFlattenComplete = false;
+510:      this.windDownFlattenComplete = false;
+939:    this.windDownFlattenComplete = false;
+
+### (2a) core/SessionRouter.js 182-211 — _closeSourceTradeThroughExecution
+  async _closeSourceTradeThroughExecution(orderId, trade) {
+    if (typeof this.executeTrade !== 'function') {
+      throw new Error('SessionRouter source force-close requires executeTrade');
+    }
+
+    const symbol = trade?.symbol;
+    const exitPrice = this._resolveSourceExitPrice(symbol, trade);
+    if (!exitPrice || exitPrice <= 0) {
+      throw new Error('no last-known price');
+    }
+
+    const tradeId = trade?.tradeId || trade?.orderId || trade?.id || orderId;
+    const action = this._sourceTradeCloseAction(orderId, trade);
+    const execution = await this.executeTrade(
+      { action, confidence: 100, tradeId, exitReason: 'session_close' },
+      { totalConfidence: 100 },
+      exitPrice,
+      {},
+      [],
+      null,
+      null,
+      symbol
+    );
+
+    const activeTrades = this.stateManager?.state?.activeTrades;
+    if (activeTrades instanceof Map && (activeTrades.has(orderId) || activeTrades.has(tradeId))) {
+      throw new Error('executeTrade did not close source position');
+    }
+
+    return { tradeId, symbol, action, exitPrice, execution };
+
+### (2b) run-empire-v2.js 3100-3125 — executeTrade delegates to OrderExecutor
+  async executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision = null, orchResult = null, symbol) {
+    const action = typeof decision?.action === 'string' ? decision.action.trim().toUpperCase() : '';
+    if (action === 'BUY' || action === 'SELL_SHORT') {
+      const sessionEntryBlock = this._sessionRouterEntryBlock(symbol, decision?.traceId || null, action);
+      if (sessionEntryBlock.blocked) {
+        return {
+          success: false,
+          reason: 'session_router_failed_safe_entry_block',
+          detail: sessionEntryBlock.reason,
+          symbol: sessionEntryBlock.symbol,
+          orderAccepted: false,
+          stateMutationSucceeded: false
+        };
+      }
+    }
+    // Update context with current runtime values
+    this.orderExecutor.ctx.marketData = this.marketData;
+    this.orderExecutor.ctx.dashboardWs = this.dashboardWs;
+    this.orderExecutor.ctx.dashboardWsConnected = this.dashboardWsConnected;
+    this.orderExecutor.ctx._lastTraiDecision = this._lastTraiDecision;
+
+    // CC-C Commit 5/6: forward `symbol` through to OrderExecutor. Required
+    // param — TradingLoop resolves it before calling, this wrapper just
+    // threads it. No fallback to ctx.tradingPair here; if symbol is
+    // missing OrderExecutor's entry-check throws (caller has the bug).
+    return this.orderExecutor.executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision, orchResult, symbol);
+
+### (2c) core/OrderExecutor.js 2492-2497 — _buildExitPlan -> _findExitTrade
+  _buildExitPlan({ decision, symbol, price, forceWholeShares = false }) {
+    if (!this._isExitAction(decision.action)) return null;
+
+    const trade = this._findExitTrade(decision, symbol);
+    if (!trade) return null;
+
+
+### (2d) core/OrderExecutor.js 2461-2490 — _findExitTrade matches decision.tradeId
+  _findExitTrade(decision, symbol) {
+    const openAction = decision.action === 'SELL' ? 'BUY' : 'SELL_SHORT';
+    const trades = stateManager.getTradesBySymbol(symbol)
+      .filter(t => t.action === openAction)
+      .sort((a, b) => a.entryTime - b.entryTime);
+    if (trades.length === 0) return null;
+    if (decision.tradeId) {
+      const matched = trades.find(t => t.orderId === decision.tradeId || t.id === decision.tradeId);
+      if (matched) return matched;
+      const candidateTradeIds = trades
+        .map(t => t.orderId || t.id || null)
+        .filter(Boolean);
+      emitTrace(this.ctx, 'EXIT_TRADE_ID_MISS_REFUSAL', {
+        traceId: decision.traceId || null,
+        signalId: decision.signalId || decision.decisionId || null,
+        decisionId: decision.decisionId || null,
+        symbol,
+        action: decision.action,
+        positionEffect: positionEffectFromAction(decision.action),
+        requestedTradeId: decision.tradeId,
+        openAction,
+        candidateTradeIds,
+        candidateCount: trades.length,
+        reason: 'exit_trade_id_not_found',
+      });
+      console.error(`[ORDER-PLAN] Refusing ${decision.action} ${symbol}: requested tradeId=${decision.tradeId} matched no open ${openAction} trade; candidates=${candidateTradeIds.join(',') || 'none'}`);
+      return null;
+    }
+    return trades[0];
+  }
+
+### (2e) core/OrderExecutor.js 3259-3268 — KILL-5 block
+    if (isExitAction && !exitPlan) {
+      const haltReason = decision.action === 'SELL'
+        ? 'KILL-5: SELL with no matching BUY'
+        : 'KILL-5: COVER with no matching SELL_SHORT';
+      const routeName = isLiveBrokerRoute ? 'broker' : (shouldPlanWebhookExit ? 'webhook' : 'execution');
+      console.error(`[ORDER-PLAN] ${haltReason} for ${symbol} before ${routeName} route`);
+      console.error(`[ORDER-PLAN] ${haltReason} is telemetry-only; not persisting a symbol entry halt`);
+      emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, positionEffect, reason: haltReason });
+      return blockedReturn(haltReason);
+    }
+
+### (2f) core/SessionRouter.js — registration context orderId/tradeId/action/direction/entryStrategy (grep)
+629:      orderId: tradeId,
+633:      entryStrategy: 'STALE_BROKER_ORPHAN',
+647:      quarantined: true,
+656:        eligibleFor: ['exit']
+694:      eligibleFor: ['exit'],
+733:        const tradeId = `STALE_BROKER_ORPHAN:${orphanKey}`;
+
+### (3a) core/StateManager.js 1147-1200 — openPosition identity/scope/exit-ownership
+  async openPosition(size, price, context = {}) {
+    const identityMissing = [];
+    const cleanIdentityText = (value, field) => {
+      if (value === null || value === undefined) {
+        identityMissing.push(field);
+        return null;
+      }
+      const text = String(value);
+      if (!text.trim()) {
+        identityMissing.push(field);
+        return null;
+      }
+      return text;
+    };
+    const tradeId = cleanIdentityText(context.orderId, 'orderId');
+    const tradeAction = cleanIdentityText(context.action, 'action');
+    const tradeDirection = cleanIdentityText(context.direction, 'direction');
+    const entryStrategy = cleanIdentityText(context.entryStrategy, 'entryStrategy');
+    if (identityMissing.length > 0) {
+      return this._rejectOpenPositionIdentity(
+        `StateManager.openPosition missing immutable entry identity field(s): ${identityMissing.join(', ')}`,
+        identityMissing,
+        context
+      );
+    }
+    const identityIssues = activeTradeIdentityIssuesForTrade({
+      id: tradeId,
+      orderId: tradeId,
+      action: tradeAction,
+      direction: tradeDirection,
+    }, tradeId);
+    if (identityIssues.length > 0) {
+      return this._rejectOpenPositionIdentity(
+        `StateManager.openPosition active trade identity invariant failed: ${identityIssues.join('; ')}`,
+        identityIssueFields(identityIssues),
+        context
+      );
+    }
+    const tradeSymbolRaw = context.symbol
+      || (context.ledgerData && context.ledgerData.symbol)
+      || null;
+    let tradeScope;
+
+    try {
+      tradeScope = this.buildTradeScope(context, tradeSymbolRaw, 'StateManager.openPosition scope');
+    } catch (err) {
+      return this._rejectOpenPositionScope(err, context);
+    }
+    try {
+      assertExplicitExitOwnership(context.exitContract, 'StateManager.openPosition');
+      if (context.ledgerData?.exitContract !== undefined && context.ledgerData.exitContract !== null) {
+        assertExplicitExitOwnership(context.ledgerData.exitContract, 'StateManager.openPosition ledgerData');
+      }
+    } catch (err) {
+
+### (3b) core/StateManager.js 1302-1308 — quantity invariants
+    }
+
+    const quantityIssues = this._activeTradeQuantityIssuesForTrade(trade, tradeId);
+    if (quantityIssues.length > 0) {
+      return this._rejectOpenPositionQuantity(quantityIssues, context);
+    }
+
+
+### (4) test/session-router-broker-proof-wind-down.test.js — probe headers + key assertions
+117:  test('probe 1 (a end to end): ghost registered from broker truth -> ordinary path closes -> re-read [] -> boundary crosses', async () => {
+137:    expect(router.stateManager.openPosition).toHaveBeenCalledTimes(1);
+180:    expect(router.krakenAdapter.getPositions).toHaveBeenCalledTimes(2);
+182:    expect(ready).toBe(true);
+183:    expect(router.failedSafeMode).toBe(false);
+190:    expect(orphanStages(traces)).toEqual(['detected', 'registered', 'flattened']);
+199:  test('probe 1 mirror: stocks->crypto registers an Alpaca short ghost as SELL_SHORT and covers it the same way', async () => {
+229:    expect(router.alpacaAdapter.getPositions).toHaveBeenCalledTimes(2);
+231:    expect(ready).toBe(true);
+234:  test('probe 2: getPositions rejection means broker-unverifiable - boundary refused, failed-safe governs, process alive', async () => {
+253:    expect(ready).toBe(false);
+256:    expect(router.stateManager.openPosition).not.toHaveBeenCalled();
+258:    expect(router.failedSafeMode).toBe(true);
+279:  test('probe 3 (floor): broker answer without an entry price is refused registration - no fabricated cost basis, loud, boundary shut, no failed-safe', async () => {
+296:    expect(router.stateManager.openPosition).not.toHaveBeenCalled();
+298:    expect(ready).toBe(false);
+300:    expect(router.failedSafeMode).toBe(false);
+301:    expect(orphanStages(traces)).toEqual(['detected', 'register_refused']);
+314:  test('probe 4 (condition 5): ordinary close refuses the registered leg -> flatten_failed, boundary shut, failed-safe', async () => {
+331:    expect(router.stateManager.openPosition).toHaveBeenCalledTimes(1);
+333:    expect(ready).toBe(false);
+335:    expect(router.failedSafeMode).toBe(true);
+339:    expect(orphanStages(traces)).toEqual(['detected', 'registered', 'flatten_failed']);
+352:  test('probe 5 (re-read governs): leg still standing after a successful close keeps the boundary shut; a second sighting in the same wind-down is failed-safe, never re-registered', async () => {
+371:    expect(router.stateManager.openPosition).toHaveBeenCalledTimes(1);
+375:    expect(router.stateManager.openPosition).toHaveBeenCalledTimes(1);
+377:    expect(router.failedSafeMode).toBe(true);
+379:    expect(orphanStages(traces)).toEqual(['detected', 'registered', 'flattened', 'still_standing_after_close']);
+382:  test('probe 6: a broker leg that state already tracks is not a ghost - no registration, state flatten owns it', async () => {
+420:    expect(router.stateManager.openPosition).not.toHaveBeenCalled();
+421:    expect(orphanStages(traces)).toEqual(['state_tracked_skip']);
+422:    expect(router.failedSafeMode).toBe(false);
+425:  test('probe 7: boundary crossing with zero state trades still reads the broker before switching', async () => {
+432:    expect(ready).toBe(true);
+433:    expect(router.krakenAdapter.getPositions).toHaveBeenCalledTimes(1);
+434:    expect(router.stateManager.openPosition).not.toHaveBeenCalled();
+
+### (5a) git diff core/SessionRouter.js — added lines matching gates/flags/env/throws
+added 'process.env' lines: 0
+added 'throw new Error' lines: 0
+added ConfigLoader/config key reads: 0
+diff stat:
+ core/SessionRouter.js | 470 +++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 446 insertions(+), 24 deletions(-)
+
+### (5b) test run (raw tail)
+FAIL test/session-router-stock-symbol-config.test.js
+Test Suites: 1 failed, 7 passed, 8 total
+Tests:       1 failed, 109 passed, 110 total
+
+################ PACKET v2 ADDENDUM (machine-extracted) ################
+
+### (R1) core/SessionRouter.js 593-699 — _registerStaleBrokerOrphan VERBATIM: broker-derived entryPrice/quantity/side/symbol -> openPosition(sizeUsd, entryPrice, context); journal + trace at registration
+  async _registerStaleBrokerOrphan({ position, tradeId, brokerId, adapter, countdown, transitionContext, orphanFields }) {
+    if (!this.stateManager || typeof this.stateManager.openPosition !== 'function') {
+      return { ok: false, reason: 'stateManager.openPosition unavailable' };
+    }
+    // Ruled: symbol, side, quantity, and entry come from the broker's own
+    // answer. Anything the broker did not say is named missing, not filled.
+    const entryPrice = Number(position.entryPrice);
+    if (!Number.isFinite(entryPrice) || entryPrice <= 0) {
+      return { ok: false, reason: `broker answer carries no entry price for ${position.symbol}; refusing to fabricate a cost basis` };
+    }
+    const quantity = Number(position.size);
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      return { ok: false, reason: `broker answer carries no positive quantity for ${position.symbol}` };
+    }
+    const direction = position.side === 'long' || position.side === 'short' ? position.side : null;
+    if (!direction) {
+      return { ok: false, reason: `broker answer side unprovable for ${position.symbol} (${position.side})` };
+    }
+    let scope;
+    try {
+      scope = this._buildRuntimeScopeForSession(countdown.from, this._currentTimeframe(), adapter);
+    } catch (err) {
+      return { ok: false, reason: `runtime scope unavailable: ${err.message}` };
+    }
+    let exitContract;
+    try {
+      exitContract = this._staleBrokerOrphanExitContract(scope.timeframe);
+    } catch (err) {
+      return { ok: false, reason: `exit contract unavailable: ${err.message}` };
+    }
+    // Same two-value table OrderExecutor._orderQuantityUnit applies to the
+    // session asset classes; the exit plan rejects any other unit.
+    const quantityUnit = scope.assetClass === 'stocks' ? 'shares' : 'base';
+    const sizeUsd = quantity * entryPrice;
+    const registeredAt = orphanFields.at;
+    const context = {
+      orderId: tradeId,
+      tradeId,
+      action: direction === 'long' ? 'BUY' : 'SELL_SHORT',
+      direction,
+      entryStrategy: 'STALE_BROKER_ORPHAN',
+      symbol: position.symbol,
+      brokerId: scope.brokerId,
+      accountId: scope.accountId,
+      accountIdSource: scope.accountIdSource,
+      assetClass: scope.assetClass,
+      executionMode: scope.executionMode,
+      timeframe: scope.timeframe,
+      entryOrderQuantity: quantity,
+      entryOrderQuantityUnit: quantityUnit,
+      remainingOrderQuantity: quantity,
+      remainingOrderQuantityUnit: quantityUnit,
+      exitContract,
+      provenance: 'STALE_BROKER_ORPHAN',
+      quarantined: true,
+      operationalQuarantine: {
+        code: 'STALE_BROKER_ORPHAN',
+        reason: 'broker leg unknown to state; registered from broker truth for exit only',
+        registeredBy: SESSION_ROUTER_WIND_DOWN_SOURCE,
+        brokerId,
+        registeredAt,
+        entryPriceSource: 'broker_answer',
+        quantitySource: 'broker_answer',
+        eligibleFor: ['exit']
+      },
+      entryTime: this.clock(),
+      traceId: createTraceId('trace')
+    };
+
+    let result;
+    try {
+      result = await this.stateManager.openPosition(sizeUsd, entryPrice, context);
+    } catch (err) {
+      return { ok: false, reason: `openPosition threw: ${err.message}` };
+    }
+    if (!result || result.success !== true) {
+      return { ok: false, reason: result && result.error ? result.error : 'openPosition rejected registration' };
+    }
+    const activeTrades = this.stateManager.state?.activeTrades;
+    const trade = activeTrades instanceof Map ? activeTrades.get(tradeId) : null;
+    if (!trade) {
+      return { ok: false, reason: 'registered orphan missing from activeTrades after openPosition' };
+    }
+
+    this._recordTransitionEvent('SESSION_STALE_BROKER_ORPHAN_REGISTERED', transitionContext, {
+      activeSession: this.activeSession,
+      brokerId,
+      tradeId,
+      symbol: position.symbol,
+      side: direction,
+      size: quantity,
+      entryPrice,
+      sizeUsd,
+      quantityUnit,
+      scope
+    });
+    this._emitSessionRouterTrace('SESSION_WIND_DOWN_STALE_BROKER_ORPHAN_RECONCILIATION', {
+      ...orphanFields,
+      stage: 'registered',
+      sizeUsd,
+      quantityUnit,
+      eligibleFor: ['exit'],
+      manualReconciliationRequired: true
+    });
+    return { ok: true, trade, tradeId };
+  }
+
+
+### (R2) core/SessionRouter.js 1663-1703 — _normalizeBrokerPositions: symbol/size/side/entryPrice taken from the broker's getPositions answer
+  _normalizeBrokerPositions(rawPositions, brokerId) {
+    return rawPositions
+      .map((position) => {
+        const symbol = String(
+          position.symbol
+          || position.pair
+          || position.asset
+          || position.instrument
+          || ''
+        ).trim();
+        const size = this._numericField(
+          position.size,
+          position.qty,
+          position.quantity,
+          position.amount,
+          position.volume,
+          position.units,
+          position.position
+        );
+        const side = position.side || (size !== null && size < 0 ? 'short' : 'long');
+        // Entry price is carried only when the broker's own answer has it;
+        // null here means "broker did not say", never a substitute.
+        const entryPrice = this._numericField(
+          position.entryPrice,
+          position.avgEntryPrice,
+          position.avg_entry_price,
+          position.averagePrice,
+          position.costBasisPrice
+        );
+        return {
+          brokerId,
+          symbol: symbol || '(missing)',
+          side,
+          size,
+          entryPrice,
+          unsafe: true
+        };
+      })
+      .filter((position) => position.unsafe && !this._isFiatBalanceSymbol(position.symbol));
+  }
+
+
+### (R3) core/SessionRouter.js 787-875 — orphan loop: registration -> ordinary close -> journal + trace at close / failure
+          manualReconciliationRequired: true
+        });
+
+        const registration = await this._registerStaleBrokerOrphan({
+          position, tradeId, brokerId, adapter, countdown, transitionContext, orphanFields
+        });
+        if (!registration.ok) {
+          // Fallback floor: detected, loud, journaled, boundary shut. The leg
+          // waits for an operator; nothing is fabricated to force it through.
+          this._recordTransitionEvent('SESSION_STALE_BROKER_ORPHAN_FLATTEN_FAILED', transitionContext, failureDetails(registration.reason));
+          this._emitSessionRouterTrace('SESSION_WIND_DOWN_STALE_BROKER_ORPHAN_RECONCILIATION', {
+            ...orphanFields,
+            stage: 'register_refused',
+            reason: registration.reason,
+            manualReconciliationRequired: true
+          });
+          continue;
+        }
+        this.windDownOrphanAttempts.set(orphanKey, { tradeId, at: base.at });
+
+        let closeResult = null;
+        let closeFailure = null;
+        try {
+          closeResult = await this._closeSourceTradeThroughExecution(tradeId, registration.trade);
+        } catch (closeErr) {
+          closeFailure = closeErr;
+        }
+        if (!closeFailure && closeResult.execution && closeResult.execution.success === false) {
+          const stillInState = this.stateManager?.state?.activeTrades instanceof Map
+            && this.stateManager.state.activeTrades.has(tradeId);
+          if (stillInState) {
+            closeFailure = new Error(`executeTrade refused orphan close: ${closeResult.execution.reason || closeResult.execution.detail || 'unknown'}`);
+          } else {
+            // Another exit path closed the registered leg first. That is an
+            // exit, which is the only thing the record was eligible for; the
+            // re-read below is still the only proof of flat.
+            this._emitSessionRouterTrace('SESSION_WIND_DOWN_STALE_BROKER_ORPHAN_RECONCILIATION', {
+              ...orphanFields,
+              stage: 'closed_outside_wind_down',
+              reason: closeResult.execution.reason || null
+            });
+            continue;
+          }
+        }
+        if (closeFailure) {
+          // Ruled: the registered identity satisfied KILL-5 and the ordinary
+          // close still failed. Boundary shut, failed-safe governs, loud.
+          this._recordTransitionEvent('SESSION_STALE_BROKER_ORPHAN_FLATTEN_FAILED', transitionContext, failureDetails(closeFailure.message));
+          this._emitSessionRouterTrace('SESSION_WIND_DOWN_STALE_BROKER_ORPHAN_RECONCILIATION', {
+            ...orphanFields,
+            stage: 'flatten_failed',
+            reason: closeFailure.message,
+            manualReconciliationRequired: true
+          });
+          await this._enterFailedSafe(countdown.from, countdown.to, closeFailure, now, {
+            pauseConfirmed: this._stateManagerReportsPaused(),
+            transitionContext,
+            failureSource: 'wind_down_orphan_close_failed'
+          });
+          return { flat: false, verified: true, reason: closeFailure.message, brokerId, orphansFlattened };
+        }
+        orphansFlattened += 1;
+        this._recordTransitionEvent('SESSION_STALE_BROKER_ORPHAN_FLATTENED', transitionContext, {
+          activeSession: this.activeSession,
+          brokerId,
+          tradeId,
+          symbol: closeResult.symbol,
+          side: position.side,
+          size: position.size,
+          action: closeResult.action,
+          exitPrice: closeResult.exitPrice
+        });
+        this._emitSessionRouterTrace('SESSION_WIND_DOWN_STALE_BROKER_ORPHAN_RECONCILIATION', {
+          ...orphanFields,
+          stage: 'flattened',
+          action: closeResult.action,
+          exitPrice: closeResult.exitPrice
+        });
+      }
+    }
+
+    // Final rung: only the broker reporting [] proves flat. A successful close
+    // call is state-side evidence and does not count; re-read after any flatten.
+    const needsReread = standing.length > 0 || initial.snapshot.openOrders.length > 0;
+    const proof = needsReread
+      ? await this._readSourceBrokerSnapshot(adapter, brokerId, 'post_flatten', now, countdown, transitionContext)
+      : initial;
+    if (!proof.ok) {
+      return { flat: false, verified: false, reason: proof.reason, brokerId, orphansFlattened };
+
+### (R4) journal writer: core/SessionRouter.js _recordTransitionEvent (TransitionStore journal)
+  _recordTransitionEvent(eventName, transitionContext, details = {}) {
+    if (!this.transitionStore || typeof this.transitionStore.recordTransitionEvent !== 'function') {
+      throw new Error('SessionRouter transition journal unavailable');
+    }
+    if (!transitionContext || !transitionContext.transitionId || !Number.isFinite(Number(transitionContext.epoch))) {
+      throw new Error('SessionRouter transition context missing durable transitionId/epoch');
+    }
+
+    return this.transitionStore.recordTransitionEvent(eventName, {
+      ...transitionContext,
+      ...details
+    });
+  }
+
+### (R5) trace emitter: core/SessionRouter.js _emitSessionRouterTrace -> emitTrace (TraceSpine)
+  _emitSessionRouterTrace(eventName, fields = {}) {
+    const traceId = fields.traceId || createTraceId('session_router', () => this.clock());
+    emitTrace(this.ctx || {}, eventName, {
+      traceId,
+      ...fields
+    });
+    return traceId;
+  }
+
+  async _routeScheduledTransitionFailure(err) {
+    const reason = err && err.message ? err.message : String(err);
+    const now = new Date(this.clock());
+    const from = this.activeSession || 'unknown';
+
+### (R6) ntfy priority mapping: core/NtfyTraceNotifier.js 100-116 (event name containing RECONCILIATION or HALT -> priority max); wiring run-empire-v2.js 1046-1058
+
+function maxPriorityNotification(payload) {
+  const event = String(payload?.event || '');
+  const fields = payload?.fields || {};
+  if (
+    event.includes('ALARM')
+    || event.includes('HALT')
+    || event.includes('KILL')
+    || event.includes('DESYNC')
+    || event.includes('RECONCILIATION')
+    || fields.manualReconciliationRequired === true
+  ) {
+    const reason = fields.reason || fields.error || 'unknown';
+    return {
+      priority: 'max',
+      title: `OGZ ${event}`,
+      message: `${traceSymbol(payload)} ${tracePositionEffect(payload)} reason=${reason}`,
+    this.ntfyTraceNotifier = null;
+    this._unsubscribeNtfyTrace = null;
+    const traceNotifierBacktestMode = resolvedConfig.config.mode?.backtest === true
+      || resolvedConfig.config.enableBacktestMode === true
+      || resolvedConfig.config.executionMode === 'backtest';
+    if (!traceNotifierBacktestMode) {
+      this.ntfyTraceNotifier = createNtfyTraceNotifier({ env: process.env, logger: console });
+      if (this.ntfyTraceNotifier) {
+        this._unsubscribeNtfyTrace = subscribeTrace((payload) => {
+          this.ntfyTraceNotifier.handleTraceEvent(payload);
+        });
+        console.log('[NTFY] Trace notifier installed');
+      }
+
+### (R7) trace event names used at registration/close (grep)
+677:    this._recordTransitionEvent('SESSION_STALE_BROKER_ORPHAN_REGISTERED', transitionContext, {
+691:      stage: 'registered',
+769:          this._recordTransitionEvent('SESSION_STALE_BROKER_ORPHAN_FLATTEN_FAILED', transitionContext, failureDetails(reason));
+796:          this._recordTransitionEvent('SESSION_STALE_BROKER_ORPHAN_FLATTEN_FAILED', transitionContext, failureDetails(registration.reason));
+834:          this._recordTransitionEvent('SESSION_STALE_BROKER_ORPHAN_FLATTEN_FAILED', transitionContext, failureDetails(closeFailure.message));
+837:            stage: 'flatten_failed',
+849:        this._recordTransitionEvent('SESSION_STALE_BROKER_ORPHAN_FLATTENED', transitionContext, {
+861:          stage: 'flattened',
+
+### (R8) the 1 failing test is PRE-EXISTING and unrelated: path-limited stash of core/SessionRouter.js at HEAD 343bb12c, run the suite WITHOUT the rung
+  ● SessionRouter stock symbol config ownership › runtime stock symbol routing has no sessions.stockSymbols fallback path
+Tests:       1 failed, 9 passed, 10 total
+rung restored; diff lines: 537
+
+### (R9) the failing assertion itself (test/session-router-stock-symbol-config.test.js:69) and why: run-empire-v2.js renamed routerMode -> sessionRouterMode in commit a0afdc81 (2026-08-12), before this rung
+    expect(runEmpire).not.toContain('fallbackSymbols: sessionsCfg.stockSymbols');
+    expect(runEmpire).not.toContain('options.fallbackSymbols');
+    expect(runEmpire).toContain('allowTradingPairFallback: false');
+    expect(runEmpire).toContain("routerMode === 'static'");
+    expect(runEmpire).not.toContain('process.env.SESSION_ROUTER_ENABLED');
+    expect(runEmpire).not.toContain('STATIC BACKTEST ROUTE');
+802:    const staticSession = sessionRouterMode === 'static' ? this.sessionRouterConfig.staticSession : null;
+820:          allowTradingPairFallback: resolvedConfig.config.mode.backtest || sessionRouterMode === 'static',
+a0afdc81 Fixed symbol context route quarantine producer
+
+### (R10) full 8-suite raw summary (current tree)
+FAIL test/session-router-stock-symbol-config.test.js
+Test Suites: 1 failed, 7 passed, 8 total
+Tests:       1 failed, 109 passed, 110 total
