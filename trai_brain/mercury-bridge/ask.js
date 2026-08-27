@@ -900,7 +900,7 @@ async function main() {
     }
 
     if (args.checkProviders) {
-      const result = await runProviderPreflight();
+      const result = await runProviderPreflight({ repoRoot: config.REPO_ROOT });
       console.log(JSON.stringify(result, null, 2));
       if (!result.ok) process.exit(1);
       return;

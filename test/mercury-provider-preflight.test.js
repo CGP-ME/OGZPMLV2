@@ -1,5 +1,9 @@
 'use strict';
 
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
 const {
   classifyProviderError,
   sanitizeProviderMessage,
@@ -19,6 +23,16 @@ function fakeClient({ provider, model, initialize }) {
 }
 
 describe('Mercury provider preflight', () => {
+  let tmpRoot;
+
+  beforeEach(() => {
+    tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'mercury-provider-preflight-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpRoot, { recursive: true, force: true });
+  });
+
   test('classifies provider access failures into operator-action buckets', () => {
     expect(classifyProviderError(new Error('HTTP 402: free_tier_quota_exceeded'))).toBe('quota_or_billing');
     expect(classifyProviderError(new Error('HTTP 429: insufficient balance'))).toBe('quota_or_billing');
@@ -172,5 +186,113 @@ describe('Mercury provider preflight', () => {
     expect(result).toMatchObject({ ok: true, challengerReady: true, tieBreakerReady: false });
     expect(result.checks.map(check => check.label))
       .toEqual(['mercury', 'fable_challenger', 'opus_challenger', 'kimi_tie_breaker']);
+  });
+
+  test('failed ambiguous Fable preflight writes complete schema-v2 and mode-0600 raw receipts without Opus', async () => {
+    const secretFixture = 'API_KEY=preflight-secret-value';
+    const fableRaw = Buffer.from(`fable raw ${secretFixture}`);
+    const fableError = new Error(`Claude Code response was incomplete: unexpected_exposed_tools ${secretFixture}`);
+    fableError.code = 'CLAUDE_CODE_INCOMPLETE_RESPONSE';
+    fableError.subcondition = 'unexpected_exposed_tools';
+    fableError.subconditions = ['unexpected_exposed_tools'];
+    fableError.providerMetadata = {
+      provider: 'claude-code',
+      requestedModel: 'fable',
+      appliedModel: 'claude-fable-5',
+      startedAt: '2026-08-27T00:00:00.000Z',
+      finishedAt: '2026-08-27T00:00:01.000Z',
+      latencyMs: 1000,
+      termination: 'success',
+      parseStatus: 'parsed',
+      rawResponse: fableRaw,
+      rawError: Buffer.from('provider stderr'),
+      toolsAvailable: ['Read'],
+      authStatus: { authMethod: 'claude.ai', apiProvider: 'firstParty', subscriptionType: 'max' },
+      providerFrames: [],
+    };
+    const metadataClient = ({ provider, model, raw }) => ({
+      providerName: provider,
+      model,
+      requestCount: 0,
+      initialize: jest.fn(async () => {}),
+      generateResponseWithMetadata: jest.fn(async function generate() {
+        this.requestCount += 1;
+        return {
+          answer: 'PROVIDER_OK',
+          metadata: {
+            provider,
+            requestedModel: model,
+            appliedModel: model,
+            startedAt: '2026-08-27T00:00:00.000Z',
+            finishedAt: '2026-08-27T00:00:01.000Z',
+            latencyMs: 1000,
+            termination: 'stop',
+            parseStatus: 'parsed',
+            rawResponse: raw,
+            toolsAvailable: [],
+          },
+        };
+      }),
+    });
+    const opusFactory = jest.fn();
+    const result = await runProviderPreflight({
+      repoRoot: tmpRoot,
+      createMercuryClient: () => metadataClient({ provider: 'mercury', model: 'mercury-2', raw: Buffer.from('mercury') }),
+      createFableClient: () => ({
+        providerName: 'claude-code', model: 'fable', requestCount: 0,
+        initialize: jest.fn(async () => {}),
+        generateResponseWithMetadata: jest.fn(async () => { throw fableError; }),
+      }),
+      createOpusClient: opusFactory,
+      createKimiClient: () => metadataClient({ provider: 'openai', model: 'kimi-k3', raw: Buffer.from('kimi') }),
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      challengerReady: false,
+      tieBreakerReady: true,
+      checks: [
+        { label: 'mercury', ok: true, appliedModel: 'mercury-2' },
+        {
+          label: 'fable_challenger',
+          ok: false,
+          error: {
+            code: 'CLAUDE_CODE_INCOMPLETE_RESPONSE',
+            subcondition: 'unexpected_exposed_tools',
+          },
+          fallback: { opusEligible: false },
+        },
+        { label: 'kimi_tie_breaker', ok: true, appliedModel: 'kimi-k3' },
+      ],
+      runLedger: { line: 1 },
+    });
+    expect(opusFactory).not.toHaveBeenCalled();
+    expect(result.attempts.map(attempt => attempt.role))
+      .toEqual(['mercury', 'fable_challenger', 'kimi_tie_breaker']);
+    const fableAttempt = result.attempts[1];
+    expect(fableAttempt).toMatchObject({
+      applied_model: 'claude-fable-5',
+      termination: 'success',
+      parse_status: 'parsed',
+      tools: { enabled: false, available: ['Read'], calls: [], total: 0 },
+      files_mechanically_opened: [],
+      raw_output: { bytes: fableRaw.length, mode: '0600' },
+      raw_error: { bytes: 15, mode: '0600' },
+      repo_adjudication: { status: 'pending', authority: 'live_repo_required' },
+    });
+    const rawPath = path.join(tmpRoot, fableAttempt.raw_output.path);
+    expect(fs.readFileSync(rawPath)).toEqual(fableRaw);
+    expect(fs.statSync(rawPath).mode & 0o777).toBe(0o600);
+
+    const ledgerPath = path.join(tmpRoot, result.runLedger.path);
+    const ledger = JSON.parse(fs.readFileSync(ledgerPath, 'utf8').trim());
+    expect(ledger).toMatchObject({
+      schema_version: 2,
+      receipt_type: 'provider_preflight',
+      verdict: 'provider_preflight_failed',
+      provider_attempts: [{ role: 'mercury' }, { role: 'fable_challenger' }, { role: 'kimi_tie_breaker' }],
+    });
+    expect(JSON.stringify(result)).not.toContain('preflight-secret-value');
+    expect(JSON.stringify(ledger)).not.toContain('preflight-secret-value');
   });
 });

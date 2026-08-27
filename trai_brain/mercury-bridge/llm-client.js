@@ -197,6 +197,18 @@ function claudeAppliedModelMatchesAlias(requestedModel, appliedModel) {
   return applied.includes(requested);
 }
 
+class ClaudeCodeIncompleteResponseError extends Error {
+  constructor(subconditions, providerMetadata) {
+    const conditions = Array.isArray(subconditions) ? subconditions : [subconditions];
+    super(`Claude Code response was incomplete: ${conditions.join(',')}`);
+    this.name = 'ClaudeCodeIncompleteResponseError';
+    this.code = 'CLAUDE_CODE_INCOMPLETE_RESPONSE';
+    this.subcondition = conditions[0];
+    this.subconditions = conditions;
+    this.providerMetadata = providerMetadata;
+  }
+}
+
 function parseClaudeAuthStatus(stdout) {
   let status;
   try {
@@ -239,14 +251,60 @@ class ClaudeCodeConsensusClient {
 
   async initialize() {
     if (this.initialized) return;
-    const { stdout } = await this.execFileAsync(this.command, ['auth', 'status', '--json'], {
-      cwd: config.REPO_ROOT,
-      env: buildClaudeSubscriptionEnv(),
-      timeout: this.requestTimeoutMs,
-      maxBuffer: 1024 * 1024,
-      encoding: null,
-    });
-    this.authStatus = parseClaudeAuthStatus(stdout);
+    const startedAt = new Date();
+    const startedMs = Date.now();
+    let stdout = Buffer.alloc(0);
+    let stderr = Buffer.alloc(0);
+    try {
+      const result = await this.execFileAsync(this.command, ['auth', 'status', '--json'], {
+        cwd: config.REPO_ROOT,
+        env: buildClaudeSubscriptionEnv(),
+        timeout: this.requestTimeoutMs,
+        maxBuffer: 1024 * 1024,
+        encoding: null,
+      });
+      stdout = Buffer.isBuffer(result.stdout) ? result.stdout : Buffer.from(result.stdout || '');
+      stderr = Buffer.isBuffer(result.stderr) ? result.stderr : Buffer.from(result.stderr || '');
+    } catch (error) {
+      stdout = Buffer.isBuffer(error.stdout) ? error.stdout : Buffer.from(error.stdout || '');
+      stderr = Buffer.isBuffer(error.stderr) ? error.stderr : Buffer.from(error.stderr || '');
+      error.providerMetadata = {
+        provider: this.providerName,
+        requestedModel: this.model,
+        appliedModel: null,
+        startedAt: startedAt.toISOString(),
+        finishedAt: new Date().toISOString(),
+        latencyMs: Date.now() - startedMs,
+        exitCode: error.code == null ? null : error.code,
+        termination: 'auth_check_failed',
+        parseStatus: 'request_failed',
+        rawResponse: stdout,
+        rawError: stderr,
+        providerFrames: [],
+        toolsAvailable: [],
+      };
+      throw error;
+    }
+    try {
+      this.authStatus = parseClaudeAuthStatus(stdout);
+    } catch (error) {
+      error.providerMetadata = {
+        provider: this.providerName,
+        requestedModel: this.model,
+        appliedModel: null,
+        startedAt: startedAt.toISOString(),
+        finishedAt: new Date().toISOString(),
+        latencyMs: Date.now() - startedMs,
+        exitCode: 0,
+        termination: 'auth_check_failed',
+        parseStatus: 'invalid_auth_status',
+        rawResponse: stdout,
+        rawError: stderr,
+        providerFrames: [],
+        toolsAvailable: [],
+      };
+      throw error;
+    }
     this.initialized = true;
   }
 
@@ -309,10 +367,13 @@ class ClaudeCodeConsensusClient {
       throw error;
     }
     const answer = extractClaudeCodeResult(stdout);
-    if (!answer || !metadata.termination || metadata.termination === 'provider_error' || metadata.toolsAvailable.length > 0) {
-      const error = new Error('Claude Code response was incomplete');
-      error.providerMetadata = metadata;
-      throw error;
+    const incompleteSubconditions = [];
+    if (!answer) incompleteSubconditions.push('empty_answer');
+    if (!metadata.termination) incompleteSubconditions.push('missing_termination');
+    if (metadata.termination === 'provider_error') incompleteSubconditions.push('provider_error_termination');
+    if (metadata.toolsAvailable.length > 0) incompleteSubconditions.push('unexpected_exposed_tools');
+    if (incompleteSubconditions.length > 0) {
+      throw new ClaudeCodeIncompleteResponseError(incompleteSubconditions, metadata);
     }
     this.requestCount += 1;
     return { answer, metadata };
@@ -517,6 +578,7 @@ module.exports = {
   parseClaudeCodeFrames,
   extractClaudeCodeAppliedModel,
   claudeAppliedModelMatchesAlias,
+  ClaudeCodeIncompleteResponseError,
   parseClaudeAuthStatus,
   buildClaudeSubscriptionEnv,
   CLAUDE_SUBSCRIPTION_OVERRIDE_ENV,

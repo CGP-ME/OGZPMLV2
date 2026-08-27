@@ -189,6 +189,79 @@ describe('Mercury LLM config contract', () => {
     });
   });
 
+  test('Claude Code incomplete responses retain exact machine subconditions and metadata', async () => {
+    await withMercuryConfig({}, async () => {
+      const {
+        ClaudeCodeConsensusClient,
+        ClaudeCodeIncompleteResponseError,
+        resolveConsensusLlmClientOptions,
+      } = require('../trai_brain/mercury-bridge/llm-client');
+      const authStatus = Buffer.from(JSON.stringify({
+        loggedIn: true,
+        authMethod: 'claude.ai',
+        apiProvider: 'firstParty',
+        subscriptionType: 'max',
+      }));
+      const cases = [
+        {
+          expected: ['empty_answer'],
+          frames: [
+            { type: 'system', subtype: 'init', model: 'claude-fable-5', tools: [] },
+            { type: 'result', subtype: 'success', result: '' },
+          ],
+        },
+        {
+          expected: ['missing_termination'],
+          frames: [
+            { type: 'system', subtype: 'init', model: 'claude-fable-5', tools: [] },
+            { type: 'assistant', message: { model: 'claude-fable-5', content: 'answer without result frame' } },
+          ],
+        },
+        {
+          expected: ['provider_error_termination'],
+          frames: [
+            { type: 'system', subtype: 'init', model: 'claude-fable-5', tools: [] },
+            { type: 'result', subtype: 'error', is_error: true, result: 'provider failed' },
+          ],
+        },
+        {
+          expected: ['unexpected_exposed_tools'],
+          frames: [
+            { type: 'system', subtype: 'init', model: 'claude-fable-5', tools: ['Read'] },
+            { type: 'result', subtype: 'success', result: 'answer with tools exposed' },
+          ],
+        },
+      ];
+
+      for (const testCase of cases) {
+        const rawResponse = Buffer.from(testCase.frames.map(frame => JSON.stringify(frame)).join('\n'));
+        const execFileAsync = jest.fn()
+          .mockResolvedValueOnce({ stdout: authStatus, stderr: Buffer.alloc(0) })
+          .mockResolvedValueOnce({ stdout: rawResponse, stderr: Buffer.alloc(0) });
+        const client = new ClaudeCodeConsensusClient(resolveConsensusLlmClientOptions({
+          model: 'fable', execFileAsync,
+        }));
+        let caught;
+        try {
+          await client.generateResponseWithMetadata('preflight');
+        } catch (error) {
+          caught = error;
+        }
+        expect(caught).toBeInstanceOf(ClaudeCodeIncompleteResponseError);
+        expect(caught).toMatchObject({
+          name: 'ClaudeCodeIncompleteResponseError',
+          code: 'CLAUDE_CODE_INCOMPLETE_RESPONSE',
+          subcondition: testCase.expected[0],
+          subconditions: testCase.expected,
+          providerMetadata: {
+            appliedModel: 'claude-fable-5',
+            rawResponse,
+          },
+        });
+      }
+    });
+  });
+
   test('malformed adversarial-review env remains non-fatal', async () => {
     await withMercuryConfig({}, () => {
       const config = require('../trai_brain/mercury-bridge/config');

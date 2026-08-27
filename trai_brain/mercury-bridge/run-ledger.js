@@ -428,6 +428,35 @@ function buildRunLedgerEntry({
   });
 }
 
+function buildProviderPreflightLedgerEntry({
+  repoRoot,
+  runId,
+  startedAt,
+  finishedAt = new Date(),
+  result,
+  attempts = [],
+} = {}) {
+  const startedIso = isoTimestamp(startedAt || finishedAt);
+  const finishedIso = isoTimestamp(finishedAt);
+  const repoState = readRepoState(repoRoot);
+  return sanitizeForLedger({
+    schema_version: 2,
+    receipt_type: 'provider_preflight',
+    run_id: runId,
+    created_at: finishedIso,
+    started_at: startedIso,
+    branch: repoState.branch,
+    head_sha: repoState.head_sha,
+    dirty_status_summary: repoState.dirty_status_summary,
+    verdict: result && result.ok === true ? 'provider_preflight_pass' : 'provider_preflight_failed',
+    challenger_ready: result && result.challengerReady === true,
+    tie_breaker_ready: result && result.tieBreakerReady === true,
+    provider_attempts: attempts,
+    checks: result && Array.isArray(result.checks) ? result.checks : [],
+    repo_adjudication: { status: 'pending', authority: 'live_repo_required' },
+  });
+}
+
 function countLines(absPath) {
   if (!fs.existsSync(absPath)) return 0;
   const text = fs.readFileSync(absPath, 'utf8');
@@ -471,6 +500,7 @@ module.exports = {
   extractClaimedFileCitations,
   buildPromptProvenance,
   buildRunLedgerEntry,
+  buildProviderPreflightLedgerEntry,
   classifyMercuryVerdict,
   resultHasToolFailure,
   autoBlastRadiusFailed,
