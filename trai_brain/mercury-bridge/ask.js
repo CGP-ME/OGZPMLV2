@@ -652,7 +652,7 @@ async function runAgentic(query, opts) {
             review.finalReview = adversarialReviewFailure(finalErr, { role: 'kimi_tie_breaker' });
             result.exitCode = 1;
             if (verbose) {
-              console.log(`[MERCURY-BRIDGE] Kimi final adjudication failed: ${finalErr.message}`);
+              console.log(`[MERCURY-BRIDGE] Kimi final adjudication failed: ${review.finalReview.error.message}`);
             }
           }
         }
@@ -671,7 +671,7 @@ async function runAgentic(query, opts) {
         result.consensus = failure;
         result.exitCode = 1;
         if (verbose) {
-          console.log(`[MERCURY-BRIDGE] Fable ${reviewMode} failed: ${err.message}`);
+          console.log(`[MERCURY-BRIDGE] Fable ${reviewMode} failed: ${failure.error.message}`);
         }
       }
     }

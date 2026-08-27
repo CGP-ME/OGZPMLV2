@@ -77,6 +77,9 @@ function attemptReceipt({ label, attempt, client, metadata = {}, status, phase, 
     requested_provider: metadata.provider || (client && client.providerName) || null,
     requested_model: metadata.requestedModel || (client && client.model) || null,
     applied_model: metadata.appliedModel || null,
+    applied_models: Array.isArray(metadata.appliedModels)
+      ? [...metadata.appliedModels]
+      : (metadata.appliedModel ? [metadata.appliedModel] : []),
     started_at: metadata.startedAt || null,
     finished_at: metadata.finishedAt || null,
     latency_ms: metadata.latencyMs == null ? null : metadata.latencyMs,

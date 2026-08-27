@@ -272,7 +272,7 @@ function parseClaudeCodeFrames(stdout) {
   return frames;
 }
 
-function extractClaudeCodeAppliedModel(frames) {
+function extractClaudeCodeAppliedModels(frames) {
   const reported = [];
   for (const frame of frames) {
     if (frame && frame.type === 'system' && frame.subtype === 'init' && typeof frame.model === 'string') {
@@ -286,7 +286,11 @@ function extractClaudeCodeAppliedModel(frames) {
       reported.push(...Object.keys(frame.modelUsage));
     }
   }
-  return reported.find(value => value && value !== '<synthetic>') || null;
+  return [...new Set(reported.filter(value => value && value !== '<synthetic>'))];
+}
+
+function extractClaudeCodeAppliedModel(frames) {
+  return extractClaudeCodeAppliedModels(frames)[0] || null;
 }
 
 function claudeAppliedModelMatchesAlias(requestedModel, appliedModel) {
@@ -495,13 +499,13 @@ class ClaudeCodeConsensusClient {
       throw error;
     }
     const metadata = this.buildMetadata({ startedAt, startedMs, stdout, stderr, exitCode: 0 });
-    if (!metadata.appliedModel) {
+    if (!metadata.appliedModel || metadata.appliedModels.length === 0) {
       const error = new Error('Claude Code response omitted applied model identity');
       error.providerMetadata = metadata;
       throw error;
     }
-    if (!claudeAppliedModelMatchesAlias(this.model, metadata.appliedModel)) {
-      const error = new Error('Claude Code applied model does not match the requested challenger alias');
+    if (metadata.appliedModels.some(model => !claudeAppliedModelMatchesAlias(this.model, model))) {
+      const error = new Error('Claude Code reported conflicting or mismatched applied model identity');
       error.providerMetadata = metadata;
       throw error;
     }
@@ -522,10 +526,12 @@ class ClaudeCodeConsensusClient {
     const frames = parseClaudeCodeFrames(stdout);
     const resultFrame = [...frames].reverse().find(frame => frame && frame.type === 'result');
     const initFrame = frames.find(frame => frame && frame.type === 'system' && frame.subtype === 'init');
+    const appliedModels = extractClaudeCodeAppliedModels(frames);
     return {
       provider: this.providerName,
       requestedModel: this.model,
-      appliedModel: extractClaudeCodeAppliedModel(frames),
+      appliedModel: appliedModels[0] || null,
+      appliedModels,
       startedAt: startedAt.toISOString(),
       finishedAt: new Date().toISOString(),
       latencyMs: Date.now() - startedMs,
@@ -715,6 +721,7 @@ function createConsensusLlmClient(options = {}) {
 module.exports = {
   extractClaudeCodeResult,
   parseClaudeCodeFrames,
+  extractClaudeCodeAppliedModels,
   extractClaudeCodeAppliedModel,
   claudeAppliedModelMatchesAlias,
   ClaudeCodeIncompleteResponseError,

@@ -220,6 +220,7 @@ describe('Mercury LLM config contract', () => {
     await withMercuryConfig({}, () => {
       const {
         claudeAppliedModelMatchesAlias,
+        extractClaudeCodeAppliedModels,
         extractClaudeCodeAppliedModel,
         extractClaudeCodeResult,
         parseClaudeCodeFrames,
@@ -230,6 +231,7 @@ describe('Mercury LLM config contract', () => {
       ].join('\n');
       const frames = parseClaudeCodeFrames(raw);
       expect(extractClaudeCodeAppliedModel(frames)).toBe('claude-fable-5');
+      expect(extractClaudeCodeAppliedModels(frames)).toEqual(['claude-fable-5']);
       expect(extractClaudeCodeResult(raw)).toBe('VERDICT: pass');
       expect(extractClaudeCodeAppliedModel([{ type: 'result', result: 'answer' }])).toBeNull();
       expect(claudeAppliedModelMatchesAlias('fable', 'claude-fable-5')).toBe(true);
@@ -310,7 +312,33 @@ describe('Mercury LLM config contract', () => {
         .mockResolvedValueOnce({ stdout: spoofedModel, stderr: Buffer.alloc(0) });
       const client = new ClaudeCodeConsensusClient(withTrustedExecutable(resolveConsensusLlmClientOptions({ execFileAsync })));
       await expect(client.generateResponseWithMetadata('preflight'))
-        .rejects.toThrow(/applied model does not match/);
+        .rejects.toThrow(/conflicting or mismatched applied model/);
+
+      const conflictingModels = Buffer.from([
+        JSON.stringify({ type: 'system', subtype: 'init', model: 'claude-fable-5', tools: [] }),
+        JSON.stringify({ type: 'assistant', message: { model: 'claude-sonnet-4-5', content: 'PROVIDER_OK' } }),
+        JSON.stringify({ type: 'result', subtype: 'success', result: 'PROVIDER_OK' }),
+      ].join('\n'));
+      const conflictingExec = jest.fn()
+        .mockResolvedValueOnce({ stdout: Buffer.from('2.1.236 (Claude Code)'), stderr: Buffer.alloc(0) })
+        .mockResolvedValueOnce({ stdout: authStatus, stderr: Buffer.alloc(0) })
+        .mockResolvedValueOnce({ stdout: conflictingModels, stderr: Buffer.alloc(0) });
+      const conflictingClient = new ClaudeCodeConsensusClient(withTrustedExecutable(resolveConsensusLlmClientOptions({
+        execFileAsync: conflictingExec,
+      })));
+      let conflictError;
+      try {
+        await conflictingClient.generateResponseWithMetadata('preflight');
+      } catch (error) {
+        conflictError = error;
+      }
+      expect(conflictError).toMatchObject({
+        message: expect.stringMatching(/conflicting or mismatched applied model/),
+        providerMetadata: {
+          appliedModel: 'claude-fable-5',
+          appliedModels: ['claude-fable-5', 'claude-sonnet-4-5'],
+        },
+      });
     });
   });
 

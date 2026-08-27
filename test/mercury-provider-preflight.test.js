@@ -27,6 +27,7 @@ function trustedFableMetadata(overrides = {}) {
     provider: 'claude-code',
     requestedModel: 'fable',
     appliedModel: 'claude-fable-5',
+    appliedModels: ['claude-fable-5'],
     authStatus: { authMethod: 'claude.ai', apiProvider: 'firstParty', subscriptionType: 'max' },
     executableTrust: {
       trusted: true,
@@ -311,6 +312,7 @@ describe('Mercury provider preflight', () => {
     const fableAttempt = result.attempts[1];
     expect(fableAttempt).toMatchObject({
       applied_model: 'claude-fable-5',
+      applied_models: ['claude-fable-5'],
       termination: 'success',
       parse_status: 'parsed',
       tools: { enabled: false, available: ['Read'], calls: [], total: 0 },

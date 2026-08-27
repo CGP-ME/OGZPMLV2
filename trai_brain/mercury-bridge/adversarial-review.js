@@ -8,7 +8,11 @@ const {
   createKimiTieBreakerClient,
 } = require('./llm-client');
 const { formatToolTelemetry } = require('./react-loop');
-const { buildPromptProvenance, extractClaimedFileCitations } = require('./run-ledger');
+const {
+  buildPromptProvenance,
+  extractClaimedFileCitations,
+  sanitizeForLedger,
+} = require('./run-ledger');
 
 function flagFromEnv(name) {
   if (!Object.prototype.hasOwnProperty.call(process.env, name)) return null;
@@ -613,9 +617,13 @@ const OPUS_ELIGIBLE_CLAUDE_CODES = Object.freeze(new Set([
 function trustedFableErrorMetadata(metadata) {
   const auth = metadata.authStatus || {};
   const trust = metadata.executableTrust || {};
+  const appliedModels = Array.isArray(metadata.appliedModels) ? metadata.appliedModels : [];
   return metadata.provider === 'claude-code'
     && metadata.requestedModel === 'fable'
     && claudeAppliedModelMatchesAlias('fable', metadata.appliedModel)
+    && appliedModels.length > 0
+    && appliedModels.includes(metadata.appliedModel)
+    && appliedModels.every(model => claudeAppliedModelMatchesAlias('fable', model))
     && auth.authMethod === 'claude.ai'
     && auth.apiProvider === 'firstParty'
     && trust.trusted === true
@@ -625,6 +633,11 @@ function trustedFableErrorMetadata(metadata) {
 
 function classifyClaudeProviderErrorFrame(frame) {
   if (!frame || frame.type !== 'result' || frame.is_error !== true) return null;
+  if (
+    frame.api_error_status != null
+    && frame.api_error_status !== 429
+    && frame.api_error_status !== 503
+  ) return null;
   if (frame.error && typeof frame.error === 'object' && !Array.isArray(frame.error)) {
     const machineFields = ['type', 'code', 'error_code']
       .filter(key => Object.prototype.hasOwnProperty.call(frame.error, key))
@@ -644,6 +657,18 @@ function classifyClaudeProviderErrorFrame(frame) {
     return { category: 'provider_unavailable', opusEligible: true, evidence: 'provider_frame:result.api_error_status:503' };
   }
   return null;
+}
+
+function cleanStageError(error) {
+  if (!error) return null;
+  const clean = {
+    name: error.name || 'Error',
+    message: error.message || String(error),
+  };
+  if (['string', 'number'].includes(typeof error.code)) clean.code = error.code;
+  if (typeof error.subcondition === 'string') clean.subcondition = error.subcondition;
+  if (Array.isArray(error.subconditions)) clean.subconditions = [...error.subconditions];
+  return sanitizeForLedger(clean);
 }
 
 function classifyFableFallbackError(error) {
@@ -680,6 +705,9 @@ function stageAttemptReceipt({
     requested_provider: metadata.provider || null,
     requested_model: metadata.requestedModel || null,
     applied_model: metadata.appliedModel || null,
+    applied_models: Array.isArray(metadata.appliedModels)
+      ? [...metadata.appliedModels]
+      : (metadata.appliedModel ? [metadata.appliedModel] : []),
     started_at: metadata.startedAt || null,
     finished_at: metadata.finishedAt || null,
     latency_ms: metadata.latencyMs == null ? null : metadata.latencyMs,
@@ -702,7 +730,7 @@ function stageAttemptReceipt({
     claimed_file_citations: [],
     auth_posture: metadata.authStatus || null,
     executable_trust: metadata.executableTrust || null,
-    error: error ? { name: error.name || 'Error', message: error.message || String(error) } : null,
+    error: cleanStageError(error),
     repo_adjudication: { status: 'pending', authority: 'live_repo_required' },
   };
 }
@@ -781,7 +809,7 @@ async function executePromptOnlyStage({
       } catch (persistError) {
         persistError.providerMetadata = metadata;
         persistError.rawPersistenceFailed = true;
-        persistError.providerFailure = error.message;
+        persistError.providerFailure = sanitizeForLedger(error.message);
         error = persistError;
       }
     }
@@ -916,10 +944,7 @@ function adversarialReviewFailure(err, { role = 'challenger' } = {}) {
     stageReceipt: stageAttempt,
     kimiSkipped: !kimiFailure,
     repoAdjudication: { status: 'pending', authority: 'live_repo_required' },
-    error: {
-      name: err && err.name ? err.name : 'Error',
-      message: err && err.message ? err.message : String(err),
-    },
+    error: cleanStageError(err),
   };
 }
 

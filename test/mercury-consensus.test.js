@@ -28,6 +28,7 @@ function trustedFableMetadata(overrides = {}) {
     provider: 'claude-code',
     requestedModel: 'fable',
     appliedModel: 'claude-fable-5',
+    appliedModels: ['claude-fable-5'],
     authStatus: { authMethod: 'claude.ai', apiProvider: 'firstParty', subscriptionType: 'max' },
     executableTrust: {
       trusted: true,
@@ -558,6 +559,7 @@ describe('Mercury Fable consensus', () => {
       role: 'fable_challenger',
       requested_model: 'fable',
       applied_model: 'claude-fable-5',
+      applied_models: ['claude-fable-5'],
       tools: { enabled: false, total: 0, calls: [] },
       files_mechanically_opened: [],
       repo_adjudication: { status: 'pending' },
@@ -701,6 +703,7 @@ describe('Mercury Fable consensus', () => {
       [{ type: 'result', is_error: true, payload: { error: { code: 'model_not_found' } } }],
       [{ type: 'result', is_error: true, error: { type: 'authentication_error', code: 'model_unavailable' } }],
       [{ type: 'result', is_error: true, error: { type: 'authentication_error' }, api_error_status: 429 }],
+      [{ type: 'result', is_error: true, error: { type: 'rate_limit_error' }, api_error_status: 401 }],
       [{ type: 'result', is_error: true, api_error_status: '429' }],
       [
         { type: 'result', is_error: true, error: { type: 'model_unavailable' } },
@@ -835,6 +838,29 @@ describe('Mercury Fable consensus', () => {
       persistRaw: () => ({ path: 'raw', sha256: 'abc', bytes: 0, mode: '0600' }),
     })).rejects.toThrow('authentication failed');
     expect(opusFactory).not.toHaveBeenCalled();
+  });
+
+  test('stage failures redact secrets before returned receipts and aggregate failures', async () => {
+    const failure = new Error('API_KEY=stage-secret-value');
+    let caught;
+    try {
+      await executePromptOnlyStage({
+        role: 'fable_challenger',
+        prompt: 'review this',
+        createClient: () => ({
+          providerName: 'claude-code', model: 'fable',
+          initialize: async () => {},
+          generateResponseWithMetadata: async () => { throw failure; },
+        }),
+        persistRaw: () => ({ path: 'raw', sha256: 'abc', bytes: 0, mode: '0600' }),
+        attemptNumber: 1,
+      });
+    } catch (error) {
+      caught = error;
+    }
+    expect(JSON.stringify(caught.stageAttempt)).not.toContain('stage-secret-value');
+    expect(caught.stageAttempt.error.message).toContain('[REDACTED]');
+    expect(JSON.stringify(consensusFailure(caught))).not.toContain('stage-secret-value');
   });
 
   test('raw receipt persistence failure fails loud without Opus', async () => {
