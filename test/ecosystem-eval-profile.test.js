@@ -196,8 +196,17 @@ describe('ecosystem eval live profile', () => {
       TRAI_MODE: 'passive',
       TRAI_VETO: 'false',
       TRAI_ENABLE_BACKTEST: 'true',
-      WEBHOOK_ORDERS_ENABLED: 'true',
-      WEBHOOK_DRY_RUN: 'false',
+      // 2026-08-27: this contract previously asserted WEBHOOK_ORDERS_ENABLED
+      // 'true' / WEBHOOK_DRY_RUN 'false' under the name "stays paper". That is
+      // not paper: OrderExecutor evaluates the webhook branch before it ever
+      // consults paperTrading (core/OrderExecutor.js:2808,2850), so an enabled
+      // adapter routes live orders to signalstack_ttp while every label reads
+      // paper — and every ConfigLoader guard for it is scoped to liveTrading,
+      // which is 'false' here, so validation passes silently. The test was
+      // ratifying the armed state; asserting the disarmed one makes it fail
+      // loudly whenever the profile is armed again.
+      WEBHOOK_ORDERS_ENABLED: 'false',
+      WEBHOOK_DRY_RUN: 'true',
       MIN_TRADE_CONFIDENCE: '0.5',
       EVAL_RULES_ENABLED: 'true',
       TTP_RULES_ENABLED: 'true',
