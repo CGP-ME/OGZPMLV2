@@ -5,9 +5,11 @@ const os = require('os');
 const path = require('path');
 
 const {
+  buildPromptProvenance,
   buildRunLedgerEntry,
   classifyMercuryVerdict,
   redactSensitiveText,
+  writeRawProviderOutput,
   writeRunLedgerEntry,
 } = require('../trai_brain/mercury-bridge/run-ledger');
 
@@ -305,6 +307,51 @@ describe('Mercury run ledger', () => {
     expect(rows[1].verdict).toBe('blocked');
   });
 
+  test('writes exact raw provider bytes mode 0600 with hash and collision refusal', () => {
+    const bytes = Buffer.from([0x00, 0x61, 0xff, 0x0a]);
+    const receipt = writeRawProviderOutput({
+      repoRoot: tmpRoot,
+      runId: 'run-1',
+      stage: 'fable_challenger',
+      attempt: 1,
+      bytes,
+      now: new Date('2026-08-27T00:00:00.000Z'),
+    });
+    const absPath = path.join(tmpRoot, receipt.path);
+    expect(fs.readFileSync(absPath)).toEqual(bytes);
+    expect(receipt).toMatchObject({
+      bytes: 4,
+      mode: '0600',
+      sha256: '05b1d9c4789a57ffcbf552e1746b8376064c195d1b4a2f2bc23e0e6e14ce1fc4',
+    });
+    expect(fs.statSync(absPath).mode & 0o777).toBe(0o600);
+    expect(() => writeRawProviderOutput({
+      repoRoot: tmpRoot,
+      runId: 'run-1',
+      stage: 'fable_challenger',
+      attempt: 1,
+      bytes,
+      now: new Date('2026-08-27T00:00:00.000Z'),
+    })).toThrow(/EEXIST/);
+    expect(() => writeRawProviderOutput({
+      repoRoot: tmpRoot, runId: '..', stage: 'fable', attempt: 1, bytes,
+    })).toThrow(/invalid raw provider run id/);
+  });
+
+  test('records exact prompt and supplied-excerpt provenance without claiming file access', () => {
+    expect(buildPromptProvenance('prompt body', [
+      { path: 'input://original-query', excerpt: 'review this' },
+    ])).toMatchObject({
+      prompt_bytes: 11,
+      supplied_sources: [{
+        path: 'input://original-query',
+        bytes: 11,
+        sha256: 'bca26d42c068cd3586f83dd5e878d0ab375499124fd6d68726ba6b34cbeb0da9',
+        excerpt: 'review this',
+      }],
+    });
+  });
+
   test('persists failed Fable consensus as explicit metadata instead of a successful pass', () => {
     const entry = buildRunLedgerEntry({
       repoRoot: tmpRoot,
@@ -331,7 +378,7 @@ describe('Mercury run ledger', () => {
       },
     });
 
-    expect(entry.consensus).toEqual({
+    expect(entry.consensus).toMatchObject({
       mode: 'adversarial_review',
       enabled: true,
       ok: false,

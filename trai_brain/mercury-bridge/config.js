@@ -334,9 +334,10 @@ const ADVERSARIAL_REVIEW_DEFAULT_ENABLED = adversarialReviewEnv == null
   ? optionalBoolean(MERCURY_CONFIG, 'adversarialReview.defaultEnabled', false)
   : adversarialReviewEnv;
 const ADVERSARIAL_REVIEW_MAX_RECHECKS = optionalNumber(MERCURY_CONFIG, 'adversarialReview.maxRechecks', 2, { integer: true, min: 0 });
-const CONSENSUS_PROVIDER = (optionalString(MERCURY_CONFIG, 'consensus.provider') || 'claude').toLowerCase();
-const CONSENSUS_BASE_URL = optionalString(MERCURY_CONFIG, 'consensus.baseUrl') || 'https://api.anthropic.com/v1';
-const CONSENSUS_MODEL = optionalString(MERCURY_CONFIG, 'consensus.model') || 'claude-fable-5';
+const CONSENSUS_PROVIDER = requiredString(MERCURY_CONFIG, 'consensus.provider').toLowerCase();
+const CONSENSUS_BASE_URL = optionalString(MERCURY_CONFIG, 'consensus.baseUrl');
+const CONSENSUS_MODEL = requiredString(MERCURY_CONFIG, 'consensus.model').toLowerCase();
+const CONSENSUS_EMERGENCY_MODEL = requiredString(MERCURY_CONFIG, 'consensus.emergencyModel').toLowerCase();
 const CONSENSUS_API_KEY_ENV = optionalString(MERCURY_CONFIG, 'consensus.apiKeyEnv');
 const CONSENSUS_COMMAND = optionalString(MERCURY_CONFIG, 'consensus.command') || 'claude';
 const CONSENSUS_PERMISSION_MODE = optionalString(MERCURY_CONFIG, 'consensus.permissionMode') || 'dontAsk';
@@ -350,40 +351,42 @@ const CONSENSUS_SYSTEM_PROMPT = optionalText(MERCURY_CONFIG, 'consensus.systemPr
   'Evaluate Mercury evidence. Do not invent repo facts or file:line citations.',
 ].join('\n'));
 
-const supportedConsensusProviders = new Set([...supportedLlmProviders, 'claude-code']);
-if (!supportedConsensusProviders.has(CONSENSUS_PROVIDER)) {
-  throw new Error(`Unsupported consensus.provider=${CONSENSUS_PROVIDER}. Use ${Array.from(supportedConsensusProviders).join(', ')}.`);
-}
 if (CONSENSUS_PROVIDER !== 'claude-code') {
-  try {
-    const consensusBaseUrl = new URL(CONSENSUS_BASE_URL);
-    if (consensusBaseUrl.username || consensusBaseUrl.password || consensusBaseUrl.search || consensusBaseUrl.hash) {
-      throw new Error('consensus.baseUrl must not contain credentials, query parameters, or fragments');
-    }
-  } catch (err) {
-    throw new Error(`Invalid mercury.config.json value: consensus.baseUrl: ${err.message}`);
-  }
+  throw new Error('consensus.provider must be claude-code; Kimi cannot satisfy the challenger role');
 }
-if (CONSENSUS_PROVIDER === 'ollama') {
-  if (CONSENSUS_API_KEY_ENV) {
-    throw new Error('consensus.apiKeyEnv must be empty when consensus.provider=ollama');
+if (CONSENSUS_BASE_URL) {
+  throw new Error('consensus.baseUrl must be empty for first-party Claude Code subscription routing');
+}
+if (CONSENSUS_API_KEY_ENV) {
+  throw new Error('consensus.apiKeyEnv must be empty for first-party Claude Code subscription routing');
+}
+const rejectedChallengerModels = new Set(['sonnet', 'haiku', 'default', 'best', 'opusplan', 'kimi-k3']);
+if (CONSENSUS_MODEL !== 'fable' || rejectedChallengerModels.has(CONSENSUS_MODEL)) {
+  throw new Error('consensus.model must be the stable fable alias; lower tiers, generic selectors, and Kimi are rejected');
+}
+if (CONSENSUS_EMERGENCY_MODEL !== 'opus' || rejectedChallengerModels.has(CONSENSUS_EMERGENCY_MODEL)) {
+  throw new Error('consensus.emergencyModel must be the stable opus alias; arbitrary fallback lists are rejected');
+}
+
+const TIE_BREAKER_PROVIDER = requiredString(MERCURY_CONFIG, 'tieBreaker.provider').toLowerCase();
+const TIE_BREAKER_BASE_URL = requiredString(MERCURY_CONFIG, 'tieBreaker.baseUrl');
+const TIE_BREAKER_MODEL = requiredString(MERCURY_CONFIG, 'tieBreaker.model').toLowerCase();
+const TIE_BREAKER_API_KEY_ENV = requiredString(MERCURY_CONFIG, 'tieBreaker.apiKeyEnv');
+const TIE_BREAKER_CLIENT_MAX_TOKENS = requiredNumber(MERCURY_CONFIG, 'tieBreaker.clientMaxTokens', { integer: true, min: 1 });
+const TIE_BREAKER_CLIENT_MIN_TOKENS = requiredNumber(MERCURY_CONFIG, 'tieBreaker.clientMinTokens', { integer: true, min: 0 });
+const TIE_BREAKER_REQUEST_TIMEOUT_MS = requiredNumber(MERCURY_CONFIG, 'tieBreaker.requestTimeoutMs', { integer: true, min: 1000 });
+const TIE_BREAKER_TEMPERATURE = requiredNumber(MERCURY_CONFIG, 'tieBreaker.temperature', { min: 0 });
+const TIE_BREAKER_OPENAI_EXTRA_BODY = optionalPlainObject(MERCURY_CONFIG, 'tieBreaker.openaiExtraBody', {});
+if (TIE_BREAKER_PROVIDER !== 'openai' || TIE_BREAKER_MODEL !== 'kimi-k3') {
+  throw new Error('tieBreaker must remain the OpenAI-compatible kimi-k3 role and cannot satisfy challenger readiness');
+}
+try {
+  const tieBreakerUrl = new URL(TIE_BREAKER_BASE_URL);
+  if (tieBreakerUrl.username || tieBreakerUrl.password || tieBreakerUrl.search || tieBreakerUrl.hash) {
+    throw new Error('tieBreaker.baseUrl must not contain credentials, query parameters, or fragments');
   }
-  try {
-    const consensusBaseUrl = new URL(CONSENSUS_BASE_URL);
-    if (!['localhost', '127.0.0.1', '::1'].includes(consensusBaseUrl.hostname)) {
-      throw new Error(`consensus.provider=ollama requires a local endpoint, got ${CONSENSUS_BASE_URL}`);
-    }
-  } catch (err) {
-    throw new Error(`Invalid mercury.config.json value: consensus.baseUrl: ${err.message}`);
-  }
-} else if (CONSENSUS_PROVIDER === 'claude-code') {
-  if (CONSENSUS_API_KEY_ENV) {
-    throw new Error('consensus.apiKeyEnv must be empty when consensus.provider=claude-code');
-  }
-} else {
-  if (!CONSENSUS_API_KEY_ENV) {
-    throw new Error(`consensus.apiKeyEnv is required when consensus.provider=${CONSENSUS_PROVIDER}`);
-  }
+} catch (err) {
+  throw new Error(`Invalid mercury.config.json value: tieBreaker.baseUrl: ${err.message}`);
 }
 
 // ─── Skip patterns ────────────────────────────────────────────
@@ -500,6 +503,7 @@ module.exports = {
   CONSENSUS_PROVIDER,
   CONSENSUS_BASE_URL,
   CONSENSUS_MODEL,
+  CONSENSUS_EMERGENCY_MODEL,
   CONSENSUS_API_KEY_ENV,
   CONSENSUS_COMMAND,
   CONSENSUS_PERMISSION_MODE,
@@ -509,6 +513,15 @@ module.exports = {
   CONSENSUS_TEMPERATURE,
   CONSENSUS_OPENAI_EXTRA_BODY,
   CONSENSUS_SYSTEM_PROMPT,
+  TIE_BREAKER_PROVIDER,
+  TIE_BREAKER_BASE_URL,
+  TIE_BREAKER_MODEL,
+  TIE_BREAKER_API_KEY_ENV,
+  TIE_BREAKER_CLIENT_MAX_TOKENS,
+  TIE_BREAKER_CLIENT_MIN_TOKENS,
+  TIE_BREAKER_REQUEST_TIMEOUT_MS,
+  TIE_BREAKER_TEMPERATURE,
+  TIE_BREAKER_OPENAI_EXTRA_BODY,
   AGENTIC_MAX_ITERATIONS,
   AGENTIC_MAX_TOKENS,
   SINGLE_SHOT_MAX_TOKENS,

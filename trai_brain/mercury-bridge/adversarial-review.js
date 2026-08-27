@@ -1,8 +1,13 @@
 'use strict';
 
 const config = require('./config');
-const { createConsensusLlmClient } = require('./llm-client');
+const {
+  createFableChallengerClient,
+  createOpusChallengerClient,
+  createKimiTieBreakerClient,
+} = require('./llm-client');
 const { formatToolTelemetry } = require('./react-loop');
+const { buildPromptProvenance, extractClaimedFileCitations } = require('./run-ledger');
 
 function flagFromEnv(name) {
   if (!Object.prototype.hasOwnProperty.call(process.env, name)) return null;
@@ -32,6 +37,11 @@ function normalizeReviewIntent(value) {
   const intent = String(value || '').trim().toLowerCase();
   if (intent === 'architecture' || intent === 'planning') return intent;
   return 'adversarial';
+}
+
+function kimiTieBreakerRequired(review, reviewIntent = 'adversarial') {
+  return normalizeReviewIntent(reviewIntent) === 'adversarial'
+    && !!(review && review.ok === true && review.parsed && review.parsed.blocking === true);
 }
 
 function extractField(text, fieldName) {
@@ -590,31 +600,237 @@ function buildKimiFinalAdjudicationPrompt({
   ].join('\n');
 }
 
+const OPUS_ELIGIBLE_CLAUDE_CODES = Object.freeze(new Set([
+  'rate_limit_error',
+  'rate_limit_exceeded',
+  'usage_limit_reached',
+  'model_unavailable',
+  'model_not_found',
+  'overloaded_error',
+]));
+
+function collectMachineErrorCodes(value, output = new Set()) {
+  if (!value || typeof value !== 'object') return output;
+  for (const [key, child] of Object.entries(value)) {
+    if ((key === 'code' || key === 'type' || key === 'error_code') && typeof child === 'string') {
+      output.add(child.toLowerCase());
+    } else if (child && typeof child === 'object') {
+      collectMachineErrorCodes(child, output);
+    }
+  }
+  return output;
+}
+
+function classifyFableFallbackError(error) {
+  if (error && error.rawPersistenceFailed) {
+    return { category: 'receipt_persistence_failure', opusEligible: false, evidence: 'raw_receipt_write_failed' };
+  }
+  const metadata = error && error.providerMetadata ? error.providerMetadata : {};
+  const codes = collectMachineErrorCodes(metadata.providerFrames || []);
+  const matchedCode = Array.from(codes).find(code => OPUS_ELIGIBLE_CLAUDE_CODES.has(code));
+  if (matchedCode) return { category: matchedCode, opusEligible: true, evidence: `provider_code:${matchedCode}` };
+  const statusCode = Number(metadata.statusCode || error && error.statusCode);
+  if (statusCode === 429) return { category: 'rate_limited', opusEligible: true, evidence: 'http_status:429' };
+  if (statusCode === 503) return { category: 'provider_unavailable', opusEligible: true, evidence: 'http_status:503' };
+  const machineText = Buffer.isBuffer(metadata.rawError)
+    ? metadata.rawError.toString('utf8')
+    : String(metadata.rawError || '');
+  if (/\bHTTP 429\b/.test(machineText)) return { category: 'rate_limited', opusEligible: true, evidence: 'claude_stderr:http_429' };
+  if (/\bHTTP 503\b/.test(machineText)) return { category: 'provider_unavailable', opusEligible: true, evidence: 'claude_stderr:http_503' };
+  return { category: 'non_fallback_error', opusEligible: false, evidence: 'no_allowlisted_machine_signal' };
+}
+
+function stageAttemptReceipt({
+  role,
+  metadata = {},
+  status,
+  attemptNumber,
+  error = null,
+  prompt,
+  suppliedSources = [],
+  rawOutput = null,
+  rawError = null,
+}) {
+  return {
+    role,
+    attempt: attemptNumber,
+    status,
+    requested_provider: metadata.provider || null,
+    requested_model: metadata.requestedModel || null,
+    applied_model: metadata.appliedModel || null,
+    started_at: metadata.startedAt || null,
+    finished_at: metadata.finishedAt || null,
+    latency_ms: metadata.latencyMs == null ? null : metadata.latencyMs,
+    termination: metadata.termination || null,
+    parse_status: metadata.parseStatus || null,
+    exit_code: metadata.exitCode == null ? null : metadata.exitCode,
+    retry_status: role === 'opus_challenger' ? 'emergency_replacement' : 'primary_attempt',
+    input_provenance: buildPromptProvenance(prompt, suppliedSources),
+    raw_output: rawOutput,
+    raw_error: rawError,
+    tools: {
+      enabled: false,
+      available: Array.isArray(metadata.toolsAvailable) ? metadata.toolsAvailable : [],
+      calls: [],
+      total: 0,
+      succeeded: 0,
+      failed: 0,
+    },
+    files_mechanically_opened: [],
+    claimed_file_citations: [],
+    auth_posture: metadata.authStatus || null,
+    error: error ? { name: error.name || 'Error', message: error.message || String(error) } : null,
+    repo_adjudication: { status: 'pending', authority: 'live_repo_required' },
+  };
+}
+
+async function executePromptOnlyStage({
+  role,
+  prompt,
+  suppliedSources = [],
+  createClient,
+  persistRaw,
+  attemptNumber,
+}) {
+  const startedAt = new Date();
+  let client = null;
+  try {
+    client = createClient({ systemPrompt: config.CONSENSUS_SYSTEM_PROMPT });
+    await client.initialize();
+    if (typeof client.generateResponseWithMetadata !== 'function') {
+      throw new Error(`${role} client lacks metadata-returning response support`);
+    }
+    const response = await client.generateResponseWithMetadata(prompt, client.maxTokens);
+    if (!response.metadata || !response.metadata.appliedModel) {
+      const error = new Error(`${role} response omitted provider-applied model identity`);
+      error.providerMetadata = response.metadata || {};
+      throw error;
+    }
+    if (Array.isArray(response.metadata.toolsAvailable) && response.metadata.toolsAvailable.length > 0) {
+      const error = new Error(`${role} unexpectedly exposed tools in a prompt-only stage`);
+      error.providerMetadata = response.metadata;
+      throw error;
+    }
+    let rawOutput;
+    let rawError;
+    try {
+      rawOutput = persistRaw(role, attemptNumber, response.metadata.rawResponse || Buffer.alloc(0));
+      rawError = response.metadata.rawError && response.metadata.rawError.length > 0
+        ? persistRaw(`${role}-stderr`, attemptNumber, response.metadata.rawError)
+        : null;
+    } catch (persistError) {
+      persistError.providerMetadata = response.metadata;
+      persistError.rawPersistenceFailed = true;
+      persistError.persistedRawOutput = rawOutput || null;
+      throw persistError;
+    }
+    const receipt = stageAttemptReceipt({
+      role, attemptNumber, metadata: response.metadata, status: 'succeeded',
+      prompt, suppliedSources, rawOutput, rawError,
+    });
+    receipt.claimed_file_citations = extractClaimedFileCitations(response.answer);
+    return { answer: response.answer, receipt };
+  } catch (error) {
+    const roleIdentity = role === 'kimi_tie_breaker'
+      ? { provider: config.TIE_BREAKER_PROVIDER, requestedModel: config.TIE_BREAKER_MODEL }
+      : {
+        provider: config.CONSENSUS_PROVIDER,
+        requestedModel: role === 'opus_challenger' ? config.CONSENSUS_EMERGENCY_MODEL : config.CONSENSUS_MODEL,
+      };
+    const metadata = {
+      provider: client && client.providerName ? client.providerName : roleIdentity.provider,
+      requestedModel: client && client.model ? client.model : roleIdentity.requestedModel,
+      startedAt: startedAt.toISOString(),
+      finishedAt: new Date().toISOString(),
+      latencyMs: Date.now() - startedAt.getTime(),
+      termination: 'error',
+      parseStatus: 'request_failed',
+      ...(error.providerMetadata || {}),
+    };
+    let rawOutput = error.persistedRawOutput || null;
+    let rawError = null;
+    if (!error.rawPersistenceFailed) {
+      try {
+        rawOutput = persistRaw(role, attemptNumber, metadata.rawResponse || Buffer.alloc(0));
+        rawError = metadata.rawError && metadata.rawError.length > 0
+          ? persistRaw(`${role}-stderr`, attemptNumber, metadata.rawError)
+          : null;
+      } catch (persistError) {
+        persistError.providerMetadata = metadata;
+        persistError.rawPersistenceFailed = true;
+        persistError.providerFailure = error.message;
+        error = persistError;
+      }
+    }
+    error.stageAttempt = stageAttemptReceipt({
+      role, attemptNumber, metadata, status: 'failed', error,
+      prompt, suppliedSources, rawOutput, rawError,
+    });
+    throw error;
+  }
+}
+
 async function runFableAdversarialReview({
   query,
   mercuryResult,
   runLedgerCitation = null,
   reviewIntent = 'adversarial',
-  createClient = createConsensusLlmClient,
+  createFableClient = createFableChallengerClient,
+  createOpusClient = createOpusChallengerClient,
+  persistRaw = () => null,
   now = Date.now,
 } = {}) {
-  const client = createClient({ systemPrompt: config.CONSENSUS_SYSTEM_PROMPT });
   const prompt = buildAdversarialReviewPrompt({ query, mercuryResult, runLedgerCitation, reviewIntent });
+  const suppliedSources = [
+    { path: 'input://original-query', excerpt: query.trim() },
+    { path: 'mercury://primary-answer', excerpt: String(mercuryResult.answer || '').trim() || '<empty>' },
+    ...(runLedgerCitation ? [{ path: 'mercury://run-ledger-citation', excerpt: runLedgerCitation }] : []),
+  ];
   const started = now();
-
-  await client.initialize();
-  const answer = await client.generateResponse(prompt, config.CONSENSUS_CLIENT_MAX_TOKENS);
+  const attempts = [];
+  let stage;
+  try {
+    stage = await executePromptOnlyStage({
+      role: 'fable_challenger', prompt, suppliedSources,
+      createClient: createFableClient, persistRaw, attemptNumber: 1,
+    });
+    attempts.push(stage.receipt);
+  } catch (fableError) {
+    attempts.push(fableError.stageAttempt);
+    const classification = classifyFableFallbackError(fableError);
+    attempts[0].fallback_classification = classification;
+    if (!classification.opusEligible) {
+      fableError.challengerAttempts = attempts;
+      throw fableError;
+    }
+    try {
+      stage = await executePromptOnlyStage({
+        role: 'opus_challenger', prompt, suppliedSources,
+        createClient: createOpusClient, persistRaw, attemptNumber: 2,
+      });
+      attempts.push(stage.receipt);
+    } catch (opusError) {
+      attempts.push(opusError.stageAttempt);
+      opusError.challengerAttempts = attempts;
+      throw opusError;
+    }
+  }
+  const answer = stage.answer;
 
   return {
     mode: 'adversarial_review',
     reviewIntent: normalizeReviewIntent(reviewIntent),
     enabled: true,
     ok: true,
-    provider: config.CONSENSUS_PROVIDER,
-    model: config.CONSENSUS_MODEL,
+    provider: stage.receipt.requested_provider,
+    model: stage.receipt.requested_model,
+    appliedModel: stage.receipt.applied_model,
     latencyMs: now() - started,
     answer,
     parsed: parseAdversarialReviewAnswer(answer),
+    attempts,
+    stageReceipt: stage.receipt,
+    repoAdjudication: { status: 'pending', authority: 'live_repo_required' },
   };
 }
 
@@ -622,35 +838,61 @@ async function runKimiFinalAdjudication({
   query,
   mercuryResult,
   review,
-  createClient = createConsensusLlmClient,
+  createClient = createKimiTieBreakerClient,
+  persistRaw = () => null,
   now = Date.now,
 } = {}) {
-  const client = createClient({ systemPrompt: config.CONSENSUS_SYSTEM_PROMPT });
   const prompt = buildKimiFinalAdjudicationPrompt({ query, mercuryResult, review });
+  const rechecks = Array.isArray(review.rechecks) ? review.rechecks : [];
+  const suppliedSources = [
+    { path: 'input://original-query', excerpt: query.trim() },
+    { path: 'mercury://primary-answer', excerpt: String(mercuryResult.answer || '').trim() || '<empty>' },
+    { path: 'challenger://answer', excerpt: String(review.answer || '').trim() || '<empty>' },
+    ...rechecks.map((recheck, index) => ({
+      path: `mercury://recheck-${index + 1}-answer`,
+      excerpt: String(recheck.answer || '').trim() || '<empty>',
+    })),
+  ];
   const started = now();
-
-  await client.initialize();
-  const answer = await client.generateResponse(prompt, config.CONSENSUS_CLIENT_MAX_TOKENS);
+  const stage = await executePromptOnlyStage({
+    role: 'kimi_tie_breaker', prompt, suppliedSources, createClient, persistRaw, attemptNumber: 1,
+  });
+  const answer = stage.answer;
 
   return {
     mode: 'kimi_final_adjudication',
     enabled: true,
     ok: true,
-    provider: config.CONSENSUS_PROVIDER,
-    model: config.CONSENSUS_MODEL,
+    provider: stage.receipt.requested_provider,
+    model: stage.receipt.requested_model,
+    appliedModel: stage.receipt.applied_model,
     latencyMs: now() - started,
     answer,
     parsed: parseAdversarialReviewAnswer(answer),
+    stageReceipt: stage.receipt,
+    repoAdjudication: { status: 'pending', authority: 'live_repo_required' },
   };
 }
 
-function adversarialReviewFailure(err) {
+function adversarialReviewFailure(err, { role = 'challenger' } = {}) {
+  const stageAttempt = err && err.stageAttempt ? err.stageAttempt : null;
+  const kimiFailure = role === 'kimi_tie_breaker';
   return {
-    mode: 'adversarial_review',
+    mode: kimiFailure ? 'kimi_final_adjudication' : 'adversarial_review',
     enabled: true,
     ok: false,
-    provider: config.CONSENSUS_PROVIDER,
-    model: config.CONSENSUS_MODEL,
+    provider: stageAttempt && stageAttempt.requested_provider
+      ? stageAttempt.requested_provider
+      : (kimiFailure ? config.TIE_BREAKER_PROVIDER : 'claude-code'),
+    model: stageAttempt && stageAttempt.requested_model
+      ? stageAttempt.requested_model
+      : (kimiFailure ? config.TIE_BREAKER_MODEL : config.CONSENSUS_MODEL),
+    attempts: err && Array.isArray(err.challengerAttempts)
+      ? err.challengerAttempts
+      : (stageAttempt ? [stageAttempt] : []),
+    stageReceipt: stageAttempt,
+    kimiSkipped: !kimiFailure,
+    repoAdjudication: { status: 'pending', authority: 'live_repo_required' },
     error: {
       name: err && err.name ? err.name : 'Error',
       message: err && err.message ? err.message : String(err),
@@ -662,6 +904,7 @@ module.exports = {
   adversarialReviewRequested,
   reviewModeRequested,
   normalizeReviewIntent,
+  kimiTieBreakerRequired,
   extractField,
   parseAdversarialReviewAnswer,
   buildMercuryRecheckPrompt,
@@ -669,6 +912,9 @@ module.exports = {
   formatAdversarialReviewPacket,
   buildAdversarialReviewPrompt,
   buildKimiFinalAdjudicationPrompt,
+  OPUS_ELIGIBLE_CLAUDE_CODES,
+  classifyFableFallbackError,
+  executePromptOnlyStage,
   runFableAdversarialReview,
   runKimiFinalAdjudication,
   adversarialReviewFailure,

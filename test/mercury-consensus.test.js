@@ -15,6 +15,12 @@ const {
   consensusFailure,
   normalizeReviewIntent,
 } = require('../trai_brain/mercury-bridge/consensus');
+const {
+  OPUS_ELIGIBLE_CLAUDE_CODES,
+  kimiTieBreakerRequired,
+  classifyFableFallbackError,
+  executePromptOnlyStage,
+} = require('../trai_brain/mercury-bridge/adversarial-review');
 const { parseArgs, buildMercuryIntentPrompt } = require('../trai_brain/mercury-bridge/ask');
 
 describe('Mercury Fable consensus', () => {
@@ -484,12 +490,20 @@ describe('Mercury Fable consensus', () => {
   test('runFableConsensus uses an injected client and does not require a real provider call', async () => {
     const calls = [];
     const fakeClient = {
+      maxTokens: 2000,
       initialize: jest.fn(async () => {
         calls.push('initialize');
       }),
-      generateResponse: jest.fn(async (prompt, maxTokens) => {
-        calls.push(['generateResponse', maxTokens, prompt.includes('Mercury answer:')]);
-        return 'VERDICT: pass\nCONSENSUS_BLOCKING: no\nRATIONALE: evidence is cited.\nDISAGREEMENT: none\nREQUIRED_RECHECK: none\nRECHECK_PROMPT: none\nNEXT_CHECK: none';
+      generateResponseWithMetadata: jest.fn(async (prompt, maxTokens) => {
+        calls.push(['generateResponseWithMetadata', maxTokens, prompt.includes('Mercury answer:')]);
+        return {
+          answer: 'VERDICT: pass\nCONSENSUS_BLOCKING: no\nRATIONALE: evidence is cited.\nDISAGREEMENT: none\nREQUIRED_RECHECK: none\nRECHECK_PROMPT: none\nNEXT_CHECK: none',
+          metadata: {
+            provider: 'claude-code', requestedModel: 'fable', appliedModel: 'claude-fable-5',
+            startedAt: '2026-08-27T00:00:00.000Z', finishedAt: '2026-08-27T00:00:00.100Z',
+            latencyMs: 100, termination: 'success', parseStatus: 'parsed', rawResponse: Buffer.from('raw-fable'),
+          },
+        };
       }),
     };
 
@@ -500,7 +514,8 @@ describe('Mercury Fable consensus', () => {
         iterations: 1,
         answer: 'No concrete break found. core/Foo.js:1-2',
       },
-      createClient: jest.fn(() => fakeClient),
+      createFableClient: jest.fn(() => fakeClient),
+      persistRaw: jest.fn(() => ({ path: 'raw', sha256: 'abc', bytes: 9, mode: '0600' })),
       now: jest.fn()
         .mockReturnValueOnce(1000)
         .mockReturnValueOnce(1250),
@@ -508,13 +523,14 @@ describe('Mercury Fable consensus', () => {
 
     expect(calls).toEqual([
       'initialize',
-      ['generateResponse', 2000, true],
+      ['generateResponseWithMetadata', 2000, true],
     ]);
     expect(result).toMatchObject({
       enabled: true,
       ok: true,
-      provider: 'openai',
-      model: 'kimi-k3',
+      provider: 'claude-code',
+      model: 'fable',
+      appliedModel: 'claude-fable-5',
       latencyMs: 250,
       parsed: {
         verdict: 'pass',
@@ -522,21 +538,38 @@ describe('Mercury Fable consensus', () => {
       },
     });
     expect(result.answer).toContain('VERDICT: pass');
+    expect(result.attempts).toHaveLength(1);
+    expect(result.attempts[0]).toMatchObject({
+      role: 'fable_challenger',
+      requested_model: 'fable',
+      applied_model: 'claude-fable-5',
+      tools: { enabled: false, total: 0, calls: [] },
+      files_mechanically_opened: [],
+      repo_adjudication: { status: 'pending' },
+    });
   });
 
   test('runKimiFinalConsensus uses an injected client and parses models_disagree', async () => {
     const fakeClient = {
+      maxTokens: 2000,
       initialize: jest.fn(async () => {}),
-      generateResponse: jest.fn(async () => [
-        'FINAL_VERDICT: models_disagree',
-        'FINAL_BLOCKING: yes',
-        'SHARED_CONCLUSION: none',
-        'MERCURY_SUPPORTED: no break claim',
-        'FABLE_SUPPORTED: missing proof challenge',
-        'KIMI_SUPPORTED: disagreement remains',
-        'CITED_REASONING: supplied evidence does not converge',
-        'NEXT_CHECK: operator adjudication',
-      ].join('\n')),
+      generateResponseWithMetadata: jest.fn(async () => ({
+        answer: [
+          'FINAL_VERDICT: models_disagree',
+          'FINAL_BLOCKING: yes',
+          'SHARED_CONCLUSION: none',
+          'MERCURY_SUPPORTED: no break claim',
+          'FABLE_SUPPORTED: missing proof challenge',
+          'KIMI_SUPPORTED: disagreement remains',
+          'CITED_REASONING: supplied evidence does not converge',
+          'NEXT_CHECK: operator adjudication',
+        ].join('\n'),
+        metadata: {
+          provider: 'openai', requestedModel: 'kimi-k3', appliedModel: 'kimi-k3-202608',
+          startedAt: '2026-08-27T00:00:00.000Z', finishedAt: '2026-08-27T00:00:00.100Z',
+          latencyMs: 100, termination: 'stop', parseStatus: 'parsed', rawResponse: Buffer.from('raw-kimi'),
+        },
+      })),
     };
 
     const result = await runKimiFinalConsensus({
@@ -551,15 +584,19 @@ describe('Mercury Fable consensus', () => {
         parsed: { verdict: 'needs_more_evidence', blocking: true },
       },
       createClient: jest.fn(() => fakeClient),
+      persistRaw: jest.fn(() => ({ path: 'raw', sha256: 'abc', bytes: 8, mode: '0600' })),
       now: jest.fn()
         .mockReturnValueOnce(2000)
         .mockReturnValueOnce(2400),
     });
 
-    expect(fakeClient.generateResponse).toHaveBeenCalledWith(expect.stringContaining('Kimi'), 2000);
+    expect(fakeClient.generateResponseWithMetadata).toHaveBeenCalledWith(expect.stringContaining('Kimi'), 2000);
     expect(result).toMatchObject({
       mode: 'kimi_final_adjudication',
       ok: true,
+      provider: 'openai',
+      model: 'kimi-k3',
+      appliedModel: 'kimi-k3-202608',
       latencyMs: 400,
       parsed: {
         verdict: 'models_disagree',
@@ -571,17 +608,214 @@ describe('Mercury Fable consensus', () => {
     });
   });
 
+  test('Fable falls back to Opus only on allowlisted machine-observable unavailability', async () => {
+    const fableError = new Error('Claude Code exited');
+    fableError.providerMetadata = {
+      provider: 'claude-code', requestedModel: 'fable', appliedModel: null,
+      startedAt: '2026-08-27T00:00:00.000Z', finishedAt: '2026-08-27T00:00:00.010Z',
+      latencyMs: 10, termination: 'provider_error', parseStatus: 'parsed', rawResponse: Buffer.from('fable-raw'),
+      providerFrames: [{ type: 'result', error: { type: 'rate_limit_error' } }],
+    };
+    const failedFable = {
+      maxTokens: 2000,
+      initialize: jest.fn(async () => {}),
+      generateResponseWithMetadata: jest.fn(async () => { throw fableError; }),
+    };
+    const opus = {
+      maxTokens: 2000,
+      initialize: jest.fn(async () => {}),
+      generateResponseWithMetadata: jest.fn(async () => ({
+        answer: 'VERDICT: pass\nCONSENSUS_BLOCKING: no\nDISAGREEMENT: none',
+        metadata: {
+          provider: 'claude-code', requestedModel: 'opus', appliedModel: 'claude-opus-4-1',
+          startedAt: '2026-08-27T00:00:00.020Z', finishedAt: '2026-08-27T00:00:00.030Z',
+          latencyMs: 10, termination: 'success', parseStatus: 'parsed', rawResponse: Buffer.from('opus-raw'),
+        },
+      })),
+    };
+    const result = await runFableConsensus({
+      query: 'Mercury, break my fix.',
+      mercuryResult: { termination: 'answer_given', iterations: 1, answer: 'core/Foo.js:1' },
+      createFableClient: () => failedFable,
+      createOpusClient: () => opus,
+      persistRaw: () => ({ path: 'raw', sha256: 'abc', bytes: 8, mode: '0600' }),
+    });
+    expect(result.model).toBe('opus');
+    expect(result.appliedModel).toBe('claude-opus-4-1');
+    expect(result.attempts.map(attempt => attempt.role)).toEqual(['fable_challenger', 'opus_challenger']);
+    expect(result.attempts[0].fallback_classification).toMatchObject({ opusEligible: true, category: 'rate_limit_error' });
+  });
+
+  test('Opus eligibility is limited to the enumerated provider codes and exact HTTP signals', () => {
+    expect(Array.from(OPUS_ELIGIBLE_CLAUDE_CODES)).toEqual([
+      'rate_limit_error',
+      'rate_limit_exceeded',
+      'usage_limit_reached',
+      'model_unavailable',
+      'model_not_found',
+      'overloaded_error',
+    ]);
+    for (const code of OPUS_ELIGIBLE_CLAUDE_CODES) {
+      const error = new Error('Claude Code exited');
+      error.providerMetadata = { providerFrames: [{ error: { type: code } }] };
+      expect(classifyFableFallbackError(error)).toMatchObject({ opusEligible: true, category: code });
+    }
+    for (const statusCode of [429, 503]) {
+      const error = new Error('Claude Code exited');
+      error.providerMetadata = { statusCode, providerFrames: [] };
+      expect(classifyFableFallbackError(error).opusEligible).toBe(true);
+    }
+    const ambiguous = new Error('rate limit maybe');
+    ambiguous.providerMetadata = { rawError: Buffer.from('rate limit maybe'), providerFrames: [] };
+    expect(classifyFableFallbackError(ambiguous)).toMatchObject({
+      opusEligible: false,
+      evidence: 'no_allowlisted_machine_signal',
+    });
+  });
+
+  test('both Fable and Opus unavailable fail loud with ordered attempts before Kimi', async () => {
+    const fableError = new Error('Fable unavailable');
+    fableError.providerMetadata = {
+      provider: 'claude-code', requestedModel: 'fable', rawResponse: Buffer.from('fable failure'),
+      providerFrames: [{ type: 'result', error: { type: 'model_unavailable' } }],
+    };
+    const opusError = new Error('Opus unavailable');
+    opusError.providerMetadata = {
+      provider: 'claude-code', requestedModel: 'opus', rawResponse: Buffer.from('opus failure'),
+      providerFrames: [{ type: 'result', error: { type: 'model_unavailable' } }],
+    };
+    let caught;
+    try {
+      await runFableConsensus({
+        query: 'Mercury, break my fix.',
+        mercuryResult: { termination: 'answer_given', iterations: 1, answer: 'core/Foo.js:1' },
+        createFableClient: () => ({
+          providerName: 'claude-code', model: 'fable', maxTokens: 2000,
+          initialize: async () => {},
+          generateResponseWithMetadata: async () => { throw fableError; },
+        }),
+        createOpusClient: () => ({
+          providerName: 'claude-code', model: 'opus', maxTokens: 2000,
+          initialize: async () => {},
+          generateResponseWithMetadata: async () => { throw opusError; },
+        }),
+        persistRaw: () => ({ path: 'raw', sha256: 'abc', bytes: 12, mode: '0600' }),
+      });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBe(opusError);
+    expect(caught.challengerAttempts.map(attempt => attempt.role))
+      .toEqual(['fable_challenger', 'opus_challenger']);
+    expect(caught.challengerAttempts.every(attempt => attempt.status === 'failed')).toBe(true);
+    expect(kimiTieBreakerRequired({ ok: false, parsed: { blocking: true } }, 'adversarial')).toBe(false);
+  });
+
+  test('prompt-only stage fails loud on missing applied identity or exposed tools', async () => {
+    for (const metadata of [
+      { provider: 'claude-code', requestedModel: 'fable', appliedModel: null, toolsAvailable: [] },
+      { provider: 'claude-code', requestedModel: 'fable', appliedModel: 'claude-fable-5', toolsAvailable: ['Read'] },
+    ]) {
+      let caught;
+      try {
+        await executePromptOnlyStage({
+          role: 'fable_challenger',
+          prompt: 'review this',
+          suppliedSources: [{ path: 'input://original-query', excerpt: 'review this' }],
+          createClient: () => ({
+            providerName: 'claude-code', model: 'fable', maxTokens: 2000,
+            initialize: async () => {},
+            generateResponseWithMetadata: async () => ({
+              answer: 'VERDICT: pass',
+              metadata: { ...metadata, rawResponse: Buffer.from('raw') },
+            }),
+          }),
+          persistRaw: () => ({ path: 'raw', sha256: 'abc', bytes: 3, mode: '0600' }),
+          attemptNumber: 1,
+        });
+      } catch (error) {
+        caught = error;
+      }
+      expect(caught).toBeInstanceOf(Error);
+      expect(caught.stageAttempt).toMatchObject({
+        status: 'failed',
+        requested_provider: 'claude-code',
+        requested_model: 'fable',
+        files_mechanically_opened: [],
+        tools: { enabled: false, calls: [], total: 0 },
+        input_provenance: {
+          supplied_sources: [{ path: 'input://original-query', bytes: 11 }],
+        },
+      });
+    }
+  });
+
+  test('ambiguous, auth, and malformed Fable failures fail loud without Opus', async () => {
+    for (const error of [
+      new Error('authentication failed'),
+      new Error('malformed response'),
+      new Error('general network failure'),
+    ]) {
+      error.providerMetadata = { rawResponse: Buffer.alloc(0), providerFrames: [] };
+      expect(classifyFableFallbackError(error)).toMatchObject({ opusEligible: false, category: 'non_fallback_error' });
+    }
+    const authError = new Error('authentication failed');
+    authError.providerMetadata = { rawResponse: Buffer.alloc(0), providerFrames: [] };
+    const opusFactory = jest.fn();
+    await expect(runFableConsensus({
+      query: 'Mercury, break my fix.',
+      mercuryResult: { termination: 'answer_given', iterations: 1, answer: 'core/Foo.js:1' },
+      createFableClient: () => ({
+        maxTokens: 2000,
+        initialize: async () => {},
+        generateResponseWithMetadata: async () => { throw authError; },
+      }),
+      createOpusClient: opusFactory,
+      persistRaw: () => ({ path: 'raw', sha256: 'abc', bytes: 0, mode: '0600' }),
+    })).rejects.toThrow('authentication failed');
+    expect(opusFactory).not.toHaveBeenCalled();
+  });
+
+  test('raw receipt persistence failure fails loud without Opus', async () => {
+    const opusFactory = jest.fn();
+    await expect(runFableConsensus({
+      query: 'Mercury, break my fix.',
+      mercuryResult: { termination: 'answer_given', iterations: 1, answer: 'core/Foo.js:1' },
+      createFableClient: () => ({
+        providerName: 'claude-code', model: 'fable', maxTokens: 2000,
+        initialize: async () => {},
+        generateResponseWithMetadata: async () => ({
+          answer: 'VERDICT: pass\nCONSENSUS_BLOCKING: no',
+          metadata: {
+            provider: 'claude-code', requestedModel: 'fable', appliedModel: 'claude-fable-5',
+            rawResponse: Buffer.from('provider bytes'), toolsAvailable: [],
+          },
+        }),
+      }),
+      createOpusClient: opusFactory,
+      persistRaw: () => { throw new Error('raw receipt collision'); },
+    })).rejects.toThrow('raw receipt collision');
+    expect(opusFactory).not.toHaveBeenCalled();
+  });
+
   test('consensusFailure preserves visible error metadata', () => {
     expect(consensusFailure(new Error('quota exceeded'))).toMatchObject({
       enabled: true,
       mode: 'adversarial_review',
       ok: false,
-      provider: 'openai',
-      model: 'kimi-k3',
+      provider: 'claude-code',
+      model: 'fable',
       error: {
         name: 'Error',
         message: 'quota exceeded',
       },
     });
+  });
+
+  test('Kimi is skipped on challenger consensus and challenger-provider failure', () => {
+    expect(kimiTieBreakerRequired({ ok: true, parsed: { blocking: false } }, 'adversarial')).toBe(false);
+    expect(kimiTieBreakerRequired({ ok: false, parsed: { blocking: true } }, 'adversarial')).toBe(false);
+    expect(kimiTieBreakerRequired({ ok: true, parsed: { blocking: true } }, 'planning')).toBe(false);
+    expect(kimiTieBreakerRequired({ ok: true, parsed: { blocking: true } }, 'adversarial')).toBe(true);
   });
 });

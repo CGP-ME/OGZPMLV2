@@ -474,24 +474,35 @@ function formatToolTelemetry(telemetry = {}) {
  * Wrap generateWithTools with exponential backoff retry.
  * Retries on HTTP 429/502/503/504, empty responses, network errors.
  */
-async function callMercuryWithRetry(client, messages, tools, options, verbose) {
+async function callMercuryWithRetry(client, messages, tools, options, verbose, providerAudit = null) {
   const maxRetries = 3;
   const baseDelayMs = 500;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    let providerMetadata = null;
     try {
-      const assistantMsg = await client.generateWithTools(messages, tools, options);
+      let assistantMsg;
+      if (typeof client.generateWithToolsWithMetadata === 'function') {
+        const response = await client.generateWithToolsWithMetadata(messages, tools, options);
+        assistantMsg = response.message;
+        providerMetadata = response.metadata;
+      } else {
+        assistantMsg = await client.generateWithTools(messages, tools, options);
+      }
 
       const hasToolCalls = Array.isArray(assistantMsg.tool_calls) && assistantMsg.tool_calls.length > 0;
       const hasContent = assistantMsg.content && assistantMsg.content.trim() !== '';
 
       if (!hasToolCalls && !hasContent) {
-        if (attempt < maxRetries) {
-          const delay = baseDelayMs * Math.pow(2, attempt) + Math.floor(Math.random() * 200);
-          if (verbose) console.error(`[REACT] Empty response (no tool_calls, no content), retry ${attempt + 1}/${maxRetries} in ${delay}ms`);
-          await new Promise(r => setTimeout(r, delay));
-          continue;
-        }
+        const error = new Error('Empty response (no tool_calls, no content)');
+        error.providerMetadata = providerMetadata;
+        throw error;
+      }
+      if (providerMetadata && providerAudit && typeof providerAudit.record === 'function') {
+        providerAudit.attempts.push(providerAudit.record(providerMetadata, {
+          retry: attempt,
+          status: 'succeeded',
+        }));
       }
 
       if (attempt > 0 && verbose) {
@@ -499,8 +510,16 @@ async function callMercuryWithRetry(client, messages, tools, options, verbose) {
       }
       return assistantMsg;
     } catch (err) {
+      if (err.providerMetadata && providerAudit && typeof providerAudit.record === 'function') {
+        providerAudit.attempts.push(providerAudit.record(err.providerMetadata, {
+          retry: attempt,
+          status: 'failed',
+          error: err.message,
+        }));
+      }
       const msg = err.message || String(err);
-      const isRetriable = /HTTP (429|502|503|504)/.test(msg) || /ECONNRESET|ETIMEDOUT|socket hang up/i.test(msg);
+      const isRetriable = /HTTP (429|502|503|504)/.test(msg)
+        || /ECONNRESET|ETIMEDOUT|socket hang up|Empty response \(no tool_calls, no content\)/i.test(msg);
       if (isRetriable && attempt < maxRetries) {
         const delay = baseDelayMs * Math.pow(2, attempt) + Math.floor(Math.random() * 200);
         if (verbose) console.error(`[REACT] ${msg.slice(0, 120)}, retry ${attempt + 1}/${maxRetries} in ${delay}ms`);
@@ -542,6 +561,7 @@ async function runReactLoop(params) {
     maxTokens = config.AGENTIC_MAX_TOKENS,
     temperature = config.MERCURY_LLM_TEMPERATURE,
     verbose = false,
+    providerAudit = null,
   } = params;
 
   if (!client || typeof client.generateWithTools !== 'function') {
@@ -555,6 +575,10 @@ async function runReactLoop(params) {
   }
 
   const tools = toolAdapter.buildToolSchema();
+  const toolsAvailable = tools
+    .map(tool => tool && tool.function && tool.function.name)
+    .filter(Boolean)
+    .sort();
 
   const messages = [
     { role: 'system', content: systemPrompt },
@@ -606,7 +630,8 @@ async function runReactLoop(params) {
         messages,
         tools,
         { maxTokens, toolChoice: 'auto', temperature },
-        verbose
+        verbose,
+        providerAudit
       );
     } catch (err) {
       if (verbose) console.error(`[REACT] Mercury call failed permanently: ${err.message}`);
@@ -615,6 +640,8 @@ async function runReactLoop(params) {
         iterations: iteration - 1,
         termination: 'error',
         history,
+        providerAttempts: providerAudit ? providerAudit.attempts : [],
+        toolsAvailable,
       }, history);
     }
 
@@ -686,6 +713,8 @@ async function runReactLoop(params) {
       iterations: iteration,
       termination: 'answer_given',
       history,
+      providerAttempts: providerAudit ? providerAudit.attempts : [],
+      toolsAvailable,
     }, history);
   }
 
@@ -694,6 +723,8 @@ async function runReactLoop(params) {
     iterations: maxIterations,
     termination: 'max_iterations',
     history,
+    providerAttempts: providerAudit ? providerAudit.attempts : [],
+    toolsAvailable,
   }, history);
 }
 

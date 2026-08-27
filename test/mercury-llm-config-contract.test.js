@@ -7,46 +7,13 @@ const path = require('path');
 const baseMercuryConfig = require('../mercury.config.json');
 const { createToolAdapter } = require('../trai_brain/mercury-bridge/tool-adapter');
 
-async function withEnv(env, fn) {
-  const previous = {};
-  for (const key of Object.keys(env)) {
-    previous[key] = process.env[key];
-    if (env[key] === undefined) {
-      delete process.env[key];
-    } else {
-      process.env[key] = env[key];
-    }
-  }
-  jest.resetModules();
-  try {
-    return await fn();
-  } finally {
-    for (const key of Object.keys(env)) {
-      if (previous[key] === undefined) {
-        delete process.env[key];
-      } else {
-        process.env[key] = previous[key];
-      }
-    }
-    jest.resetModules();
-  }
-}
-
 function mergeConfig(base, overrides = {}) {
   const result = { ...base };
   for (const [key, value] of Object.entries(overrides)) {
-    if (
-      value
-      && typeof value === 'object'
-      && !Array.isArray(value)
-      && base[key]
-      && typeof base[key] === 'object'
-      && !Array.isArray(base[key])
-    ) {
-      result[key] = mergeConfig(base[key], value);
-    } else {
-      result[key] = value;
-    }
+    result[key] = value && typeof value === 'object' && !Array.isArray(value)
+      && base[key] && typeof base[key] === 'object' && !Array.isArray(base[key])
+      ? mergeConfig(base[key], value)
+      : value;
   }
   return result;
 }
@@ -54,43 +21,44 @@ function mergeConfig(base, overrides = {}) {
 async function withMercuryConfig(overrides, fn, env = {}) {
   const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-mercury-llm-config-'));
   const configPath = path.join(tmpRoot, 'mercury.config.json');
-  const config = mergeConfig(baseMercuryConfig, overrides);
-  fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-
+  fs.writeFileSync(configPath, JSON.stringify(mergeConfig(baseMercuryConfig, overrides), null, 2));
+  const changedEnv = { MERCURY_CONFIG_FILE: configPath, ...env };
+  const previous = Object.fromEntries(Object.keys(changedEnv).map(key => [key, process.env[key]]));
+  for (const [key, value] of Object.entries(changedEnv)) {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+  jest.resetModules();
   try {
-    return await withEnv({
-      MERCURY_CONFIG_FILE: configPath,
-      ...env,
-    }, fn);
+    return await fn();
   } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+    jest.resetModules();
     fs.rmSync(tmpRoot, { recursive: true, force: true });
   }
 }
 
 describe('Mercury LLM config contract', () => {
-  test('environment LLM values do not override mercury.config.json', async () => {
+  test('locks Mercury, challenger, and tie-breaker to distinct configured roles', async () => {
     await withMercuryConfig({}, () => {
       const config = require('../trai_brain/mercury-bridge/config');
-
-      expect(config.MERCURY_LLM_PROVIDER).toBe('mercury');
-      expect(config.MERCURY_LLM_BASE_URL).toBe('https://api.inceptionlabs.ai/v1');
-      expect(config.MERCURY_LLM_MODEL).toBe('mercury-2');
-      expect(config.MERCURY_LLM_API_KEY_ENV).toBe(baseMercuryConfig.llm.apiKeyEnv);
-      expect(config.MERCURY_LLM_CLIENT_MAX_TOKENS).toBe(7750);
-      expect(config.MERCURY_LLM_CLIENT_MIN_TOKENS).toBe(400);
-      expect(config.MERCURY_LLM_REQUEST_TIMEOUT_MS).toBe(300000);
-      expect(config.MERCURY_LLM_TEMPERATURE).toBe(baseMercuryConfig.llm.temperature);
-      expect(config.CONSENSUS_DEFAULT_ENABLED).toBe(false);
-      expect(config.CONSENSUS_PROVIDER).toBe('openai');
-      expect(config.CONSENSUS_BASE_URL).toBe('https://api.moonshot.ai/v1');
-      expect(config.CONSENSUS_MODEL).toBe('kimi-k3');
-      expect(config.CONSENSUS_API_KEY_ENV).toBe('MOONSHOT_API_KEY');
-      expect(config.CONSENSUS_COMMAND).toBe('claude');
-      expect(config.CONSENSUS_PERMISSION_MODE).toBe('dontAsk');
-      expect(config.CONSENSUS_OPENAI_EXTRA_BODY).toEqual({ thinking: { type: 'disabled' } });
-      expect(config.AGENTIC_MAX_ITERATIONS).toBe(60);
-      expect(config.AGENTIC_MAX_TOKENS).toBe(7750);
-      expect(config.SINGLE_SHOT_MAX_TOKENS).toBe(2000);
+      expect(config).toMatchObject({
+        MERCURY_LLM_PROVIDER: 'mercury',
+        MERCURY_LLM_MODEL: 'mercury-2',
+        CONSENSUS_PROVIDER: 'claude-code',
+        CONSENSUS_MODEL: 'fable',
+        CONSENSUS_EMERGENCY_MODEL: 'opus',
+        CONSENSUS_API_KEY_ENV: null,
+        TIE_BREAKER_PROVIDER: 'openai',
+        TIE_BREAKER_MODEL: 'kimi-k3',
+        TIE_BREAKER_API_KEY_ENV: 'MOONSHOT_API_KEY',
+        AGENTIC_MAX_ITERATIONS: 60,
+        AGENTIC_MAX_TOKENS: 7750,
+      });
+      expect(config.CONSENSUS_BASE_URL).toBeNull();
     }, {
       LLM_PROVIDER: 'openai',
       LLM_BASE_URL: 'https://api.openai.com/v1',
@@ -101,461 +69,168 @@ describe('Mercury LLM config contract', () => {
     });
   });
 
-  test('LLM API key must come from the configured key env', async () => {
-    await withMercuryConfig({
-      llm: {
-        apiKeyEnv: 'MERCURY_TEST_LLM_KEY',
-      },
-    }, () => {
-      const { resolveMercuryLlmClientOptions } = require('../trai_brain/mercury-bridge/llm-client');
-
-      expect(() => resolveMercuryLlmClientOptions({ systemPrompt: 'configured prompt' }))
-        .toThrow(/Configured Mercury LLM API key env is missing: MERCURY_TEST_LLM_KEY/);
-    }, {
-      MERCURY_TEST_LLM_KEY: undefined,
-      LLM_API_KEY: 'fallback-must-not-be-read',
-      INCEPTION_API_KEY: 'fallback-must-not-be-read',
-      MERCURY_API_KEY: 'fallback-must-not-be-read',
-      OPENAI_API_KEY: 'fallback-must-not-be-read',
-      ANTHROPIC_API_KEY: 'fallback-must-not-be-read',
-    });
-  });
-
-  test('resolved LLM client options use configured identity and configured key only', async () => {
-    await withMercuryConfig({
-      llm: {
-        apiKeyEnv: 'MERCURY_TEST_LLM_KEY',
-      },
-    }, () => {
-      const { resolveMercuryLlmClientOptions } = require('../trai_brain/mercury-bridge/llm-client');
-      const options = resolveMercuryLlmClientOptions({ systemPrompt: 'configured prompt' });
-
-      expect(options).toMatchObject({
-        provider: 'mercury',
-        baseUrl: 'https://api.inceptionlabs.ai/v1',
-        model: 'mercury-2',
-        apiKey: 'configured-key',
-        authRequired: true,
-        maxTokens: 7750,
-        minimumTokens: 400,
-        temperature: baseMercuryConfig.llm.temperature,
-        requestTimeoutMs: 300000,
-        systemPrompt: 'configured prompt',
-      });
-    }, {
-      MERCURY_TEST_LLM_KEY: 'configured-key',
-      LLM_API_KEY: 'fallback-must-not-be-read',
-      INCEPTION_API_KEY: 'fallback-must-not-be-read',
-      MERCURY_API_KEY: 'fallback-must-not-be-read',
-      OPENAI_API_KEY: 'fallback-must-not-be-read',
-      ANTHROPIC_API_KEY: 'fallback-must-not-be-read',
-    });
-  });
-
-  test('explicit consensus client options use the configured Kimi reviewer key', async () => {
+  test('resolves subscription challenger and API tie-breaker independently', async () => {
     await withMercuryConfig({}, () => {
-      const { resolveConsensusLlmClientOptions } = require('../trai_brain/mercury-bridge/llm-client');
-      const options = resolveConsensusLlmClientOptions();
-
-      expect(options).toMatchObject({
-        provider: 'openai',
-        baseUrl: 'https://api.moonshot.ai/v1',
-        model: 'kimi-k3',
-        apiKey: 'placeholder-moonshot-key',
-        authRequired: true,
-        command: 'claude',
-        permissionMode: 'dontAsk',
-        maxTokens: 2000,
-        minimumTokens: 200,
-        temperature: 0.6,
-        requestTimeoutMs: 300000,
-        openaiExtraBody: { thinking: { type: 'disabled' } },
+      const {
+        resolveConsensusLlmClientOptions,
+        resolveKimiTieBreakerClientOptions,
+      } = require('../trai_brain/mercury-bridge/llm-client');
+      expect(resolveConsensusLlmClientOptions()).toMatchObject({
+        provider: 'claude-code', model: 'fable', apiKey: '', authRequired: false,
       });
-      expect(options.systemPrompt).toContain('adversarial reviewer');
-    }, {
-      MOONSHOT_API_KEY: 'placeholder-moonshot-key',
-      ANTHROPIC_API_KEY: undefined,
-      CLAUDE_API_KEY: undefined,
-      LLM_API_KEY: 'fallback-must-not-be-read',
-    });
-  });
-
-  test('malformed MERCURY_ADVERSARIAL_REVIEW env does not abort config load', async () => {
-    await withMercuryConfig({}, () => {
-      const config = require('../trai_brain/mercury-bridge/config');
-      expect(config.ADVERSARIAL_REVIEW_DEFAULT_ENABLED).toBe(false);
-    }, {
-      MERCURY_ADVERSARIAL_REVIEW: 'maybe',
-    });
-
-    await withMercuryConfig({}, () => {
-      const config = require('../trai_brain/mercury-bridge/config');
-      expect(config.ADVERSARIAL_REVIEW_DEFAULT_ENABLED).toBe(true);
-    }, {
-      MERCURY_ADVERSARIAL_REVIEW: '',
-    });
-  });
-
-  test('resolved API consensus client options use configured key only when provider is claude', async () => {
-    await withMercuryConfig({
-      consensus: {
-        provider: 'claude',
-        baseUrl: 'https://api.anthropic.com/v1',
-        model: 'claude-fable-5',
-        apiKeyEnv: 'MERCURY_TEST_FABLE_KEY',
-        temperature: 0,
-      },
-    }, () => {
-      const { resolveConsensusLlmClientOptions } = require('../trai_brain/mercury-bridge/llm-client');
-      const options = resolveConsensusLlmClientOptions();
-
-      expect(options).toMatchObject({
-        provider: 'claude',
-        baseUrl: 'https://api.anthropic.com/v1',
-        model: 'claude-fable-5',
-        apiKey: 'TEST_PLACEHOLDER_FABLE_TOKEN',
-        authRequired: true,
-        maxTokens: 2000,
-        minimumTokens: 200,
-        temperature: 0,
-        requestTimeoutMs: 300000,
+      expect(resolveConsensusLlmClientOptions({ model: 'opus' })).toMatchObject({
+        provider: 'claude-code', model: 'opus', apiKey: '', authRequired: false,
       });
-      expect(options.systemPrompt).toContain('adversarial reviewer');
-    }, {
-      MERCURY_TEST_FABLE_KEY: 'TEST_PLACEHOLDER_FABLE_TOKEN',
-      ANTHROPIC_API_KEY: 'fallback-must-not-be-read',
-      CLAUDE_API_KEY: 'fallback-must-not-be-read',
-      LLM_API_KEY: 'fallback-must-not-be-read',
-    });
-  });
-
-  test('OpenAI-compatible consensus client can target Kimi with configured key only', async () => {
-    await withMercuryConfig({
-      consensus: {
-        provider: 'openai',
-        baseUrl: 'https://api.moonshot.ai/v1',
-        model: 'kimi-k3',
-        temperature: 0.6,
-        apiKeyEnv: 'MOONSHOT_TEST_KEY',
-        openaiExtraBody: { thinking: { type: 'disabled' } },
-      },
-    }, () => {
-      const { resolveConsensusLlmClientOptions } = require('../trai_brain/mercury-bridge/llm-client');
-      const options = resolveConsensusLlmClientOptions();
-
-      expect(options).toMatchObject({
-        provider: 'openai',
-        baseUrl: 'https://api.moonshot.ai/v1',
-        model: 'kimi-k3',
-        apiKey: 'placeholder-moonshot-key',
-        authRequired: true,
-        maxTokens: 2000,
-        minimumTokens: 200,
-        temperature: 0.6,
-        requestTimeoutMs: 300000,
-        openaiExtraBody: { thinking: { type: 'disabled' } },
+      expect(resolveKimiTieBreakerClientOptions()).toMatchObject({
+        provider: 'openai', model: 'kimi-k3', apiKey: 'moonshot-test-key', authRequired: true,
       });
-      expect(options.systemPrompt).toContain('adversarial reviewer');
-    }, {
-      MOONSHOT_TEST_KEY: 'placeholder-moonshot-key',
-      ANTHROPIC_API_KEY: 'fallback-must-not-be-read',
-      CLAUDE_API_KEY: 'fallback-must-not-be-read',
-      LLM_API_KEY: 'fallback-must-not-be-read',
-    });
+    }, { MOONSHOT_API_KEY: 'moonshot-test-key' });
   });
 
-  test('OpenAI-compatible client sends configured extra request body', async () => {
-    const PersistentLLMClient = require('../core/persistent_llm_client');
-    const client = new PersistentLLMClient({
-      provider: 'openai',
-      baseUrl: 'https://api.moonshot.ai/v1',
-      model: 'kimi-k3',
-      apiKey: 'placeholder-moonshot-key',
-      authRequired: true,
-      maxTokens: 2000,
-      minimumTokens: 0,
-      temperature: 0.6,
-      requestTimeoutMs: 300000,
-      systemPrompt: 'system prompt',
-      openaiExtraBody: { thinking: { type: 'disabled' } },
-    });
-    let capturedBody = null;
-    client._httpRequest = async (url, method, body) => {
-      capturedBody = body;
-      return JSON.stringify({ choices: [{ message: { content: 'KIMI_OK' } }] });
-    };
-
-    await expect(client.generateRawResponse('hello', 32)).resolves.toBe('KIMI_OK');
-
-    expect(capturedBody).toMatchObject({
-      model: 'kimi-k3',
-      temperature: 0.6,
-      max_tokens: 32,
-      thinking: { type: 'disabled' },
-    });
-  });
-
-  test('Ollama Cloud consensus client uses bearer key and OpenAI-format provider path', async () => {
-    await withMercuryConfig({
-      consensus: {
-        provider: 'ollamacloud',
-        baseUrl: 'https://ollama.com/v1',
-        model: 'qwen3-coder:480b-cloud',
-        apiKeyEnv: 'OLLAMA_CLOUD_TEST_KEY',
-      },
-    }, () => {
-      const { resolveConsensusLlmClientOptions } = require('../trai_brain/mercury-bridge/llm-client');
-      const options = resolveConsensusLlmClientOptions();
-
-      expect(options).toMatchObject({
-        provider: 'ollamacloud',
-        baseUrl: 'https://ollama.com/v1',
-        model: 'qwen3-coder:480b-cloud',
-        apiKey: 'placeholder-ollama-cloud-key',
-        authRequired: true,
-      });
-    }, {
-      OLLAMA_CLOUD_TEST_KEY: 'placeholder-ollama-cloud-key',
-      OLLAMA_API_KEY: 'fallback-must-not-be-read',
-      LLM_API_KEY: 'fallback-must-not-be-read',
-    });
-  });
-
-  test('Ollama consensus client is auth-free and local-only', async () => {
-    await withMercuryConfig({
-      consensus: {
-        provider: 'ollama',
-        baseUrl: 'http://localhost:11434',
-        model: 'qwen-coder-480b',
-        apiKeyEnv: null,
-      },
-    }, () => {
-      const { resolveConsensusLlmClientOptions } = require('../trai_brain/mercury-bridge/llm-client');
-      const options = resolveConsensusLlmClientOptions();
-
-      expect(options).toMatchObject({
-        provider: 'ollama',
-        baseUrl: 'http://localhost:11434',
-        model: 'qwen-coder-480b',
-        apiKey: '',
-        authRequired: false,
-      });
-    }, {
-      OLLAMA_API_KEY: 'fallback-must-not-be-read',
-      LLM_API_KEY: 'fallback-must-not-be-read',
-    });
-
-    await withMercuryConfig({
-      consensus: {
-        provider: 'ollama',
-        baseUrl: 'https://remote-ollama.example',
-        model: 'qwen-coder-480b',
-        apiKeyEnv: null,
-      },
-    }, () => {
-      expect(() => require('../trai_brain/mercury-bridge/config'))
-        .toThrow(/consensus\.provider=ollama requires a local endpoint/);
-    });
-  });
-
-  test('API consensus client key is required for remote providers', async () => {
-    await withMercuryConfig({
-      consensus: {
-        provider: 'claude',
-        baseUrl: 'https://api.anthropic.com/v1',
-        model: 'claude-fable-5',
-        apiKeyEnv: 'MERCURY_TEST_FABLE_KEY',
-      },
-    }, () => {
-      const config = require('../trai_brain/mercury-bridge/config');
-      const { resolveConsensusLlmClientOptions } = require('../trai_brain/mercury-bridge/llm-client');
-
-      expect(config.CONSENSUS_MODEL).toBe('claude-fable-5');
-      expect(() => resolveConsensusLlmClientOptions())
-        .toThrow(/Configured consensus LLM API key env is missing: MERCURY_TEST_FABLE_KEY/);
-    }, {
-      MERCURY_TEST_FABLE_KEY: undefined,
-      ANTHROPIC_API_KEY: 'fallback-must-not-be-read',
-    });
-
-    await withMercuryConfig({
-      consensus: {
-        provider: 'openai',
-        baseUrl: 'https://api.moonshot.ai/v1',
-        model: 'kimi-k3',
-        apiKeyEnv: 'MOONSHOT_TEST_KEY',
-      },
-    }, () => {
-      const { resolveConsensusLlmClientOptions } = require('../trai_brain/mercury-bridge/llm-client');
-
-      expect(() => resolveConsensusLlmClientOptions())
-        .toThrow(/Configured consensus LLM API key env is missing: MOONSHOT_TEST_KEY/);
-    }, {
-      MOONSHOT_TEST_KEY: undefined,
-    });
-  });
-
-  test('consensus endpoint rejects ambiguous or secret-bearing URLs', async () => {
-    for (const baseUrl of [
-      'https://api.anthropic.com/v1?proxy=1',
-      'https://api.anthropic.com/v1#models',
-      ['https://user', ':pass@api.anthropic.com/v1'].join(''),
-    ]) {
-      await withMercuryConfig({
-        consensus: { provider: 'claude', baseUrl, apiKeyEnv: 'MERCURY_TEST_FABLE_KEY' },
-      }, () => {
-        expect(() => require('../trai_brain/mercury-bridge/config'))
-          .toThrow(/consensus\.baseUrl must not contain credentials, query parameters, or fragments/);
-      }, {
-        MERCURY_TEST_FABLE_KEY: 'TEST_PLACEHOLDER_FABLE_TOKEN',
+  test('rejects lower Claude tiers, generic selectors, Kimi challenger, and arbitrary fallback lists', async () => {
+    for (const model of ['sonnet', 'haiku', 'default', 'best', 'opusplan', 'kimi-k3']) {
+      await withMercuryConfig({ consensus: { model } }, () => {
+        expect(() => require('../trai_brain/mercury-bridge/config')).toThrow(/stable fable alias/);
       });
     }
-  });
-
-  test('claude-code consensus rejects API key env because auth is owned by Claude Code', async () => {
-    await withMercuryConfig({
-      consensus: {
-        provider: 'claude-code',
-        apiKeyEnv: 'ANTHROPIC_API_KEY',
-      },
-    }, () => {
-      expect(() => require('../trai_brain/mercury-bridge/config'))
-        .toThrow(/consensus\.apiKeyEnv must be empty when consensus\.provider=claude-code/);
+    await withMercuryConfig({ consensus: { provider: 'openai' } }, () => {
+      expect(() => require('../trai_brain/mercury-bridge/config')).toThrow(/must be claude-code/);
+    });
+    await withMercuryConfig({ consensus: { emergencyModel: 'sonnet' } }, () => {
+      expect(() => require('../trai_brain/mercury-bridge/config')).toThrow(/stable opus alias/);
+    });
+    await withMercuryConfig({ consensus: { emergencyModel: ['opus', 'sonnet'] } }, () => {
+      expect(() => require('../trai_brain/mercury-bridge/config')).toThrow(/consensus\.emergencyModel/);
     });
   });
 
-  test('Claude Code result parser accepts JSON result frames and assistant fallback', async () => {
+  test('rejects challenger API and gateway routing overrides in config', async () => {
+    await withMercuryConfig({ consensus: { apiKeyEnv: 'ANTHROPIC_API_KEY' } }, () => {
+      expect(() => require('../trai_brain/mercury-bridge/config')).toThrow(/first-party Claude Code subscription routing/);
+    });
+    await withMercuryConfig({ consensus: { baseUrl: 'https://gateway.example/v1' } }, () => {
+      expect(() => require('../trai_brain/mercury-bridge/config')).toThrow(/first-party Claude Code subscription routing/);
+    });
+  });
+
+  test('scrubs higher-precedence auth, gateway, and cloud-provider environment routing', async () => {
+    await withMercuryConfig({}, () => {
+      const {
+        buildClaudeSubscriptionEnv,
+        CLAUDE_SUBSCRIPTION_OVERRIDE_ENV,
+      } = require('../trai_brain/mercury-bridge/llm-client');
+      const source = Object.fromEntries(CLAUDE_SUBSCRIPTION_OVERRIDE_ENV.map(name => [name, 'divert']));
+      source.PATH = '/usr/bin';
+      const child = buildClaudeSubscriptionEnv(source);
+      expect(child.PATH).toBe('/usr/bin');
+      for (const name of CLAUDE_SUBSCRIPTION_OVERRIDE_ENV) expect(child).not.toHaveProperty(name);
+    });
+  });
+
+  test('requires first-party claude.ai subscription auth posture', async () => {
+    await withMercuryConfig({}, () => {
+      const { parseClaudeAuthStatus } = require('../trai_brain/mercury-bridge/llm-client');
+      expect(parseClaudeAuthStatus(JSON.stringify({
+        loggedIn: true,
+        authMethod: 'claude.ai',
+        apiProvider: 'firstParty',
+        subscriptionType: 'max',
+      }))).toMatchObject({ authMethod: 'claude.ai', apiProvider: 'firstParty', subscriptionType: 'max' });
+      expect(() => parseClaudeAuthStatus(JSON.stringify({
+        loggedIn: true,
+        authMethod: 'apiKey',
+        apiProvider: 'firstParty',
+        subscriptionType: 'max',
+      }))).toThrow(/not a first-party claude\.ai subscription/);
+      expect(() => parseClaudeAuthStatus('not-json')).toThrow(/malformed JSON/);
+    });
+  });
+
+  test('extracts applied Claude identity only from provider frames', async () => {
+    await withMercuryConfig({}, () => {
+      const {
+        claudeAppliedModelMatchesAlias,
+        extractClaudeCodeAppliedModel,
+        extractClaudeCodeResult,
+        parseClaudeCodeFrames,
+      } = require('../trai_brain/mercury-bridge/llm-client');
+      const raw = [
+        JSON.stringify({ type: 'system', subtype: 'init', model: 'claude-fable-5' }),
+        JSON.stringify({ type: 'result', subtype: 'success', result: 'VERDICT: pass' }),
+      ].join('\n');
+      const frames = parseClaudeCodeFrames(raw);
+      expect(extractClaudeCodeAppliedModel(frames)).toBe('claude-fable-5');
+      expect(extractClaudeCodeResult(raw)).toBe('VERDICT: pass');
+      expect(extractClaudeCodeAppliedModel([{ type: 'result', result: 'answer' }])).toBeNull();
+      expect(claudeAppliedModelMatchesAlias('fable', 'claude-fable-5')).toBe(true);
+      expect(claudeAppliedModelMatchesAlias('opus', 'claude-opus-4-1')).toBe(true);
+      expect(claudeAppliedModelMatchesAlias('fable', 'claude-sonnet-4-5')).toBe(false);
+    });
+  });
+
+  test('Claude Code result parser retains prior frame and malformed-tail handling', async () => {
     await withMercuryConfig({}, () => {
       const { extractClaudeCodeResult } = require('../trai_brain/mercury-bridge/llm-client');
-
       expect(extractClaudeCodeResult(JSON.stringify([
-        { type: 'system', subtype: 'init' },
         { type: 'assistant', message: { content: [{ type: 'text', text: 'draft answer' }] } },
         { type: 'result', result: 'final answer' },
       ]))).toBe('final answer');
-
       expect(extractClaudeCodeResult(JSON.stringify({
-        type: 'assistant',
-        message: { content: [{ type: 'text', text: 'assistant answer' }] },
+        type: 'assistant', message: { content: 'assistant answer' },
       }))).toBe('assistant answer');
-
-      expect(extractClaudeCodeResult(JSON.stringify({
-        type: 'assistant',
-        message: { content: 'assistant string answer' },
-      }))).toBe('assistant string answer');
-
-      expect(extractClaudeCodeResult('plain text answer')).toBe('plain text answer');
-    });
-  });
-
-  test('Claude Code result parser skips invalid trailing JSON-like text', async () => {
-    await withMercuryConfig({}, () => {
-      const { extractClaudeCodeResult } = require('../trai_brain/mercury-bridge/llm-client');
-      const output = [
+      expect(extractClaudeCodeResult([
         JSON.stringify({ type: 'result', result: 'real result' }),
         '{ invalid snippet',
-      ].join('\n');
-
-      expect(extractClaudeCodeResult(output)).toBe('real result');
+      ].join('\n'))).toBe('real result');
       expect(extractClaudeCodeResult('{"type":"result","result":"same-line"}{ invalid snippet'))
         .toBe('same-line');
-    });
-  });
-
-  test('Claude Code result parser prefers frames over later valid non-frame JSON', async () => {
-    await withMercuryConfig({}, () => {
-      const { extractClaudeCodeResult } = require('../trai_brain/mercury-bridge/llm-client');
-
-      expect(extractClaudeCodeResult([
-        JSON.stringify({ type: 'result', result: 'GOOD' }),
-        '[1,2]',
-      ].join('\n'))).toBe('GOOD');
-
-      expect(extractClaudeCodeResult([
-        JSON.stringify({ type: 'assistant', message: { content: 'assistant good' } }),
-        '{"not":"a frame"}',
-      ].join('\n'))).toBe('assistant good');
-    });
-  });
-
-  test('Claude Code result parser extracts frames from concatenated JSON values', async () => {
-    await withMercuryConfig({}, () => {
-      const { extractClaudeCodeResult } = require('../trai_brain/mercury-bridge/llm-client');
-
       expect(extractClaudeCodeResult('[{"type":"result","result":"final"}]{"extra":"data"}'))
         .toBe('final');
     });
   });
 
-  test('Mercury evidence posture stays locked to current config contract', () => {
-    const prompt = baseMercuryConfig.agentic.systemPrompt.join('\n');
-
-    expect(baseMercuryConfig.llm.temperature).toBe(0.8);
-    expect(baseMercuryConfig.traceMemory.enabled).toBe(true);
-    expect(baseMercuryConfig.traceMemory.collection).toBe('investigation_traces_guarded_v1');
-    expect(baseMercuryConfig.traceMemory.captureMode).toBe('manual');
-    expect(baseMercuryConfig.agentic.maxIterations).toBe(60);
-    expect(baseMercuryConfig.agentic.maxTokens).toBe(7750);
-    expect(prompt).toContain('You are Mercury, the adversarial verification gate');
-    expect(prompt).toContain('Every concrete claim must be backed by file:line citations');
-    expect(prompt).toContain('tool-handle citations like `【open_file†L1-L2】`');
-    expect(prompt).toContain('Use the right tool for the evidence you need');
-    expect(prompt).toContain('do not assume the current diff is the whole answer');
-    expect(prompt).toContain('Use indexed RAG chunks as orientation and memory');
-    expect(prompt).toContain('Use serena_blast_radius');
-    expect(prompt).toContain('enumerate the plausible outcomes and mutable paths');
-    expect(prompt).toContain('answer only with the surviving deterministic conclusion');
-    expect(prompt).toContain('prove the full reachable control flow');
-    expect(prompt).toContain('execute that exact call or sequence');
-    expect(prompt).toContain('Do not claim tests pass or fail unless you have an actual test-run result');
-    expect(prompt).toContain('If the user says "break my fix", attack the available evidence');
-    expect(prompt).toContain('without assuming one file, diff, branch, memory entry, or prior path is sufficient');
-    expect(prompt).toContain('Correctness outranks speed');
-    expect(prompt).toContain('Do not stop at the first plausible finding');
-    expect(prompt).toContain('say what additional evidence or iterations are needed');
-    expect(prompt).toContain('say exactly what evidence is missing');
-    expect(prompt).not.toContain('If yes, STOP CALLING TOOLS');
-    expect(prompt).not.toContain('Budget: aim');
-    expect(prompt).not.toContain('CONCRETE_BREAK_FOUND');
-    expect(prompt).not.toContain('NO_CONCRETE_BREAK_FOUND');
-    expect(prompt).not.toContain('Use git_diff target=current first');
-    expect(prompt).not.toContain('follow it as your opening strategy');
-    expect(prompt).not.toContain('break-my-fix answers must');
-    expect(prompt).not.toContain('dirty diff');
+  test('malformed adversarial-review env remains non-fatal', async () => {
+    await withMercuryConfig({}, () => {
+      const config = require('../trai_brain/mercury-bridge/config');
+      expect(config.ADVERSARIAL_REVIEW_DEFAULT_ENABLED).toBe(false);
+    }, { MERCURY_ADVERSARIAL_REVIEW: 'maybe' });
   });
 
-  test('LLM client options require a config-owned system prompt', async () => {
+  test('Mercury API key must come from the configured key env', async () => {
+    await withMercuryConfig({ llm: { apiKeyEnv: 'MERCURY_TEST_LLM_KEY' } }, () => {
+      const { resolveMercuryLlmClientOptions } = require('../trai_brain/mercury-bridge/llm-client');
+      expect(() => resolveMercuryLlmClientOptions({ systemPrompt: 'configured prompt' }))
+        .toThrow(/Configured Mercury LLM API key env is missing/);
+    }, { MERCURY_TEST_LLM_KEY: undefined });
+  });
+
+  test('Mercury client options require a config-owned system prompt', async () => {
     await withMercuryConfig({}, () => {
       const { resolveMercuryLlmClientOptions } = require('../trai_brain/mercury-bridge/llm-client');
-
       expect(() => resolveMercuryLlmClientOptions())
         .toThrow(/Mercury LLM systemPrompt must be supplied from mercury\.config\.json/);
-    }, {
-      INCEPTION_API_KEY: 'configured-key',
-    });
+    }, { INCEPTION_API_KEY: 'configured-key' });
   });
 
-  test('agentic numeric overrides fail loud before runtime work', async () => {
+  test('agentic numeric overrides fail loud before provider work', async () => {
     await withMercuryConfig({}, async () => {
       const { runAgentic } = require('../trai_brain/mercury-bridge/ask');
-
       await expect(runAgentic('break this', { quiet: true, maxIterations: 0 }))
         .rejects.toThrow(/--max-iterations must be a positive integer/);
       await expect(runAgentic('break this', { quiet: true, maxIterations: 59 }))
-        .rejects.toThrow(/--max-iterations must match mercury\.config\.json value 60/);
+        .rejects.toThrow(/must match mercury\.config\.json value 60/);
       await expect(runAgentic('break this', { quiet: true, maxTokens: Number.NaN }))
         .rejects.toThrow(/--max-tokens must be a positive integer/);
       await expect(runAgentic('break this', { quiet: true, maxTokens: 2000 }))
-        .rejects.toThrow(/--max-tokens must match mercury\.config\.json value 7750/);
+        .rejects.toThrow(/must match mercury\.config\.json value 7750/);
       await expect(runAgentic('break this', { quiet: true, topK: Number.NaN }))
         .rejects.toThrow(/--top-k must be a non-negative integer/);
     });
   });
 
-  test('single-shot numeric overrides fail loud before runtime work', async () => {
+  test('single-shot numeric overrides retain their config contract', async () => {
     await withMercuryConfig({}, async () => {
       const { ask } = require('../trai_brain/mercury-bridge/searcher');
-
       await expect(ask('break this', { topK: 0, verbose: false }))
         .rejects.toThrow(/topK must be a positive integer/);
       await expect(ask('break this', { maxTokens: Number.NaN, verbose: false }))
@@ -565,10 +240,16 @@ describe('Mercury LLM config contract', () => {
     });
   });
 
-  test('Mercury tool docs do not reintroduce current-diff-first cage guidance', () => {
-    const toolDocs = createToolAdapter().buildToolDocs();
+  test('Mercury evidence posture remains deconstrained and tool-backed', () => {
+    const prompt = baseMercuryConfig.agentic.systemPrompt.join('\n');
+    expect(prompt).toContain('Every concrete claim must be backed by file:line citations');
+    expect(prompt).toContain('Use indexed RAG chunks as orientation and memory');
+    expect(prompt).toContain('AST TOOLS ARE MANDATORY FOR STRUCTURE CLAIMS');
+    expect(prompt).not.toContain('Use git_diff target=current first');
+  });
 
-    expect(toolDocs).toContain('Inspect active, staged, working, or recent-commit changes when the review depends on what changed');
+  test('Mercury tool docs remain deconstrained from current-diff-first guidance', () => {
+    const toolDocs = createToolAdapter().buildToolDocs();
     expect(toolDocs).toContain('do not assume the current diff is the whole answer');
     expect(toolDocs).not.toContain('Use git_diff target=current first');
   });

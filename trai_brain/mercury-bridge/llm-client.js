@@ -18,6 +18,44 @@ function execFileAsync(command, args, options = {}) {
   });
 }
 
+const CLAUDE_SUBSCRIPTION_OVERRIDE_ENV = Object.freeze([
+  'ANTHROPIC_API_KEY',
+  'ANTHROPIC_AUTH_TOKEN',
+  'CLAUDE_API_KEY',
+  'CLAUDE_CODE_OAUTH_TOKEN',
+  'LLM_API_KEY',
+  'ANTHROPIC_BASE_URL',
+  'ANTHROPIC_BEDROCK_BASE_URL',
+  'ANTHROPIC_VERTEX_BASE_URL',
+  'ANTHROPIC_CUSTOM_HEADERS',
+  'CLAUDE_CODE_USE_BEDROCK',
+  'CLAUDE_CODE_USE_VERTEX',
+  'CLAUDE_CODE_USE_FOUNDRY',
+  'ANTHROPIC_MODEL',
+  'ANTHROPIC_DEFAULT_OPUS_MODEL',
+  'ANTHROPIC_DEFAULT_SONNET_MODEL',
+  'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+  'CLAUDE_CODE_SUBAGENT_MODEL',
+  'AWS_ACCESS_KEY_ID',
+  'AWS_SECRET_ACCESS_KEY',
+  'AWS_SESSION_TOKEN',
+  'AWS_BEARER_TOKEN_BEDROCK',
+  'AWS_PROFILE',
+  'AWS_REGION',
+  'AWS_DEFAULT_REGION',
+  'GOOGLE_APPLICATION_CREDENTIALS',
+  'ANTHROPIC_VERTEX_PROJECT_ID',
+  'ANTHROPIC_FOUNDRY_RESOURCE',
+  'ANTHROPIC_FOUNDRY_API_KEY',
+  'CLOUD_ML_REGION',
+]);
+
+function buildClaudeSubscriptionEnv(sourceEnv = process.env) {
+  const childEnv = { ...sourceEnv };
+  for (const name of CLAUDE_SUBSCRIPTION_OVERRIDE_ENV) delete childEnv[name];
+  return childEnv;
+}
+
 function normalizeClaudeCodeFrames(parsed) {
   return Array.isArray(parsed) ? parsed : [parsed];
 }
@@ -113,6 +151,76 @@ function extractClaudeCodeResult(stdout) {
   return extractAnswerFromClaudeCodeFrames(normalizeClaudeCodeFrames(parsed)) || text;
 }
 
+function parseClaudeCodeFrames(stdout) {
+  const text = Buffer.isBuffer(stdout) ? stdout.toString('utf8') : String(stdout || '');
+  const frames = [];
+  for (const line of text.split(/\r?\n/).map(value => value.trim()).filter(Boolean)) {
+    for (const candidate of splitJsonValuesFromLine(line)) {
+      try {
+        frames.push(...normalizeClaudeCodeFrames(JSON.parse(candidate)));
+      } catch (error) {
+        // Parse status is reported by the caller; retain every valid provider frame.
+      }
+    }
+  }
+  if (frames.length === 0) {
+    try {
+      frames.push(...normalizeClaudeCodeFrames(JSON.parse(text)));
+    } catch (error) {
+      // The caller will fail loudly when no provider identity/result frame exists.
+    }
+  }
+  return frames;
+}
+
+function extractClaudeCodeAppliedModel(frames) {
+  const reported = [];
+  for (const frame of frames) {
+    if (frame && frame.type === 'system' && frame.subtype === 'init' && typeof frame.model === 'string') {
+      reported.push(frame.model);
+    }
+    if (frame && frame.message && typeof frame.message.model === 'string') reported.push(frame.message.model);
+    if (frame && frame.event && frame.event.message && typeof frame.event.message.model === 'string') {
+      reported.push(frame.event.message.model);
+    }
+    if (frame && frame.modelUsage && typeof frame.modelUsage === 'object') {
+      reported.push(...Object.keys(frame.modelUsage));
+    }
+  }
+  return reported.find(value => value && value !== '<synthetic>') || null;
+}
+
+function claudeAppliedModelMatchesAlias(requestedModel, appliedModel) {
+  const requested = String(requestedModel || '').toLowerCase();
+  const applied = String(appliedModel || '').toLowerCase();
+  if (!['fable', 'opus'].includes(requested)) return false;
+  return applied.includes(requested);
+}
+
+function parseClaudeAuthStatus(stdout) {
+  let status;
+  try {
+    status = JSON.parse(Buffer.isBuffer(stdout) ? stdout.toString('utf8') : String(stdout || ''));
+  } catch (error) {
+    throw new Error('Claude auth status returned malformed JSON');
+  }
+  if (
+    status.loggedIn !== true
+    || status.authMethod !== 'claude.ai'
+    || status.apiProvider !== 'firstParty'
+    || typeof status.subscriptionType !== 'string'
+    || status.subscriptionType.trim() === ''
+  ) {
+    throw new Error('Claude auth status is not a first-party claude.ai subscription');
+  }
+  return {
+    loggedIn: true,
+    authMethod: status.authMethod,
+    apiProvider: status.apiProvider,
+    subscriptionType: status.subscriptionType,
+  };
+}
+
 class ClaudeCodeConsensusClient {
   constructor(clientOptions) {
     this.providerName = clientOptions.provider;
@@ -124,19 +232,21 @@ class ClaudeCodeConsensusClient {
     this.temperature = clientOptions.temperature;
     this.requestTimeoutMs = clientOptions.requestTimeoutMs;
     this.systemPrompt = clientOptions.systemPrompt;
+    this.execFileAsync = clientOptions.execFileAsync || execFileAsync;
     this.requestCount = 0;
     this.initialized = false;
   }
 
   async initialize() {
     if (this.initialized) return;
-    const answer = await this.runClaudeCode(
-      'Reply with exactly: FABLE_OK',
-      'Reply only with the exact requested literal text.'
-    );
-    if (answer.trim() !== 'FABLE_OK') {
-      throw new Error(`Claude Code Fable warmup returned unexpected output: ${answer.slice(0, 120)}`);
-    }
+    const { stdout } = await this.execFileAsync(this.command, ['auth', 'status', '--json'], {
+      cwd: config.REPO_ROOT,
+      env: buildClaudeSubscriptionEnv(),
+      timeout: this.requestTimeoutMs,
+      maxBuffer: 1024 * 1024,
+      encoding: null,
+    });
+    this.authStatus = parseClaudeAuthStatus(stdout);
     this.initialized = true;
   }
 
@@ -145,30 +255,91 @@ class ClaudeCodeConsensusClient {
     return this.runClaudeCode(prompt, this.systemPrompt);
   }
 
+  async generateResponseWithMetadata(prompt) {
+    await this.initialize();
+    return this.runClaudeCodeWithMetadata(prompt, this.systemPrompt);
+  }
+
   async runClaudeCode(prompt, systemPrompt) {
+    const result = await this.runClaudeCodeWithMetadata(prompt, systemPrompt);
+    return result.answer;
+  }
+
+  async runClaudeCodeWithMetadata(prompt, systemPrompt) {
     const args = [
       '-p',
       '--model', this.model,
       '--permission-mode', this.permissionMode,
-      '--output-format', 'json',
+      '--output-format', 'stream-json',
+      '--verbose',
       '--no-session-persistence',
       '--tools', '',
       '--system-prompt', systemPrompt,
       prompt,
     ];
-    const childEnv = { ...process.env };
-    delete childEnv.ANTHROPIC_API_KEY;
-    delete childEnv.CLAUDE_API_KEY;
-    delete childEnv.LLM_API_KEY;
-
-    const { stdout } = await execFileAsync(this.command, args, {
-      cwd: config.REPO_ROOT,
-      env: childEnv,
-      timeout: this.requestTimeoutMs,
-      maxBuffer: 10 * 1024 * 1024,
-    });
+    const startedAt = new Date();
+    const startedMs = Date.now();
+    let stdout = Buffer.alloc(0);
+    let stderr = Buffer.alloc(0);
+    try {
+      const result = await this.execFileAsync(this.command, args, {
+        cwd: config.REPO_ROOT,
+        env: buildClaudeSubscriptionEnv(),
+        timeout: this.requestTimeoutMs,
+        maxBuffer: 10 * 1024 * 1024,
+        encoding: null,
+      });
+      stdout = Buffer.isBuffer(result.stdout) ? result.stdout : Buffer.from(result.stdout || '');
+      stderr = Buffer.isBuffer(result.stderr) ? result.stderr : Buffer.from(result.stderr || '');
+    } catch (error) {
+      stdout = Buffer.isBuffer(error.stdout) ? error.stdout : Buffer.from(error.stdout || '');
+      stderr = Buffer.isBuffer(error.stderr) ? error.stderr : Buffer.from(error.stderr || '');
+      error.providerMetadata = this.buildMetadata({ startedAt, startedMs, stdout, stderr, exitCode: error.code });
+      throw error;
+    }
+    const metadata = this.buildMetadata({ startedAt, startedMs, stdout, stderr, exitCode: 0 });
+    if (!metadata.appliedModel) {
+      const error = new Error('Claude Code response omitted applied model identity');
+      error.providerMetadata = metadata;
+      throw error;
+    }
+    if (!claudeAppliedModelMatchesAlias(this.model, metadata.appliedModel)) {
+      const error = new Error('Claude Code applied model does not match the requested challenger alias');
+      error.providerMetadata = metadata;
+      throw error;
+    }
+    const answer = extractClaudeCodeResult(stdout);
+    if (!answer || !metadata.termination || metadata.termination === 'provider_error' || metadata.toolsAvailable.length > 0) {
+      const error = new Error('Claude Code response was incomplete');
+      error.providerMetadata = metadata;
+      throw error;
+    }
     this.requestCount += 1;
-    return extractClaudeCodeResult(stdout);
+    return { answer, metadata };
+  }
+
+  buildMetadata({ startedAt, startedMs, stdout, stderr, exitCode }) {
+    const frames = parseClaudeCodeFrames(stdout);
+    const resultFrame = [...frames].reverse().find(frame => frame && frame.type === 'result');
+    const initFrame = frames.find(frame => frame && frame.type === 'system' && frame.subtype === 'init');
+    return {
+      provider: this.providerName,
+      requestedModel: this.model,
+      appliedModel: extractClaudeCodeAppliedModel(frames),
+      startedAt: startedAt.toISOString(),
+      finishedAt: new Date().toISOString(),
+      latencyMs: Date.now() - startedMs,
+      exitCode,
+      termination: resultFrame
+        ? (resultFrame.is_error === true ? 'provider_error' : resultFrame.subtype || 'result')
+        : null,
+      parseStatus: frames.length > 0 ? (resultFrame ? 'parsed' : 'missing_result_frame') : 'invalid_frames',
+      rawResponse: stdout,
+      rawError: stderr,
+      providerFrames: frames,
+      toolsAvailable: initFrame && Array.isArray(initFrame.tools) ? initFrame.tools : [],
+      authStatus: this.authStatus,
+    };
   }
 }
 
@@ -196,29 +367,25 @@ function resolveMercuryLlmClientOptions({ systemPrompt } = {}) {
     temperature: config.MERCURY_LLM_TEMPERATURE,
     requestTimeoutMs: config.MERCURY_LLM_REQUEST_TIMEOUT_MS,
     systemPrompt,
+    skipWarmup: true,
   };
 }
 
-function resolveConsensusLlmClientOptions({ systemPrompt = config.CONSENSUS_SYSTEM_PROMPT } = {}) {
+function resolveConsensusLlmClientOptions({
+  systemPrompt = config.CONSENSUS_SYSTEM_PROMPT,
+  model = config.CONSENSUS_MODEL,
+  execFileAsync: execOverride,
+} = {}) {
   if (typeof systemPrompt !== 'string' || systemPrompt.trim() === '') {
     throw new Error('Consensus LLM systemPrompt must be supplied from mercury.config.json');
   }
 
-  const authRequired = config.CONSENSUS_PROVIDER !== 'claude-code' && config.CONSENSUS_PROVIDER !== 'ollama';
-  let apiKey = '';
-  if (authRequired) {
-    apiKey = process.env[config.CONSENSUS_API_KEY_ENV];
-    if (!apiKey) {
-      throw new Error(`Configured consensus LLM API key env is missing: ${config.CONSENSUS_API_KEY_ENV}`);
-    }
-  }
-
   return {
     provider: config.CONSENSUS_PROVIDER,
-    baseUrl: config.CONSENSUS_BASE_URL,
-    model: config.CONSENSUS_MODEL,
-    apiKey,
-    authRequired,
+    baseUrl: '',
+    model,
+    apiKey: '',
+    authRequired: false,
     command: config.CONSENSUS_COMMAND,
     permissionMode: config.CONSENSUS_PERMISSION_MODE,
     maxTokens: config.CONSENSUS_CLIENT_MAX_TOKENS,
@@ -227,6 +394,26 @@ function resolveConsensusLlmClientOptions({ systemPrompt = config.CONSENSUS_SYST
     requestTimeoutMs: config.CONSENSUS_REQUEST_TIMEOUT_MS,
     openaiExtraBody: config.CONSENSUS_OPENAI_EXTRA_BODY,
     systemPrompt,
+    execFileAsync: execOverride,
+  };
+}
+
+function resolveKimiTieBreakerClientOptions({ systemPrompt = config.CONSENSUS_SYSTEM_PROMPT } = {}) {
+  const apiKey = process.env[config.TIE_BREAKER_API_KEY_ENV];
+  if (!apiKey) throw new Error(`Configured Kimi tie-breaker key env is missing: ${config.TIE_BREAKER_API_KEY_ENV}`);
+  return {
+    provider: config.TIE_BREAKER_PROVIDER,
+    baseUrl: config.TIE_BREAKER_BASE_URL,
+    model: config.TIE_BREAKER_MODEL,
+    apiKey,
+    authRequired: true,
+    maxTokens: config.TIE_BREAKER_CLIENT_MAX_TOKENS,
+    minimumTokens: config.TIE_BREAKER_CLIENT_MIN_TOKENS,
+    temperature: config.TIE_BREAKER_TEMPERATURE,
+    requestTimeoutMs: config.TIE_BREAKER_REQUEST_TIMEOUT_MS,
+    openaiExtraBody: config.TIE_BREAKER_OPENAI_EXTRA_BODY,
+    systemPrompt,
+    skipWarmup: true,
   };
 }
 
@@ -270,12 +457,20 @@ function createMercuryLlmClient({ systemPrompt } = {}) {
   return client;
 }
 
-function createConsensusLlmClient({ systemPrompt = config.CONSENSUS_SYSTEM_PROMPT } = {}) {
-  const clientOptions = resolveConsensusLlmClientOptions({ systemPrompt });
-  if (clientOptions.provider === 'claude-code') {
-    return new ClaudeCodeConsensusClient(clientOptions);
-  }
+function createClaudeChallengerClient({ systemPrompt = config.CONSENSUS_SYSTEM_PROMPT, model, execFileAsync: execOverride } = {}) {
+  return new ClaudeCodeConsensusClient(resolveConsensusLlmClientOptions({ systemPrompt, model, execFileAsync: execOverride }));
+}
 
+function createFableChallengerClient(options = {}) {
+  return createClaudeChallengerClient({ ...options, model: config.CONSENSUS_MODEL });
+}
+
+function createOpusChallengerClient(options = {}) {
+  return createClaudeChallengerClient({ ...options, model: config.CONSENSUS_EMERGENCY_MODEL });
+}
+
+function createKimiTieBreakerClient({ systemPrompt = config.CONSENSUS_SYSTEM_PROMPT } = {}) {
+  const clientOptions = resolveKimiTieBreakerClientOptions({ systemPrompt });
   const PersistentLLMClient = require(path.join(config.REPO_ROOT, 'core', 'persistent_llm_client.js'));
   const client = new PersistentLLMClient(clientOptions);
 
@@ -313,11 +508,25 @@ function createConsensusLlmClient({ systemPrompt = config.CONSENSUS_SYSTEM_PROMP
   return client;
 }
 
+function createConsensusLlmClient(options = {}) {
+  return createFableChallengerClient(options);
+}
+
 module.exports = {
   extractClaudeCodeResult,
+  parseClaudeCodeFrames,
+  extractClaudeCodeAppliedModel,
+  claudeAppliedModelMatchesAlias,
+  parseClaudeAuthStatus,
+  buildClaudeSubscriptionEnv,
+  CLAUDE_SUBSCRIPTION_OVERRIDE_ENV,
   ClaudeCodeConsensusClient,
   resolveMercuryLlmClientOptions,
   createMercuryLlmClient,
   resolveConsensusLlmClientOptions,
   createConsensusLlmClient,
+  resolveKimiTieBreakerClientOptions,
+  createFableChallengerClient,
+  createOpusChallengerClient,
+  createKimiTieBreakerClient,
 };

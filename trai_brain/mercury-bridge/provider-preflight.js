@@ -1,6 +1,12 @@
 'use strict';
 
-const { createMercuryLlmClient, createConsensusLlmClient } = require('./llm-client');
+const {
+  createMercuryLlmClient,
+  createFableChallengerClient,
+  createOpusChallengerClient,
+  createKimiTieBreakerClient,
+} = require('./llm-client');
+const { classifyFableFallbackError } = require('./adversarial-review');
 
 function classifyProviderError(err) {
   const message = err && err.message ? err.message : String(err);
@@ -52,33 +58,56 @@ async function checkClient(label, createClient) {
   try {
     client = createClient();
     await withSilencedClientConsole(() => client.initialize());
+    let appliedModel = null;
+    if (typeof client.generateResponseWithMetadata === 'function') {
+      const response = await withSilencedClientConsole(() => client.generateResponseWithMetadata(
+        'Reply with exactly: PROVIDER_OK'
+      ));
+      appliedModel = response.metadata.appliedModel;
+    }
     return {
       label,
       ok: true,
       provider: client.providerName,
       model: client.model,
+      appliedModel,
       requests: client.requestCount,
+      authPosture: client.authStatus || null,
     };
   } catch (err) {
-    return {
+    const result = {
       label,
       ok: false,
       provider: client && client.providerName ? client.providerName : null,
       model: client && client.model ? client.model : null,
       error: cleanProviderError(err),
     };
+    Object.defineProperty(result, '_rawError', { value: err, enumerable: false });
+    return result;
   }
 }
 
 async function runProviderPreflight({
   createMercuryClient = () => createMercuryLlmClient({ systemPrompt: 'Respond tersely.' }),
-  createFableClient = () => createConsensusLlmClient(),
+  createFableClient = () => createFableChallengerClient(),
+  createOpusClient = () => createOpusChallengerClient(),
+  createKimiClient = () => createKimiTieBreakerClient(),
 } = {}) {
   const mercury = await checkClient('mercury', createMercuryClient);
-  const fable = await checkClient('fable_consensus', createFableClient);
+  const fable = await checkClient('fable_challenger', createFableClient);
+  let opus = null;
+  if (!fable.ok) {
+    const fallback = classifyFableFallbackError(fable._rawError);
+    fable.fallback = fallback;
+    if (fallback.opusEligible) opus = await checkClient('opus_challenger', createOpusClient);
+  }
+  const kimi = await checkClient('kimi_tie_breaker', createKimiClient);
+  const challengerReady = fable.ok === true || !!(opus && opus.ok === true);
   return {
-    ok: mercury.ok === true && fable.ok === true,
-    checks: [mercury, fable],
+    ok: mercury.ok === true && challengerReady,
+    challengerReady,
+    tieBreakerReady: kimi.ok === true,
+    checks: [mercury, fable, ...(opus ? [opus] : []), kimi],
   };
 }
 

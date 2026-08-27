@@ -47,13 +47,20 @@ describe('Mercury provider preflight', () => {
       }),
       createFableClient: () => fakeClient({
         provider: 'claude',
-        model: 'claude-fable-5',
+        model: 'fable',
+        initialize: async () => {},
+      }),
+      createKimiClient: () => fakeClient({
+        provider: 'openai',
+        model: 'kimi-k3',
         initialize: async () => {},
       }),
     });
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ok: true,
+      challengerReady: true,
+      tieBreakerReady: true,
       checks: [
         {
           label: 'mercury',
@@ -63,10 +70,17 @@ describe('Mercury provider preflight', () => {
           requests: 1,
         },
         {
-          label: 'fable_consensus',
+          label: 'fable_challenger',
           ok: true,
           provider: 'claude',
-          model: 'claude-fable-5',
+          model: 'fable',
+          requests: 1,
+        },
+        {
+          label: 'kimi_tie_breaker',
+          ok: true,
+          provider: 'openai',
+          model: 'kimi-k3',
           requests: 1,
         },
       ],
@@ -84,10 +98,15 @@ describe('Mercury provider preflight', () => {
       }),
       createFableClient: () => fakeClient({
         provider: 'claude',
-        model: 'claude-fable-5',
+        model: 'fable',
         initialize: async () => {
           throw new Error('HTTP 401: authentication_error invalid x-api-key');
         },
+      }),
+      createKimiClient: () => fakeClient({
+        provider: 'openai',
+        model: 'kimi-k3',
+        initialize: async () => {},
       }),
     });
 
@@ -101,12 +120,57 @@ describe('Mercury provider preflight', () => {
         error: { category: 'quota_or_billing' },
       },
       {
-        label: 'fable_consensus',
+        label: 'fable_challenger',
         ok: false,
         provider: 'claude',
-        model: 'claude-fable-5',
+        model: 'fable',
         error: { category: 'auth' },
       },
+      {
+        label: 'kimi_tie_breaker',
+        ok: true,
+        provider: 'openai',
+        model: 'kimi-k3',
+      },
     ]);
+    expect(result.challengerReady).toBe(false);
+    expect(result.tieBreakerReady).toBe(true);
+  });
+
+  test('Kimi readiness never satisfies challenger readiness', async () => {
+    const result = await runProviderPreflight({
+      createMercuryClient: () => fakeClient({ provider: 'mercury', model: 'mercury-2', initialize: async () => {} }),
+      createFableClient: () => fakeClient({
+        provider: 'claude-code', model: 'fable', initialize: async () => { throw new Error('auth failed'); },
+      }),
+      createKimiClient: () => fakeClient({ provider: 'openai', model: 'kimi-k3', initialize: async () => {} }),
+    });
+    expect(result).toMatchObject({ ok: false, challengerReady: false, tieBreakerReady: true });
+  });
+
+  test('preflight checks Opus only after allowlisted Fable unavailability', async () => {
+    const fableFailure = new Error('Fable unavailable');
+    fableFailure.providerMetadata = {
+      providerFrames: [{ type: 'result', error: { type: 'model_unavailable' } }],
+    };
+    const opusFactory = jest.fn(() => fakeClient({
+      provider: 'claude-code', model: 'opus', initialize: async () => {},
+    }));
+    const result = await runProviderPreflight({
+      createMercuryClient: () => fakeClient({
+        provider: 'mercury', model: 'mercury-2', initialize: async () => {},
+      }),
+      createFableClient: () => fakeClient({
+        provider: 'claude-code', model: 'fable', initialize: async () => { throw fableFailure; },
+      }),
+      createOpusClient: opusFactory,
+      createKimiClient: () => fakeClient({
+        provider: 'openai', model: 'kimi-k3', initialize: async () => { throw new Error('Kimi unavailable'); },
+      }),
+    });
+    expect(opusFactory).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ ok: true, challengerReady: true, tieBreakerReady: false });
+    expect(result.checks.map(check => check.label))
+      .toEqual(['mercury', 'fable_challenger', 'opus_challenger', 'kimi_tie_breaker']);
   });
 });

@@ -106,6 +106,7 @@ class PersistentLLMClient {
       && !Array.isArray(resolvedConfig.openaiExtraBody)
       ? JSON.parse(JSON.stringify(resolvedConfig.openaiExtraBody))
       : {};
+    this.skipWarmup = resolvedConfig.skipWarmup === true;
 
     // Stats
     this.isReady = false;
@@ -128,7 +129,7 @@ class PersistentLLMClient {
       // Quick health check
       if (this.providerName === 'ollama') {
         await this._ollamaHealthCheck();
-      } else {
+      } else if (!this.skipWarmup) {
         // For cloud providers, do a minimal test call
         const warmupStart = Date.now();
         const warmupResponse = await this.generateRawResponse('Respond with READY.', 10);
@@ -204,6 +205,146 @@ class PersistentLLMClient {
       this.errors++;
       console.error(`[TRAI] Inference error (${this.provider.name}):`, error.message);
 
+      throw error;
+    }
+  }
+
+  async generateResponseWithMetadata(prompt, maxTokens = null) {
+    let tokens = maxTokens == null ? this.maxTokens : maxTokens;
+    if (this.minimumTokens > 0 && tokens < this.minimumTokens) tokens = this.minimumTokens;
+    if (!this.isReady) {
+      throw new Error('PersistentLLMClient.generateResponseWithMetadata called before successful initialize');
+    }
+
+    const startedAt = new Date();
+    const startedMs = Date.now();
+    let request;
+    if (this.provider.requestFormat === 'anthropic') {
+      request = {
+        url: `${this.baseUrl}/messages`,
+        body: {
+          model: this.model,
+          max_tokens: tokens,
+          messages: [{ role: 'user', content: prompt }],
+          system: this.systemPrompt,
+        },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': this.apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+      };
+    } else if (this.provider.requestFormat === 'openai') {
+      request = {
+        url: `${this.baseUrl}/chat/completions`,
+        body: {
+          ...this.openaiExtraBody,
+          model: this.model,
+          max_tokens: tokens,
+          temperature: this.temperature,
+          messages: [
+            { role: 'system', content: this.systemPrompt },
+            { role: 'user', content: prompt },
+          ],
+        },
+        headers: {
+          'Content-Type': 'application/json',
+          [this.provider.authHeader]: `${this.provider.authPrefix}${this.apiKey}`,
+        },
+      };
+    } else {
+      request = {
+        url: `${this.baseUrl}/api/generate`,
+        body: {
+          model: this.model,
+          prompt,
+          system: this.systemPrompt,
+          stream: false,
+          keep_alive: '20m',
+          options: { num_predict: tokens, temperature: this.temperature },
+        },
+        headers: { 'Content-Type': 'application/json' },
+      };
+    }
+
+    try {
+      const httpResult = await this._httpRequestWithMetadata(request.url, 'POST', request.body, request.headers);
+      const rawText = httpResult.rawBody.toString('utf8');
+      let data;
+      try {
+        data = JSON.parse(rawText);
+      } catch (error) {
+        error.providerMetadata = this._responseMetadata({
+          startedAt,
+          startedMs,
+          rawBody: httpResult.rawBody,
+          statusCode: httpResult.statusCode,
+          parseStatus: 'invalid_json',
+        });
+        throw error;
+      }
+
+      let answer = '';
+      let appliedModel = null;
+      let termination = null;
+      if (this.provider.requestFormat === 'anthropic') {
+        answer = Array.isArray(data.content) ? data.content.map(part => part.text || '').join('\n') : '';
+        appliedModel = data.model || null;
+        termination = data.stop_reason || null;
+      } else if (this.provider.requestFormat === 'openai') {
+        answer = data.choices && data.choices[0] && data.choices[0].message
+          ? data.choices[0].message.content || ''
+          : '';
+        appliedModel = data.model || null;
+        termination = data.choices && data.choices[0] ? data.choices[0].finish_reason || null : null;
+      } else {
+        answer = data.response || '';
+        appliedModel = data.model || null;
+        termination = data.done_reason || (data.done === true ? 'done' : null);
+      }
+      const metadata = this._responseMetadata({
+        startedAt,
+        startedMs,
+        rawBody: httpResult.rawBody,
+        statusCode: httpResult.statusCode,
+        appliedModel,
+        termination,
+        parseStatus: answer ? 'parsed' : 'empty_answer',
+      });
+      if (!appliedModel) {
+        const error = new Error('Provider response omitted applied model identity');
+        error.providerMetadata = metadata;
+        throw error;
+      }
+      if (!termination) {
+        const error = new Error('Provider response omitted termination status');
+        error.providerMetadata = metadata;
+        throw error;
+      }
+      if (['length', 'max_tokens'].includes(String(termination || '').toLowerCase())) {
+        const error = new Error('Provider response terminated before completion');
+        error.providerMetadata = metadata;
+        throw error;
+      }
+      if (!answer) {
+        const error = new Error('Provider response omitted answer content');
+        error.providerMetadata = metadata;
+        throw error;
+      }
+      this.requestCount += 1;
+      this.totalLatency += metadata.latencyMs;
+      return { answer, metadata };
+    } catch (error) {
+      this.errors += 1;
+      if (!error.providerMetadata) {
+        error.providerMetadata = this._responseMetadata({
+          startedAt,
+          startedMs,
+          rawBody: error.rawResponse || Buffer.alloc(0),
+          statusCode: error.statusCode || null,
+          parseStatus: 'request_failed',
+        });
+      }
       throw error;
     }
   }
@@ -309,6 +450,101 @@ class PersistentLLMClient {
     }
 
     return data.choices[0].message;
+  }
+
+  async generateWithToolsWithMetadata(messages, tools, options = {}) {
+    if (this.provider.requestFormat !== 'openai') {
+      throw new Error(`generateWithToolsWithMetadata requires OpenAI-format provider, got: ${this.provider.requestFormat}`);
+    }
+    let tokens = options.maxTokens == null ? this.maxTokens : options.maxTokens;
+    if (this.minimumTokens > 0 && tokens < this.minimumTokens) tokens = this.minimumTokens;
+    const body = {
+      ...this.openaiExtraBody,
+      model: this.model,
+      messages,
+      tools,
+      max_tokens: tokens,
+    };
+    if (options.toolChoice) body.tool_choice = options.toolChoice;
+    if (options.temperature != null) body.temperature = options.temperature;
+    const headers = { 'Content-Type': 'application/json' };
+    if (this.apiKey) headers[this.provider.authHeader] = `${this.provider.authPrefix}${this.apiKey}`;
+    const startedAt = new Date();
+    const startedMs = Date.now();
+    try {
+      const httpResult = await this._httpRequestWithMetadata(
+        `${this.baseUrl}/chat/completions`, 'POST', body, headers
+      );
+      const rawText = httpResult.rawBody.toString('utf8');
+      let data;
+      try {
+        data = JSON.parse(rawText);
+      } catch (error) {
+        error.providerMetadata = this._responseMetadata({
+          startedAt, startedMs, rawBody: httpResult.rawBody,
+          statusCode: httpResult.statusCode, parseStatus: 'invalid_json',
+        });
+        throw error;
+      }
+      const choice = data.choices && data.choices[0];
+      const metadata = this._responseMetadata({
+        startedAt,
+        startedMs,
+        rawBody: httpResult.rawBody,
+        statusCode: httpResult.statusCode,
+        appliedModel: data.model || null,
+        termination: choice ? choice.finish_reason || null : null,
+        parseStatus: choice && choice.message ? 'parsed' : 'unexpected_shape',
+      });
+      if (!metadata.appliedModel) {
+        const error = new Error('Provider response omitted applied model identity');
+        error.providerMetadata = metadata;
+        throw error;
+      }
+      if (!metadata.termination) {
+        const error = new Error('Provider response omitted termination status');
+        error.providerMetadata = metadata;
+        throw error;
+      }
+      if (['length', 'max_tokens'].includes(String(metadata.termination || '').toLowerCase())) {
+        const error = new Error('Provider response terminated before completion');
+        error.providerMetadata = metadata;
+        throw error;
+      }
+      if (!choice || !choice.message) {
+        const error = new Error('Unexpected provider response shape');
+        error.providerMetadata = metadata;
+        throw error;
+      }
+      this.requestCount += 1;
+      this.totalLatency += metadata.latencyMs;
+      return { message: choice.message, metadata };
+    } catch (error) {
+      this.errors += 1;
+      if (!error.providerMetadata) {
+        error.providerMetadata = this._responseMetadata({
+          startedAt, startedMs, rawBody: error.rawResponse || Buffer.alloc(0),
+          statusCode: error.statusCode || null, parseStatus: 'request_failed',
+        });
+      }
+      throw error;
+    }
+  }
+
+  _responseMetadata({ startedAt, startedMs, rawBody, statusCode, appliedModel = null, termination = null, parseStatus }) {
+    const finishedAt = new Date();
+    return {
+      provider: this.providerName,
+      requestedModel: this.model,
+      appliedModel,
+      startedAt: startedAt.toISOString(),
+      finishedAt: finishedAt.toISOString(),
+      latencyMs: Date.now() - startedMs,
+      statusCode,
+      termination,
+      parseStatus,
+      rawResponse: Buffer.isBuffer(rawBody) ? rawBody : Buffer.from(rawBody || ''),
+    };
   }
 
   // ─── Provider-Specific Call Methods ────────────────────────────
@@ -469,6 +705,11 @@ class PersistentLLMClient {
   // ─── HTTP Helper ───────────────────────────────────────────────
 
   _httpRequest(url, method, body, headers) {
+    return this._httpRequestWithMetadata(url, method, body, headers)
+      .then(result => result.rawBody.toString('utf8'));
+  }
+
+  _httpRequestWithMetadata(url, method, body, headers) {
     return new Promise((resolve, reject) => {
       const parsed = new URL(url);
       const isHttps = parsed.protocol === 'https:';
@@ -484,13 +725,17 @@ class PersistentLLMClient {
       };
 
       const req = lib.request(options, (res) => {
-        let data = '';
-        res.on('data', chunk => data += chunk);
+        const chunks = [];
+        res.on('data', chunk => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
         res.on('end', () => {
+          const rawBody = Buffer.concat(chunks);
           if (res.statusCode >= 400) {
-            reject(new Error(`HTTP ${res.statusCode}: ${data.substring(0, 200)}`));
+            const error = new Error(`HTTP ${res.statusCode}: ${rawBody.toString('utf8', 0, 200)}`);
+            error.statusCode = res.statusCode;
+            error.rawResponse = rawBody;
+            reject(error);
           } else {
-            resolve(data);
+            resolve({ statusCode: res.statusCode, headers: res.headers, rawBody });
           }
         });
       });

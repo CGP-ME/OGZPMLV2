@@ -7,6 +7,7 @@ const { execFileSync } = require('child_process');
 
 const DEFAULT_RUN_LEDGER_DIR = path.join('ogz-meta', 'cognition-history', 'mercury-runs');
 const RUN_LEDGER_DIR = resolveRunLedgerDir(process.env.MERCURY_RUN_LEDGER_DIR || DEFAULT_RUN_LEDGER_DIR);
+const RAW_PROVIDER_DIR = path.join(DEFAULT_RUN_LEDGER_DIR, 'raw').replace(/\\/g, '/');
 const PROMPT_EXCERPT_MAX = 2000;
 
 function resolveRunLedgerDir(value) {
@@ -29,6 +30,64 @@ function isoTimestamp(value = new Date()) {
 
 function hashText(value) {
   return crypto.createHash('sha256').update(String(value || ''), 'utf8').digest('hex');
+}
+
+function createRawRunId(startedAt = new Date()) {
+  const timestamp = isoTimestamp(startedAt).replace(/[:.]/g, '-');
+  return `${timestamp}-${process.pid}-${crypto.randomBytes(6).toString('hex')}`;
+}
+
+function safeRawPathPart(value, label) {
+  const part = String(value || '').trim().toLowerCase().replace(/[^a-z0-9._-]+/g, '-');
+  if (!part || part === '.' || part === '..') throw new Error(`invalid raw provider ${label}`);
+  return part;
+}
+
+function writeRawProviderOutput({ repoRoot, runId, stage, attempt, bytes, now = new Date() } = {}) {
+  if (!repoRoot) throw new Error('repoRoot is required for raw provider output');
+  const rawBytes = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes || '');
+  const day = isoTimestamp(now).slice(0, 10);
+  const safeRunId = safeRawPathPart(runId, 'run id');
+  const safeStage = safeRawPathPart(stage, 'stage');
+  if (!Number.isInteger(attempt) || attempt < 1) throw new Error('raw provider attempt must be a positive integer');
+  const relDir = path.join(RAW_PROVIDER_DIR, day, safeRunId).replace(/\\/g, '/');
+  const absDir = path.join(repoRoot, relDir);
+  fs.mkdirSync(absDir, { recursive: true, mode: 0o700 });
+  fs.chmodSync(absDir, 0o700);
+  const relPath = path.join(relDir, `${safeStage}-${attempt}.raw`).replace(/\\/g, '/');
+  const absPath = path.join(repoRoot, relPath);
+  const fd = fs.openSync(absPath, 'wx', 0o600);
+  try {
+    fs.writeFileSync(fd, rawBytes);
+    fs.fchmodSync(fd, 0o600);
+  } finally {
+    fs.closeSync(fd);
+  }
+  return {
+    path: relPath,
+    sha256: crypto.createHash('sha256').update(rawBytes).digest('hex'),
+    bytes: rawBytes.length,
+    mode: '0600',
+  };
+}
+
+function extractClaimedFileCitations(answer) {
+  return Array.from(new Set(String(answer || '').match(/[A-Za-z0-9_./-]+\.\w+:\d+(?:[-–—]\d+)?/g) || [])).sort();
+}
+
+function buildPromptProvenance(prompt, suppliedSources = []) {
+  const text = String(prompt || '');
+  return {
+    prompt_sha256: hashText(text),
+    prompt_bytes: Buffer.byteLength(text, 'utf8'),
+    prompt_excerpt: truncateText(redactSensitiveText(text), PROMPT_EXCERPT_MAX),
+    supplied_sources: suppliedSources.map(source => ({
+      path: source.path || null,
+      sha256: source.sha256 || (source.excerpt == null ? null : hashText(source.excerpt)),
+      bytes: source.excerpt == null ? null : Buffer.byteLength(String(source.excerpt), 'utf8'),
+      excerpt: source.excerpt == null ? null : redactSensitiveText(source.excerpt),
+    })),
+  };
 }
 
 function truncateText(value, maxChars) {
@@ -206,6 +265,9 @@ function buildFinalReviewLedgerSummary(finalReview) {
     model: finalReview.model || null,
     latency_ms: finalReview.latencyMs == null ? null : finalReview.latencyMs,
     error: finalReview.error || null,
+    applied_model: finalReview.appliedModel || null,
+    stage_receipt: finalReview.stageReceipt || null,
+    repo_adjudication: finalReview.repoAdjudication || { status: 'pending', authority: 'live_repo_required' },
     parsed,
     effective_verdict: parsed && parsed.verdict ? parsed.verdict : null,
     answer_excerpt: redactedAnswer
@@ -267,6 +329,9 @@ function buildReviewLedgerSummary(review, { effectiveVerdictOverride = null } = 
       answer_full: recheck.answer ? redactSensitiveText(recheck.answer) : null,
     })),
     final_review: buildFinalReviewLedgerSummary(review.finalReview),
+    challenger_attempts: Array.isArray(review.attempts) ? review.attempts : [],
+    stage_receipt: review.stageReceipt || null,
+    repo_adjudication: review.repoAdjudication || { status: 'pending', authority: 'live_repo_required' },
     answer_excerpt: redactedAnswer
       ? truncateText(redactedAnswer, ANSWER_EXCERPT_MAX)
       : null,
@@ -298,7 +363,7 @@ function buildRunLedgerEntry({
     : [];
 
   return sanitizeForLedger({
-    schema_version: 1,
+    schema_version: 2,
     work_id: opts.workId || null,
     run_id: `${finishedIso.replace(/[:.]/g, '-')}-${hashText(`${repoState.head_sha}:${query}:${startedIso}`).slice(0, 12)}`,
     created_at: finishedIso,
@@ -330,6 +395,7 @@ function buildRunLedgerEntry({
       captureTrace: opts.captureTrace === true,
     },
     tools_invoked: compactToolStats(telemetry),
+    tools_available: Array.isArray(result && result.toolsAvailable) ? result.toolsAvailable : [],
     files_opened: Array.isArray(telemetry.filesOpened) ? telemetry.filesOpened : [],
     run_check_artifacts: Array.isArray(telemetry.runCheckArtifacts) ? telemetry.runCheckArtifacts : [],
     run_checks: Array.isArray(telemetry.runChecks) ? telemetry.runChecks : [],
@@ -337,6 +403,17 @@ function buildRunLedgerEntry({
     answer_quality_evidence: answerQualityEvidence,
     adversarial_review: reviewSummary,
     consensus: reviewSummary,
+    stages: {
+      mercury: result ? {
+        provider_attempts: Array.isArray(result.providerAttempts) ? result.providerAttempts : [],
+        tools_available: Array.isArray(result.toolsAvailable) ? result.toolsAvailable : [],
+        tools_invoked: compactToolStats(telemetry),
+        files_mechanically_opened: Array.isArray(telemetry.filesOpened) ? telemetry.filesOpened : [],
+        repo_adjudication: { status: 'pending', authority: 'live_repo_required' },
+      } : null,
+      challenger: reviewSummary,
+      tie_breaker: reviewSummary && reviewSummary.final_review ? reviewSummary.final_review : null,
+    },
     termination: result ? result.termination : null,
     iterations: result ? result.iterations : null,
     latency_ms: result ? result.totalLatencyMs : null,
@@ -388,6 +465,11 @@ function writeRunLedgerEntry({
 module.exports = {
   DEFAULT_RUN_LEDGER_DIR,
   RUN_LEDGER_DIR,
+  RAW_PROVIDER_DIR,
+  createRawRunId,
+  writeRawProviderOutput,
+  extractClaimedFileCitations,
+  buildPromptProvenance,
   buildRunLedgerEntry,
   classifyMercuryVerdict,
   resultHasToolFailure,

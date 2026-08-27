@@ -48,13 +48,16 @@ const {
   adversarialReviewFailure,
   buildMercuryRecheckPrompts,
   formatAdversarialReviewPacket,
+  kimiTieBreakerRequired,
 } = require('./adversarial-review');
 const { runProviderPreflight } = require('./provider-preflight');
 const { retrieveSimilarTrace, formatTraceAsHint, captureTrace, markTraceUsed, evictStaleTraces, ensureTraceIndexes, getTraceStats } = require('./trace-memory');
 const {
   autoBlastRadiusFailed,
   buildRunLedgerEntry,
+  createRawRunId,
   resultHasToolFailure,
+  writeRawProviderOutput,
   writeRunLedgerEntry,
 } = require('./run-ledger');
 const MongoStore = require('./mongo-store');
@@ -382,6 +385,43 @@ async function buildCurrentChangeBlastRadius({
 
 async function runAgentic(query, opts) {
   const startedAt = new Date();
+  const rawRunId = createRawRunId(startedAt);
+  const providerAudit = {
+    attempts: [],
+    record(metadata, context) {
+      const attempt = this.attempts.length + 1;
+      const rawOutput = writeRawProviderOutput({
+        repoRoot: config.REPO_ROOT,
+        runId: rawRunId,
+        stage: 'mercury',
+        attempt,
+        bytes: metadata.rawResponse || Buffer.alloc(0),
+      });
+      return {
+        attempt,
+        status: context.status,
+        retry: context.retry,
+        requested_provider: metadata.provider || config.MERCURY_LLM_PROVIDER,
+        requested_model: metadata.requestedModel || config.MERCURY_LLM_MODEL,
+        applied_model: metadata.appliedModel || null,
+        started_at: metadata.startedAt || null,
+        finished_at: metadata.finishedAt || null,
+        latency_ms: metadata.latencyMs == null ? null : metadata.latencyMs,
+        termination: metadata.termination || null,
+        parse_status: metadata.parseStatus || null,
+        raw_output: rawOutput,
+        error: context.error || null,
+        repo_adjudication: { status: 'pending', authority: 'live_repo_required' },
+      };
+    },
+  };
+  const persistReviewRaw = (stage, attempt, bytes) => writeRawProviderOutput({
+    repoRoot: config.REPO_ROOT,
+    runId: rawRunId,
+    stage,
+    attempt,
+    bytes,
+  });
   const verbose = !opts.quiet;
   const maxIterations = configExactInteger(opts.maxIterations, config.AGENTIC_MAX_ITERATIONS, '--max-iterations');
   const maxTokens = configExactInteger(opts.maxTokens, config.AGENTIC_MAX_TOKENS, '--max-tokens');
@@ -536,6 +576,7 @@ async function runAgentic(query, opts) {
       maxIterations,
       maxTokens,
       verbose,
+      providerAudit,
     });
     result.totalLatencyMs = Date.now() - t0;
     if (autoBlastRadius) {
@@ -561,9 +602,10 @@ async function runAgentic(query, opts) {
           query,
           mercuryResult: result,
           reviewIntent,
+          persistRaw: persistReviewRaw,
         });
         review.mode = reviewMode;
-        if (review.ok && reviewIntent === 'adversarial' && review.parsed && review.parsed.blocking) {
+        if (kimiTieBreakerRequired(review, reviewIntent)) {
           const recheckPrompts = buildMercuryRecheckPrompts({
             originalQuery: query,
             mercuryAnswer: result.answer,
@@ -588,25 +630,27 @@ async function runAgentic(query, opts) {
               maxIterations,
               maxTokens,
               verbose,
+              providerAudit,
             });
             recheck.totalLatencyMs = Date.now() - recheckStarted;
             review.rechecks.push(recheck);
           }
           review.recheck = review.rechecks[0] || null;
         }
-        if (review.ok && reviewIntent === 'adversarial' && review.parsed && review.parsed.blocking) {
+        if (kimiTieBreakerRequired(review, reviewIntent)) {
           if (verbose) {
-            console.log(`[MERCURY-BRIDGE] Fable and Mercury did not converge; launching Kimi final adjudication: ${config.CONSENSUS_MODEL}`);
+            console.log(`[MERCURY-BRIDGE] Fable and Mercury did not converge; launching Kimi final adjudication: ${config.TIE_BREAKER_MODEL}`);
           }
           try {
             review.finalReview = await runKimiFinalAdjudication({
               query,
               mercuryResult: result,
               review,
+              persistRaw: persistReviewRaw,
             });
           } catch (finalErr) {
-            review.finalReview = adversarialReviewFailure(finalErr);
-            review.finalReview.mode = 'kimi_final_adjudication';
+            review.finalReview = adversarialReviewFailure(finalErr, { role: 'kimi_tie_breaker' });
+            result.exitCode = 1;
             if (verbose) {
               console.log(`[MERCURY-BRIDGE] Kimi final adjudication failed: ${finalErr.message}`);
             }
@@ -625,6 +669,7 @@ async function runAgentic(query, opts) {
         failure.mode = reviewMode;
         result.adversarialReview = failure;
         result.consensus = failure;
+        result.exitCode = 1;
         if (verbose) {
           console.log(`[MERCURY-BRIDGE] Fable ${reviewMode} failed: ${err.message}`);
         }
@@ -911,6 +956,7 @@ async function main() {
       console.log('');
       console.log(`[iterations: ${result.iterations} | termination: ${result.termination} | latency: ${result.totalLatencyMs}ms]`);
       printDispatchReceipt(result);
+      if (result.exitCode) process.exitCode = result.exitCode;
       if (result.adversarialReview || result.consensus) {
         const review = result.adversarialReview || result.consensus;
         console.log('');
@@ -953,6 +999,7 @@ async function main() {
         } else {
           console.log(`Adversarial review unavailable: ${review.error.message}`);
           console.log(`[${review.mode || 'adversarial_review'}: ${review.provider}/${review.model}]`);
+          process.exitCode = 1;
         }
       }
 
