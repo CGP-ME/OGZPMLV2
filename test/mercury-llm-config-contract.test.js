@@ -7,6 +7,21 @@ const path = require('path');
 const baseMercuryConfig = require('../mercury.config.json');
 const { createToolAdapter } = require('../trai_brain/mercury-bridge/tool-adapter');
 
+const trustedClaudeExecutable = Object.freeze({
+  trusted: true,
+  launcherPath: '/usr/local/bin/claude',
+  realpath: '/usr/local/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe',
+  ownerUid: 0,
+  mode: '0755',
+  version: null,
+  checks: ['rooted_system_launcher', 'anthropic_package_realpath', 'root_owned', 'not_group_or_world_writable'],
+  checkedPaths: ['/usr/local/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe'],
+});
+
+function withTrustedExecutable(options) {
+  return { ...options, resolveExecutable: () => ({ ...trustedClaudeExecutable }) };
+}
+
 function mergeConfig(base, overrides = {}) {
   const result = { ...base };
   for (const [key, value] of Object.entries(overrides)) {
@@ -111,6 +126,9 @@ describe('Mercury LLM config contract', () => {
     await withMercuryConfig({ consensus: { baseUrl: 'https://gateway.example/v1' } }, () => {
       expect(() => require('../trai_brain/mercury-bridge/config')).toThrow(/first-party Claude Code subscription routing/);
     });
+    await withMercuryConfig({ consensus: { command: '/opt/not-claude/custom-reviewer' } }, () => {
+      expect(() => require('../trai_brain/mercury-bridge/config')).toThrow(/consensus\.command is not configurable/);
+    });
   });
 
   test('scrubs higher-precedence auth, gateway, and cloud-provider environment routing', async () => {
@@ -125,7 +143,7 @@ describe('Mercury LLM config contract', () => {
       source.CLAUDE_CODE_MCP_CONFIG = '/tmp/claude-mcp.json';
       source.WORKSPACE_MCP_PATH = '/tmp/workspace-mcp.json';
       const child = buildClaudeSubscriptionEnv(source);
-      expect(child.PATH).toBe('/usr/bin');
+      expect(child.PATH).toBe('/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin');
       for (const name of CLAUDE_SUBSCRIPTION_OVERRIDE_ENV) expect(child).not.toHaveProperty(name);
       expect(Object.keys(child).filter(name => /(^|_)MCP(_|$)/i.test(name))).toEqual([]);
     });
@@ -151,24 +169,26 @@ describe('Mercury LLM config contract', () => {
           JSON.stringify({ type: 'result', subtype: 'success', result: 'PROVIDER_OK' }),
         ].join('\n'));
         const execFileAsync = jest.fn()
+          .mockResolvedValueOnce({ stdout: Buffer.from('2.1.236 (Claude Code)\n'), stderr: Buffer.alloc(0) })
           .mockResolvedValueOnce({ stdout: authStatus, stderr: Buffer.alloc(0) })
           .mockResolvedValueOnce({ stdout: rawResponse, stderr: Buffer.alloc(0) });
-        const client = new ClaudeCodeConsensusClient(resolveConsensusLlmClientOptions({
+        const client = new ClaudeCodeConsensusClient(withTrustedExecutable(resolveConsensusLlmClientOptions({
           model, execFileAsync,
-        }));
+        })));
 
         await expect(client.generateResponseWithMetadata('preflight')).resolves.toMatchObject({
           answer: 'PROVIDER_OK',
           metadata: { appliedModel, toolsAvailable: [] },
         });
-        const [command, args, options] = execFileAsync.mock.calls[1];
-        expect(command).toBe('claude');
+        const [command, args, options] = execFileAsync.mock.calls[2];
+        expect(command).toBe(trustedClaudeExecutable.realpath);
         expect(args).toContain('--disable-slash-commands');
         expect(args).toContain('--strict-mcp-config');
         expect(args).not.toContain('--mcp-config');
         expect(args[args.indexOf('--tools') + 1]).toBe('');
         expect(args).not.toContain('/tmp/inherited-mcp.json');
         expect(Object.keys(options.env).filter(name => /(^|_)MCP(_|$)/i.test(name))).toEqual([]);
+        expect(options.env.PATH).toBe('/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin');
       }
     }, {
       MCP_CONFIG: '/tmp/inherited-mcp.json',
@@ -215,6 +235,82 @@ describe('Mercury LLM config contract', () => {
       expect(claudeAppliedModelMatchesAlias('fable', 'claude-fable-5')).toBe(true);
       expect(claudeAppliedModelMatchesAlias('opus', 'claude-opus-4-1')).toBe(true);
       expect(claudeAppliedModelMatchesAlias('fable', 'claude-sonnet-4-5')).toBe(false);
+      expect(claudeAppliedModelMatchesAlias('fable', 'claude-notfable-5')).toBe(false);
+    });
+  });
+
+  test('trusted Claude discovery rejects PATH wrappers, user-writable targets, and non-Anthropic realpaths', async () => {
+    await withMercuryConfig({}, () => {
+      const { resolveTrustedClaudeExecutable } = require('../trai_brain/mercury-bridge/llm-client');
+      const fileStat = ({ uid = 0, mode = 0o100755, file = true } = {}) => ({
+        uid, mode, isFile: () => file,
+      });
+      const buildFs = ({ realpath, targetUid = 0, targetMode = 0o100755, launcherUid = 0 }) => ({
+        existsSync: candidate => candidate === '/usr/local/bin/claude',
+        lstatSync: () => fileStat({ uid: launcherUid }),
+        realpathSync: () => realpath,
+        statSync: candidate => candidate === realpath
+          ? fileStat({ uid: targetUid, mode: targetMode })
+          : fileStat(),
+      });
+
+      expect(() => resolveTrustedClaudeExecutable({
+        fsImpl: buildFs({ realpath: '/home/user/bin/claude' }),
+      })).toThrow(/non-Anthropic installation target/);
+      expect(() => resolveTrustedClaudeExecutable({
+        fsImpl: buildFs({
+          realpath: '/usr/local/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe',
+          targetUid: 1000,
+        }),
+      })).toThrow(/non-root-owned path/);
+      expect(() => resolveTrustedClaudeExecutable({
+        fsImpl: buildFs({
+          realpath: '/usr/local/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe',
+          targetMode: 0o100775,
+        }),
+      })).toThrow(/group\/world-writable path/);
+      expect(resolveTrustedClaudeExecutable({
+        fsImpl: buildFs({
+          realpath: '/usr/local/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe',
+        }),
+      })).toMatchObject({ trusted: true, ownerUid: 0, mode: '0755' });
+    });
+  });
+
+  test('spoofed CLI version and self-reported model fail before challenger acceptance', async () => {
+    await withMercuryConfig({}, async () => {
+      const { ClaudeCodeConsensusClient, resolveConsensusLlmClientOptions } = require('../trai_brain/mercury-bridge/llm-client');
+      const badVersion = new ClaudeCodeConsensusClient(withTrustedExecutable(resolveConsensusLlmClientOptions({
+        execFileAsync: jest.fn().mockResolvedValue({ stdout: Buffer.from('custom-reviewer 1.0'), stderr: Buffer.alloc(0) }),
+      })));
+      let versionError;
+      try {
+        await badVersion.initialize();
+      } catch (error) {
+        versionError = error;
+      }
+      expect(versionError).toMatchObject({
+        message: expect.stringMatching(/untrusted version signature/),
+        providerMetadata: {
+          termination: 'executable_trust_check_failed',
+          executableTrust: { trusted: false, failedCheck: 'version_signature', version: null },
+        },
+      });
+
+      const authStatus = Buffer.from(JSON.stringify({
+        loggedIn: true, authMethod: 'claude.ai', apiProvider: 'firstParty', subscriptionType: 'max',
+      }));
+      const spoofedModel = Buffer.from([
+        JSON.stringify({ type: 'system', subtype: 'init', model: 'claude-sonnet-4-5', tools: [] }),
+        JSON.stringify({ type: 'result', subtype: 'success', result: 'PROVIDER_OK' }),
+      ].join('\n'));
+      const execFileAsync = jest.fn()
+        .mockResolvedValueOnce({ stdout: Buffer.from('2.1.236 (Claude Code)'), stderr: Buffer.alloc(0) })
+        .mockResolvedValueOnce({ stdout: authStatus, stderr: Buffer.alloc(0) })
+        .mockResolvedValueOnce({ stdout: spoofedModel, stderr: Buffer.alloc(0) });
+      const client = new ClaudeCodeConsensusClient(withTrustedExecutable(resolveConsensusLlmClientOptions({ execFileAsync })));
+      await expect(client.generateResponseWithMetadata('preflight'))
+        .rejects.toThrow(/applied model does not match/);
     });
   });
 
@@ -286,11 +382,12 @@ describe('Mercury LLM config contract', () => {
       for (const testCase of cases) {
         const rawResponse = Buffer.from(testCase.frames.map(frame => JSON.stringify(frame)).join('\n'));
         const execFileAsync = jest.fn()
+          .mockResolvedValueOnce({ stdout: Buffer.from('2.1.236 (Claude Code)'), stderr: Buffer.alloc(0) })
           .mockResolvedValueOnce({ stdout: authStatus, stderr: Buffer.alloc(0) })
           .mockResolvedValueOnce({ stdout: rawResponse, stderr: Buffer.alloc(0) });
-        const client = new ClaudeCodeConsensusClient(resolveConsensusLlmClientOptions({
+        const client = new ClaudeCodeConsensusClient(withTrustedExecutable(resolveConsensusLlmClientOptions({
           model: 'fable', execFileAsync,
-        }));
+        })));
         let caught;
         try {
           await client.generateResponseWithMetadata('preflight');

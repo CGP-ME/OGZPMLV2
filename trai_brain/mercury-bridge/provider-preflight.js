@@ -97,6 +97,7 @@ function attemptReceipt({ label, attempt, client, metadata = {}, status, phase, 
     },
     files_mechanically_opened: [],
     auth_posture: metadata.authStatus || (client && client.authStatus) || null,
+    executable_trust: metadata.executableTrust || (client && client.executableTrust) || null,
     error: error ? cleanProviderError(error) : null,
     repo_adjudication: { status: 'pending', authority: 'live_repo_required' },
   };

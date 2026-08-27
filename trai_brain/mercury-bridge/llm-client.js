@@ -1,5 +1,6 @@
 'use strict';
 
+const fs = require('fs');
 const path = require('path');
 const { execFile } = require('child_process');
 const config = require('./config');
@@ -48,7 +49,18 @@ const CLAUDE_SUBSCRIPTION_OVERRIDE_ENV = Object.freeze([
   'ANTHROPIC_FOUNDRY_RESOURCE',
   'ANTHROPIC_FOUNDRY_API_KEY',
   'CLOUD_ML_REGION',
+  'CLAUDE_CONFIG_DIR',
+  'CLAUDE_CODE_CONFIG_DIR',
+  'NODE_OPTIONS',
+  'NODE_PATH',
 ]);
+
+const TRUSTED_CLAUDE_LAUNCHERS = Object.freeze([
+  '/usr/local/bin/claude',
+  '/usr/bin/claude',
+  '/opt/homebrew/bin/claude',
+]);
+const TRUSTED_CLAUDE_PATH = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 
 function buildClaudeSubscriptionEnv(sourceEnv = process.env) {
   const childEnv = { ...sourceEnv };
@@ -56,7 +68,91 @@ function buildClaudeSubscriptionEnv(sourceEnv = process.env) {
   for (const name of Object.keys(childEnv)) {
     if (/(^|_)MCP(_|$)/i.test(name)) delete childEnv[name];
   }
+  childEnv.PATH = TRUSTED_CLAUDE_PATH;
   return childEnv;
+}
+
+function modeString(mode) {
+  return (mode & 0o777).toString(8).padStart(4, '0');
+}
+
+function claudeExecutableTrustError(message, details = {}) {
+  const error = new Error(message);
+  error.code = 'CLAUDE_CODE_EXECUTABLE_UNTRUSTED';
+  error.executableTrust = { trusted: false, ...details };
+  return error;
+}
+
+function assertTrustedPathOwnership(filePath, { fsImpl = fs, requiredUid = 0 } = {}) {
+  const checked = [];
+  let current = path.resolve(filePath);
+  while (true) {
+    const stat = fsImpl.statSync(current);
+    if (typeof stat.uid === 'number' && stat.uid !== requiredUid) {
+      throw claudeExecutableTrustError(`Claude Code trust check rejected non-root-owned path: ${current}`, {
+        failedCheck: 'root_owned', path: current, observedUid: stat.uid, requiredUid,
+      });
+    }
+    if ((stat.mode & 0o022) !== 0) {
+      throw claudeExecutableTrustError(`Claude Code trust check rejected group/world-writable path: ${current}`, {
+        failedCheck: 'not_group_or_world_writable', path: current, mode: modeString(stat.mode),
+      });
+    }
+    checked.push({ path: current, uid: typeof stat.uid === 'number' ? stat.uid : null, mode: modeString(stat.mode) });
+    if (current === path.parse(current).root) break;
+    current = path.dirname(current);
+  }
+  return checked;
+}
+
+function resolveTrustedClaudeExecutable({
+  fsImpl = fs,
+  candidates = TRUSTED_CLAUDE_LAUNCHERS,
+  requiredUid = 0,
+} = {}) {
+  const launcherPath = candidates.find(candidate => fsImpl.existsSync(candidate));
+  if (!launcherPath) {
+    throw claudeExecutableTrustError('Trusted first-party Claude Code executable was not found in a rooted system installation', {
+      failedCheck: 'rooted_system_launcher', checkedLaunchers: [...candidates],
+    });
+  }
+  const launcherStat = fsImpl.lstatSync(launcherPath);
+  if (typeof launcherStat.uid === 'number' && launcherStat.uid !== requiredUid) {
+    throw claudeExecutableTrustError(`Claude Code trust check rejected non-root-owned launcher: ${launcherPath}`, {
+      failedCheck: 'root_owned_launcher', launcherPath, observedUid: launcherStat.uid, requiredUid,
+    });
+  }
+  const realpath = fsImpl.realpathSync(launcherPath);
+  if (!/(^|\/)@anthropic-ai\/claude-code\/(?:bin\/claude(?:\.exe)?|cli\.js)$/.test(realpath.replace(/\\/g, '/'))) {
+    throw claudeExecutableTrustError(`Claude Code trust check rejected non-Anthropic installation target: ${realpath}`, {
+      failedCheck: 'anthropic_package_realpath', launcherPath, realpath,
+    });
+  }
+  const targetStat = fsImpl.statSync(realpath);
+  if (!targetStat.isFile() || (targetStat.mode & 0o111) === 0) {
+    throw claudeExecutableTrustError(`Claude Code trust check rejected non-executable target: ${realpath}`, {
+      failedCheck: 'executable_regular_file', launcherPath, realpath, mode: modeString(targetStat.mode),
+    });
+  }
+  const checkedPaths = assertTrustedPathOwnership(realpath, { fsImpl, requiredUid });
+  assertTrustedPathOwnership(path.dirname(launcherPath), { fsImpl, requiredUid });
+  return {
+    trusted: true,
+    launcherPath,
+    realpath,
+    ownerUid: typeof targetStat.uid === 'number' ? targetStat.uid : null,
+    mode: modeString(targetStat.mode),
+    version: null,
+    checks: ['rooted_system_launcher', 'anthropic_package_realpath', 'root_owned', 'not_group_or_world_writable'],
+    checkedPaths: checkedPaths.map(entry => entry.path),
+  };
+}
+
+function parseClaudeCodeVersion(stdout) {
+  const value = Buffer.isBuffer(stdout) ? stdout.toString('utf8').trim() : String(stdout || '').trim();
+  const match = value.match(/^(\d+\.\d+\.\d+) \(Claude Code\)$/);
+  if (!match) throw new Error('Claude Code executable returned an untrusted version signature');
+  return match[1];
 }
 
 function normalizeClaudeCodeFrames(parsed) {
@@ -197,7 +293,7 @@ function claudeAppliedModelMatchesAlias(requestedModel, appliedModel) {
   const requested = String(requestedModel || '').toLowerCase();
   const applied = String(appliedModel || '').toLowerCase();
   if (!['fable', 'opus'].includes(requested)) return false;
-  return applied.includes(requested);
+  return new RegExp(`(^|[-_.])${requested}($|[-_.])`).test(applied);
 }
 
 class ClaudeCodeIncompleteResponseError extends Error {
@@ -240,7 +336,6 @@ class ClaudeCodeConsensusClient {
   constructor(clientOptions) {
     this.providerName = clientOptions.provider;
     this.model = clientOptions.model;
-    this.command = clientOptions.command;
     this.permissionMode = clientOptions.permissionMode;
     this.maxTokens = clientOptions.maxTokens;
     this.minimumTokens = clientOptions.minimumTokens;
@@ -248,6 +343,7 @@ class ClaudeCodeConsensusClient {
     this.requestTimeoutMs = clientOptions.requestTimeoutMs;
     this.systemPrompt = clientOptions.systemPrompt;
     this.execFileAsync = clientOptions.execFileAsync || execFileAsync;
+    this.resolveExecutable = clientOptions.resolveExecutable || resolveTrustedClaudeExecutable;
     this.requestCount = 0;
     this.initialized = false;
   }
@@ -259,7 +355,43 @@ class ClaudeCodeConsensusClient {
     let stdout = Buffer.alloc(0);
     let stderr = Buffer.alloc(0);
     try {
-      const result = await this.execFileAsync(this.command, ['auth', 'status', '--json'], {
+      this.executableTrust = this.resolveExecutable();
+      const versionResult = await this.execFileAsync(this.executableTrust.realpath, ['--version'], {
+        cwd: config.REPO_ROOT,
+        env: buildClaudeSubscriptionEnv(),
+        timeout: this.requestTimeoutMs,
+        maxBuffer: 1024 * 1024,
+        encoding: null,
+      });
+      this.executableTrust.version = parseClaudeCodeVersion(versionResult.stdout);
+    } catch (error) {
+      if (this.executableTrust && !this.executableTrust.version) {
+        this.executableTrust = {
+          ...this.executableTrust,
+          trusted: false,
+          failedCheck: 'version_signature',
+        };
+      }
+      error.providerMetadata = {
+        provider: this.providerName,
+        requestedModel: this.model,
+        appliedModel: null,
+        startedAt: startedAt.toISOString(),
+        finishedAt: new Date().toISOString(),
+        latencyMs: Date.now() - startedMs,
+        exitCode: error.code == null ? null : error.code,
+        termination: 'executable_trust_check_failed',
+        parseStatus: 'not_started',
+        rawResponse: Buffer.alloc(0),
+        rawError: Buffer.alloc(0),
+        providerFrames: [],
+        toolsAvailable: [],
+        executableTrust: error.executableTrust || this.executableTrust || null,
+      };
+      throw error;
+    }
+    try {
+      const result = await this.execFileAsync(this.executableTrust.realpath, ['auth', 'status', '--json'], {
         cwd: config.REPO_ROOT,
         env: buildClaudeSubscriptionEnv(),
         timeout: this.requestTimeoutMs,
@@ -285,6 +417,7 @@ class ClaudeCodeConsensusClient {
         rawError: stderr,
         providerFrames: [],
         toolsAvailable: [],
+        executableTrust: this.executableTrust,
       };
       throw error;
     }
@@ -305,6 +438,7 @@ class ClaudeCodeConsensusClient {
         rawError: stderr,
         providerFrames: [],
         toolsAvailable: [],
+        executableTrust: this.executableTrust,
       };
       throw error;
     }
@@ -345,7 +479,7 @@ class ClaudeCodeConsensusClient {
     let stdout = Buffer.alloc(0);
     let stderr = Buffer.alloc(0);
     try {
-      const result = await this.execFileAsync(this.command, args, {
+      const result = await this.execFileAsync(this.executableTrust.realpath, args, {
         cwd: config.REPO_ROOT,
         env: buildClaudeSubscriptionEnv(),
         timeout: this.requestTimeoutMs,
@@ -405,6 +539,7 @@ class ClaudeCodeConsensusClient {
       providerFrames: frames,
       toolsAvailable: initFrame && Array.isArray(initFrame.tools) ? initFrame.tools : [],
       authStatus: this.authStatus,
+      executableTrust: this.executableTrust,
     };
   }
 }
@@ -452,7 +587,6 @@ function resolveConsensusLlmClientOptions({
     model,
     apiKey: '',
     authRequired: false,
-    command: config.CONSENSUS_COMMAND,
     permissionMode: config.CONSENSUS_PERMISSION_MODE,
     maxTokens: config.CONSENSUS_CLIENT_MAX_TOKENS,
     minimumTokens: config.CONSENSUS_CLIENT_MIN_TOKENS,
@@ -585,8 +719,13 @@ module.exports = {
   claudeAppliedModelMatchesAlias,
   ClaudeCodeIncompleteResponseError,
   parseClaudeAuthStatus,
+  parseClaudeCodeVersion,
   buildClaudeSubscriptionEnv,
   CLAUDE_SUBSCRIPTION_OVERRIDE_ENV,
+  TRUSTED_CLAUDE_LAUNCHERS,
+  TRUSTED_CLAUDE_PATH,
+  assertTrustedPathOwnership,
+  resolveTrustedClaudeExecutable,
   ClaudeCodeConsensusClient,
   resolveMercuryLlmClientOptions,
   createMercuryLlmClient,

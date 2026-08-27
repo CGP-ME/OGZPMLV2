@@ -2,6 +2,7 @@
 
 const config = require('./config');
 const {
+  claudeAppliedModelMatchesAlias,
   createFableChallengerClient,
   createOpusChallengerClient,
   createKimiTieBreakerClient,
@@ -609,16 +610,40 @@ const OPUS_ELIGIBLE_CLAUDE_CODES = Object.freeze(new Set([
   'overloaded_error',
 ]));
 
-function collectMachineErrorCodes(value, output = new Set()) {
-  if (!value || typeof value !== 'object') return output;
-  for (const [key, child] of Object.entries(value)) {
-    if ((key === 'code' || key === 'type' || key === 'error_code') && typeof child === 'string') {
-      output.add(child.toLowerCase());
-    } else if (child && typeof child === 'object') {
-      collectMachineErrorCodes(child, output);
+function trustedFableErrorMetadata(metadata) {
+  const auth = metadata.authStatus || {};
+  const trust = metadata.executableTrust || {};
+  return metadata.provider === 'claude-code'
+    && metadata.requestedModel === 'fable'
+    && claudeAppliedModelMatchesAlias('fable', metadata.appliedModel)
+    && auth.authMethod === 'claude.ai'
+    && auth.apiProvider === 'firstParty'
+    && trust.trusted === true
+    && typeof trust.realpath === 'string'
+    && typeof trust.version === 'string';
+}
+
+function classifyClaudeProviderErrorFrame(frame) {
+  if (!frame || frame.type !== 'result' || frame.is_error !== true) return null;
+  if (frame.error && typeof frame.error === 'object' && !Array.isArray(frame.error)) {
+    const machineFields = ['type', 'code', 'error_code']
+      .filter(key => Object.prototype.hasOwnProperty.call(frame.error, key))
+      .map(key => ({ key, value: typeof frame.error[key] === 'string' ? frame.error[key].toLowerCase() : null }));
+    if (machineFields.length > 0) {
+      const uniqueValues = new Set(machineFields.map(field => field.value));
+      if (uniqueValues.size !== 1) return null;
+      const [{ key, value }] = machineFields;
+      if (!OPUS_ELIGIBLE_CLAUDE_CODES.has(value)) return null;
+      return { category: value, opusEligible: true, evidence: `provider_frame:result.error.${key}:${value}` };
     }
   }
-  return output;
+  if (frame.api_error_status === 429) {
+    return { category: 'rate_limited', opusEligible: true, evidence: 'provider_frame:result.api_error_status:429' };
+  }
+  if (frame.api_error_status === 503) {
+    return { category: 'provider_unavailable', opusEligible: true, evidence: 'provider_frame:result.api_error_status:503' };
+  }
+  return null;
 }
 
 function classifyFableFallbackError(error) {
@@ -626,17 +651,14 @@ function classifyFableFallbackError(error) {
     return { category: 'receipt_persistence_failure', opusEligible: false, evidence: 'raw_receipt_write_failed' };
   }
   const metadata = error && error.providerMetadata ? error.providerMetadata : {};
-  const codes = collectMachineErrorCodes(metadata.providerFrames || []);
-  const matchedCode = Array.from(codes).find(code => OPUS_ELIGIBLE_CLAUDE_CODES.has(code));
-  if (matchedCode) return { category: matchedCode, opusEligible: true, evidence: `provider_code:${matchedCode}` };
-  const statusCode = Number(metadata.statusCode || error && error.statusCode);
-  if (statusCode === 429) return { category: 'rate_limited', opusEligible: true, evidence: 'http_status:429' };
-  if (statusCode === 503) return { category: 'provider_unavailable', opusEligible: true, evidence: 'http_status:503' };
-  const machineText = Buffer.isBuffer(metadata.rawError)
-    ? metadata.rawError.toString('utf8')
-    : String(metadata.rawError || '');
-  if (/\bHTTP 429\b/.test(machineText)) return { category: 'rate_limited', opusEligible: true, evidence: 'claude_stderr:http_429' };
-  if (/\bHTTP 503\b/.test(machineText)) return { category: 'provider_unavailable', opusEligible: true, evidence: 'claude_stderr:http_503' };
+  if (!trustedFableErrorMetadata(metadata)) {
+    return { category: 'untrusted_provider_error', opusEligible: false, evidence: 'missing_trusted_fable_error_provenance' };
+  }
+  const terminalResult = [...(metadata.providerFrames || [])]
+    .reverse()
+    .find(frame => frame && frame.type === 'result');
+  const classification = classifyClaudeProviderErrorFrame(terminalResult);
+  if (classification) return classification;
   return { category: 'non_fallback_error', opusEligible: false, evidence: 'no_allowlisted_machine_signal' };
 }
 
@@ -679,6 +701,7 @@ function stageAttemptReceipt({
     files_mechanically_opened: [],
     claimed_file_citations: [],
     auth_posture: metadata.authStatus || null,
+    executable_trust: metadata.executableTrust || null,
     error: error ? { name: error.name || 'Error', message: error.message || String(error) } : null,
     repo_adjudication: { status: 'pending', authority: 'live_repo_required' },
   };
@@ -913,6 +936,7 @@ module.exports = {
   buildAdversarialReviewPrompt,
   buildKimiFinalAdjudicationPrompt,
   OPUS_ELIGIBLE_CLAUDE_CODES,
+  classifyClaudeProviderErrorFrame,
   classifyFableFallbackError,
   executePromptOnlyStage,
   runFableAdversarialReview,

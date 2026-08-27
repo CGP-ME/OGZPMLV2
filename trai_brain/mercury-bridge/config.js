@@ -339,7 +339,6 @@ const CONSENSUS_BASE_URL = optionalString(MERCURY_CONFIG, 'consensus.baseUrl');
 const CONSENSUS_MODEL = requiredString(MERCURY_CONFIG, 'consensus.model').toLowerCase();
 const CONSENSUS_EMERGENCY_MODEL = requiredString(MERCURY_CONFIG, 'consensus.emergencyModel').toLowerCase();
 const CONSENSUS_API_KEY_ENV = optionalString(MERCURY_CONFIG, 'consensus.apiKeyEnv');
-const CONSENSUS_COMMAND = optionalString(MERCURY_CONFIG, 'consensus.command') || 'claude';
 const CONSENSUS_PERMISSION_MODE = optionalString(MERCURY_CONFIG, 'consensus.permissionMode') || 'dontAsk';
 const CONSENSUS_CLIENT_MAX_TOKENS = optionalNumber(MERCURY_CONFIG, 'consensus.clientMaxTokens', 2000, { integer: true, min: 1 });
 const CONSENSUS_CLIENT_MIN_TOKENS = optionalNumber(MERCURY_CONFIG, 'consensus.clientMinTokens', 0, { integer: true, min: 0 });
@@ -359,6 +358,9 @@ if (CONSENSUS_BASE_URL) {
 }
 if (CONSENSUS_API_KEY_ENV) {
   throw new Error('consensus.apiKeyEnv must be empty for first-party Claude Code subscription routing');
+}
+if (getConfigValue(MERCURY_CONFIG, 'consensus.command') !== undefined) {
+  throw new Error('consensus.command is not configurable; the challenger must use the trusted first-party Claude Code installation');
 }
 const rejectedChallengerModels = new Set(['sonnet', 'haiku', 'default', 'best', 'opusplan', 'kimi-k3']);
 if (CONSENSUS_MODEL !== 'fable' || rejectedChallengerModels.has(CONSENSUS_MODEL)) {
@@ -505,7 +507,6 @@ module.exports = {
   CONSENSUS_MODEL,
   CONSENSUS_EMERGENCY_MODEL,
   CONSENSUS_API_KEY_ENV,
-  CONSENSUS_COMMAND,
   CONSENSUS_PERMISSION_MODE,
   CONSENSUS_CLIENT_MAX_TOKENS,
   CONSENSUS_CLIENT_MIN_TOKENS,

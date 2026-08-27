@@ -67,7 +67,6 @@
     "model": "fable",
     "emergencyModel": "opus",
     "apiKeyEnv": null,
-    "command": "claude",
     "permissionMode": "dontAsk",
     "clientMaxTokens": 2000,
     "clientMinTokens": 200,

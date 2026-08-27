@@ -23,6 +23,21 @@ const {
 } = require('../trai_brain/mercury-bridge/adversarial-review');
 const { parseArgs, buildMercuryIntentPrompt } = require('../trai_brain/mercury-bridge/ask');
 
+function trustedFableMetadata(overrides = {}) {
+  return {
+    provider: 'claude-code',
+    requestedModel: 'fable',
+    appliedModel: 'claude-fable-5',
+    authStatus: { authMethod: 'claude.ai', apiProvider: 'firstParty', subscriptionType: 'max' },
+    executableTrust: {
+      trusted: true,
+      realpath: '/usr/local/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe',
+      version: '2.1.236',
+    },
+    ...overrides,
+  };
+}
+
 describe('Mercury Fable consensus', () => {
   test('CLI adversarial review flags expose explicit controls while preserving consensus aliases', () => {
     expect(parseArgs(['node', 'ask.js', '--agentic', 'break this'])).toMatchObject({
@@ -610,12 +625,11 @@ describe('Mercury Fable consensus', () => {
 
   test('Fable falls back to Opus only on allowlisted machine-observable unavailability', async () => {
     const fableError = new Error('Claude Code exited');
-    fableError.providerMetadata = {
-      provider: 'claude-code', requestedModel: 'fable', appliedModel: null,
+    fableError.providerMetadata = trustedFableMetadata({
       startedAt: '2026-08-27T00:00:00.000Z', finishedAt: '2026-08-27T00:00:00.010Z',
       latencyMs: 10, termination: 'provider_error', parseStatus: 'parsed', rawResponse: Buffer.from('fable-raw'),
-      providerFrames: [{ type: 'result', error: { type: 'rate_limit_error' } }],
-    };
+      providerFrames: [{ type: 'result', is_error: true, error: { type: 'rate_limit_error' } }],
+    });
     const failedFable = {
       maxTokens: 2000,
       initialize: jest.fn(async () => {}),
@@ -657,28 +671,75 @@ describe('Mercury Fable consensus', () => {
     ]);
     for (const code of OPUS_ELIGIBLE_CLAUDE_CODES) {
       const error = new Error('Claude Code exited');
-      error.providerMetadata = { providerFrames: [{ error: { type: code } }] };
+      error.providerMetadata = trustedFableMetadata({
+        providerFrames: [{ type: 'result', is_error: true, error: { type: code } }],
+      });
       expect(classifyFableFallbackError(error)).toMatchObject({ opusEligible: true, category: code });
     }
     for (const statusCode of [429, 503]) {
       const error = new Error('Claude Code exited');
-      error.providerMetadata = { statusCode, providerFrames: [] };
+      error.providerMetadata = trustedFableMetadata({
+        providerFrames: [{ type: 'result', is_error: true, api_error_status: statusCode }],
+      });
       expect(classifyFableFallbackError(error).opusEligible).toBe(true);
     }
     const ambiguous = new Error('rate limit maybe');
-    ambiguous.providerMetadata = { rawError: Buffer.from('rate limit maybe'), providerFrames: [] };
+    ambiguous.providerMetadata = trustedFableMetadata({
+      rawError: Buffer.from('HTTP 429 rate limit maybe'), providerFrames: [],
+    });
     expect(classifyFableFallbackError(ambiguous)).toMatchObject({
       opusEligible: false,
       evidence: 'no_allowlisted_machine_signal',
     });
   });
 
+  test('bare, nested, success-frame, malformed, and identity-less allowlisted tokens cannot invoke Opus', () => {
+    const rejectedFrames = [
+      [{ type: 'model_unavailable' }],
+      [{ payload: { type: 'overloaded_error' } }],
+      [{ type: 'result', subtype: 'success', is_error: false, error: { type: 'rate_limit_error' } }],
+      [{ type: 'result', is_error: true, payload: { error: { code: 'model_not_found' } } }],
+      [{ type: 'result', is_error: true, error: { type: 'authentication_error', code: 'model_unavailable' } }],
+      [{ type: 'result', is_error: true, error: { type: 'authentication_error' }, api_error_status: 429 }],
+      [{ type: 'result', is_error: true, api_error_status: '429' }],
+      [
+        { type: 'result', is_error: true, error: { type: 'model_unavailable' } },
+        { type: 'result', subtype: 'success', is_error: false, result: 'PROVIDER_OK' },
+      ],
+    ];
+    for (const providerFrames of rejectedFrames) {
+      const error = new Error('Claude Code exited');
+      error.providerMetadata = trustedFableMetadata({ providerFrames });
+      expect(classifyFableFallbackError(error)).toMatchObject({
+        opusEligible: false,
+        evidence: 'no_allowlisted_machine_signal',
+      });
+    }
+
+    for (const overrides of [
+      { appliedModel: null },
+      { appliedModel: 'claude-sonnet-4-5' },
+      { executableTrust: null },
+      { authStatus: { authMethod: 'apiKey', apiProvider: 'firstParty' } },
+    ]) {
+      const error = new Error('Claude Code exited');
+      error.providerMetadata = trustedFableMetadata({
+        ...overrides,
+        providerFrames: [{ type: 'result', is_error: true, error: { type: 'rate_limit_error' } }],
+      });
+      expect(classifyFableFallbackError(error)).toMatchObject({
+        opusEligible: false,
+        category: 'untrusted_provider_error',
+      });
+    }
+  });
+
   test('both Fable and Opus unavailable fail loud with ordered attempts before Kimi', async () => {
     const fableError = new Error('Fable unavailable');
-    fableError.providerMetadata = {
-      provider: 'claude-code', requestedModel: 'fable', rawResponse: Buffer.from('fable failure'),
-      providerFrames: [{ type: 'result', error: { type: 'model_unavailable' } }],
-    };
+    fableError.providerMetadata = trustedFableMetadata({
+      rawResponse: Buffer.from('fable failure'),
+      providerFrames: [{ type: 'result', is_error: true, error: { type: 'model_unavailable' } }],
+    });
     const opusError = new Error('Opus unavailable');
     opusError.providerMetadata = {
       provider: 'claude-code', requestedModel: 'opus', rawResponse: Buffer.from('opus failure'),
@@ -757,7 +818,7 @@ describe('Mercury Fable consensus', () => {
       new Error('general network failure'),
     ]) {
       error.providerMetadata = { rawResponse: Buffer.alloc(0), providerFrames: [] };
-      expect(classifyFableFallbackError(error)).toMatchObject({ opusEligible: false, category: 'non_fallback_error' });
+      expect(classifyFableFallbackError(error)).toMatchObject({ opusEligible: false, category: 'untrusted_provider_error' });
     }
     const authError = new Error('authentication failed');
     authError.providerMetadata = { rawResponse: Buffer.alloc(0), providerFrames: [] };

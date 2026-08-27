@@ -22,6 +22,21 @@ function fakeClient({ provider, model, initialize }) {
   };
 }
 
+function trustedFableMetadata(overrides = {}) {
+  return {
+    provider: 'claude-code',
+    requestedModel: 'fable',
+    appliedModel: 'claude-fable-5',
+    authStatus: { authMethod: 'claude.ai', apiProvider: 'firstParty', subscriptionType: 'max' },
+    executableTrust: {
+      trusted: true,
+      realpath: '/usr/local/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe',
+      version: '2.1.236',
+    },
+    ...overrides,
+  };
+}
+
 describe('Mercury provider preflight', () => {
   let tmpRoot;
 
@@ -164,9 +179,9 @@ describe('Mercury provider preflight', () => {
 
   test('preflight checks Opus only after allowlisted Fable unavailability', async () => {
     const fableFailure = new Error('Fable unavailable');
-    fableFailure.providerMetadata = {
-      providerFrames: [{ type: 'result', error: { type: 'model_unavailable' } }],
-    };
+    fableFailure.providerMetadata = trustedFableMetadata({
+      providerFrames: [{ type: 'result', is_error: true, error: { type: 'model_unavailable' } }],
+    });
     const opusFactory = jest.fn(() => fakeClient({
       provider: 'claude-code', model: 'opus', initialize: async () => {},
     }));
@@ -186,6 +201,25 @@ describe('Mercury provider preflight', () => {
     expect(result).toMatchObject({ ok: true, challengerReady: true, tieBreakerReady: false });
     expect(result.checks.map(check => check.label))
       .toEqual(['mercury', 'fable_challenger', 'opus_challenger', 'kimi_tie_breaker']);
+  });
+
+  test('ambiguous nested Fable error fails loud and never invokes Opus during preflight', async () => {
+    const fableFailure = new Error('Fable malformed output');
+    fableFailure.providerMetadata = trustedFableMetadata({
+      providerFrames: [{ payload: { type: 'model_unavailable' } }],
+    });
+    const opusFactory = jest.fn();
+    const result = await runProviderPreflight({
+      createMercuryClient: () => fakeClient({ provider: 'mercury', model: 'mercury-2', initialize: async () => {} }),
+      createFableClient: () => fakeClient({
+        provider: 'claude-code', model: 'fable', initialize: async () => { throw fableFailure; },
+      }),
+      createOpusClient: opusFactory,
+      createKimiClient: () => fakeClient({ provider: 'openai', model: 'kimi-k3', initialize: async () => {} }),
+    });
+    expect(opusFactory).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ ok: false, challengerReady: false, tieBreakerReady: true });
+    expect(result.checks[1].fallback).toMatchObject({ opusEligible: false });
   });
 
   test('failed ambiguous Fable preflight writes complete schema-v2 and mode-0600 raw receipts without Opus', async () => {
@@ -208,6 +242,11 @@ describe('Mercury provider preflight', () => {
       rawError: Buffer.from('provider stderr'),
       toolsAvailable: ['Read'],
       authStatus: { authMethod: 'claude.ai', apiProvider: 'firstParty', subscriptionType: 'max' },
+      executableTrust: {
+        trusted: true,
+        realpath: '/usr/local/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe',
+        version: '2.1.236',
+      },
       providerFrames: [],
     };
     const metadataClient = ({ provider, model, raw }) => ({
@@ -276,6 +315,7 @@ describe('Mercury provider preflight', () => {
       parse_status: 'parsed',
       tools: { enabled: false, available: ['Read'], calls: [], total: 0 },
       files_mechanically_opened: [],
+      executable_trust: { trusted: true, version: '2.1.236' },
       raw_output: { bytes: fableRaw.length, mode: '0600' },
       raw_error: { bytes: 15, mode: '0600' },
       repo_adjudication: { status: 'pending', authority: 'live_repo_required' },
