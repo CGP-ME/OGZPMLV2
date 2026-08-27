@@ -121,9 +121,59 @@ describe('Mercury LLM config contract', () => {
       } = require('../trai_brain/mercury-bridge/llm-client');
       const source = Object.fromEntries(CLAUDE_SUBSCRIPTION_OVERRIDE_ENV.map(name => [name, 'divert']));
       source.PATH = '/usr/bin';
+      source.MCP_CONFIG = '/tmp/inherited-mcp.json';
+      source.CLAUDE_CODE_MCP_CONFIG = '/tmp/claude-mcp.json';
+      source.WORKSPACE_MCP_PATH = '/tmp/workspace-mcp.json';
       const child = buildClaudeSubscriptionEnv(source);
       expect(child.PATH).toBe('/usr/bin');
       for (const name of CLAUDE_SUBSCRIPTION_OVERRIDE_ENV) expect(child).not.toHaveProperty(name);
+      expect(Object.keys(child).filter(name => /(^|_)MCP(_|$)/i.test(name))).toEqual([]);
+    });
+  });
+
+  test('Fable and Opus always disable built-ins, slash commands, and inherited MCP servers', async () => {
+    await withMercuryConfig({}, async () => {
+      const {
+        ClaudeCodeConsensusClient,
+        resolveConsensusLlmClientOptions,
+      } = require('../trai_brain/mercury-bridge/llm-client');
+      const authStatus = Buffer.from(JSON.stringify({
+        loggedIn: true,
+        authMethod: 'claude.ai',
+        apiProvider: 'firstParty',
+        subscriptionType: 'max',
+      }));
+
+      for (const model of ['fable', 'opus']) {
+        const appliedModel = `claude-${model}-test`;
+        const rawResponse = Buffer.from([
+          JSON.stringify({ type: 'system', subtype: 'init', model: appliedModel, tools: [] }),
+          JSON.stringify({ type: 'result', subtype: 'success', result: 'PROVIDER_OK' }),
+        ].join('\n'));
+        const execFileAsync = jest.fn()
+          .mockResolvedValueOnce({ stdout: authStatus, stderr: Buffer.alloc(0) })
+          .mockResolvedValueOnce({ stdout: rawResponse, stderr: Buffer.alloc(0) });
+        const client = new ClaudeCodeConsensusClient(resolveConsensusLlmClientOptions({
+          model, execFileAsync,
+        }));
+
+        await expect(client.generateResponseWithMetadata('preflight')).resolves.toMatchObject({
+          answer: 'PROVIDER_OK',
+          metadata: { appliedModel, toolsAvailable: [] },
+        });
+        const [command, args, options] = execFileAsync.mock.calls[1];
+        expect(command).toBe('claude');
+        expect(args).toContain('--disable-slash-commands');
+        expect(args).toContain('--strict-mcp-config');
+        expect(args).not.toContain('--mcp-config');
+        expect(args[args.indexOf('--tools') + 1]).toBe('');
+        expect(args).not.toContain('/tmp/inherited-mcp.json');
+        expect(Object.keys(options.env).filter(name => /(^|_)MCP(_|$)/i.test(name))).toEqual([]);
+      }
+    }, {
+      MCP_CONFIG: '/tmp/inherited-mcp.json',
+      CLAUDE_CODE_MCP_CONFIG: '/tmp/claude-mcp.json',
+      WORKSPACE_MCP_PATH: '/tmp/workspace-mcp.json',
     });
   });
 

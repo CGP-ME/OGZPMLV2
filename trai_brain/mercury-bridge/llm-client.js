@@ -53,6 +53,9 @@ const CLAUDE_SUBSCRIPTION_OVERRIDE_ENV = Object.freeze([
 function buildClaudeSubscriptionEnv(sourceEnv = process.env) {
   const childEnv = { ...sourceEnv };
   for (const name of CLAUDE_SUBSCRIPTION_OVERRIDE_ENV) delete childEnv[name];
+  for (const name of Object.keys(childEnv)) {
+    if (/(^|_)MCP(_|$)/i.test(name)) delete childEnv[name];
+  }
   return childEnv;
 }
 
@@ -331,7 +334,9 @@ class ClaudeCodeConsensusClient {
       '--output-format', 'stream-json',
       '--verbose',
       '--no-session-persistence',
+      '--disable-slash-commands',
       '--tools', '',
+      '--strict-mcp-config',
       '--system-prompt', systemPrompt,
       prompt,
     ];
