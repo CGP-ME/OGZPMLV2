@@ -143,11 +143,36 @@ function truncateText(value, maxChars) {
 }
 
 function redactSensitiveText(value) {
+  const redactHighEntropyRun = (match) => {
+    if (/^[a-f0-9]+$/i.test(match) && (match.length === 40 || match.length === 64)) {
+      return match;
+    }
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}(?:-\d{3}Z)?-[A-Za-z0-9_-]+$/i.test(match)) {
+      return match;
+    }
+    const counts = new Map();
+    for (const character of match) counts.set(character, (counts.get(character) || 0) + 1);
+    const entropy = Array.from(counts.values()).reduce((sum, count) => {
+      const probability = count / match.length;
+      return sum - probability * Math.log2(probability);
+    }, 0);
+    return counts.size >= 12 && entropy >= 3.5 ? '[REDACTED]' : match;
+  };
+
   return String(value == null ? '' : value)
     .replace(/\b(Bearer\s+)[A-Za-z0-9._~+/=-]{12,}/gi, '$1[REDACTED]')
     .replace(/\b((?:[A-Z0-9_]*)(?:API[_-]?KEY|API[_-]?SECRET|AUTH[_-]?TOKEN|TOKEN|SECRET|PASSWORD|WEBHOOK[_-]?URL|SIGNALSTACK[_-]?WEBHOOK[_-]?URL|DSN)\b\s*[:=]\s*["']?)[^"',\s}]+/gi, '$1[REDACTED]')
     .replace(/\bhttps:\/\/app\.signalstack\.com\/hook\/[^\s"',)]+/gi, 'https://app.signalstack.com/hook/[REDACTED]')
-    .replace(/\bhttps:\/\/[^/\s"',)]+\/hook\/[^\s"',)]+/gi, 'https://[REDACTED]/hook/[REDACTED]');
+    .replace(/\bhttps:\/\/[^/\s"',)]+\/hook\/[^\s"',)]+/gi, 'https://[REDACTED]/hook/[REDACTED]')
+    .replace(/\bsk-ant-[A-Za-z0-9_-]{16,}\b/g, '[REDACTED]')
+    .replace(/\bsk-[A-Za-z0-9_-]{20,}\b/g, '[REDACTED]')
+    .replace(/\bAKIA[A-Z0-9]{16}\b/g, '[REDACTED]')
+    .replace(/\b(?:PK|AK)[A-Za-z0-9]{16,}\b/g, '[REDACTED]')
+    .replace(/\bgh[po]_[A-Za-z0-9]{20,}\b/g, '[REDACTED]')
+    .replace(/\bxox[A-Za-z]-[A-Za-z0-9-]{10,}\b/g, '[REDACTED]')
+    .replace(/\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\b/g, '[REDACTED]')
+    .replace(/(?<![A-Za-z0-9+/])[A-Za-z0-9+/]{32,}={0,2}(?![A-Za-z0-9+/=])/g, redactHighEntropyRun)
+    .replace(/(?<![A-Za-z0-9_-])[A-Za-z0-9_-]{32,}(?![A-Za-z0-9_-])/g, redactHighEntropyRun);
 }
 
 function sanitizeForLedger(value) {

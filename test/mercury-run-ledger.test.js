@@ -58,6 +58,48 @@ describe('Mercury run ledger', () => {
     expect(redacted).not.toContain('abcdef1234567890');
   });
 
+  test('redacts bare provider and high-entropy token shapes without labels', () => {
+    const fixtures = [
+      ['sk', 'ant', 'api03', 'Ab9_Zy8-Xw7Vu6Ts5Rq4Po3Nm2Lk1Ji0'].join('-'),
+      `sk-${'Ab3dEf7hIj9kLm2nOp4qRs6tUv8wXy0z'}`,
+      `sk-${'Mo9nSh7oT5aP3iK1eY8xV6uT4sR2qW0z'}`,
+      `PK${'A1B2C3D4E5F6G7H8I9J0'}`,
+      `AK${'Z9Y8X7W6V5U4T3S2R1Q0'}`,
+      `ghp_${'Ab3dEf7hIj9kLm2nOp4qRs6tUv8wXy0z'}`,
+      `gho_${'Zy9xWv7uTs5rQp3nMk1jHg8fDc6bA4e2'}`,
+      `xoxb-${'1234567890-AbCdEfGhIjKlMnOp'}`,
+      `AKIA${'A1B2C3D4E5F6G7H8'}`,
+      `eyJ${'hbGciOiJIUzI1NiJ9'}.${'eyJzdWIiOiIxMjM0NTY3ODkwIn0'}.${'SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'}`,
+      '0123456789abcdef'.repeat(2),
+      'Ab3dEf7hIj9kLm2nOp4qRs6tUv8wXy0z+/=',
+    ];
+
+    for (const fixture of fixtures) {
+      const redacted = redactSensitiveText(`before ${fixture} after`);
+      expect(redacted).toBe('before [REDACTED] after');
+      expect(redacted).not.toContain(fixture);
+    }
+  });
+
+  test('preserves bare git object IDs and ledger artifact/excerpt sha256 values', () => {
+    const gitSha1 = '0123456789abcdef0123456789abcdef01234567';
+    const gitSha256 = '0123456789abcdef'.repeat(4);
+    const artifactSha256 = crypto.createHash('sha256').update('artifact bytes').digest('hex');
+    const excerptSha256 = crypto.createHash('sha256').update('excerpt bytes').digest('hex');
+    const runId = '2026-08-28T19-10-53-102Z-1238880-18254231d4c6';
+    const runCheckArtifact = '2026-08-28T19-12-22-224Z-run_check_permissions';
+    const text = [
+      gitSha1,
+      gitSha256,
+      `artifact_sha256=${artifactSha256}`,
+      `excerpt_sha256=${excerptSha256}`,
+      `run_id=${runId}`,
+      `ogz-meta/cognition-history/mercury-execution/${runCheckArtifact}.log:1-15`,
+    ].join(' ');
+
+    expect(redactSensitiveText(text)).toBe(text);
+  });
+
   test('classifies common Mercury outcomes into durable verdicts', () => {
     expect(classifyMercuryVerdict({
       result: {
