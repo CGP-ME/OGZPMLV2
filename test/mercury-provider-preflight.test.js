@@ -204,6 +204,69 @@ describe('Mercury provider preflight', () => {
       .toEqual(['mercury', 'fable_challenger', 'opus_challenger', 'kimi_tie_breaker']);
   });
 
+  test('preflight checks Opus when trusted Fable primary identity is absent but auxiliary usage is named', async () => {
+    const fableFailure = new Error('Claude Code response omitted applied model identity');
+    fableFailure.code = 'CLAUDE_CODE_PRIMARY_IDENTITY_UNAVAILABLE';
+    fableFailure.providerMetadata = trustedFableMetadata({
+      appliedModel: null,
+      appliedModels: [],
+      auxiliaryModels: ['claude-haiku-4-5'],
+      providerFrames: [{ type: 'result', subtype: 'success', result: 'PROVIDER_OK' }],
+    });
+    const result = await runProviderPreflight({
+      createMercuryClient: () => fakeClient({ provider: 'mercury', model: 'mercury-2', initialize: async () => {} }),
+      createFableClient: () => fakeClient({
+        provider: 'claude-code', model: 'fable', initialize: async () => { throw fableFailure; },
+      }),
+      createOpusClient: () => fakeClient({ provider: 'claude-code', model: 'opus', initialize: async () => {} }),
+      createKimiClient: () => fakeClient({ provider: 'openai', model: 'kimi-k3', initialize: async () => {} }),
+    });
+
+    expect(result).toMatchObject({ ok: true, challengerReady: true });
+    expect(result.checks[1]).toMatchObject({
+      ok: false,
+      fallback: {
+        category: 'primary_model_identity_unavailable',
+        opusEligible: true,
+        evidence: 'trusted_fable_runtime_primary_identity_absent',
+      },
+      attemptReceipt: {
+        applied_model: null,
+        applied_models: [],
+        auxiliary_models: ['claude-haiku-4-5'],
+      },
+    });
+    expect(result.checks.map(check => check.label))
+      .toEqual(['mercury', 'fable_challenger', 'opus_challenger', 'kimi_tie_breaker']);
+  });
+
+  test('preflight cannot route around a genuinely untrusted Claude executable', async () => {
+    const trustFailure = new Error('Trusted first-party Claude Code executable was not found in a rooted system installation');
+    trustFailure.code = 'CLAUDE_CODE_EXECUTABLE_UNTRUSTED';
+    trustFailure.providerMetadata = trustedFableMetadata({
+      appliedModel: null,
+      appliedModels: [],
+      executableTrust: { trusted: false, failedCheck: 'rooted_system_launcher' },
+    });
+    const opusFactory = jest.fn();
+    const result = await runProviderPreflight({
+      createMercuryClient: () => fakeClient({ provider: 'mercury', model: 'mercury-2', initialize: async () => {} }),
+      createFableClient: () => fakeClient({
+        provider: 'claude-code', model: 'fable', initialize: async () => { throw trustFailure; },
+      }),
+      createOpusClient: opusFactory,
+      createKimiClient: () => fakeClient({ provider: 'openai', model: 'kimi-k3', initialize: async () => {} }),
+    });
+
+    expect(result).toMatchObject({ ok: false, challengerReady: false });
+    expect(result.checks[1]).toMatchObject({
+      error: { code: 'CLAUDE_CODE_EXECUTABLE_UNTRUSTED' },
+      fallback: { category: 'untrusted_provider_error', opusEligible: false },
+      attemptReceipt: { executable_trust: { trusted: false, failedCheck: 'rooted_system_launcher' } },
+    });
+    expect(opusFactory).not.toHaveBeenCalled();
+  });
+
   test('ambiguous nested Fable error fails loud and never invokes Opus during preflight', async () => {
     const fableFailure = new Error('Fable malformed output');
     fableFailure.providerMetadata = trustedFableMetadata({

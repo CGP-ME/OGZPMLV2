@@ -14,6 +14,93 @@ const {
   sanitizeForLedger,
 } = require('./run-ledger');
 
+function isHardReviewBoundaryError(error) {
+  if (!error) return false;
+  if (['CLAUDE_CODE_EXECUTABLE_UNTRUSTED', 'PROVIDER_IDENTITY_UNTRUSTED'].includes(error.code)) {
+    return true;
+  }
+  const metadata = error.providerMetadata || {};
+  if (metadata.executableTrust && metadata.executableTrust.trusted === false) return true;
+  return /untrusted version signature|auth status is not a first-party|mismatched applied model identity|provider mismatch|model mismatch/i
+    .test(String(error.message || ''));
+}
+
+function reviewQuarantine({ unit, name, absence, error, loadBearing = true, attempts = [] }) {
+  return {
+    status: 'quarantined',
+    unit,
+    name: String(name || unit || 'unknown'),
+    absence,
+    load_bearing: loadBearing === true,
+    error: cleanStageError(error),
+    attempts: Array.isArray(attempts) ? attempts : [],
+    ntfy: null,
+  };
+}
+
+function resolveNtfyEndpoint(topic) {
+  const value = String(topic || '').trim();
+  if (!value) return null;
+  if (/^https?:\/\//i.test(value)) return value;
+  return `https://ntfy.sh/${encodeURIComponent(value)}`;
+}
+
+async function screamReviewQuarantine(quarantine, {
+  env = process.env,
+  fetchImpl = global.fetch,
+  logger = console,
+} = {}) {
+  const endpoint = resolveNtfyEndpoint(env.NTFY_TOPIC);
+  if (!endpoint) {
+    return { status: 'not_configured', priority: 'max', absence: 'ntfy_endpoint_absent' };
+  }
+  if (typeof fetchImpl !== 'function') {
+    return { status: 'unavailable', priority: 'max', absence: 'ntfy_transport_absent' };
+  }
+  try {
+    const response = await fetchImpl(endpoint, {
+      method: 'POST',
+      headers: {
+        Priority: 'max',
+        Title: `Mercury review quarantine: ${quarantine.unit}`,
+      },
+      body: `${quarantine.name} quarantined; absence=${quarantine.absence}; run continues at UNVERIFIED ceiling`,
+    });
+    if (!response || response.ok !== true) {
+      return {
+        status: 'failed',
+        priority: 'max',
+        absence: 'ntfy_delivery_unverified',
+        status_code: response && Number.isInteger(response.status) ? response.status : null,
+      };
+    }
+    return { status: 'sent', priority: 'max', status_code: response.status };
+  } catch (error) {
+    try {
+      logger.error(`[MERCURY-BRIDGE] max-priority ntfy failed: ${error.message}`);
+    } catch (_logError) {
+      // The quarantine receipt below remains the observability source.
+    }
+    return {
+      status: 'failed',
+      priority: 'max',
+      absence: 'ntfy_delivery_failed',
+      error: cleanStageError(error),
+    };
+  }
+}
+
+async function notifyReviewQuarantines(quarantines, options = {}) {
+  const notified = [];
+  for (const quarantine of quarantines || []) {
+    notified.push({
+      ...quarantine,
+      ntfy: quarantine.ntfy || await screamReviewQuarantine(quarantine, options),
+    });
+  }
+  return notified;
+}
+
 function flagFromEnv(name) {
   if (!Object.prototype.hasOwnProperty.call(process.env, name)) return null;
   const value = String(process.env[name] || '').trim().toLowerCase();
@@ -278,7 +365,17 @@ function formatFinalReview(finalReview) {
   ].join('\n');
 }
 
-function finalReviewDecision(finalReview, parsedFirstReview, rechecks) {
+function finalReviewDecision(finalReview, parsedFirstReview, rechecks, quarantines = []) {
+  const loadBearingGaps = quarantines.filter(item => item && item.load_bearing === true);
+  if (loadBearingGaps.length > 0) {
+    return {
+      verdict: 'UNVERIFIED',
+      decision: 'unverified',
+      why: `Load-bearing review units were quarantined: ${loadBearingGaps.map(item => `${item.unit}:${item.name}`).join(', ')}.`,
+      residualRisk: loadBearingGaps.map(item => item.absence).join(', '),
+      nextAction: 'Inspect the named absences; no clean unit may self-certify across them.',
+    };
+  }
   if (!finalReview || finalReview.ok !== true) {
     if (!parsedFirstReview.blocking) {
       return {
@@ -383,7 +480,8 @@ function formatAdversarialReviewPacket({
     ? reviewData.recheckPrompts
     : (reviewData && reviewData.recheckPrompt ? [reviewData.recheckPrompt] : []);
   const finalReview = reviewData && reviewData.finalReview ? reviewData.finalReview : null;
-  const finalDecision = finalReviewDecision(finalReview, parsed, rechecks);
+  const quarantines = Array.isArray(reviewData && reviewData.quarantines) ? reviewData.quarantines : [];
+  const finalDecision = finalReviewDecision(finalReview, parsed, rechecks, quarantines);
 
   const sections = [
     `VERDICT: ${finalDecision.verdict}`,
@@ -402,7 +500,9 @@ function formatAdversarialReviewPacket({
     'Commands:',
     mercuryResult && mercuryResult.toolTelemetry ? `- ${formatToolTelemetry(mercuryResult.toolTelemetry)} -> tool telemetry` : '- <none recorded>',
     'Gaps:',
-    parsed.blocking ? (parsed.disagreement || parsed.requiredRecheck || parsed.nextCheck || '<not specified>') : '<none from Fable>',
+    quarantines.length > 0
+      ? quarantines.map(item => `${item.unit}:${item.name} -> ${item.absence}`).join('\n')
+      : (parsed.blocking ? (parsed.disagreement || parsed.requiredRecheck || parsed.nextCheck || '<not specified>') : '<none from Fable>'),
     '',
     '3. Fable Review',
     `Verdict: ${parsed.verdict || 'unknown'}`,
@@ -678,6 +778,20 @@ function trustedFableErrorMetadata(metadata) {
     && typeof trust.version === 'string';
 }
 
+function trustedFableRuntimeMetadata(metadata) {
+  const auth = metadata.authStatus || {};
+  const trust = metadata.executableTrust || {};
+  return metadata.provider === 'claude-code'
+    && metadata.requestedModel === 'fable'
+    && auth.authMethod === 'claude.ai'
+    && auth.apiProvider === 'firstParty'
+    && trust.trusted === true
+    && typeof trust.realpath === 'string'
+    && trust.realpath !== ''
+    && typeof trust.version === 'string'
+    && trust.version !== '';
+}
+
 function classifyClaudeProviderErrorFrame(frame) {
   if (!frame || frame.type !== 'result' || frame.is_error !== true) return null;
   if (
@@ -723,6 +837,17 @@ function classifyFableFallbackError(error) {
     return { category: 'receipt_persistence_failure', opusEligible: false, evidence: 'raw_receipt_write_failed' };
   }
   const metadata = error && error.providerMetadata ? error.providerMetadata : {};
+  if (
+    error
+    && error.code === 'CLAUDE_CODE_PRIMARY_IDENTITY_UNAVAILABLE'
+    && trustedFableRuntimeMetadata(metadata)
+  ) {
+    return {
+      category: 'primary_model_identity_unavailable',
+      opusEligible: true,
+      evidence: 'trusted_fable_runtime_primary_identity_absent',
+    };
+  }
   if (!trustedFableErrorMetadata(metadata)) {
     return { category: 'untrusted_provider_error', opusEligible: false, evidence: 'missing_trusted_fable_error_provenance' };
   }
@@ -756,6 +881,7 @@ function stageAttemptReceipt({
     applied_models: Array.isArray(metadata.appliedModels)
       ? [...metadata.appliedModels]
       : (metadata.appliedModel ? [metadata.appliedModel] : []),
+    auxiliary_models: Array.isArray(metadata.auxiliaryModels) ? [...metadata.auxiliaryModels] : [],
     started_at: metadata.startedAt || null,
     finished_at: metadata.finishedAt || null,
     latency_ms: metadata.latencyMs == null ? null : metadata.latencyMs,
@@ -803,6 +929,7 @@ async function executePromptOnlyStage({
     const response = await client.generateResponseWithMetadata(prompt, client.maxTokens);
     if (!response.metadata || !response.metadata.appliedModel) {
       const error = new Error(`${role} response omitted provider-applied model identity`);
+      error.code = 'CLAUDE_CODE_PRIMARY_IDENTITY_UNAVAILABLE';
       error.providerMetadata = response.metadata || {};
       throw error;
     }
@@ -881,18 +1008,33 @@ async function runFableAdversarialReview({
   now = Date.now,
   evidenceSources = [],
 } = {}) {
-  const prompt = buildAdversarialReviewPrompt({
-    query, mercuryResult, runLedgerCitation, reviewIntent, evidenceSources,
-  });
-  const suppliedSources = [
-    { path: 'input://original-query', excerpt: query.trim() },
-    ...evidenceSources,
-    { path: 'mercury://primary-answer', excerpt: String(mercuryResult.answer || '').trim() || '<empty>' },
-    ...(runLedgerCitation ? [{ path: 'mercury://run-ledger-citation', excerpt: runLedgerCitation }] : []),
-  ];
-  buildAttestedPromptProvenance(prompt, suppliedSources);
   const started = now();
   const attempts = [];
+  const quarantines = [];
+  let prompt;
+  let suppliedSources;
+  try {
+    prompt = buildAdversarialReviewPrompt({
+      query, mercuryResult, runLedgerCitation, reviewIntent, evidenceSources,
+    });
+    suppliedSources = [
+      { path: 'input://original-query', excerpt: query.trim() },
+      ...evidenceSources,
+      { path: 'mercury://primary-answer', excerpt: String(mercuryResult.answer || '').trim() || '<empty>' },
+      ...(runLedgerCitation ? [{ path: 'mercury://run-ledger-citation', excerpt: runLedgerCitation }] : []),
+    ];
+    buildAttestedPromptProvenance(prompt, suppliedSources);
+  } catch (error) {
+    if (isHardReviewBoundaryError(error)) throw error;
+    return adversarialReviewFailure(error, {
+      quarantines: [reviewQuarantine({
+        unit: 'challenger',
+        name: 'fable_challenger',
+        absence: 'challenger_input_provenance_absent',
+        error,
+      })],
+    });
+  }
   let stage;
   try {
     stage = await executePromptOnlyStage({
@@ -901,13 +1043,30 @@ async function runFableAdversarialReview({
     });
     attempts.push(stage.receipt);
   } catch (fableError) {
-    attempts.push(fableError.stageAttempt);
+    if (fableError.stageAttempt) attempts.push(fableError.stageAttempt);
+    fableError.challengerAttempts = attempts;
+    if (isHardReviewBoundaryError(fableError)) throw fableError;
     const classification = classifyFableFallbackError(fableError);
-    attempts[0].fallback_classification = classification;
+    if (attempts[0]) attempts[0].fallback_classification = classification;
     if (!classification.opusEligible) {
-      fableError.challengerAttempts = attempts;
-      throw fableError;
+      return adversarialReviewFailure(fableError, {
+        quarantines: [reviewQuarantine({
+          unit: 'challenger',
+          name: 'fable_challenger',
+          absence: 'challenger_answer_absent',
+          error: fableError,
+          attempts,
+        })],
+      });
     }
+    quarantines.push(reviewQuarantine({
+      unit: 'challenger',
+      name: 'fable_challenger',
+      absence: 'primary_challenger_answer_absent_replaced_by_opus',
+      error: fableError,
+      loadBearing: false,
+      attempts: [fableError.stageAttempt],
+    }));
     try {
       stage = await executePromptOnlyStage({
         role: 'opus_challenger', prompt, suppliedSources,
@@ -915,9 +1074,21 @@ async function runFableAdversarialReview({
       });
       attempts.push(stage.receipt);
     } catch (opusError) {
-      attempts.push(opusError.stageAttempt);
+      if (opusError.stageAttempt) attempts.push(opusError.stageAttempt);
       opusError.challengerAttempts = attempts;
-      throw opusError;
+      if (isHardReviewBoundaryError(opusError)) throw opusError;
+      return adversarialReviewFailure(opusError, {
+        quarantines: [
+          ...quarantines,
+          reviewQuarantine({
+            unit: 'challenger',
+            name: 'opus_challenger',
+            absence: 'replacement_challenger_answer_absent',
+            error: opusError,
+            attempts: [opusError.stageAttempt],
+          }),
+        ],
+      });
     }
   }
   const answer = stage.answer;
@@ -934,6 +1105,7 @@ async function runFableAdversarialReview({
     answer,
     parsed: parseAdversarialReviewAnswer(answer),
     attempts,
+    quarantines,
     stageReceipt: stage.receipt,
     repoAdjudication: { status: 'pending', authority: 'live_repo_required' },
   };
@@ -992,9 +1164,18 @@ async function runKimiFinalAdjudication({
   };
 }
 
-function adversarialReviewFailure(err, { role = 'challenger' } = {}) {
+function adversarialReviewFailure(err, { role = 'challenger', quarantines = null } = {}) {
   const stageAttempt = err && err.stageAttempt ? err.stageAttempt : null;
   const kimiFailure = role === 'kimi_tie_breaker';
+  const failureQuarantines = Array.isArray(quarantines) ? quarantines : [reviewQuarantine({
+    unit: kimiFailure ? 'tie_breaker' : 'challenger',
+    name: kimiFailure ? 'kimi_tie_breaker' : 'fable_challenger',
+    absence: kimiFailure ? 'tie_breaker_answer_absent' : 'challenger_answer_absent',
+    error: err,
+    attempts: err && Array.isArray(err.challengerAttempts)
+      ? err.challengerAttempts
+      : (stageAttempt ? [stageAttempt] : []),
+  })];
   return {
     mode: kimiFailure ? 'kimi_final_adjudication' : 'adversarial_review',
     enabled: true,
@@ -1009,6 +1190,7 @@ function adversarialReviewFailure(err, { role = 'challenger' } = {}) {
       ? err.challengerAttempts
       : (stageAttempt ? [stageAttempt] : []),
     stageReceipt: stageAttempt,
+    quarantines: failureQuarantines,
     kimiSkipped: !kimiFailure,
     repoAdjudication: { status: 'pending', authority: 'live_repo_required' },
     error: cleanStageError(err),
@@ -1032,6 +1214,11 @@ module.exports = {
   OPUS_ELIGIBLE_CLAUDE_CODES,
   classifyClaudeProviderErrorFrame,
   classifyFableFallbackError,
+  isHardReviewBoundaryError,
+  reviewQuarantine,
+  resolveNtfyEndpoint,
+  screamReviewQuarantine,
+  notifyReviewQuarantines,
   executePromptOnlyStage,
   runFableAdversarialReview,
   runKimiFinalAdjudication,

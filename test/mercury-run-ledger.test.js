@@ -844,4 +844,65 @@ describe('Mercury run ledger', () => {
     expect(cannotVerifyEntry.verdict).toBe('cannot_verify');
     expect(cannotVerifyEntry).not.toHaveProperty(removedCommitField);
   });
+
+  test.each([
+    ['evidence_descriptor', 'ignored/missing.md:1-1', 'evidence_descriptor_absent'],
+    ['challenger', 'fable_challenger', 'challenger_answer_absent'],
+    ['recheck', 'mercury_recheck_2', 'mercury_recheck_answer_absent'],
+  ])('caps a load-bearing %s quarantine at unverified and preserves its scream receipt', (unit, name, absence) => {
+    const quarantine = {
+      status: 'quarantined',
+      unit,
+      name,
+      absence,
+      load_bearing: true,
+      ntfy: { status: 'sent', priority: 'max' },
+    };
+    const entry = buildRunLedgerEntry({
+      repoRoot: tmpRoot,
+      query: 'Mercury, break my fix.',
+      startedAt: new Date('2026-08-28T00:00:00.000Z'),
+      finishedAt: new Date('2026-08-28T00:00:01.000Z'),
+      result: {
+        termination: 'answer_given',
+        iterations: 2,
+        answer: 'No concrete break found.',
+        reviewQuarantines: [quarantine],
+        toolTelemetry: { byTool: {}, filesOpened: [], runCheckArtifacts: [], runChecks: [] },
+      },
+    });
+
+    expect(entry.verdict).toBe('unverified');
+    expect(entry.review_quarantines).toEqual([quarantine]);
+  });
+
+  test('does not cap a clean replacement challenger for a non-load-bearing Fable absence', () => {
+    const entry = buildRunLedgerEntry({
+      repoRoot: tmpRoot,
+      query: 'Mercury, break my fix.',
+      startedAt: new Date('2026-08-28T00:00:00.000Z'),
+      finishedAt: new Date('2026-08-28T00:00:01.000Z'),
+      result: {
+        termination: 'answer_given',
+        iterations: 2,
+        answer: 'No concrete break found.',
+        adversarialReview: {
+          ok: true,
+          parsed: { verdict: 'pass', blocking: false },
+          quarantines: [{
+            status: 'quarantined',
+            unit: 'challenger',
+            name: 'fable_challenger',
+            absence: 'fable_answer_replaced_by_opus',
+            load_bearing: false,
+            ntfy: { status: 'sent', priority: 'max' },
+          }],
+        },
+        toolTelemetry: { byTool: {}, filesOpened: [], runCheckArtifacts: [], runChecks: [] },
+      },
+    });
+
+    expect(entry.verdict).toBe('no_break_found');
+    expect(entry.review_quarantines).toHaveLength(1);
+  });
 });

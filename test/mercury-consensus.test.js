@@ -26,11 +26,14 @@ const {
   classifyFableFallbackError,
   buildAttestedPromptProvenance,
   executePromptOnlyStage,
+  reviewQuarantine,
+  screamReviewQuarantine,
 } = require('../trai_brain/mercury-bridge/adversarial-review');
 const {
   parseArgs,
   parseEvidenceSourceDescriptor,
   resolveEvidenceSources,
+  runReviewRechecks,
   buildMercuryIntentPrompt,
 } = require('../trai_brain/mercury-bridge/ask');
 
@@ -126,7 +129,7 @@ describe('Mercury Fable consensus', () => {
     });
   });
 
-  test('host resolves immutable evidence descriptors and rejects unsafe or unverifiable sources', () => {
+  test('host quarantines one unverifiable descriptor, continues with clean evidence, and hard-stops secret evidence', () => {
     const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'mercury-evidence-'));
     try {
       fs.mkdirSync(path.join(repoRoot, 'ignored'));
@@ -135,11 +138,22 @@ describe('Mercury Fable consensus', () => {
       const sources = resolveEvidenceSources({
         repoRoot,
         query,
-        descriptors: ['ignored/census.md:2-3'],
+        descriptors: ['ignored/missing.md:1-1', 'ignored/census.md:2-3'],
       });
 
       expect(Object.isFrozen(sources)).toBe(true);
       expect(Object.isFrozen(sources[0])).toBe(true);
+      expect(Object.isFrozen(sources.quarantines)).toBe(true);
+      expect(sources).toHaveLength(1);
+      expect(sources.quarantines).toEqual([
+        expect.objectContaining({
+          status: 'quarantined',
+          unit: 'evidence_descriptor',
+          name: 'ignored/missing.md:1-1',
+          absence: 'evidence_descriptor_absent',
+          load_bearing: true,
+        }),
+      ]);
       expect(sources[0]).toMatchObject({
         path: 'ignored/census.md',
         artifact_bytes: 25,
@@ -171,11 +185,28 @@ describe('Mercury Fable consensus', () => {
         ['ignored/invalid.bin:1-1', 'invalid'],
       ];
       for (const [descriptor, rejectedQuery] of rejected) {
-        expect(() => resolveEvidenceSources({ repoRoot, query: rejectedQuery, descriptors: [descriptor] })).toThrow();
+        if (descriptor === 'ignored/secret.md:1-1') continue;
+        const rejectedSources = resolveEvidenceSources({
+          repoRoot, query: rejectedQuery, descriptors: [descriptor],
+        });
+        expect(rejectedSources).toHaveLength(0);
+        expect(rejectedSources.quarantines).toEqual([
+          expect.objectContaining({
+            name: descriptor,
+            absence: 'evidence_descriptor_absent',
+            load_bearing: true,
+          }),
+        ]);
       }
-      expect(() => resolveEvidenceSources({
-        repoRoot, query: secretFixture, descriptors: ['ignored/secret.md:1-1'],
-      })).toThrow(/secret-shaped/);
+      let secretError;
+      try {
+        resolveEvidenceSources({
+          repoRoot, query: secretFixture, descriptors: ['ignored/secret.md:1-1'],
+        });
+      } catch (error) {
+        secretError = error;
+      }
+      expect(secretError).toMatchObject({ code: 'EVIDENCE_SECRET_DETECTED' });
     } finally {
       fs.rmSync(repoRoot, { recursive: true, force: true });
     }
@@ -632,6 +663,7 @@ describe('Mercury Fable consensus', () => {
           answer: 'VERDICT: pass\nCONSENSUS_BLOCKING: no\nRATIONALE: evidence is cited.\nDISAGREEMENT: none\nREQUIRED_RECHECK: none\nRECHECK_PROMPT: none\nNEXT_CHECK: none',
           metadata: {
             provider: 'claude-code', requestedModel: 'fable', appliedModel: 'claude-fable-5',
+            appliedModels: ['claude-fable-5'], auxiliaryModels: ['claude-haiku-4-5'],
             startedAt: '2026-08-27T00:00:00.000Z', finishedAt: '2026-08-27T00:00:00.100Z',
             latencyMs: 100, termination: 'success', parseStatus: 'parsed', rawResponse: Buffer.from('raw-fable'),
           },
@@ -676,6 +708,7 @@ describe('Mercury Fable consensus', () => {
       requested_model: 'fable',
       applied_model: 'claude-fable-5',
       applied_models: ['claude-fable-5'],
+      auxiliary_models: ['claude-haiku-4-5'],
       tools: { enabled: false, total: 0, calls: [] },
       files_mechanically_opened: [],
       repo_adjudication: { status: 'pending' },
@@ -843,19 +876,28 @@ describe('Mercury Fable consensus', () => {
     expect(result.stageReceipt.files_mechanically_opened).toEqual([]);
   });
 
-  test('provenance mismatch fails loud before challenger initialization and cannot invoke Opus', async () => {
+  test('provenance mismatch quarantines before challenger initialization and cannot invoke Opus', async () => {
     const evidence = { ...evidenceFixture(), excerpt_sha256: '0'.repeat(64) };
     const query = `Audit this excerpt:\n${evidence.excerpt}`;
     const fableFactory = jest.fn();
     const opusFactory = jest.fn();
 
-    await expect(runFableConsensus({
+    const result = await runFableConsensus({
       query,
       evidenceSources: [evidence],
       mercuryResult: { termination: 'answer_given', iterations: 1, answer: 'Initial answer.' },
       createFableClient: fableFactory,
       createOpusClient: opusFactory,
-    })).rejects.toThrow(/provenance mismatch/);
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      quarantines: [{
+        unit: 'challenger',
+        name: 'fable_challenger',
+        absence: 'challenger_input_provenance_absent',
+        load_bearing: true,
+      }],
+    });
     expect(fableFactory).not.toHaveBeenCalled();
     expect(opusFactory).not.toHaveBeenCalled();
   });
@@ -895,6 +937,98 @@ describe('Mercury Fable consensus', () => {
     expect(result.appliedModel).toBe('claude-opus-4-1');
     expect(result.attempts.map(attempt => attempt.role)).toEqual(['fable_challenger', 'opus_challenger']);
     expect(result.attempts[0].fallback_classification).toMatchObject({ opusEligible: true, category: 'rate_limit_error' });
+  });
+
+  test('trusted Fable with absent primary identity quarantines and attempts authorized Opus', async () => {
+    const missingIdentity = new Error('Claude Code response omitted applied model identity');
+    missingIdentity.code = 'CLAUDE_CODE_PRIMARY_IDENTITY_UNAVAILABLE';
+    missingIdentity.providerMetadata = trustedFableMetadata({
+      appliedModel: null,
+      appliedModels: [],
+      auxiliaryModels: ['claude-haiku-4-5'],
+      rawResponse: Buffer.from('fable response without primary identity'),
+      providerFrames: [{ type: 'result', subtype: 'success', result: 'review answer' }],
+    });
+    const opus = {
+      maxTokens: 2000,
+      initialize: jest.fn(async () => {}),
+      generateResponseWithMetadata: jest.fn(async () => ({
+        answer: 'VERDICT: pass\nCONSENSUS_BLOCKING: no\nDISAGREEMENT: none',
+        metadata: {
+          provider: 'claude-code', requestedModel: 'opus', appliedModel: 'claude-opus-4-1',
+          appliedModels: ['claude-opus-4-1'], auxiliaryModels: [],
+          startedAt: '2026-08-27T00:00:00.020Z', finishedAt: '2026-08-27T00:00:00.030Z',
+          latencyMs: 10, termination: 'success', parseStatus: 'parsed', rawResponse: Buffer.from('opus-raw'),
+        },
+      })),
+    };
+
+    const result = await runFableConsensus({
+      query: 'Mercury, break my fix.',
+      mercuryResult: { termination: 'answer_given', iterations: 1, answer: 'core/Foo.js:1' },
+      createFableClient: () => ({
+        providerName: 'claude-code', model: 'fable', maxTokens: 2000,
+        initialize: async () => {},
+        generateResponseWithMetadata: async () => { throw missingIdentity; },
+      }),
+      createOpusClient: () => opus,
+      persistRaw: () => ({ path: 'raw', sha256: 'abc', bytes: 8, mode: '0600' }),
+    });
+
+    expect(result).toMatchObject({ ok: true, model: 'opus', appliedModel: 'claude-opus-4-1' });
+    expect(result.attempts.map(attempt => attempt.role)).toEqual(['fable_challenger', 'opus_challenger']);
+    expect(result.attempts[0]).toMatchObject({
+      applied_model: null,
+      applied_models: [],
+      auxiliary_models: ['claude-haiku-4-5'],
+      fallback_classification: {
+        category: 'primary_model_identity_unavailable',
+        opusEligible: true,
+        evidence: 'trusted_fable_runtime_primary_identity_absent',
+      },
+    });
+    expect(result.quarantines).toEqual([
+      expect.objectContaining({
+        name: 'fable_challenger',
+        absence: 'primary_challenger_answer_absent_replaced_by_opus',
+        load_bearing: false,
+      }),
+    ]);
+    const screamFetch = jest.fn(async () => ({ ok: true, status: 200 }));
+    await expect(screamReviewQuarantine(result.quarantines[0], {
+      env: { NTFY_TOPIC: 'fable-identity-fallback-test' },
+      fetchImpl: screamFetch,
+    })).resolves.toMatchObject({ status: 'sent', priority: 'max' });
+    expect(screamFetch).toHaveBeenCalledWith(
+      'https://ntfy.sh/fable-identity-fallback-test',
+      expect.objectContaining({ headers: expect.objectContaining({ Priority: 'max' }) })
+    );
+  });
+
+  test('genuinely untrusted Claude executable remains a hard stop and cannot invoke Opus', async () => {
+    const trustError = new Error('Trusted first-party Claude Code executable was not found in a rooted system installation');
+    trustError.code = 'CLAUDE_CODE_EXECUTABLE_UNTRUSTED';
+    trustError.providerMetadata = {
+      provider: 'claude-code',
+      requestedModel: 'fable',
+      executableTrust: { trusted: false, failedCheck: 'rooted_system_launcher' },
+    };
+    const opusFactory = jest.fn();
+
+    await expect(runFableConsensus({
+      query: 'Mercury, break my fix.',
+      mercuryResult: { termination: 'answer_given', iterations: 1, answer: 'core/Foo.js:1' },
+      createFableClient: () => ({
+        maxTokens: 2000,
+        initialize: async () => { throw trustError; },
+      }),
+      createOpusClient: opusFactory,
+      persistRaw: () => ({ path: 'raw', sha256: 'abc', bytes: 0, mode: '0600' }),
+    })).rejects.toMatchObject({
+      code: 'CLAUDE_CODE_EXECUTABLE_UNTRUSTED',
+      providerMetadata: { executableTrust: { trusted: false, failedCheck: 'rooted_system_launcher' } },
+    });
+    expect(opusFactory).not.toHaveBeenCalled();
   });
 
   test('Opus eligibility is limited to the enumerated provider codes and exact HTTP signals', () => {
@@ -972,7 +1106,7 @@ describe('Mercury Fable consensus', () => {
     }
   });
 
-  test('both Fable and Opus unavailable fail loud with ordered attempts before Kimi', async () => {
+  test('both Fable and Opus unavailable quarantine with ordered attempts before Kimi', async () => {
     const fableError = new Error('Fable unavailable');
     fableError.providerMetadata = trustedFableMetadata({
       rawResponse: Buffer.from('fable failure'),
@@ -983,9 +1117,7 @@ describe('Mercury Fable consensus', () => {
       provider: 'claude-code', requestedModel: 'opus', rawResponse: Buffer.from('opus failure'),
       providerFrames: [{ type: 'result', error: { type: 'model_unavailable' } }],
     };
-    let caught;
-    try {
-      await runFableConsensus({
+    const result = await runFableConsensus({
         query: 'Mercury, break my fix.',
         mercuryResult: { termination: 'answer_given', iterations: 1, answer: 'core/Foo.js:1' },
         createFableClient: () => ({
@@ -1000,13 +1132,19 @@ describe('Mercury Fable consensus', () => {
         }),
         persistRaw: () => ({ path: 'raw', sha256: 'abc', bytes: 12, mode: '0600' }),
       });
-    } catch (error) {
-      caught = error;
-    }
-    expect(caught).toBe(opusError);
-    expect(caught.challengerAttempts.map(attempt => attempt.role))
+    expect(result.ok).toBe(false);
+    expect(result.attempts.map(attempt => attempt.role))
       .toEqual(['fable_challenger', 'opus_challenger']);
-    expect(caught.challengerAttempts.every(attempt => attempt.status === 'failed')).toBe(true);
+    expect(result.attempts.every(attempt => attempt.status === 'failed')).toBe(true);
+    expect(result.quarantines).toHaveLength(2);
+    expect(result.quarantines).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        unit: 'challenger',
+        name: 'opus_challenger',
+        absence: 'replacement_challenger_answer_absent',
+        load_bearing: true,
+      }),
+    ]));
     expect(kimiTieBreakerRequired({ ok: false, parsed: { blocking: true } }, 'adversarial')).toBe(false);
   });
 
@@ -1049,7 +1187,7 @@ describe('Mercury Fable consensus', () => {
     }
   });
 
-  test('ambiguous, auth, and malformed Fable failures fail loud without Opus', async () => {
+  test('ordinary ambiguous Fable failure quarantines without Opus', async () => {
     for (const error of [
       new Error('authentication failed'),
       new Error('malformed response'),
@@ -1061,7 +1199,7 @@ describe('Mercury Fable consensus', () => {
     const authError = new Error('authentication failed');
     authError.providerMetadata = { rawResponse: Buffer.alloc(0), providerFrames: [] };
     const opusFactory = jest.fn();
-    await expect(runFableConsensus({
+    const result = await runFableConsensus({
       query: 'Mercury, break my fix.',
       mercuryResult: { termination: 'answer_given', iterations: 1, answer: 'core/Foo.js:1' },
       createFableClient: () => ({
@@ -1071,7 +1209,16 @@ describe('Mercury Fable consensus', () => {
       }),
       createOpusClient: opusFactory,
       persistRaw: () => ({ path: 'raw', sha256: 'abc', bytes: 0, mode: '0600' }),
-    })).rejects.toThrow('authentication failed');
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      quarantines: [{
+        unit: 'challenger',
+        name: 'fable_challenger',
+        absence: 'challenger_answer_absent',
+        load_bearing: true,
+      }],
+    });
     expect(opusFactory).not.toHaveBeenCalled();
   });
 
@@ -1098,9 +1245,9 @@ describe('Mercury Fable consensus', () => {
     expect(JSON.stringify(consensusFailure(caught))).not.toContain('stage-secret-value');
   });
 
-  test('raw receipt persistence failure fails loud without Opus', async () => {
+  test('raw receipt persistence failure quarantines without Opus', async () => {
     const opusFactory = jest.fn();
-    await expect(runFableConsensus({
+    const result = await runFableConsensus({
       query: 'Mercury, break my fix.',
       mercuryResult: { termination: 'answer_given', iterations: 1, answer: 'core/Foo.js:1' },
       createFableClient: () => ({
@@ -1116,8 +1263,87 @@ describe('Mercury Fable consensus', () => {
       }),
       createOpusClient: opusFactory,
       persistRaw: () => { throw new Error('raw receipt collision'); },
-    })).rejects.toThrow('raw receipt collision');
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      quarantines: [{ absence: 'challenger_answer_absent', load_bearing: true }],
+    });
     expect(opusFactory).not.toHaveBeenCalled();
+  });
+
+  test('review quarantine emits max-priority ntfy and names missing notification configuration', async () => {
+    const quarantine = reviewQuarantine({
+      unit: 'challenger',
+      name: 'fable_challenger',
+      absence: 'challenger_answer_absent',
+      error: new Error('forced challenger failure'),
+    });
+    const fetchImpl = jest.fn(async () => ({ ok: true, status: 200 }));
+
+    const sent = await screamReviewQuarantine(quarantine, {
+      env: { NTFY_TOPIC: 'forced-failure-test' },
+      fetchImpl,
+    });
+    expect(fetchImpl).toHaveBeenCalledWith('https://ntfy.sh/forced-failure-test', expect.objectContaining({
+      method: 'POST',
+      headers: expect.objectContaining({ Priority: 'max' }),
+    }));
+    expect(sent).toEqual({ status: 'sent', priority: 'max', status_code: 200 });
+    await expect(screamReviewQuarantine(quarantine, { env: {} })).resolves.toEqual({
+      status: 'not_configured', priority: 'max', absence: 'ntfy_endpoint_absent',
+    });
+  });
+
+  test('a failed recheck is quarantined with max-priority scream while later rechecks continue', async () => {
+    const runLoop = jest.fn(async ({ userQuery }) => {
+      if (userQuery === 'B') throw new Error('forced recheck failure');
+      return { answer: `answer ${userQuery}` };
+    });
+    const notify = jest.fn(async quarantines => quarantines.map(quarantine => ({
+      ...quarantine,
+      ntfy: { status: 'sent', priority: 'max' },
+    })));
+
+    const result = await runReviewRechecks({
+      prompts: ['A', 'B', 'C'],
+      evidenceSources: [],
+      createProviderAudit: name => ({ name }),
+      runLoop,
+      notify,
+    });
+
+    expect(runLoop).toHaveBeenCalledTimes(3);
+    expect(result.rechecks.map(recheck => recheck.answer)).toEqual(['answer A', 'answer C']);
+    expect(result.quarantines).toEqual([
+      expect.objectContaining({
+        name: 'mercury_recheck_2',
+        absence: 'mercury_recheck_answer_absent',
+        load_bearing: true,
+        ntfy: { status: 'sent', priority: 'max' },
+      }),
+    ]);
+  });
+
+  test('a load-bearing quarantine caps the human review packet at UNVERIFIED and names the gap', () => {
+    const packet = formatAdversarialReviewPacket({
+      originalQuery: 'Mercury, break my fix.',
+      mercuryResult: { termination: 'answer_given', answer: 'No break found.' },
+      review: {
+        ok: true,
+        answer: 'VERDICT: pass\nCONSENSUS_BLOCKING: no',
+        parsed: { verdict: 'pass', blocking: false },
+        quarantines: [{
+          unit: 'recheck',
+          name: 'mercury_recheck_2',
+          absence: 'mercury_recheck_answer_absent',
+          load_bearing: true,
+        }],
+      },
+    });
+
+    expect(packet).toMatch(/^VERDICT: UNVERIFIED/);
+    expect(packet).toContain('recheck:mercury_recheck_2 -> mercury_recheck_answer_absent');
+    expect(packet).toContain('no clean unit may self-certify across them');
   });
 
   test('consensusFailure preserves visible error metadata', () => {

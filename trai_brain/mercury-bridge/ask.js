@@ -52,7 +52,10 @@ const {
   buildAttestedPromptProvenance,
   buildMercuryRecheckPrompts,
   formatAdversarialReviewPacket,
+  isHardReviewBoundaryError,
   kimiTieBreakerRequired,
+  notifyReviewQuarantines,
+  reviewQuarantine,
 } = require('./adversarial-review');
 const { runProviderPreflight } = require('./provider-preflight');
 const { retrieveSimilarTrace, formatTraceAsHint, captureTrace, markTraceUsed, evictStaleTraces, ensureTraceIndexes, getTraceStats } = require('./trace-memory');
@@ -206,48 +209,117 @@ function resolveEvidenceSources({ repoRoot, query, descriptors = [] } = {}) {
   const rootRealpath = fs.realpathSync(repoRoot);
   const queryText = String(query || '');
   const decoder = new TextDecoder('utf-8', { fatal: true });
-  const sources = descriptors.map((descriptor) => {
-    const parsed = parseEvidenceSourceDescriptor(descriptor);
-    const absPath = path.resolve(rootRealpath, ...parsed.path.split('/'));
-    const relative = path.relative(rootRealpath, absPath);
-    if (relative.startsWith('..') || path.isAbsolute(relative)) {
-      throw new Error(`Evidence source escapes repository: ${parsed.path}`);
-    }
-    const stat = fs.lstatSync(absPath);
-    if (!stat.isFile() || stat.isSymbolicLink() || fs.realpathSync(absPath) !== absPath) {
-      throw new Error(`Evidence source must be a regular non-symlink file: ${parsed.path}`);
-    }
-    const artifact = fs.readFileSync(absPath);
-    let text;
+  const sources = [];
+  const quarantines = [];
+  for (const descriptor of descriptors) {
     try {
-      text = decoder.decode(artifact);
+      const parsed = parseEvidenceSourceDescriptor(descriptor);
+      const absPath = path.resolve(rootRealpath, ...parsed.path.split('/'));
+      const relative = path.relative(rootRealpath, absPath);
+      if (relative.startsWith('..') || path.isAbsolute(relative)) {
+        throw new Error(`Evidence source escapes repository: ${parsed.path}`);
+      }
+      const stat = fs.lstatSync(absPath);
+      if (!stat.isFile() || stat.isSymbolicLink() || fs.realpathSync(absPath) !== absPath) {
+        throw new Error(`Evidence source must be a regular non-symlink file: ${parsed.path}`);
+      }
+      const artifact = fs.readFileSync(absPath);
+      let text;
+      try {
+        text = decoder.decode(artifact);
+      } catch (error) {
+        throw new Error(`Evidence source must be valid UTF-8: ${parsed.path}`);
+      }
+      const lines = text.split('\n');
+      if (text.endsWith('\n')) lines.pop();
+      if (parsed.line_end > lines.length) {
+        throw new Error(`Evidence source range exceeds ${lines.length} lines: ${descriptor}`);
+      }
+      const excerpt = lines.slice(parsed.line_start - 1, parsed.line_end).join('\n');
+      const occurrences = countExactOccurrences(queryText, excerpt);
+      if (occurrences !== 1) {
+        throw new Error(`Evidence excerpt ${descriptor} must appear exactly once in the query; found ${occurrences}`);
+      }
+      if (redactSensitiveText(excerpt) !== excerpt) {
+        const error = new Error(`Evidence source contains secret-shaped text and cannot be supplied: ${descriptor}`);
+        error.code = 'EVIDENCE_SECRET_DETECTED';
+        throw error;
+      }
+      sources.push(Object.freeze({
+        ...parsed,
+        artifact_sha256: crypto.createHash('sha256').update(artifact).digest('hex'),
+        artifact_bytes: artifact.length,
+        excerpt_sha256: crypto.createHash('sha256').update(excerpt, 'utf8').digest('hex'),
+        excerpt_bytes: Buffer.byteLength(excerpt, 'utf8'),
+        excerpt,
+      }));
     } catch (error) {
-      throw new Error(`Evidence source must be valid UTF-8: ${parsed.path}`);
+      if (error.code === 'EVIDENCE_SECRET_DETECTED') throw error;
+      quarantines.push(reviewQuarantine({
+        unit: 'evidence_descriptor',
+        name: descriptor,
+        absence: 'evidence_descriptor_absent',
+        error,
+      }));
     }
-    const lines = text.split('\n');
-    if (text.endsWith('\n')) lines.pop();
-    if (parsed.line_end > lines.length) {
-      throw new Error(`Evidence source range exceeds ${lines.length} lines: ${descriptor}`);
-    }
-    const excerpt = lines.slice(parsed.line_start - 1, parsed.line_end).join('\n');
-    const occurrences = countExactOccurrences(queryText, excerpt);
-    if (occurrences !== 1) {
-      throw new Error(`Evidence excerpt ${descriptor} must appear exactly once in the query; found ${occurrences}`);
-    }
-    if (redactSensitiveText(excerpt) !== excerpt) {
-      throw new Error(`Evidence source contains secret-shaped text and cannot be supplied: ${descriptor}`);
-    }
-    const source = Object.freeze({
-      ...parsed,
-      artifact_sha256: crypto.createHash('sha256').update(artifact).digest('hex'),
-      artifact_bytes: artifact.length,
-      excerpt_sha256: crypto.createHash('sha256').update(excerpt, 'utf8').digest('hex'),
-      excerpt_bytes: Buffer.byteLength(excerpt, 'utf8'),
-      excerpt,
-    });
-    return source;
+  }
+  Object.defineProperty(sources, 'quarantines', {
+    value: Object.freeze(quarantines),
+    enumerable: false,
   });
   return Object.freeze(sources);
+}
+
+async function runReviewRechecks({
+  prompts,
+  client,
+  toolAdapter,
+  starterContext,
+  blastRadius,
+  maxIterations,
+  maxTokens,
+  verbose,
+  evidenceSources,
+  createProviderAudit,
+  runLoop = runReactLoop,
+  notify = notifyReviewQuarantines,
+} = {}) {
+  const rechecks = [];
+  const quarantines = [];
+  for (const [index, recheckPrompt] of (prompts || []).entries()) {
+    const name = `mercury_recheck_${index + 1}`;
+    const recheckStarted = Date.now();
+    try {
+      const recheckProvenance = buildAttestedPromptProvenance(recheckPrompt, evidenceSources);
+      const recheck = await runLoop({
+        client,
+        toolAdapter,
+        userQuery: recheckPrompt,
+        starterContext,
+        traceHint: null,
+        blastRadius,
+        maxIterations,
+        maxTokens,
+        verbose,
+        providerAudit: createProviderAudit(name),
+      });
+      recheck.totalLatencyMs = Date.now() - recheckStarted;
+      recheck.inputProvenance = recheckProvenance;
+      recheck.evidenceSources = evidenceSources;
+      rechecks.push(recheck);
+    } catch (error) {
+      if (isHardReviewBoundaryError(error)) throw error;
+      const [quarantine] = await notify([reviewQuarantine({
+        unit: 'recheck',
+        name,
+        absence: 'mercury_recheck_answer_absent',
+        error,
+        attempts: error.providerAttempts || [],
+      })]);
+      quarantines.push(quarantine);
+    }
+  }
+  return { rechecks, quarantines };
 }
 
 function buildMercuryIntentPrompt(query, reviewIntent = 'adversarial') {
@@ -523,6 +595,7 @@ async function runAgentic(query, opts) {
     query,
     descriptors: opts.evidenceSources || [],
   });
+  const evidenceQuarantines = await notifyReviewQuarantines(evidenceSources.quarantines);
   const inputProvenance = buildAttestedPromptProvenance(mercuryQuery, evidenceSources);
 
   // Route the query unless caller has overridden
@@ -677,6 +750,7 @@ async function runAgentic(query, opts) {
     });
     result.totalLatencyMs = Date.now() - t0;
     result.evidenceSources = evidenceSources;
+    result.reviewQuarantines = evidenceQuarantines;
     result.inputProvenance = inputProvenance;
     if (autoBlastRadius) {
       result.serenaBlastRadius = autoBlastRadius;
@@ -705,6 +779,10 @@ async function runAgentic(query, opts) {
           evidenceSources,
         });
         review.mode = reviewMode;
+        review.quarantines = [
+          ...evidenceQuarantines,
+          ...await notifyReviewQuarantines(review.quarantines || []),
+        ];
         if (kimiTieBreakerRequired(review, reviewIntent)) {
           const recheckPrompts = buildMercuryRecheckPrompts({
             originalQuery: query,
@@ -714,32 +792,24 @@ async function runAgentic(query, opts) {
             evidenceSources,
           }).slice(0, config.ADVERSARIAL_REVIEW_MAX_RECHECKS);
           review.recheckPrompts = recheckPrompts;
-          review.rechecks = [];
           review.recheckPrompt = recheckPrompts[0] || null;
           if (verbose) {
             console.log(`[MERCURY-BRIDGE] Fable marked ${reviewMode} blocking; launching ${recheckPrompts.length} Mercury recheck(s).`);
           }
-          for (const [index, recheckPrompt] of recheckPrompts.entries()) {
-            const recheckStarted = Date.now();
-            const recheckAudit = createProviderAudit(`mercury_recheck_${index + 1}`);
-            const recheckProvenance = buildAttestedPromptProvenance(recheckPrompt, evidenceSources);
-            const recheck = await runReactLoop({
-              client,
-              toolAdapter,
-              userQuery: recheckPrompt,
-              starterContext,
-              traceHint: null,
-              blastRadius,
-              maxIterations,
-              maxTokens,
-              verbose,
-              providerAudit: recheckAudit,
-            });
-            recheck.totalLatencyMs = Date.now() - recheckStarted;
-            recheck.inputProvenance = recheckProvenance;
-            recheck.evidenceSources = evidenceSources;
-            review.rechecks.push(recheck);
-          }
+          const recheckRun = await runReviewRechecks({
+            prompts: recheckPrompts,
+            client,
+            toolAdapter,
+            starterContext,
+            blastRadius,
+            maxIterations,
+            maxTokens,
+            verbose,
+            evidenceSources,
+            createProviderAudit,
+          });
+          review.rechecks = recheckRun.rechecks;
+          review.quarantines.push(...recheckRun.quarantines);
           review.recheck = review.rechecks[0] || null;
         }
         if (kimiTieBreakerRequired(review, reviewIntent)) {
@@ -755,8 +825,10 @@ async function runAgentic(query, opts) {
               evidenceSources,
             });
           } catch (finalErr) {
+            if (isHardReviewBoundaryError(finalErr)) throw finalErr;
             review.finalReview = adversarialReviewFailure(finalErr, { role: 'kimi_tie_breaker' });
-            result.exitCode = 1;
+            review.finalReview.quarantines = await notifyReviewQuarantines(review.finalReview.quarantines);
+            review.quarantines.push(...review.finalReview.quarantines);
             if (verbose) {
               console.log(`[MERCURY-BRIDGE] Kimi final adjudication failed: ${review.finalReview.error.message}`);
             }
@@ -771,11 +843,15 @@ async function runAgentic(query, opts) {
           reviewIntent,
         });
       } catch (err) {
+        if (isHardReviewBoundaryError(err)) throw err;
         const failure = adversarialReviewFailure(err);
         failure.mode = reviewMode;
+        failure.quarantines = [
+          ...evidenceQuarantines,
+          ...await notifyReviewQuarantines(failure.quarantines),
+        ];
         result.adversarialReview = failure;
         result.consensus = failure;
-        result.exitCode = 1;
         if (verbose) {
           console.log(`[MERCURY-BRIDGE] Fable ${reviewMode} failed: ${failure.error.message}`);
         }
@@ -949,6 +1025,14 @@ function printDispatchReceipt(result) {
     console.log(`review layer:    FAILED — ${reviewError}`);
   }
 
+  const quarantines = Array.isArray(entry.review_quarantines) ? entry.review_quarantines : [];
+  console.log(`quarantines:     ${quarantines.length}`);
+  quarantines.forEach((item) => {
+    const notification = item.ntfy || {};
+    console.log(`  - ${item.unit}:${item.name} absence=${item.absence} load-bearing=${item.load_bearing === true ? 'yes' : 'no'} ntfy=max/${notification.status || 'unrecorded'}`);
+    if (notification.absence) console.log(`    notification absence=${notification.absence}`);
+  });
+
   const dirty = String(entry.dirty_status_summary || '').trim();
   console.log(dirty
     ? `tree state:      DIRTY — ${dirty.split('\n').map((line) => line.trim()).join(', ')}`
@@ -1109,7 +1193,6 @@ async function main() {
         } else {
           console.log(`Adversarial review unavailable: ${review.error.message}`);
           console.log(`[${review.mode || 'adversarial_review'}: ${review.provider}/${review.model}]`);
-          process.exitCode = 1;
         }
       }
 
@@ -1203,6 +1286,7 @@ module.exports = {
   parseArgs,
   parseEvidenceSourceDescriptor,
   resolveEvidenceSources,
+  runReviewRechecks,
   runAgentic,
   buildMercuryIntentPrompt,
   buildCurrentChangeBlastRadius,

@@ -253,8 +253,28 @@ function autoBlastRadiusFailed(autoBlastRadius) {
   return !!(autoBlastRadius && Array.isArray(autoBlastRadius.errors) && autoBlastRadius.errors.length > 0);
 }
 
+function collectReviewQuarantines(result) {
+  const collected = [];
+  const add = (items) => {
+    for (const item of items || []) {
+      const key = `${item.unit || ''}:${item.name || ''}:${item.absence || ''}`;
+      if (!collected.some(existing => existing._key === key)) {
+        collected.push({ ...item, _key: key });
+      }
+    }
+  };
+  add(result && result.reviewQuarantines);
+  const review = result && (result.adversarialReview || result.consensus);
+  add(review && review.quarantines);
+  add(review && review.finalReview && review.finalReview.quarantines);
+  return collected.map(({ _key, ...item }) => item);
+}
+
 function classifyMercuryVerdict({ result = null, error = null, autoBlastRadius = null } = {}) {
   if (error) return 'tool_failure';
+  if (collectReviewQuarantines(result).some(item => item && item.load_bearing === true)) {
+    return 'unverified';
+  }
   // Tool-probe failures no longer mask the run as inconclusive. Fail loud, not
   // fail closed: the run is classified by its actual outcome and the failed-probe
   // count stays visible in telemetry. (Old inconclusive_toolfail short-circuit removed.)
@@ -338,6 +358,7 @@ function buildFinalReviewLedgerSummary(finalReview) {
     error: finalReview.error || null,
     applied_model: finalReview.appliedModel || null,
     stage_receipt: finalReview.stageReceipt || null,
+    quarantines: Array.isArray(finalReview.quarantines) ? finalReview.quarantines : [],
     repo_adjudication: finalReview.repoAdjudication || { status: 'pending', authority: 'live_repo_required' },
     parsed,
     effective_verdict: parsed && parsed.verdict ? parsed.verdict : null,
@@ -361,7 +382,9 @@ function buildReviewLedgerSummary(review, { effectiveVerdictOverride = null } = 
   const redactedRecheckPrompts = recheckPrompts.map((prompt) => redactSensitiveText(prompt));
   const parsed = parsedReviewClassification(review.parsed);
   const rawParsedVerdict = parsed && parsed.verdict ? parsed.verdict : null;
-  const effectiveVerdict = effectiveVerdictOverride || rawParsedVerdict;
+  const quarantines = Array.isArray(review.quarantines) ? review.quarantines : [];
+  const effectiveVerdict = effectiveVerdictOverride
+    || (quarantines.some(item => item && item.load_bearing === true) ? 'UNVERIFIED' : rawParsedVerdict);
 
   return {
     mode: review.mode || 'adversarial_review',
@@ -371,6 +394,7 @@ function buildReviewLedgerSummary(review, { effectiveVerdictOverride = null } = 
     model: review.model || null,
     latency_ms: review.latencyMs == null ? null : review.latencyMs,
     error: review.error || null,
+    quarantines,
     parsed,
     effective_verdict: effectiveVerdict,
     raw_parsed_verdict: rawParsedVerdict,
@@ -459,6 +483,7 @@ function buildRunLedgerEntry({
   const promptProvenance = (result && result.inputProvenance)
     || inputProvenance
     || buildPromptProvenance(query, suppliedEvidence);
+  const reviewQuarantines = collectReviewQuarantines(result);
 
   return sanitizeForLedger({
     schema_version: 2,
@@ -501,6 +526,7 @@ function buildRunLedgerEntry({
     run_checks: Array.isArray(telemetry.runChecks) ? telemetry.runChecks : [],
     answer_quality: answerQualityFlags,
     answer_quality_evidence: answerQualityEvidence,
+    review_quarantines: reviewQuarantines,
     adversarial_review: reviewSummary,
     consensus: reviewSummary,
     stages: {
@@ -604,6 +630,7 @@ module.exports = {
   classifyMercuryVerdict,
   resultHasToolFailure,
   autoBlastRadiusFailed,
+  collectReviewQuarantines,
   redactSensitiveText,
   sanitizeForLedger,
   writeRunLedgerEntry,

@@ -149,7 +149,7 @@ describe('Mercury LLM config contract', () => {
     });
   });
 
-  test('Fable and Opus always disable built-ins, slash commands, and inherited MCP servers', async () => {
+  test('verified Fable and Opus accept named auxiliary model usage while preserving prompt isolation', async () => {
     await withMercuryConfig({}, async () => {
       const {
         ClaudeCodeConsensusClient,
@@ -166,7 +166,13 @@ describe('Mercury LLM config contract', () => {
         const appliedModel = `claude-${model}-test`;
         const rawResponse = Buffer.from([
           JSON.stringify({ type: 'system', subtype: 'init', model: appliedModel, tools: [] }),
-          JSON.stringify({ type: 'result', subtype: 'success', result: 'PROVIDER_OK' }),
+          JSON.stringify({
+            type: 'result', subtype: 'success', result: 'PROVIDER_OK',
+            modelUsage: {
+              [appliedModel]: { inputTokens: 100 },
+              'claude-haiku-4-5': { inputTokens: 12 },
+            },
+          }),
         ].join('\n'));
         const execFileAsync = jest.fn()
           .mockResolvedValueOnce({ stdout: Buffer.from('2.1.236 (Claude Code)\n'), stderr: Buffer.alloc(0) })
@@ -178,7 +184,12 @@ describe('Mercury LLM config contract', () => {
 
         await expect(client.generateResponseWithMetadata('preflight')).resolves.toMatchObject({
           answer: 'PROVIDER_OK',
-          metadata: { appliedModel, toolsAvailable: [] },
+          metadata: {
+            appliedModel,
+            appliedModels: [appliedModel],
+            auxiliaryModels: ['claude-haiku-4-5'],
+            toolsAvailable: [],
+          },
         });
         const [command, args, options] = execFileAsync.mock.calls[2];
         expect(command).toBe(trustedClaudeExecutable.realpath);
@@ -220,6 +231,7 @@ describe('Mercury LLM config contract', () => {
     await withMercuryConfig({}, () => {
       const {
         claudeAppliedModelMatchesAlias,
+        extractClaudeCodeAuxiliaryModels,
         extractClaudeCodeAppliedModels,
         extractClaudeCodeAppliedModel,
         extractClaudeCodeResult,
@@ -227,11 +239,18 @@ describe('Mercury LLM config contract', () => {
       } = require('../trai_brain/mercury-bridge/llm-client');
       const raw = [
         JSON.stringify({ type: 'system', subtype: 'init', model: 'claude-fable-5' }),
-        JSON.stringify({ type: 'result', subtype: 'success', result: 'VERDICT: pass' }),
+        JSON.stringify({
+          type: 'result', subtype: 'success', result: 'VERDICT: pass',
+          modelUsage: {
+            'claude-fable-5': { inputTokens: 100 },
+            'claude-haiku-4-5': { inputTokens: 12 },
+          },
+        }),
       ].join('\n');
       const frames = parseClaudeCodeFrames(raw);
       expect(extractClaudeCodeAppliedModel(frames)).toBe('claude-fable-5');
       expect(extractClaudeCodeAppliedModels(frames)).toEqual(['claude-fable-5']);
+      expect(extractClaudeCodeAuxiliaryModels(frames)).toEqual(['claude-haiku-4-5']);
       expect(extractClaudeCodeResult(raw)).toBe('VERDICT: pass');
       expect(extractClaudeCodeAppliedModel([{ type: 'result', result: 'answer' }])).toBeNull();
       expect(claudeAppliedModelMatchesAlias('fable', 'claude-fable-5')).toBe(true);

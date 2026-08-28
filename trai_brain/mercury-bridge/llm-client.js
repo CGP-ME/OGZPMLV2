@@ -272,7 +272,7 @@ function parseClaudeCodeFrames(stdout) {
   return frames;
 }
 
-function extractClaudeCodeAppliedModels(frames) {
+function extractClaudeCodePrimaryModels(frames) {
   const reported = [];
   for (const frame of frames) {
     if (frame && frame.type === 'system' && frame.subtype === 'init' && typeof frame.model === 'string') {
@@ -282,11 +282,23 @@ function extractClaudeCodeAppliedModels(frames) {
     if (frame && frame.event && frame.event.message && typeof frame.event.message.model === 'string') {
       reported.push(frame.event.message.model);
     }
+  }
+  return [...new Set(reported.filter(value => value && value !== '<synthetic>'))];
+}
+
+function extractClaudeCodeAuxiliaryModels(frames, primaryModels = extractClaudeCodePrimaryModels(frames)) {
+  const primary = new Set(primaryModels);
+  const reported = [];
+  for (const frame of frames) {
     if (frame && frame.modelUsage && typeof frame.modelUsage === 'object') {
       reported.push(...Object.keys(frame.modelUsage));
     }
   }
-  return [...new Set(reported.filter(value => value && value !== '<synthetic>'))];
+  return [...new Set(reported.filter(value => value && value !== '<synthetic>' && !primary.has(value)))];
+}
+
+function extractClaudeCodeAppliedModels(frames) {
+  return extractClaudeCodePrimaryModels(frames);
 }
 
 function extractClaudeCodeAppliedModel(frames) {
@@ -501,11 +513,13 @@ class ClaudeCodeConsensusClient {
     const metadata = this.buildMetadata({ startedAt, startedMs, stdout, stderr, exitCode: 0 });
     if (!metadata.appliedModel || metadata.appliedModels.length === 0) {
       const error = new Error('Claude Code response omitted applied model identity');
+      error.code = 'CLAUDE_CODE_PRIMARY_IDENTITY_UNAVAILABLE';
       error.providerMetadata = metadata;
       throw error;
     }
     if (metadata.appliedModels.some(model => !claudeAppliedModelMatchesAlias(this.model, model))) {
       const error = new Error('Claude Code reported conflicting or mismatched applied model identity');
+      error.code = 'PROVIDER_IDENTITY_UNTRUSTED';
       error.providerMetadata = metadata;
       throw error;
     }
@@ -527,11 +541,13 @@ class ClaudeCodeConsensusClient {
     const resultFrame = [...frames].reverse().find(frame => frame && frame.type === 'result');
     const initFrame = frames.find(frame => frame && frame.type === 'system' && frame.subtype === 'init');
     const appliedModels = extractClaudeCodeAppliedModels(frames);
+    const auxiliaryModels = extractClaudeCodeAuxiliaryModels(frames, appliedModels);
     return {
       provider: this.providerName,
       requestedModel: this.model,
       appliedModel: appliedModels[0] || null,
       appliedModels,
+      auxiliaryModels,
       startedAt: startedAt.toISOString(),
       finishedAt: new Date().toISOString(),
       latencyMs: Date.now() - startedMs,
@@ -721,6 +737,8 @@ function createConsensusLlmClient(options = {}) {
 module.exports = {
   extractClaudeCodeResult,
   parseClaudeCodeFrames,
+  extractClaudeCodePrimaryModels,
+  extractClaudeCodeAuxiliaryModels,
   extractClaudeCodeAppliedModels,
   extractClaudeCodeAppliedModel,
   claudeAppliedModelMatchesAlias,

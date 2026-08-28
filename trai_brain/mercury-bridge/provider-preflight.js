@@ -80,6 +80,7 @@ function attemptReceipt({ label, attempt, client, metadata = {}, status, phase, 
     applied_models: Array.isArray(metadata.appliedModels)
       ? [...metadata.appliedModels]
       : (metadata.appliedModel ? [metadata.appliedModel] : []),
+    auxiliary_models: Array.isArray(metadata.auxiliaryModels) ? [...metadata.auxiliaryModels] : [],
     started_at: metadata.startedAt || null,
     finished_at: metadata.finishedAt || null,
     latency_ms: metadata.latencyMs == null ? null : metadata.latencyMs,
