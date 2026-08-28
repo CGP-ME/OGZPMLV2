@@ -75,18 +75,64 @@ function extractClaimedFileCitations(answer) {
   return Array.from(new Set(String(answer || '').match(/[A-Za-z0-9_./-]+\.\w+:\d+(?:[-–—]\d+)?/g) || [])).sort();
 }
 
+function evidenceSourceFields(source) {
+  if (!source || typeof source.path !== 'string' || source.path === '' || typeof source.excerpt !== 'string') {
+    throw new Error('Evidence source requires path and verbatim excerpt');
+  }
+  const excerpt = String(source.excerpt);
+  const excerptSha256 = hashText(excerpt);
+  const excerptBytes = Buffer.byteLength(excerpt, 'utf8');
+  const required = [
+    'artifact_sha256',
+    'artifact_bytes',
+    'line_start',
+    'line_end',
+    'excerpt_sha256',
+    'excerpt_bytes',
+  ];
+  for (const field of required) {
+    if (!Object.prototype.hasOwnProperty.call(source, field)) {
+      throw new Error(`Evidence source ${source.path || '<unknown>'} is missing ${field}`);
+    }
+  }
+  if (!/^[a-f0-9]{64}$/.test(source.artifact_sha256)
+      || !Number.isInteger(source.artifact_bytes) || source.artifact_bytes < 0
+      || !Number.isInteger(source.line_start) || source.line_start < 1
+      || !Number.isInteger(source.line_end) || source.line_end < source.line_start
+      || source.line_end - source.line_start + 1 > 150
+      || source.excerpt_sha256 !== excerptSha256
+      || source.excerpt_bytes !== excerptBytes) {
+    throw new Error(`Evidence source ${source.path || '<unknown>'} provenance mismatch`);
+  }
+  return {
+    artifact_sha256: source.artifact_sha256,
+    artifact_bytes: source.artifact_bytes,
+    line_start: source.line_start,
+    line_end: source.line_end,
+    excerpt_sha256: excerptSha256,
+    excerpt_bytes: excerptBytes,
+  };
+}
+
 function buildPromptProvenance(prompt, suppliedSources = []) {
   const text = String(prompt || '');
   return {
     prompt_sha256: hashText(text),
     prompt_bytes: Buffer.byteLength(text, 'utf8'),
     prompt_excerpt: truncateText(redactSensitiveText(text), PROMPT_EXCERPT_MAX),
-    supplied_sources: suppliedSources.map(source => ({
-      path: source.path || null,
-      sha256: source.sha256 || (source.excerpt == null ? null : hashText(source.excerpt)),
-      bytes: source.excerpt == null ? null : Buffer.byteLength(String(source.excerpt), 'utf8'),
-      excerpt: source.excerpt == null ? null : redactSensitiveText(source.excerpt),
-    })),
+    supplied_sources: suppliedSources.map((source) => {
+      const hasEvidenceAttestation = [
+        'artifact_sha256', 'artifact_bytes', 'line_start', 'line_end', 'excerpt_sha256', 'excerpt_bytes',
+      ].some(field => Object.prototype.hasOwnProperty.call(source, field));
+      const evidence = hasEvidenceAttestation ? evidenceSourceFields(source) : {};
+      return {
+        path: source.path || null,
+        sha256: source.sha256 || (source.excerpt == null ? null : hashText(source.excerpt)),
+        bytes: source.excerpt == null ? null : Buffer.byteLength(String(source.excerpt), 'utf8'),
+        excerpt: source.excerpt == null ? null : redactSensitiveText(source.excerpt),
+        ...evidence,
+      };
+    }),
   };
 }
 
@@ -323,6 +369,25 @@ function buildReviewLedgerSummary(review, { effectiveVerdictOverride = null } = 
       termination: recheck.termination || null,
       iterations: recheck.iterations == null ? null : recheck.iterations,
       latency_ms: recheck.totalLatencyMs == null ? null : recheck.totalLatencyMs,
+      input_provenance: recheck.inputProvenance || null,
+      provider_attempts: Array.isArray(recheck.providerAttempts) ? recheck.providerAttempts : [],
+      tools_available: Array.isArray(recheck.toolsAvailable) ? recheck.toolsAvailable : [],
+      tools_invoked: compactToolStats(recheck.toolTelemetry || {}),
+      files_mechanically_opened: recheck.toolTelemetry && Array.isArray(recheck.toolTelemetry.filesOpened)
+        ? recheck.toolTelemetry.filesOpened
+        : [],
+      run_check_artifacts: recheck.toolTelemetry && Array.isArray(recheck.toolTelemetry.runCheckArtifacts)
+        ? recheck.toolTelemetry.runCheckArtifacts
+        : [],
+      run_checks: recheck.toolTelemetry && Array.isArray(recheck.toolTelemetry.runChecks)
+        ? recheck.toolTelemetry.runChecks
+        : [],
+      answer_quality: recheck.answerQuality && Array.isArray(recheck.answerQuality.flags)
+        ? recheck.answerQuality.flags
+        : [],
+      answer_quality_evidence: recheck.answerQuality && Array.isArray(recheck.answerQuality.evidence)
+        ? recheck.answerQuality.evidence
+        : [],
       answer_excerpt: recheck.answer
         ? truncateText(redactSensitiveText(recheck.answer), ANSWER_EXCERPT_MAX)
         : null,
@@ -348,6 +413,8 @@ function buildRunLedgerEntry({
   startedAt,
   finishedAt = new Date(),
   autoBlastRadius = null,
+  evidenceSources = [],
+  inputProvenance = null,
 } = {}) {
   const startedIso = isoTimestamp(startedAt || finishedAt);
   const finishedIso = isoTimestamp(finishedAt);
@@ -361,6 +428,12 @@ function buildRunLedgerEntry({
   const answerQualityEvidence = result && result.answerQuality && Array.isArray(result.answerQuality.evidence)
     ? result.answerQuality.evidence
     : [];
+  const suppliedEvidence = result && Array.isArray(result.evidenceSources)
+    ? result.evidenceSources
+    : evidenceSources;
+  const promptProvenance = (result && result.inputProvenance)
+    || inputProvenance
+    || buildPromptProvenance(query, suppliedEvidence);
 
   return sanitizeForLedger({
     schema_version: 2,
@@ -373,8 +446,10 @@ function buildRunLedgerEntry({
     dirty_status_summary: repoState.dirty_status_summary,
     prompt_hash: hashText(query),
     prompt_excerpt: truncateText(redactSensitiveText(query), PROMPT_EXCERPT_MAX),
+    prompt_provenance: promptProvenance,
     attack_scope: opts.attackScope || 'agentic_query',
     source_refs: {
+      supplied_evidence: promptProvenance.supplied_sources || [],
       auto_blast_radius_source: autoBlastRadius ? autoBlastRadius.source : null,
       auto_blast_radius_files: autoBlastRadius && Array.isArray(autoBlastRadius.meta)
         ? autoBlastRadius.meta.map((entry) => ({

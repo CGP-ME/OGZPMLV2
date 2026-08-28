@@ -1,5 +1,10 @@
 'use strict';
 
+const crypto = require('crypto');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
 const {
   adversarialReviewRequested,
   reviewModeRequested,
@@ -19,9 +24,15 @@ const {
   OPUS_ELIGIBLE_CLAUDE_CODES,
   kimiTieBreakerRequired,
   classifyFableFallbackError,
+  buildAttestedPromptProvenance,
   executePromptOnlyStage,
 } = require('../trai_brain/mercury-bridge/adversarial-review');
-const { parseArgs, buildMercuryIntentPrompt } = require('../trai_brain/mercury-bridge/ask');
+const {
+  parseArgs,
+  parseEvidenceSourceDescriptor,
+  resolveEvidenceSources,
+  buildMercuryIntentPrompt,
+} = require('../trai_brain/mercury-bridge/ask');
 
 function trustedFableMetadata(overrides = {}) {
   return {
@@ -37,6 +48,19 @@ function trustedFableMetadata(overrides = {}) {
     },
     ...overrides,
   };
+}
+
+function evidenceFixture(excerpt = 'VERBATIM EVIDENCE') {
+  return Object.freeze({
+    path: 'ignored/census.md',
+    artifact_sha256: crypto.createHash('sha256').update(`header\n${excerpt}\nfooter`).digest('hex'),
+    artifact_bytes: Buffer.byteLength(`header\n${excerpt}\nfooter`),
+    line_start: 2,
+    line_end: 2,
+    excerpt_sha256: crypto.createHash('sha256').update(excerpt).digest('hex'),
+    excerpt_bytes: Buffer.byteLength(excerpt),
+    excerpt,
+  });
 }
 
 describe('Mercury Fable consensus', () => {
@@ -90,6 +114,71 @@ describe('Mercury Fable consensus', () => {
       reviewIntent: 'planning',
       query: 'plan the lane',
     });
+
+    expect(parseArgs([
+      'node', 'ask.js', '--agentic',
+      '--evidence-source=ignored/a.md:1-2',
+      '--evidence-source=ignored/b.md:4-4',
+      'review supplied excerpts',
+    ])).toMatchObject({
+      evidenceSources: ['ignored/a.md:1-2', 'ignored/b.md:4-4'],
+      query: 'review supplied excerpts',
+    });
+  });
+
+  test('host resolves immutable evidence descriptors and rejects unsafe or unverifiable sources', () => {
+    const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'mercury-evidence-'));
+    try {
+      fs.mkdirSync(path.join(repoRoot, 'ignored'));
+      fs.writeFileSync(path.join(repoRoot, 'ignored', 'census.md'), 'header\nalpha\nbeta\nfooter\n');
+      const query = 'Review this exact excerpt:\nalpha\nbeta\nEnd excerpt.';
+      const sources = resolveEvidenceSources({
+        repoRoot,
+        query,
+        descriptors: ['ignored/census.md:2-3'],
+      });
+
+      expect(Object.isFrozen(sources)).toBe(true);
+      expect(Object.isFrozen(sources[0])).toBe(true);
+      expect(sources[0]).toMatchObject({
+        path: 'ignored/census.md',
+        artifact_bytes: 25,
+        line_start: 2,
+        line_end: 3,
+        excerpt: 'alpha\nbeta',
+        excerpt_bytes: 10,
+      });
+      expect(sources[0].artifact_sha256).toBe(crypto.createHash('sha256').update('header\nalpha\nbeta\nfooter\n').digest('hex'));
+      expect(sources[0].excerpt_sha256).toBe(crypto.createHash('sha256').update('alpha\nbeta').digest('hex'));
+      expect(parseEvidenceSourceDescriptor('ignored/census.md:2-3')).toEqual({
+        path: 'ignored/census.md', line_start: 2, line_end: 3,
+      });
+
+      fs.symlinkSync('census.md', path.join(repoRoot, 'ignored', 'link.md'));
+      fs.writeFileSync(path.join(repoRoot, 'ignored', 'invalid.bin'), Buffer.from([0xc3, 0x28]));
+      const secretFixture = `${['API', 'KEY'].join('_')}=${['fixture', 'credential'].join('-')}`;
+      fs.writeFileSync(path.join(repoRoot, 'ignored', 'secret.md'), `${secretFixture}\n`);
+      const rejected = [
+        ['../outside.md:1-1', 'x'],
+        ['/tmp/outside.md:1-1', 'x'],
+        ['ignored/link.md:1-1', 'header'],
+        ['ignored/census.md:1-151', 'header'],
+        ['ignored/census.md:4-3', 'footer'],
+        ['ignored/census.md:20-20', 'missing'],
+        ['ignored/missing.md:1-1', 'missing'],
+        ['ignored/census.md:2-3', 'alpha\nbeta and alpha\nbeta'],
+        ['ignored/secret.md:1-1', 'API_KEY=do-not-send'],
+        ['ignored/invalid.bin:1-1', 'invalid'],
+      ];
+      for (const [descriptor, rejectedQuery] of rejected) {
+        expect(() => resolveEvidenceSources({ repoRoot, query: rejectedQuery, descriptors: [descriptor] })).toThrow();
+      }
+      expect(() => resolveEvidenceSources({
+        repoRoot, query: secretFixture, descriptors: ['ignored/secret.md:1-1'],
+      })).toThrow(/secret-shaped/);
+    } finally {
+      fs.rmSync(repoRoot, { recursive: true, force: true });
+    }
   });
 
   test('consensusRequested honors explicit run flag over config default', () => {
@@ -225,12 +314,16 @@ describe('Mercury Fable consensus', () => {
       requiredRecheck: 'open core/OrderExecutor.js:1-2',
       nextCheck: 'run parent-env proof command',
     });
-    expect(buildMercuryRecheckPrompt({
+    const prompt = buildMercuryRecheckPrompt({
       originalQuery: 'Mercury, break my fix.',
       mercuryAnswer: 'No break found.',
       fableAnswer: answer,
       parsedConsensus: parsed,
-    })).toBe('Mercury, recheck the worker spawn env path. Open core/OrderExecutor.js:1-2 and prove whether process.env can override the worker overlay.');
+    });
+    expect(prompt).toContain('Original user prompt:\nMercury, break my fix.');
+    expect(prompt).toContain('Your prior answer:\nNo break found.');
+    expect(prompt).toContain(`Fable critique:\n${answer}`);
+    expect(prompt).toContain('Required recheck:\nMercury, recheck the worker spawn env path.');
   });
 
   test('parses formatted blocking fields and fails closed when the field is missing', () => {
@@ -358,12 +451,35 @@ describe('Mercury Fable consensus', () => {
       parsedConsensus: parsed,
     });
 
-    expect(prompts).toEqual([
-      'Mercury, recheck file A.',
-      'Mercury, recheck file B.',
-      'Mercury, recheck file C.',
+    expect(prompts).toHaveLength(3);
+    expect(prompts.map(prompt => prompt.match(/Required recheck:\n([^\n]+)/)[1])).toEqual([
+      'Mercury, recheck file A.', 'Mercury, recheck file B.', 'Mercury, recheck file C.',
     ]);
+    expect(prompts.every(prompt => prompt.includes('Original user prompt:\nMercury, break my fix.'))).toBe(true);
+    expect(prompts.every(prompt => prompt.includes('Fable critique:\ncritique'))).toBe(true);
     expect(prompts.slice(0, 2)).toHaveLength(2);
+  });
+
+  test('direct and split rechecks preserve identical host-attested evidence', () => {
+    const evidence = evidenceFixture();
+    const originalQuery = `Audit this excerpt:\n${evidence.excerpt}`;
+    const prompts = buildMercuryRecheckPrompts({
+      originalQuery,
+      mercuryAnswer: 'No break found.',
+      fableAnswer: 'Fable found two unresolved claims.',
+      parsedReview: { recheckPrompt: '- Check claim one.\n- Check claim two.' },
+      evidenceSources: [evidence],
+    });
+
+    expect(prompts).toHaveLength(2);
+    for (const prompt of prompts) {
+      expect(prompt).toContain(originalQuery);
+      expect(prompt).toContain(evidence.artifact_sha256);
+      expect(prompt).toContain(evidence.excerpt_sha256);
+      expect(prompt).toContain('access=prompt_supplied_not_repo_tool');
+      expect(buildAttestedPromptProvenance(prompt, [evidence]).supplied_sources[0])
+        .toMatchObject(evidence);
+    }
   });
 
   test('builds a visible adversarial review packet with Mercury, Fable, and recheck data', () => {
@@ -566,6 +682,54 @@ describe('Mercury Fable consensus', () => {
     });
   });
 
+  test('Fable and allowlisted Opus receive identical evidence provenance with no model tools', async () => {
+    const evidence = evidenceFixture();
+    const query = `Audit this excerpt:\n${evidence.excerpt}`;
+    const prompts = [];
+    const fableError = new Error('Fable unavailable');
+    fableError.providerMetadata = trustedFableMetadata({
+      rawResponse: Buffer.from('fable unavailable'),
+      toolsAvailable: [],
+      providerFrames: [{ type: 'result', is_error: true, error: { type: 'model_unavailable' } }],
+    });
+    const result = await runFableConsensus({
+      query,
+      evidenceSources: [evidence],
+      mercuryResult: { termination: 'answer_given', iterations: 1, answer: 'No break found.' },
+      createFableClient: () => ({
+        providerName: 'claude-code', model: 'fable', maxTokens: 2000,
+        initialize: async () => {},
+        generateResponseWithMetadata: async (prompt) => {
+          prompts.push(prompt);
+          throw fableError;
+        },
+      }),
+      createOpusClient: () => ({
+        providerName: 'claude-code', model: 'opus', maxTokens: 2000,
+        initialize: async () => {},
+        generateResponseWithMetadata: async (prompt) => {
+          prompts.push(prompt);
+          return {
+            answer: 'VERDICT: pass\nCONSENSUS_BLOCKING: no\nDISAGREEMENT: none',
+            metadata: {
+              provider: 'claude-code', requestedModel: 'opus', appliedModel: 'claude-opus-4-1',
+              rawResponse: Buffer.from('opus'), toolsAvailable: [],
+            },
+          };
+        },
+      }),
+      persistRaw: () => ({ path: 'raw', sha256: 'abc', bytes: 5, mode: '0600' }),
+    });
+
+    expect(prompts).toHaveLength(2);
+    expect(prompts[0]).toBe(prompts[1]);
+    expect(result.attempts.map(attempt => attempt.tools.available)).toEqual([[], []]);
+    const evidenceReceipts = result.attempts.map(attempt => attempt.input_provenance.supplied_sources
+      .find(source => source.path === evidence.path));
+    expect(evidenceReceipts[0]).toEqual(evidenceReceipts[1]);
+    expect(evidenceReceipts[0]).toMatchObject(evidence);
+  });
+
   test('runKimiFinalConsensus uses an injected client and parses models_disagree', async () => {
     const fakeClient = {
       maxTokens: 2000,
@@ -623,6 +787,77 @@ describe('Mercury Fable consensus', () => {
         kimiSupported: 'disagreement remains',
       },
     });
+  });
+
+  test('Kimi receipt preserves evidence plus exact recheck prompts, answers, and telemetry', async () => {
+    const evidence = evidenceFixture();
+    const query = `Audit this excerpt:\n${evidence.excerpt}`;
+    const recheckPrompt = buildMercuryRecheckPrompt({
+      originalQuery: query,
+      mercuryAnswer: 'Initial answer.',
+      fableAnswer: 'Critique.',
+      parsedReview: { recheckPrompt: 'Inspect the disputed claim.' },
+      evidenceSources: [evidence],
+    });
+    const telemetry = {
+      total: 1,
+      succeeded: 1,
+      failed: 0,
+      byTool: { open_file: { calls: 1, succeeded: 1, failed: 0 } },
+      calls: [],
+      filesOpened: ['core/Foo.js:1-2'],
+      runCheckArtifacts: [],
+      runChecks: [],
+    };
+    const result = await runKimiFinalConsensus({
+      query,
+      evidenceSources: [evidence],
+      mercuryResult: { termination: 'answer_given', iterations: 1, answer: 'Initial answer.' },
+      review: {
+        answer: 'Critique.',
+        parsed: { verdict: 'needs_more_evidence', blocking: true },
+        recheckPrompts: [recheckPrompt],
+        rechecks: [{ termination: 'answer_given', iterations: 1, answer: 'Recheck answer.', toolTelemetry: telemetry }],
+      },
+      createClient: () => ({
+        maxTokens: 2000,
+        initialize: async () => {},
+        generateResponseWithMetadata: async () => ({
+          answer: 'VERDICT: pass\nCONSENSUS_BLOCKING: no',
+          metadata: {
+            provider: 'openai', requestedModel: 'kimi-k3', appliedModel: 'kimi-k3-202608',
+            rawResponse: Buffer.from('kimi'), toolsAvailable: [],
+          },
+        }),
+      }),
+      persistRaw: () => ({ path: 'raw', sha256: 'abc', bytes: 4, mode: '0600' }),
+    });
+
+    const supplied = result.stageReceipt.input_provenance.supplied_sources;
+    expect(supplied.find(source => source.path === evidence.path)).toMatchObject(evidence);
+    expect(supplied.find(source => source.path.endsWith('-prompt')).excerpt).toBe(recheckPrompt);
+    expect(supplied.find(source => source.path === 'mercury://recheck-1-answer').excerpt).toBe('Recheck answer.');
+    expect(supplied.find(source => source.path.endsWith('-telemetry')).excerpt)
+      .toContain('open_file:1/1/0');
+    expect(result.stageReceipt.tools).toMatchObject({ enabled: false, available: [], calls: [] });
+    expect(result.stageReceipt.files_mechanically_opened).toEqual([]);
+  });
+
+  test('provenance mismatch fails loud before challenger initialization and cannot invoke Opus', async () => {
+    const evidence = { ...evidenceFixture(), excerpt_sha256: '0'.repeat(64) };
+    const query = `Audit this excerpt:\n${evidence.excerpt}`;
+    const fableFactory = jest.fn();
+    const opusFactory = jest.fn();
+
+    await expect(runFableConsensus({
+      query,
+      evidenceSources: [evidence],
+      mercuryResult: { termination: 'answer_given', iterations: 1, answer: 'Initial answer.' },
+      createFableClient: fableFactory,
+      createOpusClient: opusFactory,
+    })).rejects.toThrow(/provenance mismatch/);
+    expect(fableFactory).not.toHaveBeenCalled();
+    expect(opusFactory).not.toHaveBeenCalled();
   });
 
   test('Fable falls back to Opus only on allowlisted machine-observable unavailability', async () => {

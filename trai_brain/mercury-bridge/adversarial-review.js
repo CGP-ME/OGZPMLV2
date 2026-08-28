@@ -136,21 +136,53 @@ function normalizeRecheckPrompts(value) {
   return [text];
 }
 
+function evidenceManifest(evidenceSources = []) {
+  if (!Array.isArray(evidenceSources) || evidenceSources.length === 0) return 'none';
+  return evidenceSources.map((source, index) => [
+    `${index + 1}. ${source.path}:${source.line_start}-${source.line_end}`,
+    `artifact_sha256=${source.artifact_sha256} artifact_bytes=${source.artifact_bytes}`,
+    `excerpt_sha256=${source.excerpt_sha256} excerpt_bytes=${source.excerpt_bytes}`,
+    'delivery=verbatim_in_original_query access=prompt_supplied_not_repo_tool',
+  ].join(' | ')).join('\n');
+}
+
+function hasEvidenceAttestation(source) {
+  return source && Object.prototype.hasOwnProperty.call(source, 'artifact_sha256');
+}
+
+function buildAttestedPromptProvenance(prompt, suppliedSources = []) {
+  const provenance = buildPromptProvenance(prompt, suppliedSources);
+  const text = String(prompt || '');
+  for (const source of suppliedSources.filter(hasEvidenceAttestation)) {
+    const excerpt = String(source.excerpt);
+    let occurrences = 0;
+    let offset = 0;
+    while ((offset = text.indexOf(excerpt, offset)) !== -1) {
+      occurrences += 1;
+      offset += Math.max(excerpt.length, 1);
+    }
+    if (occurrences < 1) {
+      const error = new Error(`Evidence source ${source.path} is missing from provider prompt`);
+      error.code = 'EVIDENCE_PROVENANCE_INVALID';
+      throw error;
+    }
+  }
+  return provenance;
+}
+
 function buildMercuryRecheckPrompt({
   originalQuery,
   mercuryAnswer,
   fableAnswer,
   parsedReview,
   parsedConsensus,
+  evidenceSources = [],
+  focusedInstruction = null,
 } = {}) {
   const parsed = parsedReview || parsedConsensus;
-  const prompt = parsed && parsed.recheckPrompt ? parsed.recheckPrompt : '';
-  const directPrompts = normalizeRecheckPrompts(prompt);
-  if (directPrompts.length > 0) return directPrompts[0];
-
-  const nextCheck = parsed && parsed.nextCheck
-    ? parsed.nextCheck
-    : 'Recheck Fable critique with current repo evidence.';
+  const directPrompts = normalizeRecheckPrompts(parsed && parsed.recheckPrompt);
+  const nextCheck = focusedInstruction || directPrompts[0] || (parsed && parsed.nextCheck)
+    || 'Recheck Fable critique with current repo evidence.';
 
   return [
     'READ-ONLY AUDIT. Do not edit code.',
@@ -158,6 +190,9 @@ function buildMercuryRecheckPrompt({
     '',
     'Original user prompt:',
     String(originalQuery || '').trim() || '<empty>',
+    '',
+    'Host-attested evidence manifest (the verbatim excerpts are supplied inside the original prompt above; they were not opened by model tools):',
+    evidenceManifest(evidenceSources),
     '',
     'Your prior answer:',
     String(mercuryAnswer || '').trim() || '<empty>',
@@ -175,7 +210,9 @@ function buildMercuryRecheckPrompt({
 function buildMercuryRecheckPrompts(args = {}) {
   const parsed = args.parsedReview || args.parsedConsensus;
   const prompts = normalizeRecheckPrompts(parsed && parsed.recheckPrompt);
-  if (prompts.length > 0) return prompts;
+  if (prompts.length > 0) {
+    return prompts.map(focusedInstruction => buildMercuryRecheckPrompt({ ...args, focusedInstruction }));
+  }
   return [buildMercuryRecheckPrompt(args)];
 }
 
@@ -415,6 +452,7 @@ function buildAdversarialReviewPrompt({
   mercuryResult,
   runLedgerCitation = null,
   reviewIntent = 'adversarial',
+  evidenceSources = [],
 } = {}) {
   if (typeof query !== 'string' || query.trim() === '') {
     throw new Error('Adversarial review prompt requires the original query');
@@ -453,6 +491,8 @@ function buildAdversarialReviewPrompt({
       '',
       `Original user prompt:\n${query.trim()}`,
       '',
+      `Host-attested evidence manifest:\n${evidenceManifest(evidenceSources)}`,
+      '',
       `Mercury termination: ${mercuryResult.termination || 'unknown'}`,
       `Mercury iterations: ${mercuryResult.iterations == null ? 'unknown' : mercuryResult.iterations}`,
       `Mercury run ledger: ${runLedgerCitation || 'not written yet'}`,
@@ -484,6 +524,8 @@ function buildAdversarialReviewPrompt({
       'NEXT_LANES: <operator-sized follow-up lanes>',
       '',
       `Original user prompt:\n${query.trim()}`,
+      '',
+      `Host-attested evidence manifest:\n${evidenceManifest(evidenceSources)}`,
       '',
       `Mercury termination: ${mercuryResult.termination || 'unknown'}`,
       `Mercury iterations: ${mercuryResult.iterations == null ? 'unknown' : mercuryResult.iterations}`,
@@ -519,6 +561,8 @@ function buildAdversarialReviewPrompt({
     '',
     `Original user prompt:\n${query.trim()}`,
     '',
+    `Host-attested evidence manifest:\n${evidenceManifest(evidenceSources)}`,
+    '',
     `Mercury termination: ${mercuryResult.termination || 'unknown'}`,
     `Mercury iterations: ${mercuryResult.iterations == null ? 'unknown' : mercuryResult.iterations}`,
     `Mercury run ledger: ${runLedgerCitation || 'not written yet'}`,
@@ -532,6 +576,7 @@ function buildKimiFinalAdjudicationPrompt({
   query,
   mercuryResult,
   review,
+  evidenceSources = [],
 } = {}) {
   if (typeof query !== 'string' || query.trim() === '') {
     throw new Error('Kimi final adjudication prompt requires the original query');
@@ -588,6 +633,8 @@ function buildKimiFinalAdjudicationPrompt({
     'Rules: VERDICT: pass with non-empty CONTRADICTIONS contradicts the tape; resolve or route to recheck. BLIND_SPOTS must be recorded but does not block by itself. Never quote model confidence as evidence.',
     '',
     `Original user prompt:\n${query.trim()}`,
+    '',
+    `Host-attested evidence manifest:\n${evidenceManifest(evidenceSources)}`,
     '',
     `Mercury termination: ${mercuryResult.termination || 'unknown'}`,
     `Mercury iterations: ${mercuryResult.iterations == null ? 'unknown' : mercuryResult.iterations}`,
@@ -697,6 +744,7 @@ function stageAttemptReceipt({
   suppliedSources = [],
   rawOutput = null,
   rawError = null,
+  inputProvenance = null,
 }) {
   return {
     role,
@@ -715,7 +763,7 @@ function stageAttemptReceipt({
     parse_status: metadata.parseStatus || null,
     exit_code: metadata.exitCode == null ? null : metadata.exitCode,
     retry_status: role === 'opus_challenger' ? 'emergency_replacement' : 'primary_attempt',
-    input_provenance: buildPromptProvenance(prompt, suppliedSources),
+    input_provenance: inputProvenance || buildAttestedPromptProvenance(prompt, suppliedSources),
     raw_output: rawOutput,
     raw_error: rawError,
     tools: {
@@ -745,6 +793,7 @@ async function executePromptOnlyStage({
 }) {
   const startedAt = new Date();
   let client = null;
+  const inputProvenance = buildAttestedPromptProvenance(prompt, suppliedSources);
   try {
     client = createClient({ systemPrompt: config.CONSENSUS_SYSTEM_PROMPT });
     await client.initialize();
@@ -777,7 +826,7 @@ async function executePromptOnlyStage({
     }
     const receipt = stageAttemptReceipt({
       role, attemptNumber, metadata: response.metadata, status: 'succeeded',
-      prompt, suppliedSources, rawOutput, rawError,
+      prompt, suppliedSources, rawOutput, rawError, inputProvenance,
     });
     receipt.claimed_file_citations = extractClaimedFileCitations(response.answer);
     return { answer: response.answer, receipt };
@@ -815,7 +864,7 @@ async function executePromptOnlyStage({
     }
     error.stageAttempt = stageAttemptReceipt({
       role, attemptNumber, metadata, status: 'failed', error,
-      prompt, suppliedSources, rawOutput, rawError,
+      prompt, suppliedSources, rawOutput, rawError, inputProvenance,
     });
     throw error;
   }
@@ -830,13 +879,18 @@ async function runFableAdversarialReview({
   createOpusClient = createOpusChallengerClient,
   persistRaw = () => null,
   now = Date.now,
+  evidenceSources = [],
 } = {}) {
-  const prompt = buildAdversarialReviewPrompt({ query, mercuryResult, runLedgerCitation, reviewIntent });
+  const prompt = buildAdversarialReviewPrompt({
+    query, mercuryResult, runLedgerCitation, reviewIntent, evidenceSources,
+  });
   const suppliedSources = [
     { path: 'input://original-query', excerpt: query.trim() },
+    ...evidenceSources,
     { path: 'mercury://primary-answer', excerpt: String(mercuryResult.answer || '').trim() || '<empty>' },
     ...(runLedgerCitation ? [{ path: 'mercury://run-ledger-citation', excerpt: runLedgerCitation }] : []),
   ];
+  buildAttestedPromptProvenance(prompt, suppliedSources);
   const started = now();
   const attempts = [];
   let stage;
@@ -892,18 +946,31 @@ async function runKimiFinalAdjudication({
   createClient = createKimiTieBreakerClient,
   persistRaw = () => null,
   now = Date.now,
+  evidenceSources = [],
 } = {}) {
-  const prompt = buildKimiFinalAdjudicationPrompt({ query, mercuryResult, review });
+  const prompt = buildKimiFinalAdjudicationPrompt({ query, mercuryResult, review, evidenceSources });
   const rechecks = Array.isArray(review.rechecks) ? review.rechecks : [];
   const suppliedSources = [
     { path: 'input://original-query', excerpt: query.trim() },
+    ...evidenceSources,
     { path: 'mercury://primary-answer', excerpt: String(mercuryResult.answer || '').trim() || '<empty>' },
     { path: 'challenger://answer', excerpt: String(review.answer || '').trim() || '<empty>' },
-    ...rechecks.map((recheck, index) => ({
-      path: `mercury://recheck-${index + 1}-answer`,
-      excerpt: String(recheck.answer || '').trim() || '<empty>',
-    })),
+    ...rechecks.flatMap((recheck, index) => [
+      {
+        path: `mercury://recheck-${index + 1}-prompt`,
+        excerpt: String((review.recheckPrompts || [])[index] || '').trim() || '<empty>',
+      },
+      {
+        path: `mercury://recheck-${index + 1}-answer`,
+        excerpt: String(recheck.answer || '').trim() || '<empty>',
+      },
+      {
+        path: `mercury://recheck-${index + 1}-telemetry`,
+        excerpt: recheck.toolTelemetry ? formatToolTelemetry(recheck.toolTelemetry) : 'unavailable',
+      },
+    ]),
   ];
+  buildAttestedPromptProvenance(prompt, suppliedSources);
   const started = now();
   const stage = await executePromptOnlyStage({
     role: 'kimi_tie_breaker', prompt, suppliedSources, createClient, persistRaw, attemptNumber: 1,
@@ -960,6 +1027,8 @@ module.exports = {
   formatAdversarialReviewPacket,
   buildAdversarialReviewPrompt,
   buildKimiFinalAdjudicationPrompt,
+  buildAttestedPromptProvenance,
+  evidenceManifest,
   OPUS_ELIGIBLE_CLAUDE_CODES,
   classifyClaudeProviderErrorFrame,
   classifyFableFallbackError,

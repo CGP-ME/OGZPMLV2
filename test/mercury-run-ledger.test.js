@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -12,6 +13,20 @@ const {
   writeRawProviderOutput,
   writeRunLedgerEntry,
 } = require('../trai_brain/mercury-bridge/run-ledger');
+
+function evidenceFixture(excerpt = 'VERBATIM EVIDENCE') {
+  const artifact = `header\n${excerpt}\nfooter`;
+  return {
+    path: 'ignored/census.md',
+    artifact_sha256: crypto.createHash('sha256').update(artifact).digest('hex'),
+    artifact_bytes: Buffer.byteLength(artifact),
+    line_start: 2,
+    line_end: 2,
+    excerpt_sha256: crypto.createHash('sha256').update(excerpt).digest('hex'),
+    excerpt_bytes: Buffer.byteLength(excerpt),
+    excerpt,
+  };
+}
 
 describe('Mercury run ledger', () => {
   let tmpRoot;
@@ -350,6 +365,102 @@ describe('Mercury run ledger', () => {
         excerpt: 'review this',
       }],
     });
+  });
+
+  test('records additive artifact/range provenance and rejects mismatched excerpt attestations', () => {
+    const evidence = evidenceFixture();
+    const provenance = buildPromptProvenance(`Audit:\n${evidence.excerpt}`, [evidence]);
+
+    expect(provenance.supplied_sources[0]).toMatchObject(evidence);
+    expect(() => buildPromptProvenance('Audit', [{
+      ...evidence,
+      excerpt_bytes: evidence.excerpt_bytes + 1,
+    }])).toThrow(/provenance mismatch/);
+    expect(() => buildPromptProvenance('Audit', [{
+      ...evidence,
+      artifact_sha256: undefined,
+    }])).toThrow(/provenance mismatch/);
+  });
+
+  test('schema-v2 ledger carries top-level evidence and complete stage-specific recheck tape', () => {
+    const evidence = evidenceFixture();
+    const query = `Audit:\n${evidence.excerpt}`;
+    const inputProvenance = buildPromptProvenance(query, [evidence]);
+    const recheckProvenance = buildPromptProvenance(`Recheck:\n${evidence.excerpt}`, [evidence]);
+    const entry = buildRunLedgerEntry({
+      repoRoot: tmpRoot,
+      query,
+      evidenceSources: [evidence],
+      inputProvenance,
+      startedAt: new Date('2026-08-28T00:00:00.000Z'),
+      finishedAt: new Date('2026-08-28T00:00:01.000Z'),
+      result: {
+        termination: 'answer_given',
+        iterations: 2,
+        answer: 'No break found.',
+        evidenceSources: [evidence],
+        inputProvenance,
+        toolTelemetry: { byTool: {}, filesOpened: [], runCheckArtifacts: [], runChecks: [] },
+        adversarialReview: {
+          enabled: true,
+          ok: true,
+          parsed: { verdict: 'needs_more_evidence', blocking: true },
+          recheckPrompts: [`Recheck:\n${evidence.excerpt}`],
+          rechecks: [{
+            termination: 'answer_given',
+            iterations: 2,
+            totalLatencyMs: 50,
+            answer: 'Recheck answer.',
+            inputProvenance: recheckProvenance,
+            providerAttempts: [{ stage: 'mercury_recheck_1', status: 'succeeded' }],
+            toolsAvailable: ['open_file', 'run_check'],
+            toolTelemetry: {
+              byTool: { open_file: { calls: 1, succeeded: 1, failed: 0 } },
+              calls: [{ name: 'open_file', status: 'succeeded', args: { path: 'core/Foo.js' }, result: { file: 'core/Foo.js' } }],
+              filesOpened: ['core/Foo.js:1-2'],
+              runCheckArtifacts: ['receipt:1'],
+              runChecks: [{ profile: 'focused', status: 'passed', exit_code: 0 }],
+            },
+            answerQuality: { flags: ['citation_checked'], evidence: [{ flag: 'citation_checked' }] },
+          }],
+        },
+      },
+    });
+
+    expect(entry.schema_version).toBe(2);
+    expect(entry.prompt_provenance).toEqual(inputProvenance);
+    expect(entry.source_refs.supplied_evidence[0]).toMatchObject(evidence);
+    expect(entry.adversarial_review.rechecks[0]).toMatchObject({
+      input_provenance: recheckProvenance,
+      provider_attempts: [{ stage: 'mercury_recheck_1', status: 'succeeded' }],
+      tools_available: ['open_file', 'run_check'],
+      files_mechanically_opened: ['core/Foo.js:1-2'],
+      run_check_artifacts: ['receipt:1'],
+      run_checks: [{ profile: 'focused', status: 'passed', exit_code: 0 }],
+      answer_quality: ['citation_checked'],
+      answer_quality_evidence: [{ flag: 'citation_checked' }],
+    });
+    expect(entry.adversarial_review.rechecks[0].tools_invoked[0]).toMatchObject({
+      name: 'open_file', calls: 1, succeeded: 1, failed: 0,
+    });
+  });
+
+  test('legacy schema-v2 callers remain valid without evidence provenance', () => {
+    const entry = buildRunLedgerEntry({
+      repoRoot: tmpRoot,
+      query: 'Legacy query.',
+      startedAt: new Date('2026-08-28T00:00:00.000Z'),
+      result: {
+        termination: 'answer_given',
+        iterations: 1,
+        answer: 'Legacy answer.',
+        toolTelemetry: { byTool: {}, filesOpened: [], runCheckArtifacts: [], runChecks: [] },
+      },
+    });
+
+    expect(entry.schema_version).toBe(2);
+    expect(entry.prompt_provenance.supplied_sources).toEqual([]);
+    expect(entry.source_refs.supplied_evidence).toEqual([]);
   });
 
   test('persists failed Fable consensus as explicit metadata instead of a successful pass', () => {

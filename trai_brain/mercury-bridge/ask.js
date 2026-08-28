@@ -20,6 +20,7 @@
  *   --show-chunks          Print retrieved chunk text (not just filenames)
  *   --show-history         Agentic mode only: print the full tool-call trace
  *   --adversarial-review   Agentic mode only: ask Fable to attack Mercury's answer
+ *   --evidence-source=P:S-E Host-attest a verbatim repo-relative excerpt (repeatable)
  *   --consensus            Agentic mode only: legacy alias for Fable review
  *   --architecture         Agentic mode only: longform architecture review framing
  *   --planning             Agentic mode only: implementation planning/design framing
@@ -30,6 +31,8 @@
 
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
+const { TextDecoder } = require('util');
 const { execFileSync } = require('child_process');
 
 // Load .env from repo root so configured Mercury LLM key env is available.
@@ -46,6 +49,7 @@ const {
   runFableAdversarialReview,
   runKimiFinalAdjudication,
   adversarialReviewFailure,
+  buildAttestedPromptProvenance,
   buildMercuryRecheckPrompts,
   formatAdversarialReviewPacket,
   kimiTieBreakerRequired,
@@ -56,6 +60,7 @@ const {
   autoBlastRadiusFailed,
   buildRunLedgerEntry,
   createRawRunId,
+  redactSensitiveText,
   resultHasToolFailure,
   writeRawProviderOutput,
   writeRunLedgerEntry,
@@ -102,6 +107,7 @@ function parseArgs(argv) {
     pruneTraces: false,    // force eviction and exit
     checkProviders: false, // warm up configured LLM providers and exit
     captureTrace: false,   // opt-in successful trace capture
+    evidenceSources: [],   // repeatable host-attested path:start-end descriptors
   };
   const positional = [];
 
@@ -152,6 +158,8 @@ function parseArgs(argv) {
       args.checkProviders = true;
     } else if (arg === '--capture-trace') {
       args.captureTrace = true;
+    } else if (arg.startsWith('--evidence-source=')) {
+      args.evidenceSources.push(arg.slice('--evidence-source='.length));
     } else if (arg.startsWith('--')) {
       console.warn(`[ask] Unknown flag: ${arg}`);
     } else {
@@ -161,6 +169,85 @@ function parseArgs(argv) {
 
   args.query = positional.join(' ').trim();
   return args;
+}
+
+function parseEvidenceSourceDescriptor(descriptor) {
+  const match = String(descriptor || '').match(/^([^:]+):(\d+)-(\d+)$/);
+  if (!match) {
+    throw new Error('--evidence-source must use repo-relative-path:start-end');
+  }
+  const sourcePath = match[1];
+  const segments = sourcePath.split('/');
+  if (path.posix.isAbsolute(sourcePath) || sourcePath.includes('\\')
+      || segments.includes('..') || segments.includes('.') || segments.some(segment => segment === '')) {
+    throw new Error(`Evidence source path must be repo-relative without traversal: ${sourcePath}`);
+  }
+  const lineStart = Number(match[2]);
+  const lineEnd = Number(match[3]);
+  if (!Number.isSafeInteger(lineStart) || !Number.isSafeInteger(lineEnd)
+      || lineStart < 1 || lineEnd < lineStart || lineEnd - lineStart + 1 > 150) {
+    throw new Error(`Evidence source range must be inclusive, ordered, and at most 150 lines: ${descriptor}`);
+  }
+  return { path: sourcePath, line_start: lineStart, line_end: lineEnd };
+}
+
+function countExactOccurrences(text, excerpt) {
+  if (excerpt === '') return 0;
+  let count = 0;
+  let offset = 0;
+  while ((offset = text.indexOf(excerpt, offset)) !== -1) {
+    count += 1;
+    offset += excerpt.length;
+  }
+  return count;
+}
+
+function resolveEvidenceSources({ repoRoot, query, descriptors = [] } = {}) {
+  const rootRealpath = fs.realpathSync(repoRoot);
+  const queryText = String(query || '');
+  const decoder = new TextDecoder('utf-8', { fatal: true });
+  const sources = descriptors.map((descriptor) => {
+    const parsed = parseEvidenceSourceDescriptor(descriptor);
+    const absPath = path.resolve(rootRealpath, ...parsed.path.split('/'));
+    const relative = path.relative(rootRealpath, absPath);
+    if (relative.startsWith('..') || path.isAbsolute(relative)) {
+      throw new Error(`Evidence source escapes repository: ${parsed.path}`);
+    }
+    const stat = fs.lstatSync(absPath);
+    if (!stat.isFile() || stat.isSymbolicLink() || fs.realpathSync(absPath) !== absPath) {
+      throw new Error(`Evidence source must be a regular non-symlink file: ${parsed.path}`);
+    }
+    const artifact = fs.readFileSync(absPath);
+    let text;
+    try {
+      text = decoder.decode(artifact);
+    } catch (error) {
+      throw new Error(`Evidence source must be valid UTF-8: ${parsed.path}`);
+    }
+    const lines = text.split('\n');
+    if (text.endsWith('\n')) lines.pop();
+    if (parsed.line_end > lines.length) {
+      throw new Error(`Evidence source range exceeds ${lines.length} lines: ${descriptor}`);
+    }
+    const excerpt = lines.slice(parsed.line_start - 1, parsed.line_end).join('\n');
+    const occurrences = countExactOccurrences(queryText, excerpt);
+    if (occurrences !== 1) {
+      throw new Error(`Evidence excerpt ${descriptor} must appear exactly once in the query; found ${occurrences}`);
+    }
+    if (redactSensitiveText(excerpt) !== excerpt) {
+      throw new Error(`Evidence source contains secret-shaped text and cannot be supplied: ${descriptor}`);
+    }
+    const source = Object.freeze({
+      ...parsed,
+      artifact_sha256: crypto.createHash('sha256').update(artifact).digest('hex'),
+      artifact_bytes: artifact.length,
+      excerpt_sha256: crypto.createHash('sha256').update(excerpt, 'utf8').digest('hex'),
+      excerpt_bytes: Buffer.byteLength(excerpt, 'utf8'),
+      excerpt,
+    });
+    return source;
+  });
+  return Object.freeze(sources);
 }
 
 function buildMercuryIntentPrompt(query, reviewIntent = 'adversarial') {
@@ -232,6 +319,7 @@ function usage() {
   console.log('  --quiet                Suppress progress logs');
   console.log('  --show-chunks          Print retrieved chunk text');
   console.log('  --show-history         Agentic only: print full tool-call trace');
+  console.log('  --evidence-source=P:S-E Host-attest a verbatim repo-relative excerpt; repeatable, max 150 lines');
   console.log(`  --adversarial-review   Agentic only: force a Fable (${config.CONSENSUS_MODEL}) adversarial review`);
   console.log('  --no-adversarial-review Agentic only: suppress env/config adversarial review for this run');
   console.log('  --consensus            Agentic only: legacy alias for a Fable review');
@@ -386,19 +474,21 @@ async function buildCurrentChangeBlastRadius({
 async function runAgentic(query, opts) {
   const startedAt = new Date();
   const rawRunId = createRawRunId(startedAt);
-  const providerAudit = {
+  const createProviderAudit = stage => ({
+    stage,
     attempts: [],
     record(metadata, context) {
       const attempt = this.attempts.length + 1;
       const rawOutput = writeRawProviderOutput({
         repoRoot: config.REPO_ROOT,
         runId: rawRunId,
-        stage: 'mercury',
+        stage: this.stage,
         attempt,
         bytes: metadata.rawResponse || Buffer.alloc(0),
       });
       return {
         attempt,
+        stage: this.stage,
         status: context.status,
         retry: context.retry,
         requested_provider: metadata.provider || config.MERCURY_LLM_PROVIDER,
@@ -414,7 +504,8 @@ async function runAgentic(query, opts) {
         repo_adjudication: { status: 'pending', authority: 'live_repo_required' },
       };
     },
-  };
+  });
+  const providerAudit = createProviderAudit('mercury');
   const persistReviewRaw = (stage, attempt, bytes) => writeRawProviderOutput({
     repoRoot: config.REPO_ROOT,
     runId: rawRunId,
@@ -427,6 +518,12 @@ async function runAgentic(query, opts) {
   const maxTokens = configExactInteger(opts.maxTokens, config.AGENTIC_MAX_TOKENS, '--max-tokens');
   const reviewIntent = opts.reviewIntent || 'adversarial';
   const mercuryQuery = buildMercuryIntentPrompt(query, reviewIntent);
+  const evidenceSources = resolveEvidenceSources({
+    repoRoot: config.REPO_ROOT,
+    query,
+    descriptors: opts.evidenceSources || [],
+  });
+  const inputProvenance = buildAttestedPromptProvenance(mercuryQuery, evidenceSources);
 
   // Route the query unless caller has overridden
   const route = routeQuery(query);
@@ -579,6 +676,8 @@ async function runAgentic(query, opts) {
       providerAudit,
     });
     result.totalLatencyMs = Date.now() - t0;
+    result.evidenceSources = evidenceSources;
+    result.inputProvenance = inputProvenance;
     if (autoBlastRadius) {
       result.serenaBlastRadius = autoBlastRadius;
     }
@@ -603,6 +702,7 @@ async function runAgentic(query, opts) {
           mercuryResult: result,
           reviewIntent,
           persistRaw: persistReviewRaw,
+          evidenceSources,
         });
         review.mode = reviewMode;
         if (kimiTieBreakerRequired(review, reviewIntent)) {
@@ -611,6 +711,7 @@ async function runAgentic(query, opts) {
             mercuryAnswer: result.answer,
             fableAnswer: review.answer,
             parsedReview: review.parsed,
+            evidenceSources,
           }).slice(0, config.ADVERSARIAL_REVIEW_MAX_RECHECKS);
           review.recheckPrompts = recheckPrompts;
           review.rechecks = [];
@@ -618,8 +719,10 @@ async function runAgentic(query, opts) {
           if (verbose) {
             console.log(`[MERCURY-BRIDGE] Fable marked ${reviewMode} blocking; launching ${recheckPrompts.length} Mercury recheck(s).`);
           }
-          for (const recheckPrompt of recheckPrompts) {
+          for (const [index, recheckPrompt] of recheckPrompts.entries()) {
             const recheckStarted = Date.now();
+            const recheckAudit = createProviderAudit(`mercury_recheck_${index + 1}`);
+            const recheckProvenance = buildAttestedPromptProvenance(recheckPrompt, evidenceSources);
             const recheck = await runReactLoop({
               client,
               toolAdapter,
@@ -630,9 +733,11 @@ async function runAgentic(query, opts) {
               maxIterations,
               maxTokens,
               verbose,
-              providerAudit,
+              providerAudit: recheckAudit,
             });
             recheck.totalLatencyMs = Date.now() - recheckStarted;
+            recheck.inputProvenance = recheckProvenance;
+            recheck.evidenceSources = evidenceSources;
             review.rechecks.push(recheck);
           }
           review.recheck = review.rechecks[0] || null;
@@ -647,6 +752,7 @@ async function runAgentic(query, opts) {
               mercuryResult: result,
               review,
               persistRaw: persistReviewRaw,
+              evidenceSources,
             });
           } catch (finalErr) {
             review.finalReview = adversarialReviewFailure(finalErr, { role: 'kimi_tie_breaker' });
@@ -724,6 +830,8 @@ async function runAgentic(query, opts) {
       startedAt,
       finishedAt: new Date(),
       autoBlastRadius,
+      evidenceSources,
+      inputProvenance,
     });
     result.runLedger = writeRunLedgerEntry({
       repoRoot: config.REPO_ROOT,
@@ -746,6 +854,8 @@ async function runAgentic(query, opts) {
       startedAt,
       finishedAt: new Date(),
       autoBlastRadius,
+      evidenceSources,
+      inputProvenance,
     });
     err.mercuryRunLedger = writeRunLedgerEntry({
       repoRoot: config.REPO_ROOT,
@@ -1091,6 +1201,8 @@ if (require.main === module) {
 
 module.exports = {
   parseArgs,
+  parseEvidenceSourceDescriptor,
+  resolveEvidenceSources,
   runAgentic,
   buildMercuryIntentPrompt,
   buildCurrentChangeBlastRadius,
