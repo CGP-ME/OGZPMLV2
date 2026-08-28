@@ -100,6 +100,21 @@ describe('Mercury run ledger', () => {
     expect(redactSensitiveText(text)).toBe(text);
   });
 
+  test('preserves attested evidence identifiers without exempting token shapes', () => {
+    const environmentName = 'EMA_MTF_FRESH_50_200_MIN_1H_TREND_STRENGTH';
+    const repositoryFilename = 'test/session-router-concurrent-transition-ownership.test.js';
+    const repositoryDirectory = 'archive/OGZPMLV2-profile-verify-20260604/untracked';
+    const slashTaxonomy = 'broker/instrument/account/candle/fee';
+    const datedPath = '20260604/untracked/test/backtest';
+    const explicitTokenInPath = `test/sk-${'Ab3dEf7hIj9kLm2nOp4qRs6tUv8wXy0z'}.js`;
+    const genericTokenInBackticks = `Ab3dEf7hIj9kLm2nOp4qRs6tUv8wXy0z`;
+
+    expect(redactSensitiveText(`\`${environmentName}\` ${repositoryFilename} ${repositoryDirectory} ${slashTaxonomy} ${datedPath}`))
+      .toBe(`\`${environmentName}\` ${repositoryFilename} ${repositoryDirectory} ${slashTaxonomy} ${datedPath}`);
+    expect(redactSensitiveText(explicitTokenInPath)).toBe('test/[REDACTED].js');
+    expect(redactSensitiveText(`\`${genericTokenInBackticks}\``)).toBe('`[REDACTED]`');
+  });
+
   test('classifies common Mercury outcomes into durable verdicts', () => {
     expect(classifyMercuryVerdict({
       result: {

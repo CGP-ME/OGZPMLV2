@@ -143,11 +143,29 @@ function truncateText(value, maxChars) {
 }
 
 function redactSensitiveText(value) {
-  const redactHighEntropyRun = (match) => {
+  const redactHighEntropyRun = (match, offset, text) => {
     if (/^[a-f0-9]+$/i.test(match) && (match.length === 40 || match.length === 64)) {
       return match;
     }
     if (/^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}(?:-\d{3}Z)?-[A-Za-z0-9_-]+$/i.test(match)) {
+      return match;
+    }
+    const before = text.slice(0, offset);
+    const after = text.slice(offset + match.length);
+    const isBacktickedEnvironmentName = before.endsWith('`')
+      && after.startsWith('`')
+      && /^[A-Z][A-Z0-9_]+$/.test(match);
+    const isRepositoryFilename = before.endsWith('/')
+      && (match.match(/-/g) || []).length >= 2
+      && /^\.(?:(?:test|spec)\.)?(?:[cm]?[jt]sx?|json|md|ya?ml)\b/.test(after);
+    const isRepositoryDirectory = before.endsWith('/')
+      && after.startsWith('/')
+      && (match.match(/-/g) || []).length >= 2;
+    const isLowercaseSlashTaxonomy = (match.match(/\//g) || []).length >= 2
+      && /^[a-z]+(?:\/[a-z]+){2,}$/.test(match);
+    const isDatedLowercasePath = /^\d{8}(?:\/[a-z]+){3,}$/.test(match);
+    if (isBacktickedEnvironmentName || isRepositoryFilename || isRepositoryDirectory
+        || isLowercaseSlashTaxonomy || isDatedLowercasePath) {
       return match;
     }
     const counts = new Map();
