@@ -298,7 +298,7 @@ describe('Mercury LLM config contract', () => {
     });
   });
 
-  test('spoofed CLI version and self-reported model fail before challenger acceptance', async () => {
+  test('untrusted CLI version hard-stops while undocumented model identity is stamped', async () => {
     await withMercuryConfig({}, async () => {
       const { ClaudeCodeConsensusClient, resolveConsensusLlmClientOptions } = require('../trai_brain/mercury-bridge/llm-client');
       const badVersion = new ClaudeCodeConsensusClient(withTrustedExecutable(resolveConsensusLlmClientOptions({
@@ -331,7 +331,18 @@ describe('Mercury LLM config contract', () => {
         .mockResolvedValueOnce({ stdout: spoofedModel, stderr: Buffer.alloc(0) });
       const client = new ClaudeCodeConsensusClient(withTrustedExecutable(resolveConsensusLlmClientOptions({ execFileAsync })));
       await expect(client.generateResponseWithMetadata('preflight'))
-        .rejects.toThrow(/conflicting or mismatched applied model/);
+        .resolves.toMatchObject({
+          answer: 'PROVIDER_OK',
+          metadata: {
+            appliedModels: ['claude-sonnet-4-5'],
+            identityPosture: {
+              status: 'identity_conflict',
+              authority: 'unverified',
+              reason: 'undocumented_model_mismatch',
+              undocumented_models: ['claude-sonnet-4-5'],
+            },
+          },
+        });
 
       const conflictingModels = Buffer.from([
         JSON.stringify({ type: 'system', subtype: 'init', model: 'claude-fable-5', tools: [] }),
@@ -345,17 +356,71 @@ describe('Mercury LLM config contract', () => {
       const conflictingClient = new ClaudeCodeConsensusClient(withTrustedExecutable(resolveConsensusLlmClientOptions({
         execFileAsync: conflictingExec,
       })));
-      let conflictError;
-      try {
-        await conflictingClient.generateResponseWithMetadata('preflight');
-      } catch (error) {
-        conflictError = error;
-      }
-      expect(conflictError).toMatchObject({
-        message: expect.stringMatching(/conflicting or mismatched applied model/),
-        providerMetadata: {
+      await expect(conflictingClient.generateResponseWithMetadata('preflight')).resolves.toMatchObject({
+        answer: 'PROVIDER_OK',
+        metadata: {
           appliedModel: 'claude-fable-5',
           appliedModels: ['claude-fable-5', 'claude-sonnet-4-5'],
+          identityPosture: {
+            status: 'identity_conflict',
+            authority: 'unverified',
+            undocumented_models: ['claude-sonnet-4-5'],
+          },
+        },
+      });
+    });
+  });
+
+  test('provider-documented Fable transition retains full authority and frame facts', async () => {
+    await withMercuryConfig({}, async () => {
+      const { ClaudeCodeConsensusClient, resolveConsensusLlmClientOptions } = require('../trai_brain/mercury-bridge/llm-client');
+      const authStatus = Buffer.from(JSON.stringify({
+        loggedIn: true, authMethod: 'claude.ai', apiProvider: 'firstParty', subscriptionType: 'max',
+      }));
+      const transitioned = Buffer.from([
+        JSON.stringify({ type: 'system', subtype: 'init', model: 'claude-fable-5', tools: [] }),
+        JSON.stringify({
+          type: 'assistant',
+          message: {
+            model: 'claude-opus-4-8',
+            content: [{ type: 'fallback', from: { model: 'claude-fable-5' }, to: { model: 'claude-opus-4-8' } }],
+          },
+        }),
+        JSON.stringify({
+          type: 'assistant',
+          message: { model: 'claude-opus-4-8', content: [{ type: 'text', text: 'PROVIDER_OK' }] },
+        }),
+        JSON.stringify({
+          type: 'system', subtype: 'model_refusal_fallback', original_model: 'claude-fable-5',
+          fallback_model: 'claude-opus-4-8', trigger: 'refusal', direction: 'retry', scope: 'session',
+        }),
+        JSON.stringify({
+          type: 'result', subtype: 'success', result: 'PROVIDER_OK',
+          modelUsage: { 'claude-haiku-4-5-20251001': {}, 'claude-opus-5': {} },
+        }),
+      ].join('\n'));
+      const execFileAsync = jest.fn()
+        .mockResolvedValueOnce({ stdout: Buffer.from('2.1.236 (Claude Code)'), stderr: Buffer.alloc(0) })
+        .mockResolvedValueOnce({ stdout: authStatus, stderr: Buffer.alloc(0) })
+        .mockResolvedValueOnce({ stdout: transitioned, stderr: Buffer.alloc(0) });
+      const client = new ClaudeCodeConsensusClient(withTrustedExecutable(resolveConsensusLlmClientOptions({ execFileAsync })));
+
+      await expect(client.generateResponseWithMetadata('preflight')).resolves.toMatchObject({
+        answer: 'PROVIDER_OK',
+        metadata: {
+          requestedModel: 'fable',
+          appliedModels: ['claude-fable-5', 'claude-opus-4-8'],
+          verdictModels: ['claude-opus-4-8'],
+          auxiliaryModels: ['claude-haiku-4-5-20251001', 'claude-opus-5'],
+          identityPosture: {
+            status: 'documented_transition',
+            authority: 'full',
+            undocumented_models: [],
+            transitions: [
+              expect.objectContaining({ sequence: 2, transition_type: 'fallback', from_model: 'claude-fable-5', to_model: 'claude-opus-4-8' }),
+              expect.objectContaining({ sequence: 4, transition_type: 'model_refusal_fallback', trigger: 'refusal' }),
+            ],
+          },
         },
       });
     });

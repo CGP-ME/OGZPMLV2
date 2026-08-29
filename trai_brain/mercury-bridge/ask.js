@@ -824,6 +824,8 @@ async function runAgentic(query, opts) {
               persistRaw: persistReviewRaw,
               evidenceSources,
             });
+            review.finalReview.quarantines = await notifyReviewQuarantines(review.finalReview.quarantines || []);
+            review.quarantines.push(...review.finalReview.quarantines);
           } catch (finalErr) {
             if (isHardReviewBoundaryError(finalErr)) throw finalErr;
             review.finalReview = adversarialReviewFailure(finalErr, { role: 'kimi_tie_breaker' });

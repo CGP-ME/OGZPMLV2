@@ -273,17 +273,23 @@ function parseClaudeCodeFrames(stdout) {
 }
 
 function extractClaudeCodePrimaryModels(frames) {
+  return [...new Set(extractClaudeCodeModelObservations(frames).map(entry => entry.model))];
+}
+
+function extractClaudeCodeModelObservations(frames) {
   const reported = [];
-  for (const frame of frames) {
+  for (const [index, frame] of frames.entries()) {
     if (frame && frame.type === 'system' && frame.subtype === 'init' && typeof frame.model === 'string') {
-      reported.push(frame.model);
+      reported.push({ sequence: index + 1, path: 'model', model: frame.model });
     }
-    if (frame && frame.message && typeof frame.message.model === 'string') reported.push(frame.message.model);
+    if (frame && frame.message && typeof frame.message.model === 'string') {
+      reported.push({ sequence: index + 1, path: 'message.model', model: frame.message.model });
+    }
     if (frame && frame.event && frame.event.message && typeof frame.event.message.model === 'string') {
-      reported.push(frame.event.message.model);
+      reported.push({ sequence: index + 1, path: 'event.message.model', model: frame.event.message.model });
     }
   }
-  return [...new Set(reported.filter(value => value && value !== '<synthetic>'))];
+  return reported.filter(entry => entry.model && entry.model !== '<synthetic>');
 }
 
 function extractClaudeCodeAuxiliaryModels(frames, primaryModels = extractClaudeCodePrimaryModels(frames)) {
@@ -295,6 +301,114 @@ function extractClaudeCodeAuxiliaryModels(frames, primaryModels = extractClaudeC
     }
   }
   return [...new Set(reported.filter(value => value && value !== '<synthetic>' && !primary.has(value)))];
+}
+
+function extractClaudeCodeVerdictModels(frames) {
+  const reported = [];
+  for (const frame of frames) {
+    if (!frame || frame.type !== 'assistant' || !frame.message || typeof frame.message.model !== 'string') continue;
+    const content = frame.message.content;
+    const hasVerdictText = typeof content === 'string'
+      || (Array.isArray(content) && content.some(part => part && part.type === 'text' && typeof part.text === 'string'));
+    if (hasVerdictText) reported.push(frame.message.model);
+  }
+  return [...new Set(reported.filter(value => value && value !== '<synthetic>'))];
+}
+
+function extractClaudeCodeModelTransitions(frames) {
+  const transitions = [];
+  for (const [index, frame] of frames.entries()) {
+    if (!frame || typeof frame !== 'object') continue;
+    if (frame.type === 'assistant' && frame.message && Array.isArray(frame.message.content)) {
+      for (const [contentIndex, block] of frame.message.content.entries()) {
+        const fromModel = block && block.from && block.from.model;
+        const toModel = block && block.to && block.to.model;
+        if (block && block.type === 'fallback' && typeof fromModel === 'string' && typeof toModel === 'string') {
+          transitions.push({
+            sequence: index + 1,
+            path: `message.content[${contentIndex}]`,
+            frame_type: frame.type,
+            frame_subtype: frame.subtype || null,
+            transition_type: 'fallback',
+            from_model: fromModel,
+            to_model: toModel,
+            trigger: null,
+            direction: null,
+            scope: null,
+          });
+        }
+      }
+    }
+    if (
+      frame.type === 'system'
+      && frame.subtype === 'model_refusal_fallback'
+      && typeof frame.original_model === 'string'
+      && typeof frame.fallback_model === 'string'
+    ) {
+      transitions.push({
+        sequence: index + 1,
+        path: '$',
+        frame_type: frame.type,
+        frame_subtype: frame.subtype,
+        transition_type: 'model_refusal_fallback',
+        from_model: frame.original_model,
+        to_model: frame.fallback_model,
+        trigger: typeof frame.trigger === 'string' ? frame.trigger : null,
+        direction: typeof frame.direction === 'string' ? frame.direction : null,
+        scope: typeof frame.scope === 'string' ? frame.scope : null,
+      });
+    }
+  }
+  return transitions;
+}
+
+function classifyClaudeCodeIdentity(requestedModel, frames) {
+  const observations = extractClaudeCodeModelObservations(frames);
+  const appliedModels = [...new Set(observations.map(entry => entry.model))];
+  const verdictModels = extractClaudeCodeVerdictModels(frames);
+  const transitions = extractClaudeCodeModelTransitions(frames);
+  const authorized = new Set(appliedModels.filter(model => claudeAppliedModelMatchesAlias(requestedModel, model)));
+  for (const transition of transitions) {
+    if (claudeAppliedModelMatchesAlias(requestedModel, transition.from_model)) {
+      authorized.add(transition.from_model);
+    }
+  }
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const transition of transitions) {
+      if (authorized.has(transition.from_model) && !authorized.has(transition.to_model)) {
+        authorized.add(transition.to_model);
+        changed = true;
+      }
+    }
+  }
+  const undocumentedModels = appliedModels.filter(model => !authorized.has(model));
+  let status = 'matched';
+  let authority = 'full';
+  let reason = null;
+  if (appliedModels.length === 0) {
+    status = 'identity_conflict';
+    authority = 'unverified';
+    reason = 'applied_model_identity_absent';
+  } else if (undocumentedModels.length > 0) {
+    status = 'identity_conflict';
+    authority = 'unverified';
+    reason = 'undocumented_model_mismatch';
+  } else if (appliedModels.some(model => !claudeAppliedModelMatchesAlias(requestedModel, model))) {
+    status = 'documented_transition';
+  }
+  return {
+    status,
+    authority,
+    reason,
+    requested_model: requestedModel,
+    applied_models: appliedModels,
+    verdict_models: verdictModels,
+    undocumented_models: undocumentedModels,
+    observations,
+    transitions,
+  };
 }
 
 function extractClaudeCodeAppliedModels(frames) {
@@ -511,18 +625,6 @@ class ClaudeCodeConsensusClient {
       throw error;
     }
     const metadata = this.buildMetadata({ startedAt, startedMs, stdout, stderr, exitCode: 0 });
-    if (!metadata.appliedModel || metadata.appliedModels.length === 0) {
-      const error = new Error('Claude Code response omitted applied model identity');
-      error.code = 'CLAUDE_CODE_PRIMARY_IDENTITY_UNAVAILABLE';
-      error.providerMetadata = metadata;
-      throw error;
-    }
-    if (metadata.appliedModels.some(model => !claudeAppliedModelMatchesAlias(this.model, model))) {
-      const error = new Error('Claude Code reported conflicting or mismatched applied model identity');
-      error.code = 'PROVIDER_IDENTITY_UNTRUSTED';
-      error.providerMetadata = metadata;
-      throw error;
-    }
     const answer = extractClaudeCodeResult(stdout);
     const incompleteSubconditions = [];
     if (!answer) incompleteSubconditions.push('empty_answer');
@@ -542,12 +644,17 @@ class ClaudeCodeConsensusClient {
     const initFrame = frames.find(frame => frame && frame.type === 'system' && frame.subtype === 'init');
     const appliedModels = extractClaudeCodeAppliedModels(frames);
     const auxiliaryModels = extractClaudeCodeAuxiliaryModels(frames, appliedModels);
+    const identityPosture = classifyClaudeCodeIdentity(this.model, frames);
     return {
       provider: this.providerName,
       requestedModel: this.model,
       appliedModel: appliedModels[0] || null,
       appliedModels,
       auxiliaryModels,
+      verdictModels: identityPosture.verdict_models,
+      modelObservations: identityPosture.observations,
+      modelTransitions: identityPosture.transitions,
+      identityPosture,
       startedAt: startedAt.toISOString(),
       finishedAt: new Date().toISOString(),
       latencyMs: Date.now() - startedMs,
@@ -738,9 +845,13 @@ module.exports = {
   extractClaudeCodeResult,
   parseClaudeCodeFrames,
   extractClaudeCodePrimaryModels,
+  extractClaudeCodeModelObservations,
   extractClaudeCodeAuxiliaryModels,
+  extractClaudeCodeVerdictModels,
+  extractClaudeCodeModelTransitions,
   extractClaudeCodeAppliedModels,
   extractClaudeCodeAppliedModel,
+  classifyClaudeCodeIdentity,
   claudeAppliedModelMatchesAlias,
   ClaudeCodeIncompleteResponseError,
   parseClaudeAuthStatus,

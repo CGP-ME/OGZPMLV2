@@ -204,40 +204,49 @@ describe('Mercury provider preflight', () => {
       .toEqual(['mercury', 'fable_challenger', 'opus_challenger', 'kimi_tie_breaker']);
   });
 
-  test('preflight checks Opus when trusted Fable primary identity is absent but auxiliary usage is named', async () => {
-    const fableFailure = new Error('Claude Code response omitted applied model identity');
-    fableFailure.code = 'CLAUDE_CODE_PRIMARY_IDENTITY_UNAVAILABLE';
-    fableFailure.providerMetadata = trustedFableMetadata({
-      appliedModel: null,
-      appliedModels: [],
-      auxiliaryModels: ['claude-haiku-4-5'],
-      providerFrames: [{ type: 'result', subtype: 'success', result: 'PROVIDER_OK' }],
-    });
+  test('preflight stamps identity conflict and continues without misreporting pipeline Opus fallback', async () => {
+    const opusFactory = jest.fn(() => fakeClient({ provider: 'claude-code', model: 'opus', initialize: async () => {} }));
     const result = await runProviderPreflight({
       createMercuryClient: () => fakeClient({ provider: 'mercury', model: 'mercury-2', initialize: async () => {} }),
-      createFableClient: () => fakeClient({
-        provider: 'claude-code', model: 'fable', initialize: async () => { throw fableFailure; },
+      createFableClient: () => ({
+        providerName: 'claude-code', model: 'fable', requestCount: 0,
+        initialize: jest.fn(async () => {}),
+        generateResponseWithMetadata: jest.fn(async () => ({
+          answer: 'PROVIDER_OK',
+          metadata: trustedFableMetadata({
+            appliedModels: ['claude-fable-5', 'claude-sonnet-4-5'],
+            verdictModels: ['claude-sonnet-4-5'],
+            identityPosture: {
+              status: 'identity_conflict', authority: 'unverified', reason: 'undocumented_model_mismatch',
+              requested_model: 'fable', applied_models: ['claude-fable-5', 'claude-sonnet-4-5'],
+              verdict_models: ['claude-sonnet-4-5'], undocumented_models: ['claude-sonnet-4-5'],
+              observations: [], transitions: [],
+            },
+          }),
+        })),
       }),
-      createOpusClient: () => fakeClient({ provider: 'claude-code', model: 'opus', initialize: async () => {} }),
+      createOpusClient: opusFactory,
       createKimiClient: () => fakeClient({ provider: 'openai', model: 'kimi-k3', initialize: async () => {} }),
     });
 
     expect(result).toMatchObject({ ok: true, challengerReady: true });
     expect(result.checks[1]).toMatchObject({
-      ok: false,
-      fallback: {
-        category: 'primary_model_identity_unavailable',
-        opusEligible: true,
-        evidence: 'trusted_fable_runtime_primary_identity_absent',
-      },
+      ok: true,
+      identityPosture: { status: 'identity_conflict', authority: 'unverified' },
       attemptReceipt: {
-        applied_model: null,
-        applied_models: [],
-        auxiliary_models: ['claude-haiku-4-5'],
+        status: 'succeeded',
+        applied_models: ['claude-fable-5', 'claude-sonnet-4-5'],
+        verdict_models: ['claude-sonnet-4-5'],
+        identity_posture: {
+          status: 'identity_conflict',
+          authority: 'unverified',
+          reason: 'undocumented_model_mismatch',
+        },
       },
     });
+    expect(opusFactory).not.toHaveBeenCalled();
     expect(result.checks.map(check => check.label))
-      .toEqual(['mercury', 'fable_challenger', 'opus_challenger', 'kimi_tie_breaker']);
+      .toEqual(['mercury', 'fable_challenger', 'kimi_tie_breaker']);
   });
 
   test('preflight cannot route around a genuinely untrusted Claude executable', async () => {

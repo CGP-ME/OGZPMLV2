@@ -3,6 +3,7 @@
 const config = require('./config');
 const {
   claudeAppliedModelMatchesAlias,
+  classifyClaudeCodeIdentity,
   createFableChallengerClient,
   createOpusChallengerClient,
   createKimiTieBreakerClient,
@@ -16,12 +17,10 @@ const {
 
 function isHardReviewBoundaryError(error) {
   if (!error) return false;
-  if (['CLAUDE_CODE_EXECUTABLE_UNTRUSTED', 'PROVIDER_IDENTITY_UNTRUSTED'].includes(error.code)) {
-    return true;
-  }
+  if (error.code === 'CLAUDE_CODE_EXECUTABLE_UNTRUSTED') return true;
   const metadata = error.providerMetadata || {};
   if (metadata.executableTrust && metadata.executableTrust.trusted === false) return true;
-  return /untrusted version signature|auth status is not a first-party|mismatched applied model identity|provider mismatch|model mismatch/i
+  return /trusted first-party Claude Code executable was not found|Claude Code trust check rejected|untrusted version signature/i
     .test(String(error.message || ''));
 }
 
@@ -765,12 +764,11 @@ function trustedFableErrorMetadata(metadata) {
   const auth = metadata.authStatus || {};
   const trust = metadata.executableTrust || {};
   const appliedModels = Array.isArray(metadata.appliedModels) ? metadata.appliedModels : [];
+  const identityPosture = stampedIdentityPosture(metadata);
   return metadata.provider === 'claude-code'
     && metadata.requestedModel === 'fable'
-    && claudeAppliedModelMatchesAlias('fable', metadata.appliedModel)
     && appliedModels.length > 0
-    && appliedModels.includes(metadata.appliedModel)
-    && appliedModels.every(model => claudeAppliedModelMatchesAlias('fable', model))
+    && identityPosture.status !== 'identity_conflict'
     && auth.authMethod === 'claude.ai'
     && auth.apiProvider === 'firstParty'
     && trust.trusted === true
@@ -778,18 +776,40 @@ function trustedFableErrorMetadata(metadata) {
     && typeof trust.version === 'string';
 }
 
-function trustedFableRuntimeMetadata(metadata) {
-  const auth = metadata.authStatus || {};
-  const trust = metadata.executableTrust || {};
-  return metadata.provider === 'claude-code'
-    && metadata.requestedModel === 'fable'
-    && auth.authMethod === 'claude.ai'
-    && auth.apiProvider === 'firstParty'
-    && trust.trusted === true
-    && typeof trust.realpath === 'string'
-    && trust.realpath !== ''
-    && typeof trust.version === 'string'
-    && trust.version !== '';
+function stampedIdentityPosture(metadata = {}) {
+  if (metadata.identityPosture && typeof metadata.identityPosture === 'object') {
+    return metadata.identityPosture;
+  }
+  if (
+    metadata.provider === 'claude-code'
+    && Array.isArray(metadata.providerFrames)
+    && !metadata.appliedModel
+    && (!Array.isArray(metadata.appliedModels) || metadata.appliedModels.length === 0)
+  ) {
+    return classifyClaudeCodeIdentity(metadata.requestedModel, metadata.providerFrames);
+  }
+  const appliedModels = Array.isArray(metadata.appliedModels)
+    ? [...metadata.appliedModels]
+    : (metadata.appliedModel ? [metadata.appliedModel] : []);
+  const missing = metadata.provider === 'claude-code'
+    ? !metadata.appliedModel || appliedModels.length === 0 || !appliedModels.includes(metadata.appliedModel)
+    : appliedModels.length === 0;
+  const mismatch = metadata.provider === 'claude-code'
+    && (
+      !claudeAppliedModelMatchesAlias(metadata.requestedModel, metadata.appliedModel)
+      || appliedModels.some(model => !claudeAppliedModelMatchesAlias(metadata.requestedModel, model))
+    );
+  return {
+    status: missing || mismatch ? 'identity_conflict' : 'matched',
+    authority: missing || mismatch ? 'unverified' : 'full',
+    reason: missing ? 'applied_model_identity_absent' : (mismatch ? 'undocumented_model_mismatch' : null),
+    requested_model: metadata.requestedModel || null,
+    applied_models: appliedModels,
+    verdict_models: Array.isArray(metadata.verdictModels) ? [...metadata.verdictModels] : [],
+    undocumented_models: mismatch ? [...appliedModels] : [],
+    observations: Array.isArray(metadata.modelObservations) ? [...metadata.modelObservations] : [],
+    transitions: Array.isArray(metadata.modelTransitions) ? [...metadata.modelTransitions] : [],
+  };
 }
 
 function classifyClaudeProviderErrorFrame(frame) {
@@ -837,17 +857,6 @@ function classifyFableFallbackError(error) {
     return { category: 'receipt_persistence_failure', opusEligible: false, evidence: 'raw_receipt_write_failed' };
   }
   const metadata = error && error.providerMetadata ? error.providerMetadata : {};
-  if (
-    error
-    && error.code === 'CLAUDE_CODE_PRIMARY_IDENTITY_UNAVAILABLE'
-    && trustedFableRuntimeMetadata(metadata)
-  ) {
-    return {
-      category: 'primary_model_identity_unavailable',
-      opusEligible: true,
-      evidence: 'trusted_fable_runtime_primary_identity_absent',
-    };
-  }
   if (!trustedFableErrorMetadata(metadata)) {
     return { category: 'untrusted_provider_error', opusEligible: false, evidence: 'missing_trusted_fable_error_provenance' };
   }
@@ -871,6 +880,7 @@ function stageAttemptReceipt({
   rawError = null,
   inputProvenance = null,
 }) {
+  const identityPosture = stampedIdentityPosture(metadata);
   return {
     role,
     attempt: attemptNumber,
@@ -882,6 +892,10 @@ function stageAttemptReceipt({
       ? [...metadata.appliedModels]
       : (metadata.appliedModel ? [metadata.appliedModel] : []),
     auxiliary_models: Array.isArray(metadata.auxiliaryModels) ? [...metadata.auxiliaryModels] : [],
+    verdict_models: Array.isArray(metadata.verdictModels) ? [...metadata.verdictModels] : [],
+    identity_posture: identityPosture,
+    model_observations: Array.isArray(metadata.modelObservations) ? [...metadata.modelObservations] : [],
+    model_transitions: Array.isArray(metadata.modelTransitions) ? [...metadata.modelTransitions] : [],
     started_at: metadata.startedAt || null,
     finished_at: metadata.finishedAt || null,
     latency_ms: metadata.latencyMs == null ? null : metadata.latencyMs,
@@ -927,32 +941,27 @@ async function executePromptOnlyStage({
       throw new Error(`${role} client lacks metadata-returning response support`);
     }
     const response = await client.generateResponseWithMetadata(prompt, client.maxTokens);
-    if (!response.metadata || !response.metadata.appliedModel) {
-      const error = new Error(`${role} response omitted provider-applied model identity`);
-      error.code = 'CLAUDE_CODE_PRIMARY_IDENTITY_UNAVAILABLE';
-      error.providerMetadata = response.metadata || {};
-      throw error;
-    }
-    if (Array.isArray(response.metadata.toolsAvailable) && response.metadata.toolsAvailable.length > 0) {
+    const responseMetadata = response.metadata || {};
+    if (Array.isArray(responseMetadata.toolsAvailable) && responseMetadata.toolsAvailable.length > 0) {
       const error = new Error(`${role} unexpectedly exposed tools in a prompt-only stage`);
-      error.providerMetadata = response.metadata;
+      error.providerMetadata = responseMetadata;
       throw error;
     }
     let rawOutput;
     let rawError;
     try {
-      rawOutput = persistRaw(role, attemptNumber, response.metadata.rawResponse || Buffer.alloc(0));
-      rawError = response.metadata.rawError && response.metadata.rawError.length > 0
-        ? persistRaw(`${role}-stderr`, attemptNumber, response.metadata.rawError)
+      rawOutput = persistRaw(role, attemptNumber, responseMetadata.rawResponse || Buffer.alloc(0));
+      rawError = responseMetadata.rawError && responseMetadata.rawError.length > 0
+        ? persistRaw(`${role}-stderr`, attemptNumber, responseMetadata.rawError)
         : null;
     } catch (persistError) {
-      persistError.providerMetadata = response.metadata;
+      persistError.providerMetadata = responseMetadata;
       persistError.rawPersistenceFailed = true;
       persistError.persistedRawOutput = rawOutput || null;
       throw persistError;
     }
     const receipt = stageAttemptReceipt({
-      role, attemptNumber, metadata: response.metadata, status: 'succeeded',
+      role, attemptNumber, metadata: responseMetadata, status: 'succeeded',
       prompt, suppliedSources, rawOutput, rawError, inputProvenance,
     });
     receipt.claimed_file_citations = extractClaimedFileCitations(response.answer);
@@ -1042,6 +1051,15 @@ async function runFableAdversarialReview({
       createClient: createFableClient, persistRaw, attemptNumber: 1,
     });
     attempts.push(stage.receipt);
+    if (stage.receipt.identity_posture.status === 'identity_conflict') {
+      quarantines.push(reviewQuarantine({
+        unit: 'identity',
+        name: 'fable_challenger',
+        absence: 'identity_conflict',
+        loadBearing: true,
+        attempts: [stage.receipt],
+      }));
+    }
   } catch (fableError) {
     if (fableError.stageAttempt) attempts.push(fableError.stageAttempt);
     fableError.challengerAttempts = attempts;
@@ -1107,6 +1125,7 @@ async function runFableAdversarialReview({
     attempts,
     quarantines,
     stageReceipt: stage.receipt,
+    identityPosture: stage.receipt.identity_posture,
     repoAdjudication: { status: 'pending', authority: 'live_repo_required' },
   };
 }
@@ -1148,6 +1167,15 @@ async function runKimiFinalAdjudication({
     role: 'kimi_tie_breaker', prompt, suppliedSources, createClient, persistRaw, attemptNumber: 1,
   });
   const answer = stage.answer;
+  const quarantines = stage.receipt.identity_posture.status === 'identity_conflict'
+    ? [reviewQuarantine({
+      unit: 'identity',
+      name: 'kimi_tie_breaker',
+      absence: 'identity_conflict',
+      loadBearing: true,
+      attempts: [stage.receipt],
+    })]
+    : [];
 
   return {
     mode: 'kimi_final_adjudication',
@@ -1160,6 +1188,8 @@ async function runKimiFinalAdjudication({
     answer,
     parsed: parseAdversarialReviewAnswer(answer),
     stageReceipt: stage.receipt,
+    identityPosture: stage.receipt.identity_posture,
+    quarantines,
     repoAdjudication: { status: 'pending', authority: 'live_repo_required' },
   };
 }
@@ -1214,6 +1244,7 @@ module.exports = {
   OPUS_ELIGIBLE_CLAUDE_CODES,
   classifyClaudeProviderErrorFrame,
   classifyFableFallbackError,
+  stampedIdentityPosture,
   isHardReviewBoundaryError,
   reviewQuarantine,
   resolveNtfyEndpoint,

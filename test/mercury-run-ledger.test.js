@@ -920,4 +920,65 @@ describe('Mercury run ledger', () => {
     expect(entry.verdict).toBe('no_break_found');
     expect(entry.review_quarantines).toHaveLength(1);
   });
+
+  test('persists identity ladder posture and caps only undocumented conflicts', () => {
+    const documented = buildRunLedgerEntry({
+      repoRoot: tmpRoot,
+      query: 'Mercury, break my fix.',
+      startedAt: new Date('2026-08-29T00:00:00.000Z'),
+      finishedAt: new Date('2026-08-29T00:00:01.000Z'),
+      result: {
+        termination: 'answer_given', iterations: 1, answer: 'No concrete break found.',
+        adversarialReview: {
+          ok: true,
+          parsed: { verdict: 'pass', blocking: false },
+          identityPosture: {
+            status: 'documented_transition', authority: 'full',
+            applied_models: ['claude-fable-5', 'claude-opus-4-8'],
+            verdict_models: ['claude-opus-4-8'],
+            transitions: [{ transition_type: 'fallback', from_model: 'claude-fable-5', to_model: 'claude-opus-4-8' }],
+          },
+          quarantines: [],
+        },
+        toolTelemetry: { byTool: {}, filesOpened: [], runCheckArtifacts: [], runChecks: [] },
+      },
+    });
+    expect(documented.verdict).toBe('no_break_found');
+    expect(documented.adversarial_review.identity_posture).toMatchObject({
+      status: 'documented_transition', authority: 'full', verdict_models: ['claude-opus-4-8'],
+    });
+
+    const identityConflict = {
+      status: 'quarantined', unit: 'identity', name: 'fable_challenger',
+      absence: 'identity_conflict', load_bearing: true,
+      ntfy: { status: 'sent', priority: 'max', status_code: 200 },
+    };
+    const conflicted = buildRunLedgerEntry({
+      repoRoot: tmpRoot,
+      query: 'Mercury, break my fix.',
+      startedAt: new Date('2026-08-29T00:00:00.000Z'),
+      finishedAt: new Date('2026-08-29T00:00:01.000Z'),
+      result: {
+        termination: 'answer_given', iterations: 1, answer: 'No concrete break found.',
+        adversarialReview: {
+          ok: true,
+          parsed: { verdict: 'pass', blocking: false },
+          identityPosture: {
+            status: 'identity_conflict', authority: 'unverified', reason: 'undocumented_model_mismatch',
+            applied_models: ['claude-fable-5', 'claude-sonnet-4-5'],
+            verdict_models: ['claude-sonnet-4-5'], transitions: [],
+          },
+          quarantines: [identityConflict],
+        },
+        toolTelemetry: { byTool: {}, filesOpened: [], runCheckArtifacts: [], runChecks: [] },
+      },
+    });
+    expect(conflicted.verdict).toBe('unverified');
+    expect(conflicted.review_quarantines).toEqual([identityConflict]);
+    expect(conflicted.adversarial_review).toMatchObject({
+      effective_verdict: 'UNVERIFIED',
+      raw_parsed_verdict: 'pass',
+      identity_posture: { status: 'identity_conflict', authority: 'unverified' },
+    });
+  });
 });

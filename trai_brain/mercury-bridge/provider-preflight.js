@@ -6,7 +6,7 @@ const {
   createOpusChallengerClient,
   createKimiTieBreakerClient,
 } = require('./llm-client');
-const { classifyFableFallbackError } = require('./adversarial-review');
+const { classifyFableFallbackError, stampedIdentityPosture } = require('./adversarial-review');
 const {
   buildPromptProvenance,
   buildProviderPreflightLedgerEntry,
@@ -69,6 +69,7 @@ async function withSilencedClientConsole(fn) {
 
 function attemptReceipt({ label, attempt, client, metadata = {}, status, phase, error = null, rawOutput = null, rawError = null }) {
   const promptDispatched = phase === 'generate' || phase === 'complete';
+  const identityPosture = stampedIdentityPosture(metadata);
   return {
     role: label,
     attempt,
@@ -81,6 +82,10 @@ function attemptReceipt({ label, attempt, client, metadata = {}, status, phase, 
       ? [...metadata.appliedModels]
       : (metadata.appliedModel ? [metadata.appliedModel] : []),
     auxiliary_models: Array.isArray(metadata.auxiliaryModels) ? [...metadata.auxiliaryModels] : [],
+    verdict_models: Array.isArray(metadata.verdictModels) ? [...metadata.verdictModels] : [],
+    identity_posture: identityPosture,
+    model_observations: Array.isArray(metadata.modelObservations) ? [...metadata.modelObservations] : [],
+    model_transitions: Array.isArray(metadata.modelTransitions) ? [...metadata.modelTransitions] : [],
     started_at: metadata.startedAt || null,
     finished_at: metadata.finishedAt || null,
     latency_ms: metadata.latencyMs == null ? null : metadata.latencyMs,
@@ -160,6 +165,7 @@ async function checkClient(label, createClient, { attempt = 1, repoRoot = null, 
       provider: client.providerName,
       model: client.model,
       appliedModel,
+      identityPosture: stampedIdentityPosture(metadata),
       requests: client.requestCount,
       authPosture: client.authStatus || null,
     };
