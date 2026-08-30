@@ -12,6 +12,7 @@
 'use strict';
 
 const { getInstance: getStateManager } = require('./StateManager');
+const authFailureGuard = require('./AuthFailureGuard');
 const ConfigLoader = require('../foundation/ConfigLoader');
 const exitContractManager = require('./ExitContractManager');
 const { getBrokerInfo } = require('../brokers/BrokerRegistry');
@@ -2908,6 +2909,31 @@ class OrderExecutor {
         console.error(`[ENTRY] Refusing ${decision.action} for ${symbol}: trading paused (${pauseReason})`);
         emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, positionEffect, reason: 'trading_paused', detail: pauseReason });
         return blockedReturn('trading_paused', { detail: pauseReason });
+      }
+      const authQuarantineBlock = authFailureGuard.getEntryBlock(executionScope.brokerId);
+      if (authQuarantineBlock.blocked) {
+        console.error(`[ENTRY] Refusing ${decision.action} for ${symbol}: ${authQuarantineBlock.reason}`);
+        emitTrace(this.ctx, 'BROKER_AUTH_QUARANTINE_ENTRY_ALARM', {
+          traceId,
+          signalId,
+          decisionId: decision.decisionId,
+          symbol,
+          action: decision.action,
+          positionEffect,
+          reason: authQuarantineBlock.code,
+          detail: authQuarantineBlock.reason,
+          brokerId: authQuarantineBlock.brokerId,
+          entryBlockScope: authQuarantineBlock.entryBlockScope,
+          quarantinedAt: authQuarantineBlock.quarantinedAt,
+          route: 'order_executor_entry_block_exits_still_allowed',
+        });
+        return blockedReturn(authQuarantineBlock.code, {
+          detail: authQuarantineBlock.reason,
+          brokerId: authQuarantineBlock.brokerId,
+          entryBlockScope: authQuarantineBlock.entryBlockScope,
+          orderAccepted: false,
+          stateMutationSucceeded: false,
+        });
       }
       const brokerVerificationBlock = typeof stateManager.getBrokerVerificationEntryBlock === 'function'
         ? stateManager.getBrokerVerificationEntryBlock({

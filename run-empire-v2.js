@@ -259,6 +259,7 @@ const OrderRouter = require('./core/OrderRouter');
 
 // REFACTOR Phase 14: OrderExecutor - exact copy of executeTrade() extracted
 const OrderExecutor = require('./core/OrderExecutor');
+const authFailureGuard = require('./core/AuthFailureGuard');
 // CC-C: Webhook order adapter (TTP via SignalStack)
 const WebhookOrderAdapter = require('./core/WebhookOrderAdapter');
 // CC-C Multi-Symbol Commit 2/6: per-symbol trading context container
@@ -1337,6 +1338,10 @@ class OGZPrimeV14Bot {
       logTrade: logTrade,
       // FIX 2026-03-29: Add strategyOrchestrator for SMS daily loss tracking
       strategyOrchestrator: this.strategyOrchestrator
+    });
+    authFailureGuard.wireRuntime({
+      stateManager,
+      executeTrade: this.executeTrade.bind(this),
     });
     const isTtpStockAssetClass = ['stocks', 'stock', 'equities', 'equity', 'etfs', 'etf']
       .includes(String(this.config.assetClass || '').trim().toLowerCase());
