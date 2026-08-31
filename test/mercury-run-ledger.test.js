@@ -981,4 +981,44 @@ describe('Mercury run ledger', () => {
       identity_posture: { status: 'identity_conflict', authority: 'unverified' },
     });
   });
+
+  test('additively persists reviewer selection, seat outcomes, transitions, absences, and authority', () => {
+    const reviewerPanel = {
+      requested: ['fable', 'mercury'],
+      selected: ['fable', 'mercury'],
+      unselected: ['kimi'],
+      source: 'explicit',
+      seats: [
+        {
+          id: 'fable', status: 'succeeded', provider: 'claude-code', requestedModel: 'fable',
+          appliedModels: ['claude-fable-5', 'claude-opus-4-8'],
+          fallbackTransitions: [{ from: 'fable', to: 'opus', reason: 'rate_limit_error' }],
+          verdict: 'pass', evidenceChecksPassed: true,
+        },
+        {
+          id: 'mercury', status: 'failed', provider: 'mercury', requestedModel: 'mercury-coder-small',
+          appliedModels: [], absence: 'quota_or_rate_limit', verdict: null, evidenceChecksPassed: false,
+        },
+      ],
+      authority: {
+        ceiling: 'UNVERIFIED', qualifyingSeats: 1, agreement: false,
+        evidenceChecksPassed: true, rerunRequired: false, agreedVerdict: null,
+      },
+    };
+    const entry = buildRunLedgerEntry({
+      repoRoot: tmpRoot,
+      query: 'Mercury, break my fix.',
+      startedAt: new Date('2026-08-31T00:00:00.000Z'),
+      finishedAt: new Date('2026-08-31T00:00:01.000Z'),
+      result: {
+        termination: 'answer_given', iterations: 0, answer: 'No break found.', reviewerPanel,
+        toolTelemetry: { byTool: {}, filesOpened: [], runCheckArtifacts: [], runChecks: [] },
+      },
+    });
+
+    expect(entry.schema_version).toBe(2);
+    expect(entry.reviewer_panel).toEqual(reviewerPanel);
+    expect(entry.options.reviewers).toEqual(['fable', 'mercury']);
+    expect(entry.verdict).toBe('unverified');
+  });
 });

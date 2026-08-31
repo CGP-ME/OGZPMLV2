@@ -20,6 +20,7 @@
  *   --show-chunks          Print retrieved chunk text (not just filenames)
  *   --show-history         Agentic mode only: print the full tool-call trace
  *   --adversarial-review   Agentic mode only: ask Fable to attack Mercury's answer
+ *   --reviewers=IDS        Agentic reviewer IDs in dispatch order (comma-separated)
  *   --evidence-source=P:S-E Host-attest a verbatim repo-relative excerpt (repeatable)
  *   --consensus            Agentic mode only: legacy alias for Fable review
  *   --architecture         Agentic mode only: longform architecture review framing
@@ -48,7 +49,6 @@ const {
   reviewModeRequested,
   runFableAdversarialReview,
   runKimiFinalAdjudication,
-  adversarialReviewFailure,
   buildAttestedPromptProvenance,
   buildMercuryRecheckPrompts,
   formatAdversarialReviewPacket,
@@ -58,6 +58,13 @@ const {
   reviewQuarantine,
 } = require('./adversarial-review');
 const { runProviderPreflight } = require('./provider-preflight');
+const {
+  REVIEWER_REGISTRY,
+  ensureReviewerAnswer,
+  promptReviewerSelection,
+  resolveReviewerSelection,
+  runReviewerPanel,
+} = require('./reviewer-panel');
 const { retrieveSimilarTrace, formatTraceAsHint, captureTrace, markTraceUsed, evictStaleTraces, ensureTraceIndexes, getTraceStats } = require('./trace-memory');
 const {
   autoBlastRadiusFailed,
@@ -111,6 +118,8 @@ function parseArgs(argv) {
     checkProviders: false, // warm up configured LLM providers and exit
     captureTrace: false,   // opt-in successful trace capture
     evidenceSources: [],   // repeatable host-attested path:start-end descriptors
+    reviewers: null,
+    reviewersExplicit: false,
   };
   const positional = [];
 
@@ -163,6 +172,9 @@ function parseArgs(argv) {
       args.captureTrace = true;
     } else if (arg.startsWith('--evidence-source=')) {
       args.evidenceSources.push(arg.slice('--evidence-source='.length));
+    } else if (arg.startsWith('--reviewers=')) {
+      args.reviewers = arg.slice('--reviewers='.length);
+      args.reviewersExplicit = true;
     } else if (arg.startsWith('--')) {
       console.warn(`[ask] Unknown flag: ${arg}`);
     } else {
@@ -539,6 +551,70 @@ async function buildCurrentChangeBlastRadius({
   };
 }
 
+function panelVerdict(answer, parsed = null) {
+  if (parsed) {
+    const verdict = String(parsed.verdict || '').toLowerCase();
+    if (['pass', 'no_break_found'].includes(verdict) && parsed.blocking !== true) return 'pass';
+    if (['found_break', 'blocked'].includes(verdict)) return 'found_break';
+    return 'cannot_verify';
+  }
+  const text = String(answer || '').toLowerCase();
+  if (/\b(no concrete break|no break found|did not find|no reachable break)\b/.test(text)) return 'pass';
+  if (/\b(found_break|concrete break|reachable break|blocking defect)\b/.test(text)) return 'found_break';
+  return 'cannot_verify';
+}
+
+function reviewerAbsence(error) {
+  const message = String(error && error.message || error || '');
+  if (/quota|rate.?limit|HTTP 402|HTTP 429|usage.limit/i.test(message)) return 'quota_or_rate_limit';
+  if (/auth|credential|api key|HTTP 401|HTTP 403/i.test(message)) return 'reviewer_credentials_absent';
+  return 'reviewer_answer_absent';
+}
+
+function priorPanelResult(query, outputs) {
+  const successful = [...outputs.values()].filter(output => output && output.answer);
+  return {
+    answer: successful.length > 0
+      ? successful.map(output => `[${output.id}]\n${output.answer}`).join('\n\n')
+      : `No prior reviewer output. Independently review the original query:\n${query}`,
+    termination: successful.length > 0 ? 'answer_given' : 'not_selected',
+    iterations: 0,
+    toolTelemetry: null,
+    answerQuality: { flags: [], evidence: [] },
+    panelSourceLabel: 'Prior selected reviewer evidence',
+    panelSourcePath: 'panel://prior-reviewer-evidence',
+  };
+}
+
+function panelSeatMetadata(id, output) {
+  const attempts = id === 'mercury'
+    ? (output.providerAttempts || [])
+    : (output.attempts || (output.stageReceipt ? [output.stageReceipt] : []));
+  const appliedModels = attempts.flatMap(attempt => attempt.applied_models || (attempt.applied_model ? [attempt.applied_model] : []));
+  const identityConflict = attempts.some(attempt => attempt.identity_posture && attempt.identity_posture.status === 'identity_conflict');
+  const fallbackTransitions = attempts.flatMap(attempt => attempt.model_transitions || []);
+  if (id === 'fable' && attempts.some(attempt => attempt.role === 'opus_challenger')) {
+    fallbackTransitions.push({
+      transition_type: 'fable_seat_fallback',
+      from_model: 'fable',
+      to_model: 'opus',
+      classification: attempts[0] && attempts[0].fallback_classification || null,
+    });
+  }
+  return {
+    provider: output.provider || (attempts[attempts.length - 1] && attempts[attempts.length - 1].requested_provider) || null,
+    requestedModel: output.model || (attempts[attempts.length - 1] && attempts[attempts.length - 1].requested_model) || null,
+    appliedModels: [...new Set(appliedModels)],
+    fallbackTransitions,
+    unavailable: false,
+    failed: false,
+    identityConflict,
+    verdict: panelVerdict(output.answer, output.parsed),
+    evidenceChecksPassed: !identityConflict
+      && !(output.quarantines || []).some(quarantine => quarantine && quarantine.load_bearing === true),
+  };
+}
+
 // ─────────────────────────────────────────────────────────────
 // Agentic mode — hybrid retrieval (current semantic-only) + ReAct loop
 // ─────────────────────────────────────────────────────────────
@@ -546,6 +622,13 @@ async function buildCurrentChangeBlastRadius({
 async function runAgentic(query, opts) {
   const startedAt = new Date();
   const rawRunId = createRawRunId(startedAt);
+  const reviewerSelection = opts.reviewerSelection || await resolveReviewerSelection({
+    explicit: opts.reviewersExplicit ? opts.reviewers : null,
+    interactive: false,
+    defaultReviewers: reviewModeRequested(opts)
+      ? REVIEWER_REGISTRY.map(reviewer => reviewer.id)
+      : ['mercury'],
+  });
   const createProviderAudit = stage => ({
     stage,
     attempts: [],
@@ -704,14 +787,6 @@ async function runAgentic(query, opts) {
       console.log(`[MERCURY-BRIDGE] Tool adapter ready. Tools: ${Object.keys(toolAdapter.tools).join(', ')}`);
     }
 
-    // 4. Initialize Mercury client for native tool calling.
-    const client = createMercuryLlmClient({ systemPrompt: config.AGENTIC_SYSTEM_PROMPT });
-    await client.initialize();
-
-    if (verbose) {
-      console.log(`[MERCURY-BRIDGE] Starting ReAct loop (max ${maxIterations} iterations)...`);
-    }
-
     let blastRadius = opts.blastRadius || null;
     if (!blastRadius) {
       autoBlastRadius = await buildCurrentChangeBlastRadius();
@@ -734,139 +809,176 @@ async function runAgentic(query, opts) {
       }
     }
 
-    // 5. Run the loop with native tool calling
-    const t0 = Date.now();
-    const result = await runReactLoop({
-      client,
-      toolAdapter,
-      userQuery: mercuryQuery,
-      starterContext,
-      traceHint: traceHintText,
-      blastRadius,
-      maxIterations,
-      maxTokens,
-      verbose,
-      providerAudit,
-    });
-    result.totalLatencyMs = Date.now() - t0;
-    result.evidenceSources = evidenceSources;
-    result.reviewQuarantines = evidenceQuarantines;
-    result.inputProvenance = inputProvenance;
-    if (autoBlastRadius) {
-      result.serenaBlastRadius = autoBlastRadius;
-    }
-
-    const reviewMode = reviewModeRequested(opts);
-    if (reviewMode) {
-      // Fail loud, not fail closed. A tool failure during Mercury's run no longer
-      // cancels the adversarial review (the old inconclusive_toolfail skip). That
-      // skip silently dropped the safety check whenever Mercury's own exploratory
-      // probes failed - exactly the fail-closed pattern we reject. Instead we
-      // surface the failure LOUDLY and let the review proceed; the reviewer/human
-      // scrutinizes any finding that leaned on a failed probe.
-      if (resultHasToolFailure(result) || autoBlastRadiusFailed(autoBlastRadius)) {
-        console.log('[MERCURY-BRIDGE] WARNING: Mercury tool failure(s) this run - adversarial review PROCEEDS anyway (fail loud, not fail closed). Scrutinize findings that depend on failed probes.');
-      }
-      if (verbose) {
-        console.log(`[MERCURY-BRIDGE] Fable ${reviewMode} requested: ${config.CONSENSUS_MODEL}`);
-      }
-      try {
-        const review = await runFableAdversarialReview({
-          query,
-          mercuryResult: result,
-          reviewIntent,
-          persistRaw: persistReviewRaw,
-          evidenceSources,
-        });
-        review.mode = reviewMode;
-        review.quarantines = [
-          ...evidenceQuarantines,
-          ...await notifyReviewQuarantines(review.quarantines || []),
-        ];
-        if (kimiTieBreakerRequired(review, reviewIntent)) {
-          const recheckPrompts = buildMercuryRecheckPrompts({
-            originalQuery: query,
-            mercuryAnswer: result.answer,
-            fableAnswer: review.answer,
-            parsedReview: review.parsed,
-            evidenceSources,
-          }).slice(0, config.ADVERSARIAL_REVIEW_MAX_RECHECKS);
-          review.recheckPrompts = recheckPrompts;
-          review.recheckPrompt = recheckPrompts[0] || null;
-          if (verbose) {
-            console.log(`[MERCURY-BRIDGE] Fable marked ${reviewMode} blocking; launching ${recheckPrompts.length} Mercury recheck(s).`);
+    // 4. Dispatch exactly the selected registry seats in declared order.
+    let client = null;
+    let mercuryResult = null;
+    let fableReview = null;
+    let fableEvidencePassed = false;
+    let kimiReview = null;
+    const outputs = new Map();
+    const panelRun = await runReviewerPanel({
+      selected: reviewerSelection.selected,
+      isHardStop: isHardReviewBoundaryError,
+      runSeat: async (reviewer) => {
+        if (verbose) console.log(`[MERCURY-BRIDGE] Starting reviewer seat: ${reviewer.label}`);
+        if (reviewer.id === 'mercury') {
+          if (!client) {
+            client = createMercuryLlmClient({ systemPrompt: config.AGENTIC_SYSTEM_PROMPT });
+            await client.initialize();
           }
-          const recheckRun = await runReviewRechecks({
-            prompts: recheckPrompts,
-            client,
-            toolAdapter,
-            starterContext,
-            blastRadius,
-            maxIterations,
-            maxTokens,
-            verbose,
-            evidenceSources,
-            createProviderAudit,
+          const prior = priorPanelResult(query, outputs);
+          const userQuery = outputs.size === 0
+            ? mercuryQuery
+            : `${mercuryQuery}\n\nPrior selected reviewer outputs to investigate:\n${prior.answer}`;
+          const t0 = Date.now();
+          const seatResult = await runReactLoop({
+            client, toolAdapter, userQuery, starterContext, traceHint: traceHintText,
+            blastRadius, maxIterations, maxTokens, verbose, providerAudit,
           });
-          review.rechecks = recheckRun.rechecks;
-          review.quarantines.push(...recheckRun.quarantines);
-          review.recheck = review.rechecks[0] || null;
+          ensureReviewerAnswer(seatResult, 'mercury');
+          mercuryResult = seatResult;
+          mercuryResult.totalLatencyMs = Date.now() - t0;
+          outputs.set('mercury', { id: 'mercury', ...mercuryResult });
+          const metadata = panelSeatMetadata('mercury', mercuryResult);
+          metadata.evidenceChecksPassed = !resultHasToolFailure(mercuryResult)
+            && !autoBlastRadiusFailed(autoBlastRadius);
+          return metadata;
         }
-        if (kimiTieBreakerRequired(review, reviewIntent)) {
-          if (verbose) {
-            console.log(`[MERCURY-BRIDGE] Fable and Mercury did not converge; launching Kimi final adjudication: ${config.TIE_BREAKER_MODEL}`);
+
+        if (reviewer.id === 'fable') {
+          const prior = mercuryResult || priorPanelResult(query, outputs);
+          fableReview = await runFableAdversarialReview({
+            query, mercuryResult: prior, reviewIntent,
+            persistRaw: persistReviewRaw, evidenceSources,
+          });
+          if (fableReview.ok !== true) {
+            const error = new Error(fableReview.error && fableReview.error.message || 'Fable answer absent');
+            error.absence = reviewerAbsence(error);
+            error.reviewFailure = fableReview;
+            throw error;
           }
-          try {
-            review.finalReview = await runKimiFinalAdjudication({
-              query,
-              mercuryResult: result,
-              review,
-              persistRaw: persistReviewRaw,
+          fableReview.mode = reviewModeRequested(opts) || 'adversarial_review';
+          fableReview.quarantines = await notifyReviewQuarantines(fableReview.quarantines || []);
+          if (mercuryResult && kimiTieBreakerRequired(fableReview, reviewIntent)) {
+            const recheckPrompts = buildMercuryRecheckPrompts({
+              originalQuery: query,
+              mercuryAnswer: mercuryResult.answer,
+              fableAnswer: fableReview.answer,
+              parsedReview: fableReview.parsed,
               evidenceSources,
+            }).slice(0, config.ADVERSARIAL_REVIEW_MAX_RECHECKS);
+            fableReview.recheckPrompts = recheckPrompts;
+            fableReview.recheckPrompt = recheckPrompts[0] || null;
+            const recheckRun = await runReviewRechecks({
+              prompts: recheckPrompts, client, toolAdapter, starterContext, blastRadius,
+              maxIterations, maxTokens, verbose, evidenceSources, createProviderAudit,
             });
-            review.finalReview.quarantines = await notifyReviewQuarantines(review.finalReview.quarantines || []);
-            review.quarantines.push(...review.finalReview.quarantines);
-          } catch (finalErr) {
-            if (isHardReviewBoundaryError(finalErr)) throw finalErr;
-            review.finalReview = adversarialReviewFailure(finalErr, { role: 'kimi_tie_breaker' });
-            review.finalReview.quarantines = await notifyReviewQuarantines(review.finalReview.quarantines);
-            review.quarantines.push(...review.finalReview.quarantines);
-            if (verbose) {
-              console.log(`[MERCURY-BRIDGE] Kimi final adjudication failed: ${review.finalReview.error.message}`);
-            }
+            fableReview.rechecks = recheckRun.rechecks;
+            fableReview.recheck = fableReview.rechecks[0] || null;
+            fableReview.quarantines.push(...recheckRun.quarantines);
           }
+          outputs.set('fable', { id: 'fable', ...fableReview });
+          const metadata = panelSeatMetadata('fable', fableReview);
+          fableEvidencePassed = metadata.evidenceChecksPassed
+            && !!(mercuryResult || evidenceSources.length > 0);
+          metadata.evidenceChecksPassed = fableEvidencePassed;
+          return metadata;
         }
-        result.adversarialReview = review;
-        result.consensus = review;
-        result.adversarialReviewPacket = formatAdversarialReviewPacket({
-          originalQuery: query,
-          mercuryResult: result,
-          review,
-          reviewIntent,
+
+        const prior = mercuryResult || priorPanelResult(query, new Map());
+        const review = fableReview || {
+          answer: 'No Fable seat selected.',
+          parsed: { verdict: 'not_selected', blocking: false },
+          rechecks: [],
+          recheckPrompts: [],
+          panelSourceLabel: 'Fable (not selected)',
+          panelSourcePath: 'panel://fable-not-selected',
+        };
+        kimiReview = await runKimiFinalAdjudication({
+          query, mercuryResult: prior, review,
+          persistRaw: persistReviewRaw, evidenceSources,
         });
-      } catch (err) {
-        if (isHardReviewBoundaryError(err)) throw err;
-        const failure = adversarialReviewFailure(err);
-        failure.mode = reviewMode;
-        failure.quarantines = [
-          ...evidenceQuarantines,
-          ...await notifyReviewQuarantines(failure.quarantines),
-        ];
-        result.adversarialReview = failure;
-        result.consensus = failure;
-        if (verbose) {
-          console.log(`[MERCURY-BRIDGE] Fable ${reviewMode} failed: ${failure.error.message}`);
-        }
-      }
+        kimiReview.quarantines = await notifyReviewQuarantines(kimiReview.quarantines || []);
+        outputs.set('kimi', { id: 'kimi', ...kimiReview });
+        const metadata = panelSeatMetadata('kimi', kimiReview);
+        metadata.evidenceChecksPassed = metadata.evidenceChecksPassed
+          && !!(mercuryResult || evidenceSources.length > 0 || fableEvidencePassed);
+        return metadata;
+      },
+    });
+
+    const failedQuarantines = [];
+    for (const seat of panelRun.seats.filter(seat => seat.status === 'failed')) {
+      const failedOutput = seat.error && (seat.error.reviewFailure || (seat.error.stageAttempt ? {
+        attempts: [seat.error.stageAttempt],
+        stageReceipt: seat.error.stageAttempt,
+      } : null));
+      const failedMetadata = failedOutput
+        ? panelSeatMetadata(seat.id, failedOutput)
+        : (seat.id === 'mercury' ? panelSeatMetadata('mercury', { providerAttempts: providerAudit.attempts }) : null);
+      seat.absence = seat.absence === 'reviewer_answer_absent' ? reviewerAbsence(seat.error) : seat.absence;
+      failedQuarantines.push(reviewQuarantine({
+        unit: 'reviewer_seat', name: seat.id, absence: seat.absence, error: seat.error,
+      }));
+      seat.failed = true;
+      seat.unavailable = true;
+      seat.error = seat.error && seat.error.message ? { name: seat.error.name, message: seat.error.message } : null;
+      seat.provider = failedMetadata && failedMetadata.provider || null;
+      seat.requestedModel = failedMetadata && failedMetadata.requestedModel || null;
+      seat.appliedModels = failedMetadata ? failedMetadata.appliedModels : [];
+      seat.fallbackTransitions = failedMetadata ? failedMetadata.fallbackTransitions : [];
+      seat.verdict = null;
+      seat.evidenceChecksPassed = false;
+    }
+    const notifiedFailures = await notifyReviewQuarantines(failedQuarantines);
+
+    let result = mercuryResult;
+    if (!result) {
+      const firstOutput = reviewerSelection.selected.map(id => outputs.get(id)).find(Boolean);
+      result = firstOutput ? {
+        answer: firstOutput.answer,
+        termination: 'answer_given',
+        iterations: 0,
+        totalLatencyMs: firstOutput.latencyMs || 0,
+        history: [],
+        toolTelemetry: { byTool: {}, filesOpened: [], runCheckArtifacts: [], runChecks: [] },
+        toolsAvailable: [],
+        providerAttempts: [],
+        answerQuality: { flags: [], evidence: [] },
+      } : {
+        answer: 'No selected reviewer produced an answer.',
+        termination: 'reviewers_unavailable',
+        iterations: 0,
+        totalLatencyMs: 0,
+        history: [],
+        toolTelemetry: { byTool: {}, filesOpened: [], runCheckArtifacts: [], runChecks: [] },
+        toolsAvailable: [],
+        providerAttempts: [],
+        answerQuality: { flags: [], evidence: [] },
+      };
+    }
+    result.evidenceSources = evidenceSources;
+    result.reviewQuarantines = [...evidenceQuarantines, ...notifiedFailures];
+    result.inputProvenance = inputProvenance;
+    result.reviewerPanel = { ...reviewerSelection, ...panelRun };
+    if (autoBlastRadius) result.serenaBlastRadius = autoBlastRadius;
+    if (fableReview) {
+      if (kimiReview) fableReview.finalReview = kimiReview;
+      result.adversarialReview = fableReview;
+      result.consensus = fableReview;
+      result.adversarialReviewPacket = formatAdversarialReviewPacket({
+        originalQuery: query, mercuryResult: mercuryResult || priorPanelResult(query, outputs),
+        review: fableReview, reviewIntent,
+      });
     }
 
     // 6. Mark trace as used if we injected one
-    if (traceUsed && result.termination === 'answer_given') {
+    if (mercuryResult && traceUsed && result.termination === 'answer_given') {
       await markTraceUsed({ store, traceId: traceUsed._id });
     }
 
     // 7. Capture successful investigation trace (with dedup + quality)
-    if (config.TRACE_MEMORY_ENABLED && result.termination === 'answer_given') {
+    if (mercuryResult && config.TRACE_MEMORY_ENABLED && result.termination === 'answer_given') {
       const toolCallSequence = (result.history || []).map(h => ({
         name: h.toolName,
         args: h.toolArgs,
@@ -958,6 +1070,15 @@ function printDispatchReceipt(result) {
   console.log('');
   console.log('═══ RECEIPT ═══');
   console.log(`verdict:         ${entry.verdict || 'unknown'}`);
+  const panel = entry.reviewer_panel;
+  if (panel) {
+    console.log(`reviewers:       ${panel.selected.join(',')} (${panel.source})`);
+    console.log(`unselected:      ${panel.unselected.length > 0 ? panel.unselected.join(',') : 'none'}`);
+    console.log(`authority:       ${panel.authority.ceiling} agreement=${panel.authority.agreement ? 'yes' : 'no'} qualifying=${panel.authority.qualifyingSeats}`);
+    for (const seat of panel.seats) {
+      console.log(`  - ${seat.id}: ${seat.status} provider=${seat.provider || 'unavailable'} models=${(seat.appliedModels || []).join(',') || 'none'}${seat.absence ? ` absence=${seat.absence}` : ''}`);
+    }
+  }
 
   const qualityFlags = Array.isArray(entry.answer_quality) ? entry.answer_quality : [];
   const qualityEvidence = Array.isArray(entry.answer_quality_evidence) && entry.answer_quality_evidence.length > 0
@@ -1143,6 +1264,14 @@ async function main() {
 
     if (args.agentic) {
       // Agentic mode — ReAct loop with tool access
+      args.reviewerSelection = await resolveReviewerSelection({
+        explicit: args.reviewersExplicit ? args.reviewers : null,
+        interactive: args.reviewersExplicit !== true && process.stdin.isTTY === true && process.stdout.isTTY === true,
+        prompt: promptReviewerSelection,
+        defaultReviewers: reviewModeRequested(args)
+          ? REVIEWER_REGISTRY.map(reviewer => reviewer.id)
+          : ['mercury'],
+      });
       const result = await runAgentic(args.query, args);
 
       console.log('');

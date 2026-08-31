@@ -290,6 +290,10 @@ function collectReviewQuarantines(result) {
 
 function classifyMercuryVerdict({ result = null, error = null, autoBlastRadius = null } = {}) {
   if (error) return 'tool_failure';
+  if (result && result.reviewerPanel && result.reviewerPanel.authority
+      && result.reviewerPanel.authority.ceiling === 'UNVERIFIED') {
+    return 'unverified';
+  }
   if (collectReviewQuarantines(result).some(item => item && item.load_bearing === true)) {
     return 'unverified';
   }
@@ -538,6 +542,7 @@ function buildRunLedgerEntry({
       maxIterations: opts.maxIterations == null ? null : opts.maxIterations,
       maxTokens: opts.maxTokens == null ? null : opts.maxTokens,
       captureTrace: opts.captureTrace === true,
+      reviewers: result && result.reviewerPanel ? result.reviewerPanel.selected : null,
     },
     tools_invoked: compactToolStats(telemetry),
     tools_available: Array.isArray(result && result.toolsAvailable) ? result.toolsAvailable : [],
@@ -549,6 +554,7 @@ function buildRunLedgerEntry({
     review_quarantines: reviewQuarantines,
     adversarial_review: reviewSummary,
     consensus: reviewSummary,
+    reviewer_panel: result && result.reviewerPanel ? result.reviewerPanel : null,
     stages: {
       mercury: result ? {
         provider_attempts: Array.isArray(result.providerAttempts) ? result.providerAttempts : [],

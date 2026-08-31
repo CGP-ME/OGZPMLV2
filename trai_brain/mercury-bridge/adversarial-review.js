@@ -563,12 +563,13 @@ function buildAdversarialReviewPrompt({
   const telemetry = mercuryResult.toolTelemetry
     ? formatToolTelemetry(mercuryResult.toolTelemetry)
     : 'unavailable';
+  const priorLabel = mercuryResult.panelSourceLabel || 'Mercury';
   const intent = normalizeReviewIntent(reviewIntent);
 
   if (intent === 'architecture') {
     return [
       'READ-ONLY ARCHITECTURE REVIEW. Do not edit code.',
-      'Review Mercury as the second tier in an architecture synthesis, not as a commit gate.',
+      `Review ${priorLabel} as the prior evidence in an architecture synthesis, not as a commit gate.`,
       '',
       'Rules for this pass:',
       '- You do not have repo tools in this review pass.',
@@ -592,19 +593,19 @@ function buildAdversarialReviewPrompt({
       '',
       `Host-attested evidence manifest:\n${evidenceManifest(evidenceSources)}`,
       '',
-      `Mercury termination: ${mercuryResult.termination || 'unknown'}`,
-      `Mercury iterations: ${mercuryResult.iterations == null ? 'unknown' : mercuryResult.iterations}`,
-      `Mercury run ledger: ${runLedgerCitation || 'not written yet'}`,
-      `Mercury tool telemetry: ${telemetry}`,
+      `${priorLabel} termination: ${mercuryResult.termination || 'unknown'}`,
+      `${priorLabel} iterations: ${mercuryResult.iterations == null ? 'unknown' : mercuryResult.iterations}`,
+      `${priorLabel} run ledger: ${runLedgerCitation || 'not written yet'}`,
+      `${priorLabel} tool telemetry: ${telemetry}`,
       '',
-      `Mercury answer:\n${String(mercuryResult.answer || '').trim() || '<empty>'}`,
+      `${priorLabel} answer:\n${String(mercuryResult.answer || '').trim() || '<empty>'}`,
     ].join('\n');
   }
 
   if (intent === 'planning') {
     return [
       'READ-ONLY PLANNING REVIEW. Do not edit code.',
-      'Review Mercury as the second tier in an implementation planning pass, not as a commit gate.',
+      `Review ${priorLabel} as the prior evidence in an implementation planning pass, not as a commit gate.`,
       '',
       'Rules for this pass:',
       '- You do not have repo tools in this review pass.',
@@ -626,18 +627,18 @@ function buildAdversarialReviewPrompt({
       '',
       `Host-attested evidence manifest:\n${evidenceManifest(evidenceSources)}`,
       '',
-      `Mercury termination: ${mercuryResult.termination || 'unknown'}`,
-      `Mercury iterations: ${mercuryResult.iterations == null ? 'unknown' : mercuryResult.iterations}`,
-      `Mercury run ledger: ${runLedgerCitation || 'not written yet'}`,
-      `Mercury tool telemetry: ${telemetry}`,
+      `${priorLabel} termination: ${mercuryResult.termination || 'unknown'}`,
+      `${priorLabel} iterations: ${mercuryResult.iterations == null ? 'unknown' : mercuryResult.iterations}`,
+      `${priorLabel} run ledger: ${runLedgerCitation || 'not written yet'}`,
+      `${priorLabel} tool telemetry: ${telemetry}`,
       '',
-      `Mercury answer:\n${String(mercuryResult.answer || '').trim() || '<empty>'}`,
+      `${priorLabel} answer:\n${String(mercuryResult.answer || '').trim() || '<empty>'}`,
     ].join('\n');
   }
 
   return [
     'READ-ONLY AUDIT. Do not edit code.',
-    'Review Mercury as an adversarial reviewer, not a consensus collaborator.',
+    `Review ${priorLabel} as an adversarial reviewer, not a consensus collaborator.`,
     '',
     'Rules for this pass:',
     '- You do not have repo tools in this Fable review pass.',
@@ -662,12 +663,12 @@ function buildAdversarialReviewPrompt({
     '',
     `Host-attested evidence manifest:\n${evidenceManifest(evidenceSources)}`,
     '',
-    `Mercury termination: ${mercuryResult.termination || 'unknown'}`,
-    `Mercury iterations: ${mercuryResult.iterations == null ? 'unknown' : mercuryResult.iterations}`,
-    `Mercury run ledger: ${runLedgerCitation || 'not written yet'}`,
-    `Mercury tool telemetry: ${telemetry}`,
+    `${priorLabel} termination: ${mercuryResult.termination || 'unknown'}`,
+    `${priorLabel} iterations: ${mercuryResult.iterations == null ? 'unknown' : mercuryResult.iterations}`,
+    `${priorLabel} run ledger: ${runLedgerCitation || 'not written yet'}`,
+    `${priorLabel} tool telemetry: ${telemetry}`,
     '',
-    `Mercury answer:\n${String(mercuryResult.answer || '').trim() || '<empty>'}`,
+    `${priorLabel} answer:\n${String(mercuryResult.answer || '').trim() || '<empty>'}`,
   ].join('\n');
 }
 
@@ -696,6 +697,8 @@ function buildKimiFinalAdjudicationPrompt({
   const mercuryTelemetry = mercuryResult.toolTelemetry
     ? formatToolTelemetry(mercuryResult.toolTelemetry)
     : 'unavailable';
+  const priorLabel = mercuryResult.panelSourceLabel || 'Mercury';
+  const challengerLabel = review.panelSourceLabel || 'Fable';
   const answerQualityFlags = mercuryResult.answerQuality && Array.isArray(mercuryResult.answerQuality.flags)
     ? mercuryResult.answerQuality.flags.join(', ') || 'none'
     : 'unavailable';
@@ -711,8 +714,8 @@ function buildKimiFinalAdjudicationPrompt({
     'READ-ONLY FINAL ADJUDICATION. Do not edit code.',
     'You are Kimi, the reasoning adjudicator for the OGZPrime adversarial layer.',
     '',
-    'Your job is not to agree with Mercury or Fable. Compare their answers before verdict and decide whether the end state is supported by cited evidence.',
-    'Use only the material below: the original prompt, Mercury pass 1, Mercury tool telemetry, answer-quality flags, Fable critique, and Mercury rechecks.',
+    `Your job is not to agree with ${priorLabel} or Fable. Compare the supplied answers before verdict and decide whether the end state is supported by cited evidence.`,
+    `Use only the material below: the original prompt, ${priorLabel}, its tool telemetry and answer-quality flags when present, Fable critique when present, and rechecks.`,
     'Do not invent repo facts or file:line citations. If evidence is missing, say so.',
     'Do not merge the answers into a blended narrative. Attribute every item to the reporter that holds it by name.',
     'If Mercury, Fable, and you still do not converge, return VERDICT: disagree and preserve what each model individually supported.',
@@ -735,17 +738,17 @@ function buildKimiFinalAdjudicationPrompt({
     '',
     `Host-attested evidence manifest:\n${evidenceManifest(evidenceSources)}`,
     '',
-    `Mercury termination: ${mercuryResult.termination || 'unknown'}`,
-    `Mercury iterations: ${mercuryResult.iterations == null ? 'unknown' : mercuryResult.iterations}`,
-    `Mercury tool telemetry: ${mercuryTelemetry}`,
-    `Mercury answer quality flags: ${answerQualityFlags}`,
-    `Mercury answer quality evidence: ${answerQualityEvidence}`,
+    `${priorLabel} termination: ${mercuryResult.termination || 'unknown'}`,
+    `${priorLabel} iterations: ${mercuryResult.iterations == null ? 'unknown' : mercuryResult.iterations}`,
+    `${priorLabel} tool telemetry: ${mercuryTelemetry}`,
+    `${priorLabel} answer quality flags: ${answerQualityFlags}`,
+    `${priorLabel} answer quality evidence: ${answerQualityEvidence}`,
     '',
-    `Mercury pass 1 answer:\n${String(mercuryResult.answer || '').trim() || '<empty>'}`,
+    `${priorLabel} answer:\n${String(mercuryResult.answer || '').trim() || '<empty>'}`,
     '',
-    `Fable parsed verdict: ${review.parsed && review.parsed.verdict ? review.parsed.verdict : 'unknown'}`,
-    `Fable blocking: ${review.parsed && review.parsed.blocking ? 'yes' : 'no'}`,
-    `Fable answer:\n${String(review.answer || '').trim() || '<empty>'}`,
+    `${challengerLabel} parsed verdict: ${review.parsed && review.parsed.verdict ? review.parsed.verdict : 'unknown'}`,
+    `${challengerLabel} blocking: ${review.parsed && review.parsed.blocking ? 'yes' : 'no'}`,
+    `${challengerLabel} answer:\n${String(review.answer || '').trim() || '<empty>'}`,
     '',
     `Mercury rechecks:\n${recheckSections}`,
   ].join('\n');
@@ -1029,7 +1032,7 @@ async function runFableAdversarialReview({
     suppliedSources = [
       { path: 'input://original-query', excerpt: query.trim() },
       ...evidenceSources,
-      { path: 'mercury://primary-answer', excerpt: String(mercuryResult.answer || '').trim() || '<empty>' },
+      { path: mercuryResult.panelSourcePath || 'mercury://primary-answer', excerpt: String(mercuryResult.answer || '').trim() || '<empty>' },
       ...(runLedgerCitation ? [{ path: 'mercury://run-ledger-citation', excerpt: runLedgerCitation }] : []),
     ];
     buildAttestedPromptProvenance(prompt, suppliedSources);
@@ -1144,8 +1147,8 @@ async function runKimiFinalAdjudication({
   const suppliedSources = [
     { path: 'input://original-query', excerpt: query.trim() },
     ...evidenceSources,
-    { path: 'mercury://primary-answer', excerpt: String(mercuryResult.answer || '').trim() || '<empty>' },
-    { path: 'challenger://answer', excerpt: String(review.answer || '').trim() || '<empty>' },
+    { path: mercuryResult.panelSourcePath || 'mercury://primary-answer', excerpt: String(mercuryResult.answer || '').trim() || '<empty>' },
+    { path: review.panelSourcePath || 'challenger://answer', excerpt: String(review.answer || '').trim() || '<empty>' },
     ...rechecks.flatMap((recheck, index) => [
       {
         path: `mercury://recheck-${index + 1}-prompt`,

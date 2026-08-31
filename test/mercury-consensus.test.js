@@ -118,6 +118,18 @@ describe('Mercury Fable consensus', () => {
       query: 'plan the lane',
     });
 
+    expect(parseArgs(['node', 'ask.js', '--agentic', '--reviewers=kimi,mercury', 'break this'])).toMatchObject({
+      agentic: true,
+      reviewers: 'kimi,mercury',
+      reviewersExplicit: true,
+      query: 'break this',
+    });
+
+    expect(parseArgs(['node', 'ask.js', '--agentic', '--reviewers=', 'break this'])).toMatchObject({
+      reviewers: '',
+      reviewersExplicit: true,
+    });
+
     expect(parseArgs([
       'node', 'ask.js', '--agentic',
       '--evidence-source=ignored/a.md:1-2',
