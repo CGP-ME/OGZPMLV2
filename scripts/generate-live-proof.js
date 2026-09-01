@@ -237,15 +237,12 @@ function checkRiskManagement() {
   try {
     // Read from env or config
     const maxRisk = process.env.MAX_RISK_PER_TRADE || '0.02';
-    const maxDrawdown = process.env.MAX_DRAWDOWN || '18';
     const stopLoss = process.env.STOP_LOSS_PERCENT || '2.0';
     const liveTrading = process.env.LIVE_TRADING === 'true';
 
     result.highlights.push(`Mode: ${liveTrading ? 'LIVE' : 'PAPER'}`);
     result.highlights.push(`Max risk/trade: ${(parseFloat(maxRisk) * 100).toFixed(1)}%`);
     result.highlights.push(`Stop loss: ${stopLoss}%`);
-    result.highlights.push(`Max drawdown: ${maxDrawdown}%`);
-    result.highlights.push('Circuit breakers: ARMED');
 
   } catch (e) {
     result.status = 'WARN';

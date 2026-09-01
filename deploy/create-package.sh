@@ -48,7 +48,6 @@ CONFIRM_LIVE_TRADING=false  # Must also be true for live trading
 # RISK PARAMETERS (Adjust to your comfort)
 INITIAL_BALANCE=10000  # Starting balance
 MAX_POSITION_SIZE=0.1  # Max 10% per trade
-MAX_DRAWDOWN=0.15  # Stop at 15% loss
 STOP_LOSS_PERCENT=0.02  # 2% stop loss
 TAKE_PROFIT_PERCENT=0.03  # 3% take profit
 

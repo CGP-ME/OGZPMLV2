@@ -552,12 +552,6 @@ function validateRuntimeProfile(report) {
     addError(report.errors, `Runtime tuning profile '${profileName}' failed to resolve: ${error.message}`);
     return;
   }
-
-  for (const key of ['RISK_MANAGER_BYPASS', 'ACCOUNT_DRAWDOWN_BYPASS']) {
-    if (hasOwn(profile.env || {}, key) && String(profile.env[key]) !== 'false') {
-      addError(report.errors, `Runtime tuning profile '${profileName}' sets ${key}=${profile.env[key]}; eval-live requires false`);
-    }
-  }
 }
 
 function validateEvalLivePosture(sourceEnv = process.env, options = {}) {

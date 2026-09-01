@@ -91,7 +91,6 @@ $env:BACKTEST_NO_PATTERN_SAVE = "true"
 $env:FEE_MAKER = "0"
 $env:FEE_TAKER = "0"
 $env:ENABLE_TRAI = "false"
-$env:ACCOUNT_DRAWDOWN_BYPASS = "true"
 
 if ($useShorts) {
     $env:DIRECTION_FILTER = "both"
@@ -134,7 +133,6 @@ Remove-Item Env:BACKTEST_NO_PATTERN_SAVE -ErrorAction SilentlyContinue
 Remove-Item Env:FEE_MAKER -ErrorAction SilentlyContinue
 Remove-Item Env:FEE_TAKER -ErrorAction SilentlyContinue
 Remove-Item Env:ENABLE_TRAI -ErrorAction SilentlyContinue
-Remove-Item Env:ACCOUNT_DRAWDOWN_BYPASS -ErrorAction SilentlyContinue
 Remove-Item Env:DIRECTION_FILTER -ErrorAction SilentlyContinue
 Remove-Item Env:ENABLE_SMS -ErrorAction SilentlyContinue
 Remove-Item Env:SMS_VP_RTH_ONLY -ErrorAction SilentlyContinue

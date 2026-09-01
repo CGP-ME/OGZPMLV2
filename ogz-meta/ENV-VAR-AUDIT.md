@@ -27,8 +27,6 @@ The result: most of the "quick" sweep is theater. Half of "full" is theater. The
 - `ATR_FILTER_ENABLED` / `ATR_MIN_PERCENT`
 - `MAX_POSITION_SIZE_PCT`
 - `TIER1_TARGET` / `TIER2_TARGET` / `TIER3_TARGET`
-- `RISK_MANAGER_BYPASS`
-- `ACCOUNT_DRAWDOWN_BYPASS`
 - `MIN_TRADE_CONFIDENCE` (partial — entry gate only)
 
 **Theater knobs (do not sweep):**
@@ -52,8 +50,9 @@ The locked per-strategy exit contracts in `core/TradingConfig.js` (`BASE_CONFIG.
 | `MIN_TRADE_CONFIDENCE` | `TradingLoop.js:133` | PARTIAL — Used at entry gate, but per-strategy `exitContract.minConfidence` (e.g., RSI: 0.60) may override downstream | **PARTIAL** |
 | `ATR_FILTER_ENABLED` | `StrategyOrchestrator.js:725` | YES — Checked before allowing trades | **HONORED** |
 | `ATR_MIN_PERCENT` | `StrategyOrchestrator.js:727` | YES — Filters low-volatility trades | **HONORED** |
-| `RISK_MANAGER_BYPASS` | `RiskManager.js:88,159` | YES — Short-circuits all risk checks | **HONORED** |
-| `ACCOUNT_DRAWDOWN_BYPASS` | `StopLossChecker.js:48` | YES — Disables drawdown circuit breaker | **HONORED** |
+| `RISK_MANAGER_BYPASS` | No runtime reader in the 2026-08-29 census | Dead env cap; deleted from stamping surfaces under Trey ruling 3 | **RULED DELETED** |
+| `ACCOUNT_DRAWDOWN_BYPASS` | No runtime reader in the 2026-08-29 census | Dead env cap; deleted from stamping surfaces under Trey ruling 3 | **RULED DELETED** |
+| `MAX_DRAWDOWN` / `MAX_DAILY_LOSS` / `MAX_WEEKLY_LOSS` / `MAX_MONTHLY_LOSS` | No trading-runtime reader in the 2026-08-29 census | Dead account caps; TTP venue guards are the sole account-level loss protection under Trey ruling 3 | **RULED DELETED** |
 | `MAX_POSITION_SIZE_PCT` | `OrderExecutor.js:57,71` | YES — Directly affects position sizing | **HONORED** |
 | `TIER1_TARGET` / `TIER2_TARGET` / `TIER3_TARGET` | `MaxProfitManager.js:105-111` | YES — Controls profit-taking tiers | **HONORED** |
 
@@ -94,8 +93,6 @@ When `ExitContractManager.createExitContract(strategyName, ...)` is called, it p
 | `high-conf` | `MIN_TRADE_CONFIDENCE=0.60` | **PARTIAL** — entry gate only | ⚠️ Keep but rename |
 | `low-conf` | `MIN_TRADE_CONFIDENCE=0.25` | **PARTIAL** — entry gate only | ⚠️ Keep but rename |
 | `atr-*` | `ATR_FILTER_ENABLED`, `ATR_MIN_PERCENT` | **HONORED** | ✅ Keep |
-| `risk-mgr-*` | `RISK_MANAGER_BYPASS` | **HONORED** | ✅ Keep |
-| `drawdown-*` | `ACCOUNT_DRAWDOWN_BYPASS` | **HONORED** | ✅ Keep |
 | `size-*` | `MAX_POSITION_SIZE_PCT` | **HONORED** | ✅ Keep |
 | `tiers-*` | `TIER1/2/3_TARGET` | **HONORED** | ✅ Keep |
 | `trail-*` | `TRAILING_STOP_PERCENT`, `TRAILING_STOP_ENABLED` | **IGNORED** | ❌ Delete |
@@ -119,7 +116,6 @@ Run `parallel-backtest.js` with HONORED-only presets. Tunes:
 - ATR filter threshold (which volatility regimes to trade in)
 - Position sizing percentages
 - Profit tier targets (when to scale out)
-- Risk manager / drawdown bypasses (for testing in isolation)
 
 Output: which environment is friendliest to the current strategy mix.
 

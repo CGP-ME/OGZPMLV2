@@ -75,10 +75,6 @@ const LOCKED_PROFILE_ENV_VALUES = Object.freeze({
   ENTRY_MAX_STOCK_NOTIONAL: '5000',
   ENTRY_CONSISTENCY_CAP_BUFFER: '0.98',
   ENTRY_DAILY_LOSS_RISK_FRACTION: '1.0',
-  MAX_DRAWDOWN: '3',
-  MAX_DAILY_LOSS: '1',
-  MAX_WEEKLY_LOSS: '3',
-  MAX_MONTHLY_LOSS: '3',
   ACCOUNT_DRAWDOWN_PCT: '-3.0',
   ATR_FILTER_ENABLED: 'true',
   ATR_MIN_PERCENT: '0.40',
@@ -199,8 +195,6 @@ describe('ecosystem eval live profile', () => {
       MIN_TRADE_CONFIDENCE: '0.5',
       EVAL_RULES_ENABLED: 'true',
       TTP_RULES_ENABLED: 'true',
-      RISK_MANAGER_BYPASS: 'false',
-      ACCOUNT_DRAWDOWN_BYPASS: 'false',
       STATE_FILE: 'data/state-paper.json',
       ...LOCKED_PROFILE_ENV_VALUES,
     }));
@@ -216,10 +210,6 @@ describe('ecosystem eval live profile', () => {
 
   test('locked 5k MAX profile values beat ambient shell env leftovers', () => {
     const ambientProfileValues = {
-      MAX_DRAWDOWN: '9',
-      MAX_DAILY_LOSS: '9',
-      MAX_WEEKLY_LOSS: '9',
-      MAX_MONTHLY_LOSS: '9',
       ACCOUNT_DRAWDOWN_PCT: '-9.0',
       ATR_FILTER_ENABLED: 'false',
       ATR_MIN_PERCENT: '0.01',
@@ -246,6 +236,38 @@ describe('ecosystem eval live profile', () => {
         } else {
           process.env[key] = originalValues[key];
         }
+      }
+    }
+  });
+
+  test('env stamping surfaces omit the six ruled-dead account caps', () => {
+    const deadEnvCaps = [
+      'RISK_MANAGER_BYPASS',
+      'ACCOUNT_DRAWDOWN_BYPASS',
+      'MAX_DRAWDOWN',
+      'MAX_DAILY_LOSS',
+      'MAX_WEEKLY_LOSS',
+      'MAX_MONTHLY_LOSS',
+    ];
+    const surfaces = [
+      'ecosystem.config.js',
+      'config/.env.example',
+      'deploy/create-package.sh',
+      'profiles/backtest-all.env',
+      'profiles/backtest-masr.env',
+      'profiles/backtest-rsi.env',
+      'profiles/paper.env',
+      'profiles/production.env',
+      'backtest.sh',
+      'backtest.ps1',
+      'scripts/generate-live-proof.js',
+      'ogz-meta/gates/eval-live-posture-gate.js',
+    ];
+
+    for (const relativePath of surfaces) {
+      const source = fs.readFileSync(path.join(__dirname, '..', relativePath), 'utf8');
+      for (const key of deadEnvCaps) {
+        expect(source).not.toContain(key);
       }
     }
   });
