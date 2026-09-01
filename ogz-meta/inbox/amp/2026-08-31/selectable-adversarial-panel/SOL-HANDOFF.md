@@ -159,3 +159,31 @@ Raw files:
 ## Requested independent judgment
 
 Sol should independently inspect the exact seven-path diff and reproduce the checks above. This handoff does not prescribe a verdict and does not upgrade the internal `UNVERIFIED` authority result.
+
+## Cold-pull resolution — 2026-09-01
+
+The requested Sol substitution was later withdrawn after Fable availability
+returned. Trey subsequently ruled selectable independent seats accepted,
+shipped, and proven in immutable commit
+`ba6be56300e3ece760402d30b7d8dac711e75742`; no additional full-panel rerun is
+required merely to clear this side mission. That operator ruling supersedes the
+pending-review request above without rewriting the original publication
+history or upgrading its internal `UNVERIFIED` run.
+
+Cold-pull target:
+
+```sh
+git fetch origin codex/multi-asset-symbol-state
+git show --stat --oneline ba6be56300e3ece760402d30b7d8dac711e75742
+git diff cf2d9dd2746de1903adc8e7c49fef5a8776e89f7..ba6be56300e3ece760402d30b7d8dac711e75742 -- \
+  trai_brain/mercury-bridge/ask.js \
+  trai_brain/mercury-bridge/adversarial-review.js \
+  trai_brain/mercury-bridge/run-ledger.js \
+  trai_brain/mercury-bridge/reviewer-panel.js \
+  test/mercury-consensus.test.js \
+  test/mercury-run-ledger.test.js \
+  test/mercury-reviewer-panel.test.js
+```
+
+The separately owed fusion-correction ruling is not inferred or implemented by
+this resolution.

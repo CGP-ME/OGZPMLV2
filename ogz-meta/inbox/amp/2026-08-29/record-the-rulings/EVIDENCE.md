@@ -2415,3 +2415,40 @@ Warning: no stdin data received in 3s, proceeding without it. If piping from a s
 - BEGIN REDACTED PAYLOAD ab2eba4b158202bbe8875569afa93104441c5fde61a283acc9803ee8490ef4f3
 {"id":"[REDACTED]","object":"chat.completion","created":1788078580,"model":"mercury-2","choices":[{"index":0,"message":{"role":"assistant","content":null,"tool_calls":[{"index":0,"id":"call_940a85fb5dcf34a1","type":"function","function":{"name":"open_file","arguments":"{\"path\": \"ogz-meta/cognition-history/mercury-runs/2026-08-30.jsonl\", \"start_line\": 1, \"end_line\": 200}"}}],"tool_call_id":null},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":16701,"reasoning_tokens":214,"completion_tokens":0,"total_tokens":16915,"cached_input_tokens":14812},"warning":null,"reasoning_summary":null}
 - END REDACTED PAYLOAD ab2eba4b158202bbe8875569afa93104441c5fde61a283acc9803ee8490ef4f3
+
+## Ruling 10 addendum evidence — 2026-09-01
+
+- Source commit inspected: `ba6be56300e3ece760402d30b7d8dac711e75742`.
+- Source packet inspected:
+  `ogz-meta/inbox/amp/2026-08-31/selectable-adversarial-panel/`.
+- Clean post-fix selectable-panel ledger tape inspected:
+  `tapes/ledger-line-3.json`, run
+  `2026-08-31T04-25-56-272Z-b074a8852ef8`.
+- The ledger names Mercury's `quota_or_rate_limit` absence and caps authority at
+  `UNVERIFIED`; the run continues through the selected Fable and Kimi seats.
+- The Fable seat records requested Fable, applied models
+  `claude-fable-5` and `claude-opus-5`, the primary attempt's
+  `fallback_classification.category=rate_limited`, the Opus attempt's
+  `retry_status=emergency_replacement`, and an aggregate
+  `fallbackTransitions` entry from Fable to Opus carrying the classification.
+- Trey subsequently ruled selectable independent seats accepted, shipped, and
+  proven in `ba6be563`; that operator ruling, not an internal deferred-run
+  verdict, closes the selectable-seat authority question.
+- No provider was invoked for this docs-only addendum. Therefore there is no
+  new ledger line, provider raw output, or ruling-7a tape to redact and commit.
+
+Named absences and limitations:
+
+- The raw per-attempt `identity_posture.transitions` and `model_transitions`
+  arrays are empty because Fable and Opus were separate pipeline attempts, not
+  a provider-internal model transition within one invocation. Equivalent
+  transition substance is present in the attempt classification/retry fields
+  and aggregate `reviewerPanel.seats[].fallbackTransitions`; whether ruling 8
+  requires the literal raw-attempt field name `transitions` remains for Trey.
+- No selectable-panel implementation or schema was changed pending that ruling.
+- No claim is made about the separately owed “fusion correction.”
+- Part C was not reviewed, changed, staged, or cleared by this addendum.
+- The staged secret scan remains nonzero on seven inherited `apiKeySource`
+  payload fields at this file's pre-existing lines 300, 494, 621, 1175, 1530,
+  1753, and 2133. This addendum does not rewrite committed Part A tapes or
+  misreport that inherited baseline as green; no finding is in added content.

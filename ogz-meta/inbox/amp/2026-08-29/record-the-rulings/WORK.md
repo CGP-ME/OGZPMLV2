@@ -29,3 +29,16 @@ Files authored for the mission:
 
 No source code, tests, configuration, environment, runtime, broker state,
 protected path, or unrelated checkout state is changed by Part A.
+
+## Ruling 10 addendum — 2026-09-01
+
+Trey ruled selectable independent seats accepted, shipped, and proven in
+`ba6be56300e3ece760402d30b7d8dac711e75742`, then directed Amp to append
+ruling 10 to the existing ruling record and accountability packet. Amp changed
+only this existing packet and the ruling record; the held Part C checkout was
+not touched or mixed.
+
+The addendum records the cold-pull outcome as Trey's acceptance of the shipped
+selectable-seat commit. It does not claim that the interrupted deferred runs
+cleared that commit, does not alter selectable-panel implementation, and does
+not infer or implement the separately owed “fusion correction.”

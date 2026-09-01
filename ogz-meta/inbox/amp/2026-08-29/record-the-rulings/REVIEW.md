@@ -77,3 +77,27 @@ adjudication finds no remaining Part A content defect. Final Codex verdict:
 **PASS for atomic Part A commit**, with the named limitation that the inbox
 ignore requires host-attested review and with genuine post-push Fable cold-pull
 still required before Part B.
+
+## Ruling 10 addendum review — 2026-09-01
+
+Trey expressly ruled the selectable-seat implementation accepted, shipped, and
+proven and directed that no full Mercury/Fable/Kimi rerun was needed merely to
+clear that side mission. The addendum was therefore reviewed mechanically as a
+documentation-only update against the committed ledger and source packet.
+
+The prior “unavailable seat means dead run” alarm is rejected by the shipped
+receipt: Mercury is a named unavailable seat, the remaining selected seats run,
+and the authority ceiling remains `UNVERIFIED`. The Fable-to-Opus fallback is
+not impersonation: the receipt separately stamps both applied models and the
+rate-limit-triggered fallback.
+
+Schema finding, without code change: the raw Fable and Opus attempt receipts
+have empty `transitions` arrays because they are distinct invocations. The
+transition is nevertheless explicit in `fallback_classification`,
+`retry_status`, and the aggregate seat's `fallbackTransitions`. This is field
+placement drift, not missing transition substance; Trey has not yet ruled
+whether ruling 8 mandates a literal per-attempt `transitions` entry.
+
+Verdict: **PASS for the minimal ruling-10 documentation addendum under Trey's
+explicit acceptance.** This does not review or clear Part C and does not resolve
+the separately owed fusion-correction wording.

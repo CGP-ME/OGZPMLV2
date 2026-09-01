@@ -40,3 +40,15 @@ Standing laws: no PM2 start/restart; no broker orders; no live/paper activation;
 
 For each Part A-E, create the accountability packet required by ruling 7 in this agent's own directory, including redacted committed tapes and dual hashes per 7a. Resolve the apparent one-commit-per-part requirement by including that part's implementation/docs and complete packet in the same atomic commit, with cross-reference that does not invent a final SHA; use repository doctrine's established mechanism for self-reference if one exists, otherwise STOP before committing and ask Trey rather than weakening ruling 7. Fetch/rebase safely before each push, preserve linear branch, exact territory, and concurrent work. Reply to this Puck thread after each part with commit SHA, packet path, adversarial run IDs, exact files, evidence, and HOLD status.
 ```
+
+## Ruling 10 addendum
+
+Dispatcher: Puck thread `T-01a034e9-036f-70af-8009-eb719c05fc40`
+
+Ruling authority: Trey
+
+Tasking verbatim:
+
+```text
+Add one docs ruling line so future auditors do not repeat this false alarm: `Ruling 10: adversarial seats are individually selectable; an unavailable seat is a named absence with a capped verdict, never a dead run.` Record it in the existing rulings document and accountability packet using the applicable packet/receipt law; do not conflate this docs update with Part C.
+```
