@@ -154,9 +154,7 @@ function hasUnsupportedTestOutcomeClaim(content, history = []) {
   if (!claimsTestOutcome) return false;
   return !history.some((entry) => {
     if (!entry || (entry.toolResult && entry.toolResult.error)) return false;
-    if (entry.toolName === 'run_check' && entry.toolResult && entry.toolResult.source === 'run_check') {
-      return true;
-    }
+    if (entry.toolName === 'run_check') return false;
     return /test|jest|npm/i.test(entry.toolName || '');
   });
 }
@@ -319,6 +317,7 @@ function summarizeToolResultForTelemetry(toolName, result, failed) {
     'requested_target',
     'start_line',
     'end_line',
+    'total_lines',
     'total',
     'filesScanned',
     'callerCount',
@@ -346,6 +345,7 @@ function summarizeToolTelemetry(history = []) {
   const byTool = {};
   const calls = [];
   const filesOpened = new Set();
+  const fileReads = [];
   const runCheckArtifacts = [];
   let total = 0;
   let succeeded = 0;
@@ -385,9 +385,24 @@ function summarizeToolTelemetry(history = []) {
 
     if (!isFailure && entry.toolName === 'open_file' && result.file) {
       filesOpened.add(`${result.file}:${result.start_line || 1}-${result.end_line || result.start_line || 1}`);
+      fileReads.push({
+        file: result.file,
+        startLine: result.start_line || 1,
+        endLine: result.end_line || result.start_line || 1,
+        totalLines: result.total_lines || result.end_line || result.start_line || 1,
+        executionProvenance: 'trusted_repo_read',
+      });
     }
     if (!isFailure && entry.toolName === 'git_show' && result.path) {
       filesOpened.add(`${result.ref || 'git'}:${result.path}:${result.start_line || 1}-${result.end_line || result.start_line || 1}`);
+      fileReads.push({
+        file: result.path,
+        ref: result.ref || 'git',
+        startLine: result.start_line || 1,
+        endLine: result.end_line || result.start_line || 1,
+        totalLines: result.total_lines || result.end_line || result.start_line || 1,
+        executionProvenance: 'trusted_repo_read',
+      });
     }
     if (entry.toolName === 'run_check' && result && typeof result === 'object' && result.artifact_citation) {
       runCheckArtifacts.push(result.artifact_citation);
@@ -408,6 +423,7 @@ function summarizeToolTelemetry(history = []) {
         status: failedRunCheck ? 'failed' : 'passed',
         artifact_citation: result.artifact_citation || '',
         error: result.error || '',
+        execution_provenance: 'model_sandbox',
       };
     });
 
@@ -418,6 +434,7 @@ function summarizeToolTelemetry(history = []) {
     byTool,
     calls,
     filesOpened: Array.from(filesOpened).sort(),
+    fileReads,
     runCheckArtifacts,
     runChecks,
   };

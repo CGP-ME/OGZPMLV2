@@ -199,7 +199,7 @@ describe('Mercury ReAct loop evidence gates', () => {
     expect(hasUnsupportedTestOutcomeClaim(
       'The focused test passed after the runner executed it. test/mercury-index-scope.test.js:347-368',
       [{ toolName: 'run_check', toolResult: { source: 'run_check', exit_code: 0 } }]
-    )).toBe(false);
+    )).toBe(true);
     expect(hasConceptualProofClaim('Reproduction steps are conceptual; no additional evidence needed.')).toBe(true);
     expect(hasConceptualProofClaim('The cited code path is reachable. core/foo.js:10-20')).toBe(false);
   });
@@ -338,6 +338,7 @@ describe('Mercury ReAct loop evidence gates', () => {
         status: 'passed',
         artifact_citation: 'ogz-meta/cognition-history/mercury-execution/focused.log:1-40',
         error: '',
+        execution_provenance: 'model_sandbox',
       },
       {
         profile: 'run_check',
@@ -348,6 +349,7 @@ describe('Mercury ReAct loop evidence gates', () => {
         status: 'failed',
         artifact_citation: 'ogz-meta/cognition-history/mercury-execution/broken.log:1-40',
         error: '',
+        execution_provenance: 'model_sandbox',
       },
     ]);
     expect(formatToolTelemetry(telemetry)).toContain('tool_calls=6');
@@ -382,6 +384,7 @@ describe('Mercury ReAct loop evidence gates', () => {
       byTool: {},
       calls: [],
       filesOpened: [],
+      fileReads: [],
       runCheckArtifacts: [],
       runChecks: [],
     });

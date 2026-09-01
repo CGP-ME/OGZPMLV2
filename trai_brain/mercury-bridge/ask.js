@@ -46,6 +46,11 @@ const { createToolAdapter } = require('./tool-adapter');
 const { routeQuery } = require('./query-router');
 const { createMercuryLlmClient } = require('./llm-client');
 const {
+  MERCURY_DOCTRINE_PROMPT,
+  assessDoctrineReview,
+  extractDiffReferenceNames,
+} = require('./doctrine-review');
+const {
   reviewModeRequested,
   runFableAdversarialReview,
   runKimiFinalAdjudication,
@@ -343,6 +348,8 @@ function buildMercuryIntentPrompt(query, reviewIntent = 'adversarial') {
       'Use repo tools to build a broad architecture review with evidence, ownership boundaries, data flow, invariants, build-vs-buy analysis, migration path, risks, and strongest criticisms.',
       'Do not compress into a short answer. If evidence is missing, label the gap instead of inventing current repo facts.',
       '',
+      MERCURY_DOCTRINE_PROMPT,
+      '',
       text,
     ].join('\n');
   }
@@ -353,10 +360,12 @@ function buildMercuryIntentPrompt(query, reviewIntent = 'adversarial') {
       'Use repo tools to produce an implementation plan with prior art, ownership boundaries, sequencing, required proofs, rollback shape, risks, and open decisions.',
       'Do not edit code. If evidence is missing, label the gap instead of inventing current repo facts.',
       '',
+      MERCURY_DOCTRINE_PROMPT,
+      '',
       text,
     ].join('\n');
   }
-  return text;
+  return `${MERCURY_DOCTRINE_PROMPT}\n\n${text}`;
 }
 
 function optionalPositiveInteger(value, name) {
@@ -452,6 +461,22 @@ function currentChangedFiles(repoRoot = config.REPO_ROOT) {
   });
 }
 
+function currentChangeDiff(repoRoot = config.REPO_ROOT) {
+  const cached = execFileSync('git', ['diff', '--cached', '--no-ext-diff'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    maxBuffer: 32 * 1024 * 1024,
+  });
+  if (cached.trim()) return cached;
+  return execFileSync('git', ['diff', '--no-ext-diff'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    maxBuffer: 32 * 1024 * 1024,
+  });
+}
+
 function normalizeRepoRelativePath(repoRoot, relPath) {
   if (!relPath || typeof relPath !== 'string') return null;
   if (relPath.startsWith('/') || relPath.split('/').includes('..')) return null;
@@ -474,8 +499,11 @@ async function buildCurrentChangeBlastRadius({
   repoRoot = config.REPO_ROOT,
   changedFiles = null,
   currentChangedFilesFn = currentChangedFiles,
+  currentDiffFn = currentChangeDiff,
+  existsFn = fs.existsSync,
   getBlastRadiusFn = getBlastRadius,
   formatForMercuryFn = formatForMercury,
+  findReferencesFn = null,
 } = {}) {
   let candidates;
   try {
@@ -493,26 +521,36 @@ async function buildCurrentChangeBlastRadius({
       source: 'current_changes',
     };
   }
+  const normalizedCandidates = [];
   const targetFiles = [];
+  const errors = [];
   for (const candidate of candidates) {
     const relPath = normalizeRepoRelativePath(repoRoot, candidate);
-    if (!relPath || !isSerenaSourcePath(relPath)) continue;
-    if (!fs.existsSync(path.join(repoRoot, relPath))) continue;
+    if (!relPath) continue;
+    normalizedCandidates.push(relPath);
+    if (!relPath.endsWith('.js') || relPath.endsWith('.bak')) continue;
+    if (config.isPathIgnoredByMercury(relPath)) {
+      errors.push({ file: relPath, error: 'AST scan blocked by mercury.ignore' });
+      continue;
+    }
+    if (!existsFn(path.join(repoRoot, relPath))) {
+      errors.push({ file: relPath, error: 'AST scan target is absent from the working tree' });
+      continue;
+    }
     targetFiles.push(relPath);
   }
 
-  if (targetFiles.length === 0) {
-    return {
-      text: null,
-      meta: [],
-      errors: [],
-      source: 'current_changes',
-    };
+  let diff = '';
+  let referenceNames = [];
+  try {
+    diff = currentDiffFn(repoRoot);
+    referenceNames = extractDiffReferenceNames(diff);
+  } catch (err) {
+    errors.push({ file: '<current_diff>', error: err.message });
   }
 
   const sections = [];
   const meta = [];
-  const errors = [];
   for (const targetFile of targetFiles) {
     let blastRadius;
     try {
@@ -543,10 +581,48 @@ async function buildCurrentChangeBlastRadius({
     sections.push(`## ${targetFile}\n${formatted}`);
   }
 
+  const referenceScans = [];
+  for (const name of referenceNames) {
+    if (typeof findReferencesFn !== 'function') {
+      errors.push({ symbol: name, error: 'find_references adapter unavailable' });
+      continue;
+    }
+    try {
+      const result = await findReferencesFn(name);
+      if (result && result.error) {
+        errors.push({ symbol: name, error: result.error });
+      } else {
+        referenceScans.push({
+          symbol: name,
+          source: result && result.source || null,
+          precision: result && result.precision || null,
+          total: result && Number.isInteger(result.total) ? result.total : null,
+          truncated: !!(result && result.truncated),
+        });
+        sections.push(`## find_references ${name}\n${JSON.stringify(result)}`);
+      }
+    } catch (err) {
+      errors.push({ symbol: name, error: err.message });
+    }
+  }
+
+  sections.unshift([
+    '## CURRENT CHANGE CANDIDATE SET',
+    `Changed files: ${normalizedCandidates.length}`,
+    ...normalizedCandidates.map(file => `- ${file}`),
+    `Touched env/config names: ${referenceNames.length}`,
+    ...referenceNames.map(name => `- ${name}`),
+  ].join('\n'));
+
   return {
     text: sections.length > 0 ? sections.join('\n\n') : null,
     meta,
     errors,
+    changedFiles: normalizedCandidates,
+    changedFileCount: normalizedCandidates.length,
+    diff,
+    referenceNames,
+    referenceScans,
     source: 'current_changes',
   };
 }
@@ -610,6 +686,7 @@ function panelSeatMetadata(id, output) {
     failed: false,
     identityConflict,
     verdict: panelVerdict(output.answer, output.parsed),
+    doctrineReview: output.doctrineReview || null,
     evidenceChecksPassed: !identityConflict
       && !(output.quarantines || []).some(quarantine => quarantine && quarantine.load_bearing === true),
   };
@@ -789,7 +866,9 @@ async function runAgentic(query, opts) {
 
     let blastRadius = opts.blastRadius || null;
     if (!blastRadius) {
-      autoBlastRadius = await buildCurrentChangeBlastRadius();
+      autoBlastRadius = await buildCurrentChangeBlastRadius({
+        findReferencesFn: symbol => toolAdapter.execute('find_references', { symbol }),
+      });
       blastRadius = autoBlastRadius.text;
       if (verbose) {
         if (autoBlastRadius.meta.length > 0) {
@@ -838,10 +917,27 @@ async function runAgentic(query, opts) {
           ensureReviewerAnswer(seatResult, 'mercury');
           mercuryResult = seatResult;
           mercuryResult.totalLatencyMs = Date.now() - t0;
+          mercuryResult.doctrineReview = assessDoctrineReview({
+            answer: mercuryResult.answer,
+            changedFiles: autoBlastRadius ? autoBlastRadius.changedFiles : [],
+            diff: autoBlastRadius ? autoBlastRadius.diff : '',
+            telemetry: mercuryResult.toolTelemetry,
+            autoScan: autoBlastRadius,
+            evidenceSources,
+            reviewerId: 'mercury',
+          });
+          mercuryResult.reviewQuarantines = await notifyReviewQuarantines(
+            mercuryResult.doctrineReview.namedAbsences.map(absence => reviewQuarantine({
+              unit: 'mercury_doctrine',
+              name: absence,
+              absence,
+            }))
+          );
           outputs.set('mercury', { id: 'mercury', ...mercuryResult });
           const metadata = panelSeatMetadata('mercury', mercuryResult);
           metadata.evidenceChecksPassed = !resultHasToolFailure(mercuryResult)
-            && !autoBlastRadiusFailed(autoBlastRadius);
+            && !autoBlastRadiusFailed(autoBlastRadius)
+            && mercuryResult.doctrineReview.authorityCeiling !== 'UNVERIFIED';
           return metadata;
         }
 
@@ -858,6 +954,23 @@ async function runAgentic(query, opts) {
             throw error;
           }
           fableReview.mode = reviewModeRequested(opts) || 'adversarial_review';
+          fableReview.doctrineReview = assessDoctrineReview({
+            answer: fableReview.answer,
+            changedFiles: autoBlastRadius ? autoBlastRadius.changedFiles : [],
+            diff: autoBlastRadius ? autoBlastRadius.diff : '',
+            telemetry: mercuryResult ? mercuryResult.toolTelemetry : {},
+            autoScan: autoBlastRadius,
+            evidenceSources,
+            reviewerId: 'fable',
+          });
+          fableReview.quarantines = [
+            ...(fableReview.quarantines || []),
+            ...fableReview.doctrineReview.namedAbsences.map(absence => reviewQuarantine({
+              unit: 'fable_doctrine',
+              name: absence,
+              absence,
+            })),
+          ];
           fableReview.quarantines = await notifyReviewQuarantines(fableReview.quarantines || []);
           if (mercuryResult && kimiTieBreakerRequired(fableReview, reviewIntent)) {
             const recheckPrompts = buildMercuryRecheckPrompts({
@@ -880,7 +993,8 @@ async function runAgentic(query, opts) {
           outputs.set('fable', { id: 'fable', ...fableReview });
           const metadata = panelSeatMetadata('fable', fableReview);
           fableEvidencePassed = metadata.evidenceChecksPassed
-            && !!(mercuryResult || evidenceSources.length > 0);
+            && !!(mercuryResult || evidenceSources.length > 0)
+            && fableReview.doctrineReview.authorityCeiling !== 'UNVERIFIED';
           metadata.evidenceChecksPassed = fableEvidencePassed;
           return metadata;
         }
@@ -898,11 +1012,29 @@ async function runAgentic(query, opts) {
           query, mercuryResult: prior, review,
           persistRaw: persistReviewRaw, evidenceSources,
         });
+        kimiReview.doctrineReview = assessDoctrineReview({
+          answer: kimiReview.answer,
+          changedFiles: autoBlastRadius ? autoBlastRadius.changedFiles : [],
+          diff: autoBlastRadius ? autoBlastRadius.diff : '',
+          telemetry: mercuryResult ? mercuryResult.toolTelemetry : {},
+          autoScan: autoBlastRadius,
+          evidenceSources,
+          reviewerId: 'kimi',
+        });
+        kimiReview.quarantines = [
+          ...(kimiReview.quarantines || []),
+          ...kimiReview.doctrineReview.namedAbsences.map(absence => reviewQuarantine({
+            unit: 'kimi_doctrine',
+            name: absence,
+            absence,
+          })),
+        ];
         kimiReview.quarantines = await notifyReviewQuarantines(kimiReview.quarantines || []);
         outputs.set('kimi', { id: 'kimi', ...kimiReview });
         const metadata = panelSeatMetadata('kimi', kimiReview);
         metadata.evidenceChecksPassed = metadata.evidenceChecksPassed
-          && !!(mercuryResult || evidenceSources.length > 0 || fableEvidencePassed);
+          && !!(mercuryResult || evidenceSources.length > 0 || fableEvidencePassed)
+          && kimiReview.doctrineReview.authorityCeiling !== 'UNVERIFIED';
         return metadata;
       },
     });
@@ -958,7 +1090,11 @@ async function runAgentic(query, opts) {
       };
     }
     result.evidenceSources = evidenceSources;
-    result.reviewQuarantines = [...evidenceQuarantines, ...notifiedFailures];
+    result.reviewQuarantines = [
+      ...evidenceQuarantines,
+      ...(Array.isArray(result.reviewQuarantines) ? result.reviewQuarantines : []),
+      ...notifiedFailures,
+    ];
     result.inputProvenance = inputProvenance;
     result.reviewerPanel = { ...reviewerSelection, ...panelRun };
     if (autoBlastRadius) result.serenaBlastRadius = autoBlastRadius;
@@ -1078,6 +1214,13 @@ function printDispatchReceipt(result) {
     for (const seat of panel.seats) {
       console.log(`  - ${seat.id}: ${seat.status} provider=${seat.provider || 'unavailable'} models=${(seat.appliedModels || []).join(',') || 'none'}${seat.absence ? ` absence=${seat.absence}` : ''}`);
     }
+  }
+
+  const doctrine = entry.doctrine_review;
+  if (doctrine) {
+    console.log(`doctrine:        ${doctrine.authorityCeiling} candidate=${doctrine.candidateSet ? `${doctrine.candidateSet.examined}/${doctrine.candidateSet.total}` : 'absent'}`);
+    console.log(`named absences:  ${(doctrine.namedAbsences || []).join(',') || 'none'}`);
+    console.log(`named breaks:    ${(doctrine.namedBreaks || []).join(',') || 'none'}`);
   }
 
   const qualityFlags = Array.isArray(entry.answer_quality) ? entry.answer_quality : [];
@@ -1421,6 +1564,7 @@ module.exports = {
   runAgentic,
   buildMercuryIntentPrompt,
   buildCurrentChangeBlastRadius,
+  currentChangeDiff,
   currentChangedFiles,
   isSerenaSourcePath,
   selectCurrentChangeNames,

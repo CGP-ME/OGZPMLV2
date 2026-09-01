@@ -1,0 +1,696 @@
+[MERCURY-BRIDGE] Index contains 9875 chunks
+[MERCURY-BRIDGE] Query router: type=identifier mode=hybrid boost=none top-k=8
+[MERCURY-BRIDGE] Rationale: code-flavored query with identifiers; kind modifier handles this in Layer 2
+[MERCURY-BRIDGE] Embedding query for starter context...
+[MERCURY-BRIDGE] Starter context: 8 chunks
+  1. test/fixtures/mercury-serena-canary/final-close-proof-canary.js:21-42 (function: publishCloseProof) sim=0.619
+  2. trai_brain/claude-bridge/proof-writer.js:45-64 (function: validateHotPathProof) sim=0.545
+  3. test/masr-restoration.test.js:42-59 (function: fallingMaTouchCandles) sim=0.359
+  4. trai_brain/claude-bridge/finish-gate.js:178-185 (function: isAdversarialMercuryProof) sim=0.594
+  5. trai_brain/claude-bridge/proof-writer.js:78-88 (function: validateRequiredEvidencePath) sim=0.443
+  6. test/claude-bridge-proof-writer.test.js:39-52 (function: validFileProof) sim=0.588
+  7. core/TradeJournalBridge.js:1314-1364 (method: [REDACTED]#part1) sim=0.381
+  8. core/TradeJournalBridge.js:1503-1546 (method: _persistVisibilityQueueOverflow#part1) sim=0.436
+[TRACE-MEMORY] Eviction: 0 stale + 0 over-cap, 0 remaining
+[MERCURY-BRIDGE] No similar prior trace found
+[MERCURY-BRIDGE] Tool adapter ready. Tools: search, grep, regex_grep, find_definition, find_references, rule_scan, open_file, get_chunk, list_files, tavily_search, git_show, git_diff, serena_blast_radius, serena_property_refs, serena_method_callers, serena_class_fields, run_check, web_fetch
+[MERCURY-BRIDGE] Serena current-change blast radius: no changed JS files to scan
+[MERCURY-BRIDGE] Starting reviewer seat: Mercury
+[TRAI] LLM client initializing...
+   Provider: Mercury-2 (Inception Labs)
+   Model:    mercury-2
+   Endpoint: https://api.inceptionlabs.ai/v1
+[TRAI] LLM client ready. Provider: Mercury-2 (Inception Labs) | Model: mercury-2
+[REACT] Iteration 1/60
+[REACT] Message history: 3 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"test/fixtures/mercury-serena-canary/final-close-proof-canary.js","start_line":1,"end_line":200})
+[REACT] Iteration 2/60
+[REACT] Message history: 5 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"validateHotPathProof","file_pattern":"*"})
+[REACT] Iteration 3/60
+[REACT] Message history: 7 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"trai_brain/claude-bridge/proof-writer.js","start_line":1,"end_line":200})
+[REACT] Iteration 4/60
+[REACT] Message history: 9 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"isAdversarialMercuryProof","file_pattern":"*"})
+[REACT] Iteration 5/60
+[REACT] Message history: 11 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"trai_brain/claude-bridge/finish-gate.js","start_line":150,"end_line":250})
+[REACT] Iteration 6/60
+[REACT] Message history: 13 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"ADVERSARIAL_TERMS","file_pattern":"*"})
+[REACT] Iteration 7/60
+[REACT] Message history: 15 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"trai_brain/claude-bridge/finish-gate.js","start_line":1,"end_line":60})
+[REACT] Iteration 8/60
+[REACT] Message history: 17 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"final-close-proof-canary","file_pattern":"*"})
+[REACT] Iteration 9/60
+[REACT] Message history: 19 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"finalClose","file_pattern":"*"})
+[REACT] Iteration 10/60
+[REACT] Message history: 21 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"finalClose","file_pattern":"*"})
+[REACT] Iteration 11/60
+[REACT] Message history: 23 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"trai_brain/claude-bridge/task-contract.js","start_line":1,"end_line":200})
+[REACT] Iteration 12/60
+[REACT] Message history: 25 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"require('./test/fixtures/mercury-serena-canary","file_pattern":"*"})
+[REACT] Iteration 13/60
+[REACT] Message history: 27 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"decoys","file_pattern":"*"})
+[REACT] Iteration 14/60
+[REACT] Message history: 29 messages
+[REACT] Final answer on iteration 14
+[MERCURY-BRIDGE] Starting reviewer seat: Fable
+[REACT] Iteration 1/60
+[REACT] Message history: 3 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"test/fixtures/mercury-serena-canary/final-close-proof-canary.js","start_line":1,"end_line":200})
+[REACT] Iteration 2/60
+[REACT] Message history: 5 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing run_check({"command":["node","-e","const {publishCloseProof}=require('./test/fixtures/mercury-serena-canary/final-close-proof-canary.js'); console.log(JSON.stringify(publishCloseProof({id:1,entryQuantity:10},{c)
+[REACT] Iteration 3/60
+[REACT] Message history: 7 messages
+[REACT] Final answer on iteration 3
+[MERCURY-BRIDGE] Starting reviewer seat: Kimi
+[TRAI] LLM client initializing...
+   Provider: OpenAI-Compatible
+   Model:    kimi-k3
+   Endpoint: https://api.moonshot.ai/v1
+[TRAI] LLM client ready. Provider: OpenAI-Compatible | Model: kimi-k3
+[MERCURY-BRIDGE] Trace not captured: manual_capture_not_requested
+[MERCURY-BRIDGE] Manual capture mode: rerun with --capture-trace only if this answer should teach trace memory.
+
+═══ ANSWER ═══
+
+**Answer**
+
+I could not find any concrete way to break the proof contract for the unchanged canary artifact `test/fixtures/mercury-serena-canary/final-close-proof-canary.js`.
+
+**Evidence examined**
+
+1. **Canary source** – The file defines `DECOY_SNIPPETS`, a `publishCloseProof` function that writes `record.finalClose = true`, and returns an object that includes the `decoys` array. No imports or side‑effects beyond that are present.record.finalClose:1-45
+
+2. **Proof‑validation logic** – The contract that a proof must satisfy is enforced in `trai_brain/claude-bridge/finish‑gate.js` (adversarial‑term check, `completed` flag, and result presence). The canary’s proof prompt (the typical “break my fix” prompt) contains well above the three required adversarial terms, so `isAdversarialMercuryProof` would return `true`. `hasMercuryResult` only checks for a non‑empty `result`/`response` string or a non‑empty file referenced by `resultPath`/`responsePath`; none of these checks involve the canary’s code itself.【open_file†L27-L38】trai_brain/claude-bridge/finish‑gate.js:178-184
+
+3. **Proof‑payload validation** – `validateHotPathProof` (in `trai_brain/claude-bridge/proof‑writer.js`) only verifies the presence of a proof object, the adversarial‑prompt condition, the result condition, and then runs `proofFailuresForHotFiles`. No static analysis of the target file’s executable writes is performed.trai_brain/claude-bridge/proof‑writer.js:45-64
+
+4. **Search for imports** – A repository‑wide search for any import of the canary file returned no matches, confirming that the file is not referenced elsewhere.【search†L0】
+
+5. **Task‑contract checks** – The task‑contract (`trai_brain/claude-bridge/task‑contract.js`) governs file‑system read/write permissions but does not impose any additional constraints on the canary’s code.trai_brain/claude-bridge/task‑contract.js:1-200
+
+**Conclusion**
+
+The proof contract only validates the structure and content of a *proof* object, not the semantics of the target JavaScript file. The canary artifact itself does not violate any of the repository’s enforced contracts (no forbidden imports, no prohibited side‑effects, and the proof‑validation code does not analyze its executable statements). Consequently, with the current code base there is no concrete state that would cause `validateHotPathProof` (or any other contract check) to reject the canary’s proof.
+
+**What is missing to produce a break**
+
+- A rule that inspects the *actual* JavaScript AST of the target file for executable property writes inside comments or string literals. No such rule exists in the repository, so there is no mechanism to fail the proof based on the canary’s decoy comments.
+- A task‑contract restriction that forbids exporting the `publishCloseProof` function or returning the `decoys` array. Such a restriction is not present in `task‑contract.js`.
+
+Without those additional constraints, the canary artifact passes all existing proof‑validation steps, and I cannot produce a reproducible failure.
+
+[iterations: 14 | termination: answer_given | latency: 14597ms]
+
+═══ RECEIPT ═══
+verdict:         unverified
+reviewers:       mercury,fable,kimi (explicit)
+unselected:      none
+authority:       UNVERIFIED agreement=no qualifying=3
+  - mercury: succeeded provider=mercury models=mercury-2
+  - fable: succeeded provider=claude-code models=claude-fable-5
+  - kimi: succeeded provider=openai models=kimi-k3
+quality flag:    tool_handle_citation — "le referenced by `resultPath`/`responsePath`; none of these checks involve the canary’s code itself.【open_file†L27-L38】trai_brain/claude-bridge/finish‑gate.js:178-184 3. **Proof‑payload validation** – `validateHotPathProof` (in `trai_brain/claude-bridge/proo"
+run checks:      0 executed
+tool failures:   0/13
+tool calls:      tool_calls=13 | succeeded=13 | failed=0 | tools=open_file:5/5/0, search:8/8/0 | files_opened=5 | run_check_artifacts=0 | failed_calls=none | run_checks=none
+blast radius:    0 file(s) scanned, 0 error(s)
+review layer:    ok — adversarial_review verdict=found_break
+final adjud.:    ok — kimi_final_adjudication verdict=pass
+shared support:  The canary artifact contains exactly one executable write of `finalClose = true` at line 32, which executes unconditionally (test/fixtures/mercury-serena-canary/final-close-proof-canary.js:32). When `publishCloseProof` is called with `entryQuantity=10` and `closedQuantity=5`, the function returns an object where both `partialClose` and `finalClose` are simultaneously `true` (lines 25, 32, 36-37). This produces a self-contradictory proof object that breaks the artifact's proof contract.
+contradictions:  Mercury initially claimed "I could not find any concrete way to break the proof contract" and "I cannot produce a reproducible failure." Fable disputed this, identifying the unconditional write at line 32 as the break. Mercury's recheck confirmed Fable's position: the original verdict was incorrect, and the artifact does break its contract via the unconditional assignment at line 32. Resolution: Fable's critique was correct; Mercury's original answer was wrong.
+quarantines:     0
+tree state:      clean
+index freshness: indexed Thu Aug 27 2026 02:35:39 GMT+0000 (Coordinated Universal Time) @ 34b879f8 — HEAD bc536d40 (4d stale)
+run ledger:      ogz-meta/cognition-history/mercury-runs/2026-09-01.jsonl:7
+
+═══ FABLE ADVERSARIAL REVIEW ═══
+
+VERDICT: found_break
+CONSENSUS_BLOCKING: yes
+RATIONALE: Mercury concluded "no concrete way to break the proof contract" while the break is sitting in the prompt-supplied artifact itself: `record.finalClose = true` is written unconditionally in `publishCloseProof`, so any partial fill (0 < closedQuantity < entryQuantity) yields a returned proof object with `partialClose: true` AND `finalClose: true` simultaneously — a self-contradictory close proof, reproducible with a single function call and no repo access. Mercury never enumerated executable writes vs decoys (the file's explicitly stated purpose) with line numbers. Instead it scope-drifted into repo infrastructure (finish-gate.js, proof-writer.js, task-contract.js) with malformed citations ("record.finalClose:1-45", raw "【open_file†L27-L38】" / "【search†L0】" tool markers, non-ASCII hyphens in filenames) and zero run_check artifacts backing any of those repo claims. The answer also cites lines 1-45 for a ~44-line artifact.
+DISAGREEMENT: Mercury's claim "I cannot produce a reproducible failure" is false. `publishCloseProof({ id: 1, entryQuantity: 10 }, { closedQuantity: 5 })` returns `{ finalClose: true, partialClose: true, ... }` per the artifact's own lines — a partial close asserted as a final close breaks the proof contract of the returned object. Additionally, Mercury implicitly conflated "the proof-validation infrastructure doesn't reject this" with "the artifact's proof contract cannot be broken" — the prompt asked to break the artifact's contract, not to audit finish-gate/proof-writer plumbing.
+REQUIRED_RECHECK: In the prompt-supplied artifact, the executable write of `record.finalClose` inside `publishCloseProof` (the line reading `record.finalClose = true;` following the `if (record.partialClose)` block) — confirm it executes unconditionally on partial fills and produces a contradictory proof object; also enumerate the exact line numbers of the one executable `finalClose` write versus the three comment decoys and three string-literal decoys.
+RECHECK_PROMPT: Re-audit ONLY the verbatim canary artifact supplied in the prompt (test/fixtures/mercury-serena-canary/final-close-proof-canary.js). Do not open other repo files. (1) List every occurrence of `finalClose = true` in the artifact and classify each as executable-write, comment, or string-literal, with exact line numbers. (2) Trace `publishCloseProof(record, fill)` with record.entryQuantity=10 and fill.closedQuantity=5: state the exact values of partialClose, status, and finalClose in the returned object. (3) State whether returning finalClose=true on a partial close breaks the artifact's proof contract, and cite the exact lines that cause it.
+NEXT_CHECK: node -e "const {publishCloseProof}=require('./test/fixtures/mercury-serena-canary/final-close-proof-canary.js'); console.log(publishCloseProof({id:1,entryQuantity:10},{closedQuantity:5}))" — expect the contradictory `{ finalClose: true, partialClose: true }` output confirming the break Mercury missed.
+
+[adversarial_review: claude-code/fable | latency: 32323ms]
+
+═══ MERCURY RECHECK 1 ═══
+
+Prompt:
+READ-ONLY AUDIT. Do not edit code.
+Mercury, recheck your prior answer against Fable critique.
+
+Original user prompt:
+Mercury, adversarially audit this exact unchanged canary artifact and break its proof contract. Artifact: test/fixtures/mercury-serena-canary/final-close-proof-canary.js\n\n'use strict';
+
+/**
+ * Synthetic Mercury/Serena canary.
+ *
+ * This file is intentionally broken and must never be imported by production
+ * code. It exists so Mercury can prove it can separate executable property
+ * writes from noisy comments and string literals.
+ */
+
+const DECOY_SNIPPETS = [
+  'proof.finalClose = true is a comment-shaped decoy',
+  'journal.finalClose = true should not be treated as executable code',
+  'record.finalClose = true appears in text but is not a write',
+];
+
+// decoy: proof.finalClose = true
+// decoy: activeTrade.finalClose = true
+// decoy: summary.finalClose = true
+
+function publishCloseProof(record, fill) {
+  const closedQuantity = Number(fill.closedQuantity || 0);
+  const entryQuantity = Number(record.entryQuantity || 0);
+
+  record.partialClose = closedQuantity > 0 && closedQuantity < entryQuantity;
+  record.closedQuantity = closedQuantity;
+
+  if (record.partialClose) {
+    record.status = 'partial';
+  }
+
+  record.finalClose = true;
+
+  return {
+    id: record.id,
+    finalClose: record.finalClose,
+    partialClose: record.partialClose,
+    closedQuantity,
+    entryQuantity,
+    decoys: DECOY_SNIPPETS,
+  };
+}
+
+module.exports = { publishCloseProof };
+
+Host-attested evidence manifest (the verbatim excerpts are supplied inside the original prompt above; they were not opened by model tools):
+1. test/fixtures/mercury-serena-canary/final-close-proof-canary.js:1-44 | artifact_sha256=38b751bcfa78559b4e26b9f9fdb3759b2a550cd318ba88b27f618bc5950e1a84 artifact_bytes=1196 | excerpt_sha256=9632afd4cefe65f363aefdb73485d3803e2fbd369ced58dbc5e71826e65e98a0 excerpt_bytes=1195 | delivery=verbatim_in_original_query access=prompt_supplied_not_repo_tool
+
+Your prior answer:
+**Answer**
+
+I could not find any concrete way to break the proof contract for the unchanged canary artifact `test/fixtures/mercury-serena-canary/final-close-proof-canary.js`.
+
+**Evidence examined**
+
+1. **Canary source** – The file defines `DECOY_SNIPPETS`, a `publishCloseProof` function that writes `record.finalClose = true`, and returns an object that includes the `decoys` array. No imports or side‑effects beyond that are present.record.finalClose:1-45
+
+2. **Proof‑validation logic** – The contract that a proof must satisfy is enforced in `trai_brain/claude-bridge/finish‑gate.js` (adversarial‑term check, `completed` flag, and result presence). The canary’s proof prompt (the typical “break my fix” prompt) contains well above the three required adversarial terms, so `isAdversarialMercuryProof` would return `true`. `hasMercuryResult` only checks for a non‑empty `result`/`response` string or a non‑empty file referenced by `resultPath`/`responsePath`; none of these checks involve the canary’s code itself.【open_file†L27-L38】trai_brain/claude-bridge/finish‑gate.js:178-184
+
+3. **Proof‑payload validation** – `validateHotPathProof` (in `trai_brain/claude-bridge/proof‑writer.js`) only verifies the presence of a proof object, the adversarial‑prompt condition, the result condition, and then runs `proofFailuresForHotFiles`. No static analysis of the target file’s executable writes is performed.trai_brain/claude-bridge/proof‑writer.js:45-64
+
+4. **Search for imports** – A repository‑wide search for any import of the canary file returned no matches, confirming that the file is not referenced elsewhere.【search†L0】
+
+5. **Task‑contract checks** – The task‑contract (`trai_brain/claude-bridge/task‑contract.js`) governs file‑system read/write permissions but does not impose any additional constraints on the canary’s code.trai_brain/claude-bridge/task‑contract.js:1-200
+
+**Conclusion**
+
+The proof contract only validates the structure and content of a *proof* object, not the semantics of the target JavaScript file. The canary artifact itself does not violate any of the repository’s enforced contracts (no forbidden imports, no prohibited side‑effects, and the proof‑validation code does not analyze its executable statements). Consequently, with the current code base there is no concrete state that would cause `validateHotPathProof` (or any other contract check) to reject the canary’s proof.
+
+**What is missing to produce a break**
+
+- A rule that inspects the *actual* JavaScript AST of the target file for executable property writes inside comments or string literals. No such rule exists in the repository, so there is no mechanism to fail the proof based on the canary’s decoy comments.
+- A task‑contract restriction that forbids exporting the `publishCloseProof` function or returning the `decoys` array. Such a restriction is not present in `task‑contract.js`.
+
+Without those additional constraints, the canary artifact passes all existing proof‑validation steps, and I cannot produce a reproducible failure.
+
+Fable critique:
+VERDICT: found_break
+CONSENSUS_BLOCKING: yes
+RATIONALE: Mercury concluded "no concrete way to break the proof contract" while the break is sitting in the prompt-supplied artifact itself: `record.finalClose = true` is written unconditionally in `publishCloseProof`, so any partial fill (0 < closedQuantity < entryQuantity) yields a returned proof object with `partialClose: true` AND `finalClose: true` simultaneously — a self-contradictory close proof, reproducible with a single function call and no repo access. Mercury never enumerated executable writes vs decoys (the file's explicitly stated purpose) with line numbers. Instead it scope-drifted into repo infrastructure (finish-gate.js, proof-writer.js, task-contract.js) with malformed citations ("record.finalClose:1-45", raw "【open_file†L27-L38】" / "【search†L0】" tool markers, non-ASCII hyphens in filenames) and zero run_check artifacts backing any of those repo claims. The answer also cites lines 1-45 for a ~44-line artifact.
+DISAGREEMENT: Mercury's claim "I cannot produce a reproducible failure" is false. `publishCloseProof({ id: 1, entryQuantity: 10 }, { closedQuantity: 5 })` returns `{ finalClose: true, partialClose: true, ... }` per the artifact's own lines — a partial close asserted as a final close breaks the proof contract of the returned object. Additionally, Mercury implicitly conflated "the proof-validation infrastructure doesn't reject this" with "the artifact's proof contract cannot be broken" — the prompt asked to break the artifact's contract, not to audit finish-gate/proof-writer plumbing.
+REQUIRED_RECHECK: In the prompt-supplied artifact, the executable write of `record.finalClose` inside `publishCloseProof` (the line reading `record.finalClose = true;` following the `if (record.partialClose)` block) — confirm it executes unconditionally on partial fills and produces a contradictory proof object; also enumerate the exact line numbers of the one executable `finalClose` write versus the three comment decoys and three string-literal decoys.
+RECHECK_PROMPT: Re-audit ONLY the verbatim canary artifact supplied in the prompt (test/fixtures/mercury-serena-canary/final-close-proof-canary.js). Do not open other repo files. (1) List every occurrence of `finalClose = true` in the artifact and classify each as executable-write, comment, or string-literal, with exact line numbers. (2) Trace `publishCloseProof(record, fill)` with record.entryQuantity=10 and fill.closedQuantity=5: state the exact values of partialClose, status, and finalClose in the returned object. (3) State whether returning finalClose=true on a partial close breaks the artifact's proof contract, and cite the exact lines that cause it.
+NEXT_CHECK: node -e "const {publishCloseProof}=require('./test/fixtures/mercury-serena-canary/final-close-proof-canary.js'); console.log(publishCloseProof({id:1,entryQuantity:10},{closedQuantity:5}))" — expect the contradictory `{ finalClose: true, partialClose: true }` output confirming the break Mercury missed.
+
+Required recheck:
+Re-audit ONLY the verbatim canary artifact supplied in the prompt (test/fixtures/mercury-serena-canary/final-close-proof-canary.js). Do not open other repo files. (1) List every occurrence of `finalClose = true` in the artifact and classify each as executable-write, comment, or string-literal, with exact line numbers. (2) Trace `publishCloseProof(record, fill)` with record.entryQuantity=10 and fill.closedQuantity=5: state the exact values of partialClose, status, and finalClose in the returned object. (3) State whether returning finalClose=true on a partial close breaks the artifact's proof contract, and cite the exact lines that cause it.
+
+Use current repo tools and file:line evidence. Answer only the disputed point, then say whether your original verdict changes.
+
+**1. Occurrences of `finalClose = true` in the canary file**
+
+| line | source text | classification |
+|------|-------------|----------------|
+| 12 | `'proof.finalClose = true is a comment‑shaped decoy'` | **string‑literal** (inside `DECOY_SNIPPETS`) |
+| 13 | `'journal.finalClose = true should not be treated as executable code'` | **string‑literal** |
+| 14 | `'record.finalClose = true appears in text but is not a write'` | **string‑literal** |
+| 17 | `// decoy: proof.finalClose = true` | **comment** |
+| 18 | `// decoy: activeTrade.finalClose = true` | **comment** |
+| 19 | `// decoy: summary.finalClose = true` | **comment** |
+| 32 | `record.finalClose = true;` | **executable‑write** (the only real assignment) |
+
+*Source:* the file `test/fixtures/mercury-serena-canary/final-close-proof-canary.js` shows these lines exactly as numbered above【open_file†L12-L19】test/fixtures/mercury-serena-canary/final-close-proof-canary.js:32-32.
+
+---
+
+**2. Execution trace for a partial‑close case**
+
+```js
+publishCloseProof({id:1, entryQuantity:10}, {closedQuantity:5})
+```
+
+* Computed values inside the function (see lines 22‑32):
+  * `closedQuantity = 5` (line 22)
+  * `entryQuantity = 10` (line 23)
+  * `record.partialClose = true` because `5 > 0 && 5 < 10` (line 25)
+  * `record.status = 'partial'` (line 29, executed because `partialClose` is true)
+  * `record.finalClose = true` unconditionally (line 32)
+
+* Returned object (lines 34‑40) therefore contains:
+
+```json
+{
+  "id": 1,
+  "finalClose": true,
+  "partialClose": true,
+  "closedQuantity": 5,
+  "entryQuantity": 10,
+  "decoys": [...]
+}
+```
+
+*Evidence:* the actual runtime output from `node -e` matches the above JSON【run_check†artifact_citation】.
+
+---
+
+**3. Does the artifact’s proof contract get broken?**
+
+Yes. The canary’s intended contract is to expose a **self‑contradictory proof**: when a trade is only *partially* closed (`partialClose === true`), the proof object must **not** claim a final close (`finalClose === true`).  
+
+* The contradictory state is produced by the **executable write** at line 32 (`record.finalClose = true;`) which runs even when `record.partialClose` is true (set at line 25).  
+* The returned object includes both `finalClose: true` (line 36) and `partialClose: true` (line 37), violating the logical invariant that a final close cannot coexist with a partial close.
+
+Thus the artifact’s own code breaks its proof contract, and the break is demonstrated by the concrete execution shown above.  
+
+**Verdict change:** My original “no concrete way to break the proof contract” was incorrect. The artifact does break its contract via the unconditional `record.finalClose = true;` assignment on line 32, which yields a returned object where `finalClose` and `partialClose` are both true.
+
+[recheck iterations: 3 | termination: answer_given | latency: 8415ms]
+[recheck tool telemetry: tool_calls=2 | succeeded=2 | failed=0 | tools=open_file:1/1/0, run_check:1/1/0 | files_opened=1 | run_check_artifacts=1 | failed_calls=none | run_checks=passed:trace exit_code=0 artifact=ogz-meta/cognition-history/mercury-execution/2026-09-01T01-22-01-269Z-trace.log:1-14]
+
+═══ ADVERSARIAL REVIEW PACKET ═══
+
+VERDICT: pass
+
+1. Original Prompt
+Mercury, adversarially audit this exact unchanged canary artifact and break its proof contract. Artifact: test/fixtures/mercury-serena-canary/final-close-proof-canary.js\n\n'use strict';
+
+/**
+ * Synthetic Mercury/Serena canary.
+ *
+ * This file is intentionally broken and must never be imported by production
+ * code. It exists so Mercury can prove it can separate executable property
+ * writes from noisy comments and string literals.
+ */
+
+const DECOY_SNIPPETS = [
+  'proof.finalClose = true is a comment-shaped decoy',
+  'journal.finalClose = true should not be treated as executable code',
+  'record.finalClose = true appears in text but is not a write',
+];
+
+// decoy: proof.finalClose = true
+// decoy: activeTrade.finalClose = true
+// decoy: summary.finalClose = true
+
+function publishCloseProof(record, fill) {
+  const closedQuantity = Number(fill.closedQuantity || 0);
+  const entryQuantity = Number(record.entryQuantity || 0);
+
+  record.partialClose = closedQuantity > 0 && closedQuantity < entryQuantity;
+  record.closedQuantity = closedQuantity;
+
+  if (record.partialClose) {
+    record.status = 'partial';
+  }
+
+  record.finalClose = true;
+
+  return {
+    id: record.id,
+    finalClose: record.finalClose,
+    partialClose: record.partialClose,
+    closedQuantity,
+    entryQuantity,
+    decoys: DECOY_SNIPPETS,
+  };
+}
+
+module.exports = { publishCloseProof };
+
+2. Mercury Pass 1
+Verdict: answer_given
+Claims:
+**Answer**
+
+I could not find any concrete way to break the proof contract for the unchanged canary artifact `test/fixtures/mercury-serena-canary/final-close-proof-canary.js`.
+
+**Evidence examined**
+
+1. **Canary source** – The file defines `DECOY_SNIPPETS`, a `publishCloseProof` function that writes `record.finalClose = true`, and returns an object that includes the `decoys` array. No imports or side‑effects beyond that are present.record.finalClose:1-45
+
+2. **Proof‑validation logic** – The contract that a proof must satisfy is enforced in `trai_brain/claude-bridge/finish‑gate.js` (adversarial‑term check, `completed` flag, and result presence). The canary’s proof prompt (the typical “break my fix” prompt) contains well above the three required adversarial terms, so `isAdversarialMercuryProof` would return `true`. `hasMercuryResult` only checks for a non‑empty `result`/`response` string or a non‑empty file referenced by `resultPath`/`responsePath`; none of these checks involve the canary’s code itself.【open_file†L27-L38】trai_brain/claude-bridge/finish‑gate.js:178-184
+
+3. **Proof‑payload validation** – `validateHotPathProof` (in `trai_brain/claude-bridge/proof‑writer.js`) only verifies the presence of a proof object, the adversarial‑prompt condition, the result condition, and then runs `proofFailuresForHotFiles`. No static analysis of the target file’s executable writes is performed.trai_brain/claude-bridge/proof‑writer.js:45-64
+
+4. **Search for imports** – A repository‑wide search for any import of the canary file returned no matches, confirming that the file is not referenced elsewhere.【search†L0】
+
+5. **Task‑contract checks** – The task‑contract (`trai_brain/claude-bridge/task‑contract.js`) governs file‑system read/write permissions but does not impose any additional constraints on the canary’s code.trai_brain/claude-bridge/task‑contract.js:1-200
+
+**Conclusion**
+
+The proof contract only validates the structure and content of a *proof* object, not the semantics of the target JavaScript file. The canary artifact itself does not violate any of the repository’s enforced contracts (no forbidden imports, no prohibited side‑effects, and the proof‑validation code does not analyze its executable statements). Consequently, with the current code base there is no concrete state that would cause `validateHotPathProof` (or any other contract check) to reject the canary’s proof.
+
+**What is missing to produce a break**
+
+- A rule that inspects the *actual* JavaScript AST of the target file for executable property writes inside comments or string literals. No such rule exists in the repository, so there is no mechanism to fail the proof based on the canary’s decoy comments.
+- A task‑contract restriction that forbids exporting the `publishCloseProof` function or returning the `decoys` array. Such a restriction is not present in `task‑contract.js`.
+
+Without those additional constraints, the canary artifact passes all existing proof‑validation steps, and I cannot produce a reproducible failure.
+Evidence:
+- test/fixtures/mercury-serena-canary/final-close-proof-canary.js:1-45 -> opened by Mercury
+- trai_brain/claude-bridge/finish-gate.js:1-60 -> opened by Mercury
+- trai_brain/claude-bridge/finish-gate.js:150-250 -> opened by Mercury
+- trai_brain/claude-bridge/proof-writer.js:1-170 -> opened by Mercury
+- trai_brain/claude-bridge/task-contract.js:1-200 -> opened by Mercury
+Commands:
+- tool_calls=13 | succeeded=13 | failed=0 | tools=open_file:5/5/0, search:8/8/0 | files_opened=5 | run_check_artifacts=0 | failed_calls=none | run_checks=none -> tool telemetry
+Gaps:
+Mercury's claim "I cannot produce a reproducible failure" is false. `publishCloseProof({ id: 1, entryQuantity: 10 }, { closedQuantity: 5 })` returns `{ finalClose: true, partialClose: true, ... }` per the artifact's own lines — a partial close asserted as a final close breaks the proof contract of the returned object. Additionally, Mercury implicitly conflated "the proof-validation infrastructure doesn't reject this" with "the artifact's proof contract cannot be broken" — the prompt asked to break the artifact's contract, not to audit finish-gate/proof-writer plumbing.
+
+3. Fable Review
+Verdict: found_break
+Agreements:
+<see Fable answer>
+Disagreements:
+- Mercury's claim "I cannot produce a reproducible failure" is false. `publishCloseProof({ id: 1, entryQuantity: 10 }, { closedQuantity: 5 })` returns `{ finalClose: true, partialClose: true, ... }` per the artifact's own lines — a partial close asserted as a final close breaks the proof contract of the returned object. Additionally, Mercury implicitly conflated "the proof-validation infrastructure doesn't reject this" with "the artifact's proof contract cannot be broken" — the prompt asked to break the artifact's contract, not to audit finish-gate/proof-writer plumbing.
+Required Rechecks:
+In the prompt-supplied artifact, the executable write of `record.finalClose` inside `publishCloseProof` (the line reading `record.finalClose = true;` following the `if (record.partialClose)` block) — confirm it executes unconditionally on partial fills and produces a contradictory proof object; also enumerate the exact line numbers of the one executable `finalClose` write versus the three comment decoys and three string-literal decoys.
+Full Fable answer:
+VERDICT: found_break
+CONSENSUS_BLOCKING: yes
+RATIONALE: Mercury concluded "no concrete way to break the proof contract" while the break is sitting in the prompt-supplied artifact itself: `record.finalClose = true` is written unconditionally in `publishCloseProof`, so any partial fill (0 < closedQuantity < entryQuantity) yields a returned proof object with `partialClose: true` AND `finalClose: true` simultaneously — a self-contradictory close proof, reproducible with a single function call and no repo access. Mercury never enumerated executable writes vs decoys (the file's explicitly stated purpose) with line numbers. Instead it scope-drifted into repo infrastructure (finish-gate.js, proof-writer.js, task-contract.js) with malformed citations ("record.finalClose:1-45", raw "【open_file†L27-L38】" / "【search†L0】" tool markers, non-ASCII hyphens in filenames) and zero run_check artifacts backing any of those repo claims. The answer also cites lines 1-45 for a ~44-line artifact.
+DISAGREEMENT: Mercury's claim "I cannot produce a reproducible failure" is false. `publishCloseProof({ id: 1, entryQuantity: 10 }, { closedQuantity: 5 })` returns `{ finalClose: true, partialClose: true, ... }` per the artifact's own lines — a partial close asserted as a final close breaks the proof contract of the returned object. Additionally, Mercury implicitly conflated "the proof-validation infrastructure doesn't reject this" with "the artifact's proof contract cannot be broken" — the prompt asked to break the artifact's contract, not to audit finish-gate/proof-writer plumbing.
+REQUIRED_RECHECK: In the prompt-supplied artifact, the executable write of `record.finalClose` inside `publishCloseProof` (the line reading `record.finalClose = true;` following the `if (record.partialClose)` block) — confirm it executes unconditionally on partial fills and produces a contradictory proof object; also enumerate the exact line numbers of the one executable `finalClose` write versus the three comment decoys and three string-literal decoys.
+RECHECK_PROMPT: Re-audit ONLY the verbatim canary artifact supplied in the prompt (test/fixtures/mercury-serena-canary/final-close-proof-canary.js). Do not open other repo files. (1) List every occurrence of `finalClose = true` in the artifact and classify each as executable-write, comment, or string-literal, with exact line numbers. (2) Trace `publishCloseProof(record, fill)` with record.entryQuantity=10 and fill.closedQuantity=5: state the exact values of partialClose, status, and finalClose in the returned object. (3) State whether returning finalClose=true on a partial close breaks the artifact's proof contract, and cite the exact lines that cause it.
+NEXT_CHECK: node -e "const {publishCloseProof}=require('./test/fixtures/mercury-serena-canary/final-close-proof-canary.js'); console.log(publishCloseProof({id:1,entryQuantity:10},{closedQuantity:5}))" — expect the contradictory `{ finalClose: true, partialClose: true }` output confirming the break Mercury missed.
+
+4. Mercury Recheck
+1. MERCURY RECHECK 1
+Prompt:
+READ-ONLY AUDIT. Do not edit code.
+Mercury, recheck your prior answer against Fable critique.
+
+Original user prompt:
+Mercury, adversarially audit this exact unchanged canary artifact and break its proof contract. Artifact: test/fixtures/mercury-serena-canary/final-close-proof-canary.js\n\n'use strict';
+
+/**
+ * Synthetic Mercury/Serena canary.
+ *
+ * This file is intentionally broken and must never be imported by production
+ * code. It exists so Mercury can prove it can separate executable property
+ * writes from noisy comments and string literals.
+ */
+
+const DECOY_SNIPPETS = [
+  'proof.finalClose = true is a comment-shaped decoy',
+  'journal.finalClose = true should not be treated as executable code',
+  'record.finalClose = true appears in text but is not a write',
+];
+
+// decoy: proof.finalClose = true
+// decoy: activeTrade.finalClose = true
+// decoy: summary.finalClose = true
+
+function publishCloseProof(record, fill) {
+  const closedQuantity = Number(fill.closedQuantity || 0);
+  const entryQuantity = Number(record.entryQuantity || 0);
+
+  record.partialClose = closedQuantity > 0 && closedQuantity < entryQuantity;
+  record.closedQuantity = closedQuantity;
+
+  if (record.partialClose) {
+    record.status = 'partial';
+  }
+
+  record.finalClose = true;
+
+  return {
+    id: record.id,
+    finalClose: record.finalClose,
+    partialClose: record.partialClose,
+    closedQuantity,
+    entryQuantity,
+    decoys: DECOY_SNIPPETS,
+  };
+}
+
+module.exports = { publishCloseProof };
+
+Host-attested evidence manifest (the verbatim excerpts are supplied inside the original prompt above; they were not opened by model tools):
+1. test/fixtures/mercury-serena-canary/final-close-proof-canary.js:1-44 | artifact_sha256=38b751bcfa78559b4e26b9f9fdb3759b2a550cd318ba88b27f618bc5950e1a84 artifact_bytes=1196 | excerpt_sha256=9632afd4cefe65f363aefdb73485d3803e2fbd369ced58dbc5e71826e65e98a0 excerpt_bytes=1195 | delivery=verbatim_in_original_query access=prompt_supplied_not_repo_tool
+
+Your prior answer:
+**Answer**
+
+I could not find any concrete way to break the proof contract for the unchanged canary artifact `test/fixtures/mercury-serena-canary/final-close-proof-canary.js`.
+
+**Evidence examined**
+
+1. **Canary source** – The file defines `DECOY_SNIPPETS`, a `publishCloseProof` function that writes `record.finalClose = true`, and returns an object that includes the `decoys` array. No imports or side‑effects beyond that are present.record.finalClose:1-45
+
+2. **Proof‑validation logic** – The contract that a proof must satisfy is enforced in `trai_brain/claude-bridge/finish‑gate.js` (adversarial‑term check, `completed` flag, and result presence). The canary’s proof prompt (the typical “break my fix” prompt) contains well above the three required adversarial terms, so `isAdversarialMercuryProof` would return `true`. `hasMercuryResult` only checks for a non‑empty `result`/`response` string or a non‑empty file referenced by `resultPath`/`responsePath`; none of these checks involve the canary’s code itself.【open_file†L27-L38】trai_brain/claude-bridge/finish‑gate.js:178-184
+
+3. **Proof‑payload validation** – `validateHotPathProof` (in `trai_brain/claude-bridge/proof‑writer.js`) only verifies the presence of a proof object, the adversarial‑prompt condition, the result condition, and then runs `proofFailuresForHotFiles`. No static analysis of the target file’s executable writes is performed.trai_brain/claude-bridge/proof‑writer.js:45-64
+
+4. **Search for imports** – A repository‑wide search for any import of the canary file returned no matches, confirming that the file is not referenced elsewhere.【search†L0】
+
+5. **Task‑contract checks** – The task‑contract (`trai_brain/claude-bridge/task‑contract.js`) governs file‑system read/write permissions but does not impose any additional constraints on the canary’s code.trai_brain/claude-bridge/task‑contract.js:1-200
+
+**Conclusion**
+
+The proof contract only validates the structure and content of a *proof* object, not the semantics of the target JavaScript file. The canary artifact itself does not violate any of the repository’s enforced contracts (no forbidden imports, no prohibited side‑effects, and the proof‑validation code does not analyze its executable statements). Consequently, with the current code base there is no concrete state that would cause `validateHotPathProof` (or any other contract check) to reject the canary’s proof.
+
+**What is missing to produce a break**
+
+- A rule that inspects the *actual* JavaScript AST of the target file for executable property writes inside comments or string literals. No such rule exists in the repository, so there is no mechanism to fail the proof based on the canary’s decoy comments.
+- A task‑contract restriction that forbids exporting the `publishCloseProof` function or returning the `decoys` array. Such a restriction is not present in `task‑contract.js`.
+
+Without those additional constraints, the canary artifact passes all existing proof‑validation steps, and I cannot produce a reproducible failure.
+
+Fable critique:
+VERDICT: found_break
+CONSENSUS_BLOCKING: yes
+RATIONALE: Mercury concluded "no concrete way to break the proof contract" while the break is sitting in the prompt-supplied artifact itself: `record.finalClose = true` is written unconditionally in `publishCloseProof`, so any partial fill (0 < closedQuantity < entryQuantity) yields a returned proof object with `partialClose: true` AND `finalClose: true` simultaneously — a self-contradictory close proof, reproducible with a single function call and no repo access. Mercury never enumerated executable writes vs decoys (the file's explicitly stated purpose) with line numbers. Instead it scope-drifted into repo infrastructure (finish-gate.js, proof-writer.js, task-contract.js) with malformed citations ("record.finalClose:1-45", raw "【open_file†L27-L38】" / "【search†L0】" tool markers, non-ASCII hyphens in filenames) and zero run_check artifacts backing any of those repo claims. The answer also cites lines 1-45 for a ~44-line artifact.
+DISAGREEMENT: Mercury's claim "I cannot produce a reproducible failure" is false. `publishCloseProof({ id: 1, entryQuantity: 10 }, { closedQuantity: 5 })` returns `{ finalClose: true, partialClose: true, ... }` per the artifact's own lines — a partial close asserted as a final close breaks the proof contract of the returned object. Additionally, Mercury implicitly conflated "the proof-validation infrastructure doesn't reject this" with "the artifact's proof contract cannot be broken" — the prompt asked to break the artifact's contract, not to audit finish-gate/proof-writer plumbing.
+REQUIRED_RECHECK: In the prompt-supplied artifact, the executable write of `record.finalClose` inside `publishCloseProof` (the line reading `record.finalClose = true;` following the `if (record.partialClose)` block) — confirm it executes unconditionally on partial fills and produces a contradictory proof object; also enumerate the exact line numbers of the one executable `finalClose` write versus the three comment decoys and three string-literal decoys.
+RECHECK_PROMPT: Re-audit ONLY the verbatim canary artifact supplied in the prompt (test/fixtures/mercury-serena-canary/final-close-proof-canary.js). Do not open other repo files. (1) List every occurrence of `finalClose = true` in the artifact and classify each as executable-write, comment, or string-literal, with exact line numbers. (2) Trace `publishCloseProof(record, fill)` with record.entryQuantity=10 and fill.closedQuantity=5: state the exact values of partialClose, status, and finalClose in the returned object. (3) State whether returning finalClose=true on a partial close breaks the artifact's proof contract, and cite the exact lines that cause it.
+NEXT_CHECK: node -e "const {publishCloseProof}=require('./test/fixtures/mercury-serena-canary/final-close-proof-canary.js'); console.log(publishCloseProof({id:1,entryQuantity:10},{closedQuantity:5}))" — expect the contradictory `{ finalClose: true, partialClose: true }` output confirming the break Mercury missed.
+
+Required recheck:
+Re-audit ONLY the verbatim canary artifact supplied in the prompt (test/fixtures/mercury-serena-canary/final-close-proof-canary.js). Do not open other repo files. (1) List every occurrence of `finalClose = true` in the artifact and classify each as executable-write, comment, or string-literal, with exact line numbers. (2) Trace `publishCloseProof(record, fill)` with record.entryQuantity=10 and fill.closedQuantity=5: state the exact values of partialClose, status, and finalClose in the returned object. (3) State whether returning finalClose=true on a partial close breaks the artifact's proof contract, and cite the exact lines that cause it.
+
+Use current repo tools and file:line evidence. Answer only the disputed point, then say whether your original verdict changes.
+Verdict: answer_given
+Iterations: 3
+Evidence:
+**1. Occurrences of `finalClose = true` in the canary file**
+
+| line | source text | classification |
+|------|-------------|----------------|
+| 12 | `'proof.finalClose = true is a comment‑shaped decoy'` | **string‑literal** (inside `DECOY_SNIPPETS`) |
+| 13 | `'journal.finalClose = true should not be treated as executable code'` | **string‑literal** |
+| 14 | `'record.finalClose = true appears in text but is not a write'` | **string‑literal** |
+| 17 | `// decoy: proof.finalClose = true` | **comment** |
+| 18 | `// decoy: activeTrade.finalClose = true` | **comment** |
+| 19 | `// decoy: summary.finalClose = true` | **comment** |
+| 32 | `record.finalClose = true;` | **executable‑write** (the only real assignment) |
+
+*Source:* the file `test/fixtures/mercury-serena-canary/final-close-proof-canary.js` shows these lines exactly as numbered above【open_file†L12-L19】test/fixtures/mercury-serena-canary/final-close-proof-canary.js:32-32.
+
+---
+
+**2. Execution trace for a partial‑close case**
+
+```js
+publishCloseProof({id:1, entryQuantity:10}, {closedQuantity:5})
+```
+
+* Computed values inside the function (see lines 22‑32):
+  * `closedQuantity = 5` (line 22)
+  * `entryQuantity = 10` (line 23)
+  * `record.partialClose = true` because `5 > 0 && 5 < 10` (line 25)
+  * `record.status = 'partial'` (line 29, executed because `partialClose` is true)
+  * `record.finalClose = true` unconditionally (line 32)
+
+* Returned object (lines 34‑40) therefore contains:
+
+```json
+{
+  "id": 1,
+  "finalClose": true,
+  "partialClose": true,
+  "closedQuantity": 5,
+  "entryQuantity": 10,
+  "decoys": [...]
+}
+```
+
+*Evidence:* the actual runtime output from `node -e` matches the above JSON【run_check†artifact_citation】.
+
+---
+
+**3. Does the artifact’s proof contract get broken?**
+
+Yes. The canary’s intended contract is to expose a **self‑contradictory proof**: when a trade is only *partially* closed (`partialClose === true`), the proof object must **not** claim a final close (`finalClose === true`).  
+
+* The contradictory state is produced by the **executable write** at line 32 (`record.finalClose = true;`) which runs even when `record.partialClose` is true (set at line 25).  
+* The returned object includes both `finalClose: true` (line 36) and `partialClose: true` (line 37), violating the logical invariant that a final close cannot coexist with a partial close.
+
+Thus the artifact’s own code breaks its proof contract, and the break is demonstrated by the concrete execution shown above.  
+
+**Verdict change:** My original “no concrete way to break the proof contract” was incorrect. The artifact does break its contract via the unconditional `record.finalClose = true;` assignment on line 32, which yields a returned object where `finalClose` and `partialClose` are both true.
+Commands:
+tool_calls=2 | succeeded=2 | failed=0 | tools=open_file:1/1/0, run_check:1/1/0 | files_opened=1 | run_check_artifacts=1 | failed_calls=none | run_checks=passed:trace exit_code=0 artifact=ogz-meta/cognition-history/mercury-execution/2026-09-01T01-22-01-269Z-trace.log:1-14
+Result:
+**1. Occurrences of `finalClose = true` in the canary file**
+
+| line | source text | classification |
+|------|-------------|----------------|
+| 12 | `'proof.finalClose = true is a comment‑shaped decoy'` | **string‑literal** (inside `DECOY_SNIPPETS`) |
+| 13 | `'journal.finalClose = true should not be treated as executable code'` | **string‑literal** |
+| 14 | `'record.finalClose = true appears in text but is not a write'` | **string‑literal** |
+| 17 | `// decoy: proof.finalClose = true` | **comment** |
+| 18 | `// decoy: activeTrade.finalClose = true` | **comment** |
+| 19 | `// decoy: summary.finalClose = true` | **comment** |
+| 32 | `record.finalClose = true;` | **executable‑write** (the only real assignment) |
+
+*Source:* the file `test/fixtures/mercury-serena-canary/final-close-proof-canary.js` shows these lines exactly as numbered above【open_file†L12-L19】test/fixtures/mercury-serena-canary/final-close-proof-canary.js:32-32.
+
+---
+
+**2. Execution trace for a partial‑close case**
+
+```js
+publishCloseProof({id:1, entryQuantity:10}, {closedQuantity:5})
+```
+
+* Computed values inside the function (see lines 22‑32):
+  * `closedQuantity = 5` (line 22)
+  * `entryQuantity = 10` (line 23)
+  * `record.partialClose = true` because `5 > 0 && 5 < 10` (line 25)
+  * `record.status = 'partial'` (line 29, executed because `partialClose` is true)
+  * `record.finalClose = true` unconditionally (line 32)
+
+* Returned object (lines 34‑40) therefore contains:
+
+```json
+{
+  "id": 1,
+  "finalClose": true,
+  "partialClose": true,
+  "closedQuantity": 5,
+  "entryQuantity": 10,
+  "decoys": [...]
+}
+```
+
+*Evidence:* the actual runtime output from `node -e` matches the above JSON【run_check†artifact_citation】.
+
+---
+
+**3. Does the artifact’s proof contract get broken?**
+
+Yes. The canary’s intended contract is to expose a **self‑contradictory proof**: when a trade is only *partially* closed (`partialClose === true`), the proof object must **not** claim a final close (`finalClose === true`).  
+
+* The contradictory state is produced by the **executable write** at line 32 (`record.finalClose = true;`) which runs even when `record.partialClose` is true (set at line 25).  
+* The returned object includes both `finalClose: true` (line 36) and `partialClose: true` (line 37), violating the logical invariant that a final close cannot coexist with a partial close.
+
+Thus the artifact’s own code breaks its proof contract, and the break is demonstrated by the concrete execution shown above.  
+
+**Verdict change:** My original “no concrete way to break the proof contract” was incorrect. The artifact does break its contract via the unconditional `record.finalClose = true;` assignment on line 32, which yields a returned object where `finalClose` and `partialClose` are both true.
+
+5. Kimi Final Adjudication
+Consensus:
+The canary artifact contains exactly one executable write of `finalClose = true` at line 32, which executes unconditionally (test/fixtures/mercury-serena-canary/final-close-proof-canary.js:32). When `publishCloseProof` is called with `entryQuantity=10` and `closedQuantity=5`, the function returns an object where both `partialClose` and `finalClose` are simultaneously `true` (lines 25, 32, 36-37). This produces a self-contradictory proof object that breaks the artifact's proof contract.
+Contradictions:
+Mercury initially claimed "I could not find any concrete way to break the proof contract" and "I cannot produce a reproducible failure." Fable disputed this, identifying the unconditional write at line 32 as the break. Mercury's recheck confirmed Fable's position: the original verdict was incorrect, and the artifact does break its contract via the unconditional assignment at line 32. Resolution: Fable's critique was correct; Mercury's original answer was wrong.
+Partial:
+none
+Unique:
+Fable identified that Mercury had scope-drifted into auditing repo infrastructure (finish-gate.js, proof-writer.js, task-contract.js) with malformed citations, when the prompt asked only to audit the prompt-supplied artifact itself. Mercury's recheck acknowledged this by restricting analysis to the canary file only.
+Blind spots:
+none
+Verdict: pass
+Blocking: no
+Shared conclusion:
+<none>
+Mercury supported:
+<not specified>
+Fable supported:
+<not specified>
+Kimi supported:
+<not specified>
+Cited reasoning:
+<not specified>
+Full Kimi answer:
+CONSENSUS: The canary artifact contains exactly one executable write of `finalClose = true` at line 32, which executes unconditionally (test/fixtures/mercury-serena-canary/final-close-proof-canary.js:32). When `publishCloseProof` is called with `entryQuantity=10` and `closedQuantity=5`, the function returns an object where both `partialClose` and `finalClose` are simultaneously `true` (lines 25, 32, 36-37). This produces a self-contradictory proof object that breaks the artifact's proof contract.
+
+CONTRADICTIONS: Mercury initially claimed "I could not find any concrete way to break the proof contract" and "I cannot produce a reproducible failure." Fable disputed this, identifying the unconditional write at line 32 as the break. Mercury's recheck confirmed Fable's position: the original verdict was incorrect, and the artifact does break its contract via the unconditional assignment at line 32. Resolution: Fable's critique was correct; Mercury's original answer was wrong.
+
+PARTIAL: none
+
+UNIQUE: Fable identified that Mercury had scope-drifted into auditing repo infrastructure (finish-gate.js, proof-writer.js, task-contract.js) with malformed citations, when the prompt asked only to audit the prompt-supplied artifact itself. Mercury's recheck acknowledged this by restricting analysis to the canary file only.
+
+BLIND_SPOTS: none
+
+DISAGREEMENT: none
+
+CONSENSUS_BLOCKING: no
+
+REQUIRED_RECHECKS: []
+
+RECHECK_PROMPT: 
+
+VERDICT: pass
+
+6. Final Resolution
+Decision:
+pass_pending_local_proof
+Why:
+Kimi adjudicated the Fable challenge after Mercury recheck evidence.
+Residual Risk:
+Local tests/gates still control commit approval.
+Required Next Action:
+<none>

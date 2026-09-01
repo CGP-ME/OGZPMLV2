@@ -1119,6 +1119,7 @@ describe('Mercury index scope hygiene', () => {
         'ogz-meta/ledger/stale.js',
         'README.md',
       ],
+      currentDiffFn: () => '',
     });
 
     expect(result.source).toBe('current_changes');
@@ -1132,18 +1133,20 @@ describe('Mercury index scope hygiene', () => {
     expect(result.text).toContain('## core/EvalRuleEngine.js');
     expect(result.text).toContain('## Blast Radius — core/EvalRuleEngine.js');
     expect(result.text).toContain('run-empire-v2.js');
-    expect(result.text).not.toContain('ogz-meta/ledger/stale.js');
+    expect(result.text).toContain('- ogz-meta/ledger/stale.js');
+    expect(result.text).not.toContain('## ogz-meta/ledger/stale.js');
   });
 
   test('plain Mercury CLI reports Serena failures without aborting the review', async () => {
     const result = await buildCurrentChangeBlastRadius({
       changedFiles: ['core/EvalRuleEngine.js'],
+      currentDiffFn: () => '',
       getBlastRadiusFn: async () => {
         throw new Error('Serena timeout (5000ms)');
       },
     });
 
-    expect(result.text).toBeNull();
+    expect(result.text).toContain('Changed files: 1');
     expect(result.meta).toEqual([]);
     expect(result.errors).toEqual([
       {
@@ -1173,12 +1176,13 @@ describe('Mercury index scope hygiene', () => {
   test('plain Mercury CLI reports malformed Serena radius output without aborting the review', async () => {
     const result = await buildCurrentChangeBlastRadius({
       changedFiles: ['core/EvalRuleEngine.js'],
+      currentDiffFn: () => '',
       getBlastRadiusFn: async () => ({
         file: 'core/EvalRuleEngine.js',
       }),
     });
 
-    expect(result.text).toBeNull();
+    expect(result.text).toContain('Changed files: 1');
     expect(result.meta).toEqual([]);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0].file).toBe('core/EvalRuleEngine.js');

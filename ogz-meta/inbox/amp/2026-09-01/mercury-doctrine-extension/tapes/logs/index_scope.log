@@ -1,0 +1,101 @@
+FAIL test/mercury-index-scope.test.js
+  Mercury index scope hygiene
+    ✓ skip configuration excludes non-canonical intake and history directories (10 ms)
+    ✓ mercury.ignore rejects ambiguous non-directory entries (43 ms)
+    ✓ mercury.ignore entries apply by exact directory name anywhere under repo root (1 ms)
+    ✕ walkRepo indexes source and canonical specs, not stale intake/history artifacts (9 ms)
+    ✕ index metadata stamps git freshness and explicit ogz-meta eligibility (50 ms)
+    ✓ packBatches respects token budget before configured chunk count (2 ms)
+    ✓ embedBatchWithRetry retries one 5xx failure against the same embed function (5 ms)
+    ✓ embedBatchWithRetry does not retry non-5xx provider failures (8 ms)
+    ✓ grep tool excludes stale intake/history artifacts with ripgrep (21 ms)
+    ✓ search alias uses grep semantics without bypassing ignored paths (13 ms)
+    ✓ broad search streams to the requested global cap instead of buffering all matches (17 ms)
+    ✓ grep file_pattern cannot re-include ignored intake/history artifacts (13 ms)
+    ✓ find_definition returns likely definitions with uncertainty metadata (22 ms)
+    ✓ find_references returns likely usages without bypassing ignored paths (13 ms)
+    ✓ rule_scan runs codified rules without bypassing ignored paths (15 ms)
+    ✓ literal grep accepts regex-looking proof query [^\x00-\x7F] as fixed text (14 ms)
+    ✓ literal grep accepts regex-looking proof query \p{Extended_Pictographic} as fixed text (14 ms)
+    ✓ literal grep accepts regex-looking proof query \u{1F600} as fixed text (16 ms)
+    ✓ literal grep accepts regex-looking proof query \d+ as fixed text (13 ms)
+    ✓ regex_grep supports regex proof queries with the shared skip policy (15 ms)
+    ✓ regex_grep warns when assignment-writer regex can also match equality (26 ms)
+    ✓ grep tool does not delegate around the shared skip policy (13 ms)
+    ✓ open_file tool rejects ignored intake/history paths (2 ms)
+    ✓ list_files tool rejects and filters ignored intake/history paths (2 ms)
+    ✓ get_chunk tool rejects ignored indexed chunks and missing source metadata (2 ms)
+    ✓ git_show tool rejects ignored paths before git history reads (1 ms)
+    ✓ explicit file tools can read vetted cognition evidence without re-including ledger intake (33 ms)
+    ✓ git_diff exposes staged changes and filters ignored intake paths (26 ms)
+    ✓ git_diff exposes the latest committed fix for post-commit Mercury review (34 ms)
+    ✓ git_diff current target prefers staged changes over last commit (47 ms)
+    ✓ git_diff current path reads unstaged path changes when unrelated files are staged (55 ms)
+    ✓ git_diff current path reports no files when requested path has no changes (43 ms)
+    ✓ run_check executes proof commands in an isolated tracked snapshot (169 ms)
+    ✓ run_check snapshot preserves git ls-files visibility for git-aware tests (198 ms)
+    ✓ run_check allows node inline eval inside the isolated snapshot (171 ms)
+    ✓ run_check node inline eval cannot read host absolute paths (176 ms)
+    ✓ run_check prevents proof commands from mutating live repo code (157 ms)
+    ✓ run_check strips sensitive environment variables from child commands (170 ms)
+    ✓ run_check blocks ignored paths and live repo mutation commands (41 ms)
+    ✓ open_file honors line_start alias used by model tool calls (1 ms)
+    ✓ legacy ReadOnlyToolbox repo search excludes stale intake/history artifacts (14 ms)
+    ✓ legacy ReadOnlyToolbox repo search post-filters ignored search output (4 ms)
+    ✓ legacy ReadOnlyToolbox file open rejects ignored intake/history artifacts (1 ms)
+    ✓ TRAICore repo_search delegates through the filtered read-only toolbox (14 ms)
+    ✓ starter-context retrieval fails closed on ignored or sourceless active chunks (9 ms)
+    ✓ starter-context hydration fails closed when fetched chunk source is ignored (3 ms)
+    ✓ grep fails closed when ripgrep spawn fails (10 ms)
+    ✓ ripgrep skip args are generated from the same non-canonical directory list (1 ms)
+    ✓ Mercury tool access remains repo-wide inside mercury.ignore (13 ms)
+    ✓ Mercury exposes Serena blast-radius evidence as a normal read-only tool (174 ms)
+    ✓ plain Mercury CLI auto-blast-radius only considers current source files (3 ms)
+    ✓ plain Mercury CLI auto-blast-radius follows git_diff current semantics (1 ms)
+    ✓ plain Mercury CLI builds Serena blast-radius context from changed JS files (158 ms)
+    ✓ plain Mercury CLI reports Serena failures without aborting the review (2 ms)
+    ✓ plain Mercury CLI reports current-change discovery failures without aborting the review (1 ms)
+    ✓ plain Mercury CLI reports malformed Serena radius output without aborting the review (1 ms)
+    ✓ historical Mercury routing does not boost ignored ledger fix history (1 ms)
+    ✓ plain break-my-fix wording uses normal Mercury retrieval instead of a special cage (3 ms)
+    ✓ break-my-fix Mercury routing does not hijack mid-sentence phrase mentions (1 ms)
+
+  ● Mercury index scope hygiene › walkRepo indexes source and canonical specs, not stale intake/history artifacts
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      126 |     expect(indexed.has('ogz-meta/BACKTEST-OPS.md')).toBe(false);
+      127 |     expect(indexed.has('ogz-meta/specs/current-contract.md')).toBe(true);
+    > 128 |     expect(indexed.has('ogz-meta/Alignment/README.md')).toBe(true);
+          |                                                         ^
+      129 |
+      130 |     expect(indexed.has('ogz-meta/ledger/stale-audit.md')).toBe(false);
+      131 |     expect(indexed.has('ogz-meta/cognition-history/mercury/old-response.md')).toBe(false);
+
+      at Object.toBe (test/mercury-index-scope.test.js:128:57)
+
+  ● Mercury index scope hygiene › index metadata stamps git freshness and explicit ogz-meta eligibility
+
+    expect(received).toEqual(expected) // deep equality
+
+    Expected: ["ogz-meta/Alignment", "ogz-meta/specs"]
+    Received: undefined
+
+      158 |     });
+      159 |
+    > 160 |     expect(metadata.index_scope.ogz_meta_eligible_dirs).toEqual([
+          |                                                         ^
+      161 |       'ogz-meta/Alignment',
+      162 |       'ogz-meta/specs',
+      163 |     ]);
+
+      at Object.toEqual (test/mercury-index-scope.test.js:160:57)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 57 passed, 59 total
+Snapshots:   0 total
+Time:        2.684 s, estimated 4 s
+Ran all test suites matching test/mercury-index-scope.test.js.

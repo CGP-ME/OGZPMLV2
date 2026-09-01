@@ -1,0 +1,10 @@
+PASS test/mercury-doctrine-extension.test.js
+PASS test/mercury-run-ledger.test.js
+PASS test/mercury-consensus.test.js
+PASS test/mercury-react-loop.test.js
+
+Test Suites: 4 passed, 4 total
+Tests:       96 passed, 96 total
+Snapshots:   0 total
+Time:        1.678 s, estimated 2 s
+Ran all test suites matching test/mercury-doctrine-extension.test.js|test/mercury-react-loop.test.js|test/mercury-consensus.test.js|test/mercury-run-ledger.test.js.

@@ -9,6 +9,7 @@ const {
   createKimiTieBreakerClient,
 } = require('./llm-client');
 const { formatToolTelemetry } = require('./react-loop');
+const { MERCURY_DOCTRINE_PROMPT } = require('./doctrine-review');
 const {
   buildPromptProvenance,
   extractClaimedFileCitations,
@@ -204,6 +205,15 @@ function parseAdversarialReviewAnswer(answer) {
     fableSupported: extractField(text, 'FABLE_SUPPORTED'),
     kimiSupported: extractField(text, 'KIMI_SUPPORTED'),
     citedReasoning: extractField(text, 'CITED_REASONING') || extractField(text, 'RATIONALE'),
+    candidateSet: extractField(text, 'CANDIDATE SET'),
+    astEvidence: extractField(text, 'AST EVIDENCE'),
+    inherited: extractField(text, 'INHERITED'),
+    fourthShapeClassifier: extractField(text, 'FOURTH SHAPE CLASSIFIER'),
+    allegationClass: extractField(text, 'ALLEGATIONS'),
+    substantiveResolution: extractField(text, 'SUBSTANTIVE RESOLUTION'),
+    whatIExamined: extractField(text, 'WHAT I EXAMINED'),
+    didNotExamine: extractField(text, 'DID NOT EXAMINE'),
+    assumed: extractField(text, 'ASSUMED'),
   };
 }
 
@@ -272,6 +282,7 @@ function buildMercuryRecheckPrompt({
 
   return [
     'READ-ONLY AUDIT. Do not edit code.',
+    MERCURY_DOCTRINE_PROMPT,
     'Mercury, recheck your prior answer against Fable critique.',
     '',
     'Original user prompt:',
@@ -569,6 +580,7 @@ function buildAdversarialReviewPrompt({
   if (intent === 'architecture') {
     return [
       'READ-ONLY ARCHITECTURE REVIEW. Do not edit code.',
+      MERCURY_DOCTRINE_PROMPT,
       `Review ${priorLabel} as the prior evidence in an architecture synthesis, not as a commit gate.`,
       '',
       'Rules for this pass:',
@@ -605,6 +617,7 @@ function buildAdversarialReviewPrompt({
   if (intent === 'planning') {
     return [
       'READ-ONLY PLANNING REVIEW. Do not edit code.',
+      MERCURY_DOCTRINE_PROMPT,
       `Review ${priorLabel} as the prior evidence in an implementation planning pass, not as a commit gate.`,
       '',
       'Rules for this pass:',
@@ -638,6 +651,7 @@ function buildAdversarialReviewPrompt({
 
   return [
     'READ-ONLY AUDIT. Do not edit code.',
+    MERCURY_DOCTRINE_PROMPT,
     `Review ${priorLabel} as an adversarial reviewer, not a consensus collaborator.`,
     '',
     'Rules for this pass:',
@@ -658,6 +672,15 @@ function buildAdversarialReviewPrompt({
     'REQUIRED_RECHECK: <specific file:line/command/scenario, or none>',
     'RECHECK_PROMPT: <exact prompt to send Mercury next, or none>',
     'NEXT_CHECK: <operator/local proof still needed, or none>',
+    'CANDIDATE SET: examined N of M; enumerate candidates',
+    'AST EVIDENCE: <cited AST-capable evidence, or named absence>',
+    'INHERITED: <every touched file and inherited violations, unfixed>',
+    'FOURTH SHAPE CLASSIFIER: classified N of M; <classifications>',
+    'ALLEGATIONS: <MECHANICAL or SUBSTANTIVE; RECEIPT or TESTIMONY>',
+    'SUBSTANTIVE RESOLUTION: convergence | UNRESOLVED-FOR-TREY | none',
+    'WHAT I EXAMINED: <enumerated>',
+    'DID NOT EXAMINE: <enumerated>',
+    'ASSUMED: <enumerated>',
     '',
     `Original user prompt:\n${query.trim()}`,
     '',
@@ -712,6 +735,7 @@ function buildKimiFinalAdjudicationPrompt({
 
   return [
     'READ-ONLY FINAL ADJUDICATION. Do not edit code.',
+    MERCURY_DOCTRINE_PROMPT,
     'You are Kimi, the reasoning adjudicator for the OGZPrime adversarial layer.',
     '',
     `Your job is not to agree with ${priorLabel} or Fable. Compare the supplied answers before verdict and decide whether the end state is supported by cited evidence.`,
@@ -730,6 +754,15 @@ function buildKimiFinalAdjudicationPrompt({
     'CONSENSUS_BLOCKING: yes | no',
     'REQUIRED_RECHECKS: list, may be empty',
     'RECHECK_PROMPT: exact question for the recheck, or empty',
+    'CANDIDATE SET: examined N of M; enumerate candidates',
+    'AST EVIDENCE: cited evidence or named absence',
+    'INHERITED: every touched file and inherited violations, unfixed',
+    'FOURTH SHAPE CLASSIFIER: classified N of M; classifications',
+    'ALLEGATIONS: MECHANICAL or SUBSTANTIVE; RECEIPT or TESTIMONY',
+    'SUBSTANTIVE RESOLUTION: convergence | UNRESOLVED-FOR-TREY | none',
+    'WHAT I EXAMINED: enumerated evidence',
+    'DID NOT EXAMINE: enumerated absences',
+    'ASSUMED: enumerated assumptions',
     'VERDICT: pass | disagree | needs_more_evidence',
     '',
     'Rules: VERDICT: pass with non-empty CONTRADICTIONS contradicts the tape; resolve or route to recheck. BLIND_SPOTS must be recorded but does not block by itself. Never quote model confidence as evidence.',

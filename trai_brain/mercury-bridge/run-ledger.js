@@ -294,6 +294,9 @@ function classifyMercuryVerdict({ result = null, error = null, autoBlastRadius =
       && result.reviewerPanel.authority.ceiling === 'UNVERIFIED') {
     return 'unverified';
   }
+  if (result && result.doctrineReview && result.doctrineReview.authorityCeiling === 'UNVERIFIED') {
+    return 'unverified';
+  }
   if (collectReviewQuarantines(result).some(item => item && item.load_bearing === true)) {
     return 'unverified';
   }
@@ -358,6 +361,15 @@ function parsedReviewClassification(parsed) {
     'fableSupported',
     'kimiSupported',
     'citedReasoning',
+    'candidateSet',
+    'astEvidence',
+    'inherited',
+    'fourthShapeClassifier',
+    'allegationClass',
+    'substantiveResolution',
+    'whatIExamined',
+    'didNotExamine',
+    'assumed',
   ]) {
     if (Object.prototype.hasOwnProperty.call(parsed, key)) {
       clean[key] = parsed[key];
@@ -383,6 +395,7 @@ function buildFinalReviewLedgerSummary(finalReview) {
     stage_receipt: finalReview.stageReceipt || null,
     quarantines: Array.isArray(finalReview.quarantines) ? finalReview.quarantines : [],
     repo_adjudication: finalReview.repoAdjudication || { status: 'pending', authority: 'live_repo_required' },
+    doctrine_review: finalReview.doctrineReview || null,
     parsed,
     effective_verdict: parsed && parsed.verdict ? parsed.verdict : null,
     answer_excerpt: redactedAnswer
@@ -419,6 +432,7 @@ function buildReviewLedgerSummary(review, { effectiveVerdictOverride = null } = 
     error: review.error || null,
     identity_posture: review.identityPosture || null,
     quarantines,
+    doctrine_review: review.doctrineReview || null,
     parsed,
     effective_verdict: effectiveVerdict,
     raw_parsed_verdict: rawParsedVerdict,
@@ -535,6 +549,18 @@ function buildRunLedgerEntry({
       auto_blast_radius_errors: autoBlastRadius && Array.isArray(autoBlastRadius.errors)
         ? autoBlastRadius.errors
         : [],
+      changed_files: autoBlastRadius && Array.isArray(autoBlastRadius.changedFiles)
+        ? autoBlastRadius.changedFiles
+        : [],
+      changed_file_count: autoBlastRadius && Number.isInteger(autoBlastRadius.changedFileCount)
+        ? autoBlastRadius.changedFileCount
+        : 0,
+      reference_names: autoBlastRadius && Array.isArray(autoBlastRadius.referenceNames)
+        ? autoBlastRadius.referenceNames
+        : [],
+      reference_scans: autoBlastRadius && Array.isArray(autoBlastRadius.referenceScans)
+        ? autoBlastRadius.referenceScans
+        : [],
     },
     options: {
       retrievalMode: opts.retrievalMode || null,
@@ -547,6 +573,7 @@ function buildRunLedgerEntry({
     tools_invoked: compactToolStats(telemetry),
     tools_available: Array.isArray(result && result.toolsAvailable) ? result.toolsAvailable : [],
     files_opened: Array.isArray(telemetry.filesOpened) ? telemetry.filesOpened : [],
+    file_reads: Array.isArray(telemetry.fileReads) ? telemetry.fileReads : [],
     run_check_artifacts: Array.isArray(telemetry.runCheckArtifacts) ? telemetry.runCheckArtifacts : [],
     run_checks: Array.isArray(telemetry.runChecks) ? telemetry.runChecks : [],
     answer_quality: answerQualityFlags,
@@ -555,6 +582,7 @@ function buildRunLedgerEntry({
     adversarial_review: reviewSummary,
     consensus: reviewSummary,
     reviewer_panel: result && result.reviewerPanel ? result.reviewerPanel : null,
+    doctrine_review: result && result.doctrineReview ? result.doctrineReview : null,
     stages: {
       mercury: result ? {
         provider_attempts: Array.isArray(result.providerAttempts) ? result.providerAttempts : [],

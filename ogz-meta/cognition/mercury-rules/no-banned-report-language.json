@@ -1,0 +1,10 @@
+{
+  "name": "no-banned-report-language",
+  "mode": "regex",
+  "pattern": "\\bfirst time\\b|^(?!.*\\b\\d+\\s*(?:/|of)\\s*\\d+\\b).*\\b(?:about|approximately|roughly|estimated)?\\s*\\d+(?:\\.\\d+)?%|\\b(?:workaround|work-around)\\b|\\b\\d+\\s*(?:/|of)\\s*\\d+\\s+(?:tests?|checks?)\\b[^\\n]{0,80}\\b(?:proof|proves?|evidence)\\b",
+  "file_pattern": "**/*.{md,txt,json,jsonl,js}",
+  "prevents": "Reports must not use milestone laundering, uncounted percentages, announced workarounds, or test counts as proof.",
+  "source_incident": "ogz-meta/Alignment/TREY-DOCTRINE-FABLE-LANE.md",
+  "worked_example": "A report announces a workaround or cites a passing test count as proof instead of naming the receipt and counted coverage.",
+  "prune_condition": "Delete only if a structured report schema enforces every banned-language class before output persistence."
+}

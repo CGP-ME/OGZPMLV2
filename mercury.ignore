@@ -27,7 +27,9 @@ automation/
 gates/
 QuarantinedExpansionFiles/
 manifests/
-ledger/
+# Trey's pending per-file rulings exclude ogz-meta/ledger/** as a class.
+# The loader's directory contract represents that rooted glob as this path entry.
+ogz-meta/ledger/
 cognition-history/
 health-reports/
 sessions/
