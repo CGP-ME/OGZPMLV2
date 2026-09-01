@@ -65,18 +65,20 @@ const {
 const { runProviderPreflight } = require('./provider-preflight');
 const {
   REVIEWER_REGISTRY,
+  canAttachFinalReview,
+  effectiveIdentityFingerprint,
   ensureReviewerAnswer,
+  positiveEvidenceBasis,
   promptReviewerSelection,
   resolveReviewerSelection,
   runReviewerPanel,
+  structuredPanelVerdict,
 } = require('./reviewer-panel');
 const { retrieveSimilarTrace, formatTraceAsHint, captureTrace, markTraceUsed, evictStaleTraces, ensureTraceIndexes, getTraceStats } = require('./trace-memory');
 const {
-  autoBlastRadiusFailed,
   buildRunLedgerEntry,
   createRawRunId,
   redactSensitiveText,
-  resultHasToolFailure,
   writeRawProviderOutput,
   writeRunLedgerEntry,
 } = require('./run-ledger');
@@ -627,19 +629,6 @@ async function buildCurrentChangeBlastRadius({
   };
 }
 
-function panelVerdict(answer, parsed = null) {
-  if (parsed) {
-    const verdict = String(parsed.verdict || '').toLowerCase();
-    if (['pass', 'no_break_found'].includes(verdict) && parsed.blocking !== true) return 'pass';
-    if (['found_break', 'blocked'].includes(verdict)) return 'found_break';
-    return 'cannot_verify';
-  }
-  const text = String(answer || '').toLowerCase();
-  if (/\b(no concrete break|no break found|did not find|no reachable break)\b/.test(text)) return 'pass';
-  if (/\b(found_break|concrete break|reachable break|blocking defect)\b/.test(text)) return 'found_break';
-  return 'cannot_verify';
-}
-
 function reviewerAbsence(error) {
   const message = String(error && error.message || error || '');
   if (/quota|rate.?limit|HTTP 402|HTTP 429|usage.limit/i.test(message)) return 'quota_or_rate_limit';
@@ -662,7 +651,12 @@ function priorPanelResult(query, outputs) {
   };
 }
 
-function panelSeatMetadata(id, output) {
+function panelSeatMetadata(id, output, {
+  autoBlastRadius = null,
+  evidenceSources = [],
+  inheritedEvidenceBasis = [],
+  inputDependencies = [],
+} = {}) {
   const attempts = id === 'mercury'
     ? (output.providerAttempts || [])
     : (output.attempts || (output.stageReceipt ? [output.stageReceipt] : []));
@@ -677,7 +671,19 @@ function panelSeatMetadata(id, output) {
       classification: attempts[0] && attempts[0].fallback_classification || null,
     });
   }
+  const directEvidenceBasis = positiveEvidenceBasis({
+    toolTelemetry: output.toolTelemetry || {},
+    autoBlastRadius: id === 'mercury' ? autoBlastRadius : null,
+    evidenceSources,
+  });
+  const evidenceBasis = [...new Set([...directEvidenceBasis, ...inheritedEvidenceBasis])];
   return {
+    answer: output.answer || null,
+    parsed: output.parsed || null,
+    reasoning: output.parsed && output.parsed.citedReasoning || null,
+    stageReceipt: output.stageReceipt || null,
+    inputReceipt: output.inputProvenance || null,
+    providerRawReceipts: attempts.map(attempt => attempt.raw_output).filter(Boolean),
     provider: output.provider || (attempts[attempts.length - 1] && attempts[attempts.length - 1].requested_provider) || null,
     requestedModel: output.model || (attempts[attempts.length - 1] && attempts[attempts.length - 1].requested_model) || null,
     appliedModels: [...new Set(appliedModels)],
@@ -685,10 +691,14 @@ function panelSeatMetadata(id, output) {
     unavailable: false,
     failed: false,
     identityConflict,
-    verdict: panelVerdict(output.answer, output.parsed),
+    verdict: structuredPanelVerdict(output.parsed),
     doctrineReview: output.doctrineReview || null,
-    evidenceChecksPassed: !identityConflict
+    evidenceBasis,
+    evidenceChecksPassed: evidenceBasis.length > 0
+      && !identityConflict
       && !(output.quarantines || []).some(quarantine => quarantine && quarantine.load_bearing === true),
+    effectiveIdentityFingerprint: effectiveIdentityFingerprint(id, attempts),
+    inputDependencies,
   };
 }
 
@@ -731,6 +741,15 @@ async function runAgentic(query, opts) {
         latency_ms: metadata.latencyMs == null ? null : metadata.latencyMs,
         termination: metadata.termination || null,
         parse_status: metadata.parseStatus || null,
+        identity_posture: metadata.identityPosture || metadata.identity_posture || (
+          metadata.appliedModel ? {
+            status: 'provider_attested_response',
+            authority: 'full',
+            requested_model: metadata.requestedModel || null,
+            applied_models: [metadata.appliedModel],
+          } : null
+        ),
+        executable_trust: metadata.executableTrust || metadata.executable_trust || null,
         raw_output: rawOutput,
         error: context.error || null,
         repo_adjudication: { status: 'pending', authority: 'live_repo_required' },
@@ -892,13 +911,12 @@ async function runAgentic(query, opts) {
     let client = null;
     let mercuryResult = null;
     let fableReview = null;
-    let fableEvidencePassed = false;
     let kimiReview = null;
     const outputs = new Map();
     const panelRun = await runReviewerPanel({
       selected: reviewerSelection.selected,
       isHardStop: isHardReviewBoundaryError,
-      runSeat: async (reviewer) => {
+      runSeat: async (reviewer, priorSeats) => {
         if (verbose) console.log(`[MERCURY-BRIDGE] Starting reviewer seat: ${reviewer.label}`);
         if (reviewer.id === 'mercury') {
           if (!client) {
@@ -934,9 +952,17 @@ async function runAgentic(query, opts) {
             }))
           );
           outputs.set('mercury', { id: 'mercury', ...mercuryResult });
-          const metadata = panelSeatMetadata('mercury', mercuryResult);
-          metadata.evidenceChecksPassed = !resultHasToolFailure(mercuryResult)
-            && !autoBlastRadiusFailed(autoBlastRadius)
+          const metadata = panelSeatMetadata('mercury', mercuryResult, {
+            autoBlastRadius,
+            evidenceSources,
+            inputDependencies: priorSeats.map(seat => ({
+              sequence: seat.sequence,
+              id: seat.id,
+              answerSha256: seat.answer ? crypto.createHash('sha256').update(seat.answer).digest('hex') : null,
+              evidenceQualified: seat.evidenceChecksPassed === true,
+            })),
+          });
+          metadata.evidenceChecksPassed = metadata.evidenceChecksPassed
             && mercuryResult.doctrineReview.authorityCeiling !== 'UNVERIFIED';
           return metadata;
         }
@@ -991,22 +1017,31 @@ async function runAgentic(query, opts) {
             fableReview.quarantines.push(...recheckRun.quarantines);
           }
           outputs.set('fable', { id: 'fable', ...fableReview });
-          const metadata = panelSeatMetadata('fable', fableReview);
-          fableEvidencePassed = metadata.evidenceChecksPassed
-            && !!(mercuryResult || evidenceSources.length > 0)
+          const qualifiedPrior = priorSeats.filter(seat => seat.evidenceChecksPassed === true);
+          const metadata = panelSeatMetadata('fable', fableReview, {
+            evidenceSources,
+            inheritedEvidenceBasis: qualifiedPrior.map(seat => `qualified_prior_seat:${seat.sequence}:${seat.id}`),
+            inputDependencies: priorSeats.map(seat => ({
+              sequence: seat.sequence,
+              id: seat.id,
+              answerSha256: seat.answer ? crypto.createHash('sha256').update(seat.answer).digest('hex') : null,
+              evidenceQualified: seat.evidenceChecksPassed === true,
+            })),
+          });
+          metadata.evidenceChecksPassed = metadata.evidenceChecksPassed
             && fableReview.doctrineReview.authorityCeiling !== 'UNVERIFIED';
-          metadata.evidenceChecksPassed = fableEvidencePassed;
           return metadata;
         }
 
-        const prior = mercuryResult || priorPanelResult(query, new Map());
-        const review = fableReview || {
-          answer: 'No Fable seat selected.',
+        const prior = mercuryResult || priorPanelResult(query, outputs);
+        const earlierFableSeat = priorSeats.find(seat => seat.id === 'fable' && seat.status === 'succeeded');
+        const review = earlierFableSeat ? fableReview : {
+          answer: priorPanelResult(query, outputs).answer,
           parsed: { verdict: 'not_selected', blocking: false },
           rechecks: [],
           recheckPrompts: [],
-          panelSourceLabel: 'Fable (not selected)',
-          panelSourcePath: 'panel://fable-not-selected',
+          panelSourceLabel: 'Earlier selected reviewer evidence (no prior Fable seat)',
+          panelSourcePath: 'panel://prior-reviewer-evidence',
         };
         kimiReview = await runKimiFinalAdjudication({
           query, mercuryResult: prior, review,
@@ -1031,9 +1066,18 @@ async function runAgentic(query, opts) {
         ];
         kimiReview.quarantines = await notifyReviewQuarantines(kimiReview.quarantines || []);
         outputs.set('kimi', { id: 'kimi', ...kimiReview });
-        const metadata = panelSeatMetadata('kimi', kimiReview);
+        const qualifiedPrior = priorSeats.filter(seat => seat.evidenceChecksPassed === true);
+        const metadata = panelSeatMetadata('kimi', kimiReview, {
+          evidenceSources,
+          inheritedEvidenceBasis: qualifiedPrior.map(seat => `qualified_prior_seat:${seat.sequence}:${seat.id}`),
+          inputDependencies: priorSeats.map(seat => ({
+            sequence: seat.sequence,
+            id: seat.id,
+            answerSha256: seat.answer ? crypto.createHash('sha256').update(seat.answer).digest('hex') : null,
+            evidenceQualified: seat.evidenceChecksPassed === true,
+          })),
+        });
         metadata.evidenceChecksPassed = metadata.evidenceChecksPassed
-          && !!(mercuryResult || evidenceSources.length > 0 || fableEvidencePassed)
           && kimiReview.doctrineReview.authorityCeiling !== 'UNVERIFIED';
         return metadata;
       },
@@ -1099,12 +1143,16 @@ async function runAgentic(query, opts) {
     result.reviewerPanel = { ...reviewerSelection, ...panelRun };
     if (autoBlastRadius) result.serenaBlastRadius = autoBlastRadius;
     if (fableReview) {
-      if (kimiReview) fableReview.finalReview = kimiReview;
+      const fableSeat = panelRun.seats.find(seat => seat.id === 'fable' && seat.status === 'succeeded');
+      const kimiSeat = panelRun.seats.find(seat => seat.id === 'kimi' && seat.status === 'succeeded');
+      if (canAttachFinalReview(fableSeat, kimiSeat)) {
+        fableReview.finalReview = kimiReview;
+      }
       result.adversarialReview = fableReview;
       result.consensus = fableReview;
       result.adversarialReviewPacket = formatAdversarialReviewPacket({
         originalQuery: query, mercuryResult: mercuryResult || priorPanelResult(query, outputs),
-        review: fableReview, reviewIntent,
+        review: fableReview, authority: panelRun.authority, reviewIntent,
       });
     }
 

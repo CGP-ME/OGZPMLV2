@@ -69,3 +69,9 @@ Cold-pull on push: verify against the diff, on independent metal, by their vocab
 My confidence carries zero information without coverage counts.
 
 When my last claim is corrected by Trey or by evidence, the correction enters the record before any new work speaks.
+
+## AUTHORITY
+
+AUTHORITY IS MONOTONIC DOWNWARD UNDER UNCERTAINTY. Adding an absence, ambiguity, identity collision, evidence failure, or unresolved disagreement may lower a panel's authority or leave it unchanged. It can never raise it.
+
+NO ARTIFACT OUTRANKS ITS RECEIPT. No verdict, summary, packet, or ledger line may claim a stronger conclusion than the strongest mechanically supported panel state recorded in the same receipt.

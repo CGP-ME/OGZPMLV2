@@ -596,6 +596,32 @@ describe('Mercury Fable consensus', () => {
     expect(packet).toContain('Spawn site uses execSync');
   });
 
+  test('emitted packet cannot outrank its reviewer-panel receipt', () => {
+    const packet = formatAdversarialReviewPacket({
+      originalQuery: 'Mercury, break my fix.',
+      mercuryResult: { termination: 'answer_given', answer: 'Structured review.', toolTelemetry: {} },
+      review: {
+        answer: 'VERDICT: pass\nCONSENSUS_BLOCKING: no',
+        parsed: { verdict: 'pass', blocking: false },
+        finalReview: {
+          ok: true,
+          answer: 'VERDICT: pass\nCONSENSUS_BLOCKING: no',
+          parsed: { verdict: 'pass', blocking: false },
+        },
+      },
+      authority: {
+        ceiling: 'UNVERIFIED',
+        agreedVerdict: 'pass',
+        capReasons: ['evidence_failure'],
+        rerunRequired: true,
+      },
+    });
+    expect(packet).toContain('VERDICT: UNVERIFIED');
+    expect(packet).toContain('Decision:\nunverified');
+    expect(packet).toContain('evidence_failure');
+    expect(packet).not.toContain('Decision:\npass_pending_local_proof');
+  });
+
   test('buildKimiFinalAdjudicationPrompt demands cited per-model support on disagreement', () => {
     const prompt = buildKimiFinalAdjudicationPrompt({
       query: 'Mercury, break my fix.',

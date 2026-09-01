@@ -19,7 +19,7 @@ this packet path as the reverse link.
 
 Files authored for the mission:
 
-- `ogz-meta/inbox/trey/2026-08-29/RULINGS-2026-08-29.md`
+- `ogz-meta/Alignment/TREY-RULINGS.md`
 - `ogz-meta/inbox/amp/2026-08-29/record-the-rulings/MISSION.md`
 - `ogz-meta/inbox/amp/2026-08-29/record-the-rulings/WORK.md`
 - `ogz-meta/inbox/amp/2026-08-29/record-the-rulings/EVIDENCE.md`

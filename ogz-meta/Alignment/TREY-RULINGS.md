@@ -19,3 +19,13 @@ Ruling 10: adversarial seats are individually selectable; an unavailable seat is
 Also recorded verbatim:
 
 protected-path screamer's TREY-APPROVED trailer design ruled out (detection value below noise floor); superseded by ruling 9.
+
+## 2026-09-01
+
+12. AUTHORITY IS MONOTONIC DOWNWARD UNDER UNCERTAINTY. Adding an absence, ambiguity, identity collision, evidence failure, or unresolved disagreement may lower a panel's authority or leave it unchanged. It can never raise it.
+
+Property-test requirement: fuzz seat arrays with random absences/collisions/evidence failures; assert ceiling never rises versus base array.
+
+13. NO ARTIFACT OUTRANKS ITS RECEIPT. No verdict, summary, packet, or ledger line may claim a stronger conclusion than the strongest mechanically supported panel state recorded in the same receipt.
+
+Property-test requirement: for every emitted artifact, assert claimed verdict <= receipt's recorded panel state.

@@ -10,6 +10,7 @@ const {
 } = require('./llm-client');
 const { formatToolTelemetry } = require('./react-loop');
 const { MERCURY_DOCTRINE_PROMPT } = require('./doctrine-review');
+const { panelAuthorityVerdict } = require('./reviewer-panel');
 const {
   buildPromptProvenance,
   extractClaimedFileCitations,
@@ -443,6 +444,7 @@ function formatAdversarialReviewPacket({
   mercuryResult,
   review,
   consensus,
+  authority = null,
   reviewIntent = 'adversarial',
 } = {}) {
   const intent = normalizeReviewIntent(reviewIntent);
@@ -491,7 +493,19 @@ function formatAdversarialReviewPacket({
     : (reviewData && reviewData.recheckPrompt ? [reviewData.recheckPrompt] : []);
   const finalReview = reviewData && reviewData.finalReview ? reviewData.finalReview : null;
   const quarantines = Array.isArray(reviewData && reviewData.quarantines) ? reviewData.quarantines : [];
-  const finalDecision = finalReviewDecision(finalReview, parsed, rechecks, quarantines);
+  const reviewDecision = finalReviewDecision(finalReview, parsed, rechecks, quarantines);
+  const authorityVerdict = authority ? panelAuthorityVerdict(authority) : null;
+  const finalDecision = authority ? {
+    verdict: authorityVerdict === 'no_break_found' ? 'pass' : authorityVerdict.toUpperCase(),
+    decision: authorityVerdict,
+    why: authorityVerdict === 'unverified'
+      ? `Panel authority capped by: ${(authority.capReasons || []).join(', ') || 'unspecified_panel_cap'}.`
+      : 'The reviewer-panel receipt exclusively owns the emitted conclusion.',
+    residualRisk: (authority.capReasons || []).join(', ') || reviewDecision.residualRisk,
+    nextAction: authority.rerunRequired
+      ? 'Investigate the named caps and rerun the selected panel.'
+      : reviewDecision.nextAction,
+  } : reviewDecision;
 
   const sections = [
     `VERDICT: ${finalDecision.verdict}`,

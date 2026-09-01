@@ -121,14 +121,14 @@ describe('Mercury run ledger', () => {
         termination: 'answer_given',
         answer: 'I found a concrete break in core/Foo.js:1-2.',
       },
-    })).toBe('found_break');
+    })).toBe('cannot_verify');
 
     expect(classifyMercuryVerdict({
       result: {
         termination: 'answer_given',
         answer: 'I could not find a concrete break after checking core/Foo.js:1-2.',
       },
-    })).toBe('no_break_found');
+    })).toBe('cannot_verify');
 
     expect(classifyMercuryVerdict({
       result: {
@@ -138,7 +138,7 @@ describe('Mercury run ledger', () => {
           'No evidence of a bypass or stale routing was found in current repo files.',
         ].join(' '),
       },
-    })).toBe('no_break_found');
+    })).toBe('cannot_verify');
 
     expect(classifyMercuryVerdict({
       result: {
@@ -164,7 +164,7 @@ describe('Mercury run ledger', () => {
           }],
         },
       },
-    })).toBe('no_break_found');
+    })).toBe('cannot_verify');
 
     expect(classifyMercuryVerdict({
       result: {
@@ -198,7 +198,7 @@ describe('Mercury run ledger', () => {
       autoBlastRadius: {
         errors: [{ file: '<current_changes>', error: 'spawnSync git ENOBUFS' }],
       },
-    })).toBe('no_break_found');
+    })).toBe('cannot_verify');
 
     expect(classifyMercuryVerdict({
       result: {
@@ -229,6 +229,36 @@ describe('Mercury run ledger', () => {
     })).toBe('consensus_failed');
 
     expect(classifyMercuryVerdict({ error: new Error('MongoDB failed') })).toBe('tool_failure');
+  });
+
+  test('requires structured verdicts instead of inferring from prose', () => {
+    for (const answer of [
+      'I did not find a config defect, but I found a concrete break in reviewer identity.',
+      'No concrete break found.',
+      'A concrete break exists.',
+      '',
+    ]) {
+      expect(classifyMercuryVerdict({
+        result: { termination: 'answer_given', answer },
+      })).toBe('cannot_verify');
+    }
+  });
+
+  test.each([
+    [{ ceiling: 'UNVERIFIED', agreedVerdict: 'pass' }, 'unverified'],
+    [{ ceiling: 'FULL', agreedVerdict: 'pass' }, 'no_break_found'],
+    [{ ceiling: 'FULL', agreedVerdict: 'found_break' }, 'found_break'],
+    [{ ceiling: 'FULL', agreedVerdict: 'cannot_verify' }, 'cannot_verify'],
+    [{ ceiling: 'FULL', agreedVerdict: null }, 'unverified'],
+    [null, 'unverified'],
+  ])('panel authority %j exclusively owns durable verdict %s', (authority, verdict) => {
+    expect(classifyMercuryVerdict({
+      result: {
+        termination: 'answer_given',
+        answer: 'No break found.',
+        reviewerPanel: { authority },
+      },
+    })).toBe(verdict);
   });
 
   test('builds a compact run envelope from Mercury telemetry', () => {
@@ -305,7 +335,7 @@ describe('Mercury run ledger', () => {
     // Dispatch Law compliance must stay auditable: numeric config caps are
     // never credentials, so the /token/ key-scrubber must not eat maxTokens.
     expect(entry.options.maxTokens).toBe(7750);
-    expect(entry.verdict).toBe('no_break_found');
+    expect(entry.verdict).toBe('cannot_verify');
     expect(entry).not.toHaveProperty(removedCommitField);
     expect(entry.tools_invoked).toEqual([
       {
@@ -1020,5 +1050,33 @@ describe('Mercury run ledger', () => {
     expect(entry.reviewer_panel).toEqual(reviewerPanel);
     expect(entry.options.reviewers).toEqual(['fable', 'mercury']);
     expect(entry.verdict).toBe('unverified');
+  });
+
+  test.each([
+    ['FULL', 'pass', 'no_break_found'],
+    ['FULL', 'found_break', 'found_break'],
+    ['FULL', 'cannot_verify', 'cannot_verify'],
+    ['UNVERIFIED', 'pass', 'unverified'],
+  ])('ledger verdict has exact panel parity for %s/%s', (ceiling, agreedVerdict, verdict) => {
+    const entry = buildRunLedgerEntry({
+      repoRoot: tmpRoot,
+      query: 'Mercury, break my fix.',
+      result: {
+        termination: 'answer_given', answer: 'prose must not own verdict',
+        reviewerPanel: {
+          selected: ['mercury', 'fable'],
+          seats: [
+            { id: 'mercury', status: 'succeeded', answer: 'Mercury full answer' },
+            { id: 'fable', status: 'succeeded', answer: 'Fable full answer' },
+          ],
+          authority: { ceiling, agreedVerdict },
+        },
+        toolTelemetry: { byTool: {}, filesOpened: [], runCheckArtifacts: [], runChecks: [] },
+      },
+    });
+    expect(entry.verdict).toBe(verdict);
+    expect(entry.reviewer_panel.seats.map(seat => seat.answer)).toEqual([
+      'Mercury full answer', 'Fable full answer',
+    ]);
   });
 });

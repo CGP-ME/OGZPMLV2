@@ -31,6 +31,8 @@ git stash list
 
 This is the doctrine/cold-start behavior brief. It tells you how to avoid the project's known AI failure modes.
 
+Read ogz-meta/Alignment/TREY-RULINGS.md — standing rulings; the doctrine file wins on conflict, the newest dated ruling wins between rulings.
+
 3. Read the newest dated master alignment file.
 
 As of this folder, that is `ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT-2026-05-19.md`. Treat it as a dated state snapshot, not live truth.

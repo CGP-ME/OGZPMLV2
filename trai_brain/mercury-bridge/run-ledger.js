@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const { panelAuthorityVerdict } = require('./reviewer-panel');
 
 const DEFAULT_RUN_LEDGER_DIR = path.join('ogz-meta', 'cognition-history', 'mercury-runs');
 const RUN_LEDGER_DIR = resolveRunLedgerDir(process.env.MERCURY_RUN_LEDGER_DIR || DEFAULT_RUN_LEDGER_DIR);
@@ -290,9 +291,8 @@ function collectReviewQuarantines(result) {
 
 function classifyMercuryVerdict({ result = null, error = null, autoBlastRadius = null } = {}) {
   if (error) return 'tool_failure';
-  if (result && result.reviewerPanel && result.reviewerPanel.authority
-      && result.reviewerPanel.authority.ceiling === 'UNVERIFIED') {
-    return 'unverified';
+  if (result && result.reviewerPanel) {
+    return panelAuthorityVerdict(result.reviewerPanel.authority);
   }
   if (result && result.doctrineReview && result.doctrineReview.authorityCeiling === 'UNVERIFIED') {
     return 'unverified';
@@ -325,18 +325,14 @@ function classifyMercuryVerdict({ result = null, error = null, autoBlastRadius =
   if (review && review.ok === true && review.parsed && review.parsed.blocking) {
     return 'cannot_verify';
   }
-  if (!result || result.termination !== 'answer_given') return 'blocked';
-
-  const answer = String(result.answer || '').toLowerCase();
-  if (/\b(no concrete break|could not find|cannot find|no break found|did not find|no reachable break|no evidence of|there is no code path|no code path|no concrete code path|no concrete execution path|no evidence [^.]*bypass|no code path [^.]*bypass)\b/.test(answer)) {
-    return 'no_break_found';
-  }
-  if (/\b(cannot verify|cannot prove|unable to verify|unable to prove|insufficient evidence|cannot answer)\b/.test(answer)) {
+  if (review && review.ok === true && review.parsed) {
+    const structuredVerdict = String(review.parsed.verdict || '').toLowerCase();
+    if (['pass', 'no_break_found'].includes(structuredVerdict)) return 'no_break_found';
+    if (['found_break', 'blocked'].includes(structuredVerdict)) return 'found_break';
     return 'cannot_verify';
   }
-  if (/\b(concrete break|reachable break|bypass|race|corrupt|bug|regression|leak|unsafe|failure mode|can still)\b/.test(answer)) {
-    return 'found_break';
-  }
+  if (!result || result.termination !== 'answer_given') return 'blocked';
+
   return 'cannot_verify';
 }
 

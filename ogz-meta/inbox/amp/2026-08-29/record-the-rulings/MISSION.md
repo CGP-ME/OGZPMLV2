@@ -10,7 +10,7 @@ Tasking verbatim:
 New mission set from Trey. Execute on the trusted VPS runner in repository CGP-ME/OGZPMLV2, branch `codex/multi-asset-symbol-state`, preserving concurrent/unrelated work. One agent/box, strictly sequential Parts A→E. No part starts until the prior part's accountability packet commit exists. One commit per part, in order, dispatch-on-completion. Full live adversarial layer per commit under current ladder/stamp rules; HOLD each push for genuine Fable cold-pull. No new env vars, config keys, defaults, or frameworks anywhere; sole exception Part E reads existing `NTFY_TOPIC` repo secret. Receipts must list inherited doctrine violations in every touched file. Never touch main. Do not create another thread.
 
 PART A — RECORD THE RULINGS (docs-only first commit).
-Create `ogz-meta/inbox/trey/2026-08-29/RULINGS-2026-08-29.md` recording verbatim, attributed to Trey, dated:
+Create `ogz-meta/Alignment/TREY-RULINGS.md` recording verbatim, attributed to Trey, dated:
 1. One net position per symbol — one trade per ticker at any time. Cross-frame conflicts resolve through the existing signal ranking; every declined frame writes a named refusal to the trace.
 2. Base timeframe = 1m. The base is received from the broker, never manufactured. All higher frames derive from it via TimeframeEngine per the MTF wire spec; Kraken native frames serve as validation.
 3. Account-level loss protection = TTP venue guards only. The six dead env caps are deleted, not rebuilt. Venue-guard translation through the bot must be proven (Part C audit + boot probe).
