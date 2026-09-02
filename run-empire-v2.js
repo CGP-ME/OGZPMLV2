@@ -931,10 +931,28 @@ class OGZPrimeV14Bot {
         this.lastBrokerDataReceived = Date.now();
         this.lastBrokerDataSymbol = sym;
         this.lastBrokerDataTimeframe = tf;
-        if (stateManager && stateManager.updateLastPrice) {
-          stateManager.updateLastPrice(sym, ohlcData[5], ohlcData[1]);
-        }
         const activeTf = (this.timeframeSelector && this.timeframeSelector.currentTimeframe) || this.candleTimeframe;
+        const markEventTimeMs = ohlcTimestampMs(ohlcData[1]);
+        const canUpdateLastPrice = Boolean(stateManager && stateManager.updateLastPrice);
+        let markUpdated = false;
+        if (canUpdateLastPrice) {
+          markUpdated = stateManager.updateLastPrice(sym, ohlcData[5], markEventTimeMs);
+        }
+        emitTrace(this, 'LAST_PRICE_INFLUENCE', {
+          traceId,
+          source: `sessionRouter:${this.sessionRouter?.activeSession || 'unknown'}`,
+          symbol: sym,
+          sourceTimeframe: tf,
+          activeTimeframe: activeTf,
+          close: ohlcData[5],
+          eventTime: markEventTimeMs,
+          markUpdated,
+          markAttempted: canUpdateLastPrice,
+          strategyEligible: tf === activeTf,
+          influence: canUpdateLastPrice
+            ? (markUpdated ? 'mark_updated' : 'mark_rejected')
+            : 'mark_unavailable',
+        });
         this._visOhlcSeen ??= new Set();
         const visKey = `session:${this.sessionRouter?.activeSession || 'unknown'}:${sym}:${tf}`;
         if (!this._visOhlcSeen.has(visKey) || tf === activeTf) {

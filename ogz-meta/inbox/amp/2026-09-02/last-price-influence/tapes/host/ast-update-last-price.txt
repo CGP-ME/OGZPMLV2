@@ -1,0 +1,32 @@
+TRUSTED HOST AST RECEIPT
+working_directory=/opt/ogzprime/OGZPMLV2-selectable-panel-correction-20260901
+parser=acorn strict script/module, acorn-loose fallback
+universe=all tracked *.js from git ls-files
+filesParsed=635
+filesTotal=635
+looseFallbackCount=4
+looseFiles:
+  ogz-meta/ledger/02-tradingconfig-sms.js
+  ogz-meta/ogz-run.js
+  ogz-meta/replacements/MISSION-1773135593547.js
+  ogz-meta/replacements/MISSION-1773136513814.js
+refs:
+  core/StateManager.js:898 method_definition computed=false
+  run-empire-v2.js:936 member computed=false
+  run-empire-v2.js:939 call computed=false
+  run-empire-v2.js:1747 member computed=false
+  run-empire-v2.js:1748 call computed=false
+  run-empire-v2.js:2905 member computed=false
+  run-empire-v2.js:2906 call computed=false
+  test/aggregate-source-backfill.test.js:70 call computed=false
+  test/aggregate-source-backfill.test.js:71 call computed=false
+  test/aggregate-source-backfill.test.js:73 call computed=false
+  test/state-manager-load.test.js:517 call computed=false
+  test/state-manager-load.test.js:520 call computed=false
+  test/state-manager-load.test.js:523 call computed=false
+
+The Node host command read `git ls-files`, selected every `.js` file, parsed
+each as Acorn script then module with `ecmaVersion: latest`, used acorn-loose
+only after both strict modes failed, and walked MemberExpression, Property, and
+MethodDefinition nodes for literal/identifier property `updateLastPrice`.
+Output above is unfiltered. There were no computed references.

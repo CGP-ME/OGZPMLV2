@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Broker-Bar Last-Price Influence Trace (2026-09-02)
+
+- Added one `LAST_PRICE_INFLUENCE` trace per normalized SessionRouter broker bar, recording the actual mark-update result and whether the bar is eligible for the active strategy-frame path without changing routing behavior.
+- Normalized the SessionRouter bar end time back to canonical milliseconds before last-price monotonic comparison, so later stream frames can advance a mark seeded by REST hydration while genuinely older frames remain rejected.
+
 ### Journal Failure Isolation (2026-08-09)
 
 - Isolated journal and backtest-recorder write failures to the affected trade by marking it unjournaled, untrusted, and manual-reconcile while keeping confirmed fills alive.

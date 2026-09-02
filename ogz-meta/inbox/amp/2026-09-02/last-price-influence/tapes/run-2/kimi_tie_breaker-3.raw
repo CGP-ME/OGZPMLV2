@@ -1,0 +1,1 @@
+{"id":"[REDACTED]","object":"chat.completion","created":1788308715,"model":"kimi-k3","choices":[{"index":0,"message":{"role":"assistant","content":"PROVIDER_OK"},"finish_reason":"stop"}],"usage":{"prompt_tokens":246,"completion_tokens":13,"total_tokens":259,"cached_tokens":246,"prompt_tokens_details":{"cached_tokens":246}}}

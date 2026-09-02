@@ -34,4 +34,43 @@ describe('active timeframe aggregate fallback removal', () => {
     expect(handleIndex === -1 || handleIndex > nextSelectorIndex).toBe(true);
     expect(tradeCycleIndex === -1 || tradeCycleIndex > nextSelectorIndex).toBe(true);
   });
+
+  test('records the mark outcome and strategy eligibility before the strategy-frame branch', () => {
+    const source = runEmpireSource();
+    const handlerStart = source.indexOf('const ohlcHandler = (eventData) => {');
+    const handlerEnd = source.indexOf('this.sessionRouter.wire(', handlerStart);
+    expect(handlerStart).toBeGreaterThan(-1);
+    expect(handlerEnd).toBeGreaterThan(handlerStart);
+    const handler = source.slice(handlerStart, handlerEnd);
+    const markIndex = handler.indexOf('stateManager.updateLastPrice(');
+    const influenceIndex = handler.indexOf("emitTrace(this, 'LAST_PRICE_INFLUENCE'");
+    const strategyBranchIndex = handler.indexOf('if (tf === activeTf)');
+
+    expect(markIndex).toBeGreaterThan(-1);
+    expect(influenceIndex).toBeGreaterThan(markIndex);
+    expect(strategyBranchIndex).toBeGreaterThan(influenceIndex);
+    expect(handler).toContain('const markEventTimeMs = ohlcTimestampMs(ohlcData[1]);');
+    expect(handler).toContain('stateManager.updateLastPrice(sym, ohlcData[5], markEventTimeMs)');
+    expect(handler).toContain('eventTime: markEventTimeMs');
+    expect(handler).toContain('markAttempted: canUpdateLastPrice');
+    expect(handler).toContain("? (markUpdated ? 'mark_updated' : 'mark_rejected')");
+    expect(handler).toContain(": 'mark_unavailable'");
+    expect(handler).toContain('strategyEligible: tf === activeTf');
+    expect(handler).not.toContain('strategyRouted:');
+    expect(handler.match(/LAST_PRICE_INFLUENCE/g)).toHaveLength(1);
+  });
+
+  test('canonical millisecond producer accepts a later frame and rejects an older frame', () => {
+    const { StateManager } = require('../core/StateManager');
+    const { toTimestampMs } = require('../foundation/ohlc-normalize');
+    const manager = Object.create(StateManager.prototype);
+    manager.state = { lastPrices: new Map(), lastPriceTimes: new Map() };
+    const restTimeMs = Date.UTC(2026, 8, 2, 0, 0, 0);
+
+    expect(manager.updateLastPrice('TSLA', 100, restTimeMs)).toBe(true);
+    expect(manager.updateLastPrice('TSLA', 101, toTimestampMs((restTimeMs + 60_000) / 1000))).toBe(true);
+    expect(manager.getLastPrice('TSLA')).toBe(101);
+    expect(manager.updateLastPrice('TSLA', 99, toTimestampMs((restTimeMs - 60_000) / 1000))).toBe(false);
+    expect(manager.getLastPrice('TSLA')).toBe(101);
+  });
 });
