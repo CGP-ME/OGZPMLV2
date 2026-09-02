@@ -1,0 +1,30 @@
+Initial transport attempt, old loaded topic; transport accepted, phone receipt absent:
+Sent max-priority protected-path notification.
+Protected path detection complete: commits=1 touching=1 delivered=1 unavailable=0.
+
+Fresh transport attempt after Trey corrected NTFY_TOPIC and dotenv reloaded it; transport accepted:
+Sent max-priority protected-path notification.
+Protected path detection complete: commits=1 touching=1 delivered=1 unavailable=0.
+
+Fresh invocation timestamp: 2026-09-02T08:57:34.253Z
+Topic loading: /opt/ogzprime/OGZPMLV2/.env via dotenv override=true; inherited NTFY_TOPIC absent.
+Topic format: two distinct nonempty normalized slug assignments at lines 114 and 331; dotenv selected line 331 and shadowed line 114. Values undisclosed.
+POST receipt limitation: detector retained only 2xx classification; exact POST status and response body/ID were discarded.
+Read-only current-topic history lookup: HTTP 200.
+Initial matching message: id=x7TRDcNgLdxZ time=2026-09-02T05:32:23Z priority=5.
+Fresh matching message: id=7okDovRU1OPv time=2026-09-02T08:57:34Z priority=5.
+Expected body SHA-256: 9ae0285b9f3764001871ffcc78b03ab9026d067e7ec591f3145ff55785e43499; protected paths=3.
+
+No topic value was printed or persisted. Trey reported no phone notification. No audit retry was sent. Commit/push remain held.
+
+Final forced alert after Trey deleted the obsolete duplicate:
+start=2026-09-02T09:07:54.735Z
+source=/opt/ogzprime/OGZPMLV2/.env dotenvOverride=true assignmentCount=1 topicPresent=true topicNormalized=true topicDisclosed=false
+Sent max-priority protected-path notification.
+Protected path detection complete: commits=1 touching=1 delivered=1 unavailable=0.
+directPostStatus=2xx-exact-code-not-retained
+Immediate read-only history lookup: HTTP 200, matches=0 (storage visibility race).
+Read-only follow-up history lookup: HTTP 200, matches=1.
+Final matching message: id=cBzweQ6T03BF time=2026-09-02T09:07:54Z priority=5.
+Expected body SHA-256: 9ae0285b9f3764001871ffcc78b03ab9026d067e7ec591f3145ff55785e43499; protected paths=3.
+No further alert was sent. Trey confirmed this final alert arrived on his phone. Commit/push remained held until this confirmation.

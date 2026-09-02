@@ -1,0 +1,14 @@
+git_version=git version 2.53.0
+
+Preserved source raw diff-tree output:
+<empty>
+
+Preserved source detector:
+Protected path detection complete: commits=2 touching=0 delivered=0 unavailable=0.
+
+Corrected raw diff-tree output:
+.claude/merge-only.txt
+
+Corrected detector:
+ALARM DELIVERY ABSENCE: NTFY_TOPIC is absent; notification delivery is unavailable and unproven. Detection remains non-blocking.
+Protected path detection complete: commits=2 touching=1 delivered=0 unavailable=1.

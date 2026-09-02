@@ -1,0 +1,18 @@
+RED before reconstruction:
+exit=1
+Error: Cannot find module 'scripts/check-protected-paths.js'
+
+GREEN protected range with topic absent:
+exit=0
+ALARM DELIVERY ABSENCE: NTFY_TOPIC is absent; notification delivery is unavailable and unproven. Detection remains non-blocking.
+Protected path detection complete: commits=1 touching=1 delivered=0 unavailable=1.
+
+GREEN clean range:
+exit=0
+Protected path detection complete: commits=1 touching=0 delivered=0 unavailable=0.
+
+RED invalid range:
+exit=1
+PROTECTED PATH ALARM MALFUNCTION: Cannot resolve base commit not-a-commit: git cat-file failed with exit 128: fatal: Not a valid object name not-a-commit^{commit}
+
+All commands ran on trusted host `ogzprime-prod-001`.

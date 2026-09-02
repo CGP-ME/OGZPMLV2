@@ -1,0 +1,13 @@
+Preserved source, zero base:
+exit=0
+absence_lines=115
+Protected path detection complete: commits=2026 touching=115 delivered=0 unavailable=115.
+
+Corrected source, simulated created branch:
+exit=0
+ALARM DELIVERY ABSENCE: NTFY_TOPIC is absent; notification delivery is unavailable and unproven. Detection remains non-blocking.
+Protected path detection complete: commits=1 touching=1 delivered=0 unavailable=1.
+
+Corrected source, missing default-branch argument:
+exit=1
+PROTECTED PATH ALARM MALFUNCTION: New-branch push requires the repository default-branch ref

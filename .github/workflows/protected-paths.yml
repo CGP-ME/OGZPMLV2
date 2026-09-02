@@ -1,0 +1,40 @@
+name: Protected Path Alarm
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  protected-paths:
+    name: Detect protected path changes
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Detect pushed protected paths
+        if: github.event_name == 'push'
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: >-
+          node scripts/check-protected-paths.js
+          "${{ github.event.before }}"
+          "${{ github.sha }}"
+          "origin/${{ github.event.repository.default_branch }}"
+
+      - name: Detect pull request protected paths
+        if: github.event_name == 'pull_request'
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: node scripts/check-protected-paths.js "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
