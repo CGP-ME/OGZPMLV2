@@ -13,6 +13,7 @@
  *
  * Flags:
  *   --agentic              Enable ReAct loop
+ *   --attack               Apply attack framing without "break my fix"
  *   --top-k=N              Retrieve N starter-context chunks
  *   --max-iterations=N     Agentic mode only: max tool-call iterations
  *   --max-tokens=N         Mercury max tokens per turn
@@ -78,6 +79,7 @@ const { retrieveSimilarTrace, formatTraceAsHint, captureTrace, markTraceUsed, ev
 const {
   buildRunLedgerEntry,
   createRawRunId,
+  extractClaimedFileCitations,
   redactSensitiveText,
   writeRawProviderOutput,
   writeRunLedgerEntry,
@@ -111,6 +113,7 @@ function parseArgs(argv) {
     showChunks: false,
     showHistory: false,
     agentic: false,
+    attack: false,
     adversarialReview: false,
     adversarialReviewExplicit: false,
     consensus: false,
@@ -139,6 +142,8 @@ function parseArgs(argv) {
       args.showHistory = true;
     } else if (arg === '--agentic') {
       args.agentic = true;
+    } else if (arg === '--attack') {
+      args.attack = true;
     } else if (arg === '--adversarial-review') {
       args.adversarialReview = true;
       args.adversarialReviewExplicit = true;
@@ -302,6 +307,7 @@ async function runReviewRechecks({
   createProviderAudit,
   runLoop = runReactLoop,
   notify = notifyReviewQuarantines,
+  attack = false,
 } = {}) {
   const rechecks = [];
   const quarantines = [];
@@ -321,6 +327,7 @@ async function runReviewRechecks({
         maxTokens,
         verbose,
         providerAudit: createProviderAudit(name),
+        attack,
       });
       recheck.totalLatencyMs = Date.now() - recheckStarted;
       recheck.inputProvenance = recheckProvenance;
@@ -414,6 +421,7 @@ function usage() {
   console.log('  --quiet                Suppress progress logs');
   console.log('  --show-chunks          Print retrieved chunk text');
   console.log('  --show-history         Agentic only: print full tool-call trace');
+  console.log('  --attack               Agentic only: apply break-my-fix attack framing');
   console.log('  --evidence-source=P:S-E Host-attest a verbatim repo-relative excerpt; repeatable, max 150 lines');
   console.log(`  --adversarial-review   Agentic only: force a Fable (${config.CONSENSUS_MODEL}) adversarial review`);
   console.log('  --no-adversarial-review Agentic only: suppress env/config adversarial review for this run');
@@ -931,6 +939,7 @@ async function runAgentic(query, opts) {
           const seatResult = await runReactLoop({
             client, toolAdapter, userQuery, starterContext, traceHint: traceHintText,
             blastRadius, maxIterations, maxTokens, verbose, providerAudit,
+            attack: opts.attack === true,
           });
           ensureReviewerAnswer(seatResult, 'mercury');
           mercuryResult = seatResult;
@@ -943,6 +952,7 @@ async function runAgentic(query, opts) {
             autoScan: autoBlastRadius,
             evidenceSources,
             reviewerId: 'mercury',
+            answerQuality: mercuryResult.answerQuality,
           });
           mercuryResult.reviewQuarantines = await notifyReviewQuarantines(
             mercuryResult.doctrineReview.namedAbsences.map(absence => reviewQuarantine({
@@ -988,6 +998,7 @@ async function runAgentic(query, opts) {
             autoScan: autoBlastRadius,
             evidenceSources,
             reviewerId: 'fable',
+            answerQuality: mercuryResult ? mercuryResult.answerQuality : {},
           });
           fableReview.quarantines = [
             ...(fableReview.quarantines || []),
@@ -1005,12 +1016,17 @@ async function runAgentic(query, opts) {
               fableAnswer: fableReview.answer,
               parsedReview: fableReview.parsed,
               evidenceSources,
+              filesMechanicallyOpened: Array.isArray(mercuryResult.toolTelemetry && mercuryResult.toolTelemetry.filesOpened)
+                ? mercuryResult.toolTelemetry.filesOpened
+                : [],
+              claimedFileCitations: extractClaimedFileCitations(mercuryResult.answer),
             }).slice(0, config.ADVERSARIAL_REVIEW_MAX_RECHECKS);
             fableReview.recheckPrompts = recheckPrompts;
             fableReview.recheckPrompt = recheckPrompts[0] || null;
             const recheckRun = await runReviewRechecks({
               prompts: recheckPrompts, client, toolAdapter, starterContext, blastRadius,
               maxIterations, maxTokens, verbose, evidenceSources, createProviderAudit,
+              attack: opts.attack === true,
             });
             fableReview.rechecks = recheckRun.rechecks;
             fableReview.recheck = fableReview.rechecks[0] || null;
@@ -1055,6 +1071,7 @@ async function runAgentic(query, opts) {
           autoScan: autoBlastRadius,
           evidenceSources,
           reviewerId: 'kimi',
+          answerQuality: mercuryResult ? mercuryResult.answerQuality : {},
         });
         kimiReview.quarantines = [
           ...(kimiReview.quarantines || []),
@@ -1311,6 +1328,11 @@ function printDispatchReceipt(result) {
   const blastErrors = Array.isArray(sourceRefs.auto_blast_radius_errors) ? sourceRefs.auto_blast_radius_errors : [];
   console.log(`blast radius:    ${blastFiles} file(s) scanned, ${blastErrors.length} error(s)`);
   blastErrors.forEach((blastError) => console.log(`  - ${blastError.file}: ${blastError.error}`));
+
+  const candidateSet = entry.candidate_set;
+  if (candidateSet) {
+    console.log(`candidate set:   iteration=${candidateSet.captured_at_iteration} citations=${candidateSet.claimed_file_citations.length} answer-subset=${candidateSet.answer_citations_subset ? 'yes' : 'no'}`);
+  }
 
   const reviewEntry = entry.adversarial_review;
   if (!reviewEntry) {

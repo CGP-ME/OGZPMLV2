@@ -22,11 +22,12 @@ const {
 } = require('../trai_brain/mercury-bridge/react-loop');
 
 describe('Mercury doctrine extension', () => {
-  test('carries Totality verbatim and every required report section in the review prompt', () => {
+  test('carries Totality and sandbox provenance without requiring report headings', () => {
     const prompt = buildMercuryIntentPrompt('Mercury, break my fix.');
 
     expect(prompt).toContain('The word “all” converts the work from point-fix work into a totality claim.');
     expect(prompt).toContain(MERCURY_DOCTRINE_PROMPT);
+    expect(prompt).toContain('A model-sandbox run_check has no authority');
     for (const section of [
       'CANDIDATE SET',
       'AST EVIDENCE',
@@ -38,8 +39,18 @@ describe('Mercury doctrine extension', () => {
       'DID NOT EXAMINE',
       'ASSUMED',
     ]) {
-      expect(prompt).toContain(section);
+      expect(prompt).not.toContain(section);
     }
+  });
+
+  test('agentic instructions use Treys reader method without unconditional attacker framing', () => {
+    const mercuryConfig = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'mercury.config.json'), 'utf8'));
+    const prompt = mercuryConfig.agentic.systemPrompt.join('\n');
+
+    expect(prompt).toContain('mercury should do this assess the quiestion decide any of its tooling is appropriate for it keep reading until it has read all the comments filing away potential answers while it reads then when exhausted go back over everything and pick the correct one citing everything');
+    expect(prompt).toContain('Work in two phases. In Phase 1');
+    expect(prompt).not.toContain('adversarial verification gate');
+    expect(prompt).not.toContain('Do not recap your search process');
   });
 
   test('extracts changed env-var and config-key names without hardcoded key lists', () => {
@@ -111,9 +122,61 @@ describe('Mercury doctrine extension', () => {
       'sandbox_testimony_only',
       'testimony_only_finding',
       'substantive_resolution_absent',
-      'report_section_absent',
     ]));
     expect(assessment.hardStop).toBe(false);
+  });
+
+  test('read-only audit authority follows mechanical receipts instead of headings', () => {
+    const evidenceFree = assessDoctrineReview({
+      answer: 'Answer from memory.',
+      changedFiles: [],
+      telemetry: { total: 0, byTool: {}, filesOpened: [] },
+      answerQuality: { flags: ['missing_file_line_citation'] },
+    });
+    expect(evidenceFree).toMatchObject({
+      authorityCeiling: 'UNVERIFIED',
+      namedAbsences: ['no_mechanical_evidence'],
+    });
+
+    const openedFileReceipt = assessDoctrineReview({
+      answer: 'Plain answer without prescribed headings.',
+      changedFiles: [],
+      telemetry: { total: 1, byTool: { open_file: { calls: 1 } }, filesOpened: ['core/a.js:1-2'] },
+      answerQuality: { flags: ['missing_file_line_citation'] },
+    });
+    expect(openedFileReceipt).toMatchObject({ authorityCeiling: 'UNCHANGED', namedAbsences: [] });
+
+    const citationReceipt = assessDoctrineReview({
+      answer: 'Plain answer citing core/a.js:1.',
+      changedFiles: [],
+      telemetry: { total: 0, byTool: {}, filesOpened: [] },
+      answerQuality: { flags: [] },
+    });
+    expect(citationReceipt).toMatchObject({ authorityCeiling: 'UNCHANGED', namedAbsences: [] });
+
+    const unresolvedHeadingWithReceipt = assessDoctrineReview({
+      answer: 'SUBSTANTIVE RESOLUTION: UNRESOLVED-FOR-TREY\nReceipt: core/a.js:1.',
+      changedFiles: [],
+      telemetry: { total: 1, byTool: { open_file: { calls: 1 } }, filesOpened: ['core/a.js:1-2'] },
+      answerQuality: { flags: [] },
+    });
+    expect(unresolvedHeadingWithReceipt).toMatchObject({ authorityCeiling: 'UNCHANGED', namedAbsences: [] });
+  });
+
+  test('changed JavaScript AST evidence comes only from the automatic scan receipt', () => {
+    const assessment = assessDoctrineReview({
+      answer: [
+        'CANDIDATE SET: examined 1 of 1',
+        'INHERITED: core/a.js — || 0: none; swallowed catches: none; bypass env reads: none; silent defaults: none',
+      ].join('\n'),
+      changedFiles: ['core/a.js'],
+      telemetry: {
+        fileReads: [{ file: 'core/a.js', startLine: 1, endLine: 2, totalLines: 2 }],
+      },
+      autoScan: { meta: [{ file: 'core/a.js' }], errors: [] },
+    });
+
+    expect(assessment.namedAbsences).not.toContain('ast_evidence_absent');
   });
 
   test('accepts complete machine-readable doctrine evidence without manufacturing authority', () => {

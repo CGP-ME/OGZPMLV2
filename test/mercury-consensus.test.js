@@ -70,11 +70,18 @@ describe('Mercury Fable consensus', () => {
   test('CLI adversarial review flags expose explicit controls while preserving consensus aliases', () => {
     expect(parseArgs(['node', 'ask.js', '--agentic', 'break this'])).toMatchObject({
       agentic: true,
+      attack: false,
       adversarialReview: false,
       adversarialReviewExplicit: false,
       consensus: false,
       consensusExplicit: false,
       query: 'break this',
+    });
+
+    expect(parseArgs(['node', 'ask.js', '--agentic', '--attack', 'audit this'])).toMatchObject({
+      agentic: true,
+      attack: true,
+      query: 'audit this',
     });
 
     expect(parseArgs(['node', 'ask.js', '--agentic', '--adversarial-review', 'break this'])).toMatchObject({
@@ -367,6 +374,21 @@ describe('Mercury Fable consensus', () => {
     expect(prompt).toContain('Your prior answer:\nNo break found.');
     expect(prompt).toContain(`Fable critique:\n${answer}`);
     expect(prompt).toContain('Required recheck:\nMercury, recheck the worker spawn env path.');
+  });
+
+  test('Mercury recheck prompt retains pass-1 opened files and claimed citations as fixed inputs', () => {
+    const prompt = buildMercuryRecheckPrompt({
+      originalQuery: 'Audit TTP_PROFIT_TARGET_DOLLARS.',
+      mercuryAnswer: 'A reader exists at ogz-meta/claudito-logger.js:399.',
+      fableAnswer: 'Recheck the reader.',
+      parsedReview: { recheckPrompt: 'Verify the profit-target reader.' },
+      filesMechanicallyOpened: ['ogz-meta/claudito-logger.js:350-420'],
+      claimedFileCitations: ['ogz-meta/claudito-logger.js:399'],
+    });
+
+    expect(prompt).toContain('Pass-1 fixed receipt inputs');
+    expect(prompt).toContain('files_mechanically_opened: ["ogz-meta/claudito-logger.js:350-420"]');
+    expect(prompt).toContain('claimed_file_citations: ["ogz-meta/claudito-logger.js:399"]');
   });
 
   test('parses formatted blocking fields and fails closed when the field is missing', () => {

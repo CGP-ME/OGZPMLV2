@@ -518,6 +518,7 @@ function buildRunLedgerEntry({
     || inputProvenance
     || buildPromptProvenance(query, suppliedEvidence);
   const reviewQuarantines = collectReviewQuarantines(result);
+  const candidateSet = result && result.candidateSet ? result.candidateSet : null;
 
   return sanitizeForLedger({
     schema_version: 2,
@@ -574,6 +575,23 @@ function buildRunLedgerEntry({
     run_checks: Array.isArray(telemetry.runChecks) ? telemetry.runChecks : [],
     answer_quality: answerQualityFlags,
     answer_quality_evidence: answerQualityEvidence,
+    candidate_set: candidateSet ? {
+      content: redactSensitiveText(candidateSet.content || ''),
+      captured_at_iteration: candidateSet.capturedAtIteration,
+      files_mechanically_opened: Array.isArray(candidateSet.filesMechanicallyOpened)
+        ? candidateSet.filesMechanicallyOpened
+        : [],
+      claimed_file_citations: Array.isArray(candidateSet.claimedFileCitations)
+        ? candidateSet.claimedFileCitations
+        : [],
+      final_answer_citations: Array.isArray(candidateSet.finalAnswerCitations)
+        ? candidateSet.finalAnswerCitations
+        : [],
+      answer_citations_subset: candidateSet.answerCitationsSubset === true,
+      citations_not_in_candidate_set: Array.isArray(candidateSet.citationsNotInCandidateSet)
+        ? candidateSet.citationsNotInCandidateSet
+        : [],
+    } : null,
     review_quarantines: reviewQuarantines,
     adversarial_review: reviewSummary,
     consensus: reviewSummary,

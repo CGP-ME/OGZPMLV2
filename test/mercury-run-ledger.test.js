@@ -284,6 +284,15 @@ describe('Mercury run ledger', () => {
         iterations: 2,
         totalLatencyMs: 1234,
         answer: 'No concrete break found. trai_brain/mercury-bridge/ask.js:1-2',
+        candidateSet: {
+          content: 'Candidate: trai_brain/mercury-bridge/ask.js:1-10',
+          capturedAtIteration: 1,
+          filesMechanicallyOpened: ['trai_brain/mercury-bridge/ask.js:1-10'],
+          claimedFileCitations: ['trai_brain/mercury-bridge/ask.js:1-10'],
+          finalAnswerCitations: ['trai_brain/mercury-bridge/ask.js:1-2'],
+          answerCitationsSubset: true,
+          citationsNotInCandidateSet: [],
+        },
         consensus: {
           enabled: true,
           ok: true,
@@ -364,6 +373,15 @@ describe('Mercury run ledger', () => {
       },
     ]);
     expect(entry.files_opened).toEqual(['trai_brain/mercury-bridge/ask.js:1-2']);
+    expect(entry.candidate_set).toEqual({
+      content: 'Candidate: trai_brain/mercury-bridge/ask.js:1-10',
+      captured_at_iteration: 1,
+      files_mechanically_opened: ['trai_brain/mercury-bridge/ask.js:1-10'],
+      claimed_file_citations: ['trai_brain/mercury-bridge/ask.js:1-10'],
+      final_answer_citations: ['trai_brain/mercury-bridge/ask.js:1-2'],
+      answer_citations_subset: true,
+      citations_not_in_candidate_set: [],
+    });
     expect(entry.run_check_artifacts).toEqual(['ogz-meta/cognition-history/mercury-execution/check.log:1-3']);
     expect(entry.source_refs.auto_blast_radius_files).toEqual([
       { file: 'trai_brain/mercury-bridge/ask.js', callerCount: 0, riskLevel: 'isolated' },

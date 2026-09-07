@@ -6,16 +6,6 @@ const MERCURY_DOCTRINE_PROMPT = [
   'MERCURY DOCTRINE — REQUIRED FOR THIS REVIEW.',
   TOTALITY_LAW,
   'The word “all” converts the work from point-fix work into a totality claim.',
-  'Before the verdict, emit these exact sections:',
-  'CANDIDATE SET: examined N of M. Enumerate every file, consumer, history entry, and other candidate examined. M must be at least the current diff touched-file count supplied by the host.',
-  'AST EVIDENCE: cite the AST-capable scans used for every changed JavaScript file and every touched env-var/config-key name. Zero cited AST evidence is an absence.',
-  'INHERITED: for every touched file, name inherited || 0 trading-data defaults, swallowed catches, bypass env reads, and silent defaults; mark them unfixed.',
-  'FOURTH SHAPE CLASSIFIER: classified N of M. Classify every added throw, gate, guard, or fallback as producer-fixable, true boundary, or unreachability-receipted.',
-  'ALLEGATIONS: tag every finding MECHANICAL or SUBSTANTIVE and tag its basis RECEIPT or TESTIMONY. Docs, snapshots, ledgers, session forms, and CHANGELOG are TESTIMONY; code at HEAD is RECEIPT. TESTIMONY alone cannot raise found_break.',
-  'SUBSTANTIVE RESOLUTION: convergence, UNRESOLVED-FOR-TREY, or none. Substantive non-convergence is never pending and is never executor-adjudicated. An UNRESOLVED-FOR-TREY resolution quotes the Mercury, Fable, and Kimi seats separately.',
-  'WHAT I EXAMINED: enumerate the inspected evidence.',
-  'DID NOT EXAMINE: enumerate named absences.',
-  'ASSUMED: enumerate assumptions.',
   'A model-sandbox run_check has no authority for test/build pass or fail claims. Label its execution provenance; only host-attested trusted-path receipts carry test/build authority.',
   'Missing obligations cap the verdict UNVERIFIED with named absences. They never refuse or terminate the run. The sole execution hard stop remains an unattested executable.',
 ].join('\n');
@@ -126,6 +116,7 @@ function assessDoctrineReview({
   autoScan = null,
   evidenceSources = [],
   reviewerId = null,
+  answerQuality = {},
 } = {}) {
   const text = String(answer || '');
   const namedAbsences = [];
@@ -133,18 +124,14 @@ function assessDoctrineReview({
     if (!namedAbsences.includes(name)) namedAbsences.push(name);
   };
   const candidateSet = countDeclaration(text, 'CANDIDATE SET');
-  if (!candidateSet || candidateSet.examined < changedFiles.length || candidateSet.total < changedFiles.length
-      || candidateSet.examined < candidateSet.total) {
+  if (changedFiles.length > 0 && (!candidateSet || candidateSet.examined < changedFiles.length
+      || candidateSet.total < changedFiles.length || candidateSet.examined < candidateSet.total)) {
     addAbsence('coverage_insufficient');
   }
 
   const changedJs = changedFiles.filter(file => file.endsWith('.js'));
   const scannedJs = new Set((autoScan && Array.isArray(autoScan.meta) ? autoScan.meta : []).map(entry => entry.file));
-  const astEvidence = sectionValue(text, 'AST EVIDENCE');
-  const astSection = sectionPresent(text, 'AST EVIDENCE')
-    && !/^(?:none|zero|absent)\b/i.test(astEvidence)
-    && /(?:serena|find_references|find_definition|property_refs|method_callers|class_fields|[A-Za-z0-9_./-]+\.(?:js|mjs|cjs):\d+)/i.test(astEvidence);
-  if (changedJs.length > 0 && (!astSection || changedJs.some(file => !scannedJs.has(file)))) {
+  if (changedJs.length > 0 && changedJs.some(file => !scannedJs.has(file))) {
     addAbsence('ast_evidence_absent');
   }
   if (autoScan && Array.isArray(autoScan.errors) && autoScan.errors.length > 0) {
@@ -154,12 +141,22 @@ function assessDoctrineReview({
   if (changedFiles.length > 0 && !completeWholeFileReads(changedFiles, telemetry, evidenceSources)) {
     addAbsence('whole_file_read_absent');
   }
+  const filesOpened = Array.isArray(telemetry.filesOpened) ? telemetry.filesOpened : [];
+  const toolInvocationTotal = Number.isInteger(telemetry.total)
+    ? telemetry.total
+    : Object.values(telemetry.byTool || {}).reduce((total, stats) => total + Number(stats && stats.calls || 0), 0);
+  const answerQualityFlags = Array.isArray(answerQuality.flags) ? answerQuality.flags : [];
+  if (changedFiles.length === 0 && filesOpened.length === 0 && toolInvocationTotal === 0
+      && answerQualityFlags.includes('missing_file_line_citation')) {
+    addAbsence('no_mechanical_evidence');
+  }
   const inherited = sectionValue(text, 'INHERITED');
   const inheritedCategoriesPresent = /\|\|\s*0/.test(inherited)
     && /swallowed catch/i.test(inherited)
     && /bypass env/i.test(inherited)
     && /silent default/i.test(inherited);
-  if (!answerNamesEveryFile(text, 'INHERITED', changedFiles) || !inheritedCategoriesPresent) {
+  if (changedFiles.length > 0
+      && (!answerNamesEveryFile(text, 'INHERITED', changedFiles) || !inheritedCategoriesPresent)) {
     addAbsence('inherited_section_incomplete');
   }
 
@@ -192,27 +189,16 @@ function assessDoctrineReview({
 
   const hasSubstantive = /\bSUBSTANTIVE\b/i.test(text);
   const substantiveResolution = text.match(/SUBSTANTIVE RESOLUTION\s*:\s*(convergence|UNRESOLVED-FOR-TREY|none)\b/i);
-  if (hasSubstantive && !substantiveResolution) addAbsence('substantive_resolution_absent');
-  if (substantiveResolution && substantiveResolution[1].toUpperCase() === 'UNRESOLVED-FOR-TREY') {
+  if (changedFiles.length > 0 && hasSubstantive && !substantiveResolution) {
+    addAbsence('substantive_resolution_absent');
+  }
+  if (changedFiles.length > 0 && substantiveResolution
+      && substantiveResolution[1].toUpperCase() === 'UNRESOLVED-FOR-TREY') {
     addAbsence('substantive_unresolved_for_trey');
     if (reviewerId === 'kimi' && !['Mercury', 'Fable', 'Kimi'].every(seat => new RegExp(`\\b${seat}\\b`, 'i').test(text))) {
       addAbsence('substantive_seat_quotes_absent');
     }
   }
-
-  const requiredSections = [
-    'CANDIDATE SET',
-    'AST EVIDENCE',
-    'INHERITED',
-    'FOURTH SHAPE CLASSIFIER',
-    'ALLEGATIONS',
-    'SUBSTANTIVE RESOLUTION',
-    'WHAT I EXAMINED',
-    'DID NOT EXAMINE',
-    'ASSUMED',
-  ];
-  const missingSections = requiredSections.filter(section => !sectionPresent(text, section));
-  if (missingSections.length > 0) addAbsence('report_section_absent');
 
   return {
     authorityCeiling: namedAbsences.length > 0 ? 'UNVERIFIED' : 'UNCHANGED',
@@ -223,7 +209,6 @@ function assessDoctrineReview({
     changedFileCount: changedFiles.length,
     changedJsCount: changedJs.length,
     fourthShapeAdditionCount: fourthShapeCount,
-    missingSections,
     executionProvenance: {
       runChecks: runChecks.map(check => check.execution_provenance || 'model_sandbox'),
     },

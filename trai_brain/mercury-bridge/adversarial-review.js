@@ -8,7 +8,7 @@ const {
   createOpusChallengerClient,
   createKimiTieBreakerClient,
 } = require('./llm-client');
-const { formatToolTelemetry } = require('./react-loop');
+const { formatFixedEvidenceInputs, formatToolTelemetry } = require('./react-loop');
 const { MERCURY_DOCTRINE_PROMPT } = require('./doctrine-review');
 const { panelAuthorityVerdict } = require('./reviewer-panel');
 const {
@@ -274,6 +274,8 @@ function buildMercuryRecheckPrompt({
   parsedReview,
   parsedConsensus,
   evidenceSources = [],
+  filesMechanicallyOpened = [],
+  claimedFileCitations = [],
   focusedInstruction = null,
 } = {}) {
   const parsed = parsedReview || parsedConsensus;
@@ -294,6 +296,12 @@ function buildMercuryRecheckPrompt({
     '',
     'Your prior answer:',
     String(mercuryAnswer || '').trim() || '<empty>',
+    '',
+    formatFixedEvidenceInputs({
+      title: 'Pass-1 fixed receipt inputs (retain these as examined evidence during every recheck):',
+      filesMechanicallyOpened,
+      claimedFileCitations,
+    }),
     '',
     'Fable critique:',
     String(fableAnswer || '').trim() || '<empty>',

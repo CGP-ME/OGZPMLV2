@@ -9,7 +9,9 @@
  *   1. Send messages array + tools schema to client.generateWithTools()
  *   2. Receive assistant message with either tool_calls or content
  *   3. If tool_calls: execute each, append results as role:tool messages, loop
- *   4. If content: return as final answer
+ *   4. First content-only reply: retain the candidate set and ask whether
+ *      anything remains unread
+ *   5. Next content-only reply after the candidate set: return the answer
  *
  * Retry wrapper handles HTTP 429/502/503/504 and empty responses per
  * Inception Labs API guidance on handling transient failures.
@@ -28,9 +30,68 @@ const FILE_LINE_CITATION_PATTERN = new RegExp(String.raw`\b${REPO_FILE_PATH_PATT
 const RUN_CHECK_ARTIFACT_CITATION_PATTERN = /\bogz-meta\/cognition-history\/mercury-execution\/[\w./-]+\.log:\d+(?:[-‑–—]\d+)?\b/;
 const MAX_TOOL_ARGUMENT_HISTORY_CHARS = 2000;
 const MAX_TOOL_RESULT_HISTORY_CHARS = 12000;
+const ATTACK_SYSTEM_PROMPT = [
+  'ATTACK MODE — active only because the user said "break my fix" or supplied --attack.',
+  'Break weak claims, incomplete fixes, stale assumptions, and unsafe architecture with precision. Do not validate by vibe.',
+  'Attack the available evidence without assuming one file, diff, branch, memory entry, or prior path is sufficient. Find a real failure mode, prove it with code, and explain the mechanism. If you cannot find a concrete break, say that plainly and list the exact evidence you checked.',
+].join('\n');
+const CANDIDATE_PHASE_SYSTEM_PROMPT = [
+  'TWO-PHASE CONTROL — the host, not the model, decides when an answer is final.',
+  'Your first content-only response must begin with the literal heading CANDIDATE SET. It is an inventory, not a verdict: file every possible answer, reader, and relevant file found so far, and give each candidate a literal repo path:line or path:start-end citation.',
+  'Do not use a split File/Line table or tool-handle citation in place of literal repo citations. Do not lead Phase 1 with Result, Answer, Decision, Verdict, or Conclusion.',
+  'After the host asks whether anything is unread, use tools if more evidence is needed. The next content-only response is the Phase 2 decision.',
+].join('\n');
 
 function hasFileLineCitation(content) {
   return FILE_LINE_CITATION_PATTERN.test(content || '');
+}
+
+function extractFileLineCitations(content) {
+  return Array.from(new Set(
+    String(content || '').match(/[A-Za-z0-9_./-]+\.\w+:\d+(?:[-‑–—]\d+)?/g) || []
+  )).map(citation => citation.replace(/[‑–—]/g, '-')).sort();
+}
+
+function isCandidateSetResponse(content) {
+  return /^\s*(?:#{1,6}\s*)?(?:\*{1,2}|_{1,2})?CANDIDATE SET\b/i.test(String(content || ''));
+}
+
+function citationParts(citation) {
+  const match = String(citation || '').match(/^(.*):(\d+)(?:[-‑–—](\d+))?$/);
+  if (!match) return null;
+  return {
+    path: match[1],
+    start: Number(match[2]),
+    end: Number(match[3] || match[2]),
+  };
+}
+
+function citationCoveredByCandidate(citation, candidateCitations) {
+  const target = citationParts(citation);
+  if (!target) return false;
+  return candidateCitations.some((candidate) => {
+    const coverage = citationParts(candidate);
+    return coverage && coverage.path === target.path
+      && coverage.start <= target.start && coverage.end >= target.end;
+  });
+}
+
+function formatFixedEvidenceInputs({
+  title = 'Fixed receipt inputs:',
+  filesMechanicallyOpened = [],
+  claimedFileCitations = [],
+  candidateSet = null,
+} = {}) {
+  const lines = [
+    title,
+    `files_mechanically_opened: ${JSON.stringify(filesMechanicallyOpened)}`,
+    `claimed_file_citations: ${JSON.stringify(claimedFileCitations)}`,
+  ];
+  if (candidateSet != null) {
+    lines.push('candidate_set:');
+    lines.push(String(candidateSet));
+  }
+  return lines.join('\n');
 }
 
 function hasToolHandleCitation(content) {
@@ -579,6 +640,7 @@ async function runReactLoop(params) {
     temperature = config.MERCURY_LLM_TEMPERATURE,
     verbose = false,
     providerAudit = null,
+    attack = false,
   } = params;
 
   if (!client || typeof client.generateWithTools !== 'function') {
@@ -597,9 +659,12 @@ async function runReactLoop(params) {
     .filter(Boolean)
     .sort();
 
-  const messages = [
-    { role: 'system', content: systemPrompt },
-  ];
+  const attackMode = attack === true || /\bbreak my fix\b/i.test(userQuery);
+  const messages = [{
+    role: 'system',
+    content: attackMode ? `${systemPrompt}\n\n${ATTACK_SYSTEM_PROMPT}` : systemPrompt,
+  }];
+  messages.push({ role: 'system', content: CANDIDATE_PHASE_SYSTEM_PROMPT });
 
   if (starterContext && starterContext.length > 0) {
     const contextText = starterContext
@@ -633,6 +698,7 @@ async function runReactLoop(params) {
   messages.push({ role: 'user', content: userQuery });
 
   const history = [];
+  let candidateSet = null;
 
   for (let iteration = 1; iteration <= maxIterations; iteration++) {
     if (verbose) {
@@ -654,6 +720,7 @@ async function runReactLoop(params) {
       if (verbose) console.error(`[REACT] Mercury call failed permanently: ${err.message}`);
       return attachToolTelemetry({
         answer: `(Mercury call failed: ${err.message})`,
+        candidateSet,
         iterations: iteration - 1,
         termination: 'error',
         history,
@@ -719,14 +786,67 @@ async function runReactLoop(params) {
       continue;
     }
 
-    // No tool calls — this is the final answer
-    const finalAnswer = normalizeToolHandleCitations(assistantMsg.content || '(empty content)');
+    const content = normalizeToolHandleCitations(assistantMsg.content || '(empty content)');
+    if (!candidateSet) {
+      if (!isCandidateSetResponse(content)) {
+        messages.push({
+          role: 'user',
+          content: [
+            'PHASE 1 NOT ACCEPTED. This content cannot be treated as the answer or the candidate receipt.',
+            'Your next content-only response must begin with CANDIDATE SET and inventory every possible answer, reader, and relevant file found so far using literal path:line citations.',
+            'Continue reading first if that inventory is incomplete.',
+          ].join('\n'),
+        });
+        if (verbose) console.error(`[REACT] Rejected non-candidate content on iteration ${iteration}`);
+        continue;
+      }
+      const telemetryAtCapture = summarizeToolTelemetry(history);
+      const claimedFileCitations = Array.from(new Set([
+        ...extractFileLineCitations(content),
+        ...telemetryAtCapture.filesOpened.flatMap(extractFileLineCitations),
+      ])).sort();
+      candidateSet = {
+        content,
+        capturedAtIteration: iteration,
+        filesMechanicallyOpened: telemetryAtCapture.filesOpened,
+        claimedFileCitations,
+      };
+      messages.push({
+        role: 'user',
+        content: [
+          'PHASE 1 CANDIDATE SET RECEIPT — fixed input for the decision phase.',
+          formatFixedEvidenceInputs({
+            filesMechanicallyOpened: candidateSet.filesMechanicallyOpened,
+            claimedFileCitations,
+            candidateSet: content,
+          }),
+          '',
+          'Anything unread? If yes, keep reading. If no, decide.',
+          'The decision must cite only evidence filed in this fixed candidate set.',
+        ].join('\n'),
+      });
+      if (verbose) console.error(`[REACT] Candidate set captured on iteration ${iteration}`);
+      continue;
+    }
+
+    const finalAnswer = content;
+    const finalAnswerCitations = extractFileLineCitations(finalAnswer);
+    const citationsNotInCandidateSet = finalAnswerCitations.filter(citation => (
+      !citationCoveredByCandidate(citation, candidateSet.claimedFileCitations)
+    ));
+    candidateSet = {
+      ...candidateSet,
+      finalAnswerCitations,
+      answerCitationsSubset: citationsNotInCandidateSet.length === 0,
+      citationsNotInCandidateSet,
+    };
     const answerQuality = assessFinalAnswerQuality(finalAnswer, history);
 
     if (verbose) console.error(`[REACT] Final answer on iteration ${iteration}`);
     return attachToolTelemetry({
       answer: finalAnswer,
       answerQuality,
+      candidateSet,
       iterations: iteration,
       termination: 'answer_given',
       history,
@@ -737,6 +857,7 @@ async function runReactLoop(params) {
 
   return attachToolTelemetry({
     answer: '(max iterations reached without a final answer)',
+    candidateSet,
     iterations: maxIterations,
     termination: 'max_iterations',
     history,
@@ -749,6 +870,9 @@ module.exports = {
   runReactLoop,
   callMercuryWithRetry,
   hasFileLineCitation,
+  extractFileLineCitations,
+  isCandidateSetResponse,
+  formatFixedEvidenceInputs,
   hasToolHandleCitation,
   hasUnsupportedRunCheckClaim,
   previewUncitedAnswer,
