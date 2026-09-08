@@ -1,0 +1,80 @@
+id	path_or_key	original_disposition	audit_result	disposition_0_1a	receipt_section
+A0101	entryLogic.symbolLossCooldown.enabled	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Cooldown readers addendum
+A0102	entryLogic.symbolLossCooldown.consecutiveLosses	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Cooldown readers addendum
+A0103	entryLogic.symbolLossCooldown.cooldownMinutes	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Cooldown readers addendum
+B0060	universalLimits	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Requested core input table
+B0066	features.enableArbitrage	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Requested core input table
+B0067	features.enableHedging	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Requested core input table
+E0002	ACCOUNT_DRAWDOWN_PCT	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Direct answer for the Sept. 7 15-key replay surface
+E0042	ENABLE_BREAKRETEST	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Direct answer for the Sept. 7 15-key replay surface
+E0048	ENABLE_MTF_CONFLUENCE_BOOSTER	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Direct answer for the Sept. 7 15-key replay surface
+E0049	ENABLE_NOWICK	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Direct answer for the Sept. 7 15-key replay surface
+E0050	ENABLE_ORB	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Direct answer for the Sept. 7 15-key replay surface
+E0054	ENABLE_STRATEGY_MTF_CONFLUENCE	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Direct answer for the Sept. 7 15-key replay surface
+E0063	EVAL_RULES_ENABLED	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Direct answer for the Sept. 7 15-key replay surface
+E0102	MTF_BOOSTER_BOOST_MTF_CANDIDATE	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Direct answer for the Sept. 7 15-key replay surface
+E0103	MTF_BOOSTER_CONFLICT_MULT	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Direct answer for the Sept. 7 15-key replay surface
+E0104	MTF_BOOSTER_MAX_MULT	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Direct answer for the Sept. 7 15-key replay surface
+E0105	MTF_BOOSTER_MIN_CONFIDENCE	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Direct answer for the Sept. 7 15-key replay surface
+E0106	MTF_BOOSTER_MIN_SCORE	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Direct answer for the Sept. 7 15-key replay surface
+E0107	MTF_BOOSTER_PENALIZE_CONFLICTS	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Direct answer for the Sept. 7 15-key replay surface
+E0108	MTF_BOOSTER_STRENGTH_MULT	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Direct answer for the Sept. 7 15-key replay surface
+E0109	MTF_MISSING_HIGHER_TF_MULT	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Direct answer for the Sept. 7 15-key replay surface
+E0124	SYMBOL_LOSS_COOLDOWN_CONSECUTIVE_LOSSES	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Cooldown readers addendum
+E0125	SYMBOL_LOSS_COOLDOWN_ENABLED	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Cooldown readers addendum
+E0126	SYMBOL_LOSS_COOLDOWN_MINUTES	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Cooldown readers addendum
+E0163	TTP_BLOCK_ENTRIES_AFTER_CUTOFF	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Remaining eight PM2 stamps addendum
+E0166	TTP_DAILY_LOSS_PAUSE_ENABLED	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Remaining eight PM2 stamps addendum
+E0170	TTP_LIQUIDATION_ENABLED	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Remaining eight PM2 stamps addendum
+E0172	TTP_MARKET_TIME_ENABLED	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Remaining eight PM2 stamps addendum
+E0173	TTP_MAX_LOSS_ENABLED	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Remaining eight PM2 stamps addendum
+E0175	TTP_RULES_ENABLED	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Remaining eight PM2 stamps addendum
+E0176	TTP_VOLUME_CAP_ENABLED	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Remaining eight PM2 stamps addendum
+E0177	TTP_VOLUME_CAP_FALLBACK_TO_RECENT	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Remaining eight PM2 stamps addendum
+E0186	TTP_DAILY_LOSS_LIMIT_DOLLARS	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Requested core input table
+E0187	TTP_MAX_LOSS_THRESHOLD_EQUITY	DELETE-AS-DEAD	LIVE_READER	MOVE-TO-SETTINGS	Requested core input table
+E0188	TTP_PROFIT_TARGET_DOLLARS	DELETE-AS-DEAD	LIVE_READER	MOVE-TO-SETTINGS	Requested core input table
+E0191	OGZ_ACCOUNT_ID	DELETE-AS-DEAD	LIVE_READER	MOVE-TO-SETTINGS	Requested core input table
+E0192	OGZ_ACCOUNT_LABEL	DELETE-AS-DEAD	LIVE_READER	MOVE-TO-SETTINGS	Requested core input table
+E0193	OGZ_ACCOUNT_STAGE	DELETE-AS-DEAD	LIVE_READER	MOVE-TO-SETTINGS	Requested core input table
+E0194	OGZ_ACCOUNT_STATUS	DELETE-AS-DEAD	LIVE_READER	MOVE-TO-SETTINGS	Requested core input table
+E0195	OGZ_MIN_TRADES_REQUIRED	DELETE-AS-DEAD	LIVE_READER	MOVE-TO-SETTINGS	Requested core input table
+E0196	OGZ_TRACK_RECORD_START_AT	DELETE-AS-DEAD	LIVE_READER	MOVE-TO-SETTINGS	Requested core input table
+G0134	regimeMultipliers.strong_uptrend.slMultiplier	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Requested core input table
+G0135	regimeMultipliers.strong_uptrend.tpMultiplier	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Requested core input table
+G0136	regimeMultipliers.mild_uptrend.slMultiplier	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Requested core input table
+G0137	regimeMultipliers.mild_uptrend.tpMultiplier	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Requested core input table
+G0138	regimeMultipliers.trading_range.slMultiplier	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Requested core input table
+G0139	regimeMultipliers.trading_range.tpMultiplier	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Requested core input table
+G0140	regimeMultipliers.accumulation.slMultiplier	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Requested core input table
+G0141	regimeMultipliers.accumulation.tpMultiplier	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Requested core input table
+G0142	regimeMultipliers.volatile_spike.slMultiplier	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Requested core input table
+G0143	regimeMultipliers.volatile_spike.tpMultiplier	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Requested core input table
+G0144	regimeMultipliers.breakout.slMultiplier	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Requested core input table
+G0145	regimeMultipliers.breakout.tpMultiplier	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Requested core input table
+G0146	regimeMultipliers.consolidation.slMultiplier	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Requested core input table
+G0147	regimeMultipliers.consolidation.tpMultiplier	DELETE-AS-DEAD	NO_LIVE_READER	DELETE-AS-DEAD	Requested core input table
+G0163	profiles.scalper.minConfidence	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Current-manifest non-ruling DELETE rows
+G0164	profiles.scalper.maxPositionSize	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Current-manifest non-ruling DELETE rows
+G0165	profiles.scalper.riskPercent	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Current-manifest non-ruling DELETE rows
+G0166	profiles.scalper.maxHoldMinutes	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Current-manifest non-ruling DELETE rows
+G0167	profiles.day_trader.minConfidence	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Current-manifest non-ruling DELETE rows
+G0168	profiles.day_trader.maxPositionSize	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Current-manifest non-ruling DELETE rows
+G0169	profiles.day_trader.riskPercent	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Current-manifest non-ruling DELETE rows
+G0170	profiles.day_trader.maxHoldMinutes	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Current-manifest non-ruling DELETE rows
+G0171	profiles.swing.minConfidence	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Current-manifest non-ruling DELETE rows
+G0172	profiles.swing.maxPositionSize	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Current-manifest non-ruling DELETE rows
+G0173	profiles.swing.riskPercent	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Current-manifest non-ruling DELETE rows
+G0174	profiles.swing.maxHoldMinutes	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Current-manifest non-ruling DELETE rows
+G0175	profiles.conservative.minConfidence	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Current-manifest non-ruling DELETE rows
+G0176	profiles.conservative.maxPositionSize	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Current-manifest non-ruling DELETE rows
+G0177	profiles.conservative.riskPercent	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Current-manifest non-ruling DELETE rows
+G0178	profiles.conservative.maxHoldMinutes	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Current-manifest non-ruling DELETE rows
+G0179	profiles.balanced.minConfidence	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Current-manifest non-ruling DELETE rows
+G0180	profiles.balanced.maxPositionSize	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Current-manifest non-ruling DELETE rows
+G0181	profiles.balanced.riskPercent	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Current-manifest non-ruling DELETE rows
+G0182	profiles.balanced.maxHoldMinutes	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Current-manifest non-ruling DELETE rows
+G0183	profiles.quantum.minConfidence	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Current-manifest non-ruling DELETE rows
+G0184	profiles.quantum.maxPositionSize	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Current-manifest non-ruling DELETE rows
+G0185	profiles.quantum.riskPercent	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Current-manifest non-ruling DELETE rows
+G0186	profiles.quantum.maxHoldMinutes	DELETE-AS-DEAD	LIVE_READER_RULED_DELETE	DELETE-RULED	Current-manifest non-ruling DELETE rows
