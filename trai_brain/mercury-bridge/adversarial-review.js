@@ -960,7 +960,9 @@ function stageAttemptReceipt({
     termination: metadata.termination || null,
     parse_status: metadata.parseStatus || null,
     exit_code: metadata.exitCode == null ? null : metadata.exitCode,
-    retry_status: role === 'opus_challenger' ? 'emergency_replacement' : 'primary_attempt',
+    retry_status: role === 'opus_challenger'
+      ? 'emergency_replacement'
+      : (role === 'kimi_tie_breaker' && attemptNumber > 1 ? 'truncation_retry' : 'primary_attempt'),
     input_provenance: inputProvenance || buildAttestedPromptProvenance(prompt, suppliedSources),
     raw_output: rawOutput,
     raw_error: rawError,
@@ -1221,9 +1223,26 @@ async function runKimiFinalAdjudication({
   ];
   buildAttestedPromptProvenance(prompt, suppliedSources);
   const started = now();
-  const stage = await executePromptOnlyStage({
-    role: 'kimi_tie_breaker', prompt, suppliedSources, createClient, persistRaw, attemptNumber: 1,
-  });
+  const attempts = [];
+  let stage = null;
+  for (let attemptNumber = 1; attemptNumber <= 2; attemptNumber += 1) {
+    try {
+      stage = await executePromptOnlyStage({
+        role: 'kimi_tie_breaker', prompt, suppliedSources, createClient, persistRaw, attemptNumber,
+      });
+      attempts.push(stage.receipt);
+      break;
+    } catch (error) {
+      if (error.stageAttempt) attempts.push(error.stageAttempt);
+      const termination = String(error.providerMetadata && error.providerMetadata.termination || '').toLowerCase();
+      const truncated = ['length', 'max_tokens'].includes(termination);
+      if (!truncated || attemptNumber === 2) {
+        error.reviewerAttempts = attempts;
+        error.challengerAttempts = attempts;
+        throw error;
+      }
+    }
+  }
   const answer = stage.answer;
   const quarantines = stage.receipt.identity_posture.status === 'identity_conflict'
     ? [reviewQuarantine({
@@ -1231,7 +1250,7 @@ async function runKimiFinalAdjudication({
       name: 'kimi_tie_breaker',
       absence: 'identity_conflict',
       loadBearing: true,
-      attempts: [stage.receipt],
+      attempts,
     })]
     : [];
 
@@ -1245,6 +1264,7 @@ async function runKimiFinalAdjudication({
     latencyMs: now() - started,
     answer,
     parsed: parseAdversarialReviewAnswer(answer),
+    attempts,
     stageReceipt: stage.receipt,
     identityPosture: stage.receipt.identity_posture,
     quarantines,

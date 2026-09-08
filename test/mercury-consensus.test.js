@@ -966,6 +966,77 @@ describe('Mercury Fable consensus', () => {
     });
   });
 
+  test('Kimi retries one provider-reported truncation and preserves both attempt receipts', async () => {
+    const truncated = new Error('Provider response terminated before completion');
+    truncated.providerMetadata = {
+      provider: 'openai', requestedModel: 'kimi-k3', appliedModel: 'kimi-k3',
+      termination: 'length', parseStatus: 'parsed', rawResponse: Buffer.from('truncated-kimi'),
+    };
+    const fakeClient = {
+      maxTokens: 4096,
+      initialize: jest.fn(async () => {}),
+      generateResponseWithMetadata: jest.fn()
+        .mockRejectedValueOnce(truncated)
+        .mockResolvedValueOnce({
+          answer: 'FINAL_VERDICT: pass\nFINAL_BLOCKING: no',
+          metadata: {
+            provider: 'openai', requestedModel: 'kimi-k3', appliedModel: 'kimi-k3',
+            termination: 'stop', parseStatus: 'parsed', rawResponse: Buffer.from('complete-kimi'),
+          },
+        }),
+    };
+
+    const result = await runKimiFinalConsensus({
+      query: 'Check the supplied fact.',
+      mercuryResult: { termination: 'answer_given', answer: 'The fact is supported.' },
+      review: { answer: 'VERDICT: pass\nCONSENSUS_BLOCKING: no', rechecks: [] },
+      createClient: () => fakeClient,
+      persistRaw: (role, attempt) => ({ path: `${role}-${attempt}.raw`, sha256: 'abc', bytes: 1, mode: '0600' }),
+    });
+
+    expect(fakeClient.generateResponseWithMetadata).toHaveBeenCalledTimes(2);
+    expect(result.attempts).toHaveLength(2);
+    expect(result.attempts).toEqual([
+      expect.objectContaining({ attempt: 1, status: 'failed', termination: 'length', retry_status: 'primary_attempt' }),
+      expect.objectContaining({ attempt: 2, status: 'succeeded', termination: 'stop', retry_status: 'truncation_retry' }),
+    ]);
+    expect(result.stageReceipt).toBe(result.attempts[1]);
+    expect(result.answer).toContain('FINAL_VERDICT: pass');
+  });
+
+  test('Kimi records two truncation attempts before surfacing an absent answer', async () => {
+    const fakeClient = {
+      maxTokens: 4096,
+      initialize: jest.fn(async () => {}),
+      generateResponseWithMetadata: jest.fn(async () => {
+        const error = new Error('Provider response terminated before completion');
+        error.providerMetadata = {
+          provider: 'openai', requestedModel: 'kimi-k3', appliedModel: 'kimi-k3',
+          termination: 'length', parseStatus: 'parsed', rawResponse: Buffer.from('truncated-kimi'),
+        };
+        throw error;
+      }),
+    };
+
+    let caught;
+    try {
+      await runKimiFinalConsensus({
+        query: 'Check the supplied fact.',
+        mercuryResult: { termination: 'answer_given', answer: 'The fact is supported.' },
+        review: { answer: 'VERDICT: pass\nCONSENSUS_BLOCKING: no', rechecks: [] },
+        createClient: () => fakeClient,
+        persistRaw: (role, attempt) => ({ path: `${role}-${attempt}.raw`, sha256: 'abc', bytes: 1, mode: '0600' }),
+      });
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(fakeClient.generateResponseWithMetadata).toHaveBeenCalledTimes(2);
+    expect(caught.reviewerAttempts).toHaveLength(2);
+    expect(caught.reviewerAttempts.map(attempt => attempt.retry_status))
+      .toEqual(['primary_attempt', 'truncation_retry']);
+  });
+
   test('Kimi receipt preserves evidence plus exact recheck prompts, answers, and telemetry', async () => {
     const evidence = evidenceFixture();
     const query = `Audit this excerpt:\n${evidence.excerpt}`;

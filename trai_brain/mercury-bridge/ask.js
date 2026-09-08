@@ -1163,7 +1163,9 @@ async function runAgentic(query, opts) {
     const failedQuarantines = [];
     for (const seat of panelRun.seats.filter(seat => seat.status === 'failed')) {
       const failedOutput = seat.error && (seat.error.reviewFailure || (seat.error.stageAttempt ? {
-        attempts: [seat.error.stageAttempt],
+        attempts: Array.isArray(seat.error.reviewerAttempts)
+          ? seat.error.reviewerAttempts
+          : [seat.error.stageAttempt],
         stageReceipt: seat.error.stageAttempt,
       } : null));
       const failedMetadata = failedOutput

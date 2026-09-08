@@ -70,6 +70,8 @@ describe('Mercury LLM config contract', () => {
         TIE_BREAKER_PROVIDER: 'openai',
         TIE_BREAKER_MODEL: 'kimi-k3',
         TIE_BREAKER_API_KEY_ENV: 'MOONSHOT_API_KEY',
+        TIE_BREAKER_CLIENT_MAX_TOKENS: 4096,
+        TIE_BREAKER_REQUEST_TIMEOUT_MS: 600000,
         AGENTIC_MAX_ITERATIONS: 60,
         AGENTIC_MAX_TOKENS: 7750,
       });
@@ -98,6 +100,7 @@ describe('Mercury LLM config contract', () => {
       });
       expect(resolveKimiTieBreakerClientOptions()).toMatchObject({
         provider: 'openai', model: 'kimi-k3', apiKey: 'moonshot-test-key', authRequired: true,
+        maxTokens: 4096, requestTimeoutMs: 600000,
       });
     }, { MOONSHOT_API_KEY: 'moonshot-test-key' });
   });

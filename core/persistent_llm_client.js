@@ -99,7 +99,7 @@ class PersistentLLMClient {
     this.maxTokens = requireInteger(resolvedConfig, 'maxTokens', { min: 1, max: 200000 });
     this.minimumTokens = requireInteger(resolvedConfig, 'minimumTokens', { min: 0, max: 200000 });
     this.temperature = requireNumber(resolvedConfig, 'temperature', { min: 0, max: 2 });
-    this.requestTimeoutMs = requireInteger(resolvedConfig, 'requestTimeoutMs', { min: 1000, max: 300000 });
+    this.requestTimeoutMs = requireInteger(resolvedConfig, 'requestTimeoutMs', { min: 1000, max: 600000 });
     this.systemPrompt = requireString(resolvedConfig, 'systemPrompt');
     this.openaiExtraBody = resolvedConfig.openaiExtraBody
       && typeof resolvedConfig.openaiExtraBody === 'object'
