@@ -1,7 +1,7 @@
 # WORK — MISSION 0: STOP 1 LEAF MANIFEST
 
 **Executor:** CC (Fable, on the box) · **Date:** 2026-09-06 · **Tree:** e54a8b8d, codex/multi-asset-symbol-state
-**Deliverable:** MANIFEST.tsv — 2,238 rows, 10 columns, no duplicate ids, no column-count anomalies (verified by awk over every row).
+**Mission 0 deliverable:** MANIFEST.tsv — 2,238 rows. **Mission 0.1b deliverable:** 2,358 rows, 10 columns, no duplicate ids or JSON paths, and no column-count anomalies.
 
 ## How the manifest was built
 
@@ -31,20 +31,49 @@ Rebuilt rows are therefore disk-verified as of this writing; they were NOT indep
 
 ---
 
-## WHAT I DID
+## WHAT I DID — Mission 0 baseline (historical)
 - Produced MANIFEST.tsv: 2,238 rows across all four mission surfaces, one row per leaf, all 10 columns populated on every row (readers column says "none" where none exist, never blank).
 - Verified totality at trading.config.json top level: all 31 top-level keys have rows; per-key row sum (1,654) equals the surface's row count exactly.
 - Re-verified every contract-specific reader cited in the rebuilt X rows against HEAD by grep (receipts in EVIDENCE.md).
 - Adjudicated the two inter-agent disagreements (REVIEW.md) and applied corrections in-file with notes.
 - Wrote this packet (MISSION/WORK/EVIDENCE/REVIEW/INHERITED).
 
-## WHAT I DID NOT DO
+## WHAT I DID NOT DO — Mission 0 baseline (historical)
 - Did NOT commit, push, edit code, touch config, or restart anything. The packet directory is the only thing written.
 - Did NOT let any agent (or myself) invent a disposition: everything unplaceable under the sort's ruled mappings is HOLD-NEEDS-OWNER (340 rows).
 - Did NOT have the rebuilt sections (X0177–X0301, P0001–P0582) independently re-derived by a second agent — they are single-sourced from CC's disk reads. Named for cold-pull.
 - Did NOT resolve the denominator deltas (1,654 vs 1,692 for trading.config.json; 77 vs 73 for features.json) — documented in EVIDENCE.md as accounting-method differences, held for owner ruling rather than guessed away.
 
-## ASSUMED
+## ASSUMED — Mission 0 baseline (superseded by 0.1b)
 - That an array-valued leaf (e.g. `invalidationConditions`, `cryptoSymbols`, `soloFilter`, `patterns`, curve tables) is ONE row, not one row per element — except `mtfService.weights.*`, whose per-timeframe keys are individual leaves. This is the likely source of the denominator deltas above.
 - That the ruled category mappings in STOP1-CONFIG-SORT-2026-09-05-FABLE.md are current law for the disposition column.
 - Nothing else. Every current_value and file:line in the manifest is from a direct read of HEAD.
+
+## Mission 0.1b work
+
+1. Walked `config/trading.config.json` and `config/features.json` at frozen ref `e54a8b8d`, including false/null scalars and terminal empty objects while expanding every array to indexed element paths.
+2. Removed 43 collapsed collection rows: 42 trading-config array parents and the `EXIT_SYSTEM.settings.availableSystems` object parent.
+3. Added 162 JSON leaf rows under new ids `Q0001`–`Q0162`: 125 trading-config leaves and 37 feature leaves. This includes the arrays named by dispatch, all other arrays exposed by the complete walk, four tuning-profile names, four descriptions, thirteen evidence elements, 32 feature description/version leaves, five available-system leaves, and the terminal empty `regimeBoosts.unknown` object.
+4. Added env row `E0214` for `BACKTEST_CONFIG_OVERRIDES_JSON`.
+5. Replaced the three summarized current values with exact JSON string literals: two fee-profile descriptions and `trai.llm.systemPrompt`.
+6. Replaced all 34 exit-contract percent-trailing reader fields using Codex's direct audit: ten live JSON inputs are validation-only at `PolicyBuilder.js:240-241`; 24 JSON inputs are shadowed at the exact `ConfigLoader.js` construction lines.
+7. Applied the Sept. 7 PID ruling to all 15 `pid.*` rows.
+8. Re-ran path completeness, TSV integrity, literal-value, reader-count, PID, and 0.1a receipt-preservation checks.
+
+---
+
+## WHAT I DID — Mission 0.1b
+
+- Corrected the manifest to one row per frozen JSON leaf under the stated empty-object rule.
+- Kept all work inside the existing packet and prepared one packet-only commit.
+
+## WHAT I DID NOT DO — Mission 0.1b
+
+- Did not change any of the 79 Mission 0.1a dispositions.
+- Did not edit runtime code or either config input, restart PM2, or stage another agent's work.
+- Did not push the 0.1b commit; it is held for cold-pull as dispatched.
+
+## ASSUMED — Mission 0.1b
+
+- Empty objects are terminal literal leaves (`{}`); arrays, including empty arrays, are containers and never retain a parent-as-one-row entry. This preserves receipt row `B0060` (`universalLimits = {}`) while satisfying the explicit array-expansion rule.
+- No other assumptions.

@@ -35,3 +35,10 @@
 - ogz-meta/inbox/cc/2026-09-06/STOP1-CONFIG-SORT-2026-09-05-FABLE.md (starting list, ruled category mappings)
 - ogz-meta/inbox/amp/2026-08-28/env-census.md (env bypass-reader denominator)
 - ogz-meta/inbox/codex/2026-08-16/config-truth-census-pass0.md (literal-surface denominator)
+
+## Mission 0.1b addendum — manifest completeness
+
+**Dispatcher:** Trey (session dispatch, 2026-09-08). **Base manifest:** `b364d364`.
+**Scope:** Packet edits only, one commit on `codex/multi-asset-symbol-state`, then HOLD for cold-pull.
+
+Mission 0.1b supersedes the original array-as-one-row assumption. Every array is expanded to scalar/object-leaf element paths, collapsed parent rows are removed, and empty objects remain terminal `{}` leaves. Both frozen JSON inputs are walked from `e54a8b8d` and compared in both directions against the manifest. The mission also adds the missing tuning/feature metadata and backtest override env surface, records literal description/prompt values, applies Trey's Sept. 7 PID ruling, corrects all 34 trailing reader fields from Codex's direct audit, and corrects inherited finding #6.

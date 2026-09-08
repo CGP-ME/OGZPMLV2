@@ -2,6 +2,8 @@
 
 All numbers below were computed mechanically over MANIFEST.tsv (cut/awk/uniq) at assembly close, and every code citation was read from HEAD e54a8b8d on the box.
 
+The original Mission 0 counts below are the `b364d364` baseline. The Mission 0.1b section at the end is the current authoritative completeness and integrity evidence.
+
 ## Row integrity
 
 - **2,238 data rows** + 1 header = 2,239 lines.
@@ -84,3 +86,111 @@ confidence 6 · risk 4 · authFailureGuard 2 · launchProfiles 582 · tuningProf
 **launchProfiles accessor map (ConfigLoader.js):** resolve :548–558; validate mode/confirmLive/sessionRouter :563–588; consumption — sessionRouter :665–681, mode tracks :688–718, minTradeConfidence :780, strategyBehavior :825–827, confluence :850–852 (helpers :298–331), risk :885–901, venueGuards→evalRules :913–949, soloFilter :1011 (via :457, backtest-only env alias SOLO_STRATEGY), pipeline toggles :1012–1028, directionFilter :1041. Env-overridable exceptions (operational*): accountStartOfDayDate :935 (TTP_ACCOUNT_START_OF_DAY_DATE), accountStartOfDayEquity :936 (TTP_ACCOUNT_START_OF_DAY_EQUITY), earningsRestriction.manualStatus :943 (TTP_EARNINGS_STATUS_JSON).
 
 **Inherited-finding spot checks re-verified on HEAD:** TRAIDecisionModule.js:64–65 `...config` spread followed by `enableVetoPower: false` (config self-clobber); MaxProfitManager.js absent from core/ and modules/ (ls: no such file).
+
+## Mission 0.1b — completeness and integrity evidence
+
+### Counting rule
+
+- Every string, number, boolean, and null is a leaf.
+- An empty object is a terminal literal `{}` leaf. This retains `universalLimits`, `exitLogic.safety`, each empty `actionParams`, and `regimeBoosts.unknown`.
+- Every array is a container, including an empty array. Non-empty arrays recurse to indexed paths; empty arrays contribute zero rows. No array parent remains as a manifest row.
+- Feature paths under the file's top-level `features` object omit that wrapper to preserve the established manifest naming convention. Top-level `environment.*` paths retain their prefix.
+
+### Scripted two-way path completeness check
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+mission01b_ref=e54a8b8d
+mission01b_manifest=ogz-meta/inbox/cc/2026-09-06/stop1-manifest/MANIFEST.tsv
+mission01b_tmp=$(mktemp -d /tmp/mission-01b-completeness.XXXXXX)
+trap 'rm -rf "$mission01b_tmp"' EXIT
+
+mission01b_leaf_filter='paths((type != "array" and type != "object") or (type == "object" and length == 0))'
+mission01b_path_format='reduce .[] as $part (""; if ($part|type)=="number" then . + "[" + ($part|tostring) + "]" elif .=="" then $part else . + "." + $part end)'
+
+git show "$mission01b_ref:config/trading.config.json" |
+  jq -r "$mission01b_leaf_filter | $mission01b_path_format" |
+  sort -u > "$mission01b_tmp/trading-source"
+
+git show "$mission01b_ref:config/features.json" |
+  jq -r "$mission01b_leaf_filter | (if .[0]==\"features\" then .[1:] else . end) | $mission01b_path_format" |
+  sort -u > "$mission01b_tmp/features-source"
+
+awk -F '\t' 'NR>1 && $2=="trading.config.json" {print $3}' "$mission01b_manifest" |
+  sort -u > "$mission01b_tmp/trading-manifest"
+awk -F '\t' 'NR>1 && $2=="features.json" {print $3}' "$mission01b_manifest" |
+  sort -u > "$mission01b_tmp/features-manifest"
+
+comm -23 "$mission01b_tmp/trading-source" "$mission01b_tmp/trading-manifest" > "$mission01b_tmp/trading-source-only"
+comm -13 "$mission01b_tmp/trading-source" "$mission01b_tmp/trading-manifest" > "$mission01b_tmp/trading-manifest-only"
+comm -23 "$mission01b_tmp/features-source" "$mission01b_tmp/features-manifest" > "$mission01b_tmp/features-source-only"
+comm -13 "$mission01b_tmp/features-source" "$mission01b_tmp/features-manifest" > "$mission01b_tmp/features-manifest-only"
+
+printf 'reference=%s\n' "$mission01b_ref"
+printf 'trading_source_paths='; wc -l < "$mission01b_tmp/trading-source"
+printf 'trading_manifest_paths='; wc -l < "$mission01b_tmp/trading-manifest"
+printf 'trading_source_only='; wc -l < "$mission01b_tmp/trading-source-only"
+printf 'trading_manifest_only='; wc -l < "$mission01b_tmp/trading-manifest-only"
+printf 'features_source_paths='; wc -l < "$mission01b_tmp/features-source"
+printf 'features_manifest_paths='; wc -l < "$mission01b_tmp/features-manifest"
+printf 'features_source_only='; wc -l < "$mission01b_tmp/features-source-only"
+printf 'features_manifest_only='; wc -l < "$mission01b_tmp/features-manifest-only"
+
+test ! -s "$mission01b_tmp/trading-source-only"
+test ! -s "$mission01b_tmp/trading-manifest-only"
+test ! -s "$mission01b_tmp/features-source-only"
+test ! -s "$mission01b_tmp/features-manifest-only"
+printf 'result=PASS\n'
+```
+
+Output:
+
+```text
+reference=e54a8b8d
+trading_source_paths=1737
+trading_manifest_paths=1737
+trading_source_only=0
+trading_manifest_only=0
+features_source_paths=113
+features_manifest_paths=113
+features_source_only=0
+features_manifest_only=0
+result=PASS
+```
+
+### Integrity re-run
+
+```text
+header_columns=10
+rows=2358
+bad_columns=0
+duplicate_ids=0
+duplicate_json_paths=0
+new_Q_rows=162
+backtest_override_rows=1
+
+pid_rows=15 pid_mismatches=0
+trailing_rows=34 live_validation_rows=10 shadowed_rows=24 reader_mismatches=0
+audit_shadow_rows=24 audit_live_rows=10 audit_reader_mismatches=0
+receipt_rows=79 receipt_disposition_mismatches=0
+new_literal_rows=162 new_literal_mismatches=0
+corrected_literal_rows=3 corrected_literal_mismatches=0
+tuning_name_description_rows=8 tuning_evidence_rows=13
+feature_description_version_rows=32 available_system_rows=5
+git_diff_check=PASS
+```
+
+Current disposition counts:
+
+| proposed_disposition | rows |
+|---|---:|
+| MOVE-TO-SETTINGS | 1,838 |
+| HOLD-NEEDS-OWNER | 341 |
+| MOVE-TO-INTERNALS | 72 |
+| DELETE-AS-DEAD | 41 |
+| KEEP-AS-CODE-CONSTANT | 36 |
+| DELETE-RULED | 30 |
+
+The 79-row Codex receipt was joined to the current manifest by id; every `disposition_0_1a` matched, including the 41 remaining `DELETE-AS-DEAD`, 30 `DELETE-RULED`, and eight `MOVE-TO-SETTINGS` rows.
