@@ -1,6 +1,8 @@
 'use strict';
 
 const config = require('./config');
+const { responseStopReason } = require('../../core/persistent_llm_client');
+const { accountProviderAttempt } = require('./cost-accounting');
 const {
   claudeAppliedModelMatchesAlias,
   classifyClaudeCodeIdentity,
@@ -16,6 +18,15 @@ const {
   extractClaimedFileCitations,
   sanitizeForLedger,
 } = require('./run-ledger');
+
+const SELF_REPORT_PROMPT_LINES = Object.freeze([
+  'End the answer with this complete self-report footer:',
+  'WHAT I DID: <what you mechanically examined or performed>',
+  'WHAT I DID NOT DO: <what remained unexamined or unperformed>',
+  'WHAT I ASSUMED: <assumptions, or none>',
+  'WHY THIS VERDICT: <the evidence-to-verdict reason>',
+  'IF INCOMPLETE, WHY: <why incomplete, or not incomplete>',
+]);
 
 function isHardReviewBoundaryError(error) {
   if (!error) return false;
@@ -46,7 +57,7 @@ function resolveNtfyEndpoint(topic) {
   return `https://ntfy.sh/${encodeURIComponent(value)}`;
 }
 
-async function screamReviewQuarantine(quarantine, {
+async function sendMaxPriorityNtfy({ title, body }, {
   env = process.env,
   fetchImpl = global.fetch,
   logger = console,
@@ -63,9 +74,9 @@ async function screamReviewQuarantine(quarantine, {
       method: 'POST',
       headers: {
         Priority: 'max',
-        Title: `Mercury review quarantine: ${quarantine.unit}`,
+        Title: title,
       },
-      body: `${quarantine.name} quarantined; absence=${quarantine.absence}; run continues at UNVERIFIED ceiling`,
+      body,
     });
     if (!response || response.ok !== true) {
       return {
@@ -89,6 +100,13 @@ async function screamReviewQuarantine(quarantine, {
       error: cleanStageError(error),
     };
   }
+}
+
+async function screamReviewQuarantine(quarantine, options = {}) {
+  return sendMaxPriorityNtfy({
+    title: `Mercury review quarantine: ${quarantine.unit}`,
+    body: `${quarantine.name} quarantined; absence=${quarantine.absence}; run continues at UNVERIFIED ceiling`,
+  }, options);
 }
 
 async function notifyReviewQuarantines(quarantines, options = {}) {
@@ -623,6 +641,8 @@ function buildAdversarialReviewPrompt({
       'RISKS_AND_CRITICISMS: <strongest criticisms>',
       'NEXT_LANES: <operator-sized follow-up lanes>',
       '',
+      ...SELF_REPORT_PROMPT_LINES,
+      '',
       `Original user prompt:\n${query.trim()}`,
       '',
       `Host-attested evidence manifest:\n${evidenceManifest(evidenceSources)}`,
@@ -657,6 +677,8 @@ function buildAdversarialReviewPrompt({
       'TEST_PLAN: <behavior tests, static tests, gates>',
       'OPEN_DECISIONS: <operator rulings needed>',
       'NEXT_LANES: <operator-sized follow-up lanes>',
+      '',
+      ...SELF_REPORT_PROMPT_LINES,
       '',
       `Original user prompt:\n${query.trim()}`,
       '',
@@ -703,6 +725,8 @@ function buildAdversarialReviewPrompt({
     'WHAT I EXAMINED: <enumerated>',
     'DID NOT EXAMINE: <enumerated>',
     'ASSUMED: <enumerated>',
+    '',
+    ...SELF_REPORT_PROMPT_LINES,
     '',
     `Original user prompt:\n${query.trim()}`,
     '',
@@ -766,7 +790,7 @@ function buildKimiFinalAdjudicationPrompt({
     'Do not merge the answers into a blended narrative. Attribute every item to the reporter that holds it by name.',
     'If Mercury, Fable, and you still do not converge, return VERDICT: disagree and preserve what each model individually supported.',
     '',
-    'Return exactly these fields in this order, one label per line. VERDICT must be last:',
+    'Return exactly these fields in this order, one label per line. VERDICT must be last before the self-report footer:',
     'CONSENSUS: claims all reporters agree on, with citations, or none',
     'CONTRADICTIONS: reporter disagreements with each position and repo-supported resolution, or none',
     'PARTIAL: claims only one reporter reached and others did not verify, or none',
@@ -786,6 +810,8 @@ function buildKimiFinalAdjudicationPrompt({
     'DID NOT EXAMINE: enumerated absences',
     'ASSUMED: enumerated assumptions',
     'VERDICT: pass | disagree | needs_more_evidence',
+    '',
+    ...SELF_REPORT_PROMPT_LINES,
     '',
     'Rules: VERDICT: pass with non-empty CONTRADICTIONS contradicts the tape; resolve or route to recheck. BLIND_SPOTS must be recorded but does not block by itself. Never quote model confidence as evidence.',
     '',
@@ -939,12 +965,19 @@ function stageAttemptReceipt({
   inputProvenance = null,
 }) {
   const identityPosture = stampedIdentityPosture(metadata);
+  const requestedProvider = metadata.provider || null;
+  const requestedModel = metadata.requestedModel || null;
+  const accounting = accountProviderAttempt(metadata, {
+    provider: requestedProvider,
+    model: requestedModel,
+    pricingCatalog: config.PROVIDER_PRICING,
+  });
   return {
     role,
     attempt: attemptNumber,
     status,
-    requested_provider: metadata.provider || null,
-    requested_model: metadata.requestedModel || null,
+    requested_provider: requestedProvider,
+    requested_model: requestedModel,
     applied_model: metadata.appliedModel || null,
     applied_models: Array.isArray(metadata.appliedModels)
       ? [...metadata.appliedModels]
@@ -958,7 +991,20 @@ function stageAttemptReceipt({
     finished_at: metadata.finishedAt || null,
     latency_ms: metadata.latencyMs == null ? null : metadata.latencyMs,
     termination: metadata.termination || null,
+    stopped_because: sanitizeForLedger(
+      metadata.stoppedBecause && metadata.stoppedBecause !== 'provider_stop_reason_absent'
+        ? metadata.stoppedBecause
+        : responseStopReason({
+          termination: metadata.termination,
+          statusCode: metadata.statusCode,
+          providerError: error && error.message,
+        })
+    ),
     parse_status: metadata.parseStatus || null,
+    tokens: accounting.tokens,
+    usage_absence: accounting.usage_absence,
+    cost: accounting.cost,
+    cost_absence: accounting.cost_absence,
     exit_code: metadata.exitCode == null ? null : metadata.exitCode,
     retry_status: role === 'opus_challenger'
       ? 'emergency_replacement'
@@ -1327,6 +1373,7 @@ module.exports = {
   reviewQuarantine,
   resolveNtfyEndpoint,
   screamReviewQuarantine,
+  sendMaxPriorityNtfy,
   notifyReviewQuarantines,
   executePromptOnlyStage,
   runFableAdversarialReview,

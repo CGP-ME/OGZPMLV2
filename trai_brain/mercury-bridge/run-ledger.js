@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { panelAuthorityVerdict } = require('./reviewer-panel');
+const { roundCurrency, sumAttemptAccounting, sumSeatAccounting } = require('./cost-accounting');
 
 const DEFAULT_RUN_LEDGER_DIR = path.join('ogz-meta', 'cognition-history', 'mercury-runs');
 const RUN_LEDGER_DIR = resolveRunLedgerDir(process.env.MERCURY_RUN_LEDGER_DIR || DEFAULT_RUN_LEDGER_DIR);
@@ -75,6 +76,73 @@ function writeRawProviderOutput({ repoRoot, runId, stage, attempt, bytes, now = 
 function extractClaimedFileCitations(answer) {
   const normalized = String(answer || '').replace(/[‑–—]/g, '-');
   return Array.from(new Set(normalized.match(/[A-Za-z0-9_./-]+\.\w+:\d+(?:-\d+)?/g) || [])).sort();
+}
+
+const SELF_REPORT_FIELDS = Object.freeze([
+  ['WHAT I DID', 'did'],
+  ['WHAT I DID NOT DO', 'did_not'],
+  ['WHAT I ASSUMED', 'assumed'],
+  ['WHY THIS VERDICT', 'why_verdict'],
+  ['IF INCOMPLETE, WHY', 'why_incomplete'],
+]);
+
+function parseSelfReport(answer) {
+  const lines = String(answer || '').replace(/\r\n/g, '\n').split('\n');
+  const parsed = Object.fromEntries(SELF_REPORT_FIELDS.map(([, field]) => [field, null]));
+  let activeField = null;
+  for (const line of lines) {
+    const normalized = line
+      .replace(/^\s{0,3}#{1,6}\s*/, '')
+      .replace(/^\s*[-*]\s+/, '')
+      .replace(/\*\*/g, '')
+      .trim();
+    const match = SELF_REPORT_FIELDS.find(([label]) => (
+      normalized.toUpperCase() === label
+      || normalized.toUpperCase().startsWith(`${label}:`)
+    ));
+    if (match) {
+      activeField = match[1];
+      const value = normalized.slice(match[0].length).replace(/^\s*:\s*/, '').trim();
+      parsed[activeField] = value || null;
+      continue;
+    }
+    if (activeField && normalized) {
+      parsed[activeField] = parsed[activeField]
+        ? `${parsed[activeField]}\n${normalized}`
+        : normalized;
+    }
+  }
+  const missingFields = SELF_REPORT_FIELDS
+    .map(([, field]) => field)
+    .filter(field => !parsed[field]);
+  return {
+    self_report: parsed,
+    self_report_complete: missingFields.length === 0,
+    self_report_missing_fields: missingFields,
+    named_absences: missingFields.length > 0 ? ['self_report_absent'] : [],
+  };
+}
+
+function stoppedBecauseForAttempts(attempts, fallback = null) {
+  const list = Array.isArray(attempts) ? attempts.filter(Boolean) : [];
+  const last = list[list.length - 1];
+  if (last && last.stopped_because) return last.stopped_because;
+  if (last && last.termination) return last.termination;
+  return fallback || 'no_provider_attempt_recorded';
+}
+
+function seatReceiptFields(answer, attempts, fallbackStop = null) {
+  const selfReport = parseSelfReport(answer);
+  const accounting = sumAttemptAccounting(attempts);
+  return {
+    self_report: selfReport.self_report,
+    self_report_complete: selfReport.self_report_complete,
+    self_report_missing_fields: selfReport.self_report_missing_fields,
+    named_absences: selfReport.named_absences,
+    stopped_because: stoppedBecauseForAttempts(attempts, fallbackStop),
+    seat_tokens: accounting.seat_tokens,
+    seat_cost: accounting.seat_cost,
+  };
 }
 
 function candidateSourceLedgerReceipt(source) {
@@ -222,7 +290,8 @@ function sanitizeForLedger(value) {
   if (typeof value === 'object') {
     const clean = {};
     for (const [key, raw] of Object.entries(value)) {
-      if (/(secret|token|password|api[_-]?key|api[_-]?secret|webhook[_-]?url|dsn)/i.test(key)) {
+      const safeTokenAccountingKey = ['tokens', 'seat_tokens', 'run_tokens'].includes(key);
+      if (!safeTokenAccountingKey && /(secret|token|password|api[_-]?key|api[_-]?secret|webhook[_-]?url|dsn)/i.test(key)) {
         // Numbers and booleans are config caps, never credentials. The bare
         // /token/ key match was scrubbing options.maxTokens, which made
         // Dispatch Law compliance (--max-tokens=7750) unverifiable post-hoc.
@@ -255,6 +324,74 @@ function readRepoState(repoRoot) {
     branch: gitText(repoRoot, ['branch', '--show-current'], 'unknown') || 'detached',
     head_sha: gitText(repoRoot, ['rev-parse', 'HEAD'], 'unknown') || 'unknown',
     dirty_status_summary: gitText(repoRoot, ['status', '--short', '--untracked-files=no'], '') || '',
+  };
+}
+
+function readLedgerEntries(absPath) {
+  if (!fs.existsSync(absPath)) return [];
+  return fs.readFileSync(absPath, 'utf8')
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line, index) => {
+      try {
+        return JSON.parse(line);
+      } catch (error) {
+        throw new Error(`Invalid Mercury run ledger JSON at ${absPath}:${index + 1}: ${error.message}`);
+      }
+    });
+}
+
+function priorPeriodCost({ repoRoot, period, currency = 'USD' }) {
+  const absDir = path.join(repoRoot, RUN_LEDGER_DIR);
+  if (!fs.existsSync(absDir)) return { amount: 0, priced_runs: 0, unpriced_runs: 0 };
+  const files = fs.readdirSync(absDir)
+    .filter(name => name.endsWith('.jsonl') && name.startsWith(period))
+    .sort();
+  let amount = 0;
+  let pricedRuns = 0;
+  let unpricedRuns = 0;
+  for (const file of files) {
+    for (const entry of readLedgerEntries(path.join(absDir, file))) {
+      if (entry.receipt_type && !['bridge_run', 'provider_preflight'].includes(entry.receipt_type)) continue;
+      const cost = entry.run_cost;
+      if (cost && Number.isFinite(cost.amount) && String(cost.currency || '').toUpperCase() === currency) {
+        amount += cost.amount;
+        pricedRuns += 1;
+        if (cost.complete !== true) unpricedRuns += 1;
+      } else {
+        unpricedRuns += 1;
+      }
+    }
+  }
+  return { amount: roundCurrency(amount), priced_runs: pricedRuns, unpriced_runs: unpricedRuns };
+}
+
+function rollingCostReceipt({ repoRoot, entry, dailyThreshold, monthlyThreshold }) {
+  const createdAt = isoTimestamp(entry.created_at);
+  const currency = entry.run_cost && entry.run_cost.currency || 'USD';
+  const currentAmount = entry.run_cost && Number.isFinite(entry.run_cost.amount)
+    ? entry.run_cost.amount
+    : 0;
+  const dailyPrior = priorPeriodCost({ repoRoot, period: createdAt.slice(0, 10), currency });
+  const monthlyPrior = priorPeriodCost({ repoRoot, period: createdAt.slice(0, 7), currency });
+  const buildPeriod = (prior, threshold) => {
+    const amount = roundCurrency(prior.amount + currentAmount);
+    const configuredThreshold = Number.isFinite(threshold) ? threshold : null;
+    return {
+      amount,
+      currency,
+      complete: prior.unpriced_runs === 0 && entry.run_cost && entry.run_cost.complete === true,
+      priced_runs: prior.priced_runs + (entry.run_cost && Number.isFinite(entry.run_cost.amount) ? 1 : 0),
+      unpriced_runs: prior.unpriced_runs + (entry.run_cost && Number.isFinite(entry.run_cost.amount) ? 0 : 1),
+      threshold: configuredThreshold,
+      threshold_crossed: configuredThreshold != null
+        && prior.amount < configuredThreshold
+        && amount >= configuredThreshold,
+    };
+  };
+  return {
+    daily_cost_total: buildPeriod(dailyPrior, dailyThreshold),
+    monthly_cost_total: buildPeriod(monthlyPrior, monthlyThreshold),
   };
 }
 
@@ -398,6 +535,7 @@ function buildFinalReviewLedgerSummary(finalReview) {
   if (!finalReview) return null;
   const redactedAnswer = finalReview.answer ? redactSensitiveText(finalReview.answer) : null;
   const parsed = parsedReviewClassification(finalReview.parsed);
+  const attempts = Array.isArray(finalReview.attempts) ? finalReview.attempts : [];
   return {
     mode: finalReview.mode || 'kimi_final_adjudication',
     enabled: finalReview.enabled === true,
@@ -412,6 +550,8 @@ function buildFinalReviewLedgerSummary(finalReview) {
     quarantines: Array.isArray(finalReview.quarantines) ? finalReview.quarantines : [],
     repo_adjudication: finalReview.repoAdjudication || { status: 'pending', authority: 'live_repo_required' },
     doctrine_review: finalReview.doctrineReview || null,
+    ...seatReceiptFields(redactedAnswer, attempts, finalReview.error ? 'reviewer_failed' : null),
+    provider_attempts: attempts,
     parsed,
     effective_verdict: parsed && parsed.verdict ? parsed.verdict : null,
     answer_excerpt: redactedAnswer
@@ -437,6 +577,7 @@ function buildReviewLedgerSummary(review, { effectiveVerdictOverride = null } = 
   const quarantines = Array.isArray(review.quarantines) ? review.quarantines : [];
   const effectiveVerdict = effectiveVerdictOverride
     || (quarantines.some(item => item && item.load_bearing === true) ? 'UNVERIFIED' : rawParsedVerdict);
+  const challengerAttempts = Array.isArray(review.attempts) ? review.attempts : [];
 
   return {
     mode: review.mode || 'adversarial_review',
@@ -449,6 +590,7 @@ function buildReviewLedgerSummary(review, { effectiveVerdictOverride = null } = 
     identity_posture: review.identityPosture || null,
     quarantines,
     doctrine_review: review.doctrineReview || null,
+    ...seatReceiptFields(redactedAnswer, challengerAttempts, review.error ? 'reviewer_failed' : null),
     parsed,
     effective_verdict: effectiveVerdict,
     raw_parsed_verdict: rawParsedVerdict,
@@ -474,6 +616,11 @@ function buildReviewLedgerSummary(review, { effectiveVerdictOverride = null } = 
       latency_ms: recheck.totalLatencyMs == null ? null : recheck.totalLatencyMs,
       input_provenance: recheck.inputProvenance || null,
       provider_attempts: Array.isArray(recheck.providerAttempts) ? recheck.providerAttempts : [],
+      ...seatReceiptFields(
+        recheck.answer ? redactSensitiveText(recheck.answer) : null,
+        Array.isArray(recheck.providerAttempts) ? recheck.providerAttempts : [],
+        recheck.termination || null
+      ),
       tools_available: Array.isArray(recheck.toolsAvailable) ? recheck.toolsAvailable : [],
       tools_invoked: compactToolStats(recheck.toolTelemetry || {}),
       files_mechanically_opened: recheck.toolTelemetry && Array.isArray(recheck.toolTelemetry.filesOpened)
@@ -497,13 +644,63 @@ function buildReviewLedgerSummary(review, { effectiveVerdictOverride = null } = 
       answer_full: recheck.answer ? redactSensitiveText(recheck.answer) : null,
     })),
     final_review: buildFinalReviewLedgerSummary(review.finalReview),
-    challenger_attempts: Array.isArray(review.attempts) ? review.attempts : [],
+    challenger_attempts: challengerAttempts,
     stage_receipt: review.stageReceipt || null,
     repo_adjudication: review.repoAdjudication || { status: 'pending', authority: 'live_repo_required' },
     answer_excerpt: redactedAnswer
       ? truncateText(redactedAnswer, ANSWER_EXCERPT_MAX)
       : null,
     answer_full: redactedAnswer,
+  };
+}
+
+function providerAttemptGroups(result) {
+  if (!result) return [];
+  const groups = [{ id: 'mercury', attempts: Array.isArray(result.providerAttempts) ? result.providerAttempts : [] }];
+  const review = result.adversarialReview || result.consensus;
+  if (review) {
+    groups.push({ id: 'fable', attempts: Array.isArray(review.attempts) ? review.attempts : [] });
+    const rechecks = Array.isArray(review.rechecks) ? review.rechecks : (review.recheck ? [review.recheck] : []);
+    rechecks.forEach((recheck, index) => groups.push({
+      id: `mercury_recheck_${index + 1}`,
+      attempts: Array.isArray(recheck.providerAttempts) ? recheck.providerAttempts : [],
+    }));
+    if (review.finalReview) {
+      groups.push({
+        id: 'kimi',
+        attempts: Array.isArray(review.finalReview.attempts) ? review.finalReview.attempts : [],
+      });
+    }
+  }
+  const groupedIds = new Set(groups.map(group => group.id));
+  for (const seat of result.reviewerPanel && result.reviewerPanel.seats || []) {
+    if (!groupedIds.has(seat.id) && Array.isArray(seat.providerAttempts)) {
+      groups.push({ id: seat.id, attempts: seat.providerAttempts });
+      groupedIds.add(seat.id);
+    }
+  }
+  return groups;
+}
+
+function panelSeatLedger(panel, result) {
+  if (!panel) return null;
+  const review = result && (result.adversarialReview || result.consensus);
+  return {
+    ...panel,
+    seats: (panel.seats || []).map((seat) => {
+      let attempts = Array.isArray(seat.providerAttempts) ? seat.providerAttempts : [];
+      if (seat.id === 'mercury') attempts = Array.isArray(result && result.providerAttempts) ? result.providerAttempts : attempts;
+      if (seat.id === 'fable' && review) {
+        attempts = seat.evaluationSource === 'mercury_recheck' && review.recheck
+          ? (review.recheck.providerAttempts || [])
+          : (review.attempts || []);
+      }
+      if (seat.id === 'kimi' && review && review.finalReview) attempts = review.finalReview.attempts || [];
+      return {
+        ...seat,
+        ...seatReceiptFields(seat.answer, attempts, seat.status === 'failed' ? 'reviewer_failed' : null),
+      };
+    }),
   };
 }
 
@@ -518,6 +715,7 @@ function buildRunLedgerEntry({
   autoBlastRadius = null,
   evidenceSources = [],
   inputProvenance = null,
+  costThresholds = {},
 } = {}) {
   const startedIso = isoTimestamp(startedAt || finishedAt);
   const finishedIso = isoTimestamp(finishedAt);
@@ -539,9 +737,12 @@ function buildRunLedgerEntry({
     || buildPromptProvenance(query, suppliedEvidence);
   const reviewQuarantines = collectReviewQuarantines(result);
   const candidateSet = result && result.candidateSet ? result.candidateSet : null;
+  const attemptGroups = providerAttemptGroups(result);
+  const runAccounting = sumSeatAccounting(attemptGroups);
 
-  return sanitizeForLedger({
+  const entry = sanitizeForLedger({
     schema_version: 2,
+    receipt_type: 'bridge_run',
     work_id: opts.workId || null,
     run_id: `${finishedIso.replace(/[:.]/g, '-')}-${hashText(`${repoState.head_sha}:${query}:${startedIso}`).slice(0, 12)}`,
     created_at: finishedIso,
@@ -585,6 +786,7 @@ function buildRunLedgerEntry({
       maxIterations: opts.maxIterations == null ? null : opts.maxIterations,
       maxTokens: opts.maxTokens == null ? null : opts.maxTokens,
       captureTrace: opts.captureTrace === true,
+      noTools: opts.noTools === true,
       reviewers: result && result.reviewerPanel ? result.reviewerPanel.selected : null,
     },
     tools_invoked: compactToolStats(telemetry),
@@ -621,11 +823,16 @@ function buildRunLedgerEntry({
     review_quarantines: reviewQuarantines,
     adversarial_review: reviewSummary,
     consensus: reviewSummary,
-    reviewer_panel: result && result.reviewerPanel ? result.reviewerPanel : null,
+    reviewer_panel: result && result.reviewerPanel ? panelSeatLedger(result.reviewerPanel, result) : null,
     doctrine_review: result && result.doctrineReview ? result.doctrineReview : null,
     stages: {
       mercury: result ? {
         provider_attempts: Array.isArray(result.providerAttempts) ? result.providerAttempts : [],
+        ...seatReceiptFields(
+          result.answer ? redactSensitiveText(result.answer) : null,
+          Array.isArray(result.providerAttempts) ? result.providerAttempts : [],
+          result.termination || null
+        ),
         tools_available: Array.isArray(result.toolsAvailable) ? result.toolsAvailable : [],
         tools_invoked: compactToolStats(telemetry),
         files_mechanically_opened: Array.isArray(telemetry.filesOpened) ? telemetry.filesOpened : [],
@@ -645,6 +852,17 @@ function buildRunLedgerEntry({
     answer_excerpt: result && result.answer
       ? truncateText(redactSensitiveText(result.answer), ANSWER_EXCERPT_MAX)
       : null,
+    run_tokens: runAccounting.run_tokens,
+    run_cost: runAccounting.run_cost,
+  });
+  return sanitizeForLedger({
+    ...entry,
+    ...rollingCostReceipt({
+      repoRoot,
+      entry,
+      dailyThreshold: costThresholds.dailyUsd,
+      monthlyThreshold: costThresholds.monthlyUsd,
+    }),
   });
 }
 
@@ -655,11 +873,13 @@ function buildProviderPreflightLedgerEntry({
   finishedAt = new Date(),
   result,
   attempts = [],
+  costThresholds = {},
 } = {}) {
   const startedIso = isoTimestamp(startedAt || finishedAt);
   const finishedIso = isoTimestamp(finishedAt);
   const repoState = readRepoState(repoRoot);
-  return sanitizeForLedger({
+  const accounting = sumSeatAccounting([{ id: 'provider_preflight', attempts }]);
+  const entry = sanitizeForLedger({
     schema_version: 2,
     receipt_type: 'provider_preflight',
     run_id: runId,
@@ -672,8 +892,19 @@ function buildProviderPreflightLedgerEntry({
     challenger_ready: result && result.challengerReady === true,
     tie_breaker_ready: result && result.tieBreakerReady === true,
     provider_attempts: attempts,
+    run_tokens: accounting.run_tokens,
+    run_cost: accounting.run_cost,
     checks: result && Array.isArray(result.checks) ? result.checks : [],
     repo_adjudication: { status: 'pending', authority: 'live_repo_required' },
+  });
+  return sanitizeForLedger({
+    ...entry,
+    ...rollingCostReceipt({
+      repoRoot,
+      entry,
+      dailyThreshold: costThresholds.dailyUsd,
+      monthlyThreshold: costThresholds.monthlyUsd,
+    }),
   });
 }
 
@@ -718,6 +949,9 @@ module.exports = {
   createRawRunId,
   writeRawProviderOutput,
   extractClaimedFileCitations,
+  parseSelfReport,
+  seatReceiptFields,
+  rollingCostReceipt,
   buildPromptProvenance,
   buildRunLedgerEntry,
   buildProviderPreflightLedgerEntry,

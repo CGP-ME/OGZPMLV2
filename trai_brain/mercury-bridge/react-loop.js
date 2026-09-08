@@ -766,6 +766,7 @@ async function runReactLoop(params) {
     verbose = false,
     providerAudit = null,
     attack = false,
+    noTools = false,
   } = params;
 
   if (!client || typeof client.generateWithTools !== 'function') {
@@ -778,7 +779,7 @@ async function runReactLoop(params) {
     throw new Error('runReactLoop requires a userQuery string');
   }
 
-  const tools = toolAdapter.buildToolSchema();
+  const tools = noTools ? [] : toolAdapter.buildToolSchema();
   const toolsAvailable = tools
     .map(tool => tool && tool.function && tool.function.name)
     .filter(Boolean)
@@ -789,7 +790,14 @@ async function runReactLoop(params) {
     role: 'system',
     content: attackMode ? `${systemPrompt}\n\n${ATTACK_SYSTEM_PROMPT}` : systemPrompt,
   }];
-  messages.push({ role: 'system', content: CANDIDATE_PHASE_SYSTEM_PROMPT });
+  if (noTools) {
+    messages.push({
+      role: 'system',
+      content: 'HOST NO-TOOLS CONTROL: repository tools are unavailable. Answer once from memory. Do not present file:line citations as mechanically verified evidence.',
+    });
+  } else {
+    messages.push({ role: 'system', content: CANDIDATE_PHASE_SYSTEM_PROMPT });
+  }
 
   if (starterContext && starterContext.length > 0) {
     const contextText = starterContext
@@ -825,9 +833,10 @@ async function runReactLoop(params) {
   const history = [];
   let candidateSet = null;
 
-  for (let iteration = 1; iteration <= maxIterations; iteration++) {
+  const iterationLimit = noTools ? 1 : maxIterations;
+  for (let iteration = 1; iteration <= iterationLimit; iteration++) {
     if (verbose) {
-      console.error(`[REACT] Iteration ${iteration}/${maxIterations}`);
+      console.error(`[REACT] Iteration ${iteration}/${iterationLimit}`);
       console.error(`[REACT] Message history: ${messages.length} messages`);
     }
 
@@ -837,7 +846,7 @@ async function runReactLoop(params) {
         client,
         messages,
         tools,
-        { maxTokens, toolChoice: 'auto', temperature },
+        { maxTokens, toolChoice: noTools ? 'none' : 'auto', temperature },
         verbose,
         providerAudit
       );
@@ -860,6 +869,24 @@ async function runReactLoop(params) {
     // compact the conversation copy so one bad probe cannot consume the next
     // Mercury input window.
     messages.push(hasToolCalls ? compactAssistantMessageForHistory(assistantMsg) : assistantMsg);
+
+    if (hasToolCalls && noTools) {
+      const finalAnswer = '(no-tools mode rejected a provider tool call without executing it)';
+      const answerQuality = assessFinalAnswerQuality(finalAnswer, history);
+      if (!answerQuality.flags.includes('missing_file_line_citation')) {
+        answerQuality.flags.push('missing_file_line_citation');
+      }
+      return attachToolTelemetry({
+        answer: finalAnswer,
+        answerQuality,
+        candidateSet: null,
+        iterations: iteration,
+        termination: 'no_tools_violation',
+        history,
+        providerAttempts: providerAudit ? providerAudit.attempts : [],
+        toolsAvailable,
+      }, history);
+    }
 
     if (hasToolCalls) {
       if (verbose) console.error(`[REACT] Assistant requested ${assistantMsg.tool_calls.length} tool call(s)`);
@@ -912,6 +939,26 @@ async function runReactLoop(params) {
     }
 
     const content = normalizeToolHandleCitations(assistantMsg.content || '(empty content)');
+    if (noTools) {
+      const answerQuality = assessFinalAnswerQuality(content, history);
+      if (!answerQuality.flags.includes('missing_file_line_citation')) {
+        answerQuality.flags.push('missing_file_line_citation');
+        answerQuality.evidence.push({
+          flag: 'missing_file_line_citation',
+          evidence: 'Host no-tools mode cannot mechanically validate file:line evidence.',
+        });
+      }
+      return attachToolTelemetry({
+        answer: content,
+        answerQuality,
+        candidateSet: null,
+        iterations: iteration,
+        termination: 'answer_given',
+        history,
+        providerAttempts: providerAudit ? providerAudit.attempts : [],
+        toolsAvailable,
+      }, history);
+    }
     if (!candidateSet) {
       if (!isCandidateSetResponse(content)) {
         messages.push({
@@ -975,7 +1022,7 @@ async function runReactLoop(params) {
   return attachToolTelemetry({
     answer: '(max iterations reached without a final answer)',
     candidateSet,
-    iterations: maxIterations,
+    iterations: iterationLimit,
     termination: 'max_iterations',
     history,
     providerAttempts: providerAudit ? providerAudit.attempts : [],

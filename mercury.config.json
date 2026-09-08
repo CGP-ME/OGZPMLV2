@@ -51,6 +51,30 @@
     "maxCount": 10000,
     "protectedUsageCount": 3
   },
+  "pricing": {
+    "inception": {
+      "mercury-2": {
+        "inputPerMillion": 0.25,
+        "outputPerMillion": 0.75,
+        "cachedInputPerMillion": 0.025,
+        "currency": "USD",
+        "source": "operator-supplied Jul 1 invoice"
+      }
+    },
+    "moonshot": {
+      "kimi-k3": {
+        "inputPerMillion": 3,
+        "outputPerMillion": 15,
+        "cachedInputPerMillion": 0.3,
+        "currency": "USD",
+        "source": "Moonshot Kimi K3 announcement, 2026-07-22"
+      }
+    }
+  },
+  "costAlerts": {
+    "dailyUsd": 5,
+    "monthlyUsd": 25
+  },
   "llm": {
     "provider": "mercury",
     "baseUrl": "https://api.inceptionlabs.ai/v1",
@@ -149,7 +173,14 @@
       "- In Phase 2, lead with the direct answer to the user's question.",
       "- Cite file:line for every factual claim. Never invent paths or line numbers.",
       "- Use literal repo citations like `trai_brain/mercury-bridge/tool-adapter.js:638-720`; tool-handle citations like `【open_file†L1-L2】` or bare prose like \"lines 12-14\" do not count.",
-      "- If you cannot answer with available evidence, say so explicitly and list what you were unable to find."
+      "- If you cannot answer with available evidence, say so explicitly and list what you were unable to find.",
+      "",
+      "SELF-REPORT FOOTER (required at the end of every final answer and every recheck answer):",
+      "WHAT I DID: <what you mechanically examined or performed>",
+      "WHAT I DID NOT DO: <what remained unexamined or unperformed>",
+      "WHAT I ASSUMED: <assumptions, or none>",
+      "WHY THIS VERDICT: <the evidence-to-verdict reason>",
+      "IF INCOMPLETE, WHY: <why incomplete, or not incomplete>"
     ]
   },
   "singleShot": {

@@ -24,6 +24,12 @@ describe('PersistentLLMClient metadata siblings', () => {
     const client = createClient();
     const rawBody = Buffer.from(JSON.stringify({
       model: 'applied-model-202608',
+      usage: {
+        prompt_tokens: 100,
+        completion_tokens: 25,
+        total_tokens: 125,
+        prompt_tokens_details: { cached_tokens: 40 },
+      },
       choices: [{ finish_reason: 'stop', message: { content: 'provider answer' } }],
     }));
     client._httpRequestWithMetadata = jest.fn(async () => ({ statusCode: 200, headers: {}, rawBody }));
@@ -34,7 +40,14 @@ describe('PersistentLLMClient metadata siblings', () => {
       requestedModel: 'requested-model',
       appliedModel: 'applied-model-202608',
       termination: 'stop',
+      stoppedBecause: 'stop',
       parseStatus: 'parsed',
+      usage: {
+        prompt_tokens: 100,
+        completion_tokens: 25,
+        total_tokens: 125,
+        prompt_tokens_details: { cached_tokens: 40 },
+      },
     });
     expect(response.metadata.rawResponse).toEqual(rawBody);
   });
@@ -84,8 +97,14 @@ describe('PersistentLLMClient metadata siblings', () => {
         choices: [{ finish_reason: 'length', message: { content: 'truncated' } }],
       })),
     }));
-    await expect(client.generateResponseWithMetadata('question'))
-      .rejects.toThrow(/terminated before completion/);
+    let truncated;
+    try {
+      await client.generateResponseWithMetadata('question');
+    } catch (error) {
+      truncated = error;
+    }
+    expect(truncated.message).toMatch(/terminated before completion/);
+    expect(truncated.providerMetadata.stoppedBecause).toBe('length: hit 2000-token cap');
 
     client._httpRequestWithMetadata = jest.fn(async () => ({
       statusCode: 200,
@@ -97,5 +116,51 @@ describe('PersistentLLMClient metadata siblings', () => {
     }));
     await expect(client.generateResponseWithMetadata('question'))
       .rejects.toThrow(/omitted answer content/);
+  });
+
+  test('captures Anthropic-style input/output and cache usage without substituting zero', async () => {
+    const client = new PersistentLLMClient({
+      provider: 'claude',
+      baseUrl: 'https://provider.example/v1',
+      model: 'claude-test',
+      apiKey: 'test-key',
+      authRequired: true,
+      maxTokens: 2000,
+      minimumTokens: 0,
+      temperature: 0.6,
+      requestTimeoutMs: 300000,
+      systemPrompt: 'system prompt',
+    });
+    client.isReady = true;
+    const rawBody = Buffer.from(JSON.stringify({
+      model: 'claude-test-202609',
+      stop_reason: 'end_turn',
+      content: [{ type: 'text', text: 'provider answer' }],
+      usage: {
+        input_tokens: 20,
+        cache_creation_input_tokens: 30,
+        cache_read_input_tokens: 40,
+        output_tokens: 10,
+      },
+    }));
+    client._httpRequestWithMetadata = jest.fn(async () => ({ statusCode: 200, headers: {}, rawBody }));
+
+    const response = await client.generateResponseWithMetadata('question');
+
+    expect(response.metadata.usage).toEqual({
+      input_tokens: 20,
+      cache_creation_input_tokens: 30,
+      cache_read_input_tokens: 40,
+      output_tokens: 10,
+    });
+    expect(response.metadata.stoppedBecause).toBe('end_turn');
+
+    const withoutUsage = Buffer.from(JSON.stringify({
+      model: 'claude-test-202609', stop_reason: 'end_turn', content: [{ type: 'text', text: 'answer' }],
+    }));
+    client._httpRequestWithMetadata = jest.fn(async () => ({ statusCode: 200, headers: {}, rawBody: withoutUsage }));
+    await expect(client.generateResponseWithMetadata('question')).resolves.toMatchObject({
+      metadata: { usage: null },
+    });
   });
 });

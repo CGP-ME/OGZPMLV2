@@ -74,8 +74,32 @@ describe('Mercury LLM config contract', () => {
         TIE_BREAKER_REQUEST_TIMEOUT_MS: 600000,
         AGENTIC_MAX_ITERATIONS: 60,
         AGENTIC_MAX_TOKENS: 7750,
+        COST_ALERT_DAILY_USD: 5,
+        COST_ALERT_MONTHLY_USD: 25,
       });
       expect(config.CONSENSUS_BASE_URL).toBeNull();
+      expect(config.AGENTIC_SYSTEM_PROMPT).toContain('WHY THIS VERDICT:');
+      expect(config.AGENTIC_SYSTEM_PROMPT).toContain('IF INCOMPLETE, WHY:');
+      expect(config.PROVIDER_PRICING).toEqual({
+        inception: {
+          'mercury-2': {
+            inputPerMillion: 0.25,
+            outputPerMillion: 0.75,
+            cachedInputPerMillion: 0.025,
+            currency: 'USD',
+            source: 'operator-supplied Jul 1 invoice',
+          },
+        },
+        moonshot: {
+          'kimi-k3': {
+            inputPerMillion: 3,
+            outputPerMillion: 15,
+            cachedInputPerMillion: 0.3,
+            currency: 'USD',
+            source: 'Moonshot Kimi K3 announcement, 2026-07-22',
+          },
+        },
+      });
     }, {
       LLM_PROVIDER: 'openai',
       LLM_BASE_URL: 'https://api.openai.com/v1',
@@ -83,6 +107,15 @@ describe('Mercury LLM config contract', () => {
       LLM_MAX_TOKENS: '1',
       LLM_TEMPERATURE: '0.1',
       MERCURY_MAX_ITERATIONS: '1',
+    });
+  });
+
+  test('refuses boot with the configured model named when required pricing is absent', async () => {
+    await withMercuryConfig({
+      pricing: { moonshot: { 'kimi-k3': { outputPerMillion: undefined } } },
+    }, () => {
+      expect(() => require('../trai_brain/mercury-bridge/config'))
+        .toThrow(/pricing\.moonshot\.kimi-k3\.outputPerMillion/);
     });
   });
 
@@ -171,6 +204,13 @@ describe('Mercury LLM config contract', () => {
           JSON.stringify({ type: 'system', subtype: 'init', model: appliedModel, tools: [] }),
           JSON.stringify({
             type: 'result', subtype: 'success', result: 'PROVIDER_OK',
+            usage: {
+              input_tokens: 2,
+              cache_creation_input_tokens: 100,
+              cache_read_input_tokens: 50,
+              output_tokens: 10,
+            },
+            total_cost_usd: 0.125,
             modelUsage: {
               [appliedModel]: { inputTokens: 100 },
               'claude-haiku-4-5': { inputTokens: 12 },
@@ -192,6 +232,16 @@ describe('Mercury LLM config contract', () => {
             appliedModels: [appliedModel],
             auxiliaryModels: ['claude-haiku-4-5'],
             toolsAvailable: [],
+            termination: 'success',
+            stoppedBecause: 'success',
+            usage: {
+              input_tokens: 2,
+              cache_creation_input_tokens: 100,
+              cache_read_input_tokens: 50,
+              output_tokens: 10,
+            },
+            providerReportedCost: 0.125,
+            providerReportedCurrency: 'USD',
           },
         });
         const [command, args, options] = execFileAsync.mock.calls[2];

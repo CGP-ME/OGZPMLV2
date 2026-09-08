@@ -53,6 +53,35 @@ function createClient(responses, { insertCandidate = true } = {}) {
 }
 
 describe('Mercury ReAct loop evidence gates', () => {
+  test('no-tools mode supplies an empty schema, executes no tools, and stops after one turn', async () => {
+    const client = createClient([
+      { role: 'assistant', content: 'Answer from memory only.' },
+    ], { insertCandidate: false });
+    const toolAdapter = createToolAdapter();
+
+    const result = await runReactLoop({
+      client,
+      toolAdapter,
+      userQuery: 'answer from memory',
+      noTools: true,
+      maxIterations: 60,
+    });
+
+    expect(client.generateWithTools).toHaveBeenCalledTimes(1);
+    expect(client.generateWithTools.mock.calls[0][1]).toEqual([]);
+    expect(client.generateWithTools.mock.calls[0][2]).toMatchObject({ toolChoice: 'none' });
+    expect(toolAdapter.buildToolSchema).not.toHaveBeenCalled();
+    expect(toolAdapter.execute).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      answer: 'Answer from memory only.',
+      iterations: 1,
+      termination: 'answer_given',
+      toolsAvailable: [],
+      toolTelemetry: { total: 0, filesOpened: [] },
+      answerQuality: { flags: expect.arrayContaining(['missing_file_line_citation']) },
+    });
+  });
+
   test('file-line citation detector accepts repo citations and rejects uncited prose', () => {
     expect(hasFileLineCitation('See trai_brain/mercury-bridge/react-loop.js:257-264.')).toBe(true);
     expect(hasFileLineCitation('See trai_brain/mercury-bridge/react-loop.js:257‑264.')).toBe(true);

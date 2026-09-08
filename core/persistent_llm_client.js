@@ -81,6 +81,20 @@ function requireInteger(config, key, { min = -Infinity, max = Infinity } = {}) {
   return config[key];
 }
 
+function responseStopReason({ termination = null, statusCode = null, maxTokens = null, providerError = null } = {}) {
+  const finishReason = String(termination || '').trim();
+  const errorText = String(providerError || '').trim();
+  if (['length', 'max_tokens'].includes(finishReason.toLowerCase())) {
+    return `${finishReason}: hit ${Number.isInteger(maxTokens) ? maxTokens : 'configured'}-token cap`;
+  }
+  if (/timeout|timed out/i.test(errorText)) return `timeout: ${errorText}`;
+  if (Number.isInteger(statusCode) && statusCode >= 400) {
+    return `HTTP ${statusCode}${errorText ? `: ${errorText}` : ''}`;
+  }
+  if (errorText) return `${finishReason || 'provider_error'}: ${errorText}`;
+  return finishReason || (Number.isInteger(statusCode) ? `HTTP ${statusCode}` : 'provider_stop_reason_absent');
+}
+
 class PersistentLLMClient {
   constructor(config) {
     const resolvedConfig = requireConfigObject(config);
@@ -280,6 +294,8 @@ class PersistentLLMClient {
           rawBody: httpResult.rawBody,
           statusCode: httpResult.statusCode,
           parseStatus: 'invalid_json',
+          maxTokens: tokens,
+          providerError: error.message,
         });
         throw error;
       }
@@ -309,7 +325,9 @@ class PersistentLLMClient {
         statusCode: httpResult.statusCode,
         appliedModel,
         termination,
+        usage: data.usage || null,
         parseStatus: answer ? 'parsed' : 'empty_answer',
+        maxTokens: tokens,
       });
       if (!appliedModel) {
         const error = new Error('Provider response omitted applied model identity');
@@ -343,6 +361,8 @@ class PersistentLLMClient {
           rawBody: error.rawResponse || Buffer.alloc(0),
           statusCode: error.statusCode || null,
           parseStatus: 'request_failed',
+          maxTokens: tokens,
+          providerError: error.message,
         });
       }
       throw error;
@@ -483,6 +503,7 @@ class PersistentLLMClient {
         error.providerMetadata = this._responseMetadata({
           startedAt, startedMs, rawBody: httpResult.rawBody,
           statusCode: httpResult.statusCode, parseStatus: 'invalid_json',
+          maxTokens: tokens, providerError: error.message,
         });
         throw error;
       }
@@ -494,7 +515,9 @@ class PersistentLLMClient {
         statusCode: httpResult.statusCode,
         appliedModel: data.model || null,
         termination: choice ? choice.finish_reason || null : null,
+        usage: data.usage || null,
         parseStatus: choice && choice.message ? 'parsed' : 'unexpected_shape',
+        maxTokens: tokens,
       });
       if (!metadata.appliedModel) {
         const error = new Error('Provider response omitted applied model identity');
@@ -525,13 +548,25 @@ class PersistentLLMClient {
         error.providerMetadata = this._responseMetadata({
           startedAt, startedMs, rawBody: error.rawResponse || Buffer.alloc(0),
           statusCode: error.statusCode || null, parseStatus: 'request_failed',
+          maxTokens: tokens, providerError: error.message,
         });
       }
       throw error;
     }
   }
 
-  _responseMetadata({ startedAt, startedMs, rawBody, statusCode, appliedModel = null, termination = null, parseStatus }) {
+  _responseMetadata({
+    startedAt,
+    startedMs,
+    rawBody,
+    statusCode,
+    appliedModel = null,
+    termination = null,
+    usage = null,
+    parseStatus,
+    maxTokens = null,
+    providerError = null,
+  }) {
     const finishedAt = new Date();
     return {
       provider: this.providerName,
@@ -542,7 +577,11 @@ class PersistentLLMClient {
       latencyMs: Date.now() - startedMs,
       statusCode,
       termination,
+      stoppedBecause: responseStopReason({ termination, statusCode, maxTokens, providerError }),
       parseStatus,
+      usage: usage && typeof usage === 'object' && !Array.isArray(usage)
+        ? JSON.parse(JSON.stringify(usage))
+        : null,
       rawResponse: Buffer.isBuffer(rawBody) ? rawBody : Buffer.from(rawBody || ''),
     };
   }
@@ -770,3 +809,4 @@ class PersistentLLMClient {
 }
 
 module.exports = PersistentLLMClient;
+module.exports.responseStopReason = responseStopReason;

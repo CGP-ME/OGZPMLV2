@@ -1,12 +1,14 @@
 'use strict';
 
+const config = require('./config');
+
 const {
   createMercuryLlmClient,
   createFableChallengerClient,
   createOpusChallengerClient,
   createKimiTieBreakerClient,
 } = require('./llm-client');
-const { classifyFableFallbackError, stampedIdentityPosture } = require('./adversarial-review');
+const { classifyFableFallbackError, sendMaxPriorityNtfy, stampedIdentityPosture } = require('./adversarial-review');
 const {
   buildPromptProvenance,
   buildProviderPreflightLedgerEntry,
@@ -15,6 +17,8 @@ const {
   writeRawProviderOutput,
   writeRunLedgerEntry,
 } = require('./run-ledger');
+const { accountProviderAttempt } = require('./cost-accounting');
+const { responseStopReason } = require('../../core/persistent_llm_client');
 
 const PREFLIGHT_PROMPT = 'Reply with exactly: PROVIDER_OK';
 
@@ -70,13 +74,20 @@ async function withSilencedClientConsole(fn) {
 function attemptReceipt({ label, attempt, client, metadata = {}, status, phase, error = null, rawOutput = null, rawError = null }) {
   const promptDispatched = phase === 'generate' || phase === 'complete';
   const identityPosture = stampedIdentityPosture(metadata);
+  const requestedProvider = metadata.provider || (client && client.providerName) || null;
+  const requestedModel = metadata.requestedModel || (client && client.model) || null;
+  const accounting = accountProviderAttempt(metadata, {
+    provider: requestedProvider,
+    model: requestedModel,
+    pricingCatalog: config.PROVIDER_PRICING,
+  });
   return {
     role: label,
     attempt,
     status,
     request_phase: phase,
-    requested_provider: metadata.provider || (client && client.providerName) || null,
-    requested_model: metadata.requestedModel || (client && client.model) || null,
+    requested_provider: requestedProvider,
+    requested_model: requestedModel,
     applied_model: metadata.appliedModel || null,
     applied_models: Array.isArray(metadata.appliedModels)
       ? [...metadata.appliedModels]
@@ -92,7 +103,20 @@ function attemptReceipt({ label, attempt, client, metadata = {}, status, phase, 
     status_code: metadata.statusCode == null ? null : metadata.statusCode,
     exit_code: metadata.exitCode == null ? null : metadata.exitCode,
     termination: metadata.termination || null,
+    stopped_because: redactSensitiveText(
+      metadata.stoppedBecause && metadata.stoppedBecause !== 'provider_stop_reason_absent'
+        ? metadata.stoppedBecause
+        : responseStopReason({
+          termination: metadata.termination,
+          statusCode: metadata.statusCode,
+          providerError: error && error.message,
+        })
+    ),
     parse_status: metadata.parseStatus || null,
+    tokens: accounting.tokens,
+    usage_absence: accounting.usage_absence,
+    cost: accounting.cost,
+    cost_absence: accounting.cost_absence,
     input_provenance: promptDispatched ? buildPromptProvenance(PREFLIGHT_PROMPT) : null,
     raw_output: rawOutput,
     raw_error: rawError,
@@ -238,7 +262,21 @@ async function runProviderPreflight({
   if (repoRoot) {
     const entry = buildProviderPreflightLedgerEntry({
       repoRoot, runId, startedAt, result, attempts,
+      costThresholds: {
+        dailyUsd: config.COST_ALERT_DAILY_USD,
+        monthlyUsd: config.COST_ALERT_MONTHLY_USD,
+      },
     });
+    const crossed = [
+      entry.daily_cost_total && entry.daily_cost_total.threshold_crossed ? `daily=${entry.daily_cost_total.amount}` : null,
+      entry.monthly_cost_total && entry.monthly_cost_total.threshold_crossed ? `monthly=${entry.monthly_cost_total.amount}` : null,
+    ].filter(Boolean);
+    if (crossed.length > 0) {
+      entry.alert = await sendMaxPriorityNtfy({
+        title: 'Mercury bridge cost threshold crossed',
+        body: `${crossed.join('; ')}; run=${entry.run_id}; provider preflight remains nonblocking`,
+      });
+    }
     result.runLedger = writeRunLedgerEntry({ repoRoot, entry });
   }
   return result;

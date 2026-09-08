@@ -391,6 +391,32 @@ try {
   throw new Error(`Invalid mercury.config.json value: tieBreaker.baseUrl: ${err.message}`);
 }
 
+function requiredModelPricing(provider, model) {
+  const basePath = `pricing.${provider}.${model}`;
+  const currency = requiredString(MERCURY_CONFIG, `${basePath}.currency`).toUpperCase();
+  if (currency !== 'USD') {
+    throw new Error(`Invalid mercury.config.json value: ${basePath}.currency must be USD`);
+  }
+  return Object.freeze({
+    inputPerMillion: requiredNumber(MERCURY_CONFIG, `${basePath}.inputPerMillion`, { min: 0 }),
+    outputPerMillion: requiredNumber(MERCURY_CONFIG, `${basePath}.outputPerMillion`, { min: 0 }),
+    cachedInputPerMillion: requiredNumber(MERCURY_CONFIG, `${basePath}.cachedInputPerMillion`, { min: 0 }),
+    currency,
+    source: requiredString(MERCURY_CONFIG, `${basePath}.source`),
+  });
+}
+
+const PROVIDER_PRICING = Object.freeze({
+  inception: Object.freeze({
+    [MERCURY_LLM_MODEL]: requiredModelPricing('inception', MERCURY_LLM_MODEL),
+  }),
+  moonshot: Object.freeze({
+    [TIE_BREAKER_MODEL]: requiredModelPricing('moonshot', TIE_BREAKER_MODEL),
+  }),
+});
+const COST_ALERT_DAILY_USD = requiredNumber(MERCURY_CONFIG, 'costAlerts.dailyUsd', { min: 0 });
+const COST_ALERT_MONTHLY_USD = requiredNumber(MERCURY_CONFIG, 'costAlerts.monthlyUsd', { min: 0 });
+
 // ─── Skip patterns ────────────────────────────────────────────
 // Directory exclusions live in mercury.ignore so intake/history boundaries are
 // visible and shared by the indexer, Mercury grep, and legacy repo search.
@@ -523,6 +549,9 @@ module.exports = {
   TIE_BREAKER_REQUEST_TIMEOUT_MS,
   TIE_BREAKER_TEMPERATURE,
   TIE_BREAKER_OPENAI_EXTRA_BODY,
+  PROVIDER_PRICING,
+  COST_ALERT_DAILY_USD,
+  COST_ALERT_MONTHLY_USD,
   AGENTIC_MAX_ITERATIONS,
   AGENTIC_MAX_TOKENS,
   SINGLE_SHOT_MAX_TOKENS,

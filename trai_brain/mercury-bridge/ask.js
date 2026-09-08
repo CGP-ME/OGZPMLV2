@@ -21,6 +21,7 @@
  *   --quiet                Suppress progress logs
  *   --show-chunks          Print retrieved chunk text (not just filenames)
  *   --show-history         Agentic mode only: print the full tool-call trace
+ *   --no-tools             Host-enforced one-turn run with an empty tool schema
  *   --adversarial-review   Agentic mode only: ask Fable to attack Mercury's answer
  *   --reviewers=IDS        Agentic reviewer IDs in dispatch order (comma-separated)
  *   --evidence-source=P:S-E Host-attest a verbatim repo-relative excerpt (repeatable)
@@ -37,6 +38,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { TextDecoder } = require('util');
 const { execFileSync } = require('child_process');
+const { responseStopReason } = require('../../core/persistent_llm_client');
 
 // Load .env from repo root so configured Mercury LLM key env is available.
 require('dotenv').config({ path: path.resolve(__dirname, '..', '..', '.env') });
@@ -63,6 +65,7 @@ const {
   kimiTieBreakerRequired,
   notifyReviewQuarantines,
   reviewQuarantine,
+  sendMaxPriorityNtfy,
 } = require('./adversarial-review');
 const { runProviderPreflight } = require('./provider-preflight');
 const {
@@ -90,6 +93,7 @@ const MongoStore = require('./mongo-store');
 const { embedText } = require('./indexer');
 const { retrieveTopK } = require('./searcher');
 const { getBlastRadius, formatForMercury } = require('../../tools/serena-bridge');
+const { accountProviderAttempt } = require('./cost-accounting');
 
 const UNTRACKED_SERENA_SOURCE_PATHS = Object.freeze([
   'core',
@@ -116,6 +120,7 @@ function parseArgs(argv) {
     showHistory: false,
     agentic: true,
     attack: false,
+    noTools: false,
     adversarialReview: false,
     adversarialReviewExplicit: false,
     consensus: false,
@@ -148,6 +153,8 @@ function parseArgs(argv) {
       args.agentic = false;
     } else if (arg === '--attack') {
       args.attack = true;
+    } else if (arg === '--no-tools') {
+      args.noTools = true;
     } else if (arg === '--adversarial-review') {
       args.adversarialReview = true;
       args.adversarialReviewExplicit = true;
@@ -312,6 +319,7 @@ async function runReviewRechecks({
   runLoop = runReactLoop,
   notify = notifyReviewQuarantines,
   attack = false,
+  noTools = false,
 } = {}) {
   const rechecks = [];
   const quarantines = [];
@@ -332,6 +340,7 @@ async function runReviewRechecks({
         verbose,
         providerAudit: createProviderAudit(name),
         attack,
+        noTools,
       });
       recheck.totalLatencyMs = Date.now() - recheckStarted;
       recheck.inputProvenance = recheckProvenance;
@@ -426,6 +435,7 @@ function usage() {
   console.log('  --show-chunks          Single-shot only: print retrieved chunk text');
   console.log('  --show-history         Agentic only: print full tool-call trace');
   console.log('  --attack               Agentic only: apply break-my-fix attack framing');
+  console.log('  --no-tools             Agentic only: empty tool schema and exactly one Mercury turn');
   console.log('  --evidence-source=P:S-E Host-attest a verbatim repo-relative excerpt; repeatable, max 150 lines');
   console.log(`  --adversarial-review   Agentic only: force a Fable (${config.CONSENSUS_MODEL}) adversarial review`);
   console.log('  --no-adversarial-review Agentic only: suppress env/config adversarial review for this run');
@@ -696,6 +706,7 @@ function panelSeatMetadata(id, output, {
     stageReceipt: output.stageReceipt || null,
     inputReceipt: output.inputProvenance || null,
     providerRawReceipts: attempts.map(attempt => attempt.raw_output).filter(Boolean),
+    providerAttempts: attempts,
     provider: output.provider || (attempts[attempts.length - 1] && attempts[attempts.length - 1].requested_provider) || null,
     requestedModel: output.model || (attempts[attempts.length - 1] && attempts[attempts.length - 1].requested_model) || null,
     appliedModels: [...new Set(appliedModels)],
@@ -726,6 +737,7 @@ function recomputePanelSeatFromRecheck(seat, recheck, { evidenceSources = [] } =
     parsed: recheck.parsed || null,
     reasoning: recheck.parsed && recheck.parsed.citedReasoning || null,
     inputReceipt: recheck.inputProvenance || null,
+    providerAttempts: Array.isArray(recheck.providerAttempts) ? recheck.providerAttempts : [],
     verdict: structuredPanelVerdict(recheck.parsed),
     doctrineReview,
     evidenceBasis,
@@ -755,45 +767,58 @@ function recomputePanelAuthority(panelRun) {
   return authority;
 }
 
-// ─────────────────────────────────────────────────────────────
-// Agentic mode — hybrid retrieval (current semantic-only) + ReAct loop
-// ─────────────────────────────────────────────────────────────
-
-async function runAgentic(query, opts) {
-  const startedAt = new Date();
-  const rawRunId = createRawRunId(startedAt);
-  const reviewerSelection = opts.reviewerSelection || await resolveReviewerSelection({
-    explicit: opts.reviewersExplicit ? opts.reviewers : null,
-    interactive: false,
-    defaultReviewers: reviewModeRequested(opts)
-      ? REVIEWER_REGISTRY.map(reviewer => reviewer.id)
-      : ['mercury'],
-  });
-  const createProviderAudit = stage => ({
+function createProviderAudit(stage, {
+  repoRoot = config.REPO_ROOT,
+  rawRunId,
+  pricingCatalog = config.PROVIDER_PRICING,
+  writeRaw = writeRawProviderOutput,
+} = {}) {
+  return {
     stage,
     attempts: [],
-    record(metadata, context) {
+    record(metadata = {}, context = {}) {
       const attempt = this.attempts.length + 1;
-      const rawOutput = writeRawProviderOutput({
-        repoRoot: config.REPO_ROOT,
+      const rawOutput = writeRaw({
+        repoRoot,
         runId: rawRunId,
         stage: this.stage,
         attempt,
         bytes: metadata.rawResponse || Buffer.alloc(0),
+      });
+      const requestedProvider = metadata.provider || config.MERCURY_LLM_PROVIDER;
+      const requestedModel = metadata.requestedModel || config.MERCURY_LLM_MODEL;
+      const accounting = accountProviderAttempt(metadata, {
+        provider: requestedProvider,
+        model: requestedModel,
+        pricingCatalog,
       });
       return {
         attempt,
         stage: this.stage,
         status: context.status,
         retry: context.retry,
-        requested_provider: metadata.provider || config.MERCURY_LLM_PROVIDER,
-        requested_model: metadata.requestedModel || config.MERCURY_LLM_MODEL,
+        requested_provider: requestedProvider,
+        requested_model: requestedModel,
         applied_model: metadata.appliedModel || null,
         started_at: metadata.startedAt || null,
         finished_at: metadata.finishedAt || null,
         latency_ms: metadata.latencyMs == null ? null : metadata.latencyMs,
+        status_code: metadata.statusCode == null ? null : metadata.statusCode,
         termination: metadata.termination || null,
+        stopped_because: redactSensitiveText(
+          metadata.stoppedBecause && metadata.stoppedBecause !== 'provider_stop_reason_absent'
+            ? metadata.stoppedBecause
+            : responseStopReason({
+              termination: metadata.termination,
+              statusCode: metadata.statusCode,
+              providerError: context.error,
+            })
+        ),
         parse_status: metadata.parseStatus || null,
+        tokens: accounting.tokens,
+        usage_absence: accounting.usage_absence,
+        cost: accounting.cost,
+        cost_absence: accounting.cost_absence,
         identity_posture: metadata.identityPosture || metadata.identity_posture || (
           metadata.appliedModel ? {
             status: 'provider_attested_response',
@@ -808,8 +833,67 @@ async function runAgentic(query, opts) {
         repo_adjudication: { status: 'pending', authority: 'live_repo_required' },
       };
     },
+  };
+}
+
+function runAlertReasons(entry = {}) {
+  const reasons = [];
+  const panel = entry.reviewer_panel;
+  if (panel && panel.authority && panel.authority.ceiling === 'UNVERIFIED') {
+    reasons.push('authority_unverified');
+  }
+  const failedSeats = panel && Array.isArray(panel.seats)
+    ? panel.seats.filter(seat => seat.status === 'failed').map(seat => seat.id)
+    : [];
+  if (failedSeats.length > 0) reasons.push(`seat_failed:${failedSeats.join(',')}`);
+  if (entry.daily_cost_total && entry.daily_cost_total.threshold_crossed === true) {
+    reasons.push(`daily_cost_threshold_crossed:${entry.daily_cost_total.amount}`);
+  }
+  if (entry.monthly_cost_total && entry.monthly_cost_total.threshold_crossed === true) {
+    reasons.push(`monthly_cost_threshold_crossed:${entry.monthly_cost_total.amount}`);
+  }
+  return reasons;
+}
+
+async function notifyRunAlerts(entry, { notify = sendMaxPriorityNtfy } = {}) {
+  const reasons = runAlertReasons(entry);
+  if (reasons.length === 0) return { status: 'not_required', priority: 'max', reasons: [] };
+  try {
+    const notification = await notify({
+      title: 'Mercury bridge run requires operator attention',
+      body: `${reasons.join('; ')}; run=${entry.run_id || 'unknown'}; the runner remains nonblocking`,
+    });
+    return { ...notification, reasons };
+  } catch (error) {
+    return {
+      status: 'failed',
+      priority: 'max',
+      absence: 'ntfy_delivery_failed',
+      error: redactSensitiveText(error && error.message ? error.message : String(error)),
+      reasons,
+    };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Agentic mode — hybrid retrieval (current semantic-only) + ReAct loop
+// ─────────────────────────────────────────────────────────────
+
+async function runAgentic(query, opts) {
+  const startedAt = new Date();
+  const rawRunId = createRawRunId(startedAt);
+  const reviewerSelection = opts.reviewerSelection || await resolveReviewerSelection({
+    explicit: opts.reviewersExplicit ? opts.reviewers : null,
+    interactive: false,
+    defaultReviewers: reviewModeRequested(opts)
+      ? REVIEWER_REGISTRY.map(reviewer => reviewer.id)
+      : ['mercury'],
   });
-  const providerAudit = createProviderAudit('mercury');
+  const providerAuditFactory = stage => createProviderAudit(stage, {
+    repoRoot: config.REPO_ROOT,
+    rawRunId,
+  });
+  const providerAudit = providerAuditFactory('mercury');
   const persistReviewRaw = (stage, attempt, bytes) => writeRawProviderOutput({
     repoRoot: config.REPO_ROOT,
     runId: rawRunId,
@@ -818,7 +902,8 @@ async function runAgentic(query, opts) {
     bytes,
   });
   const verbose = !opts.quiet;
-  const maxIterations = configExactInteger(opts.maxIterations, config.AGENTIC_MAX_ITERATIONS, '--max-iterations');
+  const configuredMaxIterations = configExactInteger(opts.maxIterations, config.AGENTIC_MAX_ITERATIONS, '--max-iterations');
+  const maxIterations = opts.noTools === true ? 1 : configuredMaxIterations;
   const maxTokens = configExactInteger(opts.maxTokens, config.AGENTIC_MAX_TOKENS, '--max-tokens');
   const reviewIntent = opts.reviewIntent || 'adversarial';
   const mercuryQuery = buildMercuryIntentPrompt(query, reviewIntent);
@@ -985,6 +1070,7 @@ async function runAgentic(query, opts) {
             client, toolAdapter, userQuery, starterContext, traceHint: traceHintText,
             blastRadius, maxIterations, maxTokens, verbose, providerAudit,
             attack: opts.attack === true,
+            noTools: opts.noTools === true,
           });
           ensureReviewerAnswer(seatResult, 'mercury');
           mercuryResult = seatResult;
@@ -1070,8 +1156,9 @@ async function runAgentic(query, opts) {
             fableReview.recheckPrompt = recheckPrompts[0] || null;
             const recheckRun = await runReviewRechecks({
               prompts: recheckPrompts, client, toolAdapter, starterContext, blastRadius,
-              maxIterations, maxTokens, verbose, evidenceSources, createProviderAudit,
+              maxIterations, maxTokens, verbose, evidenceSources, createProviderAudit: providerAuditFactory,
               attack: opts.attack === true,
+              noTools: opts.noTools === true,
             });
             fableReview.rechecks = recheckRun.rechecks;
             fableReview.recheck = fableReview.rechecks[0] || null;
@@ -1186,6 +1273,7 @@ async function runAgentic(query, opts) {
       seat.requestedModel = failedMetadata && failedMetadata.requestedModel || null;
       seat.appliedModels = failedMetadata ? failedMetadata.appliedModels : [];
       seat.fallbackTransitions = failedMetadata ? failedMetadata.fallbackTransitions : [];
+      seat.providerAttempts = failedMetadata ? failedMetadata.providerAttempts : [];
       seat.verdict = null;
       seat.evidenceChecksPassed = false;
     }
@@ -1291,7 +1379,12 @@ async function runAgentic(query, opts) {
       autoBlastRadius,
       evidenceSources,
       inputProvenance,
+      costThresholds: {
+        dailyUsd: config.COST_ALERT_DAILY_USD,
+        monthlyUsd: config.COST_ALERT_MONTHLY_USD,
+      },
     });
+    ledgerEntry.alert = await notifyRunAlerts(ledgerEntry);
     result.runLedger = writeRunLedgerEntry({
       repoRoot: config.REPO_ROOT,
       entry: ledgerEntry,
@@ -1315,7 +1408,12 @@ async function runAgentic(query, opts) {
       autoBlastRadius,
       evidenceSources,
       inputProvenance,
+      costThresholds: {
+        dailyUsd: config.COST_ALERT_DAILY_USD,
+        monthlyUsd: config.COST_ALERT_MONTHLY_USD,
+      },
     });
+    ledgerEntry.alert = await notifyRunAlerts(ledgerEntry);
     err.mercuryRunLedger = writeRunLedgerEntry({
       repoRoot: config.REPO_ROOT,
       entry: ledgerEntry,
@@ -1336,16 +1434,25 @@ async function runAgentic(query, opts) {
 
 function printDispatchReceipt(result) {
   const entry = result.runLedgerEntry || {};
+  const formatCost = (cost) => (
+    cost && Number.isFinite(cost.amount)
+      ? `${cost.currency || 'USD'} ${cost.amount.toFixed(6)}${cost.complete === false ? ' (partial)' : ''}`
+      : 'unknown'
+  );
   console.log('');
   console.log('═══ RECEIPT ═══');
   console.log(`verdict:         ${entry.verdict || 'unknown'}`);
+  console.log(`cost:            run=${formatCost(entry.run_cost)} | today=${formatCost(entry.daily_cost_total)} | month=${formatCost(entry.monthly_cost_total)}`);
   const panel = entry.reviewer_panel;
   if (panel) {
     console.log(`reviewers:       ${panel.selected.join(',')} (${panel.source})`);
     console.log(`unselected:      ${panel.unselected.length > 0 ? panel.unselected.join(',') : 'none'}`);
     console.log(`authority:       ${panel.authority.ceiling} agreement=${panel.authority.agreement ? 'yes' : 'no'} qualifying=${panel.authority.qualifyingSeats}`);
     for (const seat of panel.seats) {
-      console.log(`  - ${seat.id}: ${seat.status} provider=${seat.provider || 'unavailable'} models=${(seat.appliedModels || []).join(',') || 'none'}${seat.absence ? ` absence=${seat.absence}` : ''}`);
+      const selfReportAbsence = Array.isArray(seat.named_absences) && seat.named_absences.includes('self_report_absent')
+        ? ' self_report_absent'
+        : '';
+      console.log(`  - ${seat.id}: ${seat.status} provider=${seat.provider || 'unavailable'} models=${(seat.appliedModels || []).join(',') || 'none'} stopped=${seat.stopped_because || 'unknown'}${seat.absence ? ` absence=${seat.absence}` : ''}${selfReportAbsence}`);
     }
   }
 
@@ -1427,6 +1534,18 @@ function printDispatchReceipt(result) {
       ? reviewEntry.error.message
       : JSON.stringify(reviewEntry.error);
     console.log(`review layer:    FAILED — ${reviewError}`);
+  }
+
+  const selfReportUnits = [
+    ['mercury', entry.stages && entry.stages.mercury],
+    ['fable', reviewEntry],
+    ...((reviewEntry && reviewEntry.rechecks) || []).map((recheck, index) => [`mercury_recheck_${index + 1}`, recheck]),
+    ['kimi', reviewEntry && reviewEntry.final_review],
+  ];
+  for (const [label, unit] of selfReportUnits) {
+    if (unit && Array.isArray(unit.named_absences) && unit.named_absences.includes('self_report_absent')) {
+      console.log(`self-report:     ${label}=self_report_absent missing=${(unit.self_report_missing_fields || []).join(',') || 'unknown'}`);
+    }
   }
 
   const quarantines = Array.isArray(entry.review_quarantines) ? entry.review_quarantines : [];
@@ -1700,6 +1819,9 @@ module.exports = {
   resolveEvidenceSources,
   runReviewRechecks,
   runAgentic,
+  createProviderAudit,
+  runAlertReasons,
+  notifyRunAlerts,
   panelSeatMetadata,
   recomputePanelSeatFromRecheck,
   recomputePanelAuthority,

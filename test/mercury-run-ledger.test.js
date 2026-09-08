@@ -9,6 +9,7 @@ const {
   buildPromptProvenance,
   buildRunLedgerEntry,
   classifyMercuryVerdict,
+  parseSelfReport,
   redactSensitiveText,
   writeRawProviderOutput,
   writeRunLedgerEntry,
@@ -56,6 +57,138 @@ describe('Mercury run ledger', () => {
     expect(redacted).not.toContain('live-secret');
     expect(redacted).not.toContain('super-secret');
     expect(redacted).not.toContain('abcdef1234567890');
+  });
+
+  test('parses the five-field seat self-report and names partial footers without capping authority', () => {
+    const complete = parseSelfReport([
+      'Answer.',
+      'WHAT I DID: opened the cited files',
+      'WHAT I DID NOT DO: run provider calls',
+      'WHAT I ASSUMED: none',
+      'WHY THIS VERDICT: receipts support it',
+      'IF INCOMPLETE, WHY: not incomplete',
+    ].join('\n'));
+    expect(complete).toMatchObject({
+      self_report_complete: true,
+      named_absences: [],
+      self_report: {
+        did: 'opened the cited files',
+        did_not: 'run provider calls',
+        assumed: 'none',
+        why_verdict: 'receipts support it',
+        why_incomplete: 'not incomplete',
+      },
+    });
+    expect(parseSelfReport('WHAT I DID: one file')).toMatchObject({
+      self_report_complete: false,
+      named_absences: ['self_report_absent'],
+      self_report_missing_fields: ['did_not', 'assumed', 'why_verdict', 'why_incomplete'],
+    });
+
+    const entry = buildRunLedgerEntry({
+      repoRoot: tmpRoot,
+      query: 'audit',
+      startedAt: new Date('2026-09-08T00:00:00.000Z'),
+      finishedAt: new Date('2026-09-08T00:00:01.000Z'),
+      result: {
+        termination: 'answer_given', answer: 'Answer without footer.', providerAttempts: [],
+        reviewerPanel: {
+          selected: ['mercury'], unselected: [], source: 'explicit',
+          seats: [{ id: 'mercury', status: 'succeeded', answer: 'Answer without footer.' }],
+          authority: { ceiling: 'FULL', qualifyingSeats: 1, agreement: true, agreedVerdict: 'pass' },
+        },
+        toolTelemetry: { byTool: {}, filesOpened: [], runCheckArtifacts: [], runChecks: [] },
+      },
+    });
+    expect(entry.reviewer_panel.seats[0].named_absences).toEqual(['self_report_absent']);
+    expect(entry.verdict).toBe('no_break_found');
+  });
+
+  test('sums every seat attempt and carries cached, uncached, run, daily, and monthly cost receipts', () => {
+    const answer = [
+      'Answer.',
+      'WHAT I DID: checked receipts',
+      'WHAT I DID NOT DO: none',
+      'WHAT I ASSUMED: none',
+      'WHY THIS VERDICT: evidence',
+      'IF INCOMPLETE, WHY: not incomplete',
+    ].join('\n');
+    const attempt = (number, amount, stopped = 'stop') => ({
+      attempt: number,
+      status: 'succeeded',
+      stopped_because: stopped,
+      tokens: { input: 100, uncached_input: 60, cached_input: 40, output: 20, total: 120 },
+      cost: { amount, currency: 'USD', pricing_source: 'test' },
+      cost_absence: null,
+    });
+    const first = buildRunLedgerEntry({
+      repoRoot: tmpRoot,
+      query: 'first',
+      startedAt: new Date('2026-09-08T01:00:00.000Z'),
+      finishedAt: new Date('2026-09-08T01:00:01.000Z'),
+      costThresholds: { dailyUsd: 1, monthlyUsd: 10 },
+      result: {
+        termination: 'answer_given', answer, providerAttempts: [attempt(1, 0.6)],
+        adversarialReview: {
+          enabled: true, ok: true, answer, attempts: [attempt(1, 0.2)],
+          rechecks: [{ answer, termination: 'answer_given', providerAttempts: [attempt(1, 0.1)] }],
+          finalReview: {
+            enabled: true, ok: true, answer, attempts: [attempt(1, 0.1, 'length: hit 2000-token cap')],
+          },
+        },
+        toolTelemetry: { byTool: {}, filesOpened: [], runCheckArtifacts: [], runChecks: [] },
+      },
+    });
+    expect(first.run_tokens).toMatchObject({
+      input: 400, uncached_input: 240, cached_input: 160, output: 80, total: 480, complete: true,
+    });
+    expect(first.run_cost).toMatchObject({ amount: 1, currency: 'USD', complete: true, priced_attempts: 4 });
+    expect(first.daily_cost_total).toMatchObject({ amount: 1, threshold_crossed: true });
+    expect(first.monthly_cost_total).toMatchObject({ amount: 1, threshold_crossed: false });
+    expect(first.adversarial_review.final_review).toMatchObject({
+      stopped_because: 'length: hit 2000-token cap',
+      seat_cost: { amount: 0.1, complete: true },
+      self_report_complete: true,
+    });
+    writeRunLedgerEntry({ repoRoot: tmpRoot, entry: first });
+
+    const second = buildRunLedgerEntry({
+      repoRoot: tmpRoot,
+      query: 'second',
+      startedAt: new Date('2026-09-08T02:00:00.000Z'),
+      finishedAt: new Date('2026-09-08T02:00:01.000Z'),
+      costThresholds: { dailyUsd: 1.5, monthlyUsd: 2 },
+      result: {
+        termination: 'answer_given', answer, providerAttempts: [attempt(1, 0.6)],
+        toolTelemetry: { byTool: {}, filesOpened: [], runCheckArtifacts: [], runChecks: [] },
+      },
+    });
+    expect(second.daily_cost_total).toMatchObject({ amount: 1.6, threshold_crossed: true });
+    expect(second.monthly_cost_total).toMatchObject({ amount: 1.6, threshold_crossed: false });
+
+    const partialPrior = {
+      ...second,
+      created_at: '2026-09-08T02:30:00.000Z',
+      run_id: 'partial-prior',
+      run_cost: { ...second.run_cost, complete: false },
+    };
+    writeRunLedgerEntry({ repoRoot: tmpRoot, entry: partialPrior });
+    const afterPartial = buildRunLedgerEntry({
+      repoRoot: tmpRoot,
+      query: 'after partial',
+      startedAt: new Date('2026-09-08T03:00:00.000Z'),
+      finishedAt: new Date('2026-09-08T03:00:01.000Z'),
+      result: {
+        termination: 'answer_given', answer, providerAttempts: [attempt(1, 0.4)],
+        toolTelemetry: { byTool: {}, filesOpened: [], runCheckArtifacts: [], runChecks: [] },
+      },
+    });
+    expect(afterPartial.daily_cost_total).toMatchObject({
+      amount: 2,
+      complete: false,
+      priced_runs: 3,
+      unpriced_runs: 1,
+    });
   });
 
   test('redacts bare provider and high-entropy token shapes without labels', () => {
@@ -1115,7 +1248,12 @@ describe('Mercury run ledger', () => {
     });
 
     expect(entry.schema_version).toBe(2);
-    expect(entry.reviewer_panel).toEqual(reviewerPanel);
+    expect(entry.reviewer_panel).toMatchObject(reviewerPanel);
+    expect(entry.reviewer_panel.seats[0]).toMatchObject({
+      self_report_complete: false,
+      named_absences: ['self_report_absent'],
+      stopped_because: 'no_provider_attempt_recorded',
+    });
     expect(entry.options.reviewers).toEqual(['fable', 'mercury']);
     expect(entry.verdict).toBe('unverified');
   });

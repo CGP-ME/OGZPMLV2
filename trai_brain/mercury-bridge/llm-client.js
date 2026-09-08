@@ -4,6 +4,8 @@ const fs = require('fs');
 const path = require('path');
 const { execFile } = require('child_process');
 const config = require('./config');
+const PersistentLLMClient = require('../../core/persistent_llm_client');
+const { responseStopReason } = PersistentLLMClient;
 
 function execFileAsync(command, args, options = {}) {
   return new Promise((resolve, reject) => {
@@ -511,7 +513,11 @@ class ClaudeCodeConsensusClient {
         latencyMs: Date.now() - startedMs,
         exitCode: error.code == null ? null : error.code,
         termination: 'executable_trust_check_failed',
+        stoppedBecause: responseStopReason({
+          termination: 'executable_trust_check_failed', providerError: error.message,
+        }),
         parseStatus: 'not_started',
+        usage: null,
         rawResponse: Buffer.alloc(0),
         rawError: Buffer.alloc(0),
         providerFrames: [],
@@ -542,7 +548,9 @@ class ClaudeCodeConsensusClient {
         latencyMs: Date.now() - startedMs,
         exitCode: error.code == null ? null : error.code,
         termination: 'auth_check_failed',
+        stoppedBecause: responseStopReason({ termination: 'auth_check_failed', providerError: error.message }),
         parseStatus: 'request_failed',
+        usage: null,
         rawResponse: stdout,
         rawError: stderr,
         providerFrames: [],
@@ -563,7 +571,9 @@ class ClaudeCodeConsensusClient {
         latencyMs: Date.now() - startedMs,
         exitCode: 0,
         termination: 'auth_check_failed',
+        stoppedBecause: responseStopReason({ termination: 'auth_check_failed', providerError: error.message }),
         parseStatus: 'invalid_auth_status',
+        usage: null,
         rawResponse: stdout,
         rawError: stderr,
         providerFrames: [],
@@ -645,6 +655,12 @@ class ClaudeCodeConsensusClient {
     const appliedModels = extractClaudeCodeAppliedModels(frames);
     const auxiliaryModels = extractClaudeCodeAuxiliaryModels(frames, appliedModels);
     const identityPosture = classifyClaudeCodeIdentity(this.model, frames);
+    const termination = resultFrame
+      ? (resultFrame.is_error === true ? 'provider_error' : resultFrame.subtype || 'result')
+      : null;
+    const providerError = exitCode && stderr
+      ? String(stderr).trim().slice(0, 500)
+      : null;
     return {
       provider: this.providerName,
       requestedModel: this.model,
@@ -659,10 +675,16 @@ class ClaudeCodeConsensusClient {
       finishedAt: new Date().toISOString(),
       latencyMs: Date.now() - startedMs,
       exitCode,
-      termination: resultFrame
-        ? (resultFrame.is_error === true ? 'provider_error' : resultFrame.subtype || 'result')
-        : null,
+      termination,
+      stoppedBecause: responseStopReason({ termination, providerError }),
       parseStatus: frames.length > 0 ? (resultFrame ? 'parsed' : 'missing_result_frame') : 'invalid_frames',
+      usage: resultFrame && resultFrame.usage && typeof resultFrame.usage === 'object'
+        ? JSON.parse(JSON.stringify(resultFrame.usage))
+        : null,
+      providerReportedCost: resultFrame && Number.isFinite(resultFrame.total_cost_usd)
+        ? resultFrame.total_cost_usd
+        : null,
+      providerReportedCurrency: resultFrame && Number.isFinite(resultFrame.total_cost_usd) ? 'USD' : null,
       rawResponse: stdout,
       rawError: stderr,
       providerFrames: frames,
@@ -747,7 +769,6 @@ function resolveKimiTieBreakerClientOptions({ systemPrompt = config.CONSENSUS_SY
 }
 
 function createMercuryLlmClient({ systemPrompt } = {}) {
-  const PersistentLLMClient = require(path.join(config.REPO_ROOT, 'core', 'persistent_llm_client.js'));
   const clientOptions = resolveMercuryLlmClientOptions({ systemPrompt });
   const client = new PersistentLLMClient(clientOptions);
 
@@ -800,7 +821,6 @@ function createOpusChallengerClient(options = {}) {
 
 function createKimiTieBreakerClient({ systemPrompt = config.CONSENSUS_SYSTEM_PROMPT } = {}) {
   const clientOptions = resolveKimiTieBreakerClientOptions({ systemPrompt });
-  const PersistentLLMClient = require(path.join(config.REPO_ROOT, 'core', 'persistent_llm_client.js'));
   const client = new PersistentLLMClient(clientOptions);
 
   if (client.providerName !== clientOptions.provider) {

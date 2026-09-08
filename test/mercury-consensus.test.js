@@ -38,6 +38,9 @@ const {
   panelSeatMetadata,
   recomputePanelSeatFromRecheck,
   recomputePanelAuthority,
+  createProviderAudit,
+  runAlertReasons,
+  notifyRunAlerts,
 } = require('../trai_brain/mercury-bridge/ask');
 
 function trustedFableMetadata(overrides = {}) {
@@ -97,6 +100,12 @@ describe('Mercury Fable consensus', () => {
       agentic: true,
       attack: true,
       query: 'audit this',
+    });
+
+    expect(parseArgs(['node', 'ask.js', '--no-tools', 'answer from memory'])).toMatchObject({
+      agentic: true,
+      noTools: true,
+      query: 'answer from memory',
     });
 
     expect(parseArgs(['node', 'ask.js', '--agentic', '--adversarial-review', 'break this'])).toMatchObject({
@@ -160,6 +169,67 @@ describe('Mercury Fable consensus', () => {
     ])).toMatchObject({
       evidenceSources: ['ignored/a.md:1-2', 'ignored/b.md:4-4'],
       query: 'review supplied excerpts',
+    });
+  });
+
+  test('provider audit writes tokens, priced dollars, and a mechanical stop reason on every attempt', () => {
+    const writeRaw = jest.fn(() => ({ path: 'raw', sha256: 'abc', bytes: 10, mode: '0600' }));
+    const audit = createProviderAudit('mercury', {
+      repoRoot: '/repo',
+      rawRunId: 'run-1',
+      writeRaw,
+      pricingCatalog: {
+        inception: {
+          'mercury-2': {
+            inputPerMillion: 0.25,
+            outputPerMillion: 0.75,
+            cachedInputPerMillion: 0.025,
+            currency: 'USD',
+            source: 'invoice',
+          },
+        },
+      },
+    });
+
+    const receipt = audit.record({
+      provider: 'mercury', requestedModel: 'mercury-2', appliedModel: 'mercury-2',
+      termination: 'length', stoppedBecause: 'length: hit 2000-token cap',
+      usage: {
+        prompt_tokens: 1_000_000, completion_tokens: 100_000, total_tokens: 1_100_000,
+        prompt_tokens_details: { cached_tokens: 400_000 },
+      },
+      rawResponse: Buffer.from('raw output'),
+    }, { status: 'failed', retry: 0, error: 'truncated' });
+
+    expect(receipt).toMatchObject({
+      stopped_because: 'length: hit 2000-token cap',
+      tokens: { input: 1_000_000, uncached_input: 600_000, cached_input: 400_000, output: 100_000 },
+      cost: { amount: 0.235, currency: 'USD', pricing_source: 'invoice' },
+      cost_absence: null,
+    });
+    expect(writeRaw).toHaveBeenCalledTimes(1);
+  });
+
+  test('run alerts are max-priority observability and never become a refusal', async () => {
+    const entry = {
+      run_id: 'run-1',
+      reviewer_panel: {
+        authority: { ceiling: 'UNVERIFIED' },
+        seats: [{ id: 'kimi', status: 'failed' }],
+      },
+      daily_cost_total: { amount: 5.25, threshold_crossed: true },
+      monthly_cost_total: { amount: 12, threshold_crossed: false },
+    };
+    expect(runAlertReasons(entry)).toEqual([
+      'authority_unverified',
+      'seat_failed:kimi',
+      'daily_cost_threshold_crossed:5.25',
+    ]);
+    const notify = jest.fn(async () => { throw new Error('ntfy unavailable'); });
+    await expect(notifyRunAlerts(entry, { notify })).resolves.toMatchObject({
+      status: 'failed',
+      absence: 'ntfy_delivery_failed',
+      reasons: ['authority_unverified', 'seat_failed:kimi', 'daily_cost_threshold_crossed:5.25'],
     });
   });
 
@@ -303,6 +373,8 @@ describe('Mercury Fable consensus', () => {
     expect(prompt).toContain('Mercury run ledger: ogz-meta/cognition-history/mercury-runs/2026-07-01.jsonl:3');
     expect(prompt).toContain('open_file:1/1/0');
     expect(prompt).toContain('No concrete break found. core/Foo.js:10-12');
+    expect(prompt).toContain('WHAT I DID NOT DO: <what remained unexamined or unperformed>');
+    expect(prompt).toContain('WHY THIS VERDICT: <the evidence-to-verdict reason>');
   });
 
   test('architecture mode changes Mercury framing and Fable output contract', () => {
@@ -762,6 +834,8 @@ describe('Mercury Fable consensus', () => {
     expect(prompt).toContain('VERDICT: pass | disagree | needs_more_evidence');
     expect(prompt.indexOf('CONSENSUS: claims all reporters agree on')).toBeLessThan(prompt.indexOf('VERDICT: pass | disagree | needs_more_evidence'));
     expect(prompt).toContain('Mercury answer quality flags: missing_file_line_citation');
+    expect(prompt).toContain('WHAT I DID: <what you mechanically examined or performed>');
+    expect(prompt).toContain('IF INCOMPLETE, WHY: <why incomplete, or not incomplete>');
   });
 
   test('architecture packet is synthesis-oriented and does not require Mercury rechecks', () => {

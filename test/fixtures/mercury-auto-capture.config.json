@@ -44,6 +44,30 @@
     "maxCount": 10000,
     "protectedUsageCount": 3
   },
+  "pricing": {
+    "inception": {
+      "mercury-2": {
+        "inputPerMillion": 0.25,
+        "outputPerMillion": 0.75,
+        "cachedInputPerMillion": 0.025,
+        "currency": "USD",
+        "source": "test fixture"
+      }
+    },
+    "moonshot": {
+      "kimi-k3": {
+        "inputPerMillion": 3,
+        "outputPerMillion": 15,
+        "cachedInputPerMillion": 0.3,
+        "currency": "USD",
+        "source": "test fixture"
+      }
+    }
+  },
+  "costAlerts": {
+    "dailyUsd": 5,
+    "monthlyUsd": 25
+  },
   "llm": {
     "provider": "mercury",
     "baseUrl": "https://api.inceptionlabs.ai/v1",
