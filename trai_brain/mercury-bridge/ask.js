@@ -43,7 +43,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '..', '..', '.env') });
 
 const config = require('./config');
 const { ask } = require('./searcher');
-const { runReactLoop, formatToolTelemetry } = require('./react-loop');
+const { runReactLoop, formatToolTelemetry, mergeCandidateSetRechecks } = require('./react-loop');
 const { createToolAdapter } = require('./tool-adapter');
 const { routeQuery } = require('./query-router');
 const { createMercuryLlmClient } = require('./llm-client');
@@ -1076,6 +1076,10 @@ async function runAgentic(query, opts) {
             fableReview.rechecks = recheckRun.rechecks;
             fableReview.recheck = fableReview.rechecks[0] || null;
             fableReview.quarantines.push(...recheckRun.quarantines);
+            mercuryResult.candidateSet = mergeCandidateSetRechecks(
+              mercuryResult.candidateSet,
+              fableReview.rechecks
+            );
             for (const recheck of fableReview.rechecks) {
               recheck.doctrineReview = assessDoctrineReview({
                 answer: recheck.answer,

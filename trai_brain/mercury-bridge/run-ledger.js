@@ -73,7 +73,27 @@ function writeRawProviderOutput({ repoRoot, runId, stage, attempt, bytes, now = 
 }
 
 function extractClaimedFileCitations(answer) {
-  return Array.from(new Set(String(answer || '').match(/[A-Za-z0-9_./-]+\.\w+:\d+(?:[-–—]\d+)?/g) || [])).sort();
+  const normalized = String(answer || '').replace(/[‑–—]/g, '-');
+  return Array.from(new Set(normalized.match(/[A-Za-z0-9_./-]+\.\w+:\d+(?:-\d+)?/g) || [])).sort();
+}
+
+function candidateSourceLedgerReceipt(source) {
+  return {
+    phase: source.phase || null,
+    recheck_index: source.recheckIndex == null ? null : source.recheckIndex,
+    content: redactSensitiveText(source.content || ''),
+    captured_at_iteration: source.capturedAtIteration == null ? null : source.capturedAtIteration,
+    files_mechanically_opened: Array.isArray(source.filesMechanicallyOpened)
+      ? source.filesMechanicallyOpened
+      : [],
+    file_read_receipts: Array.isArray(source.fileReadReceipts) ? source.fileReadReceipts : [],
+    claimed_file_citations: Array.isArray(source.claimedFileCitations) ? source.claimedFileCitations : [],
+    final_answer_citations: Array.isArray(source.finalAnswerCitations) ? source.finalAnswerCitations : [],
+    answer_citations_subset: source.answerCitationsSubset === true,
+    citations_not_in_candidate_set: Array.isArray(source.citationsNotInCandidateSet)
+      ? source.citationsNotInCandidateSet
+      : [],
+  };
 }
 
 function evidenceSourceFields(source) {
@@ -581,6 +601,9 @@ function buildRunLedgerEntry({
       files_mechanically_opened: Array.isArray(candidateSet.filesMechanicallyOpened)
         ? candidateSet.filesMechanicallyOpened
         : [],
+      file_read_receipts: Array.isArray(candidateSet.fileReadReceipts)
+        ? candidateSet.fileReadReceipts
+        : [],
       claimed_file_citations: Array.isArray(candidateSet.claimedFileCitations)
         ? candidateSet.claimedFileCitations
         : [],
@@ -590,6 +613,9 @@ function buildRunLedgerEntry({
       answer_citations_subset: candidateSet.answerCitationsSubset === true,
       citations_not_in_candidate_set: Array.isArray(candidateSet.citationsNotInCandidateSet)
         ? candidateSet.citationsNotInCandidateSet
+        : [],
+      candidate_sources: Array.isArray(candidateSet.candidateSources)
+        ? candidateSet.candidateSources.map(candidateSourceLedgerReceipt)
         : [],
     } : null,
     review_quarantines: reviewQuarantines,

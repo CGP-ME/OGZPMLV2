@@ -43,13 +43,14 @@ const CANDIDATE_PHASE_SYSTEM_PROMPT = [
 ].join('\n');
 
 function hasFileLineCitation(content) {
-  return FILE_LINE_CITATION_PATTERN.test(content || '');
+  return FILE_LINE_CITATION_PATTERN.test(String(content || '').replace(/[‑–—]/g, '-'));
 }
 
 function extractFileLineCitations(content) {
+  const normalized = String(content || '').replace(/[‑–—]/g, '-');
   return Array.from(new Set(
-    String(content || '').match(/[A-Za-z0-9_./-]+\.\w+:\d+(?:[-‑–—]\d+)?/g) || []
-  )).map(citation => citation.replace(/[‑–—]/g, '-')).sort();
+    normalized.match(/[A-Za-z0-9_./-]+\.\w+:\d+(?:-\d+)?/g) || []
+  )).sort();
 }
 
 function isCandidateSetResponse(content) {
@@ -57,7 +58,7 @@ function isCandidateSetResponse(content) {
 }
 
 function citationParts(citation) {
-  const match = String(citation || '').match(/^(.*):(\d+)(?:[-‑–—](\d+))?$/);
+  const match = String(citation || '').replace(/[‑–—]/g, '-').match(/^(.*):(\d+)(?:-(\d+))?$/);
   if (!match) return null;
   return {
     path: match[1],
@@ -74,6 +75,130 @@ function citationCoveredByCandidate(citation, candidateCitations) {
     return coverage && coverage.path === target.path
       && coverage.start <= target.start && coverage.end >= target.end;
   });
+}
+
+function uniqueSorted(values = []) {
+  return Array.from(new Set(values.filter(value => typeof value === 'string' && value))).sort();
+}
+
+function mergeFileReadReceipts(receiptGroups = []) {
+  const receipts = new Map();
+  for (const receipt of receiptGroups.flat()) {
+    if (!receipt || typeof receipt.file !== 'string') continue;
+    const normalized = {
+      ...receipt,
+      file: receipt.file.replace(/[‑–—]/g, '-'),
+    };
+    const key = [
+      normalized.ref || '',
+      normalized.file,
+      normalized.startLine || '',
+      normalized.endLine || '',
+      normalized.executionProvenance || '',
+    ].join(':');
+    receipts.set(key, normalized);
+  }
+  return Array.from(receipts.values()).sort((left, right) => (
+    `${left.ref || ''}:${left.file}:${left.startLine || 0}`
+      .localeCompare(`${right.ref || ''}:${right.file}:${right.startLine || 0}`)
+  ));
+}
+
+function growCandidateSetEvidence(candidateSet, telemetry = {}, answer = null) {
+  const base = candidateSet || {};
+  const filesMechanicallyOpened = uniqueSorted([
+    ...(Array.isArray(base.filesMechanicallyOpened) ? base.filesMechanicallyOpened : []),
+    ...(Array.isArray(telemetry.filesOpened) ? telemetry.filesOpened : []),
+  ].filter(citation => typeof citation === 'string').map(citation => citation.replace(/[‑–—]/g, '-')));
+  const claimedFileCitations = uniqueSorted([
+    ...(Array.isArray(base.claimedFileCitations) ? base.claimedFileCitations : []),
+    ...extractFileLineCitations(base.content),
+    ...filesMechanicallyOpened.flatMap(extractFileLineCitations),
+  ]);
+  const finalAnswerCitations = answer == null
+    ? uniqueSorted((Array.isArray(base.finalAnswerCitations) ? base.finalAnswerCitations : [])
+      .map(citation => citation.replace(/[‑–—]/g, '-')))
+    : extractFileLineCitations(answer);
+  const citationsNotInCandidateSet = finalAnswerCitations.filter(citation => (
+    !citationCoveredByCandidate(citation, claimedFileCitations)
+  ));
+  return {
+    ...base,
+    filesMechanicallyOpened,
+    fileReadReceipts: mergeFileReadReceipts([
+      Array.isArray(base.fileReadReceipts) ? base.fileReadReceipts : [],
+      Array.isArray(telemetry.fileReads) ? telemetry.fileReads : [],
+    ]),
+    claimedFileCitations,
+    finalAnswerCitations,
+    answerCitationsSubset: citationsNotInCandidateSet.length === 0,
+    citationsNotInCandidateSet,
+  };
+}
+
+function candidateSourceReceipt(candidateSet, { phase, recheckIndex = null } = {}) {
+  return {
+    phase,
+    recheckIndex,
+    content: candidateSet.content || '',
+    capturedAtIteration: candidateSet.capturedAtIteration == null ? null : candidateSet.capturedAtIteration,
+    filesMechanicallyOpened: candidateSet.filesMechanicallyOpened || [],
+    fileReadReceipts: candidateSet.fileReadReceipts || [],
+    claimedFileCitations: candidateSet.claimedFileCitations || [],
+    finalAnswerCitations: candidateSet.finalAnswerCitations || [],
+    answerCitationsSubset: candidateSet.answerCitationsSubset === true,
+    citationsNotInCandidateSet: candidateSet.citationsNotInCandidateSet || [],
+  };
+}
+
+function mergeCandidateSetRechecks(candidateSet, rechecks = []) {
+  if (!candidateSet) return null;
+  const passOne = growCandidateSetEvidence(candidateSet);
+  const candidateSources = [candidateSourceReceipt(passOne, { phase: 'pass_1' })];
+
+  for (const [index, recheck] of rechecks.entries()) {
+    const recheckCandidate = growCandidateSetEvidence(
+      recheck && recheck.candidateSet,
+      recheck && recheck.toolTelemetry,
+      recheck && recheck.answer
+    );
+    candidateSources.push(candidateSourceReceipt(recheckCandidate, {
+      phase: 'recheck',
+      recheckIndex: index + 1,
+    }));
+  }
+
+  const filesMechanicallyOpened = uniqueSorted(candidateSources.flatMap(source => source.filesMechanicallyOpened));
+  const fileReadReceipts = mergeFileReadReceipts(candidateSources.map(source => source.fileReadReceipts));
+  const claimedFileCitations = uniqueSorted([
+    ...candidateSources.flatMap(source => source.claimedFileCitations),
+    ...filesMechanicallyOpened.flatMap(extractFileLineCitations),
+  ]);
+  const finalAnswerCitations = uniqueSorted(candidateSources.flatMap(source => source.finalAnswerCitations));
+  const citationsNotInCandidateSet = finalAnswerCitations.filter(citation => (
+    !citationCoveredByCandidate(citation, claimedFileCitations)
+  ));
+  const unionQualifiedSources = candidateSources.map(source => {
+    const sourceCitationsNotInCandidateSet = source.finalAnswerCitations.filter(citation => (
+      !citationCoveredByCandidate(citation, claimedFileCitations)
+    ));
+    return {
+      ...source,
+      answerCitationsSubset: sourceCitationsNotInCandidateSet.length === 0,
+      citationsNotInCandidateSet: sourceCitationsNotInCandidateSet,
+    };
+  });
+
+  return {
+    ...passOne,
+    filesMechanicallyOpened,
+    fileReadReceipts,
+    claimedFileCitations,
+    finalAnswerCitations,
+    answerCitationsSubset: citationsNotInCandidateSet.length === 0,
+    citationsNotInCandidateSet,
+    candidateSources: unionQualifiedSources,
+  };
 }
 
 function formatFixedEvidenceInputs({
@@ -830,16 +955,8 @@ async function runReactLoop(params) {
     }
 
     const finalAnswer = content;
-    const finalAnswerCitations = extractFileLineCitations(finalAnswer);
-    const citationsNotInCandidateSet = finalAnswerCitations.filter(citation => (
-      !citationCoveredByCandidate(citation, candidateSet.claimedFileCitations)
-    ));
-    candidateSet = {
-      ...candidateSet,
-      finalAnswerCitations,
-      answerCitationsSubset: citationsNotInCandidateSet.length === 0,
-      citationsNotInCandidateSet,
-    };
+    candidateSet = growCandidateSetEvidence(candidateSet, summarizeToolTelemetry(history), finalAnswer);
+    candidateSet.candidateSources = [candidateSourceReceipt(candidateSet, { phase: 'pass_1' })];
     const answerQuality = assessFinalAnswerQuality(finalAnswer, history);
 
     if (verbose) console.error(`[REACT] Final answer on iteration ${iteration}`);
@@ -871,6 +988,8 @@ module.exports = {
   callMercuryWithRetry,
   hasFileLineCitation,
   extractFileLineCitations,
+  growCandidateSetEvidence,
+  mergeCandidateSetRechecks,
   isCandidateSetResponse,
   formatFixedEvidenceInputs,
   hasToolHandleCitation,

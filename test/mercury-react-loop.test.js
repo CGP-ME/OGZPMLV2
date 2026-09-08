@@ -17,6 +17,8 @@ const {
   summarizeToolTelemetry,
   formatToolTelemetry,
   isCandidateSetResponse,
+  extractFileLineCitations,
+  mergeCandidateSetRechecks,
 } = require('../trai_brain/mercury-bridge/react-loop');
 
 function createToolAdapter() {
@@ -55,6 +57,9 @@ describe('Mercury ReAct loop evidence gates', () => {
     expect(hasFileLineCitation('See trai_brain/mercury-bridge/react-loop.js:257-264.')).toBe(true);
     expect(hasFileLineCitation('See trai_brain/mercury-bridge/react-loop.js:257‑264.')).toBe(true);
     expect(hasFileLineCitation('See src/services/order-router.ts:12-20.')).toBe(true);
+    expect(hasFileLineCitation('See tools/matrix‑sweep.js:525.')).toBe(true);
+    expect(extractFileLineCitations('See tools/matrix‑sweep.js:525.'))
+      .toEqual(['tools/matrix-sweep.js:525']);
     expect(hasFileLineCitation('See tools/audit_runner.py:44.')).toBe(true);
     expect(hasFileLineCitation('See internal/broker/router.go:101-119.')).toBe(true);
     expect(hasFileLineCitation('C:\\src\\file.js:12-20')).toBe(true);
@@ -230,7 +235,7 @@ describe('Mercury ReAct loop evidence gates', () => {
     expect(client.messageSnapshots[1].at(-1).content).toContain('claimed_file_citations: ["core/a.js:1-10"]');
   });
 
-  test('accepts the next content reply after further reading and keeps the candidate set fixed', async () => {
+  test('accepts the next content reply after further reading and grows the candidate receipt', async () => {
     const client = createClient([
       { role: 'assistant', content: 'CANDIDATE SET\nCandidates at core/a.js:1-2 and core/b.js:3-4.' },
       {
@@ -255,11 +260,77 @@ describe('Mercury ReAct loop evidence gates', () => {
 
     expect(result.candidateSet).toMatchObject({
       capturedAtIteration: 1,
-      filesMechanicallyOpened: [],
+      filesMechanicallyOpened: ['core/b.js:3-4'],
+      fileReadReceipts: [{
+        file: 'core/b.js', startLine: 3, endLine: 4, totalLines: 10,
+        executionProvenance: 'trusted_repo_read',
+      }],
       claimedFileCitations: ['core/a.js:1-2', 'core/b.js:3-4'],
       finalAnswerCitations: ['core/b.js:3'],
       answerCitationsSubset: true,
     });
+  });
+
+  test('unions pass-1 and recheck candidates without dropping mechanically opened files', () => {
+    const merged = mergeCandidateSetRechecks({
+      content: 'CANDIDATE SET\nPass-1 evidence core/a.js:1-2.',
+      capturedAtIteration: 2,
+      filesMechanicallyOpened: ['core/a.js:1-2'],
+      fileReadReceipts: [{
+        file: 'core/a.js', startLine: 1, endLine: 2, totalLines: 20,
+        executionProvenance: 'trusted_repo_read',
+      }],
+      claimedFileCitations: ['core/a.js:1-2'],
+      finalAnswerCitations: ['core/new.js:5'],
+      answerCitationsSubset: false,
+      citationsNotInCandidateSet: ['core/new.js:5'],
+    }, [{
+      answer: 'Recheck decision at core/new.js:5 and core/later.js:22.',
+      candidateSet: {
+        content: 'CANDIDATE SET\nRecheck evidence core/new.js:1-10.',
+        capturedAtIteration: 3,
+        filesMechanicallyOpened: ['core/new.js:1-10'],
+        claimedFileCitations: ['core/new.js:1-10'],
+      },
+      toolTelemetry: {
+        filesOpened: ['core/new.js:1-10', 'core/later.js:20-30'],
+        fileReads: [
+          {
+            file: 'core/new.js', startLine: 1, endLine: 10, totalLines: 50,
+            executionProvenance: 'trusted_repo_read',
+          },
+          {
+            file: 'core/later.js', startLine: 20, endLine: 30, totalLines: 40,
+            executionProvenance: 'trusted_repo_read',
+          },
+        ],
+      },
+    }]);
+
+    expect(merged).toMatchObject({
+      filesMechanicallyOpened: ['core/a.js:1-2', 'core/later.js:20-30', 'core/new.js:1-10'],
+      claimedFileCitations: ['core/a.js:1-2', 'core/later.js:20-30', 'core/new.js:1-10'],
+      finalAnswerCitations: ['core/later.js:22', 'core/new.js:5'],
+      answerCitationsSubset: true,
+      citationsNotInCandidateSet: [],
+    });
+    expect(merged.candidateSources).toEqual([
+      expect.objectContaining({
+        phase: 'pass_1', recheckIndex: null,
+        filesMechanicallyOpened: ['core/a.js:1-2'],
+      }),
+      expect.objectContaining({
+        phase: 'recheck', recheckIndex: 1,
+        filesMechanicallyOpened: ['core/later.js:20-30', 'core/new.js:1-10'],
+        claimedFileCitations: ['core/later.js:20-30', 'core/new.js:1-10'],
+        finalAnswerCitations: ['core/later.js:22', 'core/new.js:5'],
+      }),
+    ]);
+    expect(merged.fileReadReceipts).toEqual(expect.arrayContaining([
+      expect.objectContaining({ file: 'core/a.js', executionProvenance: 'trusted_repo_read' }),
+      expect.objectContaining({ file: 'core/later.js', executionProvenance: 'trusted_repo_read' }),
+      expect.objectContaining({ file: 'core/new.js', executionProvenance: 'trusted_repo_read' }),
+    ]));
   });
 
   test('attack framing is absent for audits and explicit for break-my-fix or --attack runs', async () => {
