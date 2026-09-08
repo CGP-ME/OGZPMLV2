@@ -126,7 +126,6 @@ describe('Mercury run ledger', () => {
       query: 'first',
       startedAt: new Date('2026-09-08T01:00:00.000Z'),
       finishedAt: new Date('2026-09-08T01:00:01.000Z'),
-      costThresholds: { dailyUsd: 1, monthlyUsd: 10 },
       result: {
         termination: 'answer_given', answer, providerAttempts: [attempt(1, 0.6)],
         adversarialReview: {
@@ -143,8 +142,10 @@ describe('Mercury run ledger', () => {
       input: 400, uncached_input: 240, cached_input: 160, output: 80, total: 480, complete: true,
     });
     expect(first.run_cost).toMatchObject({ amount: 1, currency: 'USD', complete: true, priced_attempts: 4 });
-    expect(first.daily_cost_total).toMatchObject({ amount: 1, threshold_crossed: true });
-    expect(first.monthly_cost_total).toMatchObject({ amount: 1, threshold_crossed: false });
+    expect(first.daily_cost_total).toMatchObject({ amount: 1 });
+    expect(first.monthly_cost_total).toMatchObject({ amount: 1 });
+    expect(first.daily_cost_total).not.toHaveProperty('threshold');
+    expect(first.daily_cost_total).not.toHaveProperty('threshold_crossed');
     expect(first.adversarial_review.final_review).toMatchObject({
       stopped_because: 'length: hit 2000-token cap',
       seat_cost: { amount: 0.1, complete: true },
@@ -157,14 +158,13 @@ describe('Mercury run ledger', () => {
       query: 'second',
       startedAt: new Date('2026-09-08T02:00:00.000Z'),
       finishedAt: new Date('2026-09-08T02:00:01.000Z'),
-      costThresholds: { dailyUsd: 1.5, monthlyUsd: 2 },
       result: {
         termination: 'answer_given', answer, providerAttempts: [attempt(1, 0.6)],
         toolTelemetry: { byTool: {}, filesOpened: [], runCheckArtifacts: [], runChecks: [] },
       },
     });
-    expect(second.daily_cost_total).toMatchObject({ amount: 1.6, threshold_crossed: true });
-    expect(second.monthly_cost_total).toMatchObject({ amount: 1.6, threshold_crossed: false });
+    expect(second.daily_cost_total).toMatchObject({ amount: 1.6 });
+    expect(second.monthly_cost_total).toMatchObject({ amount: 1.6 });
 
     const partialPrior = {
       ...second,

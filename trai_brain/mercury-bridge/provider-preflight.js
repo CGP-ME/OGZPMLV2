@@ -8,7 +8,7 @@ const {
   createOpusChallengerClient,
   createKimiTieBreakerClient,
 } = require('./llm-client');
-const { classifyFableFallbackError, sendMaxPriorityNtfy, stampedIdentityPosture } = require('./adversarial-review');
+const { classifyFableFallbackError, stampedIdentityPosture } = require('./adversarial-review');
 const {
   buildPromptProvenance,
   buildProviderPreflightLedgerEntry,
@@ -262,21 +262,7 @@ async function runProviderPreflight({
   if (repoRoot) {
     const entry = buildProviderPreflightLedgerEntry({
       repoRoot, runId, startedAt, result, attempts,
-      costThresholds: {
-        dailyUsd: config.COST_ALERT_DAILY_USD,
-        monthlyUsd: config.COST_ALERT_MONTHLY_USD,
-      },
     });
-    const crossed = [
-      entry.daily_cost_total && entry.daily_cost_total.threshold_crossed ? `daily=${entry.daily_cost_total.amount}` : null,
-      entry.monthly_cost_total && entry.monthly_cost_total.threshold_crossed ? `monthly=${entry.monthly_cost_total.amount}` : null,
-    ].filter(Boolean);
-    if (crossed.length > 0) {
-      entry.alert = await sendMaxPriorityNtfy({
-        title: 'Mercury bridge cost threshold crossed',
-        body: `${crossed.join('; ')}; run=${entry.run_id}; provider preflight remains nonblocking`,
-      });
-    }
     result.runLedger = writeRunLedgerEntry({ repoRoot, entry });
   }
   return result;

@@ -74,8 +74,6 @@ describe('Mercury LLM config contract', () => {
         TIE_BREAKER_REQUEST_TIMEOUT_MS: 600000,
         AGENTIC_MAX_ITERATIONS: 60,
         AGENTIC_MAX_TOKENS: 7750,
-        COST_ALERT_DAILY_USD: 5,
-        COST_ALERT_MONTHLY_USD: 25,
       });
       expect(config.CONSENSUS_BASE_URL).toBeNull();
       expect(config.AGENTIC_SYSTEM_PROMPT).toContain('WHY THIS VERDICT:');

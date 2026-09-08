@@ -414,8 +414,6 @@ const PROVIDER_PRICING = Object.freeze({
     [TIE_BREAKER_MODEL]: requiredModelPricing('moonshot', TIE_BREAKER_MODEL),
   }),
 });
-const COST_ALERT_DAILY_USD = requiredNumber(MERCURY_CONFIG, 'costAlerts.dailyUsd', { min: 0 });
-const COST_ALERT_MONTHLY_USD = requiredNumber(MERCURY_CONFIG, 'costAlerts.monthlyUsd', { min: 0 });
 
 // ─── Skip patterns ────────────────────────────────────────────
 // Directory exclusions live in mercury.ignore so intake/history boundaries are
@@ -550,8 +548,6 @@ module.exports = {
   TIE_BREAKER_TEMPERATURE,
   TIE_BREAKER_OPENAI_EXTRA_BODY,
   PROVIDER_PRICING,
-  COST_ALERT_DAILY_USD,
-  COST_ALERT_MONTHLY_USD,
   AGENTIC_MAX_ITERATIONS,
   AGENTIC_MAX_TOKENS,
   SINGLE_SHOT_MAX_TOKENS,

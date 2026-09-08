@@ -71,10 +71,6 @@
       }
     }
   },
-  "costAlerts": {
-    "dailyUsd": 5,
-    "monthlyUsd": 25
-  },
   "llm": {
     "provider": "mercury",
     "baseUrl": "https://api.inceptionlabs.ai/v1",

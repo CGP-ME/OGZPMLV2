@@ -846,12 +846,6 @@ function runAlertReasons(entry = {}) {
     ? panel.seats.filter(seat => seat.status === 'failed').map(seat => seat.id)
     : [];
   if (failedSeats.length > 0) reasons.push(`seat_failed:${failedSeats.join(',')}`);
-  if (entry.daily_cost_total && entry.daily_cost_total.threshold_crossed === true) {
-    reasons.push(`daily_cost_threshold_crossed:${entry.daily_cost_total.amount}`);
-  }
-  if (entry.monthly_cost_total && entry.monthly_cost_total.threshold_crossed === true) {
-    reasons.push(`monthly_cost_threshold_crossed:${entry.monthly_cost_total.amount}`);
-  }
   return reasons;
 }
 
@@ -1379,10 +1373,6 @@ async function runAgentic(query, opts) {
       autoBlastRadius,
       evidenceSources,
       inputProvenance,
-      costThresholds: {
-        dailyUsd: config.COST_ALERT_DAILY_USD,
-        monthlyUsd: config.COST_ALERT_MONTHLY_USD,
-      },
     });
     ledgerEntry.alert = await notifyRunAlerts(ledgerEntry);
     result.runLedger = writeRunLedgerEntry({
@@ -1408,10 +1398,6 @@ async function runAgentic(query, opts) {
       autoBlastRadius,
       evidenceSources,
       inputProvenance,
-      costThresholds: {
-        dailyUsd: config.COST_ALERT_DAILY_USD,
-        monthlyUsd: config.COST_ALERT_MONTHLY_USD,
-      },
     });
     ledgerEntry.alert = await notifyRunAlerts(ledgerEntry);
     err.mercuryRunLedger = writeRunLedgerEntry({

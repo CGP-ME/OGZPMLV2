@@ -366,7 +366,7 @@ function priorPeriodCost({ repoRoot, period, currency = 'USD' }) {
   return { amount: roundCurrency(amount), priced_runs: pricedRuns, unpriced_runs: unpricedRuns };
 }
 
-function rollingCostReceipt({ repoRoot, entry, dailyThreshold, monthlyThreshold }) {
+function rollingCostReceipt({ repoRoot, entry }) {
   const createdAt = isoTimestamp(entry.created_at);
   const currency = entry.run_cost && entry.run_cost.currency || 'USD';
   const currentAmount = entry.run_cost && Number.isFinite(entry.run_cost.amount)
@@ -374,24 +374,19 @@ function rollingCostReceipt({ repoRoot, entry, dailyThreshold, monthlyThreshold 
     : 0;
   const dailyPrior = priorPeriodCost({ repoRoot, period: createdAt.slice(0, 10), currency });
   const monthlyPrior = priorPeriodCost({ repoRoot, period: createdAt.slice(0, 7), currency });
-  const buildPeriod = (prior, threshold) => {
+  const buildPeriod = (prior) => {
     const amount = roundCurrency(prior.amount + currentAmount);
-    const configuredThreshold = Number.isFinite(threshold) ? threshold : null;
     return {
       amount,
       currency,
       complete: prior.unpriced_runs === 0 && entry.run_cost && entry.run_cost.complete === true,
       priced_runs: prior.priced_runs + (entry.run_cost && Number.isFinite(entry.run_cost.amount) ? 1 : 0),
       unpriced_runs: prior.unpriced_runs + (entry.run_cost && Number.isFinite(entry.run_cost.amount) ? 0 : 1),
-      threshold: configuredThreshold,
-      threshold_crossed: configuredThreshold != null
-        && prior.amount < configuredThreshold
-        && amount >= configuredThreshold,
     };
   };
   return {
-    daily_cost_total: buildPeriod(dailyPrior, dailyThreshold),
-    monthly_cost_total: buildPeriod(monthlyPrior, monthlyThreshold),
+    daily_cost_total: buildPeriod(dailyPrior),
+    monthly_cost_total: buildPeriod(monthlyPrior),
   };
 }
 
@@ -715,7 +710,6 @@ function buildRunLedgerEntry({
   autoBlastRadius = null,
   evidenceSources = [],
   inputProvenance = null,
-  costThresholds = {},
 } = {}) {
   const startedIso = isoTimestamp(startedAt || finishedAt);
   const finishedIso = isoTimestamp(finishedAt);
@@ -860,8 +854,6 @@ function buildRunLedgerEntry({
     ...rollingCostReceipt({
       repoRoot,
       entry,
-      dailyThreshold: costThresholds.dailyUsd,
-      monthlyThreshold: costThresholds.monthlyUsd,
     }),
   });
 }
@@ -873,7 +865,6 @@ function buildProviderPreflightLedgerEntry({
   finishedAt = new Date(),
   result,
   attempts = [],
-  costThresholds = {},
 } = {}) {
   const startedIso = isoTimestamp(startedAt || finishedAt);
   const finishedIso = isoTimestamp(finishedAt);
@@ -902,8 +893,6 @@ function buildProviderPreflightLedgerEntry({
     ...rollingCostReceipt({
       repoRoot,
       entry,
-      dailyThreshold: costThresholds.dailyUsd,
-      monthlyThreshold: costThresholds.monthlyUsd,
     }),
   });
 }

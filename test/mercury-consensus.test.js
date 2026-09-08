@@ -210,26 +210,23 @@ describe('Mercury Fable consensus', () => {
     expect(writeRaw).toHaveBeenCalledTimes(1);
   });
 
-  test('run alerts are max-priority observability and never become a refusal', async () => {
+  test('run alerts cover UNVERIFIED and seat failures without cost policy or refusal', async () => {
     const entry = {
       run_id: 'run-1',
       reviewer_panel: {
         authority: { ceiling: 'UNVERIFIED' },
         seats: [{ id: 'kimi', status: 'failed' }],
       },
-      daily_cost_total: { amount: 5.25, threshold_crossed: true },
-      monthly_cost_total: { amount: 12, threshold_crossed: false },
     };
     expect(runAlertReasons(entry)).toEqual([
       'authority_unverified',
       'seat_failed:kimi',
-      'daily_cost_threshold_crossed:5.25',
     ]);
     const notify = jest.fn(async () => { throw new Error('ntfy unavailable'); });
     await expect(notifyRunAlerts(entry, { notify })).resolves.toMatchObject({
       status: 'failed',
       absence: 'ntfy_delivery_failed',
-      reasons: ['authority_unverified', 'seat_failed:kimi', 'daily_cost_threshold_crossed:5.25'],
+      reasons: ['authority_unverified', 'seat_failed:kimi'],
     });
   });
 
