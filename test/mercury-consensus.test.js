@@ -35,6 +35,9 @@ const {
   resolveEvidenceSources,
   runReviewRechecks,
   buildMercuryIntentPrompt,
+  panelSeatMetadata,
+  recomputePanelSeatFromRecheck,
+  recomputePanelAuthority,
 } = require('../trai_brain/mercury-bridge/ask');
 
 function trustedFableMetadata(overrides = {}) {
@@ -68,6 +71,18 @@ function evidenceFixture(excerpt = 'VERBATIM EVIDENCE') {
 
 describe('Mercury Fable consensus', () => {
   test('CLI adversarial review flags expose explicit controls while preserving consensus aliases', () => {
+    expect(parseArgs(['node', 'ask.js', 'audit this'])).toMatchObject({
+      agentic: true,
+      attack: false,
+      query: 'audit this',
+    });
+
+    expect(parseArgs(['node', 'ask.js', '--single-shot', 'lookup this'])).toMatchObject({
+      agentic: false,
+      attack: false,
+      query: 'lookup this',
+    });
+
     expect(parseArgs(['node', 'ask.js', '--agentic', 'break this'])).toMatchObject({
       agentic: true,
       attack: false,
@@ -498,6 +513,75 @@ describe('Mercury Fable consensus', () => {
     expect(prompt).toContain('forgot the blocking field');
     expect(prompt).toContain('Required recheck:');
     expect(prompt).toContain('inspect parser behavior');
+    expect(prompt).toContain('Re-examine the disputed point without dropping any file already opened');
+  });
+
+  test('completed recheck replaces the seat evaluation while preserving its prior values as history', () => {
+    const initial = panelSeatMetadata('fable', {
+      answer: 'VERDICT: found_break',
+      parsed: { verdict: 'found_break', blocking: true },
+      attempts: [{
+        requested_provider: 'claude-code',
+        applied_model: 'claude-fable-5',
+        executable_trust: { trusted: true, version: '2.1.236' },
+      }],
+      quarantines: [{ load_bearing: true }],
+    });
+    const rechecked = recomputePanelSeatFromRecheck(initial, {
+      answer: 'No live reader. foundation/ConfigLoader.js:399',
+      parsed: null,
+      toolTelemetry: {
+        calls: [{ name: 'open_file', status: 'succeeded' }],
+        filesOpened: ['foundation/ConfigLoader.js:350-430'],
+      },
+      doctrineReview: { authorityCeiling: 'UNCHANGED', namedAbsences: [] },
+    });
+
+    expect(rechecked).toMatchObject({
+      answer: 'No live reader. foundation/ConfigLoader.js:399',
+      parsed: null,
+      verdict: 'no_claim',
+      evidenceBasis: ['successful_repo_tool'],
+      evidenceChecksPassed: true,
+      evaluationSource: 'mercury_recheck',
+      evaluationHistory: [{
+        phase: 'pre_recheck',
+        answer: 'VERDICT: found_break',
+        parsed: { verdict: 'found_break', blocking: true },
+        verdict: 'found_break',
+        evidenceChecksPassed: false,
+      }],
+    });
+    expect(rechecked.effectiveIdentityFingerprint).toBe(initial.effectiveIdentityFingerprint);
+  });
+
+  test('authority is recomputed after explicit Kimi convergence is attached', () => {
+    const panelRun = {
+      seats: [
+        {
+          id: 'mercury', status: 'succeeded', verdict: 'no_claim', evidenceChecksPassed: true,
+          effectiveIdentityFingerprint: 'mercury:model:attested',
+        },
+        {
+          id: 'fable', status: 'succeeded', verdict: 'no_claim', evidenceChecksPassed: true,
+          effectiveIdentityFingerprint: 'fable:model:attested',
+        },
+        {
+          id: 'kimi', status: 'succeeded', verdict: 'pass', evidenceChecksPassed: true,
+          parsed: {
+            verdict: 'pass', blocking: false, substantiveResolution: 'convergence', disagreement: 'none',
+          },
+          effectiveIdentityFingerprint: 'kimi:model:attested',
+        },
+      ],
+      authority: { ceiling: 'UNVERIFIED', capReasons: ['stale_pre_recheck_values'] },
+    };
+
+    expect(recomputePanelAuthority(panelRun)).toMatchObject({
+      ceiling: 'FULL', agreement: true, evidenceChecksPassed: true,
+      agreedVerdict: 'pass', capReasons: [],
+    });
+    expect(panelRun.authority.ceiling).toBe('FULL');
   });
 
   test('splits multiple Fable recheck prompts so caller can cap them at two', () => {

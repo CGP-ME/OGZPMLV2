@@ -203,6 +203,38 @@ describe('selectable Mercury adversarial reviewer panel', () => {
     });
   });
 
+  test('no-claim seats remain qualifying but do not enter the agreement set', () => {
+    expect(evaluatePanelAuthority([
+      {
+        id: 'mercury', status: 'succeeded', verdict: 'no_claim', evidenceChecksPassed: true,
+        effectiveIdentityFingerprint: 'mercury:model:attested',
+      },
+      {
+        id: 'kimi', status: 'succeeded', verdict: 'pass', evidenceChecksPassed: true,
+        effectiveIdentityFingerprint: 'kimi:model:attested',
+      },
+    ])).toMatchObject({
+      ceiling: 'FULL', qualifyingSeats: 2, agreement: true,
+      evidenceChecksPassed: true, agreedVerdict: 'pass', capReasons: [],
+    });
+  });
+
+  test('a panel with qualifying evidence but no verdict claim remains UNVERIFIED', () => {
+    expect(evaluatePanelAuthority([
+      {
+        id: 'mercury', status: 'succeeded', verdict: 'no_claim', evidenceChecksPassed: true,
+        effectiveIdentityFingerprint: 'mercury:model:attested',
+      },
+      {
+        id: 'fable', status: 'succeeded', verdict: 'no_claim', evidenceChecksPassed: true,
+        effectiveIdentityFingerprint: 'fable:model:attested',
+      },
+    ])).toMatchObject({
+      ceiling: 'UNVERIFIED', qualifyingSeats: 2, agreement: false,
+      capReasons: ['reviewer_claim_absent'],
+    });
+  });
+
   test('duplicate effective identities cap authority despite agreeing registry seats', () => {
     expect(evaluatePanelAuthority([
       {
@@ -219,7 +251,8 @@ describe('selectable Mercury adversarial reviewer panel', () => {
   });
 
   test('seat verdict requires an explicit unambiguous structured field', () => {
-    expect(structuredPanelVerdict(null)).toBe('cannot_verify');
+    expect(structuredPanelVerdict(null)).toBe('no_claim');
+    expect(structuredPanelVerdict({ blocking: false })).toBe('no_claim');
     expect(structuredPanelVerdict({ verdict: 'pass', blocking: false })).toBe('pass');
     expect(structuredPanelVerdict({ verdict: 'found_break', blocking: true })).toBe('found_break');
     expect(structuredPanelVerdict({ verdict: 'pass', blocking: true })).toBe('cannot_verify');

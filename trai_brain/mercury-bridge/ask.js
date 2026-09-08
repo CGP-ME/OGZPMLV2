@@ -3,16 +3,17 @@
  * Mercury Bridge — CLI Entry
  * ══════════════════════════════════════════════════════════════
  * Ask Mercury questions about the OGZPrime codebase with either:
- *   (default) single-shot RAG — fast but can be fooled by docs
- *   --agentic  ReAct loop with tool access — Mercury iteratively
- *              greps the repo and opens files until it has ground truth
+ *   (default) agentic ReAct loop — Mercury iteratively greps the repo
+ *             and opens files until it has ground truth
+ *   --single-shot  RAG-only lookup with no repository tools
  *
  * Usage:
  *   node trai_brain/mercury-bridge/ask.js "How does MPM handle BE scale-out?"
- *   node trai_brain/mercury-bridge/ask.js --agentic "Find the partial-close contract bug"
+ *   node trai_brain/mercury-bridge/ask.js --single-shot "Summarize the indexed stop-loss docs"
  *
  * Flags:
- *   --agentic              Enable ReAct loop
+ *   --agentic              Explicitly select the default ReAct loop
+ *   --single-shot          Select one-call RAG with no repository tools
  *   --attack               Apply attack framing without "break my fix"
  *   --top-k=N              Retrieve N starter-context chunks
  *   --max-iterations=N     Agentic mode only: max tool-call iterations
@@ -74,6 +75,7 @@ const {
   resolveReviewerSelection,
   runReviewerPanel,
   structuredPanelVerdict,
+  evaluatePanelAuthority,
 } = require('./reviewer-panel');
 const { retrieveSimilarTrace, formatTraceAsHint, captureTrace, markTraceUsed, evictStaleTraces, ensureTraceIndexes, getTraceStats } = require('./trace-memory');
 const {
@@ -112,7 +114,7 @@ function parseArgs(argv) {
     quiet: false,
     showChunks: false,
     showHistory: false,
-    agentic: false,
+    agentic: true,
     attack: false,
     adversarialReview: false,
     adversarialReviewExplicit: false,
@@ -142,6 +144,8 @@ function parseArgs(argv) {
       args.showHistory = true;
     } else if (arg === '--agentic') {
       args.agentic = true;
+    } else if (arg === '--single-shot') {
+      args.agentic = false;
     } else if (arg === '--attack') {
       args.attack = true;
     } else if (arg === '--adversarial-review') {
@@ -408,18 +412,18 @@ function usage() {
   console.log('');
   console.log('Usage:');
   console.log('  node trai_brain/mercury-bridge/ask.js "your question here"');
-  console.log('  node trai_brain/mercury-bridge/ask.js --agentic "your question here"');
+  console.log('  node trai_brain/mercury-bridge/ask.js --single-shot "your question here"');
   console.log('');
   console.log('Modes:');
-  console.log('  (default)   Single-shot RAG — embed query, retrieve top-K, one Mercury call');
-  console.log('  --agentic   ReAct loop — Mercury can grep/open files iteratively (more accurate)');
+  console.log('  (default)      Agentic ReAct loop — Mercury reads files and uses repo tools');
+  console.log('  --single-shot  RAG only — embed query, retrieve top-K, one Mercury call');
   console.log('');
   console.log('Flags:');
   console.log(`  --top-k=N              Starter-context chunk count (configured ${config.RETRIEVE_TOP_K})`);
   console.log(`  --max-iterations=N     Agentic only: max tool-call loops (configured ${config.AGENTIC_MAX_ITERATIONS})`);
   console.log(`  --max-tokens=N         Mercury max tokens per turn (agentic ${config.AGENTIC_MAX_TOKENS}, single-shot ${config.SINGLE_SHOT_MAX_TOKENS})`);
   console.log('  --quiet                Suppress progress logs');
-  console.log('  --show-chunks          Print retrieved chunk text');
+  console.log('  --show-chunks          Single-shot only: print retrieved chunk text');
   console.log('  --show-history         Agentic only: print full tool-call trace');
   console.log('  --attack               Agentic only: apply break-my-fix attack framing');
   console.log('  --evidence-source=P:S-E Host-attest a verbatim repo-relative excerpt; repeatable, max 150 lines');
@@ -708,6 +712,47 @@ function panelSeatMetadata(id, output, {
     effectiveIdentityFingerprint: effectiveIdentityFingerprint(id, attempts),
     inputDependencies,
   };
+}
+
+function recomputePanelSeatFromRecheck(seat, recheck, { evidenceSources = [] } = {}) {
+  const evidenceBasis = positiveEvidenceBasis({
+    toolTelemetry: recheck.toolTelemetry || {},
+    evidenceSources,
+  });
+  const doctrineReview = recheck.doctrineReview || null;
+  return {
+    ...seat,
+    answer: recheck.answer || null,
+    parsed: recheck.parsed || null,
+    reasoning: recheck.parsed && recheck.parsed.citedReasoning || null,
+    inputReceipt: recheck.inputProvenance || null,
+    verdict: structuredPanelVerdict(recheck.parsed),
+    doctrineReview,
+    evidenceBasis,
+    evidenceChecksPassed: evidenceBasis.length > 0
+      && seat.identityConflict !== true
+      && !(recheck.quarantines || []).some(quarantine => quarantine && quarantine.load_bearing === true)
+      && (!doctrineReview || doctrineReview.authorityCeiling !== 'UNVERIFIED'),
+    evaluationHistory: [
+      ...(Array.isArray(seat.evaluationHistory) ? seat.evaluationHistory : []),
+      {
+        phase: 'pre_recheck',
+        answer: seat.answer,
+        parsed: seat.parsed,
+        verdict: seat.verdict,
+        doctrineReview: seat.doctrineReview,
+        evidenceBasis: seat.evidenceBasis,
+        evidenceChecksPassed: seat.evidenceChecksPassed,
+      },
+    ],
+    evaluationSource: 'mercury_recheck',
+  };
+}
+
+function recomputePanelAuthority(panelRun) {
+  const authority = evaluatePanelAuthority(panelRun && panelRun.seats);
+  if (panelRun) panelRun.authority = authority;
+  return authority;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1031,6 +1076,18 @@ async function runAgentic(query, opts) {
             fableReview.rechecks = recheckRun.rechecks;
             fableReview.recheck = fableReview.rechecks[0] || null;
             fableReview.quarantines.push(...recheckRun.quarantines);
+            for (const recheck of fableReview.rechecks) {
+              recheck.doctrineReview = assessDoctrineReview({
+                answer: recheck.answer,
+                changedFiles: autoBlastRadius ? autoBlastRadius.changedFiles : [],
+                diff: autoBlastRadius ? autoBlastRadius.diff : '',
+                telemetry: recheck.toolTelemetry,
+                autoScan: autoBlastRadius,
+                evidenceSources,
+                reviewerId: 'mercury',
+                answerQuality: recheck.answerQuality,
+              });
+            }
           }
           outputs.set('fable', { id: 'fable', ...fableReview });
           const qualifiedPrior = priorSeats.filter(seat => seat.evidenceChecksPassed === true);
@@ -1044,6 +1101,9 @@ async function runAgentic(query, opts) {
               evidenceQualified: seat.evidenceChecksPassed === true,
             })),
           });
+          if (fableReview.recheck) {
+            return recomputePanelSeatFromRecheck(metadata, fableReview.recheck, { evidenceSources });
+          }
           metadata.evidenceChecksPassed = metadata.evidenceChecksPassed
             && fableReview.doctrineReview.authorityCeiling !== 'UNVERIFIED';
           return metadata;
@@ -1164,6 +1224,8 @@ async function runAgentic(query, opts) {
       const kimiSeat = panelRun.seats.find(seat => seat.id === 'kimi' && seat.status === 'succeeded');
       if (canAttachFinalReview(fableSeat, kimiSeat)) {
         fableReview.finalReview = kimiReview;
+        const authority = recomputePanelAuthority(panelRun);
+        result.reviewerPanel.authority = authority;
       }
       result.adversarialReview = fableReview;
       result.consensus = fableReview;
@@ -1555,7 +1617,7 @@ async function main() {
       }
 
     } else {
-      // Legacy single-shot mode — unchanged
+      // Explicit legacy single-shot mode — unchanged
       const result = await ask(args.query, {
         topK: args.topK,
         maxTokens: args.maxTokens,
@@ -1632,6 +1694,9 @@ module.exports = {
   resolveEvidenceSources,
   runReviewRechecks,
   runAgentic,
+  panelSeatMetadata,
+  recomputePanelSeatFromRecheck,
+  recomputePanelAuthority,
   buildMercuryIntentPrompt,
   buildCurrentChangeBlastRadius,
   currentChangeDiff,

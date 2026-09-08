@@ -12,7 +12,9 @@ const REVIEWER_REGISTRY = Object.freeze([
 const REVIEWERS_BY_ID = new Map(REVIEWER_REGISTRY.map(reviewer => [reviewer.id, reviewer]));
 
 function structuredPanelVerdict(parsed) {
-  if (!parsed || typeof parsed !== 'object') return 'cannot_verify';
+  if (!parsed || typeof parsed !== 'object' || !Object.prototype.hasOwnProperty.call(parsed, 'verdict')) {
+    return 'no_claim';
+  }
   const verdict = String(parsed.verdict || '').toLowerCase();
   if (['pass', 'no_break_found'].includes(verdict) && parsed.blocking !== true) return 'pass';
   if (['found_break', 'blocked'].includes(verdict)) return 'found_break';
@@ -168,12 +170,13 @@ function evaluatePanelAuthority(seats) {
     && seat.qualifying !== false
     && seat.identityConflict !== true
   ));
-  const verdicts = [...new Set(successful.map((seat) => {
+  const claimingSeats = successful.filter(seat => seat.verdict !== 'no_claim');
+  const verdicts = [...new Set(claimingSeats.map((seat) => {
     if (['pass', 'no_break_found'].includes(seat.verdict)) return 'pass';
     if (['found_break', 'blocked'].includes(seat.verdict)) return 'found_break';
     return seat.verdict || 'cannot_verify';
   }))];
-  const agreement = successful.length >= 2 && verdicts.length === 1;
+  const agreement = successful.length >= 2 && claimingSeats.length > 0 && verdicts.length === 1;
   const evidenceChecksPassed = successful.length > 0
     && successful.every(seat => seat.evidenceChecksPassed === true);
   const fingerprints = successful.map(seat => seat.effectiveIdentityFingerprint).filter(Boolean);
@@ -190,7 +193,8 @@ function evaluatePanelAuthority(seats) {
   if (successful.length >= 2 && !identitiesIndependent) {
     capReasons.push(identitiesAttested ? 'identity_collision' : 'identity_attestation_absent');
   }
-  if (successful.length >= 2 && !agreement) capReasons.push('reviewer_disagreement');
+  if (successful.length >= 2 && claimingSeats.length === 0) capReasons.push('reviewer_claim_absent');
+  if (claimingSeats.length > 1 && verdicts.length > 1) capReasons.push('reviewer_disagreement');
   const full = survivorFull && failedSelected.length === 0;
   return {
     ceiling: full ? 'FULL' : 'UNVERIFIED',

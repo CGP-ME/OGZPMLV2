@@ -309,7 +309,7 @@ function buildMercuryRecheckPrompt({
     'Required recheck:',
     nextCheck,
     '',
-    'Use current repo tools and file:line evidence. Answer only the disputed point, then say whether your original verdict changes.',
+    'Use current repo tools and file:line evidence. Re-examine the disputed point without dropping any file already opened; every pass-1 citation stays in evidence unless you show the line that disproves it.',
   ].join('\n');
 }
 
