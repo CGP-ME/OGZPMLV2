@@ -181,7 +181,10 @@ class ModuleAutoLoader {
             
             // Check if it's a required module
             if (required.includes(moduleName)) {
-              throw new Error(`Required module failed to load: ${moduleName}`);
+              const requiredError = new Error(`Required module failed to load: ${moduleName}`);
+              requiredError.code = 'REQUIRED_MODULE_LOAD_FAILED';
+              requiredError.cause = err;
+              throw requiredError;
             }
           }
         }
@@ -193,6 +196,9 @@ class ModuleAutoLoader {
       return loaded;
     } catch (err) {
       console.error(`❌ Failed to load directory ${dirName}:`, err.message);
+      if (err.code === 'REQUIRED_MODULE_LOAD_FAILED') {
+        throw err;
+      }
       return {};
     }
   }
@@ -250,15 +256,17 @@ class ModuleAutoLoader {
     // CHANGE 2026-01-31: Removed ui, analytics, deployment - directories never existed
     const loadConfig = [
       { name: 'utils', required: ['discordNotifier', 'tradeLogger'] },
-      { name: 'core', required: ['OptimizedTradingBrain', 'RiskManager'] }
+      { name: 'core', required: ['RiskManager'] }
     ];
     
     loadConfig.forEach(({ name, required }) => {
       console.log(`📁 Loading ${name}...`);
       this.loadDirectory(name, { required });
     });
-    
-    console.log('\n✨ ALL MODULES LOADED!');
+
+    this.validateModules(Object.fromEntries(
+      loadConfig.map(({ name, required }) => [name, required])
+    ));
     console.log(`📊 Total modules: ${this.cache.size}`);
     
     return this.modules;
@@ -267,11 +275,14 @@ class ModuleAutoLoader {
   // Check if all required modules are present
   validateModules(requirements = {}) {
     const missing = [];
+    const validated = [];
     
     Object.entries(requirements).forEach(([category, modules]) => {
       modules.forEach(moduleName => {
         if (!this.get(category, moduleName)) {
           missing.push(`${category}/${moduleName}`);
+        } else {
+          validated.push(`${category}/${moduleName}`);
         }
       });
     });
@@ -280,7 +291,8 @@ class ModuleAutoLoader {
       throw new Error(`Missing required modules: ${missing.join(', ')}`);
     }
     
-    console.log('✅ All required modules validated!');
+    console.log('\nALL REQUIRED MODULES VALIDATED:');
+    validated.forEach(moduleName => console.log(`  ${moduleName}`));
     return true;
   }
   
@@ -358,7 +370,7 @@ const loader = require('./core/ModuleAutoLoader');
 loader.loadAll();
 
 // Get specific modules
-const TradingBrain = loader.get('core', 'OptimizedTradingBrain');
+const RiskManager = loader.get('core', 'RiskManager');
 const discordNotifier = loader.get('utils', 'discordNotifier');
 
 // Use path helpers
@@ -375,7 +387,7 @@ loader.ensureDirectory('charts');
 
 // Validate critical modules
 loader.validateModules({
-  core: ['OptimizedTradingBrain', 'RiskManager'],
+  core: ['RiskManager'],
   utils: ['discordNotifier']
 });
 
