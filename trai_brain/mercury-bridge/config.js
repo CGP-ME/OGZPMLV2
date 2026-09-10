@@ -127,6 +127,26 @@ function optionalPlainObject(config, dottedPath, defaultValue = null) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function requiredPlainObject(config, dottedPath) {
+  const value = getConfigValue(config, dottedPath);
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`Missing mercury.config.json object: ${dottedPath}`);
+  }
+  return JSON.parse(JSON.stringify(value));
+}
+
+function validateProviderBaseUrl(value, dottedPath) {
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'https:' || parsed.username || parsed.password || parsed.search || parsed.hash) {
+      throw new Error('must be an HTTPS URL without credentials, query parameters, or fragments');
+    }
+    return value.replace(/\/+$/, '');
+  } catch (error) {
+    throw new Error(`Invalid mercury.config.json value: ${dottedPath}: ${error.message}`);
+  }
+}
+
 function loadMercuryIgnore(filePath) {
   if (!fs.existsSync(filePath)) {
     throw new Error(`Missing Mercury ignore contract: ${filePath}`);
@@ -166,6 +186,117 @@ function isPathIgnoredByMercury(pathLike, skipDirs = SKIP_DIRS) {
 }
 
 const MERCURY_CONFIG = readMercuryConfig(MERCURY_CONFIG_FILE);
+
+function requiredRateSet(dottedPath) {
+  requiredPlainObject(MERCURY_CONFIG, dottedPath);
+  return Object.freeze({
+    inputPerMillion: requiredNumber(MERCURY_CONFIG, `${dottedPath}.inputPerMillion`, { min: 0 }),
+    outputPerMillion: requiredNumber(MERCURY_CONFIG, `${dottedPath}.outputPerMillion`, { min: 0 }),
+    cachedInputPerMillion: requiredNumber(MERCURY_CONFIG, `${dottedPath}.cachedInputPerMillion`, { min: 0 }),
+  });
+}
+
+function requiredPricingByRef(pricingRef) {
+  if (!/^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)+$/.test(pricingRef)) {
+    throw new Error(`Invalid mercury.config.json pricingRef: ${pricingRef}`);
+  }
+  const basePath = `pricing.${pricingRef}`;
+  requiredPlainObject(MERCURY_CONFIG, basePath);
+  const currency = requiredString(MERCURY_CONFIG, `${basePath}.currency`).toUpperCase();
+  if (currency !== 'USD') {
+    throw new Error(`Invalid mercury.config.json value: ${basePath}.currency must be USD`);
+  }
+  const source = requiredString(MERCURY_CONFIG, `${basePath}.source`);
+  const schedule = getConfigValue(MERCURY_CONFIG, `${basePath}.schedule`);
+  if (schedule == null) {
+    return Object.freeze({
+      ...requiredRateSet(basePath),
+      currency,
+      source,
+      key: basePath,
+    });
+  }
+
+  requiredPlainObject(MERCURY_CONFIG, `${basePath}.schedule`);
+  const timezone = requiredString(MERCURY_CONFIG, `${basePath}.schedule.timezone`).toUpperCase();
+  if (timezone !== 'UTC') {
+    throw new Error(`Invalid mercury.config.json value: ${basePath}.schedule.timezone must be UTC`);
+  }
+  const peakWeekdays = getConfigValue(MERCURY_CONFIG, `${basePath}.schedule.peakWeekdays`);
+  if (!Array.isArray(peakWeekdays) || peakWeekdays.length === 0
+      || peakWeekdays.some(day => !Number.isInteger(day) || day < 0 || day > 6)) {
+    throw new Error(`Invalid mercury.config.json value: ${basePath}.schedule.peakWeekdays`);
+  }
+  const peakWindows = getConfigValue(MERCURY_CONFIG, `${basePath}.schedule.peakWindows`);
+  const timePattern = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+  if (!Array.isArray(peakWindows) || peakWindows.length === 0
+      || peakWindows.some(window => !window || typeof window !== 'object' || Array.isArray(window)
+        || !timePattern.test(window.start) || !timePattern.test(window.end) || window.start >= window.end)) {
+    throw new Error(`Invalid mercury.config.json value: ${basePath}.schedule.peakWindows`);
+  }
+  return Object.freeze({
+    currency,
+    source,
+    key: basePath,
+    schedule: Object.freeze({
+      timezone,
+      peakWeekdays: Object.freeze([...new Set(peakWeekdays)]),
+      peakWindows: Object.freeze(peakWindows.map(window => Object.freeze({
+        start: window.start,
+        end: window.end,
+      }))),
+      peak: requiredRateSet(`${basePath}.schedule.peak`),
+      offPeak: requiredRateSet(`${basePath}.schedule.offPeak`),
+    }),
+  });
+}
+
+function resolveProviderCatalogEntry(providerId) {
+  const id = String(providerId || '').trim().toLowerCase();
+  if (!/^[a-z0-9_-]+$/.test(id)) {
+    throw new Error(`Invalid provider ID: ${providerId || '<empty>'}`);
+  }
+  const basePath = `providers.${id}`;
+  requiredPlainObject(MERCURY_CONFIG, basePath);
+  const transportProvider = requiredString(MERCURY_CONFIG, `${basePath}.transportProvider`).toLowerCase();
+  if (transportProvider !== 'openai') {
+    throw new Error(`${basePath}.transportProvider must be openai for the direct model transport`);
+  }
+  const pricingRef = requiredString(MERCURY_CONFIG, `${basePath}.pricingRef`);
+  return Object.freeze({
+    id,
+    transportProvider,
+    baseUrl: validateProviderBaseUrl(requiredString(MERCURY_CONFIG, `${basePath}.baseUrl`), `${basePath}.baseUrl`),
+    model: requiredString(MERCURY_CONFIG, `${basePath}.model`),
+    apiKeyEnv: requiredString(MERCURY_CONFIG, `${basePath}.apiKeyEnv`),
+    pricingRef,
+    pricing: requiredPricingByRef(pricingRef),
+  });
+}
+
+function listDirectQuestionProviders() {
+  const configured = requiredPlainObject(MERCURY_CONFIG, 'directQuestion.providers');
+  return Object.keys(configured);
+}
+
+function resolveDirectQuestionProvider(providerId) {
+  const id = String(providerId || '').trim().toLowerCase();
+  const available = listDirectQuestionProviders();
+  if (!available.includes(id)) {
+    throw new Error(`Unknown direct-question provider "${id || '<empty>'}"; choose from ${available.join(', ')}`);
+  }
+  const provider = resolveProviderCatalogEntry(id);
+  return Object.freeze({
+    ...provider,
+    systemPrompt: requiredText(MERCURY_CONFIG, 'directQuestion.systemPrompt'),
+    maxIterations: requiredNumber(MERCURY_CONFIG, 'directQuestion.maxIterations', { integer: true, min: 1 }),
+    maxTokens: requiredNumber(MERCURY_CONFIG, 'directQuestion.clientMaxTokens', { integer: true, min: 1 }),
+    minimumTokens: requiredNumber(MERCURY_CONFIG, 'directQuestion.clientMinTokens', { integer: true, min: 0 }),
+    requestTimeoutMs: requiredNumber(MERCURY_CONFIG, 'directQuestion.requestTimeoutMs', { integer: true, min: 1000 }),
+    temperature: requiredNumber(MERCURY_CONFIG, 'directQuestion.temperature', { min: 0 }),
+    openaiExtraBody: optionalPlainObject(MERCURY_CONFIG, `directQuestion.providers.${id}.openaiExtraBody`, {}),
+  });
+}
 
 // ─── Embeddings ───────────────────────────────────────────────
 const EMBED_PROVIDER = requiredString(MERCURY_CONFIG, 'embeddings.provider').toLowerCase();
@@ -548,6 +679,8 @@ module.exports = {
   TIE_BREAKER_TEMPERATURE,
   TIE_BREAKER_OPENAI_EXTRA_BODY,
   PROVIDER_PRICING,
+  listDirectQuestionProviders,
+  resolveDirectQuestionProvider,
   AGENTIC_MAX_ITERATIONS,
   AGENTIC_MAX_TOKENS,
   SINGLE_SHOT_MAX_TOKENS,

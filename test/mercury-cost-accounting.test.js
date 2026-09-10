@@ -2,6 +2,7 @@
 
 const {
   accountProviderAttempt,
+  effectivePricingAt,
   normalizeProviderUsage,
   sumAttemptAccounting,
 } = require('../trai_brain/mercury-bridge/cost-accounting');
@@ -113,6 +114,57 @@ describe('Mercury provider cost accounting', () => {
         amount: 0.25, currency: 'USD', complete: false,
         priced_attempts: 1, total_attempts: 2, cost_absences: ['provider_usage_absent'],
       },
+    });
+  });
+
+  test('selects DeepSeek peak and off-peak prices from the attempt timestamp', () => {
+    const scheduled = {
+      currency: 'USD',
+      source: 'deepseek schedule',
+      key: 'pricing.deepseek.flash',
+      schedule: {
+        timezone: 'UTC',
+        peakWeekdays: [1, 2, 3, 4, 5],
+        peakWindows: [{ start: '01:00', end: '04:00' }, { start: '06:00', end: '10:00' }],
+        peak: { inputPerMillion: 0.3, outputPerMillion: 1.2, cachedInputPerMillion: 0.006 },
+        offPeak: { inputPerMillion: 0.15, outputPerMillion: 0.6, cachedInputPerMillion: 0.003 },
+      },
+    };
+    expect(effectivePricingAt(scheduled, '2026-09-07T02:00:00.000Z').pricing.source)
+      .toBe('deepseek schedule (peak)');
+    expect(effectivePricingAt(scheduled, '2026-09-07T05:00:00.000Z').pricing.source)
+      .toBe('deepseek schedule (off_peak)');
+
+    const receipt = accountProviderAttempt({
+      startedAt: '2026-09-07T02:00:00.000Z',
+      usage: {
+        prompt_tokens: 1_000_000,
+        completion_tokens: 1_000_000,
+        total_tokens: 2_000_000,
+        prompt_tokens_details: { cached_tokens: 500_000 },
+      },
+    }, { provider: 'deepseek', model: 'deepseek-flash', pricing: scheduled });
+    expect(receipt.cost).toEqual({
+      amount: 1.353,
+      currency: 'USD',
+      pricing_source: 'deepseek schedule (peak)',
+    });
+  });
+
+  test('does not guess a scheduled price without a usable attempt timestamp', () => {
+    const scheduled = {
+      currency: 'USD', source: 'schedule', key: 'pricing.test',
+      schedule: {
+        timezone: 'UTC', peakWeekdays: [1], peakWindows: [{ start: '01:00', end: '02:00' }],
+        peak: { inputPerMillion: 1, outputPerMillion: 1, cachedInputPerMillion: 1 },
+        offPeak: { inputPerMillion: 0.5, outputPerMillion: 0.5, cachedInputPerMillion: 0.5 },
+      },
+    };
+    expect(accountProviderAttempt({
+      usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+    }, { pricing: scheduled })).toMatchObject({
+      cost: null,
+      cost_absence: 'pricing_schedule_timestamp_absent',
     });
   });
 });

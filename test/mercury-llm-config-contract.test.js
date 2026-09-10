@@ -136,6 +136,53 @@ describe('Mercury LLM config contract', () => {
     }, { MOONSHOT_API_KEY: 'moonshot-test-key' });
   });
 
+  test('resolves direct providers independently from adversarial role prompts', async () => {
+    await withMercuryConfig({}, () => {
+      const config = require('../trai_brain/mercury-bridge/config');
+      const {
+        resolveDirectModelClientOptions,
+        resolveKimiTieBreakerClientOptions,
+      } = require('../trai_brain/mercury-bridge/llm-client');
+
+      expect(config.listDirectQuestionProviders()).toEqual(['kimi', 'deepseek', 'glm']);
+      expect(resolveDirectModelClientOptions('kimi')).toMatchObject({
+        logicalProvider: 'kimi', provider: config.TIE_BREAKER_PROVIDER,
+        baseUrl: config.TIE_BREAKER_BASE_URL, model: config.TIE_BREAKER_MODEL,
+        apiKey: 'moonshot-test-key', skipWarmup: true,
+      });
+      expect(resolveDirectModelClientOptions('deepseek')).toMatchObject({
+        logicalProvider: 'deepseek', provider: 'openai', baseUrl: 'https://api.deepseek.com',
+        model: 'deepseek-flash', apiKey: 'deepseek-test-key',
+        openaiExtraBody: { thinking: { type: 'enabled' }, reasoning_effort: 'high' },
+      });
+      expect(resolveDirectModelClientOptions('glm')).toMatchObject({
+        logicalProvider: 'glm', provider: 'openai', baseUrl: 'https://api.z.ai/api/coding/paas/v4',
+        model: 'glm-5.3', apiKey: 'zai-test-key',
+        openaiExtraBody: { thinking: { type: 'enabled' }, reasoning_effort: 'max' },
+      });
+      expect(resolveDirectModelClientOptions('glm').systemPrompt).not.toMatch(/Fable|Mercury/i);
+      expect(resolveKimiTieBreakerClientOptions().systemPrompt).toBe(config.CONSENSUS_SYSTEM_PROMPT);
+      expect(resolveDirectModelClientOptions('kimi').systemPrompt).not.toBe(config.CONSENSUS_SYSTEM_PROMPT);
+    }, {
+      MOONSHOT_API_KEY: 'moonshot-test-key',
+      DEEPSEEK_API_KEY: 'deepseek-test-key',
+      ZAI_API_KEY: 'zai-test-key',
+    });
+  });
+
+  test('requires only the selected direct provider key at direct-client creation', async () => {
+    await withMercuryConfig({}, () => {
+      const { resolveDirectModelClientOptions } = require('../trai_brain/mercury-bridge/llm-client');
+      expect(resolveDirectModelClientOptions('kimi')).toMatchObject({ logicalProvider: 'kimi' });
+      expect(() => resolveDirectModelClientOptions('deepseek'))
+        .toThrow(/DEEPSEEK_API_KEY/);
+    }, {
+      MOONSHOT_API_KEY: 'moonshot-test-key',
+      DEEPSEEK_API_KEY: undefined,
+      ZAI_API_KEY: undefined,
+    });
+  });
+
   test('rejects lower Claude tiers, generic selectors, Kimi challenger, and arbitrary fallback lists', async () => {
     for (const model of ['sonnet', 'haiku', 'default', 'best', 'opusplan', 'kimi-k3']) {
       await withMercuryConfig({ consensus: { model } }, () => {

@@ -768,6 +768,30 @@ function resolveKimiTieBreakerClientOptions({ systemPrompt = config.CONSENSUS_SY
   };
 }
 
+function resolveDirectModelClientOptions(providerId) {
+  const selected = config.resolveDirectQuestionProvider(providerId);
+  const apiKey = process.env[selected.apiKeyEnv];
+  if (!apiKey) {
+    throw new Error(`Configured ${selected.id} direct-model API key env is missing: ${selected.apiKeyEnv}`);
+  }
+  return {
+    logicalProvider: selected.id,
+    provider: selected.transportProvider,
+    baseUrl: selected.baseUrl,
+    model: selected.model,
+    apiKey,
+    authRequired: true,
+    maxTokens: selected.maxTokens,
+    minimumTokens: selected.minimumTokens,
+    temperature: selected.temperature,
+    requestTimeoutMs: selected.requestTimeoutMs,
+    openaiExtraBody: selected.openaiExtraBody,
+    systemPrompt: selected.systemPrompt,
+    skipWarmup: true,
+    pricing: selected.pricing,
+  };
+}
+
 function createMercuryLlmClient({ systemPrompt } = {}) {
   const clientOptions = resolveMercuryLlmClientOptions({ systemPrompt });
   const client = new PersistentLLMClient(clientOptions);
@@ -857,6 +881,34 @@ function createKimiTieBreakerClient({ systemPrompt = config.CONSENSUS_SYSTEM_PRO
   return client;
 }
 
+function createDirectModelClient(providerId) {
+  const clientOptions = resolveDirectModelClientOptions(providerId);
+  const client = new PersistentLLMClient(clientOptions);
+  for (const [field, actual] of [
+    ['provider', client.providerName],
+    ['baseUrl', client.baseUrl],
+    ['model', client.model],
+    ['maxTokens', client.maxTokens],
+    ['minimumTokens', client.minimumTokens],
+    ['temperature', client.temperature],
+    ['requestTimeoutMs', client.requestTimeoutMs],
+    ['systemPrompt', client.systemPrompt],
+  ]) {
+    if (actual !== clientOptions[field]) {
+      throw new Error(`Direct-model ${field} mismatch for ${clientOptions.logicalProvider}`);
+    }
+  }
+  if (JSON.stringify(client.openaiExtraBody) !== JSON.stringify(clientOptions.openaiExtraBody)) {
+    throw new Error(`Direct-model OpenAI extra body mismatch for ${clientOptions.logicalProvider}`);
+  }
+  if (client.apiKey !== clientOptions.apiKey) {
+    throw new Error(`Direct-model API key was not sourced from ${clientOptions.logicalProvider}'s configured key env`);
+  }
+  client.logicalProvider = clientOptions.logicalProvider;
+  client.pricing = clientOptions.pricing;
+  return client;
+}
+
 function createConsensusLlmClient(options = {}) {
   return createFableChallengerClient(options);
 }
@@ -888,7 +940,9 @@ module.exports = {
   resolveConsensusLlmClientOptions,
   createConsensusLlmClient,
   resolveKimiTieBreakerClientOptions,
+  resolveDirectModelClientOptions,
   createFableChallengerClient,
   createOpusChallengerClient,
   createKimiTieBreakerClient,
+  createDirectModelClient,
 };

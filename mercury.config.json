@@ -69,6 +69,62 @@
         "currency": "USD",
         "source": "Moonshot Kimi K3 announcement, 2026-07-22"
       }
+    },
+    "zai": {
+      "glm53": {
+        "inputPerMillion": 1.4,
+        "outputPerMillion": 4.4,
+        "cachedInputPerMillion": 0.26,
+        "currency": "USD",
+        "source": "Z.ai GLM-5.3 model pricing, verified 2026-09-10"
+      }
+    },
+    "deepseek": {
+      "flash": {
+        "currency": "USD",
+        "source": "operator-supplied DeepSeek V4.1 Flash pricing, 2026-09-10",
+        "schedule": {
+          "timezone": "UTC",
+          "peakWeekdays": [1, 2, 3, 4, 5],
+          "peakWindows": [
+            { "start": "01:00", "end": "04:00" },
+            { "start": "06:00", "end": "10:00" }
+          ],
+          "peak": {
+            "inputPerMillion": 0.3,
+            "outputPerMillion": 1.2,
+            "cachedInputPerMillion": 0.006
+          },
+          "offPeak": {
+            "inputPerMillion": 0.15,
+            "outputPerMillion": 0.6,
+            "cachedInputPerMillion": 0.003
+          }
+        }
+      }
+    }
+  },
+  "providers": {
+    "kimi": {
+      "transportProvider": "openai",
+      "baseUrl": "https://api.moonshot.ai/v1",
+      "model": "kimi-k3",
+      "apiKeyEnv": "MOONSHOT_API_KEY",
+      "pricingRef": "moonshot.kimi-k3"
+    },
+    "deepseek": {
+      "transportProvider": "openai",
+      "baseUrl": "https://api.deepseek.com",
+      "model": "deepseek-flash",
+      "apiKeyEnv": "DEEPSEEK_API_KEY",
+      "pricingRef": "deepseek.flash"
+    },
+    "glm": {
+      "transportProvider": "openai",
+      "baseUrl": "https://api.z.ai/api/coding/paas/v4",
+      "model": "glm-5.3",
+      "apiKeyEnv": "ZAI_API_KEY",
+      "pricingRef": "zai.glm53"
     }
   },
   "llm": {
@@ -121,6 +177,36 @@
     "openaiExtraBody": {
       "thinking": {
         "type": "disabled"
+      }
+    }
+  },
+  "directQuestion": {
+    "systemPrompt": [
+      "Answer Trey's question directly and independently.",
+      "Use only the question and context explicitly supplied in this request.",
+      "Do not assume an adversarial, audit, reviewer, consensus, or verdict role unless Trey's question explicitly asks for it.",
+      "Do not infer or import another model's answer, hidden repository context, or review doctrine."
+    ],
+    "maxIterations": 60,
+    "clientMaxTokens": 32768,
+    "clientMinTokens": 0,
+    "requestTimeoutMs": 600000,
+    "temperature": 0.6,
+    "providers": {
+      "kimi": {
+        "openaiExtraBody": {}
+      },
+      "deepseek": {
+        "openaiExtraBody": {
+          "thinking": { "type": "enabled" },
+          "reasoning_effort": "high"
+        }
+      },
+      "glm": {
+        "openaiExtraBody": {
+          "thinking": { "type": "enabled" },
+          "reasoning_effort": "max"
+        }
       }
     }
   },

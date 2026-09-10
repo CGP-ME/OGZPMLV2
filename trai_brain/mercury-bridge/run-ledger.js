@@ -352,7 +352,7 @@ function priorPeriodCost({ repoRoot, period, currency = 'USD' }) {
   let unpricedRuns = 0;
   for (const file of files) {
     for (const entry of readLedgerEntries(path.join(absDir, file))) {
-      if (entry.receipt_type && !['bridge_run', 'provider_preflight'].includes(entry.receipt_type)) continue;
+      if (entry.receipt_type && !['bridge_run', 'provider_preflight', 'direct_model_question'].includes(entry.receipt_type)) continue;
       const cost = entry.run_cost;
       if (cost && Number.isFinite(cost.amount) && String(cost.currency || '').toUpperCase() === currency) {
         amount += cost.amount;
@@ -858,6 +858,87 @@ function buildRunLedgerEntry({
   });
 }
 
+function buildDirectQuestionLedgerEntry({
+  repoRoot,
+  prompt,
+  promptSource = null,
+  contextSources = [],
+  systemPrompt,
+  providerId,
+  transportProvider,
+  requestedModel,
+  attempts = [],
+  answer = null,
+  metadata = {},
+  toolTelemetry = {},
+  toolsAvailable = [],
+  iterations = null,
+  termination = null,
+  startedAt = new Date(),
+  finishedAt = new Date(),
+  error = null,
+} = {}) {
+  if (!repoRoot) throw new Error('repoRoot is required');
+  if (typeof prompt !== 'string' || prompt.trim() === '') throw new Error('direct question prompt is required');
+  if (typeof systemPrompt !== 'string' || systemPrompt.trim() === '') throw new Error('direct question system prompt is required');
+  if (!providerId || !transportProvider || !requestedModel) {
+    throw new Error('direct question provider identity is required');
+  }
+  const startedIso = isoTimestamp(startedAt);
+  const finishedIso = isoTimestamp(finishedAt);
+  const repoState = readRepoState(repoRoot);
+  const accounting = sumAttemptAccounting(attempts);
+  const entry = sanitizeForLedger({
+    schema_version: 2,
+    receipt_type: 'direct_model_question',
+    run_id: `${finishedIso.replace(/[:.]/g, '-')}-${hashText(`${repoState.head_sha}:${providerId}:${prompt}:${startedIso}`).slice(0, 12)}`,
+    created_at: finishedIso,
+    started_at: startedIso,
+    branch: repoState.branch,
+    head_sha: repoState.head_sha,
+    dirty_status_summary: repoState.dirty_status_summary,
+    mode: 'direct',
+    selected_provider: providerId,
+    transport_provider: transportProvider,
+    requested_model: requestedModel,
+    applied_model: metadata.appliedModel || null,
+    prompt_hash: hashText(prompt),
+    prompt_excerpt: truncateText(redactSensitiveText(prompt), PROMPT_EXCERPT_MAX),
+    prompt_source: promptSource,
+    context_sources: contextSources,
+    prompt_provenance: buildPromptProvenance(prompt),
+    system_prompt: redactSensitiveText(systemPrompt),
+    system_prompt_hash: hashText(systemPrompt),
+    request_input_hash: hashText(JSON.stringify({ system: systemPrompt, user: prompt })),
+    adversarial_pipeline_entered: false,
+    reviewer_panel: null,
+    doctrine_review: null,
+    tools_available: toolsAvailable,
+    tools_invoked: compactToolStats(toolTelemetry),
+    files_opened: Array.isArray(toolTelemetry.filesOpened) ? toolTelemetry.filesOpened : [],
+    file_reads: Array.isArray(toolTelemetry.fileReads) ? toolTelemetry.fileReads : [],
+    run_check_artifacts: Array.isArray(toolTelemetry.runCheckArtifacts) ? toolTelemetry.runCheckArtifacts : [],
+    run_checks: Array.isArray(toolTelemetry.runChecks) ? toolTelemetry.runChecks : [],
+    provider_attempts: attempts,
+    termination: termination || metadata.termination || (error ? 'error' : null),
+    stopped_because: metadata.stoppedBecause || (error ? error.message : null),
+    iterations,
+    latency_ms: metadata.latencyMs == null ? null : metadata.latencyMs,
+    answer_excerpt: answer == null ? null : truncateText(redactSensitiveText(answer), ANSWER_EXCERPT_MAX),
+    answer_full: answer == null ? null : redactSensitiveText(answer),
+    error: error ? {
+      name: error.name || 'Error',
+      message: error.message || String(error),
+    } : null,
+    run_tokens: accounting.seat_tokens,
+    run_cost: accounting.seat_cost,
+  });
+  return sanitizeForLedger({
+    ...entry,
+    ...rollingCostReceipt({ repoRoot, entry }),
+  });
+}
+
 function buildProviderPreflightLedgerEntry({
   repoRoot,
   runId,
@@ -943,6 +1024,7 @@ module.exports = {
   rollingCostReceipt,
   buildPromptProvenance,
   buildRunLedgerEntry,
+  buildDirectQuestionLedgerEntry,
   buildProviderPreflightLedgerEntry,
   classifyMercuryVerdict,
   resultHasToolFailure,

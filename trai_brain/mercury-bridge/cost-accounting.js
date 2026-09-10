@@ -63,6 +63,37 @@ function resolvePricing(pricingCatalog, provider, model) {
   return price ? { ...price, key: `pricing.${key.provider}.${key.model}` } : null;
 }
 
+function minutesSinceUtcMidnight(time) {
+  const [hours, minutes] = String(time).split(':').map(Number);
+  return (hours * 60) + minutes;
+}
+
+function effectivePricingAt(pricing, timestamp) {
+  if (!pricing || !pricing.schedule) return { pricing, absence: null };
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) {
+    return { pricing: null, absence: 'pricing_schedule_timestamp_absent' };
+  }
+  const schedule = pricing.schedule;
+  const currentMinute = (date.getUTCHours() * 60) + date.getUTCMinutes();
+  const peakDay = schedule.peakWeekdays.includes(date.getUTCDay());
+  const peakWindow = peakDay && schedule.peakWindows.some(window => (
+    currentMinute >= minutesSinceUtcMidnight(window.start)
+    && currentMinute < minutesSinceUtcMidnight(window.end)
+  ));
+  const tier = peakWindow ? 'peak' : 'off_peak';
+  const rates = peakWindow ? schedule.peak : schedule.offPeak;
+  return {
+    pricing: {
+      ...rates,
+      currency: pricing.currency,
+      source: `${pricing.source} (${tier})`,
+      key: pricing.key,
+    },
+    absence: null,
+  };
+}
+
 function roundCurrency(value) {
   return Math.round((value + Number.EPSILON) * 1e9) / 1e9;
 }
@@ -71,6 +102,7 @@ function accountProviderAttempt(metadata = {}, {
   provider = metadata.provider,
   model = metadata.requestedModel || metadata.appliedModel,
   pricingCatalog = {},
+  pricing: explicitPricing = null,
 } = {}) {
   const normalizedUsage = normalizeProviderUsage(metadata.usage);
   const tokens = normalizedUsage || {
@@ -101,8 +133,8 @@ function accountProviderAttempt(metadata = {}, {
     return { tokens, usage_absence: usageAbsence, cost: null, cost_absence: usageAbsence };
   }
 
-  const pricing = resolvePricing(pricingCatalog, provider, model);
-  if (!pricing) {
+  const configuredPricing = explicitPricing || resolvePricing(pricingCatalog, provider, model);
+  if (!configuredPricing) {
     return {
       tokens,
       usage_absence: null,
@@ -110,6 +142,16 @@ function accountProviderAttempt(metadata = {}, {
       cost_absence: `pricing_absent:${String(provider || 'unknown')}/${String(model || 'unknown')}`,
     };
   }
+  const effective = effectivePricingAt(configuredPricing, metadata.startedAt);
+  if (!effective.pricing) {
+    return {
+      tokens,
+      usage_absence: null,
+      cost: null,
+      cost_absence: effective.absence,
+    };
+  }
+  const pricing = effective.pricing;
   if ([tokens.uncached_input, tokens.cached_input, tokens.output].some(value => value == null)) {
     return {
       tokens,
@@ -199,6 +241,7 @@ function sumSeatAccounting(seatSummaries = []) {
 
 module.exports = {
   accountProviderAttempt,
+  effectivePricingAt,
   normalizeProviderUsage,
   pricingKeyFor,
   resolvePricing,

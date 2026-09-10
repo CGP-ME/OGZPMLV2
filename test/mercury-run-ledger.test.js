@@ -7,6 +7,7 @@ const path = require('path');
 
 const {
   buildPromptProvenance,
+  buildDirectQuestionLedgerEntry,
   buildRunLedgerEntry,
   classifyMercuryVerdict,
   parseSelfReport,
@@ -1284,5 +1285,63 @@ describe('Mercury run ledger', () => {
     expect(entry.reviewer_panel.seats.map(seat => seat.answer)).toEqual([
       'Mercury full answer', 'Fable full answer',
     ]);
+  });
+
+  test('direct-question receipt records input identity, tools, model, and cost without panel semantics', () => {
+    const attempt = {
+      attempt: 1,
+      status: 'succeeded',
+      selected_provider: 'glm',
+      requested_provider: 'openai',
+      requested_model: 'glm-5.3',
+      applied_model: 'glm-5.3',
+      stopped_because: 'stop',
+      tokens: { input: 100, uncached_input: 80, cached_input: 20, output: 40, total: 140 },
+      cost: { amount: 0.0003, currency: 'USD', pricing_source: 'zai price' },
+      cost_absence: null,
+    };
+    const entry = buildDirectQuestionLedgerEntry({
+      repoRoot: tmpRoot,
+      prompt: 'What does STOP 2 require?',
+      promptSource: { type: 'file', path: 'prompt.md', sha256: 'a'.repeat(64), bytes: 25 },
+      contextSources: [{ type: 'file', path: 'walk.md', sha256: 'b'.repeat(64), bytes: 100 }],
+      systemPrompt: 'Answer independently. Read-only tools are available.',
+      providerId: 'glm',
+      transportProvider: 'openai',
+      requestedModel: 'glm-5.3',
+      attempts: [attempt],
+      answer: 'Independent answer',
+      metadata: { appliedModel: 'glm-5.3', termination: 'stop', stoppedBecause: 'stop', latencyMs: 10 },
+      toolTelemetry: {
+        byTool: { open_file: { calls: 1, succeeded: 1, failed: 0 } },
+        calls: [{ iteration: 1, name: 'open_file', status: 'succeeded', args: { path: 'core/a.js' }, result: {} }],
+        filesOpened: ['core/a.js'],
+      },
+      toolsAvailable: ['open_file'],
+      iterations: 2,
+      termination: 'answer_given',
+      startedAt: new Date('2026-09-10T00:00:00.000Z'),
+      finishedAt: new Date('2026-09-10T00:00:01.000Z'),
+    });
+
+    expect(entry).toMatchObject({
+      receipt_type: 'direct_model_question',
+      mode: 'direct',
+      selected_provider: 'glm',
+      transport_provider: 'openai',
+      requested_model: 'glm-5.3',
+      applied_model: 'glm-5.3',
+      adversarial_pipeline_entered: false,
+      reviewer_panel: null,
+      doctrine_review: null,
+      tools_available: ['open_file'],
+      files_opened: ['core/a.js'],
+      termination: 'answer_given',
+      answer_full: 'Independent answer',
+      run_cost: { amount: 0.0003, currency: 'USD', complete: true },
+    });
+    expect(entry.system_prompt).toBe('Answer independently. Read-only tools are available.');
+    expect(entry.prompt_hash).toHaveLength(64);
+    expect(entry.request_input_hash).toHaveLength(64);
   });
 });
