@@ -1921,7 +1921,7 @@ class OGZPrimeV14Bot {
       }
     } catch (error) {
       console.error('[BOOT] Startup failed:', error.message);
-      await this.shutdown();
+      await this.shutdown(1);
     }
   }
 
@@ -3513,7 +3513,7 @@ class OGZPrimeV14Bot {
   /**
    * Graceful shutdown
    */
-  async shutdown() {
+  async shutdown(exitCode = 0) {
     console.log('\nShutting down OGZ Prime V14 MERGED...');
     this.isRunning = false;
 
@@ -3583,7 +3583,7 @@ class OGZPrimeV14Bot {
     // Final Balance removed — BacktestRecorder's BACKTEST SUMMARY is the source of truth
 
     console.log('\nShutdown complete\n');
-    process.exit(0);
+    process.exit(exitCode);
   }
 
   /**
