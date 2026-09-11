@@ -778,6 +778,10 @@ function buildRunLedgerEntry({
       retrievalMode: opts.retrievalMode || null,
       topK: opts.topK == null ? null : opts.topK,
       maxIterations: opts.maxIterations == null ? null : opts.maxIterations,
+      decisionSteerIteration: opts.decisionSteerIteration == null ? null : opts.decisionSteerIteration,
+      decisionSteerSentAt: result && result.decisionSteerSentAt != null
+        ? result.decisionSteerSentAt
+        : null,
       maxTokens: opts.maxTokens == null ? null : opts.maxTokens,
       captureTrace: opts.captureTrace === true,
       noTools: opts.noTools === true,

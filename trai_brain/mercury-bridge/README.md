@@ -179,7 +179,7 @@ node trai_brain/mercury-bridge/ask.js "How does MaxProfitManager handle BE scale
 
 ### Ask Mercury with Fable adversarial review
 ```bash
-MERCURY_ADVERSARIAL_REVIEW=true node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens=7750 "Mercury, break my fix."
+MERCURY_ADVERSARIAL_REVIEW=true node trai_brain/mercury-bridge/ask.js --agentic --max-tokens=7750 "Mercury, break my fix."
 ```
 
 The adversarial review pass receives Mercury's prompt, answer, run telemetry,
@@ -191,7 +191,7 @@ rechecks run; missing or malformed blocking fields trigger a bounded recheck.
 To suppress adversarial review for a specific agentic run:
 
 ```bash
-node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens=7750 --no-adversarial-review "Mercury, break my fix."
+node trai_brain/mercury-bridge/ask.js --agentic --max-tokens=7750 --no-adversarial-review "Mercury, break my fix."
 ```
 
 ### Ask for architecture or planning synthesis
@@ -201,8 +201,8 @@ that Mercury attacks with repo tools and Fable critiques as a second synthesis
 tier.
 
 ```bash
-node trai_brain/mercury-bridge/ask.js --agentic --architecture --adversarial-review --max-iterations=60 --max-tokens=7750 "Principal architecture prompt..."
-node trai_brain/mercury-bridge/ask.js --agentic --planning --adversarial-review --max-iterations=60 --max-tokens=7750 "Plan this lane..."
+node trai_brain/mercury-bridge/ask.js --agentic --architecture --adversarial-review --max-tokens=7750 "Principal architecture prompt..."
+node trai_brain/mercury-bridge/ask.js --agentic --planning --adversarial-review --max-tokens=7750 "Plan this lane..."
 ```
 
 These modes change both halves of the bridge:

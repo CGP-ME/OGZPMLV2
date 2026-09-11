@@ -288,7 +288,7 @@ cat trai_brain/mercury-bridge/config.js
 
 **LAW 2: One at a time, never parallel.** Dispatch one Mercury audit, wait for the full answer, read it carefully, report findings with file:line citations, get Trey's approval, then dispatch the next. Never run Mercury in parallel.
 
-**LAW 3: Always `--max-iterations=60 --max-tokens=7750`.** Never lower. Cap-truncation is silent — a multi-task audit with truncated tokens returns answers for the first task and omits later ones. The answer LOOKS complete. It is not.
+**LAW 3: Always `--max-tokens=7750`; do not impose a default iteration ceiling.** Mercury continues until it files its candidate set and answers, a real provider failure occurs, or the operator stops it. `--max-iterations=N` is an explicit per-run operator control only. At iteration 60 the host gives a non-terminal synthesis reminder; it does not stop the run. Output-token truncation is silent — a multi-task audit with truncated output can answer the first task and omit later ones. The answer LOOKS complete. It is not.
 
 ## Mercury findings are real by default
 

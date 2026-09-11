@@ -72,7 +72,7 @@ describe('Mercury LLM config contract', () => {
         TIE_BREAKER_API_KEY_ENV: 'MOONSHOT_API_KEY',
         TIE_BREAKER_CLIENT_MAX_TOKENS: 4096,
         TIE_BREAKER_REQUEST_TIMEOUT_MS: 600000,
-        AGENTIC_MAX_ITERATIONS: 60,
+        AGENTIC_DECISION_STEER_ITERATION: 60,
         AGENTIC_MAX_TOKENS: 7750,
       });
       expect(config.CONSENSUS_BASE_URL).toBeNull();
@@ -645,13 +645,11 @@ describe('Mercury LLM config contract', () => {
     }, { INCEPTION_API_KEY: 'configured-key' });
   });
 
-  test('agentic numeric overrides fail loud before provider work', async () => {
+  test('invalid agentic numeric overrides fail loud before provider work', async () => {
     await withMercuryConfig({}, async () => {
       const { runAgentic } = require('../trai_brain/mercury-bridge/ask');
       await expect(runAgentic('break this', { quiet: true, maxIterations: 0 }))
         .rejects.toThrow(/--max-iterations must be a positive integer/);
-      await expect(runAgentic('break this', { quiet: true, maxIterations: 59 }))
-        .rejects.toThrow(/must match mercury\.config\.json value 60/);
       await expect(runAgentic('break this', { quiet: true, maxTokens: Number.NaN }))
         .rejects.toThrow(/--max-tokens must be a positive integer/);
       await expect(runAgentic('break this', { quiet: true, maxTokens: 2000 }))

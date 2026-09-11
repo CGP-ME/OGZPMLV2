@@ -2515,8 +2515,8 @@ async function specUpdateStatus(manifest, params) {
  * file. Writes a timestamped transcript to ogz-meta/cognition-history/
  * mercury-attacks/ and attaches a verdict summary to manifest.mercury_attack.
  *
- * Per [Mercury Dispatch Law] memory rule: --max-iterations=60, --max-tokens=7750,
- * attack framing only. Per [Mercury Attack Not Verify]: never use verification
+ * Per [Mercury Dispatch Law] memory rule: no default iteration ceiling,
+ * --max-tokens=7750, attack framing only. Per [Mercury Attack Not Verify]: never use verification
  * framing ("is it correct?") — only adversarial ("find a state that LIES").
  */
 async function mercuryAttack(manifest, params) {
@@ -2616,7 +2616,6 @@ async function mercuryAttack(manifest, params) {
     const { runAgentic } = require('../trai_brain/mercury-bridge/ask');
     result = await runAgentic(attackPrompt, {
       blastRadius: blastRadiusFormatted,
-      maxIterations: 60,
       maxTokens: 7750,
       quiet: true,  // Pipeline output stays readable; full trace in transcript
     });

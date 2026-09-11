@@ -99,7 +99,8 @@ For changes on the trading/backtest execution path:
 - Run Mercury as an adversarial attack before commit.
 - Use one focused Mercury question at a time.
 - Use attack framing, not confirmation framing.
-- Use `--max-tokens=7750` and `--max-iterations=60`.
+- Use `--max-tokens=7750`. Mercury has no default iteration ceiling; use
+  `--max-iterations=N` only when Trey explicitly sets a limit for that run.
 - For broad Mercury/current-diff audits, do not pre-steer the prompt with
   agent-selected file paths, line ranges, hidden current-diff instructions, or
   prior-trace opening strategies. Use the visible attack frame

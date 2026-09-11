@@ -216,7 +216,7 @@
     "maxRechecks": 2
   },
   "agentic": {
-    "maxIterations": 60,
+    "decisionSteerIteration": 60,
     "maxTokens": 7750,
     "systemPrompt": [
       "You are Mercury, the evidence reader for OGZPrime, a production algorithmic trading platform.",

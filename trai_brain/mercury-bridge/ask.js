@@ -429,7 +429,7 @@ function usage() {
   console.log('');
   console.log('Flags:');
   console.log(`  --top-k=N              Starter-context chunk count (configured ${config.RETRIEVE_TOP_K})`);
-  console.log(`  --max-iterations=N     Agentic only: max tool-call loops (configured ${config.AGENTIC_MAX_ITERATIONS})`);
+  console.log('  --max-iterations=N     Agentic only: optional operator-supplied tool-loop limit (default: none)');
   console.log(`  --max-tokens=N         Mercury max tokens per turn (agentic ${config.AGENTIC_MAX_TOKENS}, single-shot ${config.SINGLE_SHOT_MAX_TOKENS})`);
   console.log('  --quiet                Suppress progress logs');
   console.log('  --show-chunks          Single-shot only: print retrieved chunk text');
@@ -896,8 +896,10 @@ async function runAgentic(query, opts) {
     bytes,
   });
   const verbose = !opts.quiet;
-  const configuredMaxIterations = configExactInteger(opts.maxIterations, config.AGENTIC_MAX_ITERATIONS, '--max-iterations');
-  const maxIterations = opts.noTools === true ? 1 : configuredMaxIterations;
+  const requestedMaxIterations = opts.maxIterations == null
+    ? null
+    : optionalPositiveInteger(opts.maxIterations, '--max-iterations');
+  const maxIterations = opts.noTools === true ? 1 : requestedMaxIterations;
   const maxTokens = configExactInteger(opts.maxTokens, config.AGENTIC_MAX_TOKENS, '--max-tokens');
   const reviewIntent = opts.reviewIntent || 'adversarial';
   const mercuryQuery = buildMercuryIntentPrompt(query, reviewIntent);
@@ -1366,7 +1368,12 @@ async function runAgentic(query, opts) {
     const ledgerEntry = buildRunLedgerEntry({
       repoRoot: config.REPO_ROOT,
       query,
-      opts: { ...opts, maxIterations, maxTokens },
+      opts: {
+        ...opts,
+        maxIterations,
+        maxTokens,
+        decisionSteerIteration: config.AGENTIC_DECISION_STEER_ITERATION,
+      },
       result,
       startedAt,
       finishedAt: new Date(),
@@ -1391,7 +1398,12 @@ async function runAgentic(query, opts) {
     const ledgerEntry = buildRunLedgerEntry({
       repoRoot: config.REPO_ROOT,
       query,
-      opts: { ...opts, maxIterations, maxTokens },
+      opts: {
+        ...opts,
+        maxIterations,
+        maxTokens,
+        decisionSteerIteration: config.AGENTIC_DECISION_STEER_ITERATION,
+      },
       error: err,
       startedAt,
       finishedAt: new Date(),

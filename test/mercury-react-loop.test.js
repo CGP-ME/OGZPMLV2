@@ -264,6 +264,43 @@ describe('Mercury ReAct loop evidence gates', () => {
     expect(client.messageSnapshots[1].at(-1).content).toContain('claimed_file_citations: ["core/a.js:1-10"]');
   });
 
+  test('default Mercury loop continues past 60 and sends one non-terminal synthesis steer', async () => {
+    const toolResponses = Array.from({ length: 60 }, (_, index) => ({
+      role: 'assistant',
+      content: null,
+      tool_calls: [{
+        id: `call-${index + 1}`,
+        function: { name: 'open_file', arguments: JSON.stringify({ path: 'core/a.js' }) },
+      }],
+    }));
+    const client = createClient([
+      ...toolResponses,
+      { role: 'assistant', content: 'CANDIDATE SET\nCandidate at core/a.js:1.' },
+      { role: 'assistant', content: 'Final answer at core/a.js:1.' },
+    ], { insertCandidate: false });
+
+    const result = await runReactLoop({
+      client,
+      toolAdapter: createToolAdapter(),
+      userQuery: 'Audit fully.',
+      systemPrompt: 'neutral reader prompt',
+      decisionSteerIteration: 60,
+    });
+
+    expect(result).toMatchObject({
+      termination: 'answer_given',
+      iterations: 62,
+      iterationLimit: null,
+      decisionSteerIteration: 60,
+      decisionSteerSentAt: 60,
+    });
+    expect(client.messageSnapshots[60].at(-1).content)
+      .toMatch(/If materially relevant paths remain unread, continue/);
+    expect(client.messageSnapshots[61]
+      .filter(message => message.content && message.content.includes('investigation iterations')))
+      .toHaveLength(1);
+  });
+
   test('accepts the next content reply after further reading and grows the candidate receipt', async () => {
     const client = createClient([
       { role: 'assistant', content: 'CANDIDATE SET\nCandidates at core/a.js:1-2 and core/b.js:3-4.' },

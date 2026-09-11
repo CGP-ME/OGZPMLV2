@@ -441,7 +441,11 @@ const MERCURY_LLM_CLIENT_MAX_TOKENS = requiredNumber(MERCURY_CONFIG, 'llm.client
 const MERCURY_LLM_CLIENT_MIN_TOKENS = requiredNumber(MERCURY_CONFIG, 'llm.clientMinTokens', { integer: true, min: 0 });
 const MERCURY_LLM_REQUEST_TIMEOUT_MS = requiredNumber(MERCURY_CONFIG, 'llm.requestTimeoutMs', { integer: true, min: 1000 });
 const MERCURY_LLM_TEMPERATURE = requiredNumber(MERCURY_CONFIG, 'llm.temperature', { min: 0 });
-const AGENTIC_MAX_ITERATIONS = requiredNumber(MERCURY_CONFIG, 'agentic.maxIterations', { integer: true, min: 1 });
+const AGENTIC_DECISION_STEER_ITERATION = requiredNumber(
+  MERCURY_CONFIG,
+  'agentic.decisionSteerIteration',
+  { integer: true, min: 1 }
+);
 const AGENTIC_MAX_TOKENS = requiredNumber(MERCURY_CONFIG, 'agentic.maxTokens', { integer: true, min: 1 });
 const SINGLE_SHOT_MAX_TOKENS = requiredNumber(MERCURY_CONFIG, 'singleShot.maxTokens', { integer: true, min: 1 });
 const AGENTIC_SYSTEM_PROMPT = requiredText(MERCURY_CONFIG, 'agentic.systemPrompt');
@@ -690,7 +694,7 @@ module.exports = {
   PROVIDER_PRICING,
   listDirectQuestionProviders,
   resolveDirectQuestionProvider,
-  AGENTIC_MAX_ITERATIONS,
+  AGENTIC_DECISION_STEER_ITERATION,
   AGENTIC_MAX_TOKENS,
   SINGLE_SHOT_MAX_TOKENS,
   AGENTIC_SYSTEM_PROMPT,

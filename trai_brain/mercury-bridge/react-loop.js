@@ -744,7 +744,8 @@ async function callMercuryWithRetry(client, messages, tools, options, verbose, p
  *   systemPrompt: string (optional, defaults to DEFAULT_SYSTEM_PROMPT)
  *   userQuery: string — the user's question
  *   starterContext: array of {source, similarity, text} from RAG (optional)
- *   maxIterations: number (configured in mercury.config.json)
+ *   maxIterations: optional operator-supplied tool-loop limit (default: none)
+ *   decisionSteerIteration: configured non-terminal synthesis reminder
  *   maxTokens: number (configured in mercury.config.json)
  *   temperature: number (configured in mercury.config.json)
  *   verbose: boolean — log iteration progress to stderr
@@ -760,7 +761,8 @@ async function runReactLoop(params) {
     starterContext = [],
     traceHint = null,
     blastRadius = null,
-    maxIterations = config.AGENTIC_MAX_ITERATIONS,
+    maxIterations = null,
+    decisionSteerIteration = config.AGENTIC_DECISION_STEER_ITERATION,
     maxTokens = config.AGENTIC_MAX_TOKENS,
     temperature = config.MERCURY_LLM_TEMPERATURE,
     verbose = false,
@@ -832,11 +834,13 @@ async function runReactLoop(params) {
 
   const history = [];
   let candidateSet = null;
+  let decisionSteerSentAt = null;
 
   const iterationLimit = noTools ? 1 : maxIterations;
-  for (let iteration = 1; iteration <= iterationLimit; iteration++) {
+  for (let iteration = 1; iterationLimit == null || iteration <= iterationLimit; iteration++) {
     if (verbose) {
-      console.error(`[REACT] Iteration ${iteration}/${iterationLimit}`);
+      const iterationScope = iterationLimit == null ? `${iteration}` : `${iteration}/${iterationLimit}`;
+      console.error(`[REACT] Iteration ${iterationScope}`);
       console.error(`[REACT] Message history: ${messages.length} messages`);
     }
 
@@ -860,6 +864,9 @@ async function runReactLoop(params) {
         history,
         providerAttempts: providerAudit ? providerAudit.attempts : [],
         toolsAvailable,
+        iterationLimit,
+        decisionSteerIteration,
+        decisionSteerSentAt,
       }, history);
     }
 
@@ -885,6 +892,9 @@ async function runReactLoop(params) {
         history,
         providerAttempts: providerAudit ? providerAudit.attempts : [],
         toolsAvailable,
+        iterationLimit,
+        decisionSteerIteration,
+        decisionSteerSentAt,
       }, history);
     }
 
@@ -935,6 +945,18 @@ async function runReactLoop(params) {
           content: stringifyToolResultForHistory(toolResult),
         });
       }
+      if (decisionSteerSentAt == null && iteration === decisionSteerIteration) {
+        messages.push({
+          role: 'user',
+          content: [
+            `You have completed ${iteration} investigation iterations.`,
+            'If materially relevant paths remain unread, continue investigating them.',
+            'Otherwise file the complete candidate set, stop calling tools, and proceed to the decision phase.',
+            'Thoroughness is measured by relevant coverage and instruction-following, not by tool-call count alone.',
+          ].join(' '),
+        });
+        decisionSteerSentAt = iteration;
+      }
       continue;
     }
 
@@ -957,6 +979,9 @@ async function runReactLoop(params) {
         history,
         providerAttempts: providerAudit ? providerAudit.attempts : [],
         toolsAvailable,
+        iterationLimit,
+        decisionSteerIteration,
+        decisionSteerSentAt,
       }, history);
     }
     if (!candidateSet) {
@@ -1016,6 +1041,9 @@ async function runReactLoop(params) {
       history,
       providerAttempts: providerAudit ? providerAudit.attempts : [],
       toolsAvailable,
+      iterationLimit,
+      decisionSteerIteration,
+      decisionSteerSentAt,
     }, history);
   }
 
@@ -1027,6 +1055,9 @@ async function runReactLoop(params) {
     history,
     providerAttempts: providerAudit ? providerAudit.attempts : [],
     toolsAvailable,
+    iterationLimit,
+    decisionSteerIteration,
+    decisionSteerSentAt,
   }, history);
 }
 

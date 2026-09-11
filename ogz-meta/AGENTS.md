@@ -207,13 +207,17 @@ Pipeline order:
   with the tool ledger, not hidden by final-answer suppression. Safety still
   belongs at mutation and host-boundary edges. Source:
   `ogz-meta/sessions/session-2026-06-25-mercury-deconstraint-handoff.md:342-372,587-602`.
-- Use `--max-iterations=60` and `--max-tokens=7750`.
+- Use `--max-tokens=7750`. Mercury has no default iteration ceiling; use
+  `--max-iterations=N` only when Trey explicitly sets a limit for that run.
 - If Mercury output is wrong-path or truncated, re-dispatch with better context instead of manually hand-waving it away.
 - Before deleting learned state, ledgers, logs, pattern banks, or history, propose Mercury forensic extraction to a new path first.
 - One Mercury dispatch equals one question and one answer. Do not bundle multiple hunt vectors in one prompt, and do not run Mercury in shell-level parallel.
 - If a prompt is over 150 lines or covers more than a few concerns, chunk it into sequential single-target dispatches.
 - Before dispatching, grep/read enough to name the exact file:line ranges and any similar blocks Mercury must avoid.
-- If Mercury terminates at `max_iterations`, raise iterations up to the current rule, normally 60. If it hits `HTTP 429 input_token_limit`, split the prompt. If it returns `CANNOT VERIFY`, do direct mechanical enumeration with shell/tools and cite file:line evidence.
+- Mercury does not terminate on an iteration count unless Trey explicitly supplied
+  `--max-iterations=N`. If it hits `HTTP 429 input_token_limit`, split the prompt.
+  If it returns `CANNOT VERIFY`, do direct mechanical enumeration with shell/tools
+  and cite file:line evidence.
 - Mercury attack is blocking for hot-path production code: `core/`, `brokers/`, `modules/`, `run-empire-v2.js`, dashboard runtime, and runtime-driving schemas/config. It is not required for markdown/rule files unless those files execute.
 - Always include the architecture question for fixes: did this close the underlying mechanism, or only the symptom, and what new failure modes did it introduce?
 - After an approved push, do not claim Mercury has fresh repo context until `node trai_brain/mercury-bridge/indexer.js` succeeds for the pushed code. Source: `ogz-meta/sessions/session-2026-06-16-catchup-handoff-and-gap-register.md:141-151`.
@@ -362,7 +366,7 @@ node run-empire-v2.js
 Cognition and pipeline:
 ```bash
 node ogz-meta/pipeline.js
-node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens=7750 "<attack prompt with exact file:line ranges>"
+node trai_brain/mercury-bridge/ask.js --agentic --max-tokens=7750 "<attack prompt with exact file:line ranges>"
 node trai_brain/mercury-bridge/indexer.js
 ```
 
