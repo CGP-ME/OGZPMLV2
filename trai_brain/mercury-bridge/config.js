@@ -293,7 +293,12 @@ function resolveDirectQuestionProvider(providerId) {
     maxTokens: requiredNumber(MERCURY_CONFIG, 'directQuestion.clientMaxTokens', { integer: true, min: 1 }),
     minimumTokens: requiredNumber(MERCURY_CONFIG, 'directQuestion.clientMinTokens', { integer: true, min: 0 }),
     requestTimeoutMs: requiredNumber(MERCURY_CONFIG, 'directQuestion.requestTimeoutMs', { integer: true, min: 1000 }),
-    temperature: requiredNumber(MERCURY_CONFIG, 'directQuestion.temperature', { min: 0 }),
+    temperature: optionalNumber(
+      MERCURY_CONFIG,
+      `directQuestion.providers.${id}.temperature`,
+      requiredNumber(MERCURY_CONFIG, 'directQuestion.temperature', { min: 0 }),
+      { min: 0 }
+    ),
     openaiExtraBody: optionalPlainObject(MERCURY_CONFIG, `directQuestion.providers.${id}.openaiExtraBody`, {}),
   });
 }

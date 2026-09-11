@@ -121,13 +121,13 @@ describe('Mercury provider cost accounting', () => {
     const scheduled = {
       currency: 'USD',
       source: 'deepseek schedule',
-      key: 'pricing.deepseek.flash',
+      key: 'pricing.deepseek.v4-pro',
       schedule: {
         timezone: 'UTC',
         peakWeekdays: [1, 2, 3, 4, 5],
         peakWindows: [{ start: '01:00', end: '04:00' }, { start: '06:00', end: '10:00' }],
-        peak: { inputPerMillion: 0.3, outputPerMillion: 1.2, cachedInputPerMillion: 0.006 },
-        offPeak: { inputPerMillion: 0.15, outputPerMillion: 0.6, cachedInputPerMillion: 0.003 },
+        peak: { inputPerMillion: 1.32, outputPerMillion: 3.96, cachedInputPerMillion: 0.044 },
+        offPeak: { inputPerMillion: 0.66, outputPerMillion: 1.98, cachedInputPerMillion: 0.022 },
       },
     };
     expect(effectivePricingAt(scheduled, '2026-09-07T02:00:00.000Z').pricing.source)
@@ -143,9 +143,9 @@ describe('Mercury provider cost accounting', () => {
         total_tokens: 2_000_000,
         prompt_tokens_details: { cached_tokens: 500_000 },
       },
-    }, { provider: 'deepseek', model: 'deepseek-flash', pricing: scheduled });
+    }, { provider: 'deepseek', model: 'deepseek-v4-pro', pricing: scheduled });
     expect(receipt.cost).toEqual({
-      amount: 1.353,
+      amount: 4.642,
       currency: 'USD',
       pricing_source: 'deepseek schedule (peak)',
     });

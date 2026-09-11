@@ -80,9 +80,9 @@
       }
     },
     "deepseek": {
-      "flash": {
+      "v4-pro": {
         "currency": "USD",
-        "source": "operator-supplied DeepSeek V4.1 Flash pricing, 2026-09-10",
+        "source": "DeepSeek API Models & Pricing for deepseek-v4-pro, verified 2026-09-11",
         "schedule": {
           "timezone": "UTC",
           "peakWeekdays": [1, 2, 3, 4, 5],
@@ -91,14 +91,14 @@
             { "start": "06:00", "end": "10:00" }
           ],
           "peak": {
-            "inputPerMillion": 0.3,
-            "outputPerMillion": 1.2,
-            "cachedInputPerMillion": 0.006
+            "inputPerMillion": 1.32,
+            "outputPerMillion": 3.96,
+            "cachedInputPerMillion": 0.044
           },
           "offPeak": {
-            "inputPerMillion": 0.15,
-            "outputPerMillion": 0.6,
-            "cachedInputPerMillion": 0.003
+            "inputPerMillion": 0.66,
+            "outputPerMillion": 1.98,
+            "cachedInputPerMillion": 0.022
           }
         }
       }
@@ -115,9 +115,9 @@
     "deepseek": {
       "transportProvider": "openai",
       "baseUrl": "https://api.deepseek.com",
-      "model": "deepseek-flash",
+      "model": "deepseek-v4-pro",
       "apiKeyEnv": "DEEPSEEK_API_KEY",
-      "pricingRef": "deepseek.flash"
+      "pricingRef": "deepseek.v4-pro"
     },
     "glm": {
       "transportProvider": "openai",
@@ -194,6 +194,7 @@
     "temperature": 0.6,
     "providers": {
       "kimi": {
+        "temperature": 1,
         "openaiExtraBody": {}
       },
       "deepseek": {

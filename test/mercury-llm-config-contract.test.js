@@ -148,16 +148,16 @@ describe('Mercury LLM config contract', () => {
       expect(resolveDirectModelClientOptions('kimi')).toMatchObject({
         logicalProvider: 'kimi', provider: config.TIE_BREAKER_PROVIDER,
         baseUrl: config.TIE_BREAKER_BASE_URL, model: config.TIE_BREAKER_MODEL,
-        apiKey: 'moonshot-test-key', skipWarmup: true,
+        apiKey: 'moonshot-test-key', skipWarmup: true, temperature: 1,
       });
       expect(resolveDirectModelClientOptions('deepseek')).toMatchObject({
         logicalProvider: 'deepseek', provider: 'openai', baseUrl: 'https://api.deepseek.com',
-        model: 'deepseek-flash', apiKey: 'deepseek-test-key',
+        model: 'deepseek-v4-pro', apiKey: 'deepseek-test-key', temperature: 0.6,
         openaiExtraBody: { thinking: { type: 'enabled' }, reasoning_effort: 'high' },
       });
       expect(resolveDirectModelClientOptions('glm')).toMatchObject({
         logicalProvider: 'glm', provider: 'openai', baseUrl: 'https://api.z.ai/api/coding/paas/v4',
-        model: 'glm-5.3', apiKey: 'zai-test-key',
+        model: 'glm-5.3', apiKey: 'zai-test-key', temperature: 0.6,
         openaiExtraBody: { thinking: { type: 'enabled' }, reasoning_effort: 'max' },
       });
       expect(resolveDirectModelClientOptions('glm').systemPrompt).not.toMatch(/Fable|Mercury/i);
