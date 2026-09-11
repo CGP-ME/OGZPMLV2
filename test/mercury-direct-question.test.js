@@ -19,7 +19,7 @@ function selectedProvider(overrides = {}) {
     model: 'glm-5.3',
     apiKeyEnv: 'ZAI_API_KEY',
     systemPrompt: 'Answer the supplied question directly and independently.',
-    maxIterations: 60,
+    decisionSteerIteration: 200,
     maxTokens: 32768,
     minimumTokens: 0,
     requestTimeoutMs: 600000,
@@ -55,9 +55,9 @@ describe('direct model question mode', () => {
   test('parses provider and mode independently from reviewer flags', () => {
     expect(parseArgs([
       'node', 'direct-question.js', '--mode=direct', '--provider=deepseek',
-      '--max-iterations=20', '--max-tokens=4096', 'question',
+      '--max-iterations=1000', '--max-tokens=4096', 'question',
     ])).toMatchObject({
-      mode: 'direct', provider: 'deepseek', maxIterations: 20, maxTokens: 4096,
+      mode: 'direct', provider: 'deepseek', maxIterations: 1000, maxTokens: 4096,
       prompt: 'question',
     });
     expect(() => parseArgs([
@@ -129,6 +129,68 @@ describe('direct model question mode', () => {
     expect(calls[0].messages[1]).toEqual({ role: 'user', content: 'Trey literal question' });
     expect(calls[0].messages[0].content).not.toMatch(/CANDIDATE SET|VERDICT:|Fable|Mercury/);
     expect(calls[0].tools.map(tool => tool.function.name)).toEqual(['open_file']);
+  });
+
+  test('default loop is uncapped and sends one neutral decision steer without forcing an answer', async () => {
+    const calls = [];
+    const client = {
+      temperature: 0.6,
+      generateWithTools: jest.fn(async (messages) => {
+        calls.push(JSON.parse(JSON.stringify(messages)));
+        if (calls.length <= 60) {
+          return {
+            role: 'assistant', content: null,
+            tool_calls: [{
+              id: `call-${calls.length}`, type: 'function',
+              function: { name: 'open_file', arguments: '{"path":"core/example.js"}' },
+            }],
+          };
+        }
+        return { role: 'assistant', content: 'Answer after the former ceiling.', tool_calls: [] };
+      }),
+    };
+    const toolAdapter = {
+      buildToolSchema: () => [toolSchema('open_file')],
+      execute: jest.fn(async () => ({ file: 'core/example.js', content: 'evidence' })),
+    };
+
+    const result = await runDirectToolLoop({
+      client, toolAdapter, prompt: 'Investigate fully', systemPrompt: 'Answer directly.',
+      maxIterations: null, decisionSteerIteration: 2, maxTokens: 1000,
+    });
+
+    expect(result.answer).toBe('Answer after the former ceiling.');
+    expect(result.iterations).toBe(61);
+    expect(result.iterationLimit).toBeNull();
+    expect(result.decisionSteerSentAt).toBe(2);
+    expect(calls[2].filter(message => message.role === 'user')).toHaveLength(2);
+    expect(calls[2].at(-1).content).toMatch(/If materially relevant paths remain unread, continue/);
+    expect(calls[60].filter(message => message.content && message.content.includes('investigation iterations')))
+      .toHaveLength(1);
+  });
+
+  test('explicit operator iteration limit still stops a direct run when requested', async () => {
+    const client = {
+      temperature: 0.6,
+      generateWithTools: jest.fn(async () => ({
+        role: 'assistant', content: null,
+        tool_calls: [{
+          id: 'call', type: 'function',
+          function: { name: 'open_file', arguments: '{"path":"core/example.js"}' },
+        }],
+      })),
+    };
+    const toolAdapter = {
+      buildToolSchema: () => [toolSchema('open_file')],
+      execute: jest.fn(async () => ({ file: 'core/example.js', content: 'evidence' })),
+    };
+
+    await expect(runDirectToolLoop({
+      client, toolAdapter, prompt: 'Operator bounded', systemPrompt: 'Answer directly.',
+      maxIterations: 2, decisionSteerIteration: 200, maxTokens: 1000,
+    })).resolves.toMatchObject({
+      answer: null, termination: 'max_iterations', iterations: 2, iterationLimit: 2,
+    });
   });
 
   test('unadvertised mutation-capable tool calls are rejected without execution', async () => {
@@ -231,6 +293,11 @@ describe('direct model question mode', () => {
       requested_model: 'glm-5.3', applied_model: 'glm-5.3',
       adversarial_pipeline_entered: false, reviewer_panel: null, doctrine_review: null,
       termination: 'answer_given', iterations: 2, answer_full: 'Independent final.',
+      loop_policy: {
+        iteration_limit: null,
+        decision_steer_iteration: 200,
+        decision_steer_sent_at: null,
+      },
       tools_available: ['open_file'], files_opened: ['core/example.js:1-1'],
       run_tokens: { input: 300, output: 30, total: 330, complete: true },
     });

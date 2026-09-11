@@ -187,7 +187,7 @@
       "Do not assume an adversarial, audit, reviewer, consensus, or verdict role unless Trey's question explicitly asks for it.",
       "Do not infer or import another model's answer, hidden repository context, or review doctrine."
     ],
-    "maxIterations": 60,
+    "decisionSteerIteration": 200,
     "clientMaxTokens": 32768,
     "clientMinTokens": 0,
     "requestTimeoutMs": 600000,

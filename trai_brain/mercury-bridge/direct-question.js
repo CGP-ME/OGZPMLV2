@@ -222,7 +222,8 @@ async function runDirectToolLoop({
   toolAdapter,
   prompt,
   systemPrompt,
-  maxIterations,
+  maxIterations = null,
+  decisionSteerIteration,
   maxTokens,
   providerAudit,
   verbose = false,
@@ -241,9 +242,13 @@ async function runDirectToolLoop({
     { role: 'user', content: prompt },
   ];
   const history = [];
+  let decisionSteerSentAt = null;
 
-  for (let iteration = 1; iteration <= maxIterations; iteration += 1) {
-    if (verbose) console.error(`[DIRECT] Iteration ${iteration}/${maxIterations}`);
+  for (let iteration = 1; maxIterations == null || iteration <= maxIterations; iteration += 1) {
+    if (verbose) {
+      const iterationScope = maxIterations == null ? `${iteration}` : `${iteration}/${maxIterations}`;
+      console.error(`[DIRECT] Iteration ${iterationScope}`);
+    }
     const assistantMessage = await callMercuryWithRetry(
       client,
       messages,
@@ -263,6 +268,9 @@ async function runDirectToolLoop({
         toolTelemetry: summarizeToolTelemetry(history),
         toolsAvailable,
         systemPrompt: dispatchedSystemPrompt,
+        iterationLimit: maxIterations,
+        decisionSteerIteration,
+        decisionSteerSentAt,
       };
     }
 
@@ -295,6 +303,18 @@ async function runDirectToolLoop({
         content: stringifyToolResultForHistory(toolResult),
       });
     }
+    if (decisionSteerSentAt == null && iteration === decisionSteerIteration) {
+      messages.push({
+        role: 'user',
+        content: [
+          `You have completed ${iteration} investigation iterations.`,
+          'If materially relevant paths remain unread, continue investigating them.',
+          'Otherwise stop calling tools and deliver the final answer from the evidence gathered.',
+          'Thoroughness is measured by relevant coverage and instruction-following, not by tool-call count alone.',
+        ].join(' '),
+      });
+      decisionSteerSentAt = iteration;
+    }
   }
 
   return {
@@ -305,6 +325,9 @@ async function runDirectToolLoop({
     toolTelemetry: summarizeToolTelemetry(history),
     toolsAvailable,
     systemPrompt: dispatchedSystemPrompt,
+    iterationLimit: maxIterations,
+    decisionSteerIteration,
+    decisionSteerSentAt,
   };
 }
 
@@ -330,9 +353,10 @@ async function executeDirectQuestion({
   if (!Number.isInteger(requestedMaxTokens) || requestedMaxTokens < 1 || requestedMaxTokens > selected.maxTokens) {
     throw new Error(`--max-tokens must be between 1 and the configured direct limit ${selected.maxTokens}`);
   }
-  const requestedMaxIterations = maxIterations == null ? selected.maxIterations : maxIterations;
-  if (!Number.isInteger(requestedMaxIterations) || requestedMaxIterations < 1 || requestedMaxIterations > selected.maxIterations) {
-    throw new Error(`--max-iterations must be between 1 and the configured direct limit ${selected.maxIterations}`);
+  const requestedMaxIterations = maxIterations;
+  if (requestedMaxIterations != null
+      && (!Number.isInteger(requestedMaxIterations) || requestedMaxIterations < 1)) {
+    throw new Error('--max-iterations must be a positive integer');
   }
   const startedAt = now();
   const rawRunId = createRawRunId(startedAt);
@@ -352,6 +376,7 @@ async function executeDirectQuestion({
       prompt,
       systemPrompt: selected.systemPrompt,
       maxIterations: requestedMaxIterations,
+      decisionSteerIteration: selected.decisionSteerIteration,
       maxTokens: requestedMaxTokens,
       providerAudit,
       verbose,
@@ -377,6 +402,9 @@ async function executeDirectQuestion({
       toolTelemetry: loopResult.toolTelemetry,
       toolsAvailable: loopResult.toolsAvailable,
       iterations: loopResult.iterations,
+      iterationLimit: loopResult.iterationLimit,
+      decisionSteerIteration: loopResult.decisionSteerIteration,
+      decisionSteerSentAt: loopResult.decisionSteerSentAt,
       termination: loopResult.termination,
       startedAt,
       finishedAt: now(),
@@ -424,6 +452,11 @@ async function executeDirectQuestion({
       toolTelemetry: loopResult && loopResult.toolTelemetry || {},
       toolsAvailable: loopResult && loopResult.toolsAvailable || toolsAvailable,
       iterations: loopResult && loopResult.iterations || null,
+      iterationLimit: loopResult ? loopResult.iterationLimit : requestedMaxIterations,
+      decisionSteerIteration: loopResult
+        ? loopResult.decisionSteerIteration
+        : selected.decisionSteerIteration,
+      decisionSteerSentAt: loopResult && loopResult.decisionSteerSentAt || null,
       termination: loopResult && loopResult.termination || 'error',
       startedAt,
       finishedAt: now(),
@@ -439,7 +472,7 @@ function printHelp() {
   console.log('Direct model question mode (no adversarial protocol)');
   console.log('Usage: node trai_brain/mercury-bridge/direct-question.js --provider=kimi|deepseek|glm "question"');
   console.log('       node trai_brain/mercury-bridge/direct-question.js --provider=glm --prompt-file=path/to/prompt.md --context-file=path/to/evidence.md');
-  console.log('Options: --mode=direct --context-file=PATH (repeatable) --max-tokens=N --max-iterations=N --quiet');
+  console.log('Options: --mode=direct --context-file=PATH (repeatable) --max-tokens=N --max-iterations=N (optional operator limit) --quiet');
 }
 
 function formatCost(cost) {

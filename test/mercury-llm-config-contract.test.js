@@ -150,6 +150,9 @@ describe('Mercury LLM config contract', () => {
         baseUrl: config.TIE_BREAKER_BASE_URL, model: config.TIE_BREAKER_MODEL,
         apiKey: 'moonshot-test-key', skipWarmup: true, temperature: 1,
       });
+      expect(config.resolveDirectQuestionProvider('kimi')).toMatchObject({
+        decisionSteerIteration: 200,
+      });
       expect(resolveDirectModelClientOptions('deepseek')).toMatchObject({
         logicalProvider: 'deepseek', provider: 'openai', baseUrl: 'https://api.deepseek.com',
         model: 'deepseek-v4-pro', apiKey: 'deepseek-test-key', temperature: 0.6,

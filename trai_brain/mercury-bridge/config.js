@@ -289,7 +289,11 @@ function resolveDirectQuestionProvider(providerId) {
   return Object.freeze({
     ...provider,
     systemPrompt: requiredText(MERCURY_CONFIG, 'directQuestion.systemPrompt'),
-    maxIterations: requiredNumber(MERCURY_CONFIG, 'directQuestion.maxIterations', { integer: true, min: 1 }),
+    decisionSteerIteration: requiredNumber(
+      MERCURY_CONFIG,
+      'directQuestion.decisionSteerIteration',
+      { integer: true, min: 1 }
+    ),
     maxTokens: requiredNumber(MERCURY_CONFIG, 'directQuestion.clientMaxTokens', { integer: true, min: 1 }),
     minimumTokens: requiredNumber(MERCURY_CONFIG, 'directQuestion.clientMinTokens', { integer: true, min: 0 }),
     requestTimeoutMs: requiredNumber(MERCURY_CONFIG, 'directQuestion.requestTimeoutMs', { integer: true, min: 1000 }),
