@@ -17,7 +17,7 @@ This document replaces the following files as executable instructions:
 
 Those files remain historical evidence. Their rulings, checkmarks, sequencing, file limits, and acceptance claims do not authorize implementation unless reconciled here to Trey's words and current source.
 
-The independent audit is preserved at `ogz-meta/inbox/astra/STOP1-EVIDENCE-6ca25ae8.zip`, SHA-256 `79852f809c4643ddde7fd5a4d0aee85aa198ff7d7e79dae66b35c6224d25905e`. It is evidence, not authority.
+The independent audit is preserved in this tracked packet at `ogz-meta/inbox/codex/2026-09-12/astra-era-stop1-j0/STOP1-EVIDENCE-6ca25ae8.zip`, SHA-256 `79852f809c4643ddde7fd5a4d0aee85aa198ff7d7e79dae66b35c6224d25905e`. It is evidence, not authority.
 
 ## 2. STOP 1 outcome
 

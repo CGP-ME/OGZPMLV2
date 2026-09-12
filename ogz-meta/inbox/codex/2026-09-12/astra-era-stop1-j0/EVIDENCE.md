@@ -2,7 +2,7 @@
 
 ## Audit packet integrity
 
-- Packet: `ogz-meta/inbox/astra/STOP1-EVIDENCE-6ca25ae8.zip`
+- Tracked packet: `ogz-meta/inbox/codex/2026-09-12/astra-era-stop1-j0/STOP1-EVIDENCE-6ca25ae8.zip`
 - Packet SHA-256: `79852f809c4643ddde7fd5a4d0aee85aa198ff7d7e79dae66b35c6224d25905e`
 - Compressed size observed: 7,065,663 bytes.
 - Archive inventory: 54 files, 128,909,027 uncompressed bytes.
@@ -11,7 +11,7 @@
 - Item ledger: 158 rows, SHA-256 `c25aca6bdc6e192408fe2700b46e2f8fe4f64c801c403725dce5623a602f9008`.
 - Citation validation: 542 extracted; 454 current-repository citations valid; 88 supplied-document citations excluded from repository resolution; zero reported issues.
 
-The archive's README refers to `STOP1-CONFIG-EVIDENCE.csv`; the archived file carrying that hash is `source-census/stop1_joined_configuration_evidence_ledger.csv`. This is a packet naming discrepancy, not evidence that the ledger bytes failed validation.
+The archive's `artifact-consistency.json` refers to `STOP1-CONFIG-EVIDENCE.csv`; the archived file carrying that hash is `source-census/stop1_joined_configuration_evidence_ledger.csv`. `EVIDENCE-README.txt` does not make that attribution. This is a packet naming discrepancy, not evidence that the ledger bytes failed validation.
 
 ## Independent current-source checks
 
