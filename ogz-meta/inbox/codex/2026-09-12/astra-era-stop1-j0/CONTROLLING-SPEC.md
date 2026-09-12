@@ -1,6 +1,6 @@
 # STOP 1 ASTRA-ERA CONTROLLING SPECIFICATION
 
-Status: J0 draft pending Trey's four rulings in `RULINGS-REQUIRED.md`.
+Status: J0 control point. Trey's four product decisions are resolved below. Unresolved audit-ledger rows remain investigation assignments, not implementation instructions.
 
 Branch: `astra-era`
 
@@ -84,7 +84,7 @@ PolicyBuilder binds every live post-entry input actually used by exit evaluation
 
 Fee policy follows the actual execution venue and account. Commission, regulatory charges, and simulated slippage remain separate values. An Alpaca commission ruling does not silently erase slippage.
 
-Sizing has one final quantity producer. Normal allocation, earned boost, aggregate account exposure, current positions, pending allocations, confidence, confluence, minimum shares, maximum shares, notional limits, and venue rounding are resolved in that calculation. A later quantity adjustment cannot exceed a cap already reported as applied.
+Sizing has one final quantity producer. The configured values are 5% normal position size, 7.5% maximum position size after the existing boost logic, and 25% maximum total exposure. STOP 1 does not redesign confidence or confluence calculations. Current positions, pending allocations, minimum shares, maximum shares, notional limits, and venue rounding cannot enlarge a final quantity beyond the applicable configured cap.
 
 ### 3.5 Switching, state, and recovery
 
@@ -92,7 +92,9 @@ SessionRouter owns the configured switching schedule and transition lifecycle. B
 
 Transition pause and resume affect only transition-owned state. Completion cannot clear an operator, daily-loss, financial-integrity ambiguity, or unrelated producer pause.
 
-Startup restoration of an existing same-identity trade is different from flattening a source broker before a scheduled switch. Neither may be inferred from the other.
+Startup mode governs new entries; it does not overwrite an existing trade's execution identity. Every accepted trade persists its immutable mode, broker, account, venue, symbol, session generation, and operative exit policy at the producer. On restart, an identified live trade continues only its existing exit and recovery lifecycle through that frozen identity while all new entries begin in paper.
+
+An unmatched live broker position does not grant the paper process general live authority. Recovery first attempts to reconstruct its identity from durable receipts and journals. If ownership cannot be established, treat the broker state as external: flatten that position, halt its symbol, and emit the full trace/notification receipt while the process and unrelated healthy symbols continue.
 
 The loss cooldown is removed with its producers, readers, configuration, normalization, and persisted state. Unrelated halt records remain.
 
@@ -115,9 +117,9 @@ Bridge and direct-question commits remain separate tooling work. Changes to `cor
 
 No provider, TrAI, bot, PM2, broker, trade, or phone result is treated as proved from those commits.
 
-## 5. Source-proven defects controlling execution
+## 5. Source-proven investigation boundaries
 
-The following current defects are implementation prerequisites, not optional improvements:
+The following current source findings are assigned investigation work. They identify behavior that must be re-established from the then-current producer-to-consumer path and reconciled to Trey's authority before an implementation packet is written. Neither Astra's ledger disposition nor this list is a cleared implementation instruction, and neither authorizes Astra's proposed correction.
 
 1. Paper mode can select a non-dry webhook route before the paper simulation branch.
 2. TTP cutoff and orphan recovery can cancel or send through a separate permission path not governed by the resolved bot mode.
@@ -146,13 +148,13 @@ The following current defects are implementation prerequisites, not optional imp
 25. Current bridge evidence checks can still grade formatting or promote agreement with only one claiming seat.
 26. Direct-question failure after successful tool reads can lose the earlier tool receipts.
 
-Each implementation packet must re-read and cite the complete producer-to-consumer path at the then-current revision. This list is not permission to apply the audit's proposed replacement blindly.
+Each investigation must end in one of four explicit dispositions: implementation required, already correct, unreachable/dead, or requires Trey's ruling. Only an approved implementation packet may authorize a code change. Every such packet must re-read and cite the complete producer-to-consumer path at the then-current revision.
 
 ## 6. Corrected dependency order
 
 Each numbered work package is one logical behavior. A logical change may cross several files when producer and consumers must move atomically. Artificial one-file or non-overlapping-line limits do not outrank correctness.
 
-1. J0: reconcile authority, record four rulings, complete the affected-leaf baseline, and publish one executable specification.
+1. J0: reconcile authority, record Trey's decisions, preserve unresolved investigation assignments, complete the affected-leaf baseline, and publish one executable specification.
 2. J1: establish one credential producer and early failure-reporting path.
 3. J2: make the existing singleton identity exclusively acquirable.
 4. J3: establish one operator-shutdown and failure lifecycle.
@@ -163,11 +165,11 @@ Each numbered work package is one logical behavior. A logical change may cross s
 9. J9: implement durable accepted settings revisions and the actual UI update path.
 10. J10: implement the identified, operative, durable one-trade edit.
 11. J11a: bind fee policy to execution venue/account and preserve slippage separately.
-12. J11b: implement final allocation and quantity after Trey resolves its denominator and boost qualification.
+12. J11b: implement the configured 5% normal, 7.5% maximum, and 25% total-exposure values without redesigning confidence or confluence.
 13. J12: remove cooldown and migrate only cooldown state.
 14. J13a: implement condition-specific halt recovery with record identity.
 15. J13b: complete schedule consumption, transition identity, startup restoration, scoped pause/retry, and full intended watchlists.
-16. J14: implement the ruled warning and daily-entry-pause contract after Trey resolves its accounting boundary.
+16. J14: implement the ruled warning and daily-entry-pause contract at a 50% account-value loss threshold without expanding STOP 1 into a new PnL-model design.
 17. J15: disable publisher writes at their owner and implement truthful notification outcomes.
 18. J16: remove dead circuit-breaker policy and boot cosmetics as cleanup, without claiming runtime fault repair.
 19. J17: repair bridge claim/evidence accounting and direct-question failure receipts as separate tooling work.
@@ -201,7 +203,7 @@ PM2 is not restarted without Trey's explicit approval for that exact runtime ste
 - After push, Mercury repo context is not claimed fresh until the indexer succeeds for the pushed revision.
 - A cold pull checks the committed diff and evidence; it does not replace runtime acceptance.
 - Existing unrelated dirty and untracked work is preserved.
-- No production implementation begins while a ruling in `RULINGS-REQUIRED.md` changes that package's behavior.
+- No production implementation begins while an unresolved question in `RULINGS-REQUIRED.md` changes that package's behavior. A later-package question does not block unrelated earlier work.
 
 ## 9. Closure refusal
 
@@ -213,4 +215,4 @@ WHAT I DID: validated and read Astra's complete audit; checked its item ledger a
 
 WHAT I DID NOT DO: modify production code or configuration; read or expose `.env`; run tests; operate PM2; call a model, broker, webhook, or notifier; claim runtime acceptance.
 
-WHAT I ASSUMED: the current pushed `astra-era` revision remains `6ca25ae80cfcef12eec79e64c7d14162d9d4c751`; Trey's next rulings supersede conflicting historical attributions and will be recorded before affected implementation.
+WHAT I ASSUMED: Trey's 2026-09-12 answers supersede conflicting historical attributions; sizing percentages are configuration values and do not authorize a confidence-model rewrite; Fourth Shape resolves K4 at trade-identity production rather than through a paper/live permission exception.

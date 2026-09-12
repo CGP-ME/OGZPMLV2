@@ -32,7 +32,7 @@ The following high-impact audit claims were re-read directly at current HEAD:
 13. Symbol halt reset deletes the current record by symbol without matching prior record identity: `core/StateManager.js:4162-4174`.
 14. ConfigLoader parses `.env` into a local object: `foundation/ConfigLoader.js:473-481`; notifier modules capture `process.env` independently at import: `utils/telegramNotifier.js:44-52`, `utils/discordNotifier.js:48-54`.
 
-## Item-ledger current dispositions
+## Item-ledger investigation dispositions
 
 - 107 `REMAINING AND AUTHORIZED` rows.
 - 12 `CONTRADICTORY` rows.
@@ -44,6 +44,8 @@ The following high-impact audit claims were re-read directly at current HEAD:
 - 7 `NO LIVE BEHAVIORAL EFFECT` rows.
 
 These are lineage/item rows, not 158 independent fixes or 107 commits.
+
+Every unresolved row remains assigned investigation work. A ledger label such as `REMAINING AND AUTHORIZED` records the audit's disposition; it is not an implementation instruction and does not clear the audit's proposed design.
 
 ## Proof limits
 
