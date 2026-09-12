@@ -90,11 +90,13 @@ Sizing has one final quantity producer. The configured values are 5% normal posi
 
 SessionRouter owns the configured switching schedule and transition lifecycle. Broker adapters own truthful connection, subscription, account, and acquisition results. StateManager owns scoped durable state.
 
+The current bot is intraday; it does not intentionally swing trade or plan multi-day holds. SessionRouter's existing scheduled transition is the single owner of flattening before the session boundary. STOP 1 repairs and proves that owner; it does not add another timer, watchdog, recovery flattener, or competing shutdown path.
+
 Transition pause and resume affect only transition-owned state. Completion cannot clear an operator, daily-loss, financial-integrity ambiguity, or unrelated producer pause.
 
-Startup mode governs new entries; it does not overwrite an existing trade's execution identity. Every accepted trade persists its immutable mode, broker, account, venue, symbol, session generation, and operative exit policy at the producer. On restart, an identified live trade continues only its existing exit and recovery lifecycle through that frozen identity while all new entries begin in paper.
+Startup mode governs new entries; it does not overwrite an existing trade's execution identity. Every accepted trade persists its immutable mode, broker, account, venue, symbol, session generation, and operative exit policy at the producer. On restart, all new entries begin in paper. Any surviving live position is reconciled as unfinished SessionRouter flatten work and uses its frozen identity only to finish that existing flatten/reconciliation lifecycle.
 
-An unmatched live broker position does not grant the paper process general live authority. Recovery first attempts to reconstruct its identity from durable receipts and journals. If ownership cannot be established, treat the broker state as external: flatten that position, halt its symbol, and emit the full trace/notification receipt while the process and unrelated healthy symbols continue.
+An unmatched live broker position does not grant the paper process general live authority or create a new flatten owner. SessionRouter first attempts to reconstruct its identity from durable receipts and journals, then handles the position through its existing flatten boundary. If ownership cannot be established, treat the broker state as external: flatten that position through SessionRouter, halt its symbol, and emit the full trace/notification receipt while the process and unrelated healthy symbols continue.
 
 The loss cooldown is removed with its producers, readers, configuration, normalization, and persisted state. Unrelated halt records remain.
 

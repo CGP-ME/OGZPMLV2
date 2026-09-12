@@ -22,9 +22,11 @@ STOP 1 records and wires that value; it does not expand into a new confidence or
 
 ## K4. Resolved: Fourth Shape for earlier live positions
 
-The process's startup mode does not own or reclassify an existing trade. Every accepted trade must persist its immutable execution identity at entry. A restart returns new entries to paper, while an identified earlier live trade continues only its existing exit and recovery lifecycle through its own frozen live identity.
+The bot is currently intraday and does not intentionally swing trade. SessionRouter's existing scheduled transition owns flattening before the session boundary. A live position surviving restart is unfinished SessionRouter work, not normal planned multi-day ownership and not authority for a second flatten mechanism.
 
-If a broker reports a live position without matching durable trade identity, recovery first attempts to reconstruct the owner from receipts and journals. If it cannot, the external-state path is flatten that position, halt that symbol, and trace/notify the failure. The process and unrelated healthy symbols continue.
+The process's startup mode does not own or reclassify an existing trade. Every accepted trade must persist its immutable execution identity at entry. A restart returns new entries to paper, while an identified earlier live trade uses its frozen live identity only so SessionRouter can finish and reconcile the already-required flatten.
+
+If a broker reports a live position without matching durable trade identity, SessionRouter first attempts to reconstruct the owner from receipts and journals. If it cannot, the same SessionRouter flatten boundary handles the external-state path: flatten that position, halt that symbol, and trace/notify the failure. The process and unrelated healthy symbols continue.
 
 Neither an existing position nor paper startup grants permission for a new live entry or general live mutation.
 
