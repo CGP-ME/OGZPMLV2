@@ -26,7 +26,7 @@ J1 supplies truthful absence/source facts; it does not decide readiness.
 - Removal of mode, tier, strategy, sizing, exit, and other behavioral environment owners.
 - PM2 descriptor cleanup beyond credential-source ownership.
 
-The J1 source's effective-environment output is explicitly transitional for ConfigLoader compatibility.
+The J1 source's effective-environment output is explicitly transitional for ConfigLoader compatibility. Explicit delivery of the already resolved broker/asset identity to pattern memory preserves current behavior during removal of ambient mutation; it does not decide or migrate that behavior.
 
 ## Remains for J15
 
@@ -43,7 +43,7 @@ J1 may name `unavailable` or `attempted`; it cannot claim delivery.
 - Provider cost and receipt work.
 - Gate, downloader, and one-off script credential boundaries.
 
-These tools do not become bot credential owners merely because they use the same local secret file.
+Standalone provider/index/transport tools do not become bot credential owners merely because they use the same local secret file. J1 does include extraction of the shared `mercury.ignore` repository policy because the bot's reached read-only toolbox currently imports full provider configuration to obtain it; that extraction must not alter the policy or broader Mercury behavior.
 
 ## Remains for STOP 2 and later packages
 
@@ -53,7 +53,7 @@ These tools do not become bot credential owners merely because they use the same
 
 ## Security incident during this investigation
 
-A read-only source-census command accidentally matched the ignored local `.env` and displayed its contents in the agent tool transcript. No value is reproduced, transformed, hashed, or committed in this packet. The repository was not modified by the command. Because transcript exposure is still exposure, the affected credentials must be rotated by the operator before runtime acceptance. Rotation itself is an external administrative action and was not performed.
+A read-only source-census command accidentally matched credential-named assignments in the ignored local `.env` and displayed their values in the private Codex tool transcript. No value is reproduced, transformed, hashed, or committed in this packet. The repository was not modified by the command, and there is no evidence that the values were committed, pushed, published, or sent through an external review seat. This packet does not impose blanket rotation. The operator decides whether the Codex transcript lies outside the trusted boundary; any active credential treated as disclosed under that policy must be rotated before runtime acceptance.
 
 The file is ignored by Git at `.gitignore:10`. That fact prevents normal staging; it does not undo transcript exposure.
 
@@ -63,4 +63,4 @@ WHAT I DID: preserved the later work boundaries and disclosed the read-only cred
 
 WHAT I DID NOT DO: rotate credentials, edit `.env`, access provider consoles, or claim the ignored file is safe merely because it is untracked.
 
-WHAT I ASSUMED: Trey will rotate affected credentials before authorizing any real authentication or PM2 acceptance run.
+WHAT I ASSUMED: Trey determines the trust boundary and any resulting credential rotation before authorizing real authentication or PM2 acceptance.

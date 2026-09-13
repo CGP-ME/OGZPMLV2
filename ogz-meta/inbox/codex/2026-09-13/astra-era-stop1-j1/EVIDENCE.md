@@ -15,7 +15,7 @@ No current behavior claim in this packet relies only on Astra's audit. The audit
 - Current main-runner BrokerFactory call sites: 2 of 2, both explicit Kraken/Alpaca sites at `run-empire-v2.js:846,858`.
 - Main-bot dotenv/config producer sites on the current route: ConfigLoader parse plus Telegram and Discord mutation, 3 of 3 traced.
 - Other declared-process dotenv mutation sites: ecosystem descriptor, dashboard, and Stripe, 3 of 3 traced.
-- Declared runtime credential/capability consumer groups: 18 groups classified in `CREDENTIAL-CENSUS.tsv`, plus generated dashboard sessions and separate tooling classifications.
+- Declared runtime credential/capability/bootstrap-dependency groups: 20 groups classified in `CREDENTIAL-CENSUS.tsv`, plus one generated-session row and one standalone-tooling row.
 - Early main-bot phases before the current ntfy installation: ConfigLoader, Sentry, imports, durable sink installation, bootstrap handlers, ModuleAutoLoader, TrAI construction, broker construction, ntfy construction; all traced in source order.
 - Existing explicit resolver assets read: ConfigLoader environment helpers, TrAI resolver, ntfy factory, dashboard stock resolver/adapter, news resolver, broker option builders, RuntimeAuditSink.
 
@@ -43,6 +43,11 @@ This is not a whole-repository credential census. The Astra archive mechanically
 - Supervisor source and declaration: `scripts/supervisor-daemon.js:45-58,223-244`; `ecosystem.config.js:208-247`.
 - Durable local sink behavior: `core/RuntimeAuditSink.js:125-205`.
 - Existing partial redacted configuration receipt: `core/RuntimeConfigProof.js:20-43,64-91`.
+- Pattern-memory ambient identity and reached first construction: `core/UnifiedPatternMemory.js:191-206,246-257`; `core/EnhancedPatternRecognition.js:382-393`; `run-empire-v2.js:594-600`.
+- Bot read-only toolbox coupling: `core/trai_core.js:67-69,113-121,886-898`; `trai_brain/read_only_tools.js:1-11,31-35`; embedding initialization at `trai_brain/mercury-bridge/config.js:310-335`; selected key name at `mercury.config.json:8-13`.
+- Bot stock-history ambient fallback: `run-empire-v2.js:2337-2371`; `server/stock-data-adapter.js:10-20,42-68`; existing dashboard explicit use at `ogzprime-ssl-server.js:1926-1933`.
+- Configuration-dependent fatal context: `run-empire-v2.js:143-163,193-203`; raw diagnostic bypasses at `:315-329,3650-3655` and `core/ModuleAutoLoader.js:179-200`.
+- Supervisor deadman URL diagnostic: `scripts/supervisor-daemon.js:223-242`.
 
 ## Proof limits
 

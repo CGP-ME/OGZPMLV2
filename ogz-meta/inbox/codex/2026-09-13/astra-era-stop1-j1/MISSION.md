@@ -23,11 +23,13 @@ Implementation is required. Current behavior has six independent dotenv read/mut
 
 The main bot depends on the notifier imports to populate `process.env` for later consumers during a bare Node launch. ConfigLoader itself does not do that. Removing the notifier calls alone therefore breaks existing credential delivery even though ConfigLoader still reports a resolved snapshot.
 
+The cutover also has three reached dependencies outside the original census: pattern memory derives its startup bucket from ambient `BROKER`/`ASSET_CLASS` (`core/UnifiedPatternMemory.js:191-206,246-257`); the bot's read-only toolbox imports full Mercury provider configuration just to obtain repository ignore policy (`trai_brain/read_only_tools.js:1-11,31-35`); and the bot's dashboard-history handler calls the stock-data helper without its supported explicit configuration option (`run-empire-v2.js:2337-2371`; `server/stock-data-adapter.js:10-20,42-68`). They must move in the same cutover without expanding J1 into later behavioral-policy or provider work.
+
 The existing durable fatal sink is constructed only after ConfigLoader, Sentry, and several imports have already executed (`run-empire-v2.js:3-6,36-37,108-126`). Bootstrap handlers are installed later at `run-empire-v2.js:315-329`, and ntfy is installed only inside the bot constructor at `:1060-1077`. Failures before those points have neither the current durable sink path nor the current ntfy subscriber.
 
 ## Scope
 
-J1 covers credential source loading, source precedence/provenance, explicit service-scoped injection, secret-free receipts, and the earliest durable failure record for the four processes declared by `ecosystem.config.js:54-248`.
+J1 covers credential source loading, source precedence/provenance, explicit allowlisted service views including required nonsecret companion configuration, secret-free receipts, and the earliest durable failure record for the four processes declared by `ecosystem.config.js:54-248`.
 
 J1 does not decide whether a missing service is required for trading, kill or restart a process, alter trading mode, add a trade gate, repair optional-service retry, prove notification delivery, migrate behavioral configuration, or change broker/account policy. Those boundaries remain J3, J4, J7/J8, J15, and later STOP 1/STOP 2 packages.
 
@@ -39,6 +41,6 @@ This is a proposal for cold-pull review. No production implementation begins unt
 
 WHAT I DID: traced current credential producers, declared process entrypoints, active service consumers, import ordering, and the earliest current failure receipt.
 
-WHAT I DID NOT DO: read credential values for engineering evidence, modify runtime source, invoke services, or decide later readiness/lifecycle policy.
+WHAT I DID NOT DO: use credential values as engineering evidence, modify runtime source, invoke services, or decide later readiness/lifecycle policy.
 
 WHAT I ASSUMED: a "single producer" means one shared code owner invoked once per operating-system process; separate PM2 processes cannot share an in-memory JavaScript snapshot.

@@ -9,10 +9,12 @@ The executable sequence is not the sequence described by its comments.
 3. The durable `RuntimeAuditSink` is imported and instantiated only at `run-empire-v2.js:116,124-126`. Its bootstrap handlers are registered at `:315-329`.
 4. ModuleAutoLoader enumerates and requires every JavaScript file in `utils/` and `core/` at `core/ModuleAutoLoader.js:130-203,251-273`. That enumeration imports Telegram and Discord. Their `dotenv.config()` calls mutate `process.env`; Telegram captures and instantiates immediately (`utils/telegramNotifier.js:44-52,239-249`), while Discord captures at import and exports an immediately created singleton (`utils/discordNotifier.js:47-54,472-484`).
 5. The runner later requires the same cached notifier modules (`run-empire-v2.js:387-392`). TrAI resolves its dynamic key from `process.env` during bot construction (`run-empire-v2.js:766-779`; `core/trai_llm_config.js:54-83`). Ntfy and dashboard authentication are also read from `process.env` later (`run-empire-v2.js:1060-1083`; `core/NtfyTraceNotifier.js:194-202`; `core/WebSocketManager.js:107-133`).
+6. The same ambient mutation supplies noncredential startup inputs to reached consumers. `EnhancedPatternChecker` constructs pattern memory without configuration, so `UnifiedPatternMemory` reads `BROKER`/`ASSET_CLASS` from `process.env` and throws if neither resolves (`run-empire-v2.js:594-600`; `core/EnhancedPatternRecognition.js:382-393`; `core/UnifiedPatternMemory.js:191-206,246-257`). The bot's stock-history helper also falls back to `process.env` when its existing `options.config` is omitted (`run-empire-v2.js:2337-2371`; `server/stock-data-adapter.js:10-20,42-68`).
+7. `core/trai_core.js:67-69` imports the bot's read-only toolbox inside a swallowed catch. That toolbox imports full Mercury configuration merely to use `SKIP_DIRS` and `mercury.ignore` policy (`trai_brain/read_only_tools.js:1-11,31-35`). Full config initializes the configured embedding provider and reads the dynamically named key at import (`trai_brain/mercury-bridge/config.js:310-335`; `mercury.config.json:8-13`). A missing key silently removes the toolbox even though repository search itself does not need embeddings (`core/trai_core.js:113-121,886-898`).
 
 Constructed sequence: launch `node run-empire-v2.js` with a clean inherited environment and credentials present only in `.env`; remove the two notifier dotenv calls as an isolated cleanup.
 
-Mechanical result: ConfigLoader can still resolve its private broker values, but the selected TrAI key, ntfy topic, dashboard token, Telegram values, and Discord values are absent from their existing `process.env` consumers. This is why the old two-line cleanup is not authorized.
+Mechanical result: ConfigLoader can still resolve its private broker values, but the selected TrAI key, ntfy topic, dashboard token, Telegram values, Discord values, pattern-memory identity, and bot stock-history configuration are absent from their existing ambient consumers. The read-only toolbox can also become unavailable because repository policy is coupled to unrelated embedding initialization. This is why the old two-line cleanup is not authorized.
 
 Disposition: **IMPLEMENTATION REQUIRED**. Move the source and all affected consumers atomically.
 
@@ -28,6 +30,8 @@ The surrounding services are not:
 - Ntfy and dashboard WebSocket code accept or read ambient environment independently (`core/NtfyTraceNotifier.js:194-202`; `core/WebSocketManager.js:107-133`).
 - BotStateFrame uses credential presence as a fallback broker detector (`core/BotStateFrame.js:99-130`), coupling secret availability to telemetry identity.
 - The dashboard independently reads auth, broker-data, news, LLM, and Polygon inputs (`ogzprime-ssl-server.js:46,156-177,238-262,295-313,1136-1160,1797-1819`). Its stock/news helpers already accept explicit environment or resolved configuration (`server/dashboard-stock-stream-config.js:93-190`; `server/stock-data-adapter.js:10-39,62-68`; `core/NewsSearchProvider.js:71-137`).
+- News selection also requires allowlisted nonsecret companion values such as `NEWS_SEARCH_PROVIDER`, `BRIGHTDATA_SERP_ZONE`, and `EDGAR_USER_AGENT`; a key-only view is insufficient (`core/NewsSearchProvider.js:78-82,103-136`).
+- The bot process separately calls both stock-history helpers without the explicit configuration already used by the dashboard process (`run-empire-v2.js:2354-2368`; `ogzprime-ssl-server.js:1926-1933`).
 - The declared checkout process performs its own dotenv load and ambient Stripe construction (`public/stripe-checkout.js:11-16`; declaration at `ecosystem.config.js:198-206`).
 - The declared supervisor reads its optional capability-bearing deadman URL from ambient process state (`scripts/supervisor-daemon.js:45-58,223-244`; declaration at `ecosystem.config.js:208-247`).
 
@@ -57,11 +61,13 @@ BrokerRegistry names additional adapters, and Gemini, Schwab, and Uphold contain
 
 Disposition: **UNREACHABLE FROM THE CURRENT MAIN RUNNER** for J1. Do not edit these adapters in this packet. If a later package authorizes one as a runtime route, explicit credential injection becomes part of that route's activation work.
 
-## 6. Separate tooling
+## 6. Standalone tooling versus the bot's shared policy dependency
 
-Mercury bridge, downloaders, provider probes, gate scripts, and test fixtures have separate process boundaries and their own credential conventions. J0 explicitly keeps bridge work in J17. Their dotenv calls do not establish the bot/dashboard source and are not modified by J1.
+Standalone Mercury executors, downloaders, provider probes, gate scripts, and fixtures have separate process boundaries and their own credential conventions. J0 keeps their provider/transport work in J17. Their credential loading does not establish the bot/dashboard source and is not redesigned by J1.
 
-Disposition: **BELONGS TO SEPARATE TOOLING WORK**, not dead and not a J1 implementation instruction.
+The bot's reached `read_only_tools.js` dependency is different. It needs the same repository skip/ignore policy but currently imports full Mercury configuration, which initializes embeddings and reads a credential. J1 must extract a pure repository-policy module used by both callers so bot tools do not acquire an embedding-key requirement. The current `trai_core.js:67-69` catch also hides toolbox initialization failure from ModuleAutoLoader, so the explicit construction path must report named optional-tool unavailability without making it a bot requirement. The policy rules themselves remain unchanged.
+
+Disposition: **IMPLEMENTATION REQUIRED** for the shared policy extraction; **BELONGS TO SEPARATE TOOLING WORK** for Mercury provider, transport, indexing, pricing, and execution behavior.
 
 ## 7. Existing receipts are incomplete
 
@@ -73,7 +79,7 @@ Disposition: **IMPLEMENTATION REQUIRED**. J1 adds a redacted bootstrap receipt w
 
 ## 8. No new refusal or control authority
 
-The credential producer reports `present`, `absent`, or `source_unavailable`. It does not decide whether the bot trades, exit a process, create a halt, retry a provider, flatten a position, or grant a fallback credential. Those decisions remain with the actual service and the later J3/J4 lifecycle/readiness packages.
+The bootstrap source reports `present`, `absent`, or `source_unavailable` for credential inputs and supplies allowlisted nonsecret companion values without interpreting them. It does not decide whether the bot trades, exit a process, create a halt, retry a provider, flatten a position, or grant a fallback credential. Those decisions remain with the actual service and the later J3/J4 lifecycle/readiness packages.
 
 This is deliberately not a fail-closed wrapper. It removes accidental source coupling and makes the existing outcome observable.
 
