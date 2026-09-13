@@ -17,9 +17,10 @@ The reviewer should independently verify:
 7. The early sink can be installed before ConfigLoader and service imports without importing those services itself, using configuration-independent context.
 8. ModuleAutoLoader's caught optional failures reach the proposed reporter without changing required-module propagation, and raw stderr/console bypasses are redacted.
 9. The proposal introduces no process refusal, trade gate, halt, flatten, retry threshold, behavior setting, or mode owner.
-10. J3, J4, J7/J8, J15, and J17 boundaries remain explicit rather than silently treated as complete.
-11. Commit/canary acceptance and later PM2 activation acceptance are separated.
-12. No packet line contains a credential value or secret-derived fingerprint.
+10. The supervisor's conditional alert-hook path accompanies its bootstrap view without changing extension policy, while the generated HMAC key remains under its existing owner and outside bootstrap receipts.
+11. J3, J4, J7/J8, J15, and J17 boundaries remain explicit rather than silently treated as complete.
+12. Commit/canary acceptance and later PM2 activation acceptance are separated.
+13. No packet line contains a credential value or secret-derived fingerprint.
 
 ## Required implementation review
 

@@ -15,7 +15,7 @@ No current behavior claim in this packet relies only on Astra's audit. The audit
 - Current main-runner BrokerFactory call sites: 2 of 2, both explicit Kraken/Alpaca sites at `run-empire-v2.js:846,858`.
 - Main-bot dotenv/config producer sites on the current route: ConfigLoader parse plus Telegram and Discord mutation, 3 of 3 traced.
 - Other declared-process dotenv mutation sites: ecosystem descriptor, dashboard, and Stripe, 3 of 3 traced.
-- Declared runtime credential/capability/bootstrap-dependency groups: 20 groups classified in `CREDENTIAL-CENSUS.tsv`, plus one generated-session row and one standalone-tooling row.
+- Declared runtime credential/capability/bootstrap-dependency groups: 21 groups classified in `CREDENTIAL-CENSUS.tsv`, plus two generated/internal-key rows and one standalone-tooling row.
 - Early main-bot phases before the current ntfy installation: ConfigLoader, Sentry, imports, durable sink installation, bootstrap handlers, ModuleAutoLoader, TrAI construction, broker construction, ntfy construction; all traced in source order.
 - Existing explicit resolver assets read: ConfigLoader environment helpers, TrAI resolver, ntfy factory, dashboard stock resolver/adapter, news resolver, broker option builders, RuntimeAuditSink.
 
@@ -48,6 +48,8 @@ This is not a whole-repository credential census. The Astra archive mechanically
 - Bot stock-history ambient fallback: `run-empire-v2.js:2337-2371`; `server/stock-data-adapter.js:10-20,42-68`; existing dashboard explicit use at `ogzprime-ssl-server.js:1926-1933`.
 - Configuration-dependent fatal context: `run-empire-v2.js:143-163,193-203`; raw diagnostic bypasses at `:315-329,3650-3655` and `core/ModuleAutoLoader.js:179-200`.
 - Supervisor deadman URL diagnostic: `scripts/supervisor-daemon.js:223-242`.
+- Supervisor conditional alert-hook import: `scripts/supervisor-daemon.js:202-219`.
+- Supervisor-owned generated HMAC key and signing consumer: `core/Supervisor.js:143,848-877`.
 
 ## Proof limits
 

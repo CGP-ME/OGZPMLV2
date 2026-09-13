@@ -45,6 +45,11 @@ J1 may name `unavailable` or `attempted`; it cannot claim delivery.
 
 Standalone provider/index/transport tools do not become bot credential owners merely because they use the same local secret file. J1 does include extraction of the shared `mercury.ignore` repository policy because the bot's reached read-only toolbox currently imports full provider configuration to obtain it; that extraction must not alter the policy or broader Mercury behavior.
 
+## Preserved supervisor-owned boundaries
+
+- `SUPERVISOR_ALERT_HOOK` remains a conditional module-extension path. J1 supplies its existing nonsecret path through the supervisor bootstrap view but does not enable, remove, or redesign the hook.
+- `supervisor-hmac.key` remains generated, persisted, and consumed by `core/Supervisor.js`. It is not a bootstrap input and does not move into the credential source or its receipts.
+
 ## Remains for STOP 2 and later packages
 
 - Candle acquisition/admission and removal of acquisition-derived trading authority.

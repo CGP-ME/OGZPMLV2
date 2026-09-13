@@ -57,7 +57,7 @@ The irreducible boundary is failure to load `RuntimeAuditSink.js` itself or the 
 
 - `ogzprime-ssl-server.js`: resolve one source at entry, install the durable reporter before provider configuration, and inject dashboard auth, stock-data, news, TrAI, and Polygon views. Include each resolver's required nonsecret companion keys. Use the existing explicit resolver parameters in `server/dashboard-stock-stream-config.js`, `server/stock-data-adapter.js`, `core/NewsSearchProvider.js`, and `core/trai_llm_config.js` rather than adding parallel resolvers.
 - `public/stripe-checkout.js`: construct Stripe from an injected bootstrap view; remove its dotenv call.
-- `scripts/supervisor-daemon.js`: read the optional deadman capability URL from the explicit view and remove the complete URL from boot diagnostics; do not change supervision behavior in J1.
+- `scripts/supervisor-daemon.js`: read the optional deadman capability URL and conditional `SUPERVISOR_ALERT_HOOK` module path from the explicit supervisor view, and remove the complete deadman URL from boot diagnostics. Preserve the current alert-hook extension behavior. The generated `supervisor-hmac.key` stays under `core/Supervisor.js` ownership and never enters the bootstrap source or its receipts. Do not change supervision policy in J1.
 - `ecosystem.config.js`: use the shared source contract instead of its own dotenv call. Preserve the currently declared launch values until J7/J8; do not turn this package into the configuration migration.
 - `ecosystem.watch.config.js`: no source edit is required because the two entrypoints own their bootstrap source; include it in direct-launch regression proof.
 

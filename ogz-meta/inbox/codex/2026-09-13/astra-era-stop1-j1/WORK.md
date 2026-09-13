@@ -34,6 +34,7 @@ The surrounding services are not:
 - The bot process separately calls both stock-history helpers without the explicit configuration already used by the dashboard process (`run-empire-v2.js:2354-2368`; `ogzprime-ssl-server.js:1926-1933`).
 - The declared checkout process performs its own dotenv load and ambient Stripe construction (`public/stripe-checkout.js:11-16`; declaration at `ecosystem.config.js:198-206`).
 - The declared supervisor reads its optional capability-bearing deadman URL from ambient process state (`scripts/supervisor-daemon.js:45-58,223-244`; declaration at `ecosystem.config.js:208-247`).
+- The supervisor also conditionally imports the module path named by `SUPERVISOR_ALERT_HOOK` (`scripts/supervisor-daemon.js:202-219`). That nonsecret companion configuration must reach the supervisor view without changing whether or how the extension is enabled.
 
 Disposition: **IMPLEMENTATION REQUIRED** for the declared entrypoints and live consumers in `CREDENTIAL-CENSUS.tsv`.
 
@@ -76,6 +77,8 @@ Disposition: **IMPLEMENTATION REQUIRED** for the shared policy extraction; **BEL
 Notifier startup messages say configured or missing but do not name a source (`utils/telegramNotifier.js:50-60`; `utils/discordNotifier.js:73-89`). Dashboard readiness reports missing key names for stock data (`server/dashboard-stock-stream-config.js:93-154`; `ogzprime-ssl-server.js:1543-1559`) but not a joined bootstrap revision.
 
 Disposition: **IMPLEMENTATION REQUIRED**. J1 adds a redacted bootstrap receipt with source-file metadata, requested key names, presence, source class, process role, and consumer. It records no credential value, per-key hash, prefix, suffix, or length.
+
+The supervisor's ledger HMAC key is not a bootstrap input. It is generated and persisted under the supervisor's existing owner (`core/Supervisor.js:143,848-877`). J1 keeps that ownership unchanged and does not include the key or its derivation in bootstrap receipts.
 
 ## 8. No new refusal or control authority
 
