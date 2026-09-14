@@ -22,18 +22,17 @@ Moving hydration earlier is also not neutral. Early narrator, autopsy, tier, and
 
 Disposition: the credential cut and the J7/J8 settings/internals cut must land atomically. Until then, production source remains unchanged.
 
-## 3. Independent check of Astra's census
+## 3. Reconciled Astra census
 
 At frozen revision `0c3760240272653a446ef1e4e3772c3ad8104209`:
 
 - 643 tracked `.js` files reproduce.
 - ModuleAutoLoader's top-level candidate set reproduces as 107 `core/` files plus three `utils/` files.
-- The literal-require/autoload closure used by Codex contains 167 files.
-- Adding the two runtime-selected dynamic adapters and their newly reached dependencies expands that Codex closure to 171 files.
-- Exactly 41 files in the 167-file closure contain direct `process.env` or dotenv syntax; the active-factory expansion adds no direct input reader.
+- The factory-expanded evidence set contains 168 JavaScript files plus three JSON resources, 171 artifacts total.
+- Exactly 41 files in the defined JavaScript ingress scan contain direct `process.env` or dotenv syntax; the active-factory additions add no direct input reader.
 - Six current dotenv read/mutation files on declared runtime paths reproduce.
 
-Astra reported a 168-file factory-expanded union and 26 tracked dotenv sites. Those two aggregate counts are not reproducible under Codex's stated mechanical definitions: the corresponding counts are 171 and 27. This does not invalidate Astra's consequential paths or the exact 41-file direct-input list. The packet records the definitions instead of silently borrowing the disputed totals.
+Astra's 168 and Codex's 171 counted different artifact classes: 168 JavaScript files plus three JSON resources equals 171 total artifacts. The dotenv totals likewise measure 27 call/import occurrences across 26 calling files. The exact 41-file environment-reader list remains unchanged; there is no reason to rerun that census.
 
 ## 4. Consequential Astra findings independently confirmed
 
@@ -51,7 +50,15 @@ Astra reported a 168-file factory-expanded union and 26 tracked dotenv sites. Th
 
 These are source-proven implementation boundaries, not evidence that any provider authenticated or any deployed process is healthy.
 
-## 5. Final source ownership
+## 5. Environment ingress is not total configuration coverage
+
+The 41 files enumerate direct environment/dotenv candidates only. Operative values can bypass that syntax census while still affecting production behavior. `core/ExitContractManager.js:821-844`, for example, reads break-even and fee-buffer values directly from `ConfigLoader.BASE_CONFIG`.
+
+The atomic cut therefore traces all reachable configuration-reader shapes: direct environment ingress, ConfigLoader getters, `BASE_CONFIG`, passed configuration objects/views, direct JSON/resource reads, and dynamic keys. Each read gets one of four evidence dispositions: already served by the accepted owner, narrow rewiring required, dead/unreachable, or requires Trey's ruling. A read receipt does not automatically authorize a rewrite.
+
+The process boundary also matters. Existing ConfigLoader validation requires Alpaca credentials when the bot is configured for Alpaca outside backtest (`foundation/ConfigLoader.js:1273-1287`), while checkout currently owns Stripe initialization (`public/stripe-checkout.js:11-18`). A shared implementation does not mean one universal requirement set: each entrypoint receives and validates only its applicable view, preserving existing outcomes and creating no new checkout refusal.
+
+## 6. Final source ownership
 
 The accepted target has three storage classes and one runtime owner:
 
@@ -62,18 +69,20 @@ The accepted target has three storage classes and one runtime owner:
 
 Every live consumer receives a scoped value from that snapshot. No production library loads dotenv and no downstream module reads ambient `process.env`. Existing values and policies are preserved during the move unless separately ruled; source movement is not permission to redesign them.
 
-The exact 41-file candidate list is in `EVIDENCE.md`. Each row must receive a live/dead and destination disposition before the implementation file list is frozen. This uses the front-loaded work to prevent later surprise expansion without turning every syntax match into an edit.
+The exact 41-file environment-ingress list is in `EVIDENCE.md`. It is a completed ingress census, not the implementation denominator. The implementation file list is frozen only after the broader operative-consumer trace is dispositioned. This prevents surprise expansion without turning every reader into an edit.
 
-## 6. Earliest reporting remains bounded
+## 7. Earliest reporting remains bounded and separable
 
-RuntimeAuditSink is reused before the source and ConfigLoader. It records source/config/import failures locally with secret-aware redaction and bounded cause evidence. ModuleAutoLoader and optional toolbox reporting preserve existing continuation or propagation behavior.
+RuntimeAuditSink is reused before the source and ConfigLoader. It records source/config/import failures locally with secret-aware redaction and bounded cause evidence. ModuleAutoLoader and optional toolbox reporting preserve existing continuation or propagation behavior. This reporter placement moves first without moving any configuration source or consumer.
 
 J1 adds no process, readiness, trading, halt, flatten, retry, or notification authority. J3, J4, J15, and the producer owners remain separate.
 
+The retained execution order is: J1 early reporting; J2; J3; J4; J5; J6; then the atomic deferred J1 credential cut plus J7/J8 configuration-source/consumer migration. The atomic requirement does not pull J7/J8 ahead of J2-J6.
+
 ## Footer
 
-WHAT I DID: independently reproduced the principal Astra counts and traced its consequential startup, service, toolbox, identity, and reporting claims against the frozen source.
+WHAT I DID: reconciled Astra's census units, traced the additional operative-config and process-applicability counterexamples, and preserved J2-J6 ordering.
 
-WHAT I DID NOT DO: trust the two nonreproducible aggregate counts, inspect `.env`, edit runtime code, run Jest, invoke a provider, or operate PM2.
+WHAT I DID NOT DO: rerun the resolved census, inspect `.env`, edit runtime code, run Jest, invoke a provider, or operate PM2.
 
 WHAT I ASSUMED: the final implementation will preserve product values while replacing their source and connection; semantic corrections still require their own explicit authority.

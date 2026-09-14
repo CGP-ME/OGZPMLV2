@@ -9,7 +9,9 @@ The ruled target remains:
 - credentials and true bootstrap inputs: the single bootstrap source;
 - one accepted ConfigLoader revision and one durable settings writer.
 
-Trey rejected a temporary `process.env` projection on 2026-09-13. J1 therefore cannot remove credential producers independently of the final J7/J8 cut. The combined change creates the three storage classes above and one immutable ConfigLoader runtime owner. A source match in the 41-file census remains an investigation lead until its live caller and destination are proved.
+Trey rejected a temporary `process.env` projection on 2026-09-13. J1 therefore cannot remove credential producers independently of the final J7/J8 cut. The combined change creates the three storage classes above and one immutable ConfigLoader runtime owner. The 41-file list covers environment ingress only; the full cut also traces ConfigLoader getters, `BASE_CONFIG`, passed views, direct resources, and dynamic keys. A source match remains an investigation lead until its live caller and disposition are proved.
+
+J1's configuration-independent early reporter remains mechanically separable and lands first as its own logical commit. It moves no configuration source or consumer. J2, J3, J4, J5, and J6 retain the order recorded in J0. The deferred J1 credential-producer removal then joins the existing J7/J8 source/consumer boundary; J7/J8 does not move ahead of J2-J6.
 
 ## Remains for J2
 
@@ -35,7 +37,7 @@ J1 records the current outcome without adding or preserving process-death author
 - Retry and recovery ownership.
 - Trading readiness when configuration or a required service is unavailable.
 
-J1 supplies truthful absence/source facts; it does not decide readiness.
+The atomic cut makes validation process-applicable so bot-only checks do not become dashboard, checkout, or supervisor requirements. That preserves existing outcomes; J4 still owns changing required/optional and readiness semantics. J1 supplies truthful absence/source facts and does not decide readiness.
 
 ## Included in the atomic J1 + J7/J8 cut
 
@@ -43,6 +45,7 @@ J1 supplies truthful absence/source facts; it does not decide readiness.
 - One accepted configuration revision and nested fingerprint repair.
 - Removal of mode, tier, strategy, sizing, exit, and other behavioral environment owners.
 - PM2 descriptor cleanup beyond credential-source ownership.
+- Every operative configuration consumer, including existing `ConfigLoader.BASE_CONFIG` reads such as `core/ExitContractManager.js:821-844`, receives an already-canonical/rewire/dead/ruling disposition and an equivalence receipt. Inclusion is not automatic rewrite authority.
 
 There is no interim ambient projection. The destination owner and every live consumer move together before duplicate dotenv readers and ambient reads are removed.
 

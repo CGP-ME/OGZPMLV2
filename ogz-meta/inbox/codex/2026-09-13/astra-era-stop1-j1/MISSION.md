@@ -31,27 +31,37 @@ Current source has six dotenv read or mutation sites on declared runtime paths:
 5. `ogzprime-ssl-server.js:46` hydrates at dashboard entry.
 6. `public/stripe-checkout.js:11-16` hydrates at checkout entry.
 
-ConfigLoader does not populate global `process.env` (`foundation/ConfigLoader.js:1478-1507`). The notifier imports accidentally supply later ambient readers. Removing only those calls changes lock, asset, pattern, output, dashboard, and publication inputs. Moving hydration earlier also changes values captured before the current notifier import. Astra's front-loaded census established the candidate set; Codex independently reproduced all 643 tracked JavaScript files, 110 autoload candidates, and the same 41 direct-input files.
+ConfigLoader does not populate global `process.env` (`foundation/ConfigLoader.js:1478-1507`). The notifier imports accidentally supply later ambient readers. Removing only those calls changes lock, asset, pattern, output, dashboard, and publication inputs. Moving hydration earlier also changes values captured before the current notifier import. Astra's front-loaded census established the environment-ingress candidate set; Codex independently reproduced all 643 tracked JavaScript files, 110 autoload candidates, and the same 41 direct-input files.
 
-The existing durable sink is also installed too late for ConfigLoader and Sentry failures (`run-empire-v2.js:3-6,36-37,108-126`). The same atomic configuration package moves the existing reporter to the bootstrap boundary and adds bounded redaction. It adds no process, service, or trading decision.
+Those 41 files do not define completion of the configuration cut. Operative consumers also read ConfigLoader getters, `ConfigLoader.BASE_CONFIG`, explicitly passed configuration objects, direct configuration resources, and dynamically selected paths. For example, `core/ExitContractManager.js:821-844` reads the operative break-even and fee-buffer values from `ConfigLoader.BASE_CONFIG` without reading the environment. Each such live read must be traced and dispositioned, but its inclusion does not authorize a rewrite or a value change.
 
-## Scope
+The existing durable sink is installed too late for ConfigLoader and Sentry failures (`run-empire-v2.js:3-6,36-37,108-126`). Moving that existing reporter to a configuration-independent bootstrap boundary is mechanically separable from the source/consumer migration. It adds no process, service, or trading decision.
 
-The implementation package covers:
+## Two retained implementation packages
+
+J1 early reporting is one mechanically separable logical change:
+
+- install the existing local sink before fallible configuration/service initialization;
+- redact the diagnostic surfaces needed to preserve a safe failure receipt;
+- preserve every existing continuation, propagation, and exit outcome;
+- move no configuration value, remove no dotenv reader, and add no process or trading authority.
+
+After J2-J6, the atomic deferred-J1 credential plus J7/J8 configuration cut covers:
 
 - one bootstrap source implementation per OS process;
 - creation of the two ruled configuration files and one ConfigLoader snapshot;
-- explicit delivery to every reached consumer dispositioned from the 41-file census;
+- explicit delivery to every reached environment reader and every operative configuration consumer, including ConfigLoader getters, `BASE_CONFIG`, passed configuration views, direct resource reads, and dynamically selected keys;
 - removal of all declared-runtime dotenv readers and downstream ambient reads;
 - removal of the hardcoded Sentry credential fallback;
 - the earliest local failure receipt for each declared runtime process;
+- process-applicable snapshots and validation: bot-only broker requirements do not become dashboard, checkout, or supervisor requirements, and source movement creates no new startup refusal;
 - direct receipts proving source, resolved ownership, and actual consuming boundaries.
 
-This work does not classify required versus optional services, redesign lock policy, change startup/trading authority, alter mode behavior, change confidence, add a gate, add a retry policy, or change Mercury provider behavior. Those semantic owners remain in their assigned packages.
+This work does not change required-versus-optional semantics, redesign lock policy, change startup/trading authority, alter mode behavior, change confidence, add a gate, add a retry policy, or change Mercury provider behavior. Process applicability preserves each entrypoint's existing requirements; J4 retains authority to change service/readiness semantics.
 
 ## Dependency correction
 
-J1 remains the front-loaded investigation and early-reporting owner, but its credential-source runtime cut cannot land separately from J7/J8. The J0 execution order must therefore treat the configuration ownership work as one atomic J1+J7/J8 landing package. Until that package is approved, current production source remains unchanged.
+J1's configuration-independent early reporter can land first. The retained order then remains J2 singleton acquisition, J3 lifecycle, J4 component/readiness reconciliation, J5 execution-mode propagation, and J6 exit-policy binding. At the existing J7/J8 boundary, the deferred J1 credential-producer removal lands atomically with settings/internals ownership and every affected source/consumer connection. This does not pull J7/J8 ahead of J2-J6 and does not leave a temporary ambient owner. Until each package is approved, current production source remains unchanged (`ogz-meta/inbox/codex/2026-09-12/astra-era-stop1-j0/CONTROLLING-SPEC.md:155-180`).
 
 ## Authorization state
 

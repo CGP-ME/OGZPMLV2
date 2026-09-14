@@ -4,6 +4,7 @@
 
 - Branch: `astra-era`
 - Investigated revision: `0c3760240272653a446ef1e4e3772c3ad8104209`
+- Latest cold-pulled packet revision: `a592b660e83b893d0238675c3153a385f1a7a37e`; its diff from the investigated revision contains packet documents only.
 - J0 control: `ogz-meta/inbox/codex/2026-09-12/astra-era-stop1-j0/CONTROLLING-SPEC.md:122-180`
 
 The commits between J0 and this revision change packet documents only. Current source claims were rechecked against the frozen tree.
@@ -15,16 +16,15 @@ The commits between J0 and this revision change packet documents only. Current s
 - Main-runner BrokerFactory call sites: 2 of 2, explicit Kraken/Alpaca at `run-empire-v2.js:846,858`.
 - Current dotenv file read/mutation sites on declared runtime paths: 6 of 6 traced.
 - ModuleAutoLoader top-level candidates: 110 of 110 enumerated, 107 under `core/` and three under `utils/`.
-- Codex literal-require/autoload closure: 167 files.
-- Codex factory-expanded closure after adding the two runtime-selected adapters and newly reached dependencies: 171 files.
-- Files in the 167-file closure containing `process.env` or dotenv syntax: 41 of 41 listed below; the four factory additions add no direct input reader.
+- Factory-expanded evidence set: 168 JavaScript files plus three JSON resources, 171 artifacts total.
+- Files in the defined JavaScript ingress scan containing `process.env` or dotenv syntax: 41 of 41 listed below; the factory additions add no direct input reader.
 - Credential/capability/nonsecret cutover rows: 30 of 30 classified in `CREDENTIAL-CENSUS.tsv`.
 
-The 167/171/41 counts are static candidates, not a claim that every file executes or that every environment behavior is correct. Astra reported 168 factory-expanded candidates and 26 tracked dotenv sites; Codex's stated mechanical definitions reproduce 171 and 27. The consequential 41-file list reproduces exactly. Dynamic supervisor extensions cannot have a finite checkout denominator.
+The count descriptions now reconcile: 168 JavaScript files plus three JSON resources equals 171 examined artifacts; 27 dotenv call/import occurrences appear in 26 calling files. The 41 files below are direct environment/dotenv candidates, not the completion denominator for the full configuration cut. Dynamic supervisor extensions cannot have a finite checkout denominator.
 
-## Complete 41-file preservation candidate list
+## Complete 41-file environment-ingress candidate list
 
-These are the complete direct-input candidates in the defined closure. Each live reader must receive a source-class and destination disposition for the atomic configuration cut; inclusion alone does not authorize an edit:
+These are the complete direct environment/dotenv candidates in the defined closure. Each live reader must receive a source-class and destination disposition for the atomic configuration cut; inclusion alone does not authorize an edit. Configuration consumers without environment syntax are covered separately:
 
 1. `core/BacktestRunner.js`
 2. `core/BotStateFrame.js`
@@ -87,6 +87,14 @@ These are the complete direct-input candidates in the defined closure. Each live
 - Supervisor deadman diagnostic and dynamic hook: `scripts/supervisor-daemon.js:202-242`.
 - Supervisor-owned generated HMAC key: `core/Supervisor.js:143,848-877`.
 - Durable sink behavior: `core/RuntimeAuditSink.js:3-4,125-205`.
+- Operative non-environment configuration consumer: `core/ExitContractManager.js:821-844` reads break-even and fee-buffer values from `ConfigLoader.BASE_CONFIG`.
+- Process-applicability counterexample: bot Alpaca validation at `foundation/ConfigLoader.js:1273-1287`; checkout's independent Stripe boundary at `public/stripe-checkout.js:11-18`.
+
+## Full configuration-cut coverage
+
+Completion requires a separate producer-to-consumer inventory of every reachable ConfigLoader getter, `BASE_CONFIG` read, passed configuration view, direct configuration resource, and dynamically selected key. Each gets an already-canonical, rewire, dead/unreachable, or ruling-required disposition. This packet does not convert those findings into automatic edit authority.
+
+The shared owner must produce process-applicable bot, dashboard, checkout, and supervisor views. A process retains only its existing requirements; the cut cannot make the checkout process satisfy bot broker validation or create another cross-process startup refusal.
 
 ## Proof limits
 
@@ -98,8 +106,8 @@ The ignored `.env` was not read during this correction. No value or value-derive
 
 ## Footer
 
-WHAT I DID: recorded the frozen source receipts, independently reproduced the 41-file candidate list, and disclosed the two aggregate-count differences instead of copying them as fact.
+WHAT I DID: recorded the frozen source receipts, reconciled the census units, and added the non-environment consumer and process-applicability evidence required by the latest cold pull.
 
 WHAT I DID NOT DO: treat syntax matches as implementation authorization or claim runtime acceptance.
 
-WHAT I ASSUMED: the implementation must rerun this census and every direct receipt at its eventual landed SHA.
+WHAT I ASSUMED: the resolved ingress census does not need another rebuild; the eventual implementation must instead complete the distinct operative-consumer inventory and rerun direct receipts at its landed SHA.
