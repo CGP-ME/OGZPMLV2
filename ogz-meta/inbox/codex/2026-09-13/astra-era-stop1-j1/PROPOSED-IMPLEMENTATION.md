@@ -1,132 +1,122 @@
-# Proposed J1 implementation
+# Proposed atomic J1 + J7/J8 configuration implementation
 
-This proposal is not authorization. Trey must approve it after cold pull.
+This proposal is not implementation authorization. It supersedes the temporary full-`process.env` projection design.
 
-## 1. One source implementation
+## 1. Final ownership contract
 
-Add `foundation/BootstrapCredentialSource.js` with one responsibility: resolve the bootstrap environment once for one operating-system process and issue allowlisted service-scoped bootstrap views.
+One shared bootstrap source module reads credentials, capability-bearing URLs, and true process-bootstrap inputs. ConfigLoader reads `config/settings.json` and `config/internals.json`, joins the three sources, validates their existing meanings, and returns one immutable runtime snapshot.
 
-The source contract is:
+The contract is:
 
-- Resolve the input path from the explicit bootstrap path or repository `.env`.
-- Parse without mutating `process.env`.
-- Preserve current precedence: explicitly inherited values override file values.
-- Record per-key provenance as `inherited`, `dotenv`, or `absent`.
-- Return a transitional effective environment for ConfigLoader until J7 removes behavioral environment inputs.
-- Return only allowlisted credential keys and the nonsecret companion configuration required by that named service consumer. A service view is not the whole environment and does not interpret behavioral policy.
-- Cache the resolved source within the process so module enumeration cannot load the file again.
-- Never log or serialize a value, value length, substring, per-key digest, URL path, or query.
-- Emit a redacted source receipt: process role, resolved source path, source file size/mtime when present, requested key names, credential presence, provenance class, and consumer name. Nonsecret companion values are identified by key and source; their value is not copied into the credential receipt.
-- If the file is absent or unreadable, report `source_unavailable`; do not fabricate credentials or decide process/trading authority.
+- `.env` contains credentials, capability-bearing URLs, and true process-bootstrap inputs only.
+- `config/settings.json` contains customer-visible and trading-behavior settings.
+- `config/internals.json` contains fixed implementation values.
+- ConfigLoader is the sole runtime configuration owner.
+- Each OS process resolves its own snapshot through the same source code; separate processes do not pretend to share in-memory state.
+- Downstream production modules receive explicit configuration or a scoped immutable view. They do not call dotenv and do not read ambient `process.env`.
+- Inherited bootstrap/credential values may override file entries only at the one bootstrap-source boundary. That precedence is recorded without recording the value.
+- No missing value is replaced with a plausible default merely to keep boot moving.
+- No source, consumer, or reporter adds process/trading authority, a retry policy, a threshold, a feature toggle, or a new configuration fallback.
 
-No new environment flag, threshold, retry count, mode, gate, or fallback is added.
+This is an atomic cut. There is no compatibility projection of the complete parsed file into `process.env`, even temporarily.
 
-## 2. Earliest durable reporter
+## 2. Value classification before editing
 
-Reuse `core/RuntimeAuditSink.js`; do not create a new supervisor.
+Every current input in the 41-file direct-input census receives one disposition tied to a consumer trace:
 
-- Instantiate it before ConfigLoader, Sentry, or other non-built-in service imports in each declared entrypoint.
-- Add value-aware redaction so a known credential accidentally included in an Error message, stack, raw payload, or extra context is replaced before disk/stderr output.
-- Add a configuration-independent bootstrap context for failures before `resolvedConfig` exists. It contains process role, phase, PID, and source receipt ID only; it does not call `buildRuntimeAuditContext()` or dereference configuration.
-- Route the same redacted diagnostic through the existing console/stderr paths. Sink redaction alone is insufficient while ModuleAutoLoader and main handlers print original errors.
-- Capture phase, component, process role, named credential keys, and credential-source receipt ID only. Never pass a service credential object as context.
-- Route ModuleAutoLoader's caught module failures through a supplied reporting callback before it continues or rethrows. A reporting-callback failure must not replace the original optional continuation, `REQUIRED_MODULE_LOAD_FAILED` cause chain, or missing-required-module validation outcome.
-- When ntfy is unavailable, record `notification=unavailable`; when the current async notifier is merely scheduled, record `notification=attempted`, not accepted or delivered.
-- Do not change whether the current caller continues or exits. J3 owns process lifecycle and J4 owns service/trading readiness.
+1. credential/capability/bootstrap: move to the one bootstrap source and inject explicitly;
+2. customer/trading behavior: move to `config/settings.json` and inject explicitly;
+3. fixed implementation value: move to `config/internals.json` and inject explicitly;
+4. dead or unreachable on declared production paths: prove the absence of a live caller before deleting or leaving it outside the runtime snapshot.
 
-The irreducible boundary is failure to load `RuntimeAuditSink.js` itself or the Node built-ins it requires. That remains Node stderr/process-manager evidence and must be named in proof rather than hidden.
+No row may remain “temporarily ambient.” A syntax hit is not automatically an edit, but every live read must either move to the snapshot or be removed with its dead path.
 
-## 3. Move consumers atomically
+True bootstrap means information needed before the two JSON files can be resolved, such as the explicitly selected source path and process launch identity. It does not mean any setting that happens to exist in the environment today.
 
-### Main bot
+## 3. Earliest durable reporter
 
-- `run-empire-v2.js`: install the sink first, resolve one source, pass the effective environment to ConfigLoader, and pass service views to Sentry, TrAI, notifiers, ntfy, WebSocketManager, the bot stock-history helper, and the first pattern-memory owner.
-- `foundation/ConfigLoader.js`: accept an explicitly supplied environment and provenance map without reading dotenv again. Preserve its current behavior of restoring the private active environment without assigning the resolved snapshot to `process.env` (`foundation/ConfigLoader.js:1486-1507`).
-- `instrument.js`: export explicit initialization; remove ambient credential reads and the hardcoded DSN fallback.
-- `utils/telegramNotifier.js`, `utils/discordNotifier.js`: accept credentials at construction. Importing either module performs no dotenv load, environment capture, or singleton construction.
-- `core/trai_llm_config.js`: keep its existing explicit `options.env` interface; callers use it.
-- `core/trai_core.js`: remove the ambient voice/video credential fallbacks. Current runner construction does not enable those features. Load the read-only toolbox through the explicit construction path and report named toolbox unavailability through the injected early reporter instead of swallowing its import error; preserve its optional status.
-- `core/EnhancedPatternRecognition.js`, `core/UnifiedPatternMemory.js`: pass the already resolved broker/asset identity into the first singleton construction. Preserve current paper/live class-level and backtest ticker-level bucket policy; do not move the broader behavioral configuration migration into J1.
-- `trai_brain/read_only_tools.js`, `trai_brain/mercury-bridge/config.js`: use a pure shared repository-policy module for `SKIP_DIRS` and `mercury.ignore` checks. Loading bot read-only tools must not initialize embedding/provider configuration or require an embedding key. Preserve the existing policy rules.
-- `core/NtfyTraceNotifier.js`: keep explicit environment input and expose an honest attempt/outcome surface needed by early reporting; do not change event-selection policy in J1.
-- `core/WebSocketManager.js`: accept the relay URL/token explicitly; no credential read inside the connection callback. Authentication payloads may contain the canary only in memory during an isolated nontransmitting probe; they must never be printed or persisted.
-- `core/BotStateFrame.js`: remove credential-presence broker inference. Runtime identity comes from the resolved bot/session configuration, not whether a key happens to exist.
-- `core/ModuleAutoLoader.js`: report every caught module load failure through the injected early reporter; preserve J0/L1 required-module propagation.
+Reuse `core/RuntimeAuditSink.js`; do not create a new supervisor or wrapper.
 
-### Dashboard, checkout, supervisor, and descriptor
+- Each declared process installs the existing sink before fallible source/config/service initialization.
+- Bootstrap records use role, phase, PID, source receipt ID, and bounded cause evidence without dereferencing resolved ConfigLoader state.
+- Redaction covers local JSONL, changed raw diagnostics, and stderr fallback. It records no credential value, substring, length, URL component, or per-key hash.
+- ModuleAutoLoader reports require, directory/stat, absent-directory, and missing-required outcomes without changing the existing continuation or propagation result. Reporter failure cannot replace the original error.
+- The TrAI read-only-tool failure is reported through its actual runner → TRAIDecisionModule → TRAICore owner chain after repository policy is separated from provider initialization.
+- The supervisor no longer prints its complete deadman capability URL.
+- A scheduled ntfy microtask is recorded as scheduled, not as an attempted request or delivery.
+- J1 does not decide whether a caller continues, exits, retries, starts trading, halts, or flattens. J3/J4 and the actual producer owners retain those decisions.
 
-- `ogzprime-ssl-server.js`: resolve one source at entry, install the durable reporter before provider configuration, and inject dashboard auth, stock-data, news, TrAI, and Polygon views. Include each resolver's required nonsecret companion keys. Use the existing explicit resolver parameters in `server/dashboard-stock-stream-config.js`, `server/stock-data-adapter.js`, `core/NewsSearchProvider.js`, and `core/trai_llm_config.js` rather than adding parallel resolvers.
-- `public/stripe-checkout.js`: construct Stripe from an injected bootstrap view; remove its dotenv call.
-- `scripts/supervisor-daemon.js`: read the optional deadman capability URL and conditional `SUPERVISOR_ALERT_HOOK` module path from the explicit supervisor view, and remove the complete deadman URL from boot diagnostics. Preserve the current alert-hook extension behavior. The generated `supervisor-hmac.key` stays under `core/Supervisor.js` ownership and never enters the bootstrap source or its receipts. Do not change supervision policy in J1.
-- `ecosystem.config.js`: use the shared source contract instead of its own dotenv call. Preserve the currently declared launch values until J7/J8; do not turn this package into the configuration migration.
-- `ecosystem.watch.config.js`: no source edit is required because the two entrypoints own their bootstrap source; include it in direct-launch regression proof.
+The irreducible boundary is failure to load the sink or both local output mechanisms. That absence is named; it does not justify another supervisor.
 
-## 4. Exact proposed implementation files
+## 4. Implementation boundary
 
-New:
+The previous 17-modified/two-new staged boundary is a verified lead, not the final strict file list. The strict atomic cut is frozen only after every one of the 41 candidates has a live/dead and destination disposition. At minimum, the traced boundary includes:
 
-- `foundation/BootstrapCredentialSource.js`
-- `trai_brain/mercury-bridge/repository-policy.js`
+### New canonical owners
 
-Modify:
+- one bootstrap credential/source module under `foundation/`;
+- `config/settings.json`;
+- `config/internals.json`;
+- one shared Mercury repository-policy module that contains only ignore/skip behavior and no provider initialization.
 
-- `run-empire-v2.js`
-- `foundation/ConfigLoader.js`
-- `instrument.js`
-- `core/RuntimeAuditSink.js`
-- `core/ModuleAutoLoader.js`
-- `core/trai_core.js`
-- `core/EnhancedPatternRecognition.js`
-- `core/UnifiedPatternMemory.js`
-- `core/NtfyTraceNotifier.js`
-- `core/WebSocketManager.js`
-- `core/BotStateFrame.js`
-- `utils/telegramNotifier.js`
-- `utils/discordNotifier.js`
-- `ogzprime-ssl-server.js`
-- `public/stripe-checkout.js`
-- `scripts/supervisor-daemon.js`
-- `ecosystem.config.js`
-- `trai_brain/read_only_tools.js`
-- `trai_brain/mercury-bridge/config.js`
+### Core source and reporting owners
 
-No broker adapter, OrderExecutor behavior, settings file, trading JSON value, PM2 runtime state, Mercury provider/transport behavior, or alternate broker is in the proposed diff. The only Mercury-bridge boundary is extraction and reuse of its existing repository ignore policy.
+- `foundation/ConfigLoader.js`;
+- `run-empire-v2.js`;
+- `instrument.js`;
+- `core/RuntimeAuditSink.js`;
+- `core/ModuleAutoLoader.js`;
+- `ecosystem.config.js` and direct-entrypoint wiring;
+- `ogzprime-ssl-server.js`;
+- `public/stripe-checkout.js`;
+- `scripts/supervisor-daemon.js`.
 
-## 5. Direct proof
+### Proven credential/service bindings
 
-1. Synthetic canary probe: observe each declared consumer at its actual consuming boundary, including pattern-memory identity, bot stock-history request headers, and read-only toolbox availability. No canary appears in stdout, stderr, errors, or persisted receipts. Legitimate authentication payload construction may be inspected only in memory by an isolated nontransmitting probe.
-2. Bare Node and PM2-descriptor probes: file-only credentials resolve identically without notifier import side effects; inherited precedence and provenance are explicit.
-3. Process mutation probe: source resolution, ConfigLoader use, and module imports leave `process.env` unchanged.
-4. Import-side-effect probe: requiring Telegram, Discord, Sentry, stock/news helpers, Stripe route module, WebSocketManager, and the bot read-only toolbox reads no dotenv file, captures no ambient credential, and does not initialize Mercury embeddings/providers. A repository-policy load failure produces a named local toolbox-unavailable receipt while preserving the bot's existing optional-tool behavior.
-5. Early failure probes: forced source read error, ConfigLoader validation error, Sentry initializer error, required module error, optional module error, and dashboard provider configuration error each append one redacted local record before normal startup. Each receipt names phase and the original failure while preserving its existing propagation/continuation behavior. Raw console diagnostics and reporter-failure stderr are also redacted; the supervisor never prints its deadman URL.
-6. Source census: among declared runtime entrypoints and their imported consumers, `dotenv.config`, `dotenv.parse`, and credential-bearing `process.env` reads remain only in the single approved source implementation or separately classified tooling.
+- `utils/telegramNotifier.js` and its runner bindings;
+- `utils/discordNotifier.js` and its runner bindings;
+- `core/WebSocketManager.js` for explicit relay URL/token;
+- existing TrAI, ntfy, stock, news, Polygon, Stripe, broker, Sentry, and supervisor construction/caller seams;
+- `core/BotStateFrame.js`, removing credential-presence inference as a broker/stock identity source;
+- `trai_brain/read_only_tools.js`, the shared repository-policy owner, `trai_brain/mercury-bridge/config.js`, `core/trai_core.js`, and `core/TRAIDecisionModule.js` reporter forwarding. Provider behavior remains unchanged.
 
-Commit/canary acceptance ends after items 1-6 and an independent cold pull. After the implementation lands and Trey separately authorizes runtime activation:
+### Proven nonsecret consumers requiring final ownership
 
-7. Restart/reload in paper. Record branch/SHA, PM2 process revision, source-file metadata, per-process redacted credential receipt, boot phase, and service-specific initialization result.
-8. Prove the bot, dashboard, checkout, and any actually enabled supervisor independently deliver their resolved inputs to the intended consumers without printing secrets. This proves each process's delivery; it does not claim credential-byte equality between processes.
-9. Force one safe pre-trading bootstrap failure in the authorized paper rehearsal and prove the local JSONL record predates normal notifier installation. Restore the valid input, restart in paper, and prove recovery.
+The exact live subset is derived from `EVIDENCE.md`'s 41-file census. It includes the established lock, asset identity, first pattern-memory identity/persistence, pattern-pack, output/ledger/proof, narrator/diagnostics, dashboard session/scope/symbol/interval, port, and publication callback reads. Their input wiring moves; their policies and values do not change merely because their source changes.
 
-J1 does not claim phone delivery. J15 must later join attempted send, service acceptance, and Trey's watched device receipt.
+Broker adapters, order execution, strategy math, confidence, sizing, exit behavior, SessionRouter policy, and provider transports are modified only if an actual input-owner call chain requires a narrow connection. No unrelated semantic rewrite is authorized.
 
-## 6. Stop conditions
+## 5. Direct receipts before source commit approval
 
-Do not land the implementation if:
+No Jest suite is proof for this change. Direct receipts must establish:
 
-- any declared runtime consumer still depends on notifier/eager-import hydration;
-- any secret or capability URL is logged, hashed per key, partially revealed, embedded in code, or placed in a packet;
-- ConfigLoader or a notifier mutates `process.env`;
-- an optional-service credential absence gains trade, halt, flatten, restart, or process-exit authority;
-- required-component policy is silently invented instead of left for J4;
-- the direct canary cannot reach every listed consuming boundary without transmitting externally or persisting the canary;
-- the implementation commit/canary receipts and cold pull are incomplete.
+1. The frozen census: all tracked JavaScript, declared roots, autoload candidates, factory-selected production dependencies, and every direct environment/dotenv candidate.
+2. A safe temporary fixture proves exactly one bootstrap read per process, explicit inherited precedence, value-free provenance, and no downstream mutation of `process.env`.
+3. Every classified behavior/static value resolves from exactly one of the two JSON owners; every credential/capability/bootstrap value resolves only through the bootstrap owner.
+4. Every live candidate receives the same intended value at its actual consumer boundary under file and inherited launch cases; dead/unreachable candidates have caller receipts.
+5. Telegram/Discord wrappers use the intended explicitly constructed instance; the actual broker auth options, relay auth payload, stock request headers, dynamic TrAI key selection, news selection/companions, Polygon request, Stripe client construction, and supervisor option construction are observed in memory without transmission.
+6. First pattern identity, lock path/skip input, asset identity/history fallback, pattern-pack selection, output roots, persistence suppression, dashboard cookie/scope/symbol/interval, and publication callback inputs come from the accepted snapshot—not ambient state.
+7. Requiring ConfigLoader, notifiers, dashboard, checkout, read-only tools, and Mercury config performs no independent dotenv load. The local read-only toolbox works without an embedding credential or provider operation.
+8. Credential presence cannot manufacture broker identity in `BotStateFrame`.
+9. Forced source, ConfigLoader, Sentry, required-module, optional-module, dashboard, and toolbox failures produce redacted local evidence while preserving their existing control-flow outcome. Multiple correlated records are allowed; they must identify the original failure and phase.
+10. The complete source diff and direct receipt output are cold-pulled before commit approval.
 
-Those are commit-acceptance conditions. PM2 SHA/paper-mode receipts and real consumer initialization are later activation-acceptance conditions and do not block committing the reviewed implementation before Trey authorizes restart.
+After the atomic implementation lands, and only after Trey separately authorizes activation:
+
+11. Restart/reload in paper and record exact branch/SHA, PM2 loaded revision, accepted configuration receipt, and actual initialization result for every enabled process.
+12. Inspect startup logs and the local audit ledger for secret/capability exposure without printing the searched values into the receipt.
+13. Demonstrate one safe early failure in a child process, restore the valid source, and complete a successful paper boot. J1 does not claim phone delivery; that remains J15.
+
+## 6. Review boundaries, not runtime guards
+
+Cold pull must reject the diff if it leaves a live production dotenv/ambient reader, creates a second configuration owner, invents a fallback value, changes a trading/service policy without separate authority, adds process/trading authority, or outputs credential/capability material.
+
+Those are human review conditions. No refusal wrapper, runtime configuration gate, retry budget, watchdog, or trading stop is added.
 
 ## Footer
 
-WHAT I DID: proposed the smallest atomic producer/consumer move that preserves existing explicit resolver assets.
+WHAT I DID: replaced the staged ambient compatibility proposal with the final single-owner configuration cut and incorporated the independently verified consequential Astra findings.
 
-WHAT I DID NOT DO: implement it, create a new supervisory service, or collapse J3/J4/J7/J15 into J1.
+WHAT I DID NOT DO: implement it, classify every existing setting by guess, change runtime policy, add a test suite, or claim deployment acceptance.
 
-WHAT I ASSUMED: the shared implementation is invoked once per OS process; each process proves delivery from its own resolved source independently. No metadata or authentication outcome is claimed to prove credential-byte equality across processes.
+WHAT I ASSUMED: Trey wants one source by value class and one runtime owner; credentials are not stored in either nonsecret JSON file.

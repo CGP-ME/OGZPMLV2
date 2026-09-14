@@ -1,44 +1,74 @@
 # STOP 1 J1 review state
 
-## Current review
+## Review history
 
-This packet is a read-only architecture and implementation-boundary proposal. A cold pull of packet commit `922873cae71d54f1ed19e36e741df72f6d2a3b1f` returned HOLD for missing pattern-memory identity, bot stock-history configuration, bot read-only-tool policy coupling, raw reporting bypasses, and proof-timing overclaims. Those findings were verified against current source and are corrected in this packet revision. A new cold pull is pending. No production diff exists, so no trading-path Mercury attack has been run.
+1. The cold pull at `922873ca` held for missing pattern-memory identity, bot stock-history configuration, bot read-only-tool coupling, reporting bypasses, and proof overclaims.
+2. The cold pull at `0c376024` held because the no-mutation/service-view design still stranded SingletonLock, MultiAssetManager, TRAIDecisionModule, pattern persistence, output, narrator, and dashboard-session inputs.
+3. Astra's front-loaded handoff at `ogz-meta/inbox/astra/J1-FRONTLOADED-HANDOFF.md` confirmed the incompatibility: deleting hydration strands live inputs, while moving hydration earlier changes input visibility. It recommended staged compatibility only if Trey explicitly approved it.
+4. Trey rejected the compatibility projection on 2026-09-13 and ruled for final single-source ownership instead. The credential-source cut now joins the J7/J8 settings/internals cut atomically.
 
-## Required cold-pull checks
+No production diff exists. No provider, Jest suite, runtime, or PM2 operation has been run.
+
+## Independent Codex check of Astra
+
+Confirmed:
+
+- frozen Git interval changes only the eight committed J1 packet files;
+- 643 tracked JavaScript files;
+- 110 ModuleAutoLoader top-level candidates: 107 core and three utils;
+- exact 41-file direct-input list;
+- six dotenv read/mutation files on declared runtime paths;
+- ConfigLoader private parse/restore and separate cached-load behavior;
+- notifier singleton/caller binding;
+- WebSocket callback-time token read;
+- bot stock-history fallback/config omission;
+- local toolbox's accidental dependency on Mercury embedding configuration;
+- missing reporter forwarding through TRAIDecisionModule;
+- credential-derived BotStateFrame identity;
+- RuntimeAuditSink redaction/cause gaps;
+- ModuleAutoLoader's distinct required/optional outcomes;
+- ntfy scheduling versus invocation distinction;
+- raw supervisor deadman URL diagnostic.
+
+Not reproduced under Codex's stated scanner:
+
+- Astra's 168-file factory-expanded graph: Codex gets 167 before active factory expansion and 171 after adding the two selected adapters plus four newly reached files.
+- Astra's 26 tracked dotenv-site files: Codex's lexical definition finds 27. Six occur on the declared runtime paths either way.
+
+These count differences do not change the 41-file implementation denominator. They must remain disclosed in the next cold pull.
+
+## Required next cold-pull checks
 
 The reviewer should independently verify:
 
-1. ConfigLoader's dotenv parse does not mutate `process.env`.
-2. Telegram/Discord imports currently supply the accidental mutation used by later main-bot consumers.
-3. The proposed consumer list covers every credential-bearing consumer reached from all four current ecosystem entrypoints.
-4. Removing ambient dotenv mutation does not strand pattern-memory identity, bot stock-history configuration, or nonsecret news/provider companion configuration.
-5. Bot read-only tools obtain `mercury.ignore` policy without importing provider/embedding configuration or requiring an embedding key, and optional toolbox initialization failure is reported rather than silently swallowed.
-6. Removing the hardcoded Sentry fallback does not leave Sentry with another hidden source.
-7. The early sink can be installed before ConfigLoader and service imports without importing those services itself, using configuration-independent context.
-8. ModuleAutoLoader's caught optional failures reach the proposed reporter without changing required-module propagation, and raw stderr/console bypasses are redacted.
-9. The proposal introduces no process refusal, trade gate, halt, flatten, retry threshold, behavior setting, or mode owner.
-10. The supervisor's conditional alert-hook path accompanies its bootstrap view without changing extension policy, while the generated HMAC key remains under its existing owner and outside bootstrap receipts.
-11. J3, J4, J7/J8, J15, and J17 boundaries remain explicit rather than silently treated as complete.
-12. Commit/canary acceptance and later PM2 activation acceptance are separated.
-13. No packet line contains a credential value or secret-derived fingerprint.
+1. The temporary full-`process.env` projection is gone from every packet file.
+2. Credentials/bootstrap, settings, and internals have exactly one named storage owner each and ConfigLoader is the only joined runtime owner.
+3. All 41 candidates receive a live/dead and destination disposition before the implementation file list is frozen.
+4. The cut does not move values while leaving a second live reader or fallback owner.
+5. The service bindings include actual notifier wrappers, callback-time relay authentication, stock/news/TrAI/ntfy/Stripe/Sentry/supervisor seams, toolbox policy decoupling, and BotStateFrame identity.
+6. Early reporting preserves the original required/optional/lifecycle outcome and adds no control authority.
+7. No source claim relies on the disputed 168/26 aggregate counts.
+8. No line contains a credential value or value-derived fingerprint.
+9. J2/J3/J4/J15/J17 and STOP 2 behavior remain outside the configuration-source cut except for narrow input/reporter connections.
+10. Runtime implementation and PM2 activation remain unauthorized.
 
-## Required implementation review
+## Later implementation review
 
-If Trey approves the proposal, the later production diff is trading/bootstrap critical. Before its commit:
+If Trey approves the atomic implementation after cold pull:
 
-- show the complete diff;
-- run the direct canary and consumer probes in `PROPOSED-IMPLEMENTATION.md`;
-- run one broad unsteered Mercury attack using the current repository rules;
-- stop on any evidence that a consumer still depends on ambient import order or a credential can reach output;
-- obtain an independent cold pull before any PM2 operation;
-- obtain Trey's explicit approval before restart/reload.
+- freeze the exact per-input destination ledger;
+- show the complete source diff;
+- produce the direct nontransmitting receipts in `PROPOSED-IMPLEMENTATION.md`;
+- run the repository-required broad Mercury attack without adding hidden targets;
+- cold-pull the exact source diff;
+- obtain Trey's explicit approval before commit/push and separately before restart/reload.
 
-Mercury is adversarial support. The paper restart and real service/source receipts remain the proof.
+The direct receipts and authorized paper restart are evidence. A Jest count is not proof and is not requested.
 
 ## Footer
 
-WHAT I DID: defined the review questions and implementation gates appropriate to this proposal.
+WHAT I DID: recorded both cold pulls, Astra's front-loaded handoff, Trey's rejection of compatibility hydration, and Codex's independent confirmations and count discrepancies.
 
-WHAT I DID NOT DO: manufacture a PASS, run a provider, or pre-authorize runtime activation.
+WHAT I DID NOT DO: manufacture a PASS, treat Astra as authority, run a provider, edit runtime code, or pre-authorize activation.
 
-WHAT I ASSUMED: cold pull occurs against the exact packet SHA and reviewers do not read local credential files.
+WHAT I ASSUMED: the next reviewer receives this exact documentation diff and the untracked Astra handoff separately unless Trey authorizes adding it to the packet.

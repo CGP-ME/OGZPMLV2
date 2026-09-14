@@ -1,46 +1,66 @@
-# STOP 1 J1: credential ownership and early failure reporting
+# STOP 1 J1: one configuration owner and early failure reporting
 
 ## Authority
 
-J0 assigns J1 to "establish one credential producer and early failure-reporting path" at `ogz-meta/inbox/codex/2026-09-12/astra-era-stop1-j0/CONTROLLING-SPEC.md:159-163`. J0 also requires every investigation to end as implementation required, already correct, unreachable/dead, or requiring Trey's ruling before source changes are authorized at `CONTROLLING-SPEC.md:153`.
+J0 assigned credential production and early failure reporting to J1 and the final configuration cut to J7/J8 (`ogz-meta/inbox/codex/2026-09-12/astra-era-stop1-j0/CONTROLLING-SPEC.md:44-53,159-166`). Trey's 2026-09-13 ruling rejects a temporary full `process.env` projection because it would preserve the scattered ambient-reader architecture that this work is meant to remove.
 
-Current doctrine requires loud, truthful failure handling without fabricated data, shadow authority, or a new supervisory cage. The process and unrelated healthy services continue where the failure is externally sourced; the failing producer is repaired at its owner. Sources: `ogz-meta/Alignment/TREY-DOCTRINE-FABLE-LANE.md:7-21,49-57` and `ogz-meta/Alignment/TREY-RULINGS.md:12`.
+Current doctrine requires upstream repair, truthful receipts, and no new supervisory or trading authority. Sources: `ogz-meta/Alignment/TREY-DOCTRINE-FABLE-LANE.md:7-21,49-57` and `ogz-meta/Alignment/TREY-RULINGS.md:12`.
 
 ## Question investigated
 
-What code currently loads credential-bearing environment input, which declared runtime consumers receive it, what happens before the normal notifier is installed, and what atomic change establishes one source without breaking bare Node or PM2 launch behavior?
+How do we remove competing dotenv producers without either disconnecting existing inputs or preserving an ambient compatibility layer that becomes another permanent owner?
 
 ## Result
 
-Implementation is required. Current behavior has six independent dotenv read/mutation sites across the declared runtime path:
+The credential-source removal and the J7/J8 configuration cut are one atomic ownership change. J1 must not delete dotenv independently and must not replace it with temporary full-environment hydration.
 
-1. `foundation/ConfigLoader.js:473-492,1478-1507` parses `.env` into a private object.
-2. `ecosystem.config.js:5-13` mutates the PM2 descriptor process environment.
-3. `utils/telegramNotifier.js:44-52` mutates and captures environment state at import.
-4. `utils/discordNotifier.js:47-54,472-484` mutates environment state and constructs its exported singleton at import.
-5. `ogzprime-ssl-server.js:46` mutates environment state at dashboard entry.
-6. `public/stripe-checkout.js:11-16` mutates environment state at checkout entry.
+The final ownership contract is:
 
-The main bot depends on the notifier imports to populate `process.env` for later consumers during a bare Node launch. ConfigLoader itself does not do that. Removing the notifier calls alone therefore breaks existing credential delivery even though ConfigLoader still reports a resolved snapshot.
+- credentials, capability-bearing URLs, and true process-bootstrap inputs: one bootstrap source;
+- customer/trading behavior: `config/settings.json`;
+- static implementation values: `config/internals.json`;
+- one ConfigLoader-built immutable runtime snapshot delivered explicitly to consumers;
+- no production module independently loads dotenv or reads ambient `process.env` after the bootstrap boundary.
 
-The cutover also has three reached dependencies outside the original census: pattern memory derives its startup bucket from ambient `BROKER`/`ASSET_CLASS` (`core/UnifiedPatternMemory.js:191-206,246-257`); the bot's read-only toolbox imports full Mercury provider configuration just to obtain repository ignore policy (`trai_brain/read_only_tools.js:1-11,31-35`); and the bot's dashboard-history handler calls the stock-data helper without its supported explicit configuration option (`run-empire-v2.js:2337-2371`; `server/stock-data-adapter.js:10-20,42-68`). They must move in the same cutover without expanding J1 into later behavioral-policy or provider work.
+Current source has six dotenv read or mutation sites on declared runtime paths:
 
-The existing durable fatal sink is constructed only after ConfigLoader, Sentry, and several imports have already executed (`run-empire-v2.js:3-6,36-37,108-126`). Bootstrap handlers are installed later at `run-empire-v2.js:315-329`, and ntfy is installed only inside the bot constructor at `:1060-1077`. Failures before those points have neither the current durable sink path nor the current ntfy subscriber.
+1. `foundation/ConfigLoader.js:473-492,1478-1507` parses `.env` privately.
+2. `ecosystem.config.js:5-13` hydrates the PM2 descriptor process.
+3. `utils/telegramNotifier.js:44-52` hydrates and captures at import.
+4. `utils/discordNotifier.js:47-54,472-484` hydrates, captures, and constructs at import.
+5. `ogzprime-ssl-server.js:46` hydrates at dashboard entry.
+6. `public/stripe-checkout.js:11-16` hydrates at checkout entry.
+
+ConfigLoader does not populate global `process.env` (`foundation/ConfigLoader.js:1478-1507`). The notifier imports accidentally supply later ambient readers. Removing only those calls changes lock, asset, pattern, output, dashboard, and publication inputs. Moving hydration earlier also changes values captured before the current notifier import. Astra's front-loaded census established the candidate set; Codex independently reproduced all 643 tracked JavaScript files, 110 autoload candidates, and the same 41 direct-input files.
+
+The existing durable sink is also installed too late for ConfigLoader and Sentry failures (`run-empire-v2.js:3-6,36-37,108-126`). The same atomic configuration package moves the existing reporter to the bootstrap boundary and adds bounded redaction. It adds no process, service, or trading decision.
 
 ## Scope
 
-J1 covers credential source loading, source precedence/provenance, explicit allowlisted service views including required nonsecret companion configuration, secret-free receipts, and the earliest durable failure record for the four processes declared by `ecosystem.config.js:54-248`.
+The implementation package covers:
 
-J1 does not decide whether a missing service is required for trading, kill or restart a process, alter trading mode, add a trade gate, repair optional-service retry, prove notification delivery, migrate behavioral configuration, or change broker/account policy. Those boundaries remain J3, J4, J7/J8, J15, and later STOP 1/STOP 2 packages.
+- one bootstrap source implementation per OS process;
+- creation of the two ruled configuration files and one ConfigLoader snapshot;
+- explicit delivery to every reached consumer dispositioned from the 41-file census;
+- removal of all declared-runtime dotenv readers and downstream ambient reads;
+- removal of the hardcoded Sentry credential fallback;
+- the earliest local failure receipt for each declared runtime process;
+- direct receipts proving source, resolved ownership, and actual consuming boundaries.
+
+This work does not classify required versus optional services, redesign lock policy, change startup/trading authority, alter mode behavior, change confidence, add a gate, add a retry policy, or change Mercury provider behavior. Those semantic owners remain in their assigned packages.
+
+## Dependency correction
+
+J1 remains the front-loaded investigation and early-reporting owner, but its credential-source runtime cut cannot land separately from J7/J8. The J0 execution order must therefore treat the configuration ownership work as one atomic J1+J7/J8 landing package. Until that package is approved, current production source remains unchanged.
 
 ## Authorization state
 
-This is a proposal for cold-pull review. No production implementation begins until Trey accepts this packet. If accepted, the implementation is one logical change even though producer and consumers must move together across multiple files.
+This remains a documentation-only correction for cold pull. No production implementation, commit approval, provider call, or PM2 operation is implied.
 
 ## Footer
 
-WHAT I DID: traced current credential producers, declared process entrypoints, active service consumers, import ordering, and the earliest current failure receipt.
+WHAT I DID: checked Astra's front-loaded handoff against the frozen tree and corrected the design so the final ownership model is implemented once, without a temporary ambient layer.
 
-WHAT I DID NOT DO: use credential values as engineering evidence, modify runtime source, invoke services, or decide later readiness/lifecycle policy.
+WHAT I DID NOT DO: edit runtime source, inspect credential values, invoke services, run tests, restart processes, or claim the 41 syntax candidates all require edits.
 
-WHAT I ASSUMED: a "single producer" means one shared code owner invoked once per operating-system process; separate PM2 processes cannot share an in-memory JavaScript snapshot.
+WHAT I ASSUMED: “one location” means one source by value class and one ConfigLoader runtime owner, not one file containing credentials and public behavioral settings together.

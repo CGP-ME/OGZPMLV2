@@ -1,95 +1,79 @@
-# STOP 1 J1 investigation
+# STOP 1 J1 front-loaded investigation
 
-## 1. Current main-bot sequence
+## 1. Current startup delivery is accidental
 
-The executable sequence is not the sequence described by its comments.
+1. The runner loads ConfigLoader first. ConfigLoader parses the selected dotenv file, merges inherited values over file values, builds a private snapshot, and restores its internal environment without assigning the snapshot to `process.env` (`run-empire-v2.js:3-5`; `foundation/ConfigLoader.js:473-492,1478-1507`).
+2. Sentry reads ambient values and contains a hardcoded DSN fallback before the durable sink exists (`run-empire-v2.js:36-37`; `instrument.js:39-57`).
+3. RuntimeAuditSink is not constructed until `run-empire-v2.js:116,124-126`; bootstrap handlers follow at `:315-329`.
+4. ModuleAutoLoader later requires all 110 top-level JavaScript candidates in `utils/` and `core/` (`core/ModuleAutoLoader.js:130-203,251-297`). Telegram and Discord imports perform dotenv mutation and capture credential values (`utils/telegramNotifier.js:44-52,239-249`; `utils/discordNotifier.js:47-54,472-484`).
+5. Dashboard and checkout each hydrate independently at entry (`ogzprime-ssl-server.js:46`; `public/stripe-checkout.js:13`). The PM2 descriptor hydrates again in its own evaluation process (`ecosystem.config.js:5-13`).
 
-1. ConfigLoader is required and executed first (`run-empire-v2.js:3-5`). It reads `.env` with `dotenv.parse`, merges file values with `process.env`, validates, freezes, and returns a local snapshot (`foundation/ConfigLoader.js:473-492,1478-1535`). It restores its private `activeEnv` after construction and never hydrates `process.env` (`:1486-1507`).
-2. Sentry is required before the durable sink and custom handlers (`run-empire-v2.js:36-37`). `instrument.js:39-57` reads only `process.env`, despite claiming ConfigLoader loaded `.env`, and supplies a credential-bearing hardcoded fallback at `:41`.
-3. The durable `RuntimeAuditSink` is imported and instantiated only at `run-empire-v2.js:116,124-126`. Its bootstrap handlers are registered at `:315-329`.
-4. ModuleAutoLoader enumerates and requires every JavaScript file in `utils/` and `core/` at `core/ModuleAutoLoader.js:130-203,251-273`. That enumeration imports Telegram and Discord. Their `dotenv.config()` calls mutate `process.env`; Telegram captures and instantiates immediately (`utils/telegramNotifier.js:44-52,239-249`), while Discord captures at import and exports an immediately created singleton (`utils/discordNotifier.js:47-54,472-484`).
-5. The runner later requires the same cached notifier modules (`run-empire-v2.js:387-392`). TrAI resolves its dynamic key from `process.env` during bot construction (`run-empire-v2.js:766-779`; `core/trai_llm_config.js:54-83`). Ntfy and dashboard authentication are also read from `process.env` later (`run-empire-v2.js:1060-1083`; `core/NtfyTraceNotifier.js:194-202`; `core/WebSocketManager.js:107-133`).
-6. The same ambient mutation supplies noncredential startup inputs to reached consumers. `EnhancedPatternChecker` constructs pattern memory without configuration, so `UnifiedPatternMemory` reads `BROKER`/`ASSET_CLASS` from `process.env` and throws if neither resolves (`run-empire-v2.js:594-600`; `core/EnhancedPatternRecognition.js:382-393`; `core/UnifiedPatternMemory.js:191-206,246-257`). The bot's stock-history helper also falls back to `process.env` when its existing `options.config` is omitted (`run-empire-v2.js:2337-2371`; `server/stock-data-adapter.js:10-20,42-68`).
-7. `core/trai_core.js:67-69` imports the bot's read-only toolbox inside a swallowed catch. That toolbox imports full Mercury configuration merely to use `SKIP_DIRS` and `mercury.ignore` policy (`trai_brain/read_only_tools.js:1-11,31-35`). Full config initializes the configured embedding provider and reads the dynamically named key at import (`trai_brain/mercury-bridge/config.js:310-335`; `mercury.config.json:8-13`). A missing key silently removes the toolbox even though repository search itself does not need embeddings (`core/trai_core.js:113-121,886-898`).
+Constructed sequence: start `node run-empire-v2.js` with values present only in the selected dotenv file, then remove only the notifier dotenv calls.
 
-Constructed sequence: launch `node run-empire-v2.js` with a clean inherited environment and credentials present only in `.env`; remove the two notifier dotenv calls as an isolated cleanup.
+Mechanical result: ConfigLoader can still build its private snapshot, but later ambient readers lose file-sourced inputs. The same problem exists in the other entrypoints if their local dotenv calls are removed without moving every consumer. Deleting those calls alone is not authorized.
 
-Mechanical result: ConfigLoader can still resolve its private broker values, but the selected TrAI key, ntfy topic, dashboard token, Telegram values, Discord values, pattern-memory identity, and bot stock-history configuration are absent from their existing ambient consumers. The read-only toolbox can also become unavailable because repository policy is coupled to unrelated embedding initialization. This is why the old two-line cleanup is not authorized.
+## 2. Why neither transitional design is acceptable
 
-Disposition: **IMPLEMENTATION REQUIRED**. Move the source and all affected consumers atomically.
+The first proposal removed global hydration and explicitly injected only selected services. Astra's cold pulls proved that list incomplete through SingletonLock, MultiAssetManager, TRAIDecisionModule, first pattern memory, output/publisher, and dashboard callbacks.
 
-## 2. Current credential consumers do not share one contract
+The second proposal centralized full-file projection at the current hydration phases. That would avoid immediate disconnections but preserve `process.env` as a global service locator and behavior configuration bus. Trey rejected that design on 2026-09-13: the work exists to eliminate scattered readers, not give them a new central hydrator.
 
-The active broker adapters receive explicit options from ConfigLoader (`run-empire-v2.js:179-190,797-875`; `brokers/AlpacaAdapter.js:35-61`; `kraken_adapter_simple.js:71-74`). That part is directionally correct.
+Moving hydration earlier is also not neutral. Early narrator, autopsy, tier, and DPS captures currently occur before notifier-driven hydration. An earlier projection could activate file entries those consumers do not see today (`run-empire-v2.js:268-303,331-337`; `core/StateManager.js:79-88`; `core/TradingLoop.js:38-39`).
 
-The surrounding services are not:
+Disposition: the credential cut and the J7/J8 settings/internals cut must land atomically. Until then, production source remains unchanged.
 
-- Sentry reads ambient process state and has a source fallback (`instrument.js:39-57`).
-- Telegram and Discord capture ambient values at module import (`utils/telegramNotifier.js:44-52`; `utils/discordNotifier.js:47-54`).
-- TrAI accepts an explicit environment argument but callers omit it (`core/trai_llm_config.js:54-83`; `run-empire-v2.js:766-779`; `ogzprime-ssl-server.js:238-249`).
-- Ntfy and dashboard WebSocket code accept or read ambient environment independently (`core/NtfyTraceNotifier.js:194-202`; `core/WebSocketManager.js:107-133`).
-- BotStateFrame uses credential presence as a fallback broker detector (`core/BotStateFrame.js:99-130`), coupling secret availability to telemetry identity.
-- The dashboard independently reads auth, broker-data, news, LLM, and Polygon inputs (`ogzprime-ssl-server.js:46,156-177,238-262,295-313,1136-1160,1797-1819`). Its stock/news helpers already accept explicit environment or resolved configuration (`server/dashboard-stock-stream-config.js:93-190`; `server/stock-data-adapter.js:10-39,62-68`; `core/NewsSearchProvider.js:71-137`).
-- News selection also requires allowlisted nonsecret companion values such as `NEWS_SEARCH_PROVIDER`, `BRIGHTDATA_SERP_ZONE`, and `EDGAR_USER_AGENT`; a key-only view is insufficient (`core/NewsSearchProvider.js:78-82,103-136`).
-- The bot process separately calls both stock-history helpers without the explicit configuration already used by the dashboard process (`run-empire-v2.js:2354-2368`; `ogzprime-ssl-server.js:1926-1933`).
-- The declared checkout process performs its own dotenv load and ambient Stripe construction (`public/stripe-checkout.js:11-16`; declaration at `ecosystem.config.js:198-206`).
-- The declared supervisor reads its optional capability-bearing deadman URL from ambient process state (`scripts/supervisor-daemon.js:45-58,223-244`; declaration at `ecosystem.config.js:208-247`).
-- The supervisor also conditionally imports the module path named by `SUPERVISOR_ALERT_HOOK` (`scripts/supervisor-daemon.js:202-219`). That nonsecret companion configuration must reach the supervisor view without changing whether or how the extension is enabled.
+## 3. Independent check of Astra's census
 
-Disposition: **IMPLEMENTATION REQUIRED** for the declared entrypoints and live consumers in `CREDENTIAL-CENSUS.tsv`.
+At frozen revision `0c3760240272653a446ef1e4e3772c3ad8104209`:
 
-## 3. Early failures are incompletely reported
+- 643 tracked `.js` files reproduce.
+- ModuleAutoLoader's top-level candidate set reproduces as 107 `core/` files plus three `utils/` files.
+- The literal-require/autoload closure used by Codex contains 167 files.
+- Adding the two runtime-selected dynamic adapters and their newly reached dependencies expands that Codex closure to 171 files.
+- Exactly 41 files in the 167-file closure contain direct `process.env` or dotenv syntax; the active-factory expansion adds no direct input reader.
+- Six current dotenv read/mutation files on declared runtime paths reproduce.
 
-The earliest current durable recorder is sound for bounded local appends: it constructs a scoped JSONL record, writes synchronously, and falls back to stderr without throwing (`core/RuntimeAuditSink.js:125-205`). It is simply installed too late.
+Astra reported a 168-file factory-expanded union and 26 tracked dotenv sites. Those two aggregate counts are not reproducible under Codex's stated mechanical definitions: the corresponding counts are 171 and 27. This does not invalidate Astra's consequential paths or the exact 41-file direct-input list. The packet records the definitions instead of silently borrowing the disputed totals.
 
-Failures before its construction include ConfigLoader import/load, configuration validation, Sentry import/initialization, and imports between Sentry and the sink (`run-empire-v2.js:3-6,36-37,108-126`). ModuleAutoLoader adds another gap: optional module import errors are caught, printed, and not propagated (`core/ModuleAutoLoader.js:168-203`), so global exception handlers cannot record them.
+## 4. Consequential Astra findings independently confirmed
 
-The dashboard has a similar module-import boundary. News configuration is resolved at module load and can throw before the server listens (`ogzprime-ssl-server.js:252-262,2398-2403`; `core/NewsSearchProvider.js:71-137`). No equivalent durable early recorder is installed in that entrypoint.
+- ConfigLoader's `snapshot(sourceEnv)` does not seed `load()`'s cache; `load()` hardcodes `process.env` into `buildSnapshot` (`foundation/ConfigLoader.js:1538-1547`). The final owner needs one accepted snapshot path, not a second parse.
+- Telegram wrappers close over an eager singleton; Discord's compatibility export also selects an instance. Removing dotenv without moving actual caller bindings is incomplete (`utils/telegramNotifier.js:239-249`; `utils/discordNotifier.js:468-486`; `run-empire-v2.js:388-392,1353-1355`).
+- The bot's relay token is read inside the WebSocket open callback. Construction alone does not prove the later auth payload uses the accepted source (`core/WebSocketManager.js:107-133`).
+- The bot stock-history path calls both stock helpers without explicit configuration and can use MultiAssetManager's ambiently selected fallback symbol (`run-empire-v2.js:2337-2368`).
+- ReadOnlyToolbox imports full Mercury provider configuration only to consume skip/ignore policy; missing embedding credentials can make the optional toolbox disappear (`trai_brain/read_only_tools.js:1-35`; `trai_brain/mercury-bridge/config.js:310-335`; `core/trai_core.js:67-69,113-121,886-898`).
+- Reporting that optional failure must cross runner → TRAIDecisionModule → TRAICore; the intermediate constructor currently forwards no reporter (`run-empire-v2.js:769-779`; `core/TRAIDecisionModule.js:133-145`).
+- BotStateFrame can infer broker/stock identity from credential presence. Credentials must not become telemetry identity (`core/BotStateFrame.js:99-145`; caller at `core/WebSocketManager.js:399-410`).
+- RuntimeAuditSink currently passes strings through, omits Error causes, and can print raw fallback messages (`core/RuntimeAuditSink.js:44-55,87-102,170-203`).
+- ModuleAutoLoader's required and optional outcomes differ. Reporting must not replace the current original result (`core/ModuleAutoLoader.js:142-203,251-297`).
+- Ntfy's handler returns after scheduling a microtask; scheduling is not request invocation, service acceptance, or delivery (`core/NtfyTraceNotifier.js:176-190`).
+- The supervisor prints its complete deadman capability URL (`scripts/supervisor-daemon.js:223-242`).
 
-Ntfy does not solve the earliest case. It is installed after bot construction has already resolved TrAI and built brokers (`run-empire-v2.js:766-875,1060-1077`). Missing ntfy configuration cannot notify its own absence. Its current handler schedules asynchronous delivery and returns before the request outcome (`core/NtfyTraceNotifier.js:169-202`).
+These are source-proven implementation boundaries, not evidence that any provider authenticated or any deployed process is healthy.
 
-Disposition: **IMPLEMENTATION REQUIRED**. Install the existing durable sink before non-built-in configuration/service imports, route producer-caught load failures into it, and record the remote-notification state honestly. J1 must not call a queued attempt "delivered."
+## 5. Final source ownership
 
-## 4. Route-specific credential validation is not coherent
+The accepted target has three storage classes and one runtime owner:
 
-ConfigLoader conditionally validates Alpaca credentials when Alpaca is the selected broker (`foundation/ConfigLoader.js:1273-1288`). The bot constructor then unconditionally calls `validateEnvironment()` (`run-empire-v2.js:557-570`), whose implementation requires Kraken credentials whenever the run is not a backtest (`:1464-1479`). Because the runner constructs only Kraken and Alpaca adapters and decides which are needed from SessionRouter (`:797-858`), an Alpaca-only route can be rejected for absent Kraken credentials.
+- bootstrap source: credentials, capability URLs, and true pre-configuration launch inputs;
+- `config/settings.json`: customer and trading behavior;
+- `config/internals.json`: fixed implementation values;
+- ConfigLoader: the only component that joins them into an immutable runtime snapshot.
 
-Disposition: **IMPLEMENTATION REQUIRED, ASSIGNED TO J4**. J1 must feed one truthful source into this path but must not redesign required-component/readiness semantics. J4 removes the stale unconditional check and binds credential requirements to the selected session routes.
+Every live consumer receives a scoped value from that snapshot. No production library loads dotenv and no downstream module reads ambient `process.env`. Existing values and policies are preserved during the move unless separately ruled; source movement is not permission to redesign them.
 
-## 5. Registered alternate adapters
+The exact 41-file candidate list is in `EVIDENCE.md`. Each row must receive a live/dead and destination disposition before the implementation file list is frozen. This uses the front-loaded work to prevent later surprise expansion without turning every syntax match into an edit.
 
-BrokerRegistry names additional adapters, and Gemini, Schwab, and Uphold contain ambient credential fallbacks. The only non-test production callers of `createBrokerAdapter()` are the explicit Kraken and Alpaca constructions at `run-empire-v2.js:846,858`; the factory itself is at `brokers/BrokerFactory.js:25-62`.
+## 6. Earliest reporting remains bounded
 
-Disposition: **UNREACHABLE FROM THE CURRENT MAIN RUNNER** for J1. Do not edit these adapters in this packet. If a later package authorizes one as a runtime route, explicit credential injection becomes part of that route's activation work.
+RuntimeAuditSink is reused before the source and ConfigLoader. It records source/config/import failures locally with secret-aware redaction and bounded cause evidence. ModuleAutoLoader and optional toolbox reporting preserve existing continuation or propagation behavior.
 
-## 6. Standalone tooling versus the bot's shared policy dependency
-
-Standalone Mercury executors, downloaders, provider probes, gate scripts, and fixtures have separate process boundaries and their own credential conventions. J0 keeps their provider/transport work in J17. Their credential loading does not establish the bot/dashboard source and is not redesigned by J1.
-
-The bot's reached `read_only_tools.js` dependency is different. It needs the same repository skip/ignore policy but currently imports full Mercury configuration, which initializes embeddings and reads a credential. J1 must extract a pure repository-policy module used by both callers so bot tools do not acquire an embedding-key requirement. The current `trai_core.js:67-69` catch also hides toolbox initialization failure from ModuleAutoLoader, so the explicit construction path must report named optional-tool unavailability without making it a bot requirement. The policy rules themselves remain unchanged.
-
-Disposition: **IMPLEMENTATION REQUIRED** for the shared policy extraction; **BELONGS TO SEPARATE TOOLING WORK** for Mercury provider, transport, indexing, pricing, and execution behavior.
-
-## 7. Existing receipts are incomplete
-
-`RuntimeConfigProof` records redacted presence/source only for the four broker secrets and the SignalStack URL (`core/RuntimeConfigProof.js:20-43,64-91`). It does not prove which source supplied Sentry, TrAI, ntfy, dashboard auth/data/news, Telegram, Discord, Stripe, or the supervisor capability URL.
-
-Notifier startup messages say configured or missing but do not name a source (`utils/telegramNotifier.js:50-60`; `utils/discordNotifier.js:73-89`). Dashboard readiness reports missing key names for stock data (`server/dashboard-stock-stream-config.js:93-154`; `ogzprime-ssl-server.js:1543-1559`) but not a joined bootstrap revision.
-
-Disposition: **IMPLEMENTATION REQUIRED**. J1 adds a redacted bootstrap receipt with source-file metadata, requested key names, presence, source class, process role, and consumer. It records no credential value, per-key hash, prefix, suffix, or length.
-
-The supervisor's ledger HMAC key is not a bootstrap input. It is generated and persisted under the supervisor's existing owner (`core/Supervisor.js:143,848-877`). J1 keeps that ownership unchanged and does not include the key or its derivation in bootstrap receipts.
-
-## 8. No new refusal or control authority
-
-The bootstrap source reports `present`, `absent`, or `source_unavailable` for credential inputs and supplies allowlisted nonsecret companion values without interpreting them. It does not decide whether the bot trades, exit a process, create a halt, retry a provider, flatten a position, or grant a fallback credential. Those decisions remain with the actual service and the later J3/J4 lifecycle/readiness packages.
-
-This is deliberately not a fail-closed wrapper. It removes accidental source coupling and makes the existing outcome observable.
+J1 adds no process, readiness, trading, halt, flatten, retry, or notification authority. J3, J4, J15, and the producer owners remain separate.
 
 ## Footer
 
-WHAT I DID: traced the declared processes from source read through each current credential consumer and classified each J1 finding.
+WHAT I DID: independently reproduced the principal Astra counts and traced its consequential startup, service, toolbox, identity, and reporting claims against the frozen source.
 
-WHAT I DID NOT DO: infer deployed PM2 state, authorize a new service, or treat a source-level constructed sequence as a runtime incident.
+WHAT I DID NOT DO: trust the two nonreproducible aggregate counts, inspect `.env`, edit runtime code, run Jest, invoke a provider, or operate PM2.
 
-WHAT I ASSUMED: Stripe and the supervisor count as declared runtime candidates because they are present in the current ecosystem descriptor; actual process activation remains unproved.
+WHAT I ASSUMED: the final implementation will preserve product values while replacing their source and connection; semantic corrections still require their own explicit authority.
