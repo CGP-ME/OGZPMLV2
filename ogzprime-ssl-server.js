@@ -43,7 +43,47 @@
  * pm2 startOrReload ecosystem.config.js --only ogz-websocket --update-env
  */
 
-require('dotenv').config();
+const RuntimeAuditSink = require('./core/RuntimeAuditSink');
+const runtimeAuditSink = new RuntimeAuditSink({
+  processRole: 'ogz-websocket',
+  phase: 'configuration_source',
+});
+
+function captureDashboardFailure(eventType, input, extra = {}) {
+  return runtimeAuditSink.capture(eventType, input, {
+    processRole: 'ogz-websocket',
+    phase: runtimeAuditSink.phase,
+    runtimeScope: runtimeAuditSink.phase,
+    extra,
+  });
+}
+
+process.on('uncaughtException', (error) => {
+  captureDashboardFailure('uncaughtException', error);
+  console.error('[Dashboard] Uncaught exception:', runtimeAuditSink.redactForOutput(error));
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  captureDashboardFailure('unhandledRejection', reason, {
+    promise: Object.prototype.toString.call(promise),
+  });
+  console.error(
+    '[Dashboard] Unhandled rejection:',
+    runtimeAuditSink.redactForOutput(reason),
+    `promise=${Object.prototype.toString.call(promise)}`
+  );
+  process.exit(1);
+});
+
+const dotenvResult = require('dotenv').config();
+if (dotenvResult.error) {
+  captureDashboardFailure('configurationSourceUnavailable', dotenvResult.error, {
+    source: 'dotenv',
+    continued: true,
+  });
+}
+runtimeAuditSink.setPhase('service_initialization');
 const express = require('express');
 const WebSocket = require('ws');
 const http = require('http');
@@ -2398,6 +2438,7 @@ process.on('SIGINT', () => {
 // CRITICAL FIX: Actually start listening on the port!
 const wsPort = process.env.WS_PORT || 3010;
 httpServer.listen(wsPort, '0.0.0.0', () => {
+  runtimeAuditSink.setPhase('runtime');
   console.log(`[WS] WebSocket server listening on port ${wsPort}`);
   console.log(`[WS] Dashboard endpoint ready at /ws on port ${wsPort}`);
 });

@@ -36,11 +36,46 @@
 
 'use strict';
 
+const RuntimeAuditSink = require('../core/RuntimeAuditSink');
+const runtimeAuditSink = new RuntimeAuditSink({
+  processRole: 'ogz-supervisor',
+  phase: 'configuration_source',
+});
+
+function captureSupervisorFailure(eventType, input, extra = {}) {
+  return runtimeAuditSink.capture(eventType, input, {
+    processRole: 'ogz-supervisor',
+    phase: runtimeAuditSink.phase,
+    runtimeScope: runtimeAuditSink.phase,
+    extra,
+  });
+}
+
+const earlyUncaughtException = (error) => {
+  captureSupervisorFailure('uncaughtException', error);
+  console.error('[Supervisor] Bootstrap exception:', runtimeAuditSink.redactForOutput(error));
+  process.exit(1);
+};
+const earlyUnhandledRejection = (reason, promise) => {
+  captureSupervisorFailure('unhandledRejection', reason, {
+    promise: Object.prototype.toString.call(promise),
+  });
+  console.error(
+    '[Supervisor] Bootstrap rejection:',
+    runtimeAuditSink.redactForOutput(reason),
+    `promise=${Object.prototype.toString.call(promise)}`
+  );
+  process.exit(1);
+};
+process.on('uncaughtException', earlyUncaughtException);
+process.on('unhandledRejection', earlyUnhandledRejection);
+
 const { execFile } = require('child_process');
 const https = require('https');
 const http = require('http');
 const path = require('path');
 const { Supervisor, STATES } = require('../core/Supervisor');
+runtimeAuditSink.setPhase('service_initialization');
 
 const env = (key, def) => (process.env[key] !== undefined ? process.env[key] : def);
 const envInt = (key, def) => {
@@ -213,7 +248,12 @@ function loadAlertHook() {
     if (typeof mod.onAlert === 'function') return mod.onAlert;
     throw new Error(`alert hook module must export a function or {onAlert}`);
   } catch (err) {
-    console.error(`[Supervisor] alert hook load failed (${hookPath}):`, err.message);
+    captureSupervisorFailure('optionalServiceInitializationFailed', err, {
+      service: 'alert_hook',
+      continued: true,
+      hookPath,
+    });
+    console.error('[Supervisor] Alert hook load failed:', runtimeAuditSink.redactForOutput(err));
     return (name, event) => {
       console.log(`[Supervisor] ALERT (hook failed to load): ${name} ${event.from} -> ${event.to}`);
     };
@@ -227,7 +267,7 @@ function main() {
   console.log(`[Supervisor] config: poll=${POLL_MS}ms degrade=${DEGRADE_MS}ms healAttempts=${HEAL_ATTEMPTS}`);
   console.log(`[Supervisor] health URL: ${HEALTH_URL}`);
   console.log(`[Supervisor] processes: bot=${BOT_PROCESS} relay=${RELAY_PROCESS}`);
-  console.log(`[Supervisor] deadman: ${DEADMAN_URL || '(disabled)'}`);
+  console.log(`[Supervisor] deadman: ${DEADMAN_URL ? 'enabled' : 'disabled'}`);
   console.log(`[Supervisor] ledger: ${LEDGER_PATH}`);
 
   const sv = new Supervisor({
@@ -260,12 +300,20 @@ function main() {
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
 
+  process.removeListener('uncaughtException', earlyUncaughtException);
+  process.removeListener('unhandledRejection', earlyUnhandledRejection);
+  runtimeAuditSink.setPhase('runtime');
+
   // Surface uncaught errors but don't exit — PM2 will restart on actual exit
   process.on('uncaughtException', (err) => {
-    console.error('[Supervisor] uncaughtException:', err.stack || err.message);
+    captureSupervisorFailure('uncaughtException', err);
+    console.error('[Supervisor] uncaughtException:', runtimeAuditSink.redactForOutput(err));
   });
-  process.on('unhandledRejection', (reason) => {
-    console.error('[Supervisor] unhandledRejection:', reason);
+  process.on('unhandledRejection', (reason, promise) => {
+    captureSupervisorFailure('unhandledRejection', reason, {
+      promise: Object.prototype.toString.call(promise),
+    });
+    console.error('[Supervisor] unhandledRejection:', runtimeAuditSink.redactForOutput(reason));
   });
 
   sv.start();

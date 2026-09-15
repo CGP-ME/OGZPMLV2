@@ -1,8 +1,83 @@
 #!/usr/bin/env node
 
-// CRITICAL: ConfigLoader MUST be first - loads .env, normalizes BACKTEST_MODE, isolates state
+// RuntimeAuditSink is the only application module allowed ahead of configuration so
+// source/configuration failures can leave a local receipt without reading ConfigLoader.
+const RuntimeAuditSink = require('./core/RuntimeAuditSink');
+const runtimeAuditSink = new RuntimeAuditSink({
+  processRole: 'ogz-prime-v2',
+  phase: 'configuration_source',
+});
+let resolvedConfig = null;
+
+function buildRuntimeAuditContext(runtimeScope, extra = {}) {
+  const config = resolvedConfig?.config;
+  if (!config) {
+    return {
+      processRole: 'ogz-prime-v2',
+      phase: runtimeAuditSink.phase,
+      runtimeScope,
+      extra,
+    };
+  }
+
+  const broker = config.broker || {};
+  const mode = config.mode || {};
+  const executionMode = mode.backtest
+    ? 'backtest'
+    : (mode.liveTrading ? 'live' : (mode.execution || 'paper'));
+  const accountIdentity = resolveRuntimeAccountIdentity(mode.backtest, broker);
+
+  return {
+    processRole: 'ogz-prime-v2',
+    phase: runtimeAuditSink.phase,
+    runtimeScope,
+    configFingerprint: resolvedConfig.fingerprint || null,
+    executionMode,
+    brokerId: broker.id || null,
+    accountId: accountIdentity.accountId,
+    assetClass: broker.assetClass || null,
+    symbol: broker.tradingPair || null,
+    timeframe: broker.candleTimeframe || null,
+    extra,
+  };
+}
+
+function captureRuntimeFatal(eventType, input, runtimeScope, extra = {}) {
+  const result = runtimeAuditSink.capture(
+    eventType,
+    input,
+    buildRuntimeAuditContext(runtimeScope, extra)
+  );
+  if (!result.success) {
+    console.error('[FATAL-AUDIT] Failed to persist runtime fatal audit:', result.error);
+  }
+  return result;
+}
+
+process.on('uncaughtException', (error) => {
+  captureRuntimeFatal('uncaughtException', error, runtimeAuditSink.phase);
+  console.error('[FATAL] Uncaught Exception:', runtimeAuditSink.redactForOutput(error));
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  captureRuntimeFatal('unhandledRejection', reason, runtimeAuditSink.phase, {
+    promise: Object.prototype.toString.call(promise),
+  });
+  console.error(
+    '[FATAL] Unhandled Rejection:',
+    runtimeAuditSink.redactForOutput(reason),
+    `promise=${Object.prototype.toString.call(promise)}`
+  );
+  process.exit(1);
+});
+
+// ConfigLoader is the first fallible application initialization after the reporter.
 const { load: loadConfig } = require('./foundation/ConfigLoader');
-const resolvedConfig = loadConfig({ silent: true }); // Silent here, verbose logging comes later
+resolvedConfig = loadConfig({ silent: true }); // Silent here, verbose logging comes later
+runtimeAuditSink.setDataDir(resolvedConfig.config.paths.dataDir || undefined);
+runtimeAuditSink.setSourceReceiptId(`config:${resolvedConfig.fingerprint}`);
+runtimeAuditSink.setPhase('service_initialization');
 const { resolveTraiLlmConfig } = require('./core/trai_llm_config');
 
 // BACKTEST_FAST: Skip notifications, file I/O during backtest (explicit opt-in)
@@ -113,17 +188,12 @@ const {
   DashboardDepthCoalescer,
   resolveDashboardDepthMinIntervalMs
 } = require('./core/DashboardDepthCoalescer');
-const RuntimeAuditSink = require('./core/RuntimeAuditSink');
 const { resolvePatternMaturity } = require('./core/PatternMaturity');
 const { isStock: isDashboardStockSymbol, fetchStockCandles } = require('./server/stock-data-adapter');
 const {
   buildDashboardPatternGeometryFromCandles,
   normalizeDashboardPatternName
 } = require('./server/dashboard-pattern-contract');
-
-const runtimeAuditSink = new RuntimeAuditSink({
-  dataDir: resolvedConfig.config.paths.dataDir || undefined,
-});
 
 function resolveRuntimeAccountIdentity(enableBacktestMode, brokerConfig = {}) {
   if (enableBacktestMode) {
@@ -137,28 +207,6 @@ function resolveRuntimeAccountIdentity(enableBacktestMode, brokerConfig = {}) {
   return {
     accountId,
     accountIdSource: accountId && accountId !== 'default' ? 'config' : 'default',
-  };
-}
-
-function buildRuntimeAuditContext(runtimeScope, extra = {}) {
-  const config = resolvedConfig.config || {};
-  const broker = config.broker || {};
-  const mode = config.mode || {};
-  const executionMode = mode.backtest
-    ? 'backtest'
-    : (mode.liveTrading ? 'live' : (mode.execution || 'paper'));
-  const accountIdentity = resolveRuntimeAccountIdentity(mode.backtest, broker);
-
-  return {
-    runtimeScope,
-    configFingerprint: resolvedConfig.fingerprint || null,
-    executionMode,
-    brokerId: broker.id || null,
-    accountId: accountIdentity.accountId,
-    assetClass: broker.assetClass || null,
-    symbol: broker.tradingPair || null,
-    timeframe: broker.candleTimeframe || null,
-    extra,
   };
 }
 
@@ -188,18 +236,6 @@ function buildAlpacaAdapterOptions(brokerConfig = {}, options = {}) {
     symbols,
     accountId: brokerConfig.accountId,
   };
-}
-
-function captureRuntimeFatal(eventType, input, runtimeScope, extra = {}) {
-  const result = runtimeAuditSink.capture(
-    eventType,
-    input,
-    buildRuntimeAuditContext(runtimeScope, extra)
-  );
-  if (!result.success) {
-    console.error('[FATAL-AUDIT] Failed to persist runtime fatal audit:', result.error);
-  }
-  return result;
 }
 
 // Log resolved paths for debugging
@@ -312,29 +348,18 @@ try {
   featureFlags = { features: {}, environment: {} };
 }
 
-// Add uncaught exception handler to catch silent failures
-process.on('uncaughtException', (err) => {
-  captureRuntimeFatal('uncaughtException', err, 'bootstrap');
-  console.error('[FATAL] Uncaught Exception:', err);
-  console.error('Stack:', err.stack);
-  process.exit(1);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  captureRuntimeFatal('unhandledRejection', reason, 'bootstrap', {
-    promise: Object.prototype.toString.call(promise),
-  });
-  console.error('[FATAL] Unhandled Rejection at:', promise, 'reason:', reason);
-  process.exit(1);
-});
-
 // CRITICAL: ModuleAutoLoader as single source of truth
 console.log('[CHECKPOINT-002] Loading ModuleAutoLoader...');
 const loader = require('./core/ModuleAutoLoader');
+loader.setFailureReporter((eventType, error, extra) => (
+  captureRuntimeFatal(eventType, error, 'module_autoload', extra)
+));
 console.log('[CHECKPOINT-003] ModuleAutoLoader ready');
 
 // Load all modules through loader
+runtimeAuditSink.setPhase('module_autoload');
 loader.loadAll();
+runtimeAuditSink.setPhase('service_initialization');
 console.log('[CHECKPOINT-004] All modules loaded');
 
 // Phase 2 REWRITE: TradingOptimizations deleted - PatternStatsManager unused
@@ -1841,7 +1866,11 @@ class OGZPrimeV14Bot {
         await this.trai.initialize();
         console.log('TRAI Decision Module initialized - IN THE HOT PATH!\n');
       } catch (error) {
-        console.error('[WARNING] TRAI initialization failed:', error.message);
+        captureRuntimeFatal('optionalServiceInitializationFailed', error, 'trai_initialization', {
+          service: 'trai',
+          continued: true,
+        });
+        console.error('[WARNING] TRAI initialization failed:', runtimeAuditSink.redactForOutput(error));
         console.log('   Bot will continue without TRAI...\n');
         this.trai = null;
       }
@@ -1920,7 +1949,8 @@ class OGZPrimeV14Bot {
         }
       }
     } catch (error) {
-      console.error('[BOOT] Startup failed:', error.message);
+      captureRuntimeFatal('startupFailed', error, 'bot_startup');
+      console.error('[BOOT] Startup failed:', runtimeAuditSink.redactForOutput(error));
       await this.shutdown(1);
     }
   }
@@ -3622,6 +3652,7 @@ class OGZPrimeV14Bot {
 
 // Main execution
 async function main() {
+  runtimeAuditSink.setPhase('bot_construction');
   const bot = new OGZPrimeV14Bot();
 
   // Graceful shutdown handlers
@@ -3629,7 +3660,7 @@ async function main() {
   process.on('SIGTERM', () => bot.shutdown());
   process.on('uncaughtException', (error) => {
     captureRuntimeFatal('uncaughtException', error, 'main_runtime');
-    console.error('[FATAL] Uncaught exception:', error);
+    console.error('[FATAL] Uncaught exception:', runtimeAuditSink.redactForOutput(error));
     bot.shutdown();
   });
 
@@ -3638,20 +3669,22 @@ async function main() {
     captureRuntimeFatal('unhandledRejection', reason, 'main_runtime', {
       promise: Object.prototype.toString.call(promise),
     });
-    console.error('[FATAL] Unhandled Promise Rejection:', reason);
-    console.error('   Promise:', promise);
+    console.error('[FATAL] Unhandled Promise Rejection:', runtimeAuditSink.redactForOutput(reason));
+    console.error('   Promise:', Object.prototype.toString.call(promise));
     // Log but don't shutdown - async failures shouldn't kill bot
     console.error('   Bot continuing despite rejection...');
   });
 
+  runtimeAuditSink.setPhase('bot_startup');
   await bot.start();
+  runtimeAuditSink.setPhase('runtime');
 }
 
 // Run bot
 if (require.main === module) {
   main().catch(error => {
     captureRuntimeFatal('mainFatal', error, 'main_start');
-    console.error('[FATAL] Fatal error:', error);
+    console.error('[FATAL] Fatal error:', runtimeAuditSink.redactForOutput(error));
     process.exit(1);
   });
 }

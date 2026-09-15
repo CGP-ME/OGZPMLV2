@@ -61,12 +61,34 @@ class ModuleAutoLoader {
     this.modules = {};
     this.paths = {};
     this.cache = new Map();
+    this.failureReporter = null;
     
     console.log('🔧 Module Auto-Loader initializing...');
     console.log(`📁 Project root: ${this.basePath}`);
     
     // Setup all paths
     this.setupPaths();
+  }
+
+  setFailureReporter(reporter) {
+    this.failureReporter = typeof reporter === 'function' ? reporter : null;
+    return this;
+  }
+
+  reportFailure(eventType, error, context = {}) {
+    if (!this.failureReporter) return null;
+    try {
+      return this.failureReporter(eventType, error, context);
+    } catch (reporterError) {
+      console.error(`[ModuleAutoLoader] failure reporter failed: ${reporterError?.name || 'Error'}`);
+      return null;
+    }
+  }
+
+  reportedMessage(error, reportResult) {
+    if (reportResult?.record?.message) return reportResult.record.message;
+    if (this.failureReporter) return `${error?.name || 'Error'} (failure details unavailable)`;
+    return error?.message || String(error);
   }
   
   // Find project root by looking for package.json or specific files
@@ -140,7 +162,11 @@ class ModuleAutoLoader {
     const loaded = {};
     
     if (!fs.existsSync(dirPath)) {
-      console.warn(`⚠️ Directory not found: ${dirName} (${dirPath})`);
+      this.reportFailure('moduleDirectoryAbsent', new Error(`Directory not found: ${dirName} (${dirPath})`), {
+        directory: dirName,
+        directoryPath: dirPath,
+      });
+      console.warn(`[ModuleAutoLoader] Directory not found: ${dirName} (${dirPath})`);
       return loaded;
     }
     
@@ -177,10 +203,21 @@ class ModuleAutoLoader {
             
             console.log(`  ✅ ${moduleName}`);
           } catch (err) {
-            console.error(`  ❌ ${moduleName}: ${err.message}`);
-            
             // Check if it's a required module
-            if (required.includes(moduleName)) {
+            const isRequired = required.includes(moduleName);
+            const reportResult = this.reportFailure(
+              isRequired ? 'requiredModuleLoadFailed' : 'optionalModuleLoadFailed',
+              err,
+              {
+                directory: dirName,
+                moduleName,
+                modulePath: fullPath,
+                required: isRequired,
+              }
+            );
+            console.error(`[ModuleAutoLoader] ${moduleName}: ${this.reportedMessage(err, reportResult)}`);
+
+            if (isRequired) {
               const requiredError = new Error(`Required module failed to load: ${moduleName}`);
               requiredError.code = 'REQUIRED_MODULE_LOAD_FAILED';
               requiredError.cause = err;
@@ -195,7 +232,12 @@ class ModuleAutoLoader {
       
       return loaded;
     } catch (err) {
-      console.error(`❌ Failed to load directory ${dirName}:`, err.message);
+      const reportResult = this.reportFailure('moduleDirectoryLoadFailed', err, {
+        directory: dirName,
+        directoryPath: dirPath,
+        requiredModules: required,
+      });
+      console.error(`[ModuleAutoLoader] Failed to load directory ${dirName}:`, this.reportedMessage(err, reportResult));
       if (err.code === 'REQUIRED_MODULE_LOAD_FAILED') {
         throw err;
       }
@@ -288,7 +330,9 @@ class ModuleAutoLoader {
     });
     
     if (missing.length > 0) {
-      throw new Error(`Missing required modules: ${missing.join(', ')}`);
+      const error = new Error(`Missing required modules: ${missing.join(', ')}`);
+      this.reportFailure('requiredModuleAbsent', error, { missing });
+      throw error;
     }
     
     console.log('\nALL REQUIRED MODULES VALIDATED:');

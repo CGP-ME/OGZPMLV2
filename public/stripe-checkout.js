@@ -8,9 +8,55 @@
  * 3. Add route to your existing Express app or run standalone
  */
 
+const RuntimeAuditSink = require('../core/RuntimeAuditSink');
+const isStandaloneCheckout = require.main === module;
+const checkoutAuditSink = isStandaloneCheckout
+  ? new RuntimeAuditSink({
+    processRole: 'ogz-stripe',
+    phase: 'configuration_source',
+  })
+  : null;
+
+function captureCheckoutFailure(eventType, input, extra = {}) {
+  if (!checkoutAuditSink) return null;
+  return checkoutAuditSink.capture(eventType, input, {
+    processRole: 'ogz-stripe',
+    phase: checkoutAuditSink.phase,
+    runtimeScope: checkoutAuditSink.phase,
+    extra,
+  });
+}
+
+if (checkoutAuditSink) {
+  process.on('uncaughtException', (error) => {
+    captureCheckoutFailure('uncaughtException', error);
+    console.error('[Checkout] Uncaught exception:', checkoutAuditSink.redactForOutput(error));
+    process.exit(1);
+  });
+
+  process.on('unhandledRejection', (reason, promise) => {
+    captureCheckoutFailure('unhandledRejection', reason, {
+      promise: Object.prototype.toString.call(promise),
+    });
+    console.error(
+      '[Checkout] Unhandled rejection:',
+      checkoutAuditSink.redactForOutput(reason),
+      `promise=${Object.prototype.toString.call(promise)}`
+    );
+    process.exit(1);
+  });
+}
+
 const express = require('express');
 const cors = require('cors');
-require('dotenv').config();
+const dotenvResult = require('dotenv').config();
+if (checkoutAuditSink && dotenvResult.error) {
+  captureCheckoutFailure('configurationSourceUnavailable', dotenvResult.error, {
+    source: 'dotenv',
+    continued: true,
+  });
+}
+if (checkoutAuditSink) checkoutAuditSink.setPhase('service_initialization');
 
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
@@ -79,9 +125,10 @@ app.get('/checkout-status', async (req, res) => {
 });
 
 // If running standalone (not imported into existing app)
-if (require.main === module) {
+if (isStandaloneCheckout) {
   const PORT = process.env.STRIPE_PORT || 3001;
   app.listen(PORT, () => {
+    checkoutAuditSink.setPhase('runtime');
     console.log(`Stripe checkout server running on port ${PORT}`);
   });
 }
