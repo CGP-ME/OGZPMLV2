@@ -79,16 +79,29 @@ class ModuleAutoLoader {
     if (!this.failureReporter) return null;
     try {
       return this.failureReporter(eventType, error, context);
-    } catch (reporterError) {
-      console.error(`[ModuleAutoLoader] failure reporter failed: ${reporterError?.name || 'Error'}`);
+    } catch (_reporterError) {
+      console.error('[ModuleAutoLoader] failure reporter failed; original module outcome preserved');
       return null;
     }
   }
 
   reportedMessage(error, reportResult) {
     if (reportResult?.record?.message) return reportResult.record.message;
-    if (this.failureReporter) return `${error?.name || 'Error'} (failure details unavailable)`;
-    return error?.message || String(error);
+    if (this.failureReporter) return 'Error (failure details unavailable)';
+    try {
+      const descriptors = Object.getOwnPropertyDescriptors(error);
+      const message = descriptors.message && Object.prototype.hasOwnProperty.call(descriptors.message, 'value')
+        ? descriptors.message.value
+        : null;
+      const name = descriptors.name && Object.prototype.hasOwnProperty.call(descriptors.name, 'value')
+        ? descriptors.name.value
+        : null;
+      if (typeof message === 'string' && message) return message;
+      if (typeof name === 'string' && name) return `${name} (details unavailable)`;
+    } catch (_diagnosticError) {
+      // The module outcome below must not be replaced by diagnostic formatting.
+    }
+    return 'Error (details unavailable)';
   }
   
   // Find project root by looking for package.json or specific files

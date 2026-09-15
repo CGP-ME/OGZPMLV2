@@ -54,13 +54,13 @@ function captureRuntimeFatal(eventType, input, runtimeScope, extra = {}) {
   return result;
 }
 
-process.on('uncaughtException', (error) => {
+const terminateOnUncaughtException = (error) => {
   captureRuntimeFatal('uncaughtException', error, runtimeAuditSink.phase);
   console.error('[FATAL] Uncaught Exception:', runtimeAuditSink.redactForOutput(error));
   process.exit(1);
-});
+};
 
-process.on('unhandledRejection', (reason, promise) => {
+const terminateOnUnhandledRejection = (reason, promise) => {
   captureRuntimeFatal('unhandledRejection', reason, runtimeAuditSink.phase, {
     promise: Object.prototype.toString.call(promise),
   });
@@ -70,7 +70,16 @@ process.on('unhandledRejection', (reason, promise) => {
     `promise=${Object.prototype.toString.call(promise)}`
   );
   process.exit(1);
-});
+};
+
+function placeTerminatingBootstrapListenersAtTail() {
+  process.removeListener('uncaughtException', terminateOnUncaughtException);
+  process.removeListener('unhandledRejection', terminateOnUnhandledRejection);
+  process.on('uncaughtException', terminateOnUncaughtException);
+  process.on('unhandledRejection', terminateOnUnhandledRejection);
+}
+
+placeTerminatingBootstrapListenersAtTail();
 
 // ConfigLoader is the first fallible application initialization after the reporter.
 const { load: loadConfig } = require('./foundation/ConfigLoader');
@@ -110,6 +119,9 @@ if (resolvedConfig.config.backtest.silent ||
 
 // SENTRY: Error monitoring (DSN configurable via SENTRY_DSN, disable via SENTRY_ENABLED=false)
 require('./instrument.js');
+// The local reporter must exist before configuration, while the pre-existing
+// terminating callbacks must remain behind instrumentation once it initializes.
+placeTerminatingBootstrapListenersAtTail();
 
 /**
  * @fileoverview OGZ PRIME V14 - Main Trading Bot Orchestrator

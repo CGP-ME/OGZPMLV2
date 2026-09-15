@@ -1,0 +1,348 @@
+{
+  "baseSha": "0a7ba844885208cfb277aaf81df3245a8f52ff2c",
+  "node": "v22.22.1",
+  "sourceFiles": {
+    "core/RuntimeAuditSink.js": "7a3e635327dc88ac3b5e7adc826673ab53ba7597eab5bd3e65e3bfb2b7fe0b06",
+    "core/ModuleAutoLoader.js": "182e0df810fd622767b0aa0ddda326210865b0ea8cc06185b25e08c35c716b78",
+    "run-empire-v2.js": "7f53ad59d895dc49087de7ceae2b8b582341f26e9c4431c5181dcdaf218d0174",
+    "ogz-meta/inbox/codex/2026-09-15/astra-era-stop1-j1-reporter-correction/probe-j1-reporter.js": "095f6693fe6d7df4346e3b3e5763f825d937ab04d4864cabd5591cea14abcad5"
+  },
+  "operations": "Local RuntimeAuditSink, ModuleAutoLoader, and intercepted entrypoint probes only; invented inputs; no Jest, SDK, provider, broker, notification, network, PM2, or successful service boot.",
+  "result": "PASS",
+  "sink": [
+    {
+      "case": "known_ambient_control",
+      "captured": true,
+      "jsonlCanaryAbsent": true,
+      "diagnosticCanaryAbsent": true
+    },
+    {
+      "case": "prefixed_assignment_file_only",
+      "captured": true,
+      "jsonlCanaryAbsent": true,
+      "diagnosticCanaryAbsent": true
+    },
+    {
+      "case": "quoted_json_key_file_only",
+      "captured": true,
+      "jsonlCanaryAbsent": true,
+      "diagnosticCanaryAbsent": true
+    },
+    {
+      "case": "ntfy_capability",
+      "captured": true,
+      "jsonlCanaryAbsent": true,
+      "diagnosticCanaryAbsent": true
+    },
+    {
+      "case": "mixed_error_object_cycle",
+      "captured": true,
+      "recordPresent": true,
+      "formattingReturned": true,
+      "circularBounded": true
+    },
+    {
+      "case": "ordinary_cause_control",
+      "captured": true,
+      "outerAndCauseCodesRetained": true
+    },
+    {
+      "case": "append_failure_with_writable_stderr",
+      "captured": false,
+      "stderrReceiptPresent": true,
+      "retainedFields": [
+        "processRole",
+        "phase",
+        "sourceReceiptId",
+        "code",
+        "cause",
+        "runtimeScope"
+      ],
+      "outerAndCauseCodesRetained": true
+    },
+    {
+      "case": "throwing_code_accessor",
+      "captured": true,
+      "formattingReturned": true,
+      "accessorNotInvoked": true
+    }
+  ],
+  "loader": {
+    "optionalContinued": true,
+    "requiredCode": "REQUIRED_MODULE_LOAD_FAILED",
+    "throwingReporterCode": "REQUIRED_MODULE_LOAD_FAILED",
+    "absentDirectoryReturnedExistingEmptyResult": true,
+    "missingRequiredThrew": true
+  },
+  "entrypoints": {
+    "entry-bot": {
+      "status": 1,
+      "signal": null,
+      "recordTypes": [
+        "uncaughtException"
+      ],
+      "order": [],
+      "listenerReceipt": null
+    },
+    "entry-dashboard": {
+      "status": 1,
+      "signal": null,
+      "recordTypes": [
+        "uncaughtException"
+      ],
+      "order": [],
+      "listenerReceipt": null
+    },
+    "entry-checkout": {
+      "status": 1,
+      "signal": null,
+      "recordTypes": [
+        "uncaughtException"
+      ],
+      "order": [],
+      "listenerReceipt": null
+    },
+    "entry-supervisor": {
+      "status": 1,
+      "signal": null,
+      "recordTypes": [
+        "uncaughtException"
+      ],
+      "order": [],
+      "listenerReceipt": null
+    },
+    "dotenv-return-dashboard": {
+      "status": 1,
+      "signal": null,
+      "recordTypes": [
+        "configurationSourceUnavailable",
+        "uncaughtException"
+      ],
+      "order": [],
+      "listenerReceipt": null
+    },
+    "dotenv-return-checkout": {
+      "status": 1,
+      "signal": null,
+      "recordTypes": [
+        "configurationSourceUnavailable",
+        "uncaughtException"
+      ],
+      "order": [],
+      "listenerReceipt": null
+    },
+    "sentry-order": {
+      "status": 1,
+      "signal": null,
+      "recordTypes": [
+        "uncaughtException"
+      ],
+      "order": [
+        "unhandled-listeners:instrumentationUnhandledRejection,terminateOnUnhandledRejection",
+        "instrumentation-callback",
+        "application-reporter"
+      ],
+      "listenerReceipt": null
+    },
+    "supervisor-runtime": {
+      "status": 0,
+      "signal": null,
+      "recordTypes": [
+        "uncaughtException",
+        "unhandledRejection"
+      ],
+      "order": [
+        "continued-after-runtime-events"
+      ],
+      "listenerReceipt": null
+    },
+    "checkout-import": {
+      "status": 0,
+      "signal": null,
+      "recordTypes": [],
+      "order": [],
+      "listenerReceipt": {
+        "before": [
+          0,
+          0
+        ],
+        "after": [
+          0,
+          0
+        ]
+      }
+    }
+  },
+  "capturedOutputs": {
+    "sink": [
+      {
+        "case": "known_ambient_control",
+        "jsonl": "{\"timestamp\":\"2026-09-15T03:41:49.898Z\",\"eventType\":\"fixture\",\"message\":\"[REDACTED]\",\"name\":\"Error\",\"stack\":null,\"code\":null,\"cause\":null,\"raw\":null,\"processRole\":\"fixture-role\",\"phase\":\"fixture-phase\",\"sourceReceiptId\":\"fixture-receipt\",\"runtimeScope\":null,\"configFingerprint\":null,\"scope\":{\"executionMode\":null,\"brokerId\":null,\"accountId\":null,\"assetClass\":null,\"symbol\":null,\"timeframe\":null,\"scopeKey\":null},\"env\":{\"pid\":2,\"nodeVersion\":\"v22.22.1\",\"pm2Id\":null,\"pm2Name\":null,\"nodeAppInstance\":null,\"cwd\":\"/tmp/ogz-j1-reporter-pIGPSZ/sink/known_ambient_control\"},\"context\":{}}\n",
+        "diagnostic": "[REDACTED]",
+        "stderr": ""
+      },
+      {
+        "case": "prefixed_assignment_file_only",
+        "jsonl": "{\"timestamp\":\"2026-09-15T03:41:49.900Z\",\"eventType\":\"fixture\",\"message\":\"ALPACA_API_KEY=[REDACTED]\",\"name\":\"Error\",\"stack\":null,\"code\":null,\"cause\":null,\"raw\":null,\"processRole\":\"fixture-role\",\"phase\":\"fixture-phase\",\"sourceReceiptId\":\"fixture-receipt\",\"runtimeScope\":null,\"configFingerprint\":null,\"scope\":{\"executionMode\":null,\"brokerId\":null,\"accountId\":null,\"assetClass\":null,\"symbol\":null,\"timeframe\":null,\"scopeKey\":null},\"env\":{\"pid\":2,\"nodeVersion\":\"v22.22.1\",\"pm2Id\":null,\"pm2Name\":null,\"nodeAppInstance\":null,\"cwd\":\"/tmp/ogz-j1-reporter-pIGPSZ/sink/prefixed_assignment_file_only\"},\"context\":{}}\n",
+        "diagnostic": "ALPACA_API_KEY=[REDACTED]",
+        "stderr": ""
+      },
+      {
+        "case": "quoted_json_key_file_only",
+        "jsonl": "{\"timestamp\":\"2026-09-15T03:41:49.901Z\",\"eventType\":\"fixture\",\"message\":\"{\\\"apiKey\\\":[REDACTED]}\",\"name\":\"Error\",\"stack\":null,\"code\":null,\"cause\":null,\"raw\":null,\"processRole\":\"fixture-role\",\"phase\":\"fixture-phase\",\"sourceReceiptId\":\"fixture-receipt\",\"runtimeScope\":null,\"configFingerprint\":null,\"scope\":{\"executionMode\":null,\"brokerId\":null,\"accountId\":null,\"assetClass\":null,\"symbol\":null,\"timeframe\":null,\"scopeKey\":null},\"env\":{\"pid\":2,\"nodeVersion\":\"v22.22.1\",\"pm2Id\":null,\"pm2Name\":null,\"nodeAppInstance\":null,\"cwd\":\"/tmp/ogz-j1-reporter-pIGPSZ/sink/quoted_json_key_file_only\"},\"context\":{}}\n",
+        "diagnostic": "{\"apiKey\":[REDACTED]}",
+        "stderr": ""
+      },
+      {
+        "case": "ntfy_capability",
+        "jsonl": "{\"timestamp\":\"2026-09-15T03:41:49.901Z\",\"eventType\":\"fixture\",\"message\":\"NTFY_TOPIC=[REDACTED]]\",\"name\":\"Error\",\"stack\":null,\"code\":null,\"cause\":null,\"raw\":null,\"processRole\":\"fixture-role\",\"phase\":\"fixture-phase\",\"sourceReceiptId\":\"fixture-receipt\",\"runtimeScope\":null,\"configFingerprint\":null,\"scope\":{\"executionMode\":null,\"brokerId\":null,\"accountId\":null,\"assetClass\":null,\"symbol\":null,\"timeframe\":null,\"scopeKey\":null},\"env\":{\"pid\":2,\"nodeVersion\":\"v22.22.1\",\"pm2Id\":null,\"pm2Name\":null,\"nodeAppInstance\":null,\"cwd\":\"/tmp/ogz-j1-reporter-pIGPSZ/sink/ntfy_capability\"},\"context\":{}}\n",
+        "diagnostic": "NTFY_TOPIC=[REDACTED]]",
+        "stderr": ""
+      },
+      {
+        "case": "mixed_error_object_cycle",
+        "record": {
+          "timestamp": "2026-09-15T03:41:49.903Z",
+          "eventType": "fixture",
+          "message": "outer",
+          "name": "Error",
+          "stack": null,
+          "code": null,
+          "cause": {
+            "name": "object",
+            "message": "{\"parent\":{\"name\":\"Error\",\"message\":\"[circular-error]\",\"stack\":null,\"code\":null,\"cause\":null,\"raw\":null}}",
+            "stack": null,
+            "code": null,
+            "cause": null,
+            "raw": {
+              "parent": {
+                "name": "Error",
+                "message": "[circular-error]",
+                "stack": null,
+                "code": null,
+                "cause": null,
+                "raw": null
+              }
+            }
+          },
+          "raw": null,
+          "processRole": "fixture-role",
+          "phase": "fixture-phase",
+          "sourceReceiptId": "fixture-receipt",
+          "runtimeScope": null,
+          "configFingerprint": null,
+          "scope": {
+            "executionMode": null,
+            "brokerId": null,
+            "accountId": null,
+            "assetClass": null,
+            "symbol": null,
+            "timeframe": null,
+            "scopeKey": null
+          },
+          "env": {
+            "pid": 2,
+            "nodeVersion": "v22.22.1",
+            "pm2Id": null,
+            "pm2Name": null,
+            "nodeAppInstance": null,
+            "cwd": "/tmp/ogz-j1-reporter-pIGPSZ/sink/mixed_error_object_cycle"
+          },
+          "context": {}
+        },
+        "diagnostic": "outer",
+        "stderr": ""
+      },
+      {
+        "case": "append_failure_with_writable_stderr",
+        "stderr": "[FATAL-AUDIT-FAILED] {\"timestamp\":\"2026-09-15T03:41:49.905Z\",\"eventType\":\"fixture\",\"auditSinkFailure\":true,\"auditFilePath\":\"/tmp/ogz-j1-reporter-pIGPSZ/sink/append_failure_with_writable_stderr/data/runtime-audit/fatal-events.jsonl\",\"auditError\":\"EISDIR: illegal operation on a directory, open '/tmp/ogz-j1-reporter-pIGPSZ/sink/append_failure_with_writable_stderr/data/runtime-audit/fatal-events.jsonl'\",\"message\":\"outer\",\"name\":\"Error\",\"code\":\"OUTER_CODE\",\"cause\":{\"name\":\"Error\",\"message\":\"inner\",\"stack\":null,\"code\":\"INNER_CODE\",\"cause\":null,\"raw\":null},\"processRole\":\"fixture-role\",\"phase\":\"fixture-phase\",\"sourceReceiptId\":\"fixture-receipt\",\"runtimeScope\":\"fixture-runtime\",\"pid\":2}\n",
+        "fallback": {
+          "timestamp": "2026-09-15T03:41:49.905Z",
+          "eventType": "fixture",
+          "auditSinkFailure": true,
+          "auditFilePath": "/tmp/ogz-j1-reporter-pIGPSZ/sink/append_failure_with_writable_stderr/data/runtime-audit/fatal-events.jsonl",
+          "auditError": "EISDIR: illegal operation on a directory, open '/tmp/ogz-j1-reporter-pIGPSZ/sink/append_failure_with_writable_stderr/data/runtime-audit/fatal-events.jsonl'",
+          "message": "outer",
+          "name": "Error",
+          "code": "OUTER_CODE",
+          "cause": {
+            "name": "Error",
+            "message": "inner",
+            "stack": null,
+            "code": "INNER_CODE",
+            "cause": null,
+            "raw": null
+          },
+          "processRole": "fixture-role",
+          "phase": "fixture-phase",
+          "sourceReceiptId": "fixture-receipt",
+          "runtimeScope": "fixture-runtime",
+          "pid": 2
+        }
+      }
+    ],
+    "loaderJsonl": "{\"timestamp\":\"2026-09-15T03:41:49.913Z\",\"eventType\":\"optionalModuleLoadFailed\",\"message\":\"optional\",\"name\":\"Error\",\"stack\":null,\"code\":null,\"cause\":{\"name\":\"object\",\"message\":\"{\\\"parent\\\":{\\\"name\\\":\\\"Error\\\",\\\"message\\\":\\\"[circular-error]\\\",\\\"stack\\\":null,\\\"code\\\":null,\\\"cause\\\":null,\\\"raw\\\":null}}\",\"stack\":null,\"code\":null,\"cause\":null,\"raw\":{\"parent\":{\"name\":\"Error\",\"message\":\"[circular-error]\",\"stack\":null,\"code\":null,\"cause\":null,\"raw\":null}}},\"raw\":null,\"processRole\":\"loader-fixture\",\"phase\":\"module_autoload\",\"sourceReceiptId\":\"loader-fixture-receipt\",\"runtimeScope\":null,\"configFingerprint\":null,\"scope\":{\"executionMode\":null,\"brokerId\":null,\"accountId\":null,\"assetClass\":null,\"symbol\":null,\"timeframe\":null,\"scopeKey\":null},\"env\":{\"pid\":2,\"nodeVersion\":\"v22.22.1\",\"pm2Id\":null,\"pm2Name\":null,\"nodeAppInstance\":null,\"cwd\":\"/tmp/ogz-j1-reporter-pIGPSZ/loader\"},\"context\":{\"directory\":\"j1_fixture\",\"moduleName\":\"optional\",\"modulePath\":\"/tmp/ogz-j1-reporter-pIGPSZ/loader/modules/optional.js\",\"required\":false}}\n{\"timestamp\":\"2026-09-15T03:41:49.914Z\",\"eventType\":\"optionalModuleLoadFailed\",\"message\":\"required\",\"name\":\"[accessor]\",\"stack\":null,\"code\":null,\"cause\":null,\"raw\":null,\"processRole\":\"loader-fixture\",\"phase\":\"module_autoload\",\"sourceReceiptId\":\"loader-fixture-receipt\",\"runtimeScope\":null,\"configFingerprint\":null,\"scope\":{\"executionMode\":null,\"brokerId\":null,\"accountId\":null,\"assetClass\":null,\"symbol\":null,\"timeframe\":null,\"scopeKey\":null},\"env\":{\"pid\":2,\"nodeVersion\":\"v22.22.1\",\"pm2Id\":null,\"pm2Name\":null,\"nodeAppInstance\":null,\"cwd\":\"/tmp/ogz-j1-reporter-pIGPSZ/loader\"},\"context\":{\"directory\":\"j1_fixture\",\"moduleName\":\"required\",\"modulePath\":\"/tmp/ogz-j1-reporter-pIGPSZ/loader/modules/required.js\",\"required\":false}}\n{\"timestamp\":\"2026-09-15T03:41:49.915Z\",\"eventType\":\"optionalModuleLoadFailed\",\"message\":\"optional\",\"name\":\"Error\",\"stack\":null,\"code\":null,\"cause\":{\"name\":\"object\",\"message\":\"{\\\"parent\\\":{\\\"name\\\":\\\"Error\\\",\\\"message\\\":\\\"[circular-error]\\\",\\\"stack\\\":null,\\\"code\\\":null,\\\"cause\\\":null,\\\"raw\\\":null}}\",\"stack\":null,\"code\":null,\"cause\":null,\"raw\":{\"parent\":{\"name\":\"Error\",\"message\":\"[circular-error]\",\"stack\":null,\"code\":null,\"cause\":null,\"raw\":null}}},\"raw\":null,\"processRole\":\"loader-fixture\",\"phase\":\"module_autoload\",\"sourceReceiptId\":\"loader-fixture-receipt\",\"runtimeScope\":null,\"configFingerprint\":null,\"scope\":{\"executionMode\":null,\"brokerId\":null,\"accountId\":null,\"assetClass\":null,\"symbol\":null,\"timeframe\":null,\"scopeKey\":null},\"env\":{\"pid\":2,\"nodeVersion\":\"v22.22.1\",\"pm2Id\":null,\"pm2Name\":null,\"nodeAppInstance\":null,\"cwd\":\"/tmp/ogz-j1-reporter-pIGPSZ/loader\"},\"context\":{\"directory\":\"j1_fixture\",\"moduleName\":\"optional\",\"modulePath\":\"/tmp/ogz-j1-reporter-pIGPSZ/loader/modules/optional.js\",\"required\":false}}\n{\"timestamp\":\"2026-09-15T03:41:49.916Z\",\"eventType\":\"requiredModuleLoadFailed\",\"message\":\"required\",\"name\":\"[accessor]\",\"stack\":null,\"code\":null,\"cause\":null,\"raw\":null,\"processRole\":\"loader-fixture\",\"phase\":\"module_autoload\",\"sourceReceiptId\":\"loader-fixture-receipt\",\"runtimeScope\":null,\"configFingerprint\":null,\"scope\":{\"executionMode\":null,\"brokerId\":null,\"accountId\":null,\"assetClass\":null,\"symbol\":null,\"timeframe\":null,\"scopeKey\":null},\"env\":{\"pid\":2,\"nodeVersion\":\"v22.22.1\",\"pm2Id\":null,\"pm2Name\":null,\"nodeAppInstance\":null,\"cwd\":\"/tmp/ogz-j1-reporter-pIGPSZ/loader\"},\"context\":{\"directory\":\"j1_fixture\",\"moduleName\":\"required\",\"modulePath\":\"/tmp/ogz-j1-reporter-pIGPSZ/loader/modules/required.js\",\"required\":true}}\n{\"timestamp\":\"2026-09-15T03:41:49.917Z\",\"eventType\":\"moduleDirectoryLoadFailed\",\"message\":\"Required module failed to load: required\",\"name\":\"Error\",\"stack\":null,\"code\":\"REQUIRED_MODULE_LOAD_FAILED\",\"cause\":{\"name\":\"[accessor]\",\"message\":\"required\",\"stack\":null,\"code\":null,\"cause\":null,\"raw\":null},\"raw\":null,\"processRole\":\"loader-fixture\",\"phase\":\"module_autoload\",\"sourceReceiptId\":\"loader-fixture-receipt\",\"runtimeScope\":null,\"configFingerprint\":null,\"scope\":{\"executionMode\":null,\"brokerId\":null,\"accountId\":null,\"assetClass\":null,\"symbol\":null,\"timeframe\":null,\"scopeKey\":null},\"env\":{\"pid\":2,\"nodeVersion\":\"v22.22.1\",\"pm2Id\":null,\"pm2Name\":null,\"nodeAppInstance\":null,\"cwd\":\"/tmp/ogz-j1-reporter-pIGPSZ/loader\"},\"context\":{\"directory\":\"j1_fixture\",\"directoryPath\":\"/tmp/ogz-j1-reporter-pIGPSZ/loader/modules\",\"requiredModules\":[\"required\"]}}\n{\"timestamp\":\"2026-09-15T03:41:49.920Z\",\"eventType\":\"moduleDirectoryAbsent\",\"message\":\"Directory not found: j1_absent (/tmp/ogz-j1-reporter-pIGPSZ/loader/absent)\",\"name\":\"Error\",\"stack\":null,\"code\":null,\"cause\":null,\"raw\":null,\"processRole\":\"loader-fixture\",\"phase\":\"module_autoload\",\"sourceReceiptId\":\"loader-fixture-receipt\",\"runtimeScope\":null,\"configFingerprint\":null,\"scope\":{\"executionMode\":null,\"brokerId\":null,\"accountId\":null,\"assetClass\":null,\"symbol\":null,\"timeframe\":null,\"scopeKey\":null},\"env\":{\"pid\":2,\"nodeVersion\":\"v22.22.1\",\"pm2Id\":null,\"pm2Name\":null,\"nodeAppInstance\":null,\"cwd\":\"/tmp/ogz-j1-reporter-pIGPSZ/loader\"},\"context\":{\"directory\":\"j1_absent\",\"directoryPath\":\"/tmp/ogz-j1-reporter-pIGPSZ/loader/absent\"}}\n{\"timestamp\":\"2026-09-15T03:41:49.921Z\",\"eventType\":\"requiredModuleAbsent\",\"message\":\"Missing required modules: j1_missing/missing\",\"name\":\"Error\",\"stack\":null,\"code\":null,\"cause\":null,\"raw\":null,\"processRole\":\"loader-fixture\",\"phase\":\"module_autoload\",\"sourceReceiptId\":\"loader-fixture-receipt\",\"runtimeScope\":null,\"configFingerprint\":null,\"scope\":{\"executionMode\":null,\"brokerId\":null,\"accountId\":null,\"assetClass\":null,\"symbol\":null,\"timeframe\":null,\"scopeKey\":null},\"env\":{\"pid\":2,\"nodeVersion\":\"v22.22.1\",\"pm2Id\":null,\"pm2Name\":null,\"nodeAppInstance\":null,\"cwd\":\"/tmp/ogz-j1-reporter-pIGPSZ/loader\"},\"context\":{\"missing\":[\"j1_missing/missing\"]}}\n",
+    "entrypoints": {
+      "entry-bot": {
+        "stdout": "",
+        "stderr": "",
+        "jsonl": "{\"timestamp\":\"2026-09-15T03:41:50.084Z\",\"eventType\":\"uncaughtException\",\"message\":\"bot configuration source failed ALPACA_API_KEY=[REDACTED] [REDACTED_URL]\",\"name\":\"Error\",\"stack\":null,\"code\":\"FIXTURE_OUTER\",\"cause\":{\"name\":\"Error\",\"message\":\"inner\",\"stack\":null,\"code\":\"FIXTURE_INNER\",\"cause\":null,\"raw\":null},\"raw\":null,\"processRole\":\"ogz-prime-v2\",\"phase\":\"configuration_source\",\"sourceReceiptId\":\"bootstrap:ogz-prime-v2:9:2026-09-15T03:41:50.080Z\",\"runtimeScope\":\"configuration_source\",\"configFingerprint\":null,\"scope\":{\"executionMode\":null,\"brokerId\":null,\"accountId\":null,\"assetClass\":null,\"symbol\":null,\"timeframe\":null,\"scopeKey\":null},\"env\":{\"pid\":9,\"nodeVersion\":\"v22.22.1\",\"pm2Id\":null,\"pm2Name\":null,\"nodeAppInstance\":null,\"cwd\":\"/tmp/ogz-j1-reporter-pIGPSZ/entrypoints/entry-bot\"},\"context\":{}}\n",
+        "order": []
+      },
+      "entry-dashboard": {
+        "stdout": "",
+        "stderr": "",
+        "jsonl": "{\"timestamp\":\"2026-09-15T03:41:50.262Z\",\"eventType\":\"uncaughtException\",\"message\":\"dashboard configuration source failed ALPACA_API_KEY=[REDACTED] [REDACTED_URL]\",\"name\":\"Error\",\"stack\":null,\"code\":\"FIXTURE_OUTER\",\"cause\":{\"name\":\"Error\",\"message\":\"inner\",\"stack\":null,\"code\":\"FIXTURE_INNER\",\"cause\":null,\"raw\":null},\"raw\":null,\"processRole\":\"ogz-websocket\",\"phase\":\"configuration_source\",\"sourceReceiptId\":\"bootstrap:ogz-websocket:16:2026-09-15T03:41:50.258Z\",\"runtimeScope\":\"configuration_source\",\"configFingerprint\":null,\"scope\":{\"executionMode\":null,\"brokerId\":null,\"accountId\":null,\"assetClass\":null,\"symbol\":null,\"timeframe\":null,\"scopeKey\":null},\"env\":{\"pid\":16,\"nodeVersion\":\"v22.22.1\",\"pm2Id\":null,\"pm2Name\":null,\"nodeAppInstance\":null,\"cwd\":\"/tmp/ogz-j1-reporter-pIGPSZ/entrypoints/entry-dashboard\"},\"context\":{}}\n",
+        "order": []
+      },
+      "entry-checkout": {
+        "stdout": "",
+        "stderr": "",
+        "jsonl": "{\"timestamp\":\"2026-09-15T03:41:50.566Z\",\"eventType\":\"uncaughtException\",\"message\":\"checkout configuration source failed ALPACA_API_KEY=[REDACTED] [REDACTED_URL]\",\"name\":\"Error\",\"stack\":null,\"code\":\"FIXTURE_OUTER\",\"cause\":{\"name\":\"Error\",\"message\":\"inner\",\"stack\":null,\"code\":\"FIXTURE_INNER\",\"cause\":null,\"raw\":null},\"raw\":null,\"processRole\":\"ogz-stripe\",\"phase\":\"configuration_source\",\"sourceReceiptId\":\"bootstrap:ogz-stripe:23:2026-09-15T03:41:50.421Z\",\"runtimeScope\":\"configuration_source\",\"configFingerprint\":null,\"scope\":{\"executionMode\":null,\"brokerId\":null,\"accountId\":null,\"assetClass\":null,\"symbol\":null,\"timeframe\":null,\"scopeKey\":null},\"env\":{\"pid\":23,\"nodeVersion\":\"v22.22.1\",\"pm2Id\":null,\"pm2Name\":null,\"nodeAppInstance\":null,\"cwd\":\"/tmp/ogz-j1-reporter-pIGPSZ/entrypoints/entry-checkout\"},\"context\":{}}\n",
+        "order": []
+      },
+      "entry-supervisor": {
+        "stdout": "",
+        "stderr": "",
+        "jsonl": "{\"timestamp\":\"2026-09-15T03:41:50.751Z\",\"eventType\":\"uncaughtException\",\"message\":\"supervisor service import failed ALPACA_API_KEY=[REDACTED] [REDACTED_URL]\",\"name\":\"Error\",\"stack\":null,\"code\":\"FIXTURE_OUTER\",\"cause\":{\"name\":\"Error\",\"message\":\"inner\",\"stack\":null,\"code\":\"FIXTURE_INNER\",\"cause\":null,\"raw\":null},\"raw\":null,\"processRole\":\"ogz-supervisor\",\"phase\":\"configuration_source\",\"sourceReceiptId\":\"bootstrap:ogz-supervisor:30:2026-09-15T03:41:50.711Z\",\"runtimeScope\":\"configuration_source\",\"configFingerprint\":null,\"scope\":{\"executionMode\":null,\"brokerId\":null,\"accountId\":null,\"assetClass\":null,\"symbol\":null,\"timeframe\":null,\"scopeKey\":null},\"env\":{\"pid\":30,\"nodeVersion\":\"v22.22.1\",\"pm2Id\":null,\"pm2Name\":null,\"nodeAppInstance\":null,\"cwd\":\"/tmp/ogz-j1-reporter-pIGPSZ/entrypoints/entry-supervisor\"},\"context\":{}}\n",
+        "order": []
+      },
+      "dotenv-return-dashboard": {
+        "stdout": "",
+        "stderr": "",
+        "jsonl": "{\"timestamp\":\"2026-09-15T03:41:50.914Z\",\"eventType\":\"configurationSourceUnavailable\",\"message\":\"dotenv returned error ALPACA_API_KEY=[REDACTED] [REDACTED_URL]\",\"name\":\"Error\",\"stack\":null,\"code\":\"FIXTURE_OUTER\",\"cause\":{\"name\":\"Error\",\"message\":\"inner\",\"stack\":null,\"code\":\"FIXTURE_INNER\",\"cause\":null,\"raw\":null},\"raw\":null,\"processRole\":\"ogz-websocket\",\"phase\":\"configuration_source\",\"sourceReceiptId\":\"bootstrap:ogz-websocket:37:2026-09-15T03:41:50.911Z\",\"runtimeScope\":\"configuration_source\",\"configFingerprint\":null,\"scope\":{\"executionMode\":null,\"brokerId\":null,\"accountId\":null,\"assetClass\":null,\"symbol\":null,\"timeframe\":null,\"scopeKey\":null},\"env\":{\"pid\":37,\"nodeVersion\":\"v22.22.1\",\"pm2Id\":null,\"pm2Name\":null,\"nodeAppInstance\":null,\"cwd\":\"/tmp/ogz-j1-reporter-pIGPSZ/entrypoints/dotenv-return-dashboard\"},\"context\":{\"source\":\"dotenv\",\"continued\":true}}\n{\"timestamp\":\"2026-09-15T03:41:50.916Z\",\"eventType\":\"uncaughtException\",\"message\":\"fixture stop after dotenv receipt\",\"name\":\"Error\",\"stack\":null,\"code\":null,\"cause\":null,\"raw\":null,\"processRole\":\"ogz-websocket\",\"phase\":\"service_initialization\",\"sourceReceiptId\":\"bootstrap:ogz-websocket:37:2026-09-15T03:41:50.911Z\",\"runtimeScope\":\"service_initialization\",\"configFingerprint\":null,\"scope\":{\"executionMode\":null,\"brokerId\":null,\"accountId\":null,\"assetClass\":null,\"symbol\":null,\"timeframe\":null,\"scopeKey\":null},\"env\":{\"pid\":37,\"nodeVersion\":\"v22.22.1\",\"pm2Id\":null,\"pm2Name\":null,\"nodeAppInstance\":null,\"cwd\":\"/tmp/ogz-j1-reporter-pIGPSZ/entrypoints/dotenv-return-dashboard\"},\"context\":{}}\n",
+        "order": []
+      },
+      "dotenv-return-checkout": {
+        "stdout": "",
+        "stderr": "",
+        "jsonl": "{\"timestamp\":\"2026-09-15T03:41:51.083Z\",\"eventType\":\"configurationSourceUnavailable\",\"message\":\"dotenv returned error ALPACA_API_KEY=[REDACTED] [REDACTED_URL]\",\"name\":\"Error\",\"stack\":null,\"code\":\"FIXTURE_OUTER\",\"cause\":{\"name\":\"Error\",\"message\":\"inner\",\"stack\":null,\"code\":\"FIXTURE_INNER\",\"cause\":null,\"raw\":null},\"raw\":null,\"processRole\":\"ogz-stripe\",\"phase\":\"configuration_source\",\"sourceReceiptId\":\"bootstrap:ogz-stripe:44:2026-09-15T03:41:51.080Z\",\"runtimeScope\":\"configuration_source\",\"configFingerprint\":null,\"scope\":{\"executionMode\":null,\"brokerId\":null,\"accountId\":null,\"assetClass\":null,\"symbol\":null,\"timeframe\":null,\"scopeKey\":null},\"env\":{\"pid\":44,\"nodeVersion\":\"v22.22.1\",\"pm2Id\":null,\"pm2Name\":null,\"nodeAppInstance\":null,\"cwd\":\"/tmp/ogz-j1-reporter-pIGPSZ/entrypoints/dotenv-return-checkout\"},\"context\":{\"source\":\"dotenv\",\"continued\":true}}\n{\"timestamp\":\"2026-09-15T03:41:51.086Z\",\"eventType\":\"uncaughtException\",\"message\":\"fixture stop after dotenv receipt\",\"name\":\"Error\",\"stack\":null,\"code\":null,\"cause\":null,\"raw\":null,\"processRole\":\"ogz-stripe\",\"phase\":\"service_initialization\",\"sourceReceiptId\":\"bootstrap:ogz-stripe:44:2026-09-15T03:41:51.080Z\",\"runtimeScope\":\"service_initialization\",\"configFingerprint\":null,\"scope\":{\"executionMode\":null,\"brokerId\":null,\"accountId\":null,\"assetClass\":null,\"symbol\":null,\"timeframe\":null,\"scopeKey\":null},\"env\":{\"pid\":44,\"nodeVersion\":\"v22.22.1\",\"pm2Id\":null,\"pm2Name\":null,\"nodeAppInstance\":null,\"cwd\":\"/tmp/ogz-j1-reporter-pIGPSZ/entrypoints/dotenv-return-checkout\"},\"context\":{}}\n",
+        "order": []
+      },
+      "sentry-order": {
+        "stdout": "",
+        "stderr": "",
+        "jsonl": "{\"timestamp\":\"2026-09-15T03:41:51.225Z\",\"eventType\":\"uncaughtException\",\"message\":\"fixture stop after instrumentation ALPACA_API_KEY=[REDACTED] [REDACTED_URL]\",\"name\":\"Error\",\"stack\":null,\"code\":\"FIXTURE_OUTER\",\"cause\":{\"name\":\"Error\",\"message\":\"inner\",\"stack\":null,\"code\":\"FIXTURE_INNER\",\"cause\":null,\"raw\":null},\"raw\":null,\"processRole\":\"ogz-prime-v2\",\"phase\":\"service_initialization\",\"sourceReceiptId\":\"config:fixture-fingerprint\",\"runtimeScope\":\"service_initialization\",\"configFingerprint\":\"fixture-fingerprint\",\"scope\":{\"executionMode\":\"paper\",\"brokerId\":null,\"accountId\":\"default\",\"assetClass\":null,\"symbol\":null,\"timeframe\":null,\"scopeKey\":null},\"env\":{\"pid\":51,\"nodeVersion\":\"v22.22.1\",\"pm2Id\":null,\"pm2Name\":null,\"nodeAppInstance\":null,\"cwd\":\"/tmp/ogz-j1-reporter-pIGPSZ/entrypoints/sentry-order\"},\"context\":{}}\n",
+        "order": [
+          "unhandled-listeners:instrumentationUnhandledRejection,terminateOnUnhandledRejection",
+          "instrumentation-callback",
+          "application-reporter"
+        ]
+      },
+      "supervisor-runtime": {
+        "stdout": "",
+        "stderr": "",
+        "jsonl": "{\"timestamp\":\"2026-09-15T03:41:51.395Z\",\"eventType\":\"uncaughtException\",\"message\":\"supervisor runtime fixture ALPACA_API_KEY=[REDACTED] [REDACTED_URL]\",\"name\":\"Error\",\"stack\":null,\"code\":\"FIXTURE_OUTER\",\"cause\":{\"name\":\"object\",\"message\":\"{\\\"parent\\\":{\\\"name\\\":\\\"Error\\\",\\\"message\\\":\\\"[circular-error]\\\",\\\"stack\\\":null,\\\"code\\\":null,\\\"cause\\\":null,\\\"raw\\\":null}}\",\"stack\":null,\"code\":null,\"cause\":null,\"raw\":{\"parent\":{\"name\":\"Error\",\"message\":\"[circular-error]\",\"stack\":null,\"code\":null,\"cause\":null,\"raw\":null}}},\"raw\":null,\"processRole\":\"ogz-supervisor\",\"phase\":\"runtime\",\"sourceReceiptId\":\"bootstrap:ogz-supervisor:58:2026-09-15T03:41:51.355Z\",\"runtimeScope\":\"runtime\",\"configFingerprint\":null,\"scope\":{\"executionMode\":null,\"brokerId\":null,\"accountId\":null,\"assetClass\":null,\"symbol\":null,\"timeframe\":null,\"scopeKey\":null},\"env\":{\"pid\":58,\"nodeVersion\":\"v22.22.1\",\"pm2Id\":null,\"pm2Name\":null,\"nodeAppInstance\":null,\"cwd\":\"/tmp/ogz-j1-reporter-pIGPSZ/entrypoints/supervisor-runtime\"},\"context\":{}}\n{\"timestamp\":\"2026-09-15T03:41:51.398Z\",\"eventType\":\"unhandledRejection\",\"message\":\"supervisor runtime fixture ALPACA_API_KEY=[REDACTED] [REDACTED_URL]\",\"name\":\"Error\",\"stack\":null,\"code\":\"FIXTURE_OUTER\",\"cause\":{\"name\":\"object\",\"message\":\"{\\\"parent\\\":{\\\"name\\\":\\\"Error\\\",\\\"message\\\":\\\"[circular-error]\\\",\\\"stack\\\":null,\\\"code\\\":null,\\\"cause\\\":null,\\\"raw\\\":null}}\",\"stack\":null,\"code\":null,\"cause\":null,\"raw\":{\"parent\":{\"name\":\"Error\",\"message\":\"[circular-error]\",\"stack\":null,\"code\":null,\"cause\":null,\"raw\":null}}},\"raw\":null,\"processRole\":\"ogz-supervisor\",\"phase\":\"runtime\",\"sourceReceiptId\":\"bootstrap:ogz-supervisor:58:2026-09-15T03:41:51.355Z\",\"runtimeScope\":\"runtime\",\"configFingerprint\":null,\"scope\":{\"executionMode\":null,\"brokerId\":null,\"accountId\":null,\"assetClass\":null,\"symbol\":null,\"timeframe\":null,\"scopeKey\":null},\"env\":{\"pid\":58,\"nodeVersion\":\"v22.22.1\",\"pm2Id\":null,\"pm2Name\":null,\"nodeAppInstance\":null,\"cwd\":\"/tmp/ogz-j1-reporter-pIGPSZ/entrypoints/supervisor-runtime\"},\"context\":{\"promise\":\"[object Promise]\"}}\n",
+        "order": [
+          "continued-after-runtime-events"
+        ]
+      },
+      "checkout-import": {
+        "stdout": "",
+        "stderr": "",
+        "jsonl": "",
+        "order": []
+      }
+    }
+  }
+}

@@ -4,6 +4,10 @@ const fs = require('fs');
 const path = require('path');
 
 const DEFAULT_FILE_NAME = 'fatal-events.jsonl';
+const MAX_SANITIZE_DEPTH = 5;
+const MAX_SANITIZE_ITEMS = 100;
+const ACCESSOR_PLACEHOLDER = '[accessor]';
+const UNAVAILABLE_VALUE = '[unavailable]';
 const AUDIT_SCOPE_PLACEHOLDER_VALUES = new Set([
   'unknown',
   'undefined',
@@ -13,10 +17,15 @@ const AUDIT_SCOPE_PLACEHOLDER_VALUES = new Set([
   'n/a',
   'na'
 ]);
-const SENSITIVE_KEY_PATTERN = /(?:authorization|cookie|credential|dsn|password|passwd|secret|token|api[_-]?key|private[_-]?key|webhook[_-]?url|deadman[_-]?url|capability)/i;
+const SENSITIVE_KEY_TOKEN = '(?:authorization|cookie|credential|dsn|password|passwd|secret|token|api[_-]?key|private[_-]?key|webhook[_-]?url|deadman[_-]?url|capability|ntfy[_-]?topic)';
+const SENSITIVE_KEY_PATTERN = new RegExp(SENSITIVE_KEY_TOKEN, 'i');
 const URL_PATTERN = /\b(?:https?|wss?):\/\/[^\s"'`<>]+/gi;
 const BEARER_PATTERN = /\bBearer\s+[^\s,;]+/gi;
-const SENSITIVE_ASSIGNMENT_PATTERN = /\b((?:authorization|cookie|credential|dsn|password|passwd|secret|token|api[_-]?key|private[_-]?key|webhook[_-]?url|deadman[_-]?url|capability)[A-Za-z0-9_-]*\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^\s,;]+)/gi;
+const SENSITIVE_ASSIGNMENT_PATTERN = new RegExp(
+  `((?:["']?)[A-Za-z0-9_.-]*${SENSITIVE_KEY_TOKEN}[A-Za-z0-9_.-]*(?:["']?)\\s*[:=]\\s*)`
+    + '(?:"(?:\\\\.|[^"])*"|\'(?:\\\\.|[^\'])*\'|[^\\s,;}\\]]+)',
+  'gi'
+);
 
 function defaultAuditFilePath(cwd = process.cwd()) {
   return path.resolve(cwd, 'data', 'runtime-audit', DEFAULT_FILE_NAME);
@@ -39,21 +48,78 @@ function safeString(value) {
   if (typeof value === 'string') return value;
   if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return String(value);
   try {
-    return JSON.stringify(value);
+    const serialized = JSON.stringify(value);
+    if (typeof serialized === 'string') return serialized;
   } catch (_err) {
+    // Continue to the non-executing type label below.
+  }
+  try {
     return Object.prototype.toString.call(value);
+  } catch (_err) {
+    return UNAVAILABLE_VALUE;
+  }
+}
+
+function safeDataProperty(value, key, includePrototype = false) {
+  if ((typeof value !== 'object' && typeof value !== 'function') || value === null) {
+    return { found: false, value: undefined };
+  }
+
+  let current = value;
+  for (let level = 0; current && level < 10; level += 1) {
+    let descriptor;
+    try {
+      descriptor = Object.getOwnPropertyDescriptor(current, key);
+    } catch (_err) {
+      return { found: true, value: UNAVAILABLE_VALUE };
+    }
+    if (descriptor) {
+      return Object.prototype.hasOwnProperty.call(descriptor, 'value')
+        ? { found: true, value: descriptor.value }
+        : { found: true, value: ACCESSOR_PLACEHOLDER };
+    }
+    if (!includePrototype) break;
+    try {
+      current = Object.getPrototypeOf(current);
+    } catch (_err) {
+      return { found: true, value: UNAVAILABLE_VALUE };
+    }
+  }
+  return { found: false, value: undefined };
+}
+
+function isErrorInstance(value) {
+  try {
+    return value instanceof Error;
+  } catch (_err) {
+    return false;
+  }
+}
+
+function ownPropertyDescriptors(value) {
+  try {
+    return Object.getOwnPropertyDescriptors(value);
+  } catch (_err) {
+    return null;
   }
 }
 
 function collectSensitiveValues(env = {}) {
-  return Object.entries(env)
-    .filter(([key, value]) => SENSITIVE_KEY_PATTERN.test(key) && typeof value === 'string' && value.length > 0)
-    .map(([, value]) => value)
+  const descriptors = ownPropertyDescriptors(env);
+  if (!descriptors) return [];
+  return Object.entries(descriptors)
+    .filter(([key, descriptor]) => (
+      SENSITIVE_KEY_PATTERN.test(key)
+      && Object.prototype.hasOwnProperty.call(descriptor, 'value')
+      && typeof descriptor.value === 'string'
+      && descriptor.value.length > 0
+    ))
+    .map(([, descriptor]) => descriptor.value)
     .sort((left, right) => right.length - left.length);
 }
 
 function redactText(value, env = {}) {
-  let redacted = String(value ?? '');
+  let redacted = typeof value === 'string' ? value : safeString(value);
   for (const secretValue of collectSensitiveValues(env)) {
     if (redacted.includes(secretValue)) {
       redacted = redacted.split(secretValue).join('[REDACTED]');
@@ -72,25 +138,56 @@ function sanitizeValue(value, depth = 0, seen = new WeakSet(), env = {}, keyHint
   if (typeof value === 'string') return redactText(value, env);
   if (typeof value === 'number' || typeof value === 'boolean') return value;
   if (typeof value === 'bigint') return value.toString();
-  if (value instanceof Date) return Number.isNaN(value.getTime()) ? '[invalid-date]' : value.toISOString();
-  if (value instanceof Error) {
+  let isDate = false;
+  try {
+    isDate = value instanceof Date;
+  } catch (_err) {
+    isDate = false;
+  }
+  if (isDate) {
+    try {
+      return Number.isNaN(value.getTime()) ? '[invalid-date]' : value.toISOString();
+    } catch (_err) {
+      return '[invalid-date]';
+    }
+  }
+  if (isErrorInstance(value)) {
     return normalizeThrowable(value, env, depth, seen);
   }
+  if (typeof value === 'symbol') return '[symbol]';
+  if (typeof value === 'function') return '[function]';
   if (typeof value !== 'object') return redactText(safeString(value), env);
   if (seen.has(value)) return '[circular]';
-  if (depth >= 5) return '[depth-limit]';
+  if (depth >= MAX_SANITIZE_DEPTH) return '[depth-limit]';
 
   seen.add(value);
-  if (Array.isArray(value)) {
-    return value.slice(0, 100).map((item) => sanitizeValue(item, depth + 1, seen, env));
+  const descriptors = ownPropertyDescriptors(value);
+  if (!descriptors) return UNAVAILABLE_VALUE;
+
+  let isArray = false;
+  try {
+    isArray = Array.isArray(value);
+  } catch (_err) {
+    isArray = false;
+  }
+  if (isArray) {
+    return Object.entries(descriptors)
+      .filter(([key]) => /^(?:0|[1-9]\d*)$/.test(key))
+      .sort(([left], [right]) => Number(left) - Number(right))
+      .slice(0, MAX_SANITIZE_ITEMS)
+      .map(([key, descriptor]) => {
+        const item = Object.prototype.hasOwnProperty.call(descriptor, 'value')
+          ? descriptor.value
+          : ACCESSOR_PLACEHOLDER;
+        return sanitizeValue(item, depth + 1, seen, env, key);
+      });
   }
 
   const out = {};
-  const descriptors = Object.getOwnPropertyDescriptors(value);
-  for (const [key, descriptor] of Object.entries(descriptors).slice(0, 100)) {
+  for (const [key, descriptor] of Object.entries(descriptors).slice(0, MAX_SANITIZE_ITEMS)) {
     const item = Object.prototype.hasOwnProperty.call(descriptor, 'value')
       ? descriptor.value
-      : '[accessor]';
+      : ACCESSOR_PLACEHOLDER;
     const sanitized = sanitizeValue(item, depth + 1, seen, env, key);
     if (sanitized !== undefined) out[key] = sanitized;
   }
@@ -99,7 +196,12 @@ function sanitizeValue(value, depth = 0, seen = new WeakSet(), env = {}, keyHint
 
 function cleanAuditScopeValue(value) {
   if (value === null || value === undefined) return null;
-  if (typeof value !== 'string') return value;
+  if (typeof value !== 'string') {
+    if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+      return safeString(value);
+    }
+    return null;
+  }
   const cleaned = value.trim();
   if (!cleaned) return null;
   if (AUDIT_SCOPE_PLACEHOLDER_VALUES.has(cleaned.toLowerCase())) return null;
@@ -107,10 +209,10 @@ function cleanAuditScopeValue(value) {
 }
 
 function normalizeThrowable(input, env = {}, depth = 0, seen = new WeakSet()) {
-  if (input instanceof Error) {
+  if (isErrorInstance(input)) {
     if (seen.has(input)) {
       return {
-        name: redactText(input.name || 'Error', env),
+        name: 'Error',
         message: '[circular-error]',
         stack: null,
         code: null,
@@ -118,29 +220,70 @@ function normalizeThrowable(input, env = {}, depth = 0, seen = new WeakSet()) {
         raw: null,
       };
     }
+    if (depth >= MAX_SANITIZE_DEPTH) {
+      return {
+        name: 'Error',
+        message: '[depth-limit]',
+        stack: null,
+        code: null,
+        cause: null,
+        raw: null,
+      };
+    }
     seen.add(input);
+    const nameProperty = safeDataProperty(input, 'name', true);
+    const messageProperty = safeDataProperty(input, 'message', true);
+    const stackProperty = safeDataProperty(input, 'stack', true);
+    const codeProperty = safeDataProperty(input, 'code', true);
+    const causeProperty = safeDataProperty(input, 'cause', false);
     return {
-      name: redactText(input.name || 'Error', env),
-      message: redactText(input.message || '', env),
-      stack: input.stack ? redactText(input.stack, env) : null,
-      code: input.code ? redactText(input.code, env) : null,
-      cause: input.cause !== undefined && depth < 4
-        ? normalizeThrowable(input.cause, env, depth + 1, seen)
+      name: redactText(nameProperty.found ? nameProperty.value : 'Error', env),
+      message: redactText(messageProperty.found ? messageProperty.value : '', env),
+      stack: stackProperty.found
+        && typeof stackProperty.value === 'string'
+        && stackProperty.value !== ACCESSOR_PLACEHOLDER
+        && stackProperty.value !== UNAVAILABLE_VALUE
+        ? redactText(stackProperty.value, env)
+        : null,
+      code: codeProperty.found && codeProperty.value !== undefined && codeProperty.value !== null
+        ? redactText(codeProperty.value, env)
+        : null,
+      cause: causeProperty.found && causeProperty.value !== undefined && depth < 4
+        ? normalizeThrowable(causeProperty.value, env, depth + 1, seen)
         : null,
       raw: null,
     };
   }
 
+  const raw = sanitizeValue(input, depth, seen, env);
+  const rawObject = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : null;
   return {
-    name: redactText(input && input.constructor && input.constructor.name ? input.constructor.name : typeof input, env),
-    message: redactText(safeString(sanitizeValue(input, 0, new WeakSet(), env)), env),
-    stack: input && typeof input === 'object' && typeof input.stack === 'string'
-      ? redactText(input.stack, env)
+    name: Array.isArray(raw) ? 'Array' : typeof input,
+    message: redactText(safeString(raw), env),
+    stack: rawObject && typeof rawObject.stack === 'string'
+      ? rawObject.stack
       : null,
-    code: input && typeof input === 'object' && input.code ? redactText(input.code, env) : null,
+    code: rawObject && rawObject.code !== undefined && rawObject.code !== null
+      ? redactText(rawObject.code, env)
+      : null,
     cause: null,
-    raw: sanitizeValue(input, 0, new WeakSet(), env),
+    raw,
   };
+}
+
+function normalizeThrowableSafely(input, env = {}) {
+  try {
+    return normalizeThrowable(input, env);
+  } catch (_err) {
+    return {
+      name: 'Error',
+      message: '[unavailable diagnostic]',
+      stack: null,
+      code: null,
+      cause: null,
+      raw: null,
+    };
+  }
 }
 
 function isPathInside(baseDir, targetPath) {
@@ -180,40 +323,48 @@ class RuntimeAuditSink {
 
   buildRecord(eventType, input, context = {}) {
     const env = this.env || {};
-    const throwable = normalizeThrowable(input, env);
+    const throwable = normalizeThrowableSafely(input, env);
+    const sanitizedContext = sanitizeValue(context, 0, new WeakSet(), env);
+    const safeContext = sanitizedContext && typeof sanitizedContext === 'object' && !Array.isArray(sanitizedContext)
+      ? sanitizedContext
+      : {};
+    const envValue = (key) => {
+      const property = safeDataProperty(env, key, false);
+      return property.found ? sanitizeValue(property.value, 0, new WeakSet(), env, key) : null;
+    };
 
     return {
       timestamp: isoTimestamp(this.clock),
-      eventType: String(eventType || 'runtimeFatal'),
+      eventType: redactText(eventType || 'runtimeFatal', env),
       message: throwable.message,
       name: throwable.name,
       stack: throwable.stack,
       code: throwable.code,
       cause: throwable.cause,
       raw: throwable.raw,
-      processRole: cleanAuditScopeValue(context.processRole) || this.processRole,
-      phase: cleanAuditScopeValue(context.phase) || this.phase,
-      sourceReceiptId: cleanAuditScopeValue(context.sourceReceiptId) || this.sourceReceiptId,
-      runtimeScope: cleanAuditScopeValue(context.runtimeScope),
-      configFingerprint: context.configFingerprint || null,
+      processRole: cleanAuditScopeValue(safeContext.processRole) || this.processRole,
+      phase: cleanAuditScopeValue(safeContext.phase) || this.phase,
+      sourceReceiptId: cleanAuditScopeValue(safeContext.sourceReceiptId) || this.sourceReceiptId,
+      runtimeScope: cleanAuditScopeValue(safeContext.runtimeScope),
+      configFingerprint: cleanAuditScopeValue(safeContext.configFingerprint),
       scope: {
-        executionMode: cleanAuditScopeValue(context.executionMode),
-        brokerId: cleanAuditScopeValue(context.brokerId),
-        accountId: cleanAuditScopeValue(context.accountId),
-        assetClass: cleanAuditScopeValue(context.assetClass),
-        symbol: cleanAuditScopeValue(context.symbol),
-        timeframe: cleanAuditScopeValue(context.timeframe),
-        scopeKey: cleanAuditScopeValue(context.scopeKey),
+        executionMode: cleanAuditScopeValue(safeContext.executionMode),
+        brokerId: cleanAuditScopeValue(safeContext.brokerId),
+        accountId: cleanAuditScopeValue(safeContext.accountId),
+        assetClass: cleanAuditScopeValue(safeContext.assetClass),
+        symbol: cleanAuditScopeValue(safeContext.symbol),
+        timeframe: cleanAuditScopeValue(safeContext.timeframe),
+        scopeKey: cleanAuditScopeValue(safeContext.scopeKey),
       },
       env: {
         pid: this.pid,
         nodeVersion: this.nodeVersion,
-        pm2Id: env.pm_id || env.PM2_ID || null,
-        pm2Name: env.name || env.pm2_name || env.PM2_NAME || null,
-        nodeAppInstance: env.NODE_APP_INSTANCE || null,
+        pm2Id: envValue('pm_id') || envValue('PM2_ID'),
+        pm2Name: envValue('name') || envValue('pm2_name') || envValue('PM2_NAME'),
+        nodeAppInstance: envValue('NODE_APP_INSTANCE'),
         cwd: this.cwd,
       },
-      context: sanitizeValue(context.extra || {}, 0, new WeakSet(), env),
+      context: safeContext.extra || {},
     };
   }
 
@@ -236,12 +387,16 @@ class RuntimeAuditSink {
   }
 
   redactForOutput(value) {
-    const env = this.env || {};
-    if (value instanceof Error) {
-      const throwable = normalizeThrowable(value, env);
-      return throwable.stack || throwable.message;
+    try {
+      const env = this.env || {};
+      if (isErrorInstance(value)) {
+        const throwable = normalizeThrowableSafely(value, env);
+        return throwable.stack || throwable.message || throwable.name || '[unavailable diagnostic]';
+      }
+      return redactText(safeString(sanitizeValue(value, 0, new WeakSet(), env)), env);
+    } catch (_err) {
+      return '[unavailable diagnostic]';
     }
-    return redactText(safeString(sanitizeValue(value, 0, new WeakSet(), env)), env);
   }
 
   capture(eventType, input, context = {}) {
@@ -252,28 +407,42 @@ class RuntimeAuditSink {
       fs.appendFileSync(this.filePath, `${JSON.stringify(record)}\n`, 'utf8');
       return { success: true, filePath: this.filePath, record };
     } catch (err) {
-      this.writeFailureFallback(eventType, input, err);
+      this.writeFailureFallback(eventType, input, err, context, record);
+      const sinkError = normalizeThrowableSafely(err, this.env || {});
       return {
         success: false,
         filePath: this.filePath,
         record,
-        error: redactText(err && err.message ? err.message : safeString(err), this.env || {}),
+        error: sinkError.message,
       };
     }
   }
 
-  writeFailureFallback(eventType, input, err) {
+  writeFailureFallback(eventType, input, err, context = {}, record = null) {
     try {
       const env = this.env || {};
-      const throwable = normalizeThrowable(input, env);
+      const throwable = record || normalizeThrowableSafely(input, env);
+      const sinkError = normalizeThrowableSafely(err, env);
+      const sanitizedContext = sanitizeValue(context, 0, new WeakSet(), env);
+      const safeContext = sanitizedContext && typeof sanitizedContext === 'object' && !Array.isArray(sanitizedContext)
+        ? sanitizedContext
+        : {};
       const fallback = {
         timestamp: isoTimestamp(this.clock),
-        eventType: String(eventType || 'runtimeFatal'),
+        eventType: record?.eventType || redactText(eventType || 'runtimeFatal', env),
         auditSinkFailure: true,
-        auditFilePath: this.filePath,
-        auditError: redactText(err && err.message ? err.message : safeString(err), env),
+        auditFilePath: redactText(this.filePath, env),
+        auditError: sinkError.message,
         message: throwable.message,
         name: throwable.name,
+        code: throwable.code,
+        cause: throwable.cause,
+        processRole: record?.processRole || cleanAuditScopeValue(safeContext.processRole) || this.processRole,
+        phase: record?.phase || cleanAuditScopeValue(safeContext.phase) || this.phase,
+        sourceReceiptId: record?.sourceReceiptId
+          || cleanAuditScopeValue(safeContext.sourceReceiptId)
+          || this.sourceReceiptId,
+        runtimeScope: record?.runtimeScope || cleanAuditScopeValue(safeContext.runtimeScope),
         pid: this.pid,
       };
       fs.writeSync(this.stderrFd, `[FATAL-AUDIT-FAILED] ${JSON.stringify(fallback)}\n`);
