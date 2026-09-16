@@ -22,6 +22,12 @@ Mercury alleged `fs.linkSync()` could fail across devices or on an unsupported W
 
 This does not claim support for an unexercised Windows or network-filesystem deployment. On an unsupported filesystem acquisition exits with a named error rather than falling back to rename replacement.
 
+## Third attack — probe/production boundary mismatch
+
+After the launcher and barrier corrections, Mercury alleged that the `J2_*` environment variables were not read by production and therefore the J2 gate was disabled. Those variables are deliberately scoped to the disposable child-process probe; J2 adds no production gate. Their absence from `start-ogzprime.sh` and production modules is expected.
+
+The production behavior under review is the launcher's removal of its unconditional owner-record deletion and `SingletonLock`'s exclusive publication. The direct command executes the ignored evidence probe itself and proves its ready/start/release barriers. Mercury could not open that packet because `ogz-meta/inbox/` is excluded from its retrieval index, so its production-only search did not evaluate the proof mechanism it criticized. This finding is retained as a target mismatch, not relabeled as a pass.
+
 ## Review-layer limitation
 
 The configured Fable adversarial review seat was unavailable during both runs because its local credentials/authentication were absent. Mercury and Kimi completed. This packet does not relabel that missing seat as a pass.

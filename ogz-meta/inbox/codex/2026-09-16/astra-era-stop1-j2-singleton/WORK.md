@@ -7,6 +7,7 @@
 - `core/AtomicWrite.js` wrote a sibling `.tmp` file and renamed it to the destination. That protected content completeness but did not make destination ownership exclusive.
 - `releaseLock()` already checks both PID and random token before unlinking.
 - `SingletonLock` also installs immediate signal/fatal exit handlers. Those remain unchanged because J3 owns lifecycle and one release owner.
+- `start-ogzprime.sh` called `setup()` from both `start` and direct `setup`, and `setup()` unconditionally removed `.ogz-prime-v14.lock`. That external deletion could erase a live owner's record before a second process acquired it.
 
 ## Implementation
 
@@ -17,6 +18,8 @@
 - Candidate files are removed on every returning acquisition path. The empty reclaim-mutex inode persists by design so every future claimant locks the same inode; its existence is not bot ownership.
 - An unreadable or identity-less existing record is retained. New code no longer treats parse failure as permission to delete unknown ownership.
 - The `AtomicWrite` comment no longer names SingletonLock as a consumer.
+- The launcher no longer removes the owner record. Only `SingletonLock` decides whether a recorded owner is stale and may be reclaimed.
+- The contention probe uses explicit ready, start, and release barriers. The parent observes all five refusal exits plus the winner's ownership receipt before allowing that winner to release.
 
 ## Deliberate boundary
 

@@ -10,6 +10,7 @@
 
 - `core/SingletonLock.js`
 - `core/AtomicWrite.js` — comment-only removal of the obsolete SingletonLock usage claim.
+- `start-ogzprime.sh` — removes the launcher bypass that deleted the published owner record.
 
 ## Evidence files
 

@@ -45,6 +45,15 @@ async function waitForFile(filePath, timeoutMs = 5000) {
   throw new Error(`Timed out waiting for fixture file: ${filePath}`);
 }
 
+async function waitForCondition(predicate, description, timeoutMs = 5000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (predicate()) return;
+    await wait(10);
+  }
+  throw new Error(`Timed out waiting for ${description}`);
+}
+
 const workerPath = path.join(scratchRoot, 'worker.js');
 writeFixture(workerPath, String.raw`
 'use strict';
@@ -73,10 +82,20 @@ if (action === 'hold-reclaim-mutex') {
   setInterval(() => {}, 1000);
 } else {
 
-const startAt = Number(process.env.J2_START_AT || Date.now());
 const waitArray = new Int32Array(new SharedArrayBuffer(4));
-while (Date.now() < startAt) {
-  Atomics.wait(waitArray, 0, 0, Math.min(10, startAt - Date.now()));
+const startGatePath = process.env.J2_START_GATE_PATH;
+if (startGatePath) {
+  fs.writeFileSync(process.env.J2_READY_PATH, JSON.stringify({ ready: true, pid: process.pid }));
+  const startDeadline = Date.now() + 10000;
+  while (!fs.existsSync(startGatePath)) {
+    if (Date.now() >= startDeadline) process.exit(3);
+    Atomics.wait(waitArray, 0, 0, 10);
+  }
+} else {
+  const startAt = Number(process.env.J2_START_AT || Date.now());
+  while (Date.now() < startAt) {
+    Atomics.wait(waitArray, 0, 0, Math.min(10, startAt - Date.now()));
+  }
 }
 
 const lock = new OGZSingletonLock(botName);
@@ -92,15 +111,35 @@ fs.writeFileSync(resultPath, JSON.stringify({
   lockExists: fs.existsSync(lockFile)
 }));
 
-setTimeout(() => {
+const releaseGatePath = process.env.J2_RELEASE_GATE_PATH;
+if (releaseGatePath) {
+  const releaseDeadline = Date.now() + 10000;
+  while (!fs.existsSync(releaseGatePath)) {
+    if (Date.now() >= releaseDeadline) process.exit(4);
+    Atomics.wait(waitArray, 0, 0, 10);
+  }
   lock.releaseLock();
   process.exit(0);
-}, Number(process.env.J2_HOLD_MS || 300));
+} else {
+  setTimeout(() => {
+    lock.releaseLock();
+    process.exit(0);
+  }, Number(process.env.J2_HOLD_MS || 300));
+}
 }
 `);
 
-function spawnWorker({ dataDir, action = 'acquire', startAt = Date.now(), holdMs = 300, extraEnv = {} }) {
+function spawnWorker({
+  dataDir,
+  action = 'acquire',
+  startAt = Date.now(),
+  holdMs = 300,
+  startGatePath = '',
+  releaseGatePath = '',
+  extraEnv = {},
+}) {
   const resultPath = path.join(dataDir, `result-${crypto.randomUUID()}.json`);
+  const readyPath = `${resultPath}.ready`;
   const stdoutPath = `${resultPath}.stdout`;
   const stderrPath = `${resultPath}.stderr`;
   const stdoutFd = fs.openSync(stdoutPath, 'w');
@@ -119,6 +158,9 @@ function spawnWorker({ dataDir, action = 'acquire', startAt = Date.now(), holdMs
         J2_RESULT_PATH: resultPath,
         J2_SINGLETON_MODULE: path.join(repoRoot, 'core', 'SingletonLock.js'),
         J2_START_AT: String(startAt),
+        J2_START_GATE_PATH: startGatePath,
+        J2_RELEASE_GATE_PATH: releaseGatePath,
+        J2_READY_PATH: readyPath,
         ...extraEnv,
       },
     });
@@ -141,7 +183,7 @@ function spawnWorker({ dataDir, action = 'acquire', startAt = Date.now(), holdMs
     });
   });
 
-  return { child, resultPath, completed };
+  return { child, resultPath, readyPath, completed };
 }
 
 function listTransientLockArtifacts(dataDir) {
@@ -166,8 +208,30 @@ async function runRace(label, withStaleOwner) {
     }, null, 2)}\n`, { mode: 0o600 });
   }
 
-  const startAt = Date.now() + 500;
-  const workers = Array.from({ length: 6 }, () => spawnWorker({ dataDir, startAt, holdMs: 350 }));
+  const startGatePath = path.join(dataDir, 'start-gate');
+  const releaseGatePath = path.join(dataDir, 'release-gate');
+  const workers = Array.from({ length: 6 }, () => spawnWorker({
+    dataDir,
+    startGatePath,
+    releaseGatePath,
+  }));
+  await Promise.all(workers.map((worker) => waitForFile(worker.readyPath)));
+
+  const settledBeforeRelease = [];
+  for (const worker of workers) {
+    worker.completed.then((outcome) => settledBeforeRelease.push(outcome));
+  }
+  fs.writeFileSync(startGatePath, 'start\n', 'utf8');
+  await waitForCondition(() => {
+    const winnerReceipts = workers.filter((worker) => {
+      if (!fs.existsSync(worker.resultPath)) return false;
+      return readJson(worker.resultPath).acquired === true;
+    });
+    return settledBeforeRelease.length === workers.length - 1 && winnerReceipts.length === 1;
+  }, `${label} acquisition outcomes`);
+  assert.equal(settledBeforeRelease.every((outcome) => outcome.status === 1), true, `${label}: all completed contenders refused`);
+  fs.writeFileSync(releaseGatePath, 'release\n', 'utf8');
+
   const outcomes = await Promise.all(workers.map((worker) => worker.completed));
   const winners = outcomes.filter((outcome) => outcome.status === 0 && outcome.result?.acquired === true);
   const losers = outcomes.filter((outcome) => outcome.status === 1 && outcome.result === null);
@@ -189,6 +253,8 @@ async function runRace(label, withStaleOwner) {
     winners: winners.length,
     refused: losers.length,
     winnerOwnedPublishedMetadata: winners[0].result.snapshotMatchesOwner,
+    everyContenderReadyBeforeStart: true,
+    everyOutcomeKnownBeforeWinnerRelease: true,
     noPartialJsonObserved: true,
     artifactsAfterRelease: [],
     persistentReclaimMutex: withStaleOwner,
@@ -296,6 +362,13 @@ async function runKilledReclaimerCase() {
 async function main() {
   const flockVersionResult = childProcess.spawnSync('/usr/bin/flock', ['--version'], { encoding: 'utf8' });
   assert.equal(flockVersionResult.status, 0, 'target host provides /usr/bin/flock');
+  const startupScriptPath = path.join(repoRoot, 'start-ogzprime.sh');
+  const startupScript = fs.readFileSync(startupScriptPath, 'utf8');
+  assert.doesNotMatch(
+    startupScript,
+    /rm\s+(?:-[^\s]+\s+)*["']?\$PROJECT_ROOT\/\.ogz-prime-v14\.lock/,
+    'startup script must not remove the singleton owner record'
+  );
   const freshRaces = [];
   const staleRaces = [];
   for (let index = 0; index < 8; index += 1) {
@@ -318,16 +391,22 @@ async function main() {
       path.join(repoRoot, 'core', 'SingletonLock.js'),
       path.join(repoRoot, 'core', 'AtomicWrite.js'),
       path.join(repoRoot, 'run-empire-v2.js'),
+      startupScriptPath,
       __filename,
     ].map((filePath) => [path.relative(repoRoot, filePath), sha256File(filePath)])),
     operations: 'Local child-process SingletonLock contention only; no bot entrypoint, Jest, provider, broker, notification, network, PM2, or trading operation.',
     result: 'PASS',
+    startupOwnership: {
+      launcherDoesNotDeleteOwnerRecord: true,
+    },
     freshContention: {
       rounds: freshRaces.length,
       contendersPerRound: freshRaces[0].contenders,
       everyRoundExactlyOneWinner: freshRaces.every((round) => round.winners === 1),
       everyLoserRefused: freshRaces.every((round) => round.refused === round.contenders - 1),
       everyWinnerOwnedPublishedMetadata: freshRaces.every((round) => round.winnerOwnedPublishedMetadata),
+      everyContenderReadyBeforeStart: freshRaces.every((round) => round.everyContenderReadyBeforeStart),
+      everyOutcomeKnownBeforeWinnerRelease: freshRaces.every((round) => round.everyOutcomeKnownBeforeWinnerRelease),
       noPartialJsonObserved: freshRaces.every((round) => round.noPartialJsonObserved),
       noArtifactsAfterRelease: freshRaces.every((round) => round.artifactsAfterRelease.length === 0),
     },
@@ -337,6 +416,8 @@ async function main() {
       everyRoundExactlyOneWinner: staleRaces.every((round) => round.winners === 1),
       everyLoserRefused: staleRaces.every((round) => round.refused === round.contenders - 1),
       everyWinnerOwnedPublishedMetadata: staleRaces.every((round) => round.winnerOwnedPublishedMetadata),
+      everyContenderReadyBeforeStart: staleRaces.every((round) => round.everyContenderReadyBeforeStart),
+      everyOutcomeKnownBeforeWinnerRelease: staleRaces.every((round) => round.everyOutcomeKnownBeforeWinnerRelease),
       noPartialJsonObserved: staleRaces.every((round) => round.noPartialJsonObserved),
       noArtifactsAfterRelease: staleRaces.every((round) => round.artifactsAfterRelease.length === 0),
     },

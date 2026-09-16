@@ -26,9 +26,6 @@ setup() {
     echo -e "${YELLOW}[Setup] Fixing web file permissions...${NC}"
     chmod 644 "$PROJECT_ROOT/public/trai-widget.js" 2>/dev/null
 
-    echo -e "${YELLOW}[Setup] Clearing stale locks...${NC}"
-    rm -f "$PROJECT_ROOT/.ogz-prime-v14.lock" 2>/dev/null
-
     # Check Python dependencies for TRAI
     echo -e "${YELLOW}[Setup] Checking TRAI Python dependencies...${NC}"
     if ! python3 -c "import sentence_transformers" 2>/dev/null; then

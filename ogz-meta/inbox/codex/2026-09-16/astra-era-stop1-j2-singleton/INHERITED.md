@@ -12,3 +12,5 @@ J3 retains:
 J4 retains required-component/readiness and recovery classification. J7/J8 retain explicit delivery of `DATA_DIR`, backtest/mode inputs, and all configuration-consumer migration. J2 preserves the current inputs and does not endorse them as final owners.
 
 The direct packet does not establish a PM2-loaded SHA, a successful application boot, broker state, phone delivery, or trading behavior.
+
+J2 removes the launcher's direct owner-record deletion because it bypassed exclusive acquisition. This does not transfer broader startup or shutdown ownership into J2.
