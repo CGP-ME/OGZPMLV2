@@ -9,7 +9,7 @@
 
 The audit sink intentionally redacts complete URLs because failure formatting cannot safely infer whether a URL path or query carries capability material. This does not alter ordinary connection logging that does not pass through the audit sink.
 
-The sink's ambient environment read is solely a redaction dictionary. It selects no configuration and changes no bot behavior. The later atomic configuration cut must classify this as sanitization input, not as a surviving configuration consumer.
+The sink's ambient environment read supplies redaction values and diagnostic process metadata such as PM2 identity. It selects no bot configuration and changes no bot behavior. The later atomic configuration cut must classify this as sanitization and diagnostic metadata input, not as a surviving bot-configuration consumer.
 
 ## Footer
 

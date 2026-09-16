@@ -309,8 +309,10 @@ Module._load = function interceptedLoad(request, parent, isMain) {
   if (mode === 'entry-dashboard' && parentFile === dashboardEntry && request === 'dotenv') {
     throw fixtureError('dashboard configuration source failed');
   }
-  if (mode === 'entry-checkout' && parentFile === checkoutEntry && request === 'dotenv') {
-    throw fixtureError('checkout configuration source failed');
+  if (mode === 'entry-checkout' && parentFile === checkoutEntry) {
+    if (request === 'express') return expressStub();
+    if (request === 'cors') return () => function corsMiddleware() {};
+    if (request === 'dotenv') throw fixtureError('checkout configuration source failed');
   }
   if (mode === 'entry-supervisor' && parentFile === supervisorEntry && request === '../core/Supervisor') {
     throw fixtureError('supervisor service import failed');
@@ -388,36 +390,51 @@ function runChild(mode, entry, args = []) {
   const cwd = path.join(scratchRoot, 'entrypoints', mode);
   fs.mkdirSync(cwd, { recursive: true });
   const orderFile = path.join(cwd, 'order.txt');
-  const child = childProcess.spawnSync(
-    process.execPath,
-    ['--require', preloadPath, entry, ...args],
-    {
-      cwd,
-      encoding: 'utf8',
-      env: {
-        PATH: process.env.PATH || '/usr/bin:/bin',
-        J1_PROBE_MODE: mode,
-        J1_PROBE_REPO: repoRoot,
-        J1_PROBE_ROOT: cwd,
-        J1_PROBE_ORDER: orderFile,
-        J1_PROBE_CANARY: canary,
-      },
-    }
-  );
+  const stdoutPath = path.join(cwd, 'stdout.log');
+  const stderrPath = path.join(cwd, 'stderr.log');
+  const stdoutFd = fs.openSync(stdoutPath, 'w');
+  const stderrFd = fs.openSync(stderrPath, 'w');
+  let child;
+  try {
+    child = childProcess.spawnSync(
+      process.execPath,
+      ['--require', preloadPath, entry, ...args],
+      {
+        cwd,
+        stdio: ['ignore', stdoutFd, stderrFd],
+        env: {
+          PATH: process.env.PATH || '/usr/bin:/bin',
+          J1_PROBE_MODE: mode,
+          J1_PROBE_REPO: repoRoot,
+          J1_PROBE_ROOT: cwd,
+          J1_PROBE_ORDER: orderFile,
+          J1_PROBE_CANARY: canary,
+        },
+      }
+    );
+  } finally {
+    fs.closeSync(stdoutFd);
+    fs.closeSync(stderrFd);
+  }
+  if (child.error) {
+    throw child.error;
+  }
+  const stdout = readIfPresent(stdoutPath);
+  const stderr = readIfPresent(stderrPath);
   const jsonl = [
     path.join(cwd, 'data', 'runtime-audit', 'fatal-events.jsonl'),
     path.join(cwd, 'runtime-audit', 'fatal-events.jsonl'),
   ].map(readIfPresent).find(Boolean) || '';
   const order = readIfPresent(orderFile).trim().split('\n').filter(Boolean);
-  assert.equal(child.stdout.includes(canary), false, `${mode} stdout redaction`);
-  assert.equal(child.stderr.includes(canary), false, `${mode} stderr redaction`);
+  assert.equal(stdout.includes(canary), false, `${mode} stdout redaction`);
+  assert.equal(stderr.includes(canary), false, `${mode} stderr redaction`);
   assert.equal(jsonl.includes(canary), false, `${mode} JSONL redaction`);
   return {
     mode,
     status: child.status,
     signal: child.signal,
-    stdout: child.stdout,
-    stderr: child.stderr,
+    stdout,
+    stderr,
     jsonl,
     records: parseJsonLines(jsonl),
     order,
@@ -464,6 +481,12 @@ function runEntrypointCases() {
     'entry-checkout': path.join(repoRoot, 'public', 'stripe-checkout.js'),
     'entry-supervisor': path.join(repoRoot, 'scripts', 'supervisor-daemon.js'),
   };
+  const expectedEarlyDiagnostic = {
+    'entry-bot': '[FATAL] Uncaught Exception:',
+    'entry-dashboard': '[Dashboard] Uncaught exception:',
+    'entry-checkout': '[Checkout] Uncaught exception:',
+    'entry-supervisor': '[Supervisor] Bootstrap exception:',
+  };
   const results = {};
   for (const [mode, entry] of Object.entries(entries)) {
     const child = runChild(mode, entry);
@@ -475,6 +498,9 @@ function runEntrypointCases() {
     assert.equal(typeof record.sourceReceiptId, 'string', mode);
     assert.equal(record.code, 'FIXTURE_OUTER', mode);
     assert.equal(record.cause.code, 'FIXTURE_INNER', mode);
+    assert.ok(child.stderr.includes(expectedEarlyDiagnostic[mode]), `${mode} diagnostic present`);
+    assert.ok(child.stderr.includes('[REDACTED]'), `${mode} assignment redacted`);
+    assert.ok(child.stderr.includes('[REDACTED_URL]'), `${mode} URL redacted`);
     results[mode] = child;
   }
 
@@ -489,6 +515,12 @@ function runEntrypointCases() {
     assert.equal(sourceRecord.context.source, 'dotenv', mode);
     assert.equal(sourceRecord.context.continued, true, mode);
     assert.equal(sourceRecord.code, 'FIXTURE_OUTER', mode);
+    assert.ok(JSON.stringify(sourceRecord).includes('[REDACTED]'), `${mode} source assignment redacted`);
+    assert.ok(JSON.stringify(sourceRecord).includes('[REDACTED_URL]'), `${mode} source URL redacted`);
+    const diagnosticPrefix = mode.endsWith('dashboard')
+      ? '[Dashboard] Uncaught exception:'
+      : '[Checkout] Uncaught exception:';
+    assert.ok(child.stderr.includes(diagnosticPrefix), `${mode} stop diagnostic present`);
     results[mode] = child;
   }
 
@@ -499,6 +531,9 @@ function runEntrypointCases() {
     'instrumentation-callback',
     'application-reporter',
   ]);
+  assert.ok(sentryOrder.stderr.includes('[FATAL] Uncaught Exception:'), 'sentry-order diagnostic present');
+  assert.ok(sentryOrder.stderr.includes('[REDACTED]'), 'sentry-order assignment redacted');
+  assert.ok(sentryOrder.stderr.includes('[REDACTED_URL]'), 'sentry-order URL redacted');
   results['sentry-order'] = sentryOrder;
 
   const supervisorRuntime = runChild('supervisor-runtime', path.join(repoRoot, 'scripts', 'supervisor-daemon.js'));
@@ -508,6 +543,12 @@ function runEntrypointCases() {
     supervisorRuntime.records.map((record) => record.eventType),
     ['uncaughtException', 'unhandledRejection']
   );
+  assert.ok(supervisorRuntime.stdout.includes('[Supervisor] daemon booting'), 'supervisor boot diagnostic present');
+  assert.ok(supervisorRuntime.stdout.includes('[Supervisor] daemon running'), 'supervisor running diagnostic present');
+  assert.ok(supervisorRuntime.stderr.includes('[Supervisor] uncaughtException:'), 'supervisor uncaught diagnostic present');
+  assert.ok(supervisorRuntime.stderr.includes('[Supervisor] unhandledRejection:'), 'supervisor rejection diagnostic present');
+  assert.ok(supervisorRuntime.stderr.includes('[REDACTED]'), 'supervisor assignment redacted');
+  assert.ok(supervisorRuntime.stderr.includes('[REDACTED_URL]'), 'supervisor URL redacted');
   results['supervisor-runtime'] = supervisorRuntime;
 
   results['checkout-import'] = runCheckoutImportCase();
