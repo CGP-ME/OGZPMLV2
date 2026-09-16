@@ -1,0 +1,57 @@
+{
+  "baseSha": "31f150f9744021f8a092787f755f8123b3abf0a5",
+  "node": "v22.22.1",
+  "sourceFiles": {
+    "run-empire-v2.js": "ad84a8bf00990d06cda54d60d20b82537b1f0e92e1ec8f081d81f28614af87b2",
+    "core/SingletonLock.js": "ff4fc0de946d152e327ac61549081dbd1fdb8870240ea069fdf91b895f0d820c",
+    "core/BacktestRunner.js": "e75efc9201058e8fb56c3fdb2e61f4047b97c7764736112e1c709823a6e45133",
+    "ogz-meta/inbox/codex/2026-09-16/astra-era-stop1-j2-singleton/probe-j2-singleton.js": "f6ff26baec1e87596ddf532ede07d5e64bb4375a3a4ac510aa27c0640ea0a7f6",
+    "ogz-meta/inbox/codex/2026-09-16/astra-era-stop1-j3-lifecycle/probe-j3-lifecycle.js": "6cf261324a04a8b6dc0f63ebb4eb1084f1f19a036d8866c347bc65f71e6b6d3c"
+  },
+  "operations": "Local source-exact lifecycle functions, fake services, real SingletonLock, and J2 child-process contention only; no bot boot, Jest, provider, broker, notification, network, PM2, or trading operation.",
+  "result": "PASS",
+  "sourceOwnership": {
+    "singletonProcessHandlers": 0,
+    "singletonProcessExits": 0,
+    "backtestProcessExits": 0,
+    "runnerTerminalExitSites": 2
+  },
+  "singletonOwnership": {
+    "processListenerCountsUnchanged": true,
+    "integrityFailureReportedToOwner": true,
+    "singletonDidNotTerminateProcess": true
+  },
+  "runtimeHandlers": {
+    "bootstrapFatalListenersRemoved": true,
+    "instrumentationListenersPreserved": true,
+    "sigintAndSigtermOwnedByRunner": true,
+    "uncaughtExceptionRequestsFailureShutdown": true,
+    "unhandledRejectionReportedWithoutShutdown": true
+  },
+  "preRuntimeShutdown": {
+    "ownedLockReleasedBeforeExit": true,
+    "unownedLockLeftUntouched": true,
+    "exitCode": 1
+  },
+  "orderlyShutdown": {
+    "oneShutdownPromise": true,
+    "exitCodeUpgradedToFailure": true,
+    "statePatternJournalLockOrder": true,
+    "servicesAwaitedBeforePersistence": true,
+    "singletonReleasedOnceAndLast": true
+  },
+  "cleanupFailure": {
+    "cleanupFailureReported": true,
+    "laterCleanupStillCompleted": true,
+    "terminalStatusNonzero": true,
+    "lockReleasedAfterFailure": true
+  },
+  "j2Regression": {
+    "result": "PASS",
+    "freshRounds": 8,
+    "staleRounds": 8,
+    "everyFreshRoundExactlyOneWinner": true,
+    "everyStaleRoundExactlyOneWinner": true,
+    "everyLoserRefused": true
+  }
+}

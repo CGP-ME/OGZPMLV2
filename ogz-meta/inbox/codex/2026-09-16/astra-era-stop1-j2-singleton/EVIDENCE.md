@@ -10,6 +10,8 @@ node ogz-meta/inbox/codex/2026-09-16/astra-era-stop1-j2-singleton/probe-j2-singl
 
 The committed `PROBE-RECEIPT.json` is produced by the same command with its output path changed to that packet file. It hashes the three changed runtime files, the unchanged runner integration, and the probe source.
 
+J3 refreshes this receipt because `SingletonLock.acquireLock()` now reports acquisition failure to its runner owner instead of terminating the process itself. The probe supplies the child-process exit disposition and re-proves the unchanged J2 exclusivity contract. `baseSha` continues to identify J2's original implementation base; J3's exact base and lifecycle evidence are recorded in the J3 packet.
+
 ## Direct receipt
 
 The probe loads the real `core/SingletonLock.js` in ordinary child processes. It does not replace filesystem calls or load the bot entrypoint. Its isolated scratch directory is created beneath the repository's `data/` directory so hard-link publication is exercised on the bot data filesystem, not `/tmp`; the receipt records that device. Candidate and destination are always in that same directory. The receipt also records the exact `/usr/bin/flock` version used by stale-owner recovery.

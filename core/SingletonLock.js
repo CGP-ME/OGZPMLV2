@@ -9,7 +9,7 @@ const os = require('os');
 const childProcess = require('child_process');
 
 class OGZSingletonLock {
-  constructor(botName = 'ogz-prime') {
+  constructor(botName = 'ogz-prime', options = {}) {
     this.botName = botName;
     // CHANGE: Use DATA_DIR for lock file if set (enables isolated testing instances)
     // This allows gates/test instances to run alongside main bot without conflict
@@ -18,6 +18,12 @@ class OGZSingletonLock {
     this.pid = process.pid;
     this.startTime = Date.now();
     this.lockToken = crypto.randomBytes(16).toString('hex');
+    this.onIntegrityFailure = typeof options.onIntegrityFailure === 'function'
+      ? options.onIntegrityFailure
+      : null;
+    this.lockMonitorInterval = null;
+    this.integrityFailureReported = false;
+    this.lastAcquisitionFailure = null;
   }
 
   /**
@@ -128,8 +134,8 @@ class OGZSingletonLock {
     }
 
     if (!acquired || failure) {
-      console.error(`[${this.botName}] Singleton lock acquisition failed: ${failure || 'ownership was not acquired'}`);
-      process.exit(1);
+      this.lastAcquisitionFailure = failure || 'ownership was not acquired';
+      console.error(`[${this.botName}] Singleton lock acquisition failed: ${this.lastAcquisitionFailure}`);
       return false;
     }
 
@@ -137,9 +143,6 @@ class OGZSingletonLock {
     console.log(`   PID: ${this.pid}`);
     console.log(`   Token: ${this.lockToken}`);
     console.log(`   Lock file: ${this.lockFile}`);
-
-    // Set up cleanup handlers
-    this.setupCleanupHandlers();
 
     // Verify lock integrity every 30 seconds
     this.startLockMonitoring();
@@ -248,56 +251,72 @@ class OGZSingletonLock {
     }
   }
 
-  /**
-   * Set up cleanup handlers for graceful shutdown
-   */
-  setupCleanupHandlers() {
-    const cleanup = () => {
-      this.releaseLock();
-      process.exit(0);
-    };
+  reportIntegrityFailure(code, message, cause = null) {
+    if (this.integrityFailureReported) return false;
+    this.integrityFailureReported = true;
+    if (this.lockMonitorInterval) {
+      clearInterval(this.lockMonitorInterval);
+      this.lockMonitorInterval = null;
+    }
 
-    // Handle different exit scenarios
-    process.on('exit', () => this.releaseLock());
-    process.on('SIGINT', cleanup);  // Ctrl+C
-    process.on('SIGTERM', cleanup); // Termination signal
-    process.on('SIGQUIT', cleanup); // Quit signal
-    
-    // Handle uncaught exceptions
-    process.on('uncaughtException', (error) => {
-      console.error('🚨 Uncaught Exception:', error);
-      this.releaseLock();
-      process.exit(1);
-    });
-    
-    process.on('unhandledRejection', (reason, promise) => {
-      console.error('🚨 Unhandled Rejection at:', promise, 'reason:', reason);
-      this.releaseLock();
-      process.exit(1);
-    });
+    const error = cause instanceof Error ? cause : new Error(message);
+    if (!error.code) error.code = code;
+    error.lockCode = code;
+    error.lockFile = this.lockFile;
+    console.error(`[${this.botName}] ${message}`);
+
+    if (!this.onIntegrityFailure) {
+      console.error(`[${this.botName}] No singleton integrity-failure owner is installed`);
+      return false;
+    }
+
+    try {
+      const outcome = this.onIntegrityFailure(error);
+      if (outcome && typeof outcome.catch === 'function') {
+        outcome.catch((handlerError) => {
+          console.error(`[${this.botName}] Integrity-failure owner rejected: ${handlerError.message}`);
+        });
+      }
+      return true;
+    } catch (handlerError) {
+      console.error(`[${this.botName}] Integrity-failure owner threw: ${handlerError.message}`);
+      return false;
+    }
+  }
+
+  checkLockIntegrity() {
+    try {
+      if (!fs.existsSync(this.lockFile)) {
+        return this.reportIntegrityFailure(
+          'SINGLETON_LOCK_MISSING',
+          'Singleton lock file disappeared while this process was running'
+        );
+      }
+
+      const lockData = JSON.parse(fs.readFileSync(this.lockFile, 'utf8'));
+      if (lockData.token !== this.lockToken || lockData.pid !== this.pid) {
+        return this.reportIntegrityFailure(
+          'SINGLETON_LOCK_OWNERSHIP_CHANGED',
+          'Singleton lock ownership changed while this process was running'
+        );
+      }
+      return true;
+    } catch (error) {
+      return this.reportIntegrityFailure(
+        'SINGLETON_LOCK_MONITOR_FAILED',
+        `Singleton lock integrity check failed: ${error.message}`,
+        error
+      );
+    }
   }
 
   /**
    * Monitor lock integrity
    */
   startLockMonitoring() {
-    // CHANGE 2026-01-29: Store interval for cleanup
     this.lockMonitorInterval = setInterval(() => {
-      try {
-        if (!fs.existsSync(this.lockFile)) {
-          console.error(`🚨 [${this.botName}] Lock file disappeared! Exiting for safety.`);
-          process.exit(1);
-        }
-
-        const lockData = JSON.parse(fs.readFileSync(this.lockFile, 'utf8'));
-        if (lockData.token !== this.lockToken || lockData.pid !== this.pid) {
-          console.error(`🚨 [${this.botName}] Lock file modified by another process! Exiting for safety.`);
-          process.exit(1);
-        }
-      } catch (error) {
-        console.error(`🚨 [${this.botName}] Lock monitoring error:`, error.message);
-      }
-    }, 30000); // Check every 30 seconds
+      this.checkLockIntegrity();
+    }, 30000);
   }
 
   /**
@@ -317,13 +336,17 @@ class OGZSingletonLock {
         // Only remove if we own the lock
         if (lockData.pid === this.pid && lockData.token === this.lockToken) {
           fs.unlinkSync(this.lockFile);
-          console.log(`🔓 [${this.botName}] Singleton lock released`);
+          console.log(`[${this.botName}] Singleton lock released`);
+          return true;
         } else {
-          console.warn(`⚠️ [${this.botName}] Lock file owned by different process - not removing`);
+          console.warn(`[${this.botName}] Lock file owned by different process - not removing`);
+          return false;
         }
       }
+      return true;
     } catch (error) {
-      console.error(`❌ [${this.botName}] Error releasing lock:`, error.message);
+      console.error(`[${this.botName}] Error releasing lock:`, error.message);
+      return false;
     }
   }
 

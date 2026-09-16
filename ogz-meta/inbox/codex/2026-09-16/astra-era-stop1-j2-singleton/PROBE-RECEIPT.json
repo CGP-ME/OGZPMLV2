@@ -10,11 +10,11 @@
     "flockVersion": "flock from util-linux 2.41.3"
   },
   "sourceFiles": {
-    "core/SingletonLock.js": "1658b64663626f5bb5380fba965d40d4d7f5e752ea1c952b8f765ec98ae8db64",
+    "core/SingletonLock.js": "ff4fc0de946d152e327ac61549081dbd1fdb8870240ea069fdf91b895f0d820c",
     "core/AtomicWrite.js": "3d451213bba7b3680b7560e1d8c60e36650a595c7970a116a926f5d96390a924",
-    "run-empire-v2.js": "7f53ad59d895dc49087de7ceae2b8b582341f26e9c4431c5181dcdaf218d0174",
+    "run-empire-v2.js": "ad84a8bf00990d06cda54d60d20b82537b1f0e92e1ec8f081d81f28614af87b2",
     "start-ogzprime.sh": "7375241dd5b6f9e7f8e7b84f23b8313128dd3133d57d3e95bbd935ea8123eac8",
-    "ogz-meta/inbox/codex/2026-09-16/astra-era-stop1-j2-singleton/probe-j2-singleton.js": "842bb3d86dc556c2ec299afe8d45e1ae7637300438c1fb30daf72eec3232a2c3"
+    "ogz-meta/inbox/codex/2026-09-16/astra-era-stop1-j2-singleton/probe-j2-singleton.js": "f6ff26baec1e87596ddf532ede07d5e64bb4375a3a4ac510aa27c0640ea0a7f6"
   },
   "operations": "Local child-process SingletonLock contention only; no bot entrypoint, Jest, provider, broker, notification, network, PM2, or trading operation.",
   "result": "PASS",

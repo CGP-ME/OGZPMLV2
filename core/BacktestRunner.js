@@ -543,13 +543,13 @@ class BacktestRunner {
       }
 
       // Exit after backtest
-      console.log('\n🛑 Backtest complete - exiting...');
-      process.exit(0);
+      console.log('\nBacktest complete - exiting...');
+      await this.ctx.shutdown(0);
 
     } catch (err) {
-      console.error('❌ BACKTEST FAILED:', err.message);
+      console.error('BACKTEST FAILED:', err.message);
       console.error(err.stack);
-      process.exit(1);
+      await this.ctx.shutdown(1);
     }
   }
 }

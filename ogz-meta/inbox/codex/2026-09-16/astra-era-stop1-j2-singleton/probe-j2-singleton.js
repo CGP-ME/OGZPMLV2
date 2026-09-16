@@ -100,6 +100,7 @@ if (startGatePath) {
 
 const lock = new OGZSingletonLock(botName);
 const acquired = lock.acquireLock();
+if (!acquired) process.exit(1);
 const lockFile = path.join(dataDir, '.' + botName + '.lock');
 const snapshot = fs.existsSync(lockFile) ? JSON.parse(fs.readFileSync(lockFile, 'utf8')) : null;
 const resultPath = process.env.J2_RESULT_PATH;

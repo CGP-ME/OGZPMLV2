@@ -54,10 +54,41 @@ function captureRuntimeFatal(eventType, input, runtimeScope, extra = {}) {
   return result;
 }
 
+const runtimeLifecycle = {
+  bot: null,
+  singletonLock: null,
+  shutdownPromise: null,
+};
+
+function requestRuntimeShutdown(exitCode = 1) {
+  const requestedExitCode = Number.isInteger(exitCode) ? exitCode : 1;
+  if (runtimeLifecycle.bot) {
+    return runtimeLifecycle.bot.shutdown(requestedExitCode);
+  }
+  if (runtimeLifecycle.shutdownPromise) return runtimeLifecycle.shutdownPromise;
+
+  runtimeLifecycle.shutdownPromise = new Promise((resolve) => {
+    if (runtimeLifecycle.singletonLock?.hasLock?.()) {
+      const released = runtimeLifecycle.singletonLock.releaseLock();
+      if (released !== true) {
+        captureRuntimeFatal(
+          'shutdownCleanupFailed',
+          new Error('Singleton lock could not be released before pre-runtime termination'),
+          'pre_runtime_shutdown',
+          { cleanup: 'singleton_lock' }
+        );
+      }
+    }
+    process.exit(requestedExitCode);
+    resolve({ exitCode: requestedExitCode });
+  });
+  return runtimeLifecycle.shutdownPromise;
+}
+
 const terminateOnUncaughtException = (error) => {
   captureRuntimeFatal('uncaughtException', error, runtimeAuditSink.phase);
   console.error('[FATAL] Uncaught Exception:', runtimeAuditSink.redactForOutput(error));
-  process.exit(1);
+  requestRuntimeShutdown(1);
 };
 
 const terminateOnUnhandledRejection = (reason, promise) => {
@@ -69,7 +100,7 @@ const terminateOnUnhandledRejection = (reason, promise) => {
     runtimeAuditSink.redactForOutput(reason),
     `promise=${Object.prototype.toString.call(promise)}`
   );
-  process.exit(1);
+  requestRuntimeShutdown(1);
 };
 
 function placeTerminatingBootstrapListenersAtTail() {
@@ -468,10 +499,24 @@ console.log('[CHECKPOINT-005] Getting SingletonLock...');
 const SingletonLock = loader.get('core', 'SingletonLock') || require('./core/SingletonLock');
 const { OGZSingletonLock, checkCriticalPorts } = SingletonLock;
 console.log('[CHECKPOINT-006] SingletonLock obtained');
-const singletonLock = new OGZSingletonLock('ogz-prime-v14');
+const singletonLock = new OGZSingletonLock('ogz-prime-v14', {
+  onIntegrityFailure: (error) => {
+    captureRuntimeFatal('singletonIntegrityFailure', error, 'runtime', {
+      lockCode: error.lockCode || error.code || null,
+      lockFile: error.lockFile || null,
+    });
+    return requestRuntimeShutdown(1);
+  },
+});
+runtimeLifecycle.singletonLock = singletonLock;
 
 // Acquire lock (SingletonLock handles backtest skip logic internally)
-singletonLock.acquireLock();
+if (!singletonLock.acquireLock()) {
+  const error = new Error(singletonLock.lastAcquisitionFailure || 'Singleton lock acquisition failed');
+  error.code = 'SINGLETON_LOCK_ACQUISITION_FAILED';
+  captureRuntimeFatal('singletonAcquisitionFailed', error, 'singleton_acquisition');
+  requestRuntimeShutdown(1);
+}
 const WebSocket = require('ws');
 
 // Core Trading Modules - All through ModuleAutoLoader
@@ -631,8 +676,13 @@ class OGZPrimeV14Bot {
     // Initialize core modules
     console.log('[CHECKPOINT-008] Creating pattern checker...');
     if (!EnhancedPatternChecker) {
+      const error = new Error('EnhancedPatternChecker is undefined. Module loading failed.');
+      captureRuntimeFatal('requiredComponentUnavailable', error, 'bot_construction', {
+        component: 'EnhancedPatternChecker',
+      });
       console.error('[BOOT] EnhancedPatternChecker is undefined. Module loading failed.');
-      process.exit(1);
+      requestRuntimeShutdown(1);
+      return;
     }
     this.patternChecker = new EnhancedPatternChecker();
     console.log('[CHECKPOINT-009] EnhancedPatternChecker created');
@@ -3555,77 +3605,113 @@ class OGZPrimeV14Bot {
   /**
    * Graceful shutdown
    */
-  async shutdown(exitCode = 0) {
+  shutdown(exitCode = 0) {
+    const requestedExitCode = Number.isInteger(exitCode) ? exitCode : 1;
+    if (this._shutdownExitCode === undefined) this._shutdownExitCode = 0;
+    if (requestedExitCode !== 0) this._shutdownExitCode = requestedExitCode;
+    if (!this._shutdownPromise) {
+      this._shutdownPromise = this._performShutdown();
+    }
+    return this._shutdownPromise;
+  }
+
+  async _performShutdown() {
     console.log('\nShutting down OGZ Prime V14 MERGED...');
     this.isRunning = false;
+    const completed = [];
+    const failures = [];
+    const cleanup = async (name, operation) => {
+      let result;
+      let failure = null;
+      try {
+        result = await operation();
+      } catch (error) {
+        failure = error;
+      }
+      if (!failure && (result === false || result?.success === false)) {
+        failure = new Error(result?.error || result?.reason || `${name} reported failure`);
+        failure.code = result?.code || 'SHUTDOWN_CLEANUP_FAILED';
+      }
+      if (failure) {
+        failures.push({ name, code: failure.code || null, message: failure.message });
+        captureRuntimeFatal('shutdownCleanupFailed', failure, 'shutdown', { cleanup: name });
+        console.error(`[SHUTDOWN] ${name} failed:`, runtimeAuditSink.redactForOutput(failure));
+        return false;
+      }
+      completed.push(name);
+      return true;
+    };
 
-    // Stop SessionRouter interval before clearing other timers (memory leak fix)
-    if (this.sessionRouter) this.sessionRouter.stop();
+    await cleanup('runtime_producers', async () => {
+      this.sessionRouter?.stop?.();
+      this.pipelineSnapshot?.stop?.();
+      for (const timerName of [
+        'tradingInterval',
+        'livenessCheckInterval',
+        'heartbeatInterval',
+        'dataWatchdogInterval',
+        'botStateInterval',
+      ]) {
+        if (this[timerName]) {
+          clearInterval(this[timerName]);
+          this[timerName] = null;
+        }
+      }
+      this.dashboardDepthCoalescer?.clear?.();
+      if (typeof this._unsubscribeNtfyTrace === 'function') {
+        this._unsubscribeNtfyTrace();
+        this._unsubscribeNtfyTrace = null;
+      }
+    });
 
-    if (this.tradingInterval) {
-      clearInterval(this.tradingInterval);
-    }
+    await cleanup('market_data_services', async () => {
+      if (this.ws) {
+        this.ws.removeAllListeners?.();
+        this.ws.close?.();
+        this.ws = null;
+      }
+      const adapters = new Set([
+        this.sessionRouter?.krakenAdapter,
+        this.sessionRouter?.alpacaAdapter,
+        this.kraken,
+      ].filter(Boolean));
+      for (const adapter of adapters) {
+        if (typeof adapter.disconnect === 'function') await adapter.disconnect();
+      }
+    });
 
-    // CHANGE 2026-01-21: Clear liveness watchdog interval (memory leak fix)
-    if (this.livenessCheckInterval) {
-      clearInterval(this.livenessCheckInterval);
-      console.log('Liveness watchdog interval cleaned up');
-    }
+    await cleanup('dashboard_service', async () => {
+      if (this.dashboardWs) {
+        this.dashboardWs.removeAllListeners?.();
+        this.dashboardWs.close?.();
+        this.dashboardWs = null;
+      }
+      this.dashboardWsConnected = false;
+    });
 
-    // CHANGE 2026-01-29: Clear heartbeat interval (memory leak fix)
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval);
-      this.heartbeatInterval = null;
-      console.log('Heartbeat interval cleaned up');
-    }
+    await cleanup('strategy_services', async () => {
+      this.mtfAdapter?.destroy?.();
+      this.emaCrossover?.destroy?.();
+      this.maDynamicSR?.destroy?.();
+      this.liquiditySweep?.destroy?.();
+      this.trai?.traiCore?.shutdown?.();
+      this.riskManager?.shutdown?.();
+    });
 
-    // CRITICAL: Remove event listeners before closing (Change 575 - Memory leak fix)
-    if (this.ws) {
-      this.ws.removeAllListeners();
-      this.ws.close();
-      console.log('Market data WebSocket cleaned up');
-    }
+    await cleanup('state_persistence', async () => this.stateManager?.save?.());
+    await cleanup('pattern_persistence', async () => this.patternChecker?.cleanup?.());
+    await cleanup('journal_persistence', async () => this.journalBridge?.destroy?.());
+    await cleanup('singleton_lock', async () => singletonLock.releaseLock());
 
-    // CHANGE 2026-02-10: Cleanup modular entry system
-    if (this.mtfAdapter) this.mtfAdapter.destroy();
-    if (this.emaCrossover) this.emaCrossover.destroy();
-    if (this.maDynamicSR) this.maDynamicSR.destroy();
-    if (this.liquiditySweep) this.liquiditySweep.destroy();
-    console.log('Modular Entry System cleaned up');
-
-    if (this.dashboardWs) {
-      if (this.dashboardDepthCoalescer) this.dashboardDepthCoalescer.clear();
-      this.dashboardWs.removeAllListeners();
-      this.dashboardWs.close();
-      console.log('Dashboard WebSocket cleaned up');
-    }
-
-    // Shutdown TRAI LLM server (Change 579)
-    if (this.trai && this.trai.traiCore) {
-      this.trai.traiCore.shutdown();
-      console.log('TRAI Core shutdown complete');
-    }
-
-    // CHANGE 2025-12-12: Cleanup RiskManager timer leak
-    if (this.riskManager) {
-      this.riskManager.shutdown();
-      console.log('RiskManager timers cleaned up');
-    }
-
-    // FIX 2026-02-10: Save pattern memory before exit (was never being saved!)
-    // FIX 2026-02-19: Await async cleanup
-    if (this.patternChecker?.cleanup) {
-      await this.patternChecker.cleanup();
-      console.log('Pattern memory saved to disk');
-    }
-
-    // Print final performance stats
+    const finalExitCode = failures.length > 0 && this._shutdownExitCode === 0
+      ? 1
+      : this._shutdownExitCode;
     console.log('\nFinal Performance:');
     console.log(`   Session Duration: ${((Date.now() - this.startTime) / 1000 / 60).toFixed(1)} minutes`);
-    // Final Balance removed — BacktestRecorder's BACKTEST SUMMARY is the source of truth
-
-    console.log('\nShutdown complete\n');
-    process.exit(exitCode);
+    console.log(`[SHUTDOWN] Complete | exitCode=${finalExitCode} completed=${completed.join(',')} failures=${failures.map((entry) => entry.name).join(',') || 'none'}\n`);
+    const receipt = { exitCode: finalExitCode, completed, failures };
+    process.exit(finalExitCode);
+    return receipt;
   }
 
   /**
@@ -3662,30 +3748,32 @@ class OGZPrimeV14Bot {
 
 }
 
-// Main execution
-async function main() {
-  runtimeAuditSink.setPhase('bot_construction');
-  const bot = new OGZPrimeV14Bot();
-
-  // Graceful shutdown handlers
-  process.on('SIGINT', () => bot.shutdown());
-  process.on('SIGTERM', () => bot.shutdown());
+function installRuntimeLifecycleHandlers(bot) {
+  runtimeLifecycle.bot = bot;
+  process.once('SIGINT', () => bot.shutdown(0));
+  process.once('SIGTERM', () => bot.shutdown(0));
   process.on('uncaughtException', (error) => {
     captureRuntimeFatal('uncaughtException', error, 'main_runtime');
     console.error('[FATAL] Uncaught exception:', runtimeAuditSink.redactForOutput(error));
-    bot.shutdown();
+    bot.shutdown(1);
   });
-
-  // CRITICAL: Handle unhandled promise rejections (Change 575)
   process.on('unhandledRejection', (reason, promise) => {
     captureRuntimeFatal('unhandledRejection', reason, 'main_runtime', {
       promise: Object.prototype.toString.call(promise),
     });
-    console.error('[FATAL] Unhandled Promise Rejection:', runtimeAuditSink.redactForOutput(reason));
+    console.error('[RUNTIME] Unhandled Promise Rejection:', runtimeAuditSink.redactForOutput(reason));
     console.error('   Promise:', Object.prototype.toString.call(promise));
-    // Log but don't shutdown - async failures shouldn't kill bot
-    console.error('   Bot continuing despite rejection...');
+    console.error('   Bot continuing; the rejection was reported without acquiring shutdown authority.');
   });
+  process.removeListener('uncaughtException', terminateOnUncaughtException);
+  process.removeListener('unhandledRejection', terminateOnUnhandledRejection);
+}
+
+// Main execution
+async function main() {
+  runtimeAuditSink.setPhase('bot_construction');
+  const bot = new OGZPrimeV14Bot();
+  installRuntimeLifecycleHandlers(bot);
 
   runtimeAuditSink.setPhase('bot_startup');
   await bot.start();
@@ -3697,12 +3785,14 @@ if (require.main === module) {
   main().catch(error => {
     captureRuntimeFatal('mainFatal', error, 'main_start');
     console.error('[FATAL] Fatal error:', runtimeAuditSink.redactForOutput(error));
-    process.exit(1);
+    requestRuntimeShutdown(1);
   });
 }
 
 OGZPrimeV14Bot._test = {
   resolveRuntimeAccountIdentity,
+  installRuntimeLifecycleHandlers,
+  requestRuntimeShutdown,
 };
 
 module.exports = OGZPrimeV14Bot;
