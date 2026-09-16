@@ -1,0 +1,59 @@
+{
+  "baseSha": "8fa8d2b472a7ed63d1e3910c5930b8bb79ecc33f",
+  "node": "v22.22.1",
+  "filesystem": {
+    "platform": "linux",
+    "scratchParent": "/opt/ogzprime/OGZPMLV2/data",
+    "device": 64770,
+    "sameDirectoryPublish": true,
+    "flockPath": "/usr/bin/flock",
+    "flockVersion": "flock from util-linux 2.41.3"
+  },
+  "sourceFiles": {
+    "core/SingletonLock.js": "1658b64663626f5bb5380fba965d40d4d7f5e752ea1c952b8f765ec98ae8db64",
+    "core/AtomicWrite.js": "3d451213bba7b3680b7560e1d8c60e36650a595c7970a116a926f5d96390a924",
+    "run-empire-v2.js": "7f53ad59d895dc49087de7ceae2b8b582341f26e9c4431c5181dcdaf218d0174",
+    "ogz-meta/inbox/codex/2026-09-16/astra-era-stop1-j2-singleton/probe-j2-singleton.js": "53fdee6b8570642994744557f9f52453dba5871a6e21bfa21ff5c930a5268086"
+  },
+  "operations": "Local child-process SingletonLock contention only; no bot entrypoint, Jest, provider, broker, notification, network, PM2, or trading operation.",
+  "result": "PASS",
+  "freshContention": {
+    "rounds": 8,
+    "contendersPerRound": 6,
+    "everyRoundExactlyOneWinner": true,
+    "everyLoserRefused": true,
+    "everyWinnerOwnedPublishedMetadata": true,
+    "noPartialJsonObserved": true,
+    "noArtifactsAfterRelease": true
+  },
+  "staleOwnerContention": {
+    "rounds": 8,
+    "contendersPerRound": 6,
+    "everyRoundExactlyOneWinner": true,
+    "everyLoserRefused": true,
+    "everyWinnerOwnedPublishedMetadata": true,
+    "noPartialJsonObserved": true,
+    "noArtifactsAfterRelease": true
+  },
+  "ownerRelease": {
+    "nonOwnerStatus": 0,
+    "nonOwnerPreservedOwnerIdentity": true,
+    "ownerReleased": true,
+    "reacquiredAfterRelease": true
+  },
+  "backtestSkip": {
+    "status": 0,
+    "skippedWithoutLockFile": true
+  },
+  "unreadableOwner": {
+    "status": 1,
+    "ambiguousOwnerPreserved": true,
+    "noAcquisitionClaimed": true
+  },
+  "killedReclaimer": {
+    "killedHolderSignal": "SIGKILL",
+    "kernelMutexReleasedAfterHolderDeath": true,
+    "recoveryWinnerCount": 1,
+    "recoveryRefusedCount": 5
+  }
+}

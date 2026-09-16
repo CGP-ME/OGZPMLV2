@@ -5,6 +5,8 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const os = require('os');
+const childProcess = require('child_process');
 
 class OGZSingletonLock {
   constructor(botName = 'ogz-prime') {
@@ -43,85 +45,193 @@ class OGZSingletonLock {
       return true;
     }
 
-    console.log(`🔒 [${this.botName}] Attempting to acquire singleton lock...`);
+    console.log(`[${this.botName}] Attempting to acquire singleton lock...`);
 
-    // Check if lock file exists
-    if (fs.existsSync(this.lockFile)) {
-      try {
-        const lockData = JSON.parse(fs.readFileSync(this.lockFile, 'utf8'));
-        
-        // Check if that process is still running
-        if (this.isProcessRunning(lockData.pid)) {
-          console.error(`
-🚨🚨🚨 CRITICAL SAFETY ERROR 🚨🚨🚨
-Another ${this.botName} instance is already running!
-
-Running Instance:
-  PID: ${lockData.pid}
-  Started: ${new Date(lockData.startTime).toLocaleString()}
-  Token: ${lockData.token}
-
-🛑 ABORTING TO PREVENT:
-  - Duplicate trades
-  - Portfolio conflicts  
-  - WebSocket port conflicts
-  - Data corruption
-
-To force start (DANGEROUS):
-1. Kill existing process: kill -9 ${lockData.pid}
-2. Remove lock file: rm ${this.lockFile}
-3. Start again
-
-Houston Mission Status: PROTECTED ✅
-          `);
-          process.exit(1);
-        } else {
-          // Process is dead, clean up stale lock
-          console.log(`🧹 [${this.botName}] Cleaning up stale lock file (PID ${lockData.pid} not running)`);
-          fs.unlinkSync(this.lockFile);
-        }
-      } catch (error) {
-        console.warn(`⚠️ [${this.botName}] Error reading lock file:`, error.message);
-        // Remove corrupted lock file
-        try {
-          fs.unlinkSync(this.lockFile);
-        } catch (e) {
-          console.error('Error removing corrupted lock file:', e.message);
-        }
-      }
-    }
-    
-    // Create new lock with metadata
     const lockData = {
       pid: this.pid,
       botName: this.botName,
       startTime: this.startTime,
       token: this.lockToken,
-      hostname: require('os').hostname(),
+      hostname: os.hostname(),
       nodeVersion: process.version,
       platform: process.platform
     };
-    
+
+    const candidateFile = `${this.lockFile}.${this.pid}.${this.lockToken}.candidate`;
+    const reclaimFile = `${this.lockFile}.reclaim-mutex`;
+    let reclaimFd = null;
+    let acquired = false;
+    let failure = null;
+
     try {
-      // Atomic write — partial lock files are worse than no lock (Mercury Vector 6)
-      const { writeJsonAtomic } = require('./AtomicWrite');
-      writeJsonAtomic(this.lockFile, lockData);
-      console.log(`🔒 [${this.botName}] Singleton lock acquired successfully`);
-      console.log(`   PID: ${this.pid}`);
-      console.log(`   Token: ${this.lockToken}`);
-      console.log(`   Lock file: ${this.lockFile}`);
+      this.writeLockCandidate(candidateFile, lockData);
+      acquired = this.publishLockCandidate(candidateFile);
+
+      if (!acquired) {
+        let observedLock = null;
+        try {
+          observedLock = this.readLockData();
+        } catch (error) {
+          if (error.code === 'ENOENT') {
+            acquired = this.publishLockCandidate(candidateFile);
+          } else {
+            failure = `existing lock metadata is unreadable: ${error.message}`;
+          }
+        }
+
+        if (!acquired && !failure && observedLock) {
+          if (!this.hasValidLockIdentity(observedLock)) {
+            failure = 'existing lock metadata has no valid owner identity';
+          } else if (this.isProcessRunning(observedLock.pid)) {
+            failure = `already owned by running PID ${observedLock.pid}`;
+          } else {
+            reclaimFd = this.claimStaleLock(reclaimFile);
+            if (reclaimFd === null) {
+              failure = 'another process is already reclaiming the stale owner';
+            } else {
+              let currentLock = null;
+              try {
+                currentLock = this.readLockData();
+              } catch (error) {
+                if (error.code !== 'ENOENT') {
+                  failure = `lock changed during stale-owner recovery: ${error.message}`;
+                }
+              }
+
+              if (!failure && currentLock) {
+                if (!this.isSameLockIdentity(currentLock, observedLock)) {
+                  failure = 'lock owner changed during stale-owner recovery';
+                } else if (this.isProcessRunning(currentLock.pid)) {
+                  failure = `lock owner PID ${currentLock.pid} became active during recovery`;
+                } else {
+                  fs.unlinkSync(this.lockFile);
+                }
+              }
+
+              if (!failure) {
+                acquired = this.publishLockCandidate(candidateFile);
+                if (!acquired) {
+                  failure = 'another process acquired the lock during stale-owner recovery';
+                }
+              }
+            }
+          }
+        }
+      }
     } catch (error) {
-      console.error(`❌ [${this.botName}] Failed to create lock file:`, error.message);
-      process.exit(1);
+      failure = `exclusive lock creation failed: ${error.message}`;
+    } finally {
+      if (reclaimFd !== null) {
+        this.releaseStaleClaim(reclaimFd);
+      }
+      this.removeCandidate(candidateFile);
     }
-    
+
+    if (!acquired || failure) {
+      console.error(`[${this.botName}] Singleton lock acquisition failed: ${failure || 'ownership was not acquired'}`);
+      process.exit(1);
+      return false;
+    }
+
+    console.log(`[${this.botName}] Singleton lock acquired successfully`);
+    console.log(`   PID: ${this.pid}`);
+    console.log(`   Token: ${this.lockToken}`);
+    console.log(`   Lock file: ${this.lockFile}`);
+
     // Set up cleanup handlers
     this.setupCleanupHandlers();
-    
+
     // Verify lock integrity every 30 seconds
     this.startLockMonitoring();
-    
+
     return true;
+  }
+
+  writeLockCandidate(candidateFile, lockData) {
+    let fd = null;
+    try {
+      fd = fs.openSync(candidateFile, 'wx', 0o600);
+      fs.writeFileSync(fd, `${JSON.stringify(lockData, null, 2)}\n`, 'utf8');
+      fs.fsyncSync(fd);
+    } catch (error) {
+      try {
+        if (fd !== null) fs.closeSync(fd);
+      } finally {
+        fd = null;
+        this.removeCandidate(candidateFile);
+      }
+      throw error;
+    } finally {
+      if (fd !== null) fs.closeSync(fd);
+    }
+  }
+
+  publishLockCandidate(candidateFile) {
+    try {
+      fs.linkSync(candidateFile, this.lockFile);
+      return true;
+    } catch (error) {
+      if (error.code === 'EEXIST') return false;
+      throw error;
+    }
+  }
+
+  removeCandidate(candidateFile) {
+    try {
+      fs.unlinkSync(candidateFile);
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        console.error(`[${this.botName}] Failed to remove lock candidate: ${error.message}`);
+      }
+    }
+  }
+
+  readLockData() {
+    return JSON.parse(fs.readFileSync(this.lockFile, 'utf8'));
+  }
+
+  hasValidLockIdentity(lockData) {
+    return Number.isInteger(lockData?.pid) &&
+      lockData.pid > 0 &&
+      Number.isFinite(lockData?.startTime) &&
+      typeof lockData?.token === 'string' &&
+      lockData.token.length > 0;
+  }
+
+  isSameLockIdentity(left, right) {
+    return left?.pid === right?.pid &&
+      left?.startTime === right?.startTime &&
+      left?.token === right?.token;
+  }
+
+  claimStaleLock(reclaimFile) {
+    let fd = null;
+    try {
+      fd = fs.openSync(reclaimFile, 'a+', 0o600);
+      fs.fchmodSync(fd, 0o600);
+      const result = childProcess.spawnSync('/usr/bin/flock', ['--nonblock', '3'], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'ignore', 'pipe', fd]
+      });
+
+      if (result.error) throw result.error;
+      if (result.status === 0) return fd;
+
+      fs.closeSync(fd);
+      fd = null;
+      return null;
+    } catch (error) {
+      if (fd !== null) fs.closeSync(fd);
+      throw error;
+    }
+  }
+
+  releaseStaleClaim(reclaimFd) {
+    try {
+      fs.closeSync(reclaimFd);
+    } catch (error) {
+      console.error(`[${this.botName}] Failed to release stale-owner mutex: ${error.message}`);
+    }
   }
 
   /**

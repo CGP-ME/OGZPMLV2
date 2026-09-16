@@ -11,7 +11,7 @@
  * Use for any persisted state file whose corruption would block process
  * startup or cause silent data drift. Mercury Vector 6 fix surface:
  *   StateManager.js (state.json), CandleStore (candles), TradeJournal,
- *   PatternMemoryBank, KillSwitch, SingletonLock, etc.
+ *   PatternMemoryBank, KillSwitch, etc.
  *
  * @module core/AtomicWrite
  */
