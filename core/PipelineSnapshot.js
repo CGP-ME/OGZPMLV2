@@ -55,7 +55,10 @@ class PipelineSnapshot {
     this.timer = setInterval(() => this.capture(), this.intervalMs);
 
     // Take one immediately on startup
-    setTimeout(() => this.capture(), 5000); // 5s delay to let modules initialize
+    this.initialCaptureTimer = setTimeout(() => {
+      this.initialCaptureTimer = null;
+      this.capture();
+    }, 5000); // 5s delay to let modules initialize
 
     console.log(`[PipelineSnapshot] Active - capturing every ${this.intervalMs / 60000} minutes`);
     console.log(`[PipelineSnapshot] Output: ${this.outputFile}`);
@@ -472,11 +475,16 @@ class PipelineSnapshot {
 
   // Stop the interval
   stop() {
+    if (this.initialCaptureTimer) {
+      clearTimeout(this.initialCaptureTimer);
+      this.initialCaptureTimer = null;
+    }
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;
       console.log(`[PipelineSnapshot] Stopped after ${this.snapshotCount} snapshots`);
     }
+    return { success: true };
   }
 }
 

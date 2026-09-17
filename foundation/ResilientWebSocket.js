@@ -168,16 +168,38 @@ class ResilientWebSocket extends EventEmitter {
    * Stop and DO NOT reconnect. Idempotent. Use this for graceful shutdown.
    * Cancels any pending reconnect, clears all timers, closes the socket.
    */
-  stop() {
+  async stop() {
     this.intentionalStop = true;
     this.started = false;
     this._clearAllTimers();
-    if (this.ws) {
-      try { this.ws.close(); } catch (_) {}
-      this.ws = null;
-    }
     this.isAuthenticated = false;
-    this.emit('stopped');
+    const socket = this.ws;
+    if (!socket) {
+      this.emit('stopped');
+      return { success: true, skipped: true };
+    }
+    if (socket.readyState === WebSocket.CLOSED) {
+      this.ws = null;
+      this.emit('stopped');
+      return { success: true };
+    }
+
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (result) => {
+        if (settled) return;
+        settled = true;
+        if (this.ws === socket) this.ws = null;
+        this.emit('stopped');
+        resolve(result);
+      };
+      socket.once('close', () => finish({ success: true }));
+      try {
+        socket.close();
+      } catch (error) {
+        finish({ success: false, code: 'RESILIENT_WS_CLOSE_FAILED', reason: error.message });
+      }
+    });
   }
 
   /** Send a payload on the socket. Throws if not currently OPEN. */

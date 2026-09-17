@@ -11,6 +11,17 @@
 - `run-empire-v2.js`
 - `core/SingletonLock.js`
 - `core/BacktestRunner.js`
+- `core/SessionRouter.js`
+- `core/PipelineSnapshot.js`
+- `core/WebSocketManager.js`
+- `foundation/ResilientWebSocket.js`
+- `brokers/AlpacaAdapter.js`
+- `brokers/KrakenIBrokerAdapter.js`
+- `kraken_adapter_simple.js`
+- `core/UnifiedPatternMemory.js`
+- `core/EnhancedPatternRecognition.js`
+- `core/TradeJournal.js`
+- `core/TradeJournalBridge.js`
 
 ## J2 regression files
 
@@ -29,5 +40,11 @@
 - `MANIFEST.md`
 - `probe-j3-lifecycle.js`
 - `PROBE-RECEIPT.json`
+
+## Correction evidence
+
+- `ogz-meta/inbox/codex/2026-09-17/astra-era-stop1-j3-lifecycle-correction/`
+- redacted Mercury tapes and dual hashes are preserved there; the unredacted
+  cognition-history files are not staged as packet evidence.
 
 Unrelated pre-existing dirty and untracked files are not part of this change.

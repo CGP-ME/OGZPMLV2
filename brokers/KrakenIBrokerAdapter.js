@@ -49,11 +49,10 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
 
   async disconnect() {
     // V2 ARCHITECTURE: Single WebSocket managed by kraken_adapter_simple
-    if (this.kraken.ws) {
-      await this.kraken.disconnect();
-    }
+    const result = await this.kraken.disconnect();
     this.connected = false;
     console.log('[KrakenIBroker] Disconnected from Kraken');
+    return result;
   }
 
   isConnected() {

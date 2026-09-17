@@ -1066,8 +1066,10 @@ class TradeJournal {
       clearInterval(this._autoSaveTimer);
       this._autoSaveTimer = null;
     }
-    this._saveStatsCache();
+    const result = this._saveStatsCache();
+    if (result?.success === false) return result;
     console.log('[TradeJournal] destroyed, stats saved');
+    return result || { success: true };
   }
 
 
@@ -1331,8 +1333,10 @@ class TradeJournal {
       };
       const { writeJsonAtomic } = require('./AtomicWrite');
       writeJsonAtomic(this.paths.statsCache, cacheData);
+      return { success: true };
     } catch (err) {
       console.error(`[TradeJournal] Failed to save stats cache: ${err.message}`);
+      return { success: false, code: 'TRADE_JOURNAL_STATS_SAVE_FAILED', reason: err.message };
     }
   }
 

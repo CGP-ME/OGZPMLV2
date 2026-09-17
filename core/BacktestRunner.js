@@ -502,13 +502,6 @@ class BacktestRunner {
       }
       console.log(`\n📄 Report saved: ${reportPath}`);
 
-      // FIX 2026-02-10: Save pattern memory after backtest (was never being saved!)
-      // FIX 2026-02-19: Await async cleanup to ensure save completes before exit
-      if (this.ctx.patternChecker?.cleanup) {
-        await this.ctx.patternChecker.cleanup();
-        console.log('🧠 Backtest patterns saved to disk');
-      }
-
       // 🤖 TRAI Analysis of Backtest Results (Change 586)
       // Run AFTER report is saved so we always have results even if TRAI hangs
       if (this.ctx.trai && this.ctx.trai.analyzeBacktestResults) {
@@ -544,12 +537,17 @@ class BacktestRunner {
 
       // Exit after backtest
       console.log('\nBacktest complete - exiting...');
-      await this.ctx.shutdown(0);
+      return { success: true, exitCode: 0 };
 
     } catch (err) {
       console.error('BACKTEST FAILED:', err.message);
       console.error(err.stack);
-      await this.ctx.shutdown(1);
+      return {
+        success: false,
+        exitCode: 1,
+        error: err.message,
+        code: err.code || null,
+      };
     }
   }
 }

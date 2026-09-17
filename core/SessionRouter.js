@@ -91,6 +91,8 @@ class SessionRouter extends EventEmitter {
     this.windDownFlattenFailures = [];
     this.lastTransitionAt = 0;
     this.intervalId = null;
+    this.stopping = false;
+    this.activeOperations = new Set();
     this.activeCallbackEpoch = null;
     this.activeOhlcSession = null;
     this.activeOhlcBrokerId = null;
@@ -272,7 +274,22 @@ class SessionRouter extends EventEmitter {
     return { closed, failures };
   }
 
+  _trackOperation(operation) {
+    const tracked = Promise.resolve(operation);
+    this.activeOperations.add(tracked);
+    tracked.then(
+      () => this.activeOperations.delete(tracked),
+      () => this.activeOperations.delete(tracked)
+    );
+    return tracked;
+  }
+
   async start() {
+    this.stopping = false;
+    return this._trackOperation(this._start());
+  }
+
+  async _start() {
     let targetSession = 'unknown';
     try {
       const missingAdapters = [];
@@ -310,9 +327,17 @@ class SessionRouter extends EventEmitter {
       };
     }
 
+    if (this.stopping) {
+      return {
+        started: false,
+        stopped: true,
+        activeSession: this.activeSession,
+      };
+    }
+
     if (this.mode === 'scheduled') {
       this.intervalId = setInterval(() => {
-        this._checkTransition().catch((err) => {
+        const transitionCheck = this._checkTransition().catch((err) => (
           this._routeScheduledTransitionFailure(err).catch((routeErr) => {
             const reason = routeErr && routeErr.message ? routeErr.message : String(routeErr);
             console.error('[SessionRouter] Check failure routing failed:', reason);
@@ -324,8 +349,9 @@ class SessionRouter extends EventEmitter {
               route: 'scheduled_transition_check_failure_router',
               manualReconciliationRequired: true
             });
-          });
-        });
+          })
+        ));
+        this._trackOperation(transitionCheck);
       }, this.checkIntervalMs);
     }
 
@@ -352,6 +378,7 @@ class SessionRouter extends EventEmitter {
   }
 
   async _checkTransition() {
+    if (this.stopping) return;
     if (this.mode === 'static') return;
     if (this.transitionInProgress) return;
     if (this.failedSafeMode) return;
@@ -1228,6 +1255,17 @@ class SessionRouter extends EventEmitter {
     return expected;
   }
 
+  _detachActiveOhlcCallback() {
+    if (this.activeBroker && this.activeOhlcCallback && typeof this.activeBroker.removeListener === 'function') {
+      this.activeBroker.removeListener('ohlc', this.activeOhlcCallback);
+    }
+    this.activeCallbackEpoch = null;
+    this.activeOhlcSession = null;
+    this.activeOhlcBrokerId = null;
+    this.activeOhlcTransitionId = null;
+    this.activeOhlcCallback = null;
+  }
+
   _requireBrokerMethod(adapter, brokerId, methodName) {
     if (!adapter || typeof adapter[methodName] !== 'function') {
       throw new Error(`SessionRouter broker REST reconciliation unavailable: ${brokerId} missing ${methodName}()`);
@@ -1787,9 +1825,22 @@ class SessionRouter extends EventEmitter {
     }
   }
 
-  stop() {
+  async stop() {
+    this.stopping = true;
     if (this.intervalId) { clearInterval(this.intervalId); this.intervalId = null; }
+    this._detachActiveOhlcCallback();
+    const outcomes = await Promise.allSettled(Array.from(this.activeOperations));
+    this._detachActiveOhlcCallback();
+    const failures = outcomes.filter((outcome) => outcome.status === 'rejected');
     console.log('[SessionRouter] Stopped');
+    if (failures.length > 0) {
+      return {
+        success: false,
+        code: 'SESSION_ROUTER_STOP_OPERATION_FAILED',
+        reason: failures.map((failure) => failure.reason?.message || String(failure.reason)).join('; '),
+      };
+    }
+    return { success: true };
   }
 
   _getTransitionStoreStatus() {

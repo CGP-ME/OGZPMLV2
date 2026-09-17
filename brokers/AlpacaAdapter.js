@@ -289,12 +289,45 @@ class AlpacaAdapter extends IBrokerAdapter {
 
     async disconnect() {
         this.intentionalDisconnect = true;
+        const failures = [];
         if (this.rws) {
-            this.rws.stop();
+            const rwsResult = await this.rws.stop();
+            if (rwsResult?.success === false) failures.push(rwsResult);
             this.rws = null;
+        }
+        if (this.accountWs) {
+            const accountSocket = this.accountWs;
+            const accountResult = accountSocket.readyState === WebSocket.CLOSED
+              ? { success: true }
+              : await new Promise((resolve) => {
+                let settled = false;
+                const finish = (result) => {
+                    if (settled) return;
+                    settled = true;
+                    if (this.accountWs === accountSocket) this.accountWs = null;
+                    resolve(result);
+                };
+                accountSocket.once('close', () => finish({ success: true }));
+                try {
+                    accountSocket.close();
+                } catch (error) {
+                    finish({ success: false, code: 'ALPACA_ACCOUNT_WS_CLOSE_FAILED', reason: error.message });
+                }
+              });
+            if (this.accountWs === accountSocket) this.accountWs = null;
+            if (accountResult?.success === false) failures.push(accountResult);
         }
         this.connected = false;
         console.log('[Alpaca] Disconnected');
+        if (failures.length > 0) {
+            return {
+                success: false,
+                code: 'ALPACA_DISCONNECT_INCOMPLETE',
+                reason: failures.map((failure) => failure.reason || failure.code).join('; '),
+                failures,
+            };
+        }
+        return { success: true };
     }
 
     isConnected() {
@@ -781,6 +814,11 @@ class AlpacaAdapter extends IBrokerAdapter {
         });
 
         this.accountWs.on('close', () => {
+            if (this.intentionalDisconnect) {
+                console.log('[Alpaca] Account stream stopped intentionally');
+                this.accountWs = null;
+                return;
+            }
             console.error('[Alpaca] Account stream disconnected');
             this._recordStreamTruthUnavailable('ALPACA_ACCOUNT_STREAM_UNAVAILABLE', 'alpaca_account_stream_disconnected', {
                 operation: 'accountStreamClose',

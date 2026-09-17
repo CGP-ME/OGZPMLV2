@@ -21,9 +21,13 @@ class OGZSingletonLock {
     this.onIntegrityFailure = typeof options.onIntegrityFailure === 'function'
       ? options.onIntegrityFailure
       : null;
+    this.onMonitorError = typeof options.onMonitorError === 'function'
+      ? options.onMonitorError
+      : null;
     this.lockMonitorInterval = null;
     this.integrityFailureReported = false;
     this.lastAcquisitionFailure = null;
+    this.ownershipState = 'not_acquired';
   }
 
   /**
@@ -46,8 +50,9 @@ class OGZSingletonLock {
     // Skip lock entirely for backtests (file source + backtest mode)
     if (this.shouldSkipLock()) {
       if (process.env.BACKTEST_SILENT !== 'true') {
-        console.log(`🔓 [${this.botName}] Lock skipped (backtest mode)`);
+        console.log(`[${this.botName}] Lock skipped (backtest mode)`);
       }
+      this.ownershipState = 'skipped';
       return true;
     }
 
@@ -134,12 +139,14 @@ class OGZSingletonLock {
     }
 
     if (!acquired || failure) {
+      this.ownershipState = 'refused';
       this.lastAcquisitionFailure = failure || 'ownership was not acquired';
       console.error(`[${this.botName}] Singleton lock acquisition failed: ${this.lastAcquisitionFailure}`);
       return false;
     }
 
     console.log(`[${this.botName}] Singleton lock acquired successfully`);
+    this.ownershipState = 'owned';
     console.log(`   PID: ${this.pid}`);
     console.log(`   Token: ${this.lockToken}`);
     console.log(`   Lock file: ${this.lockFile}`);
@@ -254,6 +261,7 @@ class OGZSingletonLock {
   reportIntegrityFailure(code, message, cause = null) {
     if (this.integrityFailureReported) return false;
     this.integrityFailureReported = true;
+    this.ownershipState = 'lost';
     if (this.lockMonitorInterval) {
       clearInterval(this.lockMonitorInterval);
       this.lockMonitorInterval = null;
@@ -284,6 +292,22 @@ class OGZSingletonLock {
     }
   }
 
+  reportMonitorError(error) {
+    const monitorError = error instanceof Error ? error : new Error(String(error));
+    if (!monitorError.code) monitorError.code = 'SINGLETON_LOCK_MONITOR_FAILED';
+    monitorError.lockCode = 'SINGLETON_LOCK_MONITOR_FAILED';
+    monitorError.lockFile = this.lockFile;
+    console.error(`[${this.botName}] Singleton lock integrity check failed: ${monitorError.message}`);
+    if (!this.onMonitorError) return false;
+    try {
+      this.onMonitorError(monitorError);
+      return true;
+    } catch (handlerError) {
+      console.error(`[${this.botName}] Lock-monitor reporter threw: ${handlerError.message}`);
+      return false;
+    }
+  }
+
   checkLockIntegrity() {
     try {
       if (!fs.existsSync(this.lockFile)) {
@@ -302,11 +326,7 @@ class OGZSingletonLock {
       }
       return true;
     } catch (error) {
-      return this.reportIntegrityFailure(
-        'SINGLETON_LOCK_MONITOR_FAILED',
-        `Singleton lock integrity check failed: ${error.message}`,
-        error
-      );
+      return this.reportMonitorError(error);
     }
   }
 
@@ -336,12 +356,18 @@ class OGZSingletonLock {
         // Only remove if we own the lock
         if (lockData.pid === this.pid && lockData.token === this.lockToken) {
           fs.unlinkSync(this.lockFile);
+          this.ownershipState = 'released';
           console.log(`[${this.botName}] Singleton lock released`);
           return true;
         } else {
           console.warn(`[${this.botName}] Lock file owned by different process - not removing`);
           return false;
         }
+      }
+      if (this.ownershipState === 'owned') {
+        console.error(`[${this.botName}] Owned singleton lock record is missing during release`);
+        this.ownershipState = 'lost';
+        return false;
       }
       return true;
     } catch (error) {
@@ -452,8 +478,8 @@ function isPortInUse(port) {
  *   // Create lock for this specific bot
  *   const lock = new OGZSingletonLock('valhalla-bot'); // or 'v13-bot'
  *   
- *   // Acquire lock (will exit if another instance running)
- *   lock.acquireLock();
+ *   // Acquire lock; caller owns the refusal outcome.
+ *   if (!lock.acquireLock()) return;
  *   
  *   // Check ports
  *   const portsOk = await checkCriticalPorts([3001, 3002, 3003, 3010]);

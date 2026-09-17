@@ -163,7 +163,13 @@ class WebSocketManager {
         this.ctx.dashboardConnectionId = null;
         // Reconnect faster (2s instead of 5s)
         if (this.ctx.isRunning) {
-          setTimeout(() => this.initializeDashboardWebSocket(), 2000);
+          if (this.ctx.dashboardReconnectTimeout) {
+            clearTimeout(this.ctx.dashboardReconnectTimeout);
+          }
+          this.ctx.dashboardReconnectTimeout = setTimeout(() => {
+            this.ctx.dashboardReconnectTimeout = null;
+            if (this.ctx.isRunning) this.initializeDashboardWebSocket();
+          }, 2000);
         }
       });
 
@@ -408,6 +414,43 @@ class WebSocketManager {
 
     this.ctx.dashboardWs.send(JSON.stringify(frame));
     return true;
+  }
+
+  async stop() {
+    if (this.ctx.dashboardReconnectTimeout) {
+      clearTimeout(this.ctx.dashboardReconnectTimeout);
+      this.ctx.dashboardReconnectTimeout = null;
+    }
+    for (const timerName of ['heartbeatInterval', 'dataWatchdogInterval', 'botStateInterval']) {
+      if (this.ctx[timerName]) {
+        clearInterval(this.ctx[timerName]);
+        this.ctx[timerName] = null;
+      }
+    }
+
+    const socket = this.ctx.dashboardWs;
+    this.ctx.dashboardWsConnected = false;
+    if (!socket) return { success: true, skipped: true };
+    if (socket.readyState === WebSocket.CLOSED) {
+      this.ctx.dashboardWs = null;
+      return { success: true };
+    }
+
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (result) => {
+        if (settled) return;
+        settled = true;
+        if (this.ctx.dashboardWs === socket) this.ctx.dashboardWs = null;
+        resolve(result);
+      };
+      socket.once('close', () => finish({ success: true }));
+      try {
+        socket.close();
+      } catch (error) {
+        finish({ success: false, code: 'DASHBOARD_SOCKET_CLOSE_FAILED', reason: error.message });
+      }
+    });
   }
 
   startBotStateBroadcast() {

@@ -709,7 +709,7 @@ class EnhancedPatternChecker {
    */
   // FIX 2026-02-19: Make async to await memory cleanup
   async cleanup() {
-    await this.memory.cleanup();
+    return this.memory.cleanup();
   }
 }
 

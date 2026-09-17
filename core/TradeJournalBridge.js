@@ -2083,10 +2083,30 @@ class TradeJournalBridge {
   destroy() {
     if (this._broadcastTimer) clearInterval(this._broadcastTimer);
     if (this._dashboardHookTimer) clearInterval(this._dashboardHookTimer);
+    const failures = [];
     for (const bundle of this._allJournalBundles()) {
-      bundle.journal?.destroy?.();
+      try {
+        const result = bundle.journal?.destroy?.();
+        if (result === false || result?.success === false) {
+          failures.push({
+            code: result?.code || 'TRADE_JOURNAL_DESTROY_FAILED',
+            reason: result?.reason || 'journal destroy reported failure',
+          });
+        }
+      } catch (error) {
+        failures.push({ code: error.code || 'TRADE_JOURNAL_DESTROY_FAILED', reason: error.message });
+      }
+    }
+    if (failures.length > 0) {
+      return {
+        success: false,
+        code: 'TRADE_JOURNAL_BRIDGE_DESTROY_INCOMPLETE',
+        reason: failures.map((failure) => failure.reason).join('; '),
+        failures,
+      };
     }
     console.log('[TradeJournalBridge] Destroyed');
+    return { success: true };
   }
 }
 

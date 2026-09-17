@@ -90,6 +90,7 @@ class KrakenAdapterSimple {
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 10;
     this.reconnectTimeout = null;
+    this.subscriptionImmediate = null;
 
     // CHANGE 2026-01-21: Heartbeat to keep connection alive
     this.pingInterval = null;
@@ -110,6 +111,8 @@ class KrakenAdapterSimple {
     this.requestQueue = [];
     this.queueProcessing = false;
     this.processQueueInterval = null;
+    this.queueBackoffTimeout = null;
+    this.pendingPrivateRequests = new Set();
 
     // Capabilities
     this.capabilities = {
@@ -189,7 +192,7 @@ class KrakenAdapterSimple {
 
   // CHANGE 2025-12-13: Step 4 - Queue-based request handling (no recursion)
   async makePrivateRequest(endpoint, data = {}) {
-    return new Promise((resolve, reject) => {
+    const pendingRequest = new Promise((resolve, reject) => {
       // Add request to queue
       this.requestQueue.push({
         endpoint,
@@ -202,6 +205,12 @@ class KrakenAdapterSimple {
       // Start queue processor if not running
       this.startQueueProcessor();
     });
+    this.pendingPrivateRequests.add(pendingRequest);
+    pendingRequest.then(
+      () => this.pendingPrivateRequests.delete(pendingRequest),
+      () => this.pendingPrivateRequests.delete(pendingRequest)
+    );
+    return pendingRequest;
   }
 
   // Process queued requests without recursion
@@ -255,7 +264,6 @@ class KrakenAdapterSimple {
           'Content-Type': 'application/x-www-form-urlencoded'
         }
       });
-
       // Success - reset backoff
       this.rateLimitBackoff = 1000;
       request.resolve(response.data);
@@ -273,7 +281,8 @@ class KrakenAdapterSimple {
         this.queueProcessing = false;
 
         // Resume after backoff
-        setTimeout(() => {
+        this.queueBackoffTimeout = setTimeout(() => {
+          this.queueBackoffTimeout = null;
           this.rateLimitBackoff = Math.min(this.rateLimitBackoff * 2, 8000);
           this.startQueueProcessor();
         }, this.rateLimitBackoff);
@@ -978,7 +987,8 @@ class KrakenAdapterSimple {
         };
 
         const subscriptionWs = this.ws;
-        setImmediate(() => {
+        this.subscriptionImmediate = setImmediate(() => {
+          this.subscriptionImmediate = null;
           if (this.ws !== subscriptionWs) {
             console.error('[Kraken] WS open handler skipped stale subscription socket');
             return;
@@ -1266,6 +1276,15 @@ class KrakenAdapterSimple {
   }
 
   async disconnect() {
+    this.connected = false;
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+    if (this.subscriptionImmediate) {
+      clearImmediate(this.subscriptionImmediate);
+      this.subscriptionImmediate = null;
+    }
     // CHANGE 2026-01-21: Clear heartbeat interval on disconnect
     if (this.pingInterval) {
       clearInterval(this.pingInterval);
@@ -1276,15 +1295,45 @@ class KrakenAdapterSimple {
       clearInterval(this.dataWatchdogInterval);
       this.dataWatchdogInterval = null;
     }
+    while (this.pendingPrivateRequests.size > 0) {
+      await Promise.allSettled(Array.from(this.pendingPrivateRequests));
+    }
+    if (this.processQueueInterval) {
+      clearInterval(this.processQueueInterval);
+      this.processQueueInterval = null;
+    }
+    if (this.queueBackoffTimeout) {
+      clearTimeout(this.queueBackoffTimeout);
+      this.queueBackoffTimeout = null;
+    }
+    this.queueProcessing = false;
     this.depthLiveSymbolTimestamps.clear();
     this.bookSubscriptions.clear();
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
+    const socket = this.ws;
+    if (socket) {
+      if (socket.readyState === WebSocket.CLOSED) {
+        if (this.ws === socket) this.ws = null;
+      } else {
+        const closeResult = await new Promise((resolve) => {
+          let settled = false;
+          const finish = (result) => {
+            if (settled) return;
+            settled = true;
+            if (this.ws === socket) this.ws = null;
+            resolve(result);
+          };
+          socket.once('close', () => finish({ success: true }));
+          try {
+            socket.close();
+          } catch (error) {
+            finish({ success: false, code: 'KRAKEN_WS_CLOSE_FAILED', reason: error.message });
+          }
+        });
+        if (closeResult.success === false) return closeResult;
+      }
     }
-    this.connected = false;
     console.log('[Kraken] adapter disconnected');
-    return true;
+    return { success: true };
   }
 }
 

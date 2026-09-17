@@ -642,7 +642,7 @@ class UnifiedPatternMemory {
 
   pruneAndSave() {
     this.prune();
-    this.save();
+    return this.save();
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -650,12 +650,16 @@ class UnifiedPatternMemory {
   // ═══════════════════════════════════════════════════════════════
 
   save() {
-    if (!this.config.persistToDisk) return;
+    if (!this.config.persistToDisk) {
+      return { success: true, skipped: true, reason: 'pattern persistence disabled' };
+    }
 
     try {
-      this.saveOrThrow();
+      const result = this.saveOrThrow();
+      return { success: true, result };
     } catch (err) {
       console.error(`[UnifiedPatternMemory] Save failed: ${err.message}`);
+      return { success: false, code: 'PATTERN_MEMORY_SAVE_FAILED', reason: err.message };
     }
   }
 
@@ -1182,8 +1186,10 @@ class UnifiedPatternMemory {
       clearInterval(this._saveTimer);
       this._saveTimer = null;
     }
-    this.pruneAndSave();
+    const result = this.pruneAndSave();
+    if (result?.success === false) return result;
     console.log(`[UnifiedPatternMemory] Cleanup complete. ${Object.keys(this.#patterns).length} patterns saved.`);
+    return result || { success: true };
   }
 }
 

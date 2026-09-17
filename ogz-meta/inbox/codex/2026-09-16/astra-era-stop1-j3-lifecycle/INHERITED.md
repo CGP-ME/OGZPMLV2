@@ -12,4 +12,6 @@ J4 retains:
 
 J5 retains execution-mode propagation. J6 retains complete exit-policy binding. J7/J8 retain explicit configuration delivery. STOP 2 retains candle acquisition/admission and watchdog-authority removal.
 
+Those labels identify distinct product behavior; they do not defer any dependency required by J3. All lifecycle interactions exposed by the J3 trace are implemented and exercised in this package rather than left as placeholder callbacks or future wiring.
+
 J3 does not establish a PM2-loaded SHA, actual operator-signal cleanup, broker state, phone delivery, or trading behavior.

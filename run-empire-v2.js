@@ -507,6 +507,13 @@ const singletonLock = new OGZSingletonLock('ogz-prime-v14', {
     });
     return requestRuntimeShutdown(1);
   },
+  onMonitorError: (error) => {
+    captureRuntimeFatal('singletonMonitorError', error, 'runtime', {
+      lockCode: error.lockCode || error.code || null,
+      lockFile: error.lockFile || null,
+      terminal: false,
+    });
+  },
 });
 runtimeLifecycle.singletonLock = singletonLock;
 
@@ -668,6 +675,8 @@ class OGZPrimeV14Bot {
 
     // Bot-bound telemetry modules read StateManager through the bot instance.
     this.stateManager = stateManager;
+    this._runtimeOperations = new Map();
+    this._shutdownRequested = false;
     this.dashboardDepthCoalescer = new DashboardDepthCoalescer({
       minIntervalMs: resolveDashboardDepthMinIntervalMs(),
       sendFrame: (symbol, frame, sentAt) => this.sendDashboardDepthFrame(symbol, frame, sentAt),
@@ -1087,7 +1096,11 @@ class OGZPrimeV14Bot {
         }
         if (tf === activeTf && storedCandle?.isNewCandle) {
           console.log(`V2: ${activeTf} candle closed - running trading analysis`);
-          this.run15mTradingCycle(sym, traceId);
+          this._trackRuntimeOperation(
+            `candle_analysis:${sym}:${traceId}`,
+            () => this.run15mTradingCycle(sym, traceId),
+            { reportFailure: true }
+          );
         } else if (tf === activeTf && storedCandle && !storedCandle.isNewCandle) {
           const skipKey = `session:${sym}:${tf}`;
           this._visActiveTfUpdateSkipped ??= new Set();
@@ -1530,7 +1543,7 @@ class OGZPrimeV14Bot {
       __dirname: __dirname,
       patternChecker: this.patternChecker,
       trai: this.trai,
-      backtestRecorder: this.backtestRecorder
+      backtestRecorder: this.backtestRecorder,
       // DynamicPositionSizer NOT WIRED - stats printing disabled
     });
 
@@ -1879,7 +1892,11 @@ class OGZPrimeV14Bot {
     // time default (alpacaAdapter) until the first real RTH boundary fires.
     let sessionStartResult = null;
     if (this.sessionRouter) {
-      sessionStartResult = await this.sessionRouter.start();
+      sessionStartResult = await this._trackRuntimeOperation(
+        'session_router_start',
+        () => this.sessionRouter.start()
+      );
+      if (this._shutdownRequested) return;
       if (this.sessionRouter.activeBroker) {
         this.kraken = this.sessionRouter.activeBroker;
         if (!this.config.enableBacktestMode) {
@@ -1925,7 +1942,8 @@ class OGZPrimeV14Bot {
     // Initialize TRAI Decision Module (Change 574)
     if (this.trai) {
       try {
-        await this.trai.initialize();
+        await this._trackRuntimeOperation('trai_initialize', () => this.trai.initialize());
+        if (this._shutdownRequested) return;
         console.log('TRAI Decision Module initialized - IN THE HOT PATH!\n');
       } catch (error) {
         captureRuntimeFatal('optionalServiceInitializationFailed', error, 'trai_initialization', {
@@ -1946,11 +1964,16 @@ class OGZPrimeV14Bot {
       } else {
         console.log('[MODE] LIVE/PAPER MODE: Connecting to real-time data...');
         // V2 ARCHITECTURE: Connect broker first to load asset pairs
-        await this.kraken.connect();
+        await this._trackRuntimeOperation('broker_connect', () => this.kraken.connect());
+        if (this._shutdownRequested) return;
         if (this.orderExecutor && typeof this.orderExecutor.reconcilePersistedExitIntents === 'function') {
-          await this.orderExecutor.reconcilePersistedExitIntents({
-            source: 'startup_after_broker_connect',
-          });
+          await this._trackRuntimeOperation(
+            'startup_exit_intent_reconciliation',
+            () => this.orderExecutor.reconcilePersistedExitIntents({
+              source: 'startup_after_broker_connect',
+            })
+          );
+          if (this._shutdownRequested) return;
         }
         const brokerIdentity = this.promoteBrokerAccountIdentity(this.kraken, {
           source: 'broker_connect',
@@ -1964,7 +1987,11 @@ class OGZPrimeV14Bot {
             timeframe: this.candleTimeframe,
           });
         }
-        await this.hydrateActiveTimeframeFromRest();
+        await this._trackRuntimeOperation(
+          'startup_active_timeframe_hydration',
+          () => this.hydrateActiveTimeframeFromRest()
+        );
+        if (this._shutdownRequested) return;
         // Subscribe to broker events instead of direct connection
         this.subscribeToMarketData();
 
@@ -2545,36 +2572,43 @@ class OGZPrimeV14Bot {
   startTradingCycle() {
     const interval = resolvedConfig.config.broker.tradingInterval;
 
-    this.tradingInterval = setInterval(async () => {
-      try {
-        await this.ttpCutoffEnforcer?.enforce();
-      } catch (error) {
-        await this._routeTtpCutoffIntervalFailure(error);
-      }
-
-      const exitSymbols = this._exitMonitorSymbolsFromState();
-
-      if (exitSymbols.length === 0) {
-        const activeSymbol = normalizeRuntimeSymbol(this.tradingPair);
-        const activeHistory = activeSymbol && this.symbolContexts?.has(activeSymbol)
-          ? this.symbolContexts.get(activeSymbol).priceHistory
-          : this.priceHistory;
-        if (!this.marketData || activeHistory.length < 3) {
-          console.log(`[EXIT-MONITOR] warming up ${activeHistory.length}/3 candles (${this.candleTimeframe} timeframe); entries wait for candle close`);
-        }
-        return;
-      }
-
-      this._syncExitMonitorTradingLoopContext();
-      for (const symbol of exitSymbols) {
-        await this._runExitMonitorForSymbol(symbol);
-      }
+    this.tradingInterval = setInterval(() => {
+      this._trackRuntimeOperation(
+        'exit_monitor',
+        () => this._runExitMonitorCycle(),
+        { reportFailure: true }
+      );
     }, interval);
 
     console.log(`[EXIT-MONITOR] started (${interval}ms interval); entries run on candle close only`);
 
     // CHANGE 2026-01-16: Liveness watchdog - catches "no data at all" scenario
     this.startLivenessWatchdog();
+  }
+
+  async _runExitMonitorCycle() {
+    try {
+      await this.ttpCutoffEnforcer?.enforce();
+    } catch (error) {
+      await this._routeTtpCutoffIntervalFailure(error);
+    }
+
+    const exitSymbols = this._exitMonitorSymbolsFromState();
+    if (exitSymbols.length === 0) {
+      const activeSymbol = normalizeRuntimeSymbol(this.tradingPair);
+      const activeHistory = activeSymbol && this.symbolContexts?.has(activeSymbol)
+        ? this.symbolContexts.get(activeSymbol).priceHistory
+        : this.priceHistory;
+      if (!this.marketData || activeHistory.length < 3) {
+        console.log(`[EXIT-MONITOR] warming up ${activeHistory.length}/3 candles (${this.candleTimeframe} timeframe); entries wait for candle close`);
+      }
+      return;
+    }
+
+    this._syncExitMonitorTradingLoopContext();
+    for (const symbol of exitSymbols) {
+      await this._runExitMonitorForSymbol(symbol);
+    }
   }
 
   _exitMonitorSymbolsFromState() {
@@ -3007,7 +3041,8 @@ class OGZPrimeV14Bot {
     const feed = this.config.dataFeed;
     this.livenessWatchdogStartedAt = Date.now();
 
-    this.livenessCheckInterval = setInterval(async () => {
+    this.livenessCheckInterval = setInterval(() => {
+      this._trackRuntimeOperation('liveness_check', async () => {
       if (this._isExpectedMarketQuiet()) {
         return;
       }
@@ -3046,6 +3081,7 @@ class OGZPrimeV14Bot {
 
         console.error(`[WATCHDOG] LIVENESS: backfill failed | symbol=${symbol} timeframe=${timeframe} - not pausing trading`);
       }
+      }, { reportFailure: true });
     }, feed.livenessCheckIntervalMs);
 
     console.log(`Liveness watchdog started (checks every ${feed.livenessCheckIntervalMs}ms, attempts REST backfill, does not pause trading)`);
@@ -3469,7 +3505,12 @@ class OGZPrimeV14Bot {
     this.backtestRunner.ctx.config = this.config;
     this.backtestRunner.ctx.backtestMode = resolvedConfig.config.mode.backtest;
     this.backtestRunner.ctx.runTradingCycle = (symbol, traceId) => this.run15mTradingCycle(symbol, traceId);
-    return this.backtestRunner.loadHistoricalDataAndBacktest();
+    const result = await this._trackRuntimeOperation(
+      'backtest_run',
+      () => this.backtestRunner.loadHistoricalDataAndBacktest()
+    );
+    await this.shutdown(result?.exitCode === 0 ? 0 : 1);
+    return result;
   }
 
 
@@ -3605,11 +3646,80 @@ class OGZPrimeV14Bot {
   /**
    * Graceful shutdown
    */
+  _trackRuntimeOperation(label, operation, options = {}) {
+    let operationPromise;
+    try {
+      operationPromise = Promise.resolve().then(() => (
+        typeof operation === 'function' ? operation() : operation
+      ));
+    } catch (error) {
+      operationPromise = Promise.reject(error);
+    }
+
+    this._runtimeOperations.set(operationPromise, label);
+    operationPromise.then(
+      () => this._runtimeOperations.delete(operationPromise),
+      () => this._runtimeOperations.delete(operationPromise)
+    );
+    if (options.reportFailure === true) {
+      operationPromise.catch((error) => {
+        captureRuntimeFatal('runtimeOperationFailed', error, 'runtime_operation', { operation: label });
+        console.error(`[RUNTIME] ${label} failed:`, runtimeAuditSink.redactForOutput(error));
+      });
+    }
+    return operationPromise;
+  }
+
+  async _settleRuntimeOperations() {
+    const failures = [];
+    while (this._runtimeOperations.size > 0) {
+      const snapshot = Array.from(this._runtimeOperations.entries());
+      const outcomes = await Promise.allSettled(snapshot.map(([operation]) => operation));
+      outcomes.forEach((outcome, index) => {
+        if (outcome.status === 'rejected') {
+          failures.push({
+            label: snapshot[index][1],
+            reason: outcome.reason?.message || String(outcome.reason),
+          });
+        }
+      });
+    }
+    if (failures.length > 0) {
+      return {
+        success: false,
+        code: 'RUNTIME_OPERATIONS_FAILED_DURING_SHUTDOWN',
+        reason: failures.map((failure) => `${failure.label}: ${failure.reason}`).join('; '),
+        failures,
+      };
+    }
+    return { success: true };
+  }
+
+  async _closeSocketForShutdown(socket, code) {
+    if (!socket) return { success: true, skipped: true };
+    if (socket.readyState === WebSocket.CLOSED) return { success: true };
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (result) => {
+        if (settled) return;
+        settled = true;
+        resolve(result);
+      };
+      socket.once('close', () => finish({ success: true }));
+      try {
+        socket.close();
+      } catch (error) {
+        finish({ success: false, code, reason: error.message });
+      }
+    });
+  }
+
   shutdown(exitCode = 0) {
     const requestedExitCode = Number.isInteger(exitCode) ? exitCode : 1;
     if (this._shutdownExitCode === undefined) this._shutdownExitCode = 0;
     if (requestedExitCode !== 0) this._shutdownExitCode = requestedExitCode;
     if (!this._shutdownPromise) {
+      this._shutdownRequested = true;
       this._shutdownPromise = this._performShutdown();
     }
     return this._shutdownPromise;
@@ -3642,66 +3752,81 @@ class OGZPrimeV14Bot {
       return true;
     };
 
-    await cleanup('runtime_producers', async () => {
-      this.sessionRouter?.stop?.();
-      this.pipelineSnapshot?.stop?.();
-      for (const timerName of [
-        'tradingInterval',
-        'livenessCheckInterval',
-        'heartbeatInterval',
-        'dataWatchdogInterval',
-        'botStateInterval',
-      ]) {
-        if (this[timerName]) {
-          clearInterval(this[timerName]);
-          this[timerName] = null;
-        }
-      }
-      this.dashboardDepthCoalescer?.clear?.();
-      if (typeof this._unsubscribeNtfyTrace === 'function') {
-        this._unsubscribeNtfyTrace();
-        this._unsubscribeNtfyTrace = null;
-      }
+    await cleanup('pipeline_snapshot_stop', async () => this.pipelineSnapshot?.stop?.());
+    for (const timerName of [
+      'tradingInterval',
+      'livenessCheckInterval',
+      'heartbeatInterval',
+      'dataWatchdogInterval',
+      'botStateInterval',
+    ]) {
+      await cleanup(`timer_${timerName}`, async () => {
+        if (this[timerName]) clearInterval(this[timerName]);
+        this[timerName] = null;
+        return { success: true };
+      });
+    }
+    await cleanup('dashboard_depth_coalescer', async () => this.dashboardDepthCoalescer?.clear?.());
+    await cleanup('trace_notifier_unsubscribe', async () => {
+      if (typeof this._unsubscribeNtfyTrace === 'function') this._unsubscribeNtfyTrace();
+      this._unsubscribeNtfyTrace = null;
+      return { success: true };
+    });
+    await cleanup('session_router_stop', async () => this.sessionRouter?.stop?.());
+    await cleanup('runtime_operations', async () => this._settleRuntimeOperations());
+
+    await cleanup('legacy_market_socket', async () => {
+      const socket = this.ws;
+      const result = await this._closeSocketForShutdown(socket, 'MARKET_SOCKET_CLOSE_FAILED');
+      if (this.ws === socket) this.ws = null;
+      return result;
     });
 
-    await cleanup('market_data_services', async () => {
-      if (this.ws) {
-        this.ws.removeAllListeners?.();
-        this.ws.close?.();
-        this.ws = null;
-      }
-      const adapters = new Set([
-        this.sessionRouter?.krakenAdapter,
-        this.sessionRouter?.alpacaAdapter,
-        this.kraken,
-      ].filter(Boolean));
-      for (const adapter of adapters) {
-        if (typeof adapter.disconnect === 'function') await adapter.disconnect();
-      }
-    });
+    const adapters = Array.from(new Set([
+      this.sessionRouter?.krakenAdapter,
+      this.sessionRouter?.alpacaAdapter,
+      this.kraken,
+    ].filter(Boolean)));
+    for (let index = 0; index < adapters.length; index += 1) {
+      const adapter = adapters[index];
+      const adapterId = adapter.id || adapter.constructor?.name || `adapter_${index}`;
+      await cleanup(`broker_disconnect_${adapterId}`, async () => (
+        typeof adapter.disconnect === 'function'
+          ? adapter.disconnect()
+          : { success: true, skipped: true, reason: 'adapter has no disconnect method' }
+      ));
+    }
 
-    await cleanup('dashboard_service', async () => {
-      if (this.dashboardWs) {
-        this.dashboardWs.removeAllListeners?.();
-        this.dashboardWs.close?.();
-        this.dashboardWs = null;
-      }
-      this.dashboardWsConnected = false;
-    });
+    await cleanup('dashboard_service', async () => this.webSocketManager?.stop?.());
 
-    await cleanup('strategy_services', async () => {
-      this.mtfAdapter?.destroy?.();
-      this.emaCrossover?.destroy?.();
-      this.maDynamicSR?.destroy?.();
-      this.liquiditySweep?.destroy?.();
-      this.trai?.traiCore?.shutdown?.();
-      this.riskManager?.shutdown?.();
-    });
+    const strategyCleanup = [
+      ['mtf_adapter', this.mtfAdapter, 'destroy'],
+      ['ema_crossover', this.emaCrossover, 'destroy'],
+      ['ma_dynamic_sr', this.maDynamicSR, 'destroy'],
+      ['liquidity_sweep', this.liquiditySweep, 'destroy'],
+      ['trai_core', this.trai?.traiCore, 'shutdown'],
+      ['risk_manager', this.riskManager, 'shutdown'],
+    ];
+    for (const [name, owner, method] of strategyCleanup) {
+      await cleanup(`strategy_${name}`, async () => owner?.[method]?.());
+    }
 
     await cleanup('state_persistence', async () => this.stateManager?.save?.());
     await cleanup('pattern_persistence', async () => this.patternChecker?.cleanup?.());
     await cleanup('journal_persistence', async () => this.journalBridge?.destroy?.());
-    await cleanup('singleton_lock', async () => singletonLock.releaseLock());
+    await cleanup('singleton_lock', async () => {
+      if (singletonLock.ownershipState === 'skipped') {
+        return { success: true, skipped: true, reason: 'singleton acquisition intentionally skipped' };
+      }
+      if (!singletonLock.hasLock()) {
+        return {
+          success: false,
+          code: 'SINGLETON_OWNERSHIP_NOT_HELD_AT_SHUTDOWN',
+          reason: `singleton ownership state is ${singletonLock.ownershipState}`,
+        };
+      }
+      return singletonLock.releaseLock();
+    });
 
     const finalExitCode = failures.length > 0 && this._shutdownExitCode === 0
       ? 1
@@ -3750,8 +3875,8 @@ class OGZPrimeV14Bot {
 
 function installRuntimeLifecycleHandlers(bot) {
   runtimeLifecycle.bot = bot;
-  process.once('SIGINT', () => bot.shutdown(0));
-  process.once('SIGTERM', () => bot.shutdown(0));
+  process.on('SIGINT', () => bot.shutdown(0));
+  process.on('SIGTERM', () => bot.shutdown(0));
   process.on('uncaughtException', (error) => {
     captureRuntimeFatal('uncaughtException', error, 'main_runtime');
     console.error('[FATAL] Uncaught exception:', runtimeAuditSink.redactForOutput(error));
