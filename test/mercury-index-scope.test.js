@@ -103,7 +103,9 @@ describe('Mercury index scope hygiene', () => {
     writeFixture(tmpRoot, 'core/live-path.js', 'module.exports = true;');
     writeFixture(tmpRoot, 'ogz-meta/BACKTEST-OPS.md', '# root operational doc');
     writeFixture(tmpRoot, 'ogz-meta/specs/current-contract.md', '# canonical spec');
-    writeFixture(tmpRoot, 'ogz-meta/Alignment/README.md', '# current alignment');
+    writeFixture(tmpRoot, 'ogz-meta/Alignment/README.md', '# alignment entry point');
+    writeFixture(tmpRoot, 'ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md', '# current doctrine');
+    writeFixture(tmpRoot, 'ogz-meta/Alignment/TREY-RULINGS.md', '# standing rulings');
 
     writeFixture(tmpRoot, 'ogz-meta/ledger/stale-audit.md', '# stale audit');
     writeFixture(tmpRoot, 'ogz-meta/cognition-history/mercury/old-response.md', '# old Mercury answer');
@@ -125,7 +127,9 @@ describe('Mercury index scope hygiene', () => {
     expect(indexed.has('core/live-path.js')).toBe(true);
     expect(indexed.has('ogz-meta/BACKTEST-OPS.md')).toBe(false);
     expect(indexed.has('ogz-meta/specs/current-contract.md')).toBe(true);
-    expect(indexed.has('ogz-meta/Alignment/README.md')).toBe(true);
+    expect(indexed.has('ogz-meta/Alignment/README.md')).toBe(false);
+    expect(indexed.has('ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md')).toBe(true);
+    expect(indexed.has('ogz-meta/Alignment/TREY-RULINGS.md')).toBe(true);
 
     expect(indexed.has('ogz-meta/ledger/stale-audit.md')).toBe(false);
     expect(indexed.has('ogz-meta/cognition-history/mercury/old-response.md')).toBe(false);
@@ -157,8 +161,9 @@ describe('Mercury index scope hygiene', () => {
       elapsedMs: 10,
     });
 
-    expect(metadata.index_scope.ogz_meta_eligible_dirs).toEqual([
-      'ogz-meta/Alignment',
+    expect(metadata.index_scope.ogz_meta_eligible_targets).toEqual([
+      'ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md',
+      'ogz-meta/Alignment/TREY-RULINGS.md',
       'ogz-meta/specs',
     ]);
     expect(metadata.index_freshness.head_sha).toMatch(/^[a-f0-9]{40}$/);

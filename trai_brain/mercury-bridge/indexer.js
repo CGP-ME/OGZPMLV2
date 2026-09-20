@@ -28,7 +28,8 @@ const config = require('./config');
 const MongoStore = require('./mongo-store');
 
 const OGZ_META_INDEX_TARGETS = Object.freeze([
-  'ogz-meta/Alignment/TheDoctrine.md',
+  'ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md',
+  'ogz-meta/Alignment/TREY-RULINGS.md',
   'ogz-meta/specs',
 ]);
 
@@ -110,7 +111,7 @@ function buildIndexRunMetadata({ repoRoot, files, chunks, embedErrors, elapsedMs
     index_scope: {
       repo_root: repoRoot,
       ogz_meta_eligible_targets: OGZ_META_INDEX_TARGETS,
-      ogz_meta_rule: 'only TheDoctrine and specs are eligible for Mercury RAG indexing',
+      ogz_meta_rule: 'only current Alignment doctrine/rulings and specs are eligible for Mercury RAG indexing',
     },
     index_freshness: {
       indexed_at: new Date(),
