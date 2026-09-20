@@ -26,7 +26,7 @@
  *
  * @module utils/discordNotifier
  * @requires https
- * @requires dotenv
+ * @requires foundation/ConfigLoader
  * @author Trey (OGZPrime Technologies)
  * @version 10.2
  *
@@ -44,14 +44,18 @@
 
 // Discord Integration for OGZ Prime Trading Bot
 
-// Load environment variables for webhook URLs
-require('dotenv').config();
 const https = require('https');
 const { URL } = require('url');
+const { load: loadConfig } = require('../foundation/ConfigLoader');
 
-// Webhook URLs from environment variables
-const STATS_WEBHOOK = process.env.DISCORD_STATS_WEBHOOK_URL;
-const STATUS_WEBHOOK = process.env.DISCORD_STATUS_WEBHOOK_URL;
+const runtimeConfig = loadConfig({ silent: true, role: 'bot' }).config;
+const notificationConfig = runtimeConfig.services.notifications;
+const NOTIFICATIONS_ENABLED = notificationConfig.enabled === true;
+const STATS_WEBHOOK = notificationConfig.discordStatsWebhookUrl;
+const STATUS_WEBHOOK = notificationConfig.discordStatusWebhookUrl;
+const STARTING_BALANCE = runtimeConfig.startingBalance;
+const FUND_TARGET = runtimeConfig.fundTarget;
+const EXECUTION_MODE = runtimeConfig.mode.execution;
 
 /**
 * ===================================================================
@@ -84,9 +88,9 @@ class DiscordTradingNotifier {
            worstTrade: 0                 // Largest single loss
        };
        
-       console.log('📢 Discord Trading Notifier initialized');
-       console.log(`📊 Stats webhook: ${STATS_WEBHOOK ? 'Configured' : 'Missing'}`);
-       console.log(`⚡ Status webhook: ${STATUS_WEBHOOK ? 'Configured' : 'Missing'}`);
+       console.log(`[DISCORD] Notifier ${NOTIFICATIONS_ENABLED ? 'initialized' : 'disabled by configuration'}`);
+       console.log(`[DISCORD] Stats webhook: ${STATS_WEBHOOK ? 'Configured' : 'Missing'}`);
+       console.log(`[DISCORD] Status webhook: ${STATUS_WEBHOOK ? 'Configured' : 'Missing'}`);
    }
 
    /**
@@ -106,12 +110,14 @@ class DiscordTradingNotifier {
     * @param {Array} embeds - Rich embed objects for formatted messages
     */
    sendMessage(content, webhookType = 'status', embeds = null) {
+       if (!NOTIFICATIONS_ENABLED) return;
+
        // Select appropriate webhook URL
        const webhookUrl = webhookType === 'stats' ? STATS_WEBHOOK : STATUS_WEBHOOK;
        
        // Validate webhook configuration
        if (!webhookUrl) {
-           console.log(`⚠️ Discord ${webhookType} webhook not configured in .env file`);
+           console.log(`[DISCORD] ${webhookType} webhook not configured`);
            return;
        }
 
@@ -177,8 +183,8 @@ class DiscordTradingNotifier {
            description: "Trading system initialized and ready for Houston fund generation!",
            color: 0x00ff00, // Green for successful startup
            fields: [
-               { name: "🎯 Mode", value: "SIMULATION", inline: true },
-               { name: "💰 Starting Balance", value: "$10,000.00", inline: true },
+               { name: "Mode", value: String(EXECUTION_MODE).toUpperCase(), inline: true },
+               { name: "Starting Balance", value: `$${STARTING_BALANCE.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, inline: true },
                { name: "⏰ Started", value: new Date().toLocaleString(), inline: true }
            ],
            footer: { text: "OGZ Prime | Built for Houston Dreams" },
@@ -259,7 +265,7 @@ class DiscordTradingNotifier {
            fields: [
                { name: "🔥 Trades Today", value: this.dailyStats.trades.toString(), inline: true },
                { name: "📊 Win Rate", value: `${(this.dailyStats.trades > 0 ? (this.dailyStats.wins / this.dailyStats.trades * 100).toFixed(1) : "0.0")}%`, inline: true },
-               { name: "🎯 Houston Fund", value: `$${(10000 + (totalPnL ?? 0)).toFixed(2)}`, inline: true }
+               { name: "Houston Fund", value: `$${(STARTING_BALANCE + (totalPnL ?? 0)).toFixed(2)}`, inline: true }
            ],
            timestamp: new Date().toISOString(),
            footer: { text: "Every milestone brings you closer to Houston! 🏠💕" }
@@ -323,7 +329,7 @@ class DiscordTradingNotifier {
                { name: "📉 Losses", value: (this.dailyStats.losses || 0).toString(), inline: true },
                { name: "💰 Total P&L", value: `${typeof this.dailyStats.totalPnL === 'number' ? this.dailyStats.totalPnL.toFixed(2) : "0.00"}`, inline: true },
                { name: "📊 Win Rate", value: `${winRate}%`, inline: true },
-               { name: "🎯 Houston Fund", value: `$${(10000 + (this.dailyStats.totalPnL || 0)).toFixed(2)}`, inline: true },
+               { name: "Houston Fund", value: `$${(STARTING_BALANCE + (this.dailyStats.totalPnL || 0)).toFixed(2)}`, inline: true },
                { name: "🚀 Best Trade", value: `${typeof this.dailyStats.bestTrade === 'number' ? this.dailyStats.bestTrade.toFixed(2) : "0.00"}`, inline: true },
                { name: "📉 Worst Trade", value: `${typeof this.dailyStats.worstTrade === 'number' ? this.dailyStats.worstTrade.toFixed(2) : "0.00"}`, inline: true }
            ],
@@ -394,9 +400,9 @@ class DiscordTradingNotifier {
     * Send Houston fund progress update with visual progress bar
     * 
     * @param {number} currentBalance - Current account balance
-    * @param {number} targetAmount - Target amount for Houston move (default: $25,000)
+    * @param {number} targetAmount - Target amount for Houston move
     */
-   notifyHoustonProgress(currentBalance, targetAmount = 25000) {
+   notifyHoustonProgress(currentBalance, targetAmount = FUND_TARGET) {
        // Calculate progress percentage
        const progress = (currentBalance / targetAmount) * 100;
        

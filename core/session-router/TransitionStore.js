@@ -5,7 +5,6 @@ const path = require('path');
 const crypto = require('crypto');
 const { writeJsonAtomic } = require('../AtomicWrite');
 
-const DEFAULT_STALE_LOCK_MS = 120000;
 const TRANSITION_EVENT_STATES = {
   SESSION_TRANSITION_PLANNED: { state: 'PLANNED', freezeNewEntries: true },
   SESSION_FREEZE_SOURCE: { state: 'FREEZING_SOURCE', freezeNewEntries: true },
@@ -54,12 +53,10 @@ function stableStringify(value) {
 
 class TransitionStore {
   constructor(options = {}) {
-    this.dir = options.dir || path.join(process.cwd(), 'data', 'session-router');
-    this.clock = options.clock || (() => Date.now());
-    this.ownerId = options.ownerId || `pid:${process.pid}`;
-    this.staleLockMs = Number.isFinite(options.staleLockMs)
-      ? options.staleLockMs
-      : DEFAULT_STALE_LOCK_MS;
+      this.dir = path.resolve(options.dir);
+      this.clock = options.clock || (() => Date.now());
+      this.ownerId = options.ownerId || `pid:${process.pid}`;
+      this.staleLockMs = options.staleLockMs;
 
     this.statePath = path.join(this.dir, 'transition-state.json');
     this.lockPath = path.join(this.dir, 'transition-lock.json');
@@ -630,4 +627,3 @@ class TransitionStore {
 }
 
 module.exports = TransitionStore;
-module.exports.DEFAULT_STALE_LOCK_MS = DEFAULT_STALE_LOCK_MS;

@@ -6,11 +6,6 @@ const STOCK_OPEN_MINUTE = 30;
 const STOCK_CLOSE_HOUR = 16;
 const STOCK_CLOSE_MINUTE = 0;
 
-function envFlag(env, key) {
-  const value = env && env[key];
-  return value === true || value === 1 || String(value || '').toLowerCase() === 'true' || String(value || '') === '1';
-}
-
 function cleanString(value) {
   return typeof value === 'string' && value.trim() ? value.trim() : '';
 }
@@ -96,57 +91,58 @@ function collectActiveStrategies(ctx) {
     .filter(Boolean);
 }
 
-function collectActiveBrokers(ctx, env = process.env) {
-  const brokers = new Set();
-  const brokerId = cleanString(ctx && ctx.config && ctx.config.brokerId) ||
-    cleanString(ctx && ctx.config && ctx.config.broker && ctx.config.broker.id) ||
-    cleanString(ctx && ctx.broker && ctx.broker.id) ||
-    cleanString(env.BROKER);
-  if (brokerId) brokers.add(brokerId.toUpperCase());
+function collectActiveBrokers(ctx) {
+  const runtimeScope = ctx?.stateManager?.getDashboardRuntimeScope?.() || null;
+  const scopedBroker = cleanString(runtimeScope?.brokerId || runtimeScope?.broker);
+  if (scopedBroker) return [scopedBroker.toUpperCase()];
 
-  if (ctx && ctx.sessionRouter && ctx.sessionRouter.activeBroker && ctx.sessionRouter.activeBroker.id) {
-    brokers.add(String(ctx.sessionRouter.activeBroker.id).toUpperCase());
-  }
-  const routerConfig = ctx && ctx.config && ctx.config.sessionRouter;
+  const activeBroker = cleanString(ctx?.sessionRouter?.activeBroker?.id)
+    || cleanString(ctx?.sessionRouter?.activeBroker?.getBrokerName?.());
+  if (activeBroker) return [activeBroker.toUpperCase()];
+
   const activeRouterSession = (cleanString(ctx && ctx.sessionRouter && ctx.sessionRouter.activeSession) ||
-    (routerConfig && routerConfig.mode === 'static' ? cleanString(routerConfig.staticSession) : null) ||
+    (ctx?.sessionRouter?.mode === 'static' ? cleanString(ctx.sessionRouter.staticSession) : null) ||
     '').toLowerCase();
   if (activeRouterSession === 'crypto') {
-    brokers.add('KRAKEN');
+    return ['KRAKEN'];
   } else if (activeRouterSession === 'stocks') {
-    brokers.add('ALPACA');
+    return ['ALPACA'];
   }
-  if (!brokers.size && cleanString(env.KRAKEN_API_KEY)) brokers.add('KRAKEN');
-  if (!brokers.size && cleanString(env.ALPACA_API_KEY)) brokers.add('ALPACA');
-
-  return Array.from(brokers);
+  return [];
 }
 
-function hasStockRuntime(env = process.env) {
-  return cleanString(env.ALPACA_SYMBOLS) ||
-    cleanString(env.ALPACA_API_KEY) ||
-    cleanString(env.ALPACA_MODE) ||
-    String(env.ASSET_CLASS || '').toLowerCase() === 'stocks' ||
-    String(env.BROKER || '').toLowerCase() === 'alpaca';
+function hasStockRuntime(ctx) {
+  const runtimeScope = ctx?.stateManager?.getDashboardRuntimeScope?.() || null;
+  if (runtimeScope) {
+    return String(runtimeScope.assetClass || '').toLowerCase() === 'stocks'
+      || String(runtimeScope.brokerId || runtimeScope.broker || '').toLowerCase() === 'alpaca';
+  }
+  const activeSession = cleanString(ctx?.sessionRouter?.activeSession).toLowerCase();
+  if (activeSession) return activeSession === 'stocks';
+  return ctx?.sessionRouter?.mode === 'static'
+    && cleanString(ctx.sessionRouter.staticSession).toLowerCase() === 'stocks';
 }
 
 function buildBotStateFrame(ctx = {}, options = {}) {
-  const env = options.env || process.env;
   const now = options.now instanceof Date ? options.now : new Date();
+  const runtimeScope = ctx?.stateManager?.getDashboardRuntimeScope?.() || null;
   const executionMode = cleanString(
-    env.EXECUTION_MODE ||
-    env.TRADING_MODE ||
+    runtimeScope?.executionMode ||
     (ctx.config && ctx.config.executionMode) ||
     (ctx.config && ctx.config.mode && ctx.config.mode.execution)
-  ) || 'paper';
-  const liveTrading = envFlag(env, 'LIVE_TRADING') || envFlag(env, 'ENABLE_LIVE_TRADING') || executionMode === 'live';
-  const paperTrading = envFlag(env, 'PAPER_TRADING') || executionMode === 'paper';
+  );
+  const liveTrading = executionMode === 'live';
+  const paperTrading = executionMode === 'paper';
   const paused = Boolean(ctx && ctx.stateManager && typeof ctx.stateManager.isPaused === 'function' && ctx.stateManager.isPaused());
-  const stockRuntime = hasStockRuntime(env);
+  const stockRuntime = hasStockRuntime(ctx);
   const stockOpen = isStockMarketOpen(now);
 
   let mode = liveTrading ? 'live' : paperTrading ? 'eval_active' : 'eval_dormant';
-  let reason = liveTrading ? 'live_trading_enabled' : paperTrading ? 'paper_trading_enabled' : 'env_paper_disabled';
+  let reason = liveTrading
+    ? 'live_trading_enabled'
+    : paperTrading
+      ? 'paper_trading_enabled'
+      : 'execution_mode_not_live_or_paper';
   let nextActiveAt = null;
 
   if (paused) {
@@ -158,7 +154,7 @@ function buildBotStateFrame(ctx = {}, options = {}) {
     nextActiveAt = nextStockMarketOpen(now);
   } else if (stockRuntime && stockOpen && !liveTrading && !paperTrading) {
     mode = 'eval_dormant';
-    reason = 'env_paper_disabled';
+    reason = 'paper_mode_disabled';
     nextActiveAt = null;
   }
 
@@ -169,7 +165,7 @@ function buildBotStateFrame(ctx = {}, options = {}) {
     reason,
     next_active_at: nextActiveAt,
     active_strategies: collectActiveStrategies(ctx),
-    active_brokers: collectActiveBrokers(ctx, env),
+    active_brokers: collectActiveBrokers(ctx),
     execution_mode: executionMode,
     paper_trading: paperTrading,
     live_trading: liveTrading,

@@ -1,21 +1,179 @@
 {
+  "schemaVersion": 1,
+  "revision": 1,
   "confidence": {
-    "minTradeConfidence": 0.5,
-    "maxConfidence": 0.95,
     "minStrategyConfidence": 0.35,
     "candlePatternMinConfidence": 0.7,
     "regimeMinConfidence": 0.3,
     "confluenceMinScore": 0.3
   },
-  "risk": {
-    "maxRiskPerTrade": 0.02,
-    "counterTrendReduction": 0.3,
-    "lowConfidenceReduction": 0.25,
-    "highConfidenceBoost": 1.3
+  "regimeDetection": {
+    "minimumCandles": 10,
+    "trendThreshold": 0.005,
+    "strongTrendThreshold": 0.015,
+    "volatilityThreshold": 0.012,
+    "trendLookback": 20,
+    "volatilityLookback": 14,
+    "directionalLookback": 14,
+    "minTrendConsistency": 0.5,
+    "strongTrendConsistency": 0.6,
+    "consistencyConfidenceWeight": 0.6,
+    "dominanceConfidenceWeight": 0.4,
+    "moderateTrendConfidenceMultiplier": 0.8,
+    "volatileConfidenceThresholdMultiplier": 2
+  },
+  "indicators": {
+    "engine": {
+      "smaPeriods": [20, 50, 200],
+      "emaPeriods": [20, 50, 200],
+      "bbPeriod": 20,
+      "bbStdDev": 2,
+      "atrPeriod": 14,
+      "rsiPeriod": 14,
+      "stochRsiPeriod": 14,
+      "stochRsiK": 3,
+      "stochRsiD": 3,
+      "adxPeriod": 14,
+      "superTrendPeriod": 10,
+      "superTrendMultiplier": 3,
+      "keltnerPeriod": 20,
+      "keltnerMultiplier": 1.5,
+      "donchianPeriod": 20,
+      "macdFast": 12,
+      "macdSlow": 26,
+      "macdSignal": 9,
+      "mfiPeriod": 14,
+      "twoPolePeriod": 20,
+      "twoPoleNormalizeByATR": true,
+      "ogzTpoEnabled": true,
+      "ogzTpoLength": 20,
+      "ogzTpoNormLength": 25,
+      "ogzTpoVolLength": 20,
+      "ogzTpoLagBars": 4,
+      "ogzTpoEmitMarkers": true,
+      "ichimokuTenkan": 9,
+      "ichimokuKijun": 26,
+      "ichimokuSenkouB": 52,
+      "ichimokuDisplacement": 26,
+      "pivotLeft": 3,
+      "pivotRight": 3,
+      "srClusterPct": 0.0025,
+      "maxSRLevels": 12,
+      "trendMinPivots": 3,
+      "trendMaxLookback": 200
+    },
+    "optimized": {
+      "rsiPeriod": 14,
+      "macdFastPeriod": 12,
+      "macdSlowPeriod": 26,
+      "macdSignalPeriod": 9,
+      "volatilityPeriod": 20,
+      "bollingerPeriod": 20,
+      "bollingerStdDev": 2,
+      "atrPeriod": 14,
+      "trendShortPeriod": 20,
+      "trendLongPeriod": 50,
+      "twoPole": {
+        "smaLength": 25,
+        "filterLength": 20,
+        "extremeOverbought": 1,
+        "overbought": 0.5,
+        "neutral": 0,
+        "oversold": -0.5,
+        "extremeOversold": -1,
+        "deltaDenominatorFloor": 0.001,
+        "crossoverMinDeltaRatio": 0.2,
+        "confidenceMidZone": 0.25,
+        "confidenceBase": 40,
+        "confidenceExtreme": 90,
+        "confidenceOverbought": 70,
+        "confidenceMid": 55,
+        "confidenceNeutral": 40,
+        "confidenceStrongDeltaThreshold": 0.2,
+        "confidenceGoodDeltaThreshold": 0.15,
+        "confidenceModerateDeltaThreshold": 0.1,
+        "confidenceStrongDeltaBoost": 25,
+        "confidenceGoodDeltaBoost": 15,
+        "confidenceModerateDeltaBoost": 10,
+        "confidenceWeakDeltaPenalty": -5,
+        "noisyFilterBelow": 10,
+        "noisyFilterPenalty": -10,
+        "laggyFilterAbove": 20,
+        "laggyFilterPenalty": -5,
+        "confidenceMin": 20,
+        "confidenceMax": 95,
+        "stopBufferFraction": 0.001,
+        "fallbackLongLowMultiplier": 0.995,
+        "fallbackShortHighMultiplier": 1.005,
+        "rewardRiskRatio": 1.5
+      }
+    }
+  },
+  "patternRecognition": {
+    "confidenceThreshold": 0.45,
+    "useOptimizedIndicators": true,
+    "flatCandleWickRatio": 0.5,
+    "optimizedVolatilityCeiling": 0.05,
+    "defaultPatternQuality": 0.3,
+    "historySimilarityThreshold": 0.9,
+    "decayRate": 0.01,
+    "minimumDecayMultiplier": 0.1,
+    "signatureQuantizationSteps": 20,
+    "fastPathMinTradeHistory": 2,
+    "fastPathRecentResultCount": 3,
+    "fastPathHistoricalWeight": 0.7,
+    "fastPathRecentWeight": 0.3,
+    "fastPathNewPatternConfidence": 0.1
+  },
+  "featureExtraction": {
+    "volumeMinimumCandles": 10,
+    "volumeLookback": 20,
+    "volumeRatioCeiling": 2,
+    "volatilityPercentCeiling": 5,
+    "trendBullishValue": 0.85,
+    "trendBearishValue": 0.15,
+    "neutralValue": 0.5,
+    "changeMultiplier": 10,
+    "macdDeltaRange": 1000,
+    "longDirectionValue": 0.75,
+    "shortDirectionValue": 0.25,
+    "signatureQuantizationSteps": 10
+  },
+  "performanceAnalysis": {
+    "minTradesForAnalysis": 20,
+    "edgeDecayLookback": 50,
+    "edgeDecayThreshold": 0.3,
+    "entryQualityWeight": 0.4,
+    "exitQualityWeight": 0.4,
+    "patternAccuracyWeight": 0.2,
+    "recommendationInterval": 50,
+    "alertOnTradesBelow": 70
+  },
+  "fibonacci": {
+    "levels": [0.236, 0.382, 0.5, 0.618, 0.786],
+    "goldenZone": [0.618, 0.65],
+    "lookbackCandles": 100,
+    "strengthRequired": 3,
+    "swingThresholdPercent": 1,
+    "proximityThreshold": 0.5
   },
   "authFailureGuard": {
     "thresholdCount": 3,
     "windowMs": 300000
+  },
+  "execution": {
+    "broker": "alpaca",
+    "assetClass": "stocks",
+    "tradingPair": "TSLA",
+    "symbols": [
+      "TSLA",
+      "NVDA",
+      "COIN",
+      "MARA",
+      "RIOT"
+    ],
+    "candleTimeframe": "15m",
+    "candleSource": "live"
   },
   "launchProfiles": {
     "defaultProfile": "paper",
@@ -25,7 +183,9 @@
       "sessionRouter": {
         "mode": "static",
         "staticSession": "stocks",
-        "cryptoSymbols": ["BTC-USD"],
+        "cryptoSymbols": [
+          "BTC-USD"
+        ],
         "checkIntervalMs": 60000,
         "forceCloseOnSessionEnd": true,
         "fast": false
@@ -154,7 +314,9 @@
       "sessionRouter": {
         "mode": "static",
         "staticSession": "stocks",
-        "cryptoSymbols": ["BTC-USD"],
+        "cryptoSymbols": [
+          "BTC-USD"
+        ],
         "checkIntervalMs": 60000,
         "forceCloseOnSessionEnd": true,
         "fast": false
@@ -283,7 +445,9 @@
       "sessionRouter": {
         "mode": "static",
         "staticSession": "stocks",
-        "cryptoSymbols": ["BTC-USD"],
+        "cryptoSymbols": [
+          "BTC-USD"
+        ],
         "checkIntervalMs": 60000,
         "forceCloseOnSessionEnd": true,
         "fast": false
@@ -412,7 +576,9 @@
       "sessionRouter": {
         "mode": "static",
         "staticSession": "stocks",
-        "cryptoSymbols": ["BTC-USD"],
+        "cryptoSymbols": [
+          "BTC-USD"
+        ],
         "checkIntervalMs": 60000,
         "forceCloseOnSessionEnd": true,
         "fast": false
@@ -543,7 +709,9 @@
       "sessionRouter": {
         "mode": "static",
         "staticSession": "stocks",
-        "cryptoSymbols": ["BTC-USD"],
+        "cryptoSymbols": [
+          "BTC-USD"
+        ],
         "checkIntervalMs": 60000,
         "forceCloseOnSessionEnd": true,
         "fast": false
@@ -674,7 +842,9 @@
       "sessionRouter": {
         "mode": "static",
         "staticSession": "stocks",
-        "cryptoSymbols": ["BTC-USD"],
+        "cryptoSymbols": [
+          "BTC-USD"
+        ],
         "checkIntervalMs": 60000,
         "forceCloseOnSessionEnd": true,
         "fast": false
@@ -803,7 +973,9 @@
       "sessionRouter": {
         "mode": "static",
         "staticSession": "stocks",
-        "cryptoSymbols": ["BTC-USD"],
+        "cryptoSymbols": [
+          "BTC-USD"
+        ],
         "checkIntervalMs": 60000,
         "forceCloseOnSessionEnd": true,
         "fast": false
@@ -932,136 +1104,148 @@
     "definitions": {
       "current-eval": {
         "name": "current-eval",
-        "description": "Current explicit TSLA stock-eval posture; freezes the repo .env values that workers previously inherited implicitly.",
+        "launchProfile": "backtest-all",
+        "description": "Current explicit TSLA stock-eval posture; freezes the values that workers previously inherited implicitly.",
         "evidence": [
           ".env:236-269",
           ".env:328-329",
-          "config/trading.config.json:tuningProfiles.definitions.current-eval",
-          "foundation/ConfigLoader.js backtestWorkerEnv.canonical"
+          "config/settings.json:tuningProfiles.definitions.current-eval",
+          "foundation/ConfigLoader.js buildTuningProfileOverrides"
         ],
-        "env": {
-          "ENABLE_DYNAMIC_SIZING": "true",
-          "BASE_POSITION_SIZE": "0.01",
-          "MAX_POSITION_SIZE_PCT": "0.05",
-          "BASE_POSITION_PCT": "0.01",
-          "MAX_POSITION_PCT": "0.05",
-          "ABSOLUTE_POSITION_CAP": "0.15",
-          "TIER1_TARGET": "0.007",
-          "TIER2_TARGET": "0.010",
-          "TIER3_TARGET": "0.015",
-          "FINAL_TARGET": "0.025",
-          "TIER1_EXIT_FRACTION": "0.30",
-          "TIER2_EXIT_FRACTION": "0.30",
-          "TIER3_EXIT_FRACTION": "0.20",
-          "ATR_FILTER_ENABLED": "true",
-          "ATR_MIN_PERCENT": "0.15",
-          "EXIT_SYSTEM": "legacy",
-          "FEE_SLIPPAGE": "0.0005"
-        }
-      },
-      "ttp-5k-max": {
+      "overrides": {
+          "features.enableDynamicSizing": true,
+          "positionSizing.basePositionSize": 0.01,
+          "positionSizing.maxPositionSize": 0.05,
+          "entryLogic.sizing.absoluteCapPercent": 0.15,
+          "exits.profitTiers.tier1": 0.007,
+          "exits.profitTiers.tier2": 0.01,
+          "exits.profitTiers.tier3": 0.015,
+          "exits.profitTiers.final": 0.025,
+          "exitLogic.tieredExit.tier1ExitFraction": 0.3,
+          "exitLogic.tieredExit.tier2ExitFraction": 0.3,
+          "exitLogic.tieredExit.tier3ExitFraction": 0.2,
+          "filters.atrEnabled": true,
+          "filters.atrMinPercent": 0.15,
+        "fees.slippage": 0.0005
+      }
+    },
+    "backtest-masr": {
+      "name": "backtest-masr",
+      "launchProfile": "backtest-masr",
+      "description": "Typed selector for the canonical MADynamicSR-only backtest launch profile.",
+      "evidence": [
+        "config/settings.json:launchProfiles.backtest-masr",
+        "tools/backtest-worker-env.js typed descriptor selection"
+      ],
+      "overrides": {}
+    },
+    "backtest-rsi": {
+      "name": "backtest-rsi",
+      "launchProfile": "backtest-rsi",
+      "description": "Typed selector for the canonical RSI-only backtest launch profile.",
+      "evidence": [
+        "config/settings.json:launchProfiles.backtest-rsi",
+        "tools/backtest-worker-env.js typed descriptor selection"
+      ],
+      "overrides": {}
+    },
+    "ttp-5k-max": {
         "name": "ttp-5k-max",
+        "launchProfile": "backtest-ttp-5k-max",
         "description": "Trade The Pool MAX 5k backtest economics profile: $5,000 account, $50 daily loss, $150 max loss, $300 target, per-share minimum commissions. Historical date-dependent TTP rules require a separate backtest-clock/calendar proof before full rule-engine enforcement.",
         "evidence": [
           "operator-provided Trade The Pool MAX58356 5k account support transcript",
-          "config/trading.config.json:tuningProfiles.definitions.ttp-5k-max",
-          "foundation/ConfigLoader.js PROFILE_ENV_CONFIG_PATHS",
-          "tools/backtest-worker-env.js profile fee precedence"
+          "config/settings.json:tuningProfiles.definitions.ttp-5k-max",
+          "foundation/ConfigLoader.js typed canonical profile overrides",
+          "tools/backtest-worker-env.js historical profile precedence"
         ],
-        "env": {
-          "INITIAL_BALANCE": "5000",
-          "ENABLE_DYNAMIC_SIZING": "true",
-          "BASE_POSITION_SIZE": "0.01",
-          "MAX_POSITION_SIZE_PCT": "0.10",
-          "BASE_POSITION_PCT": "0.10",
-          "MAX_POSITION_PCT": "0.10",
-          "ABSOLUTE_POSITION_CAP": "1.00",
-          "ENTRY_STOCK_SHARE_RANGE_ENABLED": "true",
-          "ENTRY_MIN_STOCK_SHARES": "2",
-          "ENTRY_MAX_STOCK_SHARES": "0",
-          "ENTRY_MAX_STOCK_NOTIONAL": "5000",
-          "ENTRY_CONSISTENCY_CAP_BUFFER": "0.98",
-          "ENTRY_DAILY_LOSS_RISK_FRACTION": "1.0",
-          "TIER1_TARGET": "0.007",
-          "TIER2_TARGET": "0.010",
-          "TIER3_TARGET": "0.015",
-          "FINAL_TARGET": "0.025",
-          "TIER1_EXIT_FRACTION": "0.30",
-          "TIER2_EXIT_FRACTION": "0.30",
-          "TIER3_EXIT_FRACTION": "0.20",
-          "ATR_FILTER_ENABLED": "true",
-          "ATR_MIN_PERCENT": "0.40",
-          "EXIT_SYSTEM": "legacy",
-          "FEE_MODEL": "per_share_minimum",
-          "FEE_PER_SHARE": "0.005",
-          "FEE_MIN_ORDER": "0.75",
-          "FEE_SLIPPAGE": "0.0005"
+        "overrides": {
+          "backtest.initialBalance": 5000,
+          "features.enableDynamicSizing": true,
+          "positionSizing.basePositionSize": 0.01,
+          "positionSizing.maxPositionSize": 0.1,
+          "entryLogic.sizing.absoluteCapPercent": 1,
+          "entryLogic.sizing.stockShareRange.enabled": true,
+          "entryLogic.sizing.stockShareRange.minShares": 2,
+          "entryLogic.sizing.stockShareRange.maxShares": 0,
+          "entryLogic.sizing.stockShareRange.maxNotionalUsd": 5000,
+          "entryLogic.sizing.stockShareRange.consistencyCapBuffer": 0.98,
+          "entryLogic.sizing.stockShareRange.dailyLossRiskFraction": 1,
+          "exits.profitTiers.tier1": 0.007,
+          "exits.profitTiers.tier2": 0.01,
+          "exits.profitTiers.tier3": 0.015,
+          "exits.profitTiers.final": 0.025,
+          "exitLogic.tieredExit.tier1ExitFraction": 0.3,
+          "exitLogic.tieredExit.tier2ExitFraction": 0.3,
+          "exitLogic.tieredExit.tier3ExitFraction": 0.2,
+          "filters.atrEnabled": true,
+          "filters.atrMinPercent": 0.4,
+          "fees.model": "per_share_minimum",
+          "fees.perShare": 0.005,
+          "fees.minOrderFee": 0.75,
+          "fees.slippage": 0.0005
         }
       },
       "trey-spec": {
         "name": "trey-spec",
+        "launchProfile": "backtest-trey-spec",
         "description": "TREY SPEC 001 weekend campaign profile: event-only EMA entries, trend-regime eligibility for trend strategies, ATR-scaled contracts, one early scaleout, runner trailing, and 30-minute TTP entry buffer.",
         "evidence": [
           "operator TREY SPEC 001, 2026-07-03",
-          "config/trading.config.json:tuningProfiles.definitions.trey-spec",
-          "foundation/ConfigLoader.js PROFILE_ENV_CONFIG_PATHS"
+          "config/settings.json:tuningProfiles.definitions.trey-spec",
+          "foundation/ConfigLoader.js typed canonical profile overrides"
         ],
-        "env": {
-          "INITIAL_BALANCE": "5000",
-          "ENABLE_DYNAMIC_SIZING": "true",
-          "BASE_POSITION_SIZE": "0.01",
-          "MAX_POSITION_SIZE_PCT": "0.10",
-          "BASE_POSITION_PCT": "0.10",
-          "MAX_POSITION_PCT": "0.10",
-          "ABSOLUTE_POSITION_CAP": "1.00",
-          "ENTRY_STOCK_SHARE_RANGE_ENABLED": "true",
-          "ENTRY_MIN_STOCK_SHARES": "2",
-          "ENTRY_MAX_STOCK_SHARES": "0",
-          "ENTRY_MAX_STOCK_NOTIONAL": "5000",
-          "ENTRY_CONSISTENCY_CAP_BUFFER": "0.98",
-          "ENTRY_DAILY_LOSS_RISK_FRACTION": "1.0",
-          "ORCH_MIN_CANDLES_EMA": "200",
-          "TREND_REGIME_GATE_ENABLED": "true",
-          "TREND_REGIME_GATE_MIN_CONFIDENCE": "0.25",
-          "ATR_CONTRACTS_ENABLED": "true",
-          "ATR_STOP_MULTIPLIER": "2.0",
-          "ATR_TRAIL_MULTIPLIER": "2.0",
-          "ATR_TRAILING_ACTIVATION_R": "1.0",
-          "BE_SCALEOUT_ENABLED": "true",
-          "BE_SCALEOUT_FRACTION": "0.25",
-          "TIERED_EXIT_ENABLED": "false",
-          "ATR_FILTER_ENABLED": "true",
-          "ATR_MIN_PERCENT": "0.40",
-          "EXIT_SYSTEM": "legacy",
-          "FEE_MODEL": "per_share_minimum",
-          "FEE_PER_SHARE": "0.005",
-          "FEE_MIN_ORDER": "0.75",
-          "FEE_SLIPPAGE": "0.0005"
+        "overrides": {
+          "backtest.initialBalance": 5000,
+          "features.enableDynamicSizing": true,
+          "positionSizing.basePositionSize": 0.01,
+          "positionSizing.maxPositionSize": 0.1,
+          "entryLogic.sizing.absoluteCapPercent": 1,
+          "entryLogic.sizing.stockShareRange.enabled": true,
+          "entryLogic.sizing.stockShareRange.minShares": 2,
+          "entryLogic.sizing.stockShareRange.maxShares": 0,
+          "entryLogic.sizing.stockShareRange.maxNotionalUsd": 5000,
+          "entryLogic.sizing.stockShareRange.consistencyCapBuffer": 0.98,
+          "entryLogic.sizing.stockShareRange.dailyLossRiskFraction": 1,
+          "orchestrator.minCandlesEMA": 200,
+          "strategyBehavior.trendRegimeGate.enabled": true,
+          "strategyBehavior.trendRegimeGate.minConfidence": 0.25,
+          "strategyBehavior.atrContracts.enabled": true,
+          "strategyBehavior.atrContracts.stopMultiplier": 2,
+          "strategyBehavior.atrContracts.trailMultiplier": 2,
+          "strategyBehavior.atrContracts.trailingActivationR": 1,
+          "exitLogic.beScaleOut.enabled": true,
+          "exitLogic.beScaleOut.scaleOutFraction": 0.25,
+          "exitLogic.tieredExit.enabled": false,
+          "filters.atrEnabled": true,
+          "filters.atrMinPercent": 0.4,
+          "fees.model": "per_share_minimum",
+          "fees.perShare": 0.005,
+          "fees.minOrderFee": 0.75,
+          "fees.slippage": 0.0005
         }
       },
       "legacy-wide": {
         "name": "legacy-wide",
+        "launchProfile": "backtest-all",
         "description": "Wide-target historical posture from .env.gates; useful for testing whether tight MPM tiers are choking winners.",
         "evidence": [
           ".env.gates:69-72",
           ".env.gates:239-272"
         ],
-        "env": {
-          "ENABLE_DYNAMIC_SIZING": "true",
-          "BASE_POSITION_SIZE": "0.01",
-          "MAX_POSITION_SIZE_PCT": "0.05",
-          "BASE_POSITION_PCT": "0.01",
-          "MAX_POSITION_PCT": "0.05",
-          "ABSOLUTE_POSITION_CAP": "0.15",
-          "TIER1_TARGET": "0.020",
-          "TIER2_TARGET": "0.040",
-          "TIER3_TARGET": "0.060",
-          "FINAL_TARGET": "0.100",
-          "TIER1_EXIT_FRACTION": "0.30",
-          "TIER2_EXIT_FRACTION": "0.30",
-          "TIER3_EXIT_FRACTION": "0.20",
-          "EXIT_SYSTEM": "legacy",
-          "FEE_SLIPPAGE": "0.0005"
+        "overrides": {
+          "features.enableDynamicSizing": true,
+          "positionSizing.basePositionSize": 0.01,
+          "positionSizing.maxPositionSize": 0.05,
+          "entryLogic.sizing.absoluteCapPercent": 0.15,
+          "exits.profitTiers.tier1": 0.02,
+          "exits.profitTiers.tier2": 0.04,
+          "exits.profitTiers.tier3": 0.06,
+          "exits.profitTiers.final": 0.1,
+          "exitLogic.tieredExit.tier1ExitFraction": 0.3,
+          "exitLogic.tieredExit.tier2ExitFraction": 0.3,
+          "exitLogic.tieredExit.tier3ExitFraction": 0.2,
+          "fees.slippage": 0.0005
         }
       }
     }
@@ -1071,26 +1255,35 @@
       "ttp_real": {
         "name": "ttp_real",
         "description": "Trade The Pool venue economics confirmed 2026-07-01: $0.005/share, $0.75 minimum per filled order.",
-        "env": {
-          "FEE_MODEL": "per_share_minimum",
-          "FEE_MAKER": "0",
-          "FEE_TAKER": "0",
-          "FEE_TOTAL_ROUNDTRIP": "0",
-          "FEE_SAFETY_BUFFER": "0",
-          "FEE_PER_SHARE": "0.005",
-          "FEE_MIN_ORDER": "0.75",
-          "FEE_SLIPPAGE": "0.0005"
+        "assetClasses": [
+          "stocks"
+        ],
+        "overrides": {
+          "fees.model": "per_share_minimum",
+          "fees.makerFee": 0,
+          "fees.takerFee": 0,
+          "fees.totalRoundTrip": 0,
+          "fees.safetyBuffer": 0,
+          "fees.perShare": 0.005,
+          "fees.minOrderFee": 0.75,
+          "fees.slippage": 0.0005
         }
       },
       "zero": {
         "name": "zero",
         "description": "Historical zero-commission stock backtest posture for side-by-side anchor comparison only.",
-        "env": {
-          "FEE_MAKER": "0",
-          "FEE_TAKER": "0",
-          "FEE_TOTAL_ROUNDTRIP": "0",
-          "FEE_SAFETY_BUFFER": "0",
-          "FEE_SLIPPAGE": "0.0005"
+        "assetClasses": [
+          "stocks"
+        ],
+        "overrides": {
+          "fees.model": "percent",
+          "fees.makerFee": 0,
+          "fees.takerFee": 0,
+          "fees.totalRoundTrip": 0,
+          "fees.safetyBuffer": 0,
+          "fees.perShare": 0,
+          "fees.minOrderFee": 0,
+          "fees.slippage": 0.0005
         }
       }
     }
@@ -1103,17 +1296,6 @@
     "decayHalflifeDays": 30,
     "maxPatterns": 10000,
     "dtwThreshold": 0.62,
-    "featureWeights": [
-      0.25,
-      0.15,
-      0.15,
-      0.1,
-      0.05,
-      0.05,
-      0.15,
-      0.05,
-      0.05
-    ],
     "persistToDisk": true,
     "saveIntervalMs": 300000,
     "bank": {
@@ -1133,13 +1315,6 @@
     "basePositionSize": 0.01,
     "maxPositionSize": 0.05,
     "maxPositions": 3,
-    "lowVolMultiplier": 1.5,
-    "highVolMultiplier": 0.6,
-    "lowVolThreshold": 0.015,
-    "highVolThreshold": 0.035,
-    "confidenceSizeMin": 0.5,
-    "confidenceSizeMax": 2.5,
-    "confidenceSizeSlope": 4,
     "confluenceMultipliers": {
       "1": 1,
       "2": 1.5,
@@ -1177,8 +1352,7 @@
       "LiquiditySweep": 0.5,
       "SmartMoneySweep": 0.5,
       "_positionSizeMultiplier": 0.5
-    },
-    "unknown": {}
+    }
   },
   "volumeProfileBoosts": {
     "aboveVAH": {
@@ -1222,31 +1396,34 @@
     "positionKi": 0.05,
     "positionKd": 0.1,
     "targetEquitySlope": 0.005,
+    "positionOutputMin": 0.3,
+    "positionOutputMax": 2,
+    "positionIntegralMax": 5,
+    "positionRateLimit": 0.1,
     "regimeKp": 0.02,
     "regimeKi": 0.005,
     "regimeKd": 0.01,
+    "targetRegimePnl": 0,
+    "regimeOutputMin": 0.5,
+    "regimeOutputMax": 1.5,
+    "regimeIntegralMax": 3,
+    "regimeRateLimit": 0.1,
     "trailKp": 0.15,
     "trailKi": 0.03,
     "trailKd": 0.05,
-    "targetMFERatio": 0.6
+    "targetMFERatio": 0.6,
+    "trailOutputMin": 1,
+    "trailOutputMax": 3.5,
+    "trailIntegralMax": 2,
+    "trailRateLimit": 0.1
   },
   "exits": {
-    "stopLossPercent": 0.8,
-    "takeProfitPercent": 1,
-    "trailingStopPercent": 0.6,
-    "trailingActivation": 0.8,
-    "breakevenTrigger": 0.005,
-    "breakevenExitPercent": 0.5,
-    "postBreakevenTrail": 0.05,
-    "profitProtectionLevel": 0.015,
     "profitTiers": {
       "tier1": 0.007,
       "tier2": 0.01,
       "tier3": 0.015,
       "final": 0.025
     },
-    "normalTrailDistance": 0.025,
-    "tightTrailDistance": 0.015,
     "volatilityThreshold": 5,
     "volatilitySlMultiplier": 1.15,
     "volatilityTpMultiplier": 1.2
@@ -1258,6 +1435,9 @@
       "trailingStopPercent": 0.8,
       "trailingActivation": 1,
       "maxHoldTimeMinutes": 300,
+      "useStructuralExits": false,
+      "minConfidence": null,
+      "atrMinPercent": null,
       "stopType": "percent",
       "trailType": "percent",
       "tpMode": "percent",
@@ -1280,6 +1460,8 @@
       "trailingActivation": 0.7,
       "maxHoldTimeMinutes": 180,
       "useStructuralExits": true,
+      "minConfidence": null,
+      "atrMinPercent": null,
       "stopType": "percent",
       "trailType": "percent",
       "tpMode": "percent",
@@ -1325,7 +1507,9 @@
       "trailingStopPercent": 0.6,
       "trailingActivation": 0.8,
       "maxHoldTimeMinutes": 240,
+      "useStructuralExits": false,
       "minConfidence": 0.6,
+      "atrMinPercent": null,
       "stopType": "percent",
       "trailType": "percent",
       "tpMode": "percent",
@@ -1345,6 +1529,9 @@
       "trailingStopPercent": 0.5,
       "trailingActivation": 0.7,
       "maxHoldTimeMinutes": 180,
+      "useStructuralExits": false,
+      "minConfidence": null,
+      "atrMinPercent": null,
       "stopType": "percent",
       "trailType": "percent",
       "tpMode": "percent",
@@ -1366,6 +1553,9 @@
       "trailingStopPercent": 0.5,
       "trailingActivation": 0.7,
       "maxHoldTimeMinutes": 150,
+      "useStructuralExits": false,
+      "minConfidence": null,
+      "atrMinPercent": null,
       "stopType": "percent",
       "trailType": "percent",
       "tpMode": "percent",
@@ -1386,6 +1576,9 @@
       "trailingStopPercent": 0.6,
       "trailingActivation": 0.8,
       "maxHoldTimeMinutes": 360,
+      "useStructuralExits": false,
+      "minConfidence": null,
+      "atrMinPercent": null,
       "stopType": "percent",
       "trailType": "percent",
       "tpMode": "percent",
@@ -1406,6 +1599,9 @@
       "trailingStopPercent": 0.6,
       "trailingActivation": 0.8,
       "maxHoldTimeMinutes": 240,
+      "useStructuralExits": false,
+      "minConfidence": null,
+      "atrMinPercent": null,
       "stopType": "percent",
       "trailType": "percent",
       "tpMode": "percent",
@@ -1449,6 +1645,8 @@
       "trailingActivation": 0.5,
       "maxHoldTimeMinutes": 900,
       "useStructuralExits": true,
+      "minConfidence": null,
+      "atrMinPercent": null,
       "stopType": "percent",
       "trailType": "percent",
       "tpMode": "percent",
@@ -1633,6 +1831,8 @@
       "maxHoldTimeMinutes": 240,
       "useStructuralExits": false,
       "maxConcurrentEntries": 1,
+      "minConfidence": null,
+      "atrMinPercent": null,
       "stopType": "percent",
       "trailType": "percent",
       "tpMode": "percent",
@@ -1679,10 +1879,6 @@
       "lowConfidenceThreshold": 0.6,
       "lowConfidenceMultiplier": 0.8
     },
-    "maxProfitManager": {
-      "trackPerformance": true,
-      "logLevel": "info"
-    },
     "trail": {
       "enabled": true,
       "minActivationPercent": 0.5,
@@ -1704,56 +1900,9 @@
       "lowThresholdPercent": 0.5,
       "highThresholdPercent": 2,
       "lookbackPeriods": 20
-    },
-    "profitFloor": {
-      "enabled": true,
-      "tiers": [
-        {
-          "profit": 0.5,
-          "protect": 0.3
-        },
-        {
-          "profit": 1,
-          "protect": 0.5
-        },
-        {
-          "profit": 1.5,
-          "protect": 0.7
-        },
-        {
-          "profit": 2,
-          "protect": 0.85
-        }
-      ]
-    },
-    "reversalDetection": {
-      "enabled": true,
-      "minProfitRequired": 0.3,
-      "patterns": [
-        "double_top",
-        "double_bottom",
-        "head_shoulders",
-        "inv_head_shoulders",
-        "evening_star",
-        "morning_star",
-        "bearish_engulfing",
-        "bullish_engulfing",
-        "shooting_star",
-        "hammer",
-        "doji_star",
-        "dark_cloud",
-        "piercing_line"
-      ],
-      "exitFraction": 1
-    },
-    "safety": {}
+    }
   },
   "strategyBehavior": {
-    "emaCrossover": {
-      "entryEventsOnly": false,
-      "confirmBars": 0,
-      "warmupBars": 10
-    },
     "trendRegimeGate": {
       "enabled": false,
       "minConfidence": 0.25,
@@ -1775,80 +1924,18 @@
   },
   "entryLogic": {
     "sizing": {
-      "enabled": true,
-      "basePositionPercent": 0.01,
-      "maxPositionPercent": 0.05,
       "absoluteCapPercent": 0.15,
-      "confidenceCurve": [
-        {
-          "confidence": 0,
-          "multiplier": 0.25
-        },
-        {
-          "confidence": 0.5,
-          "multiplier": 0.5
-        },
-        {
-          "confidence": 0.6,
-          "multiplier": 1
-        },
-        {
-          "confidence": 0.75,
-          "multiplier": 1.5
-        },
-        {
-          "confidence": 0.9,
-          "multiplier": 2.5
-        },
-        {
-          "confidence": 1,
-          "multiplier": 2.5
-        }
-      ],
-      "volatilityCurve": [
-        {
-          "atrPercent": 0,
-          "multiplier": 1.5
-        },
-        {
-          "atrPercent": 0.15,
-          "multiplier": 1.2
-        },
-        {
-          "atrPercent": 0.3,
-          "multiplier": 1
-        },
-        {
-          "atrPercent": 0.6,
-          "multiplier": 0.8
-        },
-        {
-          "atrPercent": 1,
-          "multiplier": 0.6
-        },
-        {
-          "atrPercent": 2,
-          "multiplier": 0.4
-        }
-      ],
-      "patternMultipliers": {
-        "promoted": 1,
-        "neutral": 1,
-        "learning": 1,
-        "quarantined": 1,
-        "unknown": 1
-      },
-      "confluenceMultipliers": [
-        1,
-        1,
-        1.25,
-        1.5,
-        1.75,
-        2
-      ]
+      "stockShareRange": {
+        "enabled": true,
+        "minShares": 2,
+        "maxShares": 0,
+        "maxNotionalUsd": 5000,
+        "consistencyCapBuffer": 0.98,
+        "dailyLossRiskFraction": 1
+      }
     },
     "symbolLossCooldown": {
-      "enabled": false,
+      "enabled": true,
       "consecutiveLosses": 2,
       "cooldownMinutes": 120
     }
@@ -1910,8 +1997,7 @@
       "confluenceBoost": {
         "enabled": false,
         "weight": 0
-      },
-      "enabled": true
+      }
     },
     "EMASMACrossover": {
       "decayBars": 10,
@@ -1934,8 +2020,7 @@
       "confluenceBoost": {
         "enabled": false,
         "weight": 0
-      },
-      "enabled": true
+      }
     },
     "LiquiditySweep": {
       "sweepLookbackBars": 50,
@@ -1944,10 +2029,13 @@
       "atrMultiplier": 0.25,
       "atrPeriod": 14,
       "entryWindowMinutes": 90,
+      "openingRangeMinutes": 15,
       "hammerBodyMaxPct": 0.35,
       "hammerWickMinRatio": 2,
       "engulfMinRatio": 1,
       "stopBufferPct": 0.05,
+      "sessionOpenHour": 14,
+      "sessionOpenMinute": 30,
       "weights": {
         "manipCandle": 0.2,
         "wickSweep": 0.15,
@@ -1958,8 +2046,7 @@
       "confluenceBoost": {
         "enabled": false,
         "weight": 0
-      },
-      "enabled": true
+      }
     },
     "RSI": {
       "period": 5,
@@ -1977,20 +2064,72 @@
       "confluenceBoost": {
         "enabled": false,
         "weight": 0
-      },
-      "enabled": true
+      }
     },
     "VolumeProfile": {
       "sessionLookback": 96,
       "numBins": 50,
       "valueAreaPct": 0.7,
+      "lvnThresholdPct": 0.2,
+      "hvnThresholdPct": 0.6,
       "outOfBalancePct": 0.5,
-      "recalcInterval": 5,
+      "recalcInterval": 5
+    },
+    "BreakRetest": {
+      "sessionLookback": 96,
+      "srZonePct": 0.5,
+      "minLevelTests": 2,
+      "swingLookback": 5,
+      "breakConfirmPct": 0.15,
+      "minBreakerBodyRatio": 0.4,
+      "retestZonePct": 0.3,
+      "maxRetestWait": 20,
+      "minBattleCandles": 3,
+      "maxBattleCandles": 15,
+      "ntzMaxRangePct": 2,
+      "rewardRiskRatio": 1.5,
+      "minimumHistoryBars": 30,
+      "recentBufferExtraBars": 50,
+      "atrPeriod": 14,
+      "keyLevelRefreshBars": 10,
+      "minimumLevelHistoryBars": 20,
+      "maxKeyLevels": 10,
+      "wickProximityFraction": 0.002,
+      "strongCandleAtrMultiplier": 0.5,
+      "minimumDefendingWicks": 2,
+      "stopBufferAtrMultiplier": 0.2,
+      "secondaryTargetRiskMultiplier": 2.5,
+      "baseConfidence": 0.35,
+      "wickConfidencePerCount": 0.05,
+      "wickConfidenceMax": 0.15,
+      "engulfingConfidenceBoost": 0.15,
+      "strongCandleConfidenceBoost": 0.05,
+      "battleConfidenceOffsetBars": 2,
+      "battleConfidencePerBar": 0.03,
+      "battleConfidenceMax": 0.15,
+      "levelTestConfidencePerCount": 0.05,
+      "levelTestConfidenceMax": 0.1,
+      "maxConfidence": 0.9,
+      "invalidationThresholdMultiplier": 2,
+      "fibDistance": 0.5,
+      "fibBoostNormal": 0.08,
+      "fibBoostGolden": 0.12,
       "confluenceBoost": {
         "enabled": false,
         "weight": 0
-      },
-      "enabled": true
+      }
+    },
+    "CandlePattern": {
+      "confluenceBoost": {
+        "enabled": false,
+        "weight": 0
+      }
+    },
+    "MarketRegime": {
+      "confluenceBoost": {
+        "enabled": false,
+        "weight": 0
+      }
     },
     "SmartMoneySweep": {
       "vpDays": 5,
@@ -1999,6 +2138,10 @@
       "bodyWeightPct": 70,
       "lvnPctile": 20,
       "ivbMinutes": 30,
+      "cashSessionStartHour": 9,
+      "cashSessionStartMinute": 30,
+      "cashSessionEndHour": 16,
+      "cashSessionEndMinute": 0,
       "volAvgLen": 20,
       "absorbBodyPct": 35,
       "absorbWickPct": 60,
@@ -2017,6 +2160,11 @@
       "maxLossPct": 0.3,
       "maxHoldBars": 60,
       "maxDailyLosses": 3,
+      "useSessionFilter": true,
+      "validSessionStartHour": 9,
+      "validSessionStartMinute": 45,
+      "validSessionEndHour": 15,
+      "validSessionEndMinute": 45,
       "vpRthOnly": true,
       "vpLookbackBars": 0,
       "sweepMaxOffset": 3,
@@ -2030,8 +2178,7 @@
       "confluenceBoost": {
         "enabled": false,
         "weight": 0
-      },
-      "enabled": true
+      }
     },
     "OpeningRangeBreakout": {
       "sessionOpenHourUTC": 14,
@@ -2048,8 +2195,7 @@
       "confluenceBoost": {
         "enabled": false,
         "weight": 0
-      },
-      "enabled": true
+      }
     },
     "DonchianBreakout": {
       "entryPeriod": 20,
@@ -2073,11 +2219,9 @@
       "confluenceBoost": {
         "enabled": false,
         "weight": 0
-      },
-      "enabled": true
+      }
     },
     "OGZTPO": {
-      "enabled": true,
       "mode": "standard",
       "dynamicSL": true,
       "confluence": false,
@@ -2137,8 +2281,7 @@
       "confluenceBoost": {
         "enabled": false,
         "weight": 0
-      },
-      "enabled": true
+      }
     },
     "PropSafeEMAPullback": {
       "fastEmaPeriod": 9,
@@ -2168,8 +2311,7 @@
       "confluenceBoost": {
         "enabled": false,
         "weight": 0
-      },
-      "enabled": true
+      }
     },
     "EMATrendRetest": {
       "emaPeriods": "9,20,21,50,100,200",
@@ -2198,8 +2340,7 @@
       "confluenceBoost": {
         "enabled": false,
         "weight": 0
-      },
-      "enabled": true
+      }
     },
     "RSI2MeanReversion": {
       "rsiPeriod": 2,
@@ -2223,8 +2364,7 @@
       "confluenceBoost": {
         "enabled": false,
         "weight": 0
-      },
-      "enabled": true
+      }
     },
     "TimeSeriesMomentum": {
       "lookback": 100,
@@ -2253,11 +2393,11 @@
       "confluenceBoost": {
         "enabled": false,
         "weight": 0
-      },
-      "enabled": true
+      }
     }
   },
   "orchestrator": {
+    "minConfluenceCount": 1,
     "minCandlesEMA": 20,
     "minCandlesMASR": 50,
     "minCandlesSweep": 20,
@@ -2275,6 +2415,20 @@
       "1h",
       "4h"
     ],
+    "mtfAdapter": {
+      "indicatorPeriods": {
+        "rsi": 14,
+        "smaFast": 10,
+        "smaSlow": 50,
+        "ema": 21,
+        "macdFast": 12,
+        "macdSlow": 26,
+        "atr": 14,
+        "bollingerPeriod": 20,
+        "bollingerStd": 2
+      },
+      "minCandlesForAnalysis": 30
+    },
     "emaCrossoverMtf": {
       "hourlyTrendVetoMultiplier": 0.95,
       "fourHourMacdBoostMultiplier": 1.15,
@@ -2299,40 +2453,19 @@
       "bandwidthThreshold": 0.015
     }
   },
-  "universalLimits": {},
-  "holdTimes": {
-    "defaultMaxHold": 180,
-    "enableTimeBasedAdjustments": false,
-    "minHoldTimeMinutes": 0,
-    "tighteningSchedule": [
-      {
-        "minutes": 30,
-        "trailFactor": 1
-      },
-      {
-        "minutes": 60,
-        "trailFactor": 0.8
-      },
-      {
-        "minutes": 120,
-        "trailFactor": 0.6
-      },
-      {
-        "minutes": 180,
-        "trailFactor": 0.4
-      }
-    ]
-  },
   "fees": {
+    "model": "per_share_minimum",
     "makerFee": 0,
     "takerFee": 0,
+    "perShare": 0.005,
+    "minOrderFee": 0.75,
     "slippage": 0.0005,
-    "totalRoundTrip": 0,
-    "safetyBuffer": 0
+    "totalRoundTrip": 0.005,
+    "safetyBuffer": 0.001
   },
   "filters": {
     "atrEnabled": true,
-    "atrMinPercent": 0.15
+    "atrMinPercent": 0.4
   },
   "timeframeConfig": {
     "1m": {
@@ -2378,98 +2511,147 @@
       "tpPct": 0.1
     }
   },
-  "regimeMultipliers": {
-    "strong_uptrend": {
-      "slMultiplier": 1.5,
-      "tpMultiplier": 2
-    },
-    "mild_uptrend": {
-      "slMultiplier": 1.2,
-      "tpMultiplier": 1.5
-    },
-    "trading_range": {
-      "slMultiplier": 0.8,
-      "tpMultiplier": 1
-    },
-    "accumulation": {
-      "slMultiplier": 2,
-      "tpMultiplier": 1.5
-    },
-    "volatile_spike": {
-      "slMultiplier": 0.5,
-      "tpMultiplier": 0.8
-    },
-    "breakout": {
-      "slMultiplier": 1,
-      "tpMultiplier": 3
-    },
-    "consolidation": {
-      "slMultiplier": 1,
-      "tpMultiplier": 2
-    }
-  },
-  "profiles": {
-    "scalper": {
-      "minConfidence": 0.4,
-      "maxPositionSize": 0.1,
-      "riskPercent": 0.005,
-      "maxHoldMinutes": 30
-    },
-    "day_trader": {
-      "minConfidence": 0.5,
-      "maxPositionSize": 0.15,
-      "riskPercent": 0.01,
-      "maxHoldMinutes": 480
-    },
-    "swing": {
-      "minConfidence": 0.6,
-      "maxPositionSize": 0.25,
-      "riskPercent": 0.02,
-      "maxHoldMinutes": 4320
-    },
-    "conservative": {
-      "minConfidence": 0.7,
-      "maxPositionSize": 0.1,
-      "riskPercent": 0.01,
-      "maxHoldMinutes": 1440
-    },
-    "balanced": {
-      "minConfidence": 0.55,
-      "maxPositionSize": 0.2,
-      "riskPercent": 0.015,
-      "maxHoldMinutes": 720
-    },
-    "quantum": {
-      "minConfidence": 0.5,
-      "maxPositionSize": 0.15,
-      "riskPercent": 0.01,
-      "maxHoldMinutes": 480
-    }
-  },
-  "scalper": {
-    "microProfitTarget": 0.005,
-    "quickProfitTarget": 0.008,
-    "momentumShiftExit": 0.15,
-    "stopMultiplier": 0.5,
-    "maxHoldTime": 300000
-  },
   "features": {
     "enableDynamicSizing": true,
-    "enableVolatilityScaling": true,
-    "enableLearning": true,
-    "enableArbitrage": true,
-    "enableHedging": true
+    "enableLearning": true
   },
-  "trai": {
-    "enabled": true,
-    "mode": "passive",
-    "weight": 0.2,
-    "vetoPower": false,
-    "maxRisk": 0.03,
-    "minConf": 0.4,
-    "maxConf": 0.95,
-    "llm": {
-      "provider": "mercury",
+  "featureCatalog": {
+      "PATTERN_EXIT_MODEL": {
+        "enabled": true,
+        "description": "Pattern-based exit intelligence for the exit contract planner path",
+        "version": "2.3.2",
+        "shadowMode": true,
+        "settings": {
+          "minPatternExitConfidence": 0.6,
+          "minReversalConfidence": 0.65,
+          "enablePatternTargets": true,
+          "targetConfidenceWeight": 0.3,
+          "minTargetAdjustment": 0.8,
+          "maxTargetAdjustment": 1.5,
+          "enablePatternStops": true,
+          "stopConfidenceWeight": 0.25,
+          "minStopAdjustment": 0.7,
+          "maxStopAdjustment": 1.3,
+          "enablePatternTrailing": true,
+          "patternTrailWeight": 0.2,
+          "enableReversalDetection": true,
+          "reversalPatterns": [
+            "double_top",
+            "double_bottom",
+            "head_shoulders",
+            "inv_head_shoulders",
+            "evening_star",
+            "morning_star",
+            "bearish_engulfing",
+            "bullish_engulfing",
+            "shooting_star",
+            "hammer",
+            "doji_star",
+            "dark_cloud",
+            "piercing_line"
+          ],
+          "reversalExitPercent": 0.5,
+          "enableMomentumExhaustion": true,
+          "exhaustionThreshold": 0.7,
+          "enableRegimeExits": true,
+          "regimeExitMultipliers": {
+            "trending": 1.2,
+            "ranging": 0.7,
+            "volatile": 0.8,
+            "breakout": 1.1,
+            "unknown": 1
+          },
+          "profitProtectionTiers": [
+            {
+              "profit": 0.005,
+              "protect": 0.3
+            },
+            {
+              "profit": 0.01,
+              "protect": 0.5
+            },
+            {
+              "profit": 0.015,
+              "protect": 0.7
+            },
+            {
+              "profit": 0.02,
+              "protect": 0.85
+            }
+          ]
+        }
+      },
+    "TRAI_INFERENCE": {
+      "description": "TRAI AI model inference for advanced pattern recognition",
+      "version": "2.1.0"
+    },
+    "OGZ_TPO": {
+      "enabled": true,
+      "description": "OGZ TPO (Time-Price-Opportunity) integration",
+      "version": "1.0.0"
+    }
+  },
+  "tierPolicy": {
+    "starter": {
+      "maxPositions": 5,
+      "leverage": 1,
+      "maxDailyTrades": 50,
+      "patternLimit": 10,
+      "assetAccess": [
+        "crypto"
+      ]
+    },
+    "pro": {
+      "maxPositions": 10,
+      "leverage": 2,
+      "maxDailyTrades": 200,
+      "patternLimit": 50,
+      "assetAccess": [
+        "crypto",
+        "forex"
+      ]
+    },
+    "elite": {
+      "maxPositions": 20,
+      "leverage": 5,
+      "maxDailyTrades": 500,
+      "patternLimit": 100,
+      "assetAccess": [
+        "crypto",
+        "forex",
+        "options",
+        "futures"
+      ]
+    },
+    "ml": {
+      "maxPositions": 50,
+      "leverage": 10,
+      "maxDailyTrades": 1000,
+      "patternLimit": 10000,
+      "assetAccess": [
+        "crypto",
+        "forex",
+        "options",
+        "futures"
+      ]
+    }
+  },
+    "trai": {
+      "enabled": true,
+      "mode": "passive",
+      "weight": 0.2,
+      "vetoPower": false,
+      "maxRisk": 0.03,
+      "emergencyStopLoss": 0.05,
+      "minConf": 0.08,
+      "maxConf": 0.95,
+      "legacyPatternMinSamples": 100,
+      "trackDecisions": true,
+      "enableBacktest": true,
+      "patternPackPath": "./data/pattern-pack.json",
+      "llm": {
+        "enabled": true,
+        "provider": "mercury",
       "baseUrl": "https://api.inceptionlabs.ai/v1",
       "model": "mercury-2",
       "apiKeyEnv": "INCEPTION_API_KEY",
@@ -2481,33 +2663,84 @@
       "systemPrompt": "You are TRAI, the AI trading advisor for OGZPrime. You analyze market conditions, evaluate trade setups, explain trading decisions, and provide actionable insights. You have access to technical indicators, volume profile data, pattern recognition, and market regime analysis. Be direct, data-driven, and specific. When analyzing trades, reference the actual numbers: entry price, stop loss, take profit, confidence score, and the conditions that triggered the signal."
     }
   },
-  "pipeline": {
-    "enableRSI": true,
-    "enableMADynamicSR": true,
-    "enableEMACrossover": true,
-    "enableLiquiditySweep": true,
-    "enableCandlePattern": true,
-    "enableBreakRetest": true,
-    "enableMarketRegime": false,
-    "enableOGZTPO": true,
-    "enableOpeningRangeBreakout": true,
-    "enableSmartMoneySweep": true,
-    "enableNoWickImbalance": true,
-    "enableDonchianBreakout": true,
-    "enablePropSafeEMAPullback": true,
-    "enableEMATrendRetest": true,
-    "enableRSI2MeanReversion": true,
-    "enableTimeSeriesMomentum": true,
-    "enableRiskManager": true,
-    "enableTRAI": true,
-    "traiEnableBacktest": true,
-    "enableDashboard": true,
-    "enableNotifications": true,
-    "executionMode": "paper",
-    "candleSource": "live",
-    "candleFile": "tuning/full-45k.json",
-    "directionFilter": "long_only",
-    "positionMode": "single"
+  "services": {
+    "dashboard": {
+      "enabled": true,
+      "host": "127.0.0.1",
+      "port": 3010,
+      "secureCookies": true,
+      "cryptoSymbols": [
+        "BTC-USD",
+        "ETH-USD",
+        "SOL-USD"
+      ],
+      "stockData": {
+        "baseUrl": "https://data.alpaca.markets/v2/stocks",
+        "feed": "iex",
+        "adjustment": "split",
+        "symbols": [
+          "TSLA",
+          "NVDA",
+          "COIN",
+          "MARA",
+          "RIOT"
+        ],
+        "tickerMaxAgeMs": 900000,
+        "streamEnabled": false,
+        "streamUrl": "wss://stream.data.alpaca.markets/v2/iex",
+        "streamFeed": "iex"
+      }
+    },
+    "checkout": {
+      "port": 3001,
+      "trialPeriodDays": 7,
+      "successUrl": "https://www.ogzprime.com/success.html?session_id={CHECKOUT_SESSION_ID}",
+      "cancelUrl": "https://www.ogzprime.com/pricing.html",
+      "priceMap": {
+        "core": "price_1T7Mg4CRplnSOv5bEfq29wnU",
+        "pro": "price_1T7Mg2CRplnSOv5bJdfGcWnp"
+      }
+    },
+    "news": {
+      "provider": "alpaca-edgar",
+      "edgarUserAgent": "OGZPrime admin@ogzprime.com",
+      "brightDataZone": "serpapiogzpirme"
+    },
+    "notifications": {
+      "enabled": true
+    },
+    "voice": {
+      "audioEnabled": false,
+      "videoEnabled": false
+    },
+    "narrator": {
+      "architectEnabled": false,
+      "userEnabled": true,
+      "labelSeed": "ogzprime-prod-2026"
+    },
+    "webhookOrders": {
+      "enabled": false,
+      "dryRun": true,
+      "entryThrottleMs": 30000
+    }
+  },
+  "misc": {
+    "botTier": "ml",
+    "subscriptionTier": "ml",
+    "tradeIntelligenceShadow": false
+  },
+  "proofPublication": {
+    "enabled": false,
+    "account": {
+      "id": "",
+      "label": "",
+      "stage": "",
+      "status": "",
+      "profitTarget": null,
+      "maxDrawdown": null,
+      "minTradesRequired": null,
+      "trackRecordStartAt": null
+    }
   },
   "fundTarget": 25000,
   "startingBalance": 10000

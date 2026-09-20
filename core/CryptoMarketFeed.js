@@ -35,22 +35,8 @@
 
 const WebSocket = require('ws');
 
-const KRAKEN_PUBLIC_WS_URL = 'wss://ws.kraken.com';
-const BOOK_DEPTH = 25;
-const WATCHDOG_MS = 60_000;
-const BACKOFF_MIN_MS = 1_000;
-const BACKOFF_MAX_MS = 30_000;
-const NEAR_MID_BAND = 0.02; // walls/imbalance measured within +/-2% of mid
-const TRADE_WINDOW_MS = 5 * 60 * 1000; // buySellRatio rolling window
-
-const PAIR_BY_SYMBOL = {
-  'BTC-USD': 'XBT/USD',
-  'ETH-USD': 'ETH/USD',
-  'SOL-USD': 'SOL/USD',
-};
-
-function krakenPairForSymbol(symbol) {
-  const pair = PAIR_BY_SYMBOL[symbol];
+function krakenPairForSymbol(symbol, pairBySymbol) {
+  const pair = pairBySymbol[symbol];
   if (!pair) {
     throw new Error(`[CryptoFeed] No Kraken pair mapping for dashboard symbol ${symbol}`);
   }
@@ -63,24 +49,22 @@ function symbolForKrakenPair(pair) {
 
 function createCryptoMarketFeed({
   symbols,
+  feedConfig,
   onPrice = null,
   onDepth = null,
   onCvd = null,
   onWhaleTrade = null,
   onInternals = null,
   log = console,
-  wallMinUsd = Number(process.env.DASHBOARD_WALL_MIN_USD) || 1_000_000,
-  whaleTradeMinUsd = Number(process.env.DASHBOARD_WHALE_TRADE_MIN_USD) || 250_000,
-  emitIntervalMs = 1_000,
 } = {}) {
   if (!Array.isArray(symbols) || symbols.length === 0) {
     throw new Error('[CryptoFeed] symbols must be a non-empty array of dashboard symbols');
   }
-  const pairs = symbols.map(krakenPairForSymbol);
+  const pairs = symbols.map(symbol => krakenPairForSymbol(symbol, feedConfig.pairBySymbol));
 
   let ws = null;
   let stopped = false;
-  let backoffMs = BACKOFF_MIN_MS;
+  let backoffMs = feedConfig.backoffMinMs;
   let lastMessageAt = 0;
   let watchdogTimer = null;
 
@@ -112,7 +96,7 @@ function createCryptoMarketFeed({
 
   function emitDepth(asset) {
     const now = Date.now();
-    if (now - (lastDepthEmitAt.get(asset) || 0) < emitIntervalMs) return;
+    if (now - (lastDepthEmitAt.get(asset) || 0) < feedConfig.emitIntervalMs) return;
     const book = bookFor(asset);
     if (book.bids.size === 0 || book.asks.size === 0) return;
     lastDepthEmitAt.set(asset, now);
@@ -120,8 +104,8 @@ function createCryptoMarketFeed({
     const bestBid = Math.max(...book.bids.keys());
     const bestAsk = Math.min(...book.asks.keys());
     const mid = (bestBid + bestAsk) / 2;
-    const lo = mid * (1 - NEAR_MID_BAND);
-    const hi = mid * (1 + NEAR_MID_BAND);
+    const lo = mid * (1 - feedConfig.nearMidBandFraction);
+    const hi = mid * (1 + feedConfig.nearMidBandFraction);
 
     const levels = [];
     let bidNotional = 0;
@@ -141,21 +125,24 @@ function createCryptoMarketFeed({
 
     if (onDepth) {
       const walls = levels
-        .filter(l => l.size >= wallMinUsd)
+        .filter(l => l.size >= feedConfig.wallMinUsd)
         .sort((a, b) => b.size - a.size)
-        .slice(0, 6);
+        .slice(0, feedConfig.maxWalls);
       const density = levels
         .slice()
         .sort((a, b) => b.size - a.size)
-        .slice(0, 10)
-        .map(l => ({ price: l.price, weight: Math.min(15, l.size / 250_000) }));
+        .slice(0, feedConfig.maxDensityLevels)
+        .map(l => ({
+          price: l.price,
+          weight: Math.min(feedConfig.densityWeightCap, l.size / feedConfig.densityWeightDivisorUsd),
+        }));
       onDepth({ asset, isLive: true, walls, density, timestamp: now });
     }
 
     if (onInternals) {
       const total = bidNotional + askNotional;
       const bookImbalance = total > 0 ? (bidNotional - askNotional) / total : 0;
-      const windowStart = now - TRADE_WINDOW_MS;
+      const windowStart = now - feedConfig.tradeWindowMs;
       let buyN = 0;
       let sellN = 0;
       const recent = (trades.get(asset) || []).filter(t => t.at >= windowStart);
@@ -164,7 +151,9 @@ function createCryptoMarketFeed({
         if (t.side === 'buy') buyN += t.notional;
         else sellN += t.notional;
       }
-      const buySellRatio = sellN > 0 ? buyN / sellN : (buyN > 0 ? 99 : 1);
+      const buySellRatio = sellN > 0
+        ? buyN / sellN
+        : (buyN > 0 ? feedConfig.buySellRatioWhenNoSells : 1);
       onInternals({ asset, bookImbalance, buySellRatio });
     }
   }
@@ -186,16 +175,18 @@ function createCryptoMarketFeed({
         state.sellVolume += notional;
       }
       list.push({ at: Date.now(), side, notional });
-      if (onWhaleTrade && notional >= whaleTradeMinUsd) {
+      if (onWhaleTrade && notional >= feedConfig.whaleTradeMinUsd) {
         onWhaleTrade({ symbol: asset, side: side === 'buy' ? 'BUY' : 'SELL', amount: qty, price });
       }
     }
     trades.set(asset, list);
 
     const now = Date.now();
-    if (onCvd && now - state.lastEmitAt >= emitIntervalMs) {
+    if (onCvd && now - state.lastEmitAt >= feedConfig.emitIntervalMs) {
       const delta = state.value - state.lastEmitValue;
-      const cvdTrend = delta > 1 ? 'rising' : delta < -1 ? 'falling' : 'flat';
+      const cvdTrend = delta > feedConfig.cvdTrendDeltaThresholdUsd
+        ? 'rising'
+        : delta < -feedConfig.cvdTrendDeltaThresholdUsd ? 'falling' : 'flat';
       state.lastEmitAt = now;
       state.lastEmitValue = state.value;
       onCvd({
@@ -248,7 +239,7 @@ function createCryptoMarketFeed({
   function connect() {
     if (stopped) return;
     try {
-      ws = new WebSocket(KRAKEN_PUBLIC_WS_URL);
+      ws = new WebSocket(feedConfig.publicWsUrl);
     } catch (err) {
       log.error(`[CryptoFeed] WebSocket construct failed: ${err.message}`);
       scheduleReconnect();
@@ -256,13 +247,13 @@ function createCryptoMarketFeed({
     }
 
     ws.on('open', () => {
-      backoffMs = BACKOFF_MIN_MS;
+      backoffMs = feedConfig.backoffMinMs;
       lastMessageAt = Date.now();
       log.log(`[CryptoFeed] Connected to Kraken public feed; subscribing ${pairs.join(', ')}`);
       for (const name of [
         { name: 'ticker' },
         { name: 'trade' },
-        { name: 'book', depth: BOOK_DEPTH },
+        { name: 'book', depth: feedConfig.bookDepth },
       ]) {
         ws.send(JSON.stringify({ event: 'subscribe', pair: pairs, subscription: name }));
       }
@@ -277,11 +268,11 @@ function createCryptoMarketFeed({
     if (!watchdogTimer) {
       watchdogTimer = setInterval(() => {
         if (stopped || !ws) return;
-        if (ws.readyState === WebSocket.OPEN && Date.now() - lastMessageAt > WATCHDOG_MS) {
-          log.warn('[CryptoFeed] No messages for 60s; recycling connection');
+        if (ws.readyState === WebSocket.OPEN && Date.now() - lastMessageAt > feedConfig.watchdogMs) {
+          log.warn(`[CryptoFeed] No messages for ${feedConfig.watchdogMs}ms; recycling connection`);
           try { ws.terminate(); } catch (_) { /* close event drives reconnect */ }
         }
-      }, WATCHDOG_MS);
+      }, feedConfig.watchdogMs);
       if (typeof watchdogTimer.unref === 'function') watchdogTimer.unref();
     }
   }
@@ -289,7 +280,10 @@ function createCryptoMarketFeed({
   function scheduleReconnect() {
     if (stopped) return;
     const delay = backoffMs;
-    backoffMs = Math.min(backoffMs * 2, BACKOFF_MAX_MS);
+    backoffMs = Math.min(
+      backoffMs * feedConfig.backoffMultiplier,
+      feedConfig.backoffMaxMs
+    );
     log.warn(`[CryptoFeed] Reconnecting in ${delay}ms`);
     setTimeout(connect, delay).unref?.();
   }

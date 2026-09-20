@@ -3,16 +3,7 @@
 const ConfigLoader = require('../foundation/ConfigLoader');
 
 function readTradingConfig() {
-  const snapshot = typeof ConfigLoader.getCachedSnapshot === 'function'
-    ? ConfigLoader.getCachedSnapshot()
-    : null;
-  if (snapshot && snapshot.config && typeof snapshot.config === 'object') {
-    return snapshot.config;
-  }
-  if (ConfigLoader.BASE_CONFIG && typeof ConfigLoader.BASE_CONFIG === 'object') {
-    return ConfigLoader.BASE_CONFIG;
-  }
-  throw new Error('[TRAI-LLM-CONFIG] ConfigLoader did not expose a trading config snapshot');
+  return ConfigLoader.getAll();
 }
 
 function requireObject(value, pathLabel) {
@@ -53,13 +44,14 @@ function assertValidUrl(value, pathLabel) {
 
 function resolveTraiLlmConfig(options = {}) {
   const sourceConfig = options.config || null;
-  const env = options.env || process.env;
   let llmConfig;
+  let traiConfig;
   if (sourceConfig) {
-    const traiConfig = requireObject(sourceConfig.trai, 'trai');
+    traiConfig = requireObject(sourceConfig.trai, 'trai');
     llmConfig = requireObject(traiConfig.llm, 'trai.llm');
   } else {
-    llmConfig = requireObject(ConfigLoader.get('trai.llm'), 'trai.llm');
+    traiConfig = requireObject(ConfigLoader.get('trai'), 'trai');
+    llmConfig = requireObject(traiConfig.llm, 'trai.llm');
   }
 
   const provider = requireString(llmConfig.provider, 'trai.llm.provider').toLowerCase();
@@ -67,7 +59,7 @@ function resolveTraiLlmConfig(options = {}) {
   const model = requireString(llmConfig.model, 'trai.llm.model');
   const authRequired = llmConfig.authRequired !== false;
   const apiKeyEnv = authRequired ? requireString(llmConfig.apiKeyEnv, 'trai.llm.apiKeyEnv') : '';
-  const apiKey = authRequired ? requireString(env[apiKeyEnv], `env.${apiKeyEnv}`) : '';
+  const apiKey = authRequired ? requireString(traiConfig.apiKey, 'trai.apiKey') : '';
 
   return Object.freeze({
     provider,

@@ -5,12 +5,13 @@
  * It's kept for backward compatibility but FeatureFlagManager is the source of truth.
  *
  * The tier system provides SCALING (multipliers, limits) on top of feature TOGGLES.
- * Toggles are controlled in config/features.json.
+ * Toggles are controlled by config/settings.json featureCatalog.
  *
  * @deprecated Prefer using FeatureFlagManager.getInstance() directly
  */
 
 const FeatureFlagManager = require('./core/FeatureFlagManager');
+const ConfigLoader = require('./foundation/ConfigLoader');
 
 class TierFeatureFlags {
   constructor(tier = 'ml') {
@@ -23,7 +24,7 @@ class TierFeatureFlags {
     // Maps old feature names to new unified system
     this.features = this._buildLegacyFeatures();
 
-    console.log(`🎭 TierFeatureFlags initialized for ${this.tier} tier (delegating to FeatureFlagManager)`);
+    console.log(`TierFeatureFlags initialized for ${this.tier} tier (delegating to FeatureFlagManager)`);
   }
 
   /**
@@ -32,6 +33,7 @@ class TierFeatureFlags {
    */
   _buildLegacyFeatures() {
     const tierScaling = this._getTierScaling();
+    const ogzTpoConfig = ConfigLoader.get('strategies.OGZTPO');
 
     return {
       // Tier-specific scaling values
@@ -64,13 +66,14 @@ class TierFeatureFlags {
       traiBacktestAnalysis: this.flagManager.isEnabled('TRAI_INFERENCE'),
       unlimitedFeatures: this.tier === 'ml',
 
-      // OGZ TPO features - DELEGATE to FeatureFlagManager
+      // OGZ TPO enablement is a feature toggle. Its behavior is owned once by
+      // strategies.OGZTPO rather than duplicated inside featureCatalog.
       ogzTpoEnabled: this.flagManager.isEnabled('OGZ_TPO'),
-      ogzTpoMode: this.flagManager.getSetting('OGZ_TPO', 'mode', 'standard'),
-      ogzTpoDynamicSL: this.flagManager.getSetting('OGZ_TPO', 'dynamicSL', true),
-      ogzTpoConfluence: this.flagManager.getSetting('OGZ_TPO', 'confluence', false),
-      ogzTpoVoteWeight: this.flagManager.getSetting('OGZ_TPO', 'voteWeight', 0.25),
-      ogzTpoAdaptive: this.flagManager.getSetting('OGZ_TPO', 'adaptive', false),
+      ogzTpoMode: ogzTpoConfig.mode,
+      ogzTpoDynamicSL: ogzTpoConfig.dynamicSL,
+      ogzTpoConfluence: ogzTpoConfig.confluence,
+      ogzTpoVoteWeight: ogzTpoConfig.voteWeight,
+      ogzTpoAdaptive: ogzTpoConfig.adaptive,
 
       // Derived features for compatibility
       quantumPositionSizer: this.flagManager.isEnabled('PATTERN_BASED_SIZING'),
@@ -83,13 +86,7 @@ class TierFeatureFlags {
    * Get tier-specific scaling values
    */
   _getTierScaling() {
-    const scaling = {
-      starter: { maxPositions: 5, leverage: 1, maxDailyTrades: 50, patternLimit: 10 },
-      pro: { maxPositions: 10, leverage: 2, maxDailyTrades: 200, patternLimit: 50 },
-      elite: { maxPositions: 20, leverage: 5, maxDailyTrades: 500, patternLimit: 100 },
-      ml: { maxPositions: 50, leverage: 10, maxDailyTrades: 1000, patternLimit: 10000 }
-    };
-    return scaling[this.tier] || scaling.elite;
+    return this.flagManager.getTierPolicy(this.tier);
   }
 
   /**
@@ -210,7 +207,7 @@ class TierFeatureFlags {
             maxPatterns: 1000
           });
         } catch (error) {
-          console.log('⚠️ EnhancedPatternRecognition not available');
+          console.log('EnhancedPatternRecognition not available');
           return null;
         }
 
@@ -251,14 +248,14 @@ class TierFeatureFlags {
    */
   displayTierInfo() {
     const summary = this.getTierSummary();
-    console.log(`\n🏆 SUBSCRIPTION TIER: ${summary.tier.toUpperCase()}`);
-    console.log(`📊 Patterns: ${summary.patterns}`);
-    console.log(`💼 Max Positions: ${summary.maxPositions}`);
-    console.log(`🔄 Multi-Directional: ${summary.multiDirectional ? 'YES' : 'NO'}`);
-    console.log(`⚛️ Quantum Features: ${summary.quantum ? 'ENABLED' : 'DISABLED'}`);
-    console.log(`📈 Max Leverage: ${summary.leverage}x`);
-    console.log(`🎯 Strategies: ${summary.strategies}`);
-    console.log(`📈 Daily Trades: ${summary.maxDailyTrades}`);
+    console.log(`\nSUBSCRIPTION TIER: ${summary.tier.toUpperCase()}`);
+    console.log(`Patterns: ${summary.patterns}`);
+    console.log(`Max Positions: ${summary.maxPositions}`);
+    console.log(`Multi-Directional: ${summary.multiDirectional ? 'YES' : 'NO'}`);
+    console.log(`Quantum Features: ${summary.quantum ? 'ENABLED' : 'DISABLED'}`);
+    console.log(`Max Leverage: ${summary.leverage}x`);
+    console.log(`Strategies: ${summary.strategies}`);
+    console.log(`Daily Trades: ${summary.maxDailyTrades}`);
   }
 }
 

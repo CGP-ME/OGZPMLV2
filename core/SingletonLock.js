@@ -7,13 +7,14 @@ const path = require('path');
 const crypto = require('crypto');
 const os = require('os');
 const childProcess = require('child_process');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 class OGZSingletonLock {
   constructor(botName = 'ogz-prime', options = {}) {
     this.botName = botName;
     // CHANGE: Use DATA_DIR for lock file if set (enables isolated testing instances)
     // This allows gates/test instances to run alongside main bot without conflict
-    const lockDir = process.env.DATA_DIR || process.cwd();
+    const lockDir = options.lockDir || process.cwd();
     this.lockFile = path.join(lockDir, `.${botName}.lock`);
     this.pid = process.pid;
     this.startTime = Date.now();
@@ -24,6 +25,12 @@ class OGZSingletonLock {
     this.onMonitorError = typeof options.onMonitorError === 'function'
       ? options.onMonitorError
       : null;
+    this.executionMode = options.executionMode || 'paper';
+    this.candleSource = options.candleSource || 'live';
+    this.silent = options.silent === true;
+    this.monitorIntervalMs = options.monitorIntervalMs === undefined
+      ? ConfigLoader.getInternalsFileValue('singleton.monitorIntervalMs')
+      : options.monitorIntervalMs;
     this.lockMonitorInterval = null;
     this.integrityFailureReported = false;
     this.lastAcquisitionFailure = null;
@@ -35,10 +42,8 @@ class OGZSingletonLock {
    * Centralized here - not scattered in run-empire-v2.js
    */
   shouldSkipLock() {
-    const isFileSource = process.env.CANDLE_SOURCE === 'file';
-    const isBacktestMode = process.env.EXECUTION_MODE === 'backtest' ||
-                           process.env.BACKTEST_MODE === 'true' ||
-                           process.env.TEST_MODE === 'true';
+    const isFileSource = this.candleSource === 'file';
+    const isBacktestMode = this.executionMode === 'backtest';
     // Require BOTH: file source AND backtest mode
     return isFileSource && isBacktestMode;
   }
@@ -49,7 +54,7 @@ class OGZSingletonLock {
   acquireLock() {
     // Skip lock entirely for backtests (file source + backtest mode)
     if (this.shouldSkipLock()) {
-      if (process.env.BACKTEST_SILENT !== 'true') {
+      if (!this.silent) {
         console.log(`[${this.botName}] Lock skipped (backtest mode)`);
       }
       this.ownershipState = 'skipped';
@@ -336,7 +341,7 @@ class OGZSingletonLock {
   startLockMonitoring() {
     this.lockMonitorInterval = setInterval(() => {
       this.checkLockIntegrity();
-    }, 30000);
+    }, this.monitorIntervalMs);
   }
 
   /**

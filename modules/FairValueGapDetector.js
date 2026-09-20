@@ -22,9 +22,9 @@ function isFinitePositivePrice(value) {
  * @module modules/FairValueGapDetector
  */
 class FairValueGapDetector {
-  constructor(config = {}) {
-    this.minFVGPercent = config.minFVGPercent || 0.05; // 0.05% minimum gap size
-    this.maxFVGPercent = config.maxFVGPercent || 2.0;  // 2% max (filter extreme gaps)
+  constructor(config) {
+    this.minFVGPercent = config.minFVGPercent;
+    this.maxFVGPercent = config.maxFVGPercent;
   }
 
   /**

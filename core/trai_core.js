@@ -80,18 +80,7 @@ class TRAICore extends EventEmitter {
   constructor(config = {}) {
     super();
 
-    this.config = {
-      staticBrainPath: config.staticBrainPath || './trai_brain',
-      workingModel: config.workingModel || 'mercury-2',
-      enableVoice: config.enableVoice || false,
-      enableVideo: config.enableVideo || false,
-      elevenlabsApiKey: config.elevenlabsApiKey || process.env.ELEVENLABS_API_KEY,
-      didApiKey: config.didApiKey || process.env.DID_API_KEY,
-      personality: config.personality || 'professional_encouraging',
-      enablePatternMemory: config.enablePatternMemory !== false,
-      memoryTopK: config.memoryTopK || 5,
-      ...config,
-    };
+      this.config = { ...config };
 
     this.staticBrain = {};
     this.workingMemory = new Map();
@@ -104,10 +93,11 @@ class TRAICore extends EventEmitter {
 
     // Semantic memory (journal-based, keyword+recency, no embeddings)
     this.memoryStore = TRAIMemoryStore
-      ? new TRAIMemoryStore({
-          journalPath: path.join(this.config.staticBrainPath, 'trai_journal.jsonl'),
-          topK: this.config.memoryTopK,
-        })
+          ? new TRAIMemoryStore({
+            journalPath: path.join(this.config.staticBrainPath, 'trai_journal.jsonl'),
+            maxJournalEntries: this.config.memoryMaxJournalEntries,
+            topK: this.config.memoryTopK,
+          })
       : null;
 
     // Read-only toolbox (repo search, log tail, bot status)
@@ -571,14 +561,14 @@ BOT STATUS:
     if (primaryCategory === 'trading_strategy' || primaryCategory === 'trading_decision') {
       return 'TRAI pattern engine is active but LLM analysis is offline. Confidence multipliers from pattern data are still applied to your signals.';
     }
-    return 'TRAI LLM is currently offline. Pattern-based confidence multipliers are still active. Configure trai.llm in config/trading.config.json to enable full analysis.';
+    return 'TRAI LLM is currently offline. Pattern-based confidence multipliers are still active. Configure trai.llm in config/settings.json to enable full analysis.';
   }
 
   getOfflineResponse() {
     return JSON.stringify({
       schema: 'offline',
       status: 'TRAI_OFFLINE',
-      message: 'LLM server is not running. Configure trai.llm in config/trading.config.json to enable TRAI.',
+      message: 'LLM server is not running. Configure trai.llm in config/settings.json to enable TRAI.',
       timestamp: new Date().toISOString(),
     });
   }

@@ -72,7 +72,7 @@ class TradingLoop {
   }
 
   _diag(stage, fields = {}) {
-    if (process.env.STRATEGY_DIAG !== 'true') return;
+    if (ConfigLoader.get('observability.strategyDiagnostics') !== true) return;
     const parts = Object.entries(fields).map(([key, value]) => {
       let rendered = value;
       if (typeof value === 'number') {
@@ -635,11 +635,13 @@ class TradingLoop {
         patternCount: Array.isArray(patterns) ? patterns.length : 0,
       };
 
-      const persisted = DecisionAutopsyLogger.writeAutopsy(record);
+      const autopsyWrite = DecisionAutopsyLogger.writeAutopsy(record);
       emitTrace(this.ctx, 'DECISION_AUTOPSY', {
         traceId,
         symbol,
-        persisted,
+        persisted: autopsyWrite.persisted === true,
+        skipped: autopsyWrite.skipped === true,
+        skipWriteReason: autopsyWrite.reason || null,
         status: record.status,
         action: record.decision.action,
         skipReason: record.skipReason,
@@ -649,7 +651,7 @@ class TradingLoop {
         strategySignalCount: record.strategySignals.length,
         failedRiskGateCount: failedRiskGates.length,
       });
-      if (!persisted) {
+      if (autopsyWrite.success !== true) {
         emitTrace(this.ctx, 'DECISION_AUTOPSY_WRITE_FAILED', {
           traceId,
           symbol,
@@ -657,6 +659,7 @@ class TradingLoop {
           status: record.status,
           action: record.decision.action,
           skipReason: record.skipReason,
+          reason: autopsyWrite.reason || 'primary and fallback writes failed',
         });
         const persistError = new Error('[DecisionAutopsyLogger] failed to persist decision autopsy after primary and fallback writes');
         persistError.code = 'DECISION_AUTOPSY_PERSIST_FAILED';
@@ -1448,7 +1451,7 @@ class TradingLoop {
             finalDirection: null,
             minConfidence,
             activeTrades: stateManager.getTradesBySymbol(symbol),
-            maxPositions: ConfigLoader.get('positionSizing.maxPositions') ?? 3,
+            maxPositions: ConfigLoader.get('positionSizing.maxPositions'),
             directionFilter,
             skipReason: blockReason,
             source: 'tpo_override',
@@ -1496,7 +1499,7 @@ class TradingLoop {
         finalDirection,
         minConfidence,
         activeTrades: stateManager.getTradesBySymbol(symbol),
-        maxPositions: ConfigLoader.get('positionSizing.maxPositions') ?? 3,
+        maxPositions: ConfigLoader.get('positionSizing.maxPositions'),
         directionFilter,
         skipReason: directionGate.reason,
       });
@@ -1524,7 +1527,7 @@ class TradingLoop {
     // run15mTradingCycle, the interval cycle, BacktestRunner) now pass
     // symbol explicitly.
     const activeTrades = stateManager.getTradesBySymbol(symbol);
-    const maxPositions = ConfigLoader.get('positionSizing.maxPositions') ?? 3;
+    const maxPositions = ConfigLoader.get('positionSizing.maxPositions');
     const exitEvaluations = [];
 
     let decision = { action: 'HOLD', confidence: orchResult.confidence };
@@ -2150,16 +2153,20 @@ class TradingLoop {
       macd: indicators.macd?.macd ?? null,
       volume: marketData?.volume ?? null
     });
-    const minPatternConf = ConfigLoader.get('confidence.candlePatternMinConfidence') || 0.70;
-    const candlePatterns = rawCandlePatterns.filter(p => (p.confidence || 0) >= minPatternConf);
+    const minPatternConf = ConfigLoader.get('confidence.candlePatternMinConfidence');
+    const candlePatterns = rawCandlePatterns.filter(p => (p.confidence ?? 0) >= minPatternConf);
     const patterns = [...candlePatterns, ...memoryPatterns];
 
     // Record patterns for learning (skip in backtest/replay modes)
     if (patterns.length > 0 && !this.ctx.backtestFast) {
       const telemetry = require('./Telemetry').getTelemetry();
+      const runtimeBacktestMode = ConfigLoader.get('mode.backtest') === true;
+      const patternSaveInBacktest = ConfigLoader.get('internals.patternMemory.saveInBacktest') === true;
+      const patternLearningEnabled = ConfigLoader.get('features.enableLearning') === true;
+      const patternModeAllowsRecording = patternLearningEnabled
+        && (runtimeBacktestMode ? patternSaveInBacktest : true);
       const canRecordPatternObservations =
-        !this.ctx.config?.enableBacktestMode &&
-        process.env.BACKTEST_NO_PATTERN_SAVE !== 'true' &&
+        patternModeAllowsRecording &&
         typeof this.ctx.patternChecker?.memory?.recordObservation === 'function';
       const canReadPatternStats =
         typeof this.ctx.patternChecker?.memory?.getPatternStats === 'function';
@@ -2209,7 +2216,7 @@ class TradingLoop {
     this.ctx.broadcastPatternAnalysis(patterns, indicators, symbol);
 
     // Regime
-    const _regimeDetector = new RegimeDetector();
+    const _regimeDetector = new RegimeDetector(this.ctx.regimeDetection);
     const regimeResult = _regimeDetector.detect(indicators, priceHistory);
     // MED-09: trust RegimeDetector's contract — every return path
     // (RegimeDetector.js:65, 91, 231, 239, 247, 254) supplies a .regime field.
@@ -2298,9 +2305,10 @@ class TradingLoop {
 
     try {
       const patternScope = this._patternScope(symbol);
+      const traiPositionSize = stateManager.get('balance') * ConfigLoader.get('positionSizing.basePositionSize');
       this.ctx.trai.processDecision(
         { action: direction.toUpperCase(), confidence: orchResult.confidence, patterns, indicators, price, timestamp: Date.now(), ...patternScope },
-        { volatility: indicators.volatility, trend: indicators.trend, volume: marketData?.volume || 'normal', regime: regime.currentRegime || 'unknown', indicators, positionSize: stateManager.get('balance') * ConfigLoader.get('positionSizing.basePositionSize'), currentPosition: stateManager.get('position'), ...patternScope }
+        { volatility: indicators.volatility, trend: indicators.trend, volume: marketData?.volume ?? null, regime: regime.currentRegime ?? 'unknown', indicators, positionSize: traiPositionSize, currentPosition: stateManager.get('position'), ...patternScope }
       ).then(d => { if (d?.id) this.ctx._lastTraiDecision = d; })
        .catch(err => console.warn('[TRAI] Error:', err.message));
     } catch (e) {

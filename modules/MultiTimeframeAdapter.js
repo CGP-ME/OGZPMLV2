@@ -33,25 +33,6 @@ const { IndicatorCalculator } = require('../core/IndicatorCalculator');
 
 const SUPPORTED_TIMEFRAMES = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
 const TIMEFRAME_RANK = new Map(SUPPORTED_TIMEFRAMES.map((timeframe, index) => [timeframe, index]));
-const DEFAULT_WEIGHTS = Object.freeze({
-  '1m': 0.05,
-  '5m': 0.08,
-  '15m': 0.10,
-  '30m': 0.10,
-  '1h': 0.15,
-  '4h': 0.17,
-  '1d': 0.15,
-});
-const DEFAULT_MAX_CANDLES = Object.freeze({
-  '1m': 1440,
-  '5m': 576,
-  '15m': 384,
-  '30m': 336,
-  '1h': 720,
-  '4h': 360,
-  '1d': 365,
-});
-
 function cleanTimeframe(value) {
   return typeof value === 'string' && value.trim() !== '' ? value.trim() : '';
 }
@@ -87,16 +68,16 @@ function normalizeMinReadyTimeframes(value, activeCount) {
 }
 
 class MultiTimeframeAdapter extends EventEmitter {
-  constructor(config = {}) {
+  constructor(config) {
     super();
 
-    const baseTimeframe = cleanTimeframe(config.baseTimeframe) || '1m';
+    const baseTimeframe = cleanTimeframe(config.baseTimeframe);
     if (!TIMEFRAME_RANK.has(baseTimeframe)) {
       throw new Error(`[MultiTimeframeAdapter] unsupported baseTimeframe '${baseTimeframe}'`);
     }
     const requestedTimeframes = uniqueTimeframes([
       baseTimeframe,
-      ...(config.activeTimeframes || ['1m', '5m', '15m', '1h', '4h', '1d']),
+      ...config.activeTimeframes,
     ]);
     const activeTimeframes = requestedTimeframes.filter((timeframe) => {
       const cleaned = cleanTimeframe(timeframe);
@@ -112,23 +93,9 @@ class MultiTimeframeAdapter extends EventEmitter {
     this.config = {
       baseTimeframe,
       activeTimeframes,
-      maxCandlesByTimeframe: {
-        ...DEFAULT_MAX_CANDLES,
-        ...(config.maxCandlesByTimeframe || {}),
-      },
-      indicatorPeriods: {
-        rsi: 14,
-        smaFast: 10,
-        smaSlow: 50,
-        ema: 21,
-        macdFast: 12,
-        macdSlow: 26,
-        atr: 14,
-        bollingerPeriod: 20,
-        bollingerStd: 2,
-        ...(config.indicatorPeriods || {}),
-      },
-      minCandlesForAnalysis: config.minCandlesForAnalysis || 30,
+      maxCandlesByTimeframe: { ...config.maxCandlesByTimeframe },
+      indicatorPeriods: { ...config.indicatorPeriods },
+      minCandlesForAnalysis: config.minCandlesForAnalysis,
     };
     this.config.weights = normalizeWeights(config.weights, this.config.activeTimeframes);
     this.config.minReadyTimeframes = normalizeMinReadyTimeframes(

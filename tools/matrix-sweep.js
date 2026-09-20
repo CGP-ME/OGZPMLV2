@@ -6,14 +6,14 @@
  * THE FULL OPTIMIZATION MATRIX.
  *
  * Tests every strategy individually x every honored tier config x every confidence level.
- * Each combination runs in isolation (SOLO_STRATEGY) through the real trading pipeline.
+ * Each combination runs in isolation through the descriptor's typed soloFilter.
  *
  * What this produces:
  *   A complete Strategy x Tier Targets x Confidence config matrix telling you
  *   the best honored tunables for each strategy, backed by data not guesses.
  *
  * Dimensions (full grid):
- *   Strategies:  RSI, EMASMACrossover, MADynamicSR, LiquiditySweep (4 validated)
+ *   Strategies:  five validated strategies plus ten explicitly exploratory strategies
  *   Tier targets: MPM profit tier target presets or strict-monotonic tier cube
  *   Confidence:  [0.30, 0.40, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75] (8 values)
  *
@@ -76,6 +76,7 @@ const { resolveInstrumentFromDataFile } = require('./instrument-env');
 const {
   buildBacktestWorkerEnv,
   summarizeWorkerEnv,
+  removeBacktestRunDescriptor,
 } = require('./backtest-worker-env');
 const {
   DEFAULT_TUNING_PROFILE,
@@ -89,9 +90,10 @@ const {
   summarizeFeeProfile,
 } = require('./fee-profiles');
 const RESULTS_DIR = getMatrixDir();
-const WORKER_LOG_DIR = path.join(PROJECT_ROOT, 'backtest-results', 'worker-logs');
+const WORKER_LOG_DIR = path.join(RESULTS_DIR, 'worker-logs');
 const MATRIX_SWEEP_CONFIG = ConfigLoader.getMatrixSweepConfig();
 const DEFAULT_DATA = MATRIX_SWEEP_CONFIG.defaultData;
+const EXIT_CONTRACTS = ConfigLoader.getConfigFileValue('exitContracts');
 
 function normalizeWorkerErrors(value) {
   if (value == null || value === false) return 0;
@@ -168,6 +170,8 @@ function summarizeFailedResult(result) {
     winRate: result.winRate != null ? result.winRate : null,
     reportPath: result.reportPath || null,
     workerLogPath: result.workerLogPath || null,
+    requestedOverrides: { ...((result.config && result.config.overrides) || {}) },
+    resolvedWorkerConfig: result.workerEnv || null,
   };
 }
 
@@ -180,6 +184,7 @@ function buildWorkerProcessErrorResult(config, env, reportTag, output, err, elap
     lockedSL: config.lockedSL,
     tiers: config.tiers,
     conf: config.conf,
+    config: config,
     workerEnv: summarizeWorkerEnv(env),
     error: err.message,
     elapsed: elapsed,
@@ -308,15 +313,14 @@ const GRID = buildGridFromConfig(MATRIX_SWEEP_CONFIG);
 // (DEC-013: contracts are sealed with _validated markers). Previously this was a hardcoded
 // dict that had drifted from ConfigLoader — 4 strategies (MultiTimeframe, OGZTPO,
 // OpeningRangeBreakout, SmartMoneySweep) had values that didn't match the real contract,
-// so sweeps were using the wrong locked-SL baseline. Reading from BASE_CONFIG keeps the
+// so sweeps were using the wrong locked-SL baseline. Reading through ConfigLoader keeps the
 // two in sync automatically.
 //
 // ConfigLoader stores stopLossPercent as negative (e.g. -0.5 = "stop 0.5% below entry for long").
 // Matrix-sweep changes strategy-owned stop geometry through a backtest-only config
 // override payload, not global STOP_LOSS_PERCENT.
-const { BASE_CONFIG } = ConfigLoader;
 function getLockedSL(strat) {
-  const contract = BASE_CONFIG.exitContracts[strat] || BASE_CONFIG.exitContracts.default;
+  const contract = EXIT_CONTRACTS[strat] || EXIT_CONTRACTS.default;
   return Math.abs(contract.stopLossPercent);
 }
 
@@ -327,7 +331,7 @@ function isAllowedGlobalParamOverride(configPath, strategyName) {
   return path.startsWith(boostPrefix);
 }
 
-function buildBacktestOverrideEnv(strategyName, stopLoss, confidence, timeframe, strategyParamOverrides, globalParamOverrides) {
+function buildBacktestOverrides(strategyName, stopLoss, confidence, strategyParamOverrides, globalParamOverrides) {
   const numericConfidence = Number(confidence);
   if (!Number.isFinite(numericConfidence) || numericConfidence < 0 || numericConfidence > 1) {
     throw new Error('Matrix confidence must be a finite 0-1 value, got ' + confidence);
@@ -336,14 +340,6 @@ function buildBacktestOverrideEnv(strategyName, stopLoss, confidence, timeframe,
   const overrides = {
     'confidence.minTradeConfidence': numericConfidence,
   };
-
-  if (timeframe != null) {
-    const normalizedTimeframe = String(timeframe).trim();
-    if (!normalizedTimeframe) {
-      throw new Error('Matrix timeframe must be a non-empty string');
-    }
-    overrides['broker.candleTimeframe'] = normalizedTimeframe;
-  }
 
   if (strategyParamOverrides) {
     const allowedPrefix = 'strategies.' + strategyName + '.';
@@ -371,9 +367,7 @@ function buildBacktestOverrideEnv(strategyName, stopLoss, confidence, timeframe,
   }
 
   if (stopLoss == null) {
-    return {
-      BACKTEST_CONFIG_OVERRIDES_JSON: JSON.stringify(overrides),
-    };
+    return overrides;
   }
 
   const numericStop = Number(stopLoss);
@@ -382,9 +376,7 @@ function buildBacktestOverrideEnv(strategyName, stopLoss, confidence, timeframe,
   }
   overrides[`exitContracts.${strategyName}.stopLossPercent`] = -Math.abs(numericStop);
 
-  return {
-    BACKTEST_CONFIG_OVERRIDES_JSON: JSON.stringify(overrides),
-  };
+  return overrides;
 }
 
 function sanitizeParamLabel(value) {
@@ -450,7 +442,7 @@ function formatTiers(tiers) {
 }
 
 function usesStructuralExits(strat) {
-  const contract = BASE_CONFIG.exitContracts[strat] || BASE_CONFIG.exitContracts.default || {};
+  const contract = EXIT_CONTRACTS[strat] || EXIT_CONTRACTS.default || {};
   return contract.useStructuralExits === true;
 }
 
@@ -474,9 +466,10 @@ function filterStrategiesForPhase(strategies, phase) {
 // MATRIX GENERATOR - Builds the combinatorial config list
 // ===================================================================
 
-function generateMatrix(strategies, grid, phase) {
+function generateMatrix(strategies, grid, phase, candleTimeframe) {
   const configs = [];
   const phaseStrategies = filterStrategiesForPhase(strategies, phase).runnable;
+  const resolvedTimeframe = String(candleTimeframe).trim();
 
   for (const strat of phaseStrategies) {
     // Confidence phase tests entry threshold against the locked exit contract.
@@ -484,7 +477,6 @@ function generateMatrix(strategies, grid, phase) {
     // config overrides so workers exercise the same frozen-policy path as live.
     const slValues = phase === 'conf' || !grid.stopLoss ? [null] : grid.stopLoss;
     const tierPresets = grid.tierPresets || [null];
-    const timeframeValues = Array.isArray(grid.timeframes) && grid.timeframes.length > 0 ? grid.timeframes : [null];
     const strategyParamCombos = getStrategyParamCombos(grid, strat);
     const globalParamCombos = getGlobalParamCombos(grid, strat);
     const lockedSL = getLockedSL(strat);
@@ -493,82 +485,37 @@ function generateMatrix(strategies, grid, phase) {
       const effectiveSL = sl == null ? lockedSL : sl;
       for (const tiers of tierPresets) {
         for (const conf of grid.confidence) {
-          for (const timeframe of timeframeValues) {
-            for (const paramCombo of strategyParamCombos) {
-              for (const globalCombo of globalParamCombos) {
-                const shortName = strat.substring(0, 4);
-                const tierLabel = tiers ? tiers.label : 'def';
-                const slLabel = sl == null ? 'lockedsl' + lockedSL : 'sl' + effectiveSL;
-                const timeframeLabel = timeframe == null ? '' : '_tf' + String(timeframe).replace(/[^a-zA-Z0-9_.-]/g, '_');
-                const name = shortName + '_' + slLabel + '_' + tierLabel + timeframeLabel + paramCombo.label + globalCombo.label + '_c' + (conf * 100).toFixed(0);
+          for (const paramCombo of strategyParamCombos) {
+            for (const globalCombo of globalParamCombos) {
+              const shortName = strat.substring(0, 4);
+              const tierLabel = tiers ? tiers.label : 'def';
+              const slLabel = sl == null ? 'lockedsl' + lockedSL : 'sl' + effectiveSL;
+              const name = shortName + '_' + slLabel + '_' + tierLabel + paramCombo.label + globalCombo.label + '_c' + (conf * 100).toFixed(0);
 
-                const env = {
-                  SOLO_STRATEGY: strat,
-                  ...buildBacktestOverrideEnv(strat, sl, conf, timeframe, paramCombo.overrides, globalCombo.overrides),
-                };
+              const overrides = {
+                'strategies.soloFilter': [strat],
+                ...buildBacktestOverrides(strat, sl, conf, paramCombo.overrides, globalCombo.overrides),
+              };
 
-                // Set tier targets if sweeping (otherwise MPM uses ConfigLoader defaults)
-                if (tiers) {
-                  env.TIER1_TARGET = String(tiers.t1);
-                  env.TIER2_TARGET = String(tiers.t2);
-                  env.TIER3_TARGET = String(tiers.t3);
-                }
-
-                // SMS needs explicit enable
-                if (strat === 'SmartMoneySweep') {
-                  env.ENABLE_SMS = 'true';
-                  env.SMS_VP_RTH_ONLY = 'true';
-                }
-
-                // NoWick needs explicit enable (off by default; sweep uses opt-in env)
-                if (strat === 'NoWickImbalance') {
-                  env.ENABLE_NOWICK = 'true';
-                }
-
-                // BreakRetest needs explicit enable (off by default; sweep uses opt-in env)
-                if (strat === 'BreakRetest') {
-                  env.ENABLE_BREAKRETEST = 'true';
-                }
-
-                // ORB needs explicit enable (off by default; sweep uses opt-in env)
-                if (strat === 'OpeningRangeBreakout') {
-                  env.ENABLE_ORB = 'true';
-                }
-
-                // DonchianBreakout needs explicit enable (off by default; sweep uses opt-in env)
-                if (strat === 'DonchianBreakout') {
-                  env.ENABLE_DONCHIAN = 'true';
-                }
-
-                if (strat === 'PropSafeEMAPullback') {
-                  env.ENABLE_PROPSAFE_EMA = 'true';
-                }
-
-                if (strat === 'EMATrendRetest') {
-                  env.ENABLE_EMA_TREND_RETEST = 'true';
-                }
-
-                if (strat === 'RSI2MeanReversion') {
-                  env.ENABLE_RSI2_MR = 'true';
-                }
-
-                if (strat === 'TimeSeriesMomentum') {
-                  env.ENABLE_TSMOM = 'true';
-                }
-
-                configs.push({
-                  name,
-                  strategy: strat,
-                  timeframe,
-                  strategyParams: paramCombo.values,
-                  globalParams: globalCombo.values,
-                  lockedSL,
-                  sl: effectiveSL,
-                  tiers,
-                  conf,
-                  env,
-                });
+              // Set tier targets if sweeping (otherwise MPM uses ConfigLoader defaults)
+              if (tiers) {
+                overrides['exits.profitTiers.tier1'] = tiers.t1;
+                overrides['exits.profitTiers.tier2'] = tiers.t2;
+                overrides['exits.profitTiers.tier3'] = tiers.t3;
               }
+
+              configs.push({
+                name,
+                strategy: strat,
+                timeframe: resolvedTimeframe,
+                strategyParams: paramCombo.values,
+                globalParams: globalCombo.values,
+                lockedSL,
+                sl: effectiveSL,
+                tiers,
+                conf,
+                overrides,
+              });
             }
           }
         }
@@ -584,13 +531,13 @@ function generateMatrix(strategies, grid, phase) {
 // (Same pattern as parallel-backtest.js)
 // ===================================================================
 
-function runWorker(config, dataFile, stockMode, profileName, feeProfileName) {
+function runWorker(config, dataFile, stockMode, profileName, feeProfileName, resultsDir) {
   return new Promise(function(resolve) {
     var startTime = Date.now();
     var uid = 'matrix-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
     var stateFile = path.join(PROJECT_ROOT, 'data', 'state-' + uid + '.json');
 
-    var instrumentEnv = resolveInstrumentFromDataFile(dataFile);
+    var instrumentIdentity = resolveInstrumentFromDataFile(dataFile);
 
     var env = buildBacktestWorkerEnv({
       sourceEnv: process.env,
@@ -599,16 +546,17 @@ function runWorker(config, dataFile, stockMode, profileName, feeProfileName) {
       stateFile: stateFile,
       dataDir: path.join(PROJECT_ROOT, 'data', 'backtest'),
       reportTag: uid,
-      stockMode: stockMode,
+      outputDir: resultsDir,
+      freshStart: false,
       profileName: profileName,
       feeProfileName: feeProfileName,
-      strategyDiag: 'false',
-      configEnv: config.env,
-      instrumentEnv: instrumentEnv,
+      overrides: config.overrides,
+      instrumentIdentity: instrumentIdentity,
     });
 
     var output = '';
-    var child = spawn('node', [RUNNER], {
+    var settled = false;
+    var child = spawn(process.execPath, [RUNNER], {
       cwd: PROJECT_ROOT,
       env: env,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -617,18 +565,28 @@ function runWorker(config, dataFile, stockMode, profileName, feeProfileName) {
     child.stdout.on('data', function(d) { output += d.toString(); });
     child.stderr.on('data', function(d) { output += d.toString(); });
 
+    function finish(result) {
+      if (settled) return;
+      settled = true;
+      removeBacktestRunDescriptor(env);
+      try { fs.unlinkSync(stateFile); } catch (e) {}
+      resolve(result);
+    }
+
     child.on('close', function(code) {
+      if (settled) return;
       var elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
       var result = parseOutput(output, config);
 
       // Try reading report JSON as fallback
       if (result.trades == null) {
-        var reportResult = tryReadReport(PROJECT_ROOT, uid, env.BACKTEST_OUTPUT_DIR);
+        var reportResult = tryReadReport(PROJECT_ROOT, uid, resultsDir);
         if (reportResult) Object.assign(result, reportResult);
       }
 
       result.elapsed = elapsed;
       result.exitCode = code;
+      result.config = config;
       result.workerEnv = summarizeWorkerEnv(env);
       result.workerErrors = normalizeWorkerErrors(result.workerErrors);
       if (hasWorkerError(result)) {
@@ -637,21 +595,19 @@ function runWorker(config, dataFile, stockMode, profileName, feeProfileName) {
         if (!result.error) result.error = getWorkerFailureReason(result);
       }
 
-      // Cleanup
-      try { fs.unlinkSync(stateFile); } catch (e) {}
-
-      resolve(result);
+      finish(result);
     });
 
     child.on('error', function(err) {
-      resolve(buildWorkerProcessErrorResult(
+      var failure = buildWorkerProcessErrorResult(
         config,
         env,
         uid,
         output,
         err,
         ((Date.now() - startTime) / 1000).toFixed(1)
-      ));
+      );
+      finish(failure);
     });
   });
 }
@@ -734,9 +690,10 @@ function listTaggedReports(scanDir, tag) {
 
 function tryReadReport(projectRoot, tag, outputRoot) {
   try {
+    if (!tag) return null;
     // FIX 2026-04-22: per-worker tag filter — prevents race condition under parallelism.
-    // When tag is provided (matrix-sweep call), match only files containing that tag.
-    // When tag is absent (hypothetical future callers), falls back to mtime-sort behavior.
+    // The tag is mandatory: a latest-by-mtime fallback can silently attach another
+    // worker's report to the current descriptor.
     // FIX 2026-04-22 (2nd pass): scan backtest-results/worker-reports/ first (new routing
     // for tagged workers), fall back to project root for legacy files still lingering there.
     var workerDir = path.join(projectRoot, 'backtest-results', 'worker-reports');
@@ -834,7 +791,7 @@ function tryReadReport(projectRoot, tag, outputRoot) {
 // PARALLEL RUNNER
 // ===================================================================
 
-async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, profileName, feeProfileName) {
+async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, profileName, feeProfileName, resultsDir = RESULTS_DIR, harvestOptions = {}) {
   var tuningProfile = resolveTuningProfile(profileName);
   var feeProfile = resolveFeeProfile(feeProfileName);
   var totalStart = Date.now();
@@ -867,7 +824,7 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, prof
     process.stdout.write('  Batch ' + batchNum + '/' + totalBatches + ' (' + pct + '% done, ' + batch.length + ' workers)...');
 
     var batchResults = await Promise.all(
-      batch.map(function(c) { return runWorker(c, dataFile, stockMode, tuningProfile.name, feeProfile.name); })
+      batch.map(function(c) { return runWorker(c, dataFile, stockMode, tuningProfile.name, feeProfile.name, resultsDir); })
     );
 
     batchResults.forEach(function(r) { results.push(r); });
@@ -935,12 +892,13 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, prof
       console.log('  |   #' + (idx + 1) + ' TF=' + (r.timeframe || 'default') + ' LockedSL=' + r.lockedSL + ' Tiers=' + formatTiers(r.tiers) + ' C=' + (r.conf * 100).toFixed(0) + '%  ->  $' + r.netPnl.toFixed(2) + ' | ' + (r.trades || '?') + ' trades | WR ' + (r.winRate != null ? r.winRate.toFixed(1) : '?') + '%');
     });
 
-    // Sensitivity check: are neighboring configs also profitable?
+    // Report the measured top-three profitability without turning it into an
+    // agent-authored robustness or promotion verdict.
     if (stratResults.length >= 3) {
       var top3 = stratResults.slice(0, 3);
       var allClose = top3.every(function(r) { return r.netPnl > 0; });
       console.log('  |');
-      console.log('  |  ' + (allClose ? 'ROBUST' : 'WARNING') + ': Top 3 all profitable = ' + (allClose ? 'YES (robust)' : 'NO (fragile, may be overfit)'));
+      console.log('  |  Observed top 3 all profitable: ' + (allClose ? 'yes' : 'no'));
     }
     console.log('  +------------------------------------------------------');
   }
@@ -965,8 +923,9 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, prof
   var dateStr = new Date().toISOString().slice(0, 10);
   var sweepName = dataLabel + '-' + stratLabel + '-' + phaseLabel + '-' + dateStr;
   var timestamp = Date.now();
-  var reportPath = path.join(RESULTS_DIR, 'matrix-' + sweepName + '-' + timestamp + '.json');
-  var csvPath = path.join(RESULTS_DIR, 'matrix-' + sweepName + '-' + timestamp + '.csv');
+  fs.mkdirSync(resultsDir, { recursive: true });
+  var reportPath = path.join(resultsDir, 'matrix-' + sweepName + '-' + timestamp + '.json');
+  var csvPath = path.join(resultsDir, 'matrix-' + sweepName + '-' + timestamp + '.csv');
 
   // JSON report
   var report = {
@@ -1012,18 +971,20 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, prof
     console.log('   P&L: $' + overallBest.netPnl.toFixed(2) + ' | Trades: ' + overallBest.trades + ' | WR: ' + (overallBest.winRate != null ? overallBest.winRate.toFixed(1) : '?') + '%');
   }
 
-  // -- CC-A Change 5: TRAI auto-harvest (gated by TRAI_AUTO_HARVEST=true) --
-  if (process.env.TRAI_AUTO_HARVEST === 'true') {
+  if (harvestOptions.enabled === true) {
     console.log('\n[TRAI] Auto-harvesting pattern pack from sweep results...');
     try {
       var harvestModule = require('./harvest-pattern-pack');
-      var workerDir = path.join(PROJECT_ROOT, 'backtest-results', 'worker-reports');
+      var runReportTags = Array.from(new Set(results
+        .map(function(result) { return result.workerEnv && result.workerEnv.report && result.workerEnv.report.tag; })
+        .filter(Boolean)));
       var packOutputPath = path.join(PROJECT_ROOT, 'data', 'pattern-pack.json');
-      var harvestResult = harvestModule.harvest(workerDir, packOutputPath, {
-        minTrades: parseInt(process.env.TRAI_HARVEST_MIN_TRADES || '20', 10),
-        boostThreshold: parseFloat(process.env.TRAI_HARVEST_BOOST_WR || '0.55'),
-        penaltyThreshold: parseFloat(process.env.TRAI_HARVEST_PENALTY_WR || '0.40'),
+      var harvestResult = harvestModule.harvest(resultsDir, packOutputPath, {
+        minTrades: harvestOptions.minTrades,
+        boostThreshold: harvestOptions.boostThreshold,
+        penaltyThreshold: harvestOptions.penaltyThreshold,
         afterTimestamp: totalStart,
+        reportTags: runReportTags,
         source: 'matrix-sweep:' + (soloStrategy || 'all') + ':' + phase,
       });
       console.log('[TRAI] Pattern pack: ' + harvestResult.patterns + ' patterns, ' +
@@ -1052,6 +1013,8 @@ async function main() {
   var useAllStrategies = false;
   var profileName = DEFAULT_TUNING_PROFILE;
   var feeProfileName = null;
+  var resultsDir = RESULTS_DIR;
+  var harvestOptions = { ...MATRIX_SWEEP_CONFIG.harvestDefaults };
 
   for (var i = 0; i < args.length; i++) {
     if (args[i] === '--data' && args[i + 1]) {
@@ -1074,6 +1037,18 @@ async function main() {
       feeProfileName = args[++i];
     } else if (args[i].indexOf('--fee-profile=') === 0) {
       feeProfileName = args[i].split('=')[1];
+    } else if (args[i] === '--output-dir' && args[i + 1]) {
+      resultsDir = path.resolve(PROJECT_ROOT, args[++i]);
+    } else if (args[i].indexOf('--output-dir=') === 0) {
+      resultsDir = path.resolve(PROJECT_ROOT, args[i].split('=')[1]);
+    } else if (args[i] === '--trai-auto-harvest') {
+      harvestOptions.enabled = true;
+    } else if (args[i].indexOf('--harvest-min-trades=') === 0) {
+      harvestOptions.minTrades = Number(args[i].split('=')[1]);
+    } else if (args[i].indexOf('--harvest-boost-threshold=') === 0) {
+      harvestOptions.boostThreshold = Number(args[i].split('=')[1]);
+    } else if (args[i].indexOf('--harvest-penalty-threshold=') === 0) {
+      harvestOptions.penaltyThreshold = Number(args[i].split('=')[1]);
     } else if (args[i] === '--quick') {
       phase = 'quick';
     } else if (args[i] === '--full') {
@@ -1110,6 +1085,8 @@ async function main() {
       console.log('Profiles:');
       console.log('  --profile=NAME      Tuning profile (' + listTuningProfileNames().join(', ') + ')\n');
       console.log('  --fee-profile=NAME  Required venue fee profile (' + listFeeProfileNames().join(', ') + ')\n');
+      console.log('  --output-dir=PATH   Directory for reports and per-worker artifacts\n');
+      console.log('  --trai-auto-harvest Explicitly harvest a pattern pack after the sweep\n');
       console.log('Data:');
       console.log('  --data tsla    TSLA 15m 2-year (default)');
       console.log('  --data spy     SPY, --data qqq, nvda, riot, etc.');
@@ -1121,15 +1098,17 @@ async function main() {
       console.log('  node tools/matrix-sweep.js --data tsla --quick --fee-profile=ttp_real');
       console.log('  node tools/matrix-sweep.js --data spy --stocks --fee-profile=ttp_real\n');
       console.log('Walk-Forward Workflow:');
-      console.log('  1. Run --exits on training data:  --data tsla-train --exits');
-      console.log('  2. Lock best honored tier targets per strategy/profile');
-      console.log('  3. Run --conf on training data:   --data tsla-train --conf');
-      console.log('  4. Lock best confidence');
-      console.log('  5. Validate on test data:         --data tsla-test');
-      console.log('  6. Compare train vs test P&L (WFE > 60% = robust)');
+      console.log('  Supply explicit train/test files with --data. This tool does not select');
+      console.log('  retired train/test shortcuts or impose an unruled robustness threshold.');
       process.exit(0);
     }
   }
+
+  var resolvedInstrument = resolveInstrumentFromDataFile(dataFile);
+  if (stockMode && resolvedInstrument.assetClass !== 'stocks') {
+    throw new Error('--stocks conflicts with ' + dataFile + ', which resolves to ' + resolvedInstrument.assetClass);
+  }
+  stockMode = resolvedInstrument.assetClass === 'stocks';
 
   if (!feeProfileName) {
     console.error('Missing required --fee-profile. Available: ' + listFeeProfileNames().join(', '));
@@ -1164,7 +1143,7 @@ async function main() {
   }
 
   // Generate matrix
-  var configs = generateMatrix(strategies, GRID[phase], phase);
+  var configs = generateMatrix(strategies, GRID[phase], phase, resolvedInstrument.candleTimeframe);
 
   if (configs.length === 0) {
     console.error('No configurations generated. Check strategy name and phase.');
@@ -1180,7 +1159,12 @@ async function main() {
   console.log('  Fee profile: ' + resolveFeeProfile(feeProfileName).name);
   console.log('  Total configs: ' + configs.length);
 
-  await runMatrix(configs, dataFile, stockMode, soloStrategy, phase, profileName, feeProfileName);
+  for (var optionName of ['minTrades', 'boostThreshold', 'penaltyThreshold']) {
+    if (!Number.isFinite(harvestOptions[optionName])) {
+      throw new Error('Invalid harvest option ' + optionName);
+    }
+  }
+  await runMatrix(configs, dataFile, stockMode, soloStrategy, phase, profileName, feeProfileName, resultsDir, harvestOptions);
 }
 
 if (require.main === module) {
@@ -1201,7 +1185,6 @@ module.exports = {
   filterStrategiesForPhase,
   getDataLabel,
   buildMonotonicTierCube,
-  generateMatrix,
   parseOutput,
   tryReadReport,
   isCleanParsedResult,

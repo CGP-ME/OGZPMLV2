@@ -113,9 +113,10 @@ function placeTerminatingBootstrapListenersAtTail() {
 placeTerminatingBootstrapListenersAtTail();
 
 // ConfigLoader is the first fallible application initialization after the reporter.
-const { load: loadConfig } = require('./foundation/ConfigLoader');
-resolvedConfig = loadConfig({ silent: true }); // Silent here, verbose logging comes later
-runtimeAuditSink.setDataDir(resolvedConfig.config.paths.dataDir || undefined);
+const ConfigLoader = require('./foundation/ConfigLoader');
+const { load: loadConfig } = ConfigLoader;
+resolvedConfig = loadConfig({ silent: true, role: 'bot' }); // Silent here, verbose logging comes later
+runtimeAuditSink.setDataDir(resolvedConfig.config.paths.dataDir);
 runtimeAuditSink.setSourceReceiptId(`config:${resolvedConfig.fingerprint}`);
 runtimeAuditSink.setPhase('service_initialization');
 const { resolveTraiLlmConfig } = require('./core/trai_llm_config');
@@ -148,7 +149,7 @@ if (resolvedConfig.config.backtest.silent ||
   };
 }
 
-// SENTRY: Error monitoring (DSN configurable via SENTRY_DSN, disable via SENTRY_ENABLED=false)
+// SENTRY: enabled by config/internals.json; the DSN credential is loaded privately from .env.
 require('./instrument.js');
 // The local reporter must exist before configuration, while the pre-existing
 // terminating callbacks must remain behind instrumentation once it initializes.
@@ -233,6 +234,7 @@ const {
 } = require('./core/DashboardDepthCoalescer');
 const { resolvePatternMaturity } = require('./core/PatternMaturity');
 const { isStock: isDashboardStockSymbol, fetchStockCandles } = require('./server/stock-data-adapter');
+const { resolveDashboardStockConfigFromRuntime } = require('./server/dashboard-stock-stream-config');
 const {
   buildDashboardPatternGeometryFromCandles,
   normalizeDashboardPatternName
@@ -278,6 +280,7 @@ function buildAlpacaAdapterOptions(brokerConfig = {}, options = {}) {
     tradingPair: symbols[0],
     symbols,
     accountId: brokerConfig.accountId,
+    webSocket: brokerConfig.alpacaWebSocket,
   };
 }
 
@@ -285,9 +288,9 @@ function buildAlpacaAdapterOptions(brokerConfig = {}, options = {}) {
 console.log('[CHECKPOINT-001] Environment loaded via ConfigLoader');
 console.log(`   Fingerprint: ${resolvedConfig.fingerprint}`);
 console.log(`   ENV_FILE: ${envPath}`);
-console.log(`   DATA_DIR: ${resolvedConfig.config.paths.dataDir || '(default: ./data)'}`);
+console.log(`   DATA_DIR: ${resolvedConfig.config.paths.dataDir}`);
 console.log(`   PAPER_TRADING: ${resolvedConfig.config.mode.paperTrading}`);
-console.log(`   TEST_MODE: ${resolvedConfig.config.mode.testMode || false}`);
+console.log(`   TEST_MODE: ${resolvedConfig.config.mode.testMode}`);
 
 // DEBUG: Log key config toggles to verify env vars are being read
 if (resolvedConfig.config.mode.backtest) {
@@ -344,20 +347,6 @@ const WebhookOrderAdapter = require('./core/WebhookOrderAdapter');
 // CC-C Multi-Symbol Commit 2/6: per-symbol trading context container
 const { SymbolTradingContext } = require('./core/SymbolTradingContext');
 
-// CRIT-12: DynamicPositionSizer machine-toggleable env gate.
-// Validated baseline WITHOUT DPS: TSLA $970, QQQ $374.
-// DPS curves dropped those to $101/$50 — DPS needs curve re-tuning before
-// flipping the gate. Until then OrderExecutor uses the inline confidence
-// multiplier path (core/OrderExecutor.js:71-77).
-//
-// To unlock DPS (after curve re-tune):
-//   1. ENABLE_DPS=true in env (loads the module), AND
-//   2. Wire DynamicPositionSizer into OrderExecutor's sizing path
-//      (replace inline confidence multiplier with DPS.size()).
-// Step 1 alone loads the module but does NOT change sizing behavior.
-const ENABLE_DPS = process.env.ENABLE_DPS === 'true';
-const DynamicPositionSizer = ENABLE_DPS ? require('./core/DynamicPositionSizer') : null;
-
 // REFACTOR Phase 15: TradingLoop - exact copy of analyzeAndTrade() extracted
 const TradingLoop = require('./core/TradingLoop');
 
@@ -381,15 +370,12 @@ const ModuleInitializer = require('./core/ModuleInitializer');
 
 const flagManager = FeatureFlagManager.getInstance();
 
-// Legacy compatibility: Keep featureFlags object for existing code
-let featureFlags = {};
-try {
-  featureFlags = require('./config/features.json');
-  console.log('[FEATURES] Loaded via FeatureFlagManager:', flagManager.getEnabledFeatures());
-} catch (err) {
-  console.log('[FEATURES] No feature flags config found, using defaults');
-  featureFlags = { features: {}, environment: {} };
-}
+// Legacy object shape, backed by the same ConfigLoader-owned feature catalog.
+const featureFlags = {
+  features: ConfigLoader.get('featureCatalog'),
+  environment: {},
+};
+console.log('[FEATURES] Loaded via FeatureFlagManager:', flagManager.getEnabledFeatures());
 
 // CRITICAL: ModuleAutoLoader as single source of truth
 console.log('[CHECKPOINT-002] Loading ModuleAutoLoader...');
@@ -415,16 +401,9 @@ const stateManager = getStateManager();
 const { getInstance: getExitContractManager } = require('./core/ExitContractManager');
 const exitContractManager = getExitContractManager();
 
-// CHANGE 2026-02-28: ConfigLoader - Centralized trading parameters
-const ConfigLoader = require('./foundation/ConfigLoader');
-const { applyBacktestConfigOverrides } = require('./core/BacktestConfigOverrides');
-applyBacktestConfigOverrides(process.env.BACKTEST_CONFIG_OVERRIDES_JSON, {
-  isBacktest: resolvedConfig.config.mode.backtest,
-  executionMode: resolvedConfig.config.mode.execution,
-  candleSource: resolvedConfig.config.mode.candleSource,
-  liveTrading: resolvedConfig.config.mode.liveTrading,
-  tradingConfig: ConfigLoader,
-});
+// CHANGE 2026-02-28: ConfigLoader - Centralized trading parameters.
+// Backtest run-descriptor values are part of the resolved snapshot above; no
+// consumer-side override layer is applied after runtime construction begins.
 const { logRuntimeConfigProof } = require('./core/RuntimeConfigProof');
 logRuntimeConfigProof(resolvedConfig, ConfigLoader);
 const EvalRuleEngine = require('./core/EvalRuleEngine');
@@ -441,9 +420,10 @@ if (!_indicatorEngineSymbol) {
   throw new Error('[RUN-HIGH-01] IndicatorEngine init requires resolvedConfig.config.broker.tradingPair — refusing to default to BTC-USD');
 }
 const indicatorEngine = new IndicatorEngine({
+  ...resolvedConfig.config.indicators.engine,
+  ...resolvedConfig.config.internals.indicators.engine,
   symbol: _indicatorEngineSymbol,
-  tf: '1m',
-  ogzTpoEnabled: true
+  tf: resolvedConfig.config.broker.candleTimeframe,
 });
 
 // CHANGE 2026-01-25: Trading Proof Logger for website transparency
@@ -500,6 +480,11 @@ const SingletonLock = loader.get('core', 'SingletonLock') || require('./core/Sin
 const { OGZSingletonLock, checkCriticalPorts } = SingletonLock;
 console.log('[CHECKPOINT-006] SingletonLock obtained');
 const singletonLock = new OGZSingletonLock('ogz-prime-v14', {
+  lockDir: path.resolve(process.cwd(), resolvedConfig.config.internals.singleton.lockDir),
+  executionMode: resolvedConfig.config.mode.execution,
+  candleSource: resolvedConfig.config.mode.candleSource,
+  silent: resolvedConfig.config.backtest.silent,
+  monitorIntervalMs: resolvedConfig.config.internals.singleton.monitorIntervalMs,
   onIntegrityFailure: (error) => {
     captureRuntimeFatal('singletonIntegrityFailure', error, 'runtime', {
       lockCode: error.lockCode || error.code || null,
@@ -652,9 +637,6 @@ class OGZPrimeV14Bot {
     // REFACTOR Phase 21: ModuleInitializer for configuration helpers
     this.moduleInitializer = new ModuleInitializer();
 
-    // Environment validation
-    this.validateEnvironment();
-
     // TWO-KEY TURN SAFETY: Require double confirmation for live trading
     this.verifyTradingMode();
 
@@ -664,14 +646,8 @@ class OGZPrimeV14Bot {
     this.tierFlags = this.tierFlagManager.getTierSummary();
     console.log(`Tier: ${this.tier.toUpperCase()}`);
 
-    // PIPELINE: Read toggles early for component initialization
-    // RUN-MED-03: ?? + warn when pipeline config missing. || coerced an
-    // explicit empty object (intentional "all gates off") to {} silently.
-    const _pipelineCfg = ConfigLoader.get('pipeline');
-    if (_pipelineCfg == null) {
-      console.warn('[RUN-MED-03] ConfigLoader.pipeline missing — defaulting to {} (all pipeline gates off). Verify pipeline config block.');
-    }
-    this.pipeline = _pipelineCfg ?? {};
+    // Pipeline behavior is part of the resolved launch profile.
+    this.pipeline = resolvedConfig.config.pipeline;
 
     // Bot-bound telemetry modules read StateManager through the bot instance.
     this.stateManager = stateManager;
@@ -693,7 +669,7 @@ class OGZPrimeV14Bot {
       requestRuntimeShutdown(1);
       return;
     }
-    this.patternChecker = new EnhancedPatternChecker();
+    this.patternChecker = new EnhancedPatternChecker(resolvedConfig.config.patternRecognition);
     console.log('[CHECKPOINT-009] EnhancedPatternChecker created');
 
     // Initialize OGZ Two-Pole Oscillator (pure function implementation from V2)
@@ -702,14 +678,14 @@ class OGZPrimeV14Bot {
       : null;
 
     if (this.ogzTpo) {
-      console.log('OGZ TPO initialized with mode:', this.tierFlagManager.getValue('ogzTpoMode'));
+      console.log('OGZ TPO initialized with mode:', this.ogzTpo.config.mode);
     }
 
     // CHANGE 665: Initialize TradingProfileManager for manual profile switching
     // AUTO-SWITCHING DISABLED - profiles are user-controlled only
     // Phase 2 REWRITE: TradingProfileManager, OptimizedTradingBrain, tradingOptimizations deleted
     // Profiles now in ConfigLoader, orchestrator replaced brain, PatternStatsManager unused
-    const initialProfile = resolvedConfig.config.misc.tradingProfile;
+    const initialProfile = resolvedConfig.config.mode.launchProfile;
     console.log(`Trading Profile: ${initialProfile.toUpperCase()} (from ConfigLoader)`);
 
     // CHANGE 2026-02-21: Isolated strategy entry pipeline (replaces soupy pooled confidence)
@@ -724,17 +700,14 @@ class OGZPrimeV14Bot {
     this.strategyOrchestrator = new StrategyOrchestrator({
       // CHANGE 2026-02-28: Use ConfigLoader for minStrategyConfidence
       minStrategyConfidence: ConfigLoader.get('confidence.minStrategyConfidence'),
-      minConfluenceCount: 1,         // 1 = winner alone can trade
+      minConfluenceCount: ConfigLoader.get('orchestrator.minConfluenceCount'),
+      confluenceSizing: ConfigLoader.get('positionSizing.confluenceMultipliers'),
       mtfBaseTimeframe: this.candleTimeframe,
     });
 
     // Fibonacci level detection for strategy context (supports EMA bounce + fib confluence)
     const FibonacciDetector = require('./core/FibonacciDetector');
-    this.fibonacciDetector = new FibonacciDetector({
-      lookbackCandles: 100,
-      strengthRequired: 3,
-      proximityThreshold: 0.5,
-    });
+    this.fibonacciDetector = new FibonacciDetector(resolvedConfig.config.fibonacci);
 
     this.riskManager = new RiskManager(buildRiskManagerConfig(
       resolvedConfig.config.risk,
@@ -751,13 +724,16 @@ class OGZPrimeV14Bot {
 
     // Phase 2 REWRITE: AdvancedExecutionLayer deleted - OrderRouter+OrderExecutor handle execution
 
-    this.performanceAnalyzer = new PerformanceAnalyzer();
+    this.performanceAnalyzer = new PerformanceAnalyzer({
+      ...resolvedConfig.config.performanceAnalysis,
+      ...resolvedConfig.config.internals.performanceAnalysis,
+    });
 
     // Initialize Pattern Exit Model (shadow mode by default)
     this.patternExitModel = null;
     if (featureFlags.features.PATTERN_EXIT_MODEL?.enabled) {
       const PatternBasedExitModel = require('./core/PatternBasedExitModel');
-      this.patternExitModel = new PatternBasedExitModel(featureFlags.features.PATTERN_EXIT_MODEL.settings || {});
+      this.patternExitModel = new PatternBasedExitModel(featureFlags.features.PATTERN_EXIT_MODEL.settings);
       this.patternExitShadowMode = featureFlags.features.PATTERN_EXIT_MODEL.shadowMode !== false;
       console.log(`Pattern Exit Model: ${this.patternExitShadowMode ? 'SHADOW MODE' : 'ACTIVE'}`);
     }
@@ -774,16 +750,20 @@ class OGZPrimeV14Bot {
       minHoldTime: 2,
       staleTradeTime: 30
     });
-    this.tradeIntelligenceShadowMode = resolvedConfig.config.misc.tradeIntelligenceShadow; // ACTIVE by default
+    this.tradeIntelligenceShadowMode = resolvedConfig.config.misc.tradeIntelligenceShadow;
     console.log(`Trade Intelligence Engine: ${this.tradeIntelligenceShadowMode ? 'SHADOW MODE' : 'ACTIVE'}`);
 
     // CHANGE 2026-02-10: Modular Entry System (V2 format: c/o/h/l/v/t)
-    const mtfServiceConfig = ConfigLoader.get('orchestrator.mtfConfluenceService') || {};
+    const mtfServiceConfig = ConfigLoader.get('orchestrator.mtfConfluenceService');
+    const mtfAdapterConfig = ConfigLoader.get('orchestrator.mtfAdapter');
     this.mtfAdapter = new MultiTimeframeAdapter({
       baseTimeframe: this.candleTimeframe,
-      activeTimeframes: ConfigLoader.get('orchestrator.mtfTimeframes') || ['1m', '5m', '15m', '1h', '4h', '1d'],
+      activeTimeframes: ConfigLoader.get('orchestrator.mtfTimeframes'),
       minReadyTimeframes: mtfServiceConfig.minReadyTimeframes,
       weights: mtfServiceConfig.weights,
+      indicatorPeriods: mtfAdapterConfig.indicatorPeriods,
+      minCandlesForAnalysis: mtfAdapterConfig.minCandlesForAnalysis,
+      maxCandlesByTimeframe: resolvedConfig.config.internals.multiTimeframe.maxCandlesByTimeframe,
     });
     this.candleAggregator = new CandleAggregator();
 
@@ -801,24 +781,14 @@ class OGZPrimeV14Bot {
     // zeros (e.g., 0 decayBars = "no decay", 0 snapbackThreshold = "always
     // snap"). || coerced any 0 config value to the hardcoded default, blocking
     // intentional overrides. Same architectural class across all 6 constructors.
-    const emaConfig = ConfigLoader.get('strategies.EMASMACrossover') ?? {};
+    const emaConfig = {
+      ...ConfigLoader.get('strategies.EMASMACrossover'),
+      ...ConfigLoader.get('strategyBehavior.emaCrossover'),
+    };
     this.emaCrossover = new EMASMACrossoverSignal(emaConfig);
 
-    const masrConfig = ConfigLoader.get('strategies.MADynamicSR') ?? {};
-    this.maDynamicSR = new MADynamicSR({
-      entryMaPeriod: masrConfig.entryMaPeriod ?? 20,
-      srMaPeriod: masrConfig.srMaPeriod ?? 200,
-      touchZonePct: masrConfig.touchZonePct ?? 0.6,
-      srTestCount: masrConfig.srTestCount ?? 2,
-      swingLookback: masrConfig.swingLookback ?? 3,
-      srZonePct: masrConfig.srZonePct ?? 1.0,
-      slopeLookback: masrConfig.slopeLookback ?? 5,
-      minSlopePct: masrConfig.minSlopePct ?? 0.03,
-      extensionPct: masrConfig.extensionPct ?? 2.0,
-      skipFirstTouch: masrConfig.skipFirstTouch ?? true,
-      atrPeriod: masrConfig.atrPeriod ?? 14,
-      patternPersistBars: masrConfig.patternPersistBars ?? 15,
-    });
+    const masrConfig = ConfigLoader.get('strategies.MADynamicSR');
+    this.maDynamicSR = new MADynamicSR(masrConfig);
 
     // 2026-05-04: BreakAndRetest now owned by StrategyOrchestrator (self-contained pattern).
     // Runner-side instance removed to prevent two-instance state divergence.
@@ -831,27 +801,24 @@ class OGZPrimeV14Bot {
       });
     }
 
-    const liqConfig = ConfigLoader.get('strategies.LiquiditySweep');
+    const liqConfig = {
+      ...ConfigLoader.get('strategies.LiquiditySweep'),
+      verbose: resolvedConfig.config.internals.observability.backtestVerbose === true,
+    };
     this.liquiditySweep = new LiquiditySweepDetector(liqConfig);
 
     // CHANGE 2026-02-23: Volume Profile (Fabio Valentino / Auction Market Theory)
     // Filters out trend strategies when market is BALANCED (inside value area = chop)
-    const vpConfig = ConfigLoader.get('strategies.VolumeProfile') ?? {};
-    this.volumeProfile = new VolumeProfile({
-      sessionLookback: vpConfig.sessionLookback ?? 96,    // 96 x 15min = 24 hours
-      numBins: vpConfig.numBins ?? 50,
-      valueAreaPct: vpConfig.valueAreaPct ?? 0.70,
-      outOfBalancePct: vpConfig.outOfBalancePct ?? 0.5,   // FIX: Was 0.1%, needs 0.5%
-      recalcInterval: vpConfig.recalcInterval ?? 5,
-    });
+    const vpConfig = ConfigLoader.get('strategies.VolumeProfile');
+    this.volumeProfile = new VolumeProfile(vpConfig);
 
     console.log('[ModularEntry] MTF + Crossovers + S/R + Liquidity initialized');
 
     // EXIT_SYSTEM feature flag: Only ONE exit system active at a time
     // Options: maxprofit, intelligence, pattern, brain, legacy (all active)
     // Hard stop loss + stale trade exit + confidence crash ALWAYS run regardless
-    this.activeExitSystem = resolvedConfig.config.exits.exitSystem || featureFlags.features?.EXIT_SYSTEM?.settings?.activeSystem || 'maxprofit';
-    console.log(`Active Exit System: ${this.activeExitSystem.toUpperCase()} (set EXIT_SYSTEM env to change)`);
+    this.activeExitSystem = resolvedConfig.config.exits.exitSystem;
+    console.log(`Active Exit System: ${this.activeExitSystem.toUpperCase()}`);
 
     // Phase 2 REWRITE: GridTradingStrategy deleted - different trading style, feature-flagged off
 
@@ -861,17 +828,30 @@ class OGZPrimeV14Bot {
 
     // TRAI DECISION MODULE (Change 574 - Opus Architecture + Codex Fix)
     // OPTIMIZECEPTION FIX: Skip TRAI initialization when disabled (4x faster backtests)
-    // PIPELINE: Check resolved pipeline toggle; LLM config is injected explicitly.
-    if (this.pipeline.enableTRAI !== false && resolvedConfig.config.trai.enabled !== false) {
+    // ConfigLoader owns the single TRAI enablement decision and LLM configuration.
+    if (resolvedConfig.config.trai.enabled === true) {
       this.trai = new TRAIDecisionModule({
         mode: resolvedConfig.config.trai.mode,  // Start conservative
         confidenceWeight: resolvedConfig.config.trai.weight,  // 20% influence
         enableVetoPower: resolvedConfig.config.trai.vetoPower,  // Disabled by default
         maxRiskTolerance: resolvedConfig.config.trai.maxRisk,
+        emergencyStopLoss: resolvedConfig.config.trai.emergencyStopLoss,
         minConfidenceOverride: resolvedConfig.config.trai.minConf,
         maxConfidenceOverride: resolvedConfig.config.trai.maxConf,
-        enableLLM: true,
-        llmConfig: resolveTraiLlmConfig(),
+        minSampleSize: resolvedConfig.config.trai.legacyPatternMinSamples,
+        trackDecisions: resolvedConfig.config.trai.trackDecisions,
+        logPath: resolvedConfig.config.internals.trai.decisionLogPath,
+        decisionHistoryLimit: resolvedConfig.config.internals.trai.decisionHistoryLimit,
+        enableLLM: resolvedConfig.config.trai.llm.enabled,
+        llmConfig: resolveTraiLlmConfig({ config: resolvedConfig.config }),
+        staticBrainPath: resolvedConfig.config.internals.trai.staticBrainPath,
+        enableVoice: resolvedConfig.config.services.voice.audioEnabled,
+        enableVideo: resolvedConfig.config.services.voice.videoEnabled,
+        enablePatternMemory: resolvedConfig.config.features.enableLearning,
+        memoryTopK: resolvedConfig.config.internals.trai.memoryTopK,
+        memoryMaxJournalEntries: resolvedConfig.config.internals.trai.memoryMaxJournalEntries,
+        elevenlabsApiKey: resolvedConfig.config.services.voice.elevenlabsApiKey,
+        didApiKey: resolvedConfig.config.services.voice.didApiKey,
       });
     } else {
       this.trai = null;  // TRAI disabled for fast optimization runs
@@ -908,7 +888,9 @@ class OGZPrimeV14Bot {
     if (!this.tradingPair) {
       throw new Error('[BOOT][SymbolContexts] broker.tradingPair missing/invalid — refusing to start without canonical symbol');
     }
-    this._candleStore = new CandleStore({ maxCandles: 250 });  // REFACTOR: shadow priceHistory
+    this._candleStore = new CandleStore({
+      maxCandles: resolvedConfig.config.internals.candleStore.maxCandles,
+    });
     this.symbolContexts = new Map();
     this.symbolContextQuarantine = new Map();
 
@@ -959,10 +941,15 @@ class OGZPrimeV14Bot {
 
       this.sessionRouter = new SessionRouter({
         mode: sessionRouterMode,
-        staticSession,
-        fast: this.sessionRouterConfig.fast,
-        checkIntervalMs: this.sessionRouterConfig.checkIntervalMs,
-        forceCloseOnSessionEnd: this.sessionRouterConfig.forceCloseOnSessionEnd,
+          staticSession,
+          fast: this.sessionRouterConfig.fast,
+          checkIntervalMs: this.sessionRouterConfig.checkIntervalMs,
+          fastCheckIntervalMs: resolvedConfig.config.internals.sessionRouter.fastCheckIntervalMs,
+          forceCloseOnSessionEnd: this.sessionRouterConfig.forceCloseOnSessionEnd,
+          transitionStoreOptions: {
+            dir: resolvedConfig.config.internals.sessionRouter.transitionStoreDir,
+            staleLockMs: resolvedConfig.config.internals.sessionRouter.transitionStoreStaleLockMs,
+          },
         stockSymbols,
         cryptoSymbols,
         backtestMode: resolvedConfig.config.mode.backtest,
@@ -1161,14 +1148,18 @@ class OGZPrimeV14Bot {
     this.dashboardWs = null;
     this.dashboardWsConnected = false;
     // REFACTOR Phase 20: WebSocketManager - must be instantiated before initializeDashboardWebSocket call
-    this.webSocketManager = new WebSocketManager(this);
+    this.webSocketManager = new WebSocketManager(this, {
+      wsUrl: resolvedConfig.config.dashboard.botRelayUrl,
+      authToken: resolvedConfig.config.services.dashboard.authToken,
+    });
     this.ntfyTraceNotifier = null;
     this._unsubscribeNtfyTrace = null;
-    const traceNotifierBacktestMode = resolvedConfig.config.mode?.backtest === true
-      || resolvedConfig.config.enableBacktestMode === true
-      || resolvedConfig.config.executionMode === 'backtest';
+    const traceNotifierBacktestMode = resolvedConfig.config.mode.backtest === true;
     if (!traceNotifierBacktestMode) {
-      this.ntfyTraceNotifier = createNtfyTraceNotifier({ env: process.env, logger: console });
+      this.ntfyTraceNotifier = createNtfyTraceNotifier({
+        config: resolvedConfig.config,
+        logger: console,
+      });
       if (this.ntfyTraceNotifier) {
         this._unsubscribeNtfyTrace = subscribeTrace((payload) => {
           this.ntfyTraceNotifier.handleTraceEvent(payload);
@@ -1176,10 +1167,10 @@ class OGZPrimeV14Bot {
         console.log('[NTFY] Trace notifier installed');
       }
     }
-    // CHANGE 661: Connect to dashboard WebSocket (defaults to localhost)
+    // Connect to the configured dashboard WebSocket endpoint.
     // PIPELINE: Skip dashboard in backtest mode for faster runs
-    if (this.pipeline.enableDashboard !== false) {
-      console.log('"Œ Initializing Dashboard WebSocket connection...');
+    if (resolvedConfig.config.services.dashboard.enabled !== false) {
+      console.log('[DASHBOARD] Initializing WebSocket connection...');
       this.initializeDashboardWebSocket();
     }
 
@@ -1266,7 +1257,7 @@ class OGZPrimeV14Bot {
     this.lastActiveTimeframe = null;
     this.livenessWatchdogStartedAt = null;
     this.livenessCheckInterval = null;  // Periodic check for "no data at all"
-    this.marketCalendar = getMarketCalendar();
+    this.marketCalendar = getMarketCalendar(resolvedConfig.config.internals.marketCalendar);
     // CHANGE 2025-12-11: Position tracking moved to StateManager (single source of truth)
     // this.currentPosition removed - use stateManager.get('position') instead
     // CHANGE 2025-12-13: STEP 1 - SINGLE SOURCE OF TRUTH
@@ -1331,10 +1322,10 @@ class OGZPrimeV14Bot {
     };
 
     // CHANGE 2025-12-11: MessageQueue for WebSocket race condition prevention
-    this.messageQueue = new MessageQueue({
-      maxQueueSize: 50,
-      minProcessingGapMs: 5,
-      staleThresholdMs: 3000,
+      this.messageQueue = new MessageQueue({
+        maxQueueSize: resolvedConfig.config.internals.queues.message.maxQueueSize,
+        minProcessingGapMs: resolvedConfig.config.internals.queues.message.minProcessingGapMs,
+        staleThresholdMs: resolvedConfig.config.internals.queues.message.staleThresholdMs,
       onProcess: (data) => this.handleMarketData(data),
       onError: (msg, err) => console.error('[MessageQueue]', msg, err.message)
     });
@@ -1377,7 +1368,6 @@ class OGZPrimeV14Bot {
       assetClass: resolvedConfig.config.broker.assetClass,
       executionMode: enableBacktestMode ? 'backtest' : (enableLiveTrading ? 'live' : 'paper'),
       timeframe: this.candleTimeframe,
-      journalDataDir: resolvedConfig.config.paths.journalDataDir,
       evalTraceEnabled: resolvedConfig.config.observability.evalTraceEnabled,
       evalTraceBacktest: resolvedConfig.config.observability.evalTraceBacktest,
       traceEventMaxBufferedBytes: resolvedConfig.config.observability.traceEventMaxBufferedBytes,
@@ -1405,12 +1395,14 @@ class OGZPrimeV14Bot {
       enabled: resolvedConfig.config.webhookOrders.enabled,
       dryRun: resolvedConfig.config.webhookOrders.dryRun,
       liveTrading: enableLiveTrading,
-      timeout: resolvedConfig.config.webhookOrders.timeoutMs,
-      orderLogCap: resolvedConfig.config.webhookOrders.orderLogCap,
-    });
+        timeout: resolvedConfig.config.webhookOrders.timeoutMs,
+        orderLogCap: resolvedConfig.config.webhookOrders.orderLogCap,
+        entryThrottleMs: resolvedConfig.config.webhookOrders.entryThrottleMs,
+      });
     this.evalRuleEngine = new EvalRuleEngine({
       config: resolvedConfig.config.evalRules,
       getCandles: (symbol, timeframe) => this.getSymbolTimeframeCandles(symbol, timeframe),
+      marketCalendar: this.marketCalendar,
     });
 
     // REFACTOR Phase 14: OrderExecutor - context with all dependencies
@@ -1427,19 +1419,12 @@ class OGZPrimeV14Bot {
       trai: this.trai,
       config: this.config,
       pendingTraiDecisions: this.pendingTraiDecisions,
-      // CRIT-05-followup-B: refuse BTC-USD phantom default in OrderExecutor ctx.
-       // Both `this.tradingPair` and `resolvedConfig.config.broker.tradingPair`
-       // resolve from the same source (this.tradingPair is set at :751 from
-       // resolvedConfig); the original chain `|| 'BTC-USD'` was a silent fallback
-       // that would poison live order routing + TRAI learning + proof-logger
-       // ledger entries with the wrong asset. Pre-money fail-loud: throw.
-       tradingPair: this.tradingPair || resolvedConfig.config.broker.tradingPair || (() => {
-         throw new Error('OrderExecutor ctx construction: tradingPair missing from both runner and resolvedConfig — refusing to default to BTC-USD');
-       })(),
+      tradingPair: this.tradingPair,
       // CHANGE 2026-03-17: ConfigLoader injection (no more module-level process.env)
       backtestFast: resolvedConfig.config.backtest.fast,
       backtestMode: resolvedConfig.config.mode.backtest,
       paperTrading: resolvedConfig.config.mode.paperTrading,
+      executionMode: resolvedConfig.config.mode.execution,
       testMode: resolvedConfig.config.mode.testMode,
       candleTimeframe: this.candleTimeframe,
       // Phase 4 REWRITE: Standalone dependencies (was inside deleted modules)
@@ -1512,6 +1497,7 @@ class OGZPrimeV14Bot {
       traiEnableBacktest: resolvedConfig.config.trai.enableBacktest,
       // HIGH-16: broker.candleTimeframe threaded into ctx for orchestrator validation
       candleTimeframe: this.candleTimeframe,
+      regimeDetection: resolvedConfig.config.regimeDetection,
       // Additional context for strategy orchestration
       strategyOrchestrator: this.strategyOrchestrator,
       emaCrossoverSignal: this.emaCrossoverSignal,
@@ -1528,7 +1514,7 @@ class OGZPrimeV14Bot {
 
     // REFACTOR Phase 17: DashboardBroadcaster - context with dependencies
     // PIPELINE: Skip dashboard in backtest mode for faster runs
-    if (this.pipeline.enableDashboard !== false) {
+    if (resolvedConfig.config.services.dashboard.enabled !== false) {
       this.dashboardBroadcaster = new DashboardBroadcaster({
         indicatorEngine: indicatorEngine,
         edgeAnalyticsMaxScopes: resolvedConfig.config.dashboard.edgeAnalyticsMaxScopes
@@ -1544,6 +1530,7 @@ class OGZPrimeV14Bot {
       patternChecker: this.patternChecker,
       trai: this.trai,
       backtestRecorder: this.backtestRecorder,
+      runtimeConfig: resolvedConfig.config,
       // DynamicPositionSizer NOT WIRED - stats printing disabled
     });
 
@@ -1555,28 +1542,6 @@ class OGZPrimeV14Bot {
     console.log('All modules initialized successfully');
     console.log(`   Risk Management: ENABLED`);
     console.log(`   Change 513 Compliance: \n`);
-  }
-
-  /**
-   * Validate required environment variables
-   * FIX 2026-02-18: Skip in BACKTEST_MODE for Windows local testing
-   */
-  validateEnvironment() {
-    // Skip API key validation in backtest mode - not needed for historical data
-    if (resolvedConfig.config.mode.backtest || resolvedConfig.config.mode.execution === 'backtest' || resolvedConfig.config.mode.candleSource === 'file') {
-      console.log('Skipping API key validation (BACKTEST_MODE)');
-      return;
-    }
-
-    // Check required API keys via ConfigLoader (empty string = missing)
-    const missing = [];
-    if (!resolvedConfig.config.broker.apiKey) missing.push('KRAKEN_API_KEY');
-    if (!resolvedConfig.config.broker.apiSecret) missing.push('KRAKEN_API_SECRET');
-    // Note: POLYGON_API_KEY needs to be added to ConfigLoader if still required
-    if (missing.length > 0) {
-      console.error('[ENV] Missing environment variables:', missing);
-      throw new Error(`Missing required environment: ${missing.join(', ')}`);
-    }
   }
 
   /**
@@ -1859,27 +1824,27 @@ class OGZPrimeV14Bot {
   async start() {
     console.log('Starting OGZ Prime V14 MERGED...\n');
 
-    // ENV FINGERPRINT — print all trading-relevant env vars for reproducibility
-    const runtimePipeline = ConfigLoader.get('pipeline') || {};
-    const runtimeSoloFilter = ConfigLoader.get('strategies.soloFilter') || [];
+    // CONFIG FINGERPRINT — print the resolved trading values used by this process.
+    const runtimePipeline = ConfigLoader.get('pipeline');
+    const runtimeSoloFilter = ConfigLoader.get('strategies.soloFilter');
     console.log('═'.repeat(60));
-    console.log('ENV FINGERPRINT:');
+    console.log('CONFIG FINGERPRINT:');
     console.log(`  STRATEGY_SOLO_FILTER=${Array.isArray(runtimeSoloFilter) && runtimeSoloFilter.length > 0 ? runtimeSoloFilter.join(',') : 'all'}`);
     console.log(`  EXECUTION_MODE=${resolvedConfig.config.mode.execution}`);
     console.log(`  CANDLE_SOURCE=${resolvedConfig.config.mode.candleSource}`);
-    console.log(`  CANDLE_DATA_FILE=${resolvedConfig.config.backtest.candleDataFile || 'default'}`);
+    console.log(`  CANDLE_DATA_FILE=${resolvedConfig.config.backtest.candleDataFile}`);
     console.log(`  DIRECTION_FILTER=${runtimePipeline.directionFilter}`);
-    console.log(`  BACKTEST_MODE=${process.env.BACKTEST_MODE || 'false'}`);
-    console.log(`  BACKTEST_FAST=${process.env.BACKTEST_FAST || 'false'}`);
-    console.log(`  BACKTEST_NO_PATTERN_SAVE=${process.env.BACKTEST_NO_PATTERN_SAVE || 'false'}`);
-    console.log(`  FEE_MAKER=${process.env.FEE_MAKER || 'default'}`);
-    console.log(`  FEE_TAKER=${process.env.FEE_TAKER || 'default'}`);
+    console.log(`  BACKTEST_MODE=${resolvedConfig.config.mode.backtest}`);
+    console.log(`  BACKTEST_FAST=${resolvedConfig.config.backtest.fast}`);
+    console.log(`  PATTERN_SAVE_IN_BACKTEST=${resolvedConfig.config.internals.patternMemory.saveInBacktest}`);
+    console.log(`  FEE_MAKER=${resolvedConfig.config.fees.makerFee}`);
+    console.log(`  FEE_TAKER=${resolvedConfig.config.fees.takerFee}`);
 	    console.log(`  RISK_GUARD_MODE=${ConfigLoader.get('risk.guardMode')}`);
-    console.log(`  ENABLE_TRAI=${process.env.ENABLE_TRAI || 'true'}`);
+    console.log(`  ENABLE_TRAI=${resolvedConfig.config.trai.enabled}`);
     console.log(`  ENABLE_RSI=${runtimePipeline.enableRSI}`);
     console.log(`  ENABLE_EMA=${runtimePipeline.enableEMACrossover}`);
     console.log(`  ENABLE_SMS=${runtimePipeline.enableSmartMoneySweep}`);
-    console.log(`  SMS_VP_RTH_ONLY=${process.env.SMS_VP_RTH_ONLY || 'true'}`);
+    console.log(`  SMS_VP_RTH_ONLY=${resolvedConfig.config.strategies.SmartMoneySweep.vpRthOnly}`);
     console.log('═'.repeat(60));
     console.log('');
 
@@ -2005,13 +1970,19 @@ class OGZPrimeV14Bot {
         // }
 
         // CHANGE 2026-02-10: Initialize Multi-Asset Manager
-        this.assetManager = new MultiAssetManager(this);
+        this.assetManager = new MultiAssetManager(this, {
+          brokerId: resolvedConfig.config.broker.id,
+          tradingPair: resolvedConfig.config.broker.tradingPair,
+        });
 
         // CHANGE 2026-02-10: Initialize Trade Journal + Replay Bridge
-        this.journalBridge = new TradeJournalBridge(this);
+        this.journalBridge = new TradeJournalBridge(this, {
+          ...resolvedConfig.config.internals.journal,
+          journalRoot: resolvedConfig.config.paths.journalDataDir,
+        });
 
         // CHANGE 2026-02-16: Pipeline Snapshot - 30-min state capture
-        this.pipelineSnapshot = new PipelineSnapshot(this);
+        this.pipelineSnapshot = new PipelineSnapshot(this, resolvedConfig.config.internals.pipelineSnapshot);
 
         // Start trading cycle
         this.startTradingCycle();
@@ -2470,7 +2441,10 @@ class OGZPrimeV14Bot {
         throw new Error('[HISTORICAL] requested asset and runtime asset are both missing');
       }
 
-      const isStockDashboardSymbol = isDashboardStockSymbol(dashboardSymbol);
+      const dashboardStockConfig = resolveDashboardStockConfigFromRuntime(resolvedConfig.config).data;
+      const isStockDashboardSymbol = isDashboardStockSymbol(dashboardSymbol, {
+        config: dashboardStockConfig,
+      });
       if (!isStockDashboardSymbol && looksLikeEquityTicker(dashboardSymbol)) {
         console.warn(`[HISTORICAL] Refusing unsupported equity-like dashboard symbol ${dashboardSymbol}; not routing to Kraken`);
         return;
@@ -2484,7 +2458,9 @@ class OGZPrimeV14Bot {
       if (isStockDashboardSymbol) {
         console.log(`[StockAdapter] Fetching ${limit} historical ${timeframe} ${dashboardSymbol} candles from Alpaca for dashboard`);
         const stockCandles = this._stampDashboardHistoricalCandles(
-          await fetchStockCandles(dashboardSymbol, timeframe, limit),
+          await fetchStockCandles(dashboardSymbol, timeframe, limit, {
+            config: dashboardStockConfig,
+          }),
           dashboardSymbol,
           timeframe
         );
@@ -3134,7 +3110,21 @@ class OGZPrimeV14Bot {
     const routable = [];
     for (const sym of symbols) {
       try {
-        const ctx = new SymbolTradingContext(sym, this._candleStore, { timeframe: metadata.timeframe });
+        const ctx = new SymbolTradingContext(sym, this._candleStore, {
+          timeframe: metadata.timeframe,
+          indicatorConfig: {
+            ...resolvedConfig.config.indicators.engine,
+            ...resolvedConfig.config.internals.indicators.engine,
+            tf: metadata.timeframe,
+          },
+          emaCrossoverConfig: {
+            ...resolvedConfig.config.strategies.EMASMACrossover,
+            ...resolvedConfig.config.strategyBehavior.emaCrossover,
+          },
+          maDynamicSRConfig: ConfigLoader.get('strategies.MADynamicSR'),
+          volumeProfileConfig: resolvedConfig.config.strategies.VolumeProfile,
+          fibonacciConfig: resolvedConfig.config.fibonacci,
+        });
         this.symbolContexts.set(sym, ctx);
         routable.push(sym);
         console.log(`[BOOT][SymbolContexts] registered ${sym} @ ${metadata.timeframe}`);
@@ -3316,7 +3306,7 @@ class OGZPrimeV14Bot {
         const primaryPattern = dashboardPatterns.length > 0 ? dashboardPatterns[0] : null;
 
         // Phase 2 REWRITE: profileManager deleted - profiles now in ConfigLoader
-        const activeProfile = resolvedConfig.config.misc.tradingProfile;
+        const activeProfile = resolvedConfig.config.mode.launchProfile;
 
         // CHANGE 2.0.12: Include pattern memory stats in dashboard
         const rawPatternCount = this.patternChecker?.memory?.patternCount;
@@ -3386,10 +3376,7 @@ class OGZPrimeV14Bot {
             vwap: rawIndicatorState?.vwap ?? null
           },
           profile: {
-            name: activeProfile.name,
-            description: activeProfile.description,
-            minConfidence: activeProfile.minConfidence,
-            tradesPerDay: activeProfile.tradesPerDay
+            name: activeProfile
           }
         };
 
@@ -3502,7 +3489,6 @@ class OGZPrimeV14Bot {
     const tradingPair = this.tradingPair;
     this.backtestRunner.ctx.symbol = tradingPair;
     this.backtestRunner.ctx.timeframe = this.candleTimeframe;
-    this.backtestRunner.ctx.config = this.config;
     this.backtestRunner.ctx.backtestMode = resolvedConfig.config.mode.backtest;
     this.backtestRunner.ctx.runTradingCycle = (symbol, traceId) => this.run15mTradingCycle(symbol, traceId);
     const result = await this._trackRuntimeOperation(

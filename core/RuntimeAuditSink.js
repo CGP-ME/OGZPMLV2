@@ -17,12 +17,12 @@ const AUDIT_SCOPE_PLACEHOLDER_VALUES = new Set([
   'n/a',
   'na'
 ]);
-const SENSITIVE_KEY_TOKEN = '(?:authorization|cookie|credential|dsn|password|passwd|secret|token|api[_-]?key|private[_-]?key|webhook[_-]?url|deadman[_-]?url|capability|ntfy[_-]?topic)';
-const SENSITIVE_KEY_PATTERN = new RegExp(SENSITIVE_KEY_TOKEN, 'i');
+const SENSITIVE_FIELD_PATTERN_SOURCE = '(?:authorization|cookie|credential|dsn|password|passwd|secret|token|api[_-]?key|private[_-]?key|webhook[_-]?url|deadman[_-]?url|capability|ntfy[_-]?topic)';
+const SENSITIVE_KEY_PATTERN = new RegExp(SENSITIVE_FIELD_PATTERN_SOURCE, 'i');
 const URL_PATTERN = /\b(?:https?|wss?):\/\/[^\s"'`<>]+/gi;
 const BEARER_PATTERN = /\bBearer\s+[^\s,;]+/gi;
 const SENSITIVE_ASSIGNMENT_PATTERN = new RegExp(
-  `((?:["']?)[A-Za-z0-9_.-]*${SENSITIVE_KEY_TOKEN}[A-Za-z0-9_.-]*(?:["']?)\\s*[:=]\\s*)`
+  `((?:["']?)[A-Za-z0-9_.-]*${SENSITIVE_FIELD_PATTERN_SOURCE}[A-Za-z0-9_.-]*(?:["']?)\\s*[:=]\\s*)`
     + '(?:"(?:\\\\.|[^"])*"|\'(?:\\\\.|[^\'])*\'|[^\\s,;}\\]]+)',
   'gi'
 );
@@ -310,7 +310,9 @@ class RuntimeAuditSink {
   constructor(options = {}) {
     this.filePath = resolveAuditFilePath(options);
     this.clock = typeof options.clock === 'function' ? options.clock : () => new Date();
-    this.env = options.env || process.env;
+    this.env = Object.prototype.hasOwnProperty.call(options, 'env')
+      ? options.env
+      : process.env;
     this.cwd = options.cwd || process.cwd();
     this.nodeVersion = options.nodeVersion || process.version;
     this.pid = options.pid || process.pid;

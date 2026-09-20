@@ -1,244 +1,245 @@
 /**
- * TWO-POLE OSCILLATOR MODULE [BigBeluga]
- * Advanced momentum oscillator with Butterworth filtering
- * Generates crossover signals and invalidation levels
- * Based on TradingView indicator by BigBeluga
+ * Two-pole oscillator used by OptimizedIndicators.
+ *
+ * Behavioral values are injected from config/settings.json. Storage and
+ * presentation mechanics are injected from config/internals.json.
  */
 
 class TwoPoleOscillator {
-    constructor(config = {}) {
-        // Oscillator parameters
-        this.smaLength = config.smaLength || 25;           // SMA period for deviation
-        this.filterLength = config.filterLength || 15;      // Two-pole filter length (15 = balanced)
+    constructor(config) {
+        this.smaLength = config.smaLength;
+        this.filterLength = config.filterLength;
 
-        // 5-Level System: -1, -0.5, 0, 0.5, 1
-        this.extremeOverbought = config.extremeOverbought || 1.0;   // Pullback imminent
-        this.overbought = config.overbought || 0.5;                 // Standard overbought
-        this.neutral = 0;                                            // Equilibrium
-        this.oversold = config.oversold || -0.5;                     // Standard oversold
-        this.extremeOversold = config.extremeOversold || -1.0;       // Bounce imminent
-
-        // Legacy threshold names for compatibility
+        this.extremeOverbought = config.extremeOverbought;
+        this.overbought = config.overbought;
+        this.neutral = config.neutral;
+        this.oversold = config.oversold;
+        this.extremeOversold = config.extremeOversold;
         this.upperThreshold = this.overbought;
         this.lowerThreshold = this.oversold;
 
-        // State tracking
+        this.deltaDenominatorFloor = config.deltaDenominatorFloor;
+        this.crossoverMinDeltaRatio = config.crossoverMinDeltaRatio;
+        this.confidenceMidZone = config.confidenceMidZone;
+        this.confidenceBase = config.confidenceBase;
+        this.confidenceExtreme = config.confidenceExtreme;
+        this.confidenceOverbought = config.confidenceOverbought;
+        this.confidenceMid = config.confidenceMid;
+        this.confidenceNeutral = config.confidenceNeutral;
+        this.confidenceStrongDeltaThreshold = config.confidenceStrongDeltaThreshold;
+        this.confidenceGoodDeltaThreshold = config.confidenceGoodDeltaThreshold;
+        this.confidenceModerateDeltaThreshold = config.confidenceModerateDeltaThreshold;
+        this.confidenceStrongDeltaBoost = config.confidenceStrongDeltaBoost;
+        this.confidenceGoodDeltaBoost = config.confidenceGoodDeltaBoost;
+        this.confidenceModerateDeltaBoost = config.confidenceModerateDeltaBoost;
+        this.confidenceWeakDeltaPenalty = config.confidenceWeakDeltaPenalty;
+        this.noisyFilterBelow = config.noisyFilterBelow;
+        this.noisyFilterPenalty = config.noisyFilterPenalty;
+        this.laggyFilterAbove = config.laggyFilterAbove;
+        this.laggyFilterPenalty = config.laggyFilterPenalty;
+        this.confidenceMin = config.confidenceMin;
+        this.confidenceMax = config.confidenceMax;
+        this.stopBufferFraction = config.stopBufferFraction;
+        this.fallbackLongLowMultiplier = config.fallbackLongLowMultiplier;
+        this.fallbackShortHighMultiplier = config.fallbackShortHighMultiplier;
+        this.rewardRiskRatio = config.rewardRiskRatio;
+
+        this.maxHistory = config.maxHistory;
+        this.stateHistoryPoints = config.stateHistoryPoints;
+        this.chartDataPoints = config.chartDataPoints;
+        this.chartOpacityFloor = config.chartOpacityFloor;
+        this.chartOpacityCeiling = config.chartOpacityCeiling;
+        this.chartOpacityScale = config.chartOpacityScale;
+        this.chartColorChannelCeiling = config.chartColorChannelCeiling;
+        this.chartColorChannelBase = config.chartColorChannelBase;
+        this.chartColorChannelScale = config.chartColorChannelScale;
+        this.signalMarkerSymbol = config.signalMarkerSymbol;
+        this.buyMarkerColor = config.buyMarkerColor;
+        this.sellMarkerColor = config.sellMarkerColor;
+        this.signalMarkerSize = config.signalMarkerSize;
+        this.stopMarkerSymbol = config.stopMarkerSymbol;
+        this.bullishStopMarkerColor = config.bullishStopMarkerColor;
+        this.bearishStopMarkerColor = config.bearishStopMarkerColor;
+        this.stopMarkerSize = config.stopMarkerSize;
+        this.longStopLabel = config.longStopLabel;
+        this.shortStopLabel = config.shortStopLabel;
+        this.longStopDescription = config.longStopDescription;
+        this.shortStopDescription = config.shortStopDescription;
+        this.bullishGradient = config.bullishGradient;
+        this.bearishGradient = config.bearishGradient;
+        this.oscillatorLogDigits = config.oscillatorLogDigits;
+        this.zoneLogDigits = config.zoneLogDigits;
+        this.deltaLogDigits = config.deltaLogDigits;
+        this.priceLogDigits = config.priceLogDigits;
+        this.riskLogDigits = config.riskLogDigits;
+
         this.oscillatorHistory = [];
         this.filteredHistory = [];
         this.priceHistory = [];
-        this.maxHistory = 100;
-
-        // Signal tracking
         this.lastSignal = null;
         this.lastCrossover = null;
         this.invalidationLevels = {
-            bullish: null,  // Stop loss for long positions
-            bearish: null   // Stop loss for short positions
+            bullish: null,
+            bearish: null,
         };
-
-        // Two-pole filter state
         this.smooth1 = null;
         this.smooth2 = null;
 
-        console.log('🎯 Two-Pole Oscillator initialized [BigBeluga]');
-        console.log(`   📊 SMA Length: ${this.smaLength}`);
-        console.log(`   🔧 Filter Length: ${this.filterLength}`);
-        console.log(`   📈 Thresholds: ${this.lowerThreshold} to ${this.upperThreshold}`);
+        console.log('[TwoPoleOscillator] initialized [BigBeluga]');
+        console.log(`   SMA Length: ${this.smaLength}`);
+        console.log(`   Filter Length: ${this.filterLength}`);
+        console.log(`   Thresholds: ${this.lowerThreshold} to ${this.upperThreshold}`);
     }
 
-    /**
-     * Two-pole Butterworth filter function
-     * Creates ultra-smooth output with minimal lag
-     */
     twoPoleFilter(value) {
         const alpha = 2.0 / (this.filterLength + 1);
 
-        // Initialize on first run
         if (this.smooth1 === null) {
             this.smooth1 = value;
             this.smooth2 = value;
             return value;
         }
 
-        // First pole
         this.smooth1 = (1 - alpha) * this.smooth1 + alpha * value;
-
-        // Second pole
         this.smooth2 = (1 - alpha) * this.smooth2 + alpha * this.smooth1;
-
         return this.smooth2;
     }
 
-    /**
-     * Calculate the raw oscillator value
-     * Based on price deviation from mean
-     */
     calculateOscillator(prices) {
         if (prices.length < this.smaLength) {
             return 0;
         }
 
-        // Get recent prices for calculation
         const recentPrices = prices.slice(-this.smaLength);
         const currentPrice = prices[prices.length - 1];
-
-        // Calculate SMA
-        const sma = recentPrices.reduce((sum, p) => sum + p, 0) / this.smaLength;
-
-        // Calculate deviation from mean
+        const sma = recentPrices.reduce((sum, price) => sum + price, 0) / this.smaLength;
         const deviation = currentPrice - sma;
-
-        // Calculate standard deviation for normalization
-        const squaredDiffs = recentPrices.map(p => Math.pow(p - sma, 2));
-        const variance = squaredDiffs.reduce((sum, d) => sum + d, 0) / this.smaLength;
+        const squaredDiffs = recentPrices.map(price => Math.pow(price - sma, 2));
+        const variance = squaredDiffs.reduce((sum, difference) => sum + difference, 0) / this.smaLength;
         const stdDev = Math.sqrt(variance);
-
-        // Normalize oscillator (-1 to 1 range typically)
-        const oscillator = stdDev > 0 ? deviation / stdDev : 0;
-
-        return oscillator;
+        return stdDev > 0 ? deviation / stdDev : 0;
     }
 
-    /**
-     * Update oscillator with new price data
-     * Returns signal if crossover detected
-     */
     update(price) {
-        // Add to price history
         this.priceHistory.push(price);
         if (this.priceHistory.length > this.maxHistory) {
             this.priceHistory.shift();
         }
 
-        // Calculate raw oscillator
         const rawOscillator = this.calculateOscillator(this.priceHistory);
-
-        // Apply two-pole filter for smoothing
         const filtered = this.twoPoleFilter(rawOscillator);
 
-        // Store history
         this.oscillatorHistory.push(rawOscillator);
         this.filteredHistory.push(filtered);
-
         if (this.oscillatorHistory.length > this.maxHistory) {
             this.oscillatorHistory.shift();
             this.filteredHistory.shift();
         }
 
-        // Detect crossover signals
         const signal = this.detectCrossover();
-
-        // Update invalidation levels
         this.updateInvalidationLevels(price, filtered);
-
-        // Calculate delta (divergence between oscillator and filter)
-        const delta = Math.abs(rawOscillator - filtered) / Math.max(Math.abs(filtered), 0.001);
+        const delta = Math.abs(rawOscillator - filtered)
+            / Math.max(Math.abs(filtered), this.deltaDenominatorFloor);
 
         return {
             oscillator: rawOscillator,
-            filtered: filtered,
-            filter: filtered,  // Alias for compatibility
-            delta: delta,      // Add delta to return value
-            signal: signal,
+            filtered,
+            filter: filtered,
+            delta,
+            signal,
             invalidation: this.invalidationLevels,
             thresholds: {
                 upper: this.upperThreshold,
-                lower: this.lowerThreshold
-            }
+                lower: this.lowerThreshold,
+            },
         };
     }
 
-    /**
-     * Detect crossover signals
-     * CRITICAL: Signal ONLY valid if oscillator is in overbought/oversold zone (±0.5)
-     */
     detectCrossover() {
         if (this.oscillatorHistory.length < 2 || this.filteredHistory.length < 2) {
             return null;
         }
 
-        const prevOsc = this.oscillatorHistory[this.oscillatorHistory.length - 2];
-        const currOsc = this.oscillatorHistory[this.oscillatorHistory.length - 1];
-        const prevFilt = this.filteredHistory[this.filteredHistory.length - 2];
-        const currFilt = this.filteredHistory[this.filteredHistory.length - 1];
-
+        const prevOscillator = this.oscillatorHistory[this.oscillatorHistory.length - 2];
+        const currentOscillator = this.oscillatorHistory[this.oscillatorHistory.length - 1];
+        const prevFiltered = this.filteredHistory[this.filteredHistory.length - 2];
+        const currentFiltered = this.filteredHistory[this.filteredHistory.length - 1];
         let signal = null;
 
-        // Bullish crossover (oscillator crosses above filtered)
-        if (prevOsc <= prevFilt && currOsc > currFilt) {
-            // Calculate delta as percentage divergence
-            const delta = Math.abs(currOsc - currFilt) / Math.max(Math.abs(currFilt), 0.001);
+        if (prevOscillator <= prevFiltered && currentOscillator > currentFiltered) {
+            const delta = Math.abs(currentOscillator - currentFiltered)
+                / Math.max(Math.abs(currentFiltered), this.deltaDenominatorFloor);
 
-            // DUAL VALIDATION: Must be in oversold zone AND delta > 20%
-            if (currOsc <= -0.5 && delta > 0.2) {
+            if (currentOscillator <= this.oversold && delta > this.crossoverMinDeltaRatio) {
                 signal = {
                     type: 'BUY',
                     strength: delta,
-                    confidence: this.calculateSignalConfidence(currOsc, currFilt),
+                    confidence: this.calculateSignalConfidence(currentOscillator, currentFiltered),
                     timestamp: Date.now(),
                     valid: true,
                     zone: 'oversold',
                     delta: delta * 100,
-                    magic: true // This is where the magic happens!
+                    magic: true,
                 };
                 this.lastSignal = signal;
                 this.lastCrossover = 'bullish';
 
-                console.log(`\n🟢 ✨ MAGIC BUY SIGNAL ✨`);
-                console.log(`   ✅ Oversold: ${currOsc.toFixed(3)} < -0.5`);
-                console.log(`   ✅ Delta: ${(delta * 100).toFixed(1)}% > 20%`);
-                console.log(`   Entry point confirmed!`);
+                console.log('\n[TwoPoleOscillator] MAGIC BUY SIGNAL');
+                console.log(`   Oversold: ${currentOscillator.toFixed(this.oscillatorLogDigits)} < ${this.oversold}`);
+                console.log(`   Delta: ${(delta * 100).toFixed(this.deltaLogDigits)}% > ${this.crossoverMinDeltaRatio * 100}%`);
+                console.log('   Entry point confirmed');
             } else {
-                // Invalid signal - missing requirements
                 const reasons = [];
-                if (currOsc > -0.5) reasons.push(`Not oversold (${currOsc.toFixed(3)} > -0.5)`);
-                if (delta <= 0.2) reasons.push(`Weak delta (${(delta * 100).toFixed(1)}% < 20%)`);
-
-                console.log(`⚠️ INVALID BUY: ${reasons.join(', ')}`);
+                if (currentOscillator > this.oversold) {
+                    reasons.push(`Not oversold (${currentOscillator.toFixed(this.oscillatorLogDigits)} > ${this.oversold})`);
+                }
+                if (delta <= this.crossoverMinDeltaRatio) {
+                    reasons.push(`Weak delta (${(delta * 100).toFixed(this.deltaLogDigits)}% < ${this.crossoverMinDeltaRatio * 100}%)`);
+                }
+                console.log(`[TwoPoleOscillator] INVALID BUY: ${reasons.join(', ')}`);
                 signal = {
                     type: 'INVALID',
                     reason: reasons.join(', '),
-                    oscillator: currOsc,
-                    delta: delta * 100
+                    oscillator: currentOscillator,
+                    delta: delta * 100,
                 };
             }
-        }
-        // Bearish crossover (oscillator crosses below filtered)
-        else if (prevOsc >= prevFilt && currOsc < currFilt) {
-            // Calculate delta as percentage divergence
-            const delta = Math.abs(currOsc - currFilt) / Math.max(Math.abs(currFilt), 0.001);
+        } else if (prevOscillator >= prevFiltered && currentOscillator < currentFiltered) {
+            const delta = Math.abs(currentOscillator - currentFiltered)
+                / Math.max(Math.abs(currentFiltered), this.deltaDenominatorFloor);
 
-            // DUAL VALIDATION: Must be in overbought zone AND delta > 20%
-            if (currOsc >= 0.5 && delta > 0.2) {
+            if (currentOscillator >= this.overbought && delta > this.crossoverMinDeltaRatio) {
                 signal = {
                     type: 'SELL',
                     strength: delta,
-                    confidence: this.calculateSignalConfidence(currOsc, currFilt),
+                    confidence: this.calculateSignalConfidence(currentOscillator, currentFiltered),
                     timestamp: Date.now(),
                     valid: true,
                     zone: 'overbought',
                     delta: delta * 100,
-                    magic: true // This is where the magic happens!
+                    magic: true,
                 };
                 this.lastSignal = signal;
                 this.lastCrossover = 'bearish';
 
-                console.log(`\n🔴 ✨ MAGIC SELL SIGNAL ✨`);
-                console.log(`   ✅ Overbought: ${currOsc.toFixed(3)} > 0.5`);
-                console.log(`   ✅ Delta: ${(delta * 100).toFixed(1)}% > 20%`);
-                console.log(`   Entry point confirmed!`);
+                console.log('\n[TwoPoleOscillator] MAGIC SELL SIGNAL');
+                console.log(`   Overbought: ${currentOscillator.toFixed(this.oscillatorLogDigits)} > ${this.overbought}`);
+                console.log(`   Delta: ${(delta * 100).toFixed(this.deltaLogDigits)}% > ${this.crossoverMinDeltaRatio * 100}%`);
+                console.log('   Entry point confirmed');
             } else {
-                // Invalid signal - missing requirements
                 const reasons = [];
-                if (currOsc < 0.5) reasons.push(`Not overbought (${currOsc.toFixed(3)} < 0.5)`);
-                if (delta <= 0.2) reasons.push(`Weak delta (${(delta * 100).toFixed(1)}% < 20%)`);
-
-                console.log(`⚠️ INVALID SELL: ${reasons.join(', ')}`);
+                if (currentOscillator < this.overbought) {
+                    reasons.push(`Not overbought (${currentOscillator.toFixed(this.oscillatorLogDigits)} < ${this.overbought})`);
+                }
+                if (delta <= this.crossoverMinDeltaRatio) {
+                    reasons.push(`Weak delta (${(delta * 100).toFixed(this.deltaLogDigits)}% < ${this.crossoverMinDeltaRatio * 100}%)`);
+                }
+                console.log(`[TwoPoleOscillator] INVALID SELL: ${reasons.join(', ')}`);
                 signal = {
                     type: 'INVALID',
                     reason: reasons.join(', '),
-                    oscillator: currOsc,
-                    delta: delta * 100
+                    oscillator: currentOscillator,
+                    delta: delta * 100,
                 };
             }
         }
@@ -246,275 +247,210 @@ class TwoPoleOscillator {
         return signal;
     }
 
-    /**
-     * Calculate signal confidence based on 5-level system
-     */
     calculateSignalConfidence(oscillator, filtered) {
-        let confidence = 40; // Base confidence
+        let confidence = this.confidenceBase;
+        const absoluteOscillator = Math.abs(oscillator);
 
-        // 5-Level confidence system
-        const absOsc = Math.abs(oscillator);
-
-        if (absOsc >= this.extremeOverbought) {
-            // Level ±1: Extreme - pullback/bounce imminent
-            confidence = 90; // Very high confidence for reversal
-            console.log(`⚠️ EXTREME ZONE: ${oscillator.toFixed(2)} - Reversal imminent!`);
-        } else if (absOsc >= this.overbought) {
-            // Level ±0.5: Standard overbought/oversold
-            confidence = 70; // Good confidence
-        } else if (absOsc >= 0.25) {
-            // Between neutral and threshold
-            confidence = 55; // Moderate confidence
+        if (absoluteOscillator >= this.extremeOverbought) {
+            confidence = this.confidenceExtreme;
+            console.log(`[TwoPoleOscillator] EXTREME ZONE: ${oscillator.toFixed(this.zoneLogDigits)} - reversal imminent`);
+        } else if (absoluteOscillator >= this.overbought) {
+            confidence = this.confidenceOverbought;
+        } else if (absoluteOscillator >= this.confidenceMidZone) {
+            confidence = this.confidenceMid;
         } else {
-            // Near neutral (0)
-            confidence = 40; // Low confidence - noisy zone
+            confidence = this.confidenceNeutral;
         }
 
-        // MAGIC ZONE: Delta length over 20% = STRONG SIGNAL
         const delta = Math.abs(oscillator - filtered);
-
-        if (delta > 0.2) {
-            // THIS IS WHERE THE MAGIC HAPPENS!
-            confidence += 25; // Major signal boost
-            console.log(`🎯 MAGIC DELTA: ${(delta * 100).toFixed(1)}% divergence - STRONG SIGNAL!`);
-        } else if (delta > 0.15) {
-            confidence += 15; // Good divergence
-        } else if (delta > 0.1) {
-            confidence += 10; // Moderate divergence
+        if (delta > this.confidenceStrongDeltaThreshold) {
+            confidence += this.confidenceStrongDeltaBoost;
+            console.log(`[TwoPoleOscillator] strong delta: ${(delta * 100).toFixed(this.deltaLogDigits)}%`);
+        } else if (delta > this.confidenceGoodDeltaThreshold) {
+            confidence += this.confidenceGoodDeltaBoost;
+        } else if (delta > this.confidenceModerateDeltaThreshold) {
+            confidence += this.confidenceModerateDeltaBoost;
         } else {
-            // Delta too small - weak signal
-            confidence -= 5; // Penalty for no divergence
+            confidence += this.confidenceWeakDeltaPenalty;
         }
 
-        // Filter length adjustment
-        // Shorter filter = more responsive but noisier
-        // Longer filter = smoother but laggier
-        const filterAdjustment = this.filterLength < 10 ? -10 : // Very noisy
-                                 this.filterLength > 20 ? -5 : // Too laggy
-                                 0; // Balanced (10-20 range)
-
+        const filterAdjustment = this.filterLength < this.noisyFilterBelow
+            ? this.noisyFilterPenalty
+            : this.filterLength > this.laggyFilterAbove
+                ? this.laggyFilterPenalty
+                : 0;
         confidence += filterAdjustment;
-
-        return Math.min(Math.max(confidence, 20), 95); // Clamp 20-95%
+        return Math.min(Math.max(confidence, this.confidenceMin), this.confidenceMax);
     }
 
-    /**
-     * Calculate precise stop-loss and take-profit levels
-     * Stop: Just below entry candle
-     * Take Profit: 1.5x the risk (1.5:1 RR ratio)
-     */
     calculateTradeLevels(entryPrice, signal, candleLow = null, candleHigh = null) {
         const levels = {};
 
         if (signal.type === 'BUY') {
-            // Stop loss: Just below the entry candle's low
-            const stopBuffer = entryPrice * 0.001; // 0.1% buffer below candle
-            levels.stopLoss = (candleLow || entryPrice * 0.995) - stopBuffer;
-
-            // Calculate risk
+            const stopBuffer = entryPrice * this.stopBufferFraction;
+            levels.stopLoss = (candleLow || entryPrice * this.fallbackLongLowMultiplier) - stopBuffer;
             const risk = entryPrice - levels.stopLoss;
-
-            // Take profit: 1.5x the risk
-            levels.takeProfit = entryPrice + (risk * 1.5);
-
-            // Store for invalidation tracking
+            levels.takeProfit = entryPrice + (risk * this.rewardRiskRatio);
             this.invalidationLevels.bullish = levels.stopLoss;
 
-            console.log(`📊 BUY LEVELS SET:`);
-            console.log(`   Entry: $${entryPrice.toFixed(2)}`);
-            console.log(`   Stop: $${levels.stopLoss.toFixed(2)} (Risk: ${((risk/entryPrice)*100).toFixed(2)}%)`);
-            console.log(`   Target: $${levels.takeProfit.toFixed(2)} (1.5:1 RR)`);
-        }
-        else if (signal.type === 'SELL') {
-            // Stop loss: Just above the entry candle's high
-            const stopBuffer = entryPrice * 0.001; // 0.1% buffer above candle
-            levels.stopLoss = (candleHigh || entryPrice * 1.005) + stopBuffer;
-
-            // Calculate risk
+            console.log('[TwoPoleOscillator] BUY LEVELS SET');
+            console.log(`   Entry: $${entryPrice.toFixed(this.priceLogDigits)}`);
+            console.log(`   Stop: $${levels.stopLoss.toFixed(this.priceLogDigits)} (Risk: ${((risk / entryPrice) * 100).toFixed(this.riskLogDigits)}%)`);
+            console.log(`   Target: $${levels.takeProfit.toFixed(this.priceLogDigits)} (${this.rewardRiskRatio}:1 RR)`);
+        } else if (signal.type === 'SELL') {
+            const stopBuffer = entryPrice * this.stopBufferFraction;
+            levels.stopLoss = (candleHigh || entryPrice * this.fallbackShortHighMultiplier) + stopBuffer;
             const risk = levels.stopLoss - entryPrice;
-
-            // Take profit: 1.5x the risk (downside)
-            levels.takeProfit = entryPrice - (risk * 1.5);
-
-            // Store for invalidation tracking
+            levels.takeProfit = entryPrice - (risk * this.rewardRiskRatio);
             this.invalidationLevels.bearish = levels.stopLoss;
 
-            console.log(`📊 SELL LEVELS SET:`);
-            console.log(`   Entry: $${entryPrice.toFixed(2)}`);
-            console.log(`   Stop: $${levels.stopLoss.toFixed(2)} (Risk: ${((risk/entryPrice)*100).toFixed(2)}%)`);
-            console.log(`   Target: $${levels.takeProfit.toFixed(2)} (1.5:1 RR)`);
+            console.log('[TwoPoleOscillator] SELL LEVELS SET');
+            console.log(`   Entry: $${entryPrice.toFixed(this.priceLogDigits)}`);
+            console.log(`   Stop: $${levels.stopLoss.toFixed(this.priceLogDigits)} (Risk: ${((risk / entryPrice) * 100).toFixed(this.riskLogDigits)}%)`);
+            console.log(`   Target: $${levels.takeProfit.toFixed(this.priceLogDigits)} (${this.rewardRiskRatio}:1 RR)`);
         }
 
         return levels;
     }
 
-    /**
-     * Update invalidation levels for risk management
-     * Called after calculating trade levels
-     */
     updateInvalidationLevels(currentPrice, filteredValue) {
-        // Levels are now set in calculateTradeLevels() for precise stop placement
-        // This method kept for compatibility
+        void currentPrice;
+        void filteredValue;
     }
 
-    /**
-     * Check if current price has hit invalidation levels
-     */
     checkInvalidation(currentPrice, position) {
-        if (position > 0 && this.invalidationLevels.bullish) {
-            if (currentPrice <= this.invalidationLevels.bullish) {
-                console.log(`⚠️ BULLISH INVALIDATION: Price ${currentPrice} hit stop ${this.invalidationLevels.bullish}`);
-                return {
-                    triggered: true,
-                    type: 'bullish',
-                    level: this.invalidationLevels.bullish,
-                    action: 'SELL' // Exit long position
-                };
-            }
+        if (position > 0 && this.invalidationLevels.bullish
+            && currentPrice <= this.invalidationLevels.bullish) {
+            console.log(`[TwoPoleOscillator] BULLISH INVALIDATION: Price ${currentPrice} hit stop ${this.invalidationLevels.bullish}`);
+            return {
+                triggered: true,
+                type: 'bullish',
+                level: this.invalidationLevels.bullish,
+                action: 'SELL',
+            };
         }
 
-        if (position < 0 && this.invalidationLevels.bearish) {
-            if (currentPrice >= this.invalidationLevels.bearish) {
-                console.log(`⚠️ BEARISH INVALIDATION: Price ${currentPrice} hit stop ${this.invalidationLevels.bearish}`);
-                return {
-                    triggered: true,
-                    type: 'bearish',
-                    level: this.invalidationLevels.bearish,
-                    action: 'BUY' // Exit short position
-                };
-            }
+        if (position < 0 && this.invalidationLevels.bearish
+            && currentPrice >= this.invalidationLevels.bearish) {
+            console.log(`[TwoPoleOscillator] BEARISH INVALIDATION: Price ${currentPrice} hit stop ${this.invalidationLevels.bearish}`);
+            return {
+                triggered: true,
+                type: 'bearish',
+                level: this.invalidationLevels.bearish,
+                action: 'BUY',
+            };
         }
 
         return { triggered: false };
     }
 
-    /**
-     * Get current oscillator state for dashboard
-     */
     getState() {
         const current = this.oscillatorHistory[this.oscillatorHistory.length - 1] || 0;
         const filtered = this.filteredHistory[this.filteredHistory.length - 1] || 0;
 
         return {
             oscillator: current,
-            filtered: filtered,
+            filtered,
             signal: this.lastSignal,
             crossover: this.lastCrossover,
             invalidationLevels: this.invalidationLevels,
             thresholds: {
                 upper: this.upperThreshold,
-                lower: this.lowerThreshold
+                lower: this.lowerThreshold,
             },
             history: {
-                oscillator: this.oscillatorHistory.slice(-50),
-                filtered: this.filteredHistory.slice(-50)
-            }
+                oscillator: this.oscillatorHistory.slice(-this.stateHistoryPoints),
+                filtered: this.filteredHistory.slice(-this.stateHistoryPoints),
+            },
         };
     }
 
-    /**
-     * Get chart data for dashboard visualization with gradient coloring
-     */
     getChartData() {
-        const dataPoints = Math.min(this.oscillatorHistory.length, 50);
+        const dataPoints = Math.min(this.oscillatorHistory.length, this.chartDataPoints);
         const chartData = [];
-        const crossPoints = []; // X marks for crossover points
+        const crossPoints = [];
 
-        for (let i = this.oscillatorHistory.length - dataPoints; i < this.oscillatorHistory.length; i++) {
-            const osc = this.oscillatorHistory[i];
-            const filt = this.filteredHistory[i];
+        for (let index = this.oscillatorHistory.length - dataPoints; index < this.oscillatorHistory.length; index += 1) {
+            const oscillator = this.oscillatorHistory[index];
+            const filtered = this.filteredHistory[index];
+            const strength = Math.abs(oscillator);
+            const opacity = Math.max(
+                this.chartOpacityFloor,
+                Math.min(this.chartOpacityCeiling, strength * this.chartOpacityScale)
+            );
+            const intensity = Math.min(
+                this.chartColorChannelCeiling,
+                this.chartColorChannelBase + strength * this.chartColorChannelScale
+            );
+            const bullish = oscillator > filtered;
+            const color = bullish
+                ? `rgba(0, ${intensity}, ${this.chartColorChannelCeiling}, ${opacity})`
+                : `rgba(${intensity}, 0, ${intensity}, ${opacity})`;
+            const gradientColor = bullish ? 'bullish' : 'bearish';
 
-            // Calculate gradient color and transparency
-            const strength = Math.abs(osc);
-            const opacity = Math.max(0.2, Math.min(1, strength * 2)); // Fade near zero
-
-            // Determine color based on position
-            let color, gradientColor;
-            if (osc > filt) {
-                // BULLISH - Blue/Cyan gradient
-                const intensity = Math.min(255, 100 + strength * 155);
-                color = `rgba(0, ${intensity}, 255, ${opacity})`; // Blue tones
-                gradientColor = 'bullish';
-            } else {
-                // BEARISH - Purple gradient
-                const intensity = Math.min(255, 100 + strength * 155);
-                color = `rgba(${intensity}, 0, ${intensity}, ${opacity})`; // Purple tones
-                gradientColor = 'bearish';
-            }
-
-            // Check for crossover points (for X marks)
-            if (i > 0) {
-                const prevOsc = this.oscillatorHistory[i - 1];
-                const prevFilt = this.filteredHistory[i - 1];
-
-                // Crossover detected
-                if ((prevOsc <= prevFilt && osc > filt) ||
-                    (prevOsc >= prevFilt && osc < filt)) {
+            if (index > 0) {
+                const previousOscillator = this.oscillatorHistory[index - 1];
+                const previousFiltered = this.filteredHistory[index - 1];
+                if ((previousOscillator <= previousFiltered && oscillator > filtered)
+                    || (previousOscillator >= previousFiltered && oscillator < filtered)) {
                     crossPoints.push({
-                        index: i,
-                        type: osc > filt ? 'bullish' : 'bearish',
-                        value: osc,
-                        price: this.priceHistory[i] || 0
+                        index,
+                        type: bullish ? 'bullish' : 'bearish',
+                        value: oscillator,
+                        price: this.priceHistory[index] || 0,
                     });
                 }
             }
 
             chartData.push({
-                index: i,
-                oscillator: osc,
-                filtered: filt,
+                index,
+                oscillator,
+                filtered,
                 upper: this.upperThreshold,
                 lower: this.lowerThreshold,
-                zero: 0,
-                color: color,
-                gradientColor: gradientColor,
-                opacity: opacity,
-                strength: strength
+                zero: this.neutral,
+                color,
+                gradientColor,
+                opacity,
+                strength,
             });
         }
 
         return {
             data: chartData,
-            crossPoints: crossPoints, // X marks for the chart
+            crossPoints,
             invalidation: this.invalidationLevels,
             lastSignal: this.lastSignal,
             gradient: {
-                bullish: 'linear-gradient(to top, rgba(0,255,255,0.2), rgba(0,255,255,1))',
-                bearish: 'linear-gradient(to bottom, rgba(255,0,255,0.2), rgba(255,0,255,1))'
-            }
+                bullish: this.bullishGradient,
+                bearish: this.bearishGradient,
+            },
         };
     }
 
-    /**
-     * Get cross point markers for main price chart
-     * Returns X coordinates for marking crossover points
-     */
     getCrossPointMarkers() {
         const markers = [];
 
         if (this.lastSignal && this.priceHistory.length > 0) {
-            const currentPrice = this.priceHistory[this.priceHistory.length - 1];
-
             markers.push({
-                price: currentPrice,
+                price: this.priceHistory[this.priceHistory.length - 1],
                 type: this.lastSignal.type,
-                symbol: 'X',
-                color: this.lastSignal.type === 'BUY' ? '#0080FF' : '#8B008B', // Blue for bull, Purple for bear
-                size: 12,
-                timestamp: this.lastSignal.timestamp
+                symbol: this.signalMarkerSymbol,
+                color: this.lastSignal.type === 'BUY' ? this.buyMarkerColor : this.sellMarkerColor,
+                size: this.signalMarkerSize,
+                timestamp: this.lastSignal.timestamp,
             });
         }
 
-        // Add invalidation level markers (STOP LOSS LEVELS)
         if (this.invalidationLevels.bullish) {
             markers.push({
                 price: this.invalidationLevels.bullish,
                 type: 'stop_loss',
-                symbol: '━',  // Horizontal line for stop
-                color: '#FF4444',  // Red for stop loss
-                size: 10,
-                label: 'STOP (Long)',
-                description: 'Exit long position if price drops below'
+                symbol: this.stopMarkerSymbol,
+                color: this.bullishStopMarkerColor,
+                size: this.stopMarkerSize,
+                label: this.longStopLabel,
+                description: this.longStopDescription,
             });
         }
 
@@ -522,11 +458,11 @@ class TwoPoleOscillator {
             markers.push({
                 price: this.invalidationLevels.bearish,
                 type: 'stop_loss',
-                symbol: '━',  // Horizontal line for stop
-                color: '#FF6666',  // Light red for stop loss
-                size: 10,
-                label: 'STOP (Short)',
-                description: 'Exit short position if price rises above'
+                symbol: this.stopMarkerSymbol,
+                color: this.bearishStopMarkerColor,
+                size: this.stopMarkerSize,
+                label: this.shortStopLabel,
+                description: this.shortStopDescription,
             });
         }
 

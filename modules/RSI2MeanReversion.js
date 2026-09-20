@@ -2,7 +2,6 @@
 
 const { c } = require('../core/CandleHelper');
 const { IndicatorCalculator } = require('../core/IndicatorCalculator');
-const ConfigLoader = require('../foundation/ConfigLoader');
 
 const REQUIRED_NUMERIC_KEYS = [
   'rsiPeriod',
@@ -20,9 +19,8 @@ const REQUIRED_NUMERIC_KEYS = [
   'maxConfidence',
 ];
 
-function readConfig(overrides) {
-  const base = ConfigLoader.get('strategies.RSI2MeanReversion');
-  const cfg = { ...(base || {}), ...(overrides || {}) };
+function readConfig(config) {
+  const cfg = config;
 
   const missingNumeric = REQUIRED_NUMERIC_KEYS.filter(key => !Number.isFinite(Number(cfg[key])));
   if (missingNumeric.length > 0) {
@@ -85,7 +83,7 @@ function readConfig(overrides) {
 }
 
 class RSI2MeanReversion {
-  constructor(config = {}) {
+  constructor(config) {
     Object.defineProperty(this, 'cfg', {
       value: Object.freeze(readConfig(config)),
       writable: false,

@@ -1,9 +1,6 @@
 const crypto = require('crypto');
 
 const DASHBOARD_SESSION_COOKIE = 'ogz_dashboard_session';
-const DEFAULT_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-const DEFAULT_TICKET_TTL_MS = 10 * 60 * 1000;
-
 function base64Url(bytes) {
   return crypto.randomBytes(bytes).toString('base64url');
 }
@@ -39,9 +36,10 @@ function isSecureRequest(req) {
   return proto.split(',')[0].trim() === 'https';
 }
 
-function createDashboardSessionAuth(options = {}) {
-  const sessionTtlMs = Number.isFinite(options.sessionTtlMs) ? options.sessionTtlMs : DEFAULT_SESSION_TTL_MS;
-  const ticketTtlMs = Number.isFinite(options.ticketTtlMs) ? options.ticketTtlMs : DEFAULT_TICKET_TTL_MS;
+function createDashboardSessionAuth(options) {
+  const sessionTtlMs = options.sessionTtlMs;
+  const ticketTtlMs = options.ticketTtlMs;
+  const secureCookies = options.secureCookies === true;
   const now = typeof options.now === 'function' ? options.now : () => Date.now();
   const sessions = new Map();
   const tickets = new Map();
@@ -98,7 +96,7 @@ function createDashboardSessionAuth(options = {}) {
       'SameSite=Lax',
       `Max-Age=${maxAgeSeconds}`
     ];
-    if (isSecureRequest(req) || process.env.NODE_ENV === 'production') parts.push('Secure');
+    if (isSecureRequest(req) || secureCookies) parts.push('Secure');
     return parts.join('; ');
   }
 
@@ -110,7 +108,7 @@ function createDashboardSessionAuth(options = {}) {
       'SameSite=Lax',
       'Max-Age=0'
     ];
-    if (isSecureRequest(req) || process.env.NODE_ENV === 'production') parts.push('Secure');
+    if (isSecureRequest(req) || secureCookies) parts.push('Secure');
     return parts.join('; ');
   }
 

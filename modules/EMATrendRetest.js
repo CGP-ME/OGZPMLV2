@@ -2,7 +2,6 @@
 
 const { c, o, h, l } = require('../core/CandleHelper');
 const { IndicatorCalculator } = require('../core/IndicatorCalculator');
-const ConfigLoader = require('../foundation/ConfigLoader');
 
 const REQUIRED_NUMERIC_KEYS = [
   'atrPeriod',
@@ -68,9 +67,8 @@ function parseEmaPeriods(value) {
   return Object.freeze(unique.sort((a, b) => a - b));
 }
 
-function readConfig(overrides) {
-  const base = ConfigLoader.get('strategies.EMATrendRetest');
-  const cfg = { ...(base || {}), ...(overrides || {}) };
+function readConfig(config) {
+  const cfg = config;
 
   if (cfg.emaPeriods === undefined || cfg.emaPeriods === null || cfg.emaPeriods === '') {
     throw new Error('[EMATrendRetest] missing config key: emaPeriods');
@@ -160,7 +158,7 @@ function etMinuteFor(date, timeZone) {
 }
 
 class EMATrendRetest {
-  constructor(config = {}) {
+  constructor(config) {
     Object.defineProperty(this, 'cfg', {
       value: Object.freeze(readConfig(config)),
       writable: false,

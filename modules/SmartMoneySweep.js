@@ -44,52 +44,52 @@ function requireFiniteConfig(config, key) {
 }
 
 class SmartMoneySweep {
-  constructor(config = {}) {
+  constructor(config) {
     // ─── Volume Profile Config ───
-    this.vpDays = config.vpDays || 5;
-    this.vpBins = config.vpBins || 50;
-    this.valueAreaPct = config.valueAreaPct || 70;
-    this.bodyWeightPct = config.bodyWeightPct || 70;
-    this.lvnPctile = config.lvnPctile || 20;
+    this.vpDays = requireFiniteConfig(config, 'vpDays');
+    this.vpBins = requireFiniteConfig(config, 'vpBins');
+    this.valueAreaPct = requireFiniteConfig(config, 'valueAreaPct');
+    this.bodyWeightPct = requireFiniteConfig(config, 'bodyWeightPct');
+    this.lvnPctile = requireFiniteConfig(config, 'lvnPctile');
 
     // ─── IVB Config ───
-    this.ivbMinutes = config.ivbMinutes || 30;
-    this.cashSessionStart = config.cashSessionStartHour || 9;
-    this.cashSessionStartMin = config.cashSessionStartMinute || 30;
-    this.cashSessionEndHour = config.cashSessionEndHour || 16;
-    this.cashSessionEndMin = config.cashSessionEndMinute || 0;
+    this.ivbMinutes = requireFiniteConfig(config, 'ivbMinutes');
+    this.cashSessionStart = requireFiniteConfig(config, 'cashSessionStartHour');
+    this.cashSessionStartMin = requireFiniteConfig(config, 'cashSessionStartMinute');
+    this.cashSessionEndHour = requireFiniteConfig(config, 'cashSessionEndHour');
+    this.cashSessionEndMin = requireFiniteConfig(config, 'cashSessionEndMinute');
 
     // ─── Candle Classification Config ───
-    this.volAvgLen = config.volAvgLen || 20;
-    this.absorbBodyPct = config.absorbBodyPct || 35;
-    this.absorbWickPct = config.absorbWickPct || 60;
-    this.absorbVolMult = config.absorbVolMult || 1.2;
-    this.initBodyPct = config.initBodyPct || 60;
+    this.volAvgLen = requireFiniteConfig(config, 'volAvgLen');
+    this.absorbBodyPct = requireFiniteConfig(config, 'absorbBodyPct');
+    this.absorbWickPct = requireFiniteConfig(config, 'absorbWickPct');
+    this.absorbVolMult = requireFiniteConfig(config, 'absorbVolMult');
+    this.initBodyPct = requireFiniteConfig(config, 'initBodyPct');
     // Progress thresholds (relaxed versions)
-    this.absorbBodyProgPct = config.absorbBodyProgPct || 50;
-    this.absorbWickProgPct = config.absorbWickProgPct || 40;
-    this.absorbVolProgMult = config.absorbVolProgMult || 0.9;
-    this.initBodyProgPct = config.initBodyProgPct || 45;
+    this.absorbBodyProgPct = requireFiniteConfig(config, 'absorbBodyProgPct');
+    this.absorbWickProgPct = requireFiniteConfig(config, 'absorbWickProgPct');
+    this.absorbVolProgMult = requireFiniteConfig(config, 'absorbVolProgMult');
+    this.initBodyProgPct = requireFiniteConfig(config, 'initBodyProgPct');
 
     // ─── CVD Config ───
-    this.cvdDivLen = config.cvdDivLen || 10;
+    this.cvdDivLen = requireFiniteConfig(config, 'cvdDivLen');
 
     // ─── Exit Config ───
-    this.atrLen = config.atrLen || 14;
-    this.lowConvATRMult = config.lowConvATRMult || 0.5;
-    this.midConvATRMult = config.midConvATRMult || 1.0;
-    this.highConvATRMult = config.highConvATRMult || 1.5;
-    this.slBufferPct = config.slBufferPct || 0.15;
-    this.maxLossPct = config.maxLossPct || 0.3;
-    this.maxHoldBars = config.maxHoldBars || 60;
-    this.maxDailyLosses = config.maxDailyLosses || 3;
+    this.atrLen = requireFiniteConfig(config, 'atrLen');
+    this.lowConvATRMult = requireFiniteConfig(config, 'lowConvATRMult');
+    this.midConvATRMult = requireFiniteConfig(config, 'midConvATRMult');
+    this.highConvATRMult = requireFiniteConfig(config, 'highConvATRMult');
+    this.slBufferPct = requireFiniteConfig(config, 'slBufferPct');
+    this.maxLossPct = requireFiniteConfig(config, 'maxLossPct');
+    this.maxHoldBars = requireFiniteConfig(config, 'maxHoldBars');
+    this.maxDailyLosses = requireFiniteConfig(config, 'maxDailyLosses');
 
     // ─── Session Filter ───
-    this.useSessionFilter = config.useSessionFilter !== false;
-    this.validSessionStartHour = config.validSessionStartHour || 9;
-    this.validSessionStartMin = config.validSessionStartMinute || 45;
-    this.validSessionEndHour = config.validSessionEndHour || 15;
-    this.validSessionEndMin = config.validSessionEndMinute || 45;
+    this.useSessionFilter = config.useSessionFilter;
+    this.validSessionStartHour = requireFiniteConfig(config, 'validSessionStartHour');
+    this.validSessionStartMin = requireFiniteConfig(config, 'validSessionStartMinute');
+    this.validSessionEndHour = requireFiniteConfig(config, 'validSessionEndHour');
+    this.validSessionEndMin = requireFiniteConfig(config, 'validSessionEndMinute');
 
     // ─── Internal State ───
     this.ivbHigh = null;
@@ -109,12 +109,12 @@ class SmartMoneySweep {
     this.barIndex = 0;
 
     // ─── Debug Mode ───
-    this.DEBUG = config.debug || process.env.SMS_DEBUG === 'true';
+    this.DEBUG = config.debug === true;
 
     // ─── VP slice config ───
-    this.sweepMaxOffset = config.sweepMaxOffset != null ? Number(config.sweepMaxOffset) : 3;
-    this.vpRthOnly = config.vpRthOnly !== false;
-    this.vpLookbackBars = config.vpLookbackBars || 0;
+    this.sweepMaxOffset = requireFiniteConfig(config, 'sweepMaxOffset');
+    this.vpRthOnly = config.vpRthOnly;
+    this.vpLookbackBars = requireFiniteConfig(config, 'vpLookbackBars');
 
     // Conviction ladder is config-owned so tournament arms can sweep the SMS gate
     // and confidence shape without changing strategy code.

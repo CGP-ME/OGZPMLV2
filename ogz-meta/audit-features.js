@@ -7,15 +7,18 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
 
 console.log('🔍 FEATURE AUDIT STARTING\n');
 console.log('=' .repeat(60));
 
-// Load feature config
-const featuresConfig = JSON.parse(
-  fs.readFileSync(path.join(__dirname, '..', 'config', 'features.json'), 'utf8')
-);
+// Load the same immutable paper snapshot consumed by the bot. This audit has
+// no independent JSON or environment owner.
+const ConfigLoader = require('../foundation/ConfigLoader');
+const runtimeConfig = ConfigLoader.snapshot(
+  { PROFILE: 'paper' },
+  { role: 'bot', silent: true }
+).config;
+const featuresConfig = runtimeConfig.featureCatalog;
 
 // Load main bot file
 const mainBotPath = path.join(__dirname, '..', 'run-empire-v2.js');
@@ -26,7 +29,7 @@ console.log('\n📋 FEATURE FLAGS STATUS:\n');
 const enabledFeatures = [];
 const unusedFeatures = [];
 
-Object.entries(featuresConfig.features).forEach(([name, config]) => {
+Object.entries(featuresConfig).forEach(([name, config]) => {
   if (config.enabled) {
     enabledFeatures.push(name);
     const found = mainBotCode.includes(name);
@@ -62,10 +65,14 @@ coreFiles.forEach(file => {
 
 // Check for mode separation issues
 console.log('\n🔄 MODE SEPARATION:\n');
-const patternFiles = execSync('ls -la data/pattern-memory*.json 2>/dev/null || echo "none"',
-  { encoding: 'utf8' });
+const patternDirectory = path.join(__dirname, '..', 'data');
+const patternFiles = fs.existsSync(patternDirectory)
+  ? fs.readdirSync(patternDirectory).filter(file => /^pattern-memory.*\.json$/.test(file))
+  : [];
 console.log('  Pattern memory files:');
-console.log('  ' + patternFiles.replace(/\n/g, '\n  '));
+console.log(patternFiles.length > 0
+  ? patternFiles.map(file => `  ${file}`).join('\n')
+  : '  none');
 
 // Summary
 console.log('\n' + '=' .repeat(60));
@@ -87,15 +94,7 @@ if (unusedClasses.length > 0) {
 // Specific checks
 console.log('\n🔍 SPECIFIC ISSUES:\n');
 
-// Check PAPER_TRADING
-const paperTradingEnabled = featuresConfig.features.PAPER_TRADING?.enabled;
-const envHasPaper = fs.readFileSync(path.join(__dirname, '..', '.env'), 'utf8')
-  .includes('PAPER_TRADING=true');
-console.log(`  PAPER_TRADING: Config=${paperTradingEnabled}, Env=${envHasPaper}`);
-
-// Check circuit breaker
-if (featuresConfig.features.CIRCUIT_BREAKER?.enabled) {
-  console.log('  ⚠️  CIRCUIT_BREAKER enabled but user said it blocks all trades');
-}
+console.log(`  Execution mode: ${runtimeConfig.mode.execution}`);
+console.log(`  Launch profile: ${runtimeConfig.mode.launchProfile}`);
 
 console.log('\n✅ Audit complete\n');

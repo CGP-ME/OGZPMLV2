@@ -24,7 +24,7 @@
  *   - Previous day's POC/VAH/VAL = key levels for next session
  *
  * INTEGRATION:
- *   const vp = new VolumeProfile();
+ *   const vp = new VolumeProfile(config);
  *   vp.update(candle, priceHistory);
  *   const profile = vp.getProfile();
  *   // profile = { poc, vah, val, lvns[], hvns[], marketState, ... }
@@ -37,29 +37,29 @@
 const { c, o, h, l, v } = require('./CandleHelper');
 
 class VolumeProfile {
-  constructor(config = {}) {
+  constructor(config) {
     // ─── PROFILE SETTINGS ───
     // Number of price bins to divide the range into
-    this.numBins = config.numBins || 50;
+    this.numBins = config.numBins;
 
     // Value area percentage (standard is 70% — where 70% of volume transacted)
-    this.valueAreaPct = config.valueAreaPct || 0.70;
+    this.valueAreaPct = config.valueAreaPct;
 
     // Session lookback for building the profile (candles)
-    this.sessionLookback = config.sessionLookback || 96;  // 96 x 15min = 24 hours
+    this.sessionLookback = config.sessionLookback;
 
     // Low Volume Node threshold (below this % of max bin = LVN)
-    this.lvnThresholdPct = config.lvnThresholdPct || 0.20;
+    this.lvnThresholdPct = config.lvnThresholdPct;
 
     // High Volume Node threshold (above this % of max bin = HVN)
-    this.hvnThresholdPct = config.hvnThresholdPct || 0.60;
+    this.hvnThresholdPct = config.hvnThresholdPct;
 
     // Recalculate interval (every N candles)
-    this.recalcInterval = config.recalcInterval || 5;
+    this.recalcInterval = config.recalcInterval;
 
     // How far outside VA to consider "out of balance" (% beyond VAH/VAL)
     // FIX 2026-03-06: Was 0.1% (too tight), changed to 0.5% per STRATEGY-REWRITE-SPEC
-    this.outOfBalancePct = config.outOfBalancePct || 0.5;
+    this.outOfBalancePct = config.outOfBalancePct;
 
     // ─── INTERNAL STATE ───
     this.profile = null;          // Current computed profile

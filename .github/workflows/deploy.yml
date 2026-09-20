@@ -26,8 +26,9 @@ jobs:
           rsync -avz --delete \
             --exclude 'node_modules' \
             --exclude '.git' \
+            --exclude '.env' \
+            --exclude 'data' \
             --exclude 'logs' \
-            --exclude 'pattern_memory*.json' \
             . user@${{ secrets.VPS_IP }}:/opt/ogzprime/OGZPMLV2
 
       - name: Install deps and restart bot
@@ -36,13 +37,9 @@ jobs:
             cd /opt/ogzprime/OGZPMLV2
             npm ci || npm install
 
-            # Save pattern memory before restart
-            cp pattern_memory.json pattern_memory.backup.$(date +%s).json 2>/dev/null || true
-
-            # Restart through the eval deploy wrapper so live date and dirty runtime
-            # quarantine are deterministic before the bot comes online.
-            node tools/eval-live-deploy.js --with-websocket
-            pm2 save
+            # The unified launcher preserves private credentials and runtime data,
+            # and starts the four declared PM2 processes on the paper profile.
+            bash start-ogzprime.sh start
 
             echo "Empire V2 deployed and restarted"
           EOF
@@ -50,4 +47,4 @@ jobs:
       - name: Verify deployment
         run: |
           sleep 10
-          ssh user@${{ secrets.VPS_IP }} "pm2 status ogz-websocket ogz-prime-v2"
+          ssh user@${{ secrets.VPS_IP }} "pm2 status ogz-prime-v2 ogz-websocket ogz-stripe ogz-supervisor"

@@ -24,7 +24,6 @@
 
 // FIX 2026-02-16: Use centralized candle helper for format compatibility
 const { c } = require('../core/CandleHelper');
-const ConfigLoader = require('../foundation/ConfigLoader');
 
 const REQUIRED_NUMERIC_KEYS = [
   'decayBars',
@@ -45,8 +44,6 @@ const REQUIRED_NUMERIC_KEYS = [
   'freshCrossoverBonusMax',
   'maxConfidence',
 ];
-
-const REQUIRED_BOOLEAN_KEYS = ['enabled'];
 
 function finiteNumber(value, label) {
   const numeric = Number(value);
@@ -81,34 +78,21 @@ function fraction(value, label, { allowOne = true } = {}) {
   return numeric;
 }
 
-function readConfig(overrides = {}) {
-  const base = ConfigLoader.get('strategies.EMASMACrossover');
-  if (!base || typeof base !== 'object' || Array.isArray(base)) {
-    throw new Error('[EMASMACrossover] config/trading.config.json strategies.EMASMACrossover is required');
+function readConfig(config) {
+  if (!config || typeof config !== 'object' || Array.isArray(config)) {
+    throw new Error('[EMASMACrossover] config/settings.json strategies.EMASMACrossover is required');
   }
-
-  const cfg = {
-    ...base,
-    entryEventsOnly: ConfigLoader.get('strategyBehavior.emaCrossover.entryEventsOnly'),
-    confirmBars: ConfigLoader.get('strategyBehavior.emaCrossover.confirmBars'),
-    warmupBars: ConfigLoader.get('strategyBehavior.emaCrossover.warmupBars'),
-    ...(overrides || {}),
-  };
+  const cfg = config;
 
   const missingNumeric = REQUIRED_NUMERIC_KEYS.filter(key => !Number.isFinite(Number(cfg[key])));
   if (missingNumeric.length > 0) {
     throw new Error(`[EMASMACrossover] missing finite config key(s): ${missingNumeric.join(', ')}`);
-  }
-  const missingBoolean = REQUIRED_BOOLEAN_KEYS.filter(key => typeof cfg[key] !== 'boolean');
-  if (missingBoolean.length > 0) {
-    throw new Error(`[EMASMACrossover] missing boolean config key(s): ${missingBoolean.join(', ')}`);
   }
   if (typeof cfg.entryEventsOnly !== 'boolean') {
     throw new Error('[EMASMACrossover] strategyBehavior.emaCrossover.entryEventsOnly must be boolean');
   }
 
   const normalized = {
-    enabled: cfg.enabled,
     entryEventsOnly: cfg.entryEventsOnly,
     confirmBars: nonNegativeInteger(cfg.confirmBars, 'strategyBehavior.emaCrossover.confirmBars'),
     warmupBars: positiveInteger(cfg.warmupBars, 'strategyBehavior.emaCrossover.warmupBars'),
@@ -146,7 +130,7 @@ function clamp(value, min, max) {
 }
 
 class EMASMACrossoverSignal {
-  constructor(config = {}) {
+  constructor(config) {
     // MA pair definitions — period pairs + type
     this.pairs = [
       { id: 'ema9_20',   fast: 9,   slow: 20,  type: 'ema', weight: 1.0 },

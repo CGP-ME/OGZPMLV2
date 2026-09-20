@@ -41,25 +41,11 @@
     "description": "Consistent structured logging line (JSON)"
   },
 
-  "OGZ: Feature Flag Guard": {
-    "prefix": "ogzflag",
+  "OGZ: Canonical Configuration Read": {
+    "prefix": "ogzconfig",
     "body": [
-      "if (!process.env.${1:FEATURE_FLAG_NAME} || process.env.${1:FEATURE_FLAG_NAME} === \"false\") {",
-      "  return ${2:null};",
-      "}"
+      "const ${1:value} = resolvedConfig.config.${2:path};"
     ],
-    "description": "Env-driven feature flag guard"
-  },
-
-  "OGZ: Compose Cheatsheet": {
-    "prefix": "ogzcompose",
-    "body": [
-      "// Stack up: docker compose up -d",
-      "// Stack down: docker compose down",
-      "// Logs: docker compose logs -f --tail=200",
-      "// Restart bot: docker compose restart ogz-bot",
-      "// Restart websocket: docker compose restart ogz-websocket"
-    ],
-    "description": "Common docker compose commands"
+    "description": "Read a value from the ConfigLoader-produced runtime snapshot"
   }
 }

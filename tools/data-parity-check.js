@@ -5,13 +5,10 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const axios = require('axios');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
-require('dotenv').config({ path: path.join(PROJECT_ROOT, '.env') });
-const DEFAULT_SAME_WINDOW_START = '2026-06-01T13:30:00.000Z';
-const DEFAULT_SAME_WINDOW_END = '2026-06-30T20:00:00.000Z';
-const DEFAULT_SPOT_START = '2026-07-01T00:00:00.000Z';
-const DEFAULT_SPOT_END = '2026-07-03T00:00:00.000Z';
+const DATA_PARITY_CONFIG = ConfigLoader.getInternalsFileValue('tooling.dataParity');
 const PROVIDER_PREFIXES = new Set(['alpaca', 'polygon', 'iex', 'sip']);
 const TIMEFRAME_MS = Object.freeze({
   '1m': 60 * 1000,
@@ -48,6 +45,15 @@ function parseArgs(argv) {
     }
   }
   return options;
+}
+
+function loadLiveReferenceCredentials(liveReference) {
+  if (liveReference !== 'alpaca') return null;
+  const config = ConfigLoader.load({ role: 'market-data-tool', silent: true }).config;
+  return {
+    apiKey: config.services.marketData.alpaca.apiKey,
+    apiSecret: config.services.marketData.alpaca.apiSecret,
+  };
 }
 
 function numericTime(value) {
@@ -184,9 +190,9 @@ function summarizeDataFile(filePath, symbol, timeframe) {
 function liveSourceProvenance(symbol, timeframe) {
   return {
     provider: 'alpaca',
-    feed: 'iex',
+    feed: DATA_PARITY_CONFIG.alpacaFeed,
     feedType: 'single-exchange',
-    adjustment: 'raw',
+    adjustment: DATA_PARITY_CONFIG.alpacaAdjustment,
     restEndpoint: '/v2/stocks/{symbol}/bars',
     websocketUrl: 'wss://stream.data.alpaca.markets/v2/iex',
     sessionHandling: 'adapter requests bars without a session filter; trading availability is RTH-gated by AlpacaAdapter.isTradeableNow',
@@ -223,7 +229,11 @@ function summarizeDiffValues(values) {
   };
 }
 
-function compareCandles(campaignCandles, referenceCandles, { start, end, maxCloseBps = 5 }) {
+function compareCandles(campaignCandles, referenceCandles, {
+  start,
+  end,
+  maxCloseBps = DATA_PARITY_CONFIG.maxCloseBps,
+}) {
   const campaignWindow = filterWindow(campaignCandles, start, end);
   const referenceWindow = filterWindow(referenceCandles, start, end);
   const errors = [];
@@ -317,7 +327,15 @@ function journalFillRows(journalPath, symbol, start, end) {
     .filter(row => Number.isFinite(row.price));
 }
 
-function compareJournalFills(campaignCandles, { symbol, timeframe, journalPath, start, end, requireSpotCheck = true, maxOutsideBps = 10 }) {
+function compareJournalFills(campaignCandles, {
+  symbol,
+  timeframe,
+  journalPath,
+  start,
+  end,
+  requireSpotCheck = true,
+  maxOutsideBps = DATA_PARITY_CONFIG.maxFillOutsideBps,
+}) {
   const errors = [];
   const warnings = [];
   const candleByTime = new Map(campaignCandles.map(candle => [candle.t, candle]));
@@ -370,11 +388,11 @@ function compareJournalFills(campaignCandles, { symbol, timeframe, journalPath, 
   };
 }
 
-async function fetchAlpacaBars({ symbol, timeframe, start, end }) {
-  const key = process.env.ALPACA_API_KEY || process.env.APCA_API_KEY_ID;
-  const secret = process.env.ALPACA_API_SECRET || process.env.APCA_API_SECRET_KEY;
+async function fetchAlpacaBars({ symbol, timeframe, start, end, credentials }) {
+  const key = credentials?.apiKey;
+  const secret = credentials?.apiSecret;
   if (!key || !secret) {
-    throw new Error('ALPACA_API_KEY/APCA_API_KEY_ID and ALPACA_API_SECRET/APCA_API_SECRET_KEY are required for live parity fetch');
+    throw new Error('An explicit ConfigLoader Alpaca credential view is required for a live parity observation');
   }
   const timeframeMap = {
     '1m': '1Min',
@@ -385,6 +403,10 @@ async function fetchAlpacaBars({ symbol, timeframe, start, end }) {
     '4h': '4Hour',
     '1d': '1Day',
   };
+  const alpacaTimeframe = timeframeMap[timeframe];
+  if (!alpacaTimeframe) {
+    throw new Error(`Unsupported Alpaca parity timeframe '${timeframe}'`);
+  }
   const response = await axios.get(`https://data.alpaca.markets/v2/stocks/${symbol}/bars`, {
     headers: {
       'APCA-API-KEY-ID': key,
@@ -393,10 +415,10 @@ async function fetchAlpacaBars({ symbol, timeframe, start, end }) {
     params: {
       start: new Date(start).toISOString(),
       end: new Date(end).toISOString(),
-      timeframe: timeframeMap[timeframe] || '15Min',
-      adjustment: 'raw',
-      feed: 'iex',
-      limit: 10000,
+      timeframe: alpacaTimeframe,
+      adjustment: DATA_PARITY_CONFIG.alpacaAdjustment,
+      feed: DATA_PARITY_CONFIG.alpacaFeed,
+      limit: DATA_PARITY_CONFIG.alpacaPageLimit,
       sort: 'asc',
     },
   });
@@ -420,6 +442,7 @@ async function resolveReferenceCandles(options, start, end) {
           timeframe: options.timeframe,
           start,
           end,
+          credentials: options.credentials,
         }),
         errors: [],
       };
@@ -431,13 +454,15 @@ async function resolveReferenceCandles(options, start, end) {
 }
 
 async function runDataParityCheck(options) {
-  const symbol = options.symbol || 'TSLA';
-  const timeframe = options.timeframe || '15m';
-  const sameStart = numericTime(options.sameWindowStart || DEFAULT_SAME_WINDOW_START);
-  const sameEnd = numericTime(options.sameWindowEnd || DEFAULT_SAME_WINDOW_END);
-  const spotStart = numericTime(options.spotStart || DEFAULT_SPOT_START);
-  const spotEnd = numericTime(options.spotEnd || DEFAULT_SPOT_END);
+  const symbol = String(options.symbol || '').trim();
+  const timeframe = String(options.timeframe || '').trim();
+  const sameStart = numericTime(options.sameWindowStart ?? DATA_PARITY_CONFIG.sameWindowStart);
+  const sameEnd = numericTime(options.sameWindowEnd ?? DATA_PARITY_CONFIG.sameWindowEnd);
+  const spotStart = numericTime(options.spotStart ?? DATA_PARITY_CONFIG.spotStart);
+  const spotEnd = numericTime(options.spotEnd ?? DATA_PARITY_CONFIG.spotEnd);
   if (!options.dataFile) throw new Error('dataFile is required');
+  if (!symbol) throw new Error('symbol is required');
+  if (!timeframe) throw new Error('timeframe is required');
   if (![sameStart, sameEnd, spotStart, spotEnd].every(Number.isFinite)) {
     throw new Error('invalid parity window timestamp');
   }
@@ -447,7 +472,7 @@ async function runDataParityCheck(options) {
   const sameWindow = compareCandles(campaign.candles, reference.candles, {
     start: sameStart,
     end: sameEnd,
-    maxCloseBps: Number(options.maxCloseBps ?? 5),
+    maxCloseBps: Number(options.maxCloseBps ?? DATA_PARITY_CONFIG.maxCloseBps),
   });
   sameWindow.referenceSource = reference.source;
   sameWindow.errors.push(...reference.errors);
@@ -456,11 +481,11 @@ async function runDataParityCheck(options) {
   const groundTruth = compareJournalFills(campaign.candles, {
     symbol,
     timeframe,
-    journalPath: options.journalPath || path.join(PROJECT_ROOT, 'data', 'journal', 'trade-ledger.jsonl'),
+    journalPath: options.journalPath ?? null,
     start: spotStart,
     end: spotEnd,
     requireSpotCheck: options.requireSpotCheck !== false,
-    maxOutsideBps: Number(options.maxFillOutsideBps ?? 10),
+    maxOutsideBps: Number(options.maxFillOutsideBps ?? DATA_PARITY_CONFIG.maxFillOutsideBps),
   });
 
   const checks = {
@@ -506,16 +531,17 @@ async function runDataParityCheck(options) {
 
 async function main() {
   const options = parseArgs(process.argv);
-  if (!options.data) {
-    process.stderr.write('Usage: node tools/data-parity-check.js --data=<file> --symbol=TSLA --timeframe=15m [--reference=<file>|--live-reference=alpaca] [--journal=<file>] [--output=<file>]\n');
+  if (!options.data || !options.symbol || !options.timeframe) {
+    process.stderr.write('Usage: node tools/data-parity-check.js --data=<file> --symbol=<symbol> --timeframe=<timeframe> [--reference=<file>|--live-reference=alpaca] [--journal=<file>] [--output=<file>]\n');
     process.exit(1);
   }
   const stamp = await runDataParityCheck({
     dataFile: options.data,
-    symbol: options.symbol || 'TSLA',
-    timeframe: options.timeframe || '15m',
+    symbol: options.symbol,
+    timeframe: options.timeframe,
     referenceFile: options.reference,
     liveReference: options['live-reference'],
+    credentials: loadLiveReferenceCredentials(options['live-reference']),
     journalPath: options.journal,
     output: options.output,
     sameWindowStart: options['same-window-start'],
@@ -541,6 +567,7 @@ if (require.main === module) {
 module.exports = {
   compareCandles,
   compareJournalFills,
+  loadLiveReferenceCredentials,
   runDataParityCheck,
   summarizeDataFile,
 };

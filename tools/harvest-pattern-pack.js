@@ -2,10 +2,11 @@
 /**
  * tools/harvest-pattern-pack.js — Auto-harvest pattern-pack.json from sweep results
  *
- * Per CC-A spec addendum: when matrix-sweep finishes with TRAI_AUTO_HARVEST=true,
- * this module scans worker reports and aggregates trade dimensions into a
+ * When matrix-sweep finishes with the canonical harvest setting enabled, this
+ * module scans worker reports and aggregates trade dimensions into a
  * pattern-pack.json that TRAIPatternIntegration consumes for confidence
- * boost/penalty matching.
+ * boost/penalty matching. The mechanics come from ConfigLoader's canonical
+ * matrix-sweep configuration, not ambient environment variables.
  *
  * Pure statistical aggregation — no Mercury, no LLM, no live-data dependency.
  * Reads enriched trade records (CC-A Change 1) from per-worker JSON reports,
@@ -14,8 +15,8 @@
  *
  * Usage (CLI):
  *   node tools/harvest-pattern-pack.js \
- *     --input backtest-results/worker-reports/ \
- *     --output data/pattern-pack.json \
+ *     --input <worker-reports-dir> \
+ *     --output <pattern-pack-path> \
  *     --min-trades 20 --boost 0.55 --penalty 0.40
  *
  * Usage (programmatic):
@@ -40,14 +41,39 @@
 
 const fs = require('fs');
 const path = require('path');
+const ConfigLoader = require('../foundation/ConfigLoader');
+
+const HARVEST_DEFAULTS = ConfigLoader.getMatrixSweepConfig().harvestDefaults;
 
 const DEFAULT_OPTS = {
-  minTrades: 20,
-  boostThreshold: 0.55,
-  penaltyThreshold: 0.40,
+  minTrades: HARVEST_DEFAULTS.minTrades,
+  boostThreshold: HARVEST_DEFAULTS.boostThreshold,
+  penaltyThreshold: HARVEST_DEFAULTS.penaltyThreshold,
   afterTimestamp: null,
+  reportTags: null,
   source: null,
 };
+
+function listJsonFiles(inputDir) {
+  const files = [];
+  for (const entry of fs.readdirSync(inputDir, { withFileTypes: true })) {
+    const fullPath = path.join(inputDir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...listJsonFiles(fullPath));
+    } else if (entry.isFile() && entry.name.endsWith('.json')) {
+      files.push(fullPath);
+    }
+  }
+  return files;
+}
+
+function matchesReportTag(inputDir, filePath, reportTags) {
+  if (!Array.isArray(reportTags)) return true;
+  const relativeParts = path.relative(inputDir, filePath).split(path.sep);
+  return reportTags.some(tag => relativeParts.some(part =>
+    part.includes(`-${tag}-`) || part.endsWith(`-${tag}.json`)
+  ));
+}
 
 /**
  * Walk inputDir, parse each JSON, accumulate dimension aggregates across all
@@ -63,9 +89,8 @@ function aggregateReports(inputDir, opts) {
     throw new Error(`[harvest] input dir does not exist: ${inputDir}`);
   }
 
-  const files = fs.readdirSync(inputDir)
-    .filter(f => f.endsWith('.json'))
-    .map(f => path.join(inputDir, f));
+  const files = listJsonFiles(inputDir)
+    .filter(file => matchesReportTag(inputDir, file, opts.reportTags));
 
   for (const file of files) {
     let stat;
@@ -221,6 +246,14 @@ function buildPatternPack(agg, opts, totalTrades) {
  */
 function harvest(inputDir, outputPath, opts = {}) {
   const merged = { ...DEFAULT_OPTS, ...opts };
+  if (!Number.isInteger(merged.minTrades) || merged.minTrades < 0) {
+    throw new Error('[harvest] minTrades must be a non-negative integer');
+  }
+  for (const optionName of ['boostThreshold', 'penaltyThreshold']) {
+    if (!Number.isFinite(merged[optionName]) || merged[optionName] < 0 || merged[optionName] > 1) {
+      throw new Error(`[harvest] ${optionName} must be a finite 0-1 value`);
+    }
+  }
   const { agg, totalTrades, scannedFiles, skippedFiles } = aggregateReports(inputDir, merged);
   const pack = buildPatternPack(agg, merged, totalTrades);
 
@@ -257,26 +290,26 @@ module.exports = { harvest, aggregateReports, buildPatternPack };
 // CLI entrypoint
 if (require.main === module) {
   const args = process.argv.slice(2);
-  let inputDir = path.join(__dirname, '..', 'backtest-results', 'worker-reports');
-  let outputPath = path.join(__dirname, '..', 'data', 'pattern-pack.json');
+  let inputDir = null;
+  let outputPath = null;
   const opts = {};
 
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (a === '--input' && args[i + 1]) { inputDir = args[++i]; continue; }
     if (a === '--output' && args[i + 1]) { outputPath = args[++i]; continue; }
-    if (a === '--min-trades' && args[i + 1]) { opts.minTrades = parseInt(args[++i]); continue; }
-    if (a === '--boost' && args[i + 1]) { opts.boostThreshold = parseFloat(args[++i]); continue; }
-    if (a === '--penalty' && args[i + 1]) { opts.penaltyThreshold = parseFloat(args[++i]); continue; }
+    if (a === '--min-trades' && args[i + 1]) { opts.minTrades = Number(args[++i]); continue; }
+    if (a === '--boost' && args[i + 1]) { opts.boostThreshold = Number(args[++i]); continue; }
+    if (a === '--penalty' && args[i + 1]) { opts.penaltyThreshold = Number(args[++i]); continue; }
     if (a === '--source' && args[i + 1]) { opts.source = args[++i]; continue; }
     if (a === '--after' && args[i + 1]) { opts.afterTimestamp = parseFloat(args[++i]); continue; }
     if (a === '--help' || a === '-h') {
       console.log(`Usage: node tools/harvest-pattern-pack.js [options]
-  --input <dir>          Worker reports dir (default: backtest-results/worker-reports/)
-  --output <path>        Pattern-pack output path (default: data/pattern-pack.json)
-  --min-trades <n>       Minimum trades per dimension combo (default: 20)
-  --boost <ratio>        Win-rate threshold for pattern (default: 0.55)
-  --penalty <ratio>      Win-rate threshold for anti-pattern (default: 0.40)
+  --input <dir>          Worker reports dir (required)
+  --output <path>        Pattern-pack output path (required)
+  --min-trades <n>       Minimum trades per dimension combo (default: ${HARVEST_DEFAULTS.minTrades})
+  --boost <ratio>        Win-rate threshold for pattern (default: ${HARVEST_DEFAULTS.boostThreshold})
+  --penalty <ratio>      Win-rate threshold for anti-pattern (default: ${HARVEST_DEFAULTS.penaltyThreshold})
   --source <label>       Source label written into pack metadata
   --after <epoch-ms>     Only scan files mtime'd after this timestamp
 `);
@@ -285,6 +318,9 @@ if (require.main === module) {
   }
 
   try {
+    if (!inputDir || !outputPath) {
+      throw new Error('--input and --output are required');
+    }
     const r = harvest(inputDir, outputPath, opts);
     console.log(`[harvest] scanned=${r.scannedFiles} skipped=${r.skippedFiles} dimensions=${r.dimensionCount} trades=${r.totalTrades}`);
     console.log(`[harvest] patterns=${r.patterns} antiPatterns=${r.antiPatterns}`);

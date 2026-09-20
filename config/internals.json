@@ -1,0 +1,1151 @@
+{
+  "schemaVersion": 1,
+  "revision": 1,
+  "backtest": {
+    "candleDataFile": "",
+    "reportTag": "",
+    "silent": false,
+    "verbose": false,
+    "fast": false,
+    "freshStart": false
+  },
+  "paths": {
+    "stateFile": "data/state-paper.json",
+    "dataDir": "data",
+    "journalDataDir": "data/journal",
+    "backtestOutputDir": "",
+    "logDirectory": "logs"
+  },
+  "journal": {
+    "maxInMemoryTrades": 5000,
+    "maxEquityPoints": 10000,
+    "autoSaveIntervalMs": 60000,
+    "replayCandlesBefore": 60,
+    "replayCandlesAfter": 30,
+    "maxPendingVisibilityErrors": 50,
+    "dashboardHookIntervalMs": 2000,
+    "broadcastIntervalMs": 30000
+  },
+  "sessionRouter": {
+    "fastCheckIntervalMs": 1000,
+    "transitionStoreDir": "data/session-router",
+    "transitionStoreStaleLockMs": 120000
+  },
+  "marketCalendar": {
+    "timezone": "America/New_York",
+    "premarketStartMinute": 240,
+    "regularStartMinute": 570,
+    "regularEndMinute": 960,
+    "afterhoursEndMinute": 1200,
+    "halfDayCloseMinute": 780,
+    "maxOpenSearchDays": 10
+  },
+  "pipelineSnapshot": {
+    "intervalMs": 1800000,
+    "initialCaptureDelayMs": 5000,
+    "outputFile": "data/pipeline-snapshots.jsonl"
+  },
+  "performanceAnalysis": {
+    "updateIntervalMs": 60000,
+    "performanceDbPath": "data/performance.json",
+    "verboseLogging": false
+  },
+  "trai": {
+    "staticBrainPath": "trai_brain",
+    "decisionLogPath": "logs/trai-decisions.log",
+    "decisionHistoryLimit": 1000,
+    "memoryTopK": 5,
+    "memoryMaxJournalEntries": 1000
+  },
+  "monitoring": {
+    "sentryEnabled": true,
+    "sentrySendDefaultPii": true,
+    "sentryRelease": "ogzprime@2.0.0",
+    "sentryTracesSampleRate": 0.1
+  },
+  "observability": {
+    "evalTraceEnabled": true,
+    "evalTraceBacktest": false,
+    "traceEventMaxBufferedBytes": 1048576,
+    "strategyDiagnostics": false,
+    "backtestVerbose": false,
+    "smartMoneyDebug": false
+  },
+  "decisionRecords": {
+    "ledgerBufferSize": 1,
+    "ledgerValidate": true,
+    "autopsyEnabled": true,
+    "autopsyFallbackDirectory": "logs/decisions"
+  },
+  "dataFeed": {
+    "bootRestHydrationLimit": 60,
+    "livenessBackfillLimit": 10,
+    "livenessCheckIntervalMs": 60000,
+    "maxDataSilenceMs": 120000,
+    "activeTimeframeMultiplier": 1.5,
+    "activeTimeframeSlackMs": 60000,
+    "maxBackfillAgeMultiplier": 2,
+    "maxBackfillAgeSlackMs": 60000,
+    "staleDataMaxAgeMs": 120000,
+    "staleDataRecoveryAgeMs": 30000,
+    "gapThresholdMultiplier": 1.5,
+    "gapBackfillBufferCandles": 5,
+    "gapRecoveryCleanCandlesRequired": 3,
+    "gapBackfillRetryDelayMs": 60000,
+    "expectedQuietLogIntervalMs": 300000,
+    "volumeCapMaxReferenceAgeLimitMs": 300000
+  },
+  "broker": {
+    "tradingIntervalMs": 15000,
+    "alpacaWebSocket": {
+      "initialReconnectDelayMs": 1000,
+      "maxReconnectDelayMs": 30000,
+      "heartbeatPingMs": 0,
+      "pongTimeoutMs": 0,
+      "dataWatchdogMs": 60000,
+      "maxPayloadBytes": 1048576,
+      "maxBytesPerSecond": 10485760
+    }
+  },
+  "indicators": {
+    "engine": {
+      "maxCandles": 2000,
+      "maxSeriesPoints": 400
+    },
+    "optimized": {
+      "cacheSize": 1000,
+      "macdHistorySize": 50,
+      "twoPole": {
+        "maxHistory": 100,
+        "stateHistoryPoints": 50,
+        "chartDataPoints": 50,
+        "chartOpacityFloor": 0.2,
+        "chartOpacityCeiling": 1,
+        "chartOpacityScale": 2,
+        "chartColorChannelCeiling": 255,
+        "chartColorChannelBase": 100,
+        "chartColorChannelScale": 155,
+        "signalMarkerSymbol": "X",
+        "buyMarkerColor": "#0080FF",
+        "sellMarkerColor": "#8B008B",
+        "signalMarkerSize": 12,
+        "stopMarkerSymbol": "━",
+        "bullishStopMarkerColor": "#FF4444",
+        "bearishStopMarkerColor": "#FF6666",
+        "stopMarkerSize": 10,
+        "longStopLabel": "STOP (Long)",
+        "shortStopLabel": "STOP (Short)",
+        "longStopDescription": "Exit long position if price drops below",
+        "shortStopDescription": "Exit short position if price rises above",
+        "bullishGradient": "linear-gradient(to top, rgba(0,255,255,0.2), rgba(0,255,255,1))",
+        "bearishGradient": "linear-gradient(to bottom, rgba(255,0,255,0.2), rgba(255,0,255,1))",
+        "oscillatorLogDigits": 3,
+        "zoneLogDigits": 2,
+        "deltaLogDigits": 1,
+        "priceLogDigits": 2,
+        "riskLogDigits": 2
+      }
+    }
+  },
+  "candleStore": {
+    "maxCandles": 250
+  },
+  "multiTimeframe": {
+    "maxCandlesByTimeframe": {
+      "1m": 1440,
+      "5m": 576,
+      "15m": 384,
+      "30m": 336,
+      "1h": 720,
+      "4h": 360,
+      "1d": 365
+    }
+  },
+  "singleton": {
+    "lockDir": ".",
+    "monitorIntervalMs": 30000
+  },
+  "dashboard": {
+    "stateUpdateHeartbeatMs": 30000,
+    "sessionTtlMs": 604800000,
+    "ticketTtlMs": 600000,
+    "websocketAuthTimeoutMs": 10000,
+    "statusLogIntervalMs": 30000,
+    "traiFetchTimeoutMs": 25000,
+    "traiEventsCacheTtlMs": 1800000,
+    "traiRegimeCacheTtlMs": 300000,
+    "traiSessionContextCacheTtlMs": 600000,
+    "traiTradeSummaryCacheTtlMs": 3600000,
+    "traiWhalesCacheTtlMs": 1800000,
+    "decisionLedgerPath": "data/decision-ledger.jsonl",
+    "decisionLedgerSyncMaxBytes": 52428800,
+    "errorEventDedupeMs": 5000,
+    "errorEventMessageMaxLength": 500,
+    "errorEventDedupeMaxKeys": 200,
+    "brokerStatusDedupeMaxKeys": 200,
+    "edgeAnalyticsMaxScopes": 200,
+    "depthMinIntervalMs": 100,
+    "stockPriceIntervalMs": 5000,
+    "cryptoPriceIntervalMs": 5000,
+    "krakenRestTickerUrl": "https://api.kraken.com/0/public/Ticker",
+    "botRelayUrl": "ws://localhost:3010/ws",
+    "cryptoMarketFeed": {
+      "publicWsUrl": "wss://ws.kraken.com",
+      "pairBySymbol": {
+        "BTC-USD": "XBT/USD",
+        "ETH-USD": "ETH/USD",
+        "SOL-USD": "SOL/USD"
+      },
+      "bookDepth": 25,
+      "watchdogMs": 60000,
+      "backoffMinMs": 1000,
+      "backoffMaxMs": 30000,
+      "backoffMultiplier": 2,
+      "nearMidBandFraction": 0.02,
+      "tradeWindowMs": 300000,
+      "wallMinUsd": 1000000,
+      "whaleTradeMinUsd": 250000,
+      "emitIntervalMs": 1000,
+      "maxWalls": 6,
+      "maxDensityLevels": 10,
+      "densityWeightCap": 15,
+      "densityWeightDivisorUsd": 250000,
+      "cvdTrendDeltaThresholdUsd": 1,
+      "buySellRatioWhenNoSells": 99
+    }
+  },
+  "instruments": {
+    "cryptoBases": [
+      "btc",
+      "eth",
+      "sol",
+      "doge",
+      "xrp",
+      "ada",
+      "ltc",
+      "bch",
+      "link",
+      "avax",
+      "matic",
+      "dot",
+      "shib"
+    ]
+  },
+  "webhookOrders": {
+    "timeoutMs": 5000,
+    "orderLogCap": 500
+  },
+  "queues": {
+    "message": {
+      "maxQueueSize": 50,
+      "minProcessingGapMs": 5,
+      "staleThresholdMs": 3000
+    }
+  },
+  "patternMemory": {
+    "saveInBacktest": false
+  },
+  "tooling": {
+    "confidenceGrid": {
+      "thresholds": [
+        0.05,
+        0.1,
+        0.15,
+        0.2,
+        0.25,
+        0.3
+      ]
+    },
+    "dataParity": {
+      "sameWindowStart": "2026-06-01T13:30:00Z",
+      "sameWindowEnd": "2026-06-30T20:00:00Z",
+      "spotStart": "2026-07-01T00:00:00Z",
+      "spotEnd": "2026-07-03T00:00:00Z",
+      "alpacaFeed": "iex",
+      "alpacaAdjustment": "raw",
+      "alpacaPageLimit": 10000,
+      "maxCloseBps": 5,
+      "maxFillOutsideBps": 10
+    },
+    "stockDownload": {
+      "outputDir": "tuning",
+      "years": 2,
+      "timeframe": "15Min",
+      "filenameTimeframe": "15m",
+      "limit": 10000,
+      "chunkMonths": 1,
+      "rateLimitMs": 200,
+      "feed": "iex",
+      "adjustment": "raw",
+      "sessionProfile": "alpaca_bars_no_session_filter"
+    },
+    "parallelBacktest": {
+      "timeoutMs": 0,
+      "killGraceMs": 5000,
+      "defaultData": "tuning/alpaca-tsla-15m-2y.json",
+      "dataShortcuts": {
+        "tsla": "tuning/alpaca-tsla-15m-2y.json",
+        "tsla-unseen": "tuning/tsla-15m-unseen.json",
+        "spy": "tuning/alpaca-spy-15m-2y.json",
+        "qqq": "tuning/alpaca-qqq-15m-2y.json"
+      },
+      "stockDataShortcutKeys": [
+        "tsla",
+        "tsla-unseen",
+        "spy",
+        "qqq"
+      ],
+      "strategies": [
+        "RSI",
+        "EMASMACrossover",
+        "MADynamicSR",
+        "LiquiditySweep",
+        "SmartMoneySweep",
+        "OGZTPO",
+        "OpeningRangeBreakout",
+        "CandlePattern",
+        "NoWickImbalance",
+        "BreakRetest",
+        "DonchianBreakout",
+        "PropSafeEMAPullback",
+        "EMATrendRetest",
+        "RSI2MeanReversion",
+        "TimeSeriesMomentum"
+      ],
+      "sweepPresets": {
+        "real": [
+          {
+            "name": "baseline",
+            "overrides": {}
+          },
+          {
+            "name": "atr-off",
+            "overrides": {
+              "filters.atrEnabled": false
+            }
+          },
+          {
+            "name": "atr-015",
+            "overrides": {
+              "filters.atrEnabled": true,
+              "filters.atrMinPercent": 0.15
+            }
+          },
+          {
+            "name": "atr-025",
+            "overrides": {
+              "filters.atrEnabled": true,
+              "filters.atrMinPercent": 0.25
+            }
+          },
+          {
+            "name": "size-3pct",
+            "overrides": {
+              "positionSizing.maxPositionSize": 0.03
+            }
+          },
+          {
+            "name": "size-5pct",
+            "overrides": {
+              "positionSizing.maxPositionSize": 0.05
+            }
+          },
+          {
+            "name": "size-7pct",
+            "overrides": {
+              "positionSizing.maxPositionSize": 0.07
+            }
+          },
+          {
+            "name": "tiers-tight",
+            "overrides": {
+              "exits.profitTiers.tier1": 0.01,
+              "exits.profitTiers.tier2": 0.015,
+              "exits.profitTiers.tier3": 0.02
+            }
+          },
+          {
+            "name": "tiers-wide",
+            "overrides": {
+              "exits.profitTiers.tier1": 0.015,
+              "exits.profitTiers.tier2": 0.025,
+              "exits.profitTiers.tier3": 0.04
+            }
+          }
+        ],
+        "atr": [
+          {
+            "name": "atr-off",
+            "overrides": {
+              "filters.atrEnabled": false
+            }
+          },
+          {
+            "name": "atr-010",
+            "overrides": {
+              "filters.atrEnabled": true,
+              "filters.atrMinPercent": 0.1
+            }
+          },
+          {
+            "name": "atr-015",
+            "overrides": {
+              "filters.atrEnabled": true,
+              "filters.atrMinPercent": 0.15
+            }
+          },
+          {
+            "name": "atr-020",
+            "overrides": {
+              "filters.atrEnabled": true,
+              "filters.atrMinPercent": 0.2
+            }
+          },
+          {
+            "name": "atr-025",
+            "overrides": {
+              "filters.atrEnabled": true,
+              "filters.atrMinPercent": 0.25
+            }
+          },
+          {
+            "name": "atr-030",
+            "overrides": {
+              "filters.atrEnabled": true,
+              "filters.atrMinPercent": 0.3
+            }
+          },
+          {
+            "name": "atr-035",
+            "overrides": {
+              "filters.atrEnabled": true,
+              "filters.atrMinPercent": 0.35
+            }
+          },
+          {
+            "name": "atr-040",
+            "overrides": {
+              "filters.atrEnabled": true,
+              "filters.atrMinPercent": 0.4
+            }
+          }
+        ],
+        "sizing": [
+          {
+            "name": "size-2pct",
+            "overrides": {
+              "positionSizing.maxPositionSize": 0.02
+            }
+          },
+          {
+            "name": "size-3pct",
+            "overrides": {
+              "positionSizing.maxPositionSize": 0.03
+            }
+          },
+          {
+            "name": "size-4pct",
+            "overrides": {
+              "positionSizing.maxPositionSize": 0.04
+            }
+          },
+          {
+            "name": "size-5pct",
+            "overrides": {
+              "positionSizing.maxPositionSize": 0.05
+            }
+          },
+          {
+            "name": "size-7pct",
+            "overrides": {
+              "positionSizing.maxPositionSize": 0.07
+            }
+          },
+          {
+            "name": "size-10pct",
+            "overrides": {
+              "positionSizing.maxPositionSize": 0.1
+            }
+          }
+        ],
+        "tiers": [
+          {
+            "name": "tiers-tight",
+            "overrides": {
+              "exits.profitTiers.tier1": 0.005,
+              "exits.profitTiers.tier2": 0.008,
+              "exits.profitTiers.tier3": 0.012
+            }
+          },
+          {
+            "name": "tiers-configD",
+            "overrides": {
+              "exits.profitTiers.tier1": 0.007,
+              "exits.profitTiers.tier2": 0.01,
+              "exits.profitTiers.tier3": 0.015
+            }
+          },
+          {
+            "name": "tiers-above-fees",
+            "overrides": {
+              "exits.profitTiers.tier1": 0.01,
+              "exits.profitTiers.tier2": 0.015,
+              "exits.profitTiers.tier3": 0.02
+            }
+          },
+          {
+            "name": "tiers-wide",
+            "overrides": {
+              "exits.profitTiers.tier1": 0.015,
+              "exits.profitTiers.tier2": 0.02,
+              "exits.profitTiers.tier3": 0.03
+            }
+          },
+          {
+            "name": "tiers-no-early",
+            "overrides": {
+              "exits.profitTiers.tier1": 0.02,
+              "exits.profitTiers.tier2": 0.03,
+              "exits.profitTiers.tier3": 0.05
+            }
+          }
+        ],
+        "strategySweep": [
+          {
+            "name": "RSI-only",
+            "overrides": {
+              "strategies.soloFilter": [
+                "RSI"
+              ]
+            }
+          },
+          {
+            "name": "EMA-only",
+            "overrides": {
+              "strategies.soloFilter": [
+                "EMASMACrossover"
+              ]
+            }
+          },
+          {
+            "name": "MASR-only",
+            "overrides": {
+              "strategies.soloFilter": [
+                "MADynamicSR"
+              ]
+            }
+          },
+          {
+            "name": "Sweep-only",
+            "overrides": {
+              "strategies.soloFilter": [
+                "LiquiditySweep"
+              ]
+            }
+          },
+          {
+            "name": "SMS-only",
+            "overrides": {
+              "strategies.soloFilter": [
+                "SmartMoneySweep"
+              ]
+            }
+          },
+          {
+            "name": "TPO-only",
+            "overrides": {
+              "strategies.soloFilter": [
+                "OGZTPO"
+              ]
+            }
+          },
+          {
+            "name": "ORB-only",
+            "overrides": {
+              "strategies.soloFilter": [
+                "OpeningRangeBreakout"
+              ]
+            }
+          },
+          {
+            "name": "Candle-only",
+            "overrides": {
+              "strategies.soloFilter": [
+                "CandlePattern"
+              ]
+            }
+          },
+          {
+            "name": "NoWick-only",
+            "overrides": {
+              "strategies.soloFilter": [
+                "NoWickImbalance"
+              ]
+            }
+          },
+          {
+            "name": "BreakRetest-only",
+            "overrides": {
+              "strategies.soloFilter": [
+                "BreakRetest"
+              ]
+            }
+          },
+          {
+            "name": "Donchian-only",
+            "overrides": {
+              "strategies.soloFilter": [
+                "DonchianBreakout"
+              ]
+            }
+          },
+          {
+            "name": "PropEMA-only",
+            "overrides": {
+              "strategies.soloFilter": [
+                "PropSafeEMAPullback"
+              ]
+            }
+          },
+          {
+            "name": "EMARetest-only",
+            "overrides": {
+              "strategies.soloFilter": [
+                "EMATrendRetest"
+              ]
+            }
+          },
+          {
+            "name": "RSI2MR-only",
+            "overrides": {
+              "strategies.soloFilter": [
+                "RSI2MeanReversion"
+              ]
+            }
+          },
+          {
+            "name": "TSMOM-only",
+            "overrides": {
+              "strategies.soloFilter": [
+                "TimeSeriesMomentum"
+              ]
+            }
+          }
+        ],
+        "exitGeometry": [
+          {
+            "name": "donchian-current",
+            "overrides": {
+              "strategies.soloFilter": [
+                "DonchianBreakout"
+              ]
+            }
+          },
+          {
+            "name": "donchian-fee-tight",
+            "overrides": {
+              "strategies.soloFilter": [
+                "DonchianBreakout"
+              ],
+              "strategies.DonchianBreakout.atrStopMult": 1.2
+            }
+          },
+          {
+            "name": "donchian-balanced",
+            "overrides": {
+              "strategies.soloFilter": [
+                "DonchianBreakout"
+              ],
+              "strategies.DonchianBreakout.atrStopMult": 1.6
+            }
+          },
+          {
+            "name": "donchian-runner",
+            "overrides": {
+              "strategies.soloFilter": [
+                "DonchianBreakout"
+              ],
+              "strategies.DonchianBreakout.atrStopMult": 2
+            }
+          },
+          {
+            "name": "tsmom-current",
+            "overrides": {
+              "strategies.soloFilter": [
+                "TimeSeriesMomentum"
+              ]
+            }
+          },
+          {
+            "name": "tsmom-fee-tight",
+            "overrides": {
+              "strategies.soloFilter": [
+                "TimeSeriesMomentum"
+              ],
+              "strategies.TimeSeriesMomentum.minReturn": 0.004
+            }
+          },
+          {
+            "name": "tsmom-balanced",
+            "overrides": {
+              "strategies.soloFilter": [
+                "TimeSeriesMomentum"
+              ],
+              "strategies.TimeSeriesMomentum.minReturn": 0.006
+            }
+          },
+          {
+            "name": "tsmom-selective",
+            "overrides": {
+              "strategies.soloFilter": [
+                "TimeSeriesMomentum"
+              ],
+              "strategies.TimeSeriesMomentum.minReturn": 0.01
+            }
+          },
+          {
+            "name": "rsi2mr-current",
+            "overrides": {
+              "strategies.soloFilter": [
+                "RSI2MeanReversion"
+              ]
+            }
+          },
+          {
+            "name": "rsi2mr-scalp",
+            "overrides": {
+              "strategies.soloFilter": [
+                "RSI2MeanReversion"
+              ],
+              "strategies.RSI2MeanReversion.stopLossPercent": -0.6,
+              "strategies.RSI2MeanReversion.takeProfitPercent": 1,
+              "strategies.RSI2MeanReversion.trailingStopPercent": 0.4,
+              "strategies.RSI2MeanReversion.trailingActivation": 0.6,
+              "strategies.RSI2MeanReversion.maxHoldTimeMinutes": 120
+            }
+          },
+          {
+            "name": "rsi2mr-balanced",
+            "overrides": {
+              "strategies.soloFilter": [
+                "RSI2MeanReversion"
+              ],
+              "strategies.RSI2MeanReversion.stopLossPercent": -0.8,
+              "strategies.RSI2MeanReversion.takeProfitPercent": 1.4,
+              "strategies.RSI2MeanReversion.trailingStopPercent": 0.5,
+              "strategies.RSI2MeanReversion.trailingActivation": 0.7,
+              "strategies.RSI2MeanReversion.maxHoldTimeMinutes": 180
+            }
+          },
+          {
+            "name": "propema-current",
+            "overrides": {
+              "strategies.soloFilter": [
+                "PropSafeEMAPullback"
+              ]
+            }
+          },
+          {
+            "name": "propema-tight-r",
+            "overrides": {
+              "strategies.soloFilter": [
+                "PropSafeEMAPullback"
+              ],
+              "strategies.PropSafeEMAPullback.atrStopMult": 0.8,
+              "strategies.PropSafeEMAPullback.targetRR": 2,
+              "strategies.PropSafeEMAPullback.trailActivationR": 1,
+              "strategies.PropSafeEMAPullback.trailDistanceR": 0.7,
+              "strategies.PropSafeEMAPullback.maxHoldTimeMinutes": 120
+            }
+          },
+          {
+            "name": "propema-balanced-r",
+            "overrides": {
+              "strategies.soloFilter": [
+                "PropSafeEMAPullback"
+              ],
+              "strategies.PropSafeEMAPullback.atrStopMult": 1,
+              "strategies.PropSafeEMAPullback.targetRR": 2.6,
+              "strategies.PropSafeEMAPullback.trailActivationR": 1.2,
+              "strategies.PropSafeEMAPullback.trailDistanceR": 0.8,
+              "strategies.PropSafeEMAPullback.maxHoldTimeMinutes": 180
+            }
+          },
+          {
+            "name": "emaretest-current",
+            "overrides": {
+              "strategies.soloFilter": [
+                "EMATrendRetest"
+              ]
+            }
+          },
+          {
+            "name": "emaretest-tight-r",
+            "overrides": {
+              "strategies.soloFilter": [
+                "EMATrendRetest"
+              ],
+              "strategies.EMATrendRetest.atrStopMult": 0.8,
+              "strategies.EMATrendRetest.targetRR": 2,
+              "strategies.EMATrendRetest.trailActivationR": 1,
+              "strategies.EMATrendRetest.trailDistanceR": 0.7,
+              "strategies.EMATrendRetest.maxHoldTimeMinutes": 120
+            }
+          },
+          {
+            "name": "emaretest-balanced-r",
+            "overrides": {
+              "strategies.soloFilter": [
+                "EMATrendRetest"
+              ],
+              "strategies.EMATrendRetest.atrStopMult": 1,
+              "strategies.EMATrendRetest.targetRR": 2.6,
+              "strategies.EMATrendRetest.trailActivationR": 1.2,
+              "strategies.EMATrendRetest.trailDistanceR": 0.8,
+              "strategies.EMATrendRetest.maxHoldTimeMinutes": 180
+            }
+          }
+        ]
+      },
+      "rsiSweep": {
+        "buyBelowLevels": [
+          25,
+          30,
+          35,
+          40
+        ],
+        "exitAboveLevels": [
+          45,
+          50,
+          55,
+          60
+        ],
+        "minSpread": 10
+      },
+      "gauntlet": {
+        "atrValues": [
+          0,
+          0.1,
+          0.15,
+          0.2,
+          0.25,
+          0.3,
+          0.35,
+          0.4
+        ]
+      }
+    },
+    "matrixSweep": {
+      "harvestDefaults": {
+        "enabled": false,
+        "minTrades": 20,
+        "boostThreshold": 0.55,
+        "penaltyThreshold": 0.4
+      },
+      "defaultData": "tuning/alpaca-tsla-15m-2y.json",
+      "dataShortcuts": {
+        "tsla": "tuning/alpaca-tsla-15m-2y.json",
+        "tsla-unseen": "tuning/tsla-15m-unseen.json",
+        "spy": "tuning/alpaca-spy-15m-2y.json",
+        "qqq": "tuning/alpaca-qqq-15m-2y.json",
+        "nvda": "tuning/alpaca-nvda-15m-2y.json",
+        "riot": "tuning/alpaca-riot-15m-2y.json",
+        "mara": "tuning/alpaca-mara-15m-2y.json",
+        "coin": "tuning/alpaca-coin-15m-2y.json"
+      },
+      "stockTickers": [
+        "tsla",
+        "spy",
+        "qqq",
+        "nvda",
+        "riot",
+        "mara",
+        "coin",
+        "tsla-unseen"
+      ],
+      "validatedStrategies": [
+        "RSI",
+        "EMASMACrossover",
+        "MADynamicSR",
+        "LiquiditySweep",
+        "SmartMoneySweep"
+      ],
+      "exploratoryStrategies": [
+        "OGZTPO",
+        "OpeningRangeBreakout",
+        "CandlePattern",
+        "NoWickImbalance",
+        "BreakRetest",
+        "DonchianBreakout",
+        "PropSafeEMAPullback",
+        "EMATrendRetest",
+        "RSI2MeanReversion",
+        "TimeSeriesMomentum"
+      ],
+      "grid": {
+        "full": {
+          "stopLoss": [
+            0.5,
+            0.75,
+            1,
+            1.25,
+            1.5,
+            1.75,
+            2,
+            2.25,
+            2.5,
+            3,
+            3.5,
+            4,
+            5
+          ],
+          "tierPresets": [
+            {
+              "t1": 0.005,
+              "t2": 0.01,
+              "t3": 0.015,
+              "label": "tight"
+            },
+            {
+              "t1": 0.007,
+              "t2": 0.01,
+              "t3": 0.015,
+              "label": "default"
+            },
+            {
+              "t1": 0.01,
+              "t2": 0.015,
+              "t3": 0.02,
+              "label": "wide"
+            },
+            {
+              "t1": 0.015,
+              "t2": 0.02,
+              "t3": 0.03,
+              "label": "ultra-wide"
+            }
+          ],
+          "confidence": [
+            0.3,
+            0.4,
+            0.5,
+            0.55,
+            0.6,
+            0.65,
+            0.7,
+            0.75
+          ]
+        },
+        "quick": {
+          "stopLoss": [
+            0.5,
+            0.8,
+            1.5
+          ],
+          "tierPresets": [
+            {
+              "t1": 0.005,
+              "t2": 0.01,
+              "t3": 0.015,
+              "label": "tight"
+            },
+            {
+              "t1": 0.007,
+              "t2": 0.01,
+              "t3": 0.015,
+              "label": "default"
+            },
+            {
+              "t1": 0.01,
+              "t2": 0.015,
+              "t3": 0.02,
+              "label": "wide"
+            }
+          ],
+          "confidence": [
+            0.4,
+            0.55,
+            0.7
+          ]
+        },
+        "exits": {
+          "stopLoss": [
+            0.3,
+            0.5,
+            0.8,
+            1,
+            1.5,
+            2,
+            2.5,
+            3
+          ],
+          "tierGrid": [
+            0.005,
+            0.0075,
+            0.01,
+            0.0125,
+            0.015,
+            0.0175,
+            0.02,
+            0.0225,
+            0.025,
+            0.0275
+          ],
+          "confidence": [
+            0.6
+          ]
+        },
+        "conf": {
+          "stopLoss": null,
+          "tierPresets": null,
+          "confidence": [
+            0.25,
+            0.3,
+            0.35,
+            0.4,
+            0.45,
+            0.5,
+            0.55,
+            0.6,
+            0.65,
+            0.7,
+            0.75,
+            0.8
+          ],
+          "globalParams": {
+            "orchestrator.mtfConfluenceService.minReadyTimeframes": [
+              2,
+              3
+            ]
+          },
+          "strategyParams": {
+            "PropSafeEMAPullback": {
+              "strategies.PropSafeEMAPullback.pullbackLookbackBars": [
+                3,
+                5,
+                8
+              ]
+            },
+            "NoWickImbalance": {
+              "strategies.NoWickImbalance.entryMode": [
+                "tap",
+                "rejection"
+              ],
+              "strategies.NoWickImbalance.targetRR": [
+                1,
+                1.5,
+                2
+              ]
+            },
+            "SmartMoneySweep": {
+              "strategies.SmartMoneySweep.minConditionsGate": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "strategies.SmartMoneySweep.confidenceMode": [
+                "tiered",
+                "continuous"
+              ]
+            },
+            "OpeningRangeBreakout": {
+              "strategies.OpeningRangeBreakout.orDurationMinutes": [
+                5,
+                15,
+                30
+              ],
+              "strategies.OpeningRangeBreakout.orMinWidthAtr": [
+                0,
+                0.5,
+                1
+              ]
+            }
+          }
+        }
+      }
+    },
+    "weekendCampaign": {
+      "campaignRoot": "ogz-meta/cognition-history/weekend-campaign",
+      "defaultSmokeData": "tsla-unseen",
+      "defaultFeeProfile": "ttp_real",
+      "defaultBaselineProfile": "current-eval",
+      "defaultTreyProfile": "trey-spec",
+      "defaultPhase": "conf",
+      "defaultDiskReserveMiB": 10240,
+      "lowDiskStatus": "LOW-DISK-ABORT"
+    }
+  },
+  "deployment": {
+    "pm2": {
+      "websocket": {
+        "autorestart": true,
+        "maxRestarts": 16,
+        "restartDelayMs": 0,
+        "minUptimeMs": 1000
+      },
+      "checkout": {
+        "autorestart": true,
+        "maxRestarts": 16,
+        "restartDelayMs": 0,
+        "minUptimeMs": 1000
+      },
+      "bot": {
+        "autorestart": true,
+        "maxRestarts": 10,
+        "restartDelayMs": 5000,
+        "minUptimeMs": 1000
+      },
+      "supervisor": {
+        "autorestart": true,
+        "maxRestarts": 10,
+        "restartDelayMs": 5000,
+        "minUptimeMs": 2000
+      }
+    }
+  },
+  "services": {
+    "supervisor": {
+      "pollMs": 30000,
+      "degradeMs": 120000,
+      "healAttempts": 3,
+      "healCooldownMs": 30000,
+      "deadCooldownMs": 300000,
+      "maxRestartsIn10min": 5,
+      "restartWindowMs": 600000,
+      "flappingRestartThreshold": 5,
+      "flappingUptimeWindowMs": 3600000,
+      "healthTimeoutMs": 5000,
+      "alertTimeoutMs": 10000,
+      "deadmanHeartbeatMs": 60000,
+      "deadmanRequestTimeoutMs": 5000,
+      "healthRequestTimeoutMs": 5000,
+      "pm2ListTimeoutMs": 5000,
+      "pm2RestartTimeoutMs": 15000,
+      "shutdownDelayMs": 200,
+      "healthUrl": "https://localhost:443/api/health",
+      "botProcess": "ogz-prime-v2",
+      "relayProcess": "ogz-websocket",
+      "ledgerPath": "data/supervisor-ledger.jsonl",
+      "alertHookPath": null
+    },
+    "news": {
+      "edgar": {
+        "tickerMapTtlMs": 86400000,
+        "submissionsTtlMs": 900000,
+        "lookbackDays": 90,
+        "form4CacheMaxEntries": 200,
+        "form4ParsePerCall": 3
+      }
+    },
+    "notifications": {
+      "telegram": {
+        "minIntervalMs": 5000,
+        "requestTimeoutMs": 10000
+      },
+      "ntfy": {
+        "requestTimeoutMs": 5000
+      }
+    }
+  }
+}

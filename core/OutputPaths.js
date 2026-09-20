@@ -2,18 +2,26 @@
 
 const path = require('path');
 const fs = require('fs');
+const ConfigLoader = require('../foundation/ConfigLoader');
+
+function configuredOutputRoot() {
+  const loadedSnapshot = ConfigLoader.getCachedSnapshot();
+  const loadedValue = loadedSnapshot?.config?.paths?.backtestOutputDir;
+  if (loadedValue !== undefined) return loadedValue;
+  return ConfigLoader.getInternalsFileValue('paths.backtestOutputDir');
+}
 
 /**
  * Resolves the backtest output root directory.
- * Controlled by BACKTEST_OUTPUT_DIR env var.
- * Falls back to repo-relative paths for VPS backward compatibility.
+ * Controlled by config/internals.json paths.backtestOutputDir.
+ * An explicit empty value preserves the repo-relative output layout.
  */
 function getOutputRoot() {
-  const envRoot = process.env.BACKTEST_OUTPUT_DIR;
-  if (envRoot) {
-    return envRoot.replace(/\\/g, '/');  // normalize Windows paths
+  const configuredRoot = configuredOutputRoot();
+  if (configuredRoot) {
+    return configuredRoot.replace(/\\/g, '/');  // normalize Windows paths
   }
-  // Fallback: repo root (preserves existing VPS behavior)
+  // An explicit empty configured root preserves the existing repo-root layout.
   return path.resolve(__dirname, '..');
 }
 
@@ -33,11 +41,22 @@ function getRunDir(runId) {
   if (!runId) {
     throw new Error('[OutputPaths] getRunDir requires explicit runId');
   }
-  const envRoot = process.env.BACKTEST_OUTPUT_DIR;
-  const dir = envRoot
+  const configuredRoot = configuredOutputRoot();
+  const dir = configuredRoot
     ? path.join(root, 'runs', String(runId))
-    : root;  // legacy: write to repo root
+    : root;
   return ensureDir(dir);
+}
+
+/**
+ * Get the shared root used by typed backtest workers and their controller.
+ * A configured root is already the report root. An explicit empty value keeps
+ * the historical repo-relative backtest-results/ layout.
+ */
+function getBacktestResultsDir() {
+  const root = getOutputRoot();
+  const configuredRoot = configuredOutputRoot();
+  return ensureDir(configuredRoot ? root : path.join(root, 'backtest-results'));
 }
 
 /**
@@ -45,9 +64,9 @@ function getRunDir(runId) {
  */
 function getLedgerDir() {
   const root = getOutputRoot();
-  const envRoot = process.env.BACKTEST_OUTPUT_DIR;
-  // If env var is set, use unified structure. Otherwise preserve legacy logs/decisions/.
-  const dir = envRoot
+  const configuredRoot = configuredOutputRoot();
+  // A configured output root uses the unified structure; empty preserves logs/decisions/.
+  const dir = configuredRoot
     ? path.join(root, 'ledger')
     : path.join(root, 'logs', 'decisions');
   return ensureDir(dir);
@@ -58,9 +77,9 @@ function getLedgerDir() {
  */
 function getMatrixDir() {
   const root = getOutputRoot();
-  const envRoot = process.env.BACKTEST_OUTPUT_DIR;
-  // If env var is set, use unified structure. Otherwise preserve legacy backtest-results/.
-  const dir = envRoot
+  const configuredRoot = configuredOutputRoot();
+  // A configured output root uses the unified structure; empty preserves backtest-results/.
+  const dir = configuredRoot
     ? path.join(root, 'matrix')
     : path.join(root, 'backtest-results');
   return ensureDir(dir);
@@ -69,6 +88,7 @@ function getMatrixDir() {
 module.exports = {
   getOutputRoot,
   getRunDir,
+  getBacktestResultsDir,
   getLedgerDir,
   getMatrixDir,
   ensureDir,
