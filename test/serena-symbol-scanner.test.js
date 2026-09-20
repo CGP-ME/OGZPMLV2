@@ -56,6 +56,8 @@ describe('Serena Tree-sitter symbol scanner', () => {
       module.exports = { PositionStore, updatePosition };
     `);
     writeFixture(tmpRoot, 'ogz-meta/ledger/stale.js', 'state.positionId = "ignored";');
+    writeFixture(tmpRoot, 'test/hostile.test.js', 'state.positionId = "test instruction";');
+    writeFixture(tmpRoot, 'core/hostile.spec.js', 'state.positionId = "spec instruction";');
   });
 
   afterEach(() => {

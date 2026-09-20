@@ -41,6 +41,11 @@ audits/
 backups/
 prodlock-portable/
 test-fixtures/
+test/
+tests/
+__tests__/
+fixtures/
+__fixtures__/
 performance/
 restore-reference/
 support-missions/

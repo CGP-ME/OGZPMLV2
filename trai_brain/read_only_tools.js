@@ -1,11 +1,11 @@
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const mercuryConfig = require('./mercury-bridge/config');
+const repositoryPolicy = require('./repository-policy');
 
 function buildSkipDirGlobArgs() {
     const args = [];
-    for (const dir of mercuryConfig.SKIP_DIRS) {
+    for (const dir of repositoryPolicy.SKIP_DIRS) {
         args.push('--glob', `!**/${dir}/**`);
     }
     return args;
@@ -30,8 +30,8 @@ class ReadOnlyToolbox {
 
     ensureNotIgnored(targetPath, toolName) {
         const relPath = path.relative(this.repoRoot, targetPath).replace(/\\/g, '/');
-        if (mercuryConfig.isPathIgnoredByMercury(relPath)) {
-            throw new Error(`${toolName} blocked by mercury.ignore: ${relPath}`);
+        if (repositoryPolicy.isPathIgnoredByMercury(relPath)) {
+            throw new Error(`${toolName} blocked by mercury.ignore production scope: ${relPath}`);
         }
     }
 
@@ -53,18 +53,22 @@ class ReadOnlyToolbox {
             this.repoRoot,
         ];
         const result = spawnSync('rg', args, { encoding: 'utf8' });
+        const stdout = typeof result.stdout === 'string' ? result.stdout : '';
+        const stderr = typeof result.stderr === 'string' ? result.stderr : '';
 
-        if (result.error) {
+        if (result.error && typeof result.status !== 'number') {
             return { error: result.error.message };
         }
 
-        if (result.status !== 0 && result.stderr) {
-            return { error: result.stderr.trim() };
+        // ripgrep status 1 means no matches. A numeric exit status proves the
+        // child ran even when a managed wrapper also attaches an error object.
+        if (result.status !== 0 && result.status !== 1) {
+            return { error: stderr.trim() || result.error && result.error.message || `rg exited ${result.status}` };
         }
 
         const filtered = [];
         let filteredIgnored = 0;
-        for (const line of result.stdout.trim().split('\n').filter(Boolean)) {
+        for (const line of stdout.trim().split('\n').filter(Boolean)) {
             const firstColon = line.indexOf(':');
             if (firstColon === -1) continue;
             const filePath = line.slice(0, firstColon);

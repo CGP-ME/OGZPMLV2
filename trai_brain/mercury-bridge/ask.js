@@ -485,15 +485,20 @@ function currentChangedFiles(repoRoot = config.REPO_ROOT) {
   });
 }
 
-function currentChangeDiff(repoRoot = config.REPO_ROOT) {
-  const cached = execFileSync('git', ['diff', '--cached', '--no-ext-diff'], {
+function currentChangeDiff(repoRoot = config.REPO_ROOT, changedFiles = null) {
+  const scopedFiles = Array.isArray(changedFiles)
+    ? changedFiles.filter(file => typeof file === 'string' && file)
+    : null;
+  if (scopedFiles && scopedFiles.length === 0) return '';
+  const pathspec = scopedFiles ? ['--', ...scopedFiles] : [];
+  const cached = execFileSync('git', ['diff', '--cached', '--no-ext-diff', ...pathspec], {
     cwd: repoRoot,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
     maxBuffer: 32 * 1024 * 1024,
   });
   if (cached.trim()) return cached;
-  return execFileSync('git', ['diff', '--no-ext-diff'], {
+  return execFileSync('git', ['diff', '--no-ext-diff', ...pathspec], {
     cwd: repoRoot,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -551,12 +556,9 @@ async function buildCurrentChangeBlastRadius({
   for (const candidate of candidates) {
     const relPath = normalizeRepoRelativePath(repoRoot, candidate);
     if (!relPath) continue;
+    if (config.isPathIgnoredByMercury(relPath)) continue;
     normalizedCandidates.push(relPath);
     if (!relPath.endsWith('.js') || relPath.endsWith('.bak')) continue;
-    if (config.isPathIgnoredByMercury(relPath)) {
-      errors.push({ file: relPath, error: 'AST scan blocked by mercury.ignore' });
-      continue;
-    }
     if (!existsFn(path.join(repoRoot, relPath))) {
       errors.push({ file: relPath, error: 'AST scan target is absent from the working tree' });
       continue;
@@ -567,7 +569,7 @@ async function buildCurrentChangeBlastRadius({
   let diff = '';
   let referenceNames = [];
   try {
-    diff = currentDiffFn(repoRoot);
+    diff = currentDiffFn(repoRoot, normalizedCandidates);
     referenceNames = extractDiffReferenceNames(diff);
   } catch (err) {
     errors.push({ file: '<current_diff>', error: err.message });

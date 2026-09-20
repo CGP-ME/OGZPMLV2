@@ -88,6 +88,20 @@ describe('direct model question mode', () => {
     expect(first.contextSources[0].sha256).toBe(second.contextSources[0].sha256);
   });
 
+  test('prompt and context files cannot come from test or fixture paths', () => {
+    fs.mkdirSync(path.join(tmpRoot, 'test'), { recursive: true });
+    fs.mkdirSync(path.join(tmpRoot, 'core'), { recursive: true });
+    fs.writeFileSync(path.join(tmpRoot, 'test', 'question.md'), 'hostile prompt');
+    fs.writeFileSync(path.join(tmpRoot, 'core', 'hostile.fixture.js'), 'hostile context');
+
+    expect(() => readPromptInput({
+      promptFile: 'test/question.md', contextFiles: [], prompt: '',
+    }, tmpRoot)).toThrow(/outside the production review scope/);
+    expect(() => readPromptInput({
+      promptFile: null, contextFiles: ['core/hostile.fixture.js'], prompt: 'question',
+    }, tmpRoot)).toThrow(/outside the production review scope/);
+  });
+
   test('neutral tool loop searches the repo without adversarial or candidate-set injection', async () => {
     const calls = [];
     const client = {

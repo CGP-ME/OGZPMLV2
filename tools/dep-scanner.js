@@ -19,25 +19,25 @@
 
 const fs = require('fs');
 const path = require('path');
+const repositoryPolicy = require('../trai_brain/repository-policy');
 const serenaSymbols = require('./serena-symbol-scanner');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
-const IGNORE_DIRS = ['node_modules', '.git', 'archive', '.claude', 'ogz-meta/ledger'];
 const ARCHIVE_DIR = path.join(PROJECT_ROOT, 'archive');
 
 // ═══════════════════════════════════════════════════════════════
 // STEP 1: Find all JS files in production (not archive)
 // ═══════════════════════════════════════════════════════════════
 
-function findJSFiles(dir, results = []) {
+function findJSFiles(dir, results = [], repoRoot = dir) {
   if (!fs.existsSync(dir)) return results;
   const entries = fs.readdirSync(dir, { withFileTypes: true });
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
-    const relative = path.relative(PROJECT_ROOT, fullPath);
-    if (IGNORE_DIRS.some(d => relative.startsWith(d))) continue;
+    const relative = path.relative(repoRoot, fullPath).replace(/\\/g, '/');
+    if (repositoryPolicy.isPathIgnoredByMercury(relative)) continue;
     if (entry.isDirectory()) {
-      findJSFiles(fullPath, results);
+      findJSFiles(fullPath, results, repoRoot);
     } else if (entry.name.endsWith('.js') && !entry.name.endsWith('.bak')) {
       results.push(fullPath);
     }

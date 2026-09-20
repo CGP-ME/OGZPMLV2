@@ -9,16 +9,23 @@
 
 const fs = require('fs');
 const path = require('path');
+const {
+  REPO_ROOT,
+  MERCURY_IGNORE_FILE,
+  SKIP_DIRS,
+  TEST_FIXTURE_DIRS,
+  loadMercuryIgnore,
+  isTestFixturePath,
+  isPathIgnoredByMercury,
+} = require('../repository-policy');
 
 // ─── Repo root ────────────────────────────────────────────────
-const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const explicitConfigFile = typeof process.env.MERCURY_CONFIG_FILE === 'string'
   ? process.env.MERCURY_CONFIG_FILE.trim()
   : '';
 const MERCURY_CONFIG_FILE = explicitConfigFile
   ? path.resolve(explicitConfigFile)
   : path.join(REPO_ROOT, 'mercury.config.json');
-const MERCURY_IGNORE_FILE = path.join(REPO_ROOT, 'mercury.ignore');
 
 function getConfigValue(config, dottedPath) {
   return dottedPath.split('.').reduce((current, key) => (
@@ -145,44 +152,6 @@ function validateProviderBaseUrl(value, dottedPath) {
   } catch (error) {
     throw new Error(`Invalid mercury.config.json value: ${dottedPath}: ${error.message}`);
   }
-}
-
-function loadMercuryIgnore(filePath) {
-  if (!fs.existsSync(filePath)) {
-    throw new Error(`Missing Mercury ignore contract: ${filePath}`);
-  }
-
-  const skipDirs = new Set();
-  const lines = fs.readFileSync(filePath, 'utf8').split(/\r?\n/);
-  for (const [idx, rawLine] of lines.entries()) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith('#')) continue;
-    if (!line.endsWith('/')) {
-      throw new Error(`Invalid mercury.ignore line ${idx + 1}: directory entries must end with /`);
-    }
-    if (line.includes('*')) {
-      throw new Error(`Invalid mercury.ignore line ${idx + 1}: glob entries are not supported`);
-    }
-    const normalized = line.replace(/\\/g, '/').replace(/\/+$/, '');
-    const segments = normalized.split('/').filter(Boolean);
-    const dirName = segments[segments.length - 1];
-    if (!dirName || dirName === '.' || dirName === '..') {
-      throw new Error(`Invalid mercury.ignore line ${idx + 1}: ${rawLine}`);
-    }
-    skipDirs.add(dirName);
-  }
-
-  if (skipDirs.size === 0) {
-    throw new Error(`Mercury ignore contract is empty: ${filePath}`);
-  }
-
-  return { skipDirs };
-}
-
-function isPathIgnoredByMercury(pathLike, skipDirs = SKIP_DIRS) {
-  if (!pathLike || typeof pathLike !== 'string') return false;
-  const parts = pathLike.replace(/\\/g, '/').split('/').filter(Boolean);
-  return parts.some(part => skipDirs.has(part));
 }
 
 const MERCURY_CONFIG = readMercuryConfig(MERCURY_CONFIG_FILE);
@@ -562,8 +531,6 @@ const PROVIDER_PRICING = Object.freeze({
 // ─── Skip patterns ────────────────────────────────────────────
 // Directory exclusions live in mercury.ignore so intake/history boundaries are
 // visible and shared by the indexer, Mercury grep, and legacy repo search.
-const { skipDirs: SKIP_DIRS } = loadMercuryIgnore(MERCURY_IGNORE_FILE);
-
 // CHANGELOG.md recency window: only the newest N lines are indexed
 // (newest-first file; Mercury has no temporal reasoning over chunks).
 const CHANGELOG_RECENT_LINES = 800;
@@ -699,10 +666,12 @@ module.exports = {
   SINGLE_SHOT_MAX_TOKENS,
   AGENTIC_SYSTEM_PROMPT,
   SKIP_DIRS,
+  TEST_FIXTURE_DIRS,
   SKIP_FILE_EXTENSIONS,
   SKIP_FILE_PATTERNS,
   CHANGELOG_RECENT_LINES,
   INDEX_FILE_EXTENSIONS,
   MERCURY_SYSTEM_PROMPT,
+  isTestFixturePath,
   isPathIgnoredByMercury,
 };

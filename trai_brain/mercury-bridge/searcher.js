@@ -267,8 +267,15 @@ function rrfMerge(semanticRanked, bm25Ranked, boosts, k) {
  * priority over classifyQuery auto-detection.
  */
 async function retrieveTopK(store, queryEmbedding, k, query, opts = {}) {
-  const allChunks = await store.fetchAllForScoring();
-  allChunks.forEach((chunk) => assertRetrievableChunkPath(chunk, 'scoring'));
+  const fetchedChunks = await store.fetchAllForScoring();
+  for (const chunk of fetchedChunks) {
+    if (!chunk || !chunk.file_path) {
+      const id = chunk && chunk._id ? String(chunk._id) : 'unknown';
+      throw new Error(`Mercury retrieval scoring chunk ${id} is missing file_path; cannot apply repository policy`);
+    }
+  }
+  const allChunks = fetchedChunks
+    .filter(chunk => !config.isPathIgnoredByMercury(chunk.file_path));
   if (allChunks.length === 0) return [];
 
   const pool = config.HYBRID_CANDIDATE_POOL;
@@ -365,13 +372,24 @@ async function retrieveTopK(store, queryEmbedding, k, query, opts = {}) {
 
 function buildPrompt(userQuery, retrievedChunks) {
   const lines = [];
+  const suppliedChunks = Array.isArray(retrievedChunks) ? retrievedChunks : [];
+  for (const chunk of suppliedChunks) {
+    if (!chunk || typeof chunk.file_path !== 'string') {
+      const id = chunk && chunk._id ? String(chunk._id) : 'unknown';
+      throw new Error(`Mercury prompt chunk ${id} is missing file_path; cannot apply repository policy`);
+    }
+  }
+  const productionChunks = suppliedChunks
+    .filter(chunk => (
+      !config.isPathIgnoredByMercury(chunk.file_path)
+    ));
 
   lines.push(config.MERCURY_SYSTEM_PROMPT);
   lines.push('');
   lines.push('─── RETRIEVED CODE CONTEXT ───');
   lines.push('');
 
-  retrievedChunks.forEach((chunk, idx) => {
+  productionChunks.forEach((chunk, idx) => {
     const header = `### [${idx + 1}] ${chunk.file_path}:${chunk.start_line}-${chunk.end_line}`;
     const subheader = `[kind: ${chunk.kind} | name: ${chunk.name} | similarity: ${(chunk.similarity || 0).toFixed(3)}]`;
     lines.push(header);

@@ -80,7 +80,8 @@ function shouldDescendDirectory(repoRoot, fullPath) {
 }
 
 function isIndexEligiblePath(repoRoot, fullPath) {
-  return isOgzMetaIndexEligible(normalizeRepoRelPath(repoRoot, fullPath));
+  const relPath = normalizeRepoRelPath(repoRoot, fullPath);
+  return !config.isPathIgnoredByMercury(relPath) && isOgzMetaIndexEligible(relPath);
 }
 
 function gitText(repoRoot, args, fallback = null) {

@@ -11,6 +11,7 @@ const config = require('./config');
 const { createDirectModelClient } = require('./llm-client');
 const { accountProviderAttempt } = require('./cost-accounting');
 const { createToolAdapter } = require('./tool-adapter');
+const { isPathIgnoredByMercury } = require('../repository-policy');
 const {
   callMercuryWithRetry,
   stringifyToolResultForHistory,
@@ -76,6 +77,9 @@ function readRepoInputFile(fileValue, label, repoRoot) {
   const relative = path.relative(rootReal, absolute).replace(/\\/g, '/');
   if (!relative || relative === '..' || relative.startsWith('../') || path.isAbsolute(relative)) {
     throw new Error(`${label} must resolve inside the repository`);
+  }
+  if (isPathIgnoredByMercury(relative)) {
+    throw new Error(`${label} is outside the production review scope: ${relative}`);
   }
   if (path.basename(relative).toLowerCase().startsWith('.env')) {
     throw new Error(`${label} cannot be an environment file`);

@@ -2,9 +2,9 @@
 
 const fs = require('fs');
 const path = require('path');
+const repositoryPolicy = require('../trai_brain/repository-policy');
 
 const DEFAULT_REPO_ROOT = path.resolve(__dirname, '..');
-const IGNORE_DIRS = ['node_modules', '.git', 'archive', '.claude', 'ogz-meta/ledger'];
 const MUTATING_METHODS = new Set(['push', 'pop', 'shift', 'unshift', 'splice', 'sort', 'reverse', 'set', 'delete', 'clear', 'add']);
 
 let Parser = null;
@@ -25,7 +25,7 @@ function findJSFiles(dir, repoRoot = DEFAULT_REPO_ROOT, results = []) {
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
     const relative = path.relative(repoRoot, fullPath).replace(/\\/g, '/');
-    if (IGNORE_DIRS.some((ignored) => relative === ignored || relative.startsWith(`${ignored}/`))) {
+    if (repositoryPolicy.isPathIgnoredByMercury(relative)) {
       continue;
     }
     if (entry.isDirectory()) {
