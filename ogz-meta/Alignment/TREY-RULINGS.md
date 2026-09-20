@@ -29,3 +29,7 @@ Property-test requirement: fuzz seat arrays with random absences/collisions/evid
 13. NO ARTIFACT OUTRANKS ITS RECEIPT. No verdict, summary, packet, or ledger line may claim a stronger conclusion than the strongest mechanically supported panel state recorded in the same receipt.
 
 Property-test requirement: for every emitted artifact, assert claimed verdict <= receipt's recorded panel state.
+
+## 2026-09-20
+
+14. MANAGED DIRECTION POLICY IS BIDIRECTIONAL. The canonical `paper` and `production` launch profiles use `pipeline.directionFilter: "both"`. Historical `long_only` records, ambient `.env` values, and previously loaded process metadata do not override this ruling. Committed source and loaded PM2 state remain separate: this ruling changes the source configuration but does not authorize or claim a runtime restart.

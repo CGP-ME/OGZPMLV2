@@ -305,7 +305,7 @@
         "enableEMATrendRetest": true,
         "enableRSI2MeanReversion": true,
         "enableTimeSeriesMomentum": true,
-        "directionFilter": "long_only"
+        "directionFilter": "both"
       }
     },
     "paper": {
@@ -436,7 +436,7 @@
         "enableEMATrendRetest": true,
         "enableRSI2MeanReversion": true,
         "enableTimeSeriesMomentum": true,
-        "directionFilter": "long_only"
+        "directionFilter": "both"
       }
     },
     "backtest-all": {
