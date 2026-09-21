@@ -2,7 +2,6 @@
 
 const { c } = require('../core/CandleHelper');
 const { IndicatorCalculator } = require('../core/IndicatorCalculator');
-const ConfigLoader = require('../foundation/ConfigLoader');
 
 const REQUIRED_NUMERIC_KEYS = [
   'entryPeriod',
@@ -18,9 +17,8 @@ const REQUIRED_STRING_KEYS = [
   'maxHoldMode',
 ];
 
-function readConfig(overrides) {
-  const base = ConfigLoader.get('strategies.DonchianBreakout');
-  const cfg = { ...(base || {}), ...(overrides || {}) };
+function readConfig(config) {
+  const cfg = config;
   const missing = REQUIRED_NUMERIC_KEYS.filter(key => !Number.isFinite(Number(cfg[key])));
   if (missing.length > 0) {
     throw new Error(`[DonchianBreakout] missing finite config key(s): ${missing.join(', ')}`);
@@ -59,7 +57,7 @@ function readConfig(overrides) {
 }
 
 class DonchianBreakout {
-  constructor(config = {}) {
+  constructor(config) {
     const cfg = readConfig(config);
 
     this.entryPeriod = Number(cfg.entryPeriod);
@@ -74,10 +72,8 @@ class DonchianBreakout {
       trailChannelBars: Number(cfg.trailChannelBars),
       tpMode: cfg.tpMode,
       maxHoldMode: cfg.maxHoldMode,
-      partialExit: cfg.partialExit && typeof cfg.partialExit === 'object'
-        ? { ...cfg.partialExit }
-        : { enabled: false, triggerR: 1, fraction: 0.5, remainderTrail: 'terrain' },
-      invalidationConditions: [...(cfg.invalidationConditions || ['donchian_channel_reentry'])],
+      partialExit: { ...cfg.partialExit },
+      invalidationConditions: [...cfg.invalidationConditions],
     };
   }
 

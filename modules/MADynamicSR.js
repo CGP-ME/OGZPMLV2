@@ -24,7 +24,6 @@
 'use strict';
 
 const { c, o, h, l } = require('../core/CandleHelper');
-const ConfigLoader = require('../foundation/ConfigLoader');
 
 const REQUIRED_NUMBER_KEYS = [
   'entryMaPeriod',
@@ -89,23 +88,6 @@ function isPlainObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
-function deepMergeConfig(base, override) {
-  const merged = { ...base, ...override };
-  if (isPlainObject(base.conditionFlags) || isPlainObject(override.conditionFlags)) {
-    merged.conditionFlags = { ...(base.conditionFlags || {}), ...(override.conditionFlags || {}) };
-  }
-  if (isPlainObject(base.approachRules) || isPlainObject(override.approachRules)) {
-    merged.approachRules = { ...(base.approachRules || {}), ...(override.approachRules || {}) };
-  }
-  if (isPlainObject(base.multipliers) || isPlainObject(override.multipliers)) {
-    merged.multipliers = { ...(base.multipliers || {}), ...(override.multipliers || {}) };
-  }
-  if (isPlainObject(base.structural) || isPlainObject(override.structural)) {
-    merged.structural = { ...(base.structural || {}), ...(override.structural || {}) };
-  }
-  return merged;
-}
-
 function requireFiniteConfig(config, key) {
   const value = Number(config[key]);
   if (!Number.isFinite(value)) {
@@ -139,44 +121,29 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
-function readPath(root, configPath) {
-  return configPath.split('.').reduce((current, part) => (
-    current && Object.prototype.hasOwnProperty.call(current, part) ? current[part] : undefined
-  ), root);
-}
-
-function loadResolvedConfig(overrides = {}) {
-  const cached = typeof ConfigLoader.getCachedSnapshot === 'function'
-    ? ConfigLoader.getCachedSnapshot()
-    : null;
-  const loaded = cached?.config
-    ? readPath(cached.config, 'strategies.MADynamicSR')
-    : readPath(ConfigLoader.BASE_CONFIG, 'strategies.MADynamicSR');
-  if (!isPlainObject(loaded)) {
+function loadResolvedConfig(config) {
+  if (!isPlainObject(config)) {
     throw new Error('[MADynamicSR] Missing config block strategies.MADynamicSR');
   }
-
-  const merged = deepMergeConfig(loaded, isPlainObject(overrides) ? overrides : {});
   const normalized = {};
   for (const key of REQUIRED_NUMBER_KEYS) {
-    normalized[key] = requireFiniteConfig(merged, key);
+    normalized[key] = requireFiniteConfig(config, key);
   }
-  normalized.enabled = Boolean(merged.enabled);
   normalized.conditionFlags = {};
   for (const key of CONDITION_FLAG_KEYS) {
-    normalized.conditionFlags[key] = requireNestedBool(merged, 'conditionFlags', key);
+    normalized.conditionFlags[key] = requireNestedBool(config, 'conditionFlags', key);
   }
   normalized.approachRules = {};
   for (const key of REQUIRED_APPROACH_RULE_KEYS) {
-    normalized.approachRules[key] = requireNestedBool(merged, 'approachRules', key);
+    normalized.approachRules[key] = requireNestedBool(config, 'approachRules', key);
   }
   normalized.multipliers = {};
   for (const key of REQUIRED_MULTIPLIER_KEYS) {
-    normalized.multipliers[key] = requireNestedFinite(merged, 'multipliers', key);
+    normalized.multipliers[key] = requireNestedFinite(config, 'multipliers', key);
   }
   normalized.structural = {};
   for (const key of REQUIRED_STRUCTURAL_KEYS) {
-    normalized.structural[key] = requireNestedFinite(merged, 'structural', key);
+    normalized.structural[key] = requireNestedFinite(config, 'structural', key);
   }
   validateResolvedConfig(normalized);
   return normalized;
@@ -229,7 +196,7 @@ function validateResolvedConfig(config) {
 }
 
 class MADynamicSR {
-  constructor(config = {}) {
+  constructor(config) {
     this.config = loadResolvedConfig(config);
 
     // MA periods per CORRECTED Trader DNA interpretation
