@@ -35,14 +35,14 @@ const ConfigLoader = require('../foundation/ConfigLoader');
 class PIDLoop {
   constructor(name, config = {}) {
     this.name = name;
-    this.Kp = config.Kp || 0.3;          // Proportional gain
-    this.Ki = config.Ki || 0.05;         // Integral gain
-    this.Kd = config.Kd || 0.1;          // Derivative gain
-    this.setpoint = config.setpoint || 0;
-    this.integralMax = config.integralMax || 5.0;
-    this.outputMin = config.outputMin || 0.3;
-    this.outputMax = config.outputMax || 2.0;
-    this.rateLimit = config.rateLimit || 0.10; // max 10% change per cycle
+    this.Kp = config.Kp;
+    this.Ki = config.Ki;
+    this.Kd = config.Kd;
+    this.setpoint = config.setpoint;
+    this.integralMax = config.integralMax;
+    this.outputMin = config.outputMin;
+    this.outputMax = config.outputMax;
+    this.rateLimit = config.rateLimit;
 
     // State
     this.integral = 0;
@@ -123,23 +123,23 @@ class PIDLoop {
 
 class PIDController {
   constructor(config = {}) {
-    this.enabled = config.enabled ?? ConfigLoader.get('pid.enabled') ?? true;
-    this.updateInterval = config.updateInterval || ConfigLoader.get('pid.updateInterval') || 10;
-    this.warmupTrades = config.warmupTrades || ConfigLoader.get('pid.warmupTrades') || 50;
+    this.enabled = config.enabled ?? ConfigLoader.get('pid.enabled');
+    this.updateInterval = config.updateInterval ?? ConfigLoader.get('pid.updateInterval');
+    this.warmupTrades = config.warmupTrades ?? ConfigLoader.get('pid.warmupTrades');
     this.tradesSinceUpdate = 0;
     this.totalTrades = 0;
 
     // === LOOP 1: Position Sizing ===
     // Target: maintain positive equity slope
     this.positionLoop = new PIDLoop('position_sizing', {
-      Kp: ConfigLoader.get('pid.positionKp') || 0.30,
-      Ki: ConfigLoader.get('pid.positionKi') || 0.05,
-      Kd: ConfigLoader.get('pid.positionKd') || 0.10,
-      setpoint: ConfigLoader.get('pid.targetEquitySlope') || 0.005,
-      outputMin: 0.3,   // minimum 30% of base size
-      outputMax: 2.0,   // maximum 200% of base size
-      integralMax: 5.0,
-      rateLimit: 0.10,
+      Kp: ConfigLoader.get('pid.positionKp'),
+      Ki: ConfigLoader.get('pid.positionKi'),
+      Kd: ConfigLoader.get('pid.positionKd'),
+      setpoint: ConfigLoader.get('pid.targetEquitySlope'),
+      outputMin: ConfigLoader.get('pid.positionOutputMin'),
+      outputMax: ConfigLoader.get('pid.positionOutputMax'),
+      integralMax: ConfigLoader.get('pid.positionIntegralMax'),
+      rateLimit: ConfigLoader.get('pid.positionRateLimit'),
     });
 
     // === LOOP 2: Regime Boost Adaptation ===
@@ -148,33 +148,33 @@ class PIDController {
     const strategies = ['RSI', 'EMASMACrossover', 'MADynamicSR', 'LiquiditySweep', 'SmartMoneySweep'];
     for (const strat of strategies) {
       this.regimeLoops[strat] = new PIDLoop(`regime_${strat}`, {
-        Kp: ConfigLoader.get('pid.regimeKp') || 0.02,
-        Ki: ConfigLoader.get('pid.regimeKi') || 0.005,
-        Kd: ConfigLoader.get('pid.regimeKd') || 0.01,
-        setpoint: 0, // target: profitable (P&L > 0)
-        outputMin: 0.5,
-        outputMax: 1.5,
-        integralMax: 3.0,
-        rateLimit: 0.10,
+        Kp: ConfigLoader.get('pid.regimeKp'),
+        Ki: ConfigLoader.get('pid.regimeKi'),
+        Kd: ConfigLoader.get('pid.regimeKd'),
+        setpoint: ConfigLoader.get('pid.targetRegimePnl'),
+        outputMin: ConfigLoader.get('pid.regimeOutputMin'),
+        outputMax: ConfigLoader.get('pid.regimeOutputMax'),
+        integralMax: ConfigLoader.get('pid.regimeIntegralMax'),
+        rateLimit: ConfigLoader.get('pid.regimeRateLimit'),
       });
     }
 
     // === LOOP 3: Trailing Stop Adaptation ===
     // Target: capture 60%+ of max favorable excursion
     this.trailLoop = new PIDLoop('trailing_stop', {
-      Kp: ConfigLoader.get('pid.trailKp') || 0.15,
-      Ki: ConfigLoader.get('pid.trailKi') || 0.03,
-      Kd: ConfigLoader.get('pid.trailKd') || 0.05,
-      setpoint: ConfigLoader.get('pid.targetMFERatio') || 0.60,
-      outputMin: 1.0,
-      outputMax: 3.5,
-      integralMax: 2.0,
-      rateLimit: 0.10,
+      Kp: ConfigLoader.get('pid.trailKp'),
+      Ki: ConfigLoader.get('pid.trailKi'),
+      Kd: ConfigLoader.get('pid.trailKd'),
+      setpoint: ConfigLoader.get('pid.targetMFERatio'),
+      outputMin: ConfigLoader.get('pid.trailOutputMin'),
+      outputMax: ConfigLoader.get('pid.trailOutputMax'),
+      integralMax: ConfigLoader.get('pid.trailIntegralMax'),
+      rateLimit: ConfigLoader.get('pid.trailRateLimit'),
     });
 
     // Performance tracking
     this.recentTrades = [];   // rolling window
-    this.windowSize = config.windowSize || ConfigLoader.get('pid.windowSize') || 20;
+    this.windowSize = config.windowSize ?? ConfigLoader.get('pid.windowSize');
 
     // Output state (read by other modules)
     this.outputs = {
