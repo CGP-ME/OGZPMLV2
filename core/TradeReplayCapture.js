@@ -78,8 +78,8 @@ class TradeReplayCapture {
       throw new Error('[TradeReplayCapture] replayDir is required; refusing unscoped data/journal/replays default');
     }
     this.replayDir = config.replayDir;
-    this.candlesBefore = config.candlesBefore || 60;   // candles before entry
-    this.candlesAfter = config.candlesAfter || 30;     // candles after exit
+    this.candlesBefore = config.candlesBefore;
+    this.candlesAfter = config.candlesAfter;
 
     // In-memory buffer of entry snapshots waiting for their exit
     this.pendingEntries = new Map();
