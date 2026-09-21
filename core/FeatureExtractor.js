@@ -14,18 +14,10 @@
 const { c, o, h, l, v } = require('./CandleHelper');
 const { ContractValidator } = require('./ContractValidator');
 const { createTraceId, emitTrace } = require('./TraceSpine');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 const validator = new ContractValidator({ throwOnViolation: false, logViolations: true });
 const FEATURE_VECTOR_UNAVAILABLE = 'feature_vector_unavailable';
-const FEATURE_EXTRACTOR_CONFIG_QUESTIONS = Object.freeze({
-  volatilityPercentCeiling: 'featureExtractor.volatilityPercentCeiling',
-  volumeRatioCeiling: 'featureExtractor.volumeRatioCeiling',
-  macdDeltaRange: 'featureExtractor.macdDeltaRange',
-});
-const VOLATILITY_PERCENT_CEILING_QUESTION_DEFAULT = 5;
-const VOLUME_RATIO_CEILING_QUESTION_DEFAULT = 2;
-const MACD_DELTA_RANGE_QUESTION_DEFAULT = 1000;
-
 /**
  * FeatureExtractor - Pure stateless feature extraction
  */
@@ -39,7 +31,6 @@ class FeatureExtractor {
       features: null,
       labels: FeatureExtractor.labels(),
       raw: {},
-      configQuestionKeys: Object.values(FEATURE_EXTRACTOR_CONFIG_QUESTIONS),
       ...details,
     };
     console.error(`[FeatureExtractor] FEATURE_VECTOR_UNAVAILABLE: ${reason}`);
@@ -200,9 +191,10 @@ class FeatureExtractor {
     if (!trend || typeof trend !== 'string') return null;
 
     const lower = trend.toLowerCase();
-    if (lower === 'uptrend' || lower === 'bullish') return 0.85;
-    if (lower === 'downtrend' || lower === 'bearish') return 0.15;
-    if (lower === 'sideways' || lower === 'neutral' || lower === 'ranging') return 0.5;
+    const config = ConfigLoader.get('featureExtraction');
+    if (lower === 'uptrend' || lower === 'bullish') return config.trendBullishValue;
+    if (lower === 'downtrend' || lower === 'bearish') return config.trendBearishValue;
+    if (lower === 'sideways' || lower === 'neutral' || lower === 'ranging') return config.neutralValue;
     return null;
   }
 
@@ -210,9 +202,10 @@ class FeatureExtractor {
    * Normalize volume relative to recent average
    */
   static _normalizeVolume(candles) {
-    if (!candles || candles.length < 10) return null;
+    const config = ConfigLoader.get('featureExtraction');
+    if (!candles || candles.length < config.volumeMinimumCandles) return null;
 
-    const volumes = candles.slice(-20).map(c => v(c) ?? 0).filter(vol => vol > 0);
+    const volumes = candles.slice(-config.volumeLookback).map(c => v(c) ?? 0).filter(vol => vol > 0);
     if (volumes.length === 0) return null;
 
     const avgVolume = volumes.reduce((a, b) => a + b, 0) / volumes.length;
@@ -221,12 +214,15 @@ class FeatureExtractor {
 
     // Normalize: 0.5 = average, 0 = very low, 1 = very high (2x average)
     const ratio = latestVolume / avgVolume;
-    return Math.min(1, Math.max(0, ratio / VOLUME_RATIO_CEILING_QUESTION_DEFAULT));
+    return Math.min(1, Math.max(0, ratio / config.volumeRatioCeiling));
   }
 
   static _normalizeAtrPercent(atrPercent) {
     if (atrPercent == null || typeof atrPercent !== 'number' || !Number.isFinite(atrPercent)) return null;
-    return Math.min(1, Math.max(0, atrPercent / VOLATILITY_PERCENT_CEILING_QUESTION_DEFAULT));
+    return Math.min(
+      1,
+      Math.max(0, atrPercent / ConfigLoader.get('featureExtraction.volatilityPercentCeiling'))
+    );
   }
 
   /**
@@ -256,7 +252,11 @@ class FeatureExtractor {
 
     const changePercent = (currClose - prevClose) / prevClose;
     // Map -5% to +5% range to 0-1 (0.5 = no change)
-    return Math.min(1, Math.max(0, 0.5 + (changePercent * 10)));
+    const config = ConfigLoader.get('featureExtraction');
+    return Math.min(
+      1,
+      Math.max(0, config.neutralValue + (changePercent * config.changeMultiplier))
+    );
   }
 
   /**
@@ -272,7 +272,8 @@ class FeatureExtractor {
 
     // Typical MACD delta range is -500 to +500 for BTC
     // Normalize to 0-1 (0.5 = neutral)
-    const normalized = 0.5 + (delta / MACD_DELTA_RANGE_QUESTION_DEFAULT);
+    const config = ConfigLoader.get('featureExtraction');
+    const normalized = config.neutralValue + (delta / config.macdDeltaRange);
     return Math.min(1, Math.max(0, normalized));
   }
 
@@ -280,12 +281,13 @@ class FeatureExtractor {
    * Normalize last trade direction to 0-1
    */
   static _normalizeDirection(lastTrade) {
-    if (!lastTrade?.direction) return 0.5;
+    const config = ConfigLoader.get('featureExtraction');
+    if (!lastTrade?.direction) return config.neutralValue;
 
     const dir = lastTrade.direction.toLowerCase();
-    if (dir === 'buy' || dir === 'long') return 0.75;
-    if (dir === 'sell' || dir === 'short') return 0.25;
-    return 0.5;
+    if (dir === 'buy' || dir === 'long') return config.longDirectionValue;
+    if (dir === 'sell' || dir === 'short') return config.shortDirectionValue;
+    return config.neutralValue;
   }
 
   /**
@@ -306,7 +308,8 @@ class FeatureExtractor {
     }
 
     // Quantize each feature to reduce noise (10 levels = 0.0 - 0.9)
-    const quantized = features.map(f => Math.floor(f * 10) / 10);
+    const steps = ConfigLoader.get('featureExtraction.signatureQuantizationSteps');
+    const quantized = features.map(f => Math.floor(f * steps) / steps);
     return quantized.join('-');
   }
 }

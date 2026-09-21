@@ -33,87 +33,11 @@ try {
 }
 
 class IndicatorEngine {
-  constructor(config = {}) {
-    this.config = {
-      // FIX MIRROR-INDICATOR-SYMBOL: constructor must throw on missing symbol.
-      // RUN-HIGH-01 hardened run-empire-v2.js caller; future callers that instantiate
-      // IndicatorEngine without threading symbol need to fail loud, not silently
-      // default to BTC-USD.
-      symbol: (() => {
-        if (typeof config.symbol !== 'string' || !config.symbol) {
-          throw new Error(`[MIRROR-INDICATOR-SYMBOL] IndicatorEngine constructor requires explicit symbol (got ${JSON.stringify(config.symbol)}) — refusing BTC-USD default`);
-        }
-        return config.symbol;
-      })(),
-      tf: config.tf || '1m',
-
-      // core lengths
-      smaPeriods: config.smaPeriods || [20, 50, 200],
-      emaPeriods: config.emaPeriods || [20, 50, 200],
-      bbPeriod: config.bbPeriod || 20,
-      bbStdDev: config.bbStdDev || 2,
-      atrPeriod: config.atrPeriod || 14,
-
-      // RSI + Stoch
-      rsiPeriod: config.rsiPeriod || 14,
-      stochRsiPeriod: config.stochRsiPeriod || 14,
-      stochRsiK: config.stochRsiK || 3,
-      stochRsiD: config.stochRsiD || 3,
-
-      // ADX
-      adxPeriod: config.adxPeriod || 14,
-
-      // SuperTrend
-      superTrendPeriod: config.superTrendPeriod || 10,
-      superTrendMultiplier: config.superTrendMultiplier || 3,
-
-      // Keltner Channels
-      keltnerPeriod: config.keltnerPeriod || 20,
-      keltnerMultiplier: config.keltnerMultiplier || 1.5,
-
-      // Donchian Channels
-      donchianPeriod: config.donchianPeriod || 20,
-
-      // macd defaults
-      macdFast: config.macdFast || 12,
-      macdSlow: config.macdSlow || 26,
-      macdSignal: config.macdSignal || 9,
-
-      // MFI
-      mfiPeriod: config.mfiPeriod || 14,
-
-      // Two-pole oscillator (existing)
-      twoPolePeriod: config.twoPolePeriod || 20,
-      twoPoleNormalizeByATR: config.twoPoleNormalizeByATR ?? true,
-
-      // OGZ Two-Pole Oscillator (pure-function implementation)
-      ogzTpoEnabled: config.ogzTpoEnabled ?? true,
-      ogzTpoLength: config.ogzTpoLength || 20,
-      ogzTpoNormLength: config.ogzTpoNormLength || 25,
-      ogzTpoVolLength: config.ogzTpoVolLength || 20,
-      ogzTpoLagBars: config.ogzTpoLagBars || 4,
-      ogzTpoEmitMarkers: config.ogzTpoEmitMarkers ?? true,
-
-      // ichimoku defaults
-      ichimokuTenkan: config.ichimokuTenkan || 9,
-      ichimokuKijun: config.ichimokuKijun || 26,
-      ichimokuSenkouB: config.ichimokuSenkouB || 52,
-      ichimokuDisplacement: config.ichimokuDisplacement || 26,
-
-      // pivots for SR, fib, trendlines
-      pivotLeft: config.pivotLeft || 3,
-      pivotRight: config.pivotRight || 3,
-      srClusterPct: config.srClusterPct || 0.0025, // 0.25% clustering tolerance
-      maxSRLevels: config.maxSRLevels || 12,
-
-      // trendlines
-      trendMinPivots: config.trendMinPivots || 3,
-      trendMaxLookback: config.trendMaxLookback || 200,
-
-      // storage
-      maxCandles: config.maxCandles || 2000,
-      maxSeriesPoints: config.maxSeriesPoints || 400,
-    };
+  constructor(config) {
+    if (typeof config?.symbol !== 'string' || !config.symbol) {
+      throw new Error(`[MIRROR-INDICATOR-SYMBOL] IndicatorEngine constructor requires explicit symbol (got ${JSON.stringify(config?.symbol)}) - refusing BTC-USD default`);
+    }
+    this.config = { ...config };
 
     this.candles = []; // rolling candle buffer
     this.state = this._blankState();
