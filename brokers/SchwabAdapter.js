@@ -22,11 +22,11 @@ class SchwabAdapter extends IBrokerAdapter {
   constructor(config) {
     super();
     this.config = {
-      clientId: config.clientId || process.env.SCHWAB_CLIENT_ID,
-      clientSecret: config.clientSecret || process.env.SCHWAB_CLIENT_SECRET,
-      refreshToken: config.refreshToken || process.env.SCHWAB_REFRESH_TOKEN,
-      accountNumber: config.accountNumber || process.env.SCHWAB_ACCOUNT_NUMBER,
-      sandbox: config.sandbox || false,
+      clientId: config.clientId,
+      clientSecret: config.clientSecret,
+      refreshToken: config.refreshToken,
+      accountNumber: config.accountNumber,
+      sandbox: config.sandbox === true,
       ...config
     };
 
