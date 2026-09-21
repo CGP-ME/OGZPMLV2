@@ -24,12 +24,12 @@ class MessageQueue {
     this.droppedCount = 0;
     this.lastProcessedTime = 0;
     
-      this.config = {
-        maxQueueSize: options.maxQueueSize,
-        minProcessingGapMs: options.minProcessingGapMs,
-        staleThresholdMs: options.staleThresholdMs,
-        onProcess: options.onProcess,
-        onError: options.onError,
+    this.config = {
+      maxQueueSize: options.maxQueueSize || 100,
+      minProcessingGapMs: options.minProcessingGapMs || 5,
+      staleThresholdMs: options.staleThresholdMs || 5000,
+      onProcess: options.onProcess || null,
+      onError: options.onError || console.error
     };
   }
 
@@ -45,7 +45,7 @@ class MessageQueue {
     if (this.queue.length >= this.config.maxQueueSize) {
       const dropped = this.queue.shift();
       this.droppedCount++;
-        console.warn(`[MessageQueue] Dropped stale message #${dropped.sequence} (queue full)`);
+      console.warn(`⚠️ MessageQueue: Dropped stale message #${dropped.sequence} (queue full)`);
     }
 
     this.queue.push(queuedMessage);
@@ -66,7 +66,7 @@ class MessageQueue {
       const age = now - msg.receivedAt;
       if (age > this.config.staleThresholdMs) {
         this.droppedCount++;
-        console.warn(`[MessageQueue] Dropped stale message #${msg.sequence} (age: ${age}ms)`);
+        console.warn(`⚠️ MessageQueue: Dropped stale message #${msg.sequence} (age: ${age}ms)`);
         continue;
       }
 

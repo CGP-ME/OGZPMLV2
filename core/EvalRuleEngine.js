@@ -107,10 +107,6 @@ class EvalRuleEngine {
   }
 
   getTtpMarketTimeState(date = new Date(this.now())) {
-    if (this.config.enabled !== true || this.config.ttp?.enabled !== true) {
-      return { enabled: false, ruleId: 'TTP_MARKET_TIME' };
-    }
-
     const cfg = this.config.ttp?.marketTime || {};
     if (cfg.enabled !== true) {
       return { enabled: false, ruleId: 'TTP_MARKET_TIME' };

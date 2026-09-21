@@ -39,10 +39,9 @@ const AMBIGUOUS_TELEMETRY_VALUES = new Set([
 
 class PipelineSnapshot {
   constructor(bot, options = {}) {
-      this.bot = bot;
-      this.intervalMs = options.intervalMs;
-      this.initialCaptureDelayMs = options.initialCaptureDelayMs;
-      this.outputFile = path.resolve(options.outputFile);
+    this.bot = bot;
+    this.intervalMs = options.intervalMs || 30 * 60 * 1000; // 30 minutes
+    this.outputFile = options.outputFile || path.join(process.cwd(), 'data', 'pipeline-snapshots.jsonl');
     this.snapshotCount = 0;
     this.startTime = Date.now();
 
@@ -59,7 +58,7 @@ class PipelineSnapshot {
     this.initialCaptureTimer = setTimeout(() => {
       this.initialCaptureTimer = null;
       this.capture();
-      }, this.initialCaptureDelayMs);
+    }, 5000); // 5s delay to let modules initialize
 
     console.log(`[PipelineSnapshot] Active - capturing every ${this.intervalMs / 60000} minutes`);
     console.log(`[PipelineSnapshot] Output: ${this.outputFile}`);

@@ -34,7 +34,15 @@ const indicators = require('./OptimizedIndicators'); // Fixed: Import singleton 
 const { c, o, h, l, v } = require('./CandleHelper');
 const { getInstance: getUnifiedPatternMemory } = require('./UnifiedPatternMemory');
 const { createTraceId, emitTrace } = require('./TraceSpine');
-const ConfigLoader = require('../foundation/ConfigLoader');
+
+const PATTERN_FEATURE_CONFIG_QUESTIONS = Object.freeze({
+  useOptimizedIndicators: 'patternRecognition.useOptimizedIndicators',
+  flatCandleWickRatio: 'patternRecognition.flatCandleWickRatio',
+  defaultPatternQuality: 'patternRecognition.defaultPatternQuality',
+});
+const USE_OPTIMIZED_INDICATORS_QUESTION_DEFAULT = true;
+const FLAT_CANDLE_WICK_RATIO_QUESTION_DEFAULT = 0.5;
+const DEFAULT_PATTERN_QUALITY_QUESTION_DEFAULT = 0.3;
 
 // Pattern performance tracking for visualization and marketing
 const pattern_performance = {};
@@ -170,14 +178,8 @@ class FeatureExtractor {
     signal,
     rsi,
     lastTrade = null,
-    useOptimizedIndicators,
-    flatCandleWickRatio,
-    optimizedVolatilityCeiling
+    useOptimizedIndicators = USE_OPTIMIZED_INDICATORS_QUESTION_DEFAULT
   }) {
-    const patternConfig = ConfigLoader.get('patternRecognition');
-    useOptimizedIndicators ??= patternConfig.useOptimizedIndicators;
-    flatCandleWickRatio ??= patternConfig.flatCandleWickRatio;
-    optimizedVolatilityCeiling ??= patternConfig.optimizedVolatilityCeiling;
     if (!candles || candles.length === 0) {
       return FeatureExtractor.unavailable('missing_pattern_candles', {
         candleCount: 0,
@@ -219,10 +221,11 @@ class FeatureExtractor {
         return FeatureExtractor.unavailable('indicator_feature_unavailable', {
           unavailableFields,
           candleCount: candles.length,
+          configQuestionKey: PATTERN_FEATURE_CONFIG_QUESTIONS.useOptimizedIndicators,
         });
       }
 
-      const vol = Math.min(rawVol / optimizedVolatilityCeiling, 1.0);
+      const vol = Math.min(rawVol / 0.05, 1.0);  // Normalize: 0.05 stddev = 1.0
 
       // Normalize and encode features
       const rsiNormalized = calculatedRsi / 100;  // Scale to 0-1
@@ -234,7 +237,7 @@ class FeatureExtractor {
       const bodySize = Math.abs(c(latestCandle) - o(latestCandle)) / c(latestCandle);
       const wickRatio = h(latestCandle) !== l(latestCandle)
         ? (Math.abs(c(latestCandle) - o(latestCandle)) / (h(latestCandle) - l(latestCandle)))
-        : flatCandleWickRatio;
+        : FLAT_CANDLE_WICK_RATIO_QUESTION_DEFAULT;
 
       // Price momentum
       const priceChange = previousCandle && c(previousCandle) > 0
@@ -275,6 +278,7 @@ class FeatureExtractor {
         return FeatureExtractor.unavailable('provided_feature_unavailable', {
           unavailableFields,
           candleCount: candles.length,
+          configQuestionKey: PATTERN_FEATURE_CONFIG_QUESTIONS.useOptimizedIndicators,
         });
       }
 
@@ -286,7 +290,7 @@ class FeatureExtractor {
         trend?.toLowerCase?.() === 'uptrend' ? 1 : trend?.toLowerCase?.() === 'downtrend' ? -1 : 0,  // Trend
         0,                                                           // BB width unavailable outside optimized path
         0,                                                           // Volatility unavailable outside optimized path
-        flatCandleWickRatio,
+        FLAT_CANDLE_WICK_RATIO_QUESTION_DEFAULT,                     // Question key: patternRecognition.flatCandleWickRatio
         0,                                                           // No price change
         0,                                                           // No volume change
         // CHANGE 614: Fix case-sensitivity
@@ -375,8 +379,13 @@ class EnhancedPatternChecker {
    * Create a new pattern checker
    * @param {Object} options - Configuration options
    */
-  constructor(options) {
-    this.options = options;
+  constructor(options = {}) {
+    this.options = {
+      similarityThreshold: 0.75, // Slightly more lenient similarity matching
+      minTradeHistory: 2,        // Lower minimum history for faster adaptation
+      confidenceThreshold: 0.45, // More aggressive confidence threshold
+      ...options
+    };
 
     // Initialize pattern memory system - uses UnifiedPatternMemory singleton
     // CHANGE 2026-03-18: Replaced PatternMemorySystem with UnifiedPatternMemory
@@ -437,12 +446,9 @@ class EnhancedPatternChecker {
       name: result?.bestMatch?.pattern || 'Learning Pattern',
       confidence: result?.confidence ?? 0,
       direction: result?.direction || 'neutral',
-      signature: EnhancedPatternChecker._signatureFromFeatures(
-        features,
-        this.options.signatureQuantizationSteps
-      ),
+      signature: EnhancedPatternChecker._signatureFromFeatures(features),
       features: features,
-      quality: result?.quality ?? this.options.defaultPatternQuality,
+      quality: result?.quality ?? DEFAULT_PATTERN_QUALITY_QUESTION_DEFAULT,
       isNew: true,  // Always flag as new for learning
       reason: result?.reason || 'New pattern being learned'
     });
@@ -458,14 +464,12 @@ class EnhancedPatternChecker {
    * candle count. Original implementation (JSON.stringify(features).substring(0,50))
    * produced unique-per-candle keys → memory flood (2026-03-20 ceb0ffb incident).
    */
-  static _signatureFromFeatures(features, quantizationSteps) {
+  static _signatureFromFeatures(features) {
     const arr = Array.isArray(features)
       ? features
       : (features && Array.isArray(features.features) ? features.features : []);
     const quantized = arr.map(v =>
-      typeof v === 'number' && !Number.isNaN(v)
-        ? Math.round(v * quantizationSteps) / quantizationSteps
-        : 0
+      typeof v === 'number' && !Number.isNaN(v) ? Math.round(v * 20) / 20 : 0
     );
     return JSON.stringify(quantized);
   }
@@ -477,10 +481,7 @@ class EnhancedPatternChecker {
    */
   getPatternHistory(signature) {
     // Search memory for similar patterns
-    const similar = this.memory.findSimilarPatterns(
-      { signature },
-      this.options.historySimilarityThreshold
-    );
+    const similar = this.memory.findSimilarPatterns({ signature }, 0.9);
     if (similar && similar.length > 0) {
       const stats = similar[0];
 
@@ -495,7 +496,7 @@ class EnhancedPatternChecker {
 
         stats.results.forEach(result => {
           const ageHours = (currentTime - result.timestamp) / (1000 * 60 * 60);
-          const timeWeight = Math.exp(-ageHours * this.options.decayRate);
+          const timeWeight = Math.exp(-ageHours * 0.01); // Same decay rate as applyTimeDecay
 
           if (result.success) {
             weightedWins += timeWeight;
@@ -509,11 +510,8 @@ class EnhancedPatternChecker {
       } else {
         // Fallback: apply simple decay based on pattern age
         const patternAge = similar[0].lastSeen ? (currentTime - similar[0].lastSeen) / (1000 * 60 * 60) : 0;
-        const decayMultiplier = Math.exp(-patternAge * this.options.decayRate);
-        decayedSuccessRate = (stats.successRate || 0) * Math.max(
-          this.options.minimumDecayMultiplier,
-          decayMultiplier
-        );
+        const decayMultiplier = Math.exp(-patternAge * 0.01);
+        decayedSuccessRate = (stats.successRate || 0) * Math.max(0.1, decayMultiplier);
       }
 
       return {
@@ -555,7 +553,7 @@ class EnhancedPatternChecker {
     // Calling saveToDisk on every recordPatternResult caused massive I/O spam
     // DEBUG 2026-02-02: Confirm pattern was recorded
     // BACKTEST_FAST: Skip verbose logging
-    if (ConfigLoader.get('backtest.fast') !== true) {
+    if (process.env.BACKTEST_FAST !== 'true') {
       console.log(`Pattern RECORDED: features[${featuresOrSignature.length}], pnl=${result?.pnl?.toFixed(2) || '?'}%, total=${this.stats.tradeResults}`);
     }
     return true;
@@ -571,13 +569,15 @@ class EnhancedPatternChecker {
     if (!pattern.lastSeen) return 1.0; // No decay for patterns without timestamp
 
     const ageHours = (currentTime - pattern.lastSeen) / (1000 * 60 * 60); // Age in hours
+    const decayRate = 0.01; // Exponential decay rate (adjustable)
+
     // Exponential falloff: newer patterns retain more confidence
     // After 24 hours: ~90% confidence retained
     // After 168 hours (1 week): ~50% confidence retained
     // After 720 hours (1 month): ~10% confidence retained
-    const decayMultiplier = Math.exp(-ageHours * this.options.decayRate);
+    const decayMultiplier = Math.exp(-ageHours * decayRate);
 
-    return Math.max(this.options.minimumDecayMultiplier, decayMultiplier);
+    return Math.max(0.1, decayMultiplier); // Minimum 10% to prevent complete decay
   }
 
   /**
@@ -622,7 +622,7 @@ class EnhancedPatternChecker {
     // Check for exact match first (O(1) lookup)
     const exactStats = this.memory.getPatternStats(features, options);
 
-    if (exactStats && exactStats.timesSeen >= this.options.fastPathMinTradeHistory) {
+    if (exactStats && exactStats.timesSeen >= 2) { // Lower threshold for speed
       const winRate = exactStats.wins / exactStats.timesSeen;
       const avgPnL = exactStats.totalPnL / exactStats.timesSeen;
 
@@ -634,13 +634,10 @@ class EnhancedPatternChecker {
 
       // Quick recency bonus (only last 3 results)
       if (exactStats.results.length > 0) {
-        const recentResults = exactStats.results.slice(-this.options.fastPathRecentResultCount);
+        const recentResults = exactStats.results.slice(-3);
         const recentSuccesses = recentResults.filter(r => r.success).length;
         const recentWinRate = recentSuccesses / recentResults.length;
-        confidence = (
-          winRate * this.options.fastPathHistoricalWeight
-          + recentWinRate * this.options.fastPathRecentWeight
-        );
+        confidence = (winRate * 0.7) + (recentWinRate * 0.3);
       }
 
       this.stats.highConfidenceSignals++;
@@ -659,7 +656,7 @@ class EnhancedPatternChecker {
 
     // No exact match - return minimal confidence for speed
     return {
-      confidence: this.options.fastPathNewPatternConfidence,
+      confidence: 0.1, // Very low confidence for new patterns in scalper mode
       // CHANGE 614: Fix case-sensitivity
       direction: 'hold'.toLowerCase(),
       exactMatch: false,
@@ -765,7 +762,7 @@ function trackPatternResult(patternId, entryTime, exitTime, pnl, confidence) {
 
   // Log result for marketing
   const isWin = pnl > 0;
-  console.log(`Pattern ${patternId} trade result: ${pnl.toFixed(2)}`);
+  console.log(`${isWin ? 'ðŸ’°' : 'ðŸ“‰'} Pattern ${patternId} trade result: ${pnl.toFixed(2)}`);
 
   return true;
 }

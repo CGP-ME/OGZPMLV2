@@ -2,6 +2,7 @@
 
 const { c } = require('../core/CandleHelper');
 const { IndicatorCalculator } = require('../core/IndicatorCalculator');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 const REQUIRED_NUMERIC_KEYS = [
   'lookback',
@@ -22,8 +23,9 @@ const REQUIRED_STRING_KEYS = [
   'maxHoldMode',
 ];
 
-function readConfig(config) {
-  const cfg = config;
+function readConfig(overrides) {
+  const base = ConfigLoader.get('strategies.TimeSeriesMomentum');
+  const cfg = { ...(base || {}), ...(overrides || {}) };
 
   const missingNumeric = REQUIRED_NUMERIC_KEYS.filter(key => !Number.isFinite(Number(cfg[key])));
   if (missingNumeric.length > 0) {
@@ -88,7 +90,7 @@ function readConfig(config) {
     trailAtrMult: Number(cfg.trailAtrMult),
     tpMode: cfg.tpMode,
     maxHoldMode: cfg.maxHoldMode,
-    partialExit: Object.freeze({ ...cfg.partialExit }),
+    partialExit: Object.freeze({ ...(cfg.partialExit || { enabled: false, triggerR: 1, fraction: 0.5, remainderTrail: 'atr' }) }),
     confidenceBase: Number(cfg.confidenceBase),
     confidenceReturnMultiplier: Number(cfg.confidenceReturnMultiplier),
     maxConfidence: Number(cfg.maxConfidence),
@@ -97,7 +99,7 @@ function readConfig(config) {
 }
 
 class TimeSeriesMomentum {
-  constructor(config) {
+  constructor(config = {}) {
     Object.defineProperty(this, 'cfg', {
       value: Object.freeze(readConfig(config)),
       writable: false,

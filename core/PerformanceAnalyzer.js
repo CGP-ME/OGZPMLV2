@@ -61,7 +61,7 @@ class PerformanceAnalyzer {
    * @param {number} [config.minRecommendationConfidence=0.7] - Min confidence for recommendations
    * @param {number} [config.alertOnTradesBelow=70] - Quality score threshold for alerts
    */
-  constructor(config) {
+  constructor(config = {}) {
     // ========================================================================
     // CONFIGURATION MANAGEMENT
     // ========================================================================
@@ -70,7 +70,45 @@ class PerformanceAnalyzer {
      * Performance analyzer configuration
      * @type {Object}
      */
-    this.config = config;
+    this.config = {
+      // General analysis settings
+      minTradesForAnalysis: 20,           // Minimum trades before generating insights
+      
+      // Edge decay detection parameters
+      edgeDecayLookback: 50,              // Trades to analyze for edge decay
+      edgeDecayThreshold: 0.3,            // 30% reduction in win rate = edge decay
+      
+      // Quality scoring weights
+      entryQualityWeight: 0.4,            // Weight for entry timing in quality score
+      exitQualityWeight: 0.4,             // Weight for exit timing in quality score
+      patternAccuracyWeight: 0.2,         // Weight for pattern match accuracy
+      
+      // Parameter sensitivity analysis
+      parameterSensitivityEnabled: true,
+      parameterVariationAmount: 0.1,      // Test parameters at ±10%
+      
+      // File paths for data persistence
+      tradesDbPath: 'data/trades.json',
+      performanceDbPath: 'data/performance.json',
+      
+      // Recommendation system
+      recommendationInterval: 50,         // Trades between recommendation generations
+      minRecommendationConfidence: 0.7,   // Min confidence for recommendations
+      
+      // A/B testing capabilities
+      enableABTesting: false,             // Auto A/B testing of parameters
+      abTestCycleLength: 30,              // Trades per test cycle
+      
+      // Alert thresholds
+      alertOnTradesBelow: 70,             // Quality score threshold for alerts
+      criticalAlertThreshold: 60,         // Critical quality threshold
+      
+      // Logging configuration
+      verboseLogging: false,
+      
+      // Merge user configuration
+      ...config
+    };
     
     // ========================================================================
     // STATE INITIALIZATION
@@ -80,7 +118,8 @@ class PerformanceAnalyzer {
     
     // Log initialization
     console.log('[PerformanceAnalyzer] initialized with configuration:');
-    console.log(`   Update interval: ${config.updateIntervalMs}ms`);
+    console.log(`   Tracking ${config.trackingMetrics?.length || 0} metrics`);
+    console.log(`   Update interval: ${config.updateInterval || 60000}ms`);
     console.log('   Alert thresholds configured');
     console.log(`   Min trades for analysis: ${this.config.minTradesForAnalysis}`);
     console.log(`   Edge decay lookback: ${this.config.edgeDecayLookback} trades`);

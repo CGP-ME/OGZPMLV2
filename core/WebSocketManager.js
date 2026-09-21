@@ -18,10 +18,8 @@ const { buildBotStateFrame } = require('./BotStateFrame');
 const stateManager = getStateManager();
 
 class WebSocketManager {
-  constructor(ctx, options = {}) {
+  constructor(ctx) {
     this.ctx = ctx;
-    this.wsUrl = options.wsUrl;
-    this.authToken = options.authToken;
     console.log('[WebSocketManager] Initialized (Phase 20 - exact copy)');
   }
 
@@ -108,7 +106,7 @@ class WebSocketManager {
    */
   initializeDashboardWebSocket() {
     // Bot connects to WebSocket relay on port 3010
-    const wsUrl = this.wsUrl;
+    const wsUrl = process.env.WS_URL || 'ws://localhost:3010/ws';
 
     console.log(`\n[WebSocketManager] Connecting to Dashboard WebSocket at ${wsUrl}...`);
 
@@ -121,7 +119,7 @@ class WebSocketManager {
         this.ctx.lastPongReceived = Date.now(); // CHANGE 2026-01-28: Track pong for heartbeat
 
         // SECURITY (Change 582): Authenticate first before sending any data
-        const authToken = this.authToken;
+        const authToken = process.env.WEBSOCKET_AUTH_TOKEN;
         if (!authToken) {
           console.error('[WebSocketManager] WEBSOCKET_AUTH_TOKEN not set - closing dashboard WebSocket without authentication.');
           this.ctx.dashboardWsConnected = false;
@@ -219,8 +217,8 @@ class WebSocketManager {
               this.ctx.trai.setWebSocketClient(this.ctx.dashboardWs);
             }
 
-            // Wire narrator for USER-mode broadcasts. Does nothing when
-            // config/settings.json services.narrator.userEnabled is false.
+            // Wire narrator for USER-mode broadcasts. Does nothing if
+            // USER_NARRATOR env flag is not set (narrator.user === false).
             try {
               getNarrator().setWebSocketClient(this.ctx.dashboardWs);
             } catch (e) {

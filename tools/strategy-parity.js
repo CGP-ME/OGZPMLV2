@@ -11,6 +11,8 @@
  *   node tools/strategy-parity.js --preset smartmoney --candles tuning/full-45k.json --end 6000
  *   node tools/strategy-parity.js --preset smartmoney --fields direction,levels --exit-on-diff
  *
+ * ENV:
+ *   CANDLE_FILE — default candle path relative to project root
  */
 
 'use strict';
@@ -23,7 +25,7 @@ const projectRoot = path.resolve(__dirname, '..');
 function parseArgs(argv) {
   const out = {
     preset: null,
-    candles: 'tuning/full-45k.json',
+    candles: process.env.CANDLE_FILE || 'tuning/full-45k.json',
     end: null,
     all: false,
     minBar: null,
@@ -115,10 +117,7 @@ function runSmartMoneyPair(work, opts) {
   clearModuleCache(pinePath);
   const PineMod = require(pinePath);
 
-  const native = new SmartMoneySweep({
-    ...ConfigLoader.getConfigFileValue('strategies.SmartMoneySweep'),
-    debug: ConfigLoader.getInternalsFileValue('observability.smartMoneyDebug') === true,
-  });
+  const native = new SmartMoneySweep(ConfigLoader.get('strategies.SmartMoneySweep'));
   const minBar = opts.minBar != null ? opts.minBar : 200;
   const mismatches = [];
   let compared = 0;
@@ -190,7 +189,7 @@ function main() {
     console.error(`Usage: node tools/strategy-parity.js --preset smartmoney [options]
 
 Options:
-  --candles <path>     Relative to project root (default: tuning/full-45k.json)
+  --candles <path>     Relative to project root (default: tuning/full-45k.json or CANDLE_FILE)
   --end <n>            Use first n candles only
   --all                Use entire candle file (can be very slow)
   --min-bar <n>        First bar index to compare (default: 200)

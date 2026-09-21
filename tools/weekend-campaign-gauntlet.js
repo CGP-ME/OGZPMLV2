@@ -4,12 +4,10 @@
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
-const ConfigLoader = require('../foundation/ConfigLoader');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const RUNNER = path.join(PROJECT_ROOT, 'run-empire-v2.js');
-const WEEKEND_CAMPAIGN_CONFIG = ConfigLoader.getInternalsFileValue('tooling.weekendCampaign');
-const CAMPAIGN_ROOT = path.resolve(PROJECT_ROOT, WEEKEND_CAMPAIGN_CONFIG.campaignRoot);
+const CAMPAIGN_ROOT = path.join(PROJECT_ROOT, 'ogz-meta', 'cognition-history', 'weekend-campaign');
 
 const {
   ALL_STRATEGIES,
@@ -17,12 +15,7 @@ const {
   STOCK_TICKERS,
 } = require('./matrix-sweep');
 const { resolveInstrumentFromDataFile } = require('./instrument-env');
-const {
-  buildWorkerBaseEnv,
-  buildBacktestWorkerEnv,
-  summarizeWorkerEnv,
-  removeBacktestRunDescriptor,
-} = require('./backtest-worker-env');
+const { buildBacktestWorkerEnv, summarizeWorkerEnv } = require('./backtest-worker-env');
 const { resolveTuningProfile } = require('./tuning-profiles');
 const { resolveFeeProfile } = require('./fee-profiles');
 const {
@@ -30,17 +23,28 @@ const {
   validateMatrixRun,
 } = require('./campaign-integrity');
 const {
-  loadLiveReferenceCredentials,
   runDataParityCheck,
 } = require('./data-parity-check');
 
-const DEFAULT_SMOKE_DATA = WEEKEND_CAMPAIGN_CONFIG.defaultSmokeData;
-const DEFAULT_FEE_PROFILE = WEEKEND_CAMPAIGN_CONFIG.defaultFeeProfile;
-const DEFAULT_BASELINE_PROFILE = WEEKEND_CAMPAIGN_CONFIG.defaultBaselineProfile;
-const DEFAULT_TREY_PROFILE = WEEKEND_CAMPAIGN_CONFIG.defaultTreyProfile;
-const DEFAULT_PHASE = WEEKEND_CAMPAIGN_CONFIG.defaultPhase;
-const DEFAULT_DISK_RESERVE_MIB = WEEKEND_CAMPAIGN_CONFIG.defaultDiskReserveMiB;
-const LOW_DISK_STATUS = WEEKEND_CAMPAIGN_CONFIG.lowDiskStatus;
+const DORMANT_STRATEGY_ENV = Object.freeze({
+  SmartMoneySweep: { ENABLE_SMS: 'true', SMS_VP_RTH_ONLY: 'true' },
+  OpeningRangeBreakout: { ENABLE_ORB: 'true' },
+  NoWickImbalance: { ENABLE_NOWICK: 'true' },
+  BreakRetest: { ENABLE_BREAKRETEST: 'true' },
+  DonchianBreakout: { ENABLE_DONCHIAN: 'true' },
+  PropSafeEMAPullback: { ENABLE_PROPSAFE_EMA: 'true' },
+  EMATrendRetest: { ENABLE_EMA_TREND_RETEST: 'true' },
+  RSI2MeanReversion: { ENABLE_RSI2_MR: 'true' },
+  TimeSeriesMomentum: { ENABLE_TSMOM: 'true' },
+});
+
+const DEFAULT_SMOKE_DATA = 'tsla-unseen';
+const DEFAULT_FEE_PROFILE = 'ttp_real';
+const DEFAULT_BASELINE_PROFILE = 'current-eval';
+const DEFAULT_TREY_PROFILE = 'trey-spec';
+const DEFAULT_PHASE = 'conf';
+const DEFAULT_DISK_RESERVE_MIB = 10240;
+const LOW_DISK_STATUS = 'LOW-DISK-ABORT';
 const DEFAULT_CAMPAIGN_SYMBOLS = Object.freeze(
   STOCK_TICKERS.filter(symbol => !String(symbol).includes('-'))
 );
@@ -127,7 +131,7 @@ function appendLogHeader(logPath, title, payload) {
 }
 
 function resolveDataFile(dataArg) {
-  const key = dataArg ?? DEFAULT_SMOKE_DATA;
+  const key = dataArg || DEFAULT_SMOKE_DATA;
   const shortcut = DATA_SHORTCUTS[key];
   const dataFile = shortcut || key;
   const absolute = path.resolve(PROJECT_ROOT, dataFile);
@@ -138,37 +142,63 @@ function resolveDataFile(dataArg) {
 }
 
 function parseList(value, fallback) {
-  if (value === undefined || value === null) return [...fallback];
-  const parsed = String(value)
+  if (!value) return [...fallback];
+  return String(value)
     .split(',')
     .map(item => item.trim())
     .filter(Boolean);
-  if (parsed.length === 0) throw new Error('Explicit list input must contain at least one value');
-  return parsed;
 }
 
-function strategyOverrides(strategy) {
+function strategyEnv(strategy) {
   return {
-    'strategies.soloFilter': [strategy],
+    SOLO_STRATEGY: strategy,
+    ...(DORMANT_STRATEGY_ENV[strategy] || {}),
   };
 }
 
 function buildRunEnv({ dataFile, outputDir, stateFile, dataDir, reportTag, strategy, profileName, feeProfileName }) {
-  const instrumentIdentity = resolveInstrumentFromDataFile(dataFile);
+  const instrumentEnv = resolveInstrumentFromDataFile(dataFile);
+  const stockMode = instrumentEnv.ASSET_CLASS === 'stocks';
   return buildBacktestWorkerEnv({
-    sourceEnv: process.env,
+    sourceEnv: {
+      ...process.env,
+      BACKTEST_OUTPUT_DIR: outputDir,
+    },
     projectRoot: PROJECT_ROOT,
     dataFile,
     stateFile,
     dataDir,
     reportTag,
-    outputDir,
-    freshStart: false,
-    overrides: strategyOverrides(strategy),
-    instrumentIdentity,
+    stockMode,
+    strategyDiag: 'false',
+    configEnv: strategyEnv(strategy),
+    instrumentEnv,
     profileName,
     feeProfileName,
   });
+}
+
+function pickProofEnv(env) {
+  const keys = [
+    'TUNING_PROFILE',
+    'BACKTEST_TUNING_PROFILE',
+    'BACKTEST_FEE_PROFILE',
+    'SOLO_STRATEGY',
+    'ORCH_MIN_CANDLES_EMA',
+    'TREND_REGIME_GATE_ENABLED',
+    'ATR_CONTRACTS_ENABLED',
+    'ATR_STOP_MULTIPLIER',
+    'ATR_TRAIL_MULTIPLIER',
+    'ATR_TRAILING_ACTIVATION_R',
+    'BE_SCALEOUT_FRACTION',
+    'TIERED_EXIT_ENABLED',
+    'TTP_ENTRY_BUFFER_MINUTES_BEFORE_CUTOFF',
+  ];
+  const proof = {};
+  for (const key of keys) {
+    if (env[key] !== undefined) proof[key] = env[key];
+  }
+  return proof;
 }
 
 function runNodeProcess({ args, env, logPath, statusPath, label, onSpawn }) {
@@ -427,8 +457,10 @@ async function runBacktest({ rootDir, name, strategy, dataFile, profileName, fee
     feeProfileName,
   });
   const workerEnvSummary = summarizeWorkerEnv(env);
+  const workerProofEnv = pickProofEnv(env);
   writeJson(path.join(outputDir, 'worker-env.json'), {
     summary: workerEnvSummary,
+    proof: workerProofEnv,
   });
   const status = await runNodeProcess({
     args: [RUNNER],
@@ -437,7 +469,6 @@ async function runBacktest({ rootDir, name, strategy, dataFile, profileName, fee
     statusPath: path.join(outputDir, 'status.json'),
     label: name,
   });
-  removeBacktestRunDescriptor(env);
   const { reportPath, report } = loadReport(outputDir);
   const ledgers = loadLedgerRecords(outputDir);
   return {
@@ -450,6 +481,7 @@ async function runBacktest({ rootDir, name, strategy, dataFile, profileName, fee
     reportPath,
     status,
     workerEnv: workerEnvSummary,
+    workerProofEnv,
     report,
     ledgers,
   };
@@ -459,10 +491,10 @@ async function runSmoke(options) {
   const runId = options['run-id'] || `smoke-${isoStamp()}`;
   const rootDir = ensureDir(path.join(CAMPAIGN_ROOT, runId));
   const smokeDir = ensureDir(path.join(rootDir, 'smoke'));
-  const dataFile = resolveDataFile(options.data ?? DEFAULT_SMOKE_DATA);
-  const feeProfileName = resolveFeeProfile(options['fee-profile'] ?? DEFAULT_FEE_PROFILE).name;
-  const baselineProfile = resolveTuningProfile(options.profile ?? DEFAULT_BASELINE_PROFILE).name;
-  const treyProfile = resolveTuningProfile(options['trey-profile'] ?? DEFAULT_TREY_PROFILE).name;
+  const dataFile = resolveDataFile(options.data || DEFAULT_SMOKE_DATA);
+  const feeProfileName = resolveFeeProfile(options['fee-profile'] || DEFAULT_FEE_PROFILE).name;
+  const baselineProfile = resolveTuningProfile(options.profile || DEFAULT_BASELINE_PROFILE).name;
+  const treyProfile = resolveTuningProfile(options['trey-profile'] || DEFAULT_TREY_PROFILE).name;
   const strategies = parseList(options.strategies, ALL_STRATEGIES);
 
   const rows = [];
@@ -564,10 +596,10 @@ async function runTreySpecSmoke({ smokeDir, dataFile, baselineProfile, treyProfi
     treyExitZero: trey.status.exitCode === 0,
     atrExitZero: atr.status.exitCode === 0,
     entryEventsReduced: baselineSignals > 0 && treySignals < baselineSignals,
-    warmup200Respected: trey.workerEnv.launchProfile === 'backtest-trey-spec'
-      && trey.workerEnv.resolved.minCandlesEMA === 200
+    warmup200Respected: trey.workerProofEnv.PROFILE === 'backtest-trey-spec'
+      && trey.workerProofEnv.ORCH_MIN_CANDLES_EMA === '200'
       && (treyEvidence.warmupBars === null || treyEvidence.warmupBars === 200),
-    atrContractsEnabled: atr.workerEnv.resolved.atrContractsEnabled === true,
+    atrContractsEnabled: atr.workerProofEnv.ATR_CONTRACTS_ENABLED === 'true',
     atrFrozenPolicyPresent: frozenAtrPolicyCount > 0,
   };
 
@@ -652,7 +684,6 @@ function buildCampaignManifest(options) {
             `--phase=${phase}`,
             `--profile=${profile}`,
             `--fee-profile=${feeProfileName}`,
-            `--output-dir=${path.join(rootDir, 'artifacts', safeName(`${profile}-${symbol}-${strategy}-${phase}`))}`,
           ],
           status: 'planned',
           attempts: 0,
@@ -766,9 +797,9 @@ function parsePositiveNumber(value, name) {
 }
 
 function buildDiskGuardConfig(options, plannedCount = 0) {
-  const reserveMiB = parsePositiveNumber(options['disk-reserve-mib'], 'disk-reserve-mib') ?? DEFAULT_DISK_RESERVE_MIB;
-  const minFreeMiB = parsePositiveNumber(options['min-free-mib'], 'min-free-mib');
-  const projectedMiBPerRun = parsePositiveNumber(options['projected-mib-per-run'], 'projected-mib-per-run') ?? 0;
+  const reserveMiB = parsePositiveNumber(options['disk-reserve-mib'] ?? process.env.WEEKEND_CAMPAIGN_DISK_RESERVE_MIB, 'disk-reserve-mib') ?? DEFAULT_DISK_RESERVE_MIB;
+  const minFreeMiB = parsePositiveNumber(options['min-free-mib'] ?? process.env.WEEKEND_CAMPAIGN_MIN_FREE_MIB, 'min-free-mib');
+  const projectedMiBPerRun = parsePositiveNumber(options['projected-mib-per-run'] ?? process.env.WEEKEND_CAMPAIGN_PROJECTED_MIB_PER_RUN, 'projected-mib-per-run') ?? 0;
   return {
     reserveMiB,
     minFreeMiB,
@@ -792,9 +823,9 @@ function remainingRunsForDisk(manifest) {
 
 function resolveLaunchDiskGuard(manifest, options) {
   const base = manifest.diskGuard || {};
-  const reserveOverride = parsePositiveNumber(options['disk-reserve-mib'], 'disk-reserve-mib');
-  const minFreeOverride = parsePositiveNumber(options['min-free-mib'], 'min-free-mib');
-  const projectedOverride = parsePositiveNumber(options['projected-mib-per-run'], 'projected-mib-per-run');
+  const reserveOverride = parsePositiveNumber(options['disk-reserve-mib'] ?? process.env.WEEKEND_CAMPAIGN_DISK_RESERVE_MIB, 'disk-reserve-mib');
+  const minFreeOverride = parsePositiveNumber(options['min-free-mib'] ?? process.env.WEEKEND_CAMPAIGN_MIN_FREE_MIB, 'min-free-mib');
+  const projectedOverride = parsePositiveNumber(options['projected-mib-per-run'] ?? process.env.WEEKEND_CAMPAIGN_PROJECTED_MIB_PER_RUN, 'projected-mib-per-run');
   return {
     reserveMiB: reserveOverride ?? base.reserveMiB ?? DEFAULT_DISK_RESERVE_MIB,
     minFreeMiB: minFreeOverride ?? base.minFreeMiB ?? null,
@@ -882,18 +913,48 @@ function abortCampaignForLowDisk(manifest, run, diskCheck) {
   return abort;
 }
 
-function referenceFileForSymbol(referenceDir, symbol, timeframe) {
+function referenceFileForSymbol(referenceDir, symbol) {
   if (!referenceDir) return null;
-  const selected = path.resolve(PROJECT_ROOT, referenceDir, `${symbol}-${timeframe}.json`);
-  if (!fs.existsSync(selected)) {
-    throw new Error(`Explicit parity reference is missing: ${selected}`);
-  }
-  return selected;
+  const candidates = [
+    `${symbol}-15m-live.json`,
+    `${symbol}-15m-alpaca-iex.json`,
+    `${symbol}-15m.json`,
+  ].map(file => path.resolve(PROJECT_ROOT, referenceDir, file));
+  return candidates.find(file => fs.existsSync(file)) || null;
 }
 
-function resolveJournalPathForParity(options) {
+function findScopedJournalForInstrument(instrument, journalRoot = path.join(PROJECT_ROOT, 'data', 'journal')) {
+  const symbol = String(instrument?.TRADING_PAIR || '').toUpperCase();
+  const timeframe = String(instrument?.CANDLE_TIMEFRAME || '15m');
+  if (!symbol || !fs.existsSync(journalRoot)) return null;
+
+  const symbolNeedle = `__${symbol.length}-${symbol}__`;
+  const timeframeNeedle = `__${timeframe.length}-${timeframe}`;
+  const candidates = [];
+  for (const entry of fs.readdirSync(journalRoot, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    if (!entry.name.includes(symbolNeedle) || !entry.name.includes(timeframeNeedle)) continue;
+    const ledgerPath = path.join(journalRoot, entry.name, 'trade-ledger.jsonl');
+    if (!fs.existsSync(ledgerPath)) continue;
+    const stat = fs.statSync(ledgerPath);
+    const score = [
+      entry.name.includes('4-live__6-alpaca') ? 4 : 0,
+      entry.name.includes('__6-stocks__') ? 2 : 0,
+      entry.name.includes('__5-paper__') ? -1 : 0,
+    ].reduce((sum, value) => sum + value, 0);
+    candidates.push({ ledgerPath, score, mtimeMs: stat.mtimeMs });
+  }
+
+  candidates.sort((a, b) => (b.score - a.score) || (b.mtimeMs - a.mtimeMs) || a.ledgerPath.localeCompare(b.ledgerPath));
+  return candidates[0]?.ledgerPath || null;
+}
+
+function resolveJournalPathForParity(options, instrument) {
   if (options.journal) return path.resolve(PROJECT_ROOT, options.journal);
-  return null;
+  const journalRoot = options['journal-root']
+    ? path.resolve(PROJECT_ROOT, options['journal-root'])
+    : path.join(PROJECT_ROOT, 'data', 'journal');
+  return findScopedJournalForInstrument(instrument, journalRoot);
 }
 
 function assertCampaignParitySource(options) {
@@ -911,7 +972,6 @@ async function runDataParityForManifest(options) {
   const manifest = readJson(manifestPath);
   manifest.manifestPath = manifestPath;
   manifest.rootDir = manifest.rootDir || path.dirname(manifestPath);
-  const liveReferenceCredentials = loadLiveReferenceCredentials(options['live-reference']);
   const bySymbol = new Map();
   for (const run of manifest.planned || []) {
     if (!bySymbol.has(run.symbol)) bySymbol.set(run.symbol, []);
@@ -921,23 +981,15 @@ async function runDataParityForManifest(options) {
   for (const [symbol, runs] of bySymbol) {
     const dataFile = resolveDataFile(symbol);
     const instrument = resolveInstrumentFromDataFile(dataFile);
-    if (!instrument.candleTimeframe) {
-      throw new Error(`Campaign data file '${dataFile}' does not identify its candle timeframe`);
-    }
     const output = runs[0].dataParityPath || path.join(manifest.rootDir, 'data-parity', `${safeName(symbol)}.json`);
-    const referenceFile = referenceFileForSymbol(
-      options['reference-dir'],
-      symbol,
-      instrument.candleTimeframe
-    );
-    const journalPath = resolveJournalPathForParity(options);
+    const referenceFile = referenceFileForSymbol(options['reference-dir'], symbol);
+    const journalPath = resolveJournalPathForParity(options, instrument);
     const stamp = await runDataParityCheck({
       dataFile,
-      symbol: instrument.tradingPair,
-      timeframe: instrument.candleTimeframe,
+      symbol: instrument.TRADING_PAIR,
+      timeframe: instrument.CANDLE_TIMEFRAME || '15m',
       referenceFile,
       liveReference: options['live-reference'],
-      credentials: liveReferenceCredentials,
       journalPath,
       output,
       sameWindowStart: options['same-window-start'],
@@ -954,11 +1006,6 @@ async function runDataParityForManifest(options) {
         dataFile: stamp.dataFile,
         dataFileSha256: stamp.dataFileSha256,
         stampedAt: stamp.stampedAt,
-        selectedInputs: {
-          referenceFile,
-          liveReference: options['live-reference'] || null,
-          journalPath,
-        },
       };
     }
     process.stdout.write(`${symbol} | ${stamp.status} | provenance=${stamp.checks.provenance ? 'PASS' : 'FAIL'} sameWindow=${stamp.checks.sameWindow ? 'PASS' : 'FAIL'} groundTruth=${stamp.checks.groundTruth ? 'PASS' : 'FAIL'} | ${output}\n`);
@@ -1036,7 +1083,10 @@ async function launchCampaign(options) {
     writeHeartbeat(manifest, 'run_started', run);
     const status = await runNodeProcess({
       args: run.command.slice(1),
-      env: buildWorkerBaseEnv(process.env),
+      env: {
+        ...process.env,
+        BACKTEST_OUTPUT_DIR: run.artifactDir,
+      },
       logPath: run.logPath,
       statusPath: run.statusPath,
       label: run.id,
@@ -1197,11 +1247,12 @@ module.exports = {
   evaluateFrequency,
   EXPECTED_SIGNAL_FREQUENCY,
   assertCampaignParitySource,
+  findScopedJournalForInstrument,
   launchCampaign,
   runDataParityForManifest,
   resolveDataFile,
   checkDiskGuard,
   stopCampaign,
-  strategyOverrides,
+  strategyEnv,
   LOW_DISK_STATUS,
 };

@@ -32,8 +32,24 @@
 const { c: _c, h: _h, l: _l } = require('./CandleHelper');
 
 class RegimeDetector {
-  constructor(config) {
-    this.config = config;
+  constructor(config = {}) {
+    this.config = {
+      // Trend: total price movement over lookback as fraction of price
+      // 0.5% over 20 candles (5 hours on 15m) = trending
+      trendThreshold: config.trendThreshold || 0.005,
+      strongTrendThreshold: config.strongTrendThreshold || 0.015,
+
+      // Volatility: ATR as fraction of price
+      // 1.2% ATR on 15m candles = elevated volatility for BTC
+      volatilityThreshold: config.volatilityThreshold || 0.012,
+
+      // Lookback periods (in candles)
+      trendLookback: config.trendLookback || 20,
+      volatilityLookback: config.volatilityLookback || 14,
+
+      // Minimum consistency to classify as trending (fraction of candles in same direction)
+      minTrendConsistency: config.minTrendConsistency || 0.5
+    };
   }
 
   /**
@@ -45,7 +61,7 @@ class RegimeDetector {
    * @returns {Object} { regime, confidence, details }
    */
   detect(indicators, candles) {
-    if (!candles || candles.length < this.config.minimumCandles) {
+    if (!candles || candles.length < 10) {
       return {
         regime: 'ranging',
         confidence: 0,
@@ -163,7 +179,7 @@ class RegimeDetector {
    * Returns 0-1 where 1 = all candles move one way, 0 = perfectly balanced.
    */
   _measureDirectionalDominance(candles) {
-    const lookback = Math.min(this.config.directionalLookback, candles.length);
+    const lookback = Math.min(14, candles.length);
     const recent = candles.slice(-lookback);
 
     if (recent.length < 3) return 0;
@@ -211,13 +227,10 @@ class RegimeDetector {
     const absSlope = Math.abs(slope);
 
     // 1. Strong trend with consistency — always wins
-    if (absSlope > this.config.strongTrendThreshold && consistency > this.config.strongTrendConsistency) {
+    if (absSlope > this.config.strongTrendThreshold && consistency > 0.6) {
       return {
         regime: slope > 0 ? 'trending_up' : 'trending_down',
-        confidence: Math.min(1, (
-          consistency * this.config.consistencyConfidenceWeight
-          + dominance * this.config.dominanceConfidenceWeight
-        ))
+        confidence: Math.min(1, (consistency * 0.6 + dominance * 0.4))
       };
     }
 
@@ -225,10 +238,7 @@ class RegimeDetector {
     if (absSlope > this.config.trendThreshold && consistency > this.config.minTrendConsistency) {
       return {
         regime: slope > 0 ? 'trending_up' : 'trending_down',
-        confidence: Math.min(1, (
-          consistency * this.config.consistencyConfidenceWeight
-          + dominance * this.config.dominanceConfidenceWeight
-        )) * this.config.moderateTrendConfidenceMultiplier
+        confidence: Math.min(1, (consistency * 0.6 + dominance * 0.4)) * 0.8
       };
     }
 
@@ -236,9 +246,7 @@ class RegimeDetector {
     if (volatility > this.config.volatilityThreshold && absSlope < this.config.trendThreshold) {
       return {
         regime: 'volatile',
-        confidence: Math.min(1, volatility / (
-          this.config.volatilityThreshold * this.config.volatileConfidenceThresholdMultiplier
-        ))
+        confidence: Math.min(1, volatility / (this.config.volatilityThreshold * 2))
       };
     }
 

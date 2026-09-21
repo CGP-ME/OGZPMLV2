@@ -27,17 +27,29 @@ const { ASSET_REGISTRY, getAssetConfig, normalizeAssetSymbol } = require('./Asse
  */
 
 class MultiAssetManager {
-  constructor(bot, options) {
+  constructor(bot) {
     this.bot = bot;
 
     this.assetRegistry = ASSET_REGISTRY;
 
-    const configuredAsset = options.tradingPair;
+    // Broker-aware default asset — prevents crypto/stock mismatch when BROKER
+    // is changed without also updating TRADING_PAIR. Mercury 2026-04-22 catch:
+    // the prior hardcoded 'BTC-USD' default fired even on Alpaca broker runs.
+    // Explicit TRADING_PAIR still has to match the explicitly selected broker.
+    let defaultAsset = 'BTC-USD';
+    const activeBroker = (process.env.BROKER || 'kraken').toLowerCase();
+    if (activeBroker !== 'kraken') {
+      const match = Object.entries(this.assetRegistry).find(
+        ([, info]) => info.broker === activeBroker
+      );
+      if (match) defaultAsset = match[0];
+    }
+    const configuredAsset = process.env.TRADING_PAIR || defaultAsset;
     const normalizedAsset = this._normalize(configuredAsset);
     if (!normalizedAsset) {
       throw new Error(`[MultiAsset] Unknown startup asset ${configuredAsset}; refusing runtime initialization`);
     }
-    const configuredBroker = String(options.brokerId).toLowerCase();
+    const configuredBroker = process.env.BROKER ? process.env.BROKER.toLowerCase() : null;
     const normalizedConfig = this.assetRegistry[normalizedAsset];
     if (configuredBroker && normalizedConfig?.broker !== configuredBroker) {
       throw new Error(`[MultiAsset] Startup asset ${normalizedAsset} belongs to broker ${normalizedConfig?.broker}; BROKER=${configuredBroker}`);

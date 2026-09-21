@@ -3,17 +3,17 @@
  * OGZPrime PARALLEL BACKTESTER — REAL PIPELINE EDITION v2
  * ========================================================
  * 
- * Runs the ACTUAL trading pipeline via child processes with typed run descriptors.
+ * Runs the ACTUAL trading pipeline via child processes with env var overrides.
  * Each worker = fresh node run-empire-v2.js with different config.
  * 
  * Fixes from v1:
- * - Worker timeout and shutdown grace come from canonical internals
+ * - Timeout raised to 20 min
  * - BACKTEST_SILENT passes through summary lines for parsing
  * - EMFILE fix: skip pattern saving + CSV export in parallel mode
  * - Reads results from JSON report file as fallback
  * 
  * Usage:
- *   node tools/parallel-backtest.js --real --fee-profile=ttp_real     (typed overrides only - default)
+ *   node tools/parallel-backtest.js --real --fee-profile=ttp_real     (HONORED env vars only - default)
  *   node tools/parallel-backtest.js --full --fee-profile=ttp_real     (all HONORED sweeps)
  *   node tools/parallel-backtest.js --atr --fee-profile=ttp_real      (ATR filter sweep)
  * 
@@ -28,12 +28,11 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const ConfigLoader = require('../foundation/ConfigLoader');
-const { getBacktestResultsDir } = require('../core/OutputPaths');
 const { resolveInstrumentFromDataFile } = require('./instrument-env');
 const {
+  buildWorkerBaseEnv,
   buildBacktestWorkerEnv,
   summarizeWorkerEnv,
-  removeBacktestRunDescriptor,
 } = require('./backtest-worker-env');
 const {
   DEFAULT_TUNING_PROFILE,
@@ -64,10 +63,9 @@ const PARALLEL_BACKTEST_CONFIG = ConfigLoader.getParallelBacktestConfig();
 const DEFAULT_DATA = PARALLEL_BACKTEST_CONFIG.defaultData;
 const DATA_SHORTCUTS = Object.freeze({ ...PARALLEL_BACKTEST_CONFIG.dataShortcuts });
 const STOCK_DATA_SHORTCUTS = Object.freeze([...PARALLEL_BACKTEST_CONFIG.stockDataShortcutKeys]);
-const RESULTS_DIR = getBacktestResultsDir();
+const RESULTS_DIR = path.join(PROJECT_ROOT, 'backtest-results');
 const WORKER_LOG_DIR = path.join(RESULTS_DIR, 'worker-logs');
-const TIMEOUT_MS = PARALLEL_BACKTEST_CONFIG.timeoutMs;
-const KILL_GRACE_MS = PARALLEL_BACKTEST_CONFIG.killGraceMs;
+const TIMEOUT_MS = 0; // No timeout - let it finish
 
 function isStockDataShortcut(key) {
   return STOCK_DATA_SHORTCUTS.includes(key);
@@ -162,8 +160,6 @@ function summarizeFailedResult(result) {
     winRate: result.winRate ?? null,
     reportPath: result.reportPath || null,
     workerLogPath: result.workerLogPath || null,
-    requestedOverrides: { ...(result.config?.overrides || {}) },
-    resolvedWorkerConfig: result.workerEnv || null,
   };
 }
 
@@ -193,15 +189,46 @@ function parseSoloStrategies(value) {
     .filter(Boolean);
 }
 
+function buildSoloStrategyEnableEnv(soloStrategy) {
+  const soloStrategies = new Set(parseSoloStrategies(soloStrategy));
+  if (soloStrategies.size === 0) return {};
+
+  const env = {};
+  if (soloStrategies.has('nowickimbalance')) env.ENABLE_NOWICK = 'true';
+  if (soloStrategies.has('openingrangebreakout')) env.ENABLE_ORB = 'true';
+  if (soloStrategies.has('breakretest')) env.ENABLE_BREAKRETEST = 'true';
+  if (soloStrategies.has('donchianbreakout')) env.ENABLE_DONCHIAN = 'true';
+  if (soloStrategies.has('propsafeemapullback')) env.ENABLE_PROPSAFE_EMA = 'true';
+  if (soloStrategies.has('ematrendretest')) env.ENABLE_EMA_TREND_RETEST = 'true';
+  if (soloStrategies.has('rsi2meanreversion')) env.ENABLE_RSI2_MR = 'true';
+  if (soloStrategies.has('timeseriesmomentum')) env.ENABLE_TSMOM = 'true';
+  if (soloStrategies.has('smartmoneysweep')) {
+    env.ENABLE_SMS = 'true';
+    env.SMS_VP_RTH_ONLY = 'true';
+  }
+  return env;
+}
+
+function assertSoloStrategyEnvCompatible(soloStrategy, configEnv = {}) {
+  const requiredEnv = buildSoloStrategyEnableEnv(soloStrategy);
+  for (const [key, requiredValue] of Object.entries(requiredEnv)) {
+    if (!Object.prototype.hasOwnProperty.call(configEnv, key)) continue;
+    if (String(configEnv[key]).toLowerCase() === requiredValue) continue;
+    throw new Error(
+      `Invalid parallel-backtest config: ${key}=${configEnv[key]} conflicts with SOLO_STRATEGY=${soloStrategy}`
+    );
+  }
+}
+
 function applySoloStrategyToConfigs(configs, soloStrategy) {
   if (!soloStrategy) return configs;
-  const selected = String(soloStrategy).split(',').map(value => value.trim()).filter(Boolean);
   return configs.map(config => {
+    if (config.env?.SOLO_STRATEGY) return config;
     return {
       ...config,
-      overrides: {
-        ...(config.overrides || {}),
-        'strategies.soloFilter': selected,
+      env: {
+        ...(config.env || {}),
+        SOLO_STRATEGY: soloStrategy,
       },
     };
   });
@@ -223,24 +250,26 @@ function generateGauntlet(paramType, values) {
   const configs = [];
   for (const strat of STRATEGIES) {
     for (const val of values) {
-      const overrides = { 'strategies.soloFilter': [strat] };
+      let env = { SOLO_STRATEGY: strat };
       let name = `${strat.substring(0,4)}-`;
 
       if (paramType === 'confidence') {
-        overrides['confidence.minTradeConfidence'] = val;
+        env.BACKTEST_CONFIG_OVERRIDES_JSON = JSON.stringify({
+          'confidence.minTradeConfidence': val,
+        });
         name += `c${(val*100).toFixed(0)}`;
       } else if (paramType === 'atr') {
         if (val === 0) {
-          overrides['filters.atrEnabled'] = false;
+          env.ATR_FILTER_ENABLED = 'false';
           name += 'atr-off';
         } else {
-          overrides['filters.atrEnabled'] = true;
-          overrides['filters.atrMinPercent'] = val;
+          env.ATR_FILTER_ENABLED = 'true';
+          env.ATR_MIN_PERCENT = String(val);
           name += `atr${(val*100).toFixed(0)}`;
         }
       }
 
-      configs.push({ name, overrides });
+      configs.push({ name, env });
     }
   }
   return configs;
@@ -251,27 +280,25 @@ function generateGauntlet(paramType, values) {
 // ═══════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════
-// TYPED OVERRIDE AUDIT
+// ENV VAR AUDIT (2026-04-07)
 // ═══════════════════════════════════════════════════════════════
-// HONORED: filters.atrEnabled, filters.atrMinPercent,
-//          positionSizing.maxPositionSize, exits.profitTiers.tier1/2/3.
-// HONORED STRATEGY-OWNED EXIT GEOMETRY: canonical nested strategies.* leaves
-//          exposed by --exit-geometry.
-// REJECTED: generic stop/target/trail controls outside strategy exitContracts
-//           (locked exitContracts own strategy risk; descriptors reject invented tuning).
-// PARTIAL: confidence.minTradeConfidence (entry gate works, but strategies also
-//          retain their canonical strategy-specific minimum-confidence leaves).
+// HONORED: ATR_FILTER_ENABLED, ATR_MIN_PERCENT, MAX_POSITION_SIZE_PCT,
+//          TIER1/2/3_TARGET
+// HONORED STRATEGY-OWNED EXIT GEOMETRY: DONCHIAN_*, TSMOM_*, RSI2_MR_*,
+//          PROPSAFE_EMA_*, EMA_TREND_RETEST_* keys exposed by --exit-geometry
+// REJECTED: generic STOP_LOSS_PERCENT, TAKE_PROFIT_PERCENT, TRAILING_STOP_PERCENT
+//           (locked exitContracts own strategy risk; worker env rejects fake tuning)
+// GHOST:   TRAILING_STOP_ENABLED, REGIME_FILTER_ENABLED, REGIME_ALLOW_*
+//          (never read by trading code)
+// PARTIAL: confidence.minTradeConfidence (entry gate works, but strategies have own minConfidence)
 // ═══════════════════════════════════════════════════════════════
 
 const SWEEP_PRESET_DEFINITIONS = PARALLEL_BACKTEST_CONFIG.sweepPresets;
 
 function cloneSweepConfig(config) {
-  if (config.env !== undefined) {
-    throw new Error(`Sweep preset '${config.name}' still uses removed env-shaped behavior transport`);
-  }
   return {
     name: config.name,
-    overrides: { ...(config.overrides || {}) },
+    env: { ...(config.env || {}) },
   };
 }
 
@@ -282,13 +309,13 @@ function cloneSweepConfigs(configs) {
 function freezeSweepConfigs(configs) {
   return Object.freeze(cloneSweepConfigs(configs).map(config => Object.freeze({
     ...config,
-    overrides: Object.freeze({ ...config.overrides }),
+    env: Object.freeze({ ...config.env }),
   })));
 }
 
 const SWEEP_PRESETS = Object.freeze({
   // ═══════════════════════════════════════════════════════════════
-  // REAL — Only canonical typed leaves that actually affect trading
+  // REAL — Only HONORED env vars that actually affect trading
   // ═══════════════════════════════════════════════════════════════
   real: freezeSweepConfigs(SWEEP_PRESET_DEFINITIONS.real),
 
@@ -342,9 +369,11 @@ function generateRSISweep(options = PARALLEL_BACKTEST_CONFIG.rsiSweep) {
       if (exitAbove - buyBelow < minSpread) continue;
       configs.push({
         name: `rsi-b${buyBelow}-x${exitAbove}`,
-        overrides: {
-          'strategies.RSI.buyBelow': buyBelow,
-          'strategies.RSI.exitAbove': exitAbove,
+        env: {
+          BACKTEST_CONFIG_OVERRIDES_JSON: JSON.stringify({
+            'strategies.RSI.buyBelow': buyBelow,
+            'strategies.RSI.exitAbove': exitAbove,
+          }),
         }
       });
     }
@@ -363,7 +392,11 @@ function runSingleBacktest(config, dataFile, stockMode = false, profileName = DE
     const stateFile = path.join(PROJECT_ROOT, 'data', `state-parallel-${uniqueId}.json`);
     const reportTag = `parallel-${uniqueId}`;
     
-    const instrumentIdentity = resolveInstrumentFromDataFile(dataFile);
+    const instrumentEnv = resolveInstrumentFromDataFile(dataFile);
+    const selectedSoloStrategy = config.env?.SOLO_STRATEGY;
+    assertSoloStrategyEnvCompatible(selectedSoloStrategy, config.env || {});
+    const soloStrategyEnv = buildSoloStrategyEnableEnv(selectedSoloStrategy);
+
     const env = buildBacktestWorkerEnv({
       sourceEnv: process.env,
       projectRoot: PROJECT_ROOT,
@@ -371,18 +404,17 @@ function runSingleBacktest(config, dataFile, stockMode = false, profileName = DE
       stateFile,
       dataDir: path.join(PROJECT_ROOT, 'data', 'backtest'),
       reportTag,
-      outputDir: RESULTS_DIR,
-      freshStart: false,
+      stockMode,
       profileName,
       feeProfileName,
-      overrides: config.overrides || {},
-      instrumentIdentity,
+      strategyDiag: 'false',
+      configEnv: { ...soloStrategyEnv, ...(config.env || {}) },
+      instrumentEnv,
     });
 
     let output = '';
-    let settled = false;
 
-    const child = spawn(process.execPath, [RUNNER], {
+    const child = spawn('node', [RUNNER], {
       cwd: PROJECT_ROOT,
       env: env,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -390,18 +422,10 @@ function runSingleBacktest(config, dataFile, stockMode = false, profileName = DE
 
     // Timeout handler (disabled when TIMEOUT_MS = 0)
     let timer = null;
-    const finish = (result) => {
-      if (settled) return;
-      settled = true;
-      if (timer) clearTimeout(timer);
-      removeBacktestRunDescriptor(env);
-      try { fs.unlinkSync(stateFile); } catch(e) {}
-      resolve(result);
-    };
     if (TIMEOUT_MS > 0) {
       timer = setTimeout(() => {
         child.kill('SIGTERM');
-        setTimeout(() => child.kill('SIGKILL'), KILL_GRACE_MS);
+        setTimeout(() => child.kill('SIGKILL'), 5000);
       }, TIMEOUT_MS);
     }
 
@@ -409,13 +433,13 @@ function runSingleBacktest(config, dataFile, stockMode = false, profileName = DE
     child.stderr.on('data', (data) => { output += data.toString(); });
 
     child.on('close', (code) => {
-      if (settled) return;
+      if (timer) clearTimeout(timer);
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
       // If exit code 1 and quick failure, show the error
       if (code === 1 && parseFloat(elapsed) < 3) {
         // Extract error message from output
-        const errorMatch = output.match(/Error:|CRITICAL|Cannot find module/i);
+        const errorMatch = output.match(/Error:|CRITICAL|Cannot find module|❌/i);
         if (errorMatch || output.length < 500) {
           console.error(`\n  [${config.name}] CRASH OUTPUT:\n${output.slice(0, 1000)}\n`);
         }
@@ -426,9 +450,17 @@ function runSingleBacktest(config, dataFile, stockMode = false, profileName = DE
 
       // If console parsing failed, try reading the report JSON
       if (result.trades == null) {
-      const reportResult = tryReadReport(PROJECT_ROOT, reportTag, RESULTS_DIR);
+        const reportResult = tryReadReport(PROJECT_ROOT, reportTag);
         if (reportResult) {
           result = { ...result, ...reportResult };
+        }
+      }
+
+      // Also try reading the most recent report file
+      if (result.trades == null) {
+        const latestResult = tryReadLatestReport(PROJECT_ROOT);
+        if (latestResult) {
+          result = { ...result, ...latestResult };
         }
       }
 
@@ -443,57 +475,47 @@ function runSingleBacktest(config, dataFile, stockMode = false, profileName = DE
         if (!result.error) result.error = getWorkerFailureReason(result);
       }
 
-      finish(result);
+      // Clean up state file
+      try { fs.unlinkSync(stateFile); } catch(e) {}
+
+      resolve(result);
     });
 
     child.on('error', (err) => {
-      const failure = buildWorkerProcessErrorResult(
+      if (timer) clearTimeout(timer);
+      resolve(buildWorkerProcessErrorResult(
         config,
         env,
         reportTag,
         output,
         err,
         ((Date.now() - startTime) / 1000).toFixed(1)
-      );
-      finish(failure);
+      ));
     });
   });
 }
 
-function listTaggedReports(scanDir, tag) {
-  if (!scanDir || !fs.existsSync(scanDir)) return [];
-  const reports = [];
-  for (const entry of fs.readdirSync(scanDir, { withFileTypes: true })) {
-    const full = path.join(scanDir, entry.name);
-    if (entry.isDirectory()) {
-      reports.push(...listTaggedReports(full, tag));
-      continue;
-    }
-    const matchesLegacyName = entry.name.startsWith('backtest-report-') && entry.name.endsWith('.json');
-    const matchesCampaignName = entry.name.startsWith('report-') && entry.name.endsWith('.json');
-    if (!matchesLegacyName && !matchesCampaignName) continue;
-    if (tag && full.indexOf(tag) === -1) continue;
-    reports.push({ name: entry.name, path: full, mtime: fs.statSync(full).mtimeMs });
-  }
-  return reports;
-}
-
-function tryReadReport(projectRoot, tag, outputRoot) {
+function tryReadReport(projectRoot, tag) {
   try {
-    if (!tag) return null;
-    // Match only this worker's tag across the configured output root and legacy
-    // locations. Reading an unrelated "latest" report would silently attach a
-    // different configuration's result to this descriptor.
+    // FIX 2026-04-22: sibling of matrix-sweep's reporter fix.
+    // Scan backtest-results/worker-reports/ first (tagged reports land there per
+    // BacktestRunner.js 3-way path branch), fallback to project root for legacy.
     const workerDir = path.join(projectRoot, 'backtest-results', 'worker-reports');
-    const reports = []
-      .concat(listTaggedReports(outputRoot, tag))
-      .concat(listTaggedReports(workerDir, tag))
-      .concat(listTaggedReports(projectRoot, tag))
+    const scanDir = fs.existsSync(workerDir) ? workerDir : projectRoot;
+
+    const reports = fs.readdirSync(scanDir)
+      .filter(f => {
+        if (!f.startsWith('backtest-report-') || !f.endsWith('.json')) return false;
+        // If tag provided, match only this worker's report (prevents cross-worker race)
+        if (tag) return f.indexOf(tag) !== -1;
+        return true;
+      })
+      .map(f => ({ name: f, mtime: fs.statSync(path.join(scanDir, f)).mtimeMs }))
       .sort((a, b) => b.mtime - a.mtime);
 
     if (reports.length === 0) return null;
 
-    const reportPath = reports[0].path;
+    const reportPath = path.join(scanDir, reports[0].name);
     const data = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
 
     // FIX 2026-04-22: removed unlinkSync — reports retained for postmortem.
@@ -543,6 +565,10 @@ function tryReadReport(projectRoot, tag, outputRoot) {
   } catch(e) {
     return null;
   }
+}
+
+function tryReadLatestReport(projectRoot) {
+  return tryReadReport(projectRoot, null);
 }
 
 function finiteNumber(value) {
@@ -599,14 +625,13 @@ function parseBacktestOutput(output, name) {
 function describeFeePosture(profile, stockMode) {
   if (!stockMode) return null;
 
-  const fees = (profile && profile.overrides) || {};
-  const slippage = fees['fees.slippage'];
-  const slippageText = slippage !== undefined ? `, slippage=${slippage}` : '';
-  if (fees['fees.model'] === 'per_share_minimum') {
-    return `profile ${profile.name}: per-share minimum model (perShare=${fees['fees.perShare'] ?? 'unset'}, minOrder=${fees['fees.minOrderFee'] ?? 'unset'}${slippageText})`;
+  const feeEnv = (profile && profile.env) || {};
+  const slippageText = feeEnv.FEE_SLIPPAGE ? `, slippage=${feeEnv.FEE_SLIPPAGE}` : '';
+  if (feeEnv.FEE_MODEL === 'per_share_minimum') {
+    return `profile ${profile.name}: per-share minimum model (perShare=${feeEnv.FEE_PER_SHARE || 'unset'}, minOrder=${feeEnv.FEE_MIN_ORDER || 'unset'}${slippageText})`;
   }
-  if (fees['fees.model']) {
-    return `profile ${profile.name}: ${fees['fees.model']} model${slippageText}`;
+  if (feeEnv.FEE_MODEL) {
+    return `profile ${profile.name}: ${feeEnv.FEE_MODEL} model${slippageText}`;
   }
   return `profile ${profile.name}: stock zero-commission model${slippageText}`;
 }
@@ -639,9 +664,9 @@ async function runParallelSweep(configs, dataFile, stockMode = false, profileNam
     const batchNum = Math.floor(i / MAX_WORKERS) + 1;
     const totalBatches = Math.ceil(configs.length / MAX_WORKERS);
 
-    console.log(`\n-- Batch ${batchNum}/${totalBatches} (${batch.length} workers) --`);
-    batch.forEach(c => console.log(`  ${c.name}`));
-    console.log('  Running... (no timeout, will finish when done)');
+    console.log(`\n── Batch ${batchNum}/${totalBatches} (${batch.length} workers) ──`);
+    batch.forEach(c => console.log(`  → ${c.name}`));
+    console.log(`  ⏳ Running... (no timeout, will finish when done)`);
 
     const batchResults = await Promise.all(
       batch.map(config => runSingleBacktest(config, dataFile, stockMode, tuningProfile.name, feeProfile.name))
@@ -663,19 +688,20 @@ async function runParallelSweep(configs, dataFile, stockMode = false, profileNam
     .filter(isCleanParsedResult)
     .sort((a, b) => b.netPnl - a.netPnl);
 
-  console.log(`\n${'='.repeat(70)}`);
+  console.log(`\n${'═'.repeat(70)}`);
   console.log(`  LEADERBOARD (${ranked.length}/${results.length} parsed, ${totalTime}s total)`);
-  console.log(`${'='.repeat(70)}`);
+  console.log(`${'═'.repeat(70)}`);
   console.log(`  ${'#'.padEnd(4)} ${'Config'.padEnd(28)} ${'P&L'.padEnd(14)} ${'Trades'.padEnd(8)} ${'WR%'.padEnd(8)} ${'DD%'.padEnd(8)} ${'PF'.padEnd(6)}`);
   console.log(`  ${'-'.repeat(66)}`);
 
   ranked.forEach((r, i) => {
+    const icon = i === 0 ? '👑' : (r.netPnl > 0 ? '🟢' : '🔴');
     const pnl = `$${r.netPnl.toFixed(2)}`;
     const trades = r.trades || '-';
     const wr = r.winRate != null ? `${r.winRate.toFixed(1)}%` : '-';
     const dd = r.maxDrawdown != null ? `${r.maxDrawdown.toFixed(1)}%` : '-';
     const pf = r.profitFactor != null ? r.profitFactor.toFixed(2) : '-';
-    console.log(`  ${String(i + 1).padEnd(4)} ${r.name.padEnd(28)} ${pnl.padEnd(14)} ${String(trades).padEnd(8)} ${wr.padEnd(8)} ${dd.padEnd(8)} ${pf.padEnd(6)}`);
+    console.log(`  ${icon}${String(i+1).padEnd(3)} ${r.name.padEnd(28)} ${pnl.padEnd(14)} ${String(trades).padEnd(8)} ${wr.padEnd(8)} ${dd.padEnd(8)} ${pf.padEnd(6)}`);
   });
 
   // Show configs that failed to parse
@@ -705,13 +731,13 @@ async function runParallelSweep(configs, dataFile, stockMode = false, profileNam
     winner: ranked[0] || null,
   };
   fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
-  console.log(`\nFull results saved: ${reportPath}`);
+  console.log(`\n📁 Full results saved: ${reportPath}`);
 
   if (ranked[0]) {
-    console.log(`\nTop ranked result: ${ranked[0].name}`);
+    console.log(`\n👑 WINNER: ${ranked[0].name}`);
     console.log(`   P&L: $${ranked[0].netPnl.toFixed(2)} | WR: ${ranked[0].winRate?.toFixed(1) || '?'}% | Trades: ${ranked[0].trades || '?'}`);
-    if (ranked[0].config.overrides && Object.keys(ranked[0].config.overrides).length > 0) {
-      console.log(`   Config: ${JSON.stringify(ranked[0].config.overrides)}`);
+    if (ranked[0].config.env && Object.keys(ranked[0].config.env).length > 0) {
+      console.log(`   Config: ${JSON.stringify(ranked[0].config.env)}`);
     }
   }
 
@@ -727,7 +753,7 @@ async function main() {
   cleanupParallelStateFiles();
 
   const args = process.argv.slice(2);
-  let sweepName = 'real';  // Default to canonical typed overrides only
+  let sweepName = 'real';  // Default to HONORED env vars only
   let dataFile = DEFAULT_DATA;
   let stockMode = false;
   let cliSoloStrategy = null;
@@ -779,7 +805,7 @@ async function main() {
     else if (args[i] === '--exit-geometry') sweepName = 'exit-geometry';
     else if (args[i] === '--gauntlet-atr') sweepName = 'gauntlet-atr';
     else if (args[i] === '--strategy' && args[i+1]) {
-      // Single strategy isolation mode - sets typed soloFilter in every descriptor.
+      // Single strategy isolation mode - adds SOLO_STRATEGY to all configs
       cliSoloStrategy = args[++i];
       console.log(`[SOLO MODE] Only testing strategy: ${cliSoloStrategy}`);
     }
@@ -801,7 +827,7 @@ async function main() {
 OGZPrime Parallel Backtester v2 (AUDITED 2026-04-07)
 Usage: node tools/parallel-backtest.js [options]
 
-REAL Sweeps (canonical typed overrides only):
+REAL Sweeps (HONORED env vars only):
   --real         9 configs - ATR, sizing, tiers (default)
   --quick        Alias to --real
   --full         All HONORED sweeps combined
@@ -819,11 +845,11 @@ Strategy Isolation:
   --match=TEXT      Run only config names matching TEXT/regex
 
 Gauntlet:
-  --gauntlet-atr    ${STRATEGIES.length} strategies x ${PARALLEL_BACKTEST_CONFIG.gauntlet.atrValues.length} ATR levels (${SWEEP_PRESETS['gauntlet-atr'].length} configs)
+  --gauntlet-atr    11 strategies x 8 ATR levels (88 configs)
 
 Options:
   --data FILE    Candle data file (default: ${DEFAULT_DATA})
-                 Shortcuts: ${Object.keys(DATA_SHORTCUTS).join(', ')}
+                 Shortcuts: tsla, spy, qqq, btc, btc-5sec
   --solo=NAME    Test single strategy (RSI, MADynamicSR, EMASMACrossover, SmartMoneySweep, etc)
   --profile=NAME Tuning profile (${listTuningProfileNames().join(', ')})
   --fee-profile=NAME Required venue fee profile (${listFeeProfileNames().join(', ')})
@@ -838,8 +864,10 @@ Examples:
   node tools/parallel-backtest.js --atr --solo=RSI --stocks --profile=legacy-wide --fee-profile=ttp_real
 
 Walk-Forward Validation:
-  Supply each explicit train/test data file with --data. No synthetic split or
-  retired train/test shortcut is selected by this tool.
+  After finding winners, test on unseen data:
+  1. Train on first 6 months, find optimal params
+  2. Validate on next 6 months, confirm they hold
+  3. Test on final year, prove edge is real
 
 Notes:
   - Results saved to backtest-results/
@@ -848,12 +876,6 @@ Notes:
       process.exit(0);
     }
   }
-
-  const resolvedInstrument = resolveInstrumentFromDataFile(dataFile);
-  if (stockMode && resolvedInstrument.assetClass !== 'stocks') {
-    throw new Error(`--stocks conflicts with ${dataFile}, which resolves to ${resolvedInstrument.assetClass}`);
-  }
-  stockMode = resolvedInstrument.assetClass === 'stocks';
 
   if (!feeProfileName) {
     console.error(`Missing required --fee-profile. Available: ${listFeeProfileNames().join(', ')}`);
@@ -895,6 +917,9 @@ module.exports = {
   STRATEGIES,
   SWEEP_PRESETS,
   parseSoloStrategies,
+  buildSoloStrategyEnableEnv,
+  assertSoloStrategyEnvCompatible,
+  buildWorkerBaseEnv,
   applySoloStrategyToConfigs,
   filterConfigsByName,
   parseBacktestOutput,

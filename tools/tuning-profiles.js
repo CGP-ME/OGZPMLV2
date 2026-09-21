@@ -7,32 +7,17 @@ function listTuningProfileNames() {
 }
 
 function resolveTuningProfile(profileName = ConfigLoader.DEFAULT_TUNING_PROFILE) {
-  const profile = ConfigLoader.resolveTuningProfile(profileName);
-  return Object.freeze({
-    name: profile.name,
-    launchProfile: profile.launchProfile,
-    description: profile.description,
-    evidence: Object.freeze([...(profile.evidence || [])]),
-    overrides: ConfigLoader.buildTuningProfileOverrides(profile.name),
-  });
+  return ConfigLoader.resolveTuningProfile(profileName);
 }
 
 function summarizeTuningProfile(profile) {
-  const resolved = resolveTuningProfile(typeof profile === 'object' ? profile.name : profile);
-  return {
-    name: resolved.name,
-    launchProfile: resolved.launchProfile,
-    description: resolved.description,
-    evidence: [...resolved.evidence],
-    overrides: { ...resolved.overrides },
-  };
+  return ConfigLoader.summarizeTuningProfile(profile);
 }
 
 module.exports = {
   DEFAULT_TUNING_PROFILE: ConfigLoader.DEFAULT_TUNING_PROFILE,
-  PROFILE_DEFINITIONS: Object.freeze(Object.fromEntries(
-    ConfigLoader.listTuningProfileNames().map(name => [name, resolveTuningProfile(name)])
-  )),
+  PROFILE_DEFINITIONS: ConfigLoader.getTuningProfileDefinitions(),
+  PROFILE_FORBIDDEN_ENV_KEYS: ConfigLoader.PROFILE_FORBIDDEN_ENV_KEYS,
   listTuningProfileNames,
   resolveTuningProfile,
   summarizeTuningProfile,

@@ -33,7 +33,7 @@
  * @module ogzprime-ssl-server
  * @requires express
  * @requires ws
- * @requires foundation/ConfigLoader
+ * @requires dotenv
  *
  * @example
  * // Start the dashboard server
@@ -76,9 +76,13 @@ process.on('unhandledRejection', (reason, promise) => {
   process.exit(1);
 });
 
-const { load: loadConfig } = require('./foundation/ConfigLoader');
-const dashboardRuntimeConfig = loadConfig({ silent: true, role: 'dashboard' }).config;
-const dashboardConfig = dashboardRuntimeConfig.services.dashboard;
+const dotenvResult = require('dotenv').config();
+if (dotenvResult.error) {
+  captureDashboardFailure('configurationSourceUnavailable', dotenvResult.error, {
+    source: 'dotenv',
+    continued: true,
+  });
+}
 runtimeAuditSink.setPhase('service_initialization');
 const express = require('express');
 const WebSocket = require('ws');
@@ -93,18 +97,14 @@ const {
   buildDashboardMarketScope
 } = require('./server/dashboard-market-scope');
 const { buildTickerPriceFrame, parseTickerSymbolList } = require('./server/dashboard-ticker-frame');
-const { resolveDashboardStockConfigFromRuntime } = require('./server/dashboard-stock-stream-config');
+const { resolveDashboardStockConfig } = require('./server/dashboard-stock-stream-config');
 const { createDashboardSessionAuth } = require('./server/dashboard-session-auth');
 const { ASSET_REGISTRY, normalizeAssetSymbol } = require('./core/AssetRegistry');
 
+const apiPort = process.env.API_PORT || 3010;
 const app = express();
 const httpServer = http.createServer(app);
-const dashboardSessionAuth = createDashboardSessionAuth({
-  secureCookies: dashboardConfig.secureCookies,
-  sessionTtlMs: dashboardRuntimeConfig.dashboard.sessionTtlMs,
-  ticketTtlMs: dashboardRuntimeConfig.dashboard.ticketTtlMs,
-});
-const dashboardAuthToken = dashboardConfig.authToken;
+const dashboardSessionAuth = createDashboardSessionAuth();
 
 function isSameOriginDashboardRequest(req) {
   const headers = req && req.headers ? req.headers : {};
@@ -194,7 +194,7 @@ app.get(['/unified-dashboard-v2.html', '/unified-dashboard-v2.html/'], serveDash
 app.get(['/', '/index.html', '/index.html/', '/unified-dashboard-legacy.html', '/unified-dashboard-legacy.html/'], serveDashboardV2);
 
 app.post('/api/dashboard/session', (req, res) => {
-  const validToken = dashboardAuthToken;
+  const validToken = process.env.WEBSOCKET_AUTH_TOKEN;
   if (!validToken) {
     return res.status(503).json({ ok: false, error: 'dashboard_auth_unavailable' });
   }
@@ -283,18 +283,20 @@ let traiClient = null;
 
 async function getTraiClient() {
   if (!traiClient) {
-    traiClient = new PersistentLLMClient(resolveTraiLlmConfig({ config: dashboardRuntimeConfig }));
+    traiClient = new PersistentLLMClient(resolveTraiLlmConfig());
     await traiClient.initialize();
   }
   return traiClient;
 }
 
 // CHANGE 2026-07-01: Provider-explicit news search (core/NewsSearchProvider.js).
-// The dashboard role-scoped config supplies the selected provider and its
-// required companions. When no provider is configured, every consumer exposes
-// the existing honest "unconfigured" state.
-const { resolveNewsSearchConfigFromRuntime, createNewsSearchClient } = require('./core/NewsSearchProvider');
-const NEWS_SEARCH_CONFIG = resolveNewsSearchConfigFromRuntime(dashboardRuntimeConfig);
+// Replaces the hardcoded Tavily coupling. Provider is selected by
+// NEWS_SEARCH_PROVIDER (tavily | brightdata); required keys are enforced at
+// startup — misconfiguration throws instead of silently degrading. When no
+// provider is configured, newsSearch() returns null and every consumer
+// surfaces the existing honest "unconfigured" state.
+const { resolveNewsSearchConfig, createNewsSearchClient } = require('./core/NewsSearchProvider');
+const NEWS_SEARCH_CONFIG = resolveNewsSearchConfig(process.env);
 const newsSearchClient = NEWS_SEARCH_CONFIG.provider ? createNewsSearchClient(NEWS_SEARCH_CONFIG) : null;
 const NEWS_SEARCH_CONFIGURED = Boolean(newsSearchClient);
 const NEWS_SEARCH_SOURCE = NEWS_SEARCH_CONFIG.provider || 'unconfigured';
@@ -331,7 +333,7 @@ function needsWebSearch(prompt) {
 }
 
 // CHANGE 2026-03-30: Fetch real market data from Polygon.io
-const POLYGON_API_KEY = dashboardConfig.polygonApiKey;
+const POLYGON_API_KEY = process.env.POLYGON_API_KEY || '';
 
 async function fetchMarketData(symbol) {
   if (!POLYGON_API_KEY) {
@@ -578,11 +580,11 @@ app.post('/api/trai/search', async (req, res) => {
     if (!NEWS_SEARCH_CONFIGURED) {
       return res.status(503).json({
         error: 'Web search not configured',
-        hint: 'Configure services.news.provider and its required service credentials'
+        hint: 'Set NEWS_SEARCH_PROVIDER=brightdata (with BRIGHTDATA_API_KEY + BRIGHTDATA_SERP_ZONE) or NEWS_SEARCH_PROVIDER=tavily (with TAVILY_API_KEY) in .env'
       });
     }
 
-    const results = await newsSearch(query, maxResults === undefined ? 5 : maxResults);
+    const results = await newsSearch(query, maxResults || 5);
     res.json(results || { answer: null, results: [] });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -594,7 +596,7 @@ app.post('/api/trai/search', async (req, res) => {
 // ══════════════════════════════════════════════════════════════════════
 
 const _traiCache = new Map();
-const TRAI_EVENTS_CACHE_TTL_MS = dashboardRuntimeConfig.dashboard.traiEventsCacheTtlMs;
+const TRAI_EVENTS_CACHE_TTL_MS = 30 * 60 * 1000;
 
 /**
  * Symbol whitelist sanitizer. Ticker symbols are short, uppercase,
@@ -603,14 +605,14 @@ const TRAI_EVENTS_CACHE_TTL_MS = dashboardRuntimeConfig.dashboard.traiEventsCach
  * Tavily / Polygon URLs or the LLM prompt surface. Max 10 chars to
  * cover the longest legitimate ticker.
  *
- * Rejects an empty/invalid input by returning the caller's configured fallback
- * so consumers can use the canonical dashboard stock list or return 400.
+ * Rejects an empty/invalid input by returning null so callers can
+ * decide whether to default (e.g., 'TSLA') or 400 the request.
  *
  * Addresses SSRF + cache-key collision + prompt-injection surface
  * all at once by refusing to pass through anything that isn't a
  * plausible ticker.
  */
-function sanitizeSymbol(raw, fallback = null) {
+function sanitizeSymbol(raw, fallback = 'TSLA') {
   if (raw == null) return fallback;
   const s = String(raw).toUpperCase().trim();
   if (!s) return fallback;
@@ -619,10 +621,6 @@ function sanitizeSymbol(raw, fallback = null) {
   // length > 10.
   if (!/^[A-Z0-9.\-]{1,10}$/.test(s)) return fallback;
   return s;
-}
-
-function configuredDashboardStockSymbol() {
-  return DASHBOARD_STOCK_PRICE_SYMBOLS[0] ?? null;
 }
 
 /**
@@ -639,7 +637,7 @@ function _withTimeout(promise, ms, label) {
   });
   return Promise.race([promise, timeout]).finally(() => clearTimeout(t));
 }
-const _FETCH_TIMEOUT_MS = dashboardRuntimeConfig.dashboard.traiFetchTimeoutMs;
+const _FETCH_TIMEOUT_MS = 25_000; // generous ceiling above Tavily p99
 
 // ─── LLM response schema validators ────────────────────────────────────
 // Defense-in-depth for prompt injection: even if the LLM is jailbroken
@@ -749,7 +747,7 @@ function cachedFetch(key, ttlMs, fetcher) {
 // Upcoming earnings / FOMC / FDA / catalysts per symbol. Cache 30 min.
 app.get('/api/trai/events', async (req, res) => {
   try {
-    const symbol = sanitizeSymbol(req.query.symbol, configuredDashboardStockSymbol());
+    const symbol = sanitizeSymbol(req.query.symbol, 'TSLA');
     if (!NEWS_SEARCH_CONFIGURED) {
       res.set('Cache-Control', 'no-store');
       return res.json({
@@ -871,7 +869,7 @@ If no events found, return []. ONLY output the JSON array.`;
     res.status(500).json({
       events: [],
       source: `${NEWS_SEARCH_SOURCE}+trai`,
-      symbol: sanitizeSymbol(req.query.symbol, configuredDashboardStockSymbol()),
+      symbol: sanitizeSymbol(req.query.symbol, 'TSLA'),
       configured: NEWS_SEARCH_CONFIGURED,
       status: 'unavailable',
       message: 'Failed to fetch events',
@@ -884,8 +882,8 @@ If no events found, return []. ONLY output the JSON array.`;
 // Current market regime label + confidence + summary. Cache 5 min.
 app.get('/api/trai/regime', async (req, res) => {
   try {
-    const symbol = sanitizeSymbol(req.query.symbol, configuredDashboardStockSymbol());
-    const data = await cachedFetch(`regime:${symbol}`, dashboardRuntimeConfig.dashboard.traiRegimeCacheTtlMs, async () => {
+    const symbol = sanitizeSymbol(req.query.symbol, 'TSLA');
+    const data = await cachedFetch(`regime:${symbol}`, 5 * 60 * 1000, async () => {
       const marketData = await fetchMarketData(symbol);
       const news = await newsSearch(`${symbol} stock market trend today`, 3);
       const client = await getTraiClient();
@@ -921,7 +919,7 @@ ONLY output the JSON object.`;
         return { regime: 'unknown', confidence: 0, summary: 'Unable to classify regime.', symbol };
       }
     });
-    res.json(data || { regime: 'unknown', confidence: 0, summary: 'Cache miss and fetch failed.', symbol: sanitizeSymbol(req.query.symbol, configuredDashboardStockSymbol()) });
+    res.json(data || { regime: 'unknown', confidence: 0, summary: 'Cache miss and fetch failed.', symbol: sanitizeSymbol(req.query.symbol, 'TSLA') });
   } catch (error) {
     console.error('[TRAI Regime] Error:', error.message);
     res.status(500).json({ error: 'Failed to classify regime', details: error.message });
@@ -932,8 +930,8 @@ ONLY output the JSON object.`;
 // Market phase + "what to watch next open" narrative. Cache 10 min.
 app.get('/api/trai/session-context', async (req, res) => {
   try {
-    const symbol = sanitizeSymbol(req.query.symbol, configuredDashboardStockSymbol());
-    const data = await cachedFetch(`session:${symbol}`, dashboardRuntimeConfig.dashboard.traiSessionContextCacheTtlMs, async () => {
+    const symbol = sanitizeSymbol(req.query.symbol, 'TSLA');
+    const data = await cachedFetch(`session:${symbol}`, 10 * 60 * 1000, async () => {
       const now = new Date();
       const nyParts = new Intl.DateTimeFormat('en-US', {
         timeZone: 'America/New_York',
@@ -976,7 +974,7 @@ app.get('/api/trai/session-context', async (req, res) => {
         fetchedAt: new Date().toISOString()
       };
     });
-    res.json(data || { symbol: sanitizeSymbol(req.query.symbol, configuredDashboardStockSymbol()), phase: 'unknown' });
+    res.json(data || { symbol: sanitizeSymbol(req.query.symbol, 'TSLA'), phase: 'unknown' });
   } catch (error) {
     console.error('[TRAI Session] Error:', error.message);
     res.status(500).json({ error: 'Failed to get session context', details: error.message });
@@ -991,22 +989,22 @@ app.get('/api/trai/trade-summary', async (req, res) => {
     if (!tradeId) {
       return res.status(400).json({ error: 'tradeId is required' });
     }
-    const data = await cachedFetch(`trade:${tradeId}`, dashboardRuntimeConfig.dashboard.traiTradeSummaryCacheTtlMs, async () => {
+    const data = await cachedFetch(`trade:${tradeId}`, 60 * 60 * 1000, async () => {
       const fs = require('fs');
       const path = require('path');
       const readline = require('readline');
-      const ledgerPath = path.resolve(__dirname, dashboardRuntimeConfig.dashboard.decisionLedgerPath);
+      const ledgerPath = path.join(__dirname, 'data', 'decision-ledger.jsonl');
       // Hard cap for synchronous file-size sanity — the ledger should
       // never legitimately hit this, but without a guard a bloated file
       // (disk fill, malformed growth) would block the event loop for
       // seconds on readFileSync. At 50MB we switch to streaming via
       // readline; this also lets us bail on first-match.
-      const ledgerSyncMaxBytes = dashboardRuntimeConfig.dashboard.decisionLedgerSyncMaxBytes;
+      const LEDGER_SYNC_MAX = 50 * 1024 * 1024;
       let tradeEntry = null;
       try {
         if (fs.existsSync(ledgerPath)) {
           const st = fs.statSync(ledgerPath);
-          if (st.size <= ledgerSyncMaxBytes) {
+          if (st.size <= LEDGER_SYNC_MAX) {
             const lines = fs.readFileSync(ledgerPath, 'utf8').split('\n').filter(Boolean);
             for (const line of lines) {
               try {
@@ -1082,8 +1080,8 @@ ONLY output the JSON object.`;
 // Insider / institutional / SEC filing activity per symbol. Cache 30 min.
 app.get('/api/trai/whales', async (req, res) => {
   try {
-    const symbol = sanitizeSymbol(req.query.symbol, configuredDashboardStockSymbol());
-    const data = await cachedFetch(`whales:${symbol}`, dashboardRuntimeConfig.dashboard.traiWhalesCacheTtlMs, async () => {
+    const symbol = sanitizeSymbol(req.query.symbol, 'TSLA');
+    const data = await cachedFetch(`whales:${symbol}`, 30 * 60 * 1000, async () => {
       const results = await newsSearch(
         `${symbol} insider trading SEC filing institutional ownership large block trade 2026`,
         5
@@ -1117,7 +1115,7 @@ If no activity found, return []. ONLY output the JSON array.`;
       activities = _validateWhalesArray(activities);
       return { activities, source: `${NEWS_SEARCH_SOURCE}+trai`, symbol, fetchedAt: new Date().toISOString() };
     });
-    res.json(data || { activities: [], source: NEWS_SEARCH_SOURCE, symbol: sanitizeSymbol(req.query.symbol, configuredDashboardStockSymbol()) });
+    res.json(data || { activities: [], source: NEWS_SEARCH_SOURCE, symbol: sanitizeSymbol(req.query.symbol, 'TSLA') });
   } catch (error) {
     console.error('[TRAI Whales] Error:', error.message);
     res.status(500).json({ error: 'Failed to fetch whale activity', details: error.message });
@@ -1175,22 +1173,31 @@ const dashboardSnapshotCache = {
   bot_thinking: null          // TradingLoop: latest reasoning + strategy stack
 };
 
-const DASHBOARD_STOCK_CONFIG = resolveDashboardStockConfigFromRuntime(dashboardRuntimeConfig);
+const DASHBOARD_STOCK_CONFIG = resolveDashboardStockConfig(process.env);
 const DASHBOARD_STOCK_DATA_CONFIG = DASHBOARD_STOCK_CONFIG.data;
 const DASHBOARD_STOCK_STREAM_CONFIG = DASHBOARD_STOCK_CONFIG.stream;
 const DASHBOARD_STOCK_PRICE_SYMBOLS = DASHBOARD_STOCK_DATA_CONFIG.stockSymbols;
+const DEFAULT_DASHBOARD_CRYPTO_PRICE_SYMBOLS = 'BTC-USD,ETH-USD,SOL-USD';
 const DASHBOARD_CRYPTO_PRICE_SYMBOLS = parseTickerSymbolList(
-  dashboardConfig.cryptoSymbols.join(','),
-  ''
+  process.env.DASHBOARD_CRYPTO_PRICE_SYMBOLS || process.env.WATCHLIST_CRYPTO_SYMBOLS,
+  DEFAULT_DASHBOARD_CRYPTO_PRICE_SYMBOLS
 );
 const DASHBOARD_TICKER_PRICE_SYMBOLS = [
   ...DASHBOARD_STOCK_PRICE_SYMBOLS,
   ...DASHBOARD_CRYPTO_PRICE_SYMBOLS,
 ];
-const DASHBOARD_STOCK_PRICE_INTERVAL_MS = dashboardRuntimeConfig.dashboard.stockPriceIntervalMs;
-const DASHBOARD_CRYPTO_PRICE_INTERVAL_MS = dashboardRuntimeConfig.dashboard.cryptoPriceIntervalMs;
+const parsedStockPriceIntervalMs = Number(process.env.DASHBOARD_STOCK_PRICE_INTERVAL_MS || 5000);
+const DASHBOARD_STOCK_PRICE_INTERVAL_MS = Math.max(
+  5000,
+  Number.isFinite(parsedStockPriceIntervalMs) ? parsedStockPriceIntervalMs : 5000
+);
+const parsedCryptoPriceIntervalMs = Number(process.env.DASHBOARD_CRYPTO_PRICE_INTERVAL_MS || 5000);
+const DASHBOARD_CRYPTO_PRICE_INTERVAL_MS = Math.max(
+  5000,
+  Number.isFinite(parsedCryptoPriceIntervalMs) ? parsedCryptoPriceIntervalMs : 5000
+);
 const DASHBOARD_STOCK_PRICE_ENABLED = DASHBOARD_STOCK_DATA_CONFIG.ready;
-const KRAKEN_REST_TICKER_URL = dashboardRuntimeConfig.dashboard.krakenRestTickerUrl;
+const KRAKEN_REST_TICKER_URL = process.env.KRAKEN_REST_TICKER_URL || 'https://api.kraken.com/0/public/Ticker';
 let stockPriceFanoutInFlight = false;
 let stockPriceFanoutDisabledLogged = false;
 let stockPriceStreamDisabledLogged = false;
@@ -1349,7 +1356,7 @@ function dashboardStockMarketScope(symbol, timeframe = null) {
     timeframe,
     brokerId: 'alpaca',
     assetClass: 'stocks',
-    executionMode: dashboardRuntimeConfig.mode.execution,
+    executionMode: process.env.EXECUTION_MODE,
     allowedSymbols: DASHBOARD_STOCK_PRICE_SYMBOLS
   });
 }
@@ -1800,7 +1807,7 @@ wss.on('connection', (ws, req) => {
 
   console.log(`[WS] New WebSocket connection: ${connectionId}`);
 
-  // SECURITY: disconnect clients that miss the configured authentication deadline.
+  // SECURITY: 10-second authentication timeout
   const authTimeout = setTimeout(() => {
     if (!ws.authenticated) {
       console.log(`[WS] Client ${connectionId} failed to authenticate - disconnecting`);
@@ -1810,7 +1817,7 @@ wss.on('connection', (ws, req) => {
       }));
       ws.close(1008, 'Authentication timeout');
     }
-  }, dashboardRuntimeConfig.dashboard.websocketAuthTimeoutMs);
+  }, 10000);
 
   // Handle incoming messages
   ws.on('message', (message) => {
@@ -1829,7 +1836,7 @@ wss.on('connection', (ws, req) => {
 
       // SECURITY: Handle authentication
       if (data.type === 'auth') {
-        const validToken = dashboardAuthToken;
+        const validToken = process.env.WEBSOCKET_AUTH_TOKEN;
         if (!validToken) {
           console.error('[AUTH] WEBSOCKET_AUTH_TOKEN not set - rejecting WebSocket authentication.');
           ws.send(JSON.stringify({
@@ -2085,13 +2092,16 @@ wss.on('connection', (ws, req) => {
 let lastKnownPrice = null;
 let tickCount = 0;
 let assetPrices = {};
-let currentAsset = DASHBOARD_CRYPTO_PRICE_SYMBOLS[0] ?? null;
+let currentAsset = 'BTC-USD';
 
 // Kraken WebSocket connection (PUBLIC - no API key needed for market data!)
+const KRAKEN_PUBLIC_WS = 'wss://ws.kraken.com';
+
 console.log('[EMPIRE V2] Kraken direct connection DISABLED - Bot provides all market data');
 console.log('[WS] WebSocket server acting as relay only - no direct Kraken connection');
 
 // TEMPORARILY DISABLED to fix data conflicts - bot sends all data
+// const krakenSocket = new WebSocket(KRAKEN_PUBLIC_WS);
 const krakenSocket = {
   on: () => {},
   send: () => {},
@@ -2130,11 +2140,10 @@ function broadcastCryptoFrame(frame, dashboardOnly = true) {
 
 const cryptoFeed = createCryptoMarketFeed({
   symbols: DASHBOARD_CRYPTO_PRICE_SYMBOLS,
-  feedConfig: dashboardRuntimeConfig.dashboard.cryptoMarketFeed,
   onPrice: ({ asset, price, volume }) => {
     tickCount++;
     assetPrices[asset] = price;
-    if (asset === currentAsset) {
+    if (asset === currentAsset || asset === 'BTC-USD') {
       lastKnownPrice = price;
     }
     const priceTimestamp = Date.now();
@@ -2248,7 +2257,7 @@ krakenSocket.on('message', (data) => {
       
       // Store price
       assetPrices[asset] = price;
-      if (asset === currentAsset) {
+      if (asset === currentAsset || asset === 'BTC-USD') {
         lastKnownPrice = price;
       }
 
@@ -2403,7 +2412,7 @@ setInterval(() => {
     console.warn('[Status] WARNING: No trading bot connections detected');
   }
   
-}, dashboardRuntimeConfig.dashboard.statusLogIntervalMs);
+}, 30000);
 
 // Graceful shutdown
 process.on('SIGINT', () => {
@@ -2427,11 +2436,10 @@ process.on('SIGINT', () => {
 });
 
 // CRITICAL FIX: Actually start listening on the port!
-const wsPort = dashboardConfig.port;
-const wsHost = dashboardConfig.host;
-httpServer.listen(wsPort, wsHost, () => {
+const wsPort = process.env.WS_PORT || 3010;
+httpServer.listen(wsPort, '0.0.0.0', () => {
   runtimeAuditSink.setPhase('runtime');
-  console.log(`[WS] WebSocket server listening on ${wsHost}:${wsPort}`);
+  console.log(`[WS] WebSocket server listening on port ${wsPort}`);
   console.log(`[WS] Dashboard endpoint ready at /ws on port ${wsPort}`);
 });
 

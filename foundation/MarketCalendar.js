@@ -36,21 +36,20 @@
 
 'use strict';
 
-const ConfigLoader = require('./ConfigLoader');
-
 class MarketCalendar {
-  constructor(options) {
-    this.timezone = options.timezone;
+  constructor(options = {}) {
+    // Default to US Eastern Time
+    this.timezone = options.timezone || 'America/New_York';
 
     // Session times in ET (minutes from midnight)
     this.sessions = {
-      premarket: { start: options.premarketStartMinute, end: options.regularStartMinute },
-      regular: { start: options.regularStartMinute, end: options.regularEndMinute },
-      afterhours: { start: options.regularEndMinute, end: options.afterhoursEndMinute },
+      premarket: { start: 4 * 60, end: 9 * 60 + 30 },      // 4:00 AM - 9:30 AM
+      regular: { start: 9 * 60 + 30, end: 16 * 60 },       // 9:30 AM - 4:00 PM
+      afterhours: { start: 16 * 60, end: 20 * 60 },        // 4:00 PM - 8:00 PM
     };
 
-    this.halfDayClose = options.halfDayCloseMinute;
-    this.maxOpenSearchDays = options.maxOpenSearchDays;
+    // Half day close time (1:00 PM ET)
+    this.halfDayClose = 13 * 60;
 
     // Cache for holiday lookups
     this._holidayCache = new Map();
@@ -304,8 +303,9 @@ class MarketCalendar {
    */
   getTimeUntilOpen(date = new Date(), session = 'regular') {
     let current = new Date(date);
+    const maxDays = 10; // Don't loop forever
 
-    for (let i = 0; i < this.maxOpenSearchDays; i++) {
+    for (let i = 0; i < maxDays; i++) {
       // Skip to start of target session on this day
       const et = this._getETTime(current);
       const targetStart = session === 'premarket' || session === 'any'
@@ -515,12 +515,9 @@ class MarketCalendar {
 // Singleton instance
 let instance = null;
 
-function getInstance(options) {
+function getInstance() {
   if (!instance) {
-    const resolvedOptions = options === undefined
-      ? ConfigLoader.getInternalsFileValue('marketCalendar')
-      : options;
-    instance = new MarketCalendar(resolvedOptions);
+    instance = new MarketCalendar();
   }
   return instance;
 }

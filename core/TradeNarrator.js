@@ -11,7 +11,7 @@
  *
  * DESIGN TENETS
  * -------------
- *   1. EXPLICITLY CONFIGURED. Both narrators read ConfigLoader at construction. If
+ *   1. OFF BY DEFAULT. Both narrators read env vars at construction. If
  *      neither is enabled, every public method becomes a cheap branch
  *      (`if (!this.enabled) return`). Zero allocation, zero stdout, zero
  *      WebSocket traffic in the default path. Phase 0 regression tests
@@ -29,13 +29,23 @@
  *   4. USER MODE HIDES "THE SAUCE".
  *        • Strategy names are replaced with session-seeded anonymous
  *          labels ("Strategy-A", "Strategy-B" …). Deterministic within a
- *          run (via services.narrator.labelSeed), opaque across runs.
+ *          run (via NARRATOR_LABEL_SEED), opaque across runs.
  *        • Raw confidence → qualitative bucket ("Low / Medium / High / Peak").
  *        • Pattern win rate / sample count → qualitative buckets.
  *        • Exact SL / TP percents → rounded to one decimal (cosmetic only).
  *        • No internal parameter values, no gate reasons, no config echoes.
  *
- * Configuration lives at services.narrator in config/settings.json.
+ * ENV VARS (documented in ogz-meta/BACKTEST-OPS.md)
+ * -------------------------------------------------
+ *   ARCHITECT_NARRATOR   — '1' / 'true' / 'on' enables detailed stdout
+ *                          meant only for the operator / bot console.
+ *   USER_NARRATOR        — '1' / 'true' / 'on' enables sanitized stdout
+ *                          AND WebSocket broadcast to the dashboard as
+ *                          'narrator_event' messages (scope: 'USER').
+ *   NARRATOR_LABEL_SEED  — optional string; if set, strategy anonymization
+ *                          uses this seed. If unset, a random per-process
+ *                          seed is generated so USER labels shuffle on
+ *                          every restart (maximizes opacity).
  *
  * WIRE-UP
  * -------
@@ -53,7 +63,14 @@
 
 const crypto = require('crypto');
 const { resolvePatternMaturity } = require('./PatternMaturity');
-const ConfigLoader = require('../foundation/ConfigLoader');
+
+// ─── Env flag parsing ─────────────────────────────────────────────────────
+function envFlag(name) {
+  const v = process.env[name];
+  if (v == null) return false;
+  const s = String(v).trim().toLowerCase();
+  return s === '1' || s === 'true' || s === 'on' || s === 'yes';
+}
 
 // ─── Label shuffler (deterministic per seed) ──────────────────────────────
 function makeLabelMap(seed) {
@@ -272,23 +289,22 @@ function fmtMs(ms) {
 // ─── Core class ───────────────────────────────────────────────────────────
 class TradeNarrator {
   constructor() {
-    const narratorConfig = ConfigLoader.get('services.narrator');
-    this.architect = narratorConfig.architectEnabled === true;
-    this.user = narratorConfig.userEnabled === true;
+    this.architect = envFlag('ARCHITECT_NARRATOR');
+    this.user = envFlag('USER_NARRATOR');
     this.enabled = this.architect || this.user;
 
     // Per-session seed for anonymization; keeps USER labels stable within
-    // one run but opaque across restarts unless explicitly pinned in settings.
+    // one run but opaque across restarts unless explicitly pinned via env.
     //
     // Empty-seed semantics (decided after Mercury pass-1/pass-4 contradiction):
     //   An empty seed packet holds no seeds — you can't plant nothing and
-    //   expect a plant. An empty configured seed is treated the same as unset:
+    //   expect a plant. NARRATOR_LABEL_SEED='' is treated the same as unset:
     //   fall through to a random per-process seed. This keeps users safe
-    //   from a common foot-gun: an accidentally empty configured seed still
-    //   produces opaque, non-reproducible labels
+    //   from a common foot-gun: `export NARRATOR_LABEL_SEED=` (empty due to
+    //   typo or env-file bug) still produces opaque, non-reproducible labels
     //   rather than a deterministic-but-empty-seeded mapping the user never
     //   asked for. To get deterministic labels, set a non-empty string.
-    const seed = String(narratorConfig.labelSeed || '').trim()
+    const seed = process.env.NARRATOR_LABEL_SEED
       || crypto.randomBytes(8).toString('hex');
     this.labelFor = makeLabelMap(seed);
 

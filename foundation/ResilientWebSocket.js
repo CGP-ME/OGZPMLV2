@@ -38,8 +38,6 @@ const EventEmitter = require('events');
 const WebSocket = require('ws');
 
 const DEFAULTS = Object.freeze({
-  // Initial reconnect delay before exponential backoff is applied.
-  initialReconnectDelayMs: 1000,
   // Backoff caps at 30s by default. Adapters can override (Kraken used 5min).
   maxBackoffMs:    30000,
   // Heartbeat tick — adapter usually maps this to a protocol-level ping.
@@ -104,7 +102,6 @@ class ResilientWebSocket extends EventEmitter {
 
     const opts = Object.assign({}, DEFAULTS, config.options || {});
     this.maxBackoffMs    = opts.maxBackoffMs;
-    this.initialReconnectDelayMs = opts.initialReconnectDelayMs;
     this.heartbeatPingMs = opts.heartbeatPingMs;
     this.pongTimeoutMs   = opts.pongTimeoutMs;
     this.dataWatchdogMs  = opts.dataWatchdogMs;
@@ -477,10 +474,7 @@ class ResilientWebSocket extends EventEmitter {
   _scheduleReconnect() {
     if (this.intentionalStop) return;
 
-    const delayMs = Math.min(
-      this.initialReconnectDelayMs * Math.pow(2, this.reconnectAttempts),
-      this.maxBackoffMs
-    );
+    const delayMs = Math.min(1000 * Math.pow(2, this.reconnectAttempts), this.maxBackoffMs);
     this.reconnectAttempts++;
 
     this.emit('reconnecting', { attempt: this.reconnectAttempts, delayMs });

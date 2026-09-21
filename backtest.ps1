@@ -2,10 +2,11 @@
 # OGZPrime Backtest Runner — Boomer-Proof Edition (Windows)
 #
 # Usage:  .\backtest.ps1 baseline
-#         .\backtest.ps1 sms -longonly
+#         .\backtest.ps1 sms-18mo -longonly
+#         .\backtest.ps1 baseline -receipts
 #
-# Presets: baseline, sms, rsi-only, ema-only
-# Options: -longonly, -feeprofile ttp_real|zero
+# Presets: baseline, sms-10mo, sms-18mo, rsi-only, ema-only
+# Options: -longonly, -verbose, -receipts
 # Note: All presets default to shorts=true. Use -longonly to override.
 # ═══════════════════════════════════════════════════════════════
 
@@ -13,7 +14,8 @@ param(
     [Parameter(Position=0)]
     [string]$Preset = "help",
     [switch]$longonly,
-    [string]$feeprofile = "ttp_real"
+    [switch]$verbose,
+    [switch]$receipts
 )
 
 # ─── Preset configs ───
@@ -54,10 +56,11 @@ if ($Preset -eq "help" -or -not $presets.ContainsKey($Preset)) {
     Write-Host "    rsi-only  — RSI Solo" -ForegroundColor White
     Write-Host "    ema-only  — EMA Solo" -ForegroundColor White
     Write-Host ""
-    Write-Host "  Usage: .\backtest.ps1 <preset> [-longonly] [-feeprofile ttp_real|zero]"
+    Write-Host "  Usage: .\backtest.ps1 <preset> [-longonly] [-verbose] [-receipts]"
     Write-Host "  Options:"
     Write-Host "    -longonly   Override preset to disable shorts"
-    Write-Host "    -feeprofile Canonical venue economics profile (default: ttp_real)"
+    Write-Host "    -verbose    Show full output (no filtering)"
+    Write-Host "    -receipts   Include TRADE-RECEIPT lines in output"
     Write-Host ""
     exit
 }
@@ -77,30 +80,59 @@ Write-Host "  Desc:      $($config.Desc)" -ForegroundColor Cyan
 Write-Host "═══════════════════════════════════════════════════════" -ForegroundColor White
 Write-Host ""
 
+# ─── Set ALL env vars explicitly ───
+$env:SOLO_STRATEGY = $config.Strategy
+$env:EXECUTION_MODE = "backtest"
+$env:CANDLE_SOURCE = "file"
+$env:CANDLE_DATA_FILE = $config.DataFile
+$env:BACKTEST_MODE = "true"
+$env:BACKTEST_FAST = "true"
+$env:BACKTEST_NO_PATTERN_SAVE = "true"
+$env:FEE_MAKER = "0"
+$env:FEE_TAKER = "0"
+$env:ENABLE_TRAI = "false"
+
 if ($useShorts) {
-    $directionFilter = "both"
+    $env:DIRECTION_FILTER = "both"
 } else {
-    $directionFilter = "long_only"
+    $env:DIRECTION_FILTER = "long"
+}
+
+# SMS-specific env vars (required for SmartMoneySweep to fire)
+if ($config.Strategy -match "SmartMoneySweep") {
+    $env:ENABLE_SMS = "true"
+    $env:SMS_VP_RTH_ONLY = "true"
 }
 
 Write-Host "Running backtest..." -ForegroundColor Yellow
-node tools/single-backtest.js `
-    "--name=$Preset" `
-    "--data=$($config.DataFile)" `
-    "--solo=$($config.Strategy)" `
-    "--direction=$directionFilter" `
-    "--profile=current-eval" `
-    "--fee-profile=$feeprofile" `
-    "--output-dir=backtest-results"
-$status = $LASTEXITCODE
+
+# Grep pattern for filtered output (includes ENV fingerprint and BACKTEST SUMMARY)
+$GrepPattern = "ENV FINGERPRINT|SOLO_STRATEGY|EXECUTION_MODE|CANDLE_|BACKTEST_|FEE_|ENABLE_|DIRECTION_|ACCOUNT_DRAWDOWN|Final Balance|BACKTEST|ACCOUNT|PERFORMANCE|RISK|STRATEGY|EXIT|P&L|Total Trades|Win Rate|Profit Factor|Max Drawdown|Report saved|trades\.csv"
+
+if ($verbose) {
+    node run-empire-v2.js
+} elseif ($receipts) {
+    node run-empire-v2.js 2>&1 | Select-String -Pattern "TRADE-RECEIPT|$GrepPattern"
+} else {
+    node run-empire-v2.js 2>&1 | Select-String -Pattern $GrepPattern
+}
 
 Write-Host ""
 Write-Host "═══════════════════════════════════════════════════════" -ForegroundColor White
-if ($status -eq 0) {
-    Write-Host "  Done." -ForegroundColor Green
-} else {
-    Write-Host "  Backtest failed with exit code $status." -ForegroundColor Red
-}
+Write-Host "  Done." -ForegroundColor Green
 Write-Host "═══════════════════════════════════════════════════════" -ForegroundColor White
 
-exit $status
+# ─── Clean up env vars so they don't leak to next run ───
+Remove-Item Env:SOLO_STRATEGY -ErrorAction SilentlyContinue
+Remove-Item Env:EXECUTION_MODE -ErrorAction SilentlyContinue
+Remove-Item Env:CANDLE_SOURCE -ErrorAction SilentlyContinue
+Remove-Item Env:CANDLE_DATA_FILE -ErrorAction SilentlyContinue
+Remove-Item Env:BACKTEST_MODE -ErrorAction SilentlyContinue
+Remove-Item Env:BACKTEST_FAST -ErrorAction SilentlyContinue
+Remove-Item Env:BACKTEST_NO_PATTERN_SAVE -ErrorAction SilentlyContinue
+Remove-Item Env:FEE_MAKER -ErrorAction SilentlyContinue
+Remove-Item Env:FEE_TAKER -ErrorAction SilentlyContinue
+Remove-Item Env:ENABLE_TRAI -ErrorAction SilentlyContinue
+Remove-Item Env:DIRECTION_FILTER -ErrorAction SilentlyContinue
+Remove-Item Env:ENABLE_SMS -ErrorAction SilentlyContinue
+Remove-Item Env:SMS_VP_RTH_ONLY -ErrorAction SilentlyContinue

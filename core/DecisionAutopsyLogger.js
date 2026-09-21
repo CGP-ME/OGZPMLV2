@@ -4,9 +4,8 @@ const fs = require('fs');
 const path = require('path');
 
 const { getLedgerDir } = require('./OutputPaths');
-const ConfigLoader = require('../foundation/ConfigLoader');
 
-const AUTOPSY_ENABLED = ConfigLoader.get('internals.decisionRecords.autopsyEnabled');
+const AUTOPSY_ENABLED = process.env.DECISION_AUTOPSY_ENABLED !== 'false';
 
 function fileForDate(now = new Date()) {
   const date = now.toISOString().slice(0, 10);
@@ -15,8 +14,9 @@ function fileForDate(now = new Date()) {
 
 function fallbackFileForDate(now = new Date()) {
   const date = now.toISOString().slice(0, 10);
-  const configuredDir = ConfigLoader.get('internals.decisionRecords.autopsyFallbackDirectory');
-  const dir = path.resolve(__dirname, '..', configuredDir);
+  const dir = process.env.DECISION_AUTOPSY_FALLBACK_DIR
+    ? process.env.DECISION_AUTOPSY_FALLBACK_DIR.replace(/\\/g, '/')
+    : path.resolve(__dirname, '..', 'logs', 'decisions');
   fs.mkdirSync(dir, { recursive: true });
   return path.join(dir, `autopsy_fallback_${date}.jsonl`);
 }
@@ -32,12 +32,7 @@ function canonicalSymbol(raw) {
 }
 
 function writeAutopsy(record) {
-  if (!AUTOPSY_ENABLED) {
-    return { success: true, persisted: false, skipped: true, reason: 'disabled' };
-  }
-  if (!record || typeof record !== 'object') {
-    return { success: false, persisted: false, skipped: false, reason: 'invalid_record' };
-  }
+  if (!AUTOPSY_ENABLED || !record || typeof record !== 'object') return false;
   const cloned = safeJsonClone(record) || {};
   const originalSymbol = cloned.originalSymbol || record.originalSymbol || record.symbol || null;
   const autopsyRecord = {
@@ -51,25 +46,19 @@ function writeAutopsy(record) {
   try {
     primaryPath = fileForDate();
     fs.appendFileSync(primaryPath, `${JSON.stringify(autopsyRecord)}\n`);
-    return { success: true, persisted: true, skipped: false, path: primaryPath };
+    return true;
   } catch (error) {
     console.error(`[DecisionAutopsyLogger] write failed: ${error.message}`);
     try {
-      const fallbackPath = fallbackFileForDate();
-      fs.appendFileSync(fallbackPath, `${JSON.stringify({
+      fs.appendFileSync(fallbackFileForDate(), `${JSON.stringify({
         ...autopsyRecord,
         _primaryAutopsyPath: primaryPath,
         _primaryAutopsyError: error.message,
       })}\n`);
-      return { success: true, persisted: true, skipped: false, path: fallbackPath };
+      return true;
     } catch (fallbackError) {
       console.error(`[DecisionAutopsyLogger] fallback write failed: ${fallbackError.message}`);
-      return {
-        success: false,
-        persisted: false,
-        skipped: false,
-        reason: fallbackError.message,
-      };
+      return false;
     }
   }
 }

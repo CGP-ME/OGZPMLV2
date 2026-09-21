@@ -63,6 +63,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { normalizePatternScope } = require('./PatternScope');
 const ConfigLoader = require('../foundation/ConfigLoader');
+const { deriveReportAssetSlugFromDataFile } = require('./DataFileInstrument');
 
 // ═══════════════════════════════════════════════════════════════
 // DTW (Dynamic Time Warping) — fuzzy pattern matching
@@ -144,13 +145,16 @@ function assertPatternMemoryNumber(config, key, rule) {
   }
 }
 
-function resolvePatternMemoryConfig() {
+function resolvePatternMemoryConfig(overrides) {
   const ownedConfig = ConfigLoader.getSection('patternMemory');
   if (!ownedConfig || typeof ownedConfig !== 'object') {
     throw new Error('[UnifiedPatternMemory] ConfigLoader.patternMemory is required');
   }
 
-  const resolved = { ...ownedConfig };
+  const resolved = {
+    ...ownedConfig,
+    ...(overrides || {}),
+  };
 
   for (const [key, rule] of Object.entries(PATTERN_MEMORY_NUMERIC_FIELDS)) {
     assertPatternMemoryNumber(resolved, key, rule);
@@ -160,25 +164,44 @@ function resolvePatternMemoryConfig() {
     throw new Error('[UnifiedPatternMemory] patternMemory.persistToDisk must be boolean');
   }
 
-  return Object.freeze({ ...resolved });
+  if (!Array.isArray(resolved.featureWeights) || resolved.featureWeights.length === 0) {
+    throw new Error('[UnifiedPatternMemory] patternMemory.featureWeights must be a non-empty number array');
+  }
+  resolved.featureWeights.forEach((value, index) => {
+    if (!Number.isFinite(value)) {
+      throw new Error(`[UnifiedPatternMemory] patternMemory.featureWeights[${index}] must be finite`);
+    }
+  });
+
+  return Object.freeze({
+    ...resolved,
+    featureWeights: Object.freeze([...resolved.featureWeights]),
+  });
 }
 
-function resolveInitialMode(runtimeConfig) {
-  return runtimeConfig.mode.execution;
+function resolveInitialMode(config = {}) {
+  const explicitMode = String(config.mode || config.executionMode || '').trim().toLowerCase();
+  return explicitMode || ConfigLoader.load({ silent: true }).config.mode.execution;
 }
 
 function sanitizePatternBucket(value) {
   return String(value).trim().replace(/\//g, '-');
 }
 
-function resolveInitialAssetBucket(mode, runtimeConfig) {
+function resolveInitialAssetBucket(mode) {
   if (mode === 'backtest') {
-    return sanitizePatternBucket(runtimeConfig.broker.tradingPair);
+    let ticker = sanitizePatternBucket(process.env.TRADING_PAIR || '');
+    if (!ticker && process.env.CANDLE_DATA_FILE) {
+      ticker = sanitizePatternBucket(deriveReportAssetSlugFromDataFile(process.env.CANDLE_DATA_FILE));
+    }
+    return ticker || 'default';
   }
 
-  const cls = runtimeConfig.broker.assetClass;
+  const cls = process.env.ASSET_CLASS
+    || ((process.env.BROKER || '').toLowerCase() === 'kraken' ? 'crypto' :
+        (process.env.BROKER || '').toLowerCase() === 'alpaca' ? 'stocks' : null);
   if (!cls) {
-    throw new Error('[SESSION-HIGH-02] UnifiedPatternMemory: ConfigLoader did not resolve an asset class');
+    throw new Error('[SESSION-HIGH-02] UnifiedPatternMemory: cannot determine asset class - set ASSET_CLASS or BROKER (kraken|alpaca) env');
   }
   return sanitizePatternBucket(cls.toLowerCase());
 }
@@ -200,13 +223,11 @@ function backupPathForStoragePath(storagePath) {
 class UnifiedPatternMemory {
   #patterns = {};
 
-  constructor() {
-    const runtimeConfig = ConfigLoader.load({ silent: true }).config;
-    const patternMemoryConfig = resolvePatternMemoryConfig();
+  constructor(config = {}) {
+    const patternMemoryConfig = resolvePatternMemoryConfig(config);
     this.config = Object.freeze({
       ...patternMemoryConfig,
-      persistToDisk: patternMemoryConfig.persistToDisk
-        && (!runtimeConfig.mode.backtest || runtimeConfig.internals.patternMemory.saveInBacktest === true),
+      persistToDisk: patternMemoryConfig.persistToDisk && process.env.BACKTEST_NO_PATTERN_SAVE !== 'true',
     });
 
     // Storage path is keyed by mode and an asset bucket. Rules:
@@ -222,10 +243,10 @@ class UnifiedPatternMemory {
     //
     // Spec: ogz-meta/specs/pattern-bank-separation-spec.md
     // Incident: 2026-04-22 crypto bank corruption on broker flip before this fix existed.
-    const mode = resolveInitialMode(runtimeConfig);
-    const assetBucket = resolveInitialAssetBucket(mode, runtimeConfig);
-    this.dataDir = runtimeConfig.paths.dataDir;
-    this.storagePath = storagePathForBucket(this.dataDir, mode, assetBucket);
+    const mode = resolveInitialMode(config);
+    const assetBucket = resolveInitialAssetBucket(mode);
+    this.dataDir = config.dataDir || process.env.DATA_DIR || (config.storagePath ? path.dirname(config.storagePath) : path.join(process.cwd(), 'data'));
+    this.storagePath = config.storagePath || storagePathForBucket(this.dataDir, mode, assetBucket);
     this.storageMode = mode;
     this.assetBucket = assetBucket;
 
@@ -1178,9 +1199,9 @@ class UnifiedPatternMemory {
 
 let _instance = null;
 
-function getInstance() {
+function getInstance(config) {
   if (!_instance) {
-    _instance = new UnifiedPatternMemory();
+    _instance = new UnifiedPatternMemory(config);
   }
   return _instance;
 }

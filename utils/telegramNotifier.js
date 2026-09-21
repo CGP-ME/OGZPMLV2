@@ -25,7 +25,7 @@
  *
  * @module utils/telegramNotifier
  * @requires https
- * @requires foundation/ConfigLoader
+ * @requires dotenv
  * @author Trey (OGZPrime Technologies)
  * @version 1.0
  *
@@ -41,25 +41,22 @@
  * }).catch(err => console.warn('Telegram failed:', err.message));
  */
 
+require('dotenv').config();
 const https = require('https');
-const { load: loadConfig } = require('../foundation/ConfigLoader');
 
-const notificationConfig = loadConfig({ silent: true, role: 'bot' }).config.services.notifications;
-const telegramConfig = notificationConfig.telegram;
-const NOTIFICATIONS_ENABLED = notificationConfig.enabled === true;
-const TELEGRAM_BOT_TOKEN = notificationConfig.telegramBotToken;
-const TELEGRAM_CHAT_ID = notificationConfig.telegramChatId;
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
 class TelegramNotifier {
   constructor() {
-    this.isEnabled = NOTIFICATIONS_ENABLED && Boolean(TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID);
+    this.isEnabled = !!(TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID);
     this.lastMessageTime = 0;
-    this.minInterval = telegramConfig.minIntervalMs;
+    this.minInterval = 5000; // Minimum 5 seconds between messages to avoid spam
 
     if (this.isEnabled) {
-      console.log('[TELEGRAM] Notifier initialized');
+      console.log('📱 Telegram Notifier initialized');
     } else {
-      console.log(`[TELEGRAM] Notifier disabled (${NOTIFICATIONS_ENABLED ? 'missing configured credentials' : 'notifications disabled'})`);
+      console.log('⚠️ Telegram Notifier disabled (missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID)');
     }
   }
 
@@ -97,7 +94,7 @@ class TelegramNotifier {
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(data)
         },
-        timeout: telegramConfig.requestTimeoutMs
+        timeout: 10000
       };
 
       const req = https.request(options, (res) => {

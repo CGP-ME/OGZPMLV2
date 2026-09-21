@@ -199,9 +199,9 @@ class TradeJournal {
         }
         return config.startingBalance;
       })(),
-        maxInMemoryTrades: config.maxInMemoryTrades,
-        maxEquityPoints: config.maxEquityPoints,
-        autoSaveInterval: config.autoSaveInterval,
+      maxInMemoryTrades: config.maxInMemoryTrades || 5000,
+      maxEquityPoints: config.maxEquityPoints || 10000,
+      autoSaveInterval: config.autoSaveInterval || 60000,  // 1 min
       ...config
     };
 

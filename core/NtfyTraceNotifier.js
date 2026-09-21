@@ -125,7 +125,7 @@ function notificationForTrace(payload) {
     || highPriorityNotification(payload);
 }
 
-function publishWithNodeHttp(endpoint, notification, requestTimeoutMs) {
+function publishWithNodeHttp(endpoint, notification) {
   return new Promise((resolve, reject) => {
     let url;
     try {
@@ -157,7 +157,7 @@ function publishWithNodeHttp(endpoint, notification, requestTimeoutMs) {
       });
     });
 
-    req.setTimeout(requestTimeoutMs, () => {
+    req.setTimeout(5000, () => {
       req.destroy(new Error('ntfy request timeout'));
     });
     req.on('error', reject);
@@ -167,9 +167,8 @@ function publishWithNodeHttp(endpoint, notification, requestTimeoutMs) {
 }
 
 class NtfyTraceNotifier {
-  constructor({ endpoint, requestTimeoutMs, logger = console, requestImpl = publishWithNodeHttp }) {
+  constructor({ endpoint, logger = console, requestImpl = publishWithNodeHttp }) {
     this.endpoint = endpoint;
-    this.requestTimeoutMs = requestTimeoutMs;
     this.logger = logger;
     this.requestImpl = requestImpl;
   }
@@ -179,7 +178,7 @@ class NtfyTraceNotifier {
     if (!notification) return false;
 
     Promise.resolve()
-      .then(() => this.requestImpl(this.endpoint, notification, this.requestTimeoutMs))
+      .then(() => this.requestImpl(this.endpoint, notification))
       .catch((err) => {
         try {
           this.logger.error(`[NTFY] trace push failed: ${err.message}`);
@@ -192,16 +191,13 @@ class NtfyTraceNotifier {
   }
 }
 
-function createNtfyTraceNotifier({ config, logger = console, requestImpl } = {}) {
-  const notificationConfig = config.services.notifications;
-  if (notificationConfig.enabled !== true) return null;
-  const endpoint = resolveNtfyEndpoint(notificationConfig.ntfyTopic);
+function createNtfyTraceNotifier({ env = process.env, logger = console, requestImpl } = {}) {
+  const endpoint = resolveNtfyEndpoint(env.NTFY_TOPIC);
   if (!endpoint) return null;
   return new NtfyTraceNotifier({
     endpoint,
-    requestTimeoutMs: notificationConfig.ntfy.requestTimeoutMs,
     logger,
-    requestImpl: requestImpl ?? publishWithNodeHttp,
+    requestImpl: requestImpl || publishWithNodeHttp,
   });
 }
 

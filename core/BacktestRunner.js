@@ -77,17 +77,17 @@ class BacktestRunner {
 
   _assertDataFileMatchesRuntimeScope(dataPath, symbol, timeframe) {
     const instrument = resolveInstrumentFromDataFile(dataPath);
-    const dataSymbol = normalizeAssetSymbol(instrument.tradingPair);
+    const dataSymbol = normalizeAssetSymbol(instrument.TRADING_PAIR);
     const runtimeSymbol = normalizeAssetSymbol(symbol);
     if (!dataSymbol || !runtimeSymbol || dataSymbol !== runtimeSymbol) {
       throw new Error(
-        `BacktestRunner: CANDLE_DATA_FILE '${dataPath}' resolves to ${instrument.tradingPair}, ` +
+        `BacktestRunner: CANDLE_DATA_FILE '${dataPath}' resolves to ${instrument.TRADING_PAIR}, ` +
         `but runtime symbol is ${symbol}; refusing mislabeled backtest`
       );
     }
-    if (instrument.candleTimeframe && instrument.candleTimeframe !== timeframe) {
+    if (instrument.CANDLE_TIMEFRAME && instrument.CANDLE_TIMEFRAME !== timeframe) {
       throw new Error(
-        `BacktestRunner: CANDLE_DATA_FILE '${dataPath}' resolves to timeframe ${instrument.candleTimeframe}, ` +
+        `BacktestRunner: CANDLE_DATA_FILE '${dataPath}' resolves to timeframe ${instrument.CANDLE_TIMEFRAME}, ` +
         `but runtime timeframe is ${timeframe}; refusing mismatched backtest`
       );
     }
@@ -158,10 +158,22 @@ class BacktestRunner {
     // path already required above for state isolation
 
     try {
-      // The typed run descriptor is validated before the bot snapshot is frozen.
+      // Load historical candles - check for custom data file first (CHANGE 633)
+      let dataPath;
       const candleDataFile = getConfigValue('backtest.candleDataFile');
-      const dataPath = candleDataFile;
-      console.log(`[BacktestRunner] Using descriptor data file: ${dataPath}`);
+      const candleFile = getConfigValue('backtest.candleFile');
+      if (candleDataFile || candleFile) {
+        // Use custom candle data file (e.g., 5-second candles for optimization)
+        dataPath = candleDataFile || candleFile;
+        console.log(`📂 Using custom data file: ${dataPath}`);
+      } else {
+        // Default behavior - CHANGE 633: Use 5-second candles for fast backtest
+        const dataFile = getConfigValue('backtest.fastBacktest')
+          ? 'polygon-btc-5sec.json'  // 60k 5-second candles for rapid testing
+          : 'polygon-btc-1y.json';    // 60k 1-minute candles for full validation
+        console.log(`📂 Data file: data/${dataFile}`);
+        dataPath = path.join(this.ctx.__dirname, 'data', dataFile);
+      }
       const rawData = await fs.readFile(dataPath, 'utf8');
       const parsedData = JSON.parse(rawData);
       // Handle both formats: array of candles or object with .candles property
@@ -176,13 +188,6 @@ class BacktestRunner {
       const startTime = Date.now();
       const symbol = this.ctx.symbol;
       const timeframe = this.ctx.timeframe;
-      const candleScope = {
-        brokerId: this.ctx.runtimeConfig.broker.id,
-        accountId: 'backtest',
-        accountIdSource: 'backtest',
-        assetClass: this.ctx.runtimeConfig.broker.assetClass,
-        executionMode: this.ctx.runtimeConfig.mode.execution,
-      };
       if (!symbol) throw new Error('BacktestRunner: ctx.symbol required to mirror runtime candle scope');
       if (!timeframe) throw new Error('BacktestRunner: ctx.timeframe required to mirror runtime candle scope');
       if (typeof this.ctx.storeTimeframeCandle !== 'function') {
@@ -237,7 +242,6 @@ class BacktestRunner {
             symbol,
             timeframe,
             traceId,
-            ...candleScope,
           }, traceContext);
 
           if (storedCandle?.isNewCandle && candleResult?.acceptedAsNew) {
@@ -390,8 +394,8 @@ class BacktestRunner {
       // FIX 2026-04-16: Route to unified output directory
       const { getRunDir } = require('./OutputPaths');
       const runTimestamp = Date.now();
-      const configuredOutputRoot = this.ctx.runtimeConfig.paths.backtestOutputDir;
-      const rawReportTag = this.ctx.runtimeConfig.backtest.reportTag || '';
+      const envRoot = process.env.BACKTEST_OUTPUT_DIR;
+      const rawReportTag = process.env.BACKTEST_REPORT_TAG || '';
       const reportTag = rawReportTag.replace(/[^a-zA-Z0-9_.-]/g, '_');
       const runId = reportTag
         ? `${runTimestamp}-${process.pid}-${reportTag}-${randomUUID()}`
@@ -403,12 +407,12 @@ class BacktestRunner {
       // FIX 2026-04-22 (2nd pass): tagged workers write to backtest-results/worker-reports/
       // instead of project root. Keeps repo root clean; standalone backtests keep legacy path.
       let reportAssetSuffix = '';
-      if (this.ctx.runtimeConfig.backtest.candleDataFile) {
-        const reportAssetSlug = deriveReportAssetSlugFromDataFile(this.ctx.runtimeConfig.backtest.candleDataFile);
+      if (process.env.CANDLE_DATA_FILE) {
+        const reportAssetSlug = deriveReportAssetSlugFromDataFile(process.env.CANDLE_DATA_FILE);
         reportAssetSuffix = `-${reportAssetSlug}`;
       }
       let reportPath;
-      if (configuredOutputRoot) {
+      if (envRoot) {
         reportPath = path.join(runDir, `report${reportAssetSuffix}.json`);
       } else if (reportTag) {
         const fs = require('fs');
@@ -468,7 +472,16 @@ class BacktestRunner {
           // The report's summary correctly carries the real value at :228;
           // config.initialBalance must mirror it, not invent a phantom.
           initialBalance: initialBalance,
-          tier: getConfigValue('misc.subscriptionTier').toUpperCase(),
+          // BTR-LOW-01: ?? + warn when tier missing. ?? preserves an explicit
+          // empty-string config (rare but possible); warn surfaces missing
+          // subscriptionTier to operator instead of silently defaulting.
+          tier: (() => {
+            const _tier = getConfigValue('misc.subscriptionTier');
+            if (_tier == null) {
+              console.warn('[BTR-LOW-01] BacktestRunner: misc.subscriptionTier missing — defaulting to ML');
+            }
+            return (_tier ?? 'ML').toUpperCase();
+          })(),
           directionFilter: getConfigValue('pipeline.directionFilter')
         },
         timestamp: new Date().toISOString()
@@ -508,7 +521,7 @@ class BacktestRunner {
       // FIX 2026-04-16: Route CSV to same unified run directory as JSON report
       if (this.ctx.backtestRecorder) {
         this.ctx.backtestRecorder.printSummary();
-        const csvPath = configuredOutputRoot
+        const csvPath = process.env.BACKTEST_OUTPUT_DIR
           ? path.join(runDir, 'trades.csv')
           : './backtest-trades.csv';
         this.ctx.backtestRecorder.exportCSV(csvPath);

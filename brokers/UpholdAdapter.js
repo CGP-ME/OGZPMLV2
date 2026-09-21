@@ -19,10 +19,10 @@ class UpholdAdapter extends IBrokerAdapter {
   constructor(config) {
     super();
     this.config = {
-      clientId: config.clientId,
-      clientSecret: config.clientSecret,
-      accessToken: config.accessToken,
-      sandbox: config.sandbox === true,
+      clientId: config.clientId || process.env.UPHOLD_CLIENT_ID,
+      clientSecret: config.clientSecret || process.env.UPHOLD_CLIENT_SECRET,
+      accessToken: config.accessToken || process.env.UPHOLD_ACCESS_TOKEN,
+      sandbox: config.sandbox || false,
       ...config
     };
 

@@ -2,53 +2,59 @@
 /**
  * Grid Search: confidence.minTradeConfidence threshold optimization
  * Tests values: 0.05, 0.10, 0.15, 0.20, 0.25, 0.30
- * Uses an explicitly selected candle file and venue fee profile.
+ * On 60k polygon candles
  *
  * Usage:
- *   node tools/grid-search-confidence.js --data=tuning/alpaca-tsla-15m-2y.json --fee-profile=ttp_real
- *   node tools/grid-search-confidence.js --data=tuning/alpaca-tsla-15m-2y.json --fee-profile=ttp_real --parallel
+ *   node tools/grid-search-confidence.js --fee-profile=ttp_real            # Sequential (safe)
+ *   node tools/grid-search-confidence.js --fee-profile=ttp_real --parallel # Parallel (fast, needs 6+ cores)
  */
 
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const ConfigLoader = require('../foundation/ConfigLoader');
 const { resolveInstrumentFromDataFile } = require('./instrument-env');
 const {
   buildBacktestWorkerEnv,
   summarizeWorkerEnv,
-  removeBacktestRunDescriptor,
 } = require('./backtest-worker-env');
 const {
   listFeeProfileNames,
   resolveFeeProfile,
 } = require('./fee-profiles');
 
-const CONFIDENCE_GRID_CONFIG = ConfigLoader.getInternalsFileValue('tooling.confidenceGrid');
-const THRESHOLDS = Object.freeze([...CONFIDENCE_GRID_CONFIG.thresholds]);
+const THRESHOLDS = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30];
+const CANDLE_LIMIT = 60000;
 const WORK_DIR = path.resolve(__dirname, '..');
+const DATA_FILE = path.join(WORK_DIR, 'data/polygon-btc-1y.json');
 
 const PARALLEL = process.argv.includes('--parallel') || process.argv.includes('-p');
 const feeProfileArg = process.argv.find(arg => arg.startsWith('--fee-profile='));
 const FEE_PROFILE = feeProfileArg ? feeProfileArg.split('=')[1] : null;
 
-function buildGridSearchEnv(threshold, reportTag, stateFile, dataFile, sourceEnv = process.env, feeProfileName = FEE_PROFILE) {
+function buildGridSearchEnv(threshold, reportTag, stateFile, sourceEnv = process.env, feeProfileName = FEE_PROFILE) {
   return buildBacktestWorkerEnv({
     sourceEnv,
     projectRoot: WORK_DIR,
-    dataFile,
+    dataFile: DATA_FILE,
     stateFile,
     dataDir: path.join(WORK_DIR, 'data', 'backtest'),
     reportTag,
-    outputDir: path.join(WORK_DIR, 'backtest-results'),
-    freshStart: false,
-    overrides: { 'confidence.minTradeConfidence': threshold },
-    instrumentIdentity: resolveInstrumentFromDataFile(dataFile),
+    stockMode: false,
+    configEnv: {
+      PATTERN_DOMINANCE: 'false',
+      CANDLE_LIMIT: String(CANDLE_LIMIT),
+      BACKTEST_CONFIG_OVERRIDES_JSON: JSON.stringify({
+        'confidence.minTradeConfidence': threshold,
+      }),
+      DEBUG_AGG: '0',
+      DEBUG_BRAIN: '0',
+    },
+    instrumentEnv: resolveInstrumentFromDataFile(DATA_FILE),
     feeProfileName,
   });
 }
 
-function runBacktest(threshold, dataFile) {
+function runBacktest(threshold) {
   return new Promise((resolve) => {
     const pct = (threshold * 100).toFixed(0);
     const logFile = path.join(WORK_DIR, `grid-${pct}pct.log`);
@@ -58,9 +64,9 @@ function runBacktest(threshold, dataFile) {
 
     console.log(`[${pct}%] Starting backtest...`);
 
-    const env = buildGridSearchEnv(threshold, reportTag, stateFile, dataFile);
+    const env = buildGridSearchEnv(threshold, reportTag, stateFile);
 
-    const child = spawn(process.execPath, ['run-empire-v2.js'], {
+    const child = spawn('node', ['run-empire-v2.js'], {
       cwd: WORK_DIR,
       env,
       stdio: ['pipe', 'pipe', 'pipe']
@@ -68,21 +74,11 @@ function runBacktest(threshold, dataFile) {
 
     let stdout = '';
     let stderr = '';
-    let settled = false;
-
-    const finish = (result) => {
-      if (settled) return;
-      settled = true;
-      removeBacktestRunDescriptor(env);
-      try { fs.unlinkSync(stateFile); } catch (e) {}
-      resolve(result);
-    };
 
     child.stdout.on('data', (data) => { stdout += data.toString(); });
     child.stderr.on('data', (data) => { stderr += data.toString(); });
 
     child.on('close', (code) => {
-      if (settled) return;
       const log = stdout + stderr;
       fs.writeFileSync(logFile, log);
 
@@ -133,41 +129,14 @@ function runBacktest(threshold, dataFile) {
         workerEnv: summarizeWorkerEnv(env)
       };
 
+      try { fs.unlinkSync(stateFile); } catch (e) {}
       console.log(`[${pct}%] Done: ${result.trades} trades, ${result.winRate} win rate, ${result.pnl} P&L (${duration}s)`);
-      finish(result);
-    });
-
-    child.on('error', (error) => {
-      finish({
-        threshold: pct + '%',
-        thresholdNum: threshold,
-        trades: 0,
-        wins: 0,
-        losses: 0,
-        winRate: '0.0%',
-        winRateNum: 0,
-        pnl: '0.00%',
-        pnlNum: 0,
-        duration: ((Date.now() - startTime) / 1000).toFixed(1) + 's',
-        exitCode: null,
-        error: error.message,
-        workerEnv: summarizeWorkerEnv(env),
-      });
+      resolve(result);
     });
   });
 }
 
 async function main() {
-  const args = process.argv.slice(2);
-  const dataEqualsArg = args.find(arg => arg.startsWith('--data='));
-  const dataFlagIndex = args.indexOf('--data');
-  const dataFile = dataEqualsArg
-    ? dataEqualsArg.slice('--data='.length)
-    : (dataFlagIndex >= 0 ? args[dataFlagIndex + 1] : null);
-  if (!dataFile || dataFile.startsWith('--')) {
-    console.error('Missing required --data=FILE. The candle filename must identify symbol and timeframe.');
-    process.exit(1);
-  }
   if (!FEE_PROFILE) {
     console.error(`Missing required --fee-profile. Available: ${listFeeProfileNames().join(', ')}`);
     process.exit(1);
@@ -176,9 +145,9 @@ async function main() {
 
   console.log('╔════════════════════════════════════════════════════════════╗');
   console.log('║     confidence.minTradeConfidence GRID SEARCH              ║');
-  console.log(`║     Testing: ${THRESHOLDS.map(value => `${value * 100}%`).join(', ').padEnd(48)}║`);
-  console.log(`║     Data: ${dataFile.slice(0, 50).padEnd(50)}║`);
-  console.log(`║     Mode: ${(PARALLEL ? `PARALLEL (all ${THRESHOLDS.length} at once)` : 'Sequential').padEnd(48)}║`);
+  console.log('║     Testing: 5%, 10%, 15%, 20%, 25%, 30%                   ║');
+  console.log('║     Data: 60k polygon candles                              ║');
+  console.log(`║     Mode: ${PARALLEL ? 'PARALLEL (all 6 at once)' : 'Sequential'}                         ║`);
   console.log(`║     Fee profile: ${FEE_PROFILE.padEnd(44)}║`);
   console.log('╚════════════════════════════════════════════════════════════╝');
   console.log('');
@@ -187,12 +156,12 @@ async function main() {
   let results;
 
   if (PARALLEL) {
-    console.log(`Launching all ${THRESHOLDS.length} backtests in parallel...\n`);
-    results = await Promise.all(THRESHOLDS.map(t => runBacktest(t, dataFile)));
+    console.log('Launching all 6 backtests in parallel...\n');
+    results = await Promise.all(THRESHOLDS.map(t => runBacktest(t)));
   } else {
     results = [];
     for (const threshold of THRESHOLDS) {
-      results.push(await runBacktest(threshold, dataFile));
+      results.push(await runBacktest(threshold));
     }
   }
 
@@ -216,7 +185,7 @@ async function main() {
   console.log(`Total duration: ${totalDuration} minutes`);
 
   // Find sweet spot - score balances trades, win rate, and P&L
-  const validResults = results.filter(r => r.exitCode === 0 && r.trades > 0);
+  const validResults = results.filter(r => r.trades > 0);
   if (validResults.length > 0) {
     // Score formula: trades * winRate * (1 + pnl/10)
     // Rewards: more trades, higher win rate, positive P&L
@@ -227,7 +196,7 @@ async function main() {
     scored.sort((a, b) => b.score - a.score);
 
     console.log('');
-    console.log('RANKED SCORE OBSERVATION:');
+    console.log('SWEET SPOT ANALYSIS:');
     console.log('─'.repeat(50));
     for (let i = 0; i < Math.min(3, scored.length); i++) {
       const r = scored[i];
@@ -236,7 +205,7 @@ async function main() {
       console.log(`      Score: ${r.score.toFixed(2)}`);
     }
     console.log('');
-    console.log(`Top observed score: confidence.minTradeConfidence=${scored[0].thresholdNum}`);
+    console.log(`RECOMMENDATION: Use confidence.minTradeConfidence=${scored[0].thresholdNum}`);
   }
 
   // Save results
@@ -251,6 +220,8 @@ if (require.main === module) {
 
 module.exports = {
   THRESHOLDS,
+  CANDLE_LIMIT,
+  DATA_FILE,
   buildGridSearchEnv,
   runBacktest,
 };

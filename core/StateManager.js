@@ -4206,8 +4206,8 @@ class StateManager {
 
       const fs = require('fs');
       const path = require('path');
-      const dataDir = getConfigValue('paths.dataDir');
-      const stateFile = getConfigValue('paths.stateFile');
+      const dataDir = getConfigValue('paths.dataDir') || path.join(__dirname, '..', 'data');
+      const stateFile = getConfigValue('paths.stateFile') || path.join(dataDir, 'state.json');
 
       // Create data directory if it doesn't exist
       if (!fs.existsSync(dataDir)) {
@@ -4304,8 +4304,8 @@ class StateManager {
 
       const fs = require('fs');
       const path = require('path');
-      const dataDir = getConfigValue('paths.dataDir');
-      const stateFile = getConfigValue('paths.stateFile');
+      const dataDir = getConfigValue('paths.dataDir') || path.join(__dirname, '..', 'data');
+      const stateFile = getConfigValue('paths.stateFile') || path.join(dataDir, 'state.json');
 
       if (fs.existsSync(stateFile)) {
         const savedState = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
@@ -4588,10 +4588,6 @@ class StateManager {
         }
         // Verify Map restoration
         console.log(`[StateManager] Active trades restored: ${this.state.activeTrades.size} trades`);
-      } else {
-        const initialBalance = getConfigValue('backtest.initialBalance');
-        this.initializeFreshState(initialBalance, { source: 'StateManager.noPersistedState' });
-        console.log(`[StateManager] No persisted state; initialized configured starting balance $${initialBalance}`);
       }
     } catch (error) {
       console.error('[StateManager] Failed to load state:', error);

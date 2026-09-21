@@ -13,8 +13,26 @@ class FibonacciDetector {
    * Create a new Fibonacci detector with configurable parameters
    * @param {Object} config - Configuration options for Fibonacci analysis
    */
-  constructor(config) {
-    this.config = config;
+  constructor(config = {}) {
+    // Default configuration with Fibonacci-specific settings
+    this.config = {
+      // Standard Fibonacci retracement levels (0-1 ratio)
+      levels: [0.236, 0.382, 0.5, 0.618, 0.786],
+      
+      // Golden zone (most significant reversal area)
+      goldenZone: [0.618, 0.65],
+      
+      // Swing detection settings for finding pivot points
+      lookbackCandles: 100,        // Number of candles to analyze for swings
+      strengthRequired: 3,         // Minimum candles confirming swing point
+      swingThresholdPercent: 1.0,  // Min % price change to confirm swing
+      
+      // Level proximity settings for "at level" detection
+      proximityThreshold: 0.5, // % threshold to consider price "at" a level
+      
+      // Merged with user config overrides
+      ...config
+    };
     
     // Initialize Fibonacci state
     this.reset();

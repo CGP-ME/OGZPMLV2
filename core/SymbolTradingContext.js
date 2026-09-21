@@ -35,12 +35,8 @@ class SymbolTradingContext {
      * @param {string} symbol — e.g. 'TSLA', 'BTC-USD'
      * @param {object} candleStore — instance of core/CandleStore.js (single source of truth for candles)
      * @param {object} [config]
-     * @param {string} config.timeframe
+     * @param {string} [config.timeframe='15m']
      * @param {object} [config.indicatorConfig] — passed through to IndicatorEngine
-     * @param {object} [config.emaCrossoverConfig] — canonical EMA crossover settings
-     * @param {object} [config.maDynamicSRConfig] — canonical MA dynamic S/R settings
-     * @param {object} [config.volumeProfileConfig] — passed through to VolumeProfile
-     * @param {object} [config.fibonacciConfig] — canonical Fibonacci settings
      */
     constructor(symbol, candleStore, config = {}) {
         if (!symbol) throw new Error('SymbolTradingContext: symbol required');
@@ -81,10 +77,10 @@ class SymbolTradingContext {
         // before Fix 10 the missing symbol silently defaulted to BTC-USD
         // inside what was supposed to be a per-symbol context for TSLA.
         this.indicatorEngine = new IndicatorEngine({ ...config.indicatorConfig, symbol: canonicalSymbol });
-        this.emaCrossover = new EMASMACrossoverSignal(config.emaCrossoverConfig);
-        this.maDynamicSR = new MADynamicSR(config.maDynamicSRConfig);
-        this.volumeProfile = new VolumeProfile(config.volumeProfileConfig);
-        this.fibonacciDetector = new FibonacciDetector(config.fibonacciConfig);
+        this.emaCrossover = new EMASMACrossoverSignal();
+        this.maDynamicSR = new MADynamicSR();
+        this.volumeProfile = new VolumeProfile();
+        this.fibonacciDetector = new FibonacciDetector();
 
         // Per-symbol last-computed signal outputs. CandleProcessor (commit 3)
         // populates these on every candle by calling the corresponding update().

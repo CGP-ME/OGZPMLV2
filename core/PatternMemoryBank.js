@@ -161,19 +161,6 @@ function resolveInitialMode(config = {}) {
     return explicitMode || ConfigLoader.load({ silent: true }).config.mode.execution;
 }
 
-function resolvePatternDataDir(config = {}) {
-    const hasExplicitDataDir = Object.prototype.hasOwnProperty.call(config, 'dataDir');
-    const dataDir = hasExplicitDataDir
-        ? config.dataDir
-        : ConfigLoader.load({ silent: true }).config.paths.dataDir;
-
-    if (typeof dataDir !== 'string' || dataDir.trim() === '') {
-        throw new Error('[PatternMemoryBank] paths.dataDir must be a non-empty string');
-    }
-
-    return dataDir;
-}
-
 class PatternMemoryBank {
     #memory;
 
@@ -193,7 +180,7 @@ class PatternMemoryBank {
         this.patternScope = constructorScope;
         const scopeSuffix = `.${constructorScope.brokerId}.${constructorScope.accountId}.${constructorScope.assetClass}.${constructorScope.symbol}.${constructorScope.timeframe}`;
 
-        const dataDir = resolvePatternDataDir(config);
+        const dataDir = process.env.DATA_DIR || path.join(__dirname, '..');
 
         // Determine file based on mode
         let memoryFile = 'learned_patterns.json';

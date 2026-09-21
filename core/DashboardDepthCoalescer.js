@@ -1,8 +1,10 @@
 'use strict';
 
-const ConfigLoader = require('../foundation/ConfigLoader');
+const DEFAULT_DASHBOARD_DEPTH_MIN_INTERVAL_MS = 1000;
 
-function resolveDashboardDepthMinIntervalMs(rawValue = ConfigLoader.get('dashboard.depthMinIntervalMs')) {
+function resolveDashboardDepthMinIntervalMs(rawValue = process.env.DASHBOARD_DEPTH_MIN_INTERVAL_MS) {
+  if (rawValue == null || rawValue === '') return DEFAULT_DASHBOARD_DEPTH_MIN_INTERVAL_MS;
+
   const parsed = Number(rawValue);
   if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 1) {
     throw new Error(`[DashboardDepth] DASHBOARD_DEPTH_MIN_INTERVAL_MS must be a positive integer millisecond value, received ${String(rawValue)}`);
@@ -13,7 +15,7 @@ function resolveDashboardDepthMinIntervalMs(rawValue = ConfigLoader.get('dashboa
 
 class DashboardDepthCoalescer {
   constructor({
-    minIntervalMs,
+    minIntervalMs = DEFAULT_DASHBOARD_DEPTH_MIN_INTERVAL_MS,
     sendFrame,
     now = () => Date.now(),
     setTimer = setTimeout,
@@ -113,6 +115,7 @@ class DashboardDepthCoalescer {
 }
 
 module.exports = {
+  DEFAULT_DASHBOARD_DEPTH_MIN_INTERVAL_MS,
   DashboardDepthCoalescer,
   resolveDashboardDepthMinIntervalMs,
 };

@@ -44,7 +44,7 @@ class AlpacaAdapter extends IBrokerAdapter {
             throw new Error('[Alpaca] apiSecret is required');
         }
 
-        const mode = String(config.mode).toLowerCase();
+        const mode = String(config.mode || '').toLowerCase();
         if (mode !== 'paper' && mode !== 'live') {
             throw new Error(`[Alpaca] mode must be explicitly set to paper or live, got ${mode || '(missing)'}`);
         }
@@ -69,7 +69,6 @@ class AlpacaAdapter extends IBrokerAdapter {
         this.barSubscriptions = new Map();
         this.intentionalDisconnect = false;
         this._pendingSubscribeCallbacks = [];
-        this.webSocketConfig = config.webSocket;
         this.accountId = this._cleanAccountId(config.accountId);
         this.accountIdSource = this.accountId ? 'config' : null;
     }
@@ -1042,13 +1041,10 @@ class AlpacaAdapter extends IBrokerAdapter {
                 }
             },
             options: {
-                initialReconnectDelayMs: this.webSocketConfig.initialReconnectDelayMs,
-                maxBackoffMs: this.webSocketConfig.maxReconnectDelayMs,
-                heartbeatPingMs: this.webSocketConfig.heartbeatPingMs,
-                pongTimeoutMs: this.webSocketConfig.pongTimeoutMs,
-                dataWatchdogMs: this.webSocketConfig.dataWatchdogMs,
-                maxPayload: this.webSocketConfig.maxPayloadBytes,
-                maxBytesPerSecond: this.webSocketConfig.maxBytesPerSecond,
+                maxBackoffMs: 30000,
+                heartbeatPingMs: 0,
+                pongTimeoutMs: 0,
+                dataWatchdogMs: 60000,
             },
             label: '[Alpaca]',
         });

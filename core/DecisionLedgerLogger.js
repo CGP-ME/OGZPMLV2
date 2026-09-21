@@ -5,10 +5,9 @@ const path = require('path');
 
 // FIX 2026-04-16: Route ledger to unified output directory (via OutputPaths)
 const { getLedgerDir } = require('./OutputPaths');
-const ConfigLoader = require('../foundation/ConfigLoader');
 const DECISIONS_DIR = getLedgerDir();
-const LEDGER_BUFFER_SIZE = ConfigLoader.get('internals.decisionRecords.ledgerBufferSize');
-const LEDGER_VALIDATE = ConfigLoader.get('internals.decisionRecords.ledgerValidate');
+const LEDGER_BUFFER_SIZE = parseInt(process.env.LEDGER_BUFFER_SIZE || '1', 10);
+const LEDGER_VALIDATE = process.env.LEDGER_VALIDATE !== 'false';
 
 let writeBuffer = [];
 

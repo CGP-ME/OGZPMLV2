@@ -30,9 +30,43 @@
 const { c: _c, o: _o, h: _h, l: _l, v: _v } = require('./CandleHelper');
 const { IndicatorCalculator } = require('./IndicatorCalculator');
 const { createTraceId, emitTrace } = require('./TraceSpine');
-const ConfigLoader = require('../foundation/ConfigLoader');
 
 const INDICATORS_UNAVAILABLE = 'indicators_unavailable';
+const OPTIMIZED_INDICATOR_CONFIG_QUESTIONS = Object.freeze({
+  rsiPeriod: 'indicator.rsiPeriod',
+  macdFastPeriod: 'indicator.macdFast',
+  macdSlowPeriod: 'indicator.macdSlow',
+  macdSignalPeriod: 'indicator.macdSignal',
+  volatilityPeriod: 'indicator.volatilityPeriod',
+  bollingerPeriod: 'indicator.bbPeriod',
+  bollingerStdDev: 'indicator.bbStdDev',
+  atrPeriod: 'indicator.atrPeriod',
+  trendShortPeriod: 'indicator.trendShortPeriod',
+  trendLongPeriod: 'indicator.trendLongPeriod',
+  cacheSize: 'indicator.cacheSize',
+  macdHistorySize: 'indicator.macdHistorySize',
+  twoPoleSmaLength: 'indicator.twoPoleSmaLength',
+  twoPoleFilterLength: 'indicator.twoPoleFilterLength',
+  twoPoleUpperThreshold: 'indicator.twoPoleUpperThreshold',
+  twoPoleLowerThreshold: 'indicator.twoPoleLowerThreshold',
+});
+const RSI_PERIOD_QUESTION_DEFAULT = 14;
+const MACD_FAST_PERIOD_QUESTION_DEFAULT = 12;
+const MACD_SLOW_PERIOD_QUESTION_DEFAULT = 26;
+const MACD_SIGNAL_PERIOD_QUESTION_DEFAULT = 9;
+const VOLATILITY_PERIOD_QUESTION_DEFAULT = 20;
+const BOLLINGER_PERIOD_QUESTION_DEFAULT = 20;
+const BOLLINGER_STD_DEV_QUESTION_DEFAULT = 2;
+const ATR_PERIOD_QUESTION_DEFAULT = 14;
+const TREND_SHORT_PERIOD_QUESTION_DEFAULT = 20;
+const TREND_LONG_PERIOD_QUESTION_DEFAULT = 50;
+const CACHE_SIZE_QUESTION_DEFAULT = 1000;
+const MACD_HISTORY_SIZE_QUESTION_DEFAULT = 50;
+const TWO_POLE_SMA_LENGTH_QUESTION_DEFAULT = 25;
+const TWO_POLE_FILTER_LENGTH_QUESTION_DEFAULT = 20;
+const TWO_POLE_UPPER_THRESHOLD_QUESTION_DEFAULT = 0.5;
+const TWO_POLE_LOWER_THRESHOLD_QUESTION_DEFAULT = -0.5;
+
 function finiteNumberOrNull(value) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : null;
@@ -40,26 +74,24 @@ function finiteNumberOrNull(value) {
 
 class OptimizedIndicators {
   constructor() {
-    const indicatorSettings = ConfigLoader.get('indicators.optimized');
-    const indicatorInternals = ConfigLoader.get('internals.indicators.optimized');
-    this.config = {
-      ...indicatorSettings,
-      ...indicatorInternals,
-    };
     this.cache = new Map();
-    this.maxCacheSize = this.config.cacheSize;
+    this.maxCacheSize = CACHE_SIZE_QUESTION_DEFAULT; // Question key: indicator.cacheSize
 
     // MACD signal line history for proper EMA calculation
     this.macdHistory = [];
-    this.maxMacdHistory = this.config.macdHistorySize;
+    this.maxMacdHistory = MACD_HISTORY_SIZE_QUESTION_DEFAULT; // Question key: indicator.macdHistorySize
 
+    // Initialize Two-Pole Oscillator
     const TwoPoleOscillator = require('./TwoPoleOscillator');
     this.twoPoleOscillator = new TwoPoleOscillator({
-      ...indicatorSettings.twoPole,
-      ...indicatorInternals.twoPole,
+      smaLength: TWO_POLE_SMA_LENGTH_QUESTION_DEFAULT,
+      filterLength: TWO_POLE_FILTER_LENGTH_QUESTION_DEFAULT,
+      upperThreshold: TWO_POLE_UPPER_THRESHOLD_QUESTION_DEFAULT,
+      lowerThreshold: TWO_POLE_LOWER_THRESHOLD_QUESTION_DEFAULT
     });
 
-    console.log('[OptimizedIndicators] initialized with scalper caching');
+    console.log('📊 OptimizedIndicators initialized with scalper caching');
+    console.log('🎯 Two-Pole Oscillator [BigBeluga] integrated');
   }
 
   /**
@@ -99,18 +131,19 @@ class OptimizedIndicators {
     try {
       const data = priceData ?? this.priceHistory;
 
-      if (!Array.isArray(data) || data.length < this.config.macdSlowPeriod) {
+      if (!Array.isArray(data) || data.length < MACD_SLOW_PERIOD_QUESTION_DEFAULT) {
         return this._indicatorsUnavailable('insufficient_indicator_candles', {
           candleCount: Array.isArray(data) ? data.length : 0,
-          requiredCandles: this.config.macdSlowPeriod,
+          requiredCandles: MACD_SLOW_PERIOD_QUESTION_DEFAULT,
+          configQuestionKey: OPTIMIZED_INDICATOR_CONFIG_QUESTIONS.macdSlowPeriod,
         });
       }
 
-      const rsi = this.calculateRSI(data.slice(-(this.config.rsiPeriod + 1)));
+      const rsi = this.calculateRSI(data.slice(-(RSI_PERIOD_QUESTION_DEFAULT + 1)));
 
-      const macdData = this.calculateMACD(data.slice(-this.config.macdSlowPeriod));
+      const macdData = this.calculateMACD(data.slice(-MACD_SLOW_PERIOD_QUESTION_DEFAULT));
 
-      const volatility = this.calculateVolatility(data.slice(-this.config.volatilityPeriod));
+      const volatility = this.calculateVolatility(data.slice(-VOLATILITY_PERIOD_QUESTION_DEFAULT));
 
       let twoPole = null;
       if (data.length > 0) {
@@ -140,7 +173,7 @@ class OptimizedIndicators {
         macd: macdData.macd,
         macdSignal: macdData.signal,
         volatility,
-        twoPole,
+        twoPole
       };
 
     } catch (error) {
@@ -176,14 +209,14 @@ class OptimizedIndicators {
    * RSI CALCULATION
    * Relative Strength Index for momentum analysis
    */
-  calculateRSI(priceData, period = this.config.rsiPeriod) {
+  calculateRSI(priceData, period = RSI_PERIOD_QUESTION_DEFAULT) {
     if (!Array.isArray(priceData) || priceData.length < period + 1) {
       return null;
     }
     return this.getScalperCached('RSI', priceData, this._calculateRSICore, period);
   }
 
-  _calculateRSICore(priceData, period = this.config.rsiPeriod) {
+  _calculateRSICore(priceData, period = RSI_PERIOD_QUESTION_DEFAULT) {
     return IndicatorCalculator.calculateWilderRSI(priceData, period);
   }
 
@@ -192,12 +225,13 @@ class OptimizedIndicators {
    * Moving Average Convergence Divergence for trend analysis
    */
   calculateMACD(priceData) {
-    if (!Array.isArray(priceData) || priceData.length < this.config.macdSlowPeriod) {
+    if (!Array.isArray(priceData) || priceData.length < MACD_SLOW_PERIOD_QUESTION_DEFAULT) {
       return {
         available: false,
         status: 'unavailable',
         code: INDICATORS_UNAVAILABLE,
         reason: 'insufficient_macd_candles',
+        configQuestionKey: OPTIMIZED_INDICATOR_CONFIG_QUESTIONS.macdSlowPeriod,
         macdLine: null,
         signalLine: null,
         histogram: null,
@@ -211,7 +245,7 @@ class OptimizedIndicators {
   _calculateMACDCore(priceData) {
 
     // TESTING MODE: Reduce minimum candle requirement to 1
-    const minCandles = ConfigLoader.get('mode.testMode') === true ? 1 : this.config.macdSlowPeriod;
+    const minCandles = process.env.TESTING === 'true' ? 1 : MACD_SLOW_PERIOD_QUESTION_DEFAULT;
 
     if (priceData.length < minCandles) {
       return {
@@ -219,6 +253,7 @@ class OptimizedIndicators {
         status: 'unavailable',
         code: INDICATORS_UNAVAILABLE,
         reason: 'insufficient_macd_candles',
+        configQuestionKey: OPTIMIZED_INDICATOR_CONFIG_QUESTIONS.macdSlowPeriod,
         macdLine: null,
         signalLine: null,
         histogram: null,
@@ -232,8 +267,8 @@ class OptimizedIndicators {
     const lastCandle = priceData[priceData.length - 1];
 
     // CRITICAL FIX: Use most recent data, not oldest!
-    const ema12 = this.calculateEMA(priceData.slice(-this.config.macdFastPeriod), this.config.macdFastPeriod);
-    const ema26 = this.calculateEMA(priceData.slice(-this.config.macdSlowPeriod), this.config.macdSlowPeriod);
+    const ema12 = this.calculateEMA(priceData.slice(-MACD_FAST_PERIOD_QUESTION_DEFAULT), MACD_FAST_PERIOD_QUESTION_DEFAULT);
+    const ema26 = this.calculateEMA(priceData.slice(-MACD_SLOW_PERIOD_QUESTION_DEFAULT), MACD_SLOW_PERIOD_QUESTION_DEFAULT);
 
     const macdLine = ema12 - ema26;
 
@@ -244,12 +279,13 @@ class OptimizedIndicators {
       this.macdHistory.shift(); // Remove oldest
     }
 
-    if (this.macdHistory.length < this.config.macdSignalPeriod) {
+    if (this.macdHistory.length < MACD_SIGNAL_PERIOD_QUESTION_DEFAULT) {
       return {
         available: false,
         status: 'unavailable',
         code: INDICATORS_UNAVAILABLE,
         reason: 'insufficient_macd_signal_history',
+        configQuestionKey: OPTIMIZED_INDICATOR_CONFIG_QUESTIONS.macdSignalPeriod,
         macdLine,
         signalLine: null,
         histogram: null,
@@ -258,8 +294,8 @@ class OptimizedIndicators {
       };
     }
 
-    const macdForSignal = this.macdHistory.slice(-this.config.macdSignalPeriod);
-    const signalLine = this.calculateEMA(macdForSignal.map(val => ({ c: val })), this.config.macdSignalPeriod);
+    const macdForSignal = this.macdHistory.slice(-MACD_SIGNAL_PERIOD_QUESTION_DEFAULT);
+    const signalLine = this.calculateEMA(macdForSignal.map(val => ({ c: val })), MACD_SIGNAL_PERIOD_QUESTION_DEFAULT);
 
     const histogram = macdLine - signalLine;
     return { macdLine, signalLine, histogram, macd: macdLine, signal: signalLine };
@@ -306,14 +342,14 @@ class OptimizedIndicators {
    * VOLATILITY CALCULATION
    * Price volatility for risk assessment
    */
-  calculateVolatility(priceData, period = this.config.volatilityPeriod) {
+  calculateVolatility(priceData, period = VOLATILITY_PERIOD_QUESTION_DEFAULT) {
     if (!Array.isArray(priceData) || priceData.length < 2) {
       return null;
     }
     return this.getScalperCached('VOLATILITY', priceData, this._calculateVolatilityCore, period);
   }
 
-  _calculateVolatilityCore(priceData, period = this.config.volatilityPeriod) {
+  _calculateVolatilityCore(priceData, period = VOLATILITY_PERIOD_QUESTION_DEFAULT) {
     if (priceData.length < 2) return null;
 
     // Use last 'period' candles or all available
@@ -339,7 +375,7 @@ class OptimizedIndicators {
    * BOLLINGER BANDS CALCULATION
    * Volatility bands for price containment analysis
    */
-  calculateBollingerBands(candles, period = this.config.bollingerPeriod, stdDevMultiplier = this.config.bollingerStdDev) {
+  calculateBollingerBands(candles, period = BOLLINGER_PERIOD_QUESTION_DEFAULT, stdDevMultiplier = BOLLINGER_STD_DEV_QUESTION_DEFAULT) {
 
     if (!candles || candles.length < period) {
       return {
@@ -347,6 +383,7 @@ class OptimizedIndicators {
         status: 'unavailable',
         code: INDICATORS_UNAVAILABLE,
         reason: 'insufficient_bollinger_candles',
+        configQuestionKey: OPTIMIZED_INDICATOR_CONFIG_QUESTIONS.bollingerPeriod,
         upper: null,
         middle: null,
         lower: null,
@@ -400,7 +437,7 @@ class OptimizedIndicators {
    * TREND DETERMINATION
    * Market trend analysis for directional bias
    */
-  determineTrend(priceData, shortPeriod = this.config.trendShortPeriod, longPeriod = this.config.trendLongPeriod) {
+  determineTrend(priceData, shortPeriod = TREND_SHORT_PERIOD_QUESTION_DEFAULT, longPeriod = TREND_LONG_PERIOD_QUESTION_DEFAULT) {
     if (!priceData || priceData.length < longPeriod) {
       return null;
     }
@@ -479,12 +516,12 @@ class OptimizedIndicators {
    * @param {number} period - ATR period (question default: indicator.atrPeriod)
    * @returns {number} - ATR value as decimal (e.g., 0.02 = 2% volatility)
    */
-  calculateATR(priceData, period = this.config.atrPeriod) {
-    console.log(`[ATR] Entry: priceData.length=${priceData?.length || 0}, period=${period}`);
+  calculateATR(priceData, period = ATR_PERIOD_QUESTION_DEFAULT) {
+    console.log(`🔍 [ATR] Entry: priceData.length=${priceData?.length || 0}, period=${period}`);
 
     // Need at least period + 1 candles for ATR calculation
     if (!priceData || priceData.length < period + 1) {
-      console.log(`[ATR] Insufficient data (need ${period + 1}, have ${priceData?.length || 0})`);
+      console.log(`⚠️ [ATR] Insufficient data (need ${period + 1}, have ${priceData?.length || 0})`);
       return null;
     }
 
@@ -497,7 +534,7 @@ class OptimizedIndicators {
 
       // Validate data structure
       if (!_h(candle) || !_l(candle) || !_c(candle) || !_c(prevCandle)) {
-        console.log(`[ATR] Invalid candle structure at index ${i}`);
+        console.log(`⚠️ [ATR] Invalid candle structure at index ${i}`);
         continue;
       }
 
@@ -515,7 +552,7 @@ class OptimizedIndicators {
     }
 
     if (trueRanges.length < period) {
-      console.log(`[ATR] Not enough true ranges calculated: ${trueRanges.length}`);
+      console.log(`⚠️ [ATR] Not enough true ranges calculated: ${trueRanges.length}`);
       return null;
     }
 
@@ -527,7 +564,7 @@ class OptimizedIndicators {
     const currentPrice = _c(priceData[priceData.length - 1]);
     const atrPercent = atrAbsolute / currentPrice;
 
-    console.log(`[ATR] Calculated: ${(atrPercent * 100).toFixed(2)}% (abs: $${atrAbsolute.toFixed(2)}, price: $${currentPrice.toFixed(2)})`);
+    console.log(`✅ [ATR] Calculated: ${(atrPercent * 100).toFixed(2)}% (abs: $${atrAbsolute.toFixed(2)}, price: $${currentPrice.toFixed(2)})`);
 
     return atrPercent;
   }
@@ -547,7 +584,7 @@ class OptimizedIndicators {
   clearCache() {
     const cleared = this.cache.size;
     this.cache.clear();
-    console.log(`[OptimizedIndicators] cache cleared: ${cleared} entries removed`);
+    console.log(`🧹 OptimizedIndicators cache cleared: ${cleared} entries removed`);
     return cleared;
   }
 }

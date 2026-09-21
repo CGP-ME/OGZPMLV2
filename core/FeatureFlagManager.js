@@ -2,7 +2,7 @@
  * @fileoverview FeatureFlagManager - Unified Feature Toggle System
  *
  * Single source of truth for ALL feature flags in OGZ Prime.
- * Combines ConfigLoader-owned feature toggles with tier-based scaling.
+ * Combines config/features.json (toggles) with tier-based scaling.
  *
  * @description
  * ARCHITECTURE ROLE:
@@ -11,16 +11,16 @@
  *
  * WHY THIS EXISTS:
  * Previously there were TWO independent systems:
- * 1. config/settings.json featureCatalog - runtime toggles
+ * 1. config/features.json - runtime toggles
  * 2. TierFeatureFlags.js - hardcoded tier features
  * They didn't communicate, causing flags to be ignored.
  *
  * NOW:
- * - ConfigLoader's featureCatalog is the only runtime source of truth for toggles
+ * - features.json is the ONLY source of truth for toggles
  * - Tier logic provides SCALING on top (multipliers, limits)
  * - All code uses this singleton
  *
- * FEATURE FLAG STRUCTURE (in config/settings.json featureCatalog):
+ * FEATURE FLAG STRUCTURE (in config/features.json):
  * ```json
  * {
  *   "TRAI_ENABLED": { "enabled": true, "settings": { "model": "ollama" } },
@@ -50,6 +50,8 @@
  * console.log(`Position size multiplier: ${scaling.positionSizeMultiplier}`);
  */
 
+const fs = require('fs');
+const path = require('path');
 const ConfigLoader = require('../foundation/ConfigLoader');
 
 // Singleton instance
@@ -63,13 +65,13 @@ class FeatureFlagManager {
 
     // Detect mode from resolved config, or from an explicit non-env caller contract.
     this.mode = this._detectMode(options);
-    this.tier = ConfigLoader.get('misc.botTier');
+    this.tier = process.env.TRADING_TIER || 'ml';
 
     // Load features from JSON (single source of truth)
     this.features = this._loadFeatures();
 
-    // Tier limits/access are customer settings, not a second hardcoded policy bank.
-    this.tierPolicy = ConfigLoader.get('tierPolicy');
+    // Tier-specific scaling factors (not toggles - those come from features.json)
+    this.tierScaling = this._loadTierScaling();
 
     console.log(`[FeatureFlagManager] Initialized: mode=${this.mode}, tier=${this.tier}`);
     console.log(`[FeatureFlagManager] Enabled features:`,
@@ -103,9 +105,18 @@ class FeatureFlagManager {
     return explicitMode || ConfigLoader.load({ silent: true }).config.mode.execution;
   }
 
-  /** Load features from the ConfigLoader settings snapshot. */
+  /**
+   * Load features from config/features.json
+   */
   _loadFeatures() {
-    return ConfigLoader.get('featureCatalog');
+    try {
+      const featuresPath = path.join(__dirname, '..', 'config', 'features.json');
+      const data = JSON.parse(fs.readFileSync(featuresPath, 'utf8'));
+      return data.features || {};
+    } catch (error) {
+      console.error('[FeatureFlagManager] Failed to load features.json:', error.message);
+      return {};
+    }
   }
 
   /**
@@ -115,6 +126,40 @@ class FeatureFlagManager {
     this.features = this._loadFeatures();
     this.mode = this._detectMode();
     console.log('[FeatureFlagManager] Reloaded features');
+  }
+
+  /**
+   * Tier-specific scaling factors
+   * These are MULTIPLIERS and LIMITS, not toggles
+   * Toggles come from features.json
+   */
+  _loadTierScaling() {
+    return {
+      starter: {
+        maxPositions: 5,
+        leverage: 1,
+        maxDailyTrades: 50,
+        patternLimit: 10
+      },
+      pro: {
+        maxPositions: 10,
+        leverage: 2,
+        maxDailyTrades: 200,
+        patternLimit: 50
+      },
+      elite: {
+        maxPositions: 20,
+        leverage: 5,
+        maxDailyTrades: 500,
+        patternLimit: 100
+      },
+      ml: {
+        maxPositions: 50,
+        leverage: 10,
+        maxDailyTrades: 1000,
+        patternLimit: 10000
+      }
+    };
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -129,13 +174,13 @@ class FeatureFlagManager {
    * @returns {boolean}
    */
   isEnabled(featureName) {
-    // Check the ConfigLoader-owned feature catalog first
+    // Check in features.json first (canonical source)
     const feature = this.features[featureName];
     if (feature !== undefined) {
       return feature.enabled === true;
     }
 
-    // Legacy support: map old TierFeatureFlags names to featureCatalog
+    // Legacy support: Map old TierFeatureFlags names to features.json
     const legacyMapping = {
       'ml_enhanced_signals': 'ML_ENHANCED_SIGNALS',
       'advanced_indicators': 'ADVANCED_INDICATORS',
@@ -207,12 +252,8 @@ class FeatureFlagManager {
    * @returns {number}
    */
   getTierValue(key) {
-    const tierConfig = this.tierPolicy[this.tier];
+    const tierConfig = this.tierScaling[this.tier] || this.tierScaling.elite;
     return tierConfig[key];
-  }
-
-  getTierPolicy(tier = this.tier) {
-    return this.tierPolicy[tier];
   }
 
   /**
@@ -273,7 +314,18 @@ class FeatureFlagManager {
    * @returns {boolean}
    */
   canTrade(asset) {
-    const allowed = this.getTierPolicy().assetAccess;
+    // All tiers can trade crypto
+    if (asset === 'crypto') return true;
+
+    // Check tier-specific access
+    const tierAccess = {
+      starter: ['crypto'],
+      pro: ['crypto', 'forex'],
+      elite: ['crypto', 'forex', 'options', 'futures'],
+      ml: ['crypto', 'forex', 'options', 'futures']
+    };
+
+    const allowed = tierAccess[this.tier] || tierAccess.starter;
     return allowed.includes(asset.toLowerCase());
   }
 
@@ -312,7 +364,7 @@ class FeatureFlagManager {
       mode: this.mode,
       tier: this.tier,
       enabledFeatures: this.getEnabledFeatures(),
-      tierScaling: this.getTierPolicy()
+      tierScaling: this.tierScaling[this.tier]
     };
   }
 }

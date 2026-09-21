@@ -23,6 +23,8 @@
  * @module modules/NoWickImbalance
  */
 
+const ConfigLoader = require('../foundation/ConfigLoader');
+
 const ENTRY_MODES = new Set(['tap', 'rejection']);
 
 const REQUIRED_NUMERIC_KEYS = [
@@ -47,8 +49,9 @@ const REQUIRED_INTEGER_KEYS = [
   'twinProximityBars',
 ];
 
-function readConfig(config) {
-  const cfg = config;
+function readConfig(overrides) {
+  const base = ConfigLoader.get('strategies.NoWickImbalance');
+  const cfg = { ...(base || {}), ...(overrides || {}) };
   const missingNumeric = REQUIRED_NUMERIC_KEYS.filter(key => !Number.isFinite(Number(cfg[key])));
   if (missingNumeric.length > 0) {
     throw new Error(`[NoWickImbalance] missing finite config key(s): ${missingNumeric.join(', ')}`);
@@ -102,7 +105,7 @@ function readConfig(config) {
 }
 
 class NoWickImbalance {
-  constructor(config) {
+  constructor(config = {}) {
     this.name = 'NoWickImbalance';
     this.cfg = Object.freeze(readConfig(config));
     this.maxCandleAge = this.cfg.maxCandleAge;       // Valid for configured candle count; next candle invalidates

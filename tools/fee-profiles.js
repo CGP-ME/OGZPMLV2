@@ -7,34 +7,48 @@ function listFeeProfileNames() {
 }
 
 function resolveFeeProfile(profileName) {
-  const profile = ConfigLoader.resolveFeeProfile(profileName);
-  return Object.freeze({
-    name: profile.name,
-    description: profile.description,
-    assetClasses: Object.freeze([...(profile.assetClasses || [])]),
-    overrides: ConfigLoader.buildFeeProfileOverrides(profile.name),
-  });
+  return ConfigLoader.resolveFeeProfile(profileName);
 }
 
 function summarizeFeeProfile(profile) {
-  const resolved = resolveFeeProfile(typeof profile === 'object' ? profile.name : profile);
-  return {
-    name: resolved.name,
-    description: resolved.description,
-    assetClasses: [...resolved.assetClasses],
-    overrides: { ...resolved.overrides },
-  };
+  return ConfigLoader.summarizeFeeProfile(profile);
+}
+
+function shellQuote(value) {
+  return `'${String(value).replace(/'/g, `'\\''`)}'`;
+}
+
+function buildShellExports(profileName) {
+  const profile = resolveFeeProfile(profileName);
+  const keys = [
+    'FEE_MODEL',
+    'FEE_MAKER',
+    'FEE_TAKER',
+    'FEE_TOTAL_ROUNDTRIP',
+    'FEE_SAFETY_BUFFER',
+    'FEE_SLIPPAGE',
+    'FEE_PER_SHARE',
+    'FEE_MIN_ORDER',
+  ];
+  const lines = [
+    `export BACKTEST_FEE_PROFILE=${shellQuote(profile.name)}`,
+    ...keys.map((key) => `unset ${key}`),
+  ];
+  for (const [key, value] of Object.entries(profile.env)) {
+    lines.push(`export ${key}=${shellQuote(value)}`);
+  }
+  return lines.join('\n');
 }
 
 if (require.main === module) {
   const [, , command, profileName] = process.argv;
   try {
-    if (command === 'show') {
-      process.stdout.write(`${JSON.stringify(summarizeFeeProfile(profileName), null, 2)}\n`);
+    if (command === 'shell-export') {
+      process.stdout.write(`${buildShellExports(profileName)}\n`);
     } else if (command === 'list') {
       process.stdout.write(`${listFeeProfileNames().join('\n')}\n`);
     } else {
-      process.stderr.write(`Usage: node tools/fee-profiles.js <list|show> [${listFeeProfileNames().join('|')}]\n`);
+      process.stderr.write(`Usage: node tools/fee-profiles.js shell-export <${listFeeProfileNames().join('|')}>\n`);
       process.exit(1);
     }
   } catch (err) {
@@ -44,6 +58,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  buildShellExports,
   listFeeProfileNames,
   resolveFeeProfile,
   summarizeFeeProfile,

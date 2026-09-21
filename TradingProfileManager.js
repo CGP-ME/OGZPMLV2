@@ -3,7 +3,7 @@
 /**
  * Retired compatibility tombstone.
  *
- * Runtime/tuning profile values are owned by config/settings.json and
+ * Runtime/tuning profile values are owned by config/trading.config.json and
  * exposed through foundation/ConfigLoader. This module must not keep a second
  * hardcoded profile bank.
  */

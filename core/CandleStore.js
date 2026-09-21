@@ -14,10 +14,11 @@ const { ContractValidator } = require('./ContractValidator');
 const { c: _c, t: _t } = require('./CandleHelper');
 
 class CandleStore {
-  constructor(config) {
+  constructor(config = {}) {
     this.config = {
-      maxCandles: config.maxCandles,
-      validator: config.validator ?? null
+      maxCandles: config.maxCandles || 500,
+      persist: config.persist || false,
+      validator: config.validator || null
     };
 
     // Primary storage: Map<symbol, Map<timeframe, candle[]>>
@@ -240,7 +241,7 @@ class CandleStore {
   /**
    * Create a CandleStore with custom max candles
    */
-  static create(maxCandles) {
+  static create(maxCandles = 500) {
     return new CandleStore({ maxCandles });
   }
 
@@ -248,7 +249,7 @@ class CandleStore {
    * Create a CandleStore from existing price history array
    * (For migration from run-empire-v2.js priceHistory)
    */
-  static fromArray(symbol, timeframe, candles, config) {
+  static fromArray(symbol, timeframe, candles, config = {}) {
     const store = new CandleStore(config);
     store.addCandles(symbol, timeframe, candles);
     return store;

@@ -28,7 +28,7 @@ const TradeReplayCapture = require('./TradeReplayCapture');
 const path = require('path');
 const fs = require('fs');
 const ConfigLoader = require('../foundation/ConfigLoader');  // CHANGE 2026-02-28: Centralized config
-const { normalizePatternScope, requirePatternScope } = require('./PatternScope');
+const { requirePatternScope } = require('./PatternScope');
 const { emitTrace } = require('./TraceSpine');
 
 const JOURNAL_INFRASTRUCTURE_FAILURE_SOURCE = 'journal_persistence_down';
@@ -261,8 +261,7 @@ function activeTradeProvenance(activeTrade) {
 function sourceBackedEntryFromActiveTrade(activeTrade, expectedOrderId) {
   const missing = [];
   const orderId = nonEmptyStringOrNull(activeTrade?.orderId) || nonEmptyStringOrNull(activeTrade?.id);
-  const scope = normalizePatternScope(activeTrade, 'TradeJournalBridge.activeTrade');
-  const symbol = scope.ok ? scope.symbol : nonEmptyStringOrNull(activeTrade?.symbol);
+  const symbol = nonEmptyStringOrNull(activeTrade?.symbol);
   const action = entryActionOrNull(activeTrade?.action) || entryActionOrNull(activeTrade?.type);
   const entryPrice = positiveNumberOrNull(activeTrade?.entryPrice);
   const sizeUsd = positiveNumberOrNull(activeTrade?.sizeUsd ?? activeTrade?.usdValue);
@@ -285,13 +284,6 @@ function sourceBackedEntryFromActiveTrade(activeTrade, expectedOrderId) {
   if (!provenance.traceId) missing.push('activeTrade.traceId');
   if (!provenance.signalId) missing.push('activeTrade.signalId');
   if (!provenance.decisionId) missing.push('activeTrade.decisionId');
-  if (!scope.ok) {
-    const scopeFields = scope.missingFields.length > 0 ? scope.missingFields : ['scopeKey'];
-    for (const field of scopeFields) {
-      const sourceField = `activeTrade.${field}`;
-      if (!missing.includes(sourceField)) missing.push(sourceField);
-    }
-  }
 
   return {
     ok: missing.length === 0,
@@ -310,17 +302,6 @@ function sourceBackedEntryFromActiveTrade(activeTrade, expectedOrderId) {
       fees,
       timestamp,
       ...provenance,
-      ...(scope.ok ? {
-        brokerId: scope.brokerId,
-        accountId: scope.accountId,
-        accountIdSource: scope.accountIdSource,
-        assetClass: scope.assetClass,
-        executionMode: scope.executionMode,
-        timeframe: scope.timeframe,
-        scopeKey: scope.scopeKey,
-        scopeKeyVersion: scope.scopeKeyVersion,
-        scopeComplete: scope.scopeComplete,
-      } : {}),
     },
   };
 }
@@ -431,6 +412,32 @@ function compactTradeRecord(record) {
   };
 }
 
+function uniqueNonEmptyStrings(values) {
+  const out = [];
+  const seen = new Set();
+  for (const value of values) {
+    const normalized = nonEmptyStringOrNull(value);
+    if (!normalized) continue;
+    const key = normalized.toUpperCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(normalized);
+  }
+  return out;
+}
+
+function configuredJournalSymbols(bot) {
+  const symbols = [
+    bot?.config?.tradingPair,
+    bot?.tradingPair,
+    ...(Array.isArray(bot?.ttpCutoffSymbols) ? bot.ttpCutoffSymbols : []),
+  ];
+  if (bot?.symbolContexts instanceof Map) {
+    symbols.push(...bot.symbolContexts.keys());
+  }
+  return uniqueNonEmptyStrings(symbols);
+}
+
 function normalizeBrokerPositionForJournal(position) {
   const symbol = nonEmptyStringOrNull(position?.symbol);
   if (!symbol) return null;
@@ -443,8 +450,7 @@ function normalizeBrokerPositionForJournal(position) {
 }
 
 function resolveJournalScope(bot) {
-  const runtimeScope = bot?.stateManager?.getDashboardRuntimeScope?.();
-  return requirePatternScope(runtimeScope || {
+  return requirePatternScope({
     symbol: bot?.config?.tradingPair || bot?.tradingPair,
     brokerId: bot?.config?.brokerId,
     accountId: bot?.config?.accountId,
@@ -452,6 +458,17 @@ function resolveJournalScope(bot) {
     executionMode: bot?.config?.executionMode,
     timeframe: bot?.config?.timeframe || bot?.candleTimeframe,
   }, 'TradeJournalBridge.dataDir');
+}
+
+function resolveJournalScopeForSymbol(bot, symbol) {
+  return requirePatternScope({
+    symbol,
+    brokerId: bot?.config?.brokerId,
+    accountId: bot?.config?.accountId,
+    assetClass: bot?.config?.assetClass,
+    executionMode: bot?.config?.executionMode,
+    timeframe: bot?.config?.timeframe || bot?.candleTimeframe,
+  }, 'TradeJournalBridge.symbolDataDir');
 }
 
 function resolveReplayPriceHistory(bot, symbol) {
@@ -493,16 +510,23 @@ function resolveReplayPriceHistory(bot, symbol) {
   };
 }
 
-function resolveJournalDataDir(_bot, config = {}, scope) {
-  const journalRoot = config.journalRoot;
+function resolveJournalDataDir(bot, config = {}, scope = resolveJournalScope(bot)) {
+  const journalRoot = config.dataDir || bot?.config?.journalDataDir;
   if (!journalRoot) {
-    throw new Error('[TRADE-JOURNAL-SCOPE] TradeJournalBridge requires an explicit canonical journalRoot');
+    throw new Error('[TRADE-JOURNAL-SCOPE] TradeJournalBridge requires configured journalDataDir root; refusing implicit data/journal fallback');
   }
   return path.join(journalRoot, safeScopePathSegment(scope));
 }
 
-function resolveReplayDir(journalDataDir) {
-  return path.join(journalDataDir, 'replays');
+function resolveReplayDir(journalDataDir, config = {}) {
+  const replayDir = config.replayDir || path.join(journalDataDir, 'replays');
+  const resolvedJournalDir = path.resolve(journalDataDir);
+  const resolvedReplayDir = path.resolve(replayDir);
+  const relative = path.relative(resolvedJournalDir, resolvedReplayDir);
+  if (relative && !relative.startsWith('..') && !path.isAbsolute(relative)) {
+    return replayDir;
+  }
+  throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournalBridge.replayDir must stay under scoped journal dataDir (${journalDataDir}); got ${replayDir}`);
 }
 
 class TradeJournalBridge {
@@ -529,10 +553,11 @@ class TradeJournalBridge {
     this.visibilityFailurePath = primaryBundle.visibilityFailurePath;
     this.visibilityFailureFallbackPath = path.join(process.cwd(), 'data', 'runtime-audit', 'trade-visibility-failures-fallback.jsonl');
     this._pendingVisibilityErrors = [];
-    this._maxPendingVisibilityErrors = this._journalBridgeConfig.maxPendingVisibilityErrors;
+    this._maxPendingVisibilityErrors = 50;
     this._closedTradeLogKeySet = new Set();
     this._closedTradeLogKeys = [];
     this._journalPersistenceFailureStreak = 0;
+    this._preloadConfiguredJournalBundles();
     this._reconcileOpenStateTrades();
     this._startupJournalReconciliationPromise = this._reconcileJournalOpenTradesWithAuthoritativeState()
       .catch(err => {
@@ -555,12 +580,11 @@ class TradeJournalBridge {
       dataDir: journalDataDir,
       scope,
       startingBalance: this._journalStartingBalance,
-      autoSaveInterval: this._journalBridgeConfig.autoSaveIntervalMs,
     });
     const replay = new TradeReplayCapture({
-      replayDir: resolveReplayDir(journalDataDir),
-      candlesBefore: this._journalBridgeConfig.replayCandlesBefore,
-      candlesAfter: this._journalBridgeConfig.replayCandlesAfter,
+      replayDir: resolveReplayDir(journalDataDir, this._journalBridgeConfig),
+      candlesBefore: 60,
+      candlesAfter: 30
     });
     const bundle = {
       scope,
@@ -572,12 +596,30 @@ class TradeJournalBridge {
     return bundle;
   }
 
+  _preloadConfiguredJournalBundles() {
+    for (const symbol of configuredJournalSymbols(this.bot)) {
+      try {
+        const scope = resolveJournalScopeForSymbol(this.bot, symbol);
+        if (!this._journalBundles.has(scope.scopeKey)) {
+          this._createJournalBundle(scope);
+        }
+      } catch (err) {
+        console.warn(`[TradeJournalBridge] Skipping configured journal bundle for ${symbol}: ${err.message}`);
+      }
+    }
+  }
+
   _getJournalBundleForEntry(entryData) {
     if (!this._journalBundles) {
       return { journal: this.journal, replay: this.replay, scope: this.journal?.scope || null };
     }
 
-    const scope = requirePatternScope(entryData, 'TradeJournalBridge.entry');
+    const symbol = nonEmptyStringOrNull(entryData?.symbol);
+    if (!symbol) {
+      throw new Error(`Entry ${entryData?.orderId || 'unknown'} missing activeTrade.symbol; refusing boot-scope journal attribution`);
+    }
+
+    const scope = resolveJournalScopeForSymbol(this.bot, symbol);
     const existing = this._journalBundles.get(scope.scopeKey);
     return existing || this._createJournalBundle(scope);
   }
@@ -1039,7 +1081,13 @@ class TradeJournalBridge {
     }
 
     try {
-      const bundle = TradeJournalBridge.prototype._getJournalBundleForOrderId.call(this, data.orderId);
+      let bundle = TradeJournalBridge.prototype._getJournalBundleForOrderId.call(this, data.orderId);
+      if (!bundle && data.symbol) {
+        bundle = TradeJournalBridge.prototype._getJournalBundleForEntry.call(this, {
+          orderId: data.orderId,
+          symbol: data.symbol,
+        });
+      }
       if (!bundle?.journal || !bundle?.replay) {
         TradeJournalBridge.prototype._recordVisibilityFailure.call(this, 'trade_exit_scope_unresolved', {
           phase: 'exit',
@@ -1382,7 +1430,7 @@ class TradeJournalBridge {
 
   _queueVisibilityFailure(payload) {
     if (!Array.isArray(this._pendingVisibilityErrors)) this._pendingVisibilityErrors = [];
-    const maxPending = Math.max(1, Math.floor(this._maxPendingVisibilityErrors));
+    const maxPending = Math.max(1, Math.floor(this._maxPendingVisibilityErrors || 50));
     this._pendingVisibilityErrors.push(payload);
     if (this._pendingVisibilityErrors.length <= maxPending) {
       return;
@@ -1639,7 +1687,7 @@ class TradeJournalBridge {
       TradeJournalBridge.prototype._attachJournalDashboardSocket.call(this, dashboardWs, handler);
       this._journalDashboardHookedSocket = dashboardWs;
       console.log('[TradeJournalBridge] Hooked into dashboard WebSocket');
-    }, this._journalBridgeConfig.dashboardHookIntervalMs);
+    }, 2000);
   }
 
   _attachJournalDashboardSocket(dashboardWs, handler) {
@@ -1666,7 +1714,7 @@ class TradeJournalBridge {
     this._broadcastTimer = setInterval(() => {
       TradeJournalBridge.prototype._flushPendingVisibilityErrors.call(this);
       if (TradeJournalBridge.prototype._combinedClosedTrades.call(this).length > 0) this._sendJournalSnapshot();
-    }, this._journalBridgeConfig.broadcastIntervalMs);
+    }, 30000);
   }
 
 

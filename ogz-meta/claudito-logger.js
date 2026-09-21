@@ -14,7 +14,6 @@
 
 const fs = require('fs');
 const path = require('path');
-const ConfigLoader = require('../foundation/ConfigLoader');
 
 // Log file paths
 const LOGS_DIR = path.join(__dirname, 'logs');
@@ -372,27 +371,7 @@ function _parseStartingBalanceFromAccountLabel(accountLabel) {
   return Number(match[1]) * 1000;
 }
 
-function _trackRecordAccountInput() {
-  const account = ConfigLoader.get('proofPublication.account');
-  return {
-    STARTING_BALANCE: ConfigLoader.get('startingBalance'),
-    OGZ_ACCOUNT_ID: account.id,
-    OGZ_ACCOUNT_LABEL: account.label,
-    OGZ_ACCOUNT_STAGE: account.stage,
-    OGZ_ACCOUNT_STATUS: account.status,
-    BROKER: ConfigLoader.get('broker.id'),
-    OGZ_PROFIT_TARGET: account.profitTarget,
-    OGZ_MAX_DRAWDOWN: account.maxDrawdown,
-    OGZ_MIN_TRADES_REQUIRED: account.minTradesRequired,
-    OGZ_TRACK_RECORD_START_AT: account.trackRecordStartAt,
-  };
-}
-
-function _proofPublicationEnabled() {
-  return ConfigLoader.get('proofPublication.enabled') === true;
-}
-
-function _resolveTrackRecordAccountConfig(env = _trackRecordAccountInput()) {
+function _resolveTrackRecordAccountConfig(env = process.env) {
   const startingBalance = _readPositiveNumber(env, 'STARTING_BALANCE');
   const accountLabel = _readRequiredString(env, 'OGZ_ACCOUNT_LABEL');
   const expectedStartingBalance = _parseStartingBalanceFromAccountLabel(accountLabel);
@@ -449,7 +428,7 @@ function _writeTrackRecordNow() {
     maxDrawdown,
     minTradesRequired,
     trackRecordStartAt,
-  } = _resolveTrackRecordAccountConfig();
+  } = _resolveTrackRecordAccountConfig(process.env);
 
   const entries = _filterTrackRecordEntriesForAccount(
     _readTrackRecordSourceEntries(),
@@ -565,7 +544,9 @@ function _writeTrackRecordNow() {
       last_updated: new Date().toISOString(),
       total_recorded_exits: exits.length,
       track_record_start_at: trackRecordStartAt,
-      execution_mode: ConfigLoader.get('mode.execution'),
+      execution_mode: process.env.PAPER_TRADING === 'true' ? 'paper'
+                    : process.env.EXECUTION_MODE === 'live' ? 'live'
+                    : 'backtest',
       spec: 'CC-SPEC-EVAL-CAPTURE'
     }
   };
@@ -598,8 +579,9 @@ const TradingProofLogger = {
    */
   trade(data) {
     // Skip file logging in backtest mode to prevent EMFILE
-    if (ConfigLoader.get('mode.backtest') === true) return;
-    if (ConfigLoader.get('mode.testMode') === true) return;
+    if (process.env.TEST_MODE === 'true' || process.env.BACKTEST_NO_PATTERN_SAVE === 'true') {
+      return;
+    }
     const entry = {
       type: 'TRADE',
       timestamp: new Date().toISOString(),
@@ -625,7 +607,8 @@ const TradingProofLogger = {
     };
 
     // Console output
-    console.log(`[${timestamp()}] TRADE: ${data.action} ${data.size} ${data.symbol} @ $${data.price}`);
+    const emoji = data.action === 'BUY' ? '🟢' : '🔴';
+    console.log(`[${timestamp()}] ${emoji} TRADE: ${data.action} ${data.size} ${data.symbol} @ $${data.price}`);
     console.log(`   └─ Value: $${data.value_usd?.toFixed(2)} | Fees: $${data.fees?.toFixed(4)}`);
     console.log(`   └─ Reason: ${data.reason}`);
     console.log(`   └─ Confidence: ${data.confidence}%`);
@@ -640,10 +623,10 @@ const TradingProofLogger = {
     }
 
     // CHANGE 2026-01-29: Auto-publish to website for real-time proof
-    if (_proofPublicationEnabled()) this.publishLiveProof();
+    this.publishLiveProof();
 
     // CC-SPEC-EVAL-CAPTURE (3/3): also publish track-record format for /proof/track-record/
-    if (_proofPublicationEnabled()) this.publishTrackRecord();
+    this.publishTrackRecord();
   },
 
   /**
@@ -651,7 +634,6 @@ const TradingProofLogger = {
    * CHANGE 2026-01-29: Real-time proof publishing
    */
   publishLiveProof() {
-    if (!_proofPublicationEnabled()) return { skipped: true, reason: 'proof publication disabled' };
     try {
       // Ensure public proof directory exists
       if (!fs.existsSync(PUBLIC_PROOF_DIR)) {
@@ -680,7 +662,7 @@ const TradingProofLogger = {
       const liveProof = {
         updated: new Date().toISOString(),
         instance: 'ogz-prime-v2',
-        env: String(ConfigLoader.get('mode.execution')).toUpperCase(),
+        env: process.env.PAPER_TRADING === 'true' ? 'PAPER' : 'LIVE',
         stats: {
           total_trades: totalTrades,
           last_24h_trades: trades.filter(t =>
@@ -727,11 +709,12 @@ const TradingProofLogger = {
    * Debounced 5s — burst of trades = one disk write.
    * Atomic via writeJsonAtomic. Single-writer per process.
    *
-   * Account-specific values come from ConfigLoader's proofPublication.account
-   * and canonical runtime snapshot. Missing proof-critical values fail loud.
+   * Account-specific values come from env vars (OGZ_ACCOUNT_ID, OGZ_ACCOUNT_LABEL,
+   * OGZ_ACCOUNT_STAGE, OGZ_ACCOUNT_STATUS, BROKER, STARTING_BALANCE,
+   * OGZ_PROFIT_TARGET, OGZ_MAX_DRAWDOWN, OGZ_MIN_TRADES_REQUIRED,
+   * OGZ_TRACK_RECORD_START_AT). Missing proof-critical values fail loud.
    */
   publishTrackRecord() {
-    if (!_proofPublicationEnabled()) return { skipped: true, reason: 'proof publication disabled' };
     // Debounce: schedule one write 5s out; coalesce bursts
     if (_trackRecordWriteTimer) return;
     _trackRecordWriteTimer = setTimeout(() => {
