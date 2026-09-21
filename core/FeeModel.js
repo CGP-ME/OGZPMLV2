@@ -30,7 +30,7 @@ function positiveNumber(value, label) {
 
 class FeeModel {
   constructor(config = {}) {
-    const model = String(config.model || 'percent').trim().toLowerCase();
+    const model = String(config.model).trim().toLowerCase();
     if (!VALID_MODELS.has(model)) {
       throw new Error(`[FEE_MODEL] unsupported fees.model=${config.model}`);
     }

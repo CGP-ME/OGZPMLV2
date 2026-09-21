@@ -250,17 +250,17 @@ function applyConcurrencyContractDefaults(contract, defaults) {
  * Exit contracts now come from ConfigLoader (single source of truth)
  * Phase 1 REWRITE: Eliminated hardcoded duplicates - ConfigLoader owns all trading params
  */
-const DEFAULT_CONTRACTS = ConfigLoader.BASE_CONFIG.exitContracts;
+const DEFAULT_CONTRACTS = ConfigLoader.get('exitContracts');
 
 class ExitContractManager {
   constructor() {
     // Phase 1 REWRITE: Read from ConfigLoader (single source of truth)
-    this.defaultContracts = ConfigLoader.BASE_CONFIG.exitContracts;
+    this.defaultContracts = ConfigLoader.get('exitContracts');
 
     // Phase 10: Delegate to individual checkers
     this.stopLossChecker = new StopLossChecker();
     this.takeProfitChecker = new TakeProfitChecker();
-    this.trailConfig = ConfigLoader.BASE_CONFIG.exitLogic.trail;
+    this.trailConfig = ConfigLoader.get('exitLogic.trail');
     this.maxHoldChecker = new MaxHoldChecker();
     // Phase 11: Break-even state machine (for external access/dashboard)
     this.breakEvenManager = new BreakEvenManager();
@@ -818,7 +818,7 @@ class ExitContractManager {
   }
 
   _updateBreakevenStopState(trade, currentPrice, pnlPercent) {
-    const breakEvenConfig = ConfigLoader.BASE_CONFIG.exitLogic.breakEvenStop;
+    const breakEvenConfig = ConfigLoader.get('exitLogic.breakEvenStop');
     if (breakEvenConfig?.enabled !== true || trade.breakevenActive === true) {
       return { updated: false, reason: 'breakeven_disabled_or_active' };
     }
@@ -833,7 +833,7 @@ class ExitContractManager {
       return { updated: false, reason: 'missing_entry_price' };
     }
 
-    const feeBufferPercent = ConfigLoader.BASE_CONFIG.exitLogic.trail.feeBufferPercent;
+    const feeBufferPercent = ConfigLoader.get('exitLogic.trail.feeBufferPercent');
     const feeBuffer = Math.max(0, finiteOrNull(feeBufferPercent) ?? 0) / 100;
     const direction = activeTradeDirection(trade);
     if (!direction) {
@@ -945,8 +945,10 @@ class ExitContractManager {
 
     // FIX 2026-03-20: Only apply timeframe config for strategies WITHOUT their own exit contracts
     // Bug: Was overwriting RSI's -2.0% SL with 15m's -1.5% SL, causing premature stops on TSLA
-    const hasStrategyContract = !!ConfigLoader.BASE_CONFIG.exitContracts[strategyName]
-      || hasRuntimeContractOverride(strategyName, timeframe);
+    const hasConfiguredStrategyContract = Boolean(ConfigLoader.get('exitContracts')[strategyName]);
+    const hasStrategyContract = hasConfiguredStrategyContract
+      ? true
+      : hasRuntimeContractOverride(strategyName, timeframe);
     const tfConfig = ConfigLoader.getTimeframeConfig(timeframe);
     if (tfConfig && !hasStrategyContract) {
       // Only apply timeframe defaults for strategies using generic 'default' contract
@@ -1014,9 +1016,9 @@ class ExitContractManager {
     // FIX 2026-03-19: Extracted hardcoded values to ConfigLoader
     // EXIT-MED-02: ?? preserves intentional zero on these thresholds (e.g.,
     // a 0 volSlMult means "no vol-based SL widening"). || coerced 0 to default.
-    const volThreshold = ConfigLoader.get('exits.volatilityThreshold') ?? 5.0;
-    const volSlMult = ConfigLoader.get('exits.volatilitySlMultiplier') ?? 1.15;
-    const volTpMult = ConfigLoader.get('exits.volatilityTpMultiplier') ?? 1.20;
+    const volThreshold = ConfigLoader.get('exits.volatilityThreshold');
+    const volSlMult = ConfigLoader.get('exits.volatilitySlMultiplier');
+    const volTpMult = ConfigLoader.get('exits.volatilityTpMultiplier');
     if (context.volatility && context.volatility > volThreshold) {
       // High volatility - widen stops
       if (Number.isFinite(Number(contract.stopLossPercent))) {

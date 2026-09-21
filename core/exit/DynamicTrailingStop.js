@@ -17,11 +17,8 @@
  * 4. NEVER activates below fees — minimum exit must clear 0.65% round trip
  * 5. RATCHETS — trail only tightens, never widens after tightening
  *
- * ENV VAR OVERRIDES (for parallel backtester):
- *   TRAIL_ATR_MULTIPLIER    - ATR multiplier for trail distance (default: 2.0)
- *   TRAIL_MIN_ACTIVATION    - Minimum profit % before trailing starts (default: 1.5)
- *   TRAIL_TREND_WIDEN       - Extra ATR multiplier in strong trends (default: 1.5)
- *   TRAIL_STRUCTURE_TIGHTEN - Tighten multiplier near structure (default: 0.5)
+ * Configuration is owned by ConfigLoader and may be overridden explicitly by
+ * the constructor for an isolated backtest instance.
  *
  * @module core/exit/DynamicTrailingStop
  * @author Claude (Opus) for Trey / OGZPrime
@@ -31,33 +28,41 @@
 'use strict';
 
 const FeeModel = require('../FeeModel');
+const ConfigLoader = require('../../foundation/ConfigLoader');
 
 class DynamicTrailingStop {
   constructor(config = {}) {
     const hasExplicitFeeBuffer = Object.prototype.hasOwnProperty.call(config, 'feeBuffer');
-    // Base configuration — all overridable via env vars
+    const trailConfig = ConfigLoader.get('exitLogic.trail');
+    // Base configuration — explicit constructor values override the canonical exit policy.
     this.config = {
       // ATR-based trail distance: trail = ATR * multiplier
-      atrMultiplier: parseFloat(process.env.TRAIL_ATR_MULTIPLIER) || config.atrMultiplier || 2.0,
+      atrMultiplier: config.atrMultiplier ?? trailConfig.atrMultiplier,
 
       // Minimum profit before trailing activates (must clear fees)
-      // 1.5% means worst-case trailing exit is ~1.0% after trail, still clears 0.65% fees
-      minActivation: parseFloat(process.env.TRAIL_MIN_ACTIVATION) || config.minActivation || 1.5,
+      minActivation: config.minActivation ?? trailConfig.minActivationPercent,
 
       // Trend multiplier: in strong trends, widen the trail
-      trendWidenMultiplier: parseFloat(process.env.TRAIL_TREND_WIDEN) || config.trendWidenMultiplier || 1.5,
+      trendWidenMultiplier: config.trendWidenMultiplier ?? trailConfig.trendWidenMultiplier,
 
       // Structure tighten: near S/R or fib, tighten the trail
-      structureTightenMultiplier: parseFloat(process.env.TRAIL_STRUCTURE_TIGHTEN) || config.structureTightenMultiplier || 0.5,
+      structureTightenMultiplier: config.structureTightenMultiplier ?? trailConfig.structureTightenMultiplier,
+      structureDistanceThreshold: config.structureDistanceThreshold ?? trailConfig.structureDistanceThreshold,
+
+      // Profit ratchet parameters
+      profitRatchetThreshold: config.profitRatchetThreshold ?? trailConfig.profitRatchetThreshold,
+      profitRatchetRate: config.profitRatchetRate ?? trailConfig.profitRatchetRate,
+      profitRatchetFloor: config.profitRatchetFloor ?? trailConfig.profitRatchetFloor,
 
       // Absolute minimum trail distance (% of price) — floor so it doesn't get too tight
-      minTrailPercent: config.minTrailPercent || 0.3,
+      minTrailPercent: config.minTrailPercent ?? trailConfig.minTrailPercent,
 
       // Absolute maximum trail distance (% of price) — cap so it doesn't get too loose
-      maxTrailPercent: config.maxTrailPercent || 3.0,
+      maxTrailPercent: config.maxTrailPercent ?? trailConfig.maxTrailPercent,
 
       // Round number proximity threshold (% of price)
-      roundNumberProximity: config.roundNumberProximity || 0.5,
+      roundNumberProximity: config.roundNumberProximity ?? trailConfig.roundNumberProximity,
+      roundNumberTighten: config.roundNumberTighten ?? trailConfig.roundNumberTighten,
 
       feeBuffer: hasExplicitFeeBuffer ? config.feeBuffer : null,
     };
@@ -125,8 +130,11 @@ class DynamicTrailingStop {
     // At 1.5% profit: normal trail
     // At 3.0% profit: trail tightens 20%
     // At 5.0%+ profit: trail tightens 40%
-    if (maxProfitPercent > 3.0) {
-      const ratchetFactor = Math.max(0.6, 1.0 - (maxProfitPercent - 3.0) * 0.1);
+    if (maxProfitPercent > this.config.profitRatchetThreshold) {
+      const ratchetFactor = Math.max(
+        this.config.profitRatchetFloor,
+        1.0 - (maxProfitPercent - this.config.profitRatchetThreshold) * this.config.profitRatchetRate
+      );
       trailPercent *= ratchetFactor;
     }
 
@@ -134,10 +142,11 @@ class DynamicTrailingStop {
     // Near support/resistance or fib level = tighten trail
     if (nearestStructure && nearestStructure.distance !== undefined) {
       const distPercent = Math.abs(nearestStructure.distance);
-      if (distPercent < 1.0) {
-        // Within 1% of structure — tighten proportionally
+      if (distPercent < this.config.structureDistanceThreshold) {
+        // Near configured structure distance — tighten proportionally.
         const tightenFactor = this.config.structureTightenMultiplier +
-          (1.0 - this.config.structureTightenMultiplier) * (distPercent / 1.0);
+          (1.0 - this.config.structureTightenMultiplier) *
+          (distPercent / this.config.structureDistanceThreshold);
         trailPercent *= tightenFactor;
       }
     }
@@ -150,7 +159,7 @@ class DynamicTrailingStop {
         const nearest = Math.round(price / increment) * increment;
         const distToRound = Math.abs(price - nearest) / price * 100;
         if (distToRound < this.config.roundNumberProximity) {
-          trailPercent *= 0.7; // Tighten 30% near round numbers
+          trailPercent *= this.config.roundNumberTighten;
           break;
         }
       }

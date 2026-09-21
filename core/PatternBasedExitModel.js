@@ -13,61 +13,8 @@
  */
 
 class PatternBasedExitModel {
-  constructor(options = {}) {
-    this.config = {
-      // Pattern Exit Thresholds
-      minPatternExitConfidence: options.minPatternExitConfidence || 0.60,
-      minReversalConfidence: options.minReversalConfidence || 0.65,
-
-      // Target Adjustment Settings
-      enablePatternTargets: options.enablePatternTargets !== false,
-      targetConfidenceWeight: options.targetConfidenceWeight || 0.3,
-      minTargetAdjustment: options.minTargetAdjustment || 0.8,
-      maxTargetAdjustment: options.maxTargetAdjustment || 1.5,
-
-      // Stop Adjustment Settings
-      enablePatternStops: options.enablePatternStops !== false,
-      stopConfidenceWeight: options.stopConfidenceWeight || 0.25,
-      minStopAdjustment: options.minStopAdjustment || 0.7,
-      maxStopAdjustment: options.maxStopAdjustment || 1.3,
-
-      // Trailing Stop Pattern Adjustment
-      enablePatternTrailing: options.enablePatternTrailing !== false,
-      patternTrailWeight: options.patternTrailWeight || 0.2,
-
-      // Reversal Detection
-      enableReversalDetection: options.enableReversalDetection !== false,
-      reversalPatterns: options.reversalPatterns || [
-        'double_top', 'double_bottom', 'head_shoulders', 'inv_head_shoulders',
-        'evening_star', 'morning_star', 'bearish_engulfing', 'bullish_engulfing',
-        'shooting_star', 'hammer', 'doji_star', 'dark_cloud', 'piercing_line'
-      ],
-      reversalExitPercent: options.reversalExitPercent || 0.5,
-
-      // Momentum Exhaustion Detection
-      enableMomentumExhaustion: options.enableMomentumExhaustion !== false,
-      exhaustionThreshold: options.exhaustionThreshold || 0.7,
-
-      // Regime-Based Exit Adjustments
-      enableRegimeExits: options.enableRegimeExits !== false,
-      regimeExitMultipliers: options.regimeExitMultipliers || {
-        'trending': 1.2,
-        'ranging': 0.7,
-        'volatile': 0.8,
-        'breakout': 1.1,
-        'unknown': 1.0
-      },
-
-      // Profit Protection Thresholds
-      profitProtectionTiers: options.profitProtectionTiers || [
-        { profit: 0.005, protect: 0.3 },
-        { profit: 0.010, protect: 0.5 },
-        { profit: 0.015, protect: 0.7 },
-        { profit: 0.020, protect: 0.85 }
-      ],
-
-      ...options
-    };
+  constructor(options) {
+    this.config = options;
 
     // State tracking
     this.activePosition = null;
