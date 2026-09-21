@@ -36,8 +36,6 @@
 
 **Maintenance note 2026-07-09 (Fourth Shape):** Throw doctrine is now a cold-start rule. Before adding any throw, enumerate every triggering code path with producer file:line evidence, fix each internal producer so the invalid state cannot occur, remove the throw if producer fixes make the condition impossible, and treat outside-system faults such as broker, network, or exchange data as detect -> flatten -> halt symbol -> trace rather than internal throws. A throw guarding an internal invariant is an admission of an unfixed producer bug.
 
-**Maintenance note 2026-09-20:** Trey Ruling 14 supersedes historical `long_only` direction records for the managed bot profiles. The canonical `paper` and `production` launch profiles in `config/settings.json` both use `pipeline.directionFilter: "both"`. This is source policy only until an explicitly approved PM2 activation proves the loaded process snapshot; ambient `.env` or old process metadata is not a configuration owner.
-
 ---
 
 # STOP. READ THIS BEFORE YOU DO ANYTHING ELSE.
