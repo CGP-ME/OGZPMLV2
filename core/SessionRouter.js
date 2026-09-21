@@ -62,8 +62,8 @@ class SessionRouter extends EventEmitter {
       throw new Error(`[SessionRouter] staticSession must be stocks or crypto when mode=static, got ${this.staticSession || '(missing)'}`);
     }
     this.clock = config.clock || (() => Date.now());
-    this.checkIntervalMs = config.fast ? 1000 : (config.checkIntervalMs || 60000);
-    this.forceCloseOnSessionEnd = config.forceCloseOnSessionEnd !== false;
+    this.checkIntervalMs = config.fast ? config.fastCheckIntervalMs : config.checkIntervalMs;
+    this.forceCloseOnSessionEnd = config.forceCloseOnSessionEnd;
     this.executeTrade = typeof config.executeTrade === 'function' ? config.executeTrade : null;
     this.getExitPrice = typeof config.getExitPrice === 'function' ? config.getExitPrice : null;
     this.backtestMode = config.backtestMode === true;
@@ -128,7 +128,7 @@ class SessionRouter extends EventEmitter {
     }
 
     this.stateManager = getStateManager();
-    this.transitionStore = config.transitionStore || new TransitionStore(config.transitionStoreOptions || {});
+    this.transitionStore = config.transitionStore || new TransitionStore(config.transitionStoreOptions);
 
     this.onOhlcCallback = null;
     this.ctx = null;
@@ -557,16 +557,11 @@ class SessionRouter extends EventEmitter {
   }
 
   _windDownPauseScope(sessionName) {
-    const config = this.ctx && this.ctx.config ? this.ctx.config : {};
-    const symbols = this._symbolsForSession(sessionName);
-    return {
-      symbol: Array.isArray(symbols) && symbols.length > 0 ? symbols[0] : null,
-      timeframe: this.ctx?.timeframeSelector?.currentTimeframe || this.ctx?.candleTimeframe || config.timeframe || null,
-      brokerId: this._brokerIdForSession(sessionName),
-      accountId: config.accountId || null,
-      assetClass: this._assetClassForSession(sessionName),
-      executionMode: config.executionMode || null
-    };
+    return this._buildRuntimeScopeForSession(
+      sessionName,
+      this._currentTimeframe(),
+      this._adapterForSession(sessionName)
+    );
   }
 
   async _resumeSessionRouterPauseAfterActivation(sessionName) {
@@ -778,14 +773,15 @@ class SessionRouter extends EventEmitter {
       throw new Error('SessionRouter broker intent missing durable transitionId/epoch');
     }
 
-    const config = this.ctx && this.ctx.config ? this.ctx.config : {};
-    const accountId = config.accountId;
-    const executionMode = config.executionMode;
-    const timeframe = details.timeframe || transitionContext.timeframe || config.timeframe || null;
+    const sessionName = this._sessionForBrokerId(brokerId);
+    const timeframe = details.timeframe || transitionContext.timeframe || this._currentTimeframe();
+    const runtimeScope = this._buildRuntimeScopeForSession(
+      sessionName,
+      timeframe,
+      this._adapterForSession(sessionName)
+    );
     const missing = [];
     if (!brokerId) missing.push('brokerId');
-    if (!accountId) missing.push('accountId');
-    if (!executionMode) missing.push('executionMode');
     if (!action) missing.push('action');
     if (!timeframe) missing.push('timeframe');
     if (missing.length > 0) {
@@ -798,11 +794,12 @@ class SessionRouter extends EventEmitter {
       from: transitionContext.from,
       to: transitionContext.to,
       brokerId,
-      accountId,
-      accountIdSource: config.accountIdSource || (accountId !== 'default' ? 'config' : 'default'),
-      executionMode,
+      accountId: runtimeScope.accountId,
+      accountIdSource: runtimeScope.accountIdSource,
+      assetClass: runtimeScope.assetClass,
+      executionMode: runtimeScope.executionMode,
       action,
-      symbol: details.symbol || null,
+      symbol: details.symbol || runtimeScope.symbol,
       symbols: Array.isArray(details.symbols) ? [...details.symbols] : null,
       timeframe,
       activeSession: this.activeSession
@@ -880,13 +877,7 @@ class SessionRouter extends EventEmitter {
   }
 
   _currentTimeframe() {
-    const timeframe = this.ctx && this.ctx.timeframeSelector && this.ctx.timeframeSelector.currentTimeframe
-      ? this.ctx.timeframeSelector.currentTimeframe
-      : this.ctx && this.ctx.candleTimeframe
-        ? this.ctx.candleTimeframe
-        : this.ctx && this.ctx.config
-          ? this.ctx.config.timeframe
-          : null;
+    const timeframe = this.ctx?.candleTimeframe ?? null;
     if (!timeframe) {
       throw new Error('SessionRouter timeframe missing from runtime config');
     }
@@ -907,6 +898,19 @@ class SessionRouter extends EventEmitter {
 
   _symbolsForSession(sessionName) {
     return sessionName === 'crypto' ? this.cryptoSymbols : this.stockSymbols;
+  }
+
+  _adapterForSession(sessionName) {
+    if (sessionName === 'crypto') return this.krakenAdapter;
+    if (sessionName === 'stocks') return this.alpacaAdapter;
+    return null;
+  }
+
+  _sessionForBrokerId(brokerId) {
+    const normalized = String(brokerId || '').trim().toLowerCase();
+    if (normalized === 'kraken') return 'crypto';
+    if (normalized === 'alpaca') return 'stocks';
+    return null;
   }
 
   _cleanRuntimeAccountId(value) {
@@ -1058,27 +1062,11 @@ class SessionRouter extends EventEmitter {
   }
 
   _targetPatternScope(sessionName, timeframe) {
-    const targetSymbols = sessionName === 'crypto' ? this.cryptoSymbols : this.stockSymbols;
-    if (!Array.isArray(targetSymbols) || targetSymbols.length === 0) {
-      throw new Error(`SessionRouter pattern memory handoff missing ${sessionName} symbol list`);
-    }
-
-    const config = this.ctx && this.ctx.config ? this.ctx.config : {};
-    const executionMode = config.executionMode;
-    const accountId = config.accountId || 'default';
-    const brokerId = sessionName === 'crypto' ? 'kraken' : 'alpaca';
-    const assetClass = sessionName === 'crypto' ? 'crypto' : 'stocks';
-    const resolvedTimeframe = timeframe || config.timeframe || null;
-
-    return {
-      symbol: targetSymbols[0],
-      brokerId,
-      accountId,
-      accountIdSource: config.accountIdSource || (accountId !== 'default' ? 'config' : 'default'),
-      assetClass,
-      executionMode,
-      timeframe: resolvedTimeframe
-    };
+    return this._buildRuntimeScopeForSession(
+      sessionName,
+      timeframe || this._currentTimeframe(),
+      this._adapterForSession(sessionName)
+    );
   }
 
   _handoffPatternMemory(targetSession, transitionContext, timeframe, details = {}) {
@@ -1525,7 +1513,6 @@ class SessionRouter extends EventEmitter {
     const timeframe = this._currentTimeframe();
 
     try {
-      const runtimeScope = this._buildRuntimeScopeForSession('stocks', timeframe, this.alpacaAdapter);
       transitionContext = this._beginTransitionContext('crypto', 'stocks', now, {
         brokerId: 'alpaca',
         symbols: this.stockSymbols,
@@ -1550,6 +1537,7 @@ class SessionRouter extends EventEmitter {
         sourceBrokerId: 'kraken',
         targetBrokerId: 'alpaca'
       });
+      const runtimeScope = this._buildRuntimeScopeForSession('stocks', timeframe, this.alpacaAdapter);
 
       this._handoffPatternMemory('stocks', transitionContext, timeframe, {
         sourceFlatConfirmed: true
@@ -1620,7 +1608,6 @@ class SessionRouter extends EventEmitter {
     const timeframe = this._currentTimeframe();
 
     try {
-      const runtimeScope = this._buildRuntimeScopeForSession('crypto', timeframe, this.krakenAdapter);
       transitionContext = this._beginTransitionContext('stocks', 'crypto', now, {
         brokerId: 'kraken',
         symbols: this.cryptoSymbols,
@@ -1646,6 +1633,7 @@ class SessionRouter extends EventEmitter {
         sourceBrokerId: 'alpaca',
         targetBrokerId: 'kraken'
       });
+      const runtimeScope = this._buildRuntimeScopeForSession('crypto', timeframe, this.krakenAdapter);
 
       this._handoffPatternMemory('crypto', transitionContext, timeframe, {
         sourceFlatConfirmed: true
@@ -1732,6 +1720,7 @@ class SessionRouter extends EventEmitter {
       await this._reconcileBrokerRestBeforeActivation(null, this.krakenAdapter, transitionContext, {
         targetBrokerId: 'kraken'
       });
+      const runtimeScope = this._buildRuntimeScopeForSession('crypto', timeframe, this.krakenAdapter);
       this._handoffPatternMemory('crypto', transitionContext, timeframe, {
         reason: 'initial_activation'
       });
@@ -1748,8 +1737,10 @@ class SessionRouter extends EventEmitter {
       }
       this.activeSession = 'crypto';
       this.activeBroker = this.krakenAdapter;
+      const committedRuntimeScope = this._syncDashboardRuntimeScopeForSession('crypto', runtimeScope);
       this._recordTransitionEvent('SESSION_TARGET_ACTIVATED', transitionContext, {
-        activeSession: this.activeSession
+        activeSession: this.activeSession,
+        runtimeScope: committedRuntimeScope
       });
       this._attachActiveOhlcCallback('crypto', this.krakenAdapter, transitionContext);
       await this._resumeSessionRouterPauseAfterActivation('crypto');
@@ -1796,6 +1787,7 @@ class SessionRouter extends EventEmitter {
       await this._reconcileBrokerRestBeforeActivation(null, this.alpacaAdapter, transitionContext, {
         targetBrokerId: 'alpaca'
       });
+      const runtimeScope = this._buildRuntimeScopeForSession('stocks', timeframe, this.alpacaAdapter);
       this._handoffPatternMemory('stocks', transitionContext, timeframe, {
         reason: 'initial_activation'
       });
@@ -1813,8 +1805,10 @@ class SessionRouter extends EventEmitter {
       }
       this.activeSession = 'stocks';
       this.activeBroker = this.alpacaAdapter;
+      const committedRuntimeScope = this._syncDashboardRuntimeScopeForSession('stocks', runtimeScope);
       this._recordTransitionEvent('SESSION_TARGET_ACTIVATED', transitionContext, {
-        activeSession: this.activeSession
+        activeSession: this.activeSession,
+        runtimeScope: committedRuntimeScope
       });
       this._attachActiveOhlcCallback('stocks', this.alpacaAdapter, transitionContext);
       await this._resumeSessionRouterPauseAfterActivation('stocks');
