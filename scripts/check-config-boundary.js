@@ -9,17 +9,27 @@ const DEFAULT_ROOTS = Object.freeze([
   'modules',
   'foundation',
   'brokers',
+  'server',
+  'utils',
   'run-empire-v2.js',
+  'ogzprime-ssl-server.js',
+  'public/stripe-checkout.js',
+  'scripts/supervisor-daemon.js',
+  'instrument.js',
+  'kraken_adapter_simple.js',
+  'ogz-meta/claudito-logger.js',
 ]);
 
 const CONFIG_OWNER_FILES = Object.freeze(new Set([
   'foundation/ConfigLoader.js',
-  'core/BacktestConfigOverrides.js',
 ]));
 
 const CONFIG_MUTATION_METHODS = Object.freeze(new Set([
   'setOverrides',
   'applyOverrideMap',
+  // Tombstone: the runtime method was retired with BacktestConfigOverrides,
+  // but the boundary must still reject any attempted reintroduction outside
+  // ConfigLoader.
   'applyBacktestConfigOverrides',
   'applyTuningProfile',
   'runWithTuningProfile',
