@@ -154,7 +154,7 @@ function normalizeConfig(config) {
 }
 
 class OgzTpoIntegration extends EventEmitter {
-    constructor(config = ConfigLoader.get('strategies.OGZTPO')) {
+    constructor(config) {
         super();
         this.config = normalizeConfig(config);
         
