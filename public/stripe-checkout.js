@@ -47,28 +47,20 @@ if (checkoutAuditSink) {
   });
 }
 
+const { load: loadConfig } = require('../foundation/ConfigLoader');
+const checkoutConfig = loadConfig({ silent: true, role: 'checkout' }).config.services.checkout;
+if (checkoutAuditSink) checkoutAuditSink.setPhase('service_initialization');
 const express = require('express');
 const cors = require('cors');
-const dotenvResult = require('dotenv').config();
-if (checkoutAuditSink && dotenvResult.error) {
-  captureCheckoutFailure('configurationSourceUnavailable', dotenvResult.error, {
-    source: 'dotenv',
-    continued: true,
-  });
-}
-if (checkoutAuditSink) checkoutAuditSink.setPhase('service_initialization');
 
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const stripe = require('stripe')(checkoutConfig.stripeSecretKey);
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 // Price IDs from Stripe dashboard
-const PRICE_MAP = {
-  core: 'price_1T7Mg4CRplnSOv5bEfq29wnU',    // OGZP Core
-  pro:  'price_1T7Mg2CRplnSOv5bJdfGcWnp',     // OGZPML (Pro)
-};
+const PRICE_MAP = checkoutConfig.priceMap;
 
 /**
  * POST /create-checkout-session
@@ -93,10 +85,10 @@ app.post('/create-checkout-session', async (req, res) => {
         quantity: 1,
       }],
       subscription_data: {
-        trial_period_days: 7,  // 7-day free trial
+        trial_period_days: checkoutConfig.trialPeriodDays,
       },
-      success_url: 'https://www.ogzprime.com/success.html?session_id={CHECKOUT_SESSION_ID}',
-      cancel_url: 'https://www.ogzprime.com/pricing.html',
+      success_url: checkoutConfig.successUrl,
+      cancel_url: checkoutConfig.cancelUrl,
       allow_promotion_codes: true,
     });
 
@@ -126,7 +118,7 @@ app.get('/checkout-status', async (req, res) => {
 
 // If running standalone (not imported into existing app)
 if (isStandaloneCheckout) {
-  const PORT = process.env.STRIPE_PORT || 3001;
+  const PORT = checkoutConfig.port;
   app.listen(PORT, () => {
     checkoutAuditSink.setPhase('runtime');
     console.log(`Stripe checkout server running on port ${PORT}`);

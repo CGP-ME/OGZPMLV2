@@ -5,10 +5,8 @@
  */
 'use strict';
 
-const { resolveDashboardStockDataConfig } = require('./dashboard-stock-stream-config');
-
 function resolveRequestConfig(options = {}) {
-    return options.config || resolveDashboardStockDataConfig(process.env);
+    return Object.prototype.hasOwnProperty.call(options, 'config') ? options.config : null;
 }
 
 function missingRequestConfigKeys(config) {
@@ -41,6 +39,7 @@ function stockDataConfigReject(symbol, config) {
 
 function isStock(ticker, options = {}) {
     const config = resolveRequestConfig(options);
+    if (missingRequestConfigKeys(config).length > 0) return false;
     const clean = ticker.replace('-USD', '').replace('/', '').toUpperCase();
     return Array.isArray(config.stockSymbols) && config.stockSymbols.includes(clean);
 }

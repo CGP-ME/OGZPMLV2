@@ -4,16 +4,13 @@
  * Replaces the hardcoded Tavily coupling in ogzprime-ssl-server.js with an
  * explicit, config-owned provider selection. NO implicit fallback chains:
  *
- *   NEWS_SEARCH_PROVIDER unset          -> search disabled (honest
- *                                          "unconfigured" state end to end)
- *   NEWS_SEARCH_PROVIDER=tavily         -> TAVILY_API_KEY REQUIRED, else throw
- *   NEWS_SEARCH_PROVIDER=brightdata     -> BRIGHTDATA_API_KEY and
- *                                          BRIGHTDATA_SERP_ZONE REQUIRED, else throw
- *   NEWS_SEARCH_PROVIDER=alpaca         -> ALPACA_API_KEY and
- *                                          ALPACA_API_SECRET REQUIRED, else throw
- *   NEWS_SEARCH_PROVIDER=alpaca-edgar   -> ALPACA_API_KEY, ALPACA_API_SECRET
- *                                          and EDGAR_USER_AGENT REQUIRED, else throw
- *   NEWS_SEARCH_PROVIDER=<anything else> -> throw at startup
+ *   services.news.provider unset          -> search disabled (honest
+ *                                            "unconfigured" state end to end)
+ *   services.news.provider=tavily         -> Tavily credential required
+ *   services.news.provider=brightdata     -> Bright Data credential + zone required
+ *   services.news.provider=alpaca         -> Alpaca credentials required
+ *   services.news.provider=alpaca-edgar   -> Alpaca credentials + EDGAR identity required
+ *   services.news.provider=<anything else> -> reject unsupported configuration
  *
  * Both providers return the SAME contract the TRAI endpoints already consume:
  *   { answer: string|null, results: [{ title, url, snippet }] }
@@ -45,7 +42,7 @@
  * with SEC EDGAR filings — the authoritative primary source for material
  * events (8-K), insider transactions (Form 4/144) and 5%+ stakes (13D/G).
  * Free, no API key; the SEC fair-access policy requires a User-Agent that
- * identifies the app + a contact address (EDGAR_USER_AGENT).
+ * identifies the app + a contact address (`services.news.edgarUserAgent`).
  *   Ticker -> CIK via www.sec.gov/files/company_tickers.json (cached 24h);
  *   filings via data.sec.gov/submissions/CIK##########.json (cached 15 min).
  *   Symbol queries return newest filings (90-day lookback) merged ahead-of
@@ -68,72 +65,51 @@ function cleanString(value) {
   return typeof value === 'string' && value.trim() ? value.trim() : '';
 }
 
-/**
- * Resolve news-search configuration from the environment.
- * Throws on any misconfiguration — never silently degrades.
- *
- * @param {NodeJS.ProcessEnv} env
- * @returns {{provider: null}|{provider: 'tavily', apiKey: string}|{provider: 'brightdata', apiKey: string, serpZone: string}|{provider: 'alpaca', apiKey: string, apiSecret: string}|{provider: 'alpaca-edgar', apiKey: string, apiSecret: string, edgarUserAgent: string}}
- */
-function resolveNewsSearchConfig(env) {
-  const provider = cleanString(env.NEWS_SEARCH_PROVIDER).toLowerCase();
-
-  if (!provider) {
-    return { provider: null };
-  }
-
+function resolveNewsSearchConfigFromRuntime(runtimeConfig) {
+  const news = runtimeConfig.services.news;
+  const broker = runtimeConfig.broker;
+  const provider = cleanString(news.provider).toLowerCase();
+  if (!provider) return { provider: null };
   if (!SUPPORTED_PROVIDERS.has(provider)) {
-    throw new Error(
-      `[NewsSearchProvider] NEWS_SEARCH_PROVIDER="${provider}" is not supported. ` +
-      `Supported: ${Array.from(SUPPORTED_PROVIDERS).join(', ')}. Unset the variable to disable news search.`
-    );
+    throw new Error(`[NewsSearchProvider] services.news.provider="${provider}" is not supported`);
   }
-
   if (provider === 'tavily') {
-    const apiKey = cleanString(env.TAVILY_API_KEY);
+    const apiKey = cleanString(news.tavilyApiKey);
     if (!apiKey) {
-      throw new Error(
-        '[NewsSearchProvider] NEWS_SEARCH_PROVIDER=tavily requires TAVILY_API_KEY. ' +
-        'Set the key or unset NEWS_SEARCH_PROVIDER.'
-      );
+      throw new Error('[NewsSearchProvider] services.news.tavilyApiKey is required for tavily');
     }
-    return { provider: 'tavily', apiKey };
+    return { provider, apiKey };
   }
-
-  if (provider === 'alpaca' || provider === 'alpaca-edgar') {
-    const apiKey = cleanString(env.ALPACA_API_KEY);
-    const apiSecret = cleanString(env.ALPACA_API_SECRET);
-    const missing = [];
-    if (!apiKey) missing.push('ALPACA_API_KEY');
-    if (!apiSecret) missing.push('ALPACA_API_SECRET');
-    if (provider === 'alpaca-edgar' && !cleanString(env.EDGAR_USER_AGENT)) {
-      missing.push('EDGAR_USER_AGENT (e.g. "OGZPrime admin@ogzprime.com" — SEC fair-access policy)');
-    }
+  if (provider === 'brightdata') {
+    const resolved = {
+      provider,
+      apiKey: cleanString(news.brightDataApiKey),
+      serpZone: cleanString(news.brightDataZone),
+    };
+    const missing = Object.entries(resolved)
+      .filter(([key, value]) => key !== 'provider' && !value)
+      .map(([key]) => key);
     if (missing.length > 0) {
-      throw new Error(
-        `[NewsSearchProvider] NEWS_SEARCH_PROVIDER=${provider} requires ${missing.join(' and ')}. ` +
-        'Set them or unset NEWS_SEARCH_PROVIDER.'
-      );
+      throw new Error(`[NewsSearchProvider] services.news is missing ${missing.join(', ')} for brightdata`);
     }
-    if (provider === 'alpaca-edgar') {
-      return { provider: 'alpaca-edgar', apiKey, apiSecret, edgarUserAgent: cleanString(env.EDGAR_USER_AGENT) };
-    }
-    return { provider: 'alpaca', apiKey, apiSecret };
+    return resolved;
   }
-
-  // provider === 'brightdata'
-  const apiKey = cleanString(env.BRIGHTDATA_API_KEY);
-  const serpZone = cleanString(env.BRIGHTDATA_SERP_ZONE);
-  const missing = [];
-  if (!apiKey) missing.push('BRIGHTDATA_API_KEY');
-  if (!serpZone) missing.push('BRIGHTDATA_SERP_ZONE');
+  const resolved = {
+    provider,
+    apiKey: cleanString(broker.alpacaApiKey),
+    apiSecret: cleanString(broker.alpacaApiSecret),
+  };
+  if (provider === 'alpaca-edgar') {
+    resolved.edgarUserAgent = cleanString(news.edgarUserAgent);
+    resolved.edgar = news.edgar;
+  }
+  const missing = Object.entries(resolved)
+    .filter(([key, value]) => key !== 'provider' && !value)
+    .map(([key]) => key);
   if (missing.length > 0) {
-    throw new Error(
-      `[NewsSearchProvider] NEWS_SEARCH_PROVIDER=brightdata requires ${missing.join(' and ')}. ` +
-      'Set them or unset NEWS_SEARCH_PROVIDER.'
-    );
+    throw new Error(`[NewsSearchProvider] services.news is missing ${missing.join(', ')} for ${provider}`);
   }
-  return { provider: 'brightdata', apiKey, serpZone };
+  return resolved;
 }
 
 function boundedMaxResults(maxResults) {
@@ -285,9 +261,6 @@ async function alpacaSearchImpl(config, query, maxResults) {
 // Module-level caches: the ticker->CIK map is ~1MB and changes rarely
 // (24h TTL); per-CIK submissions change intraday (15 min TTL). Both are
 // plain in-process memoization — a restart clears them.
-const EDGAR_TICKER_MAP_TTL_MS = 24 * 60 * 60 * 1000;
-const EDGAR_SUBMISSIONS_TTL_MS = 15 * 60 * 1000;
-const EDGAR_LOOKBACK_DAYS = 90;
 let _edgarTickerMap = null; // { at, bySymbol: Map<ticker, {cik, title}> }
 const _edgarSubmissionsCache = new Map(); // cik -> { at, data }
 
@@ -329,8 +302,8 @@ async function _edgarFetchJson(url, userAgent) {
   return response.json();
 }
 
-async function _edgarCikForSymbol(symbol, userAgent) {
-  if (!_edgarTickerMap || Date.now() - _edgarTickerMap.at > EDGAR_TICKER_MAP_TTL_MS) {
+async function _edgarCikForSymbol(symbol, userAgent, edgarConfig) {
+  if (!_edgarTickerMap || Date.now() - _edgarTickerMap.at > edgarConfig.tickerMapTtlMs) {
     const raw = await _edgarFetchJson('https://www.sec.gov/files/company_tickers.json', userAgent);
     if (!raw || typeof raw !== 'object') {
       throw new Error('SEC EDGAR company_tickers.json response has unexpected shape');
@@ -366,8 +339,6 @@ function _edgarDescribeFiling(form, items, filingDate, companyTitle) {
 
 // Form 4 XML parsing: filings are immutable, so parsed results cache by
 // accession number forever (bounded). Transaction codes per SEC spec.
-const EDGAR_FORM4_CACHE_MAX = 200;
-const EDGAR_FORM4_PARSE_PER_CALL = 3;
 const _edgarForm4Cache = new Map(); // accession -> { title, snippet } | null
 const EDGAR_TXN_CODE_LABELS = {
   P: 'open-market BUY',
@@ -424,7 +395,7 @@ function _edgarParseForm4Xml(xml, filingDate) {
   };
 }
 
-async function _edgarEnrichForm4(result, rawDocPath, cikNumeric, accession, filingDate, userAgent) {
+async function _edgarEnrichForm4(result, rawDocPath, cikNumeric, accession, filingDate, userAgent, edgarConfig) {
   if (_edgarForm4Cache.has(accession)) {
     const hit = _edgarForm4Cache.get(accession);
     return hit ? { ...result, ...hit } : result;
@@ -445,21 +416,23 @@ async function _edgarEnrichForm4(result, rawDocPath, cikNumeric, accession, fili
     // detail fetch keeps the honest generic entry rather than killing the
     // whole search (the no-partial rule governs contract data, not garnish).
   }
-  if (_edgarForm4Cache.size >= EDGAR_FORM4_CACHE_MAX) {
+  if (_edgarForm4Cache.size >= edgarConfig.form4CacheMaxEntries) {
     _edgarForm4Cache.delete(_edgarForm4Cache.keys().next().value);
   }
   _edgarForm4Cache.set(accession, parsed);
   return parsed ? { ...result, ...parsed } : result;
 }
 
-async function _edgarRecentFilings(symbol, userAgent, maxResults) {
-  const mapped = await _edgarCikForSymbol(symbol, userAgent);
+async function _edgarRecentFilings(symbol, config, maxResults) {
+  const userAgent = config.edgarUserAgent;
+  const edgarConfig = config.edgar;
+  const mapped = await _edgarCikForSymbol(symbol, userAgent, edgarConfig);
   if (!mapped) {
     return []; // No CIK mapping (crypto/ETF) is a fact, not an error.
   }
 
   let cached = _edgarSubmissionsCache.get(mapped.cik);
-  if (!cached || Date.now() - cached.at > EDGAR_SUBMISSIONS_TTL_MS) {
+  if (!cached || Date.now() - cached.at > edgarConfig.submissionsTtlMs) {
     const data = await _edgarFetchJson(`https://data.sec.gov/submissions/CIK${mapped.cik}.json`, userAgent);
     cached = { at: Date.now(), data };
     _edgarSubmissionsCache.set(mapped.cik, cached);
@@ -470,7 +443,7 @@ async function _edgarRecentFilings(symbol, userAgent, maxResults) {
     throw new Error('SEC EDGAR submissions response missing filings.recent arrays');
   }
 
-  const cutoff = new Date(Date.now() - EDGAR_LOOKBACK_DAYS * 24 * 60 * 60 * 1000)
+  const cutoff = new Date(Date.now() - edgarConfig.lookbackDays * 24 * 60 * 60 * 1000)
     .toISOString().slice(0, 10);
   const companyTitle = cleanString(cached.data.name) || mapped.title || symbol;
   const results = [];
@@ -491,7 +464,7 @@ async function _edgarRecentFilings(symbol, userAgent, maxResults) {
       filingDate,
       companyTitle
     );
-    if (recent.form[i] === '4' && form4Slots.length < EDGAR_FORM4_PARSE_PER_CALL) {
+    if (recent.form[i] === '4' && form4Slots.length < edgarConfig.form4ParsePerCall) {
       form4Slots.push({
         index: results.length,
         rawDoc: primaryDoc.replace(/^xsl[^/]*\//, ''),
@@ -510,7 +483,7 @@ async function _edgarRecentFilings(symbol, userAgent, maxResults) {
   // Enrich Form 4 entries with who/what/how-much from the raw filing XML.
   await Promise.all(form4Slots.map(async slot => {
     results[slot.index] = await _edgarEnrichForm4(
-      results[slot.index], slot.rawDoc, cikNumeric, slot.accession, slot.filingDate, userAgent
+      results[slot.index], slot.rawDoc, cikNumeric, slot.accession, slot.filingDate, userAgent, edgarConfig
     );
   }));
 
@@ -547,7 +520,7 @@ async function alpacaEdgarSearchImpl(config, query, maxResults) {
   const insiderIntent = EDGAR_INSIDER_INTENT_RE.test(query);
   const [newsResult, rawFilings, whaleRows] = await Promise.all([
     alpacaSearchImpl(config, query, maxResults),
-    _edgarRecentFilings(symbol, config.edgarUserAgent, maxResults),
+    _edgarRecentFilings(symbol, config, maxResults),
     insiderIntent
       ? whaleActivityForSymbol(symbol, { userAgent: config.edgarUserAgent, maxRows: 3 }).catch(() => [])
       : Promise.resolve([]),
@@ -600,6 +573,6 @@ function createNewsSearchClient(config) {
 }
 
 module.exports = {
-  resolveNewsSearchConfig,
+  resolveNewsSearchConfigFromRuntime,
   createNewsSearchClient,
 };

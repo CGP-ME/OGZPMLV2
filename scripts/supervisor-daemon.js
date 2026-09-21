@@ -20,16 +20,8 @@
  *
  * Spec: ogz-meta/specs/resilience-and-supervision.md
  *
- * Config via env:
- *   SUPERVISOR_POLL_MS                — supervisor poll cadence (default 30000)
- *   SUPERVISOR_DEGRADE_MS             — red duration before UNHEALTHY (default 120000)
- *   SUPERVISOR_HEAL_ATTEMPTS          — heal tries before DEAD (default 3)
- *   SUPERVISOR_HEALTH_URL             — SSL health endpoint (default https://localhost:443/api/health)
- *   SUPERVISOR_BOT_PROCESS            — PM2 name for bot (default ogz-prime-v2)
- *   SUPERVISOR_RELAY_PROCESS          — PM2 name for relay (default ogz-websocket)
- *   SUPERVISOR_DEADMAN_URL            — Healthchecks.io URL for external deadman (optional)
- *   SUPERVISOR_LEDGER_PATH            — JSONL output (default data/supervisor-ledger.jsonl)
- *   SUPERVISOR_ALERT_HOOK             — path to JS module exporting onAlert(name, event)
+ * Config is resolved by ConfigLoader. Static service behavior comes from
+ * config/internals.json; the optional deadman capability comes from .env.
  *
  * @date 2026-04-26
  */
@@ -74,27 +66,27 @@ const { execFile } = require('child_process');
 const https = require('https');
 const http = require('http');
 const path = require('path');
+const { load: loadConfig } = require('../foundation/ConfigLoader');
+const supervisorConfig = loadConfig({ silent: true, role: 'supervisor' }).config.services.supervisor;
 const { Supervisor, STATES } = require('../core/Supervisor');
 runtimeAuditSink.setPhase('service_initialization');
 
-const env = (key, def) => (process.env[key] !== undefined ? process.env[key] : def);
-const envInt = (key, def) => {
-  const v = parseInt(env(key, ''), 10);
-  return Number.isFinite(v) && v > 0 ? v : def;
-};
-
-const HEALTH_URL = env('SUPERVISOR_HEALTH_URL', 'https://localhost:443/api/health');
-const BOT_PROCESS = env('SUPERVISOR_BOT_PROCESS', 'ogz-prime-v2');
-const RELAY_PROCESS = env('SUPERVISOR_RELAY_PROCESS', 'ogz-websocket');
-const DEADMAN_URL = env('SUPERVISOR_DEADMAN_URL', null);
-const LEDGER_PATH = env('SUPERVISOR_LEDGER_PATH', 'data/supervisor-ledger.jsonl');
-const POLL_MS = envInt('SUPERVISOR_POLL_MS', 30000);
-const DEGRADE_MS = envInt('SUPERVISOR_DEGRADE_MS', 120000);
-const HEAL_ATTEMPTS = envInt('SUPERVISOR_HEAL_ATTEMPTS', 3);
+const HEALTH_URL = supervisorConfig.healthUrl;
+const BOT_PROCESS = supervisorConfig.botProcess;
+const RELAY_PROCESS = supervisorConfig.relayProcess;
+const DEADMAN_URL = supervisorConfig.deadmanUrl;
+const LEDGER_PATH = supervisorConfig.ledgerPath;
+const POLL_MS = supervisorConfig.pollMs;
+const DEGRADE_MS = supervisorConfig.degradeMs;
+const HEAL_ATTEMPTS = supervisorConfig.healAttempts;
+const HEALTH_REQUEST_TIMEOUT_MS = supervisorConfig.healthRequestTimeoutMs;
+const PM2_LIST_TIMEOUT_MS = supervisorConfig.pm2ListTimeoutMs;
+const PM2_RESTART_TIMEOUT_MS = supervisorConfig.pm2RestartTimeoutMs;
+const SHUTDOWN_DELAY_MS = supervisorConfig.shutdownDelayMs;
 
 /* ===== HTTP fetch with timeout =========================================== */
 
-function httpJsonGet(url, timeoutMs = 5000) {
+function httpJsonGet(url, timeoutMs) {
   return new Promise((resolve, reject) => {
     const lib = url.startsWith('https') ? https : http;
     // For self-signed local certs (the SSL server uses one), accept insecure.
@@ -122,7 +114,7 @@ function httpJsonGet(url, timeoutMs = 5000) {
 
 function pm2List() {
   return new Promise((resolve, reject) => {
-    execFile('pm2', ['jlist'], { timeout: 5000 }, (err, stdout) => {
+    execFile('pm2', ['jlist'], { timeout: PM2_LIST_TIMEOUT_MS }, (err, stdout) => {
       if (err) return reject(err);
       try { resolve(JSON.parse(stdout)); }
       catch (e) { reject(new Error(`pm2 jlist parse: ${e.message}`)); }
@@ -132,7 +124,7 @@ function pm2List() {
 
 function pm2Restart(name) {
   return new Promise((resolve, reject) => {
-    execFile('pm2', ['restart', name], { timeout: 15000 }, (err, stdout, stderr) => {
+    execFile('pm2', ['restart', name], { timeout: PM2_RESTART_TIMEOUT_MS }, (err, stdout, stderr) => {
       if (err) return reject(new Error(`pm2 restart ${name}: ${err.message}`));
       resolve({ stdout, stderr });
     });
@@ -146,7 +138,7 @@ function buildSslServerSubsystem() {
     name: 'ssl-server',
     async getHealth() {
       try {
-        const data = await httpJsonGet(HEALTH_URL, 5000);
+        const data = await httpJsonGet(HEALTH_URL, HEALTH_REQUEST_TIMEOUT_MS);
         // Expect at least { status: 'healthy' | 'ok', uptime, memory }.
         // Tolerate any 200-OK body with status field — the ogzprime-ssl-server
         // returns { status: 'healthy', uptime, memory, websockets, timestamp }.
@@ -171,7 +163,7 @@ function buildSslServerSubsystem() {
     // No selfHeal for SSL server — restart is the only path
     async escalate() {
       try {
-        await pm2Restart('ogz-ssl-server');
+        await pm2Restart(RELAY_PROCESS);
         return true;
       } catch (err) {
         console.error(`[Supervisor] escalate ssl-server failed:`, err.message);
@@ -201,14 +193,17 @@ function buildPm2ProcessSubsystem(name, processName) {
         const restarts = proc.pm2_env?.restart_time || 0;
         const uptime = proc.pm2_env?.pm_uptime ? (Date.now() - proc.pm2_env.pm_uptime) : 0;
         const ok = status === 'online';
-        // Healthy-but-flapping (restarts >5 in last hour) → DEGRADED
-        const flapping = restarts > 5 && uptime < 3600_000;
+        // Healthy-but-flapping within the configured restart/uptime bounds → DEGRADED.
+        const flapping = restarts > supervisorConfig.flappingRestartThreshold
+          && uptime < supervisorConfig.flappingUptimeWindowMs;
         return {
           status: ok ? (flapping ? STATES.DEGRADED : STATES.HEALTHY) : STATES.UNHEALTHY,
           timestamp: Date.now(),
           details: { pm2Status: status, restarts, uptimeMs: uptime },
           lastSuccessAt: ok ? Date.now() : 0,
-          failureReason: ok ? (flapping ? `${restarts} restarts in <1h` : null) : `pm2 status=${status}`,
+          failureReason: ok
+            ? (flapping ? `${restarts} restarts with uptime ${uptime}ms inside configured flapping window` : null)
+            : `pm2 status=${status}`,
         };
       } catch (err) {
         return {
@@ -232,10 +227,10 @@ function buildPm2ProcessSubsystem(name, processName) {
   };
 }
 
-/* ===== alert hook (env-gated) ============================================ */
+/* ===== alert hook (config-gated) ========================================= */
 
 function loadAlertHook() {
-  const hookPath = env('SUPERVISOR_ALERT_HOOK', null);
+  const hookPath = supervisorConfig.alertHookPath;
   if (!hookPath) {
     return (name, event) => {
       console.log(`[Supervisor] ALERT (no hook configured): ${name} ${event.from} -> ${event.to}`);
@@ -277,9 +272,16 @@ function main() {
       pollIntervalMs: POLL_MS,
       degradeThresholdMs: DEGRADE_MS,
       unhealthyHealAttempts: HEAL_ATTEMPTS,
+      healCooldownMs: supervisorConfig.healCooldownMs,
+      deadCooldownMs: supervisorConfig.deadCooldownMs,
+      maxRestartsIn10min: supervisorConfig.maxRestartsIn10min,
+      restartWindowMs: supervisorConfig.restartWindowMs,
+      healthTimeoutMs: supervisorConfig.healthTimeoutMs,
+      alertTimeoutMs: supervisorConfig.alertTimeoutMs,
       ledgerPath: LEDGER_PATH,
       deadmanHeartbeatUrl: DEADMAN_URL,
-      deadmanHeartbeatMs: 60_000,
+      deadmanHeartbeatMs: supervisorConfig.deadmanHeartbeatMs,
+      deadmanRequestTimeoutMs: supervisorConfig.deadmanRequestTimeoutMs,
     },
   });
 
@@ -295,7 +297,7 @@ function main() {
     shuttingDown = true;
     console.log(`[Supervisor] received ${signal}, shutting down`);
     sv.stop();
-    setTimeout(() => process.exit(0), 200);
+    setTimeout(() => process.exit(0), SHUTDOWN_DELAY_MS);
   };
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));

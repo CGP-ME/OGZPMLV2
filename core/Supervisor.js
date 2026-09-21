@@ -65,30 +65,6 @@ const STATES = Object.freeze({
   DEAD:      'DEAD',
 });
 
-const DEFAULTS = Object.freeze({
-  pollIntervalMs:        30_000,        // poll every 30s
-  degradeThresholdMs:    120_000,       // red >2min → UNHEALTHY
-  unhealthyHealAttempts: 3,             // heal tries before DEAD
-  healCooldownMs:        30_000,        // min gap between heal attempts
-  deadCooldownMs:        300_000,       // min gap between escalations (no restart loop)
-  maxRestartsIn10min:    5,             // restart loop guard
-  // Mercury Audit B1 fix (2026-04-27): per-subsystem getHealth() timeout.
-  // A hung subsystem getHealth() previously could stall the entire polling
-  // loop (audit Task 3, severity HIGH). Promise.race wraps each call.
-  healthTimeoutMs:       5_000,
-  // Mercury Audit D Finding 1 proper fix (2026-04-29): bound the alert
-  // hook so a hung delivery never blocks the polling loop, AND make
-  // failures loud-and-visible (not silently swallowed). Default 10s
-  // — long enough for normal Discord/Slack/Twilio retries, short enough
-  // that a true hang doesn't strand the supervisor.
-  alertTimeoutMs:        10_000,
-  ledgerPath:            'data/supervisor-ledger.jsonl',
-  // Heartbeat to external deadman switch — Layer B of the watching-the-watcher
-  // defense. URL set via env. If unset, deadman heartbeat is a no-op.
-  deadmanHeartbeatUrl:   null,
-  deadmanHeartbeatMs:    60_000,
-});
-
 /**
  * Valid status set, used by _pollOne to validate / normalize subsystem
  * payloads. Mercury Audit B1 (2026-04-27) found that the supervisor
@@ -104,14 +80,14 @@ class Supervisor extends EventEmitter {
   /**
    * @param {Object} [config]
    * @param {string} [config.label] — log prefix
-   * @param {Object} [config.options] — overrides for DEFAULTS
+   * @param {Object} config.options — resolved supervisor configuration
    * @param {(subsys, transition) => void} [config.onAlert] — SMS/email hook.
    *   transition is { from, to, subsystem, reason, timestamp }.
    * @param {() => number} [config.clock] — time injection for tests
    */
   constructor(config = {}) {
     super();
-    const opts = Object.assign({}, DEFAULTS, config.options || {});
+    const opts = config.options;
 
     this.label = config.label || '[Supervisor]';
     this.clock = config.clock || (() => Date.now());
@@ -123,11 +99,13 @@ class Supervisor extends EventEmitter {
     this.healCooldownMs        = opts.healCooldownMs;
     this.deadCooldownMs        = opts.deadCooldownMs;
     this.maxRestartsIn10min    = opts.maxRestartsIn10min;
+    this.restartWindowMs       = opts.restartWindowMs;
     this.healthTimeoutMs       = opts.healthTimeoutMs;
     this.alertTimeoutMs        = opts.alertTimeoutMs;
     this.ledgerPath            = path.resolve(opts.ledgerPath);
     this.deadmanHeartbeatUrl   = opts.deadmanHeartbeatUrl;
     this.deadmanHeartbeatMs    = opts.deadmanHeartbeatMs;
+    this.deadmanRequestTimeoutMs = opts.deadmanRequestTimeoutMs;
 
     // Mercury Audit B1 Finding 1+2 fix (2026-04-27): capture our own pid +
     // start_time at boot. start_time is jiffies-since-system-boot and is
@@ -705,9 +683,9 @@ class Supervisor extends EventEmitter {
     // Mercury Audit B1: monotonic clock for cooldown + restart-history math.
     const now = this._monoMs();
 
-    // Restart-loop guard — prune restart history older than 10min
-    const tenMinAgo = now - 600_000;
-    entry.restartHistory = entry.restartHistory.filter(t => t > tenMinAgo);
+    // Restart-loop guard — prune restart history outside the configured window.
+    const restartWindowStart = now - this.restartWindowMs;
+    entry.restartHistory = entry.restartHistory.filter(t => t > restartWindowStart);
     if (entry.restartHistory.length >= this.maxRestartsIn10min) {
       // Too many restarts in window — back off, don't escalate. Already alerted on DEAD transition.
       return;
@@ -749,15 +727,15 @@ class Supervisor extends EventEmitter {
    *
    * Healthchecks.io semantics: services interpret missing pings as outages
    * after a configured grace period (typically 1.5x the expected interval).
-   * Our default heartbeat cadence is 60s. A single 5xx response is recovered
-   * on the next 60s tick automatically — that IS the implicit retry. Adding
+   * A single 5xx response is recovered on the next configured heartbeat tick
+   * automatically — that IS the implicit retry. Adding
    * code-side retry-with-backoff would risk thundering-herd on a flaky
    * health endpoint without improving the actual outage-detection signal.
    *
-   * req.setTimeout(5000) calls req.destroy on timeout, which aborts the
+   * The configured request timeout calls req.destroy, which aborts the
    * request and frees the underlying socket — NOT just a timeout event.
    * No socket leak. No keep-alive agent (default global agent suffices for
-   * a once-per-60s outbound ping).
+   * the low-frequency outbound ping).
    */
   _sendDeadmanHeartbeat() {
     const url = this.deadmanHeartbeatUrl;
@@ -779,7 +757,7 @@ class Supervisor extends EventEmitter {
       console.warn(`${this.label} deadman heartbeat failed:`, err.message);
     });
     // req.destroy aborts the connection AND frees the socket — no leak.
-    req.setTimeout(5000, () => req.destroy(new Error('deadman heartbeat timeout')));
+    req.setTimeout(this.deadmanRequestTimeoutMs, () => req.destroy(new Error('deadman heartbeat timeout')));
   }
 
   // =========================================================================
@@ -952,7 +930,7 @@ class Supervisor extends EventEmitter {
    * (post-B1 fix). For each ledger entry within the 10min window:
    *   monoEquivalent = currentMonoMs - (currentWallMs - entry.timestamp)
    * Distance to "now" preserved across the clock boundary; the
-   * existing prune logic in _tryEscalate filters by `monoNow - 600_000`
+   * existing prune logic in _tryEscalate uses the same configured window
    * which now correctly includes the back-shifted entries.
    *
    * Defensive: malformed lines / missing fields / parse errors are
@@ -975,7 +953,7 @@ class Supervisor extends EventEmitter {
 
     const wallNow = this.clock();
     const monoNow = this._monoMs();
-    const windowMs = 600_000;  // 10min window matches maxRestartsIn10min prune
+    const windowMs = this.restartWindowMs;
     let replayed = 0;
 
     for (const line of raw.split('\n')) {
@@ -1023,7 +1001,7 @@ class Supervisor extends EventEmitter {
       if (!sub) continue;  // subsystem not registered in this supervisor instance
 
       // Back-shift into monotonic time so the existing prune logic
-      // (`now - 600_000`) treats it identically to a freshly-pushed entry.
+      // using the configured window treats it identically to a freshly-pushed entry.
       sub.restartHistory.push(monoNow - ageMs);
       replayed++;
     }
