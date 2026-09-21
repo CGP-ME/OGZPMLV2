@@ -8,9 +8,9 @@ const {
 const {
   assertLabIntegrity,
 } = require('./campaign-integrity');
+const { resolveFeeProfile } = require('./fee-profiles');
 
 const DEFAULT_MIN_TRADES = 100;
-const DEFAULT_REQUIRED_FEE_PROFILE = 'ttp_real';
 
 function finiteNumber(value, fallback = 0) {
   const number = Number(value);
@@ -104,9 +104,9 @@ function summarizeTrades(trades) {
 
 function feeProfileNameFromReport(report, result = null) {
   return result?.feeProfile?.name
-    || result?.workerEnv?.BACKTEST_FEE_PROFILE
+    || result?.workerEnv?.profiles?.fee
     || report?.feeProfile?.name
-    || report?.workerEnv?.BACKTEST_FEE_PROFILE
+    || report?.workerEnv?.profiles?.fee
     || null;
 }
 
@@ -129,11 +129,20 @@ function assertOptionalFeeProfile(filePath, report, requiredFeeProfile) {
 }
 
 function normalizeRequiredFeeProfile(value) {
-  const profile = value || DEFAULT_REQUIRED_FEE_PROFILE;
-  if (profile !== DEFAULT_REQUIRED_FEE_PROFILE) {
-    throw new Error(`Strategy Lab only supports ${DEFAULT_REQUIRED_FEE_PROFILE}; got ${profile}`);
-  }
-  return profile;
+  const profileName = String(value || '').trim();
+  if (!profileName) throw new Error('Strategy Lab requires an explicit canonical fee profile');
+  return resolveFeeProfile(profileName).name;
+}
+
+function feeProfileExpectsNonzeroFees(profileName) {
+  const profile = resolveFeeProfile(profileName);
+  return [
+    'fees.makerFee',
+    'fees.takerFee',
+    'fees.totalRoundTrip',
+    'fees.perShare',
+    'fees.minOrderFee',
+  ].some(configPath => Number(profile.overrides[configPath]) > 0);
 }
 
 function normalizeMinTrades(value) {
@@ -147,20 +156,20 @@ function normalizeMinTrades(value) {
 function validateFeeEvidence(filePath, result, requiredFeeProfile) {
   const trades = finiteNumber(result?.trades);
   const fees = finiteNumber(result?.fees);
-  if (requiredFeeProfile === 'ttp_real' && trades > 0 && fees <= 0) {
+  if (feeProfileExpectsNonzeroFees(requiredFeeProfile) && trades > 0 && fees <= 0) {
     throw new Error(
-      `Strategy Lab requires nonzero ttp_real fee evidence; ${filePath} result ${result?.name || 'unknown'} has trades=${trades} fees=${fees}`
+      `Strategy Lab expected nonzero fee evidence for ${requiredFeeProfile}; ${filePath} result ${result?.name || 'unknown'} has trades=${trades} fees=${fees}`
     );
   }
 }
 
 function validateWorkerFeeEvidence(filePath, trades, requiredFeeProfile) {
-  if (requiredFeeProfile !== 'ttp_real') return;
+  if (!feeProfileExpectsNonzeroFees(requiredFeeProfile)) return;
   trades.forEach((trade, index) => {
     const fees = Number(trade?.feesDollars);
     if (!Number.isFinite(fees) || fees <= 0) {
       throw new Error(
-        `Strategy Lab requires per-trade ttp_real fee evidence; ${filePath} trade[${index}] has feesDollars=${trade?.feesDollars ?? 'MISSING'}`
+        `Strategy Lab expected per-trade fee evidence for ${requiredFeeProfile}; ${filePath} trade[${index}] has feesDollars=${trade?.feesDollars ?? 'MISSING'}`
       );
     }
   });
@@ -479,9 +488,9 @@ function writeStrategyLab(report, outDir) {
 function parseArgs(argv) {
   const args = {
     inputs: [],
-    outDir: path.join(process.cwd(), 'backtest-results', 'strategy-lab'),
+    outDir: null,
     minTrades: DEFAULT_MIN_TRADES,
-    requiredFeeProfile: DEFAULT_REQUIRED_FEE_PROFILE,
+    requiredFeeProfile: null,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -495,7 +504,7 @@ function parseArgs(argv) {
     else if (arg === '--fee-profile' && argv[i + 1]) args.requiredFeeProfile = argv[++i];
     else if (arg.startsWith('--fee-profile=')) args.requiredFeeProfile = arg.slice('--fee-profile='.length);
     else if (arg === '--help') {
-      console.log('Usage: node tools/strategy-lab.js --input backtest-results/matrix-run.json --fee-profile=ttp_real');
+      console.log('Usage: node tools/strategy-lab.js --input <matrix-report> --fee-profile=<canonical-profile> --out-dir=<directory>');
       process.exit(0);
     } else {
       throw new Error(`Unknown argument: ${arg}`);
@@ -504,6 +513,9 @@ function parseArgs(argv) {
 
   if (args.inputs.length === 0) {
     throw new Error('Strategy Lab requires at least one --input report path or directory.');
+  }
+  if (!args.outDir) {
+    throw new Error('Strategy Lab requires an explicit --out-dir');
   }
   args.requiredFeeProfile = normalizeRequiredFeeProfile(args.requiredFeeProfile);
   args.minTrades = normalizeMinTrades(args.minTrades);
@@ -530,7 +542,6 @@ if (require.main === module) {
 
 module.exports = {
   DEFAULT_MIN_TRADES,
-  DEFAULT_REQUIRED_FEE_PROFILE,
   buildStrategyLab,
   renderMarkdown,
   writeStrategyLab,
