@@ -39,13 +39,14 @@ function isPlaceholderWebhookUrl(rawUrl) {
 
 class WebhookOrderAdapter {
     constructor(config = {}) {
-        this.webhookUrl = config.webhookUrl || '';
+        this.webhookUrl = config.webhookUrl;
         this.enabled = config.enabled === true;
         this.dryRun = config.dryRun !== false;
         this.liveTrading = config.liveTrading === true;
-        this.timeout = config.timeout || 5000;
+        this.timeout = config.timeout;
         this.orderLog = [];
-        this.orderLogCap = config.orderLogCap || 500;
+        this.orderLogCap = config.orderLogCap;
+        this.entryThrottleMs = config.entryThrottleMs;
         this.lastOrderTime = 0;
 
         if (this.liveTrading && this.enabled && this.dryRun) {
@@ -122,9 +123,9 @@ class WebhookOrderAdapter {
         // throttle becomes racy and needs a Promise-lock.
         if (!signal.bypassThrottle) {
             const timeSinceLastOrder = now - this.lastOrderTime;
-            if (timeSinceLastOrder < 30000) {
-                console.warn(`[WebhookOrder] Throttled — ${Math.round((30000 - timeSinceLastOrder) / 1000)}s until next allowed`);
-                return { sent: false, reason: 'throttled', waitMs: 30000 - timeSinceLastOrder };
+            if (timeSinceLastOrder < this.entryThrottleMs) {
+                console.warn(`[WebhookOrder] Throttled — ${Math.round((this.entryThrottleMs - timeSinceLastOrder) / 1000)}s until next allowed`);
+                return { sent: false, reason: 'throttled', waitMs: this.entryThrottleMs - timeSinceLastOrder };
             }
         }
 

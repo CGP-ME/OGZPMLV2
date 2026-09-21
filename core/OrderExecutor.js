@@ -965,7 +965,11 @@ class OrderExecutor {
   }
 
   _isWebhookOrderStatusRoute() {
-    return !this.ctx.backtestMode && this.ctx.webhookAdapter?.enabled === true && this.ctx.webhookAdapter?.dryRun === false;
+    return this._isLiveWebhookExecutionRoute() && this.ctx.webhookAdapter?.dryRun === false;
+  }
+
+  _isLiveWebhookExecutionRoute() {
+    return this.ctx.executionMode === 'live' && this.ctx.webhookAdapter?.enabled === true;
   }
 
   _isWebhookExecutionPlan(exitPlan) {
@@ -2806,7 +2810,7 @@ class OrderExecutor {
     const positionEffect = decision.positionEffect;
     const traceId = decision.traceId;
     const signalId = decision.signalId;
-    const isWebhookExecutionRoute = !this.ctx.backtestMode && this.ctx.webhookAdapter?.enabled === true;
+    const isWebhookExecutionRoute = this._isLiveWebhookExecutionRoute();
     if (isEntryAction) {
       const sessionEntryBlock = this._sessionRouterEntryBlock(symbol, decision, positionEffect);
       if (sessionEntryBlock.blocked) {
@@ -3101,7 +3105,7 @@ class OrderExecutor {
         });
       }
     }
-    const dynamicSizingEnabled = ConfigLoader.get('features.enableDynamicSizing', true) !== false;
+    const dynamicSizingEnabled = ConfigLoader.get('features.enableDynamicSizing') === true;
     let confidenceMultiplier = 1.0;
     if (isEntryAction) {
       basePositionPercent = ConfigLoader.get('positionSizing.maxPositionSize');
@@ -3279,9 +3283,7 @@ class OrderExecutor {
       }
     }
     const isLiveBrokerRoute = !this.ctx.backtestMode && !this.ctx.paperTrading && !isWebhookExecutionRoute;
-    const shouldPlanWebhookExit = !this.ctx.backtestMode
-      && this.ctx.webhookAdapter?.enabled === true
-      && isExitAction;
+    const shouldPlanWebhookExit = isWebhookExecutionRoute && isExitAction;
     if (isExitAction && !exitPlan) {
       const haltReason = decision.action === 'SELL'
         ? 'KILL-5: SELL with no matching BUY'
