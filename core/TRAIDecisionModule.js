@@ -40,31 +40,11 @@ class TRAIDecisionModule extends EventEmitter {
     super();
     
     // Configuration
-    this.config = {
-      // Confidence thresholds
-      minConfidenceOverride: 0.40,    // TRAI can override down to 40%
-      maxConfidenceOverride: 0.95,    // TRAI can boost up to 95%
-      confidenceWeight: 0.3,          // TRAI's weight in final confidence (30%)
-      
-      // Risk governance
-      enableVetoPower: false,         // TRAI risk assessment is opinion-only until Trey re-authorizes veto power
-      maxRiskTolerance: 0.03,         // 3% max risk per trade
-      emergencyStopLoss: 0.05,        // 5% emergency stop
-      
-      // Pattern learning
-      enablePatternLearning: true,    // Learn from successful patterns
-      minSampleSize: 100,             // Min samples before pattern trust
-      
-      // Integration mode
-      mode: 'passive',                 // CHANGE 628: TRAI now observes only, doesn't block trades
-      
-      // Performance tracking
-      trackDecisions: true,
-      logPath: './logs/trai-decisions.log',
-      
-      ...config,
-      enableVetoPower: false
-    };
+      this.config = {
+        ...config,
+        // TRAI risk assessment remains opinion-only until Trey re-authorizes veto power.
+        enableVetoPower: false,
+      };
     
     // State management
     this.state = {
@@ -87,7 +67,7 @@ class TRAIDecisionModule extends EventEmitter {
 
     // Pattern pack integration (loads harvested patterns for confidence adjustment)
     this.patternIntegration = new TRAIPatternIntegration(
-      process.env.TRAI_PATTERN_PACK_PATH || './data/pattern-pack.json'
+      ConfigLoader.get('trai.patternPackPath')
     );
 
     // WebSocket client for dashboard broadcasts
@@ -136,10 +116,17 @@ class TRAIDecisionModule extends EventEmitter {
       if (enableLLM) {
         try {
           const TRAICore = require('./trai_core.js');
-          this.traiCore = new TRAICore({
-            staticBrainPath: './trai_brain',
-            enableLLM: true,
-            llmConfig: this.config.llmConfig,
+            this.traiCore = new TRAICore({
+              staticBrainPath: this.config.staticBrainPath,
+              enableLLM: this.config.enableLLM,
+              llmConfig: this.config.llmConfig,
+              enableVoice: this.config.enableVoice,
+              enableVideo: this.config.enableVideo,
+              enablePatternMemory: this.config.enablePatternMemory,
+              memoryTopK: this.config.memoryTopK,
+              memoryMaxJournalEntries: this.config.memoryMaxJournalEntries,
+              elevenlabsApiKey: this.config.elevenlabsApiKey,
+              didApiKey: this.config.didApiKey,
           });
 
           await this.traiCore.initialize();
@@ -957,8 +944,8 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
     
     this.decisionHistory.push(entry);
     
-    // Keep only last 1000 decisions
-    if (this.decisionHistory.length > 1000) {
+      // Keep only the configured number of recent decisions.
+      if (this.decisionHistory.length > this.config.decisionHistoryLimit) {
       this.decisionHistory.shift();
     }
     
@@ -1026,8 +1013,7 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
     }
 
     // Detect trading mode (no secrets exposure)
-    const tradingMode = process.env.BACKTEST_MODE === 'true' ? 'backtest' :
-                        (process.env.TRADING_MODE === 'live' || process.env.ENABLE_LIVE_TRADING === 'true') ? 'live' : 'paper';
+    const tradingMode = scopedExecutionMode;
 
     const telemetry = {
       tsMs: Date.now(),
