@@ -27,6 +27,7 @@
  */
 
 const EventEmitter = require('events');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 // FIX 2026-02-16: Use centralized candle helper for format compatibility
 const { c, h, l, v } = require('./CandleHelper');
@@ -275,7 +276,7 @@ class MarketRegimeDetector extends EventEmitter {
     const regimeConfidence = this.calculateRegimeConfidence(detectedRegime);
 
     // DEEP DIAGNOSTIC: Trace regime detection internals every 1000 updates
-    if (process.env.BACKTEST_VERBOSE && this.updateCount % 500 === 0) {
+    if (ConfigLoader.get('observability.backtestVerbose') === true && this.updateCount % 500 === 0) {
       console.log(`[DEEP-REGIME] ═══════════════════════════════════════`);
       console.log(`[DEEP-REGIME] updateCount=${this.updateCount}`);
       console.log(`[DEEP-REGIME] volatility=${this.metrics.volatility?.toFixed(4)||0} thresholds: low=${this.config.lowVolThreshold} high=${this.config.highVolThreshold}`);
