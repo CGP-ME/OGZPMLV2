@@ -52,7 +52,10 @@ function buildRuntimeConfigProof(snapshot, ConfigLoader, options = {}) {
   if (!snapshot || !snapshot.config) {
     throw new Error('[RuntimeConfigProof] ConfigLoader snapshot is required');
   }
-  if (!ConfigLoader || typeof ConfigLoader.get !== 'function') {
+  if (!ConfigLoader) {
+    throw new Error('[RuntimeConfigProof] ConfigLoader module is required');
+  }
+  if (typeof ConfigLoader.get !== 'function') {
     throw new Error('[RuntimeConfigProof] ConfigLoader module is required');
   }
 
@@ -126,12 +129,6 @@ function buildRuntimeConfigProof(snapshot, ConfigLoader, options = {}) {
         volumeCapTimeframe: withSource(snapshot, 'evalRules.ttp.volumeCap.timeframe'),
         volumeCapPercent: withSource(snapshot, 'evalRules.ttp.volumeCap.percent'),
       },
-      exits: {
-        stopLossPercent: withSource(snapshot, 'exits.stopLossPercent'),
-        takeProfitPercent: withSource(snapshot, 'exits.takeProfitPercent'),
-        trailingStopPercent: withSource(snapshot, 'exits.trailingStopPercent'),
-        exitSystem: withSource(snapshot, 'exits.exitSystem'),
-      },
       fees: {
         model: withSource(snapshot, 'fees.model'),
         makerFee: withSource(snapshot, 'fees.makerFee'),
@@ -156,10 +153,6 @@ function buildRuntimeConfigProof(snapshot, ConfigLoader, options = {}) {
         absoluteCapPercent: tradingConfigValue(ConfigLoader, 'entryLogic.sizing.absoluteCapPercent'),
       },
       exits: {
-        stopLossPercent: tradingConfigValue(ConfigLoader, 'exits.stopLossPercent'),
-        takeProfitPercent: tradingConfigValue(ConfigLoader, 'exits.takeProfitPercent'),
-        trailingStopPercent: tradingConfigValue(ConfigLoader, 'exits.trailingStopPercent'),
-        exitSystem: tradingConfigValue(ConfigLoader, 'exits.exitSystem'),
         tier1Target: tradingConfigValue(ConfigLoader, 'exits.profitTiers.tier1'),
         tier2Target: tradingConfigValue(ConfigLoader, 'exits.profitTiers.tier2'),
         tier3Target: tradingConfigValue(ConfigLoader, 'exits.profitTiers.tier3'),

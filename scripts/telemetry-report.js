@@ -7,9 +7,13 @@
 
 const fs = require('fs');
 const path = require('path');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
-const telemetryFile = path.join(process.cwd(), 'logs', 'telemetry.jsonl');
-const metricsFile = path.join(process.cwd(), 'logs', 'metrics.json');
+const internalPaths = ConfigLoader.getInternalsFileValue('paths');
+const logDirectory = path.resolve(process.cwd(), internalPaths.logDirectory);
+const dataDirectory = path.resolve(process.cwd(), internalPaths.dataDir);
+const telemetryFile = path.join(logDirectory, 'telemetry.jsonl');
+const metricsFile = path.join(logDirectory, 'metrics.json');
 
 console.log('📊 OGZPRIME TELEMETRY REPORT');
 console.log('═══════════════════════════════\n');
@@ -144,28 +148,39 @@ if (fs.existsSync(telemetryFile)) {
 console.log('\n═══════════════════════════════');
 console.log('📊 End of report\n');
 
-// Pattern memory check
-const patternFile = path.join(process.cwd(), 'pattern_memory.json');
-if (fs.existsSync(patternFile)) {
-  try {
-    const patterns = JSON.parse(fs.readFileSync(patternFile, 'utf8'));
-    const count = Object.keys(patterns.patterns || {}).length;
-    console.log(`✅ Pattern memory file: ${count} patterns stored`);
+// Pattern memory check. UnifiedPatternMemory owns one primary bank per
+// mode/asset bucket; backup snapshots are recovery artifacts, not extra banks.
+const patternBankNames = fs.existsSync(dataDirectory)
+  ? fs.readdirSync(dataDirectory)
+    .filter(name => /^unified-patterns\.(live|paper|backtest|test)\.(stocks|crypto|[a-z0-9_-]+)\.json$/i.test(name))
+    .sort()
+  : [];
 
-    // Show top patterns by occurrence
+if (patternBankNames.length === 0) {
+  console.log(`No unified pattern memory bank found in ${dataDirectory}`);
+}
+
+for (const patternBankName of patternBankNames) {
+  const patternFile = path.join(dataDirectory, patternBankName);
+  try {
+    const snapshot = JSON.parse(fs.readFileSync(patternFile, 'utf8'));
+    const patterns = snapshot.patterns && typeof snapshot.patterns === 'object'
+      ? snapshot.patterns
+      : {};
+    const count = Object.keys(patterns).length;
+    console.log(`Pattern memory bank ${patternBankName}: ${count} patterns stored`);
+
     if (count > 0) {
-      const sorted = Object.entries(patterns.patterns)
+      const sorted = Object.entries(patterns)
         .sort((a, b) => (b[1].occurrences || 0) - (a[1].occurrences || 0))
         .slice(0, 5);
 
-      console.log('\n🏆 TOP PATTERNS BY OCCURRENCE:');
+      console.log('\nTOP PATTERNS BY OCCURRENCE:');
       sorted.forEach(([id, pattern]) => {
         console.log(`  ${id}: ${pattern.occurrences || 0} times, Win rate: ${((pattern.winRate || 0) * 100).toFixed(1)}%`);
       });
     }
-  } catch (e) {
-    console.log('⚠️ Could not parse pattern memory file');
+  } catch (error) {
+    console.log(`Could not parse pattern memory bank ${patternBankName}: ${error.message}`);
   }
-} else {
-  console.log('⚠️ No pattern memory file found');
 }
