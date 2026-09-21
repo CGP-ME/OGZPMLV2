@@ -311,7 +311,7 @@ class CandleProcessor {
   }
 
   _resolveDataFeedConfig() {
-    const config = this.ctx?.config?.dataFeed || getConfigValue('dataFeed');
+    const config = this.ctx?.config?.dataFeed;
     if (!config || typeof config !== 'object') {
       throw new Error('CandleProcessor: dataFeed config missing');
     }
@@ -390,19 +390,15 @@ class CandleProcessor {
   }
 
   _resolveCandleScopeContext(candle) {
-    const config = this.ctx?.config || {};
-    const accountId = cleanScopeValue(candle.accountId) || cleanScopeValue(config.accountId);
-    const accountIdSource = cleanScopeValue(candle.accountIdSource)
-      || (accountId === 'default' ? 'default' : accountId ? 'config' : null);
-    const executionMode = cleanScopeValue(candle.executionMode)
-      || (config.enableBacktestMode ? 'backtest' : cleanScopeValue(config.executionMode));
+    const accountId = cleanScopeValue(candle.accountId);
+    const accountIdSource = cleanScopeValue(candle.accountIdSource);
 
     return {
-      brokerId: cleanScopeValue(candle.brokerId) || cleanScopeValue(config.brokerId),
+      brokerId: cleanScopeValue(candle.brokerId),
       accountId,
       accountIdSource,
-      assetClass: cleanScopeValue(candle.assetClass) || cleanScopeValue(config.assetClass),
-      executionMode,
+      assetClass: cleanScopeValue(candle.assetClass),
+      executionMode: cleanScopeValue(candle.executionMode),
       timeframe: cleanScopeValue(candle.timeframe),
     };
   }
@@ -415,10 +411,10 @@ class CandleProcessor {
       missingFields,
       symbol: candle?.symbol || null,
       timeframe: candle?.timeframe || null,
-      brokerId: candle?.brokerId || this.ctx?.config?.brokerId || null,
-      accountId: candle?.accountId || this.ctx?.config?.accountId || null,
-      assetClass: candle?.assetClass || this.ctx?.config?.assetClass || null,
-      executionMode: candle?.executionMode || this.ctx?.config?.executionMode || null,
+      brokerId: candle?.brokerId || null,
+      accountId: candle?.accountId || null,
+      assetClass: candle?.assetClass || null,
+      executionMode: candle?.executionMode || null,
       scopeKey: candle?.scopeKey || null,
       scopeKeyPresent: Boolean(candle?.scopeKey),
     });
