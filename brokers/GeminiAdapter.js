@@ -17,11 +17,11 @@ const WebSocket = require('ws');
 class GeminiAdapter extends IBrokerAdapter {
   constructor(config) {
     super();
-    // CHANGE 2026-01-31: Use GEMINI_EXCHANGE_* env vars to distinguish from Google AI's GEMINI_API_KEY
+    // Credentials and sandbox mode are supplied explicitly by BrokerFactory callers.
     this.config = {
-      apiKey: config.apiKey || process.env.GEMINI_EXCHANGE_API_KEY,
-      apiSecret: config.apiSecret || process.env.GEMINI_EXCHANGE_API_SECRET,
-      sandbox: config.sandbox || process.env.GEMINI_SANDBOX === 'true' || false,
+      apiKey: config.apiKey,
+      apiSecret: config.apiSecret,
+      sandbox: config.sandbox === true,
       ...config
     };
 
