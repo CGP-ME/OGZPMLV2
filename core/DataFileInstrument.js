@@ -11,8 +11,8 @@ const SUFFIX_TOKENS = new Set([
 const QUOTE_TOKENS = new Set(['usd', 'usdt', 'usdc', 'btc', 'eth']);
 
 function configuredCryptoBases() {
-  const raw = process.env.OGZ_CRYPTO_BASES || 'btc,eth,sol,doge,xrp,ada,ltc,bch,link,avax,matic,dot,shib';
-  return new Set(raw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean));
+  const configured = ConfigLoader.getInternalsFileValue('instruments.cryptoBases');
+  return new Set(configured.map(value => String(value).trim().toLowerCase()).filter(Boolean));
 }
 
 function configuredStockTickers() {
@@ -89,27 +89,21 @@ function resolveInstrumentFromDataFile(dataFile) {
     );
   }
 
-  const env = isCrypto ? {
-    TRADING_PAIR: hasQuoteToken ? normalizedPair : `${baseTicker.toUpperCase()}-USD`,
-    BROKER: 'kraken',
-    ASSET_CLASS: 'crypto',
-  } : {
-    TRADING_PAIR: baseTicker.toUpperCase(),
-    ALPACA_SYMBOLS: baseTicker.toUpperCase(),
-    BROKER: 'alpaca',
-    ASSET_CLASS: 'stocks',
-  };
-
-  if (timeframe) {
-    env.CANDLE_TIMEFRAME = timeframe;
-  }
-
-  return env;
+  const tradingPair = isCrypto
+    ? (hasQuoteToken ? normalizedPair : `${baseTicker.toUpperCase()}-USD`)
+    : baseTicker.toUpperCase();
+  return Object.freeze({
+    tradingPair,
+    broker: isCrypto ? 'kraken' : 'alpaca',
+    assetClass: isCrypto ? 'crypto' : 'stocks',
+    symbols: Object.freeze([tradingPair]),
+    candleTimeframe: timeframe,
+  });
 }
 
 function deriveReportAssetSlugFromDataFile(dataFile) {
   const instrument = resolveInstrumentFromDataFile(dataFile);
-  return instrument.TRADING_PAIR.replace(/[^A-Z0-9]+/g, '-');
+  return instrument.tradingPair.replace(/[^A-Z0-9]+/g, '-');
 }
 
 module.exports = {
