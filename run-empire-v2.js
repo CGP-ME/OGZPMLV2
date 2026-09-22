@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+const path = require('path');
+
 // RuntimeAuditSink is the only application module allowed ahead of configuration so
 // source/configuration failures can leave a local receipt without reading ConfigLoader.
 const RuntimeAuditSink = require('./core/RuntimeAuditSink');
