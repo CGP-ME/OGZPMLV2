@@ -1190,9 +1190,8 @@ async function runAgentic(query, opts) {
               evidenceQualified: seat.evidenceChecksPassed === true,
             })),
           });
-          if (fableReview.recheck) {
-            return recomputePanelSeatFromRecheck(metadata, fableReview.recheck, { evidenceSources });
-          }
+          // Rechecks retain Mercury's provenance in fableReview.rechecks;
+          // they must not replace Fable's independent answer or evidence.
           metadata.evidenceChecksPassed = metadata.evidenceChecksPassed
             && fableReview.doctrineReview.authorityCeiling !== 'UNVERIFIED';
           return metadata;

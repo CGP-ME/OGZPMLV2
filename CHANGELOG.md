@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Independent Fable Receipt (2026-09-23)
+
+- Keep Fable's answer, provider attempts and evidence assessment in its own reviewer seat after a Mercury recheck. Mercury rechecks remain separately recorded. No bot behavior or evidence ceiling changes; full Mercury acceptance remains outstanding.
+
 ### STOP 1 Production Profile Paper Start (2026-09-23)
 
 - Corrected the existing production profile to resolve paper mode with live confirmation disabled. The existing loader is unchanged; no new startup rejection or runtime activation is included.
