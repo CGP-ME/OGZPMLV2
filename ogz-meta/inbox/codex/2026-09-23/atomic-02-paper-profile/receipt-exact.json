@@ -1,0 +1,329 @@
+{
+  "parent": "26e808075520be433285c13bb7c3616858469a6c",
+  "boundary": "Actual configuration producer only, with synthetic explicit bootstrap inputs. Not a bot boot or an observed order route.",
+  "changedValues": {
+    "revision": [
+      1,
+      2
+    ],
+    "productionMode": [
+      "live",
+      "paper"
+    ],
+    "productionConfirmLive": [
+      true,
+      false
+    ]
+  },
+  "loaderUnchangedFromParent": true,
+  "sourceHashes": {
+    "parent/foundation/ConfigLoader.js": "4180adf642436af0d4d7897ac231527b5ed7da107201f92414e13be899a50750",
+    "parent/config/internals.json": "c3bd62c64f2e5c2acbfdcf2f740ed1787ab8860026516d306e17cb382ade19d6",
+    "parent/config/settings.json": "dddb378034e66b7cdb2e7d6f903b4d98c22875b34c1ce162e3d7ad8cfaa8c3b4",
+    "candidate/foundation/ConfigLoader.js": "4180adf642436af0d4d7897ac231527b5ed7da107201f92414e13be899a50750",
+    "candidate/config/internals.json": "c3bd62c64f2e5c2acbfdcf2f740ed1787ab8860026516d306e17cb382ade19d6",
+    "candidate/config/settings.json": "79e421f038fc859a05b192942f49c3e012eec89b3021ef4d52a3da5c3efaa8fa"
+  },
+  "results": [
+    {
+      "label": "parent",
+      "input": {
+        "profile": null,
+        "ambientLive": false,
+        "credentialSource": "synthetic explicit values; no file/credential read"
+      },
+      "expected": {
+        "execution": "paper",
+        "paperTrading": true,
+        "liveTrading": false,
+        "backtest": false,
+        "brokerMode": "paper"
+      },
+      "observed": {
+        "execution": "paper",
+        "paperTrading": true,
+        "liveTrading": false,
+        "backtest": false,
+        "brokerMode": "paper",
+        "fingerprint": "cb203bf5fe6f3a5fc6e5e298360fd08bbd635b991976b1c9d55bb046c1695647",
+        "source": "config:settings.json:launchProfiles.paper.mode",
+        "revision": 1
+      }
+    },
+    {
+      "label": "parent",
+      "input": {
+        "profile": null,
+        "ambientLive": true,
+        "credentialSource": "synthetic explicit values; no file/credential read"
+      },
+      "expected": {
+        "execution": "paper",
+        "paperTrading": true,
+        "liveTrading": false,
+        "backtest": false,
+        "brokerMode": "paper"
+      },
+      "observed": {
+        "execution": "paper",
+        "paperTrading": true,
+        "liveTrading": false,
+        "backtest": false,
+        "brokerMode": "paper",
+        "fingerprint": "cb203bf5fe6f3a5fc6e5e298360fd08bbd635b991976b1c9d55bb046c1695647",
+        "source": "config:settings.json:launchProfiles.paper.mode",
+        "revision": 1
+      }
+    },
+    {
+      "label": "parent",
+      "input": {
+        "profile": "paper",
+        "ambientLive": false,
+        "credentialSource": "synthetic explicit values; no file/credential read"
+      },
+      "expected": {
+        "execution": "paper",
+        "paperTrading": true,
+        "liveTrading": false,
+        "backtest": false,
+        "brokerMode": "paper"
+      },
+      "observed": {
+        "execution": "paper",
+        "paperTrading": true,
+        "liveTrading": false,
+        "backtest": false,
+        "brokerMode": "paper",
+        "fingerprint": "051c08aad4c20ff07c4aeabfed2c7081158a3f035ddee45a2fdb12e7791b3fab",
+        "source": "config:settings.json:launchProfiles.paper.mode",
+        "revision": 1
+      }
+    },
+    {
+      "label": "parent",
+      "input": {
+        "profile": "paper",
+        "ambientLive": true,
+        "credentialSource": "synthetic explicit values; no file/credential read"
+      },
+      "expected": {
+        "execution": "paper",
+        "paperTrading": true,
+        "liveTrading": false,
+        "backtest": false,
+        "brokerMode": "paper"
+      },
+      "observed": {
+        "execution": "paper",
+        "paperTrading": true,
+        "liveTrading": false,
+        "backtest": false,
+        "brokerMode": "paper",
+        "fingerprint": "051c08aad4c20ff07c4aeabfed2c7081158a3f035ddee45a2fdb12e7791b3fab",
+        "source": "config:settings.json:launchProfiles.paper.mode",
+        "revision": 1
+      }
+    },
+    {
+      "label": "parent",
+      "input": {
+        "profile": "production",
+        "ambientLive": false,
+        "credentialSource": "synthetic explicit values; no file/credential read"
+      },
+      "expected": {
+        "execution": "paper",
+        "paperTrading": true,
+        "liveTrading": false,
+        "backtest": false,
+        "brokerMode": "paper"
+      },
+      "observed": {
+        "execution": "live",
+        "paperTrading": false,
+        "liveTrading": true,
+        "backtest": false,
+        "brokerMode": "live",
+        "fingerprint": "0fc63c88ff7ac8a8e5841420d16ef2cad064859722673e38023a1f29c4daf051",
+        "source": "config:settings.json:launchProfiles.production.mode",
+        "revision": 1
+      }
+    },
+    {
+      "label": "parent",
+      "input": {
+        "profile": "production",
+        "ambientLive": true,
+        "credentialSource": "synthetic explicit values; no file/credential read"
+      },
+      "expected": {
+        "execution": "paper",
+        "paperTrading": true,
+        "liveTrading": false,
+        "backtest": false,
+        "brokerMode": "paper"
+      },
+      "observed": {
+        "execution": "live",
+        "paperTrading": false,
+        "liveTrading": true,
+        "backtest": false,
+        "brokerMode": "live",
+        "fingerprint": "0fc63c88ff7ac8a8e5841420d16ef2cad064859722673e38023a1f29c4daf051",
+        "source": "config:settings.json:launchProfiles.production.mode",
+        "revision": 1
+      }
+    },
+    {
+      "label": "candidate",
+      "input": {
+        "profile": null,
+        "ambientLive": false,
+        "credentialSource": "synthetic explicit values; no file/credential read"
+      },
+      "expected": {
+        "execution": "paper",
+        "paperTrading": true,
+        "liveTrading": false,
+        "backtest": false,
+        "brokerMode": "paper"
+      },
+      "observed": {
+        "execution": "paper",
+        "paperTrading": true,
+        "liveTrading": false,
+        "backtest": false,
+        "brokerMode": "paper",
+        "fingerprint": "9c5e9bc8e1aac6f6491c87339c0fff92f2d78d7780ac56d6657a361b831576fa",
+        "source": "config:settings.json:launchProfiles.paper.mode",
+        "revision": 2
+      }
+    },
+    {
+      "label": "candidate",
+      "input": {
+        "profile": null,
+        "ambientLive": true,
+        "credentialSource": "synthetic explicit values; no file/credential read"
+      },
+      "expected": {
+        "execution": "paper",
+        "paperTrading": true,
+        "liveTrading": false,
+        "backtest": false,
+        "brokerMode": "paper"
+      },
+      "observed": {
+        "execution": "paper",
+        "paperTrading": true,
+        "liveTrading": false,
+        "backtest": false,
+        "brokerMode": "paper",
+        "fingerprint": "9c5e9bc8e1aac6f6491c87339c0fff92f2d78d7780ac56d6657a361b831576fa",
+        "source": "config:settings.json:launchProfiles.paper.mode",
+        "revision": 2
+      }
+    },
+    {
+      "label": "candidate",
+      "input": {
+        "profile": "paper",
+        "ambientLive": false,
+        "credentialSource": "synthetic explicit values; no file/credential read"
+      },
+      "expected": {
+        "execution": "paper",
+        "paperTrading": true,
+        "liveTrading": false,
+        "backtest": false,
+        "brokerMode": "paper"
+      },
+      "observed": {
+        "execution": "paper",
+        "paperTrading": true,
+        "liveTrading": false,
+        "backtest": false,
+        "brokerMode": "paper",
+        "fingerprint": "6c7c17074cfdf181d24451d84e5811761d6d64e948afaa62b580fc2c08ea1732",
+        "source": "config:settings.json:launchProfiles.paper.mode",
+        "revision": 2
+      }
+    },
+    {
+      "label": "candidate",
+      "input": {
+        "profile": "paper",
+        "ambientLive": true,
+        "credentialSource": "synthetic explicit values; no file/credential read"
+      },
+      "expected": {
+        "execution": "paper",
+        "paperTrading": true,
+        "liveTrading": false,
+        "backtest": false,
+        "brokerMode": "paper"
+      },
+      "observed": {
+        "execution": "paper",
+        "paperTrading": true,
+        "liveTrading": false,
+        "backtest": false,
+        "brokerMode": "paper",
+        "fingerprint": "6c7c17074cfdf181d24451d84e5811761d6d64e948afaa62b580fc2c08ea1732",
+        "source": "config:settings.json:launchProfiles.paper.mode",
+        "revision": 2
+      }
+    },
+    {
+      "label": "candidate",
+      "input": {
+        "profile": "production",
+        "ambientLive": false,
+        "credentialSource": "synthetic explicit values; no file/credential read"
+      },
+      "expected": {
+        "execution": "paper",
+        "paperTrading": true,
+        "liveTrading": false,
+        "backtest": false,
+        "brokerMode": "paper"
+      },
+      "observed": {
+        "execution": "paper",
+        "paperTrading": true,
+        "liveTrading": false,
+        "backtest": false,
+        "brokerMode": "paper",
+        "fingerprint": "e8a2ca7e1cb40ad1b313f6d4500fa317a917545a60b5de327701bc449f249a48",
+        "source": "config:settings.json:launchProfiles.production.mode",
+        "revision": 2
+      }
+    },
+    {
+      "label": "candidate",
+      "input": {
+        "profile": "production",
+        "ambientLive": true,
+        "credentialSource": "synthetic explicit values; no file/credential read"
+      },
+      "expected": {
+        "execution": "paper",
+        "paperTrading": true,
+        "liveTrading": false,
+        "backtest": false,
+        "brokerMode": "paper"
+      },
+      "observed": {
+        "execution": "paper",
+        "paperTrading": true,
+        "liveTrading": false,
+        "backtest": false,
+        "brokerMode": "paper",
+        "fingerprint": "e8a2ca7e1cb40ad1b313f6d4500fa317a917545a60b5de327701bc449f249a48",
+        "source": "config:settings.json:launchProfiles.production.mode",
+        "revision": 2
+      }
+    }
+  ]
+}

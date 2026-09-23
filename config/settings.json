@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 1,
+  "revision": 2,
   "confidence": {
     "minStrategyConfidence": 0.35,
     "candlePatternMinConfidence": 0.7,
@@ -178,8 +178,8 @@
   "launchProfiles": {
     "defaultProfile": "paper",
     "production": {
-      "mode": "live",
-      "confirmLive": true,
+      "mode": "paper",
+      "confirmLive": false,
       "sessionRouter": {
         "mode": "static",
         "staticSession": "stocks",
