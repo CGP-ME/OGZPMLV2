@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### STOP 1 Journal Startup Repair (2026-09-23)
+
+- Restored the existing order-ID deduplication helper removed by the configuration consolidation while journal startup reconciliation still called it. This repairs the internal ReferenceError without changing journal or broker reconciliation policy.
+
 ### Broker-Bar Last-Price Influence Trace (2026-09-02)
 
 - Added one `LAST_PRICE_INFLUENCE` trace per normalized SessionRouter broker bar, recording the actual mark-update result and whether the bar is eligible for the active strategy-frame path without changing routing behavior.

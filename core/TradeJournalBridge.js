@@ -431,6 +431,20 @@ function compactTradeRecord(record) {
   };
 }
 
+function uniqueNonEmptyStrings(values) {
+  const out = [];
+  const seen = new Set();
+  for (const value of values) {
+    const normalized = nonEmptyStringOrNull(value);
+    if (!normalized) continue;
+    const key = normalized.toUpperCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(normalized);
+  }
+  return out;
+}
+
 function normalizeBrokerPositionForJournal(position) {
   const symbol = nonEmptyStringOrNull(position?.symbol);
   if (!symbol) return null;

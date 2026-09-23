@@ -1,0 +1,178 @@
+{
+  "boundary": "Real production method / synthetic state; no bridge constructor, broker request, journal write, or bot activation. Dependencies imported from the existing workspace; method uses its own unchanged normalization helpers only.",
+  "parent": "7afd5be206b82d29601ce0c91f5ef22b867e7cd3",
+  "source": "core/TradeJournalBridge.js",
+  "beforeSha256": "1d539da080cfeec8a18ace2e1e007dbe9517323c109f230a5f374fcd973f9b78",
+  "afterSha256": "002c28ec0106f765a8cc8600ec79aa819f59bb042fa1a55da0b5d5e041858e0e",
+  "historicalHelperByteEqual": true,
+  "productionDeltaOnlyRestoredHelper": true,
+  "results": [
+    {
+      "name": "empty",
+      "input": {
+        "activeTrades": [],
+        "positionCount": 0
+      },
+      "failure": {
+        "name": "ReferenceError",
+        "message": "uniqueNonEmptyStrings is not defined"
+      },
+      "expected": {
+        "stateOpenOrderIds": [],
+        "stateActiveTradeCount": 0,
+        "statePositionCount": 0
+      },
+      "observed": {
+        "stateOpenOrderIds": [],
+        "stateActiveTradeCount": 0,
+        "statePositionCount": 0
+      }
+    },
+    {
+      "name": "trim-deduplicate-first-spelling",
+      "input": {
+        "activeTrades": [
+          [
+            "first",
+            {
+              "orderId": " ORDER-A "
+            }
+          ],
+          [
+            "second",
+            {
+              "orderId": "order-a"
+            }
+          ],
+          [
+            "third",
+            {
+              "id": "ORDER-B"
+            }
+          ],
+          [
+            "ORDER-C",
+            {}
+          ]
+        ],
+        "positionCount": 3
+      },
+      "failure": {
+        "name": "ReferenceError",
+        "message": "uniqueNonEmptyStrings is not defined"
+      },
+      "expected": {
+        "stateOpenOrderIds": [
+          "ORDER-A",
+          "ORDER-B",
+          "ORDER-C"
+        ],
+        "stateActiveTradeCount": 3,
+        "statePositionCount": 3
+      },
+      "observed": {
+        "stateOpenOrderIds": [
+          "ORDER-A",
+          "ORDER-B",
+          "ORDER-C"
+        ],
+        "stateActiveTradeCount": 3,
+        "statePositionCount": 3
+      }
+    },
+    {
+      "name": "pairs",
+      "input": {
+        "activeTrades": [
+          [
+            "ORDER-A",
+            {}
+          ]
+        ],
+        "positionCount": null
+      },
+      "failure": {
+        "name": "ReferenceError",
+        "message": "uniqueNonEmptyStrings is not defined"
+      },
+      "expected": {
+        "stateOpenOrderIds": [
+          "ORDER-A"
+        ],
+        "stateActiveTradeCount": 1,
+        "statePositionCount": 1
+      },
+      "observed": {
+        "stateOpenOrderIds": [
+          "ORDER-A"
+        ],
+        "stateActiveTradeCount": 1,
+        "statePositionCount": 1
+      }
+    },
+    {
+      "name": "array",
+      "input": {
+        "activeTrades": [
+          {
+            "orderId": "ORDER-A"
+          },
+          {
+            "id": "ORDER-B"
+          }
+        ],
+        "positionCount": 2
+      },
+      "failure": {
+        "name": "ReferenceError",
+        "message": "uniqueNonEmptyStrings is not defined"
+      },
+      "expected": {
+        "stateOpenOrderIds": [
+          "ORDER-A",
+          "ORDER-B"
+        ],
+        "stateActiveTradeCount": 2,
+        "statePositionCount": 2
+      },
+      "observed": {
+        "stateOpenOrderIds": [
+          "ORDER-A",
+          "ORDER-B"
+        ],
+        "stateActiveTradeCount": 2,
+        "statePositionCount": 2
+      }
+    },
+    {
+      "name": "object",
+      "input": {
+        "activeTrades": {
+          "ORDER-A": {},
+          "ORDER-B": {}
+        },
+        "positionCount": 2
+      },
+      "failure": {
+        "name": "ReferenceError",
+        "message": "uniqueNonEmptyStrings is not defined"
+      },
+      "expected": {
+        "stateOpenOrderIds": [
+          "ORDER-A",
+          "ORDER-B"
+        ],
+        "stateActiveTradeCount": 2,
+        "statePositionCount": 2
+      },
+      "observed": {
+        "stateOpenOrderIds": [
+          "ORDER-A",
+          "ORDER-B"
+        ],
+        "stateActiveTradeCount": 2,
+        "statePositionCount": 2
+      }
+    }
+  ]
+}
