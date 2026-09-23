@@ -20,8 +20,8 @@ const {
   getMethodCallers,
   getPropertyReferences,
 } = require('./dep-scanner');
+const { isPathIgnoredByMercury } = require('../trai_brain/repository-policy');
 
-const MAX_CALLERS_IN_PROMPT = 30;
 const SERENA_TIMEOUT_MS = 15000;
 
 function classifyRisk(callerCount) {
@@ -46,13 +46,13 @@ async function getBlastRadius(filePath, options = {}) {
 
   const work = new Promise((resolve, reject) => {
     try {
-      const callers = getCallers(filePath);
-      const truncated = callers.length > MAX_CALLERS_IN_PROMPT;
+      const callers = getCallers(filePath)
+        .filter(caller => !isPathIgnoredByMercury(caller.source));
       resolve({
         file: filePath,
         callers,
         callerCount: callers.length,
-        truncated,
+        truncated: false,
         riskLevel: classifyRisk(callers.length),
         summary: summarize(filePath, callers),
         latencyMs: Date.now() - start,
@@ -76,24 +76,23 @@ async function getBlastRadius(filePath, options = {}) {
 
 function formatForMercury(blastRadius) {
   const { file, callers, callerCount, truncated, riskLevel, summary } = blastRadius;
-  const shown = callers.slice(0, MAX_CALLERS_IN_PROMPT);
 
   const lines = [
     `## Blast Radius — ${file}`,
     ``,
     `**Risk level:** ${riskLevel}`,
     `**Caller count:** ${callerCount}` +
-      (truncated ? ` (showing first ${MAX_CALLERS_IN_PROMPT})` : ''),
+      (truncated ? ' (upstream caller list incomplete)' : ''),
     ``,
     `**Summary:** ${summary}`,
     ``,
     `**Callers (file:line):**`,
   ];
 
-  if (shown.length === 0) {
+  if (callers.length === 0) {
     lines.push(`- (none)`);
   } else {
-    for (const c of shown) {
+    for (const c of callers) {
       lines.push(`- ${c.source}:${c.line}  \`${c.type}\` -> \`${c.target}\``);
     }
   }
@@ -373,6 +372,5 @@ module.exports = {
   formatClassSurfaceForMercury,
   getEventBlastRadius,
   formatEventBlastForMercury,
-  MAX_CALLERS_IN_PROMPT,
   SERENA_TIMEOUT_MS,
 };

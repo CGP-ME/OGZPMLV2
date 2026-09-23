@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Caller Evidence Delivery (2026-09-23)
+
+- Deliver every discovered caller permitted by the existing Mercury ignore policy instead of cutting the blast-radius list at 30. This repairs caller-evidence delivery, not dynamic dependency discovery or proof of complete configuration migration. Bot behavior and reviewer acceptance rules are unchanged.
+
 ### Mercury Independent Fable Receipt (2026-09-23)
 
 - Keep Fable's answer, provider attempts and evidence assessment in its own reviewer seat after a Mercury recheck. Mercury rechecks remain separately recorded. No bot behavior or evidence ceiling changes; full Mercury acceptance remains outstanding.
