@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Failed Investigation Receipt (2026-09-24)
+
+- Retain the attempted Mercury result before answer qualification, so failed investigations keep their tool history, iterations and provider-failure evidence in downstream prompts and the ledger. Preserve failed-seat status, UNVERIFIED authority and existing recheck eligibility; no bot changes.
+
 ### Mercury Large Reviewer Prompt Delivery (2026-09-24)
 
 - Send Claude reviewer prompts through stdin instead of a command-line argument. Preserve the complete evidence, CLI trust/auth/read-only settings, error receipts and review ceilings; no bot changes. The exact previously E2BIG prompt completed through the actual Fable provider after this repair.

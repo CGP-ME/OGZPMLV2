@@ -1,0 +1,94 @@
+{
+  "at": "2026-09-24T02:41:52.667Z",
+  "sourceRun": "2026-09-24T02-31-33-458Z-759ba9639dea",
+  "passed": true,
+  "providerCalls": 0,
+  "databaseWrites": 0,
+  "notifications": 0,
+  "observations": [
+    {
+      "revision": "before",
+      "askSha256": "f52980e6976a33c127586da2c1cdcf5af96e0536fe53998595532a080de705d2",
+      "captures": [
+        {
+          "role": "fable",
+          "priorTermination": "not_selected",
+          "priorIterations": 0,
+          "promptSha256": "d2d9d216c9c0568ac5a14355664dccef9bc06d979fd56ee4fd6870197b628437",
+          "deliveredTools": 0,
+          "includesFailure": false,
+          "includesRawFailureHash": false
+        },
+        {
+          "role": "kimi",
+          "priorTermination": "answer_given",
+          "priorIterations": 0,
+          "promptSha256": "9b05dc947643624be1ac572ddf15ea83042f67fb81d45ea53e32626f7e84cc2f",
+          "deliveredTools": 0,
+          "includesFailure": false,
+          "includesRawFailureHash": false
+        }
+      ],
+      "loopCalls": 1,
+      "ledger": {
+        "iterations": 0,
+        "termination": "answer_given",
+        "toolCalls": 0,
+        "providerAttempts": 0,
+        "verdict": "unverified",
+        "ceiling": "UNVERIFIED",
+        "mercurySeat": [
+          {
+            "status": "failed",
+            "verdict": null,
+            "evidenceChecksPassed": false
+          }
+        ]
+      }
+    },
+    {
+      "revision": "after",
+      "askSha256": "713aa134c6c55c87cf05b61062f01ac3bae442ee6d2a25647606522ce099d62e",
+      "captures": [
+        {
+          "role": "fable",
+          "priorTermination": "error",
+          "priorIterations": 18,
+          "promptSha256": "a95f1e0d2cbdfa3a87508d4f603fec2ba58143d592c501e72b6594d5c5d763bb",
+          "deliveredTools": 18,
+          "includesFailure": true,
+          "includesRawFailureHash": true
+        },
+        {
+          "role": "kimi",
+          "priorTermination": "error",
+          "priorIterations": 18,
+          "promptSha256": "489b59c7cc5d3e98bb0e51223b5adb77426592ee33cb8729f1073ff526aa044e",
+          "deliveredTools": 18,
+          "includesFailure": true,
+          "includesRawFailureHash": true
+        }
+      ],
+      "loopCalls": 1,
+      "ledger": {
+        "iterations": 18,
+        "termination": "error",
+        "toolCalls": 18,
+        "providerAttempts": 19,
+        "verdict": "unverified",
+        "ceiling": "UNVERIFIED",
+        "mercurySeat": [
+          {
+            "status": "failed",
+            "answer": "(Mercury call failed: Provider response terminated before completion)",
+            "verdict": null,
+            "evidenceChecksPassed": false
+          }
+        ]
+      }
+    }
+  ],
+  "limits": [
+    "Actual coordinator and prompt/ledger producers, with historical failure and new read-only tool calls. Providers/database/notifications intercepted. No full-chain acceptance or historical tool-byte identity claimed."
+  ]
+}

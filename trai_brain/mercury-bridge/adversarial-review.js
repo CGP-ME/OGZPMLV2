@@ -269,6 +269,15 @@ function reviewerEvidenceSources({ mercuryResult, review, hostEvidenceSources = 
   const sources = [...hostEvidenceSources];
   const passes = [mercuryResult, ...(review && review.rechecks || [])];
   passes.forEach((pass, passIndex) => {
+    (pass && pass.providerAttempts || []).filter(attempt => attempt.status === 'failed').forEach(attempt => {
+      sources.push({
+        path: `provider://mercury-pass-${passIndex + 1}/${attempt.attempt}`,
+        excerpt: JSON.stringify({ evidenceType: 'provider_failure_not_code_verdict',
+          status: attempt.status, requested_provider: attempt.requested_provider,
+          applied_model: attempt.applied_model, termination: attempt.termination,
+          error: attempt.error, raw_output: attempt.raw_output }),
+      });
+    });
     (pass && pass.history || []).forEach((entry, index) => {
       if (!entry.toolName) return;
       const delivered = serializeToolResultForHistory(entry.toolName, entry.toolResult);

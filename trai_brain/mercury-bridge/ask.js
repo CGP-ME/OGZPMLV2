@@ -1123,10 +1123,12 @@ async function runAgentic(query, opts) {
             attack: opts.attack === true,
             noTools: opts.noTools === true,
           });
-          ensureReviewerAnswer(seatResult, 'mercury');
-          finalizeMercuryEvidenceResult(seatResult);
           mercuryResult = seatResult;
           mercuryResult.totalLatencyMs = Date.now() - t0;
+          // A failed attempt still owns its tools, history and provider receipt.
+          // Preserve them before answer qualification; failure is not non-selection.
+          ensureReviewerAnswer(mercuryResult, 'mercury');
+          finalizeMercuryEvidenceResult(mercuryResult);
           mercuryResult.doctrineReview = assessDoctrineReview({
             answer: mercuryResult.answer,
             changedFiles: autoBlastRadius ? autoBlastRadius.changedFiles : [],
@@ -1192,7 +1194,8 @@ async function runAgentic(query, opts) {
             })),
           ];
           fableReview.quarantines = await notifyReviewQuarantines(fableReview.quarantines || []);
-          if (mercuryResult && kimiTieBreakerRequired(fableReview, reviewIntent)) {
+          if (mercuryResult && mercuryResult.termination === 'answer_given'
+              && kimiTieBreakerRequired(fableReview, reviewIntent)) {
             const recheckPrompts = buildMercuryRecheckPrompts({
               originalQuery: query,
               mercuryAnswer: mercuryResult.answer,
@@ -1304,7 +1307,7 @@ async function runAgentic(query, opts) {
 
     const failedQuarantines = [];
     for (const seat of panelRun.seats.filter(seat => seat.status === 'failed')) {
-      const failedOutput = seat.error && (seat.error.reviewFailure || (seat.error.stageAttempt ? {
+      const failedOutput = seat.error && (seat.error.reviewFailure || seat.error.reviewerResult || (seat.error.stageAttempt ? {
         attempts: Array.isArray(seat.error.reviewerAttempts)
           ? seat.error.reviewerAttempts
           : [seat.error.stageAttempt],
@@ -1325,6 +1328,7 @@ async function runAgentic(query, opts) {
       seat.appliedModels = failedMetadata ? failedMetadata.appliedModels : [];
       seat.fallbackTransitions = failedMetadata ? failedMetadata.fallbackTransitions : [];
       seat.providerAttempts = failedMetadata ? failedMetadata.providerAttempts : [];
+      seat.answer = failedMetadata ? failedMetadata.answer : null;
       seat.verdict = null;
       seat.evidenceChecksPassed = false;
     }
