@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Exhaustive Candidate Comparison (2026-09-24)
+
+- Strengthen the existing Mercury prompt to collect and compare the complete relevant candidate set, retain counterevidence and unresolved gaps, and explain one or multiple supported conclusions. Preserve read-only tools, broad scope, token/iteration settings and evidence ceilings; no executable gate or bot change.
+
 ### Mercury Reviewer Role Framing (2026-09-24)
 
 - Make the existing shared reviewer system prompt role-neutral; retain Fable and Kimi's distinct contracts in their existing request builders. Kimi no longer receives a higher-priority instruction to be Fable or emit Fable's verdict template. No provider, scope, token, evidence or authority-setting change.

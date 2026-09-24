@@ -1,0 +1,126 @@
+{
+  "at": "2026-09-24T04:19:58.079Z",
+  "providerCalls": 0,
+  "scope": "Actual primary/recheck prompt assembly with synthetic client, not model behavior or full-chain proof",
+  "rootConfigSha256": "e95f32e3db9344e92f061ee5eff73d0fa89872f83e775d026d83737582fd2db5",
+  "otherConfigurationUnchanged": true,
+  "observed": [
+    {
+      "systemSha256": "8d92faf62ca358bc09712f857883c0178cd798b88c2bc25b3d690c0494a4ce02",
+      "collectionRulePresent": true,
+      "comparisonRulePresent": true,
+      "sourceDistinctionPresent": true,
+      "maxTokens": 7750,
+      "tools": [
+        "search",
+        "grep",
+        "regex_grep",
+        "find_definition",
+        "find_references",
+        "rule_scan",
+        "open_file",
+        "get_chunk",
+        "list_files",
+        "tavily_search",
+        "git_show",
+        "git_diff",
+        "serena_blast_radius",
+        "serena_property_refs",
+        "serena_method_callers",
+        "serena_class_fields",
+        "web_fetch"
+      ]
+    },
+    {
+      "systemSha256": "8d92faf62ca358bc09712f857883c0178cd798b88c2bc25b3d690c0494a4ce02",
+      "collectionRulePresent": true,
+      "comparisonRulePresent": true,
+      "sourceDistinctionPresent": true,
+      "maxTokens": 7750,
+      "tools": [
+        "search",
+        "grep",
+        "regex_grep",
+        "find_definition",
+        "find_references",
+        "rule_scan",
+        "open_file",
+        "get_chunk",
+        "list_files",
+        "tavily_search",
+        "git_show",
+        "git_diff",
+        "serena_blast_radius",
+        "serena_property_refs",
+        "serena_method_callers",
+        "serena_class_fields",
+        "web_fetch"
+      ]
+    },
+    {
+      "systemSha256": "8d92faf62ca358bc09712f857883c0178cd798b88c2bc25b3d690c0494a4ce02",
+      "collectionRulePresent": true,
+      "comparisonRulePresent": true,
+      "sourceDistinctionPresent": true,
+      "maxTokens": 7750,
+      "tools": [
+        "search",
+        "grep",
+        "regex_grep",
+        "find_definition",
+        "find_references",
+        "rule_scan",
+        "open_file",
+        "get_chunk",
+        "list_files",
+        "tavily_search",
+        "git_show",
+        "git_diff",
+        "serena_blast_radius",
+        "serena_property_refs",
+        "serena_method_callers",
+        "serena_class_fields",
+        "web_fetch"
+      ]
+    },
+    {
+      "systemSha256": "8d92faf62ca358bc09712f857883c0178cd798b88c2bc25b3d690c0494a4ce02",
+      "collectionRulePresent": true,
+      "comparisonRulePresent": true,
+      "sourceDistinctionPresent": true,
+      "maxTokens": 7750,
+      "tools": [
+        "search",
+        "grep",
+        "regex_grep",
+        "find_definition",
+        "find_references",
+        "rule_scan",
+        "open_file",
+        "get_chunk",
+        "list_files",
+        "tavily_search",
+        "git_show",
+        "git_diff",
+        "serena_blast_radius",
+        "serena_property_refs",
+        "serena_method_callers",
+        "serena_class_fields",
+        "web_fetch"
+      ]
+    }
+  ],
+  "primary": {
+    "iterations": 2,
+    "iterationLimit": null,
+    "termination": "answer_given"
+  },
+  "recheck": [
+    {
+      "iterations": 2,
+      "iterationLimit": null,
+      "termination": "answer_given"
+    }
+  ],
+  "passed": true
+}
