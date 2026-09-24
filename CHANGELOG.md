@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Read-Only Tool Interface (2026-09-24)
+
+- Remove run_check from Mercury's callable tools, function schema and tool documentation; explicitly give the reviewer read-only rules. Historical execution receipts remain readable and existing evidence/authority ceilings are unchanged. No bot behavior, gate or runtime activation change.
+
 ### Correct Mercury Versus Builder Alignment Scope (2026-09-24)
 
 - Undo the Fable builder-doctrine index addition from 10a5ed3e per Trey's clarification. Mercury is read-only; Mercury-specific rules are explicit, not inferred from builder alignment. No new indexing ran with the addition; existing indexes and receipt repairs are untouched.

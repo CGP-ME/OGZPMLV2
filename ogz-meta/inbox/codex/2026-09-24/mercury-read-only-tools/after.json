@@ -1,0 +1,56 @@
+{
+  "at": "2026-09-24T01:55:12.893Z",
+  "mode": "after",
+  "registry": [
+    "search",
+    "grep",
+    "regex_grep",
+    "find_definition",
+    "find_references",
+    "rule_scan",
+    "open_file",
+    "get_chunk",
+    "list_files",
+    "tavily_search",
+    "git_show",
+    "git_diff",
+    "serena_blast_radius",
+    "serena_property_refs",
+    "serena_method_callers",
+    "serena_class_fields",
+    "web_fetch"
+  ],
+  "schemas": [
+    "search",
+    "grep",
+    "regex_grep",
+    "find_definition",
+    "find_references",
+    "rule_scan",
+    "open_file",
+    "get_chunk",
+    "list_files",
+    "tavily_search",
+    "git_show",
+    "git_diff",
+    "serena_blast_radius",
+    "serena_property_refs",
+    "serena_method_callers",
+    "serena_class_fields",
+    "web_fetch"
+  ],
+  "runCheckDocumented": false,
+  "sourceSha256": "5c09df9d73b0e9144fafa283ee9f9a01b3239eff207557f92898cd343edbf0e7",
+  "dispatch": {
+    "error": "unknown tool: run_check. Available: search, grep, regex_grep, find_definition, find_references, rule_scan, open_file, get_chunk, list_files, tavily_search, git_show, git_diff, serena_blast_radius, serena_property_refs, serena_method_callers, serena_class_fields, web_fetch"
+  },
+  "actualRead": {
+    "file": "trai_brain/mercury-bridge/tool-adapter.js",
+    "start_line": 1,
+    "end_line": 20,
+    "total_lines": 2336,
+    "text": "    1\t/**\n    2\t * Mercury Bridge — Tool Adapter\n    3\t * ══════════════════════════════════════════════════════════════\n    4\t * Exposes a canonical tool API to the ReAct loop while adapting to\n    5\t * whatever method names the underlying ReadOnlyToolbox actually uses.\n    6\t *\n    7\t * Canonical tools exposed to Mercury via the ReAct loop:\n    8\t *   grep       — literal string search across the repo (ground truth)\n    9\t *   open_file  — read a specific line range from a non-ignored repo file\n   10\t *   get_chunk  — retrieve a non-ignored indexed chunk by MongoDB _id\n   11\t *   list_files — list non-ignored files in a directory\n   12\t *   git_diff   — read current staged/worktree/last-commit diffs\n   13\t *\n   14\t * Why an adapter: keep Mercury's repo tools centralized so every evidence path\n   15\t * shares the same repository boundary and skip policy.\n   16\t *\n   17\t * SAFETY: All paths are bounds-checked to the repo root. No writes.\n   18\t * No arbitrary shell execution. The adapter is a strict subset of\n   19\t * what ReadOnlyToolbox already considered safe.\n   20\t */"
+  },
+  "otherToolsUnchanged": true,
+  "passed": true
+}
