@@ -354,14 +354,9 @@ function stringifyToolResultForHistory(toolResult) {
 }
 
 function normalizeToolHandleCitations(content) {
+  // A tool handle has no file identity. Preserve it for quality reporting;
+  // never attach its line range to a guessed nearby path.
   return String(content || '')
-    .replace(
-    new RegExp(String.raw`(\`?)(${REPO_FILE_PATH_PATTERN})\1([^\n]{0,500})【open_file†L(\d+)(?:[-‑–—]L?(\d+))?】`, 'g'),
-    (match, tick, filePath, between, startLine, endLine) => {
-      const range = endLine ? `${startLine}-${endLine}` : startLine;
-      return `${tick}${filePath}${tick}${between}${filePath}:${range}`;
-    }
-  )
     .replace(
       new RegExp(String.raw`\bFile:\s*\`?(${REPO_FILE_PATH_PATTERN})\`?\s*(?:\*+)?\s*Lines?:\s*(\d+)(?:[-‑–—](\d+))?`, 'gi'),
       (match, filePath, startLine, endLine) => `${filePath}:${endLine ? `${startLine}-${endLine}` : startLine}`

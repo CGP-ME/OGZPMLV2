@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Citation Identity Preservation (2026-09-24)
+
+- Stop converting ambiguous open_file tool markers into guessed nearby-file citations. Preserve the model's markers and existing quality flags; literal file-and-line formatting remains unchanged. Replayed actual provider output reproduced and removed a host-invented ConfigLoader citation. No bot, provider or evidence-ceiling change.
+
 ### Mercury Evidence Artifact Failure Isolation (2026-09-24)
 
 - Quarantine a failed current-change artifact write/read through existing notification and evidence-absence reporting, preserving partial files and the UNVERIFIED ceiling while available reviewers continue. Successful artifact delivery is unchanged; no bot gate, provider or policy change.

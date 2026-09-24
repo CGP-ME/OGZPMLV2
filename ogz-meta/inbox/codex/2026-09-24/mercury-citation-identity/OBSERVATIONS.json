@@ -1,0 +1,51 @@
+{
+  "before": {
+    "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t04-29-08-487z-543152-d36a6dc91699/mercury-20.raw",
+    "rawSha256": "cb4b86dec51bd1de14c530f6832caf80529bd111aa5afb4373ed917f8c26d507",
+    "sourceSha256": "c39db4e29056904818fee749ac4bc601b68fe7b9c54060210405bf284365304f",
+    "originalHasFalseConfigCitation": false,
+    "renderedHasFalseConfigCitation": true,
+    "originalExcerpt": "The examined changes introduce new configuration entries (`maxTotalExposure`, `absoluteCapPercent`, fee model switch, etc.) and corresponding validation in `foundation/ConfigLoader.js` (lines 1850‑1859)【open_file†L1850-L1859】. The `OrderExecutor` sizing logic now respects these limits (lines 2410‑2412)【open_file†L2410-L2412】, and the `StateManager` correctly computes entry fees using the `FeeModel` (line 1208)【open_file†L1208-L1208】. Feature extraction and profit‑exit planning correctly reference the new config values (FeatureExtractor lines 197‑198【open_file†L197-L198】, ProfitExitPlanner lines 160‑191【open_file†L160-L191】). No missing guards, contradictory validations, or syntax errors are evident in the inspected code. Consequently, there is no concrete evidence of a runtime failure, security breach, or logical error caused by the current change set.",
+    "renderedExcerpt": "The examined changes introduce new configuration entries (`maxTotalExposure`, `absoluteCapPercent`, fee model switch, etc.) and corresponding validation in `foundation/ConfigLoader.js` (lines 1850‑1859)【open_file†L1850-L1859】. The `OrderExecutor` sizing logic now respects these limits (lines 2410‑2412)【open_file†L2410-L2412】, and the `StateManager` correctly computes entry fees using the `FeeModel` (line 1208)【open_file†L1208-L1208】. Feature extraction and profit‑exit planning correctly reference the new config values (FeatureExtractor lines 197‑198【open_file†L197-L198】, ProfitExitPlanner lines 160‑191foundation/ConfigLoader.js:160-191). No missing guards, contradictory validations, or syntax errors are evident in the inspected code. Consequently, there is no concrete evidence of a runtime failure, security breach, or logical error caused by the current change set.",
+    "providerCalls": 0
+  },
+  "after": {
+    "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t04-29-08-487z-543152-d36a6dc91699/mercury-20.raw",
+    "rawSha256": "cb4b86dec51bd1de14c530f6832caf80529bd111aa5afb4373ed917f8c26d507",
+    "sourceSha256": "5d789d634d45ecfa33a2bdb2c4929be7f9215afae9b9333792c0aa10f16b7225",
+    "originalHasFalseConfigCitation": false,
+    "renderedHasFalseConfigCitation": false,
+    "originalExcerpt": "The examined changes introduce new configuration entries (`maxTotalExposure`, `absoluteCapPercent`, fee model switch, etc.) and corresponding validation in `foundation/ConfigLoader.js` (lines 1850‑1859)【open_file†L1850-L1859】. The `OrderExecutor` sizing logic now respects these limits (lines 2410‑2412)【open_file†L2410-L2412】, and the `StateManager` correctly computes entry fees using the `FeeModel` (line 1208)【open_file†L1208-L1208】. Feature extraction and profit‑exit planning correctly reference the new config values (FeatureExtractor lines 197‑198【open_file†L197-L198】, ProfitExitPlanner lines 160‑191【open_file†L160-L191】). No missing guards, contradictory validations, or syntax errors are evident in the inspected code. Consequently, there is no concrete evidence of a runtime failure, security breach, or logical error caused by the current change set.",
+    "renderedExcerpt": "The examined changes introduce new configuration entries (`maxTotalExposure`, `absoluteCapPercent`, fee model switch, etc.) and corresponding validation in `foundation/ConfigLoader.js` (lines 1850‑1859)【open_file†L1850-L1859】. The `OrderExecutor` sizing logic now respects these limits (lines 2410‑2412)【open_file†L2410-L2412】, and the `StateManager` correctly computes entry fees using the `FeeModel` (line 1208)【open_file†L1208-L1208】. Feature extraction and profit‑exit planning correctly reference the new config values (FeatureExtractor lines 197‑198【open_file†L197-L198】, ProfitExitPlanner lines 160‑191【open_file†L160-L191】). No missing guards, contradictory validations, or syntax errors are evident in the inspected code. Consequently, there is no concrete evidence of a runtime failure, security breach, or logical error caused by the current change set.",
+    "rawAnswerPreserved": true,
+    "providerCalls": 0
+  },
+  "loop": {
+    "kind": "actual loop with captured response replay and synthetic candidate; not a new provider review",
+    "calls": 2,
+    "termination": "answer_given",
+    "answerPreserved": true,
+    "quality": {
+      "flags": [
+        "missing_file_line_citation",
+        "tool_handle_citation"
+      ],
+      "evidence": [
+        {
+          "flag": "missing_file_line_citation",
+          "evidence": "no file:line citation anywhere in the final answer"
+        },
+        {
+          "flag": "tool_handle_citation",
+          "evidence": "(examined N of M): - core/BacktestRunner.js – import changes and new trace handling (lines 13‑17)【open_file†L13-L17】 - config/settings.json – added `positionSizing.maxTotalExposure` and related validation (lines 1300‑1306)【open_file†L1300-L1306】 - conf"
+        }
+      ],
+      "ok": false
+    },
+    "knownLiteralFormats": [
+      "trai_brain/mercury-bridge/tool-adapter.py:1073-1082",
+      "mercury.config.json:68-69 show the new wording."
+    ],
+    "providerCalls": 0
+  }
+}

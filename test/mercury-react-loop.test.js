@@ -104,22 +104,22 @@ describe('Mercury ReAct loop evidence gates', () => {
     )).toBe(false);
   });
 
-  test('tool-handle citation normalizer converts same-sentence repo path handles', () => {
+  test('tool-handle citation normalizer preserves ambiguous same-sentence handles', () => {
     const normalized = normalizeToolHandleCitations(
       'The code in `trai brain\\mercury-bridge\\tool-adapter.ts` is guarded 【open_file†L209-L221】.'
     );
 
-    expect(normalized).toContain('trai brain\\mercury-bridge\\tool-adapter.ts:209-221');
-    expect(hasFileLineCitation(normalized)).toBe(true);
+    expect(normalized).toBe('The code in `trai brain\\mercury-bridge\\tool-adapter.ts` is guarded 【open_file†L209-L221】.');
+    expect(hasToolHandleCitation(normalized)).toBe(true);
   });
 
-  test('tool-handle citation normalizer converts same-paragraph repo path handles', () => {
+  test('tool-handle citation normalizer preserves ambiguous same-paragraph handles', () => {
     const normalized = normalizeToolHandleCitations(
       'The `mercury.config.json` file was updated to remove stale guidance. The relevant lines show the new wording and removal of the old phrase.【open_file†L65-L68】'
     );
 
-    expect(normalized).toContain('mercury.config.json:65-68');
-    expect(hasFileLineCitation(normalized)).toBe(true);
+    expect(normalized).toBe('The `mercury.config.json` file was updated to remove stale guidance. The relevant lines show the new wording and removal of the old phrase.【open_file†L65-L68】');
+    expect(hasToolHandleCitation(normalized)).toBe(true);
   });
 
   test('citation normalizer converts file plus lines prose into literal repo citations', () => {
