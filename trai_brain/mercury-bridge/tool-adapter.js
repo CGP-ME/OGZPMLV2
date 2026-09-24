@@ -201,7 +201,33 @@ function createToolAdapter(opts = {}) {
       : path.resolve(repoRoot, targetPath);
     const resolved = path.resolve(abs);
     const rootResolved = path.resolve(repoRoot);
-    if (!resolved.startsWith(rootResolved)) {
+    const outside = (root, target) => {
+      const relative = path.relative(root, target);
+      return relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative);
+    };
+    let outsideBoundary = outside(rootResolved, resolved);
+    if (!outsideBoundary) {
+      // Historical Git paths may no longer exist. Resolve their nearest
+      // existing ancestor without allowing a symlink to escape the repo.
+      let ancestor = resolved;
+      while (ancestor !== rootResolved) {
+        try {
+          fs.lstatSync(ancestor);
+          break;
+        } catch (error) {
+          if (error.code !== 'ENOENT') throw error;
+          ancestor = path.dirname(ancestor);
+        }
+      }
+      const rootReal = fs.realpathSync(rootResolved);
+      const ancestorReal = fs.realpathSync(ancestor);
+      outsideBoundary = outside(rootReal, ancestorReal);
+      const physicalTarget = path.resolve(rootResolved, path.relative(rootReal, ancestorReal),
+        path.relative(ancestor, resolved));
+      // An allowed-looking alias must not bypass the target's ignore policy.
+      if (!outsideBoundary && physicalTarget !== resolved) ensureNotIgnored(physicalTarget, 'symlink target');
+    }
+    if (outsideBoundary) {
       throw new Error(`Path outside repository boundary: ${targetPath}`);
     }
     return resolved;

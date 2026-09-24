@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Repository Read Boundary (2026-09-24)
+
+- Correct the existing read-only tool boundary to compare path components and resolve symlink ancestors; apply the existing ignore policy to physical symlink targets. Allowed repository files and historical deleted-path Git reads remain readable. This changes no bot behavior and does not qualify the still-UNVERIFIED full review chain.
+
 ### Mercury Citation Identity Preservation (2026-09-24)
 
 - Stop converting ambiguous open_file tool markers into guessed nearby-file citations. Preserve the model's markers and existing quality flags; literal file-and-line formatting remains unchanged. Replayed actual provider output reproduced and removed a host-invented ConfigLoader citation. No bot, provider or evidence-ceiling change.
