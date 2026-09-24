@@ -13,7 +13,7 @@ const MERCURY_DOCTRINE_PROMPT = [
   'ADVERSARIAL_REVIEW_BLOCKING: yes | no. Include your actual evidence-to-verdict rationale and literal repo path:line citations.',
   'CANDIDATE SET: examined N of M; enumerate the complete candidate inventory, including every changed path. These are evidence counts, not confidence estimates. Unread or unresolved evidence must remain named.',
   'AST EVIDENCE: distinguish host-provided scan receipts from tools you actually used. Whole-file coverage requires complete delivered source, not an AST summary or an assertion that a file was read.',
-  'INHERITED: name each changed file and the presence, absence or unread status of || 0, swallowed catch, bypass env and silent default behavior. Do not invent absence or zero findings.',
+  'INHERITED: use each exact full repo-relative changed path (not only its basename) and the presence, absence or unread status of || 0, swallowed catch, bypass env and silent default behavior. Do not invent absence or zero findings.',
   'FOURTH SHAPE CLASSIFIER: classified N of M; classify every added throw, guard, gate or fallback with producer evidence. Review-tool restrictions are not bot-runtime authority. Do not introduce new bot gates.',
   'ALLEGATIONS: classify each finding as MECHANICAL or SUBSTANTIVE and its basis as RECEIPT or TESTIMONY.',
   'SUBSTANTIVE RESOLUTION: convergence | UNRESOLVED-FOR-TREY | none. Use none when no substantive dispute exists; retain unresolved disagreements and the actual seat positions.',
@@ -58,26 +58,37 @@ function countDeclaration(answer, heading) {
   return match ? { examined: Number(match[1]), total: Number(match[2]) } : null;
 }
 
-function addedFourthShapeCount(diff) {
+function addedFourthShapeAdditions(diff) {
   let currentFile = null;
-  let count = 0;
+  let sourceLine = 0;
+  const additions = [];
   for (const line of String(diff || '').split(/\r?\n/)) {
     const header = line.match(/^diff --git a\/(.+) b\/(.+)$/);
     if (header) {
       currentFile = header[2];
       continue;
     }
-    if (!currentFile || !currentFile.endsWith('.js') || !/^\+(?!\+\+)/.test(line)) continue;
+    const hunk = line.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+    if (hunk) { sourceLine = Number(hunk[1]); continue; }
+    if (/^(?:\+\+\+|---|\\)/.test(line)) continue;
+    if (line.startsWith(' ')) { sourceLine += 1; continue; }
+    if (!line.startsWith('+')) continue;
+    const addedLine = sourceLine++;
+    if (!currentFile || !currentFile.endsWith('.js')) continue;
     const code = line.slice(1)
       .replace(/(['"`])(?:\\.|(?!\1).)*\1/g, '')
       .replace(/\/\/.*$/, '')
       .trim();
     if (!code) continue;
     if (/\bthrow\b/.test(code) || /\b[A-Za-z_$][\w$]*(?:gate|guard|fallback)[\w$]*\b/i.test(code)) {
-      count += 1;
+      additions.push({ path: currentFile, line: addedLine, code: line.slice(1).trim() });
     }
   }
-  return count;
+  return additions;
+}
+
+function addedFourthShapeCount(diff) {
+  return addedFourthShapeAdditions(diff).length;
 }
 
 function completeWholeFileReads(changedFiles, telemetry, evidenceSources) {
@@ -103,12 +114,6 @@ function completeWholeFileReads(changedFiles, telemetry, evidenceSources) {
   });
 }
 
-function answerNamesEveryFile(answer, heading, changedFiles) {
-  if (!sectionPresent(answer, heading)) return false;
-  const text = sectionValue(answer, heading);
-  return changedFiles.every(file => text.includes(file));
-}
-
 function sectionValue(answer, heading) {
   const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const match = String(answer || '').match(new RegExp(
@@ -118,8 +123,36 @@ function sectionValue(answer, heading) {
   return match ? match[1].trim() : '';
 }
 
+// Shared by the report producer's repair feedback and the downstream assessor.
+// This checks the existing reporting obligations, not the review's conclusion.
+function assessReviewReport(answer, changedFiles, fourthShapeCount) {
+  const namedAbsences = [];
+  const inherited = sectionValue(answer, 'INHERITED');
+  const inheritedMissingPaths = changedFiles.filter(file => !inherited.includes(file));
+  const categoryPatterns = [
+    ['|| 0', /\|\|\s*0/],
+    ['swallowed catch', /swallowed[\s\u2010-\u2015-]+catch/i],
+    ['bypass env', /bypass[\s\u2010-\u2015-]+env/i],
+    ['silent default', /silent(?:[\s\u2010-\u2015-]+(?:false|zero|null))?[\s\u2010-\u2015-]+default/i],
+  ];
+  const inheritedMissingCategories = categoryPatterns
+    .filter(([, pattern]) => !pattern.test(inherited)).map(([name]) => name);
+  if (changedFiles.length > 0
+      && (inheritedMissingPaths.length > 0 || inheritedMissingCategories.length > 0)) {
+    namedAbsences.push('inherited_section_incomplete');
+  }
+  const fourthShape = countDeclaration(answer, 'FOURTH SHAPE CLASSIFIER');
+  if (fourthShapeCount > 0 && (!fourthShape || fourthShape.examined < fourthShapeCount
+      || fourthShape.total < fourthShapeCount || fourthShape.examined < fourthShape.total)) {
+    namedAbsences.push('fourth_shape_unclassified');
+  }
+  return { namedAbsences, inheritedMissingPaths, inheritedMissingCategories,
+    fourthShape, fourthShapeExpected: fourthShapeCount };
+}
+
 function assessDoctrineReview({
   answer,
+  candidateSet: structuredCandidateSet = null,
   changedFiles = [],
   diff = '',
   telemetry = {},
@@ -133,7 +166,10 @@ function assessDoctrineReview({
   const addAbsence = name => {
     if (!namedAbsences.includes(name)) namedAbsences.push(name);
   };
-  const candidateSet = countDeclaration(text, 'CANDIDATE SET');
+  const candidateSet = countDeclaration(structuredCandidateSet ? structuredCandidateSet.content : text, 'CANDIDATE SET');
+  const candidateCoverage = structuredCandidateSet && structuredCandidateSet.coverage;
+  if (candidateCoverage && candidateCoverage.complete !== true) addAbsence('coverage_insufficient');
+  if (candidateCoverage && candidateCoverage.authorityReady !== true) addAbsence('coverage_unresolved');
   if (changedFiles.length > 0 && (!candidateSet || candidateSet.examined < changedFiles.length
       || candidateSet.total < changedFiles.length || candidateSet.examined < candidateSet.total)) {
     addAbsence('coverage_insufficient');
@@ -161,22 +197,8 @@ function assessDoctrineReview({
       && answerQualityFlags.includes('missing_file_line_citation')) {
     addAbsence('no_mechanical_evidence');
   }
-  const inherited = sectionValue(text, 'INHERITED');
-  const inheritedCategoriesPresent = /\|\|\s*0/.test(inherited)
-    && /swallowed catch/i.test(inherited)
-    && /bypass env/i.test(inherited)
-    && /silent default/i.test(inherited);
-  if (changedFiles.length > 0
-      && (!answerNamesEveryFile(text, 'INHERITED', changedFiles) || !inheritedCategoriesPresent)) {
-    addAbsence('inherited_section_incomplete');
-  }
-
   const fourthShapeCount = addedFourthShapeCount(diff);
-  const fourthShape = countDeclaration(text, 'FOURTH SHAPE CLASSIFIER');
-  if (fourthShapeCount > 0 && (!fourthShape || fourthShape.examined < fourthShapeCount
-      || fourthShape.total < fourthShapeCount || fourthShape.examined < fourthShape.total)) {
-    addAbsence('fourth_shape_unclassified');
-  }
+  assessReviewReport(text, changedFiles, fourthShapeCount).namedAbsences.forEach(addAbsence);
 
   const runChecks = Array.isArray(telemetry.runChecks) ? telemetry.runChecks : [];
   const testClaim = /\b(?:tests?|build)\b[\s\S]{0,180}\b(?:pass(?:ed|es)?|fail(?:ed|s)?|green|red)\b/i.test(text)
@@ -217,6 +239,7 @@ function assessDoctrineReview({
     namedAbsences,
     namedBreaks: namedAbsences.includes('fourth_shape_unclassified') ? ['fourth_shape_unclassified'] : [],
     candidateSet,
+    candidateCoverage: candidateCoverage || null,
     changedFileCount: changedFiles.length,
     changedJsCount: changedJs.length,
     fourthShapeAdditionCount: fourthShapeCount,
@@ -231,4 +254,7 @@ module.exports = {
   MERCURY_DOCTRINE_PROMPT,
   assessDoctrineReview,
   extractDiffReferenceNames,
+  addedFourthShapeCount,
+  addedFourthShapeAdditions,
+  assessReviewReport,
 };

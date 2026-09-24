@@ -138,6 +138,7 @@ function growCandidateSetEvidence(candidateSet, telemetry = {}, answer = null) {
 
 function candidateSourceReceipt(candidateSet, { phase, recheckIndex = null } = {}) {
   return {
+    coverage: candidateSet.coverage || null,
     phase,
     recheckIndex,
     content: candidateSet.content || '',

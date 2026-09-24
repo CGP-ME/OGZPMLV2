@@ -333,6 +333,7 @@ function buildMercuryRecheckPrompt({
   evidenceSources = [],
   filesMechanicallyOpened = [],
   claimedFileCitations = [],
+  candidateSet = null,
   focusedInstruction = null,
 } = {}) {
   const parsed = parsedReview || parsedConsensus;
@@ -358,6 +359,7 @@ function buildMercuryRecheckPrompt({
       title: 'Pass-1 fixed receipt inputs (retain these as examined evidence during every recheck):',
       filesMechanicallyOpened,
       claimedFileCitations,
+      candidateSet: candidateSet && candidateSet.content,
     }),
     '',
     'Fable critique:',
@@ -656,7 +658,12 @@ function buildAdversarialReviewPrompt({
     : 'unavailable';
   const priorLabel = mercuryResult.panelSourceLabel || 'Mercury';
   const intent = normalizeReviewIntent(reviewIntent);
-  const hostEvidence = formatReviewerEvidence(reviewerEvidenceSources({ mercuryResult, hostEvidenceSources }));
+  const hostEvidence = [
+    formatReviewerEvidence(reviewerEvidenceSources({ mercuryResult, hostEvidenceSources })),
+    formatFixedEvidenceInputs({ title: 'Filed candidate inventory, before the decision:',
+      candidateSet: mercuryResult.candidateSet && mercuryResult.candidateSet.content }),
+    `Host ingestion coverage (delivery accounting, not proof that a conclusion is correct):\n${JSON.stringify(mercuryResult.shardedReview && mercuryResult.shardedReview.coverage || null)}`,
+  ].join('\n\n');
 
   if (intent === 'architecture') {
     return [
@@ -813,7 +820,14 @@ function buildKimiFinalAdjudicationPrompt({
     : 'unavailable';
   const priorLabel = mercuryResult.panelSourceLabel || 'Mercury';
   const challengerLabel = review.panelSourceLabel || 'Fable';
-  const hostEvidence = formatReviewerEvidence(reviewerEvidenceSources({ mercuryResult, review, hostEvidenceSources }));
+  const hostEvidence = [
+    formatReviewerEvidence(reviewerEvidenceSources({ mercuryResult, review, hostEvidenceSources })),
+    ...[mercuryResult, ...rechecks].map((pass, index) => [
+      formatFixedEvidenceInputs({ title: `Filed candidate inventory, ${index === 0 ? 'initial pass' : `recheck ${index}`}:`,
+        candidateSet: pass.candidateSet && pass.candidateSet.content }),
+      `Host ingestion coverage (delivery accounting, not a verdict):\n${JSON.stringify(pass.shardedReview && pass.shardedReview.coverage || null)}`,
+    ].join('\n')),
+  ].join('\n\n');
   const answerQualityFlags = mercuryResult.answerQuality && Array.isArray(mercuryResult.answerQuality.flags)
     ? mercuryResult.answerQuality.flags.join(', ') || 'none'
     : 'unavailable';

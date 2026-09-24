@@ -76,7 +76,7 @@ function writeRawProviderOutput({ repoRoot, runId, stage, attempt, bytes, now = 
 
 // The current-change producer supplies the repository root and nonempty sections.
 // Keep the complete captured evidence beside the run's existing raw artifacts.
-function writeCurrentChangeEvidenceBundle({ repoRoot, runId, sections, now = new Date() }) {
+function writeCurrentChangeEvidenceBundle({ repoRoot, runId, sections, reviewManifest = null, now = new Date() }) {
   const day = isoTimestamp(now).slice(0, 10);
   const safeRunId = safeRawPathPart(runId, 'run id');
   const relDir = path.join(EVIDENCE_BUNDLE_DIR, day, safeRunId).replace(/\\/g, '/');
@@ -93,7 +93,11 @@ function writeCurrentChangeEvidenceBundle({ repoRoot, runId, sections, now = new
   const manifestSections = [];
   for (const [index, section] of sections.entries()) {
     const id = index + 1;
-    const content = section.content;
+    const rawContent = section.content;
+    const numberedSource = section.kind === 'source';
+    const content = numberedSource ? rawContent.split('\n').map((line, index, lines) => (
+      index === lines.length - 1 && line === '' ? '' : `${index + 1}: ${line}`
+    )).join('\n') : rawContent;
     artifactLines.push(`===== SECTION ${id} kind=${section.kind} target=${JSON.stringify(section.target)} =====`);
     const lineStart = artifactLines.length + 1;
     artifactLines.push(...content.split('\n'));
@@ -103,6 +107,8 @@ function writeCurrentChangeEvidenceBundle({ repoRoot, runId, sections, now = new
       id, kind: section.kind, target: section.target,
       line_start: lineStart, line_end: lineEnd,
       bytes: Buffer.byteLength(content, 'utf8'), sha256: hashText(content),
+      content_encoding: numberedSource ? 'source_line_numbered' : 'verbatim',
+      raw_bytes: Buffer.byteLength(rawContent, 'utf8'), raw_sha256: hashText(rawContent),
     });
   }
   while (artifactLines[artifactLines.length - 1] === '') artifactLines.pop();
@@ -122,6 +128,7 @@ function writeCurrentChangeEvidenceBundle({ repoRoot, runId, sections, now = new
     schema_version: 1, run_id: runId, generated_at: isoTimestamp(now),
     artifact: { path: artifactRelPath, sha256: artifactSha256, bytes: artifactBytes.length, lines: artifactLineCount },
     sections: manifestSections,
+    review_manifest: reviewManifest,
   };
   const manifestBytes = Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
   const manifestRelPath = path.join(relDir, 'manifest.json').replace(/\\/g, '/');
@@ -215,6 +222,7 @@ function seatReceiptFields(answer, attempts, fallbackStop = null) {
 
 function candidateSourceLedgerReceipt(source) {
   return {
+    coverage: source.coverage || null,
     phase: source.phase || null,
     recheck_index: source.recheckIndex == null ? null : source.recheckIndex,
     content: redactSensitiveText(source.content || ''),
@@ -675,6 +683,7 @@ function buildReviewLedgerSummary(review, { effectiveVerdictOverride = null } = 
       answer_full: review.recheck.answer ? redactSensitiveText(review.recheck.answer) : null,
     } : null,
     rechecks: rechecks.map((recheck) => ({
+      sharded_review: shardedReviewLedgerReceipt(recheck.shardedReview),
       termination: recheck.termination || null,
       iterations: recheck.iterations == null ? null : recheck.iterations,
       latency_ms: recheck.totalLatencyMs == null ? null : recheck.totalLatencyMs,
@@ -765,6 +774,112 @@ function panelSeatLedger(panel, result) {
         ...seatReceiptFields(seat.answer, attempts, seat.status === 'failed' ? 'reviewer_failed' : null),
       };
     }),
+  };
+}
+
+function shardedResponseLedgerReceipt(receipt = {}) {
+  const providerRawReceipts = [
+    ...(Array.isArray(receipt.provider_raw_receipts) ? receipt.provider_raw_receipts : []),
+    ...(receipt.provider_attempts || []).map(attempt => attempt.raw_output).filter(Boolean),
+  ];
+  return {
+    status: receipt.status || null,
+    shard_id: receipt.shard_id || null,
+    request_id: receipt.request_id || null,
+    payload_sha256: receipt.payload_sha256 || null,
+    request_sha256: receipt.request_sha256 || null,
+    request_bytes: Number.isInteger(receipt.request_bytes) ? receipt.request_bytes : null,
+    unit_ids: Array.isArray(receipt.unit_ids) ? receipt.unit_ids : [],
+    context_unit_ids: Array.isArray(receipt.context_unit_ids) ? receipt.context_unit_ids : [],
+    context_artifact_ids: Array.isArray(receipt.context_artifact_ids) ? receipt.context_artifact_ids : [],
+    context_supplied: receipt.context_supplied === true,
+    context_target: receipt.context_target || null,
+    context_source_artifact_id: receipt.context_source_artifact_id || null,
+    context_complete_for_source_artifact: receipt.context_complete_for_source_artifact === true,
+    context_missing_source_unit_ids: Array.isArray(receipt.context_missing_source_unit_ids)
+      ? receipt.context_missing_source_unit_ids
+      : [],
+    input_node_ids: Array.isArray(receipt.input_node_ids) ? receipt.input_node_ids : [],
+    input_node_hashes: Array.isArray(receipt.input_node_hashes) ? receipt.input_node_hashes : [],
+    input_root_node_ids: Array.isArray(receipt.input_root_node_ids) ? receipt.input_root_node_ids : [],
+    acknowledgement: receipt.acknowledgement || null,
+    unit_records: Array.isArray(receipt.unit_records) ? receipt.unit_records : [],
+    accepted_unit_ids: Array.isArray(receipt.accepted_unit_ids) ? receipt.accepted_unit_ids : [],
+    missing_unit_records: Array.isArray(receipt.missing_unit_records) ? receipt.missing_unit_records : [],
+    invalid_unit_records: Array.isArray(receipt.invalid_unit_records) ? receipt.invalid_unit_records : [],
+    inventory: receipt.inventory || null,
+    structured_response: receipt.structured_response || null,
+    report_absences: Array.isArray(receipt.report_absences) ? receipt.report_absences : [],
+    report_assessment: receipt.report_assessment || null,
+    raw_output: redactSensitiveText(receipt.raw_output || ''),
+    raw_output_sha256: receipt.raw_output_sha256 || null,
+    raw_output_bytes: Number.isInteger(receipt.raw_output_bytes) ? receipt.raw_output_bytes : null,
+    provider_raw_receipts: providerRawReceipts,
+    component_request_ids: Array.isArray(receipt.component_request_ids)
+      ? receipt.component_request_ids
+      : [],
+    recovery_parent_request_id: receipt.recovery_parent_request_id || null,
+    effective_terminal: receipt.effective_terminal === true,
+    effective_resolution: receipt.effective_resolution || null,
+    assembly: receipt.assembly || null,
+    error: receipt.error || null,
+  };
+}
+
+function shardedNodeLedgerReceipt(node = {}) {
+  return {
+    node_id: node.node_id || null,
+    node_kind: node.node_kind || null,
+    status: node.status || null,
+    source_ids: Array.isArray(node.source_ids) ? node.source_ids : [],
+    source_hashes: Array.isArray(node.source_hashes) ? node.source_hashes : [],
+    root_node_ids: Array.isArray(node.root_node_ids) ? node.root_node_ids : [],
+    raw_output: redactSensitiveText(node.raw_output || ''),
+    raw_output_sha256: node.raw_output_sha256 || null,
+    raw_output_bytes: Number.isInteger(node.raw_output_bytes) ? node.raw_output_bytes : null,
+    error: node.error || null,
+    missing_acknowledgements: Array.isArray(node.missing_acknowledgements)
+      ? node.missing_acknowledgements
+      : [],
+  };
+}
+
+function shardedReviewLedgerReceipt(review) {
+  if (!review || typeof review !== 'object') return null;
+  const corpus = review.corpus || {};
+  return {
+    schema_version: review.schema_version || null,
+    corpus: {
+      corpus_sha256: corpus.corpus_sha256 || null,
+      targets: Array.isArray(corpus.targets) ? corpus.targets : [],
+      unresolved: Array.isArray(corpus.unresolved) ? corpus.unresolved : [],
+      artifacts: Array.isArray(corpus.artifacts) ? corpus.artifacts : [],
+      units: Array.isArray(corpus.units)
+        ? corpus.units
+        : (Array.isArray(corpus.unit_manifest) ? corpus.unit_manifest : []),
+    },
+    coverage: review.coverage || null,
+    map: Array.isArray(review.map) ? review.map.map(shardedResponseLedgerReceipt) : [],
+    effective_map: Array.isArray(review.effective_map)
+      ? review.effective_map.map(shardedNodeLedgerReceipt)
+      : [],
+    reductions: Array.isArray(review.reductions)
+      ? review.reductions.map(level => (Array.isArray(level) ? level.map(shardedResponseLedgerReceipt) : []))
+      : [],
+    effective_reduction_coverage: Array.isArray(review.effective_reduction_coverage)
+      ? review.effective_reduction_coverage
+      : [],
+    candidate: review.candidate ? shardedResponseLedgerReceipt(review.candidate) : null,
+    candidates: Array.isArray(review.candidates)
+      ? review.candidates.map(shardedResponseLedgerReceipt)
+      : [],
+    synthesis_attempts: Array.isArray(review.synthesis_attempts)
+      ? review.synthesis_attempts.map(shardedResponseLedgerReceipt)
+      : [],
+    synthesis: review.synthesis ? shardedResponseLedgerReceipt(review.synthesis) : null,
+    final_input_nodes: Array.isArray(review.final_input_nodes)
+      ? review.final_input_nodes.map(shardedNodeLedgerReceipt)
+      : [],
   };
 }
 
@@ -867,6 +982,7 @@ function buildRunLedgerEntry({
     answer_quality: answerQualityFlags,
     answer_quality_evidence: answerQualityEvidence,
     candidate_set: candidateSet ? {
+      coverage: candidateSet.coverage || null,
       content: redactSensitiveText(candidateSet.content || ''),
       captured_at_iteration: candidateSet.capturedAtIteration,
       revised_at_iteration: candidateSet.revisedAtIteration || null,
@@ -892,6 +1008,8 @@ function buildRunLedgerEntry({
         : [],
     } : null,
     review_quarantines: reviewQuarantines,
+    sharded_review: shardedReviewLedgerReceipt(result && result.shardedReview),
+    review_scope: autoBlastRadius && autoBlastRadius.reviewTarget || null,
     adversarial_review: reviewSummary,
     consensus: reviewSummary,
     reviewer_panel: result && result.reviewerPanel ? panelSeatLedger(result.reviewerPanel, result) : null,

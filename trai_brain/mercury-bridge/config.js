@@ -416,6 +416,12 @@ const AGENTIC_DECISION_STEER_ITERATION = requiredNumber(
   { integer: true, min: 1 }
 );
 const AGENTIC_MAX_TOKENS = requiredNumber(MERCURY_CONFIG, 'agentic.maxTokens', { integer: true, min: 1 });
+const AGENTIC_EXPLICIT_REVIEW_REQUEST_MAX_BYTES = requiredNumber(
+  MERCURY_CONFIG, 'agentic.explicitReviewRequestMaxBytes', { integer: true, min: 1 }
+);
+const AGENTIC_EXPLICIT_REVIEW_SOURCE_SHARD_MAX_BYTES = requiredNumber(
+  MERCURY_CONFIG, 'agentic.explicitReviewSourceShardMaxBytes', { integer: true, min: 4 }
+);
 const SINGLE_SHOT_MAX_TOKENS = requiredNumber(MERCURY_CONFIG, 'singleShot.maxTokens', { integer: true, min: 1 });
 const AGENTIC_SYSTEM_PROMPT = requiredText(MERCURY_CONFIG, 'agentic.systemPrompt');
 const MERCURY_SYSTEM_PROMPT = requiredText(MERCURY_CONFIG, 'singleShot.systemPrompt');
@@ -663,6 +669,8 @@ module.exports = {
   resolveDirectQuestionProvider,
   AGENTIC_DECISION_STEER_ITERATION,
   AGENTIC_MAX_TOKENS,
+  AGENTIC_EXPLICIT_REVIEW_REQUEST_MAX_BYTES,
+  AGENTIC_EXPLICIT_REVIEW_SOURCE_SHARD_MAX_BYTES,
   SINGLE_SHOT_MAX_TOKENS,
   AGENTIC_SYSTEM_PROMPT,
   SKIP_DIRS,

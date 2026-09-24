@@ -25,6 +25,7 @@
  *   --adversarial-review   Agentic mode only: ask Fable to attack Mercury's answer
  *   --reviewers=IDS        Agentic reviewer IDs in dispatch order (comma-separated)
  *   --evidence-source=P:S-E Host-attest a verbatim repo-relative excerpt (repeatable)
+ *   --change-path=P        Review explicit source/diff targets through evidence ingestion (repeatable)
  *   --consensus            Agentic mode only: legacy alias for Fable review
  *   --architecture         Agentic mode only: longform architecture review framing
  *   --planning             Agentic mode only: implementation planning/design framing
@@ -47,6 +48,7 @@ const config = require('./config');
 const { ask } = require('./searcher');
 const { runReactLoop, formatToolTelemetry, mergeCandidateSetRechecks } = require('./react-loop');
 const { createToolAdapter } = require('./tool-adapter');
+const { normalizeExplicitPaths, collectExplicitTargetCorpus, buildExplicitReviewCorpus, runExplicitTargetReview } = require('./evidence-ingestion');
 const { scanRepo: scanSerenaSymbols } = require('../../tools/serena-symbol-scanner');
 const { routeQuery } = require('./query-router');
 const { createMercuryLlmClient } = require('./llm-client');
@@ -138,6 +140,7 @@ function parseArgs(argv) {
     checkProviders: false, // warm up configured LLM providers and exit
     captureTrace: false,   // opt-in successful trace capture
     evidenceSources: [],   // repeatable host-attested path:start-end descriptors
+    changePaths: [],       // explicit operator scope, independent of other dirty work
     reviewers: null,
     reviewersExplicit: false,
   };
@@ -198,6 +201,8 @@ function parseArgs(argv) {
       args.captureTrace = true;
     } else if (arg.startsWith('--evidence-source=')) {
       args.evidenceSources.push(arg.slice('--evidence-source='.length));
+    } else if (arg.startsWith('--change-path=')) {
+      args.changePaths.push(arg.slice('--change-path='.length));
     } else if (arg.startsWith('--reviewers=')) {
       args.reviewers = arg.slice('--reviewers='.length);
       args.reviewersExplicit = true;
@@ -441,6 +446,7 @@ function usage() {
   console.log('  --attack               Agentic only: apply break-my-fix attack framing');
   console.log('  --no-tools             Agentic only: empty tool schema and exactly one Mercury turn');
   console.log('  --evidence-source=P:S-E Host-attest a verbatim repo-relative excerpt; repeatable, max 150 lines');
+  console.log('  --change-path=P        Agentic source/diff ingestion for explicit operator targets; repeatable');
   console.log(`  --adversarial-review   Agentic only: force a Fable (${config.CONSENSUS_MODEL}) adversarial review`);
   console.log('  --no-adversarial-review Agentic only: suppress env/config adversarial review for this run');
   console.log('  --consensus            Agentic only: legacy alias for a Fable review');
@@ -475,10 +481,7 @@ function gitNameList(repoRoot, args) {
 }
 
 function selectCurrentChangeNames({ cached = [], working = [], untracked = [] } = {}) {
-  if (cached.length > 0) {
-    return [...new Set(cached)].sort();
-  }
-  return [...new Set([...working, ...untracked])].sort();
+  return [...new Set([...cached, ...working, ...untracked])].sort();
 }
 
 function currentChangedFiles(repoRoot = config.REPO_ROOT) {
@@ -494,20 +497,13 @@ function currentChangeDiff(repoRoot = config.REPO_ROOT, changedFiles = null) {
     ? changedFiles.filter(file => typeof file === 'string' && file)
     : null;
   if (scopedFiles && scopedFiles.length === 0) return '';
-  const pathspec = scopedFiles ? ['--', ...scopedFiles] : [];
-  const cached = execFileSync('git', ['diff', '--cached', '--no-ext-diff', ...pathspec], {
-    cwd: repoRoot,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-    maxBuffer: 32 * 1024 * 1024,
-  });
-  if (cached.trim()) return cached;
-  return execFileSync('git', ['diff', '--no-ext-diff', ...pathspec], {
-    cwd: repoRoot,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-    maxBuffer: 32 * 1024 * 1024,
-  });
+  const targets = scopedFiles || currentChangedFiles(repoRoot);
+  if (targets.length === 0) return '';
+  // Match the reviewed WORKTREE bytes, including staged + unstaged changes
+  // and new source. The corpus already owns Git preimage/error handling.
+  const corpus = collectExplicitTargetCorpus({ repoRoot, explicitPaths: targets });
+  return { diff: corpus.artifacts.filter(artifact => artifact.kind === 'diff')
+    .map(artifact => artifact.content).join('\n'), unresolved: corpus.unresolved };
 }
 
 function normalizeRepoRelativePath(repoRoot, relPath) {
@@ -561,7 +557,9 @@ async function buildCurrentChangeBlastRadius({
   for (const candidate of candidates) {
     const relPath = normalizeRepoRelativePath(repoRoot, candidate);
     if (!relPath) continue;
-    if (config.isPathIgnoredByMercury(relPath)) continue;
+    if (config.isPathIgnoredByMercury(relPath)
+        || path.posix.basename(relPath) === '.env'
+        || path.posix.basename(relPath).startsWith('.env.')) continue;
     normalizedCandidates.push(relPath);
     if (!relPath.endsWith('.js') || relPath.endsWith('.bak')) continue;
     if (!existsFn(path.join(repoRoot, relPath))) {
@@ -574,7 +572,11 @@ async function buildCurrentChangeBlastRadius({
   let diff = '';
   let referenceNames = [];
   try {
-    diff = currentDiffFn(repoRoot, normalizedCandidates);
+    const captured = currentDiffFn(repoRoot, normalizedCandidates);
+    diff = typeof captured === 'string' ? captured : captured.diff;
+    for (const item of captured.unresolved || []) {
+      errors.push({ file: item.target, error: item.reason });
+    }
     referenceNames = extractDiffReferenceNames(diff);
   } catch (err) {
     errors.push({ file: '<current_diff>', error: err.message });
@@ -964,6 +966,8 @@ async function runAgentic(query, opts) {
     : optionalPositiveInteger(opts.maxIterations, '--max-iterations');
   const maxIterations = opts.noTools === true ? 1 : requestedMaxIterations;
   const maxTokens = configExactInteger(opts.maxTokens, config.AGENTIC_MAX_TOKENS, '--max-tokens');
+  const explicitTargetReview = Array.isArray(opts.changePaths) && opts.changePaths.length > 0;
+  const explicitChangePaths = explicitTargetReview ? normalizeExplicitPaths(opts.changePaths) : null;
   const reviewIntent = opts.reviewIntent || 'adversarial';
   const mercuryQuery = buildMercuryIntentPrompt(query, reviewIntent);
   const evidenceSources = resolveEvidenceSources({
@@ -991,11 +995,15 @@ async function runAgentic(query, opts) {
   }
 
   // 1. Retrieve starter context from the existing indexed corpus
-  const store = new MongoStore();
+  const store = explicitTargetReview ? null : new MongoStore();
   let storeConnected = false;
   let autoBlastRadius = null;
+  let explicitReviewCorpus = null;
+  let starterContext = [];
+  let indexFreshness = null;
 
   try {
+    if (store) {
     await store.connect();
     storeConnected = true;
 
@@ -1009,7 +1017,6 @@ async function runAgentic(query, opts) {
 
     // Index freshness for the receipt: a stale RAG index silently narrows
     // coverage routing. Surface it on every dispatch, not on archaeology.
-    let indexFreshness = null;
     try {
       const latestStats = await store.stats.find().sort({ _id: -1 }).limit(1).toArray();
       if (latestStats.length > 0) {
@@ -1031,7 +1038,6 @@ async function runAgentic(query, opts) {
       console.log(`[MERCURY-BRIDGE] Rationale: ${route.rationale}`);
     }
 
-    let starterContext = [];
     if (topK > 0) {
       if (verbose) console.log('[MERCURY-BRIDGE] Embedding query for starter context...');
       const queryEmbedding = await embedText(query);
@@ -1051,10 +1057,15 @@ async function runAgentic(query, opts) {
       });
     }
 
+    }
+    if (explicitTargetReview && verbose) {
+      console.log('[MERCURY-BRIDGE] Explicit target ingestion: source snapshots; no indexed retrieval or trace-memory access');
+    }
+
     // 2. Investigation trace memory — retrieve prior hint if available
     let traceHintText = null;
     let traceUsed = null;
-    if (config.TRACE_MEMORY_ENABLED) {
+    if (store && config.TRACE_MEMORY_ENABLED) {
       await ensureTraceIndexes(store);
       await evictStaleTraces({ store, verbose });
 
@@ -1080,19 +1091,52 @@ async function runAgentic(query, opts) {
       console.log(`[MERCURY-BRIDGE] Tool adapter ready. Tools: ${Object.keys(toolAdapter.tools).join(', ')}`);
     }
 
-    let blastRadius = opts.blastRadius || null;
+    let blastRadius = explicitTargetReview ? null : (opts.blastRadius || null);
     const hostEvidenceSources = [];
     if (!blastRadius) {
       autoBlastRadius = await buildCurrentChangeBlastRadius({
+        changedFiles: explicitChangePaths,
         findReferencesFn: symbol => toolAdapter.captureReferences(symbol),
       });
+      autoBlastRadius.reviewTarget = {
+        source: explicitTargetReview ? 'explicit_change_paths' : 'current_changes',
+        paths: autoBlastRadius.changedFiles || [],
+      };
+      if (explicitTargetReview) {
+        const unresolvedEvidence = [
+          ...(autoBlastRadius.errors || []).map(entry => ({
+            target: entry.file || entry.symbol || '<evidence_expansion>',
+            scope: 'evidence_expansion', reason: entry.error, load_bearing: true,
+          })),
+          ...(autoBlastRadius.referenceScans || []).filter(entry => entry.truncated).map(entry => ({
+            target: entry.symbol, scope: 'evidence_expansion',
+            reason: 'reference_scan_truncated', load_bearing: true,
+          })),
+        ];
+        explicitReviewCorpus = buildExplicitReviewCorpus({
+          repoRoot: config.REPO_ROOT,
+          targetPaths: explicitChangePaths,
+          expandedEvidenceSections: autoBlastRadius.expandedSections || [],
+          unresolvedEvidence,
+          sourceShardMaxBytes: config.AGENTIC_EXPLICIT_REVIEW_SOURCE_SHARD_MAX_BYTES,
+          requestMaxBytes: config.AGENTIC_EXPLICIT_REVIEW_REQUEST_MAX_BYTES,
+          isPolicyExcluded: file => config.isPathIgnoredByMercury(file),
+        });
+      }
       if (autoBlastRadius.expandedSections && autoBlastRadius.expandedSections.length > 0) {
         let artifact = null;
         try {
           autoBlastRadius.evidenceBundle = writeCurrentChangeEvidenceBundle({
             repoRoot: config.REPO_ROOT,
             runId: rawRunId,
-            sections: autoBlastRadius.expandedSections,
+            sections: explicitReviewCorpus ? explicitReviewCorpus.artifacts : autoBlastRadius.expandedSections,
+            reviewManifest: explicitReviewCorpus ? {
+              corpus_sha256: explicitReviewCorpus.corpus_sha256,
+              targets: explicitReviewCorpus.targets,
+              unresolved: explicitReviewCorpus.unresolved,
+              units: explicitReviewCorpus.unit_manifest,
+              excluded_targets: explicitReviewCorpus.excluded_targets,
+            } : null,
             now: startedAt,
           });
           artifact = fs.readFileSync(path.join(config.REPO_ROOT, autoBlastRadius.evidenceBundle.path));
@@ -1180,7 +1224,13 @@ async function runAgentic(query, opts) {
             ? mercuryQuery
             : `${mercuryQuery}\n\nPrior selected reviewer outputs to investigate:\n${prior.answer}`;
           const t0 = Date.now();
-          const seatResult = await runReactLoop({
+          const seatResult = explicitReviewCorpus ? await runExplicitTargetReview({
+            client, corpus: explicitReviewCorpus, query: userQuery,
+            maxRequestBytes: config.AGENTIC_EXPLICIT_REVIEW_REQUEST_MAX_BYTES,
+            maxTokens, maxCalls: maxIterations,
+            providerAuditFactory, verbose, isHardStop: isHardReviewBoundaryError,
+            evidenceAbsences: evidenceQuarantines,
+          }) : await runReactLoop({
             client, toolAdapter, userQuery, starterContext, traceHint: traceHintText,
             blastRadius, maxIterations, maxTokens, verbose, providerAudit,
             attack: opts.attack === true,
@@ -1194,6 +1244,7 @@ async function runAgentic(query, opts) {
           finalizeMercuryEvidenceResult(mercuryResult);
           mercuryResult.doctrineReview = assessDoctrineReview({
             answer: mercuryResult.answer,
+            candidateSet: mercuryResult.candidateSet,
             changedFiles: autoBlastRadius ? autoBlastRadius.changedFiles : [],
             diff: autoBlastRadius ? autoBlastRadius.diff : '',
             telemetry: mercuryResult.toolTelemetry,
@@ -1269,6 +1320,7 @@ async function runAgentic(query, opts) {
                 ? mercuryResult.toolTelemetry.filesOpened
                 : [],
               claimedFileCitations: extractClaimedFileCitations(mercuryResult.answer),
+              candidateSet: mercuryResult.candidateSet,
             }).slice(0, config.ADVERSARIAL_REVIEW_MAX_RECHECKS);
             fableReview.recheckPrompts = recheckPrompts;
             fableReview.recheckPrompt = recheckPrompts[0] || null;
@@ -1288,6 +1340,7 @@ async function runAgentic(query, opts) {
             for (const recheck of fableReview.rechecks) {
               recheck.doctrineReview = assessDoctrineReview({
                 answer: recheck.answer,
+                candidateSet: recheck.candidateSet,
                 changedFiles: autoBlastRadius ? autoBlastRadius.changedFiles : [],
                 diff: autoBlastRadius ? autoBlastRadius.diff : '',
                 telemetry: recheck.toolTelemetry,
@@ -1453,7 +1506,7 @@ async function runAgentic(query, opts) {
     }
 
     // 7. Capture successful investigation trace (with dedup + quality)
-    if (mercuryResult && config.TRACE_MEMORY_ENABLED && result.termination === 'answer_given') {
+    if (store && mercuryResult && config.TRACE_MEMORY_ENABLED && result.termination === 'answer_given') {
       const toolCallSequence = (result.history || []).map(h => ({
         name: h.toolName,
         args: h.toolArgs,

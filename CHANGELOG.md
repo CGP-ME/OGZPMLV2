@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Recovered File-Backed Evidence Ingestion (2026-09-24)
+
+- Restore the recovered explicit-target source/diff ingestion engine with its existing CLI, byte-budget configuration, immutable artifacts, unit accounting, candidate filing, reduction and decision handoffs. Review current worktree bytes across staged, unstaged and untracked source; retain Git failures and excluded paths as named evidence limits.
+- Carry candidate inventories, source identities, malformed attempts, repair feedback and coverage through Fable/Kimi and the run ledger. Explicit target ingestion does not use the shared index or trace memory; broad review remains separately routed and is not silently narrowed.
+- Run06 accepted 44/44 units and completed Mercury/Fable/tool-recheck/Kimi, but remained UNVERIFIED with incomplete report/classification and candidate adjudication. This preserves reviewed recovery work, not full-chain acceptance or Stop1 completion. No bot changes or activation.
+
 ### Mercury Host Reference and AST Capture (2026-09-24)
 
 - Collect the full reference stream through a host-only capability while keeping model-requested results bounded. Parse discovered source and preserve parser receipts, candidates and named gaps in the existing evidence artifact; assess AST presence from actual parser receipts rather than import-scan metadata. Depends on Serena's parser-result repair; no claim of exhaustive dynamic reachability or full-chain acceptance.
