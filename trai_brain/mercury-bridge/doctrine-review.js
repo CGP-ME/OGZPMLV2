@@ -140,7 +140,8 @@ function assessDoctrineReview({
   }
 
   const changedJs = changedFiles.filter(file => file.endsWith('.js'));
-  const scannedJs = new Set((autoScan && Array.isArray(autoScan.meta) ? autoScan.meta : []).map(entry => entry.file));
+  const scannedJs = new Set((autoScan && autoScan.ast && Array.isArray(autoScan.ast.fileReceipts)
+    ? autoScan.ast.fileReceipts : []).map(entry => entry.file));
   if (changedJs.length > 0 && changedJs.some(file => !scannedJs.has(file))) {
     addAbsence('ast_evidence_absent');
   }

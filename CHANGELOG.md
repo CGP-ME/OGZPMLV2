@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Host Reference and AST Capture (2026-09-24)
+
+- Collect the full reference stream through a host-only capability while keeping model-requested results bounded. Parse discovered source and preserve parser receipts, candidates and named gaps in the existing evidence artifact; assess AST presence from actual parser receipts rather than import-scan metadata. Depends on Serena's parser-result repair; no claim of exhaustive dynamic reachability or full-chain acceptance.
+
 ### Serena Parser Result Accuracy (2026-09-24)
 
 - Parse incomplete tree-sitter results with the existing Babel parser and report parser failures instead of empty successful scans. Return actual parser identity, source hashes and parsed-file receipts through the existing symbol APIs; keep syntax candidates distinct from semantic coverage. No bot behavior or full-chain acceptance change.

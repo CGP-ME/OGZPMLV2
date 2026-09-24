@@ -47,6 +47,7 @@ const config = require('./config');
 const { ask } = require('./searcher');
 const { runReactLoop, formatToolTelemetry, mergeCandidateSetRechecks } = require('./react-loop');
 const { createToolAdapter } = require('./tool-adapter');
+const { scanRepo: scanSerenaSymbols } = require('../../tools/serena-symbol-scanner');
 const { routeQuery } = require('./query-router');
 const { createMercuryLlmClient } = require('./llm-client');
 const {
@@ -536,6 +537,7 @@ async function buildCurrentChangeBlastRadius({
   getBlastRadiusFn = getBlastRadius,
   formatForMercuryFn = formatForMercury,
   findReferencesFn = null,
+  scanSymbolsFn = scanSerenaSymbols,
 } = {}) {
   let candidates;
   try {
@@ -581,6 +583,8 @@ async function buildCurrentChangeBlastRadius({
   const sections = [];
   const expandedSections = [];
   const meta = [];
+  let ast = null;
+  const syntaxTargets = new Set(targetFiles);
   for (const targetFile of targetFiles) {
     let blastRadius;
     try {
@@ -608,6 +612,9 @@ async function buildCurrentChangeBlastRadius({
       riskLevel: blastRadius.riskLevel,
       latencyMs: blastRadius.latencyMs,
     });
+    for (const caller of blastRadius.callers || []) {
+      if (isSerenaSourcePath(caller.source)) syntaxTargets.add(caller.source);
+    }
     sections.push(`## ${targetFile}\n${formatted}`);
     expandedSections.push({ kind: 'blast_radius', target: targetFile, content: formatted });
   }
@@ -623,6 +630,9 @@ async function buildCurrentChangeBlastRadius({
       if (result && result.error) {
         errors.push({ symbol: name, error: result.error });
       } else {
+        for (const match of result.matches || []) {
+          if (isSerenaSourcePath(match.file)) syntaxTargets.add(match.file);
+        }
         referenceScans.push({
           symbol: name,
           source: result && result.source || null,
@@ -635,6 +645,38 @@ async function buildCurrentChangeBlastRadius({
       }
     } catch (err) {
       errors.push({ symbol: name, error: err.message });
+    }
+  }
+
+  // Parse the complete discovered blast radius after collecting every lexical
+  // candidate, not just the first match or every unrelated file in the repo.
+  if (syntaxTargets.size > 0) {
+    try {
+      const scope = [...syntaxTargets].sort();
+      const scan = scanSymbolsFn(repoRoot, { scope });
+      const names = new Set(referenceNames);
+      ast = {
+        source: 'serena_symbol_scanner', precision: 'ast_syntax', scope,
+        filesScanned: scan.filesScanned, filesParsed: scan.filesParsed,
+        parsers: scan.parsers, fileReceipts: scan.fileReceipts, errors: scan.errors,
+        referenceNames,
+        references: scan.propertyRefs.filter(row => names.has(row.property)),
+        callers: scan.methodCalls.filter(row => names.has(row.method)),
+        limitations: [
+          'Scope: selected JS, direct file-import callers and all returned lexical config-name candidates.',
+          'Property/method syntax candidates, not proof of receiver identity or dynamic alias/data flow.',
+          'Regex/import candidates remain separate evidence; no whole-repository semantic completeness claim.',
+        ],
+      };
+      errors.push(...scan.errors);
+      const parsed = new Set(scan.fileReceipts.map(receipt => receipt.file));
+      for (const file of scope) {
+        if (!parsed.has(file)) errors.push({ file, error: 'discovered_source_ast_unavailable' });
+      }
+      sections.push(`## PARSER CAPTURE\n${JSON.stringify(ast)}`);
+      expandedSections.push({ kind: 'ast', target: '<discovered_syntax>', content: JSON.stringify(ast, null, 2) });
+    } catch (error) {
+      errors.push({ file: '<discovered_syntax>', error: error.message });
     }
   }
 
@@ -651,6 +693,7 @@ async function buildCurrentChangeBlastRadius({
     text: sections.length > 0 ? sections.join('\n\n') : null,
     expandedSections,
     meta,
+    ast,
     errors,
     changedFiles: normalizedCandidates,
     changedFileCount: normalizedCandidates.length,
@@ -1041,7 +1084,7 @@ async function runAgentic(query, opts) {
     const hostEvidenceSources = [];
     if (!blastRadius) {
       autoBlastRadius = await buildCurrentChangeBlastRadius({
-        findReferencesFn: symbol => toolAdapter.execute('find_references', { symbol }),
+        findReferencesFn: symbol => toolAdapter.captureReferences(symbol),
       });
       if (autoBlastRadius.expandedSections && autoBlastRadius.expandedSections.length > 0) {
         let artifact = null;
