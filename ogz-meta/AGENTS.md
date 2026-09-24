@@ -239,18 +239,19 @@ Pipeline order:
 - Stage explicit file paths only.
 - Do not stage loose ledger/intake/proposal/backup piles, public backup files, or proof-track-record artifacts unless Trey explicitly tasks that cleanup. Source: `ogz-meta/sessions/session-2026-05-27-active-handoff-runtime-audit.md:17,347-351`.
 - For a path-limited one-file commit, prefer `git commit -- <path>` when the index may contain unrelated staged files.
-- One logical change per commit.
+- One logical change, one atomic commit, then push that commit. Keep the producer/consumer edits required for that single change together; separate independent changes in dependency order. Splitting by filename does not prove atomicity, and a batch of unrelated fixes is not one change.
 - No worktrees, period. Work on the main branch only unless Trey explicitly
   names a different ref. Do not create or keep split construction worktrees; if
   a temporary isolation path already exists, salvage evidence under
   `ogz-meta/inbox/codex/<date>/`, collapse approved work onto the named branch,
   and remove the branch/worktree before starting the next lane.
-- Linked changes still ship as separate commits in dependency order. Reference the prior SHA in the dependent commit body instead of bundling.
+- Dependent logical changes ship as separate commits in dependency order, referencing the prior SHA in the dependent commit body. Do not split a single producer/consumer repair into broken intermediate commits.
 - Commit messages follow the user preference: `Fixed [what was broken]` or `Added [what feature]`.
 - Do not bundle unrelated fixes with docs or cleanup.
-- When Trey approves a commit, treat commit and push as paired unless he explicitly says local-only or no-push. This does not authorize staging, committing, or pushing without approval. Source: `ogz-meta/sessions/session-2026-05-27-active-handoff-runtime-audit.md:13`.
-- Do not push unless Trey approved the commit and required Mercury adversarial review is clean. Once push is approved, push each logical commit individually.
-- The repo docs warn against direct `main` work, while the user preference says push to main because he works alone. Treat this as a live conflict: ask before branch/commit/push decisions.
+- Completed work must not remain local-only. Trey's 2026-09-24 instruction gives standing approval to stage, commit, and push completed work within the scope he authorized; do not ask again just to deliver that completed change.
+- Production changes require actual behavior verification and a clean Mercury adversarial review before their atomic commit and push. Completed non-production work also gets reviewed, committed atomically, and pushed; prose-only rules/docs do not require Mercury. Show the scoped diff first, inspect the staged diff, push each logical commit individually, and report both the commit and confirmed remote SHA afterward.
+- This standing approval supersedes the older per-commit approval requirement, not scope or evidence requirements. It does not authorize shipping broken or UNVERIFIED production work, unrelated dirty files, secrets, or raw private evidence; nor does it authorize deployment, history rewrites, or branch changes. Explicit local-only/no-push instructions still override it. Source: Trey, 2026-09-24: completed production work gets Mercury-reviewed and pushed; non-production work gets pushed too; "stop leaving shit on locval"; "and the shape is one cahange one atomic comit".
+- Use Trey's explicitly named branch (`astra-era` for the current recovery). Historical `main` guidance does not override that selection or require repeated approval for delivery on it.
 - Never commit `.env`, secrets, raw LLM transcripts, huge logs, Trai brain dumps, `node_modules`, or multi-MB scratch files without explicit approval.
 - GitHub remote is a mirror, not the only backup.
 - For pushed commits Trey asks to undo, default to `git revert`, not `reset --hard`, rewrite, or force push.

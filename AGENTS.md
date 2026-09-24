@@ -24,7 +24,10 @@ does not match current doctrine.
 ## Operating Rules
 
 - Verify before claiming. Cite file:line evidence for code behavior.
-- One logical change per commit.
+- One logical change, one atomic commit, then push that commit. Keep the
+  producer/consumer edits required for that single change together; separate
+  independent changes in dependency order. Splitting by filename does not prove
+  atomicity, and a batch of unrelated fixes is not one change.
 - No worktrees, period. Work on the main branch only unless Trey explicitly
   names a different ref. Do not create or keep split construction worktrees; if
   a temporary isolation path already exists, salvage evidence under
@@ -81,10 +84,22 @@ does not match current doctrine.
   flag the loophole even if Trey authorized the change. Sources:
   `ogz-meta/sessions/session-2026-06-09-mercury-contracts-and-claude-bridge-RECONSTRUCTED.md:83-89`,
   `ogz-meta/sessions/session-2026-06-10-claude-warden-and-trade-path-hardening-RECONSTRUCTED.md:26-53,177-182`.
-- When Trey approves a commit, treat commit and push as paired unless he says
-  local-only or no-push. This does not authorize staging, committing, or pushing
-  without approval. Source:
-  `ogz-meta/sessions/session-2026-05-27-active-handoff-runtime-audit.md:13`.
+- Completed work must not remain local-only. Trey's 2026-09-24 instruction gives
+  standing approval to stage, commit, and push completed work within the scope
+  he authorized; do not ask again just to deliver that completed change.
+  Production changes require actual behavior verification and a clean Mercury
+  adversarial review before their atomic commit and push. Completed
+  non-production work also gets reviewed, committed atomically, and pushed;
+  prose-only rules/docs do not require Mercury. Show the scoped diff first and
+  report both the commit and confirmed remote SHA afterward.
+  This supersedes the older per-commit approval requirement, not scope or
+  evidence requirements. It does not authorize shipping broken or UNVERIFIED
+  production work, unrelated dirty files, secrets, or raw private evidence;
+  nor does it authorize deployment, history rewrites, or branch changes.
+  Explicit local-only/no-push instructions still override this standing rule.
+  Source: Trey, 2026-09-24: completed production work gets Mercury-reviewed and
+  pushed; non-production work gets pushed too; "stop leaving shit on locval";
+  "and the shape is one cahange one atomic comit".
 - SessionRouter finalization commits and focused tests do not authorize runtime
   activation. Keep `SESSION_ROUTER_ENABLED=false` until a controlled paper
   rehearsal proves transition-store status, broker REST snapshots, pattern
