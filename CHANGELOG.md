@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Evidence Delivery to Reviewers (2026-09-24)
+
+- Deliver the existing captured AST/reference artifact and bounded Mercury tool results to Fable and Kimi through their actual prompts and provenance receipts. Kimi also receives recheck tool evidence. Preserve read-only capabilities, truncation metadata and all unresolved coverage/authority ceilings; no bot changes.
+
 ### Mercury Read-Only Tool Interface (2026-09-24)
 
 - Remove run_check from Mercury's callable tools, function schema and tool documentation; explicitly give the reviewer read-only rules. Historical execution receipts remain readable and existing evidence/authority ceilings are unchanged. No bot behavior, gate or runtime activation change.

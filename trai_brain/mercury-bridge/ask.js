@@ -1038,6 +1038,7 @@ async function runAgentic(query, opts) {
     }
 
     let blastRadius = opts.blastRadius || null;
+    const hostEvidenceSources = [];
     if (!blastRadius) {
       autoBlastRadius = await buildCurrentChangeBlastRadius({
         findReferencesFn: symbol => toolAdapter.execute('find_references', { symbol }),
@@ -1050,6 +1051,23 @@ async function runAgentic(query, opts) {
           now: startedAt,
         });
         const bundle = autoBlastRadius.evidenceBundle;
+        const artifact = fs.readFileSync(path.join(config.REPO_ROOT, bundle.path));
+        const artifactLines = artifact.toString('utf8').split('\n');
+        if (artifactLines.at(-1) === '') artifactLines.pop();
+        // Use the existing attested-excerpt contract for every part of the
+        // captured scan. A reviewer without repo tools needs the bytes, not
+        // just a path or Mercury's description of what the scan found.
+        for (let start = 0; start < artifactLines.length; start += 150) {
+          const excerpt = artifactLines.slice(start, start + 150).join('\n');
+          hostEvidenceSources.push({
+            path: bundle.path, line_start: start + 1,
+            line_end: Math.min(start + 150, artifactLines.length),
+            artifact_sha256: crypto.createHash('sha256').update(artifact).digest('hex'),
+            artifact_bytes: artifact.length,
+            excerpt_sha256: crypto.createHash('sha256').update(excerpt).digest('hex'),
+            excerpt_bytes: Buffer.byteLength(excerpt, 'utf8'), excerpt,
+          });
+        }
         autoBlastRadius.text += [
           '', '', '## CAPTURED CURRENT-CHANGE EVIDENCE ARTIFACT',
           `Artifact: ${bundle.path}`,
@@ -1146,7 +1164,7 @@ async function runAgentic(query, opts) {
           const prior = mercuryResult || priorPanelResult(query, outputs);
           fableReview = await runFableAdversarialReview({
             query, mercuryResult: prior, reviewIntent,
-            persistRaw: persistReviewRaw, evidenceSources,
+            persistRaw: persistReviewRaw, evidenceSources, hostEvidenceSources,
           });
           if (fableReview.ok !== true) {
             const error = new Error(fableReview.error && fableReview.error.message || 'Fable answer absent');
@@ -1217,7 +1235,7 @@ async function runAgentic(query, opts) {
           outputs.set('fable', { id: 'fable', ...fableReview });
           const qualifiedPrior = priorSeats.filter(seat => seat.evidenceChecksPassed === true);
           const metadata = panelSeatMetadata('fable', fableReview, {
-            evidenceSources,
+            evidenceSources: [...evidenceSources, ...hostEvidenceSources],
             inheritedEvidenceBasis: qualifiedPrior.map(seat => `qualified_prior_seat:${seat.sequence}:${seat.id}`),
             inputDependencies: priorSeats.map(seat => ({
               sequence: seat.sequence,
@@ -1245,7 +1263,7 @@ async function runAgentic(query, opts) {
         };
         kimiReview = await runKimiFinalAdjudication({
           query, mercuryResult: prior, review,
-          persistRaw: persistReviewRaw, evidenceSources,
+          persistRaw: persistReviewRaw, evidenceSources, hostEvidenceSources,
         });
         kimiReview.doctrineReview = assessDoctrineReview({
           answer: kimiReview.answer,
@@ -1269,7 +1287,7 @@ async function runAgentic(query, opts) {
         outputs.set('kimi', { id: 'kimi', ...kimiReview });
         const qualifiedPrior = priorSeats.filter(seat => seat.evidenceChecksPassed === true);
         const metadata = panelSeatMetadata('kimi', kimiReview, {
-          evidenceSources,
+          evidenceSources: [...evidenceSources, ...hostEvidenceSources],
           inheritedEvidenceBasis: qualifiedPrior.map(seat => `qualified_prior_seat:${seat.sequence}:${seat.id}`),
           inputDependencies: priorSeats.map(seat => ({
             sequence: seat.sequence,

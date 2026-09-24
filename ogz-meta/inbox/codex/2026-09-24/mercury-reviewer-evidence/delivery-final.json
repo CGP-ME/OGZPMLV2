@@ -1,0 +1,84 @@
+{
+  "at": "2026-09-24T02:18:14.904Z",
+  "passed": true,
+  "sourceRun": "2026-09-24T02-08-57-668Z-dc4baf7d28fd",
+  "artifact": {
+    "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t02-04-42-273z-487256-2baef40ae150/current-change-evidence.txt",
+    "citation": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t02-04-42-273z-487256-2baef40ae150/current-change-evidence.txt:1",
+    "sha256": "74ae199ba7f99d904cf96838deb3869243a17b9c15470d83d7c603fb3862135f",
+    "bytes": 169360,
+    "lines": 4796,
+    "section_count": 39,
+    "manifest_path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t02-04-42-273z-487256-2baef40ae150/manifest.json",
+    "manifest_sha256": "3db1491e7f166f8499237623d4bd3e6e4294520b57eb3e8805123093b97da3c2",
+    "manifest_bytes": 10225
+  },
+  "artifactExcerpts": 32,
+  "actualToolReads": [
+    {
+      "args": {
+        "path": "core/StateManager.js",
+        "start_line": 1700,
+        "end_line": 1850
+      },
+      "delivery": {
+        "truncated": false,
+        "startLine": 1700,
+        "endLine": 1850,
+        "totalLines": 5134
+      }
+    },
+    {
+      "args": {
+        "path": "trai_brain/mercury-bridge/tool-adapter.js",
+        "start_line": 1,
+        "end_line": 500
+      },
+      "delivery": {
+        "truncated": true,
+        "startLine": 1,
+        "endLine": 324,
+        "totalLines": 2336,
+        "originalEndLine": 500
+      }
+    }
+  ],
+  "checked": [
+    {
+      "role": "fable",
+      "promptSha256": "395f6555244c3f5e2b502e3403804ca43d7199ed65c7249c1f88960a88ff11a9",
+      "promptBytes": 207812,
+      "deliveredArtifactExcerpts": 32,
+      "hostScopeWarningPresent": true,
+      "deliveredPrimaryTools": 2,
+      "recheckToolSourcePresent": false
+    },
+    {
+      "role": "kimi",
+      "promptSha256": "bf01d16a9c739653e98d8657e3a1c9c345442882fdbb37d98ae7647a3d85acd3",
+      "promptBytes": 237301,
+      "deliveredArtifactExcerpts": 32,
+      "hostScopeWarningPresent": true,
+      "deliveredPrimaryTools": 2,
+      "recheckToolSourcePresent": true
+    }
+  ],
+  "provenance": [
+    {
+      "role": "fable_challenger",
+      "hostExcerpts": 32,
+      "toolSources": 2
+    },
+    {
+      "role": "kimi_tie_breaker",
+      "hostExcerpts": 32,
+      "toolSources": 3
+    }
+  ],
+  "providerCalls": 0,
+  "intentionalTransportFailure": "LOCAL_CAPTURE_ONLY_TRANSPORT_NOT_SENT",
+  "limits": [
+    "Checks actual reviewer prompt-to-transport handoff and source provenance, not provider reasoning, full-chain acceptance or bot behavior.",
+    "Source read observations are new local calls; saved model answers are identified as historical replay, not new provider responses."
+  ]
+}
