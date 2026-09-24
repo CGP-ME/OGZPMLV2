@@ -30,6 +30,7 @@ const MongoStore = require('./mongo-store');
 const OGZ_META_INDEX_TARGETS = Object.freeze([
   'ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md',
   'ogz-meta/Alignment/TREY-RULINGS.md',
+  'ogz-meta/Alignment/TREY-DOCTRINE-FABLE-LANE.md',
   'ogz-meta/specs',
 ]);
 

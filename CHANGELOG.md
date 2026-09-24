@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Fable Doctrine Index Target (2026-09-24)
+
+- Add the explicitly required TREY-DOCTRINE-FABLE-LANE.md to the existing exact ogz-meta index allowlist. All existing ignore exclusions remain; historical documents do not gain authority from being indexed. A separate completed index receipt is still required.
+
 ### Mercury Candidate Refiling (2026-09-24)
 
 - Retain revised candidate inventories as inventories, not final answers. Tool use after filing now returns collection to candidate refiling before decision, with all inventory revisions preserved in the ledger. This restores the recovered collection/decision separation without claiming exhaustive discovery or adding an iteration ceiling.
