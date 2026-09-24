@@ -1,0 +1,261 @@
+{
+  "at": "2026-09-24T04:39:17.882Z",
+  "sourceSha256": "2139e51d27accbce6a80dded885eb0abad4d8e9ea5fc787707c9d8ce48621921",
+  "kind": "constructed coordinator boundary observations; synthetic reviewers, no provider or bot acceptance",
+  "outcomes": [
+    {
+      "mode": "write_failure",
+      "writerCalls": 1,
+      "readCalls": 0,
+      "seats": [
+        "mercury",
+        "fable",
+        "kimi"
+      ],
+      "error": null,
+      "artifactAbsenceDelivered": [
+        true
+      ],
+      "hostExcerptCounts": [
+        0,
+        0
+      ],
+      "artifactQuarantines": [
+        {
+          "status": "quarantined",
+          "unit": "evidence_artifact",
+          "name": "current_change_evidence:2026-09-24T04-39-10-132Z-548042-e3ca13a1f5a4",
+          "absence": "scan_artifact_unavailable",
+          "load_bearing": true,
+          "error": {
+            "name": "Error",
+            "message": "INJECTED: evidence artifact filesystem denied",
+            "code": "EACCES"
+          },
+          "attempts": [],
+          "ntfy": null
+        }
+      ],
+      "ledgerQuarantines": [
+        {
+          "status": "quarantined",
+          "unit": "evidence_artifact",
+          "name": "current_change_evidence:2026-09-24T04-39-10-132Z-548042-e3ca13a1f5a4",
+          "absence": "scan_artifact_unavailable",
+          "load_bearing": true,
+          "error": {
+            "name": "Error",
+            "message": "INJECTED: evidence artifact filesystem denied",
+            "code": "EACCES"
+          },
+          "attempts": [],
+          "ntfy": {
+            "status": "intercepted"
+          }
+        }
+      ],
+      "ledgerVerdict": "unverified",
+      "seatAbsences": [
+        {
+          "id": "mercury",
+          "status": "succeeded",
+          "absence": [
+            "coverage_insufficient",
+            "pre_answer_scan_absent",
+            "whole_file_read_absent",
+            "inherited_section_incomplete",
+            "fourth_shape_unclassified"
+          ],
+          "qualified": false
+        },
+        {
+          "id": "fable",
+          "status": "succeeded",
+          "absence": [
+            "coverage_insufficient",
+            "pre_answer_scan_absent",
+            "whole_file_read_absent",
+            "inherited_section_incomplete",
+            "fourth_shape_unclassified"
+          ],
+          "qualified": false
+        },
+        {
+          "id": "kimi",
+          "status": "succeeded",
+          "absence": [
+            "coverage_insufficient",
+            "pre_answer_scan_absent",
+            "whole_file_read_absent",
+            "inherited_section_incomplete",
+            "fourth_shape_unclassified"
+          ],
+          "qualified": false
+        }
+      ],
+      "stderr": [
+        "[MERCURY-BRIDGE] Current-change evidence artifact quarantined: INJECTED: evidence artifact filesystem denied; review continues at UNVERIFIED ceiling"
+      ],
+      "providerCalls": 0,
+      "databaseWrites": 0,
+      "notificationsSent": 0
+    },
+    {
+      "mode": "read_failure",
+      "writerCalls": 1,
+      "readCalls": 1,
+      "seats": [
+        "mercury",
+        "fable",
+        "kimi"
+      ],
+      "error": null,
+      "artifactAbsenceDelivered": [
+        true
+      ],
+      "hostExcerptCounts": [
+        0,
+        0
+      ],
+      "artifactQuarantines": [
+        {
+          "status": "quarantined",
+          "unit": "evidence_artifact",
+          "name": "current_change_evidence:2026-09-24T04-39-12-762Z-548042-6c6687f9c8ca",
+          "absence": "scan_artifact_unavailable",
+          "load_bearing": true,
+          "error": {
+            "name": "Error",
+            "message": "INJECTED: evidence artifact filesystem denied",
+            "code": "EACCES"
+          },
+          "attempts": [],
+          "ntfy": null
+        }
+      ],
+      "ledgerQuarantines": [
+        {
+          "status": "quarantined",
+          "unit": "evidence_artifact",
+          "name": "current_change_evidence:2026-09-24T04-39-12-762Z-548042-6c6687f9c8ca",
+          "absence": "scan_artifact_unavailable",
+          "load_bearing": true,
+          "error": {
+            "name": "Error",
+            "message": "INJECTED: evidence artifact filesystem denied",
+            "code": "EACCES"
+          },
+          "attempts": [],
+          "ntfy": {
+            "status": "intercepted"
+          }
+        }
+      ],
+      "ledgerVerdict": "unverified",
+      "seatAbsences": [
+        {
+          "id": "mercury",
+          "status": "succeeded",
+          "absence": [
+            "coverage_insufficient",
+            "pre_answer_scan_absent",
+            "whole_file_read_absent",
+            "inherited_section_incomplete",
+            "fourth_shape_unclassified"
+          ],
+          "qualified": false
+        },
+        {
+          "id": "fable",
+          "status": "succeeded",
+          "absence": [
+            "coverage_insufficient",
+            "pre_answer_scan_absent",
+            "whole_file_read_absent",
+            "inherited_section_incomplete",
+            "fourth_shape_unclassified"
+          ],
+          "qualified": false
+        },
+        {
+          "id": "kimi",
+          "status": "succeeded",
+          "absence": [
+            "coverage_insufficient",
+            "pre_answer_scan_absent",
+            "whole_file_read_absent",
+            "inherited_section_incomplete",
+            "fourth_shape_unclassified"
+          ],
+          "qualified": false
+        }
+      ],
+      "stderr": [
+        "[MERCURY-BRIDGE] Current-change evidence artifact quarantined: INJECTED: evidence artifact filesystem denied; review continues at UNVERIFIED ceiling"
+      ],
+      "providerCalls": 0,
+      "databaseWrites": 0,
+      "notificationsSent": 0
+    },
+    {
+      "mode": "existing_bundle_delivery",
+      "writerCalls": 1,
+      "readCalls": 1,
+      "seats": [
+        "mercury",
+        "fable",
+        "kimi"
+      ],
+      "error": null,
+      "artifactAbsenceDelivered": [
+        false
+      ],
+      "hostExcerptCounts": [
+        32,
+        32
+      ],
+      "artifactQuarantines": [],
+      "ledgerQuarantines": [],
+      "ledgerVerdict": "unverified",
+      "seatAbsences": [
+        {
+          "id": "mercury",
+          "status": "succeeded",
+          "absence": [
+            "coverage_insufficient",
+            "whole_file_read_absent",
+            "inherited_section_incomplete",
+            "fourth_shape_unclassified"
+          ],
+          "qualified": false
+        },
+        {
+          "id": "fable",
+          "status": "succeeded",
+          "absence": [
+            "coverage_insufficient",
+            "whole_file_read_absent",
+            "inherited_section_incomplete",
+            "fourth_shape_unclassified"
+          ],
+          "qualified": false
+        },
+        {
+          "id": "kimi",
+          "status": "succeeded",
+          "absence": [
+            "coverage_insufficient",
+            "whole_file_read_absent",
+            "inherited_section_incomplete",
+            "fourth_shape_unclassified"
+          ],
+          "qualified": false
+        }
+      ],
+      "stderr": [],
+      "providerCalls": 0,
+      "databaseWrites": 0,
+      "notificationsSent": 0
+    }
+  ]
+}

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Evidence Artifact Failure Isolation (2026-09-24)
+
+- Quarantine a failed current-change artifact write/read through existing notification and evidence-absence reporting, preserving partial files and the UNVERIFIED ceiling while available reviewers continue. Successful artifact delivery is unchanged; no bot gate, provider or policy change.
+
 ### Mercury Exhaustive Candidate Comparison (2026-09-24)
 
 - Strengthen the existing Mercury prompt to collect and compare the complete relevant candidate set, retain counterevidence and unresolved gaps, and explain one or multiple supported conclusions. Preserve read-only tools, broad scope, token/iteration settings and evidence ceilings; no executable gate or bot change.

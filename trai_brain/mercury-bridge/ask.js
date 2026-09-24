@@ -1044,38 +1044,58 @@ async function runAgentic(query, opts) {
         findReferencesFn: symbol => toolAdapter.execute('find_references', { symbol }),
       });
       if (autoBlastRadius.expandedSections && autoBlastRadius.expandedSections.length > 0) {
-        autoBlastRadius.evidenceBundle = writeCurrentChangeEvidenceBundle({
-          repoRoot: config.REPO_ROOT,
-          runId: rawRunId,
-          sections: autoBlastRadius.expandedSections,
-          now: startedAt,
-        });
-        const bundle = autoBlastRadius.evidenceBundle;
-        const artifact = fs.readFileSync(path.join(config.REPO_ROOT, bundle.path));
-        const artifactLines = artifact.toString('utf8').split('\n');
-        if (artifactLines.at(-1) === '') artifactLines.pop();
-        // Use the existing attested-excerpt contract for every part of the
-        // captured scan. A reviewer without repo tools needs the bytes, not
-        // just a path or Mercury's description of what the scan found.
-        for (let start = 0; start < artifactLines.length; start += 150) {
-          const excerpt = artifactLines.slice(start, start + 150).join('\n');
-          hostEvidenceSources.push({
-            path: bundle.path, line_start: start + 1,
-            line_end: Math.min(start + 150, artifactLines.length),
-            artifact_sha256: crypto.createHash('sha256').update(artifact).digest('hex'),
-            artifact_bytes: artifact.length,
-            excerpt_sha256: crypto.createHash('sha256').update(excerpt).digest('hex'),
-            excerpt_bytes: Buffer.byteLength(excerpt, 'utf8'), excerpt,
+        let artifact = null;
+        try {
+          autoBlastRadius.evidenceBundle = writeCurrentChangeEvidenceBundle({
+            repoRoot: config.REPO_ROOT,
+            runId: rawRunId,
+            sections: autoBlastRadius.expandedSections,
+            now: startedAt,
           });
+          artifact = fs.readFileSync(path.join(config.REPO_ROOT, autoBlastRadius.evidenceBundle.path));
+        } catch (error) {
+          const quarantine = reviewQuarantine({
+            unit: 'evidence_artifact',
+            name: `current_change_evidence:${rawRunId}`,
+            absence: 'scan_artifact_unavailable',
+            error,
+          });
+          const detail = redactSensitiveText(error && error.message ? error.message : String(error));
+          autoBlastRadius.errors.push({
+            file: autoBlastRadius.evidenceBundle?.path || `<current_change_evidence:${rawRunId}>`,
+            error: detail,
+          });
+          autoBlastRadius.text += `\n\nEVIDENCE ABSENCE: scan_artifact_unavailable (${rawRunId}). Artifact write/read failed: ${detail}. No current-change artifact excerpts delivered; partial files are preserved. Review continues at UNVERIFIED ceiling.`;
+          console.error(`[MERCURY-BRIDGE] Current-change evidence artifact quarantined: ${detail}; review continues at UNVERIFIED ceiling`);
+          evidenceQuarantines.push(...await notifyReviewQuarantines([quarantine]));
         }
-        autoBlastRadius.text += [
-          '', '', '## CAPTURED CURRENT-CHANGE EVIDENCE ARTIFACT',
-          `Artifact: ${bundle.path}`,
-          `Artifact SHA-256: ${bundle.sha256}`,
-          `Artifact bytes: ${bundle.bytes}; sections: ${bundle.section_count}`,
-          `Section manifest: ${bundle.manifest_path}`,
-          'The manifest identifies exact section ranges for open_file. Storage is not proof of review or complete dependency discovery.',
-        ].join('\n');
+        if (artifact !== null) {
+          const bundle = autoBlastRadius.evidenceBundle;
+          const artifactLines = artifact.toString('utf8').split('\n');
+          if (artifactLines.at(-1) === '') artifactLines.pop();
+          // Use the existing attested-excerpt contract for every part of the
+          // captured scan. A reviewer without repo tools needs the bytes, not
+          // just a path or Mercury's description of what the scan found.
+          for (let start = 0; start < artifactLines.length; start += 150) {
+            const excerpt = artifactLines.slice(start, start + 150).join('\n');
+            hostEvidenceSources.push({
+              path: bundle.path, line_start: start + 1,
+              line_end: Math.min(start + 150, artifactLines.length),
+              artifact_sha256: crypto.createHash('sha256').update(artifact).digest('hex'),
+              artifact_bytes: artifact.length,
+              excerpt_sha256: crypto.createHash('sha256').update(excerpt).digest('hex'),
+              excerpt_bytes: Buffer.byteLength(excerpt, 'utf8'), excerpt,
+            });
+          }
+          autoBlastRadius.text += [
+            '', '', '## CAPTURED CURRENT-CHANGE EVIDENCE ARTIFACT',
+            `Artifact: ${bundle.path}`,
+            `Artifact SHA-256: ${bundle.sha256}`,
+            `Artifact bytes: ${bundle.bytes}; sections: ${bundle.section_count}`,
+            `Section manifest: ${bundle.manifest_path}`,
+            'The manifest identifies exact section ranges for open_file. Storage is not proof of review or complete dependency discovery.',
+          ].join('\n');
+        }
       }
       blastRadius = autoBlastRadius.text;
       if (verbose) {
