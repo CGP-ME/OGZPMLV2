@@ -1,0 +1,9 @@
+{
+  "at": "2026-09-24T02:36:02.682Z",
+  "sourceRun": "2026-09-24T02-31-33-458Z-759ba9639dea",
+  "originalFailure": "spawn E2BIG",
+  "promptBytes": 190403,
+  "promptSha256": "c114e3d3debdd322b4049c58dd43228af9ca0586cdd53861f676410d5eb3aa02",
+  "exactPromptMatch": true,
+  "sourceSha256": "13af7510273a0c0acaf1b1b9e24477ca97c23e98a01472d33ffbc0e873a21c7e"
+}

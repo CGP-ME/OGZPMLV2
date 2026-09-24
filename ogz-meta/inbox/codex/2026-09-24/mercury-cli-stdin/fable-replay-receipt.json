@@ -1,0 +1,105 @@
+{
+  "at": "2026-09-24T02:37:02.344Z",
+  "historicalSourceRun": "2026-09-24T02-31-33-458Z-759ba9639dea",
+  "exactPromptMatch": true,
+  "promptSha256": "c114e3d3debdd322b4049c58dd43228af9ca0586cdd53861f676410d5eb3aa02",
+  "promptBytes": 190403,
+  "ok": true,
+  "parsed": {
+    "consensus": "",
+    "contradictions": "",
+    "partial": "",
+    "unique": "",
+    "blindSpots": "",
+    "verdict": "needs_more_evidence",
+    "blocking": true,
+    "parseWarnings": [],
+    "disagreement": "none — there is no Mercury claim to challenge; the break is procedural (missing answer), not substantive.",
+    "requiredRecheck": "Mercury must run the break attempt against the actual diff of the 25 changed files (git diff or per-file before/after), with special attention to: (1) core/StateManager.js:1848 fallback chain `context.orderQuantity || (Number(trade.remainingOrderQuantity) * fraction) || trade.entryOrderQuantity` — a NaN/zero computed quantity silently falls back to entryOrderQuantity, which for a partial exit would report the FULL entry quantity; confirm whether this line is part of the fix; (2) core/StateManager.js:1873 `priorOrderQuantity * fraction` fallback when no broker-confirmed quantity exists vs the 3389-3404 invariant that fraction must be derived from confirmed quantity only — these two paths appear to encode contradictory doctrine; (3) whether the isTrading/quantity guards in OrderExecutor.js:2589/2634/2639 are new gates (fourth-shape) introduced by this change.",
+    "recheckPrompt": "\"Mercury, the prior run terminated not_selected with 0 iterations. Re-run 'break my fix' for run 2026-09-24T02-29-55-510Z-497788-5b057ca969bd. Obtain the actual diff for all 25 changed files in the candidate set. For each behavioral edit, cite file:line before/after. Specifically attack: (a) StateManager.js:1848 — does the `|| trade.entryOrderQuantity` fallback let a failed partial-exit quantity computation record a full-entry quantity? (b) StateManager.js:1873 fraction-derived quantity fallback vs the StateManager.js:3403-3404 rule that fills must never carry fraction — are both mutation paths still live, and which do OrderExecutor.js:2589-2639 exit plans hit? (c) ProfitExitPlanner.js:160 — with settings.json:1218 scaleOutFraction=0.25 and settings.json:1449+ fraction=0.5, prove which value the changed code selects and that it is a fraction of REMAINING, not original, size. (d) Classify every throw/guard added by this change as new-gate or pre-existing with diff evidence. Deliver VERDICT/CANDIDATE SET/INHERITED/FOURTH SHAPE per doctrine.\"",
+    "nextCheck": "`git diff HEAD~1 -- core/StateManager.js core/OrderExecutor.js core/ProfitExitPlanner.js` (or the fix's base ref) to establish what the fix actually changed; without this, no break/no-break claim is supportable.",
+    "sharedConclusion": "",
+    "mercurySupported": "",
+    "fableSupported": "",
+    "kimiSupported": "",
+    "citedReasoning": "There is no Mercury answer to defend or attack. Telemetry shows termination `not_selected`, 0 iterations, no run ledger, no tool telemetry — Mercury never executed the \"break my fix\" task. The host bundle supplies a 25-file changed set, blast-radius maps, and regex reference scans, but zero diff content, so neither the fix's intent nor its actual edits are established anywhere in the record. An adversarial pass cannot be certified against an absent answer, and the host scans alone cannot stand in for one: every guard/throw visible in the scans (e.g., core/OrderExecutor.js:2589, core/OrderExecutor.js:3137-3138, core/StateManager.js:1819-1821, core/StrategyOrchestrator.js:690-691) is of unknown provenance — added by this fix or pre-existing — because no before/after evidence was delivered.",
+    "candidateSet": "examined 25 of 25 changed-file names, 0 of 25 diffs. Inventory: CHANGELOG.md, config/settings.json, core/BacktestRunner.js, core/DrawdownTracker.js, core/EnhancedPatternRecognition.js, core/ExitContractManager.js, core/FeatureExtractor.js, core/OrderExecutor.js, core/PnLTracker.js, core/PolicyBuilder.js, core/ProfitExitPlanner.js, core/StateManager.js, core/StrategyOrchestrator.js, core/TradingLoop.js, core/WebSocketManager.js, core/dto/DecisionLedgerSchema.js, core/exit/StopLossChecker.js, foundation/ConfigLoader.js, modules/DonchianBreakout.js, modules/EMATrendRetest.js, modules/PropSafeEMAPullback.js, modules/RSI2MeanReversion.js, modules/TimeSeriesMomentum.js, ogzprime-ssl-server.js, run-empire-v2.js. Blast-radius sections cover 23 of 25 (no section for CHANGELOG.md or config/settings.json). Reference scans for 15 symbols; 8 of 15 are truncated at 81/82 hits (fraction, minTradeConfidence, trai, positionSizing, strategies, mode, sizing, fees, exits) — truncated evidence remains named and unresolved.",
+    "astEvidence": "none used by me; all cited evidence is host-provided regex scans (source: find_references_regex, explicitly labeled non-AST with uncertainty notes) and host blast-radius require-graph excerpts. No AST tool, no whole-file source delivered for any changed file.",
+    "inherited": "all 25 changed files: || 0 / swallowed catch / bypass env / silent default status UNREAD (no diffs delivered). Named scan-visible candidates within changed files: core/StateManager.js:1848 silent fallback chain to entryOrderQuantity (unresolved whether introduced or inherited); core/StateManager.js:1873 fraction-based quantity fallback (unresolved). No absence claimed for any file.",
+    "fourthShapeClassifier": "classified 0 of 7 with producer evidence. Candidates enumerated from scans only: OrderExecutor.js:2066 throw (absoluteCap), OrderExecutor.js:2589 throw (non-positive exit qty), OrderExecutor.js:2634 throw (invalid planned exit fraction), OrderExecutor.js:2639 throw (invalid executed exit fraction), OrderExecutor.js:3137-3138 throw (invalid minTradeConfidence), StateManager.js:1819-1821 guard (invalid fraction, returns error), StrategyOrchestrator.js:690-691 throw (partialExit.fraction bounds). Added-vs-pre-existing cannot be determined without diff; no new bot gates introduced by this review.",
+    "allegationClass": "(1) Mercury did not execute — MECHANICAL, RECEIPT (telemetry: not_selected, 0 iterations). (2) StateManager.js:1848 fallback may misreport exit quantity — SUBSTANTIVE, TESTIMONY (scan line only, no control-flow proof). (3) StateManager.js:1873 vs 3403-3404 doctrine contradiction — SUBSTANTIVE, TESTIMONY. (4) 8 truncated reference scans leave consumer sets incomplete — MECHANICAL, RECEIPT (truncated:true flags).",
+    "substantiveResolution": "UNRESOLVED-FOR-TREY — the two StateManager quantity-fallback allegations cannot be resolved without diff and control-flow evidence; no seat has taken a position because Mercury never answered.",
+    "whatIExamined": "all 39 host evidence sections (candidate set, 23 blast-radius maps, 15 regex reference scans with SHA-256-attested excerpts), Mercury telemetry fields, the original prompt, prior-fixes ledger context.",
+    "didNotExamine": "any file diff or whole-file source for the 25 changed files; any test/build receipts (none exist in the record); the actual fix intent (never stated); the truncated tails of 8 reference scans; run ledger (not written).",
+    "assumed": "the changed-file list in Section 1 accurately reflects the fix's working set; the SHA-256-attested excerpts are faithful host captures; \"not_selected / 0 iterations\" means Mercury produced no answer rather than an answer lost in transport."
+  },
+  "attempts": [
+    {
+      "role": "fable_challenger",
+      "status": "succeeded",
+      "error": null,
+      "termination": "success",
+      "requestedModel": "fable",
+      "appliedModels": [
+        "claude-fable-5"
+      ],
+      "identity": {
+        "status": "matched",
+        "authority": "full",
+        "reason": null,
+        "requested_model": "fable",
+        "applied_models": [
+          "claude-fable-5"
+        ],
+        "verdict_models": [
+          "claude-fable-5"
+        ],
+        "undocumented_models": [],
+        "observations": [
+          {
+            "sequence": 1,
+            "path": "model",
+            "model": "claude-fable-5"
+          },
+          {
+            "sequence": 17,
+            "path": "message.model",
+            "model": "claude-fable-5"
+          },
+          {
+            "sequence": 18,
+            "path": "message.model",
+            "model": "claude-fable-5"
+          }
+        ],
+        "transitions": []
+      },
+      "tokens": {
+        "input": 94373,
+        "uncached_input": 94373,
+        "cached_input": 0,
+        "output": 4666,
+        "total": 99039
+      },
+      "rawOutput": {
+        "path": "ogz-meta/inbox/codex/2026-09-24/mercury-cli-stdin/fable_challenger-1.raw",
+        "bytes": 28079,
+        "sha256": "4cf0f0f627d8dc0e79f56777dc60e31d4f97c7204019579eb8c849303c5b817e",
+        "mode": "0600"
+      },
+      "tools": {
+        "enabled": false,
+        "available": [],
+        "calls": [],
+        "total": 0,
+        "succeeded": 0,
+        "failed": 0
+      },
+      "hostExcerpts": 32
+    }
+  ],
+  "answer": "VERDICT: needs_more_evidence\nCONSENSUS_BLOCKING: yes\nRATIONALE: There is no Mercury answer to defend or attack. Telemetry shows termination `not_selected`, 0 iterations, no run ledger, no tool telemetry — Mercury never executed the \"break my fix\" task. The host bundle supplies a 25-file changed set, blast-radius maps, and regex reference scans, but zero diff content, so neither the fix's intent nor its actual edits are established anywhere in the record. An adversarial pass cannot be certified against an absent answer, and the host scans alone cannot stand in for one: every guard/throw visible in the scans (e.g., core/OrderExecutor.js:2589, core/OrderExecutor.js:3137-3138, core/StateManager.js:1819-1821, core/StrategyOrchestrator.js:690-691) is of unknown provenance — added by this fix or pre-existing — because no before/after evidence was delivered.\nDISAGREEMENT: none — there is no Mercury claim to challenge; the break is procedural (missing answer), not substantive.\nREQUIRED_RECHECK: Mercury must run the break attempt against the actual diff of the 25 changed files (git diff or per-file before/after), with special attention to: (1) core/StateManager.js:1848 fallback chain `context.orderQuantity || (Number(trade.remainingOrderQuantity) * fraction) || trade.entryOrderQuantity` — a NaN/zero computed quantity silently falls back to entryOrderQuantity, which for a partial exit would report the FULL entry quantity; confirm whether this line is part of the fix; (2) core/StateManager.js:1873 `priorOrderQuantity * fraction` fallback when no broker-confirmed quantity exists vs the 3389-3404 invariant that fraction must be derived from confirmed quantity only — these two paths appear to encode contradictory doctrine; (3) whether the isTrading/quantity guards in OrderExecutor.js:2589/2634/2639 are new gates (fourth-shape) introduced by this change.\nRECHECK_PROMPT: \"Mercury, the prior run terminated not_selected with 0 iterations. Re-run 'break my fix' for run 2026-09-24T02-29-55-510Z-497788-5b057ca969bd. Obtain the actual diff for all 25 changed files in the candidate set. For each behavioral edit, cite file:line before/after. Specifically attack: (a) StateManager.js:1848 — does the `|| trade.entryOrderQuantity` fallback let a failed partial-exit quantity computation record a full-entry quantity? (b) StateManager.js:1873 fraction-derived quantity fallback vs the StateManager.js:3403-3404 rule that fills must never carry fraction — are both mutation paths still live, and which do OrderExecutor.js:2589-2639 exit plans hit? (c) ProfitExitPlanner.js:160 — with settings.json:1218 scaleOutFraction=0.25 and settings.json:1449+ fraction=0.5, prove which value the changed code selects and that it is a fraction of REMAINING, not original, size. (d) Classify every throw/guard added by this change as new-gate or pre-existing with diff evidence. Deliver VERDICT/CANDIDATE SET/INHERITED/FOURTH SHAPE per doctrine.\"\nNEXT_CHECK: `git diff HEAD~1 -- core/StateManager.js core/OrderExecutor.js core/ProfitExitPlanner.js` (or the fix's base ref) to establish what the fix actually changed; without this, no break/no-break claim is supportable.\nCANDIDATE SET: examined 25 of 25 changed-file names, 0 of 25 diffs. Inventory: CHANGELOG.md, config/settings.json, core/BacktestRunner.js, core/DrawdownTracker.js, core/EnhancedPatternRecognition.js, core/ExitContractManager.js, core/FeatureExtractor.js, core/OrderExecutor.js, core/PnLTracker.js, core/PolicyBuilder.js, core/ProfitExitPlanner.js, core/StateManager.js, core/StrategyOrchestrator.js, core/TradingLoop.js, core/WebSocketManager.js, core/dto/DecisionLedgerSchema.js, core/exit/StopLossChecker.js, foundation/ConfigLoader.js, modules/DonchianBreakout.js, modules/EMATrendRetest.js, modules/PropSafeEMAPullback.js, modules/RSI2MeanReversion.js, modules/TimeSeriesMomentum.js, ogzprime-ssl-server.js, run-empire-v2.js. Blast-radius sections cover 23 of 25 (no section for CHANGELOG.md or config/settings.json). Reference scans for 15 symbols; 8 of 15 are truncated at 81/82 hits (fraction, minTradeConfidence, trai, positionSizing, strategies, mode, sizing, fees, exits) — truncated evidence remains named and unresolved.\nAST EVIDENCE: none used by me; all cited evidence is host-provided regex scans (source: find_references_regex, explicitly labeled non-AST with uncertainty notes) and host blast-radius require-graph excerpts. No AST tool, no whole-file source delivered for any changed file.\nINHERITED: all 25 changed files: || 0 / swallowed catch / bypass env / silent default status UNREAD (no diffs delivered). Named scan-visible candidates within changed files: core/StateManager.js:1848 silent fallback chain to entryOrderQuantity (unresolved whether introduced or inherited); core/StateManager.js:1873 fraction-based quantity fallback (unresolved). No absence claimed for any file.\nFOURTH SHAPE CLASSIFIER: classified 0 of 7 with producer evidence. Candidates enumerated from scans only: OrderExecutor.js:2066 throw (absoluteCap), OrderExecutor.js:2589 throw (non-positive exit qty), OrderExecutor.js:2634 throw (invalid planned exit fraction), OrderExecutor.js:2639 throw (invalid executed exit fraction), OrderExecutor.js:3137-3138 throw (invalid minTradeConfidence), StateManager.js:1819-1821 guard (invalid fraction, returns error), StrategyOrchestrator.js:690-691 throw (partialExit.fraction bounds). Added-vs-pre-existing cannot be determined without diff; no new bot gates introduced by this review.\nALLEGATIONS: (1) Mercury did not execute — MECHANICAL, RECEIPT (telemetry: not_selected, 0 iterations). (2) StateManager.js:1848 fallback may misreport exit quantity — SUBSTANTIVE, TESTIMONY (scan line only, no control-flow proof). (3) StateManager.js:1873 vs 3403-3404 doctrine contradiction — SUBSTANTIVE, TESTIMONY. (4) 8 truncated reference scans leave consumer sets incomplete — MECHANICAL, RECEIPT (truncated:true flags).\nSUBSTANTIVE RESOLUTION: UNRESOLVED-FOR-TREY — the two StateManager quantity-fallback allegations cannot be resolved without diff and control-flow evidence; no seat has taken a position because Mercury never answered.\nWHAT I EXAMINED: all 39 host evidence sections (candidate set, 23 blast-radius maps, 15 regex reference scans with SHA-256-attested excerpts), Mercury telemetry fields, the original prompt, prior-fixes ledger context.\nDID NOT EXAMINE: any file diff or whole-file source for the 25 changed files; any test/build receipts (none exist in the record); the actual fix intent (never stated); the truncated tails of 8 reference scans; run ledger (not written).\nASSUMED: the changed-file list in Section 1 accurately reflects the fix's working set; the SHA-256-attested excerpts are faithful host captures; \"not_selected / 0 iterations\" means Mercury produced no answer rather than an answer lost in transport.\n\nWHAT I DID: mechanically examined the 39-section host evidence bundle, cross-referenced scan-visible guards and fallbacks in changed files against the changed-file inventory, and audited Mercury telemetry for execution provenance.\nWHAT I DID NOT DO: did not read any diff or complete source file, did not verify any test/build state (no host-attested receipts exist), did not resolve truncated reference scans, did not confirm the fix's stated purpose.\nWHAT I ASSUMED: Section 1's 25-file list is the fix's true scope; attested excerpts are faithful; absent telemetry means absent execution.\nWHY THIS VERDICT: there is no Mercury answer to review — telemetry shows zero iterations and not_selected termination — and the host bundle contains no diffs, so no pass/found_break determination is supportable; the exact missing obligations are named and a concrete recheck is specified.\nIF INCOMPLETE, WHY: incomplete because the reviewed artifact (Mercury's adversarial answer) does not exist and diff-level evidence was never delivered to this pass.",
+  "limits": [
+    "Historical prompt replay proves actual CLI/provider delivery only. Mercury/recheck/Kimi were not re-run; historical missing context remains missing. Not full-chain acceptance."
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "at": "2026-09-24T02:34:57.757Z",
+  "providerCalls": 0,
+  "beforeSourceSha256": "4a94b61f3a2761c587a35aac91226a812a34d8bfde8812bb694f11984654d0ea",
+  "afterSourceSha256": "13af7510273a0c0acaf1b1b9e24477ca97c23e98a01472d33ffbc0e873a21c7e",
+  "oldError": "E2BIG",
+  "input": {
+    "bytes": 380000,
+    "sha256": "d935bc922f43f8be2f6b631ea463b7e08507ba7d7e0e857d1450c550c13453ca"
+  },
+  "received": {
+    "bytes": 380000,
+    "sha256": "d935bc922f43f8be2f6b631ea463b7e08507ba7d7e0e857d1450c550c13453ca"
+  },
+  "noInputPreserved": true,
+  "childFailure": {
+    "code": 7,
+    "stderr": "named-child-failure"
+  },
+  "pipeFailure": "EPIPE",
+  "productionCall": {
+    "promptAbsentFromArgv": true,
+    "inputMatches": true,
+    "toolsDisabled": true,
+    "strictMcp": true
+  },
+  "limits": [
+    "Real OS argv/pipe boundary only; the child is a synthetic byte reader, not Claude or a model review. No full-chain or bot acceptance."
+  ],
+  "passed": true
+}

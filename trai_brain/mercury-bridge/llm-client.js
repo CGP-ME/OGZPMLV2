@@ -9,15 +9,22 @@ const { responseStopReason } = PersistentLLMClient;
 
 function execFileAsync(command, args, options = {}) {
   return new Promise((resolve, reject) => {
-    execFile(command, args, options, (error, stdout, stderr) => {
-      if (error) {
-        error.stdout = stdout;
-        error.stderr = stderr;
-        reject(error);
+    const { input, ...execOptions } = options;
+    let inputError = null;
+    const child = execFile(command, args, execOptions, (error, stdout, stderr) => {
+      const failure = error || inputError;
+      if (failure) {
+        failure.stdout = stdout;
+        failure.stderr = stderr;
+        reject(failure);
         return;
       }
       resolve({ stdout, stderr });
     });
+    if (input !== undefined) {
+      child.stdin.on('error', error => { inputError = error; });
+      child.stdin.end(input);
+    }
   });
 }
 
@@ -612,7 +619,6 @@ class ClaudeCodeConsensusClient {
       '--tools', '',
       '--strict-mcp-config',
       '--system-prompt', systemPrompt,
-      prompt,
     ];
     const startedAt = new Date();
     const startedMs = Date.now();
@@ -620,6 +626,7 @@ class ClaudeCodeConsensusClient {
     let stderr = Buffer.alloc(0);
     try {
       const result = await this.execFileAsync(this.executableTrust.realpath, args, {
+        input: prompt,
         cwd: config.REPO_ROOT,
         env: buildClaudeSubscriptionEnv(),
         timeout: this.requestTimeoutMs,

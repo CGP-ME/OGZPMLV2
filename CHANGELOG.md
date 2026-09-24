@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Large Reviewer Prompt Delivery (2026-09-24)
+
+- Send Claude reviewer prompts through stdin instead of a command-line argument. Preserve the complete evidence, CLI trust/auth/read-only settings, error receipts and review ceilings; no bot changes. The exact previously E2BIG prompt completed through the actual Fable provider after this repair.
+
 ### Mercury Evidence Delivery to Reviewers (2026-09-24)
 
 - Deliver the existing captured AST/reference artifact and bounded Mercury tool results to Fable and Kimi through their actual prompts and provenance receipts. Kimi also receives recheck tool evidence. Preserve read-only capabilities, truncation metadata and all unresolved coverage/authority ceilings; no bot changes.
