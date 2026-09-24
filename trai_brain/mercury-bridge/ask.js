@@ -56,6 +56,7 @@ const {
 } = require('./doctrine-review');
 const {
   reviewModeRequested,
+  parseAdversarialReviewAnswer,
   runFableAdversarialReview,
   runKimiFinalAdjudication,
   buildAttestedPromptProvenance,
@@ -343,6 +344,7 @@ async function runReviewRechecks({
         attack,
         noTools,
       });
+      finalizeMercuryEvidenceResult(recheck);
       recheck.totalLatencyMs = Date.now() - recheckStarted;
       recheck.inputProvenance = recheckProvenance;
       recheck.evidenceSources = evidenceSources;
@@ -679,6 +681,16 @@ function priorPanelResult(query, outputs) {
     panelSourceLabel: 'Prior selected reviewer evidence',
     panelSourcePath: 'panel://prior-reviewer-evidence',
   };
+}
+
+function finalizeMercuryEvidenceResult(result) {
+  // Same explicit-field contract as Fable and Kimi. Never infer a verdict
+  // from successful transport, a prose conclusion, or a partial tool loop.
+  if (!result.parsed && result.termination === 'answer_given') {
+    const parsed = parseAdversarialReviewAnswer(result.answer);
+    if (parsed.verdict !== 'unknown') result.parsed = parsed;
+  }
+  return result;
 }
 
 function panelSeatMetadata(id, output, {
@@ -1094,6 +1106,7 @@ async function runAgentic(query, opts) {
             noTools: opts.noTools === true,
           });
           ensureReviewerAnswer(seatResult, 'mercury');
+          finalizeMercuryEvidenceResult(seatResult);
           mercuryResult = seatResult;
           mercuryResult.totalLatencyMs = Date.now() - t0;
           mercuryResult.doctrineReview = assessDoctrineReview({
@@ -1851,6 +1864,7 @@ module.exports = {
   runAlertReasons,
   notifyRunAlerts,
   panelSeatMetadata,
+  finalizeMercuryEvidenceResult,
   recomputePanelSeatFromRecheck,
   recomputePanelAuthority,
   buildMercuryIntentPrompt,

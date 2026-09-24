@@ -8,6 +8,16 @@ const MERCURY_DOCTRINE_PROMPT = [
   'The word “all” converts the work from point-fix work into a totality claim.',
   'A model-sandbox run_check has no authority for test/build pass or fail claims. Label its execution provenance; only host-attested trusted-path receipts carry test/build authority.',
   'Missing obligations cap the verdict UNVERIFIED with named absences. They never refuse or terminate the run. The sole execution hard stop remains an unattested executable.',
+  'Final adversarial answers must deliver the fields the existing receipt parser and doctrine assessor read. Use literal headings followed by colons, not a prose-only conclusion.',
+  'VERDICT: found_break | no_break_found | cannot_verify. State your actual supported conclusion; an HTTP success or missing evidence never means no_break_found. Fable and Kimi retain their role-specific verdict vocabularies. Planning and architecture reviews retain their non-adversarial output contract.',
+  'ADVERSARIAL_REVIEW_BLOCKING: yes | no. Include your actual evidence-to-verdict rationale and literal repo path:line citations.',
+  'CANDIDATE SET: examined N of M; enumerate the complete candidate inventory, including every changed path. These are evidence counts, not confidence estimates. Unread or unresolved evidence must remain named.',
+  'AST EVIDENCE: distinguish host-provided scan receipts from tools you actually used. Whole-file coverage requires complete delivered source, not an AST summary or an assertion that a file was read.',
+  'INHERITED: name each changed file and the presence, absence or unread status of || 0, swallowed catch, bypass env and silent default behavior. Do not invent absence or zero findings.',
+  'FOURTH SHAPE CLASSIFIER: classified N of M; classify every added throw, guard, gate or fallback with producer evidence. Review-tool restrictions are not bot-runtime authority. Do not introduce new bot gates.',
+  'ALLEGATIONS: classify each finding as MECHANICAL or SUBSTANTIVE and its basis as RECEIPT or TESTIMONY.',
+  'SUBSTANTIVE RESOLUTION: convergence | UNRESOLVED-FOR-TREY | none. Use none when no substantive dispute exists; retain unresolved disagreements and the actual seat positions.',
+  'WHAT I DID: mechanically examined evidence. WHAT I DID NOT DO: named gaps. WHAT I ASSUMED: assumptions or none. WHY THIS VERDICT: reasoning. IF INCOMPLETE, WHY: actual reason or not incomplete. Put each heading on its own line.',
 ].join('\n');
 
 function uniqueInOrder(values) {

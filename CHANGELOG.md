@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Explicit Verdict Handoff (2026-09-24)
+
+- Connect Mercury primary/recheck answers to the existing explicit-field parser and supply the required receipt fields in the shared doctrine prompt. Preserve prose-only/missing claims and every evidence ceiling; historical replay restores three explicit verdicts without clearing any UNVERIFIED receipt.
+
 ### Mercury AST Evidence Handoff (2026-09-24)
 
 - Persist captured current-change AST/reference evidence with section ranges and SHA-256 hashes, and link the artifact from the review prompt, run ledger and terminal receipt. This restores the recovered evidence writer without changing bot behavior, review scope or authority requirements; storage alone is not model consumption or complete coverage.

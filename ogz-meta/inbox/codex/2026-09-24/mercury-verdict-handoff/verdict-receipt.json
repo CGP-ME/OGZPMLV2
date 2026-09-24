@@ -1,0 +1,330 @@
+{
+  "observedAt": "2026-09-24T00:08:04.551Z",
+  "outcomes": [
+    {
+      "name": "explicit no break",
+      "expected": "pass",
+      "observed": "pass",
+      "answerUnchanged": true,
+      "evidenceChecksPassed": false,
+      "passed": true
+    },
+    {
+      "name": "explicit break",
+      "expected": "found_break",
+      "observed": "found_break",
+      "answerUnchanged": true,
+      "evidenceChecksPassed": false,
+      "passed": true
+    },
+    {
+      "name": "explicit cannot verify",
+      "expected": "cannot_verify",
+      "observed": "cannot_verify",
+      "answerUnchanged": true,
+      "evidenceChecksPassed": false,
+      "passed": true
+    },
+    {
+      "name": "prose success",
+      "expected": "no_claim",
+      "observed": "no_claim",
+      "answerUnchanged": true,
+      "evidenceChecksPassed": false,
+      "passed": true
+    },
+    {
+      "name": "missing blocking",
+      "expected": "cannot_verify",
+      "observed": "cannot_verify",
+      "answerUnchanged": true,
+      "evidenceChecksPassed": false,
+      "passed": true
+    },
+    {
+      "name": "unknown",
+      "expected": "no_claim",
+      "observed": "no_claim",
+      "answerUnchanged": true,
+      "evidenceChecksPassed": false,
+      "passed": true
+    },
+    {
+      "name": "partial loop",
+      "expected": "no_claim",
+      "observed": "no_claim",
+      "answerUnchanged": true,
+      "evidenceChecksPassed": false,
+      "passed": true
+    },
+    {
+      "name": "keep existing parsed",
+      "expected": "found_break",
+      "observed": "found_break",
+      "answerUnchanged": true,
+      "evidenceChecksPassed": false,
+      "passed": true
+    }
+  ],
+  "historical": [
+    {
+      "receipt": "ogz-meta/cognition-history/mercury-runs/2026-09-19.jsonl:1",
+      "receiptSha256": "4630f0768665a1ff173d8e5d77e261a874b2dc37794fe9a85fa0899e200ad584",
+      "runId": "2026-09-19T03-12-04-536Z-4fa4e496b2e4",
+      "answerSha256": "d53e9634d1c423868fc1ae581733657e92ef4c4a3586eb50761769d35c347c1d",
+      "before": "no_claim",
+      "after": "no_claim",
+      "originalCeiling": "UNVERIFIED",
+      "replayCeiling": "UNVERIFIED",
+      "originalAbsences": [
+        "coverage_insufficient",
+        "ast_evidence_absent",
+        "pre_answer_scan_absent",
+        "whole_file_read_absent",
+        "inherited_section_incomplete",
+        "fourth_shape_unclassified"
+      ]
+    },
+    {
+      "receipt": "ogz-meta/cognition-history/mercury-runs/2026-09-19.jsonl:3",
+      "receiptSha256": "15be8ea004c644dccd1a61ee05ca3fae64302cf0cf9bdfe623d8d5f14c31e707",
+      "runId": "2026-09-19T07-52-47-763Z-ad671abaa690",
+      "answerSha256": "1b9332246ebce5b0192e4ca23a1840be38a8ee6175686c3afa74ef1007c81e4a",
+      "before": "no_claim",
+      "after": "no_claim",
+      "originalCeiling": "UNVERIFIED",
+      "replayCeiling": "UNVERIFIED",
+      "originalAbsences": [
+        "coverage_insufficient",
+        "coverage_unresolved",
+        "whole_file_read_absent",
+        "inherited_section_incomplete",
+        "fourth_shape_unclassified"
+      ]
+    },
+    {
+      "receipt": "ogz-meta/cognition-history/mercury-runs/2026-09-19.jsonl:4",
+      "receiptSha256": "9144f7ed576b015825c4135a6105386d6cf196e1992bfd6ad5773d1cbf902ff3",
+      "runId": "2026-09-19T08-23-21-270Z-5e5a7950e824",
+      "answerSha256": "f91f84e2d928fc0abae697d66446c236dd5eb202b5b65a7234a69c3da2653f4b",
+      "before": "no_claim",
+      "after": "cannot_verify",
+      "originalCeiling": "UNVERIFIED",
+      "replayCeiling": "UNVERIFIED",
+      "originalAbsences": [
+        "coverage_insufficient",
+        "coverage_unresolved",
+        "whole_file_read_absent",
+        "inherited_section_incomplete",
+        "fourth_shape_unclassified"
+      ]
+    },
+    {
+      "receipt": "ogz-meta/cognition-history/mercury-runs/2026-09-19.jsonl:5",
+      "receiptSha256": "d6888dab044ad74120a54a59aa2233cb8f74c630d0aa282d06aa972a93656bad",
+      "runId": "2026-09-19T08-41-36-093Z-a76368884d3b",
+      "answerSha256": "1fa2cfbb929c50d7d41cb0bd1e3cb8bf08e412ad3eb60f7f8aed3bad3b03a946",
+      "before": "no_claim",
+      "after": "cannot_verify",
+      "originalCeiling": "UNVERIFIED",
+      "replayCeiling": "UNVERIFIED",
+      "originalAbsences": [
+        "inherited_section_incomplete",
+        "fourth_shape_unclassified"
+      ]
+    },
+    {
+      "receipt": "ogz-meta/cognition-history/mercury-runs/2026-09-19.jsonl:6",
+      "receiptSha256": "f43f91e537084daa1e12a64571a2a49febb6f316f1c93c103dd9472a30acc34e",
+      "runId": "2026-09-19T09-01-13-471Z-716eeb62d94a",
+      "answerSha256": "a2aead8a6529964485ef02c9e2a55b801846c13c85ae9bfbcc656e02f1de0426",
+      "before": "no_claim",
+      "after": "no_claim",
+      "originalCeiling": "UNVERIFIED",
+      "replayCeiling": "UNVERIFIED",
+      "originalAbsences": [
+        "coverage_insufficient",
+        "coverage_unresolved",
+        "whole_file_read_absent",
+        "inherited_section_incomplete",
+        "substantive_resolution_absent"
+      ]
+    },
+    {
+      "receipt": "ogz-meta/cognition-history/mercury-runs/2026-09-19.jsonl:7",
+      "receiptSha256": "14699e51f1459625b1d935a88fa159aa09ce75a2159c083f0df3cdef022906ea",
+      "runId": "2026-09-19T18-09-47-501Z-c3cb774dd234",
+      "answerSha256": "545b73f92fea68bc9f0c2d772909127fec3ce5c27fc1538cde9c4b7931ff8ea6",
+      "before": "no_claim",
+      "after": "no_claim",
+      "originalCeiling": "UNVERIFIED",
+      "replayCeiling": "UNVERIFIED",
+      "originalAbsences": [
+        "coverage_insufficient",
+        "coverage_unresolved",
+        "inherited_section_incomplete",
+        "fourth_shape_unclassified",
+        "substantive_resolution_absent"
+      ]
+    },
+    {
+      "receipt": "ogz-meta/cognition-history/mercury-runs/2026-09-19.jsonl:9",
+      "receiptSha256": "b668235abb374ae9e81e32f98fa35a4d923d7320882ed7ffd7effa95a7ee158a",
+      "runId": "2026-09-19T20-55-46-332Z-1632755150c9",
+      "answerSha256": "3bfecedd7682b4c11a8c4bca8fc95c9f6a5d592aa33d49ac81d14c99597e0265",
+      "before": "no_claim",
+      "after": "no_claim",
+      "originalCeiling": "UNVERIFIED",
+      "replayCeiling": "UNVERIFIED",
+      "originalAbsences": [
+        "inherited_section_incomplete",
+        "substantive_resolution_absent"
+      ]
+    },
+    {
+      "receipt": "ogz-meta/cognition-history/mercury-runs/2026-09-19.jsonl:10",
+      "receiptSha256": "eba8ba5aa1284477d91cd652291ab3170b89b6fb77c8402c62926e132a791625",
+      "runId": "2026-09-19T21-23-17-132Z-d0c9f0985150",
+      "answerSha256": "5691108b0f22ca5a6c5f07645623dd6d7a1e10f8d26ad63c115a96b3ab54798e",
+      "before": "no_claim",
+      "after": "no_claim",
+      "originalCeiling": "UNVERIFIED",
+      "replayCeiling": "UNVERIFIED",
+      "originalAbsences": [
+        "inherited_section_incomplete",
+        "fourth_shape_unclassified",
+        "substantive_resolution_absent"
+      ]
+    },
+    {
+      "receipt": "ogz-meta/cognition-history/mercury-runs/2026-09-20.jsonl:1",
+      "receiptSha256": "94d45ee702fb5c1a6f4bef704f49cb6320d82a8303e0b1940c6dbfe0ee93c399",
+      "runId": "2026-09-20T00-03-49-167Z-015918a8abc7",
+      "answerSha256": "26ef21f5ca4a94b1089d108dec4da04fa3371642d7ae7209530b984bd83b58e3",
+      "before": "no_claim",
+      "after": "cannot_verify",
+      "originalCeiling": "UNVERIFIED",
+      "replayCeiling": "UNVERIFIED",
+      "originalAbsences": [
+        "coverage_insufficient",
+        "coverage_unresolved",
+        "inherited_section_incomplete",
+        "fourth_shape_unclassified",
+        "substantive_unresolved_for_trey"
+      ]
+    },
+    {
+      "receipt": "ogz-meta/cognition-history/mercury-runs/2026-09-20.jsonl:2",
+      "receiptSha256": "a084c19441589764cbd3828012ad42f9493424d2ab16e6d3211b07043f9b73ef",
+      "runId": "2026-09-20T00-11-10-395Z-348a66580de2",
+      "answerSha256": "f09859e3c812622d982fd7a77dd06b3de1e1df06cabf168deb0acaae4dd8f005",
+      "before": "no_claim",
+      "after": "no_claim",
+      "originalCeiling": "UNVERIFIED",
+      "replayCeiling": "UNVERIFIED",
+      "originalAbsences": [
+        "coverage_insufficient",
+        "coverage_unresolved",
+        "whole_file_read_absent",
+        "inherited_section_incomplete",
+        "fourth_shape_unclassified",
+        "substantive_unresolved_for_trey"
+      ]
+    },
+    {
+      "receipt": "ogz-meta/inbox/codex/2026-09-23/stop1-landing-review/ledger/2026-09-23.jsonl:2",
+      "receiptSha256": "28ab95dfa3c44e6dbf4c5744a6a25b750bd349f955a25bc5259faa12ea44c5d1",
+      "runId": "2026-09-23T15-23-56-386Z-bb44845f4e3b",
+      "answerSha256": "b8583febaeb84b40517abcde6b32e5ff482a24b8011f030ced88e88300a9ad1e",
+      "before": "no_claim",
+      "after": "no_claim",
+      "originalCeiling": "UNVERIFIED",
+      "replayCeiling": "UNVERIFIED",
+      "originalAbsences": [
+        "coverage_insufficient",
+        "whole_file_read_absent",
+        "inherited_section_incomplete",
+        "fourth_shape_unclassified"
+      ]
+    }
+  ],
+  "recheckVerdict": "found_break",
+  "promptFields": [
+    {
+      "field": "VERDICT:",
+      "present": true
+    },
+    {
+      "field": "ADVERSARIAL_REVIEW_BLOCKING:",
+      "present": true
+    },
+    {
+      "field": "CANDIDATE SET:",
+      "present": true
+    },
+    {
+      "field": "AST EVIDENCE:",
+      "present": true
+    },
+    {
+      "field": "INHERITED:",
+      "present": true
+    },
+    {
+      "field": "FOURTH SHAPE CLASSIFIER:",
+      "present": true
+    },
+    {
+      "field": "ALLEGATIONS:",
+      "present": true
+    },
+    {
+      "field": "SUBSTANTIVE RESOLUTION:",
+      "present": true
+    },
+    {
+      "field": "WHAT I DID:",
+      "present": true
+    },
+    {
+      "field": "WHAT I DID NOT DO:",
+      "present": true
+    },
+    {
+      "field": "WHAT I ASSUMED:",
+      "present": true
+    },
+    {
+      "field": "WHY THIS VERDICT:",
+      "present": true
+    },
+    {
+      "field": "IF INCOMPLETE, WHY:",
+      "present": true
+    }
+  ],
+  "sourceHashes": [
+    {
+      "file": "ask.js",
+      "sha256": "f8d5ad80d21982429da11263347501f2d3e3d1789512d4b1e665f50d00574f0d"
+    },
+    {
+      "file": "doctrine-review.js",
+      "sha256": "bb1505d71320cfccc4b0730c6530b2e5a9b92f1f7dd2218b3816a893fb8d5eb5"
+    },
+    {
+      "file": "adversarial-review.js",
+      "sha256": "ebb9128df26a6eacc33403c39ab5ae64fcf03b748f16458e485dc2f67aa54be3"
+    },
+    {
+      "file": "reviewer-panel.js",
+      "sha256": "a40fab4a0eb5e2d366d383fbc3a68bfc433c6032fe0685026e9226d7caa3badb"
+    }
+  ],
+  "limitations": [
+    "Synthetic cases and saved-answer replay, not a new provider review.",
+    "Historical failures and coverage gaps remain; no authority criterion was changed.",
+    "No Jest, DB, bot, PM2, broker, deployment or reindex."
+  ],
+  "passed": true
+}
