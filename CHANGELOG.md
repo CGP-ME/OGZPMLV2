@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Rejected-Answer Recheck Dispatch (2026-09-24)
+
+- Allow Fable-requested source rechecks when a primary answer exists but failed qualification, instead of requiring answer_given before entering the repair path. Preserve the failed primary, independent reviewer answers, evidence flags and authority ceiling. No bot change.
+
 ### Mercury Recovered File-Backed Evidence Ingestion (2026-09-24)
 
 - Restore the recovered explicit-target source/diff ingestion engine with its existing CLI, byte-budget configuration, immutable artifacts, unit accounting, candidate filing, reduction and decision handoffs. Review current worktree bytes across staged, unstaged and untracked source; retain Git failures and excluded paths as named evidence limits.

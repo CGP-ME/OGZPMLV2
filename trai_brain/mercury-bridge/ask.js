@@ -1308,7 +1308,9 @@ async function runAgentic(query, opts) {
             })),
           ];
           fableReview.quarantines = await notifyReviewQuarantines(fableReview.quarantines || []);
-          if (mercuryResult && mercuryResult.termination === 'answer_given'
+          // A rejected primary answer still needs the source checks Fable
+          // requested. Preserve its failed evidence status; do not skip repair.
+          if (mercuryResult && typeof mercuryResult.answer === 'string' && mercuryResult.answer.trim()
               && kimiTieBreakerRequired(fableReview, reviewIntent)) {
             const recheckPrompts = buildMercuryRecheckPrompts({
               originalQuery: query,
