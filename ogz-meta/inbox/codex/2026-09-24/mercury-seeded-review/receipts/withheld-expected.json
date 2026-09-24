@@ -1,0 +1,270 @@
+{
+  "createdAt": "2026-09-24T06:45:35.802Z",
+  "proofLevel": "Pure function execution extracted from real source; not a bot boot or full ConfigLoader execution.",
+  "source": "foundation/ConfigLoader.js",
+  "sourceSha256": "afc563797d0823539d9d6da6d6530644866d42b4bc91273fe0b0f55a30b3bd16",
+  "excerptSha256": "6e56a3e6dfafff3660c81c25ad84523eed24fa293bd32b1d21eaa872713991f1",
+  "patchSha256": "f1ee45a95f6395b178cd84d0c60c78762b952c7ee91c34aa4353f03417e2311d",
+  "cases": [
+    {
+      "id": "object_key_order",
+      "inputs": [
+        {
+          "revision": 1,
+          "risk": {
+            "b": 2,
+            "a": 1
+          }
+        },
+        {
+          "risk": {
+            "a": 1,
+            "b": 2
+          },
+          "revision": 1
+        }
+      ],
+      "expectedEqual": {
+        "baseline": true,
+        "seeded": true
+      },
+      "actual": {
+        "baseline": [
+          "4f37bfc0e310335ae4793f957ce06680cbd4ddb18dbad3fbb63a9fb26ae97033",
+          "4f37bfc0e310335ae4793f957ce06680cbd4ddb18dbad3fbb63a9fb26ae97033"
+        ],
+        "seeded": [
+          "3a2827d3b5062da9d3c12d413f6b1afea2e962b255f972fac3b7ab68fc0cf3f4",
+          "3a2827d3b5062da9d3c12d413f6b1afea2e962b255f972fac3b7ab68fc0cf3f4"
+        ]
+      },
+      "observedEqual": {
+        "baseline": true,
+        "seeded": true
+      }
+    },
+    {
+      "id": "nested_setting_same_revision",
+      "inputs": [
+        {
+          "revision": 1,
+          "risk": {
+            "maxPositionSize": 0.05
+          }
+        },
+        {
+          "revision": 1,
+          "risk": {
+            "maxPositionSize": 0.075
+          }
+        }
+      ],
+      "expectedEqual": {
+        "baseline": false,
+        "seeded": true
+      },
+      "actual": {
+        "baseline": [
+          "4d21c3f02e84653a8b49576e4caf1ee9d9e5262a58dd59f85d8e8d346c236e42",
+          "513c31ce8cf8ff23515cfb80aaf81c049b0ccdcf2d5b709bbb11d22d272da562"
+        ],
+        "seeded": [
+          "3a2827d3b5062da9d3c12d413f6b1afea2e962b255f972fac3b7ab68fc0cf3f4",
+          "3a2827d3b5062da9d3c12d413f6b1afea2e962b255f972fac3b7ab68fc0cf3f4"
+        ]
+      },
+      "observedEqual": {
+        "baseline": false,
+        "seeded": true
+      }
+    },
+    {
+      "id": "[REDACTED]",
+      "inputs": [
+        {
+          "revision": 1,
+          "risk": {
+            "maxPositionSize": 0.05
+          }
+        },
+        {
+          "revision": 2,
+          "risk": {
+            "maxPositionSize": 0.075
+          }
+        }
+      ],
+      "expectedEqual": {
+        "baseline": false,
+        "seeded": false
+      },
+      "actual": {
+        "baseline": [
+          "4d21c3f02e84653a8b49576e4caf1ee9d9e5262a58dd59f85d8e8d346c236e42",
+          "db422d83925e6021dfe4bf36bd27b4b2738301f887dbb0596972ba5db3e55936"
+        ],
+        "seeded": [
+          "3a2827d3b5062da9d3c12d413f6b1afea2e962b255f972fac3b7ab68fc0cf3f4",
+          "042896a894e3aea809695beade43e4ad8df6261733c69be34e75c6592363907c"
+        ]
+      },
+      "observedEqual": {
+        "baseline": false,
+        "seeded": false
+      }
+    },
+    {
+      "id": "flat_dotted_request_changes",
+      "inputs": [
+        {
+          "risk.maxPositionSize": 0.05
+        },
+        {
+          "risk.maxPositionSize": 0.075
+        }
+      ],
+      "expectedEqual": {
+        "baseline": false,
+        "seeded": false
+      },
+      "actual": {
+        "baseline": [
+          "51f2c147a18424d17b19ed635ecaedbe07d5e2551b02136d5d2ffef0e53db7fa",
+          "b7f51e895885798c8f177b5936b847fc86fb9daa54ccf71bcf0fc804e2a4e7d2"
+        ],
+        "seeded": [
+          "51f2c147a18424d17b19ed635ecaedbe07d5e2551b02136d5d2ffef0e53db7fa",
+          "b7f51e895885798c8f177b5936b847fc86fb9daa54ccf71bcf0fc804e2a4e7d2"
+        ]
+      },
+      "observedEqual": {
+        "baseline": false,
+        "seeded": false
+      }
+    },
+    {
+      "id": "fingerprint_envelope",
+      "inputs": [
+        {
+          "schemaVersion": 1,
+          "role": "bot",
+          "config": {
+            "positionSizing": {
+              "maxPositionSize": 0.05
+            }
+          },
+          "sources": {
+            "settings": "config/settings.json"
+          },
+          "revisions": {
+            "settings": 1,
+            "settingsHash": "synthetic-1",
+            "internals": 1,
+            "internalsHash": "synthetic-internals"
+          },
+          "runDescriptorHash": null
+        },
+        {
+          "schemaVersion": 1,
+          "role": "bot",
+          "config": {
+            "positionSizing": {
+              "maxPositionSize": 0.075
+            }
+          },
+          "sources": {
+            "settings": "config/settings.json"
+          },
+          "revisions": {
+            "settings": 2,
+            "settingsHash": "synthetic-2",
+            "internals": 1,
+            "internalsHash": "synthetic-internals"
+          },
+          "runDescriptorHash": null
+        }
+      ],
+      "expectedEqual": {
+        "baseline": false,
+        "seeded": true
+      },
+      "actual": {
+        "baseline": [
+          "3d1a24f2e4b420df08b70a1381bd3ae47ba2e58179052d754af2680ecdfee0bf",
+          "ebcd38f05287d576d0f3da791f49043862ce3bd4f8c3c5dd2cc894918d866737"
+        ],
+        "seeded": [
+          "c17b7250206630137734823f79b83d85ce6b9b44ea26e0ee9a1d8fe092ac0092",
+          "c17b7250206630137734823f79b83d85ce6b9b44ea26e0ee9a1d8fe092ac0092"
+        ]
+      },
+      "observedEqual": {
+        "baseline": false,
+        "seeded": true
+      }
+    },
+    {
+      "id": "root_role",
+      "inputs": [
+        {
+          "schemaVersion": 1,
+          "role": "bot",
+          "config": {
+            "positionSizing": {
+              "maxPositionSize": 0.05
+            }
+          },
+          "sources": {
+            "settings": "config/settings.json"
+          },
+          "revisions": {
+            "settings": 1,
+            "settingsHash": "synthetic-1",
+            "internals": 1,
+            "internalsHash": "synthetic-internals"
+          },
+          "runDescriptorHash": null
+        },
+        {
+          "schemaVersion": 1,
+          "role": "dashboard",
+          "config": {
+            "positionSizing": {
+              "maxPositionSize": 0.05
+            }
+          },
+          "sources": {
+            "settings": "config/settings.json"
+          },
+          "revisions": {
+            "settings": 1,
+            "settingsHash": "synthetic-1",
+            "internals": 1,
+            "internalsHash": "synthetic-internals"
+          },
+          "runDescriptorHash": null
+        }
+      ],
+      "expectedEqual": {
+        "baseline": false,
+        "seeded": false
+      },
+      "actual": {
+        "baseline": [
+          "3d1a24f2e4b420df08b70a1381bd3ae47ba2e58179052d754af2680ecdfee0bf",
+          "8d016a736c4d091f7cb8503b37e6ee6e86db2b7f41fdaa53ff1bf8829dc4a86d"
+        ],
+        "seeded": [
+          "c17b7250206630137734823f79b83d85ce6b9b44ea26e0ee9a1d8fe092ac0092",
+          "64f8eb888077fc79a5a2884fd1d28de61d4660671762564b1bfde38a4f2fafd1"
+        ]
+      },
+      "observedEqual": {
+        "baseline": false,
+        "seeded": false
+      }
+    }
+  ],
+  "operatorCommand": "node <<'NODE'\nconst fs=require('fs'),vm=require('vm'),crypto=require('crypto');\nconst sha=s=>crypto.createHash('sha256').update(s).digest('hex');\nconst source=fs.readFileSync('foundation/ConfigLoader.js','utf8');\nconst start=source.indexOf('function canonicalize(value) {');\nconst end=source.indexOf('\\n}',source.indexOf('function canonicalHash(value) {',start))+2;\nconst excerpt=source.slice(start,end);\nconst original=\"return crypto.createHash('sha256').update(canonicalStringify(value)).digest('hex');\";\nconst replacement=\"return crypto.createHash('sha256').update(JSON.stringify(value, Object.keys(value).sort())).digest('hex');\";\nif(start<0||end<start||excerpt.split(original).length!==2)throw Error('Unexpected source shape');\nconst baseline=vm.runInNewContext(excerpt+'\\ncanonicalHash',{crypto});\nconst seeded=vm.runInNewContext(excerpt.replace(original,replacement)+'\\ncanonicalHash',{crypto});\nconst envelope=(size,rev)=>({schemaVersion:1,role:'bot',config:{positionSizing:{maxPositionSize:size}},sources:{settings:'config/settings.json'},revisions:{settings:rev,settingsHash:'synthetic-'+rev,internals:1,internalsHash:'synthetic-internals'},runDescriptorHash:null});\nconst cases=[\n['object_key_order',{revision:1,risk:{b:2,a:1}},{risk:{a:1,b:2},revision:1},true,true],\n['nested_setting_same_revision',{revision:1,risk:{maxPositionSize:.05}},{revision:1,risk:{maxPositionSize:.075}},false,true],\n['[REDACTED]',{revision:1,risk:{maxPositionSize:.05}},{revision:2,risk:{maxPositionSize:.075}},false,false],\n['flat_dotted_request_changes',{'risk.maxPositionSize':.05},{'risk.maxPositionSize':.075},false,false],\n['fingerprint_envelope',envelope(.05,1),envelope(.075,2),false,true],\n['root_role',{...envelope(.05,1),role:'bot'},{...envelope(.05,1),role:'dashboard'},false,false]\n];\nconsole.log(JSON.stringify({createdAt:new Date().toISOString(),proofLevel:'Pure function execution extracted from real source; not a bot boot or full ConfigLoader execution.',source:'foundation/ConfigLoader.js',sourceSha256:sha(source),excerptSha256:sha(excerpt),patchSha256:sha(fs.readFileSync('ogz-meta/inbox/codex/2026-09-24/mercury-seeded-review/fixtures/candidate.patch')),cases:cases.map(([id,a,b,be,se])=>{const actual={baseline:[baseline(a),baseline(b)],seeded:[seeded(a),seeded(b)]};return {id,inputs:[a,b],expectedEqual:{baseline:be,seeded:se},actual,observedEqual:{baseline:actual.baseline[0]===actual.baseline[1],seeded:actual.seeded[0]===actual.seeded[1]}};})},null,2));\nNODE"
+}
+

@@ -1,0 +1,22 @@
+{
+  "comparisons": [
+    {
+      "name": "mercury-29.raw",
+      "onlyExplicitCitationFormattingAndRedaction": true,
+      "handlesInRaw": 6,
+      "handlesInDelivered": 6
+    },
+    {
+      "name": "mercury_recheck_1-17.raw",
+      "onlyExplicitCitationFormattingAndRedaction": true,
+      "handlesInRaw": 8,
+      "handlesInDelivered": 8
+    }
+  ],
+  "kimiReceivedExactRecheck": true,
+  "handoffContainsOmission": true,
+  "handoffSha256": "53e0cf7c79eb6705c3c0054ac4eb2f40fe8126ff750a4fb2d33f8c6ba9054a4a",
+  "handoffBytes": 3123,
+  "limitation": "Direct importing react-loop for this diagnostic first failed because the fresh shell lacked bootstrap OPENAI_API_KEY; no paid run failed. This isolated pure-function extraction does not require provider credentials.",
+  "operatorCommand": "node <<'NODE'\nconst fs=require('fs'),vm=require('vm');\nconst {redactSensitiveText}=require('./trai_brain/mercury-bridge/run-ledger');\nconst source=fs.readFileSync('trai_brain/mercury-bridge/react-loop.js','utf8');\nconst constant=source.split('\\n').find(l=>l.startsWith('const REPO_FILE_PATH_PATTERN ='));\nconst start=source.indexOf('function normalizeToolHandleCitations(content) {'),end=source.indexOf('\\nfunction escapeRegexLiteral',start);\nconst normalize=vm.runInNewContext(constant+'\\n'+source.slice(start,end)+'\\nnormalizeToolHandleCitations');\nconst mission='ogz-meta/inbox/codex/2026-09-24/mercury-seeded-review';\nconst r=JSON.parse(fs.readFileSync(mission+'/private/ledger/2026-09-24.jsonl','utf8').trim().split('\\n').at(-1));\nconst raw='ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/';\nconst comparisons=[];\nfor(const [name,delivered] of [['mercury-29.raw',r.reviewer_panel.seats[0].answer],['mercury_recheck_1-17.raw',r.adversarial_review.rechecks[0].answer_full]]){\n const original=JSON.parse(fs.readFileSync(raw+name)).choices[0].message.content;\n comparisons.push({name,onlyExplicitCitationFormattingAndRedaction:redactSensitiveText(normalize(original)).trim()===delivered.trim(),handlesInRaw:(original.match(/【open_file/g)||[]).length,handlesInDelivered:(delivered.match(/【open_file/g)||[]).length});\n}\nconst kimiSources=r.reviewer_panel.seats.find(s=>s.id==='kimi').providerAttempts.flatMap(a=>a.input_provenance?.supplied_sources||[]);\nconst handoff=kimiSources.find(s=>s.path==='mercury://recheck-1-answer');\nconsole.log(JSON.stringify({comparisons,kimiReceivedExactRecheck:handoff.excerpt===r.adversarial_review.rechecks[0].answer_full.trim(),handoffContainsOmission:handoff.excerpt.includes('omitted'),handoffSha256:handoff.sha256,handoffBytes:handoff.bytes,limitation:'Direct importing react-loop for this diagnostic first failed because the fresh shell lacked bootstrap OPENAI_API_KEY; no paid run failed. This isolated pure-function extraction does not require provider credentials.'},null,2));\nNODE"
+}

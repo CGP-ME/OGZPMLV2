@@ -1,0 +1,1720 @@
+{
+  "inspectedAt": "2026-09-24T06:55:39.279Z",
+  "ledger": {
+    "path": "/opt/ogzprime/OGZPMLV2/ogz-meta/inbox/codex/2026-09-24/mercury-seeded-review/private/ledger/2026-09-24.jsonl",
+    "line": 2,
+    "rowSha256": "7f17d2bd50fef0db442237829bc10441bbfee59b2d59a52a358bd60b141d996e"
+  },
+  "runId": "2026-09-24T06-55-25-982Z-039aecc378a1",
+  "head": "f9f966470c5f81b64459d50f6ef4e707c5de0b08",
+  "prompt": "Mercury, break this proposed configuration-identity optimization.\n\nThis is an explicitly scoped adversarial review of the unapplied candidate patch below against the captured current working-tree source, not a claim that the current dirty Stop 1 implementation is approved or delivered. The candidate replaces the hash serializer to reduce canonicalization work. Decide whether it preserves the identity guarantees required by its real producers and consumers. Build and compare the relevant candidate explanations and consequences before choosing your conclusion; distinguish actual source-backed effects, conditions where behavior is preserved, and anything you cannot establish. Use your normal evidence tools and provide file:line citations and honest coverage.\n\nThe host-attested candidate is shown exactly once below. It has NOT been applied to the files you can read; reason about its effect without writing or running anything. Do not assume unrelated current dirty changes are part of this candidate. Existing evidence and authority checks still apply.\n\n```diff\ndiff --git a/foundation/ConfigLoader.js b/foundation/ConfigLoader.js\n--- a/foundation/ConfigLoader.js\n+++ b/foundation/ConfigLoader.js\n@@ -2275,5 +2275,5 @@\n }\n \n function canonicalHash(value) {\n-  return crypto.createHash('sha256').update(canonicalStringify(value)).digest('hex');\n+  return crypto.createHash('sha256').update(JSON.stringify(value, Object.keys(value).sort())).digest('hex');\n }\n```",
+  "options": {
+    "retrievalMode": null,
+    "topK": null,
+    "maxIterations": null,
+    "decisionSteerIteration": 60,
+    "decisionSteerSentAt": null,
+    "maxTokens": 7750,
+    "captureTrace": false,
+    "noTools": false,
+    "reviewers": [
+      "mercury",
+      "fable",
+      "kimi"
+    ]
+  },
+  "verdict": "unverified",
+  "termination": "answer_given",
+  "iterations": 29,
+  "authority": {
+    "ceiling": "UNVERIFIED",
+    "qualifyingSeats": 3,
+    "agreement": false,
+    "evidenceChecksPassed": false,
+    "identitiesAttested": true,
+    "identitiesIndependent": true,
+    "capReasons": [
+      "evidence_failure",
+      "reviewer_disagreement"
+    ],
+    "rerunRequired": true,
+    "agreedVerdict": null,
+    "survivorAuthority": null
+  },
+  "seats": [
+    {
+      "id": "mercury",
+      "status": "succeeded",
+      "verdict": "found_break",
+      "provider": "mercury",
+      "appliedModels": [
+        "mercury-2"
+      ],
+      "evidenceChecksPassed": false,
+      "doctrineReview": {
+        "authorityCeiling": "UNVERIFIED",
+        "hardStop": false,
+        "namedAbsences": [
+          "coverage_insufficient",
+          "whole_file_read_absent",
+          "inherited_section_incomplete",
+          "fourth_shape_unclassified"
+        ],
+        "namedBreaks": [
+          "fourth_shape_unclassified"
+        ],
+        "candidateSet": null,
+        "changedFileCount": 25,
+        "changedJsCount": 23,
+        "fourthShapeAdditionCount": 2,
+        "executionProvenance": {
+          "runChecks": []
+        }
+      },
+      "answerSha256": "07aaecaad767330dc4ec13dc4f2c7b53de7426fd90c8b8230d864b3ab8c7885d",
+      "answerBytes": 2391
+    },
+    {
+      "id": "fable",
+      "status": "succeeded",
+      "verdict": "found_break",
+      "provider": "claude-code",
+      "appliedModels": [
+        "claude-fable-5"
+      ],
+      "evidenceChecksPassed": false,
+      "doctrineReview": {
+        "authorityCeiling": "UNVERIFIED",
+        "hardStop": false,
+        "namedAbsences": [
+          "coverage_insufficient",
+          "whole_file_read_absent",
+          "inherited_section_incomplete",
+          "fourth_shape_unclassified"
+        ],
+        "namedBreaks": [
+          "fourth_shape_unclassified"
+        ],
+        "candidateSet": {
+          "examined": 8,
+          "total": 8
+        },
+        "changedFileCount": 25,
+        "changedJsCount": 23,
+        "fourthShapeAdditionCount": 2,
+        "executionProvenance": {
+          "runChecks": []
+        }
+      },
+      "answerSha256": "26b4ba21ad40c2e13c909fa49491b14d46f887a6d8b39727f6304168fe7341d6",
+      "answerBytes": 7671
+    },
+    {
+      "id": "kimi",
+      "status": "succeeded",
+      "verdict": "cannot_verify",
+      "provider": "openai",
+      "appliedModels": [
+        "kimi-k3"
+      ],
+      "evidenceChecksPassed": false,
+      "doctrineReview": {
+        "authorityCeiling": "UNVERIFIED",
+        "hardStop": false,
+        "namedAbsences": [
+          "coverage_insufficient",
+          "whole_file_read_absent",
+          "inherited_section_incomplete",
+          "fourth_shape_unclassified"
+        ],
+        "namedBreaks": [
+          "fourth_shape_unclassified"
+        ],
+        "candidateSet": {
+          "examined": 8,
+          "total": 8
+        },
+        "changedFileCount": 25,
+        "changedJsCount": 23,
+        "fourthShapeAdditionCount": 2,
+        "executionProvenance": {
+          "runChecks": []
+        }
+      },
+      "answerSha256": "9a1c059cee3b75a418ad4a3365be7d900923cfd72cd65cbd4bf289a7ebff2513",
+      "answerBytes": 7943
+    }
+  ],
+  "reviewerDelivery": [
+    {
+      "seat": "fable",
+      "role": "fable_challenger",
+      "attempt": 1,
+      "status": "succeeded",
+      "termination": "success",
+      "promptBytes": 236438,
+      "promptSha256": "52c4b98f6e7e6748897a457d1f50a6e8c73069dcc43ddeb5368fe5db11752128",
+      "hostExcerpts": 33,
+      "toolSources": 24,
+      "failureSources": 0
+    },
+    {
+      "seat": "kimi",
+      "role": "kimi_tie_breaker",
+      "attempt": 1,
+      "status": "succeeded",
+      "termination": "stop",
+      "promptBytes": 286999,
+      "promptSha256": "ffde0d9f693c87ca98a10440cb59c9331a32d986db20bee1e2a319ee39abfa22",
+      "hostExcerpts": 33,
+      "toolSources": 38,
+      "failureSources": 0
+    }
+  ],
+  "decisionFields": [
+    {
+      "seat": "mercury",
+      "verdictFields": [
+        "VERDICT: found_break  "
+      ]
+    },
+    {
+      "seat": "fable",
+      "verdictFields": [
+        "VERDICT: found_break"
+      ]
+    },
+    {
+      "seat": "kimi",
+      "verdictFields": [
+        "\nVERDICT: disagree"
+      ]
+    }
+  ],
+  "rechecks": [
+    {
+      "iterations": 17,
+      "termination": "answer_given",
+      "tools_invoked": [
+        {
+          "name": "open_file",
+          "calls": 7,
+          "failed": 0
+        },
+        {
+          "name": "search",
+          "calls": 6,
+          "failed": 0
+        },
+        {
+          "name": "tavily_search",
+          "calls": 1,
+          "failed": 1
+        }
+      ]
+    }
+  ],
+  "fableAnswerPreserved": true,
+  "fableNotRecheckSubstitution": true,
+  "tools": [
+    {
+      "name": "find_definition",
+      "calls": 1,
+      "succeeded": 1,
+      "failed": 0
+    },
+    {
+      "name": "find_references",
+      "calls": 1,
+      "succeeded": 1,
+      "failed": 0
+    },
+    {
+      "name": "open_file",
+      "calls": 12,
+      "succeeded": 12,
+      "failed": 0
+    },
+    {
+      "name": "search",
+      "calls": 10,
+      "succeeded": 10,
+      "failed": 0
+    }
+  ],
+  "filesOpened": [
+    "config/settings.json:1-200",
+    "config/settings.json:170-200",
+    "foundation/ConfigLoader.js:150-190",
+    "foundation/ConfigLoader.js:2260-2300",
+    "foundation/ConfigLoader.js:2290-2320",
+    "foundation/ConfigLoader.js:2320-2360",
+    "foundation/ConfigLoader.js:2660-2690",
+    "foundation/ConfigLoader.js:680-710",
+    "foundation/ConfigLoader.js:690-720",
+    "foundation/ConfigLoader.js:720-760",
+    "foundation/ConfigLoader.js:840-880",
+    "foundation/ConfigLoader.js:860-910"
+  ],
+  "deliveredReadCount": 12,
+  "candidateSet": {
+    "captured": 11,
+    "revised": 28,
+    "revisionCount": 3,
+    "answerCitationsSubset": true,
+    "citationsNotFiled": []
+  },
+  "qualityFlags": [
+    "tool_handle_citation"
+  ],
+  "doctrineReview": {
+    "authorityCeiling": "UNVERIFIED",
+    "hardStop": false,
+    "namedAbsences": [
+      "coverage_insufficient",
+      "whole_file_read_absent",
+      "inherited_section_incomplete",
+      "fourth_shape_unclassified"
+    ],
+    "namedBreaks": [
+      "fourth_shape_unclassified"
+    ],
+    "candidateSet": null,
+    "changedFileCount": 25,
+    "changedJsCount": 23,
+    "fourthShapeAdditionCount": 2,
+    "executionProvenance": {
+      "runChecks": []
+    }
+  },
+  "quarantines": [
+    {
+      "status": "quarantined",
+      "unit": "mercury_doctrine",
+      "name": "coverage_insufficient",
+      "absence": "coverage_insufficient",
+      "load_bearing": true,
+      "error": null,
+      "attempts": [],
+      "ntfy": {
+        "status": "sent",
+        "priority": "max",
+        "status_code": 200
+      }
+    },
+    {
+      "status": "quarantined",
+      "unit": "mercury_doctrine",
+      "name": "whole_file_read_absent",
+      "absence": "whole_file_read_absent",
+      "load_bearing": true,
+      "error": null,
+      "attempts": [],
+      "ntfy": {
+        "status": "sent",
+        "priority": "max",
+        "status_code": 200
+      }
+    },
+    {
+      "status": "quarantined",
+      "unit": "mercury_doctrine",
+      "name": "inherited_section_incomplete",
+      "absence": "inherited_section_incomplete",
+      "load_bearing": true,
+      "error": null,
+      "attempts": [],
+      "ntfy": {
+        "status": "sent",
+        "priority": "max",
+        "status_code": 200
+      }
+    },
+    {
+      "status": "quarantined",
+      "unit": "mercury_doctrine",
+      "name": "fourth_shape_unclassified",
+      "absence": "fourth_shape_unclassified",
+      "load_bearing": true,
+      "error": null,
+      "attempts": [],
+      "ntfy": {
+        "status": "sent",
+        "priority": "max",
+        "status_code": 200
+      }
+    },
+    {
+      "status": "quarantined",
+      "unit": "fable_doctrine",
+      "name": "coverage_insufficient",
+      "absence": "coverage_insufficient",
+      "load_bearing": true,
+      "error": null,
+      "attempts": [],
+      "ntfy": {
+        "status": "sent",
+        "priority": "max",
+        "status_code": 200
+      }
+    },
+    {
+      "status": "quarantined",
+      "unit": "fable_doctrine",
+      "name": "whole_file_read_absent",
+      "absence": "whole_file_read_absent",
+      "load_bearing": true,
+      "error": null,
+      "attempts": [],
+      "ntfy": {
+        "status": "sent",
+        "priority": "max",
+        "status_code": 200
+      }
+    },
+    {
+      "status": "quarantined",
+      "unit": "fable_doctrine",
+      "name": "inherited_section_incomplete",
+      "absence": "inherited_section_incomplete",
+      "load_bearing": true,
+      "error": null,
+      "attempts": [],
+      "ntfy": {
+        "status": "sent",
+        "priority": "max",
+        "status_code": 200
+      }
+    },
+    {
+      "status": "quarantined",
+      "unit": "fable_doctrine",
+      "name": "fourth_shape_unclassified",
+      "absence": "fourth_shape_unclassified",
+      "load_bearing": true,
+      "error": null,
+      "attempts": [],
+      "ntfy": {
+        "status": "sent",
+        "priority": "max",
+        "status_code": 200
+      }
+    },
+    {
+      "status": "quarantined",
+      "unit": "kimi_doctrine",
+      "name": "coverage_insufficient",
+      "absence": "coverage_insufficient",
+      "load_bearing": true,
+      "error": null,
+      "attempts": [],
+      "ntfy": {
+        "status": "sent",
+        "priority": "max",
+        "status_code": 200
+      }
+    },
+    {
+      "status": "quarantined",
+      "unit": "kimi_doctrine",
+      "name": "whole_file_read_absent",
+      "absence": "whole_file_read_absent",
+      "load_bearing": true,
+      "error": null,
+      "attempts": [],
+      "ntfy": {
+        "status": "sent",
+        "priority": "max",
+        "status_code": 200
+      }
+    },
+    {
+      "status": "quarantined",
+      "unit": "kimi_doctrine",
+      "name": "inherited_section_incomplete",
+      "absence": "inherited_section_incomplete",
+      "load_bearing": true,
+      "error": null,
+      "attempts": [],
+      "ntfy": {
+        "status": "sent",
+        "priority": "max",
+        "status_code": 200
+      }
+    },
+    {
+      "status": "quarantined",
+      "unit": "kimi_doctrine",
+      "name": "fourth_shape_unclassified",
+      "absence": "fourth_shape_unclassified",
+      "load_bearing": true,
+      "error": null,
+      "attempts": [],
+      "ntfy": {
+        "status": "sent",
+        "priority": "max",
+        "status_code": 200
+      }
+    }
+  ],
+  "tokens": {
+    "input": 2557558,
+    "uncached_input": 914822,
+    "cached_input": 1642736,
+    "output": 23173,
+    "total": 2580731,
+    "complete": true,
+    "attempts_with_usage": 48,
+    "total_attempts": 48
+  },
+  "cost": {
+    "amount": 3.25456565,
+    "currency": "USD",
+    "complete": true,
+    "priced_attempts": 48,
+    "total_attempts": 48,
+    "cost_absences": []
+  },
+  "artifacts": [
+    {
+      "path": "ogz-meta/inbox/codex/2026-09-24/mercury-seeded-review/fixtures/candidate.patch",
+      "kind": "attested_local_excerpt",
+      "lineStart": 1,
+      "lineEnd": 10,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "local_artifact",
+      "bytes": 170490,
+      "sha256": "883fe9c45ccbcadb601e33a8086f9a8763275a06819648e866acc05651d5f98e",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury_recheck_1-1.raw",
+      "kind": "local_artifact",
+      "bytes": 664,
+      "sha256": "6a04577bea165e774a7cdf90e2b57f90239fddad26c9b1d09e4d84cb58f54151",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury_recheck_1-2.raw",
+      "kind": "local_artifact",
+      "bytes": 649,
+      "sha256": "885913f6f915807806dc2c9ce6e608405772947e015a55ceb80961a04da8f4db",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury_recheck_1-3.raw",
+      "kind": "local_artifact",
+      "bytes": 620,
+      "sha256": "227eeef8820621be6c7172fbe33ea0113d6f3b46fcf2cfda675d68a747d4eedd",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury_recheck_1-4.raw",
+      "kind": "local_artifact",
+      "bytes": 660,
+      "sha256": "0cd5dfc92d3232e45f545296caa02ae195d4d28b234d9e4310279d194c5a3f4c",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury_recheck_1-5.raw",
+      "kind": "local_artifact",
+      "bytes": 662,
+      "sha256": "614a4d7f74122e1183bdbd05cf097778cbc3f4926e6ded344b8616d333a938c7",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury_recheck_1-6.raw",
+      "kind": "local_artifact",
+      "bytes": 662,
+      "sha256": "5f83114ac8889e9257bd68a900620879152510fa0fded07a17326bcace0cc0ab",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury_recheck_1-7.raw",
+      "kind": "local_artifact",
+      "bytes": 662,
+      "sha256": "5a28bbc7b9ac4f0233add843468d2f532a9ee5878ba1fa819cf161ef582f6ddf",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury_recheck_1-8.raw",
+      "kind": "local_artifact",
+      "bytes": 662,
+      "sha256": "d0fbc0dc4ecdf1580e6af8fad522b363f3fe51c7e83bc20f4e42513077ed6475",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury_recheck_1-9.raw",
+      "kind": "local_artifact",
+      "bytes": 686,
+      "sha256": "1f338d952e9abe85254c7ae721d83506e328aab2d43766085da1f307a301bdb7",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury_recheck_1-10.raw",
+      "kind": "local_artifact",
+      "bytes": 652,
+      "sha256": "6668847e25983536b5cf9222ca98a8d9c4d66a442baf1df47cb591fd30a4cdfe",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury_recheck_1-11.raw",
+      "kind": "local_artifact",
+      "bytes": 651,
+      "sha256": "32a5d2cd95b9830e9c4a22e9f66a412ae187a373ee03e260c9085bc26f7b9d0e",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury_recheck_1-12.raw",
+      "kind": "local_artifact",
+      "bytes": 4797,
+      "sha256": "18ca660f7662705b637b7c2543777685d88bab772af84bf2da0c9b64ae1341c0",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury_recheck_1-13.raw",
+      "kind": "local_artifact",
+      "bytes": 656,
+      "sha256": "89a241561a92cb59440eb8fee57a3a95846cfdd189c6847d03f36c2d714801be",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury_recheck_1-14.raw",
+      "kind": "local_artifact",
+      "bytes": 650,
+      "sha256": "a077f5f51e28a8ec3778e0fa967e186d56c883615583de5d127e4dc18376906c",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury_recheck_1-15.raw",
+      "kind": "local_artifact",
+      "bytes": 649,
+      "sha256": "66d611f3ed68999909f724c3e526794c16987316f94a7e189c19f6699d36d29b",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury_recheck_1-16.raw",
+      "kind": "local_artifact",
+      "bytes": 6152,
+      "sha256": "cdfa59f9f1fe11664c25bca89a34f3afa60a0daaa100217f5e11b8698b5ce6ee",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury_recheck_1-17.raw",
+      "kind": "local_artifact",
+      "bytes": 3640,
+      "sha256": "64d67646e9b27f9396abec349d58a0752c95c622cb0fe17c14aedcbb8350d100",
+      "matched": true
+    },
+    {
+      "path": "input://original-query",
+      "kind": "inline_provenance",
+      "bytes": 1469,
+      "redactedExcerptBytes": 1469,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 1,
+      "lineEnd": 150,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 151,
+      "lineEnd": 300,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 301,
+      "lineEnd": 450,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 451,
+      "lineEnd": 600,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 601,
+      "lineEnd": 750,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 751,
+      "lineEnd": 900,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 901,
+      "lineEnd": 1050,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 1051,
+      "lineEnd": 1200,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 1201,
+      "lineEnd": 1350,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 1351,
+      "lineEnd": 1500,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 1501,
+      "lineEnd": 1650,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 1651,
+      "lineEnd": 1800,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 1801,
+      "lineEnd": 1950,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 1951,
+      "lineEnd": 2100,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 2101,
+      "lineEnd": 2250,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 2251,
+      "lineEnd": 2400,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 2401,
+      "lineEnd": 2550,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 2551,
+      "lineEnd": 2700,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 2701,
+      "lineEnd": 2850,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 2851,
+      "lineEnd": 3000,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 3001,
+      "lineEnd": 3150,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 3151,
+      "lineEnd": 3300,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 3301,
+      "lineEnd": 3450,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 3451,
+      "lineEnd": 3600,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 3601,
+      "lineEnd": 3750,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 3751,
+      "lineEnd": 3900,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 3901,
+      "lineEnd": 4050,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 4051,
+      "lineEnd": 4200,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 4201,
+      "lineEnd": 4350,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 4351,
+      "lineEnd": 4500,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 4501,
+      "lineEnd": 4650,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+      "kind": "attested_local_excerpt",
+      "lineStart": 4651,
+      "lineEnd": 4796,
+      "artifactMatched": true,
+      "excerptMatched": true,
+      "matched": true
+    },
+    {
+      "path": "tool://mercury-pass-1/1/1",
+      "kind": "inline_provenance",
+      "bytes": 638,
+      "redactedExcerptBytes": 638,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-1/2/2",
+      "kind": "inline_provenance",
+      "bytes": 2513,
+      "redactedExcerptBytes": 2513,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-1/3/3",
+      "kind": "inline_provenance",
+      "bytes": 1492,
+      "redactedExcerptBytes": 1492,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-1/4/4",
+      "kind": "inline_provenance",
+      "bytes": 2473,
+      "redactedExcerptBytes": 2473,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-1/5/5",
+      "kind": "inline_provenance",
+      "bytes": 1737,
+      "redactedExcerptBytes": 1737,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-1/6/6",
+      "kind": "inline_provenance",
+      "bytes": 2418,
+      "redactedExcerptBytes": 2418,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-1/7/7",
+      "kind": "inline_provenance",
+      "bytes": 8953,
+      "redactedExcerptBytes": 8881,
+      "matched": false,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-1/8/8",
+      "kind": "inline_provenance",
+      "bytes": 275,
+      "redactedExcerptBytes": 275,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-1/9/9",
+      "kind": "inline_provenance",
+      "bytes": 850,
+      "redactedExcerptBytes": 823,
+      "matched": false,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-1/10/10",
+      "kind": "inline_provenance",
+      "bytes": 2320,
+      "redactedExcerptBytes": 2261,
+      "matched": false,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-1/12/11",
+      "kind": "inline_provenance",
+      "bytes": 429,
+      "redactedExcerptBytes": 429,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-1/13/12",
+      "kind": "inline_provenance",
+      "bytes": 2209,
+      "redactedExcerptBytes": 2209,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-1/15/13",
+      "kind": "inline_provenance",
+      "bytes": 1252,
+      "redactedExcerptBytes": 1252,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-1/16/14",
+      "kind": "inline_provenance",
+      "bytes": 1005,
+      "redactedExcerptBytes": 1005,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-1/17/15",
+      "kind": "inline_provenance",
+      "bytes": 1789,
+      "redactedExcerptBytes": 1789,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-1/18/16",
+      "kind": "inline_provenance",
+      "bytes": 2886,
+      "redactedExcerptBytes": 2840,
+      "matched": false,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-1/20/17",
+      "kind": "inline_provenance",
+      "bytes": 977,
+      "redactedExcerptBytes": 977,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-1/21/18",
+      "kind": "inline_provenance",
+      "bytes": 3057,
+      "redactedExcerptBytes": 3057,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-1/22/19",
+      "kind": "inline_provenance",
+      "bytes": 2114,
+      "redactedExcerptBytes": 2114,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-1/23/20",
+      "kind": "inline_provenance",
+      "bytes": 2800,
+      "redactedExcerptBytes": 2800,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-1/24/21",
+      "kind": "inline_provenance",
+      "bytes": 298,
+      "redactedExcerptBytes": 298,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-1/25/22",
+      "kind": "inline_provenance",
+      "bytes": 391,
+      "redactedExcerptBytes": 391,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-1/26/23",
+      "kind": "inline_provenance",
+      "bytes": 1503,
+      "redactedExcerptBytes": 1503,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-1/27/24",
+      "kind": "inline_provenance",
+      "bytes": 523,
+      "redactedExcerptBytes": 523,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-2/1/1",
+      "kind": "inline_provenance",
+      "bytes": 2203,
+      "redactedExcerptBytes": 2203,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-2/2/2",
+      "kind": "inline_provenance",
+      "bytes": 284,
+      "redactedExcerptBytes": 284,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-2/3/3",
+      "kind": "inline_provenance",
+      "bytes": 1231,
+      "redactedExcerptBytes": 1231,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-2/4/4",
+      "kind": "inline_provenance",
+      "bytes": 1805,
+      "redactedExcerptBytes": 1805,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-2/5/5",
+      "kind": "inline_provenance",
+      "bytes": 1558,
+      "redactedExcerptBytes": 1558,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-2/6/6",
+      "kind": "inline_provenance",
+      "bytes": 1520,
+      "redactedExcerptBytes": 1520,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-2/7/7",
+      "kind": "inline_provenance",
+      "bytes": 1691,
+      "redactedExcerptBytes": 1664,
+      "matched": false,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-2/8/8",
+      "kind": "inline_provenance",
+      "bytes": 1792,
+      "redactedExcerptBytes": 1792,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-2/9/9",
+      "kind": "inline_provenance",
+      "bytes": 312,
+      "redactedExcerptBytes": 312,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-2/10/10",
+      "kind": "inline_provenance",
+      "bytes": 2526,
+      "redactedExcerptBytes": 2526,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-2/11/11",
+      "kind": "inline_provenance",
+      "bytes": 284,
+      "redactedExcerptBytes": 284,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-2/13/12",
+      "kind": "inline_provenance",
+      "bytes": 2282,
+      "redactedExcerptBytes": 2282,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-2/14/13",
+      "kind": "inline_provenance",
+      "bytes": 283,
+      "redactedExcerptBytes": 283,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "tool://mercury-pass-2/15/14",
+      "kind": "inline_provenance",
+      "bytes": 284,
+      "redactedExcerptBytes": 284,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "mercury://primary-answer",
+      "kind": "inline_provenance",
+      "bytes": 2391,
+      "redactedExcerptBytes": 2391,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "challenger://answer",
+      "kind": "inline_provenance",
+      "bytes": 7731,
+      "redactedExcerptBytes": 7671,
+      "matched": false,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "mercury://recheck-1-prompt",
+      "kind": "inline_provenance",
+      "bytes": 16573,
+      "redactedExcerptBytes": 16513,
+      "matched": false,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "mercury://recheck-1-answer",
+      "kind": "inline_provenance",
+      "bytes": 3123,
+      "redactedExcerptBytes": 3123,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "mercury://recheck-1-telemetry",
+      "kind": "inline_provenance",
+      "bytes": 360,
+      "redactedExcerptBytes": 360,
+      "matched": true,
+      "limit": "Sanitized ledger excerpts can differ from original provider-input hashes; raw stage receipts retain provenance."
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/kimi_tie_breaker-1.raw",
+      "kind": "local_artifact",
+      "bytes": 8391,
+      "sha256": "b2e4c1e8ea534693c5379b882938635f6b66a8dade82d3c34046ddc8ca929210",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/fable_challenger-1.raw",
+      "kind": "local_artifact",
+      "bytes": 38430,
+      "sha256": "dd822f1d53b48a3339bcde3fc422db4c5699017b96d4743a9b759c9a354908e9",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-1.raw",
+      "kind": "local_artifact",
+      "bytes": 675,
+      "sha256": "27523ea47344487b8bac449e4e81bfaf865e5567ab52c814933c2c573e6d2aca",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-2.raw",
+      "kind": "local_artifact",
+      "bytes": 658,
+      "sha256": "423e7e5770751f2809815bef692bd9895fda82373bd2865cf163799bbbda7174",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-3.raw",
+      "kind": "local_artifact",
+      "bytes": 652,
+      "sha256": "d54021d29b92d8e4c86b98f6b7d8392cadb0a356331da3565f2c748c9cd78431",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-4.raw",
+      "kind": "local_artifact",
+      "bytes": 656,
+      "sha256": "42e742d7680f4a12cba0106249bfc8ea2cf175c2ef4ecff35e3d10ccfda8a887",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-5.raw",
+      "kind": "local_artifact",
+      "bytes": 662,
+      "sha256": "4b3d93de385830b74aa7c3ebfa71c3ab7b1b62fb615d08a7a156d4b1705dc37e",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-6.raw",
+      "kind": "local_artifact",
+      "bytes": 658,
+      "sha256": "5afa83c493a2c10603f3950a0a77573b349bb9712fe684204d02c77424ecdf11",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-7.raw",
+      "kind": "local_artifact",
+      "bytes": 654,
+      "sha256": "fdf9f46e901e83e76376e7ad9f58d8d1a9eb820470844083f34090542cf62fd7",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-8.raw",
+      "kind": "local_artifact",
+      "bytes": 638,
+      "sha256": "594e304e815872c57cd8c2c3fbb880af75cbfbd5477a509dd2f897b6fe1ce3e8",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-9.raw",
+      "kind": "local_artifact",
+      "bytes": 643,
+      "sha256": "568fe177f7a1096bf61cc301278d8d4835cc7f9d60bceda9a3a3050e883e2bda",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-10.raw",
+      "kind": "local_artifact",
+      "bytes": 662,
+      "sha256": "a5593cf012b94de8946044ae36b0ae059ca30800b3c6bd770bb1f599ae5e4134",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-11.raw",
+      "kind": "local_artifact",
+      "bytes": 3931,
+      "sha256": "dbb49372ff554534151e1421e061f144e7726fcc2f2c97e0313981056d835b93",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-12.raw",
+      "kind": "local_artifact",
+      "bytes": 689,
+      "sha256": "704b670d6a82adb3081c0f3ee53656deb14649ce68aa902e1591fa302aa822db",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-13.raw",
+      "kind": "local_artifact",
+      "bytes": 660,
+      "sha256": "d3b0d055f61a5db9e0ed9f2726c3b28071c9ecf5fefe4852c15160921587c7b3",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-14.raw",
+      "kind": "local_artifact",
+      "bytes": 2989,
+      "sha256": "7fd2c87dbafe4e3fbac3249d2e6b77e2d8a25428790f5534ddca465066149e47",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-15.raw",
+      "kind": "local_artifact",
+      "bytes": 647,
+      "sha256": "f88d9b6a95ee198928df5c442b8f74bf12d81eabb41a119710c4a5e435e97255",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-16.raw",
+      "kind": "local_artifact",
+      "bytes": 644,
+      "sha256": "69ec0fcce96dbb13de8594d55621a99e32b706e382ce3d371bd94da3f2b88f22",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-17.raw",
+      "kind": "local_artifact",
+      "bytes": 660,
+      "sha256": "f3f73446d20a031eed9d525bbee1ee584872323bbb51e51a15d8285fcd5882c8",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-18.raw",
+      "kind": "local_artifact",
+      "bytes": 643,
+      "sha256": "38224405992c5f45c747b2c79c05c7de04e23c6c59c96412ffc303eb28845fa6",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-19.raw",
+      "kind": "local_artifact",
+      "bytes": 6109,
+      "sha256": "1e572c7ba67c654f3d050b53e6cb2e5fc175f11c90ec9b1934ccfa633d777cc4",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-20.raw",
+      "kind": "local_artifact",
+      "bytes": 675,
+      "sha256": "7f0b3aa4e3d06be2c866d55d6a5f81f8fd7f9d5d3c2862a52e0b57bc0b943580",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-21.raw",
+      "kind": "local_artifact",
+      "bytes": 660,
+      "sha256": "78f90191b2a84e009ab3e1ae1589ec866ee7c4288f34b56435c1f925e268cd47",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-22.raw",
+      "kind": "local_artifact",
+      "bytes": 658,
+      "sha256": "c2397ca6d2d55db73768ff184e9559c44103e6471211a71f333685b8d1b3772c",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-23.raw",
+      "kind": "local_artifact",
+      "bytes": 660,
+      "sha256": "8be2a0fa6e41d5e68b93808e48b29638dec059ecdeb9afdb0ea41d43327bccb5",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-24.raw",
+      "kind": "local_artifact",
+      "bytes": 669,
+      "sha256": "86b6b037bfc1a4e7d3bdb7c4c3cc9ebc453914f4167c2fbff55b299ed99cc227",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-25.raw",
+      "kind": "local_artifact",
+      "bytes": 673,
+      "sha256": "845303b78f862637190607a4b0cbd2bb97f6b5e1b810d593cabb0584eb1c155f",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-26.raw",
+      "kind": "local_artifact",
+      "bytes": 654,
+      "sha256": "34aea17b4cc21663aacde717c623276e359d7efe69ac5fec4be257e63184c4ee",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-27.raw",
+      "kind": "local_artifact",
+      "bytes": 672,
+      "sha256": "f6a7b386bee7583aec79819b9a36fdf99ef0ffe30f963e19a7c651576c5e4110",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-28.raw",
+      "kind": "local_artifact",
+      "bytes": 6538,
+      "sha256": "760ecdcc4ed69332206c1e2c7ee702815d560ba31993f643bd5f307cd3dc3b32",
+      "matched": true
+    },
+    {
+      "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/mercury-29.raw",
+      "kind": "local_artifact",
+      "bytes": 2894,
+      "sha256": "ff23ffa254ada1035e72f161d97443084c27384f489cd5eaf337130a7a019f91",
+      "matched": true
+    }
+  ],
+  "bundleCheck": {
+    "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+    "bytes": 170490,
+    "lines": 4796,
+    "manifestMatched": true,
+    "sectionCount": 39,
+    "matchedSections": 39,
+    "sections": [
+      {
+        "id": 1,
+        "kind": "candidate_set",
+        "target": "<current_changes>",
+        "matched": true
+      },
+      {
+        "id": 2,
+        "kind": "blast_radius",
+        "target": "core/BacktestRunner.js",
+        "matched": true
+      },
+      {
+        "id": 3,
+        "kind": "blast_radius",
+        "target": "core/DrawdownTracker.js",
+        "matched": true
+      },
+      {
+        "id": 4,
+        "kind": "blast_radius",
+        "target": "core/EnhancedPatternRecognition.js",
+        "matched": true
+      },
+      {
+        "id": 5,
+        "kind": "blast_radius",
+        "target": "core/ExitContractManager.js",
+        "matched": true
+      },
+      {
+        "id": 6,
+        "kind": "blast_radius",
+        "target": "core/FeatureExtractor.js",
+        "matched": true
+      },
+      {
+        "id": 7,
+        "kind": "blast_radius",
+        "target": "core/OrderExecutor.js",
+        "matched": true
+      },
+      {
+        "id": 8,
+        "kind": "blast_radius",
+        "target": "core/PnLTracker.js",
+        "matched": true
+      },
+      {
+        "id": 9,
+        "kind": "blast_radius",
+        "target": "core/PolicyBuilder.js",
+        "matched": true
+      },
+      {
+        "id": 10,
+        "kind": "blast_radius",
+        "target": "core/ProfitExitPlanner.js",
+        "matched": true
+      },
+      {
+        "id": 11,
+        "kind": "blast_radius",
+        "target": "core/StateManager.js",
+        "matched": true
+      },
+      {
+        "id": 12,
+        "kind": "blast_radius",
+        "target": "core/StrategyOrchestrator.js",
+        "matched": true
+      },
+      {
+        "id": 13,
+        "kind": "blast_radius",
+        "target": "core/TradingLoop.js",
+        "matched": true
+      },
+      {
+        "id": 14,
+        "kind": "blast_radius",
+        "target": "core/WebSocketManager.js",
+        "matched": true
+      },
+      {
+        "id": 15,
+        "kind": "blast_radius",
+        "target": "core/dto/DecisionLedgerSchema.js",
+        "matched": true
+      },
+      {
+        "id": 16,
+        "kind": "blast_radius",
+        "target": "core/exit/StopLossChecker.js",
+        "matched": true
+      },
+      {
+        "id": 17,
+        "kind": "blast_radius",
+        "target": "foundation/ConfigLoader.js",
+        "matched": true
+      },
+      {
+        "id": 18,
+        "kind": "blast_radius",
+        "target": "modules/DonchianBreakout.js",
+        "matched": true
+      },
+      {
+        "id": 19,
+        "kind": "blast_radius",
+        "target": "modules/EMATrendRetest.js",
+        "matched": true
+      },
+      {
+        "id": 20,
+        "kind": "blast_radius",
+        "target": "modules/PropSafeEMAPullback.js",
+        "matched": true
+      },
+      {
+        "id": 21,
+        "kind": "blast_radius",
+        "target": "modules/RSI2MeanReversion.js",
+        "matched": true
+      },
+      {
+        "id": 22,
+        "kind": "blast_radius",
+        "target": "modules/TimeSeriesMomentum.js",
+        "matched": true
+      },
+      {
+        "id": 23,
+        "kind": "blast_radius",
+        "target": "ogzprime-ssl-server.js",
+        "matched": true
+      },
+      {
+        "id": 24,
+        "kind": "blast_radius",
+        "target": "run-empire-v2.js",
+        "matched": true
+      },
+      {
+        "id": 25,
+        "kind": "find_references",
+        "target": "trendBullishValue",
+        "matched": true
+      },
+      {
+        "id": 26,
+        "kind": "find_references",
+        "target": "trendBearishValue",
+        "matched": true
+      },
+      {
+        "id": 27,
+        "kind": "find_references",
+        "target": "fraction",
+        "matched": true
+      },
+      {
+        "id": 28,
+        "kind": "find_references",
+        "target": "scaleOutFraction",
+        "matched": true
+      },
+      {
+        "id": 29,
+        "kind": "find_references",
+        "target": "minTradeConfidence",
+        "matched": true
+      },
+      {
+        "id": 30,
+        "kind": "find_references",
+        "target": "featureCatalog",
+        "matched": true
+      },
+      {
+        "id": 31,
+        "kind": "find_references",
+        "target": "trai",
+        "matched": true
+      },
+      {
+        "id": 32,
+        "kind": "find_references",
+        "target": "positionSizing",
+        "matched": true
+      },
+      {
+        "id": 33,
+        "kind": "find_references",
+        "target": "entryLogic",
+        "matched": true
+      },
+      {
+        "id": 34,
+        "kind": "find_references",
+        "target": "strategies",
+        "matched": true
+      },
+      {
+        "id": 35,
+        "kind": "find_references",
+        "target": "mode",
+        "matched": true
+      },
+      {
+        "id": 36,
+        "kind": "find_references",
+        "target": "sizing",
+        "matched": true
+      },
+      {
+        "id": 37,
+        "kind": "find_references",
+        "target": "fees",
+        "matched": true
+      },
+      {
+        "id": 38,
+        "kind": "find_references",
+        "target": "evalRules",
+        "matched": true
+      },
+      {
+        "id": 39,
+        "kind": "find_references",
+        "target": "exits",
+        "matched": true
+      }
+    ]
+  },
+  "limits": [
+    "This checks ledger structure and artifact hashes, not semantic validity of every citation or exhaustive program coverage.",
+    "Readiness, successful transport and a model verdict alone do not establish acceptance. All absences remain unchanged."
+  ]
+}

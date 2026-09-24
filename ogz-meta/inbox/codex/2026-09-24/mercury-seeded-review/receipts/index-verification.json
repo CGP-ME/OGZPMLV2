@@ -1,0 +1,2621 @@
+{
+  "at": "2026-09-24T06:50:34.470Z",
+  "snapshotPath": "/opt/ogzprime/OGZPMLV2/ogz-meta/inbox/codex/2026-09-24/mercury-seeded-review/private/source-before-index.json",
+  "snapshotSha256": "86837d3fc03591890ba576b8d2293bcd556111263e461c8014ccca99f655c37a",
+  "storage": {
+    "database": "[REDACTED]",
+    "chunks": "chunks_verified_source",
+    "stats": "stats_verified_source",
+    "traces": "traces_verified_source"
+  },
+  "embedding": {
+    "provider": "openai-compatible",
+    "model": "text-embedding-3-large",
+    "dimensions": 3072,
+    "indexId": "[REDACTED]",
+    "endpointId": "https://api.openai.com/v1/embeddings"
+  },
+  "passed": true,
+  "expectedCount": 9333,
+  "stored": 9333,
+  "sourceMismatches": [],
+  "missing": [],
+  "unexpected": [],
+  "badEmbeddings": [],
+  "storedDocumentSha256": "e6c11f06f3b5d99d9c5b9c66b86a1df40ab84acf23f5f58b83808ce32d9d110f",
+  "latest": [
+    {
+      "_id": "6ab4c826b4ca726a90c9b884",
+      "index_scope": {
+        "repo_root": "/opt/ogzprime/OGZPMLV2",
+        "ogz_meta_eligible_targets": [
+          "ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md",
+          "ogz-meta/Alignment/TREY-RULINGS.md",
+          "ogz-meta/specs"
+        ],
+        "ogz_meta_rule": "only current Alignment doctrine/rulings and specs are eligible for Mercury RAG indexing"
+      },
+      "index_freshness": {
+        "indexed_at": "2026-09-24T06:50:14.615Z",
+        "branch": "astra-era",
+        "head_sha": "f9f966470c5f81b64459d50f6ef4e707c5de0b08",
+        "dirty_tracked": true,
+        "dirty_tracked_summary": "M CHANGELOG.md\n M config/settings.json\n M core/BacktestRunner.js\n M core/DrawdownTracker.js\n M core/EnhancedPatternRecognition.js\n M core/ExitContractManager.js\n M core/FeatureExtractor.js\n M core/OrderExecutor.js\n M core/PnLTracker.js\n M core/PolicyBuilder.js\n M core/ProfitExitPlanner.js\n M core/StateManager.js\n M core/StrategyOrchestrator.js\n M core/TradingLoop.js\n M core/WebSocketManager.js\n M core/dto/DecisionLedgerSchema.js\n M core/exit/StopLossChecker.js\n M foundation/ConfigLoader.js\n M modules/DonchianBreakout.js\n M modules/EMATrendRetest.js\n M modules/PropSafeEMAPullback.js\n M modules/RSI2MeanReversion.js\n M modules/TimeSeriesMomentum.js\n M ogzprime-ssl-server.js\n M run-empire-v2.js",
+        "mercury_ignore_sha256": "97eaefcb94ed065dcedfdfbdf4686728cdc42253a0cfe96ca7086e2f8e300840"
+      },
+      "files_walked": 423,
+      "chunks_produced": 9333,
+      "chunks_embedded": 9333,
+      "embed_errors": 0,
+      "embed_index_id": "[REDACTED]",
+      "embed_provider": "openai-compatible",
+      "embed_endpoint_id": "https://api.openai.com/v1/embeddings",
+      "embed_model": "text-embedding-3-large",
+      "embed_dimensions": 3072,
+      "elapsed_ms": 358794,
+      "run_at": "2026-09-24T06:50:14.716Z"
+    }
+  ],
+  "liveUnchanged": true,
+  "liveAfter": [
+    {
+      "collection": "chunks_local_nomic",
+      "documents": 9283,
+      "sha256": "a66ec26cefc9e3fd87ce42529eb9c39147fb6c2718fcda193a8e7125a0145168"
+    },
+    {
+      "collection": "index_stats_local_nomic",
+      "documents": 9,
+      "sha256": "240499a26e8ab07e21ca870ed4faf3bf9cc21ef959deccc64456e1a423dd63f2"
+    },
+    {
+      "collection": "investigation_traces_guarded_v1",
+      "documents": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "fileCoverage": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "fbeb50d3e9a977cfca297925fe3087fce8b8bc6ece7d379ab62e30432afae77b",
+      "expected": 15,
+      "stored": 15
+    },
+    {
+      "path": "BASELINE-matrix-2026-04-07.json",
+      "sha256": "09fc16439804b87e957082f6f1402586b6f07e583574d4d682e8ff917fb77bd1",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "brokers/AlpacaAdapter.js",
+      "sha256": "7791282186a00c20b3b79f87233aae0aa074c1c2df5e9ff89c126e54c2f2784c",
+      "expected": 68,
+      "stored": 68
+    },
+    {
+      "path": "brokers/BinanceAdapter.js",
+      "sha256": "c2d3a8be4840e4d1a5fac7e0b7ddea4117444c05d2a86df824cc6620eac6d36f",
+      "expected": 35,
+      "stored": 35
+    },
+    {
+      "path": "brokers/BrokerFactory.js",
+      "sha256": "3a5172db5d0b5b6deab3aedc494d6d289038a39b1ef5c6dc44015e582f988e6c",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "brokers/BrokerRegistry.js",
+      "sha256": "2533590a406e3cc1572e4dc7734e9d1502a5c23bdaa658ad326e1e74ff5d5da2",
+      "expected": 4,
+      "stored": 4
+    },
+    {
+      "path": "brokers/CMEAdapter.js",
+      "sha256": "7ecdaa48c48771b98ccd06fd6b4b013e13af9764a38bb7a24b6a1f42c6b641c4",
+      "expected": 41,
+      "stored": 41
+    },
+    {
+      "path": "brokers/CoinbaseAdapter.js",
+      "sha256": "215001f1479be30eeec43cc7507812ece939d77a91f6914ba1a29dd367ba7f79",
+      "expected": 33,
+      "stored": 33
+    },
+    {
+      "path": "brokers/GeminiAdapter.js",
+      "sha256": "311c25bb5733ab2fd9a0a7523b0b1eb69232c912b37a2ce4bd169f539bb5e72f",
+      "expected": 46,
+      "stored": 46
+    },
+    {
+      "path": "brokers/IBrokerAdapter.js",
+      "sha256": "654421f9a5c60134c5d9b67c99e22a597e0c702de0e1a895e6925bdd1dd89d57",
+      "expected": 28,
+      "stored": 28
+    },
+    {
+      "path": "[REDACTED].js",
+      "sha256": "1f52939cac50fd97bb3b552b14b8cdae86bd198aa5e749113799f4c41f9c9f60",
+      "expected": 34,
+      "stored": 34
+    },
+    {
+      "path": "brokers/KrakenIBrokerAdapter.js",
+      "sha256": "83a1f082618ec9c75f0899482411689cb4f72be0d305610fbc4dc428ec29c929",
+      "expected": 36,
+      "stored": 36
+    },
+    {
+      "path": "brokers/OandaAdapter.js",
+      "sha256": "40a7f2aeb10136df153878c362750e0be14c3878eca50491cfdffa7c6ff6cdef",
+      "expected": 34,
+      "stored": 34
+    },
+    {
+      "path": "brokers/SchwabAdapter.js",
+      "sha256": "14e79b0cad51bf7d8bfcc0afa70973cfb207f9fa350c383c990de52f9a890675",
+      "expected": 45,
+      "stored": 45
+    },
+    {
+      "path": "brokers/TastyworksAdapter.js",
+      "sha256": "ac3dc2a9e570c1d2caa4d979dc1eae701213a44bd8f635e35d7d32d4454c929c",
+      "expected": 35,
+      "stored": 35
+    },
+    {
+      "path": "brokers/UpholdAdapter.js",
+      "sha256": "2aa1dd1a15ad1b7caad99e50c31820e2163614c1fadccd1de9db02cb6d47bf87",
+      "expected": 29,
+      "stored": 29
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "63388461d04dde3d2a589c7c5ab697d66dbf1fb963bff049a0ab8bedcf09e01c",
+      "expected": 145,
+      "stored": 145
+    },
+    {
+      "path": "claude.md",
+      "sha256": "d66123861188bde6d4cbf2d85c8e9222b6b31506a6c94c1b0c8281e2ce1e642d",
+      "expected": 6,
+      "stored": 6
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "f41f25ebd8b3d512a93c69cf20b072f3c3646ef52a8f6f42576d47a91df206ee",
+      "expected": 37,
+      "stored": 37
+    },
+    {
+      "path": "config/internals.json",
+      "sha256": "c3bd62c64f2e5c2acbfdcf2f740ed1787ab8860026516d306e17cb382ade19d6",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "config/pattern-descriptions.json",
+      "sha256": "b5fea381a7b84994161f9d2d5c1834bb1262cd78b4be4363249efe804dcb5562",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "config/settings.json",
+      "sha256": "242106505532da4b858a0d25b68526a3cd6f2990a627b2180a0edab3aa7943f6",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "config/snapshots/README.md",
+      "sha256": "7cc06bc0bd11de4b69ee227534ed27965db369c4e6f6c82c9581af30f3dff074",
+      "expected": 4,
+      "stored": 4
+    },
+    {
+      "path": "core/AdaptiveTimeframeSelector.js",
+      "sha256": "4fb9516b6d08aae5f52177556f37fb497e39e03d640c04663daeecd2477b4820",
+      "expected": 15,
+      "stored": 15
+    },
+    {
+      "path": "core/AssetConfigManager.js",
+      "sha256": "801919412b92a17f6a95098e4fabd4ee70be0f001241b7cf50e02ba4f19b37c1",
+      "expected": 31,
+      "stored": 31
+    },
+    {
+      "path": "core/AssetRegistry.js",
+      "sha256": "cd3041e6ed5c8e23d9fae27fafc15cc33ee001c6972426a8bad862b13e92a0d7",
+      "expected": 2,
+      "stored": 2
+    },
+    {
+      "path": "core/AtomicWrite.js",
+      "sha256": "3d451213bba7b3680b7560e1d8c60e36650a595c7970a116a926f5d96390a924",
+      "expected": 3,
+      "stored": 3
+    },
+    {
+      "path": "core/AuthFailureGuard.js",
+      "sha256": "62aa1860bbfec49b0fcd2e22e937f4a1aa41d0d06d55416055f611af633dd44c",
+      "expected": 15,
+      "stored": 15
+    },
+    {
+      "path": "core/BacktestRecorder.js",
+      "sha256": "3f5b62190a09d3b9a51d8d76d2a6dc435feb061020ef514ecbf0b5bda1cfee1f",
+      "expected": 43,
+      "stored": 43
+    },
+    {
+      "path": "core/BacktestRunner.js",
+      "sha256": "d265cbba8c826e9a07774870ec7356b16d5b25d0456ea1b0ad703b24cf1187d2",
+      "expected": 33,
+      "stored": 33
+    },
+    {
+      "path": "core/BotStateFrame.js",
+      "sha256": "873a02e9ee1ed1d0e484b05db41190dfabdaaaa35d614bc940770fd019aefb4e",
+      "expected": 14,
+      "stored": 14
+    },
+    {
+      "path": "core/CandleAggregator.js",
+      "sha256": "905ebcd54e300cf3679d250e2e4c3ba93114f62ccf0325a47bc2177807f91a8a",
+      "expected": 9,
+      "stored": 9
+    },
+    {
+      "path": "core/CandleHelper.js",
+      "sha256": "33195306d283e2d0e23868849c87953ee5a6cecbbb74d1cb8c619af16701e5f3",
+      "expected": 5,
+      "stored": 5
+    },
+    {
+      "path": "core/CandlePatternDetector.js",
+      "sha256": "6687cb910c9f825b71d3a428da63d41cd1cb4d2b40b8d154c38d50fb63efc45b",
+      "expected": 24,
+      "stored": 24
+    },
+    {
+      "path": "core/CandleProcessor.js",
+      "sha256": "35f39f16ac8377372a2511032340ca5e05b5f4350e13d095c6d7b8733a402243",
+      "expected": 77,
+      "stored": 77
+    },
+    {
+      "path": "core/CandleStore.js",
+      "sha256": "a5808a22a6c502731fee94cb3241d69b1531ce562738b0ce3f8c5c2ce53c995f",
+      "expected": 20,
+      "stored": 20
+    },
+    {
+      "path": "core/ContractValidator.js",
+      "sha256": "d18f2e5f7cfae85fbaef6e943263f3408b09cd7c408a36bbc77f05fae6462b09",
+      "expected": 17,
+      "stored": 17
+    },
+    {
+      "path": "core/CryptoMarketFeed.js",
+      "sha256": "418dced3dbad4c204c7a68c7ef32ec16ba44f8eaa12c64850f4328944949ed68",
+      "expected": 14,
+      "stored": 14
+    },
+    {
+      "path": "core/DashboardBroadcaster.js",
+      "sha256": "6e1657c711a65772ddcc31f3b7a79f8784950be22f70b324b70030e6ddfbdcd6",
+      "expected": 27,
+      "stored": 27
+    },
+    {
+      "path": "core/DashboardDepthCoalescer.js",
+      "sha256": "594026ccdfd6ce2697da4a979dfda99e6c6ba94cfa2e2a3a14b47663d519c925",
+      "expected": 6,
+      "stored": 6
+    },
+    {
+      "path": "core/DataFileInstrument.js",
+      "sha256": "ad4e68dd0bee90f1aa02f0332063fe60e9d9985948c9940d2715f77bf55c9ae3",
+      "expected": 8,
+      "stored": 8
+    },
+    {
+      "path": "core/DecisionAutopsyLogger.js",
+      "sha256": "bfc8289809490d509e0ddf2ab651fdac40ac3f23b89810ad204ebceea807f9ca",
+      "expected": 6,
+      "stored": 6
+    },
+    {
+      "path": "core/DecisionLedgerLogger.js",
+      "sha256": "367aa42bc0d6f2be49129b61190e446fe6b7ef806c8f6175227d36d6d0476fb1",
+      "expected": 9,
+      "stored": 9
+    },
+    {
+      "path": "core/DrawdownTracker.js",
+      "sha256": "3417b5fd6260338bae821bffd4b6728fb67f6815b5cae283289d3e8783ae5f9a",
+      "expected": 6,
+      "stored": 6
+    },
+    {
+      "path": "core/dto/DecisionLedgerSchema.js",
+      "sha256": "c19286872229a31493c0b8b1e5cdf63311ccabfd80dbeed9431c4b26af2c8bf3",
+      "expected": 8,
+      "stored": 8
+    },
+    {
+      "path": "core/dto/ExitContractOwnership.js",
+      "sha256": "5574b18d725b7ce0c544ccc47e39d1bd33d84cd82b6e402808a137b55ba0e3aa",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "core/dto/FrozenExitPolicy.js",
+      "sha256": "76300ec0b959d5964fa14a49cefbf9614718a35b723e22e7062bb8fe84f359f4",
+      "expected": 6,
+      "stored": 6
+    },
+    {
+      "path": "core/dto/IndicatorSnapshotDTO.js",
+      "sha256": "77e2e0d313aedff1bf606fb39b4e4e802e658d0cedcf022b6994cd9c8f98b00e",
+      "expected": 2,
+      "stored": 2
+    },
+    {
+      "path": "core/DynamicPositionSizer.js",
+      "sha256": "14f5141e872b2ff74b7c2e0cd3a245a322f065fc99905c4c77ef80f5e6bc7f29",
+      "expected": 14,
+      "stored": 14
+    },
+    {
+      "path": "core/EMACalibrator.js",
+      "sha256": "d78e50e80a3760534c45ddb4bb003405351a6e844736ca7e85c1d39aacde28c5",
+      "expected": 8,
+      "stored": 8
+    },
+    {
+      "path": "core/EnhancedPatternRecognition.js",
+      "sha256": "6d3f0ef655e11fe43bf7097ccb754a9ee12155aefb1b6c901cd40af2ae910365",
+      "expected": 21,
+      "stored": 21
+    },
+    {
+      "path": "core/ErrorHandler.js",
+      "sha256": "7ab8076eff5cb3264d4982f1418f0a633ff3525d212a0b61f27694c473f8e547",
+      "expected": 8,
+      "stored": 8
+    },
+    {
+      "path": "core/EvalRuleEngine.js",
+      "sha256": "4d6c6418914f9da34212333750e2a3955ccbd836d1c9dadf27b61f7a5b7a0413",
+      "expected": 35,
+      "stored": 35
+    },
+    {
+      "path": "core/EventLoopMonitor.js",
+      "sha256": "39675e75a298272cfd65ac78b6e446fed6f75acff5fb8f7cbcb093bac0580072",
+      "expected": 14,
+      "stored": 14
+    },
+    {
+      "path": "core/exit/BreakEvenManager.js",
+      "sha256": "dae3bc5dd49b85914005befaa6103e96d3214b77c5a9bcfbce787894fa8c7f42",
+      "expected": 5,
+      "stored": 5
+    },
+    {
+      "path": "core/exit/DynamicTrailingStop.js",
+      "sha256": "ecab996abd83f622af6da3b33b587d2c78ab8a79386df7e4f11147e947662715",
+      "expected": 13,
+      "stored": 13
+    },
+    {
+      "path": "core/exit/MaxHoldChecker.js",
+      "sha256": "84aeefd5e9243466168ce63101617a9bb427c05d15fa8ca46d0fce37e337797b",
+      "expected": 2,
+      "stored": 2
+    },
+    {
+      "path": "core/exit/StopLossChecker.js",
+      "sha256": "417f319632b7935a451ba599c0ea770dc2c2530a126abb150136bec0a903249d",
+      "expected": 4,
+      "stored": 4
+    },
+    {
+      "path": "core/exit/TakeProfitChecker.js",
+      "sha256": "041cf71d8903ed31dd5ed09e43a6143e3b32de6c218019841c43fc8f75029e31",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "core/exit/TrailingStopChecker.js",
+      "sha256": "0f1347d006a512aaa42c9406d53be519d6936a533ccb5aa55085b9caf616b3c0",
+      "expected": 3,
+      "stored": 3
+    },
+    {
+      "path": "core/ExitContractManager.js",
+      "sha256": "7c953e6eb61d98b5a7bf269247ce34dd1ac28e20a994a60675927a4ed85b3ac4",
+      "expected": 65,
+      "stored": 65
+    },
+    {
+      "path": "core/FeatureExtractor.js",
+      "sha256": "b5be346ab3c8d62be1c42b2ca81b7161ff1c26f7b9bbd918e1cdab352ae7daf4",
+      "expected": 17,
+      "stored": 17
+    },
+    {
+      "path": "core/FeatureFlagManager.js",
+      "sha256": "5766c4c53ede6231f54942698905f1ee032d40229ce82257bd137037e2216fc6",
+      "expected": 24,
+      "stored": 24
+    },
+    {
+      "path": "core/FeeModel.js",
+      "sha256": "1cfc40f1d61f553ed48abc66aff05e563d4357a729080dfd7969ff0a1cacd74a",
+      "expected": 12,
+      "stored": 12
+    },
+    {
+      "path": "core/FibonacciDetector.js",
+      "sha256": "33483b9d9767499a73358b31862c1f2b40319b93dd70a82318666964d1eb49be",
+      "expected": 16,
+      "stored": 16
+    },
+    {
+      "path": "core/IndicatorCalculator.js",
+      "sha256": "941138f5831a0bd08dd3924b7c461c49abf6a24550b417502b380df77acdd323",
+      "expected": 17,
+      "stored": 17
+    },
+    {
+      "path": "core/indicators/IndicatorEngine.js",
+      "sha256": "5d22379c4505673d6a9b0a9850e60d06f3c11cf5951096b906fe86ec54369f65",
+      "expected": 72,
+      "stored": 72
+    },
+    {
+      "path": "[REDACTED].js",
+      "sha256": "7de87122f39ad9aab9025c129b755da4bada1315c107ccf904e8109e13cc232e",
+      "expected": 14,
+      "stored": 14
+    },
+    {
+      "path": "core/invariants.js",
+      "sha256": "30b80f035651e754ac1e737cf250ae4292a1c2e305a389999d041672058d89b5",
+      "expected": 3,
+      "stored": 3
+    },
+    {
+      "path": "core/KillSwitch.js",
+      "sha256": "92eff1dc3f5b3ddf1441b2f75c965143215be9fefee3d8043920e18e1fa81bd6",
+      "expected": 6,
+      "stored": 6
+    },
+    {
+      "path": "core/KrakenAdapterV2.js",
+      "sha256": "86d98ed9583d7e7feb3f696225142e68aeed327f8fc70e44b9a663333f6d396c",
+      "expected": 28,
+      "stored": 28
+    },
+    {
+      "path": "core/MAExtensionFilter.js",
+      "sha256": "a4244d38b06c494d0a9d2a5a628991f76514469b934ef6dd1ba4e84452c7654a",
+      "expected": 22,
+      "stored": 22
+    },
+    {
+      "path": "core/MarketRegimeDetector.js",
+      "sha256": "7e6bb22acd5f9afd75a11d72561d108a04eadfe0865aeca0adc197aafa9bc7ab",
+      "expected": 34,
+      "stored": 34
+    },
+    {
+      "path": "core/MemoryManager.js",
+      "sha256": "8a0e4790b85c378e0fc54524e8c5bebb19c28d7534eaf03996b86116ab8d082d",
+      "expected": 22,
+      "stored": 22
+    },
+    {
+      "path": "core/MessageQueue.js",
+      "sha256": "d584c8d8b13ba3f1b444128a727a67c5d9dc20c58a52d1ea8673ab09e7ae6883",
+      "expected": 5,
+      "stored": 5
+    },
+    {
+      "path": "core/ModuleAutoLoader.js",
+      "sha256": "182e0df810fd622767b0aa0ddda326210865b0ea8cc06185b25e08c35c716b78",
+      "expected": 20,
+      "stored": 20
+    },
+    {
+      "path": "core/ModuleInitializer.js",
+      "sha256": "bda4267081c6b13cf64ce3d42be79bdb12e6f1161f98a47ac1f50e7b39d45beb",
+      "expected": 2,
+      "stored": 2
+    },
+    {
+      "path": "core/MultiAssetManager.js",
+      "sha256": "9fb0f1d5fc75d7aeb5c4248d70e1e258696ea1044fcc2ad2f8efced4159d6763",
+      "expected": 15,
+      "stored": 15
+    },
+    {
+      "path": "core/NewsSearchProvider.js",
+      "sha256": "b162a3bb83c3a23e4c9ce61eb280c30554ed22f4649345a3a36cb2d2180891e1",
+      "expected": 25,
+      "stored": 25
+    },
+    {
+      "path": "core/NtfyTraceNotifier.js",
+      "sha256": "11f4c14814416f16afe3deea619afdff16fb44c49d319176eed07b093b104247",
+      "expected": 15,
+      "stored": 15
+    },
+    {
+      "path": "core/OgzTpoIntegration.js",
+      "sha256": "1752f0bfee3fa98c3a66bc1bb27673d6af3ad4f4da807149e4fce1e9d23e0c28",
+      "expected": 30,
+      "stored": 30
+    },
+    {
+      "path": "core/ogzTwoPoleOscillator.js",
+      "sha256": "8ded3a3635ee6e39bb88dc41def43a23c7636579957a63b1915d2807f882412e",
+      "expected": 11,
+      "stored": 11
+    },
+    {
+      "path": "core/OptimizedIndicators.js",
+      "sha256": "bfe35c5a7c31d4f7e22df807f7ae2986e2a521c020389db2ba0ed5e3c68e954a",
+      "expected": 27,
+      "stored": 27
+    },
+    {
+      "path": "core/OrderExecutor.js",
+      "sha256": "569bb43fccfbfe079e129d3f644e77b8f5ef5539011cc61317a39cba824a00e0",
+      "expected": 326,
+      "stored": 326
+    },
+    {
+      "path": "core/OrderRouter.js",
+      "sha256": "a03c21b3f27ba80f434073aad4f428f4184e6f9e9baab448583d53d19e7c2b4f",
+      "expected": 33,
+      "stored": 33
+    },
+    {
+      "path": "core/OutputPaths.js",
+      "sha256": "0b1c1da942182adf81ae7783c630acf9142be9078151c11e2124dc1a147ce237",
+      "expected": 7,
+      "stored": 7
+    },
+    {
+      "path": "core/PatternBasedExitModel.js",
+      "sha256": "b457c2f1d1c13d57b600c9e2284ebd87471a03ca9dc6063549dce0dda4634f7e",
+      "expected": 22,
+      "stored": 22
+    },
+    {
+      "path": "core/PatternMaturity.js",
+      "sha256": "4900b8a6e23206d305a5a9767d8d05ed5c15e283236f7c59f527057bd72ab878",
+      "expected": 7,
+      "stored": 7
+    },
+    {
+      "path": "core/PatternMemoryBank.js",
+      "sha256": "02a9d1c60dce0b2736d9993d008f05ed8ce85b48d8410a31449c5d9447a27707",
+      "expected": 58,
+      "stored": 58
+    },
+    {
+      "path": "core/PatternQualityScoring.js",
+      "sha256": "7aef5d7033cc2f24dae3c31449764cb53ae8e9c9dc738f2455b761db6b0aff93",
+      "expected": 9,
+      "stored": 9
+    },
+    {
+      "path": "core/PatternScope.js",
+      "sha256": "872a2a74cb4ad1085a665505f228a2d30b8c4adfeaaa143b92d2b7aa4b41a9ce",
+      "expected": 6,
+      "stored": 6
+    },
+    {
+      "path": "core/PerformanceAnalyzer.js",
+      "sha256": "960012bc0cc6670436ff38841fc8b32a567cf8121c94bd44faea2f1b55f17513",
+      "expected": 40,
+      "stored": 40
+    },
+    {
+      "path": "[REDACTED].js",
+      "sha256": "ea526c5d71d26ee45d5ffa8d1197f37097727b8988524aa6c3b76761a3bde57e",
+      "expected": 11,
+      "stored": 11
+    },
+    {
+      "path": "core/PerformanceValidator.js",
+      "sha256": "a5d5b551330a5d28c6a9b218db672ae6c309d0f92620fe72cd9eb8243fffd47e",
+      "expected": 22,
+      "stored": 22
+    },
+    {
+      "path": "core/PerformanceVisualizer.js",
+      "sha256": "80014fb993ba729a067b4e2918e9de4b7cc2d9329204b8d2464a8409cd64de22",
+      "expected": 29,
+      "stored": 29
+    },
+    {
+      "path": "core/persistent_llm_client.js",
+      "sha256": "91823e569ba22f7914025f25265f4eb296bbb0aaab8d463481626592376b86c7",
+      "expected": 31,
+      "stored": 31
+    },
+    {
+      "path": "core/PIDController.js",
+      "sha256": "0547d70f57b72b1a6f44ea5562a4d21036c4b31bdd4bb24711e7959ac93213d4",
+      "expected": 18,
+      "stored": 18
+    },
+    {
+      "path": "core/PipelineSnapshot.js",
+      "sha256": "138d289b9b45129b455f81037fe37bdbe89a914532ecfb877032cbc61348db47",
+      "expected": 27,
+      "stored": 27
+    },
+    {
+      "path": "core/PnLCalculator.js",
+      "sha256": "1739a6f0ceb5f4d1d4e027859017d5e1673b5b6e848af1aad3e9ddf3ef3a7da8",
+      "expected": 9,
+      "stored": 9
+    },
+    {
+      "path": "core/PnLTracker.js",
+      "sha256": "7e0745f12d3c506ace1cb70da9920328f21e7a399a65acc3bf5d37f515c30932",
+      "expected": 6,
+      "stored": 6
+    },
+    {
+      "path": "core/PolicyBuilder.js",
+      "sha256": "066a6d2a8fd63fd4e0a06bf822300ed8441e0c2b56eaf068108da1fab1a0da18",
+      "expected": 44,
+      "stored": 44
+    },
+    {
+      "path": "core/PositionEffect.js",
+      "sha256": "70a5a4df27ccfd8972ab6bbfa954776abc64839ba1e80e8f061bca704f35e0b0",
+      "expected": 4,
+      "stored": 4
+    },
+    {
+      "path": "core/PositionSizer.js",
+      "sha256": "e98e07537ffcf3d857871f6aff518eddd0d06c071d979620afa8a609a5dffcba",
+      "expected": 8,
+      "stored": 8
+    },
+    {
+      "path": "core/PositionTracker.js",
+      "sha256": "3ec7bcbee8f23e700a6a84985b6524e8ef708ecd10bf7b2a1160ac76fbf0f4ea",
+      "expected": 23,
+      "stored": 23
+    },
+    {
+      "path": "core/ProfitExitPlanner.js",
+      "sha256": "b4a7a5a5bc78522f88e84b4d7e9f391a0d3c41b75d62d9d9d4db1e77e2fb1994",
+      "expected": 23,
+      "stored": 23
+    },
+    {
+      "path": "core/RegimeDetector.js",
+      "sha256": "ed6591dbe64900304ab6f2b84355e53aca45f72a3b18ccef5db74f926c3ca570",
+      "expected": 9,
+      "stored": 9
+    },
+    {
+      "path": "core/RiskManager.js",
+      "sha256": "bf6472b4657b428d2d789d6409b307cd0cda5886760e8b5c1dda417887241ee9",
+      "expected": 16,
+      "stored": 16
+    },
+    {
+      "path": "core/RiskManagerConfig.js",
+      "sha256": "a154b3933589c0a5a77d14650d42147d7fdfce95eba2b74d195535b084386c59",
+      "expected": 13,
+      "stored": 13
+    },
+    {
+      "path": "core/RuntimeAuditSink.js",
+      "sha256": "148aae5f6a04008f31ba97f4cd0c2f17995b30e0e304babb58691d92fc276fb7",
+      "expected": 29,
+      "stored": 29
+    },
+    {
+      "path": "core/RuntimeConfigProof.js",
+      "sha256": "0aa906847a6925d175808547984ad97fc83d4812e021341cf9431deacacd5722",
+      "expected": 13,
+      "stored": 13
+    },
+    {
+      "path": "core/session-router/TransitionStore.js",
+      "sha256": "534cd8b626287720feaa9d44fa403ca5e07d238127ba12758e2b175674fec524",
+      "expected": 36,
+      "stored": 36
+    },
+    {
+      "path": "core/SessionRouter.js",
+      "sha256": "0a20cd1a3ce903431157c91539aab026c5377689d03165d9429272d65007edf0",
+      "expected": 108,
+      "stored": 108
+    },
+    {
+      "path": "core/SingletonLock.js",
+      "sha256": "b6e89a882656150397c35e58f0b6772c582ba638f398296fc9074434961f3c84",
+      "expected": 25,
+      "stored": 25
+    },
+    {
+      "path": "core/StateManager.js",
+      "sha256": "b22221fddce45025f1b4115dc7cad209d8fb8fa3e83b2aba4a1b336c6b469fff",
+      "expected": 268,
+      "stored": 268
+    },
+    {
+      "path": "core/StrategyOrchestrator.js",
+      "sha256": "778016ba3a909722340fd962e6d0db4e538583c87880545f25fb13a03378bcad",
+      "expected": 172,
+      "stored": 172
+    },
+    {
+      "path": "core/Supervisor.js",
+      "sha256": "7c7f8ac4f97ddaab00bd928b8827f6858a2a8ace3305f7746babcbb60b8c0314",
+      "expected": 45,
+      "stored": 45
+    },
+    {
+      "path": "core/SupportResistanceDetector.js",
+      "sha256": "1edb5b485b880f06ac34f7c90c3d6bee4b75c421a0aecd75f9b2dc8adc06d26a",
+      "expected": 17,
+      "stored": 17
+    },
+    {
+      "path": "core/SymbolTradingContext.js",
+      "sha256": "1cb41e75ae4767b52c4eecee1387d712211017372d298e003de28f20535cc73e",
+      "expected": 6,
+      "stored": 6
+    },
+    {
+      "path": "core/Telemetry.js",
+      "sha256": "c1df36e9162cd13fa3922f1054577b033e5a495daa7b9cb76a9ce07aad5d7577",
+      "expected": 10,
+      "stored": 10
+    },
+    {
+      "path": "core/TimeframeEngine.js",
+      "sha256": "43ce0bdd3f71d107105436ceee6f42fe61194ff40a237e0cd631f71fb99f52af",
+      "expected": 27,
+      "stored": 27
+    },
+    {
+      "path": "core/TimeFrameManager.js",
+      "sha256": "7cf1b2a22c606c5fb831abae4d160868c40fb6862cf42dbd0a375bc7e78c7ba6",
+      "expected": 50,
+      "stored": 50
+    },
+    {
+      "path": "core/TraceSpine.js",
+      "sha256": "6aff25395a4469238ab202115aa53ad3b46b95c17c4b2de4ceac644aae4927d1",
+      "expected": 21,
+      "stored": 21
+    },
+    {
+      "path": "core/TradeIntelligenceEngine.js",
+      "sha256": "29d9e341738cf900ebda0498a639881a865081aef31880181ff5ab87fe2c28d0",
+      "expected": 65,
+      "stored": 65
+    },
+    {
+      "path": "core/TradeJournal.js",
+      "sha256": "fc025edd4513030e10680fd2e940538791cf1b03fe6ee4c077942ed8035909d3",
+      "expected": 93,
+      "stored": 93
+    },
+    {
+      "path": "core/TradeJournalBridge.js",
+      "sha256": "002c28ec0106f765a8cc8600ec79aa819f59bb042fa1a55da0b5d5e041858e0e",
+      "expected": 127,
+      "stored": 127
+    },
+    {
+      "path": "core/tradeLogger.js",
+      "sha256": "a3ec58eed9e334f49878eb7ba7a3d3cd825e69f7650fc22c223a3cdc9c6a8829",
+      "expected": 37,
+      "stored": 37
+    },
+    {
+      "path": "core/TradeNarrator.js",
+      "sha256": "47b14c6a487eb8c78cdf8f1cad0764f7fe46fd248ca916f8c21cd6dae423cae0",
+      "expected": 49,
+      "stored": 49
+    },
+    {
+      "path": "core/TradeReplayCapture.js",
+      "sha256": "5e8bcc70eadf5b76228ab6363812d0dd2bd777108caeb48c113e8870d177d4f1",
+      "expected": 16,
+      "stored": 16
+    },
+    {
+      "path": "core/TradingLoop.js",
+      "sha256": "0ea843779ddea5e78718986eca2012799fce85f3598546bda5113bb8c5ec11ab",
+      "expected": 88,
+      "stored": 88
+    },
+    {
+      "path": "core/trai_core.js",
+      "sha256": "a854b3bada7f5408ef1d02143f5c1e10dc917c538bf70f574fed0897efcaf741",
+      "expected": 60,
+      "stored": 60
+    },
+    {
+      "path": "core/trai_llm_config.js",
+      "sha256": "b4e6b39ced245d509b8c7f593c005c21116da2faf827711230e2ebaa0bc853cc",
+      "expected": 8,
+      "stored": 8
+    },
+    {
+      "path": "core/trai_symbol_extractor.js",
+      "sha256": "679fb60a36e3b46ee2fd075d413f103ac7188dd65dd30b6693dbe088bf2574e0",
+      "expected": 3,
+      "stored": 3
+    },
+    {
+      "path": "core/TRAIDecisionModule.js",
+      "sha256": "eb41d6c4000b6c6c22d635998b31386b9d3769e4ad99eb2b4d50c61b45742c77",
+      "expected": 53,
+      "stored": 53
+    },
+    {
+      "path": "core/TRAIPatternIntegration.js",
+      "sha256": "899dd389c58c6cc5c00f6b074f791588b385d0e34424a383f3a6f332e1dd119e",
+      "expected": 11,
+      "stored": 11
+    },
+    {
+      "path": "core/TRAIWebContext.js",
+      "sha256": "69c571e92f86c5d386551edf1284a2426ffa2bac6c8963b20f7cbcf8614dbe45",
+      "expected": 13,
+      "stored": 13
+    },
+    {
+      "path": "core/TtpCutoffEnforcer.js",
+      "sha256": "b521848084723b6805c5cb8e1ef8a93dd839432e28216f3e1252a538b1711f80",
+      "expected": 50,
+      "stored": 50
+    },
+    {
+      "path": "core/TwoPoleOscillator.js",
+      "sha256": "94da817ac63600138858c51df26898861ce8bb6ab29f187f0ffd0c0bc2487b4b",
+      "expected": 24,
+      "stored": 24
+    },
+    {
+      "path": "core/UnifiedPatternMemory.js",
+      "sha256": "dae780c2fe0dabe9c66b858969d72f885f87aeb602f7a4ee93721af6be429182",
+      "expected": 61,
+      "stored": 61
+    },
+    {
+      "path": "core/VolumeProfile.js",
+      "sha256": "6377b0e20b7ef7e1f410790604ea9641f26b83c5ec5202ec4c321bbb8abb1e99",
+      "expected": 14,
+      "stored": 14
+    },
+    {
+      "path": "core/WebhookOrderAdapter.js",
+      "sha256": "7c15d70259bd1a502ece9fccd9dbf26bc5e4512d9ddf862399b8d4a91b7c5ec2",
+      "expected": 14,
+      "stored": 14
+    },
+    {
+      "path": "core/WebSocketManager.js",
+      "sha256": "9510bfba8d832cf5a1c96e08fcbbe52283d227e0e359dd479c51c1aad278356c",
+      "expected": 24,
+      "stored": 24
+    },
+    {
+      "path": "core/WhaleFilings.js",
+      "sha256": "0227af520fb17f59091d5a28466316fc0089616c0f81307fd383a35162713272",
+      "expected": 14,
+      "stored": 14
+    },
+    {
+      "path": "devtools/repo-dump-for-gpt.js",
+      "sha256": "20a557773b047f95c9527351469a3860de4b4a22016e3a1a306277ad7231fb2c",
+      "expected": 5,
+      "stored": 5
+    },
+    {
+      "path": "ecosystem.config.js",
+      "sha256": "f2b03c799a2311dec7a9326f0678261e7103c496fb832e42fb9ade3a4dbd09f6",
+      "expected": 3,
+      "stored": 3
+    },
+    {
+      "path": "ecosystem.watch.config.js",
+      "sha256": "bfe66e3341ec964df7b5c0cfed525bd344238c27d4b2a3fa064a8a9df8a55cda",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "foundation/ConfigLoader.js",
+      "sha256": "afc563797d0823539d9d6da6d6530644866d42b4bc91273fe0b0f55a30b3bd16",
+      "expected": 204,
+      "stored": 204
+    },
+    {
+      "path": "foundation/IBrokerAdapter.js",
+      "sha256": "5194b814707e9c65f5f206860b5017a47dfb130dc7b787de6b9b9100f2ecee08",
+      "expected": 44,
+      "stored": 44
+    },
+    {
+      "path": "foundation/Instrument.js",
+      "sha256": "c1182391d7a49d3e556e2dcab079e4a922ac9c0091f9507b0c0532a06602ffc3",
+      "expected": 20,
+      "stored": 20
+    },
+    {
+      "path": "foundation/MarketCalendar.js",
+      "sha256": "a8696a6efceb8607e137748c974967c74c64cb489baf0c3f8f6735294d8563a6",
+      "expected": 12,
+      "stored": 12
+    },
+    {
+      "path": "foundation/ohlc-normalize.js",
+      "sha256": "d2e36fa331c19c859efb60b00b34e276a5bc4b9caa9e8d073808832b3390d0df",
+      "expected": 3,
+      "stored": 3
+    },
+    {
+      "path": "foundation/ResilientWebSocket.js",
+      "sha256": "da5bb2b60d84c4a7949bc725dc3f666c5c6f3a078ae3b43989349afe60fc2490",
+      "expected": 26,
+      "stored": 26
+    },
+    {
+      "path": "instrument.js",
+      "sha256": "2cd89f545e9fc21a13ad03f0a14aa6fbad8b53812b28cc09c5e7d1073e86acb7",
+      "expected": 3,
+      "stored": 3
+    },
+    {
+      "path": "kraken_adapter_simple.js",
+      "sha256": "ffd9e67bc4c02945f8cb3ad08f19eb7909e1255a0adc937d840b7e057d19aa31",
+      "expected": 66,
+      "stored": 66
+    },
+    {
+      "path": "mercury.config.json",
+      "sha256": "e95f32e3db9344e92f061ee5eff73d0fa89872f83e775d026d83737582fd2db5",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "modules/BreakAndRetest.js",
+      "sha256": "78c714a3f88de2893195df2923644c37da6c340327aeaa044d0ae017e80f3883",
+      "expected": 32,
+      "stored": 32
+    },
+    {
+      "path": "modules/DonchianBreakout.js",
+      "sha256": "7cb886896ff1b46b9d9991a50b8e40501c8d03f7657c6d0afd2b0d636f9e6d2b",
+      "expected": 9,
+      "stored": 9
+    },
+    {
+      "path": "modules/EMASMACrossoverSignal.js",
+      "sha256": "dfd5d3a537de2c182d945c3f6c869e869fef7874007d860ceed776b809a79a0b",
+      "expected": 31,
+      "stored": 31
+    },
+    {
+      "path": "modules/EMATrendRetest.js",
+      "sha256": "fac7389548d54d8b59db3c36861a348faa7e1fb7892f6e62863c6c48f364fb91",
+      "expected": 20,
+      "stored": 20
+    },
+    {
+      "path": "modules/FairValueGapDetector.js",
+      "sha256": "5326ef459101d0c686f00f1d8e75c1ccda84c7f3a84c79cc9fd337e2d4915c77",
+      "expected": 8,
+      "stored": 8
+    },
+    {
+      "path": "modules/LiquiditySweepDetector.js",
+      "sha256": "d3849cb5f4cf96f3ae90edc092e326ddc38757ecf42bf769ff6bc9e31d27bee1",
+      "expected": 32,
+      "stored": 32
+    },
+    {
+      "path": "modules/MADynamicSR.js",
+      "sha256": "0233da4a45e6d05524bd55f02f973ee4bbd68cc88fd8ef4bc2ac58a172ace69f",
+      "expected": 47,
+      "stored": 47
+    },
+    {
+      "path": "modules/MultiTimeframeAdapter.js",
+      "sha256": "68c2cc408ad77584293801ed34054cbbd081bfdec1a4cda5d71cb4ed5594c042",
+      "expected": 29,
+      "stored": 29
+    },
+    {
+      "path": "modules/NoWickImbalance.js",
+      "sha256": "eb1b361492ec979fffcb95eaeeb332014fe9067cabed0ec288dc5ab00cd17096",
+      "expected": 27,
+      "stored": 27
+    },
+    {
+      "path": "modules/OpeningRangeBreakout.js",
+      "sha256": "23bdff8ae88bbf6d8318b25dfa293b19dba67e5cbd6533b43d725ae894476d1d",
+      "expected": 28,
+      "stored": 28
+    },
+    {
+      "path": "modules/PropSafeEMAPullback.js",
+      "sha256": "9058e977764a5092a6649950796ced2fb67c1650b87c1443b2b43af681e2fa32",
+      "expected": 19,
+      "stored": 19
+    },
+    {
+      "path": "modules/RSI2MeanReversion.js",
+      "sha256": "90974b9b5e70e54459a9f0bcd6a1528ee893368d0059a07fcb64fdeb88513608",
+      "expected": 9,
+      "stored": 9
+    },
+    {
+      "path": "modules/SmartMoneySweep.js",
+      "sha256": "8e1d60fb762185546431f387ec2670630234f11f3e389688b06b0acb7d341f33",
+      "expected": 52,
+      "stored": 52
+    },
+    {
+      "path": "modules/TimeSeriesMomentum.js",
+      "sha256": "74af3b85dbdbaa9ada9d2a999ec04a208c9c839ff7cb5333fabe105b8b896880",
+      "expected": 10,
+      "stored": 10
+    },
+    {
+      "path": "ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md",
+      "sha256": "1cac45eec55b3bc8dd309bde682608a74f73d9ab6d99e7e9cd4f618efffe67ad",
+      "expected": 75,
+      "stored": 75
+    },
+    {
+      "path": "ogz-meta/Alignment/TREY-RULINGS.md",
+      "sha256": "b3b84d16f8624d4cc8ff8551c4f9998f9684d297e90c20787334456c16632078",
+      "expected": 6,
+      "stored": 6
+    },
+    {
+      "path": "ogz-meta/specs/apex-shipping-boundary.md",
+      "sha256": "3219d3d08182ccd8cc33c2cbdebea9986e4896cf24cc9c412f091a5afbadbb14",
+      "expected": 20,
+      "stored": 20
+    },
+    {
+      "path": "ogz-meta/specs/arbitrage-equivalence-deferred.md",
+      "sha256": "fd3e3b1959d6b96149559157442552c585f390e90d06503ced4728391d807fd1",
+      "expected": 11,
+      "stored": 11
+    },
+    {
+      "path": "ogz-meta/specs/baseline-phase0-2026-05-06.md",
+      "sha256": "899929cde769d280130c90a66b9726b21a585dec5b74b5f923cac6e20eb15997",
+      "expected": 9,
+      "stored": 9
+    },
+    {
+      "path": "ogz-meta/specs/config-consolidation-migration-gates-2026-06-08.md",
+      "sha256": "bd638fa6c08478abb8c12d0ed22601dcc0c8468509cba30626b2fb32e509a2ba",
+      "expected": 17,
+      "stored": 17
+    },
+    {
+      "path": "ogz-meta/specs/decision-ledger-integration-plan.md",
+      "sha256": "fd3b9c432e211e012e7b0a42bf83eba8ac7b28ed17358830cd8b4ad293032aee",
+      "expected": 21,
+      "stored": 21
+    },
+    {
+      "path": "ogz-meta/specs/decision-ledger-schema.json",
+      "sha256": "cea623e917bf5e5a89e23b5b01b2ee3ab1b23860261d605dced1028a3b1fa0ba",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "ogz-meta/specs/doc-alignment-sweep-2026-04-20.md",
+      "sha256": "5b3d72d9dd2d24b107854396ba236825040a469a4af9ef8fc0d91de5880aa97b",
+      "expected": 47,
+      "stored": 47
+    },
+    {
+      "path": "ogz-meta/specs/eval-go-no-go-checklist-2026-05-23.md",
+      "sha256": "c6e7bf2f8736f44978c9c0ddda30fb537d7b74518bce3b59e227f32bd7327ab9",
+      "expected": 19,
+      "stored": 19
+    },
+    {
+      "path": "ogz-meta/specs/GRAND-SCHEME-AUDIT-2026-05-14.md",
+      "sha256": "2551536f62207ea4f86ca1ffd16e72e28b3cf5b2ee9f68453881222e8a2169f5",
+      "expected": 34,
+      "stored": 34
+    },
+    {
+      "path": "ogz-meta/specs/mercury-deepsearch-substrate-spec.md",
+      "sha256": "6e42364f510d618c7ebab6381ea074bbc4772d9a463f001d9dfe6b612b7790c0",
+      "expected": 25,
+      "stored": 25
+    },
+    {
+      "path": "ogz-meta/specs/MULTI-RUNTIME-BUILD-SPEC-2026-05-26.md",
+      "sha256": "3f3dea11fd68a4e7453eedc2a5a7e3a08f46121a9940a642cac7fe3c0c9cbd3f",
+      "expected": 20,
+      "stored": 20
+    },
+    {
+      "path": "ogz-meta/specs/MULTI-RUNTIME-CAPABILITY-AUDIT-2026-05-25.md",
+      "sha256": "936a4525247dccd738a428923fdccf1b3a5aae08603f93b1607eff9b8afeed26",
+      "expected": 27,
+      "stored": 27
+    },
+    {
+      "path": "ogz-meta/specs/MULTI-RUNTIME-GATE-FRAMEWORK-2026-05-26.md",
+      "sha256": "83bfb3756ad6e70b6cea18589df3edfe240811051971ea08fb47596562567b43",
+      "expected": 11,
+      "stored": 11
+    },
+    {
+      "path": "ogz-meta/specs/MULTI-RUNTIME-IMPLEMENTATION-SPEC-2026-05-25.md",
+      "sha256": "0f30d702a98bcd6d4b21a659ee0922c1a04bec8eaa375125930177109fc35ef5",
+      "expected": 20,
+      "stored": 20
+    },
+    {
+      "path": "ogz-meta/specs/OGZ-CODEBASE-ATLAS-2026-07-02.md",
+      "sha256": "0e50329221517b5643ce5f06f256189a24dcccf1a862e8034c3ae05273cd51da",
+      "expected": 11,
+      "stored": 11
+    },
+    {
+      "path": "ogz-meta/specs/OPERATOR-DESIGN-GAPS.md",
+      "sha256": "1689ae961d72753d70cea0eab96e7a6ab4ea88c4ec0b03e88e69a9a54d773fba",
+      "expected": 12,
+      "stored": 12
+    },
+    {
+      "path": "ogz-meta/specs/pattern-bank-separation-spec.md",
+      "sha256": "c1360798d825fe58bb6f48dc78fe564cbc65bc3873463cd2b3ce2290f2e63ec9",
+      "expected": 17,
+      "stored": 17
+    },
+    {
+      "path": "ogz-meta/specs/phase1-env-gates-investigation.md",
+      "sha256": "f5114023826bb0ab0a468df5d5ea53954a2bd33defa03b6ae053bb9e2fe4fc7f",
+      "expected": 9,
+      "stored": 9
+    },
+    {
+      "path": "ogz-meta/specs/PLATFORM-VISION-VERIFIED-FINDINGS-2026-05-19.md",
+      "sha256": "acbc0832d41b325b0d4c0b9bd98b3df494abf4cf156dfb3a0f18db8cf521d302",
+      "expected": 44,
+      "stored": 44
+    },
+    {
+      "path": "ogz-meta/specs/pre-eval-master-fix-plan-2026-05-20_1.md",
+      "sha256": "af9219dc41ea5e332026a3c5699823a3dde89e3b254002bf7cb17e2db2d75d3f",
+      "expected": 47,
+      "stored": 47
+    },
+    {
+      "path": "ogz-meta/specs/repository-architecture.md",
+      "sha256": "b6298a51a1bb1f275c82092836155d45f1afb0f645bd6c4149c820b11d255429",
+      "expected": 8,
+      "stored": 8
+    },
+    {
+      "path": "ogz-meta/specs/resilience-and-supervision.md",
+      "sha256": "7d56e76a0a6021495d4a702a376da8f602aa2308533adf3b8e7d5a7c443dc7e4",
+      "expected": 20,
+      "stored": 20
+    },
+    {
+      "path": "ogz-meta/specs/serena-mercury-integration.md",
+      "sha256": "eafdec4255d2e636b91f0fe6146af7d8bce382cc1b569a4dcc2ce0a34558e78e",
+      "expected": 18,
+      "stored": 18
+    },
+    {
+      "path": "ogz-meta/specs/serena-tree-sitter-migration.md",
+      "sha256": "d8bf5e310a8e0ba980a1005a5a106d7cc4bc4939cebb5f7a55d57de30afec2a5",
+      "expected": 35,
+      "stored": 35
+    },
+    {
+      "path": "ogz-meta/specs/therestofthearchitecture.md",
+      "sha256": "756acfb4ba301608932e1a5ddb585e224bae96b67a4e5705abc5fe82f905737c",
+      "expected": 216,
+      "stored": 216
+    },
+    {
+      "path": "ogz-meta/specs/thisiswhatimtalkingabout.md",
+      "sha256": "430535ff70c938e75984c63dbb6ecbac858857044b5e3a7bf39f66be91d5c202",
+      "expected": 132,
+      "stored": 132
+    },
+    {
+      "path": "ogz-meta/specs/trade-lifecycle-trace-table.md",
+      "sha256": "ca1517f09e80e5cf4ea053d45a469cf27b58b66e4818b5e7f182b119fd689108",
+      "expected": 5,
+      "stored": 5
+    },
+    {
+      "path": "ogz-meta/specs/TREY-ARCHITECTURE-SPEC-2026-07-02.md",
+      "sha256": "08ab6ec382b3859f3f5f065a4c40af866924eb665cc357fd0b03bc8275a838ea",
+      "expected": 14,
+      "stored": 14
+    },
+    {
+      "path": "ogzprime-ssl-server.js",
+      "sha256": "5d656856efc294b51004d4ed4f94179dbad9814f991dbd452b486112dacb1278",
+      "expected": 57,
+      "stored": 57
+    },
+    {
+      "path": "package.json",
+      "sha256": "cbc06111ec68f9f347672e48007b4d9960edbea198fd0f2a9395482b725461c6",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "pine-transpiler/core/PineArray.js",
+      "sha256": "0b159a05274a25b5581ca68d262413bf72b165681d156b097d00cb39a44e2901",
+      "expected": 17,
+      "stored": 17
+    },
+    {
+      "path": "pine-[REDACTED].js",
+      "sha256": "b2e56f4025f41ee7882fa91a5c524c3085a530d26dea1390b66e0c7161fe3aab",
+      "expected": 7,
+      "stored": 7
+    },
+    {
+      "path": "pine-transpiler/core/PineLexer.js",
+      "sha256": "9d2472ab0d9e803a9882f3955f0a82e6dfb7294e400de9a743b641b0bb6eba80",
+      "expected": 15,
+      "stored": 15
+    },
+    {
+      "path": "pine-[REDACTED].js",
+      "sha256": "fe0ed9c016fd94c734ccb219aefd6c64a009118a4d8ecb75417a53588d0307bb",
+      "expected": 23,
+      "stored": 23
+    },
+    {
+      "path": "pine-transpiler/core/PineParser.js",
+      "sha256": "4a70e93981118f6ed923765b1bf78f45e9272b1a78ce426239b6df5c7712ac4d",
+      "expected": 45,
+      "stored": 45
+    },
+    {
+      "path": "pine-transpiler/core/PineRuntime.js",
+      "sha256": "129939e8794fb661f0a4ec0718259a653f75192ca11649df7e4b1e258d379a52",
+      "expected": 93,
+      "stored": 93
+    },
+    {
+      "path": "pine-[REDACTED].js",
+      "sha256": "f3cee47a117158d2840b1e7601aff85c0cbb32c59ecdd429bdcc5670d98e33a6",
+      "expected": 8,
+      "stored": 8
+    },
+    {
+      "path": "pine-transpiler/core/PineTALib.js",
+      "sha256": "a0222c949e560c499a78e8762b22594599eed87785c9fb887542eb463f13e2bb",
+      "expected": 21,
+      "stored": 21
+    },
+    {
+      "path": "pine-[REDACTED].js",
+      "sha256": "438e65a48758231de8a122b1acaec19af5b7fa83843c9309d930e7d600ecd82a",
+      "expected": 6,
+      "stored": 6
+    },
+    {
+      "path": "pine-[REDACTED]-v4.js",
+      "sha256": "37d840c7f199293d190cde43f10e40462ce34d4cca69e72dd36bd3eead3087dd",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "pine-transpiler/README.md",
+      "sha256": "c114706969186dce9bc58b5004ce3b1f0bf08655f7cbb52150eb306bab99e75a",
+      "expected": 7,
+      "stored": 7
+    },
+    {
+      "path": "pine-transpiler/tools/pine-import.js",
+      "sha256": "341ad22a8681d1ae320683631ff16bec8f288bbbd4ac757eed36b95ed77371a2",
+      "expected": 2,
+      "stored": 2
+    },
+    {
+      "path": "pine-transpiler/TRANSPILER-STATUS.md",
+      "sha256": "a8bbb56b5616c4ba3fb6d590642f02259b7e35022aa48fe2f9080df673048d00",
+      "expected": 9,
+      "stored": 9
+    },
+    {
+      "path": "public/complete-integration.js",
+      "sha256": "27eea272e994a4443789c4b43013333dd3467fbc7d9b723a8eb633cd90a69ada",
+      "expected": 14,
+      "stored": 14
+    },
+    {
+      "path": "public/convert-modules.js",
+      "sha256": "fa67ed00cc834db45790b47c58f8785e98516217fee396a2b1c16fcfde1296aa",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "public/ds-base.js",
+      "sha256": "8522e0a9c697c28962130b5e8852a47afd6afd5f4d608823934a799520401d86",
+      "expected": 2,
+      "stored": 2
+    },
+    {
+      "path": "public/final-dashboard.js",
+      "sha256": "3797c067aad4f299c7796590fe17b9b23a6587cd3e8e011a3c03cf4a86d02358",
+      "expected": 2,
+      "stored": 2
+    },
+    {
+      "path": "public/js/chart.js",
+      "sha256": "1835e68ceda113fd223132aea68db14027fca92281a74ac4f428b55bc541a46a",
+      "expected": 8,
+      "stored": 8
+    },
+    {
+      "path": "public/js/ChartManager.js",
+      "sha256": "2dc031c05b4aa30ae5bc37360cf0bbedc98394800a798df06cb3c2b9876ebe28",
+      "expected": 11,
+      "stored": 11
+    },
+    {
+      "path": "public/js/command-palette.js",
+      "sha256": "a7bfebc57c0a9c17f624aa6de51e893f17c3ccc0f483d944110163688e5dcbd5",
+      "expected": 46,
+      "stored": 46
+    },
+    {
+      "path": "public/js/core.js",
+      "sha256": "722eca749da3d708f47e369e0c6c109b8eaad207348e07427d5252e03c1eac2a",
+      "expected": 2,
+      "stored": 2
+    },
+    {
+      "path": "public/js/drawing-tools.js",
+      "sha256": "766db7112d12bda85c9310e0b05a65a572922cfe6f752a382da51d417d582f42",
+      "expected": 2,
+      "stored": 2
+    },
+    {
+      "path": "public/js/IndicatorAdapter.js",
+      "sha256": "b0b291df14cdc166e75d0fc2138db04a9d648552bc6f1c0953ebbb861438b109",
+      "expected": 9,
+      "stored": 9
+    },
+    {
+      "path": "public/js/indicators.js",
+      "sha256": "86bb2d5665a0751043407a83867b74e18364d82f776255faf090ee298abbfac6",
+      "expected": 2,
+      "stored": 2
+    },
+    {
+      "path": "public/js/operator/trade-manager.js",
+      "sha256": "8a0cf7ddd86ecde4ac3f79a962fe312b0e9a0d5a456949f7364614a4d535248f",
+      "expected": 9,
+      "stored": 9
+    },
+    {
+      "path": "public/js/panels/ambient-fx.js",
+      "sha256": "9fc85b09fe549849132122e8d2405d6fbc83b554341975ae63ac72823d8ce8f2",
+      "expected": 13,
+      "stored": 13
+    },
+    {
+      "path": "public/js/panels/asset-tf-card.js",
+      "sha256": "198ca99eec1a73ad7fdece00ce9761f6c7a84e204cf25369ff11418dbb72db22",
+      "expected": 9,
+      "stored": 9
+    },
+    {
+      "path": "public/js/panels/bot-intelligence.js",
+      "sha256": "3d44341559e046d4479f14831e122b7a8f896a38b435c063647a845459792010",
+      "expected": 4,
+      "stored": 4
+    },
+    {
+      "path": "public/js/panels/candle-countdown.js",
+      "sha256": "dadd5b93e6f2502ee504e7bbe9641304cd585d6f93186cc4ab1cd4b0d92b47a0",
+      "expected": 13,
+      "stored": 13
+    },
+    {
+      "path": "public/js/panels/celebration.js",
+      "sha256": "205d8d4f484a7c52a1c53ed17b715e7ddc8a9574a43d70f714120e1837d8c2f0",
+      "expected": 21,
+      "stored": 21
+    },
+    {
+      "path": "public/js/panels/chain-of-thought.js",
+      "sha256": "014d55ae1fd0b3b763dc9517d7bc4d905fb628b2de7484c87410a4d2ea55087d",
+      "expected": 31,
+      "stored": 31
+    },
+    {
+      "path": "public/js/panels/chart-panel.js",
+      "sha256": "b0f71150e8464b1df36bb1fb89f3c6e267c3f13dd80e6e515a670fabc9919169",
+      "expected": 80,
+      "stored": 80
+    },
+    {
+      "path": "public/js/panels/confidence-heatbar.js",
+      "sha256": "db9b9046a8aaebdf086732286c68fba14689e285481d3e9d263181339b8ed4e1",
+      "expected": 18,
+      "stored": 18
+    },
+    {
+      "path": "public/js/panels/custom-alerts.js",
+      "sha256": "251406acf7fa98134973e9c610cf6ccdbec46acca3fe6aa7a1c6a93f85ebbf1e",
+      "expected": 21,
+      "stored": 21
+    },
+    {
+      "path": "public/js/panels/edge-analytics-panel.js",
+      "sha256": "f80902f8cd74af82b2fc30d1818e84f5015b864d492598fd352803a89e22912c",
+      "expected": 23,
+      "stored": 23
+    },
+    {
+      "path": "public/js/panels/edge-analytics.js",
+      "sha256": "34573e54a6f0015ac55b6472fade8a6f3a4ebcdaeafda9b2a1fb73985d927975",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "public/js/panels/equity-curve.js",
+      "sha256": "345fe83a9874fad4e18406ff5fe63b70b13724e2233c168409e6b02730bf332e",
+      "expected": 50,
+      "stored": 50
+    },
+    {
+      "path": "public/js/panels/gate-meter.js",
+      "sha256": "95e05ad9e5ef6e6db58d8bf520dd43805a8f20ec4ff03b553d64e089585b6722",
+      "expected": 16,
+      "stored": 16
+    },
+    {
+      "path": "public/js/panels/goal-tracker.js",
+      "sha256": "84b2b63fda16fc4367baac051bf9ea23a8745cf435ba52910dfec4d50453f050",
+      "expected": 20,
+      "stored": 20
+    },
+    {
+      "path": "public/js/panels/header-strip.js",
+      "sha256": "5e93ca609b16898f0ca482eb3c543524d5df0f8b15b82dab02e96d46856301bb",
+      "expected": 51,
+      "stored": 51
+    },
+    {
+      "path": "public/js/panels/layout-switcher.js",
+      "sha256": "77cc618bb47fe9e55d296f8cce9e3d514280425839600c0531fab420ec80d7c2",
+      "expected": 27,
+      "stored": 27
+    },
+    {
+      "path": "public/js/panels/live-readouts.js",
+      "sha256": "e88bdcf1ffbe6b056944b71c68ac44d91762e98ef146486487dca2b1f3aeddc9",
+      "expected": 42,
+      "stored": 42
+    },
+    {
+      "path": "public/js/panels/live-report.js",
+      "sha256": "085b71e3446c731429c577c0bd3893dabfae09b6676c038c19fa6bf3c55f602b",
+      "expected": 80,
+      "stored": 80
+    },
+    {
+      "path": "public/js/panels/loss-recovery.js",
+      "sha256": "8887591880c37a3fe537a2686eacd0135b990853ad6dcfebaaf3020f30dfbb5b",
+      "expected": 8,
+      "stored": 8
+    },
+    {
+      "path": "public/js/panels/milestone-effects.js",
+      "sha256": "3df4a2bfad9d00ed079451b31a4cf1332703becd6cd9833969727b99f1f3d843",
+      "expected": 26,
+      "stored": 26
+    },
+    {
+      "path": "public/js/panels/news-ticker.js",
+      "sha256": "0a459e09316d8f530ab5bbecacc4295376a2d237b99ad0560702b3b443fd5cd4",
+      "expected": 41,
+      "stored": 41
+    },
+    {
+      "path": "public/js/panels/open-positions.js",
+      "sha256": "7c2f46d2dcf6b848175d32a498675e466d07a20df1e012302ff42aae08bbf0b7",
+      "expected": 50,
+      "stored": 50
+    },
+    {
+      "path": "public/js/panels/pattern-card.js",
+      "sha256": "46c17424f943e691fa30178c4a4b657ae3cf01e533ed9576c11f8022f253d09a",
+      "expected": 36,
+      "stored": 36
+    },
+    {
+      "path": "public/js/panels/pattern-sparkline.js",
+      "sha256": "e226df50234636ae95301855945b96a3b6f37064bdbafc3248a9c8fdca2dd858",
+      "expected": 12,
+      "stored": 12
+    },
+    {
+      "path": "public/js/panels/rail-resize.js",
+      "sha256": "626f94c82d3d2b689471200d2468c6513f43d1573d27ef48ddf75445fd39b059",
+      "expected": 6,
+      "stored": 6
+    },
+    {
+      "path": "public/js/panels/risk-gauge.js",
+      "sha256": "7d60e17480c6460d4fe0bfe423f7bb80867022add942d5acb8ade8f926b83226",
+      "expected": 30,
+      "stored": 30
+    },
+    {
+      "path": "public/js/panels/session-phase.js",
+      "sha256": "22816099f829e8701108c56a24472661c16d338a9b1e01c4a97b014d8f31c07f",
+      "expected": 10,
+      "stored": 10
+    },
+    {
+      "path": "public/js/panels/size-preview.js",
+      "sha256": "69c43583facebfe06862546efee72302f912de30f4aa67b14b785400406d2036",
+      "expected": 16,
+      "stored": 16
+    },
+    {
+      "path": "public/js/panels/spoofing-detector.js",
+      "sha256": "522256dc9557e08c1eb3d62827780d2a5a37155d0f87f593fe46b2cc8578bb16",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "public/js/panels/strategy-leaderboard.js",
+      "sha256": "444c9d7cc6840c64225c0353621d1f8565a7f240700307fbba1c173f392910c0",
+      "expected": 17,
+      "stored": 17
+    },
+    {
+      "path": "public/js/panels/system-health.js",
+      "sha256": "ea0d5412c442c6852962298a476acee8506ad201f2f590d6630868ea82e04b18",
+      "expected": 43,
+      "stored": 43
+    },
+    {
+      "path": "public/js/panels/system-snapshot.js",
+      "sha256": "fe429dd7f3c59db6643f979ebb88209243d88f55ee3e08ce8e4b38cee494ed54",
+      "expected": 2,
+      "stored": 2
+    },
+    {
+      "path": "public/js/panels/trade-log.js",
+      "sha256": "174ca880fad7d57b7878323d39c5eba11adf2833ba0801ae0eb56a3d0ac8ccfc",
+      "expected": 4,
+      "stored": 4
+    },
+    {
+      "path": "public/js/panels/trade-replay.js",
+      "sha256": "f14a6226507684ee621c10d3783a3d0d7c51d41d00c4a7d76b23959163fbdd2e",
+      "expected": 41,
+      "stored": 41
+    },
+    {
+      "path": "public/js/panels/trai-brain.js",
+      "sha256": "4514158fa830b5b363bb1c8a94e660126ac2688b575babd5e6e4e7f0a411bab8",
+      "expected": 44,
+      "stored": 44
+    },
+    {
+      "path": "public/js/panels/victory-animations.js",
+      "sha256": "70e8ed7c3985051b770b92e9144e05df5269a256182f967b912f51bad4bfc1b5",
+      "expected": 17,
+      "stored": 17
+    },
+    {
+      "path": "public/js/panels/voice-fx.js",
+      "sha256": "a3846f0d0894a5acb8ac563bf2a262f7c188f1aa07d45d19eac84c869f47d187",
+      "expected": 11,
+      "stored": 11
+    },
+    {
+      "path": "public/js/panels/voice-manager.js",
+      "sha256": "a7d46a0ef0368f20ac88906af4329884de3d75209ff070d73b2d030af6ab3175",
+      "expected": 11,
+      "stored": 11
+    },
+    {
+      "path": "public/js/panels/watchlist-strip.js",
+      "sha256": "81151b6452c8096df030f232a7d84b8ec013f1233d98bb21e29b86a2b463ed9d",
+      "expected": 40,
+      "stored": 40
+    },
+    {
+      "path": "public/js/posthog-init.js",
+      "sha256": "83cc4a555be7aa946eb55370dc281c87a213c971852f9c35cbf321c9ef9df19b",
+      "expected": 2,
+      "stored": 2
+    },
+    {
+      "path": "public/js/run-frontend-empire-v2.js",
+      "sha256": "ea7891f80af511f6affad18a8e76af11493bed8ab94682283ee12aa102700c19",
+      "expected": 32,
+      "stored": 32
+    },
+    {
+      "path": "public/js/theme-customizer.js",
+      "sha256": "5627ad3c06306ab35a111e0c92602ad1045814dd44905c88d3ddaa8447274b7c",
+      "expected": 6,
+      "stored": 6
+    },
+    {
+      "path": "public/js/websocket.js",
+      "sha256": "2945d6706584c6e828ccd89cc6fc60ffc6af7172523acc5c1036eb5ddbc983db",
+      "expected": 23,
+      "stored": 23
+    },
+    {
+      "path": "public/module-integrator.js",
+      "sha256": "345202d7a545704c94c6e21e1f740971c02ecc5386209bbc6402b27cd43b2f40",
+      "expected": 6,
+      "stored": 6
+    },
+    {
+      "path": "public/modules/fibOverlay.js",
+      "sha256": "7907cdf0d1fdea6a69c6aa8c8a7fe1d00e39ed599d06edf8b706b2bee1940676",
+      "expected": 2,
+      "stored": 2
+    },
+    {
+      "path": "public/modules/goalTracker.js",
+      "sha256": "555aa396f4257ca5ee6c8df113cb5a15ce428f9bb00b2750f751d84a832e6f6a",
+      "expected": 11,
+      "stored": 11
+    },
+    {
+      "path": "[REDACTED].js",
+      "sha256": "47b9d8a398accdeb1a12c07d5209b5546941c04f0db85cca42e2aacfd73eacde",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "public/modules/sparkleEffects.js",
+      "sha256": "696ba5191ecaeddf2119f17d17b8f630b157585ed286ca0d044a459174c0996a",
+      "expected": 4,
+      "stored": 4
+    },
+    {
+      "path": "[REDACTED].js",
+      "sha256": "91df2acde113602ce2068cc541284d0c6ca4e18e076a8220de86cc421a26d630",
+      "expected": 5,
+      "stored": 5
+    },
+    {
+      "path": "[REDACTED].js",
+      "sha256": "682a866255b420c713aeab995f7c21075fe05e0595694430c19e3ef1878b5a5a",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "public/modules/trendLines.js",
+      "sha256": "4cd5fb712dae94ff9357908e50f92ccab9f6aa96a12486a3eca09454c149f7be",
+      "expected": 3,
+      "stored": 3
+    },
+    {
+      "path": "public/ogz-core-config.js",
+      "sha256": "e4d282379da54ea008dbf2b1b3d02404f1655ddb0a7638aec0055ece18c73152",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "public/ogz-fx-engine.js",
+      "sha256": "195e28f1ceea2e23ee51119f1024a50a7f6077a5e10763ba00e451c69d52e209",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "public/ogzp-core-mind.js",
+      "sha256": "8d6796dcc95b5d90bb839c3e9038baabb52bd8ef730e227b1c900d9a69044cea",
+      "expected": 3,
+      "stored": 3
+    },
+    {
+      "path": "public/prime-bootstorm.js",
+      "sha256": "cb45722573e91edae22ecd9921525e9f994dcd78dfbbcf982c6383284822334b",
+      "expected": 6,
+      "stored": 6
+    },
+    {
+      "path": "public/proof/track-record/app.js",
+      "sha256": "a0cfa41b06e16dc4c46b8a690558933f8487695671091d8b683a12cb1f10833e",
+      "expected": 31,
+      "stored": 31
+    },
+    {
+      "path": "public/stripe-checkout.js",
+      "sha256": "32125e19fff9c07aa0f5ffaf3c03dedebc2a73014915bd9e111fa986a5784c65",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "public/support.js",
+      "sha256": "fab925b9a2ecd39654935eff0cf72691465750f4dd5fe2f836e5c5e18659979b",
+      "expected": 80,
+      "stored": 80
+    },
+    {
+      "path": "public/TimeframeManager.js",
+      "sha256": "b1c1e0ff760bebe07ca079587ae7a2c5a454e8f17c0699a6386c508e646a43ae",
+      "expected": 14,
+      "stored": 14
+    },
+    {
+      "path": "public/trai-widget.js",
+      "sha256": "654e172fd5839eeff0807047a24aaffc6b4b4f0e95f4177914a8007ddb735ebc",
+      "expected": 23,
+      "stored": 23
+    },
+    {
+      "path": "README.md",
+      "sha256": "0cd38457a5efa35d25fd659a137a25125ed24a895e863ac6ca61461e3f0d33ae",
+      "expected": 12,
+      "stored": 12
+    },
+    {
+      "path": "run-empire-v2.js",
+      "sha256": "b5562cb0f3ad7b1bbc8fd29892483c1812714dc6015d6f846d9f15fec7a2404f",
+      "expected": 194,
+      "stored": 194
+    },
+    {
+      "path": "scripts/build-ogz-rag-index.js",
+      "sha256": "5ef62c8744e985522bde6e73bd76427aef661651daa121f0f2e05c90c43ba1b3",
+      "expected": 3,
+      "stored": 3
+    },
+    {
+      "path": "scripts/candle-interpolator.js",
+      "sha256": "6aa97c8f363f1f0b060770eaf332fb0c47a4eca4768a3545b4b4eda65d95bed9",
+      "expected": 5,
+      "stored": 5
+    },
+    {
+      "path": "scripts/check-config-boundary.js",
+      "sha256": "c56e94cdaba9a16f092f8d3ca73fecc1a00fa369e8f032cd8481d0532e382f57",
+      "expected": 42,
+      "stored": 42
+    },
+    {
+      "path": "scripts/check-dashboard-token-containment.js",
+      "sha256": "89ee13dae6f90ccb796993bbe6b322b992a4dd08aa0bb41c14b6b504eade447d",
+      "expected": 3,
+      "stored": 3
+    },
+    {
+      "path": "scripts/check-protected-paths.js",
+      "sha256": "98f3b9dbebcb03d13cb00e205c45422e909ea9c79513fee17474995dd44a8f81",
+      "expected": 11,
+      "stored": 11
+    },
+    {
+      "path": "scripts/cleanup-patterns.js",
+      "sha256": "5dc224af6a83f2273e5e6ed99a7211e3ffc386c4700b13bf472b039b84fb25f4",
+      "expected": 2,
+      "stored": 2
+    },
+    {
+      "path": "scripts/download-tsla-polygon.js",
+      "sha256": "1d54f86e9d7f5d5f9c1a9d40502d72b3391811062ad0841e5ee371d2edb4e711",
+      "expected": 5,
+      "stored": 5
+    },
+    {
+      "path": "scripts/download-tsla-walkback.js",
+      "sha256": "07e9731abc42b33735b187c749126b89a9daba37cb3c38309276fc83adba7906",
+      "expected": 5,
+      "stored": 5
+    },
+    {
+      "path": "scripts/download-tsla-walkforward.js",
+      "sha256": "c0112313fa0fa4256e63847df960f21cac8bd224552d62cf863e739b4f9cad3c",
+      "expected": 5,
+      "stored": 5
+    },
+    {
+      "path": "scripts/fetch-cryptocompare.js",
+      "sha256": "edfc42ec96de93439b7da7f252c38054fc911fef5ccc84d4b7eb2bede97eadd3",
+      "expected": 4,
+      "stored": 4
+    },
+    {
+      "path": "scripts/fetch-historical-candles.js",
+      "sha256": "ccd2ec52d7b46adc0cc311b415be812844ad50fefdd704d706c2e3a38888c1f7",
+      "expected": 5,
+      "stored": 5
+    },
+    {
+      "path": "scripts/fetch-stock-data.js",
+      "sha256": "f90ffdb09e89953bc8b8e348af1fc6f5fc7c447c74a8aa1f954dce21d78c8efc",
+      "expected": 13,
+      "stored": 13
+    },
+    {
+      "path": "scripts/generate-live-proof.js",
+      "sha256": "f4f69e5ca74a0359170561b6c42d8a0cb8bfcaf0117e2aac076dd38f7b34a169",
+      "expected": 10,
+      "stored": 10
+    },
+    {
+      "path": "scripts/lint-dto.js",
+      "sha256": "fac861a55edeaf54c734980001a1dc292993bb7e3a873b4d8b6588bbd33d89e3",
+      "expected": 2,
+      "stored": 2
+    },
+    {
+      "path": "scripts/mercury-analyze.js",
+      "sha256": "2c11706fcaa202e7363efa8609b9b3d0201e08b19c18d6fbdb8a3f25b2fc0215",
+      "expected": 5,
+      "stored": 5
+    },
+    {
+      "path": "scripts/mercury-substrate-digest.js",
+      "sha256": "1166e0bcad236644b4c69a1d71d1daf8aa131a206fca49948639612697b1f7ff",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "scripts/scan-secrets.js",
+      "sha256": "e053d02e8989339f3f3398a6a4999a572b3f399b6773d8d60c55567c089ca12b",
+      "expected": 23,
+      "stored": 23
+    },
+    {
+      "path": "scripts/search-ogz-rag-index.js",
+      "sha256": "151caccfbd301896f7380b33fe39db3628793e6adfcd8e89344104a7c50fca7e",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "scripts/supervisor-daemon.js",
+      "sha256": "add5c4846f1ff531cba0a7c5727b478e64f78b1877112818cdf7230812c3aa83",
+      "expected": 13,
+      "stored": 13
+    },
+    {
+      "path": "scripts/telemetry-report.js",
+      "sha256": "ffc769c72a99da73eb91df0ccd8619dfa9e2ad7b08dd32aba87133a482ccff57",
+      "expected": 7,
+      "stored": 7
+    },
+    {
+      "path": "scripts/update-repo-history.js",
+      "sha256": "96d1ce2b1d98162002ce9bb09c8b8ddfaa7341d3f74c64a030d031da22a4eea9",
+      "expected": 7,
+      "stored": 7
+    },
+    {
+      "path": "server/dashboard-market-scope.js",
+      "sha256": "3c3386c3844a92680038d489b2eb3dad38223cfdeedf42ce03ad35eb6c07f20c",
+      "expected": 13,
+      "stored": 13
+    },
+    {
+      "path": "server/dashboard-pattern-contract.js",
+      "sha256": "d9c381e9219624390803cbcce816bad8a2fb38df11d1ea40a69397450b05015b",
+      "expected": 5,
+      "stored": 5
+    },
+    {
+      "path": "server/dashboard-session-auth.js",
+      "sha256": "459b79ebf848fd68ddae0fed1e0ace37f8dfde7207bc163ab05e24e4c89c0fd0",
+      "expected": 8,
+      "stored": 8
+    },
+    {
+      "path": "server/dashboard-stock-stream-config.js",
+      "sha256": "b2c14ce7b2267a4d00bc687cd8cba7f4198f8e653672eae7a14bd23dba7d4533",
+      "expected": 3,
+      "stored": 3
+    },
+    {
+      "path": "server/dashboard-ticker-frame.js",
+      "sha256": "fc6ee2525e4512ef971830df7937746e55980516fed2f13c73ab3ebdbeb9bedd",
+      "expected": 12,
+      "stored": 12
+    },
+    {
+      "path": "server/emitter-bridge.js",
+      "sha256": "3fb13b7e5f1f1814714ea6e803598fa4395dd4bd1533c61dd2daaf4af45c9c01",
+      "expected": 3,
+      "stored": 3
+    },
+    {
+      "path": "server/kraken-depth-adapter.js",
+      "sha256": "52267c60d4226b02c751a7c2321b13bdd2ba1382504561e11fb50aabc4025eef",
+      "expected": 3,
+      "stored": 3
+    },
+    {
+      "path": "server/stock-data-adapter.js",
+      "sha256": "95c8d2cf400d2c0cf70a88980ef363fe4ccbc4c6b0a402c3a1e0332a24182432",
+      "expected": 16,
+      "stored": 16
+    },
+    {
+      "path": "[REDACTED].js",
+      "sha256": "6727c367025d4ba63587e322128d88fa03c48dec9659df6af13a3acd892c4389",
+      "expected": 11,
+      "stored": 11
+    },
+    {
+      "path": "TierFeatureFlags.js",
+      "sha256": "0411be28878d9ad0c92938d6c0ba32e4710572cfefc7f242eeb630d04f479c1f",
+      "expected": 17,
+      "stored": 17
+    },
+    {
+      "path": "tools/backfill-mercury-costs.js",
+      "sha256": "513e8961453fa9572a5370ca6539a066af283c9de2a195f96b19ed6b854abfef",
+      "expected": 10,
+      "stored": 10
+    },
+    {
+      "path": "tools/backtest-worker-env.js",
+      "sha256": "0332d961a67759aa8633a7a6b5bdd1fe83b73c9cc195bc9543a6e88543ae759d",
+      "expected": 13,
+      "stored": 13
+    },
+    {
+      "path": "tools/cachebust.js",
+      "sha256": "30a1c6c6eabffa3edd3d45c9afc695ffef2eb124d1ffb3c64a764e757c187fd2",
+      "expected": 3,
+      "stored": 3
+    },
+    {
+      "path": "tools/campaign-integrity.js",
+      "sha256": "43480f6a456ec9bcd4d2f0ebeef7fc6f22fd9c403743518ba8e3a48fe76f9bbf",
+      "expected": 35,
+      "stored": 35
+    },
+    {
+      "path": "tools/config-audit.js",
+      "sha256": "1e292d84cd1e348ae31a6a7323546617bbe501504882b65f41c9983e0abf96cc",
+      "expected": 15,
+      "stored": 15
+    },
+    {
+      "path": "tools/data-parity-check.js",
+      "sha256": "e4b8dbe9295c8402297b359a54c59bf0b4b2f380ad62f70e03988e173f084f31",
+      "expected": 33,
+      "stored": 33
+    },
+    {
+      "path": "tools/decision-autopsy-report.js",
+      "sha256": "353613d2cc7bacd42ebe7b8b10a17f5bb204ccd5c392d8a60560f9e0aae261fc",
+      "expected": 23,
+      "stored": 23
+    },
+    {
+      "path": "tools/dep-scanner.js",
+      "sha256": "f031f0a47a1eef373299a4d4263f8933bbcdf5622381e6063da9f982be7af424",
+      "expected": 14,
+      "stored": 14
+    },
+    {
+      "path": "tools/eval-trade-inspector.js",
+      "sha256": "60fc7b3c7ec1524423e562a32765e1774c1c565c9f57db2864d3b09bdb216bbd",
+      "expected": 12,
+      "stored": 12
+    },
+    {
+      "path": "tools/fee-profiles.js",
+      "sha256": "4839f58e8dded6d23680822dd6b6d11291a75af05eb4a9bfe4ccc560ae2cd283",
+      "expected": 3,
+      "stored": 3
+    },
+    {
+      "path": "tools/grid-search-confidence.js",
+      "sha256": "6ffb79ede57f3b672f5293a4de8e63f6bf4b96b9df5f4cf3fc90f102e987534f",
+      "expected": 9,
+      "stored": 9
+    },
+    {
+      "path": "tools/harvest-pattern-pack.js",
+      "sha256": "cb355e711452f77d7145c651f35d8a7d031958b31d47e6668f4475c5b4ec77fa",
+      "expected": 9,
+      "stored": 9
+    },
+    {
+      "path": "tools/instrument-env.js",
+      "sha256": "d5875a4050f36d91c551d24698ce5ef2ef03229cdfb83053e9f8ecc6956c7375",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "tools/kill-switch.js",
+      "sha256": "f55850063f7e09e2a7ccadaa8d6922ca4b147c478bd79a41f411f7246fa73ff5",
+      "expected": 3,
+      "stored": 3
+    },
+    {
+      "path": "tools/lint-fallbacks.js",
+      "sha256": "4a53b531c44731141ce305c38f04dcb2d275b93ab13dba343346bef017ed1f2f",
+      "expected": 11,
+      "stored": 11
+    },
+    {
+      "path": "tools/matrix-sweep.js",
+      "sha256": "c714ec85ae81a640d8297b7554885377635c0ca843912fd1554a281cf366748a",
+      "expected": 65,
+      "stored": 65
+    },
+    {
+      "path": "tools/parallel-backtest.js",
+      "sha256": "bd63bde10fab821b044afaa69a9c876bf51885c65799c69d157bc079d97ed627",
+      "expected": 47,
+      "stored": 47
+    },
+    {
+      "path": "tools/probe-tfe-alive.js",
+      "sha256": "8672f00d2fa6afcef6805465f8b3b0fc690772847fafb1a763c3892137b594d0",
+      "expected": 12,
+      "stored": 12
+    },
+    {
+      "path": "tools/regression-test.js",
+      "sha256": "c8ad11c0f640cc3904f16c2b613b1574b82123517f88c39bf8843ca3771202b1",
+      "expected": 14,
+      "stored": 14
+    },
+    {
+      "path": "tools/repodumpforgpt.js",
+      "sha256": "b3fe0687029d9a749ce75cfd5f8a6ab63970b84e22fc0c00937657f5939ef256",
+      "expected": 2,
+      "stored": 2
+    },
+    {
+      "path": "tools/run-audit-apex.js",
+      "sha256": "97ecfdf97c7c7d079362d5663b820830943e5b12aa6f660f9c9efc08ec3061d9",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "tools/run-audit-revised-part2.js",
+      "sha256": "3a7bf62e18a41b90984d744db8dc979ce24f700cb47740fe85c886459088427d",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "tools/run-audit-revised.js",
+      "sha256": "ab6ebef6203607e79d8d6413c7bed3f903748a6828b015cf947c3b19092da55e",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "tools/run-audit.js",
+      "sha256": "14e220041a8d0af931460b201b6f6cf51d4290a7a5b226487c54cba4556d9e91",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "tools/serena-bridge.js",
+      "sha256": "4af758959e0c84f6f848c535c6d6fa184817b1d849efe88ed39033d0b56de664",
+      "expected": 14,
+      "stored": 14
+    },
+    {
+      "path": "tools/serena-symbol-scanner.js",
+      "sha256": "b746d935c15f5d98ec12d9147f4e507c760a7f92afe6258247b1c67b1b120d2d",
+      "expected": 42,
+      "stored": 42
+    },
+    {
+      "path": "tools/single-backtest.js",
+      "sha256": "5417027ed2cb97420f8638408cc086978ec72d1ed9827f8167cadefdd406ccc4",
+      "expected": 9,
+      "stored": 9
+    },
+    {
+      "path": "tools/strategy-lab.js",
+      "sha256": "9801d7d4fb7f9241e4878d04350a066d72a7a6bb509c02415181be6799409191",
+      "expected": 33,
+      "stored": 33
+    },
+    {
+      "path": "tools/strategy-parity.js",
+      "sha256": "53b6e44496d3997065afc7040dbfdae09d2faf87826d7ced0e2b427f69309860",
+      "expected": 12,
+      "stored": 12
+    },
+    {
+      "path": "tools/trade-validator.js",
+      "sha256": "91ff4f171128d6d57260138f4a208663f15b9a11d3409809dda1421c71818779",
+      "expected": 19,
+      "stored": 19
+    },
+    {
+      "path": "tools/tuning-profiles.js",
+      "sha256": "0dfd1d884d7e317f08bf785474769a9d7a96dbd292ce682bee909b0f0a3d813d",
+      "expected": 3,
+      "stored": 3
+    },
+    {
+      "path": "tools/weekend-campaign-gauntlet.js",
+      "sha256": "dfe1968f3e838b86477df090c64b1394f5754ee6d7502401d88c6f95d3e14494",
+      "expected": 70,
+      "stored": 70
+    },
+    {
+      "path": "TradingProfileManager.js",
+      "sha256": "5a1299332b02700d9d42f377886acfcbe432d23ff2c83de96e62020e0a20e350",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "trai_brain/claude-bridge/cli.js",
+      "sha256": "7b658c5663282de81ef38cf60f4c8ea19dee8ba9d24750fb5a800d5026c0accd",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "trai_brain/claude-bridge/edit-ledger.js",
+      "sha256": "72307ab10c4819077c448a501460a626e50edad56e6e1bb4967a088e1a640bb1",
+      "expected": 8,
+      "stored": 8
+    },
+    {
+      "path": "trai_brain/claude-bridge/finish-gate.js",
+      "sha256": "24543df1790cd23adc925e360558106b844762520e80001ae7238214deb72669",
+      "expected": 29,
+      "stored": 29
+    },
+    {
+      "path": "trai_brain/claude-bridge/hook-input.js",
+      "sha256": "f8c1892c1f9ca9ba105e6b400010278ec2911fa4110a95ce6d986402440965ca",
+      "expected": 5,
+      "stored": 5
+    },
+    {
+      "path": "trai_brain/claude-bridge/ignore-policy.json",
+      "sha256": "f638a57f9813f1be3bedbaf20cf034103296ae2f1d2280d1f7008db6c166d5e4",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "trai_brain/claude-bridge/policy.js",
+      "sha256": "ebf6a53e1141727e24d080369daff133b268c760622a683b5e7956ef628e174c",
+      "expected": 9,
+      "stored": 9
+    },
+    {
+      "path": "trai_brain/claude-bridge/post-edit.js",
+      "sha256": "9cbc788b066324060891c4724ae191aa18569516c9415ab128acdf3c164adc54",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "trai_brain/claude-bridge/post-read.js",
+      "sha256": "10fdf5ab6b8a0da198b397492212e8ae42c430bf0c818a8bc0cedf4fd7d66851",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "trai_brain/claude-bridge/pre-bash.js",
+      "sha256": "12136c3f4245edd0275e28ced0ecb3352dcfb6ae1d3c32d42f01ec8493267bcf",
+      "expected": 27,
+      "stored": 27
+    },
+    {
+      "path": "trai_brain/claude-bridge/pre-edit.js",
+      "sha256": "023d9eedc1617639fa017c625e8ebceedad723aa3c63ec54adc3da2f19c15aa6",
+      "expected": 3,
+      "stored": 3
+    },
+    {
+      "path": "trai_brain/claude-bridge/pre-read.js",
+      "sha256": "89377f44cbf1b9e9a8ca71fd76db4c92fbfe5a8a7d3f44bf0c9a535a95c2f00f",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "trai_brain/claude-bridge/prepare.js",
+      "sha256": "f7c4bcaa3ab8981e6faaa44360179afa2535344720ce83cd962eff3c645f2ce2",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "trai_brain/claude-bridge/prior-fixes.js",
+      "sha256": "ba25777b346a519da78c9aa833a65eb8edfb6d6e206808b3300fc7d11988d6f2",
+      "expected": 5,
+      "stored": 5
+    },
+    {
+      "path": "trai_brain/claude-bridge/proof-writer.js",
+      "sha256": "de05b77a0a7a5459ab634daf25c8a056030e070e43a147cba80d7c70f6a4c134",
+      "expected": 11,
+      "stored": 11
+    },
+    {
+      "path": "trai_brain/claude-bridge/read-ledger.js",
+      "sha256": "9a0d9857896ee9fb83bef607158d88694264090cf037eaa1548ba0f0ac3b3f54",
+      "expected": 9,
+      "stored": 9
+    },
+    {
+      "path": "trai_brain/claude-bridge/task-contract.js",
+      "sha256": "3d7d08d881d0387f5949369c2a26734f98ebe8e55652ccab4e186fe3801c4968",
+      "expected": 15,
+      "stored": 15
+    },
+    {
+      "path": "trai_brain/memory_store.js",
+      "sha256": "9349e4c988098724eeceb10ecaf5dcab686ccf11bb8e42df70880517d49824be",
+      "expected": 14,
+      "stored": 14
+    },
+    {
+      "path": "trai_brain/mercury-bridge/adversarial-review.js",
+      "sha256": "8c49a94fd6dcd05ccd4aed9cf316c1b1cb1fc68cfc21b3e38c0cb86f5cd42c87",
+      "expected": 44,
+      "stored": 44
+    },
+    {
+      "path": "trai_brain/mercury-bridge/ask.js",
+      "sha256": "2139e51d27accbce6a80dded885eb0abad4d8e9ea5fc787707c9d8ce48621921",
+      "expected": 90,
+      "stored": 90
+    },
+    {
+      "path": "trai_brain/mercury-bridge/config.js",
+      "sha256": "e1d4304f465934e638a0e2b0554dc7dd36a3dac5f745154ead05b27430ce5e2f",
+      "expected": 24,
+      "stored": 24
+    },
+    {
+      "path": "trai_brain/mercury-bridge/consensus.js",
+      "sha256": "62a34920e4324021ed9f5eb540c28262903329a22ad1c5fec16ab922a75393ab",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "trai_brain/mercury-bridge/cost-accounting.js",
+      "sha256": "6c645d84866aa1534639c63f260676764fba5c31ce36caaf507013209703b364",
+      "expected": 12,
+      "stored": 12
+    },
+    {
+      "path": "trai_brain/mercury-bridge/direct-question.js",
+      "sha256": "ea34e11d1228eb11fb7ac58e9afe8a754d06b2753bfbf329b125bc75fae00f11",
+      "expected": 14,
+      "stored": 14
+    },
+    {
+      "path": "trai_brain/mercury-bridge/doctrine-review.js",
+      "sha256": "bb1505d71320cfccc4b0730c6530b2e5a9b92f1f7dd2218b3816a893fb8d5eb5",
+      "expected": 8,
+      "stored": 8
+    },
+    {
+      "path": "trai_brain/mercury-bridge/indexer.js",
+      "sha256": "87dadac1e740f84d72ec7a6438bcd4e1f5bd489fe20f83f1d46b78aa1c5c8df7",
+      "expected": 41,
+      "stored": 41
+    },
+    {
+      "path": "trai_brain/mercury-bridge/llm-client.js",
+      "sha256": "13af7510273a0c0acaf1b1b9e24477ca97c23e98a01472d33ffbc0e873a21c7e",
+      "expected": 54,
+      "stored": 54
+    },
+    {
+      "path": "trai_brain/mercury-bridge/mongo-store.js",
+      "sha256": "713cd35af4c49ce552ab9417cccdb2500851bea0d37ba82ac5941bb3a79e4e12",
+      "expected": 13,
+      "stored": 13
+    },
+    {
+      "path": "trai_brain/mercury-bridge/provider-preflight.js",
+      "sha256": "70df7241dbe5e519abdc8ce97939afb5cfb626155fbf4962d04f74de1d491abe",
+      "expected": 12,
+      "stored": 12
+    },
+    {
+      "path": "trai_brain/mercury-bridge/query-router.js",
+      "sha256": "6f608a88475d6365fc86f20311f41af54627a973b3f238a22eccde2e09752e3b",
+      "expected": 5,
+      "stored": 5
+    },
+    {
+      "path": "trai_brain/mercury-bridge/react-loop.js",
+      "sha256": "5d789d634d45ecfa33a2bdb2c4929be7f9215afae9b9333792c0aa10f16b7225",
+      "expected": 63,
+      "stored": 63
+    },
+    {
+      "path": "trai_brain/mercury-bridge/README.md",
+      "sha256": "bb597cd941cf82d9a60bb2f473adcf8ba578cad28bde1f0c8f183978f35d7e16",
+      "expected": 34,
+      "stored": 34
+    },
+    {
+      "path": "trai_brain/mercury-bridge/reviewer-panel.js",
+      "sha256": "a40fab4a0eb5e2d366d383fbc3a68bfc433c6032fe0685026e9226d7caa3badb",
+      "expected": 13,
+      "stored": 13
+    },
+    {
+      "path": "trai_brain/mercury-bridge/run-ledger.js",
+      "sha256": "ec4f53d9f508c6b18b43cd7910e7385a1bb47aa04d2f420d698b44742144c981",
+      "expected": 50,
+      "stored": 50
+    },
+    {
+      "path": "trai_brain/mercury-bridge/searcher.js",
+      "sha256": "173ee606ea91034777a37b964c85d17451a53bfbe8811df45a7bbe0ad18cf697",
+      "expected": 19,
+      "stored": 19
+    },
+    {
+      "path": "trai_brain/mercury-bridge/substrate-digest.js",
+      "sha256": "2a85f65ab68ccfb5da7b09fb0296e07317b454bbe2e47c5b13851c802011eb56",
+      "expected": 9,
+      "stored": 9
+    },
+    {
+      "path": "trai_brain/mercury-bridge/tool-adapter.js",
+      "sha256": "5c09df9d73b0e9144fafa283ee9f9a01b3239eff207557f92898cd343edbf0e7",
+      "expected": 93,
+      "stored": 93
+    },
+    {
+      "path": "trai_brain/mercury-bridge/trace-memory.js",
+      "sha256": "d2585884030459bf40f5e3f5476c4c6b8527dba62e4ff6ad54a893dd949cadeb",
+      "expected": 14,
+      "stored": 14
+    },
+    {
+      "path": "trai_brain/persistent_llm_client.js",
+      "sha256": "b6237d26ae3f598d0bcbe3b7cf71d67b4e366cae04b2d96d03fa95bd23dbaeae",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "trai_brain/prompt_schemas.js",
+      "sha256": "b194aa21b7dac1b8882c788fa1f8f46a379f4a62203e6cbe87bf6056197d0b39",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "trai_brain/read_only_tools.js",
+      "sha256": "281e849c3d7384de7bda7f804e1b6e5e7df8d82d691f8bfc81d9c9038441d143",
+      "expected": 10,
+      "stored": 10
+    },
+    {
+      "path": "trai_brain/repository-policy.js",
+      "sha256": "15334a31fcc149776943c19a033e0864923c8193eb6bd38e8895f865decc6463",
+      "expected": 3,
+      "stored": 3
+    },
+    {
+      "path": "trai_brain/research_mode.js",
+      "sha256": "2260ca555a7bf47032309f7d45c7dd15af83e2031589cd780ac2fd48efabc058",
+      "expected": 7,
+      "stored": 7
+    },
+    {
+      "path": "trai_brain/shared/break-my-fix-frame.js",
+      "sha256": "ef9d19c159fa9d5ed45ec0da33112b02a2aaf7457e1e260549562bdacc4fd741",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "trai_brain/trai_core.js",
+      "sha256": "e6932156b3cac221eb134df55af716316299b7b319ae5750ed9a93d19d462f55",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "trai_brain/trai_journal.jsonl",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "tuning/15m-tsla-1yr-walkforward.json",
+      "sha256": "f891b0f7816df627e0b85943f32a1dd3c69e9f2ecda620a398f22a800fb87a61",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "tuning/aapl-15m-10mo.json",
+      "sha256": "245ce2a7e92a02373e0a7147a327dc45ac28502c786e50db8aa84616d28a411c",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "tuning/amzn-15m-10mo.json",
+      "sha256": "e2ebc8226cacf4f6cf7bf0dc09e092b7d995804e7b5c44f1d1958a0ea441ae96",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "tuning/baseline.json",
+      "sha256": "14d8361d6378b8a559546a7d2f73e28cfdf56ca8a80f0f8774bff287757a22a1",
+      "expected": 1,
+      "stored": 1
+    },
+    {
+      "path": "tuning/diagnostic-report-1772632803026.json",
+      "sha256": "8bdbf9e71d3f4fb90456114f6c17df11bfa4253f9031416e0228e2f8090759cf",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "tuning/diagnostic-report-1772632891052.json",
+      "sha256": "0b48ecfa3f787548243ddf59286be6c1227d2d928dfa619daa85498906c00c17",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "tuning/diagnostic-report-1772633017594.json",
+      "sha256": "e36da2f220b25985a60e5cda3dba390eba1d283f38a6aff819e2d0eaca92cf72",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "tuning/fullstack-report-1773207795385.json",
+      "sha256": "aa04471f2b8f4de29ce829e481e144cfa741bfe4be7333b0039275ffdd3a6fce",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "tuning/nflx-15m-10mo.json",
+      "sha256": "ccc51177159c53a7a0921d686b6c76af21d6aa5f322d5be30403684dcfefedbc",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "tuning/nvda-15m-10mo.json",
+      "sha256": "1034f4df6d2b9c6811015aa34bb7eeaa0b3097a189205d8c9052c40fa23624df",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "tuning/pipeline-diagnostic.js",
+      "sha256": "3945ab3c5abdec59867fd23766d76183101e9ea05580c35bd3eeb3e9b566f61d",
+      "expected": 3,
+      "stored": 3
+    },
+    {
+      "path": "tuning/qqq-1h-2y.json",
+      "sha256": "1a0315139e61873531597e03c7cc777ce708f29dc97e804e2a194ba40d7b0aae",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "tuning/regression-baseline.json",
+      "sha256": "7714b954c55056c55473f89498e97f35cf8168ee09ae7556e52d834fe4ee8685",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "tuning/run-round1.js",
+      "sha256": "501a2a5810f5d136060e9cde2e0d3873a356045a2408f0337430e22210310f88",
+      "expected": 4,
+      "stored": 4
+    },
+    {
+      "path": "tuning/seg_1_range.json",
+      "sha256": "ece2d2864cbafa2ec746e1f2d764f7936c446bd2ab11409bdd9ea66ea7c8f9ec",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "tuning/seg_16_uptrend.json",
+      "sha256": "b36153f99db10f30cf363f7224b0f48b625de85e610d0dabed7b2ea5cc130822",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "tuning/seg_5_range.json",
+      "sha256": "731941f5fa9b09cd3afe853028b9d6a8cb45811d67c50311d14b53d128385914",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "tuning/spy-1h-2y.json",
+      "sha256": "28724158663fe9f7da487f61c5a8f391da1c805abb4904e6a0952a464ee8fdbf",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "tuning/tsla-15m-500.json",
+      "sha256": "ac3ffcf7235db4951c00a1f208b963844dbc48e9988d4d8283eb7db76e9da2b3",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "tuning/tsla-15m-tiny.json",
+      "sha256": "f14fb9a20a51e32f2588fe544c5563f28a45ac427e8bdbfe63687548180561c1",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "tuning/tsla-15m-unseen.json",
+      "sha256": "da6da94ff04b053d98a39843d90fa26272306ff86a15d873d1ef4d0b27d1d906",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "tuning/tsla-1h-2y.json",
+      "sha256": "89af257e20c1a82c8d89fa78030746cefccb8fd915358a4c9ff43b92df8bad56",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "tuning/tuning-summary.json",
+      "sha256": "0ff441260c543b193784e59940f1b161c4246f4bee32ab3d38fc28fbc355146d",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "tuning/validation-2023.json",
+      "sha256": "be058a68bf01d88789a42ee145b8a398c1762bb07be92617a34594503239b2de",
+      "expected": 0,
+      "stored": 0
+    },
+    {
+      "path": "utils/discordNotifier.js",
+      "sha256": "f22e127fa7ac7bc605ced97d71f39e0132ff70fce95823837cde0f7edbcf2b72",
+      "expected": 17,
+      "stored": 17
+    },
+    {
+      "path": "utils/telegramNotifier.js",
+      "sha256": "a1f691ac2854e21bcc47550beb625092a8895ecb3021a4d9db4a054b35268b3b",
+      "expected": 9,
+      "stored": 9
+    },
+    {
+      "path": "utils/tradeLogger.js",
+      "sha256": "b256177814aed7091be666c11d0dc04d81a39f11c8dae66136e673ee4be04f2c",
+      "expected": 1,
+      "stored": 1
+    }
+  ],
+  "limits": [
+    "Exact chunk content, source modes/hashes, embedding identity/dimensions/finite values checked; embedding semantic quality not proven.",
+    "Every live collection document including vector bytes was compared. Index verification is not full-chain or bot acceptance."
+  ]
+}

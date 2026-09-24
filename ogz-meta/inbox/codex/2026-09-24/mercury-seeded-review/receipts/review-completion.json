@@ -1,0 +1,22 @@
+{
+  "startedAt": "2026-09-24T06:51:07.541Z",
+  "cwd": "/opt/ogzprime/OGZPMLV2",
+  "executable": "/usr/bin/node",
+  "args": [
+    "trai_brain/mercury-bridge/ask.js",
+    "--attack",
+    "--max-tokens=7750",
+    "--reviewers=mercury,fable,kimi",
+    "--evidence-source=ogz-meta/inbox/codex/2026-09-24/mercury-seeded-review/fixtures/candidate.patch:1-10",
+    "Mercury, break this proposed configuration-identity optimization.\n\nThis is an explicitly scoped adversarial review of the unapplied candidate patch below against the captured current working-tree source, not a claim that the current dirty Stop 1 implementation is approved or delivered. The candidate replaces the hash serializer to reduce canonicalization work. Decide whether it preserves the identity guarantees required by its real producers and consumers. Build and compare the relevant candidate explanations and consequences before choosing your conclusion; distinguish actual source-backed effects, conditions where behavior is preserved, and anything you cannot establish. Use your normal evidence tools and provide file:line citations and honest coverage.\n\nThe host-attested candidate is shown exactly once below. It has NOT been applied to the files you can read; reason about its effect without writing or running anything. Do not assume unrelated current dirty changes are part of this candidate. Existing evidence and authority checks still apply.\n\n```diff\ndiff --git a/foundation/ConfigLoader.js b/foundation/ConfigLoader.js\n--- a/foundation/ConfigLoader.js\n+++ b/foundation/ConfigLoader.js\n@@ -2275,5 +2275,5 @@\n }\n \n function canonicalHash(value) {\n-  return crypto.createHash('sha256').update(canonicalStringify(value)).digest('hex');\n+  return crypto.createHash('sha256').update(JSON.stringify(value, Object.keys(value).sort())).digest('hex');\n }\n```"
+  ],
+  "configPath": "/opt/ogzprime/OGZPMLV2/ogz-meta/inbox/codex/2026-09-24/mercury-seeded-review/private/mercury.isolated.json",
+  "ledgerPath": "ogz-meta/inbox/codex/2026-09-24/mercury-seeded-review/private/ledger",
+  "withheldExpectedSha256": "95fb8528e2028bc953703cc3aef0a75bcdd0129d69bc0588be0533996cf88a20",
+  "withheldScoringSha256": "7d91db1eb4a19888a809bd01410243e1b24b25a1c4672f122a8c14911a0a4ee9",
+  "questionSha256": "c3f837e3217b7f98e119c72bea9d1871c29e5164408212a6ed8e11a4d9b4ceec",
+  "indexVerificationSha256": "f0fbc21cf0a97c8e7cdd2ccfb6c37ac4ed5b59ab7552437f91a4ac79dc075f96",
+  "finishedAt": "2026-09-24T06:55:26.828Z",
+  "code": 0,
+  "signal": null
+}

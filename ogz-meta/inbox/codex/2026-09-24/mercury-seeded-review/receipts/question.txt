@@ -1,0 +1,19 @@
+Mercury, break this proposed configuration-identity optimization.
+
+This is an explicitly scoped adversarial review of the unapplied candidate patch below against the captured current working-tree source, not a claim that the current dirty Stop 1 implementation is approved or delivered. The candidate replaces the hash serializer to reduce canonicalization work. Decide whether it preserves the identity guarantees required by its real producers and consumers. Build and compare the relevant candidate explanations and consequences before choosing your conclusion; distinguish actual source-backed effects, conditions where behavior is preserved, and anything you cannot establish. Use your normal evidence tools and provide file:line citations and honest coverage.
+
+The host-attested candidate is shown exactly once below. It has NOT been applied to the files you can read; reason about its effect without writing or running anything. Do not assume unrelated current dirty changes are part of this candidate. Existing evidence and authority checks still apply.
+
+```diff
+diff --git a/foundation/ConfigLoader.js b/foundation/ConfigLoader.js
+--- a/foundation/ConfigLoader.js
++++ b/foundation/ConfigLoader.js
+@@ -2275,5 +2275,5 @@
+ }
+ 
+ function canonicalHash(value) {
+-  return crypto.createHash('sha256').update(canonicalStringify(value)).digest('hex');
++  return crypto.createHash('sha256').update(JSON.stringify(value, Object.keys(value).sort())).digest('hex');
+ }
+```
+

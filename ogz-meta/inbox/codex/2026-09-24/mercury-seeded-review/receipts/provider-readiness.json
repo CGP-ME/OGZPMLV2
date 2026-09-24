@@ -1,0 +1,692 @@
+{
+  "ok": true,
+  "challengerReady": true,
+  "tieBreakerReady": true,
+  "checks": [
+    {
+      "label": "mercury",
+      "ok": true,
+      "provider": "mercury",
+      "model": "mercury-2",
+      "appliedModel": "mercury-2",
+      "identityPosture": {
+        "status": "matched",
+        "authority": "full",
+        "reason": null,
+        "requested_model": "mercury-2",
+        "applied_models": [
+          "mercury-2"
+        ],
+        "verdict_models": [],
+        "undocumented_models": [],
+        "observations": [],
+        "transitions": []
+      },
+      "requests": 1,
+      "authPosture": null,
+      "attemptReceipt": {
+        "role": "mercury",
+        "attempt": 1,
+        "status": "succeeded",
+        "request_phase": "complete",
+        "requested_provider": "mercury",
+        "requested_model": "mercury-2",
+        "applied_model": "mercury-2",
+        "applied_models": [
+          "mercury-2"
+        ],
+        "auxiliary_models": [],
+        "verdict_models": [],
+        "identity_posture": {
+          "status": "matched",
+          "authority": "full",
+          "reason": null,
+          "requested_model": "mercury-2",
+          "applied_models": [
+            "mercury-2"
+          ],
+          "verdict_models": [],
+          "undocumented_models": [],
+          "observations": [],
+          "transitions": []
+        },
+        "model_observations": [],
+        "model_transitions": [],
+        "started_at": "2026-09-24T06:40:43.072Z",
+        "finished_at": "2026-09-24T06:40:44.300Z",
+        "latency_ms": 1229,
+        "status_code": 200,
+        "exit_code": null,
+        "termination": "stop",
+        "stopped_because": "stop",
+        "parse_status": "parsed",
+        "tokens": {
+          "input": 18,
+          "uncached_input": 14,
+          "cached_input": 4,
+          "output": 36,
+          "total": 54
+        },
+        "usage_absence": null,
+        "cost": {
+          "amount": 0.0000306,
+          "currency": "USD",
+          "pricing_source": "operator-supplied Jul 1 invoice"
+        },
+        "cost_absence": null,
+        "input_provenance": {
+          "prompt_sha256": "760a29d8c7b0eb69df7962233aa9ffdbdfb1e50124a779c844047b495341ca85",
+          "prompt_bytes": 31,
+          "prompt_excerpt": "Reply with exactly: PROVIDER_OK",
+          "supplied_sources": []
+        },
+        "raw_output": {
+          "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-40-43-070z-590481-8a0c4fd997cd/mercury-1.raw",
+          "sha256": "49781801e8eda55c06dd496110b7e4e7030a170b0f28af830504bc58f6857da1",
+          "bytes": 466,
+          "mode": "0600"
+        },
+        "raw_error": null,
+        "tools": {
+          "enabled": false,
+          "available": [],
+          "calls": [],
+          "total": 0,
+          "succeeded": 0,
+          "failed": 0
+        },
+        "files_mechanically_opened": [],
+        "auth_posture": null,
+        "executable_trust": null,
+        "error": null,
+        "repo_adjudication": {
+          "status": "pending",
+          "authority": "live_repo_required"
+        }
+      }
+    },
+    {
+      "label": "fable_challenger",
+      "ok": true,
+      "provider": "claude-code",
+      "model": "fable",
+      "appliedModel": "claude-fable-5",
+      "identityPosture": {
+        "status": "matched",
+        "authority": "full",
+        "reason": null,
+        "requested_model": "fable",
+        "applied_models": [
+          "claude-fable-5"
+        ],
+        "verdict_models": [
+          "claude-fable-5"
+        ],
+        "undocumented_models": [],
+        "observations": [
+          {
+            "sequence": 1,
+            "path": "model",
+            "model": "claude-fable-5"
+          },
+          {
+            "sequence": 3,
+            "path": "message.model",
+            "model": "claude-fable-5"
+          }
+        ],
+        "transitions": []
+      },
+      "requests": 1,
+      "authPosture": {
+        "loggedIn": true,
+        "authMethod": "claude.ai",
+        "apiProvider": "firstParty",
+        "subscriptionType": "max"
+      },
+      "attemptReceipt": {
+        "role": "fable_challenger",
+        "attempt": 2,
+        "status": "succeeded",
+        "request_phase": "complete",
+        "requested_provider": "claude-code",
+        "requested_model": "fable",
+        "applied_model": "claude-fable-5",
+        "applied_models": [
+          "claude-fable-5"
+        ],
+        "auxiliary_models": [
+          "claude-haiku-4-5-20251001"
+        ],
+        "verdict_models": [
+          "claude-fable-5"
+        ],
+        "identity_posture": {
+          "status": "matched",
+          "authority": "full",
+          "reason": null,
+          "requested_model": "fable",
+          "applied_models": [
+            "claude-fable-5"
+          ],
+          "verdict_models": [
+            "claude-fable-5"
+          ],
+          "undocumented_models": [],
+          "observations": [
+            {
+              "sequence": 1,
+              "path": "model",
+              "model": "claude-fable-5"
+            },
+            {
+              "sequence": 3,
+              "path": "message.model",
+              "model": "claude-fable-5"
+            }
+          ],
+          "transitions": []
+        },
+        "model_observations": [
+          {
+            "sequence": 1,
+            "path": "model",
+            "model": "claude-fable-5"
+          },
+          {
+            "sequence": 3,
+            "path": "message.model",
+            "model": "claude-fable-5"
+          }
+        ],
+        "model_transitions": [],
+        "started_at": "2026-09-24T06:40:44.971Z",
+        "finished_at": "2026-09-24T06:40:48.240Z",
+        "latency_ms": 3269,
+        "status_code": null,
+        "exit_code": 0,
+        "termination": "success",
+        "stopped_because": "success",
+        "parse_status": "parsed",
+        "tokens": {
+          "input": 7515,
+          "uncached_input": 7515,
+          "cached_input": 0,
+          "output": 11,
+          "total": 7526
+        },
+        "usage_absence": null,
+        "cost": {
+          "amount": 0.15178,
+          "currency": "USD",
+          "pricing_source": "provider_reported"
+        },
+        "cost_absence": null,
+        "input_provenance": {
+          "prompt_sha256": "760a29d8c7b0eb69df7962233aa9ffdbdfb1e50124a779c844047b495341ca85",
+          "prompt_bytes": 31,
+          "prompt_excerpt": "Reply with exactly: PROVIDER_OK",
+          "supplied_sources": []
+        },
+        "raw_output": {
+          "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-40-43-070z-590481-8a0c4fd997cd/fable_challenger-2.raw",
+          "sha256": "8ccf8185161f2dfd9fe7cbbbd112ded80857cc6f4d09ec970889e78a596bf1ae",
+          "bytes": 3522,
+          "mode": "0600"
+        },
+        "raw_error": null,
+        "tools": {
+          "enabled": false,
+          "available": [],
+          "calls": [],
+          "total": 0,
+          "succeeded": 0,
+          "failed": 0
+        },
+        "files_mechanically_opened": [],
+        "auth_posture": {
+          "loggedIn": true,
+          "authMethod": "claude.ai",
+          "apiProvider": "firstParty",
+          "subscriptionType": "max"
+        },
+        "executable_trust": {
+          "trusted": true,
+          "launcherPath": "/usr/local/bin/claude",
+          "realpath": "/usr/local/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe",
+          "ownerUid": 0,
+          "mode": "0755",
+          "version": "2.1.236",
+          "checks": [
+            "rooted_system_launcher",
+            "anthropic_package_realpath",
+            "root_owned",
+            "not_group_or_world_writable"
+          ],
+          "checkedPaths": [
+            "/usr/local/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe",
+            "/usr/local/lib/node_modules/@anthropic-ai/claude-code/bin",
+            "/usr/local/lib/node_modules/@anthropic-ai/claude-code",
+            "/usr/local/lib/node_modules/@anthropic-ai",
+            "/usr/local/lib/node_modules",
+            "/usr/local/lib",
+            "/usr/local",
+            "/usr",
+            "/"
+          ]
+        },
+        "error": null,
+        "repo_adjudication": {
+          "status": "pending",
+          "authority": "live_repo_required"
+        }
+      }
+    },
+    {
+      "label": "kimi_tie_breaker",
+      "ok": true,
+      "provider": "openai",
+      "model": "kimi-k3",
+      "appliedModel": "kimi-k3",
+      "identityPosture": {
+        "status": "matched",
+        "authority": "full",
+        "reason": null,
+        "requested_model": "kimi-k3",
+        "applied_models": [
+          "kimi-k3"
+        ],
+        "verdict_models": [],
+        "undocumented_models": [],
+        "observations": [],
+        "transitions": []
+      },
+      "requests": 1,
+      "authPosture": null,
+      "attemptReceipt": {
+        "role": "kimi_tie_breaker",
+        "attempt": 3,
+        "status": "succeeded",
+        "request_phase": "complete",
+        "requested_provider": "openai",
+        "requested_model": "kimi-k3",
+        "applied_model": "kimi-k3",
+        "applied_models": [
+          "kimi-k3"
+        ],
+        "auxiliary_models": [],
+        "verdict_models": [],
+        "identity_posture": {
+          "status": "matched",
+          "authority": "full",
+          "reason": null,
+          "requested_model": "kimi-k3",
+          "applied_models": [
+            "kimi-k3"
+          ],
+          "verdict_models": [],
+          "undocumented_models": [],
+          "observations": [],
+          "transitions": []
+        },
+        "model_observations": [],
+        "model_transitions": [],
+        "started_at": "2026-09-24T06:40:48.242Z",
+        "finished_at": "2026-09-24T06:40:53.774Z",
+        "latency_ms": 5532,
+        "status_code": 200,
+        "exit_code": null,
+        "termination": "stop",
+        "stopped_because": "stop",
+        "parse_status": "parsed",
+        "tokens": {
+          "input": 196,
+          "uncached_input": 196,
+          "cached_input": 0,
+          "output": 13,
+          "total": 209
+        },
+        "usage_absence": null,
+        "cost": {
+          "amount": 0.000783,
+          "currency": "USD",
+          "pricing_source": "Moonshot Kimi K3 announcement, 2026-07-22"
+        },
+        "cost_absence": null,
+        "input_provenance": {
+          "prompt_sha256": "760a29d8c7b0eb69df7962233aa9ffdbdfb1e50124a779c844047b495341ca85",
+          "prompt_bytes": 31,
+          "prompt_excerpt": "Reply with exactly: PROVIDER_OK",
+          "supplied_sources": []
+        },
+        "raw_output": {
+          "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-40-43-070z-590481-8a0c4fd997cd/kimi_tie_breaker-3.raw",
+          "sha256": "63d087c76ef3f26eedf380fea09eb783cebc8e41ae04d7ac156073d1504968dd",
+          "bytes": 331,
+          "mode": "0600"
+        },
+        "raw_error": null,
+        "tools": {
+          "enabled": false,
+          "available": [],
+          "calls": [],
+          "total": 0,
+          "succeeded": 0,
+          "failed": 0
+        },
+        "files_mechanically_opened": [],
+        "auth_posture": null,
+        "executable_trust": null,
+        "error": null,
+        "repo_adjudication": {
+          "status": "pending",
+          "authority": "live_repo_required"
+        }
+      }
+    }
+  ],
+  "attempts": [
+    {
+      "role": "mercury",
+      "attempt": 1,
+      "status": "succeeded",
+      "request_phase": "complete",
+      "requested_provider": "mercury",
+      "requested_model": "mercury-2",
+      "applied_model": "mercury-2",
+      "applied_models": [
+        "mercury-2"
+      ],
+      "auxiliary_models": [],
+      "verdict_models": [],
+      "identity_posture": {
+        "status": "matched",
+        "authority": "full",
+        "reason": null,
+        "requested_model": "mercury-2",
+        "applied_models": [
+          "mercury-2"
+        ],
+        "verdict_models": [],
+        "undocumented_models": [],
+        "observations": [],
+        "transitions": []
+      },
+      "model_observations": [],
+      "model_transitions": [],
+      "started_at": "2026-09-24T06:40:43.072Z",
+      "finished_at": "2026-09-24T06:40:44.300Z",
+      "latency_ms": 1229,
+      "status_code": 200,
+      "exit_code": null,
+      "termination": "stop",
+      "stopped_because": "stop",
+      "parse_status": "parsed",
+      "tokens": {
+        "input": 18,
+        "uncached_input": 14,
+        "cached_input": 4,
+        "output": 36,
+        "total": 54
+      },
+      "usage_absence": null,
+      "cost": {
+        "amount": 0.0000306,
+        "currency": "USD",
+        "pricing_source": "operator-supplied Jul 1 invoice"
+      },
+      "cost_absence": null,
+      "input_provenance": {
+        "prompt_sha256": "760a29d8c7b0eb69df7962233aa9ffdbdfb1e50124a779c844047b495341ca85",
+        "prompt_bytes": 31,
+        "prompt_excerpt": "Reply with exactly: PROVIDER_OK",
+        "supplied_sources": []
+      },
+      "raw_output": {
+        "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-40-43-070z-590481-8a0c4fd997cd/mercury-1.raw",
+        "sha256": "49781801e8eda55c06dd496110b7e4e7030a170b0f28af830504bc58f6857da1",
+        "bytes": 466,
+        "mode": "0600"
+      },
+      "raw_error": null,
+      "tools": {
+        "enabled": false,
+        "available": [],
+        "calls": [],
+        "total": 0,
+        "succeeded": 0,
+        "failed": 0
+      },
+      "files_mechanically_opened": [],
+      "auth_posture": null,
+      "executable_trust": null,
+      "error": null,
+      "repo_adjudication": {
+        "status": "pending",
+        "authority": "live_repo_required"
+      }
+    },
+    {
+      "role": "fable_challenger",
+      "attempt": 2,
+      "status": "succeeded",
+      "request_phase": "complete",
+      "requested_provider": "claude-code",
+      "requested_model": "fable",
+      "applied_model": "claude-fable-5",
+      "applied_models": [
+        "claude-fable-5"
+      ],
+      "auxiliary_models": [
+        "claude-haiku-4-5-20251001"
+      ],
+      "verdict_models": [
+        "claude-fable-5"
+      ],
+      "identity_posture": {
+        "status": "matched",
+        "authority": "full",
+        "reason": null,
+        "requested_model": "fable",
+        "applied_models": [
+          "claude-fable-5"
+        ],
+        "verdict_models": [
+          "claude-fable-5"
+        ],
+        "undocumented_models": [],
+        "observations": [
+          {
+            "sequence": 1,
+            "path": "model",
+            "model": "claude-fable-5"
+          },
+          {
+            "sequence": 3,
+            "path": "message.model",
+            "model": "claude-fable-5"
+          }
+        ],
+        "transitions": []
+      },
+      "model_observations": [
+        {
+          "sequence": 1,
+          "path": "model",
+          "model": "claude-fable-5"
+        },
+        {
+          "sequence": 3,
+          "path": "message.model",
+          "model": "claude-fable-5"
+        }
+      ],
+      "model_transitions": [],
+      "started_at": "2026-09-24T06:40:44.971Z",
+      "finished_at": "2026-09-24T06:40:48.240Z",
+      "latency_ms": 3269,
+      "status_code": null,
+      "exit_code": 0,
+      "termination": "success",
+      "stopped_because": "success",
+      "parse_status": "parsed",
+      "tokens": {
+        "input": 7515,
+        "uncached_input": 7515,
+        "cached_input": 0,
+        "output": 11,
+        "total": 7526
+      },
+      "usage_absence": null,
+      "cost": {
+        "amount": 0.15178,
+        "currency": "USD",
+        "pricing_source": "provider_reported"
+      },
+      "cost_absence": null,
+      "input_provenance": {
+        "prompt_sha256": "760a29d8c7b0eb69df7962233aa9ffdbdfb1e50124a779c844047b495341ca85",
+        "prompt_bytes": 31,
+        "prompt_excerpt": "Reply with exactly: PROVIDER_OK",
+        "supplied_sources": []
+      },
+      "raw_output": {
+        "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-40-43-070z-590481-8a0c4fd997cd/fable_challenger-2.raw",
+        "sha256": "8ccf8185161f2dfd9fe7cbbbd112ded80857cc6f4d09ec970889e78a596bf1ae",
+        "bytes": 3522,
+        "mode": "0600"
+      },
+      "raw_error": null,
+      "tools": {
+        "enabled": false,
+        "available": [],
+        "calls": [],
+        "total": 0,
+        "succeeded": 0,
+        "failed": 0
+      },
+      "files_mechanically_opened": [],
+      "auth_posture": {
+        "loggedIn": true,
+        "authMethod": "claude.ai",
+        "apiProvider": "firstParty",
+        "subscriptionType": "max"
+      },
+      "executable_trust": {
+        "trusted": true,
+        "launcherPath": "/usr/local/bin/claude",
+        "realpath": "/usr/local/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe",
+        "ownerUid": 0,
+        "mode": "0755",
+        "version": "2.1.236",
+        "checks": [
+          "rooted_system_launcher",
+          "anthropic_package_realpath",
+          "root_owned",
+          "not_group_or_world_writable"
+        ],
+        "checkedPaths": [
+          "/usr/local/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe",
+          "/usr/local/lib/node_modules/@anthropic-ai/claude-code/bin",
+          "/usr/local/lib/node_modules/@anthropic-ai/claude-code",
+          "/usr/local/lib/node_modules/@anthropic-ai",
+          "/usr/local/lib/node_modules",
+          "/usr/local/lib",
+          "/usr/local",
+          "/usr",
+          "/"
+        ]
+      },
+      "error": null,
+      "repo_adjudication": {
+        "status": "pending",
+        "authority": "live_repo_required"
+      }
+    },
+    {
+      "role": "kimi_tie_breaker",
+      "attempt": 3,
+      "status": "succeeded",
+      "request_phase": "complete",
+      "requested_provider": "openai",
+      "requested_model": "kimi-k3",
+      "applied_model": "kimi-k3",
+      "applied_models": [
+        "kimi-k3"
+      ],
+      "auxiliary_models": [],
+      "verdict_models": [],
+      "identity_posture": {
+        "status": "matched",
+        "authority": "full",
+        "reason": null,
+        "requested_model": "kimi-k3",
+        "applied_models": [
+          "kimi-k3"
+        ],
+        "verdict_models": [],
+        "undocumented_models": [],
+        "observations": [],
+        "transitions": []
+      },
+      "model_observations": [],
+      "model_transitions": [],
+      "started_at": "2026-09-24T06:40:48.242Z",
+      "finished_at": "2026-09-24T06:40:53.774Z",
+      "latency_ms": 5532,
+      "status_code": 200,
+      "exit_code": null,
+      "termination": "stop",
+      "stopped_because": "stop",
+      "parse_status": "parsed",
+      "tokens": {
+        "input": 196,
+        "uncached_input": 196,
+        "cached_input": 0,
+        "output": 13,
+        "total": 209
+      },
+      "usage_absence": null,
+      "cost": {
+        "amount": 0.000783,
+        "currency": "USD",
+        "pricing_source": "Moonshot Kimi K3 announcement, 2026-07-22"
+      },
+      "cost_absence": null,
+      "input_provenance": {
+        "prompt_sha256": "760a29d8c7b0eb69df7962233aa9ffdbdfb1e50124a779c844047b495341ca85",
+        "prompt_bytes": 31,
+        "prompt_excerpt": "Reply with exactly: PROVIDER_OK",
+        "supplied_sources": []
+      },
+      "raw_output": {
+        "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-40-43-070z-590481-8a0c4fd997cd/kimi_tie_breaker-3.raw",
+        "sha256": "63d087c76ef3f26eedf380fea09eb783cebc8e41ae04d7ac156073d1504968dd",
+        "bytes": 331,
+        "mode": "0600"
+      },
+      "raw_error": null,
+      "tools": {
+        "enabled": false,
+        "available": [],
+        "calls": [],
+        "total": 0,
+        "succeeded": 0,
+        "failed": 0
+      },
+      "files_mechanically_opened": [],
+      "auth_posture": null,
+      "executable_trust": null,
+      "error": null,
+      "repo_adjudication": {
+        "status": "pending",
+        "authority": "live_repo_required"
+      }
+    }
+  ],
+  "runLedger": {
+    "path": "ogz-meta/inbox/codex/2026-09-24/mercury-seeded-review/private/ledger/2026-09-24.jsonl",
+    "citation": "ogz-meta/inbox/codex/2026-09-24/mercury-seeded-review/private/ledger/2026-09-24.jsonl:1",
+    "line": 1
+  }
+}

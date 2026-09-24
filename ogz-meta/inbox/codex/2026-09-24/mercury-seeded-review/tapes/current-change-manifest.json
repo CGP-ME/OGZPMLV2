@@ -1,0 +1,364 @@
+{
+  "schema_version": 1,
+  "run_id": "2026-09-24T06-51-07-940Z-594762-adbcb8cf5222",
+  "generated_at": "2026-09-24T06:51:07.940Z",
+  "artifact": {
+    "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222/current-change-evidence.txt",
+    "sha256": "883fe9c45ccbcadb601e33a8086f9a8763275a06819648e866acc05651d5f98e",
+    "bytes": 170490,
+    "lines": 4796
+  },
+  "sections": [
+    {
+      "id": 1,
+      "kind": "candidate_set",
+      "target": "<current_changes>",
+      "line_start": 7,
+      "line_end": 49,
+      "bytes": 955,
+      "sha256": "5814c4db7871fa8f2404987204c8745459ec717f0c9eb5d88c2e72067e3cb257"
+    },
+    {
+      "id": 2,
+      "kind": "blast_radius",
+      "target": "core/BacktestRunner.js",
+      "line_start": 53,
+      "line_end": 61,
+      "bytes": 251,
+      "sha256": "fe946d2b4cc958156ec3338cf6ceb7a7798f37931d4458e4e23f18fe617642ea"
+    },
+    {
+      "id": 3,
+      "kind": "blast_radius",
+      "target": "core/DrawdownTracker.js",
+      "line_start": 65,
+      "line_end": 73,
+      "bytes": 253,
+      "sha256": "f314df2f9d6890e05b986f3e697f48bd251de2906a1408cc0956456d4ed95d52"
+    },
+    {
+      "id": 4,
+      "kind": "blast_radius",
+      "target": "core/EnhancedPatternRecognition.js",
+      "line_start": 77,
+      "line_end": 87,
+      "bytes": 488,
+      "sha256": "fba0e0be77548d50aaca6adee5af69d0e6e028a978a6ed7067a6f212dfbb2d0c"
+    },
+    {
+      "id": 5,
+      "kind": "blast_radius",
+      "target": "core/ExitContractManager.js",
+      "line_start": 91,
+      "line_end": 102,
+      "bytes": 534,
+      "sha256": "94c0eeef917e4670d61205da6b06ee9ae2da9b52fc45f4029f418b997e90fd6a"
+    },
+    {
+      "id": 6,
+      "kind": "blast_radius",
+      "target": "core/FeatureExtractor.js",
+      "line_start": 106,
+      "line_end": 115,
+      "bytes": 338,
+      "sha256": "a1491aef0a609f99d486d18af2789ada16ae93192d8d49b96b0957187459c18e"
+    },
+    {
+      "id": 7,
+      "kind": "blast_radius",
+      "target": "core/OrderExecutor.js",
+      "line_start": 119,
+      "line_end": 127,
+      "bytes": 248,
+      "sha256": "2321b454069cc70fef4aab12fe79b97ea6ded2393cd428e83ee6929f1dd3186b"
+    },
+    {
+      "id": 8,
+      "kind": "blast_radius",
+      "target": "core/PnLTracker.js",
+      "line_start": 131,
+      "line_end": 139,
+      "bytes": 238,
+      "sha256": "515b1d021bf143c3cfd6160352e8c5b34ef8d5706dc67ef39b462573f0d90ece"
+    },
+    {
+      "id": 9,
+      "kind": "blast_radius",
+      "target": "core/PolicyBuilder.js",
+      "line_start": 143,
+      "line_end": 152,
+      "bytes": 346,
+      "sha256": "631d08c92357dbb320b2fb462c405edb6089a2bb3f8d750045da3ab0fafcabca"
+    },
+    {
+      "id": 10,
+      "kind": "blast_radius",
+      "target": "core/ProfitExitPlanner.js",
+      "line_start": 156,
+      "line_end": 164,
+      "bytes": 276,
+      "sha256": "dd43c719f203eeb7e6b8b8138b169fef1fca5fc9bfff9308972d922799b6ba89"
+    },
+    {
+      "id": 11,
+      "kind": "blast_radius",
+      "target": "core/StateManager.js",
+      "line_start": 168,
+      "line_end": 187,
+      "bytes": 971,
+      "sha256": "06f7b5a0ebd3649135eb022d79b451609574277c7ed22c4f04099e6089e57585"
+    },
+    {
+      "id": 12,
+      "kind": "blast_radius",
+      "target": "core/StrategyOrchestrator.js",
+      "line_start": 191,
+      "line_end": 199,
+      "bytes": 269,
+      "sha256": "e47ec0925fe60e5a6673dcea7b43dd3e8788547d3ce82ef30a4073bde04426ae"
+    },
+    {
+      "id": 13,
+      "kind": "blast_radius",
+      "target": "core/TradingLoop.js",
+      "line_start": 203,
+      "line_end": 211,
+      "bytes": 242,
+      "sha256": "2af068cc251c9d6716b155861e472c7182fb5cf4dbe8dd5fb13bd0620746c1cf"
+    },
+    {
+      "id": 14,
+      "kind": "blast_radius",
+      "target": "core/WebSocketManager.js",
+      "line_start": 215,
+      "line_end": 223,
+      "bytes": 257,
+      "sha256": "4c56b4fd711a669f9af64d8bd20c0e084d7dd716cc7b63d24b4bd1ca51402ef9"
+    },
+    {
+      "id": 15,
+      "kind": "blast_radius",
+      "target": "core/dto/DecisionLedgerSchema.js",
+      "line_start": 227,
+      "line_end": 236,
+      "bytes": 392,
+      "sha256": "67c899af9be0a3d6ed6d1650b882aa3d05f3033049ab67b9d55c7dcbbd4c2ed2"
+    },
+    {
+      "id": 16,
+      "kind": "blast_radius",
+      "target": "core/exit/StopLossChecker.js",
+      "line_start": 240,
+      "line_end": 248,
+      "bytes": 285,
+      "sha256": "a02258c4ca84b6fc89bc8eeb3ba2e4d3a9d93eba7ba64972ec4c6164a714da81"
+    },
+    {
+      "id": 17,
+      "kind": "blast_radius",
+      "target": "foundation/ConfigLoader.js",
+      "line_start": 252,
+      "line_end": 321,
+      "bytes": 4791,
+      "sha256": "d475f191fab034c1cfc855e6bf6cefce011bbddd722e27cc57f1380f073d0ffb"
+    },
+    {
+      "id": 18,
+      "kind": "blast_radius",
+      "target": "modules/DonchianBreakout.js",
+      "line_start": 325,
+      "line_end": 333,
+      "bytes": 290,
+      "sha256": "9db103d749759ada8570d9b236388afa60a557072500ef35719be1ca987828cc"
+    },
+    {
+      "id": 19,
+      "kind": "blast_radius",
+      "target": "modules/EMATrendRetest.js",
+      "line_start": 337,
+      "line_end": 345,
+      "bytes": 284,
+      "sha256": "548c3bbd08572ff99ed226d6a0fb60c735bdc479ec63119ba91b64cc1b1d5dac"
+    },
+    {
+      "id": 20,
+      "kind": "blast_radius",
+      "target": "modules/PropSafeEMAPullback.js",
+      "line_start": 349,
+      "line_end": 357,
+      "bytes": 299,
+      "sha256": "27ccd955dc4c4cfc74c7f4e5a5b4fb1ec7b2056731cae9b6d7477446528dab7e"
+    },
+    {
+      "id": 21,
+      "kind": "blast_radius",
+      "target": "modules/RSI2MeanReversion.js",
+      "line_start": 361,
+      "line_end": 369,
+      "bytes": 293,
+      "sha256": "3dba7bf1df4e044056e1685afa84cbe70882b7cf7aeac722bc8b1be3d158f73d"
+    },
+    {
+      "id": 22,
+      "kind": "blast_radius",
+      "target": "modules/TimeSeriesMomentum.js",
+      "line_start": 373,
+      "line_end": 381,
+      "bytes": 296,
+      "sha256": "f56bddbcf75dedba56d429a2d0a3ee5ab500d150c412b9ee4992dc3876743d5b"
+    },
+    {
+      "id": 23,
+      "kind": "blast_radius",
+      "target": "ogzprime-ssl-server.js",
+      "line_start": 385,
+      "line_end": 393,
+      "bytes": 244,
+      "sha256": "6a46a24a7198133967c4bf1169ba8f94da9a3c55b4fe25955c35c1628ac76e69"
+    },
+    {
+      "id": 24,
+      "kind": "blast_radius",
+      "target": "run-empire-v2.js",
+      "line_start": 397,
+      "line_end": 405,
+      "bytes": 232,
+      "sha256": "50e38eb24f096fcde9b2738297a63f2f431102ca6718c5f15e7a315ad984a217"
+    },
+    {
+      "id": 25,
+      "kind": "find_references",
+      "target": "trendBullishValue",
+      "line_start": 409,
+      "line_end": 429,
+      "bytes": 657,
+      "sha256": "fea457b3e1dfe95fb5e4bf142825a7a38db58b180e3804a46f46fab122cca04f"
+    },
+    {
+      "id": 26,
+      "kind": "find_references",
+      "target": "trendBearishValue",
+      "line_start": 433,
+      "line_end": 453,
+      "bytes": 661,
+      "sha256": "b3d8c48df6387defae4f8178ebfd87cb924df474d37aeb5008168a6375c72f87"
+    },
+    {
+      "id": 27,
+      "kind": "find_references",
+      "target": "fraction",
+      "line_start": 457,
+      "line_end": 867,
+      "bytes": 13415,
+      "sha256": "ffbadddd9c69bf514ac533fe31528e2646bce39a20515903359015ed2ca24e2f"
+    },
+    {
+      "id": 28,
+      "kind": "find_references",
+      "target": "scaleOutFraction",
+      "line_start": 871,
+      "line_end": 951,
+      "bytes": 2772,
+      "sha256": "81866ce1e94e0fd1f555f4f6207ec260486c9f26813878673a8614bcf7a1c4bd"
+    },
+    {
+      "id": 29,
+      "kind": "find_references",
+      "target": "minTradeConfidence",
+      "line_start": 955,
+      "line_end": 1365,
+      "bytes": 19252,
+      "sha256": "ac7f45e13e9c539d539f1e8962a992f7eae1423104331c83b41b5bec1e17556f"
+    },
+    {
+      "id": 30,
+      "kind": "find_references",
+      "target": "featureCatalog",
+      "line_start": 1369,
+      "line_end": 1484,
+      "bytes": 3522,
+      "sha256": "b70fa365497cb8e7d66b4a9c5cf8386a3e4635bdb8c35ba9af14f1ec7b287bf6"
+    },
+    {
+      "id": 31,
+      "kind": "find_references",
+      "target": "trai",
+      "line_start": 1488,
+      "line_end": 1898,
+      "bytes": 12400,
+      "sha256": "b99deb67cf7ed200588838b7d2ca1cbcf62914833d21135b0b92b0f58de9045a"
+    },
+    {
+      "id": 32,
+      "kind": "find_references",
+      "target": "positionSizing",
+      "line_start": 1902,
+      "line_end": 2312,
+      "bytes": 13396,
+      "sha256": "c0e300f0fa4a035e48175f264744ac0768fda6b798fecfcc1c9664d5e8bd82a5"
+    },
+    {
+      "id": 33,
+      "kind": "find_references",
+      "target": "entryLogic",
+      "line_start": 2316,
+      "line_end": 2531,
+      "bytes": 7103,
+      "sha256": "eef87d658e369cb4461055600edc23eb3f977f6127ce721055122ccae2be6fb2"
+    },
+    {
+      "id": 34,
+      "kind": "find_references",
+      "target": "strategies",
+      "line_start": 2535,
+      "line_end": 2945,
+      "bytes": 17301,
+      "sha256": "dafa6e18a917e81b6089b2420e94a8c82857d0ca9a50f4816e3f5f2eb2915d41"
+    },
+    {
+      "id": 35,
+      "kind": "find_references",
+      "target": "mode",
+      "line_start": 2949,
+      "line_end": 3359,
+      "bytes": 12072,
+      "sha256": "08f613e3517b1dcd7d41eaa496b8552c63be4eb1b9c31f69c1a8e6bbc2662ed0"
+    },
+    {
+      "id": 36,
+      "kind": "find_references",
+      "target": "sizing",
+      "line_start": 3363,
+      "line_end": 3773,
+      "bytes": 15637,
+      "sha256": "9e32339089d184b667c70c284a9a6d2c912dad425ff89a5c34f9b191d45391c6"
+    },
+    {
+      "id": 37,
+      "kind": "find_references",
+      "target": "fees",
+      "line_start": 3777,
+      "line_end": 4187,
+      "bytes": 12976,
+      "sha256": "e1609b5752af248115f428aaca3074252743f1e63dc985c53a2ab4d69714a6f1"
+    },
+    {
+      "id": 38,
+      "kind": "find_references",
+      "target": "evalRules",
+      "line_start": 4191,
+      "line_end": 4381,
+      "bytes": 6177,
+      "sha256": "98d2b78cd2ab0c2c71a2e51b172e03a8eb603c918d1fba9f3f03618cb04b5228"
+    },
+    {
+      "id": 39,
+      "kind": "find_references",
+      "target": "exits",
+      "line_start": 4385,
+      "line_end": 4795,
+      "bytes": 16041,
+      "sha256": "01b915a552d4f24526a6c2de5b4a20a0f1e9e8dba7c36e18ee04f42e04410da0"
+    }
+  ]
+}

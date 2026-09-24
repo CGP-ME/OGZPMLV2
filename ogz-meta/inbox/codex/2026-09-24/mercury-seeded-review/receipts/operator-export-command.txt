@@ -1,0 +1,42 @@
+node <<'NODE'
+const fs=require('fs'),path=require('path'),crypto=require('crypto'),zlib=require('zlib');
+const {redactSensitiveText}=require('./trai_brain/mercury-bridge/run-ledger');
+const mission='ogz-meta/inbox/codex/2026-09-24/mercury-seeded-review';
+const rawDir='ogz-meta/cognition-history/mercury-runs/raw/2026-09-24/2026-09-24t06-51-07-940z-594762-adbcb8cf5222';
+const ledgerPath=mission+'/private/ledger/2026-09-24.jsonl';
+const row=JSON.parse(fs.readFileSync(ledgerPath,'utf8').trim().split('\n').at(-1));
+const bundle=row.source_refs.current_change_evidence_bundle;
+const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
+fs.mkdirSync(mission+'/tapes',{recursive:true});
+fs.mkdirSync(mission+'/receipts',{recursive:true});
+const manifest=[];
+function exportFile(source,dest,compress=false){
+ const original=fs.readFileSync(source),redacted=Buffer.from(redactSensitiveText(original.toString('utf8')));
+ const committed=compress?zlib.gzipSync(redacted):redacted;
+ fs.writeFileSync(mission+'/'+dest,committed,{flag:'wx',mode:0o600});
+ if(compress&&!zlib.gunzipSync(committed).equals(redacted))throw Error('Compression mismatch');
+ manifest.push({source,destination:dest,originalBytes:original.length,originalSha256:sha(original),redactedBytes:redacted.length,redactedSha256:sha(redacted),committedBytes:committed.length,committedSha256:sha(committed),encoding:compress?'gzip':'utf8'});
+}
+exportFile(ledgerPath,'tapes/review-ledger.redacted.jsonl.gz',true);
+const providerRows=[];
+for(const name of fs.readdirSync(rawDir).sort()){
+ const source=rawDir+'/'+name,original=fs.readFileSync(source),redacted=redactSensitiveText(original.toString('utf8'));
+ providerRows.push(JSON.stringify({source,text:redacted}));
+ manifest.push({source,destination:'tapes/provider-outputs.redacted.jsonl.gz',record:providerRows.length,originalBytes:original.length,originalSha256:sha(original),redactedBytes:Buffer.byteLength(redacted),redactedSha256:sha(redacted)});
+}
+const providerText=Buffer.from(providerRows.join('\n')+'\n'),providerGzip=zlib.gzipSync(providerText);
+fs.writeFileSync(mission+'/tapes/provider-outputs.redacted.jsonl.gz',providerGzip,{flag:'wx',mode:0o600});
+manifest.push({destination:'tapes/provider-outputs.redacted.jsonl.gz',records:providerRows.length,redactedBytes:providerText.length,redactedSha256:sha(providerText),committedBytes:providerGzip.length,committedSha256:sha(providerGzip),encoding:'gzip JSONL records preserving each redacted raw output as text'});
+exportFile(bundle.path,'tapes/current-change-evidence.redacted.txt.gz',true);
+exportFile(bundle.manifest_path,'tapes/current-change-manifest.json');
+exportFile(mission+'/private/review.private.log','tapes/review-console.redacted.log.gz',true);
+for(const name of ['source-before-index.json','index-command.json','index-completion.json','index-verification.json','index-verification-after-review.json','provider-readiness.json','review-command.json','review-completion.json','review-inspection.json']){
+ exportFile(mission+'/private/'+name,'receipts/'+name);
+}
+exportFile(mission+'/private/withheld-expected.json','receipts/withheld-expected.json');
+exportFile(mission+'/private/scoring-key.md','receipts/scoring-key.md');
+exportFile(mission+'/private/question.txt','receipts/question.txt');
+exportFile(mission+'/private/operator-review-command.txt','receipts/operator-review-command.txt');
+fs.writeFileSync(mission+'/receipts/TAPE-MANIFEST.json',JSON.stringify({at:new Date().toISOString(),runId:row.run_id,transformation:'Existing redactSensitiveText on entire UTF-8 artifact, then lossless gzip where indicated. Source originals unchanged. No provider output or ledger row omitted.',files:manifest},null,2)+'\n',{flag:'wx',mode:0o600});
+console.log(JSON.stringify({runId:row.run_id,providerOutputs:providerRows.length,manifestEntries:manifest.length,ledgerOriginalBytes:fs.statSync(ledgerPath).size,ledgerCompressedBytes:fs.statSync(mission+'/tapes/review-ledger.redacted.jsonl.gz').size,providerCompressedBytes:providerGzip.length}));
+NODE

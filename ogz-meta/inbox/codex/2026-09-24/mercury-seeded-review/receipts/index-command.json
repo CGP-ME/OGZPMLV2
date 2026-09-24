@@ -1,0 +1,10 @@
+{
+  "startedAt": "2026-09-24T06:44:15.441Z",
+  "cwd": "/opt/ogzprime/OGZPMLV2",
+  "executable": "/usr/bin/node",
+  "args": [
+    "trai_brain/mercury-bridge/indexer.js"
+  ],
+  "configPath": "/opt/ogzprime/OGZPMLV2/ogz-meta/inbox/codex/2026-09-24/mercury-seeded-review/private/mercury.isolated.json",
+  "ledgerPath": "ogz-meta/inbox/codex/2026-09-24/mercury-seeded-review/private/ledger"
+}

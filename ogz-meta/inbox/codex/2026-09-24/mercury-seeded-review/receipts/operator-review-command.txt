@@ -1,0 +1,20 @@
+node <<'NODE'
+const fs=require('fs'),path=require('path'),crypto=require('crypto'),{spawn}=require('child_process');
+const root=process.cwd(),dir=path.resolve('ogz-meta/inbox/codex/2026-09-24/mercury-seeded-review/private');
+const configPath=path.join(dir,'mercury.isolated.json');
+const check=JSON.parse(fs.readFileSync(path.join(dir,'index-verification.json')));
+if(!check.passed||!check.liveUnchanged)throw Error('Index not reconciled');
+const query=fs.readFileSync(path.join(dir,'question.txt'),'utf8').trim();
+const args=['trai_brain/mercury-bridge/ask.js','--attack','--max-tokens=7750','--reviewers=mercury,fable,kimi','--evidence-source=ogz-meta/inbox/codex/2026-09-24/mercury-seeded-review/fixtures/candidate.patch:1-10',query];
+const env={...process.env,MERCURY_CONFIG_FILE:configPath,MERCURY_RUN_LEDGER_DIR:path.relative(root,path.join(dir,'ledger'))};
+const sha=p=>crypto.createHash('sha256').update(fs.readFileSync(path.join(dir,p))).digest('hex');
+const receipt={startedAt:new Date().toISOString(),cwd:root,executable:process.execPath,args,configPath,ledgerPath:env.MERCURY_RUN_LEDGER_DIR,withheldExpectedSha256:sha('withheld-expected.json'),withheldScoringSha256:sha('scoring-key.md'),questionSha256:sha('question.txt'),indexVerificationSha256:sha('index-verification.json')};
+fs.writeFileSync(path.join(dir,'review-command.json'),JSON.stringify(receipt,null,2)+'\n',{flag:'wx',mode:0o600});
+const fd=fs.openSync(path.join(dir,'review.private.log'),'wx',0o600);
+const child=spawn(process.execPath,args,{cwd:root,env,stdio:['ignore','pipe','pipe']});
+child.stdout.on('data',b=>fs.writeSync(fd,b));
+child.stderr.on('data',b=>fs.writeSync(fd,b));
+console.log(JSON.stringify({pid:child.pid,startedAt:receipt.startedAt,log:path.relative(root,path.join(dir,'review.private.log')),maxTokens:7750,maxIterations:null,questionBytes:Buffer.byteLength(query)}));
+child.on('error',error=>{console.error(error.message);process.exitCode=1;});
+child.on('close',(code,signal)=>{fs.closeSync(fd);const completed={...receipt,finishedAt:new Date().toISOString(),code,signal};fs.writeFileSync(path.join(dir,'review-completion.json'),JSON.stringify(completed,null,2)+'\n',{flag:'wx',mode:0o600});console.log(JSON.stringify({code,signal,finishedAt:completed.finishedAt}));process.exitCode=code==null?1:code;});
+NODE

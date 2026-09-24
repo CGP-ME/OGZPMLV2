@@ -1,0 +1,10 @@
+diff --git a/foundation/ConfigLoader.js b/foundation/ConfigLoader.js
+--- a/foundation/ConfigLoader.js
++++ b/foundation/ConfigLoader.js
+@@ -2275,5 +2275,5 @@
+ }
+ 
+ function canonicalHash(value) {
+-  return crypto.createHash('sha256').update(canonicalStringify(value)).digest('hex');
++  return crypto.createHash('sha256').update(JSON.stringify(value, Object.keys(value).sort())).digest('hex');
+ }
