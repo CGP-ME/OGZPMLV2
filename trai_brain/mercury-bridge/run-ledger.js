@@ -473,6 +473,7 @@ function compactToolStats(toolTelemetry = {}) {
         status: call.status || 'unknown',
         args: call.args || {},
         result: call.result || {},
+        delivery: call.delivery || null,
       })),
   }));
 }

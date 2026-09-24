@@ -274,16 +274,83 @@ function compactAssistantMessageForHistory(assistantMsg) {
   };
 }
 
-function stringifyToolResultForHistory(toolResult) {
+function serializeToolResultForHistory(toolName, toolResult) {
   const raw = typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult);
   const compacted = truncateForHistory(raw, MAX_TOOL_RESULT_HISTORY_CHARS);
-  if (!compacted.truncated) return raw;
-  return JSON.stringify({
-    _mercury_context_compacted: true,
-    original_chars: compacted.originalChars,
-    result_preview: compacted.text,
-    note: 'Tool result was compacted before reinsertion into Mercury context. Re-run a narrower tool call if omitted lines are needed.',
-  });
+  if (!compacted.truncated) {
+    return {
+      content: raw,
+      delivery: toolResult && typeof toolResult === 'object' ? {
+        truncated: false,
+        startLine: toolResult.start_line || null,
+        endLine: toolResult.end_line || null,
+        totalLines: toolResult.total_lines || null,
+      } : { truncated: false },
+    };
+  }
+
+  if (['open_file', 'git_show'].includes(toolName)
+      && toolResult && typeof toolResult === 'object'
+      && typeof toolResult.text === 'string'
+      && Number.isInteger(toolResult.start_line)) {
+    const sourceLines = toolResult.text.split('\n');
+    const originalEndLine = Number.isInteger(toolResult.end_line)
+      ? toolResult.end_line
+      : toolResult.start_line + sourceLines.length - 1;
+    let low = 0;
+    let high = sourceLines.length;
+    let selected = null;
+    while (low <= high) {
+      const count = Math.floor((low + high) / 2);
+      const deliveredEndLine = count > 0
+        ? Math.min(originalEndLine, toolResult.start_line + count - 1)
+        : toolResult.start_line - 1;
+      const candidate = {
+        ...toolResult,
+        end_line: deliveredEndLine,
+        text: sourceLines.slice(0, count).join('\n'),
+        _mercury_context_compacted: true,
+        original_chars: compacted.originalChars,
+        original_end_line: originalEndLine,
+        delivered_start_line: toolResult.start_line,
+        delivered_end_line: deliveredEndLine,
+        note: 'Only the delivered line range counts as model-read evidence. Re-run a narrower range for omitted lines.',
+      };
+      const serialized = JSON.stringify(candidate);
+      if (serialized.length <= MAX_TOOL_RESULT_HISTORY_CHARS) {
+        selected = { serialized, deliveredEndLine, count };
+        low = count + 1;
+      } else {
+        high = count - 1;
+      }
+    }
+    if (selected && selected.count > 0) {
+      return {
+        content: selected.serialized,
+        delivery: {
+          truncated: true,
+          startLine: toolResult.start_line,
+          endLine: selected.deliveredEndLine,
+          totalLines: toolResult.total_lines || originalEndLine,
+          originalEndLine,
+        },
+      };
+    }
+  }
+
+  return {
+    content: JSON.stringify({
+      _mercury_context_compacted: true,
+      original_chars: compacted.originalChars,
+      result_preview: compacted.text,
+      note: 'Tool result was compacted before reinsertion into Mercury context. Re-run a narrower tool call if omitted lines are needed.',
+    }),
+    delivery: { truncated: true, startLine: null, endLine: null, totalLines: null },
+  };
+}
+
+function stringifyToolResultForHistory(toolResult) {
+  return serializeToolResultForHistory(null, toolResult).content;
 }
 
 function normalizeToolHandleCitations(content) {
@@ -567,28 +634,33 @@ function summarizeToolTelemetry(history = []) {
       status: isFailure ? 'failed' : 'succeeded',
       args: compactTelemetryValue(entry.toolArgs || {}, 500),
       result: summarizeToolResultForTelemetry(entry.toolName, result, isFailure),
+      delivery: entry.toolDelivery || null,
     });
 
-    if (!isFailure && entry.toolName === 'open_file' && result.file) {
-      filesOpened.add(`${result.file}:${result.start_line || 1}-${result.end_line || result.start_line || 1}`);
-      fileReads.push({
-        file: result.file,
-        startLine: result.start_line || 1,
-        endLine: result.end_line || result.start_line || 1,
-        totalLines: result.total_lines || result.end_line || result.start_line || 1,
-        executionProvenance: 'trusted_repo_read',
-      });
-    }
-    if (!isFailure && entry.toolName === 'git_show' && result.path) {
-      filesOpened.add(`${result.ref || 'git'}:${result.path}:${result.start_line || 1}-${result.end_line || result.start_line || 1}`);
-      fileReads.push({
-        file: result.path,
-        ref: result.ref || 'git',
-        startLine: result.start_line || 1,
-        endLine: result.end_line || result.start_line || 1,
-        totalLines: result.total_lines || result.end_line || result.start_line || 1,
-        executionProvenance: 'trusted_repo_read',
-      });
+    const readFile = entry.toolName === 'open_file' ? result && result.file
+      : entry.toolName === 'git_show' ? result && result.path : null;
+    if (!isFailure && readFile) {
+      // Older histories have no delivery receipt. Their compacted generic
+      // preview cannot establish a complete source-line range.
+      const legacyUncompacted = !entry.toolDelivery
+        && JSON.stringify(result).length <= MAX_TOOL_RESULT_HISTORY_CHARS;
+      const delivered = entry.toolDelivery || (legacyUncompacted ? {
+        startLine: result.start_line, endLine: result.end_line, truncated: false,
+      } : null);
+      if (delivered && Number.isInteger(delivered.startLine)
+          && Number.isInteger(delivered.endLine) && delivered.endLine >= delivered.startLine) {
+        const ref = entry.toolName === 'git_show' ? result.ref || 'git' : null;
+        filesOpened.add(`${ref ? `${ref}:` : ''}${readFile}:${delivered.startLine}-${delivered.endLine}`);
+        fileReads.push({
+          file: readFile,
+          ...(ref ? { ref } : {}),
+          startLine: delivered.startLine,
+          endLine: delivered.endLine,
+          totalLines: result.total_lines,
+          executionProvenance: 'trusted_repo_read',
+          contextCompacted: delivered.truncated === true,
+        });
+      }
     }
     if (entry.toolName === 'run_check' && result && typeof result === 'object' && result.artifact_citation) {
       runCheckArtifacts.push(result.artifact_citation);
@@ -931,18 +1003,20 @@ async function runReactLoop(params) {
           toolResult = { error: err.message };
         }
 
+        const serializedToolResult = serializeToolResultForHistory(toolName, toolResult);
         history.push({
           iteration,
           toolName,
           toolArgs,
           toolResult,
+          toolDelivery: serializedToolResult.delivery,
           toolCallId: toolCall.id,
         });
 
         messages.push({
           role: 'tool',
           tool_call_id: toolCall.id,
-          content: stringifyToolResultForHistory(toolResult),
+          content: serializedToolResult.content,
         });
       }
       if (decisionSteerSentAt == null && iteration === decisionSteerIteration) {
@@ -1076,6 +1150,7 @@ module.exports = {
   normalizeToolHandleCitations,
   compactAssistantMessageForHistory,
   stringifyToolResultForHistory,
+  serializeToolResultForHistory,
   findToolAvailabilityContradiction,
   hasUnsupportedTestOutcomeClaim,
   hasConceptualProofClaim,

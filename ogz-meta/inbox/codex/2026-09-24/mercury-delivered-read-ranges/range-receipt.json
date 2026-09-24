@@ -1,0 +1,109 @@
+{
+  "observedAt": "2026-09-24T00:12:05.794Z",
+  "cases": [
+    {
+      "tool": "open_file",
+      "args": {
+        "path": "foundation/ConfigLoader.js",
+        "start_line": 1,
+        "end_line": 500
+      },
+      "rawChars": 23620,
+      "deliveredChars": 12000,
+      "delivery": {
+        "truncated": true,
+        "startLine": 1,
+        "endLine": 237,
+        "totalLines": 3004,
+        "originalEndLine": 500
+      },
+      "readReceipt": {
+        "file": "foundation/ConfigLoader.js",
+        "startLine": 1,
+        "endLine": 237,
+        "totalLines": 3004,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": true
+      },
+      "deliveredContentHash": "3c9e958d6552d529b3c5d741055aab19bafd374372301ee39f7aac478976ac30",
+      "sourcePrefixHash": "3c9e958d6552d529b3c5d741055aab19bafd374372301ee39f7aac478976ac30",
+      "legacyReadCount": 0,
+      "matches": true
+    },
+    {
+      "tool": "git_show",
+      "args": {
+        "ref": "HEAD",
+        "path": "foundation/ConfigLoader.js",
+        "start_line": 1,
+        "end_line": 500
+      },
+      "rawChars": 23553,
+      "deliveredChars": 11962,
+      "delivery": {
+        "truncated": true,
+        "startLine": 1,
+        "endLine": 236,
+        "totalLines": 2696,
+        "originalEndLine": 500
+      },
+      "readReceipt": {
+        "file": "foundation/ConfigLoader.js",
+        "ref": "HEAD",
+        "startLine": 1,
+        "endLine": 236,
+        "totalLines": 2696,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": true
+      },
+      "deliveredContentHash": "4e54aefc944e0113a27ba0e0a0e9f8a9e8d4eb16607bbedb48efb017692b74fe",
+      "sourcePrefixHash": "4e54aefc944e0113a27ba0e0a0e9f8a9e8d4eb16607bbedb48efb017692b74fe",
+      "legacyReadCount": 0,
+      "matches": true
+    },
+    {
+      "tool": "open_file",
+      "args": {
+        "path": "tools/serena-bridge.js",
+        "start_line": 1,
+        "end_line": 15
+      },
+      "rawChars": 715,
+      "deliveredChars": 715,
+      "delivery": {
+        "truncated": false,
+        "startLine": 1,
+        "endLine": 15,
+        "totalLines": 377
+      },
+      "readReceipt": {
+        "file": "tools/serena-bridge.js",
+        "startLine": 1,
+        "endLine": 15,
+        "totalLines": 377,
+        "executionProvenance": "trusted_repo_read",
+        "contextCompacted": false
+      },
+      "deliveredContentHash": "721f35e34dd2c4dec0a7e1652c7fc49af16fa556cbc2da40bc10cde210861af7",
+      "sourcePrefixHash": "721f35e34dd2c4dec0a7e1652c7fc49af16fa556cbc2da40bc10cde210861af7",
+      "legacyReadCount": 1,
+      "matches": true
+    }
+  ],
+  "unrepresentableLine": {
+    "delivery": {
+      "truncated": true,
+      "startLine": null,
+      "endLine": null,
+      "totalLines": null
+    },
+    "fileReads": []
+  },
+  "sourceSha256": "653dbdb6ef4c27680c0052decc54de3cfe8e6e564c3ee7b5e05586d8c7ce74b2",
+  "passed": true,
+  "limitations": [
+    "Actual file-tool/serializer/ledger execution, not model consumption or full review.",
+    "Synthetic oversized single line exercises missing-range reporting without creating a source file.",
+    "No provider, DB, Jest, bot, broker, PM2 or reindex operation."
+  ]
+}

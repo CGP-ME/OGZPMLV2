@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Delivered Read Ranges (2026-09-24)
+
+- Preserve complete lines when compacting file-tool results and record only the line range delivered into model context. Keep requested/result ranges separate from delivered ranges in call receipts; an unrepresentable single line or old compacted preview is not counted as a complete file read. No bot behavior or review acceptance criterion changed.
+
 ### Mercury Explicit Verdict Handoff (2026-09-24)
 
 - Connect Mercury primary/recheck answers to the existing explicit-field parser and supply the required receipt fields in the shared doctrine prompt. Preserve prose-only/missing claims and every evidence ceiling; historical replay restores three explicit verdicts without clearing any UNVERIFIED receipt.
