@@ -87,6 +87,7 @@ const {
   extractClaimedFileCitations,
   redactSensitiveText,
   writeRawProviderOutput,
+  writeCurrentChangeEvidenceBundle,
   writeRunLedgerEntry,
 } = require('./run-ledger');
 const MongoStore = require('./mongo-store');
@@ -576,6 +577,7 @@ async function buildCurrentChangeBlastRadius({
   }
 
   const sections = [];
+  const expandedSections = [];
   const meta = [];
   for (const targetFile of targetFiles) {
     let blastRadius;
@@ -605,6 +607,7 @@ async function buildCurrentChangeBlastRadius({
       latencyMs: blastRadius.latencyMs,
     });
     sections.push(`## ${targetFile}\n${formatted}`);
+    expandedSections.push({ kind: 'blast_radius', target: targetFile, content: formatted });
   }
 
   const referenceScans = [];
@@ -626,6 +629,7 @@ async function buildCurrentChangeBlastRadius({
           truncated: !!(result && result.truncated),
         });
         sections.push(`## find_references ${name}\n${JSON.stringify(result)}`);
+        expandedSections.push({ kind: 'find_references', target: name, content: JSON.stringify(result, null, 2) });
       }
     } catch (err) {
       errors.push({ symbol: name, error: err.message });
@@ -639,9 +643,11 @@ async function buildCurrentChangeBlastRadius({
     `Touched env/config names: ${referenceNames.length}`,
     ...referenceNames.map(name => `- ${name}`),
   ].join('\n'));
+  expandedSections.unshift({ kind: 'candidate_set', target: '<current_changes>', content: sections[0] });
 
   return {
     text: sections.length > 0 ? sections.join('\n\n') : null,
+    expandedSections,
     meta,
     errors,
     changedFiles: normalizedCandidates,
@@ -1024,6 +1030,23 @@ async function runAgentic(query, opts) {
       autoBlastRadius = await buildCurrentChangeBlastRadius({
         findReferencesFn: symbol => toolAdapter.execute('find_references', { symbol }),
       });
+      if (autoBlastRadius.expandedSections && autoBlastRadius.expandedSections.length > 0) {
+        autoBlastRadius.evidenceBundle = writeCurrentChangeEvidenceBundle({
+          repoRoot: config.REPO_ROOT,
+          runId: rawRunId,
+          sections: autoBlastRadius.expandedSections,
+          now: startedAt,
+        });
+        const bundle = autoBlastRadius.evidenceBundle;
+        autoBlastRadius.text += [
+          '', '', '## CAPTURED CURRENT-CHANGE EVIDENCE ARTIFACT',
+          `Artifact: ${bundle.path}`,
+          `Artifact SHA-256: ${bundle.sha256}`,
+          `Artifact bytes: ${bundle.bytes}; sections: ${bundle.section_count}`,
+          `Section manifest: ${bundle.manifest_path}`,
+          'The manifest identifies exact section ranges for open_file. Storage is not proof of review or complete dependency discovery.',
+        ].join('\n');
+      }
       blastRadius = autoBlastRadius.text;
       if (verbose) {
         if (autoBlastRadius.meta.length > 0) {
@@ -1502,6 +1525,12 @@ function printDispatchReceipt(result) {
   const blastErrors = Array.isArray(sourceRefs.auto_blast_radius_errors) ? sourceRefs.auto_blast_radius_errors : [];
   console.log(`blast radius:    ${blastFiles} file(s) scanned, ${blastErrors.length} error(s)`);
   blastErrors.forEach((blastError) => console.log(`  - ${blastError.file}: ${blastError.error}`));
+  const bundle = sourceRefs.current_change_evidence_bundle;
+  if (bundle) {
+    console.log(`AST evidence:    ${bundle.path}`);
+    console.log(`evidence hash:   ${bundle.sha256} bytes=${bundle.bytes} sections=${bundle.section_count}`);
+    console.log(`section manifest: ${bundle.manifest_path} sha256=${bundle.manifest_sha256}`);
+  }
 
   const candidateSet = entry.candidate_set;
   if (candidateSet) {

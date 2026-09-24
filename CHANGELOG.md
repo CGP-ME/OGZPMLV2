@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury AST Evidence Handoff (2026-09-24)
+
+- Persist captured current-change AST/reference evidence with section ranges and SHA-256 hashes, and link the artifact from the review prompt, run ledger and terminal receipt. This restores the recovered evidence writer without changing bot behavior, review scope or authority requirements; storage alone is not model consumption or complete coverage.
+
 ### Mercury Caller Evidence Delivery (2026-09-23)
 
 - Deliver every discovered caller permitted by the existing Mercury ignore policy instead of cutting the blast-radius list at 30. This repairs caller-evidence delivery, not dynamic dependency discovery or proof of complete configuration migration. Bot behavior and reviewer acceptance rules are unchanged.

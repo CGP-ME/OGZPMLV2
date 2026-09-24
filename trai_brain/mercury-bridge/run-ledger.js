@@ -10,6 +10,7 @@ const { roundCurrency, sumAttemptAccounting, sumSeatAccounting } = require('./co
 const DEFAULT_RUN_LEDGER_DIR = path.join('ogz-meta', 'cognition-history', 'mercury-runs');
 const RUN_LEDGER_DIR = resolveRunLedgerDir(process.env.MERCURY_RUN_LEDGER_DIR || DEFAULT_RUN_LEDGER_DIR);
 const RAW_PROVIDER_DIR = path.join(DEFAULT_RUN_LEDGER_DIR, 'raw').replace(/\\/g, '/');
+const EVIDENCE_BUNDLE_DIR = path.join(DEFAULT_RUN_LEDGER_DIR, 'evidence').replace(/\\/g, '/');
 const PROMPT_EXCERPT_MAX = 2000;
 
 function resolveRunLedgerDir(value) {
@@ -70,6 +71,73 @@ function writeRawProviderOutput({ repoRoot, runId, stage, attempt, bytes, now = 
     sha256: crypto.createHash('sha256').update(rawBytes).digest('hex'),
     bytes: rawBytes.length,
     mode: '0600',
+  };
+}
+
+// The current-change producer supplies the repository root and nonempty sections.
+// Keep the complete captured evidence beside the run's existing raw artifacts.
+function writeCurrentChangeEvidenceBundle({ repoRoot, runId, sections, now = new Date() }) {
+  const day = isoTimestamp(now).slice(0, 10);
+  const safeRunId = safeRawPathPart(runId, 'run id');
+  const relDir = path.join(EVIDENCE_BUNDLE_DIR, day, safeRunId).replace(/\\/g, '/');
+  const absDir = path.join(repoRoot, relDir);
+  fs.mkdirSync(absDir, { recursive: true, mode: 0o700 });
+  fs.chmodSync(absDir, 0o700);
+  const artifactLines = [
+    'MERCURY CURRENT-CHANGE EVIDENCE BUNDLE',
+    `run_id=${runId}`,
+    `generated_at=${isoTimestamp(now)}`,
+    `section_count=${sections.length}`,
+    '',
+  ];
+  const manifestSections = [];
+  for (const [index, section] of sections.entries()) {
+    const id = index + 1;
+    const content = section.content;
+    artifactLines.push(`===== SECTION ${id} kind=${section.kind} target=${JSON.stringify(section.target)} =====`);
+    const lineStart = artifactLines.length + 1;
+    artifactLines.push(...content.split('\n'));
+    const lineEnd = artifactLines.length;
+    artifactLines.push(`===== END SECTION ${id} =====`, '');
+    manifestSections.push({
+      id, kind: section.kind, target: section.target,
+      line_start: lineStart, line_end: lineEnd,
+      bytes: Buffer.byteLength(content, 'utf8'), sha256: hashText(content),
+    });
+  }
+  while (artifactLines[artifactLines.length - 1] === '') artifactLines.pop();
+  const artifactText = `${artifactLines.join('\n')}\n`;
+  const artifactBytes = Buffer.from(artifactText, 'utf8');
+  const artifactRelPath = path.join(relDir, 'current-change-evidence.txt').replace(/\\/g, '/');
+  const artifactFd = fs.openSync(path.join(repoRoot, artifactRelPath), 'wx', 0o600);
+  try {
+    fs.writeFileSync(artifactFd, artifactBytes);
+    fs.fchmodSync(artifactFd, 0o600);
+  } finally {
+    fs.closeSync(artifactFd);
+  }
+  const artifactSha256 = crypto.createHash('sha256').update(artifactBytes).digest('hex');
+  const artifactLineCount = artifactText.split('\n').length - 1;
+  const manifest = {
+    schema_version: 1, run_id: runId, generated_at: isoTimestamp(now),
+    artifact: { path: artifactRelPath, sha256: artifactSha256, bytes: artifactBytes.length, lines: artifactLineCount },
+    sections: manifestSections,
+  };
+  const manifestBytes = Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+  const manifestRelPath = path.join(relDir, 'manifest.json').replace(/\\/g, '/');
+  const manifestFd = fs.openSync(path.join(repoRoot, manifestRelPath), 'wx', 0o600);
+  try {
+    fs.writeFileSync(manifestFd, manifestBytes);
+    fs.fchmodSync(manifestFd, 0o600);
+  } finally {
+    fs.closeSync(manifestFd);
+  }
+  return {
+    path: artifactRelPath, citation: `${artifactRelPath}:1`, sha256: artifactSha256,
+    bytes: artifactBytes.length, lines: artifactLineCount, section_count: manifestSections.length,
+    manifest_path: manifestRelPath,
+    manifest_sha256: crypto.createHash('sha256').update(manifestBytes).digest('hex'),
+    manifest_bytes: manifestBytes.length,
   };
 }
 
@@ -749,6 +817,8 @@ function buildRunLedgerEntry({
     prompt_provenance: promptProvenance,
     attack_scope: opts.attackScope || 'agentic_query',
     source_refs: {
+      current_change_evidence_bundle: autoBlastRadius && autoBlastRadius.evidenceBundle
+        ? autoBlastRadius.evidenceBundle : null,
       supplied_evidence: promptProvenance.supplied_sources || [],
       auto_blast_radius_source: autoBlastRadius ? autoBlastRadius.source : null,
       auto_blast_radius_files: autoBlastRadius && Array.isArray(autoBlastRadius.meta)
@@ -1030,6 +1100,7 @@ module.exports = {
   RAW_PROVIDER_DIR,
   createRawRunId,
   writeRawProviderOutput,
+  writeCurrentChangeEvidenceBundle,
   extractClaimedFileCitations,
   parseSelfReport,
   seatReceiptFields,
