@@ -1,0 +1,7 @@
+# Inherited state
+
+Earlier Mercury repairs are separately committed/pushed through 9f1729c6. Details remain in their original inbox packets; do not rewrite history. Recovery clone OGZPMLV2_RECOVERY_20260921T195912Z and candidate OGZPMLV2_STOP1_REBUILD_20260922_ecY4OI untouched this continuation. Dirty Stop 1 implementation rejected by Trey, not a foundation for the rebuild. Rollback and clean Stop 1 remain unperformed.
+
+Historical policy lead verified through Git: 1d1d3364 introduced doctrine-review.js; its packet is ogz-meta/inbox/amp/2026-09-01/mercury-doctrine-extension/MISSION.md, not a Codex packet. The packet attributes whole-file/inherited/classifier obligations to a Puck dispatch and Trey. That attribution is not independently recovered direct user approval. Current code still imposes these obligations; current user expressly separates builder doctrine from Mercury rules and asks for relevant AST/parser-guided inspection. This is a policy conflict, not permission to delete failed-evidence flags or declare acceptance. No policy ceiling was changed here.
+
+Current evidence-use failures are independent of that conflict: Mercury failed to follow the canonical config search hit; Kimi overlooked a PolicyBuilder excerpt actually delivered. Host-side exact source/chunk checks cannot certify model comprehension. The resulting UNVERIFIED receipt is preserved without relabelling it PASS.
