@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Correct Mercury Versus Builder Alignment Scope (2026-09-24)
+
+- Undo the Fable builder-doctrine index addition from 10a5ed3e per Trey's clarification. Mercury is read-only; Mercury-specific rules are explicit, not inferred from builder alignment. No new indexing ran with the addition; existing indexes and receipt repairs are untouched.
+
 ### Mercury Fable Doctrine Index Target (2026-09-24)
 
 - Add the explicitly required TREY-DOCTRINE-FABLE-LANE.md to the existing exact ogz-meta index allowlist. All existing ignore exclusions remain; historical documents do not gain authority from being indexed. A separate completed index receipt is still required.

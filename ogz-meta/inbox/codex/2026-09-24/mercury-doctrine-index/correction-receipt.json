@@ -1,0 +1,12 @@
+{
+  "observedAt": "2026-09-24T00:21:46.684Z",
+  "priorCount": 424,
+  "currentCount": 423,
+  "removed": [
+    "ogz-meta/Alignment/TREY-DOCTRINE-FABLE-LANE.md"
+  ],
+  "added": [],
+  "indexerSha256": "87dadac1e740f84d72ec7a6438bcd4e1f5bd489fe20f83f1d46b78aa1c5c8df7",
+  "indexOrProviderRunStarted": false,
+  "restoresPreviousSelection": true
+}

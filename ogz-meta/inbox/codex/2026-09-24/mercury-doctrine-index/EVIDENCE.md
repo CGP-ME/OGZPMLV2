@@ -1,3 +1,5 @@
 # Evidence
 
+Correction: the original scope receipt proves technical selection, not authorization. After Trey's clarification, the exact added path is removed; the correction readback compares current selection against the saved 424-path list, expecting only that one removal. `pgrep -af 'node.*mercury-bridge/(ask|indexer)\.js'` returned exit 1 (no matching process) at correction. No index or provider dispatch was executed between the erroneous addition and correction. An isolated JSON configuration was prepared only; it was never used to index or dispatch.
+
 `node ogz-meta/inbox/codex/2026-09-24/mercury-doctrine-index/verify-scope.cjs` executes the real walker/chunker, recording all selected paths, doctrine chunk ranges and hashes in scope-receipt.json. Before this one-line change the allowlist contained only master alignment, Trey rulings and specs; the exact missing path is now selected. No embedding, DB write, provider, Jest, bot, PM2 or broker operation. Selection is not a completed index or operational Mercury proof.
