@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Reviewer Role Framing (2026-09-24)
+
+- Make the existing shared reviewer system prompt role-neutral; retain Fable and Kimi's distinct contracts in their existing request builders. Kimi no longer receives a higher-priority instruction to be Fable or emit Fable's verdict template. No provider, scope, token, evidence or authority-setting change.
+
 ### Mercury Failed Investigation Receipt (2026-09-24)
 
 - Retain the attempted Mercury result before answer qualification, so failed investigations keep their tool history, iterations and provider-failure evidence in downstream prompts and the ledger. Preserve failed-seat status, UNVERIFIED authority and existing recheck eligibility; no bot changes.

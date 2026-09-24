@@ -1,0 +1,15 @@
+{
+  "at": "2026-09-24T02:47:32.906Z",
+  "historicalSourceRun": "2026-09-24T02-31-33-458Z-759ba9639dea",
+  "requestSha256": "279227d1c8872dd87207b8ed6a03ea8f0be1e098943529b1513581d416d1d3d6",
+  "exactRequestMatch": true,
+  "requestBytes": 191354,
+  "systemBeforeSha256": "1ec078f9eca9d12c4a71867c073b16b7e1cb9dc441f53df5896663ec4a14310c",
+  "systemAfterSha256": "aaac8a57868900fe47e12a6ebaf3799e351dba6116438e814fcc3b88bffe3f79",
+  "previousVerdictFields": [
+    "VERDICT: blocked",
+    "VERDICT: needs_more_evidence"
+  ],
+  "configuredModel": "kimi-k3",
+  "maxTokens": 4096
+}
