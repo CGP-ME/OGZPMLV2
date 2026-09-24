@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const repositoryPolicy = require('../trai_brain/repository-policy');
 
 const DEFAULT_REPO_ROOT = path.resolve(__dirname, '..');
@@ -13,10 +14,14 @@ let BabelParser = null;
 try {
   Parser = require('tree-sitter');
   JavaScript = require('tree-sitter-javascript');
-  BabelParser = require('@babel/parser');
 } catch (err) {
   Parser = null;
   JavaScript = null;
+}
+try {
+  BabelParser = require('@babel/parser');
+} catch (err) {
+  BabelParser = null;
 }
 
 function findJSFiles(dir, repoRoot = DEFAULT_REPO_ROOT, results = []) {
@@ -311,7 +316,7 @@ function variableDeclaratorInit(node) {
 }
 
 function scanFileWithBabel(file, repoRoot, source) {
-  if (!BabelParser) return { propertyRefs: [], methodCalls: [], classSurfaces: [] };
+  if (!BabelParser) return { error: 'tree-sitter parse incomplete; Babel parser unavailable' };
   let ast;
   try {
     ast = BabelParser.parse(source, {
@@ -327,8 +332,8 @@ function scanFileWithBabel(file, repoRoot, source) {
         'optionalChaining',
       ],
     });
-  } catch (_) {
-    return { propertyRefs: [], methodCalls: [], classSurfaces: [] };
+  } catch (error) {
+    return { error: `tree-sitter parse incomplete; Babel parse failed: ${error.message}` };
   }
 
   attachBabelParents(ast);
@@ -414,11 +419,14 @@ function scanFileWithBabel(file, repoRoot, source) {
     }
   });
 
-  return { propertyRefs, methodCalls, classSurfaces };
+  return { propertyRefs, methodCalls, classSurfaces, parser: '@babel/parser',
+    source_sha256: crypto.createHash('sha256').update(source).digest('hex'),
+    source_bytes: Buffer.byteLength(source, 'utf8') };
 }
 
 function scanFile(file, repoRoot, parser) {
   const { source, tree } = parseFile(parser, file);
+  if (tree.rootNode.hasError) return scanFileWithBabel(file, repoRoot, source);
   const rel = path.relative(repoRoot, file).replace(/\\/g, '/');
   const propertyRefs = [];
   const methodCalls = [];
@@ -520,10 +528,9 @@ function scanFile(file, repoRoot, parser) {
   }
 
   visit(tree.rootNode);
-  if (propertyRefs.length === 0 && methodCalls.length === 0 && classSurfaces.length === 0) {
-    return scanFileWithBabel(file, repoRoot, source);
-  }
-  return { propertyRefs, methodCalls, classSurfaces };
+  return { propertyRefs, methodCalls, classSurfaces, parser: 'tree-sitter-javascript',
+    source_sha256: crypto.createHash('sha256').update(source).digest('hex'),
+    source_bytes: Buffer.byteLength(source, 'utf8') };
 }
 
 function scanRepo(repoRoot = DEFAULT_REPO_ROOT, opts = {}) {
@@ -533,9 +540,19 @@ function scanRepo(repoRoot = DEFAULT_REPO_ROOT, opts = {}) {
   const methodCalls = [];
   const classSurfaces = [];
   const errors = [];
+  const fileReceipts = [];
   for (const file of files) {
     try {
       const scan = scanFile(file, repoRoot, parser);
+      const relative = path.relative(repoRoot, file).replace(/\\/g, '/');
+      if (scan.error) {
+        errors.push({ file: relative, error: scan.error });
+        continue;
+      }
+      fileReceipts.push({ file: relative, parser: scan.parser,
+        source_sha256: scan.source_sha256, source_bytes: scan.source_bytes,
+        property_references: scan.propertyRefs.length, method_calls: scan.methodCalls.length,
+        class_surfaces: scan.classSurfaces.length });
       propertyRefs.push(...scan.propertyRefs);
       methodCalls.push(...scan.methodCalls);
       classSurfaces.push(...scan.classSurfaces);
@@ -546,7 +563,9 @@ function scanRepo(repoRoot = DEFAULT_REPO_ROOT, opts = {}) {
       });
     }
   }
-  return { propertyRefs, methodCalls, classSurfaces, errors, filesScanned: files.length };
+  return { propertyRefs, methodCalls, classSurfaces, errors, filesScanned: files.length,
+    filesParsed: fileReceipts.length, fileReceipts,
+    parsers: [...new Set(fileReceipts.map(receipt => receipt.parser))] };
 }
 
 function applyCommonFilters(rows, opts = {}) {
@@ -576,7 +595,8 @@ function getPropertyReferences(propName, opts = {}) {
   );
   return {
     source: 'serena_tree_sitter_property_refs',
-    parser: 'tree-sitter-javascript',
+    parser: scan.parsers.join(', '),
+    fileReceipts: scan.fileReceipts,
     property: propName,
     total: rows.length,
     filesScanned: scan.filesScanned,
@@ -595,7 +615,8 @@ function getMethodCallers(methodName, opts = {}) {
   );
   return {
     source: 'serena_tree_sitter_method_callers',
-    parser: 'tree-sitter-javascript',
+    parser: scan.parsers.join(', '),
+    fileReceipts: scan.fileReceipts,
     method: methodName,
     total: rows.length,
     filesScanned: scan.filesScanned,
@@ -611,7 +632,8 @@ function getClassFields(className, opts = {}) {
   const matches = scan.classSurfaces.filter((surface) => surface.className === className);
   return {
     source: 'serena_tree_sitter_class_fields',
-    parser: 'tree-sitter-javascript',
+    parser: scan.parsers.join(', '),
+    fileReceipts: scan.fileReceipts,
     className,
     total: matches.length,
     filesScanned: scan.filesScanned,

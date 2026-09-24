@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Serena Parser Result Accuracy (2026-09-24)
+
+- Parse incomplete tree-sitter results with the existing Babel parser and report parser failures instead of empty successful scans. Return actual parser identity, source hashes and parsed-file receipts through the existing symbol APIs; keep syntax candidates distinct from semantic coverage. No bot behavior or full-chain acceptance change.
+
 ### Mercury Repository Read Boundary (2026-09-24)
 
 - Correct the existing read-only tool boundary to compare path components and resolve symlink ancestors; apply the existing ignore policy to physical symlink targets. Allowed repository files and historical deleted-path Git reads remain readable. This changes no bot behavior and does not qualify the still-UNVERIFIED full review chain.
