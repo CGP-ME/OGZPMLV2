@@ -37,9 +37,9 @@ const ATTACK_SYSTEM_PROMPT = [
 ].join('\n');
 const CANDIDATE_PHASE_SYSTEM_PROMPT = [
   'TWO-PHASE CONTROL — the host, not the model, decides when an answer is final.',
-  'Your first content-only response must begin with the literal heading CANDIDATE SET. It is an inventory, not a verdict: file every possible answer, reader, and relevant file found so far, and give each candidate a literal repo path:line or path:start-end citation.',
+  'Your Phase 1 content-only responses must begin with the literal heading CANDIDATE SET. It is a revisable inventory, not a verdict: file every possible answer, reader, and relevant file found so far, and give each candidate a literal repo path:line or path:start-end citation.',
   'Do not use a split File/Line table or tool-handle citation in place of literal repo citations. Do not lead Phase 1 with Result, Answer, Decision, Verdict, or Conclusion.',
-  'After the host asks whether anything is unread, use tools if more evidence is needed. The next content-only response is the Phase 2 decision.',
+  'After the host asks whether anything is unread, use tools if more evidence is needed, then file a revised CANDIDATE SET. A revised inventory is never the final decision. Only a subsequent decision over the filed evidence is Phase 2.',
 ].join('\n');
 
 function hasFileLineCitation(content) {
@@ -906,6 +906,7 @@ async function runReactLoop(params) {
 
   const history = [];
   let candidateSet = null;
+  let candidateNeedsRevision = false;
   let decisionSteerSentAt = null;
 
   const iterationLimit = noTools ? 1 : maxIterations;
@@ -1019,6 +1020,13 @@ async function runReactLoop(params) {
           content: serializedToolResult.content,
         });
       }
+      if (candidateSet) {
+        candidateNeedsRevision = true;
+        messages.push({
+          role: 'user',
+          content: 'New tools were used after candidate filing. Continue investigating as needed, then submit a revised CANDIDATE SET before deciding. Include unresolved and contradictory evidence, not only the preferred answer.',
+        });
+      }
       if (decisionSteerSentAt == null && iteration === decisionSteerIteration) {
         messages.push({
           role: 'user',
@@ -1058,7 +1066,7 @@ async function runReactLoop(params) {
         decisionSteerSentAt,
       }, history);
     }
-    if (!candidateSet) {
+    if (!candidateSet || candidateNeedsRevision || isCandidateSetResponse(content)) {
       if (!isCandidateSetResponse(content)) {
         messages.push({
           role: 'user',
@@ -1078,10 +1086,13 @@ async function runReactLoop(params) {
       ])).sort();
       candidateSet = {
         content,
-        capturedAtIteration: iteration,
+        capturedAtIteration: candidateSet ? candidateSet.capturedAtIteration : iteration,
+        revisedAtIteration: iteration,
+        revisions: [...(candidateSet && candidateSet.revisions || []), { iteration, content }],
         filesMechanicallyOpened: telemetryAtCapture.filesOpened,
         claimedFileCitations,
       };
+      candidateNeedsRevision = false;
       messages.push({
         role: 'user',
         content: [

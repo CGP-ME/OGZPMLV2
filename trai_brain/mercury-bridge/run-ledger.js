@@ -869,6 +869,8 @@ function buildRunLedgerEntry({
     candidate_set: candidateSet ? {
       content: redactSensitiveText(candidateSet.content || ''),
       captured_at_iteration: candidateSet.capturedAtIteration,
+      revised_at_iteration: candidateSet.revisedAtIteration || null,
+      revisions: candidateSet.revisions || [],
       files_mechanically_opened: Array.isArray(candidateSet.filesMechanicallyOpened)
         ? candidateSet.filesMechanicallyOpened
         : [],

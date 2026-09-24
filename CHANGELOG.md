@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Candidate Refiling (2026-09-24)
+
+- Retain revised candidate inventories as inventories, not final answers. Tool use after filing now returns collection to candidate refiling before decision, with all inventory revisions preserved in the ledger. This restores the recovered collection/decision separation without claiming exhaustive discovery or adding an iteration ceiling.
+
 ### Mercury Delivered Read Ranges (2026-09-24)
 
 - Preserve complete lines when compacting file-tool results and record only the line range delivered into model context. Keep requested/result ranges separate from delivered ranges in call receipts; an unrepresentable single line or old compacted preview is not counted as a complete file read. No bot behavior or review acceptance criterion changed.

@@ -1,0 +1,33 @@
+{
+  "observedAt": "2026-09-24T00:15:07.738Z",
+  "syntheticProvider": true,
+  "actualRepositoryTools": true,
+  "iterations": 7,
+  "iterationLimit": null,
+  "termination": "answer_given",
+  "toolCalls": 2,
+  "finalMatches": true,
+  "revisionIterations": [
+    2,
+    5,
+    6
+  ],
+  "candidateRevisionsMatch": true,
+  "revisionRequiredAfterNewTools": true,
+  "prematureDecisionReturned": false,
+  "sourceHashes": [
+    {
+      "file": "react-loop.js",
+      "sha256": "c39db4e29056904818fee749ac4bc601b68fe7b9c54060210405bf284365304f"
+    },
+    {
+      "file": "run-ledger.js",
+      "sha256": "ec4f53d9f508c6b18b43cd7910e7385a1bb47aa04d2f420d698b44742144c981"
+    }
+  ],
+  "limitations": [
+    "Deterministic state-transition execution, not proof a live model exhausts discovery.",
+    "No added iteration ceiling; no provider, DB, bot, broker, PM2, Jest or reindex."
+  ],
+  "passed": true
+}
