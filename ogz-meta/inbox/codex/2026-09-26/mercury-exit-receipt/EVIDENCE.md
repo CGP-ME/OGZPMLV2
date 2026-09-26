@@ -24,3 +24,13 @@ Correction replay: `NODE_PATH=/opt/ogzprime/OGZPMLV2/node_modules MERCURY_CONFIG
 Tapes: cold-pull-tapes/MANIFEST.json identifies every original path/hash, redacted plaintext hash, and compressed committed hash. Files include provider outputs, original ledger, evidence text/manifests, complete console logs, source manifests, invocation/completion and the direct/replay observations. Redaction uses the existing redactSensitiveText function; original private files remain untouched. No Jest or bot boot was used as delivery proof.
 
 Export verification: 63 of 63 gzip and redacted-content hashes rechecked, 1,989,776 compressed bytes. No matches for the loaded nonempty credential values or email-shaped text. A separate credential-pattern scan produced six file hits, all traced to two historical `risk-...` documentation filenames in each source manifest (the regex began inside the word `risk`), not credentials. This bounded check is not a universal secret-detection guarantee.
+
+## Actual post-correction run
+
+Code/push: bed1573c842ceaa9bcbdfa813feba5183c5a1c69. Same CLI arguments/question and seed as above, label stop1-volume-corrected. Raw ID 2026-09-26t02-21-17-240z-1563654-2e292f831571; run ID 2026-09-26T02-26-01-043Z-372143a4ce7b. Exit 0, sourceUnchanged=true. The invocation has full tracked hashes and the one seeded dirty path. Actual reported verdict pass, rawVerdict pass, reviewer kimi, basis "reviewer report; not certification"; Mercury and Fable both found_break, Kimi's answer explicitly agrees on that defect. 7/7 required corpus units accepted; recheck 16 iterations, 14 tools (grep 3, list_files 2, open_file 8, search 1), zero recorded tool failures. These counts are not whole-Stop1 coverage.
+
+Correction tapes are in cold-correction-tapes/MANIFEST.json with original/redacted/compressed hashes. Historical no_break_found remains in the earlier untouched ledger lines, while the new run is correctly attributed. The replay fixture now loads the old owner explicitly from a51b33e4 Git source, so pulling the fixed code into the clone cannot invalidate the old-versus-new comparison; private/live-decision-replay-postpull.json records the same result after the pull.
+
+Correction export: 28/28 compressed and plaintext hashes rechecked; 1,455,723 compressed bytes; zero exact known credential-value matches and zero email-shaped matches in the redacted files. The clone's tracked diff is empty after the seed was reversed; the fixture patch and all run-state hashes remain preserved.
+
+No Jest was run or offered as delivery proof. Historical test/mercury-reviewer-panel.test.js still references the removed evaluatePanelAuthority interface; that obsolete test contract was not represented as passing or used to restore the rejected ceiling.

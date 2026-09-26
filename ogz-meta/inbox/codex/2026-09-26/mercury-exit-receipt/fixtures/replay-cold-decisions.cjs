@@ -3,18 +3,29 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
+const Module = require('node:module');
+const { execFileSync } = require('node:child_process');
 const packet = path.resolve(__dirname, '..');
 const root = path.resolve(__dirname, '../../../../../..');
 const clone = path.join(packet, 'private/cold-pull-5gJPFK');
 require(path.join(root, 'node_modules/dotenv')).config({ path: path.join(root, '.env'), quiet: true });
-const oldOwner = require(path.join(clone, 'trai_brain/mercury-bridge/reviewer-panel'));
+const ownerPath = path.join(clone, 'trai_brain/mercury-bridge/reviewer-panel.js');
+const historicalOwner = new Module(ownerPath, module);
+historicalOwner.filename = ownerPath;
+historicalOwner.paths = Module._nodeModulePaths(path.dirname(ownerPath));
+historicalOwner._compile(execFileSync('git', ['show',
+  'a51b33e4ccafa4a082e503c0423af7aad8805919:trai_brain/mercury-bridge/reviewer-panel.js'],
+  { cwd: root, encoding: 'utf8', env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' } }), ownerPath);
+require.cache[ownerPath] = historicalOwner;
+const oldOwner = historicalOwner.exports;
 const newOwner = require(path.join(root, 'trai_brain/mercury-bridge/reviewer-panel'));
 const { buildRunLedgerEntry } = require(path.join(clone, 'trai_brain/mercury-bridge/run-ledger'));
 const { formatAdversarialReviewPacket } = require(path.join(clone, 'trai_brain/mercury-bridge/adversarial-review'));
 const ledger = path.join(clone, 'ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/ledger/2026-09-26.jsonl');
 const originalBytes = fs.readFileSync(ledger);
 const runs = originalBytes.toString('utf8').trim().split('\n').map(JSON.parse)
-  .filter(row => row.reviewer_panel && row.sharded_review);
+  .filter(row => ['2026-09-26T02-09-13-070Z-0dabcb61823d',
+    '2026-09-26T02-13-00-248Z-34448cdfcba4'].includes(row.run_id));
 // The cold-clone receipt consumers share its reviewer-panel module. Substitute
 // only the corrected function, leaving all other reporting source cold-pulled.
 // Both consumers call the function captured on import, so reload them after.
@@ -53,7 +64,7 @@ const results = runs.map(row => {
 });
 assert.deepEqual(fs.readFileSync(ledger), originalBytes);
 const observation = { kind: 'Actual receipt owners replaying live answers, not a fresh provider run', results };
-fs.writeFileSync(path.join(packet, 'private/live-decision-replay.json'), JSON.stringify(observation, null, 2) + '\n', {
+fs.writeFileSync(path.join(packet, 'private/live-decision-replay-postpull.json'), JSON.stringify(observation, null, 2) + '\n', {
   flag: 'wx', mode: 0o600,
 });
 console.log(JSON.stringify(observation, null, 2));
