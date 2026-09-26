@@ -18,6 +18,8 @@ Remaining configuration families, UI delivery and actual end-to-end paper accept
 
 ## Entry-owned managed stops
 
+C012 delivered in 237d896308198af54a6271eca88722b0ad5ff5fb, pushed and fetched into the independent same-host clone. Repeated recorded-data and actual save/load observations match candidate source/results. Working UI surface is 35 fields, not the final inventory. Cold tapes are in ../stop1-entry-exit-settings/tapes/cold-MANIFEST.json. No PM2 or broker activation.
+
 - C012: ECM captured trailing configuration once and read break-even/fee buffer from current configuration, while entry policy omitted trail. Actual recorded-data reload changed 389/798 old-policy observations. The four-file entry-exit-settings candidate freezes the existing trail at entry and consumes that policy; repeat changes 0/798 old observations while 14 individually varied fields affect new policy consumers. Zero ratchet distance now reaches the existing minimum clamp. No ATR recalculation, process stop, new policy owner or deployment. Exact patch and source hashes: ../stop1-entry-exit-settings/OBSERVATION.json.
 - M009: Corrected four-file review still alleged StateManager's object spread drops frozenExitPolicy. False: the spread retains it, and actual StateManager save/load preserves all four current/legacy long/short fixture policies and ECM outcomes. Full focused follow-up 2026-09-26T12-17-09-218Z-c648f2f0ce5f converged on that source-backed resolution. Prior disagree receipts retained. Existing load does not re-freeze parsed policies; this distinct inherited limitation remains, not a reason to add a downstream gate.
 

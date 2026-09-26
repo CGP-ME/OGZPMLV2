@@ -2,6 +2,10 @@
 
 ## Current checkpoint
 
+LANDED: 237d896308198af54a6271eca88722b0ad5ff5fb committed and pushed to origin/astra-era; ls-remote returned that exact SHA. Index source bytes matched all ten observed production hashes; only four production files changed. All unrelated main-tree edits remain unstaged. Known-secret scan found no new credential matches; an unchanged historical CHANGELOG match was already in HEAD and was not copied into new text.
+
+Existing same-host independent clone reversed only this agent's five reviewed/receipt edits, then fetched origin and fast-forwarded to 237d8963 with clean tracked state. Repeated observe.cjs cold (cold-fgFQFd): 798 states, zero old-policy changes, 375 trail / 363 break-even updates, one legacy alarm. Actual StateManager repeat (state-roundtrip-K98Yy5): four restored records and identical exit results. Sources match candidate. Redacted cold tapes and original/compressed hashes: tapes/cold-MANIFEST.json. Not independent metal, running PM2/broker, actual page or whole Stop 1. Next connected family: RSI2 settings; no unrelated floating patch adopted.
+
 Review closed on the exact candidate patch 7b750c0b0a1926e24b475f8d82d3922e24efdd9c7db2667453ac027acab09a9d. Last full follow-up 2026-09-26T12-17-09-218Z-c648f2f0ce5f resolves the false StateManager property-loss allegation with delivered source and actual save/load receipt. No production change followed that allegation. Next: stage only the reviewed four-file patch plus this packet, working UI additions and findings; verify index hashes, commit/push, cold-pull and rerun direct observations. Historical notes below retain the actual errors and stopping points.
 
 Main/index checked: astra-era e3fa99f2, empty index, inherited dirt preserved. Existing verification clone fast-forwarded from origin to e3fa99f2, tracked clean. Read PolicyBuilder, FrozenExitPolicy, ECM, actual OrderExecutor/StateManager producers, both TradingLoop consumers, BreakEvenManager, TraceSpine and NtfyTraceNotifier. R4 historical handoff is a navigation lead; current entry-preservation instruction controls.

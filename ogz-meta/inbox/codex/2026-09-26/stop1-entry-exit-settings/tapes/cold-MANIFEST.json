@@ -1,0 +1,42 @@
+{
+  "at": "2026-09-26T12:23:17.182Z",
+  "files": [
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-entry-exit-settings/private/cold-fgFQFd/receipt.json",
+      "originalSha256": "d485ea4df2d94471bad89fd1540a9bf179a22df6ec01d766a3e4e1b03a0fb616",
+      "originalBytes": 3346716,
+      "redactedPath": "tapes/cold--cold-fgFQFd--receipt.json.gz",
+      "redactedSha256": "f570b739e1c158525b274f5a88979ea850577f51b4ac2a072c7a8fb443d74efc",
+      "gzipSha256": "5e9be6bef5659eae94a2fdd656af8feb6727cad8b1563030eabec19e25ec1865",
+      "gzipBytes": 163763
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-entry-exit-settings/private/cold-fgFQFd/console.json",
+      "originalSha256": "0c9ee9f61da450e9933f6f4f19ed137cf3768bfbaf6f9a6ccecc3d2c32cb4e3a",
+      "originalBytes": 1293,
+      "redactedPath": "tapes/cold--cold-fgFQFd--console.json.gz",
+      "redactedSha256": "0c9ee9f61da450e9933f6f4f19ed137cf3768bfbaf6f9a6ccecc3d2c32cb4e3a",
+      "gzipSha256": "e149652d23e0c854bb89974e100de2b956c72fc62d8193fbb661abbdd1a95575",
+      "gzipBytes": 363
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-entry-exit-settings/private/state-roundtrip-K98Yy5/receipt.json",
+      "originalSha256": "e3aae83cef6d48843a85254a24915ab8de3b97b6f0a377c785e873f3356a5a07",
+      "originalBytes": 22878,
+      "redactedPath": "tapes/cold--state-roundtrip-K98Yy5--receipt.json.gz",
+      "redactedSha256": "e527a013d0e9fe861263a1a7a67bee13d66f5be944e12a4776a70c9c7114a3cb",
+      "gzipSha256": "66b6d39a537302a5499e555436b9a77adcb689b09f780cfacead8545303923f9",
+      "gzipBytes": 3001
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-entry-exit-settings/private/state-roundtrip-K98Yy5/console.json",
+      "originalSha256": "9a3f11498235a513205391ffceb4a859929765774ddcfcd2a7d5c9b0c64b36e0",
+      "originalBytes": 1396,
+      "redactedPath": "tapes/cold--state-roundtrip-K98Yy5--console.json.gz",
+      "redactedSha256": "9a3f11498235a513205391ffceb4a859929765774ddcfcd2a7d5c9b0c64b36e0",
+      "gzipSha256": "b5921d18f3ca60251f79aa484117a541ccd34c3dd301a43a47c8bd632e0ae0df",
+      "gzipBytes": 312
+    }
+  ],
+  "knownCredentialMatches": 0
+}
