@@ -89,7 +89,7 @@ function reportedPanelDecision(panel) {
   return {
     verdict: !seat || seat.status !== 'succeeded' ? 'review_incomplete'
       : !rawVerdict ? 'no_claim'
-        : rawVerdict === 'pass' ? 'no_break_found' : rawVerdict,
+        : rawVerdict,
     rawVerdict: rawVerdict || null,
     reviewer: seat ? seat.id : null,
     sequence: seat ? seat.sequence : null,
@@ -202,15 +202,15 @@ function summarizePanelDiagnostics(seats) {
     issues.push(identitiesAttested ? 'identity_collision' : 'identity_attestation_absent');
   }
   if (successful.length >= 2 && claimingSeats.length === 0) issues.push('reviewer_claim_absent');
-  if (claimingSeats.length > 1 && verdicts.length > 1) issues.push('reviewer_disagreement');
+  if (claimingSeats.length > 1 && verdicts.length > 1) issues.push('reviewer_verdict_labels_differ');
   return {
     qualifyingSeats: successful.length,
-    agreement,
+    verdictLabelsMatch: agreement,
     evidenceChecksPassed,
     identitiesAttested,
     identitiesIndependent,
     issues,
-    agreedVerdict: agreement ? verdicts[0] : null,
+    sharedVerdictLabel: agreement ? verdicts[0] : null,
   };
 }
 

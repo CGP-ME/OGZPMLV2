@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Reviewer Verdict Vocabulary (2026-09-26)
+
+- Preserve the final reviewer's exact declared verdict. A live seeded configuration review exposed that Kimi's `pass` meant agreement on a found defect; translating it to `no_break_found` was incorrect. Keep the attributed `pass`, the found-break answers and all disagreement/evidence diagnostics without certifying the code.
+- Label the mechanical comparison as verdict-label equality, not semantic reviewer consensus or disagreement; the reviewers' substantive accounts remain in full.
+
 ### Mercury Exit-Receipt Diagnostics (2026-09-26)
 
 - Remove automatic panel/doctrine verdict ceilings and report-format-only retries per Trey's instruction. The last selected reviewer's declared verdict is reported with its source, not represented as host certification. Failed or absent final seats do not fall back to an earlier passing answer.

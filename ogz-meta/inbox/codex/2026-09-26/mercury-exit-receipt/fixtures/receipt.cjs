@@ -42,9 +42,9 @@ const seat = (id, verdict, extras = {}) => ({ id, sequence: id === 'mercury' ? 1
   parsed: { verdict, blocking: verdict !== 'pass' }, verdict,
   evidenceChecksPassed: true, effectiveIdentityFingerprint: id, ...extras });
 assert.equal(exercise('disagreement remains visible; final reviewer owns reported answer',
-  [seat('mercury', 'found_break'), seat('fable', 'cannot_verify'), seat('kimi', 'pass')]).verdict, 'no_break_found');
+  [seat('mercury', 'found_break'), seat('fable', 'cannot_verify'), seat('kimi', 'pass')]).verdict, 'pass');
 assert.equal(exercise('missing evidence and identity collision do not rewrite an answer',
-  [seat('mercury', 'pass', { evidenceChecksPassed: false }), seat('kimi', 'pass', { effectiveIdentityFingerprint: 'mercury' })]).verdict, 'no_break_found');
+  [seat('mercury', 'pass', { evidenceChecksPassed: false }), seat('kimi', 'pass', { effectiveIdentityFingerprint: 'mercury' })]).verdict, 'pass');
 assert.equal(exercise('failed final seat is not an earlier pass',
   [seat('mercury', 'pass'), seat('kimi', 'pass', { status: 'failed', absence: 'auth_failed', answer: null })]).verdict, 'review_incomplete');
 assert.equal(exercise('missing verdict is not a pass',

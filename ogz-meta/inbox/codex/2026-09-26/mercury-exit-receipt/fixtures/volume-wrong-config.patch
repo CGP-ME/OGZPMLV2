@@ -1,0 +1,10 @@
+diff --git a/core/SymbolTradingContext.js b/core/SymbolTradingContext.js
+--- a/core/SymbolTradingContext.js
++++ b/core/SymbolTradingContext.js
+@@ -83,5 +83,5 @@ class SymbolTradingContext {
+         this.indicatorEngine = new IndicatorEngine({ ...config.indicatorConfig, symbol: canonicalSymbol });
+         this.emaCrossover = new EMASMACrossoverSignal(config.emaCrossoverConfig);
+         this.maDynamicSR = new MADynamicSR(config.maDynamicSRConfig);
+-        this.volumeProfile = new VolumeProfile(config.volumeProfileConfig);
++        this.volumeProfile = new VolumeProfile(config.maDynamicSRConfig);
+         this.fibonacciDetector = new FibonacciDetector(config.fibonacciConfig);

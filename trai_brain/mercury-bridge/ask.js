@@ -1600,7 +1600,7 @@ function printDispatchReceipt(result) {
     console.log(`reviewers:       ${panel.selected.join(',')} (${panel.source})`);
     console.log(`unselected:      ${panel.unselected.length > 0 ? panel.unselected.join(',') : 'none'}`);
     console.log(`reported by:     ${panel.reported_decision.reviewer || 'none'}; model report, not host certification`);
-    console.log(`panel findings:  ${panel.diagnostics.issues.join(',') || 'none'}; agreement=${panel.diagnostics.agreement ? 'yes' : 'no'}`);
+    console.log(`panel findings:  ${panel.diagnostics.issues.join(',') || 'none'}; verdict_labels_match=${panel.diagnostics.verdictLabelsMatch ? 'yes' : 'no'} (not semantic consensus)`);
     for (const seat of panel.seats) {
       const selfReportAbsence = Array.isArray(seat.named_absences) && seat.named_absences.includes('self_report_absent')
         ? ' self_report_absent'
