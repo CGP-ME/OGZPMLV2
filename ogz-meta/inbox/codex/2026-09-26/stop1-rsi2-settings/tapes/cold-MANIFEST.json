@@ -1,0 +1,24 @@
+{
+  "at": "2026-09-26T12:57:33.433Z",
+  "files": [
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-rsi2-settings/private/cold-IvU6Rd/receipt.json",
+      "originalSha256": "6f2e9d960624d382487521e7363374921e2db8982ff39e57ba8c854ad198815a",
+      "originalBytes": 2031441,
+      "redactedPath": "tapes/cold--cold-IvU6Rd--receipt.json.gz",
+      "redactedSha256": "9486dcb096f01ede41ab4137944cd6233955f515ad90bcae9ccca2daa0c239ad",
+      "gzipSha256": "2621e0974f072bd4a8727c448db65543b12522d16dec0d4b7ab9ff23e6d0391f",
+      "gzipBytes": 54109
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-rsi2-settings/private/cold-IvU6Rd/console.json",
+      "originalSha256": "266bc22850d501c0d15bf1269ce6efad783285deea8913b00498ea091ff26a6e",
+      "originalBytes": 2783915,
+      "redactedPath": "tapes/cold--cold-IvU6Rd--console.json.gz",
+      "redactedSha256": "266bc22850d501c0d15bf1269ce6efad783285deea8913b00498ea091ff26a6e",
+      "gzipSha256": "dfdacd01d03d1cc908b341898975457a216aa8bd69292340554a13a538481dff",
+      "gzipBytes": 29394
+    }
+  ],
+  "knownCredentialMatches": 0
+}
