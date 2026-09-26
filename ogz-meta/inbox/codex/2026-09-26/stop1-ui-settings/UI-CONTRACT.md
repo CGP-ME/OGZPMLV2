@@ -38,6 +38,27 @@ Select the owner explicitly; do not take the first reply as an implicit target. 
 
 Honor `integer:true` and `values` enum metadata. RSI buyBelow/exitAbove edits are validated together; `rsi_buy_must_be_below_exit` rejects the request without changing the accepted snapshot. These controls do not enable the RSI strategy or change its existing registration switch.
 
+Fourteen managed-stop controls are also connected. All affect **new trades only**; saving does not rewrite an existing trade's entry policy. Contract-owned Donchian channel trailing remains separate. Managed profit-threshold break-even is not the legacy original-risk/1R break-even switch.
+
+| Path | Unit / bounds | Actual effect |
+| --- | --- | --- |
+| exitLogic.trail.enabled | Boolean | Managed ATR trailing, excluding contract-channel trailing. |
+| exitLogic.trail.minActivationPercent | Percent, >= 0 | Profit threshold for managed trail activation. |
+| exitLogic.trail.atrMultiplier | ATR multiple, > 0 | Used only when the entry contract does not provide trailAtrMult. |
+| exitLogic.trail.trendWidenMultiplier | Multiple, >= 1 | Trail widening with trend evidence. |
+| exitLogic.trail.structureTightenMultiplier | Fraction, 0..1 | Trail tightening with nearby structure evidence. |
+| exitLogic.trail.structureDistanceThreshold | Percent, >= 0 | Nearby-structure distance; zero disables that adjustment. |
+| exitLogic.trail.profitRatchetThreshold | Percent, >= 0 | Profit threshold for ratcheting. |
+| exitLogic.trail.profitRatchetRate | Fraction per profit percentage point, >= 0 | Ratchet rate; zero disables that adjustment. |
+| exitLogic.trail.profitRatchetFloor | Fraction, 0..1 | Minimum ratchet factor; resulting distance still uses configured clamps. |
+| exitLogic.trail.minTrailPercent | Percent, >= 0 | Minimum managed trail distance. |
+| exitLogic.trail.maxTrailPercent | Percent, > 0 | Maximum managed trail distance; must be >= minimum. |
+| exitLogic.trail.feeBufferPercent | Percent, >= 0 | Managed break-even stop buffer, not the separate legacy fee model. |
+| exitLogic.breakEvenStop.enabled | Boolean | Managed profit-threshold break-even, not all break-even mechanisms. |
+| exitLogic.breakEvenStop.triggerPercent | Percent, >= 0 | Managed break-even activation profit. |
+
+`trail_min_must_not_exceed_max` rejects an inconsistent settings request without publishing it. Missing historical entry policy produces an exit-policy alarm and named unapplied update, not current-default adoption; other exits and known stops remain active. Dynamic exit trailing still uses the existing current ATR source; this change does not recalculate ATR.
+
 ## Save
 
 ```json
@@ -51,7 +72,7 @@ Honor `integer:true` and `values` enum metadata. RSI buyBelow/exitAbove edits ar
 }
 ```
 
-The example revision is illustrative; always send the revision and hash just read, never hardcode them. Changes are an atomic request: an invalid/unsupported field rejects the entire edit. Only the twenty-one listed fields are currently accepted. Saves do not edit internals, broker identity, execution mode, credentials, or existing trade exits. Paper/live activation and profile switching are not settings-save operations.
+The example revision is illustrative; always send the revision and hash just read, never hardcode them. Changes are an atomic request: an invalid/unsupported field rejects the entire edit. Only the thirty-five listed fields are currently accepted. Saves do not edit internals, broker identity, execution mode, credentials, or existing trade exits. Paper/live activation and profile switching are not settings-save operations.
 
 Donchian registration is not enabled by these five controls. The canonical configuration disables the historical global ATR-contract tuning overlay; that competing override remains a named migration issue, not certified by this UI connection. Descriptor-owned backtests cannot be changed through this save route.
 

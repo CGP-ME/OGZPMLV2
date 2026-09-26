@@ -1,0 +1,60 @@
+{
+  "at": "2026-09-26T12:08:12.907Z",
+  "files": [
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-entry-exit-settings/private/state-roundtrip-pNePXG/failure.json",
+      "originalSha256": "6ce98f43ef392ea43f441e0c83b1675d65641e6a51695ba052fa8be113acb8d3",
+      "originalBytes": 1377,
+      "redactedPath": "tapes/state--state-roundtrip-pNePXG--failure.json.gz",
+      "redactedSha256": "6ce98f43ef392ea43f441e0c83b1675d65641e6a51695ba052fa8be113acb8d3",
+      "gzipSha256": "4ebb2a6b43517b5cafa4f6e18900bbda361852ec1500f998e912a6aa53aa9cba",
+      "gzipBytes": 751
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-entry-exit-settings/private/state-roundtrip-pNePXG/console.json",
+      "originalSha256": "91e88dcde1535ffec214573906bcf3f1c421c7e6b49f28eee76b8bf8f8c28eb6",
+      "originalBytes": 372,
+      "redactedPath": "tapes/state--state-roundtrip-pNePXG--console.json.gz",
+      "redactedSha256": "91e88dcde1535ffec214573906bcf3f1c421c7e6b49f28eee76b8bf8f8c28eb6",
+      "gzipSha256": "510916a11fbd369005859614bccdae6ff24e6143a04a1bb7e6b4f0a9c786cc5e",
+      "gzipBytes": 162
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-entry-exit-settings/private/state-roundtrip-n6CZfW/failure.json",
+      "originalSha256": "84071376bd6491b5322db73fffe189e5c18a8ed44be0e94796214b3aa57ab770",
+      "originalBytes": 1354,
+      "redactedPath": "tapes/state--state-roundtrip-n6CZfW--failure.json.gz",
+      "redactedSha256": "84071376bd6491b5322db73fffe189e5c18a8ed44be0e94796214b3aa57ab770",
+      "gzipSha256": "d5b12b127e52c439afc819f2cb320077b5c7114d366c1d48a3ce6bc37187363b",
+      "gzipBytes": 726
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-entry-exit-settings/private/state-roundtrip-n6CZfW/console.json",
+      "originalSha256": "082539bc689df2ac94999fc3fa6e7a1680aae910b1991668e7d3588936074ff3",
+      "originalBytes": 544,
+      "redactedPath": "tapes/state--state-roundtrip-n6CZfW--console.json.gz",
+      "redactedSha256": "082539bc689df2ac94999fc3fa6e7a1680aae910b1991668e7d3588936074ff3",
+      "gzipSha256": "dca86cf66f8a5cc9494a70cede9cbf3d37f7eeca3bd47da6906a679395910aaa",
+      "gzipBytes": 192
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-entry-exit-settings/private/state-roundtrip-GGskPb/receipt.json",
+      "originalSha256": "13e59532be73e9ef53c5d7c896a7967e63942b32802f8189d54013711ab78408",
+      "originalBytes": 22883,
+      "redactedPath": "tapes/state--state-roundtrip-GGskPb--receipt.json.gz",
+      "redactedSha256": "c5459dc0414878392a34587487d7d31598dcff1fe804147dd7113d478613666d",
+      "gzipSha256": "ab3b69ce5c8036bd7093cdefad4a7fe9f3225e17cc0f651aa4e2922789afa065",
+      "gzipBytes": 3007
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-entry-exit-settings/private/state-roundtrip-GGskPb/console.json",
+      "originalSha256": "9a3f11498235a513205391ffceb4a859929765774ddcfcd2a7d5c9b0c64b36e0",
+      "originalBytes": 1396,
+      "redactedPath": "tapes/state--state-roundtrip-GGskPb--console.json.gz",
+      "redactedSha256": "9a3f11498235a513205391ffceb4a859929765774ddcfcd2a7d5c9b0c64b36e0",
+      "gzipSha256": "b5921d18f3ca60251f79aa484117a541ccd34c3dd301a43a47c8bd632e0ae0df",
+      "gzipBytes": 312
+    }
+  ],
+  "knownCredentialMatches": 0
+}

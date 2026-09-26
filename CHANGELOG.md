@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Stop 1 Entry-Owned Managed Stop Settings (2026-09-26)
+
+- Connect fourteen existing managed trailing/break-even controls to the settings API, freeze their values at entry and use them for that trade's stop updates. Preserve existing trades across later saves; retain both per-cycle update results. Finite zero tightening reaches the existing minimum-distance clamp.
+- Report legacy missing entry policy through the existing exit trace without adopting current settings or stopping the process; known stops and other exits remain active. No ATR recalculation, new configuration owner, global stop or runtime activation. Exact recorded-data, actual save/load and full adversarial reconciliation receipts accompany the change; complete UI/Stop 1 acceptance remains open.
+
 ### Stop 1 Momentum Settings Delivery (2026-09-26)
 
 - Connect seven existing TimeSeriesMomentum settings through the settings owner to retained per-symbol strategy instances. Calculate new entry stops from the configured strategy ATR period instead of substituting shared ATR. Preserve old entry contracts and their return lookback/trailing multiplier.

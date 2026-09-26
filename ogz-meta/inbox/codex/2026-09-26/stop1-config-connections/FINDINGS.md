@@ -16,6 +16,11 @@ Adversarial statements are leads until checked against exact source and behavior
 
 Remaining configuration families, UI delivery and actual end-to-end paper acceptance are open; no percentage completion inferred.
 
+## Entry-owned managed stops
+
+- C012: ECM captured trailing configuration once and read break-even/fee buffer from current configuration, while entry policy omitted trail. Actual recorded-data reload changed 389/798 old-policy observations. The four-file entry-exit-settings candidate freezes the existing trail at entry and consumes that policy; repeat changes 0/798 old observations while 14 individually varied fields affect new policy consumers. Zero ratchet distance now reaches the existing minimum clamp. No ATR recalculation, process stop, new policy owner or deployment. Exact patch and source hashes: ../stop1-entry-exit-settings/OBSERVATION.json.
+- M009: Corrected four-file review still alleged StateManager's object spread drops frozenExitPolicy. False: the spread retains it, and actual StateManager save/load preserves all four current/legacy long/short fixture policies and ECM outcomes. Full focused follow-up 2026-09-26T12-17-09-218Z-c648f2f0ce5f converged on that source-backed resolution. Prior disagree receipts retained. Existing load does not re-freeze parsed policies; this distinct inherited limitation remains, not a reason to add a downstream gate.
+
 ## UI-first continuation, 2026-09-26
 
 - C006: Reproduced committed RSI producer/consumer mismatch. RSI emits only rsiPeriod/rsiExitLong in exitContractHint (StrategyOrchestrator:1868), while normalizeExitContractHint requires stopLossPercent and takeProfitPercent (:713). On 500 recorded TSLA bars, the existing ATR filter rejected 53 RSI candidates at 100%; disabling it or setting zero admitted those same candidates into 53 downstream missing-stop throws. Canonical exitContracts.RSI supplies the risk values. Do not treat a successful settings save as entry execution. Separately repair the producer/consumer contract; no new downstream guard is justified.

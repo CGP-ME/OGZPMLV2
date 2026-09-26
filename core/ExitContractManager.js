@@ -22,6 +22,7 @@ const { assertExplicitExitOwnership } = require('./dto/ExitContractOwnership');
 const { IndicatorCalculator } = require('./IndicatorCalculator');
 const PolicyBuilder = require('./PolicyBuilder');
 const ProfitExitPlanner = require('./ProfitExitPlanner');
+const { emitTrace } = require('./TraceSpine');
 
 // Phase 10: Delegate to individual exit checkers
 const StopLossChecker = require('./exit/StopLossChecker');
@@ -260,7 +261,6 @@ class ExitContractManager {
     // Phase 10: Delegate to individual checkers
     this.stopLossChecker = new StopLossChecker();
     this.takeProfitChecker = new TakeProfitChecker();
-    this.trailConfig = ConfigLoader.get('exitLogic.trail');
     this.maxHoldChecker = new MaxHoldChecker();
     // Phase 11: Break-even state machine (for external access/dashboard)
     this.breakEvenManager = new BreakEvenManager();
@@ -424,7 +424,7 @@ class ExitContractManager {
       };
     }
 
-    this._updateProfitStopState(trade, currentPrice, pnlPercent, context);
+    const profitStopUpdate = this._updateProfitStopState(trade, currentPrice, pnlPercent, context);
 
     // No exit condition met
     return {
@@ -432,6 +432,7 @@ class ExitContractManager {
       exitReason: null,
       details: `Holding: P&L ${pnlPercent.toFixed(2)}%, hold ${holdTimeMinutes.toFixed(0)} min`,
       profitPlanner: profitIntent,
+      profitStopUpdate,
     };
   }
 
@@ -720,9 +721,22 @@ class ExitContractManager {
       return { updated: false, reason: 'invalid_profit' };
     }
 
-    this._updateTrailingStopState(trade, price, profitPercent, context);
-    this._updateBreakevenStopState(trade, price, profitPercent);
-    return { updated: true };
+    const trailing = this._updateTrailingStopState(trade, price, profitPercent, context);
+    const breakeven = this._updateBreakevenStopState(trade, price, profitPercent);
+    const missing = [trailing, breakeven].filter(result => result.reason?.startsWith('missing_entry_'));
+    if (missing.length) {
+      // Legacy state has no recoverable entry settings. Quarantine only the
+      // unprovable stop update; existing stops and all other exits still run.
+      const reason = missing.map(result => result.reason).join(', ');
+      console.error(`[EXIT-POLICY] trade ${trade.id || trade.orderId}: ${reason}; existing stops preserved, no current-config backfill`);
+      emitTrace(context, 'EXIT_POLICY_ALARM', {
+        traceId: context.traceId, signalId: context.signalId,
+        tradeId: trade.id || trade.orderId, symbol: trade.symbol || context.symbol,
+        reason, policyHash: trade.frozenExitPolicy?.policyHash,
+        operation: 'managed_stop_update', currentStop: trade.currentStop ?? null,
+      });
+    }
+    return { updated: trailing.updated || breakeven.updated, trailing, breakeven };
   }
 
   _updateTrailingStopState(trade, currentPrice, pnlPercent, context = {}) {
@@ -730,7 +744,10 @@ class ExitContractManager {
     if (contract.trailType === 'channel') {
       return { updated: false, reason: 'channel_trail_owned_by_contract' };
     }
-    const trailConfig = this.trailConfig || {};
+    const trailConfig = trade.frozenExitPolicy?.profitManagement?.trail;
+    if (!trailConfig) {
+      return { updated: false, reason: 'missing_entry_trail_policy' };
+    }
     if (trailConfig.enabled !== true) {
       return { updated: false, reason: 'trailing_disabled' };
     }
@@ -796,7 +813,9 @@ class ExitContractManager {
 
     const minTrailPercent = finiteOrNull(trailConfig.minTrailPercent);
     const maxTrailPercent = finiteOrNull(trailConfig.maxTrailPercent);
-    if (!Number.isFinite(trailDistance) || trailDistance <= 0 || minTrailPercent === null || maxTrailPercent === null) {
+    // A configured zero tightening factor still passes through the existing
+    // minimum-distance clamp; it must not silently disable the stop update.
+    if (!Number.isFinite(trailDistance) || trailDistance < 0 || minTrailPercent === null || maxTrailPercent === null) {
       return { updated: false, reason: 'invalid_trail_distance' };
     }
     const minTrail = Math.max(0, minTrailPercent) / 100;
@@ -822,7 +841,10 @@ class ExitContractManager {
   }
 
   _updateBreakevenStopState(trade, currentPrice, pnlPercent) {
-    const breakEvenConfig = ConfigLoader.get('exitLogic.breakEvenStop');
+    const breakEvenConfig = trade.frozenExitPolicy?.profitManagement?.breakEvenStop;
+    if (!breakEvenConfig) {
+      return { updated: false, reason: 'missing_entry_breakeven_policy' };
+    }
     if (breakEvenConfig?.enabled !== true || trade.breakevenActive === true) {
       return { updated: false, reason: 'breakeven_disabled_or_active' };
     }
@@ -837,8 +859,11 @@ class ExitContractManager {
       return { updated: false, reason: 'missing_entry_price' };
     }
 
-    const feeBufferPercent = ConfigLoader.get('exitLogic.trail.feeBufferPercent');
-    const feeBuffer = Math.max(0, finiteOrNull(feeBufferPercent) ?? 0) / 100;
+    const feeBufferPercent = trade.frozenExitPolicy?.profitManagement?.trail?.feeBufferPercent;
+    if (!Number.isFinite(feeBufferPercent) || feeBufferPercent < 0) {
+      return { updated: false, reason: 'missing_entry_fee_buffer' };
+    }
+    const feeBuffer = feeBufferPercent / 100;
     const direction = activeTradeDirection(trade);
     if (!direction) {
       activeTradeDirectionRefusal(trade, '_updateBreakevenStopState');

@@ -1,5 +1,9 @@
 # Work
 
+## Current checkpoint
+
+Review closed on the exact candidate patch 7b750c0b0a1926e24b475f8d82d3922e24efdd9c7db2667453ac027acab09a9d. Last full follow-up 2026-09-26T12-17-09-218Z-c648f2f0ce5f resolves the false StateManager property-loss allegation with delivered source and actual save/load receipt. No production change followed that allegation. Next: stage only the reviewed four-file patch plus this packet, working UI additions and findings; verify index hashes, commit/push, cold-pull and rerun direct observations. Historical notes below retain the actual errors and stopping points.
+
 Main/index checked: astra-era e3fa99f2, empty index, inherited dirt preserved. Existing verification clone fast-forwarded from origin to e3fa99f2, tracked clean. Read PolicyBuilder, FrozenExitPolicy, ECM, actual OrderExecutor/StateManager producers, both TradingLoop consumers, BreakEvenManager, TraceSpine and NtfyTraceNotifier. R4 historical handoff is a navigation lead; current entry-preservation instruction controls.
 
 Current defect: frozen policy omits trail; ECM constructor captures trail once, break-even and fee buffer read current globals. Existing partial/tier plan and legacy 1R break-even checker are separate owners, not silently changed here.
@@ -17,3 +21,13 @@ Full review is NOT complete. Fresh readiness at 2026-09-26T10:22Z succeeded for 
 Exact candidate diff shown and git diff --check clean. Final candidate observation: private/candidate-3iRKCC/receipt.json. Exact private patch hash: 7b750c0b0a1926e24b475f8d82d3922e24efdd9c7db2667453ac027acab09a9d. Main inherited source edits remain untouched; no production candidate has been staged or committed.
 
 Next: after reauthentication, run the existing review.cjs with a fresh unique preflight label. Fast-forward the existing clone to the documentation checkpoint so OBSERVATION.json is present as a host-attested source; preserve its four candidate edits. Confirm ten source hashes against OBSERVATION, then execute fixtures/attack.cjs once (7750, no iteration ceiling). Independently disposition all source citations, export full redacted tapes, merge only these scoped changes onto main without overwriting inherited hunks, show exact staged diff, commit/push one connected production change, and repeat from a cold pull. Then continue remaining UI/config families. Do not describe this candidate as delivered or update the delivered 21-field UI contract until it lands.
+
+## Reauthenticated continuation
+
+Trey confirmed Claude logged in. Live three-provider preflight succeeded at 11:47Z, including claude-fable-5. Clone fast-forwarded to documentation checkpoint 08071b9d with the same four candidate files; all ten recorded source hashes still match. First dispatch stopped before review because an uppercase receipt status looked secret-shaped; rephrased that status without altering the redactor. Readiness receipt path also triggered the existing detector, so the receipt records the successful check timestamp instead. Original failed wrapper retained.
+
+Run 2026-09-26T11-56-21-563Z-28095b953f6c completed disagree: initial stale/incorrect Mercury claims were challenged, but attachment/restoration evidence was incomplete. A follow-up mistakenly supplied evidence descriptors without the verbatim excerpts required by resolveEvidenceSources; all ten supplemental excerpts were quarantined. This is a host submission defect, not production behavior and not fixed by a Mercury policy change. Its completed disagree receipt is preserved too. Corrected submission runs the real attestor locally first: 13/13 accepted, zero quarantines, 150 prompt lines; then the same sequential full chain. No iteration cap or index rebuild.
+
+Actual StateManager constructor/save/load now exercised in private/state-roundtrip-GGskPb: four explicit current/legacy long/short fixture records, disposable settings/state, actual AtomicWrite, no broker/socket. After a settings change, restored policy values and all four ECM results match their pre-save counterparts. Restored policy objects are not re-frozen by existing load; this limitation is named, not represented as mutation-proof restoration. Earlier fixture failures pNePXG (missing requestId) and n6CZfW (missing exit intentId) are preserved; both fixture inputs were corrected without a production change.
+
+Main now contains only the missing reviewed ECM and ConfigLoader hunks merged around inherited changes. Existing overlapping PolicyBuilder/TradingLoop hunks are retained. Pending index must contain the exact four-file candidate patch, not whole dirty files. Production delivery still depends on disposition of the corrected full review.

@@ -1,6 +1,12 @@
 # Review
 
-NOT ADVERSARIALLY ACCEPTED / NOT PRODUCTION-DELIVERED.
+HOST REVIEW CLOSED FOR THE EXACT FOUR-FILE CANDIDATE; delivery receipts below remain separate. Historical failed runs are retained, not relabelled.
+
+Corrected four-file chain (review-three tapes) delivered 13/13 supplemental excerpts; Fable passed the scoped change. Mercury recheck and Kimi then alleged StateManager drops frozenExitPolicy while spreading the trade. Direct source and actual StateManager save/load refuted that allegation. Focused full-chain follow-up 2026-09-26T12-17-09-218Z-c648f2f0ce5f delivered the complete unchanged StateManager source and an attested actual execution receipt. Mercury, Fable, recheck and Kimi converged: property-loss claim false; final pass, no blocking contradiction. Source remained unchanged in all wrappers. This follow-up closes that allegation, not a replacement four-file review or whole-Stop-1 certification.
+
+Host acceptance combines the inspected exact diff, real producer/consumer observations, prior full four-file review and source-backed resolution. All consequential allegations were independently dispositioned; a model verdict alone is not acceptance. Restoration preserves values/hash but does not re-freeze parsed objects; arbitrary corrupt source files, live bot, actual browser, broker and phone delivery remain unproved. No production StateManager edit was made to satisfy the false allegation. The review's broad inherited-pattern inventory is not an implementation order.
+
+The paragraphs below are chronological checkpoints; their earlier auth/pending statements are superseded by this closure.
 
 Full chain cannot run with the current Fable account: its fresh live preflight failed with 401 expired OAuth. Mercury and Kimi succeeded. Status-only loggedIn=true was explicitly rejected as readiness proof. See preflight raw output, console and ledger under tapes/ with dual hashes in MANIFEST.json.
 
@@ -9,3 +15,9 @@ No seat substitution, missing-evidence suppression or paid attack without the re
 Host review: exact four-file diff inspected; no new throw, process halt, entry gate, broker call, policy framework or ATR recalculation. Preserve current dynamic trailing math except the reproduced zero-before-clamp failure. Per-trade absence handling returns named updates, reports through existing trace/notification routing and leaves other exit evaluation intact. Readiness/observations do not establish production safety or full input-domain coverage by themselves.
 
 Before delivery: inspect every model finding against current candidate source and raw tool output, verify all required seats and evidence, retain disagreements/limits, verify scope/diff hashes, then stage only this connected patch. The separate managed break-even and inherited risk-based 1R break-even must not be misrepresented as one switch.
+
+Reauthentication succeeded and two complete reviews followed. The first ended disagree; the second also ended disagree after a host error omitted verbatim supporting excerpts. Raw original verdicts remain unchanged in tapes. Corrected third submission locally attests all 13 source excerpts before dispatch, including both entry attachments and the restoration spreads.
+
+Host dispositions so far: duplicate emitTrace declaration is disproved by the sole candidate declaration and syntax check. this.trailConfig/current fee lookup allegations describe deleted pre-change code. The missing-object settings-save TypeError is disproved by setObjectPath creating intermediates before the min/max comparison. The unconditional updated:true claim is disproved by the candidate's actual result OR. Missing legacy policy is surfaced through console.error/EXIT_POLICY_ALARM and structured results, not hidden; existing known stops still execute. Raw trail reads are not arbitrary-file schema validation: the old constructor read the same raw object. Canonical shipped trail is complete and the UI publishes only typed allowed fields. No concrete new malformed-input producer was identified by the first two runs; do not infer that arbitrary corrupt files are validated.
+
+Entry attachments independently read: OrderExecutor:2385-2394/2461 builds/carries the policy, :3936-3956 and :4204-4224 pass it to both openPosition calls. StateManager:1221-1247 freezes/attaches it, :2478-2489 serializes full trade records, :4311-4318/4353/4379-4383 restores them via withExitLifecycleFields:431-445, which spreads the original record without current-config reconstruction. The actual isolated save/load observation agrees. These reads do not establish live execution or universality of arbitrary external state.

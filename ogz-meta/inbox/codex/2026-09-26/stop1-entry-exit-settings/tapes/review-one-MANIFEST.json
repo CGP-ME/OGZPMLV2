@@ -1,0 +1,436 @@
+{
+  "at": "2026-09-26T11:58:31.332Z",
+  "labels": [
+    "entry-exit-settings-preflight-reauth",
+    "entry-exit-settings-review",
+    "entry-exit-review-attested"
+  ],
+  "files": [
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-config-connections/private/entry-exit-settings-preflight-reauth/completion.json",
+      "originalSha256": "3ff0fa55356a5f340eee419f59b10da6a48b7009724b6f195859338afc263f41",
+      "originalBytes": 966284,
+      "redactedPath": "tapes/review-one--entry-exit-settings-preflight-reauth--completion.json.gz",
+      "redactedSha256": "dd1e66725d4c0c2dff22f9b7695c44358a53692428198f99c71658be90376a02",
+      "redactedBytes": 932414,
+      "gzipSha256": "45e2d7a3ead2261c77330e31ad3c9340562c6ec8510fb3900dc4b08a6107b1a7",
+      "gzipBytes": 257456
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-config-connections/private/entry-exit-settings-preflight-reauth/console.log",
+      "originalSha256": "9de45512c529bb3d82d8431ab58244aaaf9e2959fb098986058a3c275286614a",
+      "originalBytes": 13778,
+      "redactedPath": "tapes/review-one--entry-exit-settings-preflight-reauth--console.log.gz",
+      "redactedSha256": "9de45512c529bb3d82d8431ab58244aaaf9e2959fb098986058a3c275286614a",
+      "redactedBytes": 13778,
+      "gzipSha256": "43083271fa321123c7dce574ca4d05191ed3ade3fa6244b6f6ed2fbb717bc3d6",
+      "gzipBytes": 1821
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-config-connections/private/entry-exit-settings-preflight-reauth/invocation.json",
+      "originalSha256": "2342a49167b4a82bb6330799ee6886ba66e348c3852b4ff222c8ecbab19ae6a1",
+      "originalBytes": 966838,
+      "redactedPath": "tapes/review-one--entry-exit-settings-preflight-reauth--invocation.json.gz",
+      "redactedSha256": "c4c9c3bf43f643dcca2cf8ce143930d998de8f08b4cc478570660283da5c1f6f",
+      "redactedBytes": 932968,
+      "gzipSha256": "59ff1bcdd803f2d44442ec5dbdbea85bc238ae9dbf5408afdeb68c2815dfe59e",
+      "gzipBytes": 257850
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-config-connections/private/entry-exit-settings-review/completion.json",
+      "originalSha256": "b50615f6f25f8ead3432e9016af23285b554abf104dcc67663751eee59066d38",
+      "originalBytes": 966284,
+      "redactedPath": "tapes/review-one--entry-exit-settings-review--completion.json.gz",
+      "redactedSha256": "acb9a0b1491eed7e7de5435a8f34e267327a0f19d2bf16971c4bd8c880aecab1",
+      "redactedBytes": 932414,
+      "gzipSha256": "557ddb84b46f0e910063a418240d8de1c6b94fce25a105c1fb37362c5e13d110",
+      "gzipBytes": 257456
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-config-connections/private/entry-exit-settings-review/console.log",
+      "originalSha256": "0068e3f207680dfff666a50de50e3e4066e05749aedef48a72b1ab0f1ac3f000",
+      "originalBytes": 423,
+      "redactedPath": "tapes/review-one--entry-exit-settings-review--console.log.gz",
+      "redactedSha256": "0068e3f207680dfff666a50de50e3e4066e05749aedef48a72b1ab0f1ac3f000",
+      "redactedBytes": 423,
+      "gzipSha256": "1619b8ff5aceebe604b3f56a88e78a4789314ea4a6b1bdd637acd9bba9daef18",
+      "gzipBytes": 251
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-config-connections/private/entry-exit-settings-review/invocation.json",
+      "originalSha256": "53bb0e47c61bddb09f2715a2b92a14dcc6a4ae6bd6f18d614b6df567832ba303",
+      "originalBytes": 970614,
+      "redactedPath": "tapes/review-one--entry-exit-settings-review--invocation.json.gz",
+      "redactedSha256": "d9b6b7d7d741219aa0289ea8e4826d765421f2f4996ae253b8117f82567e8f01",
+      "redactedBytes": 936716,
+      "gzipSha256": "8b728d5e4e3eccb5d3416b3dffd32fe915b4b2fd13d9dc23aab3df89e9d904de",
+      "gzipBytes": 259556
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-config-connections/private/entry-exit-review-attested/completion.json",
+      "originalSha256": "5b481517d89386d8418aee34a3b81b0e8d86a01d9a268268c5a7c2d5dfb8c6c1",
+      "originalBytes": 972200,
+      "redactedPath": "tapes/review-one--entry-exit-review-attested--completion.json.gz",
+      "redactedSha256": "41fdfd6a457919743af052a88c8d7c7f373ac836b2b36062f45ff0fc71943944",
+      "redactedBytes": 938302,
+      "gzipSha256": "6641ad70d3e2688ec30c00d72be6e532bb57ec8d5ae9c81cf58d2145f1a43855",
+      "gzipBytes": 258969
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-config-connections/private/entry-exit-review-attested/console.log",
+      "originalSha256": "a5ff40627e13633a9c4b5d68d4f4a8d380aad98dea1cccd879f33f52ceca1849",
+      "originalBytes": 128267,
+      "redactedPath": "tapes/review-one--entry-exit-review-attested--console.log.gz",
+      "redactedSha256": "875c8e2a6c9d2ef84746e453e1b92f17160fefa00234b017e1bddd5c7d64e9fd",
+      "redactedBytes": 128061,
+      "gzipSha256": "f5be78f4f71d9f445b79fb67d9819947b19d2c3dae48a3e523d8b35e7d53ed37",
+      "gzipBytes": 21425
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-config-connections/private/entry-exit-review-attested/invocation.json",
+      "originalSha256": "19b7171399094a8db8924b58d6f1b47a3dafb83d282d27e3b5784aee860ab3cb",
+      "originalBytes": 976548,
+      "redactedPath": "tapes/review-one--entry-exit-review-attested--invocation.json.gz",
+      "redactedSha256": "8b0bf0912296dc01dc5e0ea3300d8ad1d72faa157bc6d29ba1df17d710397495",
+      "redactedBytes": 942650,
+      "gzipSha256": "320616f2162c609b2a992c73af9678de5ac3ed2ea38b8bbf199b7febf8566d67",
+      "gzipBytes": 259720
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-47-36-567z-1775175-3da0bb0c663b/fable_challenger-2.raw",
+      "originalSha256": "cb0d50b954d0497c87ee70671d6880a885b9d0cab07789bb8e4a714aaa295e29",
+      "originalBytes": 5117,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-47-36-567z-1775175-3da0bb0c663b--fable_challenger-2.raw.gz",
+      "redactedSha256": "0dc4a4f3e758b0f89c9a04bbe315b7fcebe95aa5c568da7eb29a9105ceaf1d6b",
+      "redactedBytes": 4361,
+      "gzipSha256": "334c7778c76d78695b8cc91f9749513a1fce371fefcf0023b789a5e046b9169d",
+      "gzipBytes": 1450
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-47-36-567z-1775175-3da0bb0c663b/kimi_tie_breaker-3.raw",
+      "originalSha256": "4af83fa22425037403191eb357c18cbcb45d4ae10164c8786a65b04b7e647539",
+      "originalBytes": 331,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-47-36-567z-1775175-3da0bb0c663b--kimi_tie_breaker-3.raw.gz",
+      "redactedSha256": "86c9099fd470d8ab7ce942b18561cbfe612284772b0e2aedf7470cc9d50ddf91",
+      "redactedBytes": 308,
+      "gzipSha256": "9541c9ba7c3fdddbda7512a48845cc0e7cef4826229fa87e5a5c1e92b55a9ee7",
+      "gzipBytes": 234
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-47-36-567z-1775175-3da0bb0c663b/mercury-1.raw",
+      "originalSha256": "a8b31914454599baa0618ecd95ae70cc1cac1b35c0456b8706e6652290c5b40a",
+      "originalBytes": 466,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-47-36-567z-1775175-3da0bb0c663b--mercury-1.raw.gz",
+      "redactedSha256": "8b71b2b1030d24a8d42e6f705d6d516441ff940a13f40829f0083dfdda973398",
+      "redactedBytes": 431,
+      "gzipSha256": "b0c45943dbe29e9f2b121258616818f957f75887b118b850af4bc94a9c618f1b",
+      "gzipBytes": 274
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/fable_challenger-1.raw",
+      "originalSha256": "e2e5652c4c24547795b7e6a1d8e04c6084d1c9ddab7e6c8d94fce0ee49f6cb03",
+      "originalBytes": 63063,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--fable_challenger-1.raw.gz",
+      "redactedSha256": "08ea94a1b25b66c5ac7927cfd19ea2355994d0171256be8a3908184c02ec9fd4",
+      "redactedBytes": 40997,
+      "gzipSha256": "938e94e03f45e3b7a33d44da5769187ee92717d06c3260edf9f16af097dc5942",
+      "gzipBytes": 7423
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/kimi_tie_breaker-1.raw",
+      "originalSha256": "a37d8f7abc75e84d98bb537e5348bc5dc1df1e03aa5b662a96a46b81a205eb9e",
+      "originalBytes": 15625,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--kimi_tie_breaker-1.raw.gz",
+      "redactedSha256": "68b29925abcaec06fb85eded33e6e62f30e807f41d0746d146b38ddd6120714f",
+      "redactedBytes": 15542,
+      "gzipSha256": "c8f6eda554bcbe29e97b032b852612a586eaacf6a1651bda0c0700c4aa9af81b",
+      "gzipBytes": 5876
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/mercury_explicit_candidate_1-1.raw",
+      "originalSha256": "3f9cde8eedbf1165a356479c0cabf52bdd3dc7733934116378f86773bdd7f011",
+      "originalBytes": 3016,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--mercury_explicit_candidate_1-1.raw.gz",
+      "redactedSha256": "40976f29f4f50bf1903b7548a6a6936c25d038f8c8cee515fefe5666322173dc",
+      "redactedBytes": 2981,
+      "gzipSha256": "175a38142a80832f2a53a3f866de64d81b6ecaf7a3f80a66af825f5afed884c7",
+      "gzipBytes": 1321
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/mercury_explicit_decision-1.raw",
+      "originalSha256": "f2e57df77aa3419f10dc65a784583ff3c910a90a297fa5426120cea621a526bd",
+      "originalBytes": 2707,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--mercury_explicit_decision-1.raw.gz",
+      "redactedSha256": "5ede1c7982689af22db3461b232f09457ba25f47b4f474cc493835eba1d2dccf",
+      "redactedBytes": 2672,
+      "gzipSha256": "0bd654106b984e64f5915f15eeb22e3ad3fb0dfba1de71a35b87515e4481cd10",
+      "gzipBytes": 1277
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/mercury_explicit_shard_1-1.raw",
+      "originalSha256": "dfa647e5a8e2c242078479fcb9ca88b3555a9f91ec56e82c3c0c3c254fe9fe93",
+      "originalBytes": 1783,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--mercury_explicit_shard_1-1.raw.gz",
+      "redactedSha256": "a9436a31a3661f14da3626399d82b8f3aaa20b074192e4c18eb95a331ee956c1",
+      "redactedBytes": 1748,
+      "gzipSha256": "c8b6198913b8558a95c1bbfb8152844648c8c47d615189ff8aaa035fc65e115c",
+      "gzipBytes": 939
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/mercury_explicit_shard_2-1.raw",
+      "originalSha256": "7f59a140d38439ab17a083f3b5fc0f3984ba41905dee83a5cfc568010539e27f",
+      "originalBytes": 1394,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--mercury_explicit_shard_2-1.raw.gz",
+      "redactedSha256": "15f404223818f2075f9ffd3f1822b3802f26feaaf29bb542364540d5910f5cb8",
+      "redactedBytes": 1359,
+      "gzipSha256": "c61640f841961629841fa58e858bd0390a83677fa86dbbeef3ce80f069ace78a",
+      "gzipBytes": 781
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/mercury_explicit_shard_3-1.raw",
+      "originalSha256": "fceb08eb421e84d4bd738528fea649dc3b1c8804b586785d0e52353e5c6f4eaf",
+      "originalBytes": 943,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--mercury_explicit_shard_3-1.raw.gz",
+      "redactedSha256": "3e6fd9deca560cf2e90731839d32384d921e3a0c69eb24fe4080e284b7a5fbe2",
+      "redactedBytes": 908,
+      "gzipSha256": "9b97b7d41e570ebbc7ef1782dda2a59bf0ec02a6f46ac46ee95fe413b77db7f8",
+      "gzipBytes": 578
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/mercury_explicit_shard_4-1.raw",
+      "originalSha256": "5310b9e322f36d78f5c7e8318e855894d8fda152bc5a5c37e9cbc85379fb9294",
+      "originalBytes": 1668,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--mercury_explicit_shard_4-1.raw.gz",
+      "redactedSha256": "4faf4cee745544ef68c740e5a61cc623b99f374ab523f7157f0eb60c2067c0a8",
+      "redactedBytes": 1633,
+      "gzipSha256": "b98580c71fc90612505e8fceb4c1814fab18035171893e37dc89b33e3ef5d88c",
+      "gzipBytes": 856
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/mercury_explicit_shard_5-1.raw",
+      "originalSha256": "c4713abb264dff93af37e51f8135e41fe716ef9dc9e3cd71dfce4386f17e08e5",
+      "originalBytes": 1006,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--mercury_explicit_shard_5-1.raw.gz",
+      "redactedSha256": "de666f56b264c204773e264d33855be44cfdde7d2937575c538ed31718b54e17",
+      "redactedBytes": 971,
+      "gzipSha256": "3e4bf3db8a036d1e8611a7fd714b88b82bbb515b68208834c87784411e46193f",
+      "gzipBytes": 589
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/mercury_explicit_shard_6-1.raw",
+      "originalSha256": "1bf5596ba5def07ad3afff9e253f2a7034b505b714c07fa54d704adce7a9a82f",
+      "originalBytes": 1081,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--mercury_explicit_shard_6-1.raw.gz",
+      "redactedSha256": "5817973cc22c413fe7d4ce6a6a84d0d410979f42ff5b4b032da3980cf5fd529c",
+      "redactedBytes": 1046,
+      "gzipSha256": "d198093225bef4cca1e5de0862eb2ff4a6d433be3d6fa5137fc71199e7b4970b",
+      "gzipBytes": 639
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/mercury_explicit_shard_7-1.raw",
+      "originalSha256": "408f3bce9ef2f2ce3a51bcbfc55f07227bab1543f2b460eaf78b80fad70e2c72",
+      "originalBytes": 3386,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--mercury_explicit_shard_7-1.raw.gz",
+      "redactedSha256": "e71205b959071d76d4c3e684627d0d3decca5d85c30390c2027dbe38e008612e",
+      "redactedBytes": 3351,
+      "gzipSha256": "99bb3d589aeb3ea9481a900de822c500c2d1bca0dab23acac062d30b0b66431d",
+      "gzipBytes": 1357
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/mercury_recheck_1-1.raw",
+      "originalSha256": "6bc601550b362f1bcbdb55b74467c1e27c53711cbda896973713dbc5e3979ef1",
+      "originalBytes": 658,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--mercury_recheck_1-1.raw.gz",
+      "redactedSha256": "8f295deddad788355d0415b43a5dc15bcd99a419eff5efdb4c2539a4bd7c343e",
+      "redactedBytes": 623,
+      "gzipSha256": "5613d8548268f6558d060c53a5a803b8795a25068e4396e3adf6fca18bb09d7b",
+      "gzipBytes": 369
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/mercury_recheck_1-10.raw",
+      "originalSha256": "0a71c74c2b3133d58e965e19c222bea5b427a188767a2fe6b23111870219a43d",
+      "originalBytes": 676,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--mercury_recheck_1-10.raw.gz",
+      "redactedSha256": "b28db75c09fcb653aa7a41da9e74ff9fc0f503cb4f91198c1c681abbee0c0420",
+      "redactedBytes": 641,
+      "gzipSha256": "7b310519371b275860ea61b372106046c23d7439d3b2cd7f80af82e8f8095c49",
+      "gzipBytes": 383
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/mercury_recheck_1-11.raw",
+      "originalSha256": "a5ea04dc4db8b1743a78ac6c9d22d571c40bfed87d9569d6e6e6c68f7077eb1c",
+      "originalBytes": 657,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--mercury_recheck_1-11.raw.gz",
+      "redactedSha256": "f55704d85a9efa1f170973a0aafbf4232b4cdc39edab38e5bc85d8d403403a54",
+      "redactedBytes": 622,
+      "gzipSha256": "fc4c75b5d33bdcca892f72a1fd81233140742f6e8957ee11411d38f5420119fb",
+      "gzipBytes": 368
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/mercury_recheck_1-12.raw",
+      "originalSha256": "26ac95c34e83a1d5f7aee389cacc966f556e2d9905bd8f4bf3c976c693e9a548",
+      "originalBytes": 670,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--mercury_recheck_1-12.raw.gz",
+      "redactedSha256": "31c37be6d6bfafff77497e91904c766fa76f40a47a77bc9cf0061eaaebbca290",
+      "redactedBytes": 635,
+      "gzipSha256": "c9a9b2a552d75555c3e56b6ca33bde734cf5340f6060a7167c7466f12827ff58",
+      "gzipBytes": 377
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/mercury_recheck_1-13.raw",
+      "originalSha256": "c3bd38b373452ac913bc329f4aeb73b8eaab4515382f7ba58944e832a4cc4718",
+      "originalBytes": 662,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--mercury_recheck_1-13.raw.gz",
+      "redactedSha256": "f606f459e6b8279daf2076fcc4647ba65d8920faae89cc06afb709ece2f4df97",
+      "redactedBytes": 627,
+      "gzipSha256": "d6885264bce9e3e94f272f7a077e297e7264d3f5a8f395248797004ed826ec76",
+      "gzipBytes": 368
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/mercury_recheck_1-14.raw",
+      "originalSha256": "8fd964fd075f46c1fc440b46bb545bd1daff9413944febebfdb6c9af29b077f3",
+      "originalBytes": 657,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--mercury_recheck_1-14.raw.gz",
+      "redactedSha256": "cefe79fec082cece31a9e67f140a34cc4285f6159211a683fa98b418cd50096b",
+      "redactedBytes": 622,
+      "gzipSha256": "18f5bd602cc8b43ed11d4a4beddb00f9d8addb03c9ee4102277e8e10576b4e77",
+      "gzipBytes": 367
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/mercury_recheck_1-15.raw",
+      "originalSha256": "e363617adcbc8779928bd515417a181eb77d3e26ea509b314d98287173a43b91",
+      "originalBytes": 4319,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--mercury_recheck_1-15.raw.gz",
+      "redactedSha256": "fea0304e71a83fec1e94ef753054df6a291eb4408553a27a67f24009766af30c",
+      "redactedBytes": 4284,
+      "gzipSha256": "6d2489c243877098ebca3e90d01801151ee581438458b22f5b0989dbe8c11c70",
+      "gzipBytes": 1796
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/mercury_recheck_1-16.raw",
+      "originalSha256": "f97581db58236ccafbb6a964544caf8a19f9bd9b651f1c2b3af814f019925abe",
+      "originalBytes": 2765,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--mercury_recheck_1-16.raw.gz",
+      "redactedSha256": "65f85ab3c2a5cef2d6b8d955791068fc082018f8b6e8ce65e0050d26c73687ca",
+      "redactedBytes": 2730,
+      "gzipSha256": "e93b1803acc5172b91dc65e19d410f695fed9928c9ac9ffc199ddbe94cbe928d",
+      "gzipBytes": 1404
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/mercury_recheck_1-2.raw",
+      "originalSha256": "cac4dbce7adc587b7e0fa600e749dedc653513e139beaf1ff6a291a94e10a9e1",
+      "originalBytes": 623,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--mercury_recheck_1-2.raw.gz",
+      "redactedSha256": "61e956e4028f184a6126315f82b45ad5a5b1233ad0aab6b6d9c2b73040e49057",
+      "redactedBytes": 588,
+      "gzipSha256": "9379794bb869053fcb59e4e9d58a843ad6004c5e57079f1e64e64298c8bc5c80",
+      "gzipBytes": 345
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/mercury_recheck_1-3.raw",
+      "originalSha256": "57aaf65f0f94b233b90f118b9cace2f90baf2f069c44f219bc2b7d7a62b8b988",
+      "originalBytes": 656,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--mercury_recheck_1-3.raw.gz",
+      "redactedSha256": "19c7b54968839766252a3e602ecaf38f8c5d498e1b856cb71958f33897f8788f",
+      "redactedBytes": 621,
+      "gzipSha256": "ebacf1b603eb1704a1f445167ed31a21d4a46f6e44f989855849645b2ab296a8",
+      "gzipBytes": 369
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/mercury_recheck_1-4.raw",
+      "originalSha256": "e324927e9448bd1029b78f2b0e95af2c342c81f037c9797276539d8c209e896c",
+      "originalBytes": 616,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--mercury_recheck_1-4.raw.gz",
+      "redactedSha256": "a52bf3ce945270770eb0840b03125fd2e360c712f7138fe1ef819fa4fa068a94",
+      "redactedBytes": 581,
+      "gzipSha256": "d96c1e43a73bcab39eb07e14394edb777268899054dc669af7f3b6e9044fdfd4",
+      "gzipBytes": 340
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/mercury_recheck_1-5.raw",
+      "originalSha256": "b73afddf06c35121a654be308356affa22a53ae2c8545146d75db02ffcf347cb",
+      "originalBytes": 648,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--mercury_recheck_1-5.raw.gz",
+      "redactedSha256": "d0d1cd6820f9c66924c95128b49b56391de8b15fd25c6a36385752831ff6b573",
+      "redactedBytes": 613,
+      "gzipSha256": "c7216a800ad73a1a52b777ebe14ea18df6b7a5a5056e479fe5b3efdc9610748a",
+      "gzipBytes": 360
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/mercury_recheck_1-6.raw",
+      "originalSha256": "7a55525d6baad2bb50d37ee75fcc841b1551dd34e9ff7d25971eee388d63a561",
+      "originalBytes": 664,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--mercury_recheck_1-6.raw.gz",
+      "redactedSha256": "453f69db6cf21b4465815676525b80281c448986a77d07b706261aa396db3d4e",
+      "redactedBytes": 629,
+      "gzipSha256": "26b902ab10d70f01a78f8f2fd9e9be7e8b3313ca3086115ae041e3392fcc5995",
+      "gzipBytes": 370
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/mercury_recheck_1-7.raw",
+      "originalSha256": "56fb3b4284a2f17fc602477ad594390fc06c32bb38ea8defc3f322f4ada52647",
+      "originalBytes": 652,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--mercury_recheck_1-7.raw.gz",
+      "redactedSha256": "3172e05e547a03030d24a89cce0ed362a850e651a50250f4798cd924297da14e",
+      "redactedBytes": 617,
+      "gzipSha256": "896ab7e901a9601e846fbe29b52079782696087422e9f88c3157bb3b99016c4a",
+      "gzipBytes": 364
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/mercury_recheck_1-8.raw",
+      "originalSha256": "f8552b5110d0074aac3679cbb0c69652e603c5eb5fe1d8ce1cf90231c0131450",
+      "originalBytes": 675,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--mercury_recheck_1-8.raw.gz",
+      "redactedSha256": "8e3cf0ed1d954e3a42c6de5f8a2663d30cf26eb2b1361c54c7a7f60be4577f15",
+      "redactedBytes": 640,
+      "gzipSha256": "a8a6d62f3acef753eac73fb292b3f024558f29054ceed72411690bd5b751df42",
+      "gzipBytes": 385
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/mercury_recheck_1-9.raw",
+      "originalSha256": "8d63a08f10941cd9825705cbcf256f7e7085531dae015ad924c23c951fe5a05f",
+      "originalBytes": 657,
+      "redactedPath": "tapes/review-one--raw--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--mercury_recheck_1-9.raw.gz",
+      "redactedSha256": "6d551a1e5fcf8557dec9ec25bd164f0a8954b83129f7f93e595ac792a4702002",
+      "redactedBytes": 622,
+      "gzipSha256": "9d0219cddeab85ee42406d66baf228ca4ac5e999d82495f76ed9d5e89480edfc",
+      "gzipBytes": 368
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/evidence/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/current-change-evidence.txt",
+      "originalSha256": "5698a1000abececf8875ae922ef9b455211eb318df3916a49a42f652261bfccf",
+      "originalBytes": 390082,
+      "redactedPath": "tapes/review-one--evidence--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--current-change-evidence.txt.gz",
+      "redactedSha256": "49a22602832b0b7fff203918971a0a158472e3dd94cb84bbc9a56f4ce5197be4",
+      "redactedBytes": 387885,
+      "gzipSha256": "6c869c06809dac8012f59b966bc0a6d6d7a272695f03117cfb3029f7cecb7403",
+      "gzipBytes": 92375
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/evidence/2026-09-26/2026-09-26t11-50-12-625z-1776397-ff23f51954e0/manifest.json",
+      "originalSha256": "de513ee642b43645082cd2e0fafcabde98fb3fef102d6d8eb5320bb3754f3315",
+      "originalBytes": 21028,
+      "redactedPath": "tapes/review-one--evidence--2026-09-26t11-50-12-625z-1776397-ff23f51954e0--manifest.json.gz",
+      "redactedSha256": "b3324869602ef3b279500e53c80aa688b7a61f358c5a1bb9e90f98a766f6423d",
+      "redactedBytes": 20884,
+      "gzipSha256": "57e54d16663b1f88d9b67baaec845ea8ca09efc55d88cb6c66cd8fc28a7c959f",
+      "gzipBytes": 3198
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/inbox/codex/2026-09-26/stop1-config-connections/private/ledger/2026-09-26.jsonl#selected-wrapper-intervals",
+      "originalSha256": "ec033bef88370fd42620a066188858e5b957196941a3dbfdbcc3a6ea873d2b02",
+      "originalBytes": 9556991,
+      "redactedPath": "tapes/review-one--ledger.jsonl.gz",
+      "redactedSha256": "bfff2a389b86cff424cb45527e56016358ac38c8a70827e79cab07a986284a77",
+      "redactedBytes": 9556309,
+      "gzipSha256": "8a8af293af397f6f58552cb183055ce21db5a5cfb14978772b99c0e35701ca1a",
+      "gzipBytes": 2155491
+    }
+  ],
+  "knownCredentialMatches": 0,
+  "ledgerRows": 2,
+  "batches": [
+    "2026-09-26t11-47-36-567z-1775175-3da0bb0c663b",
+    "2026-09-26t11-50-12-625z-1776397-ff23f51954e0"
+  ]
+}

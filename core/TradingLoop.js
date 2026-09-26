@@ -1227,6 +1227,7 @@ class TradingLoop {
         exitReason: exitCheck.exitReason || null,
         confidence: exitCheck.confidence ?? null,
         details: exitCheck.details || null,
+        profitStopUpdate: exitCheck.profitStopUpdate || null,
       });
     }
     this._writeDecisionAutopsy({
@@ -1651,6 +1652,7 @@ class TradingLoop {
             exitReason: exitCheck.exitReason || null,
             confidence: exitCheck.confidence ?? null,
             details: exitCheck.details || null,
+            profitStopUpdate: exitCheck.profitStopUpdate || null,
           });
         }
       } // end for (const activeTrade of activeTrades)

@@ -594,6 +594,7 @@ function buildForTrade(options = {}) {
     profitManagement: {
       beScaleOut: normalizeBeScaleOut(rawBeScaleOut),
       breakEvenStop: normalizeBreakEvenStop(rawBreakEvenStop),
+      trail: configReader.get('exitLogic.trail'),
       tieredExit: normalizeTieredExit(rawTieredExit, rawProfitTargets, volatilityAdjustment, confidence, marketCondition),
     },
     fees: normalizeFees(rawFees),

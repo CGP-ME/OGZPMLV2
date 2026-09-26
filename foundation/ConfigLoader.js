@@ -2544,6 +2544,62 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'atr_multiple', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
     label: 'Momentum trailing ATR multiple', effect: 'new_TSM_trade_existing_dynamic_trailing_policy',
   },
+  'exitLogic.trail.enabled': {
+    type: 'boolean', unit: 'boolean', label: 'Managed ATR trailing for new trades',
+    effect: 'new_trades_only_except_contract_channel_trailing',
+  },
+  'exitLogic.trail.minActivationPercent': {
+    type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE,
+    label: 'Managed trail activation profit', effect: 'new_trades_only',
+  },
+  'exitLogic.trail.atrMultiplier': {
+    type: 'number', unit: 'atr_multiple', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
+    label: 'Trail ATR multiple for contracts without their own multiple', effect: 'new_trades_without_contract_trailAtrMult',
+  },
+  'exitLogic.trail.trendWidenMultiplier': {
+    type: 'number', unit: 'multiple', min: 1, max: Number.MAX_VALUE,
+    label: 'Trend-supported trail widening', effect: 'new_trades_only',
+  },
+  'exitLogic.trail.structureTightenMultiplier': {
+    type: 'number', unit: 'fraction', min: 0, max: 1,
+    label: 'Nearby-structure trail tightening', effect: 'new_trades_only_with_structure_evidence',
+  },
+  'exitLogic.trail.structureDistanceThreshold': {
+    type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE,
+    label: 'Structure distance for trail tightening (zero disables)', effect: 'new_trades_only_with_structure_evidence',
+  },
+  'exitLogic.trail.profitRatchetThreshold': {
+    type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE,
+    label: 'Profit threshold for trail ratcheting', effect: 'new_trades_only',
+  },
+  'exitLogic.trail.profitRatchetRate': {
+    type: 'number', unit: 'fraction_per_profit_percentage_point', min: 0, max: Number.MAX_VALUE,
+    label: 'Trail ratchet rate (zero disables)', effect: 'new_trades_only',
+  },
+  'exitLogic.trail.profitRatchetFloor': {
+    type: 'number', unit: 'fraction', min: 0, max: 1,
+    label: 'Minimum trail ratchet factor', effect: 'new_trades_only',
+  },
+  'exitLogic.trail.minTrailPercent': {
+    type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE,
+    label: 'Minimum managed trail distance', effect: 'new_trades_only',
+  },
+  'exitLogic.trail.maxTrailPercent': {
+    type: 'number', unit: 'percent', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
+    label: 'Maximum managed trail distance', effect: 'new_trades_only',
+  },
+  'exitLogic.trail.feeBufferPercent': {
+    type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE,
+    label: 'Managed break-even stop buffer', effect: 'new_trades_only_not_legacy_1R_fee_model',
+  },
+  'exitLogic.breakEvenStop.enabled': {
+    type: 'boolean', unit: 'boolean', label: 'Managed profit-threshold break-even stop',
+    effect: 'new_trades_only_not_legacy_1R_break_even',
+  },
+  'exitLogic.breakEvenStop.triggerPercent': {
+    type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE,
+    label: 'Managed break-even profit trigger', effect: 'new_trades_only',
+  },
 });
 
 function getSettingsView() {
@@ -2605,6 +2661,10 @@ function saveSettings(request) {
     return reject('rsi_buy_must_be_below_exit');
   }
   nextSettings.revision += 1;
+  if (entries.some(([key]) => key.startsWith('exitLogic.trail.'))
+      && nextConfig.exitLogic.trail.minTrailPercent > nextConfig.exitLogic.trail.maxTrailPercent) {
+    return reject('trail_min_must_not_exceed_max');
+  }
   nextConfig.revision = nextSettings.revision;
   const revisions = { ..._cached.revisions, settings: nextSettings.revision, settingsHash: canonicalHash(nextSettings) };
   const nextSnapshot = { ..._cached, config: deepFreeze(nextConfig), revisions: Object.freeze(revisions),
