@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { panelAuthorityVerdict } = require('./reviewer-panel');
+const { reportedPanelDecision, summarizePanelDiagnostics } = require('./reviewer-panel');
 const { roundCurrency, sumAttemptAccounting, sumSeatAccounting } = require('./cost-accounting');
 
 const DEFAULT_RUN_LEDGER_DIR = path.join('ogz-meta', 'cognition-history', 'mercury-runs');
@@ -521,13 +521,7 @@ function collectReviewQuarantines(result) {
 function classifyMercuryVerdict({ result = null, error = null, autoBlastRadius = null } = {}) {
   if (error) return 'tool_failure';
   if (result && result.reviewerPanel) {
-    return panelAuthorityVerdict(result.reviewerPanel.authority);
-  }
-  if (result && result.doctrineReview && result.doctrineReview.authorityCeiling === 'UNVERIFIED') {
-    return 'unverified';
-  }
-  if (collectReviewQuarantines(result).some(item => item && item.load_bearing === true)) {
-    return 'unverified';
+    return reportedPanelDecision(result.reviewerPanel).verdict;
   }
   // Tool-probe failures no longer mask the run as inconclusive. Fail loud, not
   // fail closed: the run is classified by its actual outcome and the failed-probe
@@ -633,7 +627,7 @@ function buildFinalReviewLedgerSummary(finalReview) {
   };
 }
 
-function buildReviewLedgerSummary(review, { effectiveVerdictOverride = null } = {}) {
+function buildReviewLedgerSummary(review) {
   if (!review) return null;
   const rechecks = Array.isArray(review.rechecks)
     ? review.rechecks
@@ -647,8 +641,6 @@ function buildReviewLedgerSummary(review, { effectiveVerdictOverride = null } = 
   const parsed = parsedReviewClassification(review.parsed);
   const rawParsedVerdict = parsed && parsed.verdict ? parsed.verdict : null;
   const quarantines = Array.isArray(review.quarantines) ? review.quarantines : [];
-  const effectiveVerdict = effectiveVerdictOverride
-    || (quarantines.some(item => item && item.load_bearing === true) ? 'UNVERIFIED' : rawParsedVerdict);
   const challengerAttempts = Array.isArray(review.attempts) ? review.attempts : [];
 
   return {
@@ -664,7 +656,7 @@ function buildReviewLedgerSummary(review, { effectiveVerdictOverride = null } = 
     doctrine_review: review.doctrineReview || null,
     ...seatReceiptFields(redactedAnswer, challengerAttempts, review.error ? 'reviewer_failed' : null),
     parsed,
-    effective_verdict: effectiveVerdict,
+    effective_verdict: rawParsedVerdict,
     raw_parsed_verdict: rawParsedVerdict,
     max_rechecks: recheckPrompts.length || null,
     recheck_prompt_excerpt: redactedRecheckPrompt
@@ -683,6 +675,7 @@ function buildReviewLedgerSummary(review, { effectiveVerdictOverride = null } = 
       answer_full: review.recheck.answer ? redactSensitiveText(review.recheck.answer) : null,
     } : null,
     rechecks: rechecks.map((recheck) => ({
+      doctrine_review: recheck.doctrineReview || null,
       sharded_review: shardedReviewLedgerReceipt(recheck.shardedReview),
       termination: recheck.termination || null,
       iterations: recheck.iterations == null ? null : recheck.iterations,
@@ -760,6 +753,8 @@ function panelSeatLedger(panel, result) {
   const review = result && (result.adversarialReview || result.consensus);
   return {
     ...panel,
+    diagnostics: summarizePanelDiagnostics(panel.seats),
+    reported_decision: reportedPanelDecision(panel),
     seats: (panel.seats || []).map((seat) => {
       let attempts = Array.isArray(seat.providerAttempts) ? seat.providerAttempts : [];
       if (seat.id === 'mercury') attempts = Array.isArray(result && result.providerAttempts) ? result.providerAttempts : attempts;

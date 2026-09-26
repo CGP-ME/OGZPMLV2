@@ -79,13 +79,24 @@ function canAttachFinalReview(fableSeat, kimiSeat) {
   ));
 }
 
-function panelAuthorityVerdict(authority) {
-  if (!authority || authority.ceiling === 'UNVERIFIED') return 'unverified';
-  if (authority.ceiling !== 'FULL') return 'unverified';
-  if (authority.agreedVerdict === 'pass') return 'no_break_found';
-  if (authority.agreedVerdict === 'found_break') return 'found_break';
-  if (authority.agreedVerdict === 'cannot_verify') return 'cannot_verify';
-  return 'unverified';
+function reportedPanelDecision(panel) {
+  // Report the last selected reviewer's own conclusion, not host certification.
+  // A failed last seat must not silently fall back to an earlier passing answer.
+  const seat = (panel && panel.seats || []).at(-1);
+  const rawVerdict = seat && seat.status === 'succeeded'
+    && typeof seat.answer === 'string' && seat.answer.trim()
+    ? seat.parsed && seat.parsed.verdict : null;
+  return {
+    verdict: !seat || seat.status !== 'succeeded' ? 'review_incomplete'
+      : !rawVerdict ? 'no_claim'
+        : rawVerdict === 'pass' ? 'no_break_found' : rawVerdict,
+    rawVerdict: rawVerdict || null,
+    reviewer: seat ? seat.id : null,
+    sequence: seat ? seat.sequence : null,
+    answerSha256: seat && seat.answer
+      ? crypto.createHash('sha256').update(seat.answer).digest('hex') : null,
+    basis: 'reviewer report; not certification',
+  };
 }
 
 function parseReviewerSelection(value) {
@@ -162,7 +173,7 @@ async function promptReviewerSelection({ message, choices }, {
   });
 }
 
-function evaluatePanelAuthority(seats) {
+function summarizePanelDiagnostics(seats) {
   const selectedSeats = seats || [];
   const failedSelected = selectedSeats.filter(seat => seat.status !== 'succeeded');
   const successful = selectedSeats.filter(seat => (
@@ -182,35 +193,24 @@ function evaluatePanelAuthority(seats) {
   const fingerprints = successful.map(seat => seat.effectiveIdentityFingerprint).filter(Boolean);
   const identitiesAttested = fingerprints.length === successful.length;
   const identitiesIndependent = identitiesAttested && new Set(fingerprints).size === fingerprints.length;
-  const survivorFull = successful.length >= 2
-    && agreement
-    && evidenceChecksPassed
-    && identitiesIndependent;
-  const capReasons = [];
-  if (failedSelected.length > 0) capReasons.push('selected_seat_unavailable');
-  if (successful.length < 2) capReasons.push('insufficient_qualifying_seats');
-  if (!evidenceChecksPassed) capReasons.push('evidence_failure');
+  const issues = [];
+  if (failedSelected.length > 0) issues.push('selected_seat_unavailable');
+  if (successful.length < 2) issues.push('insufficient_qualifying_seats');
+  if (selectedSeats.some(seat => seat.identityConflict === true)) issues.push('identity_conflict');
+  if (!evidenceChecksPassed) issues.push('evidence_failure');
   if (successful.length >= 2 && !identitiesIndependent) {
-    capReasons.push(identitiesAttested ? 'identity_collision' : 'identity_attestation_absent');
+    issues.push(identitiesAttested ? 'identity_collision' : 'identity_attestation_absent');
   }
-  if (successful.length >= 2 && claimingSeats.length === 0) capReasons.push('reviewer_claim_absent');
-  if (claimingSeats.length > 1 && verdicts.length > 1) capReasons.push('reviewer_disagreement');
-  const full = survivorFull && failedSelected.length === 0;
+  if (successful.length >= 2 && claimingSeats.length === 0) issues.push('reviewer_claim_absent');
+  if (claimingSeats.length > 1 && verdicts.length > 1) issues.push('reviewer_disagreement');
   return {
-    ceiling: full ? 'FULL' : 'UNVERIFIED',
     qualifyingSeats: successful.length,
     agreement,
     evidenceChecksPassed,
     identitiesAttested,
     identitiesIndependent,
-    capReasons,
-    rerunRequired: !full,
+    issues,
     agreedVerdict: agreement ? verdicts[0] : null,
-    survivorAuthority: failedSelected.length > 0 && survivorFull ? {
-      ceiling: 'FULL',
-      agreedVerdict: verdicts[0],
-      qualifyingSeats: successful.length,
-    } : null,
   };
 }
 
@@ -255,7 +255,7 @@ async function runReviewerPanel({ selected, runSeat, isHardStop }) {
       });
     }
   }
-  return { seats, authority: evaluatePanelAuthority(seats) };
+  return { seats, diagnostics: summarizePanelDiagnostics(seats) };
 }
 
 module.exports = {
@@ -263,9 +263,9 @@ module.exports = {
   canAttachFinalReview,
   effectiveIdentityFingerprint,
   ensureReviewerAnswer,
-  evaluatePanelAuthority,
+  summarizePanelDiagnostics,
   parseReviewerSelection,
-  panelAuthorityVerdict,
+  reportedPanelDecision,
   positiveEvidenceBasis,
   promptReviewerSelection,
   resolveReviewerSelection,

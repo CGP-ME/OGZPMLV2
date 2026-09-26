@@ -12,7 +12,7 @@ const {
 } = require('./llm-client');
 const { formatFixedEvidenceInputs, formatToolTelemetry, serializeToolResultForHistory } = require('./react-loop');
 const { MERCURY_DOCTRINE_PROMPT } = require('./doctrine-review');
-const { panelAuthorityVerdict } = require('./reviewer-panel');
+const { reportedPanelDecision } = require('./reviewer-panel');
 const {
   buildPromptProvenance,
   extractClaimedFileCitations,
@@ -105,7 +105,7 @@ async function sendMaxPriorityNtfy({ title, body }, {
 async function screamReviewQuarantine(quarantine, options = {}) {
   return sendMaxPriorityNtfy({
     title: `Mercury review quarantine: ${quarantine.unit}`,
-    body: `${quarantine.name} quarantined; absence=${quarantine.absence}; run continues at UNVERIFIED ceiling`,
+    body: `${quarantine.name} quarantined; absence=${quarantine.absence}; recorded in exit receipt; run continues`,
   }, options);
 }
 
@@ -444,16 +444,6 @@ function formatFinalReview(finalReview) {
 }
 
 function finalReviewDecision(finalReview, parsedFirstReview, rechecks, quarantines = []) {
-  const loadBearingGaps = quarantines.filter(item => item && item.load_bearing === true);
-  if (loadBearingGaps.length > 0) {
-    return {
-      verdict: 'UNVERIFIED',
-      decision: 'unverified',
-      why: `Load-bearing review units were quarantined: ${loadBearingGaps.map(item => `${item.unit}:${item.name}`).join(', ')}.`,
-      residualRisk: loadBearingGaps.map(item => item.absence).join(', '),
-      nextAction: 'Inspect the named absences; no clean unit may self-certify across them.',
-    };
-  }
   if (!finalReview || finalReview.ok !== true) {
     if (!parsedFirstReview.blocking) {
       return {
@@ -511,7 +501,7 @@ function formatAdversarialReviewPacket({
   mercuryResult,
   review,
   consensus,
-  authority = null,
+  panel = null,
   reviewIntent = 'adversarial',
 } = {}) {
   const intent = normalizeReviewIntent(reviewIntent);
@@ -561,17 +551,14 @@ function formatAdversarialReviewPacket({
   const finalReview = reviewData && reviewData.finalReview ? reviewData.finalReview : null;
   const quarantines = Array.isArray(reviewData && reviewData.quarantines) ? reviewData.quarantines : [];
   const reviewDecision = finalReviewDecision(finalReview, parsed, rechecks, quarantines);
-  const authorityVerdict = authority ? panelAuthorityVerdict(authority) : null;
-  const finalDecision = authority ? {
-    verdict: authorityVerdict === 'no_break_found' ? 'pass' : authorityVerdict.toUpperCase(),
-    decision: authorityVerdict,
-    why: authorityVerdict === 'unverified'
-      ? `Panel authority capped by: ${(authority.capReasons || []).join(', ') || 'unspecified_panel_cap'}.`
-      : 'The reviewer-panel receipt exclusively owns the emitted conclusion.',
-    residualRisk: (authority.capReasons || []).join(', ') || reviewDecision.residualRisk,
-    nextAction: authority.rerunRequired
-      ? 'Investigate the named caps and rerun the selected panel.'
-      : reviewDecision.nextAction,
+  const reported = panel ? reportedPanelDecision(panel) : null;
+  const finalDecision = reported ? {
+    verdict: reported.verdict,
+    decision: reported.verdict,
+    why: `Reported by ${reported.reviewer || 'no reviewer'}; this is a model conclusion, not host certification.`,
+    residualRisk: [...(panel.diagnostics?.issues || []), ...quarantines.map(item => item.absence)].join(', ')
+      || reviewDecision.residualRisk,
+    nextAction: reviewDecision.nextAction,
   } : reviewDecision;
 
   const sections = [

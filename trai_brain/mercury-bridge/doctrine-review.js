@@ -3,11 +3,11 @@
 const TOTALITY_LAW = 'TOTALITY LAW: "Thoroughly exhaust all sources when auditing. Do not roll with the first thing you come across — you want ALL of the possible answers before you decide, not just one answer. Audits aren\'t for speed. They\'re for totality. Thoroughness." Operationally: enumerate every candidate answer to the question (every file, every consumer, every changelog entry, every era of history that could speak) BEFORE ruling; a first hit is a lead, never a conclusion; stopping-at-first-hit is a named violation (the TFE miss, the CandleProcessor miss — both were this); the decision step is SEPARATE from and AFTER the collection step, and the report shows the full candidate set it decided over.';
 
 const MERCURY_DOCTRINE_PROMPT = [
-  'MERCURY DOCTRINE — REQUIRED FOR THIS REVIEW.',
+  'MERCURY REVIEW RECEIPT.',
   TOTALITY_LAW,
   'The word “all” converts the work from point-fix work into a totality claim.',
   'A model-sandbox run_check has no authority for test/build pass or fail claims. Label its execution provenance; only host-attested trusted-path receipts carry test/build authority.',
-  'Missing obligations cap the verdict UNVERIFIED with named absences. They never refuse or terminate the run. The sole execution hard stop remains an unattested executable.',
+  'Report missing evidence, coverage limits, reviewer disagreements and reporting omissions honestly in the exit receipt. These diagnostics do not impose a verdict ceiling or require a rerun. They never authorize a fabricated PASS. Executable trust and repository-access protections remain unchanged.',
   'Final adversarial answers must deliver the fields the existing receipt parser and doctrine assessor read. Use literal headings followed by colons, not a prose-only conclusion.',
   'VERDICT: found_break | no_break_found | cannot_verify. State your actual supported conclusion; an HTTP success or missing evidence never means no_break_found. Fable and Kimi retain their role-specific verdict vocabularies. Planning and architecture reviews retain their non-adversarial output contract.',
   'ADVERSARIAL_REVIEW_BLOCKING: yes | no. Include your actual evidence-to-verdict rationale and literal repo path:line citations.',
@@ -234,8 +234,6 @@ function assessDoctrineReview({
   }
 
   return {
-    authorityCeiling: namedAbsences.length > 0 ? 'UNVERIFIED' : 'UNCHANGED',
-    hardStop: false,
     namedAbsences,
     namedBreaks: namedAbsences.includes('fourth_shape_unclassified') ? ['fourth_shape_unclassified'] : [],
     candidateSet,

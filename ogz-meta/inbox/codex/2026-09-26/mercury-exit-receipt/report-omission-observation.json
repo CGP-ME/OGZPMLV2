@@ -1,0 +1,13 @@
+{
+  "command": [
+    "node",
+    "-r",
+    "/opt/ogzprime/OGZPMLV2/ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/fixtures/index-source.cjs",
+    "-r",
+    "./trai_brain/mercury-bridge/ask.js",
+    "/opt/ogzprime/OGZPMLV2/ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/fixtures/report-omission.cjs"
+  ],
+  "exit_code": 0,
+  "stdout": "{\n  \"attempts\": [\n    {\n      \"status\": \"succeeded\",\n      \"structured\": {\n        \"complete\": true,\n        \"record\": {\n          \"record_type\": \"final_decision\",\n          \"decision\": \"no_break_found\",\n          \"summary\": \"Fixture only.\",\n          \"answer\": \"Receipt fixture: deliberately missing INHERITED report fields.\",\n          \"citations\": [\n            \"receipt-source.js:1\"\n          ],\n          \"adjudications\": []\n        },\n        \"invalid\": [],\n        \"citation_normalizations\": []\n      },\n      \"report_absences\": [\n        \"inherited_section_incomplete\"\n      ]\n    }\n  ]\n}\n{\n  \"level\": \"actual ingestion owner; synthetic provider response, not reasoning proof\",\n  \"final_calls\": 1,\n  \"termination\": \"answer_given\",\n  \"report_absences\": [\n    \"inherited_section_incomplete\"\n  ],\n  \"reporting_gap_in_exit_coverage\": [\n    {\n      \"target\": \"<final_review_report>\",\n      \"scope\": \"review_report\",\n      \"reason\": \"inherited_section_incomplete\",\n      \"load_bearing\": false\n    }\n  ]\n}\n",
+  "stderr": ""
+}

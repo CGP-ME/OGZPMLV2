@@ -2446,8 +2446,7 @@ async function runExplicitTargetReview({
   }, 0);
   finalReceipts.push(finalReceipt);
   const seenDecisionRejections = new Set();
-  while ((finalReceipt.status === 'malformed' || finalReceipt.report_absences.length > 0)
-      && providerCallCount < callLimit) {
+  while (finalReceipt.status === 'malformed' && providerCallCount < callLimit) {
     const invalid = finalReceipt.structured_response && finalReceipt.structured_response.invalid;
     const rejection = JSON.stringify({ invalid, error: finalReceipt.error,
       report_assessment: finalReceipt.report_assessment });
@@ -2458,14 +2457,14 @@ async function runExplicitTargetReview({
     const repairedDecisionInput = await reduceUntilFits('final', decisionNodes, {
       reserveCalls: 1,
       repairFeedback: {
-        reason: 'final_decision_absent',
+        reason: 'final_decision_malformed',
         prior_status: finalReceipt.status,
         prior_error: finalReceipt.error,
         invalid_records: invalid,
         report_absences: finalReceipt.report_absences,
         report_assessment: finalReceipt.report_assessment,
         prior_answer: finalReceipt.structured_response && finalReceipt.structured_response.record,
-        instruction: 'Return the complete final decision from the same candidate ledger and evidence. Preserve every named gap and your actual conclusion. Supply the missing INHERITED/Fourth Shape inspection evidence; if it cannot be established, explicitly report unread or unclassified, never invent a passing count. Copy exact full paths in every citation, including narrative text.',
+        instruction: 'Repair the malformed final decision from the same candidate ledger and evidence, including every original claim_id with disposition, reason and exact evidence citations. Reporting omissions are exit-receipt diagnostics, not source defects. Preserve your actual conclusion and all genuine gaps; never invent a passing count. Copy exact full paths in every citation.',
       },
     });
     decisionNodes = repairedDecisionInput.nodes;

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Exit-Receipt Diagnostics (2026-09-26)
+
+- Remove automatic panel/doctrine verdict ceilings and report-format-only retries per Trey's instruction. The last selected reviewer's declared verdict is reported with its source, not represented as host certification. Failed or absent final seats do not fall back to an earlier passing answer.
+- Retain missing evidence, reviewer failures, identity observations, disagreement, report omissions, original answers and recheck diagnostics in the exit receipt. Executable trust, credential isolation and repository read boundaries are unchanged. No bot or index activation.
+
 ### Mercury Rejected-Answer Recheck Dispatch (2026-09-24)
 
 - Allow Fable-requested source rechecks when a primary answer exists but failed qualification, instead of requiring answer_given before entering the repair path. Preserve the failed primary, independent reviewer answers, evidence flags and authority ceiling. No bot change.

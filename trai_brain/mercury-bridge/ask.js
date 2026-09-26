@@ -82,7 +82,7 @@ const {
   resolveReviewerSelection,
   runReviewerPanel,
   structuredPanelVerdict,
-  evaluatePanelAuthority,
+  summarizePanelDiagnostics,
 } = require('./reviewer-panel');
 const { retrieveSimilarTrace, formatTraceAsHint, captureTrace, markTraceUsed, evictStaleTraces, ensureTraceIndexes, getTraceStats } = require('./trace-memory');
 const {
@@ -808,8 +808,7 @@ function recomputePanelSeatFromRecheck(seat, recheck, { evidenceSources = [] } =
     evidenceBasis,
     evidenceChecksPassed: evidenceBasis.length > 0
       && seat.identityConflict !== true
-      && !(recheck.quarantines || []).some(quarantine => quarantine && quarantine.load_bearing === true)
-      && (!doctrineReview || doctrineReview.authorityCeiling !== 'UNVERIFIED'),
+      && !(recheck.quarantines || []).some(quarantine => quarantine && quarantine.load_bearing === true),
     evaluationHistory: [
       ...(Array.isArray(seat.evaluationHistory) ? seat.evaluationHistory : []),
       {
@@ -826,10 +825,10 @@ function recomputePanelSeatFromRecheck(seat, recheck, { evidenceSources = [] } =
   };
 }
 
-function recomputePanelAuthority(panelRun) {
-  const authority = evaluatePanelAuthority(panelRun && panelRun.seats);
-  if (panelRun) panelRun.authority = authority;
-  return authority;
+function recomputePanelDiagnostics(panelRun) {
+  const diagnostics = summarizePanelDiagnostics(panelRun && panelRun.seats);
+  if (panelRun) panelRun.diagnostics = diagnostics;
+  return diagnostics;
 }
 
 function createProviderAudit(stage, {
@@ -904,9 +903,6 @@ function createProviderAudit(stage, {
 function runAlertReasons(entry = {}) {
   const reasons = [];
   const panel = entry.reviewer_panel;
-  if (panel && panel.authority && panel.authority.ceiling === 'UNVERIFIED') {
-    reasons.push('authority_unverified');
-  }
   const failedSeats = panel && Array.isArray(panel.seats)
     ? panel.seats.filter(seat => seat.status === 'failed').map(seat => seat.id)
     : [];
@@ -1152,8 +1148,8 @@ async function runAgentic(query, opts) {
             file: autoBlastRadius.evidenceBundle?.path || `<current_change_evidence:${rawRunId}>`,
             error: detail,
           });
-          autoBlastRadius.text += `\n\nEVIDENCE ABSENCE: scan_artifact_unavailable (${rawRunId}). Artifact write/read failed: ${detail}. No current-change artifact excerpts delivered; partial files are preserved. Review continues at UNVERIFIED ceiling.`;
-          console.error(`[MERCURY-BRIDGE] Current-change evidence artifact quarantined: ${detail}; review continues at UNVERIFIED ceiling`);
+          autoBlastRadius.text += `\n\nEVIDENCE ABSENCE: scan_artifact_unavailable (${rawRunId}). Artifact write/read failed: ${detail}. No current-change artifact excerpts delivered; partial files are preserved. This absence is retained in the exit receipt; review continues.`;
+          console.error(`[MERCURY-BRIDGE] Current-change evidence artifact quarantined: ${detail}; recorded in exit receipt; review continues`);
           evidenceQuarantines.push(...await notifyReviewQuarantines([quarantine]));
         }
         if (artifact !== null) {
@@ -1253,13 +1249,6 @@ async function runAgentic(query, opts) {
             reviewerId: 'mercury',
             answerQuality: mercuryResult.answerQuality,
           });
-          mercuryResult.reviewQuarantines = await notifyReviewQuarantines(
-            mercuryResult.doctrineReview.namedAbsences.map(absence => reviewQuarantine({
-              unit: 'mercury_doctrine',
-              name: absence,
-              absence,
-            }))
-          );
           outputs.set('mercury', { id: 'mercury', ...mercuryResult });
           const metadata = panelSeatMetadata('mercury', mercuryResult, {
             autoBlastRadius,
@@ -1271,8 +1260,6 @@ async function runAgentic(query, opts) {
               evidenceQualified: seat.evidenceChecksPassed === true,
             })),
           });
-          metadata.evidenceChecksPassed = metadata.evidenceChecksPassed
-            && mercuryResult.doctrineReview.authorityCeiling !== 'UNVERIFIED';
           return metadata;
         }
 
@@ -1299,14 +1286,6 @@ async function runAgentic(query, opts) {
             reviewerId: 'fable',
             answerQuality: mercuryResult ? mercuryResult.answerQuality : {},
           });
-          fableReview.quarantines = [
-            ...(fableReview.quarantines || []),
-            ...fableReview.doctrineReview.namedAbsences.map(absence => reviewQuarantine({
-              unit: 'fable_doctrine',
-              name: absence,
-              absence,
-            })),
-          ];
           fableReview.quarantines = await notifyReviewQuarantines(fableReview.quarantines || []);
           // A rejected primary answer still needs the source checks Fable
           // requested. Preserve its failed evidence status; do not skip repair.
@@ -1367,8 +1346,6 @@ async function runAgentic(query, opts) {
           });
           // Rechecks retain Mercury's provenance in fableReview.rechecks;
           // they must not replace Fable's independent answer or evidence.
-          metadata.evidenceChecksPassed = metadata.evidenceChecksPassed
-            && fableReview.doctrineReview.authorityCeiling !== 'UNVERIFIED';
           return metadata;
         }
 
@@ -1396,14 +1373,6 @@ async function runAgentic(query, opts) {
           reviewerId: 'kimi',
           answerQuality: mercuryResult ? mercuryResult.answerQuality : {},
         });
-        kimiReview.quarantines = [
-          ...(kimiReview.quarantines || []),
-          ...kimiReview.doctrineReview.namedAbsences.map(absence => reviewQuarantine({
-            unit: 'kimi_doctrine',
-            name: absence,
-            absence,
-          })),
-        ];
         kimiReview.quarantines = await notifyReviewQuarantines(kimiReview.quarantines || []);
         outputs.set('kimi', { id: 'kimi', ...kimiReview });
         const qualifiedPrior = priorSeats.filter(seat => seat.evidenceChecksPassed === true);
@@ -1417,8 +1386,6 @@ async function runAgentic(query, opts) {
             evidenceQualified: seat.evidenceChecksPassed === true,
           })),
         });
-        metadata.evidenceChecksPassed = metadata.evidenceChecksPassed
-          && kimiReview.doctrineReview.authorityCeiling !== 'UNVERIFIED';
         return metadata;
       },
     });
@@ -1485,20 +1452,30 @@ async function runAgentic(query, opts) {
     ];
     result.inputProvenance = inputProvenance;
     result.reviewerPanel = { ...reviewerSelection, ...panelRun };
+    // Keep diagnostics for the expanded evidence without rewriting any seat.
+    if (mercuryResult && mercuryResult.candidateSet?.candidateSources?.length > 1) {
+      const latestDoctrine = assessDoctrineReview({
+        answer: mercuryResult.answer, candidateSet: mercuryResult.candidateSet,
+        changedFiles: autoBlastRadius?.changedFiles || [], diff: autoBlastRadius?.diff || '',
+        telemetry: mercuryResult.toolTelemetry, autoScan: autoBlastRadius,
+        evidenceSources, reviewerId: 'mercury', answerQuality: mercuryResult.answerQuality,
+      });
+      const mercurySeat = panelRun.seats.find(seat => seat.id === 'mercury');
+      if (mercurySeat) mercurySeat.recheckDiagnostics = latestDoctrine;
+    }
     if (autoBlastRadius) result.serenaBlastRadius = autoBlastRadius;
     if (fableReview) {
       const fableSeat = panelRun.seats.find(seat => seat.id === 'fable' && seat.status === 'succeeded');
       const kimiSeat = panelRun.seats.find(seat => seat.id === 'kimi' && seat.status === 'succeeded');
       if (canAttachFinalReview(fableSeat, kimiSeat)) {
         fableReview.finalReview = kimiReview;
-        const authority = recomputePanelAuthority(panelRun);
-        result.reviewerPanel.authority = authority;
+        result.reviewerPanel.diagnostics = recomputePanelDiagnostics(panelRun);
       }
       result.adversarialReview = fableReview;
       result.consensus = fableReview;
       result.adversarialReviewPacket = formatAdversarialReviewPacket({
         originalQuery: query, mercuryResult: mercuryResult || priorPanelResult(query, outputs),
-        review: fableReview, authority: panelRun.authority, reviewIntent,
+        review: fableReview, panel: result.reviewerPanel, reviewIntent,
       });
     }
 
@@ -1622,18 +1599,28 @@ function printDispatchReceipt(result) {
   if (panel) {
     console.log(`reviewers:       ${panel.selected.join(',')} (${panel.source})`);
     console.log(`unselected:      ${panel.unselected.length > 0 ? panel.unselected.join(',') : 'none'}`);
-    console.log(`authority:       ${panel.authority.ceiling} agreement=${panel.authority.agreement ? 'yes' : 'no'} qualifying=${panel.authority.qualifyingSeats}`);
+    console.log(`reported by:     ${panel.reported_decision.reviewer || 'none'}; model report, not host certification`);
+    console.log(`panel findings:  ${panel.diagnostics.issues.join(',') || 'none'}; agreement=${panel.diagnostics.agreement ? 'yes' : 'no'}`);
     for (const seat of panel.seats) {
       const selfReportAbsence = Array.isArray(seat.named_absences) && seat.named_absences.includes('self_report_absent')
         ? ' self_report_absent'
         : '';
       console.log(`  - ${seat.id}: ${seat.status} provider=${seat.provider || 'unavailable'} models=${(seat.appliedModels || []).join(',') || 'none'} stopped=${seat.stopped_because || 'unknown'}${seat.absence ? ` absence=${seat.absence}` : ''}${selfReportAbsence}`);
+      console.log(`    reported verdict=${seat.parsed?.verdict || 'absent'} evidence=${seat.evidenceChecksPassed === true ? 'observed' : 'missing_or_failed'} identity=${seat.identityConflict ? 'conflict' : 'see_provider_receipt'}`);
+      console.log(`    review findings: ${(seat.doctrineReview?.namedAbsences || []).join(',') || 'none'}${seat.recheckDiagnostics ? `; recheck=${seat.recheckDiagnostics.namedAbsences.join(',') || 'none'}` : ''}`);
     }
+  }
+
+  for (const [index, recheck] of (entry.adversarial_review?.rechecks || []).entries()) {
+    console.log(`recheck ${index + 1}:       ${recheck.termination || 'unknown'}; findings=${(recheck.doctrine_review?.namedAbsences || []).join(',') || 'none'}`);
+  }
+  for (const gap of entry.review_quarantines || []) {
+    console.log(`review failure:  ${gap.unit}:${gap.name} ${gap.absence}`);
   }
 
   const doctrine = entry.doctrine_review;
   if (doctrine) {
-    console.log(`doctrine:        ${doctrine.authorityCeiling} candidate=${doctrine.candidateSet ? `${doctrine.candidateSet.examined}/${doctrine.candidateSet.total}` : 'absent'}`);
+    console.log(`review coverage: candidate=${doctrine.candidateSet ? `${doctrine.candidateSet.examined}/${doctrine.candidateSet.total}` : 'absent'}`);
     console.log(`named absences:  ${(doctrine.namedAbsences || []).join(',') || 'none'}`);
     console.log(`named breaks:    ${(doctrine.namedBreaks || []).join(',') || 'none'}`);
   }
@@ -2006,7 +1993,7 @@ module.exports = {
   panelSeatMetadata,
   finalizeMercuryEvidenceResult,
   recomputePanelSeatFromRecheck,
-  recomputePanelAuthority,
+  recomputePanelDiagnostics,
   buildMercuryIntentPrompt,
   buildCurrentChangeBlastRadius,
   currentChangeDiff,
