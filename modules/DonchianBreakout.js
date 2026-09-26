@@ -87,9 +87,9 @@ class DonchianBreakout {
     const channel = IndicatorCalculator.calculateDonchian(candles.slice(0, -1), this.entryPeriod);
     if (!channel) return null;
 
-    const atr = (ctx.indicators && Number.isFinite(ctx.indicators.atr))
-      ? ctx.indicators.atr
-      : IndicatorCalculator.calculateATR(candles, this.atrPeriod);
+    // The shared indicator ATR may use a different period. This strategy's
+    // configured period owns both its warmup and its stop calculation.
+    const atr = IndicatorCalculator.calculateATR(candles, this.atrPeriod);
     if (!Number.isFinite(atr) || atr <= 0) return null;
 
     const stopPct = (this.atrStopMult * atr) / price * 100;

@@ -1,0 +1,1034 @@
+{
+  "at": "2026-09-26T02:54:32.306Z",
+  "source": {
+    "modules/DonchianBreakout.js": "6d6e8316c8c422f717195a458dbde0b992ba4979473c35a237c24c2c2e8c76d2",
+    "core/StrategyOrchestrator.js": "72eca9a2b665292b95cbe2817fdd9f6517f00004a054636824932bc790890b79",
+    "foundation/ConfigLoader.js": "4180adf642436af0d4d7897ac231527b5ed7da107201f92414e13be899a50750",
+    "core/IndicatorCalculator.js": "941138f5831a0bd08dd3924b7c461c49abf6a24550b417502b380df77acdd323",
+    "core/indicators/IndicatorEngine.js": "5d22379c4505673d6a9b0a9850e60d06f3c11cf5951096b906fe86ec54369f65",
+    "config/settings.json": "79e421f038fc859a05b192942f49c3e012eec89b3021ef4d52a3da5c3efaa8fa"
+  },
+  "configuration": {
+    "fingerprint": "6c7c17074cfdf181d24451d84e5811761d6d64e948afaa62b580fc2c08ea1732",
+    "period": 20,
+    "source": "config:settings.json:strategies"
+  },
+  "inputSha256": "f14fb9a20a51e32f2588fe544c5563f28a45ac427e8bdbfe63687548180561c1",
+  "candleCount": 500,
+  "moduleScopes": [
+    "DonchianBreakout"
+  ],
+  "signals": 28,
+  "failures": 0,
+  "receipts": [
+    {
+      "index": 85,
+      "timestamp": 1725455700000,
+      "result": {
+        "strategy": "DonchianBreakout",
+        "direction": "buy",
+        "confidence": 0.6592144807401402,
+        "reason": "Donchian breakout buy: close 210.63 > prior 20-bar high 210.07",
+        "exitContractHint": {
+          "stopLossPercent": -0.9063701751887254,
+          "stopType": "structural",
+          "atrStopMult": 2.5,
+          "takeProfitPercent": null,
+          "tpMode": "off",
+          "trailingStopPercent": null,
+          "trailingActivation": null,
+          "trailType": "channel",
+          "trailChannelBars": 10,
+          "maxHoldTimeMinutes": null,
+          "maxHoldMode": "off",
+          "partialExit": {
+            "enabled": false,
+            "triggerR": 1,
+            "fraction": 0.5,
+            "remainderTrail": "terrain"
+          },
+          "donchianChannelUpper": 210.074,
+          "donchianChannelLower": 207.32,
+          "invalidationConditions": [
+            "donchian_channel_reentry"
+          ]
+        }
+      },
+      "expectedStop": -0.9063701751887254,
+      "matches": true
+    },
+    {
+      "index": 86,
+      "timestamp": 1725456600000,
+      "result": {
+        "strategy": "DonchianBreakout",
+        "direction": "buy",
+        "confidence": 0.8500000000000001,
+        "reason": "Donchian breakout buy: close 215.24 > prior 20-bar high 210.76",
+        "exitContractHint": {
+          "stopLossPercent": -1.1361244686040892,
+          "stopType": "structural",
+          "atrStopMult": 2.5,
+          "takeProfitPercent": null,
+          "tpMode": "off",
+          "trailingStopPercent": null,
+          "trailingActivation": null,
+          "trailType": "channel",
+          "trailChannelBars": 10,
+          "maxHoldTimeMinutes": null,
+          "maxHoldMode": "off",
+          "partialExit": {
+            "enabled": false,
+            "triggerR": 1,
+            "fraction": 0.5,
+            "remainderTrail": "terrain"
+          },
+          "donchianChannelUpper": 210.7579,
+          "donchianChannelLower": 207.32,
+          "invalidationConditions": [
+            "donchian_channel_reentry"
+          ]
+        }
+      },
+      "expectedStop": -1.1361244686040892,
+      "matches": true
+    },
+    {
+      "index": 87,
+      "timestamp": 1725457500000,
+      "result": {
+        "strategy": "DonchianBreakout",
+        "direction": "buy",
+        "confidence": 0.8364976433258378,
+        "reason": "Donchian breakout buy: close 217.90 > prior 20-bar high 215.73",
+        "exitContractHint": {
+          "stopLossPercent": -1.3035050481872485,
+          "stopType": "structural",
+          "atrStopMult": 2.5,
+          "takeProfitPercent": null,
+          "tpMode": "off",
+          "trailingStopPercent": null,
+          "trailingActivation": null,
+          "trailType": "channel",
+          "trailChannelBars": 10,
+          "maxHoldTimeMinutes": null,
+          "maxHoldMode": "off",
+          "partialExit": {
+            "enabled": false,
+            "triggerR": 1,
+            "fraction": 0.5,
+            "remainderTrail": "terrain"
+          },
+          "donchianChannelUpper": 215.73,
+          "donchianChannelLower": 207.32,
+          "invalidationConditions": [
+            "donchian_channel_reentry"
+          ]
+        }
+      },
+      "expectedStop": -1.3035050481872485,
+      "matches": true
+    },
+    {
+      "index": 89,
+      "timestamp": 1725459300000,
+      "result": {
+        "strategy": "DonchianBreakout",
+        "direction": "buy",
+        "confidence": 0.5952888898361055,
+        "reason": "Donchian breakout buy: close 219.41 > prior 20-bar high 218.99",
+        "exitContractHint": {
+          "stopLossPercent": -1.6038443132876126,
+          "stopType": "structural",
+          "atrStopMult": 2.5,
+          "takeProfitPercent": null,
+          "tpMode": "off",
+          "trailingStopPercent": null,
+          "trailingActivation": null,
+          "trailType": "channel",
+          "trailChannelBars": 10,
+          "maxHoldTimeMinutes": null,
+          "maxHoldMode": "off",
+          "partialExit": {
+            "enabled": false,
+            "triggerR": 1,
+            "fraction": 0.5,
+            "remainderTrail": "terrain"
+          },
+          "donchianChannelUpper": 218.99,
+          "donchianChannelLower": 207.32,
+          "invalidationConditions": [
+            "donchian_channel_reentry"
+          ]
+        }
+      },
+      "expectedStop": -1.6038443132876126,
+      "matches": true
+    },
+    {
+      "index": 90,
+      "timestamp": 1725460200000,
+      "result": {
+        "strategy": "DonchianBreakout",
+        "direction": "buy",
+        "confidence": 0.5904564100080915,
+        "reason": "Donchian breakout buy: close 219.88 > prior 20-bar high 219.49",
+        "exitContractHint": {
+          "stopLossPercent": -1.643658651836759,
+          "stopType": "structural",
+          "atrStopMult": 2.5,
+          "takeProfitPercent": null,
+          "tpMode": "off",
+          "trailingStopPercent": null,
+          "trailingActivation": null,
+          "trailType": "channel",
+          "trailChannelBars": 10,
+          "maxHoldTimeMinutes": null,
+          "maxHoldMode": "off",
+          "partialExit": {
+            "enabled": false,
+            "triggerR": 1,
+            "fraction": 0.5,
+            "remainderTrail": "terrain"
+          },
+          "donchianChannelUpper": 219.49,
+          "donchianChannelLower": 207.32,
+          "invalidationConditions": [
+            "donchian_channel_reentry"
+          ]
+        }
+      },
+      "expectedStop": -1.643658651836759,
+      "matches": true
+    },
+    {
+      "index": 99,
+      "timestamp": 1725468300000,
+      "result": {
+        "strategy": "DonchianBreakout",
+        "direction": "buy",
+        "confidence": 0.5550609421787335,
+        "reason": "Donchian breakout buy: close 221.89 > prior 20-bar high 221.83",
+        "exitContractHint": {
+          "stopLossPercent": -2.0036110234801088,
+          "stopType": "structural",
+          "atrStopMult": 2.5,
+          "takeProfitPercent": null,
+          "tpMode": "off",
+          "trailingStopPercent": null,
+          "trailingActivation": null,
+          "trailType": "channel",
+          "trailChannelBars": 10,
+          "maxHoldTimeMinutes": null,
+          "maxHoldMode": "off",
+          "partialExit": {
+            "enabled": false,
+            "triggerR": 1,
+            "fraction": 0.5,
+            "remainderTrail": "terrain"
+          },
+          "donchianChannelUpper": 221.83,
+          "donchianChannelLower": 207.32,
+          "invalidationConditions": [
+            "donchian_channel_reentry"
+          ]
+        }
+      },
+      "expectedStop": -2.0036110234801088,
+      "matches": true
+    },
+    {
+      "index": 128,
+      "timestamp": 1725523200000,
+      "result": {
+        "strategy": "DonchianBreakout",
+        "direction": "buy",
+        "confidence": 0.8500000000000001,
+        "reason": "Donchian breakout buy: close 224.61 > prior 20-bar high 220.43",
+        "exitContractHint": {
+          "stopLossPercent": -0.8800198121187828,
+          "stopType": "structural",
+          "atrStopMult": 2.5,
+          "takeProfitPercent": null,
+          "tpMode": "off",
+          "trailingStopPercent": null,
+          "trailingActivation": null,
+          "trailType": "channel",
+          "trailChannelBars": 10,
+          "maxHoldTimeMinutes": null,
+          "maxHoldMode": "off",
+          "partialExit": {
+            "enabled": false,
+            "triggerR": 1,
+            "fraction": 0.5,
+            "remainderTrail": "terrain"
+          },
+          "donchianChannelUpper": 220.425,
+          "donchianChannelLower": 217.54,
+          "invalidationConditions": [
+            "donchian_channel_reentry"
+          ]
+        }
+      },
+      "expectedStop": -0.8800198121187828,
+      "matches": true
+    },
+    {
+      "index": 129,
+      "timestamp": 1725524100000,
+      "result": {
+        "strategy": "DonchianBreakout",
+        "direction": "buy",
+        "confidence": 0.6139382181296199,
+        "reason": "Donchian breakout buy: close 225.18 > prior 20-bar high 224.84",
+        "exitContractHint": {
+          "stopLossPercent": -0.8855637712052564,
+          "stopType": "structural",
+          "atrStopMult": 2.5,
+          "takeProfitPercent": null,
+          "tpMode": "off",
+          "trailingStopPercent": null,
+          "trailingActivation": null,
+          "trailType": "channel",
+          "trailChannelBars": 10,
+          "maxHoldTimeMinutes": null,
+          "maxHoldMode": "off",
+          "partialExit": {
+            "enabled": false,
+            "triggerR": 1,
+            "fraction": 0.5,
+            "remainderTrail": "terrain"
+          },
+          "donchianChannelUpper": 224.84,
+          "donchianChannelLower": 217.57,
+          "invalidationConditions": [
+            "donchian_channel_reentry"
+          ]
+        }
+      },
+      "expectedStop": -0.8855637712052564,
+      "matches": true
+    },
+    {
+      "index": 130,
+      "timestamp": 1725525000000,
+      "result": {
+        "strategy": "DonchianBreakout",
+        "direction": "buy",
+        "confidence": 0.6115566128473768,
+        "reason": "Donchian breakout buy: close 225.50 > prior 20-bar high 225.18",
+        "exitContractHint": {
+          "stopLossPercent": -0.8644900221729481,
+          "stopType": "structural",
+          "atrStopMult": 2.5,
+          "takeProfitPercent": null,
+          "tpMode": "off",
+          "trailingStopPercent": null,
+          "trailingActivation": null,
+          "trailType": "channel",
+          "trailChannelBars": 10,
+          "maxHoldTimeMinutes": null,
+          "maxHoldMode": "off",
+          "partialExit": {
+            "enabled": false,
+            "triggerR": 1,
+            "fraction": 0.5,
+            "remainderTrail": "terrain"
+          },
+          "donchianChannelUpper": 225.18,
+          "donchianChannelLower": 217.8325,
+          "invalidationConditions": [
+            "donchian_channel_reentry"
+          ]
+        }
+      },
+      "expectedStop": -0.8644900221729481,
+      "matches": true
+    },
+    {
+      "index": 150,
+      "timestamp": 1725543000000,
+      "result": {
+        "strategy": "DonchianBreakout",
+        "direction": "buy",
+        "confidence": 0.669276162790699,
+        "reason": "Donchian breakout buy: close 227.62 > prior 20-bar high 226.25",
+        "exitContractHint": {
+          "stopLossPercent": -1.8891325235251888,
+          "stopType": "structural",
+          "atrStopMult": 2.5,
+          "takeProfitPercent": null,
+          "tpMode": "off",
+          "trailingStopPercent": null,
+          "trailingActivation": null,
+          "trailType": "channel",
+          "trailChannelBars": 10,
+          "maxHoldTimeMinutes": null,
+          "maxHoldMode": "off",
+          "partialExit": {
+            "enabled": false,
+            "triggerR": 1,
+            "fraction": 0.5,
+            "remainderTrail": "terrain"
+          },
+          "donchianChannelUpper": 226.25,
+          "donchianChannelLower": 218.85,
+          "invalidationConditions": [
+            "donchian_channel_reentry"
+          ]
+        }
+      },
+      "expectedStop": -1.8891325235251888,
+      "matches": true
+    },
+    {
+      "index": 151,
+      "timestamp": 1725543900000,
+      "result": {
+        "strategy": "DonchianBreakout",
+        "direction": "buy",
+        "confidence": 0.5797583784990217,
+        "reason": "Donchian breakout buy: close 229.71 > prior 20-bar high 229.35",
+        "exitContractHint": {
+          "stopLossPercent": -1.9748976970963363,
+          "stopType": "structural",
+          "atrStopMult": 2.5,
+          "takeProfitPercent": null,
+          "tpMode": "off",
+          "trailingStopPercent": null,
+          "trailingActivation": null,
+          "trailType": "channel",
+          "trailChannelBars": 10,
+          "maxHoldTimeMinutes": null,
+          "maxHoldMode": "off",
+          "partialExit": {
+            "enabled": false,
+            "triggerR": 1,
+            "fraction": 0.5,
+            "remainderTrail": "terrain"
+          },
+          "donchianChannelUpper": 229.35,
+          "donchianChannelLower": 218.85,
+          "invalidationConditions": [
+            "donchian_channel_reentry"
+          ]
+        }
+      },
+      "expectedStop": -1.9748976970963363,
+      "matches": true
+    },
+    {
+      "index": 152,
+      "timestamp": 1725544800000,
+      "result": {
+        "strategy": "DonchianBreakout",
+        "direction": "buy",
+        "confidence": 0.7029827856499107,
+        "reason": "Donchian breakout buy: close 232.57 > prior 20-bar high 230.55",
+        "exitContractHint": {
+          "stopLossPercent": -2.129052543320288,
+          "stopType": "structural",
+          "atrStopMult": 2.5,
+          "takeProfitPercent": null,
+          "tpMode": "off",
+          "trailingStopPercent": null,
+          "trailingActivation": null,
+          "trailType": "channel",
+          "trailChannelBars": 10,
+          "maxHoldTimeMinutes": null,
+          "maxHoldMode": "off",
+          "partialExit": {
+            "enabled": false,
+            "triggerR": 1,
+            "fraction": 0.5,
+            "remainderTrail": "terrain"
+          },
+          "donchianChannelUpper": 230.55,
+          "donchianChannelLower": 218.85,
+          "invalidationConditions": [
+            "donchian_channel_reentry"
+          ]
+        }
+      },
+      "expectedStop": -2.129052543320288,
+      "matches": true
+    },
+    {
+      "index": 153,
+      "timestamp": 1725545700000,
+      "result": {
+        "strategy": "DonchianBreakout",
+        "direction": "buy",
+        "confidence": 0.5707626329882436,
+        "reason": "Donchian breakout buy: close 234.07 > prior 20-bar high 233.78",
+        "exitContractHint": {
+          "stopLossPercent": -2.2376959883795426,
+          "stopType": "structural",
+          "atrStopMult": 2.5,
+          "takeProfitPercent": null,
+          "tpMode": "off",
+          "trailingStopPercent": null,
+          "trailingActivation": null,
+          "trailType": "channel",
+          "trailChannelBars": 10,
+          "maxHoldTimeMinutes": null,
+          "maxHoldMode": "off",
+          "partialExit": {
+            "enabled": false,
+            "triggerR": 1,
+            "fraction": 0.5,
+            "remainderTrail": "terrain"
+          },
+          "donchianChannelUpper": 233.78,
+          "donchianChannelLower": 218.85,
+          "invalidationConditions": [
+            "donchian_channel_reentry"
+          ]
+        }
+      },
+      "expectedStop": -2.2376959883795426,
+      "matches": true
+    },
+    {
+      "index": 210,
+      "timestamp": 1725625800000,
+      "result": {
+        "strategy": "DonchianBreakout",
+        "direction": "buy",
+        "confidence": 0.8462371349222191,
+        "reason": "Donchian breakout buy: close 232.57 > prior 20-bar high 229.85",
+        "exitContractHint": {
+          "stopLossPercent": -1.4804951197488945,
+          "stopType": "structural",
+          "atrStopMult": 2.5,
+          "takeProfitPercent": null,
+          "tpMode": "off",
+          "trailingStopPercent": null,
+          "trailingActivation": null,
+          "trailType": "channel",
+          "trailChannelBars": 10,
+          "maxHoldTimeMinutes": null,
+          "maxHoldMode": "off",
+          "partialExit": {
+            "enabled": false,
+            "triggerR": 1,
+            "fraction": 0.5,
+            "remainderTrail": "terrain"
+          },
+          "donchianChannelUpper": 229.85,
+          "donchianChannelLower": 225.2,
+          "invalidationConditions": [
+            "donchian_channel_reentry"
+          ]
+        }
+      },
+      "expectedStop": -1.4804951197488945,
+      "matches": true
+    },
+    {
+      "index": 278,
+      "timestamp": 1725888600000,
+      "result": {
+        "strategy": "DonchianBreakout",
+        "direction": "buy",
+        "confidence": 0.7476134369516148,
+        "reason": "Donchian breakout buy: close 217.95 > prior 20-bar high 216.64",
+        "exitContractHint": {
+          "stopLossPercent": -1.1438976829548075,
+          "stopType": "structural",
+          "atrStopMult": 2.5,
+          "takeProfitPercent": null,
+          "tpMode": "off",
+          "trailingStopPercent": null,
+          "trailingActivation": null,
+          "trailType": "channel",
+          "trailChannelBars": 10,
+          "maxHoldTimeMinutes": null,
+          "maxHoldMode": "off",
+          "partialExit": {
+            "enabled": false,
+            "triggerR": 1,
+            "fraction": 0.5,
+            "remainderTrail": "terrain"
+          },
+          "donchianChannelUpper": 216.6362,
+          "donchianChannelLower": 213.69,
+          "invalidationConditions": [
+            "donchian_channel_reentry"
+          ]
+        }
+      },
+      "expectedStop": -1.1438976829548075,
+      "matches": true
+    },
+    {
+      "index": 330,
+      "timestamp": 1725964200000,
+      "result": {
+        "strategy": "DonchianBreakout",
+        "direction": "buy",
+        "confidence": 0.6542028482111891,
+        "reason": "Donchian breakout buy: close 218.28 > prior 20-bar high 217.95",
+        "exitContractHint": {
+          "stopLossPercent": -0.5440661077515082,
+          "stopType": "structural",
+          "atrStopMult": 2.5,
+          "takeProfitPercent": null,
+          "tpMode": "off",
+          "trailingStopPercent": null,
+          "trailingActivation": null,
+          "trailType": "channel",
+          "trailChannelBars": 10,
+          "maxHoldTimeMinutes": null,
+          "maxHoldMode": "off",
+          "partialExit": {
+            "enabled": false,
+            "triggerR": 1,
+            "fraction": 0.5,
+            "remainderTrail": "terrain"
+          },
+          "donchianChannelUpper": 217.95,
+          "donchianChannelLower": 216.59,
+          "invalidationConditions": [
+            "donchian_channel_reentry"
+          ]
+        }
+      },
+      "expectedStop": -0.5440661077515082,
+      "matches": true
+    },
+    {
+      "index": 335,
+      "timestamp": 1725968700000,
+      "result": {
+        "strategy": "DonchianBreakout",
+        "direction": "buy",
+        "confidence": 0.5603893909958604,
+        "reason": "Donchian breakout buy: close 219.15 > prior 20-bar high 219.11",
+        "exitContractHint": {
+          "stopLossPercent": -0.6752794889345181,
+          "stopType": "structural",
+          "atrStopMult": 2.5,
+          "takeProfitPercent": null,
+          "tpMode": "off",
+          "trailingStopPercent": null,
+          "trailingActivation": null,
+          "trailType": "channel",
+          "trailChannelBars": 10,
+          "maxHoldTimeMinutes": null,
+          "maxHoldMode": "off",
+          "partialExit": {
+            "enabled": false,
+            "triggerR": 1,
+            "fraction": 0.5,
+            "remainderTrail": "terrain"
+          },
+          "donchianChannelUpper": 219.109,
+          "donchianChannelLower": 216.59,
+          "invalidationConditions": [
+            "donchian_channel_reentry"
+          ]
+        }
+      },
+      "expectedStop": -0.6752794889345181,
+      "matches": true
+    },
+    {
+      "index": 336,
+      "timestamp": 1725969600000,
+      "result": {
+        "strategy": "DonchianBreakout",
+        "direction": "buy",
+        "confidence": 0.6408883416421365,
+        "reason": "Donchian breakout buy: close 219.83 > prior 20-bar high 219.33",
+        "exitContractHint": {
+          "stopLossPercent": -0.9466784998162238,
+          "stopType": "structural",
+          "atrStopMult": 2.5,
+          "takeProfitPercent": null,
+          "tpMode": "off",
+          "trailingStopPercent": null,
+          "trailingActivation": null,
+          "trailType": "channel",
+          "trailChannelBars": 10,
+          "maxHoldTimeMinutes": null,
+          "maxHoldMode": "off",
+          "partialExit": {
+            "enabled": false,
+            "triggerR": 1,
+            "fraction": 0.5,
+            "remainderTrail": "terrain"
+          },
+          "donchianChannelUpper": 219.33,
+          "donchianChannelLower": 216.59,
+          "invalidationConditions": [
+            "donchian_channel_reentry"
+          ]
+        }
+      },
+      "expectedStop": -0.9466784998162238,
+      "matches": true
+    },
+    {
+      "index": 337,
+      "timestamp": 1725970500000,
+      "result": {
+        "strategy": "DonchianBreakout",
+        "direction": "buy",
+        "confidence": 0.5586949464970979,
+        "reason": "Donchian breakout buy: close 220.03 > prior 20-bar high 219.98",
+        "exitContractHint": {
+          "stopLossPercent": -0.9800595373358173,
+          "stopType": "structural",
+          "atrStopMult": 2.5,
+          "takeProfitPercent": null,
+          "tpMode": "off",
+          "trailingStopPercent": null,
+          "trailingActivation": null,
+          "trailType": "channel",
+          "trailChannelBars": 10,
+          "maxHoldTimeMinutes": null,
+          "maxHoldMode": "off",
+          "partialExit": {
+            "enabled": false,
+            "triggerR": 1,
+            "fraction": 0.5,
+            "remainderTrail": "terrain"
+          },
+          "donchianChannelUpper": 219.98,
+          "donchianChannelLower": 214.98,
+          "invalidationConditions": [
+            "donchian_channel_reentry"
+          ]
+        }
+      },
+      "expectedStop": -0.9800595373358173,
+      "matches": true
+    },
+    {
+      "index": 342,
+      "timestamp": 1725975000000,
+      "result": {
+        "strategy": "DonchianBreakout",
+        "direction": "buy",
+        "confidence": 0.648239745677966,
+        "reason": "Donchian breakout buy: close 221.43 > prior 20-bar high 220.68",
+        "exitContractHint": {
+          "stopLossPercent": -1.2927398242062165,
+          "stopType": "structural",
+          "atrStopMult": 2.5,
+          "takeProfitPercent": null,
+          "tpMode": "off",
+          "trailingStopPercent": null,
+          "trailingActivation": null,
+          "trailType": "channel",
+          "trailChannelBars": 10,
+          "maxHoldTimeMinutes": null,
+          "maxHoldMode": "off",
+          "partialExit": {
+            "enabled": false,
+            "triggerR": 1,
+            "fraction": 0.5,
+            "remainderTrail": "terrain"
+          },
+          "donchianChannelUpper": 220.68,
+          "donchianChannelLower": 214.98,
+          "invalidationConditions": [
+            "donchian_channel_reentry"
+          ]
+        }
+      },
+      "expectedStop": -1.2927398242062165,
+      "matches": true
+    },
+    {
+      "index": 343,
+      "timestamp": 1725975900000,
+      "result": {
+        "strategy": "DonchianBreakout",
+        "direction": "buy",
+        "confidence": 0.7027931747363354,
+        "reason": "Donchian breakout buy: close 225.19 > prior 20-bar high 223.83",
+        "exitContractHint": {
+          "stopLossPercent": -1.4821268627056552,
+          "stopType": "structural",
+          "atrStopMult": 2.5,
+          "takeProfitPercent": null,
+          "tpMode": "off",
+          "trailingStopPercent": null,
+          "trailingActivation": null,
+          "trailType": "channel",
+          "trailChannelBars": 10,
+          "maxHoldTimeMinutes": null,
+          "maxHoldMode": "off",
+          "partialExit": {
+            "enabled": false,
+            "triggerR": 1,
+            "fraction": 0.5,
+            "remainderTrail": "terrain"
+          },
+          "donchianChannelUpper": 223.83,
+          "donchianChannelLower": 214.98,
+          "invalidationConditions": [
+            "donchian_channel_reentry"
+          ]
+        }
+      },
+      "expectedStop": -1.4821268627056552,
+      "matches": true
+    },
+    {
+      "index": 365,
+      "timestamp": 1725995700000,
+      "result": {
+        "strategy": "DonchianBreakout",
+        "direction": "buy",
+        "confidence": 0.5893061431364229,
+        "reason": "Donchian breakout buy: close 224.74 > prior 20-bar high 224.36",
+        "exitContractHint": {
+          "stopLossPercent": -1.6131474147904223,
+          "stopType": "structural",
+          "atrStopMult": 2.5,
+          "takeProfitPercent": null,
+          "tpMode": "off",
+          "trailingStopPercent": null,
+          "trailingActivation": null,
+          "trailType": "channel",
+          "trailChannelBars": 10,
+          "maxHoldTimeMinutes": null,
+          "maxHoldMode": "off",
+          "partialExit": {
+            "enabled": false,
+            "triggerR": 1,
+            "fraction": 0.5,
+            "remainderTrail": "terrain"
+          },
+          "donchianChannelUpper": 224.36,
+          "donchianChannelLower": 218.6377,
+          "invalidationConditions": [
+            "donchian_channel_reentry"
+          ]
+        }
+      },
+      "expectedStop": -1.6131474147904223,
+      "matches": true
+    },
+    {
+      "index": 366,
+      "timestamp": 1725996600000,
+      "result": {
+        "strategy": "DonchianBreakout",
+        "direction": "buy",
+        "confidence": 0.585098434339927,
+        "reason": "Donchian breakout buy: close 225.14 > prior 20-bar high 224.82",
+        "exitContractHint": {
+          "stopLossPercent": -1.518117179584779,
+          "stopType": "structural",
+          "atrStopMult": 2.5,
+          "takeProfitPercent": null,
+          "tpMode": "off",
+          "trailingStopPercent": null,
+          "trailingActivation": null,
+          "trailType": "channel",
+          "trailChannelBars": 10,
+          "maxHoldTimeMinutes": null,
+          "maxHoldMode": "off",
+          "partialExit": {
+            "enabled": false,
+            "triggerR": 1,
+            "fraction": 0.5,
+            "remainderTrail": "terrain"
+          },
+          "donchianChannelUpper": 224.82,
+          "donchianChannelLower": 218.6377,
+          "invalidationConditions": [
+            "donchian_channel_reentry"
+          ]
+        }
+      },
+      "expectedStop": -1.518117179584779,
+      "matches": true
+    },
+    {
+      "index": 367,
+      "timestamp": 1725997500000,
+      "result": {
+        "strategy": "DonchianBreakout",
+        "direction": "buy",
+        "confidence": 0.6482025949291748,
+        "reason": "Donchian breakout buy: close 226.13 > prior 20-bar high 225.25",
+        "exitContractHint": {
+          "stopLossPercent": -1.4860478485826716,
+          "stopType": "structural",
+          "atrStopMult": 2.5,
+          "takeProfitPercent": null,
+          "tpMode": "off",
+          "trailingStopPercent": null,
+          "trailingActivation": null,
+          "trailType": "channel",
+          "trailChannelBars": 10,
+          "maxHoldTimeMinutes": null,
+          "maxHoldMode": "off",
+          "partialExit": {
+            "enabled": false,
+            "triggerR": 1,
+            "fraction": 0.5,
+            "remainderTrail": "terrain"
+          },
+          "donchianChannelUpper": 225.25,
+          "donchianChannelLower": 218.6377,
+          "invalidationConditions": [
+            "donchian_channel_reentry"
+          ]
+        }
+      },
+      "expectedStop": -1.4860478485826716,
+      "matches": true
+    },
+    {
+      "index": 371,
+      "timestamp": 1726001100000,
+      "result": {
+        "strategy": "DonchianBreakout",
+        "direction": "buy",
+        "confidence": 0.5705823430939387,
+        "reason": "Donchian breakout buy: close 226.55 > prior 20-bar high 226.40",
+        "exitContractHint": {
+          "stopLossPercent": -1.206323107481788,
+          "stopType": "structural",
+          "atrStopMult": 2.5,
+          "takeProfitPercent": null,
+          "tpMode": "off",
+          "trailingStopPercent": null,
+          "trailingActivation": null,
+          "trailType": "channel",
+          "trailChannelBars": 10,
+          "maxHoldTimeMinutes": null,
+          "maxHoldMode": "off",
+          "partialExit": {
+            "enabled": false,
+            "triggerR": 1,
+            "fraction": 0.5,
+            "remainderTrail": "terrain"
+          },
+          "donchianChannelUpper": 226.4,
+          "donchianChannelLower": 218.6377,
+          "invalidationConditions": [
+            "donchian_channel_reentry"
+          ]
+        }
+      },
+      "expectedStop": -1.206323107481788,
+      "matches": true
+    },
+    {
+      "index": 426,
+      "timestamp": 1726079400000,
+      "result": {
+        "strategy": "DonchianBreakout",
+        "direction": "buy",
+        "confidence": 0.6885297861189446,
+        "reason": "Donchian breakout buy: close 227.01 > prior 20-bar high 225.53",
+        "exitContractHint": {
+          "stopLossPercent": -1.7650756508190597,
+          "stopType": "structural",
+          "atrStopMult": 2.5,
+          "takeProfitPercent": null,
+          "tpMode": "off",
+          "trailingStopPercent": null,
+          "trailingActivation": null,
+          "trailType": "channel",
+          "trailChannelBars": 10,
+          "maxHoldTimeMinutes": null,
+          "maxHoldMode": "off",
+          "partialExit": {
+            "enabled": false,
+            "triggerR": 1,
+            "fraction": 0.5,
+            "remainderTrail": "terrain"
+          },
+          "donchianChannelUpper": 225.5299,
+          "donchianChannelLower": 216.8003,
+          "invalidationConditions": [
+            "donchian_channel_reentry"
+          ]
+        }
+      },
+      "expectedStop": -1.7650756508190597,
+      "matches": true
+    },
+    {
+      "index": 431,
+      "timestamp": 1726083900000,
+      "result": {
+        "strategy": "DonchianBreakout",
+        "direction": "buy",
+        "confidence": 0.6332188791837777,
+        "reason": "Donchian breakout buy: close 228.07 > prior 20-bar high 227.25",
+        "exitContractHint": {
+          "stopLossPercent": -1.6201495154996286,
+          "stopType": "structural",
+          "atrStopMult": 2.5,
+          "takeProfitPercent": null,
+          "tpMode": "off",
+          "trailingStopPercent": null,
+          "trailingActivation": null,
+          "trailType": "channel",
+          "trailChannelBars": 10,
+          "maxHoldTimeMinutes": null,
+          "maxHoldMode": "off",
+          "partialExit": {
+            "enabled": false,
+            "triggerR": 1,
+            "fraction": 0.5,
+            "remainderTrail": "terrain"
+          },
+          "donchianChannelUpper": 227.25,
+          "donchianChannelLower": 216.8003,
+          "invalidationConditions": [
+            "donchian_channel_reentry"
+          ]
+        }
+      },
+      "expectedStop": -1.6201495154996286,
+      "matches": true
+    },
+    {
+      "index": 470,
+      "timestamp": 1726147800000,
+      "result": {
+        "strategy": "DonchianBreakout",
+        "direction": "buy",
+        "confidence": 0.7958083818317179,
+        "reason": "Donchian breakout buy: close 230.25 > prior 20-bar high 228.50",
+        "exitContractHint": {
+          "stopLossPercent": -1.1595059717698128,
+          "stopType": "structural",
+          "atrStopMult": 2.5,
+          "takeProfitPercent": null,
+          "tpMode": "off",
+          "trailingStopPercent": null,
+          "trailingActivation": null,
+          "trailType": "channel",
+          "trailChannelBars": 10,
+          "maxHoldTimeMinutes": null,
+          "maxHoldMode": "off",
+          "partialExit": {
+            "enabled": false,
+            "triggerR": 1,
+            "fraction": 0.5,
+            "remainderTrail": "terrain"
+          },
+          "donchianChannelUpper": 228.5,
+          "donchianChannelLower": 224.24,
+          "invalidationConditions": [
+            "donchian_channel_reentry"
+          ]
+        }
+      },
+      "expectedStop": -1.1595059717698128,
+      "matches": true
+    }
+  ],
+  "limits": "Real registered strategy closure, canonical config and IndicatorEngine on recorded TSLA candles; not full Orchestrator.evaluate, bot, broker, UI, live position or deployment acceptance."
+}

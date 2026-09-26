@@ -1,0 +1,15 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -7,6 +7,11 @@
+ 
+ ## [Unreleased]
+ 
++### Stop 1 Donchian ATR Configuration Delivery (2026-09-26)
++
++- Use Donchian's existing configured-period ATR calculator for its stop distance and extension-based confidence. A finite shared IndicatorEngine ATR previously overrode the strategy setting; the shared Wilder calculation and strategy-owned trailing-SMA calculation can differ in both period and smoothing.
++- Preserve the strategy formulas, configuration declarations, existing constructor validation and exit-family selection. No new setting, fallback, gate, throw or runtime activation. Recorded-candle and actual per-symbol caller receipts are in the Stop 1 configuration-connections packet; whole Stop 1 and deployed behavior remain open.
++
+ ### Mercury Reviewer Verdict Vocabulary (2026-09-26)
+ 
+ - Preserve the final reviewer's exact declared verdict. A live seeded configuration review exposed that Kimi's `pass` meant agreement on a found defect; translating it to `no_break_found` was incorrect. Keep the attributed `pass`, the found-break answers and all disagreement/evidence diagnostics without certifying the code.
