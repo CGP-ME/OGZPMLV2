@@ -4,7 +4,7 @@ Use the existing `/ws` connection, same-origin dashboard session cookie and one-
 
 ## Read
 
-With the PropSafe connection below, this source interface exposes 55 connected fields. This is not the final Stop 1 inventory or proof that a running bot/page has loaded the revision.
+With the EMA trend-retest connection below, this source interface exposes 66 connected fields. This is not the final Stop 1 inventory or proof that a running bot/page has loaded the revision.
 
 Send `{type:"get_settings", requestId:"<fresh correlation ID>"}`. Each connected, bot-authenticated owner returns `settings_result` with that requestId, relay-stamped `ownerId`, `success`, `profile`, `configuration`, and `fields`.
 
@@ -94,6 +94,23 @@ PropSafe adds the following existing controls through the same owner/save protoc
 
 Invalid combined periods return `propsafe_ema_periods_must_increase`; invalid distance band returns `propsafe_pullback_min_must_be_below_max`, with no saved/applied revision. This slice does not enable registration, edit the RTH schedule, change confidence formulas or advertise targetRR / legacy R-multiple trailing metadata as effective exit controls. Backend metadata remains the numeric-bound authority; no frontend defaults.
 
+EMA trend-retest adds eleven connected controls using prefix `strategies.EMATrendRetest.`:
+
+| Field | Unit / bound | Consumer effect |
+| --- | --- | --- |
+| atrPeriod | Positive integer candles | Strategy-configured ATR for retest geometry and new stop calculation. |
+| slopeLookbackBars | Positive integer candles | Next entry's EMA slope lookback and warmup. |
+| minSlopePct | Positive percent (0.03 means 0.03%, not 3%) | Minimum directional EMA slope for entry. |
+| retestLookbackBars | Positive integer candles | Next entry's eligible retest window. |
+| touchZoneAtr | Positive ATR multiple | Retest proximity and existing retest-quality contribution. |
+| closeAwayAtr | Positive ATR multiple | Required strict confirmation distance from the selected EMA. |
+| maxExtensionAtr | Positive ATR multiple, strictly greater than closeAwayAtr | Maximum entry extension from the selected EMA. |
+| atrStopMult | Positive ATR multiple | New trade's initial stop; open trade contracts retained. |
+| maxHoldTimeMinutes | Positive minutes | New trade's existing hold-duration consumer. |
+| requireRth, allowShorts | Booleans, preserve false | Existing regular-hours and short-signal conditions, not strategy registration or broker-mode authorization. |
+
+The settings save rejects maximum extension <= confirmation distance with `ema_retest_extension_must_exceed_confirmation`; that combination otherwise makes either direction's entry impossible. Related edits can be sent together. The EMA period-list format, RTH schedule, confidence constants and unproven legacy exit metadata are not made editable by this slice.
+
 ```json
 {
   "type": "save_settings",
@@ -105,7 +122,7 @@ Invalid combined periods return `propsafe_ema_periods_must_increase`; invalid di
 }
 ```
 
-The example revision is illustrative; always send the revision and hash just read, never hardcode them. Changes are an atomic request: an invalid/unsupported field rejects the entire edit. Only the forty-three listed fields are currently accepted. Saves do not edit internals, broker identity, execution mode, credentials, or existing trade exits. Paper/live activation and profile switching are not settings-save operations.
+The example revision is illustrative; always send the revision and hash just read, never hardcode them. Changes are an atomic request: an invalid/unsupported field rejects the entire edit. Only the 66 listed fields are currently accepted. Saves do not edit internals, broker identity, execution mode, credentials, or existing trade exits. Paper/live activation and profile switching are not settings-save operations.
 
 Donchian registration is not enabled by these five controls. The canonical configuration disables the historical global ATR-contract tuning overlay; that competing override remains a named migration issue, not certified by this UI connection. Descriptor-owned backtests cannot be changed through this save route.
 

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Stop 1 EMA Retest Settings Connection (2026-09-26)
+
+- Connect eleven existing EMA trend-retest parameters to retained per-symbol consumers and entry-owned stop/hold contracts. Use configured-period ATR; reject an impossible extension/confirmation input relationship at settings publication. No new runtime stop, confidence formula, registration or activation.
+- Preserve before/after consumer observations, the accepted-impossible-band counterexample and full review dispositions in ogz-meta/inbox/codex/2026-09-26/stop1-ema-retest-settings/. Complete Stop 1 and deployed UI acceptance remain open.
+
 ### Stop 1 PropSafe Settings Connection (2026-09-26)
 
 - Connect twelve existing PropSafe EMA pullback parameters to retained per-symbol consumers and entry-owned stop/hold contracts. Honor configured-period ATR instead of shared-ATR precedence; validate existing period/band relationships before publication. No new runtime stop, confidence formula, registration or activation.

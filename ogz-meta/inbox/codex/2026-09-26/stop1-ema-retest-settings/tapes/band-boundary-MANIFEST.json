@@ -1,0 +1,24 @@
+{
+  "at": "2026-09-26T13:17:16.965Z",
+  "files": [
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-ema-retest-settings/private/candidate-uqRGav/receipt.json",
+      "originalSha256": "9188a69603f1b4f19d8d9fdea5af367f16a8f5b7bd324f917867fa199a025e96",
+      "originalBytes": 16252510,
+      "redactedPath": "tapes/band-boundary--candidate-uqRGav--receipt.json.gz",
+      "redactedSha256": "9d62cf26606f0aff08f5079309a982b490a4490a2fe0480c6100dd3dab9b9e88",
+      "gzipSha256": "e8c59df4ea700bcc6fec2765629e76f1a50a8d52c0ddb6216b83916331212e27",
+      "gzipBytes": 571434
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-ema-retest-settings/private/candidate-uqRGav/console.json",
+      "originalSha256": "65687a9edcc350b99a8e4ab0074eb3acd496e18078e705ff3945524e5454546c",
+      "originalBytes": 4159918,
+      "redactedPath": "tapes/band-boundary--candidate-uqRGav--console.json.gz",
+      "redactedSha256": "65687a9edcc350b99a8e4ab0074eb3acd496e18078e705ff3945524e5454546c",
+      "gzipSha256": "e0dc26a53d43fbe2ccbd04f6a4d5fdc199248e3b2d0680e52f764b591a0e8010",
+      "gzipBytes": 78013
+    }
+  ],
+  "knownCredentialMatches": 0
+}

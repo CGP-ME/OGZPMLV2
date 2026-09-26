@@ -2167,7 +2167,7 @@ class StrategyOrchestrator {
           () => new EMATrendRetest(
             ConfigLoader.get('strategies.EMATrendRetest')
           )
-        ).evaluate(ctx)
+        ).evaluate(ctx, ConfigLoader.get('strategies.EMATrendRetest'))
       });
     }
 

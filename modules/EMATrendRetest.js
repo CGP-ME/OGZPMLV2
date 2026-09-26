@@ -159,20 +159,21 @@ function etMinuteFor(date, timeZone) {
 
 class EMATrendRetest {
   constructor(config) {
-    Object.defineProperty(this, 'cfg', {
-      value: Object.freeze(readConfig(config)),
-      writable: false,
-      configurable: false,
-      enumerable: true,
-    });
+    this.configure(config);
+  }
+
+  configure(config) {
+    this.cfg = Object.freeze(readConfig(config));
     this.minHistory = Math.max(
       Math.max(...this.cfg.emaPeriods) + this.cfg.slopeLookbackBars + 2,
       this.cfg.atrPeriod + 2,
       this.cfg.retestLookbackBars + 2
     );
+    this.configurationInput = config;
   }
 
-  evaluate(ctx) {
+  evaluate(ctx, config = this.configurationInput) {
+    if (config !== this.configurationInput) this.configure(config);
     const candles = ctx && ctx.priceHistory;
     if (!Array.isArray(candles) || candles.length < this.minHistory) return null;
 
@@ -182,9 +183,7 @@ class EMATrendRetest {
 
     if (this.cfg.requireRth && !this._isRth(latest)) return null;
 
-    const atr = (ctx.indicators && Number.isFinite(ctx.indicators.atr))
-      ? ctx.indicators.atr
-      : IndicatorCalculator.calculateATR(candles, this.cfg.atrPeriod);
+    const atr = IndicatorCalculator.calculateATR(candles, this.cfg.atrPeriod);
     if (!Number.isFinite(atr) || atr <= 0) return null;
 
     const candidates = [];

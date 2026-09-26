@@ -2678,6 +2678,48 @@ const EDITABLE_SETTINGS = deepFreeze({
   'strategies.PropSafeEMAPullback.allowShorts': {
     type: 'boolean', unit: 'boolean', label: 'Allow PropSafe short signals', effect: 'next_entry_evaluation',
   },
+  'strategies.EMATrendRetest.atrPeriod': {
+    type: 'number', unit: 'candles', integer: true, min: 1, max: Number.MAX_SAFE_INTEGER,
+    label: 'EMA retest ATR period', effect: 'next_entry_and_new_trade_stop',
+  },
+  'strategies.EMATrendRetest.slopeLookbackBars': {
+    type: 'number', unit: 'candles', integer: true, min: 1, max: Number.MAX_SAFE_INTEGER,
+    label: 'EMA retest slope lookback', effect: 'next_entry_evaluation',
+  },
+  'strategies.EMATrendRetest.minSlopePct': {
+    type: 'number', unit: 'percent', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
+    label: 'EMA retest minimum EMA slope', effect: 'next_entry_evaluation',
+  },
+  'strategies.EMATrendRetest.retestLookbackBars': {
+    type: 'number', unit: 'candles', integer: true, min: 1, max: Number.MAX_SAFE_INTEGER,
+    label: 'EMA retest retest lookback', effect: 'next_entry_evaluation',
+  },
+  'strategies.EMATrendRetest.touchZoneAtr': {
+    type: 'number', unit: 'ATR multiples', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
+    label: 'EMA retest touch zone', effect: 'next_entry_evaluation',
+  },
+  'strategies.EMATrendRetest.closeAwayAtr': {
+    type: 'number', unit: 'ATR multiples', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
+    label: 'EMA retest confirmation distance', effect: 'next_entry_evaluation',
+  },
+  'strategies.EMATrendRetest.maxExtensionAtr': {
+    type: 'number', unit: 'ATR multiples', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
+    label: 'EMA retest maximum extension', effect: 'next_entry_evaluation',
+  },
+  'strategies.EMATrendRetest.atrStopMult': {
+    type: 'number', unit: 'ATR multiples', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
+    label: 'EMA retest initial stop distance', effect: 'new_trades_only',
+  },
+  'strategies.EMATrendRetest.maxHoldTimeMinutes': {
+    type: 'number', unit: 'minutes', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
+    label: 'EMA retest maximum hold', effect: 'new_trades_only',
+  },
+  'strategies.EMATrendRetest.requireRth': {
+    type: 'boolean', unit: 'boolean', label: 'Require EMA retest regular trading hours', effect: 'next_entry_evaluation',
+  },
+  'strategies.EMATrendRetest.allowShorts': {
+    type: 'boolean', unit: 'boolean', label: 'Allow EMA retest short signals', effect: 'next_entry_evaluation',
+  },
 });
 
 function getSettingsView() {
@@ -2747,6 +2789,10 @@ function saveSettings(request) {
     if (!(cfg.pullbackMinAtr < cfg.pullbackMaxAtr)) {
       return reject('propsafe_pullback_min_must_be_below_max');
     }
+  }
+  if (entries.some(([key]) => key.startsWith('strategies.EMATrendRetest.'))
+      && nextConfig.strategies.EMATrendRetest.maxExtensionAtr <= nextConfig.strategies.EMATrendRetest.closeAwayAtr) {
+    return reject('ema_retest_extension_must_exceed_confirmation');
   }
   nextSettings.revision += 1;
   if (entries.some(([key]) => key.startsWith('exitLogic.trail.'))
