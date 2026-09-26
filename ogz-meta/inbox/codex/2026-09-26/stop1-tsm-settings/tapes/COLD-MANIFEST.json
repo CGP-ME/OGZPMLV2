@@ -1,0 +1,20 @@
+{
+  "commit": "f88bdc409389a3706d12b5ce84255eb08da6509f",
+  "boundary": "same-host separate clone fetched from GitHub; not independent metal or running bot",
+  "files": [
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-tsm-settings/private/cold-gLfhfQ/receipt.json",
+      "originalSha256": "c174fbde9b09ac94cefadb492ded38087024ee5ebfe1eaef8cbf21c787439a87",
+      "redactedSha256": "687e6a052aca39da1410d3917d98b3f576b00d08286a4a4e749948743c9d153b",
+      "gzipSha256": "25be6c771a9e67a9c06260cfc7964e0a053751d961b38b4ffe32c227f0584bcb",
+      "redactedPath": "tapes/cold-receipt.json.gz"
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-tsm-settings/private/cold-gLfhfQ/console.json",
+      "originalSha256": "0ceb60e30fb288d97ffa19785a141f9ac8a3ece169525c1caf0cb68bdb2967b7",
+      "redactedSha256": "0ceb60e30fb288d97ffa19785a141f9ac8a3ece169525c1caf0cb68bdb2967b7",
+      "gzipSha256": "7a29b353119301b9a1edc1ecb5acd82665cf5462e0bd5fc18d309c28b72f9ec6",
+      "redactedPath": "tapes/cold-console.json.gz"
+    }
+  ]
+}
