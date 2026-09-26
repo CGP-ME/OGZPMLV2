@@ -748,6 +748,12 @@ function normalizeExitContractHint(hint, strategyName) {
   const optionalNonNegativeFields = new Set(['trailingActivation']);
   for (const key of [...optionalPositiveFields, ...optionalNonNegativeFields]) {
     if (hint[key] === undefined) continue;
+    // Channel/ATR trailing has no percent distance or activation to transport.
+    if (hint[key] === null && (key === 'trailingStopPercent' || key === 'trailingActivation')
+        && (trailType === 'channel' || trailType === 'atr')) {
+      normalized[key] = null;
+      continue;
+    }
     if (key === 'maxHoldTimeMinutes' && hint.maxHoldMode === 'off' && hint[key] === null) {
       normalized[key] = null;
       continue;
@@ -2128,7 +2134,7 @@ class StrategyOrchestrator {
         () => new DonchianBreakout(
           ConfigLoader.get('strategies.DonchianBreakout')
         )
-      ).evaluate(ctx)
+      ).evaluate(ctx, ConfigLoader.get('strategies.DonchianBreakout'))
     });
 
     if (shouldRegister('PropSafeEMAPullback')) {

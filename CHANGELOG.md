@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Stop 1 Donchian Settings Delivery (2026-09-26)
+
+- Connect the five existing Donchian entry/ATR/channel/short-permission controls through the accepted settings snapshot to retained per-symbol strategy instances. New contracts and frozen policies carry the selected risk/channel values; existing trades are not rewritten.
+- Preserve explicitly absent percent-trailing fields for channel/ATR contracts instead of rejecting the Donchian producer's valid nulls. Percent-trailing validation, strategy registration and historical tuning policy are unchanged. Source-matched recorded-candle and receiver/exit receipts accompany the atomic change; full UI and deployed acceptance remain open.
+
 ### Stop 1 RSI Settings Delivery (2026-09-26)
 
 - Connect the six existing RSI period/threshold/regime settings to the dashboard save API and the existing strategy/entry-owned exit consumers. Preserve the configured threshold of 50, timeframe-specific risk contract, and RSI period/threshold in the frozen entry policy. RSI exits strictly above its threshold; RSI2 retains its inclusive comparison.

@@ -23,6 +23,11 @@ Select the owner explicitly; do not take the first reply as an implicit target. 
 | strategies.RSI.regimeMaFilter.enabled | Boolean, preserve false. | Next RSI entry evaluation. |
 | strategies.RSI.regimeMaFilter.period | Positive integer candle count. | Next RSI entry evaluation once the selected lookback is available. |
 | strategies.RSI.regimeMaFilter.timeframe | Enum: trading, 1h, 4h. | Existing delivered-candle consumer; unavailable selected-frame evidence remains unavailable. Saving this does not acquire broker candles. |
+| strategies.DonchianBreakout.entryPeriod | Positive integer candle count. | Next evaluation after channel lookback is available; existing symbol instances retained. |
+| strategies.DonchianBreakout.atrPeriod | Positive integer candle count. | Next entry's strategy-owned ATR stop and confidence calculation. |
+| strategies.DonchianBreakout.atrStopMult | Positive ATR multiple, not percent. | New entry's stop distance; does not rewrite an existing trade's stop. |
+| strategies.DonchianBreakout.allowShorts | Boolean, preserve false. | Allows Donchian sell-direction signals, still subject to existing direction/entry policy; not permission to change broker mode. |
+| strategies.DonchianBreakout.trailChannelBars | Positive integer candle count. | New entry's owned channel-trailing lookback; old contracts retain theirs. |
 
 Honor `integer:true` and `values` enum metadata. RSI buyBelow/exitAbove edits are validated together; `rsi_buy_must_be_below_exit` rejects the request without changing the accepted snapshot. These controls do not enable the RSI strategy or change its existing registration switch.
 
@@ -39,7 +44,9 @@ Honor `integer:true` and `values` enum metadata. RSI buyBelow/exitAbove edits ar
 }
 ```
 
-The example revision is illustrative; always send the revision and hash just read, never hardcode them. Changes are an atomic request: an invalid/unsupported field rejects the entire edit. Only the nine listed fields are currently accepted. Saves do not edit internals, broker identity, execution mode, credentials, or existing trade exits. Paper/live activation and profile switching are not settings-save operations.
+The example revision is illustrative; always send the revision and hash just read, never hardcode them. Changes are an atomic request: an invalid/unsupported field rejects the entire edit. Only the fourteen listed fields are currently accepted. Saves do not edit internals, broker identity, execution mode, credentials, or existing trade exits. Paper/live activation and profile switching are not settings-save operations.
+
+Donchian registration is not enabled by these five controls. The canonical configuration disables the historical global ATR-contract tuning overlay; that competing override remains a named migration issue, not certified by this UI connection. Descriptor-owned backtests cannot be changed through this save route.
 
 Successful `settings_result` returns `saved:true`, `applied:true`, and the new complete view. Replace local values and revision with that response. Match both requestId and ownerId: responses are visible to the authenticated dashboards sharing this relay. Do not mark success on socket send or optimistic local state alone.
 

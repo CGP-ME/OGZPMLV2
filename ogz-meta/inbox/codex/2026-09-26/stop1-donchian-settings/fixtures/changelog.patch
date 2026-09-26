@@ -1,0 +1,12 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -8,3 +8,8 @@
+ ## [Unreleased]
+ 
++### Stop 1 Donchian Settings Delivery (2026-09-26)
++
++- Connect the five existing Donchian entry/ATR/channel/short-permission controls through the accepted settings snapshot to retained per-symbol strategy instances. New contracts and frozen policies carry the selected risk/channel values; existing trades are not rewritten.
++- Preserve explicitly absent percent-trailing fields for channel/ATR contracts instead of rejecting the Donchian producer's valid nulls. Percent-trailing validation, strategy registration and historical tuning policy are unchanged. Source-matched recorded-candle and receiver/exit receipts accompany the atomic change; full UI and deployed acceptance remain open.
++
+ ### Stop 1 RSI Settings Delivery (2026-09-26)

@@ -58,6 +58,10 @@ function readConfig(config) {
 
 class DonchianBreakout {
   constructor(config) {
+    this.configure(config);
+  }
+
+  configure(config) {
     const cfg = readConfig(config);
 
     this.entryPeriod = Number(cfg.entryPeriod);
@@ -75,9 +79,11 @@ class DonchianBreakout {
       partialExit: { ...cfg.partialExit },
       invalidationConditions: [...cfg.invalidationConditions],
     };
+    this.configurationInput = config;
   }
 
-  evaluate(ctx) {
+  evaluate(ctx, config = this.configurationInput) {
+    if (config !== this.configurationInput) this.configure(config);
     const candles = ctx && ctx.priceHistory;
     if (!Array.isArray(candles) || candles.length < this.minHistory) return null;
 

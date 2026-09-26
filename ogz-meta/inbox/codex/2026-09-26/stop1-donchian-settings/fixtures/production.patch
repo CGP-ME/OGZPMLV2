@@ -1,0 +1,85 @@
+diff --git a/core/StrategyOrchestrator.js b/core/StrategyOrchestrator.js
+index 4396c30..5e96aa2 100644
+--- a/core/StrategyOrchestrator.js
++++ b/core/StrategyOrchestrator.js
+@@ -748,6 +748,12 @@ function normalizeExitContractHint(hint, strategyName) {
+   const optionalNonNegativeFields = new Set(['trailingActivation']);
+   for (const key of [...optionalPositiveFields, ...optionalNonNegativeFields]) {
+     if (hint[key] === undefined) continue;
++    // Channel/ATR trailing has no percent distance or activation to transport.
++    if (hint[key] === null && (key === 'trailingStopPercent' || key === 'trailingActivation')
++        && (trailType === 'channel' || trailType === 'atr')) {
++      normalized[key] = null;
++      continue;
++    }
+     if (key === 'maxHoldTimeMinutes' && hint.maxHoldMode === 'off' && hint[key] === null) {
+       normalized[key] = null;
+       continue;
+@@ -2128,7 +2134,7 @@ class StrategyOrchestrator {
+         () => new DonchianBreakout(
+           ConfigLoader.get('strategies.DonchianBreakout')
+         )
+-      ).evaluate(ctx)
++      ).evaluate(ctx, ConfigLoader.get('strategies.DonchianBreakout'))
+     });
+ 
+     if (shouldRegister('PropSafeEMAPullback')) {
+diff --git a/foundation/ConfigLoader.js b/foundation/ConfigLoader.js
+index e7eadab..4fe8162 100644
+--- a/foundation/ConfigLoader.js
++++ b/foundation/ConfigLoader.js
+@@ -2496,6 +2496,26 @@ const EDITABLE_SETTINGS = deepFreeze({
+     type: 'string', unit: 'timeframe', values: ['trading', '1h', '4h'],
+     label: 'RSI moving-average timeframe', effect: 'next_RSI_entry_using_selected_frame_candles',
+   },
++  'strategies.DonchianBreakout.entryPeriod': {
++    type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
++    label: 'Donchian entry channel period', effect: 'next_Donchian_entry_after_lookback_ready',
++  },
++  'strategies.DonchianBreakout.atrPeriod': {
++    type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
++    label: 'Donchian ATR period', effect: 'next_Donchian_entry_risk_and_confidence',
++  },
++  'strategies.DonchianBreakout.atrStopMult': {
++    type: 'number', unit: 'atr_multiple', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
++    label: 'Donchian stop ATR multiple', effect: 'new_Donchian_trade_stop_only',
++  },
++  'strategies.DonchianBreakout.allowShorts': {
++    type: 'boolean', unit: 'boolean', label: 'Donchian short signals',
++    effect: 'next_Donchian_evaluation_subject_to_existing_direction_policy',
++  },
++  'strategies.DonchianBreakout.trailChannelBars': {
++    type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
++    label: 'Donchian exit channel period', effect: 'new_Donchian_trade_channel_trail_only',
++  },
+ });
+ 
+ function getSettingsView() {
+diff --git a/modules/DonchianBreakout.js b/modules/DonchianBreakout.js
+index 02bb14e..3f36509 100644
+--- a/modules/DonchianBreakout.js
++++ b/modules/DonchianBreakout.js
+@@ -58,6 +58,10 @@ function readConfig(config) {
+ 
+ class DonchianBreakout {
+   constructor(config) {
++    this.configure(config);
++  }
++
++  configure(config) {
+     const cfg = readConfig(config);
+ 
+     this.entryPeriod = Number(cfg.entryPeriod);
+@@ -75,9 +79,11 @@ class DonchianBreakout {
+       partialExit: { ...cfg.partialExit },
+       invalidationConditions: [...cfg.invalidationConditions],
+     };
++    this.configurationInput = config;
+   }
+ 
+-  evaluate(ctx) {
++  evaluate(ctx, config = this.configurationInput) {
++    if (config !== this.configurationInput) this.configure(config);
+     const candles = ctx && ctx.priceHistory;
+     if (!Array.isArray(candles) || candles.length < this.minHistory) return null;
+ 

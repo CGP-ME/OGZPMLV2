@@ -2496,6 +2496,26 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'string', unit: 'timeframe', values: ['trading', '1h', '4h'],
     label: 'RSI moving-average timeframe', effect: 'next_RSI_entry_using_selected_frame_candles',
   },
+  'strategies.DonchianBreakout.entryPeriod': {
+    type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
+    label: 'Donchian entry channel period', effect: 'next_Donchian_entry_after_lookback_ready',
+  },
+  'strategies.DonchianBreakout.atrPeriod': {
+    type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
+    label: 'Donchian ATR period', effect: 'next_Donchian_entry_risk_and_confidence',
+  },
+  'strategies.DonchianBreakout.atrStopMult': {
+    type: 'number', unit: 'atr_multiple', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
+    label: 'Donchian stop ATR multiple', effect: 'new_Donchian_trade_stop_only',
+  },
+  'strategies.DonchianBreakout.allowShorts': {
+    type: 'boolean', unit: 'boolean', label: 'Donchian short signals',
+    effect: 'next_Donchian_evaluation_subject_to_existing_direction_policy',
+  },
+  'strategies.DonchianBreakout.trailChannelBars': {
+    type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
+    label: 'Donchian exit channel period', effect: 'new_Donchian_trade_channel_trail_only',
+  },
 });
 
 function getSettingsView() {
