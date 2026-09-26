@@ -1,0 +1,147 @@
+{
+  "at": "2026-09-26T10:30:13.655Z",
+  "status": "LOCAL_OBSERVATIONS_ONLY_REVIEW_BLOCKED",
+  "files": [
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-entry-exit-settings/private/blast.json",
+      "originalSha256": "0f79bb1187bea7e529613e44f9bc5bb51a98d2faaff125f6f34957e0f76f6caf",
+      "originalBytes": 145664,
+      "redactedPath": "tapes/blast.json.gz",
+      "redactedSha256": "9b4aa4c4b7bf2f7da4ae522261418a7b7e7fded0d6abf5b77dfeced0c9998360",
+      "redactedBytes": 145381,
+      "gzipSha256": "b49fa02fd1a5a8dd843c9fdc634468458caf24f8b02fc409cd07b01ca0bceb10",
+      "gzipBytes": 28454
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-entry-exit-settings/private/baseline-WB811g/receipt.json",
+      "originalSha256": "3976773ada9c79846b26f08c6ecfdd75774a52641e8d2fe10b176737f86b732e",
+      "originalBytes": 2248105,
+      "redactedPath": "tapes/baseline-WB811g--receipt.json.gz",
+      "redactedSha256": "4068308661e94b903d300ee3cb8bf2de2b79fbfc3613df026a6e0f0c003e87cd",
+      "redactedBytes": 2247837,
+      "gzipSha256": "1ec441d1d1f6e6d746cb0505793f02d19279d63f46fb53a0faea72183c0b207f",
+      "gzipBytes": 131273
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-entry-exit-settings/private/baseline-WB811g/console.json",
+      "originalSha256": "94a148f8079953fda5a5762678f17b9d4422cc9d3c9aee9f92f11a6dbc4d906b",
+      "originalBytes": 347,
+      "redactedPath": "tapes/baseline-WB811g--console.json.gz",
+      "redactedSha256": "94a148f8079953fda5a5762678f17b9d4422cc9d3c9aee9f92f11a6dbc4d906b",
+      "redactedBytes": 347,
+      "gzipSha256": "3abee3687dadc3c47c0a65941fe87ee4882a9eaf110649f56d3211c663febffe",
+      "gzipBytes": 239
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-entry-exit-settings/private/candidate-3iRKCC/receipt.json",
+      "originalSha256": "fccb72c72ca6022547605dbb5b85a3d24949de1329acb323f2fd97887324effa",
+      "originalBytes": 3346721,
+      "redactedPath": "tapes/candidate-3iRKCC--receipt.json.gz",
+      "redactedSha256": "3836992506822fcdf8d9a5c3aa03b0b99c77f212b439117d37c3fa622dfcccb3",
+      "redactedBytes": 3327915,
+      "gzipSha256": "95291b8324caabe1210fca288bdc1a5231fe701a3e7388b967d87364a0981633",
+      "gzipBytes": 163767
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-entry-exit-settings/private/candidate-3iRKCC/console.json",
+      "originalSha256": "0c9ee9f61da450e9933f6f4f19ed137cf3768bfbaf6f9a6ccecc3d2c32cb4e3a",
+      "originalBytes": 1293,
+      "redactedPath": "tapes/candidate-3iRKCC--console.json.gz",
+      "redactedSha256": "0c9ee9f61da450e9933f6f4f19ed137cf3768bfbaf6f9a6ccecc3d2c32cb4e3a",
+      "redactedBytes": 1293,
+      "gzipSha256": "e149652d23e0c854bb89974e100de2b956c72fc62d8193fbb661abbdd1a95575",
+      "gzipBytes": 363
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-entry-exit-settings/private/baseline-EIgstL/failure.json",
+      "originalSha256": "62cec6ba666dfd96b39587a9991823b8dd1cdb033fb62aa4a51dd637d1b8257d",
+      "originalBytes": 1802,
+      "redactedPath": "tapes/baseline-EIgstL--failure.json.gz",
+      "redactedSha256": "62cec6ba666dfd96b39587a9991823b8dd1cdb033fb62aa4a51dd637d1b8257d",
+      "redactedBytes": 1802,
+      "gzipSha256": "36eca99dfeeecbeae79768e77166dcb9f56e8c9eca095db4ed7e988c8affb234",
+      "gzipBytes": 962
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-entry-exit-settings/private/candidate-DQ0yrG/failure.json",
+      "originalSha256": "9cd567a91387a955035e69dd4d33d8dc5d6839a0938e6939757c8cf7a0f4d788",
+      "originalBytes": 1939,
+      "redactedPath": "tapes/candidate-DQ0yrG--failure.json.gz",
+      "redactedSha256": "9cd567a91387a955035e69dd4d33d8dc5d6839a0938e6939757c8cf7a0f4d788",
+      "redactedBytes": 1939,
+      "gzipSha256": "2355f9955f75a92fcb63deb84e6c26b0891dd06d66cd8544f0b6880a99ccabea",
+      "gzipBytes": 1032
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-config-connections/private/entry-exit-settings-preflight/invocation.json",
+      "originalSha256": "bdba0c5dc56d7bedb6f13d71bee0cd2282133318bc1739eea0eff41d7f2da5ef",
+      "originalBytes": 959848,
+      "redactedPath": "tapes/preflight--invocation.json.gz",
+      "redactedSha256": "0d24fd24ef96e3259a8bff69e888a9f03b950c7461f3944edd28feb4b7b6e168",
+      "redactedBytes": 926036,
+      "gzipSha256": "33d3c18b83ec6342f2453819377317a0cf9a31095e984dc7c75d0b8f379e07f7",
+      "gzipBytes": 256005
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-config-connections/private/entry-exit-settings-preflight/completion.json",
+      "originalSha256": "c969b13a655dd0b88ae9134392ba5727d1e4798dc8c2ac9a6bc02051c11c9f2c",
+      "originalBytes": 959294,
+      "redactedPath": "tapes/preflight--completion.json.gz",
+      "redactedSha256": "79cab73b0edf350885491d48b2edda6d470a9f75583e1179d489ff2e26a4edbb",
+      "redactedBytes": 925482,
+      "gzipSha256": "ee76821cc2f1c1d9f5b2f64ce44069b435858e609e630b6ac9d05f73aac54e20",
+      "gzipBytes": 255619
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-config-connections/private/entry-exit-settings-preflight/console.log",
+      "originalSha256": "2aae89eea7486f07eddb2c7a288e86e82e2a3173187b0448bd6e552db5cc10ae",
+      "originalBytes": 16223,
+      "redactedPath": "tapes/preflight--console.log.gz",
+      "redactedSha256": "2aae89eea7486f07eddb2c7a288e86e82e2a3173187b0448bd6e552db5cc10ae",
+      "redactedBytes": 16223,
+      "gzipSha256": "a1c25588cf9ea4a9d688d318d645f56f2c9074d920160afe8271060d71d13a71",
+      "gzipBytes": 2426
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t10-22-06-994z-1744044-af32b826ef26/mercury-1.raw",
+      "originalSha256": "4ebaff7ec3c5fedfd06a98a3dbff33ad0bc79b72da2e524f7a4332f547f635ad",
+      "originalBytes": 466,
+      "redactedPath": "tapes/preflight--mercury--raw_output.raw.gz",
+      "redactedSha256": "9f2cf0e4260edaed041c350e8451602cca4146819d09df0f5400eb150e7e56ef",
+      "redactedBytes": 431,
+      "gzipSha256": "5b73ec22d2acf64d9c39baf5e90f0ad9edad66cb042acc18206ceb095d5edd2e",
+      "gzipBytes": 276
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t10-22-06-994z-1744044-af32b826ef26/fable_challenger-2.raw",
+      "originalSha256": "b10ca47646e3e08a1145d1eb24095bbfb7eb7a8c1e2453014b01a8f2f7b5a702",
+      "originalBytes": 3341,
+      "redactedPath": "tapes/preflight--fable_challenger--raw_output.raw.gz",
+      "redactedSha256": "ee646803a732ec7a5a480023b4fd7eddc96adaf6f70edf51d0128606d846acc7",
+      "redactedBytes": 3081,
+      "gzipSha256": "941e144b049c60d91d83dab7e6df20101db97e4aa551799b4226e2a3ddc555c5",
+      "gzipBytes": 1166
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/cognition-history/mercury-runs/raw/2026-09-26/2026-09-26t10-22-06-994z-1744044-af32b826ef26/kimi_tie_breaker-3.raw",
+      "originalSha256": "433186f3f5c6e8bd781dd9eab1d9d226b4bf829623805a8f638ba48ed6ac8a91",
+      "originalBytes": 331,
+      "redactedPath": "tapes/preflight--kimi_tie_breaker--raw_output.raw.gz",
+      "redactedSha256": "30e95156c4d1e3e6a6a1820e16bf244aeb5319e50cf5a2d6f0ac5fb6301c6fc3",
+      "redactedBytes": 308,
+      "gzipSha256": "0a532c121a0e6d1aef6e30d922e77ac990899e107acfde6d0c820ee12f83f457",
+      "gzipBytes": 234
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-entry-exit-settings/private/preflight-ledger.jsonl",
+      "originalSha256": "5d2b2d9dcf4e61ce4d81af3fe18bf474504c06d5b2fda2b4bce1a69c1edbd71c",
+      "originalBytes": 17003,
+      "redactedPath": "tapes/preflight-ledger.jsonl.gz",
+      "redactedSha256": "5d2b2d9dcf4e61ce4d81af3fe18bf474504c06d5b2fda2b4bce1a69c1edbd71c",
+      "redactedBytes": 17003,
+      "gzipSha256": "1415a9571a3302aa4d3591cafda2345dbfdc031a856e5463e1eadc830116604b",
+      "gzipBytes": 2672
+    }
+  ],
+  "knownCredentialMatches": 0
+}

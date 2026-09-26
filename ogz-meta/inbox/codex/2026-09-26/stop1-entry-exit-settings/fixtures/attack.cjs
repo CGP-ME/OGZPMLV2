@@ -1,0 +1,8 @@
+'use strict';
+// Run only after a new successful three-provider readiness receipt.
+const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process');
+const root=path.resolve(__dirname,'../../../../../..');
+const source='ogz-meta/inbox/codex/2026-09-26/stop1-entry-exit-settings/OBSERVATION.json';
+const question='Mercury, break this entry-owned managed trailing and break-even settings connection. Find a concrete counterexample from configuration publication through entry-policy creation and actual exit consumption, including legacy saved policy. Did the producer repair close the mechanism or hide it, and what new failure does it introduce? Use AST and Serena for affected callers, collect all candidate findings and weigh them before deciding. Scope is this connected four-file settings migration, not unrelated dirty main work. No new process gates, current-default backfill, or guessed legacy settings. The host observations are isolated actual methods, not running-bot proof. The partial/tier planner and legacy 1R checker remain separate, expressly unmodified owners. Host receipt follows verbatim:\n'+fs.readFileSync(path.join(root,source),'utf8');
+const child=cp.spawn(process.execPath,[path.join(root,'ogz-meta/inbox/codex/2026-09-26/stop1-config-connections/fixtures/review.cjs'),'entry-exit-settings-review','--agentic','--reviewers=mercury,fable,kimi','--max-tokens=7750','--attack',...['core/PolicyBuilder.js','core/ExitContractManager.js','core/TradingLoop.js','foundation/ConfigLoader.js'].map(p=>'--change-path='+p),'--evidence-source='+source+':1-1',question],{stdio:'inherit'});
+child.on('exit',code=>{process.exitCode=code;});
