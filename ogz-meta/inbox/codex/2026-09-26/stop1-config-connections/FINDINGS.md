@@ -1,5 +1,7 @@
 # Running findings — Stop 1 remains open
 
+- C014 delivered in `97b30a488a2afc77093447ba780360fe3fecc050`, pushed and cold-fetched with identical eleven source hashes and operative outputs. Review 2026-09-26T13-09-02-999Z-cb86df2c62db converged after primary false claims were retracted; all selected seats qualified. Twelve PropSafe fields join 43 existing controls (55 total, not final UI inventory). Full packet/cold receipts: ../stop1-propsafe-settings/. C009/C010/C011/C015 and remaining families stay open.
+
 - C014 / PropSafe candidate: twelve existing settings reach retained per-symbol instances; strategy-owned ATR period replaces shared-ATR precedence for entry/initial-stop calculation. Baseline 62 old entries after reload and 62/62 stops differing from configured ATR. Candidate 64 initial / 239 changed (96 short), twelve one-field effects, 2,889 actual order stop conversions, 303 ECM stop and 303 hold exits. Review pending; ../stop1-propsafe-settings/.
 - C015: Published ECM invalidation switch:446-578 has no ema_pullback_invalidated/ema_retest_failed cases, and its coordinator does not call the legacy percent take-profit/trailing check methods. These strategy metadata fields must not be sold to the UI as operative controls. Inherited exit-owner mismatch, not authority to invent exit policy; distinct from the twelve actual PropSafe settings consumers being connected.
 

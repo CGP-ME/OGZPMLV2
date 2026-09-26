@@ -1,0 +1,24 @@
+{
+  "at": "2026-09-26T13:12:08.591Z",
+  "files": [
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-propsafe-settings/private/cold-Q3MjUp/receipt.json",
+      "originalSha256": "233ecdba85788fb37a607ef1347a1f8bb3d412bfab658203c4ce03b3df9c23be",
+      "originalBytes": 21404882,
+      "redactedPath": "tapes/cold--cold-Q3MjUp--receipt.json.gz",
+      "redactedSha256": "12eba64fa4e54afa5e268f24e34f05a855a5e9bdfdf233b7ddba851872d26827",
+      "gzipSha256": "c98b22a22833c29d7cfce18b82591787719d29c0a9471f503ee4ee344630653c",
+      "gzipBytes": 763076
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-propsafe-settings/private/cold-Q3MjUp/console.json",
+      "originalSha256": "27649770a979f9bd3f94b5dc97446c30d0338ab29503de2de6b325996805f0f4",
+      "originalBytes": 4726306,
+      "redactedPath": "tapes/cold--cold-Q3MjUp--console.json.gz",
+      "redactedSha256": "27649770a979f9bd3f94b5dc97446c30d0338ab29503de2de6b325996805f0f4",
+      "gzipSha256": "2915757523f61d9420d8932e9c1c6b99dc67790155e1f14f172ce742138b304d",
+      "gzipBytes": 95432
+    }
+  ],
+  "knownCredentialMatches": 0
+}
