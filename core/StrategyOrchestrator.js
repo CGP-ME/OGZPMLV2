@@ -2150,7 +2150,7 @@ class StrategyOrchestrator {
           () => new PropSafeEMAPullback(
             ConfigLoader.get('strategies.PropSafeEMAPullback')
           )
-        ).evaluate(ctx)
+        ).evaluate(ctx, ConfigLoader.get('strategies.PropSafeEMAPullback'))
       });
     }
 

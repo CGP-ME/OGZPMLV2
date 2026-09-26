@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Stop 1 PropSafe Settings Connection (2026-09-26)
+
+- Connect twelve existing PropSafe EMA pullback parameters to retained per-symbol consumers and entry-owned stop/hold contracts. Honor configured-period ATR instead of shared-ATR precedence; validate existing period/band relationships before publication. No new runtime stop, confidence formula, registration or activation.
+- Preserve baseline, actual receiver/orchestrator/order/exit observations and review dispositions in ogz-meta/inbox/codex/2026-09-26/stop1-propsafe-settings/. Complete Stop 1 and deployed UI acceptance remain open.
+
 ### Stop 1 RSI2 Settings Delivery (2026-09-26)
 
 - Connect eight existing RSI2 parameters through settings publication to retained per-symbol instances and entry-owned exit contracts. Preserve old trades, formulas and strategy registration. Match the actual consumers' exit maximum of 99 and stop fraction strictly between zero and one, rejecting invalid settings before publication instead of allowing later entry failures.

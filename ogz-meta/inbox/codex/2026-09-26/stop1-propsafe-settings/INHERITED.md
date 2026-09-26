@@ -1,0 +1,5 @@
+# Inherited
+
+Source check: published ECM checkInvalidationConditions:446-578 has no ema_pullback_invalidated or ema_retest_failed case. It falls through to not-triggered; these are existing emitted metadata, not newly working exit controls. Published coordinator:336-437 uses stop, hold, invalidation, dynamic managed stops and profit planner; no calls to the old TakeProfitChecker/TrailingStopChecker check methods were located there. This is why targetRR and R-multiple trailing fields are not advertised as delivered by this slice. Resolve intended ownership with the existing walk; do not add parallel exit engines.
+
+Existing module readConfig throws, RTH behavior and strategy registration are unchanged. Operator publication must meet existing consumers before loading. The targetRR and R-multiple trailing settings only reaching metadata are not exposed as proven operative exit controls. Unknown ema_pullback_invalidated consumer remains a named existing lead; do not invent exit policy to hide it. C009/C010/C011 remain open. Main dirty changes are preserved, not adopted wholesale.

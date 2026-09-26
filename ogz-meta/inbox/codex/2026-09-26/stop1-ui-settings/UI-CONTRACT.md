@@ -4,6 +4,8 @@ Use the existing `/ws` connection, same-origin dashboard session cookie and one-
 
 ## Read
 
+With the PropSafe connection below, this source interface exposes 55 connected fields. This is not the final Stop 1 inventory or proof that a running bot/page has loaded the revision.
+
 Send `{type:"get_settings", requestId:"<fresh correlation ID>"}`. Each connected, bot-authenticated owner returns `settings_result` with that requestId, relay-stamped `ownerId`, `success`, `profile`, `configuration`, and `fields`.
 
 Select the owner explicitly; do not take the first reply as an implicit target. Multiple owners can reply. Connection IDs expire on disconnect: re-read and reselect after reconnect. No connected owner produces `bot_unavailable`, not fabricated values.
@@ -75,6 +77,22 @@ RSI2 adds eight connected existing controls. These do not enable an unregistered
 | strategies.RSI2MeanReversion.maxHoldTimeMinutes | Positive minutes | New trade's max-hold exit. |
 
 The RSI2 exit maximum is **99 inclusive**, matching the actual contract consumers. Do not extrapolate the module's looser `<100` constructor check into UI permission to save 99.5. RSI2 long exit is inclusive; the separate RSI strategy uses a strict-above exit.
+
+PropSafe adds the following existing controls through the same owner/save protocol. Prefix each path with `strategies.PropSafeEMAPullback.`:
+
+| Field | Unit / bound | Consumer effect |
+| --- | --- | --- |
+| fastEmaPeriod, pullbackEmaPeriod, trendEmaPeriod | Positive integer candles; fast < pullback < trend | Next entry's EMA and trend decisions. Submit related edits together. |
+| atrPeriod | Positive integer candles | Strategy-owned ATR for entry-distance and new stop calculation. |
+| crossLookbackBars | Positive integer candles | Existing fresh-cross confidence contribution and warmup. |
+| pullbackLookbackBars | Positive integer candles | Existing slope and pullback-window decisions. |
+| pullbackMinAtr, pullbackMaxAtr | ATR multiples; 0 <= min < max | Next entry's accepted pullback-distance band. Preserve zero. |
+| atrStopMult | Positive ATR multiple | New entry's initial stop; no rewrite of an open trade. |
+| maxHoldTimeMinutes | Positive minutes | New trade's existing max-hold consumer. |
+| requireRth | Boolean | Existing regular-hours entry check using the configured timezone/schedule. |
+| allowShorts | Boolean | Existing short-signal eligibility, not broker-mode authorization. |
+
+Invalid combined periods return `propsafe_ema_periods_must_increase`; invalid distance band returns `propsafe_pullback_min_must_be_below_max`, with no saved/applied revision. This slice does not enable registration, edit the RTH schedule, change confidence formulas or advertise targetRR / legacy R-multiple trailing metadata as effective exit controls. Backend metadata remains the numeric-bound authority; no frontend defaults.
 
 ```json
 {

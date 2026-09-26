@@ -2632,6 +2632,52 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'minutes', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
     label: 'RSI2 maximum hold', effect: 'new_trades_only',
   },
+  'strategies.PropSafeEMAPullback.fastEmaPeriod': {
+    type: 'number', unit: 'candles', integer: true, min: 1, max: Number.MAX_SAFE_INTEGER,
+    label: 'PropSafe fast EMA', effect: 'next_entry_evaluation',
+  },
+  'strategies.PropSafeEMAPullback.pullbackEmaPeriod': {
+    type: 'number', unit: 'candles', integer: true, min: 1, max: Number.MAX_SAFE_INTEGER,
+    label: 'PropSafe pullback EMA', effect: 'next_entry_evaluation',
+  },
+  'strategies.PropSafeEMAPullback.trendEmaPeriod': {
+    type: 'number', unit: 'candles', integer: true, min: 1, max: Number.MAX_SAFE_INTEGER,
+    label: 'PropSafe trend EMA', effect: 'next_entry_evaluation',
+  },
+  'strategies.PropSafeEMAPullback.atrPeriod': {
+    type: 'number', unit: 'candles', integer: true, min: 1, max: Number.MAX_SAFE_INTEGER,
+    label: 'PropSafe ATR period', effect: 'next_entry_and_new_trade_stop',
+  },
+  'strategies.PropSafeEMAPullback.crossLookbackBars': {
+    type: 'number', unit: 'candles', integer: true, min: 1, max: Number.MAX_SAFE_INTEGER,
+    label: 'PropSafe fresh-cross lookback', effect: 'next_entry_confidence',
+  },
+  'strategies.PropSafeEMAPullback.pullbackLookbackBars': {
+    type: 'number', unit: 'candles', integer: true, min: 1, max: Number.MAX_SAFE_INTEGER,
+    label: 'PropSafe pullback lookback', effect: 'next_entry_evaluation',
+  },
+  'strategies.PropSafeEMAPullback.pullbackMinAtr': {
+    type: 'number', unit: 'ATR multiples', min: 0, max: Number.MAX_VALUE,
+    label: 'PropSafe minimum pullback distance', effect: 'next_entry_evaluation',
+  },
+  'strategies.PropSafeEMAPullback.pullbackMaxAtr': {
+    type: 'number', unit: 'ATR multiples', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
+    label: 'PropSafe maximum pullback distance', effect: 'next_entry_evaluation',
+  },
+  'strategies.PropSafeEMAPullback.atrStopMult': {
+    type: 'number', unit: 'ATR multiples', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
+    label: 'PropSafe initial stop distance', effect: 'new_trades_only',
+  },
+  'strategies.PropSafeEMAPullback.maxHoldTimeMinutes': {
+    type: 'number', unit: 'minutes', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
+    label: 'PropSafe maximum hold', effect: 'new_trades_only',
+  },
+  'strategies.PropSafeEMAPullback.requireRth': {
+    type: 'boolean', unit: 'boolean', label: 'Require PropSafe regular trading hours', effect: 'next_entry_evaluation',
+  },
+  'strategies.PropSafeEMAPullback.allowShorts': {
+    type: 'boolean', unit: 'boolean', label: 'Allow PropSafe short signals', effect: 'next_entry_evaluation',
+  },
 });
 
 function getSettingsView() {
@@ -2692,6 +2738,15 @@ function saveSettings(request) {
   if (entries.some(([key]) => key.startsWith('strategies.RSI.'))
       && nextConfig.strategies.RSI.buyBelow >= nextConfig.strategies.RSI.exitAbove) {
     return reject('rsi_buy_must_be_below_exit');
+  }
+  if (entries.some(([key]) => key.startsWith('strategies.PropSafeEMAPullback.'))) {
+    const cfg = nextConfig.strategies.PropSafeEMAPullback;
+    if (!(cfg.fastEmaPeriod < cfg.pullbackEmaPeriod && cfg.pullbackEmaPeriod < cfg.trendEmaPeriod)) {
+      return reject('propsafe_ema_periods_must_increase');
+    }
+    if (!(cfg.pullbackMinAtr < cfg.pullbackMaxAtr)) {
+      return reject('propsafe_pullback_min_must_be_below_max');
+    }
   }
   nextSettings.revision += 1;
   if (entries.some(([key]) => key.startsWith('exitLogic.trail.'))
