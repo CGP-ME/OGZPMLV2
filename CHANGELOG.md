@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Stop 1 RSI2 Settings Delivery (2026-09-26)
+
+- Connect eight existing RSI2 parameters through settings publication to retained per-symbol instances and entry-owned exit contracts. Preserve old trades, formulas and strategy registration. Match the actual consumers' exit maximum of 99 and stop fraction strictly between zero and one, rejecting invalid settings before publication instead of allowing later entry failures.
+- Record all eight consumer effects, distinct symbol state, stop/max-hold/RSI coordinator outputs, the initially missed boundary defect and full adversarial review. No new bot stop, runtime throw, confidence policy or activation. Complete UI inventory and Stop 1 remain open.
+
 ### Stop 1 Entry-Owned Managed Stop Settings (2026-09-26)
 
 - Connect fourteen existing managed trailing/break-even controls to the settings API, freeze their values at entry and use them for that trade's stop updates. Preserve existing trades across later saves; retain both per-cycle update results. Finite zero tightening reaches the existing minimum-distance clamp.

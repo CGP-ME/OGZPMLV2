@@ -1,0 +1,42 @@
+{
+  "at": "2026-09-26T12:30:14.083Z",
+  "files": [
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-rsi2-settings/private/baseline-jOKMoz/receipt.json",
+      "originalSha256": "40741d2605e706d84f5725fadc5cab4602b100c9339c049a0a34e5cc3710d736",
+      "originalBytes": 155892,
+      "redactedPath": "tapes/observations--baseline-jOKMoz--receipt.json.gz",
+      "redactedSha256": "e89976af2288011418378abb9dfb317c474536ad7a34d3cf6057373d86e4bbc5",
+      "gzipSha256": "bce7101cc0df098e816560639abcbcd7e41842e97f8336b9fbd928332d87424d",
+      "gzipBytes": 5319
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-rsi2-settings/private/baseline-jOKMoz/console.json",
+      "originalSha256": "61f3c26021d008e500262bc9d6f3ca4e10ff99b175f13dd8c833605295f1e3eb",
+      "originalBytes": 370657,
+      "redactedPath": "tapes/observations--baseline-jOKMoz--console.json.gz",
+      "redactedSha256": "61f3c26021d008e500262bc9d6f3ca4e10ff99b175f13dd8c833605295f1e3eb",
+      "gzipSha256": "124118687c68adcb9d476668084a852dbc4b04ad475d3b99268774e8d8d36355",
+      "gzipBytes": 5486
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-rsi2-settings/private/candidate-6XxRzH/receipt.json",
+      "originalSha256": "0d9fe7ed3d1086c76f42ac51e3c0c978918dec14c31afeaf0c4316c208fe84fe",
+      "originalBytes": 1728958,
+      "redactedPath": "tapes/observations--candidate-6XxRzH--receipt.json.gz",
+      "redactedSha256": "2829c6aef0976133c2ff4b2891c367199cc9759e9b210507b2b39f465c5528c3",
+      "gzipSha256": "78f2fe7335b2e7879a0741d7f69e8c5bed474a6139a3b93b5294f8cdee84172c",
+      "gzipBytes": 44351
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-rsi2-settings/private/candidate-6XxRzH/console.json",
+      "originalSha256": "5c7c02a0b81ce7fb074affaca68a75744d77f32878b6d0b0b32408add3ee0e34",
+      "originalBytes": 2243759,
+      "redactedPath": "tapes/observations--candidate-6XxRzH--console.json.gz",
+      "redactedSha256": "5c7c02a0b81ce7fb074affaca68a75744d77f32878b6d0b0b32408add3ee0e34",
+      "gzipSha256": "c32d5c407d09a3a39114ab5788567654b93ca139ea20f5db52f6b43880805370",
+      "gzipBytes": 22750
+    }
+  ],
+  "knownCredentialMatches": 0
+}

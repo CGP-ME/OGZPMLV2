@@ -84,16 +84,17 @@ function readConfig(config) {
 
 class RSI2MeanReversion {
   constructor(config) {
-    Object.defineProperty(this, 'cfg', {
-      value: Object.freeze(readConfig(config)),
-      writable: false,
-      configurable: false,
-      enumerable: true,
-    });
-    this.minHistory = Math.max(this.cfg.trendPeriod + 2, this.cfg.rsiPeriod + 2);
+    this.configure(config);
   }
 
-  evaluate(ctx) {
+  configure(config) {
+    this.cfg = Object.freeze(readConfig(config));
+    this.minHistory = Math.max(this.cfg.trendPeriod + 2, this.cfg.rsiPeriod + 2);
+    this.configurationInput = config;
+  }
+
+  evaluate(ctx, config = this.configurationInput) {
+    if (config !== this.configurationInput) this.configure(config);
     const candles = ctx && ctx.priceHistory;
     if (!Array.isArray(candles) || candles.length < this.minHistory) return null;
 

@@ -2184,7 +2184,7 @@ class StrategyOrchestrator {
           () => new RSI2MeanReversion(
             ConfigLoader.get('strategies.RSI2MeanReversion')
           )
-        ).evaluate(ctx)
+        ).evaluate(ctx, ConfigLoader.get('strategies.RSI2MeanReversion'))
       });
     }
 

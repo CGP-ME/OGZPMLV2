@@ -1,0 +1,13 @@
+{
+  "at": "2026-09-26T12:44:18.943Z",
+  "base": "237d896308198af54a6271eca88722b0ad5ff5fb",
+  "files": [
+    {
+      "originalPath": "private/final-candidate.patch",
+      "originalSha256": "2a6b6959d1892a92cc396b374f61745683b6ce624904dd624db2a8bb45af7aca",
+      "redactedPath": "tapes/final-candidate.patch.gz",
+      "redactedSha256": "5eff9ccf768720f4588b113639dc3f6940978f2590f310cf4fd8cb5ff78d2c21",
+      "gzipSha256": "1beaf2d1d48a87b57907c4c02b22510b5541445846238b351415b3f04a33f75e"
+    }
+  ]
+}

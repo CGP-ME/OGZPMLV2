@@ -61,6 +61,21 @@ Fourteen managed-stop controls are also connected. All affect **new trades only*
 
 ## Save
 
+RSI2 adds eight connected existing controls. These do not enable an unregistered strategy. Preserve `exclusiveMin` / `exclusiveMax` metadata when rendering numeric bounds; missing exclusivity means an inclusive bound.
+
+| Path | Unit / bounds | Effect |
+| --- | --- | --- |
+| strategies.RSI2MeanReversion.rsiPeriod | Positive integer candles | Next entry evaluation and new trade's owned RSI exit period. |
+| strategies.RSI2MeanReversion.rsiEntry | RSI points, strictly 0 < value < 50 | Next long entry below this threshold. |
+| strategies.RSI2MeanReversion.rsiExitLong | RSI points, 50 < value <= 99 | New long trades exit at or above this threshold; old trades unchanged. |
+| strategies.RSI2MeanReversion.rsiEntryOB | RSI points, strictly 50 < value < 100 | Next short entry above this threshold, when shorts are allowed. |
+| strategies.RSI2MeanReversion.trendPeriod | Positive integer candles | Next entry's trend SMA/lookback. |
+| strategies.RSI2MeanReversion.allowShorts | Boolean | Next short signal eligibility, not broker-mode authorization. |
+| strategies.RSI2MeanReversion.stopLossPercent | Negative percent, strictly greater than -100; honor returned numeric maximum to preserve nonzero fraction conversion. | New trade's initial stop, not an edit to an open trade. |
+| strategies.RSI2MeanReversion.maxHoldTimeMinutes | Positive minutes | New trade's max-hold exit. |
+
+The RSI2 exit maximum is **99 inclusive**, matching the actual contract consumers. Do not extrapolate the module's looser `<100` constructor check into UI permission to save 99.5. RSI2 long exit is inclusive; the separate RSI strategy uses a strict-above exit.
+
 ```json
 {
   "type": "save_settings",
@@ -72,7 +87,7 @@ Fourteen managed-stop controls are also connected. All affect **new trades only*
 }
 ```
 
-The example revision is illustrative; always send the revision and hash just read, never hardcode them. Changes are an atomic request: an invalid/unsupported field rejects the entire edit. Only the thirty-five listed fields are currently accepted. Saves do not edit internals, broker identity, execution mode, credentials, or existing trade exits. Paper/live activation and profile switching are not settings-save operations.
+The example revision is illustrative; always send the revision and hash just read, never hardcode them. Changes are an atomic request: an invalid/unsupported field rejects the entire edit. Only the forty-three listed fields are currently accepted. Saves do not edit internals, broker identity, execution mode, credentials, or existing trade exits. Paper/live activation and profile switching are not settings-save operations.
 
 Donchian registration is not enabled by these five controls. The canonical configuration disables the historical global ATR-contract tuning overlay; that competing override remains a named migration issue, not certified by this UI connection. Descriptor-owned backtests cannot be changed through this save route.
 

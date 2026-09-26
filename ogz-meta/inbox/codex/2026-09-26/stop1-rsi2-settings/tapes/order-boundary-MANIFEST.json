@@ -1,0 +1,42 @@
+{
+  "at": "2026-09-26T12:44:19.129Z",
+  "files": [
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-rsi2-settings/private/candidate-31NKKo/receipt.json",
+      "originalSha256": "d564a28cb374a3cdabf764d21b7b262bca9e50f6e95638aae532aa5962457575",
+      "originalBytes": 2030786,
+      "redactedPath": "tapes/order-boundary--candidate-31NKKo--receipt.json.gz",
+      "redactedSha256": "b669e484ff09a2368ba11e7e35f9552fd2376b01d47ac71f2125b00fea774f2c",
+      "gzipSha256": "9f09ccab6081ad9c1b62df8b059091b10e078ce1df9eeed3746371bcd03f0d1e",
+      "gzipBytes": 54063
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-rsi2-settings/private/candidate-31NKKo/console.json",
+      "originalSha256": "266bc22850d501c0d15bf1269ce6efad783285deea8913b00498ea091ff26a6e",
+      "originalBytes": 2783915,
+      "redactedPath": "tapes/order-boundary--candidate-31NKKo--console.json.gz",
+      "redactedSha256": "266bc22850d501c0d15bf1269ce6efad783285deea8913b00498ea091ff26a6e",
+      "gzipSha256": "dfdacd01d03d1cc908b341898975457a216aa8bd69292340554a13a538481dff",
+      "gzipBytes": 29394
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-rsi2-settings/private/candidate-awiqQ9/receipt.json",
+      "originalSha256": "55a9250281ea666ec3819d93233b602b601c674b3b8e1825bd7e576913a8084c",
+      "originalBytes": 2031446,
+      "redactedPath": "tapes/order-boundary--candidate-awiqQ9--receipt.json.gz",
+      "redactedSha256": "01be81e1c2c4fb6a8a1cc3bceb4b2883d44cd299f8f3ddd5a08439e12fc7a332",
+      "gzipSha256": "5f9d3922f34b7b0b0306507b63f00e2009a7fa4c00eb8e7a02816a7479860fe6",
+      "gzipBytes": 54118
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-rsi2-settings/private/candidate-awiqQ9/console.json",
+      "originalSha256": "266bc22850d501c0d15bf1269ce6efad783285deea8913b00498ea091ff26a6e",
+      "originalBytes": 2783915,
+      "redactedPath": "tapes/order-boundary--candidate-awiqQ9--console.json.gz",
+      "redactedSha256": "266bc22850d501c0d15bf1269ce6efad783285deea8913b00498ea091ff26a6e",
+      "gzipSha256": "dfdacd01d03d1cc908b341898975457a216aa8bd69292340554a13a538481dff",
+      "gzipBytes": 29394
+    }
+  ],
+  "knownCredentialMatches": 0
+}

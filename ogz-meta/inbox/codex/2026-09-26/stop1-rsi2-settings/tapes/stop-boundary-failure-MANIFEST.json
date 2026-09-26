@@ -1,0 +1,24 @@
+{
+  "at": "2026-09-26T12:43:43.898Z",
+  "files": [
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-rsi2-settings/private/candidate-knTtVx/failure.json",
+      "originalSha256": "5a76b82d399aa42e8361f17991482fef89b9f292bf6f895acdf59eddc15d632c",
+      "originalBytes": 2226,
+      "redactedPath": "tapes/stop-boundary-failure--candidate-knTtVx--failure.json.gz",
+      "redactedSha256": "5a76b82d399aa42e8361f17991482fef89b9f292bf6f895acdf59eddc15d632c",
+      "gzipSha256": "d53530c0ed05dd20da5c837c0ef6e1d1124a531aed47058369aa94736ad856fa",
+      "gzipBytes": 1124
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-rsi2-settings/private/candidate-knTtVx/console.json",
+      "originalSha256": "a287b9947d70e80800c5601fc6baeaf178aae69ff2b7148be625b88db1755ffd",
+      "originalBytes": 2427950,
+      "redactedPath": "tapes/stop-boundary-failure--candidate-knTtVx--console.json.gz",
+      "redactedSha256": "a287b9947d70e80800c5601fc6baeaf178aae69ff2b7148be625b88db1755ffd",
+      "gzipSha256": "48a67d17964e4f75b28e6ce698cf4080cb0c4ad5ac7a742c921fd24affb09055",
+      "gzipBytes": 26089
+    }
+  ],
+  "knownCredentialMatches": 0
+}

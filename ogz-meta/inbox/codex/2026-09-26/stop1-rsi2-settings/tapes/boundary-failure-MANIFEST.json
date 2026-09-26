@@ -1,0 +1,24 @@
+{
+  "at": "2026-09-26T12:34:44.310Z",
+  "files": [
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-rsi2-settings/private/candidate-vrLkqC/failure.json",
+      "originalSha256": "8a6d5ae17cf33e56c4aa7e18db240f0f8c2227650f8a7e4d133202e3a290dc76",
+      "originalBytes": 2207,
+      "redactedPath": "tapes/boundary-failure--candidate-vrLkqC--failure.json.gz",
+      "redactedSha256": "8a6d5ae17cf33e56c4aa7e18db240f0f8c2227650f8a7e4d133202e3a290dc76",
+      "gzipSha256": "92df44a8478c3c538aeb91f0999662cf469006cf303e818c8dda27f5d23d61c2",
+      "gzipBytes": 1091
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-rsi2-settings/private/candidate-vrLkqC/console.json",
+      "originalSha256": "9088c7225fc98735802e7a93ae84ff4dff066df721f2dc7e24a806d87befdda3",
+      "originalBytes": 2245936,
+      "redactedPath": "tapes/boundary-failure--candidate-vrLkqC--console.json.gz",
+      "redactedSha256": "9088c7225fc98735802e7a93ae84ff4dff066df721f2dc7e24a806d87befdda3",
+      "gzipSha256": "dffd7f5a522dadaea79d008a2e43db6d5c2cee26213427570df71a3af24410e2",
+      "gzipBytes": 23534
+    }
+  ],
+  "knownCredentialMatches": 0
+}

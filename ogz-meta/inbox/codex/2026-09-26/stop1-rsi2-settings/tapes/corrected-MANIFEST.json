@@ -1,0 +1,24 @@
+{
+  "at": "2026-09-26T12:36:08.184Z",
+  "files": [
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-rsi2-settings/private/candidate-KUycNo/receipt.json",
+      "originalSha256": "f5baab6f86a493437ead7100488b23fb46f88eda7271d50529f5282ade035a43",
+      "originalBytes": 1826691,
+      "redactedPath": "tapes/corrected--candidate-KUycNo--receipt.json.gz",
+      "redactedSha256": "4af10c322ec191ff7f8f66a1eb5154084dd7aee23bb8b587e69494e6a4d3ed10",
+      "gzipSha256": "04166cca978e1c259942cec4a1a4741584b8f0146de0efb203649e32fb5bcf6e",
+      "gzipBytes": 47957
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-rsi2-settings/private/candidate-KUycNo/console.json",
+      "originalSha256": "686c1fb62f7a0069b55dd0933293619d169a4d00a20b29feaccbaec0586a05df",
+      "originalBytes": 2423805,
+      "redactedPath": "tapes/corrected--candidate-KUycNo--console.json.gz",
+      "redactedSha256": "686c1fb62f7a0069b55dd0933293619d169a4d00a20b29feaccbaec0586a05df",
+      "gzipSha256": "6ca019518bca47ac896ad9864e46826033efc66358ae4b7eea9e858a33cda08d",
+      "gzipBytes": 25001
+    }
+  ],
+  "knownCredentialMatches": 0
+}

@@ -2600,6 +2600,38 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE,
     label: 'Managed break-even profit trigger', effect: 'new_trades_only',
   },
+  'strategies.RSI2MeanReversion.rsiPeriod': {
+    type: 'number', unit: 'candles', integer: true, min: 1, max: Number.MAX_SAFE_INTEGER,
+    label: 'RSI2 period', effect: 'next_entry_and_new_trade_rsi_exit',
+  },
+  'strategies.RSI2MeanReversion.rsiEntry': {
+    type: 'number', unit: 'rsi_points', min: 0, max: 50, exclusiveMin: true, exclusiveMax: true,
+    label: 'RSI2 long entry below', effect: 'next_entry_evaluation',
+  },
+  'strategies.RSI2MeanReversion.rsiExitLong': {
+    type: 'number', unit: 'rsi_points', min: 50, max: 99, exclusiveMin: true,
+    label: 'RSI2 long exit at or above', effect: 'new_long_trades_only',
+  },
+  'strategies.RSI2MeanReversion.rsiEntryOB': {
+    type: 'number', unit: 'rsi_points', min: 50, max: 100, exclusiveMin: true, exclusiveMax: true,
+    label: 'RSI2 short entry above', effect: 'next_entry_when_shorts_allowed',
+  },
+  'strategies.RSI2MeanReversion.trendPeriod': {
+    type: 'number', unit: 'candles', integer: true, min: 1, max: Number.MAX_SAFE_INTEGER,
+    label: 'RSI2 trend SMA period', effect: 'next_entry_with_selected_lookback',
+  },
+  'strategies.RSI2MeanReversion.allowShorts': {
+    type: 'boolean', unit: 'boolean', label: 'Allow RSI2 short signals', effect: 'next_entry_evaluation',
+  },
+  'strategies.RSI2MeanReversion.stopLossPercent': {
+    // The order consumer requires a nonzero fraction strictly below one.
+    type: 'number', unit: 'percent', min: -100, exclusiveMin: true, max: -(Number.MIN_VALUE * 100),
+    label: 'RSI2 initial stop (negative percent)', effect: 'new_trades_only',
+  },
+  'strategies.RSI2MeanReversion.maxHoldTimeMinutes': {
+    type: 'number', unit: 'minutes', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
+    label: 'RSI2 maximum hold', effect: 'new_trades_only',
+  },
 });
 
 function getSettingsView() {
@@ -2632,6 +2664,7 @@ function saveSettings(request) {
     const definition = EDITABLE_SETTINGS[key];
     if (typeof value !== definition.type || (definition.values && !definition.values.includes(value))
       || (definition.type === 'number' && (!Number.isFinite(value) || value < definition.min || value > definition.max
+        || (definition.exclusiveMin && value === definition.min) || (definition.exclusiveMax && value === definition.max)
         || (definition.integer && !Number.isSafeInteger(value))))) {
       return reject('invalid_setting_value', { path: key });
     }

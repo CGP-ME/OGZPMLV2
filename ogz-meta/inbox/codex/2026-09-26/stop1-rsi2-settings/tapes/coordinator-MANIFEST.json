@@ -1,0 +1,24 @@
+{
+  "at": "2026-09-26T12:37:43.119Z",
+  "files": [
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-rsi2-settings/private/candidate-dh5yaN/receipt.json",
+      "originalSha256": "3bff270c5e52b04b18451705c7508c63619360cde7e6ad50d32b58cbe36f09cb",
+      "originalBytes": 1901366,
+      "redactedPath": "tapes/coordinator--candidate-dh5yaN--receipt.json.gz",
+      "redactedSha256": "bb163f816748fe5f64946d47a92a0f6bea90fb0adfba3492e74d5861b953367f",
+      "gzipSha256": "c6f8d6421ed9fbca7d664282af9731447559928e73782dfdaa85c5eebd61525d",
+      "gzipBytes": 51199
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-rsi2-settings/private/candidate-dh5yaN/console.json",
+      "originalSha256": "686c1fb62f7a0069b55dd0933293619d169a4d00a20b29feaccbaec0586a05df",
+      "originalBytes": 2423805,
+      "redactedPath": "tapes/coordinator--candidate-dh5yaN--console.json.gz",
+      "redactedSha256": "686c1fb62f7a0069b55dd0933293619d169a4d00a20b29feaccbaec0586a05df",
+      "gzipSha256": "6ca019518bca47ac896ad9864e46826033efc66358ae4b7eea9e858a33cda08d",
+      "gzipBytes": 25001
+    }
+  ],
+  "knownCredentialMatches": 0
+}

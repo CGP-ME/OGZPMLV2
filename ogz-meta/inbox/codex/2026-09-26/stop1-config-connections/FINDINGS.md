@@ -1,5 +1,8 @@
 # Running findings — Stop 1 remains open
 
+- C013 / RSI2 reviewed candidate: retained per-symbol instance never receives reloaded configuration. Baseline stays at 11 entries after reload; repaired caller/module plus eight existing save fields yields 17 (11 shorts), retaining that instance and a distinct second-symbol instance. Old policies unchanged. Host additionally reproduced six failures each for proposed 99.5 RSI exit and -100 percent stop inputs. Both are corrected at the save boundary before publication, matching actual hint/ECM/order consumers. Final observation: 201 order stop conversions, 51 full ECM stop exits, 51 max-hold exits, 138 long RSI invalidations, 16 invalid requests without publication. Reviewed final patch 2a6b6959d1892a92cc396b374f61745683b6ce624904dd624db2a8bb45af7aca; pending commit/push/cold pull, packet ../stop1-rsi2-settings/.
+- M010: Initial RSI2 passes missed the host-proven input/consumer mismatches; original raw answers and failures preserved, those passes superseded. Final run 2026-09-26T12-50-30-526Z-7d790f99c1a7 ends pass after Fable/Kimi source-based rejection of stale claims and Mercury retraction. Primary synthesis/qualification still failed; not an all-seats-qualified run, not hidden. Host confirmed corrected bounds and actual receiver/consumer outputs independently. No flags weakened or new shutdown guard added. Manual-file validation latitude and deployment remain named limits.
+
 Adversarial statements are leads until checked against exact source and behavior. This list is incremental, not a new full-repository census or certification.
 
 | ID | Connection / claim | Verification | Disposition |
