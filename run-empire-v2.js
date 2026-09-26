@@ -1149,6 +1149,14 @@ class OGZPrimeV14Bot {
     // Dashboard WebSocket (Change 528) - OPTIONAL for real-time monitoring
     this.dashboardWs = null;
     this.dashboardWsConnected = false;
+    this.onSettingsApplied = (snapshot, receipt) => {
+      resolvedConfig = snapshot;
+      runtimeAuditSink.setSourceReceiptId(`config:${snapshot.fingerprint}`);
+      logRuntimeConfigProof(snapshot, ConfigLoader);
+      console.log('[SETTINGS_APPLIED]', JSON.stringify({
+        requestId: receipt.requestId, configuration: receipt.configuration,
+      }));
+    };
     // REFACTOR Phase 20: WebSocketManager - must be instantiated before initializeDashboardWebSocket call
     this.webSocketManager = new WebSocketManager(this, {
       wsUrl: resolvedConfig.config.dashboard.botRelayUrl,
@@ -1362,7 +1370,7 @@ class OGZPrimeV14Bot {
 
     this.config = {
       // CHANGE 2026-02-28: Use ConfigLoader for minTradeConfidence
-      minTradeConfidence: ConfigLoader.get('confidence.minTradeConfidence'),
+      get minTradeConfidence() { return ConfigLoader.get('confidence.minTradeConfidence'); },
       tradingPair: this.tradingPair,
       brokerId: resolvedConfig.config.broker.id,
       accountId: runtimeAccountIdentity.accountId,

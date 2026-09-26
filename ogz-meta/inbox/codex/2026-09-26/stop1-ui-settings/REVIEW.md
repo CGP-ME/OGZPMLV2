@@ -1,0 +1,11 @@
+# Review
+
+Review must cover canonical profile ownership, actual dynamic/captured consumers, persistent and loaded revision consistency, browser/bot authorization and target identity, and whether any new mechanism stops unrelated trading. Findings remain unproven until checked against source and observations.
+
+Completed the full three-seat chain plus tool-using recheck. Final Kimi verdict pass is a scoped model conclusion, not delivery. Independently rejected initial claims of missing validation, stale fingerprint, and wx preventing destination overwrite: the whitelist/type checks, recomputed identity, temp-file rename, and repeated real saves establish otherwise. The runner's captured confidence is replaced by a getter in the same cut; ATR consumers already read ConfigLoader per evaluation. ModuleInitializer's legacy factory captures confidence but no operative caller was found; tools/grid-search-confidence writes worker descriptors, not this UI owner's snapshot. Config/settings.json's canonical per-strategy ATR thresholds are null in the checked declarations; explicit overrides retain their documented precedence.
+
+Corrected model overstatements: options.mode is not only applied to the temp (AtomicWrite can chmod the destination); fingerprint is prepared before the disk write and published only after success; ownerId is a client-requested selector matched against relay-owned IDs, not ignored client input. The shared relay intentionally exposes settings receipts to its authenticated dashboards, as it already exposes bot telemetry; this is not multi-tenant isolation. No claim of all-repository coverage is adopted.
+
+Added behavior classification: no new startup validations, trading gates, throws, process exits, halts, broker calls, or fallback config values. New UI-boundary checks validate external edits, protect against stale saves, select the addressed connected bot, and restrict settings receipt provenance. A failed edit returns an error without stopping trading. These are not represented as zero validation branches.
+
+The real consumer exercise found C006 RSI exit-hint mismatch after ATR admission. It remains a separate producer/consumer repair, visibly recorded in the shared findings list. No final complete UI or Stop 1 completion assertion is approved.

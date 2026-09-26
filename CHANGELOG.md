@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
++### Stop 1 UI Settings Connection (2026-09-26)
+
+- Added owner-targeted dashboard read/save delivery for entry confidence and the two existing ATR entry-filter settings, with canonical profile persistence, explicit units and revision receipts. The inherited 139-field draft is not shipped as verified.
+- Kept settings saves separate from open-trade exits and runtime activation. Direct consumer replay exposed an inherited RSI exit-hint failure; final UI field inventory and Stop 1 acceptance remain open.
+
 ### Stop 1 Donchian ATR Configuration Delivery (2026-09-26)
 
 - Use Donchian's existing configured-period ATR calculator for its stop distance and extension-based confidence. A finite shared IndicatorEngine ATR previously overrode the strategy setting; the shared Wilder calculation and strategy-owned trailing-SMA calculation can differ in both period and smoothing.

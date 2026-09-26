@@ -15,6 +15,7 @@ const WebSocket = require('ws');
 const { getInstance: getStateManager } = require('./StateManager');
 const { getNarrator } = require('./TradeNarrator');
 const { buildBotStateFrame } = require('./BotStateFrame');
+const ConfigLoader = require('../foundation/ConfigLoader');
 const stateManager = getStateManager();
 
 class WebSocketManager {
@@ -99,6 +100,20 @@ class WebSocketManager {
       }));
     }
     return result;
+  }
+
+  handleSettings(message) {
+    const result = message.type === 'get_settings'
+      ? { success: true, ...ConfigLoader.getSettingsView() }
+      : ConfigLoader.saveSettings(message);
+    const receipt = { type: 'settings_result', requestId: message.requestId, ...result };
+    if (result.applied && this.ctx.onSettingsApplied) {
+      this.ctx.onSettingsApplied(ConfigLoader.getCachedSnapshot(), receipt);
+    }
+    if (this.ctx.dashboardWs?.readyState === WebSocket.OPEN) {
+      this.ctx.dashboardWs.send(JSON.stringify(receipt));
+    }
+    return receipt;
   }
 
   /**
@@ -272,6 +287,11 @@ class WebSocketManager {
           // CHANGE 2026-02-10: Handle asset switching from dashboard (Multi-Asset Manager)
           if (msg.type === 'asset_change') {
             this.handleDashboardAssetChange(msg.asset);
+            return;
+          }
+
+          if (msg.type === 'get_settings' || msg.type === 'save_settings') {
+            this.handleSettings(msg);
             return;
           }
 

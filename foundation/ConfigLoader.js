@@ -25,6 +25,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const dotenv = require('dotenv');
 const path = require('path');
+const { writeJsonAtomic } = require('../core/AtomicWrite');
 const SETTINGS_PATH = path.resolve(__dirname, '../config/settings.json');
 const INTERNALS_PATH = path.resolve(__dirname, '../config/internals.json');
 let settingsConfigFile = null;
@@ -2446,6 +2447,105 @@ function getCachedSnapshot() {
   return _cached;
 }
 
+function getReceipt() {
+  return Object.freeze({
+    fingerprint: _cached.fingerprint,
+    role: _cached.role,
+    ..._cached.revisions,
+  });
+}
+
+// This is the delivered hot-edit surface, not a list of every declared setting.
+// Add fields only with their producer/consumer connection in the same change.
+const EDITABLE_SETTINGS = deepFreeze({
+  'confidence.minTradeConfidence': {
+    type: 'number', unit: 'fraction', min: 0, max: 1,
+    scope: 'active_launch_profile', label: 'Minimum entry confidence',
+    effect: 'next_entry_decision',
+  },
+  'filters.atrEnabled': {
+    type: 'boolean', unit: 'boolean', label: 'ATR entry filter',
+    effect: 'next_strategy_evaluation',
+  },
+  'filters.atrMinPercent': {
+    type: 'number', unit: 'percent', min: 0, max: 100,
+    label: 'Global ATR entry minimum',
+    effect: 'next_strategy_evaluation_without_strategy_atr_override',
+  },
+});
+
+function getSettingsView() {
+  if (!_cached) load({ silent: true });
+  return {
+    configuration: getReceipt(),
+    profile: _cached.config.mode.launchProfile,
+    fields: Object.fromEntries(Object.entries(EDITABLE_SETTINGS).map(([key, definition]) => [key, {
+      ...definition, value: get(key), source: getSource(key),
+      editable: _cached.role === 'bot' && !_cached.runDescriptor,
+    }])),
+  };
+}
+
+function saveSettings(request) {
+  const reject = (reason, details = {}) => ({ success: false, saved: false, applied: false, reason, ...details });
+  if (!_cached || _cached.role !== 'bot') return reject('settings_owner_not_loaded');
+  if (_cached.runDescriptor) return reject('backtest_settings_are_descriptor_owned');
+  if (!request || typeof request !== 'object' || Array.isArray(request)
+    || typeof request.requestId !== 'string' || !request.requestId.trim() || request.requestId.length > 128
+    || !Number.isSafeInteger(request.expectedRevision)
+    || typeof request.expectedSettingsHash !== 'string'
+    || !request.changes || typeof request.changes !== 'object' || Array.isArray(request.changes)) {
+    return reject('invalid_settings_request');
+  }
+  const entries = Object.entries(request.changes);
+  if (!entries.length) return reject('empty_settings_change');
+  for (const [key, value] of entries) {
+    if (!Object.hasOwn(EDITABLE_SETTINGS, key)) return reject('setting_not_hot_editable', { path: key });
+    const definition = EDITABLE_SETTINGS[key];
+    if (typeof value !== definition.type || (definition.type === 'number'
+      && (!Number.isFinite(value) || value < definition.min || value > definition.max))) {
+      return reject('invalid_setting_value', { path: key });
+    }
+  }
+  let diskSettings;
+  try {
+    diskSettings = readCanonicalJson(SETTINGS_PATH, 'config/settings.json');
+  } catch (error) {
+    console.error('[ConfigLoader] Settings read failed:', error.message);
+    return reject('settings_read_failed');
+  }
+  const diskHash = canonicalHash(diskSettings);
+  if (diskHash !== _cached.revisions.settingsHash) return reject('settings_changed_outside_loaded_owner');
+  if (request.expectedRevision !== diskSettings.revision || request.expectedSettingsHash !== diskHash) {
+    return reject('settings_revision_changed', { configuration: getReceipt() });
+  }
+  const nextSettings = clonePlain(diskSettings);
+  const nextConfig = clonePlain(_cached.config);
+  for (const [key, value] of entries) {
+    const canonicalPath = EDITABLE_SETTINGS[key].scope === 'active_launch_profile'
+      ? `launchProfiles.${_cached.config.mode.launchProfile}.${key}` : key;
+    setObjectPath(nextSettings, canonicalPath, value);
+    setObjectPath(nextConfig, key, value);
+  }
+  nextSettings.revision += 1;
+  nextConfig.revision = nextSettings.revision;
+  const revisions = { ..._cached.revisions, settings: nextSettings.revision, settingsHash: canonicalHash(nextSettings) };
+  const nextSnapshot = { ..._cached, config: deepFreeze(nextConfig), revisions: Object.freeze(revisions),
+    timestamp: new Date().toISOString(),
+    fingerprint: fingerprint(nextConfig, _cached.sources, { role: _cached.role,
+      revisions: { settings: revisions.settings, internals: revisions.internals } }) };
+  try {
+    writeJsonAtomic(SETTINGS_PATH, nextSettings, { flag: 'wx' });
+  } catch (error) {
+    console.error('[ConfigLoader] Settings save failed:', error.message);
+    return reject('settings_save_failed');
+  }
+  // Synchronous publication after the existing atomic writer succeeds.
+  settingsConfigFile = nextSettings;
+  _cached = nextSnapshot;
+  return { success: true, saved: true, applied: true, ...getSettingsView() };
+}
+
 function _resetForTest() {
   _cached = null;
   _cachedRole = null;
@@ -2651,6 +2751,8 @@ const exported = Object.assign(ConfigLoader, {
   getSource,
   hasLoadedSnapshot,
   getCachedSnapshot,
+  getSettingsView,
+  saveSettings,
   fingerprint,
   snapshot,
   validate,

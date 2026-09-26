@@ -1851,6 +1851,7 @@ wss.on('connection', (ws, req) => {
 
         if (rawTokenAuthenticated || sessionAuthenticated) {
           ws.authenticated = true;
+          ws.botAuthenticated = rawTokenAuthenticated;
           clearTimeout(authTimeout);
           console.log(`[AUTH] Client ${connectionId} authenticated successfully`);
           ws.send(JSON.stringify({
@@ -2006,6 +2007,34 @@ wss.on('connection', (ws, req) => {
       if (ws.clientType === 'dashboard' && data.type === 'asset_change') {
         const asset = typeof data.asset === 'string' && data.asset.trim() ? data.asset.trim().toUpperCase() : '(missing)';
         console.log(`[WS] Dashboard asset_change ${asset} kept display-only; not relayed to bot runtime`);
+      }
+
+      // Read all connected owners; a save addresses the exact returned ownerId.
+      // The connection identity is relay-owned, never accepted from a payload.
+      if (ws.clientType === 'dashboard' && (data.type === 'get_settings' || data.type === 'save_settings')) {
+        const bots = [...wss.clients].filter(client => client.readyState === WebSocket.OPEN
+          && client.authenticated && client.botAuthenticated && client.clientType === 'bot');
+        const targets = data.type === 'get_settings' ? bots
+          : bots.filter(client => client.connectionId === data.ownerId);
+        if (!targets.length) {
+          ws.send(JSON.stringify({ type: 'settings_result', requestId: data.requestId,
+            success: false, saved: false, applied: false,
+            reason: data.type === 'get_settings' ? 'bot_unavailable' : 'settings_owner_unavailable' }));
+        }
+        for (const target of targets) target.send(JSON.stringify(data));
+        return;
+      }
+
+      if (data.type === 'settings_result') {
+        if (ws.clientType === 'bot' && ws.botAuthenticated) {
+          const receipt = JSON.stringify({ ...data, ownerId: ws.connectionId });
+          for (const client of wss.clients) {
+            if (client.readyState === WebSocket.OPEN && client.authenticated && client.clientType === 'dashboard') {
+              client.send(receipt);
+            }
+          }
+        }
+        return;
       }
 
       // CHANGE 2026-02-10: RELAY Dashboard -> Bot (for journal/replay requests)

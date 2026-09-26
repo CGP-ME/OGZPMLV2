@@ -1,0 +1,11 @@
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -8,3 +8,8 @@
+ ## [Unreleased]
+ 
+++### Stop 1 UI Settings Connection (2026-09-26)
++
++- Added owner-targeted dashboard read/save delivery for entry confidence and the two existing ATR entry-filter settings, with canonical profile persistence, explicit units and revision receipts. The inherited 139-field draft is not shipped as verified.
++- Kept settings saves separate from open-trade exits and runtime activation. Direct consumer replay exposed an inherited RSI exit-hint failure; final UI field inventory and Stop 1 acceptance remain open.
++
+ ### Stop 1 Donchian ATR Configuration Delivery (2026-09-26)

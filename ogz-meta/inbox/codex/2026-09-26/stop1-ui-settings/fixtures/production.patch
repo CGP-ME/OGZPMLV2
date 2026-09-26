@@ -1,0 +1,239 @@
+--- a/foundation/ConfigLoader.js
++++ b/foundation/ConfigLoader.js
+@@ -25,6 +25,7 @@
+ const crypto = require('crypto');
+ const dotenv = require('dotenv');
+ const path = require('path');
++const { writeJsonAtomic } = require('../core/AtomicWrite');
+ const SETTINGS_PATH = path.resolve(__dirname, '../config/settings.json');
+ const INTERNALS_PATH = path.resolve(__dirname, '../config/internals.json');
+ let settingsConfigFile = null;
+@@ -2446,6 +2447,105 @@
+   return _cached;
+ }
+ 
++function getReceipt() {
++  return Object.freeze({
++    fingerprint: _cached.fingerprint,
++    role: _cached.role,
++    ..._cached.revisions,
++  });
++}
++
++// This is the delivered hot-edit surface, not a list of every declared setting.
++// Add fields only with their producer/consumer connection in the same change.
++const EDITABLE_SETTINGS = deepFreeze({
++  'confidence.minTradeConfidence': {
++    type: 'number', unit: 'fraction', min: 0, max: 1,
++    scope: 'active_launch_profile', label: 'Minimum entry confidence',
++    effect: 'next_entry_decision',
++  },
++  'filters.atrEnabled': {
++    type: 'boolean', unit: 'boolean', label: 'ATR entry filter',
++    effect: 'next_strategy_evaluation',
++  },
++  'filters.atrMinPercent': {
++    type: 'number', unit: 'percent', min: 0, max: 100,
++    label: 'Global ATR entry minimum',
++    effect: 'next_strategy_evaluation_without_strategy_atr_override',
++  },
++});
++
++function getSettingsView() {
++  if (!_cached) load({ silent: true });
++  return {
++    configuration: getReceipt(),
++    profile: _cached.config.mode.launchProfile,
++    fields: Object.fromEntries(Object.entries(EDITABLE_SETTINGS).map(([key, definition]) => [key, {
++      ...definition, value: get(key), source: getSource(key),
++      editable: _cached.role === 'bot' && !_cached.runDescriptor,
++    }])),
++  };
++}
++
++function saveSettings(request) {
++  const reject = (reason, details = {}) => ({ success: false, saved: false, applied: false, reason, ...details });
++  if (!_cached || _cached.role !== 'bot') return reject('settings_owner_not_loaded');
++  if (_cached.runDescriptor) return reject('backtest_settings_are_descriptor_owned');
++  if (!request || typeof request !== 'object' || Array.isArray(request)
++    || typeof request.requestId !== 'string' || !request.requestId.trim() || request.requestId.length > 128
++    || !Number.isSafeInteger(request.expectedRevision)
++    || typeof request.expectedSettingsHash !== 'string'
++    || !request.changes || typeof request.changes !== 'object' || Array.isArray(request.changes)) {
++    return reject('invalid_settings_request');
++  }
++  const entries = Object.entries(request.changes);
++  if (!entries.length) return reject('empty_settings_change');
++  for (const [key, value] of entries) {
++    if (!Object.hasOwn(EDITABLE_SETTINGS, key)) return reject('setting_not_hot_editable', { path: key });
++    const definition = EDITABLE_SETTINGS[key];
++    if (typeof value !== definition.type || (definition.type === 'number'
++      && (!Number.isFinite(value) || value < definition.min || value > definition.max))) {
++      return reject('invalid_setting_value', { path: key });
++    }
++  }
++  let diskSettings;
++  try {
++    diskSettings = readCanonicalJson(SETTINGS_PATH, 'config/settings.json');
++  } catch (error) {
++    console.error('[ConfigLoader] Settings read failed:', error.message);
++    return reject('settings_read_failed');
++  }
++  const diskHash = canonicalHash(diskSettings);
++  if (diskHash !== _cached.revisions.settingsHash) return reject('settings_changed_outside_loaded_owner');
++  if (request.expectedRevision !== diskSettings.revision || request.expectedSettingsHash !== diskHash) {
++    return reject('settings_revision_changed', { configuration: getReceipt() });
++  }
++  const nextSettings = clonePlain(diskSettings);
++  const nextConfig = clonePlain(_cached.config);
++  for (const [key, value] of entries) {
++    const canonicalPath = EDITABLE_SETTINGS[key].scope === 'active_launch_profile'
++      ? `launchProfiles.${_cached.config.mode.launchProfile}.${key}` : key;
++    setObjectPath(nextSettings, canonicalPath, value);
++    setObjectPath(nextConfig, key, value);
++  }
++  nextSettings.revision += 1;
++  nextConfig.revision = nextSettings.revision;
++  const revisions = { ..._cached.revisions, settings: nextSettings.revision, settingsHash: canonicalHash(nextSettings) };
++  const nextSnapshot = { ..._cached, config: deepFreeze(nextConfig), revisions: Object.freeze(revisions),
++    timestamp: new Date().toISOString(),
++    fingerprint: fingerprint(nextConfig, _cached.sources, { role: _cached.role,
++      revisions: { settings: revisions.settings, internals: revisions.internals } }) };
++  try {
++    writeJsonAtomic(SETTINGS_PATH, nextSettings, { flag: 'wx' });
++  } catch (error) {
++    console.error('[ConfigLoader] Settings save failed:', error.message);
++    return reject('settings_save_failed');
++  }
++  // Synchronous publication after the existing atomic writer succeeds.
++  settingsConfigFile = nextSettings;
++  _cached = nextSnapshot;
++  return { success: true, saved: true, applied: true, ...getSettingsView() };
++}
++
+ function _resetForTest() {
+   _cached = null;
+   _cachedRole = null;
+@@ -2651,6 +2751,8 @@
+   getSource,
+   hasLoadedSnapshot,
+   getCachedSnapshot,
++  getSettingsView,
++  saveSettings,
+   fingerprint,
+   snapshot,
+   validate,
+--- a/core/WebSocketManager.js
++++ b/core/WebSocketManager.js
+@@ -15,6 +15,7 @@
+ const { getInstance: getStateManager } = require('./StateManager');
+ const { getNarrator } = require('./TradeNarrator');
+ const { buildBotStateFrame } = require('./BotStateFrame');
++const ConfigLoader = require('../foundation/ConfigLoader');
+ const stateManager = getStateManager();
+ 
+ class WebSocketManager {
+@@ -101,6 +102,20 @@
+     return result;
+   }
+ 
++  handleSettings(message) {
++    const result = message.type === 'get_settings'
++      ? { success: true, ...ConfigLoader.getSettingsView() }
++      : ConfigLoader.saveSettings(message);
++    const receipt = { type: 'settings_result', requestId: message.requestId, ...result };
++    if (result.applied && this.ctx.onSettingsApplied) {
++      this.ctx.onSettingsApplied(ConfigLoader.getCachedSnapshot(), receipt);
++    }
++    if (this.ctx.dashboardWs?.readyState === WebSocket.OPEN) {
++      this.ctx.dashboardWs.send(JSON.stringify(receipt));
++    }
++    return receipt;
++  }
++
+   /**
+    * Initialize Dashboard WebSocket connection (Change 528)
+    * OPTIONAL - only connects if WS_HOST is set
+@@ -275,6 +290,11 @@
+             return;
+           }
+ 
++          if (msg.type === 'get_settings' || msg.type === 'save_settings') {
++            this.handleSettings(msg);
++            return;
++          }
++
+           // CHANGE 665: Handle profile switching and dashboard commands
+           if (msg.type === 'command') {
+             console.log('[Dashboard] command received:', msg.command);
+--- a/ogzprime-ssl-server.js
++++ b/ogzprime-ssl-server.js
+@@ -1851,6 +1851,7 @@
+ 
+         if (rawTokenAuthenticated || sessionAuthenticated) {
+           ws.authenticated = true;
++          ws.botAuthenticated = rawTokenAuthenticated;
+           clearTimeout(authTimeout);
+           console.log(`[AUTH] Client ${connectionId} authenticated successfully`);
+           ws.send(JSON.stringify({
+@@ -2008,6 +2009,34 @@
+         console.log(`[WS] Dashboard asset_change ${asset} kept display-only; not relayed to bot runtime`);
+       }
+ 
++      // Read all connected owners; a save addresses the exact returned ownerId.
++      // The connection identity is relay-owned, never accepted from a payload.
++      if (ws.clientType === 'dashboard' && (data.type === 'get_settings' || data.type === 'save_settings')) {
++        const bots = [...wss.clients].filter(client => client.readyState === WebSocket.OPEN
++          && client.authenticated && client.botAuthenticated && client.clientType === 'bot');
++        const targets = data.type === 'get_settings' ? bots
++          : bots.filter(client => client.connectionId === data.ownerId);
++        if (!targets.length) {
++          ws.send(JSON.stringify({ type: 'settings_result', requestId: data.requestId,
++            success: false, saved: false, applied: false,
++            reason: data.type === 'get_settings' ? 'bot_unavailable' : 'settings_owner_unavailable' }));
++        }
++        for (const target of targets) target.send(JSON.stringify(data));
++        return;
++      }
++
++      if (data.type === 'settings_result') {
++        if (ws.clientType === 'bot' && ws.botAuthenticated) {
++          const receipt = JSON.stringify({ ...data, ownerId: ws.connectionId });
++          for (const client of wss.clients) {
++            if (client.readyState === WebSocket.OPEN && client.authenticated && client.clientType === 'dashboard') {
++              client.send(receipt);
++            }
++          }
++        }
++        return;
++      }
++
+       // CHANGE 2026-02-10: RELAY Dashboard -> Bot (for journal/replay requests)
+       if (ws.clientType === 'dashboard' && (
+           data.type.startsWith('request_journal') ||
+--- a/run-empire-v2.js
++++ b/run-empire-v2.js
+@@ -1149,6 +1149,14 @@
+     // Dashboard WebSocket (Change 528) - OPTIONAL for real-time monitoring
+     this.dashboardWs = null;
+     this.dashboardWsConnected = false;
++    this.onSettingsApplied = (snapshot, receipt) => {
++      resolvedConfig = snapshot;
++      runtimeAuditSink.setSourceReceiptId(`config:${snapshot.fingerprint}`);
++      logRuntimeConfigProof(snapshot, ConfigLoader);
++      console.log('[SETTINGS_APPLIED]', JSON.stringify({
++        requestId: receipt.requestId, configuration: receipt.configuration,
++      }));
++    };
+     // REFACTOR Phase 20: WebSocketManager - must be instantiated before initializeDashboardWebSocket call
+     this.webSocketManager = new WebSocketManager(this, {
+       wsUrl: resolvedConfig.config.dashboard.botRelayUrl,
+@@ -1362,7 +1370,7 @@
+ 
+     this.config = {
+       // CHANGE 2026-02-28: Use ConfigLoader for minTradeConfidence
+-      minTradeConfidence: ConfigLoader.get('confidence.minTradeConfidence'),
++      get minTradeConfidence() { return ConfigLoader.get('confidence.minTradeConfidence'); },
+       tradingPair: this.tradingPair,
+       brokerId: resolvedConfig.config.broker.id,
+       accountId: runtimeAccountIdentity.accountId,
