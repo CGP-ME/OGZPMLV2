@@ -268,6 +268,8 @@ function normalizeContract(strategyName, contract) {
     donchianChannelLower: hasOwn(contract, 'donchianChannelLower') ? contract.donchianChannelLower : null,
     tsmLookback: hasOwn(contract, 'tsmLookback') ? contract.tsmLookback : null,
     tsmEntryTrailingReturn: hasOwn(contract, 'tsmEntryTrailingReturn') ? contract.tsmEntryTrailingReturn : null,
+    ...(hasOwn(contract, 'rsiPeriod') ? { rsiPeriod: contract.rsiPeriod } : {}),
+    ...(hasOwn(contract, 'rsiExitLong') ? { rsiExitLong: contract.rsiExitLong } : {}),
     validatedAt: hasOwn(contract, '_validated') ? contract._validated : null,
   };
 }

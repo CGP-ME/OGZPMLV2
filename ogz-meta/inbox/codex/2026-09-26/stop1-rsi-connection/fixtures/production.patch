@@ -1,0 +1,178 @@
+diff --git a/config/settings.json b/config/settings.json
+index 7253b5a..f20f727 100644
+--- a/config/settings.json
++++ b/config/settings.json
+@@ -1,6 +1,6 @@
+ {
+   "schemaVersion": 1,
+-  "revision": 2,
++  "revision": 3,
+   "confidence": {
+     "minStrategyConfidence": 0.35,
+     "candlePatternMinConfidence": 0.7,
+@@ -1520,7 +1520,7 @@
+         "fraction": 0.5,
+         "remainderTrail": "atr"
+       },
+-      "invalidationConditions": [],
++      "invalidationConditions": ["rsi_exit_long"],
+       "_validated": "2026-03-20"
+     },
+     "MADynamicSR": {
+diff --git a/core/ExitContractManager.js b/core/ExitContractManager.js
+index 3435fd6..e0d1f21 100644
+--- a/core/ExitContractManager.js
++++ b/core/ExitContractManager.js
+@@ -519,13 +519,17 @@ class ExitContractManager {
+           }
+           break;
+ 
++        case 'rsi_exit_long':
+         case 'rsi2_exit_long': {
+           const isLong = trade.direction === 'long' || trade.action === 'BUY';
+           const threshold = finiteOrNull(trade.exitContract?.rsiExitLong);
+-          const period = positiveIntegerOrNull(trade.exitContract?.rsiPeriod) || 2;
++          const period = trade.exitContract.rsiPeriod;
+           const currentRsi = resolveRsiForPeriod(indicators, context.priceHistory, period);
+-          if (isLong && threshold !== null && currentRsi !== null && currentRsi >= threshold) {
+-            return { triggered: true, reason: `RSI${period} long exit threshold reached: ${currentRsi.toFixed(1)} >= ${threshold}` };
++          const thresholdReached = condition === 'rsi_exit_long'
++            ? currentRsi > threshold
++            : currentRsi >= threshold;
++          if (isLong && threshold !== null && currentRsi !== null && thresholdReached) {
++            return { triggered: true, reason: `RSI${period} long exit threshold reached: ${currentRsi.toFixed(1)} ${condition === 'rsi_exit_long' ? '>' : '>='} ${threshold}` };
+           }
+           break;
+         }
+@@ -977,7 +981,7 @@ class ExitContractManager {
+     }
+     if (signal.rsiExitLong !== undefined) {
+       const rsiExitLong = Number(signal.rsiExitLong);
+-      if (Number.isFinite(rsiExitLong) && rsiExitLong > 50 && rsiExitLong < 100) {
++      if (Number.isFinite(rsiExitLong) && rsiExitLong >= 1 && rsiExitLong <= 99) {
+         contract.rsiExitLong = rsiExitLong;
+       }
+     }
+diff --git a/core/PolicyBuilder.js b/core/PolicyBuilder.js
+index f7ff4f2..2c8d413 100644
+--- a/core/PolicyBuilder.js
++++ b/core/PolicyBuilder.js
+@@ -268,6 +268,8 @@ function normalizeContract(strategyName, contract) {
+     donchianChannelLower: hasOwn(contract, 'donchianChannelLower') ? contract.donchianChannelLower : null,
+     tsmLookback: hasOwn(contract, 'tsmLookback') ? contract.tsmLookback : null,
+     tsmEntryTrailingReturn: hasOwn(contract, 'tsmEntryTrailingReturn') ? contract.tsmEntryTrailingReturn : null,
++    ...(hasOwn(contract, 'rsiPeriod') ? { rsiPeriod: contract.rsiPeriod } : {}),
++    ...(hasOwn(contract, 'rsiExitLong') ? { rsiExitLong: contract.rsiExitLong } : {}),
+     validatedAt: hasOwn(contract, '_validated') ? contract._validated : null,
+   };
+ }
+diff --git a/core/StrategyOrchestrator.js b/core/StrategyOrchestrator.js
+index 2f89a8b..4396c30 100644
+--- a/core/StrategyOrchestrator.js
++++ b/core/StrategyOrchestrator.js
+@@ -797,8 +797,8 @@ function normalizeExitContractHint(hint, strategyName) {
+   }
+   if (hint.rsiExitLong !== undefined) {
+     const rsiExitLong = Number(hint.rsiExitLong);
+-    if (!Number.isFinite(rsiExitLong) || rsiExitLong <= 50 || rsiExitLong >= 100) {
+-      throw new Error(`[EXIT-HINT] ${strategyName}.exitContractHint.rsiExitLong must be between 50 and 100 when provided (got ${hint.rsiExitLong})`);
++    if (!Number.isFinite(rsiExitLong) || rsiExitLong < 1 || rsiExitLong > 99) {
++      throw new Error(`[EXIT-HINT] ${strategyName}.exitContractHint.rsiExitLong must be between 1 and 99 when provided (got ${hint.rsiExitLong})`);
+     }
+     normalized.rsiExitLong = rsiExitLong;
+   }
+@@ -1096,8 +1096,8 @@ class StrategyOrchestrator {
+     let ma = null;
+ 
+     if (timeframe === 'trading') {
+-      if (period === 200 && Number.isFinite(Number(ctx.indicators?.sma200))) {
+-        ma = Number(ctx.indicators.sma200);
++      if (period === 200 && Number.isFinite(ctx.indicators?.sma200)) {
++        ma = ctx.indicators.sma200;
+       } else {
+         ma = IndicatorCalculator.calculateSMA(candles, period);
+       }
+@@ -1107,14 +1107,14 @@ class StrategyOrchestrator {
+       ma = IndicatorCalculator.calculateSMA(candles, period);
+     }
+ 
+-    if (!Number.isFinite(Number(latestPrice)) || !Number.isFinite(Number(ma))) {
++    if (!Number.isFinite(latestPrice) || !Number.isFinite(ma)) {
+       return {
+         allowed: false,
+         enabled: true,
+         timeframe,
+         period,
+-        price: Number.isFinite(Number(latestPrice)) ? Number(latestPrice) : null,
+-        ma: Number.isFinite(Number(ma)) ? Number(ma) : null,
++        price: Number.isFinite(latestPrice) ? latestPrice : null,
++        ma: Number.isFinite(ma) ? ma : null,
+         reason: 'regime_ma_unavailable',
+       };
+     }
+@@ -1866,6 +1866,7 @@ class StrategyOrchestrator {
+             regimeMa,
+           },
+           exitContractHint: {
++            ...getExitContractManager().getDefaultContract('RSI', { timeframe: ctx.extras?.timeframe }),
+             rsiPeriod: rsiConfig.period,
+             rsiExitLong: rsiConfig.exitAbove,
+           },
+diff --git a/foundation/ConfigLoader.js b/foundation/ConfigLoader.js
+index 2572bd8..e7eadab 100644
+--- a/foundation/ConfigLoader.js
++++ b/foundation/ConfigLoader.js
+@@ -2472,6 +2472,30 @@ const EDITABLE_SETTINGS = deepFreeze({
+     label: 'Global ATR entry minimum',
+     effect: 'next_strategy_evaluation_without_strategy_atr_override',
+   },
++  'strategies.RSI.period': {
++    type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
++    label: 'RSI period', effect: 'next_RSI_entry_and_its_owned_exit',
++  },
++  'strategies.RSI.buyBelow': {
++    type: 'number', unit: 'rsi_points', min: 1, max: 99,
++    label: 'RSI buy below', effect: 'next_RSI_entry',
++  },
++  'strategies.RSI.exitAbove': {
++    type: 'number', unit: 'rsi_points', min: 1, max: 99,
++    label: 'RSI exit above', effect: 'new_RSI_trades_only',
++  },
++  'strategies.RSI.regimeMaFilter.enabled': {
++    type: 'boolean', unit: 'boolean', label: 'RSI moving-average entry condition',
++    effect: 'next_RSI_entry',
++  },
++  'strategies.RSI.regimeMaFilter.period': {
++    type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
++    label: 'RSI moving-average period', effect: 'next_RSI_entry_after_lookback_ready',
++  },
++  'strategies.RSI.regimeMaFilter.timeframe': {
++    type: 'string', unit: 'timeframe', values: ['trading', '1h', '4h'],
++    label: 'RSI moving-average timeframe', effect: 'next_RSI_entry_using_selected_frame_candles',
++  },
+ });
+ 
+ function getSettingsView() {
+@@ -2502,8 +2526,9 @@ function saveSettings(request) {
+   for (const [key, value] of entries) {
+     if (!Object.hasOwn(EDITABLE_SETTINGS, key)) return reject('setting_not_hot_editable', { path: key });
+     const definition = EDITABLE_SETTINGS[key];
+-    if (typeof value !== definition.type || (definition.type === 'number'
+-      && (!Number.isFinite(value) || value < definition.min || value > definition.max))) {
++    if (typeof value !== definition.type || (definition.values && !definition.values.includes(value))
++      || (definition.type === 'number' && (!Number.isFinite(value) || value < definition.min || value > definition.max
++        || (definition.integer && !Number.isSafeInteger(value))))) {
+       return reject('invalid_setting_value', { path: key });
+     }
+   }
+@@ -2527,6 +2552,10 @@ function saveSettings(request) {
+     setObjectPath(nextSettings, canonicalPath, value);
+     setObjectPath(nextConfig, key, value);
+   }
++  if (entries.some(([key]) => key.startsWith('strategies.RSI.'))
++      && nextConfig.strategies.RSI.buyBelow >= nextConfig.strategies.RSI.exitAbove) {
++    return reject('rsi_buy_must_be_below_exit');
++  }
+   nextSettings.revision += 1;
+   nextConfig.revision = nextSettings.revision;
+   const revisions = { ..._cached.revisions, settings: nextSettings.revision, settingsHash: canonicalHash(nextSettings) };

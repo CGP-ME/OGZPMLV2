@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 2,
+  "revision": 3,
   "confidence": {
     "minStrategyConfidence": 0.35,
     "candlePatternMinConfidence": 0.7,
@@ -1520,7 +1520,7 @@
         "fraction": 0.5,
         "remainderTrail": "atr"
       },
-      "invalidationConditions": [],
+      "invalidationConditions": ["rsi_exit_long"],
       "_validated": "2026-03-20"
     },
     "MADynamicSR": {

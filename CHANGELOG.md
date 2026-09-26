@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Stop 1 RSI Settings Delivery (2026-09-26)
+
+- Connect the six existing RSI period/threshold/regime settings to the dashboard save API and the existing strategy/entry-owned exit consumers. Preserve the configured threshold of 50, timeframe-specific risk contract, and RSI period/threshold in the frozen entry policy. RSI exits strictly above its threshold; RSI2 retains its inclusive comparison.
+- Keep missing moving-average evidence null instead of converting it to zero. Remove the shared exit-period substitution; both current RSI producers supply their configured period. No new process gate, throw, configuration owner or runtime activation. Recorded-candle, hot-save and adversarial receipts are in the RSI-connection packet. The complete UI configuration handoff remains unfinished.
+
 +### Stop 1 UI Settings Connection (2026-09-26)
 
 - Added owner-targeted dashboard read/save delivery for entry confidence and the two existing ATR entry-filter settings, with canonical profile persistence, explicit units and revision receipts. The inherited 139-field draft is not shipped as verified.

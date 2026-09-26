@@ -1,4 +1,4 @@
-# UI settings connection — first delivered slice, not the final field inventory
+# UI settings connection — working interface, not the final field inventory
 
 Use the existing `/ws` connection, same-origin dashboard session cookie and one-use ticket. After `auth_success`, identify as `{type:"identify", source:"dashboard"}`. Never put the long-lived WebSocket token in HTML or client storage. This change does not alter the existing session endpoints or authorize deployment.
 
@@ -17,6 +17,14 @@ Select the owner explicitly; do not take the first reply as an implicit target. 
 | confidence.minTradeConfidence | Stored fraction: 0.5 displays as 50%; divide percent input by 100 before saving. | Next entry decision; writes only the active launch profile's confidence setting. |
 | filters.atrEnabled | Boolean, preserve false. | Next strategy evaluation; existing ATR entry filter, not a newly introduced gate. |
 | filters.atrMinPercent | Already percent: 0.4 displays as 0.4%, not 40%. | Next strategy evaluation using the global threshold. A strategy's explicit ATR contract threshold takes precedence; this field does not overwrite it. |
+| strategies.RSI.period | Positive integer candle count. | Next RSI entries and their entry-owned exit calculation; existing trades retain their period. |
+| strategies.RSI.buyBelow | RSI points, 1..99. | Next RSI entry evaluation; must remain below exitAbove. |
+| strategies.RSI.exitAbove | RSI points, 1..99. | New RSI trades exit strictly above this threshold; existing trades retain theirs. |
+| strategies.RSI.regimeMaFilter.enabled | Boolean, preserve false. | Next RSI entry evaluation. |
+| strategies.RSI.regimeMaFilter.period | Positive integer candle count. | Next RSI entry evaluation once the selected lookback is available. |
+| strategies.RSI.regimeMaFilter.timeframe | Enum: trading, 1h, 4h. | Existing delivered-candle consumer; unavailable selected-frame evidence remains unavailable. Saving this does not acquire broker candles. |
+
+Honor `integer:true` and `values` enum metadata. RSI buyBelow/exitAbove edits are validated together; `rsi_buy_must_be_below_exit` rejects the request without changing the accepted snapshot. These controls do not enable the RSI strategy or change its existing registration switch.
 
 ## Save
 
@@ -31,7 +39,7 @@ Select the owner explicitly; do not take the first reply as an implicit target. 
 }
 ```
 
-The example revision is illustrative; always send the revision and hash just read, never hardcode them. Changes are an atomic request: an invalid/unsupported field rejects the entire edit. Only the three delivered fields are currently accepted. Saves do not edit internals, broker identity, execution mode, credentials, or existing trade exits. Paper/live activation and profile switching are not settings-save operations.
+The example revision is illustrative; always send the revision and hash just read, never hardcode them. Changes are an atomic request: an invalid/unsupported field rejects the entire edit. Only the nine listed fields are currently accepted. Saves do not edit internals, broker identity, execution mode, credentials, or existing trade exits. Paper/live activation and profile switching are not settings-save operations.
 
 Successful `settings_result` returns `saved:true`, `applied:true`, and the new complete view. Replace local values and revision with that response. Match both requestId and ownerId: responses are visible to the authenticated dashboards sharing this relay. Do not mark success on socket send or optimistic local state alone.
 
@@ -41,4 +49,4 @@ Failure returns `success:false`, `saved:false`, `applied:false`, and `reason`. I
 
 The complete customer field inventory, sizing/strategy/session controls, and separate per-trade stop editing remain unlanded. Do not implement the historical 139-field draft as a finished contract. The envelope can be wired now, but the final complete UI field list is still owed.
 
-The isolated recorded-candle exercise also reproduced an inherited RSI exit-hint producer defect after the changed ATR filter admits the signal. Read/save correctness does not prove successful entry execution. Stop 1 remains open; no production bot/relay restart, real browser rendering, or paper-trading acceptance is claimed.
+The original isolated exercise exposed an RSI exit-hint failure; the RSI-connection packet records its connected repair, including actual entry-contract and exit-coordinator observations. Neither packet is running-bot acceptance. Stop 1 remains open; no production bot/relay restart, real browser rendering, broker acquisition or paper-trading acceptance is claimed. Do not send this working interface as the final UI-agent handoff.

@@ -519,13 +519,17 @@ class ExitContractManager {
           }
           break;
 
+        case 'rsi_exit_long':
         case 'rsi2_exit_long': {
           const isLong = trade.direction === 'long' || trade.action === 'BUY';
           const threshold = finiteOrNull(trade.exitContract?.rsiExitLong);
-          const period = positiveIntegerOrNull(trade.exitContract?.rsiPeriod) || 2;
+          const period = trade.exitContract.rsiPeriod;
           const currentRsi = resolveRsiForPeriod(indicators, context.priceHistory, period);
-          if (isLong && threshold !== null && currentRsi !== null && currentRsi >= threshold) {
-            return { triggered: true, reason: `RSI${period} long exit threshold reached: ${currentRsi.toFixed(1)} >= ${threshold}` };
+          const thresholdReached = condition === 'rsi_exit_long'
+            ? currentRsi > threshold
+            : currentRsi >= threshold;
+          if (isLong && threshold !== null && currentRsi !== null && thresholdReached) {
+            return { triggered: true, reason: `RSI${period} long exit threshold reached: ${currentRsi.toFixed(1)} ${condition === 'rsi_exit_long' ? '>' : '>='} ${threshold}` };
           }
           break;
         }
@@ -977,7 +981,7 @@ class ExitContractManager {
     }
     if (signal.rsiExitLong !== undefined) {
       const rsiExitLong = Number(signal.rsiExitLong);
-      if (Number.isFinite(rsiExitLong) && rsiExitLong > 50 && rsiExitLong < 100) {
+      if (Number.isFinite(rsiExitLong) && rsiExitLong >= 1 && rsiExitLong <= 99) {
         contract.rsiExitLong = rsiExitLong;
       }
     }

@@ -2472,6 +2472,30 @@ const EDITABLE_SETTINGS = deepFreeze({
     label: 'Global ATR entry minimum',
     effect: 'next_strategy_evaluation_without_strategy_atr_override',
   },
+  'strategies.RSI.period': {
+    type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
+    label: 'RSI period', effect: 'next_RSI_entry_and_its_owned_exit',
+  },
+  'strategies.RSI.buyBelow': {
+    type: 'number', unit: 'rsi_points', min: 1, max: 99,
+    label: 'RSI buy below', effect: 'next_RSI_entry',
+  },
+  'strategies.RSI.exitAbove': {
+    type: 'number', unit: 'rsi_points', min: 1, max: 99,
+    label: 'RSI exit above', effect: 'new_RSI_trades_only',
+  },
+  'strategies.RSI.regimeMaFilter.enabled': {
+    type: 'boolean', unit: 'boolean', label: 'RSI moving-average entry condition',
+    effect: 'next_RSI_entry',
+  },
+  'strategies.RSI.regimeMaFilter.period': {
+    type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
+    label: 'RSI moving-average period', effect: 'next_RSI_entry_after_lookback_ready',
+  },
+  'strategies.RSI.regimeMaFilter.timeframe': {
+    type: 'string', unit: 'timeframe', values: ['trading', '1h', '4h'],
+    label: 'RSI moving-average timeframe', effect: 'next_RSI_entry_using_selected_frame_candles',
+  },
 });
 
 function getSettingsView() {
@@ -2502,8 +2526,9 @@ function saveSettings(request) {
   for (const [key, value] of entries) {
     if (!Object.hasOwn(EDITABLE_SETTINGS, key)) return reject('setting_not_hot_editable', { path: key });
     const definition = EDITABLE_SETTINGS[key];
-    if (typeof value !== definition.type || (definition.type === 'number'
-      && (!Number.isFinite(value) || value < definition.min || value > definition.max))) {
+    if (typeof value !== definition.type || (definition.values && !definition.values.includes(value))
+      || (definition.type === 'number' && (!Number.isFinite(value) || value < definition.min || value > definition.max
+        || (definition.integer && !Number.isSafeInteger(value))))) {
       return reject('invalid_setting_value', { path: key });
     }
   }
@@ -2526,6 +2551,10 @@ function saveSettings(request) {
       ? `launchProfiles.${_cached.config.mode.launchProfile}.${key}` : key;
     setObjectPath(nextSettings, canonicalPath, value);
     setObjectPath(nextConfig, key, value);
+  }
+  if (entries.some(([key]) => key.startsWith('strategies.RSI.'))
+      && nextConfig.strategies.RSI.buyBelow >= nextConfig.strategies.RSI.exitAbove) {
+    return reject('rsi_buy_must_be_below_exit');
   }
   nextSettings.revision += 1;
   nextConfig.revision = nextSettings.revision;

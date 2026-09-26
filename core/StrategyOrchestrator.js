@@ -797,8 +797,8 @@ function normalizeExitContractHint(hint, strategyName) {
   }
   if (hint.rsiExitLong !== undefined) {
     const rsiExitLong = Number(hint.rsiExitLong);
-    if (!Number.isFinite(rsiExitLong) || rsiExitLong <= 50 || rsiExitLong >= 100) {
-      throw new Error(`[EXIT-HINT] ${strategyName}.exitContractHint.rsiExitLong must be between 50 and 100 when provided (got ${hint.rsiExitLong})`);
+    if (!Number.isFinite(rsiExitLong) || rsiExitLong < 1 || rsiExitLong > 99) {
+      throw new Error(`[EXIT-HINT] ${strategyName}.exitContractHint.rsiExitLong must be between 1 and 99 when provided (got ${hint.rsiExitLong})`);
     }
     normalized.rsiExitLong = rsiExitLong;
   }
@@ -1096,8 +1096,8 @@ class StrategyOrchestrator {
     let ma = null;
 
     if (timeframe === 'trading') {
-      if (period === 200 && Number.isFinite(Number(ctx.indicators?.sma200))) {
-        ma = Number(ctx.indicators.sma200);
+      if (period === 200 && Number.isFinite(ctx.indicators?.sma200)) {
+        ma = ctx.indicators.sma200;
       } else {
         ma = IndicatorCalculator.calculateSMA(candles, period);
       }
@@ -1107,14 +1107,14 @@ class StrategyOrchestrator {
       ma = IndicatorCalculator.calculateSMA(candles, period);
     }
 
-    if (!Number.isFinite(Number(latestPrice)) || !Number.isFinite(Number(ma))) {
+    if (!Number.isFinite(latestPrice) || !Number.isFinite(ma)) {
       return {
         allowed: false,
         enabled: true,
         timeframe,
         period,
-        price: Number.isFinite(Number(latestPrice)) ? Number(latestPrice) : null,
-        ma: Number.isFinite(Number(ma)) ? Number(ma) : null,
+        price: Number.isFinite(latestPrice) ? latestPrice : null,
+        ma: Number.isFinite(ma) ? ma : null,
         reason: 'regime_ma_unavailable',
       };
     }
@@ -1866,6 +1866,7 @@ class StrategyOrchestrator {
             regimeMa,
           },
           exitContractHint: {
+            ...getExitContractManager().getDefaultContract('RSI', { timeframe: ctx.extras?.timeframe }),
             rsiPeriod: rsiConfig.period,
             rsiExitLong: rsiConfig.exitAbove,
           },
