@@ -1,0 +1,20 @@
+{
+  "commit": "ed45313ea33815a9350c510ca61e104531a1f425",
+  "boundary": "same-host separate clone cold-pull; not independent metal or running bot",
+  "files": [
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-donchian-settings/private/cold-pgboRK/receipt.json",
+      "originalSha256": "24942c69a3a0f27191a0527cc4551e5d0a5a450229cc849b9cc9e317ab1af84a",
+      "redactedSha256": "c1702ec80418485ad0ce4acca6e90ea6c2352a615864162327620c40561a57ab",
+      "gzipSha256": "f1f50f1f10892827e3a89c0e6572a52e604a53154cd2112e224e9664332be99a",
+      "redactedPath": "tapes/cold-receipt.json.gz"
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-donchian-settings/private/cold-pgboRK/console.json",
+      "originalSha256": "e9896e6bb4573cc1aad1d594ca6bfd5dcb7989358d116d01480e63f380a2307c",
+      "redactedSha256": "e9896e6bb4573cc1aad1d594ca6bfd5dcb7989358d116d01480e63f380a2307c",
+      "gzipSha256": "eb7da98d1a0de7e0373338314aeed122b6bc358f2131a8a81ff397de8c70afbf",
+      "redactedPath": "tapes/cold-console.json.gz"
+    }
+  ]
+}
