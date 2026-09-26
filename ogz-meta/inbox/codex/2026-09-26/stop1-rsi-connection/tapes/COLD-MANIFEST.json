@@ -1,0 +1,20 @@
+{
+  "commit": "7f46eb96679aaaa0599c5300e159be6b26f50907",
+  "boundary": "same-host separate clone cold-pull; not independent metal or running bot",
+  "files": [
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-rsi-connection/private/cold-IG2Sgk/receipt.json",
+      "originalSha256": "8a835e9c8eaff9f3b0d78c4439062d947a9104d0118a884a5872348508c42037",
+      "redactedSha256": "571daeb50830593eb7e2e6cb0c0a7479908460f6bfe95d2eb4363b34e0f68c4b",
+      "gzipSha256": "aa06e5cb0a2b3fe5df8591cf3140f185cca85b50d5f407b6dd3418d8fb1597dc",
+      "redactedPath": "tapes/cold-receipt.json.gz"
+    },
+    {
+      "originalPath": "ogz-meta/inbox/codex/2026-09-26/stop1-rsi-connection/private/cold-IG2Sgk/console.json",
+      "originalSha256": "0f4a9545eb9f350086a51f9544414441e29105f52389ef77e79be0e160308ec7",
+      "redactedSha256": "0f4a9545eb9f350086a51f9544414441e29105f52389ef77e79be0e160308ec7",
+      "gzipSha256": "322c9689c41ff892c6115d565b8d0d4542f49757135485a1e1de9763574ec230",
+      "redactedPath": "tapes/cold-console.json.gz"
+    }
+  ]
+}
