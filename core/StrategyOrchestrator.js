@@ -2201,7 +2201,7 @@ class StrategyOrchestrator {
           () => new TimeSeriesMomentum(
             ConfigLoader.get('strategies.TimeSeriesMomentum')
           )
-        ).evaluate(ctx)
+        ).evaluate(ctx, ConfigLoader.get('strategies.TimeSeriesMomentum'))
       });
     }
 

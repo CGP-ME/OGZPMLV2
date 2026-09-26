@@ -1,0 +1,7 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process');
+const root=path.resolve(__dirname,'../../../../../..');
+const source='ogz-meta/inbox/codex/2026-09-26/stop1-tsm-settings/OBSERVATION.json';
+const question='Mercury, break this TimeSeriesMomentum UI setting-to-existing-instance-to-entry-contract connection. Find a concrete producer-to-consumer counterexample, distinguish fixed mechanism from masked failure, inspect all candidate findings before deciding, and follow necessary callers using AST/Serena. Scope is the three changed files and their affected consumers, not the unrelated dirty main tree. Native candles only, no new process gates or guessed defaults. Host observations are actual isolated module execution, not running-bot proof. Existing historical ATR tuning overlay and shared dynamic exit trailing policy are named competing/remaining ownership concerns; distinguish inherited behavior from this change. Host-attested receipt follows verbatim:\n'+fs.readFileSync(path.join(root,source),'utf8');
+const child=cp.spawn(process.execPath,[path.join(root,'ogz-meta/inbox/codex/2026-09-26/stop1-config-connections/fixtures/review.cjs'),'tsm-settings-review','--agentic','--reviewers=mercury,fable,kimi','--max-tokens=7750','--attack','--change-path=modules/TimeSeriesMomentum.js','--change-path=core/StrategyOrchestrator.js','--change-path=foundation/ConfigLoader.js','--evidence-source='+source+':1-1',question],{stdio:'inherit'});
+child.on('exit',code=>{process.exitCode=code;});

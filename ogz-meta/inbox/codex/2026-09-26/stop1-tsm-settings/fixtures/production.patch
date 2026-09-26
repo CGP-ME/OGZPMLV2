@@ -1,0 +1,93 @@
+diff --git a/core/StrategyOrchestrator.js b/core/StrategyOrchestrator.js
+index 5e96aa2..c41a096 100644
+--- a/core/StrategyOrchestrator.js
++++ b/core/StrategyOrchestrator.js
+@@ -2201,7 +2201,7 @@ class StrategyOrchestrator {
+           () => new TimeSeriesMomentum(
+             ConfigLoader.get('strategies.TimeSeriesMomentum')
+           )
+-        ).evaluate(ctx)
++        ).evaluate(ctx, ConfigLoader.get('strategies.TimeSeriesMomentum'))
+       });
+     }
+ 
+diff --git a/foundation/ConfigLoader.js b/foundation/ConfigLoader.js
+index 4fe8162..68fb19c 100644
+--- a/foundation/ConfigLoader.js
++++ b/foundation/ConfigLoader.js
+@@ -2516,6 +2516,34 @@ const EDITABLE_SETTINGS = deepFreeze({
+     type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
+     label: 'Donchian exit channel period', effect: 'new_Donchian_trade_channel_trail_only',
+   },
++  'strategies.TimeSeriesMomentum.lookback': {
++    type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
++    label: 'Momentum return lookback', effect: 'next_TSM_entry_and_new_trade_return_flip_exit',
++  },
++  'strategies.TimeSeriesMomentum.trendPeriod': {
++    type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
++    label: 'Momentum trend period', effect: 'next_TSM_evaluation_after_lookback_available',
++  },
++  'strategies.TimeSeriesMomentum.atrPeriod': {
++    type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
++    label: 'Momentum entry-stop ATR period', effect: 'new_TSM_entry_stop_only',
++  },
++  'strategies.TimeSeriesMomentum.minReturn': {
++    type: 'number', unit: 'fraction', min: 0, max: Number.MAX_VALUE,
++    label: 'Momentum minimum return', effect: 'next_TSM_entry_evaluation',
++  },
++  'strategies.TimeSeriesMomentum.allowShorts': {
++    type: 'boolean', unit: 'boolean', label: 'Momentum short signals',
++    effect: 'next_TSM_evaluation_subject_to_existing_direction_policy',
++  },
++  'strategies.TimeSeriesMomentum.atrStopMult': {
++    type: 'number', unit: 'atr_multiple', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
++    label: 'Momentum entry-stop ATR multiple', effect: 'new_TSM_entry_stop_only',
++  },
++  'strategies.TimeSeriesMomentum.trailAtrMult': {
++    type: 'number', unit: 'atr_multiple', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
++    label: 'Momentum trailing ATR multiple', effect: 'new_TSM_trade_existing_dynamic_trailing_policy',
++  },
+ });
+ 
+ function getSettingsView() {
+diff --git a/modules/TimeSeriesMomentum.js b/modules/TimeSeriesMomentum.js
+index be1c0df..49d3f14 100644
+--- a/modules/TimeSeriesMomentum.js
++++ b/modules/TimeSeriesMomentum.js
+@@ -98,16 +98,17 @@ function readConfig(config) {
+ 
+ class TimeSeriesMomentum {
+   constructor(config) {
+-    Object.defineProperty(this, 'cfg', {
+-      value: Object.freeze(readConfig(config)),
+-      writable: false,
+-      configurable: false,
+-      enumerable: true,
+-    });
++    this.configure(config);
++  }
++
++  configure(config) {
++    this.cfg = Object.freeze(readConfig(config));
+     this.minHistory = Math.max(this.cfg.trendPeriod, this.cfg.lookback, this.cfg.atrPeriod) + 2;
++    this.configurationInput = config;
+   }
+ 
+-  evaluate(ctx) {
++  evaluate(ctx, config = this.configurationInput) {
++    if (config !== this.configurationInput) this.configure(config);
+     const candles = ctx && ctx.priceHistory;
+     if (!Array.isArray(candles) || candles.length < this.minHistory) return null;
+ 
+@@ -122,9 +123,7 @@ class TimeSeriesMomentum {
+     if (!Number.isFinite(trendSMA) || trendSMA <= 0) return null;
+ 
+     const trailingReturn = (price - past) / past;
+-    const atr = ctx.indicators && Number.isFinite(ctx.indicators.atr)
+-      ? ctx.indicators.atr
+-      : IndicatorCalculator.calculateATR(candles, this.cfg.atrPeriod);
++    const atr = IndicatorCalculator.calculateATR(candles, this.cfg.atrPeriod);
+     if (!Number.isFinite(atr) || atr <= 0) return null;
+ 
+     if (price > trendSMA && trailingReturn > this.cfg.minReturn) {
+

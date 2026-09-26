@@ -98,16 +98,17 @@ function readConfig(config) {
 
 class TimeSeriesMomentum {
   constructor(config) {
-    Object.defineProperty(this, 'cfg', {
-      value: Object.freeze(readConfig(config)),
-      writable: false,
-      configurable: false,
-      enumerable: true,
-    });
-    this.minHistory = Math.max(this.cfg.trendPeriod, this.cfg.lookback, this.cfg.atrPeriod) + 2;
+    this.configure(config);
   }
 
-  evaluate(ctx) {
+  configure(config) {
+    this.cfg = Object.freeze(readConfig(config));
+    this.minHistory = Math.max(this.cfg.trendPeriod, this.cfg.lookback, this.cfg.atrPeriod) + 2;
+    this.configurationInput = config;
+  }
+
+  evaluate(ctx, config = this.configurationInput) {
+    if (config !== this.configurationInput) this.configure(config);
     const candles = ctx && ctx.priceHistory;
     if (!Array.isArray(candles) || candles.length < this.minHistory) return null;
 
@@ -122,9 +123,7 @@ class TimeSeriesMomentum {
     if (!Number.isFinite(trendSMA) || trendSMA <= 0) return null;
 
     const trailingReturn = (price - past) / past;
-    const atr = ctx.indicators && Number.isFinite(ctx.indicators.atr)
-      ? ctx.indicators.atr
-      : IndicatorCalculator.calculateATR(candles, this.cfg.atrPeriod);
+    const atr = IndicatorCalculator.calculateATR(candles, this.cfg.atrPeriod);
     if (!Number.isFinite(atr) || atr <= 0) return null;
 
     if (price > trendSMA && trailingReturn > this.cfg.minReturn) {

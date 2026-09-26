@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Stop 1 Momentum Settings Delivery (2026-09-26)
+
+- Connect seven existing TimeSeriesMomentum settings through the settings owner to retained per-symbol strategy instances. Calculate new entry stops from the configured strategy ATR period instead of substituting shared ATR. Preserve old entry contracts and their return lookback/trailing multiplier.
+- Keep dynamic exit trailing on its existing current-ATR policy, explicitly identified in the working UI interface. No new setting owner, process gate, throw, registration policy or runtime activation. Exact recorded-data and adversarial receipts are in the TSM settings packet; full UI/Stop 1 acceptance remains open.
+
 ### Stop 1 Donchian Settings Delivery (2026-09-26)
 
 - Connect the five existing Donchian entry/ATR/channel/short-permission controls through the accepted settings snapshot to retained per-symbol strategy instances. New contracts and frozen policies carry the selected risk/channel values; existing trades are not rewritten.

@@ -1,0 +1,15 @@
+# Work
+
+Start: astra-era 4ad04317130c7aac4af2fe9406ffd2ba4624f47e, host ogzprime-prod-001, empty index. Protected recovery clone/stash untouched. Main's inherited dirty changes preserved. Existing same-host verification clone fast-forwarded from origin with no tracked changes.
+
+Bounded next connection: lookback, trendPeriod, atrPeriod, minReturn, allowShorts, atrStopMult, trailAtrMult. Reuse existing configure/evaluate pattern and settings read/save owner. No confidence formula, registration policy, global exit policy, new throw or gate. ATR period owns the strategy's entry-stop calculation; existing exit trailing uses shared live ATR and entry-owned multiplier. That separate trailing policy is not silently described as period-owned.
+
+Existing Mercury dependency/Serena tooling enumerated 389 files, parsed 388, retained one known parse failure (ogz-run.js return outside function). Three changed owners: TSM one importer, orchestrator one, ConfigLoader 62; 98 selected property references and 27 candidate calls. These are static candidates, not executable completeness.
+
+Baseline replay: 112 entry contracts, all 112 stop distances differ from the configured strategy ATR formula because shared ATR wins. UI save unsupported. Candidate: 112 initial entries; changed settings yield 41 (16 shorts), same result on a separate explicit fixture identity using the same TSLA bars; shorts off yields 25, none short. Zero evaluation errors; same TSLA instance retained; old contracts unchanged. Seven invalid-value requests preserve the accepted fingerprint. Real AtomicWrite plus cold module load retains identity.
+
+Final observation candidate-JX9QCS: 137 actual trailing-method updates checked against the complete existing formula, 145 return-flip observations. Full coordinator: 49 holds with trailingActive, 34 profit_tier_1 intents, 54 be_scaleout intents. These are fixture trades, not orders/fills. Earlier candidate-uTFroK omitted fixture trade revision/intent/state and correctly received missing snapshot results; fixture inputs were completed from actual ECM/StateManager/ProfitExitPlanner shape without changing production code.
+
+Readiness succeeded for mercury-2, claude-fable-5 and kimi-k3. Initial review dispatch refused the slash-delimited prose `receiver/ConfigLoader/AtomicWrite` as secret-shaped before paid review. Replaced that prose with commas, verified unchanged passage through the existing redactor, and reran. No redaction/policy bypass or Mercury code change. Candidate production source frozen during review.
+
+Review completed pass with retractions and host dispositions in REVIEW.md. Exact three-file patch and own changelog addition staged, not whole dirty main files. All six staged source hashes (three changed plus three observed consumers) match OBSERVATION.json. Changelog evidence patch initially lacked trailing context; cached --check refused it before staging. Added proper unchanged context, no source change. Pending code commit/push and cold observation.

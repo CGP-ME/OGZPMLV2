@@ -2516,6 +2516,34 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
     label: 'Donchian exit channel period', effect: 'new_Donchian_trade_channel_trail_only',
   },
+  'strategies.TimeSeriesMomentum.lookback': {
+    type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
+    label: 'Momentum return lookback', effect: 'next_TSM_entry_and_new_trade_return_flip_exit',
+  },
+  'strategies.TimeSeriesMomentum.trendPeriod': {
+    type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
+    label: 'Momentum trend period', effect: 'next_TSM_evaluation_after_lookback_available',
+  },
+  'strategies.TimeSeriesMomentum.atrPeriod': {
+    type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
+    label: 'Momentum entry-stop ATR period', effect: 'new_TSM_entry_stop_only',
+  },
+  'strategies.TimeSeriesMomentum.minReturn': {
+    type: 'number', unit: 'fraction', min: 0, max: Number.MAX_VALUE,
+    label: 'Momentum minimum return', effect: 'next_TSM_entry_evaluation',
+  },
+  'strategies.TimeSeriesMomentum.allowShorts': {
+    type: 'boolean', unit: 'boolean', label: 'Momentum short signals',
+    effect: 'next_TSM_evaluation_subject_to_existing_direction_policy',
+  },
+  'strategies.TimeSeriesMomentum.atrStopMult': {
+    type: 'number', unit: 'atr_multiple', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
+    label: 'Momentum entry-stop ATR multiple', effect: 'new_TSM_entry_stop_only',
+  },
+  'strategies.TimeSeriesMomentum.trailAtrMult': {
+    type: 'number', unit: 'atr_multiple', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
+    label: 'Momentum trailing ATR multiple', effect: 'new_TSM_trade_existing_dynamic_trailing_policy',
+  },
 });
 
 function getSettingsView() {
