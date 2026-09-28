@@ -2,6 +2,8 @@
 
 Snapshot: 2026-09-28T04:53:10.574Z. Author: Codex. This is an accountability handoff requested by Trey after he stopped the work, not a new audit campaign, migration acceptance, or permission to deploy.
 
+Trey subsequently requested an account of why the deliverable was not finished. See WHY-STOP1-REMAINED-UNFINISHED.md in this directory. It distinguishes corroborated state, historical testimony, execution mistakes, actual blockers and limits; it does not resume the work.
+
 ## Exact stopping point
 
 - Repository: /opt/ogzprime/OGZPMLV2; host ogzprime-prod-001; branch astra-era.
