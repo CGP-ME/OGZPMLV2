@@ -1,0 +1,468 @@
+{
+  "at": "2026-09-28T04:53:10.574Z",
+  "host": "ogzprime-prod-001",
+  "repository": "/opt/ogzprime/OGZPMLV2",
+  "branch": "astra-era",
+  "head": "9be5d011e46c2a3c924494e65b6c1900e372f78f",
+  "remote": "9be5d011e46c2a3c924494e65b6c1900e372f78f\trefs/heads/astra-era",
+  "staged": "",
+  "modifiedTracked": [
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "6272689613196dc900a5c7938aa40bf7a9b8bbd6698be3d61fc6e19e61d6ab77",
+      "exactSep23FileMatch": false,
+      "exactSep25FileMatch": false
+    },
+    {
+      "path": "config/settings.json",
+      "sha256": "5391e1c47b1c54f92c540d1bdbea33d16057642976b26dab9bef15e0e6193306",
+      "exactSep23FileMatch": false,
+      "exactSep25FileMatch": false
+    },
+    {
+      "path": "core/BacktestRunner.js",
+      "sha256": "d265cbba8c826e9a07774870ec7356b16d5b25d0456ea1b0ad703b24cf1187d2",
+      "exactSep23FileMatch": true,
+      "exactSep25FileMatch": true
+    },
+    {
+      "path": "core/DrawdownTracker.js",
+      "sha256": "3417b5fd6260338bae821bffd4b6728fb67f6815b5cae283289d3e8783ae5f9a",
+      "exactSep23FileMatch": true,
+      "exactSep25FileMatch": true
+    },
+    {
+      "path": "core/EnhancedPatternRecognition.js",
+      "sha256": "6d3f0ef655e11fe43bf7097ccb754a9ee12155aefb1b6c901cd40af2ae910365",
+      "exactSep23FileMatch": true,
+      "exactSep25FileMatch": true
+    },
+    {
+      "path": "core/ExitContractManager.js",
+      "sha256": "dfe88385f9f4666db471099be8cb5a8695c6a8fa171b39cded60d3fb52c0ff51",
+      "exactSep23FileMatch": false,
+      "exactSep25FileMatch": false
+    },
+    {
+      "path": "core/FeatureExtractor.js",
+      "sha256": "b5be346ab3c8d62be1c42b2ca81b7161ff1c26f7b9bbd918e1cdab352ae7daf4",
+      "exactSep23FileMatch": true,
+      "exactSep25FileMatch": true
+    },
+    {
+      "path": "core/OrderExecutor.js",
+      "sha256": "569bb43fccfbfe079e129d3f644e77b8f5ef5539011cc61317a39cba824a00e0",
+      "exactSep23FileMatch": true,
+      "exactSep25FileMatch": true
+    },
+    {
+      "path": "core/PnLTracker.js",
+      "sha256": "7e0745f12d3c506ace1cb70da9920328f21e7a399a65acc3bf5d37f515c30932",
+      "exactSep23FileMatch": true,
+      "exactSep25FileMatch": true
+    },
+    {
+      "path": "core/PolicyBuilder.js",
+      "sha256": "066a6d2a8fd63fd4e0a06bf822300ed8441e0c2b56eaf068108da1fab1a0da18",
+      "exactSep23FileMatch": true,
+      "exactSep25FileMatch": true
+    },
+    {
+      "path": "core/ProfitExitPlanner.js",
+      "sha256": "b4a7a5a5bc78522f88e84b4d7e9f391a0d3c41b75d62d9d9d4db1e77e2fb1994",
+      "exactSep23FileMatch": true,
+      "exactSep25FileMatch": true
+    },
+    {
+      "path": "core/StateManager.js",
+      "sha256": "b22221fddce45025f1b4115dc7cad209d8fb8fa3e83b2aba4a1b336c6b469fff",
+      "exactSep23FileMatch": true,
+      "exactSep25FileMatch": true
+    },
+    {
+      "path": "core/StrategyOrchestrator.js",
+      "sha256": "2a14c7906257fc6019e544f1582cf78bfb2ba0392df7cf2f94c84cd3c0c58b8a",
+      "exactSep23FileMatch": false,
+      "exactSep25FileMatch": false
+    },
+    {
+      "path": "core/TradingLoop.js",
+      "sha256": "0ea843779ddea5e78718986eca2012799fce85f3598546bda5113bb8c5ec11ab",
+      "exactSep23FileMatch": true,
+      "exactSep25FileMatch": true
+    },
+    {
+      "path": "core/WebSocketManager.js",
+      "sha256": "1d089eee395e3c9362f3a21206e851bdb95573d05bde844abd684031bc4a0f51",
+      "exactSep23FileMatch": false,
+      "exactSep25FileMatch": false
+    },
+    {
+      "path": "core/dto/DecisionLedgerSchema.js",
+      "sha256": "c19286872229a31493c0b8b1e5cdf63311ccabfd80dbeed9431c4b26af2c8bf3",
+      "exactSep23FileMatch": true,
+      "exactSep25FileMatch": true
+    },
+    {
+      "path": "core/exit/StopLossChecker.js",
+      "sha256": "417f319632b7935a451ba599c0ea770dc2c2530a126abb150136bec0a903249d",
+      "exactSep23FileMatch": true,
+      "exactSep25FileMatch": true
+    },
+    {
+      "path": "foundation/ConfigLoader.js",
+      "sha256": "7182d54b40a03ddfaaf90ae80b998390b5e78e41039352f99f2286156676b04a",
+      "exactSep23FileMatch": false,
+      "exactSep25FileMatch": false
+    },
+    {
+      "path": "modules/DonchianBreakout.js",
+      "sha256": "7cb886896ff1b46b9d9991a50b8e40501c8d03f7657c6d0afd2b0d636f9e6d2b",
+      "exactSep23FileMatch": true,
+      "exactSep25FileMatch": true
+    },
+    {
+      "path": "modules/EMATrendRetest.js",
+      "sha256": "fac7389548d54d8b59db3c36861a348faa7e1fb7892f6e62863c6c48f364fb91",
+      "exactSep23FileMatch": true,
+      "exactSep25FileMatch": true
+    },
+    {
+      "path": "modules/PropSafeEMAPullback.js",
+      "sha256": "9058e977764a5092a6649950796ced2fb67c1650b87c1443b2b43af681e2fa32",
+      "exactSep23FileMatch": true,
+      "exactSep25FileMatch": true
+    },
+    {
+      "path": "modules/RSI2MeanReversion.js",
+      "sha256": "90974b9b5e70e54459a9f0bcd6a1528ee893368d0059a07fcb64fdeb88513608",
+      "exactSep23FileMatch": true,
+      "exactSep25FileMatch": true
+    },
+    {
+      "path": "modules/TimeSeriesMomentum.js",
+      "sha256": "74af3b85dbdbaa9ada9d2a999ec04a208c9c839ff7cb5333fabe105b8b896880",
+      "exactSep23FileMatch": true,
+      "exactSep25FileMatch": true
+    },
+    {
+      "path": "ogzprime-ssl-server.js",
+      "sha256": "186137a8cff35309f50aa4f15dd1f9f32b89874a74f371a34212388e02a7a532",
+      "exactSep23FileMatch": false,
+      "exactSep25FileMatch": false
+    },
+    {
+      "path": "run-empire-v2.js",
+      "sha256": "2d1a6b715f8af73cdb9acf51bae8d961156e58c34645d709630a07e6444f2bcb",
+      "exactSep23FileMatch": false,
+      "exactSep25FileMatch": false
+    },
+    {
+      "path": "tools/serena-symbol-scanner.js",
+      "sha256": "20b8d04dec805d4f4d4640a4db6b36ee973f76ec48d226b70a7d3fa304712de8",
+      "exactSep23FileMatch": false,
+      "exactSep25FileMatch": true
+    },
+    {
+      "path": "trai_brain/mercury-bridge/adversarial-review.js",
+      "sha256": "bce32ee433ae0f5e3aff9e9783ffcd2b69cd87de397a5cdcb02274c0d9428841",
+      "exactSep23FileMatch": false,
+      "exactSep25FileMatch": false
+    },
+    {
+      "path": "trai_brain/mercury-bridge/ask.js",
+      "sha256": "9ae48840971e97385ea6cbf650c87641ff6bef0d7afcb18d622c8af451155ec1",
+      "exactSep23FileMatch": false,
+      "exactSep25FileMatch": false
+    },
+    {
+      "path": "trai_brain/mercury-bridge/evidence-ingestion.js",
+      "sha256": "7a4e5a7da1152f6cca54fd4a3cfd2cca20147498a56a5d40c71fbafc3ea69f39",
+      "exactSep23FileMatch": false,
+      "exactSep25FileMatch": false
+    },
+    {
+      "path": "trai_brain/mercury-bridge/react-loop.js",
+      "sha256": "a897895568ff69ce67395a0dd02a0ccac54f67354b501a6a7f91aefc74609f2a",
+      "exactSep23FileMatch": false,
+      "exactSep25FileMatch": true
+    },
+    {
+      "path": "trai_brain/mercury-bridge/run-ledger.js",
+      "sha256": "e9ec8beeb09783301337ae8f7f89780849b5d29456e09615588b1cc63f1267bb",
+      "exactSep23FileMatch": false,
+      "exactSep25FileMatch": false
+    },
+    {
+      "path": "trai_brain/mercury-bridge/tool-adapter.js",
+      "sha256": "3c4f233c90030ccfa16d2c2593fa43295ab9796844de6ed5c5ead0191b510ad8",
+      "exactSep23FileMatch": false,
+      "exactSep25FileMatch": true
+    }
+  ],
+  "sourceComparison": {
+    "sep23": "ogz-meta/inbox/codex/2026-09-23/stop1-configuration-completion/atomic-cut-preservation/manifest.json",
+    "sep23PatchHashMatches": true,
+    "sep25": "ogz-meta/inbox/codex/2026-09-25/mercury-claim-reconciliation/private/source-after-search-review-01.json"
+  },
+  "untrackedBeforeHandoff": {
+    "entries": 3452,
+    "regular": 3446,
+    "regularBytes": 809325139,
+    "symlinks": 5,
+    "directories": 1,
+    "groups": {
+      "outside-inbox": {
+        "entries": 8,
+        "regularBytes": 1618969
+      },
+      "ogz-meta/inbox/astra/OGZ-HANDOFF-2026-09-02-FABLE-WALK.md": {
+        "entries": 1,
+        "regularBytes": 13919
+      },
+      "ogz-meta/inbox/astra/OGZ-WALK-SPEC-2026-09-03-TREY-VERBATIM.md": {
+        "entries": 1,
+        "regularBytes": 21521
+      },
+      "ogz-meta/inbox/codex/2026-09-22/mercury-stop1-recovery-continuation": {
+        "entries": 41,
+        "regularBytes": 2922231
+      },
+      "ogz-meta/inbox/codex/2026-09-22/stop1-retire-fake-exit-selector": {
+        "entries": 2,
+        "regularBytes": 2024
+      },
+      "ogz-meta/inbox/codex/2026-09-23/atomic-02-paper-profile": {
+        "entries": 12,
+        "regularBytes": 907822
+      },
+      "ogz-meta/inbox/codex/2026-09-23/stop1-configuration-completion": {
+        "entries": 1092,
+        "regularBytes": 122602285
+      },
+      "ogz-meta/inbox/codex/2026-09-23/stop1-landing-review": {
+        "entries": 20,
+        "regularBytes": 2985594
+      },
+      "ogz-meta/inbox/codex/2026-09-23/stop1-producer-correction": {
+        "entries": 6,
+        "regularBytes": 3731
+      },
+      "ogz-meta/inbox/codex/2026-09-24/mercury-artifact-quarantine": {
+        "entries": 1,
+        "regularBytes": 852
+      },
+      "ogz-meta/inbox/codex/2026-09-24/mercury-candidate-comparison": {
+        "entries": 1,
+        "regularBytes": 636
+      },
+      "ogz-meta/inbox/codex/2026-09-24/mercury-citation-identity": {
+        "entries": 1,
+        "regularBytes": 869
+      },
+      "ogz-meta/inbox/codex/2026-09-24/mercury-cli-stdin": {
+        "entries": 3,
+        "regularBytes": 478705
+      },
+      "ogz-meta/inbox/codex/2026-09-24/mercury-evidence-handoff": {
+        "entries": 2,
+        "regularBytes": 196377
+      },
+      "ogz-meta/inbox/codex/2026-09-24/mercury-failed-result": {
+        "entries": 1,
+        "regularBytes": 527
+      },
+      "ogz-meta/inbox/codex/2026-09-24/mercury-full-chain": {
+        "entries": 53,
+        "regularBytes": 20600118
+      },
+      "ogz-meta/inbox/codex/2026-09-24/mercury-ingestion-recovery": {
+        "entries": 446,
+        "regularBytes": 167096727
+      },
+      "ogz-meta/inbox/codex/2026-09-24/mercury-read-only-tools": {
+        "entries": 1,
+        "regularBytes": 525
+      },
+      "ogz-meta/inbox/codex/2026-09-24/mercury-reviewer-evidence": {
+        "entries": 2,
+        "regularBytes": 3261
+      },
+      "ogz-meta/inbox/codex/2026-09-24/mercury-reviewer-role": {
+        "entries": 3,
+        "regularBytes": 441351
+      },
+      "ogz-meta/inbox/codex/2026-09-24/mercury-seeded-review": {
+        "entries": 16,
+        "regularBytes": 6297797
+      },
+      "ogz-meta/inbox/codex/2026-09-25/mercury-claim-reconciliation": {
+        "entries": 1371,
+        "regularBytes": 189438542
+      },
+      "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt": {
+        "entries": 22,
+        "regularBytes": 6772571
+      },
+      "ogz-meta/inbox/codex/2026-09-26/stop1-config-connections": {
+        "entries": 58,
+        "regularBytes": 53372503
+      },
+      "ogz-meta/inbox/codex/2026-09-26/stop1-donchian-settings": {
+        "entries": 25,
+        "regularBytes": 11291096
+      },
+      "ogz-meta/inbox/codex/2026-09-26/stop1-ema-retest-settings": {
+        "entries": 24,
+        "regularBytes": 82868809
+      },
+      "ogz-meta/inbox/codex/2026-09-26/stop1-entry-exit-settings": {
+        "entries": 56,
+        "regularBytes": 23211603
+      },
+      "ogz-meta/inbox/codex/2026-09-26/stop1-propsafe-settings": {
+        "entries": 15,
+        "regularBytes": 54092519
+      },
+      "ogz-meta/inbox/codex/2026-09-26/stop1-rsi-connection": {
+        "entries": 53,
+        "regularBytes": 11021755
+      },
+      "ogz-meta/inbox/codex/2026-09-26/stop1-rsi2-settings": {
+        "entries": 41,
+        "regularBytes": 33355299
+      },
+      "ogz-meta/inbox/codex/2026-09-26/stop1-tsm-settings": {
+        "entries": 23,
+        "regularBytes": 11953368
+      },
+      "ogz-meta/inbox/codex/2026-09-26/stop1-ui-settings": {
+        "entries": 36,
+        "regularBytes": 3529956
+      },
+      "ogz-meta/inbox/codex/2026-09-28/stop1-sizing": {
+        "entries": 8,
+        "regularBytes": 2201957
+      },
+      "ogz-meta/inbox/codex/2026-09-28/vps-disk-alarm": {
+        "entries": 7,
+        "regularBytes": 19320
+      }
+    },
+    "extensions": {
+      "reclaim-mutex": 1,
+      "jsonl": 95,
+      "json": 893,
+      "md": 56,
+      "patch": 33,
+      "txt": 11,
+      "cjs": 44,
+      "js": 738,
+      "fixture": 10,
+      "raw": 134,
+      "gz": 1428,
+      "index": 1,
+      "service": 1,
+      "timer": 1
+    },
+    "outsideInbox": [
+      ".ogz-prime-v14.lock.reclaim-mutex",
+      "data/session-router/broker-intents.jsonl",
+      "data/session-router/transition-events.jsonl",
+      "data/session-router/transition-state.json",
+      "data/supervisor-ledger.jsonl",
+      "scripts/systemd/ogz-disk-alarm.service",
+      "scripts/systemd/ogz-disk-alarm.timer",
+      "scripts/vps-disk-alarm.js"
+    ],
+    "limits": "Excludes ignored paths and contents of the nested Git clone entry. No contents of raw/private files inspected by this inventory."
+  },
+  "ownCurrentFiles": [
+    {
+      "path": "scripts/vps-disk-alarm.js",
+      "sha256": "5eb856d88d0dba06206607aa0b3d292e33fff184d852f39705ce0b194cabb6af"
+    },
+    {
+      "path": "scripts/systemd/ogz-disk-alarm.service",
+      "sha256": "c94c9163ee61fa65ab433ad1db957abcfb358eaad052c3f87bb15f5b61419ba0"
+    },
+    {
+      "path": "scripts/systemd/ogz-disk-alarm.timer",
+      "sha256": "e99ce3db4fa6e93f806696bb2b80aad3bb582a44fd12b19b16c7f1e808031a1a"
+    },
+    {
+      "path": "ogz-meta/inbox/codex/2026-09-28/vps-disk-alarm/consumer-receipt.json",
+      "sha256": "7db40a33c213819cfd7b95d61ca0dde9074e9fbd226c38502d1512c6c2dac660"
+    },
+    {
+      "path": "ogz-meta/inbox/codex/2026-09-28/stop1-sizing/fixtures/review.cjs",
+      "sha256": "3bba8476049cdab0d6fed70f3f239f0545f05750bc81a6d8277b0932b65bfce9"
+    }
+  ],
+  "csv": {
+    "path": "ogz-meta/inbox/astra/STOP1-CONFIG-EVIDENCE.csv",
+    "sha256": "35dabed05002fe3d678bc1402d068aeb84532f03dec18b36bd63c1de8e3dfc58",
+    "ignoredBy": "*.csv; not included in untracked count"
+  },
+  "lastSizingRun": {
+    "ledger": "ogz-meta/inbox/codex/2026-09-26/mercury-exit-receipt/private/cold-pull-5gJPFK/ogz-meta/inbox/codex/2026-09-28/stop1-sizing/private/ledger/2026-09-28.jsonl",
+    "keys": [
+      "schema_version",
+      "receipt_type",
+      "work_id",
+      "run_id",
+      "created_at",
+      "started_at",
+      "branch",
+      "head_sha",
+      "dirty_status_summary",
+      "prompt_hash",
+      "prompt_excerpt",
+      "prompt_provenance",
+      "attack_scope",
+      "source_refs",
+      "options",
+      "tools_invoked",
+      "tools_available",
+      "files_opened",
+      "file_reads",
+      "run_check_artifacts",
+      "run_checks",
+      "answer_quality",
+      "answer_quality_evidence",
+      "candidate_set",
+      "review_quarantines",
+      "sharded_review",
+      "review_scope",
+      "adversarial_review",
+      "consensus",
+      "reviewer_panel",
+      "doctrine_review",
+      "stages",
+      "termination",
+      "iterations",
+      "latency_ms",
+      "verdict",
+      "error",
+      "answer_excerpt",
+      "run_tokens",
+      "run_cost",
+      "daily_cost_total",
+      "monthly_cost_total",
+      "alert"
+    ],
+    "runId": "2026-09-28T04-47-14-821Z-411ed8219bd0",
+    "verdict": "tool_failure",
+    "termination": null,
+    "error": {
+      "name": "Error",
+      "message": "No chunks in index. Run indexer.js first."
+    },
+    "completion": {
+      "at": "2026-09-28T04:47:15.376Z",
+      "exitCode": 1,
+      "sourceUnchanged": true
+    },
+    "consoleSha256": "867a885cc14b2b686fa68b49411b17cd33329d941949c47513dd883e491b7ad4"
+  }
+}
