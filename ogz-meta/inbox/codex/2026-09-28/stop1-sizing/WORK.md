@@ -1,6 +1,8 @@
 # Work
 
-Sourcegraph follow-up: Trey clarified Sourcegraph Deep Search (not OpenAI Deep Research) and explicitly requested the required commits/push. Publishing one research-input packet: SOURCEGRAPH-DEEPSEARCH.md, the original Astra CSV and two walk documents unchanged, and these packet pointers. No production work is included. The previous failure account is the separate ae2f7662 commit. CSV scanner metadata false positives and publication limits are recorded in SOURCEGRAPH-DEEPSEARCH.md; inherited 32-file hashes still match STATE.json.
+Trey rejected the overbuilt Sourcegraph dispatch and requested only a Stop 1 pointer with documents that may save context. Replaced SOURCEGRAPH-DEEPSEARCH.md with that short brief; removed agent-finding/handoff prerequisites, review scaffolding and the nine follow-up missions. Original input files and production code are unchanged. The earlier publication review remains below and in REVIEW.md; it is not part of the new prompt.
+
+Sourcegraph follow-up: Trey clarified Sourcegraph Deep Search (not OpenAI Deep Research) and explicitly requested the required commits/push. Published in 649014a6608a73c4431cae5d76236f3b7510b362, with local/remote SHA equality confirmed: SOURCEGRAPH-DEEPSEARCH.md, the original Astra CSV and two walk documents unchanged, and packet pointers. No production work was included. The previous failure account is the separate ae2f7662 commit. CSV scanner metadata false positives and publication limits are preserved in REVIEW.md; inherited 32-file hashes matched STATE.json.
 
 Handoff delivery completed in 7ad5428387f1b649274b36f874f1cc462662c5d0; push and direct remote SHA matched. Trey then explicitly requested a written explanation of why Stop 1 was not completed. Added WHY-STOP1-REMAINED-UNFINISHED.md and its handoff pointer as a separate documentation-only change. No production edits or resumed reviews are part of that follow-up.
 
