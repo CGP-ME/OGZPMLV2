@@ -1,0 +1,19 @@
+[Unit]
+Description=OGZ VPS disk and RAM capacity notification only
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=linuxuser
+Group=linuxuser
+WorkingDirectory=/opt/ogzprime/OGZPMLV2
+ExecStart=/usr/bin/node /opt/ogzprime/OGZPMLV2/scripts/vps-disk-alarm.js --check
+StateDirectory=ogz-disk-alarm
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+TimeoutStartSec=30

@@ -1,0 +1,11 @@
+[Unit]
+Description=Check OGZ VPS disk and RAM capacity every minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+AccuracySec=5s
+Unit=ogz-disk-alarm.service
+
+[Install]
+WantedBy=timers.target

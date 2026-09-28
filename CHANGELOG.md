@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### VPS Disk and RAM Capacity Alarm (2026-09-28)
+
+- Add a host-only, one-minute disk/RAM check with maximum-priority ntfy alerts at 90% usage, independent fifteen-minute reminders, and recovery re-arming. No bot imports, stops, restarts, trading gates, or file cleanup.
+- Preserve capacity readings locally before notification attempts; a transport construction failure for one resource does not prevent the other resource's notification. Explicit TEST alerts do not change real-alarm suppression state.
+- Source, consumer observations, and review are in `ogz-meta/inbox/codex/2026-09-28/vps-disk-alarm/`. This is separate from the unfinished Stop 1 migration.
+
 ### Stop 1 EMA Retest Settings Connection (2026-09-26)
 
 - Connect eleven existing EMA trend-retest parameters to retained per-symbol consumers and entry-owned stop/hold contracts. Use configured-period ATR; reject an impossible extension/confirmation input relationship at settings publication. No new runtime stop, confidence formula, registration or activation.

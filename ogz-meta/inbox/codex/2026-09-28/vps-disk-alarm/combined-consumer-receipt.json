@@ -1,0 +1,747 @@
+{
+  "at": "2026-09-28T06:35:38.089Z",
+  "observations": [
+    {
+      "label": "healthy",
+      "sent": [],
+      "result": {
+        "ok": true,
+        "disk": {
+          "ok": true,
+          "disk": {
+            "ok": true,
+            "critical": false,
+            "usedPercent": 89.9,
+            "availableBytes": "413696",
+            "totalBytes": "4096000"
+          },
+          "delivery": null,
+          "testAlert": false,
+          "nextState": {
+            "critical": false,
+            "lastSentAt": null
+          }
+        },
+        "ram": {
+          "ok": true,
+          "ram": {
+            "ok": true,
+            "critical": false,
+            "usedPercent": 89.9,
+            "availableBytes": "103424",
+            "totalBytes": "1024000"
+          },
+          "delivery": null,
+          "testAlert": false,
+          "nextState": {
+            "critical": false,
+            "lastSentAt": null
+          }
+        },
+        "nextState": {
+          "disk": {
+            "critical": false,
+            "lastSentAt": null
+          },
+          "ram": {
+            "critical": false,
+            "lastSentAt": null
+          }
+        }
+      }
+    },
+    {
+      "label": "disk-only-critical",
+      "sent": [
+        "OGZ VPS DISK SPACE ALARM"
+      ],
+      "result": {
+        "ok": true,
+        "disk": {
+          "ok": true,
+          "disk": {
+            "ok": true,
+            "critical": true,
+            "usedPercent": 90,
+            "availableBytes": "409600",
+            "totalBytes": "4096000"
+          },
+          "delivery": {
+            "ok": true,
+            "statusCode": 200
+          },
+          "testAlert": false,
+          "nextState": {
+            "critical": true,
+            "lastSentAt": 1000001
+          }
+        },
+        "ram": {
+          "ok": true,
+          "ram": {
+            "ok": true,
+            "critical": false,
+            "usedPercent": 89.9,
+            "availableBytes": "103424",
+            "totalBytes": "1024000"
+          },
+          "delivery": null,
+          "testAlert": false,
+          "nextState": {
+            "critical": false,
+            "lastSentAt": null
+          }
+        },
+        "nextState": {
+          "disk": {
+            "critical": true,
+            "lastSentAt": 1000001
+          },
+          "ram": {
+            "critical": false,
+            "lastSentAt": null
+          }
+        }
+      }
+    },
+    {
+      "label": "ram-independent-while-disk-suppressed",
+      "sent": [
+        "OGZ VPS RAM ALARM"
+      ],
+      "result": {
+        "ok": true,
+        "disk": {
+          "ok": true,
+          "disk": {
+            "ok": true,
+            "critical": true,
+            "usedPercent": 90.1,
+            "availableBytes": "405504",
+            "totalBytes": "4096000"
+          },
+          "delivery": null,
+          "testAlert": false,
+          "nextState": {
+            "critical": true,
+            "lastSentAt": 1000001
+          }
+        },
+        "ram": {
+          "ok": true,
+          "ram": {
+            "ok": true,
+            "critical": true,
+            "usedPercent": 90,
+            "availableBytes": "102400",
+            "totalBytes": "1024000"
+          },
+          "delivery": {
+            "ok": true,
+            "statusCode": 200
+          },
+          "testAlert": false,
+          "nextState": {
+            "critical": true,
+            "lastSentAt": 1000002
+          }
+        },
+        "nextState": {
+          "disk": {
+            "critical": true,
+            "lastSentAt": 1000001
+          },
+          "ram": {
+            "critical": true,
+            "lastSentAt": 1000002
+          }
+        }
+      }
+    },
+    {
+      "label": "both-suppressed",
+      "sent": [],
+      "result": {
+        "ok": true,
+        "disk": {
+          "ok": true,
+          "disk": {
+            "ok": true,
+            "critical": true,
+            "usedPercent": 90.1,
+            "availableBytes": "405504",
+            "totalBytes": "4096000"
+          },
+          "delivery": null,
+          "testAlert": false,
+          "nextState": {
+            "critical": true,
+            "lastSentAt": 1000001
+          }
+        },
+        "ram": {
+          "ok": true,
+          "ram": {
+            "ok": true,
+            "critical": true,
+            "usedPercent": 90.1,
+            "availableBytes": "101376",
+            "totalBytes": "1024000"
+          },
+          "delivery": null,
+          "testAlert": false,
+          "nextState": {
+            "critical": true,
+            "lastSentAt": 1000002
+          }
+        },
+        "nextState": {
+          "disk": {
+            "critical": true,
+            "lastSentAt": 1000001
+          },
+          "ram": {
+            "critical": true,
+            "lastSentAt": 1000002
+          }
+        }
+      }
+    },
+    {
+      "label": "independent-repeat-disk",
+      "sent": [
+        "OGZ VPS DISK SPACE ALARM"
+      ],
+      "result": {
+        "ok": true,
+        "disk": {
+          "ok": true,
+          "disk": {
+            "ok": true,
+            "critical": true,
+            "usedPercent": 90.1,
+            "availableBytes": "405504",
+            "totalBytes": "4096000"
+          },
+          "delivery": {
+            "ok": true,
+            "statusCode": 200
+          },
+          "testAlert": false,
+          "nextState": {
+            "critical": true,
+            "lastSentAt": 1900001
+          }
+        },
+        "ram": {
+          "ok": true,
+          "ram": {
+            "ok": true,
+            "critical": true,
+            "usedPercent": 90.1,
+            "availableBytes": "101376",
+            "totalBytes": "1024000"
+          },
+          "delivery": null,
+          "testAlert": false,
+          "nextState": {
+            "critical": true,
+            "lastSentAt": 1000002
+          }
+        },
+        "nextState": {
+          "disk": {
+            "critical": true,
+            "lastSentAt": 1900001
+          },
+          "ram": {
+            "critical": true,
+            "lastSentAt": 1000002
+          }
+        }
+      }
+    },
+    {
+      "label": "independent-repeat-ram",
+      "sent": [
+        "OGZ VPS RAM ALARM"
+      ],
+      "result": {
+        "ok": true,
+        "disk": {
+          "ok": true,
+          "disk": {
+            "ok": true,
+            "critical": true,
+            "usedPercent": 90.1,
+            "availableBytes": "405504",
+            "totalBytes": "4096000"
+          },
+          "delivery": null,
+          "testAlert": false,
+          "nextState": {
+            "critical": true,
+            "lastSentAt": 1900001
+          }
+        },
+        "ram": {
+          "ok": true,
+          "ram": {
+            "ok": true,
+            "critical": true,
+            "usedPercent": 90.1,
+            "availableBytes": "101376",
+            "totalBytes": "1024000"
+          },
+          "delivery": {
+            "ok": true,
+            "statusCode": 200
+          },
+          "testAlert": false,
+          "nextState": {
+            "critical": true,
+            "lastSentAt": 1900002
+          }
+        },
+        "nextState": {
+          "disk": {
+            "critical": true,
+            "lastSentAt": 1900001
+          },
+          "ram": {
+            "critical": true,
+            "lastSentAt": 1900002
+          }
+        }
+      }
+    },
+    {
+      "label": "recover-both",
+      "sent": [],
+      "result": {
+        "ok": true,
+        "disk": {
+          "ok": true,
+          "disk": {
+            "ok": true,
+            "critical": false,
+            "usedPercent": 89.9,
+            "availableBytes": "413696",
+            "totalBytes": "4096000"
+          },
+          "delivery": null,
+          "testAlert": false,
+          "nextState": {
+            "critical": false,
+            "lastSentAt": null
+          }
+        },
+        "ram": {
+          "ok": true,
+          "ram": {
+            "ok": true,
+            "critical": false,
+            "usedPercent": 89.9,
+            "availableBytes": "103424",
+            "totalBytes": "1024000"
+          },
+          "delivery": null,
+          "testAlert": false,
+          "nextState": {
+            "critical": false,
+            "lastSentAt": null
+          }
+        },
+        "nextState": {
+          "disk": {
+            "critical": false,
+            "lastSentAt": null
+          },
+          "ram": {
+            "critical": false,
+            "lastSentAt": null
+          }
+        }
+      }
+    },
+    {
+      "label": "rearm-both",
+      "sent": [
+        "OGZ VPS DISK SPACE ALARM",
+        "OGZ VPS RAM ALARM"
+      ],
+      "result": {
+        "ok": true,
+        "disk": {
+          "ok": true,
+          "disk": {
+            "ok": true,
+            "critical": true,
+            "usedPercent": 90,
+            "availableBytes": "409600",
+            "totalBytes": "4096000"
+          },
+          "delivery": {
+            "ok": true,
+            "statusCode": 200
+          },
+          "testAlert": false,
+          "nextState": {
+            "critical": true,
+            "lastSentAt": 1900004
+          }
+        },
+        "ram": {
+          "ok": true,
+          "ram": {
+            "ok": true,
+            "critical": true,
+            "usedPercent": 90,
+            "availableBytes": "102400",
+            "totalBytes": "1024000"
+          },
+          "delivery": {
+            "ok": true,
+            "statusCode": 200
+          },
+          "testAlert": false,
+          "nextState": {
+            "critical": true,
+            "lastSentAt": 1900004
+          }
+        },
+        "nextState": {
+          "disk": {
+            "critical": true,
+            "lastSentAt": 1900004
+          },
+          "ram": {
+            "critical": true,
+            "lastSentAt": 1900004
+          }
+        }
+      }
+    },
+    {
+      "label": "clock-regression",
+      "sent": [
+        "OGZ VPS DISK SPACE ALARM",
+        "OGZ VPS RAM ALARM"
+      ],
+      "result": {
+        "ok": true,
+        "disk": {
+          "ok": true,
+          "disk": {
+            "ok": true,
+            "critical": true,
+            "usedPercent": 90,
+            "availableBytes": "409600",
+            "totalBytes": "4096000"
+          },
+          "delivery": {
+            "ok": true,
+            "statusCode": 200
+          },
+          "testAlert": false,
+          "nextState": {
+            "critical": true,
+            "lastSentAt": 1000000
+          }
+        },
+        "ram": {
+          "ok": true,
+          "ram": {
+            "ok": true,
+            "critical": true,
+            "usedPercent": 90,
+            "availableBytes": "102400",
+            "totalBytes": "1024000"
+          },
+          "delivery": {
+            "ok": true,
+            "statusCode": 200
+          },
+          "testAlert": false,
+          "nextState": {
+            "critical": true,
+            "lastSentAt": 1000000
+          }
+        },
+        "nextState": {
+          "disk": {
+            "critical": true,
+            "lastSentAt": 1000000
+          },
+          "ram": {
+            "critical": true,
+            "lastSentAt": 1000000
+          }
+        }
+      }
+    },
+    {
+      "label": "test-does-not-mutate-suppression",
+      "sent": [
+        "TEST: OGZ VPS DISK SPACE ALARM",
+        "TEST: OGZ VPS RAM ALARM"
+      ],
+      "result": {
+        "ok": true,
+        "disk": {
+          "ok": true,
+          "disk": {
+            "ok": true,
+            "critical": false,
+            "usedPercent": 50,
+            "availableBytes": "2048000",
+            "totalBytes": "4096000"
+          },
+          "delivery": {
+            "ok": true,
+            "statusCode": 200
+          },
+          "testAlert": true,
+          "nextState": null
+        },
+        "ram": {
+          "ok": true,
+          "ram": {
+            "ok": true,
+            "critical": false,
+            "usedPercent": 50,
+            "availableBytes": "512000",
+            "totalBytes": "1024000"
+          },
+          "delivery": {
+            "ok": true,
+            "statusCode": 200
+          },
+          "testAlert": true,
+          "nextState": null
+        },
+        "nextState": null
+      }
+    },
+    {
+      "label": "disk-rejected-ram-delivered",
+      "sent": [
+        "OGZ VPS DISK SPACE ALARM",
+        "OGZ VPS RAM ALARM"
+      ],
+      "result": {
+        "ok": false,
+        "disk": {
+          "ok": false,
+          "disk": {
+            "ok": true,
+            "critical": true,
+            "usedPercent": 90,
+            "availableBytes": "409600",
+            "totalBytes": "4096000"
+          },
+          "delivery": {
+            "ok": false,
+            "statusCode": 429
+          },
+          "error": "disk_alarm_delivery_failed"
+        },
+        "ram": {
+          "ok": true,
+          "ram": {
+            "ok": true,
+            "critical": true,
+            "usedPercent": 90,
+            "availableBytes": "102400",
+            "totalBytes": "1024000"
+          },
+          "delivery": {
+            "ok": true,
+            "statusCode": 200
+          },
+          "testAlert": false,
+          "nextState": {
+            "critical": true,
+            "lastSentAt": 2000000
+          }
+        },
+        "nextState": {
+          "disk": null,
+          "ram": {
+            "critical": true,
+            "lastSentAt": 2000000
+          }
+        }
+      }
+    },
+    {
+      "label": "retry-only-undelivered-disk",
+      "sent": [
+        "OGZ VPS DISK SPACE ALARM"
+      ],
+      "result": {
+        "ok": true,
+        "disk": {
+          "ok": true,
+          "disk": {
+            "ok": true,
+            "critical": true,
+            "usedPercent": 90,
+            "availableBytes": "409600",
+            "totalBytes": "4096000"
+          },
+          "delivery": {
+            "ok": true,
+            "statusCode": 200
+          },
+          "testAlert": false,
+          "nextState": {
+            "critical": true,
+            "lastSentAt": 2000001
+          }
+        },
+        "ram": {
+          "ok": true,
+          "ram": {
+            "ok": true,
+            "critical": true,
+            "usedPercent": 90,
+            "availableBytes": "102400",
+            "totalBytes": "1024000"
+          },
+          "delivery": null,
+          "testAlert": false,
+          "nextState": {
+            "critical": true,
+            "lastSentAt": 2000000
+          }
+        },
+        "nextState": {
+          "disk": {
+            "critical": true,
+            "lastSentAt": 2000001
+          },
+          "ram": {
+            "critical": true,
+            "lastSentAt": 2000000
+          }
+        }
+      }
+    },
+    {
+      "label": "failed-disk-measurement-does-not-hide-ram",
+      "sent": [
+        "OGZ VPS RAM ALARM"
+      ],
+      "result": {
+        "ok": false,
+        "disk": {
+          "ok": false,
+          "error": "filesystem_read_failed",
+          "disk": {
+            "ok": false,
+            "error": "filesystem_read_failed"
+          }
+        },
+        "ram": {
+          "ok": true,
+          "ram": {
+            "ok": true,
+            "critical": true,
+            "usedPercent": 90,
+            "availableBytes": "102400",
+            "totalBytes": "1024000"
+          },
+          "delivery": {
+            "ok": true,
+            "statusCode": 200
+          },
+          "testAlert": false,
+          "nextState": {
+            "critical": true,
+            "lastSentAt": 2000002
+          }
+        },
+        "nextState": {
+          "disk": null,
+          "ram": {
+            "critical": true,
+            "lastSentAt": 2000002
+          }
+        }
+      }
+    },
+    {
+      "label": "failed-ram-measurement-does-not-hide-disk",
+      "sent": [
+        "OGZ VPS DISK SPACE ALARM"
+      ],
+      "result": {
+        "ok": false,
+        "disk": {
+          "ok": true,
+          "disk": {
+            "ok": true,
+            "critical": true,
+            "usedPercent": 90,
+            "availableBytes": "409600",
+            "totalBytes": "4096000"
+          },
+          "delivery": {
+            "ok": true,
+            "statusCode": 200
+          },
+          "testAlert": false,
+          "nextState": {
+            "critical": true,
+            "lastSentAt": 2000003
+          }
+        },
+        "ram": {
+          "ok": false,
+          "error": "memory_read_failed",
+          "ram": {
+            "ok": false,
+            "error": "memory_read_failed"
+          }
+        },
+        "nextState": {
+          "disk": {
+            "critical": true,
+            "lastSentAt": 2000003
+          },
+          "ram": null
+        }
+      }
+    }
+  ],
+  "interceptedWire": [
+    {
+      "method": "POST",
+      "priority": "max",
+      "title": "OGZ VPS DISK SPACE ALARM",
+      "body": "fixture-host: / is 90.00% used, 0.00 GiB available. Alarm threshold: 90% used. No files deleted; no bot or service stopped."
+    },
+    {
+      "method": "POST",
+      "priority": "max",
+      "title": "OGZ VPS RAM ALARM",
+      "body": "fixture-host: RAM (MemAvailable, including reclaimable cache) is 90.00% used, 0.00 GiB available. Alarm threshold: 90% used. No files deleted; no bot or service stopped."
+    }
+  ],
+  "realDisk": {
+    "ok": true,
+    "critical": false,
+    "usedPercent": 18.26,
+    "availableBytes": "275167539200",
+    "totalBytes": "351748014080"
+  },
+  "realRam": {
+    "ok": true,
+    "critical": false,
+    "usedPercent": 18.36,
+    "availableBytes": "13240725504",
+    "totalBytes": "16220078080"
+  },
+  "limit": "No real capacity exhaustion or phone delivery exercised."
+}
