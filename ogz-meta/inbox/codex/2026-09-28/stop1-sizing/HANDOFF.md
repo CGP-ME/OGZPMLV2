@@ -4,6 +4,8 @@ Snapshot: 2026-09-28T04:53:10.574Z. Author: Codex. This is an accountability han
 
 Trey subsequently requested an account of why the deliverable was not finished. See WHY-STOP1-REMAINED-UNFINISHED.md in this directory. It distinguishes corroborated state, historical testimony, execution mistakes, actual blockers and limits; it does not resume the work.
 
+Subsequent research-input publication: see SOURCEGRAPH-DEEPSEARCH.md for Trey's requested Sourcegraph prompt and the three original Astra inputs published with it. The local-only statements below remain a record of the earlier snapshot, not their post-publication status. Production implementation remains stopped.
+
 ## Exact stopping point
 
 - Repository: /opt/ogzprime/OGZPMLV2; host ogzprime-prod-001; branch astra-era.

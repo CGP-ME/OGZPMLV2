@@ -1,5 +1,7 @@
 # Review
 
+Sourcegraph follow-up is documentation/input publication only; no Mercury run is required or claimed. Reviewed prompt scope against the current user instructions and preserved the earlier walk verbatim while pointing to later verbatim additions. node scripts/scan-secrets.js --staged reports four prefix-pattern findings in CSV reference IDs; parsed-cell inspection adjudicates those exact metadata matches, as recorded in SOURCEGRAPH-DEEPSEARCH.md. It is not reported as a scanner PASS. No hook or scanner was bypassed/modified; no new policy exception was installed. No independently reviewed completion of Stop 1 is claimed.
+
 Handoff delivery scope is non-production only: these accountability notes, HANDOFF.md, STATE.json and fixtures/review.cjs. The fixture captures the existing published CLI; gitlink handling was corrected after the first pre-dispatch failure, then the corrected fixture captured the no-index failure and exited. Syntax checked. No Mercury approval is asserted or required for this non-production handoff. Unreviewed alarm/bot/Mercury source and private raw evidence are not included. No secrets, credential values, auth files or private provider transcripts are staged.
 
 No candidate or final adversarial approval yet. This mission does not approve inherited pendingEntries/reservation, startup-validation, aggregate-exposure, or broader sizing changes merely because they exist in the dirty tree.

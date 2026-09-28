@@ -1,5 +1,7 @@
 # Work
 
+Sourcegraph follow-up: Trey clarified Sourcegraph Deep Search (not OpenAI Deep Research) and explicitly requested the required commits/push. Publishing one research-input packet: SOURCEGRAPH-DEEPSEARCH.md, the original Astra CSV and two walk documents unchanged, and these packet pointers. No production work is included. The previous failure account is the separate ae2f7662 commit. CSV scanner metadata false positives and publication limits are recorded in SOURCEGRAPH-DEEPSEARCH.md; inherited 32-file hashes still match STATE.json.
+
 Handoff delivery completed in 7ad5428387f1b649274b36f874f1cc462662c5d0; push and direct remote SHA matched. Trey then explicitly requested a written explanation of why Stop 1 was not completed. Added WHY-STOP1-REMAINED-UNFINISHED.md and its handoff pointer as a separate documentation-only change. No production edits or resumed reviews are part of that follow-up.
 
 Stopped-session handoff: see HANDOFF.md and STATE.json for the exact landed/local split and current hashes. The corrected sizing-impact-02 capture completed exit 1 / tool_failure because the selected isolated index had no chunks. Ledger records zero provider attempts, no tools invoked, no opened files and no reviewer panel; tracked source unchanged. No sizing production edit exists. Trey said stop; this continuation is handoff-only. Completed docs and the bounded capture fixture are the only intended commit paths. Raw/private runs, alarm production draft and inherited changes remain excluded.
