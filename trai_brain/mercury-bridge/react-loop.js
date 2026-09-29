@@ -149,12 +149,18 @@ function candidateSourceReceipt(candidateSet, { phase, recheckIndex = null } = {
     finalAnswerCitations: candidateSet.finalAnswerCitations || [],
     answerCitationsSubset: candidateSet.answerCitationsSubset === true,
     citationsNotInCandidateSet: candidateSet.citationsNotInCandidateSet || [],
+    claimAdjudications: candidateSet.claimAdjudications || null,
+    finalClaimAdjudications: candidateSet.finalClaimAdjudications || null,
+    claimDecisionAttempts: candidateSet.claimDecisionAttempts || [],
   };
 }
 
 function mergeCandidateSetRechecks(candidateSet, rechecks = []) {
   if (!candidateSet) return null;
   const passOne = growCandidateSetEvidence(candidateSet);
+  const claims = Array.isArray(candidateSet.claimInventory) ? candidateSet.claimInventory : [];
+  const { claimAdjudicationReceipt } = require('./evidence-ingestion');
+  if (claims.length > 0) passOne.claimAdjudications = claimAdjudicationReceipt(claims, passOne.content);
   const candidateSources = [candidateSourceReceipt(passOne, { phase: 'pass_1' })];
 
   for (const [index, recheck] of rechecks.entries()) {
@@ -163,6 +169,10 @@ function mergeCandidateSetRechecks(candidateSet, rechecks = []) {
       recheck && recheck.toolTelemetry,
       recheck && recheck.answer
     );
+    if (claims.length > 0) {
+      recheckCandidate.claimAdjudications = claimAdjudicationReceipt(claims, recheckCandidate.content);
+      recheckCandidate.finalClaimAdjudications = claimAdjudicationReceipt(claims, recheck && recheck.answer);
+    }
     candidateSources.push(candidateSourceReceipt(recheckCandidate, {
       phase: 'recheck',
       recheckIndex: index + 1,
@@ -189,9 +199,30 @@ function mergeCandidateSetRechecks(candidateSet, rechecks = []) {
       citationsNotInCandidateSet: sourceCitationsNotInCandidateSet,
     };
   });
+  const incompleteClaims = candidateSources.filter(source => source.claimAdjudications
+    && (!source.claimAdjudications.structurally_complete
+      || source.claimAdjudications.unresolved_claim_ids.length > 0
+      || (source.finalClaimAdjudications && (!source.finalClaimAdjudications.structurally_complete
+        || source.finalClaimAdjudications.unresolved_claim_ids.length > 0)))).map(source => ({
+    target: '<claim_adjudications>', scope: 'claim_recheck_receipt', load_bearing: true,
+    phase: source.phase, recheck_index: source.recheckIndex,
+    reason: 'claim_decisions_incomplete_or_unresolved',
+    missing_claim_ids: source.claimAdjudications.missing_claim_ids,
+    invalid_decisions: source.claimAdjudications.invalid_decisions,
+    final_missing_claim_ids: source.finalClaimAdjudications?.missing_claim_ids || [],
+    final_invalid_decisions: source.finalClaimAdjudications?.invalid_decisions || [],
+    unresolved_claim_ids: source.claimAdjudications.unresolved_claim_ids,
+    final_unresolved_claim_ids: source.finalClaimAdjudications?.unresolved_claim_ids || [],
+  }));
 
   return {
     ...passOne,
+    ...(incompleteClaims.length > 0 ? { coverage: { ...passOne.coverage,
+      authorityReady: false,
+      unresolved: [...(passOne.coverage?.unresolved || []), ...incompleteClaims],
+      unresolvedItems: [...(passOne.coverage?.unresolved || []), ...incompleteClaims],
+      load_bearing_unresolved: [...(passOne.coverage?.unresolved || []).filter(item => item.load_bearing !== false), ...incompleteClaims],
+    } } : {}),
     filesMechanicallyOpened,
     fileReadReceipts,
     claimedFileCitations,
@@ -837,6 +868,8 @@ async function runReactLoop(params) {
     providerAudit = null,
     attack = false,
     noTools = false,
+    claimInventory = [],
+    claimSourceEvidence = [],
   } = params;
 
   if (!client || typeof client.generateWithTools !== 'function') {
@@ -903,6 +936,8 @@ async function runReactLoop(params) {
   const history = [];
   let candidateSet = null;
   let candidateNeedsRevision = false;
+  const rejectedClaimStates = new Set();
+  const claimDecisionAttempts = [];
   let decisionSteerSentAt = null;
 
   const iterationLimit = noTools ? 1 : maxIterations;
@@ -1020,7 +1055,7 @@ async function runReactLoop(params) {
         candidateNeedsRevision = true;
         messages.push({
           role: 'user',
-          content: 'New tools were used after candidate filing. Continue investigating as needed, then submit a revised CANDIDATE SET before deciding. Include unresolved and contradictory evidence, not only the preferred answer.',
+          content: 'New tools were used after candidate filing. Continue investigating as needed, then submit a revised CANDIDATE SET before deciding. Include unresolved and contradictory evidence, not only the preferred answer. Preserve the original request\'s record schema and every original claim_id with its disposition, reason and citation/quote evidence. Do not replace structured claim_adjudication records with a file list or a list of claims yet to be decided.',
         });
       }
       if (decisionSteerSentAt == null && iteration === decisionSteerIteration) {
@@ -1038,7 +1073,7 @@ async function runReactLoop(params) {
       continue;
     }
 
-    const content = normalizeToolHandleCitations(assistantMsg.content || '(empty content)');
+    let content = normalizeToolHandleCitations(assistantMsg.content || '(empty content)');
     if (noTools) {
       const answerQuality = assessFinalAnswerQuality(content, history);
       if (!answerQuality.flags.includes('missing_file_line_citation')) {
@@ -1062,6 +1097,62 @@ async function runReactLoop(params) {
         decisionSteerSentAt,
       }, history);
     }
+    // The recheck producer must file actual decisions, not merely a heading
+    // or a file inventory. Unresolved decisions are valid; invented, missing
+    // or malformed original IDs need repair before the phase can advance.
+    const claimPhase = !candidateSet || candidateNeedsRevision || isCandidateSetResponse(content)
+      ? 'candidate' : 'final';
+    if (claimInventory.length > 0) {
+      const { claimAdjudicationReceipt, sha256 } = require('./evidence-ingestion');
+      const sourceEvidence = [...claimSourceEvidence];
+      for (const entry of history) {
+        const result = entry.toolResult;
+        if (!['open_file', 'git_show'].includes(entry.toolName) || !result || result.error
+            || typeof result.text !== 'string' || !entry.toolDelivery) continue;
+        const start = entry.toolDelivery.startLine;
+        const end = entry.toolDelivery.endLine;
+        if (!Number.isInteger(start) || !Number.isInteger(end) || end < start) continue;
+        const delivered = result.text.split('\n').slice(start - result.start_line, end - result.start_line + 1);
+        const lines = delivered.map((line, index) => {
+          const match = line.match(/^\s*(\d+)\t([\s\S]*)$/);
+          return match && Number(match[1]) === start + index ? match[2] : null;
+        });
+        if (lines.length !== end - start + 1 || lines.some(line => line === null)) continue;
+        const file = entry.toolName === 'git_show' ? `${result.ref}:${result.path}` : result.file;
+        const excerpt = lines.join('\n');
+        sourceEvidence.push({ citation: `${file}:${start}-${end}`, line_start: start, line_end: end,
+          content: excerpt, source_sha256: null, excerpt_sha256: sha256(excerpt), tool_call_id: entry.toolCallId });
+      }
+      const { rendered_content: renderedContent, ...receipt } = claimAdjudicationReceipt(claimInventory, content,
+        sourceEvidence.reverse());
+      claimDecisionAttempts.push({ iteration, phase: claimPhase, ...receipt });
+      if (!receipt.structurally_complete) {
+        const rejection = JSON.stringify({ phase: claimPhase, missing: receipt.missing_claim_ids,
+          invalid: receipt.invalid_decisions });
+        if (rejectedClaimStates.has(rejection)) {
+          return attachToolTelemetry({ answer: content, candidateSet, claimDecisionAttempts,
+            iterations: iteration, termination: 'claim_decision_impasse', history,
+            providerAttempts: providerAudit ? providerAudit.attempts : [], toolsAvailable,
+            iterationLimit, decisionSteerIteration, decisionSteerSentAt }, history);
+        }
+        rejectedClaimStates.add(rejection);
+        messages.push({ role: 'user', content: [
+          `The ${claimPhase} claim receipt is incomplete; preserve your actual conclusions and repair the records.`,
+          claimPhase === 'candidate'
+            ? 'Begin with CANDIDATE SET: examined N of M for the original changed-path inventory; retain that inventory as well as every claim decision.'
+            : 'Begin with VERDICT: and return the complete final report, including every original claim decision and the required evidence/report headings.',
+          'For each original ID emit one bare JSON line: {"record_type":"claim_adjudication","claim_id":"<exact original ID>","disposition":"supported|refuted|unresolved","reason":"<why kept or rejected, or what evidence is missing>","evidence":[{"citation":"<exact path:line>"}]}. Select precise citations from captured source or your open_file/git_show reads; the host copies the physical lines. Omit model-written quote fields. Wrong supplied quotes remain errors, not silently repaired text. Empty evidence is permitted only for unresolved decisions. Do not invent IDs or substitute descriptions/file inventories. New findings belong separately, not in an original-ID record.',
+          `Original claims: ${JSON.stringify(claimInventory)}`,
+          `Missing IDs: ${JSON.stringify(receipt.missing_claim_ids)}`,
+          `Invalid records: ${JSON.stringify(receipt.invalid_decisions)}`,
+          'A claim_source_range_not_captured error means the cited lines are not available for quotation: open that exact range with open_file/git_show before retrying, or retain the claim as unresolved with the specific missing evidence. Read further with the existing tools when necessary; do not change a conclusion just to complete the format.',
+        ].join('\n') });
+        continue;
+      }
+      // Raw provider messages remain in the provider audit. This rendered
+      // report owns host-added source quotations, not rewritten model output.
+      content = renderedContent;
+    }
     if (!candidateSet || candidateNeedsRevision || isCandidateSetResponse(content)) {
       if (!isCandidateSetResponse(content)) {
         messages.push({
@@ -1070,6 +1161,7 @@ async function runReactLoop(params) {
             'PHASE 1 NOT ACCEPTED. This content cannot be treated as the answer or the candidate receipt.',
             'Your next content-only response must begin with CANDIDATE SET and inventory every possible answer, reader, and relevant file found so far using literal path:line citations.',
             'Continue reading first if that inventory is incomplete.',
+            ...(claimInventory.length > 0 ? ['Retain the original claim_adjudication schema, exact IDs, dispositions, reasons and evidence in that candidate set; a file/description inventory is not a decision receipt.'] : []),
           ].join('\n'),
         });
         if (verbose) console.error(`[REACT] Rejected non-candidate content on iteration ${iteration}`);
@@ -1082,6 +1174,7 @@ async function runReactLoop(params) {
       ])).sort();
       candidateSet = {
         content,
+        ...(claimInventory.length > 0 ? { claimInventory, claimDecisionAttempts: [...claimDecisionAttempts] } : {}),
         capturedAtIteration: candidateSet ? candidateSet.capturedAtIteration : iteration,
         revisedAtIteration: iteration,
         revisions: [...(candidateSet && candidateSet.revisions || []), { iteration, content }],
@@ -1100,6 +1193,10 @@ async function runReactLoop(params) {
           }),
           '',
           'Anything unread? If yes, keep reading. If no, decide.',
+          'This candidate set is now filed. When ready to decide, begin your next content-only response with VERDICT:, not CANDIDATE SET. Include the original report headings and every claim decision in that final report. Use more tools first if evidence remains missing; do not refile an unchanged inventory just to avoid deciding.',
+          'Compare every filed candidate before deciding; state which claims are supported, refuted or still unresolved and cite why. A focused recheck must retain the original inventory as well as the new tool evidence, not silently replace it with only the challenged subset.',
+          'If the original request supplies claim_id records, preserve its exact claim_adjudication JSON-line format in the final report for every original ID, including the reason and citation/quote evidence. Do not substitute an unlinked summary for those decisions.',
+          'Emit the actual evidence/report sections required by the original review request. Do not claim that an unprinted inventory or inspection table supplies proof, and do not treat the existence of a guard/catch as a defect without its producer and adverse consequence.',
           'The decision must cite only evidence filed in this fixed candidate set.',
         ].join('\n'),
       });
@@ -1109,6 +1206,7 @@ async function runReactLoop(params) {
 
     const finalAnswer = content;
     candidateSet = growCandidateSetEvidence(candidateSet, summarizeToolTelemetry(history), finalAnswer);
+    if (claimInventory.length > 0) candidateSet.claimDecisionAttempts = [...claimDecisionAttempts];
     candidateSet.candidateSources = [candidateSourceReceipt(candidateSet, { phase: 'pass_1' })];
     const answerQuality = assessFinalAnswerQuality(finalAnswer, history);
 

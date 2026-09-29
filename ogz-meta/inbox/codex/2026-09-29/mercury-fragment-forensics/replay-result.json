@@ -1,0 +1,108 @@
+{
+  "candidate_tree": "f93161d39f016be57591dfda72101c3ed5c8da59",
+  "source_commit": "6bcfad8a25f72cb9e1eb946e854695913b2133c4",
+  "source_sha256": "24866675b9f525ed03397ecba3cf67b228f4035e6aaeec2cae3a87da730e57db",
+  "original_allegation": "In collectExplicitTargetCorpus, the block handling capturedSourceRef references the variable \"stat\" before it is defined, causing a ReferenceError at runtime when capturedSourceRef !== 'WORKTREE'. This can abort processing of targets and prevent proper evidence capture.",
+  "original_citations": [
+    "trai_brain/mercury-bridge/evidence-ingestion.js:447-456"
+  ],
+  "function_scope": {
+    "file": "trai_brain/mercury-bridge/evidence-ingestion.js",
+    "name": "collectExplicitTargetCorpus",
+    "line": 434,
+    "endLine": 570
+  },
+  "fallbackCases": [
+    {
+      "case": "missing",
+      "full_accepted_source_delivered": true,
+      "context_basis": "accepted_source_without_attested_enclosing_scope"
+    },
+    {
+      "case": "mismatched",
+      "full_accepted_source_delivered": true,
+      "context_basis": "accepted_source_without_attested_enclosing_scope"
+    }
+  ],
+  "runs": [
+    {
+      "case": "matching",
+      "maxRequestBytes": 98304,
+      "requests": [
+        {
+          "task": "file_explicit_target_candidate_set",
+          "whole_function_delivered": true,
+          "source_start_delivered": true,
+          "declaration_delivered": true,
+          "source_message_count": 1
+        },
+        {
+          "task": "decide_explicit_target_review",
+          "whole_function_delivered": true,
+          "source_start_delivered": true,
+          "declaration_delivered": true,
+          "source_message_count": 1
+        }
+      ],
+      "result_termination": "answer_given",
+      "result_synthesis_status": "succeeded",
+      "synthesis_error": null
+    },
+    {
+      "case": "missing",
+      "maxRequestBytes": 1000000,
+      "requests": [
+        {
+          "task": "file_explicit_target_candidate_set",
+          "whole_function_delivered": true,
+          "source_start_delivered": true,
+          "declaration_delivered": true,
+          "source_message_count": 1
+        },
+        {
+          "task": "decide_explicit_target_review",
+          "whole_function_delivered": true,
+          "source_start_delivered": true,
+          "declaration_delivered": true,
+          "source_message_count": 1
+        }
+      ],
+      "result_termination": "answer_given",
+      "result_synthesis_status": "succeeded",
+      "synthesis_error": null
+    },
+    {
+      "case": "mismatched",
+      "maxRequestBytes": 1000000,
+      "requests": [
+        {
+          "task": "file_explicit_target_candidate_set",
+          "whole_function_delivered": true,
+          "source_start_delivered": true,
+          "declaration_delivered": true,
+          "source_message_count": 1
+        },
+        {
+          "task": "decide_explicit_target_review",
+          "whole_function_delivered": true,
+          "source_start_delivered": true,
+          "declaration_delivered": true,
+          "source_message_count": 1
+        }
+      ],
+      "result_termination": "answer_given",
+      "result_synthesis_status": "succeeded",
+      "synthesis_error": null
+    },
+    {
+      "case": "fallback_over_limit",
+      "maxRequestBytes": 98304,
+      "requests": [],
+      "result_termination": "synthesis_failed",
+      "result_synthesis_status": "failed",
+      "synthesis_error": "filed_decisions_and_manifest_exceed_request_envelope"
+    }
+  ],
+  "implementation_sha256": "0c81b754ab330425588014f53383db594964b93d6bf72e66b44bf9f311e3f5b1",
+  "no_network_or_provider_calls": true
+}

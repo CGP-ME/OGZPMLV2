@@ -1,0 +1,27 @@
+{
+  "candidate": "52150020787fddc8329b5445c66beb519d27c74e",
+  "loader": "../mercury-source-identity/fixtures/candidate-loader.cjs",
+  "steps": [
+    {
+      "name": "historical-source-replay",
+      "exitCode": 0
+    },
+    {
+      "name": "retained-source-reductions",
+      "exitCode": 0
+    }
+  ],
+  "receipts": [
+    {
+      "file": "private/root-candidate-replay.log",
+      "sha256": "421836828adfad753945a3acaffb23a5e34a89af19aebb0a0d5bd81c6ccea648",
+      "bytes": 3645
+    },
+    {
+      "file": "private/root-candidate-reduction.log",
+      "sha256": "4fd088f07c71b6dd6b964f420d31716571128442d9829e858609d3b63827c610",
+      "bytes": 644
+    }
+  ],
+  "limits": "Deterministic provider callbacks; not a fresh model-review verdict."
+}

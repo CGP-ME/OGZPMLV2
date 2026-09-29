@@ -1,0 +1,31 @@
+{
+  "base_commit": "6bcfad8a25f72cb9e1eb946e854695913b2133c4",
+  "patch_sha256": "6f8031741e8a016305942917d344ae434c70beebeb66e0459b2f3e7660e8d514",
+  "files": [
+    {
+      "path": "tools/serena-symbol-scanner.js",
+      "sha256": "20b8d04dec805d4f4d4640a4db6b36ee973f76ec48d226b70a7d3fa304712de8"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/ask.js",
+      "sha256": "ddd0b72c621280b33449ed91965c1e974def8218ff349f1ac973ac379a709195"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/evidence-ingestion.js",
+      "sha256": "0c81b754ab330425588014f53383db594964b93d6bf72e66b44bf9f311e3f5b1"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/adversarial-review.js",
+      "sha256": "bce32ee433ae0f5e3aff9e9783ffcd2b69cd87de397a5cdcb02274c0d9428841"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/react-loop.js",
+      "sha256": "a897895568ff69ce67395a0dd02a0ccac54f67354b501a6a7f91aefc74609f2a"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/run-ledger.js",
+      "sha256": "36ba44d6b97ebc0931eb27d2a13c4a6ab8ae9e5e6fd62935283a1a671c0fe4a5"
+    }
+  ],
+  "mutations": 0
+}

@@ -1,0 +1,14 @@
+{
+  "source_receipt": "../mercury-source-identity/private/final-review-result.json",
+  "raw_provider_receipt": "ogz-meta/cognition-history/mercury-runs/raw/2026-09-29/2026-09-29t08-37-08-454z-696398-54eb99650392/mercury_explicit_shard_15-1.raw",
+  "source_sha256": "24866675b9f525ed03397ecba3cf67b228f4035e6aaeec2cae3a87da730e57db",
+  "record": {
+    "unit_id": "artifact-0010-55a1c826620bd56b:0-7116:55a1c826620bd56b955ca1ccaa3282970e7e5cc153bd1e31851512eddd916b7b",
+    "target": "trai_brain/mercury-bridge/evidence-ingestion.js",
+    "disposition": "finding",
+    "summary": "In collectExplicitTargetCorpus, the block handling capturedSourceRef references the variable \"stat\" before it is defined, causing a ReferenceError at runtime when capturedSourceRef !== 'WORKTREE'. This can abort processing of targets and prevent proper evidence capture.",
+    "citations": [
+      "trai_brain/mercury-bridge/evidence-ingestion.js:447-456"
+    ]
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "date": "2026-09-29",
+  "implementation_manifest": "IMPLEMENTATION.json",
+  "builder_proof": "build-proof.json",
+  "provider_calls": 0,
+  "git_index_writes": 0,
+  "actual_allegation_replay": "replay-result.json",
+  "source_reduction_limits": {
+    "level": "deterministic transport, not provider reasoning",
+    "cases": [
+      {
+        "oversized": false,
+        "sourceBytes": 42,
+        "reductions": 16,
+        "candidates": 1,
+        "finalPreserved": true,
+        "candidateErrors": [
+          null
+        ],
+        "authorityReady": true
+      },
+      {
+        "oversized": true,
+        "sourceBytes": 149542,
+        "reductions": 0,
+        "candidates": 0,
+        "finalPreserved": false,
+        "candidateErrors": [
+          "literal_source_and_manifest_exceed_request_envelope"
+        ],
+        "authorityReady": false
+      }
+    ]
+  },
+  "existing_offline_checks_passed": [
+    "claim-protocol.cjs",
+    "claim-reduction-source.cjs",
+    "claim-reduction-fixedpoint.cjs",
+    "claim-target-continuation.cjs"
+  ],
+  "jest_comparison": {
+    "baseline_passed": 92,
+    "baseline_failed": 25,
+    "repair_passed": 92,
+    "repair_failed": 25,
+    "same_failed_test_names": true,
+    "new_failed_test_names": [],
+    "failed_test_names": [
+      "Mercury Fable consensus \u203a a load-bearing quarantine caps the human review packet at UNVERIFIED and names the gap",
+      "Mercury Fable consensus \u203a authority is recomputed after explicit Kimi convergence is attached",
+      "Mercury Fable consensus \u203a emitted packet cannot outrank its reviewer-panel receipt",
+      "Mercury Fable consensus \u203a run alerts cover UNVERIFIED and seat failures without cost policy or refusal",
+      "Mercury Fable consensus \u203a undocumented identity mismatch is stamped, screamed, capped UNVERIFIED, and continues",
+      "Mercury ReAct loop evidence gates \u203a accepts the next content reply after further reading and grows the candidate receipt",
+      "Mercury ReAct loop evidence gates \u203a normalizes tool-handle citations before accepting a final answer",
+      "Mercury Serena AST tools \u203a Mercury exposes Serena AST symbol evidence as normal read-only tools",
+      "Mercury run ledger \u203a additively persists reviewer selection, seat outcomes, transitions, absences, and authority",
+      "Mercury run ledger \u203a builds a compact run envelope from Mercury telemetry",
+      "Mercury run ledger \u203a caps a load-bearing challenger quarantine at unverified and preserves its scream receipt",
+      "Mercury run ledger \u203a caps a load-bearing evidence_descriptor quarantine at unverified and preserves its scream receipt",
+      "Mercury run ledger \u203a caps a load-bearing recheck quarantine at unverified and preserves its scream receipt",
+      "Mercury run ledger \u203a ledger verdict has exact panel parity for FULL/cannot_verify",
+      "Mercury run ledger \u203a ledger verdict has exact panel parity for FULL/found_break",
+      "Mercury run ledger \u203a ledger verdict has exact panel parity for FULL/pass",
+      "Mercury run ledger \u203a ledger verdict has exact panel parity for UNVERIFIED/pass",
+      "Mercury run ledger \u203a panel authority null exclusively owns durable verdict unverified",
+      "Mercury run ledger \u203a panel authority {\"ceiling\":\"FULL\",\"agreedVerdict\":\"cannot_verify\"} exclusively owns durable verdict cannot_verify",
+      "Mercury run ledger \u203a panel authority {\"ceiling\":\"FULL\",\"agreedVerdict\":\"found_break\"} exclusively owns durable verdict found_break",
+      "Mercury run ledger \u203a panel authority {\"ceiling\":\"FULL\",\"agreedVerdict\":\"pass\"} exclusively owns durable verdict no_break_found",
+      "Mercury run ledger \u203a panel authority {\"ceiling\":\"FULL\",\"agreedVerdict\":null} exclusively owns durable verdict unverified",
+      "Mercury run ledger \u203a panel authority {\"ceiling\":\"UNVERIFIED\",\"agreedVerdict\":\"pass\"} exclusively owns durable verdict unverified",
+      "Mercury run ledger \u203a parses the five-field seat self-report and names partial footers without capping authority",
+      "Mercury run ledger \u203a persists identity ladder posture and caps only undocumented conflicts"
+    ],
+    "baseline_log_sha256": "7733024cc06b3ac9ab7e02e336a702e92768f63aa89465ab50207ee7f9592676",
+    "repair_log_sha256": "418203fcc03d217f9650bce821dda8686dbe2f5713845b079615279df63817df"
+  },
+  "limits": [
+    "Deterministic provider callbacks verify transport and qualification, not fresh model reasoning.",
+    "Large literal evidence can exceed the request envelope and remain unresolved.",
+    "The existing Jest suites are not green.",
+    "External Mercury review and delivery remain parent-owned."
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "remote_ref": "origin/astra-era",
+  "remote_tracking_sha": "9f70cf8c4a9795a37d7d764e8a141b3f25e46e17",
+  "historical_tree": "f93161d39f016be57591dfda72101c3ed5c8da59",
+  "historical_tree_reachable": false,
+  "source_commit": "6bcfad8a25f72cb9e1eb946e854695913b2133c4",
+  "source_commit_reachable": true,
+  "same_source_sha256": "24866675b9f525ed03397ecba3cf67b228f4035e6aaeec2cae3a87da730e57db",
+  "replay_result": "replay-result.json"
+}

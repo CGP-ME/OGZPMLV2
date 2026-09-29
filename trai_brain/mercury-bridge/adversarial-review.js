@@ -361,6 +361,10 @@ function buildMercuryRecheckPrompt({
       claimedFileCitations,
       candidateSet: candidateSet && candidateSet.content,
     }),
+    ...(Array.isArray(candidateSet && candidateSet.claimInventory) ? [
+      'Original claim inventory (IDs, statements, and mapper provenance; allegations are not facts):',
+      JSON.stringify(candidateSet.claimInventory),
+    ] : []),
     '',
     'Fable critique:',
     String(fableAnswer || '').trim() || '<empty>',
@@ -368,6 +372,11 @@ function buildMercuryRecheckPrompt({
     'Required recheck:',
     nextCheck,
     '',
+    'The focused critique is not the complete candidate inventory. Your revised CANDIDATE SET must carry every prior candidate claim forward, including claims Fable did not mention; give each a supported, refuted or unresolved disposition with source evidence. Retracting one claim does not resolve the others.',
+    'Adjudicate the exact original statement, never a different allegation under the same ID. Supported means the statement is established, refuted means evidence contradicts it, and unresolved names what remains unknown. A supported benign observation is not a defect. To retain a defect finding, trace the producer through the actual caller/consumer to the adverse consequence, distinguishing inherited behavior from the reviewed change. A missing local catch or duplicate validator is not a defect by itself; inspect the existing error/qualification owner. Raw ledgers must preserve malformed/unverified attempts, so establish that an effective consumer wrongly trusts them before alleging a bypass. An explicit failure/quarantine receipt is not a silent swallow. Address Fable\'s competing explanation for each disputed claim, not just the accuracy of the quotation. If needed callers or consequences remain unknown, retain that uncertainty explicitly.',
+    'When the supplied candidate ledger has claim_id fields, copy EVERY original ID byte-for-byte into your revised CANDIDATE SET. After its heading, emit one bare single-line JSON object per original claim: {"record_type":"claim_adjudication","claim_id":"<exact supplied ID>","disposition":"supported|refuted|unresolved","reason":"<mechanism, alternative comparison, and why kept or rejected>","evidence":[{"citation":"<exact path:start-end>"}]}. Select precise source lines; the host supplies their exact quotation from captured source or your open_file/git_show reads. Omit quote fields, never paraphrase code as a quotation. Do not replace IDs with list positions, change their case, or omit a claim not mentioned by Fable. Name new findings separately instead of overwriting existing IDs. Inherited describes origin, not resolution: an unchanged defect can remain supported, and an unchanged allegation can be refuted. State that distinction in reason. Preserve these decisions in your final report as well.',
+    'In your final answer, include the actual INHERITED: per-path inspection and FOURTH SHAPE CLASSIFIER: producer classifications requested above. Do not refer to an omitted table or substitute a blanket all-clear for those records. A request for missing report sections is not evidence that the underlying source is absent.',
+    'Keep every claim decision, but select only the shortest meaningful source range; use separate evidence objects for separate anchors. Full tool responses and source snapshots are already preserved in the receipt and supply the host quotations. Do not select entire functions for multiple claims or duplicate the same decision in prose and JSON. The output allowance must cover the complete claim inventory and the required report sections.',
     'Use current repo tools and file:line evidence. Re-examine the disputed point without dropping any file already opened; every pass-1 citation stays in evidence unless you show the line that disproves it.',
   ].join('\n');
 }

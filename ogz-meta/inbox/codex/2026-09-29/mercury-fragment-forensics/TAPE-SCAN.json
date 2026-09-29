@@ -1,0 +1,13 @@
+{
+  "tapes": 51,
+  "hashesVerified": true,
+  "strictFindings": [
+    {
+      "filePath": "tapes/review-2026-09-29T13-08-04-446Z/raw/2026-09-29t13-08-04-891z-842238-f3d209d63c23/fable_challenger-1.raw.gz",
+      "lineNumber": 1,
+      "reason": "JSON credential apiKeySource contains a non-placeholder value"
+    }
+  ],
+  "remainingFindings": [],
+  "normalization": "Scanner input only: apiKeySource field with literal value none; stored bytes unchanged."
+}

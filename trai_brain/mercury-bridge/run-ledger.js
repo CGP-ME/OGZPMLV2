@@ -237,6 +237,9 @@ function candidateSourceLedgerReceipt(source) {
     citations_not_in_candidate_set: Array.isArray(source.citationsNotInCandidateSet)
       ? source.citationsNotInCandidateSet
       : [],
+    claim_adjudications: source.claimAdjudications || null,
+    final_claim_adjudications: source.finalClaimAdjudications || null,
+    claim_decision_attempts: source.claimDecisionAttempts || [],
   };
 }
 
@@ -676,6 +679,7 @@ function buildReviewLedgerSummary(review) {
     } : null,
     rechecks: rechecks.map((recheck) => ({
       doctrine_review: recheck.doctrineReview || null,
+      claim_decision_attempts: recheck.claimDecisionAttempts || recheck.candidateSet?.claimDecisionAttempts || [],
       sharded_review: shardedReviewLedgerReceipt(recheck.shardedReview),
       termination: recheck.termination || null,
       iterations: recheck.iterations == null ? null : recheck.iterations,
@@ -800,6 +804,7 @@ function shardedResponseLedgerReceipt(receipt = {}) {
     acknowledgement: receipt.acknowledgement || null,
     unit_records: Array.isArray(receipt.unit_records) ? receipt.unit_records : [],
     accepted_unit_ids: Array.isArray(receipt.accepted_unit_ids) ? receipt.accepted_unit_ids : [],
+    accepted_target_paths: Array.isArray(receipt.accepted_target_paths) ? receipt.accepted_target_paths : [],
     missing_unit_records: Array.isArray(receipt.missing_unit_records) ? receipt.missing_unit_records : [],
     invalid_unit_records: Array.isArray(receipt.invalid_unit_records) ? receipt.invalid_unit_records : [],
     inventory: receipt.inventory || null,
@@ -868,6 +873,7 @@ function shardedReviewLedgerReceipt(review) {
     candidates: Array.isArray(review.candidates)
       ? review.candidates.map(shardedResponseLedgerReceipt)
       : [],
+    claim_inventory: Array.isArray(review.claim_inventory) ? review.claim_inventory : [],
     synthesis_attempts: Array.isArray(review.synthesis_attempts)
       ? review.synthesis_attempts.map(shardedResponseLedgerReceipt)
       : [],
@@ -978,6 +984,7 @@ function buildRunLedgerEntry({
     answer_quality_evidence: answerQualityEvidence,
     candidate_set: candidateSet ? {
       coverage: candidateSet.coverage || null,
+      claim_inventory: Array.isArray(candidateSet.claimInventory) ? candidateSet.claimInventory : [],
       content: redactSensitiveText(candidateSet.content || ''),
       captured_at_iteration: candidateSet.capturedAtIteration,
       revised_at_iteration: candidateSet.revisedAtIteration || null,

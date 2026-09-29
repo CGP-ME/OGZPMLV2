@@ -1,0 +1,43 @@
+{
+  "base_commit": "6bcfad8a25f72cb9e1eb946e854695913b2133c4",
+  "scope": "HEAD plus source-backed claim adjudication and source-delivery completion; no search-glob or temperature-only changes",
+  "files": [
+    {
+      "path": "tools/serena-symbol-scanner.js",
+      "base_sha256": "b9f95a391de46619f1cbabeb38cae621078a6e0e7e26a840c511d224f1d698ea",
+      "implementation_sha256": "20b8d04dec805d4f4d4640a4db6b36ee973f76ec48d226b70a7d3fa304712de8",
+      "worktree_sha256": "20b8d04dec805d4f4d4640a4db6b36ee973f76ec48d226b70a7d3fa304712de8"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/ask.js",
+      "base_sha256": "e491823e04d14eb09d1728508b94cc0d01b5fe27ed254745f39c88c914856dd7",
+      "implementation_sha256": "ddd0b72c621280b33449ed91965c1e974def8218ff349f1ac973ac379a709195",
+      "worktree_sha256": "c1fba106e64c37eecaf5d39870d0fa4494f6db2be1412703d2361bd2fb9e3f26"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/evidence-ingestion.js",
+      "base_sha256": "24866675b9f525ed03397ecba3cf67b228f4035e6aaeec2cae3a87da730e57db",
+      "implementation_sha256": "0c81b754ab330425588014f53383db594964b93d6bf72e66b44bf9f311e3f5b1",
+      "worktree_sha256": "92bcb82dfd2e6586259139cb1c58d93c0b451248ed92a510f1cc78eb5d8ffe5b"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/adversarial-review.js",
+      "base_sha256": "9edd008de0ba6ed2b96c2c95fa4785657be48eb922c2e8268a933872fe4994af",
+      "implementation_sha256": "bce32ee433ae0f5e3aff9e9783ffcd2b69cd87de397a5cdcb02274c0d9428841",
+      "worktree_sha256": "bce32ee433ae0f5e3aff9e9783ffcd2b69cd87de397a5cdcb02274c0d9428841"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/react-loop.js",
+      "base_sha256": "b898a0d9e68c06e4b99fffa89c4dcd8eb7984f7a558bfbe590834813e6ba56fe",
+      "implementation_sha256": "a897895568ff69ce67395a0dd02a0ccac54f67354b501a6a7f91aefc74609f2a",
+      "worktree_sha256": "a897895568ff69ce67395a0dd02a0ccac54f67354b501a6a7f91aefc74609f2a"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/run-ledger.js",
+      "base_sha256": "3c71a159b2b4d23c55793c8e153fb8a4690fb8281a02f1fb9f9e12e7fa7a603d",
+      "implementation_sha256": "36ba44d6b97ebc0931eb27d2a13c4a6ab8ae9e5e6fd62935283a1a671c0fe4a5",
+      "worktree_sha256": "e9ec8beeb09783301337ae8f7f89780849b5d29456e09615588b1cc63f1267bb"
+    }
+  ],
+  "patch_sha256": "6f8031741e8a016305942917d344ae434c70beebeb66e0459b2f3e7660e8d514"
+}

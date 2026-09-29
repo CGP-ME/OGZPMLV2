@@ -1,3 +1,7 @@
+## 2026-09-29 — Preserve captured source through Mercury adjudication
+
+Mercury now carries hash-bound source into candidate and final claim decisions, retains original claim identities through rechecks, and records incomplete evidence explicitly. Reproduced the historical false missing-variable allegation and verified retained-source behavior; full adversarial panel passed.
+
 ## 2026-09-29 — EMA crossover confidence settings
 
 Connect five existing confidence controls to retained EMA crossover detectors across all production owners. Preserve numeric coercion and detector state; reject invalid forced replacements explicitly before publication while retaining the current settings, per Trey ruling. Forced replacement cannot change the existing process role. Evidence: ogz-meta/inbox/codex/2026-09-29/ema-crossover-confidence/. No runtime activation.

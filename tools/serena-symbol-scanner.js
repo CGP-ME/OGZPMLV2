@@ -341,6 +341,7 @@ function scanFileWithBabel(file, repoRoot, source) {
   const propertyRefs = [];
   const methodCalls = [];
   const classSurfaces = [];
+  const functionScopes = [];
 
   function addPropertyRef(node, propName, opOverride = null, receiverOverride = null) {
     propertyRefs.push({
@@ -357,6 +358,11 @@ function scanFileWithBabel(file, repoRoot, source) {
   }
 
   walkBabel(ast, (node) => {
+    if (['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression',
+      'ObjectMethod', 'ClassMethod', 'ClassPrivateMethod'].includes(node.type)) {
+      functionScopes.push({ file: rel, line: babelLine(node), endLine: node.loc.end.line,
+        type: node.type, name: node.id?.name || node.key?.name || null });
+    }
     if (node.type === 'MemberExpression' && !node.computed) {
       const prop = babelPropertyName(source, node.property);
       if (prop) addPropertyRef(node, prop);
@@ -419,7 +425,7 @@ function scanFileWithBabel(file, repoRoot, source) {
     }
   });
 
-  return { propertyRefs, methodCalls, classSurfaces, parser: '@babel/parser',
+  return { propertyRefs, methodCalls, classSurfaces, functionScopes, parser: '@babel/parser',
     source_sha256: crypto.createHash('sha256').update(source).digest('hex'),
     source_bytes: Buffer.byteLength(source, 'utf8') };
 }
@@ -431,6 +437,7 @@ function scanFile(file, repoRoot, parser) {
   const propertyRefs = [];
   const methodCalls = [];
   const classSurfaces = [];
+  const functionScopes = [];
 
   function addPropertyRef(node, propName, opOverride = null, receiverOverride = null) {
     propertyRefs.push({
@@ -448,6 +455,12 @@ function scanFile(file, repoRoot, parser) {
 
   function visit(node) {
     if (!node) return;
+    if (['function_declaration', 'function_expression', 'arrow_function', 'method_definition',
+      'generator_function_declaration', 'generator_function'].includes(node.type)) {
+      const name = field(node, 'name');
+      functionScopes.push({ file: rel, line: lineOf(node), endLine: node.endPosition.row + 1,
+        type: node.type, name: name ? nodeText(source, name) : null });
+    }
     if (node.type === 'member_expression') {
       const prop = propertyName(source, node);
       if (prop) {
@@ -528,7 +541,7 @@ function scanFile(file, repoRoot, parser) {
   }
 
   visit(tree.rootNode);
-  return { propertyRefs, methodCalls, classSurfaces, parser: 'tree-sitter-javascript',
+  return { propertyRefs, methodCalls, classSurfaces, functionScopes, parser: 'tree-sitter-javascript',
     source_sha256: crypto.createHash('sha256').update(source).digest('hex'),
     source_bytes: Buffer.byteLength(source, 'utf8') };
 }
@@ -539,6 +552,7 @@ function scanRepo(repoRoot = DEFAULT_REPO_ROOT, opts = {}) {
   const propertyRefs = [];
   const methodCalls = [];
   const classSurfaces = [];
+  const functionScopes = [];
   const errors = [];
   const fileReceipts = [];
   for (const file of files) {
@@ -552,10 +566,11 @@ function scanRepo(repoRoot = DEFAULT_REPO_ROOT, opts = {}) {
       fileReceipts.push({ file: relative, parser: scan.parser,
         source_sha256: scan.source_sha256, source_bytes: scan.source_bytes,
         property_references: scan.propertyRefs.length, method_calls: scan.methodCalls.length,
-        class_surfaces: scan.classSurfaces.length });
+        class_surfaces: scan.classSurfaces.length, function_scopes: scan.functionScopes.length });
       propertyRefs.push(...scan.propertyRefs);
       methodCalls.push(...scan.methodCalls);
       classSurfaces.push(...scan.classSurfaces);
+      functionScopes.push(...scan.functionScopes);
     } catch (err) {
       errors.push({
         file: path.relative(repoRoot, file).replace(/\\/g, '/'),
@@ -563,7 +578,7 @@ function scanRepo(repoRoot = DEFAULT_REPO_ROOT, opts = {}) {
       });
     }
   }
-  return { propertyRefs, methodCalls, classSurfaces, errors, filesScanned: files.length,
+  return { propertyRefs, methodCalls, classSurfaces, functionScopes, errors, filesScanned: files.length,
     filesParsed: fileReceipts.length, fileReceipts,
     parsers: [...new Set(fileReceipts.map(receipt => receipt.parser))] };
 }

@@ -1,0 +1,13 @@
+{
+  "candidate": "52150020787fddc8329b5445c66beb519d27c74e",
+  "base": "9f70cf8c4a9795a37d7d764e8a141b3f25e46e17",
+  "harness": "6bcfad8a25f72cb9e1eb946e854695913b2133c4",
+  "files": [
+    "tools/serena-symbol-scanner.js",
+    "trai_brain/mercury-bridge/ask.js",
+    "trai_brain/mercury-bridge/evidence-ingestion.js",
+    "trai_brain/mercury-bridge/adversarial-review.js",
+    "trai_brain/mercury-bridge/react-loop.js",
+    "trai_brain/mercury-bridge/run-ledger.js"
+  ]
+}

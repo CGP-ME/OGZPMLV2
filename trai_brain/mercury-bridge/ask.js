@@ -333,6 +333,8 @@ async function runReviewRechecks({
   notify = notifyReviewQuarantines,
   attack = false,
   noTools = false,
+  claimInventory = [],
+  claimSourceEvidence = [],
 } = {}) {
   const rechecks = [];
   const quarantines = [];
@@ -354,6 +356,8 @@ async function runReviewRechecks({
         providerAudit: createProviderAudit(name),
         attack,
         noTools,
+        claimInventory,
+        claimSourceEvidence,
       });
       finalizeMercuryEvidenceResult(recheck);
       recheck.totalLatencyMs = Date.now() - recheckStarted;
@@ -668,6 +672,7 @@ async function buildCurrentChangeBlastRadius({
         source: 'serena_symbol_scanner', precision: 'ast_syntax', scope,
         filesScanned: scan.filesScanned, filesParsed: scan.filesParsed,
         parsers: scan.parsers, fileReceipts: scan.fileReceipts, errors: scan.errors,
+        functionScopes: scan.functionScopes,
         referenceNames,
         references: scan.propertyRefs.filter(row => names.has(row.property)),
         callers: scan.methodCalls.filter(row => names.has(row.method)),
@@ -1261,6 +1266,7 @@ async function runAgentic(query, opts) {
           const t0 = Date.now();
           const seatResult = explicitReviewCorpus ? await runExplicitTargetReview({
             client, corpus: explicitReviewCorpus, query: userQuery,
+            syntaxContext: autoBlastRadius && autoBlastRadius.ast,
             maxRequestBytes: config.AGENTIC_EXPLICIT_REVIEW_REQUEST_MAX_BYTES,
             maxTokens, maxCalls: maxIterations,
             providerAuditFactory, verbose, isHardStop: isHardReviewBoundaryError,
@@ -1349,6 +1355,8 @@ async function runAgentic(query, opts) {
               maxIterations, maxTokens, verbose, evidenceSources, createProviderAudit: providerAuditFactory,
               attack: opts.attack === true,
               noTools: opts.noTools === true,
+              claimInventory: mercuryResult.candidateSet?.claimInventory || [],
+              claimSourceEvidence: (mercuryResult.shardedReview?.claim_inventory || []).flatMap(target => target.source_evidence || []),
             });
             fableReview.rechecks = recheckRun.rechecks;
             fableReview.recheck = fableReview.rechecks[0] || null;
