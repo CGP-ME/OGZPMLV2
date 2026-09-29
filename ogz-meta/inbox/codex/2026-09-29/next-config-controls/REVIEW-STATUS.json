@@ -1,0 +1,43 @@
+{
+  "run": "2026-09-29T12-41-25-388Z-fc557a9fea23",
+  "verdict": "pass",
+  "iterationLimit": null,
+  "maxTokens": 7750,
+  "seats": [
+    {
+      "id": "mercury",
+      "initialVerdict": "found_break",
+      "status": "succeeded",
+      "models": [
+        "mercury-2"
+      ],
+      "qualifying": true
+    },
+    {
+      "id": "fable",
+      "initialVerdict": "cannot_verify",
+      "status": "succeeded",
+      "models": [
+        "claude-fable-5"
+      ],
+      "qualifying": true
+    },
+    {
+      "id": "kimi",
+      "initialVerdict": "pass",
+      "status": "succeeded",
+      "models": [
+        "kimi-k3"
+      ],
+      "qualifying": true
+    }
+  ],
+  "finalAdjudication": "pass",
+  "mercuryRecheck": "no_break_found",
+  "quarantines": [],
+  "source": {
+    "candidate": "851a0a84b05655bfdca370a34f9a93bc74919e6f",
+    "base": "6bcfad8a25f72cb9e1eb946e854695913b2133c4",
+    "harness": "6bcfad8a25f72cb9e1eb946e854695913b2133c4"
+  }
+}

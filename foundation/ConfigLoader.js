@@ -2495,6 +2495,22 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'rsi_points', min: 1, max: 99,
     label: 'RSI exit above', effect: 'new_RSI_trades_only',
   },
+  'strategies.RSI.confidenceBase': {
+    type: 'number', unit: 'fraction', min: 0, max: 1,
+    label: 'RSI base confidence', effect: 'next_RSI_entry_evaluation',
+  },
+  'strategies.RSI.confidenceDepthRange': {
+    type: 'number', unit: 'rsi_points', min: 0.000001, max: Number.MAX_VALUE,
+    label: 'RSI depth for full confidence contribution', effect: 'next_RSI_entry_evaluation',
+  },
+  'strategies.RSI.confidenceDepthMultiplier': {
+    type: 'number', unit: 'fraction', min: 0, max: 1,
+    label: 'RSI depth confidence contribution', effect: 'next_RSI_entry_evaluation',
+  },
+  'strategies.RSI.maxConfidence': {
+    type: 'number', unit: 'fraction', min: 0, max: 1,
+    label: 'RSI confidence ceiling', effect: 'next_RSI_entry_evaluation',
+  },
   'strategies.RSI.regimeMaFilter.enabled': {
     type: 'boolean', unit: 'boolean', label: 'RSI moving-average entry condition',
     effect: 'next_RSI_entry',

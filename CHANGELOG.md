@@ -1,3 +1,7 @@
+## 2026-09-29 — RSI confidence settings connection
+
+Expose four existing RSI confidence controls through the settings schema. Saved values reach the retained RSI evaluator on its next evaluation; existing bounds and configured values are unchanged. Recorded-candle save-to-consumer proof: ogz-meta/inbox/codex/2026-09-29/next-config-controls/. No runtime activation.
+
 ## 2026-09-29 — Mercury selected-source review
 
 Added explicit review-ref/review-base selection and a hashed Git-source evidence view shared by ingestion, repository tools, AST blast radius and adversarial rechecks. Historical Git reads retain their requested identity. Existing worktree reviews and iteration policy are unchanged. Evidence: ogz-meta/inbox/codex/2026-09-29/mercury-source-identity/. No bot runtime change.
