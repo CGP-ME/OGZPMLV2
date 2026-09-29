@@ -116,6 +116,14 @@ For changes on the trading/backtest execution path:
 - Use attack framing, not confirmation framing.
 - Use `--max-tokens=7750`. Mercury has no default iteration ceiling; use
   `--max-iterations=N` only when Trey explicitly sets a limit for that run.
+- For an atomic pre-commit review amid unrelated dirty work, stage only the
+  authorized change, capture `candidate=$(git write-tree)`, and pass
+  `--review-ref="$candidate" --review-base=HEAD` to Mercury. Record the resolved
+  tree IDs and source manifest in the receipt. `--change-path` alone captures
+  WORKTREE; it does not isolate the staged candidate. If the Mercury harness
+  itself has inherited dirty edits, qualify the exact implementation used too.
+  This source selection does not authorize narrowing a broad audit prompt.
+  Usage and verification: `ogz-meta/inbox/codex/2026-09-29/mercury-source-identity/`.
 - For broad Mercury/current-diff audits, do not pre-steer the prompt with
   agent-selected file paths, line ranges, hidden current-diff instructions, or
   prior-trace opening strategies. Use the visible attack frame

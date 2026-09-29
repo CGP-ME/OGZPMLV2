@@ -49,9 +49,9 @@ function findJSFiles(dir, results = [], repoRoot = dir) {
 // STEP 2: Extract all dependency references from a file
 // ═══════════════════════════════════════════════════════════════
 
-function extractDeps(filePath) {
+function extractDeps(filePath, repoRoot = PROJECT_ROOT) {
   const content = fs.readFileSync(filePath, 'utf8');
-  const relative = path.relative(PROJECT_ROOT, filePath);
+  const relative = path.relative(repoRoot, filePath);
   const deps = [];
 
   // Pattern 1: require('./path') or require('../path')
@@ -66,7 +66,7 @@ function extractDeps(filePath) {
         type: 'require',
         source: relative,
         target: target,
-        resolved: path.relative(PROJECT_ROOT, resolved),
+        resolved: path.relative(repoRoot, resolved),
         line: content.substring(0, match.index).split('\n').length
       });
     }
@@ -426,12 +426,12 @@ function normalizeTarget(target) {
   return t;
 }
 
-function getCallers(target) {
+function getCallers(target, { repoRoot = PROJECT_ROOT } = {}) {
   const wanted = normalizeTarget(target);
-  const jsFiles = findJSFiles(PROJECT_ROOT);
+  const jsFiles = findJSFiles(repoRoot);
   const callers = [];
   for (const file of jsFiles) {
-    const deps = extractDeps(file);
+    const deps = extractDeps(file, repoRoot);
     for (const dep of deps) {
       if (normalizeTarget(dep.resolved) === wanted) {
         callers.push({

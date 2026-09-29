@@ -1,0 +1,7 @@
+# Secret-scan disposition
+
+The initial staged scanner passed before the scan fixture was added. The final staged scan reported one finding in fixtures/scan-tapes.cjs:13: its literal apiKeySource=none normalization pattern. This is the same non-credential metadata spelling handled below, not an embedded key. The strict final scan is therefore recorded as one adjudicated false positive, not a zero-finding pass. Gzip tapes were separately decompressed and inspected with scripts/scan-secrets.js inspectLine. The strict decompressed scan reported 98 findings: 96 occurrences of one evidence SHA-256 containing the scanner's burned-token prefix pattern, plus two Claude system metadata apiKeySource=none fields. The digest was independently recomputed from original current-change-evidence.txt lines 3451-3600 in first run 2026-09-29T08-29-56-094Z-690773-b60caafdc1e1 and matched. These are digest/provenance values, not credentials.
+
+The scan fixture normalizes only that verified digest and the exact apiKeySource=none metadata spelling in scanner input. It leaves all stored tapes unchanged. All 96 decompressed artifacts then have zero unresolved findings. No scanner policy changes or broader exclusions were applied. Both original and redacted hashes remain in TAPES.json.
+
+The full repository tracked scan separately reported 38 inherited findings outside this mission; it is not represented as passing.

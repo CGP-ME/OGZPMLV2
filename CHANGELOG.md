@@ -1,3 +1,7 @@
+## 2026-09-29 — Mercury selected-source review
+
+Added explicit review-ref/review-base selection and a hashed Git-source evidence view shared by ingestion, repository tools, AST blast radius and adversarial rechecks. Historical Git reads retain their requested identity. Existing worktree reviews and iteration policy are unchanged. Evidence: ogz-meta/inbox/codex/2026-09-29/mercury-source-identity/. No bot runtime change.
+
 ## 2026-09-29 — Share minimum respects the absolute dollar ceiling
 
 Carried the resolved absolute dollar ceiling into stock share-range calculation before minimum-share adjustment, including the whole-share floating-point boundary. Unsatisfiable floor/ceiling combinations use the existing named impossible-range outcome. Configured percentages and sizing denominator are unchanged. Evidence: ogz-meta/inbox/codex/2026-09-29/stop1-share-budget/. No runtime activation.

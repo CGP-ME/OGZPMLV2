@@ -46,7 +46,7 @@ async function getBlastRadius(filePath, options = {}) {
 
   const work = new Promise((resolve, reject) => {
     try {
-      const callers = getCallers(filePath)
+      const callers = getCallers(filePath, { repoRoot: options.repoRoot })
         .filter(caller => !isPathIgnoredByMercury(caller.source));
       resolve({
         file: filePath,

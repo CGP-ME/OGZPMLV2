@@ -190,6 +190,8 @@ function buildSkipDirGlobArgs() {
  */
 function createToolAdapter(opts = {}) {
   const repoRoot = opts.repoRoot || config.REPO_ROOT;
+  const gitRepoRoot = opts.gitRepoRoot || repoRoot;
+  const reviewSource = opts.reviewSource || null;
   const mongoStore = opts.mongoStore || null;
 
   // ─────────────────────────────────────────────────────────
@@ -969,7 +971,7 @@ function createToolAdapter(opts = {}) {
     }
 
     const result = spawnSync('git', ['show', `${ref}:${filePath}`], {
-      cwd: repoRoot,
+      cwd: gitRepoRoot,
       encoding: 'utf8',
       maxBuffer: 5 * 1024 * 1024,  // 5MB cap — generous for source files
       timeout: 5000,
@@ -1046,7 +1048,7 @@ function createToolAdapter(opts = {}) {
 
   function runGit(args, { maxBuffer = 5 * 1024 * 1024 } = {}) {
     const result = spawnSync('git', args, {
-      cwd: repoRoot,
+      cwd: gitRepoRoot,
       encoding: 'utf8',
       maxBuffer,
       timeout: 5000,
@@ -1443,7 +1445,10 @@ function createToolAdapter(opts = {}) {
       }
     }
 
-    if (requestedTarget === 'current') {
+    if (reviewSource && ['staged', 'working'].includes(requestedTarget)) {
+      return { error: 'This review reads a pinned Git tree, not a mutable staging area or working tree', reviewSource };
+    }
+    if (requestedTarget === 'current' && !reviewSource) {
       const stagedNames = filePath
         ? runGit(['diff', '--cached', '--name-only', '--', filePath])
         : runGit(['diff', '--cached', '--name-only']);
@@ -1465,7 +1470,11 @@ function createToolAdapter(opts = {}) {
 
     let nameArgs;
     let diffArgs;
-    if (target === 'staged') {
+    if (requestedTarget === 'current' && reviewSource) {
+      target = 'review';
+      nameArgs = ['diff', '--name-only', reviewSource.baseTree, reviewSource.tree];
+      diffArgs = ['diff', reviewSource.baseTree, reviewSource.tree, '--'];
+    } else if (target === 'staged') {
       nameArgs = ['diff', '--cached', '--name-only'];
       diffArgs = ['diff', '--cached', '--'];
     } else if (target === 'working') {
@@ -1532,7 +1541,7 @@ function createToolAdapter(opts = {}) {
     try {
       const absPath = ensureWithinRepo(filePath);
       ensureNotIgnored(absPath, 'serena_blast_radius');
-      const blastRadius = await getBlastRadius(filePath);
+      const blastRadius = await getBlastRadius(filePath, { repoRoot });
       return {
         source: 'serena_blast_radius',
         file: blastRadius.file,
@@ -1898,6 +1907,14 @@ function createToolAdapter(opts = {}) {
     }
     try {
       const result = await tool.handler(toolArgs || {});
+      if (reviewSource && ['search', 'grep', 'regex_grep', 'find_definition', 'find_references',
+        'open_file', 'list_files', 'rule_scan', 'serena_blast_radius', 'serena_property_refs',
+        'serena_method_callers', 'serena_class_fields'].includes(toolName)) {
+        return { ...result, source_ref: reviewSource.tree };
+      }
+      if (reviewSource && toolName === 'git_diff' && result.target === 'review') {
+        return { ...result, source_ref: reviewSource.tree, base_ref: reviewSource.baseTree };
+      }
       return result;
     } catch (err) {
       return { error: `tool ${toolName} threw: ${err.message}` };

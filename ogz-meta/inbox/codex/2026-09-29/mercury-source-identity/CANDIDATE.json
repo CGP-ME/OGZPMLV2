@@ -1,0 +1,27 @@
+{
+  "candidate": "f93161d39f016be57591dfda72101c3ed5c8da59",
+  "baseline": "e6d80e0a12ad8051cf81a09e7c104985d64502e0",
+  "files": [
+    {
+      "file": "tools/dep-scanner.js",
+      "object": "43bab332dd473178af304bd5a21b7ec280e0363f"
+    },
+    {
+      "file": "tools/serena-bridge.js",
+      "object": "075bc9e118ffb59f05e8a754bf39546ea71f8799"
+    },
+    {
+      "file": "trai_brain/mercury-bridge/ask.js",
+      "object": "712e4a638b683c7be8079ac1c6fb12cd3a9565bd"
+    },
+    {
+      "file": "trai_brain/mercury-bridge/evidence-ingestion.js",
+      "object": "f4832a4c16ff2de5bec91fe2bd327490b9cc1911"
+    },
+    {
+      "file": "trai_brain/mercury-bridge/tool-adapter.js",
+      "object": "c1d7f1b08b154b78c930807d80a02640be342b60"
+    }
+  ],
+  "initialCandidate": "49030f2b4223aab2a29001d1bff7d5a4684a1828"
+}

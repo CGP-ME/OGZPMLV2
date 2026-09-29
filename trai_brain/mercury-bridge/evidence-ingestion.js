@@ -301,7 +301,7 @@ function buildExplicitTargetCorpus({
         targetPath,
         target.diffContent,
         artifacts.length,
-        'HEAD..WORKTREE',
+        target.diffRef || 'HEAD..WORKTREE',
         'current_change_diff'
       );
       artifacts.push(artifact);
@@ -372,9 +372,9 @@ function defaultGit(repoRoot, args, { allowDiffExit = false } = {}) {
   }
 }
 
-function headEntry(repoRoot, targetPath, git) {
+function headEntry(repoRoot, targetPath, git, ref = 'HEAD') {
   try {
-    const output = git(repoRoot, ['ls-tree', '-z', 'HEAD', '--', targetPath]);
+    const output = git(repoRoot, ['ls-tree', '-z', ref, '--', targetPath]);
     if (!output || output.length === 0) return null;
     const record = output.toString('utf8').replace(/\0$/, '');
     const tabIndex = record.indexOf('\t');
@@ -401,6 +401,36 @@ function unresolvedTarget(targetPath, status, reason, scope = 'source') {
   };
 }
 
+// A read-only evidence view, not a checkout: no .git, executable loading, or
+// working-tree copies. Both revisions are resolved before any source is read.
+function captureGitReviewView({ repoRoot, ref, baseRef, outputDir, git = defaultGit }) {
+  const tree = git(repoRoot, ['rev-parse', '--verify', '--end-of-options', `${ref}^{tree}`]).toString().trim();
+  const baseTree = git(repoRoot, ['rev-parse', '--verify', '--end-of-options', `${baseRef}^{tree}`]).toString().trim();
+  fs.mkdirSync(outputDir, { recursive: true });
+  const sourceRoot = fs.mkdtempSync(path.join(outputDir, 'source-'));
+  const files = [];
+  const excluded = [];
+  const records = git(repoRoot, ['ls-tree', '-r', '-z', tree]).toString().split('\0').filter(Boolean);
+  for (const record of records) {
+    const tab = record.indexOf('\t');
+    const [mode, type, object] = record.slice(0, tab).split(' ');
+    const file = normalizeExplicitPaths([record.slice(tab + 1)])[0];
+    if (isPathIgnoredByMercury(file) || type !== 'blob' || mode === '120000') {
+      excluded.push({ file, mode, type });
+      continue;
+    }
+    const bytes = git(repoRoot, ['cat-file', 'blob', object]);
+    const destination = path.join(sourceRoot, file);
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    fs.writeFileSync(destination, bytes, { mode: 0o444 });
+    files.push({ file, object, sha256: sha256(bytes), bytes: bytes.length });
+  }
+  const manifest = { tree, baseTree, files, excluded };
+  const manifestPath = path.join(outputDir, path.basename(sourceRoot) + '.json');
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
+  return { ...manifest, sourceRoot, manifestPath, manifestSha256: sha256(fs.readFileSync(manifestPath)) };
+}
+
 function collectExplicitTargetCorpus({
   repoRoot,
   explicitPaths,
@@ -409,6 +439,9 @@ function collectExplicitTargetCorpus({
   currentDiffFn = null,
   fsImpl = fs,
   git = defaultGit,
+  sourceRef: capturedSourceRef = 'WORKTREE',
+  baseRef = 'HEAD',
+  diffRef = 'HEAD..WORKTREE',
 } = {}) {
   if (!repoRoot) throw new TypeError('repoRoot is required');
   if (typeof isPolicyExcluded !== 'function') throw new TypeError('isPolicyExcluded must be a function');
@@ -422,7 +455,7 @@ function collectExplicitTargetCorpus({
       continue;
     }
     const absolutePath = path.join(repoRoot, ...targetPath.split('/'));
-    const head = headEntry(repoRoot, targetPath, git);
+    const head = headEntry(repoRoot, targetPath, git, baseRef);
     if (head && head.error) {
       targets.push(unresolvedTarget(targetPath, 'unreadable', head.error));
       continue;
@@ -437,11 +470,23 @@ function collectExplicitTargetCorpus({
       }
     }
 
+    if (capturedSourceRef !== 'WORKTREE') {
+      const selected = headEntry(repoRoot, targetPath, git, capturedSourceRef);
+      if (selected && (selected.error || selected.type !== 'blob' || selected.mode === '120000')) {
+        targets.push(unresolvedTarget(targetPath, 'unsupported', selected.error || 'selected_tree_non_regular_file'));
+        continue;
+      }
+      if (selected && !stat) {
+        targets.push(unresolvedTarget(targetPath, 'unreadable', 'selected_blob_missing_from_capture'));
+        continue;
+      }
+    }
+
     if (stat && stat.isSymbolicLink()) {
       targets.push(unresolvedTarget(targetPath, 'symlink', 'symlink'));
       continue;
     }
-    if (head && head.mode === '120000') {
+    if (!stat && head && head.mode === '120000') {
       targets.push(unresolvedTarget(targetPath, 'deleted_symlink', 'symlink'));
       continue;
     }
@@ -460,11 +505,11 @@ function collectExplicitTargetCorpus({
           continue;
         }
         sourceBytes = fsImpl.readFileSync(absolutePath);
-        sourceRef = 'WORKTREE';
+        sourceRef = capturedSourceRef;
         status = head ? 'current' : 'untracked';
       } else if (head && head.type === 'blob') {
-        sourceBytes = git(repoRoot, ['show', `HEAD:${targetPath}`]);
-        sourceRef = 'HEAD';
+        sourceBytes = git(repoRoot, ['show', `${baseRef}:${targetPath}`]);
+        sourceRef = baseRef;
         status = 'deleted';
       } else {
         targets.push(unresolvedTarget(targetPath, 'missing', 'missing'));
@@ -510,6 +555,7 @@ function collectExplicitTargetCorpus({
       path: targetPath,
       status,
       sourceRef,
+      diffRef,
       sourceContent: decodedSource.content,
       diffContent: decodedDiff.ok ? decodedDiff.content : null,
       unresolved: decodedDiff.ok ? [] : [{ scope: 'diff', reason: decodedDiff.reason }],
@@ -534,6 +580,9 @@ function buildExplicitReviewCorpus({
   isPolicyExcluded = isPathIgnoredByMercury,
   fsImpl = fs,
   git = defaultGit,
+  sourceRef = 'WORKTREE',
+  baseRef = 'HEAD',
+  diffRef = 'HEAD..WORKTREE',
 } = {}) {
   assertPositiveInteger(sourceShardMaxBytes, 'sourceShardMaxBytes');
   assertPositiveInteger(requestMaxBytes, 'requestMaxBytes');
@@ -545,6 +594,9 @@ function buildExplicitReviewCorpus({
     currentDiffFn,
     fsImpl,
     git,
+    sourceRef,
+    baseRef,
+    diffRef,
   });
   if (!Array.isArray(unresolvedEvidence)) {
     throw new TypeError('unresolvedEvidence must be an array');
@@ -597,7 +649,7 @@ function verifyCorpusSnapshots({ repoRoot, corpus, fsImpl = fs } = {}) {
   const artifactsById = new Map(corpus.artifacts.map(artifact => [artifact.artifact_id, artifact]));
   const unresolved = [];
   for (const target of corpus.targets) {
-    if (target.source_ref !== 'WORKTREE' || !target.source_artifact_id) continue;
+    if (target.status === 'deleted' || !target.source_artifact_id) continue;
     const artifact = artifactsById.get(target.source_artifact_id);
     if (!artifact) {
       unresolved.push({
@@ -2694,6 +2746,7 @@ async function runExplicitTargetReview({
 }
 
 module.exports = {
+  captureGitReviewView,
   MAP_SYSTEM_PROMPT,
   REDUCE_SYSTEM_PROMPT,
   FINAL_SYSTEM_PROMPT,

@@ -48,7 +48,7 @@ const config = require('./config');
 const { ask } = require('./searcher');
 const { runReactLoop, formatToolTelemetry, mergeCandidateSetRechecks } = require('./react-loop');
 const { createToolAdapter } = require('./tool-adapter');
-const { normalizeExplicitPaths, collectExplicitTargetCorpus, buildExplicitReviewCorpus, runExplicitTargetReview } = require('./evidence-ingestion');
+const { normalizeExplicitPaths, collectExplicitTargetCorpus, buildExplicitReviewCorpus, runExplicitTargetReview, captureGitReviewView } = require('./evidence-ingestion');
 const { scanRepo: scanSerenaSymbols } = require('../../tools/serena-symbol-scanner');
 const { routeQuery } = require('./query-router');
 const { createMercuryLlmClient } = require('./llm-client');
@@ -93,6 +93,7 @@ const {
   writeRawProviderOutput,
   writeCurrentChangeEvidenceBundle,
   writeRunLedgerEntry,
+  RUN_LEDGER_DIR,
 } = require('./run-ledger');
 const MongoStore = require('./mongo-store');
 const { embedText } = require('./indexer');
@@ -203,6 +204,10 @@ function parseArgs(argv) {
       args.evidenceSources.push(arg.slice('--evidence-source='.length));
     } else if (arg.startsWith('--change-path=')) {
       args.changePaths.push(arg.slice('--change-path='.length));
+    } else if (arg.startsWith('--review-ref=')) {
+      args.reviewRef = arg.slice('--review-ref='.length);
+    } else if (arg.startsWith('--review-base=')) {
+      args.reviewBase = arg.slice('--review-base='.length);
     } else if (arg.startsWith('--reviewers=')) {
       args.reviewers = arg.slice('--reviewers='.length);
       args.reviewersExplicit = true;
@@ -447,6 +452,8 @@ function usage() {
   console.log('  --no-tools             Agentic only: empty tool schema and exactly one Mercury turn');
   console.log('  --evidence-source=P:S-E Host-attest a verbatim repo-relative excerpt; repeatable, max 150 lines');
   console.log('  --change-path=P        Agentic source/diff ingestion for explicit operator targets; repeatable');
+  console.log('  --review-ref=REF       Pin source, search, AST and rechecks to this Git tree; requires --review-base');
+  console.log('  --review-base=REF      Explicit Git comparison baseline for --review-ref');
   console.log(`  --adversarial-review   Agentic only: force a Fable (${config.CONSENSUS_MODEL}) adversarial review`);
   console.log('  --no-adversarial-review Agentic only: suppress env/config adversarial review for this run');
   console.log('  --consensus            Agentic only: legacy alias for a Fable review');
@@ -962,17 +969,14 @@ async function runAgentic(query, opts) {
     : optionalPositiveInteger(opts.maxIterations, '--max-iterations');
   const maxIterations = opts.noTools === true ? 1 : requestedMaxIterations;
   const maxTokens = configExactInteger(opts.maxTokens, config.AGENTIC_MAX_TOKENS, '--max-tokens');
-  const explicitTargetReview = Array.isArray(opts.changePaths) && opts.changePaths.length > 0;
-  const explicitChangePaths = explicitTargetReview ? normalizeExplicitPaths(opts.changePaths) : null;
+  const pinnedReviewRequested = opts.reviewRef !== undefined || opts.reviewBase !== undefined;
+  const explicitTargetReview = pinnedReviewRequested || (Array.isArray(opts.changePaths) && opts.changePaths.length > 0);
+  let explicitChangePaths = Array.isArray(opts.changePaths) && opts.changePaths.length > 0 ? normalizeExplicitPaths(opts.changePaths) : null;
   const reviewIntent = opts.reviewIntent || 'adversarial';
-  const mercuryQuery = buildMercuryIntentPrompt(query, reviewIntent);
-  const evidenceSources = resolveEvidenceSources({
-    repoRoot: config.REPO_ROOT,
-    query,
-    descriptors: opts.evidenceSources || [],
-  });
-  const evidenceQuarantines = await notifyReviewQuarantines(evidenceSources.quarantines);
-  const inputProvenance = buildAttestedPromptProvenance(mercuryQuery, evidenceSources);
+  let mercuryQuery = buildMercuryIntentPrompt(query, reviewIntent);
+  let evidenceSources = [];
+  let evidenceQuarantines = [];
+  let inputProvenance = buildAttestedPromptProvenance(mercuryQuery, evidenceSources);
 
   // Route the query unless caller has overridden
   const route = routeQuery(query);
@@ -999,6 +1003,30 @@ async function runAgentic(query, opts) {
   let indexFreshness = null;
 
   try {
+    const reviewView = pinnedReviewRequested ? captureGitReviewView({
+      repoRoot: config.REPO_ROOT, ref: opts.reviewRef, baseRef: opts.reviewBase,
+      outputDir: path.join(config.REPO_ROOT, RUN_LEDGER_DIR, rawRunId),
+    }) : null;
+    const reviewRoot = reviewView ? reviewView.sourceRoot : config.REPO_ROOT;
+    evidenceSources = resolveEvidenceSources({
+      repoRoot: reviewRoot, query, descriptors: opts.evidenceSources || [],
+    });
+    evidenceQuarantines = await notifyReviewQuarantines(evidenceSources.quarantines);
+    inputProvenance = buildAttestedPromptProvenance(mercuryQuery, evidenceSources);
+    const reviewGit = reviewView ? (_root, args) => execFileSync('git', args, {
+      cwd: config.REPO_ROOT, env: { ...process.env, GIT_OPTIONAL_LOCKS: '0', GIT_LITERAL_PATHSPECS: '1' },
+      maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'],
+    }) : null;
+    const reviewDiff = reviewView ? (_root, paths) => reviewGit(null,
+      ['diff', '--binary', '--no-ext-diff', reviewView.baseTree, reviewView.tree, '--', ...paths]).toString() : null;
+    if (reviewView) {
+      if (!explicitChangePaths) explicitChangePaths = normalizeExplicitPaths(reviewGit(null,
+        ['diff', '--name-only', '-z', reviewView.baseTree, reviewView.tree]).toString().split('\0').filter(Boolean));
+      query = `Review source tree: ${reviewView.tree}; comparison baseline: ${reviewView.baseTree}. File, search and AST tools read the captured tree; Git history reads identify their requested ref explicitly.\n\n${query}`;
+      mercuryQuery = buildMercuryIntentPrompt(query, reviewIntent);
+      inputProvenance = buildAttestedPromptProvenance(mercuryQuery, evidenceSources);
+      if (verbose) console.log(`[MERCURY-BRIDGE] Pinned source tree ${reviewView.tree}, baseline ${reviewView.baseTree}, ${reviewView.files.length} captured files`);
+    }
     if (store) {
     await store.connect();
     storeConnected = true;
@@ -1079,7 +1107,9 @@ async function runAgentic(query, opts) {
 
     // 3. Build the tool adapter with both repo access and mongo (for get_chunk)
     const toolAdapter = createToolAdapter({
-      repoRoot: config.REPO_ROOT,
+      repoRoot: reviewRoot,
+      gitRepoRoot: config.REPO_ROOT,
+      reviewSource: reviewView && { tree: reviewView.tree, baseTree: reviewView.baseTree },
       mongoStore: store,
     });
 
@@ -1091,12 +1121,19 @@ async function runAgentic(query, opts) {
     const hostEvidenceSources = [];
     if (!blastRadius) {
       autoBlastRadius = await buildCurrentChangeBlastRadius({
+        repoRoot: reviewRoot,
         changedFiles: explicitChangePaths,
         findReferencesFn: symbol => toolAdapter.captureReferences(symbol),
+        ...(reviewView ? {
+          currentDiffFn: reviewDiff,
+          getBlastRadiusFn: file => getBlastRadius(file, { repoRoot: reviewRoot }),
+        } : {}),
       });
       autoBlastRadius.reviewTarget = {
         source: explicitTargetReview ? 'explicit_change_paths' : 'current_changes',
         paths: autoBlastRadius.changedFiles || [],
+        ...(reviewView ? { tree: reviewView.tree, baseTree: reviewView.baseTree,
+          manifest: path.relative(config.REPO_ROOT, reviewView.manifestPath), manifestSha256: reviewView.manifestSha256 } : {}),
       };
       if (explicitTargetReview) {
         const unresolvedEvidence = [
@@ -1110,13 +1147,15 @@ async function runAgentic(query, opts) {
           })),
         ];
         explicitReviewCorpus = buildExplicitReviewCorpus({
-          repoRoot: config.REPO_ROOT,
+          repoRoot: reviewRoot,
           targetPaths: explicitChangePaths,
           expandedEvidenceSections: autoBlastRadius.expandedSections || [],
           unresolvedEvidence,
           sourceShardMaxBytes: config.AGENTIC_EXPLICIT_REVIEW_SOURCE_SHARD_MAX_BYTES,
           requestMaxBytes: config.AGENTIC_EXPLICIT_REVIEW_REQUEST_MAX_BYTES,
           isPolicyExcluded: file => config.isPathIgnoredByMercury(file),
+          ...(reviewView ? { git: reviewGit, currentDiffFn: reviewDiff,
+            sourceRef: reviewView.tree, baseRef: reviewView.baseTree, diffRef: `${reviewView.baseTree}..${reviewView.tree}` } : {}),
         });
       }
       if (autoBlastRadius.expandedSections && autoBlastRadius.expandedSections.length > 0) {

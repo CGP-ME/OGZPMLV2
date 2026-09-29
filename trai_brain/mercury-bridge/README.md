@@ -194,6 +194,26 @@ To suppress adversarial review for a specific agentic run:
 node trai_brain/mercury-bridge/ask.js --agentic --max-tokens=7750 --no-adversarial-review "Mercury, break my fix."
 ```
 
+### Review a selected Git candidate amid dirty work
+
+Stage only the authorized logical change, then pin the comparison explicitly:
+
+```bash
+candidate=$(git write-tree)
+node trai_brain/mercury-bridge/ask.js --agentic --max-tokens=7750 --review-ref="$candidate" --review-base=HEAD "Mercury, break my fix."
+```
+
+Both refs resolve to immutable tree IDs before capture. The bridge derives the
+changed targets from that comparison and captures policy-permitted Git blobs.
+Initial evidence, file/search/AST tools and Mercury rechecks use that same source
+view. Explicit Git history reads retain their requested ref. The run records the
+tree IDs and source manifest hash. Missing or invalid refs do not select WORKTREE.
+
+Without these flags, existing ordinary reviews retain their behavior;
+`--change-path=P` alone still captures WORKTREE. These source-selection flags do
+not change the adversarial, architecture or planning purpose of a review.
+Do not supply `--max-iterations` unless Trey sets a limit for that run.
+
 ### Ask for architecture or planning synthesis
 Architecture and planning prompts are not break-my-fix verdict runs. Use these
 when the operator needs a longform system answer, design review, or lane plan

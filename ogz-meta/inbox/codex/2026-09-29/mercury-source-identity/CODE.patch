@@ -1,0 +1,286 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index c145604f..03be4ba2 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -118,0 +119,8 @@ For changes on the trading/backtest execution path:
++- For an atomic pre-commit review amid unrelated dirty work, stage only the
++  authorized change, capture `candidate=$(git write-tree)`, and pass
++  `--review-ref="$candidate" --review-base=HEAD` to Mercury. Record the resolved
++  tree IDs and source manifest in the receipt. `--change-path` alone captures
++  WORKTREE; it does not isolate the staged candidate. If the Mercury harness
++  itself has inherited dirty edits, qualify the exact implementation used too.
++  This source selection does not authorize narrowing a broad audit prompt.
++  Usage and verification: `ogz-meta/inbox/codex/2026-09-29/mercury-source-identity/`.
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 810339f8..7a32b7ed 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -0,0 +1,4 @@
++## 2026-09-29 — Mercury selected-source review
++
++Added explicit review-ref/review-base selection and a hashed Git-source evidence view shared by ingestion, repository tools, AST blast radius and adversarial rechecks. Historical Git reads retain their requested identity. Existing worktree reviews and iteration policy are unchanged. Evidence: ogz-meta/inbox/codex/2026-09-29/mercury-source-identity/. No bot runtime change.
++
+diff --git a/tools/dep-scanner.js b/tools/dep-scanner.js
+index f2dba1ff..43bab332 100644
+--- a/tools/dep-scanner.js
++++ b/tools/dep-scanner.js
+@@ -52 +52 @@ function findJSFiles(dir, results = [], repoRoot = dir) {
+-function extractDeps(filePath) {
++function extractDeps(filePath, repoRoot = PROJECT_ROOT) {
+@@ -54 +54 @@ function extractDeps(filePath) {
+-  const relative = path.relative(PROJECT_ROOT, filePath);
++  const relative = path.relative(repoRoot, filePath);
+@@ -69 +69 @@ function extractDeps(filePath) {
+-        resolved: path.relative(PROJECT_ROOT, resolved),
++        resolved: path.relative(repoRoot, resolved),
+@@ -429 +429 @@ function normalizeTarget(target) {
+-function getCallers(target) {
++function getCallers(target, { repoRoot = PROJECT_ROOT } = {}) {
+@@ -431 +431 @@ function getCallers(target) {
+-  const jsFiles = findJSFiles(PROJECT_ROOT);
++  const jsFiles = findJSFiles(repoRoot);
+@@ -434 +434 @@ function getCallers(target) {
+-    const deps = extractDeps(file);
++    const deps = extractDeps(file, repoRoot);
+diff --git a/tools/serena-bridge.js b/tools/serena-bridge.js
+index ee6b8bb0..075bc9e1 100644
+--- a/tools/serena-bridge.js
++++ b/tools/serena-bridge.js
+@@ -49 +49 @@ async function getBlastRadius(filePath, options = {}) {
+-      const callers = getCallers(filePath)
++      const callers = getCallers(filePath, { repoRoot: options.repoRoot })
+diff --git a/trai_brain/mercury-bridge/README.md b/trai_brain/mercury-bridge/README.md
+index 0d3f2a57..c95f1ee3 100644
+--- a/trai_brain/mercury-bridge/README.md
++++ b/trai_brain/mercury-bridge/README.md
+@@ -196,0 +197,20 @@ node trai_brain/mercury-bridge/ask.js --agentic --max-tokens=7750 --no-adversari
++### Review a selected Git candidate amid dirty work
++
++Stage only the authorized logical change, then pin the comparison explicitly:
++
++```bash
++candidate=$(git write-tree)
++node trai_brain/mercury-bridge/ask.js --agentic --max-tokens=7750 --review-ref="$candidate" --review-base=HEAD "Mercury, break my fix."
++```
++
++Both refs resolve to immutable tree IDs before capture. The bridge derives the
++changed targets from that comparison and captures policy-permitted Git blobs.
++Initial evidence, file/search/AST tools and Mercury rechecks use that same source
++view. Explicit Git history reads retain their requested ref. The run records the
++tree IDs and source manifest hash. Missing or invalid refs do not select WORKTREE.
++
++Without these flags, existing ordinary reviews retain their behavior;
++`--change-path=P` alone still captures WORKTREE. These source-selection flags do
++not change the adversarial, architecture or planning purpose of a review.
++Do not supply `--max-iterations` unless Trey sets a limit for that run.
++
+diff --git a/trai_brain/mercury-bridge/ask.js b/trai_brain/mercury-bridge/ask.js
+index fcc995c6..712e4a63 100644
+--- a/trai_brain/mercury-bridge/ask.js
++++ b/trai_brain/mercury-bridge/ask.js
+@@ -51 +51 @@ const { createToolAdapter } = require('./tool-adapter');
+-const { normalizeExplicitPaths, collectExplicitTargetCorpus, buildExplicitReviewCorpus, runExplicitTargetReview } = require('./evidence-ingestion');
++const { normalizeExplicitPaths, collectExplicitTargetCorpus, buildExplicitReviewCorpus, runExplicitTargetReview, captureGitReviewView } = require('./evidence-ingestion');
+@@ -95,0 +96 @@ const {
++  RUN_LEDGER_DIR,
+@@ -205,0 +207,4 @@ function parseArgs(argv) {
++    } else if (arg.startsWith('--review-ref=')) {
++      args.reviewRef = arg.slice('--review-ref='.length);
++    } else if (arg.startsWith('--review-base=')) {
++      args.reviewBase = arg.slice('--review-base='.length);
+@@ -449,0 +455,2 @@ function usage() {
++  console.log('  --review-ref=REF       Pin source, search, AST and rechecks to this Git tree; requires --review-base');
++  console.log('  --review-base=REF      Explicit Git comparison baseline for --review-ref');
+@@ -965,2 +972,3 @@ async function runAgentic(query, opts) {
+-  const explicitTargetReview = Array.isArray(opts.changePaths) && opts.changePaths.length > 0;
+-  const explicitChangePaths = explicitTargetReview ? normalizeExplicitPaths(opts.changePaths) : null;
++  const pinnedReviewRequested = opts.reviewRef !== undefined || opts.reviewBase !== undefined;
++  const explicitTargetReview = pinnedReviewRequested || (Array.isArray(opts.changePaths) && opts.changePaths.length > 0);
++  let explicitChangePaths = Array.isArray(opts.changePaths) && opts.changePaths.length > 0 ? normalizeExplicitPaths(opts.changePaths) : null;
+@@ -968,8 +976,4 @@ async function runAgentic(query, opts) {
+-  const mercuryQuery = buildMercuryIntentPrompt(query, reviewIntent);
+-  const evidenceSources = resolveEvidenceSources({
+-    repoRoot: config.REPO_ROOT,
+-    query,
+-    descriptors: opts.evidenceSources || [],
+-  });
+-  const evidenceQuarantines = await notifyReviewQuarantines(evidenceSources.quarantines);
+-  const inputProvenance = buildAttestedPromptProvenance(mercuryQuery, evidenceSources);
++  let mercuryQuery = buildMercuryIntentPrompt(query, reviewIntent);
++  let evidenceSources = [];
++  let evidenceQuarantines = [];
++  let inputProvenance = buildAttestedPromptProvenance(mercuryQuery, evidenceSources);
+@@ -1001,0 +1006,24 @@ async function runAgentic(query, opts) {
++    const reviewView = pinnedReviewRequested ? captureGitReviewView({
++      repoRoot: config.REPO_ROOT, ref: opts.reviewRef, baseRef: opts.reviewBase,
++      outputDir: path.join(config.REPO_ROOT, RUN_LEDGER_DIR, rawRunId),
++    }) : null;
++    const reviewRoot = reviewView ? reviewView.sourceRoot : config.REPO_ROOT;
++    evidenceSources = resolveEvidenceSources({
++      repoRoot: reviewRoot, query, descriptors: opts.evidenceSources || [],
++    });
++    evidenceQuarantines = await notifyReviewQuarantines(evidenceSources.quarantines);
++    inputProvenance = buildAttestedPromptProvenance(mercuryQuery, evidenceSources);
++    const reviewGit = reviewView ? (_root, args) => execFileSync('git', args, {
++      cwd: config.REPO_ROOT, env: { ...process.env, GIT_OPTIONAL_LOCKS: '0', GIT_LITERAL_PATHSPECS: '1' },
++      maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'],
++    }) : null;
++    const reviewDiff = reviewView ? (_root, paths) => reviewGit(null,
++      ['diff', '--binary', '--no-ext-diff', reviewView.baseTree, reviewView.tree, '--', ...paths]).toString() : null;
++    if (reviewView) {
++      if (!explicitChangePaths) explicitChangePaths = normalizeExplicitPaths(reviewGit(null,
++        ['diff', '--name-only', '-z', reviewView.baseTree, reviewView.tree]).toString().split('\0').filter(Boolean));
++      query = `Review source tree: ${reviewView.tree}; comparison baseline: ${reviewView.baseTree}. File, search and AST tools read the captured tree; Git history reads identify their requested ref explicitly.\n\n${query}`;
++      mercuryQuery = buildMercuryIntentPrompt(query, reviewIntent);
++      inputProvenance = buildAttestedPromptProvenance(mercuryQuery, evidenceSources);
++      if (verbose) console.log(`[MERCURY-BRIDGE] Pinned source tree ${reviewView.tree}, baseline ${reviewView.baseTree}, ${reviewView.files.length} captured files`);
++    }
+@@ -1082 +1110,3 @@ async function runAgentic(query, opts) {
+-      repoRoot: config.REPO_ROOT,
++      repoRoot: reviewRoot,
++      gitRepoRoot: config.REPO_ROOT,
++      reviewSource: reviewView && { tree: reviewView.tree, baseTree: reviewView.baseTree },
+@@ -1093,0 +1124 @@ async function runAgentic(query, opts) {
++        repoRoot: reviewRoot,
+@@ -1095,0 +1127,4 @@ async function runAgentic(query, opts) {
++        ...(reviewView ? {
++          currentDiffFn: reviewDiff,
++          getBlastRadiusFn: file => getBlastRadius(file, { repoRoot: reviewRoot }),
++        } : {}),
+@@ -1099,0 +1135,2 @@ async function runAgentic(query, opts) {
++        ...(reviewView ? { tree: reviewView.tree, baseTree: reviewView.baseTree,
++          manifest: path.relative(config.REPO_ROOT, reviewView.manifestPath), manifestSha256: reviewView.manifestSha256 } : {}),
+@@ -1113 +1150 @@ async function runAgentic(query, opts) {
+-          repoRoot: config.REPO_ROOT,
++          repoRoot: reviewRoot,
+@@ -1119,0 +1157,2 @@ async function runAgentic(query, opts) {
++          ...(reviewView ? { git: reviewGit, currentDiffFn: reviewDiff,
++            sourceRef: reviewView.tree, baseRef: reviewView.baseTree, diffRef: `${reviewView.baseTree}..${reviewView.tree}` } : {}),
+diff --git a/trai_brain/mercury-bridge/evidence-ingestion.js b/trai_brain/mercury-bridge/evidence-ingestion.js
+index a02a369e..f4832a4c 100644
+--- a/trai_brain/mercury-bridge/evidence-ingestion.js
++++ b/trai_brain/mercury-bridge/evidence-ingestion.js
+@@ -304 +304 @@ function buildExplicitTargetCorpus({
+-        'HEAD..WORKTREE',
++        target.diffRef || 'HEAD..WORKTREE',
+@@ -375 +375 @@ function defaultGit(repoRoot, args, { allowDiffExit = false } = {}) {
+-function headEntry(repoRoot, targetPath, git) {
++function headEntry(repoRoot, targetPath, git, ref = 'HEAD') {
+@@ -377 +377 @@ function headEntry(repoRoot, targetPath, git) {
+-    const output = git(repoRoot, ['ls-tree', '-z', 'HEAD', '--', targetPath]);
++    const output = git(repoRoot, ['ls-tree', '-z', ref, '--', targetPath]);
+@@ -403,0 +404,30 @@ function unresolvedTarget(targetPath, status, reason, scope = 'source') {
++// A read-only evidence view, not a checkout: no .git, executable loading, or
++// working-tree copies. Both revisions are resolved before any source is read.
++function captureGitReviewView({ repoRoot, ref, baseRef, outputDir, git = defaultGit }) {
++  const tree = git(repoRoot, ['rev-parse', '--verify', '--end-of-options', `${ref}^{tree}`]).toString().trim();
++  const baseTree = git(repoRoot, ['rev-parse', '--verify', '--end-of-options', `${baseRef}^{tree}`]).toString().trim();
++  fs.mkdirSync(outputDir, { recursive: true });
++  const sourceRoot = fs.mkdtempSync(path.join(outputDir, 'source-'));
++  const files = [];
++  const excluded = [];
++  const records = git(repoRoot, ['ls-tree', '-r', '-z', tree]).toString().split('\0').filter(Boolean);
++  for (const record of records) {
++    const tab = record.indexOf('\t');
++    const [mode, type, object] = record.slice(0, tab).split(' ');
++    const file = normalizeExplicitPaths([record.slice(tab + 1)])[0];
++    if (isPathIgnoredByMercury(file) || type !== 'blob' || mode === '120000') {
++      excluded.push({ file, mode, type });
++      continue;
++    }
++    const bytes = git(repoRoot, ['cat-file', 'blob', object]);
++    const destination = path.join(sourceRoot, file);
++    fs.mkdirSync(path.dirname(destination), { recursive: true });
++    fs.writeFileSync(destination, bytes, { mode: 0o444 });
++    files.push({ file, object, sha256: sha256(bytes), bytes: bytes.length });
++  }
++  const manifest = { tree, baseTree, files, excluded };
++  const manifestPath = path.join(outputDir, path.basename(sourceRoot) + '.json');
++  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
++  return { ...manifest, sourceRoot, manifestPath, manifestSha256: sha256(fs.readFileSync(manifestPath)) };
++}
++
+@@ -411,0 +442,3 @@ function collectExplicitTargetCorpus({
++  sourceRef: capturedSourceRef = 'WORKTREE',
++  baseRef = 'HEAD',
++  diffRef = 'HEAD..WORKTREE',
+@@ -425 +458 @@ function collectExplicitTargetCorpus({
+-    const head = headEntry(repoRoot, targetPath, git);
++    const head = headEntry(repoRoot, targetPath, git, baseRef);
+@@ -439,0 +473,12 @@ function collectExplicitTargetCorpus({
++    if (capturedSourceRef !== 'WORKTREE') {
++      const selected = headEntry(repoRoot, targetPath, git, capturedSourceRef);
++      if (selected && (selected.error || selected.type !== 'blob' || selected.mode === '120000')) {
++        targets.push(unresolvedTarget(targetPath, 'unsupported', selected.error || 'selected_tree_non_regular_file'));
++        continue;
++      }
++      if (selected && !stat) {
++        targets.push(unresolvedTarget(targetPath, 'unreadable', 'selected_blob_missing_from_capture'));
++        continue;
++      }
++    }
++
+@@ -444 +489 @@ function collectExplicitTargetCorpus({
+-    if (head && head.mode === '120000') {
++    if (!stat && head && head.mode === '120000') {
+@@ -463 +508 @@ function collectExplicitTargetCorpus({
+-        sourceRef = 'WORKTREE';
++        sourceRef = capturedSourceRef;
+@@ -466,2 +511,2 @@ function collectExplicitTargetCorpus({
+-        sourceBytes = git(repoRoot, ['show', `HEAD:${targetPath}`]);
+-        sourceRef = 'HEAD';
++        sourceBytes = git(repoRoot, ['show', `${baseRef}:${targetPath}`]);
++        sourceRef = baseRef;
+@@ -512,0 +558 @@ function collectExplicitTargetCorpus({
++      diffRef,
+@@ -536,0 +583,3 @@ function buildExplicitReviewCorpus({
++  sourceRef = 'WORKTREE',
++  baseRef = 'HEAD',
++  diffRef = 'HEAD..WORKTREE',
+@@ -547,0 +597,3 @@ function buildExplicitReviewCorpus({
++    sourceRef,
++    baseRef,
++    diffRef,
+@@ -600 +652 @@ function verifyCorpusSnapshots({ repoRoot, corpus, fsImpl = fs } = {}) {
+-    if (target.source_ref !== 'WORKTREE' || !target.source_artifact_id) continue;
++    if (target.status === 'deleted' || !target.source_artifact_id) continue;
+@@ -2696,0 +2749 @@ module.exports = {
++  captureGitReviewView,
+diff --git a/trai_brain/mercury-bridge/tool-adapter.js b/trai_brain/mercury-bridge/tool-adapter.js
+index 706c802b..c1d7f1b0 100644
+--- a/trai_brain/mercury-bridge/tool-adapter.js
++++ b/trai_brain/mercury-bridge/tool-adapter.js
+@@ -192,0 +193,2 @@ function createToolAdapter(opts = {}) {
++  const gitRepoRoot = opts.gitRepoRoot || repoRoot;
++  const reviewSource = opts.reviewSource || null;
+@@ -972 +974 @@ function createToolAdapter(opts = {}) {
+-      cwd: repoRoot,
++      cwd: gitRepoRoot,
+@@ -1049 +1051 @@ function createToolAdapter(opts = {}) {
+-      cwd: repoRoot,
++      cwd: gitRepoRoot,
+@@ -1446 +1448,4 @@ function createToolAdapter(opts = {}) {
+-    if (requestedTarget === 'current') {
++    if (reviewSource && ['staged', 'working'].includes(requestedTarget)) {
++      return { error: 'This review reads a pinned Git tree, not a mutable staging area or working tree', reviewSource };
++    }
++    if (requestedTarget === 'current' && !reviewSource) {
+@@ -1468 +1473,5 @@ function createToolAdapter(opts = {}) {
+-    if (target === 'staged') {
++    if (requestedTarget === 'current' && reviewSource) {
++      target = 'review';
++      nameArgs = ['diff', '--name-only', reviewSource.baseTree, reviewSource.tree];
++      diffArgs = ['diff', reviewSource.baseTree, reviewSource.tree, '--'];
++    } else if (target === 'staged') {
+@@ -1535 +1544 @@ function createToolAdapter(opts = {}) {
+-      const blastRadius = await getBlastRadius(filePath);
++      const blastRadius = await getBlastRadius(filePath, { repoRoot });
+@@ -1900,0 +1910,8 @@ function createToolAdapter(opts = {}) {
++      if (reviewSource && ['search', 'grep', 'regex_grep', 'find_definition', 'find_references',
++        'open_file', 'list_files', 'rule_scan', 'serena_blast_radius', 'serena_property_refs',
++        'serena_method_callers', 'serena_class_fields'].includes(toolName)) {
++        return { ...result, source_ref: reviewSource.tree };
++      }
++      if (reviewSource && toolName === 'git_diff' && result.target === 'review') {
++        return { ...result, source_ref: reviewSource.tree, base_ref: reviewSource.baseTree };
++      }
