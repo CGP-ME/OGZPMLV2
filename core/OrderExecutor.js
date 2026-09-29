@@ -2240,7 +2240,7 @@ class OrderExecutor {
     return this._percentDistanceDecimal(exitContract.stopLossPercent, 'exitContract.stopLossPercent');
   }
 
-  _applyStockShareRange({ orderQuantity, price, exitContract }) {
+  _applyStockShareRange({ orderQuantity, price, exitContract, absoluteCapSizeUsd }) {
     const range = {
       enabled: ConfigLoader.get('entryLogic.sizing.stockShareRange.enabled'),
       minShares: ConfigLoader.get('entryLogic.sizing.stockShareRange.minShares'),
@@ -2264,8 +2264,14 @@ class OrderExecutor {
     }
 
     const minShares = Math.ceil(configuredMinShares);
-    const caps = [];
-    const reasons = [];
+    // Resolve the dollar ceiling before a minimum can raise the quantity.
+    let absoluteCapShares = Math.floor(absoluteCapSizeUsd / price);
+    // Division can round up at a whole-share boundary; dollars remain binding.
+    if (absoluteCapShares * price > absoluteCapSizeUsd) {
+      absoluteCapShares -= 1;
+    }
+    const caps = [absoluteCapShares];
+    const reasons = ['absolute_position_cap'];
 
     const configuredMaxShares = Number(range.maxShares);
     if (Number.isFinite(configuredMaxShares) && configuredMaxShares > 0) {
@@ -2409,6 +2415,7 @@ class OrderExecutor {
         orderQuantity,
         price,
         exitContract,
+        absoluteCapSizeUsd,
       });
       orderQuantity = shareRange.orderQuantity;
     }

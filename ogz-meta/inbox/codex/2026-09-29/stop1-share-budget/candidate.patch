@@ -1,0 +1,20 @@
+diff --git a/core/OrderExecutor.js b/core/OrderExecutor.js
+--- a/core/OrderExecutor.js
++++ b/core/OrderExecutor.js
+@@ -2243,1 +2243,1 @@
+-  _applyStockShareRange({ orderQuantity, price, exitContract }) {
++  _applyStockShareRange({ orderQuantity, price, exitContract, absoluteCapSizeUsd }) {
+@@ -2267,2 +2267,8 @@
+-    const caps = [];
+-    const reasons = [];
++    // Resolve the dollar ceiling before a minimum can raise the quantity.
++    let absoluteCapShares = Math.floor(absoluteCapSizeUsd / price);
++    // Division can round up at a whole-share boundary; dollars remain binding.
++    if (absoluteCapShares * price > absoluteCapSizeUsd) {
++      absoluteCapShares -= 1;
++    }
++    const caps = [absoluteCapShares];
++    const reasons = ['absolute_position_cap'];
+@@ -2411,1 +2417,2 @@
+         exitContract,
++        absoluteCapSizeUsd,

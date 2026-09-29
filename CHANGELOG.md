@@ -1,3 +1,7 @@
+## 2026-09-29 — Share minimum respects the absolute dollar ceiling
+
+Carried the resolved absolute dollar ceiling into stock share-range calculation before minimum-share adjustment, including the whole-share floating-point boundary. Unsatisfiable floor/ceiling combinations use the existing named impossible-range outcome. Configured percentages and sizing denominator are unchanged. Evidence: ogz-meta/inbox/codex/2026-09-29/stop1-share-budget/. No runtime activation.
+
 ## 2026-09-29 — Live confluence sizing ownership
 
 Connected all four confluence multipliers to the existing settings owner and retained orchestrator. Entry plans and ledger records consume the same produced value; removed the alternate TPO entry override and its dead setting. Malformed confluence input is named and quarantined before strategy routing; explicit settings repair resumes entries and existing stop exits continue. Exact-index Node fixtures and 21 focused tests pass. Mercury recheck: no_break_found; Kimi final adjudication: pass. Evidence: ogz-meta/inbox/codex/2026-09-29/stop1-confluence-settings/. No PM2 restart.

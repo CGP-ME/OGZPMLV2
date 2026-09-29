@@ -1,0 +1,2070 @@
+{
+  "baseline": {
+    "phase": "baseline",
+    "sourceRef": "aa91945575b22b076273d2c829a35c7a6b5cc9ef:",
+    "sourceSha256": "cb3fd96443c0a1a0c5504d3118802028ddf9de074dac4474a33ad379bb168882",
+    "boundary": "Actual entry-plan and quantity methods; synthetic settings/scope/price; policy and ownership collaborators stubbed; no submission, fill, or deployment proof",
+    "results": [
+      {
+        "label": "BUY-minimum-exceeds-cap",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "BUY",
+          "side": "buy",
+          "direction": "long",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 100,
+          "requestedSizeUsd": 100,
+          "sizeUsd": 200,
+          "absoluteCapPercent": 0.015,
+          "absoluteCapSizeUsd": 150,
+          "cappedByAbsoluteCap": false,
+          "stockShareRange": {
+            "minShares": 2,
+            "maxShares": 100,
+            "reasons": [
+              "config_max_shares",
+              "config_max_notional"
+            ]
+          },
+          "stockShareRangeBlockReason": null,
+          "confidence": 90,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 2,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174151,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "long",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "BUY-minimum-equals-cap",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "BUY",
+          "side": "buy",
+          "direction": "long",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 100,
+          "requestedSizeUsd": 100,
+          "sizeUsd": 200,
+          "absoluteCapPercent": 0.02,
+          "absoluteCapSizeUsd": 200,
+          "cappedByAbsoluteCap": false,
+          "stockShareRange": {
+            "minShares": 2,
+            "maxShares": 100,
+            "reasons": [
+              "config_max_shares",
+              "config_max_notional"
+            ]
+          },
+          "stockShareRangeBlockReason": null,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 2,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174152,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "long",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "BUY-minimum-within-cap",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "BUY",
+          "side": "buy",
+          "direction": "long",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 100,
+          "requestedSizeUsd": 100,
+          "sizeUsd": 200,
+          "absoluteCapPercent": 0.025,
+          "absoluteCapSizeUsd": 250,
+          "cappedByAbsoluteCap": false,
+          "stockShareRange": {
+            "minShares": 2,
+            "maxShares": 100,
+            "reasons": [
+              "config_max_shares",
+              "config_max_notional"
+            ]
+          },
+          "stockShareRangeBlockReason": null,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 2,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174152,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "long",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "BUY-large-request",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "BUY",
+          "side": "buy",
+          "direction": "long",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 1000,
+          "requestedSizeUsd": 1000,
+          "sizeUsd": 200,
+          "absoluteCapPercent": 0.025,
+          "absoluteCapSizeUsd": 250,
+          "cappedByAbsoluteCap": true,
+          "stockShareRange": {
+            "minShares": 2,
+            "maxShares": 100,
+            "reasons": [
+              "config_max_shares",
+              "config_max_notional"
+            ]
+          },
+          "stockShareRangeBlockReason": null,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 2,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174152,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "long",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "SELL_SHORT-minimum-exceeds-cap",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "SELL_SHORT",
+          "side": "sell",
+          "direction": "short",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 100,
+          "requestedSizeUsd": 100,
+          "sizeUsd": 200,
+          "absoluteCapPercent": 0.015,
+          "absoluteCapSizeUsd": 150,
+          "cappedByAbsoluteCap": false,
+          "stockShareRange": {
+            "minShares": 2,
+            "maxShares": 100,
+            "reasons": [
+              "config_max_shares",
+              "config_max_notional"
+            ]
+          },
+          "stockShareRangeBlockReason": null,
+          "confidence": 90,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 2,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174154,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "short",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "SELL_SHORT-minimum-equals-cap",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "SELL_SHORT",
+          "side": "sell",
+          "direction": "short",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 100,
+          "requestedSizeUsd": 100,
+          "sizeUsd": 200,
+          "absoluteCapPercent": 0.02,
+          "absoluteCapSizeUsd": 200,
+          "cappedByAbsoluteCap": false,
+          "stockShareRange": {
+            "minShares": 2,
+            "maxShares": 100,
+            "reasons": [
+              "config_max_shares",
+              "config_max_notional"
+            ]
+          },
+          "stockShareRangeBlockReason": null,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 2,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174154,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "short",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "SELL_SHORT-minimum-within-cap",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "SELL_SHORT",
+          "side": "sell",
+          "direction": "short",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 100,
+          "requestedSizeUsd": 100,
+          "sizeUsd": 200,
+          "absoluteCapPercent": 0.025,
+          "absoluteCapSizeUsd": 250,
+          "cappedByAbsoluteCap": false,
+          "stockShareRange": {
+            "minShares": 2,
+            "maxShares": 100,
+            "reasons": [
+              "config_max_shares",
+              "config_max_notional"
+            ]
+          },
+          "stockShareRangeBlockReason": null,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 2,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174154,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "short",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "SELL_SHORT-large-request",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "SELL_SHORT",
+          "side": "sell",
+          "direction": "short",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 1000,
+          "requestedSizeUsd": 1000,
+          "sizeUsd": 200,
+          "absoluteCapPercent": 0.025,
+          "absoluteCapSizeUsd": 250,
+          "cappedByAbsoluteCap": true,
+          "stockShareRange": {
+            "minShares": 2,
+            "maxShares": 100,
+            "reasons": [
+              "config_max_shares",
+              "config_max_notional"
+            ]
+          },
+          "stockShareRangeBlockReason": null,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 2,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174154,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "short",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "existing-max-shares-conflict",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "BUY",
+          "side": "buy",
+          "direction": "long",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 100,
+          "requestedSizeUsd": 100,
+          "sizeUsd": 0,
+          "absoluteCapPercent": 0.5,
+          "absoluteCapSizeUsd": 5000,
+          "cappedByAbsoluteCap": false,
+          "stockShareRange": {
+            "minShares": 2,
+            "maxShares": 1,
+            "reasons": [
+              "config_max_shares",
+              "config_max_notional"
+            ]
+          },
+          "stockShareRangeBlockReason": "stock_share_range_impossible:min=2:max=1",
+          "confidence": 90,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 0,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174155,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "long",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "existing-notional-conflict",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "BUY",
+          "side": "buy",
+          "direction": "long",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 100,
+          "requestedSizeUsd": 100,
+          "sizeUsd": 0,
+          "absoluteCapPercent": 0.5,
+          "absoluteCapSizeUsd": 5000,
+          "cappedByAbsoluteCap": false,
+          "stockShareRange": {
+            "minShares": 2,
+            "maxShares": 1,
+            "reasons": [
+              "config_max_shares",
+              "config_max_notional"
+            ]
+          },
+          "stockShareRangeBlockReason": "stock_share_range_impossible:min=2:max=1",
+          "confidence": 90,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 0,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174155,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "long",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "existing-consistency-conflict",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "BUY",
+          "side": "buy",
+          "direction": "long",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 100,
+          "requestedSizeUsd": 100,
+          "sizeUsd": 0,
+          "absoluteCapPercent": 0.5,
+          "absoluteCapSizeUsd": 5000,
+          "cappedByAbsoluteCap": false,
+          "stockShareRange": {
+            "minShares": 2,
+            "maxShares": 1,
+            "reasons": [
+              "config_max_shares",
+              "config_max_notional",
+              "ttp_consistency_profit_cap"
+            ]
+          },
+          "stockShareRangeBlockReason": "stock_share_range_impossible:min=2:max=1",
+          "confidence": 90,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 0,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1,
+            "takeProfitPercent": 1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1,
+              "takeProfitPercent": 1
+            },
+            "nowMs": 1790667174155,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "long",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "existing-daily-loss-conflict",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "BUY",
+          "side": "buy",
+          "direction": "long",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 100,
+          "requestedSizeUsd": 100,
+          "sizeUsd": 0,
+          "absoluteCapPercent": 0.5,
+          "absoluteCapSizeUsd": 5000,
+          "cappedByAbsoluteCap": false,
+          "stockShareRange": {
+            "minShares": 2,
+            "maxShares": 1,
+            "reasons": [
+              "config_max_shares",
+              "config_max_notional",
+              "ttp_daily_loss_risk"
+            ]
+          },
+          "stockShareRangeBlockReason": "stock_share_range_impossible:min=2:max=1",
+          "confidence": 90,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 0,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174155,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "long",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "division-rounds-up",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "BUY",
+          "side": "buy",
+          "direction": "long",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 5.06,
+          "accountBalance": 45.53999999999999,
+          "currentEquity": 10000,
+          "baseSizeUsd": 100,
+          "requestedSizeUsd": 100,
+          "sizeUsd": 45.53999999999999,
+          "absoluteCapPercent": 1,
+          "absoluteCapSizeUsd": 45.53999999999999,
+          "cappedByAbsoluteCap": true,
+          "stockShareRange": {
+            "minShares": 2,
+            "maxShares": 100,
+            "reasons": [
+              "config_max_shares",
+              "config_max_notional"
+            ]
+          },
+          "stockShareRangeBlockReason": null,
+          "confidence": 90,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 9,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174155,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "long",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "fractional-range-disabled",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "BUY",
+          "side": "buy",
+          "direction": "long",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 125,
+          "requestedSizeUsd": 125,
+          "sizeUsd": 125,
+          "absoluteCapPercent": 0.015,
+          "absoluteCapSizeUsd": 150,
+          "cappedByAbsoluteCap": false,
+          "stockShareRange": null,
+          "stockShareRangeBlockReason": null,
+          "confidence": 90,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 1.25,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174155,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "long",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "whole-range-disabled",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "BUY",
+          "side": "buy",
+          "direction": "long",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 125,
+          "requestedSizeUsd": 125,
+          "sizeUsd": 100,
+          "absoluteCapPercent": 0.015,
+          "absoluteCapSizeUsd": 150,
+          "cappedByAbsoluteCap": false,
+          "stockShareRange": null,
+          "stockShareRangeBlockReason": null,
+          "confidence": 90,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 1,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174156,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "long",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "crypto-range-inapplicable",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "BUY",
+          "side": "buy",
+          "direction": "long",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "kraken",
+          "marketDataBrokerId": "kraken",
+          "accountId": "synthetic",
+          "assetClass": "crypto",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 125,
+          "requestedSizeUsd": 125,
+          "sizeUsd": 125,
+          "absoluteCapPercent": 0.015,
+          "absoluteCapSizeUsd": 150,
+          "cappedByAbsoluteCap": false,
+          "stockShareRange": null,
+          "stockShareRangeBlockReason": null,
+          "confidence": 90,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 1.25,
+          "quantityUnit": "base",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174156,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "long",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      }
+    ]
+  },
+  "productionTree": "c4a1b4e7cbfe02b11ae7d48153856fe90a99e29c",
+  "source": "core/OrderExecutor.js",
+  "baselineSourceSha256": "cb3fd96443c0a1a0c5504d3118802028ddf9de074dac4474a33ad379bb168882",
+  "candidateSourceSha256": "d67fb404763523906f15e54b38a74b34ba459c7e92d9ba7cf86f65af0c8637d6",
+  "fixtureSha256": "9becd0e95702ab8a6e2e5623dd3776749a1a83fa408036d3f6f3d143f404743e",
+  "candidate": {
+    "phase": "candidate",
+    "sourceRef": ":",
+    "sourceSha256": "d67fb404763523906f15e54b38a74b34ba459c7e92d9ba7cf86f65af0c8637d6",
+    "boundary": "Actual entry-plan and quantity methods; synthetic settings/scope/price; policy and ownership collaborators stubbed; no submission, fill, or deployment proof",
+    "results": [
+      {
+        "label": "BUY-minimum-exceeds-cap",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "BUY",
+          "side": "buy",
+          "direction": "long",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 100,
+          "requestedSizeUsd": 100,
+          "sizeUsd": 0,
+          "absoluteCapPercent": 0.015,
+          "absoluteCapSizeUsd": 150,
+          "cappedByAbsoluteCap": false,
+          "stockShareRange": {
+            "minShares": 2,
+            "maxShares": 1,
+            "reasons": [
+              "absolute_position_cap",
+              "config_max_shares",
+              "config_max_notional"
+            ]
+          },
+          "stockShareRangeBlockReason": "stock_share_range_impossible:min=2:max=1",
+          "confidence": 90,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 0,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174404,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "long",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "BUY-minimum-equals-cap",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "BUY",
+          "side": "buy",
+          "direction": "long",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 100,
+          "requestedSizeUsd": 100,
+          "sizeUsd": 200,
+          "absoluteCapPercent": 0.02,
+          "absoluteCapSizeUsd": 200,
+          "cappedByAbsoluteCap": false,
+          "stockShareRange": {
+            "minShares": 2,
+            "maxShares": 2,
+            "reasons": [
+              "absolute_position_cap",
+              "config_max_shares",
+              "config_max_notional"
+            ]
+          },
+          "stockShareRangeBlockReason": null,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 2,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174405,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "long",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "BUY-minimum-within-cap",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "BUY",
+          "side": "buy",
+          "direction": "long",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 100,
+          "requestedSizeUsd": 100,
+          "sizeUsd": 200,
+          "absoluteCapPercent": 0.025,
+          "absoluteCapSizeUsd": 250,
+          "cappedByAbsoluteCap": false,
+          "stockShareRange": {
+            "minShares": 2,
+            "maxShares": 2,
+            "reasons": [
+              "absolute_position_cap",
+              "config_max_shares",
+              "config_max_notional"
+            ]
+          },
+          "stockShareRangeBlockReason": null,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 2,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174405,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "long",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "BUY-large-request",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "BUY",
+          "side": "buy",
+          "direction": "long",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 1000,
+          "requestedSizeUsd": 1000,
+          "sizeUsd": 200,
+          "absoluteCapPercent": 0.025,
+          "absoluteCapSizeUsd": 250,
+          "cappedByAbsoluteCap": true,
+          "stockShareRange": {
+            "minShares": 2,
+            "maxShares": 2,
+            "reasons": [
+              "absolute_position_cap",
+              "config_max_shares",
+              "config_max_notional"
+            ]
+          },
+          "stockShareRangeBlockReason": null,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 2,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174405,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "long",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "SELL_SHORT-minimum-exceeds-cap",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "SELL_SHORT",
+          "side": "sell",
+          "direction": "short",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 100,
+          "requestedSizeUsd": 100,
+          "sizeUsd": 0,
+          "absoluteCapPercent": 0.015,
+          "absoluteCapSizeUsd": 150,
+          "cappedByAbsoluteCap": false,
+          "stockShareRange": {
+            "minShares": 2,
+            "maxShares": 1,
+            "reasons": [
+              "absolute_position_cap",
+              "config_max_shares",
+              "config_max_notional"
+            ]
+          },
+          "stockShareRangeBlockReason": "stock_share_range_impossible:min=2:max=1",
+          "confidence": 90,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 0,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174407,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "short",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "SELL_SHORT-minimum-equals-cap",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "SELL_SHORT",
+          "side": "sell",
+          "direction": "short",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 100,
+          "requestedSizeUsd": 100,
+          "sizeUsd": 200,
+          "absoluteCapPercent": 0.02,
+          "absoluteCapSizeUsd": 200,
+          "cappedByAbsoluteCap": false,
+          "stockShareRange": {
+            "minShares": 2,
+            "maxShares": 2,
+            "reasons": [
+              "absolute_position_cap",
+              "config_max_shares",
+              "config_max_notional"
+            ]
+          },
+          "stockShareRangeBlockReason": null,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 2,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174408,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "short",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "SELL_SHORT-minimum-within-cap",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "SELL_SHORT",
+          "side": "sell",
+          "direction": "short",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 100,
+          "requestedSizeUsd": 100,
+          "sizeUsd": 200,
+          "absoluteCapPercent": 0.025,
+          "absoluteCapSizeUsd": 250,
+          "cappedByAbsoluteCap": false,
+          "stockShareRange": {
+            "minShares": 2,
+            "maxShares": 2,
+            "reasons": [
+              "absolute_position_cap",
+              "config_max_shares",
+              "config_max_notional"
+            ]
+          },
+          "stockShareRangeBlockReason": null,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 2,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174408,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "short",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "SELL_SHORT-large-request",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "SELL_SHORT",
+          "side": "sell",
+          "direction": "short",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 1000,
+          "requestedSizeUsd": 1000,
+          "sizeUsd": 200,
+          "absoluteCapPercent": 0.025,
+          "absoluteCapSizeUsd": 250,
+          "cappedByAbsoluteCap": true,
+          "stockShareRange": {
+            "minShares": 2,
+            "maxShares": 2,
+            "reasons": [
+              "absolute_position_cap",
+              "config_max_shares",
+              "config_max_notional"
+            ]
+          },
+          "stockShareRangeBlockReason": null,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 2,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174408,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "short",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "existing-max-shares-conflict",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "BUY",
+          "side": "buy",
+          "direction": "long",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 100,
+          "requestedSizeUsd": 100,
+          "sizeUsd": 0,
+          "absoluteCapPercent": 0.5,
+          "absoluteCapSizeUsd": 5000,
+          "cappedByAbsoluteCap": false,
+          "stockShareRange": {
+            "minShares": 2,
+            "maxShares": 1,
+            "reasons": [
+              "absolute_position_cap",
+              "config_max_shares",
+              "config_max_notional"
+            ]
+          },
+          "stockShareRangeBlockReason": "stock_share_range_impossible:min=2:max=1",
+          "confidence": 90,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 0,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174408,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "long",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "existing-notional-conflict",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "BUY",
+          "side": "buy",
+          "direction": "long",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 100,
+          "requestedSizeUsd": 100,
+          "sizeUsd": 0,
+          "absoluteCapPercent": 0.5,
+          "absoluteCapSizeUsd": 5000,
+          "cappedByAbsoluteCap": false,
+          "stockShareRange": {
+            "minShares": 2,
+            "maxShares": 1,
+            "reasons": [
+              "absolute_position_cap",
+              "config_max_shares",
+              "config_max_notional"
+            ]
+          },
+          "stockShareRangeBlockReason": "stock_share_range_impossible:min=2:max=1",
+          "confidence": 90,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 0,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174408,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "long",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "existing-consistency-conflict",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "BUY",
+          "side": "buy",
+          "direction": "long",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 100,
+          "requestedSizeUsd": 100,
+          "sizeUsd": 0,
+          "absoluteCapPercent": 0.5,
+          "absoluteCapSizeUsd": 5000,
+          "cappedByAbsoluteCap": false,
+          "stockShareRange": {
+            "minShares": 2,
+            "maxShares": 1,
+            "reasons": [
+              "absolute_position_cap",
+              "config_max_shares",
+              "config_max_notional",
+              "ttp_consistency_profit_cap"
+            ]
+          },
+          "stockShareRangeBlockReason": "stock_share_range_impossible:min=2:max=1",
+          "confidence": 90,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 0,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1,
+            "takeProfitPercent": 1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1,
+              "takeProfitPercent": 1
+            },
+            "nowMs": 1790667174408,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "long",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "existing-daily-loss-conflict",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "BUY",
+          "side": "buy",
+          "direction": "long",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 100,
+          "requestedSizeUsd": 100,
+          "sizeUsd": 0,
+          "absoluteCapPercent": 0.5,
+          "absoluteCapSizeUsd": 5000,
+          "cappedByAbsoluteCap": false,
+          "stockShareRange": {
+            "minShares": 2,
+            "maxShares": 1,
+            "reasons": [
+              "absolute_position_cap",
+              "config_max_shares",
+              "config_max_notional",
+              "ttp_daily_loss_risk"
+            ]
+          },
+          "stockShareRangeBlockReason": "stock_share_range_impossible:min=2:max=1",
+          "confidence": 90,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 0,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174409,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "long",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "division-rounds-up",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "BUY",
+          "side": "buy",
+          "direction": "long",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 5.06,
+          "accountBalance": 45.53999999999999,
+          "currentEquity": 10000,
+          "baseSizeUsd": 100,
+          "requestedSizeUsd": 100,
+          "sizeUsd": 40.48,
+          "absoluteCapPercent": 1,
+          "absoluteCapSizeUsd": 45.53999999999999,
+          "cappedByAbsoluteCap": true,
+          "stockShareRange": {
+            "minShares": 2,
+            "maxShares": 8,
+            "reasons": [
+              "absolute_position_cap",
+              "config_max_shares",
+              "config_max_notional"
+            ]
+          },
+          "stockShareRangeBlockReason": null,
+          "confidence": 90,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 8,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174409,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "long",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "fractional-range-disabled",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "BUY",
+          "side": "buy",
+          "direction": "long",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 125,
+          "requestedSizeUsd": 125,
+          "sizeUsd": 125,
+          "absoluteCapPercent": 0.015,
+          "absoluteCapSizeUsd": 150,
+          "cappedByAbsoluteCap": false,
+          "stockShareRange": null,
+          "stockShareRangeBlockReason": null,
+          "confidence": 90,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 1.25,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174409,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "long",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "whole-range-disabled",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "BUY",
+          "side": "buy",
+          "direction": "long",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "alpaca",
+          "marketDataBrokerId": "alpaca",
+          "accountId": "synthetic",
+          "assetClass": "stocks",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 125,
+          "requestedSizeUsd": 125,
+          "sizeUsd": 100,
+          "absoluteCapPercent": 0.015,
+          "absoluteCapSizeUsd": 150,
+          "cappedByAbsoluteCap": false,
+          "stockShareRange": null,
+          "stockShareRangeBlockReason": null,
+          "confidence": 90,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 1,
+          "quantityUnit": "shares",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174409,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "long",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      },
+      {
+        "label": "crypto-range-inapplicable",
+        "result": {
+          "traceId": null,
+          "signalId": null,
+          "decisionId": null,
+          "action": "BUY",
+          "side": "buy",
+          "direction": "long",
+          "positionEffect": "open",
+          "symbol": "TSLA",
+          "brokerId": "kraken",
+          "marketDataBrokerId": "kraken",
+          "accountId": "synthetic",
+          "assetClass": "crypto",
+          "executionMode": "paper",
+          "timeframe": "1m",
+          "price": 100,
+          "accountBalance": 10000,
+          "currentEquity": 10000,
+          "baseSizeUsd": 125,
+          "requestedSizeUsd": 125,
+          "sizeUsd": 125,
+          "absoluteCapPercent": 0.015,
+          "absoluteCapSizeUsd": 150,
+          "cappedByAbsoluteCap": false,
+          "stockShareRange": null,
+          "stockShareRangeBlockReason": null,
+          "confidence": 90,
+          "tradeConfidence": 0.9,
+          "confidenceMultiplier": 1,
+          "entryVolatility": 1,
+          "sizingMultiplier": 1,
+          "entryGroupType": null,
+          "entryGroupId": null,
+          "fanoutIndex": null,
+          "fanoutCount": null,
+          "entryTriggerClass": null,
+          "orderQuantity": 1.25,
+          "quantityUnit": "base",
+          "entryStrategy": "Synthetic",
+          "exitContract": {
+            "stopLossPercent": -1
+          },
+          "frozenExitPolicy": {
+            "strategyName": "Synthetic",
+            "exitContract": {
+              "stopLossPercent": -1
+            },
+            "nowMs": 1790667174409,
+            "volatility": 1,
+            "confidence": 0.9,
+            "marketCondition": "normal",
+            "entryDirection": "long",
+            "mtfConfluenceSnapshot": null
+          }
+        }
+      }
+    ]
+  }
+}
