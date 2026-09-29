@@ -237,9 +237,11 @@ function candidateSourceLedgerReceipt(source) {
     citations_not_in_candidate_set: Array.isArray(source.citationsNotInCandidateSet)
       ? source.citationsNotInCandidateSet
       : [],
+    claim_inventory: sanitizeForLedger(source.claimInventory || []),
     claim_adjudications: source.claimAdjudications || null,
     final_claim_adjudications: source.finalClaimAdjudications || null,
     claim_decision_attempts: source.claimDecisionAttempts || [],
+    explicit_continuation: sanitizeForLedger(source.explicitContinuation || null),
   };
 }
 
@@ -849,6 +851,7 @@ function shardedReviewLedgerReceipt(review) {
   const corpus = review.corpus || {};
   return {
     schema_version: review.schema_version || null,
+    continuation: sanitizeForLedger(review.continuation || null),
     corpus: {
       corpus_sha256: corpus.corpus_sha256 || null,
       targets: Array.isArray(corpus.targets) ? corpus.targets : [],

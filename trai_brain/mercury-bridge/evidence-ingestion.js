@@ -1379,7 +1379,7 @@ function mergeLineRanges(ranges) {
   return merged;
 }
 
-function assessCandidateInventory(rawOutput, targets) {
+function assessCandidateInventory(rawOutput, targets, citationTargets = null) {
   const raw = String(rawOutput || '');
   const declarationMatch = raw.match(/CANDIDATE SET[\s\S]{0,240}?examined\s+(\d+)\s+of\s+(\d+)/i);
   const modelDeclaration = declarationMatch ? {
@@ -1425,7 +1425,10 @@ function assessCandidateInventory(rawOutput, targets) {
     }
     const normalizedCitations = [];
     for (const citation of record.citations) {
-      const validation = validateTargetCitation(citation, target, targets);
+      const validation = citationTargets
+        ? citationTargets.map(entry => validateTargetCitation(citation, entry, citationTargets))
+          .find(entry => entry.valid) || { valid: false, reason: 'citation_source_not_delivered' }
+        : validateTargetCitation(citation, target, targets);
       if (!validation.valid) {
         invalidTargetRecords.push({
           target: record.target,
@@ -1525,6 +1528,8 @@ function assessClaimAdjudications(record, target) {
         evidence.source_sha256 = source.source_sha256;
         if (source.excerpt_sha256) evidence.excerpt_sha256 = source.excerpt_sha256;
         if (source.tool_call_id) evidence.tool_call_id = source.tool_call_id;
+        if (source.tool_window_id) evidence.tool_window_id = source.tool_window_id;
+        if (source.source_ref) evidence.source_ref = source.source_ref;
       }
     }
   }
@@ -2305,6 +2310,7 @@ async function runExplicitTargetReview({
   verifySourceSnapshots = null,
   isHardStop = null,
   evidenceAbsences = [],
+  continueWithTools = null,
 } = {}) {
   const providerCall = call || require('./react-loop').callMercuryWithRetry;
   if (typeof providerCall !== 'function') throw new TypeError('call must be a provider-call function');
@@ -3090,7 +3096,7 @@ async function runExplicitTargetReview({
     mercury_calls_used: providerCallCount,
     mercury_call_limit: maxCalls,
   };
-  return {
+  const result = {
     answer: finalReceipt.structured_response && finalReceipt.structured_response.complete
       ? [`VERDICT: ${finalReceipt.structured_response.record.decision}`, finalReceipt.structured_response.record.answer,
         ...(finalReceipt.structured_response.record.adjudications || []).map(decision => JSON.stringify({
@@ -3164,6 +3170,16 @@ async function runExplicitTargetReview({
       synthesis: finalReceipt,
     },
   };
+  const envelopeErrors = new Set(['literal_source_and_manifest_exceed_request_envelope',
+    'filed_decisions_and_manifest_exceed_request_envelope']);
+  const failedEnvelopes = [...candidateReceipts, ...finalReceipts]
+    .filter(receipt => receipt.status === 'failed' && envelopeErrors.has(receipt.error));
+  if (failedEnvelopes.length === 0 || typeof continueWithTools !== 'function') return result;
+  const { createExplicitContinuation } = require('./explicit-continuation');
+  const contract = createExplicitContinuation({ corpus, reviewTargets, previous: result, maxRequestBytes, originalQuery: query });
+  const remainingCalls = maxCalls == null ? null : Math.max(0, maxCalls - providerCallCount);
+  const continued = await continueWithTools(contract, remainingCalls);
+  return contract.finish(continued);
 }
 
 module.exports = {
@@ -3187,6 +3203,8 @@ module.exports = {
   packMapRequests,
   parseUnitRecords,
   assessCandidateInventory,
+  parseStructuredSynthesisRecord,
+  extractJsonObjectFragments,
   bindCandidateClaims,
   claimAdjudicationReceipt,
   candidateSourceNodes,

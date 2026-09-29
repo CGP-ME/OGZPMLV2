@@ -139,6 +139,7 @@ function growCandidateSetEvidence(candidateSet, telemetry = {}, answer = null) {
 function candidateSourceReceipt(candidateSet, { phase, recheckIndex = null } = {}) {
   return {
     coverage: candidateSet.coverage || null,
+    explicitContinuation: candidateSet.explicitContinuation || null,
     phase,
     recheckIndex,
     content: candidateSet.content || '',
@@ -149,6 +150,7 @@ function candidateSourceReceipt(candidateSet, { phase, recheckIndex = null } = {
     finalAnswerCitations: candidateSet.finalAnswerCitations || [],
     answerCitationsSubset: candidateSet.answerCitationsSubset === true,
     citationsNotInCandidateSet: candidateSet.citationsNotInCandidateSet || [],
+    claimInventory: candidateSet.claimInventory || [],
     claimAdjudications: candidateSet.claimAdjudications || null,
     finalClaimAdjudications: candidateSet.finalClaimAdjudications || null,
     claimDecisionAttempts: candidateSet.claimDecisionAttempts || [],
@@ -158,7 +160,11 @@ function candidateSourceReceipt(candidateSet, { phase, recheckIndex = null } = {
 function mergeCandidateSetRechecks(candidateSet, rechecks = []) {
   if (!candidateSet) return null;
   const passOne = growCandidateSetEvidence(candidateSet);
-  const claims = Array.isArray(candidateSet.claimInventory) ? candidateSet.claimInventory : [];
+  const originalPhase = candidateSet.candidateSources?.find(source => source.phase === 'pass_1');
+  const claims = Array.isArray(originalPhase?.claimInventory) ? originalPhase.claimInventory
+    : Array.isArray(candidateSet.claimInventory) ? candidateSet.claimInventory : [];
+  const temporalClaims = new Map(claims.map(claim => [claim.claim_id, claim]));
+  passOne.claimInventory = claims;
   const { claimAdjudicationReceipt } = require('./evidence-ingestion');
   if (claims.length > 0) passOne.claimAdjudications = claimAdjudicationReceipt(claims, passOne.content);
   const candidateSources = [candidateSourceReceipt(passOne, { phase: 'pass_1' })];
@@ -169,9 +175,15 @@ function mergeCandidateSetRechecks(candidateSet, rechecks = []) {
       recheck && recheck.toolTelemetry,
       recheck && recheck.answer
     );
-    if (claims.length > 0) {
-      recheckCandidate.claimAdjudications = claimAdjudicationReceipt(claims, recheckCandidate.content);
-      recheckCandidate.finalClaimAdjudications = claimAdjudicationReceipt(claims, recheck && recheck.answer);
+    for (const discovery of recheck?.shardedReview?.continuation?.discovered_claims || []) {
+      if (!temporalClaims.has(discovery.claim.claim_id)) temporalClaims.set(discovery.claim.claim_id,
+        { target: discovery.target, ...discovery.claim });
+    }
+    const phaseClaims = [...temporalClaims.values()];
+    recheckCandidate.claimInventory = phaseClaims;
+    if (phaseClaims.length > 0) {
+      recheckCandidate.claimAdjudications = claimAdjudicationReceipt(phaseClaims, recheckCandidate.content);
+      recheckCandidate.finalClaimAdjudications = claimAdjudicationReceipt(phaseClaims, recheck && recheck.answer);
     }
     candidateSources.push(candidateSourceReceipt(recheckCandidate, {
       phase: 'recheck',
@@ -199,6 +211,10 @@ function mergeCandidateSetRechecks(candidateSet, rechecks = []) {
       citationsNotInCandidateSet: sourceCitationsNotInCandidateSet,
     };
   });
+  const incompleteContinuations = rechecks.filter(recheck => recheck && recheck.shardedReview?.continuation
+    && (recheck.termination !== 'answer_given' || recheck.candidateSet?.coverage?.authorityReady !== true))
+    .map(recheck => ({ target: '<explicit_continuation>', scope: 'explicit_recheck_qualification',
+      load_bearing: true, reason: 'strict_recheck_incomplete', termination: recheck.termination }));
   const incompleteClaims = candidateSources.filter(source => source.claimAdjudications
     && (!source.claimAdjudications.structurally_complete
       || source.claimAdjudications.unresolved_claim_ids.length > 0
@@ -215,8 +231,10 @@ function mergeCandidateSetRechecks(candidateSet, rechecks = []) {
     final_unresolved_claim_ids: source.finalClaimAdjudications?.unresolved_claim_ids || [],
   }));
 
+  incompleteClaims.push(...incompleteContinuations);
   return {
     ...passOne,
+    claimInventory: [...temporalClaims.values()],
     ...(incompleteClaims.length > 0 ? { coverage: { ...passOne.coverage,
       authorityReady: false,
       unresolved: [...(passOne.coverage?.unresolved || []), ...incompleteClaims],
@@ -666,7 +684,8 @@ function summarizeToolTelemetry(history = []) {
 
     const readFile = entry.toolName === 'open_file' ? result && result.file
       : entry.toolName === 'git_show' ? result && result.path : null;
-    if (!isFailure && readFile) {
+    if (!isFailure && readFile
+        && (!entry.explicitSourceDeliveryRequired || entry.explicitSourceDispatched === true)) {
       // Older histories have no delivery receipt. Their compacted generic
       // preview cannot establish a complete source-line range.
       const legacyUncompacted = !entry.toolDelivery
@@ -870,8 +889,16 @@ async function runReactLoop(params) {
     noTools = false,
     claimInventory = [],
     claimSourceEvidence = [],
+    explicitReviewContract = null,
   } = params;
 
+  if (explicitReviewContract && (!client || typeof client.generateWithTools !== 'function'
+      || !toolAdapter || typeof toolAdapter.execute !== 'function'
+      || typeof toolAdapter.buildToolSchema !== 'function' || !userQuery || noTools)) {
+    return { answer: '(cannot verify: explicit continuation capability or query missing)',
+      termination: 'explicit_continuation_capability_missing', history: [],
+      explicitContinuation: explicitReviewContract.receipt() };
+  }
   if (!client || typeof client.generateWithTools !== 'function') {
     throw new Error('runReactLoop requires a client with generateWithTools()');
   }
@@ -883,6 +910,14 @@ async function runReactLoop(params) {
   }
 
   const tools = noTools ? [] : toolAdapter.buildToolSchema();
+  if (explicitReviewContract) {
+    if (tools.some(tool => tool.function?.name === explicitReviewContract.receiptTool.function.name)) {
+      return { answer: '(cannot verify: explicit receipt tool name collision)',
+        termination: 'explicit_continuation_tool_name_collision', history: [],
+        explicitContinuation: explicitReviewContract.receipt() };
+    }
+    tools.push(explicitReviewContract.receiptTool);
+  }
   const toolsAvailable = tools
     .map(tool => tool && tool.function && tool.function.name)
     .filter(Boolean)
@@ -899,7 +934,7 @@ async function runReactLoop(params) {
       content: 'HOST NO-TOOLS CONTROL: repository tools are unavailable. Answer once from memory. Do not present file:line citations as mechanically verified evidence.',
     });
   } else {
-    messages.push({ role: 'system', content: CANDIDATE_PHASE_SYSTEM_PROMPT });
+    if (!explicitReviewContract) messages.push({ role: 'system', content: CANDIDATE_PHASE_SYSTEM_PROMPT });
   }
 
   if (starterContext && starterContext.length > 0) {
@@ -948,23 +983,39 @@ async function runReactLoop(params) {
       console.error(`[REACT] Message history: ${messages.length} messages`);
     }
 
+    let requestMessages = messages;
+    if (explicitReviewContract) {
+      const prepared = explicitReviewContract.prepare(messages, tools,
+        { maxTokens, toolChoice: 'auto', temperature }, history,
+        !candidateSet || candidateNeedsRevision ? 'candidate' : 'final');
+      if (prepared.error) return attachToolTelemetry({
+        answer: `(cannot verify: ${prepared.error})`, termination: prepared.error,
+        candidateSet, history, iterations: iteration - 1,
+        explicitContinuation: explicitReviewContract.receipt(),
+        providerAttempts: providerAudit ? providerAudit.attempts : [], toolsAvailable,
+      }, history);
+      requestMessages = prepared.messages;
+    }
     let assistantMsg;
     try {
       assistantMsg = await callMercuryWithRetry(
         client,
-        messages,
+        requestMessages,
         tools,
         { maxTokens, toolChoice: noTools ? 'none' : 'auto', temperature },
         verbose,
         providerAudit
       );
+      if (explicitReviewContract) explicitReviewContract.acknowledge();
     } catch (err) {
+      if (explicitReviewContract) explicitReviewContract.failed(err.message);
       if (verbose) console.error(`[REACT] Mercury call failed permanently: ${err.message}`);
       return attachToolTelemetry({
         answer: `(Mercury call failed: ${err.message})`,
         candidateSet,
         iterations: iteration - 1,
         termination: 'error',
+        ...(explicitReviewContract ? { explicitContinuation: explicitReviewContract.receipt() } : {}),
         history,
         providerAttempts: providerAudit ? providerAudit.attempts : [],
         toolsAvailable,
@@ -1005,7 +1056,7 @@ async function runReactLoop(params) {
     if (hasToolCalls) {
       if (verbose) console.error(`[REACT] Assistant requested ${assistantMsg.tool_calls.length} tool call(s)`);
 
-      for (const toolCall of assistantMsg.tool_calls) {
+      for (const [toolCallIndex, toolCall] of assistantMsg.tool_calls.entries()) {
         const toolName = toolCall.function && toolCall.function.name;
         const rawArgs = toolCall.function && toolCall.function.arguments;
 
@@ -1030,18 +1081,24 @@ async function runReactLoop(params) {
 
         let toolResult;
         try {
-          toolResult = await toolAdapter.execute(toolName, toolArgs);
+          toolResult = explicitReviewContract && toolName === explicitReviewContract.receiptTool.function.name
+            ? explicitReviewContract.readReceipt(toolArgs)
+            : await toolAdapter.execute(toolName, toolArgs);
         } catch (err) {
           toolResult = { error: err.message };
         }
 
-        const serializedToolResult = serializeToolResultForHistory(toolName, toolResult);
+        const serializedToolResult = serializeToolResultForHistory(
+          explicitReviewContract && toolName === 'read_review_receipt' ? 'open_file' : toolName, toolResult);
         history.push({
           iteration,
           toolName,
           toolArgs,
           toolResult,
           toolDelivery: serializedToolResult.delivery,
+          ...(explicitReviewContract ? { explicitSourceDeliveryRequired: true,
+            toolWindowId: `${iteration}:${toolCallIndex}:${toolCall.id}`,
+            toolMessageIndex: messages.length } : {}),
           toolCallId: toolCall.id,
         });
 
@@ -1095,6 +1152,36 @@ async function runReactLoop(params) {
         iterationLimit,
         decisionSteerIteration,
         decisionSteerSentAt,
+      }, history);
+    }
+    if (explicitReviewContract) {
+      const phase = !candidateSet || candidateNeedsRevision || isCandidateSetResponse(content)
+        ? 'candidate' : 'final';
+      const assessed = explicitReviewContract.assess(content, phase);
+      if (!assessed.complete) {
+        const rejection = JSON.stringify({ phase, errors: assessed.errors });
+        if (rejectedClaimStates.has(rejection)) return attachToolTelemetry({
+          answer: '(cannot verify: repeated incomplete explicit continuation receipt)',
+          termination: 'explicit_continuation_evidence_impasse', candidateSet, history,
+          iterations: iteration, explicitContinuation: explicitReviewContract.receipt(),
+          providerAttempts: providerAudit ? providerAudit.attempts : [], toolsAvailable,
+        }, history);
+        rejectedClaimStates.add(rejection);
+        messages.push({ role: 'user', content: `The ${phase} receipt is incomplete. Preserve actual conclusions and every original target/claim. Read missing literal selected-tree evidence with tools or report unresolved. Repair errors: ${rejection}` });
+        continue;
+      }
+      if (phase === 'candidate') {
+        candidateSet = { content: assessed.content, capturedAtIteration: iteration,
+          source: 'explicit_source_tool_continuation' };
+        candidateNeedsRevision = false;
+        messages.push({ role: 'user', content: 'Candidate receipt accepted. Anything unread? Read more if necessary and revise the candidate. Otherwise return the final_decision JSON, every original claim, exact target_dispositions and complete report. Selected literal candidate evidence remains supplied; catalog entries alone are not source.' });
+        continue;
+      }
+      return attachToolTelemetry({ answer: assessed.content, candidateSet,
+        iterations: iteration, termination: 'answer_given', history,
+        explicitContinuation: explicitReviewContract.receipt(),
+        providerAttempts: providerAudit ? providerAudit.attempts : [], toolsAvailable,
+        iterationLimit, decisionSteerIteration, decisionSteerSentAt,
       }, history);
     }
     // The recheck producer must file actual decisions, not merely a heading

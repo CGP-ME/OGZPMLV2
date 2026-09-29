@@ -335,6 +335,7 @@ async function runReviewRechecks({
   noTools = false,
   claimInventory = [],
   claimSourceEvidence = [],
+  explicitContinuationFactory = null,
 } = {}) {
   const rechecks = [];
   const quarantines = [];
@@ -343,13 +344,14 @@ async function runReviewRechecks({
     const recheckStarted = Date.now();
     try {
       const recheckProvenance = buildAttestedPromptProvenance(recheckPrompt, evidenceSources);
-      const recheck = await runLoop({
+      const explicitReviewContract = explicitContinuationFactory ? explicitContinuationFactory(rechecks) : null;
+      let recheck = await runLoop({
         client,
         toolAdapter,
         userQuery: recheckPrompt,
-        starterContext,
+        starterContext: explicitReviewContract ? [] : starterContext,
         traceHint: null,
-        blastRadius,
+        blastRadius: explicitReviewContract ? null : blastRadius,
         maxIterations,
         maxTokens,
         verbose,
@@ -357,8 +359,10 @@ async function runReviewRechecks({
         attack,
         noTools,
         claimInventory,
-        claimSourceEvidence,
+        claimSourceEvidence: explicitReviewContract ? [] : claimSourceEvidence,
+        explicitReviewContract,
       });
+      if (explicitReviewContract) recheck = explicitReviewContract.finish(recheck);
       finalizeMercuryEvidenceResult(recheck);
       recheck.totalLatencyMs = Date.now() - recheckStarted;
       recheck.inputProvenance = recheckProvenance;
@@ -1004,6 +1008,7 @@ async function runAgentic(query, opts) {
   let storeConnected = false;
   let autoBlastRadius = null;
   let explicitReviewCorpus = null;
+  let explicitContinuationFactory = null;
   let starterContext = [];
   let indexFreshness = null;
 
@@ -1266,6 +1271,15 @@ async function runAgentic(query, opts) {
           const t0 = Date.now();
           const seatResult = explicitReviewCorpus ? await runExplicitTargetReview({
             client, corpus: explicitReviewCorpus, query: userQuery,
+            continueWithTools: reviewView && reviewIntent === 'adversarial' && opts.noTools !== true
+              ? (explicitReviewContract, remainingCalls) => {
+                explicitContinuationFactory = previous => explicitReviewContract.fresh(previous);
+                return runReactLoop({
+                  client, toolAdapter, userQuery, maxTokens, maxIterations: remainingCalls, verbose,
+                  explicitReviewContract,
+                  providerAudit: providerAuditFactory('mercury_explicit_source_continuation'),
+                });
+              } : null,
             syntaxContext: autoBlastRadius && autoBlastRadius.ast,
             maxRequestBytes: config.AGENTIC_EXPLICIT_REVIEW_REQUEST_MAX_BYTES,
             maxTokens, maxCalls: maxIterations,
@@ -1355,6 +1369,8 @@ async function runAgentic(query, opts) {
               maxIterations, maxTokens, verbose, evidenceSources, createProviderAudit: providerAuditFactory,
               attack: opts.attack === true,
               noTools: opts.noTools === true,
+              explicitContinuationFactory: explicitContinuationFactory
+                ? rechecks => explicitContinuationFactory({ ...mercuryResult, continuationRechecks: [...rechecks] }) : null,
               claimInventory: mercuryResult.candidateSet?.claimInventory || [],
               claimSourceEvidence: (mercuryResult.shardedReview?.claim_inventory || []).flatMap(target => target.source_evidence || []),
             });
