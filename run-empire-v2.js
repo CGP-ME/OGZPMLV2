@@ -703,7 +703,6 @@ class OGZPrimeV14Bot {
       // CHANGE 2026-02-28: Use ConfigLoader for minStrategyConfidence
       minStrategyConfidence: ConfigLoader.get('confidence.minStrategyConfidence'),
       minConfluenceCount: ConfigLoader.get('orchestrator.minConfluenceCount'),
-      confluenceSizing: ConfigLoader.get('positionSizing.confluenceMultipliers'),
       mtfBaseTimeframe: this.candleTimeframe,
     });
 

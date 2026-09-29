@@ -147,7 +147,6 @@ function normalizeConfig(config) {
         lastSignalTtlBars: requireInteger(source.lastSignalTtlBars, 'strategies.OGZTPO.lastSignalTtlBars', { minInclusive: 0 }),
         confluenceBonusStrength: requireFiniteNumber(source.confluenceBonusStrength, 'strategies.OGZTPO.confluenceBonusStrength', { minInclusive: 0 }),
         strengthConfidenceMultiplier: requireFiniteNumber(source.strengthConfidenceMultiplier, 'strategies.OGZTPO.strengthConfidenceMultiplier', { minExclusive: 0 }),
-        tradingLoopOverrideMinStrength: requireFiniteNumber(source.tradingLoopOverrideMinStrength, 'strategies.OGZTPO.tradingLoopOverrideMinStrength', { minInclusive: 0 }),
         modes: normalizeModeSettings(source.modes),
         dynamicLevelMultipliers: normalizeDynamicLevelMultipliers(source.dynamicLevelMultipliers),
     };

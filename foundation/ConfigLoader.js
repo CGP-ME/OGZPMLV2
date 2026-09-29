@@ -2393,6 +2393,7 @@ function buildSnapshot(sourceEnv = process.env, opts = {}) {
 
   return {
     config: frozen,
+    entrySizing: processRole === 'bot' ? buildEntrySizingInput(frozen) : null,
     sources: sourceReceipt,
     fingerprint: fp,
     errors: Object.freeze([...errors]),
@@ -2458,6 +2459,16 @@ function getReceipt() {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  ...Object.fromEntries([1, 2, 3, 4].map(count => [
+    `positionSizing.confluenceMultipliers.${count}`,
+    {
+      type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true,
+      max: Number.MAX_SAFE_INTEGER,
+      label: `Sizing multiplier for ${count === 4 ? '4 or more' : count} agreeing strategies`,
+      effect: 'next_entry_decision',
+    },
+  ])),
+
   'confidence.minTradeConfidence': {
     type: 'number', unit: 'fraction', min: 0, max: 1,
     scope: 'active_launch_profile', label: 'Minimum entry confidence',
@@ -2722,10 +2733,34 @@ const EDITABLE_SETTINGS = deepFreeze({
   },
 });
 
+// Compile the external settings input before it can become an entry-sizing input.
+// Invalid input is named and kept out of entry routing; no customer value is guessed.
+function buildEntrySizingInput(config) {
+  const configured = readConfiguredPath(config, 'positionSizing.confluenceMultipliers');
+  const mapIsObject = isPlainObject(configured);
+  const issues = [];
+  for (const count of [1, 2, 3, 4]) {
+    const path = `positionSizing.confluenceMultipliers.${count}`;
+    const value = mapIsObject ? configured[count] : undefined;
+    const definition = EDITABLE_SETTINGS[path];
+    if (typeof value !== 'number' || !Number.isFinite(value)
+        || value <= definition.min || value > definition.max) {
+      issues.push({ path, reason: value === undefined ? 'missing_setting' : 'invalid_setting_value' });
+    }
+  }
+  return deepFreeze({ multipliers: issues.length === 0 ? configured : null, issues });
+}
+
+function getEntrySizingInput() {
+  if (!_cached) load({ silent: true });
+  return _cached.entrySizing;
+}
+
 function getSettingsView() {
   if (!_cached) load({ silent: true });
   return {
     configuration: getReceipt(),
+    unavailableInputs: _cached.entrySizing ? _cached.entrySizing.issues : [],
     profile: _cached.config.mode.launchProfile,
     fields: Object.fromEntries(Object.entries(EDITABLE_SETTINGS).map(([key, definition]) => [key, {
       ...definition, value: get(key), source: getSource(key),
@@ -2794,14 +2829,21 @@ function saveSettings(request) {
       && nextConfig.strategies.EMATrendRetest.maxExtensionAtr <= nextConfig.strategies.EMATrendRetest.closeAwayAtr) {
     return reject('ema_retest_extension_must_exceed_confirmation');
   }
+  const nextEntrySizing = buildEntrySizingInput(nextConfig);
+  if (nextEntrySizing.issues.length > 0) {
+    return reject('invalid_entry_sizing_configuration', { issues: nextEntrySizing.issues });
+  }
   nextSettings.revision += 1;
   if (entries.some(([key]) => key.startsWith('exitLogic.trail.'))
       && nextConfig.exitLogic.trail.minTrailPercent > nextConfig.exitLogic.trail.maxTrailPercent) {
     return reject('trail_min_must_not_exceed_max');
   }
+  if (entries.some(([key]) => key.startsWith('positionSizing.confluenceMultipliers.'))) {
+    nextConfig.sizing = cloneConfiguredObject(nextConfig.positionSizing);
+  }
   nextConfig.revision = nextSettings.revision;
   const revisions = { ..._cached.revisions, settings: nextSettings.revision, settingsHash: canonicalHash(nextSettings) };
-  const nextSnapshot = { ..._cached, config: deepFreeze(nextConfig), revisions: Object.freeze(revisions),
+  const nextSnapshot = { ..._cached, config: deepFreeze(nextConfig), entrySizing: nextEntrySizing, revisions: Object.freeze(revisions),
     timestamp: new Date().toISOString(),
     fingerprint: fingerprint(nextConfig, _cached.sources, { role: _cached.role,
       revisions: { settings: revisions.settings, internals: revisions.internals } }) };
@@ -3023,6 +3065,7 @@ const exported = Object.assign(ConfigLoader, {
   hasLoadedSnapshot,
   getCachedSnapshot,
   getSettingsView,
+  getEntrySizingInput,
   saveSettings,
   fingerprint,
   snapshot,

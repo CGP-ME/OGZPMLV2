@@ -1409,62 +1409,8 @@ class TradingLoop {
     console.log(`\n📊 $${cleanPrice} | Conf: ${orchResult.confidence.toFixed(0)}% | RSI: ${Math.round(indicators.rsi)} | ${indicators.trend} | ${regime.currentRegime || 'analyzing'}`);
     console.log(`🔍 PRE-DECISION: direction=${tradingDirection}, conf=${orchResult.confidence.toFixed(1)}%`);
 
-    // ─── TPO OVERRIDE ───
-    let overrideSignal = null;
-    let signalSource = null;
-    let finalDirection = tradingDirection;
-
-    if (tpoResult?.signal?.highProbability) {
-      const ogzTpoConfig = ConfigLoader.get('strategies.OGZTPO');
-      const ogzTpoMinStrength = ogzTpoConfig?.tradingLoopOverrideMinStrength;
-      if (Number.isFinite(ogzTpoMinStrength) && tpoResult.signal.strength > ogzTpoMinStrength) {
-        if (tpoResult.signal.action !== 'BUY') {
-          const blockReason = 'tpo_override_non_buy_action';
-          this._diag('TPO_OVERRIDE_REFUSAL', {
-            symbol,
-            reason: blockReason,
-            overrideAction: tpoResult.signal.action || null,
-            overrideStrength: tpoResult.signal.strength,
-            confidencePct: orchResult.confidence,
-          });
-          emitTrace(this.ctx, 'DECISION_SKIP', {
-            traceId,
-            symbol,
-            reason: blockReason,
-            source: 'TPO',
-            overrideAction: tpoResult.signal.action || null,
-            overrideStrength: tpoResult.signal.strength,
-            finalDirection: null,
-            confidencePct: orchResult.confidence,
-            minConfidencePct: minConfidence * 100,
-          });
-          this._writeDecisionAutopsy({
-            traceId,
-            symbol,
-            price,
-            priceHistory,
-            marketData,
-            indicators,
-            patterns,
-            regime,
-            orchResult,
-            decision: { action: 'HOLD', confidence: orchResult.confidence, blockReason },
-            finalDirection: null,
-            minConfidence,
-            activeTrades: stateManager.getTradesBySymbol(symbol),
-            maxPositions: ConfigLoader.get('positionSizing.maxPositions'),
-            directionFilter,
-            skipReason: blockReason,
-            source: 'tpo_override',
-          });
-          this._broadcastAndReturn(symbol, price, indicators, patterns, regime, orchResult, confidenceData, marketData);
-          return;
-        }
-        overrideSignal = tpoResult.signal;
-        signalSource = 'TPO';
-        finalDirection = 'buy';
-      }
-    }
+    // Direction and sizing belong to the same orchestrator entry plan.
+    const finalDirection = tradingDirection;
 
     const directionGate = this._directionGateStatus(finalDirection, directionFilter);
     if (!directionGate.allowed) {
@@ -1832,19 +1778,6 @@ class TradingLoop {
         : null,
     });
 
-    // ─── ATTACH OVERRIDE LEVELS ───
-    if (overrideSignal && decision.action !== 'HOLD') {
-      decision.signalSource = signalSource;
-      decision.overrideSignal = overrideSignal;
-      if (overrideSignal.levels) {
-        decision.suggestedStopLoss = overrideSignal.levels.stopLoss || overrideSignal.stop;
-        decision.suggestedTakeProfit = overrideSignal.levels.takeProfit || overrideSignal.target1;
-      } else if (overrideSignal.stop && overrideSignal.target1) {
-        decision.suggestedStopLoss = overrideSignal.stop;
-        decision.suggestedTakeProfit = overrideSignal.target1;
-      }
-    }
-
     // ─── STORE STATE ───
     this.ctx.lastConfidence = confidenceData.totalConfidence;
     this.ctx.lastDirection = finalDirection;
@@ -1922,20 +1855,12 @@ class TradingLoop {
             competingStrategies: allResults.map((result, index) => this._ledgerCompetingStrategy(result, index, winnerName, winnerIndex)),
             filteredStrategies: filteredResults.map((result, index) => this._ledgerFilteredStrategy(result, index)),
           },
-          confluence: orchResult.confluence ? {
-            // HIGH-17: ledger honesty for confluence count. Zero strategies
-            // agreeing IS meaningful info; `|| 1` lied it as one. Use `??`
-            // mirroring CRIT-07-followup semantics for sizingMultiplier.
-            count: orchResult.confluence.count ?? 1,
-            agreeingStrategies: orchResult.confluence.strategies || [],
-            // CRIT-07-followup: mirror OrderExecutor's `??` semantics on the
-            // ledger side. With `||` an actual sizingMultiplier of 0 would
-            // be silently logged as 1.0 — diverging from the (correctly
-            // CRIT-07-preserved) zero used by the actual sizing math at
-            // OrderExecutor.js:274 (BUY) and :428 (SHORT).
-            sizingMultiplier: orchResult.sizingMultiplier ?? 1.0,
-            reason: `${orchResult.confluence.count ?? 1} strategies agree on ${orchResult.direction}`,
-          } : { count: 1, sizingMultiplier: 1.0 },
+          confluence: {
+            count: orchResult.confluence.count,
+            agreeingStrategies: orchResult.confluence.strategies,
+            sizingMultiplier: orchResult.sizingMultiplier,
+            reason: `${orchResult.confluence.count} strategies agree on ${orchResult.direction}`,
+          },
           exitContract: orchResult.exitContract || null,
           // L5: risk gates checked before entry
           riskGates,
@@ -1969,7 +1894,7 @@ class TradingLoop {
               exitContract: entry.exitContract || decision.ledgerData.exitContract,
               confluence: {
                 ...(decision.ledgerData.confluence || {}),
-                sizingMultiplier: entry.sizingMultiplier ?? decision.ledgerData.confluence?.sizingMultiplier ?? 1.0,
+                sizingMultiplier: entry.sizingMultiplier,
               },
             } : null,
           };

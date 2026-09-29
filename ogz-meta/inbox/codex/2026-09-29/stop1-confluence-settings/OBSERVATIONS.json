@@ -1,0 +1,14 @@
+{
+  "tree": "bda5ffac7e06c47538a955852b27d9361d634bf9",
+  "baseline": "954d57d13403cbfb22c4023ec70b5e0c107943e2",
+  "scope": "Hot confluence sizing with one owner through the entry plan and ledger; malformed external sizing input quarantined before strategy routing and repaired via existing settings handler.",
+  "normal": "observe.cjs candidate passed: five settings saves, nine actual order plans, invalid values rejected, retained instance and cold reload match.",
+  "producers": "observe.cjs candidate --producer-paths passed: six invalid map edits rejected; all four leaf saves complete; immutable snapshot; constructor map ignored; disk edits after boot not published.",
+  "boundary": "observe.cjs candidate --missing-key passed: missing multiplier named; no strategy evaluation; HOLD has null sizing; trace notification formatter priority max; actual TradingLoop plus ExitContractManager routes existing stop to stub execution; raw TPO cannot fabricate entry; explicit settings repair resumes same instance.",
+  "limits": "Synthetic market data, stored position, strategy signals and execution boundary. No broker order, live process, browser UI, actual notification delivery, or complete arbitrary-file corruption claim.",
+  "receipts": [
+    "private/candidate-eUVKFv/receipt.json",
+    "private/candidate-OWJwa8/producer-paths.json",
+    "private/candidate-RAJJpC/missing-key.json"
+  ]
+}

@@ -1,0 +1,116 @@
+{
+  "date": "2026-09-29",
+  "scope": "Working-tree routing evidence only; candidate source proof uses pinned Git tree and fixtures.",
+  "source": "serena_tree_sitter_property_refs",
+  "parser": "tree-sitter-javascript",
+  "total": 9,
+  "filesScanned": 390,
+  "truncated": false,
+  "errors": [
+    {
+      "file": "ogz-meta/ogz-run.js",
+      "error": "tree-sitter parse incomplete; Babel parse failed: 'return' outside of function. (198:2)"
+    }
+  ],
+  "references": [
+    {
+      "file": "core/OrderExecutor.js",
+      "line": 2387,
+      "column": 29,
+      "property": "sizingMultiplier",
+      "receiver": "orchResult",
+      "receiverPath": "orchResult",
+      "op": "read",
+      "context": "sizingMultiplier = orchResult.sizingMultiplier",
+      "enclosing": "_buildEntryPlan"
+    },
+    {
+      "file": "core/OrderExecutor.js",
+      "line": 3963,
+      "column": 35,
+      "property": "sizingMultiplier",
+      "receiver": "entryPlan",
+      "receiverPath": "entryPlan",
+      "op": "read",
+      "context": "sizingMultiplier = entryPlan.sizingMultiplier",
+      "enclosing": "_executeTrade"
+    },
+    {
+      "file": "core/OrderExecutor.js",
+      "line": 4233,
+      "column": 35,
+      "property": "sizingMultiplier",
+      "receiver": "entryPlan",
+      "receiverPath": "entryPlan",
+      "op": "read",
+      "context": "sizingMultiplier = entryPlan.sizingMultiplier",
+      "enclosing": "_executeTrade"
+    },
+    {
+      "file": "core/StrategyOrchestrator.js",
+      "line": 2969,
+      "column": 38,
+      "property": "sizingMultiplier",
+      "receiver": "entry",
+      "receiverPath": "entry",
+      "op": "read",
+      "context": "entrySizingMultiplier = entry.sizingMultiplier",
+      "enclosing": "<arrow_function>"
+    },
+    {
+      "file": "core/TradingLoop.js",
+      "line": 1873,
+      "column": 30,
+      "property": "sizingMultiplier",
+      "receiver": "orchResult",
+      "receiverPath": "orchResult",
+      "op": "read",
+      "context": "sizingMultiplier: orchResult.sizingMultiplier",
+      "enclosing": "_analyze"
+    },
+    {
+      "file": "core/TradingLoop.js",
+      "line": 1892,
+      "column": 38,
+      "property": "sizingMultiplier",
+      "receiver": "entry",
+      "receiverPath": "entry",
+      "op": "read",
+      "context": "fanoutSizingMultiplier: entry.sizingMultiplier",
+      "enclosing": "<arrow_function>"
+    },
+    {
+      "file": "core/TradingLoop.js",
+      "line": 1909,
+      "column": 34,
+      "property": "sizingMultiplier",
+      "receiver": "entry",
+      "receiverPath": "entry",
+      "op": "read",
+      "context": "sizingMultiplier: entry.sizingMultiplier",
+      "enclosing": "<arrow_function>"
+    },
+    {
+      "file": "core/TradingLoop.js",
+      "line": 2314,
+      "column": 28,
+      "property": "sizingMultiplier",
+      "receiver": "orchResult",
+      "receiverPath": "orchResult",
+      "op": "read",
+      "context": "sizingMultiplier: orchResult.sizingMultiplier",
+      "enclosing": "_broadcastDecision"
+    },
+    {
+      "file": "pine-transpiler/core/PineStrategyBridge.js",
+      "line": 135,
+      "column": 6,
+      "property": "sizingMultiplier",
+      "receiver": "signal",
+      "receiverPath": "signal",
+      "op": "write",
+      "context": "signal.sizingMultiplier = qty",
+      "enclosing": "flushSignal"
+    }
+  ]
+}

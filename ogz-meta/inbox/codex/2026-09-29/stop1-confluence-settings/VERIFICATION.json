@@ -1,0 +1,193 @@
+{
+  "date": "2026-09-29",
+  "baseline": "954d57d13403cbfb22c4023ec70b5e0c107943e2",
+  "productionTree": "bda5ffac7e06c47538a955852b27d9361d634bf9",
+  "sourceHashes": {
+    "core/AtomicWrite.js": "3d451213bba7b3680b7560e1d8c60e36650a595c7970a116a926f5d96390a924",
+    "core/StrategyOrchestrator.js": "895216099be64448a65e3863aa8ddb30bbfcfb529a53990e47ca16b0ac4cc00f",
+    "core/ExitContractManager.js": "691cd0bfbe0d7be82b0079591154172996b199addd033d4e03e11ed34dd84d32",
+    "core/dto/ExitContractOwnership.js": "5574b18d725b7ce0c544ccc47e39d1bd33d84cd82b6e402808a137b55ba0e3aa",
+    "core/IndicatorCalculator.js": "941138f5831a0bd08dd3924b7c461c49abf6a24550b417502b380df77acdd323",
+    "core/CandleHelper.js": "33195306d283e2d0e23868849c87953ee5a6cecbbb74d1cb8c619af16701e5f3",
+    "core/PolicyBuilder.js": "021965a21f84af16214215cb96beb1f9484c99935a0b9046003094e29c5607d5",
+    "core/dto/FrozenExitPolicy.js": "76300ec0b959d5964fa14a49cefbf9614718a35b723e22e7062bb8fe84f359f4",
+    "core/ProfitExitPlanner.js": "d841df70f04b5701d7e08e05dce0791532bc42191cd42d37a82bdb90a45525ca",
+    "core/TraceSpine.js": "6aff25395a4469238ab202115aa53ad3b46b95c17c4b2de4ceac644aae4927d1",
+    "core/exit/StopLossChecker.js": "33c6f09aee1f874d3758ab2e46e7e1e8cca7b6b8df8481e20c9d661b43d64fc8",
+    "core/exit/BreakEvenManager.js": "dae3bc5dd49b85914005befaa6103e96d3214b77c5a9bcfbce787894fa8c7f42",
+    "core/FeeModel.js": "1cfc40f1d61f553ed48abc66aff05e563d4357a729080dfd7969ff0a1cacd74a",
+    "core/exit/TakeProfitChecker.js": "041cf71d8903ed31dd5ed09e43a6143e3b32de6c218019841c43fc8f75029e31",
+    "core/exit/MaxHoldChecker.js": "84aeefd5e9243466168ce63101617a9bb427c05d15fa8ca46d0fce37e337797b",
+    "core/TradeNarrator.js": "47b14c6a487eb8c78cdf8f1cad0764f7fe46fd248ca916f8c21cd6dae423cae0",
+    "core/PatternMaturity.js": "4900b8a6e23206d305a5a9767d8d05ed5c15e283236f7c59f527057bd72ab878",
+    "core/MAExtensionFilter.js": "a4244d38b06c494d0a9d2a5a628991f76514469b934ef6dd1ba4e84452c7654a",
+    "modules/OpeningRangeBreakout.js": "23bdff8ae88bbf6d8318b25dfa293b19dba67e5cbd6533b43d725ae894476d1d",
+    "modules/FairValueGapDetector.js": "5326ef459101d0c686f00f1d8e75c1ccda84c7f3a84c79cc9fd337e2d4915c77",
+    "modules/BreakAndRetest.js": "78c714a3f88de2893195df2923644c37da6c340327aeaa044d0ae017e80f3883",
+    "modules/EMASMACrossoverSignal.js": "dfd5d3a537de2c182d945c3f6c869e869fef7874007d860ceed776b809a79a0b",
+    "modules/MADynamicSR.js": "0233da4a45e6d05524bd55f02f973ee4bbd68cc88fd8ef4bc2ac58a172ace69f",
+    "modules/LiquiditySweepDetector.js": "d3849cb5f4cf96f3ae90edc092e326ddc38757ecf42bf769ff6bc9e31d27bee1",
+    "modules/MultiTimeframeAdapter.js": "68c2cc408ad77584293801ed34054cbbd081bfdec1a4cda5d71cb4ed5594c042",
+    "core/OgzTpoIntegration.js": "7c2f3bd5d22deb58fc9420f549eaf038f270c1849f8b48d62d00170c3a3b5a09",
+    "core/FeatureFlagManager.js": "5766c4c53ede6231f54942698905f1ee032d40229ce82257bd137037e2216fc6",
+    "src/indicators/ogzTwoPoleOscillator.js": "6727c367025d4ba63587e322128d88fa03c48dec9659df6af13a3acd892c4389",
+    "core/indicators/TwoPoleOscillator.js": "7de87122f39ad9aab9025c129b755da4bada1315c107ccf904e8109e13cc232e",
+    "modules/SmartMoneySweep.js": "8e1d60fb762185546431f387ec2670630234f11f3e389688b06b0acb7d341f33",
+    "modules/DonchianBreakout.js": "f469637bbe0a9ab4f7ebcb4c37ca43284e2504dc182c3f0ab9702a4346ec7f95",
+    "modules/PropSafeEMAPullback.js": "a112cf4acf9ebb8d039c54097cfd4f9d566a670d09ab9e00c224e66161036a93",
+    "modules/EMATrendRetest.js": "db8c7a653daa16e39d186e783b88b8106ec7d080c0f98cf4248b3d36e380beea",
+    "modules/RSI2MeanReversion.js": "9f6296481016959c7b7f29b7b01fe87aa6637aa9ff24707b0cb8446cc56ef6db",
+    "modules/TimeSeriesMomentum.js": "f0fb8a5782dd4afa7d3d261561737f04ab76940c73606ee89cf396f8c2a282fd",
+    "brokers/BrokerRegistry.js": "2533590a406e3cc1572e4dc7734e9d1502a5c23bdaa658ad326e1e74ff5d5da2",
+    "core/PositionEffect.js": "70a5a4df27ccfd8972ab6bbfa954776abc64839ba1e80e8f061bca704f35e0b0",
+    "modules/NoWickImbalance.js": "eb1b361492ec979fffcb95eaeeb332014fe9067cabed0ec288dc5ab00cd17096"
+  },
+  "receiptHashes": {
+    "private/candidate-eUVKFv/receipt.json": "59f26557408af4bd2148f3fa0e8919a5de2d65b9eaf1d333392846e4c1d0e627",
+    "private/candidate-OWJwa8/producer-paths.json": "a2a51e80c3b80ddaaeb21b9274c2b7013f236af3d72d80729ae81fa64569e269",
+    "private/candidate-8B6KJS/missing-key.json": "a3c9961efff890720ac14f4971d01e995cb7eafd105c42346d70f7f52aeb8b10",
+    "private/candidate-Lae0hq/missing-key.json": "4e02956aa28b8cc93f9ee88cf9f54215b6f2784d6b699b81f9a4b1df1964fff0",
+    "private/candidate-j7TfYV/fanout.json": "2df49a0ef9e7b59e03aef062ea3e7e9d721bf3463d4babdd4e768746aae9b179",
+    "private/tpo-tests-final.log": "7ec3a5205bb6b0a2c998f35e67a27885a147f450f36944ceb506c750237115d6",
+    "private/sizing-ast.json": "52fbda83725a2a30575580a5e6c46fd842a53a2ed97d5e13ed8804a51273cd3a"
+  },
+  "normal": {
+    "passed": true,
+    "saves": [
+      {
+        "applied": true
+      },
+      {
+        "applied": true
+      },
+      {
+        "applied": true
+      },
+      {
+        "applied": true
+      },
+      {
+        "applied": true
+      },
+      {
+        "applied": false,
+        "reason": "invalid_setting_value"
+      },
+      {
+        "applied": false,
+        "reason": "invalid_setting_value"
+      },
+      {
+        "applied": false,
+        "reason": "invalid_setting_value"
+      },
+      {
+        "applied": false,
+        "reason": "invalid_setting_value"
+      }
+    ],
+    "plans": [
+      {
+        "multiplier": 1.25,
+        "dollars": 125,
+        "quantity": 1.25
+      },
+      {
+        "multiplier": 2.25,
+        "dollars": 225,
+        "quantity": 2.25
+      },
+      {
+        "multiplier": 3.25,
+        "dollars": 325,
+        "quantity": 3.25
+      },
+      {
+        "multiplier": 4.25,
+        "dollars": 425,
+        "quantity": 4.25
+      },
+      {
+        "multiplier": 4.25,
+        "dollars": 425,
+        "quantity": 4.25
+      },
+      {
+        "multiplier": 1.5,
+        "dollars": 150,
+        "quantity": 1.5
+      },
+      {
+        "multiplier": 2.5,
+        "dollars": 250,
+        "quantity": 2.5
+      },
+      {
+        "multiplier": 3.5,
+        "dollars": 350,
+        "quantity": 3.5
+      },
+      {
+        "multiplier": 4.5,
+        "dollars": 450,
+        "quantity": 4.5
+      }
+    ]
+  },
+  "producer": {
+    "passed": true,
+    "rejectedRequests": 6
+  },
+  "boundary": {
+    "missingLeaf": true,
+    "nullMap": true,
+    "strategyCallbacks": 0,
+    "holdSizing": null,
+    "stopExitReachedStub": true,
+    "notificationFormatterPriority": "max",
+    "repairOnSameInstance": true
+  },
+  "fanout": {
+    "passed": true,
+    "multipliers": [
+      0.7,
+      0.7
+    ],
+    "plans": [
+      {
+        "multiplier": 1,
+        "dollars": 100,
+        "quantity": 1
+      },
+      {
+        "multiplier": 0.7,
+        "dollars": 70,
+        "quantity": 0.7
+      },
+      {
+        "multiplier": 0.7,
+        "dollars": 70,
+        "quantity": 0.7
+      }
+    ]
+  },
+  "jest": {
+    "suites": 2,
+    "passed": 21,
+    "failed": 0,
+    "source": "working tree"
+  },
+  "ast": {
+    "source": "serena_tree_sitter_property_refs",
+    "filesScanned": 390,
+    "total": 9,
+    "truncated": false,
+    "errors": [
+      {
+        "file": "ogz-meta/ogz-run.js",
+        "error": "tree-sitter parse incomplete; Babel parse failed: 'return' outside of function. (198:2)"
+      }
+    ]
+  },
+  "limits": "Synthetic data/signals and execution boundary; exact index fixture modules; no broker or PM2, no browser or delivered ntfy claim; review pending."
+}

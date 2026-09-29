@@ -827,8 +827,6 @@ class StrategyOrchestrator {
     // Minimum confluence signals to allow entry (default: 1 = winner alone is enough)
     this.minConfluenceCount = config.minConfluenceCount ?? ConfigLoader.get('orchestrator.minConfluenceCount');
 
-    // Position sizing multipliers based on how many strategies agree
-    this.confluenceSizing = config.confluenceSizing ?? ConfigLoader.get('positionSizing.confluenceMultipliers');
     this.mtfBaseTimeframe = typeof config.mtfBaseTimeframe === 'string' && config.mtfBaseTimeframe.trim()
       ? config.mtfBaseTimeframe.trim()
       : null;
@@ -1220,6 +1218,7 @@ class StrategyOrchestrator {
     error = null,
     ctx = null,
     timeframe = null,
+    configurationIssues = null,
   }) {
     const message = error ? errorMessage(error) : null;
     const record = {
@@ -1232,6 +1231,7 @@ class StrategyOrchestrator {
       symbol: ctx?.extras?.symbol || ctx?.symbol || null,
       timeframe: timeframe || ctx?.extras?.timeframe || null,
       evalCount: this.evalCount,
+      ...(configurationIssues ? { configurationIssues, manualReconciliationRequired: true } : {}),
     };
     const sink = Array.isArray(this.currentEvaluationUnavailableStrategies)
       ? this.currentEvaluationUnavailableStrategies
@@ -2271,9 +2271,19 @@ class StrategyOrchestrator {
   evaluate(indicators, patterns = [], regime = null, priceHistory = [], extras = {}) {
     this.evalCount++;
 
+    const entrySizingInput = ConfigLoader.getEntrySizingInput();
     const ctx = { indicators, patterns, regime, priceHistory, extras };
     const unavailableStrategies = [];
     this.currentEvaluationUnavailableStrategies = unavailableStrategies;
+    if (entrySizingInput.issues.length > 0) {
+      this._recordStrategyUnavailable({
+        strategyName: 'EntrySizing',
+        source: 'config/settings.json',
+        reason: entrySizingInput.issues.map(issue => `${issue.path}:${issue.reason}`).join(', '),
+        configurationIssues: entrySizingInput.issues,
+        ctx,
+      });
+    }
     this._recordLatestCandleTimeframeAbsence(ctx);
 
     // Narrator: pattern-spotted event. narrator is the module-cached
@@ -2307,7 +2317,10 @@ class StrategyOrchestrator {
     const noSignalStrategies = [];
     const thrownStrategies = [];
     const contractConfidenceDropped = [];
-    for (const strategy of this.strategies) {
+    // Quarantine malformed external entry configuration before routing strategies.
+    // Existing positions retain their own exit contracts and exit processing.
+    const entryStrategies = entrySizingInput.multipliers === null ? [] : this.strategies;
+    for (const strategy of entryStrategies) {
       // DISABLED 2026-03-09: VP chop filter removed — strategies handle own filtering
       // if (skipTrendStrategies && TREND_STRATEGIES.includes(strategy.name)) {
       //   continue;
@@ -2820,7 +2833,7 @@ class StrategyOrchestrator {
         confidence: 0,
         winnerStrategy: null,
         exitContract: null,
-        sizingMultiplier: 1.0,
+        sizingMultiplier: null,
         confluence: { count: 0, strategies: [] },
         mtfConfluenceSnapshot,
         allResults: publicResults,
@@ -2855,7 +2868,7 @@ class StrategyOrchestrator {
         confidence: publicWinnerConfidence * 100,
         winnerStrategy: winner.strategyName,
         exitContract: null,
-        sizingMultiplier: 1.0,
+        sizingMultiplier: null,
         confluence: { count: confluenceCount, strategies: agreeing.map(r => r.strategyName) },
         mtfConfluenceSnapshot,
         allResults: publicResults,
@@ -2867,7 +2880,8 @@ class StrategyOrchestrator {
 
     // ─── Step 6: Position sizing multiplier from confluence × regime ───
     const cappedCount = Math.min(confluenceCount, 4);
-    const rawSizingMultiplier = this.confluenceSizing[cappedCount] ?? this.confluenceSizing[4];
+    const confluenceSizing = entrySizingInput.multipliers;
+    const rawSizingMultiplier = confluenceSizing[cappedCount];
     const sizingMultiplier = rawSizingMultiplier * regimePositionMultiplier;
 
     // ─── Step 7: Create exit contract from winning strategy ───
@@ -2942,9 +2956,7 @@ class StrategyOrchestrator {
     );
     const outputEntryFanout = Array.isArray(winner.entryFanout) && winner.entryFanout.length > 0
       ? winner.entryFanout.map((entry, index) => {
-        const entrySizingMultiplier = Number.isFinite(Number(entry.sizingMultiplier)) && Number(entry.sizingMultiplier) > 0
-          ? Number(entry.sizingMultiplier)
-          : 1.0;
+        const entrySizingMultiplier = entry.sizingMultiplier;
         const entryExitContract = ecm.createExitContract(
           winner.strategyName,
           { ...(entry.structuralExitOverrides || {}), confidence: publicWinnerConfidence },

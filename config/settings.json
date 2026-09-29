@@ -2235,7 +2235,6 @@
       "lastSignalTtlBars": 0,
       "confluenceBonusStrength": 0.1,
       "strengthConfidenceMultiplier": 10,
-      "tradingLoopOverrideMinStrength": 0.03,
       "dynamicLevelMultipliers": {
         "conservative": 2,
         "standard": 1.5,

@@ -2379,7 +2379,7 @@ class OrderExecutor {
     if (!this._isEntryAction(decision.action)) return null;
 
     const entryStrategy = orchResult.winnerStrategy;
-    const sizingMultiplier = orchResult?.sizingMultiplier ?? 1.0;
+    const sizingMultiplier = orchResult.sizingMultiplier;
     const exitContract = orchResult.exitContract;
     assertExplicitExitOwnership(exitContract, 'OrderExecutor._buildEntryPlan');
     const frozenExitPolicy = PolicyBuilder.buildForTrade({

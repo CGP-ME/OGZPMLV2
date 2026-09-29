@@ -1,6 +1,6 @@
 'use strict';
 
-const tradingConfig = require('../config/trading.config.json');
+const tradingConfig = require('../foundation/ConfigLoader').load({ silent: true }).config;
 const OgzTpoIntegration = require('../core/OgzTpoIntegration');
 
 function cloneOgzTpoConfig(overrides = {}) {
@@ -27,7 +27,6 @@ describe('OgzTpoIntegration restored filters and config ownership', () => {
       voteWeight: 0.42,
       lastSignalTtlBars: 2,
       strengthConfidenceMultiplier: 8,
-      tradingLoopOverrideMinStrength: 0.07,
       dynamicLevelMultipliers: {
         conservative: 2.5,
         standard: 1.75,
@@ -39,7 +38,6 @@ describe('OgzTpoIntegration restored filters and config ownership', () => {
     expect(strategy.config.voteWeight).toBe(0.42);
     expect(strategy.config.lastSignalTtlBars).toBe(2);
     expect(strategy.config.strengthConfidenceMultiplier).toBe(8);
-    expect(strategy.config.tradingLoopOverrideMinStrength).toBe(0.07);
     expect(strategy._dynamicLevelMultiplier()).toBe(1.25);
   });
 

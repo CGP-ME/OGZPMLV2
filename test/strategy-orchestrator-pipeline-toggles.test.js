@@ -77,7 +77,7 @@ describe('StrategyOrchestrator pipeline toggles', () => {
       expect(pipeline.enableCandlePattern).toBe(true);
 
       const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
-      const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
+      const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1, mtfBaseTimeframe: '15m' });
       expect(orchestrator.strategies.map((s) => s.name)).toContain('CandlePattern');
     } finally {
       process.env = originalEnv;
@@ -105,7 +105,7 @@ describe('StrategyOrchestrator pipeline toggles', () => {
       });
 
       const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
-      expect(() => new StrategyOrchestrator({ minConfluenceCount: 1 }))
+      expect(() => new StrategyOrchestrator({ minConfluenceCount: 1, mtfBaseTimeframe: '15m' }))
         .toThrow(/CandlePattern pipeline toggle must be boolean/);
     } finally {
       process.env = originalEnv;
@@ -164,7 +164,7 @@ describe('StrategyOrchestrator pipeline toggles', () => {
         .toEqual(expectedPipeline);
 
       const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
-      const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
+      const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1, mtfBaseTimeframe: '15m' });
       expect(orchestrator.strategies.map((s) => s.name)).toEqual(expectedStrategies);
       expect(orchestrator.strategies.map((s) => s.name)).not.toContain('MultiTimeframe');
       expect(orchestrator.noWickModule.cfg).toEqual(
@@ -187,7 +187,6 @@ describe('StrategyOrchestrator pipeline toggles', () => {
           lastSignalTtlBars: tpoConfig.lastSignalTtlBars,
           confluenceBonusStrength: tpoConfig.confluenceBonusStrength,
           strengthConfidenceMultiplier: tpoConfig.strengthConfidenceMultiplier,
-          tradingLoopOverrideMinStrength: tpoConfig.tradingLoopOverrideMinStrength,
           dynamicLevelMultipliers: tpoConfig.dynamicLevelMultipliers,
           modes: tpoConfig.modes,
         })
@@ -208,7 +207,7 @@ describe('StrategyOrchestrator pipeline toggles', () => {
 
     try {
       const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
-      const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
+      const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1, mtfBaseTimeframe: '15m' });
       const ogzTpo = orchestrator.strategies.find((strategy) => strategy.name === 'OGZTPO');
       expect(ogzTpo).toBeDefined();
       jest.spyOn(orchestrator, '_getSymbolStrategyModule').mockReturnValue({
@@ -245,7 +244,7 @@ describe('StrategyOrchestrator pipeline toggles', () => {
 
     try {
       const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
-      const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
+      const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1, mtfBaseTimeframe: '15m' });
       const ogzTpo = orchestrator.strategies.find((strategy) => strategy.name === 'OGZTPO');
       expect(ogzTpo).toBeDefined();
       const update = jest.fn(() => ({ enabled: true, ready: true, signal: null }));
@@ -294,9 +293,10 @@ describe('StrategyOrchestrator pipeline toggles', () => {
   });
 
   test('wake roster strategies have explicit config and exit contract ownership', () => {
-    const tradingConfig = require('../config/trading.config.json');
+    const tradingConfig = require('../foundation/ConfigLoader').load({ silent: true }).config;
     for (const strategy of WAKE_STRATEGIES) {
-      expect(tradingConfig.strategies[strategy]).toEqual(expect.objectContaining({ enabled: true }));
+      expect(tradingConfig.strategies[strategy]).toEqual(expect.any(Object));
+      expect(tradingConfig.pipeline[`enable${strategy}`]).toBe(true);
       expect(tradingConfig.exitContracts[strategy]).toEqual(expect.objectContaining({
         invalidationConditions: expect.any(Array),
       }));
