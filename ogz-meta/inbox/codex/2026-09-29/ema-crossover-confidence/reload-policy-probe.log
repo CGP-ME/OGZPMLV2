@@ -1,0 +1,23 @@
+[EMASMACrossover][CONFIG] {"module":"EMASMACrossover","entryEventsOnly":false,"confirmBars":0,"warmupBars":10,"baseConfidence":0.4,"confluenceWeight":0.4,"freshCrossoverBonusPerCross":0.05,"freshCrossoverBonusMax":0.15,"maxConfidence":1,"velocityWindowBars":5,"velocityScale":0.12,"elasticityBandAtr":[0.5,2.5],"decayBars":10,"decayMinMultiplier":0.6}
+[ConfigLoader] Forced reload rejected: strategies.EMASMACrossover.maxConfidence: ema_crossover_max_confidence_below_base
+[ConfigLoader] Forced reload rejected: strategies.EMASMACrossover.baseConfidence: invalid_ema_crossover_confidence
+[ConfigLoader] Forced reload rejected: strategies.EMASMACrossover.baseConfidence: invalid_ema_crossover_confidence
+[ConfigLoader] Forced reload rejected: strategies.EMASMACrossover.baseConfidence: invalid_ema_crossover_confidence
+[ConfigLoader] Forced reload rejected: strategies.EMASMACrossover.baseConfidence: invalid_ema_crossover_confidence
+[ConfigLoader] Forced reload rejected: strategies.EMASMACrossover.confluenceWeight: invalid_ema_crossover_confidence
+[ConfigLoader] Forced reload rejected: strategies.EMASMACrossover.confluenceWeight: invalid_ema_crossover_confidence
+[ConfigLoader] Forced reload rejected: strategies.EMASMACrossover.confluenceWeight: invalid_ema_crossover_confidence
+[ConfigLoader] Forced reload rejected: strategies.EMASMACrossover.confluenceWeight: invalid_ema_crossover_confidence
+[ConfigLoader] Forced reload rejected: strategies.EMASMACrossover.freshCrossoverBonusPerCross: invalid_ema_crossover_confidence
+[ConfigLoader] Forced reload rejected: strategies.EMASMACrossover.freshCrossoverBonusPerCross: invalid_ema_crossover_confidence
+[ConfigLoader] Forced reload rejected: strategies.EMASMACrossover.freshCrossoverBonusPerCross: invalid_ema_crossover_confidence
+[ConfigLoader] Forced reload rejected: strategies.EMASMACrossover.freshCrossoverBonusPerCross: invalid_ema_crossover_confidence
+[ConfigLoader] Forced reload rejected: strategies.EMASMACrossover.freshCrossoverBonusMax: invalid_ema_crossover_confidence
+[ConfigLoader] Forced reload rejected: strategies.EMASMACrossover.freshCrossoverBonusMax: invalid_ema_crossover_confidence
+[ConfigLoader] Forced reload rejected: strategies.EMASMACrossover.freshCrossoverBonusMax: invalid_ema_crossover_confidence
+[ConfigLoader] Forced reload rejected: strategies.EMASMACrossover.freshCrossoverBonusMax: invalid_ema_crossover_confidence
+[ConfigLoader] Forced reload rejected: strategies.EMASMACrossover.maxConfidence: invalid_ema_crossover_confidence
+[ConfigLoader] Forced reload rejected: strategies.EMASMACrossover.maxConfidence: invalid_ema_crossover_confidence
+[ConfigLoader] Forced reload rejected: strategies.EMASMACrossover.maxConfidence: invalid_ema_crossover_confidence
+[ConfigLoader] Forced reload rejected: strategies.EMASMACrossover.maxConfidence: invalid_ema_crossover_confidence
+{"numericStringCompatibility":true,"saveWithUnchangedNumericString":true,"forcedReloadIsFixtureOnlyNoIdentifiedProductionCaller":true,"forcedReloadExplicitRejection":true,"preservedGlobalIdentities":11,"invalidLeavesChecked":20,"publicCanonicalReadersUnchanged":true,"receiptAndRoleUnchanged":true,"noNewInitialLoadRejection":true,"laterSaveWorksAfterExternalFileRestored":true,"validReloadUnchanged":true}

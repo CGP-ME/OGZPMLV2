@@ -1,3 +1,7 @@
+## 2026-09-29 — EMA crossover confidence settings
+
+Connect five existing confidence controls to retained EMA crossover detectors across all production owners. Preserve numeric coercion and detector state; reject invalid forced replacements explicitly before publication while retaining the current settings, per Trey ruling. Forced replacement cannot change the existing process role. Evidence: ogz-meta/inbox/codex/2026-09-29/ema-crossover-confidence/. No runtime activation.
+
 ## 2026-09-29 — RSI confidence settings connection
 
 Expose four existing RSI confidence controls through the settings schema. Saved values reach the retained RSI evaluator on its next evaluation; existing bounds and configured values are unchanged. Recorded-candle save-to-consumer proof: ogz-meta/inbox/codex/2026-09-29/next-config-controls/. No runtime activation.

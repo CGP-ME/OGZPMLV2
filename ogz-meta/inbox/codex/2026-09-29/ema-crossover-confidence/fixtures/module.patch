@@ -1,0 +1,60 @@
+diff --git a/modules/EMASMACrossoverSignal.js b/modules/EMASMACrossoverSignal.js
+index f191905a..6cdd0edb 100644
+--- a/modules/EMASMACrossoverSignal.js
++++ b/modules/EMASMACrossoverSignal.js
+@@ -25,6 +25,11 @@
+ // FIX 2026-02-16: Use centralized candle helper for format compatibility
+ const { c } = require('../core/CandleHelper');
+ 
++const CONFIDENCE_KEYS = [
++  'baseConfidence', 'confluenceWeight', 'freshCrossoverBonusPerCross',
++  'freshCrossoverBonusMax', 'maxConfidence',
++];
++
+ const REQUIRED_NUMERIC_KEYS = [
+   'decayBars',
+   'decayMinMultiplier',
+@@ -130,7 +135,7 @@ function clamp(value, min, max) {
+ }
+ 
+ class EMASMACrossoverSignal {
+-  constructor(config) {
++  constructor(config, confidenceConfigProvider = null) {
+     // MA pair definitions — period pairs + type
+     this.pairs = [
+       { id: 'ema9_20',   fast: 9,   slow: 20,  type: 'ema', weight: 1.0 },
+@@ -141,6 +146,7 @@ class EMASMACrossoverSignal {
+     ];
+ 
+     this.cfg = readConfig(config);
++    this.confidenceConfigProvider = confidenceConfigProvider;
+     this.decayBars = this.cfg.decayBars;
+     this.entryEventsOnly = this.cfg.entryEventsOnly;
+     this.confirmBars = this.cfg.confirmBars;
+@@ -179,6 +185,9 @@ class EMASMACrossoverSignal {
+       warmupBars: this.warmupBars,
+       baseConfidence: this.cfg.baseConfidence,
+       confluenceWeight: this.cfg.confluenceWeight,
++      freshCrossoverBonusPerCross: this.cfg.freshCrossoverBonusPerCross,
++      freshCrossoverBonusMax: this.cfg.freshCrossoverBonusMax,
++      maxConfidence: this.cfg.maxConfidence,
+       velocityWindowBars: this.cfg.velocityWindowBars,
+       velocityScale: this.cfg.velocityScale,
+       elasticityBandAtr: [this.cfg.elasticityMinAtr, this.cfg.elasticityMaxAtr],
+@@ -198,6 +207,16 @@ class EMASMACrossoverSignal {
+    * @returns {Object} signal
+    */
+   update(candle, priceHistory) {
++    // Production callers supply the validated settings owner. Explicitly
++    // injected configurations stay fixed when no provider was supplied.
++    if (this.confidenceConfigProvider) {
++      const confidenceConfig = this.confidenceConfigProvider();
++      const confidence = Object.fromEntries(CONFIDENCE_KEYS.map(key => [key, Number(confidenceConfig[key])]));
++      if (CONFIDENCE_KEYS.some(key => this.cfg[key] !== confidence[key])) {
++        this.cfg = Object.freeze({ ...this.cfg, ...confidence });
++        this.configReceipt = Object.freeze({ ...this.configReceipt, ...confidence });
++      }
++    }
+     this.diagCounters.updates++;
+     if (!priceHistory || priceHistory.length < this.warmupBars) {
+       return this._emptySignal();

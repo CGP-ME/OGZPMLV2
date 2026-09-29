@@ -1,0 +1,20 @@
+{
+  "baseline": "6bcfad8a25f72cb9e1eb946e854695913b2133c4",
+  "patches": {
+    "module.patch": "ec5b0bb9acd927d0fb462ce6b55fb2b910a9bffe71b085054e09fd4a4fcd55ef",
+    "loader-final-head.patch": "c7c792c886d0c3f2029894e0499931e06f1d53c8babb8638854658a1b8088419",
+    "producers.patch": "ac889437a35b4730dff1a8b6f38ba35a9f534040c3dfadee1b54d11c0422782b",
+    "role-ownership.patch": "e7d02e488999849c9947e2f5fae23800dfd7eaf2404a97e117bd62931d4e5bba"
+  },
+  "candidate": {
+    "foundation/ConfigLoader.js": "a536ce81f68ea90a001409650655a5ac1cc55d5fa83cfabd397c33cc6779ac7e",
+    "core/AtomicWrite.js": "3d451213bba7b3680b7560e1d8c60e36650a595c7970a116a926f5d96390a924",
+    "core/CandleHelper.js": "33195306d283e2d0e23868849c87953ee5a6cecbbb74d1cb8c619af16701e5f3",
+    "config/settings.json": "6b53392d26c903f4b38821c5de84b71432f95c927ac58d7bb00abcc68e3b9b3d",
+    "config/internals.json": "c3bd62c64f2e5c2acbfdcf2f740ed1787ab8860026516d306e17cb382ade19d6",
+    "modules/EMASMACrossoverSignal.js": "523962bb11b1d0d7dec3fa7242a97f441f89168f61225b14a9335ea7e2aea040",
+    "run-empire-v2.js": "7c8510522feb0a4d574512accdb9733432aae0eced2edcbe1cb411cd79801830",
+    "core/SymbolTradingContext.js": "29360cd5cd1ffcfdb0c2c5956cff4f02c58eca8b075925e7cdc83095bcdc6625",
+    "core/StrategyOrchestrator.js": "7e27adc1a9b72a60ff737a0e6076d198c6f522694dd10df786c3a210ee96025a"
+  }
+}

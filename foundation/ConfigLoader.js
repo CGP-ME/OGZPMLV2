@@ -2409,6 +2409,27 @@ function snapshot(sourceEnv = process.env, opts = {}) {
   return buildSnapshot(sourceEnv, opts);
 }
 
+function emaConfidenceReplacementProblem(config) {
+  const cfg = config.strategies?.EMASMACrossover;
+  const confidence = {};
+  for (const key of ['baseConfidence', 'confluenceWeight', 'freshCrossoverBonusPerCross', 'freshCrossoverBonusMax', 'maxConfidence']) {
+    let value;
+    try {
+      value = Number(cfg?.[key]);
+    } catch (error) {
+      return { reason: 'invalid_ema_crossover_confidence', path: `strategies.EMASMACrossover.${key}` };
+    }
+    if (!Number.isFinite(value) || value < 0 || value > 1) {
+      return { reason: 'invalid_ema_crossover_confidence', path: `strategies.EMASMACrossover.${key}` };
+    }
+    confidence[key] = value;
+  }
+  if (confidence.maxConfidence < confidence.baseConfidence) {
+    return { reason: 'ema_crossover_max_confidence_below_base', path: 'strategies.EMASMACrossover.maxConfidence' };
+  }
+  return null;
+}
+
 function load(opts = {}) {
   const requestedRole = opts.role || 'bot';
   if (_cached && !opts.force) {
@@ -2418,7 +2439,28 @@ function load(opts = {}) {
     return _cached;
   }
 
-  _cached = buildSnapshot(process.env, opts);
+  if (_cached && opts.force && requestedRole !== _cachedRole) {
+    const reason = 'forced_reload_role_change_rejected';
+    console.error(`[ConfigLoader] Forced reload rejected: ${reason}: ${_cachedRole} -> ${requestedRole}`);
+    return { success: false, applied: false, reloaded: false, reason,
+      requestedRole, currentRole: _cachedRole, configuration: getReceipt() };
+  }
+
+  const previousSettings = settingsConfigFile;
+  const previousInternals = internalsConfigFile;
+  const candidate = buildSnapshot(process.env, opts);
+  if (_cached && opts.force && requestedRole === 'bot') {
+    const problem = emaConfidenceReplacementProblem(candidate.config);
+    if (problem) {
+      // buildSnapshot restores its temporary active contexts in finally. Restore
+      // its canonical-file reads too, keeping every reader on the prior owner.
+      settingsConfigFile = previousSettings;
+      internalsConfigFile = previousInternals;
+      console.error(`[ConfigLoader] Forced reload rejected: ${problem.path}: ${problem.reason}`);
+      return { success: false, applied: false, reloaded: false, ...problem, configuration: getReceipt() };
+    }
+  }
+  _cached = candidate;
   _cachedRole = requestedRole;
 
   return _cached;
@@ -2459,6 +2501,16 @@ function getReceipt() {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  ...Object.fromEntries([
+    ['baseConfidence', 'EMA crossover base confidence'],
+    ['confluenceWeight', 'EMA crossover confluence confidence weight'],
+    ['freshCrossoverBonusPerCross', 'EMA crossover bonus per fresh cross'],
+    ['freshCrossoverBonusMax', 'EMA crossover maximum fresh-cross bonus'],
+    ['maxConfidence', 'EMA crossover maximum confidence'],
+  ].map(([key, label]) => [`strategies.EMASMACrossover.${key}`, {
+    type: 'number', unit: 'fraction', min: 0, max: 1,
+    label, effect: 'next_strategy_evaluation',
+  }])),
   ...Object.fromEntries([1, 2, 3, 4].map(count => [
     `positionSizing.confluenceMultipliers.${count}`,
     {
@@ -2844,6 +2896,10 @@ function saveSettings(request) {
   if (entries.some(([key]) => key.startsWith('strategies.EMATrendRetest.'))
       && nextConfig.strategies.EMATrendRetest.maxExtensionAtr <= nextConfig.strategies.EMATrendRetest.closeAwayAtr) {
     return reject('ema_retest_extension_must_exceed_confirmation');
+  }
+  if (entries.some(([key]) => key.startsWith('strategies.EMASMACrossover.'))
+      && Number(nextConfig.strategies.EMASMACrossover.maxConfidence) < Number(nextConfig.strategies.EMASMACrossover.baseConfidence)) {
+    return reject('ema_crossover_max_confidence_below_base', { path: 'strategies.EMASMACrossover.maxConfidence' });
   }
   const nextEntrySizing = buildEntrySizingInput(nextConfig);
   if (nextEntrySizing.issues.length > 0) {

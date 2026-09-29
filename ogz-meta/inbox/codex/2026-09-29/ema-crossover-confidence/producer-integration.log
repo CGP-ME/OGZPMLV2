@@ -1,0 +1,39 @@
+[EMASMACrossover][CONFIG] {"module":"EMASMACrossover","entryEventsOnly":false,"confirmBars":0,"warmupBars":10,"baseConfidence":0.4,"confluenceWeight":0.4,"freshCrossoverBonusPerCross":0.05,"freshCrossoverBonusMax":0.15,"maxConfidence":1,"velocityWindowBars":5,"velocityScale":0.12,"elasticityBandAtr":[0.5,2.5],"decayBars":10,"decayMinMultiplier":0.6}
+[EMASMACrossover][CONFIG] {"module":"EMASMACrossover","entryEventsOnly":false,"confirmBars":0,"warmupBars":10,"baseConfidence":0.4,"confluenceWeight":0.4,"freshCrossoverBonusPerCross":0.05,"freshCrossoverBonusMax":0.15,"maxConfidence":1,"velocityWindowBars":5,"velocityScale":0.12,"elasticityBandAtr":[0.5,2.5],"decayBars":10,"decayMinMultiplier":0.6}
+[EMASMACrossover][CONFIG] {"module":"EMASMACrossover","entryEventsOnly":false,"confirmBars":0,"warmupBars":10,"baseConfidence":0.4,"confluenceWeight":0.4,"freshCrossoverBonusPerCross":0.05,"freshCrossoverBonusMax":0.15,"maxConfidence":1,"velocityWindowBars":5,"velocityScale":0.12,"elasticityBandAtr":[0.5,2.5],"decayBars":10,"decayMinMultiplier":0.6}
+[EMASMACrossover][CONFIG] {"module":"EMASMACrossover","entryEventsOnly":false,"confirmBars":0,"warmupBars":10,"baseConfidence":0.4,"confluenceWeight":0.4,"freshCrossoverBonusPerCross":0.05,"freshCrossoverBonusMax":0.15,"maxConfidence":1,"velocityWindowBars":5,"velocityScale":0.12,"elasticityBandAtr":[0.5,2.5],"decayBars":10,"decayMinMultiplier":0.6}
+[EMASMACrossover][CONFIG] {"module":"EMASMACrossover","entryEventsOnly":false,"confirmBars":0,"warmupBars":10,"baseConfidence":0.4,"confluenceWeight":0.4,"freshCrossoverBonusPerCross":0.05,"freshCrossoverBonusMax":0.15,"maxConfidence":1,"velocityWindowBars":5,"velocityScale":0.12,"elasticityBandAtr":[0.5,2.5],"decayBars":10,"decayMinMultiplier":0.6}
+{
+  "pass": true,
+  "actualProductionConstructors": 4,
+  "symbolOptionsProducerExecuted": true,
+  "warmupCandles": 400,
+  "realSaveSettingsPublication": true,
+  "evidence": [
+    {
+      "file": "run-empire-v2.js",
+      "line": 3122,
+      "expression": "new SymbolTradingContext(sym, this._candleStore, {\n          timeframe: metadata.timeframe,\n          indicatorConfig: {\n            ...resolvedConfig.config.indicators.engine,\n            ...resolvedConfig.config.internals.indicators.engine,\n            tf: metadata.timeframe,\n          },\n          emaCrossoverConfidenceProvider: () => ConfigLoader.get('strategies.EMASMACrossover'),\n          emaCrossoverConfig: {\n            ...resolvedConfig.config.strategies.EMASMACrossover,\n            ...resolvedConfig.config.strategyBehavior.emaCrossover,\n          },\n          maDynamicSRConfig: ConfigLoader.get('strategies.MADynamicSR'),\n          volumeProfileConfig: resolvedConfig.config.strategies.VolumeProfile,\n          fibonacciConfig: resolvedConfig.config.fibonacci,\n        })"
+    },
+    {
+      "file": "core/SymbolTradingContext.js",
+      "line": 84,
+      "expression": "new EMASMACrossoverSignal(config.emaCrossoverConfig, config.emaCrossoverConfidenceProvider)"
+    },
+    {
+      "file": "run-empire-v2.js",
+      "line": 789,
+      "expression": "new EMASMACrossoverSignal(emaConfig, () => ConfigLoader.get('strategies.EMASMACrossover'))"
+    },
+    {
+      "file": "core/StrategyOrchestrator.js",
+      "line": 850,
+      "expression": "new EMASMACrossoverSignal(this.emaCrossoverConfig, () => ConfigLoader.get('strategies.EMASMACrossover'))"
+    },
+    {
+      "file": "core/StrategyOrchestrator.js",
+      "line": 1634,
+      "expression": "new EMASMACrossoverSignal(this.emaCrossoverConfig, () => ConfigLoader.get('strategies.EMASMACrossover'))"
+    }
+  ]
+}

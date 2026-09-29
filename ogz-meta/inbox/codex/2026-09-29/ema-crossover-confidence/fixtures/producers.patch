@@ -1,0 +1,50 @@
+--- a/run-empire-v2.js
++++ b/run-empire-v2.js
+@@ -786,7 +786,7 @@
+       ...ConfigLoader.get('strategies.EMASMACrossover'),
+       ...ConfigLoader.get('strategyBehavior.emaCrossover'),
+     };
+-    this.emaCrossover = new EMASMACrossoverSignal(emaConfig);
++    this.emaCrossover = new EMASMACrossoverSignal(emaConfig, () => ConfigLoader.get('strategies.EMASMACrossover'));
+ 
+     const masrConfig = ConfigLoader.get('strategies.MADynamicSR');
+     this.maDynamicSR = new MADynamicSR(masrConfig);
+@@ -3126,6 +3126,7 @@
+             ...resolvedConfig.config.internals.indicators.engine,
+             tf: metadata.timeframe,
+           },
++          emaCrossoverConfidenceProvider: () => ConfigLoader.get('strategies.EMASMACrossover'),
+           emaCrossoverConfig: {
+             ...resolvedConfig.config.strategies.EMASMACrossover,
+             ...resolvedConfig.config.strategyBehavior.emaCrossover,
+--- a/core/SymbolTradingContext.js
++++ b/core/SymbolTradingContext.js
+@@ -81,7 +81,7 @@
+         // before Fix 10 the missing symbol silently defaulted to BTC-USD
+         // inside what was supposed to be a per-symbol context for TSLA.
+         this.indicatorEngine = new IndicatorEngine({ ...config.indicatorConfig, symbol: canonicalSymbol });
+-        this.emaCrossover = new EMASMACrossoverSignal(config.emaCrossoverConfig);
++        this.emaCrossover = new EMASMACrossoverSignal(config.emaCrossoverConfig, config.emaCrossoverConfidenceProvider);
+         this.maDynamicSR = new MADynamicSR(config.maDynamicSRConfig);
+         this.volumeProfile = new VolumeProfile(config.volumeProfileConfig);
+         this.fibonacciDetector = new FibonacciDetector(config.fibonacciConfig);
+--- a/core/StrategyOrchestrator.js
++++ b/core/StrategyOrchestrator.js
+@@ -847,7 +847,7 @@
+     // FIX 2026-03-19: Self-contained signal modules
+     // Each strategy owns its signal computation — no ctx.extras handoff
+     this.emaCrossoverConfig = getEmaCrossoverConfig();
+-    this.emaCrossoverModule = new EMASMACrossoverSignal(this.emaCrossoverConfig);
++    this.emaCrossoverModule = new EMASMACrossoverSignal(this.emaCrossoverConfig, () => ConfigLoader.get('strategies.EMASMACrossover'));
+     this.maDynamicSRConfig = ConfigLoader.get('strategies.MADynamicSR');
+     this.maDynamicSRModule = new MADynamicSR(this.maDynamicSRConfig);
+     this.liquiditySweepConfig = {
+@@ -1631,7 +1631,7 @@
+           'EMASMACrossover',
+           ctx.extras?.symbol,
+           emaCrossoverModule,
+-          () => new EMASMACrossoverSignal(this.emaCrossoverConfig)
++          () => new EMASMACrossoverSignal(this.emaCrossoverConfig, () => ConfigLoader.get('strategies.EMASMACrossover'))
+         );
+         const sig = scopedEmaCrossover.update(latestCandle, candles);
+         if (sig) diagEMA.moduleNonNull++;

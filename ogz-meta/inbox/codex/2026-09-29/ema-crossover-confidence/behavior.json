@@ -1,0 +1,35 @@
+{
+  "pass": true,
+  "baselineSignals": 381,
+  "recordedCandles": 1600,
+  "dataset": "tuning/tsla-15m-year1.json",
+  "sha256": "9d858e827c7299290a36b365fdbc66888d521aa4b429bcf27b7a8859a4b7a9a0",
+  "retainedInstances": 3,
+  "results": [
+    {
+      "key": "baseConfidence",
+      "value": 0.2,
+      "changedSignals": 1200
+    },
+    {
+      "key": "confluenceWeight",
+      "value": 0.2,
+      "changedSignals": 1200
+    },
+    {
+      "key": "freshCrossoverBonusPerCross",
+      "value": 0.1,
+      "changedSignals": 70
+    },
+    {
+      "key": "freshCrossoverBonusMax",
+      "value": 0.01,
+      "changedSignals": 70
+    },
+    {
+      "key": "maxConfidence",
+      "value": 0.42,
+      "changedSignals": 1200
+    }
+  ]
+}

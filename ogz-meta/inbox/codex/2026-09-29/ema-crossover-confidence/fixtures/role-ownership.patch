@@ -1,0 +1,19 @@
+===================================================================
+--- a/foundation/ConfigLoader.js
++++ b/foundation/ConfigLoader.js
+@@ -2438,8 +2438,15 @@
+     }
+     return _cached;
+   }
+ 
++  if (_cached && opts.force && requestedRole !== _cachedRole) {
++    const reason = 'forced_reload_role_change_rejected';
++    console.error(`[ConfigLoader] Forced reload rejected: ${reason}: ${_cachedRole} -> ${requestedRole}`);
++    return { success: false, applied: false, reloaded: false, reason,
++      requestedRole, currentRole: _cachedRole, configuration: getReceipt() };
++  }
++
+   const previousSettings = settingsConfigFile;
+   const previousInternals = internalsConfigFile;
+   const candidate = buildSnapshot(process.env, opts);
+   if (_cached && opts.force && requestedRole === 'bot') {

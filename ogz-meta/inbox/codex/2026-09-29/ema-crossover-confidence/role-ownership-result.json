@@ -1,0 +1,119 @@
+{
+  "result": "PASS",
+  "baseline": "6bcfad8a",
+  "exposureTree": "8b381e69c5bed1ecb73c5bcfc6f8e7728c49eea2",
+  "reconstruction": {
+    "base": "8eabf0f4e61d4edd4cdae974a19c6fdbf41400e2",
+    "patches": {
+      "module.patch": "ec5b0bb9acd927d0fb462ce6b55fb2b910a9bffe71b085054e09fd4a4fcd55ef",
+      "loader-final-head.patch": "c7c792c886d0c3f2029894e0499931e06f1d53c8babb8638854658a1b8088419",
+      "producers.patch": "ac889437a35b4730dff1a8b6f38ba35a9f534040c3dfadee1b54d11c0422782b"
+    },
+    "attestedFiles": 9,
+    "historicalTreeUsedAsGitDependency": false
+  },
+  "patchSha256": "e7d02e488999849c9947e2f5fae23800dfd7eaf2404a97e117bd62931d4e5bba",
+  "fixedLoaderSha256": "094320239c2f40eb5cb323c1a328f88954ef840dcdb871b916fa6a9876cbfaaf",
+  "sourceManifest": {
+    "8b381e69c5bed1ecb73c5bcfc6f8e7728c49eea2:foundation/ConfigLoader.js": "20647960650be04f795967623bb43760f936a17b0502631c9ff66a735f6d6a47",
+    "8b381e69c5bed1ecb73c5bcfc6f8e7728c49eea2:core/AtomicWrite.js": "3d451213bba7b3680b7560e1d8c60e36650a595c7970a116a926f5d96390a924",
+    "8b381e69c5bed1ecb73c5bcfc6f8e7728c49eea2:core/CandleHelper.js": "33195306d283e2d0e23868849c87953ee5a6cecbbb74d1cb8c619af16701e5f3",
+    "8b381e69c5bed1ecb73c5bcfc6f8e7728c49eea2:config/settings.json": "6b53392d26c903f4b38821c5de84b71432f95c927ac58d7bb00abcc68e3b9b3d",
+    "8b381e69c5bed1ecb73c5bcfc6f8e7728c49eea2:config/internals.json": "c3bd62c64f2e5c2acbfdcf2f740ed1787ab8860026516d306e17cb382ade19d6",
+    "8b381e69c5bed1ecb73c5bcfc6f8e7728c49eea2:modules/EMASMACrossoverSignal.js": "523962bb11b1d0d7dec3fa7242a97f441f89168f61225b14a9335ea7e2aea040",
+    "8b381e69c5bed1ecb73c5bcfc6f8e7728c49eea2:run-empire-v2.js": "7c8510522feb0a4d574512accdb9733432aae0eced2edcbe1cb411cd79801830",
+    "8b381e69c5bed1ecb73c5bcfc6f8e7728c49eea2:core/SymbolTradingContext.js": "29360cd5cd1ffcfdb0c2c5956cff4f02c58eca8b075925e7cdc83095bcdc6625",
+    "8b381e69c5bed1ecb73c5bcfc6f8e7728c49eea2:core/StrategyOrchestrator.js": "7e27adc1a9b72a60ff737a0e6076d198c6f522694dd10df786c3a210ee96025a",
+    "8b381e69c5bed1ecb73c5bcfc6f8e7728c49eea2:data/kraken-btc-15m-recent.json": "8b4be8997bcd91a0db893f9cce1effe7b2843f42650e16e95931fb6b45b03324",
+    "6bcfad8a:foundation/ConfigLoader.js": "87fe18610d0c60560a6dc57a680b2fb71a168143f5f05027fffc05a0cf8d09f7",
+    "6bcfad8a:config/settings.json": "6b53392d26c903f4b38821c5de84b71432f95c927ac58d7bb00abcc68e3b9b3d",
+    "6bcfad8a:config/internals.json": "c3bd62c64f2e5c2acbfdcf2f740ed1787ab8860026516d306e17cb382ade19d6",
+    "6bcfad8a:core/AtomicWrite.js": "3d451213bba7b3680b7560e1d8c60e36650a595c7970a116a926f5d96390a924",
+    "6bcfad8a:core/CandleHelper.js": "33195306d283e2d0e23868849c87953ee5a6cecbbb74d1cb8c619af16701e5f3",
+    "6bcfad8a:modules/EMASMACrossoverSignal.js": "dfd5d3a537de2c182d945c3f6c869e869fef7874007d860ceed776b809a79a0b"
+  },
+  "results": [
+    {
+      "mode": "baseline",
+      "initialRole": "bot",
+      "requestedRole": "dashboard",
+      "loaderSha256": "87fe18610d0c60560a6dc57a680b2fb71a168143f5f05027fffc05a0cf8d09f7",
+      "resultRole": "dashboard",
+      "globalChanges": [
+        "settingsConfigFile",
+        "internalsConfigFile",
+        "_cached",
+        "_cachedRole"
+      ]
+    },
+    {
+      "mode": "baseline",
+      "initialRole": "dashboard",
+      "requestedRole": "bot",
+      "loaderSha256": "87fe18610d0c60560a6dc57a680b2fb71a168143f5f05027fffc05a0cf8d09f7",
+      "resultRole": "bot",
+      "globalChanges": [
+        "settingsConfigFile",
+        "internalsConfigFile",
+        "_cached",
+        "_cachedRole"
+      ]
+    },
+    {
+      "mode": "exposed_ema",
+      "initialRole": "bot",
+      "requestedRole": "dashboard",
+      "loaderSha256": "20647960650be04f795967623bb43760f936a17b0502631c9ff66a735f6d6a47",
+      "resultRole": "dashboard",
+      "globalChanges": [
+        "settingsConfigFile",
+        "internalsConfigFile",
+        "_cached",
+        "_cachedRole"
+      ],
+      "nextUpdateError": {
+        "name": "TypeError",
+        "message": "Cannot read properties of undefined (reading 'baseConfidence')"
+      }
+    },
+    {
+      "mode": "exposed_ema",
+      "initialRole": "dashboard",
+      "requestedRole": "bot",
+      "loaderSha256": "20647960650be04f795967623bb43760f936a17b0502631c9ff66a735f6d6a47",
+      "resultRole": "bot",
+      "globalChanges": [
+        "settingsConfigFile",
+        "internalsConfigFile",
+        "_cached",
+        "_cachedRole"
+      ]
+    },
+    {
+      "mode": "corrected_ema",
+      "initialRole": "bot",
+      "requestedRole": "dashboard",
+      "loaderSha256": "094320239c2f40eb5cb323c1a328f88954ef840dcdb871b916fa6a9876cbfaaf",
+      "reason": "forced_reload_role_change_rejected",
+      "globalChanges": [],
+      "retainedCallbackContinuedBars": 100,
+      "sameRoleForceAccepted": true,
+      "sameRoleChangedSignals": 221
+    },
+    {
+      "mode": "corrected_ema",
+      "initialRole": "dashboard",
+      "requestedRole": "bot",
+      "loaderSha256": "094320239c2f40eb5cb323c1a328f88954ef840dcdb871b916fa6a9876cbfaaf",
+      "reason": "forced_reload_role_change_rejected",
+      "globalChanges": [],
+      "sameRoleForceAccepted": true
+    }
+  ],
+  "notes": [
+    "Reachable base plus three EMA patches reconstructs all nine attested historical source hashes; historical tree ID is only a receipt label. Corrected bytes add one role-ownership patch.",
+    "No full bot/bootstrap/broker call; actual loader, persistence reads, recorded candles and retained EMA callback execute.",
+    "Production exports unchanged;11 loader global identities are observed through a test-only export.",
+    "No production/index/commit/provider actions."
+  ]
+}

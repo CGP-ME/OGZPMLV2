@@ -786,7 +786,7 @@ class OGZPrimeV14Bot {
       ...ConfigLoader.get('strategies.EMASMACrossover'),
       ...ConfigLoader.get('strategyBehavior.emaCrossover'),
     };
-    this.emaCrossover = new EMASMACrossoverSignal(emaConfig);
+    this.emaCrossover = new EMASMACrossoverSignal(emaConfig, () => ConfigLoader.get('strategies.EMASMACrossover'));
 
     const masrConfig = ConfigLoader.get('strategies.MADynamicSR');
     this.maDynamicSR = new MADynamicSR(masrConfig);
@@ -3126,6 +3126,7 @@ class OGZPrimeV14Bot {
             ...resolvedConfig.config.internals.indicators.engine,
             tf: metadata.timeframe,
           },
+          emaCrossoverConfidenceProvider: () => ConfigLoader.get('strategies.EMASMACrossover'),
           emaCrossoverConfig: {
             ...resolvedConfig.config.strategies.EMASMACrossover,
             ...resolvedConfig.config.strategyBehavior.emaCrossover,

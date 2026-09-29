@@ -1,0 +1,44 @@
+[
+  {
+    "file": "run-empire-v2.js",
+    "line": 789,
+    "source": "new EMASMACrossoverSignal(emaConfig)",
+    "kind": "production-provider-required"
+  },
+  {
+    "file": "core/SymbolTradingContext.js",
+    "line": 84,
+    "source": "new EMASMACrossoverSignal(config.emaCrossoverConfig)",
+    "kind": "production-provider-required"
+  },
+  {
+    "file": "core/StrategyOrchestrator.js",
+    "line": 850,
+    "source": "new EMASMACrossoverSignal(this.emaCrossoverConfig)",
+    "kind": "production-provider-required"
+  },
+  {
+    "file": "core/StrategyOrchestrator.js",
+    "line": 1634,
+    "source": "new EMASMACrossoverSignal(this.emaCrossoverConfig)",
+    "kind": "production-provider-required"
+  },
+  {
+    "file": "scripts/smoke-test.js",
+    "line": 223,
+    "source": "new EMASMACrossoverSignal(emaConfig)",
+    "kind": "explicit-static-tool"
+  },
+  {
+    "file": "tools/trade-validator.js",
+    "line": 137,
+    "source": "new EMASMACrossoverSignal(emaConfig)",
+    "kind": "explicit-static-tool"
+  },
+  {
+    "file": "tuning/pipeline-diagnostic.js",
+    "line": 105,
+    "source": "new EMASMACrossoverSignal()",
+    "kind": "explicit-static-tool"
+  }
+]
