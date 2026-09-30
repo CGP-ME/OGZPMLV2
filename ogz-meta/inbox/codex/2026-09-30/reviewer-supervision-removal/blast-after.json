@@ -1,0 +1,361 @@
+{
+  "date": "2026-09-30T09:32:29.239Z",
+  "scope": "Current working Mercury modules; includes inherited unstaged deltas; policy-filtered static scan, not dynamic completeness proof",
+  "filesScanned": 21,
+  "filesParsed": 21,
+  "errors": [],
+  "fileReceipts": [
+    {
+      "file": "trai_brain/mercury-bridge/adversarial-review.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "26d258fcbf8d51a82a7ed0807589ee227a6df0674f373ce3c09c4a8afb73935b",
+      "source_bytes": 62168,
+      "property_references": 733,
+      "method_calls": 187,
+      "class_surfaces": 0,
+      "function_scopes": 63
+    },
+    {
+      "file": "trai_brain/mercury-bridge/ask.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "d256c535c6cd62f0fb75a0ea2fcb320e8bc10bd538cf3f2edb53e01d6ef0bf37",
+      "source_bytes": 92278,
+      "property_references": 1539,
+      "method_calls": 537,
+      "class_surfaces": 0,
+      "function_scopes": 95
+    },
+    {
+      "file": "trai_brain/mercury-bridge/config.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "843fb002cfb5e222ac0a2c20e509a81440a1dd51b1487aba094e14c281fcbdd3",
+      "source_bytes": 30695,
+      "property_references": 145,
+      "method_calls": 91,
+      "class_surfaces": 0,
+      "function_scopes": 27
+    },
+    {
+      "file": "trai_brain/mercury-bridge/consensus.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "62a34920e4324021ed9f5eb540c28262903329a22ad1c5fec16ab922a75393ab",
+      "source_bytes": 975,
+      "property_references": 15,
+      "method_calls": 1,
+      "class_surfaces": 0,
+      "function_scopes": 1
+    },
+    {
+      "file": "trai_brain/mercury-bridge/cost-accounting.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "6c645d84866aa1534639c63f260676764fba5c31ce36caaf507013209703b364",
+      "source_bytes": 8729,
+      "property_references": 111,
+      "method_calls": 33,
+      "class_surfaces": 0,
+      "function_scopes": 15
+    },
+    {
+      "file": "trai_brain/mercury-bridge/direct-question.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "ea34e11d1228eb11fb7ac58e9afe8a754d06b2753bfbf329b125bc75fae00f11",
+      "source_bytes": 20096,
+      "property_references": 343,
+      "method_calls": 108,
+      "class_surfaces": 0,
+      "function_scopes": 20
+    },
+    {
+      "file": "trai_brain/mercury-bridge/doctrine-review.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "d11f36729eeded30db7175214e73b9a43c574904e8b639d8afce566275adb646",
+      "source_bytes": 13715,
+      "property_references": 159,
+      "method_calls": 87,
+      "class_surfaces": 0,
+      "function_scopes": 28
+    },
+    {
+      "file": "trai_brain/mercury-bridge/evidence-ingestion.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "3283dee639c24febe08643b04d91853365067e1d84655ed6efa44887191ab5cf",
+      "source_bytes": 136028,
+      "property_references": 2023,
+      "method_calls": 718,
+      "class_surfaces": 0,
+      "function_scopes": 281
+    },
+    {
+      "file": "trai_brain/mercury-bridge/explicit-continuation.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "11e783a1c4139e178687bcf2cd51051a38590b66ef3182c85ca526a52403cfc0",
+      "source_bytes": 19539,
+      "property_references": 408,
+      "method_calls": 120,
+      "class_surfaces": 0,
+      "function_scopes": 66
+    },
+    {
+      "file": "trai_brain/mercury-bridge/indexer.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "87dadac1e740f84d72ec7a6438bcd4e1f5bd489fe20f83f1d46b78aa1c5c8df7",
+      "source_bytes": 37761,
+      "property_references": 444,
+      "method_calls": 213,
+      "class_surfaces": 0,
+      "function_scopes": 58
+    },
+    {
+      "file": "trai_brain/mercury-bridge/llm-client.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "13af7510273a0c0acaf1b1b9e24477ca97c23e98a01472d33ffbc0e873a21c7e",
+      "source_bytes": 36217,
+      "property_references": 568,
+      "method_calls": 167,
+      "class_surfaces": 2,
+      "function_scopes": 64
+    },
+    {
+      "file": "trai_brain/mercury-bridge/mongo-store.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "713cd35af4c49ce552ab9417cccdb2500851bea0d37ba82ac5941bb3a79e4e12",
+      "source_bytes": 7785,
+      "property_references": 121,
+      "method_calls": 35,
+      "class_surfaces": 1,
+      "function_scopes": 13
+    },
+    {
+      "file": "trai_brain/mercury-bridge/provider-preflight.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "70df7241dbe5e519abdc8ce97939afb5cfb626155fbf4962d04f74de1d491abe",
+      "source_bytes": 10268,
+      "property_references": 155,
+      "method_calls": 28,
+      "class_surfaces": 0,
+      "function_scopes": 16
+    },
+    {
+      "file": "trai_brain/mercury-bridge/query-router.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "6f608a88475d6365fc86f20311f41af54627a973b3f238a22eccde2e09752e3b",
+      "source_bytes": 6114,
+      "property_references": 7,
+      "method_calls": 6,
+      "class_surfaces": 0,
+      "function_scopes": 4
+    },
+    {
+      "file": "trai_brain/mercury-bridge/react-loop.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "9ad4cc24c21d1e2ac7feb26a7f788f2d4988153535925517c5fd56054709ba8b",
+      "source_bytes": 50566,
+      "property_references": 651,
+      "method_calls": 229,
+      "class_surfaces": 0,
+      "function_scopes": 78
+    },
+    {
+      "file": "trai_brain/mercury-bridge/reviewer-panel.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "85b63a5e70a7bd9fcfd40f0774e994f2011404a345645a2a6270a4a338a527d9",
+      "source_bytes": 10936,
+      "property_references": 201,
+      "method_calls": 88,
+      "class_surfaces": 0,
+      "function_scopes": 33
+    },
+    {
+      "file": "trai_brain/mercury-bridge/run-ledger.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "1d1f68ad5f5008a35f30fee46ba8b9662f539045e9a9b5062fb15029e1aa55ee",
+      "source_bytes": 54034,
+      "property_references": 1001,
+      "method_calls": 340,
+      "class_surfaces": 0,
+      "function_scopes": 69
+    },
+    {
+      "file": "trai_brain/mercury-bridge/searcher.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "173ee606ea91034777a37b964c85d17451a53bfbe8811df45a7bbe0ad18cf697",
+      "source_bytes": 19194,
+      "property_references": 228,
+      "method_calls": 105,
+      "class_surfaces": 0,
+      "function_scopes": 35
+    },
+    {
+      "file": "trai_brain/mercury-bridge/substrate-digest.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "2a85f65ab68ccfb5da7b09fb0296e07317b454bbe2e47c5b13851c802011eb56",
+      "source_bytes": 3930,
+      "property_references": 73,
+      "method_calls": 38,
+      "class_surfaces": 0,
+      "function_scopes": 15
+    },
+    {
+      "file": "trai_brain/mercury-bridge/tool-adapter.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "096e1082293d5b3af3646511bdaff79bfc5cd0dfd86cfd08e8bb7d2f44fb57bc",
+      "source_bytes": 92652,
+      "property_references": 641,
+      "method_calls": 305,
+      "class_surfaces": 0,
+      "function_scopes": 95
+    },
+    {
+      "file": "trai_brain/mercury-bridge/trace-memory.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "d2585884030459bf40f5e3f5476c4c6b8527dba62e4ff6ad54a893dd949cadeb",
+      "source_bytes": 13942,
+      "property_references": 151,
+      "method_calls": 62,
+      "class_surfaces": 0,
+      "function_scopes": 15
+    }
+  ],
+  "callers": [
+    {
+      "file": "trai_brain/mercury-bridge/react-loop.js",
+      "callers": [
+        {
+          "source": "trai_brain/mercury-bridge/adversarial-review.js",
+          "line": 13,
+          "type": "require",
+          "target": "./react-loop"
+        },
+        {
+          "source": "trai_brain/mercury-bridge/ask.js",
+          "line": 49,
+          "type": "require",
+          "target": "./react-loop"
+        },
+        {
+          "source": "trai_brain/mercury-bridge/direct-question.js",
+          "line": 19,
+          "type": "require",
+          "target": "./react-loop"
+        },
+        {
+          "source": "trai_brain/mercury-bridge/evidence-ingestion.js",
+          "line": 2205,
+          "type": "require",
+          "target": "./react-loop"
+        }
+      ],
+      "callerCount": 4,
+      "truncated": false,
+      "riskLevel": "medium",
+      "summary": "trai_brain/mercury-bridge/react-loop.js is required by 4 file(s) including trai_brain/mercury-bridge/adversarial-review.js, trai_brain/mercury-bridge/ask.js, trai_brain/mercury-bridge/direct-question.js.",
+      "latencyMs": 96
+    },
+    {
+      "file": "trai_brain/mercury-bridge/explicit-continuation.js",
+      "callers": [
+        {
+          "source": "trai_brain/mercury-bridge/evidence-ingestion.js",
+          "line": 2894,
+          "type": "require",
+          "target": "./explicit-continuation"
+        }
+      ],
+      "callerCount": 1,
+      "truncated": false,
+      "riskLevel": "low",
+      "summary": "trai_brain/mercury-bridge/explicit-continuation.js is required by 1 file(s): trai_brain/mercury-bridge/evidence-ingestion.js.",
+      "latencyMs": 73
+    },
+    {
+      "file": "trai_brain/mercury-bridge/evidence-ingestion.js",
+      "callers": [
+        {
+          "source": "trai_brain/mercury-bridge/ask.js",
+          "line": 51,
+          "type": "require",
+          "target": "./evidence-ingestion"
+        },
+        {
+          "source": "trai_brain/mercury-bridge/explicit-continuation.js",
+          "line": 8,
+          "type": "require",
+          "target": "./evidence-ingestion"
+        },
+        {
+          "source": "trai_brain/mercury-bridge/react-loop.js",
+          "line": 155,
+          "type": "require",
+          "target": "./evidence-ingestion"
+        },
+        {
+          "source": "trai_brain/mercury-bridge/react-loop.js",
+          "line": 1129,
+          "type": "require",
+          "target": "./evidence-ingestion"
+        }
+      ],
+      "callerCount": 4,
+      "truncated": false,
+      "riskLevel": "medium",
+      "summary": "trai_brain/mercury-bridge/evidence-ingestion.js is required by 4 file(s) including trai_brain/mercury-bridge/ask.js, trai_brain/mercury-bridge/explicit-continuation.js, trai_brain/mercury-bridge/react-loop.js.",
+      "latencyMs": 80
+    },
+    {
+      "file": "trai_brain/mercury-bridge/adversarial-review.js",
+      "callers": [
+        {
+          "source": "trai_brain/mercury-bridge/ask.js",
+          "line": 73,
+          "type": "require",
+          "target": "./adversarial-review"
+        },
+        {
+          "source": "trai_brain/mercury-bridge/consensus.js",
+          "line": 3,
+          "type": "require",
+          "target": "./adversarial-review"
+        },
+        {
+          "source": "trai_brain/mercury-bridge/provider-preflight.js",
+          "line": 11,
+          "type": "require",
+          "target": "./adversarial-review"
+        }
+      ],
+      "callerCount": 3,
+      "truncated": false,
+      "riskLevel": "low",
+      "summary": "trai_brain/mercury-bridge/adversarial-review.js is required by 3 file(s): trai_brain/mercury-bridge/ask.js, trai_brain/mercury-bridge/consensus.js, trai_brain/mercury-bridge/provider-preflight.js.",
+      "latencyMs": 72
+    },
+    {
+      "file": "trai_brain/mercury-bridge/reviewer-panel.js",
+      "callers": [
+        {
+          "source": "trai_brain/mercury-bridge/adversarial-review.js",
+          "line": 15,
+          "type": "require",
+          "target": "./reviewer-panel"
+        },
+        {
+          "source": "trai_brain/mercury-bridge/ask.js",
+          "line": 86,
+          "type": "require",
+          "target": "./reviewer-panel"
+        },
+        {
+          "source": "trai_brain/mercury-bridge/run-ledger.js",
+          "line": 7,
+          "type": "require",
+          "target": "./reviewer-panel"
+        }
+      ],
+      "callerCount": 3,
+      "truncated": false,
+      "riskLevel": "low",
+      "summary": "trai_brain/mercury-bridge/reviewer-panel.js is required by 3 file(s): trai_brain/mercury-bridge/adversarial-review.js, trai_brain/mercury-bridge/ask.js, trai_brain/mercury-bridge/run-ledger.js.",
+      "latencyMs": 73
+    }
+  ]
+}

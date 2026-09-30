@@ -1,0 +1,23 @@
+{
+  "candidate": "5ca3c369188c3841c10593d8ece061f57f21886a",
+  "base": "c080995a94d322a61950ee606d4f667c9dfe63c0",
+  "harness": "a8cac1feb7018bdd358d929077ec8de19dbb6e98",
+  "qualification": "Separate transport/receipt-integrity correction including parsed:continued.parsed; exact-tree test source loaded by Git transformer. Historical553 qualification untouched.",
+  "tests": {
+    "passed": 8,
+    "failed": 0
+  },
+  "providerCalls": 0,
+  "productionBlobs": {
+    "explicit-continuation.js": "84a1853e94740e7abf57ba72779f67abdcc071687817b26c51c8d09f300ce180",
+    "adversarial-review.js": "041008f387f69217842ebc96df08f607c176c1c079126083233930e824ae85c7"
+  },
+  "artifactHashes": {
+    "transport.patch": "039c49cd24d5bf04ec2c7362b5f4e8aed16284848d3088f60d441c4880829cf4",
+    "test.patch": "9dfccbb28ed36b7c405afef4fa6782b3e0a603ce95337074081037864a501e01",
+    "mercury-continuation-transport.test.js": "711eb3db8dab59b6f582a5d657a06f4d1f381f4683d1fbb6884d4b4c042cb0db",
+    "jest.log": "2b70294d4aa2370003adf56f7c6d403629f49fa681acceb9a30f91771813c729",
+    "exact-transform.cjs": "e1ed7c7e8f77b3114bb14875673063a2fe7380eb3eec90e962883c810e935f64"
+  },
+  "environmentNote": "Initial sandbox Git subprocess denial occurred before tests. Same offline command rerun with escalation passed; inherited duplicate-package haste warning present."
+}

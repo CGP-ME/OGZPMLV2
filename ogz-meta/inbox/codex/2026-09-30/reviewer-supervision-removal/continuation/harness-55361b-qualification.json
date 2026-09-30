@@ -1,0 +1,17 @@
+{
+  "candidate": "5ca3c369188c3841c10593d8ece061f57f21886a",
+  "base": "c080995a94d322a61950ee606d4f667c9dfe63c0",
+  "harness": "55361b324d94f1e8ae6e07a18d4780629cc793a6",
+  "qualification": "Separately qualified two-file transport patch in sibling mercury-continuation-transport/combined/transport.patch; seven exact-harness tests and 51 exact panel excerpts roundtripped. Supervision production candidate unchanged.",
+  "tests": {
+    "passed": 7,
+    "failed": 0
+  },
+  "priorPanelExcerpts": 51,
+  "pages": 250,
+  "productionBlobs": {
+    "explicit-continuation.js": "85d8c2a143d5b4165a7885e704b1c89a30aec356240197c4158537863a5bfe4a",
+    "adversarial-review.js": "041008f387f69217842ebc96df08f607c176c1c079126083233930e824ae85c7"
+  },
+  "providerCalls": 0
+}

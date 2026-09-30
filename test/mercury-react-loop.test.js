@@ -6,7 +6,6 @@ const {
   hasToolHandleCitation,
   hasUnsupportedRunCheckClaim,
   previewUncitedAnswer,
-  normalizeToolHandleCitations,
   compactAssistantMessageForHistory,
   stringifyToolResultForHistory,
   findToolAvailabilityContradiction,
@@ -16,7 +15,6 @@ const {
   finalAnswerEvidenceFailures,
   summarizeToolTelemetry,
   formatToolTelemetry,
-  isCandidateSetResponse,
   extractFileLineCitations,
   mergeCandidateSetRechecks,
 } = require('../trai_brain/mercury-bridge/react-loop');
@@ -28,17 +26,9 @@ function createToolAdapter() {
   };
 }
 
-function createClient(responses, { insertCandidate = true } = {}) {
+function createClient(responses) {
   const snapshots = [];
   const scriptedResponses = [...responses];
-  const finalResponse = scriptedResponses.at(-1);
-  if (insertCandidate && finalResponse && finalResponse.content
-      && (!Array.isArray(finalResponse.tool_calls) || finalResponse.tool_calls.length === 0)) {
-    scriptedResponses.splice(-1, 0, {
-      role: 'assistant',
-      content: `CANDIDATE SET\nCandidate evidence filed before deciding: ${finalResponse.content}`,
-    });
-  }
   return {
     messageSnapshots: snapshots,
     generateWithTools: jest.fn(async (messages) => {
@@ -52,11 +42,11 @@ function createClient(responses, { insertCandidate = true } = {}) {
   };
 }
 
-describe('Mercury ReAct loop evidence gates', () => {
+describe('Mercury ReAct loop evidence receipts', () => {
   test('no-tools mode supplies an empty schema, executes no tools, and stops after one turn', async () => {
     const client = createClient([
       { role: 'assistant', content: 'Answer from memory only.' },
-    ], { insertCandidate: false });
+    ]);
     const toolAdapter = createToolAdapter();
 
     const result = await runReactLoop({
@@ -102,42 +92,6 @@ describe('Mercury ReAct loop evidence gates', () => {
     expect(hasUnsupportedRunCheckClaim(
       'The run_check result is in ogz-meta/cognition-history/mercury-execution/2026-06-23T20-08-44-993Z-run-tests.log:1-20.'
     )).toBe(false);
-  });
-
-  test('tool-handle citation normalizer preserves ambiguous same-sentence handles', () => {
-    const normalized = normalizeToolHandleCitations(
-      'The code in `trai brain\\mercury-bridge\\tool-adapter.ts` is guarded 【open_file†L209-L221】.'
-    );
-
-    expect(normalized).toBe('The code in `trai brain\\mercury-bridge\\tool-adapter.ts` is guarded 【open_file†L209-L221】.');
-    expect(hasToolHandleCitation(normalized)).toBe(true);
-  });
-
-  test('tool-handle citation normalizer preserves ambiguous same-paragraph handles', () => {
-    const normalized = normalizeToolHandleCitations(
-      'The `mercury.config.json` file was updated to remove stale guidance. The relevant lines show the new wording and removal of the old phrase.【open_file†L65-L68】'
-    );
-
-    expect(normalized).toBe('The `mercury.config.json` file was updated to remove stale guidance. The relevant lines show the new wording and removal of the old phrase.【open_file†L65-L68】');
-    expect(hasToolHandleCitation(normalized)).toBe(true);
-  });
-
-  test('citation normalizer converts file plus lines prose into literal repo citations', () => {
-    const normalized = normalizeToolHandleCitations(
-      'File: `trai_brain/mercury-bridge/tool-adapter.py` Lines: 1073-1082'
-    );
-
-    expect(normalized).toBe('trai_brain/mercury-bridge/tool-adapter.py:1073-1082');
-    expect(hasFileLineCitation(normalized)).toBe(true);
-  });
-
-  test('citation normalizer converts path lines prose into literal repo citations', () => {
-    const normalized = normalizeToolHandleCitations(
-      '`mercury.config.json` lines 68-69 show the new wording.'
-    );
-
-    expect(normalized).toContain('mercury.config.json:68-69');
-    expect(hasFileLineCitation(normalized)).toBe(true);
   });
 
   test('uncited answer preview is compact and bounded for failed proof debugging', () => {
@@ -208,60 +162,56 @@ describe('Mercury ReAct loop evidence gates', () => {
     expect(stringifyToolResultForHistory({ ok: true })).toBe('{"ok":true}');
   });
 
-  test('candidate phase accepts only an explicit candidate-set response', () => {
-    expect(isCandidateSetResponse('CANDIDATE SET\ncore/a.js:1')).toBe(true);
-    expect(isCandidateSetResponse('## **CANDIDATE SET**\ncore/a.js:1')).toBe(true);
-    expect(isCandidateSetResponse('Decision: core/a.js:1')).toBe(false);
+  test.each(['Decision: reader at core/a.js:5.', 'CANDIDATE SET\nIncomplete candidate core/a.js:1.'])('forwards the first content-only response without a mandatory filing phase: %s', async answer => {
+    const client = createClient([{ role: 'assistant', content: answer }]);
+    const result = await runReactLoop({ client, toolAdapter: createToolAdapter(), userQuery: 'Audit the reader.' });
+    expect(result.answer).toBe(answer);
+    expect(result.iterations).toBe(1);
+    expect(client.generateWithTools).toHaveBeenCalledTimes(1);
+    expect(result.candidateSet).toMatchObject({content: answer, source: 'reviewer_answer'});
   });
 
-  test('rejects a premature verdict before capturing the candidate set', async () => {
-    const client = createClient([
-      { role: 'assistant', content: 'Decision: reader at core/a.js:5.' },
-      { role: 'assistant', content: 'CANDIDATE SET\nPossible reader core/a.js:1-10.' },
-      { role: 'assistant', content: 'The live reader is core/a.js:5.' },
-    ], { insertCandidate: false });
-
-    const result = await runReactLoop({
-      client,
-      toolAdapter: createToolAdapter(),
-      userQuery: 'Audit the live reader.',
-      systemPrompt: 'neutral reader prompt',
-      maxIterations: 3,
-    });
-
-    expect(result.iterations).toBe(3);
-    expect(result.candidateSet.capturedAtIteration).toBe(2);
-    expect(client.messageSnapshots[1].at(-1).content).toContain('PHASE 1 NOT ACCEPTED');
+  test('records an incomplete claim adjudication without retrying or altering the reviewer answer', async () => {
+    const answer = 'I cannot resolve this claim from the source I read.';
+    const client = createClient([{role: 'assistant', content: answer}]);
+    const result = await runReactLoop({ client, toolAdapter: createToolAdapter(), userQuery: 'Review claims.',
+      claimInventory: [{claim_id: 'original-1', target: 'core/a.js', claim: 'A possible defect.'}] });
+    expect(result.answer).toBe(answer);
+    expect(result.termination).toBe('answer_given');
+    expect(client.generateWithTools).toHaveBeenCalledTimes(1);
+    expect(result.candidateSet.claimDecisionAttempts).toHaveLength(1);
+    expect(result.candidateSet.claimDecisionAttempts[0].structurally_complete).toBe(false);
+    expect(result.candidateSet.claimDecisionAttempts[0].missing_claim_ids).toEqual(['original-1']);
   });
 
-  test('captures a candidate set before deciding and carries its receipts forward', async () => {
-    const client = createClient([
-      { role: 'assistant', content: 'CANDIDATE SET\nCandidate reader at core/a.js:1‑10.' },
-      { role: 'assistant', content: 'The live reader is core/a.js:5.' },
-    ], { insertCandidate: false });
+  test('honors an explicit operator iteration budget with tool receipts', async () => {
+    const client = createClient([1, 2].map(n => ({role:'assistant', tool_calls:[{id:'call-'+n,
+      function:{name:'grep', arguments:'{"query":"marker"}'}}]})));
+    const adapter = createToolAdapter();
+    adapter.execute.mockResolvedValue({matches:[]});
+    const result = await runReactLoop({client, toolAdapter:adapter, userQuery:'Investigate.', maxIterations:2});
+    expect(result.termination).toBe('max_iterations');
+    expect(client.generateWithTools).toHaveBeenCalledTimes(2);
+    expect(adapter.execute).toHaveBeenCalledTimes(2);
+    expect(result.toolTelemetry.total).toBe(2);
+  });
 
-    const result = await runReactLoop({
-      client,
-      toolAdapter: createToolAdapter(),
-      userQuery: 'Audit the live reader.',
-      systemPrompt: 'neutral reader prompt',
-      maxIterations: 3,
-    });
-
-    expect(result).toMatchObject({
-      termination: 'answer_given',
-      iterations: 2,
-      candidateSet: {
-        capturedAtIteration: 1,
-        claimedFileCitations: ['core/a.js:1-10'],
-        finalAnswerCitations: ['core/a.js:5'],
-        answerCitationsSubset: true,
-        citationsNotInCandidateSet: [],
-      },
-    });
-    expect(client.messageSnapshots[0][0].content).toBe('neutral reader prompt');
-    expect(client.messageSnapshots[1].at(-1).content).toContain('Anything unread? If yes, keep reading. If no, decide.');
-    expect(client.messageSnapshots[1].at(-1).content).toContain('claimed_file_citations: ["core/a.js:1-10"]');
+  test('observes an explicit continuation answer once without calling a response gate', async () => {
+    const answer = 'Partial review; unresolved claim original-1.';
+    const client = createClient([{role:'assistant',content:answer}]);
+    const contract = {prepare:jest.fn(messages => ({messages})), observe:jest.fn(), acknowledge:jest.fn(),
+      receiptTool:{type:'function',function:{name:'read_review_receipt',parameters:{type:'object'}}},
+      receipt:jest.fn(() => ({status:'incomplete', unresolved:['original-1']})),
+      accept:jest.fn(() => {throw new Error('obsolete accept must never be called');})};
+    const result = await runReactLoop({client, toolAdapter:createToolAdapter(), userQuery:'Review.',
+      explicitReviewContract:contract});
+    expect(result.answer).toBe(answer);
+    expect(result.termination).toBe('answer_given');
+    expect(result.explicitContinuation.status).toBe('incomplete');
+    expect(contract.observe).toHaveBeenCalledTimes(1);
+    expect(contract.observe).toHaveBeenCalledWith(answer);
+    expect(contract.accept).not.toHaveBeenCalled();
+    expect(client.generateWithTools).toHaveBeenCalledTimes(1);
   });
 
   test('default Mercury loop continues past 60 and sends one non-terminal synthesis steer', async () => {
@@ -275,9 +225,8 @@ describe('Mercury ReAct loop evidence gates', () => {
     }));
     const client = createClient([
       ...toolResponses,
-      { role: 'assistant', content: 'CANDIDATE SET\nCandidate at core/a.js:1.' },
       { role: 'assistant', content: 'Final answer at core/a.js:1.' },
-    ], { insertCandidate: false });
+    ]);
 
     const result = await runReactLoop({
       client,
@@ -289,21 +238,20 @@ describe('Mercury ReAct loop evidence gates', () => {
 
     expect(result).toMatchObject({
       termination: 'answer_given',
-      iterations: 62,
+      iterations: 61,
       iterationLimit: null,
       decisionSteerIteration: 60,
       decisionSteerSentAt: 60,
     });
     expect(client.messageSnapshots[60].at(-1).content)
       .toMatch(/If materially relevant paths remain unread, continue/);
-    expect(client.messageSnapshots[61]
+    expect(client.messageSnapshots[60]
       .filter(message => message.content && message.content.includes('investigation iterations')))
       .toHaveLength(1);
   });
 
-  test('accepts the next content reply after further reading and grows the candidate receipt', async () => {
+  test('returns the answer after reading with actual source receipts', async () => {
     const client = createClient([
-      { role: 'assistant', content: 'CANDIDATE SET\nCandidates at core/a.js:1-2 and core/b.js:3-4.' },
       {
         role: 'assistant',
         tool_calls: [{
@@ -312,7 +260,7 @@ describe('Mercury ReAct loop evidence gates', () => {
         }],
       },
       { role: 'assistant', content: 'The surviving reader is core/b.js:3.' },
-    ], { insertCandidate: false });
+    ]);
     const toolAdapter = createToolAdapter();
     toolAdapter.execute.mockResolvedValue({ file: 'core/b.js', start_line: 3, end_line: 4, total_lines: 10 });
 
@@ -325,13 +273,13 @@ describe('Mercury ReAct loop evidence gates', () => {
     });
 
     expect(result.candidateSet).toMatchObject({
-      capturedAtIteration: 1,
+      capturedAtIteration: 2,
       filesMechanicallyOpened: ['core/b.js:3-4'],
       fileReadReceipts: [{
         file: 'core/b.js', startLine: 3, endLine: 4, totalLines: 10,
         executionProvenance: 'trusted_repo_read',
       }],
-      claimedFileCitations: ['core/a.js:1-2', 'core/b.js:3-4'],
+      claimedFileCitations: ['core/b.js:3', 'core/b.js:3-4'],
       finalAnswerCitations: ['core/b.js:3'],
       answerCitationsSubset: true,
     });
@@ -403,7 +351,7 @@ describe('Mercury ReAct loop evidence gates', () => {
     const auditClient = createClient([
       { role: 'assistant', content: 'CANDIDATE SET\nCandidate at core/a.js:1.' },
       { role: 'assistant', content: 'Answer at core/a.js:1.' },
-    ], { insertCandidate: false });
+    ]);
     await runReactLoop({
       client: auditClient,
       toolAdapter: createToolAdapter(),
@@ -420,7 +368,7 @@ describe('Mercury ReAct loop evidence gates', () => {
       const attackClient = createClient([
         { role: 'assistant', content: 'CANDIDATE SET\nCandidate at core/a.js:1.' },
         { role: 'assistant', content: 'Answer at core/a.js:1.' },
-      ], { insertCandidate: false });
+      ]);
       await runReactLoop({
         client: attackClient,
         toolAdapter: createToolAdapter(),
@@ -628,7 +576,7 @@ describe('Mercury ReAct loop evidence gates', () => {
   });
 
 
-  test('accepts a final answer only when it contains file-line evidence', async () => {
+  test('returns a cited final answer with telemetry', async () => {
     const client = createClient([
       { role: 'assistant', content: 'The loop returns cited answers at trai_brain/mercury-bridge/react-loop.js:257-264.' },
     ]);
@@ -643,7 +591,7 @@ describe('Mercury ReAct loop evidence gates', () => {
     });
 
     expect(result.termination).toBe('answer_given');
-    expect(result.iterations).toBe(2);
+    expect(result.iterations).toBe(1);
     expect(result.answer).toContain('trai_brain/mercury-bridge/react-loop.js:257-264');
     expect(result.toolTelemetry).toEqual({
       total: 0,
@@ -658,7 +606,7 @@ describe('Mercury ReAct loop evidence gates', () => {
     });
   });
 
-  test('normalizes tool-handle citations before accepting a final answer', async () => {
+  test('preserves the raw tool-handle answer and reports citation diagnostics', async () => {
     const client = createClient([
       { role: 'assistant', content: 'The code in `trai_brain/mercury-bridge/tool-adapter.js` is guarded 【open_file†L209-L221】.' },
     ]);
@@ -673,7 +621,8 @@ describe('Mercury ReAct loop evidence gates', () => {
     });
 
     expect(result.termination).toBe('answer_given');
-    expect(result.answer).toContain('trai_brain/mercury-bridge/tool-adapter.js:209-221');
+    expect(result.answer).toBe( 'The code in `trai_brain/mercury-bridge/tool-adapter.js` is guarded 【open_file†L209-L221】.');
+    expect(client.generateWithTools).toHaveBeenCalledTimes(1);
   });
 
   test('returns final answer with quality warnings when tool-handle citations remain', async () => {
@@ -699,7 +648,7 @@ describe('Mercury ReAct loop evidence gates', () => {
       'tool_handle_citation',
       'uncited_run_check_claim',
     ]));
-    expect(client.messageSnapshots).toHaveLength(2);
+    expect(client.messageSnapshots).toHaveLength(1);
   });
 
   test('returns final answer with quality warnings when run_check claims do not cite the execution artifact', async () => {
@@ -722,7 +671,7 @@ describe('Mercury ReAct loop evidence gates', () => {
     expect(result.termination).toBe('answer_given');
     expect(result.answer).toContain('The run_check result proves the suite failed');
     expect(result.answerQuality.flags).toEqual(expect.arrayContaining(['uncited_run_check_claim']));
-    expect(client.messageSnapshots).toHaveLength(2);
+    expect(client.messageSnapshots).toHaveLength(1);
   });
 
   test('returns uncited final answer with quality warnings without coaching a retry', async () => {
@@ -740,10 +689,10 @@ describe('Mercury ReAct loop evidence gates', () => {
     });
 
     expect(result.termination).toBe('answer_given');
-    expect(result.iterations).toBe(2);
+    expect(result.iterations).toBe(1);
     expect(result.answer).toBe('I could not break it.');
     expect(result.answerQuality.flags).toEqual(['missing_file_line_citation']);
-    expect(client.messageSnapshots).toHaveLength(2);
+    expect(client.messageSnapshots).toHaveLength(1);
   });
 
   test('returns uncited prose with quality warnings', async () => {
@@ -860,7 +809,7 @@ describe('Mercury ReAct loop evidence gates', () => {
       'unsupported_test_outcome_claim',
       'conceptual_proof_claim',
     ]));
-    expect(client.messageSnapshots).toHaveLength(2);
+    expect(client.messageSnapshots).toHaveLength(1);
   });
 
   test('returns final answer with quality warning for exhaustive claim over ambiguous grep', async () => {

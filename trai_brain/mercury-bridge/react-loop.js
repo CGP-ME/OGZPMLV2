@@ -9,9 +9,7 @@
  *   1. Send messages array + tools schema to client.generateWithTools()
  *   2. Receive assistant message with either tool_calls or content
  *   3. If tool_calls: execute each, append results as role:tool messages, loop
- *   4. First content-only reply: retain the candidate set and ask whether
- *      anything remains unread
- *   5. Next content-only reply after the candidate set: return the answer
+ *   4. Return the content-only reply with tool and evidence receipts to the panel
  *
  * Retry wrapper handles HTTP 429/502/503/504 and empty responses per
  * Inception Labs API guidance on handling transient failures.
@@ -35,13 +33,6 @@ const ATTACK_SYSTEM_PROMPT = [
   'Break weak claims, incomplete fixes, stale assumptions, and unsafe architecture with precision. Do not validate by vibe.',
   'Attack the available evidence without assuming one file, diff, branch, memory entry, or prior path is sufficient. Find a real failure mode, prove it with code, and explain the mechanism. If you cannot find a concrete break, say that plainly and list the exact evidence you checked.',
 ].join('\n');
-const CANDIDATE_PHASE_SYSTEM_PROMPT = [
-  'TWO-PHASE CONTROL — the host, not the model, decides when an answer is final.',
-  'Your Phase 1 content-only responses must begin with the literal heading CANDIDATE SET. It is a revisable inventory, not a verdict: file every possible answer, reader, and relevant file found so far, and give each candidate a literal repo path:line or path:start-end citation.',
-  'Do not use a split File/Line table or tool-handle citation in place of literal repo citations. Do not lead Phase 1 with Result, Answer, Decision, Verdict, or Conclusion.',
-  'After the host asks whether anything is unread, use tools if more evidence is needed, then file a revised CANDIDATE SET. A revised inventory is never the final decision. Only a subsequent decision over the filed evidence is Phase 2.',
-].join('\n');
-
 function hasFileLineCitation(content) {
   return FILE_LINE_CITATION_PATTERN.test(String(content || '').replace(/[‑–—]/g, '-'));
 }
@@ -51,10 +42,6 @@ function extractFileLineCitations(content) {
   return Array.from(new Set(
     normalized.match(/[A-Za-z0-9_./-]+\.\w+:\d+(?:-\d+)?/g) || []
   )).sort();
-}
-
-function isCandidateSetResponse(content) {
-  return /^\s*(?:#{1,6}\s*)?(?:\*{1,2}|_{1,2})?CANDIDATE SET\b/i.test(String(content || ''));
 }
 
 function citationParts(citation) {
@@ -161,7 +148,7 @@ function mergeCandidateSetRechecks(candidateSet, rechecks = []) {
   if (!candidateSet) return null;
   const passOne = growCandidateSetEvidence(candidateSet);
   const originalPhase = candidateSet.candidateSources?.find(source => source.phase === 'pass_1');
-  const claims = Array.isArray(originalPhase?.claimInventory) ? originalPhase.claimInventory
+  const claims = Array.isArray(originalPhase?.claimInventory) && originalPhase.claimInventory.length > 0 ? originalPhase.claimInventory
     : Array.isArray(candidateSet.claimInventory) ? candidateSet.claimInventory : [];
   const temporalClaims = new Map(claims.map(claim => [claim.claim_id, claim]));
   passOne.claimInventory = claims;
@@ -211,10 +198,6 @@ function mergeCandidateSetRechecks(candidateSet, rechecks = []) {
       citationsNotInCandidateSet: sourceCitationsNotInCandidateSet,
     };
   });
-  const incompleteContinuations = rechecks.filter(recheck => recheck && recheck.shardedReview?.continuation
-    && (recheck.termination !== 'answer_given' || recheck.candidateSet?.coverage?.authorityReady !== true))
-    .map(recheck => ({ target: '<explicit_continuation>', scope: 'explicit_recheck_qualification',
-      load_bearing: true, reason: 'strict_recheck_incomplete', termination: recheck.termination }));
   const incompleteClaims = candidateSources.filter(source => source.claimAdjudications
     && (!source.claimAdjudications.structurally_complete
       || source.claimAdjudications.unresolved_claim_ids.length > 0
@@ -231,7 +214,6 @@ function mergeCandidateSetRechecks(candidateSet, rechecks = []) {
     final_unresolved_claim_ids: source.finalClaimAdjudications?.unresolved_claim_ids || [],
   }));
 
-  incompleteClaims.push(...incompleteContinuations);
   return {
     ...passOne,
     claimInventory: [...temporalClaims.values()],
@@ -401,20 +383,6 @@ function serializeToolResultForHistory(toolName, toolResult) {
 
 function stringifyToolResultForHistory(toolResult) {
   return serializeToolResultForHistory(null, toolResult).content;
-}
-
-function normalizeToolHandleCitations(content) {
-  // A tool handle has no file identity. Preserve it for quality reporting;
-  // never attach its line range to a guessed nearby path.
-  return String(content || '')
-    .replace(
-      new RegExp(String.raw`\bFile:\s*\`?(${REPO_FILE_PATH_PATTERN})\`?\s*(?:\*+)?\s*Lines?:\s*(\d+)(?:[-‑–—](\d+))?`, 'gi'),
-      (match, filePath, startLine, endLine) => `${filePath}:${endLine ? `${startLine}-${endLine}` : startLine}`
-    )
-    .replace(
-      new RegExp(String.raw`\`?(${REPO_FILE_PATH_PATTERN})\`?\s+lines?\s*\(?(\d+)(?:[-‑–—](\d+))?\)?`, 'gi'),
-      (match, filePath, startLine, endLine) => `${filePath}:${endLine ? `${startLine}-${endLine}` : startLine}`
-    );
 }
 
 function escapeRegexLiteral(value) {
@@ -933,8 +901,6 @@ async function runReactLoop(params) {
       role: 'system',
       content: 'HOST NO-TOOLS CONTROL: repository tools are unavailable. Answer once from memory. Do not present file:line citations as mechanically verified evidence.',
     });
-  } else {
-    if (!explicitReviewContract) messages.push({ role: 'system', content: CANDIDATE_PHASE_SYSTEM_PROMPT });
   }
 
   if (starterContext && starterContext.length > 0) {
@@ -970,8 +936,6 @@ async function runReactLoop(params) {
 
   const history = [];
   let candidateSet = null;
-  let candidateNeedsRevision = false;
-  const rejectedClaimStates = new Set();
   const claimDecisionAttempts = [];
   let decisionSteerSentAt = null;
 
@@ -986,8 +950,7 @@ async function runReactLoop(params) {
     let requestMessages = messages;
     if (explicitReviewContract) {
       const prepared = explicitReviewContract.prepare(messages, tools,
-        { maxTokens, toolChoice: 'auto', temperature }, history,
-        !candidateSet || candidateNeedsRevision ? 'candidate' : 'final');
+        { maxTokens, toolChoice: 'auto', temperature }, history);
       if (prepared.error) return attachToolTelemetry({
         answer: `(cannot verify: ${prepared.error})`, termination: prepared.error,
         candidateSet, history, iterations: iteration - 1,
@@ -1108,20 +1071,13 @@ async function runReactLoop(params) {
           content: serializedToolResult.content,
         });
       }
-      if (candidateSet) {
-        candidateNeedsRevision = true;
-        messages.push({
-          role: 'user',
-          content: 'New tools were used after candidate filing. Continue investigating as needed, then submit a revised CANDIDATE SET before deciding. Include unresolved and contradictory evidence, not only the preferred answer. Preserve the original request\'s record schema and every original claim_id with its disposition, reason and citation/quote evidence. Do not replace structured claim_adjudication records with a file list or a list of claims yet to be decided.',
-        });
-      }
       if (decisionSteerSentAt == null && iteration === decisionSteerIteration) {
         messages.push({
           role: 'user',
           content: [
             `You have completed ${iteration} investigation iterations.`,
             'If materially relevant paths remain unread, continue investigating them.',
-            'Otherwise file the complete candidate set, stop calling tools, and proceed to the decision phase.',
+            'Otherwise report your supported conclusion and the limits of your investigation.',
             'Thoroughness is measured by relevant coverage and instruction-following, not by tool-call count alone.',
           ].join(' '),
         });
@@ -1130,7 +1086,7 @@ async function runReactLoop(params) {
       continue;
     }
 
-    let content = normalizeToolHandleCitations(assistantMsg.content || '(empty content)');
+    const content = assistantMsg.content || '(empty content)';
     if (noTools) {
       const answerQuality = assessFinalAnswerQuality(content, history);
       if (!answerQuality.flags.includes('missing_file_line_citation')) {
@@ -1154,41 +1110,7 @@ async function runReactLoop(params) {
         decisionSteerSentAt,
       }, history);
     }
-    if (explicitReviewContract) {
-      const phase = !candidateSet || candidateNeedsRevision || isCandidateSetResponse(content)
-        ? 'candidate' : 'final';
-      const assessed = explicitReviewContract.assess(content, phase);
-      if (!assessed.complete) {
-        const rejection = JSON.stringify({ phase, errors: assessed.errors });
-        if (rejectedClaimStates.has(rejection)) return attachToolTelemetry({
-          answer: '(cannot verify: repeated incomplete explicit continuation receipt)',
-          termination: 'explicit_continuation_evidence_impasse', candidateSet, history,
-          iterations: iteration, explicitContinuation: explicitReviewContract.receipt(),
-          providerAttempts: providerAudit ? providerAudit.attempts : [], toolsAvailable,
-        }, history);
-        rejectedClaimStates.add(rejection);
-        messages.push({ role: 'user', content: `The ${phase} receipt is incomplete. Preserve actual conclusions and every original target/claim. Read missing literal selected-tree evidence with tools or report unresolved. Repair errors: ${rejection}` });
-        continue;
-      }
-      if (phase === 'candidate') {
-        candidateSet = { content: assessed.content, capturedAtIteration: iteration,
-          source: 'explicit_source_tool_continuation' };
-        candidateNeedsRevision = false;
-        messages.push({ role: 'user', content: 'Candidate receipt accepted. Anything unread? Read more if necessary and revise the candidate. Otherwise return the final_decision JSON, every original claim, exact target_dispositions and complete report. Selected literal candidate evidence remains supplied; catalog entries alone are not source.' });
-        continue;
-      }
-      return attachToolTelemetry({ answer: assessed.content, candidateSet,
-        iterations: iteration, termination: 'answer_given', history,
-        explicitContinuation: explicitReviewContract.receipt(),
-        providerAttempts: providerAudit ? providerAudit.attempts : [], toolsAvailable,
-        iterationLimit, decisionSteerIteration, decisionSteerSentAt,
-      }, history);
-    }
-    // The recheck producer must file actual decisions, not merely a heading
-    // or a file inventory. Unresolved decisions are valid; invented, missing
-    // or malformed original IDs need repair before the phase can advance.
-    const claimPhase = !candidateSet || candidateNeedsRevision || isCandidateSetResponse(content)
-      ? 'candidate' : 'final';
+    if (explicitReviewContract) explicitReviewContract.observe(content);
     if (claimInventory.length > 0) {
       const { claimAdjudicationReceipt, sha256 } = require('./evidence-ingestion');
       const sourceEvidence = [...claimSourceEvidence];
@@ -1210,87 +1132,13 @@ async function runReactLoop(params) {
         sourceEvidence.push({ citation: `${file}:${start}-${end}`, line_start: start, line_end: end,
           content: excerpt, source_sha256: null, excerpt_sha256: sha256(excerpt), tool_call_id: entry.toolCallId });
       }
-      const { rendered_content: renderedContent, ...receipt } = claimAdjudicationReceipt(claimInventory, content,
+      const { rendered_content, ...receipt } = claimAdjudicationReceipt(claimInventory, content,
         sourceEvidence.reverse());
-      claimDecisionAttempts.push({ iteration, phase: claimPhase, ...receipt });
-      if (!receipt.structurally_complete) {
-        const rejection = JSON.stringify({ phase: claimPhase, missing: receipt.missing_claim_ids,
-          invalid: receipt.invalid_decisions });
-        if (rejectedClaimStates.has(rejection)) {
-          return attachToolTelemetry({ answer: content, candidateSet, claimDecisionAttempts,
-            iterations: iteration, termination: 'claim_decision_impasse', history,
-            providerAttempts: providerAudit ? providerAudit.attempts : [], toolsAvailable,
-            iterationLimit, decisionSteerIteration, decisionSteerSentAt }, history);
-        }
-        rejectedClaimStates.add(rejection);
-        messages.push({ role: 'user', content: [
-          `The ${claimPhase} claim receipt is incomplete; preserve your actual conclusions and repair the records.`,
-          claimPhase === 'candidate'
-            ? 'Begin with CANDIDATE SET: examined N of M for the original changed-path inventory; retain that inventory as well as every claim decision.'
-            : 'Begin with VERDICT: and return the complete final report, including every original claim decision and the required evidence/report headings.',
-          'For each original ID emit one bare JSON line: {"record_type":"claim_adjudication","claim_id":"<exact original ID>","disposition":"supported|refuted|unresolved","reason":"<why kept or rejected, or what evidence is missing>","evidence":[{"citation":"<exact path:line>"}]}. Select precise citations from captured source or your open_file/git_show reads; the host copies the physical lines. Omit model-written quote fields. Wrong supplied quotes remain errors, not silently repaired text. Empty evidence is permitted only for unresolved decisions. Do not invent IDs or substitute descriptions/file inventories. New findings belong separately, not in an original-ID record.',
-          `Original claims: ${JSON.stringify(claimInventory)}`,
-          `Missing IDs: ${JSON.stringify(receipt.missing_claim_ids)}`,
-          `Invalid records: ${JSON.stringify(receipt.invalid_decisions)}`,
-          'A claim_source_range_not_captured error means the cited lines are not available for quotation: open that exact range with open_file/git_show before retrying, or retain the claim as unresolved with the specific missing evidence. Read further with the existing tools when necessary; do not change a conclusion just to complete the format.',
-        ].join('\n') });
-        continue;
-      }
-      // Raw provider messages remain in the provider audit. This rendered
-      // report owns host-added source quotations, not rewritten model output.
-      content = renderedContent;
+      claimDecisionAttempts.push({ iteration, phase: 'answer', ...receipt });
     }
-    if (!candidateSet || candidateNeedsRevision || isCandidateSetResponse(content)) {
-      if (!isCandidateSetResponse(content)) {
-        messages.push({
-          role: 'user',
-          content: [
-            'PHASE 1 NOT ACCEPTED. This content cannot be treated as the answer or the candidate receipt.',
-            'Your next content-only response must begin with CANDIDATE SET and inventory every possible answer, reader, and relevant file found so far using literal path:line citations.',
-            'Continue reading first if that inventory is incomplete.',
-            ...(claimInventory.length > 0 ? ['Retain the original claim_adjudication schema, exact IDs, dispositions, reasons and evidence in that candidate set; a file/description inventory is not a decision receipt.'] : []),
-          ].join('\n'),
-        });
-        if (verbose) console.error(`[REACT] Rejected non-candidate content on iteration ${iteration}`);
-        continue;
-      }
-      const telemetryAtCapture = summarizeToolTelemetry(history);
-      const claimedFileCitations = Array.from(new Set([
-        ...extractFileLineCitations(content),
-        ...telemetryAtCapture.filesOpened.flatMap(extractFileLineCitations),
-      ])).sort();
-      candidateSet = {
-        content,
-        ...(claimInventory.length > 0 ? { claimInventory, claimDecisionAttempts: [...claimDecisionAttempts] } : {}),
-        capturedAtIteration: candidateSet ? candidateSet.capturedAtIteration : iteration,
-        revisedAtIteration: iteration,
-        revisions: [...(candidateSet && candidateSet.revisions || []), { iteration, content }],
-        filesMechanicallyOpened: telemetryAtCapture.filesOpened,
-        claimedFileCitations,
-      };
-      candidateNeedsRevision = false;
-      messages.push({
-        role: 'user',
-        content: [
-          'PHASE 1 CANDIDATE SET RECEIPT — fixed input for the decision phase.',
-          formatFixedEvidenceInputs({
-            filesMechanicallyOpened: candidateSet.filesMechanicallyOpened,
-            claimedFileCitations,
-            candidateSet: content,
-          }),
-          '',
-          'Anything unread? If yes, keep reading. If no, decide.',
-          'This candidate set is now filed. When ready to decide, begin your next content-only response with VERDICT:, not CANDIDATE SET. Include the original report headings and every claim decision in that final report. Use more tools first if evidence remains missing; do not refile an unchanged inventory just to avoid deciding.',
-          'Compare every filed candidate before deciding; state which claims are supported, refuted or still unresolved and cite why. A focused recheck must retain the original inventory as well as the new tool evidence, not silently replace it with only the challenged subset.',
-          'If the original request supplies claim_id records, preserve its exact claim_adjudication JSON-line format in the final report for every original ID, including the reason and citation/quote evidence. Do not substitute an unlinked summary for those decisions.',
-          'Emit the actual evidence/report sections required by the original review request. Do not claim that an unprinted inventory or inspection table supplies proof, and do not treat the existence of a guard/catch as a defect without its producer and adverse consequence.',
-          'The decision must cite only evidence filed in this fixed candidate set.',
-        ].join('\n'),
-      });
-      if (verbose) console.error(`[REACT] Candidate set captured on iteration ${iteration}`);
-      continue;
-    }
-
+    // This is the reviewer's returned evidence, not a host-approved candidate phase.
+    candidateSet = { content, source: 'reviewer_answer', capturedAtIteration: iteration,
+      claimInventory, claimDecisionAttempts: [...claimDecisionAttempts] };
     const finalAnswer = content;
     candidateSet = growCandidateSetEvidence(candidateSet, summarizeToolTelemetry(history), finalAnswer);
     if (claimInventory.length > 0) candidateSet.claimDecisionAttempts = [...claimDecisionAttempts];
@@ -1302,6 +1150,7 @@ async function runReactLoop(params) {
       answer: finalAnswer,
       answerQuality,
       candidateSet,
+      ...(explicitReviewContract ? { explicitContinuation: explicitReviewContract.receipt() } : {}),
       iterations: iteration,
       termination: 'answer_given',
       history,
@@ -1334,12 +1183,10 @@ module.exports = {
   extractFileLineCitations,
   growCandidateSetEvidence,
   mergeCandidateSetRechecks,
-  isCandidateSetResponse,
   formatFixedEvidenceInputs,
   hasToolHandleCitation,
   hasUnsupportedRunCheckClaim,
   previewUncitedAnswer,
-  normalizeToolHandleCitations,
   compactAssistantMessageForHistory,
   stringifyToolResultForHistory,
   serializeToolResultForHistory,

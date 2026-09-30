@@ -1,0 +1,47 @@
+{
+  "mechanical_only": true,
+  "actual_owners": [
+    "runExplicitTargetReview",
+    "ensureReviewerAnswer",
+    "runReviewerPanel",
+    "reportedPanelDecision",
+    "buildRunLedgerEntry"
+  ],
+  "observed": [
+    {
+      "id": "mercury",
+      "prior": []
+    },
+    {
+      "id": "fable",
+      "prior": [
+        {
+          "id": "mercury",
+          "answer": "VERDICT: found_break\ncore/probe.js:1-2 allows the invalid size. This is offline fixture testimony, not a repository finding."
+        }
+      ]
+    },
+    {
+      "id": "kimi",
+      "prior": [
+        {
+          "id": "mercury",
+          "answer": "VERDICT: found_break\ncore/probe.js:1-2 allows the invalid size. This is offline fixture testimony, not a repository finding."
+        },
+        {
+          "id": "fable",
+          "answer": "VERDICT: found_break\nThe Mercury allegation is supported by its cited source; its malformed schema is not itself a defect."
+        }
+      ]
+    }
+  ],
+  "all_seats_received_nonconforming_mercury_answer": true,
+  "diagnostics_preserved": true,
+  "raw_kimi_pass_preserved_without_renaming": true,
+  "failed_final_seat_not_earlier_pass": true,
+  "not_exercised": [
+    "real provider reasoning",
+    "runAgentic orchestration",
+    "Fable-requested recheck routing"
+  ]
+}

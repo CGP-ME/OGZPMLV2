@@ -1,0 +1,113 @@
+{
+  "source": "First completed live run real prompt, original claims/observation, last10 actual open_file tool results, SHA-verified source snapshot. Missing original system/tools fixed overhead calibrated to actual79891-byte starting request; source/diff contents absent from saved corpus: source restored from snapshot, diff placeholders used only identically in both context footprints.",
+  "startingRequestBytes": 79891,
+  "beforeFinalBytes": 93041,
+  "afterFinalBytes": 95548,
+  "actualSourceReadsReplayed": 10,
+  "retainedBefore": [
+    {
+      "window": "actual-6",
+      "path": "trai_brain/mercury-bridge/explicit-continuation.js",
+      "start": 100,
+      "end": 130,
+      "sha256": "702d3764755762bdb8c6ec95adb29008e86d0ad674f4d1afbea998dd0fd46e91"
+    },
+    {
+      "window": "actual-7",
+      "path": "trai_brain/mercury-bridge/evidence-ingestion.js",
+      "start": 2800,
+      "end": 2840,
+      "sha256": "b8a15b64698e36c37e59756054f5997abf2285a71f00e5e07283c2ebe5f5e039"
+    },
+    {
+      "window": "actual-8",
+      "path": "trai_brain/mercury-bridge/evidence-ingestion.js",
+      "start": 2800,
+      "end": 2835,
+      "sha256": "965f90e7d13a3a0999b21e6c520e751a406156b168438d186058613fa7e91258"
+    },
+    {
+      "window": "actual-9",
+      "path": "trai_brain/mercury-bridge/evidence-ingestion.js",
+      "start": 2800,
+      "end": 2835,
+      "sha256": "965f90e7d13a3a0999b21e6c520e751a406156b168438d186058613fa7e91258"
+    }
+  ],
+  "retainedAfter": [
+    {
+      "window": "actual-3",
+      "path": "trai_brain/mercury-bridge/evidence-ingestion.js",
+      "start": 2800,
+      "end": 2835,
+      "sha256": "965f90e7d13a3a0999b21e6c520e751a406156b168438d186058613fa7e91258"
+    },
+    {
+      "window": "actual-4",
+      "path": "trai_brain/mercury-bridge/ask.js",
+      "start": 1260,
+      "end": 1290,
+      "sha256": "76601a324285685e2f6e02226a2e8061a412658a32133a81c69a811e30dd351d"
+    },
+    {
+      "window": "actual-5",
+      "path": "trai_brain/mercury-bridge/evidence-ingestion.js",
+      "start": 2070,
+      "end": 2200,
+      "sha256": "b83359db7878231498cda6ff6fb63ad8c99e821fb4c02175ed9a9fe5544e89de"
+    },
+    {
+      "window": "actual-6",
+      "path": "trai_brain/mercury-bridge/explicit-continuation.js",
+      "start": 100,
+      "end": 130,
+      "sha256": "702d3764755762bdb8c6ec95adb29008e86d0ad674f4d1afbea998dd0fd46e91"
+    },
+    {
+      "window": "actual-7",
+      "path": "trai_brain/mercury-bridge/evidence-ingestion.js",
+      "start": 2800,
+      "end": 2840,
+      "sha256": "b8a15b64698e36c37e59756054f5997abf2285a71f00e5e07283c2ebe5f5e039"
+    },
+    {
+      "window": "actual-8",
+      "path": "trai_brain/mercury-bridge/evidence-ingestion.js",
+      "start": 2800,
+      "end": 2835,
+      "sha256": "965f90e7d13a3a0999b21e6c520e751a406156b168438d186058613fa7e91258"
+    },
+    {
+      "window": "actual-9",
+      "path": "trai_brain/mercury-bridge/evidence-ingestion.js",
+      "start": 2800,
+      "end": 2835,
+      "sha256": "965f90e7d13a3a0999b21e6c520e751a406156b168438d186058613fa7e91258"
+    }
+  ],
+  "sourceProof": [
+    {
+      "path": "mercury.config.json",
+      "sha256": "e65d3fc6800fe7eeef9d6a0adb2450f998bf41d7fcdde8f9a50deef122979b2d"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/adversarial-review.js",
+      "sha256": "26d258fcbf8d51a82a7ed0807589ee227a6df0674f373ce3c09c4a8afb73935b"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/evidence-ingestion.js",
+      "sha256": "2273e82cab07dda5b6b366ead158709323022cf8f0e0dfd93d5a58e2320327e1"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/explicit-continuation.js",
+      "sha256": "11e783a1c4139e178687bcf2cd51051a38590b66ef3182c85ca526a52403cfc0"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/react-loop.js",
+      "sha256": "9ad4cc24c21d1e2ac7feb26a7f788f2d4988153535925517c5fd56054709ba8b"
+    }
+  ],
+  "inputHash": "bb9142740f8a16dc0a51790f614627526b1d82ebf3679fc5d893b6eb02ad3f0f",
+  "beforeCodeHash": "c7cdf3766ba17a5c11e14deaf22ecea25c75a7fb0f42061625a00d4b2480c70e",
+  "afterCodeHash": "6d64a589d14d9f61b0ee44397c768e67007894bec2e1bf8c55de069ffac82745"
+}

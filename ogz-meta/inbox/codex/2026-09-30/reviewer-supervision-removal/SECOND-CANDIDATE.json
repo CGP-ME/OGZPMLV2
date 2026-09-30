@@ -1,0 +1,6 @@
+{
+  "candidate": "5ca3c369188c3841c10593d8ece061f57f21886a",
+  "base": "c080995a94d322a61950ee606d4f667c9dfe63c0",
+  "harness": "509ddeedc6217e285aeb0e9728c3ad615a18f74b",
+  "qualification": "Harness additionally contains packet continuation/transport.patch; staged production commit contains supervision removal only. Transport has offline behavior proof and will ship separately after review."
+}

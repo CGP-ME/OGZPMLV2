@@ -1,0 +1,70 @@
+{
+  "base": "c080995a",
+  "production_paths": [
+    "trai_brain/mercury-bridge/evidence-ingestion.js"
+  ],
+  "files": [
+    {
+      "file": "build-ingestion.cjs",
+      "sha256": "e40b17c037792606103c9c0c65d1073383f78527fbedf242184fc67f4c1c0ec6"
+    },
+    {
+      "file": "ingestion-base.js",
+      "sha256": "91ed4d0742ae4453a4a0fa7d2074233ad33ff0fa69f2c1b9ed6c3b60b49df335"
+    },
+    {
+      "file": "ingestion.patch",
+      "sha256": "f5bad82949627d0a526a3f05e268e73f1f66f8f2d7dc9144f1e3530b62de5749"
+    },
+    {
+      "file": "ingestion-overlay/trai_brain/mercury-bridge/evidence-ingestion.js",
+      "sha256": "2273e82cab07dda5b6b366ead158709323022cf8f0e0dfd93d5a58e2320327e1"
+    },
+    {
+      "file": "ingestion-proof.cjs",
+      "sha256": "631a44e22d1db38b4c5440fcbb6bc914efa2635212e461260f81f0e541ec624d"
+    },
+    {
+      "file": "INGESTION-PROOF.json",
+      "sha256": "ae80cee3dc6d2c32055cddc77d8175d2a8001ef32aace901742c505ddd67dec6"
+    },
+    {
+      "file": "panel-ingestion-proof.cjs",
+      "sha256": "ded11138ba1e97e946223775f134dbea803f89e69dfc6728791d411caf2f03c3"
+    },
+    {
+      "file": "PANEL-INGESTION-PROOF.json",
+      "sha256": "34c03250c80b55e048567fdad7caeff9c63ebc4eaef57dd0541d97fbcd778871"
+    }
+  ],
+  "fixture_current_dependencies": [
+    {
+      "file": "trai_brain/mercury-bridge/doctrine-review.js",
+      "sha256": "d11f36729eeded30db7175214e73b9a43c574904e8b639d8afce566275adb646"
+    },
+    {
+      "file": "trai_brain/repository-policy.js",
+      "sha256": "15334a31fcc149776943c19a033e0864923c8193eb6bd38e8895f865decc6463"
+    },
+    {
+      "file": "trai_brain/mercury-bridge/reviewer-panel.js",
+      "sha256": "85b63a5e70a7bd9fcfd40f0774e994f2011404a345645a2a6270a4a338a527d9"
+    },
+    {
+      "file": "trai_brain/mercury-bridge/run-ledger.js",
+      "sha256": "1d1f68ad5f5008a35f30fee46ba8b9662f539045e9a9b5062fb15029e1aa55ee"
+    },
+    {
+      "file": "trai_brain/mercury-bridge/cost-accounting.js",
+      "sha256": "6c645d84866aa1534639c63f260676764fba5c31ce36caaf507013209703b364"
+    }
+  ],
+  "proof_commands": [
+    "node ogz-meta/inbox/codex/2026-09-30/reviewer-supervision-removal/ingestion-proof.cjs",
+    "node ogz-meta/inbox/codex/2026-09-30/reviewer-supervision-removal/panel-ingestion-proof.cjs",
+    "node --check ogz-meta/inbox/codex/2026-09-30/reviewer-supervision-removal/ingestion-overlay/trai_brain/mercury-bridge/evidence-ingestion.js"
+  ],
+  "provider_calls": 0,
+  "shared_production_mutations": 0,
+  "index_mutations": 0
+}

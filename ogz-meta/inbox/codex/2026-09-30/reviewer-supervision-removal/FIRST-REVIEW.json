@@ -1,0 +1,35 @@
+{
+  "candidate": "d652cb32bc74b299fae45141058193f65f39ee1e",
+  "run": "2026-09-30T09-39-40-662Z-e3654d1e6585",
+  "raw_provider_run": "2026-09-30t09-32-00-534z-1352808-e83a3b677008",
+  "reported_ledger_verdict": "pass",
+  "seats": [
+    {
+      "id": "mercury",
+      "status": "succeeded",
+      "qualified_verdict": "found_break",
+      "reported_verdict": "found_break"
+    },
+    {
+      "id": "fable",
+      "status": "succeeded",
+      "qualified_verdict": "cannot_verify",
+      "reported_verdict": "needs_more_evidence"
+    },
+    {
+      "id": "kimi",
+      "status": "succeeded",
+      "qualified_verdict": "cannot_verify",
+      "reported_verdict": "pass"
+    }
+  ],
+  "rechecks": [
+    {
+      "termination": "explicit_continuation_indispensable_envelope_exceeds_limit",
+      "iterations": 38,
+      "last_request_bytes": 102716,
+      "max_request_bytes": 98304
+    }
+  ],
+  "delivery_status": "not approved for landing: Mercury recheck did not complete; final prompt cleanup not reviewed"
+}

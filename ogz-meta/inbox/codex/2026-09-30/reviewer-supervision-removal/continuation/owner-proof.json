@@ -1,0 +1,11 @@
+{
+  "actualOwner": "runReviewRechecks",
+  "providerCalls": 4,
+  "rawAnswerByteExact": true,
+  "originalClaimsPreservedAcrossMerge": true,
+  "allPhaseRawAnswersRetained": true,
+  "noReadCompletionNotRequired": true,
+  "recheckMetricsOwnPhase": true,
+  "jsonSerializable": true,
+  "semanticReview": false
+}

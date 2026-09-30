@@ -1,0 +1,48 @@
+{
+  "source": "Completed actual first run, real recheck prompt/claims/prior observation; source/diff contents absent from saved corpus replaced only for this context-delta measurement; no provider tools/system prompt reconstructed",
+  "actualFirstRecheckRequestBytes": 79891,
+  "actualRecheckPromptBytes": 30684,
+  "largestBeforeFields": [
+    {
+      "field": "prior_continuation_decision",
+      "bytes": 8868
+    },
+    {
+      "field": "targets",
+      "bytes": 5861
+    },
+    {
+      "field": "artifacts",
+      "bytes": 4906
+    },
+    {
+      "field": "inherited_evidence_absences",
+      "bytes": 1731
+    },
+    {
+      "field": "original_query",
+      "bytes": 262
+    },
+    {
+      "field": "original_claim_ids",
+      "bytes": 232
+    },
+    {
+      "field": "original_candidate_ledger",
+      "bytes": 227
+    },
+    {
+      "field": "fourth_shape_leads",
+      "bytes": 224
+    }
+  ],
+  "beforeInventoryBytes": 23147,
+  "afterInventoryBytes": 13206,
+  "inventoryBytesSaved": 9941,
+  "reconstructedContextBeforeBytes": 59491,
+  "reconstructedContextAfterBytes": 49286,
+  "pages": 183,
+  "maxSerializedPageChars": 1372,
+  "targetIdsAndClaimIdsPreserved": true,
+  "allArchivedValuesRecovered": true
+}

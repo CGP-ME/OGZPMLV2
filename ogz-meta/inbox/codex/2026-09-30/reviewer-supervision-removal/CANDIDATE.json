@@ -1,0 +1,8 @@
+{
+  "candidate": "8cfb8d1c5837b279c9b09a7afdbeda8f5706f6cb",
+  "base": "c080995a94d322a61950ee606d4f667c9dfe63c0",
+  "harness": "a5ecf975923c1c024ee98adf849016181dd6e482",
+  "qualification": "Adds three ingestion prompt-completion hunks to prior reviewed candidate and qualified harness; exact ingestion behavior transcript proves three calls without format retries. Transport remains separately scoped.",
+  "reviewedRemovalSource": "be416a802443e2b27df69365c9a18e1123977047",
+  "finalCleanupReview": "followup/ORPHAN-FINAL-SEAT-ANSWERS.json"
+}

@@ -1,0 +1,11 @@
+{
+  "syntheticDeliveryProof": true,
+  "padding": 78000,
+  "beforeRequestBytes": 87227,
+  "beforeLatestDelivered": false,
+  "afterRequestBytes": 92007,
+  "afterLatestDelivered": true,
+  "oversizedLatestPointerInline": true,
+  "oversizedRequestBytes": 95712,
+  "inlineReceiptResolvable": true
+}

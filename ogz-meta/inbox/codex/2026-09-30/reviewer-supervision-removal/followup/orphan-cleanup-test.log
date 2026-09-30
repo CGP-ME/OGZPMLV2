@@ -1,0 +1,5 @@
+Test Suites: 1 passed, 1 total
+Tests:       30 passed, 30 total
+Snapshots:   0 total
+Time:        1.35 s, estimated 2 s
+Ran all test suites within paths "test/mercury-react-loop.test.js".

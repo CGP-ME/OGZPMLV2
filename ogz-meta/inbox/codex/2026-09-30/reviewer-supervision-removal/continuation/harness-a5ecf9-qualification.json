@@ -1,0 +1,9 @@
+{
+  "candidate": "be416a802443e2b27df69365c9a18e1123977047",
+  "harness": "a5ecf975923c1c024ee98adf849016181dd6e482",
+  "transportPatchSha256": "039c49cd24d5bf04ec2c7362b5f4e8aed16284848d3088f60d441c4880829cf4",
+  "qualification": "Transport diff is byte-identical to the prior eight-test qualified a8cac1 harness diff. The additional ingestion prompt hunks are shared with the candidate and separately exercised by the complete final-ingestion-proof transcript.",
+  "productionTransportFiles": 2,
+  "sourcePolicy": "No inherited worktree deltas in candidate or harness",
+  "providerCalls": 0
+}

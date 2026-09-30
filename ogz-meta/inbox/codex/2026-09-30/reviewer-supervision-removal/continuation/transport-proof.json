@@ -1,0 +1,16 @@
+{
+  "hundredCallsUnderCap": true,
+  "catalogRowsReread": 100,
+  "unicodePlainTextByteExact": true,
+  "replayKind": "Exact last live tool-result plus calibrated fixed overhead; original full provider request unavailable",
+  "baselineBytes": 102716,
+  "fixedBytes": 91074,
+  "rawArchiveHashExact": true,
+  "original77MatchesReconstructed": true,
+  "readPages": 50,
+  "maxSerializedPageChars": 1134,
+  "existingSerializerLimit": 12000,
+  "sourceCreditUnchanged": true,
+  "growthFailure": null,
+  "genuineIrreducibleRetained": true
+}

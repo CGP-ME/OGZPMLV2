@@ -1,0 +1,6 @@
+{
+  "candidate": "5ca3c369188c3841c10593d8ece061f57f21886a",
+  "base": "c080995a94d322a61950ee606d4f667c9dfe63c0",
+  "harness": "eae8f9058b7d1a6f702641f3dea6e960cf9004d5",
+  "qualification": "Separately qualified transport-corrected.patch preserves latest tool delivery or provides direct readable receipt; not in supervision-removal production commit."
+}

@@ -1,0 +1,25 @@
+{
+  "candidate": "5ca3c369188c3841c10593d8ece061f57f21886a",
+  "baselineTree": "bd9f9c5312c37f4b466a8b61ad2f09f1e51a092c",
+  "harness": "55361b324d94f1e8ae6e07a18d4780629cc793a6",
+  "rawRun": "2026-09-30t10-59-09-861z-1404789-9ee57055fae2",
+  "initialContinuationCalls": 24,
+  "finding": "isCandidateSetResponse allegedly still defined but never invoked, contrary to candidate phase requirement",
+  "verifiedCandidate": {
+    "helperDefinitionAbsent": true,
+    "headerLine": 12,
+    "answerHandlingLine": 1103,
+    "answerTerminationLine": 1169
+  },
+  "verifiedBaseline": {
+    "helperDefinitionLine": 56,
+    "helperCallLines": [
+      1158,
+      1190,
+      1243,
+      1244
+    ],
+    "exportLine": 1337
+  },
+  "interpretation": "Finding combines baseline definition/header with candidate removal. Panel adjudication remains required; this trace is not self-approval."
+}

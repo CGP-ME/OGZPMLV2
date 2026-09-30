@@ -1,0 +1,639 @@
+{
+  "tree": "5ca3c369188c3841c10593d8ece061f57f21886a",
+  "scope": "Eight exact Git source files; lexical census plus producer/consumer trace, no fresh provider or runtime proof",
+  "files": [
+    {
+      "file": "trai_brain/mercury-bridge/evidence-ingestion.js",
+      "sha256": "2273e82cab07dda5b6b366ead158709323022cf8f0e0dfd93d5a58e2320327e1",
+      "lines": 2928,
+      "references": [
+        {
+          "line": 2296,
+          "text": "  const deliveredSourceUnits = new Set(mapReceipts"
+        },
+        {
+          "line": 2303,
+          "text": "  const fourthShapeAdditionCount = fourthShapeAdditions.length;"
+        },
+        {
+          "line": 2308,
+          "text": "      return artifactUnits.length > 0 && artifactUnits.every(unit => deliveredSourceUnits.has(unit.unit_id));"
+        },
+        {
+          "line": 2311,
+          "text": "      .filter(unit => unit.artifact_id === target.source_artifact_id && deliveredSourceUnits.has(unit.unit_id))"
+        },
+        {
+          "line": 2356,
+          "text": "      fourth_shape_addition_count: fourthShapeAdditionCount,"
+        },
+        {
+          "line": 2682,
+          "text": "  const acceptedSet = finalAcceptedSet;"
+        },
+        {
+          "line": 2686,
+          "text": "    .filter(unitId => !acceptedSet.has(unitId)))).sort();"
+        },
+        {
+          "line": 2690,
+          "text": "    .filter(unitId => !acceptedSet.has(unitId)))).sort();"
+        },
+        {
+          "line": 2693,
+          "text": "  const unacceptedUnitIds = requiredUnitIds.filter(unitId => !acceptedSet.has(unitId));"
+        },
+        {
+          "line": 2719,
+          "text": "    wholeFilesRead: [],"
+        },
+        {
+          "line": 2748,
+          "text": "    authorityReady: coverageComplete"
+        },
+        {
+          "line": 2758,
+          "text": "  const fileReads = [];"
+        },
+        {
+          "line": 2765,
+          "text": "        || artifactUnits.some(unit => !deliveredSourceUnits.has(unit.unit_id))) continue;"
+        },
+        {
+          "line": 2770,
+          "text": "    fileReads.push({"
+        },
+        {
+          "line": 2781,
+          "text": "  coverage.wholeFilesRead = fileReads.map(read => read.file);"
+        },
+        {
+          "line": 2785,
+          "text": "    .filter(targetPath => !coverage.wholeFilesRead.includes(targetPath));"
+        },
+        {
+          "line": 2793,
+          "text": "    fileReads,"
+        },
+        {
+          "line": 2799,
+          "text": "    fourthShapeAdditionCount,"
+        },
+        {
+          "line": 2819,
+          "text": "      ? 'answer_given' : 'synthesis_failed',"
+        },
+        {
+          "line": 2824,
+          "text": "    candidateSet: {"
+        }
+      ]
+    },
+    {
+      "file": "trai_brain/mercury-bridge/explicit-continuation.js",
+      "sha256": "11e783a1c4139e178687bcf2cd51051a38590b66ef3182c85ca526a52403cfc0",
+      "lines": 331,
+      "references": [
+        {
+          "line": 25,
+          "text": "  const originalCandidateSet = previous.shardedReview?.continuation?.original_candidate_set || previous.candidateSet;"
+        },
+        {
+          "line": 45,
+          "text": "    inherited_evidence_absences: previous.candidateSet.coverage.unresolved,"
+        },
+        {
+          "line": 48,
+          "text": "      candidate: recheck.candidateSet?.content || null,"
+        },
+        {
+          "line": 55,
+          "text": "    fourth_shape_addition_count: previous.shardedReview.coverage.fourthShapeAdditionCount ?? null,"
+        },
+        {
+          "line": 106,
+          "text": "  function sourceWindow(entry) {"
+        },
+        {
+          "line": 116,
+          "text": "    const deliveredLines = result.text.split('\\n').slice(start - result.start_line, end - result.start_line + 1);"
+        },
+        {
+          "line": 137,
+          "text": "      const evidence = sourceWindow(entry);"
+        },
+        {
+          "line": 261,
+          "text": "        previous.shardedReview.coverage.fourthShapeAdditionCount ?? null),"
+        },
+        {
+          "line": 272,
+          "text": "      candidateSet: { ...previous.candidateSet, ...(continued.candidateSet || {}),"
+        },
+        {
+          "line": 273,
+          "text": "        claimInventory: continued.candidateSet?.claimInventory?.length"
+        },
+        {
+          "line": 274,
+          "text": "          ? continued.candidateSet.claimInventory : previous.candidateSet.claimInventory,"
+        },
+        {
+          "line": 293,
+          "text": "        resolution: continued.termination === 'answer_given' ? 'reviewer_answer_received' : 'incomplete' } },"
+        },
+        {
+          "line": 309,
+          "text": "      start_line: { type: 'integer', minimum: 1 }, end_line: { type: 'integer', minimum: 1 } },"
+        },
+        {
+          "line": 321,
+          "text": "      evidence_kind: 'archived_reviewer_testimony', start_line: args.start_line,"
+        }
+      ]
+    },
+    {
+      "file": "trai_brain/mercury-bridge/react-loop.js",
+      "sha256": "9ad4cc24c21d1e2ac7feb26a7f788f2d4988153535925517c5fd56054709ba8b",
+      "lines": 1218,
+      "references": [
+        {
+          "line": 94,
+          "text": "function growCandidateSetEvidence(candidateSet, telemetry = {}, answer = null) {"
+        },
+        {
+          "line": 95,
+          "text": "  const base = candidateSet || {};"
+        },
+        {
+          "line": 117,
+          "text": "      Array.isArray(telemetry.fileReads) ? telemetry.fileReads : [],"
+        },
+        {
+          "line": 126,
+          "text": "function candidateSourceReceipt(candidateSet, { phase, recheckIndex = null } = {}) {"
+        },
+        {
+          "line": 128,
+          "text": "    coverage: candidateSet.coverage || null,"
+        },
+        {
+          "line": 129,
+          "text": "    explicitContinuation: candidateSet.explicitContinuation || null,"
+        },
+        {
+          "line": 132,
+          "text": "    content: candidateSet.content || '',"
+        },
+        {
+          "line": 133,
+          "text": "    capturedAtIteration: candidateSet.capturedAtIteration == null ? null : candidateSet.capturedAtIteration,"
+        },
+        {
+          "line": 134,
+          "text": "    filesMechanicallyOpened: candidateSet.filesMechanicallyOpened || [],"
+        },
+        {
+          "line": 135,
+          "text": "    fileReadReceipts: candidateSet.fileReadReceipts || [],"
+        },
+        {
+          "line": 136,
+          "text": "    claimedFileCitations: candidateSet.claimedFileCitations || [],"
+        },
+        {
+          "line": 137,
+          "text": "    finalAnswerCitations: candidateSet.finalAnswerCitations || [],"
+        },
+        {
+          "line": 138,
+          "text": "    answerCitationsSubset: candidateSet.answerCitationsSubset === true,"
+        },
+        {
+          "line": 139,
+          "text": "    citationsNotInCandidateSet: candidateSet.citationsNotInCandidateSet || [],"
+        },
+        {
+          "line": 140,
+          "text": "    claimInventory: candidateSet.claimInventory || [],"
+        },
+        {
+          "line": 141,
+          "text": "    claimAdjudications: candidateSet.claimAdjudications || null,"
+        },
+        {
+          "line": 142,
+          "text": "    finalClaimAdjudications: candidateSet.finalClaimAdjudications || null,"
+        },
+        {
+          "line": 143,
+          "text": "    claimDecisionAttempts: candidateSet.claimDecisionAttempts || [],"
+        },
+        {
+          "line": 147,
+          "text": "function mergeCandidateSetRechecks(candidateSet, rechecks = []) {"
+        },
+        {
+          "line": 148,
+          "text": "  if (!candidateSet) return null;"
+        },
+        {
+          "line": 149,
+          "text": "  const passOne = growCandidateSetEvidence(candidateSet);"
+        },
+        {
+          "line": 150,
+          "text": "  const originalPhase = candidateSet.candidateSources?.find(source => source.phase === 'pass_1');"
+        },
+        {
+          "line": 152,
+          "text": "    : Array.isArray(candidateSet.claimInventory) ? candidateSet.claimInventory : [];"
+        },
+        {
+          "line": 161,
+          "text": "      recheck && recheck.candidateSet,"
+        },
+        {
+          "line": 221,
+          "text": "      authorityReady: false,"
+        },
+        {
+          "line": 240,
+          "text": "  candidateSet = null,"
+        },
+        {
+          "line": 247,
+          "text": "  if (candidateSet != null) {"
+        },
+        {
+          "line": 249,
+          "text": "    lines.push(String(candidateSet));"
+        },
+        {
+          "line": 347,
+          "text": "        delivered_start_line: toolResult.start_line,"
+        },
+        {
+          "line": 628,
+          "text": "  const fileReads = [];"
+        },
+        {
+          "line": 676,
+          "text": "        startLine: result.start_line, endLine: result.end_line, truncated: false,"
+        },
+        {
+          "line": 682,
+          "text": "        fileReads.push({"
+        },
+        {
+          "line": 723,
+          "text": "    fileReads,"
+        },
+        {
+          "line": 952,
+          "text": "  let candidateSet = null;"
+        },
+        {
+          "line": 970,
+          "text": "        candidateSet, history, iterations: iteration - 1,"
+        },
+        {
+          "line": 992,
+          "text": "        candidateSet,"
+        },
+        {
+          "line": 1021,
+          "text": "        candidateSet: null,"
+        },
+        {
+          "line": 1116,
+          "text": "        candidateSet: null,"
+        },
+        {
+          "line": 1118,
+          "text": "        termination: 'answer_given',"
+        },
+        {
+          "line": 1138,
+          "text": "        const delivered = result.text.split('\\n').slice(start - result.start_line, end - result.start_line + 1);"
+        },
+        {
+          "line": 1154,
+          "text": "    candidateSet = { content, source: 'reviewer_answer', capturedAtIteration: iteration,"
+        },
+        {
+          "line": 1157,
+          "text": "    candidateSet = growCandidateSetEvidence(candidateSet, summarizeToolTelemetry(history), finalAnswer);"
+        },
+        {
+          "line": 1158,
+          "text": "    if (claimInventory.length > 0) candidateSet.claimDecisionAttempts = [...claimDecisionAttempts];"
+        },
+        {
+          "line": 1159,
+          "text": "    candidateSet.candidateSources = [candidateSourceReceipt(candidateSet, { phase: 'pass_1' })];"
+        },
+        {
+          "line": 1166,
+          "text": "      candidateSet,"
+        },
+        {
+          "line": 1169,
+          "text": "      termination: 'answer_given',"
+        },
+        {
+          "line": 1181,
+          "text": "    candidateSet,"
+        }
+      ]
+    },
+    {
+      "file": "trai_brain/mercury-bridge/tool-adapter.js",
+      "sha256": "e623692f715987ccdb4c44b4a2379b99acb401c1db26ab6cf58038f6186e7eac",
+      "lines": 2388,
+      "references": [
+        {
+          "line": 711,
+          "text": "      start_line: startLine,"
+        },
+        {
+          "line": 755,
+          "text": "        start_line: doc.start_line,"
+        },
+        {
+          "line": 1019,
+          "text": "      start_line: returnedStart,"
+        },
+        {
+          "line": 1803,
+          "text": "        start_line: 'integer (optional, default 1) — first line (1-indexed)',"
+        },
+        {
+          "line": 1836,
+          "text": "        start_line: 'integer (optional) — first line (1-indexed)',"
+        },
+        {
+          "line": 2196,
+          "text": "              start_line: { type: \"integer\", description: \"First line to read, 1-indexed (default 1)\" },"
+        },
+        {
+          "line": 2257,
+          "text": "              start_line: { type: \"integer\", description: \"First line, 1-indexed (optional)\" },"
+        }
+      ]
+    },
+    {
+      "file": "trai_brain/mercury-bridge/ask.js",
+      "sha256": "7c7d2e43f79cd03b5a9131bc3eb3d7a1daa3194c8bb1bb82492ea14c0da1bd25",
+      "lines": 2067,
+      "references": [
+        {
+          "line": 738,
+          "text": "    termination: successful.length > 0 ? 'answer_given' : 'not_selected',"
+        },
+        {
+          "line": 750,
+          "text": "  if (!result.parsed && result.termination === 'answer_given') {"
+        },
+        {
+          "line": 1302,
+          "text": "            candidateSet: mercuryResult.candidateSet,"
+        },
+        {
+          "line": 1363,
+          "text": "              candidateSet: mercuryResult.candidateSet,"
+        },
+        {
+          "line": 1374,
+          "text": "              claimInventory: mercuryResult.candidateSet?.claimInventory || [],"
+        },
+        {
+          "line": 1380,
+          "text": "            mercuryResult.candidateSet = mergeCandidateSetRechecks("
+        },
+        {
+          "line": 1381,
+          "text": "              mercuryResult.candidateSet,"
+        },
+        {
+          "line": 1387,
+          "text": "                candidateSet: recheck.candidateSet,"
+        },
+        {
+          "line": 1490,
+          "text": "        termination: 'answer_given',"
+        },
+        {
+          "line": 1519,
+          "text": "    if (mercuryResult && mercuryResult.candidateSet?.candidateSources?.length > 1) {"
+        },
+        {
+          "line": 1521,
+          "text": "        answer: mercuryResult.answer, candidateSet: mercuryResult.candidateSet,"
+        },
+        {
+          "line": 1546,
+          "text": "    if (mercuryResult && traceUsed && result.termination === 'answer_given') {"
+        },
+        {
+          "line": 1551,
+          "text": "    if (store && mercuryResult && config.TRACE_MEMORY_ENABLED && result.termination === 'answer_given') {"
+        },
+        {
+          "line": 1686,
+          "text": "    console.log(`review coverage: candidate=${doctrine.candidateSet ? `${doctrine.candidateSet.examined}/${doctrine.candidateSet.total}` : 'absent'}`);"
+        },
+        {
+          "line": 1738,
+          "text": "  const candidateSet = entry.candidate_set;"
+        },
+        {
+          "line": 1739,
+          "text": "  if (candidateSet) {"
+        },
+        {
+          "line": 1740,
+          "text": "    console.log(`candidate set:   iteration=${candidateSet.captured_at_iteration} citations=${candidateSet.claimed_file_citations.length} answer-subset=${candidateSet.answer_citations_subset ? 'yes' : 'no'}`);"
+        }
+      ]
+    },
+    {
+      "file": "trai_brain/mercury-bridge/reviewer-panel.js",
+      "sha256": "85b63a5e70a7bd9fcfd40f0774e994f2011404a345645a2a6270a4a338a527d9",
+      "lines": 275,
+      "references": [
+        {
+          "line": 218,
+          "text": "  if (result && result.termination === 'answer_given' && String(result.answer || '').trim() !== '') {"
+        }
+      ]
+    },
+    {
+      "file": "trai_brain/mercury-bridge/run-ledger.js",
+      "sha256": "71bf6eca52e562e918356fc07d530d07a42bbb50d09ac3194cedeaee48c19cd1",
+      "lines": 1246,
+      "references": [
+        {
+          "line": 562,
+          "text": "  if (!result || result.termination !== 'answer_given') return 'blocked';"
+        },
+        {
+          "line": 588,
+          "text": "    'candidateSet',"
+        },
+        {
+          "line": 684,
+          "text": "      claim_decision_attempts: recheck.claimDecisionAttempts || recheck.candidateSet?.claimDecisionAttempts || [],"
+        },
+        {
+          "line": 921,
+          "text": "  const candidateSet = result && result.candidateSet ? result.candidateSet : null;"
+        },
+        {
+          "line": 983,
+          "text": "    file_reads: Array.isArray(telemetry.fileReads) ? telemetry.fileReads : [],"
+        },
+        {
+          "line": 988,
+          "text": "    candidate_set: candidateSet ? {"
+        },
+        {
+          "line": 989,
+          "text": "      coverage: candidateSet.coverage || null,"
+        },
+        {
+          "line": 990,
+          "text": "      claim_inventory: Array.isArray(candidateSet.claimInventory) ? candidateSet.claimInventory : [],"
+        },
+        {
+          "line": 991,
+          "text": "      content: redactSensitiveText(candidateSet.content || ''),"
+        },
+        {
+          "line": 992,
+          "text": "      captured_at_iteration: candidateSet.capturedAtIteration,"
+        },
+        {
+          "line": 993,
+          "text": "      revised_at_iteration: candidateSet.revisedAtIteration || null,"
+        },
+        {
+          "line": 994,
+          "text": "      revisions: candidateSet.revisions || [],"
+        },
+        {
+          "line": 995,
+          "text": "      files_mechanically_opened: Array.isArray(candidateSet.filesMechanicallyOpened)"
+        },
+        {
+          "line": 996,
+          "text": "        ? candidateSet.filesMechanicallyOpened"
+        },
+        {
+          "line": 998,
+          "text": "      file_read_receipts: Array.isArray(candidateSet.fileReadReceipts)"
+        },
+        {
+          "line": 999,
+          "text": "        ? candidateSet.fileReadReceipts"
+        },
+        {
+          "line": 1001,
+          "text": "      claimed_file_citations: Array.isArray(candidateSet.claimedFileCitations)"
+        },
+        {
+          "line": 1002,
+          "text": "        ? candidateSet.claimedFileCitations"
+        },
+        {
+          "line": 1004,
+          "text": "      final_answer_citations: Array.isArray(candidateSet.finalAnswerCitations)"
+        },
+        {
+          "line": 1005,
+          "text": "        ? candidateSet.finalAnswerCitations"
+        },
+        {
+          "line": 1007,
+          "text": "      answer_citations_subset: candidateSet.answerCitationsSubset === true,"
+        },
+        {
+          "line": 1008,
+          "text": "      citations_not_in_candidate_set: Array.isArray(candidateSet.citationsNotInCandidateSet)"
+        },
+        {
+          "line": 1009,
+          "text": "        ? candidateSet.citationsNotInCandidateSet"
+        },
+        {
+          "line": 1011,
+          "text": "      candidate_sources: Array.isArray(candidateSet.candidateSources)"
+        },
+        {
+          "line": 1012,
+          "text": "        ? candidateSet.candidateSources.map(candidateSourceLedgerReceipt)"
+        },
+        {
+          "line": 1122,
+          "text": "    file_reads: Array.isArray(toolTelemetry.fileReads) ? toolTelemetry.fileReads : [],"
+        }
+      ]
+    },
+    {
+      "file": "trai_brain/mercury-bridge/doctrine-review.js",
+      "sha256": "d11f36729eeded30db7175214e73b9a43c574904e8b639d8afce566275adb646",
+      "lines": 259,
+      "references": [
+        {
+          "line": 95,
+          "text": "  const reads = Array.isArray(telemetry && telemetry.fileReads) ? telemetry.fileReads : [];"
+        },
+        {
+          "line": 105,
+          "text": "    const fileReads = reads.filter(read => read && read.file === file && Number.isInteger(read.startLine)"
+        },
+        {
+          "line": 107,
+          "text": "    if (fileReads.length === 0) return false;"
+        },
+        {
+          "line": 108,
+          "text": "    const totalLines = Math.max(...fileReads.map(read => read.totalLines));"
+        },
+        {
+          "line": 110,
+          "text": "    for (const read of fileReads) {"
+        },
+        {
+          "line": 155,
+          "text": "  candidateSet: structuredCandidateSet = null,"
+        },
+        {
+          "line": 169,
+          "text": "  const candidateSet = countDeclaration(structuredCandidateSet ? structuredCandidateSet.content : text, 'CANDIDATE SET');"
+        },
+        {
+          "line": 172,
+          "text": "  if (candidateCoverage && candidateCoverage.authorityReady !== true) addAbsence('coverage_unresolved');"
+        },
+        {
+          "line": 173,
+          "text": "  if (changedFiles.length > 0 && (!candidateSet || candidateSet.examined < changedFiles.length"
+        },
+        {
+          "line": 174,
+          "text": "      || candidateSet.total < changedFiles.length || candidateSet.examined < candidateSet.total)) {"
+        },
+        {
+          "line": 239,
+          "text": "    candidateSet,"
+        },
+        {
+          "line": 243,
+          "text": "    fourthShapeAdditionCount: fourthShapeCount,"
+        }
+      ]
+    }
+  ],
+  "knownOpen": "Inherited parsed classification can survive continuation finish spreading previous into continued; separately assigned transport fix. This trace is not whole-harness approval."
+}

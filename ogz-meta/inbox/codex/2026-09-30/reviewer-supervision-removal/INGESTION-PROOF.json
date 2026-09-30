@@ -1,0 +1,29 @@
+{
+  "mechanical_only": true,
+  "baseline": {
+    "calls": [
+      "map",
+      "map",
+      "map",
+      "candidate",
+      "candidate",
+      "final",
+      "final"
+    ],
+    "termination": "synthesis_failed"
+  },
+  "candidate": {
+    "calls": [
+      "map",
+      "candidate",
+      "final"
+    ],
+    "termination": "answer_given",
+    "answer_preserved": true,
+    "mapper_and_candidate_testimony_delivered": true,
+    "source_delivered": true,
+    "diagnostics_retained": true,
+    "provider_failure_named": true,
+    "empty_answer_not_success": true
+  }
+}

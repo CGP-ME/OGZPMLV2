@@ -1,0 +1,7 @@
+{
+  "baseline_failed": 30,
+  "candidate_failed": 30,
+  "new_failures": [],
+  "resolved_failures": [],
+  "note": "HEAD bridge modules versus live working bridge; same tests, no providers"
+}

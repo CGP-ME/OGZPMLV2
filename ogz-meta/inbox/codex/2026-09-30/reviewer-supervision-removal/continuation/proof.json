@@ -1,0 +1,34 @@
+{
+  "discoveryIdsUnionedRawRecordsRetained": true,
+  "threeRechecksNoMetricGrowth": true,
+  "mechanicalProofOnly": true,
+  "observations": [
+    {
+      "read": "none",
+      "actualAnswerPreserved": true,
+      "wholeRead": false,
+      "missingOriginalClaimNamed": true
+    },
+    {
+      "read": "partial",
+      "actualAnswerPreserved": true,
+      "wholeRead": false,
+      "missingOriginalClaimNamed": true
+    },
+    {
+      "read": "full",
+      "actualAnswerPreserved": true,
+      "wholeRead": true,
+      "missingOriginalClaimNamed": true
+    },
+    {
+      "read": "historical",
+      "actualAnswerPreserved": true,
+      "wholeRead": false,
+      "missingOriginalClaimNamed": true
+    }
+  ],
+  "transportFailureNotPass": true,
+  "recheckMetricsNotDuplicated": true,
+  "immutableReceiptRead": true
+}

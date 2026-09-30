@@ -1,0 +1,117 @@
+diff --git a/trai_brain/mercury-bridge/explicit-continuation.js b/trai_brain/mercury-bridge/explicit-continuation.js
+index 265b5ade..e58a24f1 100644
+--- a/trai_brain/mercury-bridge/explicit-continuation.js
++++ b/trai_brain/mercury-bridge/explicit-continuation.js
+@@ -33,8 +33,10 @@ function createExplicitContinuation({ corpus, reviewTargets, previous, maxReques
+   const requests = [];
+   const attempts = [];
+   const archivedExchanges = [];
++  const archivedToolResults = new Map();
+   let activeEvidence = [];
+   let observation = null;
++  let archiveWindowCatalog = false;
+   let fixedMessageCount = null;
+   let pendingDelivery = null;
+   const testimony = new Map([...previous.shardedReview.map, ...previous.shardedReview.candidates,
+@@ -142,8 +144,8 @@ function createExplicitContinuation({ corpus, reviewTargets, previous, maxReques
+     }
+     const fixed = messages.slice(0, fixedMessageCount);
+     const evolving = messages.slice(fixedMessageCount);
+-    // Keep assistant/tool pairs together. Everything before the last assistant
+-    // may be archived; immutable raw exchanges remain in this receipt.
++    // Keep assistant/tool pairs together. Any exchange may be archived when
++    // needed; raw bytes and paged tool-result testimony remain rereadable.
+     const groups = [];
+     for (const message of evolving) {
+       if (message.role === 'assistant' || groups.length === 0) groups.push([]);
+@@ -161,7 +163,8 @@ function createExplicitContinuation({ corpus, reviewTargets, previous, maxReques
+     const selected = [...groups];
+     let requestMessages;
+     function assemble() {
+-      const omittedIndex = archivedExchanges.map(entry => ({ receipt_id: `exchange:${entry.sha256}`, sha256: entry.sha256 }));
++      const omittedIndex = archivedExchanges.map(entry => ({ receipt_id: `exchange:${entry.sha256}`, sha256: entry.sha256,
++        tool_result_receipts: entry.tool_result_receipts || [] }));
+       const indexText = omittedIndex.map(entry => JSON.stringify(entry)).join('\n');
+       const indexId = `exchange-index:${sha256(indexText)}`;
+       testimony.set(indexId, indexText);
+@@ -181,24 +184,67 @@ function createExplicitContinuation({ corpus, reviewTargets, previous, maxReques
+         }
+         return { file, windows: [...unique.values()] };
+       });
++      const windowCatalog = { source_window_catalog: sourceCatalog,
++        other_tool_windows: catalog().filter(entry => !entry.literal_window) };
++      let windowContext = windowCatalog;
++      if (archiveWindowCatalog) {
++        const text = [...sourceCatalog.flatMap(entry => entry.windows.flatMap(window => window.ids.map(id => ({ kind: 'source', file: entry.file, window: { ...window, ids: [id] } })))),
++          ...windowCatalog.other_tool_windows.map(entry => ({ kind: 'other_tool', ...entry }))]
++          .map(entry => JSON.stringify(entry)).join('\n');
++        const id = 'window-catalog:' + sha256(text);
++        testimony.set(id, text);
++        windowContext = { window_catalog_receipt: { receipt_id: id, sha256: sha256(text),
++          lines: text.split('\n').length, authority: 'delivery_metadata_not_source' } };
++      }
+       return [...fixed,
+         { role: 'user', content: instruction + '\n' + JSON.stringify(fixedInventory) },
+         { role: 'user', content: `Captured diff receipts (archived reviewer testimony, reread with read_review_receipt; never current source):\n${JSON.stringify(initialDiffs)}` },
+-        { role: 'user', content: JSON.stringify({ source_window_catalog: sourceCatalog,
+-          other_tool_windows: catalog().filter(entry => !entry.literal_window),
++        { role: 'user', content: JSON.stringify({ ...windowContext,
+           omitted_exchange_manifest: { receipt_id: indexId, sha256: sha256(indexText), entries: omittedIndex.length } }) },
+         ...selected.flat()];
+     }
+     requestMessages = assemble();
+-    while (providerRequestBytes(requestMessages, tools, options) > maxRequestBytes && selected.length > 1) {
++    while (providerRequestBytes(requestMessages, tools, options) > maxRequestBytes && selected.length > 0) {
+       const omitted = selected.shift();
+       const hash = sha256(JSON.stringify(omitted));
+       if (!archivedExchanges.some(entry => entry.sha256 === hash)) {
+-        archivedExchanges.push({ sha256: hash, messages: omitted });
++        const toolResults = [];
++        for (const message of omitted.filter(entry => entry.role === 'tool')) {
++          const occurrence = [...windows.entries()].find(([, window]) => window.message === message);
++          const original = occurrence && history.find(entry => entry.toolWindowId === occurrence[0]);
++          const raw = original ? (typeof original.toolResult === 'string' ? original.toolResult : JSON.stringify(original.toolResult)) : message.content;
++          if (typeof raw !== 'string') continue;
++          let rendered, inputFormat = 'json', parseError = null;
++          try { rendered = JSON.stringify(JSON.parse(raw), null, 2); }
++          catch (error) { rendered = raw; inputFormat = 'text'; parseError = error.message; }
++          // Wrap long display lines into lossless segments. The JSON receipt is
++          // testimony, not source; join segment texts to reconstruct each line.
++          const segments = rendered.split('\n').flatMap((line, index) => {
++            const points = Array.from(line), chunks = [];
++            for (let start = 0; start < points.length; start += 1000) chunks.push(points.slice(start, start + 1000).join(''));
++            if (chunks.length === 0) chunks.push('');
++            return chunks.map((text, segment) => ({ line: index + 1, segment, text }));
++          });
++          const paged = segments.map(segment => JSON.stringify(segment)).join('\n');
++          const id = `tool-result:${sha256(raw)}`;
++          testimony.set(id, paged);
++          const descriptor = { receipt_id: id, original_sha256: sha256(raw),
++            rendered_sha256: sha256(rendered), receipt_sha256: sha256(paged),
++            lines: segments.length, format: 'json_line_segments', input_format: inputFormat, json_parse_error: parseError,
++            reconstruction: 'Group records by line, join text by segment, then join lines with newline. For input_format=json, parse as JSON; for text, reconstructed bytes equal original.',
++            authority: 'archived_reviewer_testimony' };
++          archivedToolResults.set(id, { ...descriptor, original_content: raw, rendered_content: rendered, content: paged });
++          toolResults.push(descriptor);
++        }
++        archivedExchanges.push({ sha256: hash, messages: omitted, tool_result_receipts: toolResults });
+         testimony.set(`exchange:${hash}`, JSON.stringify(omitted));
+       }
+       requestMessages = assemble();
+     }
++    if (providerRequestBytes(requestMessages, tools, options) > maxRequestBytes && selected.length === 0 && !archiveWindowCatalog) {
++      archiveWindowCatalog = true;
++      requestMessages = assemble();
++    }
+     const bytes = providerRequestBytes(requestMessages, tools, options);
+     const receipt = { request_sha256: sha256(serializeProviderRequest(requestMessages, tools, options)),
+       request_bytes: bytes, max_request_bytes: maxRequestBytes,
+@@ -296,7 +342,7 @@ function createExplicitContinuation({ corpus, reviewTargets, previous, maxReques
+ 
+   function receipt() {
+     return { corpus_sha256: corpus.corpus_sha256, requests, attempts,
+-      archived_exchanges: archivedExchanges, observation,
++      archived_exchanges: archivedExchanges, archived_tool_results: [...archivedToolResults.values()], observation,
+       original_claim_ids: originalClaimIds, original_claim_count: originalClaimIds.length,
+       discovered_claims: discoveries, discovered_claim_count: new Set(discoveries.map(entry => entry.claim?.claim_id)).size,
+       inherited_discovery_record_count: discoveries.length,

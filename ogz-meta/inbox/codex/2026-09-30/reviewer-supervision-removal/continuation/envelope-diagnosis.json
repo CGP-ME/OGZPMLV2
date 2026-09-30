@@ -1,0 +1,22 @@
+{
+  "run": "2026-09-30T09-32-00-534Z-1352808-e83a3b677008",
+  "termination": "explicit_continuation_indispensable_envelope_exceeds_limit",
+  "request_bytes": 102716,
+  "max_request_bytes": 98304,
+  "latest_exchange_bytes": 11729,
+  "serialized_tool_result_bytes": 10600,
+  "search_matches": 77,
+  "prior_group_reconstruction_matches": true,
+  "archive_groups": 37,
+  "latest_active_windows": [
+    "38:0:call_a7cc9a31ddbfe25b"
+  ],
+  "without_latest_exchange_bytes": 90988,
+  "after_archive_latest_derived_bytes": 90989,
+  "derivation": "Remove JSON array group bytes minus one separator; latest non-source catalog active true changes to false (+1); omitted manifest index hash same width; entries37 changes to38 same width. Full original request body was not stored: calculated from persisted byte count and exact retained exchange, not dispatched replay.",
+  "archived_exchange_single_line_reread_bytes": 13644,
+  "tool_history_limit_chars": 12000,
+  "raw_host_archive_lossless": true,
+  "model_reread_full_delivery_proven": false,
+  "semantic_review": false
+}

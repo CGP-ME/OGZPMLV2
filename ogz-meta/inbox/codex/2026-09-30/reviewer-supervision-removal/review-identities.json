@@ -1,0 +1,118 @@
+{
+  "first": {
+    "candidate": "d652cb32bc74b299fae45141058193f65f39ee1e",
+    "harness": "d652cb32bc74b299fae45141058193f65f39ee1e",
+    "base": "c080995a94d322a61950ee606d4f667c9dfe63c0",
+    "query": "Mercury, break my fix.",
+    "run": "2026-09-30t09-32-00-534z-1352808-e83a3b677008",
+    "status": "completed",
+    "ledger_run": "2026-09-30T09-39-40-662Z-e3654d1e6585",
+    "raw_verdict": "pass",
+    "mercury_recheck": "incomplete_request_envelope"
+  },
+  "second": {
+    "candidate": "5ca3c369188c3841c10593d8ece061f57f21886a",
+    "harness": "509ddeedc6217e285aeb0e9728c3ad615a18f74b",
+    "raw_run": "2026-09-30t10-05-56-335z-1372047-91978e5f784c",
+    "status": "agent_interrupted_confirmed_harness_delivery_defect",
+    "harness_difference": "continuation/transport.patch, separately scoped; no primary-index transport changes",
+    "termination": "SIGTERM",
+    "final_ledger_absent": true,
+    "reason": "Independent prepare replay proved newest requested tool result could be archived without direct retrieval pointer; no verdict inferred. Raw provider outputs and console log preserved. No iteration ceiling added."
+  },
+  "third": {
+    "candidate": "5ca3c369188c3841c10593d8ece061f57f21886a",
+    "base": "c080995a94d322a61950ee606d4f667c9dfe63c0",
+    "harness": "eae8f9058b7d1a6f702641f3dea6e960cf9004d5",
+    "qualification": "Separately qualified transport-corrected.patch preserves latest tool delivery or provides direct readable receipt; not in supervision-removal production commit.",
+    "status": "agent_interrupted_confirmed_prior_receipt_absence",
+    "raw_run": "2026-09-30t10-34-28-672z-1389803-b679dbf4f9c3",
+    "final_ledger_absent": true,
+    "reason": "Recheck requests prior tool:// evidence given to Fable but fresh continuation does not register those IDs; fixed prior observation duplicates consume source context. No completed verdict inferred."
+  },
+  "final": {
+    "candidate": "5ca3c369188c3841c10593d8ece061f57f21886a",
+    "base": "c080995a94d322a61950ee606d4f667c9dfe63c0",
+    "harness": "55361b324d94f1e8ae6e07a18d4780629cc793a6",
+    "qualification": "Separately qualified two-file transport patch in sibling mercury-continuation-transport/combined/transport.patch; seven exact-harness tests and 51 exact panel excerpts roundtripped. Supervision production candidate unchanged.",
+    "status": "completed_panel_agreement_not_code_approval",
+    "raw_run": "2026-09-30t10-59-09-861z-1404789-9ee57055fae2",
+    "ledger_run": "2026-09-30T11-08-31-424Z-daca827939e7",
+    "raw_verdict": "pass",
+    "mercury_recheck_iterations": 84,
+    "mercury_recheck_raw_verdict": "needs_more_evidence",
+    "mercury_recheck_inherited_parsed_verdict": "found_break",
+    "code_approval": false,
+    "remaining": "Panel requested local behavior receipts and downstream consumer trace; stale parsed-verdict producer repair is separately qualified."
+  },
+  "followup_packet_failure": {
+    "candidate": "5ca3c369188c3841c10593d8ece061f57f21886a",
+    "harness": "a8cac1feb7018bdd358d929077ec8de19dbb6e98",
+    "raw_run": "2026-09-30t11-46-25.012z-focused-followup",
+    "status": "completed_no_mercury_calls_packet_envelope_overflow",
+    "fable": "needs_more_evidence",
+    "kimi": "needs_more_evidence",
+    "code_approval": false
+  },
+  "followup_shortened_task": {
+    "candidate": "5ca3c369188c3841c10593d8ece061f57f21886a",
+    "harness": "a8cac1feb7018bdd358d929077ec8de19dbb6e98",
+    "raw_run": "2026-09-30t12-24-10.066z-focused-followup",
+    "status": "completed_task_context_inadequate_not_approval",
+    "receipt_type": "focused_review_continuation_not_runAgentic_ledger",
+    "mercury": "no_explicit_verdict",
+    "fable": "needs_more_evidence",
+    "kimi": "disagree"
+  },
+  "followup_full_task": {
+    "candidate": "5ca3c369188c3841c10593d8ece061f57f21886a",
+    "harness": "a8cac1feb7018bdd358d929077ec8de19dbb6e98",
+    "raw_run": "2026-09-30t12-29-51.817z-focused-followup",
+    "status": "completed_needs_more_evidence",
+    "receipt_type": "focused_review_continuation_not_runAgentic_ledger",
+    "questionSha256": "65a828c6aff1fbef43536859977046546d2067b172fe3d7f302b2d3f5551ff7b",
+    "allDocumentsByteExact": true,
+    "mercury": "raw_break_claim_no_literal_verdict",
+    "fable": "needs_more_evidence",
+    "kimi": "disagree",
+    "code_approval": false
+  },
+  "final_prompt_completion": {
+    "candidate": "be416a802443e2b27df69365c9a18e1123977047",
+    "harness": "a5ecf975923c1c024ee98adf849016181dd6e482",
+    "raw_run": "2026-09-30t18-22-48.041z-final-focused-followup",
+    "status": "completed_semantic_convergence",
+    "receipt_type": "focused_review_continuation_not_runAgentic_ledger",
+    "mercury_raw_conclusion": "No remaining supported defect; prior findings retracted or reconciled",
+    "mercury_parsed_verdict": "the",
+    "fable_raw_verdict": "pass",
+    "fable_raw_blocking": "no",
+    "fable_parsed_blocking": true,
+    "kimi_raw_verdict": "pass",
+    "limitations": "Raw answers control; noncanonical Mercury verdict and contradictory Fable parsed blocking metadata retained. Panel named incomplete source coverage and fixture-only execution provenance. No assertion of complete-file review."
+  },
+  "orphan_cleanup": {
+    "candidate": "8cfb8d1c5837b279c9b09a7afdbeda8f5706f6cb",
+    "base": "be416a802443e2b27df69365c9a18e1123977047",
+    "harness": "a5ecf975923c1c024ee98adf849016181dd6e482",
+    "raw_run": "2026-09-30t18-31-57-839z-1600896-92c3f8cc4d90",
+    "ledger_run": "2026-09-30T18-36-36-656Z-b2d6f651460e",
+    "status": "completed_pass_with_policy_scope_misinterpretation",
+    "mercury_initial": "cannot_verify",
+    "mercury_recheck": "no_break_found",
+    "fable": "needs_more_evidence",
+    "kimi": "pass",
+    "qualification": "Kimi incorrectly treated policy-hidden tests as nonexistent in Git. Exact Git diff/test source and local execution receipt supplied in followup/orphan-evidence-review.cjs; separate evidence closure pending."
+  },
+  "orphan_evidence_closure": {
+    "candidate": "8cfb8d1c5837b279c9b09a7afdbeda8f5706f6cb",
+    "harness": "a5ecf975923c1c024ee98adf849016181dd6e482",
+    "raw_run": "2026-09-30t19-19-09.214z-orphan-evidence-closure",
+    "status": "completed_semantic_convergence",
+    "receipt_type": "fable_kimi_evidence_closure_of_existing_mercury_recheck",
+    "mercury_recheck": "no_break_found",
+    "fable_raw_verdict": "pass",
+    "kimi_raw_verdict": "pass",
+    "qualification": "No new Mercury call; existing Mercury recheck reviewed by Fable/Kimi with exact two-file Git diff, complete test source, scoped source/test grep and local test receipt. Tests excluded by snapshot policy are not absent from Git. Mechanical answer-quality faults retained in full raw answers."
+  }
+}

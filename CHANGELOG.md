@@ -1,3 +1,7 @@
+## 2026-09-30 — Reviewer answers and bounded continuation receipts
+
+Removed host-mandated candidate filing, response-schema retry loops, and whole-file-read acceptance from Mercury reviews. The adversarial panel retains substantive rechecks; evidence gaps and actual failures remain in receipts. Evidence and review limitations: ogz-meta/inbox/codex/2026-09-30/reviewer-supervision-removal/. No bot restart.
+
 ## 2026-09-29 — Preserve captured source through Mercury adjudication
 
 Mercury now carries hash-bound source into candidate and final claim decisions, retains original claim identities through rechecks, and records incomplete evidence explicitly. Reproduced the historical false missing-variable allegation and verified retained-source behavior; full adversarial panel passed.

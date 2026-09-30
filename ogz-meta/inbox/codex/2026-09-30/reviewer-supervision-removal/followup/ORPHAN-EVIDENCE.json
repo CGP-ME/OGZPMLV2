@@ -1,0 +1,38 @@
+{
+  "source": "8cfb8d1c5837b279c9b09a7afdbeda8f5706f6cb",
+  "base": "be416a802443e2b27df69365c9a18e1123977047",
+  "changed": "M\ttest/mercury-react-loop.test.js\nM\ttrai_brain/mercury-bridge/react-loop.js\n",
+  "search": {
+    "command": [
+      "git",
+      "grep",
+      "-n",
+      "normalizeToolHandleCitations",
+      "8cfb8d1c5837b279c9b09a7afdbeda8f5706f6cb",
+      "--",
+      "*.js",
+      "*.cjs",
+      "*.mjs",
+      "*.json",
+      ":!ogz-meta/inbox",
+      ":!ogz-meta/cognition-history"
+    ],
+    "exitCode": 1,
+    "stdout": "",
+    "stderr": "",
+    "scope": "All tracked JS/CJS/MJS/JSON including test; excludes historical inbox/cognition artifacts. Not dynamic-dispatch proof."
+  },
+  "blobs": [
+    {
+      "path": "trai_brain/mercury-bridge/react-loop.js",
+      "gitBlob": "df4a816c9ef733329f71efb86112306d0a5f0078",
+      "sha256": "7b786d1f31e329f38cbd05613ee2d72ec97697ffe2f31afc4aa38d9ffb8602b3"
+    },
+    {
+      "path": "test/mercury-react-loop.test.js",
+      "gitBlob": "bd5ff508395eb0a86d5760aa947b8467d93ac122",
+      "sha256": "629c09af996bc9058be004730bce192fcf1963869883b2ed9034b2ae546241c2"
+    }
+  ],
+  "explanation": "Policy-filtered review snapshot omits tests, not the Git tree. No claim that repository tests are absent."
+}

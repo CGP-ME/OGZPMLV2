@@ -1,0 +1,14 @@
+{
+  "sourceResultSha256": "3b91033443a5ed9159dc34d57d23d11e9ea0a4b3bc8b0799564e04b1e003ca2c",
+  "exactExcerptsVerified": 51,
+  "pages": 250,
+  "maxPageChars": 4598,
+  "actualRequestedId": "tool://mercury-pass-1/8/8",
+  "actualRequestedIdAvailable": true,
+  "originalAndRecheckPasses": true,
+  "syntheticUnicodeLongLine": true,
+  "sourceCoverageUnchanged": true,
+  "unknownIdNamed": true,
+  "patchBase": "fixed-context-candidate.js plus staged adversarial-review.js",
+  "providerCalls": 0
+}
