@@ -1,0 +1,25 @@
+{
+  "result": "PASS",
+  "records": 135,
+  "uniquePayloads": 74,
+  "errors": [],
+  "findings": [],
+  "metadataFalsePositives": [
+    {
+      "filePath": "tapes/e9348a3d65f3052625d5e95def63806e154eb0e586389fbaba168aad786d168a.utf8.gz",
+      "lineNumber": 1,
+      "reason": "JSON credential apiKeySource contains a non-placeholder value",
+      "verifiedValues": [
+        "none"
+      ]
+    },
+    {
+      "filePath": "tapes/9641c695314d047033f25ace142ebcd84ac8bdf6d87079c2da31cac48a030d5a.utf8.gz",
+      "lineNumber": 1,
+      "reason": "JSON credential apiKeySource contains a non-placeholder value",
+      "verifiedValues": [
+        "none"
+      ]
+    }
+  ]
+}

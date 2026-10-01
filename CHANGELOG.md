@@ -1,3 +1,7 @@
+## 2026-10-01 — Live MA dynamic support/resistance confidence controls
+
+Connect the three existing MA confidence settings to retained runner, symbol-context and orchestrator instances. Preserve strategy state and explicit injected configuration; reject invalid saved or forced replacement ceilings above the existing orchestrator domain before publication. Evidence: ogz-meta/inbox/codex/2026-10-01/stop1-ma-confidence/. No runtime activation.
+
 ## 2026-09-30 — Reviewer answers and bounded continuation receipts
 
 Removed host-mandated candidate filing, response-schema retry loops, and whole-file-read acceptance from Mercury reviews. The adversarial panel retains substantive rechecks; evidence gaps and actual failures remain in receipts. Evidence and review limitations: ogz-meta/inbox/codex/2026-09-30/reviewer-supervision-removal/. No bot restart.

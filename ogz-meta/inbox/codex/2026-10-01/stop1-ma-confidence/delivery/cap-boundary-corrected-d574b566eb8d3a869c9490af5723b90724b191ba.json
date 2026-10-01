@@ -1,0 +1,156 @@
+{
+  "corrected": true,
+  "sourceSelection": {
+    "mode": "immutable_review_tree",
+    "tree": "d574b566eb8d3a869c9490af5723b90724b191ba",
+    "patchesApplied": false
+  },
+  "patchManifest": {},
+  "selectedSourceHashes": {
+    "modules/MADynamicSR.js": "1bd9de7096a74cb70c7987031e3ba4dd6ef8d6586eb757a4fb495eee2aa06e06",
+    "foundation/ConfigLoader.js": "9b387d054afa223c8372a9a11625a09ba4950ba797817c345d586fa42cb34239",
+    "run-empire-v2.js": "dfd9f3eb44de7564c7c1aa9999e174d50736f2efd648e8474b6b9a00f825d8ea",
+    "core/SymbolTradingContext.js": "b3ffbd2ff1aff73f477bf91355c911df0a32ee300710f845d9fb8d89a34944c6",
+    "core/StrategyOrchestrator.js": "7b7e0bb1bd575d01c590d3fa499ed0797f5eef2a990735534179d0e1f5fef0b8",
+    "modules/EMASMACrossoverSignal.js": "523962bb11b1d0d7dec3fa7242a97f441f89168f61225b14a9335ea7e2aea040",
+    "core/CandleHelper.js": "33195306d283e2d0e23868849c87953ee5a6cecbbb74d1cb8c619af16701e5f3",
+    "config/settings.json": "6b53392d26c903f4b38821c5de84b71432f95c927ac58d7bb00abcc68e3b9b3d",
+    "config/internals.json": "c3bd62c64f2e5c2acbfdcf2f740ed1787ab8860026516d306e17cb382ade19d6"
+  },
+  "save": [
+    {
+      "success": false,
+      "saved": false,
+      "applied": false,
+      "reason": "invalid_setting_value",
+      "path": "strategies.MADynamicSR.maxConfidence"
+    }
+  ],
+  "force": [
+    {
+      "value": 1.0000000000000002,
+      "applied": false,
+      "reason": "invalid_ma_dynamic_sr_confidence"
+    },
+    {
+      "value": 2,
+      "applied": false,
+      "reason": "invalid_ma_dynamic_sr_confidence"
+    },
+    {
+      "value": 1.7976931348623157e+308,
+      "applied": false,
+      "reason": "invalid_ma_dynamic_sr_confidence"
+    },
+    {
+      "value": "2",
+      "applied": false,
+      "reason": "invalid_ma_dynamic_sr_confidence"
+    }
+  ],
+  "consumer": [
+    {
+      "label": "save retained registered symbol",
+      "capErrors": 0,
+      "nonNeutral": 424,
+      "max": 1,
+      "errors": []
+    },
+    {
+      "label": "force retained registered symbol",
+      "capErrors": 0,
+      "nonNeutral": 424,
+      "max": 1,
+      "errors": []
+    },
+    {
+      "label": "accepted cap 5e-324",
+      "capErrors": 0,
+      "nonNeutral": 424,
+      "max": 5e-324,
+      "errors": []
+    },
+    {
+      "label": "accepted cap 0.5",
+      "capErrors": 0,
+      "nonNeutral": 424,
+      "max": 0.5,
+      "errors": []
+    },
+    {
+      "label": "accepted cap 1",
+      "capErrors": 0,
+      "nonNeutral": 424,
+      "max": 1,
+      "errors": []
+    },
+    {
+      "label": "coerced cap 1",
+      "capErrors": 0,
+      "nonNeutral": 424,
+      "max": 1,
+      "errors": []
+    },
+    {
+      "label": "coerced cap true",
+      "capErrors": 0,
+      "nonNeutral": 424,
+      "max": 1,
+      "errors": []
+    },
+    {
+      "label": "coerced cap 0.5",
+      "capErrors": 0,
+      "nonNeutral": 424,
+      "max": 0.5,
+      "errors": []
+    }
+  ],
+  "result": "PASS",
+  "loadedSourceManifest": {
+    "core/AtomicWrite.js": "3d451213bba7b3680b7560e1d8c60e36650a595c7970a116a926f5d96390a924",
+    "modules/MADynamicSR.js": "1bd9de7096a74cb70c7987031e3ba4dd6ef8d6586eb757a4fb495eee2aa06e06",
+    "core/CandleHelper.js": "33195306d283e2d0e23868849c87953ee5a6cecbbb74d1cb8c619af16701e5f3",
+    "core/SymbolTradingContext.js": "b3ffbd2ff1aff73f477bf91355c911df0a32ee300710f845d9fb8d89a34944c6",
+    "core/AssetRegistry.js": "cd3041e6ed5c8e23d9fae27fafc15cc33ee001c6972426a8bad862b13e92a0d7",
+    "core/indicators/IndicatorEngine.js": "5d22379c4505673d6a9b0a9850e60d06f3c11cf5951096b906fe86ec54369f65",
+    "core/dto/IndicatorSnapshotDTO.js": "77e2e0d313aedff1bf606fb39b4e4e802e658d0cedcf022b6994cd9c8f98b00e",
+    "core/ogzTwoPoleOscillator.js": "8ded3a3635ee6e39bb88dc41def43a23c7636579957a63b1915d2807f882412e",
+    "modules/EMASMACrossoverSignal.js": "523962bb11b1d0d7dec3fa7242a97f441f89168f61225b14a9335ea7e2aea040",
+    "core/VolumeProfile.js": "6377b0e20b7ef7e1f410790604ea9641f26b83c5ec5202ec4c321bbb8abb1e99",
+    "core/FibonacciDetector.js": "33483b9d9767499a73358b31862c1f2b40319b93dd70a82318666964d1eb49be",
+    "core/StrategyOrchestrator.js": "7b7e0bb1bd575d01c590d3fa499ed0797f5eef2a990735534179d0e1f5fef0b8",
+    "core/ExitContractManager.js": "691cd0bfbe0d7be82b0079591154172996b199addd033d4e03e11ed34dd84d32",
+    "core/dto/ExitContractOwnership.js": "5574b18d725b7ce0c544ccc47e39d1bd33d84cd82b6e402808a137b55ba0e3aa",
+    "core/IndicatorCalculator.js": "941138f5831a0bd08dd3924b7c461c49abf6a24550b417502b380df77acdd323",
+    "core/PolicyBuilder.js": "021965a21f84af16214215cb96beb1f9484c99935a0b9046003094e29c5607d5",
+    "core/dto/FrozenExitPolicy.js": "76300ec0b959d5964fa14a49cefbf9614718a35b723e22e7062bb8fe84f359f4",
+    "core/ProfitExitPlanner.js": "d841df70f04b5701d7e08e05dce0791532bc42191cd42d37a82bdb90a45525ca",
+    "core/TraceSpine.js": "6aff25395a4469238ab202115aa53ad3b46b95c17c4b2de4ceac644aae4927d1",
+    "core/exit/StopLossChecker.js": "33c6f09aee1f874d3758ab2e46e7e1e8cca7b6b8df8481e20c9d661b43d64fc8",
+    "core/exit/BreakEvenManager.js": "dae3bc5dd49b85914005befaa6103e96d3214b77c5a9bcfbce787894fa8c7f42",
+    "core/FeeModel.js": "1cfc40f1d61f553ed48abc66aff05e563d4357a729080dfd7969ff0a1cacd74a",
+    "core/exit/TakeProfitChecker.js": "041cf71d8903ed31dd5ed09e43a6143e3b32de6c218019841c43fc8f75029e31",
+    "core/exit/MaxHoldChecker.js": "84aeefd5e9243466168ce63101617a9bb427c05d15fa8ca46d0fce37e337797b",
+    "core/TradeNarrator.js": "47b14c6a487eb8c78cdf8f1cad0764f7fe46fd248ca916f8c21cd6dae423cae0",
+    "core/PatternMaturity.js": "4900b8a6e23206d305a5a9767d8d05ed5c15e283236f7c59f527057bd72ab878",
+    "core/MAExtensionFilter.js": "a4244d38b06c494d0a9d2a5a628991f76514469b934ef6dd1ba4e84452c7654a",
+    "modules/OpeningRangeBreakout.js": "23bdff8ae88bbf6d8318b25dfa293b19dba67e5cbd6533b43d725ae894476d1d",
+    "modules/FairValueGapDetector.js": "5326ef459101d0c686f00f1d8e75c1ccda84c7f3a84c79cc9fd337e2d4915c77",
+    "modules/BreakAndRetest.js": "78c714a3f88de2893195df2923644c37da6c340327aeaa044d0ae017e80f3883",
+    "modules/LiquiditySweepDetector.js": "d3849cb5f4cf96f3ae90edc092e326ddc38757ecf42bf769ff6bc9e31d27bee1",
+    "modules/MultiTimeframeAdapter.js": "68c2cc408ad77584293801ed34054cbbd081bfdec1a4cda5d71cb4ed5594c042",
+    "core/OgzTpoIntegration.js": "7c2f3bd5d22deb58fc9420f549eaf038f270c1849f8b48d62d00170c3a3b5a09",
+    "core/FeatureFlagManager.js": "5766c4c53ede6231f54942698905f1ee032d40229ce82257bd137037e2216fc6",
+    "src/indicators/ogzTwoPoleOscillator.js": "6727c367025d4ba63587e322128d88fa03c48dec9659df6af13a3acd892c4389",
+    "core/indicators/TwoPoleOscillator.js": "7de87122f39ad9aab9025c129b755da4bada1315c107ccf904e8109e13cc232e",
+    "modules/SmartMoneySweep.js": "8e1d60fb762185546431f387ec2670630234f11f3e389688b06b0acb7d341f33",
+    "modules/DonchianBreakout.js": "f469637bbe0a9ab4f7ebcb4c37ca43284e2504dc182c3f0ab9702a4346ec7f95",
+    "modules/PropSafeEMAPullback.js": "a112cf4acf9ebb8d039c54097cfd4f9d566a670d09ab9e00c224e66161036a93",
+    "modules/EMATrendRetest.js": "db8c7a653daa16e39d186e783b88b8106ec7d080c0f98cf4248b3d36e380beea",
+    "modules/RSI2MeanReversion.js": "9f6296481016959c7b7f29b7b01fe87aa6637aa9ff24707b0cb8446cc56ef6db",
+    "modules/TimeSeriesMomentum.js": "f0fb8a5782dd4afa7d3d261561737f04ab76940c73606ee89cf396f8c2a282fd",
+    "modules/NoWickImbalance.js": "eb1b361492ec979fffcb95eaeeb332014fe9067cabed0ec288dc5ab00cd17096"
+  },
+  "tapeSha256": "8b4be8997bcd91a0db893f9cce1effe7b2843f42650e16e95931fb6b45b03324"
+}

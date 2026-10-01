@@ -1,0 +1,20 @@
+--- a/foundation/ConfigLoader.js
++++ b/foundation/ConfigLoader.js
+@@ -2439,7 +2439,7 @@
+     } catch (error) {
+       return { reason: 'invalid_ma_dynamic_sr_confidence', path: `strategies.MADynamicSR.${key}` };
+     }
+-    if (!Number.isFinite(value) || value <= 0) {
++    if (!Number.isFinite(value) || value <= 0 || (key === 'maxConfidence' && value > 1)) {
+       return { reason: 'invalid_ma_dynamic_sr_confidence', path: `strategies.MADynamicSR.${key}` };
+     }
+   }
+@@ -2561,7 +2561,7 @@
+     label: 'MA dynamic S/R touch quality confidence contribution', effect: 'next_MADynamicSR_signal_evaluation',
+   },
+   'strategies.MADynamicSR.maxConfidence': {
+-    type: 'number', unit: 'fraction', min: 0, exclusiveMin: true, max: Number.MAX_VALUE,
++    type: 'number', unit: 'fraction', min: 0, exclusiveMin: true, max: 1,
+     label: 'MA dynamic S/R confidence ceiling', effect: 'next_MADynamicSR_signal_evaluation',
+   },
+   'strategies.RSI.period': {

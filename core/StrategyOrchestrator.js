@@ -849,7 +849,7 @@ class StrategyOrchestrator {
     this.emaCrossoverConfig = getEmaCrossoverConfig();
     this.emaCrossoverModule = new EMASMACrossoverSignal(this.emaCrossoverConfig, () => ConfigLoader.get('strategies.EMASMACrossover'));
     this.maDynamicSRConfig = ConfigLoader.get('strategies.MADynamicSR');
-    this.maDynamicSRModule = new MADynamicSR(this.maDynamicSRConfig);
+    this.maDynamicSRModule = new MADynamicSR(this.maDynamicSRConfig, () => ConfigLoader.get('strategies.MADynamicSR'));
     this.liquiditySweepConfig = {
       ...ConfigLoader.get('strategies.LiquiditySweep'),
       verbose: ConfigLoader.get('observability.backtestVerbose') === true,
@@ -1695,7 +1695,7 @@ class StrategyOrchestrator {
           'MADynamicSR',
           ctx.extras?.symbol,
           maDynamicSRModule,
-          () => new MADynamicSR(this.maDynamicSRConfig)
+          () => new MADynamicSR(this.maDynamicSRConfig, () => ConfigLoader.get('strategies.MADynamicSR'))
         );
         const sig = scopedMaDynamicSR.update(latestCandle, candles);
         if (sig && sig.direction) diagMASR.moduleNonNull++;

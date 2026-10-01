@@ -1,0 +1,1166 @@
+{
+  "baseline": null,
+  "sourceSelection": {
+    "mode": "immutable_review_tree",
+    "tree": "d574b566eb8d3a869c9490af5723b90724b191ba",
+    "patchesApplied": false
+  },
+  "selectedSourceHashes": {
+    "modules/MADynamicSR.js": "1bd9de7096a74cb70c7987031e3ba4dd6ef8d6586eb757a4fb495eee2aa06e06",
+    "foundation/ConfigLoader.js": "9b387d054afa223c8372a9a11625a09ba4950ba797817c345d586fa42cb34239",
+    "run-empire-v2.js": "dfd9f3eb44de7564c7c1aa9999e174d50736f2efd648e8474b6b9a00f825d8ea",
+    "core/SymbolTradingContext.js": "b3ffbd2ff1aff73f477bf91355c911df0a32ee300710f845d9fb8d89a34944c6",
+    "core/StrategyOrchestrator.js": "7b7e0bb1bd575d01c590d3fa499ed0797f5eef2a990735534179d0e1f5fef0b8",
+    "modules/EMASMACrossoverSignal.js": "523962bb11b1d0d7dec3fa7242a97f441f89168f61225b14a9335ea7e2aea040",
+    "core/CandleHelper.js": "33195306d283e2d0e23868849c87953ee5a6cecbbb74d1cb8c619af16701e5f3",
+    "config/settings.json": "6b53392d26c903f4b38821c5de84b71432f95c927ac58d7bb00abcc68e3b9b3d",
+    "config/internals.json": "c3bd62c64f2e5c2acbfdcf2f740ed1787ab8860026516d306e17cb382ade19d6"
+  },
+  "patchManifest": {},
+  "forcedReplacement": {
+    "invalid": [
+      {
+        "field": "baseConfidence",
+        "value": 0,
+        "reason": "invalid_ma_dynamic_sr_confidence",
+        "path": "strategies.MADynamicSR.baseConfidence"
+      },
+      {
+        "field": "baseConfidence",
+        "value": -1,
+        "reason": "invalid_ma_dynamic_sr_confidence",
+        "path": "strategies.MADynamicSR.baseConfidence"
+      },
+      {
+        "field": "baseConfidence",
+        "value": "not-a-number",
+        "reason": "invalid_ma_dynamic_sr_confidence",
+        "path": "strategies.MADynamicSR.baseConfidence"
+      },
+      {
+        "field": "baseConfidence",
+        "value": "Infinity",
+        "reason": "invalid_ma_dynamic_sr_confidence",
+        "path": "strategies.MADynamicSR.baseConfidence"
+      },
+      {
+        "field": "baseConfidence",
+        "value": null,
+        "reason": "invalid_ma_dynamic_sr_confidence",
+        "path": "strategies.MADynamicSR.baseConfidence"
+      },
+      {
+        "field": "baseConfidence",
+        "value": [],
+        "reason": "invalid_ma_dynamic_sr_confidence",
+        "path": "strategies.MADynamicSR.baseConfidence"
+      },
+      {
+        "field": "baseConfidence",
+        "value": {
+          "toString": null
+        },
+        "reason": "invalid_ma_dynamic_sr_confidence",
+        "path": "strategies.MADynamicSR.baseConfidence"
+      },
+      {
+        "field": "baseConfidence",
+        "value": "missing",
+        "reason": "invalid_ma_dynamic_sr_confidence",
+        "path": "strategies.MADynamicSR.baseConfidence"
+      },
+      {
+        "field": "touchQualityWeight",
+        "value": 0,
+        "reason": "invalid_ma_dynamic_sr_confidence",
+        "path": "strategies.MADynamicSR.touchQualityWeight"
+      },
+      {
+        "field": "touchQualityWeight",
+        "value": -1,
+        "reason": "invalid_ma_dynamic_sr_confidence",
+        "path": "strategies.MADynamicSR.touchQualityWeight"
+      },
+      {
+        "field": "touchQualityWeight",
+        "value": "not-a-number",
+        "reason": "invalid_ma_dynamic_sr_confidence",
+        "path": "strategies.MADynamicSR.touchQualityWeight"
+      },
+      {
+        "field": "touchQualityWeight",
+        "value": "Infinity",
+        "reason": "invalid_ma_dynamic_sr_confidence",
+        "path": "strategies.MADynamicSR.touchQualityWeight"
+      },
+      {
+        "field": "touchQualityWeight",
+        "value": null,
+        "reason": "invalid_ma_dynamic_sr_confidence",
+        "path": "strategies.MADynamicSR.touchQualityWeight"
+      },
+      {
+        "field": "touchQualityWeight",
+        "value": [],
+        "reason": "invalid_ma_dynamic_sr_confidence",
+        "path": "strategies.MADynamicSR.touchQualityWeight"
+      },
+      {
+        "field": "touchQualityWeight",
+        "value": {
+          "toString": null
+        },
+        "reason": "invalid_ma_dynamic_sr_confidence",
+        "path": "strategies.MADynamicSR.touchQualityWeight"
+      },
+      {
+        "field": "touchQualityWeight",
+        "value": "missing",
+        "reason": "invalid_ma_dynamic_sr_confidence",
+        "path": "strategies.MADynamicSR.touchQualityWeight"
+      },
+      {
+        "field": "maxConfidence",
+        "value": 0,
+        "reason": "invalid_ma_dynamic_sr_confidence",
+        "path": "strategies.MADynamicSR.maxConfidence"
+      },
+      {
+        "field": "maxConfidence",
+        "value": -1,
+        "reason": "invalid_ma_dynamic_sr_confidence",
+        "path": "strategies.MADynamicSR.maxConfidence"
+      },
+      {
+        "field": "maxConfidence",
+        "value": "not-a-number",
+        "reason": "invalid_ma_dynamic_sr_confidence",
+        "path": "strategies.MADynamicSR.maxConfidence"
+      },
+      {
+        "field": "maxConfidence",
+        "value": "Infinity",
+        "reason": "invalid_ma_dynamic_sr_confidence",
+        "path": "strategies.MADynamicSR.maxConfidence"
+      },
+      {
+        "field": "maxConfidence",
+        "value": null,
+        "reason": "invalid_ma_dynamic_sr_confidence",
+        "path": "strategies.MADynamicSR.maxConfidence"
+      },
+      {
+        "field": "maxConfidence",
+        "value": [],
+        "reason": "invalid_ma_dynamic_sr_confidence",
+        "path": "strategies.MADynamicSR.maxConfidence"
+      },
+      {
+        "field": "maxConfidence",
+        "value": {
+          "toString": null
+        },
+        "reason": "invalid_ma_dynamic_sr_confidence",
+        "path": "strategies.MADynamicSR.maxConfidence"
+      },
+      {
+        "field": "maxConfidence",
+        "value": "missing",
+        "reason": "invalid_ma_dynamic_sr_confidence",
+        "path": "strategies.MADynamicSR.maxConfidence"
+      }
+    ],
+    "absentBlocks": [
+      "missing",
+      null,
+      []
+    ],
+    "globalIdentitiesPreserved": 11,
+    "canonicalReadersPreserved": true,
+    "namedErrors": true,
+    "invalidDiskBlocksSave": true,
+    "validForceChanges": {
+      "runner_root": 119,
+      "symbol_context": 119,
+      "orchestrator_root": 119,
+      "orchestrator_symbol": 119
+    },
+    "positiveCoercions": [
+      {
+        "field": "baseConfidence",
+        "value": 5e-324
+      },
+      {
+        "field": "baseConfidence",
+        "value": 2
+      },
+      {
+        "field": "baseConfidence",
+        "value": 1.7976931348623157e+308
+      },
+      {
+        "field": "baseConfidence",
+        "value": "0.5"
+      },
+      {
+        "field": "baseConfidence",
+        "value": true
+      },
+      {
+        "field": "touchQualityWeight",
+        "value": 5e-324
+      },
+      {
+        "field": "touchQualityWeight",
+        "value": 2
+      },
+      {
+        "field": "touchQualityWeight",
+        "value": 1.7976931348623157e+308
+      },
+      {
+        "field": "touchQualityWeight",
+        "value": "0.5"
+      },
+      {
+        "field": "touchQualityWeight",
+        "value": true
+      },
+      {
+        "field": "maxConfidence",
+        "value": 5e-324
+      },
+      {
+        "field": "maxConfidence",
+        "value": 1
+      },
+      {
+        "field": "maxConfidence",
+        "value": "0.5"
+      },
+      {
+        "field": "maxConfidence",
+        "value": true
+      }
+    ],
+    "result": "PASS"
+  },
+  "stringCase": {
+    "settingsSourceSha256": "90cd51b6012872782cfe7d4b9b5ed075a34d3d2dd77cdcc693d4b0a96c4973e6",
+    "initialConfidenceStrings": {
+      "baseConfidence": "0.5",
+      "touchQualityWeight": "0.3",
+      "maxConfidence": "1"
+    },
+    "warmupBars": 400,
+    "changedSignalsAfterSave": 225,
+    "result": "PASS",
+    "configuration": {
+      "fingerprint": "8b34db07aa2a4207bfe0fe1daa8ccec51a9725c5f91b2e16402125867380a502",
+      "role": "bot",
+      "settings": 4,
+      "internals": 1,
+      "settingsHash": "ac6773e3c0597dd7cae325c9fbb5119ade43c0025956a685b57053147b799807",
+      "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+    }
+  },
+  "sourceManifest": {},
+  "loadedSourceManifest": {
+    "core/AtomicWrite.js": "3d451213bba7b3680b7560e1d8c60e36650a595c7970a116a926f5d96390a924",
+    "modules/MADynamicSR.js": "1bd9de7096a74cb70c7987031e3ba4dd6ef8d6586eb757a4fb495eee2aa06e06",
+    "core/CandleHelper.js": "33195306d283e2d0e23868849c87953ee5a6cecbbb74d1cb8c619af16701e5f3",
+    "core/SymbolTradingContext.js": "b3ffbd2ff1aff73f477bf91355c911df0a32ee300710f845d9fb8d89a34944c6",
+    "core/AssetRegistry.js": "cd3041e6ed5c8e23d9fae27fafc15cc33ee001c6972426a8bad862b13e92a0d7",
+    "core/indicators/IndicatorEngine.js": "5d22379c4505673d6a9b0a9850e60d06f3c11cf5951096b906fe86ec54369f65",
+    "core/dto/IndicatorSnapshotDTO.js": "77e2e0d313aedff1bf606fb39b4e4e802e658d0cedcf022b6994cd9c8f98b00e",
+    "core/ogzTwoPoleOscillator.js": "8ded3a3635ee6e39bb88dc41def43a23c7636579957a63b1915d2807f882412e",
+    "modules/EMASMACrossoverSignal.js": "523962bb11b1d0d7dec3fa7242a97f441f89168f61225b14a9335ea7e2aea040",
+    "core/VolumeProfile.js": "6377b0e20b7ef7e1f410790604ea9641f26b83c5ec5202ec4c321bbb8abb1e99",
+    "core/FibonacciDetector.js": "33483b9d9767499a73358b31862c1f2b40319b93dd70a82318666964d1eb49be",
+    "core/StrategyOrchestrator.js": "7b7e0bb1bd575d01c590d3fa499ed0797f5eef2a990735534179d0e1f5fef0b8",
+    "core/ExitContractManager.js": "691cd0bfbe0d7be82b0079591154172996b199addd033d4e03e11ed34dd84d32",
+    "core/dto/ExitContractOwnership.js": "5574b18d725b7ce0c544ccc47e39d1bd33d84cd82b6e402808a137b55ba0e3aa",
+    "core/IndicatorCalculator.js": "941138f5831a0bd08dd3924b7c461c49abf6a24550b417502b380df77acdd323",
+    "core/PolicyBuilder.js": "021965a21f84af16214215cb96beb1f9484c99935a0b9046003094e29c5607d5",
+    "core/dto/FrozenExitPolicy.js": "76300ec0b959d5964fa14a49cefbf9614718a35b723e22e7062bb8fe84f359f4",
+    "core/ProfitExitPlanner.js": "d841df70f04b5701d7e08e05dce0791532bc42191cd42d37a82bdb90a45525ca",
+    "core/TraceSpine.js": "6aff25395a4469238ab202115aa53ad3b46b95c17c4b2de4ceac644aae4927d1",
+    "core/exit/StopLossChecker.js": "33c6f09aee1f874d3758ab2e46e7e1e8cca7b6b8df8481e20c9d661b43d64fc8",
+    "core/exit/BreakEvenManager.js": "dae3bc5dd49b85914005befaa6103e96d3214b77c5a9bcfbce787894fa8c7f42",
+    "core/FeeModel.js": "1cfc40f1d61f553ed48abc66aff05e563d4357a729080dfd7969ff0a1cacd74a",
+    "core/exit/TakeProfitChecker.js": "041cf71d8903ed31dd5ed09e43a6143e3b32de6c218019841c43fc8f75029e31",
+    "core/exit/MaxHoldChecker.js": "84aeefd5e9243466168ce63101617a9bb427c05d15fa8ca46d0fce37e337797b",
+    "core/TradeNarrator.js": "47b14c6a487eb8c78cdf8f1cad0764f7fe46fd248ca916f8c21cd6dae423cae0",
+    "core/PatternMaturity.js": "4900b8a6e23206d305a5a9767d8d05ed5c15e283236f7c59f527057bd72ab878",
+    "core/MAExtensionFilter.js": "a4244d38b06c494d0a9d2a5a628991f76514469b934ef6dd1ba4e84452c7654a",
+    "modules/OpeningRangeBreakout.js": "23bdff8ae88bbf6d8318b25dfa293b19dba67e5cbd6533b43d725ae894476d1d",
+    "modules/FairValueGapDetector.js": "5326ef459101d0c686f00f1d8e75c1ccda84c7f3a84c79cc9fd337e2d4915c77",
+    "modules/BreakAndRetest.js": "78c714a3f88de2893195df2923644c37da6c340327aeaa044d0ae017e80f3883",
+    "modules/LiquiditySweepDetector.js": "d3849cb5f4cf96f3ae90edc092e326ddc38757ecf42bf769ff6bc9e31d27bee1",
+    "modules/MultiTimeframeAdapter.js": "68c2cc408ad77584293801ed34054cbbd081bfdec1a4cda5d71cb4ed5594c042",
+    "core/OgzTpoIntegration.js": "7c2f3bd5d22deb58fc9420f549eaf038f270c1849f8b48d62d00170c3a3b5a09",
+    "core/FeatureFlagManager.js": "5766c4c53ede6231f54942698905f1ee032d40229ce82257bd137037e2216fc6",
+    "src/indicators/ogzTwoPoleOscillator.js": "6727c367025d4ba63587e322128d88fa03c48dec9659df6af13a3acd892c4389",
+    "core/indicators/TwoPoleOscillator.js": "7de87122f39ad9aab9025c129b755da4bada1315c107ccf904e8109e13cc232e",
+    "modules/SmartMoneySweep.js": "8e1d60fb762185546431f387ec2670630234f11f3e389688b06b0acb7d341f33",
+    "modules/DonchianBreakout.js": "f469637bbe0a9ab4f7ebcb4c37ca43284e2504dc182c3f0ab9702a4346ec7f95",
+    "modules/PropSafeEMAPullback.js": "a112cf4acf9ebb8d039c54097cfd4f9d566a670d09ab9e00c224e66161036a93",
+    "modules/EMATrendRetest.js": "db8c7a653daa16e39d186e783b88b8106ec7d080c0f98cf4248b3d36e380beea",
+    "modules/RSI2MeanReversion.js": "9f6296481016959c7b7f29b7b01fe87aa6637aa9ff24707b0cb8446cc56ef6db",
+    "modules/TimeSeriesMomentum.js": "f0fb8a5782dd4afa7d3d261561737f04ab76940c73606ee89cf396f8c2a282fd",
+    "modules/NoWickImbalance.js": "eb1b361492ec979fffcb95eaeeb332014fe9067cabed0ec288dc5ab00cd17096"
+  },
+  "tapeSha256": "8b4be8997bcd91a0db893f9cce1effe7b2843f42650e16e95931fb6b45b03324",
+  "result": "PASS",
+  "candles": 721,
+  "owners": {
+    "runner_root": {
+      "baseConfidence": 329,
+      "touchQualityWeight": 329,
+      "maxConfidence": 329
+    },
+    "symbol_context": {
+      "baseConfidence": 329,
+      "touchQualityWeight": 329,
+      "maxConfidence": 329
+    },
+    "orchestrator_root": {
+      "baseConfidence": 329,
+      "touchQualityWeight": 329,
+      "maxConfidence": 329
+    },
+    "orchestrator_symbol": {
+      "baseConfidence": 329,
+      "touchQualityWeight": 329,
+      "maxConfidence": 329
+    }
+  },
+  "invalid": [
+    {
+      "field": "baseConfidence",
+      "type": "number",
+      "value": "0",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "baseConfidence",
+      "type": "number",
+      "value": "-1",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "baseConfidence",
+      "type": "number",
+      "value": "NaN",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "baseConfidence",
+      "type": "number",
+      "value": "Infinity",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "baseConfidence",
+      "type": "string",
+      "value": "0.5",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "baseConfidence",
+      "type": "object",
+      "value": "null",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "touchQualityWeight",
+      "type": "number",
+      "value": "0",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "touchQualityWeight",
+      "type": "number",
+      "value": "-1",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "touchQualityWeight",
+      "type": "number",
+      "value": "NaN",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "touchQualityWeight",
+      "type": "number",
+      "value": "Infinity",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "touchQualityWeight",
+      "type": "string",
+      "value": "0.5",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "touchQualityWeight",
+      "type": "object",
+      "value": "null",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "maxConfidence",
+      "type": "number",
+      "value": "0",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "maxConfidence",
+      "type": "number",
+      "value": "-1",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "maxConfidence",
+      "type": "number",
+      "value": "NaN",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "maxConfidence",
+      "type": "number",
+      "value": "Infinity",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "maxConfidence",
+      "type": "string",
+      "value": "0.5",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "maxConfidence",
+      "type": "object",
+      "value": "null",
+      "reason": "invalid_setting_value"
+    }
+  ],
+  "pinnedContextUnchanged": true,
+  "baseAndWeightFinitePositiveDomainPreserved": true,
+  "maxConfidenceReplacementDomain": "(0,1]",
+  "saveCount": 43,
+  "saves": [
+    {
+      "changes": {
+        "strategies.MADynamicSR.baseConfidence": 0.75
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "2b4f364dcdef97326422f1ecd38eeac929a69bd3e47cd3f30e5bad12fa854298",
+          "role": "bot",
+          "settings": 4,
+          "internals": 1,
+          "settingsHash": "d27e3957539a013e0147e1e8741b891498d563d76ce8bd2679829f9d31efeaca",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.baseConfidence": 0.5
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "cd723ccc367f858283c824a418e5db1ec74f6483cd1003021939a9cf1aa20eeb",
+          "role": "bot",
+          "settings": 5,
+          "internals": 1,
+          "settingsHash": "2adcec636434559af75c564ed1bc6da2e64a2b95692c82eda6f4ecccf2fd22c5",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.touchQualityWeight": 0.9
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "9c6b436aceb34ca9f5868725d645e00b2c0e1dcae9606d251558649830069c6c",
+          "role": "bot",
+          "settings": 6,
+          "internals": 1,
+          "settingsHash": "ed591ce2a3bf48548c813a81dcbd2188ea00e1553682770dcfd8e31ee9c581b8",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.touchQualityWeight": 0.3
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "5c29adeb0734c3677830ac5a1b1faaa68c7e133a27ecf3d0a7e2402881c756a6",
+          "role": "bot",
+          "settings": 7,
+          "internals": 1,
+          "settingsHash": "afffad8503c641829f7becce95defb20e00acbf52cb24ec0750a5750a82e2fac",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.maxConfidence": 0.1
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "e6b4fa82618eec534dab5f8da169c11dd792ffffed94b0bac46c203e1c73a0cd",
+          "role": "bot",
+          "settings": 8,
+          "internals": 1,
+          "settingsHash": "c7b7a781d693ceb92db7dad41458450f96b7b946e033852f7424dc83e3c65461",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.maxConfidence": 1
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "5a9df5fbc34bb2ffab9dbb051380abf05e6e03763998eefcc445895a5707d828",
+          "role": "bot",
+          "settings": 9,
+          "internals": 1,
+          "settingsHash": "7d0ab595a2f3bcf5c2ff6185371deb34920d595d84e8532d199c574c5deb62c0",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.baseConfidence": 0
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.MADynamicSR.baseConfidence"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.baseConfidence": -1
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.MADynamicSR.baseConfidence"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.baseConfidence": null
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.MADynamicSR.baseConfidence"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.baseConfidence": null
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.MADynamicSR.baseConfidence"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.baseConfidence": "0.5"
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.MADynamicSR.baseConfidence"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.baseConfidence": null
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.MADynamicSR.baseConfidence"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.touchQualityWeight": 0
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.MADynamicSR.touchQualityWeight"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.touchQualityWeight": -1
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.MADynamicSR.touchQualityWeight"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.touchQualityWeight": null
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.MADynamicSR.touchQualityWeight"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.touchQualityWeight": null
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.MADynamicSR.touchQualityWeight"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.touchQualityWeight": "0.5"
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.MADynamicSR.touchQualityWeight"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.touchQualityWeight": null
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.MADynamicSR.touchQualityWeight"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.maxConfidence": 0
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.MADynamicSR.maxConfidence"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.maxConfidence": -1
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.MADynamicSR.maxConfidence"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.maxConfidence": null
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.MADynamicSR.maxConfidence"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.maxConfidence": null
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.MADynamicSR.maxConfidence"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.maxConfidence": "0.5"
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.MADynamicSR.maxConfidence"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.maxConfidence": null
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.MADynamicSR.maxConfidence"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.baseConfidence": 5e-324
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "7d2976bff1417d5979edff5634b70a4f5fa097894345c3156ca7c607b1a8111d",
+          "role": "bot",
+          "settings": 10,
+          "internals": 1,
+          "settingsHash": "f7fdfc61eea4b731a9b7b528b97acd8c60662e0ac235714c106ad524db2109f4",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.baseConfidence": 0.5
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "79c97eaea1214e8cedecfaf5a7af7a187411f955c5664ffa1fd9bc00f4f903fe",
+          "role": "bot",
+          "settings": 11,
+          "internals": 1,
+          "settingsHash": "41b333c6d20cb8b2427cc3d11d445e33aaa8aedf3b21514cac8c735ded1b94c9",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.baseConfidence": 2
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "5f4086dc450477eefb25313a5c66c7b5548cadc4f704103a5c2c23c9f54424fa",
+          "role": "bot",
+          "settings": 12,
+          "internals": 1,
+          "settingsHash": "8c78425b5892cf706c52365b0cc83f24e1ae0e96cb5c5745f42f0eda4f8a9ce0",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.baseConfidence": 0.5
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "4d4b9e3abc8bf3f7d35f2b45c570941756474f54254122f5f85b46f58040a649",
+          "role": "bot",
+          "settings": 13,
+          "internals": 1,
+          "settingsHash": "3997974da989730bb9162b6a9f4268e393079601a7d214ff63f24b7db1d49a85",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.baseConfidence": 1.7976931348623157e+308
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "bccbec4be45b797edf4640194704a1bde61bbe2b795939b84765cc13e5365999",
+          "role": "bot",
+          "settings": 14,
+          "internals": 1,
+          "settingsHash": "21ddcfb13edf43f22cb3a3e75f08753a8b6ad2c9cb84868faf5d29d45ec5f002",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.baseConfidence": 0.5
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "858e22b6d062d3ca9476c1ed535a6216df92c596325263a8c474d56b069cfa79",
+          "role": "bot",
+          "settings": 15,
+          "internals": 1,
+          "settingsHash": "1bbaa03483e7a8e0527235e28b941745956df2c3bff00a0d901581b9f84f2552",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.touchQualityWeight": 5e-324
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "31fa6c188d7b879707b97ed2e520260f17650b64f9715cd6b746f0160240aaf7",
+          "role": "bot",
+          "settings": 16,
+          "internals": 1,
+          "settingsHash": "1bb4e0982a54f0ee08ab156c5ee761ec92a5fc2d9361671bfe36b78559762c49",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.touchQualityWeight": 0.3
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "0ab220cb8315ffeece98e8dbe0f815411bb8dae526dc445ce8864f8447ab8518",
+          "role": "bot",
+          "settings": 17,
+          "internals": 1,
+          "settingsHash": "d658d53e988f074f64b0262e32267866006722002abdba7dc0fe8a89438de528",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.touchQualityWeight": 2
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "33619afc835e7fcb54c18bcd94034195cd3945a0c6175306a4969457ee84cd40",
+          "role": "bot",
+          "settings": 18,
+          "internals": 1,
+          "settingsHash": "3e28d36315b63c393a8b8ebec56a4f19bfbecde809d48e4e95ad31e1d099f7f5",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.touchQualityWeight": 0.3
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "7a7fbe8f65b117e5e35f8dc9ecb39c3b08ec9c33d8dd17d3da6c09e2395cc792",
+          "role": "bot",
+          "settings": 19,
+          "internals": 1,
+          "settingsHash": "deb1cd532793a2d305aba0697624e10aa22763a73ac2dcd210710b195c3e3a67",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.touchQualityWeight": 1.7976931348623157e+308
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "112ee9bd096ee418350543b520decc72c5883a9968da3011f979b62d046b79c6",
+          "role": "bot",
+          "settings": 20,
+          "internals": 1,
+          "settingsHash": "0865e99eeefd44209d29c8fa818d30d02a159d2223fc33c621c9b5d17b85f19d",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.touchQualityWeight": 0.3
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "1d376ecd580c7fdb779a76f21297f4e8ee1d59702f8cb679d20e68d8ac94e04f",
+          "role": "bot",
+          "settings": 21,
+          "internals": 1,
+          "settingsHash": "8c65fc6588c6ce26a64bbdeeee470dd5ca37b10489bc021acbae8ccf173a5156",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.maxConfidence": 5e-324
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "b0c07d26fb33e20727eca336ac053489add579d28df27666b0dd19c5b9c2a533",
+          "role": "bot",
+          "settings": 22,
+          "internals": 1,
+          "settingsHash": "ee5d5a90ea0b001a54b6159a8161b0b4a4f0bd837d250ffdf964e2397d2da386",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.maxConfidence": 1
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "16927e352324b8b0a7cb9c44c0505ed168f543d3be19a706368163547827c0f6",
+          "role": "bot",
+          "settings": 23,
+          "internals": 1,
+          "settingsHash": "78b168b1a2ac4cefdfcb71cfecab98de757b4cbec0453792314bf8a8d1ae5def",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.maxConfidence": 0.5
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "569262c5ca7c0a33848d0e3e5f2a22b7a11ab79f555a9b38121e8ca42e3008ef",
+          "role": "bot",
+          "settings": 24,
+          "internals": 1,
+          "settingsHash": "a7b91b6e4eefa6340a7405ca7b029cdfe0f25dc423b2ff5d1a0986f8581e564a",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.maxConfidence": 1
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "27d5b265df53fe0497f84ad736bc29160a83cc0a2bb094140b430dd8e66f6662",
+          "role": "bot",
+          "settings": 25,
+          "internals": 1,
+          "settingsHash": "cbe6aea7478d2d90d9b758855a6d7988d7edcae746967eddd41980f26ac57271",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.maxConfidence": 1
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "2a6ba01081b0a121cae4a2dcb66ab5bc5e9d20f1488e900f48fbf90b3cd2f6a8",
+          "role": "bot",
+          "settings": 26,
+          "internals": 1,
+          "settingsHash": "601b5dfafdddf6386165ee370dfe9db650f6e5c07d5abbef1167ddbc5a09c49e",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.maxConfidence": 1
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "ea434138308de65f0aa724771efdf4cb3a66d04d67be7c883419d955c57c9378",
+          "role": "bot",
+          "settings": 27,
+          "internals": 1,
+          "settingsHash": "6214823394dad948aba75f0a7e1e59e16578d3938860066ebd94be1d76f39a95",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.MADynamicSR.baseConfidence": 0.6
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "settings_changed_outside_loaded_owner"
+      }
+    }
+  ],
+  "limits": [
+    "Runner constructor is not booted: exact parsed root assignment and SymbolTradingContext new-expression run in VM with actual constructors.",
+    "Actual StrategyOrchestrator root and lazy-symbol evaluate closures run; no full TradingLoop/order/broker or dashboard relay.",
+    "Tracked production/configuration sources are read directly from the selected immutable tree; no lane patches reapplied."
+  ]
+}

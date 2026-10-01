@@ -2430,6 +2430,22 @@ function emaConfidenceReplacementProblem(config) {
   return null;
 }
 
+function maDynamicSRConfidenceReplacementProblem(config) {
+  const cfg = config.strategies?.MADynamicSR;
+  for (const key of ['baseConfidence', 'touchQualityWeight', 'maxConfidence']) {
+    let value;
+    try {
+      value = Number(cfg?.[key]);
+    } catch (error) {
+      return { reason: 'invalid_ma_dynamic_sr_confidence', path: `strategies.MADynamicSR.${key}` };
+    }
+    if (!Number.isFinite(value) || value <= 0 || (key === 'maxConfidence' && value > 1)) {
+      return { reason: 'invalid_ma_dynamic_sr_confidence', path: `strategies.MADynamicSR.${key}` };
+    }
+  }
+  return null;
+}
+
 function load(opts = {}) {
   const requestedRole = opts.role || 'bot';
   if (_cached && !opts.force) {
@@ -2450,7 +2466,8 @@ function load(opts = {}) {
   const previousInternals = internalsConfigFile;
   const candidate = buildSnapshot(process.env, opts);
   if (_cached && opts.force && requestedRole === 'bot') {
-    const problem = emaConfidenceReplacementProblem(candidate.config);
+    const problem = emaConfidenceReplacementProblem(candidate.config)
+      || maDynamicSRConfidenceReplacementProblem(candidate.config);
     if (problem) {
       // buildSnapshot restores its temporary active contexts in finally. Restore
       // its canonical-file reads too, keeping every reader on the prior owner.
@@ -2534,6 +2551,18 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'percent', min: 0, max: 100,
     label: 'Global ATR entry minimum',
     effect: 'next_strategy_evaluation_without_strategy_atr_override',
+  },
+  'strategies.MADynamicSR.baseConfidence': {
+    type: 'number', unit: 'fraction', min: 0, exclusiveMin: true, max: Number.MAX_VALUE,
+    label: 'MA dynamic S/R base confidence', effect: 'next_MADynamicSR_signal_evaluation',
+  },
+  'strategies.MADynamicSR.touchQualityWeight': {
+    type: 'number', unit: 'fraction', min: 0, exclusiveMin: true, max: Number.MAX_VALUE,
+    label: 'MA dynamic S/R touch quality confidence contribution', effect: 'next_MADynamicSR_signal_evaluation',
+  },
+  'strategies.MADynamicSR.maxConfidence': {
+    type: 'number', unit: 'fraction', min: 0, exclusiveMin: true, max: 1,
+    label: 'MA dynamic S/R confidence ceiling', effect: 'next_MADynamicSR_signal_evaluation',
   },
   'strategies.RSI.period': {
     type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,

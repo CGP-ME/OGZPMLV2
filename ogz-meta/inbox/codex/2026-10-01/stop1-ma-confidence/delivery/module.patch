@@ -1,0 +1,29 @@
+diff --git a/modules/MADynamicSR.js b/modules/MADynamicSR.js
+index 61f33449..42156819 100644
+--- a/modules/MADynamicSR.js
++++ b/modules/MADynamicSR.js
+@@ -196,8 +196,10 @@ function validateResolvedConfig(config) {
+ }
+ 
+ class MADynamicSR {
+-  constructor(config) {
++  constructor(config, confidenceConfigProvider) {
+     this.config = loadResolvedConfig(config);
++    // Production owners supply the validated current snapshot; explicit fixtures stay pinned.
++    this.confidenceConfigProvider = confidenceConfigProvider;
+ 
+     // MA periods per CORRECTED Trader DNA interpretation
+     this.entryMaPeriod = this.config.entryMaPeriod;     // 20 MA — the trend + entry line
+@@ -305,6 +307,12 @@ class MADynamicSR {
+    * REWRITTEN 2026-03-09: Corrected Trader DNA implementation
+    */
+   update(candle, priceHistory) {
++    if (this.confidenceConfigProvider) {
++      const confidenceConfig = this.confidenceConfigProvider();
++      this.config.baseConfidence = Number(confidenceConfig.baseConfidence);
++      this.config.touchQualityWeight = Number(confidenceConfig.touchQualityWeight);
++      this.config.maxConfidence = Number(confidenceConfig.maxConfidence);
++    }
+     this.barCount++;
+ 
+     // Detect swings early (only needs swingLookback * 2 + 1 = 7 candles)

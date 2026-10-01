@@ -82,7 +82,7 @@ class SymbolTradingContext {
         // inside what was supposed to be a per-symbol context for TSLA.
         this.indicatorEngine = new IndicatorEngine({ ...config.indicatorConfig, symbol: canonicalSymbol });
         this.emaCrossover = new EMASMACrossoverSignal(config.emaCrossoverConfig, config.emaCrossoverConfidenceProvider);
-        this.maDynamicSR = new MADynamicSR(config.maDynamicSRConfig);
+        this.maDynamicSR = new MADynamicSR(config.maDynamicSRConfig, config.maDynamicSRConfidenceConfigProvider);
         this.volumeProfile = new VolumeProfile(config.volumeProfileConfig);
         this.fibonacciDetector = new FibonacciDetector(config.fibonacciConfig);
 

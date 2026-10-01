@@ -1,0 +1,7 @@
+{
+  "fixture": "/opt/ogzprime/OGZPMLV2/ogz-meta/inbox/codex/2026-09-29/ma-sr-confidence/cap-boundary.cjs",
+  "fixtureSha256": "99f9ff551a6c1c1822a2f13d6113378645a0413824bf11b8e96f1c58176cfd6c",
+  "candidate": "d574b566eb8d3a869c9490af5723b90724b191ba",
+  "patchOverlay": false,
+  "outputRouting": "/opt/ogzprime/OGZPMLV2/ogz-meta/inbox/codex/2026-10-01/stop1-ma-confidence"
+}

@@ -1,0 +1,7 @@
+{
+  "fixture": "/opt/ogzprime/OGZPMLV2/ogz-meta/inbox/codex/2026-09-29/ma-sr-confidence/integration-cap-qualified.cjs",
+  "fixtureSha256": "67349938c986858c58f34bc2231354c89baa01eeaad83ab66ebc64a7a51bff82",
+  "candidate": "d574b566eb8d3a869c9490af5723b90724b191ba",
+  "patchOverlay": false,
+  "outputRouting": "/opt/ogzprime/OGZPMLV2/ogz-meta/inbox/codex/2026-10-01/stop1-ma-confidence"
+}

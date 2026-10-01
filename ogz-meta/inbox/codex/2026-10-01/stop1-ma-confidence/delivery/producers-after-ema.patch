@@ -1,0 +1,50 @@
+--- a/run-empire-v2.js
++++ b/run-empire-v2.js
+@@ -790,7 +790,7 @@
+     this.emaCrossover = new EMASMACrossoverSignal(emaConfig, () => ConfigLoader.get('strategies.EMASMACrossover'));
+ 
+     const masrConfig = ConfigLoader.get('strategies.MADynamicSR');
+-    this.maDynamicSR = new MADynamicSR(masrConfig);
++    this.maDynamicSR = new MADynamicSR(masrConfig, () => ConfigLoader.get('strategies.MADynamicSR'));
+ 
+     // 2026-05-04: BreakAndRetest now owned by StrategyOrchestrator (self-contained pattern).
+     // Runner-side instance removed to prevent two-instance state divergence.
+@@ -3116,6 +3116,7 @@
+             ...resolvedConfig.config.strategyBehavior.emaCrossover,
+           },
+           maDynamicSRConfig: ConfigLoader.get('strategies.MADynamicSR'),
++          maDynamicSRConfidenceConfigProvider: () => ConfigLoader.get('strategies.MADynamicSR'),
+           volumeProfileConfig: resolvedConfig.config.strategies.VolumeProfile,
+           fibonacciConfig: resolvedConfig.config.fibonacci,
+         });
+--- a/core/SymbolTradingContext.js
++++ b/core/SymbolTradingContext.js
+@@ -82,7 +82,7 @@
+         // inside what was supposed to be a per-symbol context for TSLA.
+         this.indicatorEngine = new IndicatorEngine({ ...config.indicatorConfig, symbol: canonicalSymbol });
+         this.emaCrossover = new EMASMACrossoverSignal(config.emaCrossoverConfig, config.emaCrossoverConfidenceProvider);
+-        this.maDynamicSR = new MADynamicSR(config.maDynamicSRConfig);
++        this.maDynamicSR = new MADynamicSR(config.maDynamicSRConfig, config.maDynamicSRConfidenceConfigProvider);
+         this.volumeProfile = new VolumeProfile(config.volumeProfileConfig);
+         this.fibonacciDetector = new FibonacciDetector(config.fibonacciConfig);
+ 
+--- a/core/StrategyOrchestrator.js
++++ b/core/StrategyOrchestrator.js
+@@ -848,7 +848,7 @@
+     this.emaCrossoverConfig = getEmaCrossoverConfig();
+     this.emaCrossoverModule = new EMASMACrossoverSignal(this.emaCrossoverConfig, () => ConfigLoader.get('strategies.EMASMACrossover'));
+     this.maDynamicSRConfig = ConfigLoader.get('strategies.MADynamicSR');
+-    this.maDynamicSRModule = new MADynamicSR(this.maDynamicSRConfig);
++    this.maDynamicSRModule = new MADynamicSR(this.maDynamicSRConfig, () => ConfigLoader.get('strategies.MADynamicSR'));
+     this.liquiditySweepConfig = {
+       ...ConfigLoader.get('strategies.LiquiditySweep'),
+       verbose: ConfigLoader.get('observability.backtestVerbose') === true,
+@@ -1698,7 +1698,7 @@
+           'MADynamicSR',
+           ctx.extras?.symbol,
+           maDynamicSRModule,
+-          () => new MADynamicSR(this.maDynamicSRConfig)
++          () => new MADynamicSR(this.maDynamicSRConfig, () => ConfigLoader.get('strategies.MADynamicSR'))
+         );
+         const sig = scopedMaDynamicSR.update(latestCandle, candles);
+         if (sig && sig.direction) diagMASR.moduleNonNull++;

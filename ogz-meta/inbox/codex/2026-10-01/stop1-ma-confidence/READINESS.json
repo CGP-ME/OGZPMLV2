@@ -1,0 +1,60 @@
+{
+  "base": "c080995a94d322a61950ee606d4f667c9dfe63c0",
+  "patches": [
+    {
+      "name": "module.patch",
+      "sha256": "72fe15d16ee2c4d5ae95a0a78d3f0bae7fdf2656324d0577e552063f0478d80a"
+    },
+    {
+      "name": "producers-after-ema.patch",
+      "sha256": "db2f6df8999c66d26ddc9341cebe9bc34fa0e0b20e62cac52b446eb3d01333dd"
+    },
+    {
+      "name": "loader-dependent.patch",
+      "sha256": "67c93c1e98138a5592e92aa3d9a361bd0b5b23d9c4627d2dc38d030d6f1e2bdc"
+    },
+    {
+      "name": "cap-boundary.patch",
+      "sha256": "26a91cb961359906f6f6332ff404d25cedde79f628842bafbb6681a0e1ac9e6a"
+    }
+  ],
+  "files": [
+    {
+      "file": "modules/MADynamicSR.js",
+      "candidateSha256": "1bd9de7096a74cb70c7987031e3ba4dd6ef8d6586eb757a4fb495eee2aa06e06",
+      "headBlob": "61f334497de1ea0d3c2ed1fd9cc02da429a7646a",
+      "sameAsDf24": true
+    },
+    {
+      "file": "run-empire-v2.js",
+      "candidateSha256": "dfd9f3eb44de7564c7c1aa9999e174d50736f2efd648e8474b6b9a00f825d8ea",
+      "headBlob": "61ad0b8f13e8dbe3c452e86e24c26830b40b0c6d",
+      "sameAsDf24": true
+    },
+    {
+      "file": "core/SymbolTradingContext.js",
+      "candidateSha256": "b3ffbd2ff1aff73f477bf91355c911df0a32ee300710f845d9fb8d89a34944c6",
+      "headBlob": "34b9bbb539dda90de3b0f87a266c10c849021afd",
+      "sameAsDf24": true
+    },
+    {
+      "file": "core/StrategyOrchestrator.js",
+      "candidateSha256": "7b7e0bb1bd575d01c590d3fa499ed0797f5eef2a990735534179d0e1f5fef0b8",
+      "headBlob": "ce9bfefdd499a80790b6f0597d84dc7d8e62d903",
+      "sameAsDf24": true
+    },
+    {
+      "file": "foundation/ConfigLoader.js",
+      "candidateSha256": "9b387d054afa223c8372a9a11625a09ba4950ba797817c345d586fa42cb34239",
+      "headBlob": "ae9b527bce6bfebc8b89f84c12c532a2c729efa4",
+      "sameAsDf24": true
+    }
+  ],
+  "patchContextsMatch": true,
+  "portableIntegration": "PASS",
+  "correctedCapProof": "private/cap-boundary-corrected-eb565a5d39de991ccf45c19db29c0aaa017094c2.json",
+  "sourceEdits": false,
+  "indexEdits": false,
+  "providers": false,
+  "limitation": "Portable proofs use 6bcfad8a plus explicit patches, not future staged tree. Exact-stage qualification and adversarial review remain required. Original fixture printed old output paths; run-existing.cjs routed writes to this packet without editing old fixture bytes."
+}

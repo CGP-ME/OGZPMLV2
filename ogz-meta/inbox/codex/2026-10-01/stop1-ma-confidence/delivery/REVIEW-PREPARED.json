@@ -1,0 +1,45 @@
+{
+  "identity": {
+    "candidate": "d574b566eb8d3a869c9490af5723b90724b191ba",
+    "base": "8824e64161cb630903724f311389aee90c9fd60a",
+    "harness": "a5ecf975923c1c024ee98adf849016181dd6e482",
+    "harnessQualification": "Previously qualified receipt-preserving review implementation, separate from selected MA production source. No additional Mercury production change is included.",
+    "files": [
+      "modules/MADynamicSR.js",
+      "run-empire-v2.js",
+      "core/SymbolTradingContext.js",
+      "core/StrategyOrchestrator.js",
+      "foundation/ConfigLoader.js",
+      "CHANGELOG.md"
+    ]
+  },
+  "originalTask": "Mercury, break my fix. Complete the Stop1 configuration migration for the existing MADynamicSR baseConfidence, touchQualityWeight and maxConfidence controls: saved settings must reach initialized retained runner, symbol-context and orchestrator consumers on the next evaluation without resetting detector state; explicit injected configurations remain pinned. Trey authorized named rejection of invalid forced replacements before publication while retaining current valid settings. Correct the observed mismatch that allowed a replacement maxConfidence above the existing orchestrator zero-to-one confidence domain. Preserve the positive finite base/weight domain, existing configuration ownership and all unrelated work. Do not invent sizing calibration, defaults, strategy changes, shutdowns or new trading gates. Attack the complete selected change with current source evidence and report actual findings and limits.",
+  "documents": [
+    {
+      "path": "ogz-meta/inbox/codex/2026-10-01/stop1-ma-confidence/private/integration-cap-review-d574b566eb8d3a869c9490af5723b90724b191ba.json",
+      "sha256": "f1676e2682ee4b68a2f481fa545d92129fcb70cdfa66a5d46726f1899a29422a",
+      "bytes": 37361
+    },
+    {
+      "path": "ogz-meta/inbox/codex/2026-10-01/stop1-ma-confidence/private/cap-boundary-corrected-d574b566eb8d3a869c9490af5723b90724b191ba.json",
+      "sha256": "0b0812ce64a815a0e11278d29dc358b59db8876f82f4d43e3251023d7d95fd77",
+      "bytes": 7457
+    }
+  ],
+  "proofDelivery": "Complete proof documents retained locally; filename/hash catalog is not a claim of provider delivery. The default run reviews selected source. Root may attach these complete documents through the repaired receipt-document flow for panel followup.",
+  "providers": 0,
+  "maxTokens": 7750,
+  "maxIterations": null,
+  "reviewApiRequest": {
+    "api": "runAgentic",
+    "query": "Mercury, break my fix. Complete the Stop1 configuration migration for the existing MADynamicSR baseConfidence, touchQualityWeight and maxConfidence controls: saved settings must reach initialized retained runner, symbol-context and orchestrator consumers on the next evaluation without resetting detector state; explicit injected configurations remain pinned. Trey authorized named rejection of invalid forced replacements before publication while retaining current valid settings. Correct the observed mismatch that allowed a replacement maxConfidence above the existing orchestrator zero-to-one confidence domain. Preserve the positive finite base/weight domain, existing configuration ownership and all unrelated work. Do not invent sizing calibration, defaults, strategy changes, shutdowns or new trading gates. Attack the complete selected change with current source evidence and report actual findings and limits.\n\nMechanical evidence exists for this exact source tree. The following is an artifact catalog, not evidence that a reviewer has read it: [{\"path\":\"ogz-meta/inbox/codex/2026-10-01/stop1-ma-confidence/private/integration-cap-review-d574b566eb8d3a869c9490af5723b90724b191ba.json\",\"sha256\":\"f1676e2682ee4b68a2f481fa545d92129fcb70cdfa66a5d46726f1899a29422a\",\"bytes\":37361},{\"path\":\"ogz-meta/inbox/codex/2026-10-01/stop1-ma-confidence/private/cap-boundary-corrected-d574b566eb8d3a869c9490af5723b90724b191ba.json\",\"sha256\":\"0b0812ce64a815a0e11278d29dc358b59db8876f82f4d43e3251023d7d95fd77\",\"bytes\":7457}]. Do not claim these proofs were examined unless their actual contents are delivered. The complete original task above governs the review.",
+    "options": {
+      "reviewRef": "d574b566eb8d3a869c9490af5723b90724b191ba",
+      "reviewBase": "8824e64161cb630903724f311389aee90c9fd60a",
+      "maxTokens": 7750,
+      "maxIterations": null,
+      "reviewersExplicit": true,
+      "reviewers": "mercury,fable,kimi"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "candidate": "d574b566eb8d3a869c9490af5723b90724b191ba",
+  "base": "8824e64161cb630903724f311389aee90c9fd60a",
+  "harness": "a5ecf975923c1c024ee98adf849016181dd6e482",
+  "harnessQualification": "Previously qualified receipt-preserving review implementation, separate from selected MA production source. No additional Mercury production change is included.",
+  "files": [
+    "modules/MADynamicSR.js",
+    "run-empire-v2.js",
+    "core/SymbolTradingContext.js",
+    "core/StrategyOrchestrator.js",
+    "foundation/ConfigLoader.js",
+    "CHANGELOG.md"
+  ]
+}
