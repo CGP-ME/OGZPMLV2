@@ -1,0 +1,851 @@
+{
+  "result": "PASS",
+  "selection": {
+    "mode": "immutable_review_tree",
+    "tree": "4a43d0bf4df0b2dd1fc75c5a845f56b26b4ac942",
+    "patchesApplied": false
+  },
+  "patches": {},
+  "sourceSha256": {
+    "foundation/ConfigLoader.js": "72b49bba14dfdadd4fd4586e1789027ea4a280b1fad17f4ca2765b508363036d",
+    "modules/TimeSeriesMomentum.js": "f0fb8a5782dd4afa7d3d261561737f04ab76940c73606ee89cf396f8c2a282fd",
+    "core/StrategyOrchestrator.js": "8d778fb730af0a1c93ebd24d802f3791cf936796b3427724c2ac8d1f3e52fe9e",
+    "core/IndicatorCalculator.js": "941138f5831a0bd08dd3924b7c461c49abf6a24550b417502b380df77acdd323",
+    "core/CandleHelper.js": "33195306d283e2d0e23868849c87953ee5a6cecbbb74d1cb8c619af16701e5f3",
+    "core/AtomicWrite.js": "3d451213bba7b3680b7560e1d8c60e36650a595c7970a116a926f5d96390a924",
+    "config/settings.json": "6b53392d26c903f4b38821c5de84b71432f95c927ac58d7bb00abcc68e3b9b3d",
+    "config/internals.json": "c3bd62c64f2e5c2acbfdcf2f740ed1787ab8860026516d306e17cb382ade19d6"
+  },
+  "loadedSourceSha256": {
+    "core/AtomicWrite.js": "3d451213bba7b3680b7560e1d8c60e36650a595c7970a116a926f5d96390a924",
+    "core/StrategyOrchestrator.js": "8d778fb730af0a1c93ebd24d802f3791cf936796b3427724c2ac8d1f3e52fe9e",
+    "core/ExitContractManager.js": "691cd0bfbe0d7be82b0079591154172996b199addd033d4e03e11ed34dd84d32",
+    "core/dto/ExitContractOwnership.js": "5574b18d725b7ce0c544ccc47e39d1bd33d84cd82b6e402808a137b55ba0e3aa",
+    "core/IndicatorCalculator.js": "941138f5831a0bd08dd3924b7c461c49abf6a24550b417502b380df77acdd323",
+    "core/CandleHelper.js": "33195306d283e2d0e23868849c87953ee5a6cecbbb74d1cb8c619af16701e5f3",
+    "core/PolicyBuilder.js": "021965a21f84af16214215cb96beb1f9484c99935a0b9046003094e29c5607d5",
+    "core/dto/FrozenExitPolicy.js": "76300ec0b959d5964fa14a49cefbf9614718a35b723e22e7062bb8fe84f359f4",
+    "core/ProfitExitPlanner.js": "d841df70f04b5701d7e08e05dce0791532bc42191cd42d37a82bdb90a45525ca",
+    "core/TraceSpine.js": "6aff25395a4469238ab202115aa53ad3b46b95c17c4b2de4ceac644aae4927d1",
+    "core/exit/StopLossChecker.js": "33c6f09aee1f874d3758ab2e46e7e1e8cca7b6b8df8481e20c9d661b43d64fc8",
+    "core/exit/BreakEvenManager.js": "dae3bc5dd49b85914005befaa6103e96d3214b77c5a9bcfbce787894fa8c7f42",
+    "core/FeeModel.js": "1cfc40f1d61f553ed48abc66aff05e563d4357a729080dfd7969ff0a1cacd74a",
+    "core/exit/TakeProfitChecker.js": "041cf71d8903ed31dd5ed09e43a6143e3b32de6c218019841c43fc8f75029e31",
+    "core/exit/MaxHoldChecker.js": "84aeefd5e9243466168ce63101617a9bb427c05d15fa8ca46d0fce37e337797b",
+    "core/TradeNarrator.js": "47b14c6a487eb8c78cdf8f1cad0764f7fe46fd248ca916f8c21cd6dae423cae0",
+    "core/PatternMaturity.js": "4900b8a6e23206d305a5a9767d8d05ed5c15e283236f7c59f527057bd72ab878",
+    "core/MAExtensionFilter.js": "a4244d38b06c494d0a9d2a5a628991f76514469b934ef6dd1ba4e84452c7654a",
+    "modules/OpeningRangeBreakout.js": "23bdff8ae88bbf6d8318b25dfa293b19dba67e5cbd6533b43d725ae894476d1d",
+    "modules/FairValueGapDetector.js": "5326ef459101d0c686f00f1d8e75c1ccda84c7f3a84c79cc9fd337e2d4915c77",
+    "modules/BreakAndRetest.js": "78c714a3f88de2893195df2923644c37da6c340327aeaa044d0ae017e80f3883",
+    "modules/EMASMACrossoverSignal.js": "523962bb11b1d0d7dec3fa7242a97f441f89168f61225b14a9335ea7e2aea040",
+    "modules/MADynamicSR.js": "1bd9de7096a74cb70c7987031e3ba4dd6ef8d6586eb757a4fb495eee2aa06e06",
+    "modules/LiquiditySweepDetector.js": "a496229ce623c3de36bea343e2f6bf3a30ad03aa2a33981145c8e8d9d3146ff3",
+    "modules/MultiTimeframeAdapter.js": "68c2cc408ad77584293801ed34054cbbd081bfdec1a4cda5d71cb4ed5594c042",
+    "core/OgzTpoIntegration.js": "7c2f3bd5d22deb58fc9420f549eaf038f270c1849f8b48d62d00170c3a3b5a09",
+    "core/FeatureFlagManager.js": "5766c4c53ede6231f54942698905f1ee032d40229ce82257bd137037e2216fc6",
+    "src/indicators/ogzTwoPoleOscillator.js": "6727c367025d4ba63587e322128d88fa03c48dec9659df6af13a3acd892c4389",
+    "core/indicators/TwoPoleOscillator.js": "7de87122f39ad9aab9025c129b755da4bada1315c107ccf904e8109e13cc232e",
+    "modules/SmartMoneySweep.js": "8e1d60fb762185546431f387ec2670630234f11f3e389688b06b0acb7d341f33",
+    "modules/DonchianBreakout.js": "f469637bbe0a9ab4f7ebcb4c37ca43284e2504dc182c3f0ab9702a4346ec7f95",
+    "modules/PropSafeEMAPullback.js": "a112cf4acf9ebb8d039c54097cfd4f9d566a670d09ab9e00c224e66161036a93",
+    "modules/EMATrendRetest.js": "db8c7a653daa16e39d186e783b88b8106ec7d080c0f98cf4248b3d36e380beea",
+    "modules/RSI2MeanReversion.js": "9f6296481016959c7b7f29b7b01fe87aa6637aa9ff24707b0cb8446cc56ef6db",
+    "modules/TimeSeriesMomentum.js": "f0fb8a5782dd4afa7d3d261561737f04ab76940c73606ee89cf396f8c2a282fd",
+    "modules/NoWickImbalance.js": "eb1b361492ec979fffcb95eaeeb332014fe9067cabed0ec288dc5ab00cd17096"
+  },
+  "tapeSha256": "8b4be8997bcd91a0db893f9cce1effe7b2843f42650e16e95931fb6b45b03324",
+  "candles": 721,
+  "baselineSignals": 5,
+  "effects": [
+    {
+      "field": "confidenceBase",
+      "value": 0.7,
+      "signals": 208,
+      "changed": 208,
+      "exitHintsUnchanged": true,
+      "retainedRegisteredOwners": 2
+    },
+    {
+      "field": "confidenceReturnMultiplier",
+      "value": 8,
+      "signals": 208,
+      "changed": 208,
+      "exitHintsUnchanged": true,
+      "retainedRegisteredOwners": 2
+    },
+    {
+      "field": "maxConfidence",
+      "value": 0.5,
+      "signals": 208,
+      "changed": 208,
+      "exitHintsUnchanged": true,
+      "retainedRegisteredOwners": 2
+    }
+  ],
+  "invalid": [
+    {
+      "field": "confidenceBase",
+      "value": "-1",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "confidenceBase",
+      "value": "1.1",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "confidenceBase",
+      "value": "NaN",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "confidenceBase",
+      "value": "Infinity",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "confidenceBase",
+      "value": "0.4",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "confidenceBase",
+      "value": "null",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "maxConfidence",
+      "value": "-1",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "maxConfidence",
+      "value": "1.1",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "maxConfidence",
+      "value": "NaN",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "maxConfidence",
+      "value": "Infinity",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "maxConfidence",
+      "value": "0.85",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "maxConfidence",
+      "value": "null",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "confidenceReturnMultiplier",
+      "value": "0",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "confidenceReturnMultiplier",
+      "value": "-1",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "confidenceReturnMultiplier",
+      "value": "NaN",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "confidenceReturnMultiplier",
+      "value": "Infinity",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "confidenceReturnMultiplier",
+      "value": "4",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "field": "confidenceReturnMultiplier",
+      "value": "null",
+      "reason": "invalid_setting_value"
+    }
+  ],
+  "relationRejected": true,
+  "singleRelations": [
+    {
+      "strategies.TimeSeriesMomentum.confidenceBase": 0.9
+    },
+    {
+      "strategies.TimeSeriesMomentum.maxConfidence": 0.1
+    }
+  ],
+  "zeroSignals": 208,
+  "forced": [
+    {
+      "field": "confidenceBase",
+      "value": "-1",
+      "reason": "invalid_time_series_momentum_confidence"
+    },
+    {
+      "field": "confidenceBase",
+      "value": "1.1",
+      "reason": "invalid_time_series_momentum_confidence"
+    },
+    {
+      "field": "confidenceBase",
+      "value": "NaN",
+      "reason": "invalid_time_series_momentum_confidence"
+    },
+    {
+      "field": "confidenceBase",
+      "value": "{\"toString\":null}",
+      "reason": "invalid_time_series_momentum_confidence"
+    },
+    {
+      "field": "confidenceBase",
+      "value": "undefined",
+      "reason": "invalid_time_series_momentum_confidence"
+    },
+    {
+      "field": "maxConfidence",
+      "value": "-1",
+      "reason": "invalid_time_series_momentum_confidence"
+    },
+    {
+      "field": "maxConfidence",
+      "value": "1.1",
+      "reason": "invalid_time_series_momentum_confidence"
+    },
+    {
+      "field": "maxConfidence",
+      "value": "NaN",
+      "reason": "invalid_time_series_momentum_confidence"
+    },
+    {
+      "field": "maxConfidence",
+      "value": "{\"toString\":null}",
+      "reason": "invalid_time_series_momentum_confidence"
+    },
+    {
+      "field": "maxConfidence",
+      "value": "undefined",
+      "reason": "invalid_time_series_momentum_confidence"
+    },
+    {
+      "field": "confidenceReturnMultiplier",
+      "value": "0",
+      "reason": "invalid_time_series_momentum_confidence"
+    },
+    {
+      "field": "confidenceReturnMultiplier",
+      "value": "-1",
+      "reason": "invalid_time_series_momentum_confidence"
+    },
+    {
+      "field": "confidenceReturnMultiplier",
+      "value": "NaN",
+      "reason": "invalid_time_series_momentum_confidence"
+    },
+    {
+      "field": "confidenceReturnMultiplier",
+      "value": "{\"toString\":null}",
+      "reason": "invalid_time_series_momentum_confidence"
+    },
+    {
+      "field": "confidenceReturnMultiplier",
+      "value": "undefined",
+      "reason": "invalid_time_series_momentum_confidence"
+    }
+  ],
+  "missingBlocks": [
+    "missing",
+    null,
+    []
+  ],
+  "forceCompatibility": [
+    {
+      "field": "confidenceBase",
+      "value": null,
+      "normalized": 0
+    },
+    {
+      "field": "confidenceBase",
+      "value": false,
+      "normalized": 0
+    },
+    {
+      "field": "confidenceBase",
+      "value": [],
+      "normalized": 0
+    },
+    {
+      "field": "confidenceBase",
+      "value": "0.5",
+      "normalized": 0.5
+    },
+    {
+      "field": "maxConfidence",
+      "value": true,
+      "normalized": 1
+    },
+    {
+      "field": "maxConfidence",
+      "value": "1",
+      "normalized": 1
+    },
+    {
+      "field": "confidenceReturnMultiplier",
+      "value": true,
+      "normalized": 1
+    },
+    {
+      "field": "confidenceReturnMultiplier",
+      "value": "4",
+      "normalized": 4
+    },
+    {
+      "field": "confidenceReturnMultiplier",
+      "value": 5e-324,
+      "normalized": 5e-324
+    },
+    {
+      "field": "confidenceReturnMultiplier",
+      "value": 1.7976931348623157e+308,
+      "normalized": 1.7976931348623157e+308
+    }
+  ],
+  "forceRelationRejected": true,
+  "loaderGlobalsPreserved": 11,
+  "roleMismatchRejected": true,
+  "invalidExternalDiskSaveRejected": true,
+  "forceChanged": 207,
+  "stringSignals": 213,
+  "saveCount": 34,
+  "saves": [
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.confidenceBase": 0.7
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "7305cc50516a253c7f9c4d7c19ccea1fbf9b0e11aca522255be929f1f9650628",
+          "role": "bot",
+          "settings": 4,
+          "internals": 1,
+          "settingsHash": "2bb97f37270b9d6b2cf6a2527800cdcb22550a0e8b8832f098ecd76d0db0dfcf",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.confidenceBase": 0.5,
+        "strategies.TimeSeriesMomentum.confidenceReturnMultiplier": 4,
+        "strategies.TimeSeriesMomentum.maxConfidence": 0.85
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "cd723ccc367f858283c824a418e5db1ec74f6483cd1003021939a9cf1aa20eeb",
+          "role": "bot",
+          "settings": 5,
+          "internals": 1,
+          "settingsHash": "2adcec636434559af75c564ed1bc6da2e64a2b95692c82eda6f4ecccf2fd22c5",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.confidenceReturnMultiplier": 8
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "5f831baa37a53ae1cb9dca829732bf55040aa44c87c3850228b959df924f1adc",
+          "role": "bot",
+          "settings": 6,
+          "internals": 1,
+          "settingsHash": "bb9f76304551aced1500ff40b431756a7c643c13f94f277e00e06f161b4ea7fa",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.confidenceBase": 0.5,
+        "strategies.TimeSeriesMomentum.confidenceReturnMultiplier": 4,
+        "strategies.TimeSeriesMomentum.maxConfidence": 0.85
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "5c29adeb0734c3677830ac5a1b1faaa68c7e133a27ecf3d0a7e2402881c756a6",
+          "role": "bot",
+          "settings": 7,
+          "internals": 1,
+          "settingsHash": "afffad8503c641829f7becce95defb20e00acbf52cb24ec0750a5750a82e2fac",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.maxConfidence": 0.5
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "cc0151de70dc78693b36f90d255db01069e3e4a65a439d7d3ef5bc5d96fcf6d1",
+          "role": "bot",
+          "settings": 8,
+          "internals": 1,
+          "settingsHash": "1ed02ec07f096134aa0cda5981a6fe51d82138d6366042ca938106513dcabd5d",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.confidenceBase": 0.5,
+        "strategies.TimeSeriesMomentum.confidenceReturnMultiplier": 4,
+        "strategies.TimeSeriesMomentum.maxConfidence": 0.85
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "5a9df5fbc34bb2ffab9dbb051380abf05e6e03763998eefcc445895a5707d828",
+          "role": "bot",
+          "settings": 9,
+          "internals": 1,
+          "settingsHash": "7d0ab595a2f3bcf5c2ff6185371deb34920d595d84e8532d199c574c5deb62c0",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.confidenceBase": -1
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.TimeSeriesMomentum.confidenceBase"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.confidenceBase": 1.1
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.TimeSeriesMomentum.confidenceBase"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.confidenceBase": null
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.TimeSeriesMomentum.confidenceBase"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.confidenceBase": null
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.TimeSeriesMomentum.confidenceBase"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.confidenceBase": "0.4"
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.TimeSeriesMomentum.confidenceBase"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.confidenceBase": null
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.TimeSeriesMomentum.confidenceBase"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.maxConfidence": -1
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.TimeSeriesMomentum.maxConfidence"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.maxConfidence": 1.1
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.TimeSeriesMomentum.maxConfidence"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.maxConfidence": null
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.TimeSeriesMomentum.maxConfidence"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.maxConfidence": null
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.TimeSeriesMomentum.maxConfidence"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.maxConfidence": "0.85"
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.TimeSeriesMomentum.maxConfidence"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.maxConfidence": null
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.TimeSeriesMomentum.maxConfidence"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.confidenceReturnMultiplier": 0
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.TimeSeriesMomentum.confidenceReturnMultiplier"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.confidenceReturnMultiplier": -1
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.TimeSeriesMomentum.confidenceReturnMultiplier"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.confidenceReturnMultiplier": null
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.TimeSeriesMomentum.confidenceReturnMultiplier"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.confidenceReturnMultiplier": null
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.TimeSeriesMomentum.confidenceReturnMultiplier"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.confidenceReturnMultiplier": "4"
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.TimeSeriesMomentum.confidenceReturnMultiplier"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.confidenceReturnMultiplier": null
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "invalid_setting_value",
+        "path": "strategies.TimeSeriesMomentum.confidenceReturnMultiplier"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.confidenceBase": 0.9,
+        "strategies.TimeSeriesMomentum.maxConfidence": 0.8
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "time_series_momentum_max_confidence_below_base",
+        "path": "strategies.TimeSeriesMomentum.maxConfidence"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.confidenceBase": 0.9
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "time_series_momentum_max_confidence_below_base",
+        "path": "strategies.TimeSeriesMomentum.maxConfidence"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.maxConfidence": 0.1
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "time_series_momentum_max_confidence_below_base",
+        "path": "strategies.TimeSeriesMomentum.maxConfidence"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.confidenceBase": 0,
+        "strategies.TimeSeriesMomentum.maxConfidence": 0
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "8c0deaa64624885d29c599c6090f7065e4a985c88e3d0f67ce42db044bee10b4",
+          "role": "bot",
+          "settings": 10,
+          "internals": 1,
+          "settingsHash": "d29cd53b30850a1c8701f2352f328e987fe317752dfcd492e651d72d5a912808",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.confidenceBase": 0.5,
+        "strategies.TimeSeriesMomentum.confidenceReturnMultiplier": 4,
+        "strategies.TimeSeriesMomentum.maxConfidence": 0.85
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "79c97eaea1214e8cedecfaf5a7af7a187411f955c5664ffa1fd9bc00f4f903fe",
+          "role": "bot",
+          "settings": 11,
+          "internals": 1,
+          "settingsHash": "41b333c6d20cb8b2427cc3d11d445e33aaa8aedf3b21514cac8c735ded1b94c9",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.confidenceReturnMultiplier": 5e-324
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "0b92d56040ade502a551b40422413028d6d1d9a58416c161d3be1829d87fbba6",
+          "role": "bot",
+          "settings": 12,
+          "internals": 1,
+          "settingsHash": "9fb491f64ff7ddd28622dcd363382891622e46bc36b72e7ae85bcc32ddf15fa8",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.confidenceReturnMultiplier": 1.7976931348623157e+308
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "125c7047e0cc9c05cc0c43e7b339c520e8c42f6224b224a2cc74396b45bedc4d",
+          "role": "bot",
+          "settings": 13,
+          "internals": 1,
+          "settingsHash": "23d6d9f1f34a7628c540e3f389df0bf6062941bc65c1fefcd277cad9c95d54be",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.confidenceBase": 0.5,
+        "strategies.TimeSeriesMomentum.confidenceReturnMultiplier": 4,
+        "strategies.TimeSeriesMomentum.maxConfidence": 0.85
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "93d011155b8d8ce4acb866413006d8b8a9d9073386c9186613ff5ff672388e0c",
+          "role": "bot",
+          "settings": 14,
+          "internals": 1,
+          "settingsHash": "4a21e882d14e8d63d01b2dcfd2024a7b6615606673e82bf3f29ccccc17271118",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.confidenceBase": 0.6
+      },
+      "result": {
+        "success": false,
+        "saved": false,
+        "applied": false,
+        "reason": "settings_changed_outside_loaded_owner"
+      }
+    },
+    {
+      "changes": {
+        "strategies.TimeSeriesMomentum.confidenceReturnMultiplier": 5
+      },
+      "result": {
+        "success": true,
+        "saved": true,
+        "applied": true,
+        "configuration": {
+          "fingerprint": "7813042811c1cf88149db62bdd5e543e259fee462207a33aca9f65b4202c6c9e",
+          "role": "bot",
+          "settings": 16,
+          "internals": 1,
+          "settingsHash": "e455385bb0974b5b4f96da676dec9b9097e814779b9f4ae02e0abc849f4eb2ab",
+          "internalsHash": "4eb55c828dedad6656ada19f913574c5e5f795311f54e204e909787f7bf14b80"
+        },
+        "unavailableInputs": [],
+        "profile": "paper"
+      }
+    }
+  ],
+  "limits": [
+    "Actual StrategyOrchestrator registration/fallback/lazy factory and current ConfigLoader evaluate producer executed; no full TradingLoop/order/broker/dashboard relay.",
+    "Tracked production dependencies come only from immutable selection plus locked patches; installed external libraries are fixture dependencies.",
+    "No constructor/configure or strategy math changed; production delta is ConfigLoader only."
+  ]
+}

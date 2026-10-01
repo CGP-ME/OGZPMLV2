@@ -2462,6 +2462,27 @@ function liquiditySweepWeightsReplacementProblem(config) {
   return null;
 }
 
+function timeSeriesMomentumConfidenceReplacementProblem(config) {
+  const cfg = config.strategies?.TimeSeriesMomentum;
+  const confidence = {};
+  for (const key of ['confidenceBase', 'confidenceReturnMultiplier', 'maxConfidence']) {
+    const problem = { reason: 'invalid_time_series_momentum_confidence', path: `strategies.TimeSeriesMomentum.${key}` };
+    let value;
+    try {
+      value = Number(cfg?.[key]);
+    } catch (error) {
+      return problem;
+    }
+    if (!Number.isFinite(value)
+        || (key === 'confidenceReturnMultiplier' ? value <= 0 : value < 0 || value > 1)) return problem;
+    confidence[key] = value;
+  }
+  if (confidence.maxConfidence < confidence.confidenceBase) {
+    return { reason: 'time_series_momentum_max_confidence_below_base', path: 'strategies.TimeSeriesMomentum.maxConfidence' };
+  }
+  return null;
+}
+
 function load(opts = {}) {
   const requestedRole = opts.role || 'bot';
   if (_cached && !opts.force) {
@@ -2484,7 +2505,8 @@ function load(opts = {}) {
   if (_cached && opts.force && requestedRole === 'bot') {
     const problem = emaConfidenceReplacementProblem(candidate.config)
       || maDynamicSRConfidenceReplacementProblem(candidate.config)
-      || liquiditySweepWeightsReplacementProblem(candidate.config);
+      || liquiditySweepWeightsReplacementProblem(candidate.config)
+      || timeSeriesMomentumConfidenceReplacementProblem(candidate.config);
     if (problem) {
       // buildSnapshot restores its temporary active contexts in finally. Restore
       // its canonical-file reads too, keeping every reader on the prior owner.
@@ -2650,6 +2672,18 @@ const EDITABLE_SETTINGS = deepFreeze({
   'strategies.DonchianBreakout.trailChannelBars': {
     type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
     label: 'Donchian exit channel period', effect: 'new_Donchian_trade_channel_trail_only',
+  },
+  'strategies.TimeSeriesMomentum.confidenceBase': {
+    type: 'number', unit: 'fraction', min: 0, max: 1,
+    label: 'Momentum base confidence', effect: 'next_TSM_entry_evaluation',
+  },
+  'strategies.TimeSeriesMomentum.confidenceReturnMultiplier': {
+    type: 'number', unit: 'confidence_per_return_fraction', min: 0, exclusiveMin: true, max: Number.MAX_VALUE,
+    label: 'Momentum return confidence multiplier', effect: 'next_TSM_entry_evaluation',
+  },
+  'strategies.TimeSeriesMomentum.maxConfidence': {
+    type: 'number', unit: 'fraction', min: 0, max: 1,
+    label: 'Momentum confidence ceiling', effect: 'next_TSM_entry_evaluation',
   },
   'strategies.TimeSeriesMomentum.lookback': {
     type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
@@ -2956,6 +2990,10 @@ function saveSettings(request) {
   if (entries.some(([key]) => key.startsWith('strategies.EMASMACrossover.'))
       && Number(nextConfig.strategies.EMASMACrossover.maxConfidence) < Number(nextConfig.strategies.EMASMACrossover.baseConfidence)) {
     return reject('ema_crossover_max_confidence_below_base', { path: 'strategies.EMASMACrossover.maxConfidence' });
+  }
+  if (entries.some(([key]) => key.startsWith('strategies.TimeSeriesMomentum.'))) {
+    const problem = timeSeriesMomentumConfidenceReplacementProblem(nextConfig);
+    if (problem) return reject(problem.reason, { path: problem.path });
   }
   const nextEntrySizing = buildEntrySizingInput(nextConfig);
   if (nextEntrySizing.issues.length > 0) {

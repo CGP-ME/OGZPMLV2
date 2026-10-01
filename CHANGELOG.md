@@ -1,3 +1,7 @@
+## 2026-10-01 — Live momentum confidence controls
+
+Expose the three existing momentum confidence controls through saved settings and retained orchestrator consumers. Preserve detector state and entry-owned exit hints; reject invalid replacement domains and ceiling/base relationships before publication. Evidence: ogz-meta/inbox/codex/2026-10-01/stop1-tsm-confidence/. No runtime activation.
+
 ## 2026-10-01 — Live liquidity-sweep confidence weights
 
 Connect five existing liquidity-sweep confidence weights to retained runner and orchestrator instances. Saved values affect the next signal calculation while existing signals and detector state remain intact. Invalid forced replacements retain the current settings with a named result. Evidence: ogz-meta/inbox/codex/2026-10-01/stop1-liquidity-confidence/. No runtime activation.

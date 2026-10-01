@@ -1,0 +1,13 @@
+{
+  "../ema-crossover-confidence/fixtures/module.patch": "ec5b0bb9acd927d0fb462ce6b55fb2b910a9bffe71b085054e09fd4a4fcd55ef",
+  "../ema-crossover-confidence/fixtures/loader-final-head.patch": "c7c792c886d0c3f2029894e0499931e06f1d53c8babb8638854658a1b8088419",
+  "../ema-crossover-confidence/fixtures/producers.patch": "ac889437a35b4730dff1a8b6f38ba35a9f534040c3dfadee1b54d11c0422782b",
+  "../ema-crossover-confidence/fixtures/role-ownership.patch": "e7d02e488999849c9947e2f5fae23800dfd7eaf2404a97e117bd62931d4e5bba",
+  "../ma-sr-confidence/module.patch": "72fe15d16ee2c4d5ae95a0a78d3f0bae7fdf2656324d0577e552063f0478d80a",
+  "../ma-sr-confidence/loader-dependent.patch": "67c93c1e98138a5592e92aa3d9a361bd0b5b23d9c4627d2dc38d030d6f1e2bdc",
+  "../ma-sr-confidence/producers.patch": "845e724e4ec8f37c9285ab6644b3cadc3bd3b344cf617ea6222b93ba0497a3c8",
+  "../liquidity-confidence/fixtures/module.patch": "6aa7e5db4e65f586fe33e5d129386df1a769347fece4c9d29e7b665c5da728bf",
+  "../liquidity-confidence/fixtures/loader.patch": "dd3fe7307c337399b6148da93b3af5d38a9463375dbe28bbbb69febc03a13c0c",
+  "../liquidity-confidence/fixtures/producers.patch": "547ca04686c487542e467f471f2e395704e7d9123d233e999305a0f19cd5941f",
+  "../ma-sr-confidence/cap-boundary.patch": "26a91cb961359906f6f6332ff404d25cedde79f628842bafbb6681a0e1ac9e6a"
+}
