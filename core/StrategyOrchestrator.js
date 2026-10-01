@@ -854,7 +854,7 @@ class StrategyOrchestrator {
       ...ConfigLoader.get('strategies.LiquiditySweep'),
       verbose: ConfigLoader.get('observability.backtestVerbose') === true,
     };
-    this.liquiditySweepModule = new LiquiditySweepDetector(this.liquiditySweepConfig);
+    this.liquiditySweepModule = new LiquiditySweepDetector(this.liquiditySweepConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'));
     this.breakAndRetestConfig = ConfigLoader.get('strategies.BreakRetest');
     this.breakAndRetestModule = new BreakAndRetest(this.breakAndRetestConfig);
     const NoWickImbalance = require('../modules/NoWickImbalance');
@@ -1754,7 +1754,7 @@ class StrategyOrchestrator {
           'LiquiditySweep',
           ctx.extras?.symbol,
           liquiditySweepModule,
-          () => new LiquiditySweepDetector(this.liquiditySweepConfig)
+          () => new LiquiditySweepDetector(this.liquiditySweepConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'))
         );
         const sig = scopedLiquiditySweep.feedCandle(latestCandle);
 

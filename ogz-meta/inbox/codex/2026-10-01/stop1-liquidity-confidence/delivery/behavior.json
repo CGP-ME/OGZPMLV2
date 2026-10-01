@@ -1,0 +1,336 @@
+{
+  "pass": true,
+  "recordedCandles": 7944,
+  "sourceSelection": {
+    "mode": "immutable_review_tree",
+    "tree": "0320c10a05821c25c07212ecb4b6d5bad268adf8",
+    "patchesApplied": false
+  },
+  "selectedSourceHashes": {
+    "config/settings.json": "6b53392d26c903f4b38821c5de84b71432f95c927ac58d7bb00abcc68e3b9b3d",
+    "config/internals.json": "c3bd62c64f2e5c2acbfdcf2f740ed1787ab8860026516d306e17cb382ade19d6",
+    "foundation/ConfigLoader.js": "7abb4c91f99f6af90db9ca1d977b58506133f7589819e5bbc9d06e3d2054cf3c",
+    "core/AtomicWrite.js": "3d451213bba7b3680b7560e1d8c60e36650a595c7970a116a926f5d96390a924",
+    "modules/LiquiditySweepDetector.js": "a496229ce623c3de36bea343e2f6bf3a30ad03aa2a33981145c8e8d9d3146ff3",
+    "core/CandleHelper.js": "33195306d283e2d0e23868849c87953ee5a6cecbbb74d1cb8c619af16701e5f3",
+    "tuning/tsla-15m-year1.json": "9d858e827c7299290a36b365fdbc66888d521aa4b429bcf27b7a8859a4b7a9a0",
+    "run-empire-v2.js": "2d119c69fa781875f3f9f1e662d14200efc47bb6ba7186e4e1802a77573b8e72",
+    "core/StrategyOrchestrator.js": "8d778fb730af0a1c93ebd24d802f3791cf936796b3427724c2ac8d1f3e52fe9e"
+  },
+  "loadedSourceHashes": {
+    "foundation/ConfigLoader.js": "7abb4c91f99f6af90db9ca1d977b58506133f7589819e5bbc9d06e3d2054cf3c",
+    "core/AtomicWrite.js": "3d451213bba7b3680b7560e1d8c60e36650a595c7970a116a926f5d96390a924",
+    "modules/LiquiditySweepDetector.js": "a496229ce623c3de36bea343e2f6bf3a30ad03aa2a33981145c8e8d9d3146ff3",
+    "core/CandleHelper.js": "33195306d283e2d0e23868849c87953ee5a6cecbbb74d1cb8c619af16701e5f3"
+  },
+  "untrackedDependencyFallbackRejected": true,
+  "recordedSha256": "9d858e827c7299290a36b365fdbc66888d521aa4b429bcf27b7a8859a4b7a9a0",
+  "constructorEvidence": [
+    {
+      "file": "run-empire-v2.js",
+      "line": 809,
+      "expression": "new LiquiditySweepDetector(liqConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'))"
+    },
+    {
+      "file": "core/StrategyOrchestrator.js",
+      "line": 857,
+      "expression": "new LiquiditySweepDetector(this.liquiditySweepConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'))"
+    },
+    {
+      "file": "core/StrategyOrchestrator.js",
+      "line": 1757,
+      "expression": "new LiquiditySweepDetector(this.liquiditySweepConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'))"
+    }
+  ],
+  "scenarios": [
+    {
+      "key": "manipCandle",
+      "savedValue": 0,
+      "persistedRevision": 4,
+      "actors": [
+        {
+          "site": {
+            "file": "run-empire-v2.js",
+            "line": 809,
+            "expression": "new LiquiditySweepDetector(liqConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'))"
+          },
+          "generated": 7,
+          "changedOutputs": 240,
+          "patterns": [
+            "hammer",
+            "inverted_hammer",
+            "bearish_engulfing"
+          ]
+        },
+        {
+          "site": {
+            "file": "core/StrategyOrchestrator.js",
+            "line": 857,
+            "expression": "new LiquiditySweepDetector(this.liquiditySweepConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'))"
+          },
+          "generated": 7,
+          "changedOutputs": 7,
+          "patterns": [
+            "hammer",
+            "inverted_hammer",
+            "bearish_engulfing"
+          ]
+        },
+        {
+          "site": {
+            "file": "core/StrategyOrchestrator.js",
+            "line": 1757,
+            "expression": "new LiquiditySweepDetector(this.liquiditySweepConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'))"
+          },
+          "generated": 7,
+          "changedOutputs": 7,
+          "patterns": [
+            "hammer",
+            "inverted_hammer",
+            "bearish_engulfing"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "wickSweep",
+      "savedValue": 0,
+      "persistedRevision": 4,
+      "actors": [
+        {
+          "site": {
+            "file": "run-empire-v2.js",
+            "line": 809,
+            "expression": "new LiquiditySweepDetector(liqConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'))"
+          },
+          "generated": 7,
+          "changedOutputs": 240,
+          "patterns": [
+            "hammer",
+            "inverted_hammer",
+            "bearish_engulfing"
+          ]
+        },
+        {
+          "site": {
+            "file": "core/StrategyOrchestrator.js",
+            "line": 857,
+            "expression": "new LiquiditySweepDetector(this.liquiditySweepConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'))"
+          },
+          "generated": 7,
+          "changedOutputs": 7,
+          "patterns": [
+            "hammer",
+            "inverted_hammer",
+            "bearish_engulfing"
+          ]
+        },
+        {
+          "site": {
+            "file": "core/StrategyOrchestrator.js",
+            "line": 1757,
+            "expression": "new LiquiditySweepDetector(this.liquiditySweepConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'))"
+          },
+          "generated": 7,
+          "changedOutputs": 7,
+          "patterns": [
+            "hammer",
+            "inverted_hammer",
+            "bearish_engulfing"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "sweepReject",
+      "savedValue": 0,
+      "persistedRevision": 4,
+      "actors": [
+        {
+          "site": {
+            "file": "run-empire-v2.js",
+            "line": 809,
+            "expression": "new LiquiditySweepDetector(liqConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'))"
+          },
+          "generated": 7,
+          "changedOutputs": 240,
+          "patterns": [
+            "hammer",
+            "inverted_hammer",
+            "bearish_engulfing"
+          ]
+        },
+        {
+          "site": {
+            "file": "core/StrategyOrchestrator.js",
+            "line": 857,
+            "expression": "new LiquiditySweepDetector(this.liquiditySweepConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'))"
+          },
+          "generated": 7,
+          "changedOutputs": 7,
+          "patterns": [
+            "hammer",
+            "inverted_hammer",
+            "bearish_engulfing"
+          ]
+        },
+        {
+          "site": {
+            "file": "core/StrategyOrchestrator.js",
+            "line": 1757,
+            "expression": "new LiquiditySweepDetector(this.liquiditySweepConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'))"
+          },
+          "generated": 7,
+          "changedOutputs": 7,
+          "patterns": [
+            "hammer",
+            "inverted_hammer",
+            "bearish_engulfing"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "hammerPattern",
+      "savedValue": 0,
+      "persistedRevision": 4,
+      "actors": [
+        {
+          "site": {
+            "file": "run-empire-v2.js",
+            "line": 809,
+            "expression": "new LiquiditySweepDetector(liqConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'))"
+          },
+          "generated": 7,
+          "changedOutputs": 205,
+          "patterns": [
+            "hammer",
+            "inverted_hammer",
+            "bearish_engulfing"
+          ]
+        },
+        {
+          "site": {
+            "file": "core/StrategyOrchestrator.js",
+            "line": 857,
+            "expression": "new LiquiditySweepDetector(this.liquiditySweepConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'))"
+          },
+          "generated": 7,
+          "changedOutputs": 6,
+          "patterns": [
+            "hammer",
+            "inverted_hammer",
+            "bearish_engulfing"
+          ]
+        },
+        {
+          "site": {
+            "file": "core/StrategyOrchestrator.js",
+            "line": 1757,
+            "expression": "new LiquiditySweepDetector(this.liquiditySweepConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'))"
+          },
+          "generated": 7,
+          "changedOutputs": 6,
+          "patterns": [
+            "hammer",
+            "inverted_hammer",
+            "bearish_engulfing"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "engulfPattern",
+      "savedValue": 0,
+      "persistedRevision": 4,
+      "actors": [
+        {
+          "site": {
+            "file": "run-empire-v2.js",
+            "line": 809,
+            "expression": "new LiquiditySweepDetector(liqConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'))"
+          },
+          "generated": 7,
+          "changedOutputs": 35,
+          "patterns": [
+            "hammer",
+            "inverted_hammer",
+            "bearish_engulfing"
+          ]
+        },
+        {
+          "site": {
+            "file": "core/StrategyOrchestrator.js",
+            "line": 857,
+            "expression": "new LiquiditySweepDetector(this.liquiditySweepConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'))"
+          },
+          "generated": 7,
+          "changedOutputs": 1,
+          "patterns": [
+            "hammer",
+            "inverted_hammer",
+            "bearish_engulfing"
+          ]
+        },
+        {
+          "site": {
+            "file": "core/StrategyOrchestrator.js",
+            "line": 1757,
+            "expression": "new LiquiditySweepDetector(this.liquiditySweepConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'))"
+          },
+          "generated": 7,
+          "changedOutputs": 1,
+          "patterns": [
+            "hammer",
+            "inverted_hammer",
+            "bearish_engulfing"
+          ]
+        }
+      ]
+    }
+  ],
+  "priorMaterializedSignalPreserved": true,
+  "greaterThanOneAccepted": true,
+  "NumberStringCompatibility": true,
+  "rejectedSaves": 25,
+  "rejectedReloads": 25,
+  "missingReplacementRejected": true,
+  "initialLoadBehaviorUnchanged": true,
+  "roleRejections": 4,
+  "roleRejectionBeforeDiskRead": true,
+  "retainedSignalAfterRoleRejection": true,
+  "rollbackGlobalCount": 11,
+  "namedErrors": [
+    "[ConfigLoader] Forced reload rejected: strategies.LiquiditySweep.weights.manipCandle: invalid_liquidity_sweep_weight",
+    "[ConfigLoader] Forced reload rejected: strategies.LiquiditySweep.weights.manipCandle: invalid_liquidity_sweep_weight",
+    "[ConfigLoader] Forced reload rejected: strategies.LiquiditySweep.weights.manipCandle: invalid_liquidity_sweep_weight",
+    "[ConfigLoader] Forced reload rejected: strategies.LiquiditySweep.weights.manipCandle: invalid_liquidity_sweep_weight",
+    "[ConfigLoader] Forced reload rejected: strategies.LiquiditySweep.weights.manipCandle: invalid_liquidity_sweep_weight",
+    "[ConfigLoader] Forced reload rejected: strategies.LiquiditySweep.weights.wickSweep: invalid_liquidity_sweep_weight",
+    "[ConfigLoader] Forced reload rejected: strategies.LiquiditySweep.weights.wickSweep: invalid_liquidity_sweep_weight",
+    "[ConfigLoader] Forced reload rejected: strategies.LiquiditySweep.weights.wickSweep: invalid_liquidity_sweep_weight",
+    "[ConfigLoader] Forced reload rejected: strategies.LiquiditySweep.weights.wickSweep: invalid_liquidity_sweep_weight",
+    "[ConfigLoader] Forced reload rejected: strategies.LiquiditySweep.weights.wickSweep: invalid_liquidity_sweep_weight",
+    "[ConfigLoader] Forced reload rejected: strategies.LiquiditySweep.weights.sweepReject: invalid_liquidity_sweep_weight",
+    "[ConfigLoader] Forced reload rejected: strategies.LiquiditySweep.weights.sweepReject: invalid_liquidity_sweep_weight",
+    "[ConfigLoader] Forced reload rejected: strategies.LiquiditySweep.weights.sweepReject: invalid_liquidity_sweep_weight",
+    "[ConfigLoader] Forced reload rejected: strategies.LiquiditySweep.weights.sweepReject: invalid_liquidity_sweep_weight",
+    "[ConfigLoader] Forced reload rejected: strategies.LiquiditySweep.weights.sweepReject: invalid_liquidity_sweep_weight",
+    "[ConfigLoader] Forced reload rejected: strategies.LiquiditySweep.weights.hammerPattern: invalid_liquidity_sweep_weight",
+    "[ConfigLoader] Forced reload rejected: strategies.LiquiditySweep.weights.hammerPattern: invalid_liquidity_sweep_weight",
+    "[ConfigLoader] Forced reload rejected: strategies.LiquiditySweep.weights.hammerPattern: invalid_liquidity_sweep_weight",
+    "[ConfigLoader] Forced reload rejected: strategies.LiquiditySweep.weights.hammerPattern: invalid_liquidity_sweep_weight",
+    "[ConfigLoader] Forced reload rejected: strategies.LiquiditySweep.weights.hammerPattern: invalid_liquidity_sweep_weight",
+    "[ConfigLoader] Forced reload rejected: strategies.LiquiditySweep.weights.engulfPattern: invalid_liquidity_sweep_weight",
+    "[ConfigLoader] Forced reload rejected: strategies.LiquiditySweep.weights.engulfPattern: invalid_liquidity_sweep_weight",
+    "[ConfigLoader] Forced reload rejected: strategies.LiquiditySweep.weights.engulfPattern: invalid_liquidity_sweep_weight",
+    "[ConfigLoader] Forced reload rejected: strategies.LiquiditySweep.weights.engulfPattern: invalid_liquidity_sweep_weight",
+    "[ConfigLoader] Forced reload rejected: strategies.LiquiditySweep.weights.engulfPattern: invalid_liquidity_sweep_weight",
+    "[ConfigLoader] Forced reload rejected: forced_reload_role_change_rejected: bot -> dashboard",
+    "[ConfigLoader] Forced reload rejected: forced_reload_role_change_rejected: bot -> checkout",
+    "[ConfigLoader] Forced reload rejected: forced_reload_role_change_rejected: bot -> supervisor",
+    "[ConfigLoader] Forced reload rejected: forced_reload_role_change_rejected: bot -> market-data-tool",
+    "[ConfigLoader] Forced reload rejected: strategies.LiquiditySweep.weights.manipCandle: invalid_liquidity_sweep_weight"
+  ],
+  "loaderSha256": "7abb4c91f99f6af90db9ca1d977b58506133f7589819e5bbc9d06e3d2054cf3c"
+}

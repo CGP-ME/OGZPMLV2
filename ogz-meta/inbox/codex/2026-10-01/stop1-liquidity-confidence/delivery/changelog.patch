@@ -1,0 +1,11 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -1,3 +1,7 @@
++## 2026-10-01 — Live liquidity-sweep confidence weights
++
++Connect five existing liquidity-sweep confidence weights to retained runner and orchestrator instances. Saved values affect the next signal calculation while existing signals and detector state remain intact. Invalid forced replacements retain the current settings with a named result. Evidence: ogz-meta/inbox/codex/2026-10-01/stop1-liquidity-confidence/. No runtime activation.
++
+ ## 2026-10-01 — Live MA dynamic support/resistance confidence controls
+ 
+ Connect the three existing MA confidence settings to retained runner, symbol-context and orchestrator instances. Preserve strategy state and explicit injected configuration; reject invalid saved or forced replacement ceilings above the existing orchestrator domain before publication. Evidence: ogz-meta/inbox/codex/2026-10-01/stop1-ma-confidence/. No runtime activation.

@@ -1,0 +1,31 @@
+--- a/run-empire-v2.js
++++ b/run-empire-v2.js
+@@ -806,7 +806,7 @@
+       ...ConfigLoader.get('strategies.LiquiditySweep'),
+       verbose: resolvedConfig.config.internals.observability.backtestVerbose === true,
+     };
+-    this.liquiditySweep = new LiquiditySweepDetector(liqConfig);
++    this.liquiditySweep = new LiquiditySweepDetector(liqConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'));
+ 
+     // CHANGE 2026-02-23: Volume Profile (Fabio Valentino / Auction Market Theory)
+     // Filters out trend strategies when market is BALANCED (inside value area = chop)
+--- a/core/StrategyOrchestrator.js
++++ b/core/StrategyOrchestrator.js
+@@ -854,7 +854,7 @@
+       ...ConfigLoader.get('strategies.LiquiditySweep'),
+       verbose: ConfigLoader.get('observability.backtestVerbose') === true,
+     };
+-    this.liquiditySweepModule = new LiquiditySweepDetector(this.liquiditySweepConfig);
++    this.liquiditySweepModule = new LiquiditySweepDetector(this.liquiditySweepConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'));
+     this.breakAndRetestConfig = ConfigLoader.get('strategies.BreakRetest');
+     this.breakAndRetestModule = new BreakAndRetest(this.breakAndRetestConfig);
+     const NoWickImbalance = require('../modules/NoWickImbalance');
+@@ -1754,7 +1754,7 @@
+           'LiquiditySweep',
+           ctx.extras?.symbol,
+           liquiditySweepModule,
+-          () => new LiquiditySweepDetector(this.liquiditySweepConfig)
++          () => new LiquiditySweepDetector(this.liquiditySweepConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'))
+         );
+         const sig = scopedLiquiditySweep.feedCandle(latestCandle);
+ 

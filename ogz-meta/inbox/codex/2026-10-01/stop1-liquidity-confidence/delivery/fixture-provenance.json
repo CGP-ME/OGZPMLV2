@@ -1,0 +1,27 @@
+[
+  {
+    "source": "ogz-meta/inbox/codex/2026-09-29/liquidity-confidence/fixtures/verify.cjs",
+    "copy": "fixtures/verify.cjs",
+    "sha256": "ae4dc6462b490b2c33f4aefd839606c68b284efe6ce727e7be812bb391b276a7"
+  },
+  {
+    "source": "ogz-meta/inbox/codex/2026-09-29/liquidity-confidence/fixtures/review-source.cjs",
+    "copy": "fixtures/review-source.cjs",
+    "sha256": "1453c3210a53eceb90560acc47f1f1195158cd7d69d0d6bb33e0bd85e900f27f"
+  },
+  {
+    "source": "ogz-meta/inbox/codex/2026-09-29/liquidity-confidence/fixtures/module.patch",
+    "copy": "fixtures/module.patch",
+    "sha256": "6aa7e5db4e65f586fe33e5d129386df1a769347fece4c9d29e7b665c5da728bf"
+  },
+  {
+    "source": "ogz-meta/inbox/codex/2026-09-29/liquidity-confidence/fixtures/loader.patch",
+    "copy": "fixtures/loader.patch",
+    "sha256": "dd3fe7307c337399b6148da93b3af5d38a9463375dbe28bbbb69febc03a13c0c"
+  },
+  {
+    "source": "ogz-meta/inbox/codex/2026-09-29/liquidity-confidence/fixtures/producers.patch",
+    "copy": "fixtures/producers.patch",
+    "sha256": "547ca04686c487542e467f471f2e395704e7d9123d233e999305a0f19cd5941f"
+  }
+]

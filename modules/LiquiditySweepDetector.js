@@ -62,7 +62,7 @@ function buildKnownEntryOverrideLevels(direction, entry, stopLoss, takeProfit) {
 class LiquiditySweepDetector {
   #dailyATR = null;
 
-  constructor(config) {
+  constructor(config, confidenceWeightsProvider = null) {
     const weightConfig = config.weights;
     const weights = Object.freeze({
       manipCandle: requiredConfigNumber(weightConfig, 'manipCandle'),
@@ -89,6 +89,7 @@ class LiquiditySweepDetector {
       sessionOpenMinute: requiredConfigNumber(config, 'sessionOpenMinute'),
       verbose: config.verbose === true,
     });
+    this.confidenceWeightsProvider = confidenceWeightsProvider;
 
     this._candleIntervalMs = null;
     this._candleIntervalMin = null;
@@ -421,6 +422,16 @@ class LiquiditySweepDetector {
   }
 
   _generateSignal(pattern, signalCandle, prevCandle) {
+    // Refresh only when calculating a new signal. A previously materialized
+    // signal keeps its original confidence until consumed.
+    if (this.confidenceWeightsProvider) {
+      const configuredWeights = this.confidenceWeightsProvider();
+      const weights = Object.fromEntries(Object.keys(this.config.weights)
+        .map(key => [key, Number(configuredWeights[key])]));
+      if (Object.keys(weights).some(key => weights[key] !== this.config.weights[key])) {
+        this.config = Object.freeze({ ...this.config, weights: Object.freeze(weights) });
+      }
+    }
     const box = this.state.box;
     const bufUp = 1 + (this.config.stopBufferPct / 100);
     const bufDn = 1 - (this.config.stopBufferPct / 100);
@@ -516,6 +527,7 @@ class LiquiditySweepDetector {
       signal: this.state.signal, stats: { ...this.stats },
       candleIntervalMin: this._candleIntervalMin,
       entryWindowBars: this._entryWindowBars, openingRangeBars: this._openingRangeBars,
+      confidenceWeights: this.config.weights,
     };
   }
 

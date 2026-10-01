@@ -1,0 +1,12 @@
+{
+  "candidate": "0320c10a05821c25c07212ecb4b6d5bad268adf8",
+  "base": "38ae9a3f4d7912c852a1997e734033cfb0366810",
+  "harness": "a5ecf975923c1c024ee98adf849016181dd6e482",
+  "files": [
+    "modules/LiquiditySweepDetector.js",
+    "core/StrategyOrchestrator.js",
+    "run-empire-v2.js",
+    "foundation/ConfigLoader.js",
+    "CHANGELOG.md"
+  ]
+}

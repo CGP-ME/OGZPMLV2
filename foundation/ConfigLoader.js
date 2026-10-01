@@ -2446,6 +2446,22 @@ function maDynamicSRConfidenceReplacementProblem(config) {
   return null;
 }
 
+function liquiditySweepWeightsReplacementProblem(config) {
+  const weights = config.strategies?.LiquiditySweep?.weights;
+  for (const key of ['manipCandle', 'wickSweep', 'sweepReject', 'hammerPattern', 'engulfPattern']) {
+    const problem = { reason: 'invalid_liquidity_sweep_weight', path: `strategies.LiquiditySweep.weights.${key}` };
+    if (weights == null || !Object.hasOwn(weights, key) || weights[key] == null) return problem;
+    let value;
+    try {
+      value = Number(weights[key]);
+    } catch (error) {
+      return problem;
+    }
+    if (!Number.isFinite(value) || value < 0) return problem;
+  }
+  return null;
+}
+
 function load(opts = {}) {
   const requestedRole = opts.role || 'bot';
   if (_cached && !opts.force) {
@@ -2467,7 +2483,8 @@ function load(opts = {}) {
   const candidate = buildSnapshot(process.env, opts);
   if (_cached && opts.force && requestedRole === 'bot') {
     const problem = emaConfidenceReplacementProblem(candidate.config)
-      || maDynamicSRConfidenceReplacementProblem(candidate.config);
+      || maDynamicSRConfidenceReplacementProblem(candidate.config)
+      || liquiditySweepWeightsReplacementProblem(candidate.config);
     if (problem) {
       // buildSnapshot restores its temporary active contexts in finally. Restore
       // its canonical-file reads too, keeping every reader on the prior owner.
@@ -2518,6 +2535,16 @@ function getReceipt() {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  ...Object.fromEntries([
+    ['manipCandle', 'Liquidity sweep manipulation-candle confidence weight'],
+    ['wickSweep', 'Liquidity sweep wick confidence weight'],
+    ['sweepReject', 'Liquidity sweep rejection confidence weight'],
+    ['hammerPattern', 'Liquidity sweep hammer confidence weight'],
+    ['engulfPattern', 'Liquidity sweep engulfing confidence weight'],
+  ].map(([key, label]) => [`strategies.LiquiditySweep.weights.${key}`, {
+    type: 'number', unit: 'weight', min: 0, max: Number.MAX_VALUE,
+    label, effect: 'next_signal_calculation',
+  }])),
   ...Object.fromEntries([
     ['baseConfidence', 'EMA crossover base confidence'],
     ['confluenceWeight', 'EMA crossover confluence confidence weight'],

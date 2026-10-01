@@ -806,7 +806,7 @@ class OGZPrimeV14Bot {
       ...ConfigLoader.get('strategies.LiquiditySweep'),
       verbose: resolvedConfig.config.internals.observability.backtestVerbose === true,
     };
-    this.liquiditySweep = new LiquiditySweepDetector(liqConfig);
+    this.liquiditySweep = new LiquiditySweepDetector(liqConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'));
 
     // CHANGE 2026-02-23: Volume Profile (Fabio Valentino / Auction Market Theory)
     // Filters out trend strategies when market is BALANCED (inside value area = chop)
