@@ -1,0 +1,12 @@
+[
+  {
+    "source": "ogz-meta/inbox/codex/2026-10-01/stop1-retire-exit-selector-readiness/retire.patch",
+    "copy": "retire.patch",
+    "sha256": "c5aecec07c51a40861e87f26a44644761e277201dffcb5b3852bf81c7641fdc1"
+  },
+  {
+    "source": "ogz-meta/inbox/codex/2026-10-01/stop1-retire-exit-selector-readiness/fixtures/verify.cjs",
+    "copy": "fixtures/verify.cjs",
+    "sha256": "345c4ecb8049164d6822422fb920386e80239689c5661af1748295ee728f07d6"
+  }
+]

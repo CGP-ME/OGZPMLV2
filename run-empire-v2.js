@@ -815,12 +815,6 @@ class OGZPrimeV14Bot {
 
     console.log('[ModularEntry] MTF + Crossovers + S/R + Liquidity initialized');
 
-    // EXIT_SYSTEM feature flag: Only ONE exit system active at a time
-    // Options: maxprofit, intelligence, pattern, brain, legacy (all active)
-    // Hard stop loss + stale trade exit + confidence crash ALWAYS run regardless
-    this.activeExitSystem = resolvedConfig.config.exits.exitSystem;
-    console.log(`Active Exit System: ${this.activeExitSystem.toUpperCase()}`);
-
     // Phase 2 REWRITE: GridTradingStrategy deleted - different trading style, feature-flagged off
 
     // REMOVED 2026-02-20: ExecutionRateLimiter was blocking 95% of trades in backtest

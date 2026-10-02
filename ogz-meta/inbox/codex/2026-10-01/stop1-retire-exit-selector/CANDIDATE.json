@@ -1,0 +1,9 @@
+{
+  "candidate": "8fd757fce8958108741ed23bc552141087636299",
+  "base": "4c22efe839a5a408b46840352943def280412784",
+  "harness": "a5ecf975923c1c024ee98adf849016181dd6e482",
+  "files": [
+    "run-empire-v2.js",
+    "CHANGELOG.md"
+  ]
+}

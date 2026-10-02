@@ -1,0 +1,20 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),crypto=require('node:crypto');
+const root=path.resolve(__dirname,'../../../../..');
+const identity=JSON.parse(fs.readFileSync(path.join(__dirname,'CANDIDATE.json')));
+const sha=x=>crypto.createHash('sha256').update(x).digest('hex');
+const read=file=>cp.execFileSync('git',['show',identity.candidate+':'+file],{cwd:root,encoding:'utf8',maxBuffer:8000000});
+const files=['run-empire-v2.js','foundation/ConfigLoader.js','config/settings.json'];
+const docs=files.map(file=>({path:file,content:read(file)}));
+docs.push({path:'selected-diff',content:cp.execFileSync('git',['diff',identity.base,identity.candidate,'--',...identity.files],{cwd:root,encoding:'utf8'})});
+docs.push({path:'host-behavior',content:fs.readFileSync(path.join(__dirname,'delivery/behavior.json'),'utf8')});
+const prompt='Independently break this Stop1 fix. Read-only review; do not edit, run other reviewers, or contact runtime/brokers. The task retires the obsolete exit selector whose missing configuration makes its constructor log throw. Verify removal leaves no active references or changed real exit initialization/policy. Candidate '+identity.candidate+'; base '+identity.base+'. Supplied files are complete exact Git source. Working tree contains unrelated sibling changes: any additional source MUST be read with git show '+identity.candidate+':PATH, never ambient working files. Return VERDICT: no_break_found | found_break | cannot_verify with source citations and named limits. Host proof executes the constructor boundary, not full boot.\n\n'+docs.map(d=>'DOCUMENT '+d.path+' SHA256 '+sha(d.content)+'\n'+d.content).join('\n\n');
+fs.writeFileSync(path.join(__dirname,'private/astra-prompt.txt'),prompt);
+const qualification={...identity,adapterSha256:sha(fs.readFileSync(path.join(__dirname,'private/astra-adapter.cjs'))),promptSha256:sha(prompt),documents:docs.map(d=>({path:d.path,sha256:sha(d.content)})),purpose:'Exit-selector source review only; not Mercury integration approval'};
+const {CodexChallengerClient}=require('./private/astra-adapter.cjs');
+new CodexChallengerClient({repoRoot:root,model:'gpt-6-astra',systemPrompt:'Independent adversarial reviewer. Read only exact pinned source. Report actual findings and limits.',requestTimeoutMs:1200000,maxTokens:7750}).generateResponseWithMetadata(prompt).then(result=>{
+ fs.writeFileSync(path.join(__dirname,'private/astra-result.json'),JSON.stringify({qualification,...result},null,2));
+ fs.writeFileSync(path.join(__dirname,'private/astra-stdout.raw'),result.metadata.rawResponse);
+ fs.writeFileSync(path.join(__dirname,'private/astra-stderr.raw'),result.metadata.rawError);
+ console.log(JSON.stringify({answer:result.answer,identity:result.metadata.identityPosture,termination:result.metadata.termination}));
+}).catch(error=>{console.error(error.stack);process.exitCode=1;});

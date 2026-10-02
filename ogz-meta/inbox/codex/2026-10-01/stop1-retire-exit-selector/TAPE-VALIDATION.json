@@ -1,0 +1,8 @@
+{
+  "result": "PASS",
+  "records": 44,
+  "uniquePayloads": 43,
+  "errors": [],
+  "findings": [],
+  "metadataFalsePositives": []
+}

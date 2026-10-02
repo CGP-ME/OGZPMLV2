@@ -1,3 +1,7 @@
+## 2026-10-02 — Retire obsolete exit-selector read
+
+Remove the runner constructor read of the nonexistent exits.exitSystem setting and its crashing log. Existing exit initialization and policy stay unchanged. Evidence: ogz-meta/inbox/codex/2026-10-01/stop1-retire-exit-selector/. No runtime activation.
+
 ## 2026-10-01 — Live RSI2 confidence controls
 
 Expose the three existing RSI2 confidence controls through saved settings and retained orchestrator consumers. Preserve strategy state, explicit injection and entry-owned exits; reject invalid replacement domains and ceiling/base relationships before publication. Evidence: ogz-meta/inbox/codex/2026-10-01/stop1-rsi2-confidence/. No runtime activation.

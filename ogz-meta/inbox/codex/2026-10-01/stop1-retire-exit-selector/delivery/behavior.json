@@ -1,0 +1,16 @@
+{
+  "pass": true,
+  "baseline": "4c22efe839a5a408b46840352943def280412784",
+  "selectedTree": "8fd757fce8958108741ed23bc552141087636299",
+  "sourceMode": "immutable_review_tree_no_patches",
+  "runnerBeforeSha256": "2d119c69fa781875f3f9f1e662d14200efc47bb6ba7186e4e1802a77573b8e72",
+  "runnerAfterSha256": "33ff5ba38a619fd7190544a018e4d2cd3077eac688c297ced2ca967478eeb86b",
+  "canonicalExitsHasSelector": false,
+  "baselineConstructorBoundaryThrows": true,
+  "candidateContinuesPastBoundary": true,
+  "noReplacementSelector": true,
+  "limits": [
+    "Constructor boundary executed, not whole bot boot",
+    "No PM2 restart, broker, provider, trade or exit-policy execution"
+  ]
+}
