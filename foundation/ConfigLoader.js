@@ -2483,6 +2483,26 @@ function timeSeriesMomentumConfidenceReplacementProblem(config) {
   return null;
 }
 
+function rsi2ConfidenceReplacementProblem(config) {
+  const cfg = config.strategies?.RSI2MeanReversion;
+  const confidence = {};
+  for (const key of ['confidenceBase', 'confidenceDepthMultiplier', 'maxConfidence']) {
+    const problem = { reason: 'invalid_rsi2_confidence', path: `strategies.RSI2MeanReversion.${key}` };
+    let value;
+    try {
+      value = Number(cfg?.[key]);
+    } catch (error) {
+      return problem;
+    }
+    if (!Number.isFinite(value) || value < 0 || value > 1) return problem;
+    confidence[key] = value;
+  }
+  if (confidence.maxConfidence < confidence.confidenceBase) {
+    return { reason: 'rsi2_max_confidence_below_base', path: 'strategies.RSI2MeanReversion.maxConfidence' };
+  }
+  return null;
+}
+
 function load(opts = {}) {
   const requestedRole = opts.role || 'bot';
   if (_cached && !opts.force) {
@@ -2506,7 +2526,8 @@ function load(opts = {}) {
     const problem = emaConfidenceReplacementProblem(candidate.config)
       || maDynamicSRConfidenceReplacementProblem(candidate.config)
       || liquiditySweepWeightsReplacementProblem(candidate.config)
-      || timeSeriesMomentumConfidenceReplacementProblem(candidate.config);
+      || timeSeriesMomentumConfidenceReplacementProblem(candidate.config)
+      || rsi2ConfidenceReplacementProblem(candidate.config);
     if (problem) {
       // buildSnapshot restores its temporary active contexts in finally. Restore
       // its canonical-file reads too, keeping every reader on the prior owner.
@@ -2769,6 +2790,18 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE,
     label: 'Managed break-even profit trigger', effect: 'new_trades_only',
   },
+  'strategies.RSI2MeanReversion.confidenceBase': {
+    type: 'number', unit: 'fraction', min: 0, max: 1,
+    label: 'RSI2 base confidence', effect: 'next_RSI2_entry_evaluation',
+  },
+  'strategies.RSI2MeanReversion.confidenceDepthMultiplier': {
+    type: 'number', unit: 'fraction', min: 0, max: 1,
+    label: 'RSI2 depth confidence multiplier', effect: 'next_RSI2_entry_evaluation',
+  },
+  'strategies.RSI2MeanReversion.maxConfidence': {
+    type: 'number', unit: 'fraction', min: 0, max: 1,
+    label: 'RSI2 confidence ceiling', effect: 'next_RSI2_entry_evaluation',
+  },
   'strategies.RSI2MeanReversion.rsiPeriod': {
     type: 'number', unit: 'candles', integer: true, min: 1, max: Number.MAX_SAFE_INTEGER,
     label: 'RSI2 period', effect: 'next_entry_and_new_trade_rsi_exit',
@@ -2993,6 +3026,10 @@ function saveSettings(request) {
   }
   if (entries.some(([key]) => key.startsWith('strategies.TimeSeriesMomentum.'))) {
     const problem = timeSeriesMomentumConfidenceReplacementProblem(nextConfig);
+    if (problem) return reject(problem.reason, { path: problem.path });
+  }
+  if (entries.some(([key]) => key.startsWith('strategies.RSI2MeanReversion.'))) {
+    const problem = rsi2ConfidenceReplacementProblem(nextConfig);
     if (problem) return reject(problem.reason, { path: problem.path });
   }
   const nextEntrySizing = buildEntrySizingInput(nextConfig);

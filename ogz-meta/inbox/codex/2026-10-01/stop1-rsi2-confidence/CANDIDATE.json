@@ -1,0 +1,9 @@
+{
+  "candidate": "97556feab5e23b9b03af0c0d4f83108849577fe4",
+  "base": "25f338d7af4e6b2e10a91e09cc1509c7f1f64b73",
+  "harness": "a5ecf975923c1c024ee98adf849016181dd6e482",
+  "files": [
+    "foundation/ConfigLoader.js",
+    "CHANGELOG.md"
+  ]
+}

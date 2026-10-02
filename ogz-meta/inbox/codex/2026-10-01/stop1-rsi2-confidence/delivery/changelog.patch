@@ -1,0 +1,12 @@
+===================================================================
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -1,4 +1,8 @@
++## 2026-10-01 — Live RSI2 confidence controls
++
++Expose the three existing RSI2 confidence controls through saved settings and retained orchestrator consumers. Preserve strategy state, explicit injection and entry-owned exits; reject invalid replacement domains and ceiling/base relationships before publication. Evidence: ogz-meta/inbox/codex/2026-10-01/stop1-rsi2-confidence/. No runtime activation.
++
+ ## 2026-10-01 — Live momentum confidence controls
+ 
+ Expose the three existing momentum confidence controls through saved settings and retained orchestrator consumers. Preserve detector state and entry-owned exit hints; reject invalid replacement domains and ceiling/base relationships before publication. Evidence: ogz-meta/inbox/codex/2026-10-01/stop1-tsm-confidence/. No runtime activation.
+ 

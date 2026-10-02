@@ -1,0 +1,22 @@
+[
+  {
+    "source": "ogz-meta/inbox/codex/2026-09-29/rsi2-confidence/fixtures/verify.cjs",
+    "copy": "fixtures/verify.cjs",
+    "sha256": "e1d72b0c2b8f8ac9eb0bb61f4b1a71484ae40d70a4d3d33e1e80aa5a14e7730e"
+  },
+  {
+    "source": "ogz-meta/inbox/codex/2026-09-29/rsi2-confidence/fixtures/source.cjs",
+    "copy": "fixtures/source.cjs",
+    "sha256": "6effc836899c1cd889367558ccd3c8cb467bba317825dce5277f185e022d55cd"
+  },
+  {
+    "source": "ogz-meta/inbox/codex/2026-09-29/rsi2-confidence/fixtures/loader.patch",
+    "copy": "fixtures/loader.patch",
+    "sha256": "7e72d252d1bc6bfd3fd47d2bdca7186a4b6e7071fd32b0e4e903b2ac78ed9347"
+  },
+  {
+    "source": "ogz-meta/inbox/codex/2026-09-29/rsi2-confidence/fixtures/dependency-lock.json",
+    "copy": "fixtures/dependency-lock.json",
+    "sha256": "89d717ae95612dd6378c807d57b1af664779979010a24c4bb6e4318d92e89672"
+  }
+]
