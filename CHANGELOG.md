@@ -1,3 +1,7 @@
+## 2026-10-02 — Retire symbol-loss cooldown
+
+Remove the rejected per-symbol consecutive-loss cooldown across configuration, close processing, executor telemetry and saved-state restoration. Preserve financial halt owners, operator pauses, active trades and close accounting. Evidence: ogz-meta/inbox/codex/2026-10-02/stop1-loss-cooldown/. No runtime activation.
+
 ## 2026-10-02 — Retire obsolete exit-selector read
 
 Remove the runner constructor read of the nonexistent exits.exitSystem setting and its crashing log. Existing exit initialization and policy stay unchanged. Evidence: ogz-meta/inbox/codex/2026-10-01/stop1-retire-exit-selector/. No runtime activation.

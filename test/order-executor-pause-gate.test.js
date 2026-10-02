@@ -1,6 +1,7 @@
 'use strict';
 
 const mockStateManager = {
+  normalizeSymbol: (...args) => jest.requireActual('../core/StateManager').StateManager.prototype.normalizeSymbol(...args),
   get: jest.fn(),
   getEquity: jest.fn(),
   getAvailableCapital: jest.fn(),
@@ -522,7 +523,7 @@ describe('OrderExecutor pause gate', () => {
     expect(exitPlanSpy).toHaveBeenCalledTimes(1);
   });
 
-  test('emits gate_event row when symbol cooldown blocks an entry', async () => {
+  test('preserves financial halt entry block without cooldown gate telemetry', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;
       if (key === 'balance') return 10000;
@@ -530,8 +531,8 @@ describe('OrderExecutor pause gate', () => {
       return null;
     });
     mockStateManager.isSymbolHalted.mockReturnValue(true);
-    mockStateManager.getSymbolHaltReason.mockReturnValue('symbol_cooldown: MARA 2 consecutive losses');
-    mockStateManager.getSymbolHaltCode.mockReturnValue('symbol_cooldown');
+    mockStateManager.getSymbolHaltReason.mockReturnValue('financial reconciliation required');
+    mockStateManager.getSymbolHaltCode.mockReturnValue('exit_monitor_reconciliation_required');
     const dashboardWs = { readyState: 1, send: jest.fn() };
     const executor = makeExecutor({}, {
       dashboardWs,
@@ -551,33 +552,19 @@ describe('OrderExecutor pause gate', () => {
 
     expect(result).toEqual(expect.objectContaining({
       success: false,
-      reason: 'symbol_cooldown',
-      detail: 'symbol_cooldown: MARA 2 consecutive losses',
+      reason: 'exit_monitor_reconciliation_required',
+      detail: 'financial reconciliation required',
       symbol: 'MARA',
       action: 'BUY',
     }));
     const frames = dashboardWs.send.mock.calls.map(call => JSON.parse(call[0]));
     const gateEvent = frames.find(frame => frame.type === 'gate_event');
-    expect(gateEvent).toEqual(expect.objectContaining({
-      type: 'gate_event',
-      symbol: 'MARA',
-      action: 'BUY',
-      kind: 'risk_block',
-      passed: false,
-      reason: 'symbol_cooldown',
-    }));
-    expect(gateEvent.riskGates).toEqual([
-      expect.objectContaining({
-        gate: 'symbol_cooldown',
-        passed: false,
-        rejectReason: 'symbol_cooldown: MARA 2 consecutive losses',
-      }),
-    ]);
+    expect(gateEvent).toBeUndefined();
     expect(executor.ctx.orderRouter.sendOrder).not.toHaveBeenCalled();
     expect(mockStateManager.openPosition).not.toHaveBeenCalled();
   });
 
-  test('symbol cooldown gate_event send failure does not change blocked result', async () => {
+  test('financial halt does not invoke retired cooldown WebSocket emitter', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;
       if (key === 'balance') return 10000;
@@ -585,8 +572,8 @@ describe('OrderExecutor pause gate', () => {
       return null;
     });
     mockStateManager.isSymbolHalted.mockReturnValue(true);
-    mockStateManager.getSymbolHaltReason.mockReturnValue('symbol_cooldown: MARA 2 consecutive losses');
-    mockStateManager.getSymbolHaltCode.mockReturnValue('symbol_cooldown');
+    mockStateManager.getSymbolHaltReason.mockReturnValue('financial reconciliation required');
+    mockStateManager.getSymbolHaltCode.mockReturnValue('exit_monitor_reconciliation_required');
     const dashboardWs = {
       readyState: 1,
       send: jest.fn(() => {
@@ -611,12 +598,12 @@ describe('OrderExecutor pause gate', () => {
 
     expect(result).toEqual(expect.objectContaining({
       success: false,
-      reason: 'symbol_cooldown',
-      detail: 'symbol_cooldown: MARA 2 consecutive losses',
+      reason: 'exit_monitor_reconciliation_required',
+      detail: 'financial reconciliation required',
       symbol: 'MARA',
       action: 'BUY',
     }));
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('symbol_cooldown gate_event send failed: socket send failed'));
+    expect(dashboardWs.send).not.toHaveBeenCalled();
     expect(executor.ctx.orderRouter.sendOrder).not.toHaveBeenCalled();
     expect(mockStateManager.openPosition).not.toHaveBeenCalled();
   });

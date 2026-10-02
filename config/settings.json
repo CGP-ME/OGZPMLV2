@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 3,
+  "revision": 4,
   "confidence": {
     "minStrategyConfidence": 0.35,
     "candlePatternMinConfidence": 0.7,
@@ -1933,11 +1933,6 @@
         "consistencyCapBuffer": 0.98,
         "dailyLossRiskFraction": 1
       }
-    },
-    "symbolLossCooldown": {
-      "enabled": true,
-      "consecutiveLosses": 2,
-      "cooldownMinutes": 120
     }
   },
   "strategies": {

@@ -1,0 +1,20 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),crypto=require('node:crypto');
+const root=path.resolve(__dirname,'../../../../..');
+const identity=JSON.parse(fs.readFileSync(path.join(__dirname,'CANDIDATE.json')));
+const sha=x=>crypto.createHash('sha256').update(x).digest('hex');
+const read=file=>cp.execFileSync('git',['show',identity.candidate+':'+file],{cwd:root,encoding:'utf8',maxBuffer:8000000});
+const files=[];
+const docs=files.map(file=>({path:file,content:read(file)}));
+docs.push({path:'selected-diff',content:cp.execFileSync('git',['diff',identity.base,identity.candidate,'--',...identity.files],{cwd:root,encoding:'utf8'})});
+docs.push({path:'host-behavior',content:fs.readFileSync(path.join(__dirname,'delivery/behavior.json'),'utf8')});
+const prompt="Mercury, break my fix. Stop1 A17 rejects per-symbol loss cooldown everywhere, including eval. This change removes its settings declaration, close-time streak/halt producer, dedicated executor telemetry and persisted legacy cooldown state. Preserve all seven unrelated halt owners, operator pauses, active trades, close accounting, normal exit behavior and atomic persistence/error evidence. Find any remaining active caller, unsafe saved-state migration, altered financial halt semantics or scope violation with exact source evidence. No replacement gate, default, throw or runtime stop is intended. You are the independent Astra reviewer. Read-only: no edits, other reviewers or runtime/broker contact. Candidate "+identity.candidate+'; base '+identity.base+". Source is available losslessly through git show CANDIDATE:PATH and git grep CANDIDATE; do not read dirty working files as candidate source. Read relevant complete owners and dependent code from that exact Git tree. Return VERDICT: no_break_found | found_break | cannot_verify with source evidence and named limits. The supplied host proof is isolated behavior, not live broker execution.\n\n"+docs.map(d=>'DOCUMENT '+d.path+' SHA256 '+sha(d.content)+'\n'+d.content).join('\n\n');
+fs.writeFileSync(path.join(__dirname,'private/astra-prompt.txt'),prompt);
+const qualification={...identity,adapterSha256:sha(fs.readFileSync(path.join(__dirname,'private/astra-adapter.cjs'))),promptSha256:sha(prompt),documents:docs.map(d=>({path:d.path,sha256:sha(d.content)})),purpose:'Cooldown retirement source review only; not Mercury integration approval'};
+const {CodexChallengerClient}=require('./private/astra-adapter.cjs');
+new CodexChallengerClient({repoRoot:root,model:'gpt-6-astra',systemPrompt:'Independent adversarial reviewer. Read only exact pinned source. Report actual findings and limits.',requestTimeoutMs:1200000,maxTokens:7750}).generateResponseWithMetadata(prompt).then(result=>{
+ fs.writeFileSync(path.join(__dirname,'private/astra-result.json'),JSON.stringify({qualification,...result},null,2));
+ fs.writeFileSync(path.join(__dirname,'private/astra-stdout.raw'),result.metadata.rawResponse);
+ fs.writeFileSync(path.join(__dirname,'private/astra-stderr.raw'),result.metadata.rawError);
+ console.log(JSON.stringify({answer:result.answer,identity:result.metadata.identityPosture,termination:result.metadata.termination}));
+}).catch(error=>{console.error(error.stack);process.exitCode=1;});

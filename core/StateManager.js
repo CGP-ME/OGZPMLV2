@@ -114,7 +114,6 @@ const AUTHORIZED_SYMBOL_HALT_CODES = new Set([
   'exit_intent_reconciliation_required',
   DIRECTION_INTEGRITY_EXIT_REFUSAL,
   BROKER_UNVERIFIABLE,
-  'symbol_cooldown',
   TTP_CUTOFF_FLATNESS_PAUSE_SOURCE
 ]);
 const SYMBOL_ENTRY_HALTS_MUTATION_TOKEN = Symbol('symbolEntryHaltsMutation');
@@ -125,13 +124,6 @@ function ensureConfigLoaded() {
       ConfigLoader.load({ silent: true });
     }
   } catch (_) {}
-}
-
-function isSymbolCooldownHalt(halt) {
-  if (!halt || typeof halt !== 'object') return false;
-  const code = typeof halt.code === 'string' ? halt.code.trim().toLowerCase() : '';
-  const reason = typeof halt.reason === 'string' ? halt.reason.trim().toLowerCase() : '';
-  return code === 'symbol_cooldown' || /^symbol_cooldown\s*:/.test(reason);
 }
 
 function normalizeSymbolHaltCode(metadata) {
@@ -523,7 +515,6 @@ class StateManager {
       activeTrades: new Map(),  // orderId → { size, price, entryTime, symbol, ... }
       quarantinedTrades: [],
       symbolEntryHalts: {},     // canonical symbol -> { reason, haltedAt }
-      symbolLossStreaks: {},    // canonical symbol -> { consecutiveLosses, lastClosedAt, lastPnl }
       ttpCutoffQuarantine: null,
       // Per-symbol last-known prices for cross-asset equity math.
       // Mercury attack 2026-05-04: getEquity previously applied ONE caller-
@@ -628,7 +619,6 @@ class StateManager {
       activeTrades: new Map(),
       quarantinedTrades: [],
       symbolEntryHalts: {},
-      symbolLossStreaks: {},
       ttpCutoffQuarantine: null,
       lastPrices: new Map(),
       lastTradeTime: null,
@@ -1673,7 +1663,6 @@ class StateManager {
         holdMs: holdTimeMs,
         closedAt
       };
-      const cooldownUpdates = this._symbolLossCooldownUpdates(closedTradeRecord, closedAt);
 
       const updates = {
         activeTrades: nextActiveTrades,
@@ -1687,7 +1676,6 @@ class StateManager {
         totalPnL: this.state.totalPnL + pnl,
         closedTrades: [...(this.state.closedTrades || []), closedTradeRecord],
         lastTradeTime: closedAt,
-        ...cooldownUpdates
       };
 
       console.log(`Position closed: PnL ${pnl > 0 ? '+' : ''}$${pnl.toFixed(2)} (${pnlPercent.toFixed(2)}%)`);
@@ -1700,9 +1688,6 @@ class StateManager {
         partial,
         ...context,
         positionEffect,
-        symbolEntryHaltsMutationToken: cooldownUpdates.symbolEntryHalts
-          ? SYMBOL_ENTRY_HALTS_MUTATION_TOKEN
-          : undefined,
       });
 
       narratorPayload = {
@@ -3970,93 +3955,12 @@ class StateManager {
     return null;
   }
 
-  _symbolLossCooldownConfig() {
-    ensureConfigLoaded();
-    let cfg = null;
-    if (typeof ConfigLoader.get === 'function') {
-      try {
-        const enabled = ConfigLoader.get('entryLogic.symbolLossCooldown.enabled');
-        const consecutiveLosses = ConfigLoader.get('entryLogic.symbolLossCooldown.consecutiveLosses');
-        const cooldownMinutes = ConfigLoader.get('entryLogic.symbolLossCooldown.cooldownMinutes');
-        if (enabled !== undefined || consecutiveLosses !== undefined || cooldownMinutes !== undefined) {
-          cfg = { enabled, consecutiveLosses, cooldownMinutes };
-        }
-      } catch (_) {}
-    }
-    if (!cfg) {
-      cfg = getConfigValue('entryLogic.symbolLossCooldown') || null;
-    }
-    cfg = cfg || {};
-    const enabled = cfg.enabled === true;
-    const consecutiveLosses = finiteNumberOrNull(cfg.consecutiveLosses);
-    const cooldownMinutes = finiteNumberOrNull(cfg.cooldownMinutes);
-    return {
-      enabled,
-      consecutiveLosses: Number.isInteger(consecutiveLosses) && consecutiveLosses > 0 ? consecutiveLosses : null,
-      cooldownMs: cooldownMinutes !== null && cooldownMinutes > 0 ? cooldownMinutes * 60 * 1000 : null,
-    };
-  }
-
-  _symbolLossCooldownUpdates(closedTradeRecord, closedAt) {
-    const config = this._symbolLossCooldownConfig();
-    if (!config.enabled || config.consecutiveLosses === null) {
-      return {};
-    }
-
-    const rawSymbol = closedTradeRecord?.symbol;
-    if (typeof rawSymbol !== 'string' || !rawSymbol.trim()) {
-      return {};
-    }
-
-    const normalized = this.normalizeSymbol(rawSymbol, 'StateManager.symbolLossCooldown');
-    const pnl = finiteNumberOrNull(closedTradeRecord.pnl);
-    if (pnl === null) {
-      return {};
-    }
-
-    const existingStreaks = this.state.symbolLossStreaks || {};
-    const previous = existingStreaks[normalized] || {};
-    const previousLosses = Number.isInteger(previous.consecutiveLosses) && previous.consecutiveLosses > 0
-      ? previous.consecutiveLosses
-      : 0;
-    const consecutiveLosses = pnl < 0 ? previousLosses + 1 : 0;
-    const symbolLossStreaks = {
-      ...existingStreaks,
-      [normalized]: {
-        consecutiveLosses,
-        lastClosedAt: closedAt,
-        lastPnl: pnl,
-      },
-    };
-
-    if (consecutiveLosses < config.consecutiveLosses) {
-      return { symbolLossStreaks };
-    }
-
-    const expiresAt = config.cooldownMs === null ? null : closedAt + config.cooldownMs;
-    const reason = `symbol_cooldown: ${normalized} ${consecutiveLosses} consecutive losses`;
-    const symbolEntryHalts = {
-      ...(this.state.symbolEntryHalts || {}),
-      [normalized]: {
-        reason,
-        code: 'symbol_cooldown',
-        haltedAt: closedAt,
-        expiresAt,
-        consecutiveLosses,
-      },
-    };
-
-    console.warn(`[StateManager] SYMBOL COOLDOWN: ${normalized} after ${consecutiveLosses} consecutive losses`);
-    return { symbolLossStreaks, symbolEntryHalts };
-  }
-
   _normalizeSymbolEntryHaltsCollection(symbolEntryHalts, source = 'StateManager.symbolEntryHalts') {
     if (!symbolEntryHalts || typeof symbolEntryHalts !== 'object' || Array.isArray(symbolEntryHalts)) {
       return {};
     }
 
     const normalizedHalts = {};
-    const symbolLossCooldownEnabled = this._symbolLossCooldownConfig().enabled;
     const now = Date.now();
     for (const [haltSymbol, halt] of Object.entries(symbolEntryHalts)) {
       if (!halt || typeof halt !== 'object' || Array.isArray(halt)) continue;
@@ -4068,7 +3972,6 @@ class StateManager {
       const code = normalizeSymbolHaltCode(halt);
       if (!code || !AUTHORIZED_SYMBOL_HALT_CODES.has(code)) continue;
       const normalizedHalt = { ...halt, code };
-      if (isSymbolCooldownHalt(normalizedHalt) && !symbolLossCooldownEnabled) continue;
       normalizedHalts[normalized] = {
         ...normalizedHalt,
         reason: typeof halt.reason === 'string' && halt.reason.trim() ? halt.reason : 'unspecified',
@@ -4102,9 +4005,6 @@ class StateManager {
     const normalized = this.normalizeSymbol(symbol, 'StateManager.symbolHaltRecord');
     const halt = this.state.symbolEntryHalts?.[normalized];
     if (!halt) return null;
-    if (isSymbolCooldownHalt(halt) && !this._symbolLossCooldownConfig().enabled) {
-      return null;
-    }
     const expiresAt = normalizeSymbolHaltExpiry(halt);
     if (expiresAt !== null && expiresAt <= now) {
       return null;
@@ -4404,29 +4304,11 @@ class StateManager {
             correctedStateShape = true;
           }
         }
-        if (!this.state.symbolLossStreaks || typeof this.state.symbolLossStreaks !== 'object' || Array.isArray(this.state.symbolLossStreaks)) {
-          this.state.symbolLossStreaks = {};
-        } else if (!this._symbolLossCooldownConfig().enabled) {
-          if (Object.keys(this.state.symbolLossStreaks).length > 0) {
-            correctedStateShape = true;
-          }
-          this.state.symbolLossStreaks = {};
-        } else {
-          const normalizedStreaks = {};
-          for (const [streakSymbol, streak] of Object.entries(this.state.symbolLossStreaks)) {
-            if (!streak || typeof streak !== 'object' || Array.isArray(streak)) continue;
-            const normalized = this.normalizeSymbol(streakSymbol, 'StateManager.load symbolLossStreaks');
-            const consecutiveLosses = finiteNumberOrNull(streak.consecutiveLosses);
-            const lastClosedAt = finiteNumberOrNull(streak.lastClosedAt);
-            const lastPnl = finiteNumberOrNull(streak.lastPnl);
-            if (!Number.isInteger(consecutiveLosses) || consecutiveLosses < 0 || lastClosedAt === null || lastPnl === null) continue;
-            normalizedStreaks[normalized] = {
-              consecutiveLosses,
-              lastClosedAt,
-              lastPnl,
-            };
-          }
-          this.state.symbolLossStreaks = normalizedStreaks;
+        // Retire saved loss-cooldown bookkeeping regardless of its legacy shape.
+        // Retired halt codes are removed by the collection normalizer above.
+        if (Object.prototype.hasOwnProperty.call(this.state, 'symbolLossStreaks')) {
+          delete this.state.symbolLossStreaks;
+          correctedStateShape = true;
         }
         console.log('[StateManager] State loaded from disk');
 

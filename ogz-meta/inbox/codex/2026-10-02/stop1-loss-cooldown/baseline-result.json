@@ -1,0 +1,6 @@
+{
+  "checks": [
+    "baseline reproduces timed halt surviving winning close",
+    "close accounting, trade removal and operator pause preserved"
+  ]
+}

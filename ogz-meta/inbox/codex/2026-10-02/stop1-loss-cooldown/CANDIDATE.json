@@ -1,0 +1,15 @@
+{
+  "candidate": "bb6c0a1953ac0c3c991d4ee9f10b9214b891fd95",
+  "base": "3afde60ce654ec191a6a73413bb5ab5cf8acf6d1",
+  "harness": "a5ecf975923c1c024ee98adf849016181dd6e482",
+  "files": [
+    "core/StateManager.js",
+    "core/OrderExecutor.js",
+    "config/settings.json",
+    "test/state-manager-load.test.js",
+    "test/state-manager-open-position-scope.test.js",
+    "test/order-executor-pause-gate.test.js",
+    "test/ecosystem-eval-profile.test.js",
+    "CHANGELOG.md"
+  ]
+}

@@ -147,8 +147,7 @@ describe('StateManager load validation', () => {
     expect(manager.get('pauseScope')).toBeNull();
   });
 
-  test('load drops persisted symbol cooldown halt and streak when cooldown is disabled', () => {
-    process.env.SYMBOL_LOSS_COOLDOWN_ENABLED = 'false';
+  test('load drops persisted symbol cooldown halt and streak', () => {
     const now = Date.now();
     fs.writeFileSync(stateFile, JSON.stringify({
       balance: 10000,
@@ -180,15 +179,14 @@ describe('StateManager load validation', () => {
 
     expect(manager.isSymbolHalted('TSLA')).toBe(false);
     expect(manager.get('symbolEntryHalts')).toEqual({});
-    expect(manager.get('symbolLossStreaks')).toEqual({});
+    expect(manager.getState()).not.toHaveProperty('symbolLossStreaks');
 
     const saved = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
     expect(saved.symbolEntryHalts).toEqual({});
-    expect(saved.symbolLossStreaks).toEqual({});
+    expect(saved).not.toHaveProperty('symbolLossStreaks');
   });
 
-  test('load drops legacy symbol cooldown halt without code when cooldown is disabled', () => {
-    process.env.SYMBOL_LOSS_COOLDOWN_ENABLED = 'false';
+  test('load drops legacy symbol cooldown halt without code', () => {
     const now = Date.now();
     fs.writeFileSync(stateFile, JSON.stringify({
       balance: 10000,
@@ -218,8 +216,7 @@ describe('StateManager load validation', () => {
     expect(saved.symbolEntryHalts).toEqual({});
   });
 
-  test('load drops legacy symbol cooldown halt with mixed-case marker when cooldown is disabled', () => {
-    process.env.SYMBOL_LOSS_COOLDOWN_ENABLED = 'false';
+  test('load drops legacy symbol cooldown halt with mixed-case marker', () => {
     const now = Date.now();
     fs.writeFileSync(stateFile, JSON.stringify({
       balance: 10000,
@@ -247,8 +244,7 @@ describe('StateManager load validation', () => {
     expect(manager.get('symbolEntryHalts')).toEqual({});
   });
 
-  test('load drops legacy symbol cooldown halt with spaced reason marker when cooldown is disabled', () => {
-    process.env.SYMBOL_LOSS_COOLDOWN_ENABLED = 'false';
+  test('load drops legacy symbol cooldown halt with spaced reason marker', () => {
     const now = Date.now();
     fs.writeFileSync(stateFile, JSON.stringify({
       balance: 10000,
@@ -275,22 +271,10 @@ describe('StateManager load validation', () => {
     expect(manager.get('symbolEntryHalts')).toEqual({});
   });
 
-  test('load honors ConfigLoader override disabling cooldown over cached enabled snapshot', () => {
+  test('load retires cooldown even with obsolete enabling environment variables', () => {
     process.env.SYMBOL_LOSS_COOLDOWN_ENABLED = 'true';
     process.env.SYMBOL_LOSS_COOLDOWN_CONSECUTIVE_LOSSES = '2';
     process.env.SYMBOL_LOSS_COOLDOWN_MINUTES = '120';
-    const ConfigLoader = require('../foundation/ConfigLoader');
-    ConfigLoader.load({ force: true, silent: true });
-    ConfigLoader.setOverrides({
-      entryLogic: {
-        symbolLossCooldown: {
-          enabled: false,
-          consecutiveLosses: 2,
-          cooldownMinutes: 120,
-        },
-      },
-    });
-
     const now = Date.now();
     fs.writeFileSync(stateFile, JSON.stringify({
       balance: 10000,
@@ -322,7 +306,7 @@ describe('StateManager load validation', () => {
 
     expect(manager.isSymbolHalted('TSLA')).toBe(false);
     expect(manager.get('symbolEntryHalts')).toEqual({});
-    expect(manager.get('symbolLossStreaks')).toEqual({});
+    expect(manager.getState()).not.toHaveProperty('symbolLossStreaks');
   });
 
   test('load drops unauthorized symbol halt codes from persisted state', () => {

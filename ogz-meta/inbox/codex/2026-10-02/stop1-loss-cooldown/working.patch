@@ -1,0 +1,596 @@
+--- a/core/StateManager.js
++++ b/core/StateManager.js
+@@ -114,7 +114,6 @@
+   'exit_intent_reconciliation_required',
+   DIRECTION_INTEGRITY_EXIT_REFUSAL,
+   BROKER_UNVERIFIABLE,
+-  'symbol_cooldown',
+   TTP_CUTOFF_FLATNESS_PAUSE_SOURCE
+ ]);
+ const SYMBOL_ENTRY_HALTS_MUTATION_TOKEN = Symbol('symbolEntryHaltsMutation');
+@@ -125,13 +124,6 @@
+       ConfigLoader.load({ silent: true });
+     }
+   } catch (_) {}
+-}
+-
+-function isSymbolCooldownHalt(halt) {
+-  if (!halt || typeof halt !== 'object') return false;
+-  const code = typeof halt.code === 'string' ? halt.code.trim().toLowerCase() : '';
+-  const reason = typeof halt.reason === 'string' ? halt.reason.trim().toLowerCase() : '';
+-  return code === 'symbol_cooldown' || /^symbol_cooldown\s*:/.test(reason);
+ }
+ 
+ function normalizeSymbolHaltCode(metadata) {
+@@ -523,7 +515,6 @@
+       activeTrades: new Map(),  // orderId → { size, price, entryTime, symbol, ... }
+       quarantinedTrades: [],
+       symbolEntryHalts: {},     // canonical symbol -> { reason, haltedAt }
+-      symbolLossStreaks: {},    // canonical symbol -> { consecutiveLosses, lastClosedAt, lastPnl }
+       ttpCutoffQuarantine: null,
+       // Per-symbol last-known prices for cross-asset equity math.
+       // Mercury attack 2026-05-04: getEquity previously applied ONE caller-
+@@ -628,7 +619,6 @@
+       activeTrades: new Map(),
+       quarantinedTrades: [],
+       symbolEntryHalts: {},
+-      symbolLossStreaks: {},
+       ttpCutoffQuarantine: null,
+       lastPrices: new Map(),
+       lastTradeTime: null,
+@@ -1676,7 +1666,6 @@
+         holdMs: holdTimeMs,
+         closedAt
+       };
+-      const cooldownUpdates = this._symbolLossCooldownUpdates(closedTradeRecord, closedAt);
+ 
+       const updates = {
+         activeTrades: nextActiveTrades,
+@@ -1690,7 +1679,6 @@
+         totalPnL: this.state.totalPnL + pnl,
+         closedTrades: [...(this.state.closedTrades || []), closedTradeRecord],
+         lastTradeTime: closedAt,
+-        ...cooldownUpdates
+       };
+ 
+       console.log(`Position closed: PnL ${pnl > 0 ? '+' : ''}$${pnl.toFixed(2)} (${pnlPercent.toFixed(2)}%)`);
+@@ -1703,9 +1691,6 @@
+         partial,
+         ...context,
+         positionEffect,
+-        symbolEntryHaltsMutationToken: cooldownUpdates.symbolEntryHalts
+-          ? SYMBOL_ENTRY_HALTS_MUTATION_TOKEN
+-          : undefined,
+       });
+ 
+       narratorPayload = {
+@@ -4034,93 +4019,12 @@
+     return null;
+   }
+ 
+-  _symbolLossCooldownConfig() {
+-    ensureConfigLoaded();
+-    let cfg = null;
+-    if (typeof ConfigLoader.get === 'function') {
+-      try {
+-        const enabled = ConfigLoader.get('entryLogic.symbolLossCooldown.enabled');
+-        const consecutiveLosses = ConfigLoader.get('entryLogic.symbolLossCooldown.consecutiveLosses');
+-        const cooldownMinutes = ConfigLoader.get('entryLogic.symbolLossCooldown.cooldownMinutes');
+-        if (enabled !== undefined || consecutiveLosses !== undefined || cooldownMinutes !== undefined) {
+-          cfg = { enabled, consecutiveLosses, cooldownMinutes };
+-        }
+-      } catch (_) {}
+-    }
+-    if (!cfg) {
+-      cfg = getConfigValue('entryLogic.symbolLossCooldown') || null;
+-    }
+-    cfg = cfg || {};
+-    const enabled = cfg.enabled === true;
+-    const consecutiveLosses = finiteNumberOrNull(cfg.consecutiveLosses);
+-    const cooldownMinutes = finiteNumberOrNull(cfg.cooldownMinutes);
+-    return {
+-      enabled,
+-      consecutiveLosses: Number.isInteger(consecutiveLosses) && consecutiveLosses > 0 ? consecutiveLosses : null,
+-      cooldownMs: cooldownMinutes !== null && cooldownMinutes > 0 ? cooldownMinutes * 60 * 1000 : null,
+-    };
+-  }
+-
+-  _symbolLossCooldownUpdates(closedTradeRecord, closedAt) {
+-    const config = this._symbolLossCooldownConfig();
+-    if (!config.enabled || config.consecutiveLosses === null) {
+-      return {};
+-    }
+-
+-    const rawSymbol = closedTradeRecord?.symbol;
+-    if (typeof rawSymbol !== 'string' || !rawSymbol.trim()) {
+-      return {};
+-    }
+-
+-    const normalized = this.normalizeSymbol(rawSymbol, 'StateManager.symbolLossCooldown');
+-    const pnl = finiteNumberOrNull(closedTradeRecord.pnl);
+-    if (pnl === null) {
+-      return {};
+-    }
+-
+-    const existingStreaks = this.state.symbolLossStreaks || {};
+-    const previous = existingStreaks[normalized] || {};
+-    const previousLosses = Number.isInteger(previous.consecutiveLosses) && previous.consecutiveLosses > 0
+-      ? previous.consecutiveLosses
+-      : 0;
+-    const consecutiveLosses = pnl < 0 ? previousLosses + 1 : 0;
+-    const symbolLossStreaks = {
+-      ...existingStreaks,
+-      [normalized]: {
+-        consecutiveLosses,
+-        lastClosedAt: closedAt,
+-        lastPnl: pnl,
+-      },
+-    };
+-
+-    if (consecutiveLosses < config.consecutiveLosses) {
+-      return { symbolLossStreaks };
+-    }
+-
+-    const expiresAt = config.cooldownMs === null ? null : closedAt + config.cooldownMs;
+-    const reason = `symbol_cooldown: ${normalized} ${consecutiveLosses} consecutive losses`;
+-    const symbolEntryHalts = {
+-      ...(this.state.symbolEntryHalts || {}),
+-      [normalized]: {
+-        reason,
+-        code: 'symbol_cooldown',
+-        haltedAt: closedAt,
+-        expiresAt,
+-        consecutiveLosses,
+-      },
+-    };
+-
+-    console.warn(`[StateManager] SYMBOL COOLDOWN: ${normalized} after ${consecutiveLosses} consecutive losses`);
+-    return { symbolLossStreaks, symbolEntryHalts };
+-  }
+-
+   _normalizeSymbolEntryHaltsCollection(symbolEntryHalts, source = 'StateManager.symbolEntryHalts') {
+     if (!symbolEntryHalts || typeof symbolEntryHalts !== 'object' || Array.isArray(symbolEntryHalts)) {
+       return {};
+     }
+ 
+     const normalizedHalts = {};
+-    const symbolLossCooldownEnabled = this._symbolLossCooldownConfig().enabled;
+     const now = Date.now();
+     for (const [haltSymbol, halt] of Object.entries(symbolEntryHalts)) {
+       if (!halt || typeof halt !== 'object' || Array.isArray(halt)) continue;
+@@ -4132,7 +4036,6 @@
+       const code = normalizeSymbolHaltCode(halt);
+       if (!code || !AUTHORIZED_SYMBOL_HALT_CODES.has(code)) continue;
+       const normalizedHalt = { ...halt, code };
+-      if (isSymbolCooldownHalt(normalizedHalt) && !symbolLossCooldownEnabled) continue;
+       normalizedHalts[normalized] = {
+         ...normalizedHalt,
+         reason: typeof halt.reason === 'string' && halt.reason.trim() ? halt.reason : 'unspecified',
+@@ -4166,9 +4069,6 @@
+     const normalized = this.normalizeSymbol(symbol, 'StateManager.symbolHaltRecord');
+     const halt = this.state.symbolEntryHalts?.[normalized];
+     if (!halt) return null;
+-    if (isSymbolCooldownHalt(halt) && !this._symbolLossCooldownConfig().enabled) {
+-      return null;
+-    }
+     const expiresAt = normalizeSymbolHaltExpiry(halt);
+     if (expiresAt !== null && expiresAt <= now) {
+       return null;
+@@ -4468,29 +4368,11 @@
+             correctedStateShape = true;
+           }
+         }
+-        if (!this.state.symbolLossStreaks || typeof this.state.symbolLossStreaks !== 'object' || Array.isArray(this.state.symbolLossStreaks)) {
+-          this.state.symbolLossStreaks = {};
+-        } else if (!this._symbolLossCooldownConfig().enabled) {
+-          if (Object.keys(this.state.symbolLossStreaks).length > 0) {
+-            correctedStateShape = true;
+-          }
+-          this.state.symbolLossStreaks = {};
+-        } else {
+-          const normalizedStreaks = {};
+-          for (const [streakSymbol, streak] of Object.entries(this.state.symbolLossStreaks)) {
+-            if (!streak || typeof streak !== 'object' || Array.isArray(streak)) continue;
+-            const normalized = this.normalizeSymbol(streakSymbol, 'StateManager.load symbolLossStreaks');
+-            const consecutiveLosses = finiteNumberOrNull(streak.consecutiveLosses);
+-            const lastClosedAt = finiteNumberOrNull(streak.lastClosedAt);
+-            const lastPnl = finiteNumberOrNull(streak.lastPnl);
+-            if (!Number.isInteger(consecutiveLosses) || consecutiveLosses < 0 || lastClosedAt === null || lastPnl === null) continue;
+-            normalizedStreaks[normalized] = {
+-              consecutiveLosses,
+-              lastClosedAt,
+-              lastPnl,
+-            };
+-          }
+-          this.state.symbolLossStreaks = normalizedStreaks;
++        // Retire saved loss-cooldown bookkeeping regardless of its legacy shape.
++        // Retired halt codes are removed by the collection normalizer above.
++        if (Object.prototype.hasOwnProperty.call(this.state, 'symbolLossStreaks')) {
++          delete this.state.symbolLossStreaks;
++          correctedStateShape = true;
+         }
+         console.log('[StateManager] State loaded from disk');
+ 
+--- a/core/OrderExecutor.js
++++ b/core/OrderExecutor.js
+@@ -426,57 +426,6 @@
+       }
+     }
+     return scope;
+-  }
+-
+-  _emitSymbolCooldownGateEvent({ traceId, signalId, symbol, action, reason, detail, executionScope }) {
+-    const ws = this.ctx.dashboardWs;
+-    if (!ws || ws.readyState !== 1 || typeof ws.send !== 'function') return false;
+-
+-    const gate = {
+-      gate: 'symbol_cooldown',
+-      passed: false,
+-      rejectReason: detail || reason || 'symbol cooldown active',
+-    };
+-    const frame = {
+-      type: 'gate_event',
+-      timestamp: Date.now(),
+-      traceId: traceId || null,
+-      signalId: signalId || null,
+-      symbol,
+-      action,
+-      kind: 'risk_block',
+-      passed: false,
+-      reason: reason || 'symbol_cooldown',
+-      riskGates: [gate],
+-      brokerId: executionScope?.brokerId || null,
+-      accountId: executionScope?.accountId || null,
+-      assetClass: executionScope?.assetClass || null,
+-      executionMode: executionScope?.executionMode || null,
+-      timeframe: executionScope?.timeframe || null,
+-      data: {
+-        symbol,
+-        action,
+-        kind: 'risk_block',
+-        passed: false,
+-        reason: reason || 'symbol_cooldown',
+-        riskGates: [gate],
+-        traceId: traceId || null,
+-        signalId: signalId || null,
+-        brokerId: executionScope?.brokerId || null,
+-        accountId: executionScope?.accountId || null,
+-        assetClass: executionScope?.assetClass || null,
+-        executionMode: executionScope?.executionMode || null,
+-        timeframe: executionScope?.timeframe || null,
+-      },
+-    };
+-
+-    try {
+-      ws.send(JSON.stringify(frame));
+-      return true;
+-    } catch (err) {
+-      console.warn(`[GateMeter] symbol_cooldown gate_event send failed: ${err.message}`);
+-      return false;
+-    }
+   }
+ 
+   _buildEvalQuarantineRiskGates(gateResult) {
+@@ -3052,17 +3001,6 @@
+         console.error(`[ENTRY] Refusing ${decision.action} for ${symbol}: ${globalHaltReason || symbolHaltReason}`);
+         const blockReason = symbolHaltCode || 'halted';
+         emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, positionEffect, reason: blockReason, detail: globalHaltReason || symbolHaltReason });
+-        if (blockReason === 'symbol_cooldown') {
+-          this._emitSymbolCooldownGateEvent({
+-            traceId,
+-            signalId,
+-            symbol,
+-            action: decision.action,
+-            reason: blockReason,
+-            detail: symbolHaltReason,
+-            executionScope,
+-          });
+-        }
+         return blockedReturn(blockReason, { detail: globalHaltReason || symbolHaltReason });
+       }
+       const hedgeBlock = this._sameSymbolHedgeBlock(decision.action, symbol);
+--- a/config/settings.json
++++ b/config/settings.json
+@@ -1,6 +1,6 @@
+ {
+   "schemaVersion": 1,
+-  "revision": 6,
++  "revision": 7,
+   "confidence": {
+     "minStrategyConfidence": 0.35,
+     "candlePatternMinConfidence": 0.7,
+@@ -1936,11 +1936,6 @@
+         "consistencyCapBuffer": 0.98,
+         "dailyLossRiskFraction": 1
+       }
+-    },
+-    "symbolLossCooldown": {
+-      "enabled": true,
+-      "consecutiveLosses": 2,
+-      "cooldownMinutes": 120
+     }
+   },
+   "strategies": {
+--- a/test/state-manager-load.test.js
++++ b/test/state-manager-load.test.js
+@@ -147,8 +147,7 @@
+     expect(manager.get('pauseScope')).toBeNull();
+   });
+ 
+-  test('load drops persisted symbol cooldown halt and streak when cooldown is disabled', () => {
+-    process.env.SYMBOL_LOSS_COOLDOWN_ENABLED = 'false';
++  test('load drops persisted symbol cooldown halt and streak', () => {
+     const now = Date.now();
+     fs.writeFileSync(stateFile, JSON.stringify({
+       balance: 10000,
+@@ -180,15 +179,14 @@
+ 
+     expect(manager.isSymbolHalted('TSLA')).toBe(false);
+     expect(manager.get('symbolEntryHalts')).toEqual({});
+-    expect(manager.get('symbolLossStreaks')).toEqual({});
++    expect(manager.getState()).not.toHaveProperty('symbolLossStreaks');
+ 
+     const saved = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+     expect(saved.symbolEntryHalts).toEqual({});
+-    expect(saved.symbolLossStreaks).toEqual({});
+-  });
+-
+-  test('load drops legacy symbol cooldown halt without code when cooldown is disabled', () => {
+-    process.env.SYMBOL_LOSS_COOLDOWN_ENABLED = 'false';
++    expect(saved).not.toHaveProperty('symbolLossStreaks');
++  });
++
++  test('load drops legacy symbol cooldown halt without code', () => {
+     const now = Date.now();
+     fs.writeFileSync(stateFile, JSON.stringify({
+       balance: 10000,
+@@ -218,8 +216,7 @@
+     expect(saved.symbolEntryHalts).toEqual({});
+   });
+ 
+-  test('load drops legacy symbol cooldown halt with mixed-case marker when cooldown is disabled', () => {
+-    process.env.SYMBOL_LOSS_COOLDOWN_ENABLED = 'false';
++  test('load drops legacy symbol cooldown halt with mixed-case marker', () => {
+     const now = Date.now();
+     fs.writeFileSync(stateFile, JSON.stringify({
+       balance: 10000,
+@@ -247,8 +244,7 @@
+     expect(manager.get('symbolEntryHalts')).toEqual({});
+   });
+ 
+-  test('load drops legacy symbol cooldown halt with spaced reason marker when cooldown is disabled', () => {
+-    process.env.SYMBOL_LOSS_COOLDOWN_ENABLED = 'false';
++  test('load drops legacy symbol cooldown halt with spaced reason marker', () => {
+     const now = Date.now();
+     fs.writeFileSync(stateFile, JSON.stringify({
+       balance: 10000,
+@@ -275,22 +271,10 @@
+     expect(manager.get('symbolEntryHalts')).toEqual({});
+   });
+ 
+-  test('load honors ConfigLoader override disabling cooldown over cached enabled snapshot', () => {
++  test('load retires cooldown even with obsolete enabling environment variables', () => {
+     process.env.SYMBOL_LOSS_COOLDOWN_ENABLED = 'true';
+     process.env.SYMBOL_LOSS_COOLDOWN_CONSECUTIVE_LOSSES = '2';
+     process.env.SYMBOL_LOSS_COOLDOWN_MINUTES = '120';
+-    const ConfigLoader = require('../foundation/ConfigLoader');
+-    ConfigLoader.load({ force: true, silent: true });
+-    ConfigLoader.setOverrides({
+-      entryLogic: {
+-        symbolLossCooldown: {
+-          enabled: false,
+-          consecutiveLosses: 2,
+-          cooldownMinutes: 120,
+-        },
+-      },
+-    });
+-
+     const now = Date.now();
+     fs.writeFileSync(stateFile, JSON.stringify({
+       balance: 10000,
+@@ -322,7 +306,7 @@
+ 
+     expect(manager.isSymbolHalted('TSLA')).toBe(false);
+     expect(manager.get('symbolEntryHalts')).toEqual({});
+-    expect(manager.get('symbolLossStreaks')).toEqual({});
++    expect(manager.getState()).not.toHaveProperty('symbolLossStreaks');
+   });
+ 
+   test('load drops unauthorized symbol halt codes from persisted state', () => {
+--- a/test/state-manager-open-position-scope.test.js
++++ b/test/state-manager-open-position-scope.test.js
+@@ -1799,7 +1799,7 @@
+     ]);
+   });
+ 
+-  test('symbol loss cooldown halts entries after configured consecutive closed losses', async () => {
++  test('consecutive closed losses do not halt symbol entries', async () => {
+     const firstOpen = await manager.openPosition(500, 100, fullScope({
+       orderId: 'MARA_LOSS_1',
+       symbol: 'MARA',
+@@ -1829,13 +1829,13 @@
+     });
+     expect(secondClose.success).toBe(true);
+ 
+-    expect(manager.isSymbolHalted('MARA')).toBe(true);
+-    expect(manager.getSymbolHaltCode('MARA')).toBe('symbol_cooldown');
+-    expect(manager.getSymbolHaltReason('MARA')).toMatch(/symbol_cooldown: MARA 2 consecutive losses/);
+-    expect(manager.get('symbolLossStreaks').MARA.consecutiveLosses).toBe(2);
+-  });
+-
+-  test('symbol loss cooldown resets streak on a winning close and can be cleared manually', async () => {
++    expect(manager.isSymbolHalted('MARA')).toBe(false);
++    expect(manager.getSymbolHaltCode('MARA')).toBeNull();
++    expect(manager.getSymbolHaltReason('MARA')).toBeNull();
++    expect(manager.getState()).not.toHaveProperty('symbolLossStreaks');
++  });
++
++  test('winning closes do not recreate loss streaks and retired halt codes are rejected', async () => {
+     const lossOpen = await manager.openPosition(500, 100, fullScope({
+       orderId: 'TSLA_LOSS_1',
+       symbol: 'TSLA',
+@@ -1862,11 +1862,13 @@
+       exitReason: 'cooldown_probe_win',
+     });
+ 
+-    expect(manager.get('symbolLossStreaks').TSLA.consecutiveLosses).toBe(0);
++    expect(manager.getState()).not.toHaveProperty('symbolLossStreaks');
+     expect(manager.isSymbolHalted('TSLA')).toBe(false);
+ 
+-    await manager.haltSymbol('TSLA', 'manual cooldown clear probe', { code: 'symbol_cooldown' });
+-    expect(manager.isSymbolHalted('TSLA')).toBe(true);
++    const rejected = await manager.haltSymbol('TSLA', 'retired cooldown probe', { code: 'symbol_cooldown' });
++    expect(rejected.success).toBe(false);
++    expect(rejected.reason).toBe('unauthorized_symbol_halt');
++    expect(manager.isSymbolHalted('TSLA')).toBe(false);
+     const reset = await manager.resetSymbolHalt('TSLA');
+     expect(reset.success).toBe(true);
+     expect(manager.isSymbolHalted('TSLA')).toBe(false);
+@@ -1925,7 +1927,7 @@
+     );
+   });
+ 
+-  test('symbol loss cooldown expiry does not keep entries halted', async () => {
++  test('retired cooldown cannot be installed even with expired time', async () => {
+     await manager.haltSymbol('COIN', 'expired cooldown probe', {
+       code: 'symbol_cooldown',
+       expiresAt: Date.now() - 1000,
+@@ -1936,7 +1938,7 @@
+     expect(manager.getSymbolHaltReason('COIN')).toBeNull();
+   });
+ 
+-  test('load normalizes persisted symbol cooldown state without resurrecting corrupt halts', () => {
++  test('load removes persisted cooldowns and streaks without resurrection', () => {
+     const now = Date.now();
+     const stateFile = process.env.STATE_FILE;
+     fs.writeFileSync(stateFile, JSON.stringify({
+@@ -1980,18 +1982,13 @@
+     loaded.save = jest.fn();
+     loaded.notifyListeners = jest.fn();
+ 
+-    expect(loaded.isSymbolHalted('MARA')).toBe(true);
+-    expect(loaded.getSymbolHaltCode('MARA')).toBe('symbol_cooldown');
++    expect(loaded.isSymbolHalted('MARA')).toBe(false);
++    expect(loaded.getSymbolHaltCode('MARA')).toBeNull();
+     expect(loaded.isSymbolHalted('COIN')).toBe(false);
+     expect(loaded.get('symbolEntryHalts')).not.toHaveProperty('COIN');
+     expect(loaded.get('symbolEntryHalts')).not.toHaveProperty('BAD');
+-    expect(loaded.get('symbolLossStreaks')).toEqual({
+-      MARA: {
+-        consecutiveLosses: 2,
+-        lastClosedAt: now - 1000,
+-        lastPnl: -5,
+-      },
+-    });
++    expect(loaded.getState()).not.toHaveProperty('symbolLossStreaks');
++    expect(JSON.parse(fs.readFileSync(stateFile, 'utf8'))).not.toHaveProperty('symbolLossStreaks');
+   });
+ 
+   test('openPosition blocks same-symbol entries when existing trade direction is unknown', async () => {
+--- a/test/order-executor-pause-gate.test.js
++++ b/test/order-executor-pause-gate.test.js
+@@ -1,6 +1,7 @@
+ 'use strict';
+ 
+ const mockStateManager = {
++  normalizeSymbol: (...args) => jest.requireActual('../core/StateManager').StateManager.prototype.normalizeSymbol(...args),
+   get: jest.fn(),
+   getEquity: jest.fn(),
+   getAvailableCapital: jest.fn(),
+@@ -522,7 +523,7 @@
+     expect(exitPlanSpy).toHaveBeenCalledTimes(1);
+   });
+ 
+-  test('emits gate_event row when symbol cooldown blocks an entry', async () => {
++  test('preserves financial halt entry block without cooldown gate telemetry', async () => {
+     mockStateManager.get.mockImplementation((key) => {
+       if (key === 'isTrading') return true;
+       if (key === 'balance') return 10000;
+@@ -530,8 +531,8 @@
+       return null;
+     });
+     mockStateManager.isSymbolHalted.mockReturnValue(true);
+-    mockStateManager.getSymbolHaltReason.mockReturnValue('symbol_cooldown: MARA 2 consecutive losses');
+-    mockStateManager.getSymbolHaltCode.mockReturnValue('symbol_cooldown');
++    mockStateManager.getSymbolHaltReason.mockReturnValue('financial reconciliation required');
++    mockStateManager.getSymbolHaltCode.mockReturnValue('exit_monitor_reconciliation_required');
+     const dashboardWs = { readyState: 1, send: jest.fn() };
+     const executor = makeExecutor({}, {
+       dashboardWs,
+@@ -551,33 +552,19 @@
+ 
+     expect(result).toEqual(expect.objectContaining({
+       success: false,
+-      reason: 'symbol_cooldown',
+-      detail: 'symbol_cooldown: MARA 2 consecutive losses',
++      reason: 'exit_monitor_reconciliation_required',
++      detail: 'financial reconciliation required',
+       symbol: 'MARA',
+       action: 'BUY',
+     }));
+     const frames = dashboardWs.send.mock.calls.map(call => JSON.parse(call[0]));
+     const gateEvent = frames.find(frame => frame.type === 'gate_event');
+-    expect(gateEvent).toEqual(expect.objectContaining({
+-      type: 'gate_event',
+-      symbol: 'MARA',
+-      action: 'BUY',
+-      kind: 'risk_block',
+-      passed: false,
+-      reason: 'symbol_cooldown',
+-    }));
+-    expect(gateEvent.riskGates).toEqual([
+-      expect.objectContaining({
+-        gate: 'symbol_cooldown',
+-        passed: false,
+-        rejectReason: 'symbol_cooldown: MARA 2 consecutive losses',
+-      }),
+-    ]);
++    expect(gateEvent).toBeUndefined();
+     expect(executor.ctx.orderRouter.sendOrder).not.toHaveBeenCalled();
+     expect(mockStateManager.openPosition).not.toHaveBeenCalled();
+   });
+ 
+-  test('symbol cooldown gate_event send failure does not change blocked result', async () => {
++  test('financial halt does not invoke retired cooldown WebSocket emitter', async () => {
+     mockStateManager.get.mockImplementation((key) => {
+       if (key === 'isTrading') return true;
+       if (key === 'balance') return 10000;
+@@ -585,8 +572,8 @@
+       return null;
+     });
+     mockStateManager.isSymbolHalted.mockReturnValue(true);
+-    mockStateManager.getSymbolHaltReason.mockReturnValue('symbol_cooldown: MARA 2 consecutive losses');
+-    mockStateManager.getSymbolHaltCode.mockReturnValue('symbol_cooldown');
++    mockStateManager.getSymbolHaltReason.mockReturnValue('financial reconciliation required');
++    mockStateManager.getSymbolHaltCode.mockReturnValue('exit_monitor_reconciliation_required');
+     const dashboardWs = {
+       readyState: 1,
+       send: jest.fn(() => {
+@@ -611,12 +598,12 @@
+ 
+     expect(result).toEqual(expect.objectContaining({
+       success: false,
+-      reason: 'symbol_cooldown',
+-      detail: 'symbol_cooldown: MARA 2 consecutive losses',
++      reason: 'exit_monitor_reconciliation_required',
++      detail: 'financial reconciliation required',
+       symbol: 'MARA',
+       action: 'BUY',
+     }));
+-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('symbol_cooldown gate_event send failed: socket send failed'));
++    expect(dashboardWs.send).not.toHaveBeenCalled();
+     expect(executor.ctx.orderRouter.sendOrder).not.toHaveBeenCalled();
+     expect(mockStateManager.openPosition).not.toHaveBeenCalled();
+   });
+--- a/test/ecosystem-eval-profile.test.js
++++ b/test/ecosystem-eval-profile.test.js
+@@ -184,9 +184,6 @@
+       ASSET_CLASS: 'stocks',
+       TRADING_PAIR: 'TSLA',
+       ALPACA_SYMBOLS: 'TSLA,NVDA,COIN,MARA,RIOT',
+-      SYMBOL_LOSS_COOLDOWN_ENABLED: 'true',
+-      SYMBOL_LOSS_COOLDOWN_CONSECUTIVE_LOSSES: '2',
+-      SYMBOL_LOSS_COOLDOWN_MINUTES: '120',
+       STATE_FILE: 'data/state.json',
+       ENABLE_TRAI: 'true',
+       TRAI_MODE: 'passive',

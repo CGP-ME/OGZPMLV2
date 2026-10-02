@@ -1799,7 +1799,7 @@ describe('StateManager openPosition scope contract', () => {
     ]);
   });
 
-  test('symbol loss cooldown halts entries after configured consecutive closed losses', async () => {
+  test('consecutive closed losses do not halt symbol entries', async () => {
     const firstOpen = await manager.openPosition(500, 100, fullScope({
       orderId: 'MARA_LOSS_1',
       symbol: 'MARA',
@@ -1829,13 +1829,13 @@ describe('StateManager openPosition scope contract', () => {
     });
     expect(secondClose.success).toBe(true);
 
-    expect(manager.isSymbolHalted('MARA')).toBe(true);
-    expect(manager.getSymbolHaltCode('MARA')).toBe('symbol_cooldown');
-    expect(manager.getSymbolHaltReason('MARA')).toMatch(/symbol_cooldown: MARA 2 consecutive losses/);
-    expect(manager.get('symbolLossStreaks').MARA.consecutiveLosses).toBe(2);
+    expect(manager.isSymbolHalted('MARA')).toBe(false);
+    expect(manager.getSymbolHaltCode('MARA')).toBeNull();
+    expect(manager.getSymbolHaltReason('MARA')).toBeNull();
+    expect(manager.getState()).not.toHaveProperty('symbolLossStreaks');
   });
 
-  test('symbol loss cooldown resets streak on a winning close and can be cleared manually', async () => {
+  test('winning closes do not recreate loss streaks and retired halt codes are rejected', async () => {
     const lossOpen = await manager.openPosition(500, 100, fullScope({
       orderId: 'TSLA_LOSS_1',
       symbol: 'TSLA',
@@ -1862,11 +1862,13 @@ describe('StateManager openPosition scope contract', () => {
       exitReason: 'cooldown_probe_win',
     });
 
-    expect(manager.get('symbolLossStreaks').TSLA.consecutiveLosses).toBe(0);
+    expect(manager.getState()).not.toHaveProperty('symbolLossStreaks');
     expect(manager.isSymbolHalted('TSLA')).toBe(false);
 
-    await manager.haltSymbol('TSLA', 'manual cooldown clear probe', { code: 'symbol_cooldown' });
-    expect(manager.isSymbolHalted('TSLA')).toBe(true);
+    const rejected = await manager.haltSymbol('TSLA', 'retired cooldown probe', { code: 'symbol_cooldown' });
+    expect(rejected.success).toBe(false);
+    expect(rejected.reason).toBe('unauthorized_symbol_halt');
+    expect(manager.isSymbolHalted('TSLA')).toBe(false);
     const reset = await manager.resetSymbolHalt('TSLA');
     expect(reset.success).toBe(true);
     expect(manager.isSymbolHalted('TSLA')).toBe(false);
@@ -1925,7 +1927,7 @@ describe('StateManager openPosition scope contract', () => {
     );
   });
 
-  test('symbol loss cooldown expiry does not keep entries halted', async () => {
+  test('retired cooldown cannot be installed even with expired time', async () => {
     await manager.haltSymbol('COIN', 'expired cooldown probe', {
       code: 'symbol_cooldown',
       expiresAt: Date.now() - 1000,
@@ -1936,7 +1938,7 @@ describe('StateManager openPosition scope contract', () => {
     expect(manager.getSymbolHaltReason('COIN')).toBeNull();
   });
 
-  test('load normalizes persisted symbol cooldown state without resurrecting corrupt halts', () => {
+  test('load removes persisted cooldowns and streaks without resurrection', () => {
     const now = Date.now();
     const stateFile = process.env.STATE_FILE;
     fs.writeFileSync(stateFile, JSON.stringify({
@@ -1980,18 +1982,13 @@ describe('StateManager openPosition scope contract', () => {
     loaded.save = jest.fn();
     loaded.notifyListeners = jest.fn();
 
-    expect(loaded.isSymbolHalted('MARA')).toBe(true);
-    expect(loaded.getSymbolHaltCode('MARA')).toBe('symbol_cooldown');
+    expect(loaded.isSymbolHalted('MARA')).toBe(false);
+    expect(loaded.getSymbolHaltCode('MARA')).toBeNull();
     expect(loaded.isSymbolHalted('COIN')).toBe(false);
     expect(loaded.get('symbolEntryHalts')).not.toHaveProperty('COIN');
     expect(loaded.get('symbolEntryHalts')).not.toHaveProperty('BAD');
-    expect(loaded.get('symbolLossStreaks')).toEqual({
-      MARA: {
-        consecutiveLosses: 2,
-        lastClosedAt: now - 1000,
-        lastPnl: -5,
-      },
-    });
+    expect(loaded.getState()).not.toHaveProperty('symbolLossStreaks');
+    expect(JSON.parse(fs.readFileSync(stateFile, 'utf8'))).not.toHaveProperty('symbolLossStreaks');
   });
 
   test('openPosition blocks same-symbol entries when existing trade direction is unknown', async () => {

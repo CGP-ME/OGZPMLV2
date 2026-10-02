@@ -1,0 +1,37 @@
+{
+  "checks": [
+    "five losing closes then winning close create no cooldown or streak",
+    "close accounting, trade removal and operator pause preserved",
+    "all seven retained halt codes accept/block/reset; retired and unauthorized mutations rejected",
+    "open trade identity, quantity and exit contract survive migration",
+    "six legacy streak shapes and typed/case/legacy/expired halts migrate durably across two loads; seven other owners preserved",
+    "failed migration save retains old disk, reports existing reconciliation boundary, and retries on next load",
+    "exact executor generic halt slice still blocks and traces retained code; no dedicated cooldown telemetry remains",
+    "obsolete enabled configuration has no reader or cooldown emission"
+  ],
+  "traces": [
+    [
+      {},
+      "STATE_PERSISTENCE_RECONCILIATION_REQUIRED",
+      {
+        "status": "untrusted",
+        "code": "STATE_PERSIST_FAILED",
+        "source": "StateManager.load",
+        "error": "fixture disk unavailable",
+        "persistenceSucceeded": false,
+        "manualReconciliationRequired": true,
+        "operatorActionRequired": true,
+        "updatedAt": "2026-10-02T17:18:37.236Z",
+        "correctedStateShape": true,
+        "activeTradeCount": 0
+      }
+    ]
+  ],
+  "configReads": [
+    "mode.backtest",
+    "backtest.freshStart",
+    "paths.dataDir",
+    "paths.stateFile",
+    "broker.alpacaApiKey"
+  ]
+}
