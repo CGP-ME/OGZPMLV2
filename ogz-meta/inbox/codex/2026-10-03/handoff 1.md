@@ -1,5 +1,9 @@
 # handoff 1 — Stop 1 configuration migration
 
+## Delivery update after stopping-point capture
+
+The two reviewed changes below are now committed and pushed: confluence veto removal `5c598f27fc7631197d9d798702ba8f4c9d851a7c`, then regime-settings connection `a65cc75fc136791377a89d0d9369f1dba1328db2`. Remote astra-era was confirmed at the latter SHA. Their detailed entries are committed in CHANGELOG.md. Do not reapply or recommit them. Next production task is adversarial review and delivery of the sixteen-switch migration, followed by the unfinished confidence/sizing legs. Earlier “not committed” labels below describe the original capture, superseded by this update. Runtime remains unactivated; no fresh Mercury index claim is made.
+
 Trey requested this stopping point to restart his computer. Resume Stop 1 directly; do not restart a broad audit, rebuild review machinery, or take over frontend/Mercury work.
 
 ## Authority and workflow
