@@ -464,6 +464,6 @@ Before saying work is done:
 
 Routing law source: `ogz-meta/ROUTING.md`.
 
-Agents write session output ONLY to `ogz-meta/inbox/<agent>/<YYYY-MM-DD>/`. Writing anywhere else outside assigned mission files is a defect.
+Record each logical change in one detailed `CHANGELOG.md` entry: problem, changes, actual verification, review findings and resolution, remaining limitations, and runtime activation status. This is the primary session/mission record under Trey's 2026-10-03 override of Rulings 7 and 7a. Separate accountability packets and duplicate session forms are not required. Link supporting receipts when needed; keep them under `ogz-meta/inbox/<agent>/<YYYY-MM-DD>/`. Preserve existing packets and history. Other output outside assigned mission files still belongs in the inbox.
 
 Inbox to evidence promotion requires a `MANIFEST.md` with source, date, and why kept. `ogz-meta/specs/` is canonical-only and human-promoted. Superseded docs move to `ogz-meta/archive/`, never deleted.

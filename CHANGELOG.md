@@ -1,3 +1,9 @@
+## 2026-10-03 — Replace mandatory packets with detailed changelog entries
+
+Trey explicitly authorized overriding Rulings 7 and 7a. The changelog now holds the primary mission/session record: problem, changes, verification, review resolution, limitations, and runtime status. Supporting receipts are linked when needed; mandatory five-document packets, bulk tape commits, dual-hash inventories and duplicate session forms are retired. Existing packets and receipts are preserved. Updated both AGENTS files, output routing, master alignment and Trey Rulings so cold-start instructions agree.
+
+Verification/review: inspected the scoped documentation diff against the granted override and checked whitespace; no production code changed and no Mercury call was required. This changes recording requirements only; Mercury reasoning repair remains unfinished, and existing verification, review and delivery obligations still apply. No runtime activation.
+
 ## 2026-10-03 — Remove obsolete exit-context balance dependency
 
 Timer and candle exits no longer require unused initial/account balances before contract evaluation. Preserve accounting and sizing consumers; introduce no defaults or halt changes. Evidence: ogz-meta/inbox/codex-third/2026-10-03/exit-balance/. No runtime activation.

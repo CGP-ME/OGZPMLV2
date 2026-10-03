@@ -1,5 +1,7 @@
 # OGZPrime — Cold-Start Brief
 
+**Recording override 2026-10-03:** Trey replaced mandatory accountability packets with one detailed `CHANGELOG.md` entry per logical change. Read `TREY-RULINGS.md`, Ruling 15. Supporting receipts are linked when needed; duplicate packet documents and session forms are not required. Preserve historical packets. Start current work-history lookup with the changelog and live Git state; older session records are historical.
+
 **Repo:** `github.com/CGP-ME/OGZPMLV2`
 **Maintained at:** `ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md`
 **Doc origin:** DeepSearch (GPT) v1 dated 2026-05-18, revised by Wolf (Claude Opus) after live-repo verification
