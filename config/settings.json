@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 4,
+  "revision": 5,
   "confidence": {
     "minStrategyConfidence": 0.35,
     "candlePatternMinConfidence": 0.7,
@@ -2391,7 +2391,6 @@
     }
   },
   "orchestrator": {
-    "minConfluenceCount": 1,
     "minCandlesEMA": 20,
     "minCandlesMASR": 50,
     "minCandlesSweep": 20,

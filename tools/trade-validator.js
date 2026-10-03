@@ -145,7 +145,6 @@ function runBacktestAndCaptureTrades() {
 
   const orchestrator = new StrategyOrchestrator({
     minStrategyConfidence: 50 / 100,
-    minConfluenceCount: 1,
   });
 
   // Run candles and capture trades with their entry candle index

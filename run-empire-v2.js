@@ -702,7 +702,6 @@ class OGZPrimeV14Bot {
     this.strategyOrchestrator = new StrategyOrchestrator({
       // CHANGE 2026-02-28: Use ConfigLoader for minStrategyConfidence
       minStrategyConfidence: ConfigLoader.get('confidence.minStrategyConfidence'),
-      minConfluenceCount: ConfigLoader.get('orchestrator.minConfluenceCount'),
       mtfBaseTimeframe: this.candleTimeframe,
     });
 

@@ -823,9 +823,6 @@ class StrategyOrchestrator {
     this.regimeMinConfidence = ConfigLoader.get('confidence.regimeMinConfidence');
     this.confluenceMinScore = ConfigLoader.get('confidence.confluenceMinScore');
 
-    // Minimum confluence signals to allow entry (default: 1 = winner alone is enough)
-    this.minConfluenceCount = config.minConfluenceCount ?? ConfigLoader.get('orchestrator.minConfluenceCount');
-
     this.mtfBaseTimeframe = typeof config.mtfBaseTimeframe === 'string' && config.mtfBaseTimeframe.trim()
       ? config.mtfBaseTimeframe.trim()
       : null;
@@ -2854,32 +2851,6 @@ class StrategyOrchestrator {
     // ─── Step 5: Count confluence (how many strategies agree on direction) ───
     const agreeing = qualified.filter(r => r.direction === winner.direction);
     const confluenceCount = agreeing.length;
-
-    // Check minimum confluence requirement
-    if (confluenceCount < this.minConfluenceCount) {
-      this.lastEvaluation = {
-        action: 'HOLD',
-        results: publicResults,
-        qualified: qualified.map(publicResult),
-        winner: publicResult(winner),
-        confluenceCount,
-        unavailableStrategies: publicUnavailableStrategies,
-      };
-      return {
-        action: 'HOLD',
-        direction: 'hold',
-        confidence: publicWinnerConfidence * 100,
-        winnerStrategy: winner.strategyName,
-        exitContract: null,
-        sizingMultiplier: null,
-        confluence: { count: confluenceCount, strategies: agreeing.map(r => r.strategyName) },
-        mtfConfluenceSnapshot,
-        allResults: publicResults,
-        filteredResults: publicFilteredResults,
-        unavailableStrategies: publicUnavailableStrategies,
-        reasons: [`Need ${this.minConfluenceCount} confluent signals, got ${confluenceCount}`]
-      };
-    }
 
     // ─── Step 6: Position sizing multiplier from confluence × regime ───
     const cappedCount = Math.min(confluenceCount, 4);

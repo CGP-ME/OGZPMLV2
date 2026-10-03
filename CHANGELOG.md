@@ -1,3 +1,15 @@
+## 2026-10-03 — Remove confluence count as an entry veto
+
+Problem: the orchestrator could reject an independently qualified winner solely because fewer strategies agreed than minConfluenceCount. Trey explicitly ruled that agreement boosts confluence and must not decide entry eligibility.
+
+Change: remove that HOLD branch, its constructor setting, the retired JSON field and both production constructor arguments. Preserve winner qualification/ranking, agreement counting and the existing confluence sizing calculation. No replacement gate, throw, default or halt is added.
+
+Verification: the actual extracted decision section rejected a solo qualified signal with the old count of two; the corrected section proceeds with count one and multiplier one. Two agreeing signals retain count two and multiplier 1.5; an opposing signal supplies no agreement boost. These are controlled decision-section fixtures, not a full trading or broker run.
+
+Review: qualified Mercury returned no_break_found (2026-10-03T06-24-47-887Z-a6c4290ac3af); independent Astra returned no_break_found with verified model identity against the same four-file candidate. Mercury's broad claim of no functional impact is not adopted: removing the veto intentionally changes behavior when the former setting exceeded one. Astra's attempted independent test hit spawn permissions, so no Astra runtime pass is claimed. Supporting receipts: ogz-meta/inbox/codex/2026-10-03/stop1-retire-confluence-veto/.
+
+Limits: this establishes the ruled entry eligibility correction and preserves existing sizing math; it does not validate sizing profitability or broker execution. Runtime not activated.
+
 ## 2026-10-03 — Codex 5 confluence entry-policy investigation and Trey ruling
 
 This session investigated the discrepancy at base 0d1d3445 between the runner/orchestrator comments saying confluence affects sizing only and the existing minConfluenceCount HOLD branch. Read TREY-RULINGS.md, TREY-DOCTRINE-FABLE-LANE.md, recorded strategy doctrine, historical documentation, the original orchestrator commit a2dfab70, and the working decision/configuration path. The original commit contained both the sizing-only description and the entry restriction. At the then-configured count of one, the qualified winner counted itself; a count above one could reject an otherwise qualified solo winner. The configuration migration preserved that comparison while changing settings ownership/publication.
