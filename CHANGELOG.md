@@ -4,6 +4,18 @@ Trey explicitly authorized overriding Rulings 7 and 7a. The changelog now holds 
 
 Verification/review: inspected the scoped documentation diff against the granted override and checked whitespace; no production code changed and no Mercury call was required. This changes recording requirements only; Mercury reasoning repair remains unfinished, and existing verification, review and delivery obligations still apply. No runtime activation.
 
+## 2026-10-03 — Preserve Alpaca pre-dispatch failure receipts
+
+Problem: OrderRouter labeled every adapter exception as an attempted request with an unknown receipt, even when Alpaca failed while constructing the request and never invoked HTTP submission. OrderExecutor could consequently request broker reconciliation for an order that was not sent.
+
+Change: Alpaca records the submission boundary after URL, payload and headers are constructed; its existing error path carries that fact plus error code/status. OrderRouter preserves explicit pre-dispatch evidence. Post-dispatch uncertainty and unclassified adapters retain their existing behavior. Raw Axios config/headers are not attached to errors. No new throw branch, halt, flatten, quarantine or default is introduced.
+
+Verification: 19 focused tests pass, including both order sides, header-construction failure, post-dispatch timeout/malformed response, successful receipt, existing router contracts, and the actual extracted executor catch. Five regression cases fail against original source while two controls pass. Tested adapter/router bytes and the extracted executor catch match the immutable review candidate. HTTP and execution boundaries are controlled fixtures, not broker-runtime evidence. The malformed quantity fixture exercises the adapter API contract; it does not establish that normal executor plans produce that invalid input.
+
+Review: Mercury initially reported found_break for marking unclassified errors as attempted. That assignment existed unconditionally in the baseline. Mercury rechecked both source versions and returned no_break_found (run 2026-10-03T06-41-39-723Z-13289a7c4c28), resolving the alleged regression as inherited behavior. Both raw reviews are preserved; Mercury performed static review, not runtime verification. Its final prose incorrectly describes unclassified errors as false; the cited code and passing router tests establish that they remain true. That prose claim is not adopted. Supporting review and test receipts: ogz-meta/inbox/codex-third/2026-10-03/submission-stage/.
+
+Limits: this repairs receipt classification only. Internal caller defects, external broker uncertainty, HTTP rejection policy and post-acceptance persistence remain separate work. No runtime activation.
+
 ## 2026-10-03 — Remove obsolete exit-context balance dependency
 
 Timer and candle exits no longer require unused initial/account balances before contract evaluation. Preserve accounting and sizing consumers; introduce no defaults or halt changes. Evidence: ogz-meta/inbox/codex-third/2026-10-03/exit-balance/. No runtime activation.

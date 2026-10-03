@@ -206,8 +206,10 @@ class OrderRouter extends EventEmitter {
         result = await adapter.placeSellOrder(symbol, amount, type === 'limit' ? price : null, options);
       }
     } catch (error) {
-      error.brokerRequestAttempted = true;
-      error.unknownBrokerReceipt = true;
+      // Preserve a producer's proven pre-dispatch failure. Unclassified adapters
+      // retain the existing unknown-receipt behavior.
+      error.brokerRequestAttempted = error.brokerRequestAttempted !== false;
+      error.unknownBrokerReceipt = error.brokerRequestAttempted;
       error.brokerName = brokerName;
       throw error;
     }

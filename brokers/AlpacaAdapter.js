@@ -489,6 +489,7 @@ class AlpacaAdapter extends IBrokerAdapter {
     }
 
     async _placeOrder(symbol, qty, side, price = null, options = {}) {
+        let brokerRequestAttempted = false;
         try {
             const orderData = {
                 symbol: this.toBrokerSymbol(symbol),
@@ -512,9 +513,10 @@ class AlpacaAdapter extends IBrokerAdapter {
                 orderData.stop_loss = { stop_price: options.stopLoss.toString() };
             }
 
-            const response = await axios.post(`${this.baseUrl}/v2/orders`, orderData, {
-                headers: this._authHeaders()
-            });
+            const requestUrl = `${this.baseUrl}/v2/orders`;
+            const requestConfig = { headers: this._authHeaders() };
+            brokerRequestAttempted = true;
+            const response = await axios.post(requestUrl, orderData, requestConfig);
 
             return {
                 orderId: response.data.id,
@@ -526,7 +528,12 @@ class AlpacaAdapter extends IBrokerAdapter {
             };
         } catch (error) {
             this._recordAuthFailureIfRelevant(error, 'rest-place-order');
-            throw new Error(`[Alpaca] Failed to place ${side} order: ${error.response?.data?.message || error.message}`);
+            const orderError = new Error(`[Alpaca] Failed to place ${side} order: ${error.response?.data?.message || error.message}`);
+            orderError.code = error.code;
+            orderError.brokerHttpStatus = error.response?.status;
+            orderError.brokerRequestAttempted = brokerRequestAttempted;
+            orderError.unknownBrokerReceipt = brokerRequestAttempted;
+            throw orderError;
         }
     }
 
