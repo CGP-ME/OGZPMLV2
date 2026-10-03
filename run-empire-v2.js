@@ -1499,7 +1499,7 @@ class OGZPrimeV14Bot {
       traiEnableBacktest: resolvedConfig.config.trai.enableBacktest,
       // HIGH-16: broker.candleTimeframe threaded into ctx for orchestrator validation
       candleTimeframe: this.candleTimeframe,
-      regimeDetection: resolvedConfig.config.regimeDetection,
+      get regimeDetection() { return ConfigLoader.get('regimeDetection'); },
       // Additional context for strategy orchestration
       strategyOrchestrator: this.strategyOrchestrator,
       emaCrossoverSignal: this.emaCrossoverSignal,

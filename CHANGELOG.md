@@ -1,3 +1,13 @@
+## 2026-10-03 — Codex 1: connect retained regime detector to current configuration
+
+Problem: the runner copied regimeDetection into TradingLoop context at startup, leaving that consumer on the old object after configuration replacement. Change: the existing context property now reads ConfigLoader on access; TradingLoop retains the context and constructs its detector from that property. No detection rules, controls, defaults, throws or halts are added.
+
+Verification: isolated actual ConfigLoader initial load and forced disk replacement changed minimumCandles from 10 to 1000. The same retained TradingLoop/context supplied the replacement to a real RegimeDetector; the same 60 candles changed from trending_up to ranging/insufficient_data. Actual constructor/consumer statements were extracted, with current working dependencies; full runner boot and full loop evaluation were not exercised. Staged runner matches reviewed source except the separately landed confluence argument removal in 5c598f27. Syntax, whitespace and scoped secret scan pass.
+
+Review: Mercury returned no_break_found, run 2026-10-03T07-07-02-582Z-3a910afc3a25, candidate 9dd69140b7002f65c40267e3bf796e130bbab980. It performed static review, not execution. Its dashboard wording is not adopted: this change connects forced replacements but does not expose regime fields through the settings API. Supporting receipts: ogz-meta/inbox/codex/2026-10-03/stop1-regime-config/.
+
+Limits: no broker execution, profitability proof, deployment or runtime activation. Separate atomic delivery; other working changes remain uncommitted.
+
 ## 2026-10-03 — Remove confluence count as an entry veto
 
 Problem: the orchestrator could reject an independently qualified winner solely because fewer strategies agreed than minConfluenceCount. Trey explicitly ruled that agreement boosts confluence and must not decide entry eligibility.
