@@ -1,3 +1,9 @@
+## 2026-10-03 — Halt-producer restart handoff
+
+Trey requested a stopping-point handoff before restarting his computer. Saved the two pushed producer fixes, current concurrent-agent boundaries, unresolved repairs, failed embedding-index refresh, and his latest requirement to verify the actual account that handled an order. The ownership/parser repair is not implemented. Handoff: ogz-meta/inbox/codex-third/2026-10-03/halt-producer-resume/HANDOFF.md.
+
+Verification/review: checked current HEAD and empty index, matched delivered commit history and coordination notice, and reviewed this documentation against the conversation. Documentation only; no Mercury review required. Existing dirty production work and supporting evidence are preserved. No process stop, runtime activation or deployment.
+
 ## 2026-10-03 — Replace mandatory packets with detailed changelog entries
 
 Trey explicitly authorized overriding Rulings 7 and 7a. The changelog now holds the primary mission/session record: problem, changes, verification, review resolution, limitations, and runtime status. Supporting receipts are linked when needed; mandatory five-document packets, bulk tape commits, dual-hash inventories and duplicate session forms are retired. Existing packets and receipts are preserved. Updated both AGENTS files, output routing, master alignment and Trey Rulings so cold-start instructions agree.
