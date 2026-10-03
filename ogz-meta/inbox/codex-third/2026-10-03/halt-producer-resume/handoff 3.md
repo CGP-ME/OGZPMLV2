@@ -1,4 +1,4 @@
-# Handoff 3 — halt-producer repair lane
+# Handoff 3 — Codex 3 halt-producer repair lane
 
 Trey requested this stopping point before restarting his computer. Resume this lane; do not take over Stop 1, Mercury repair, or frontend settings. This is an explicitly requested handoff, not a return to mandatory receipt packets.
 

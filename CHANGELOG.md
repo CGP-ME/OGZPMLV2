@@ -1,3 +1,21 @@
+## 2026-10-03 — Codex 3 — halt-producer investigation and stopping point
+
+Scope/status: investigated all seven retained symbol-halt codes under Trey's Fourth Shape ruling. The complete census dispositions 44 concrete trigger groups plus one defensive fallback, including producers, callers, entry consumers, persistence/restore/reset, scope and notification. Searched 531 tracked executable files, captured 45 source pairs, indexed 1,096 scoped statements and 24 adapter reader methods. Historical source is evidence, not current runtime truth. Original investigation: ogz-meta/inbox/codex-third/2026-10-02/halt-producer-audit/CENSUS.md and PROPOSED-FIXES.md. No shared production edits were made during the investigation-only phase.
+
+Verification: 26 isolated original probes passed. They reproduced obsolete balance checks preventing exit evaluation; false open-order absence from malformed/unavailable reads; opposing-position matching and ownerless flatten requests; records removed from active monitoring without broker closure; credential-based blocking beyond the symbol and sticky recovery; and cutoff false-flatness/recovery defects. These are controlled source-method fixtures, not live broker incidents or exhaustive branch execution. Eight real ECM outcome families on both captured HEAD and inherited working source were balance-independent. Boundary doubles and limits remain in the supporting evidence.
+
+Delivery after Trey authorized implementation: 925415e7 removed the obsolete exit-balance dependency; 58d7de72 preserved Alpaca pre-dispatch failure evidence. Each was separately tested, Mercury-reviewed, committed and pushed with remote SHA confirmation. Their detailed entries below retain review qualifications. All other proposed fixes remain open; the investigation does not certify seven-code doctrine compliance or completion of the six original problem categories.
+
+Latest account ruling: Trey said “yes it should absolutely check the account tht it sent the payment from”. Verify the account/venue that handled the order, never a different price-feed account. This is not approval to settle solely from a webhook without checking its executing account. If the correct account cannot be checked, preserve explicit unverified status and report it; no automatic halt, flatten, quarantine or additional sale. The next ownership/settlement repair has not been applied.
+
+Additional investigation: actual extracted OrderExecutor methods accept filledQuantity:true as a fill quantity of one, let null shadow a later valid filledQty, and let position size:null shadow qty:"2" as zero. Three synthetic reproductions are preserved in ogz-meta/inbox/codex-third/2026-10-03/webhook-ownership/producer-probe.json with source hash and executable probe. No corresponding parser/ownership production changes or runtime tests have been made. Preserve explicit zero, malformed/conflicting inputs and actual account ownership when designing the repair; do not feed corrected data into an unresolved automatic action path.
+
+Coordination: preserved inherited dirty work; original Stop 1, Mercury and frontend lanes retain their ownership. An initial request to pause staging/reviews was broader than needed; Trey objected and the shared notice was corrected to coordinate only overlapping edits/shared-index operations. No agent process was interrupted. Both delivery windows were explicitly released; this lane has no production patch awaiting staging or active provider review. Coordination: ogz-meta/inbox/codex/2026-10-03/staging-coordination/WINDOW.md.
+
+Index limitation: the refresh after 925415e7 completed with 427 files/9,538 chunks, but HEAD had advanced to 0d1d3445 and tracked work was dirty; it was not a clean immutable index of that one commit. Refresh after 58d7de72 failed with embedding-provider credit_balance_exhausted and refused a partial write. No fresh-index claim follows that failure. Receipt: ogz-meta/inbox/codex-third/2026-10-03/submission-stage/private/post-push-index.log. No credit purchase or provider substitution was performed.
+
+Stopping point: explicit restart handoff committed as 9fb3cd2c, renamed to handoff 3 by 00e04349, both pushed. Resume from ogz-meta/inbox/codex-third/2026-10-03/halt-producer-resume/handoff 3.md. Existing receipts are preserved; Ruling 15 now makes this changelog the primary record rather than duplicate packets. This recording update is prose-only and reviewed against saved evidence and Git history; no Mercury review required. No PM2 action, bot restart, customer-state write, real order, deployment or runtime activation was performed by this lane.
+
 ## 2026-10-03 — Codex 1: Stop 1 work and handoff 1 stopping-point record
 
 Status: configuration work below is prepared, not delivered production. Only handoff 1 was committed/pushed as a06af735. Stop 1 remains incomplete. Trey requested a restart handoff, then explicitly requested all work be recorded here.
@@ -58,7 +76,15 @@ Limits: this repairs receipt classification only. Internal caller defects, exter
 
 ## 2026-10-03 — Remove obsolete exit-context balance dependency
 
-Timer and candle exits no longer require unused initial/account balances before contract evaluation. Preserve accounting and sizing consumers; introduce no defaults or halt changes. Evidence: ogz-meta/inbox/codex-third/2026-10-03/exit-balance/. No runtime activation.
+Problem: TradingLoop timer and candle exit paths required initialBalance and read accountBalance even though their downstream exit-context consumer had been removed in historical commit 438637407438df8700aa20e713768e7be4aae160. Missing balance could therefore prevent exit evaluation and reach a broad exception-to-halt handler.
+
+Change: remove the two obsolete initialBalance assertions, four unused context properties and their stale comments. Preserve actual accounting/sizing balance consumers and exit contracts; no fabricated default, new throw, halt or flatten behavior. Delivered separately as 925415e72e925900294ecfa2627ea441669fb16a; pushed and remote SHA confirmed.
+
+Verification: two actual TradingLoop regression tests (timer and candle) pass on working and exact staged source, and both fail at the old initialBalance assertions on pre-change source. No getEquity or initialBalance context read is needed for those exits. Existing broad trace suite has identical 31 failing test names and 17 passing tests before/after; inherited autopsy/state/config fixture problems were not bundled into this fix. Earlier transitive reader/history investigation and eight real ECM outcome families on both captured versions support removal. These are controlled fixtures, not full-runtime/broker execution.
+
+Review: Mercury returned no_break_found, run 2026-10-03T01-07-19-862Z-ef41c53bb73c, against staged tree 51ce126bf9db02ddadaf669f1b7ff1226fa10b7c. Its candidate list covered production/changelog, not the new test; exhaustive-review wording is not adopted. A sandbox-network attempt was incomplete and preserved separately, not treated as approval. Final harness hashes and reviewed source matched. Supporting receipts: ogz-meta/inbox/codex-third/2026-10-03/exit-balance/.
+
+Limits: independent autopsy, contract, market-data, ownership and broker-state defects remain. This change does not resolve all halt producers. No runtime activation.
 
 ## 2026-10-02 — Live individual-strategy confidence threshold
 
