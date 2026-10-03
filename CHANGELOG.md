@@ -1,3 +1,7 @@
+## 2026-10-03 — Remove obsolete exit-context balance dependency
+
+Timer and candle exits no longer require unused initial/account balances before contract evaluation. Preserve accounting and sizing consumers; introduce no defaults or halt changes. Evidence: ogz-meta/inbox/codex-third/2026-10-03/exit-balance/. No runtime activation.
+
 ## 2026-10-02 — Live individual-strategy confidence threshold
 
 Expose confidence.minStrategyConfidence through saved settings and let retained orchestrators read the accepted value on their next evaluation. Preserve existing threshold math and strategy instances. Evidence: ogz-meta/inbox/codex/2026-10-02/stop1-min-strategy-confidence/. No runtime activation.

@@ -1111,11 +1111,6 @@ class TradingLoop {
       : null;
     const nearestStructure = this._nearestStructure(price, nearestFibLevel, rawIndicatorState?.sr);
 
-    const _initialBalance = this.ctx.backtestRecorder?.startingBalance ?? stateManager.get('initialBalance');
-    if (!Number.isFinite(_initialBalance) || _initialBalance <= 0) {
-      throw new Error(`TradingLoop exit-only: initialBalance unavailable from backtestRecorder.startingBalance and stateManager.get('initialBalance') (got ${_initialBalance})`);
-    }
-
     for (const activeTrade of activeTrades) {
       const consistencyDecision = this._buildTtpConsistencyExitDecision(
         activeTrade,
@@ -1156,8 +1151,6 @@ class TradingLoop {
         indicators,
         priceHistory,
         currentTime: priceSource === 'state_last_price' ? Date.now() : (marketData?.timestamp ?? Date.now()),
-        accountBalance: this.ctx.backtestRecorder?.balance ?? stateManager.getEquity(price),
-        initialBalance: _initialBalance,
         currentPosition: stateManager.get('position'),
         currentPrice: price,
         nearestStructure,
@@ -1495,16 +1488,6 @@ class TradingLoop {
     // FIX 2026-03-29: Use activeTrades.length only - net position=0 when long+short cancel out
     const hasOpenPosition = activeTrades.length > 0;
     if (hasOpenPosition) {
-      // CRIT-08-followup-C: refuse $10K phantom default in exit-check context.
-      // The prior chain `?? 10000` would silently pass $10K to
-      // exitContractManager.checkExitConditions if both backtestRecorder
-      // and stateManager initialBalance were missing — masking a setup
-      // bug while exit calculations ran against phantom capital. Pre-money
-      // fail-loud, hoisted out of the for-loop (same value per iteration).
-      const _initialBalance = this.ctx.backtestRecorder?.startingBalance ?? stateManager.get('initialBalance');
-      if (!Number.isFinite(_initialBalance) || _initialBalance <= 0) {
-        throw new Error(`TradingLoop exit-check: initialBalance unavailable from backtestRecorder.startingBalance and stateManager.get('initialBalance') (got ${_initialBalance}) — refusing $10K phantom default`);
-      }
       for (const activeTrade of activeTrades) {
         const consistencyDecision = this._buildTtpConsistencyExitDecision(
           activeTrade,
@@ -1533,9 +1516,6 @@ class TradingLoop {
           indicators,
           priceHistory,
           currentTime: marketData?.timestamp ?? Date.now(),
-          // FIX 2026-04-09: Use getEquity() for live mode to get true account value
-          accountBalance: this.ctx.backtestRecorder?.balance ?? stateManager.getEquity(price),
-          initialBalance: _initialBalance,
           currentPosition: stateManager.get('position'),
           currentPrice: price,
           nearestStructure,
