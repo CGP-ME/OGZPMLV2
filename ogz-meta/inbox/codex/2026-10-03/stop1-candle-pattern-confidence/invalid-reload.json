@@ -1,0 +1,31 @@
+{
+  "pass": true,
+  "rejected": [
+    {
+      "value": "-1",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "value": "1.1",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "value": "NaN",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "value": "Infinity",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "value": "null",
+      "reason": "invalid_setting_value"
+    },
+    {
+      "value": "0.5",
+      "reason": "invalid_setting_value"
+    }
+  ],
+  "freshLoaderValue": 1,
+  "scope": "Isolated malformed saves preserve bytes and receipt; fresh loader reads last saved value. Not a forced malformed-config reload test."
+}

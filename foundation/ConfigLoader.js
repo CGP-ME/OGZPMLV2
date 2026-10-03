@@ -2618,6 +2618,12 @@ const EDITABLE_SETTINGS = deepFreeze({
     label: 'Minimum individual strategy confidence',
     effect: 'next_strategy_evaluation',
   },
+  'confidence.candlePatternMinConfidence': {
+    type: 'number', unit: 'fraction', min: 0, max: 1,
+    label: 'Minimum candle-pattern confidence',
+    effect: 'next_pattern_evaluation',
+  },
+
   'filters.atrEnabled': {
     type: 'boolean', unit: 'boolean', label: 'ATR entry filter',
     effect: 'next_strategy_evaluation',

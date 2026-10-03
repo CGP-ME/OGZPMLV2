@@ -1,0 +1,28 @@
+{
+  "candidate": "23e521bee0b95eea2222b615f81927b960ff734b",
+  "pass": true,
+  "effects": [
+    {
+      "value": 0,
+      "selected": [
+        0.2,
+        0.8,
+        1
+      ]
+    },
+    {
+      "value": 0.5,
+      "selected": [
+        0.8,
+        1
+      ]
+    },
+    {
+      "value": 1,
+      "selected": [
+        1
+      ]
+    }
+  ],
+  "scope": "Actual settings save and exact TradingLoop filter statements with explicit fixture confidences; no broker, full trading loop, or runtime activation."
+}
