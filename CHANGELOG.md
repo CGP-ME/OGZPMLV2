@@ -1,4 +1,4 @@
-## 2026-10-03 — Stop 1 work and handoff 1 stopping-point record
+## 2026-10-03 — Codex 1: Stop 1 work and handoff 1 stopping-point record
 
 Status: configuration work below is prepared, not delivered production. Only handoff 1 was committed/pushed as a06af735. Stop 1 remains incomplete. Trey requested a restart handoff, then explicitly requested all work be recorded here.
 
