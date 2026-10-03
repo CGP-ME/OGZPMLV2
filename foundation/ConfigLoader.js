@@ -2613,6 +2613,11 @@ const EDITABLE_SETTINGS = deepFreeze({
     scope: 'active_launch_profile', label: 'Minimum entry confidence',
     effect: 'next_entry_decision',
   },
+  'confidence.minStrategyConfidence': {
+    type: 'number', unit: 'fraction', min: 0, max: 1,
+    label: 'Minimum individual strategy confidence',
+    effect: 'next_strategy_evaluation',
+  },
   'filters.atrEnabled': {
     type: 'boolean', unit: 'boolean', label: 'ATR entry filter',
     effect: 'next_strategy_evaluation',

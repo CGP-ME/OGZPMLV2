@@ -1,0 +1,10 @@
+{
+  "candidate": "86f0a3ddfd1864aed3e2b414f311a200af439ebe",
+  "base": "2d488f79a8cc348c39aceacf8d5c6f94c0183766",
+  "harness": "a5ecf975923c1c024ee98adf849016181dd6e482",
+  "files": [
+    "core/StrategyOrchestrator.js",
+    "foundation/ConfigLoader.js",
+    "CHANGELOG.md"
+  ]
+}

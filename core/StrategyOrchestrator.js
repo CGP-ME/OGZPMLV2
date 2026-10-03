@@ -818,7 +818,6 @@ class StrategyOrchestrator {
     // Minimum confidence a single strategy needs to fire a trade
     // This is PER-STRATEGY, not aggregate — much more meaningful
     // TUNE 2026-02-27: Raised from 0.25 to filter garbage signals
-    this.minStrategyConfidence = ConfigLoader.get('confidence.minStrategyConfidence');
 
     // FIX 2026-03-19: Extracted hardcoded thresholds to config
     this.regimeMinConfidence = ConfigLoader.get('confidence.regimeMinConfidence');
@@ -923,6 +922,10 @@ class StrategyOrchestrator {
 
     // Register built-in strategies (uses diagFunnel, so must come after)
     this._registerBuiltinStrategies();
+  }
+
+  get minStrategyConfidence() {
+    return ConfigLoader.get('confidence.minStrategyConfidence');
   }
 
   _buildMtfAdapterConfig() {

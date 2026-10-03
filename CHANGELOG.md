@@ -1,3 +1,7 @@
+## 2026-10-02 — Live individual-strategy confidence threshold
+
+Expose confidence.minStrategyConfidence through saved settings and let retained orchestrators read the accepted value on their next evaluation. Preserve existing threshold math and strategy instances. Evidence: ogz-meta/inbox/codex/2026-10-02/stop1-min-strategy-confidence/. No runtime activation.
+
 ## 2026-10-02 — Retire symbol-loss cooldown
 
 Remove the rejected per-symbol consecutive-loss cooldown across configuration, close processing, executor telemetry and saved-state restoration. Preserve financial halt owners, operator pauses, active trades and close accounting. Evidence: ogz-meta/inbox/codex/2026-10-02/stop1-loss-cooldown/. No runtime activation.
