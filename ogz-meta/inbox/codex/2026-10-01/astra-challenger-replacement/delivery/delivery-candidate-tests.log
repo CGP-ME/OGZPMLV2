@@ -1,0 +1,11 @@
+jest-haste-map: Haste module naming collision: ogz-prime-valhalla-edition
+  The following files share their name; please adjust your hasteImpl:
+    * <rootDir>/package.json
+    * <rootDir>/ogz-meta/cognition-history/mercury-runs/2026-10-02T04-39-14-612Z-2588738-6f5554eafc44/source-7HSbCf/package.json
+
+
+Test Suites: 3 passed, 3 total
+Tests:       57 passed, 57 total
+Snapshots:   0 total
+Time:        1.339 s
+Ran all test suites matching test/mercury-provider-preflight.test.js|test/mercury-astra-challenger.test.js|test/mercury-llm-config-contract.test.js.

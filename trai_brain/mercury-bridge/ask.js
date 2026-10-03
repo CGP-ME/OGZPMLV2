@@ -22,14 +22,14 @@
  *   --show-chunks          Print retrieved chunk text (not just filenames)
  *   --show-history         Agentic mode only: print the full tool-call trace
  *   --no-tools             Host-enforced one-turn run with an empty tool schema
- *   --adversarial-review   Agentic mode only: ask Fable to attack Mercury's answer
+ *   --adversarial-review   Agentic mode only: ask Astra to attack Mercury's answer
  *   --reviewers=IDS        Agentic reviewer IDs in dispatch order (comma-separated)
  *   --evidence-source=P:S-E Host-attest a verbatim repo-relative excerpt (repeatable)
  *   --change-path=P        Review explicit source/diff targets through evidence ingestion (repeatable)
- *   --consensus            Agentic mode only: legacy alias for Fable review
+ *   --consensus            Agentic mode only: legacy alias for Astra review
  *   --architecture         Agentic mode only: longform architecture review framing
  *   --planning             Agentic mode only: implementation planning/design framing
- *   --check-providers      Warm up Mercury and Fable clients, then exit
+ *   --check-providers      Warm up Mercury and Astra clients, then exit
  */
 
 'use strict';
@@ -60,7 +60,7 @@ const {
 const {
   reviewModeRequested,
   parseAdversarialReviewAnswer,
-  runFableAdversarialReview,
+  runAstraAdversarialReview,
   runKimiFinalAdjudication,
   buildAttestedPromptProvenance,
   buildMercuryRecheckPrompts,
@@ -462,13 +462,13 @@ function usage() {
   console.log('  --change-path=P        Agentic source/diff ingestion for explicit operator targets; repeatable');
   console.log('  --review-ref=REF       Pin source, search, AST and rechecks to this Git tree; requires --review-base');
   console.log('  --review-base=REF      Explicit Git comparison baseline for --review-ref');
-  console.log(`  --adversarial-review   Agentic only: force a Fable (${config.CONSENSUS_MODEL}) adversarial review`);
+  console.log(`  --adversarial-review   Agentic only: force a Astra (${config.CONSENSUS_MODEL}) adversarial review`);
   console.log('  --no-adversarial-review Agentic only: suppress env/config adversarial review for this run');
-  console.log('  --consensus            Agentic only: legacy alias for a Fable review');
+  console.log('  --consensus            Agentic only: legacy alias for a Astra review');
   console.log('  --no-consensus         Agentic only: suppress config-default legacy consensus for this run');
   console.log('  --architecture         Agentic only: architecture-review framing; final packet is synthesis, not pass/fail');
   console.log('  --planning             Agentic only: planning/design framing; final packet is a build plan, not pass/fail');
-  console.log('  --check-providers      Warm up Mercury and Fable clients, then exit');
+  console.log('  --check-providers      Warm up Mercury and Astra clients, then exit');
   console.log('  --capture-trace        Agentic only: manually store a successful investigation trace');
   console.log('                         RAG/chunk writes are never done by ask.js; run indexer.js explicitly.');
   console.log('');
@@ -745,7 +745,7 @@ function priorPanelResult(query, outputs) {
 }
 
 function finalizeMercuryEvidenceResult(result) {
-  // Same explicit-field contract as Fable and Kimi. Never infer a verdict
+  // Same explicit-field contract as Astra and Kimi. Never infer a verdict
   // from successful transport, a prose conclusion, or a partial tool loop.
   if (!result.parsed && result.termination === 'answer_given') {
     const parsed = parseAdversarialReviewAnswer(result.answer);
@@ -766,14 +766,6 @@ function panelSeatMetadata(id, output, {
   const appliedModels = attempts.flatMap(attempt => attempt.applied_models || (attempt.applied_model ? [attempt.applied_model] : []));
   const identityConflict = attempts.some(attempt => attempt.identity_posture && attempt.identity_posture.status === 'identity_conflict');
   const fallbackTransitions = attempts.flatMap(attempt => attempt.model_transitions || []);
-  if (id === 'fable' && attempts.some(attempt => attempt.role === 'opus_challenger')) {
-    fallbackTransitions.push({
-      transition_type: 'fable_seat_fallback',
-      from_model: 'fable',
-      to_model: 'opus',
-      classification: attempts[0] && attempts[0].fallback_classification || null,
-    });
-  }
   const directEvidenceBasis = positiveEvidenceBasis({
     toolTelemetry: output.toolTelemetry || {},
     autoBlastRadius: id === 'mercury' ? autoBlastRadius : null,
@@ -1251,7 +1243,7 @@ async function runAgentic(query, opts) {
     // 4. Dispatch exactly the selected registry seats in declared order.
     let client = null;
     let mercuryResult = null;
-    let fableReview = null;
+    let astraReview = null;
     let kimiReview = null;
     const outputs = new Map();
     const panelRun = await runReviewerPanel({
@@ -1322,39 +1314,39 @@ async function runAgentic(query, opts) {
           return metadata;
         }
 
-        if (reviewer.id === 'fable') {
+        if (reviewer.id === 'astra') {
           const prior = mercuryResult || priorPanelResult(query, outputs);
-          fableReview = await runFableAdversarialReview({
-            query, mercuryResult: prior, reviewIntent,
+          astraReview = await runAstraAdversarialReview({
+            reviewRoot, query, mercuryResult: prior, reviewIntent,
             persistRaw: persistReviewRaw, evidenceSources, hostEvidenceSources,
           });
-          if (fableReview.ok !== true) {
-            const error = new Error(fableReview.error && fableReview.error.message || 'Fable answer absent');
+          if (astraReview.ok !== true) {
+            const error = new Error(astraReview.error && astraReview.error.message || 'Astra answer absent');
             error.absence = reviewerAbsence(error);
-            error.reviewFailure = fableReview;
+            error.reviewFailure = astraReview;
             throw error;
           }
-          fableReview.mode = reviewModeRequested(opts) || 'adversarial_review';
-          fableReview.doctrineReview = assessDoctrineReview({
-            answer: fableReview.answer,
+          astraReview.mode = reviewModeRequested(opts) || 'adversarial_review';
+          astraReview.doctrineReview = assessDoctrineReview({
+            answer: astraReview.answer,
             changedFiles: autoBlastRadius ? autoBlastRadius.changedFiles : [],
             diff: autoBlastRadius ? autoBlastRadius.diff : '',
             telemetry: mercuryResult ? mercuryResult.toolTelemetry : {},
             autoScan: autoBlastRadius,
             evidenceSources,
-            reviewerId: 'fable',
+            reviewerId: 'astra',
             answerQuality: mercuryResult ? mercuryResult.answerQuality : {},
           });
-          fableReview.quarantines = await notifyReviewQuarantines(fableReview.quarantines || []);
-          // A rejected primary answer still needs the source checks Fable
+          astraReview.quarantines = await notifyReviewQuarantines(astraReview.quarantines || []);
+          // A rejected primary answer still needs the source checks Astra
           // requested. Preserve its failed evidence status; do not skip repair.
           if (mercuryResult && typeof mercuryResult.answer === 'string' && mercuryResult.answer.trim()
-              && kimiTieBreakerRequired(fableReview, reviewIntent)) {
+              && kimiTieBreakerRequired(astraReview, reviewIntent)) {
             const recheckPrompts = buildMercuryRecheckPrompts({
               originalQuery: query,
               mercuryAnswer: mercuryResult.answer,
-              fableAnswer: fableReview.answer,
-              parsedReview: fableReview.parsed,
+              astraAnswer: astraReview.answer,
+              parsedReview: astraReview.parsed,
               evidenceSources,
               filesMechanicallyOpened: Array.isArray(mercuryResult.toolTelemetry && mercuryResult.toolTelemetry.filesOpened)
                 ? mercuryResult.toolTelemetry.filesOpened
@@ -1362,8 +1354,8 @@ async function runAgentic(query, opts) {
               claimedFileCitations: extractClaimedFileCitations(mercuryResult.answer),
               candidateSet: mercuryResult.candidateSet,
             }).slice(0, config.ADVERSARIAL_REVIEW_MAX_RECHECKS);
-            fableReview.recheckPrompts = recheckPrompts;
-            fableReview.recheckPrompt = recheckPrompts[0] || null;
+            astraReview.recheckPrompts = recheckPrompts;
+            astraReview.recheckPrompt = recheckPrompts[0] || null;
             const recheckRun = await runReviewRechecks({
               prompts: recheckPrompts, client, toolAdapter, starterContext, blastRadius,
               maxIterations, maxTokens, verbose, evidenceSources, createProviderAudit: providerAuditFactory,
@@ -1374,14 +1366,14 @@ async function runAgentic(query, opts) {
               claimInventory: mercuryResult.candidateSet?.claimInventory || [],
               claimSourceEvidence: (mercuryResult.shardedReview?.claim_inventory || []).flatMap(target => target.source_evidence || []),
             });
-            fableReview.rechecks = recheckRun.rechecks;
-            fableReview.recheck = fableReview.rechecks[0] || null;
-            fableReview.quarantines.push(...recheckRun.quarantines);
+            astraReview.rechecks = recheckRun.rechecks;
+            astraReview.recheck = astraReview.rechecks[0] || null;
+            astraReview.quarantines.push(...recheckRun.quarantines);
             mercuryResult.candidateSet = mergeCandidateSetRechecks(
               mercuryResult.candidateSet,
-              fableReview.rechecks
+              astraReview.rechecks
             );
-            for (const recheck of fableReview.rechecks) {
+            for (const recheck of astraReview.rechecks) {
               recheck.doctrineReview = assessDoctrineReview({
                 answer: recheck.answer,
                 candidateSet: recheck.candidateSet,
@@ -1395,9 +1387,9 @@ async function runAgentic(query, opts) {
               });
             }
           }
-          outputs.set('fable', { id: 'fable', ...fableReview });
+          outputs.set('astra', { id: 'astra', ...astraReview });
           const qualifiedPrior = priorSeats.filter(seat => seat.evidenceChecksPassed === true);
-          const metadata = panelSeatMetadata('fable', fableReview, {
+          const metadata = panelSeatMetadata('astra', astraReview, {
             evidenceSources: [...evidenceSources, ...hostEvidenceSources],
             inheritedEvidenceBasis: qualifiedPrior.map(seat => `qualified_prior_seat:${seat.sequence}:${seat.id}`),
             inputDependencies: priorSeats.map(seat => ({
@@ -1407,19 +1399,19 @@ async function runAgentic(query, opts) {
               evidenceQualified: seat.evidenceChecksPassed === true,
             })),
           });
-          // Rechecks retain Mercury's provenance in fableReview.rechecks;
-          // they must not replace Fable's independent answer or evidence.
+          // Rechecks retain Mercury's provenance in astraReview.rechecks;
+          // they must not replace Astra's independent answer or evidence.
           return metadata;
         }
 
         const prior = mercuryResult || priorPanelResult(query, outputs);
-        const earlierFableSeat = priorSeats.find(seat => seat.id === 'fable' && seat.status === 'succeeded');
-        const review = earlierFableSeat ? fableReview : {
+        const earlierAstraSeat = priorSeats.find(seat => seat.id === 'astra' && seat.status === 'succeeded');
+        const review = earlierAstraSeat ? astraReview : {
           answer: priorPanelResult(query, outputs).answer,
           parsed: { verdict: 'not_selected', blocking: false },
           rechecks: [],
           recheckPrompts: [],
-          panelSourceLabel: 'Earlier selected reviewer evidence (no prior Fable seat)',
+          panelSourceLabel: 'Earlier selected reviewer evidence (no prior Astra seat)',
           panelSourcePath: 'panel://prior-reviewer-evidence',
         };
         kimiReview = await runKimiFinalAdjudication({
@@ -1527,18 +1519,18 @@ async function runAgentic(query, opts) {
       if (mercurySeat) mercurySeat.recheckDiagnostics = latestDoctrine;
     }
     if (autoBlastRadius) result.serenaBlastRadius = autoBlastRadius;
-    if (fableReview) {
-      const fableSeat = panelRun.seats.find(seat => seat.id === 'fable' && seat.status === 'succeeded');
+    if (astraReview) {
+      const astraSeat = panelRun.seats.find(seat => seat.id === 'astra' && seat.status === 'succeeded');
       const kimiSeat = panelRun.seats.find(seat => seat.id === 'kimi' && seat.status === 'succeeded');
-      if (canAttachFinalReview(fableSeat, kimiSeat)) {
-        fableReview.finalReview = kimiReview;
+      if (canAttachFinalReview(astraSeat, kimiSeat)) {
+        astraReview.finalReview = kimiReview;
         result.reviewerPanel.diagnostics = recomputePanelDiagnostics(panelRun);
       }
-      result.adversarialReview = fableReview;
-      result.consensus = fableReview;
+      result.adversarialReview = astraReview;
+      result.consensus = astraReview;
       result.adversarialReviewPacket = formatAdversarialReviewPacket({
         originalQuery: query, mercuryResult: mercuryResult || priorPanelResult(query, outputs),
-        review: fableReview, panel: result.reviewerPanel, reviewIntent,
+        review: astraReview, panel: result.reviewerPanel, reviewIntent,
       });
     }
 
@@ -1769,7 +1761,7 @@ function printDispatchReceipt(result) {
 
   const selfReportUnits = [
     ['mercury', entry.stages && entry.stages.mercury],
-    ['fable', reviewEntry],
+    [reviewEntry && reviewEntry.provider === 'codex-subscription' ? 'astra' : 'fable', reviewEntry],
     ...((reviewEntry && reviewEntry.rechecks) || []).map((recheck, index) => [`mercury_recheck_${index + 1}`, recheck]),
     ['kimi', reviewEntry && reviewEntry.final_review],
   ];
@@ -1917,10 +1909,10 @@ async function main() {
         const review = result.adversarialReview || result.consensus;
         console.log('');
         const reviewTitle = args.reviewIntent === 'architecture'
-          ? '═══ FABLE ARCHITECTURE REVIEW ═══'
+          ? '═══ ASTRA ARCHITECTURE REVIEW ═══'
           : (args.reviewIntent === 'planning'
-            ? '═══ FABLE PLANNING REVIEW ═══'
-            : (review.mode === 'consensus' ? '═══ FABLE LEGACY REVIEW ═══' : '═══ FABLE ADVERSARIAL REVIEW ═══'));
+            ? '═══ ASTRA PLANNING REVIEW ═══'
+            : (review.mode === 'consensus' ? '═══ ASTRA LEGACY REVIEW ═══' : '═══ ASTRA ADVERSARIAL REVIEW ═══'));
         console.log(reviewTitle);
         console.log('');
         if (review.ok) {

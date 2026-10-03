@@ -1,0 +1,247 @@
+FAIL test/mercury-consensus.test.js
+  ● Mercury Astra consensus › run alerts cover UNVERIFIED and seat failures without cost policy or refusal
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 0
+
+      Array [
+    -   "authority_unverified",
+        "seat_failed:kimi",
+      ]
+
+      219 |       },
+      220 |     };
+    > 221 |     expect(runAlertReasons(entry)).toEqual([
+          |                                    ^
+      222 |       'authority_unverified',
+      223 |       'seat_failed:kimi',
+      224 |     ]);
+
+      at Object.toEqual (test/mercury-consensus.test.js:221:36)
+
+  ● Mercury Astra consensus › authority is recomputed after explicit Kimi convergence is attached
+
+    TypeError: recomputePanelAuthority is not a function
+
+      647 |     };
+      648 |
+    > 649 |     expect(recomputePanelAuthority(panelRun)).toMatchObject({
+          |            ^
+      650 |       ceiling: 'FULL', agreement: true, evidenceChecksPassed: true,
+      651 |       agreedVerdict: 'pass', capReasons: [],
+      652 |     });
+
+      at Object.recomputePanelAuthority (test/mercury-consensus.test.js:649:12)
+
+  ● Mercury Astra consensus › emitted packet cannot outrank its reviewer-panel receipt
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected substring: "VERDICT: UNVERIFIED"
+    Received string:    "VERDICT: pass·
+    1. Original Prompt
+    Mercury, break my fix.·
+    2. Mercury Pass 1
+    Verdict: answer_given
+    Claims:
+    Structured review.
+    Evidence:
+    - <none recorded>
+    Commands:
+    - tool_calls=0 | succeeded=0 | failed=0 | tools=none | files_opened=0 | run_check_artifacts=0 | failed_calls=none | run_checks=none -> tool telemetry
+    Gaps:
+    <none from Astra>·
+    3. Astra Review
+    Verdict: pass
+    Agreements:
+    <see Astra answer>
+    Disagreements:
+    - none
+    Required Rechecks:
+    <none>
+    Full Astra answer:
+    VERDICT: pass
+    CONSENSUS_BLOCKING: no·
+    4. Mercury Recheck
+    Not run: Astra did not mark the review blocking.·
+    5. Kimi Final Adjudication
+    Consensus:
+    <not specified>
+    Contradictions:
+    <not specified>
+    Partial:
+    <not specified>
+    Unique:
+    <not specified>
+    Blind spots:
+    <not specified>
+    Verdict: pass
+    Blocking: no
+    Shared conclusion:
+    <none>
+    Mercury supported:
+    <not specified>
+    Astra supported:
+    <not specified>
+    Kimi supported:
+    <not specified>
+    Cited reasoning:
+    <not specified>
+    Full Kimi answer:
+    VERDICT: pass
+    CONSENSUS_BLOCKING: no·
+    6. Final Resolution
+    Decision:
+    pass_pending_local_proof
+    Why:
+    Astra did not identify a blocking challenge and Kimi found no unresolved disagreement.
+    Residual Risk:
+    Local tests/gates still control commit approval.
+    Required Next Action:
+    <none>"
+
+      792 |       },
+      793 |     });
+    > 794 |     expect(packet).toContain('VERDICT: UNVERIFIED');
+          |                    ^
+      795 |     expect(packet).toContain('Decision:\nunverified');
+      796 |     expect(packet).toContain('evidence_failure');
+      797 |     expect(packet).not.toContain('Decision:\npass_pending_local_proof');
+
+      at Object.toContain (test/mercury-consensus.test.js:794:20)
+
+  ● Mercury Astra consensus › undocumented identity mismatch is stamped, screamed, capped UNVERIFIED, and continues
+
+    expect(received).toMatch(expected)
+
+    Expected pattern: /^VERDICT: UNVERIFIED/
+    Received string:  "VERDICT: pass·
+    1. Original Prompt
+    Mercury, break my fix.·
+    2. Mercury Pass 1
+    Verdict: answer_given
+    Claims:
+    core/Foo.js:1
+    Evidence:
+    - <none recorded>
+    Commands:
+    - <none recorded>
+    Gaps:
+    identity:astra_challenger -> identity_conflict·
+    3. Astra Review
+    Verdict: pass
+    Agreements:
+    <see Astra answer>
+    Disagreements:
+    - none
+    Required Rechecks:
+    <none>
+    Full Astra answer:
+    VERDICT: pass
+    CONSENSUS_BLOCKING: no
+    DISAGREEMENT: none·
+    4. Mercury Recheck
+    Not run: Astra did not mark the review blocking.·
+    5. Kimi Final Adjudication
+    Verdict: missing
+    Blocking: yes
+    Shared conclusion: none
+    Mercury supported:
+    <not adjudicated>
+    Astra supported:
+    <not adjudicated>
+    Kimi supported:
+    <not adjudicated>
+    Full Kimi answer:
+    <missing>·
+    6. Final Resolution
+    Decision:
+    pass_pending_local_proof
+    Why:
+    Astra did not identify a blocking challenge, so Kimi tie-break adjudication was not required.
+    Residual Risk:
+    Local tests/gates still control commit approval.
+    Required Next Action:
+    <none>"
+
+      1257 |       mercuryResult: { termination: 'answer_given', answer: 'core/Foo.js:1' },
+      1258 |       review: result,
+    > 1259 |     })).toMatch(/^VERDICT: UNVERIFIED/);
+           |         ^
+      1260 |   });
+      1261 |
+      1262 |   test('genuinely untrusted Claude executable remains a hard stop and cannot invoke Opus', async () => {
+
+      at Object.toMatch (test/mercury-consensus.test.js:1259:9)
+
+  ● Mercury Astra consensus › a load-bearing quarantine caps the human review packet at UNVERIFIED and names the gap
+
+    expect(received).toMatch(expected)
+
+    Expected pattern: /^VERDICT: UNVERIFIED/
+    Received string:  "VERDICT: pass·
+    1. Original Prompt
+    Mercury, break my fix.·
+    2. Mercury Pass 1
+    Verdict: answer_given
+    Claims:
+    No break found.
+    Evidence:
+    - <none recorded>
+    Commands:
+    - <none recorded>
+    Gaps:
+    recheck:mercury_recheck_2 -> mercury_recheck_answer_absent·
+    3. Astra Review
+    Verdict: pass
+    Agreements:
+    <see Astra answer>
+    Disagreements:
+    - none
+    Required Rechecks:
+    <none>
+    Full Astra answer:
+    VERDICT: pass
+    CONSENSUS_BLOCKING: no·
+    4. Mercury Recheck
+    Not run: Astra did not mark the review blocking.·
+    5. Kimi Final Adjudication
+    Verdict: missing
+    Blocking: yes
+    Shared conclusion: none
+    Mercury supported:
+    <not adjudicated>
+    Astra supported:
+    <not adjudicated>
+    Kimi supported:
+    <not adjudicated>
+    Full Kimi answer:
+    <missing>·
+    6. Final Resolution
+    Decision:
+    pass_pending_local_proof
+    Why:
+    Astra did not identify a blocking challenge, so Kimi tie-break adjudication was not required.
+    Residual Risk:
+    Local tests/gates still control commit approval.
+    Required Next Action:
+    <none>"
+
+      1576 |     });
+      1577 |
+    > 1578 |     expect(packet).toMatch(/^VERDICT: UNVERIFIED/);
+           |                    ^
+      1579 |     expect(packet).toContain('recheck:mercury_recheck_2 -> mercury_recheck_answer_absent');
+      1580 |     expect(packet).toContain('no clean unit may self-certify across them');
+      1581 |   });
+
+      at Object.toMatch (test/mercury-consensus.test.js:1578:20)
+
+
+Test Suites: 1 failed, 2 passed, 3 total
+Tests:       5 failed, 61 passed, 66 total
+Snapshots:   0 total
+Time:        1.493 s, estimated 3 s
+Ran all test suites matching test/mercury-astra-challenger.test.js|test/mercury-provider-preflight.test.js|test/mercury-consensus.test.js.

@@ -1,0 +1,6 @@
+
+Test Suites: 3 passed, 3 total
+Tests:       51 passed, 51 total
+Snapshots:   0 total
+Time:        1.618 s, estimated 2 s
+Ran all test suites matching test/mercury-provider-preflight.test.js|test/mercury-astra-challenger.test.js|test/mercury-llm-config-contract.test.js.

@@ -15,7 +15,7 @@ const {
   formatAdversarialReviewPacket,
   buildConsensusPrompt,
   buildKimiFinalAdjudicationPrompt,
-  runFableConsensus,
+  runAstraConsensus,
   runKimiFinalConsensus,
   consensusFailure,
   normalizeReviewIntent,
@@ -72,7 +72,7 @@ function evidenceFixture(excerpt = 'VERBATIM EVIDENCE') {
   });
 }
 
-describe('Mercury Fable consensus', () => {
+describe('Mercury Astra consensus', () => {
   test('CLI adversarial review flags expose explicit controls while preserving consensus aliases', () => {
     expect(parseArgs(['node', 'ask.js', 'audit this'])).toMatchObject({
       agentic: true,
@@ -271,8 +271,8 @@ describe('Mercury Fable consensus', () => {
 
       fs.symlinkSync('census.md', path.join(repoRoot, 'ignored', 'link.md'));
       fs.writeFileSync(path.join(repoRoot, 'ignored', 'invalid.bin'), Buffer.from([0xc3, 0x28]));
-      const secretFixture = `${['API', 'KEY'].join('_')}=${['fixture', 'credential'].join('-')}`;
-      fs.writeFileSync(path.join(repoRoot, 'ignored', 'secret.md'), `${secretFixture}\n`);
+      const redactionFixture = `${['API', 'KEY'].join('_')}=${['fixture', 'credential'].join('-')}`;
+      fs.writeFileSync(path.join(repoRoot, 'ignored', 'secret.md'), `${redactionFixture}\n`);
       const rejected = [
         ['../outside.md:1-1', 'x'],
         ['/tmp/outside.md:1-1', 'x'],
@@ -299,15 +299,15 @@ describe('Mercury Fable consensus', () => {
           }),
         ]);
       }
-      let secretError;
+      let caughtEvidenceError;
       try {
         resolveEvidenceSources({
-          repoRoot, query: secretFixture, descriptors: ['ignored/secret.md:1-1'],
+          repoRoot, query: redactionFixture, descriptors: ['ignored/secret.md:1-1'],
         });
       } catch (error) {
-        secretError = error;
+        caughtEvidenceError = error;
       }
-      expect(secretError).toMatchObject({ code: 'EVIDENCE_SECRET_DETECTED' });
+      expect(caughtEvidenceError).toMatchObject({ code: 'EVIDENCE_SECRET_DETECTED' });
     } finally {
       fs.rmSync(repoRoot, { recursive: true, force: true });
     }
@@ -343,7 +343,7 @@ describe('Mercury Fable consensus', () => {
     }
   });
 
-  test('buildConsensusPrompt fences Fable to Mercury evidence instead of fresh claims', () => {
+  test('buildConsensusPrompt fences Astra to Mercury evidence instead of fresh claims', () => {
     const prompt = buildConsensusPrompt({
       query: 'Mercury, break my fix.',
       runLedgerCitation: 'ogz-meta/cognition-history/mercury-runs/2026-07-01.jsonl:3',
@@ -363,7 +363,7 @@ describe('Mercury Fable consensus', () => {
     });
 
     expect(prompt).toContain('READ-ONLY AUDIT. Do not edit code.');
-    expect(prompt).toContain('You do not have repo tools');
+    expect(prompt).toContain('Use your available tools for read-only inspection.');
     expect(prompt).toContain('Do not invent file:line citations');
     expect(prompt).toContain('CONSENSUS_BLOCKING: yes | no');
     expect(prompt).toContain('RECHECK_PROMPT: <exact prompt to send Mercury next, or none>');
@@ -374,7 +374,7 @@ describe('Mercury Fable consensus', () => {
     expect(prompt).toContain('WHY THIS VERDICT: <the evidence-to-verdict reason>');
   });
 
-  test('architecture mode changes Mercury framing and Fable output contract', () => {
+  test('architecture mode changes Mercury framing and Astra output contract', () => {
     expect(normalizeReviewIntent('architecture')).toBe('architecture');
     expect(normalizeReviewIntent('planning')).toBe('planning');
     expect(normalizeReviewIntent('')).toBe('adversarial');
@@ -402,13 +402,13 @@ describe('Mercury Fable consensus', () => {
     });
 
     expect(prompt).toContain('READ-ONLY ARCHITECTURE REVIEW');
-    expect(prompt).toContain('evolved Mercury+Fable architecture report');
+    expect(prompt).toContain('evolved Mercury+Astra architecture report');
     expect(prompt).toContain('EVOLVED_ARCHITECTURE');
     expect(prompt).not.toContain('CONSENSUS_BLOCKING: yes | no');
     expect(prompt).not.toContain('RECHECK_PROMPT: <exact prompt to send Mercury next, or none>');
   });
 
-  test('planning mode changes Mercury framing and Fable output contract', () => {
+  test('planning mode changes Mercury framing and Astra output contract', () => {
     const mercuryPrompt = buildMercuryIntentPrompt('Plan this migration.', 'planning');
     expect(mercuryPrompt).toContain('MERCURY PLANNING MODE');
     expect(mercuryPrompt).toContain('implementation plan');
@@ -429,7 +429,7 @@ describe('Mercury Fable consensus', () => {
     expect(prompt).not.toContain('CONSENSUS_BLOCKING: yes | no');
   });
 
-  test('parses blocking Fable critiques into a Mercury recheck prompt', () => {
+  test('parses blocking Astra critiques into a Mercury recheck prompt', () => {
     const answer = [
       'VERDICT: needs_more_evidence',
       'CONSENSUS_BLOCKING: yes',
@@ -451,12 +451,12 @@ describe('Mercury Fable consensus', () => {
     const prompt = buildMercuryRecheckPrompt({
       originalQuery: 'Mercury, break my fix.',
       mercuryAnswer: 'No break found.',
-      fableAnswer: answer,
+      astraAnswer: answer,
       parsedConsensus: parsed,
     });
     expect(prompt).toContain('Original user prompt:\nMercury, break my fix.');
     expect(prompt).toContain('Your prior answer:\nNo break found.');
-    expect(prompt).toContain(`Fable critique:\n${answer}`);
+    expect(prompt).toContain(`Astra critique:\n${answer}`);
     expect(prompt).toContain('Required recheck:\nMercury, recheck the worker spawn env path.');
   });
 
@@ -464,7 +464,7 @@ describe('Mercury Fable consensus', () => {
     const prompt = buildMercuryRecheckPrompt({
       originalQuery: 'Audit TTP_PROFIT_TARGET_DOLLARS.',
       mercuryAnswer: 'A reader exists at ogz-meta/claudito-logger.js:399.',
-      fableAnswer: 'Recheck the reader.',
+      astraAnswer: 'Recheck the reader.',
       parsedReview: { recheckPrompt: 'Verify the profit-target reader.' },
       filesMechanicallyOpened: ['ogz-meta/claudito-logger.js:350-420'],
       claimedFileCitations: ['ogz-meta/claudito-logger.js:399'],
@@ -509,10 +509,10 @@ describe('Mercury Fable consensus', () => {
 
   test('parses adjudicator tape fields before verdict and warns on pass contradictions', () => {
     const parsed = parseConsensusAnswer([
-      'CONSENSUS: Mercury and Fable both cite core/Foo.js:1-2.',
-      'CONTRADICTIONS: Mercury says no reachable state; Fable says core/Foo.js:2 remains reachable.',
+      'CONSENSUS: Mercury and Astra both cite core/Foo.js:1-2.',
+      'CONTRADICTIONS: Mercury says no reachable state; Astra says core/Foo.js:2 remains reachable.',
       'PARTIAL: Mercury alone checked test/Foo.test.js:5.',
-      'UNIQUE: Fable surfaced missing producer census in core/Foo.js:3.',
+      'UNIQUE: Astra surfaced missing producer census in core/Foo.js:3.',
       'BLIND_SPOTS: neither reporter checked journal persistence.',
       'DISAGREEMENT: reachability remains disputed.',
       'CONSENSUS_BLOCKING: no',
@@ -522,10 +522,10 @@ describe('Mercury Fable consensus', () => {
     ].join('\n'));
 
     expect(parsed).toMatchObject({
-      consensus: 'Mercury and Fable both cite core/Foo.js:1-2.',
-      contradictions: 'Mercury says no reachable state; Fable says core/Foo.js:2 remains reachable.',
+      consensus: 'Mercury and Astra both cite core/Foo.js:1-2.',
+      contradictions: 'Mercury says no reachable state; Astra says core/Foo.js:2 remains reachable.',
       partial: 'Mercury alone checked test/Foo.test.js:5.',
-      unique: 'Fable surfaced missing producer census in core/Foo.js:3.',
+      unique: 'Astra surfaced missing producer census in core/Foo.js:3.',
       blindSpots: 'neither reporter checked journal persistence.',
       disagreement: 'reachability remains disputed.',
       requiredRecheck: 'Mercury, inspect core/Foo.js:1-3.',
@@ -562,22 +562,22 @@ describe('Mercury Fable consensus', () => {
     });
   });
 
-  test('fallback Mercury recheck prompt carries parse warnings and full Fable critique', () => {
-    const fableAnswer = [
+  test('fallback Mercury recheck prompt carries parse warnings and full Astra critique', () => {
+    const astraAnswer = [
       'VERDICT: agree',
       'RATIONALE: forgot the blocking field',
       'NEXT_CHECK: inspect parser behavior',
     ].join('\n');
-    const parsed = parseConsensusAnswer(fableAnswer);
+    const parsed = parseConsensusAnswer(astraAnswer);
 
     const prompt = buildMercuryRecheckPrompt({
       originalQuery: 'Mercury, break my fix.',
       mercuryAnswer: 'No break found.',
-      fableAnswer,
+      astraAnswer,
       parsedConsensus: parsed,
     });
 
-    expect(prompt).toContain('Fable critique:');
+    expect(prompt).toContain('Astra critique:');
     expect(prompt).toContain('READ-ONLY AUDIT. Do not edit code.');
     expect(prompt).toContain('forgot the blocking field');
     expect(prompt).toContain('Required recheck:');
@@ -632,7 +632,7 @@ describe('Mercury Fable consensus', () => {
           effectiveIdentityFingerprint: 'mercury:model:attested',
         },
         {
-          id: 'fable', status: 'succeeded', verdict: 'no_claim', evidenceChecksPassed: true,
+          id: 'astra', status: 'succeeded', verdict: 'no_claim', evidenceChecksPassed: true,
           effectiveIdentityFingerprint: 'fable:model:attested',
         },
         {
@@ -653,7 +653,7 @@ describe('Mercury Fable consensus', () => {
     expect(panelRun.authority.ceiling).toBe('FULL');
   });
 
-  test('splits multiple Fable recheck prompts so caller can cap them at two', () => {
+  test('splits multiple Astra recheck prompts so caller can cap them at two', () => {
     const parsed = parseConsensusAnswer([
       'VERDICT: needs_more_evidence',
       'CONSENSUS_BLOCKING: yes',
@@ -665,7 +665,7 @@ describe('Mercury Fable consensus', () => {
     const prompts = buildMercuryRecheckPrompts({
       originalQuery: 'Mercury, break my fix.',
       mercuryAnswer: 'No break found.',
-      fableAnswer: 'critique',
+      astraAnswer: 'critique',
       parsedConsensus: parsed,
     });
 
@@ -674,7 +674,7 @@ describe('Mercury Fable consensus', () => {
       'Mercury, recheck file A.', 'Mercury, recheck file B.', 'Mercury, recheck file C.',
     ]);
     expect(prompts.every(prompt => prompt.includes('Original user prompt:\nMercury, break my fix.'))).toBe(true);
-    expect(prompts.every(prompt => prompt.includes('Fable critique:\ncritique'))).toBe(true);
+    expect(prompts.every(prompt => prompt.includes('Astra critique:\ncritique'))).toBe(true);
     expect(prompts.slice(0, 2)).toHaveLength(2);
   });
 
@@ -684,7 +684,7 @@ describe('Mercury Fable consensus', () => {
     const prompts = buildMercuryRecheckPrompts({
       originalQuery,
       mercuryAnswer: 'No break found.',
-      fableAnswer: 'Fable found two unresolved claims.',
+      astraAnswer: 'Astra found two unresolved claims.',
       parsedReview: { recheckPrompt: '- Check claim one.\n- Check claim two.' },
       evidenceSources: [evidence],
     });
@@ -700,7 +700,7 @@ describe('Mercury Fable consensus', () => {
     }
   });
 
-  test('builds a visible adversarial review packet with Mercury, Fable, and recheck data', () => {
+  test('builds a visible adversarial review packet with Mercury, Astra, and recheck data', () => {
     const packet = formatAdversarialReviewPacket({
       originalQuery: 'Mercury, break my fix.',
       mercuryResult: {
@@ -761,7 +761,7 @@ describe('Mercury Fable consensus', () => {
 
     expect(packet).toContain('1. Original Prompt');
     expect(packet).toContain('2. Mercury Pass 1');
-    expect(packet).toContain('3. Fable Review');
+    expect(packet).toContain('3. Astra Review');
     expect(packet).toContain('4. Mercury Recheck');
     expect(packet).toContain('5. Kimi Final Adjudication');
     expect(packet).toContain('6. Final Resolution');
@@ -859,13 +859,13 @@ describe('Mercury Fable consensus', () => {
 
     expect(packet).toContain('MODE: architecture');
     expect(packet).toContain('VERDICT: synthesis');
-    expect(packet).toContain('Fable Synthesis Review');
+    expect(packet).toContain('Astra Synthesis Review');
     expect(packet).toContain('architecture_synthesis_complete');
     expect(packet).not.toContain('Mercury Recheck');
     expect(packet).not.toContain('needs_more_evidence');
   });
 
-  test('runFableConsensus uses an injected client and does not require a real provider call', async () => {
+  test('runAstraConsensus uses an injected client and does not require a real provider call', async () => {
     const calls = [];
     const fakeClient = {
       maxTokens: 2000,
@@ -886,14 +886,14 @@ describe('Mercury Fable consensus', () => {
       }),
     };
 
-    const result = await runFableConsensus({
+    const result = await runAstraConsensus({
       query: 'Mercury, break my fix.',
       mercuryResult: {
         termination: 'answer_given',
         iterations: 1,
         answer: 'No concrete break found. core/Foo.js:1-2',
       },
-      createFableClient: jest.fn(() => fakeClient),
+      createAstraClient: jest.fn(() => fakeClient),
       persistRaw: jest.fn(() => ({ path: 'raw', sha256: 'abc', bytes: 9, mode: '0600' })),
       now: jest.fn()
         .mockReturnValueOnce(1000)
@@ -919,7 +919,7 @@ describe('Mercury Fable consensus', () => {
     expect(result.answer).toContain('VERDICT: pass');
     expect(result.attempts).toHaveLength(1);
     expect(result.attempts[0]).toMatchObject({
-      role: 'fable_challenger',
+      role: 'astra_challenger',
       requested_model: 'fable',
       applied_model: 'claude-fable-5',
       applied_models: ['claude-fable-5'],
@@ -930,53 +930,7 @@ describe('Mercury Fable consensus', () => {
     });
   });
 
-  test('Fable and allowlisted Opus receive identical evidence provenance with no model tools', async () => {
-    const evidence = evidenceFixture();
-    const query = `Audit this excerpt:\n${evidence.excerpt}`;
-    const prompts = [];
-    const fableError = new Error('Fable unavailable');
-    fableError.providerMetadata = trustedFableMetadata({
-      rawResponse: Buffer.from('fable unavailable'),
-      toolsAvailable: [],
-      providerFrames: [{ type: 'result', is_error: true, error: { type: 'model_unavailable' } }],
-    });
-    const result = await runFableConsensus({
-      query,
-      evidenceSources: [evidence],
-      mercuryResult: { termination: 'answer_given', iterations: 1, answer: 'No break found.' },
-      createFableClient: () => ({
-        providerName: 'claude-code', model: 'fable', maxTokens: 2000,
-        initialize: async () => {},
-        generateResponseWithMetadata: async (prompt) => {
-          prompts.push(prompt);
-          throw fableError;
-        },
-      }),
-      createOpusClient: () => ({
-        providerName: 'claude-code', model: 'opus', maxTokens: 2000,
-        initialize: async () => {},
-        generateResponseWithMetadata: async (prompt) => {
-          prompts.push(prompt);
-          return {
-            answer: 'VERDICT: pass\nCONSENSUS_BLOCKING: no\nDISAGREEMENT: none',
-            metadata: {
-              provider: 'claude-code', requestedModel: 'opus', appliedModel: 'claude-opus-4-1',
-              rawResponse: Buffer.from('opus'), toolsAvailable: [],
-            },
-          };
-        },
-      }),
-      persistRaw: () => ({ path: 'raw', sha256: 'abc', bytes: 5, mode: '0600' }),
-    });
-
-    expect(prompts).toHaveLength(2);
-    expect(prompts[0]).toBe(prompts[1]);
-    expect(result.attempts.map(attempt => attempt.tools.available)).toEqual([[], []]);
-    const evidenceReceipts = result.attempts.map(attempt => attempt.input_provenance.supplied_sources
-      .find(source => source.path === evidence.path));
-    expect(evidenceReceipts[0]).toEqual(evidenceReceipts[1]);
-    expect(evidenceReceipts[0]).toMatchObject(evidence);
-  });
+  // Retired Claude fallback contract; Astra no-fallback coverage is in mercury-astra-challenger.test.js.
 
   test('runKimiFinalConsensus uses an injected client and parses models_disagree', async () => {
     const fakeClient = {
@@ -1114,7 +1068,7 @@ describe('Mercury Fable consensus', () => {
     const recheckPrompt = buildMercuryRecheckPrompt({
       originalQuery: query,
       mercuryAnswer: 'Initial answer.',
-      fableAnswer: 'Critique.',
+      astraAnswer: 'Critique.',
       parsedReview: { recheckPrompt: 'Inspect the disputed claim.' },
       evidenceSources: [evidence],
     });
@@ -1168,18 +1122,18 @@ describe('Mercury Fable consensus', () => {
     const fableFactory = jest.fn();
     const opusFactory = jest.fn();
 
-    const result = await runFableConsensus({
+    const result = await runAstraConsensus({
       query,
       evidenceSources: [evidence],
       mercuryResult: { termination: 'answer_given', iterations: 1, answer: 'Initial answer.' },
-      createFableClient: fableFactory,
+      createAstraClient: fableFactory,
       createOpusClient: opusFactory,
     });
     expect(result).toMatchObject({
       ok: false,
       quarantines: [{
         unit: 'challenger',
-        name: 'fable_challenger',
+        name: 'astra_challenger',
         absence: 'challenger_input_provenance_absent',
         load_bearing: true,
       }],
@@ -1188,44 +1142,9 @@ describe('Mercury Fable consensus', () => {
     expect(opusFactory).not.toHaveBeenCalled();
   });
 
-  test('Fable falls back to Opus only on allowlisted machine-observable unavailability', async () => {
-    const fableError = new Error('Claude Code exited');
-    fableError.providerMetadata = trustedFableMetadata({
-      startedAt: '2026-08-27T00:00:00.000Z', finishedAt: '2026-08-27T00:00:00.010Z',
-      latencyMs: 10, termination: 'provider_error', parseStatus: 'parsed', rawResponse: Buffer.from('fable-raw'),
-      providerFrames: [{ type: 'result', is_error: true, error: { type: 'rate_limit_error' } }],
-    });
-    const failedFable = {
-      maxTokens: 2000,
-      initialize: jest.fn(async () => {}),
-      generateResponseWithMetadata: jest.fn(async () => { throw fableError; }),
-    };
-    const opus = {
-      maxTokens: 2000,
-      initialize: jest.fn(async () => {}),
-      generateResponseWithMetadata: jest.fn(async () => ({
-        answer: 'VERDICT: pass\nCONSENSUS_BLOCKING: no\nDISAGREEMENT: none',
-        metadata: {
-          provider: 'claude-code', requestedModel: 'opus', appliedModel: 'claude-opus-4-1',
-          startedAt: '2026-08-27T00:00:00.020Z', finishedAt: '2026-08-27T00:00:00.030Z',
-          latencyMs: 10, termination: 'success', parseStatus: 'parsed', rawResponse: Buffer.from('opus-raw'),
-        },
-      })),
-    };
-    const result = await runFableConsensus({
-      query: 'Mercury, break my fix.',
-      mercuryResult: { termination: 'answer_given', iterations: 1, answer: 'core/Foo.js:1' },
-      createFableClient: () => failedFable,
-      createOpusClient: () => opus,
-      persistRaw: () => ({ path: 'raw', sha256: 'abc', bytes: 8, mode: '0600' }),
-    });
-    expect(result.model).toBe('opus');
-    expect(result.appliedModel).toBe('claude-opus-4-1');
-    expect(result.attempts.map(attempt => attempt.role)).toEqual(['fable_challenger', 'opus_challenger']);
-    expect(result.attempts[0].fallback_classification).toMatchObject({ opusEligible: true, category: 'rate_limit_error' });
-  });
+  // Retired Claude fallback contract; Astra no-fallback coverage is in mercury-astra-challenger.test.js.
 
-  test('documented provider transition keeps the Fable seat at full authority without pipeline fallback', async () => {
+  test('documented provider transition keeps the Astra seat at full authority without pipeline fallback', async () => {
     const opusFactory = jest.fn();
     const transitions = [
       {
@@ -1239,10 +1158,10 @@ describe('Mercury Fable consensus', () => {
         trigger: 'refusal', direction: 'retry', scope: 'session',
       },
     ];
-    const result = await runFableConsensus({
+    const result = await runAstraConsensus({
       query: 'Mercury, break my fix.',
       mercuryResult: { termination: 'answer_given', iterations: 1, answer: 'core/Foo.js:1' },
-      createFableClient: () => ({
+      createAstraClient: () => ({
         providerName: 'claude-code', model: 'fable', maxTokens: 2000,
         initialize: async () => {},
         generateResponseWithMetadata: async () => ({
@@ -1272,7 +1191,7 @@ describe('Mercury Fable consensus', () => {
       identityPosture: { status: 'documented_transition', authority: 'full' },
       quarantines: [],
       stageReceipt: {
-        role: 'fable_challenger',
+        role: 'astra_challenger',
         retry_status: 'primary_attempt',
         applied_models: ['claude-fable-5', 'claude-opus-4-8'],
         verdict_models: ['claude-opus-4-8'],
@@ -1291,10 +1210,10 @@ describe('Mercury Fable consensus', () => {
 
   test('undocumented identity mismatch is stamped, screamed, capped UNVERIFIED, and continues', async () => {
     const opusFactory = jest.fn();
-    const result = await runFableConsensus({
+    const result = await runAstraConsensus({
       query: 'Mercury, break my fix.',
       mercuryResult: { termination: 'answer_given', iterations: 1, answer: 'core/Foo.js:1' },
-      createFableClient: () => ({
+      createAstraClient: () => ({
         providerName: 'claude-code', model: 'fable', maxTokens: 2000,
         initialize: async () => {},
         generateResponseWithMetadata: async () => ({
@@ -1320,7 +1239,7 @@ describe('Mercury Fable consensus', () => {
       ok: true,
       model: 'fable',
       identityPosture: { status: 'identity_conflict', authority: 'unverified' },
-      quarantines: [{ unit: 'identity', name: 'fable_challenger', absence: 'identity_conflict', load_bearing: true }],
+      quarantines: [{ unit: 'identity', name: 'astra_challenger', absence: 'identity_conflict', load_bearing: true }],
     });
     expect(opusFactory).not.toHaveBeenCalled();
     const screamFetch = jest.fn(async () => ({ ok: true, status: 200 }));
@@ -1350,10 +1269,10 @@ describe('Mercury Fable consensus', () => {
     };
     const opusFactory = jest.fn();
 
-    await expect(runFableConsensus({
+    await expect(runAstraConsensus({
       query: 'Mercury, break my fix.',
       mercuryResult: { termination: 'answer_given', iterations: 1, answer: 'core/Foo.js:1' },
-      createFableClient: () => ({
+      createAstraClient: () => ({
         maxTokens: 2000,
         initialize: async () => { throw trustError; },
       }),
@@ -1441,51 +1360,11 @@ describe('Mercury Fable consensus', () => {
     }
   });
 
-  test('both Fable and Opus unavailable quarantine with ordered attempts before Kimi', async () => {
-    const fableError = new Error('Fable unavailable');
-    fableError.providerMetadata = trustedFableMetadata({
-      rawResponse: Buffer.from('fable failure'),
-      providerFrames: [{ type: 'result', is_error: true, error: { type: 'model_unavailable' } }],
-    });
-    const opusError = new Error('Opus unavailable');
-    opusError.providerMetadata = {
-      provider: 'claude-code', requestedModel: 'opus', rawResponse: Buffer.from('opus failure'),
-      providerFrames: [{ type: 'result', error: { type: 'model_unavailable' } }],
-    };
-    const result = await runFableConsensus({
-        query: 'Mercury, break my fix.',
-        mercuryResult: { termination: 'answer_given', iterations: 1, answer: 'core/Foo.js:1' },
-        createFableClient: () => ({
-          providerName: 'claude-code', model: 'fable', maxTokens: 2000,
-          initialize: async () => {},
-          generateResponseWithMetadata: async () => { throw fableError; },
-        }),
-        createOpusClient: () => ({
-          providerName: 'claude-code', model: 'opus', maxTokens: 2000,
-          initialize: async () => {},
-          generateResponseWithMetadata: async () => { throw opusError; },
-        }),
-        persistRaw: () => ({ path: 'raw', sha256: 'abc', bytes: 12, mode: '0600' }),
-      });
-    expect(result.ok).toBe(false);
-    expect(result.attempts.map(attempt => attempt.role))
-      .toEqual(['fable_challenger', 'opus_challenger']);
-    expect(result.attempts.every(attempt => attempt.status === 'failed')).toBe(true);
-    expect(result.quarantines).toHaveLength(2);
-    expect(result.quarantines).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        unit: 'challenger',
-        name: 'opus_challenger',
-        absence: 'replacement_challenger_answer_absent',
-        load_bearing: true,
-      }),
-    ]));
-    expect(kimiTieBreakerRequired({ ok: false, parsed: { blocking: true } }, 'adversarial')).toBe(false);
-  });
+  // Retired Claude fallback contract; Astra no-fallback coverage is in mercury-astra-challenger.test.js.
 
   test('prompt-only stage stamps missing identity but still rejects exposed tools', async () => {
     const missingIdentity = await executePromptOnlyStage({
-      role: 'fable_challenger',
+      role: 'kimi_tie_breaker',
       prompt: 'review this',
       suppliedSources: [{ path: 'input://original-query', excerpt: 'review this' }],
       createClient: () => ({
@@ -1509,7 +1388,7 @@ describe('Mercury Fable consensus', () => {
     let caught;
     try {
       await executePromptOnlyStage({
-        role: 'fable_challenger',
+        role: 'kimi_tie_breaker',
         prompt: 'review this',
         suppliedSources: [{ path: 'input://original-query', excerpt: 'review this' }],
         createClient: () => ({
@@ -1542,7 +1421,7 @@ describe('Mercury Fable consensus', () => {
     });
   });
 
-  test('ordinary ambiguous Fable failure quarantines without Opus', async () => {
+  test('ordinary ambiguous Astra failure quarantines without Opus', async () => {
     for (const error of [
       new Error('authentication failed'),
       new Error('malformed response'),
@@ -1554,10 +1433,10 @@ describe('Mercury Fable consensus', () => {
     const authError = new Error('authentication failed');
     authError.providerMetadata = { rawResponse: Buffer.alloc(0), providerFrames: [] };
     const opusFactory = jest.fn();
-    const result = await runFableConsensus({
+    const result = await runAstraConsensus({
       query: 'Mercury, break my fix.',
       mercuryResult: { termination: 'answer_given', iterations: 1, answer: 'core/Foo.js:1' },
-      createFableClient: () => ({
+      createAstraClient: () => ({
         maxTokens: 2000,
         initialize: async () => {},
         generateResponseWithMetadata: async () => { throw authError; },
@@ -1569,7 +1448,7 @@ describe('Mercury Fable consensus', () => {
       ok: false,
       quarantines: [{
         unit: 'challenger',
-        name: 'fable_challenger',
+        name: 'astra_challenger',
         absence: 'challenger_answer_absent',
         load_bearing: true,
       }],
@@ -1582,7 +1461,7 @@ describe('Mercury Fable consensus', () => {
     let caught;
     try {
       await executePromptOnlyStage({
-        role: 'fable_challenger',
+        role: 'astra_challenger',
         prompt: 'review this',
         createClient: () => ({
           providerName: 'claude-code', model: 'fable',
@@ -1602,10 +1481,10 @@ describe('Mercury Fable consensus', () => {
 
   test('raw receipt persistence failure quarantines without Opus', async () => {
     const opusFactory = jest.fn();
-    const result = await runFableConsensus({
+    const result = await runAstraConsensus({
       query: 'Mercury, break my fix.',
       mercuryResult: { termination: 'answer_given', iterations: 1, answer: 'core/Foo.js:1' },
-      createFableClient: () => ({
+      createAstraClient: () => ({
         providerName: 'claude-code', model: 'fable', maxTokens: 2000,
         initialize: async () => {},
         generateResponseWithMetadata: async () => ({
@@ -1629,7 +1508,7 @@ describe('Mercury Fable consensus', () => {
   test('review quarantine emits max-priority ntfy and names missing notification configuration', async () => {
     const quarantine = reviewQuarantine({
       unit: 'challenger',
-      name: 'fable_challenger',
+      name: 'astra_challenger',
       absence: 'challenger_answer_absent',
       error: new Error('forced challenger failure'),
     });
@@ -1706,8 +1585,8 @@ describe('Mercury Fable consensus', () => {
       enabled: true,
       mode: 'adversarial_review',
       ok: false,
-      provider: 'claude-code',
-      model: 'fable',
+      provider: 'codex-subscription',
+      model: 'gpt-6-astra',
       error: {
         name: 'Error',
         message: 'quota exceeded',

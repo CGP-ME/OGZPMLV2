@@ -582,6 +582,7 @@ function parsedReviewClassification(parsed) {
     'nextCheck',
     'sharedConclusion',
     'mercurySupported',
+    'astraSupported',
     'fableSupported',
     'kimiSupported',
     'citedReasoning',
@@ -731,7 +732,7 @@ function providerAttemptGroups(result) {
   const groups = [{ id: 'mercury', attempts: Array.isArray(result.providerAttempts) ? result.providerAttempts : [] }];
   const review = result.adversarialReview || result.consensus;
   if (review) {
-    groups.push({ id: 'fable', attempts: Array.isArray(review.attempts) ? review.attempts : [] });
+    groups.push({ id: review.provider === 'codex-subscription' ? 'astra' : 'fable', attempts: Array.isArray(review.attempts) ? review.attempts : [] });
     const rechecks = Array.isArray(review.rechecks) ? review.rechecks : (review.recheck ? [review.recheck] : []);
     rechecks.forEach((recheck, index) => groups.push({
       id: `mercury_recheck_${index + 1}`,
@@ -764,7 +765,7 @@ function panelSeatLedger(panel, result) {
     seats: (panel.seats || []).map((seat) => {
       let attempts = Array.isArray(seat.providerAttempts) ? seat.providerAttempts : [];
       if (seat.id === 'mercury') attempts = Array.isArray(result && result.providerAttempts) ? result.providerAttempts : attempts;
-      if (seat.id === 'fable' && review) {
+      if (['astra', 'fable'].includes(seat.id) && review) {
         attempts = seat.evaluationSource === 'mercury_recheck' && review.recheck
           ? (review.recheck.providerAttempts || [])
           : (review.attempts || []);

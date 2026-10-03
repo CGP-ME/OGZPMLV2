@@ -1,0 +1,69 @@
+Attack the final Astra receipt-parser correction at immutable tree a9808f2f6216788eb0dcb67ae5a4791aeba6e2c1, base e9faed6357b999774e3bfaae85ac43eff18c9262. Read codex-challenger.js and the actual preflight/stage consumers in the selected source snapshot. The prior reviewer found that null/non-object parsed frames or malformed namespace catalogs could throw before attaching raw tapes. The correction records explicit parse errors while retaining the complete raw tapes and actual answer. Find a concrete remaining reachable evidence-loss mechanism introduced by this change, or state no break found with examined scope and limits. Distinguish existing behavior from introduced behavior. Do not add response gates or interpret a parse diagnostic as a code failure.
+
+Trey explicitly ruled executable trust must be recorded while dispatch continues; this is no longer an unresolved policy allegation. The false-ready finding was fixed by deriving result.ok and receipt status from the same error/incomplete termination classification. Mercury's original allegation that Astra calls the old Claude alias matcher was withdrawn by its same-source recheck. An incomplete subsequent Astra review identified the parser issue above but issued no final verdict. Verify source, not those summaries. Use read-only evidence tools, do not execute tests, mutate files, invoke another provider or alter runtime state.
+
+Focused host tests on working source (not independent approval):
+
+Test Suites: 3 passed, 3 total
+Tests:       57 passed, 57 total
+Snapshots:   0 total
+Time:        1.797 s, estimated 2 s
+Ran all test suites matching test/mercury-provider-preflight.test.js|test/mercury-astra-challenger.test.js|test/mercury-llm-config-contract.test.js.
+
+
+Latest correction: malformed completion response fields now produce invalid_provider_completion diagnostics and null verdict-model entries, preserve answer/tapes, and cannot claim verified identity by an empty observations array. Tool namespaces are traversed iteratively to avoid recursive stack exhaustion. The doctrine prompt now states Trey's explicit Astra executable-trust ruling; canonical doctrine files and financial protections are unchanged.
+
+Complete prior independent parser finding and its rejection of Mercury's structured-array allegation:
+**Found one remaining evidence-loss path:** an object-shaped completion event with a missing or null `response` throws before raw tapes are attached.
+
+Verified the six inspected parser/consumer files match tree `7072895a8cac96ca9fd0f9d1ad6ab56356fe8117` byte for byte. Citations below refer to that snapshot under `trai_brain/mercury-bridge/`.
+
+A concrete input sequence is:
+
+```text
+stdout:
+{"type":"item.completed","item":{"type":"agent_message","text":"Actual review answer"}}
+{"type":"turn.completed"}
+
+stderr:
+SSE event: {"type":"response.completed","response":null}
+```
+
+The source establishes this path:
+
+1. `codex-challenger.js:48-56` accepts the SSE object and includes it in `completed`. The observations filter skips its null `response`.
+2. `codex-challenger.js:89-92` successfully extracts the actual answer.
+3. **`codex-challenger.js:148` dereferences `event.response.model`**, throwing a `TypeError`. This occurs before raw buffers are attached at line 160 or the answer is returned at line 168. No surrounding catch attaches `providerMetadata`.
+4. Preflight’s catch therefore constructs fallback metadata without tapes (`provider-preflight.js:206-217`). Its persistence helper writes an empty stdout buffer and omits stderr (`provider-preflight.js:143-161`).
+5. The stage consumer likewise falls back to metadata without tapes and persists empty stdout/no stderr (`adversarial-review.js:1146-1163`). The outer review returns a failure receipt without the captured answer (`adversarial-review.js:1235-1244,1350-1379`).
+
+This produces an explicit failure, **but loses the captured answer and both tapes from the receipt path**. The finding is the lost evidence, not the existence of a parse diagnostic.
+
+**Introduced versus existing:** `codex-challenger.js` is newly added relative to base `3afde60ce654ec191a6a73413bb5ab5cf8acf6d1`; its unguarded completion dereference introduces this producer path. The consumers’ fallback behavior already existed. This is a residual hole in the corrected adapter, not evidence that the new top-level frame guards themselves caused a regression.
+
+**Mercury’s stated mechanism is unsupported.** Excluding malformed values from structured arrays does not discard their raw tapes: the normal path attaches both buffers and consumers persist them. Moreover, `classifyFableFallbackError` requires Claude/Fable provenance (`adversarial-review.js:904-917,996-1007`), and the actual Astra dispatch does not call it (`adversarial-review.js:1220-1242`).
+
+Coverage: static inspection of parsing, metadata construction, preflight, stage receipt persistence, identity/fallback routing, and relevant base differences. No tests, provider calls, mutations, or runtime changes. The malformed completion is a concrete source-level input counterexample; I did not establish that the live provider has emitted it.
+
+Adjudicate the concrete missing-response counterexample after the fix. Also explicitly retain or withdraw the claimed active Astra consumer via classifyFableFallbackError using actual callers. Preserving malformed content in raw receipts rather than parsed arrays is explicitly authorized; an actual loss requires an identified lost byte/answer or reachable wrong consumer, not a preference for duplicated storage.
+
+Mercury response, as testimony to independently check:
+**Answer**
+
+No new evidence‑loss mechanism was introduced by the Astra receipt‑parser correction.  
+The current implementation safely handles malformed or missing `response` objects, never throws before the raw tapes are attached, and always records the raw `stdout`/`stderr` buffers when a response is successfully obtained.
+
+**Why the change does not create a loss**
+
+| Aspect | Evidence |
+|--------|----------|
+| **Parsing of SSE events** – `parseCodexTapes` checks for a missing or non‑object `response` and records a parse error instead of dereferencing it. | `codex‑challenger.js` lines 48‑59: `if (!event.response || typeof event.response.model !== 'string') parseErrors.push('invalid_provider_completion');`【search†L1-L1】 |
+| **No unsafe dereference** – All accesses to `event.response.model` use optional chaining (`event.response?.model`) or are guarded by the above check, so a `TypeError` cannot be thrown. | `codex‑challenger.js` line 157: `verdictModels: parsed.completed.map(event => event.response?.model ?? null),`【open_file†L166-L168】 |
+| **Raw tapes are always attached on success** – `generateResponseWithMetadata` stores the raw `stdout` and `stderr` in `metadata.rawResponse` / `metadata.rawError`. | `codex‑challenger.js` line 169‑170: `rawResponse: Buffer.from(result.stdout || ''), rawError: Buffer.from(result.stderr || ''),`【open_file†L166-L170】 |
+| **Receipt construction includes those raw buffers** – `attemptReceipt` writes `raw_output` and `raw_error` from the values returned by `persistAttemptRaw`. | `provider‑preflight.js` line 123‑124: `raw_output: rawOutput, raw_error: rawError,`【open_file†L119-L124】 |
+| **Persisting raw buffers** – `persistAttemptRaw` writes the buffers (or an empty buffer if none are present) to disk. | `provider‑preflight.js` line 150‑151: `bytes: metadata.rawResponse || Buffer.alloc(0),`【open_file†L145-L151】 |
+| **Error path does not lose tapes beyond the original behaviour** – If an exception occurs before `metadata.rawResponse` is set, the same fallback (empty buffers) is used as before; this is not a new regression. | `provider‑preflight.js` catch block (lines 206‑218) creates a minimal `metadata` without `rawResponse` and then calls `persistAttemptRaw`, which writes an empty buffer (see above). No new code was added that would drop tapes that were previously recorded. |
+
+**Conclusion**
+
+The parser now records explicit parse errors (`parseErrors`) while still preserving the raw response and error streams. No code path introduced by the correction throws before those raw tapes are attached, and the receipt‑building logic already accounts for the possibility of missing tapes in error cases. Therefore, **no concrete reachable evidence‑loss mechanism was introduced** by this change.

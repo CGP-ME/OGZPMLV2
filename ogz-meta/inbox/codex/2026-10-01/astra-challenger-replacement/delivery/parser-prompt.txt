@@ -1,0 +1,11 @@
+Attack the final Astra receipt-parser correction at immutable tree 7072895a8cac96ca9fd0f9d1ad6ab56356fe8117, base 3afde60ce654ec191a6a73413bb5ab5cf8acf6d1. Read codex-challenger.js and the actual preflight/stage consumers in the selected source snapshot. The prior reviewer found that null/non-object parsed frames or malformed namespace catalogs could throw before attaching raw tapes. The correction records explicit parse errors while retaining the complete raw tapes and actual answer. Find a concrete remaining reachable evidence-loss mechanism introduced by this change, or state no break found with examined scope and limits. Distinguish existing behavior from introduced behavior. Do not add response gates or interpret a parse diagnostic as a code failure.
+
+Trey explicitly ruled executable trust must be recorded while dispatch continues; this is no longer an unresolved policy allegation. The false-ready finding was fixed by deriving result.ok and receipt status from the same error/incomplete termination classification. Mercury's original allegation that Astra calls the old Claude alias matcher was withdrawn by its same-source recheck. An incomplete subsequent Astra review identified the parser issue above but issued no final verdict. Verify source, not those summaries. Use read-only evidence tools, do not execute tests, mutate files, invoke another provider or alter runtime state.
+
+Focused host tests on working source (not independent approval):
+
+Test Suites: 3 passed, 3 total
+Tests:       51 passed, 51 total
+Snapshots:   0 total
+Time:        1.618 s, estimated 2 s
+Ran all test suites matching test/mercury-provider-preflight.test.js|test/mercury-astra-challenger.test.js|test/mercury-llm-config-contract.test.js.

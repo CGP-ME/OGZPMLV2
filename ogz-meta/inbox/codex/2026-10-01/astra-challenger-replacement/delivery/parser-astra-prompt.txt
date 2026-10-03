@@ -1,0 +1,41 @@
+Attack the final Astra receipt-parser correction at immutable tree 7072895a8cac96ca9fd0f9d1ad6ab56356fe8117, base 3afde60ce654ec191a6a73413bb5ab5cf8acf6d1. Read codex-challenger.js and the actual preflight/stage consumers in the selected source snapshot. The prior reviewer found that null/non-object parsed frames or malformed namespace catalogs could throw before attaching raw tapes. The correction records explicit parse errors while retaining the complete raw tapes and actual answer. Find a concrete remaining reachable evidence-loss mechanism introduced by this change, or state no break found with examined scope and limits. Distinguish existing behavior from introduced behavior. Do not add response gates or interpret a parse diagnostic as a code failure.
+
+Trey explicitly ruled executable trust must be recorded while dispatch continues; this is no longer an unresolved policy allegation. The false-ready finding was fixed by deriving result.ok and receipt status from the same error/incomplete termination classification. Mercury's original allegation that Astra calls the old Claude alias matcher was withdrawn by its same-source recheck. An incomplete subsequent Astra review identified the parser issue above but issued no final verdict. Verify source, not those summaries. Use read-only evidence tools, do not execute tests, mutate files, invoke another provider or alter runtime state.
+
+Focused host tests on working source (not independent approval):
+
+Test Suites: 3 passed, 3 total
+Tests:       51 passed, 51 total
+Snapshots:   0 total
+Time:        1.618 s, estimated 2 s
+Ran all test suites matching test/mercury-provider-preflight.test.js|test/mercury-astra-challenger.test.js|test/mercury-llm-config-contract.test.js.
+
+
+Mercury response, as testimony to independently check:
+**Answer**
+
+The only remaining, reachable evidence‑loss mechanism introduced by the new `codex‑challenger` change is the **discarding of non‑object frames and SSE events during parsing**.  
+
+* `parseCodexTapes` reads the stdout stream line‑by‑line, JSON‑parses each line and **only pushes the result into `frames` when it is a plain object** (`if (frame && typeof frame === 'object' && !Array.isArray(frame)) frames.push(frame)`). All other lines are recorded as parse errors (`parseErrors.push('invalid_exec_frame')` or `'invalid_exec_jsonl'`) and the raw line is **not kept in any structured field**【open_file†L31-L40】.  
+
+* The same logic is applied to the stderr SSE stream: only objects are stored in `events`; everything else becomes a parse error (`parseErrors.push('invalid_provider_event')` or `'invalid_provider_sse'`) and is not retained in a structured list【open_file†L42-L51】.  
+
+* After parsing, the client stores **only the parsed events** in `metadata.providerFrames` (`providerFrames: parsed.events`) and the raw stdout/stderr buffers in `metadata.rawResponse` / `metadata.rawError`【open_file†L160-L161】.  
+
+Consequences  
+
+* Down‑stream code that relies on `metadata.providerFrames` (e.g., `classifyFableFallbackError` in `adversarial-review.js`) sees **only the successfully parsed events**. Any non‑object event that was dropped is invisible to those consumers, even though the raw text is still present in `rawResponse`.  
+
+* The loss is **reachable** because the `providerFrames` field is the canonical source for identity‑posture and tool‑call analysis; missing events can change the outcome of those analyses without any further warning beyond the generic `parseErrors` list.  
+
+Thus, while the change records explicit parse errors and preserves the raw tapes, it still **silently discards the content of malformed frames/events from the structured `providerFrames` view**, which constitutes an evidence‑loss path for any consumer that does not inspect the raw buffers.
+
+---
+
+**Self‑report footer**
+
+- **WHAT I DID:** Opened `codex‑challenger.js`, examined `parseCodexTapes` and the metadata construction, and traced the usage of `providerFrames` in downstream code.  
+- **WHAT I DID NOT DO:** Execute any runtime code, modify files, or search beyond the relevant parsing and metadata sections.  
+- **WHAT I ASSUMED:** The repository state at commit `7072895a8cac96ca9fd0f9d1ad6ab56356fe8117` is the current source; no hidden or generated files alter the parsing logic.  
+- **WHY THIS VERDICT:** The parsing functions explicitly drop non‑object frames/events (citations) and the downstream consumers rely on `metadata.providerFrames` (implicit via `classifyFableFallbackError`). This creates a concrete, reachable evidence‑loss mechanism.  
+- **IF INCOMPLETE, WHY:** Not applicable – the evidence is directly observable in the source.

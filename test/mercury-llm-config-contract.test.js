@@ -19,7 +19,7 @@ const trustedClaudeExecutable = Object.freeze({
 });
 
 function withTrustedExecutable(options) {
-  return { ...options, resolveExecutable: () => ({ ...trustedClaudeExecutable }) };
+  return { ...options, provider: 'claude-code', permissionMode: 'dontAsk', resolveExecutable: () => ({ ...trustedClaudeExecutable }) };
 }
 
 function mergeConfig(base, overrides = {}) {
@@ -63,9 +63,9 @@ describe('Mercury LLM config contract', () => {
       expect(config).toMatchObject({
         MERCURY_LLM_PROVIDER: 'mercury',
         MERCURY_LLM_MODEL: 'mercury-2',
-        CONSENSUS_PROVIDER: 'claude-code',
-        CONSENSUS_MODEL: 'fable',
-        CONSENSUS_EMERGENCY_MODEL: 'opus',
+        CONSENSUS_PROVIDER: 'codex-subscription',
+        CONSENSUS_MODEL: 'gpt-6-astra',
+        CONSENSUS_EMERGENCY_MODEL: null,
         CONSENSUS_API_KEY_ENV: null,
         TIE_BREAKER_PROVIDER: 'openai',
         TIE_BREAKER_MODEL: 'kimi-k3',
@@ -124,16 +124,16 @@ describe('Mercury LLM config contract', () => {
         resolveKimiTieBreakerClientOptions,
       } = require('../trai_brain/mercury-bridge/llm-client');
       expect(resolveConsensusLlmClientOptions()).toMatchObject({
-        provider: 'claude-code', model: 'fable', apiKey: '', authRequired: false,
+        provider: 'codex-subscription', model: 'gpt-6-astra', apiKey: '', authRequired: false,
       });
       expect(resolveConsensusLlmClientOptions({ model: 'opus' })).toMatchObject({
-        provider: 'claude-code', model: 'opus', apiKey: '', authRequired: false,
+        provider: 'codex-subscription', model: 'opus', apiKey: '', authRequired: false,
       });
       expect(resolveKimiTieBreakerClientOptions()).toMatchObject({
-        provider: 'openai', model: 'kimi-k3', apiKey: 'moonshot-test-key', authRequired: true,
+        provider: 'openai', model: 'kimi-k3', apiKey: 'test-moonshot-key', authRequired: true,
         maxTokens: 4096, requestTimeoutMs: 600000,
       });
-    }, { MOONSHOT_API_KEY: 'moonshot-test-key' });
+    }, { MOONSHOT_API_KEY: 'test-moonshot-key' });
   });
 
   test('resolves direct providers independently from adversarial role prompts', async () => {
@@ -148,28 +148,28 @@ describe('Mercury LLM config contract', () => {
       expect(resolveDirectModelClientOptions('kimi')).toMatchObject({
         logicalProvider: 'kimi', provider: config.TIE_BREAKER_PROVIDER,
         baseUrl: config.TIE_BREAKER_BASE_URL, model: config.TIE_BREAKER_MODEL,
-        apiKey: 'moonshot-test-key', skipWarmup: true, temperature: 1,
+        apiKey: 'test-moonshot-key', skipWarmup: true, temperature: 1,
       });
       expect(config.resolveDirectQuestionProvider('kimi')).toMatchObject({
         decisionSteerIteration: 200,
       });
       expect(resolveDirectModelClientOptions('deepseek')).toMatchObject({
         logicalProvider: 'deepseek', provider: 'openai', baseUrl: 'https://api.deepseek.com',
-        model: 'deepseek-v4-pro', apiKey: 'deepseek-test-key', temperature: 0.6,
+        model: 'deepseek-v4-pro', apiKey: 'test-deepseek-key', temperature: 0.6,
         openaiExtraBody: { thinking: { type: 'enabled' }, reasoning_effort: 'high' },
       });
       expect(resolveDirectModelClientOptions('glm')).toMatchObject({
         logicalProvider: 'glm', provider: 'openai', baseUrl: 'https://api.z.ai/api/coding/paas/v4',
-        model: 'glm-5.3', apiKey: 'zai-test-key', temperature: 0.6,
+        model: 'glm-5.3', apiKey: 'test-zai-key', temperature: 0.6,
         openaiExtraBody: { thinking: { type: 'enabled' }, reasoning_effort: 'max' },
       });
       expect(resolveDirectModelClientOptions('glm').systemPrompt).not.toMatch(/Fable|Mercury/i);
       expect(resolveKimiTieBreakerClientOptions().systemPrompt).toBe(config.CONSENSUS_SYSTEM_PROMPT);
       expect(resolveDirectModelClientOptions('kimi').systemPrompt).not.toBe(config.CONSENSUS_SYSTEM_PROMPT);
     }, {
-      MOONSHOT_API_KEY: 'moonshot-test-key',
-      DEEPSEEK_API_KEY: 'deepseek-test-key',
-      ZAI_API_KEY: 'zai-test-key',
+      MOONSHOT_API_KEY: 'test-moonshot-key',
+      DEEPSEEK_API_KEY: 'test-deepseek-key',
+      ZAI_API_KEY: 'test-zai-key',
     });
   });
 
@@ -180,7 +180,7 @@ describe('Mercury LLM config contract', () => {
       expect(() => resolveDirectModelClientOptions('deepseek'))
         .toThrow(/DEEPSEEK_API_KEY/);
     }, {
-      MOONSHOT_API_KEY: 'moonshot-test-key',
+      MOONSHOT_API_KEY: 'test-moonshot-key',
       DEEPSEEK_API_KEY: undefined,
       ZAI_API_KEY: undefined,
     });
@@ -189,14 +189,14 @@ describe('Mercury LLM config contract', () => {
   test('rejects lower Claude tiers, generic selectors, Kimi challenger, and arbitrary fallback lists', async () => {
     for (const model of ['sonnet', 'haiku', 'default', 'best', 'opusplan', 'kimi-k3']) {
       await withMercuryConfig({ consensus: { model } }, () => {
-        expect(() => require('../trai_brain/mercury-bridge/config')).toThrow(/stable fable alias/);
+        expect(() => require('../trai_brain/mercury-bridge/config')).toThrow(/must be gpt-6-astra/);
       });
     }
     await withMercuryConfig({ consensus: { provider: 'openai' } }, () => {
-      expect(() => require('../trai_brain/mercury-bridge/config')).toThrow(/must be claude-code/);
+      expect(() => require('../trai_brain/mercury-bridge/config')).toThrow(/must be codex-subscription/);
     });
     await withMercuryConfig({ consensus: { emergencyModel: 'sonnet' } }, () => {
-      expect(() => require('../trai_brain/mercury-bridge/config')).toThrow(/stable opus alias/);
+      expect(() => require('../trai_brain/mercury-bridge/config')).toThrow(/must be empty/);
     });
     await withMercuryConfig({ consensus: { emergencyModel: ['opus', 'sonnet'] } }, () => {
       expect(() => require('../trai_brain/mercury-bridge/config')).toThrow(/consensus\.emergencyModel/);
@@ -205,10 +205,10 @@ describe('Mercury LLM config contract', () => {
 
   test('rejects challenger API and gateway routing overrides in config', async () => {
     await withMercuryConfig({ consensus: { apiKeyEnv: 'ANTHROPIC_API_KEY' } }, () => {
-      expect(() => require('../trai_brain/mercury-bridge/config')).toThrow(/first-party Claude Code subscription routing/);
+      expect(() => require('../trai_brain/mercury-bridge/config')).toThrow(/first-party Codex subscription routing/);
     });
     await withMercuryConfig({ consensus: { baseUrl: 'https://gateway.example/v1' } }, () => {
-      expect(() => require('../trai_brain/mercury-bridge/config')).toThrow(/first-party Claude Code subscription routing/);
+      expect(() => require('../trai_brain/mercury-bridge/config')).toThrow(/first-party Codex subscription routing/);
     });
     await withMercuryConfig({ consensus: { command: '/opt/not-claude/custom-reviewer' } }, () => {
       expect(() => require('../trai_brain/mercury-bridge/config')).toThrow(/consensus\.command is not configurable/);
@@ -430,7 +430,7 @@ describe('Mercury LLM config contract', () => {
         .mockResolvedValueOnce({ stdout: Buffer.from('2.1.236 (Claude Code)'), stderr: Buffer.alloc(0) })
         .mockResolvedValueOnce({ stdout: authStatus, stderr: Buffer.alloc(0) })
         .mockResolvedValueOnce({ stdout: spoofedModel, stderr: Buffer.alloc(0) });
-      const client = new ClaudeCodeConsensusClient(withTrustedExecutable(resolveConsensusLlmClientOptions({ execFileAsync })));
+      const client = new ClaudeCodeConsensusClient(withTrustedExecutable(resolveConsensusLlmClientOptions({ model: 'fable', execFileAsync })));
       await expect(client.generateResponseWithMetadata('preflight'))
         .resolves.toMatchObject({
           answer: 'PROVIDER_OK',
@@ -455,7 +455,7 @@ describe('Mercury LLM config contract', () => {
         .mockResolvedValueOnce({ stdout: authStatus, stderr: Buffer.alloc(0) })
         .mockResolvedValueOnce({ stdout: conflictingModels, stderr: Buffer.alloc(0) });
       const conflictingClient = new ClaudeCodeConsensusClient(withTrustedExecutable(resolveConsensusLlmClientOptions({
-        execFileAsync: conflictingExec,
+        model: 'fable', execFileAsync: conflictingExec,
       })));
       await expect(conflictingClient.generateResponseWithMetadata('preflight')).resolves.toMatchObject({
         answer: 'PROVIDER_OK',
@@ -504,7 +504,7 @@ describe('Mercury LLM config contract', () => {
         .mockResolvedValueOnce({ stdout: Buffer.from('2.1.236 (Claude Code)'), stderr: Buffer.alloc(0) })
         .mockResolvedValueOnce({ stdout: authStatus, stderr: Buffer.alloc(0) })
         .mockResolvedValueOnce({ stdout: transitioned, stderr: Buffer.alloc(0) });
-      const client = new ClaudeCodeConsensusClient(withTrustedExecutable(resolveConsensusLlmClientOptions({ execFileAsync })));
+      const client = new ClaudeCodeConsensusClient(withTrustedExecutable(resolveConsensusLlmClientOptions({ model: 'fable', execFileAsync })));
 
       await expect(client.generateResponseWithMetadata('preflight')).resolves.toMatchObject({
         answer: 'PROVIDER_OK',

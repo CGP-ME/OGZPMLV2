@@ -1,0 +1,137 @@
+Independently attack the final correction at immutable tree df34112529a6e1db26a79312ca2e3402ccb14334, base 3afde60ce654ec191a6a73413bb5ab5cf8acf6d1. Follow up your two previous findings and check the actual corrected producer/consumer paths. Read-only tools are available in the selected snapshot. Do not call other models, modify files or change runtime state.
+
+Trey explicitly ruled on executable trust: "Record in receipt and continue"; "nothing shuts the stuff down it gets written down and keeps moving unless its fatal to someones money". Therefore trust recording without launch refusal is authorized here; no new throws, response gates or financial-protection changes. The readiness producer now derives both result.ok and attempt status from the same termination. Answer/error tapes remain preserved.
+
+Host correction to Mercury's newest prose: package/version trust mismatch is recorded, not an invocation failure. The preflight receipt has selected metadata plus raw tape pointers, NOT an inline answer field or the entire metadata object. Raw tapes hold the answer. Verify this actual storage path; do not echo Mercury's inaccurate wording as proof. Its prior alias-matcher allegation was withdrawn in the earlier recheck.
+
+Your complete previous review:
+VERDICT: found_break
+
+CONSENSUS_BLOCKING: yes
+
+RATIONALE:
+Mercury’s alleged alias-matcher defect is contradicted by the actual caller chain. Two different defects are supported by selected-source inspection:
+
+1. **Executable trust no longer prevents dispatch.** `trai_brain/mercury-bridge/codex-challenger.js:89` computes `trusted: false` for a package/version mismatch, but line 96 still marks initialization complete and line 119 sends the review prompt to that executable. The former client checked ownership, writable paths and executable provenance before dispatch (`trai_brain/mercury-bridge/llm-client.js:96`, `:118`, `:498`). The existing hard-boundary handler consumes errors carrying failed trust metadata (`trai_brain/mercury-bridge/adversarial-review.js:30`); the new client merely returns that metadata. This weakens the expressly preserved executable boundary. No compromised installation is alleged.
+
+2. **Transport failure can be reported as provider readiness.** The new client returns `termination: 'error'` after an invocation error (`trai_brain/mercury-bridge/codex-challenger.js:122`, `:145`). `trai_brain/mercury-bridge/provider-preflight.js:191` nevertheless sets `ok: true`, while line 201 correctly marks the attempt failed. Lines 248–250 convert that contradictory result into challenger readiness and overall success when Mercury succeeds. The CLI consumes that success at `trai_brain/mercury-bridge/ask.js:1845`; the ledger labels it `provider_preflight_pass` at `trai_brain/mercury-bridge/run-ledger.js:1172`. This is a producer/consumer mismatch, not a reason to suppress answers or add response-validation throws.
+
+DISAGREEMENT:
+Mercury assumes Astra passes `"astra"` into `claudeAppliedModelMatchesAlias`. The configured model is `gpt-6-astra`, and the factory constructs `CodexChallengerClient` (`trai_brain/mercury-bridge/llm-client.js:735`, `:842`). Its metadata supplies its own identity posture (`trai_brain/mercury-bridge/codex-challenger.js:128`). `stampedIdentityPosture` returns that posture directly; its alias-matcher branch explicitly requires `provider === 'claude-code'` (`trai_brain/mercury-bridge/adversarial-review.js:920`, `:938`). Mercury’s stated preflight consequence is therefore refuted. Its “all critical evidence examined” claim is also unsupported.
+
+REQUIRED_RECHECK:
+Reconcile the actual Astra caller chain and independently adjudicate the executable-trust and preflight-readiness consequences cited above. Keep these as separate allegations from Mercury’s original claim.
+
+RECHECK_PROMPT:
+At immutable tree cba73b4dd836d0f50c4773cdf00fe2fc34cc9dc3 versus 4c22efe839a5a408b46840352943def280412784, recheck your original claim that the Fable/Opus alias matcher breaks Astra preflight. Trace llm-client.js:735–757 and :842–845 through codex-challenger.js and adversarial-review.js:920–953; retain or retract the exact original allegation. Separately adjudicate whether codex-challenger.js:82–119 dispatches despite failed executable trust, and whether its returned transport error at :122–145 becomes successful readiness through provider-preflight.js:179–203 and :248–250, ask.js:1842–1846, and run-ledger.js:1172. Enumerate the complete changed-path inventory before ruling. Preserve answers, failure receipts, model identity and tool evidence; do not propose response fail-closed gates, Claude fallback or bot gates. Cite producer-to-consumer consequences and distinguish inherited code from newly reachable behavior.
+
+NEXT_CHECK:
+Host-attested, isolated fixture proofs for package/version trust failure and a returned Astra timeout with Mercury success. Assert dispatch behavior, failed attempt retention, readiness, ledger classification and CLI outcome. No provider call or runtime activation is needed for those proofs.
+
+CANDIDATE SET:
+Examined 16 of 16 changed paths at inventory/search level; this is **not** 16 whole-file reviews:
+
+- `mercury.config.json` — configuration excerpt and identity verification.
+- `trai_brain/mercury-bridge/adversarial-review.js` — complete diff and selected caller/receipt ranges.
+- `trai_brain/mercury-bridge/ask.js` — selected dispatch, metadata and CLI ranges; supplied diff excerpts.
+- `trai_brain/mercury-bridge/codex-challenger.js` — complete source.
+- `trai_brain/mercury-bridge/config.js` — complete diff and configuration excerpts.
+- `trai_brain/mercury-bridge/consensus.js` — complete diff.
+- `trai_brain/mercury-bridge/doctrine-review.js` — complete diff.
+- `trai_brain/mercury-bridge/llm-client.js` — complete diff and selected legacy/new-client ranges.
+- `trai_brain/mercury-bridge/provider-preflight.js` — complete source.
+- `trai_brain/mercury-bridge/reviewer-panel.js` — complete source and diff.
+- `trai_brain/mercury-bridge/run-ledger.js` — complete diff and selected consumers.
+- `test/mercury-astra-challenger.test.js` — complete selected-tree blob.
+- `test/mercury-consensus.test.js` — partial diff and lexical scan.
+- `test/mercury-llm-config-contract.test.js` — lexical scan; diff delivery incomplete.
+- `test/mercury-provider-preflight.test.js` — partial diff and lexical scan.
+- `test/mercury-reviewer-panel.test.js` — delivered diff and lexical scan.
+
+Additional candidates: historical Fable compatibility, Mercury/Kimi routing, raw-tape preservation, tool telemetry, model identity, executable trust, transport/readiness reporting, relevant `CHANGELOG.md` matches and older history. Historical replay and exhaustive history remain unresolved. The host’s 11-path inventory omitted five changed test paths.
+
+AST EVIDENCE:
+No AST tool was used, and no actual AST scan result was supplied. Mercury mislabeled textual diff/search evidence as AST evidence. My inspection used Git object reads, blob hashes, ripgrep and numbered source excerpts. All 11 materialized changed production/configuration files matched the selected tree’s blob identities. Host delivery accounting does not establish my whole-file coverage or Mercury’s reasoning coverage.
+
+INHERITED:
+The following records distinguish lexical presence from proven violations; unexamined semantics remain unresolved:
+
+- `mercury.config.json`: no literal `|| 0`, catch or bypass-env matches; silent-default behavior requires consumer analysis.
+- `trai_brain/mercury-bridge/adversarial-review.js`: no literal `|| 0`; catches, defaults and environment reads present. Examined stage catches preserve failure receipts; remaining catch/default semantics unresolved.
+- `trai_brain/mercury-bridge/ask.js`: `|| 0` at 1484, 1566, 1704; catches, defaults and environment reads present. Full swallowed-catch/bypass/default audit incomplete.
+- `trai_brain/mercury-bridge/codex-challenger.js`: newly added, not inherited; no `|| 0`; parse catches record errors at 36 and 43; fallbacks and environment handling present. Trust defect described above.
+- `trai_brain/mercury-bridge/config.js`: no `|| 0`; catches, optional defaults and environment controls present; full semantic classification incomplete.
+- `trai_brain/mercury-bridge/consensus.js`: no lexical matches for the four requested categories.
+- `trai_brain/mercury-bridge/doctrine-review.js`: executable `|| 0` at 133 and 194; line 16 mentions the pattern in doctrine text. Defaults present; no environment match; semantic audit incomplete.
+- `trai_brain/mercury-bridge/llm-client.js`: no `|| 0`; parsing/error catches, defaults and environment reads present. Legacy alias restrictions are not an Astra defect.
+- `trai_brain/mercury-bridge/provider-preflight.js`: no `|| 0` or environment match; catch at 204 records failures; defaults present. Inherited unconditional success becomes incorrect with the new returned-error contract.
+- `trai_brain/mercury-bridge/reviewer-panel.js`: no `|| 0` or environment match; catch at 245 records failed seats; defaults present.
+- `trai_brain/mercury-bridge/run-ledger.js`: `|| 0` at 342 and 479–481; catches, defaults and environment reads present; full semantic audit incomplete.
+- `test/mercury-astra-challenger.test.js`: no lexical matches; newly added.
+- `test/mercury-consensus.test.js`: catches and environment references present; no literal `|| 0`; semantics incompletely examined.
+- `test/mercury-llm-config-contract.test.js`: catches and environment references present; no literal `|| 0`; semantics incompletely examined.
+- `test/mercury-provider-preflight.test.js`: no lexical matches.
+- `test/mercury-reviewer-panel.test.js`: no lexical matches.
+
+FOURTH SHAPE CLASSIFIER:
+Classified 8 of 8 **host-listed throw candidates**; this is not a complete census of every added conditional/fallback:
+
+- `trai_brain/mercury-bridge/adversarial-review.js:805`: inherited missing-review-object guard with renamed message; caller supplies the review object through `trai_brain/mercury-bridge/ask.js:1409`.
+- `trai_brain/mercury-bridge/adversarial-review.js:1237`: retained hard-boundary rethrow after fallback removal; producer is the stage error at `:1174`, classifier at `:30`.
+- `trai_brain/mercury-bridge/config.js:473`: provider configuration boundary; producer `:456`.
+- `trai_brain/mercury-bridge/config.js:476`: endpoint configuration boundary; producer `:457`.
+- `trai_brain/mercury-bridge/config.js:479`: credential-routing boundary; producer `:460`.
+- `trai_brain/mercury-bridge/config.js:482`: configurable-command restriction; producer is the configuration property inspected at `:481`.
+- `trai_brain/mercury-bridge/config.js:485`: requested-model restriction; producer `:458`.
+- `trai_brain/mercury-bridge/config.js:488`: removes emergency-model routing; producer `:459`.
+
+These concern review infrastructure, not bot-runtime authority. The six configuration throws replace existing restrictions. Mercury’s “missing alias guard” classification does not identify an added guard.
+
+ALLEGATIONS:
+- Alias-matcher break: SUBSTANTIVE; TESTIMONY; contradicted by inspected caller evidence.
+- Executable-trust regression: MECHANICAL; RECEIPT; selected-source control flow.
+- False provider readiness after transport failure: MECHANICAL; RECEIPT; selected-source producer/consumer chain.
+- Exhaustive-coverage and AST claims: MECHANICAL; TESTIMONY checked against delivered tool receipts; unsupported.
+
+SUBSTANTIVE RESOLUTION:
+UNRESOLVED-FOR-TREY. Mercury asserts an alias-matcher break; this reviewer rejects that allegation and identifies two distinct defects. No Kimi adjudication or Mercury response to this challenge was supplied.
+
+WHAT I EXAMINED:
+Selected-tree changed-path inventory, production-file blob identities, source/diff ranges listed above, new Astra test source, reference searches, changelog matches, Mercury’s complete supplied answer, tool failures and host coverage diagnostics.
+
+DID NOT EXAMINE:
+Every whole file, every historical era, complete historical Fable receipts, actual installed executable provenance, live provider tapes, or complete test execution. Four test diffs were delivered with truncation. Five tests are absent from the materialized snapshot; immutable Git objects supplied their inspected content. No host-attested test/build result was supplied.
+
+ASSUMED:
+No assumption that the executable is actually compromised, that a timeout occurred in production, or that a model-sandbox check establishes test authority.
+
+WHAT I DID:
+Performed read-only source inspection and traced concrete producer-to-consumer consequences. Verified the 11 materialized changed source/configuration blobs against the requested tree.
+
+WHAT I DID NOT DO:
+Edit files, invoke another reviewer/provider, execute tests, change runtime state, or complete an exhaustive historical audit.
+
+WHAT I ASSUMED:
+The reported failure scenarios are reachable inputs to the inspected code, not observed production incidents.
+
+WHY THIS VERDICT:
+Two concrete replacement defects are supported independently of Mercury’s refuted allegation. Missing coverage does not establish those defects or erase their source evidence.
+
+IF INCOMPLETE, WHY:
+Whole-file/history coverage and trusted execution proofs remain incomplete. Supplied HTTP 503/504 failures, malformed/unaccepted ingestion units, truncated deliveries and the unwritten Mercury ledger remain diagnostics—not code verdicts or test results.
+
+Exact candidate host tests (not approval):
+jest-haste-map: Haste module naming collision: ogz-prime-valhalla-edition
+  The following files share their name; please adjust your hasteImpl:
+    * <rootDir>/package.json
+    * <rootDir>/ogz-meta/cognition-history/mercury-runs/2026-10-02T04-39-14-612Z-2588738-6f5554eafc44/source-7HSbCf/package.json
+
+
+Test Suites: 3 passed, 3 total
+Tests:       50 passed, 50 total
+Snapshots:   0 total
+Time:        1.316 s
+Ran all test suites matching test/mercury-provider-preflight.test.js|test/mercury-astra-challenger.test.js|test/mercury-llm-config-contract.test.js.
+
+
+Report concrete remaining defects, or no break found with explicit coverage limits. Check the small changes since your prior tree: readiness reporting, provider error events/tool catalog receipts, and historical self-report label preservation. Preserve the complete question, answers, failures and supporting evidence; do not introduce authority caps or fallback providers.

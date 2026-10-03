@@ -1,0 +1,194 @@
+[
+  {
+    "recordedPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "originalSha256": "4262f91a4407f18be29df19083da3fe443002ef624620c98a13096f71d9f8bef",
+    "recoveredSource": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "delivered": "delivery/raw/[REDACTED].raw",
+    "redactedSha256": "c9f89fd9bddf5238987e6892a8131b0c0e21c79785c332b15bf47204a4abb4a6",
+    "resolution": "exact_original_sha256_match"
+  },
+  {
+    "recordedPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "originalSha256": "8cb9408dfc823169da93e438eac9d168d7aa3f8c83b6ffbb9d4f2fa25693d845",
+    "recoveredSource": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "delivered": "delivery/raw/[REDACTED].raw",
+    "redactedSha256": "9a7b9bb8017acdb0dbdb71c0f6566aa98f4e1daa507be86243fb53574ed06acc",
+    "resolution": "exact_original_sha256_match"
+  },
+  {
+    "recordedPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "originalSha256": "663005d7bbb146492bacc02ff2b6e1b83ad51e0e06511fc2c4ebd94883b2c7ee",
+    "recoveredSource": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "delivered": "delivery/raw/[REDACTED].raw",
+    "redactedSha256": "93d2205dec604554b35e73f003c6051c08b990c4600a93e78a44b2eddd41fa0b",
+    "resolution": "exact_original_sha256_match"
+  },
+  {
+    "recordedPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "originalSha256": "17d20e77129f7e2f6ed40a6bd60a94f6ca9b56a6914af179c67a70a3be55e2d0",
+    "recoveredSource": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "delivered": "delivery/raw/[REDACTED].raw",
+    "redactedSha256": "a4a4eaf7ff4e1360a38f79f230e0923b4e184191b1b2fb5fc9ede58fea119d84",
+    "resolution": "exact_original_sha256_match"
+  },
+  {
+    "recordedPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "originalSha256": "06abda254a80ebb7cf5ef2192fffeb38e29f8d7e3a2cc244cfe01a2e26735120",
+    "recoveredSource": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "delivered": "delivery/raw/[REDACTED].raw",
+    "redactedSha256": "0af9b2a8d416d201056d3be8c365bf80e332cdbe2fa20c105490f9cb68a2bf2b",
+    "resolution": "exact_original_sha256_match"
+  },
+  {
+    "recordedPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "originalSha256": "763f7aa7a3a00fe494dd22d52ff897f629f5fe7d9d42aa359c18c810df07910f",
+    "recoveredSource": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "delivered": "delivery/raw/[REDACTED].raw",
+    "redactedSha256": "53a65720ca9dcf44a93c4a474d7b91ac49f04a4e41341cb088839d87897d4cd7",
+    "resolution": "exact_original_sha256_match"
+  },
+  {
+    "recordedPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "originalSha256": "686e9d98d41861d0b27686bc8de3d1b58181e8d456305a8dbbe917e9fe17b8a8",
+    "recoveredSource": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "delivered": "delivery/raw/[REDACTED].raw",
+    "redactedSha256": "4e12528ae3f479de2b925c1a995b3884011025653302ca05e5688968c1051b1a",
+    "resolution": "exact_original_sha256_match"
+  },
+  {
+    "recordedPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "originalSha256": "a0e7404aa8733961349ee7389e5e7ded77eadd67eabd00eab37963eb984f1e34",
+    "recoveredSource": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "delivered": "delivery/raw/[REDACTED].raw",
+    "redactedSha256": "ac37632cdb05c9e010c06e3d1478246b4d34337765d669488cbd33d12ad63bec",
+    "resolution": "exact_original_sha256_match"
+  },
+  {
+    "recordedPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "originalSha256": "a4d679af436eb7eb4e3b517107aec20ee8feea6440db7c2f2f3ca76fcccdc6f6",
+    "recoveredSource": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "delivered": "delivery/raw/[REDACTED].raw",
+    "redactedSha256": "b0784ed2eca815822d0160b792e3674d04d9472fe66056bf0d7b0152c3be8791",
+    "resolution": "exact_original_sha256_match"
+  },
+  {
+    "recordedPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "originalSha256": "e3d903346eec264c016f7942bf984027152306e7164aa5752928880a93b90d0c",
+    "recoveredSource": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "delivered": "delivery/raw/[REDACTED].raw",
+    "redactedSha256": "1daa66e2d86c6205785d0ae6861028e22868fd83404f341e24a9fcc10d0c156a",
+    "resolution": "exact_original_sha256_match"
+  },
+  {
+    "recordedPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "originalSha256": "eb96023a950704c29ba9ffa038e98ef2467b44c7a49b67bf3708063a22a0154c",
+    "recoveredSource": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "delivered": "delivery/raw/[REDACTED].raw",
+    "redactedSha256": "e7f0b6b634293edb0205526afea9aa065c5e76d395b5840580237485e53c8c9f",
+    "resolution": "exact_original_sha256_match"
+  },
+  {
+    "recordedPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "originalSha256": "ab6626289eed1ebb3669a12ec9f50f4ad91829c41a8905a65215cb6f07bb9357",
+    "recoveredSource": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "delivered": "delivery/raw/[REDACTED].raw",
+    "redactedSha256": "fe1c73d14ee9da37e6583e5153f5a06f5e7120dfaf0854850f0569f4a4b4415a",
+    "resolution": "exact_original_sha256_match"
+  },
+  {
+    "recordedPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "originalSha256": "adfd90a5ae9b955adc2b384bdb43cccd2055bf91555faf029f31abd9a18322a5",
+    "recoveredSource": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "delivered": "delivery/raw/[REDACTED].raw",
+    "redactedSha256": "bfabbab9554d621a9093fe4b35b99ccad55871a37a262609940b9b5e63d41e31",
+    "resolution": "exact_original_sha256_match"
+  },
+  {
+    "recordedPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "originalSha256": "929fed041cd137364989588f9c5d8e185a23b7e789b285f06c273bf6bf9302ec",
+    "recoveredSource": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "delivered": "delivery/raw/[REDACTED].raw",
+    "redactedSha256": "eb40e0b3ca5bd9d23ea0ca39e405ac58cbb49ca4badcfd250a8346a5abf53306",
+    "resolution": "exact_original_sha256_match"
+  },
+  {
+    "recordedPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "originalSha256": "a9c240833c5c6c6c33aac317c105f9312ce33e45dd29f8ebc2e930c8d152b2d4",
+    "recoveredSource": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "delivered": "delivery/raw/[REDACTED].raw",
+    "redactedSha256": "5dfdb7b432a5a29c7d2709439fa05d1e63efcf66e1f5d2d0ef815a1c1a3d24fd",
+    "resolution": "exact_original_sha256_match"
+  },
+  {
+    "recordedPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "originalSha256": "5ed2b3894bf4aaf7c5622e49635b2c0bd85809e692f5a56de637aaf937f623a0",
+    "recoveredSource": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "delivered": "delivery/raw/[REDACTED].raw",
+    "redactedSha256": "8fb9fc23dc12557b65f8a59130b0e4782c8fb55c29014f1c5d0e397d8770890e",
+    "resolution": "exact_original_sha256_match"
+  },
+  {
+    "recordedPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "originalSha256": "8a84cfc101cfbe7f28bb10c67d8b1a782a0f8adc7269cf41f9c656581c8d81fb",
+    "recoveredSource": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "delivered": "delivery/raw/[REDACTED].raw",
+    "redactedSha256": "aee3bcea6545462558294c7751e343fba9a6a001c182e991627b359458782a27",
+    "resolution": "exact_original_sha256_match"
+  },
+  {
+    "recordedPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "originalSha256": "f12815e3ba5dfe65bd1f94f8e8c0b4c8ac6bbf98799f920e168771f469220ac9",
+    "recoveredSource": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "delivered": "delivery/raw/[REDACTED].raw",
+    "redactedSha256": "ac3988e43c5548826180df00ab471e39ef36cdc0c72b771cddcabbd112df8622",
+    "resolution": "exact_original_sha256_match"
+  },
+  {
+    "recordedPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "originalSha256": "36167d773b74894807e5a0ef271fd4f7c4cd8173e39324e6509df6aee0f8e7cc",
+    "recoveredSource": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "delivered": "delivery/raw/[REDACTED].raw",
+    "redactedSha256": "38f037dc37238b10979e499226bd779be0da4d87e650842ef0bfd9bb4219e153",
+    "resolution": "exact_original_sha256_match"
+  },
+  {
+    "recordedPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "originalSha256": "afd5194c800ba99e9a7fc82820334b0d4685b139fb8b9c5c02ba79874b086217",
+    "recoveredSource": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "delivered": "delivery/raw/[REDACTED].raw",
+    "redactedSha256": "0fb563b266cb41dacbb66e51c98aee39c7c97590cbdf13ad98234e877265171a",
+    "resolution": "exact_original_sha256_match"
+  },
+  {
+    "recordedPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "originalSha256": "8afc384e1ebe623c3b43224adc1a09c549288e38336234a08ae263224e2d07f8",
+    "recoveredSource": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "delivered": "delivery/raw/[REDACTED].raw",
+    "redactedSha256": "6afe1f452546c8934423fcf9e19f7d77b78719c4412ab8efd1713bdcc10f0504",
+    "resolution": "exact_original_sha256_match"
+  },
+  {
+    "recordedPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "originalSha256": "ba2e0ead6fb920b7a409899611703a23572a2f0632a2dccc13454645b6b4745a",
+    "recoveredSource": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "delivered": "delivery/raw/[REDACTED].raw",
+    "redactedSha256": "a774d73e0a4b178c86d22a46a0aa8e1906d8f4a88dc4424c6fef4bc598fc1fae",
+    "resolution": "exact_original_sha256_match"
+  },
+  {
+    "recordedPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "originalSha256": "ab78ca1d68b821713ee0c5d45f610dc7ccbb2db050b3c7bd98eaa0ffe289613b",
+    "recoveredSource": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "delivered": "delivery/raw/[REDACTED].raw",
+    "redactedSha256": "91fafb111ff1e7e2323a9abd8298c1aeca1a5d2c3e15cda5b4b7e7b8c29aa32c",
+    "resolution": "exact_original_sha256_match"
+  },
+  {
+    "recordedPath": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "originalSha256": "96006bd8bf4c8f9e9d1ddb7cf968494607cca580ce5cde31a6143a02efb68dae",
+    "recoveredSource": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t11-48-10-287z-2907844-d15030680418/[REDACTED].raw",
+    "delivered": "delivery/raw/[REDACTED].raw",
+    "redactedSha256": "d5bc3ac21b0fd545f80703c1480397fe9dd16683f2ef6e67f59b097e4c661750",
+    "resolution": "exact_original_sha256_match"
+  }
+]

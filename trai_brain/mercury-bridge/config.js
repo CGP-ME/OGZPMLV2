@@ -446,7 +446,7 @@ if (MERCURY_LLM_PROVIDER === 'ollama') {
   throw new Error('llm.apiKeyEnv is required for non-local Mercury LLM providers');
 }
 
-// ─── Fable adversarial review client ─────────────────────────
+// ─── Astra adversarial review client ─────────────────────────
 const CONSENSUS_DEFAULT_ENABLED = optionalBoolean(MERCURY_CONFIG, 'consensus.defaultEnabled', false);
 const adversarialReviewEnv = optionalEnvBoolean('MERCURY_ADVERSARIAL_REVIEW');
 const ADVERSARIAL_REVIEW_DEFAULT_ENABLED = adversarialReviewEnv == null
@@ -456,37 +456,36 @@ const ADVERSARIAL_REVIEW_MAX_RECHECKS = optionalNumber(MERCURY_CONFIG, 'adversar
 const CONSENSUS_PROVIDER = requiredString(MERCURY_CONFIG, 'consensus.provider').toLowerCase();
 const CONSENSUS_BASE_URL = optionalString(MERCURY_CONFIG, 'consensus.baseUrl');
 const CONSENSUS_MODEL = requiredString(MERCURY_CONFIG, 'consensus.model').toLowerCase();
-const CONSENSUS_EMERGENCY_MODEL = requiredString(MERCURY_CONFIG, 'consensus.emergencyModel').toLowerCase();
+const CONSENSUS_EMERGENCY_MODEL = optionalString(MERCURY_CONFIG, 'consensus.emergencyModel');
 const CONSENSUS_API_KEY_ENV = optionalString(MERCURY_CONFIG, 'consensus.apiKeyEnv');
-const CONSENSUS_PERMISSION_MODE = optionalString(MERCURY_CONFIG, 'consensus.permissionMode') || 'dontAsk';
+const CONSENSUS_PERMISSION_MODE = optionalString(MERCURY_CONFIG, 'consensus.permissionMode') || 'read-only';
 const CONSENSUS_CLIENT_MAX_TOKENS = optionalNumber(MERCURY_CONFIG, 'consensus.clientMaxTokens', 2000, { integer: true, min: 1 });
 const CONSENSUS_CLIENT_MIN_TOKENS = optionalNumber(MERCURY_CONFIG, 'consensus.clientMinTokens', 0, { integer: true, min: 0 });
 const CONSENSUS_REQUEST_TIMEOUT_MS = optionalNumber(MERCURY_CONFIG, 'consensus.requestTimeoutMs', 300000, { integer: true, min: 1000 });
 const CONSENSUS_TEMPERATURE = optionalNumber(MERCURY_CONFIG, 'consensus.temperature', 0, { min: 0 });
 const CONSENSUS_OPENAI_EXTRA_BODY = optionalPlainObject(MERCURY_CONFIG, 'consensus.openaiExtraBody', {});
 const CONSENSUS_SYSTEM_PROMPT = optionalText(MERCURY_CONFIG, 'consensus.systemPrompt', [
-  'You are Fable, the consensus collaborator for OGZPrime Mercury reviews.',
+  'You are the challenger, the consensus collaborator for OGZPrime Mercury reviews.',
   'Evaluate Mercury evidence. Do not invent repo facts or file:line citations.',
 ].join('\n'));
 
-if (CONSENSUS_PROVIDER !== 'claude-code') {
-  throw new Error('consensus.provider must be claude-code; Kimi cannot satisfy the challenger role');
+if (CONSENSUS_PROVIDER !== 'codex-subscription') {
+  throw new Error('consensus.provider must be codex-subscription; Kimi cannot satisfy the challenger role');
 }
 if (CONSENSUS_BASE_URL) {
-  throw new Error('consensus.baseUrl must be empty for first-party Claude Code subscription routing');
+  throw new Error('consensus.baseUrl must be empty for first-party Codex subscription routing');
 }
 if (CONSENSUS_API_KEY_ENV) {
-  throw new Error('consensus.apiKeyEnv must be empty for first-party Claude Code subscription routing');
+  throw new Error('consensus.apiKeyEnv must be empty for first-party Codex subscription routing');
 }
 if (getConfigValue(MERCURY_CONFIG, 'consensus.command') !== undefined) {
-  throw new Error('consensus.command is not configurable; the challenger must use the trusted first-party Claude Code installation');
+  throw new Error('consensus.command is not configurable; the challenger must use the trusted first-party Codex installation');
 }
-const rejectedChallengerModels = new Set(['sonnet', 'haiku', 'default', 'best', 'opusplan', 'kimi-k3']);
-if (CONSENSUS_MODEL !== 'fable' || rejectedChallengerModels.has(CONSENSUS_MODEL)) {
-  throw new Error('consensus.model must be the stable fable alias; lower tiers, generic selectors, and Kimi are rejected');
+if (CONSENSUS_MODEL !== 'gpt-6-astra') {
+  throw new Error('consensus.model must be gpt-6-astra; no silent model substitution is allowed');
 }
-if (CONSENSUS_EMERGENCY_MODEL !== 'opus' || rejectedChallengerModels.has(CONSENSUS_EMERGENCY_MODEL)) {
-  throw new Error('consensus.emergencyModel must be the stable opus alias; arbitrary fallback lists are rejected');
+if (CONSENSUS_EMERGENCY_MODEL) {
+  throw new Error('consensus.emergencyModel must be empty; challenger failure cannot invoke Claude');
 }
 
 const TIE_BREAKER_PROVIDER = requiredString(MERCURY_CONFIG, 'tieBreaker.provider').toLowerCase();

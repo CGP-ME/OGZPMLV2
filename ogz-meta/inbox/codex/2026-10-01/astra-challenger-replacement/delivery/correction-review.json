@@ -1,0 +1,818 @@
+{
+  "identity": {
+    "base": "3afde60ce654ec191a6a73413bb5ab5cf8acf6d1",
+    "tree": "df34112529a6e1db26a79312ca2e3402ccb14334",
+    "files": [
+      "mercury.config.json",
+      "trai_brain/mercury-bridge/adversarial-review.js",
+      "trai_brain/mercury-bridge/ask.js",
+      "trai_brain/mercury-bridge/config.js",
+      "trai_brain/mercury-bridge/llm-client.js",
+      "trai_brain/mercury-bridge/provider-preflight.js",
+      "trai_brain/mercury-bridge/reviewer-panel.js",
+      "trai_brain/mercury-bridge/run-ledger.js",
+      "trai_brain/mercury-bridge/consensus.js",
+      "trai_brain/mercury-bridge/doctrine-review.js",
+      "trai_brain/mercury-bridge/codex-challenger.js",
+      "test/mercury-astra-challenger.test.js",
+      "test/mercury-reviewer-panel.test.js",
+      "test/mercury-consensus.test.js",
+      "test/mercury-provider-preflight.test.js",
+      "test/mercury-llm-config-contract.test.js"
+    ]
+  },
+  "runId": "2026-10-02T19:17:04.488Z-astra-readiness-correction",
+  "result": {
+    "rechecks": [
+      {
+        "answer": "**Short answer**\n\nThe corrected **CodexChallenger** producer does **not** falsely report a failed invocation as ready, and the answer / error evidence is retained in the attempt receipt (and therefore in the ledger).  \n\n---\n\n### Evidence that the readiness flag is correctly set\n\n| Step | File – line(s) | What the code does | Evidence |\n|------|----------------|-------------------|----------|\n| 1.  | `codex‑challenger.js:127‑128` | After the executable is invoked the client builds a `termination` field: `result.error ? 'error' : (parsed.complete ? 'stop' : 'incomplete')`. | 【open_file†L127-L128】 |\n| 2.  | `provider‑preflight.js:190‑193` | The `checkClient` helper computes `completed = !['error','incomplete'].includes(metadata.termination)` and then stores `ok: completed` in the result object. | 【open_file†L190-L193】 |\n| 3.  | `provider‑preflight.js:250‑252` | The overall pre‑flight result is `ok: mercury.ok === true && challengerReady`. `challengerReady` is defined as `astra.ok === true`. Because `astra.ok` comes from step 2, any `termination === 'error'` makes `astra.ok` **false**, and consequently `result.ok` is **false**. | 【open_file†L250-L252】 |\n| 4.  | `provider‑preflight.js:104` (inside `attemptReceipt`) | The receipt records the `termination`, `stopped_because`, and all diagnostic fields, so the error information is persisted even when `ok` is false. | 【open_file†L104-L108】 |\n| 5.  | `ask.js:1842‑1845` (CLI “`providers” command) | The CLI prints the full `result` JSON (including the `attempts` array that holds the receipt) and exits with a non‑zero status when `result.ok` is false. | 【open_file†L1842-L1846】 |\n\n### Why a “false‑ready” outcome cannot happen\n\n* The **termination** flag from the executor propagates to `metadata.termination` (step 1).  \n* `checkClient` interprets any `'error'` or `'incomplete'` termination as **not completed** (`completed = false`) and therefore sets `ok: false` (step 2).  \n* The pre‑flight orchestrator (`runProviderPreflight`) uses that `ok` value directly when computing `challengerReady` (step 3).  \n* Consequently, when the executable fails (e.g., a version mismatch or a runtime error) the Astra challenger’s `ok` is **false**, and the overall pre‑flight result is **false** – the system will not claim the provider is ready.\n\n### Evidence that answer / error data are not lost\n\n* The **attempt receipt** (`attemptReceipt`) contains the full `metadata` object, including `answer`, `termination`, `provider_error`, and all parsing diagnostics (step 4).  \n* `runProviderPreflight` stores each receipt in the `attempts` array, which is later written to the run ledger (`run‑ledger.js`) and displayed by the CLI (step 5).  \n* Therefore, even though the top‑level `result.ok` is false, the **answer** (if any) and the **error diagnostics** are preserved and can be inspected later.\n\n### Candidate assessment\n\n| Candidate | Claim | Verdict | Reason |\n|-----------|-------|---------|--------|\n| **A** | “The corrected producer can still falsely report a failed invocation as ready.” | **Rejected** | The `ok` flag is derived from `metadata.termination`; an error termination forces `ok: false` (steps 1‑3). No code path sets `ok` to true when `termination` is `'error'`. |\n| **B** | “The corrected producer can lose its answer/error evidence.” | **Rejected** | The receipt (`attemptReceipt`) records all metadata, including `answer` and `termination`. The ledger and CLI retain this information (steps 4‑5). |\n\n### Conclusion\n\n* The **readiness‑reporting correction** works as intended: a failed Codex execution results in `astra.ok === false`, which prevents `runProviderPreflight` from reporting readiness.  \n* All diagnostic data—including the model answer (if any) and any error messages—are stored in the attempt receipt and propagated to the run ledger and CLI output, so they are **not lost**.\n\n---\n\n**Self‑Report Footer**\n\n- **WHAT I DID:** Opened and inspected `codex‑challenger.js` (termination logic), `provider‑preflight.js` (completion and ok handling, challengerReady logic, receipt construction), and `ask.js` (CLI consumption). Extracted the relevant line ranges as evidence.  \n- **WHAT I DID NOT DO:** Modify any source files, run tests, or execute the code.  \n- **WHAT I ASSUMED:** The repository snapshot reflects the latest code (tree df34112529a6e1db26a79312ca2e3402ccb14334) and the tools return accurate line numbers.  \n- **WHY THIS VERDICT:** The code path from executable error → `metadata.termination` → `completed` → `ok` is explicit and verified by the cited lines; the receipt preserves all metadata, confirming no loss of evidence.  \n- **IF INCOMPLETE, WHY:** No additional evidence needed; the relevant control‑flow and data‑preservation paths are fully covered.",
+        "answerQuality": {
+          "flags": [
+            "tool_handle_citation"
+          ],
+          "evidence": [
+            {
+              "flag": "tool_handle_citation",
+              "evidence": "ilds a `termination` field: `result.error ? 'error' : (parsed.complete ? 'stop' : 'incomplete')`. | 【open_file†L127-L128】 | | 2. | `provider‑preflight.js:190‑193` | The `checkClient` helper computes `completed = !['error','incomplete'].includes(metadata.termin"
+            }
+          ],
+          "ok": false
+        },
+        "candidateSet": {
+          "content": "**Short answer**\n\nThe corrected **CodexChallenger** producer does **not** falsely report a failed invocation as ready, and the answer / error evidence is retained in the attempt receipt (and therefore in the ledger).  \n\n---\n\n### Evidence that the readiness flag is correctly set\n\n| Step | File – line(s) | What the code does | Evidence |\n|------|----------------|-------------------|----------|\n| 1.  | `codex‑challenger.js:127‑128` | After the executable is invoked the client builds a `termination` field: `result.error ? 'error' : (parsed.complete ? 'stop' : 'incomplete')`. | 【open_file†L127-L128】 |\n| 2.  | `provider‑preflight.js:190‑193` | The `checkClient` helper computes `completed = !['error','incomplete'].includes(metadata.termination)` and then stores `ok: completed` in the result object. | 【open_file†L190-L193】 |\n| 3.  | `provider‑preflight.js:250‑252` | The overall pre‑flight result is `ok: mercury.ok === true && challengerReady`. `challengerReady` is defined as `astra.ok === true`. Because `astra.ok` comes from step 2, any `termination === 'error'` makes `astra.ok` **false**, and consequently `result.ok` is **false**. | 【open_file†L250-L252】 |\n| 4.  | `provider‑preflight.js:104` (inside `attemptReceipt`) | The receipt records the `termination`, `stopped_because`, and all diagnostic fields, so the error information is persisted even when `ok` is false. | 【open_file†L104-L108】 |\n| 5.  | `ask.js:1842‑1845` (CLI “`providers” command) | The CLI prints the full `result` JSON (including the `attempts` array that holds the receipt) and exits with a non‑zero status when `result.ok` is false. | 【open_file†L1842-L1846】 |\n\n### Why a “false‑ready” outcome cannot happen\n\n* The **termination** flag from the executor propagates to `metadata.termination` (step 1).  \n* `checkClient` interprets any `'error'` or `'incomplete'` termination as **not completed** (`completed = false`) and therefore sets `ok: false` (step 2).  \n* The pre‑flight orchestrator (`runProviderPreflight`) uses that `ok` value directly when computing `challengerReady` (step 3).  \n* Consequently, when the executable fails (e.g., a version mismatch or a runtime error) the Astra challenger’s `ok` is **false**, and the overall pre‑flight result is **false** – the system will not claim the provider is ready.\n\n### Evidence that answer / error data are not lost\n\n* The **attempt receipt** (`attemptReceipt`) contains the full `metadata` object, including `answer`, `termination`, `provider_error`, and all parsing diagnostics (step 4).  \n* `runProviderPreflight` stores each receipt in the `attempts` array, which is later written to the run ledger (`run‑ledger.js`) and displayed by the CLI (step 5).  \n* Therefore, even though the top‑level `result.ok` is false, the **answer** (if any) and the **error diagnostics** are preserved and can be inspected later.\n\n### Candidate assessment\n\n| Candidate | Claim | Verdict | Reason |\n|-----------|-------|---------|--------|\n| **A** | “The corrected producer can still falsely report a failed invocation as ready.” | **Rejected** | The `ok` flag is derived from `metadata.termination`; an error termination forces `ok: false` (steps 1‑3). No code path sets `ok` to true when `termination` is `'error'`. |\n| **B** | “The corrected producer can lose its answer/error evidence.” | **Rejected** | The receipt (`attemptReceipt`) records all metadata, including `answer` and `termination`. The ledger and CLI retain this information (steps 4‑5). |\n\n### Conclusion\n\n* The **readiness‑reporting correction** works as intended: a failed Codex execution results in `astra.ok === false`, which prevents `runProviderPreflight` from reporting readiness.  \n* All diagnostic data—including the model answer (if any) and any error messages—are stored in the attempt receipt and propagated to the run ledger and CLI output, so they are **not lost**.\n\n---\n\n**Self‑Report Footer**\n\n- **WHAT I DID:** Opened and inspected `codex‑challenger.js` (termination logic), `provider‑preflight.js` (completion and ok handling, challengerReady logic, receipt construction), and `ask.js` (CLI consumption). Extracted the relevant line ranges as evidence.  \n- **WHAT I DID NOT DO:** Modify any source files, run tests, or execute the code.  \n- **WHAT I ASSUMED:** The repository snapshot reflects the latest code (tree df34112529a6e1db26a79312ca2e3402ccb14334) and the tools return accurate line numbers.  \n- **WHY THIS VERDICT:** The code path from executable error → `metadata.termination` → `completed` → `ok` is explicit and verified by the cited lines; the receipt preserves all metadata, confirming no loss of evidence.  \n- **IF INCOMPLETE, WHY:** No additional evidence needed; the relevant control‑flow and data‑preservation paths are fully covered.",
+          "source": "reviewer_answer",
+          "capturedAtIteration": 6,
+          "claimInventory": [],
+          "claimDecisionAttempts": [],
+          "filesMechanicallyOpened": [
+            "trai_brain/mercury-bridge/ask.js:1800-1900",
+            "trai_brain/mercury-bridge/codex-challenger.js:115-130",
+            "trai_brain/mercury-bridge/provider-preflight.js:188-255",
+            "trai_brain/mercury-bridge/provider-preflight.js:60-120"
+          ],
+          "fileReadReceipts": [
+            {
+              "file": "trai_brain/mercury-bridge/ask.js",
+              "startLine": 1800,
+              "endLine": 1900,
+              "totalLines": 2059,
+              "executionProvenance": "trusted_repo_read",
+              "contextCompacted": false
+            },
+            {
+              "file": "trai_brain/mercury-bridge/codex-challenger.js",
+              "startLine": 115,
+              "endLine": 130,
+              "totalLines": 156,
+              "executionProvenance": "trusted_repo_read",
+              "contextCompacted": false
+            },
+            {
+              "file": "trai_brain/mercury-bridge/provider-preflight.js",
+              "startLine": 188,
+              "endLine": 255,
+              "totalLines": 275,
+              "executionProvenance": "trusted_repo_read",
+              "contextCompacted": false
+            },
+            {
+              "file": "trai_brain/mercury-bridge/provider-preflight.js",
+              "startLine": 60,
+              "endLine": 120,
+              "totalLines": 275,
+              "executionProvenance": "trusted_repo_read",
+              "contextCompacted": false
+            }
+          ],
+          "claimedFileCitations": [
+            "ask.js:1842-1845",
+            "codex-challenger.js:127-128",
+            "provider-preflight.js:104",
+            "provider-preflight.js:190-193",
+            "provider-preflight.js:250-252",
+            "trai_brain/mercury-bridge/ask.js:1800-1900",
+            "trai_brain/mercury-bridge/codex-challenger.js:115-130",
+            "trai_brain/mercury-bridge/provider-preflight.js:188-255",
+            "trai_brain/mercury-bridge/provider-preflight.js:60-120"
+          ],
+          "finalAnswerCitations": [
+            "ask.js:1842-1845",
+            "codex-challenger.js:127-128",
+            "provider-preflight.js:104",
+            "provider-preflight.js:190-193",
+            "provider-preflight.js:250-252"
+          ],
+          "answerCitationsSubset": true,
+          "citationsNotInCandidateSet": [],
+          "candidateSources": [
+            {
+              "coverage": null,
+              "explicitContinuation": null,
+              "phase": "pass_1",
+              "recheckIndex": null,
+              "content": "**Short answer**\n\nThe corrected **CodexChallenger** producer does **not** falsely report a failed invocation as ready, and the answer / error evidence is retained in the attempt receipt (and therefore in the ledger).  \n\n---\n\n### Evidence that the readiness flag is correctly set\n\n| Step | File – line(s) | What the code does | Evidence |\n|------|----------------|-------------------|----------|\n| 1.  | `codex‑challenger.js:127‑128` | After the executable is invoked the client builds a `termination` field: `result.error ? 'error' : (parsed.complete ? 'stop' : 'incomplete')`. | 【open_file†L127-L128】 |\n| 2.  | `provider‑preflight.js:190‑193` | The `checkClient` helper computes `completed = !['error','incomplete'].includes(metadata.termination)` and then stores `ok: completed` in the result object. | 【open_file†L190-L193】 |\n| 3.  | `provider‑preflight.js:250‑252` | The overall pre‑flight result is `ok: mercury.ok === true && challengerReady`. `challengerReady` is defined as `astra.ok === true`. Because `astra.ok` comes from step 2, any `termination === 'error'` makes `astra.ok` **false**, and consequently `result.ok` is **false**. | 【open_file†L250-L252】 |\n| 4.  | `provider‑preflight.js:104` (inside `attemptReceipt`) | The receipt records the `termination`, `stopped_because`, and all diagnostic fields, so the error information is persisted even when `ok` is false. | 【open_file†L104-L108】 |\n| 5.  | `ask.js:1842‑1845` (CLI “`providers” command) | The CLI prints the full `result` JSON (including the `attempts` array that holds the receipt) and exits with a non‑zero status when `result.ok` is false. | 【open_file†L1842-L1846】 |\n\n### Why a “false‑ready” outcome cannot happen\n\n* The **termination** flag from the executor propagates to `metadata.termination` (step 1).  \n* `checkClient` interprets any `'error'` or `'incomplete'` termination as **not completed** (`completed = false`) and therefore sets `ok: false` (step 2).  \n* The pre‑flight orchestrator (`runProviderPreflight`) uses that `ok` value directly when computing `challengerReady` (step 3).  \n* Consequently, when the executable fails (e.g., a version mismatch or a runtime error) the Astra challenger’s `ok` is **false**, and the overall pre‑flight result is **false** – the system will not claim the provider is ready.\n\n### Evidence that answer / error data are not lost\n\n* The **attempt receipt** (`attemptReceipt`) contains the full `metadata` object, including `answer`, `termination`, `provider_error`, and all parsing diagnostics (step 4).  \n* `runProviderPreflight` stores each receipt in the `attempts` array, which is later written to the run ledger (`run‑ledger.js`) and displayed by the CLI (step 5).  \n* Therefore, even though the top‑level `result.ok` is false, the **answer** (if any) and the **error diagnostics** are preserved and can be inspected later.\n\n### Candidate assessment\n\n| Candidate | Claim | Verdict | Reason |\n|-----------|-------|---------|--------|\n| **A** | “The corrected producer can still falsely report a failed invocation as ready.” | **Rejected** | The `ok` flag is derived from `metadata.termination`; an error termination forces `ok: false` (steps 1‑3). No code path sets `ok` to true when `termination` is `'error'`. |\n| **B** | “The corrected producer can lose its answer/error evidence.” | **Rejected** | The receipt (`attemptReceipt`) records all metadata, including `answer` and `termination`. The ledger and CLI retain this information (steps 4‑5). |\n\n### Conclusion\n\n* The **readiness‑reporting correction** works as intended: a failed Codex execution results in `astra.ok === false`, which prevents `runProviderPreflight` from reporting readiness.  \n* All diagnostic data—including the model answer (if any) and any error messages—are stored in the attempt receipt and propagated to the run ledger and CLI output, so they are **not lost**.\n\n---\n\n**Self‑Report Footer**\n\n- **WHAT I DID:** Opened and inspected `codex‑challenger.js` (termination logic), `provider‑preflight.js` (completion and ok handling, challengerReady logic, receipt construction), and `ask.js` (CLI consumption). Extracted the relevant line ranges as evidence.  \n- **WHAT I DID NOT DO:** Modify any source files, run tests, or execute the code.  \n- **WHAT I ASSUMED:** The repository snapshot reflects the latest code (tree df34112529a6e1db26a79312ca2e3402ccb14334) and the tools return accurate line numbers.  \n- **WHY THIS VERDICT:** The code path from executable error → `metadata.termination` → `completed` → `ok` is explicit and verified by the cited lines; the receipt preserves all metadata, confirming no loss of evidence.  \n- **IF INCOMPLETE, WHY:** No additional evidence needed; the relevant control‑flow and data‑preservation paths are fully covered.",
+              "capturedAtIteration": 6,
+              "filesMechanicallyOpened": [
+                "trai_brain/mercury-bridge/ask.js:1800-1900",
+                "trai_brain/mercury-bridge/codex-challenger.js:115-130",
+                "trai_brain/mercury-bridge/provider-preflight.js:188-255",
+                "trai_brain/mercury-bridge/provider-preflight.js:60-120"
+              ],
+              "fileReadReceipts": [
+                {
+                  "file": "trai_brain/mercury-bridge/ask.js",
+                  "startLine": 1800,
+                  "endLine": 1900,
+                  "totalLines": 2059,
+                  "executionProvenance": "trusted_repo_read",
+                  "contextCompacted": false
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/codex-challenger.js",
+                  "startLine": 115,
+                  "endLine": 130,
+                  "totalLines": 156,
+                  "executionProvenance": "trusted_repo_read",
+                  "contextCompacted": false
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/provider-preflight.js",
+                  "startLine": 188,
+                  "endLine": 255,
+                  "totalLines": 275,
+                  "executionProvenance": "trusted_repo_read",
+                  "contextCompacted": false
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/provider-preflight.js",
+                  "startLine": 60,
+                  "endLine": 120,
+                  "totalLines": 275,
+                  "executionProvenance": "trusted_repo_read",
+                  "contextCompacted": false
+                }
+              ],
+              "claimedFileCitations": [
+                "ask.js:1842-1845",
+                "codex-challenger.js:127-128",
+                "provider-preflight.js:104",
+                "provider-preflight.js:190-193",
+                "provider-preflight.js:250-252",
+                "trai_brain/mercury-bridge/ask.js:1800-1900",
+                "trai_brain/mercury-bridge/codex-challenger.js:115-130",
+                "trai_brain/mercury-bridge/provider-preflight.js:188-255",
+                "trai_brain/mercury-bridge/provider-preflight.js:60-120"
+              ],
+              "finalAnswerCitations": [
+                "ask.js:1842-1845",
+                "codex-challenger.js:127-128",
+                "provider-preflight.js:104",
+                "provider-preflight.js:190-193",
+                "provider-preflight.js:250-252"
+              ],
+              "answerCitationsSubset": true,
+              "citationsNotInCandidateSet": [],
+              "claimInventory": [],
+              "claimAdjudications": null,
+              "finalClaimAdjudications": null,
+              "claimDecisionAttempts": []
+            }
+          ]
+        },
+        "iterations": 6,
+        "termination": "answer_given",
+        "history": [
+          {
+            "iteration": 1,
+            "toolName": "open_file",
+            "toolArgs": {
+              "path": "trai_brain/mercury-bridge/ask.js",
+              "start_line": 1800,
+              "end_line": 1900
+            },
+            "toolResult": {
+              "file": "trai_brain/mercury-bridge/ask.js",
+              "start_line": 1800,
+              "end_line": 1900,
+              "total_lines": 2059,
+              "text": " 1800\t    console.log(`index freshness: unavailable${freshness && freshness.error ? ` (${freshness.error})` : ''}`);\n 1801\t  }\n 1802\t\n 1803\t  if (result.runLedger) {\n 1804\t    console.log(`run ledger:      ${result.runLedger.citation}`);\n 1805\t  }\n 1806\t}\n 1807\t\n 1808\t// ─────────────────────────────────────────────────────────────\n 1809\t// Main\n 1810\t// ─────────────────────────────────────────────────────────────\n 1811\t\n 1812\tasync function main() {\n 1813\t  const args = parseArgs(process.argv);\n 1814\t\n 1815\t  // Flags that don't require a query\n 1816\t  try {\n 1817\t    if (args.traceStats) {\n 1818\t      const store = new MongoStore();\n 1819\t      await store.connect();\n 1820\t      await ensureTraceIndexes(store);\n 1821\t      const stats = await getTraceStats(store);\n 1822\t      console.log('Trace memory stats:');\n 1823\t      console.log(`  total:       ${stats.total}`);\n 1824\t      console.log(`  used:        ${stats.used}`);\n 1825\t      console.log(`  protected:   ${stats.protected}`);\n 1826\t      console.log(`  unused:      ${stats.unused}`);\n 1827\t      console.log(`  avg quality: ${stats.avg_quality.toFixed(2)}`);\n 1828\t      await store.disconnect();\n 1829\t      return;\n 1830\t    }\n 1831\t\n 1832\t    if (args.pruneTraces) {\n 1833\t      const store = new MongoStore();\n 1834\t      await store.connect();\n 1835\t      await ensureTraceIndexes(store);\n 1836\t      const result = await evictStaleTraces({ store, verbose: true });\n 1837\t      console.log(`Eviction result: ${JSON.stringify(result)}`);\n 1838\t      await store.disconnect();\n 1839\t      return;\n 1840\t    }\n 1841\t\n 1842\t    if (args.checkProviders) {\n 1843\t      const result = await runProviderPreflight({ repoRoot: config.REPO_ROOT });\n 1844\t      console.log(JSON.stringify(result, null, 2));\n 1845\t      if (!result.ok) process.exit(1);\n 1846\t      return;\n 1847\t    }\n 1848\t  } catch (err) {\n 1849\t    console.error('Error:', err.message);\n 1850\t    process.exit(1);\n 1851\t  }\n 1852\t\n 1853\t  if (!args.query) {\n 1854\t    usage();\n 1855\t    process.exit(1);\n 1856\t  }\n 1857\t\n 1858\t  try {\n 1859\t    // --explain-trace: print trace hint and exit\n 1860\t    if (args.explainTrace) {\n 1861\t      const store = new MongoStore();\n 1862\t      await store.connect();\n 1863\t      await ensureTraceIndexes(store);\n 1864\t      const traceResult = await retrieveSimilarTrace({ store, query: args.query });\n 1865\t      if (traceResult) {\n 1866\t        console.log(`Similarity: ${traceResult.similarity.toFixed(3)}`);\n 1867\t        console.log(`Prior query: \"${traceResult.trace.query}\"`);\n 1868\t        console.log(`Iterations: ${traceResult.trace.iterations}`);\n 1869\t        console.log(`Quality: ${traceResult.trace.quality_score.toFixed(1)}`);\n 1870\t        console.log(`Usage count: ${traceResult.trace.usage_count}`);\n 1871\t        console.log(`Tool calls: ${traceResult.trace.tool_call_sequence.length}`);\n 1872\t        console.log('');\n 1873\t        console.log(formatTraceAsHint(traceResult));\n 1874\t      } else {\n 1875\t        console.log('No similar prior trace found (threshold: ' + config.TRACE_INJECT_THRESHOLD + ')');\n 1876\t      }\n 1877\t      await store.disconnect();\n 1878\t      return;\n 1879\t    }\n 1880\t\n 1881\t    // --explain-route: print routing decision and exit\n 1882\t    if (args.explainRoute) {\n 1883\t      const route = routeQuery(args.query);\n 1884\t      console.log(JSON.stringify(route, null, 2));\n 1885\t      return;\n 1886\t    }\n 1887\t\n 1888\t    if (args.agentic) {\n 1889\t      // Agentic mode — ReAct loop with tool access\n 1890\t      args.reviewerSelection = await resolveReviewerSelection({\n 1891\t        explicit: args.reviewersExplicit ? args.reviewers : null,\n 1892\t        interactive: args.reviewersExplicit !== true && process.stdin.isTTY === true && process.stdout.isTTY === true,\n 1893\t        prompt: promptReviewerSelection,\n 1894\t        defaultReviewers: reviewModeRequested(args)\n 1895\t          ? REVIEWER_REGISTRY.map(reviewer => reviewer.id)\n 1896\t          : ['mercury'],\n 1897\t      });\n 1898\t      const result = await runAgentic(args.query, args);\n 1899\t\n 1900\t      console.log('');",
+              "source_ref": "df34112529a6e1db26a79312ca2e3402ccb14334"
+            },
+            "toolDelivery": {
+              "truncated": false,
+              "startLine": 1800,
+              "endLine": 1900,
+              "totalLines": 2059
+            },
+            "toolCallId": "call_8ee6e994a7eff719"
+          },
+          {
+            "iteration": 2,
+            "toolName": "search",
+            "toolArgs": {
+              "query": "function attemptReceipt",
+              "file_pattern": "*"
+            },
+            "toolResult": {
+              "source": "direct_ripgrep_fixed",
+              "matches": [
+                {
+                  "file": "trai_brain/mercury-bridge/provider-preflight.js",
+                  "line": 73,
+                  "text": "function attemptReceipt({ label, attempt, client, metadata = {}, status, phase, error = null, rawOutput = null, rawError = null }) {"
+                }
+              ],
+              "total": 1,
+              "truncated": false,
+              "filtered_ignored": 0,
+              "requested_file_pattern": "*",
+              "effective_file_pattern": "*",
+              "source_ref": "df34112529a6e1db26a79312ca2e3402ccb14334"
+            },
+            "toolDelivery": {
+              "truncated": false,
+              "startLine": null,
+              "endLine": null,
+              "totalLines": null
+            },
+            "toolCallId": "call_85c1d159496f3615"
+          },
+          {
+            "iteration": 3,
+            "toolName": "open_file",
+            "toolArgs": {
+              "path": "trai_brain/mercury-bridge/provider-preflight.js",
+              "start_line": 60,
+              "end_line": 120
+            },
+            "toolResult": {
+              "file": "trai_brain/mercury-bridge/provider-preflight.js",
+              "start_line": 60,
+              "end_line": 120,
+              "total_lines": 275,
+              "text": "   60\tasync function withSilencedClientConsole(fn) {\n   61\t  const originalLog = console.log;\n   62\t  const originalError = console.error;\n   63\t  console.log = () => {};\n   64\t  console.error = () => {};\n   65\t  try {\n   66\t    return await fn();\n   67\t  } finally {\n   68\t    console.log = originalLog;\n   69\t    console.error = originalError;\n   70\t  }\n   71\t}\n   72\t\n   73\tfunction attemptReceipt({ label, attempt, client, metadata = {}, status, phase, error = null, rawOutput = null, rawError = null }) {\n   74\t  const promptDispatched = phase === 'generate' || phase === 'complete';\n   75\t  const identityPosture = stampedIdentityPosture(metadata);\n   76\t  const requestedProvider = metadata.provider || (client && client.providerName) || null;\n   77\t  const requestedModel = metadata.requestedModel || (client && client.model) || null;\n   78\t  const accounting = accountProviderAttempt(metadata, {\n   79\t    provider: requestedProvider,\n   80\t    model: requestedModel,\n   81\t    pricingCatalog: config.PROVIDER_PRICING,\n   82\t  });\n   83\t  return {\n   84\t    role: label,\n   85\t    attempt,\n   86\t    status,\n   87\t    request_phase: phase,\n   88\t    requested_provider: requestedProvider,\n   89\t    requested_model: requestedModel,\n   90\t    applied_model: metadata.appliedModel || null,\n   91\t    applied_models: Array.isArray(metadata.appliedModels)\n   92\t      ? [...metadata.appliedModels]\n   93\t      : (metadata.appliedModel ? [metadata.appliedModel] : []),\n   94\t    auxiliary_models: Array.isArray(metadata.auxiliaryModels) ? [...metadata.auxiliaryModels] : [],\n   95\t    verdict_models: Array.isArray(metadata.verdictModels) ? [...metadata.verdictModels] : [],\n   96\t    identity_posture: identityPosture,\n   97\t    model_observations: Array.isArray(metadata.modelObservations) ? [...metadata.modelObservations] : [],\n   98\t    model_transitions: Array.isArray(metadata.modelTransitions) ? [...metadata.modelTransitions] : [],\n   99\t    started_at: metadata.startedAt || null,\n  100\t    finished_at: metadata.finishedAt || null,\n  101\t    latency_ms: metadata.latencyMs == null ? null : metadata.latencyMs,\n  102\t    status_code: metadata.statusCode == null ? null : metadata.statusCode,\n  103\t    exit_code: metadata.exitCode == null ? null : metadata.exitCode,\n  104\t    termination: metadata.termination || null,\n  105\t    stopped_because: redactSensitiveText(\n  106\t      metadata.stoppedBecause && metadata.stoppedBecause !== 'provider_stop_reason_absent'\n  107\t        ? metadata.stoppedBecause\n  108\t        : responseStopReason({\n  109\t          termination: metadata.termination,\n  110\t          statusCode: metadata.statusCode,\n  111\t          providerError: error && error.message,\n  112\t        })\n  113\t    ),\n  114\t    parse_status: metadata.parseStatus || null,\n  115\t    parse_errors: metadata.parseErrors || [],\n  116\t    provider_error: metadata.providerError || null,\n  117\t    provider_errors: metadata.providerErrors || [],\n  118\t    tokens: accounting.tokens,\n  119\t    usage_absence: accounting.usage_absence,\n  120\t    cost: accounting.cost,",
+              "source_ref": "df34112529a6e1db26a79312ca2e3402ccb14334"
+            },
+            "toolDelivery": {
+              "truncated": false,
+              "startLine": 60,
+              "endLine": 120,
+              "totalLines": 275
+            },
+            "toolCallId": "call_baaeabd64b188874"
+          },
+          {
+            "iteration": 4,
+            "toolName": "open_file",
+            "toolArgs": {
+              "path": "trai_brain/mercury-bridge/codex-challenger.js",
+              "start_line": 115,
+              "end_line": 130
+            },
+            "toolResult": {
+              "file": "trai_brain/mercury-bridge/codex-challenger.js",
+              "start_line": 115,
+              "end_line": 130,
+              "total_lines": 156,
+              "text": "  115\t      '-c', 'model_provider=\"panel-subscription\"',\n  116\t      '-c', 'model_providers.panel-subscription.name=\"ChatGPT subscription\"',\n  117\t      '-c', `model_providers.panel-subscription.base_url=\"${SUBSCRIPTION_ENDPOINT}\"`,\n  118\t      '-c', 'model_providers.panel-subscription.wire_api=\"responses\"',\n  119\t      '-c', 'model_providers.panel-subscription.requires_openai_auth=true',\n  120\t      '-c', 'model_providers.panel-subscription.supports_websockets=false',\n  121\t      '-c', `developer_instructions=${JSON.stringify(this.systemPrompt.replace('You do not have repo tools in this review pass.',\n  122\t        'Use the available tools for read-only evidence inspection in the supplied working directory; it is the selected source snapshot when a review ref is pinned. Do not substitute the parent checkout. Do not edit files, call other reviewers, or change runtime state.'))}`,\n  123\t      '-'];\n  124\t    const result = await this.invoke(CODEX_LAUNCHER, args, { ...this.execOptions(), input: prompt });\n  125\t    this.requestCount += 1;\n  126\t    const parsed = parseCodexTapes(result.stdout, result.stderr, this.model);\n  127\t    const termination = result.error ? 'error' : (parsed.complete ? 'stop' : 'incomplete');\n  128\t    const metadata = {\n  129\t      provider: this.providerName, requestedModel: this.model,\n  130\t      appliedModel: parsed.models.at(-1) || null, appliedModels: parsed.models,",
+              "source_ref": "df34112529a6e1db26a79312ca2e3402ccb14334"
+            },
+            "toolDelivery": {
+              "truncated": false,
+              "startLine": 115,
+              "endLine": 130,
+              "totalLines": 156
+            },
+            "toolCallId": "call_b4fa8b1c53e97452"
+          },
+          {
+            "iteration": 5,
+            "toolName": "open_file",
+            "toolArgs": {
+              "path": "trai_brain/mercury-bridge/provider-preflight.js",
+              "start_line": 188,
+              "end_line": 255
+            },
+            "toolResult": {
+              "file": "trai_brain/mercury-bridge/provider-preflight.js",
+              "start_line": 188,
+              "end_line": 255,
+              "total_lines": 275,
+              "text": "  188\t    phase = 'complete';\n  189\t    const raw = persistAttemptRaw({ repoRoot, runId, label, attempt, metadata });\n  190\t    const completed = !['error', 'incomplete'].includes(metadata.termination);\n  191\t    const result = {\n  192\t      label,\n  193\t      ok: completed,\n  194\t      provider: client.providerName,\n  195\t      model: client.model,\n  196\t      appliedModel,\n  197\t      identityPosture: stampedIdentityPosture(metadata),\n  198\t      requests: client.requestCount,\n  199\t      authPosture: client.authStatus || null,\n  200\t    };\n  201\t    result.attemptReceipt = attemptReceipt({\n  202\t      label, attempt, client, metadata,\n  203\t      status: completed ? 'succeeded' : 'failed', phase, ...raw,\n  204\t    });\n  205\t    return result;\n  206\t  } catch (err) {\n  207\t    const metadata = err && err.providerMetadata ? err.providerMetadata : {\n  208\t      provider: client && client.providerName,\n  209\t      requestedModel: client && client.model,\n  210\t      startedAt: startedAt.toISOString(),\n  211\t      finishedAt: new Date().toISOString(),\n  212\t      latencyMs: Date.now() - startedMs,\n  213\t      termination: 'error',\n  214\t      parseStatus: 'request_failed',\n  215\t      toolsAvailable: [],\n  216\t    };\n  217\t    const raw = persistAttemptRaw({ repoRoot, runId, label, attempt, metadata });\n  218\t    const result = {\n  219\t      label,\n  220\t      ok: false,\n  221\t      provider: client && client.providerName ? client.providerName : null,\n  222\t      model: client && client.model ? client.model : null,\n  223\t      error: cleanProviderError(err),\n  224\t    };\n  225\t    result.attemptReceipt = attemptReceipt({\n  226\t      label, attempt, client, metadata, status: 'failed', phase, error: err, ...raw,\n  227\t    });\n  228\t    Object.defineProperty(result, '_rawError', { value: err, enumerable: false });\n  229\t    return result;\n  230\t  }\n  231\t}\n  232\t\n  233\tasync function runProviderPreflight({\n  234\t  createMercuryClient = () => createMercuryLlmClient({ systemPrompt: 'Respond tersely.' }),\n  235\t  createAstraClient = () => createAstraChallengerClient(),\n  236\t  createKimiClient = () => createKimiTieBreakerClient(),\n  237\t  repoRoot = null,\n  238\t} = {}) {\n  239\t  const startedAt = new Date();\n  240\t  const runId = createRawRunId(startedAt);\n  241\t  const attempts = [];\n  242\t  const mercury = await checkClient('mercury', createMercuryClient, { attempt: 1, repoRoot, runId });\n  243\t  attempts.push(mercury.attemptReceipt);\n  244\t  const astra = await checkClient('astra_challenger', createAstraClient, { attempt: 2, repoRoot, runId });\n  245\t  attempts.push(astra.attemptReceipt);\n  246\t  const kimi = await checkClient('kimi_tie_breaker', createKimiClient, {\n  247\t    attempt: attempts.length + 1, repoRoot, runId,\n  248\t  });\n  249\t  attempts.push(kimi.attemptReceipt);\n  250\t  const challengerReady = astra.ok === true;\n  251\t  const result = {\n  252\t    ok: mercury.ok === true && challengerReady,\n  253\t    challengerReady,\n  254\t    tieBreakerReady: kimi.ok === true,\n  255\t    checks: [mercury, astra, kimi],",
+              "source_ref": "df34112529a6e1db26a79312ca2e3402ccb14334"
+            },
+            "toolDelivery": {
+              "truncated": false,
+              "startLine": 188,
+              "endLine": 255,
+              "totalLines": 275
+            },
+            "toolCallId": "call_ae6d7a96075e4bd7"
+          }
+        ],
+        "providerAttempts": [
+          {
+            "attempt": 1,
+            "stage": "mercury_recheck_1",
+            "status": "succeeded",
+            "retry": 0,
+            "requested_provider": "mercury",
+            "requested_model": "mercury-2",
+            "applied_model": "mercury-2",
+            "started_at": "2026-10-02T19:17:04.507Z",
+            "finished_at": "2026-10-02T19:17:08.133Z",
+            "latency_ms": 3627,
+            "status_code": 200,
+            "termination": "tool_calls",
+            "stopped_because": "tool_calls",
+            "parse_status": "parsed",
+            "tokens": {
+              "input": 30523,
+              "uncached_input": 30518,
+              "cached_input": 5,
+              "output": 661,
+              "total": 31184
+            },
+            "usage_absence": null,
+            "cost": {
+              "amount": 0.008125375,
+              "currency": "USD",
+              "pricing_source": "operator-supplied Jul 1 invoice"
+            },
+            "cost_absence": null,
+            "identity_posture": {
+              "status": "provider_attested_response",
+              "authority": "full",
+              "requested_model": "mercury-2",
+              "applied_models": [
+                "mercury-2"
+              ]
+            },
+            "executable_trust": null,
+            "raw_output": {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t19-17-04.488z-astra-readiness-correction/mercury_recheck_1-1.raw",
+              "sha256": "0e3d828161058d94157099cbb78db49b1b1771072e9f255fea7f846d05a38991",
+              "bytes": 666,
+              "mode": "0600"
+            },
+            "error": null,
+            "repo_adjudication": {
+              "status": "pending",
+              "authority": "live_repo_required"
+            }
+          },
+          {
+            "attempt": 2,
+            "stage": "mercury_recheck_1",
+            "status": "succeeded",
+            "retry": 0,
+            "requested_provider": "mercury",
+            "requested_model": "mercury-2",
+            "applied_model": "mercury-2",
+            "started_at": "2026-10-02T19:17:08.142Z",
+            "finished_at": "2026-10-02T19:17:10.214Z",
+            "latency_ms": 2072,
+            "status_code": 200,
+            "termination": "tool_calls",
+            "stopped_because": "tool_calls",
+            "parse_status": "parsed",
+            "tokens": {
+              "input": 33712,
+              "uncached_input": 33707,
+              "cached_input": 5,
+              "output": 285,
+              "total": 33997
+            },
+            "usage_absence": null,
+            "cost": {
+              "amount": 0.008640625,
+              "currency": "USD",
+              "pricing_source": "operator-supplied Jul 1 invoice"
+            },
+            "cost_absence": null,
+            "identity_posture": {
+              "status": "provider_attested_response",
+              "authority": "full",
+              "requested_model": "mercury-2",
+              "applied_models": [
+                "mercury-2"
+              ]
+            },
+            "executable_trust": null,
+            "raw_output": {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t19-17-04.488z-astra-readiness-correction/mercury_recheck_1-2.raw",
+              "sha256": "c7606ca5a8857b01d923a7882a901b5f27e9e0c509b3fc4f21e609da5122df4d",
+              "bytes": 638,
+              "mode": "0600"
+            },
+            "error": null,
+            "repo_adjudication": {
+              "status": "pending",
+              "authority": "live_repo_required"
+            }
+          },
+          {
+            "attempt": 3,
+            "stage": "mercury_recheck_1",
+            "status": "succeeded",
+            "retry": 0,
+            "requested_provider": "mercury",
+            "requested_model": "mercury-2",
+            "applied_model": "mercury-2",
+            "started_at": "2026-10-02T19:17:10.291Z",
+            "finished_at": "2026-10-02T19:17:11.513Z",
+            "latency_ms": 1222,
+            "status_code": 200,
+            "termination": "tool_calls",
+            "stopped_because": "tool_calls",
+            "parse_status": "parsed",
+            "tokens": {
+              "input": 33018,
+              "uncached_input": 33013,
+              "cached_input": 5,
+              "output": 59,
+              "total": 33077
+            },
+            "usage_absence": null,
+            "cost": {
+              "amount": 0.008297625,
+              "currency": "USD",
+              "pricing_source": "operator-supplied Jul 1 invoice"
+            },
+            "cost_absence": null,
+            "identity_posture": {
+              "status": "provider_attested_response",
+              "authority": "full",
+              "requested_model": "mercury-2",
+              "applied_models": [
+                "mercury-2"
+              ]
+            },
+            "executable_trust": null,
+            "raw_output": {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t19-17-04.488z-astra-readiness-correction/mercury_recheck_1-3.raw",
+              "sha256": "cec3a76038e33950b29632bebeb7d02555d8c2f4620644e1c77591dcf52be650",
+              "bytes": 676,
+              "mode": "0600"
+            },
+            "error": null,
+            "repo_adjudication": {
+              "status": "pending",
+              "authority": "live_repo_required"
+            }
+          },
+          {
+            "attempt": 4,
+            "stage": "mercury_recheck_1",
+            "status": "succeeded",
+            "retry": 0,
+            "requested_provider": "mercury",
+            "requested_model": "mercury-2",
+            "applied_model": "mercury-2",
+            "started_at": "2026-10-02T19:17:11.514Z",
+            "finished_at": "2026-10-02T19:17:13.486Z",
+            "latency_ms": 1972,
+            "status_code": 200,
+            "termination": "tool_calls",
+            "stopped_because": "tool_calls",
+            "parse_status": "parsed",
+            "tokens": {
+              "input": 33647,
+              "uncached_input": 33643,
+              "cached_input": 4,
+              "output": 363,
+              "total": 34010
+            },
+            "usage_absence": null,
+            "cost": {
+              "amount": 0.0086831,
+              "currency": "USD",
+              "pricing_source": "operator-supplied Jul 1 invoice"
+            },
+            "cost_absence": null,
+            "identity_posture": {
+              "status": "provider_attested_response",
+              "authority": "full",
+              "requested_model": "mercury-2",
+              "applied_models": [
+                "mercury-2"
+              ]
+            },
+            "executable_trust": null,
+            "raw_output": {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t19-17-04.488z-astra-readiness-correction/mercury_recheck_1-4.raw",
+              "sha256": "ddda974075f0da55146489ec7be77608259cb7c7968d800d7083216802824b3a",
+              "bytes": 677,
+              "mode": "0600"
+            },
+            "error": null,
+            "repo_adjudication": {
+              "status": "pending",
+              "authority": "live_repo_required"
+            }
+          },
+          {
+            "attempt": 5,
+            "stage": "mercury_recheck_1",
+            "status": "succeeded",
+            "retry": 0,
+            "requested_provider": "mercury",
+            "requested_model": "mercury-2",
+            "applied_model": "mercury-2",
+            "started_at": "2026-10-02T19:17:13.488Z",
+            "finished_at": "2026-10-02T19:17:14.230Z",
+            "latency_ms": 742,
+            "status_code": 200,
+            "termination": "tool_calls",
+            "stopped_because": "tool_calls",
+            "parse_status": "parsed",
+            "tokens": {
+              "input": 35063,
+              "uncached_input": 2378,
+              "cached_input": 32685,
+              "output": 82,
+              "total": 35145
+            },
+            "usage_absence": null,
+            "cost": {
+              "amount": 0.001473125,
+              "currency": "USD",
+              "pricing_source": "operator-supplied Jul 1 invoice"
+            },
+            "cost_absence": null,
+            "identity_posture": {
+              "status": "provider_attested_response",
+              "authority": "full",
+              "requested_model": "mercury-2",
+              "applied_models": [
+                "mercury-2"
+              ]
+            },
+            "executable_trust": null,
+            "raw_output": {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t19-17-04.488z-astra-readiness-correction/mercury_recheck_1-5.raw",
+              "sha256": "90c0854df973544d6eb732d4d554c483a8a04a016bcbd7e74e46f966f747fbda",
+              "bytes": 681,
+              "mode": "0600"
+            },
+            "error": null,
+            "repo_adjudication": {
+              "status": "pending",
+              "authority": "live_repo_required"
+            }
+          },
+          {
+            "attempt": 6,
+            "stage": "mercury_recheck_1",
+            "status": "succeeded",
+            "retry": 0,
+            "requested_provider": "mercury",
+            "requested_model": "mercury-2",
+            "applied_model": "mercury-2",
+            "started_at": "2026-10-02T19:17:14.232Z",
+            "finished_at": "2026-10-02T19:17:18.562Z",
+            "latency_ms": 4330,
+            "status_code": 200,
+            "termination": "stop",
+            "stopped_because": "stop",
+            "parse_status": "parsed",
+            "tokens": {
+              "input": 36916,
+              "uncached_input": 36910,
+              "cached_input": 6,
+              "output": 1663,
+              "total": 38579
+            },
+            "usage_absence": null,
+            "cost": {
+              "amount": 0.0104749,
+              "currency": "USD",
+              "pricing_source": "operator-supplied Jul 1 invoice"
+            },
+            "cost_absence": null,
+            "identity_posture": {
+              "status": "provider_attested_response",
+              "authority": "full",
+              "requested_model": "mercury-2",
+              "applied_models": [
+                "mercury-2"
+              ]
+            },
+            "executable_trust": null,
+            "raw_output": {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-02/2026-10-02t19-17-04.488z-astra-readiness-correction/mercury_recheck_1-6.raw",
+              "sha256": "1c952a3e7ce1e058642e7eebf8f04f4909cda17b09f171c9abb6ca07cc63a85a",
+              "bytes": 5400,
+              "mode": "0600"
+            },
+            "error": null,
+            "repo_adjudication": {
+              "status": "pending",
+              "authority": "live_repo_required"
+            }
+          }
+        ],
+        "toolsAvailable": [
+          "find_definition",
+          "find_references",
+          "get_chunk",
+          "git_diff",
+          "git_show",
+          "grep",
+          "list_files",
+          "open_file",
+          "regex_grep",
+          "rule_scan",
+          "search",
+          "serena_blast_radius",
+          "serena_class_fields",
+          "serena_method_callers",
+          "serena_property_refs",
+          "tavily_search",
+          "web_fetch"
+        ],
+        "iterationLimit": null,
+        "decisionSteerIteration": 60,
+        "decisionSteerSentAt": null,
+        "toolTelemetry": {
+          "total": 5,
+          "succeeded": 5,
+          "failed": 0,
+          "byTool": {
+            "open_file": {
+              "calls": 4,
+              "succeeded": 4,
+              "failed": 0
+            },
+            "search": {
+              "calls": 1,
+              "succeeded": 1,
+              "failed": 0
+            }
+          },
+          "calls": [
+            {
+              "iteration": 1,
+              "name": "open_file",
+              "status": "succeeded",
+              "args": {
+                "path": "trai_brain/mercury-bridge/ask.js",
+                "start_line": 1800,
+                "end_line": 1900
+              },
+              "result": {
+                "file": "trai_brain/mercury-bridge/ask.js",
+                "start_line": 1800,
+                "end_line": 1900,
+                "total_lines": 2059
+              },
+              "delivery": {
+                "truncated": false,
+                "startLine": 1800,
+                "endLine": 1900,
+                "totalLines": 2059
+              }
+            },
+            {
+              "iteration": 2,
+              "name": "search",
+              "status": "succeeded",
+              "args": {
+                "query": "function attemptReceipt",
+                "file_pattern": "*"
+              },
+              "result": {
+                "source": "direct_ripgrep_fixed",
+                "total": 1,
+                "truncated": false
+              },
+              "delivery": {
+                "truncated": false,
+                "startLine": null,
+                "endLine": null,
+                "totalLines": null
+              }
+            },
+            {
+              "iteration": 3,
+              "name": "open_file",
+              "status": "succeeded",
+              "args": {
+                "path": "trai_brain/mercury-bridge/provider-preflight.js",
+                "start_line": 60,
+                "end_line": 120
+              },
+              "result": {
+                "file": "trai_brain/mercury-bridge/provider-preflight.js",
+                "start_line": 60,
+                "end_line": 120,
+                "total_lines": 275
+              },
+              "delivery": {
+                "truncated": false,
+                "startLine": 60,
+                "endLine": 120,
+                "totalLines": 275
+              }
+            },
+            {
+              "iteration": 4,
+              "name": "open_file",
+              "status": "succeeded",
+              "args": {
+                "path": "trai_brain/mercury-bridge/codex-challenger.js",
+                "start_line": 115,
+                "end_line": 130
+              },
+              "result": {
+                "file": "trai_brain/mercury-bridge/codex-challenger.js",
+                "start_line": 115,
+                "end_line": 130,
+                "total_lines": 156
+              },
+              "delivery": {
+                "truncated": false,
+                "startLine": 115,
+                "endLine": 130,
+                "totalLines": 156
+              }
+            },
+            {
+              "iteration": 5,
+              "name": "open_file",
+              "status": "succeeded",
+              "args": {
+                "path": "trai_brain/mercury-bridge/provider-preflight.js",
+                "start_line": 188,
+                "end_line": 255
+              },
+              "result": {
+                "file": "trai_brain/mercury-bridge/provider-preflight.js",
+                "start_line": 188,
+                "end_line": 255,
+                "total_lines": 275
+              },
+              "delivery": {
+                "truncated": false,
+                "startLine": 188,
+                "endLine": 255,
+                "totalLines": 275
+              }
+            }
+          ],
+          "filesOpened": [
+            "trai_brain/mercury-bridge/ask.js:1800-1900",
+            "trai_brain/mercury-bridge/codex-challenger.js:115-130",
+            "trai_brain/mercury-bridge/provider-preflight.js:188-255",
+            "trai_brain/mercury-bridge/provider-preflight.js:60-120"
+          ],
+          "fileReads": [
+            {
+              "file": "trai_brain/mercury-bridge/ask.js",
+              "startLine": 1800,
+              "endLine": 1900,
+              "totalLines": 2059,
+              "executionProvenance": "trusted_repo_read",
+              "contextCompacted": false
+            },
+            {
+              "file": "trai_brain/mercury-bridge/provider-preflight.js",
+              "startLine": 60,
+              "endLine": 120,
+              "totalLines": 275,
+              "executionProvenance": "trusted_repo_read",
+              "contextCompacted": false
+            },
+            {
+              "file": "trai_brain/mercury-bridge/codex-challenger.js",
+              "startLine": 115,
+              "endLine": 130,
+              "totalLines": 156,
+              "executionProvenance": "trusted_repo_read",
+              "contextCompacted": false
+            },
+            {
+              "file": "trai_brain/mercury-bridge/provider-preflight.js",
+              "startLine": 188,
+              "endLine": 255,
+              "totalLines": 275,
+              "executionProvenance": "trusted_repo_read",
+              "contextCompacted": false
+            }
+          ],
+          "runCheckArtifacts": [],
+          "runChecks": []
+        },
+        "totalLatencyMs": 14098,
+        "inputProvenance": {
+          "prompt_sha256": "a3d3319aceb77e825f1889f2c9abfe863574d5300a6661a7d0ca294194e4fb13",
+          "prompt_bytes": 98344,
+          "prompt_excerpt": "Attack the readiness-reporting correction in the Astra-seat replacement at immutable tree df34112529a6e1db26a79312ca2e3402ccb14334, base 3afde60ce654ec191a6a73413bb5ab5cf8acf6d1. Trace actual returned error/incomplete metadata through preflight result, receipt, ledger and CLI: can the corrected producer still falsely report a failed invocation as ready, or lose its answer/error evidence? Examine the upstream mechanism and any newly introduced failure modes. This is a focused follow-up to the completed broad review, not an instruction to restore response gates. Report source evidence and explicit limits.\n\nTrey has explicitly resolved the separate executable-trust question: \"Record in receipt and continue\" and \"nothing shuts the stuff down it gets written down and keeps moving unless its fatal to someones money\". Trust diagnostics without launch refusal are now authorized for this reviewer adapter. Do not restore that gate, add throws, call Kimi/Claude, or alter financial protections.\n\nComplete Astra finding:\nVERDICT: found_break\n\nCONSENSUS_BLOCKING: yes\n\nRATIONALE:\nMercury’s alleged alias-matcher defect is contradicted by the actual caller chain. Two different defects are supported by selected-source inspection:\n\n1. **Executable trust no longer prevents dispatch.** `trai_brain/mercury-bridge/codex-challenger.js:89` computes `trusted: false` for a package/version mismatch, but line 96 still marks initialization complete and line 119 sends the review prompt to that executable. The former client checked ownership, writable paths and executable provenance before dispatch (`trai_brain/mercury-bridge/llm-client.js:96`, `:118`, `:498`). The existing hard-boundary handler consumes errors carrying failed trust metadata (`trai_brain/mercury-bridge/adversarial-review.js:30`); the new client merely returns that metadata. This weakens the expressly preserved executable boundary. No compromised installation is alleged.\n\n2. **Transport failure can be reported as provider readiness....[truncated 95453 chars]",
+          "supplied_sources": []
+        },
+        "evidenceSources": []
+      }
+    ],
+    "quarantines": []
+  }
+}

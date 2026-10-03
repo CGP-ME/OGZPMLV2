@@ -1,0 +1,13 @@
+# Inherited work and limitations
+
+The shared checkout contains extensive unrelated trading and Mercury work. Initial HEAD was 25f338d7af4e6b2e10a91e09cc1509c7f1f64b73. The other agent subsequently delivered RSI2 as 4c22efe839a5a408b46840352943def280412784 and staged another Stop 1 migration. Those changes are not authored, staged, or committed by this mission.
+
+Baseline copies and separate own-versus-baseline patches isolate changes in shared adversarial-review.js, ask.js and run-ledger.js. Existing edits in evidence-ingestion.js, explicit-continuation.js and tool-adapter.js remain excluded. No inherited transport patch is silently included.
+
+The inherited consensus, reviewer-panel and ledger suites assert retired host authority caps/functions. Re-executing the pre-mission source and tests produced 29 failures across those suites; the preflight suite passed. The updated consensus suite retains the same five inherited authority-related failures. These are not corrected by restoring caps. The historical cap removal is recorded in a51b33e4; later reviewer-supervision removal is 8824e641. Relevant baseline outputs are delivered with evidence.
+
+The earlier Mercury review loaded all 11 target sources successfully. Nine of its first 13 model requests failed (five DNS EAI_AGAIN, four AggregateError); four succeeded. Its final answer was preserved but carried incomplete-evidence and citation-structure diagnostics. This is not evidence of failed local repository reads. Separate connectivity checks reproduced DNS/network failure, then a single Mercury provider call succeeded. No speculative network-policy or trading-code repair was made.
+
+Codex exec exposes tool events; when the provider includes its tool catalog in SSE response frames, the receipt records the available tool names. If a response omits that catalog, the receipt names the absence. Nested execution outcomes remain in the full execution events and raw tapes; they are not guessed from requested tool calls. The configured challenger token setting is recorded, but Codex CLI does not enforce that setting as an output-token cap. No claim of a universal request-size bound is made.
+
+The existing redactor also redacted 24 raw receipt filenames in ledger views. Their tapes were retained elsewhere in the same result with intact identities. Packet preparation resolves these aliases by exact original hash and delivers the mapping; the redactor itself is not changed in this mission. PROMPT-AUDIT.md records further observed framing/transport/reasoning limitations without claiming a proven first-pass accuracy repair.

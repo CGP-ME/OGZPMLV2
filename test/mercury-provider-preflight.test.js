@@ -7,6 +7,7 @@ const path = require('path');
 const {
   classifyProviderError,
   sanitizeProviderMessage,
+  checkClient,
   runProviderPreflight,
 } = require('../trai_brain/mercury-bridge/provider-preflight');
 
@@ -39,6 +40,24 @@ function trustedFableMetadata(overrides = {}) {
 }
 
 describe('Mercury provider preflight', () => {
+  test.each(['error', 'incomplete'])('reports %s transport as unavailable and retains its tapes', async termination => {
+    const metadata = {
+      provider: 'codex-subscription', requestedModel: 'gpt-6-astra',
+      termination, providerErrors: [{ type: 'error', message: 'usage exhausted' }],
+      rawResponse: Buffer.from('partial answer'), rawError: Buffer.from('usage exhausted'),
+    };
+    const result = await checkClient('astra_challenger', () => ({
+      providerName: 'codex-subscription', model: 'gpt-6-astra',
+      initialize: async () => {},
+      generateResponseWithMetadata: async () => ({ answer: 'partial answer', metadata }),
+    }), { repoRoot: tmpRoot, runId: 'transport-reporting', attempt: 1 });
+    expect(result.ok).toBe(false);
+    expect(result.attemptReceipt.status).toBe('failed');
+    expect(result.attemptReceipt.provider_errors).toEqual(metadata.providerErrors);
+    expect(fs.readFileSync(path.join(tmpRoot, result.attemptReceipt.raw_output.path), 'utf8')).toBe('partial answer');
+    expect(fs.readFileSync(path.join(tmpRoot, result.attemptReceipt.raw_error.path), 'utf8')).toBe('usage exhausted');
+  });
+
   let tmpRoot;
 
   beforeEach(() => {
@@ -68,14 +87,14 @@ describe('Mercury provider preflight', () => {
       .toBe('HTTP 403: upgrade for access (ref: [REDACTED])');
   });
 
-  test('preflight returns ok only when Mercury and Fable both warm up', async () => {
+  test('preflight returns ok only when Mercury and Astra both warm up', async () => {
     const result = await runProviderPreflight({
       createMercuryClient: () => fakeClient({
         provider: 'mercury',
         model: 'mercury-2',
         initialize: async () => {},
       }),
-      createFableClient: () => fakeClient({
+      createAstraClient: () => fakeClient({
         provider: 'claude',
         model: 'fable',
         initialize: async () => {},
@@ -100,7 +119,7 @@ describe('Mercury provider preflight', () => {
           requests: 1,
         },
         {
-          label: 'fable_challenger',
+          label: 'astra_challenger',
           ok: true,
           provider: 'claude',
           model: 'fable',
@@ -126,7 +145,7 @@ describe('Mercury provider preflight', () => {
           throw new Error('HTTP 402: free_tier_quota_exceeded');
         },
       }),
-      createFableClient: () => fakeClient({
+      createAstraClient: () => fakeClient({
         provider: 'claude',
         model: 'fable',
         initialize: async () => {
@@ -150,7 +169,7 @@ describe('Mercury provider preflight', () => {
         error: { category: 'quota_or_billing' },
       },
       {
-        label: 'fable_challenger',
+        label: 'astra_challenger',
         ok: false,
         provider: 'claude',
         model: 'fable',
@@ -170,7 +189,7 @@ describe('Mercury provider preflight', () => {
   test('Kimi readiness never satisfies challenger readiness', async () => {
     const result = await runProviderPreflight({
       createMercuryClient: () => fakeClient({ provider: 'mercury', model: 'mercury-2', initialize: async () => {} }),
-      createFableClient: () => fakeClient({
+      createAstraClient: () => fakeClient({
         provider: 'claude-code', model: 'fable', initialize: async () => { throw new Error('auth failed'); },
       }),
       createKimiClient: () => fakeClient({ provider: 'openai', model: 'kimi-k3', initialize: async () => {} }),
@@ -178,37 +197,13 @@ describe('Mercury provider preflight', () => {
     expect(result).toMatchObject({ ok: false, challengerReady: false, tieBreakerReady: true });
   });
 
-  test('preflight checks Opus only after allowlisted Fable unavailability', async () => {
-    const fableFailure = new Error('Fable unavailable');
-    fableFailure.providerMetadata = trustedFableMetadata({
-      providerFrames: [{ type: 'result', is_error: true, error: { type: 'model_unavailable' } }],
-    });
-    const opusFactory = jest.fn(() => fakeClient({
-      provider: 'claude-code', model: 'opus', initialize: async () => {},
-    }));
-    const result = await runProviderPreflight({
-      createMercuryClient: () => fakeClient({
-        provider: 'mercury', model: 'mercury-2', initialize: async () => {},
-      }),
-      createFableClient: () => fakeClient({
-        provider: 'claude-code', model: 'fable', initialize: async () => { throw fableFailure; },
-      }),
-      createOpusClient: opusFactory,
-      createKimiClient: () => fakeClient({
-        provider: 'openai', model: 'kimi-k3', initialize: async () => { throw new Error('Kimi unavailable'); },
-      }),
-    });
-    expect(opusFactory).toHaveBeenCalledTimes(1);
-    expect(result).toMatchObject({ ok: true, challengerReady: true, tieBreakerReady: false });
-    expect(result.checks.map(check => check.label))
-      .toEqual(['mercury', 'fable_challenger', 'opus_challenger', 'kimi_tie_breaker']);
-  });
+  // Retired Claude fallback contract; Astra no-fallback coverage is in mercury-astra-challenger.test.js.
 
   test('preflight stamps identity conflict and continues without misreporting pipeline Opus fallback', async () => {
     const opusFactory = jest.fn(() => fakeClient({ provider: 'claude-code', model: 'opus', initialize: async () => {} }));
     const result = await runProviderPreflight({
       createMercuryClient: () => fakeClient({ provider: 'mercury', model: 'mercury-2', initialize: async () => {} }),
-      createFableClient: () => ({
+      createAstraClient: () => ({
         providerName: 'claude-code', model: 'fable', requestCount: 0,
         initialize: jest.fn(async () => {}),
         generateResponseWithMetadata: jest.fn(async () => ({
@@ -246,7 +241,7 @@ describe('Mercury provider preflight', () => {
     });
     expect(opusFactory).not.toHaveBeenCalled();
     expect(result.checks.map(check => check.label))
-      .toEqual(['mercury', 'fable_challenger', 'kimi_tie_breaker']);
+      .toEqual(['mercury', 'astra_challenger', 'kimi_tie_breaker']);
   });
 
   test('preflight cannot route around a genuinely untrusted Claude executable', async () => {
@@ -260,7 +255,7 @@ describe('Mercury provider preflight', () => {
     const opusFactory = jest.fn();
     const result = await runProviderPreflight({
       createMercuryClient: () => fakeClient({ provider: 'mercury', model: 'mercury-2', initialize: async () => {} }),
-      createFableClient: () => fakeClient({
+      createAstraClient: () => fakeClient({
         provider: 'claude-code', model: 'fable', initialize: async () => { throw trustFailure; },
       }),
       createOpusClient: opusFactory,
@@ -270,21 +265,20 @@ describe('Mercury provider preflight', () => {
     expect(result).toMatchObject({ ok: false, challengerReady: false });
     expect(result.checks[1]).toMatchObject({
       error: { code: 'CLAUDE_CODE_EXECUTABLE_UNTRUSTED' },
-      fallback: { category: 'untrusted_provider_error', opusEligible: false },
       attemptReceipt: { executable_trust: { trusted: false, failedCheck: 'rooted_system_launcher' } },
     });
     expect(opusFactory).not.toHaveBeenCalled();
   });
 
-  test('ambiguous nested Fable error fails loud and never invokes Opus during preflight', async () => {
-    const fableFailure = new Error('Fable malformed output');
+  test('ambiguous nested Astra error fails loud and never invokes Opus during preflight', async () => {
+    const fableFailure = new Error('Astra malformed output');
     fableFailure.providerMetadata = trustedFableMetadata({
       providerFrames: [{ payload: { type: 'model_unavailable' } }],
     });
     const opusFactory = jest.fn();
     const result = await runProviderPreflight({
       createMercuryClient: () => fakeClient({ provider: 'mercury', model: 'mercury-2', initialize: async () => {} }),
-      createFableClient: () => fakeClient({
+      createAstraClient: () => fakeClient({
         provider: 'claude-code', model: 'fable', initialize: async () => { throw fableFailure; },
       }),
       createOpusClient: opusFactory,
@@ -292,13 +286,13 @@ describe('Mercury provider preflight', () => {
     });
     expect(opusFactory).not.toHaveBeenCalled();
     expect(result).toMatchObject({ ok: false, challengerReady: false, tieBreakerReady: true });
-    expect(result.checks[1].fallback).toMatchObject({ opusEligible: false });
+    expect(result.checks[1].fallback).toBeUndefined();
   });
 
-  test('failed ambiguous Fable preflight writes complete schema-v2 and mode-0600 raw receipts without Opus', async () => {
-    const secretFixture = 'API_KEY=preflight-secret-value';
-    const fableRaw = Buffer.from(`fable raw ${secretFixture}`);
-    const fableError = new Error(`Claude Code response was incomplete: unexpected_exposed_tools ${secretFixture}`);
+  test('failed ambiguous Astra preflight writes complete schema-v2 and mode-0600 raw receipts without Opus', async () => {
+    const redactionFixture = 'API_KEY=preflight-secret-value';
+    const fableRaw = Buffer.from(`fable raw ${redactionFixture}`);
+    const fableError = new Error(`Claude Code response was incomplete: unexpected_exposed_tools ${redactionFixture}`);
     fableError.code = 'CLAUDE_CODE_INCOMPLETE_RESPONSE';
     fableError.subcondition = 'unexpected_exposed_tools';
     fableError.subconditions = ['unexpected_exposed_tools'];
@@ -350,7 +344,7 @@ describe('Mercury provider preflight', () => {
     const result = await runProviderPreflight({
       repoRoot: tmpRoot,
       createMercuryClient: () => metadataClient({ provider: 'mercury', model: 'mercury-2', raw: Buffer.from('mercury') }),
-      createFableClient: () => ({
+      createAstraClient: () => ({
         providerName: 'claude-code', model: 'fable', requestCount: 0,
         initialize: jest.fn(async () => {}),
         generateResponseWithMetadata: jest.fn(async () => { throw fableError; }),
@@ -366,13 +360,12 @@ describe('Mercury provider preflight', () => {
       checks: [
         { label: 'mercury', ok: true, appliedModel: 'mercury-2' },
         {
-          label: 'fable_challenger',
+          label: 'astra_challenger',
           ok: false,
           error: {
             code: 'CLAUDE_CODE_INCOMPLETE_RESPONSE',
             subcondition: 'unexpected_exposed_tools',
           },
-          fallback: { opusEligible: false },
         },
         { label: 'kimi_tie_breaker', ok: true, appliedModel: 'kimi-k3' },
       ],
@@ -380,7 +373,7 @@ describe('Mercury provider preflight', () => {
     });
     expect(opusFactory).not.toHaveBeenCalled();
     expect(result.attempts.map(attempt => attempt.role))
-      .toEqual(['mercury', 'fable_challenger', 'kimi_tie_breaker']);
+      .toEqual(['mercury', 'astra_challenger', 'kimi_tie_breaker']);
     const fableAttempt = result.attempts[1];
     expect(fableAttempt).toMatchObject({
       applied_model: 'claude-fable-5',
@@ -404,7 +397,7 @@ describe('Mercury provider preflight', () => {
       schema_version: 2,
       receipt_type: 'provider_preflight',
       verdict: 'provider_preflight_failed',
-      provider_attempts: [{ role: 'mercury' }, { role: 'fable_challenger' }, { role: 'kimi_tie_breaker' }],
+      provider_attempts: [{ role: 'mercury' }, { role: 'astra_challenger' }, { role: 'kimi_tie_breaker' }],
     });
     expect(JSON.stringify(result)).not.toContain('preflight-secret-value');
     expect(JSON.stringify(ledger)).not.toContain('preflight-secret-value');

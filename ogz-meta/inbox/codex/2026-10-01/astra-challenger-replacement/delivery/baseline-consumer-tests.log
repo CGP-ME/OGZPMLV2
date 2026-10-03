@@ -1,0 +1,659 @@
+FAIL test/mercury-run-ledger.test.js
+  ● Mercury run ledger › parses the five-field seat self-report and names partial footers without capping authority
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "no_break_found"
+    Received: "no_claim"
+
+      103 |     });
+      104 |     expect(entry.reviewer_panel.seats[0].named_absences).toEqual(['self_report_absent']);
+    > 105 |     expect(entry.verdict).toBe('no_break_found');
+          |                           ^
+      106 |   });
+      107 |
+      108 |   test('sums every seat attempt and carries cached, uncached, run, daily, and monthly cost receipts', () => {
+
+      at Object.<anonymous> (test/mercury-run-ledger.test.js:105:27)
+
+  ● Mercury run ledger › panel authority {"ceiling":"UNVERIFIED","agreedVerdict":"pass"} exclusively owns durable verdict unverified
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "unverified"
+    Received: "review_incomplete"
+
+      393 |         reviewerPanel: { authority },
+      394 |       },
+    > 395 |     })).toBe(verdict);
+          |         ^
+      396 |   });
+      397 |
+      398 |   test('builds a compact run envelope from Mercury telemetry', () => {
+
+      at test/mercury-run-ledger.test.js:395:9
+
+  ● Mercury run ledger › panel authority {"ceiling":"FULL","agreedVerdict":"pass"} exclusively owns durable verdict no_break_found
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "no_break_found"
+    Received: "review_incomplete"
+
+      393 |         reviewerPanel: { authority },
+      394 |       },
+    > 395 |     })).toBe(verdict);
+          |         ^
+      396 |   });
+      397 |
+      398 |   test('builds a compact run envelope from Mercury telemetry', () => {
+
+      at test/mercury-run-ledger.test.js:395:9
+
+  ● Mercury run ledger › panel authority {"ceiling":"FULL","agreedVerdict":"found_break"} exclusively owns durable verdict found_break
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "found_break"
+    Received: "review_incomplete"
+
+      393 |         reviewerPanel: { authority },
+      394 |       },
+    > 395 |     })).toBe(verdict);
+          |         ^
+      396 |   });
+      397 |
+      398 |   test('builds a compact run envelope from Mercury telemetry', () => {
+
+      at test/mercury-run-ledger.test.js:395:9
+
+  ● Mercury run ledger › panel authority {"ceiling":"FULL","agreedVerdict":"cannot_verify"} exclusively owns durable verdict cannot_verify
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "cannot_verify"
+    Received: "review_incomplete"
+
+      393 |         reviewerPanel: { authority },
+      394 |       },
+    > 395 |     })).toBe(verdict);
+          |         ^
+      396 |   });
+      397 |
+      398 |   test('builds a compact run envelope from Mercury telemetry', () => {
+
+      at test/mercury-run-ledger.test.js:395:9
+
+  ● Mercury run ledger › panel authority {"ceiling":"FULL","agreedVerdict":null} exclusively owns durable verdict unverified
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "unverified"
+    Received: "review_incomplete"
+
+      393 |         reviewerPanel: { authority },
+      394 |       },
+    > 395 |     })).toBe(verdict);
+          |         ^
+      396 |   });
+      397 |
+      398 |   test('builds a compact run envelope from Mercury telemetry', () => {
+
+      at test/mercury-run-ledger.test.js:395:9
+
+  ● Mercury run ledger › panel authority null exclusively owns durable verdict unverified
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "unverified"
+    Received: "review_incomplete"
+
+      393 |         reviewerPanel: { authority },
+      394 |       },
+    > 395 |     })).toBe(verdict);
+          |         ^
+      396 |   });
+      397 |
+      398 |   test('builds a compact run envelope from Mercury telemetry', () => {
+
+      at test/mercury-run-ledger.test.js:395:9
+
+  ● Mercury run ledger › builds a compact run envelope from Mercury telemetry
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 2
+
+    @@ -3,10 +3,11 @@
+          "call_details": Array [
+            Object {
+              "args": Object {
+                "target": "current",
+              },
+    +         "delivery": null,
+              "iteration": 1,
+              "result": Object {
+                "file_count": 1,
+                "target": "working",
+              },
+    @@ -24,10 +25,11 @@
+              "args": Object {
+                "end_line": 2,
+                "path": "trai_brain/mercury-bridge/ask.js",
+                "start_line": 1,
+              },
+    +         "delivery": null,
+              "iteration": 1,
+              "result": Object {
+                "end_line": 2,
+                "file": "trai_brain/mercury-bridge/ask.js",
+                "start_line": 1,
+
+      506 |     expect(entry.verdict).toBe('cannot_verify');
+      507 |     expect(entry).not.toHaveProperty(removedCommitField);
+    > 508 |     expect(entry.tools_invoked).toEqual([
+          |                                 ^
+      509 |       {
+      510 |         name: 'git_diff',
+      511 |         calls: 1,
+
+      at Object.<anonymous> (test/mercury-run-ledger.test.js:508:33)
+
+  ● Mercury run ledger › caps a load-bearing evidence_descriptor quarantine at unverified and preserves its scream receipt
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "unverified"
+    Received: "cannot_verify"
+
+      1120 |     });
+      1121 |
+    > 1122 |     expect(entry.verdict).toBe('unverified');
+           |                           ^
+      1123 |     expect(entry.review_quarantines).toEqual([quarantine]);
+      1124 |   });
+      1125 |
+
+      at test/mercury-run-ledger.test.js:1122:27
+
+  ● Mercury run ledger › caps a load-bearing challenger quarantine at unverified and preserves its scream receipt
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "unverified"
+    Received: "cannot_verify"
+
+      1120 |     });
+      1121 |
+    > 1122 |     expect(entry.verdict).toBe('unverified');
+           |                           ^
+      1123 |     expect(entry.review_quarantines).toEqual([quarantine]);
+      1124 |   });
+      1125 |
+
+      at test/mercury-run-ledger.test.js:1122:27
+
+  ● Mercury run ledger › caps a load-bearing recheck quarantine at unverified and preserves its scream receipt
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "unverified"
+    Received: "cannot_verify"
+
+      1120 |     });
+      1121 |
+    > 1122 |     expect(entry.verdict).toBe('unverified');
+           |                           ^
+      1123 |     expect(entry.review_quarantines).toEqual([quarantine]);
+      1124 |   });
+      1125 |
+
+      at test/mercury-run-ledger.test.js:1122:27
+
+  ● Mercury run ledger › persists identity ladder posture and caps only undocumented conflicts
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "unverified"
+    Received: "no_break_found"
+
+      1206 |       },
+      1207 |     });
+    > 1208 |     expect(conflicted.verdict).toBe('unverified');
+           |                                ^
+      1209 |     expect(conflicted.review_quarantines).toEqual([identityConflict]);
+      1210 |     expect(conflicted.adversarial_review).toMatchObject({
+      1211 |       effective_verdict: 'UNVERIFIED',
+
+      at Object.<anonymous> (test/mercury-run-ledger.test.js:1208:32)
+
+  ● Mercury run ledger › additively persists reviewer selection, seat outcomes, transitions, absences, and authority
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "unverified"
+    Received: "review_incomplete"
+
+      1257 |     });
+      1258 |     expect(entry.options.reviewers).toEqual(['fable', 'mercury']);
+    > 1259 |     expect(entry.verdict).toBe('unverified');
+           |                           ^
+      1260 |   });
+      1261 |
+      1262 |   test.each([
+
+      at Object.<anonymous> (test/mercury-run-ledger.test.js:1259:27)
+
+  ● Mercury run ledger › ledger verdict has exact panel parity for FULL/pass
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "no_break_found"
+    Received: "no_claim"
+
+      1282 |       },
+      1283 |     });
+    > 1284 |     expect(entry.verdict).toBe(verdict);
+           |                           ^
+      1285 |     expect(entry.reviewer_panel.seats.map(seat => seat.answer)).toEqual([
+      1286 |       'Mercury full answer', 'Fable full answer',
+      1287 |     ]);
+
+      at test/mercury-run-ledger.test.js:1284:27
+
+  ● Mercury run ledger › ledger verdict has exact panel parity for FULL/found_break
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "found_break"
+    Received: "no_claim"
+
+      1282 |       },
+      1283 |     });
+    > 1284 |     expect(entry.verdict).toBe(verdict);
+           |                           ^
+      1285 |     expect(entry.reviewer_panel.seats.map(seat => seat.answer)).toEqual([
+      1286 |       'Mercury full answer', 'Fable full answer',
+      1287 |     ]);
+
+      at test/mercury-run-ledger.test.js:1284:27
+
+  ● Mercury run ledger › ledger verdict has exact panel parity for FULL/cannot_verify
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "cannot_verify"
+    Received: "no_claim"
+
+      1282 |       },
+      1283 |     });
+    > 1284 |     expect(entry.verdict).toBe(verdict);
+           |                           ^
+      1285 |     expect(entry.reviewer_panel.seats.map(seat => seat.answer)).toEqual([
+      1286 |       'Mercury full answer', 'Fable full answer',
+      1287 |     ]);
+
+      at test/mercury-run-ledger.test.js:1284:27
+
+  ● Mercury run ledger › ledger verdict has exact panel parity for UNVERIFIED/pass
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "unverified"
+    Received: "no_claim"
+
+      1282 |       },
+      1283 |     });
+    > 1284 |     expect(entry.verdict).toBe(verdict);
+           |                           ^
+      1285 |     expect(entry.reviewer_panel.seats.map(seat => seat.answer)).toEqual([
+      1286 |       'Mercury full answer', 'Fable full answer',
+      1287 |     ]);
+
+      at test/mercury-run-ledger.test.js:1284:27
+
+FAIL test/mercury-reviewer-panel.test.js
+  ● selectable Mercury adversarial reviewer panel › dispatches exactly selected seats in declared order and continues after named absence
+
+    expect(received).toMatchObject(expected)
+
+    Matcher error: received value must be a non-null object
+
+    Received has value: undefined
+
+      104 |       expect.objectContaining({ id: 'kimi', status: 'succeeded' }),
+      105 |     ]);
+    > 106 |     expect(panel.authority).toMatchObject({
+          |                             ^
+      107 |       ceiling: 'UNVERIFIED',
+      108 |       agreement: true,
+      109 |       qualifyingSeats: 2,
+
+      at Object.<anonymous> (test/mercury-reviewer-panel.test.js:106:29)
+
+  ● selectable Mercury adversarial reviewer panel › authority is UNVERIFIED for one clean seat, disagreement, or failed evidence checks
+
+    TypeError: evaluatePanelAuthority is not a function
+
+      165 |
+      166 |   test('authority is UNVERIFIED for one clean seat, disagreement, or failed evidence checks', () => {
+    > 167 |     expect(evaluatePanelAuthority([
+          |            ^
+      168 |       {
+      169 |         id: 'mercury', status: 'succeeded', verdict: 'pass', evidenceChecksPassed: true,
+      170 |         effectiveIdentityFingerprint: 'mercury:model:attested',
+
+      at Object.<anonymous> (test/mercury-reviewer-panel.test.js:167:12)
+
+  ● selectable Mercury adversarial reviewer panel › no-claim seats remain qualifying but do not enter the agreement set
+
+    TypeError: evaluatePanelAuthority is not a function
+
+      205 |
+      206 |   test('no-claim seats remain qualifying but do not enter the agreement set', () => {
+    > 207 |     expect(evaluatePanelAuthority([
+          |            ^
+      208 |       {
+      209 |         id: 'mercury', status: 'succeeded', verdict: 'no_claim', evidenceChecksPassed: true,
+      210 |         effectiveIdentityFingerprint: 'mercury:model:attested',
+
+      at Object.<anonymous> (test/mercury-reviewer-panel.test.js:207:12)
+
+  ● selectable Mercury adversarial reviewer panel › a panel with qualifying evidence but no verdict claim remains UNVERIFIED
+
+    TypeError: evaluatePanelAuthority is not a function
+
+      221 |
+      222 |   test('a panel with qualifying evidence but no verdict claim remains UNVERIFIED', () => {
+    > 223 |     expect(evaluatePanelAuthority([
+          |            ^
+      224 |       {
+      225 |         id: 'mercury', status: 'succeeded', verdict: 'no_claim', evidenceChecksPassed: true,
+      226 |         effectiveIdentityFingerprint: 'mercury:model:attested',
+
+      at Object.<anonymous> (test/mercury-reviewer-panel.test.js:223:12)
+
+  ● selectable Mercury adversarial reviewer panel › duplicate effective identities cap authority despite agreeing registry seats
+
+    TypeError: evaluatePanelAuthority is not a function
+
+      237 |
+      238 |   test('duplicate effective identities cap authority despite agreeing registry seats', () => {
+    > 239 |     expect(evaluatePanelAuthority([
+          |            ^
+      240 |       {
+      241 |         id: 'mercury', status: 'succeeded', verdict: 'pass', evidenceChecksPassed: true,
+      242 |         effectiveIdentityFingerprint: 'provider:same-model:same-attestation',
+
+      at Object.<anonymous> (test/mercury-reviewer-panel.test.js:239:12)
+
+  ● selectable Mercury adversarial reviewer panel › zero-tool Mercury and an agreeing downstream seat cannot qualify without host evidence
+
+    TypeError: evaluatePanelAuthority is not a function
+
+      281 |   test('zero-tool Mercury and an agreeing downstream seat cannot qualify without host evidence', () => {
+      282 |     const mercuryBasis = positiveEvidenceBasis({ toolTelemetry: {}, evidenceSources: [] });
+    > 283 |     expect(evaluatePanelAuthority([
+          |            ^
+      284 |       {
+      285 |         id: 'mercury', status: 'succeeded', verdict: 'pass',
+      286 |         evidenceBasis: mercuryBasis, evidenceChecksPassed: mercuryBasis.length > 0,
+
+      at Object.<anonymous> (test/mercury-reviewer-panel.test.js:283:12)
+
+  ● selectable Mercury adversarial reviewer panel › authority is monotonic downward under fuzzed uncertainty
+
+    TypeError: evaluatePanelAuthority is not a function
+
+      362 |           .effectiveIdentityFingerprint;
+      363 |       }
+    > 364 |       expect(authorityRank(evaluatePanelAuthority(degraded)))
+          |                            ^
+      365 |         .toBeLessThanOrEqual(authorityRank(evaluatePanelAuthority(base)));
+      366 |     }
+      367 |   });
+
+      at Object.<anonymous> (test/mercury-reviewer-panel.test.js:364:28)
+
+FAIL test/mercury-consensus.test.js
+  ● Mercury Fable consensus › run alerts cover UNVERIFIED and seat failures without cost policy or refusal
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 0
+
+      Array [
+    -   "authority_unverified",
+        "seat_failed:kimi",
+      ]
+
+      219 |       },
+      220 |     };
+    > 221 |     expect(runAlertReasons(entry)).toEqual([
+          |                                    ^
+      222 |       'authority_unverified',
+      223 |       'seat_failed:kimi',
+      224 |     ]);
+
+      at Object.<anonymous> (test/mercury-consensus.test.js:221:36)
+
+  ● Mercury Fable consensus › authority is recomputed after explicit Kimi convergence is attached
+
+    TypeError: recomputePanelAuthority is not a function
+
+      647 |     };
+      648 |
+    > 649 |     expect(recomputePanelAuthority(panelRun)).toMatchObject({
+          |            ^
+      650 |       ceiling: 'FULL', agreement: true, evidenceChecksPassed: true,
+      651 |       agreedVerdict: 'pass', capReasons: [],
+      652 |     });
+
+      at Object.<anonymous> (test/mercury-consensus.test.js:649:12)
+
+  ● Mercury Fable consensus › emitted packet cannot outrank its reviewer-panel receipt
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected substring: "VERDICT: UNVERIFIED"
+    Received string:    "VERDICT: pass·
+    1. Original Prompt
+    Mercury, break my fix.·
+    2. Mercury Pass 1
+    Verdict: answer_given
+    Claims:
+    Structured review.
+    Evidence:
+    - <none recorded>
+    Commands:
+    - tool_calls=0 | succeeded=0 | failed=0 | tools=none | files_opened=0 | run_check_artifacts=0 | failed_calls=none | run_checks=none -> tool telemetry
+    Gaps:
+    <none from Fable>·
+    3. Fable Review
+    Verdict: pass
+    Agreements:
+    <see Fable answer>
+    Disagreements:
+    - none
+    Required Rechecks:
+    <none>
+    Full Fable answer:
+    VERDICT: pass
+    CONSENSUS_BLOCKING: no·
+    4. Mercury Recheck
+    Not run: Fable did not mark the review blocking.·
+    5. Kimi Final Adjudication
+    Consensus:
+    <not specified>
+    Contradictions:
+    <not specified>
+    Partial:
+    <not specified>
+    Unique:
+    <not specified>
+    Blind spots:
+    <not specified>
+    Verdict: pass
+    Blocking: no
+    Shared conclusion:
+    <none>
+    Mercury supported:
+    <not specified>
+    Fable supported:
+    <not specified>
+    Kimi supported:
+    <not specified>
+    Cited reasoning:
+    <not specified>
+    Full Kimi answer:
+    VERDICT: pass
+    CONSENSUS_BLOCKING: no·
+    6. Final Resolution
+    Decision:
+    pass_pending_local_proof
+    Why:
+    Fable did not identify a blocking challenge and Kimi found no unresolved disagreement.
+    Residual Risk:
+    Local tests/gates still control commit approval.
+    Required Next Action:
+    <none>"
+
+      792 |       },
+      793 |     });
+    > 794 |     expect(packet).toContain('VERDICT: UNVERIFIED');
+          |                    ^
+      795 |     expect(packet).toContain('Decision:\nunverified');
+      796 |     expect(packet).toContain('evidence_failure');
+      797 |     expect(packet).not.toContain('Decision:\npass_pending_local_proof');
+
+      at Object.<anonymous> (test/mercury-consensus.test.js:794:20)
+
+  ● Mercury Fable consensus › undocumented identity mismatch is stamped, screamed, capped UNVERIFIED, and continues
+
+    expect(received).toMatch(expected)
+
+    Expected pattern: /^VERDICT: UNVERIFIED/
+    Received string:  "VERDICT: pass·
+    1. Original Prompt
+    Mercury, break my fix.·
+    2. Mercury Pass 1
+    Verdict: answer_given
+    Claims:
+    core/Foo.js:1
+    Evidence:
+    - <none recorded>
+    Commands:
+    - <none recorded>
+    Gaps:
+    identity:fable_challenger -> identity_conflict·
+    3. Fable Review
+    Verdict: pass
+    Agreements:
+    <see Fable answer>
+    Disagreements:
+    - none
+    Required Rechecks:
+    <none>
+    Full Fable answer:
+    VERDICT: pass
+    CONSENSUS_BLOCKING: no
+    DISAGREEMENT: none·
+    4. Mercury Recheck
+    Not run: Fable did not mark the review blocking.·
+    5. Kimi Final Adjudication
+    Verdict: missing
+    Blocking: yes
+    Shared conclusion: none
+    Mercury supported:
+    <not adjudicated>
+    Fable supported:
+    <not adjudicated>
+    Kimi supported:
+    <not adjudicated>
+    Full Kimi answer:
+    <missing>·
+    6. Final Resolution
+    Decision:
+    pass_pending_local_proof
+    Why:
+    Fable did not identify a blocking challenge, so Kimi tie-break adjudication was not required.
+    Residual Risk:
+    Local tests/gates still control commit approval.
+    Required Next Action:
+    <none>"
+
+      1338 |       error.providerMetadata = trustedFableMetadata({ providerFrames });
+      1339 |       expect(classifyFableFallbackError(error)).toMatchObject({
+    > 1340 |         opusEligible: false,
+           |         ^
+      1341 |         evidence: 'no_allowlisted_machine_signal',
+      1342 |       });
+      1343 |     }
+
+      at Object.<anonymous> (test/mercury-consensus.test.js:1340:9)
+
+  ● Mercury Fable consensus › a load-bearing quarantine caps the human review packet at UNVERIFIED and names the gap
+
+    expect(received).toMatch(expected)
+
+    Expected pattern: /^VERDICT: UNVERIFIED/
+    Received string:  "VERDICT: pass·
+    1. Original Prompt
+    Mercury, break my fix.·
+    2. Mercury Pass 1
+    Verdict: answer_given
+    Claims:
+    No break found.
+    Evidence:
+    - <none recorded>
+    Commands:
+    - <none recorded>
+    Gaps:
+    recheck:mercury_recheck_2 -> mercury_recheck_answer_absent·
+    3. Fable Review
+    Verdict: pass
+    Agreements:
+    <see Fable answer>
+    Disagreements:
+    - none
+    Required Rechecks:
+    <none>
+    Full Fable answer:
+    VERDICT: pass
+    CONSENSUS_BLOCKING: no·
+    4. Mercury Recheck
+    Not run: Fable did not mark the review blocking.·
+    5. Kimi Final Adjudication
+    Verdict: missing
+    Blocking: yes
+    Shared conclusion: none
+    Mercury supported:
+    <not adjudicated>
+    Fable supported:
+    <not adjudicated>
+    Kimi supported:
+    <not adjudicated>
+    Full Kimi answer:
+    <missing>·
+    6. Final Resolution
+    Decision:
+    pass_pending_local_proof
+    Why:
+    Fable did not identify a blocking challenge, so Kimi tie-break adjudication was not required.
+    Residual Risk:
+    Local tests/gates still control commit approval.
+    Required Next Action:
+    <none>"
+
+
+
+      at Object.<anonymous> (test/mercury-consensus.test.js:1699:20)
+
+
+Test Suites: 3 failed, 1 passed, 4 total
+Tests:       29 failed, 94 passed, 123 total
+Snapshots:   0 total
+Time:        1.902 s, estimated 2 s
+Ran all test suites matching test/mercury-consensus.test.js|test/mercury-provider-preflight.test.js|test/mercury-reviewer-panel.test.js|test/mercury-run-ledger.test.js.

@@ -1,0 +1,1726 @@
+{
+  "identity": {
+    "base": "e9faed6357b999774e3bfaae85ac43eff18c9262",
+    "tree": "a9808f2f6216788eb0dcb67ae5a4791aeba6e2c1",
+    "files": [
+      "mercury.config.json",
+      "trai_brain/mercury-bridge/adversarial-review.js",
+      "trai_brain/mercury-bridge/ask.js",
+      "trai_brain/mercury-bridge/config.js",
+      "trai_brain/mercury-bridge/llm-client.js",
+      "trai_brain/mercury-bridge/provider-preflight.js",
+      "trai_brain/mercury-bridge/reviewer-panel.js",
+      "trai_brain/mercury-bridge/run-ledger.js",
+      "trai_brain/mercury-bridge/consensus.js",
+      "trai_brain/mercury-bridge/doctrine-review.js",
+      "trai_brain/mercury-bridge/codex-challenger.js",
+      "test/mercury-astra-challenger.test.js",
+      "test/mercury-reviewer-panel.test.js",
+      "test/mercury-consensus.test.js",
+      "test/mercury-provider-preflight.test.js",
+      "test/mercury-llm-config-contract.test.js"
+    ]
+  },
+  "runId": "2026-10-03T00:34:07.497Z-astra-completion",
+  "result": {
+    "rechecks": [
+      {
+        "answer": "**Answer**\n\nNo new evidence‑loss mechanism was introduced by the Astra receipt‑parser correction.  \nThe current implementation safely handles malformed or missing `response` objects, never throws before the raw tapes are attached, and always records the raw `stdout`/`stderr` buffers when a response is successfully obtained.\n\n**Why the change does not create a loss**\n\n| Aspect | Evidence |\n|--------|----------|\n| **Parsing of SSE events** – `parseCodexTapes` checks for a missing or non‑object `response` and records a parse error instead of dereferencing it. | `codex‑challenger.js` lines 48‑59: `if (!event.response || typeof event.response.model !== 'string') parseErrors.push('invalid_provider_completion');`【search†L1-L1】 |\n| **No unsafe dereference** – All accesses to `event.response.model` use optional chaining (`event.response?.model`) or are guarded by the above check, so a `TypeError` cannot be thrown. | `codex‑challenger.js` line 157: `verdictModels: parsed.completed.map(event => event.response?.model ?? null),`【open_file†L166-L168】 |\n| **Raw tapes are always attached on success** – `generateResponseWithMetadata` stores the raw `stdout` and `stderr` in `metadata.rawResponse` / `metadata.rawError`. | `codex‑challenger.js` line 169‑170: `rawResponse: Buffer.from(result.stdout || ''), rawError: Buffer.from(result.stderr || ''),`【open_file†L166-L170】 |\n| **Receipt construction includes those raw buffers** – `attemptReceipt` writes `raw_output` and `raw_error` from the values returned by `persistAttemptRaw`. | `provider‑preflight.js` line 123‑124: `raw_output: rawOutput, raw_error: rawError,`【open_file†L119-L124】 |\n| **Persisting raw buffers** – `persistAttemptRaw` writes the buffers (or an empty buffer if none are present) to disk. | `provider‑preflight.js` line 150‑151: `bytes: metadata.rawResponse || Buffer.alloc(0),`【open_file†L145-L151】 |\n| **Error path does not lose tapes beyond the original behaviour** – If an exception occurs before `metadata.rawResponse` is set, the same fallback (empty buffers) is used as before; this is not a new regression. | `provider‑preflight.js` catch block (lines 206‑218) creates a minimal `metadata` without `rawResponse` and then calls `persistAttemptRaw`, which writes an empty buffer (see above). No new code was added that would drop tapes that were previously recorded. |\n\n**Conclusion**\n\nThe parser now records explicit parse errors (`parseErrors`) while still preserving the raw response and error streams. No code path introduced by the correction throws before those raw tapes are attached, and the receipt‑building logic already accounts for the possibility of missing tapes in error cases. Therefore, **no concrete reachable evidence‑loss mechanism was introduced** by this change.",
+        "answerQuality": {
+          "flags": [
+            "missing_file_line_citation",
+            "tool_handle_citation"
+          ],
+          "evidence": [
+            {
+              "flag": "missing_file_line_citation",
+              "evidence": "no file:line citation anywhere in the final answer"
+            },
+            {
+              "flag": "tool_handle_citation",
+              "evidence": "ponse || typeof event.response.model !== 'string') parseErrors.push('invalid_provider_completion');`【search†L1-L1】 | | **No unsafe dereference** – All accesses to `event.response.model` use optional chaining (`event.response?.model`) or are guarded by th"
+            }
+          ],
+          "ok": false
+        },
+        "candidateSet": {
+          "content": "**Answer**\n\nNo new evidence‑loss mechanism was introduced by the Astra receipt‑parser correction.  \nThe current implementation safely handles malformed or missing `response` objects, never throws before the raw tapes are attached, and always records the raw `stdout`/`stderr` buffers when a response is successfully obtained.\n\n**Why the change does not create a loss**\n\n| Aspect | Evidence |\n|--------|----------|\n| **Parsing of SSE events** – `parseCodexTapes` checks for a missing or non‑object `response` and records a parse error instead of dereferencing it. | `codex‑challenger.js` lines 48‑59: `if (!event.response || typeof event.response.model !== 'string') parseErrors.push('invalid_provider_completion');`【search†L1-L1】 |\n| **No unsafe dereference** – All accesses to `event.response.model` use optional chaining (`event.response?.model`) or are guarded by the above check, so a `TypeError` cannot be thrown. | `codex‑challenger.js` line 157: `verdictModels: parsed.completed.map(event => event.response?.model ?? null),`【open_file†L166-L168】 |\n| **Raw tapes are always attached on success** – `generateResponseWithMetadata` stores the raw `stdout` and `stderr` in `metadata.rawResponse` / `metadata.rawError`. | `codex‑challenger.js` line 169‑170: `rawResponse: Buffer.from(result.stdout || ''), rawError: Buffer.from(result.stderr || ''),`【open_file†L166-L170】 |\n| **Receipt construction includes those raw buffers** – `attemptReceipt` writes `raw_output` and `raw_error` from the values returned by `persistAttemptRaw`. | `provider‑preflight.js` line 123‑124: `raw_output: rawOutput, raw_error: rawError,`【open_file†L119-L124】 |\n| **Persisting raw buffers** – `persistAttemptRaw` writes the buffers (or an empty buffer if none are present) to disk. | `provider‑preflight.js` line 150‑151: `bytes: metadata.rawResponse || Buffer.alloc(0),`【open_file†L145-L151】 |\n| **Error path does not lose tapes beyond the original behaviour** – If an exception occurs before `metadata.rawResponse` is set, the same fallback (empty buffers) is used as before; this is not a new regression. | `provider‑preflight.js` catch block (lines 206‑218) creates a minimal `metadata` without `rawResponse` and then calls `persistAttemptRaw`, which writes an empty buffer (see above). No new code was added that would drop tapes that were previously recorded. |\n\n**Conclusion**\n\nThe parser now records explicit parse errors (`parseErrors`) while still preserving the raw response and error streams. No code path introduced by the correction throws before those raw tapes are attached, and the receipt‑building logic already accounts for the possibility of missing tapes in error cases. Therefore, **no concrete reachable evidence‑loss mechanism was introduced** by this change.",
+          "source": "reviewer_answer",
+          "capturedAtIteration": 13,
+          "claimInventory": [],
+          "claimDecisionAttempts": [],
+          "filesMechanicallyOpened": [
+            "trai_brain/mercury-bridge/codex-challenger.js:1-182",
+            "trai_brain/mercury-bridge/codex-challenger.js:140-170",
+            "trai_brain/mercury-bridge/codex-challenger.js:166-172",
+            "trai_brain/mercury-bridge/provider-preflight.js:1-250",
+            "trai_brain/mercury-bridge/provider-preflight.js:119-126",
+            "trai_brain/mercury-bridge/provider-preflight.js:140-152"
+          ],
+          "fileReadReceipts": [
+            {
+              "file": "trai_brain/mercury-bridge/codex-challenger.js",
+              "startLine": 1,
+              "endLine": 182,
+              "totalLines": 182,
+              "executionProvenance": "trusted_repo_read",
+              "contextCompacted": false
+            },
+            {
+              "file": "trai_brain/mercury-bridge/codex-challenger.js",
+              "startLine": 140,
+              "endLine": 170,
+              "totalLines": 182,
+              "executionProvenance": "trusted_repo_read",
+              "contextCompacted": false
+            },
+            {
+              "file": "trai_brain/mercury-bridge/codex-challenger.js",
+              "startLine": 166,
+              "endLine": 172,
+              "totalLines": 182,
+              "executionProvenance": "trusted_repo_read",
+              "contextCompacted": false
+            },
+            {
+              "file": "trai_brain/mercury-bridge/provider-preflight.js",
+              "startLine": 1,
+              "endLine": 250,
+              "totalLines": 275,
+              "executionProvenance": "trusted_repo_read",
+              "contextCompacted": false
+            },
+            {
+              "file": "trai_brain/mercury-bridge/provider-preflight.js",
+              "startLine": 119,
+              "endLine": 126,
+              "totalLines": 275,
+              "executionProvenance": "trusted_repo_read",
+              "contextCompacted": false
+            },
+            {
+              "file": "trai_brain/mercury-bridge/provider-preflight.js",
+              "startLine": 140,
+              "endLine": 152,
+              "totalLines": 275,
+              "executionProvenance": "trusted_repo_read",
+              "contextCompacted": false
+            }
+          ],
+          "claimedFileCitations": [
+            "trai_brain/mercury-bridge/codex-challenger.js:1-182",
+            "trai_brain/mercury-bridge/codex-challenger.js:140-170",
+            "trai_brain/mercury-bridge/codex-challenger.js:166-172",
+            "trai_brain/mercury-bridge/provider-preflight.js:1-250",
+            "trai_brain/mercury-bridge/provider-preflight.js:119-126",
+            "trai_brain/mercury-bridge/provider-preflight.js:140-152"
+          ],
+          "finalAnswerCitations": [],
+          "answerCitationsSubset": true,
+          "citationsNotInCandidateSet": [],
+          "candidateSources": [
+            {
+              "coverage": null,
+              "explicitContinuation": null,
+              "phase": "pass_1",
+              "recheckIndex": null,
+              "content": "**Answer**\n\nNo new evidence‑loss mechanism was introduced by the Astra receipt‑parser correction.  \nThe current implementation safely handles malformed or missing `response` objects, never throws before the raw tapes are attached, and always records the raw `stdout`/`stderr` buffers when a response is successfully obtained.\n\n**Why the change does not create a loss**\n\n| Aspect | Evidence |\n|--------|----------|\n| **Parsing of SSE events** – `parseCodexTapes` checks for a missing or non‑object `response` and records a parse error instead of dereferencing it. | `codex‑challenger.js` lines 48‑59: `if (!event.response || typeof event.response.model !== 'string') parseErrors.push('invalid_provider_completion');`【search†L1-L1】 |\n| **No unsafe dereference** – All accesses to `event.response.model` use optional chaining (`event.response?.model`) or are guarded by the above check, so a `TypeError` cannot be thrown. | `codex‑challenger.js` line 157: `verdictModels: parsed.completed.map(event => event.response?.model ?? null),`【open_file†L166-L168】 |\n| **Raw tapes are always attached on success** – `generateResponseWithMetadata` stores the raw `stdout` and `stderr` in `metadata.rawResponse` / `metadata.rawError`. | `codex‑challenger.js` line 169‑170: `rawResponse: Buffer.from(result.stdout || ''), rawError: Buffer.from(result.stderr || ''),`【open_file†L166-L170】 |\n| **Receipt construction includes those raw buffers** – `attemptReceipt` writes `raw_output` and `raw_error` from the values returned by `persistAttemptRaw`. | `provider‑preflight.js` line 123‑124: `raw_output: rawOutput, raw_error: rawError,`【open_file†L119-L124】 |\n| **Persisting raw buffers** – `persistAttemptRaw` writes the buffers (or an empty buffer if none are present) to disk. | `provider‑preflight.js` line 150‑151: `bytes: metadata.rawResponse || Buffer.alloc(0),`【open_file†L145-L151】 |\n| **Error path does not lose tapes beyond the original behaviour** – If an exception occurs before `metadata.rawResponse` is set, the same fallback (empty buffers) is used as before; this is not a new regression. | `provider‑preflight.js` catch block (lines 206‑218) creates a minimal `metadata` without `rawResponse` and then calls `persistAttemptRaw`, which writes an empty buffer (see above). No new code was added that would drop tapes that were previously recorded. |\n\n**Conclusion**\n\nThe parser now records explicit parse errors (`parseErrors`) while still preserving the raw response and error streams. No code path introduced by the correction throws before those raw tapes are attached, and the receipt‑building logic already accounts for the possibility of missing tapes in error cases. Therefore, **no concrete reachable evidence‑loss mechanism was introduced** by this change.",
+              "capturedAtIteration": 13,
+              "filesMechanicallyOpened": [
+                "trai_brain/mercury-bridge/codex-challenger.js:1-182",
+                "trai_brain/mercury-bridge/codex-challenger.js:140-170",
+                "trai_brain/mercury-bridge/codex-challenger.js:166-172",
+                "trai_brain/mercury-bridge/provider-preflight.js:1-250",
+                "trai_brain/mercury-bridge/provider-preflight.js:119-126",
+                "trai_brain/mercury-bridge/provider-preflight.js:140-152"
+              ],
+              "fileReadReceipts": [
+                {
+                  "file": "trai_brain/mercury-bridge/codex-challenger.js",
+                  "startLine": 1,
+                  "endLine": 182,
+                  "totalLines": 182,
+                  "executionProvenance": "trusted_repo_read",
+                  "contextCompacted": false
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/codex-challenger.js",
+                  "startLine": 140,
+                  "endLine": 170,
+                  "totalLines": 182,
+                  "executionProvenance": "trusted_repo_read",
+                  "contextCompacted": false
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/codex-challenger.js",
+                  "startLine": 166,
+                  "endLine": 172,
+                  "totalLines": 182,
+                  "executionProvenance": "trusted_repo_read",
+                  "contextCompacted": false
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/provider-preflight.js",
+                  "startLine": 1,
+                  "endLine": 250,
+                  "totalLines": 275,
+                  "executionProvenance": "trusted_repo_read",
+                  "contextCompacted": false
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/provider-preflight.js",
+                  "startLine": 119,
+                  "endLine": 126,
+                  "totalLines": 275,
+                  "executionProvenance": "trusted_repo_read",
+                  "contextCompacted": false
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/provider-preflight.js",
+                  "startLine": 140,
+                  "endLine": 152,
+                  "totalLines": 275,
+                  "executionProvenance": "trusted_repo_read",
+                  "contextCompacted": false
+                }
+              ],
+              "claimedFileCitations": [
+                "trai_brain/mercury-bridge/codex-challenger.js:1-182",
+                "trai_brain/mercury-bridge/codex-challenger.js:140-170",
+                "trai_brain/mercury-bridge/codex-challenger.js:166-172",
+                "trai_brain/mercury-bridge/provider-preflight.js:1-250",
+                "trai_brain/mercury-bridge/provider-preflight.js:119-126",
+                "trai_brain/mercury-bridge/provider-preflight.js:140-152"
+              ],
+              "finalAnswerCitations": [],
+              "answerCitationsSubset": true,
+              "citationsNotInCandidateSet": [],
+              "claimInventory": [],
+              "claimAdjudications": null,
+              "finalClaimAdjudications": null,
+              "claimDecisionAttempts": []
+            }
+          ]
+        },
+        "iterations": 13,
+        "termination": "answer_given",
+        "history": [
+          {
+            "iteration": 1,
+            "toolName": "search",
+            "toolArgs": {
+              "query": "codex-challenger.js",
+              "file_pattern": "*",
+              "limit": 20
+            },
+            "toolResult": {
+              "source": "direct_ripgrep_fixed",
+              "matches": [],
+              "total": 0,
+              "truncated": false,
+              "filtered_ignored": 0,
+              "requested_file_pattern": "*",
+              "effective_file_pattern": "*",
+              "source_ref": "a9808f2f6216788eb0dcb67ae5a4791aeba6e2c1"
+            },
+            "toolDelivery": {
+              "truncated": false,
+              "startLine": null,
+              "endLine": null,
+              "totalLines": null
+            },
+            "toolCallId": "call_bb4686335a144fd4"
+          },
+          {
+            "iteration": 2,
+            "toolName": "list_files",
+            "toolArgs": {
+              "path": "",
+              "pattern": "codex"
+            },
+            "toolResult": {
+              "dir": ".",
+              "directories": [],
+              "files": [],
+              "total": 0,
+              "source_ref": "a9808f2f6216788eb0dcb67ae5a4791aeba6e2c1"
+            },
+            "toolDelivery": {
+              "truncated": false,
+              "startLine": null,
+              "endLine": null,
+              "totalLines": null
+            },
+            "toolCallId": "call_9aa123038fcf4b0a"
+          },
+          {
+            "iteration": 3,
+            "toolName": "search",
+            "toolArgs": {
+              "query": "Astra",
+              "file_pattern": "*",
+              "limit": 20
+            },
+            "toolResult": {
+              "source": "direct_ripgrep_fixed",
+              "matches": [
+                {
+                  "file": "trai_brain/mercury-bridge/consensus.js",
+                  "line": 21,
+                  "text": "runAstraConsensus: review.runAstraAdversarialReview,"
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/reviewer-panel.js",
+                  "line": 8,
+                  "text": "Object.freeze({ id: 'astra', label: 'Astra' }),"
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/provider-preflight.js",
+                  "line": 7,
+                  "text": "createAstraChallengerClient,"
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/provider-preflight.js",
+                  "line": 235,
+                  "text": "createAstraClient = () => createAstraChallengerClient(),"
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/provider-preflight.js",
+                  "line": 244,
+                  "text": "const astra = await checkClient('astra_challenger', createAstraClient, { attempt: 2, repoRoot, runId });"
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/doctrine-review.js",
+                  "line": 10,
+                  "text": "'Report missing evidence, coverage limits, reviewer disagreements and reporting omissions honestly in the exit receipt. These diagnostics do not impose a verdict ceiling or require a rerun. They never authorize a fabricated PASS. Trey explicitly ruled that Astra executable-trust failures are recorde"
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/doctrine-review.js",
+                  "line": 12,
+                  "text": "'VERDICT: found_break | no_break_found | cannot_verify. State your actual supported conclusion; an HTTP success or missing evidence never means no_break_found. Astra and Kimi retain their role-specific verdict vocabularies. Planning and architecture reviews retain their non-adversarial output contra"
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/doctrine-review.js",
+                  "line": 231,
+                  "text": "if (reviewerId === 'kimi' && !['Mercury', 'Astra', 'Kimi'].every(seat => new RegExp(`\\\\b${seat}\\\\b`, 'i').test(text))) {"
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/adversarial-review.js",
+                  "line": 9,
+                  "text": "createAstraChallengerClient,"
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/adversarial-review.js",
+                  "line": 342,
+                  "text": "|| 'Recheck Astra critique with current repo evidence.';"
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/adversarial-review.js",
+                  "line": 347,
+                  "text": "'Mercury, recheck your prior answer against Astra critique.',"
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/adversarial-review.js",
+                  "line": 369,
+                  "text": "'Astra critique:',"
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/adversarial-review.js",
+                  "line": 376,
+                  "text": "'Adjudicate the exact original statement, never a different allegation under the same ID. Supported means the statement is established, refuted means evidence contradicts it, and unresolved names what remains unknown. A supported benign observation is not a defect. To retain a defect finding, trace "
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/adversarial-review.js",
+                  "line": 417,
+                  "text": "'Astra supported:',"
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/adversarial-review.js",
+                  "line": 444,
+                  "text": "'Astra supported:',"
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/adversarial-review.js",
+                  "line": 461,
+                  "text": "why: 'Astra did not identify a blocking challenge, so Kimi tie-break adjudication was not required.',"
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/adversarial-review.js",
+                  "line": 470,
+                  "text": "residualRisk: 'Mercury and Astra disagreement remains unresolved.',"
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/adversarial-review.js",
+                  "line": 481,
+                  "text": "why: parsedFinal.sharedConclusion || 'No shared conclusion across Mercury, Astra, and Kimi.',"
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/adversarial-review.js",
+                  "line": 501,
+                  "text": "? 'Kimi adjudicated the Astra challenge after Mercury recheck evidence.'"
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/adversarial-review.js",
+                  "line": 502,
+                  "text": ": 'Astra did not identify a blocking challenge and Kimi found no unresolved disagreement.'),"
+                }
+              ],
+              "total": 22,
+              "truncated": true,
+              "filtered_ignored": 0,
+              "requested_file_pattern": "*",
+              "effective_file_pattern": "*",
+              "source_ref": "a9808f2f6216788eb0dcb67ae5a4791aeba6e2c1"
+            },
+            "toolDelivery": {
+              "truncated": false,
+              "startLine": null,
+              "endLine": null,
+              "totalLines": null
+            },
+            "toolCallId": "call_a42fe0f63f9eda87"
+          },
+          {
+            "iteration": 4,
+            "toolName": "list_files",
+            "toolArgs": {
+              "path": "trai_brain/mercury-bridge",
+              "pattern": ""
+            },
+            "toolResult": {
+              "dir": "trai_brain/mercury-bridge",
+              "directories": [],
+              "files": [
+                "README.md",
+                "adversarial-review.js",
+                "ask.js",
+                "codex-challenger.js",
+                "config.js",
+                "consensus.js",
+                "cost-accounting.js",
+                "deploy-layer4.sh",
+                "direct-question.js",
+                "doctrine-review.js",
+                "evidence-ingestion.js",
+                "explicit-continuation.js",
+                "indexer.js",
+                "llm-client.js",
+                "mongo-store.js",
+                "provider-preflight.js",
+                "query-router.js",
+                "react-loop.js",
+                "reviewer-panel.js",
+                "run-ledger.js",
+                "searcher.js",
+                "substrate-digest.js",
+                "tool-adapter.js",
+                "trace-memory.js"
+              ],
+              "total": 24,
+              "source_ref": "a9808f2f6216788eb0dcb67ae5a4791aeba6e2c1"
+            },
+            "toolDelivery": {
+              "truncated": false,
+              "startLine": null,
+              "endLine": null,
+              "totalLines": null
+            },
+            "toolCallId": "call_a99ae1441dbd0ed9"
+          },
+          {
+            "iteration": 5,
+            "toolName": "open_file",
+            "toolArgs": {
+              "path": "trai_brain/mercury-bridge/codex-challenger.js",
+              "start_line": 1,
+              "end_line": 200
+            },
+            "toolResult": {
+              "file": "trai_brain/mercury-bridge/codex-challenger.js",
+              "start_line": 1,
+              "end_line": 182,
+              "total_lines": 182,
+              "text": "    1\t'use strict';\n    2\t\n    3\tconst fs = require('fs');\n    4\tconst path = require('path');\n    5\tconst { execFile } = require('child_process');\n    6\t\n    7\tconst SUBSCRIPTION_ENDPOINT = 'https://chatgpt.com/backend-api/codex';\n    8\tconst CODEX_LAUNCHER = '/usr/local/bin/codex';\n    9\t\n   10\tfunction subscriptionEnv(source = process.env) {\n   11\t  const env = { ...source };\n   12\t  for (const key of ['OPENAI_API_KEY', 'OPENAI_BASE_URL', 'CODEX_API_KEY', 'NODE_OPTIONS', 'NODE_PATH']) delete env[key];\n   13\t  env.PATH = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';\n   14\t  // HTTP SSE exposes the service response model; exec JSONL alone does not.\n   15\t  env.RUST_LOG = 'codex_api::sse::responses=trace';\n   16\t  return env;\n   17\t}\n   18\t\n   19\tfunction invoke(command, args, options) {\n   20\t  return new Promise(resolve => {\n   21\t    const { input, ...execOptions } = options;\n   22\t    let inputError = null;\n   23\t    const child = execFile(command, args, execOptions, (error, stdout, stderr) => resolve({ error: error || inputError, stdout, stderr }));\n   24\t    if (input !== undefined) {\n   25\t      child.stdin.on('error', error => { inputError = error; });\n   26\t      child.stdin.end(input);\n   27\t    }\n   28\t  });\n   29\t}\n   30\t\n   31\tfunction parseCodexTapes(stdout, stderr, requestedModel) {\n   32\t  const frames = [];\n   33\t  const events = [];\n   34\t  const parseErrors = [];\n   35\t  for (const line of String(stdout).split('\\n').filter(Boolean)) {\n   36\t    try {\n   37\t      const frame = JSON.parse(line);\n   38\t      if (frame && typeof frame === 'object' && !Array.isArray(frame)) frames.push(frame);\n   39\t      else parseErrors.push('invalid_exec_frame');\n   40\t    } catch { parseErrors.push('invalid_exec_jsonl'); }\n   41\t  }\n   42\t  for (const line of String(stderr).split('\\n')) {\n   43\t    const offset = line.indexOf('SSE event: ');\n   44\t    if (offset < 0) continue;\n   45\t    const payload = line.slice(offset + 'SSE event: '.length);\n   46\t    if (payload === '[DONE]') continue;\n   47\t    try {\n   48\t      const event = JSON.parse(payload);\n   49\t      if (event && typeof event === 'object' && !Array.isArray(event)) events.push(event);\n   50\t      else parseErrors.push('invalid_provider_event');\n   51\t    } catch { parseErrors.push('invalid_provider_sse'); }\n   52\t  }\n   53\t  const observations = events.filter(event => event.response || event.type === 'response.completed').map(event => ({\n   54\t    event: event.type, responseId: event.response?.id, model: event.response?.model || null,\n   55\t  }));\n   56\t  const completed = events.filter(event => event.type === 'response.completed');\n   57\t  for (const event of completed) {\n   58\t    if (!event.response || typeof event.response.model !== 'string') parseErrors.push('invalid_provider_completion');\n   59\t  }\n   60\t  const models = [...new Set(observations.map(item => item.model).filter(Boolean))];\n   61\t  const identityVerified = completed.length > 0 && observations.every(item => item.model === requestedModel);\n   62\t  const calls = events.filter(event => event.type === 'response.output_item.done'\n   63\t    && ['function_call', 'custom_tool_call'].includes(event.item && event.item.type))\n   64\t    .map(event => ({ id: event.item.call_id, name: event.item.name,\n   65\t      arguments: event.item.arguments === undefined ? event.item.input : event.item.arguments,\n   66\t      status: 'requested' }));\n   67\t  const catalogs = events.filter(event => Array.isArray(event.response?.tools));\n   68\t  const names = (tool, prefix = '') => {\n   69\t    const pending = [{ tool, prefix }], found = [];\n   70\t    while (pending.length) {\n   71\t      const entry = pending.pop(), value = entry.tool;\n   72\t      if (!value || typeof value !== 'object' || typeof value.name !== 'string') {\n   73\t        parseErrors.push('[REDACTED]');\n   74\t      } else if (value.type !== 'namespace') {\n   75\t        found.push(entry.prefix + value.name);\n   76\t      } else if (!Array.isArray(value.tools)) {\n   77\t        parseErrors.push('invalid_provider_tool_namespace');\n   78\t      } else {\n   79\t        for (let index = value.tools.length - 1; index >= 0; index -= 1) {\n   80\t          pending.push({ tool: value.tools[index], prefix: entry.prefix + value.name + '.' });\n   81\t        }\n   82\t      }\n   83\t    }\n   84\t    return found;\n   85\t  };\n   86\t  const available = [...new Set(catalogs.flatMap(event => event.response.tools.flatMap(tool => names(tool))))];\n   87\t  const tools = {\n   88\t    enabled: true,\n   89\t    available,\n   90\t    availability_status: catalogs.length ? 'provider_response_catalog' : '[REDACTED]',\n   91\t    calls,\n   92\t    total: calls.length,\n   93\t    succeeded: null,\n   94\t    failed: null,\n   95\t    outcome_status: 'see_exec_events_and_raw_tapes',\n   96\t    execution_events: frames.filter(frame => frame.item && frame.item.type !== 'agent_message'),\n   97\t  };\n   98\t  const answer = frames.filter(frame => frame.type === 'item.completed' && frame.item && frame.item.type === 'agent_message')\n   99\t    .map(frame => frame.item.text).at(-1) || '';\n  100\t  const complete = frames.some(frame => frame.type === 'turn.completed');\n  101\t  return { frames, events, parseErrors, observations, models, completed, identityVerified, tools, answer, complete };\n  102\t}\n  103\t\n  104\tclass CodexChallengerClient {\n  105\t  constructor(options) {\n  106\t    Object.assign(this, options);\n  107\t    this.providerName = 'codex-subscription';\n  108\t    this.requestCount = 0;\n  109\t    this.invoke = options.invoke || invoke;\n  110\t    this.initialized = false;\n  111\t  }\n  112\t\n  113\t  async initialize() {\n  114\t    if (this.initialized) return;\n  115\t    const realpath = fs.realpathSync(CODEX_LAUNCHER);\n  116\t    const packagePath = path.resolve(path.dirname(realpath), '../package.json');\n  117\t    const packageInfo = JSON.parse(fs.readFileSync(packagePath, 'utf8'));\n  118\t    const version = await this.invoke(CODEX_LAUNCHER, ['--version'], this.execOptions());\n  119\t    const auth = await this.invoke(CODEX_LAUNCHER, ['login', 'status'], this.execOptions());\n  120\t    this.executableTrust = {\n  121\t      trusted: packageInfo.name === '@openai/codex' && !version.error\n  122\t        && String(version.stdout).trim() === `codex-cli ${packageInfo.version}`,\n  123\t      realpath, version: String(version.stdout).trim(), package: packageInfo.name,\n  124\t    };\n  125\t    this.authStatus = { authenticated: !auth.error && /Logged in using ChatGPT/.test(String(auth.stdout) + String(auth.stderr)), method: 'chatgpt_subscription' };\n  126\t    this.initialization = { version, auth };\n  127\t    this.initialized = true;\n  128\t  }\n  129\t\n  130\t  execOptions() {\n  131\t    return { cwd: this.repoRoot, env: subscriptionEnv(), timeout: this.requestTimeoutMs,\n  132\t      maxBuffer: 64 * 1024 * 1024, encoding: 'utf8' };\n  133\t  }\n  134\t\n  135\t  async generateResponseWithMetadata(prompt) {\n  136\t    await this.initialize();\n  137\t    const started = Date.now();\n  138\t    const args = ['exec', '--ignore-user-config', '--ephemeral', '--skip-git-repo-check',\n  139\t      '--sandbox', 'read-only', '--json', '--model', this.model, '--cd', this.repoRoot,\n  140\t      '-c', 'approval_policy=\"never\"', '-c', 'forced_login_method=\"chatgpt\"',\n  141\t      '-c', 'model_provider=\"panel-subscription\"',\n  142\t      '-c', 'model_providers.panel-subscription.name=\"ChatGPT subscription\"',\n  143\t      '-c', `model_providers.panel-subscription.base_url=\"${SUBSCRIPTION_ENDPOINT}\"`,\n  144\t      '-c', 'model_providers.panel-subscription.wire_api=\"responses\"',\n  145\t      '-c', 'model_providers.panel-subscription.requires_openai_auth=true',\n  146\t      '-c', 'model_providers.panel-subscription.supports_websockets=false',\n  147\t      '-c', `developer_instructions=${JSON.stringify(this.systemPrompt.replace('You do not have repo tools in this review pass.',\n  148\t        'Use the available tools for read-only evidence inspection in the supplied working directory; it is the selected source snapshot when a review ref is pinned. Do not substitute the parent checkout. Do not edit files, call other reviewers, or change runtime state.'))}`,\n  149\t      '-'];\n  150\t    const result = await this.invoke(CODEX_LAUNCHER, args, { ...this.execOptions(), input: prompt });\n  151\t    this.requestCount += 1;\n  152\t    const parsed = parseCodexTapes(result.stdout, result.stderr, this.model);\n  153\t    const termination = result.error ? 'error' : (parsed.complete ? 'stop' : 'incomplete');\n  154\t    const metadata = {\n  155\t      provider: this.providerName, requestedModel: this.model,\n  156\t      appliedModel: parsed.models.at(-1) || null, appliedModels: parsed.models,\n  157\t      verdictModels: parsed.completed.map(event => event.response?.model ?? null),\n  158\t      modelObservations: parsed.observations, modelTransitions: [],\n  159\t      identityPosture: { status: parsed.identityVerified ? 'verified' : 'identity_conflict',\n  160\t        authority: 'provider_response_sse', reason: parsed.identityVerified ? 'every_response_model_matches' : '[REDACTED]' },\n  161\t      startedAt: new Date(started).toISOString(), finishedAt: new Date().toISOString(), latencyMs: Date.now() - started,\n  162\t      exitCode: result.error ? result.error.code : 0, termination,\n  163\t      stoppedBecause: result.error ? result.error.message : termination,\n  164\t      providerError: result.error ? { name: result.error.name, message: result.error.message,\n  165\t        code: result.error.code || null, signal: result.error.signal || null, killed: result.error.killed === true } : null,\n  166\t      parseStatus: parsed.parseErrors.length ? 'parse_errors' : (parsed.complete ? 'complete' : 'incomplete'), parseErrors: parsed.parseErrors,\n  167\t      initialization: this.initialization || null,\n  168\t      usage: parsed.frames.findLast(frame => frame.type === 'turn.completed')?.usage || null,\n  169\t      rawResponse: Buffer.from(result.stdout || ''), rawError: Buffer.from(result.stderr || ''),\n  170\t      providerFrames: parsed.events, toolsAvailable: parsed.tools.available, tools: parsed.tools,\n  171\t      providerErrors: parsed.frames.filter(frame => frame.type === 'error' || frame.type === 'turn.failed'),\n  172\t      authStatus: this.authStatus, executableTrust: this.executableTrust,\n  173\t      invocation: { executable: CODEX_LAUNCHER, args, subscriptionEndpoint: SUBSCRIPTION_ENDPOINT,\n  174\t        configuredMaxTokens: this.maxTokens, outputTokenLimitEnforced: false },\n  175\t    };\n  176\t    // Preserve the answer and every diagnostic. Existing panel routing owns seat handling.\n  177\t    return { answer: parsed.answer, metadata };\n  178\t  }\n  179\t}\n  180\t\n  181\tmodule.exports = { CodexChallengerClient, parseCodexTapes, subscriptionEnv };\n  182\t",
+              "source_ref": "a9808f2f6216788eb0dcb67ae5a4791aeba6e2c1"
+            },
+            "toolDelivery": {
+              "truncated": false,
+              "startLine": 1,
+              "endLine": 182,
+              "totalLines": 182
+            },
+            "toolCallId": "call_92e872b0ecbca9ab"
+          },
+          {
+            "iteration": 6,
+            "toolName": "open_file",
+            "toolArgs": {
+              "path": "trai_brain/mercury-bridge/codex-challenger.js",
+              "start_line": 140,
+              "end_line": 170
+            },
+            "toolResult": {
+              "file": "trai_brain/mercury-bridge/codex-challenger.js",
+              "start_line": 140,
+              "end_line": 170,
+              "total_lines": 182,
+              "text": "  140\t      '-c', 'approval_policy=\"never\"', '-c', 'forced_login_method=\"chatgpt\"',\n  141\t      '-c', 'model_provider=\"panel-subscription\"',\n  142\t      '-c', 'model_providers.panel-subscription.name=\"ChatGPT subscription\"',\n  143\t      '-c', `model_providers.panel-subscription.base_url=\"${SUBSCRIPTION_ENDPOINT}\"`,\n  144\t      '-c', 'model_providers.panel-subscription.wire_api=\"responses\"',\n  145\t      '-c', 'model_providers.panel-subscription.requires_openai_auth=true',\n  146\t      '-c', 'model_providers.panel-subscription.supports_websockets=false',\n  147\t      '-c', `developer_instructions=${JSON.stringify(this.systemPrompt.replace('You do not have repo tools in this review pass.',\n  148\t        'Use the available tools for read-only evidence inspection in the supplied working directory; it is the selected source snapshot when a review ref is pinned. Do not substitute the parent checkout. Do not edit files, call other reviewers, or change runtime state.'))}`,\n  149\t      '-'];\n  150\t    const result = await this.invoke(CODEX_LAUNCHER, args, { ...this.execOptions(), input: prompt });\n  151\t    this.requestCount += 1;\n  152\t    const parsed = parseCodexTapes(result.stdout, result.stderr, this.model);\n  153\t    const termination = result.error ? 'error' : (parsed.complete ? 'stop' : 'incomplete');\n  154\t    const metadata = {\n  155\t      provider: this.providerName, requestedModel: this.model,\n  156\t      appliedModel: parsed.models.at(-1) || null, appliedModels: parsed.models,\n  157\t      verdictModels: parsed.completed.map(event => event.response?.model ?? null),\n  158\t      modelObservations: parsed.observations, modelTransitions: [],\n  159\t      identityPosture: { status: parsed.identityVerified ? 'verified' : 'identity_conflict',\n  160\t        authority: 'provider_response_sse', reason: parsed.identityVerified ? 'every_response_model_matches' : '[REDACTED]' },\n  161\t      startedAt: new Date(started).toISOString(), finishedAt: new Date().toISOString(), latencyMs: Date.now() - started,\n  162\t      exitCode: result.error ? result.error.code : 0, termination,\n  163\t      stoppedBecause: result.error ? result.error.message : termination,\n  164\t      providerError: result.error ? { name: result.error.name, message: result.error.message,\n  165\t        code: result.error.code || null, signal: result.error.signal || null, killed: result.error.killed === true } : null,\n  166\t      parseStatus: parsed.parseErrors.length ? 'parse_errors' : (parsed.complete ? 'complete' : 'incomplete'), parseErrors: parsed.parseErrors,\n  167\t      initialization: this.initialization || null,\n  168\t      usage: parsed.frames.findLast(frame => frame.type === 'turn.completed')?.usage || null,\n  169\t      rawResponse: Buffer.from(result.stdout || ''), rawError: Buffer.from(result.stderr || ''),\n  170\t      providerFrames: parsed.events, toolsAvailable: parsed.tools.available, tools: parsed.tools,",
+              "source_ref": "a9808f2f6216788eb0dcb67ae5a4791aeba6e2c1"
+            },
+            "toolDelivery": {
+              "truncated": false,
+              "startLine": 140,
+              "endLine": 170,
+              "totalLines": 182
+            },
+            "toolCallId": "call_afe62aff326e3351"
+          },
+          {
+            "iteration": 7,
+            "toolName": "open_file",
+            "toolArgs": {
+              "path": "trai_brain/mercury-bridge/provider-preflight.js",
+              "start_line": 1,
+              "end_line": 250
+            },
+            "toolResult": {
+              "file": "trai_brain/mercury-bridge/provider-preflight.js",
+              "start_line": 1,
+              "end_line": 250,
+              "total_lines": 275,
+              "text": "    1\t'use strict';\n    2\t\n    3\tconst config = require('./config');\n    4\t\n    5\tconst {\n    6\t  createMercuryLlmClient,\n    7\t  createAstraChallengerClient,\n    8\t  createKimiTieBreakerClient,\n    9\t} = require('./llm-client');\n   10\tconst { stampedIdentityPosture } = require('./adversarial-review');\n   11\tconst {\n   12\t  buildPromptProvenance,\n   13\t  [REDACTED],\n   14\t  createRawRunId,\n   15\t  redactSensitiveText,\n   16\t  writeRawProviderOutput,\n   17\t  writeRunLedgerEntry,\n   18\t} = require('./run-ledger');\n   19\tconst { accountProviderAttempt } = require('./cost-accounting');\n   20\tconst { responseStopReason } = require('../../core/persistent_llm_client');\n   21\t\n   22\tconst PREFLIGHT_PROMPT = 'Reply with exactly: PROVIDER_OK';\n   23\t\n   24\tfunction classifyProviderError(err) {\n   25\t  const message = err && err.message ? err.message : String(err);\n   26\t  if (/free_tier_quota_exceeded|free tier limit|insufficient balance|rate limit|requires a subscription|upgrade for access|HTTP 402|HTTP 403|HTTP 429/i.test(message)) {\n   27\t    return 'quota_or_billing';\n   28\t  }\n   29\t  if (/authentication_error|invalid x-api-key|HTTP 401|api key env is missing|missing/i.test(message)) {\n   30\t    return 'auth';\n   31\t  }\n   32\t  if (/model.*not.*found|not_found|does not exist|unsupported/i.test(message)) {\n   33\t    return 'model';\n   34\t  }\n   35\t  if (/timeout|ETIMEDOUT|ECONNRESET|ENOTFOUND|EAI_AGAIN/i.test(message)) {\n   36\t    return 'network';\n   37\t  }\n   38\t  return 'unknown';\n   39\t}\n   40\t\n   41\tfunction sanitizeProviderMessage(message) {\n   42\t  return redactSensitiveText(String(message == null ? '' : message))\n   43\t    .replace(/(\"request_id\"\\s*:\\s*\")[^\"]+(\")/gi, '$1[REDACTED]$2')\n   44\t    .replace(/\\borg-[a-z0-9_-]+\\b/gi, 'org-[REDACTED]')\n   45\t    .replace(/<ak-[^>]+>/gi, '<account-[REDACTED]>')\n   46\t    .replace(/\\(ref:\\s*[0-9a-f-]{16,}\\)/gi, '(ref: [REDACTED])');\n   47\t}\n   48\t\n   49\tfunction cleanProviderError(err) {\n   50\t  const clean = {\n   51\t    category: classifyProviderError(err),\n   52\t    message: sanitizeProviderMessage(err && err.message ? err.message : String(err)),\n   53\t  };\n   54\t  if (err && ['string', 'number'].includes(typeof err.code)) clean.code = err.code;\n   55\t  if (err && typeof err.subcondition === 'string') clean.subcondition = err.subcondition;\n   56\t  if (err && Array.isArray(err.subconditions)) clean.subconditions = [...err.subconditions];\n   57\t  return clean;\n   58\t}\n   59\t\n   60\tasync function withSilencedClientConsole(fn) {\n   61\t  const originalLog = console.log;\n   62\t  const originalError = console.error;\n   63\t  console.log = () => {};\n   64\t  console.error = () => {};\n   65\t  try {\n   66\t    return await fn();\n   67\t  } finally {\n   68\t    console.log = originalLog;\n   69\t    console.error = originalError;\n   70\t  }\n   71\t}\n   72\t\n   73\tfunction attemptReceipt({ label, attempt, client, metadata = {}, status, phase, error = null, rawOutput = null, rawError = null }) {\n   74\t  const promptDispatched = phase === 'generate' || phase === 'complete';\n   75\t  const identityPosture = stampedIdentityPosture(metadata);\n   76\t  const requestedProvider = metadata.provider || (client && client.providerName) || null;\n   77\t  const requestedModel = metadata.requestedModel || (client && client.model) || null;\n   78\t  const accounting = accountProviderAttempt(metadata, {\n   79\t    provider: requestedProvider,\n   80\t    model: requestedModel,\n   81\t    pricingCatalog: config.PROVIDER_PRICING,\n   82\t  });\n   83\t  return {\n   84\t    role: label,\n   85\t    attempt,\n   86\t    status,\n   87\t    request_phase: phase,\n   88\t    requested_provider: requestedProvider,\n   89\t    requested_model: requestedModel,\n   90\t    applied_model: metadata.appliedModel || null,\n   91\t    applied_models: Array.isArray(metadata.appliedModels)\n   92\t      ? [...metadata.appliedModels]\n   93\t      : (metadata.appliedModel ? [metadata.appliedModel] : []),\n   94\t    auxiliary_models: Array.isArray(metadata.auxiliaryModels) ? [...metadata.auxiliaryModels] : [],\n   95\t    verdict_models: Array.isArray(metadata.verdictModels) ? [...metadata.verdictModels] : [],\n   96\t    identity_posture: identityPosture,\n   97\t    model_observations: Array.isArray(metadata.modelObservations) ? [...metadata.modelObservations] : [],\n   98\t    model_transitions: Array.isArray(metadata.modelTransitions) ? [...metadata.modelTransitions] : [],\n   99\t    started_at: metadata.startedAt || null,\n  100\t    finished_at: metadata.finishedAt || null,\n  101\t    latency_ms: metadata.latencyMs == null ? null : metadata.latencyMs,\n  102\t    status_code: metadata.statusCode == null ? null : metadata.statusCode,\n  103\t    exit_code: metadata.exitCode == null ? null : metadata.exitCode,\n  104\t    termination: metadata.termination || null,\n  105\t    stopped_because: redactSensitiveText(\n  106\t      metadata.stoppedBecause && metadata.stoppedBecause !== 'provider_stop_reason_absent'\n  107\t        ? metadata.stoppedBecause\n  108\t        : responseStopReason({\n  109\t          termination: metadata.termination,\n  110\t          statusCode: metadata.statusCode,\n  111\t          providerError: error && error.message,\n  112\t        })\n  113\t    ),\n  114\t    parse_status: metadata.parseStatus || null,\n  115\t    parse_errors: metadata.parseErrors || [],\n  116\t    provider_error: metadata.providerError || null,\n  117\t    provider_errors: metadata.providerErrors || [],\n  118\t    tokens: accounting.tokens,\n  119\t    usage_absence: accounting.usage_absence,\n  120\t    cost: accounting.cost,\n  121\t    cost_absence: accounting.cost_absence,\n  122\t    input_provenance: promptDispatched ? buildPromptProvenance(PREFLIGHT_PROMPT) : null,\n  123\t    raw_output: rawOutput,\n  124\t    raw_error: rawError,\n  125\t    tools: metadata.tools || {\n  126\t      enabled: false,\n  127\t      available: Array.isArray(metadata.toolsAvailable) ? metadata.toolsAvailable : [],\n  128\t      calls: [],\n  129\t      total: 0,\n  130\t      succeeded: 0,\n  131\t      failed: 0,\n  132\t    },\n  133\t    files_mechanically_opened: [],\n  134\t    invocation: metadata.invocation || null,\n  135\t    initialization: metadata.initialization || null,\n  136\t    auth_posture: metadata.authStatus || (client && client.authStatus) || null,\n  137\t    executable_trust: metadata.executableTrust || (client && client.executableTrust) || null,\n  138\t    error: error ? cleanProviderError(error) : null,\n  139\t    repo_adjudication: { status: 'pending', authority: 'live_repo_required' },\n  140\t  };\n  141\t}\n  142\t\n  143\tfunction persistAttemptRaw({ repoRoot, runId, label, attempt, metadata }) {\n  144\t  if (!repoRoot) return { rawOutput: null, rawError: null };\n  145\t  const rawOutput = writeRawProviderOutput({\n  146\t    repoRoot,\n  147\t    runId,\n  148\t    stage: label,\n  149\t    attempt,\n  150\t    bytes: metadata.rawResponse || Buffer.alloc(0),\n  151\t  });\n  152\t  const rawError = metadata.rawError && metadata.rawError.length > 0\n  153\t    ? writeRawProviderOutput({\n  154\t      repoRoot,\n  155\t      runId,\n  156\t      stage: `${label}-stderr`,\n  157\t      attempt,\n  158\t      bytes: metadata.rawError,\n  159\t    })\n  160\t    : null;\n  161\t  return { rawOutput, rawError };\n  162\t}\n  163\t\n  164\tasync function checkClient(label, createClient, { attempt = 1, repoRoot = null, runId = null } = {}) {\n  165\t  const startedAt = new Date();\n  166\t  const startedMs = Date.now();\n  167\t  let client = null;\n  168\t  let phase = 'create';\n  169\t  try {\n  170\t    client = createClient();\n  171\t    phase = 'initialize';\n  172\t    await withSilencedClientConsole(() => client.initialize());\n  173\t    let appliedModel = null;\n  174\t    let metadata = {\n  175\t      provider: client.providerName,\n  176\t      requestedModel: client.model,\n  177\t      appliedModel: null,\n  178\t      toolsAvailable: [],\n  179\t    };\n  180\t    if (typeof client.generateResponseWithMetadata === 'function') {\n  181\t      phase = 'generate';\n  182\t      const response = await withSilencedClientConsole(() => client.generateResponseWithMetadata(\n  183\t        PREFLIGHT_PROMPT\n  184\t      ));\n  185\t      appliedModel = response.metadata.appliedModel;\n  186\t      metadata = response.metadata;\n  187\t    }\n  188\t    phase = 'complete';\n  189\t    const raw = persistAttemptRaw({ repoRoot, runId, label, attempt, metadata });\n  190\t    const completed = !['error', 'incomplete'].includes(metadata.termination);\n  191\t    const result = {\n  192\t      label,\n  193\t      ok: completed,\n  194\t      provider: client.providerName,\n  195\t      model: client.model,\n  196\t      appliedModel,\n  197\t      identityPosture: stampedIdentityPosture(metadata),\n  198\t      requests: client.requestCount,\n  199\t      authPosture: client.authStatus || null,\n  200\t    };\n  201\t    result.attemptReceipt = attemptReceipt({\n  202\t      label, attempt, client, metadata,\n  203\t      status: completed ? 'succeeded' : 'failed', phase, ...raw,\n  204\t    });\n  205\t    return result;\n  206\t  } catch (err) {\n  207\t    const metadata = err && err.providerMetadata ? err.providerMetadata : {\n  208\t      provider: client && client.providerName,\n  209\t      requestedModel: client && client.model,\n  210\t      startedAt: startedAt.toISOString(),\n  211\t      finishedAt: new Date().toISOString(),\n  212\t      latencyMs: Date.now() - startedMs,\n  213\t      termination: 'error',\n  214\t      parseStatus: 'request_failed',\n  215\t      toolsAvailable: [],\n  216\t    };\n  217\t    const raw = persistAttemptRaw({ repoRoot, runId, label, attempt, metadata });\n  218\t    const result = {\n  219\t      label,\n  220\t      ok: false,\n  221\t      provider: client && client.providerName ? client.providerName : null,\n  222\t      model: client && client.model ? client.model : null,\n  223\t      error: cleanProviderError(err),\n  224\t    };\n  225\t    result.attemptReceipt = attemptReceipt({\n  226\t      label, attempt, client, metadata, status: 'failed', phase, error: err, ...raw,\n  227\t    });\n  228\t    Object.defineProperty(result, '_rawError', { value: err, enumerable: false });\n  229\t    return result;\n  230\t  }\n  231\t}\n  232\t\n  233\tasync function runProviderPreflight({\n  234\t  createMercuryClient = () => createMercuryLlmClient({ systemPrompt: 'Respond tersely.' }),\n  235\t  createAstraClient = () => createAstraChallengerClient(),\n  236\t  createKimiClient = () => createKimiTieBreakerClient(),\n  237\t  repoRoot = null,\n  238\t} = {}) {\n  239\t  const startedAt = new Date();\n  240\t  const runId = createRawRunId(startedAt);\n  241\t  const attempts = [];\n  242\t  const mercury = await checkClient('mercury', createMercuryClient, { attempt: 1, repoRoot, runId });\n  243\t  attempts.push(mercury.attemptReceipt);\n  244\t  const astra = await checkClient('astra_challenger', createAstraClient, { attempt: 2, repoRoot, runId });\n  245\t  attempts.push(astra.attemptReceipt);\n  246\t  const kimi = await checkClient('kimi_tie_breaker', createKimiClient, {\n  247\t    attempt: attempts.length + 1, repoRoot, runId,\n  248\t  });\n  249\t  attempts.push(kimi.attemptReceipt);\n  250\t  const challengerReady = astra.ok === true;",
+              "source_ref": "a9808f2f6216788eb0dcb67ae5a4791aeba6e2c1"
+            },
+            "toolDelivery": {
+              "truncated": false,
+              "startLine": 1,
+              "endLine": 250,
+              "totalLines": 275
+            },
+            "toolCallId": "call_9e1064f3d1f57d9a"
+          },
+          {
+            "iteration": 8,
+            "toolName": "open_file",
+            "toolArgs": {
+              "path": "trai_brain/mercury-bridge/codex-challenger.js",
+              "start_line": 166,
+              "end_line": 172
+            },
+            "toolResult": {
+              "file": "trai_brain/mercury-bridge/codex-challenger.js",
+              "start_line": 166,
+              "end_line": 172,
+              "total_lines": 182,
+              "text": "  166\t      parseStatus: parsed.parseErrors.length ? 'parse_errors' : (parsed.complete ? 'complete' : 'incomplete'), parseErrors: parsed.parseErrors,\n  167\t      initialization: this.initialization || null,\n  168\t      usage: parsed.frames.findLast(frame => frame.type === 'turn.completed')?.usage || null,\n  169\t      rawResponse: Buffer.from(result.stdout || ''), rawError: Buffer.from(result.stderr || ''),\n  170\t      providerFrames: parsed.events, toolsAvailable: parsed.tools.available, tools: parsed.tools,\n  171\t      providerErrors: parsed.frames.filter(frame => frame.type === 'error' || frame.type === 'turn.failed'),\n  172\t      authStatus: this.authStatus, executableTrust: this.executableTrust,",
+              "source_ref": "a9808f2f6216788eb0dcb67ae5a4791aeba6e2c1"
+            },
+            "toolDelivery": {
+              "truncated": false,
+              "startLine": 166,
+              "endLine": 172,
+              "totalLines": 182
+            },
+            "toolCallId": "call_80637f4646d58e5c"
+          },
+          {
+            "iteration": 9,
+            "toolName": "open_file",
+            "toolArgs": {
+              "path": "trai_brain/mercury-bridge/provider-preflight.js",
+              "start_line": 119,
+              "end_line": 126
+            },
+            "toolResult": {
+              "file": "trai_brain/mercury-bridge/provider-preflight.js",
+              "start_line": 119,
+              "end_line": 126,
+              "total_lines": 275,
+              "text": "  119\t    usage_absence: accounting.usage_absence,\n  120\t    cost: accounting.cost,\n  121\t    cost_absence: accounting.cost_absence,\n  122\t    input_provenance: promptDispatched ? buildPromptProvenance(PREFLIGHT_PROMPT) : null,\n  123\t    raw_output: rawOutput,\n  124\t    raw_error: rawError,\n  125\t    tools: metadata.tools || {\n  126\t      enabled: false,",
+              "source_ref": "a9808f2f6216788eb0dcb67ae5a4791aeba6e2c1"
+            },
+            "toolDelivery": {
+              "truncated": false,
+              "startLine": 119,
+              "endLine": 126,
+              "totalLines": 275
+            },
+            "toolCallId": "call_be37be4bb90e6b2e"
+          },
+          {
+            "iteration": 10,
+            "toolName": "open_file",
+            "toolArgs": {
+              "path": "trai_brain/mercury-bridge/provider-preflight.js",
+              "start_line": 140,
+              "end_line": 152
+            },
+            "toolResult": {
+              "file": "trai_brain/mercury-bridge/provider-preflight.js",
+              "start_line": 140,
+              "end_line": 152,
+              "total_lines": 275,
+              "text": "  140\t  };\n  141\t}\n  142\t\n  143\tfunction persistAttemptRaw({ repoRoot, runId, label, attempt, metadata }) {\n  144\t  if (!repoRoot) return { rawOutput: null, rawError: null };\n  145\t  const rawOutput = writeRawProviderOutput({\n  146\t    repoRoot,\n  147\t    runId,\n  148\t    stage: label,\n  149\t    attempt,\n  150\t    bytes: metadata.rawResponse || Buffer.alloc(0),\n  151\t  });\n  152\t  const rawError = metadata.rawError && metadata.rawError.length > 0",
+              "source_ref": "a9808f2f6216788eb0dcb67ae5a4791aeba6e2c1"
+            },
+            "toolDelivery": {
+              "truncated": false,
+              "startLine": 140,
+              "endLine": 152,
+              "totalLines": 275
+            },
+            "toolCallId": "call_a37f435a90ebab38"
+          },
+          {
+            "iteration": 11,
+            "toolName": "search",
+            "toolArgs": {
+              "query": ".response.model",
+              "file_pattern": "*",
+              "limit": 20
+            },
+            "toolResult": {
+              "source": "direct_ripgrep_fixed",
+              "matches": [
+                {
+                  "file": "trai_brain/mercury-bridge/codex-challenger.js",
+                  "line": 58,
+                  "text": "if (!event.response || typeof event.response.model !== 'string') parseErrors.push('invalid_provider_completion');"
+                }
+              ],
+              "total": 1,
+              "truncated": false,
+              "filtered_ignored": 0,
+              "requested_file_pattern": "*",
+              "effective_file_pattern": "*",
+              "source_ref": "a9808f2f6216788eb0dcb67ae5a4791aeba6e2c1"
+            },
+            "toolDelivery": {
+              "truncated": false,
+              "startLine": null,
+              "endLine": null,
+              "totalLines": null
+            },
+            "toolCallId": "call_a34917618184e0f0"
+          },
+          {
+            "iteration": 12,
+            "toolName": "search",
+            "toolArgs": {
+              "query": "rawResponse",
+              "file_pattern": "*",
+              "limit": 20
+            },
+            "toolResult": {
+              "source": "direct_ripgrep_fixed",
+              "matches": [
+                {
+                  "file": "core/persistent_llm_client.js",
+                  "line": 361,
+                  "text": "rawBody: error.rawResponse || Buffer.alloc(0),"
+                },
+                {
+                  "file": "core/persistent_llm_client.js",
+                  "line": 549,
+                  "text": "startedAt, startedMs, rawBody: error.rawResponse || Buffer.alloc(0),"
+                },
+                {
+                  "file": "core/persistent_llm_client.js",
+                  "line": 585,
+                  "text": "rawResponse: Buffer.isBuffer(rawBody) ? rawBody : Buffer.from(rawBody || ''),"
+                },
+                {
+                  "file": "core/persistent_llm_client.js",
+                  "line": 774,
+                  "text": "error.rawResponse = rawBody;"
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/direct-question.js",
+                  "line": 199,
+                  "text": "bytes: metadata.rawResponse || Buffer.alloc(0),"
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/provider-preflight.js",
+                  "line": 150,
+                  "text": "bytes: metadata.rawResponse || Buffer.alloc(0),"
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/adversarial-review.js",
+                  "line": 1122,
+                  "text": "rawOutput = persistRaw(role, attemptNumber, responseMetadata.rawResponse || Buffer.alloc(0));"
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/adversarial-review.js",
+                  "line": 1160,
+                  "text": "rawOutput = persistRaw(role, attemptNumber, metadata.rawResponse || Buffer.alloc(0));"
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/codex-challenger.js",
+                  "line": 169,
+                  "text": "rawResponse: Buffer.from(result.stdout || ''), rawError: Buffer.from(result.stderr || ''),"
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/llm-client.js",
+                  "line": 529,
+                  "text": "rawResponse: Buffer.alloc(0),"
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/llm-client.js",
+                  "line": 562,
+                  "text": "rawResponse: stdout,"
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/llm-client.js",
+                  "line": 585,
+                  "text": "rawResponse: stdout,"
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/llm-client.js",
+                  "line": 696,
+                  "text": "rawResponse: stdout,"
+                },
+                {
+                  "file": "trai_brain/mercury-bridge/ask.js",
+                  "line": 858,
+                  "text": "bytes: metadata.rawResponse || Buffer.alloc(0),"
+                }
+              ],
+              "total": 14,
+              "truncated": false,
+              "filtered_ignored": 0,
+              "requested_file_pattern": "*",
+              "effective_file_pattern": "*",
+              "source_ref": "a9808f2f6216788eb0dcb67ae5a4791aeba6e2c1"
+            },
+            "toolDelivery": {
+              "truncated": false,
+              "startLine": null,
+              "endLine": null,
+              "totalLines": null
+            },
+            "toolCallId": "call_b1832db7d9d44ed5"
+          }
+        ],
+        "providerAttempts": [
+          {
+            "attempt": 1,
+            "stage": "mercury_recheck_1",
+            "status": "succeeded",
+            "retry": 0,
+            "requested_provider": "mercury",
+            "requested_model": "mercury-2",
+            "applied_model": "mercury-2",
+            "started_at": "2026-10-03T00:34:07.507Z",
+            "finished_at": "2026-10-03T00:34:08.188Z",
+            "latency_ms": 681,
+            "status_code": 200,
+            "termination": "tool_calls",
+            "stopped_because": "tool_calls",
+            "parse_status": "parsed",
+            "tokens": {
+              "input": 4068,
+              "uncached_input": 2619,
+              "cached_input": 1449,
+              "output": 155,
+              "total": 4223
+            },
+            "usage_absence": null,
+            "cost": {
+              "amount": 0.000807225,
+              "currency": "USD",
+              "pricing_source": "operator-supplied Jul 1 invoice"
+            },
+            "cost_absence": null,
+            "identity_posture": {
+              "status": "provider_attested_response",
+              "authority": "full",
+              "requested_model": "mercury-2",
+              "applied_models": [
+                "mercury-2"
+              ]
+            },
+            "executable_trust": null,
+            "raw_output": {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-03/2026-10-03t00-34-07.497z-astra-completion/mercury_recheck_1-1.raw",
+              "sha256": "b36f8ca7f7e3ba6559e9b9b4285ac1baf90e20479b51074e8b89ed2520b949c9",
+              "bytes": 650,
+              "mode": "0600"
+            },
+            "error": null,
+            "repo_adjudication": {
+              "status": "pending",
+              "authority": "live_repo_required"
+            }
+          },
+          {
+            "attempt": 2,
+            "stage": "mercury_recheck_1",
+            "status": "succeeded",
+            "retry": 0,
+            "requested_provider": "mercury",
+            "requested_model": "mercury-2",
+            "applied_model": "mercury-2",
+            "started_at": "2026-10-03T00:34:08.253Z",
+            "finished_at": "2026-10-03T00:34:08.690Z",
+            "latency_ms": 437,
+            "status_code": 200,
+            "termination": "tool_calls",
+            "stopped_because": "tool_calls",
+            "parse_status": "parsed",
+            "tokens": {
+              "input": 4379,
+              "uncached_input": 4373,
+              "cached_input": 6,
+              "output": 45,
+              "total": 4424
+            },
+            "usage_absence": null,
+            "cost": {
+              "amount": 0.00112715,
+              "currency": "USD",
+              "pricing_source": "operator-supplied Jul 1 invoice"
+            },
+            "cost_absence": null,
+            "identity_posture": {
+              "status": "provider_attested_response",
+              "authority": "full",
+              "requested_model": "mercury-2",
+              "applied_models": [
+                "mercury-2"
+              ]
+            },
+            "executable_trust": null,
+            "raw_output": {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-03/2026-10-03t00-34-07.497z-astra-completion/mercury_recheck_1-2.raw",
+              "sha256": "6ebe117053dc4a5b492d19b901217848e184eab70d3c3560a619a12937a3a928",
+              "bytes": 613,
+              "mode": "0600"
+            },
+            "error": null,
+            "repo_adjudication": {
+              "status": "pending",
+              "authority": "live_repo_required"
+            }
+          },
+          {
+            "attempt": 3,
+            "stage": "mercury_recheck_1",
+            "status": "succeeded",
+            "retry": 0,
+            "requested_provider": "mercury",
+            "requested_model": "mercury-2",
+            "applied_model": "mercury-2",
+            "started_at": "2026-10-03T00:34:08.694Z",
+            "finished_at": "2026-10-03T00:34:09.176Z",
+            "latency_ms": 482,
+            "status_code": 200,
+            "termination": "tool_calls",
+            "stopped_because": "tool_calls",
+            "parse_status": "parsed",
+            "tokens": {
+              "input": 4392,
+              "uncached_input": 2949,
+              "cached_input": 1443,
+              "output": 59,
+              "total": 4451
+            },
+            "usage_absence": null,
+            "cost": {
+              "amount": 0.000817575,
+              "currency": "USD",
+              "pricing_source": "operator-supplied Jul 1 invoice"
+            },
+            "cost_absence": null,
+            "identity_posture": {
+              "status": "provider_attested_response",
+              "authority": "full",
+              "requested_model": "mercury-2",
+              "applied_models": [
+                "mercury-2"
+              ]
+            },
+            "executable_trust": null,
+            "raw_output": {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-03/2026-10-03t00-34-07.497z-astra-completion/mercury_recheck_1-3.raw",
+              "sha256": "06839747b0c3e607ae38ed3cd923e7268c4f61401e2f80ee6b4d08d8d9d15e8a",
+              "bytes": 634,
+              "mode": "0600"
+            },
+            "error": null,
+            "repo_adjudication": {
+              "status": "pending",
+              "authority": "live_repo_required"
+            }
+          },
+          {
+            "attempt": 4,
+            "stage": "mercury_recheck_1",
+            "status": "succeeded",
+            "retry": 0,
+            "requested_provider": "mercury",
+            "requested_model": "mercury-2",
+            "applied_model": "mercury-2",
+            "started_at": "2026-10-03T00:34:09.225Z",
+            "finished_at": "2026-10-03T00:34:09.780Z",
+            "latency_ms": 555,
+            "status_code": 200,
+            "termination": "tool_calls",
+            "stopped_because": "tool_calls",
+            "parse_status": "parsed",
+            "tokens": {
+              "input": 5592,
+              "uncached_input": 5586,
+              "cached_input": 6,
+              "output": 73,
+              "total": 5665
+            },
+            "usage_absence": null,
+            "cost": {
+              "amount": 0.0014514,
+              "currency": "USD",
+              "pricing_source": "operator-supplied Jul 1 invoice"
+            },
+            "cost_absence": null,
+            "identity_posture": {
+              "status": "provider_attested_response",
+              "authority": "full",
+              "requested_model": "mercury-2",
+              "applied_models": [
+                "mercury-2"
+              ]
+            },
+            "executable_trust": null,
+            "raw_output": {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-03/2026-10-03t00-34-07.497z-astra-completion/mercury_recheck_1-4.raw",
+              "sha256": "147fd3e224f9ff0d6cb912af1cb7b65375ee261189f6c24e9c1c4268ec2697b7",
+              "bytes": 633,
+              "mode": "0600"
+            },
+            "error": null,
+            "repo_adjudication": {
+              "status": "pending",
+              "authority": "live_repo_required"
+            }
+          },
+          {
+            "attempt": 5,
+            "stage": "mercury_recheck_1",
+            "status": "succeeded",
+            "retry": 0,
+            "requested_provider": "mercury",
+            "requested_model": "mercury-2",
+            "applied_model": "mercury-2",
+            "started_at": "2026-10-03T00:34:09.782Z",
+            "finished_at": "2026-10-03T00:34:10.201Z",
+            "latency_ms": 419,
+            "status_code": 200,
+            "termination": "tool_calls",
+            "stopped_because": "tool_calls",
+            "parse_status": "parsed",
+            "tokens": {
+              "input": 5824,
+              "uncached_input": 1348,
+              "cached_input": 4476,
+              "output": 67,
+              "total": 5891
+            },
+            "usage_absence": null,
+            "cost": {
+              "amount": 0.00049915,
+              "currency": "USD",
+              "pricing_source": "operator-supplied Jul 1 invoice"
+            },
+            "cost_absence": null,
+            "identity_posture": {
+              "status": "provider_attested_response",
+              "authority": "full",
+              "requested_model": "mercury-2",
+              "applied_models": [
+                "mercury-2"
+              ]
+            },
+            "executable_trust": null,
+            "raw_output": {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-03/2026-10-03t00-34-07.497z-astra-completion/mercury_recheck_1-5.raw",
+              "sha256": "194901c2381d5e6a9d8acce4129fd28a45d8ba53d2876744867ce2428063ff52",
+              "bytes": 674,
+              "mode": "0600"
+            },
+            "error": null,
+            "repo_adjudication": {
+              "status": "pending",
+              "authority": "live_repo_required"
+            }
+          },
+          {
+            "attempt": 6,
+            "stage": "mercury_recheck_1",
+            "status": "succeeded",
+            "retry": 0,
+            "requested_provider": "mercury",
+            "requested_model": "mercury-2",
+            "applied_model": "mercury-2",
+            "started_at": "2026-10-03T00:34:10.204Z",
+            "finished_at": "2026-10-03T00:34:11.419Z",
+            "latency_ms": 1215,
+            "status_code": 200,
+            "termination": "tool_calls",
+            "stopped_because": "tool_calls",
+            "parse_status": "parsed",
+            "tokens": {
+              "input": 9305,
+              "uncached_input": 7857,
+              "cached_input": 1448,
+              "output": 261,
+              "total": 9566
+            },
+            "usage_absence": null,
+            "cost": {
+              "amount": 0.0021962,
+              "currency": "USD",
+              "pricing_source": "operator-supplied Jul 1 invoice"
+            },
+            "cost_absence": null,
+            "identity_posture": {
+              "status": "provider_attested_response",
+              "authority": "full",
+              "requested_model": "mercury-2",
+              "applied_models": [
+                "mercury-2"
+              ]
+            },
+            "executable_trust": null,
+            "raw_output": {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-03/2026-10-03t00-34-07.497z-astra-completion/mercury_recheck_1-6.raw",
+              "sha256": "679c2f72700be4d2781ea984b0b9b3193c8a6a81e16265505da2b7638e018c00",
+              "bytes": 678,
+              "mode": "0600"
+            },
+            "error": null,
+            "repo_adjudication": {
+              "status": "pending",
+              "authority": "live_repo_required"
+            }
+          },
+          {
+            "attempt": 7,
+            "stage": "mercury_recheck_1",
+            "status": "succeeded",
+            "retry": 0,
+            "requested_provider": "mercury",
+            "requested_model": "mercury-2",
+            "applied_model": "mercury-2",
+            "started_at": "2026-10-03T00:34:11.420Z",
+            "finished_at": "2026-10-03T00:34:12.486Z",
+            "latency_ms": 1066,
+            "status_code": 200,
+            "termination": "tool_calls",
+            "stopped_because": "tool_calls",
+            "parse_status": "parsed",
+            "tokens": {
+              "input": 10349,
+              "uncached_input": 8917,
+              "cached_input": 1432,
+              "output": 178,
+              "total": 10527
+            },
+            "usage_absence": null,
+            "cost": {
+              "amount": 0.00239855,
+              "currency": "USD",
+              "pricing_source": "operator-supplied Jul 1 invoice"
+            },
+            "cost_absence": null,
+            "identity_posture": {
+              "status": "provider_attested_response",
+              "authority": "full",
+              "requested_model": "mercury-2",
+              "applied_models": [
+                "mercury-2"
+              ]
+            },
+            "executable_trust": null,
+            "raw_output": {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-03/2026-10-03t00-34-07.497z-astra-completion/mercury_recheck_1-7.raw",
+              "sha256": "55d2a576ad6af7ce2674edd9a6e074238b640fdcc3c862021f0da7169db0c985",
+              "bytes": 680,
+              "mode": "0600"
+            },
+            "error": null,
+            "repo_adjudication": {
+              "status": "pending",
+              "authority": "live_repo_required"
+            }
+          },
+          {
+            "attempt": 8,
+            "stage": "mercury_recheck_1",
+            "status": "succeeded",
+            "retry": 0,
+            "requested_provider": "mercury",
+            "requested_model": "mercury-2",
+            "applied_model": "mercury-2",
+            "started_at": "2026-10-03T00:34:12.487Z",
+            "finished_at": "2026-10-03T00:34:14.535Z",
+            "latency_ms": 2048,
+            "status_code": 200,
+            "termination": "tool_calls",
+            "stopped_because": "tool_calls",
+            "parse_status": "parsed",
+            "tokens": {
+              "input": 15118,
+              "uncached_input": 9471,
+              "cached_input": 5647,
+              "output": 614,
+              "total": 15732
+            },
+            "usage_absence": null,
+            "cost": {
+              "amount": 0.002969425,
+              "currency": "USD",
+              "pricing_source": "operator-supplied Jul 1 invoice"
+            },
+            "cost_absence": null,
+            "identity_posture": {
+              "status": "provider_attested_response",
+              "authority": "full",
+              "requested_model": "mercury-2",
+              "applied_models": [
+                "mercury-2"
+              ]
+            },
+            "executable_trust": null,
+            "raw_output": {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-03/2026-10-03t00-34-07.497z-astra-completion/mercury_recheck_1-8.raw",
+              "sha256": "335166489bb2aa7997dccdb05f137ae7d76006955f5d06519d8ea97ab88e2155",
+              "bytes": 680,
+              "mode": "0600"
+            },
+            "error": null,
+            "repo_adjudication": {
+              "status": "pending",
+              "authority": "live_repo_required"
+            }
+          },
+          {
+            "attempt": 9,
+            "stage": "mercury_recheck_1",
+            "status": "succeeded",
+            "retry": 0,
+            "requested_provider": "mercury",
+            "requested_model": "mercury-2",
+            "applied_model": "mercury-2",
+            "started_at": "2026-10-03T00:34:14.536Z",
+            "finished_at": "2026-10-03T00:34:15.298Z",
+            "latency_ms": 762,
+            "status_code": 200,
+            "termination": "tool_calls",
+            "stopped_because": "tool_calls",
+            "parse_status": "parsed",
+            "tokens": {
+              "input": 15944,
+              "uncached_input": 11759,
+              "cached_input": 4185,
+              "output": 69,
+              "total": 16013
+            },
+            "usage_absence": null,
+            "cost": {
+              "amount": 0.003096125,
+              "currency": "USD",
+              "pricing_source": "operator-supplied Jul 1 invoice"
+            },
+            "cost_absence": null,
+            "identity_posture": {
+              "status": "provider_attested_response",
+              "authority": "full",
+              "requested_model": "mercury-2",
+              "applied_models": [
+                "mercury-2"
+              ]
+            },
+            "executable_trust": null,
+            "raw_output": {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-03/2026-10-03t00-34-07.497z-astra-completion/mercury_recheck_1-9.raw",
+              "sha256": "f09957639543346b615c6abb794ecc76e3aa841288da053b44a29584c2dc04c3",
+              "bytes": 680,
+              "mode": "0600"
+            },
+            "error": null,
+            "repo_adjudication": {
+              "status": "pending",
+              "authority": "live_repo_required"
+            }
+          },
+          {
+            "attempt": 10,
+            "stage": "mercury_recheck_1",
+            "status": "succeeded",
+            "retry": 0,
+            "requested_provider": "mercury",
+            "requested_model": "mercury-2",
+            "applied_model": "mercury-2",
+            "started_at": "2026-10-03T00:34:15.300Z",
+            "finished_at": "2026-10-03T00:34:16.239Z",
+            "latency_ms": 939,
+            "status_code": 200,
+            "termination": "tool_calls",
+            "stopped_because": "tool_calls",
+            "parse_status": "parsed",
+            "tokens": {
+              "input": 16344,
+              "uncached_input": 14841,
+              "cached_input": 1503,
+              "output": 68,
+              "total": 16412
+            },
+            "usage_absence": null,
+            "cost": {
+              "amount": 0.003798825,
+              "currency": "USD",
+              "pricing_source": "operator-supplied Jul 1 invoice"
+            },
+            "cost_absence": null,
+            "identity_posture": {
+              "status": "provider_attested_response",
+              "authority": "full",
+              "requested_model": "mercury-2",
+              "applied_models": [
+                "mercury-2"
+              ]
+            },
+            "executable_trust": null,
+            "raw_output": {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-03/2026-10-03t00-34-07.497z-astra-completion/mercury_recheck_1-10.raw",
+              "sha256": "5b84f98362bd69238a0332381071a73000effd47d8a24a2f34e92916bd177925",
+              "bytes": 680,
+              "mode": "0600"
+            },
+            "error": null,
+            "repo_adjudication": {
+              "status": "pending",
+              "authority": "live_repo_required"
+            }
+          },
+          {
+            "attempt": 11,
+            "stage": "mercury_recheck_1",
+            "status": "succeeded",
+            "retry": 0,
+            "requested_provider": "mercury",
+            "requested_model": "mercury-2",
+            "applied_model": "mercury-2",
+            "started_at": "2026-10-03T00:34:16.242Z",
+            "finished_at": "2026-10-03T00:34:17.057Z",
+            "latency_ms": 815,
+            "status_code": 200,
+            "termination": "tool_calls",
+            "stopped_because": "tool_calls",
+            "parse_status": "parsed",
+            "tokens": {
+              "input": 16255,
+              "uncached_input": 14790,
+              "cached_input": 1465,
+              "output": 64,
+              "total": 16319
+            },
+            "usage_absence": null,
+            "cost": {
+              "amount": 0.003782125,
+              "currency": "USD",
+              "pricing_source": "operator-supplied Jul 1 invoice"
+            },
+            "cost_absence": null,
+            "identity_posture": {
+              "status": "provider_attested_response",
+              "authority": "full",
+              "requested_model": "mercury-2",
+              "applied_models": [
+                "mercury-2"
+              ]
+            },
+            "executable_trust": null,
+            "raw_output": {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-03/2026-10-03t00-34-07.497z-astra-completion/mercury_recheck_1-11.raw",
+              "sha256": "f520565f1c639d1add5dd8fb2f88e44ca2e0f71bbb6a85a59f9d9e5a9755dff5",
+              "bytes": 646,
+              "mode": "0600"
+            },
+            "error": null,
+            "repo_adjudication": {
+              "status": "pending",
+              "authority": "live_repo_required"
+            }
+          },
+          {
+            "attempt": 12,
+            "stage": "mercury_recheck_1",
+            "status": "succeeded",
+            "retry": 0,
+            "requested_provider": "mercury",
+            "requested_model": "mercury-2",
+            "applied_model": "mercury-2",
+            "started_at": "2026-10-03T00:34:17.123Z",
+            "finished_at": "2026-10-03T00:34:20.954Z",
+            "latency_ms": 3831,
+            "status_code": 200,
+            "termination": "tool_calls",
+            "stopped_because": "tool_calls",
+            "parse_status": "parsed",
+            "tokens": {
+              "input": 16384,
+              "uncached_input": 14925,
+              "cached_input": 1459,
+              "output": 199,
+              "total": 16583
+            },
+            "usage_absence": null,
+            "cost": {
+              "amount": 0.003916975,
+              "currency": "USD",
+              "pricing_source": "operator-supplied Jul 1 invoice"
+            },
+            "cost_absence": null,
+            "identity_posture": {
+              "status": "provider_attested_response",
+              "authority": "full",
+              "requested_model": "mercury-2",
+              "applied_models": [
+                "mercury-2"
+              ]
+            },
+            "executable_trust": null,
+            "raw_output": {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-03/2026-10-03t00-34-07.497z-astra-completion/mercury_recheck_1-12.raw",
+              "sha256": "5a0009a0ca54da29eda0765bbbd9519b335d7df40f9dcd1731711b63f1dc7d3d",
+              "bytes": 644,
+              "mode": "0600"
+            },
+            "error": null,
+            "repo_adjudication": {
+              "status": "pending",
+              "authority": "live_repo_required"
+            }
+          },
+          {
+            "attempt": 13,
+            "stage": "mercury_recheck_1",
+            "status": "succeeded",
+            "retry": 0,
+            "requested_provider": "mercury",
+            "requested_model": "mercury-2",
+            "applied_model": "mercury-2",
+            "started_at": "2026-10-03T00:34:21.013Z",
+            "finished_at": "2026-10-03T00:34:23.165Z",
+            "latency_ms": 2152,
+            "status_code": 200,
+            "termination": "stop",
+            "stopped_because": "stop",
+            "parse_status": "parsed",
+            "tokens": {
+              "input": 17294,
+              "uncached_input": 17288,
+              "cached_input": 6,
+              "output": 703,
+              "total": 17997
+            },
+            "usage_absence": null,
+            "cost": {
+              "amount": 0.0048494,
+              "currency": "USD",
+              "pricing_source": "operator-supplied Jul 1 invoice"
+            },
+            "cost_absence": null,
+            "identity_posture": {
+              "status": "provider_attested_response",
+              "authority": "full",
+              "requested_model": "mercury-2",
+              "applied_models": [
+                "mercury-2"
+              ]
+            },
+            "executable_trust": null,
+            "raw_output": {
+              "path": "ogz-meta/cognition-history/mercury-runs/raw/2026-10-03/2026-10-03t00-34-07.497z-astra-completion/mercury_recheck_1-13.raw",
+              "sha256": "aa6f4528f094e74396ced9500821f419b27022d9f2b376bee59c7ff3fef2806f",
+              "bytes": 3329,
+              "mode": "0600"
+            },
+            "error": null,
+            "repo_adjudication": {
+              "status": "pending",
+              "authority": "live_repo_required"
+            }
+          }
+        ],
+        "toolsAvailable": [
+          "find_definition",
+          "find_references",
+          "get_chunk",
+          "git_diff",
+          "git_show",
+          "grep",
+          "list_files",
+          "open_file",
+          "regex_grep",
+          "rule_scan",
+          "search",
+          "serena_blast_radius",
+          "serena_class_fields",
+          "serena_method_callers",
+          "serena_property_refs",
+          "tavily_search",
+          "web_fetch"
+        ],
+        "iterationLimit": null,
+        "decisionSteerIteration": 60,
+        "decisionSteerSentAt": null,
+        "toolTelemetry": {
+          "total": 12,
+          "succeeded": 12,
+          "failed": 0,
+          "byTool": {
+            "search": {
+              "calls": 4,
+              "succeeded": 4,
+              "failed": 0
+            },
+            "list_files": {
+              "calls": 2,
+              "succeeded": 2,
+              "failed": 0
+            },
+            "open_file": {
+              "calls": 6,
+              "succeeded": 6,
+              "failed": 0
+            }
+          },
+          "calls": [
+            {
+              "iteration": 1,
+              "name": "search",
+              "status": "succeeded",
+              "args": {
+                "query": "codex-challenger.js",
+                "file_pattern": "*",
+                "limit": 20
+              },
+              "result": {
+                "source": "direct_ripgrep_fixed",
+                "total": 0,
+                "truncated": false
+              },
+              "delivery": {
+                "truncated": false,
+                "startLine": null,
+                "endLine": null,
+                "totalLines": null
+              }
+            },
+            {
+              "iteration": 2,
+              "name": "list_files",
+              "status": "succeeded",
+              "args": {
+                "path": "",
+                "pattern": "codex"
+              },
+              "result": {
+                "total": 0
+              },
+              "delivery": {
+                "truncated": false,
+                "startLine": null,
+                "endLine": null,
+                "totalLines": null
+              }
+            },
+            {
+              "iteration": 3,
+              "name": "search",
+              "status": "succeeded",
+              "args": {
+                "query": "Astra",
+                "file_pattern": "*",
+                "limit": 20
+              },
+              "result": {
+                "source": "direct_ripgrep_fixed",
+                "total": 22,
+                "truncated": true
+              },
+              "delivery": {
+                "truncated": false,
+                "startLine": null,
+                "endLine": null,
+                "totalLines": null
+              }
+            },
+            {
+              "iteration": 4,
+              "name": "list_files",
+              "status": "succeeded",
+              "args": {
+                "path": "trai_brain/mercury-bridge",
+                "pattern": ""
+              },
+              "result": {
+                "total": 24
+              },
+              "delivery": {
+                "truncated": false,
+                "startLine": null,
+                "endLine": null,
+                "totalLines": null
+              }
+            },
+            {
+              "iteration": 5,
+              "name": "open_file",
+              "status": "succeeded",
+              "args": {
+                "path": "trai_brain/mercury-bridge/codex-challenger.js",
+                "start_line": 1,
+                "end_line": 200
+              },
+              "result": {
+                "file": "trai_brain/mercury-bridge/codex-challenger.js",
+                "start_line": 1,
+                "end_line": 182,
+                "total_lines": 182
+              },
+              "delivery": {
+                "truncated": false,
+                "startLine": 1,
+                "endLine": 182,
+                "totalLines": 182
+              }
+            },
+            {
+              "iteration": 6,
+              "name": "open_file",
+              "status": "succeeded",
+              "args": {
+                "path": "trai_brain/mercury-bridge/codex-challenger.js",
+                "start_line": 140,
+                "end_line": 170
+              },
+              "result": {
+                "file": "trai_brain/mercury-bridge/codex-challenger.js",
+                "start_line": 140,
+                "end_line": 170,
+                "total_lines": 182
+              },
+              "delivery": {
+                "truncated": false,
+                "startLine": 140,
+                "endLine": 170,
+                "totalLines": 182
+              }
+            },
+            {
+              "iteration": 7,
+              "name": "open_file",
+              "status": "succeeded",
+              "args": {
+                "path": "trai_brain/mercury-bridge/provider-preflight.js",
+                "start_line": 1,
+                "end_line": 250
+              },
+              "result": {
+                "file": "trai_brain/mercury-bridge/provider-preflight.js",
+                "start_line": 1,
+                "end_line": 250,
+                "total_lines": 275
+              },
+              "delivery": {
+                "truncated": false,
+                "startLine": 1,
+                "endLine": 250,
+                "totalLines": 275
+              }
+            },
+            {
+              "iteration": 8,
+              "name": "open_file",
+              "status": "succeeded",
+              "args": {
+                "path": "trai_brain/mercury-bridge/codex-challenger.js",
+                "start_line": 166,
+                "end_line": 172
+              },
+              "result": {
+                "file": "trai_brain/mercury-bridge/codex-challenger.js",
+                "start_line": 166,
+                "end_line": 172,
+                "total_lines": 182
+              },
+              "delivery": {
+                "truncated": false,
+                "startLine": 166,
+                "endLine": 172,
+                "totalLines": 182
+              }
+            },
+            {
+              "iteration": 9,
+              "name": "open_file",
+              "status": "succeeded",
+              "args": {
+                "path": "trai_brain/mercury-bridge/provider-preflight.js",
+                "start_line": 119,
+                "end_line": 126
+              },
+              "result": {
+                "file": "trai_brain/mercury-bridge/provider-preflight.js",
+                "start_line": 119,
+                "end_line": 126,
+                "total_lines": 275
+              },
+              "delivery": {
+                "truncated": false,
+                "startLine": 119,
+                "endLine": 126,
+                "totalLines": 275
+              }
+            },
+            {
+              "iteration": 10,
+              "name": "open_file",
+              "status": "succeeded",
+              "args": {
+                "path": "trai_brain/mercury-bridge/provider-preflight.js",
+                "start_line": 140,
+                "end_line": 152
+              },
+              "result": {
+                "file": "trai_brain/mercury-bridge/provider-preflight.js",
+                "start_line": 140,
+                "end_line": 152,
+                "total_lines": 275
+              },
+              "delivery": {
+                "truncated": false,
+                "startLine": 140,
+                "endLine": 152,
+                "totalLines": 275
+              }
+            },
+            {
+              "iteration": 11,
+              "name": "search",
+              "status": "succeeded",
+              "args": {
+                "query": ".response.model",
+                "file_pattern": "*",
+                "limit": 20
+              },
+              "result": {
+                "source": "direct_ripgrep_fixed",
+                "total": 1,
+                "truncated": false
+              },
+              "delivery": {
+                "truncated": false,
+                "startLine": null,
+                "endLine": null,
+                "totalLines": null
+              }
+            },
+            {
+              "iteration": 12,
+              "name": "search",
+              "status": "succeeded",
+              "args": {
+                "query": "rawResponse",
+                "file_pattern": "*",
+                "limit": 20
+              },
+              "result": {
+                "source": "direct_ripgrep_fixed",
+                "total": 14,
+                "truncated": false
+              },
+              "delivery": {
+                "truncated": false,
+                "startLine": null,
+                "endLine": null,
+                "totalLines": null
+              }
+            }
+          ],
+          "filesOpened": [
+            "trai_brain/mercury-bridge/codex-challenger.js:1-182",
+            "trai_brain/mercury-bridge/codex-challenger.js:140-170",
+            "trai_brain/mercury-bridge/codex-challenger.js:166-172",
+            "trai_brain/mercury-bridge/provider-preflight.js:1-250",
+            "trai_brain/mercury-bridge/provider-preflight.js:119-126",
+            "trai_brain/mercury-bridge/provider-preflight.js:140-152"
+          ],
+          "fileReads": [
+            {
+              "file": "trai_brain/mercury-bridge/codex-challenger.js",
+              "startLine": 1,
+              "endLine": 182,
+              "totalLines": 182,
+              "executionProvenance": "trusted_repo_read",
+              "contextCompacted": false
+            },
+            {
+              "file": "trai_brain/mercury-bridge/codex-challenger.js",
+              "startLine": 140,
+              "endLine": 170,
+              "totalLines": 182,
+              "executionProvenance": "trusted_repo_read",
+              "contextCompacted": false
+            },
+            {
+              "file": "trai_brain/mercury-bridge/provider-preflight.js",
+              "startLine": 1,
+              "endLine": 250,
+              "totalLines": 275,
+              "executionProvenance": "trusted_repo_read",
+              "contextCompacted": false
+            },
+            {
+              "file": "trai_brain/mercury-bridge/codex-challenger.js",
+              "startLine": 166,
+              "endLine": 172,
+              "totalLines": 182,
+              "executionProvenance": "trusted_repo_read",
+              "contextCompacted": false
+            },
+            {
+              "file": "trai_brain/mercury-bridge/provider-preflight.js",
+              "startLine": 119,
+              "endLine": 126,
+              "totalLines": 275,
+              "executionProvenance": "trusted_repo_read",
+              "contextCompacted": false
+            },
+            {
+              "file": "trai_brain/mercury-bridge/provider-preflight.js",
+              "startLine": 140,
+              "endLine": 152,
+              "totalLines": 275,
+              "executionProvenance": "trusted_repo_read",
+              "contextCompacted": false
+            }
+          ],
+          "runCheckArtifacts": [],
+          "runChecks": []
+        },
+        "totalLatencyMs": 15691,
+        "inputProvenance": {
+          "prompt_sha256": "e58f3c204329af03efbb04868155c08bddd7ffa35db3f1099eee3d9d688a0a3c",
+          "prompt_bytes": 5563,
+          "prompt_excerpt": "Attack the final Astra receipt-parser correction at immutable tree a9808f2f6216788eb0dcb67ae5a4791aeba6e2c1, base e9faed6357b999774e3bfaae85ac43eff18c9262. Read codex-challenger.js and the actual preflight/stage consumers in the selected source snapshot. The prior reviewer found that null/non-object parsed frames or malformed namespace catalogs could throw before attaching raw tapes. The correction records explicit parse errors while retaining the complete raw tapes and actual answer. Find a concrete remaining reachable evidence-loss mechanism introduced by this change, or state no break found with examined scope and limits. Distinguish existing behavior from introduced behavior. Do not add response gates or interpret a parse diagnostic as a code failure.\n\nTrey explicitly ruled executable trust must be recorded while dispatch continues; this is no longer an unresolved policy allegation. The false-ready finding was fixed by deriving result.ok and receipt status from the same error/incomplete termination classification. Mercury's original allegation that Astra calls the old Claude alias matcher was withdrawn by its same-source recheck. An incomplete subsequent Astra review identified the parser issue above but issued no final verdict. Verify source, not those summaries. Use read-only evidence tools, do not execute tests, mutate files, invoke another provider or alter runtime state.\n\nFocused host tests on working source (not independent approval):\n\nTest Suites: 3 passed, 3 total\nTests:       57 passed, 57 total\nSnapshots:   0 total\nTime:        1.797 s, estimated 2 s\nRan all test suites matching test/mercury-provider-preflight.test.js|test/mercury-astra-challenger.test.js|test/mercury-llm-config-contract.test.js.\n\n\nLatest correction: malformed completion response fields now produce invalid_provider_completion diagnostics and null verdict-model entries, preserve answer/tapes, and cannot claim verified identity by an empty observations array. Tool namespaces are traverse...[truncated 3557 chars]",
+          "supplied_sources": []
+        },
+        "evidenceSources": []
+      }
+    ],
+    "quarantines": []
+  }
+}

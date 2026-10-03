@@ -5,7 +5,7 @@ const readline = require('readline');
 
 const REVIEWER_REGISTRY = Object.freeze([
   Object.freeze({ id: 'mercury', label: 'Mercury' }),
-  Object.freeze({ id: 'fable', label: 'Fable' }),
+  Object.freeze({ id: 'astra', label: 'Astra' }),
   Object.freeze({ id: 'kimi', label: 'Kimi' }),
 ]);
 
@@ -68,13 +68,13 @@ function effectiveIdentityFingerprint(reviewerId, attempts = []) {
   })).digest('hex');
 }
 
-function canAttachFinalReview(fableSeat, kimiSeat) {
-  if (!fableSeat || !kimiSeat || fableSeat.status !== 'succeeded' || kimiSeat.status !== 'succeeded') return false;
-  if (kimiSeat.sequence <= fableSeat.sequence || !Array.isArray(kimiSeat.inputDependencies)) return false;
-  const answerSha256 = crypto.createHash('sha256').update(String(fableSeat.answer || '')).digest('hex');
+function canAttachFinalReview(astraSeat, kimiSeat) {
+  if (!astraSeat || !kimiSeat || astraSeat.status !== 'succeeded' || kimiSeat.status !== 'succeeded') return false;
+  if (kimiSeat.sequence <= astraSeat.sequence || !Array.isArray(kimiSeat.inputDependencies)) return false;
+  const answerSha256 = crypto.createHash('sha256').update(String(astraSeat.answer || '')).digest('hex');
   return kimiSeat.inputDependencies.some(dependency => (
-    dependency.id === 'fable'
-    && dependency.sequence === fableSeat.sequence
+    dependency.id === 'astra'
+    && dependency.sequence === astraSeat.sequence
     && dependency.answerSha256 === answerSha256
   ));
 }

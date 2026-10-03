@@ -1,0 +1,127 @@
+[MERCURY-BRIDGE] Pinned source tree cba73b4dd836d0f50c4773cdf00fe2fc34cc9dc3, baseline 4b3901650c779d1834f2704ee1e4a407b2662fac, 716 captured files
+[MERCURY-BRIDGE] Explicit target ingestion: source snapshots; no indexed retrieval or trace-memory access
+[MERCURY-BRIDGE] Tool adapter ready. Tools: search, grep, regex_grep, find_definition, find_references, rule_scan, open_file, get_chunk, list_files, tavily_search, git_show, git_diff, serena_blast_radius, serena_property_refs, serena_method_callers, serena_class_fields, web_fetch
+[MERCURY-BRIDGE] Serena current-change blast radius: 10 file(s)
+  trai_brain/mercury-bridge/adversarial-review.js: 3 caller(s), risk=low, 101ms
+  trai_brain/mercury-bridge/ask.js: 1 caller(s), risk=low, 92ms
+  trai_brain/mercury-bridge/codex-challenger.js: 1 caller(s), risk=low, 88ms
+  trai_brain/mercury-bridge/config.js: 12 caller(s), risk=high, 93ms
+  trai_brain/mercury-bridge/consensus.js: 0 caller(s), risk=isolated, 77ms
+  trai_brain/mercury-bridge/doctrine-review.js: 4 caller(s), risk=medium, 77ms
+  trai_brain/mercury-bridge/llm-client.js: 5 caller(s), risk=medium, 76ms
+  trai_brain/mercury-bridge/provider-preflight.js: 1 caller(s), risk=low, 83ms
+  trai_brain/mercury-bridge/reviewer-panel.js: 3 caller(s), risk=low, 81ms
+  trai_brain/mercury-bridge/run-ledger.js: 5 caller(s), risk=medium, 77ms
+[MERCURY-BRIDGE] Starting reviewer seat: Mercury
+[TRAI] LLM client initializing...
+   Provider: Mercury-2 (Inception Labs)
+   Model:    mercury-2
+   Endpoint: https://api.inceptionlabs.ai/v1
+[TRAI] LLM client ready. Provider: Mercury-2 (Inception Labs) | Model: mercury-2
+[REACT] HTTP 503: {"error":{"message":"The server had an error while processing your request.","type":"server_error","param":nul, retry 1/3 in 634ms
+[REACT] Recovered after 1 retry(ies)
+[REACT] HTTP 504: <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<HTML><, retry 1/3 in 580ms
+[REACT] Recovered after 1 retry(ies)
+[REACT] HTTP 503: {"error":{"message":"The server had an error while processing your request.","type":"server_error","param":nul, retry 1/3 in 668ms
+[REACT] Recovered after 1 retry(ies)
+[REACT] HTTP 504: upstream request timeout, retry 1/3 in 643ms
+[REACT] Recovered after 1 retry(ies)
+[REACT] HTTP 503: {"error":{"message":"The server had an error while processing your request.","type":"server_error","param":nul, retry 1/3 in 527ms
+[REACT] Recovered after 1 retry(ies)
+[REACT] Iteration 1
+[REACT] Message history: 2 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing read_review_receipt({"receipt_id":"captured-diff:b5a6d76f98092c032ae8a6ad2519fa2e1e9094809d92ef745f5f9df658115286","start_line":1,"end_line":200})
+[REACT] Iteration 2
+[REACT] Message history: 4 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing read_review_receipt({"receipt_id":"captured-diff:b5a6d76f98092c032ae8a6ad2519fa2e1e9094809d92ef745f5f9df658115286","start_line":1,"end_line":21})
+[REACT] Iteration 3
+[REACT] Message history: 6 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"\"consensus\"","file_pattern":"*.json","limit":20})
+[REACT] Iteration 4
+[REACT] Message history: 8 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"consensus.provider","file_pattern":"*.js","limit":20})
+[REACT] Iteration 5
+[REACT] Message history: 10 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"trai_brain/mercury-bridge/config.js","start_line":430,"end_line":500})
+[REACT] Iteration 6
+[REACT] Message history: 12 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"permissionMode","file_pattern":"*.js","limit":20})
+[REACT] Iteration 7
+[REACT] Message history: 14 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"trai_brain/mercury-bridge/llm-client.js","start_line":450,"end_line":800})
+[REACT] Iteration 8
+[REACT] Message history: 16 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"\"read-only\"","file_pattern":"*.js","limit":20})
+[REACT] Iteration 9
+[REACT] Message history: 18 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing read_review_receipt({"receipt_id":"captured-diff:aae55c4378532b684125bb4a2d1a09f1f68a6a615d7848084d10114d5e58d3f2","start_line":1,"end_line":500})
+[REACT] Iteration 10
+[REACT] Message history: 20 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing read_review_receipt({"receipt_id":"captured-diff:aae55c4378532b684125bb4a2d1a09f1f68a6a615d7848084d10114d5e58d3f2","start_line":1,"end_line":430})
+[REACT] Iteration 11
+[REACT] Message history: 22 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"Fable","file_pattern":"*.js","limit":20})
+[REACT] Iteration 12
+[REACT] Message history: 24 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing read_review_receipt({"receipt_id":"captured-diff:15586661e4258886eb8eb62d8d732af47cb12dc6e08d83bfe19405c90df49277","start_line":1,"end_line":500})
+[REACT] Iteration 13
+[REACT] Message history: 26 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing read_review_receipt({"receipt_id":"captured-diff:15586661e4258886eb8eb62d8d732af47cb12dc6e08d83bfe19405c90df49277","start_line":1,"end_line":254})
+[REACT] Iteration 14
+[REACT] Message history: 28 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"trustedFableErrorMetadata","file_pattern":"*.js","limit":20})
+[REACT] Iteration 15
+[REACT] Message history: 30 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing read_review_receipt({"receipt_id":"captured-diff:47a409aefeef1a403139569089389b5575f7433a826d259b2fd11b12fa38334c","start_line":1,"end_line":300})
+[REACT] Iteration 16
+[REACT] Message history: 32 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing read_review_receipt({"receipt_id":"captured-diff:[REDACTED]","start_line":1,"end_line":98})
+[REACT] Iteration 17
+[REACT] Message history: 34 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing read_review_receipt({"receipt_id":"captured-diff:47a409aefeef1a403139569089389b5575f7433a826d259b2fd11b12fa38334c","start_line":1,"end_line":98})
+[REACT] Iteration 18
+[REACT] Message history: 36 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"fable","file_pattern":"*.js","limit":100})
+[REACT] Iteration 19
+[REACT] Message history: 38 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"trai_brain/mercury-bridge/llm-client.js","start_line":400,"end_line":460})
+[REACT] Iteration 20
+[REACT] Message history: 40 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"astra","file_pattern":"*.js","limit":200})
+[REACT] Iteration 21
+[REACT] Message history: 42 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"createAstraChallengerClient","file_pattern":"*.js","limit":20})
+[REACT] Iteration 22
+[REACT] Message history: 44 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing open_file({"path":"trai_brain/mercury-bridge/llm-client.js","start_line":800,"end_line":870})
+[REACT] Iteration 23
+[REACT] Message history: 46 messages
+[REACT] Assistant requested 1 tool call(s)
+[REACT] Executing search({"query":"requestedModel","file_pattern":"llm-client.js","limit":20})
+[REACT] Iteration 24
+[REACT] Message history: 48 messages
+[REACT] Final answer on iteration 24
+{"termination":"answer_given","run":"2026-10-02T11-59-49-420Z-e8018e774167","answer":"VERDICT: found_break  \nADVERSARIAL_REVIEW_BLOCKING: yes  \nCANDIDATE SET: examined 2 of 2; candidates: (1) provider-preflight rename to Astra – fully updated in diff; (2) llm-client model‑alias matcher – still restricted to “fable”/“opus”.  \nAST EVIDENCE: diff for provider-preflight shows removal of Fable imports and addition of Astra (see receipt captured‑diff:47a409aefeef1a403139569089389b5575f7433a826d259b2fd11b12fa38334c, lines 9‑12 and 242‑248).  \nAST EVIDENCE: llm-client function `claudeAppliedModelMatchesAlias` still checks `if (!['fable', 'opus'].includes(requested)) return false;` (see llm-client.js lines 435‑436).  \nINHERITED: provider‑preflight updated, but llm‑client not updated to accept “astra”.  \nFOURTH SHAPE CLASSIFIER: 1 of 2 classified as added guard (provider‑preflight) – safe; 1 of 2 classified as missing guard (llm‑client) – unsafe.  \nALLEGATIONS: Mechanical (code‑level mismatch).  \nSUBSTANTIVE RESOLUTION: found_break  \n\nWHAT I DID: examined provider‑preflight diff and llm‑client function; identified mismatch between new provider name “astra” and hard‑coded allowed models in `claudeAppliedModelMatchesAlias`.  \nWHAT I DID NOT DO: modify code or run tests.  \nWHAT I ASSUMED: requestedModel for Astra is passed as “astra” to `claudeAppliedModelMatchesAlias`.  \nWHY THIS VERDICT: The rename to “astra” is not reflected in the alias‑matching logic, causing the function to return false for all Astra requests, breaking provider pre‑flight checks and downstream usage.  \nIF INCOMPLETE, WHY: all critical evidence examined; no further investigation needed."}

@@ -7,9 +7,9 @@ const MERCURY_DOCTRINE_PROMPT = [
   TOTALITY_LAW,
   'The word “all” converts the work from point-fix work into a totality claim.',
   'A model-sandbox run_check has no authority for test/build pass or fail claims. Label its execution provenance; only host-attested trusted-path receipts carry test/build authority.',
-  'Report missing evidence, coverage limits, reviewer disagreements and reporting omissions honestly in the exit receipt. These diagnostics do not impose a verdict ceiling or require a rerun. They never authorize a fabricated PASS. Executable trust and repository-access protections remain unchanged.',
+  'Report missing evidence, coverage limits, reviewer disagreements and reporting omissions honestly in the exit receipt. These diagnostics do not impose a verdict ceiling or require a rerun. They never authorize a fabricated PASS. Trey explicitly ruled that Astra executable-trust failures are recorded and dispatch continues. Repository-access protections and financial protections remain unchanged.',
   'Final adversarial answers must deliver the fields the existing receipt parser and doctrine assessor read. Use literal headings followed by colons, not a prose-only conclusion.',
-  'VERDICT: found_break | no_break_found | cannot_verify. State your actual supported conclusion; an HTTP success or missing evidence never means no_break_found. Fable and Kimi retain their role-specific verdict vocabularies. Planning and architecture reviews retain their non-adversarial output contract.',
+  'VERDICT: found_break | no_break_found | cannot_verify. State your actual supported conclusion; an HTTP success or missing evidence never means no_break_found. Astra and Kimi retain their role-specific verdict vocabularies. Planning and architecture reviews retain their non-adversarial output contract.',
   'ADVERSARIAL_REVIEW_BLOCKING: yes | no. Include your actual evidence-to-verdict rationale and literal repo path:line citations.',
   'CANDIDATE SET: examined N of M; enumerate the complete candidate inventory, including every changed path. These are evidence counts, not confidence estimates. Unread or unresolved evidence must remain named.',
   'AST EVIDENCE: distinguish host-provided scan receipts from tools you actually used. Whole-file coverage requires complete delivered source, not an AST summary or an assertion that a file was read.',
@@ -228,7 +228,7 @@ function assessDoctrineReview({
   if (changedFiles.length > 0 && substantiveResolution
       && substantiveResolution[1].toUpperCase() === 'UNRESOLVED-FOR-TREY') {
     addAbsence('substantive_unresolved_for_trey');
-    if (reviewerId === 'kimi' && !['Mercury', 'Fable', 'Kimi'].every(seat => new RegExp(`\\b${seat}\\b`, 'i').test(text))) {
+    if (reviewerId === 'kimi' && !['Mercury', 'Astra', 'Kimi'].every(seat => new RegExp(`\\b${seat}\\b`, 'i').test(text))) {
       addAbsence('substantive_seat_quotes_absent');
     }
   }

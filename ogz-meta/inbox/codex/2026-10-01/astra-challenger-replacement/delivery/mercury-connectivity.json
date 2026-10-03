@@ -1,0 +1,101 @@
+{
+  "label": "mercury",
+  "ok": true,
+  "provider": "mercury",
+  "model": "mercury-2",
+  "appliedModel": "mercury-2",
+  "identityPosture": {
+    "status": "matched",
+    "authority": "full",
+    "reason": null,
+    "requested_model": "mercury-2",
+    "applied_models": [
+      "mercury-2"
+    ],
+    "verdict_models": [],
+    "undocumented_models": [],
+    "observations": [],
+    "transitions": []
+  },
+  "requests": 1,
+  "authPosture": null,
+  "attemptReceipt": {
+    "role": "mercury",
+    "attempt": 1,
+    "status": "succeeded",
+    "request_phase": "complete",
+    "requested_provider": "mercury",
+    "requested_model": "mercury-2",
+    "applied_model": "mercury-2",
+    "applied_models": [
+      "mercury-2"
+    ],
+    "auxiliary_models": [],
+    "verdict_models": [],
+    "identity_posture": {
+      "status": "matched",
+      "authority": "full",
+      "reason": null,
+      "requested_model": "mercury-2",
+      "applied_models": [
+        "mercury-2"
+      ],
+      "verdict_models": [],
+      "undocumented_models": [],
+      "observations": [],
+      "transitions": []
+    },
+    "model_observations": [],
+    "model_transitions": [],
+    "started_at": "2026-10-02T11:07:38.984Z",
+    "finished_at": "2026-10-02T11:07:42.650Z",
+    "latency_ms": 3666,
+    "status_code": 200,
+    "exit_code": null,
+    "termination": "stop",
+    "stopped_because": "stop",
+    "parse_status": "parsed",
+    "parse_errors": [],
+    "provider_error": null,
+    "tokens": {
+      "input": 20,
+      "uncached_input": 16,
+      "cached_input": 4,
+      "output": 67,
+      "total": 87
+    },
+    "usage_absence": null,
+    "cost": {
+      "amount": 0.00005435,
+      "currency": "USD",
+      "pricing_source": "operator-supplied Jul 1 invoice"
+    },
+    "cost_absence": null,
+    "input_provenance": {
+      "prompt_sha256": "760a29d8c7b0eb69df7962233aa9ffdbdfb1e50124a779c844047b495341ca85",
+      "prompt_bytes": 31,
+      "prompt_excerpt": "Reply with exactly: PROVIDER_OK",
+      "supplied_sources": []
+    },
+    "raw_output": null,
+    "raw_error": null,
+    "tools": {
+      "enabled": false,
+      "available": [],
+      "calls": [],
+      "total": 0,
+      "succeeded": 0,
+      "failed": 0
+    },
+    "files_mechanically_opened": [],
+    "invocation": null,
+    "initialization": null,
+    "auth_posture": null,
+    "executable_trust": null,
+    "error": null,
+    "repo_adjudication": {
+      "status": "pending",
+      "authority": "live_repo_required"
+    }
+  }
+}

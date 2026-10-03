@@ -18,7 +18,7 @@ module.exports = {
   formatAdversarialReviewPacket: review.formatAdversarialReviewPacket,
   buildConsensusPrompt: review.buildAdversarialReviewPrompt,
   buildKimiFinalAdjudicationPrompt: review.buildKimiFinalAdjudicationPrompt,
-  runFableConsensus: review.runFableAdversarialReview,
+  runAstraConsensus: review.runAstraAdversarialReview,
   runKimiFinalConsensus: review.runKimiFinalAdjudication,
   consensusFailure: review.adversarialReviewFailure,
 };

@@ -17,21 +17,21 @@ describe('selectable Mercury adversarial reviewer panel', () => {
   test('registry exposes the current reviewer choices in stable order', () => {
     expect(REVIEWER_REGISTRY.map(({ id, label }) => ({ id, label }))).toEqual([
       { id: 'mercury', label: 'Mercury' },
-      { id: 'fable', label: 'Fable' },
+      { id: 'astra', label: 'Astra' },
       { id: 'kimi', label: 'Kimi' },
     ]);
   });
 
   test('parses, validates, and deduplicates explicit reviewer order', () => {
-    expect(parseReviewerSelection('kimi,mercury,kimi,fable')).toEqual([
-      'kimi', 'mercury', 'fable',
+    expect(parseReviewerSelection('kimi,mercury,kimi,astra')).toEqual([
+      'kimi', 'mercury', 'astra',
     ]);
     expect(() => parseReviewerSelection('')).toThrow('at least one reviewer');
     expect(() => parseReviewerSelection('mercury,unknown')).toThrow('Unknown reviewer');
     for (const selection of [
-      'mercury', 'fable', 'kimi',
-      'mercury,fable', 'mercury,kimi', 'fable,kimi',
-      'mercury,fable,kimi',
+      'mercury', 'astra', 'kimi',
+      'mercury,astra', 'mercury,kimi', 'astra,kimi',
+      'mercury,astra,kimi',
     ]) {
       expect(parseReviewerSelection(selection)).toEqual(selection.split(','));
     }
@@ -40,10 +40,10 @@ describe('selectable Mercury adversarial reviewer panel', () => {
   test('explicit selection wins without prompting and stamps unselected seats', async () => {
     const prompt = jest.fn();
     await expect(resolveReviewerSelection({
-      explicit: 'fable,kimi', interactive: true, prompt,
+      explicit: 'astra,kimi', interactive: true, prompt,
     })).resolves.toEqual({
-      requested: ['fable', 'kimi'],
-      selected: ['fable', 'kimi'],
+      requested: ['astra', 'kimi'],
+      selected: ['astra', 'kimi'],
       unselected: ['mercury'],
       source: 'explicit',
     });
@@ -59,7 +59,7 @@ describe('selectable Mercury adversarial reviewer panel', () => {
     await expect(resolveReviewerSelection({ interactive: true, prompt })).resolves.toEqual({
       requested: ['kimi', 'mercury'],
       selected: ['kimi', 'mercury'],
-      unselected: ['fable'],
+      unselected: ['astra'],
       source: 'interactive',
     });
   });
@@ -67,10 +67,10 @@ describe('selectable Mercury adversarial reviewer panel', () => {
   test('non-interactive no-selection stamps the existing default panel', async () => {
     await expect(resolveReviewerSelection({
       interactive: false,
-      defaultReviewers: ['mercury', 'fable', 'kimi'],
+      defaultReviewers: ['mercury', 'astra', 'kimi'],
     })).resolves.toEqual({
       requested: null,
-      selected: ['mercury', 'fable', 'kimi'],
+      selected: ['mercury', 'astra', 'kimi'],
       unselected: [],
       source: 'configured_default',
     });
@@ -79,7 +79,7 @@ describe('selectable Mercury adversarial reviewer panel', () => {
   test('dispatches exactly selected seats in declared order and continues after named absence', async () => {
     const calls = [];
     const panel = await runReviewerPanel({
-      selected: ['fable', 'mercury', 'kimi'],
+      selected: ['astra', 'mercury', 'kimi'],
       runSeat: async (reviewer) => {
         calls.push(reviewer.id);
         if (reviewer.id === 'mercury') {
@@ -97,9 +97,9 @@ describe('selectable Mercury adversarial reviewer panel', () => {
       isHardStop: () => false,
     });
 
-    expect(calls).toEqual(['fable', 'mercury', 'kimi']);
+    expect(calls).toEqual(['astra', 'mercury', 'kimi']);
     expect(panel.seats).toEqual([
-      expect.objectContaining({ id: 'fable', status: 'succeeded' }),
+      expect.objectContaining({ id: 'astra', status: 'succeeded' }),
       expect.objectContaining({ id: 'mercury', status: 'failed', absence: 'quota_or_rate_limit' }),
       expect.objectContaining({ id: 'kimi', status: 'succeeded' }),
     ]);
@@ -114,10 +114,10 @@ describe('selectable Mercury adversarial reviewer panel', () => {
   });
 
   test.each([
-    'mercury', 'fable', 'kimi',
-    'mercury,fable', 'mercury,kimi', 'fable,kimi',
-    'mercury,fable,kimi',
-    'kimi,fable', 'kimi,mercury,fable', 'fable,mercury', 'kimi,mercury',
+    'mercury', 'astra', 'kimi',
+    'mercury,astra', 'mercury,kimi', 'astra,kimi',
+    'mercury,astra,kimi',
+    'kimi,astra', 'kimi,mercury,astra', 'astra,mercury', 'kimi,mercury',
   ])('persists every selected answer and ordered dependency receipt for %s', async (selection) => {
     const selected = selection.split(',');
     const panel = await runReviewerPanel({
@@ -147,7 +147,7 @@ describe('selectable Mercury adversarial reviewer panel', () => {
   test('unattested executable is the only delegated hard stop', async () => {
     const error = new Error('unattested executable');
     await expect(runReviewerPanel({
-      selected: ['fable', 'kimi'],
+      selected: ['astra', 'kimi'],
       runSeat: async () => { throw error; },
       isHardStop: candidate => candidate === error,
     })).rejects.toBe(error);
@@ -180,8 +180,8 @@ describe('selectable Mercury adversarial reviewer panel', () => {
         effectiveIdentityFingerprint: 'mercury:model:attested',
       },
       {
-        id: 'fable', status: 'succeeded', verdict: 'found_break', evidenceChecksPassed: true,
-        effectiveIdentityFingerprint: 'fable:model:attested',
+        id: 'astra', status: 'succeeded', verdict: 'found_break', evidenceChecksPassed: true,
+        effectiveIdentityFingerprint: 'astra:model:attested',
       },
     ])).toMatchObject({
       ceiling: 'UNVERIFIED', agreement: false, rerunRequired: true,
@@ -194,8 +194,8 @@ describe('selectable Mercury adversarial reviewer panel', () => {
         effectiveIdentityFingerprint: 'mercury:model:attested',
       },
       {
-        id: 'fable', status: 'succeeded', verdict: 'pass', evidenceChecksPassed: false,
-        effectiveIdentityFingerprint: 'fable:model:attested',
+        id: 'astra', status: 'succeeded', verdict: 'pass', evidenceChecksPassed: false,
+        effectiveIdentityFingerprint: 'astra:model:attested',
       },
     ])).toMatchObject({
       ceiling: 'UNVERIFIED', agreement: true, evidenceChecksPassed: false,
@@ -226,8 +226,8 @@ describe('selectable Mercury adversarial reviewer panel', () => {
         effectiveIdentityFingerprint: 'mercury:model:attested',
       },
       {
-        id: 'fable', status: 'succeeded', verdict: 'no_claim', evidenceChecksPassed: true,
-        effectiveIdentityFingerprint: 'fable:model:attested',
+        id: 'astra', status: 'succeeded', verdict: 'no_claim', evidenceChecksPassed: true,
+        effectiveIdentityFingerprint: 'astra:model:attested',
       },
     ])).toMatchObject({
       ceiling: 'UNVERIFIED', qualifyingSeats: 2, agreement: false,
@@ -242,7 +242,7 @@ describe('selectable Mercury adversarial reviewer panel', () => {
         effectiveIdentityFingerprint: 'provider:same-model:same-attestation',
       },
       {
-        id: 'fable', status: 'succeeded', verdict: 'pass', evidenceChecksPassed: true,
+        id: 'astra', status: 'succeeded', verdict: 'pass', evidenceChecksPassed: true,
         effectiveIdentityFingerprint: 'provider:same-model:same-attestation',
       },
     ])).toMatchObject({
@@ -287,9 +287,9 @@ describe('selectable Mercury adversarial reviewer panel', () => {
         effectiveIdentityFingerprint: 'mercury:model:attested',
       },
       {
-        id: 'fable', status: 'succeeded', verdict: 'pass',
+        id: 'astra', status: 'succeeded', verdict: 'pass',
         evidenceBasis: [], evidenceChecksPassed: false,
-        effectiveIdentityFingerprint: 'fable:model:attested',
+        effectiveIdentityFingerprint: 'astra:model:attested',
       },
     ])).toMatchObject({
       ceiling: 'UNVERIFIED', capReasons: ['evidence_failure'], rerunRequired: true,
@@ -309,27 +309,27 @@ describe('selectable Mercury adversarial reviewer panel', () => {
       executable_trust: { trusted: true, version: '2.1.236' },
       identity_posture: { status: 'documented_transition', authority: 'full' },
     };
-    expect(effectiveIdentityFingerprint('fable', [attempt]))
+    expect(effectiveIdentityFingerprint('astra', [attempt]))
       .toBe(effectiveIdentityFingerprint('kimi', [attempt]));
-    expect(effectiveIdentityFingerprint('fable', [{
+    expect(effectiveIdentityFingerprint('astra', [{
       ...attempt, executable_trust: null, identity_posture: null,
     }])).toBeNull();
   });
 
-  test('Kimi can adjudicate only an earlier exact Fable answer', () => {
-    const fable = { id: 'fable', status: 'succeeded', sequence: 2, answer: 'exact Fable output' };
-    const answerSha256 = require('crypto').createHash('sha256').update(fable.answer).digest('hex');
-    expect(canAttachFinalReview(fable, {
+  test('Kimi can adjudicate only an earlier exact Astra answer', () => {
+    const astra = { id: 'astra', status: 'succeeded', sequence: 2, answer: 'exact Astra output' };
+    const answerSha256 = require('crypto').createHash('sha256').update(astra.answer).digest('hex');
+    expect(canAttachFinalReview(astra, {
       id: 'kimi', status: 'succeeded', sequence: 3,
-      inputDependencies: [{ id: 'fable', sequence: 2, answerSha256 }],
+      inputDependencies: [{ id: 'astra', sequence: 2, answerSha256 }],
     })).toBe(true);
-    expect(canAttachFinalReview(fable, {
+    expect(canAttachFinalReview(astra, {
       id: 'kimi', status: 'succeeded', sequence: 1,
-      inputDependencies: [{ id: 'fable', sequence: 2, answerSha256 }],
+      inputDependencies: [{ id: 'astra', sequence: 2, answerSha256 }],
     })).toBe(false);
-    expect(canAttachFinalReview(fable, {
+    expect(canAttachFinalReview(astra, {
       id: 'kimi', status: 'succeeded', sequence: 3,
-      inputDependencies: [{ id: 'fable', sequence: 2, answerSha256: 'stale' }],
+      inputDependencies: [{ id: 'astra', sequence: 2, answerSha256: 'stale' }],
     })).toBe(false);
   });
 

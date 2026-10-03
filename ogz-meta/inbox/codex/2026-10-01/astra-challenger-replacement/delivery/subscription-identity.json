@@ -1,0 +1,29 @@
+{
+  "requestedModel": "gpt-6-astra",
+  "provider": "ChatGPT subscription",
+  "endpoint": "https://chatgpt.com/backend-api/codex/responses",
+  "responses": [
+    {
+      "type": "response.created",
+      "id": "resp_[REDACTED]",
+      "model": "gpt-6-astra",
+      "status": "in_progress"
+    },
+    {
+      "type": "response.in_progress",
+      "id": "resp_[REDACTED]",
+      "model": "gpt-6-astra",
+      "status": "in_progress"
+    },
+    {
+      "type": "response.completed",
+      "id": "resp_[REDACTED]",
+      "model": "gpt-6-astra",
+      "status": "completed"
+    }
+  ],
+  "verified": true,
+  "stdoutSha256": "b13791efe27d1fda9fdb2c771fa20b3d9031725b751c6475da1f0930bc7eb324",
+  "stderrSha256": "6abd8f31a4bb54f82e335d42ad49328b909e108c915dd6beb78fb8b00b9d1806",
+  "note": "Provider SSE response identity; not model self-report or requested CLI model. Raw tapes remain private."
+}

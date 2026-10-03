@@ -1,0 +1,72 @@
+[MERCURY-BRIDGE] Pinned source tree 167e117b7088397a1899d8bbcdfdf6bde6625b4e, baseline 48476aa640698305e8b3c38bd383f4a6ca2e6783, 716 captured files
+[MERCURY-BRIDGE] Explicit target ingestion: source snapshots; no indexed retrieval or trace-memory access
+[MERCURY-BRIDGE] Tool adapter ready. Tools: search, grep, regex_grep, find_definition, find_references, rule_scan, open_file, get_chunk, list_files, tavily_search, git_show, git_diff, serena_blast_radius, serena_property_refs, serena_method_callers, serena_class_fields, web_fetch
+[MERCURY-BRIDGE] Serena current-change blast radius: 10 file(s)
+  trai_brain/mercury-bridge/adversarial-review.js: 3 caller(s), risk=low, 107ms
+  trai_brain/mercury-bridge/ask.js: 1 caller(s), risk=low, 76ms
+  trai_brain/mercury-bridge/codex-challenger.js: 1 caller(s), risk=low, 85ms
+  trai_brain/mercury-bridge/config.js: 12 caller(s), risk=high, 72ms
+  trai_brain/mercury-bridge/consensus.js: 0 caller(s), risk=isolated, 72ms
+  trai_brain/mercury-bridge/doctrine-review.js: 4 caller(s), risk=medium, 76ms
+  trai_brain/mercury-bridge/llm-client.js: 5 caller(s), risk=medium, 81ms
+  trai_brain/mercury-bridge/provider-preflight.js: 1 caller(s), risk=low, 85ms
+  trai_brain/mercury-bridge/reviewer-panel.js: 3 caller(s), risk=low, 80ms
+  trai_brain/mercury-bridge/run-ledger.js: 5 caller(s), risk=medium, 80ms
+[MERCURY-BRIDGE] Starting reviewer seat: Mercury
+[TRAI] LLM client initializing...
+   Provider: Mercury-2 (Inception Labs)
+   Model:    mercury-2
+   Endpoint: https://api.inceptionlabs.ai/v1
+[TRAI] LLM client ready. Provider: Mercury-2 (Inception Labs) | Model: mercury-2
+
+═══ ANSWER ═══
+
+{
+  "record_type": "final_decision",
+  "decision": "cannot_verify",
+  "summary": "The review could not confirm nor refute a defect because source coverage for all changed files is incomplete and many live‑shard retrievals failed, leaving essential evidence unavailable. Defensive throw statements are present but not linked to any adverse consequence, so no concrete defect is supported.",
+  "answer": "INHERITED:\n- mercury.config.json – unread\n- trai_brain/mercury-bridge/adversarial-review.js – unread\n- trai_brain/mercury-bridge/ask.js – unread\n- trai_brain/mercury-bridge/codex-challenger.js – unread\n- trai_brain/mercury-bridge/config.js – unread\n- trai_brain/mercury-bridge/consensus.js – unread\n- trai_brain/mercury-bridge/doctrine-review.js – unread\n- trai_brain/mercury-bridge/llm-client.js – unread\n- trai_brain/mercury-bridge/provider-preflight.js – unread\n- trai_brain/mercury-bridge/reviewer-panel.js – unread\n- trai_brain/mercury-bridge/run-ledger.js – unread\n\nFOURTH SHAPE CLASSIFIER:\n- trai_brain/mercury-bridge/adversarial-review.js:805-805 – throw new Error('Kimi final adjudication prompt requires the Astra review object'); (MECHANICAL, RECEIPT)\n- trai_brain/mercury-bridge/adversarial-review.js:1118-1118 – throw error; (MECHANICAL, RECEIPT)\n- trai_brain/mercury-bridge/adversarial-review.js:1237-1237 – if (isHardReviewBoundaryError(error)) throw error; (MECHANICAL, RECEIPT)\n- trai_brain/mercury-bridge/config.js:473-473 – throw new Error('consensus.provider must be codex-subscription; Kimi cannot satisfy the challenger role'); (MECHANICAL, RECEIPT)\n- trai_brain/mercury-bridge/config.js:476-476 – throw new Error('consensus.baseUrl must be empty for first-party Codex subscription routing'); (MECHANICAL, RECEIPT)\n- trai_brain/mercury-bridge/config.js:479-479 – throw new Error('consensus.apiKeyEnv must be empty for first-party Codex subscription routing'); (MECHANICAL, RECEIPT)\n- trai_brain/mercury-bridge/config.js:482-482 – throw new Error('consensus.command is not configurable; the challenger must use the trusted first-party Codex installation'); (MECHANICAL, RECEIPT)\n- trai_brain/mercury-bridge/config.js:485-485 – throw new Error('consensus.model must be gpt-6-astra; no silent model substitution is allowed'); (MECHANICAL, RECEIPT)\n- trai_brain/mercury-bridge/config.js:488-488 – throw new Error('consensus.emergencyModel must be empty; challenger failure cannot invoke Claude'); (MECHANICAL, RECEIPT)\n- trai_brain/mercury-bridge/provider-preflight.js:185-185 – throw error; (MECHANICAL, RECEIPT)\n\nALLEGATIONS:\n- Each of the ten entries above is classified as MECHANICAL with basis RECEIPT. No substantive (semantic) claims are supported by the evidence.\n\nSUBSTANTIVE RESOLUTION: none\n\nWHAT I DID:\n- Enumerated every target in leaf_manifest.targets (11 files).\n- Collected all supplied evidence, including the fourth‑shape addition list and live‑shard‑gap records.\n- Verified that each listed throw/guard line exists in the source files.\n- Determined that no claim establishes a producer → consumer → adverse‑consequence chain.\n\nWHAT I DID NOT DO:\n- Infer a defect from the mere presence of throw statements.\n- Fabricate citations or assume missing source lines.\n- Treat incomplete coverage as a proven violation.\n\nWHAT I ASSUMED:\n- The receipt’s line‑range citations accurately reflect the underlying repository.\n- Unresolved shard fetches represent missing evidence, not proven defects.\n\nWHY THIS VERDICT:\n- No concrete defect is demonstrated; defensive throws are intentional and have no verified adverse effect.\n- However, source coverage for all files is marked false and many shard retrievals failed (EAI_AGAIN, AggregateError), leaving essential evidence unavailable.\n- Because the missing evidence could contain a defect, the overall status cannot be confirmed as “no break”.\n\nIF INCOMPLETE, WHY:\n- Source coverage flags are false for every changed file.\n- Ten live‑shard gaps prevent retrieval of many artifact units.\n- The fourth‑shape classifier identified ten added throws, but without consumer evidence they do not constitute defects.\n\nADVERSARIAL_REVIEW_BLOCKING: yes",
+  "citations": [
+    "trai_brain/mercury-bridge/adversarial-review.js:805-805",
+    "trai_brain/mercury-bridge/adversarial-review.js:1118-1118",
+    "trai_brain/mercury-bridge/adversarial-review.js:1237-1237",
+    "trai_brain/mercury-bridge/config.js:473-473",
+    "trai_brain/mercury-bridge/config.js:476-476",
+    "trai_brain/mercury-bridge/config.js:479-479",
+    "trai_brain/mercury-bridge/config.js:482-482",
+    "trai_brain/mercury-bridge/config.js:485-485",
+    "trai_brain/mercury-bridge/config.js:488-488",
+    "trai_brain/mercury-bridge/provider-preflight.js:185-185"
+  ]
+}
+
+[iterations: 49 | termination: answer_given | latency: 227256ms]
+
+═══ RECEIPT ═══
+verdict:         no_claim
+cost:            run=USD 0.256777 (partial) | today=USD 0.256777 (partial) | month=USD 0.256777 (partial)
+reviewers:       mercury (explicit)
+unselected:      astra,kimi
+reported by:     mercury; model report, not host certification
+panel findings:  insufficient_qualifying_seats; verdict_labels_match=no (not semantic consensus)
+  - mercury: succeeded provider=mercury models=mercury-2 stopped=stop self_report_absent
+    reported verdict=absent evidence=observed identity=see_provider_receipt
+    review findings: coverage_insufficient,coverage_unresolved,whole_file_read_absent,inherited_section_incomplete,fourth_shape_unclassified
+review coverage: candidate=0/11
+named absences:  coverage_insufficient,coverage_unresolved,whole_file_read_absent,inherited_section_incomplete,fourth_shape_unclassified
+named breaks:    fourth_shape_unclassified
+quality flags:   none
+run checks:      0 executed
+tool failures:   0/0
+tool calls:      tool_calls=0 | succeeded=0 | failed=0 | tools=none | files_opened=0 | run_check_artifacts=0 | failed_calls=none | run_checks=none
+blast radius:    10 file(s) scanned, 0 error(s)
+AST evidence:    ogz-meta/cognition-history/mercury-runs/evidence/2026-10-02/2026-10-02t04-39-14-612z-2588738-6f5554eafc44/current-change-evidence.txt
+evidence hash:   173599478c86381c2f6e6476661cc3064b5495f5ef981207f4975e94c1b5111c bytes=743113 sections=40
+section manifest: ogz-meta/cognition-history/mercury-runs/evidence/2026-10-02/2026-10-02t04-39-14-612z-2588738-6f5554eafc44/manifest.json sha256=433bc57bb98e83990ea44ca06960ebdd1dfe7b8c5661ca2833277f68b7d152a7
+candidate set:   iteration=undefined citations=0 answer-subset=no
+review layer:    not requested
+self-report:     mercury=self_report_absent missing=did,did_not,assumed,why_verdict,why_incomplete
+quarantines:     0
+tree state:      DIRTY — MM CHANGELOG.md, M config/settings.json, M core/BacktestRunner.js, M core/DrawdownTracker.js, M core/EnhancedPatternRecognition.js, M core/ExitContractManager.js, M core/FeatureExtractor.js, M core/OrderExecutor.js, M core/PnLTracker.js, M core/PolicyBuilder.js, M core/ProfitExitPlanner.js, M core/StateManager.js, M core/StrategyOrchestrator.js, M core/TradingLoop.js, M core/WebSocketManager.js, M core/dto/DecisionLedgerSchema.js, M core/exit/StopLossChecker.js, MM foundation/ConfigLoader.js, M mercury.config.json, M modules/DonchianBreakout.js, M modules/EMATrendRetest.js, M modules/PropSafeEMAPullback.js, M modules/RSI2MeanReversion.js, M modules/TimeSeriesMomentum.js, M ogzprime-ssl-server.js, M run-empire-v2.js, M test/mercury-reviewer-panel.test.js, M trai_brain/mercury-bridge/adversarial-review.js, M trai_brain/mercury-bridge/ask.js, M trai_brain/mercury-bridge/config.js, M trai_brain/mercury-bridge/consensus.js, M trai_brain/mercury-bridge/doctrine-review.js, M trai_brain/mercury-bridge/evidence-ingestion.js, M trai_brain/mercury-bridge/explicit-continuation.js, M trai_brain/mercury-bridge/llm-client.js, M trai_brain/mercury-bridge/provider-preflight.js, M trai_brain/mercury-bridge/reviewer-panel.js, M trai_brain/mercury-bridge/run-ledger.js, M trai_brain/mercury-bridge/tool-adapter.js
+index freshness: unavailable
+run ledger:      ogz-meta/cognition-history/mercury-runs/2026-10-02.jsonl:1

@@ -1,0 +1,22 @@
+{
+  "base": "0d1d3445ee0a85cd94d1373faa6ef2ae737d4468",
+  "tree": "a7191ae43ec7062682654a1a3f83846cd7bd7bc9",
+  "files": [
+    "mercury.config.json",
+    "trai_brain/mercury-bridge/adversarial-review.js",
+    "trai_brain/mercury-bridge/ask.js",
+    "trai_brain/mercury-bridge/config.js",
+    "trai_brain/mercury-bridge/llm-client.js",
+    "trai_brain/mercury-bridge/provider-preflight.js",
+    "trai_brain/mercury-bridge/reviewer-panel.js",
+    "trai_brain/mercury-bridge/run-ledger.js",
+    "trai_brain/mercury-bridge/consensus.js",
+    "trai_brain/mercury-bridge/doctrine-review.js",
+    "trai_brain/mercury-bridge/codex-challenger.js",
+    "test/mercury-astra-challenger.test.js",
+    "test/mercury-reviewer-panel.test.js",
+    "test/mercury-consensus.test.js",
+    "test/mercury-provider-preflight.test.js",
+    "test/mercury-llm-config-contract.test.js"
+  ]
+}

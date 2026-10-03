@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFile } = require('child_process');
 const config = require('./config');
+const { CodexChallengerClient } = require('./codex-challenger');
 const PersistentLLMClient = require('../../core/persistent_llm_client');
 const { responseStopReason } = PersistentLLMClient;
 
@@ -838,16 +839,9 @@ function createMercuryLlmClient({ systemPrompt } = {}) {
   return client;
 }
 
-function createClaudeChallengerClient({ systemPrompt = config.CONSENSUS_SYSTEM_PROMPT, model, execFileAsync: execOverride } = {}) {
-  return new ClaudeCodeConsensusClient(resolveConsensusLlmClientOptions({ systemPrompt, model, execFileAsync: execOverride }));
-}
-
-function createFableChallengerClient(options = {}) {
-  return createClaudeChallengerClient({ ...options, model: config.CONSENSUS_MODEL });
-}
-
-function createOpusChallengerClient(options = {}) {
-  return createClaudeChallengerClient({ ...options, model: config.CONSENSUS_EMERGENCY_MODEL });
+function createAstraChallengerClient({ repoRoot = config.REPO_ROOT, ...options } = {}) {
+  return new CodexChallengerClient({ ...resolveConsensusLlmClientOptions(options),
+    repoRoot });
 }
 
 function createKimiTieBreakerClient({ systemPrompt = config.CONSENSUS_SYSTEM_PROMPT } = {}) {
@@ -917,7 +911,7 @@ function createDirectModelClient(providerId) {
 }
 
 function createConsensusLlmClient(options = {}) {
-  return createFableChallengerClient(options);
+  return createAstraChallengerClient(options);
 }
 
 module.exports = {
@@ -948,8 +942,7 @@ module.exports = {
   createConsensusLlmClient,
   resolveKimiTieBreakerClientOptions,
   resolveDirectModelClientOptions,
-  createFableChallengerClient,
-  createOpusChallengerClient,
+  createAstraChallengerClient,
   createKimiTieBreakerClient,
   createDirectModelClient,
 };

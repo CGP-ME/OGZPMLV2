@@ -6,8 +6,7 @@ const { accountProviderAttempt } = require('./cost-accounting');
 const {
   claudeAppliedModelMatchesAlias,
   classifyClaudeCodeIdentity,
-  createFableChallengerClient,
-  createOpusChallengerClient,
+  createAstraChallengerClient,
   createKimiTieBreakerClient,
 } = require('./llm-client');
 const { formatFixedEvidenceInputs, formatToolTelemetry, serializeToolResultForHistory } = require('./react-loop');
@@ -221,6 +220,7 @@ function parseAdversarialReviewAnswer(answer) {
     nextCheck,
     sharedConclusion: extractField(text, 'SHARED_CONCLUSION'),
     mercurySupported: extractField(text, 'MERCURY_SUPPORTED'),
+    astraSupported: extractField(text, 'ASTRA_SUPPORTED'),
     fableSupported: extractField(text, 'FABLE_SUPPORTED'),
     kimiSupported: extractField(text, 'KIMI_SUPPORTED'),
     citedReasoning: extractField(text, 'CITED_REASONING') || extractField(text, 'RATIONALE'),
@@ -327,7 +327,7 @@ function buildAttestedPromptProvenance(prompt, suppliedSources = []) {
 function buildMercuryRecheckPrompt({
   originalQuery,
   mercuryAnswer,
-  fableAnswer,
+  astraAnswer,
   parsedReview,
   parsedConsensus,
   evidenceSources = [],
@@ -339,12 +339,12 @@ function buildMercuryRecheckPrompt({
   const parsed = parsedReview || parsedConsensus;
   const directPrompts = normalizeRecheckPrompts(parsed && parsed.recheckPrompt);
   const nextCheck = focusedInstruction || directPrompts[0] || (parsed && parsed.nextCheck)
-    || 'Recheck Fable critique with current repo evidence.';
+    || 'Recheck Astra critique with current repo evidence.';
 
   return [
     'READ-ONLY AUDIT. Do not edit code.',
     MERCURY_DOCTRINE_PROMPT,
-    'Mercury, recheck your prior answer against Fable critique.',
+    'Mercury, recheck your prior answer against Astra critique.',
     '',
     'Original user prompt:',
     String(originalQuery || '').trim() || '<empty>',
@@ -366,14 +366,14 @@ function buildMercuryRecheckPrompt({
       JSON.stringify(candidateSet.claimInventory),
     ] : []),
     '',
-    'Fable critique:',
-    String(fableAnswer || '').trim() || '<empty>',
+    'Astra critique:',
+    String(astraAnswer || '').trim() || '<empty>',
     '',
     'Required recheck:',
     nextCheck,
     '',
     'Recheck the prior claims against the critique without silently narrowing the original question. Explain which remain supported, are refuted, or remain unresolved, with source evidence.',
-    'Adjudicate the exact original statement, never a different allegation under the same ID. Supported means the statement is established, refuted means evidence contradicts it, and unresolved names what remains unknown. A supported benign observation is not a defect. To retain a defect finding, trace the producer through the actual caller/consumer to the adverse consequence, distinguishing inherited behavior from the reviewed change. A missing local catch or duplicate validator is not a defect by itself; inspect the existing error/qualification owner. Raw ledgers must preserve malformed/unverified attempts, so establish that an effective consumer wrongly trusts them before alleging a bypass. An explicit failure/quarantine receipt is not a silent swallow. Address Fable\'s competing explanation for each disputed claim, not just the accuracy of the quotation. If needed callers or consequences remain unknown, retain that uncertainty explicitly.',
+    'Adjudicate the exact original statement, never a different allegation under the same ID. Supported means the statement is established, refuted means evidence contradicts it, and unresolved names what remains unknown. A supported benign observation is not a defect. To retain a defect finding, trace the producer through the actual caller/consumer to the adverse consequence, distinguishing inherited behavior from the reviewed change. A missing local catch or duplicate validator is not a defect by itself; inspect the existing error/qualification owner. Raw ledgers must preserve malformed/unverified attempts, so establish that an effective consumer wrongly trusts them before alleging a bypass. An explicit failure/quarantine receipt is not a silent swallow. Address Astra\'s competing explanation for each disputed claim, not just the accuracy of the quotation. If needed callers or consequences remain unknown, retain that uncertainty explicitly.',
     'When referring to an existing claim, retain its original ID so the panel can follow the disagreement. Name new findings separately. Quote source accurately and distinguish inherited behavior from a defect introduced by the reviewed change. Return your actual answer directly; no separate candidate filing or host acceptance phase is required.',
     'In your final answer, include the actual INHERITED: per-path inspection and FOURTH SHAPE CLASSIFIER: producer classifications requested above. Do not refer to an omitted table or substitute a blanket all-clear for those records. A request for missing report sections is not evidence that the underlying source is absent.',
     'Use meaningful source ranges for your reasoning. Full tool responses and source snapshots remain in the receipt. Report missing evidence honestly; the host does not request another model call solely to repair the report format.',
@@ -414,7 +414,7 @@ function formatFinalReview(finalReview) {
       'Shared conclusion: none',
       'Mercury supported:',
       '<not adjudicated>',
-      'Fable supported:',
+      'Astra supported:',
       '<not adjudicated>',
       'Kimi supported:',
       '<not adjudicated>',
@@ -441,8 +441,8 @@ function formatFinalReview(finalReview) {
     parsed.sharedConclusion || '<none>',
     'Mercury supported:',
     parsed.mercurySupported || '<not specified>',
-    'Fable supported:',
-    parsed.fableSupported || '<not specified>',
+    'Astra supported:',
+    parsed.astraSupported || parsed.fableSupported || '<not specified>',
     'Kimi supported:',
     parsed.kimiSupported || '<not specified>',
     'Cited reasoning:',
@@ -458,7 +458,7 @@ function finalReviewDecision(finalReview, parsedFirstReview, rechecks, quarantin
       return {
         verdict: parsedFirstReview.verdict || 'pass',
         decision: 'pass_pending_local_proof',
-        why: 'Fable did not identify a blocking challenge, so Kimi tie-break adjudication was not required.',
+        why: 'Astra did not identify a blocking challenge, so Kimi tie-break adjudication was not required.',
         residualRisk: 'Local tests/gates still control commit approval.',
         nextAction: parsedFirstReview.nextCheck || '<none>',
       };
@@ -467,7 +467,7 @@ function finalReviewDecision(finalReview, parsedFirstReview, rechecks, quarantin
       verdict: 'needs_more_evidence',
       decision: 'needs_more_evidence',
       why: 'Kimi final adjudication did not complete.',
-      residualRisk: 'Mercury and Fable disagreement remains unresolved.',
+      residualRisk: 'Mercury and Astra disagreement remains unresolved.',
       nextAction: parsedFirstReview.nextCheck || parsedFirstReview.requiredRecheck || '<rerun final adjudication>',
     };
   }
@@ -478,7 +478,7 @@ function finalReviewDecision(finalReview, parsedFirstReview, rechecks, quarantin
     return {
       verdict,
       decision: 'models_disagree',
-      why: parsedFinal.sharedConclusion || 'No shared conclusion across Mercury, Fable, and Kimi.',
+      why: parsedFinal.sharedConclusion || 'No shared conclusion across Mercury, Astra, and Kimi.',
       residualRisk: 'Do not treat this review as green; inspect each model-supported claim separately.',
       nextAction: parsedFinal.nextCheck || parsedFirstReview.nextCheck || '<operator adjudication required>',
     };
@@ -498,8 +498,8 @@ function finalReviewDecision(finalReview, parsedFirstReview, rechecks, quarantin
     verdict,
     decision: verdict === 'found_break' ? 'found_break' : 'pass_pending_local_proof',
     why: parsedFinal.citedReasoning || (rechecks.length > 0
-      ? 'Kimi adjudicated the Fable challenge after Mercury recheck evidence.'
-      : 'Fable did not identify a blocking challenge and Kimi found no unresolved disagreement.'),
+      ? 'Kimi adjudicated the Astra challenge after Mercury recheck evidence.'
+      : 'Astra did not identify a blocking challenge and Kimi found no unresolved disagreement.'),
     residualRisk: parsedFinal.sharedConclusion || 'Local tests/gates still control commit approval.',
     nextAction: parsedFinal.nextCheck || '<none>',
   };
@@ -535,9 +535,9 @@ function formatAdversarialReviewPacket({
       'Commands:',
       mercuryResult && mercuryResult.toolTelemetry ? `- ${formatToolTelemetry(mercuryResult.toolTelemetry)} -> tool telemetry` : '- <none recorded>',
       '',
-      '3. Fable Synthesis Review',
+      '3. Astra Synthesis Review',
       `Verdict: ${parsed.verdict || 'synthesis'}`,
-      'Full Fable answer:',
+      'Full Astra answer:',
       String(reviewData && reviewData.answer || '').trim() || '<empty>',
       '',
       '4. Final Resolution',
@@ -589,17 +589,17 @@ function formatAdversarialReviewPacket({
     'Gaps:',
     quarantines.length > 0
       ? quarantines.map(item => `${item.unit}:${item.name} -> ${item.absence}`).join('\n')
-      : (parsed.blocking ? (parsed.disagreement || parsed.requiredRecheck || parsed.nextCheck || '<not specified>') : '<none from Fable>'),
+      : (parsed.blocking ? (parsed.disagreement || parsed.requiredRecheck || parsed.nextCheck || '<not specified>') : '<none from Astra>'),
     '',
-    '3. Fable Review',
+    '3. Astra Review',
     `Verdict: ${parsed.verdict || 'unknown'}`,
     'Agreements:',
-    '<see Fable answer>',
+    '<see Astra answer>',
     'Disagreements:',
     parsed.disagreement ? `- ${parsed.disagreement}` : '- none',
     'Required Rechecks:',
     parsed.requiredRecheck || parsed.nextCheck || '<none>',
-    'Full Fable answer:',
+    'Full Astra answer:',
     String(reviewData && reviewData.answer || '').trim() || '<empty>',
     '',
     '4. Mercury Recheck',
@@ -612,7 +612,7 @@ function formatAdversarialReviewPacket({
   } else {
     sections.push(parsed.blocking
       ? 'Not run: no executable recheck prompt was available.'
-      : 'Not run: Fable did not mark the review blocking.');
+      : 'Not run: Astra did not mark the review blocking.');
   }
 
   sections.push(
@@ -668,12 +668,12 @@ function buildAdversarialReviewPrompt({
       `Review ${priorLabel} as the prior evidence in an architecture synthesis, not as a commit gate.`,
       '',
       'Rules for this pass:',
-      '- You do not have repo tools in this review pass.',
+      '- Use available tools for read-only evidence inspection. Do not edit files or invoke other reviewers.',
       '- Treat the supplied host-produced evidence, Mercury citations, run telemetry, and the original prompt as your evidence base; distinguish source receipts from model claims.',
       '- Critique Mercury concretely: unsupported claims, stale context, missing ownership boundaries, missing data flow, missing invariants, missing build-vs-buy, missing migration detail, and weak governance.',
       '- Do not invent file:line citations or current-code facts.',
       '- If evidence is insufficient, label the evidence gap and state what a later repo-tool pass must inspect.',
-      '- Produce an evolved Mercury+Fable architecture report, not a pass/fail verdict and not a short summary.',
+      '- Produce an evolved Mercury+Astra architecture report, not a pass/fail verdict and not a short summary.',
       '',
       'Return these sections:',
       'VERDICT: architecture_synthesis | needs_more_evidence',
@@ -708,10 +708,10 @@ function buildAdversarialReviewPrompt({
       `Review ${priorLabel} as the prior evidence in an implementation planning pass, not as a commit gate.`,
       '',
       'Rules for this pass:',
-      '- You do not have repo tools in this review pass.',
+      '- Use available tools for read-only evidence inspection. Do not edit files or invoke other reviewers.',
       '- Critique Mercury for missing prior art, wrong sequencing, missing tests, missing rollback, hidden scope expansion, and unresolved operator decisions.',
       '- Do not invent file:line citations or current-code facts.',
-      '- Produce an evolved Mercury+Fable plan that can be handed to an implementation agent.',
+      '- Produce an evolved Mercury+Astra plan that can be handed to an implementation agent.',
       '',
       'Return these sections:',
       'VERDICT: planning_synthesis | needs_more_evidence',
@@ -745,7 +745,7 @@ function buildAdversarialReviewPrompt({
     `Review ${priorLabel} as an adversarial reviewer, not a consensus collaborator.`,
     '',
     'Rules for this pass:',
-    '- You do not have repo tools in this Fable review pass.',
+    '- Use your available tools for read-only inspection. Cite current source evidence and disclose what you did not inspect. Do not edit files or invoke other reviewers.',
     '- Do not agree by default.',
     '- Identify weak assumptions, stale context, unsupported claims, missing file:line evidence, missing tests, and scope drift.',
     '- Do not invent file:line citations or current-code facts.',
@@ -802,7 +802,7 @@ function buildKimiFinalAdjudicationPrompt({
     throw new Error('Kimi final adjudication prompt requires a Mercury result object');
   }
   if (!review || typeof review !== 'object') {
-    throw new Error('Kimi final adjudication prompt requires the Fable review object');
+    throw new Error('Kimi final adjudication prompt requires the Astra review object');
   }
 
   const rechecks = Array.isArray(review.rechecks)
@@ -815,7 +815,7 @@ function buildKimiFinalAdjudicationPrompt({
     ? formatToolTelemetry(mercuryResult.toolTelemetry)
     : 'unavailable';
   const priorLabel = mercuryResult.panelSourceLabel || 'Mercury';
-  const challengerLabel = review.panelSourceLabel || 'Fable';
+  const challengerLabel = review.panelSourceLabel || 'Astra';
   const hostEvidence = [
     formatReviewerEvidence(reviewerEvidenceSources({ mercuryResult, review, hostEvidenceSources })),
     ...[mercuryResult, ...rechecks].map((pass, index) => [
@@ -840,11 +840,11 @@ function buildKimiFinalAdjudicationPrompt({
     MERCURY_DOCTRINE_PROMPT,
     'You are Kimi, the reasoning adjudicator for the OGZPrime adversarial layer.',
     '',
-    `Your job is not to agree with ${priorLabel} or Fable. Compare the supplied answers before verdict and decide whether the end state is supported by cited evidence.`,
-    `Use only the material below: the original prompt, host-produced scan and tool evidence, ${priorLabel}, its tool telemetry and answer-quality flags when present, Fable critique when present, and rechecks.`,
+    `Your job is not to agree with ${priorLabel} or Astra. Compare the supplied answers before verdict and decide whether the end state is supported by cited evidence.`,
+    `Use only the material below: the original prompt, host-produced scan and tool evidence, ${priorLabel}, its tool telemetry and answer-quality flags when present, Astra critique when present, and rechecks.`,
     'Do not invent repo facts or file:line citations. If evidence is missing, say so.',
     'Do not merge the answers into a blended narrative. Attribute every item to the reporter that holds it by name.',
-    'If Mercury, Fable, and you still do not converge, return VERDICT: disagree and preserve what each model individually supported.',
+    'If Mercury, Astra, and you still do not converge, return VERDICT: disagree and preserve what each model individually supported.',
     '',
     'Return exactly these fields in this order, one label per line. VERDICT must be last before the self-report footer:',
     'CONSENSUS: claims all reporters agree on, with citations, or none',
@@ -1058,6 +1058,9 @@ function stageAttemptReceipt({
         })
     ),
     parse_status: metadata.parseStatus || null,
+    parse_errors: metadata.parseErrors || [],
+    provider_error: metadata.providerError || null,
+    provider_errors: metadata.providerErrors || [],
     tokens: accounting.tokens,
     usage_absence: accounting.usage_absence,
     cost: accounting.cost,
@@ -1069,7 +1072,7 @@ function stageAttemptReceipt({
     input_provenance: inputProvenance || buildAttestedPromptProvenance(prompt, suppliedSources),
     raw_output: rawOutput,
     raw_error: rawError,
-    tools: {
+    tools: metadata.tools || {
       enabled: false,
       available: Array.isArray(metadata.toolsAvailable) ? metadata.toolsAvailable : [],
       calls: [],
@@ -1078,6 +1081,8 @@ function stageAttemptReceipt({
       failed: 0,
     },
     files_mechanically_opened: [],
+    invocation: metadata.invocation || null,
+    initialization: metadata.initialization || null,
     claimed_file_citations: [],
     auth_posture: metadata.authStatus || null,
     executable_trust: metadata.executableTrust || null,
@@ -1088,6 +1093,7 @@ function stageAttemptReceipt({
 
 async function executePromptOnlyStage({
   role,
+  repoRoot,
   prompt,
   suppliedSources = [],
   createClient,
@@ -1098,14 +1104,14 @@ async function executePromptOnlyStage({
   let client = null;
   const inputProvenance = buildAttestedPromptProvenance(prompt, suppliedSources);
   try {
-    client = createClient({ systemPrompt: config.CONSENSUS_SYSTEM_PROMPT });
+    client = createClient({ systemPrompt: config.CONSENSUS_SYSTEM_PROMPT, ...(repoRoot ? { repoRoot } : {}) });
     await client.initialize();
     if (typeof client.generateResponseWithMetadata !== 'function') {
       throw new Error(`${role} client lacks metadata-returning response support`);
     }
     const response = await client.generateResponseWithMetadata(prompt, client.maxTokens);
     const responseMetadata = response.metadata || {};
-    if (Array.isArray(responseMetadata.toolsAvailable) && responseMetadata.toolsAvailable.length > 0) {
+    if (role !== 'astra_challenger' && Array.isArray(responseMetadata.toolsAvailable) && responseMetadata.toolsAvailable.length > 0) {
       const error = new Error(`${role} unexpectedly exposed tools in a prompt-only stage`);
       error.providerMetadata = responseMetadata;
       throw error;
@@ -1124,7 +1130,8 @@ async function executePromptOnlyStage({
       throw persistError;
     }
     const receipt = stageAttemptReceipt({
-      role, attemptNumber, metadata: responseMetadata, status: 'succeeded',
+      role, attemptNumber, metadata: responseMetadata,
+      status: ['error', 'incomplete'].includes(responseMetadata.termination) ? 'failed' : 'succeeded',
       prompt, suppliedSources, rawOutput, rawError, inputProvenance,
     });
     receipt.claimed_file_citations = extractClaimedFileCitations(response.answer);
@@ -1169,13 +1176,13 @@ async function executePromptOnlyStage({
   }
 }
 
-async function runFableAdversarialReview({
+async function runAstraAdversarialReview({
   query,
+  reviewRoot,
   mercuryResult,
   runLedgerCitation = null,
   reviewIntent = 'adversarial',
-  createFableClient = createFableChallengerClient,
-  createOpusClient = createOpusChallengerClient,
+  createAstraClient = createAstraChallengerClient,
   persistRaw = () => null,
   now = Date.now,
   evidenceSources = [],
@@ -1203,7 +1210,7 @@ async function runFableAdversarialReview({
     return adversarialReviewFailure(error, {
       quarantines: [reviewQuarantine({
         unit: 'challenger',
-        name: 'fable_challenger',
+        name: 'astra_challenger',
         absence: 'challenger_input_provenance_absent',
         error,
       })],
@@ -1212,67 +1219,27 @@ async function runFableAdversarialReview({
   let stage;
   try {
     stage = await executePromptOnlyStage({
-      role: 'fable_challenger', prompt, suppliedSources,
-      createClient: createFableClient, persistRaw, attemptNumber: 1,
+      role: 'astra_challenger', repoRoot: reviewRoot, prompt, suppliedSources,
+      createClient: createAstraClient, persistRaw, attemptNumber: 1,
     });
     attempts.push(stage.receipt);
     if (stage.receipt.identity_posture.status === 'identity_conflict') {
       quarantines.push(reviewQuarantine({
         unit: 'identity',
-        name: 'fable_challenger',
+        name: 'astra_challenger',
         absence: 'identity_conflict',
         loadBearing: true,
         attempts: [stage.receipt],
       }));
     }
-  } catch (fableError) {
-    if (fableError.stageAttempt) attempts.push(fableError.stageAttempt);
-    fableError.challengerAttempts = attempts;
-    if (isHardReviewBoundaryError(fableError)) throw fableError;
-    const classification = classifyFableFallbackError(fableError);
-    if (attempts[0]) attempts[0].fallback_classification = classification;
-    if (!classification.opusEligible) {
-      return adversarialReviewFailure(fableError, {
-        quarantines: [reviewQuarantine({
-          unit: 'challenger',
-          name: 'fable_challenger',
-          absence: 'challenger_answer_absent',
-          error: fableError,
-          attempts,
-        })],
-      });
-    }
-    quarantines.push(reviewQuarantine({
-      unit: 'challenger',
-      name: 'fable_challenger',
-      absence: 'primary_challenger_answer_absent_replaced_by_opus',
-      error: fableError,
-      loadBearing: false,
-      attempts: [fableError.stageAttempt],
-    }));
-    try {
-      stage = await executePromptOnlyStage({
-        role: 'opus_challenger', prompt, suppliedSources,
-        createClient: createOpusClient, persistRaw, attemptNumber: 2,
-      });
-      attempts.push(stage.receipt);
-    } catch (opusError) {
-      if (opusError.stageAttempt) attempts.push(opusError.stageAttempt);
-      opusError.challengerAttempts = attempts;
-      if (isHardReviewBoundaryError(opusError)) throw opusError;
-      return adversarialReviewFailure(opusError, {
-        quarantines: [
-          ...quarantines,
-          reviewQuarantine({
-            unit: 'challenger',
-            name: 'opus_challenger',
-            absence: 'replacement_challenger_answer_absent',
-            error: opusError,
-            attempts: [opusError.stageAttempt],
-          }),
-        ],
-      });
-    }
+  } catch (error) {
+    if (error.stageAttempt) attempts.push(error.stageAttempt);
+    error.challengerAttempts = attempts;
+    if (isHardReviewBoundaryError(error)) throw error;
+    return adversarialReviewFailure(error, {
+      quarantines: [reviewQuarantine({ unit: 'challenger', name: 'astra_challenger',
+        absence: 'challenger_answer_absent', error, attempts })],
+    });
   }
   const answer = stage.answer;
 
@@ -1384,7 +1351,7 @@ function adversarialReviewFailure(err, { role = 'challenger', quarantines = null
   const kimiFailure = role === 'kimi_tie_breaker';
   const failureQuarantines = Array.isArray(quarantines) ? quarantines : [reviewQuarantine({
     unit: kimiFailure ? 'tie_breaker' : 'challenger',
-    name: kimiFailure ? 'kimi_tie_breaker' : 'fable_challenger',
+    name: kimiFailure ? 'kimi_tie_breaker' : 'astra_challenger',
     absence: kimiFailure ? 'tie_breaker_answer_absent' : 'challenger_answer_absent',
     error: err,
     attempts: err && Array.isArray(err.challengerAttempts)
@@ -1397,7 +1364,7 @@ function adversarialReviewFailure(err, { role = 'challenger', quarantines = null
     ok: false,
     provider: stageAttempt && stageAttempt.requested_provider
       ? stageAttempt.requested_provider
-      : (kimiFailure ? config.TIE_BREAKER_PROVIDER : 'claude-code'),
+      : (kimiFailure ? config.TIE_BREAKER_PROVIDER : config.CONSENSUS_PROVIDER),
     model: stageAttempt && stageAttempt.requested_model
       ? stageAttempt.requested_model
       : (kimiFailure ? config.TIE_BREAKER_MODEL : config.CONSENSUS_MODEL),
@@ -1437,7 +1404,7 @@ module.exports = {
   sendMaxPriorityNtfy,
   notifyReviewQuarantines,
   executePromptOnlyStage,
-  runFableAdversarialReview,
+  runAstraAdversarialReview,
   runKimiFinalAdjudication,
   adversarialReviewFailure,
 };

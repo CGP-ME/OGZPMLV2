@@ -4,11 +4,10 @@ const config = require('./config');
 
 const {
   createMercuryLlmClient,
-  createFableChallengerClient,
-  createOpusChallengerClient,
+  createAstraChallengerClient,
   createKimiTieBreakerClient,
 } = require('./llm-client');
-const { classifyFableFallbackError, stampedIdentityPosture } = require('./adversarial-review');
+const { stampedIdentityPosture } = require('./adversarial-review');
 const {
   buildPromptProvenance,
   buildProviderPreflightLedgerEntry,
@@ -113,6 +112,9 @@ function attemptReceipt({ label, attempt, client, metadata = {}, status, phase, 
         })
     ),
     parse_status: metadata.parseStatus || null,
+    parse_errors: metadata.parseErrors || [],
+    provider_error: metadata.providerError || null,
+    provider_errors: metadata.providerErrors || [],
     tokens: accounting.tokens,
     usage_absence: accounting.usage_absence,
     cost: accounting.cost,
@@ -120,7 +122,7 @@ function attemptReceipt({ label, attempt, client, metadata = {}, status, phase, 
     input_provenance: promptDispatched ? buildPromptProvenance(PREFLIGHT_PROMPT) : null,
     raw_output: rawOutput,
     raw_error: rawError,
-    tools: {
+    tools: metadata.tools || {
       enabled: false,
       available: Array.isArray(metadata.toolsAvailable) ? metadata.toolsAvailable : [],
       calls: [],
@@ -129,6 +131,8 @@ function attemptReceipt({ label, attempt, client, metadata = {}, status, phase, 
       failed: 0,
     },
     files_mechanically_opened: [],
+    invocation: metadata.invocation || null,
+    initialization: metadata.initialization || null,
     auth_posture: metadata.authStatus || (client && client.authStatus) || null,
     executable_trust: metadata.executableTrust || (client && client.executableTrust) || null,
     error: error ? cleanProviderError(error) : null,
@@ -183,9 +187,10 @@ async function checkClient(label, createClient, { attempt = 1, repoRoot = null, 
     }
     phase = 'complete';
     const raw = persistAttemptRaw({ repoRoot, runId, label, attempt, metadata });
+    const completed = !['error', 'incomplete'].includes(metadata.termination);
     const result = {
       label,
-      ok: true,
+      ok: completed,
       provider: client.providerName,
       model: client.model,
       appliedModel,
@@ -194,7 +199,8 @@ async function checkClient(label, createClient, { attempt = 1, repoRoot = null, 
       authPosture: client.authStatus || null,
     };
     result.attemptReceipt = attemptReceipt({
-      label, attempt, client, metadata, status: 'succeeded', phase, ...raw,
+      label, attempt, client, metadata,
+      status: completed ? 'succeeded' : 'failed', phase, ...raw,
     });
     return result;
   } catch (err) {
@@ -226,8 +232,7 @@ async function checkClient(label, createClient, { attempt = 1, repoRoot = null, 
 
 async function runProviderPreflight({
   createMercuryClient = () => createMercuryLlmClient({ systemPrompt: 'Respond tersely.' }),
-  createFableClient = () => createFableChallengerClient(),
-  createOpusClient = () => createOpusChallengerClient(),
+  createAstraClient = () => createAstraChallengerClient(),
   createKimiClient = () => createKimiTieBreakerClient(),
   repoRoot = null,
 } = {}) {
@@ -236,27 +241,18 @@ async function runProviderPreflight({
   const attempts = [];
   const mercury = await checkClient('mercury', createMercuryClient, { attempt: 1, repoRoot, runId });
   attempts.push(mercury.attemptReceipt);
-  const fable = await checkClient('fable_challenger', createFableClient, { attempt: 2, repoRoot, runId });
-  attempts.push(fable.attemptReceipt);
-  let opus = null;
-  if (!fable.ok) {
-    const fallback = classifyFableFallbackError(fable._rawError);
-    fable.fallback = fallback;
-    if (fallback.opusEligible) {
-      opus = await checkClient('opus_challenger', createOpusClient, { attempt: 3, repoRoot, runId });
-      attempts.push(opus.attemptReceipt);
-    }
-  }
+  const astra = await checkClient('astra_challenger', createAstraClient, { attempt: 2, repoRoot, runId });
+  attempts.push(astra.attemptReceipt);
   const kimi = await checkClient('kimi_tie_breaker', createKimiClient, {
     attempt: attempts.length + 1, repoRoot, runId,
   });
   attempts.push(kimi.attemptReceipt);
-  const challengerReady = fable.ok === true || !!(opus && opus.ok === true);
+  const challengerReady = astra.ok === true;
   const result = {
     ok: mercury.ok === true && challengerReady,
     challengerReady,
     tieBreakerReady: kimi.ok === true,
-    checks: [mercury, fable, ...(opus ? [opus] : []), kimi],
+    checks: [mercury, astra, kimi],
     attempts,
   };
   if (repoRoot) {

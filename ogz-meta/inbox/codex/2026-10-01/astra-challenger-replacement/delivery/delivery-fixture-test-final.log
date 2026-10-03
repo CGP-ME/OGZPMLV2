@@ -1,0 +1,10 @@
+jest-haste-map: Haste module naming collision: ogz-prime-valhalla-edition
+  The following files share their name; please adjust your hasteImpl:
+    * <rootDir>/package.json
+    * <rootDir>/ogz-meta/cognition-history/mercury-runs/2026-10-02T04-39-14-612Z-2588738-6f5554eafc44/source-7HSbCf/package.json
+
+Test Suites: 1 passed, 1 total
+Tests:       42 skipped, 1 passed, 43 total
+Snapshots:   0 total
+Time:        0.789 s
+Ran all test suites matching test/mercury-consensus.test.js with tests matching "host quarantines one unverifiable descriptor".
