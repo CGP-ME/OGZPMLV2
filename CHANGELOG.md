@@ -4,7 +4,7 @@ Saved the requested restart handoff at `ogz-meta/inbox/codex/2026-10-03/codex-2-
 
 ## 2026-10-03 — Halt-producer restart handoff
 
-Trey requested a stopping-point handoff before restarting his computer. Saved the two pushed producer fixes, current concurrent-agent boundaries, unresolved repairs, failed embedding-index refresh, and his latest requirement to verify the actual account that handled an order. The ownership/parser repair is not implemented. Handoff: ogz-meta/inbox/codex-third/2026-10-03/halt-producer-resume/HANDOFF.md.
+Trey requested a stopping-point handoff before restarting his computer. Saved the two pushed producer fixes, current concurrent-agent boundaries, unresolved repairs, failed embedding-index refresh, and his latest requirement to verify the actual account that handled an order. The ownership/parser repair is not implemented. Handoff: ogz-meta/inbox/codex-third/2026-10-03/halt-producer-resume/handoff 3.md.
 
 Verification/review: checked current HEAD and empty index, matched delivered commit history and coordination notice, and reviewed this documentation against the conversation. Documentation only; no Mercury review required. Existing dirty production work and supporting evidence are preserved. No process stop, runtime activation or deployment.
 
