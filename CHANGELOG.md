@@ -1,3 +1,7 @@
+## 2026-10-03 — Codex 2 Mercury restart handoff
+
+Saved the requested restart handoff at `ogz-meta/inbox/codex/2026-10-03/codex-2-handoff/HANDOFF.md`. It records delivered Astra integration, the unfinished first-pass tooling repair, the diagnostic initialization failure, exact source/receipt pointers, and shared-agent constraints. Resume order: fix tooling, test and review, commit/push, then investigate remaining prompt conflicts. Reviewed against current source and this session; tooling is not fixed or successfully tested. Documentation only; no runtime activation.
+
 ## 2026-10-03 — Halt-producer restart handoff
 
 Trey requested a stopping-point handoff before restarting his computer. Saved the two pushed producer fixes, current concurrent-agent boundaries, unresolved repairs, failed embedding-index refresh, and his latest requirement to verify the actual account that handled an order. The ownership/parser repair is not implemented. Handoff: ogz-meta/inbox/codex-third/2026-10-03/halt-producer-resume/HANDOFF.md.
