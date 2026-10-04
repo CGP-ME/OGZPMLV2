@@ -2523,6 +2523,29 @@ function emaRetestConfidenceReplacementProblem(config) {
   return null;
 }
 
+function propSafeConfidenceReplacementProblem(config) {
+  const cfg = config.strategies?.PropSafeEMAPullback;
+  const confidence = {};
+  for (const key of ['confidenceBase', 'confidenceTrendBonus', 'confidencePullbackBonus', 'confidenceConfirmationBonus', 'confidenceFreshCrossBonus', 'maxConfidence']) {
+    const problem = { reason: 'invalid_propsafe_confidence', path: `strategies.PropSafeEMAPullback.${key}` };
+    const raw = cfg?.[key];
+    if ((typeof raw !== 'number' && typeof raw !== 'string')
+        || (typeof raw === 'string' && raw.trim() === '')) return problem;
+    let value;
+    try {
+      value = Number(raw);
+    } catch (error) {
+      return problem;
+    }
+    if (!Number.isFinite(value) || value < 0 || value > 1) return problem;
+    confidence[key] = value;
+  }
+  if (confidence.maxConfidence < confidence.confidenceBase) {
+    return { reason: 'propsafe_max_confidence_below_base', path: 'strategies.PropSafeEMAPullback.maxConfidence' };
+  }
+  return null;
+}
+
 function load(opts = {}) {
   const requestedRole = opts.role || 'bot';
   if (_cached && !opts.force) {
@@ -2548,7 +2571,8 @@ function load(opts = {}) {
       || liquiditySweepWeightsReplacementProblem(candidate.config)
       || timeSeriesMomentumConfidenceReplacementProblem(candidate.config)
       || rsi2ConfidenceReplacementProblem(candidate.config)
-      || emaRetestConfidenceReplacementProblem(candidate.config);
+      || emaRetestConfidenceReplacementProblem(candidate.config)
+      || propSafeConfidenceReplacementProblem(candidate.config);
     if (problem) {
       // buildSnapshot restores its temporary active contexts in finally. Restore
       // its canonical-file reads too, keeping every reader on the prior owner.
@@ -2599,6 +2623,17 @@ function getReceipt() {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  ...Object.fromEntries([
+    ['confidenceBase', 'PropSafe base confidence'],
+    ['confidenceTrendBonus', 'PropSafe trend confidence contribution'],
+    ['confidencePullbackBonus', 'PropSafe pullback confidence contribution'],
+    ['confidenceConfirmationBonus', 'PropSafe confirmation confidence contribution'],
+    ['confidenceFreshCrossBonus', 'PropSafe fresh-cross confidence contribution'],
+    ['maxConfidence', 'PropSafe confidence ceiling'],
+  ].map(([key, label]) => [`strategies.PropSafeEMAPullback.${key}`, {
+    type: 'number', unit: 'fraction', min: 0, max: 1,
+    label, effect: 'next_entry_evaluation',
+  }])),
   ...Object.fromEntries([
     ['confidenceBase', 'EMA retest base confidence'],
     ['confidenceSlopeBonus', 'EMA retest slope confidence contribution'],
@@ -3076,6 +3111,10 @@ function saveSettings(request) {
   }
   if (entries.some(([key]) => key.startsWith('strategies.EMATrendRetest.'))) {
     const problem = emaRetestConfidenceReplacementProblem(nextConfig);
+    if (problem) return reject(problem.reason, { path: problem.path });
+  }
+  if (entries.some(([key]) => key.startsWith('strategies.PropSafeEMAPullback.'))) {
+    const problem = propSafeConfidenceReplacementProblem(nextConfig);
     if (problem) return reject(problem.reason, { path: problem.path });
   }
   const nextEntrySizing = buildEntrySizingInput(nextConfig);
