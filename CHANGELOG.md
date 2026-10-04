@@ -1,3 +1,13 @@
+## 2026-10-04 — Codex 1: UI-bound EMA retest confidence controls
+
+Problem: five canonical EMA Trend Retest confidence values were consumed live but absent from the editable settings API. Expose confidenceBase, confidenceSlopeBonus, confidenceRetestBonus, confidenceConfirmationBonus and maxConfidence with their existing fraction domains. Existing save/forced-reload publication checks now reject invalid confidence replacements or a ceiling below base before publishing; no new startup throw, trading gate, fallback or shutdown is added.
+
+Verification: actual candidate ConfigLoader saveSettings and forced reload, with persistence intercepted in memory, exercised a retained production module. Four independent contributions produced 0.1, 0.2, 0.3 and 0.4 confidence; ceiling produced 0.2; valid numeric-string reload produced 0.6. Twenty-six invalid publications preserved the current owner; invalid saves preserved stored bytes. Staged loader blob 540a9d4a6be13aec177275eda09b0dbd90bf25c8 matches the tested candidate. Syntax, diff checks and scoped secret scan pass.
+
+Review: Mercury no_break_found, run 2026-10-04T13-53-56-465Z-0e19b47d24c9; independent identity-verified Astra no_break_found on candidate c817d68ddf967a0998b61afd2ad4ec7df50da268. Review base preceded another agent's already-committed Kraken change, so the review comparison included that change; this commit stages only the EMA loader change and this record. Astra confirmed retained/per-symbol consumers and reported existing Number coercion and reload-exception limitations. Mercury's getSection explanation is not the UI save contract; explicit EDITABLE_SETTINGS exposure and saveSettings behavior are the verified chain.
+
+Limits: synthetic signal context, not complete orchestrator/broker/browser execution. Forced replacement preserves existing Number coercion (unlike strictly numeric UI input); this is not a general exception-safe loader rewrite. Runtime not activated. Supporting receipts: ogz-meta/inbox/codex/2026-10-04/ema-retest-confidence/.
+
 ## 2026-10-04 — Codex 3: preserve Kraken submission-stage receipts
 
 Problem: OrderRouter classified Kraken validation/signing errors as attempted orders with unknown broker receipts even when no HTTP request occurred. That classification reaches the executor's broker-reconciliation halt branch. Kraken's placeOrder catch also discarded transport error codes and submission evidence.

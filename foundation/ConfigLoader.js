@@ -2503,6 +2503,26 @@ function rsi2ConfidenceReplacementProblem(config) {
   return null;
 }
 
+function emaRetestConfidenceReplacementProblem(config) {
+  const cfg = config.strategies?.EMATrendRetest;
+  const confidence = {};
+  for (const key of ['confidenceBase', 'confidenceSlopeBonus', 'confidenceRetestBonus', 'confidenceConfirmationBonus', 'maxConfidence']) {
+    const problem = { reason: 'invalid_ema_retest_confidence', path: `strategies.EMATrendRetest.${key}` };
+    let value;
+    try {
+      value = Number(cfg?.[key]);
+    } catch (error) {
+      return problem;
+    }
+    if (!Number.isFinite(value) || value < 0 || value > 1) return problem;
+    confidence[key] = value;
+  }
+  if (confidence.maxConfidence < confidence.confidenceBase) {
+    return { reason: 'ema_retest_max_confidence_below_base', path: 'strategies.EMATrendRetest.maxConfidence' };
+  }
+  return null;
+}
+
 function load(opts = {}) {
   const requestedRole = opts.role || 'bot';
   if (_cached && !opts.force) {
@@ -2527,7 +2547,8 @@ function load(opts = {}) {
       || maDynamicSRConfidenceReplacementProblem(candidate.config)
       || liquiditySweepWeightsReplacementProblem(candidate.config)
       || timeSeriesMomentumConfidenceReplacementProblem(candidate.config)
-      || rsi2ConfidenceReplacementProblem(candidate.config);
+      || rsi2ConfidenceReplacementProblem(candidate.config)
+      || emaRetestConfidenceReplacementProblem(candidate.config);
     if (problem) {
       // buildSnapshot restores its temporary active contexts in finally. Restore
       // its canonical-file reads too, keeping every reader on the prior owner.
@@ -2578,6 +2599,16 @@ function getReceipt() {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  ...Object.fromEntries([
+    ['confidenceBase', 'EMA retest base confidence'],
+    ['confidenceSlopeBonus', 'EMA retest slope confidence contribution'],
+    ['confidenceRetestBonus', 'EMA retest quality confidence contribution'],
+    ['confidenceConfirmationBonus', 'EMA retest confirmation confidence contribution'],
+    ['maxConfidence', 'EMA retest confidence ceiling'],
+  ].map(([key, label]) => [`strategies.EMATrendRetest.${key}`, {
+    type: 'number', unit: 'fraction', min: 0, max: 1,
+    label, effect: 'next_entry_evaluation',
+  }])),
   ...Object.fromEntries([
     ['manipCandle', 'Liquidity sweep manipulation-candle confidence weight'],
     ['wickSweep', 'Liquidity sweep wick confidence weight'],
@@ -3041,6 +3072,10 @@ function saveSettings(request) {
   }
   if (entries.some(([key]) => key.startsWith('strategies.RSI2MeanReversion.'))) {
     const problem = rsi2ConfidenceReplacementProblem(nextConfig);
+    if (problem) return reject(problem.reason, { path: problem.path });
+  }
+  if (entries.some(([key]) => key.startsWith('strategies.EMATrendRetest.'))) {
+    const problem = emaRetestConfidenceReplacementProblem(nextConfig);
     if (problem) return reject(problem.reason, { path: problem.path });
   }
   const nextEntrySizing = buildEntrySizingInput(nextConfig);
