@@ -55,14 +55,9 @@ class OrderRouter extends EventEmitter {
   registerBroker(adapter, symbols) {
     const name = this._normalizeBrokerName(adapter.getBrokerName ? adapter.getBrokerName() : 'unknown');
 
-    // Store adapter reference
-    this.adapters.set(name, adapter);
-    this._wireBrokerTruthUnavailable(name, adapter);
-    if (!this.adapterSymbols.has(name)) {
-      this.adapterSymbols.set(name, new Set());
-    }
-
-    // Map each symbol to this adapter
+    // Validate the entire registration before changing order or account-read
+    // ownership. A rejected registration must leave both lookups on the owner.
+    const normalizedSymbols = [];
     for (const symbol of symbols) {
       const normalized = this.normalizeSymbol(symbol);
       if (!normalized) {
@@ -75,6 +70,15 @@ class OrderRouter extends EventEmitter {
         );
         throw new Error(`[OrderRouter] Symbol ${normalized} already registered to ${existingName}; refusing to reassign to ${name}`);
       }
+      normalizedSymbols.push(normalized);
+    }
+
+    this._wireBrokerTruthUnavailable(name, adapter);
+    this.adapters.set(name, adapter);
+    if (!this.adapterSymbols.has(name)) {
+      this.adapterSymbols.set(name, new Set());
+    }
+    for (const normalized of normalizedSymbols) {
       this.symbolToAdapter.set(normalized, adapter);
       this.adapterSymbols.get(name).add(normalized);
       console.log(`[OrderRouter] ${normalized} -> ${name}`);
