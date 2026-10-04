@@ -1,3 +1,7 @@
+## 2026-10-04 — Codex 1: remove obsolete Sourcegraph task prompt
+
+Trey explicitly ordered deletion of the obsolete prompt to prevent Deep Search following the wrong task. Deleted ogz-meta/inbox/codex/2026-10-03/sourcegraph-stop1-prompt.txt. The sole current Stop 1 Sourcegraph prompt is ogz-meta/inbox/codex/2026-10-04/sourcegraph-stop1/PROMPT.txt; its required source export and reading map remain intact. No production files or unrelated agent work changed. Verified tracked prompt paths and reviewed scoped deletion. Sourcegraph HTTP access redirected to its Accounts page from this session, so authenticated indexing/readability is not claimed. No runtime activation.
+
 ## 2026-10-04 — Codex 1: publish local configurable-settings context for Sourcegraph
 
 Problem: the prior external prompt referenced local pending migration work that Sourcegraph could not access, causing duplicated investigation. Trey explicitly requested publication of everything needed to produce exact diffs and blow-by-blow instructions for the remaining configurable/UI-bound settings, in one ask.
