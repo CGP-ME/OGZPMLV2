@@ -199,7 +199,8 @@ class KrakenAdapterSimple {
         data,
         resolve,
         reject,
-        retries: 0
+        retries: 0,
+        brokerRequestAttempted: false
       });
 
       // Start queue processor if not running
@@ -257,18 +258,25 @@ class KrakenAdapterSimple {
       hmac.update(hash);
       const signature = hmac.digest('base64');
 
-      const response = await axios.post(`${this.baseUrl}${request.endpoint}`, postData, {
+      const requestUrl = `${this.baseUrl}${request.endpoint}`;
+      const requestOptions = {
         headers: {
           'API-Key': this.apiKey,
           'API-Sign': signature,
           'Content-Type': 'application/x-www-form-urlencoded'
         }
-      });
+      };
+      // Retain this fact across retries: later local failure cannot unsend an
+      // earlier attempt of the same queued request.
+      request.brokerRequestAttempted = true;
+      const response = await axios.post(requestUrl, postData, requestOptions);
       // Success - reset backoff
       this.rateLimitBackoff = 1000;
       request.resolve(response.data);
 
     } catch (error) {
+      error.brokerRequestAttempted = request.brokerRequestAttempted === true;
+      error.unknownBrokerReceipt = error.brokerRequestAttempted;
       // Handle 429 rate limit errors
       if (error.response?.status === 429) {
         console.log(`[Kraken] RATE_LIMIT_429: Re-queuing request after ${this.rateLimitBackoff}ms`);
@@ -756,29 +764,30 @@ class KrakenAdapterSimple {
   }
 
   async placeOrder(order) {
-    // Validate order first
-    const validation = this.validateOrder(order);
-    if (!validation.valid) {
-      throw new Error(`Order validation failed: ${validation.errors.join(', ')}`);
-    }
-
-    const symbol = validation.symbol;
-    const quantity = validation.quantity;
-    // Convert to Kraken format
-    const krakenSymbol = this.convertToKrakenSymbol(symbol);
-
-    const orderData = {
-      pair: krakenSymbol,
-      type: order.side,
-      ordertype: order.type,
-      volume: quantity.toString()
-    };
-
-    if (order.type === 'limit' && order.price) {
-      orderData.price = order.price.toString();
-    }
-
+    let submittedToQueue = false;
     try {
+      // Validate and construct the request before handing it to the queue.
+      const validation = this.validateOrder(order);
+      if (!validation.valid) {
+        throw new Error(`Order validation failed: ${validation.errors.join(', ')}`);
+      }
+
+      const symbol = validation.symbol;
+      const quantity = validation.quantity;
+      const krakenSymbol = this.convertToKrakenSymbol(symbol);
+
+      const orderData = {
+        pair: krakenSymbol,
+        type: order.side,
+        ordertype: order.type,
+        volume: quantity.toString()
+      };
+
+      if (order.type === 'limit' && order.price) {
+        orderData.price = order.price.toString();
+      }
+
+      submittedToQueue = true;
       const response = await this.makePrivateRequest('/0/private/AddOrder', orderData);
 
       if (response.error && response.error.length > 0) {
@@ -795,8 +804,14 @@ class KrakenAdapterSimple {
         price: order.price
       };
     } catch (error) {
-      recordKrakenAuthFailureIfRelevant(error, 'rest-place-order');
-      throw new Error(`Failed to place order: ${error.message}`);
+      if (submittedToQueue) recordKrakenAuthFailureIfRelevant(error, 'rest-place-order');
+      const failure = new Error(submittedToQueue ? `Failed to place order: ${error.message}` : error.message);
+      failure.brokerRequestAttempted = submittedToQueue && error.brokerRequestAttempted !== false;
+      failure.unknownBrokerReceipt = failure.brokerRequestAttempted;
+      if (error.code !== undefined) failure.code = error.code;
+      const httpStatus = error.response?.status;
+      if (httpStatus !== undefined) failure.brokerHttpStatus = httpStatus;
+      throw failure;
     }
   }
 
