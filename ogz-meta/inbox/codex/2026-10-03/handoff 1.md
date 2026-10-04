@@ -1,5 +1,42 @@
 # handoff 1 — Stop 1 configuration migration
 
+## 2026-10-04 usage-limit handoff — Codex 1 (current authority over older status below)
+
+User requests this handoff because usage is nearly exhausted. Resume UI-bound Stop 1 migration, not frontend or Mercury repair. One logical change, actual behavior check, clean adversarial review, scoped changelog, atomic commit and push. No new packets, defaults, trading halts, PM2 restart or worktrees. Preserve all other agents' dirty work.
+
+### Delivered
+
+- EMA retest five confidence controls: 3e6268136de74271fdd82a01ec5b4019106c5c28, pushed.
+- PropSafe six confidence controls: e627211cecdc71056a8c9c75cf2cfc21a88538c5, pushed and remote SHA confirmed. Actual in-memory publication/retained module checks rejected 84 malformed publications and production-profile rerun passed. Mercury final no_break_found run 2026-10-04T14-32-00-044Z-df5b37202b5e; Astra corrected-candidate no_break_found, verified model identity. Details in committed CHANGELOG. Its initial null-coercion break was fixed; Mercury's mistaken partial-profile allegations were refuted, not adopted.
+- Prior confluence-veto removal 5c598f27 and regime getter a65cc75f already pushed; do not reapply.
+- Last observed HEAD d425c7f635c93de4d0c5302715c5bfa90554d61e includes another agent's exit-reason fix. External agents can advance HEAD; always inspect.
+
+### EMA correction — subsequently delivered before handoff
+
+Delivered as 0109886e and pushed. The production diff was only foundation/ConfigLoader.js: EMA confidence type-domain correction, three added lines/one changed line. Reviewed candidate 938d8da837e0439664cf7ea70a63aaad847416e2, base e627211cecdc71056a8c9c75cf2cfc21a88538c5. Exact staged source compared byte-for-byte to proof candidate. Folder ogz-meta/inbox/codex/2026-10-04/ema-confidence-input-domain/. change.patch isolates it; working loader contains other changes, never stage whole file.
+
+Baseline accepted 32/45 malformed attempts; correction rejects null/boolean/array/object/blank before coercion while preserving numeric strings. Actual in-memory loader and retained module proof passed with 71 rejected publications. Synthetic signal context, not full broker/runtime proof. Mercury completed no_break_found in private-review-result.json; full answer read, static-only review explicitly stated. Independent Astra completed no_break_found with verified provider model identity in private-astra-result.json; full answer read. Both reviewer sessions completed. Both static reviews; host behavior proof was separate. Committed and pushed as 0109886e before this handoff.
+
+### Prepared next legs (uncommitted)
+
+1. Sixteen strategy switches: original patch ogz-meta/inbox/retire-unused-confidence/2026-10-03/pipeline-toggles/head-change.patch is applied WORKING only. Original candidate 32e6c80cbf14eac555ced9014fe4fd26591bc6ec got Mercury clearance but Astra found disabled TPO history discontinuity. Never ship original alone.
+2. Continuity correction: ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/change.patch (nine files), applied WORKING only. Eight stateful built-ins observe while entries disabled; entries and consumption remain disabled. Actual orchestrator dispatch, TPO per-symbol histories, seven-module active parity, targeted ORB/liquidity/NoWick emission checks passed. Needs composed exact candidate and fresh Mercury/Astra review with original switch change. Root removed one trailing whitespace in working OgzTpoIntegration; patch may still contain it. Preserve other dirty edits. No full broker proof.
+3. NoWick one confidence control: ogz-meta/inbox/codex/2026-10-04/nowick-confidence/change.patch prepared, not applied. Existing live-provider correction plus UI exposure. Use delivery.patch (not older change.patch) composed AFTER continuity. delivery-proof.cjs/delivery-proof.json pass: zero provider reads during observation, one per active evaluation, primary/twin confidence and 18 malformed rejections. Module/orchestrator baseline is current dirty continuity source; loader baseline d425c7f. Reconcile later EMA correction when applying; never replace the whole loader.
+4. RSI replacement validation: ogz-meta/inbox/ui-config-ahead/2026-10-04/rsi-confidence/change.patch prepared, not applied. Four already-live/UI fields, actual forced-publication gap; proof 46 invalid cases plus confidence .6 -> .5 -> .3. Preserve existing domains, no invented ceiling relation. Needs review/delivery.
+5. Donchian publication: ogz-meta/inbox/ui-config-ahead/2026-10-04/donchian-publication/change.patch prepared against e627211c, not applied. Five UI controls already wired; four numeric forced-reload checks prevent invalid published values reaching existing consumer throws. Real indicators/retained module/in-memory loader proof: 52 invalid cases rejected. Preserve current fractional trail-channel forced-load domain; UI has stricter integer rule. Startup/non-numeric structural validation not covered. Needs review/delivery.
+
+Agents next_ui_controls, toggle_tpo_continuity and ui_config_ahead have prepared bounded legs; do not assume their work is committed. Older sizing/unused-confidence leftovers below remain pending, not current UI-first delivery.
+
+### Review and source discipline
+
+Root used qualified Mercury harness tree a5ecf975923c1c024ee98adf849016181dd6e482 via ogz-meta/inbox/codex/2026-09-29/mercury-source-identity/fixtures/candidate-loader.cjs. Working Mercury harness belongs to Codex 2; do not alter it. Config pointer: ogz-meta/inbox/retire-unused-confidence/2026-10-03/pipeline-toggles/private-mercury.config.json. maxTokens 7750, no iteration cap; staged reviewRef plus current reviewBase. Keep full private result receipts. No fresh index claim: indexing previously had credit problems.
+
+Astra adapter: ogz-meta/inbox/codex/2026-10-02/stop1-min-strategy-confidence/private/astra-adapter.cjs, CodexChallengerClient model gpt-6-astra. Verify metadata.identityPosture and read whole verdict. User assigned external Codex 4 frontend and Codex 2 Mercury; do not absorb those scopes.
+
+Staging coordination: ogz-meta/inbox/codex/2026-10-03/staging-coordination/WINDOW.md. EMA correction has landed; shared index was cleared by its atomic commit. Preserve all working changes and recheck other agents before staging. Detailed CHANGELOG is primary record. No deployment or PM2 restart occurred. Stop 1 is NOT complete; no authoritative remaining-count census was done this turn.
+
+---
+
 ## Delivery update after stopping-point capture
 
 The two reviewed changes below are now committed and pushed: confluence veto removal `5c598f27fc7631197d9d798702ba8f4c9d851a7c`, then regime-settings connection `a65cc75fc136791377a89d0d9369f1dba1328db2`. Remote astra-era was confirmed at the latter SHA. Their detailed entries are committed in CHANGELOG.md. Do not reapply or recommit them. Next production task is adversarial review and delivery of the sixteen-switch migration, followed by the unfinished confidence/sizing legs. Earlier “not committed” labels below describe the original capture, superseded by this update. Runtime remains unactivated; no fresh Mercury index claim is made.

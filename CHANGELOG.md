@@ -1,3 +1,11 @@
+## 2026-10-04 — Codex 1: usage-limit handoff and remaining UI migration work
+
+Updated handoff 1 in place with delivered EMA controls (3e626813) and PropSafe controls (e627211c, remote confirmed), exact staged EMA correction, actual review status, agent-prepared RSI/Donchian/NoWick work, and the switch continuity correction required by Astra. Production details remain in their individual entries; this is a documentation-only stopping-point record, not a claim those pending changes landed.
+
+Verification: inspected live branch/index and recent commits; only EMA loader correction staged at capture. Re-ran its in-memory proof (71 invalid publications rejected), compared staged source to tested candidate, and read Mercury no_break_found answer. Astra subsequently completed no_break_found with verified model identity; the separate EMA correction was committed and pushed as 0109886e before this handoff. Sixteen-switch corrected candidate still needs fresh review. Preserved unrelated working changes and other agents' ownership; no production changes bundled in this documentation delivery, no runtime activation and no fresh Mercury index claim.
+
+Resume details: ogz-meta/inbox/codex/2026-10-03/handoff 1.md. Scope remains UI-bound Stop 1 first. Remaining counts are not verified, and Stop 1 is not complete.
+
 ## 2026-10-04 — Codex 1: reject malformed EMA confidence replacements before coercion
 
 Problem: the earlier EMA publication helper accepted null, booleans, arrays and blank strings through Number coercion. Added an explicit primitive/nonblank-string check before conversion; existing numeric-string compatibility, domains and ceiling/base relationship remain. No new trading halt, startup throw, fallback or runtime activation.

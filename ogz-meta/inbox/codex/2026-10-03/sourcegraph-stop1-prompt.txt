@@ -1,0 +1,42 @@
+Finish the remaining Stop 1 configuration migrations in github.com/CGP-ME/OGZPMLV2 on astra-era, prioritizing customer/UI-bound controls. Do implementation work if your environment supports it; otherwise return complete, applicable unified diffs with exact base commit and verification instructions. Do not present proposed patches as applied, tested, committed, or pushed.
+
+First state the exact commit you can see for astra-era. Recent delivered changes include 3e626813 (EMA confidence UI), e627211c (PropSafe confidence UI), and 0109886e (EMA replacement type correction). If your indexed branch lacks these, disclose that before deriving remaining work. Inspect current source rather than assuming those examples are the latest HEAD.
+
+Read these authority references in order:
+- AGENTS.md and ogz-meta/AGENTS.md: operating rules, with newer explicit Trey instructions taking precedence.
+- ogz-meta/Alignment/README.md
+- ogz-meta/Alignment/TREY-DOCTRINE-FABLE-LANE.md
+- ogz-meta/Alignment/TREY-RULINGS.md
+- ogz-meta/inbox/astra/OGZ-WALK-SPEC-2026-09-03-TREY-VERBATIM.md: Trey's actual requested behavior, particularly configuration ownership and hot changes. The walk covers other stops too; do not expand this task into those stops.
+- ogz-meta/specs/TREY-ARCHITECTURE-SPEC-2026-07-02.md: strategy independence and confluence context, checked against newer rulings.
+
+Useful orientation, not authority or a new to-do list:
+- ogz-meta/inbox/astra/STOP1-CONFIG-EVIDENCE.csv: historical migration leads; verify every row against current code. If unavailable in your index, say so rather than inventing its contents.
+- ogz-meta/inbox/astra/STOP1-AUDIT-6ca25ae8.md: historical audit of a DIFFERENT old commit/branch, never current proof. Do not blindly recreate its recommendations or broaden scope around it.
+- CHANGELOG.md: what actually landed, its verification and limitations.
+- ogz-meta/inbox/codex/2026-10-03/handoff 1.md: newest top update identifies pending local work to avoid duplicating it. This is coordination, not behavior authority; older status below is superseded.
+
+Trace the actual configuration pipeline starting with:
+- config/settings.json: existing customer-owned configuration.
+- config/internals.json: existing static/internal configuration.
+- foundation/ConfigLoader.js: canonical loading/composition, validation/publication, EDITABLE_SETTINGS, getSettingsView, saveSettings, forced reload, getters and owner identity.
+- run-empire-v2.js: construction/init wiring and retained context.
+- core/StrategyOrchestrator.js and actual modules/*.js: retained strategy objects, per-symbol/timeframe state, current configuration reads and entry/exit consumers.
+- core/TradingLoop.js, core/OrderExecutor.js, core/ExitContractManager.js and relevant readers discovered by references: only where the selected setting actually reaches them.
+- ogzprime-ssl-server.js and actual settings API callers found through references: confirm existing UI transport/schema binding. Do not redesign the frontend; another agent owns it.
+- config/.env.example and repository-wide process.env references: trace behavioral overrides and ownership without requesting or exposing real credentials.
+
+For each selected migration, trace all declarations, aliases, environment overrides, constructor captures, initialization, callers, live reads, save/reload publication and actual consumers. Use AST/reference search plus code inspection. A setting already in JSON is not necessarily migrated; an exposed UI field is not proof its retained consumer changes. Conversely, a fully wired setting requires no invented patch.
+
+Make one logical change at a time, keeping required producer/consumer edits together. Preserve existing intended units, domains and explicit values; no speculative tuning. Do not invent new defaults, silent substitutions, trading gates, shutdowns or throws. Fix invalid-state producers under the Fourth Shape; unresolved behavior decisions must be named rather than guessed. Multiple strategies agreeing may boost confluence but must never veto an independently qualified strategy. Retained strategy history must remain correct across toggles; disabling entries must not silently corrupt later state.
+
+For each actual change return:
+1. Concise problem and current file:line evidence, including complete relevant blast radius.
+2. Minimal complete unified diff against the exact stated base, or actual commit if you truly have authorized write capability. Separate independent changes.
+3. Meaningful behavior verification: initial load where relevant, valid save/forced reload, retained consumer observes the new value, malformed replacements preserve current valid owner without silent substitution, relevant symbol/state isolation. State what was actually executed versus merely proposed. Do not copy secrets or real configuration into fixtures.
+4. Remaining concrete limitations and the exact adversarial review target/question. Local Mercury/Astra review and delivery still happen on the VPS; do not fabricate that approval.
+5. One detailed CHANGELOG entry: problem, change, actual verification, review findings/resolution, limitations, runtime activation status. No evidence-packet scaffolding or duplicate forms.
+
+The VPS contains uncommitted, independently prepared toggle-continuity, NoWick, RSI and Donchian patches. Sourcegraph cannot be assumed to see these: use the newest handoff to identify overlap, and explicitly label proposals that need local reconciliation. Do not delete or replace TRAI's brain, Mercury, the slash router, agent restrictions or the existing pipeline. No worktrees, deployment, PM2 restart, broad cleanup, reviewer-harness repair or unrelated architecture work.
+
+Keep the output focused on completing actual remaining migrations. Do not spend the response retelling historical agent failures or producing another broad audit plan. If you cannot edit the repository, say that clearly and produce usable patches for the selected scope instead.
