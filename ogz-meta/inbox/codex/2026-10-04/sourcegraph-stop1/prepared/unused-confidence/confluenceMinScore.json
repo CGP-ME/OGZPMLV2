@@ -1,0 +1,1752 @@
+{
+  "source": "serena_tree_sitter_property_refs",
+  "parser": "tree-sitter-javascript",
+  "fileReceipts": [
+    {
+      "file": "core/AdaptiveTimeframeSelector.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "4fb9516b6d08aae5f52177556f37fb497e39e03d640c04663daeecd2477b4820",
+      "source_bytes": 11668,
+      "property_references": 136,
+      "method_calls": 33,
+      "class_surfaces": 1,
+      "function_scopes": 7
+    },
+    {
+      "file": "core/AssetConfigManager.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "801919412b92a17f6a95098e4fabd4ee70be0f001241b7cf50e02ba4f19b37c1",
+      "source_bytes": 20534,
+      "property_references": 58,
+      "method_calls": 28,
+      "class_surfaces": 1,
+      "function_scopes": 18
+    },
+    {
+      "file": "core/AssetRegistry.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "cd3041e6ed5c8e23d9fae27fafc15cc33ee001c6972426a8bad862b13e92a0d7",
+      "source_bytes": 5756,
+      "property_references": 18,
+      "method_calls": 11,
+      "class_surfaces": 0,
+      "function_scopes": 2
+    },
+    {
+      "file": "core/AtomicWrite.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "3d451213bba7b3680b7560e1d8c60e36650a595c7970a116a926f5d96390a924",
+      "source_bytes": 1724,
+      "property_references": 12,
+      "method_calls": 9,
+      "class_surfaces": 0,
+      "function_scopes": 3
+    },
+    {
+      "file": "core/AuthFailureGuard.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "62aa1860bbfec49b0fcd2e22e937f4a1aa41d0d06d55416055f611af633dd44c",
+      "source_bytes": 11589,
+      "property_references": 139,
+      "method_calls": 59,
+      "class_surfaces": 1,
+      "function_scopes": 16
+    },
+    {
+      "file": "core/BacktestRecorder.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "3f5b62190a09d3b9a51d8d76d2a6dc435feb061020ef514ecbf0b5bda1cfee1f",
+      "source_bytes": 34775,
+      "property_references": 681,
+      "method_calls": 212,
+      "class_surfaces": 1,
+      "function_scopes": 41
+    },
+    {
+      "file": "core/BacktestRunner.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "d265cbba8c826e9a07774870ec7356b16d5b25d0456ea1b0ad703b24cf1187d2",
+      "source_bytes": 27530,
+      "property_references": 402,
+      "method_calls": 124,
+      "class_surfaces": 1,
+      "function_scopes": 12
+    },
+    {
+      "file": "core/BotStateFrame.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "873a02e9ee1ed1d0e484b05db41190dfabdaaaa35d614bc940770fd019aefb4e",
+      "source_bytes": 6379,
+      "property_references": 111,
+      "method_calls": 29,
+      "class_surfaces": 0,
+      "function_scopes": 15
+    },
+    {
+      "file": "core/CandleAggregator.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "905ebcd54e300cf3679d250e2e4c3ba93114f62ccf0325a47bc2177807f91a8a",
+      "source_bytes": 6600,
+      "property_references": 47,
+      "method_calls": 22,
+      "class_surfaces": 1,
+      "function_scopes": 9
+    },
+    {
+      "file": "core/CandleHelper.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "33195306d283e2d0e23868849c87953ee5a6cecbbb74d1cb8c619af16701e5f3",
+      "source_bytes": 3845,
+      "property_references": 88,
+      "method_calls": 0,
+      "class_surfaces": 0,
+      "function_scopes": 13
+    },
+    {
+      "file": "core/CandlePatternDetector.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "6687cb910c9f825b71d3a428da63d41cd1cb4d2b40b8d154c38d50fb63efc45b",
+      "source_bytes": 21752,
+      "property_references": 246,
+      "method_calls": 176,
+      "class_surfaces": 1,
+      "function_scopes": 56
+    },
+    {
+      "file": "core/CandleProcessor.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "35f39f16ac8377372a2511032340ca5e05b5f4350e13d095c6d7b8733a402243",
+      "source_bytes": 54894,
+      "property_references": 832,
+      "method_calls": 241,
+      "class_surfaces": 1,
+      "function_scopes": 55
+    },
+    {
+      "file": "core/CandleStore.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "a5808a22a6c502731fee94cb3241d69b1531ce562738b0ce3f8c5c2ce53c995f",
+      "source_bytes": 14769,
+      "property_references": 108,
+      "method_calls": 56,
+      "class_surfaces": 1,
+      "function_scopes": 21
+    },
+    {
+      "file": "core/ContractValidator.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "d18f2e5f7cfae85fbaef6e943263f3408b09cd7c408a36bbc77f05fae6462b09",
+      "source_bytes": 15266,
+      "property_references": 121,
+      "method_calls": 59,
+      "class_surfaces": 2,
+      "function_scopes": 16
+    },
+    {
+      "file": "core/CryptoMarketFeed.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "418dced3dbad4c204c7a68c7ef32ec16ba44f8eaa12c64850f4328944949ed68",
+      "source_bytes": 10961,
+      "property_references": 159,
+      "method_calls": 72,
+      "class_surfaces": 0,
+      "function_scopes": 23
+    },
+    {
+      "file": "core/DashboardBroadcaster.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "6e1657c711a65772ddcc31f3b7a79f8784950be22f70b324b70030e6ddfbdcd6",
+      "source_bytes": 18540,
+      "property_references": 303,
+      "method_calls": 123,
+      "class_surfaces": 1,
+      "function_scopes": 25
+    },
+    {
+      "file": "core/DashboardDepthCoalescer.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "594026ccdfd6ce2697da4a979dfda99e6c6ba94cfa2e2a3a14b47663d519c925",
+      "source_bytes": 3550,
+      "property_references": 76,
+      "method_calls": 39,
+      "class_surfaces": 1,
+      "function_scopes": 11
+    },
+    {
+      "file": "core/DataFileInstrument.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "ad4e68dd0bee90f1aa02f0332063fe60e9d9985948c9940d2715f77bf55c9ae3",
+      "source_bytes": 3951,
+      "property_references": 55,
+      "method_calls": 46,
+      "class_surfaces": 0,
+      "function_scopes": 12
+    },
+    {
+      "file": "core/DecisionAutopsyLogger.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "bfc8289809490d509e0ddf2ab651fdac40ac3f23b89810ad204ebceea807f9ca",
+      "source_bytes": 2678,
+      "property_references": 32,
+      "method_calls": 22,
+      "class_surfaces": 0,
+      "function_scopes": 5
+    },
+    {
+      "file": "core/DecisionLedgerLogger.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "367aa42bc0d6f2be49129b61190e446fe6b7ef806c8f6175227d36d6d0476fb1",
+      "source_bytes": 3932,
+      "property_references": 54,
+      "method_calls": 29,
+      "class_surfaces": 0,
+      "function_scopes": 9
+    },
+    {
+      "file": "core/DrawdownTracker.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "3417b5fd6260338bae821bffd4b6728fb67f6815b5cae283289d3e8783ae5f9a",
+      "source_bytes": 1856,
+      "property_references": 55,
+      "method_calls": 11,
+      "class_surfaces": 1,
+      "function_scopes": 6
+    },
+    {
+      "file": "core/DynamicPositionSizer.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "14f5141e872b2ff74b7c2e0cd3a245a322f065fc99905c4c77ef80f5e6bc7f29",
+      "source_bytes": 16498,
+      "property_references": 117,
+      "method_calls": 43,
+      "class_surfaces": 1,
+      "function_scopes": 7
+    },
+    {
+      "file": "core/EMACalibrator.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "d78e50e80a3760534c45ddb4bb003405351a6e844736ca7e85c1d39aacde28c5",
+      "source_bytes": 6675,
+      "property_references": 86,
+      "method_calls": 38,
+      "class_surfaces": 1,
+      "function_scopes": 9
+    },
+    {
+      "file": "core/EnhancedPatternRecognition.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "6d3f0ef655e11fe43bf7097ccb754a9ee12155aefb1b6c901cd40af2ae910365",
+      "source_bytes": 28006,
+      "property_references": 313,
+      "method_calls": 122,
+      "class_surfaces": 2,
+      "function_scopes": 29
+    },
+    {
+      "file": "core/ErrorHandler.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "7ab8076eff5cb3264d4982f1418f0a633ff3525d212a0b61f27694c473f8e547",
+      "source_bytes": 4878,
+      "property_references": 67,
+      "method_calls": 28,
+      "class_surfaces": 1,
+      "function_scopes": 9
+    },
+    {
+      "file": "core/EvalRuleEngine.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "4d6c6418914f9da34212333750e2a3955ccbd836d1c9dadf27b61f7a5b7a0413",
+      "source_bytes": 26552,
+      "property_references": 371,
+      "method_calls": 125,
+      "class_surfaces": 1,
+      "function_scopes": 28
+    },
+    {
+      "file": "core/EventLoopMonitor.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "39675e75a298272cfd65ac78b6e446fed6f75acff5fb8f7cbcb093bac0580072",
+      "source_bytes": 7436,
+      "property_references": 161,
+      "method_calls": 45,
+      "class_surfaces": 1,
+      "function_scopes": 20
+    },
+    {
+      "file": "core/ExitContractManager.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "dfe88385f9f4666db471099be8cb5a8695c6a8fa171b39cded60d3fb52c0ff51",
+      "source_bytes": 47141,
+      "property_references": 523,
+      "method_calls": 123,
+      "class_surfaces": 1,
+      "function_scopes": 39
+    },
+    {
+      "file": "core/FeatureExtractor.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "b5be346ab3c8d62be1c42b2ca81b7161ff1c26f7b9bbd918e1cdab352ae7daf4",
+      "source_bytes": 11695,
+      "property_references": 127,
+      "method_calls": 50,
+      "class_surfaces": 1,
+      "function_scopes": 18
+    },
+    {
+      "file": "core/FeatureFlagManager.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "5766c4c53ede6231f54942698905f1ee032d40229ce82257bd137037e2216fc6",
+      "source_bytes": 9084,
+      "property_references": 68,
+      "method_calls": 26,
+      "class_surfaces": 1,
+      "function_scopes": 26
+    },
+    {
+      "file": "core/FeeModel.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "1cfc40f1d61f553ed48abc66aff05e563d4357a729080dfd7969ff0a1cacd74a",
+      "source_bytes": 5238,
+      "property_references": 63,
+      "method_calls": 23,
+      "class_surfaces": 1,
+      "function_scopes": 14
+    },
+    {
+      "file": "core/FibonacciDetector.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "33483b9d9767499a73358b31862c1f2b40319b93dd70a82318666964d1eb49be",
+      "source_bytes": 13681,
+      "property_references": 123,
+      "method_calls": 24,
+      "class_surfaces": 1,
+      "function_scopes": 11
+    },
+    {
+      "file": "core/IndicatorCalculator.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "941138f5831a0bd08dd3924b7c461c49abf6a24550b417502b380df77acdd323",
+      "source_bytes": 19412,
+      "property_references": 125,
+      "method_calls": 81,
+      "class_surfaces": 1,
+      "function_scopes": 30
+    },
+    {
+      "file": "core/KillSwitch.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "92eff1dc3f5b3ddf1441b2f75c965143215be9fefee3d8043920e18e1fa81bd6",
+      "source_bytes": 5806,
+      "property_references": 50,
+      "method_calls": 29,
+      "class_surfaces": 1,
+      "function_scopes": 6
+    },
+    {
+      "file": "core/KrakenAdapterV2.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "86d98ed9583d7e7feb3f696225142e68aeed327f8fc70e44b9a663333f6d396c",
+      "source_bytes": 10678,
+      "property_references": 88,
+      "method_calls": 44,
+      "class_surfaces": 1,
+      "function_scopes": 34
+    },
+    {
+      "file": "core/MAExtensionFilter.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "a4244d38b06c494d0a9d2a5a628991f76514469b934ef6dd1ba4e84452c7654a",
+      "source_bytes": 14948,
+      "property_references": 297,
+      "method_calls": 51,
+      "class_surfaces": 1,
+      "function_scopes": 19
+    },
+    {
+      "file": "core/MarketRegimeDetector.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "7e6bb22acd5f9afd75a11d72561d108a04eadfe0865aeca0adc197aafa9bc7ab",
+      "source_bytes": 26528,
+      "property_references": 392,
+      "method_calls": 103,
+      "class_surfaces": 1,
+      "function_scopes": 30
+    },
+    {
+      "file": "core/MemoryManager.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "8a0e4790b85c378e0fc54524e8c5bebb19c28d7534eaf03996b86116ab8d082d",
+      "source_bytes": 5309,
+      "property_references": 95,
+      "method_calls": 21,
+      "class_surfaces": 3,
+      "function_scopes": 26
+    },
+    {
+      "file": "core/MessageQueue.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "d584c8d8b13ba3f1b444128a727a67c5d9dc20c58a52d1ea8673ab09e7ae6883",
+      "source_bytes": 3081,
+      "property_references": 68,
+      "method_calls": 11,
+      "class_surfaces": 1,
+      "function_scopes": 8
+    },
+    {
+      "file": "core/ModuleAutoLoader.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "182e0df810fd622767b0aa0ddda326210865b0ea8cc06185b25e08c35c716b78",
+      "source_bytes": 14212,
+      "property_references": 220,
+      "method_calls": 121,
+      "class_surfaces": 1,
+      "function_scopes": 27
+    },
+    {
+      "file": "core/ModuleInitializer.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "bda4267081c6b13cf64ce3d42be79bdb12e6f1161f98a47ac1f50e7b39d45beb",
+      "source_bytes": 1154,
+      "property_references": 8,
+      "method_calls": 5,
+      "class_surfaces": 1,
+      "function_scopes": 2
+    },
+    {
+      "file": "core/MultiAssetManager.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "9fb0f1d5fc75d7aeb5c4248d70e1e258696ea1044fcc2ad2f8efced4159d6763",
+      "source_bytes": 9895,
+      "property_references": 105,
+      "method_calls": 39,
+      "class_surfaces": 1,
+      "function_scopes": 15
+    },
+    {
+      "file": "core/NewsSearchProvider.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "b162a3bb83c3a23e4c9ce61eb280c30554ed22f4649345a3a36cb2d2180891e1",
+      "source_bytes": 22996,
+      "property_references": 247,
+      "method_calls": 105,
+      "class_surfaces": 0,
+      "function_scopes": 36
+    },
+    {
+      "file": "core/NtfyTraceNotifier.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "11f4c14814416f16afe3deea619afdff16fb44c49d319176eed07b093b104247",
+      "source_bytes": 6638,
+      "property_references": 100,
+      "method_calls": 34,
+      "class_surfaces": 1,
+      "function_scopes": 21
+    },
+    {
+      "file": "core/OgzTpoIntegration.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "7c2f3bd5d22deb58fc9420f549eaf038f270c1849f8b48d62d00170c3a3b5a09",
+      "source_bytes": 21404,
+      "property_references": 345,
+      "method_calls": 57,
+      "class_surfaces": 1,
+      "function_scopes": 22
+    },
+    {
+      "file": "core/OptimizedIndicators.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "bfe35c5a7c31d4f7e22df807f7ae2986e2a521c020389db2ba0ed5e3c68e954a",
+      "source_bytes": 17433,
+      "property_references": 249,
+      "method_calls": 93,
+      "class_surfaces": 1,
+      "function_scopes": 32
+    },
+    {
+      "file": "core/OrderExecutor.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "dd84efdff511b033f5c66b8e7867efa3ebfbdb661a51a4b06d7aaa50823f8dd5",
+      "source_bytes": 254353,
+      "property_references": 3459,
+      "method_calls": 1032,
+      "class_surfaces": 1,
+      "function_scopes": 166
+    },
+    {
+      "file": "core/OrderRouter.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "826f462bd463d5a1eba694648786c87da2637f99fd5605f55d0b4fde8ee18545",
+      "source_bytes": 22019,
+      "property_references": 288,
+      "method_calls": 149,
+      "class_surfaces": 1,
+      "function_scopes": 36
+    },
+    {
+      "file": "core/OutputPaths.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "0b1c1da942182adf81ae7783c630acf9142be9078151c11e2124dc1a147ce237",
+      "source_bytes": 2815,
+      "property_references": 16,
+      "method_calls": 12,
+      "class_surfaces": 0,
+      "function_scopes": 7
+    },
+    {
+      "file": "core/PIDController.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "0547d70f57b72b1a6f44ea5562a4d21036c4b31bdd4bb24711e7959ac93213d4",
+      "source_bytes": 12470,
+      "property_references": 223,
+      "method_calls": 71,
+      "class_surfaces": 2,
+      "function_scopes": 21
+    },
+    {
+      "file": "core/PatternBasedExitModel.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "b457c2f1d1c13d57b600c9e2284ebd87471a03ca9dc6063549dce0dda4634f7e",
+      "source_bytes": 17063,
+      "property_references": 306,
+      "method_calls": 67,
+      "class_surfaces": 1,
+      "function_scopes": 22
+    },
+    {
+      "file": "core/PatternMaturity.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "4900b8a6e23206d305a5a9767d8d05ed5c15e283236f7c59f527057bd72ab878",
+      "source_bytes": 2970,
+      "property_references": 52,
+      "method_calls": 7,
+      "class_surfaces": 0,
+      "function_scopes": 7
+    },
+    {
+      "file": "core/PatternMemoryBank.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "02a9d1c60dce0b2736d9993d008f05ed8ce85b48d8410a31449c5d9447a27707",
+      "source_bytes": 47488,
+      "property_references": 742,
+      "method_calls": 189,
+      "class_surfaces": 1,
+      "function_scopes": 47
+    },
+    {
+      "file": "core/PatternQualityScoring.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "7aef5d7033cc2f24dae3c31449764cb53ae8e9c9dc738f2455b761db6b0aff93",
+      "source_bytes": 6559,
+      "property_references": 100,
+      "method_calls": 35,
+      "class_surfaces": 1,
+      "function_scopes": 16
+    },
+    {
+      "file": "core/PatternScope.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "872a2a74cb4ad1085a665505f228a2d30b8c4adfeaaa143b92d2b7aa4b41a9ce",
+      "source_bytes": 3091,
+      "property_references": 43,
+      "method_calls": 14,
+      "class_surfaces": 0,
+      "function_scopes": 4
+    },
+    {
+      "file": "core/PerformanceAnalyzer.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "960012bc0cc6670436ff38841fc8b32a567cf8121c94bd44faea2f1b55f17513",
+      "source_bytes": 40968,
+      "property_references": 384,
+      "method_calls": 96,
+      "class_surfaces": 1,
+      "function_scopes": 31
+    },
+    {
+      "file": "core/PerformanceDashboardIntegration.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "ea526c5d71d26ee45d5ffa8d1197f37097727b8988524aa6c3b76761a3bde57e",
+      "source_bytes": 6000,
+      "property_references": 77,
+      "method_calls": 32,
+      "class_surfaces": 1,
+      "function_scopes": 11
+    },
+    {
+      "file": "core/PerformanceValidator.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "a5d5b551330a5d28c6a9b218db672ae6c309d0f92620fe72cd9eb8243fffd47e",
+      "source_bytes": 16082,
+      "property_references": 285,
+      "method_calls": 72,
+      "class_surfaces": 1,
+      "function_scopes": 22
+    },
+    {
+      "file": "core/PerformanceVisualizer.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "80014fb993ba729a067b4e2918e9de4b7cc2d9329204b8d2464a8409cd64de22",
+      "source_bytes": 31422,
+      "property_references": 431,
+      "method_calls": 123,
+      "class_surfaces": 1,
+      "function_scopes": 22
+    },
+    {
+      "file": "core/PipelineSnapshot.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "138d289b9b45129b455f81037fe37bdbe89a914532ecfb877032cbc61348db47",
+      "source_bytes": 14713,
+      "property_references": 251,
+      "method_calls": 88,
+      "class_surfaces": 1,
+      "function_scopes": 38
+    },
+    {
+      "file": "core/PnLCalculator.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "1739a6f0ceb5f4d1d4e027859017d5e1673b5b6e848af1aad3e9ddf3ef3a7da8",
+      "source_bytes": 4974,
+      "property_references": 37,
+      "method_calls": 14,
+      "class_surfaces": 1,
+      "function_scopes": 9
+    },
+    {
+      "file": "core/PnLTracker.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "7e0745f12d3c506ace1cb70da9920328f21e7a399a65acc3bf5d37f515c30932",
+      "source_bytes": 2664,
+      "property_references": 78,
+      "method_calls": 15,
+      "class_surfaces": 1,
+      "function_scopes": 6
+    },
+    {
+      "file": "core/PolicyBuilder.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "066a6d2a8fd63fd4e0a06bf822300ed8441e0c2b56eaf068108da1fab1a0da18",
+      "source_bytes": 25024,
+      "property_references": 163,
+      "method_calls": 33,
+      "class_surfaces": 0,
+      "function_scopes": 36
+    },
+    {
+      "file": "core/PositionEffect.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "70a5a4df27ccfd8972ab6bbfa954776abc64839ba1e80e8f061bca704f35e0b0",
+      "source_bytes": 1250,
+      "property_references": 8,
+      "method_calls": 7,
+      "class_surfaces": 0,
+      "function_scopes": 4
+    },
+    {
+      "file": "core/PositionSizer.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "e98e07537ffcf3d857871f6aff518eddd0d06c071d979620afa8a609a5dffcba",
+      "source_bytes": 6304,
+      "property_references": 45,
+      "method_calls": 21,
+      "class_surfaces": 1,
+      "function_scopes": 8
+    },
+    {
+      "file": "core/PositionTracker.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "3ec7bcbee8f23e700a6a84985b6524e8ef708ecd10bf7b2a1160ac76fbf0f4ea",
+      "source_bytes": 17493,
+      "property_references": 220,
+      "method_calls": 77,
+      "class_surfaces": 1,
+      "function_scopes": 26
+    },
+    {
+      "file": "core/ProfitExitPlanner.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "b4a7a5a5bc78522f88e84b4d7e9f391a0d3c41b75d62d9d9d4db1e77e2fb1994",
+      "source_bytes": 11478,
+      "property_references": 126,
+      "method_calls": 27,
+      "class_surfaces": 0,
+      "function_scopes": 20
+    },
+    {
+      "file": "core/RegimeDetector.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "ed6591dbe64900304ab6f2b84355e53aca45f72a3b18ccef5db74f926c3ca570",
+      "source_bytes": 12314,
+      "property_references": 100,
+      "method_calls": 30,
+      "class_surfaces": 1,
+      "function_scopes": 12
+    },
+    {
+      "file": "core/RiskManager.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "bf6472b4657b428d2d789d6409b307cd0cda5886760e8b5c1dda417887241ee9",
+      "source_bytes": 8295,
+      "property_references": 158,
+      "method_calls": 50,
+      "class_surfaces": 1,
+      "function_scopes": 16
+    },
+    {
+      "file": "core/RiskManagerConfig.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "a154b3933589c0a5a77d14650d42147d7fdfce95eba2b74d195535b084386c59",
+      "source_bytes": 6535,
+      "property_references": 23,
+      "method_calls": 20,
+      "class_surfaces": 0,
+      "function_scopes": 11
+    },
+    {
+      "file": "core/RuntimeAuditSink.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "148aae5f6a04008f31ba97f4cd0c2f17995b30e0e304babb58691d92fc276fb7",
+      "source_bytes": 16131,
+      "property_references": 218,
+      "method_calls": 71,
+      "class_surfaces": 1,
+      "function_scopes": 30
+    },
+    {
+      "file": "core/RuntimeConfigProof.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "0aa906847a6925d175808547984ad97fc83d4812e021341cf9431deacacd5722",
+      "source_bytes": 7734,
+      "property_references": 22,
+      "method_calls": 6,
+      "class_surfaces": 0,
+      "function_scopes": 7
+    },
+    {
+      "file": "core/SessionRouter.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "0a20cd1a3ce903431157c91539aab026c5377689d03165d9429272d65007edf0",
+      "source_bytes": 76377,
+      "property_references": 1268,
+      "method_calls": 399,
+      "class_surfaces": 1,
+      "function_scopes": 105
+    },
+    {
+      "file": "core/SingletonLock.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "b6e89a882656150397c35e58f0b6772c582ba638f398296fc9074434961f3c84",
+      "source_bytes": 15479,
+      "property_references": 245,
+      "method_calls": 90,
+      "class_surfaces": 1,
+      "function_scopes": 26
+    },
+    {
+      "file": "core/StateManager.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "2fbb21e0722d30dd47cc863603ec7231dcde0719fc7f6463d4a4a65eab6d3cc3",
+      "source_bytes": 201276,
+      "property_references": 2505,
+      "method_calls": 834,
+      "class_surfaces": 1,
+      "function_scopes": 175
+    },
+    {
+      "file": "core/StrategyOrchestrator.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "354ddc6aa4aab8e6a44908d2785f4c07f7242919dedf3f229f323ce9f28bd924",
+      "source_bytes": 134671,
+      "property_references": 1768,
+      "method_calls": 549,
+      "class_surfaces": 1,
+      "function_scopes": 144
+    },
+    {
+      "file": "core/Supervisor.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "7c7f8ac4f97ddaab00bd928b8827f6858a2a8ace3305f7746babcbb60b8c0314",
+      "source_bytes": 45530,
+      "property_references": 432,
+      "method_calls": 136,
+      "class_surfaces": 1,
+      "function_scopes": 39
+    },
+    {
+      "file": "core/SupportResistanceDetector.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "1edb5b485b880f06ac34f7c90c3d6bee4b75c421a0aecd75f9b2dc8adc06d26a",
+      "source_bytes": 15894,
+      "property_references": 178,
+      "method_calls": 48,
+      "class_surfaces": 1,
+      "function_scopes": 25
+    },
+    {
+      "file": "core/SymbolTradingContext.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "b3ffbd2ff1aff73f477bf91355c911df0a32ee300710f845d9fb8d89a34944c6",
+      "source_bytes": 7088,
+      "property_references": 42,
+      "method_calls": 3,
+      "class_surfaces": 1,
+      "function_scopes": 7
+    },
+    {
+      "file": "core/TRAIDecisionModule.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "eb41d6c4000b6c6c22d635998b31386b9d3769e4ad99eb2b4d50c61b45742c77",
+      "source_bytes": 44472,
+      "property_references": 664,
+      "method_calls": 203,
+      "class_surfaces": 1,
+      "function_scopes": 35
+    },
+    {
+      "file": "core/TRAIPatternIntegration.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "899dd389c58c6cc5c00f6b074f791588b385d0e34424a383f3a6f332e1dd119e",
+      "source_bytes": 7940,
+      "property_references": 137,
+      "method_calls": 25,
+      "class_surfaces": 1,
+      "function_scopes": 7
+    },
+    {
+      "file": "core/TRAIWebContext.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "69c571e92f86c5d386551edf1284a2426ffa2bac6c8963b20f7cbcf8614dbe45",
+      "source_bytes": 11325,
+      "property_references": 138,
+      "method_calls": 39,
+      "class_surfaces": 0,
+      "function_scopes": 12
+    },
+    {
+      "file": "core/Telemetry.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "c1df36e9162cd13fa3922f1054577b033e5a495daa7b9cb76a9ce07aad5d7577",
+      "source_bytes": 5578,
+      "property_references": 147,
+      "method_calls": 29,
+      "class_surfaces": 1,
+      "function_scopes": 12
+    },
+    {
+      "file": "core/TimeFrameManager.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "7cf1b2a22c606c5fb831abae4d160868c40fb6862cf42dbd0a375bc7e78c7ba6",
+      "source_bytes": 33770,
+      "property_references": 482,
+      "method_calls": 186,
+      "class_surfaces": 1,
+      "function_scopes": 60
+    },
+    {
+      "file": "core/TimeframeEngine.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "43ce0bdd3f71d107105436ceee6f42fe61194ff40a237e0cd631f71fb99f52af",
+      "source_bytes": 13496,
+      "property_references": 193,
+      "method_calls": 68,
+      "class_surfaces": 1,
+      "function_scopes": 27
+    },
+    {
+      "file": "core/TraceSpine.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "6aff25395a4469238ab202115aa53ad3b46b95c17c4b2de4ceac644aae4927d1",
+      "source_bytes": 12170,
+      "property_references": 119,
+      "method_calls": 56,
+      "class_surfaces": 0,
+      "function_scopes": 26
+    },
+    {
+      "file": "core/TradeIntelligenceEngine.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "29d9e341738cf900ebda0498a639881a865081aef31880181ff5ab87fe2c28d0",
+      "source_bytes": 56872,
+      "property_references": 673,
+      "method_calls": 181,
+      "class_surfaces": 1,
+      "function_scopes": 24
+    },
+    {
+      "file": "core/TradeJournal.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "fc025edd4513030e10680fd2e940538791cf1b03fe6ee4c077942ed8035909d3",
+      "source_bytes": 70365,
+      "property_references": 1103,
+      "method_calls": 354,
+      "class_surfaces": 1,
+      "function_scopes": 84
+    },
+    {
+      "file": "core/TradeJournalBridge.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "002c28ec0106f765a8cc8600ec79aa819f59bb042fa1a55da0b5d5e041858e0e",
+      "source_bytes": 89279,
+      "property_references": 1480,
+      "method_calls": 476,
+      "class_surfaces": 1,
+      "function_scopes": 132
+    },
+    {
+      "file": "core/TradeNarrator.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "47b14c6a487eb8c78cdf8f1cad0764f7fe46fd248ca916f8c21cd6dae423cae0",
+      "source_bytes": 35878,
+      "property_references": 436,
+      "method_calls": 175,
+      "class_surfaces": 1,
+      "function_scopes": 52
+    },
+    {
+      "file": "core/TradeReplayCapture.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "5e8bcc70eadf5b76228ab6363812d0dd2bd777108caeb48c113e8870d177d4f1",
+      "source_bytes": 10731,
+      "property_references": 151,
+      "method_calls": 49,
+      "class_surfaces": 1,
+      "function_scopes": 18
+    },
+    {
+      "file": "core/TradingLoop.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "268f9147357c59784bcb9e40110b18968caccfcbf9d97be2a4b6c32846f61873",
+      "source_bytes": 104101,
+      "property_references": 1591,
+      "method_calls": 474,
+      "class_surfaces": 1,
+      "function_scopes": 94
+    },
+    {
+      "file": "core/TtpCutoffEnforcer.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "b521848084723b6805c5cb8e1ef8a93dd839432e28216f3e1252a538b1711f80",
+      "source_bytes": 37534,
+      "property_references": 582,
+      "method_calls": 257,
+      "class_surfaces": 1,
+      "function_scopes": 48
+    },
+    {
+      "file": "core/TwoPoleOscillator.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "94da817ac63600138858c51df26898861ce8bb6ab29f187f0ffd0c0bc2487b4b",
+      "source_bytes": 20696,
+      "property_references": 463,
+      "method_calls": 97,
+      "class_surfaces": 1,
+      "function_scopes": 15
+    },
+    {
+      "file": "core/UnifiedPatternMemory.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "dae780c2fe0dabe9c66b858969d72f885f87aeb602f7a4ee93721af6be429182",
+      "source_bytes": 46360,
+      "property_references": 646,
+      "method_calls": 202,
+      "class_surfaces": 1,
+      "function_scopes": 66
+    },
+    {
+      "file": "core/VolumeProfile.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "6377b0e20b7ef7e1f410790604ea9641f26b83c5ec5202ec4c321bbb8abb1e99",
+      "source_bytes": 14805,
+      "property_references": 145,
+      "method_calls": 36,
+      "class_surfaces": 1,
+      "function_scopes": 14
+    },
+    {
+      "file": "core/WebSocketManager.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "1d089eee395e3c9362f3a21206e851bdb95573d05bde844abd684031bc4a0f51",
+      "source_bytes": 19069,
+      "property_references": 396,
+      "method_calls": 114,
+      "class_surfaces": 1,
+      "function_scopes": 23
+    },
+    {
+      "file": "core/WebhookOrderAdapter.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "7c15d70259bd1a502ece9fccd9dbf26bc5e4512d9ddf862399b8d4a91b7c5ec2",
+      "source_bytes": 11162,
+      "property_references": 139,
+      "method_calls": 40,
+      "class_surfaces": 1,
+      "function_scopes": 11
+    },
+    {
+      "file": "core/WhaleFilings.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "0227af520fb17f59091d5a28466316fc0089616c0f81307fd383a35162713272",
+      "source_bytes": 12246,
+      "property_references": 159,
+      "method_calls": 70,
+      "class_surfaces": 0,
+      "function_scopes": 13
+    },
+    {
+      "file": "core/dto/DecisionLedgerSchema.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "c19286872229a31493c0b8b1e5cdf63311ccabfd80dbeed9431c4b26af2c8bf3",
+      "source_bytes": 8013,
+      "property_references": 219,
+      "method_calls": 178,
+      "class_surfaces": 0,
+      "function_scopes": 10
+    },
+    {
+      "file": "core/dto/ExitContractOwnership.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "5574b18d725b7ce0c544ccc47e39d1bd33d84cd82b6e402808a137b55ba0e3aa",
+      "source_bytes": 661,
+      "property_references": 7,
+      "method_calls": 2,
+      "class_surfaces": 0,
+      "function_scopes": 1
+    },
+    {
+      "file": "core/dto/FrozenExitPolicy.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "76300ec0b959d5964fa14a49cefbf9614718a35b723e22e7062bb8fe84f359f4",
+      "source_bytes": 1475,
+      "property_references": 23,
+      "method_calls": 16,
+      "class_surfaces": 0,
+      "function_scopes": 8
+    },
+    {
+      "file": "core/dto/IndicatorSnapshotDTO.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "77e2e0d313aedff1bf606fb39b4e4e802e658d0cedcf022b6994cd9c8f98b00e",
+      "source_bytes": 3180,
+      "property_references": 124,
+      "method_calls": 116,
+      "class_surfaces": 0,
+      "function_scopes": 3
+    },
+    {
+      "file": "core/exit/BreakEvenManager.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "dae3bc5dd49b85914005befaa6103e96d3214b77c5a9bcfbce787894fa8c7f42",
+      "source_bytes": 3807,
+      "property_references": 19,
+      "method_calls": 9,
+      "class_surfaces": 1,
+      "function_scopes": 5
+    },
+    {
+      "file": "core/exit/DynamicTrailingStop.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "ecab996abd83f622af6da3b33b587d2c78ab8a79386df7e4f11147e947662715",
+      "source_bytes": 11030,
+      "property_references": 125,
+      "method_calls": 24,
+      "class_surfaces": 1,
+      "function_scopes": 6
+    },
+    {
+      "file": "core/exit/MaxHoldChecker.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "84aeefd5e9243466168ce63101617a9bb427c05d15fa8ca46d0fce37e337797b",
+      "source_bytes": 1830,
+      "property_references": 11,
+      "method_calls": 3,
+      "class_surfaces": 1,
+      "function_scopes": 3
+    },
+    {
+      "file": "core/exit/StopLossChecker.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "417f319632b7935a451ba599c0ea770dc2c2530a126abb150136bec0a903249d",
+      "source_bytes": 3244,
+      "property_references": 26,
+      "method_calls": 4,
+      "class_surfaces": 1,
+      "function_scopes": 3
+    },
+    {
+      "file": "core/exit/TakeProfitChecker.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "041cf71d8903ed31dd5ed09e43a6143e3b32de6c218019841c43fc8f75029e31",
+      "source_bytes": 1091,
+      "property_references": 8,
+      "method_calls": 1,
+      "class_surfaces": 1,
+      "function_scopes": 1
+    },
+    {
+      "file": "core/exit/TrailingStopChecker.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "0f1347d006a512aaa42c9406d53be519d6936a533ccb5aa55085b9caf616b3c0",
+      "source_bytes": 3563,
+      "property_references": 29,
+      "method_calls": 4,
+      "class_surfaces": 1,
+      "function_scopes": 3
+    },
+    {
+      "file": "core/indicators/IndicatorEngine.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "5d22379c4505673d6a9b0a9850e60d06f3c11cf5951096b906fe86ec54369f65",
+      "source_bytes": 49493,
+      "property_references": 1466,
+      "method_calls": 268,
+      "class_surfaces": 1,
+      "function_scopes": 80
+    },
+    {
+      "file": "core/indicators/TwoPoleOscillator.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "7de87122f39ad9aab9025c129b755da4bada1315c107ccf904e8109e13cc232e",
+      "source_bytes": 11488,
+      "property_references": 147,
+      "method_calls": 34,
+      "class_surfaces": 1,
+      "function_scopes": 13
+    },
+    {
+      "file": "core/invariants.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "30b80f035651e754ac1e737cf250ae4292a1c2e305a389999d041672058d89b5",
+      "source_bytes": 1230,
+      "property_references": 10,
+      "method_calls": 4,
+      "class_surfaces": 0,
+      "function_scopes": 3
+    },
+    {
+      "file": "core/ogzTwoPoleOscillator.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "8ded3a3635ee6e39bb88dc41def43a23c7636579957a63b1915d2807f882412e",
+      "source_bytes": 11461,
+      "property_references": 41,
+      "method_calls": 23,
+      "class_surfaces": 0,
+      "function_scopes": 10
+    },
+    {
+      "file": "core/persistent_llm_client.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "91823e569ba22f7914025f25265f4eb296bbb0aaab8d463481626592376b86c7",
+      "source_bytes": 27910,
+      "property_references": 455,
+      "method_calls": 140,
+      "class_surfaces": 1,
+      "function_scopes": 32
+    },
+    {
+      "file": "core/session-router/TransitionStore.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "534cd8b626287720feaa9d44fa403ca5e07d238127ba12758e2b175674fec524",
+      "source_bytes": 18361,
+      "property_references": 344,
+      "method_calls": 130,
+      "class_surfaces": 1,
+      "function_scopes": 40
+    },
+    {
+      "file": "core/tradeLogger.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "a3ec58eed9e334f49878eb7ba7a3d3cd825e69f7650fc22c223a3cdc9c6a8829",
+      "source_bytes": 21819,
+      "property_references": 376,
+      "method_calls": 184,
+      "class_surfaces": 1,
+      "function_scopes": 48
+    },
+    {
+      "file": "core/trai_core.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "a854b3bada7f5408ef1d02143f5c1e10dc917c538bf70f574fed0897efcaf741",
+      "source_bytes": 44689,
+      "property_references": 679,
+      "method_calls": 265,
+      "class_surfaces": 1,
+      "function_scopes": 72
+    },
+    {
+      "file": "core/trai_llm_config.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "b4e6b39ced245d509b8c7f593c005c21116da2faf827711230e2ebaa0bc853cc",
+      "source_bytes": 3036,
+      "property_references": 30,
+      "method_calls": 10,
+      "class_surfaces": 0,
+      "function_scopes": 7
+    },
+    {
+      "file": "core/trai_symbol_extractor.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "679fb60a36e3b46ee2fd075d413f103ac7188dd65dd30b6693dbe088bf2574e0",
+      "source_bytes": 1654,
+      "property_references": 9,
+      "method_calls": 6,
+      "class_surfaces": 0,
+      "function_scopes": 3
+    },
+    {
+      "file": "foundation/ConfigLoader.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "c2d8dba5af6467161c7674b1341a4b9262d1b6466b71a63e1407495609162f63",
+      "source_bytes": 154415,
+      "property_references": 1735,
+      "method_calls": 498,
+      "class_surfaces": 1,
+      "function_scopes": 182
+    },
+    {
+      "file": "foundation/IBrokerAdapter.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "5194b814707e9c65f5f206860b5017a47dfb130dc7b787de6b9b9100f2ecee08",
+      "source_bytes": 13878,
+      "property_references": 15,
+      "method_calls": 14,
+      "class_surfaces": 1,
+      "function_scopes": 44
+    },
+    {
+      "file": "foundation/Instrument.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "c1182391d7a49d3e556e2dcab079e4a922ac9c0091f9507b0c0532a06602ffc3",
+      "source_bytes": 12859,
+      "property_references": 182,
+      "method_calls": 11,
+      "class_surfaces": 2,
+      "function_scopes": 17
+    },
+    {
+      "file": "foundation/MarketCalendar.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "a8696a6efceb8607e137748c974967c74c64cb489baf0c3f8f6735294d8563a6",
+      "source_bytes": 16240,
+      "property_references": 184,
+      "method_calls": 105,
+      "class_surfaces": 1,
+      "function_scopes": 24
+    },
+    {
+      "file": "foundation/ResilientWebSocket.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "da5bb2b60d84c4a7949bc725dc3f666c5c6f3a078ae3b43989349afe60fc2490",
+      "source_bytes": 21819,
+      "property_references": 288,
+      "method_calls": 86,
+      "class_surfaces": 1,
+      "function_scopes": 36
+    },
+    {
+      "file": "foundation/ohlc-normalize.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "d2e36fa331c19c859efb60b00b34e276a5bc4b9caa9e8d073808832b3390d0df",
+      "source_bytes": 4546,
+      "property_references": 28,
+      "method_calls": 8,
+      "class_surfaces": 0,
+      "function_scopes": 3
+    },
+    {
+      "file": "modules/BreakAndRetest.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "78c714a3f88de2893195df2923644c37da6c340327aeaa044d0ae017e80f3883",
+      "source_bytes": 29027,
+      "property_references": 466,
+      "method_calls": 103,
+      "class_surfaces": 1,
+      "function_scopes": 26
+    },
+    {
+      "file": "modules/DonchianBreakout.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "7cb886896ff1b46b9d9991a50b8e40501c8d03f7657c6d0afd2b0d636f9e6d2b",
+      "source_bytes": 5809,
+      "property_references": 111,
+      "method_calls": 30,
+      "class_surfaces": 1,
+      "function_scopes": 10
+    },
+    {
+      "file": "modules/EMASMACrossoverSignal.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "523962bb11b1d0d7dec3fa7242a97f441f89168f61225b14a9335ea7e2aea040",
+      "source_bytes": 24320,
+      "property_references": 387,
+      "method_calls": 86,
+      "class_surfaces": 1,
+      "function_scopes": 35
+    },
+    {
+      "file": "modules/EMATrendRetest.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "fac7389548d54d8b59db3c36861a348faa7e1fb7892f6e62863c6c48f364fb91",
+      "source_bytes": 11800,
+      "property_references": 230,
+      "method_calls": 70,
+      "class_surfaces": 1,
+      "function_scopes": 25
+    },
+    {
+      "file": "modules/FairValueGapDetector.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "5326ef459101d0c686f00f1d8e75c1ccda84c7f3a84c79cc9fd337e2d4915c77",
+      "source_bytes": 6629,
+      "property_references": 46,
+      "method_calls": 7,
+      "class_surfaces": 1,
+      "function_scopes": 7
+    },
+    {
+      "file": "modules/LiquiditySweepDetector.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "a496229ce623c3de36bea343e2f6bf3a30ad03aa2a33981145c8e8d9d3146ff3",
+      "source_bytes": 23514,
+      "property_references": 563,
+      "method_calls": 101,
+      "class_surfaces": 1,
+      "function_scopes": 34
+    },
+    {
+      "file": "modules/MADynamicSR.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "1bd9de7096a74cb70c7987031e3ba4dd6ef8d6586eb757a4fb495eee2aa06e06",
+      "source_bytes": 39547,
+      "property_references": 618,
+      "method_calls": 106,
+      "class_surfaces": 1,
+      "function_scopes": 44
+    },
+    {
+      "file": "modules/MultiTimeframeAdapter.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "68c2cc408ad77584293801ed34054cbbd081bfdec1a4cda5d71cb4ed5594c042",
+      "source_bytes": 18264,
+      "property_references": 293,
+      "method_calls": 89,
+      "class_surfaces": 1,
+      "function_scopes": 30
+    },
+    {
+      "file": "modules/NoWickImbalance.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "eb1b361492ec979fffcb95eaeeb332014fe9067cabed0ec288dc5ab00cd17096",
+      "source_bytes": 23215,
+      "property_references": 438,
+      "method_calls": 109,
+      "class_surfaces": 1,
+      "function_scopes": 31
+    },
+    {
+      "file": "modules/OpeningRangeBreakout.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "23bdff8ae88bbf6d8318b25dfa293b19dba67e5cbd6533b43d725ae894476d1d",
+      "source_bytes": 17959,
+      "property_references": 332,
+      "method_calls": 84,
+      "class_surfaces": 1,
+      "function_scopes": 30
+    },
+    {
+      "file": "modules/PropSafeEMAPullback.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "9058e977764a5092a6649950796ced2fb67c1650b87c1443b2b43af681e2fa32",
+      "source_bytes": 13296,
+      "property_references": 264,
+      "method_calls": 72,
+      "class_surfaces": 1,
+      "function_scopes": 23
+    },
+    {
+      "file": "modules/RSI2MeanReversion.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "90974b9b5e70e54459a9f0bcd6a1528ee893368d0059a07fcb64fdeb88513608",
+      "source_bytes": 6293,
+      "property_references": 142,
+      "method_calls": 25,
+      "class_surfaces": 1,
+      "function_scopes": 9
+    },
+    {
+      "file": "modules/SmartMoneySweep.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "8e1d60fb762185546431f387ec2670630234f11f3e389688b06b0acb7d341f33",
+      "source_bytes": 43981,
+      "property_references": 522,
+      "method_calls": 163,
+      "class_surfaces": 1,
+      "function_scopes": 30
+    },
+    {
+      "file": "modules/TimeSeriesMomentum.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "74af3b85dbdbaa9ada9d2a999ec04a208c9c839ff7cb5333fabe105b8b896880",
+      "source_bytes": 6994,
+      "property_references": 147,
+      "method_calls": 31,
+      "class_surfaces": 1,
+      "function_scopes": 10
+    },
+    {
+      "file": "run-empire-v2.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "6d53c723ac405fed80d512885231eac66f64c84e4ee4950097e7dde85e564bf7",
+      "source_bytes": 175566,
+      "property_references": 2579,
+      "method_calls": 757,
+      "class_surfaces": 1,
+      "function_scopes": 180
+    },
+    {
+      "file": "tools/backfill-mercury-costs.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "513e8961453fa9572a5370ca6539a066af283c9de2a195f96b19ed6b854abfef",
+      "source_bytes": 7524,
+      "property_references": 135,
+      "method_calls": 76,
+      "class_surfaces": 0,
+      "function_scopes": 13
+    },
+    {
+      "file": "tools/backtest-worker-env.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "0332d961a67759aa8633a7a6b5bdd1fe83b73c9cc195bc9543a6e88543ae759d",
+      "source_bytes": 9462,
+      "property_references": 156,
+      "method_calls": 39,
+      "class_surfaces": 0,
+      "function_scopes": 13
+    },
+    {
+      "file": "tools/cachebust.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "30a1c6c6eabffa3edd3d45c9afc695ffef2eb124d1ffb3c64a764e757c187fd2",
+      "source_bytes": 4875,
+      "property_references": 34,
+      "method_calls": 26,
+      "class_surfaces": 0,
+      "function_scopes": 4
+    },
+    {
+      "file": "tools/campaign-integrity.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "43480f6a456ec9bcd4d2f0ebeef7fc6f22fd9c403743518ba8e3a48fe76f9bbf",
+      "source_bytes": 21411,
+      "property_references": 403,
+      "method_calls": 167,
+      "class_surfaces": 0,
+      "function_scopes": 53
+    },
+    {
+      "file": "tools/config-audit.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "1e292d84cd1e348ae31a6a7323546617bbe501504882b65f41c9983e0abf96cc",
+      "source_bytes": 7747,
+      "property_references": 118,
+      "method_calls": 63,
+      "class_surfaces": 0,
+      "function_scopes": 14
+    },
+    {
+      "file": "tools/data-parity-check.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "e4b8dbe9295c8402297b359a54c59bf0b4b2f380ad62f70e03988e173f084f31",
+      "source_bytes": 20260,
+      "property_references": 390,
+      "method_calls": 136,
+      "class_surfaces": 0,
+      "function_scopes": 49
+    },
+    {
+      "file": "tools/decision-autopsy-report.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "353613d2cc7bacd42ebe7b8b10a17f5bb204ccd5c392d8a60560f9e0aae261fc",
+      "source_bytes": 14674,
+      "property_references": 345,
+      "method_calls": 75,
+      "class_surfaces": 0,
+      "function_scopes": 27
+    },
+    {
+      "file": "tools/dep-scanner.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "1c5a47b77d74fb6e8b3c209b84044e35d73f26b0f36641ae7c94f7efa4c53c3f",
+      "source_bytes": 18663,
+      "property_references": 226,
+      "method_calls": 137,
+      "class_surfaces": 0,
+      "function_scopes": 21
+    },
+    {
+      "file": "tools/eval-trade-inspector.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "60fc7b3c7ec1524423e562a32765e1774c1c565c9f57db2864d3b09bdb216bbd",
+      "source_bytes": 6387,
+      "property_references": 108,
+      "method_calls": 44,
+      "class_surfaces": 0,
+      "function_scopes": 19
+    },
+    {
+      "file": "tools/fee-profiles.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "4839f58e8dded6d23680822dd6b6d11291a75af05eb4a9bfe4ccc560ae2cd283",
+      "source_bytes": 1456,
+      "property_references": 31,
+      "method_calls": 14,
+      "class_surfaces": 0,
+      "function_scopes": 3
+    },
+    {
+      "file": "tools/grid-search-confidence.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "6ffb79ede57f3b672f5293a4de8e63f6bf4b96b9df5f4cf3fc90f102e987534f",
+      "source_bytes": 9510,
+      "property_references": 186,
+      "method_calls": 108,
+      "class_surfaces": 0,
+      "function_scopes": 17
+    },
+    {
+      "file": "tools/harvest-pattern-pack.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "cb355e711452f77d7145c651f35d8a7d031958b31d47e6668f4475c5b4ec77fa",
+      "source_bytes": 11531,
+      "property_references": 179,
+      "method_calls": 64,
+      "class_surfaces": 0,
+      "function_scopes": 9
+    },
+    {
+      "file": "tools/instrument-env.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "d5875a4050f36d91c551d24698ce5ef2ef03229cdfb83053e9f8ecc6956c7375",
+      "source_bytes": 325,
+      "property_references": 5,
+      "method_calls": 0,
+      "class_surfaces": 0,
+      "function_scopes": 0
+    },
+    {
+      "file": "tools/kill-switch.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "f55850063f7e09e2a7ccadaa8d6922ca4b147c478bd79a41f411f7246fa73ff5",
+      "source_bytes": 2613,
+      "property_references": 48,
+      "method_calls": 42,
+      "class_surfaces": 0,
+      "function_scopes": 0
+    },
+    {
+      "file": "tools/lint-fallbacks.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "4a53b531c44731141ce305c38f04dcb2d275b93ab13dba343346bef017ed1f2f",
+      "source_bytes": 11287,
+      "property_references": 126,
+      "method_calls": 69,
+      "class_surfaces": 0,
+      "function_scopes": 23
+    },
+    {
+      "file": "tools/matrix-sweep.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "c714ec85ae81a640d8297b7554885377635c0ca843912fd1554a281cf366748a",
+      "source_bytes": 50238,
+      "property_references": 738,
+      "method_calls": 373,
+      "class_surfaces": 0,
+      "function_scopes": 65
+    },
+    {
+      "file": "tools/parallel-backtest.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "bd63bde10fab821b044afaa69a9c876bf51885c65799c69d157bc079d97ed627",
+      "source_bytes": 38453,
+      "property_references": 475,
+      "method_calls": 241,
+      "class_surfaces": 0,
+      "function_scopes": 56
+    },
+    {
+      "file": "tools/probe-tfe-alive.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "8672f00d2fa6afcef6805465f8b3b0fc690772847fafb1a763c3892137b594d0",
+      "source_bytes": 5058,
+      "property_references": 103,
+      "method_calls": 49,
+      "class_surfaces": 0,
+      "function_scopes": 23
+    },
+    {
+      "file": "tools/regression-test.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "c8ad11c0f640cc3904f16c2b613b1574b82123517f88c39bf8843ca3771202b1",
+      "source_bytes": 14826,
+      "property_references": 278,
+      "method_calls": 150,
+      "class_surfaces": 0,
+      "function_scopes": 6
+    },
+    {
+      "file": "tools/repodumpforgpt.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "b3fe0687029d9a749ce75cfd5f8a6ab63970b84e22fc0c00937657f5939ef256",
+      "source_bytes": 3007,
+      "property_references": 36,
+      "method_calls": 30,
+      "class_surfaces": 0,
+      "function_scopes": 5
+    },
+    {
+      "file": "tools/run-audit-apex.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "97ecfdf97c7c7d079362d5663b820830943e5b12aa6f660f9c9efc08ec3061d9",
+      "source_bytes": 6175,
+      "property_references": 22,
+      "method_calls": 16,
+      "class_surfaces": 0,
+      "function_scopes": 2
+    },
+    {
+      "file": "tools/run-audit-revised-part2.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "3a7bf62e18a41b90984d744db8dc979ce24f700cb47740fe85c886459088427d",
+      "source_bytes": 11480,
+      "property_references": 38,
+      "method_calls": 23,
+      "class_surfaces": 0,
+      "function_scopes": 2
+    },
+    {
+      "file": "tools/run-audit-revised.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "ab6ebef6203607e79d8d6413c7bed3f903748a6828b015cf947c3b19092da55e",
+      "source_bytes": 11433,
+      "property_references": 40,
+      "method_calls": 25,
+      "class_surfaces": 0,
+      "function_scopes": 2
+    },
+    {
+      "file": "tools/run-audit.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "14e220041a8d0af931460b201b6f6cf51d4290a7a5b226487c54cba4556d9e91",
+      "source_bytes": 5515,
+      "property_references": 20,
+      "method_calls": 14,
+      "class_surfaces": 0,
+      "function_scopes": 2
+    },
+    {
+      "file": "tools/serena-bridge.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "7d9cf87206ef8fcb920b5023a78e9f409f2b0329964c7ff780efcb9d9b29ff67",
+      "source_bytes": 11637,
+      "property_references": 187,
+      "method_calls": 60,
+      "class_surfaces": 0,
+      "function_scopes": 35
+    },
+    {
+      "file": "tools/serena-symbol-scanner.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "20b8d04dec805d4f4d4640a4db6b36ee973f76ec48d226b70a7d3fa304712de8",
+      "source_bytes": 23742,
+      "property_references": 400,
+      "method_calls": 129,
+      "class_surfaces": 0,
+      "function_scopes": 51
+    },
+    {
+      "file": "tools/single-backtest.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "5417027ed2cb97420f8638408cc086978ec72d1ed9827f8167cadefdd406ccc4",
+      "source_bytes": 5774,
+      "property_references": 77,
+      "method_calls": 23,
+      "class_surfaces": 0,
+      "function_scopes": 8
+    },
+    {
+      "file": "tools/strategy-lab.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "9801d7d4fb7f9241e4878d04350a066d72a7a6bb509c02415181be6799409191",
+      "source_bytes": 19287,
+      "property_references": 380,
+      "method_calls": 120,
+      "class_surfaces": 0,
+      "function_scopes": 36
+    },
+    {
+      "file": "tools/strategy-parity.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "53b6e44496d3997065afc7040dbfdae09d2faf87826d7ced0e2b427f69309860",
+      "source_bytes": 8018,
+      "property_references": 134,
+      "method_calls": 64,
+      "class_surfaces": 0,
+      "function_scopes": 10
+    },
+    {
+      "file": "tools/trade-validator.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "61e3bbcb8efe14c96cbef9c812221357a30a1c90a43d2a4dd1a8c6b454694c39",
+      "source_bytes": 20565,
+      "property_references": 312,
+      "method_calls": 135,
+      "class_surfaces": 0,
+      "function_scopes": 14
+    },
+    {
+      "file": "tools/tuning-profiles.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "0dfd1d884d7e317f08bf785474769a9d7a96dbd292ce682bee909b0f0a3d813d",
+      "source_bytes": 1239,
+      "property_references": 23,
+      "method_calls": 9,
+      "class_surfaces": 0,
+      "function_scopes": 4
+    },
+    {
+      "file": "tools/weekend-campaign-gauntlet.js",
+      "parser": "tree-sitter-javascript",
+      "source_sha256": "dfe1968f3e838b86477df090c64b1394f5754ee6d7502401d88c6f95d3e14494",
+      "source_bytes": 42450,
+      "property_references": 670,
+      "method_calls": 202,
+      "class_surfaces": 0,
+      "function_scopes": 78
+    }
+  ],
+  "property": "confluenceMinScore",
+  "total": 1,
+  "filesScanned": 172,
+  "errors": [],
+  "references": [
+    {
+      "file": "core/StrategyOrchestrator.js",
+      "line": 824,
+      "column": 4,
+      "property": "confluenceMinScore",
+      "receiver": "this",
+      "receiverPath": "this",
+      "op": "write",
+      "context": "this.confluenceMinScore = ConfigLoader.get('confidence.confluenceMinScore')",
+      "enclosing": "constructor"
+    }
+  ],
+  "truncated": false,
+  "scope": [
+    "core",
+    "modules",
+    "foundation",
+    "run-empire-v2.js",
+    "tools"
+  ],
+  "latencyMs": 9549
+}

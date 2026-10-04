@@ -1,0 +1,100 @@
+--- a/foundation/ConfigLoader.js
++++ b/foundation/ConfigLoader.js
+@@ -2546,6 +2546,14 @@
+   return null;
+ }
+ 
++function noWickConfidenceReplacementProblem(config) {
++  const problem = { reason: 'invalid_nowick_confidence', path: 'strategies.NoWickImbalance.confidence' };
++  const raw = config.strategies?.NoWickImbalance?.confidence;
++  if (typeof raw !== 'number' && (typeof raw !== 'string' || raw.trim() === '')) return problem;
++  const value = Number(raw);
++  return !Number.isFinite(value) || value < 0 || value > 1 ? problem : null;
++}
++
+ function load(opts = {}) {
+   const requestedRole = opts.role || 'bot';
+   if (_cached && !opts.force) {
+@@ -2572,7 +2580,8 @@
+       || timeSeriesMomentumConfidenceReplacementProblem(candidate.config)
+       || rsi2ConfidenceReplacementProblem(candidate.config)
+       || emaRetestConfidenceReplacementProblem(candidate.config)
+-      || propSafeConfidenceReplacementProblem(candidate.config);
++      || propSafeConfidenceReplacementProblem(candidate.config)
++      || noWickConfidenceReplacementProblem(candidate.config);
+     if (problem) {
+       // buildSnapshot restores its temporary active contexts in finally. Restore
+       // its canonical-file reads too, keeping every reader on the prior owner.
+@@ -2623,6 +2632,10 @@
+ // This is the delivered hot-edit surface, not a list of every declared setting.
+ // Add fields only with their producer/consumer connection in the same change.
+ const EDITABLE_SETTINGS = deepFreeze({
++  'strategies.NoWickImbalance.confidence': {
++    type: 'number', unit: 'fraction', min: 0, max: 1,
++    label: 'NoWick entry confidence', effect: 'next_entry_evaluation',
++  },
+   ...Object.fromEntries([
+     ['confidenceBase', 'PropSafe base confidence'],
+     ['confidenceTrendBonus', 'PropSafe trend confidence contribution'],
+@@ -3117,6 +3130,10 @@
+     const problem = propSafeConfidenceReplacementProblem(nextConfig);
+     if (problem) return reject(problem.reason, { path: problem.path });
+   }
++  if (entries.some(([key]) => key === 'strategies.NoWickImbalance.confidence')) {
++    const problem = noWickConfidenceReplacementProblem(nextConfig);
++    if (problem) return reject(problem.reason, { path: problem.path });
++  }
+   const nextEntrySizing = buildEntrySizingInput(nextConfig);
+   if (nextEntrySizing.issues.length > 0) {
+     return reject('invalid_entry_sizing_configuration', { issues: nextEntrySizing.issues });
+--- a/modules/NoWickImbalance.js
++++ b/modules/NoWickImbalance.js
+@@ -102,8 +102,9 @@
+ }
+ 
+ class NoWickImbalance {
+-  constructor(config) {
++  constructor(config, confidenceProvider) {
+     this.name = 'NoWickImbalance';
++    this.confidenceProvider = confidenceProvider;
+     this.cfg = Object.freeze(readConfig(config));
+     this.maxCandleAge = this.cfg.maxCandleAge;       // Valid for configured candle count; next candle invalidates
+     this.swingLookback = this.cfg.swingLookback;     // Candles to look back for swing points
+@@ -247,6 +248,9 @@
+   observe(ctx) { return this._evaluate(ctx, false); }
+ 
+   _evaluate(ctx, emitEntries) {
++    const confidence = emitEntries
++      ? (this.confidenceProvider === undefined ? this.cfg.confidence : Number(this.confidenceProvider()))
++      : undefined;
+     const candles = ctx.priceHistory;
+     const indicators = ctx.indicators;
+     if (!candles || candles.length < this.swingLookback) return null;
+@@ -369,7 +373,7 @@
+           entryGroupType: twinSplit ? 'twin' : 'single',
+           entryGroupId: leg.level.twinGroupId || null,
+           direction: legExit?.direction || direction,
+-          confidence: this.cfg.confidence,
++          confidence,
+           sizingMultiplier: twinSplit ? 0.5 : 1,
+           reason: `NoWick ${leg.level.type} imbalance ${this.entryMode} @ ${leg.level.level.toFixed(2)} after ${state.candleCount - leg.level.formationCount} candles | trend=${currentTrend} | ${this.targetRR}:1 RR`,
+           signalData: {
+@@ -408,7 +412,6 @@
+       if (twinSplit) twinSiblings.forEach(sibling => removeIndexes.add(sibling.index));
+       [...removeIndexes].sort((a, b) => b - a).forEach(index => state.pendingLevels.splice(index, 1));
+ 
+-      const confidence = this.cfg.confidence;
+       const primaryLeg = entryFanout[0];
+ 
+       if (this.DEBUG) {
+--- a/core/StrategyOrchestrator.js
++++ b/core/StrategyOrchestrator.js
+@@ -851,7 +851,7 @@
+     this.breakAndRetestModule = new BreakAndRetest(this.breakAndRetestConfig);
+     const NoWickImbalance = require('../modules/NoWickImbalance');
+     this.noWickConfig = ConfigLoader.get('strategies.NoWickImbalance');
+-    this.noWickModule = new NoWickImbalance(this.noWickConfig);
++    this.noWickModule = new NoWickImbalance(this.noWickConfig, () => ConfigLoader.get('strategies.NoWickImbalance.confidence'));
+     this.mtfAdapter = new MultiTimeframeAdapter(this._buildMtfAdapterConfig());
+     this.ogzTpoConfig = ConfigLoader.get('strategies.OGZTPO');
+     this.tpoIntegration = new OgzTpoIntegration(this.ogzTpoConfig);

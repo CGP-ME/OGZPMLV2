@@ -1,0 +1,20 @@
+'use strict';
+const fs=require('fs'),path=require('path'),vm=require('vm'),assert=require('assert'),Module=require('module');
+const root=process.cwd(),dir=__dirname,loaderPath=path.join(root,'foundation/ConfigLoader.js'),settingsPath=path.join(root,'config/settings.json');let disk=fs.readFileSync(settingsPath,'utf8');
+const fakeFs=Object.create(fs);fakeFs.readFileSync=(file,...args)=>path.resolve(String(file))===settingsPath?disk:fs.readFileSync(file,...args);
+function evaluate(source,file,overrides){const m={exports:{}};const req=Module.createRequire(file);vm.runInThisContext('(function(require,module,exports,__filename,__dirname,console){'+source+'\n})',{filename:file})(id=>Object.hasOwn(overrides,id)?overrides[id]:req(id),m,m.exports,file,path.dirname(file),{log(){},warn(){},error(){}});return m.exports;}
+const loader=evaluate(fs.readFileSync(path.join(dir,'candidate.js'),'utf8'),loaderPath,{'fs':fakeFs,'../core/AtomicWrite':{writeJsonAtomic(file,value){assert.equal(file,settingsPath);disk=JSON.stringify(value);}}});loader.load();
+// Retain the real strategy evaluate closure; override only indicator/MA/exit dependencies to isolate confidence arithmetic.
+const src=fs.readFileSync(path.join(dir,'orchestrator.js'),'utf8');const numeric=src.slice(src.indexOf('function requiredRsiNumber('),src.indexOf('\nfunction ',src.indexOf('function requiredRsiConfig(')+10));
+const start=src.indexOf("      evaluate: (ctx) => {",src.indexOf("name: 'RSI',"));const end=src.indexOf('\n    });',start);const closure=src.slice(start,end).replace(/^      evaluate: /,'').replace(/,\s*$/,'');
+const owner={diagFunnel:{RSI:{evaluated:0,moduleNonNull:0,nonNeutral:0,passedConf:0}},minStrategyConfidence:0,_resolveRsiRegimeMa(){return{allowed:true};}};
+const strategy=vm.runInNewContext('(function(){'+numeric+'\nreturn ('+closure+');}).call(owner)',{ConfigLoader:loader,owner,IndicatorCalculator:{calculateRSI(){return 10;}},getExitContractManager(){return{getDefaultContract(){return{};}};}});
+const ctx={priceHistory:Array(250).fill({c:100}),extras:{timeframe:'1m'}};const confidence=()=>strategy(ctx).confidence;
+let saves=0,rejections=0;function save(changes){const r=loader.getSettingsView().configuration;return loader.saveSettings({requestId:'rsi-proof-'+saves++,expectedRevision:r.settings,expectedSettingsHash:r.settingsHash,changes});}
+const full=k=>'strategies.RSI.'+k,keys=['confidenceBase','confidenceDepthRange','confidenceDepthMultiplier','maxConfidence'];
+assert.equal(save({[full('confidenceBase')]:0.2,[full('confidenceDepthRange')]:10,[full('confidenceDepthMultiplier')]:0.4,[full('maxConfidence')]:1}).success,true);const first=confidence();assert.equal(first,0.6000000000000001);
+assert.equal(save({[full('confidenceBase')]:0.3,[full('maxConfidence')]:0.5}).success,true);assert.equal(confidence(),0.5);
+const valid=disk;for(const key of keys)for(const value of [null,true,false,[],[0],{},'', ' ', 'bad',-1]){let c=JSON.parse(valid);c.strategies.RSI[key]=value;disk=JSON.stringify(c);const previous=loader.getCachedSnapshot();assert.equal(loader.load({force:true}).success,false);assert.strictEqual(loader.getCachedSnapshot(),previous);assert.equal(confidence(),0.5);rejections++;}
+for(const value of [null,true,[],{},'', '0.5']){const before=disk;assert.equal(save({[full('confidenceBase')]:value}).success,false);assert.equal(disk,before);rejections++;}
+let c=JSON.parse(valid);c.strategies.RSI.confidenceBase='0.1';c.strategies.RSI.confidenceDepthMultiplier='0.2';c.strategies.RSI.maxConfidence='0.9';disk=JSON.stringify(c);loader.load({force:true});assert.equal(confidence(),0.30000000000000004);
+fs.writeFileSync(path.join(dir,'proof.json'),JSON.stringify({saves,rejections,confidence:[first,0.5,confidence()],limits:'Real save/load and retained production RSI evaluate closure; synthetic RSI, allowed MA and exit-contract dependencies. No full orchestrator/broker/runtime/provider execution. Initial malformed startup remains unchanged.'},null,2)+'\n');console.log('RSI confidence proof passed');

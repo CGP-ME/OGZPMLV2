@@ -1,0 +1,134 @@
+===================================================================
+--- a/core/StrategyOrchestrator.js
++++ b/core/StrategyOrchestrator.js
+@@ -1967,8 +1967,9 @@
+           ctx.extras?.symbol,
+           tpoIntegrationModule,
+           () => new OgzTpoIntegration(ogzTpoConfig)
+         );
++        scopedTpoIntegration.config.enabled = ConfigLoader.get('pipeline.enableOGZTPO');
+         const tpoBarTimestamp = latestCandle.etime
+           ?? latestCandle.timestamp
+           ?? latestCandle.time
+           ?? latestCandle.t
+@@ -2200,12 +2201,13 @@
+         ).evaluate(ctx, ConfigLoader.get('strategies.TimeSeriesMomentum'))
+       });
+     }
+ 
+-    // Apply pipeline toggles - filter strategies based on env vars
++    // Apply canonical pipeline settings to the retained strategy registrations.
+     // Keep the registered closures and per-symbol state when an operator
+     // changes which strategies may supply NEW entries.
+     this.registeredStrategies = this.strategies.slice();
++    this.builtinStrategies = new Set(this.registeredStrategies);
+     this._applyPipelineToggles();
+   }
+ 
+   /**
+@@ -2237,17 +2239,11 @@
+     const disabled = [];
+ 
+     this.strategies = this.registeredStrategies.filter(s => {
+       // The explicit custom-strategy API has no built-in pipeline switch.
+-      if (!Object.hasOwn(toggleMap, s.name)) return true;
++      if (!this.builtinStrategies.has(s)) return true;
+       const toggle = toggleMap[s.name];
+-      if (typeof toggle !== 'boolean') {
+-        throw new Error(`[PIPELINE] ${s.name} pipeline toggle must be boolean; got ${toggle}. Check config path pipeline.${s.name}`);
+-      }
+       if (toggle === false) {
+-        if (this.soloStrategies && this.soloStrategies.includes(s.name.toLowerCase())) {
+-          throw new Error(`[STRATEGY_SOLO_FILTER] ${s.name} was requested but its pipeline toggle is disabled; enable it in config or remove it from strategies.soloFilter`);
+-        }
+         disabled.push(s.name);
+         return false;
+       }
+       return true;
+@@ -2256,9 +2252,9 @@
+     if (disabled.length > 0) {
+       console.log(`[PIPELINE] Disabled ${disabled.length} strategies: ${disabled.join(', ')}`);
+     }
+     console.log(`[PIPELINE] Active strategies: ${this.strategies.map(s => s.name).join(', ')} (${this.strategies.length}/${before})`);
+-    this.pipelineConfiguration = ConfigLoader.getReceipt().fingerprint;
++    this.pipelineConfiguration = ConfigLoader.load().fingerprint;
+   }
+ 
+   /**
+    * Main entry point — evaluate all strategies independently, pick winner.
+@@ -2270,9 +2266,9 @@
+    * @param {Object} extras - { emaCrossoverSignal, maDynamicSRSignal, liquiditySweepSignal, mtfAdapter, tpoResult, price }
+    * @returns {Object} { action, direction, confidence, winnerStrategy, exitContract, sizingMultiplier, confluence, allResults }
+    */
+   evaluate(indicators, patterns = [], regime = null, priceHistory = [], extras = {}) {
+-    if (this.pipelineConfiguration !== ConfigLoader.getReceipt().fingerprint) this._applyPipelineToggles();
++    if (this.pipelineConfiguration !== ConfigLoader.load().fingerprint) this._applyPipelineToggles();
+     this.evalCount++;
+ 
+     const entrySizingInput = ConfigLoader.getEntrySizingInput();
+     const ctx = { indicators, patterns, regime, priceHistory, extras };
+@@ -3069,8 +3065,11 @@
+   /**
+    * Remove a strategy by name
+    */
+   removeStrategy(name) {
++    for (const strategy of this.registeredStrategies) {
++      if (strategy.name === name) this.builtinStrategies.delete(strategy);
++    }
+     this.registeredStrategies = this.registeredStrategies.filter(s => s.name !== name);
+     this._applyPipelineToggles();
+     console.log(`[StrategyOrchestrator] Removed strategy: ${name}`);
+   }
+===================================================================
+--- a/foundation/ConfigLoader.js
++++ b/foundation/ConfigLoader.js
+@@ -2631,8 +2631,29 @@
+ // This is the delivered hot-edit surface, not a list of every declared setting.
+ // Add fields only with their producer/consumer connection in the same change.
+ const EDITABLE_SETTINGS = deepFreeze({
+   ...Object.fromEntries([
++    ['enableRSI', 'RSI'],
++    ['enableMADynamicSR', 'MADynamicSR'],
++    ['enableEMACrossover', 'EMA crossover'],
++    ['enableLiquiditySweep', 'Liquidity sweep'],
++    ['enableCandlePattern', 'Candle pattern'],
++    ['enableBreakRetest', 'Break and retest'],
++    ['enableMarketRegime', 'Market regime'],
++    ['enableOGZTPO', 'OGZ TPO'],
++    ['enableOpeningRangeBreakout', 'Opening range breakout'],
++    ['enableSmartMoneySweep', 'Smart money sweep'],
++    ['enableNoWickImbalance', 'No wick imbalance'],
++    ['enableDonchianBreakout', 'Donchian breakout'],
++    ['enablePropSafeEMAPullback', 'PropSafe EMA pullback'],
++    ['enableEMATrendRetest', 'EMA trend retest'],
++    ['enableRSI2MeanReversion', 'RSI2 mean reversion'],
++    ['enableTimeSeriesMomentum', 'Time series momentum'],
++  ].map(([key, label]) => [`pipeline.${key}`, {
++    type: 'boolean', unit: 'boolean', scope: 'active_launch_profile',
++    label: `Enable ${label} strategy`, effect: 'next_entry_evaluation',
++  }])),
++  ...Object.fromEntries([
+     ['manipCandle', 'Liquidity sweep manipulation-candle confidence weight'],
+     ['wickSweep', 'Liquidity sweep wick confidence weight'],
+     ['sweepReject', 'Liquidity sweep rejection confidence weight'],
+     ['hammerPattern', 'Liquidity sweep hammer confidence weight'],
+@@ -3105,13 +3126,17 @@
+   }
+   if (entries.some(([key]) => key.startsWith('positionSizing.confluenceMultipliers.'))) {
+     nextConfig.sizing = cloneConfiguredObject(nextConfig.positionSizing);
+   }
++  const nextSources = clonePlain(_cached.sources);
++  if (entries.some(([key]) => key.startsWith('pipeline.enable'))) {
++    refreshDerivedAliases(nextConfig, nextSources);
++  }
+   nextConfig.revision = nextSettings.revision;
+   const revisions = { ..._cached.revisions, settings: nextSettings.revision, settingsHash: canonicalHash(nextSettings) };
+-  const nextSnapshot = { ..._cached, config: deepFreeze(nextConfig), entrySizing: nextEntrySizing, revisions: Object.freeze(revisions),
++  const nextSnapshot = { ..._cached, config: deepFreeze(nextConfig), sources: deepFreeze(nextSources), entrySizing: nextEntrySizing, revisions: Object.freeze(revisions),
+     timestamp: new Date().toISOString(),
+-    fingerprint: fingerprint(nextConfig, _cached.sources, { role: _cached.role,
++    fingerprint: fingerprint(nextConfig, nextSources, { role: _cached.role,
+       revisions: { settings: revisions.settings, internals: revisions.internals } }) };
+   try {
+     writeJsonAtomic(SETTINGS_PATH, nextSettings, { flag: 'wx' });
+   } catch (error) {

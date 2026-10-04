@@ -1,0 +1,579 @@
+/**
+ * BacktestRunner - Phase 18 Extraction
+ *
+ * EXACT COPY of loadHistoricalDataAndBacktest() from run-empire-v2.js
+ * NO logic changes. Just moved to separate file.
+ *
+ * Dependencies passed via context object in constructor.
+ *
+ * @module core/BacktestRunner
+ */
+
+'use strict';
+
+const { getInstance: getStateManager } = require('./StateManager');
+const { get: getConfigValue, getReceipt: getConfigurationReceipt } = require('../foundation/ConfigLoader');
+const { createTraceId, emitTrace, subscribeTrace } = require('./TraceSpine');
+const { toTimestampMs } = require('../foundation/ohlc-normalize');
+const { randomUUID } = require('crypto');
+const BacktestRecorder = require('./BacktestRecorder');
+const {
+  deriveReportAssetSlugFromDataFile,
+  resolveInstrumentFromDataFile,
+} = require('./DataFileInstrument');
+const { normalizeAssetSymbol } = require('./AssetRegistry');
+const stateManager = getStateManager();
+
+class BacktestRunner {
+  constructor(ctx) {
+    this.ctx = ctx;
+    console.log('[BacktestRunner] Initialized (Phase 18 - exact copy)');
+  }
+
+  assertScopedReportTrades(trades) {
+    for (let i = 0; i < trades.length; i++) {
+      BacktestRecorder.validateTradeScope(trades[i], `BacktestRunner.report trades[${i}]`);
+    }
+  }
+
+  _getTimeframeMs(timeframe) {
+    const fromRuntime = this.ctx.candleAggregator?.getIntervalMs?.(timeframe);
+    if (Number.isFinite(fromRuntime) && fromRuntime > 0) return fromRuntime;
+
+    const match = String(timeframe || '').trim().match(/^(\d+)(sec|s|m|h|d)$/i);
+    if (!match) {
+      throw new Error(`BacktestRunner: cannot derive candle interval for timeframe '${timeframe || '(missing)'}'`);
+    }
+    const value = Number(match[1]);
+    const unit = match[2].toLowerCase();
+    const multiplier = unit === 'sec' || unit === 's'
+      ? 1000
+      : unit === 'm'
+        ? 60 * 1000
+        : unit === 'h'
+          ? 60 * 60 * 1000
+          : 24 * 60 * 60 * 1000;
+    return value * multiplier;
+  }
+
+  _normalizeBacktestCandle(rawCandle, timeframeMs) {
+    const t = toTimestampMs(rawCandle.timestamp ?? rawCandle.t ?? rawCandle.time);
+    if (!Number.isFinite(t)) {
+      throw new Error('BacktestRunner: candle missing valid timestamp');
+    }
+    const etime = toTimestampMs(rawCandle.etime ?? rawCandle.endTime ?? rawCandle.end)
+      ?? (t + timeframeMs);
+
+    return {
+      o: rawCandle.open ?? rawCandle.o,
+      h: rawCandle.high ?? rawCandle.h,
+      l: rawCandle.low ?? rawCandle.l,
+      c: rawCandle.close ?? rawCandle.c,
+      v: rawCandle.volume ?? rawCandle.v ?? 0,
+      t,
+      etime,
+    };
+  }
+
+  _assertDataFileMatchesRuntimeScope(dataPath, symbol, timeframe) {
+    const instrument = resolveInstrumentFromDataFile(dataPath);
+    const dataSymbol = normalizeAssetSymbol(instrument.tradingPair);
+    const runtimeSymbol = normalizeAssetSymbol(symbol);
+    if (!dataSymbol || !runtimeSymbol || dataSymbol !== runtimeSymbol) {
+      throw new Error(
+        `BacktestRunner: CANDLE_DATA_FILE '${dataPath}' resolves to ${instrument.tradingPair}, ` +
+        `but runtime symbol is ${symbol}; refusing mislabeled backtest`
+      );
+    }
+    if (instrument.candleTimeframe && instrument.candleTimeframe !== timeframe) {
+      throw new Error(
+        `BacktestRunner: CANDLE_DATA_FILE '${dataPath}' resolves to timeframe ${instrument.candleTimeframe}, ` +
+        `but runtime timeframe is ${timeframe}; refusing mismatched backtest`
+      );
+    }
+  }
+
+  _activeTradeDirectionForWindowEnd(trade) {
+    const direction = typeof trade?.direction === 'string' ? trade.direction : '';
+    return direction === 'long' || direction === 'short' ? direction : null;
+  }
+
+  _windowEndDirectionRefusal(trade, lastPrice, exitTimestamp) {
+    const entryPrice = Number(trade.entryPrice ?? trade.price);
+    const remainingOrderQuantity = Number(trade.remainingOrderQuantity);
+    const sizeUsd = Number(trade.sizeUsd ?? trade.size);
+    const exitOrderQuantity = Number.isFinite(remainingOrderQuantity) && remainingOrderQuantity > 0
+      ? remainingOrderQuantity
+      : (Number.isFinite(entryPrice) && entryPrice > 0 ? sizeUsd / entryPrice : null);
+
+    return {
+      tradeId: trade.orderId || trade.id,
+      entryTime: trade.entryTime ? new Date(trade.entryTime).toISOString() : '',
+      exitTime: new Date(exitTimestamp).toISOString(),
+      status: 'refused_at_window_end',
+      exitReason: 'BACKTEST_END_CLOSE',
+      direction: null,
+      directionIntegrityRefusal: true,
+      refusalCode: 'active_trade_direction_unknown',
+      entryPrice,
+      exitPrice: lastPrice,
+      size: sizeUsd,
+      entryOrderQuantity: trade.entryOrderQuantity,
+      entryOrderQuantityUnit: trade.entryOrderQuantityUnit,
+      remainingOrderQuantityBeforeExit: trade.remainingOrderQuantity,
+      remainingOrderQuantityUnit: trade.remainingOrderQuantityUnit,
+      exitOrderQuantity,
+      exitOrderQuantityUnit: trade.remainingOrderQuantityUnit || trade.entryOrderQuantityUnit,
+      quantityUnit: trade.remainingOrderQuantityUnit || trade.entryOrderQuantityUnit,
+      strategyName: trade.entryStrategy || trade.strategy,
+      confidence: trade.confidence,
+      maxFavorableExcursionPercent: trade.maxFavorableExcursionPercent ?? trade.maxProfitPercent ?? null,
+      maxAdverseExcursionPercent: trade.maxAdverseExcursionPercent ?? null,
+      symbol: trade.symbol,
+      brokerId: trade.brokerId,
+      accountId: trade.accountId,
+      accountIdSource: trade.accountIdSource,
+      assetClass: trade.assetClass,
+      executionMode: trade.executionMode,
+      timeframe: trade.timeframe,
+      scopeKey: trade.scopeKey,
+      scopeKeyVersion: trade.scopeKeyVersion,
+    };
+  }
+
+  /**
+   * BACKTEST MODE: Load historical data and run simulation
+   * Ported from Change 572 - loads Polygon historical data and feeds through trading logic
+   * EXACT COPY from run-empire-v2.js
+   */
+  async loadHistoricalDataAndBacktest() {
+    // NOTE: State isolation moved to run-empire-v2.js startup (BEFORE StateManager loads)
+    // See: FIX 2026-03-12 at top of run-empire-v2.js
+    const path = require('path');
+
+    delete globalThis.__OGZ_MTF_CONFLUENCE_STATS;
+    console.log('📊 BACKTEST MODE: Loading historical data...');
+
+    const fs = require('fs').promises;
+    // path already required above for state isolation
+    // A processed candle can still contain a refused state mutation. Preserve
+    // those existing execution receipts instead of calling that run complete.
+    const executionFailures = [];
+    const windowEndFailures = [];
+    const unsubscribeTrace = subscribeTrace(payload => {
+      if (payload.event === 'STATE_MUTATION' && payload.fields.success === false) {
+        executionFailures.push(payload);
+      }
+    });
+
+    try {
+      // The typed run descriptor is validated before the bot snapshot is frozen.
+      const candleDataFile = getConfigValue('backtest.candleDataFile');
+      const dataPath = candleDataFile;
+      console.log(`[BacktestRunner] Using descriptor data file: ${dataPath}`);
+      const rawData = await fs.readFile(dataPath, 'utf8');
+      const parsedData = JSON.parse(rawData);
+      // Handle both formats: array of candles or object with .candles property
+      const historicalCandles = parsedData.candles || parsedData;
+
+      console.log(`✅ Loaded ${historicalCandles.length.toLocaleString()} historical candles`);
+      console.log(`📅 Date range: ${new Date(historicalCandles[0].timestamp).toLocaleDateString()} → ${new Date(historicalCandles[historicalCandles.length - 1].timestamp).toLocaleDateString()}`);
+      console.log(`⏱️  Starting backtest simulation...\n`);
+
+      let processedCount = 0;
+      let errorCount = 0;
+      const startTime = Date.now();
+      const symbol = this.ctx.symbol;
+      const timeframe = this.ctx.timeframe;
+      const candleScope = {
+        brokerId: this.ctx.runtimeConfig.broker.id,
+        accountId: 'backtest',
+        accountIdSource: 'backtest',
+        assetClass: this.ctx.runtimeConfig.broker.assetClass,
+        executionMode: this.ctx.runtimeConfig.mode.execution,
+      };
+      if (!symbol) throw new Error('BacktestRunner: ctx.symbol required to mirror runtime candle scope');
+      if (!timeframe) throw new Error('BacktestRunner: ctx.timeframe required to mirror runtime candle scope');
+      if (typeof this.ctx.storeTimeframeCandle !== 'function') {
+        throw new Error('BacktestRunner: ctx.storeTimeframeCandle required to mirror runtime candle boundary checks');
+      }
+      if (typeof this.ctx.handleMarketData !== 'function') {
+        throw new Error('BacktestRunner: ctx.handleMarketData required to mirror runtime candle ingestion');
+      }
+      if (typeof this.ctx.runTradingCycle !== 'function') {
+        throw new Error('BacktestRunner: ctx.runTradingCycle required to mirror runtime trading-cycle trigger');
+      }
+      this._assertDataFileMatchesRuntimeScope(dataPath, symbol, timeframe);
+      const timeframeMs = this._getTimeframeMs(timeframe);
+      const firstCoverageCandle = this._normalizeBacktestCandle(historicalCandles[0], timeframeMs);
+      const lastCoverageCandle = this._normalizeBacktestCandle(historicalCandles[historicalCandles.length - 1], timeframeMs);
+
+      // Process each candle through the trading logic
+      for (const polygonCandle of historicalCandles) {
+        try {
+          const ohlcvCandle = this._normalizeBacktestCandle(polygonCandle, timeframeMs);
+
+          const traceId = createTraceId('candle');
+          const traceContext = {
+            traceId,
+            source: 'backtest_file',
+            candleIndex: processedCount + 1,
+          };
+          emitTrace(this.ctx, 'CANDLE_INGRESS', {
+            traceId,
+            source: traceContext.source,
+            symbol,
+            timeframe,
+            candleIndex: traceContext.candleIndex,
+            close: ohlcvCandle.c,
+            time: ohlcvCandle.t,
+          });
+
+          const processorOhlcData = [
+            ohlcvCandle.t / 1000,
+            ohlcvCandle.etime / 1000,
+            ohlcvCandle.o,
+            ohlcvCandle.h,
+            ohlcvCandle.l,
+            ohlcvCandle.c,
+            null,
+            ohlcvCandle.v,
+            null
+          ];
+          const storedCandle = this.ctx.storeTimeframeCandle(timeframe, processorOhlcData, symbol);
+          const candleResult = this.ctx.handleMarketData({
+            data: processorOhlcData,
+            symbol,
+            timeframe,
+            traceId,
+            ...candleScope,
+          }, traceContext);
+
+          if (storedCandle?.isNewCandle && candleResult?.acceptedAsNew) {
+            await this.ctx.runTradingCycle(symbol, traceId);
+          }
+
+          processedCount++;
+
+          // Progress reporting every 5,000 candles
+          if (processedCount % 5000 === 0) {
+            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+            const rate = (processedCount / (elapsed || 1)).toFixed(0);
+            console.log(`📊 Progress: ${processedCount.toLocaleString()}/${historicalCandles.length.toLocaleString()} candles (${rate}/sec) | Errors: ${errorCount}`);
+          }
+
+        } catch (err) {
+          errorCount++;
+          if (errorCount <= 5) {
+            console.error(`❌ Error processing candle #${processedCount}:`, err.message);
+          }
+            console.error(err.stack);
+        }
+      }
+
+      // FIX 2026-03-12: Force-close any open position at backtest end
+      // This prevents money from staying "locked" in inPosition when backtest ends mid-trade
+      // FIX 2026-03-26 Bug 11: Use !== 0 to also close short positions (negative values)
+      const activeTrades = stateManager.getAllTrades();
+      const windowEndPositions = [];
+      if (activeTrades.length > 0) {
+        const lastCandle = historicalCandles[historicalCandles.length - 1];
+        const lastPrice = lastCandle.close ?? lastCandle.c;
+        const exitTimestamp = lastCandle.timestamp ?? lastCandle.t ?? lastCandle.time ?? Date.now();
+        for (const trade of activeTrades) {
+          const tradeId = trade.orderId || trade.id;
+          const tradeDirection = this._activeTradeDirectionForWindowEnd(trade);
+          if (!tradeDirection) {
+            console.error(`[BacktestRunner] BACKTEST_END_CLOSE refused for trade ${tradeId || '<unknown>'}: active_trade_direction_unknown`);
+            windowEndFailures.push({ tradeId, reason: 'active_trade_direction_unknown' });
+            windowEndPositions.push(this._windowEndDirectionRefusal(trade, lastPrice, exitTimestamp));
+            continue;
+          }
+
+          const direction = tradeDirection.toUpperCase();
+          console.log(`\nBACKTEST_END_CLOSE: Force-closing ${direction} trade ${tradeId} at $${lastPrice.toFixed(2)}`);
+          try {
+            const closed = await stateManager.closePosition(lastPrice, false, null, { tradeId, reason: 'BACKTEST_END_CLOSE' });
+            if (closed?.success) {
+              const entryPrice = Number(trade.entryPrice ?? trade.price);
+              const remainingOrderQuantity = Number(trade.remainingOrderQuantity);
+              const sizeUsd = Number(trade.sizeUsd ?? trade.size);
+              const exitOrderQuantity = Number.isFinite(remainingOrderQuantity) && remainingOrderQuantity > 0
+                ? remainingOrderQuantity
+                : (Number.isFinite(entryPrice) && entryPrice > 0 ? sizeUsd / entryPrice : null);
+              windowEndPositions.push({
+                tradeId,
+                entryTime: trade.entryTime ? new Date(trade.entryTime).toISOString() : '',
+                exitTime: new Date(exitTimestamp).toISOString(),
+                status: 'closed_at_window_end',
+                exitReason: 'BACKTEST_END_CLOSE',
+                direction: tradeDirection,
+                entryPrice,
+                exitPrice: lastPrice,
+                size: sizeUsd,
+                entryOrderQuantity: trade.entryOrderQuantity,
+                entryOrderQuantityUnit: trade.entryOrderQuantityUnit,
+                remainingOrderQuantityBeforeExit: trade.remainingOrderQuantity,
+                remainingOrderQuantityUnit: trade.remainingOrderQuantityUnit,
+                exitOrderQuantity,
+                exitOrderQuantityUnit: trade.remainingOrderQuantityUnit || trade.entryOrderQuantityUnit,
+                quantityUnit: trade.remainingOrderQuantityUnit || trade.entryOrderQuantityUnit,
+                strategyName: trade.entryStrategy || trade.strategy,
+                confidence: trade.confidence,
+                maxFavorableExcursionPercent: trade.maxFavorableExcursionPercent ?? trade.maxProfitPercent ?? null,
+                maxAdverseExcursionPercent: trade.maxAdverseExcursionPercent ?? null,
+                symbol: trade.symbol,
+                brokerId: trade.brokerId,
+                accountId: trade.accountId,
+                accountIdSource: trade.accountIdSource,
+                assetClass: trade.assetClass,
+                executionMode: trade.executionMode,
+                timeframe: trade.timeframe,
+                scopeKey: trade.scopeKey,
+                scopeKeyVersion: trade.scopeKeyVersion,
+              });
+            } else {
+              const reason = closed?.error || closed?.reason || 'state_close_not_successful';
+              windowEndFailures.push({ tradeId, reason });
+              console.error(`[BacktestRunner] BACKTEST_END_CLOSE failed for trade ${tradeId}: ${reason}`);
+            }
+          } catch (err) {
+            windowEndFailures.push({ tradeId, reason: err.message });
+            console.error(`BACKTEST_END_CLOSE failed for trade ${tradeId}: ${err.message}`);
+          }
+        }
+      }
+
+      // Final summary
+      const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+
+      // FIX 2026-04-02: Use BacktestRecorder's P&L (correct) instead of StateManager's balance
+      // StateManager.balance never moves since 2026-03-28 per-trade equity refactor —
+      // only realizedPnL changes. BacktestRecorder independently sums each trade's netPnlDollars
+      // which IS the correct final balance. This eliminates the "two different Final Balance" bug
+      // that caused confusion in debugging sessions.
+      const trades = this.ctx.backtestRecorder?.trades || [];
+      this.assertScopedReportTrades(trades);
+      const winners = trades.filter(t => t.netPnlDollars > 0);
+      const losers = trades.filter(t => t.netPnlDollars < 0);
+      const totalPnL = trades.reduce((sum, t) => sum + (t.netPnlDollars || 0), 0);
+      // CRIT-08-followup-A: refuse $10K phantom default in backtest report.
+      // If backtestRecorder.startingBalance is missing, the final balance and
+      // totalReturn would silently report against a phantom $10K start —
+      // a lie about performance. Pre-money fail-loud: throw on missing.
+      // Mercury Dispatch 18 caught: with `??`, an explicit 0 would pass
+      // through and make `totalReturn = (finalBalance / 0 - 1) * 100` = NaN
+      // /Infinity. Guard explicitly on `<= 0` and non-finite (matches
+      // CRIT-01's zero-capital-halt philosophy).
+      const _startingBalance = this.ctx.backtestRecorder?.startingBalance;
+      if (!Number.isFinite(_startingBalance) || _startingBalance <= 0) {
+        throw new Error(`BacktestRunner: backtestRecorder.startingBalance is missing/invalid (got ${_startingBalance}) — refusing to compute totalReturn against phantom default`);
+      }
+      const initialBalance = _startingBalance;
+      const finalBalance = initialBalance + totalPnL;
+      const totalReturn = ((finalBalance / initialBalance - 1) * 100);
+
+      // L8: Flush any buffered decision ledger entries
+      try { require('./DecisionLedgerLogger').flush(); } catch (_) {}
+
+      const candlesComplete = errorCount === 0 && processedCount === historicalCandles.length;
+      const executionComplete = candlesComplete && executionFailures.length === 0 && windowEndFailures.length === 0;
+      console.log(`\n${executionComplete ? 'BACKTEST PROCESSING COMPLETE' : 'BACKTEST PROCESSING INCOMPLETE'}: ${processedCount}/${historicalCandles.length} candles, ${errorCount} candle errors, ${executionFailures.length} state mutation failures, ${windowEndFailures.length} window-close failures`);
+      console.log(`   📊 Candles processed: ${processedCount.toLocaleString()}`);
+      console.log(`   ⏱️  Duration: ${totalTime}s`);
+      console.log(`   ⚡ Rate: ${(processedCount / totalTime).toFixed(0)} candles/sec`);
+      console.log(`   ❌ Errors: ${errorCount}`);
+      console.log(`   💰 Final Balance: $${finalBalance.toFixed(2)}`);
+      console.log(`   📈 Total P&L: $${totalPnL.toFixed(2)} (${totalReturn.toFixed(2)}%)`);
+      console.log(`   📊 Trades: ${trades.length} (${winners.length}W / ${losers.length}L)`);
+
+      // Pattern Learning Summary - Visual proof patterns are being recorded
+      if (this.ctx.patternChecker?.getMemoryStats) {
+        const patternStats = this.ctx.patternChecker.getMemoryStats();
+        const wins = patternStats.totalWins || 0;
+        const losses = patternStats.totalLosses || 0;
+        const totalTrades = wins + losses;
+        const winRate = totalTrades > 0 ? ((wins / totalTrades) * 100).toFixed(1) : '0.0';
+        console.log(`\n   🧠 PATTERN LEARNING SUMMARY:`);
+        console.log(`      📊 Patterns Recorded: ${patternStats.tradeResults || 0}`);
+        console.log(`      ✅ Wins: ${wins}`);
+        console.log(`      ❌ Losses: ${losses}`);
+        console.log(`      📈 Win Rate: ${winRate}%`);
+        console.log(`      🎯 Promoted Patterns: ${patternStats.promoted || 0}`);
+        console.log(`      🔬 Candidates: ${patternStats.candidates || 0}`);
+      }
+
+      // Generate backtest report
+      // FIX 2026-04-16: Route to unified output directory
+      const { getRunDir } = require('./OutputPaths');
+      const runTimestamp = Date.now();
+      const configuredOutputRoot = this.ctx.runtimeConfig.paths.backtestOutputDir;
+      const rawReportTag = this.ctx.runtimeConfig.backtest.reportTag || '';
+      const reportTag = rawReportTag.replace(/[^a-zA-Z0-9_.-]/g, '_');
+      const runId = reportTag
+        ? `${runTimestamp}-${process.pid}-${reportTag}-${randomUUID()}`
+        : `${runTimestamp}-${process.pid}-${randomUUID()}`;
+      const runDir = getRunDir(runId);
+      // FIX 2026-04-22: append BACKTEST_REPORT_TAG (uid) to filename when set.
+      // Matrix-sweep sets it per worker — prevents tryReadReport from grabbing another
+      // worker's report via mtime-sort under parallelism. Unset = unchanged filename.
+      // FIX 2026-04-22 (2nd pass): tagged workers write to backtest-results/worker-reports/
+      // instead of project root. Keeps repo root clean; standalone backtests keep legacy path.
+      let reportAssetSuffix = '';
+      if (this.ctx.runtimeConfig.backtest.candleDataFile) {
+        const reportAssetSlug = deriveReportAssetSlugFromDataFile(this.ctx.runtimeConfig.backtest.candleDataFile);
+        reportAssetSuffix = `-${reportAssetSlug}`;
+      }
+      let reportPath;
+      if (configuredOutputRoot) {
+        reportPath = path.join(runDir, `report${reportAssetSuffix}.json`);
+      } else if (reportTag) {
+        const fs = require('fs');
+        const workerDir = path.join(this.ctx.__dirname, 'backtest-results', 'worker-reports');
+        if (!fs.existsSync(workerDir)) fs.mkdirSync(workerDir, { recursive: true });
+        reportPath = path.join(workerDir, `backtest-report-${runId}-${reportTag}${reportAssetSuffix}.json`);
+      } else {
+        reportPath = path.join(this.ctx.__dirname, `backtest-report-v14MERGED-${runId}${reportAssetSuffix}.json`);
+      }
+
+      // FIX 2026-04-21: report.summary now pulls from BacktestRecorder.getSummary() (23 fields)
+      //   Previously summary was a 7-field inline rebuild — matrix-sweep and grid-search consumers
+      //   only saw finalBalance/totalReturn/totalPnL. Now full metric set (profitFactor, expectancy,
+      //   drawdown, streaks, strategy/exit breakdowns) flows into JSON.
+      //   `totalReturn` preserved as alias for grid-search-confidence.js:77 back-compat.
+      const recorderSummary = this.ctx.backtestRecorder?.getSummary
+        ? this.ctx.backtestRecorder.getSummary()
+        : {};
+      const report = {
+        configuration: getConfigurationReceipt(),
+        summary: {
+          ...recorderSummary,
+          initialBalance: initialBalance,
+          finalBalance: finalBalance,
+          totalReturn: totalReturn,
+          totalPnL: totalPnL,
+          duration: `${totalTime}s`,
+          candlesProcessed: processedCount,
+          errors: errorCount,
+          executionErrors: executionFailures.length,
+          windowEndErrors: windowEndFailures.length,
+          executionComplete,
+        },
+        executionFailures,
+        windowEndFailures,
+        dataCoverage: {
+          dataFile: dataPath,
+          symbol,
+          timeframe,
+          expectedCandles: historicalCandles.length,
+          candlesProcessed: processedCount,
+          startTimestamp: firstCoverageCandle.t,
+          endTimestamp: lastCoverageCandle.t,
+          startIso: new Date(firstCoverageCandle.t).toISOString(),
+          endIso: new Date(lastCoverageCandle.t).toISOString(),
+          complete: candlesComplete,
+        },
+        metrics: {
+          totalTrades: trades.length,
+          winningTrades: winners.length,
+          losingTrades: losers.length,
+          winRate: trades.length > 0 ? winners.length / trades.length : 0,
+          totalPnL: totalPnL
+        },
+        mtfConfluenceBooster: globalThis.__OGZ_MTF_CONFLUENCE_STATS
+          ? { ...globalThis.__OGZ_MTF_CONFLUENCE_STATS }
+          : null,
+        trades: trades,
+        windowEndPositions,
+        config: {
+          // CRIT-08-followup-B: was hardcoded 10000 — a lie when the run's
+          // actual initialBalance differs (e.g., INITIAL_BALANCE=50000).
+          // The report's summary correctly carries the real value at :228;
+          // config.initialBalance must mirror it, not invent a phantom.
+          initialBalance: initialBalance,
+          tier: getConfigValue('misc.subscriptionTier').toUpperCase(),
+          directionFilter: getConfigValue('pipeline.directionFilter')
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      // Write report FIRST (sync to prevent 0-byte files on timeout/exit)
+      // FIX 2026-02-19: Try/catch with console fallback to prevent losing results on EMFILE
+      let reportSaved = false;
+      try {
+        require('./AtomicWrite').writeJsonAtomic(reportPath, report);
+        reportSaved = true;
+        console.log(`\nReport saved: ${reportPath}`);
+      } catch (err) {
+        console.error('Could not write report file: ' + err.message);
+        console.log('=== BACKTEST RESULTS (CONSOLE DUMP; REPORT NOT SAVED) ===');
+        console.log('Final Balance: $' + report.summary.finalBalance);
+        console.log('Total P&L: $' + report.summary.totalPnL + ' (' + report.summary.totalReturn + '%)');
+        console.log('Total Trades: ' + (report.metrics.totalTrades || 'N/A'));
+        console.log('Win Rate: ' + (report.metrics.winRate || 'N/A'));
+        console.log('=== END CONSOLE DUMP ===');
+      }
+
+      // 🤖 TRAI Analysis of Backtest Results (Change 586)
+      // Run AFTER report is saved so we always have results even if TRAI hangs
+      if (this.ctx.trai && this.ctx.trai.analyzeBacktestResults) {
+        console.log('\n🤖 [TRAI] Analyzing backtest results for optimization insights...');
+        try {
+          const traiAnalysis = await this.ctx.trai.analyzeBacktestResults(report);
+          report.traiAnalysis = traiAnalysis;
+          console.log('✅ TRAI Analysis Complete:', traiAnalysis.summary);
+          // Re-save with TRAI analysis appended
+          require('./AtomicWrite').writeJsonAtomic(reportPath, report);
+        } catch (error) {
+          console.error('⚠️ TRAI analysis failed:', error.message);
+        }
+      }
+
+      // CHANGE 2026-02-23: Print BacktestRecorder summary with fees and export CSV
+      // FIX 2026-04-16: Route CSV to same unified run directory as JSON report
+      if (this.ctx.backtestRecorder) {
+        this.ctx.backtestRecorder.printSummary();
+        const csvPath = configuredOutputRoot
+          ? path.join(runDir, 'trades.csv')
+          : './backtest-trades.csv';
+        this.ctx.backtestRecorder.exportCSV(csvPath);
+      }
+
+      // DynamicPositionSizer NOT WIRED - stats printing disabled
+      // Re-enable when curves are tuned to match validated baseline
+
+      // DIAGNOSTIC: Print strategy signal funnel
+      if (this.ctx.strategyOrchestrator?.printDiagnosticFunnel) {
+        this.ctx.strategyOrchestrator.printDiagnosticFunnel();
+      }
+
+      // Exit after backtest
+      const success = executionComplete && reportSaved;
+      console.log(`\nBacktest ${success ? 'complete' : 'incomplete'} - exiting...`);
+      return {
+        success,
+        exitCode: success ? 0 : 1,
+        errors: errorCount,
+        executionErrors: executionFailures.length,
+        windowEndErrors: windowEndFailures.length,
+        reportSaved,
+        candlesProcessed: processedCount,
+        expectedCandles: historicalCandles.length,
+      };
+
+    } catch (err) {
+      console.error('BACKTEST FAILED:', err.message);
+      console.error(err.stack);
+      return {
+        success: false,
+        exitCode: 1,
+        error: err.message,
+        code: err.code || null,
+      };
+    } finally {
+      unsubscribeTrace();
+    }
+  }
+}
+
+module.exports = BacktestRunner;

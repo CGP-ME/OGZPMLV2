@@ -1,0 +1,15 @@
+{
+  "baseTree": "32e6c80cbf14eac555ced9014fe4fd26591bc6ec",
+  "patchSha256": "372b3d7dfbb7b31a38dfa5bbf409583428197f040b3af1544774cf85a147274c",
+  "sources": {
+    "core/StrategyOrchestrator.js": "26e70e2750a67497fac66d7b170a076f85176873b0aa139c7a758d1198cabf00",
+    "core/OgzTpoIntegration.js": "2382bb59897fb0f2c94bc2281bb2600e4a9c8ef8e38cd89781476c3bb58dccd4",
+    "modules/EMASMACrossoverSignal.js": "fb4dc723a7133d8dfa34923f94353ca2174e15f4919d41b0d4111bedca754678",
+    "modules/MADynamicSR.js": "0c25742782f91334ffda5778f34eb946343e14d03b9907ac9a8049bebe0b7646",
+    "modules/BreakAndRetest.js": "529a5bd252cf1c32ac3d74e79025f5f357ec9dd054f93ef865b3aaf3574644d2",
+    "modules/SmartMoneySweep.js": "2cbafbc311c90fa2105df78bf441691d7b97cceccbb21f64ca1a8503bc05a17d",
+    "modules/NoWickImbalance.js": "777d3745ead2bec3133af6ddc00cbf20813338abcbbc3a4552825069b87a6549",
+    "modules/OpeningRangeBreakout.js": "a3512cec7fd05cab1ff0bebcfb54d84a748db632465d050f1007c0deca2181b0",
+    "modules/LiquiditySweepDetector.js": "6266dec235c5f187720959ee4b624a6aef9f6b024e8bcf493c67130c292d53e7"
+  }
+}

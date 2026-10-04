@@ -1,0 +1,2224 @@
+diff --git a/config/settings.json b/config/settings.json
+index b0f5831b..cbd96760 100644
+--- a/config/settings.json
++++ b/config/settings.json
+@@ -1,11 +1,9 @@
+ {
+   "schemaVersion": 1,
+-  "revision": 5,
++  "revision": 8,
+   "confidence": {
+     "minStrategyConfidence": 0.35,
+-    "candlePatternMinConfidence": 0.7,
+-    "regimeMinConfidence": 0.3,
+-    "confluenceMinScore": 0.3
++    "candlePatternMinConfidence": 0.7
+   },
+   "regimeDetection": {
+     "minimumCandles": 10,
+@@ -1314,6 +1312,7 @@
+   "positionSizing": {
+     "basePositionSize": 0.01,
+     "maxPositionSize": 0.05,
++    "maxTotalExposure": 0.25,
+     "maxPositions": 3,
+     "confluenceMultipliers": {
+       "1": 1,
+@@ -1520,7 +1519,9 @@
+         "fraction": 0.5,
+         "remainderTrail": "atr"
+       },
+-      "invalidationConditions": ["rsi_exit_long"],
++      "invalidationConditions": [
++        "rsi_exit_long"
++      ],
+       "_validated": "2026-03-20"
+     },
+     "MADynamicSR": {
+@@ -1924,7 +1925,7 @@
+   },
+   "entryLogic": {
+     "sizing": {
+-      "absoluteCapPercent": 0.15,
++      "absoluteCapPercent": 0.075,
+       "stockShareRange": {
+         "enabled": true,
+         "minShares": 2,
+@@ -2447,14 +2448,14 @@
+     }
+   },
+   "fees": {
+-    "model": "per_share_minimum",
++    "model": "percent",
+     "makerFee": 0,
+     "takerFee": 0,
+-    "perShare": 0.005,
+-    "minOrderFee": 0.75,
++    "perShare": 0,
++    "minOrderFee": 0,
+     "slippage": 0.0005,
+-    "totalRoundTrip": 0.005,
+-    "safetyBuffer": 0.001
++    "totalRoundTrip": 0,
++    "safetyBuffer": 0
+   },
+   "filters": {
+     "atrEnabled": true,
+diff --git a/core/BacktestRunner.js b/core/BacktestRunner.js
+index 03850564..8348b29c 100644
+--- a/core/BacktestRunner.js
++++ b/core/BacktestRunner.js
+@@ -12,8 +12,8 @@
+ 'use strict';
+ 
+ const { getInstance: getStateManager } = require('./StateManager');
+-const { get: getConfigValue } = require('../foundation/ConfigLoader');
+-const { createTraceId, emitTrace } = require('./TraceSpine');
++const { get: getConfigValue, getReceipt: getConfigurationReceipt } = require('../foundation/ConfigLoader');
++const { createTraceId, emitTrace, subscribeTrace } = require('./TraceSpine');
+ const { toTimestampMs } = require('../foundation/ohlc-normalize');
+ const { randomUUID } = require('crypto');
+ const BacktestRecorder = require('./BacktestRecorder');
+@@ -156,6 +156,15 @@ class BacktestRunner {
+ 
+     const fs = require('fs').promises;
+     // path already required above for state isolation
++    // A processed candle can still contain a refused state mutation. Preserve
++    // those existing execution receipts instead of calling that run complete.
++    const executionFailures = [];
++    const windowEndFailures = [];
++    const unsubscribeTrace = subscribeTrace(payload => {
++      if (payload.event === 'STATE_MUTATION' && payload.fields.success === false) {
++        executionFailures.push(payload);
++      }
++    });
+ 
+     try {
+       // The typed run descriptor is validated before the bot snapshot is frozen.
+@@ -276,6 +285,7 @@ class BacktestRunner {
+           const tradeDirection = this._activeTradeDirectionForWindowEnd(trade);
+           if (!tradeDirection) {
+             console.error(`[BacktestRunner] BACKTEST_END_CLOSE refused for trade ${tradeId || '<unknown>'}: active_trade_direction_unknown`);
++            windowEndFailures.push({ tradeId, reason: 'active_trade_direction_unknown' });
+             windowEndPositions.push(this._windowEndDirectionRefusal(trade, lastPrice, exitTimestamp));
+             continue;
+           }
+@@ -322,9 +332,14 @@ class BacktestRunner {
+                 scopeKey: trade.scopeKey,
+                 scopeKeyVersion: trade.scopeKeyVersion,
+               });
++            } else {
++              const reason = closed?.error || closed?.reason || 'state_close_not_successful';
++              windowEndFailures.push({ tradeId, reason });
++              console.error(`[BacktestRunner] BACKTEST_END_CLOSE failed for trade ${tradeId}: ${reason}`);
+             }
+           } catch (err) {
+-            console.error(`❌ BACKTEST_END_CLOSE failed for trade ${trade.orderId || trade.id}: ${err.message}`);
++            windowEndFailures.push({ tradeId, reason: err.message });
++            console.error(`BACKTEST_END_CLOSE failed for trade ${tradeId}: ${err.message}`);
+           }
+         }
+       }
+@@ -361,7 +376,9 @@ class BacktestRunner {
+       // L8: Flush any buffered decision ledger entries
+       try { require('./DecisionLedgerLogger').flush(); } catch (_) {}
+ 
+-      console.log(`\n✅ BACKTEST COMPLETE!`);
++      const candlesComplete = errorCount === 0 && processedCount === historicalCandles.length;
++      const executionComplete = candlesComplete && executionFailures.length === 0 && windowEndFailures.length === 0;
++      console.log(`\n${executionComplete ? 'BACKTEST PROCESSING COMPLETE' : 'BACKTEST PROCESSING INCOMPLETE'}: ${processedCount}/${historicalCandles.length} candles, ${errorCount} candle errors, ${executionFailures.length} state mutation failures, ${windowEndFailures.length} window-close failures`);
+       console.log(`   📊 Candles processed: ${processedCount.toLocaleString()}`);
+       console.log(`   ⏱️  Duration: ${totalTime}s`);
+       console.log(`   ⚡ Rate: ${(processedCount / totalTime).toFixed(0)} candles/sec`);
+@@ -428,6 +445,7 @@ class BacktestRunner {
+         ? this.ctx.backtestRecorder.getSummary()
+         : {};
+       const report = {
++        configuration: getConfigurationReceipt(),
+         summary: {
+           ...recorderSummary,
+           initialBalance: initialBalance,
+@@ -436,8 +454,13 @@ class BacktestRunner {
+           totalPnL: totalPnL,
+           duration: `${totalTime}s`,
+           candlesProcessed: processedCount,
+-          errors: errorCount
++          errors: errorCount,
++          executionErrors: executionFailures.length,
++          windowEndErrors: windowEndFailures.length,
++          executionComplete,
+         },
++        executionFailures,
++        windowEndFailures,
+         dataCoverage: {
+           dataFile: dataPath,
+           symbol,
+@@ -448,7 +471,7 @@ class BacktestRunner {
+           endTimestamp: lastCoverageCandle.t,
+           startIso: new Date(firstCoverageCandle.t).toISOString(),
+           endIso: new Date(lastCoverageCandle.t).toISOString(),
+-          complete: processedCount === historicalCandles.length,
++          complete: candlesComplete,
+         },
+         metrics: {
+           totalTrades: trades.length,
+@@ -476,18 +499,20 @@ class BacktestRunner {
+ 
+       // Write report FIRST (sync to prevent 0-byte files on timeout/exit)
+       // FIX 2026-02-19: Try/catch with console fallback to prevent losing results on EMFILE
++      let reportSaved = false;
+       try {
+         require('./AtomicWrite').writeJsonAtomic(reportPath, report);
++        reportSaved = true;
++        console.log(`\nReport saved: ${reportPath}`);
+       } catch (err) {
+-        console.error('⚠️ Could not write report file: ' + err.message);
+-        console.log('📊 === BACKTEST RESULTS (CONSOLE DUMP) ===');
++        console.error('Could not write report file: ' + err.message);
++        console.log('=== BACKTEST RESULTS (CONSOLE DUMP; REPORT NOT SAVED) ===');
+         console.log('Final Balance: $' + report.summary.finalBalance);
+         console.log('Total P&L: $' + report.summary.totalPnL + ' (' + report.summary.totalReturn + '%)');
+         console.log('Total Trades: ' + (report.metrics.totalTrades || 'N/A'));
+         console.log('Win Rate: ' + (report.metrics.winRate || 'N/A'));
+-        console.log('📊 === END CONSOLE DUMP ===');
++        console.log('=== END CONSOLE DUMP ===');
+       }
+-      console.log(`\n📄 Report saved: ${reportPath}`);
+ 
+       // 🤖 TRAI Analysis of Backtest Results (Change 586)
+       // Run AFTER report is saved so we always have results even if TRAI hangs
+@@ -523,8 +548,18 @@ class BacktestRunner {
+       }
+ 
+       // Exit after backtest
+-      console.log('\nBacktest complete - exiting...');
+-      return { success: true, exitCode: 0 };
++      const success = executionComplete && reportSaved;
++      console.log(`\nBacktest ${success ? 'complete' : 'incomplete'} - exiting...`);
++      return {
++        success,
++        exitCode: success ? 0 : 1,
++        errors: errorCount,
++        executionErrors: executionFailures.length,
++        windowEndErrors: windowEndFailures.length,
++        reportSaved,
++        candlesProcessed: processedCount,
++        expectedCandles: historicalCandles.length,
++      };
+ 
+     } catch (err) {
+       console.error('BACKTEST FAILED:', err.message);
+@@ -535,6 +570,8 @@ class BacktestRunner {
+         error: err.message,
+         code: err.code || null,
+       };
++    } finally {
++      unsubscribeTrace();
+     }
+   }
+ }
+diff --git a/core/DrawdownTracker.js b/core/DrawdownTracker.js
+index b5032c2c..17141f13 100644
+--- a/core/DrawdownTracker.js
++++ b/core/DrawdownTracker.js
+@@ -6,8 +6,8 @@ class DrawdownTracker {
+   }
+ 
+   initialize(balance) {
+-    if (!Number.isFinite(balance) || balance <= 0) {
+-      console.warn(`[DrawdownTracker] Refusing non-finite or non-positive starting balance: ${balance}`);
++    if (!Number.isFinite(balance) || balance < 0) {
++      console.warn(`[DrawdownTracker] Refusing non-finite or negative starting balance: ${balance}`);
+       return false;
+     }
+     this.state.startingBalance = balance;
+diff --git a/core/EnhancedPatternRecognition.js b/core/EnhancedPatternRecognition.js
+index 981719bb..232849d0 100644
+--- a/core/EnhancedPatternRecognition.js
++++ b/core/EnhancedPatternRecognition.js
+@@ -228,7 +228,8 @@ class FeatureExtractor {
+       const rsiNormalized = calculatedRsi / 100;  // Scale to 0-1
+       const macdDelta = calculatedMacd - calculatedSignal;
+       // CHANGE 614: Fix case-sensitivity
+-      const trendEncoded = calculatedTrend?.toLowerCase?.() === 'uptrend' ? 1 : calculatedTrend?.toLowerCase?.() === 'downtrend' ? -1 : 0;
++      const trendName = calculatedTrend.toLowerCase();
++      const trendEncoded = ['up', 'uptrend'].includes(trendName) ? 1 : ['down', 'downtrend'].includes(trendName) ? -1 : 0;
+ 
+       // Candle pattern features
+       const bodySize = Math.abs(c(latestCandle) - o(latestCandle)) / c(latestCandle);
+diff --git a/core/ExitContractManager.js b/core/ExitContractManager.js
+index d16d08b2..344dff6b 100644
+--- a/core/ExitContractManager.js
++++ b/core/ExitContractManager.js
+@@ -136,6 +136,7 @@ const EXIT_CONTRACT_VALUE_FIELDS = [
+   'maxHoldTimeMinutes',
+   'stopType',
+   'atrStopMult',
++  'atrPeriod',
+   'trailType',
+   'trailAtrMult',
+   'trailChannelBars',
+@@ -746,6 +747,7 @@ class ExitContractManager {
+     }
+     const trailConfig = trade.frozenExitPolicy?.profitManagement?.trail;
+     if (!trailConfig) {
++      // An old persisted policy cannot be reconstructed from today's defaults.
+       return { updated: false, reason: 'missing_entry_trail_policy' };
+     }
+     if (trailConfig.enabled !== true) {
+@@ -758,9 +760,15 @@ class ExitContractManager {
+     }
+ 
+     const indicators = context.indicators || {};
+-    const atr = positiveFiniteOrNull(indicators.atr)
+-      || positiveFiniteOrNull(indicators.volatility)
+-      || positiveFiniteOrNull(context.volatility);
++    const entryAtrPeriod = positiveIntegerOrNull(trade.frozenExitPolicy?.contract?.atrPeriod);
++    if (contract.trailType === 'atr' && entryAtrPeriod === null) {
++      return { updated: false, reason: 'missing_entry_atr_period' };
++    }
++    const atr = contract.trailType === 'atr'
++      ? positiveFiniteOrNull(IndicatorCalculator.calculateATR(context.priceHistory, entryAtrPeriod))
++      : (positiveFiniteOrNull(indicators.atr)
++        || positiveFiniteOrNull(indicators.volatility)
++        || positiveFiniteOrNull(context.volatility));
+     const contractAtrMultiplier = contract.trailAtrMult === null || contract.trailAtrMult === undefined
+       ? null
+       : finiteOrNull(contract.trailAtrMult);
+@@ -837,7 +845,9 @@ class ExitContractManager {
+ 
+     trade.currentStop = newStop;
+     trade.trailingActive = true;
+-    return { updated: true, newStop, trailDistance };
++    return { updated: true, newStop, trailDistance, atr,
++      atrPeriod: contract.trailType === 'atr' ? entryAtrPeriod : null,
++      atrSource: contract.trailType === 'atr' ? 'entry_policy_period' : 'market_indicators' };
+   }
+ 
+   _updateBreakevenStopState(trade, currentPrice, pnlPercent) {
+@@ -1022,6 +1032,7 @@ class ExitContractManager {
+     for (const field of [
+       'stopType',
+       'atrStopMult',
++      'atrPeriod',
+       'trailType',
+       'trailAtrMult',
+       'trailChannelBars',
+diff --git a/core/FeatureExtractor.js b/core/FeatureExtractor.js
+index 8d0e2f60..17158200 100644
+--- a/core/FeatureExtractor.js
++++ b/core/FeatureExtractor.js
+@@ -93,8 +93,10 @@ class FeatureExtractor {
+       ?? indicators.volatilityNormalized
+       ?? this._normalizeAtrPercent(indicators.atrPercent);
+ 
+-    // [3] BB Position: 0-1 (percentB from IndicatorSnapshot) — null during warmup
+-    const bbPosition = indicators.bb?.percentB ?? indicators.bbPercentB ?? null;
++    // IndicatorSnapshot's flat BB value is percent-form; the legacy nested
++    // calculator packet is a fraction. Normalize at this consuming boundary.
++    const bbPosition = indicators.bb?.percentB
++      ?? (indicators.bbPercentB == null ? null : indicators.bbPercentB / 100);
+ 
+     // [4] Volume Profile: 0-1 (relative volume compared to average)
+     const volumeProfile = this._normalizeVolume(candles);
+@@ -192,8 +194,8 @@ class FeatureExtractor {
+ 
+     const lower = trend.toLowerCase();
+     const config = ConfigLoader.get('featureExtraction');
+-    if (lower === 'uptrend' || lower === 'bullish') return config.trendBullishValue;
+-    if (lower === 'downtrend' || lower === 'bearish') return config.trendBearishValue;
++    if (lower === 'up' || lower === 'uptrend' || lower === 'bullish') return config.trendBullishValue;
++    if (lower === 'down' || lower === 'downtrend' || lower === 'bearish') return config.trendBearishValue;
+     if (lower === 'sideways' || lower === 'neutral' || lower === 'ranging') return config.neutralValue;
+     return null;
+   }
+@@ -263,7 +265,7 @@ class FeatureExtractor {
+    * Normalize MACD delta to 0-1
+    */
+   static _normalizeMacd(macd, flatSignal = null) {
+-    if (!macd) return null;
++    if (macd == null) return null;
+ 
+     const macdLine = typeof macd === 'number' ? macd : (macd.macd ?? macd.macdLine);
+     const signalLine = typeof macd === 'number' ? flatSignal : (macd.signal ?? macd.signalLine);
+diff --git a/core/OgzTpoIntegration.js b/core/OgzTpoIntegration.js
+index c413aced..f8670029 100644
+--- a/core/OgzTpoIntegration.js
++++ b/core/OgzTpoIntegration.js
+@@ -227,9 +227,6 @@ class OgzTpoIntegration extends EventEmitter {
+      * @returns {Object} Update result with signals and votes
+      */
+     update(candle) {
+-        if (!this.config.enabled) {
+-            return { enabled: false };
+-        }
+         const rawBarTimestamp = candleBarTimestamp(candle);
+         const candleTimestamp = rawBarTimestamp ?? this.lastBarTimestamp ?? MISSING_TIMESTAMP_BAR;
+         const isSameBarUpdate = this.lastBarTimestamp !== null && this.lastBarTimestamp === candleTimestamp;
+@@ -267,7 +264,7 @@ class OgzTpoIntegration extends EventEmitter {
+         if (this.candleHistory.closes.length < this.config.normLength + 5) {
+             this._expireLastSignal(currentBarIndex);
+             return { 
+-                enabled: true, 
++                enabled: this.config.enabled,
+                 ready: false, 
+                 message: `Warming up (${this.candleHistory.closes.length}/${this.config.normLength + 5})` 
+             };
+@@ -296,6 +293,13 @@ class OgzTpoIntegration extends EventEmitter {
+         this.existingTpo.update(candle);
+         existingSignal = this.existingTpo.getValues()?.signal || null;
+         
++        // Disabling entries must not create a gap in either oscillator's candle history.
++        if (!this.config.enabled) {
++            this.lastSignal = null;
++            this.lastSignalBarIndex = null;
++            return { enabled: false };
++        }
++
+         // Track statistics
+         if (newSignal && newSignal.type !== 'INVALID') this.stats.newTpoSignals++;
+         if (existingSignal && existingSignal.type !== 'INVALID') this.stats.existingTpoSignals++;
+diff --git a/core/OrderExecutor.js b/core/OrderExecutor.js
+index 5a4250ee..d9d1b76b 100644
+--- a/core/OrderExecutor.js
++++ b/core/OrderExecutor.js
+@@ -42,6 +42,7 @@ class OrderExecutor {
+     // Local state
+     this.pendingTraiDecisions = ctx.pendingTraiDecisions || new Map();
+     this.tradeExitCount = 0;
++    this.pendingEntries = new Map();
+ 
+     console.log('[OrderExecutor] Initialized (Phase 14 - exact copy)');
+   }
+@@ -1539,7 +1540,6 @@ class OrderExecutor {
+       return null;
+     }
+     const nextDirection = action === 'BUY' ? 'long' : 'short';
+-    const oppositeDirection = nextDirection === 'long' ? 'short' : 'long';
+     const activeTrades = typeof stateManager.getTradesBySymbol === 'function'
+       ? stateManager.getTradesBySymbol(symbol)
+       : [];
+@@ -1559,18 +1559,14 @@ class OrderExecutor {
+       };
+     }
+ 
+-    const oppositeTrade = activeTrades.find((trade) => {
+-      if (!trade || typeof trade !== 'object') return false;
+-      const direction = this._activeTradeDirection(trade);
+-      return direction === oppositeDirection;
+-    });
+-    if (!oppositeTrade) return null;
++    const existingTrade = activeTrades[0];
++    if (!existingTrade) return null;
+ 
+     return {
+-      reason: 'same_symbol_hedge_blocked',
++      reason: 'asset_already_open',
+       nextDirection,
+-      existingDirection: oppositeDirection,
+-      existingTradeId: oppositeTrade.orderId || oppositeTrade.id || null,
++      existingDirection: this._activeTradeDirection(existingTrade),
++      existingTradeId: existingTrade.orderId || existingTrade.id || null,
+     };
+   }
+ 
+@@ -2172,7 +2168,7 @@ class OrderExecutor {
+     if (finalTier !== null) {
+       distances.push(finalTier > 1 ? finalTier / 100 : finalTier);
+     }
+-    if (exitContract && exitContract.takeProfitPercent !== undefined) {
++    if (exitContract && exitContract.takeProfitPercent !== undefined && exitContract.takeProfitPercent !== null) {
+       distances.push(this._percentDistanceDecimal(exitContract.takeProfitPercent, 'exitContract.takeProfitPercent'));
+     }
+     const positiveDistances = distances.filter(value => Number.isFinite(value) && value > 0);
+@@ -2189,7 +2185,7 @@ class OrderExecutor {
+     return this._percentDistanceDecimal(exitContract.stopLossPercent, 'exitContract.stopLossPercent');
+   }
+ 
+-  _applyStockShareRange({ orderQuantity, price, exitContract, absoluteCapSizeUsd }) {
++  _applyStockShareRange({ orderQuantity, price, exitContract, entryBudgetUsd, absoluteCapSizeUsd }) {
+     const range = {
+       enabled: ConfigLoader.get('entryLogic.sizing.stockShareRange.enabled'),
+       minShares: ConfigLoader.get('entryLogic.sizing.stockShareRange.minShares'),
+@@ -2213,14 +2209,16 @@ class OrderExecutor {
+     }
+ 
+     const minShares = Math.ceil(configuredMinShares);
++    // A configured share minimum cannot enlarge an order beyond its already
++    // resolved sizing budget. Conflicting limits use the existing refusal.
+     // Resolve the dollar ceiling before a minimum can raise the quantity.
+     let absoluteCapShares = Math.floor(absoluteCapSizeUsd / price);
+     // Division can round up at a whole-share boundary; dollars remain binding.
+     if (absoluteCapShares * price > absoluteCapSizeUsd) {
+       absoluteCapShares -= 1;
+     }
+-    const caps = [absoluteCapShares];
+-    const reasons = ['absolute_position_cap'];
++    const caps = [Math.floor(entryBudgetUsd / price), absoluteCapShares];
++    const reasons = ['entry_sizing_budget', 'absolute_position_cap'];
+ 
+     const configuredMaxShares = Number(range.maxShares);
+     if (Number.isFinite(configuredMaxShares) && configuredMaxShares > 0) {
+@@ -2234,8 +2232,12 @@ class OrderExecutor {
+       reasons.push('config_max_notional');
+     }
+ 
+-    const profitTargetDollars = this._positiveConfigNumber('evalRules.ttp.consistency.profitTargetDollars');
+-    const maxPositionProfitRatio = this._positiveConfigNumber('evalRules.ttp.consistency.maxPositionProfitRatio');
++    const consistencyEnabled = ConfigLoader.get('evalRules.enabled') === true
++      && ConfigLoader.get('evalRules.ttp.consistency.enabled') === true;
++    const profitTargetDollars = consistencyEnabled
++      ? this._positiveConfigNumber('evalRules.ttp.consistency.profitTargetDollars') : null;
++    const maxPositionProfitRatio = consistencyEnabled
++      ? this._positiveConfigNumber('evalRules.ttp.consistency.maxPositionProfitRatio') : null;
+     const consistencyCapBuffer = Number(range.consistencyCapBuffer);
+     if (profitTargetDollars !== null || maxPositionProfitRatio !== null) {
+       if (profitTargetDollars === null || maxPositionProfitRatio === null) {
+@@ -2250,7 +2252,10 @@ class OrderExecutor {
+       reasons.push('ttp_consistency_profit_cap');
+     }
+ 
+-    const dailyLossDollars = this._positiveConfigNumber('evalRules.ttp.accountLimits.dailyLossDollars');
++    const accountLimitsEnabled = ConfigLoader.get('evalRules.enabled') === true
++      && ConfigLoader.get('evalRules.ttp.accountLimits.enabled') === true;
++    const dailyLossDollars = accountLimitsEnabled
++      ? this._positiveConfigNumber('evalRules.ttp.accountLimits.dailyLossDollars') : null;
+     const dailyLossRiskFraction = Number(range.dailyLossRiskFraction);
+     const stopDistance = this._entryStopDistanceDecimal(exitContract);
+     if (dailyLossDollars !== null && stopDistance !== null) {
+@@ -2339,6 +2344,7 @@ class OrderExecutor {
+     assertExplicitExitOwnership(exitContract, 'OrderExecutor._buildEntryPlan');
+     const frozenExitPolicy = PolicyBuilder.buildForTrade({
+       strategyName: entryStrategy,
++      configuration: ConfigLoader.getReceipt(),
+       exitContract,
+       nowMs: Date.now(),
+       volatility: entryVolatility,
+@@ -2350,28 +2356,40 @@ class OrderExecutor {
+     const scope = this._runtimeScope(symbol);
+     const capPercent = absoluteCapPercent ?? this._resolveAbsolutePositionCap();
+     const requestedSizeUsd = positionSize * sizingMultiplier;
+-    const absoluteCapSizeUsd = currentBalance * capPercent;
++    const absoluteCapSizeUsd = currentEquity * capPercent;
+     const cappedByAbsoluteCap = requestedSizeUsd > absoluteCapSizeUsd;
+-    const sizeUsd = cappedByAbsoluteCap ? absoluteCapSizeUsd : requestedSizeUsd;
++    const maxPositionSizeUsd = currentBalance * ConfigLoader.get('positionSizing.maxPositionSize');
++    const cappedByPositionMaximum = requestedSizeUsd > maxPositionSizeUsd;
++    const pendingExposureUsd = [...this.pendingEntries].reduce((sum, [asset, value]) => (
++      stateManager.getTradesBySymbol(asset).length === 0 ? sum + value : sum
++    ), 0);
++    const openExposureUsd = Math.max(0, currentEquity - currentBalance);
++    const maxTotalExposure = ConfigLoader.get('positionSizing.maxTotalExposure');
++    const remainingExposureUsd = Math.max(0, currentEquity * maxTotalExposure - openExposureUsd - pendingExposureUsd);
++    const sizeUsd = Math.min(requestedSizeUsd, absoluteCapSizeUsd, maxPositionSizeUsd, currentBalance, remainingExposureUsd);
+     if (cappedByAbsoluteCap) {
+       console.log(`Position absolute-capped final size: $${requestedSizeUsd.toFixed(2)} -> $${sizeUsd.toFixed(2)} (${(capPercent * 100).toFixed(2)}% ABSOLUTE_POSITION_CAP)`);
+     }
++    if (cappedByPositionMaximum) {
++      console.log(`[POSITION_MAXIMUM] Requested $${requestedSizeUsd.toFixed(2)}, configured ceiling $${maxPositionSizeUsd.toFixed(2)}, planned $${sizeUsd.toFixed(2)}`);
++    }
+     const quantityUnit = this._orderQuantityUnit(scope);
+-    let orderQuantity = this._orderQuantityFromSizeUsd(sizeUsd, price, scope, { forceWholeShares });
++    const simulationSlippage = this.ctx.backtestMode || this.ctx.paperTrading ? ConfigLoader.get('fees.slippage') : 0;
++    const budgetPrice = price * (decision.action === 'BUY' ? 1 + simulationSlippage : 1 - simulationSlippage);
++    let orderQuantity = sizeUsd > 0
++      ? this._orderQuantityFromSizeUsd(sizeUsd, budgetPrice, scope, { forceWholeShares }) : 0;
+     let shareRange = null;
+     if (quantityUnit === 'shares') {
+       shareRange = this._applyStockShareRange({
+         orderQuantity,
+-        price,
++        price: budgetPrice,
+         exitContract,
+-        absoluteCapSizeUsd,
++        entryBudgetUsd: sizeUsd,
++        absoluteCapSizeUsd: Math.min(absoluteCapSizeUsd, maxPositionSizeUsd),
+       });
+       orderQuantity = shareRange.orderQuantity;
+     }
+-    let plannedSizeUsd = sizeUsd;
+-    if (quantityUnit === 'shares' && (forceWholeShares || shareRange?.adjusted)) {
+-      plannedSizeUsd = orderQuantity * price;
+-    }
++    const plannedSizeUsd = orderQuantity * budgetPrice;
+ 
+     const entryPlan = {
+       traceId: decision.traceId || null,
+@@ -2390,16 +2408,24 @@ class OrderExecutor {
+       executionMode: scope.executionMode,
+       timeframe: scope.timeframe,
+       price,
++      budgetPrice,
+       accountBalance: currentBalance,
+       currentEquity,
++      configuredBasePercent: ConfigLoader.get('positionSizing.basePositionSize'),
+       baseSizeUsd: positionSize,
+       requestedSizeUsd,
+       sizeUsd: plannedSizeUsd,
+       absoluteCapPercent: capPercent,
+       absoluteCapSizeUsd,
+       cappedByAbsoluteCap,
++      maxPositionSizeUsd,
++      cappedByPositionMaximum,
++      maxTotalExposure,
++      openExposureUsd,
++      pendingExposureUsd,
++      remainingExposureUsd,
+       stockShareRange: shareRange?.bounds || null,
+-      stockShareRangeBlockReason: shareRange?.blockReason || null,
++      stockShareRangeBlockReason: remainingExposureUsd <= 0 ? 'max_total_exposure' : (shareRange?.blockReason || null),
+       confidence: decision.confidence,
+       tradeConfidence,
+       confidenceMultiplier,
+@@ -2747,6 +2773,27 @@ class OrderExecutor {
+    * arbitrage. Throws on missing/invalid symbol so weak callers fail loud.
+    */
+   async executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision = null, orchResult = null, symbol) {
++    if (!this._isEntryAction(decision?.action) || typeof symbol !== 'string' || !symbol) {
++      return this._executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision, orchResult, symbol);
++    }
++    const asset = stateManager.normalizeSymbol(symbol, 'OrderExecutor.executeTrade');
++    if (this.pendingEntries.has(asset)) {
++      const refusal = { success: false, reason: 'asset_entry_in_progress', symbol: asset,
++        action: decision.action, orderAccepted: false, stateMutationSucceeded: false };
++      emitTrace(this.ctx, 'ORDER_BLOCKED', { ...refusal, traceId: decision.traceId, signalId: decision.signalId });
++      return refusal;
++    }
++    // Reserve the asset before the first await. Exit requests do not wait for
++    // entries; other assets retain their own entry slots and budget receipts.
++    this.pendingEntries.set(asset, 0);
++    try {
++      return await this._executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision, orchResult, asset);
++    } finally {
++      this.pendingEntries.delete(asset);
++    }
++  }
++
++  async _executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision = null, orchResult = null, symbol) {
+     if (typeof symbol !== 'string' || !symbol) {
+       throw new Error(
+         `OrderExecutor.executeTrade requires explicit non-empty symbol; got ${JSON.stringify(symbol)}`
+@@ -2965,7 +3012,7 @@ class OrderExecutor {
+       }
+       const hedgeBlock = this._sameSymbolHedgeBlock(decision.action, symbol);
+       if (hedgeBlock) {
+-        console.error(`[ENTRY] Refusing ${decision.action} for ${symbol}: same-symbol hedge blocked existing=${hedgeBlock.existingDirection} trade=${hedgeBlock.existingTradeId || 'unknown'} next=${hedgeBlock.nextDirection}`);
++        console.error(`[ENTRY] Refusing ${decision.action} for ${symbol}: ${hedgeBlock.reason} existing=${hedgeBlock.existingDirection} trade=${hedgeBlock.existingTradeId || 'unknown'} next=${hedgeBlock.nextDirection}`);
+         emitTrace(this.ctx, 'ORDER_BLOCKED', {
+           traceId,
+           signalId,
+@@ -2979,6 +3026,16 @@ class OrderExecutor {
+         });
+         return blockedReturn(hedgeBlock.reason, hedgeBlock);
+       }
++      const otherPendingAssets = [...this.pendingEntries.keys()].filter(asset => (
++        asset !== symbol && stateManager.getTradesBySymbol(asset).length === 0
++      ));
++      const occupied = stateManager.get('activeTrades').size + otherPendingAssets.length;
++      const maxPositions = ConfigLoader.get('positionSizing.maxPositions');
++      if (occupied >= maxPositions) {
++        emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol,
++          action: decision.action, reason: 'max_positions', occupied, maxPositions });
++        return blockedReturn('max_positions', { occupied, maxPositions });
++      }
+     }
+     // Log trade execution
+     console.log("*** EXECUTE_TRADE_REACHED ***");
+@@ -3053,7 +3110,7 @@ class OrderExecutor {
+     const dynamicSizingEnabled = ConfigLoader.get('features.enableDynamicSizing') === true;
+     let confidenceMultiplier = 1.0;
+     if (isEntryAction) {
+-      basePositionPercent = ConfigLoader.get('positionSizing.maxPositionSize');
++      basePositionPercent = ConfigLoader.get('positionSizing.basePositionSize');
+     }
+     if (isEntryAction && dynamicSizingEnabled) {
+       // Linear scale: confidence 0.5 -> multiplier 0.5, confidence 1.0 -> multiplier 2.5
+@@ -3064,7 +3121,7 @@ class OrderExecutor {
+     }
+ 
+     // FIX 2026-03-06: ENFORCE MAX_POSITION_SIZE cap after confidence multiplier
+-    const maxPositionPercent = ConfigLoader.get('positionSizing.maxPositionSize') * (dynamicSizingEnabled ? 2.5 : 1);
++    const maxPositionPercent = ConfigLoader.get('positionSizing.maxPositionSize');
+     if (isEntryAction && basePositionPercent > maxPositionPercent) {
+       console.log(`Position capped: ${(basePositionPercent * 100).toFixed(2)}% -> ${(maxPositionPercent * 100).toFixed(2)}% (MAX_POSITION_SIZE limit)`);
+       basePositionPercent = maxPositionPercent;
+@@ -3081,13 +3138,13 @@ class OrderExecutor {
+     }
+ 
+     // Phase 4 REWRITE: AGGRESSIVE_LEARNING_MODE removed - use ConfigLoader for all sizing
+-    const baseSizeUSD = isEntryAction ? currentBalance * basePositionPercent : 0;
++    const baseSizeUSD = isEntryAction ? currentEquity * basePositionPercent : 0;
+ 
+     // FIX 2026-03-28: Position size stays in USD (no BTC conversion for stocks)
+     const positionSize = baseSizeUSD;
+ 
+     if (isEntryAction) {
+-      console.log(`Position sizing: Balance=$${currentBalance.toFixed(2)}, Percent=${(basePositionPercent*100).toFixed(1)}%, USD=$${positionSize.toFixed(2)}`);
++      console.log(`Position sizing: Equity=$${currentEquity.toFixed(2)}, Available=$${currentBalance.toFixed(2)}, Percent=${(basePositionPercent*100).toFixed(1)}%, USD=$${positionSize.toFixed(2)}`);
+     }
+ 
+     // CHECKPOINT 2: Position sizing
+@@ -3177,6 +3234,7 @@ class OrderExecutor {
+       }
+     }
+     if (entryPlan) {
++      this.pendingEntries.set(symbol, entryPlan.sizeUsd);
+       emitTrace(this.ctx, 'ORDER_PLAN', {
+         traceId,
+         signalId,
+@@ -3189,6 +3247,11 @@ class OrderExecutor {
+         quantityUnit: entryPlan.quantityUnit,
+         stockShareRange: entryPlan.stockShareRange,
+         entryStrategy: entryPlan.entryStrategy,
++        configuration: entryPlan.frozenExitPolicy.configuration,
++        budget: { equity: entryPlan.currentEquity, availableCapital: entryPlan.accountBalance,
++          absoluteCapPercent: entryPlan.absoluteCapPercent, maxTotalExposure: entryPlan.maxTotalExposure,
++          openExposureUsd: entryPlan.openExposureUsd, pendingExposureUsd: entryPlan.pendingExposureUsd,
++          remainingExposureUsd: entryPlan.remainingExposureUsd, price: entryPlan.budgetPrice },
+         riskGates: [],
+       });
+       const gateResult = await this._runPreOrderEntryGate(entryPlan);
+@@ -3570,7 +3633,7 @@ class OrderExecutor {
+           success: true,
+           orderId: `SIM_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+           price: fillPrice,
+-          amount: brokerOrderPlan?.sizeUsd ?? positionSize,
++          amount: isEntryAction ? brokerOrderPlan.orderQuantity * fillPrice : (brokerOrderPlan?.sizeUsd ?? positionSize),
+           orderQuantity: brokerOrderPlan?.orderQuantity ?? null,
+           quantityUnit: brokerOrderPlan?.quantityUnit ?? null,
+           traceId,
+@@ -3855,24 +3918,25 @@ class OrderExecutor {
+           // PERMANENT TRADE RECEIPT - shows actual dollars/percent on EVERY trade (live, paper, backtest)
+           // FIX 2026-03-28: adjustedPositionSize is already USD, no multiplication needed
+           const actualDollars = adjustedPositionSize;
+-          const actualPercent = currentBalance > 0 ? (actualDollars / currentBalance) * 100 : 0;
+-          console.log(`[TRADE-RECEIPT] $${actualDollars.toFixed(2)} / $${currentBalance.toFixed(2)} = ${actualPercent.toFixed(1)}% of account | Conf: ${(tradeConfidence * 100).toFixed(0)}% | Confluence: ${sizingMultiplier}x | Strategy: ${entryStrategy}`);
++          const actualPercent = currentEquity > 0 ? (actualDollars / currentEquity) * 100 : 0;
++          console.log(`[TRADE-RECEIPT] $${actualDollars.toFixed(2)} / $${currentEquity.toFixed(2)} = ${actualPercent.toFixed(1)}% of account equity | Conf: ${(tradeConfidence * 100).toFixed(0)}% | Confluence: ${sizingMultiplier}x | Strategy: ${entryStrategy}`);
+ 
+           console.log(`[ORCHESTRATOR-ENTRY] Winner: ${entryStrategy} | Sizing: ${sizingMultiplier}x | SL=${exitContract.stopLossPercent}%, TP=${exitContract.takeProfitPercent}%`);
+ 
+           // L4: Enrich ledger with actual computed position sizing
+           let ledgerPositionSizing = null;
+           if (decision.ledgerData) {
+-            const baseP = ConfigLoader.get('positionSizing.maxPositionSize');
++            const baseP = entryPlan.configuredBasePercent;
+             ledgerPositionSizing = {
+               basePercent: baseP,
+               confidenceMultiplier,
+               confidencePercent: baseP * confidenceMultiplier,
+               confluenceMultiplier: sizingMultiplier,
+-              finalPercent: currentBalance > 0 ? adjustedPositionSize / currentBalance : 0,
++              finalPercent: currentEquity > 0 ? adjustedPositionSize / currentEquity : 0,
+               accountBalance: currentBalance,
++              accountEquity: currentEquity,
+               finalSizeUsd: adjustedPositionSize,
+-              formula: `${(baseP*100).toFixed(1)}% base × ${confidenceMultiplier.toFixed(2)} conf × ${sizingMultiplier.toFixed(2)} confluence = ${actualPercent.toFixed(2)}% of $${currentBalance.toFixed(0)} = $${adjustedPositionSize.toFixed(2)}`,
++              formula: `${(baseP*100).toFixed(1)}% base × ${confidenceMultiplier.toFixed(2)} conf × ${sizingMultiplier.toFixed(2)} confluence; after position/book caps and quantity rounding: ${actualPercent.toFixed(2)}% of equity $${currentEquity.toFixed(0)} = $${adjustedPositionSize.toFixed(2)}`,
+             };
+           }
+ 
+@@ -4123,24 +4187,25 @@ class OrderExecutor {
+ 
+           // FIX 2026-03-28: adjustedPositionSize is already USD, no multiplication needed
+           const actualDollars = adjustedPositionSize;
+-          const actualPercent = currentBalance > 0 ? (actualDollars / currentBalance) * 100 : 0;
+-          console.log(`[TRADE-RECEIPT] SHORT $${actualDollars.toFixed(2)} / $${currentBalance.toFixed(2)} = ${actualPercent.toFixed(1)}% of account | Conf: ${(tradeConfidence * 100).toFixed(0)}% | Confluence: ${sizingMultiplier}x | Strategy: ${entryStrategy}`);
++          const actualPercent = currentEquity > 0 ? (actualDollars / currentEquity) * 100 : 0;
++          console.log(`[TRADE-RECEIPT] SHORT $${actualDollars.toFixed(2)} / $${currentEquity.toFixed(2)} = ${actualPercent.toFixed(1)}% of account equity | Conf: ${(tradeConfidence * 100).toFixed(0)}% | Confluence: ${sizingMultiplier}x | Strategy: ${entryStrategy}`);
+ 
+           console.log(`[ORCHESTRATOR-ENTRY] SHORT Winner: ${entryStrategy} | Sizing: ${sizingMultiplier}x | SL=${exitContract.stopLossPercent}%, TP=${exitContract.takeProfitPercent}%`);
+ 
+           // L4: Enrich ledger with actual computed position sizing (short path)
+           let ledgerPositionSizing = null;
+           if (decision.ledgerData) {
+-            const baseP = ConfigLoader.get('positionSizing.maxPositionSize');
++            const baseP = entryPlan.configuredBasePercent;
+             ledgerPositionSizing = {
+               basePercent: baseP,
+               confidenceMultiplier,
+               confidencePercent: baseP * confidenceMultiplier,
+               confluenceMultiplier: sizingMultiplier,
+-              finalPercent: currentBalance > 0 ? adjustedPositionSize / currentBalance : 0,
++              finalPercent: currentEquity > 0 ? adjustedPositionSize / currentEquity : 0,
+               accountBalance: currentBalance,
++              accountEquity: currentEquity,
+               finalSizeUsd: adjustedPositionSize,
+-              formula: `${(baseP*100).toFixed(1)}% base × ${confidenceMultiplier.toFixed(2)} conf × ${sizingMultiplier.toFixed(2)} confluence = ${actualPercent.toFixed(2)}% of $${currentBalance.toFixed(0)} = $${adjustedPositionSize.toFixed(2)}`,
++              formula: `${(baseP*100).toFixed(1)}% base × ${confidenceMultiplier.toFixed(2)} conf × ${sizingMultiplier.toFixed(2)} confluence; after position/book caps and quantity rounding: ${actualPercent.toFixed(2)}% of equity $${currentEquity.toFixed(0)} = $${adjustedPositionSize.toFixed(2)}`,
+             };
+           }
+ 
+diff --git a/core/PnLTracker.js b/core/PnLTracker.js
+index 79dc00b2..0d14688b 100644
+--- a/core/PnLTracker.js
++++ b/core/PnLTracker.js
+@@ -6,8 +6,8 @@ class PnLTracker {
+   }
+ 
+   initialize(balance, sessionId = 'default') {
+-    if (!Number.isFinite(balance) || balance <= 0) {
+-      console.warn(`[PnLTracker] Refusing non-finite or non-positive starting balance: ${balance}`);
++    if (!Number.isFinite(balance) || balance < 0) {
++      console.warn(`[PnLTracker] Refusing non-finite or negative starting balance: ${balance}`);
+       return false;
+     }
+     this.state.startingBalance = balance;
+diff --git a/core/PolicyBuilder.js b/core/PolicyBuilder.js
+index d6de2df2..128e01c2 100644
+--- a/core/PolicyBuilder.js
++++ b/core/PolicyBuilder.js
+@@ -232,6 +232,9 @@ function normalizeContract(strategyName, contract) {
+     atrStopMult: hasOwn(contract, 'atrStopMult') && contract.atrStopMult !== null
+       ? requirePositiveNumber(contract.atrStopMult, 'exitContract.atrStopMult')
+       : null,
++    atrPeriod: hasOwn(contract, 'atrPeriod') && contract.atrPeriod !== null
++      ? requirePositiveNumber(contract.atrPeriod, 'exitContract.atrPeriod')
++      : null,
+     takeProfitPercent: tpMode === 'off' || tpMode === 'atrMultiple'
+       ? null
+       : requirePositiveNumber(contract.takeProfitPercent, 'exitContract.takeProfitPercent'),
+@@ -589,6 +592,7 @@ function buildForTrade(options = {}) {
+     source: 'PolicyBuilder.buildForTrade',
+     strategyName: normalizedStrategyName,
+     builtAtMs: nowMs,
++    configuration: options.configuration ?? null,
+     contract: normalizeContract(normalizedStrategyName, exitContract),
+     mtfConfluenceSnapshot: normalizeMtfConfluenceSnapshot(mtfConfluenceSnapshot, entryDirection),
+     profitManagement: {
+diff --git a/core/ProfitExitPlanner.js b/core/ProfitExitPlanner.js
+index 5cd756a3..49715a0f 100644
+--- a/core/ProfitExitPlanner.js
++++ b/core/ProfitExitPlanner.js
+@@ -157,6 +157,8 @@ function planBeScaleOut(snapshot, profitPercent) {
+   if (!config || config.enabled !== true) {
+     return null;
+   }
++  const exitFraction = usesContractPartial ? config.fraction : config.scaleOutFraction;
++  if (exitFraction === 0) return null;
+   const status = currentStateStatus(snapshot.beScaleOutState, 'snapshot.beScaleOutState');
+   if (status !== 'idle') {
+     return null;
+@@ -184,7 +186,7 @@ function planBeScaleOut(snapshot, profitPercent) {
+     exitRole: 'profit',
+     stateKey: 'beScaleOutState',
+     exitFraction: requireFraction(
+-      usesContractPartial ? config.fraction : config.scaleOutFraction,
++      exitFraction,
+       usesContractPartial ? 'policy.contract.partialExit.fraction' : 'policy.profitManagement.beScaleOut.scaleOutFraction'
+     ),
+     evidence: {
+@@ -211,7 +213,8 @@ function tierExitFraction(snapshot, tier, tierState) {
+       if (!state || currentStateStatus(state, `snapshot.tierStates[${index}]`) !== 'idle') {
+         return sum;
+       }
+-      return sum + requireFraction(candidate.exitFraction, `tier.${candidate.name || index}.exitFraction`);
++      return candidate.exitFraction === 0 ? sum
++        : sum + requireFraction(candidate.exitFraction, `tier.${candidate.name || index}.exitFraction`);
+     }, 0);
+     if (openWeight <= 0) {
+       throw new Error('[ProfitExitPlanner] open tier weights must sum above zero');
+@@ -248,7 +251,7 @@ function planTier(snapshot, profitPercent) {
+       throw new Error(`[ProfitExitPlanner] snapshot.tierStates[${index}] is required`);
+     }
+     const status = currentStateStatus(tierStates[index], `snapshot.tierStates[${index}]`);
+-    if (status !== 'idle') {
++    if (status !== 'idle' || tier.exitFraction === 0) {
+       continue;
+     }
+     const targetProfitMove = requireFiniteNumber(tier.targetProfitMove, `tier.${index}.targetProfitMove`);
+diff --git a/core/StateManager.js b/core/StateManager.js
+index 50ce951d..edf0cb0b 100644
+--- a/core/StateManager.js
++++ b/core/StateManager.js
+@@ -1269,6 +1269,9 @@ class StateManager {
+       try {
+         trade.decisionLedger = createLedgerSkeleton({
+           tradeId,
++          decisionConfiguration: context.ledgerData.decisionConfiguration ?? null,
++          entryConfiguration: stateContext.frozenExitPolicy?.configuration ?? null,
++          entryPolicyHash: stateContext.frozenExitPolicy?.policyHash ?? null,
+           candleTimestamp: context.ledgerData.candleTimestamp,
+           symbol: tradeScope.symbol,
+           timeframe: tradeScope.timeframe,
+@@ -2976,6 +2979,67 @@ class StateManager {
+     return trade ? deepFreezePlain(clonePlain(trade)) : null;
+   }
+ 
++  /**
++   * Apply an operator's fixed stop to one current trade, never its entry policy
++   * or global settings. The existing state lock serializes this with fills.
++   */
++  async updateTradeStop(request = {}) {
++    const reject = reason => ({ success: false, applied: false, reason });
++    if (!request || typeof request !== 'object' || Array.isArray(request)) return reject('invalid_trade_stop_request');
++    const { requestId, tradeId, scopeKey, expectedTradeRevision, stopPrice } = request;
++    if ([requestId, tradeId, scopeKey].some(value => typeof value !== 'string'
++      || value.trim() !== value || value.length === 0 || value.length > 512)) {
++      return reject('invalid_trade_stop_identity');
++    }
++    if (!Number.isSafeInteger(expectedTradeRevision) || expectedTradeRevision < 0
++      || typeof stopPrice !== 'number' || !Number.isFinite(stopPrice) || stopPrice <= 0) {
++      return reject('invalid_trade_stop_value');
++    }
++
++    await this.acquireLock();
++    try {
++      const trade = this.state.activeTrades.get(tradeId);
++      if (!trade) return reject('trade_not_found');
++      if (trade.scopeKey !== scopeKey) return reject('trade_scope_mismatch');
++      if (trade.operatorStop?.requestId === requestId) {
++        if (trade.operatorStop.price !== stopPrice) return reject('request_id_conflict');
++        return { success: true, applied: true, duplicate: true, requestId, tradeId, scopeKey,
++          tradeRevision: trade.tradeRevision, operatorStop: clonePlain(trade.operatorStop),
++          entryPolicyHash: trade.frozenExitPolicy?.policyHash ?? null,
++          persistence: getConfigValue('mode.backtest') ? 'backtest_memory_only' : 'state_file',
++          effectiveAt: 'next_exit_evaluation' };
++      }
++      if (trade.tradeRevision !== expectedTradeRevision) return reject('trade_revision_changed');
++      if (trade.pendingExitIntent) return reject('trade_exit_pending');
++      if (!(trade.remainingOrderQuantity > 0)) return reject('trade_not_open');
++
++      const operatorStop = {
++        requestId, price: stopPrice, updatedAtMs: Date.now(),
++        previousPrice: trade.operatorStop?.price ?? null,
++        fromTradeRevision: trade.tradeRevision, tradeRevision: trade.tradeRevision + 1,
++      };
++      const trades = new Map(this.state.activeTrades);
++      trades.set(tradeId, { ...trade, operatorStop, tradeRevision: operatorStop.tradeRevision });
++      const result = this._applyStateUpdatesLocked({ activeTrades: trades }, {
++        action: 'UPDATE_TRADE_STOP', source: 'dashboard', requestId, tradeId,
++        symbol: trade.symbol, scopeKey, operatorStop,
++        entryPolicyHash: trade.frozenExitPolicy?.policyHash ?? null,
++      });
++      if (!result.success) return reject(result.code || 'trade_stop_state_update_failed');
++      const receipt = {
++        success: true, applied: true, duplicate: false, requestId, tradeId, scopeKey,
++        tradeRevision: operatorStop.tradeRevision, operatorStop,
++        entryPolicyHash: trade.frozenExitPolicy?.policyHash ?? null,
++        persistence: getConfigValue('mode.backtest') ? 'backtest_memory_only' : 'state_file',
++        effectiveAt: 'next_exit_evaluation',
++      };
++      emitTrace({}, 'TRADE_STOP_UPDATED', receipt);
++      return receipt;
++    } finally {
++      this.releaseLock();
++    }
++  }
++
+   /**
+    * Reserve a single in-flight exit intent for a trade before broker submission.
+    * This is pre-confirm bookkeeping only: it prevents duplicate exits but does
+@@ -4762,7 +4826,12 @@ class StateManager {
+         unrealizedPnL,
+         openedAt: trade.entryTime || trade.timestamp || null,
+         strategy: trade.strategy || trade.source || null,
+-        reason: trade.reason || null
++        reason: trade.reason || null,
++        tradeRevision: trade.tradeRevision,
++        operatorStop: trade.operatorStop ? clonePlain(trade.operatorStop) : null,
++        entryConfiguration: trade.frozenExitPolicy?.configuration ?? null,
++        entryPolicyHash: trade.frozenExitPolicy?.policyHash ?? null,
++        strategyStopLossPercent: trade.exitContract?.stopLossPercent ?? null
+       };
+     });
+   }
+diff --git a/core/StrategyOrchestrator.js b/core/StrategyOrchestrator.js
+index a87d887a..53025098 100644
+--- a/core/StrategyOrchestrator.js
++++ b/core/StrategyOrchestrator.js
+@@ -744,8 +744,8 @@ function normalizeExitContractHint(hint, strategyName) {
+   if (explicitTpMode !== null) normalized.tpMode = explicitTpMode;
+   if (maxHoldMode !== null) normalized.maxHoldMode = maxHoldMode;
+ 
+-  const optionalPositiveFields = new Set(['trailingStopPercent', 'maxHoldTimeMinutes']);
+-  const optionalNonNegativeFields = new Set(['trailingActivation']);
++  const optionalPositiveFields = new Set(['maxHoldTimeMinutes', 'rsiPeriod']);
++  const optionalNonNegativeFields = new Set(['trailingStopPercent', 'trailingActivation']);
+   for (const key of [...optionalPositiveFields, ...optionalNonNegativeFields]) {
+     if (hint[key] === undefined) continue;
+     // Channel/ATR trailing has no percent distance or activation to transport.
+@@ -819,10 +819,6 @@ class StrategyOrchestrator {
+     // This is PER-STRATEGY, not aggregate — much more meaningful
+     // TUNE 2026-02-27: Raised from 0.25 to filter garbage signals
+ 
+-    // FIX 2026-03-19: Extracted hardcoded thresholds to config
+-    this.regimeMinConfidence = ConfigLoader.get('confidence.regimeMinConfidence');
+-    this.confluenceMinScore = ConfigLoader.get('confidence.confluenceMinScore');
+-
+     this.mtfBaseTimeframe = typeof config.mtfBaseTimeframe === 'string' && config.mtfBaseTimeframe.trim()
+       ? config.mtfBaseTimeframe.trim()
+       : null;
+@@ -1633,6 +1629,10 @@ class StrategyOrchestrator {
+           emaCrossoverModule,
+           () => new EMASMACrossoverSignal(this.emaCrossoverConfig, () => ConfigLoader.get('strategies.EMASMACrossover'))
+         );
++        if (ctx.entriesEnabled === false) {
++          scopedEmaCrossover.observe(latestCandle, candles);
++          return null;
++        }
+         const sig = scopedEmaCrossover.update(latestCandle, candles);
+         if (sig) diagEMA.moduleNonNull++;
+         if (sig?.diagnostics) {
+@@ -1697,6 +1697,10 @@ class StrategyOrchestrator {
+           maDynamicSRModule,
+           () => new MADynamicSR(this.maDynamicSRConfig, () => ConfigLoader.get('strategies.MADynamicSR'))
+         );
++        if (ctx.entriesEnabled === false) {
++          scopedMaDynamicSR.observe(latestCandle, candles);
++          return null;
++        }
+         const sig = scopedMaDynamicSR.update(latestCandle, candles);
+         if (sig && sig.direction) diagMASR.moduleNonNull++;
+ 
+@@ -1756,6 +1760,10 @@ class StrategyOrchestrator {
+           liquiditySweepModule,
+           () => new LiquiditySweepDetector(this.liquiditySweepConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'))
+         );
++        if (ctx.entriesEnabled === false) {
++          scopedLiquiditySweep.observe(latestCandle);
++          return null;
++        }
+         const sig = scopedLiquiditySweep.feedCandle(latestCandle);
+ 
+         // DIAGNOSTIC: Log every call to see why no signals
+@@ -1807,6 +1815,10 @@ class StrategyOrchestrator {
+             breakAndRetestModule,
+             () => new BreakAndRetest(this.breakAndRetestConfig)
+           );
++          if (ctx.entriesEnabled === false) {
++            scopedBreakAndRetest.observe(latestCandle, candles);
++            return null;
++          }
+           const sig = scopedBreakAndRetest.update(latestCandle, candles);
+           if (!sig || !sig.direction || sig.direction === 'neutral') return null;
+           let conf = sig.confidence || 0;
+@@ -1972,6 +1984,7 @@ class StrategyOrchestrator {
+           tpoIntegrationModule,
+           () => new OgzTpoIntegration(ogzTpoConfig)
+         );
++        scopedTpoIntegration.config.enabled = ConfigLoader.get('pipeline.enableOGZTPO');
+         const tpoBarTimestamp = latestCandle.etime
+           ?? latestCandle.timestamp
+           ?? latestCandle.time
+@@ -2027,6 +2040,10 @@ class StrategyOrchestrator {
+           orbInstance,
+           () => new OpeningRangeBreakout(this.openingRangeBreakoutConfig)
+         );
++        if (ctx.entriesEnabled === false) {
++          scopedOrb.observe(latestCandle);
++          return null;
++        }
+         const signal = scopedOrb.update(latestCandle);
+ 
+         // DIAGNOSTIC: Log every call
+@@ -2070,6 +2087,10 @@ class StrategyOrchestrator {
+           smartMoneySweepModule,
+           () => new SmartMoneySweep(this.smartMoneySweepConfig)
+         );
++        if (ctx.entriesEnabled === false) {
++          scopedSmartMoneySweep.observe(latestCandle, candles);
++          return null;
++        }
+         const sig = scopedSmartMoneySweep.update(latestCandle, candles);
+ 
+         if (sig) diagSMS.moduleNonNull++;
+@@ -2108,6 +2129,10 @@ class StrategyOrchestrator {
+       name: 'NoWickImbalance',
+       evaluate: (ctx) => {
+         try {
++          if (ctx.entriesEnabled === false) {
++            noWickModule.observe(ctx);
++            return null;
++          }
+           return noWickModule.evaluate(ctx);
+         } catch (e) {
+           if (e.message && e.message.startsWith('[STRATEGY-SCOPE]')) {
+@@ -2205,13 +2230,17 @@ class StrategyOrchestrator {
+       });
+     }
+ 
+-    // Apply pipeline toggles - filter strategies based on env vars
++    // Apply canonical pipeline settings to the retained strategy registrations.
++    // Keep the registered closures and per-symbol state when an operator
++    // changes which strategies may supply NEW entries.
++    this.registeredStrategies = this.strategies.slice();
++    this.builtinStrategies = new Set(this.registeredStrategies);
+     this._applyPipelineToggles();
+   }
+ 
+   /**
+    * Filter registered strategies based on pipeline toggles.
+-   * Called once at end of _registerBuiltinStrategies().
++   * Called at construction and before the first decision after a settings save.
+    * Logs exactly which strategies are active/disabled - no silent failures.
+    */
+   _applyPipelineToggles() {
+@@ -2234,18 +2263,14 @@ class StrategyOrchestrator {
+       'RSI2MeanReversion': pipeline.enableRSI2MeanReversion,
+       'TimeSeriesMomentum': pipeline.enableTimeSeriesMomentum,
+     };
+-    const before = this.strategies.length;
++    const before = this.registeredStrategies.length;
+     const disabled = [];
+ 
+-    this.strategies = this.strategies.filter(s => {
++    this.strategies = this.registeredStrategies.filter(s => {
++      // The explicit custom-strategy API has no built-in pipeline switch.
++      if (!this.builtinStrategies.has(s)) return true;
+       const toggle = toggleMap[s.name];
+-      if (typeof toggle !== 'boolean') {
+-        throw new Error(`[PIPELINE] ${s.name} pipeline toggle must be boolean; got ${toggle}. Check config path pipeline.${s.name}`);
+-      }
+       if (toggle === false) {
+-        if (this.soloStrategies && this.soloStrategies.includes(s.name.toLowerCase())) {
+-          throw new Error(`[STRATEGY_SOLO_FILTER] ${s.name} was requested but its pipeline toggle is disabled; enable it in config or remove it from strategies.soloFilter`);
+-        }
+         disabled.push(s.name);
+         return false;
+       }
+@@ -2256,6 +2281,7 @@ class StrategyOrchestrator {
+       console.log(`[PIPELINE] Disabled ${disabled.length} strategies: ${disabled.join(', ')}`);
+     }
+     console.log(`[PIPELINE] Active strategies: ${this.strategies.map(s => s.name).join(', ')} (${this.strategies.length}/${before})`);
++    this.pipelineConfiguration = ConfigLoader.load().fingerprint;
+   }
+ 
+   /**
+@@ -2269,10 +2295,11 @@ class StrategyOrchestrator {
+    * @returns {Object} { action, direction, confidence, winnerStrategy, exitContract, sizingMultiplier, confluence, allResults }
+    */
+   evaluate(indicators, patterns = [], regime = null, priceHistory = [], extras = {}) {
++    if (this.pipelineConfiguration !== ConfigLoader.load().fingerprint) this._applyPipelineToggles();
+     this.evalCount++;
+ 
+     const entrySizingInput = ConfigLoader.getEntrySizingInput();
+-    const ctx = { indicators, patterns, regime, priceHistory, extras };
++    const ctx = { indicators, patterns, regime, priceHistory, extras, entriesEnabled: true };
+     const unavailableStrategies = [];
+     this.currentEvaluationUnavailableStrategies = unavailableStrategies;
+     if (entrySizingInput.issues.length > 0) {
+@@ -2319,7 +2346,13 @@ class StrategyOrchestrator {
+     const contractConfidenceDropped = [];
+     // Quarantine malformed external entry configuration before routing strategies.
+     // Existing positions retain their own exit contracts and exit processing.
+-    const entryStrategies = entrySizingInput.multipliers === null ? [] : this.strategies;
++    // These retained modules own candle-by-candle state even while entries are disabled.
++    const statefulNames = ['EMASMACrossover', 'MADynamicSR', 'LiquiditySweep', 'BreakRetest',
++      'OGZTPO', 'OpeningRangeBreakout', 'SmartMoneySweep', 'NoWickImbalance'];
++    const entryStrategies = entrySizingInput.multipliers === null ? [] : this.registeredStrategies.filter(
++      strategy => this.strategies.includes(strategy)
++        || (this.builtinStrategies.has(strategy) && statefulNames.includes(strategy.name))
++    );
+     for (const strategy of entryStrategies) {
+       // DISABLED 2026-03-09: VP chop filter removed — strategies handle own filtering
+       // if (skipTrendStrategies && TREND_STRATEGIES.includes(strategy.name)) {
+@@ -2327,7 +2360,9 @@ class StrategyOrchestrator {
+       // }
+ 
+       try {
+-        const result = strategy.evaluate(ctx);
++        const entriesEnabled = this.strategies.includes(strategy);
++        const result = strategy.evaluate(entriesEnabled ? ctx : { ...ctx, entriesEnabled: false });
++        if (!entriesEnabled) continue;
+         if (isStrategyUnavailableRecord(result)) {
+           noSignalStrategies.push(`${strategy.name}:unavailable:${result.reason}`);
+           continue;
+@@ -3058,16 +3093,21 @@ class StrategyOrchestrator {
+     if (!strategy.name || typeof strategy.evaluate !== 'function') {
+       throw new Error('Strategy must have name and evaluate function');
+     }
+-    this.strategies.push(strategy);
+-    console.log(`📌 [StrategyOrchestrator] Registered strategy: ${strategy.name}`);
++    this.registeredStrategies.push(strategy);
++    this._applyPipelineToggles();
++    console.log(`[StrategyOrchestrator] Registered strategy: ${strategy.name}`);
+   }
+ 
+   /**
+    * Remove a strategy by name
+    */
+   removeStrategy(name) {
+-    this.strategies = this.strategies.filter(s => s.name !== name);
+-    console.log(`🗑️ [StrategyOrchestrator] Removed strategy: ${name}`);
++    for (const strategy of this.registeredStrategies) {
++      if (strategy.name === name) this.builtinStrategies.delete(strategy);
++    }
++    this.registeredStrategies = this.registeredStrategies.filter(s => s.name !== name);
++    this._applyPipelineToggles();
++    console.log(`[StrategyOrchestrator] Removed strategy: ${name}`);
+   }
+ 
+   /**
+diff --git a/core/TradingLoop.js b/core/TradingLoop.js
+index c7b803b8..b4883f3d 100644
+--- a/core/TradingLoop.js
++++ b/core/TradingLoop.js
+@@ -558,6 +558,7 @@ class TradingLoop {
+ 
+       const record = {
+         traceId,
++        configuration: ConfigLoader.getReceipt(),
+         signalId: decision?.signalId || (traceId ? `${traceId}:signal` : null),
+         timestamp: new Date().toISOString(),
+         candleTimestamp: marketData?.timestamp ?? Date.now(),
+@@ -622,7 +623,11 @@ class TradingLoop {
+           riskGates,
+           failedRiskGates,
+         },
+-        exitEvaluations,
++        exitEvaluations: exitEvaluations.map(evaluation => {
++          const trade = activeTrades.find(item => (item.id || item.orderId) === evaluation.tradeId);
++          return { ...evaluation, entryConfiguration: trade?.frozenExitPolicy?.configuration ?? null,
++            entryPolicyHash: trade?.frozenExitPolicy?.policyHash ?? null };
++        }),
+         decision: {
+           action: decision?.action || 'HOLD',
+           direction: decision?.direction || null,
+@@ -638,6 +643,7 @@ class TradingLoop {
+       const autopsyWrite = DecisionAutopsyLogger.writeAutopsy(record);
+       emitTrace(this.ctx, 'DECISION_AUTOPSY', {
+         traceId,
++        configuration: record.configuration,
+         symbol,
+         persisted: autopsyWrite.persisted === true,
+         skipped: autopsyWrite.skipped === true,
+@@ -1217,7 +1223,8 @@ class TradingLoop {
+         exitReason: exitCheck.exitReason || null,
+         confidence: exitCheck.confidence ?? null,
+         details: exitCheck.details || null,
+-        profitStopUpdate: exitCheck.profitStopUpdate || null,
++        profitPlannerSkipped: exitCheck.profitPlannerSkipped ?? null,
++        profitStopUpdate: exitCheck.profitStopUpdate ?? null,
+       });
+     }
+     this._writeDecisionAutopsy({
+@@ -1392,7 +1399,7 @@ class TradingLoop {
+ 
+     // ─── DIRECTION FILTER (configurable, not hardcoded) ───
+     const directionFilter = ConfigLoader.get('pipeline.directionFilter');
+-    const minConfidence = this.ctx.config.minTradeConfidence;
++    const minConfidence = ConfigLoader.get('confidence.minTradeConfidence');
+ 
+     // ─── LOG ───
+     const cleanPrice = Math.round(price).toLocaleString();
+@@ -1568,7 +1575,8 @@ class TradingLoop {
+             exitReason: exitCheck.exitReason || null,
+             confidence: exitCheck.confidence ?? null,
+             details: exitCheck.details || null,
+-            profitStopUpdate: exitCheck.profitStopUpdate || null,
++            profitPlannerSkipped: exitCheck.profitPlannerSkipped ?? null,
++            profitStopUpdate: exitCheck.profitStopUpdate ?? null,
+           });
+         }
+       } // end for (const activeTrade of activeTrades)
+@@ -1616,14 +1624,17 @@ class TradingLoop {
+           console.error(`[ENTRY] Blocked: active trade direction unknown for ${symbol}; refusing entry until state is reconciled`);
+         }
+         decision = { action: 'HOLD', confidence: orchResult.confidence, blockReason: oppositeStatus.reason };
+-      } else if (activeTrades.length >= maxPositions) {
++      } else if (activeTrades.length > 0) {
++        this._diag('ENTRY_BLOCK', { symbol, reason: 'asset_already_open', activeTrades: activeTrades.length });
++        decision = { action: 'HOLD', confidence: orchResult.confidence, blockReason: 'asset_already_open' };
++      } else if (stateManager.get('activeTrades').size >= maxPositions) {
+         this._diag('ENTRY_BLOCK', {
+           symbol,
+           reason: 'max_positions',
+-          activeTrades: activeTrades.length,
++          activeTrades: stateManager.get('activeTrades').size,
+           maxPositions
+         });
+-        console.log(`[ENTRY] Blocked: at max positions (${activeTrades.length}/${maxPositions})`);
++        console.log(`[ENTRY] Blocked: at max positions (${stateManager.get('activeTrades').size}/${maxPositions})`);
+         decision = { action: 'HOLD', confidence: orchResult.confidence, blockReason: 'max_positions' };
+       } else {
+         this._diag('RISK_CHECK_START', {
+@@ -1798,6 +1809,7 @@ class TradingLoop {
+         const winnerSignalMetadata = winnerIndex !== null ? this._ledgerSignalMetadata(allResults[winnerIndex], winnerIndex) : {};
+         const ledgerScope = this._patternScope(symbol);
+         decision.ledgerData = {
++          decisionConfiguration: ConfigLoader.getReceipt(),
+           candleTimestamp: marketData?.timestamp || Date.now(),
+           symbol,
+           brokerId: ledgerScope.brokerId || null,
+@@ -2033,8 +2045,8 @@ class TradingLoop {
+     const memoryPatterns = this.ctx.patternChecker.analyzePatterns({
+       candles: priceHistory,
+       trend: indicators.trend,
+-      macd: indicators.macd?.macd ?? indicators.macd?.macdLine ?? null,
+-      macdSignal: indicators.macd?.signal ?? indicators.macd?.signalLine ?? null,
++      macd: indicators.macd,
++      macdSignal: indicators.macdSignal,
+       rsi: indicators.rsi,
+       volume: marketData?.volume ?? null,
+       ...patternScope
+@@ -2047,7 +2059,7 @@ class TradingLoop {
+     const rawCandlePatterns = candlePatternDetector.detect(priceHistory, {
+       rsi: indicators.rsi,
+       trend: indicators.trend,
+-      macd: indicators.macd?.macd ?? null,
++      macd: indicators.macd,
+       volume: marketData?.volume ?? null
+     });
+     const minPatternConf = ConfigLoader.get('confidence.candlePatternMinConfidence');
+diff --git a/core/WebSocketManager.js b/core/WebSocketManager.js
+index 7d9ee683..9758389a 100644
+--- a/core/WebSocketManager.js
++++ b/core/WebSocketManager.js
+@@ -102,6 +102,25 @@ class WebSocketManager {
+     return result;
+   }
+ 
++  async handleTradeStopEdit(message) {
++    let result;
++    try {
++      result = await stateManager.updateTradeStop(message);
++    } catch (error) {
++      console.error('[WebSocketManager] Trade stop application failed:', error.message);
++      result = { success: false, applied: false, reason: 'trade_stop_application_failed' };
++    }
++    const receipt = {
++      type: 'trade_stop_result',
++      requestId: typeof message.requestId === 'string' ? message.requestId : null,
++      ...result,
++    };
++    if (this.ctx.dashboardWs?.readyState === WebSocket.OPEN) {
++      this.ctx.dashboardWs.send(JSON.stringify(receipt));
++    }
++    return receipt;
++  }
++
+   handleSettings(message) {
+     const result = message.type === 'get_settings'
+       ? { success: true, ...ConfigLoader.getSettingsView() }
+@@ -190,7 +209,7 @@ class WebSocketManager {
+         }
+       });
+ 
+-      this.ctx.dashboardWs.on('message', (data) => {
++      this.ctx.dashboardWs.on('message', async (data) => {
+         try {
+           const msg = JSON.parse(data.toString());
+ 
+@@ -290,12 +309,17 @@ class WebSocketManager {
+             return;
+           }
+ 
++          // CHANGE 665: Handle profile switching and dashboard commands
++          if (msg.type === 'update_trade_stop') {
++            await this.handleTradeStopEdit(msg);
++            return;
++          }
++
+           if (msg.type === 'get_settings' || msg.type === 'save_settings') {
+             this.handleSettings(msg);
+             return;
+           }
+ 
+-          // CHANGE 665: Handle profile switching and dashboard commands
+           if (msg.type === 'command') {
+             console.log('[Dashboard] command received:', msg.command);
+ 
+diff --git a/core/dto/DecisionLedgerSchema.js b/core/dto/DecisionLedgerSchema.js
+index 88d9d241..a710e866 100644
+--- a/core/dto/DecisionLedgerSchema.js
++++ b/core/dto/DecisionLedgerSchema.js
+@@ -79,10 +79,11 @@ const PositionSizingSchema = z.object({
+ const ExitContractSchema = z.object({
+   strategyName: z.string(),
+   stopLossPercent: z.number(),
+-  takeProfitPercent: z.number(),
++  // Normalized off/ATR contracts intentionally have no percentage target.
++  takeProfitPercent: z.number().nullable(),
+   trailingStopPercent: z.number().nullable().optional(),
+   trailingActivation: z.number().nullable().optional(),
+-  maxHoldTimeMinutes: z.number().optional(),
++  maxHoldTimeMinutes: z.number().nullable().optional(),
+   _validated: z.string().nullable().optional(),
+ }).passthrough();
+ 
+@@ -93,6 +94,10 @@ const ExitContractSchema = z.object({
+  */
+ const DecisionLedgerSkeletonSchema = z.object({
+   tradeId: z.string(),
++  // Old records may lack identity. Never relabel them with today's settings.
++  decisionConfiguration: z.record(z.string(), z.unknown()).nullable().optional(),
++  entryConfiguration: z.record(z.string(), z.unknown()).nullable().optional(),
++  entryPolicyHash: z.string().nullable().optional(),
+   candleTimestamp: z.number().int(),
+   symbol: z.string(),
+   timeframe: z.string(),
+@@ -190,6 +195,9 @@ function createLedgerSkeleton(input = {}) {
+ 
+   const ledger = {
+     tradeId: input.tradeId,
++    decisionConfiguration: input.decisionConfiguration ?? null,
++    entryConfiguration: input.entryConfiguration ?? null,
++    entryPolicyHash: input.entryPolicyHash ?? null,
+     candleTimestamp: input.candleTimestamp,
+     symbol: input.symbol,
+     timeframe: input.timeframe,
+diff --git a/core/exit/StopLossChecker.js b/core/exit/StopLossChecker.js
+index 2bcc3998..6ef0cea6 100644
+--- a/core/exit/StopLossChecker.js
++++ b/core/exit/StopLossChecker.js
+@@ -25,6 +25,18 @@ class StopLossChecker {
+    * @returns {Object} { shouldExit, exitReason, details, confidence } or { shouldExit: false }
+    */
+   check(trade, currentPrice, pnlPercent, context = {}) {
++    // A customer edit replaces this trade's fixed SL only. Targets, strategy
++    // invalidation and trailing exits continue under their existing owners.
++    if (trade.operatorStop) {
++      const stopPrice = trade.operatorStop.price;
++      const reached = trade.direction === 'short' ? currentPrice >= stopPrice : currentPrice <= stopPrice;
++      return reached ? {
++        shouldExit: true,
++        exitReason: 'operator_stop',
++        details: `Trade-specific stop reached: ${currentPrice} at ${stopPrice}`,
++        confidence: 100
++      } : { shouldExit: false };
++    }
+     const contract = trade.exitContract || {};
+     const stopType = typeof contract.stopType === 'string' ? contract.stopType : 'percent';
+ 
+@@ -63,6 +75,10 @@ class StopLossChecker {
+    * @returns {number} Effective stop loss percent
+    */
+   getEffectiveStop(trade) {
++    if (trade.operatorStop) {
++      const move = (trade.operatorStop.price - trade.entryPrice) / trade.entryPrice * 100;
++      return trade.direction === 'short' ? -move : move;
++    }
+     return this.breakEvenManager.getEffectiveStop(trade);
+   }
+ }
+diff --git a/foundation/ConfigLoader.js b/foundation/ConfigLoader.js
+index b2292bcb..fa99da98 100644
+--- a/foundation/ConfigLoader.js
++++ b/foundation/ConfigLoader.js
+@@ -419,7 +419,9 @@ function loadDotenvValues(envPath) {
+   }
+ }
+ 
+-const VALID_LAUNCH_MODES = Object.freeze(new Set(['live', 'paper', 'backtest']));
++// Launch profiles describe paper startup or file-backed backtesting, never
++// permission to activate live trading (Trey's walk, Part A10).
++const VALID_LAUNCH_MODES = Object.freeze(new Set(['paper', 'backtest']));
+ const VALID_DIRECTION_FILTERS = Object.freeze(new Set(['both', 'long_only', 'short_only']));
+ const VALID_SESSION_ROUTER_MODES = Object.freeze(new Set(['static', 'scheduled']));
+ const VALID_SESSION_ROUTER_STATIC_SESSIONS = Object.freeze(new Set(['stocks', 'crypto']));
+@@ -458,7 +460,7 @@ function resolveLaunchProfileName(sourceEnv, launchProfiles = requireLaunchProfi
+ function normalizeLaunchMode(profileName, profile) {
+   const mode = String(profile?.mode || '').trim().toLowerCase();
+   if (!VALID_LAUNCH_MODES.has(mode)) {
+-    throw new Error(`[ConfigLoader] launchProfiles.${profileName}.mode must be live, paper, or backtest`);
++    throw new Error(`[ConfigLoader] launchProfiles.${profileName}.mode must be paper or backtest; live activation is not a launch setting`);
+   }
+   if (typeof profile.confirmLive !== 'boolean') {
+     throw new Error(`[ConfigLoader] launchProfiles.${profileName}.confirmLive must be boolean`);
+@@ -676,6 +678,7 @@ const DESCRIPTOR_OVERRIDE_PATHS = Object.freeze([
+   /^exits\.profitTiers\.(tier1|tier2|tier3)$/,
+   /^pipeline\.directionFilter$/,
+   /^execution\.candleTimeframe$/,
++  /^trai\.enabled$/,
+   /^orchestrator\.mtfConfluenceService\.minReadyTimeframes$/,
+ ]);
+ 
+@@ -883,6 +886,8 @@ function refreshDerivedAliases(config, sources) {
+   config.sizing = cloneConfiguredObject(config.positionSizing);
+   config.tiers = cloneConfiguredObject(config.exits.profitTiers);
+   config.startingBalance = config.backtest.initialBalance;
++  config.featureCatalog.TRAI_INFERENCE.enabled = config.trai.enabled;
++  sources['featureCatalog.TRAI_INFERENCE.enabled'] = sources['trai.enabled'];
+   const pipeline = config.pipeline;
+   Object.assign(config.strategies, {
+     enableRSI: pipeline.enableRSI,
+@@ -1032,6 +1037,22 @@ function applyRunDescriptor(config, sources, descriptorReceipt) {
+   sources['paths.stateFile'] = `descriptor:${descriptorReceipt.path}:state.stateFile`;
+   sources['paths.dataDir'] = `descriptor:${descriptorReceipt.path}:state.dataDir`;
+ 
++  // A worker's state root also owns the stores used by its real consumers.
++  // Leaving these on deployment paths shares live session/performance state
++  // even when the worker's primary state file and report directory are isolated.
++  const workerPaths = {
++    'paths.journalDataDir': path.join(descriptor.state.dataDir, 'journal'),
++    'paths.logDirectory': path.join(descriptor.report.outputDir, 'logs'),
++    'internals.sessionRouter.transitionStoreDir': path.join(descriptor.state.dataDir, 'session-router'),
++    'internals.performanceAnalysis.performanceDbPath': path.join(descriptor.state.dataDir, 'performance.json'),
++    'internals.pipelineSnapshot.outputFile': path.join(descriptor.state.dataDir, 'pipeline-snapshots.jsonl'),
++    'internals.trai.decisionLogPath': path.join(descriptor.report.outputDir, 'logs', 'trai-decisions.log'),
++  };
++  for (const [pathName, value] of Object.entries(workerPaths)) {
++    setObjectPath(config, pathName, value);
++    sources[pathName] = `descriptor:${descriptorReceipt.path}:derived-worker-path`;
++  }
++
+   config.services.dashboard.enabled = descriptor.services.dashboard;
+   config.services.notifications.enabled = descriptor.services.notifications;
+   config.monitoring.sentryEnabled = descriptor.services.sentry;
+@@ -1822,6 +1843,49 @@ function validateBotRuntimeContract(config, errors) {
+   }
+ }
+ 
++function sizingConfigurationProblem(config) {
++  for (const [key, value] of [
++    ['positionSizing.maxPositionSize', config.positionSizing?.maxPositionSize],
++    ['entryLogic.sizing.absoluteCapPercent', config.entryLogic?.sizing?.absoluteCapPercent],
++    ['positionSizing.maxTotalExposure', config.positionSizing?.maxTotalExposure],
++  ]) {
++    if (!Number.isFinite(value) || value <= 0 || value > 1) return { reason: 'invalid_sizing_fraction', path: key };
++  }
++  if (!Number.isSafeInteger(config.positionSizing.maxPositions) || config.positionSizing.maxPositions < 1) {
++    return { reason: 'invalid_position_count', path: 'positionSizing.maxPositions' };
++  }
++  if (config.positionSizing.maxPositionSize > config.entryLogic.sizing.absoluteCapPercent
++    || config.entryLogic.sizing.absoluteCapPercent > config.positionSizing.maxTotalExposure) {
++    return { reason: 'sizing_requires_base_le_absolute_le_total' };
++  }
++  return null;
++}
++
++function editableSettingValueProblem(key, value) {
++  const definition = Object.hasOwn(EDITABLE_SETTINGS, key) ? EDITABLE_SETTINGS[key] : null;
++  if (!definition) return { reason: 'setting_not_hot_editable', path: key };
++  if (typeof value !== definition.type || (definition.values && !definition.values.includes(value))
++    || (definition.pattern && !new RegExp(definition.pattern).test(value)) || (definition.type === 'number'
++    && (!Number.isFinite(value) || value < definition.min || value > definition.max
++      || (definition.exclusiveMin && value === definition.min) || (definition.exclusiveMax && value === definition.max)
++      || (definition.integer && !Number.isSafeInteger(value))))) {
++    return { reason: 'invalid_setting_value', path: key, constraint: definition };
++  }
++  return null;
++}
++
++function strategyConfigurationProblem(config, name) {
++  try {
++    const resolved = require(`../modules/${name}`).validateConfig(config.strategies[name]);
++    if (resolved.rthStartMinute !== undefined && resolved.rthStartMinute >= resolved.rthEndMinute) {
++      return { reason: 'invalid_strategy_configuration', path: `strategies.${name}`, detail: 'RTH start must precede end within the same local day' };
++    }
++  } catch (error) {
++    return { reason: 'invalid_strategy_configuration', path: `strategies.${name}`, detail: error.message };
++  }
++  return null;
++}
++
+ function validate(config, sources = {}, opts = {}) {
+   const errors = [];
+   const warnings = [];
+@@ -1858,7 +1922,7 @@ function validate(config, sources = {}, opts = {}) {
+     errors.push('mode.launchProfile must resolve from PROFILE or config/settings.json launchProfiles.defaultProfile');
+   }
+   if (!VALID_LAUNCH_MODES.has(config.mode.execution)) {
+-    errors.push(`mode.execution must be live, paper, or backtest; got ${config.mode.execution || '(missing)'}`);
++    errors.push(`mode.execution must be paper or backtest at launch; got ${config.mode.execution || '(missing)'}`);
+   }
+   if (config.mode.backtest && !activeRunDescriptor) {
+     errors.push('backtest mode requires a typed BACKTEST_RUN_DESCRIPTOR_PATH');
+@@ -1882,11 +1946,6 @@ function validate(config, sources = {}, opts = {}) {
+     warnings.push(`minTradeConfidence very low (${config.confidence.minTradeConfidence}) — bot will enter on weak signals`);
+   }
+ 
+-  // Sizing
+-  if (config.sizing.maxPositionSize > 0.25) {
+-    errors.push(`maxPositionSize too high: ${config.sizing.maxPositionSize} (>25% of account per trade)`);
+-  }
+-
+   const feeModel = String(config.fees.model || '').trim().toLowerCase();
+   // Tiers must be above fees. Percent fees can be checked statically; per-share
+   // minimum fees require order quantity/notional and are enforced by FeeModel at runtime.
+@@ -1910,7 +1969,7 @@ function validate(config, sources = {}, opts = {}) {
+   if (!Number.isFinite(config.fees.totalRoundTrip) || config.fees.totalRoundTrip < 0) {
+     errors.push(`FEE_TOTAL_ROUNDTRIP out of range: ${config.fees.totalRoundTrip}`);
+   }
+-  if (!Number.isFinite(config.fees.slippage) || config.fees.slippage < 0) {
++  if (!Number.isFinite(config.fees.slippage) || config.fees.slippage < 0 || config.fees.slippage >= 1) {
+     errors.push(`FEE_SLIPPAGE out of range: ${config.fees.slippage}`);
+   }
+   if (!Number.isFinite(config.fees.safetyBuffer) || config.fees.safetyBuffer < 0) {
+@@ -2000,12 +2059,6 @@ function validate(config, sources = {}, opts = {}) {
+       errors.push(`LIVE_TRADING=true requires launchProfiles.<profile>.confidence.minTradeConfidence, got ${minTradeConfidenceSource || 'missing'}`);
+     }
+   }
+-  if (config.mode.liveTrading && config.evalRules.enabled !== true) {
+-    errors.push('LIVE_TRADING=true cannot run with launchProfiles.<profile>.venueGuards.ttp.enabled=false because EvalRuleEngine fails open when disabled');
+-  }
+-  if (config.mode.liveTrading && config.evalRules.enabled === true && config.evalRules.ttp.enabled !== true) {
+-    errors.push('LIVE_TRADING=true cannot run with launchProfiles.<profile>.venueGuards.ttp.enabled=false while eval rules are enabled because TTP rules fail open when disabled');
+-  }
+   if (config.mode.liveTrading && config.webhookOrders.enabled && !config.webhookOrders.webhookUrl) {
+     errors.push('LIVE_TRADING=true cannot run with WEBHOOK_ORDERS_ENABLED=true and missing SIGNALSTACK_WEBHOOK_URL');
+   }
+@@ -2646,6 +2699,27 @@ const EDITABLE_SETTINGS = deepFreeze({
+     type: 'number', unit: 'fraction', min: 0, max: 1,
+     label, effect: 'next_entry_evaluation',
+   }])),
++  ...Object.fromEntries([
++    ['enableRSI', 'RSI'],
++    ['enableMADynamicSR', 'MADynamicSR'],
++    ['enableEMACrossover', 'EMA crossover'],
++    ['enableLiquiditySweep', 'Liquidity sweep'],
++    ['enableCandlePattern', 'Candle pattern'],
++    ['enableBreakRetest', 'Break and retest'],
++    ['enableMarketRegime', 'Market regime'],
++    ['enableOGZTPO', 'OGZ TPO'],
++    ['enableOpeningRangeBreakout', 'Opening range breakout'],
++    ['enableSmartMoneySweep', 'Smart money sweep'],
++    ['enableNoWickImbalance', 'No wick imbalance'],
++    ['enableDonchianBreakout', 'Donchian breakout'],
++    ['enablePropSafeEMAPullback', 'PropSafe EMA pullback'],
++    ['enableEMATrendRetest', 'EMA trend retest'],
++    ['enableRSI2MeanReversion', 'RSI2 mean reversion'],
++    ['enableTimeSeriesMomentum', 'Time series momentum'],
++  ].map(([key, label]) => [`pipeline.${key}`, {
++    type: 'boolean', unit: 'boolean', scope: 'active_launch_profile',
++    label: `Enable ${label} strategy`, effect: 'next_entry_evaluation',
++  }])),
+   ...Object.fromEntries([
+     ['manipCandle', 'Liquidity sweep manipulation-candle confidence weight'],
+     ['wickSweep', 'Liquidity sweep wick confidence weight'],
+@@ -2675,7 +2749,6 @@ const EDITABLE_SETTINGS = deepFreeze({
+       effect: 'next_entry_decision',
+     },
+   ])),
+-
+   'confidence.minTradeConfidence': {
+     type: 'number', unit: 'fraction', min: 0, max: 1,
+     scope: 'active_launch_profile', label: 'Minimum entry confidence',
+@@ -2691,7 +2764,6 @@ const EDITABLE_SETTINGS = deepFreeze({
+     label: 'Minimum candle-pattern confidence',
+     effect: 'next_pattern_evaluation',
+   },
+-
+   'filters.atrEnabled': {
+     type: 'boolean', unit: 'boolean', label: 'ATR entry filter',
+     effect: 'next_strategy_evaluation',
+@@ -3131,11 +3203,15 @@ function saveSettings(request) {
+   if (entries.some(([key]) => key.startsWith('positionSizing.confluenceMultipliers.'))) {
+     nextConfig.sizing = cloneConfiguredObject(nextConfig.positionSizing);
+   }
++  const nextSources = clonePlain(_cached.sources);
++  if (entries.some(([key]) => key.startsWith('pipeline.enable'))) {
++    refreshDerivedAliases(nextConfig, nextSources);
++  }
+   nextConfig.revision = nextSettings.revision;
+   const revisions = { ..._cached.revisions, settings: nextSettings.revision, settingsHash: canonicalHash(nextSettings) };
+-  const nextSnapshot = { ..._cached, config: deepFreeze(nextConfig), entrySizing: nextEntrySizing, revisions: Object.freeze(revisions),
++  const nextSnapshot = { ..._cached, config: deepFreeze(nextConfig), sources: deepFreeze(nextSources), entrySizing: nextEntrySizing, revisions: Object.freeze(revisions),
+     timestamp: new Date().toISOString(),
+-    fingerprint: fingerprint(nextConfig, _cached.sources, { role: _cached.role,
++    fingerprint: fingerprint(nextConfig, nextSources, { role: _cached.role,
+       revisions: { settings: revisions.settings, internals: revisions.internals } }) };
+   try {
+     writeJsonAtomic(SETTINGS_PATH, nextSettings, { flag: 'wx' });
+@@ -3354,6 +3430,7 @@ const exported = Object.assign(ConfigLoader, {
+   getSource,
+   hasLoadedSnapshot,
+   getCachedSnapshot,
++  getReceipt,
+   getSettingsView,
+   getEntrySizingInput,
+   saveSettings,
+diff --git a/modules/BreakAndRetest.js b/modules/BreakAndRetest.js
+index e9f29d75..f4b439b2 100644
+--- a/modules/BreakAndRetest.js
++++ b/modules/BreakAndRetest.js
+@@ -133,7 +133,11 @@ class BreakAndRetest {
+    * @param {Array}  priceHistory  — candles array, newest LAST
+    * @returns {Object} signal
+    */
+-  update(candle, priceHistory) {
++  update(candle, priceHistory) { return this._update(candle, priceHistory, true); }
++
++  observe(candle, priceHistory) { return this._update(candle, priceHistory, false); }
++
++  _update(candle, priceHistory, emitEntries) {
+     if (!priceHistory || priceHistory.length < this.minimumHistoryBars) {
+       return this._emptySignal();
+     }
+@@ -197,7 +201,7 @@ class BreakAndRetest {
+       }
+ 
+       // Need minimum candles before we look for entry
+-      if (battleCount >= this.minBattleCandles) {
++      if (emitEntries && battleCount >= this.minBattleCandles) {
+         signal = this._readBattleZone(candle, priceHistory);
+       }
+     }
+diff --git a/modules/DonchianBreakout.js b/modules/DonchianBreakout.js
+index 3f36509b..f5f6d580 100644
+--- a/modules/DonchianBreakout.js
++++ b/modules/DonchianBreakout.js
+@@ -61,6 +61,8 @@ class DonchianBreakout {
+     this.configure(config);
+   }
+ 
++  static validateConfig(config) { return readConfig(config); }
++
+   configure(config) {
+     const cfg = readConfig(config);
+ 
+@@ -135,6 +137,7 @@ class DonchianBreakout {
+         stopLossPercent: -Math.abs(stopPct),
+         stopType: this.exit.stopType,
+         atrStopMult: this.atrStopMult,
++        atrPeriod: this.atrPeriod,
+         takeProfitPercent: null,
+         tpMode: this.exit.tpMode,
+         trailingStopPercent: null,
+diff --git a/modules/EMASMACrossoverSignal.js b/modules/EMASMACrossoverSignal.js
+index 6cdd0edb..b5640d5c 100644
+--- a/modules/EMASMACrossoverSignal.js
++++ b/modules/EMASMACrossoverSignal.js
+@@ -206,7 +206,11 @@ class EMASMACrossoverSignal {
+    * @param {Array}  priceHistory — array of candles, newest LAST
+    * @returns {Object} signal
+    */
+-  update(candle, priceHistory) {
++  update(candle, priceHistory) { return this._update(candle, priceHistory, true); }
++
++  observe(candle, priceHistory) { return this._update(candle, priceHistory, false); }
++
++  _update(candle, priceHistory, emitEntries) {
+     // Production callers supply the validated settings owner. Explicitly
+     // injected configurations stay fixed when no provider was supplied.
+     if (this.confidenceConfigProvider) {
+@@ -318,6 +322,7 @@ class EMASMACrossoverSignal {
+     this.barIndex += 1;
+     this.diagCounters.crossesDetected += funnel.crossesDetected;
+     this.diagCounters.eventsFresh += funnel.eventsFresh;
++    if (!emitEntries) return this._emptySignal();
+ 
+     // ═══════════════════════════════════════════════════════════════════
+     // Direction and base confidence are config-owned. Restored filters are
+diff --git a/modules/EMATrendRetest.js b/modules/EMATrendRetest.js
+index 1922abcd..59313652 100644
+--- a/modules/EMATrendRetest.js
++++ b/modules/EMATrendRetest.js
+@@ -162,14 +162,16 @@ class EMATrendRetest {
+     this.configure(config);
+   }
+ 
++  static validateConfig(config) { return readConfig(config); }
++
+   configure(config) {
+     this.cfg = Object.freeze(readConfig(config));
++    this.configurationInput = config;
+     this.minHistory = Math.max(
+       Math.max(...this.cfg.emaPeriods) + this.cfg.slopeLookbackBars + 2,
+       this.cfg.atrPeriod + 2,
+       this.cfg.retestLookbackBars + 2
+     );
+-    this.configurationInput = config;
+   }
+ 
+   evaluate(ctx, config = this.configurationInput) {
+diff --git a/modules/LiquiditySweepDetector.js b/modules/LiquiditySweepDetector.js
+index 1380ba3f..d90d55ae 100644
+--- a/modules/LiquiditySweepDetector.js
++++ b/modules/LiquiditySweepDetector.js
+@@ -187,7 +187,11 @@ class LiquiditySweepDetector {
+     this._lastCandleTs = ts;
+   }
+ 
+-  feedCandle(candle) {
++  feedCandle(candle) { return this._feedCandle(candle, true); }
++
++  observe(candle) { this._feedCandle(candle, false); }
++
++  _feedCandle(candle, emitEntries) {
+     if (!candle || c(candle) == null) return this._emptySignal();
+     this._detectInterval(candle);
+ 
+@@ -224,7 +228,7 @@ class LiquiditySweepDetector {
+     }
+ 
+     if (this.state.phase === 'watching_for_exit' || this.state.phase === 'watching_for_pattern') {
+-      this._processCandle(candle);
++      this._processCandle(candle, emitEntries);
+     }
+ 
+     if (this.config.verbose) {
+@@ -348,7 +352,7 @@ class LiquiditySweepDetector {
+     this.state.barsAfterOpen = 0;
+   }
+ 
+-  _processCandle(bar) {
++  _processCandle(bar, emitEntries) {
+     if (!bar || !this.state.box || this.state.phase === 'done' || this.state.phase === 'waiting_for_open') return;
+     this.state.barsAfterOpen++;
+     const box = this.state.box;
+@@ -378,7 +382,7 @@ class LiquiditySweepDetector {
+         return;
+       }
+       const pattern = this._detectReversalPattern(bar, this.state.prevBar, this.state.exitSide);
+-      if (pattern) this._generateSignal(pattern, bar, this.state.prevBar);
++      if (pattern && emitEntries) this._generateSignal(pattern, bar, this.state.prevBar);
+       this.state.prevBar = { o: o(bar), h: h(bar), l: l(bar), c: c(bar), v: v(bar), t: t(bar) };
+     }
+   }
+diff --git a/modules/MADynamicSR.js b/modules/MADynamicSR.js
+index 42156819..65cbdcc7 100644
+--- a/modules/MADynamicSR.js
++++ b/modules/MADynamicSR.js
+@@ -306,7 +306,11 @@ class MADynamicSR {
+    * Main update - call on each candle
+    * REWRITTEN 2026-03-09: Corrected Trader DNA implementation
+    */
+-  update(candle, priceHistory) {
++  update(candle, priceHistory) { return this._update(candle, priceHistory, true); }
++
++  observe(candle, priceHistory) { return this._update(candle, priceHistory, false); }
++
++  _update(candle, priceHistory, emitEntries) {
+     if (this.confidenceConfigProvider) {
+       const confidenceConfig = this.confidenceConfigProvider();
+       this.config.baseConfidence = Number(confidenceConfig.baseConfidence);
+@@ -422,10 +426,13 @@ class MADynamicSR {
+       });
+       confidence = clamp(confidence * confidenceProfile.composite, 0, this.config.maxConfidence);
+ 
++      if (!emitEntries) return this._emptySignal();
+       this.diag.signalsEmitted++;
+       this.inPullbackTaken = true;
+     }
+ 
++    if (!emitEntries) return this._emptySignal();
++
+     const signal = {
+       module: 'MADynamicSR',
+       direction,
+diff --git a/modules/NoWickImbalance.js b/modules/NoWickImbalance.js
+index 542604c4..279248c1 100644
+--- a/modules/NoWickImbalance.js
++++ b/modules/NoWickImbalance.js
+@@ -242,7 +242,11 @@ class NoWickImbalance {
+    *   indicators: { atr, rsi, ... }
+    * @returns {Object|null} - { direction, confidence, reason, overrideLevels } or null
+    */
+-  evaluate(ctx) {
++  evaluate(ctx) { return this._evaluate(ctx, true); }
++
++  observe(ctx) { return this._evaluate(ctx, false); }
++
++  _evaluate(ctx, emitEntries) {
+     const candles = ctx.priceHistory;
+     const indicators = ctx.indicators;
+     if (!candles || candles.length < this.swingLookback) return null;
+@@ -324,6 +328,8 @@ class NoWickImbalance {
+         continue;
+       }
+ 
++      if (!emitEntries) continue;
++
+       const exit = this._computeStructuralExit(level.type, currentPrice, candles, atr);
+       if (!exit) {
+         state.pendingLevels.splice(i, 1);
+diff --git a/modules/OpeningRangeBreakout.js b/modules/OpeningRangeBreakout.js
+index cdaa96f6..8958f371 100644
+--- a/modules/OpeningRangeBreakout.js
++++ b/modules/OpeningRangeBreakout.js
+@@ -179,7 +179,11 @@ class OpeningRangeBreakout {
+    * @param {Object} candle - OHLCV candle { o, h, l, c, v, t }
+    * @returns {Object|null} Signal if ready, null otherwise
+    */
+-  update(candle) {
++  update(candle) { return this._update(candle, true); }
++
++  observe(candle) { return this._update(candle, false); }
++
++  _update(candle, emitEntries) {
+     if (!candle || !_t(candle)) return null;
+ 
+     const timestamp = _t(candle);
+@@ -204,17 +208,17 @@ class OpeningRangeBreakout {
+         return this._handleWaitingForOpen(candle, candleDate);
+ 
+       case STATES.COLLECTING_OR:
+-        return this._handleCollectingOpeningRange(candle, candleDate);
++        return this._handleCollectingOpeningRange(candle, candleDate, emitEntries);
+ 
+       case STATES.WATCHING_FOR_BREAK:
+-        return this._handleWatchingForBreak(candle);
++        return this._handleWatchingForBreak(candle, emitEntries);
+ 
+       case STATES.WATCHING_FOR_FVG:
+-        return this._handleWatchingForFVG(candle);
++        return this._handleWatchingForFVG(candle, emitEntries);
+ 
+       case STATES.SIGNAL_READY:
+         // Signal already pending - return it
+-        return this.pendingSignal;
++        return emitEntries ? this.pendingSignal : null;
+ 
+       case STATES.DONE:
+         // Wait for next session
+@@ -241,7 +245,7 @@ class OpeningRangeBreakout {
+    * Accumulate the configured opening window before breakout logic can run.
+    * @private
+    */
+-  _handleCollectingOpeningRange(candle, candleDate) {
++  _handleCollectingOpeningRange(candle, candleDate, emitEntries) {
+     if (this._isInsideOpeningRangeWindow(candleDate)) {
+       this._extendOpeningRange(candle);
+       return null;
+@@ -251,7 +255,7 @@ class OpeningRangeBreakout {
+       return null;
+     }
+ 
+-    return this._handleWatchingForBreak(candle);
++    return this._handleWatchingForBreak(candle, emitEntries);
+   }
+ 
+   _startOpeningRange(candle, candleDate) {
+@@ -335,7 +339,7 @@ class OpeningRangeBreakout {
+    * Watch for price to close beyond OR high/low.
+    * @private
+    */
+-  _handleWatchingForBreak(candle) {
++  _handleWatchingForBreak(candle, emitEntries) {
+     if (!this.openingRange) return null;
+ 
+     const close = _c(candle);
+@@ -348,7 +352,7 @@ class OpeningRangeBreakout {
+       this.barsSinceBreakout = 0;
+       console.log(`[ORB] BULLISH breakout! Close ${close.toFixed(2)} > OR high ${this.openingRange.high.toFixed(2)}`);
+       // Immediately check for FVG in this bar
+-      return this._handleWatchingForFVG(candle);
++      return this._handleWatchingForFVG(candle, emitEntries);
+     }
+ 
+     // Bearish breakout: close below OR low
+@@ -358,7 +362,7 @@ class OpeningRangeBreakout {
+       this.fvgScanCandles = [candle];
+       this.barsSinceBreakout = 0;
+       console.log(`[ORB] BEARISH breakout! Close ${close.toFixed(2)} < OR low ${this.openingRange.low.toFixed(2)}`);
+-      return this._handleWatchingForFVG(candle);
++      return this._handleWatchingForFVG(candle, emitEntries);
+     }
+ 
+     return null;
+@@ -368,7 +372,7 @@ class OpeningRangeBreakout {
+    * Scan for FVG in breakout direction.
+    * @private
+    */
+-  _handleWatchingForFVG(candle) {
++  _handleWatchingForFVG(candle, emitEntries) {
+     if (!this.breakoutDirection) return null;
+ 
+     if (this.fvgScanCandles[this.fvgScanCandles.length - 1] !== candle) {
+@@ -380,7 +384,7 @@ class OpeningRangeBreakout {
+     // Look for FVG in the direction of breakout
+     const fvg = this.fvgDetector.detect(this.fvgScanCandles, this.breakoutDirection);
+ 
+-    if (fvg) {
++    if (fvg && emitEntries) {
+       // Found FVG! Generate signal
+       const signal = this._generateSignal(fvg, candle);
+       if (!signal) {
+@@ -398,7 +402,7 @@ class OpeningRangeBreakout {
+     if (this.barsSinceBreakout >= this.fvgScanBars) {
+       // No FVG found within window - session done
+       this.state = STATES.DONE;
+-      console.log(`[ORB] No FVG found within ${this.fvgScanBars} bars. Session done.`);
++      console.log(`[ORB] FVG scan window ended after ${this.fvgScanBars} bars without an entry signal. Session done.`);
+     }
+ 
+     return null;
+diff --git a/modules/PropSafeEMAPullback.js b/modules/PropSafeEMAPullback.js
+index 223475a9..b2d987c8 100644
+--- a/modules/PropSafeEMAPullback.js
++++ b/modules/PropSafeEMAPullback.js
+@@ -151,13 +151,15 @@ class PropSafeEMAPullback {
+     this.configure(config);
+   }
+ 
++  static validateConfig(config) { return readConfig(config); }
++
+   configure(config) {
+     this.cfg = Object.freeze(readConfig(config));
++    this.configurationInput = config;
+     this.minHistory = Math.max(
+       this.cfg.trendEmaPeriod + this.cfg.crossLookbackBars + 2,
+       this.cfg.atrPeriod + 2
+     );
+-    this.configurationInput = config;
+   }
+ 
+   evaluate(ctx, config = this.configurationInput) {
+diff --git a/modules/RSI2MeanReversion.js b/modules/RSI2MeanReversion.js
+index 39bc3240..5ebfca2f 100644
+--- a/modules/RSI2MeanReversion.js
++++ b/modules/RSI2MeanReversion.js
+@@ -87,10 +87,12 @@ class RSI2MeanReversion {
+     this.configure(config);
+   }
+ 
++  static validateConfig(config) { return readConfig(config); }
++
+   configure(config) {
+     this.cfg = Object.freeze(readConfig(config));
+-    this.minHistory = Math.max(this.cfg.trendPeriod + 2, this.cfg.rsiPeriod + 2);
+     this.configurationInput = config;
++    this.minHistory = Math.max(this.cfg.trendPeriod + 2, this.cfg.rsiPeriod + 2);
+   }
+ 
+   evaluate(ctx, config = this.configurationInput) {
+diff --git a/modules/SmartMoneySweep.js b/modules/SmartMoneySweep.js
+index fae58ca9..1a628c69 100644
+--- a/modules/SmartMoneySweep.js
++++ b/modules/SmartMoneySweep.js
+@@ -140,7 +140,11 @@ class SmartMoneySweep {
+    * @param {Array} priceHistory - Full candle array, newest LAST
+    * @returns {Object|null} { direction, confidence, reason, conditionsMet, overrideLevels } or null
+    */
+-  update(candle, priceHistory) {
++  update(candle, priceHistory) { return this._update(candle, priceHistory, true); }
++
++  observe(candle, priceHistory) { return this._update(candle, priceHistory, false); }
++
++  _update(candle, priceHistory, emitEntries) {
+     if (!priceHistory || priceHistory.length < 30) return null;
+     this.barIndex = priceHistory.length - 1;
+ 
+@@ -264,6 +268,8 @@ class SmartMoneySweep {
+     const levels = this._computeExitLevels(direction, price, priceHistory, atrVal, vp, result.conditionsMet);
+     if (!levels) return null;
+ 
++    if (!emitEntries) return null;
++
+     // Mark sweep as consumed (only after exit levels validated)
+     if (winner === 'long') this.lastLongSweepBar = currentLongSweepBar;
+     if (winner === 'short') this.lastShortSweepBar = currentShortSweepBar;
+diff --git a/modules/TimeSeriesMomentum.js b/modules/TimeSeriesMomentum.js
+index 49d3f14c..1e6e436f 100644
+--- a/modules/TimeSeriesMomentum.js
++++ b/modules/TimeSeriesMomentum.js
+@@ -101,6 +101,8 @@ class TimeSeriesMomentum {
+     this.configure(config);
+   }
+ 
++  static validateConfig(config) { return readConfig(config); }
++
+   configure(config) {
+     this.cfg = Object.freeze(readConfig(config));
+     this.minHistory = Math.max(this.cfg.trendPeriod, this.cfg.lookback, this.cfg.atrPeriod) + 2;
+@@ -161,6 +163,7 @@ class TimeSeriesMomentum {
+         stopLossPercent: -Math.abs(stopPct),
+         stopType: this.cfg.stopType,
+         atrStopMult: this.cfg.atrStopMult,
++        atrPeriod: this.cfg.atrPeriod,
+         takeProfitPercent: null,
+         tpMode: this.cfg.tpMode,
+         trailingStopPercent: null,
+diff --git a/ogzprime-ssl-server.js b/ogzprime-ssl-server.js
+index 3d91c826..699bea23 100644
+--- a/ogzprime-ssl-server.js
++++ b/ogzprime-ssl-server.js
+@@ -1886,7 +1886,11 @@ wss.on('connection', (ws, req) => {
+       }
+ 
+       // Handle bot 
+-            if (data.type === 'identify' && data.source === 'trading_bot') {
++      if (data.type === 'identify' && data.source === 'trading_bot') {
++        if (!ws.botAuthenticated) {
++          ws.send(JSON.stringify({ type: 'error', message: 'Bot authentication required' }));
++          return;
++        }
+         console.log('[WS] Trading bot identified');
+         ws.clientType = 'bot';
+ 
+@@ -2009,6 +2013,7 @@ wss.on('connection', (ws, req) => {
+         console.log(`[WS] Dashboard asset_change ${asset} kept display-only; not relayed to bot runtime`);
+       }
+ 
++      // CHANGE 2026-02-10: RELAY Dashboard -> Bot (for journal/replay requests)
+       // Read all connected owners; a save addresses the exact returned ownerId.
+       // The connection identity is relay-owned, never accepted from a payload.
+       if (ws.clientType === 'dashboard' && (data.type === 'get_settings' || data.type === 'save_settings')) {
+@@ -2037,7 +2042,6 @@ wss.on('connection', (ws, req) => {
+         return;
+       }
+ 
+-      // CHANGE 2026-02-10: RELAY Dashboard -> Bot (for journal/replay requests)
+       if (ws.clientType === 'dashboard' && (
+           data.type.startsWith('request_journal') ||
+           data.type.startsWith('request_replay'))) {
+diff --git a/public/js/panels/chain-of-thought.js b/public/js/panels/chain-of-thought.js
+index 45217d53..2ededbfd 100644
+--- a/public/js/panels/chain-of-thought.js
++++ b/public/js/panels/chain-of-thought.js
+@@ -435,6 +435,14 @@
+         return n > 1 ? n / 100 : n;
+     }
+ 
++    function percentageConfidence(value) {
++        // Both TradingLoop and TRAIDecisionModule emit percentage confidence.
++        if (!['number', 'string'].includes(typeof value) || String(value).trim() === '') return undefined;
++        const n = Number(value);
++        if (!isFinite(n) || n < 0 || n > 100) return undefined;
++        return n / 100;
++    }
++
+     function renderLine(line) {
+         const el = document.createElement('div');
+         el.className = `cot-line ${line.level || 'info'}`;
+@@ -651,24 +659,24 @@
+             if (!text) return;
+ 
+             ChainOfThought.addLine(text, {
++                symbol: data.symbol,
+                 level: 'decision',
+-                confidence: data.confidence,
++                confidence: percentageConfidence(data.confidence),
+             });
+         } catch (_) { /* swallow */ }
+     }
+ 
+     function onSignalAnalysis(data) {
+-        try {
+-            if (!data) return;
+-            const text = data.description || data.analysis;
+-            if (!text) return;
+-
+-            ChainOfThought.addLine(String(text), {
+-                symbol: data.symbol || data.ticker,
+-                confidence: data.confidence,
++        const signal = data && data.signal;
++        if (!signal || !Array.isArray(signal.reasons)) return;
++        for (const text of signal.reasons) {
++            if (typeof text !== 'string' || !text.trim()) continue;
++            ChainOfThought.addLine(text, {
++                symbol: signal.symbol,
++                confidence: percentageConfidence(signal.confidence),
+                 level: 'decision',
+             });
+-        } catch (_) { /* swallow */ }
++        }
+     }
+ 
+     function onWatchlistSelect(data) {
+diff --git a/public/js/panels/confidence-heatbar.js b/public/js/panels/confidence-heatbar.js
+index e60045f5..d0d32603 100644
+--- a/public/js/panels/confidence-heatbar.js
++++ b/public/js/panels/confidence-heatbar.js
+@@ -45,7 +45,7 @@
+         return null;
+     }
+ 
+-    // Read incoming strategy list from any of the 3 supported message shapes.
++    // Keep the producer identity separate from its public display label.
+     function normalizeStack(input) {
+         if (!Array.isArray(input)) return [];
+         return input
+@@ -54,6 +54,7 @@
+                 const name = s.name || s.strategyName || s.id || s.label;
+                 if (!name) return null;
+                 return {
++                    id: String(s.id || s.strategyName || name),
+                     name: String(name),
+                     confidence: normConf(s.confidence),
+                     direction: directionOf(s),
+@@ -251,7 +252,7 @@
+         // Determine the dominant direction (from winner if known, else from top-conf entry).
+         let leader = null;
+         if (winnerName) {
+-            leader = stack.find(s => s.name === winnerName) || null;
++            leader = stack.find(s => s.id === winnerName) || null;
+         }
+         if (!leader) {
+             leader = [...stack].sort((a, b) => b.confidence - a.confidence)[0] || null;
+@@ -261,7 +262,7 @@
+         const frag = document.createDocumentFragment();
+         for (const s of stack) {
+             const seg = document.createElement('div');
+-            const isWinner = winnerName && s.name === winnerName;
++            const isWinner = winnerName && s.id === winnerName;
+             const isOpposing = leaderDir && s.direction && s.direction !== leaderDir;
+             seg.className = 'hb-segment'
+                 + (isWinner ? ' hb-winner' : '')
+@@ -291,7 +292,8 @@
+ 
+         if (tag) {
+             if (winnerName) {
+-                tag.textContent = `🏆 ${winnerName}`;
++                const winner = stack.find(s => s.id === winnerName);
++                tag.textContent = winner ? winner.name : winnerName;
+                 tag.classList.add('hb-visible');
+             } else {
+                 tag.textContent = '';
+diff --git a/public/unified-dashboard-v2.html b/public/unified-dashboard-v2.html
+index 5d405632..817159da 100644
+--- a/public/unified-dashboard-v2.html
++++ b/public/unified-dashboard-v2.html
+@@ -1119,7 +1119,7 @@
+     <script src="/js/panels/pattern-sparkline.js?v=1777847456749"></script>
+ 
+     <!-- Phase E: Confidence Heatbar + Risk Gauge -->
+-    <script src="/js/panels/confidence-heatbar.js?v=1782876600000"></script>
++    <script src="/js/panels/confidence-heatbar.js?v=1791126000000"></script>
+     <script src="/js/panels/risk-gauge.js?v=1782700000000"></script>
+ 
+     <!-- Phase F: HUD Widgets (Candle Countdown, Session Phase, Size Preview, Strategy Leaderboard) -->
+diff --git a/public/unified-dashboard.html b/public/unified-dashboard.html
+index 4f271986..da80b6cd 100644
+--- a/public/unified-dashboard.html
++++ b/public/unified-dashboard.html
+@@ -3375,7 +3375,7 @@
+     <script src="/js/theme-customizer.js?v=1776116744941"></script>
+ 
+     <!-- Phase E: Confidence Heatbar + Risk Gauge -->
+-    <script src="/js/panels/confidence-heatbar.js?v=1779666442541"></script>
++    <script src="/js/panels/confidence-heatbar.js?v=1791126000000"></script>
+     <script src="/js/panels/risk-gauge.js?v=1777847456749"></script>
+ 
+     <!-- Phase F: HUD Widgets -->
+diff --git a/run-empire-v2.js b/run-empire-v2.js
+index cd5b0f99..19e1740a 100644
+--- a/run-empire-v2.js
++++ b/run-empire-v2.js
+@@ -138,6 +138,7 @@ if (resolvedConfig.config.backtest.silent ||
+         msg.includes('[SMS-') ||
+         msg.includes('[BOOT]') ||
+         msg.includes('BACKTEST COMPLETE') ||
++        msg.includes('BACKTEST INCOMPLETE') ||
+         msg.includes('PATTERN LEARNING') ||
+         msg.includes('Final Balance') ||
+         msg.includes('Total P&L') ||
+@@ -1267,9 +1268,6 @@ class OGZPrimeV14Bot {
+     // this.activeTrades REMOVED - use stateManager.get('activeTrades') instead
+     const initialBalance = resolvedConfig.config.backtest.initialBalance;
+     this.startTime = Date.now();
+-    this.systemState = {
+-      currentBalance: initialBalance
+-    };
+ 
+     // Backtests do not load persisted state, so replace StateManager's
+     // constructor bootstrap balance with the configured INITIAL_BALANCE.
+@@ -1283,21 +1281,14 @@ class OGZPrimeV14Bot {
+       }
+       console.log('Backtest mode: initializing fresh state with balance:', initialBalance);
+       stateManager.initializeFreshState(initialBalance, { source: 'OGZPrimeV14Bot.backtestInit' });
+-    } else if (!currentState.balance || currentState.balance === 0) {
+-      console.log('Initializing fresh state with balance:', initialBalance);
+-      stateManager.updateState({
+-        balance: initialBalance,
+-        totalBalance: initialBalance,
+-        initialBalance: initialBalance,   // FIX 2026-03-14: Store for drawdown reference
+-        activeTrades: new Map()  // CHANGE 2025-12-13: Centralized active trades
+-      }, { action: 'INIT' });
+     } else {
++      // StateManager.load owns absent-file seeding and restoration. Zero is a
++      // real balance, not permission to erase positions or reseed the account.
+       console.log('Using existing state - Balance:', currentState.balance, 'Trades:', currentState.activeTrades?.size || 0);
+-      // FIX 2026-03-14: Ensure initialBalance exists on state restore
+-      if (!currentState.initialBalance) {
+-        stateManager.updateState({ initialBalance: initialBalance }, { action: 'SET_INITIAL_BALANCE' });
+-      }
+     }
++    this.systemState = {
++      currentBalance: stateManager.get('balance')
++    };
+ 
+     // FIX 2026-02-26: Initialize RiskManager with balance (was never called, caused Infinity drawdown)
+     // Without this, peakBalance=0, drawdown=Infinity, checkRiskLimits() blocks ALL trades

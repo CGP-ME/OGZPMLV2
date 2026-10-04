@@ -1,0 +1,15 @@
+{
+  "outputs": [
+    0,
+    0.25,
+    1
+  ],
+  "saves": 11,
+  "rejections": 18,
+  "providerCalls": 5,
+  "primaryAndTwin": true,
+  "staticInjectionPreserved": true,
+  "scopeStatePreservedAcrossSave": true,
+  "persistedOnlyInMemory": true,
+  "limits": "Actual candidate loader save/reload plus NoWick evaluate; seeded pending levels and fixed trend fixture. No full orchestrator/provider/broker/runtime run."
+}

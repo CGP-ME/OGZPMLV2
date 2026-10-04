@@ -1,0 +1,54 @@
+{
+  "reports": [
+    {
+      "name": "EMASMACrossoverSignal",
+      "candles": 460,
+      "activeResultsUnchanged": true,
+      "observationEntries": 0,
+      "activeSignals": 441
+    },
+    {
+      "name": "MADynamicSR",
+      "candles": 460,
+      "activeResultsUnchanged": true,
+      "observationEntries": 0,
+      "activeSignals": 21
+    },
+    {
+      "name": "BreakAndRetest",
+      "candles": 460,
+      "activeResultsUnchanged": true,
+      "observationEntries": 0,
+      "activeSignals": 0
+    },
+    {
+      "name": "SmartMoneySweep",
+      "candles": 460,
+      "activeResultsUnchanged": true,
+      "observationEntries": 0,
+      "activeSignals": 0
+    },
+    {
+      "name": "NoWickImbalance",
+      "candles": 460,
+      "activeResultsUnchanged": true,
+      "observationEntries": 0,
+      "activeSignals": 0
+    },
+    {
+      "name": "OpeningRangeBreakout",
+      "candles": 460,
+      "activeResultsUnchanged": true,
+      "observationEntries": 0,
+      "activeSignals": 0
+    },
+    {
+      "name": "LiquiditySweepDetector",
+      "candles": 460,
+      "activeResultsUnchanged": true,
+      "observationEntries": 0,
+      "activeSignals": 0
+    }
+  ],
+  "limits": "Actual modules with in-memory candles/config objects. Synthetic tape is not exhaustive pattern coverage; full orchestrator dispatch and broker execution not exercised."
+}

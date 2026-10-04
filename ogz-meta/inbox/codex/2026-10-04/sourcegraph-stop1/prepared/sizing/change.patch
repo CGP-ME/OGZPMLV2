@@ -1,0 +1,134 @@
+===================================================================
+--- a/core/OrderExecutor.js
++++ b/core/OrderExecutor.js
+@@ -2188,9 +2188,9 @@
+     }
+     return this._percentDistanceDecimal(exitContract.stopLossPercent, 'exitContract.stopLossPercent');
+   }
+ 
+-  _applyStockShareRange({ orderQuantity, price, exitContract, absoluteCapSizeUsd }) {
++  _applyStockShareRange({ orderQuantity, price, exitContract, absoluteCapSizeUsd, capReason }) {
+     const range = {
+       enabled: ConfigLoader.get('entryLogic.sizing.stockShareRange.enabled'),
+       minShares: ConfigLoader.get('entryLogic.sizing.stockShareRange.minShares'),
+       maxShares: ConfigLoader.get('entryLogic.sizing.stockShareRange.maxShares'),
+@@ -2219,9 +2219,9 @@
+     if (absoluteCapShares * price > absoluteCapSizeUsd) {
+       absoluteCapShares -= 1;
+     }
+     const caps = [absoluteCapShares];
+-    const reasons = ['absolute_position_cap'];
++    const reasons = [capReason];
+ 
+     const configuredMaxShares = Number(range.maxShares);
+     if (Number.isFinite(configuredMaxShares) && configuredMaxShares > 0) {
+       caps.push(Math.floor(configuredMaxShares));
+@@ -2351,21 +2351,27 @@
+     const capPercent = absoluteCapPercent ?? this._resolveAbsolutePositionCap();
+     const requestedSizeUsd = positionSize * sizingMultiplier;
+     const absoluteCapSizeUsd = currentBalance * capPercent;
+     const cappedByAbsoluteCap = requestedSizeUsd > absoluteCapSizeUsd;
+-    const sizeUsd = cappedByAbsoluteCap ? absoluteCapSizeUsd : requestedSizeUsd;
++    const maxPositionSizeUsd = currentBalance * ConfigLoader.get('positionSizing.maxPositionSize');
++    const cappedByPositionMaximum = requestedSizeUsd > maxPositionSizeUsd;
++    const sizeUsd = Math.min(requestedSizeUsd, absoluteCapSizeUsd, maxPositionSizeUsd);
+     if (cappedByAbsoluteCap) {
+       console.log(`Position absolute-capped final size: $${requestedSizeUsd.toFixed(2)} -> $${sizeUsd.toFixed(2)} (${(capPercent * 100).toFixed(2)}% ABSOLUTE_POSITION_CAP)`);
+     }
++    if (cappedByPositionMaximum) {
++      console.log(`[POSITION_MAXIMUM] Requested ${requestedSizeUsd.toFixed(2)}, configured ceiling ${maxPositionSizeUsd.toFixed(2)}, planned ${sizeUsd.toFixed(2)}`);
++    }
+     const quantityUnit = this._orderQuantityUnit(scope);
+     let orderQuantity = this._orderQuantityFromSizeUsd(sizeUsd, price, scope, { forceWholeShares });
+     let shareRange = null;
+     if (quantityUnit === 'shares') {
+       shareRange = this._applyStockShareRange({
+         orderQuantity,
+         price,
+         exitContract,
+-        absoluteCapSizeUsd,
++        absoluteCapSizeUsd: Math.min(absoluteCapSizeUsd, maxPositionSizeUsd),
++        capReason: maxPositionSizeUsd < absoluteCapSizeUsd ? 'configured_position_maximum' : 'absolute_position_cap',
+       });
+       orderQuantity = shareRange.orderQuantity;
+     }
+     let plannedSizeUsd = sizeUsd;
+@@ -2397,8 +2403,11 @@
+       sizeUsd: plannedSizeUsd,
+       absoluteCapPercent: capPercent,
+       absoluteCapSizeUsd,
+       cappedByAbsoluteCap,
++      maxPositionSizeUsd,
++      cappedByPositionMaximum,
++      configuredBasePercent: ConfigLoader.get('positionSizing.basePositionSize'),
+       stockShareRange: shareRange?.bounds || null,
+       stockShareRangeBlockReason: shareRange?.blockReason || null,
+       confidence: decision.confidence,
+       tradeConfidence,
+@@ -3052,9 +3061,9 @@
+     }
+     const dynamicSizingEnabled = ConfigLoader.get('features.enableDynamicSizing') === true;
+     let confidenceMultiplier = 1.0;
+     if (isEntryAction) {
+-      basePositionPercent = ConfigLoader.get('positionSizing.maxPositionSize');
++      basePositionPercent = ConfigLoader.get('positionSizing.basePositionSize');
+     }
+     if (isEntryAction && dynamicSizingEnabled) {
+       // Linear scale: confidence 0.5 -> multiplier 0.5, confidence 1.0 -> multiplier 2.5
+       confidenceMultiplier = Math.max(0.5, Math.min(2.5,
+@@ -3063,9 +3072,9 @@
+       basePositionPercent = basePositionPercent * confidenceMultiplier;
+     }
+ 
+     // FIX 2026-03-06: ENFORCE MAX_POSITION_SIZE cap after confidence multiplier
+-    const maxPositionPercent = ConfigLoader.get('positionSizing.maxPositionSize') * (dynamicSizingEnabled ? 2.5 : 1);
++    const maxPositionPercent = ConfigLoader.get('positionSizing.maxPositionSize');
+     if (isEntryAction && basePositionPercent > maxPositionPercent) {
+       console.log(`Position capped: ${(basePositionPercent * 100).toFixed(2)}% -> ${(maxPositionPercent * 100).toFixed(2)}% (MAX_POSITION_SIZE limit)`);
+       basePositionPercent = maxPositionPercent;
+     }
+===================================================================
+--- a/foundation/ConfigLoader.js
++++ b/foundation/ConfigLoader.js
+@@ -2502,8 +2502,18 @@
+   }
+   return null;
+ }
+ 
++function positionSizingReplacementProblem(config) {
++  for (const key of ['basePositionSize', 'maxPositionSize']) {
++    const value = config.positionSizing?.[key];
++    if (!Number.isFinite(value) || value <= 0 || value > 1) {
++      return { reason: 'invalid_position_sizing_fraction', path: `positionSizing.${key}` };
++    }
++  }
++  return null;
++}
++
+ function load(opts = {}) {
+   const requestedRole = opts.role || 'bot';
+   if (_cached && !opts.force) {
+     if (_cachedRole !== requestedRole) {
+@@ -2522,9 +2532,10 @@
+   const previousSettings = settingsConfigFile;
+   const previousInternals = internalsConfigFile;
+   const candidate = buildSnapshot(process.env, opts);
+   if (_cached && opts.force && requestedRole === 'bot') {
+-    const problem = emaConfidenceReplacementProblem(candidate.config)
++    const problem = positionSizingReplacementProblem(candidate.config)
++      || emaConfidenceReplacementProblem(candidate.config)
+       || maDynamicSRConfidenceReplacementProblem(candidate.config)
+       || liquiditySweepWeightsReplacementProblem(candidate.config)
+       || timeSeriesMomentumConfidenceReplacementProblem(candidate.config)
+       || rsi2ConfidenceReplacementProblem(candidate.config);
+@@ -3042,8 +3053,10 @@
+   if (entries.some(([key]) => key.startsWith('strategies.RSI2MeanReversion.'))) {
+     const problem = rsi2ConfidenceReplacementProblem(nextConfig);
+     if (problem) return reject(problem.reason, { path: problem.path });
+   }
++  const sizingProblem = positionSizingReplacementProblem(nextConfig);
++  if (sizingProblem) return reject(sizingProblem.reason, { path: sizingProblem.path });
+   const nextEntrySizing = buildEntrySizingInput(nextConfig);
+   if (nextEntrySizing.issues.length > 0) {
+     return reject('invalid_entry_sizing_configuration', { issues: nextEntrySizing.issues });
+   }

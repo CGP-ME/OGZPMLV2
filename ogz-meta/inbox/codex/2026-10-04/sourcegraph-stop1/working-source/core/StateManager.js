@@ -1,0 +1,5015 @@
+/**
+ * @fileoverview StateManager - Single Source of Truth for Trading State
+ *
+ * This module centralizes ALL trading state management with atomic updates.
+ * It prevents the critical position/balance desync bugs that occurred when
+ * multiple components tracked state independently.
+ *
+ * @description
+ * ARCHITECTURE ROLE:
+ * StateManager sits at the center of the trading system. Every component
+ * (TradingBrain, ExecutionLayer, RiskManager) MUST read from and write to
+ * StateManager rather than maintaining their own state copies.
+ *
+ * HISTORICAL BUGS FIXED:
+ * - Position desync: this.currentPosition vs this.tradingBrain.position
+ * - Balance desync: Multiple components tracking different balances
+ * - P&L calculation: Wrong unit conversion (lost $99.99 per trade)
+ * - activeTrades accumulation: Closed trades not removed from Map
+ *
+ * CRITICAL INVARIANTS:
+ * 1. position is always in USD (position size in dollars)
+ * 2. balance is always in USD
+ * 3. inPosition tracks USD locked in positions
+ * 4. totalBalance = balance + inPosition + unrealizedPnL
+ * 5. All updates go through updateState() for atomicity
+ *
+ * @module core/StateManager
+ * @requires fs
+ * @requires path
+ *
+ * @example
+ * // Get the singleton instance
+ * const { getInstance } = require('./core/StateManager');
+ * const stateManager = getInstance();
+ *
+ * // Open a position (size in USD) with immutable trade scope
+ * await stateManager.openPosition(500, 100, {
+ *   source: 'TradingBrain',
+ *   symbol: 'BTC-USD',
+ *   brokerId: 'kraken',
+ *   assetClass: 'crypto',
+ *   executionMode: 'paper',
+ *   timeframe: '15m'
+ * });
+ *
+ * // Close position
+ * await stateManager.closePosition(101);
+ *
+ * // Check current state
+ * const state = stateManager.getState();
+ * console.log(`Balance: $${state.balance}, Position: $${state.position}`);
+ */
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION: StateManager Class
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Centralized state management for trading operations.
+ * Implements atomic updates, state persistence, and change notifications.
+ *
+ * @class StateManager
+ * @property {Object} state - The current trading state
+ * @property {number} state.position - Current position size in USD
+ * @property {number} state.positionCount - Number of entries (for averaging)
+ * @property {number} state.entryPrice - Average entry price in USD
+ * @property {Date|null} state.entryTime - When position was opened
+ * @property {number} state.balance - Available USD balance (not in positions)
+ * @property {number} state.totalBalance - Total account value in USD
+ * @property {number} state.inPosition - USD value locked in positions
+ * @property {Map} state.activeTrades - Active trade records (orderId → trade)
+ * @property {number} state.realizedPnL - Cumulative realized profit/loss
+ * @property {number} state.unrealizedPnL - Current unrealized P&L
+ * @property {boolean} state.isTrading - Whether trading is active
+ */
+
+const ConfigLoader = require('../foundation/ConfigLoader');
+const { get: getConfigValue, getSource: getConfigSource } = require('../foundation/ConfigLoader');
+const { getNarrator } = require('./TradeNarrator');
+const FeeModel = require('./FeeModel');
+const { assertExplicitExitOwnership } = require('./dto/ExitContractOwnership');
+const { freezePolicy } = require('./dto/FrozenExitPolicy');
+const { positionEffectFromAction, exitPositionEffectForDirection } = require('./PositionEffect');
+const { emitTrace } = require('./TraceSpine');
+// Cache singleton at module load — narrator.enabled is sealed from env vars.
+// Both hook sites (openPosition / closePosition) check cached narrator.enabled
+// first; try frame only entered when enabled (C1 zero-cost when OFF).
+const narrator = getNarrator();
+
+const INVALID_SCOPE_PLACEHOLDER_VALUES = new Set([
+  'unknown',
+  'undefined',
+  'unclassified',
+  'null',
+  'none',
+  'n/a',
+  'na'
+]);
+
+const TTP_CUTOFF_FLATNESS_PAUSE_SOURCE = 'ttp_cutoff_unverified_broker_flatness';
+const DIRECTION_INTEGRITY_EXIT_REFUSAL = 'direction_integrity_exit_refusal';
+const BROKER_UNVERIFIABLE = 'broker_unverifiable';
+const TTP_CUTOFF_FLATNESS_PAUSE_PREFIX = '[TTP_MARKET_TIME] broker flatness unverified after cutoff';
+const DATA_FEED_LIVENESS_PAUSE_SOURCE = 'data_feed_liveness';
+const DATA_FEED_LIVENESS_PAUSE_PREFIXES = [
+  'Liveness watchdog:',
+  'Stale data:',
+  'Data gap:'
+];
+const AUTHORIZED_SYMBOL_HALT_CODES = new Set([
+  'broker_order_reconciliation_required',
+  'exit_rail_broker_desync',
+  'exit_monitor_reconciliation_required',
+  'exit_intent_reconciliation_required',
+  DIRECTION_INTEGRITY_EXIT_REFUSAL,
+  BROKER_UNVERIFIABLE,
+  TTP_CUTOFF_FLATNESS_PAUSE_SOURCE
+]);
+const SYMBOL_ENTRY_HALTS_MUTATION_TOKEN = Symbol('symbolEntryHaltsMutation');
+
+function ensureConfigLoaded() {
+  try {
+    if (typeof ConfigLoader.hasLoadedSnapshot === 'function' && !ConfigLoader.hasLoadedSnapshot()) {
+      ConfigLoader.load({ silent: true });
+    }
+  } catch (_) {}
+}
+
+function normalizeSymbolHaltCode(metadata) {
+  if (!metadata || typeof metadata !== 'object') return null;
+  return typeof metadata.code === 'string' && metadata.code.trim()
+    ? metadata.code.trim().toLowerCase()
+    : null;
+}
+
+function normalizeSymbolHaltExpiry(halt) {
+  return halt.expiresAt === null || halt.expiresAt === undefined
+    ? null
+    : finiteNumberOrNull(halt.expiresAt);
+}
+
+function hasSymbolEntryHaltsMutationAuthority(context) {
+  return context?.symbolEntryHaltsMutationToken === SYMBOL_ENTRY_HALTS_MUTATION_TOKEN;
+}
+
+function finiteNumberOrNull(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function firstNonEmptyString(...values) {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value;
+    }
+  }
+  return null;
+}
+
+function holdTimeMsOrNull(trade, now = Date.now()) {
+  const startedAt = Number.isFinite(trade?.entryTime) && trade.entryTime > 0
+    ? trade.entryTime
+    : (Number.isFinite(trade?.timestamp) && trade.timestamp > 0 ? trade.timestamp : null);
+  return startedAt === null ? null : now - startedAt;
+}
+
+function clonePlain(value) {
+  if (value === null || value === undefined) {
+    return value;
+  }
+  return JSON.parse(JSON.stringify(value));
+}
+
+function cloneStateSnapshot(value) {
+  if (value === null || value === undefined || typeof value !== 'object') {
+    return value;
+  }
+  if (value instanceof Map) {
+    const clonedMap = new Map();
+    for (const [key, mapValue] of value.entries()) {
+      clonedMap.set(key, cloneStateSnapshot(mapValue));
+    }
+    return clonedMap;
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => cloneStateSnapshot(entry));
+  }
+  const clonedObject = {};
+  for (const [key, objectValue] of Object.entries(value)) {
+    clonedObject[key] = cloneStateSnapshot(objectValue);
+  }
+  return clonedObject;
+}
+
+function deepFreezePlain(value) {
+  if (value === null || typeof value !== 'object') {
+    return value;
+  }
+  if (value instanceof Map) {
+    for (const mapValue of value.values()) {
+      deepFreezePlain(mapValue);
+    }
+    for (const methodName of ['set', 'delete', 'clear']) {
+      Object.defineProperty(value, methodName, {
+        value: () => {
+          throw new TypeError('StateManager snapshot Map is read-only');
+        },
+        configurable: false,
+        writable: false,
+      });
+    }
+    return Object.freeze(value);
+  }
+  for (const key of Object.keys(value)) {
+    deepFreezePlain(value[key]);
+  }
+  return Object.freeze(value);
+}
+
+function initialBeScaleOutState(status = 'idle') {
+  return {
+    status,
+    intentId: null,
+    targetQuantity: null,
+    filledQuantity: 0,
+    brokerOrderIds: [],
+  };
+}
+
+function initialTierStatesFromPolicy(policy) {
+  const tiers = policy?.profitManagement?.tieredExit?.tiers;
+  if (!Array.isArray(tiers)) {
+    return [];
+  }
+  return tiers.map((tier, index) => ({
+    tierIndex: index,
+    name: typeof tier?.name === 'string' && tier.name.trim() ? tier.name.trim() : `tier${index + 1}`,
+    status: 'idle',
+    intentId: null,
+    targetQuantity: null,
+    filledQuantity: 0,
+    brokerOrderIds: [],
+    completedAtMs: null,
+  }));
+}
+
+function initialProfitStopPrice(entryPrice, direction, exitContract) {
+  const price = Number(entryPrice);
+  if (!Number.isFinite(price) || price <= 0) {
+    return null;
+  }
+
+  const rawStopPercent = Number(exitContract?.stopLossPercent);
+  if (!Number.isFinite(rawStopPercent) || rawStopPercent === 0) {
+    return null;
+  }
+
+  const stopDistance = Math.abs(rawStopPercent) / 100;
+  if (direction === 'short') {
+    return price * (1 + stopDistance);
+  }
+  return price * (1 - stopDistance);
+}
+
+function activeTradeDirection(trade) {
+  const direction = String(trade?.direction || '').trim().toLowerCase();
+  const action = String(trade?.action || '').trim().toUpperCase();
+  const directionSide = direction === 'long' || direction === 'short' ? direction : null;
+  const actionSide = action === 'BUY'
+    ? 'long'
+    : (action === 'SELL_SHORT' ? 'short' : null);
+  if (directionSide && actionSide && directionSide !== actionSide) {
+    return null;
+  }
+  return directionSide || actionSide;
+}
+
+function activeTradeEntryInstantKey(source) {
+  const value = source?.decisionInstantKey
+    ?? source?.ledgerData?.candleTimestamp
+    ?? source?.decisionLedger?.candleTimestamp
+    ?? source?.candleTimestamp
+    ?? source?.entryTime
+    ?? source?.timestamp
+    ?? null;
+  if (value === null || value === undefined || value === '') return null;
+  return String(value);
+}
+
+function strictActiveTradeDirection(trade) {
+  const direction = typeof trade?.direction === 'string' ? trade.direction : '';
+  return direction === 'long' || direction === 'short' ? direction : null;
+}
+
+function activeTradeDirectionRefusal(tradeId, trade, caller, extra = {}) {
+  const resolvedTradeId = tradeId || trade?.orderId || trade?.id || '<unknown>';
+  const error = `[${caller}] active trade ${resolvedTradeId} missing valid direction; refusing direction-dependent math`;
+  console.error(error);
+  return {
+    success: false,
+    error,
+    code: 'active_trade_direction_unknown',
+    tradeId: resolvedTradeId,
+    symbol: trade?.symbol || null,
+    ...extra,
+  };
+}
+
+const ACTIVE_TRADE_ENTRY_ACTION_DIRECTION = Object.freeze({
+  BUY: 'long',
+  SELL_SHORT: 'short',
+});
+
+function describeIdentityValue(value) {
+  if (value === null) return 'null';
+  if (value === undefined) return 'undefined';
+  return String(value);
+}
+
+function activeTradeIdentityIssuesForTrade(trade, fallbackTradeId = '<unknown>') {
+  const tradeId = trade?.orderId || trade?.id || fallbackTradeId || '<unknown>';
+  if (!trade || typeof trade !== 'object') {
+    return [`${tradeId}: trade record is not an object`];
+  }
+
+  const issues = [];
+  const rawAction = trade.action;
+  const rawDirection = trade.direction;
+  const actionIsText = typeof rawAction === 'string' && rawAction.trim() !== '';
+  const directionIsText = typeof rawDirection === 'string' && rawDirection.trim() !== '';
+  const actionExact = actionIsText
+    && rawAction === rawAction.trim()
+    && Object.prototype.hasOwnProperty.call(ACTIVE_TRADE_ENTRY_ACTION_DIRECTION, rawAction);
+  const directionExact = directionIsText
+    && rawDirection === rawDirection.trim()
+    && (rawDirection === 'long' || rawDirection === 'short');
+
+  if (!actionIsText) {
+    issues.push(`${tradeId}: missing action`);
+  } else if (!actionExact) {
+    issues.push(`${tradeId}: invalid action=${describeIdentityValue(rawAction)}`);
+  }
+
+  if (!directionIsText) {
+    issues.push(`${tradeId}: missing direction`);
+  } else if (!directionExact) {
+    issues.push(`${tradeId}: invalid direction=${describeIdentityValue(rawDirection)}`);
+  }
+
+  if (actionExact && directionExact && ACTIVE_TRADE_ENTRY_ACTION_DIRECTION[rawAction] !== rawDirection) {
+    issues.push(`${tradeId}: action/direction mismatch action=${rawAction} direction=${rawDirection}`);
+  }
+
+  return issues;
+}
+
+function identityIssueFields(issues) {
+  const fields = new Set();
+  for (const issue of issues) {
+    if (issue.includes(' action') || issue.includes('action=')) {
+      fields.add('action');
+    }
+    if (issue.includes(' direction') || issue.includes('direction=')) {
+      fields.add('direction');
+    }
+  }
+  return fields.size > 0 ? Array.from(fields) : ['identity'];
+}
+
+function initialExitLifecycleFields(policy = null) {
+  return {
+    tradeRevision: 0,
+    pendingExitIntent: null,
+    beScaleOutState: initialBeScaleOutState(),
+    tierStates: initialTierStatesFromPolicy(policy),
+  };
+}
+
+function normalizeBeScaleOutState(value, legacy = false) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return initialBeScaleOutState(legacy ? 'unknown_legacy' : 'idle');
+  }
+  return {
+    status: typeof value.status === 'string' && value.status.trim()
+      ? value.status.trim()
+      : (legacy ? 'unknown_legacy' : 'idle'),
+    intentId: value.intentId ?? null,
+    targetQuantity: value.targetQuantity === null || value.targetQuantity === undefined
+      ? null
+      : (Number.isFinite(Number(value.targetQuantity)) ? Number(value.targetQuantity) : null),
+    filledQuantity: Number.isFinite(Number(value.filledQuantity)) ? Number(value.filledQuantity) : 0,
+    brokerOrderIds: Array.isArray(value.brokerOrderIds) ? [...value.brokerOrderIds] : [],
+  };
+}
+
+function normalizeTierStates(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.map((tierState) => clonePlain(tierState));
+}
+
+function normalizeDecisionLedgerExitReason(reason) {
+  const value = String(reason || '').trim().toLowerCase();
+  if (value === 'be_scaleout') return 'be_scaleout';
+  if (value === 'profit_tier_1') return 'profit_tier_1';
+  if (value === 'profit_tier_2') return 'profit_tier_2';
+  if (value === 'profit_tier_3') return 'profit_tier_3';
+  if (value === 'trailing_stop') return 'trailing_stop';
+  if (value === 'take_profit') return 'take_profit';
+  if (value === 'invalidation') return 'invalidation';
+  if (value === 'flip_position') return 'flip_position';
+  if (value === 'kill_switch') return 'kill_switch';
+  if (value === 'manual_close') return 'manual_close';
+  if (value === 'drawdown_circuit') return 'drawdown_circuit';
+  if (value === 'session_end' || value === 'backtest_end_close' || value === 'ttp_1550_liquidation') return 'session_end';
+  if (value === 'max_hold' || value.startsWith('max_hold_')) return 'max_hold';
+  if (value === 'profit_tier_4') return 'take_profit';
+  if (value === 'hard_stop' || value === 'break_even' || value === 'stop_loss' || value === 'stoploss') return 'stop_loss';
+  return value ? `unmapped:${value}` : 'unmapped:missing';
+}
+
+function withExitLifecycleFields(trade, { legacy = false, reset = false } = {}) {
+  if (!trade || typeof trade !== 'object' || Array.isArray(trade)) {
+    return trade;
+  }
+
+  const revision = Number(trade.tradeRevision);
+  return {
+    ...trade,
+    tradeRevision: !reset && Number.isSafeInteger(revision) && revision >= 0 ? revision : 0,
+    pendingExitIntent: !reset && Object.prototype.hasOwnProperty.call(trade, 'pendingExitIntent')
+      ? clonePlain(trade.pendingExitIntent)
+      : null,
+    beScaleOutState: reset ? initialBeScaleOutState() : normalizeBeScaleOutState(trade.beScaleOutState, legacy),
+    tierStates: reset ? [] : normalizeTierStates(trade.tierStates),
+  };
+}
+
+function requireNonEmptyString(value, field, caller) {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new Error(`[${caller}] ${field} requires explicit non-empty string; got ${JSON.stringify(value)}`);
+  }
+  return value.trim();
+}
+
+function optionalFiniteNumber(value, field, caller, { min = -Infinity, max = Infinity } = {}) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < min || numeric > max) {
+    throw new Error(`[${caller}] ${field} must be finite number between ${min} and ${max}; got ${JSON.stringify(value)}`);
+  }
+  return numeric;
+}
+
+function requireFiniteNumber(value, field, caller, { min = -Infinity, max = Infinity } = {}) {
+  const numeric = optionalFiniteNumber(value, field, caller, { min, max });
+  if (numeric === null) {
+    throw new Error(`[${caller}] ${field} is required`);
+  }
+  return numeric;
+}
+
+function requireLifecycleState(value, caller) {
+  const allowed = new Set(['partial_fill', 'full_fill', 'reconciled']);
+  const normalized = requireNonEmptyString(value, 'lifecycleState', caller);
+  if (!allowed.has(normalized)) {
+    throw new Error(`[${caller}] lifecycleState must be one of ${Array.from(allowed).join(', ')}; got ${JSON.stringify(value)}`);
+  }
+  return normalized;
+}
+
+function requireNonNegativeInteger(value, field, caller) {
+  const numeric = requireFiniteNumber(value, field, caller, { min: 0 });
+  if (!Number.isSafeInteger(numeric)) {
+    throw new Error(`[${caller}] ${field} must be a non-negative safe integer; got ${JSON.stringify(value)}`);
+  }
+  return numeric;
+}
+
+class StateManager {
+  /**
+   * Creates a new StateManager instance.
+   * Initializes default state, sets up listeners, and loads persisted state.
+   *
+   * @constructor
+   * @note This should only be called by getInstance() - use the singleton!
+   */
+  constructor() {
+    // ─────────────────────────────────────────────────────────────────────
+    // POSITION TRACKING
+    // Position is in USD (position size in dollars)
+    // ─────────────────────────────────────────────────────────────────────
+    this.state = {
+      position: 0,              // Current position size in USD
+      positionCount: 0,         // Number of entries (for DCA/averaging)
+      entryPrice: 0,            // Average entry price in USD
+      entryTime: null,          // Timestamp when position was opened
+
+      // ─────────────────────────────────────────────────────────────────────
+      // BALANCE TRACKING (all values in USD)
+      // Invariant: totalBalance ≈ balance + inPosition + unrealizedPnL
+      // ─────────────────────────────────────────────────────────────────────
+      balance: 10000,           // Available USD (not locked in positions)
+      totalBalance: 10000,      // Total account value in USD
+      initialBalance: 10000,    // FIX 2026-03-14: Reference point for drawdown calculation
+      inPosition: 0,            // USD locked in positions (position × entryPrice)
+
+      // ─────────────────────────────────────────────────────────────────────
+      // TRADE TRACKING
+      // activeTrades Map persists across restarts via save()/load()
+      // ─────────────────────────────────────────────────────────────────────
+      activeTrades: new Map(),  // orderId → { size, price, entryTime, symbol, ... }
+      quarantinedTrades: [],
+      symbolEntryHalts: {},     // canonical symbol -> { reason, haltedAt }
+      ttpCutoffQuarantine: null,
+      // Per-symbol last-known prices for cross-asset equity math.
+      // Mercury attack 2026-05-04: getEquity previously applied ONE caller-
+      // supplied currentPrice across all activeTrades, which corrupts equity
+      // when the trade map mixes asset classes (e.g. SessionRouter dual-broker).
+      // Populated from OHLC handlers; used by getEquity/getAvailableCapital
+      // and by SessionRouter for symbol-correct force-close prices.
+      lastPrices: new Map(),    // symbol → most recent close price
+      lastPriceTimes: new Map(), // symbol → event timestamp for lastPrices
+      lastTradeTime: null,      // Timestamp of last trade execution
+      tradeCount: 0,            // Total trades (lifetime)
+      dailyTradeCount: 0,       // Trades today (resets via resetDaily())
+
+      // ─────────────────────────────────────────────────────────────────────
+      // P&L TRACKING (all values in USD)
+      // ─────────────────────────────────────────────────────────────────────
+      realizedPnL: 0,           // Cumulative closed trade P&L
+      unrealizedPnL: 0,         // Current open position P&L (updated externally)
+      equityIntegrity: { status: 'trusted', excludedTrades: [] },
+      totalPnL: 0,              // realizedPnL + unrealizedPnL
+      closedTrades: [],         // Append-only log of full-close records (for win-rate math)
+      reconciledTrades: [],     // Broker/local state reconciliations that are not verified fills
+      brokerVerificationIntegrity: { status: 'trusted', lanes: [] },
+      brokerUnverifiableEvidenceRecords: [],
+
+      // ─────────────────────────────────────────────────────────────────────
+      // SYSTEM STATE
+      // ─────────────────────────────────────────────────────────────────────
+      isTrading: false,         // false = paused/stopped
+      lastError: null,          // Last error message (for pause reason)
+      pauseReason: null,
+      pauseSource: null,
+      pauseRecoverable: false,
+      pauseScope: null,
+      lastUpdate: Date.now()    // Timestamp of last state update
+    };
+
+    this.dashboardRuntimeScope = null;
+
+    /** @type {Set<Function>} Listeners notified on state changes */
+    this.listeners = new Set();
+
+    /** @type {Array<Object>} Rolling log of recent transactions for debugging */
+    this.transactionLog = [];
+    this.maxLogSize = 100;
+
+    /** @type {boolean} Lock flag for atomic operations */
+    this.locked = false;
+    /** @type {Array<Function>} Queue of callbacks waiting for lock */
+    this.lockQueue = [];
+    this.dashboardHeartbeatInterval = null;
+
+    // Bind methods to preserve 'this' context when passed as callbacks
+    this.get = this.get.bind(this);
+    this.set = this.set.bind(this);
+    this.updateActiveTrade = this.updateActiveTrade.bind(this);
+    this.removeActiveTrade = this.removeActiveTrade.bind(this);
+    this.reserveExitSlot = this.reserveExitSlot.bind(this);
+    this.markExitSlotAccepted = this.markExitSlotAccepted.bind(this);
+    this.releaseExitSlot = this.releaseExitSlot.bind(this);
+    this.openPosition = this.openPosition.bind(this);
+    this.closePosition = this.closePosition.bind(this);
+    this.reconcileBrokerFlat = this.reconcileBrokerFlat.bind(this);
+
+    // Load persisted state from disk (respects BACKTEST_MODE, FRESH_START)
+    this.load();
+  }
+
+  /**
+   * Get current state snapshot (read-only)
+   */
+  getState() {
+    return deepFreezePlain(cloneStateSnapshot(this.state));
+  }
+
+  /**
+   * Get specific state value
+   */
+  get(key) {
+    return this.state[key];
+  }
+
+  /**
+   * Reset in-memory state to an explicit starting balance.
+   * Used by backtests so execution sizing and recorder math share the same
+   * configured INITIAL_BALANCE instead of the constructor's $10K bootstrap.
+   */
+  initializeFreshState(initialBalance, context = {}) {
+    if (!Number.isFinite(initialBalance) || initialBalance <= 0) {
+      throw new Error(`[StateManager] initializeFreshState requires positive finite initialBalance (got ${initialBalance})`);
+    }
+
+    return this._applyStateUpdatesLocked({
+      position: 0,
+      positionCount: 0,
+      entryPrice: 0,
+      entryTime: null,
+      balance: initialBalance,
+      totalBalance: initialBalance,
+      initialBalance,
+      inPosition: 0,
+      activeTrades: new Map(),
+      quarantinedTrades: [],
+      symbolEntryHalts: {},
+      ttpCutoffQuarantine: null,
+      lastPrices: new Map(),
+      lastTradeTime: null,
+      tradeCount: 0,
+      dailyTradeCount: 0,
+      realizedPnL: 0,
+      unrealizedPnL: 0,
+      equityIntegrity: { status: 'trusted', excludedTrades: [] },
+      totalPnL: 0,
+      closedTrades: [],
+      brokerVerificationIntegrity: { status: 'trusted', lanes: [] },
+      brokerUnverifiableEvidenceRecords: [],
+      isTrading: false,
+      lastError: null,
+      pauseReason: null,
+      pauseSource: null,
+      pauseRecoverable: false,
+      pauseScope: null,
+    }, {
+      action: 'INITIALIZE_FRESH_STATE',
+      ...context,
+      symbolEntryHaltsMutationToken: SYMBOL_ENTRY_HALTS_MUTATION_TOKEN,
+    });
+  }
+
+  /**
+   * Set specific state value (for internal use)
+   */
+  set(key, value) {
+    if (key === 'activeTrades') {
+      const activeTrades = this._normalizeActiveTradesInput(value, 'StateManager.set', { resetLifecycle: true });
+      this.state.activeTrades = activeTrades;
+      return activeTrades;
+    }
+    this.state[key] = value;
+    return value;
+  }
+
+  /**
+   * Get equity (true account value for backtesting)
+   * FIX 2026-03-28: Per-trade equity accounting
+   * Equity = initialBalance + realizedPnL + unrealizedPnL
+   * unrealizedPnL computed LIVE from activeTrades
+   * Does NOT change get('balance') behavior
+   */
+  getEquity(currentPrice) {
+    // CRIT-08: Phantom $10K capital. Corrupt or missing state must never be
+    // upgraded to a default account size, and it must not kill the process.
+    const realizedPnL = finiteNumberOrNull(this.state.realizedPnL) ?? 0;
+    const rawInitialBalance = finiteNumberOrNull(this.state.initialBalance);
+    const baseEquityFallback = finiteNumberOrNull(this.state.balance)
+      ?? finiteNumberOrNull(this.state.totalBalance)
+      ?? realizedPnL;
+    const initialBalanceIssue = rawInitialBalance === null || rawInitialBalance <= 0
+      ? {
+          code: 'equity_initial_balance_missing',
+          reason: `initialBalance not set in state; using finite state balance fallback ${baseEquityFallback}`,
+          fallbackEquity: baseEquityFallback,
+        }
+      : null;
+    if (initialBalanceIssue) {
+      emitTrace({}, 'EQUITY_INTEGRITY_UNTRUSTED', {
+        code: initialBalanceIssue.code,
+        reason: initialBalanceIssue.reason,
+        fallbackEquity: initialBalanceIssue.fallbackEquity,
+        manualReconciliationRequired: true,
+        operatorActionRequired: true,
+      });
+      console.error(`[StateManager.getEquity] ${initialBalanceIssue.reason}`);
+    }
+    const initialBalance = initialBalanceIssue
+      ? baseEquityFallback - realizedPnL
+      : rawInitialBalance;
+
+    // Compute unrealizedPnL live from activeTrades.
+    // FIX 2026-05-05 (Mercury cross-asset attack): each trade priced at its
+    // OWN symbol's last-known price (lastPrices map), with the caller's
+    // currentPrice as a fallback. Single-asset modes (Apex stocks-only,
+    // crypto-only) are byte-identical because the trade's symbol price
+    // equals the global price. Cross-asset (SessionRouter) modes no
+    // longer apply BTC price to TSLA trades.
+    let unrealizedPnL = 0;
+    const excludedTrades = [];
+    if (this.state.activeTrades && this.state.activeTrades.size > 0) {
+      for (const [tradeId, trade] of Array.from(this.state.activeTrades.entries())) {
+        const entry = trade.entryPrice;
+        const size = trade.sizeUsd || trade.size;
+        const direction = strictActiveTradeDirection(trade);
+        if (!direction) {
+          const record = this._quarantineActiveTrade(
+            tradeId,
+            trade,
+            [`${trade?.orderId || trade?.id || tradeId || '<unknown>'}: missing valid direction`],
+            'StateManager.getEquity'
+          );
+          excludedTrades.push({
+            tradeId: record.tradeId,
+            symbol: record.symbol,
+            code: record.code,
+            issues: record.issues,
+          });
+          continue;
+        }
+        const tradePrice = (trade.symbol && this.state.lastPrices && this.state.lastPrices.get(trade.symbol))
+          || currentPrice
+          || entry;
+
+        if (direction === 'long') {
+          unrealizedPnL += size * ((tradePrice - entry) / entry);
+        } else {
+          unrealizedPnL += size * ((entry - tradePrice) / entry);
+        }
+      }
+    }
+
+    if (excludedTrades.length > 0 || initialBalanceIssue) {
+      this._reconcileOpenPositionFromActiveTrades();
+      this.state.equityIntegrity = {
+        status: 'untrusted',
+        code: excludedTrades.length > 0 ? DIRECTION_INTEGRITY_EXIT_REFUSAL : initialBalanceIssue.code,
+        excludedTrades,
+        reason: excludedTrades.length > 0 ? 'active_trade_direction_unknown' : initialBalanceIssue.reason,
+        issues: [
+          ...(initialBalanceIssue ? [initialBalanceIssue] : []),
+        ],
+        updatedAt: new Date().toISOString(),
+      };
+      const saveResult = this.save({ suppressPersistenceFailureTrace: true });
+      if (saveResult && saveResult.success === false) {
+        const persistenceFailure = this._recordStatePersistenceBoundaryFailure(
+          saveResult,
+          'StateManager.getEquity',
+          {
+            excludedTrades,
+            initialBalanceIssue,
+          }
+        );
+        this.state.equityIntegrity = {
+          ...this.state.equityIntegrity,
+          persistenceSucceeded: false,
+          persistenceFailure,
+          manualReconciliationRequired: true,
+          operatorActionRequired: true,
+        };
+      }
+    } else {
+      this.state.equityIntegrity = { status: 'trusted', excludedTrades: [] };
+    }
+
+    return initialBalance + realizedPnL + unrealizedPnL;
+  }
+
+  /**
+   * Get available capital for position sizing
+   * FIX 2026-03-28: Available = Equity - capital already reserved in open trades
+   * This prevents sizing off full equity while positions are open
+   */
+  getAvailableCapital(currentPrice) {
+    const equity = this.getEquity(currentPrice);
+
+    // Sum capital reserved in open trades
+    let reservedCapital = 0;
+    if (this.state.activeTrades && this.state.activeTrades.size > 0) {
+      for (const trade of this.state.activeTrades.values()) {
+        reservedCapital += trade.sizeUsd || trade.size || 0;
+      }
+    }
+
+    return Math.max(0, equity - reservedCapital);
+  }
+
+  _getActiveTradeExposureUsd(activeTrades = this.state.activeTrades) {
+    if (!activeTrades) {
+      return 0;
+    }
+    if (!(activeTrades instanceof Map)) {
+      const reason = `[StateManager] activeTrades exposure invariant failed: expected Map, got ${Object.prototype.toString.call(activeTrades)}`;
+      console.error(reason);
+      emitTrace({}, 'DIRECTION_INTEGRITY_ACTIVE_TRADES_CONTAINER_REFUSAL', {
+        code: DIRECTION_INTEGRITY_EXIT_REFUSAL,
+        reason,
+        manualReconciliationRequired: true,
+        operatorActionRequired: true,
+      });
+      return 0;
+    }
+
+    let exposureUsd = 0;
+    for (const [tradeId, trade] of Array.from(activeTrades.entries())) {
+      const sizeUsd = Number(trade?.sizeUsd ?? trade?.size);
+      if (!Number.isFinite(sizeUsd) || sizeUsd < 0) {
+        this._quarantineActiveTrade(
+          tradeId,
+          trade,
+          [`${trade?.orderId || trade?.id || tradeId || '<unknown>'}: invalid sizeUsd=${trade?.sizeUsd} size=${trade?.size}`],
+          'StateManager._getActiveTradeExposureUsd'
+        );
+        activeTrades.delete(tradeId);
+        continue;
+      }
+      if (!strictActiveTradeDirection(trade)) {
+        this._quarantineActiveTrade(
+          tradeId,
+          trade,
+          [`${trade?.orderId || trade?.id || tradeId || '<unknown>'}: invalid direction=${trade?.direction}`],
+          'StateManager._getActiveTradeExposureUsd'
+        );
+        activeTrades.delete(tradeId);
+        continue;
+      }
+      exposureUsd += Math.abs(sizeUsd);
+    }
+    return exposureUsd;
+  }
+
+  _getActiveTradeSignedExposureUsd(activeTrades = this.state.activeTrades) {
+    if (!activeTrades) {
+      return 0;
+    }
+    if (!(activeTrades instanceof Map)) {
+      const reason = `[StateManager] activeTrades signed exposure invariant failed: expected Map, got ${Object.prototype.toString.call(activeTrades)}`;
+      console.error(reason);
+      emitTrace({}, 'DIRECTION_INTEGRITY_ACTIVE_TRADES_CONTAINER_REFUSAL', {
+        code: DIRECTION_INTEGRITY_EXIT_REFUSAL,
+        reason,
+        manualReconciliationRequired: true,
+        operatorActionRequired: true,
+      });
+      return 0;
+    }
+
+    let signedExposureUsd = 0;
+    for (const [tradeId, trade] of Array.from(activeTrades.entries())) {
+      const sizeUsd = Number(trade?.sizeUsd ?? trade?.size);
+      if (!Number.isFinite(sizeUsd) || sizeUsd < 0) {
+        this._quarantineActiveTrade(
+          tradeId,
+          trade,
+          [`${trade?.orderId || trade?.id || tradeId || '<unknown>'}: invalid sizeUsd=${trade?.sizeUsd} size=${trade?.size}`],
+          'StateManager._getActiveTradeSignedExposureUsd'
+        );
+        activeTrades.delete(tradeId);
+        continue;
+      }
+      const direction = strictActiveTradeDirection(trade);
+      if (!direction) {
+        this._quarantineActiveTrade(
+          tradeId,
+          trade,
+          [`${trade?.orderId || trade?.id || tradeId || '<unknown>'}: invalid direction=${trade?.direction}`],
+          'StateManager._getActiveTradeSignedExposureUsd'
+        );
+        activeTrades.delete(tradeId);
+        continue;
+      }
+      signedExposureUsd += direction === 'short' ? -Math.abs(sizeUsd) : Math.abs(sizeUsd);
+    }
+    return signedExposureUsd;
+  }
+
+  /**
+   * Record the most recent close price for a symbol.
+   * Called from OHLC handlers on each candle close. Powers cross-asset
+   * equity math in getEquity and the symbol-correct force-close exit
+   * price lookup in SessionRouter._transitionToCrypto.
+   */
+  updateLastPrice(symbol, price, eventTimeMs = Date.now()) {
+    if (!symbol || typeof price !== 'number' || !(price > 0)) return false;
+    const incomingTime = Number(eventTimeMs);
+    if (!Number.isFinite(incomingTime) || incomingTime <= 0) return false;
+    if (!this.state.lastPrices) this.state.lastPrices = new Map();
+    if (!this.state.lastPriceTimes) this.state.lastPriceTimes = new Map();
+    const currentTime = this.state.lastPriceTimes.get(symbol);
+    if (Number.isFinite(currentTime) && incomingTime < currentTime) return false;
+    this.state.lastPrices.set(symbol, price);
+    this.state.lastPriceTimes.set(symbol, incomingTime);
+    return true;
+  }
+
+  /**
+   * Look up the last-known close price for a symbol.
+   * Returns null if the symbol has never been seen (caller must decide
+   * whether that is a critical state — SessionRouter treats it as
+   * "leave the trade open").
+   */
+  getLastPrice(symbol) {
+    if (!symbol || !this.state.lastPrices) return null;
+    return this.state.lastPrices.get(symbol) || null;
+  }
+
+  /**
+   * ATOMIC state update with transaction safety
+   * All state changes MUST go through this
+   */
+  async updateState(updates, context = {}) {
+    // Wait for lock
+    await this.acquireLock();
+
+    try {
+      return this._applyStateUpdatesLocked(updates, context, { resetActiveTradeLifecycle: true });
+    } finally {
+      this.releaseLock();
+    }
+  }
+
+  _statePersistenceFailureResult(saveResult = {}, context = {}, snapshot = null) {
+    if (snapshot && typeof snapshot === 'object') {
+      this.state = snapshot;
+    }
+
+    const action = context.action || 'STATE_UPDATE';
+    const tradeId = context.tradeId || context.orderId || context.intentId || null;
+    const errorMessage = saveResult.error || saveResult.reason || 'state persistence failed';
+    let symbol = context.symbol || context.tradeSymbol || context.ledgerData?.symbol || null;
+    if (!symbol && tradeId && snapshot?.activeTrades instanceof Map) {
+      const snapshotTrade = snapshot.activeTrades.get(tradeId);
+      symbol = snapshotTrade?.symbol || null;
+    }
+
+    let haltResult = { halted: false, standing: false, reason: 'missing_symbol' };
+    if (symbol) {
+      haltResult = this._recordDirectionIntegritySymbolHalt(symbol, 'state_persistence_failed', {
+        source: 'StateManager._applyStateUpdatesLocked',
+        action,
+        tradeId,
+        fillId: context.fillId || null,
+        brokerOrderId: context.brokerOrderId || null,
+        persistenceFailure: true,
+        manualReconciliationRequired: true,
+        operatorActionRequired: true,
+      });
+    }
+
+    emitTrace({}, 'STATE_PERSISTENCE_RECONCILIATION_REQUIRED', {
+      code: saveResult.code || 'STATE_PERSIST_FAILED',
+      action,
+      symbol: haltResult.symbol || symbol || null,
+      tradeId,
+      fillId: context.fillId || null,
+      brokerOrderId: context.brokerOrderId || null,
+      error: errorMessage,
+      persistenceSucceeded: false,
+      stateMutationSucceeded: false,
+      symbolHalted: haltResult.halted === true || haltResult.standing === true,
+      manualReconciliationRequired: true,
+      operatorActionRequired: true,
+    });
+
+    console.error(`[StateManager] STATE PERSISTENCE FAILED during ${action}: ${errorMessage}`);
+
+    return {
+      success: false,
+      error: `State persistence failed after ${action}: ${errorMessage}`,
+      code: saveResult.code || 'STATE_PERSIST_FAILED',
+      persistenceSucceeded: false,
+      stateMutationSucceeded: false,
+      manualReconciliationRequired: true,
+      operatorActionRequired: true,
+      symbolHalted: haltResult.halted === true || haltResult.standing === true,
+      haltedSymbol: haltResult.symbol || symbol || null,
+    };
+  }
+
+  _recordStatePersistenceBoundaryFailure(saveResult = {}, source = 'StateManager.save', metadata = {}) {
+    const errorMessage = saveResult.error || saveResult.reason || 'state persistence failed';
+    const failure = {
+      status: 'untrusted',
+      code: saveResult.code || 'STATE_PERSIST_FAILED',
+      source,
+      error: errorMessage,
+      persistenceSucceeded: false,
+      manualReconciliationRequired: true,
+      operatorActionRequired: true,
+      updatedAt: new Date().toISOString(),
+      ...metadata,
+    };
+
+    this.state.statePersistenceIntegrity = failure;
+    emitTrace({}, 'STATE_PERSISTENCE_RECONCILIATION_REQUIRED', failure);
+    console.error(`[StateManager] STATE PERSISTENCE FAILED during ${source}: ${errorMessage}`);
+    return failure;
+  }
+
+  _applyStateUpdatesLocked(updates, context = {}, options = {}) {
+    let snapshot = null;
+    try {
+      // Snapshot for rollback
+      snapshot = { ...this.state };
+      const timestamp = Date.now();
+      const preparedUpdates = { ...updates };
+
+      if (Object.prototype.hasOwnProperty.call(preparedUpdates, 'symbolEntryHalts')) {
+        preparedUpdates.symbolEntryHalts = this._normalizeSymbolEntryHaltsMutation(
+          preparedUpdates.symbolEntryHalts,
+          context
+        );
+      }
+
+      // Validate updates
+      this.validateUpdates(preparedUpdates);
+
+      // Apply updates atomically
+      for (const [key, value] of Object.entries(preparedUpdates)) {
+        // DEBUG: Log balance changes
+        if (key === 'balance') {
+          console.log(`[StateManager] Balance update: ${this.state[key]} -> ${value}`);
+        }
+
+        // CRITICAL FIX: Protect activeTrades Map from being overwritten
+        if (key === 'activeTrades') {
+          this.state.activeTrades = this._normalizeActiveTradesInput(value, 'StateManager.updateState', {
+            resetLifecycle: options.resetActiveTradeLifecycle === true,
+          });
+          if (Array.isArray(value)) {
+            console.log(`[StateManager] Converted activeTrades array to Map with ${value.length} entries`);
+          }
+        } else {
+          this.state[key] = value;
+        }
+      }
+
+      this.state.lastUpdate = timestamp;
+
+      // CHANGE 2026-08-12: Durable state is part of the transaction. A failed
+      // save cannot be reported as a successful in-memory mutation.
+      const saveResult = this.save({ suppressPersistenceFailureTrace: true });
+      if (saveResult && saveResult.success === false) {
+        return this._statePersistenceFailureResult(saveResult, context, snapshot);
+      }
+
+      // Log transaction
+      this.logTransaction({
+        timestamp,
+        updates: preparedUpdates,
+        context,
+        snapshot
+      });
+
+      // Notify listeners
+      this.notifyListeners(preparedUpdates, context);
+
+      return { success: true, state: this.getState() };
+
+    } catch (error) {
+      if (snapshot && typeof snapshot === 'object') {
+        this.state = snapshot;
+      }
+      console.error('[StateManager] Update failed:', error);
+      emitTrace({}, 'STATE_UPDATE_FAILED', {
+        action: context.action || 'STATE_UPDATE',
+        tradeId: context.tradeId || context.orderId || null,
+        fillId: context.fillId || null,
+        brokerOrderId: context.brokerOrderId || null,
+        error: error.message,
+        stateMutationSucceeded: false,
+      });
+      return {
+        success: false,
+        error: error.message,
+        code: error.code || 'STATE_UPDATE_FAILED',
+        stateMutationSucceeded: false,
+      };
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SECTION: Position Management
+  // These methods handle opening/closing positions with USD-based accounting
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Open a new position (BUY).
+   *
+   * @async
+   * @param {number} size - Position size in USD
+   * @param {number} price - Current market price
+   * @param {Object} [context={}] - Additional context for logging/tracking
+   * @param {string} [context.orderId] - Broker order ID
+   * @param {string} [context.source] - Calling component (e.g., 'TradingBrain')
+   * @param {string} [context.reason] - Trade reason (e.g., 'RSI oversold')
+   * @param {number} [context.confidence] - Signal confidence (0-100)
+   * @param {string} context.symbol - Canonical trade symbol
+   * @param {string} context.brokerId - Broker identity that owns this trade
+   * @param {string} context.assetClass - Asset class for this trade
+   * @param {string} context.executionMode - paper/live/backtest
+   * @param {string} context.timeframe - Candle timeframe that produced the entry
+   * @param {number} context.entryOrderQuantity - Broker/base quantity accepted at entry
+   * @param {string} context.entryOrderQuantityUnit - Quantity unit for the accepted entry
+   * @param {number} context.remainingOrderQuantity - Broker/base quantity still open
+   * @param {string} context.remainingOrderQuantityUnit - Quantity unit for the open remainder
+   * @returns {Promise<{success: boolean, state?: Object, error?: string, scopeRejected?: boolean, missingFields?: string[]}>}
+   *
+   * @example
+   * // Open $500 position at $100/share
+   * await stateManager.openPosition(500, 100, {
+   *   source: 'TradingBrain',
+   *   reason: 'RSI oversold bounce',
+   *   confidence: 75,
+   *   symbol: 'BTC-USD',
+   *   brokerId: 'kraken',
+   *   accountId: 'default',
+   *   assetClass: 'crypto',
+   *   executionMode: 'paper',
+   *   timeframe: '15m'
+   * });
+   * // Result: position = 500 USD, inPosition = $500
+   *
+   * @description
+   * CRITICAL MATH:
+   * - size is in USD (e.g., $500)
+   * - price is current market price
+   * - Per-trade equity accounting: only fees affect realizedPnL on open
+   * - No principal movement on balance
+   * - position increases by size (USD)
+   */
+  async openPosition(size, price, context = {}) {
+    const identityMissing = [];
+    const cleanIdentityText = (value, field) => {
+      if (value === null || value === undefined) {
+        identityMissing.push(field);
+        return null;
+      }
+      const text = String(value);
+      if (!text.trim()) {
+        identityMissing.push(field);
+        return null;
+      }
+      return text;
+    };
+    const tradeId = cleanIdentityText(context.orderId, 'orderId');
+    const tradeAction = cleanIdentityText(context.action, 'action');
+    const tradeDirection = cleanIdentityText(context.direction, 'direction');
+    const entryStrategy = cleanIdentityText(context.entryStrategy, 'entryStrategy');
+    if (identityMissing.length > 0) {
+      return this._rejectOpenPositionIdentity(
+        `StateManager.openPosition missing immutable entry identity field(s): ${identityMissing.join(', ')}`,
+        identityMissing,
+        context
+      );
+    }
+    const identityIssues = activeTradeIdentityIssuesForTrade({
+      id: tradeId,
+      orderId: tradeId,
+      action: tradeAction,
+      direction: tradeDirection,
+    }, tradeId);
+    if (identityIssues.length > 0) {
+      return this._rejectOpenPositionIdentity(
+        `StateManager.openPosition active trade identity invariant failed: ${identityIssues.join('; ')}`,
+        identityIssueFields(identityIssues),
+        context
+      );
+    }
+    const tradeSymbolRaw = context.symbol
+      || (context.ledgerData && context.ledgerData.symbol)
+      || null;
+    let tradeScope;
+
+    try {
+      tradeScope = this.buildTradeScope(context, tradeSymbolRaw, 'StateManager.openPosition scope');
+    } catch (err) {
+      return this._rejectOpenPositionScope(err, context);
+    }
+    try {
+      assertExplicitExitOwnership(context.exitContract, 'StateManager.openPosition');
+      if (context.ledgerData?.exitContract !== undefined && context.ledgerData.exitContract !== null) {
+        assertExplicitExitOwnership(context.ledgerData.exitContract, 'StateManager.openPosition ledgerData');
+      }
+    } catch (err) {
+      return this._rejectOpenPositionExitContract(err, context);
+    }
+
+    const usdCost = size;
+
+    // FIX 2026-03-28: Per-trade equity accounting.
+    // Entry fee calculated upfront through the config-owned fee model.
+    const entryFee = FeeModel.fromTradingConfig().calculateOrderFee({
+      notionalUsd: usdCost,
+      quantity: context.entryOrderQuantity,
+      side: 'entry',
+    });
+
+    // Store trade in activeTrades with all required fields.
+    // FIX 2026-05-05: promote `symbol` to a top-level trade field (was only
+    // present inside decisionLedger sub-object). getEquity/getAvailableCapital
+    // and SessionRouter need symbol-aware pricing.
+    const tradeSymbol = tradeScope.symbol;
+
+    const openedAt = Date.now();
+    const baseStateContext = context.frozenExitPolicy !== undefined
+      ? { ...context, frozenExitPolicy: freezePolicy(context.frozenExitPolicy) }
+      : { ...context };
+    const stateContext = {
+      ...baseStateContext,
+      entryTime: baseStateContext.entryTime ?? openedAt,
+      timestamp: baseStateContext.timestamp ?? openedAt,
+    };
+    const profitStopPrice = initialProfitStopPrice(price, tradeDirection, stateContext.exitContract);
+    const positionEffect = positionEffectFromAction(tradeAction);
+
+    const trade = {
+      sizeUsd: size,        // Position size in USD
+      size: size,           // Keep for compatibility
+      price: price,
+      entryPrice: price,
+      entryFee: entryFee,   // Store fee for accounting
+      entryTime: stateContext.entryTime,
+      timestamp: stateContext.timestamp,
+      status: 'open',
+      ...stateContext,
+      id: tradeId,
+      action: tradeAction,  // BUY or SELL_SHORT
+      type: tradeAction,    // Keep both for compatibility
+      direction: tradeDirection,  // 'long' or 'short'
+      positionEffect,
+      ...initialExitLifecycleFields(stateContext.frozenExitPolicy || null),
+      maxProfitPercent: 0,
+      maxFavorableExcursionPercent: 0,
+      maxAdverseExcursionPercent: 0,
+      highestPrice: tradeDirection === 'long' ? price : 0,
+      lowestPrice: tradeDirection === 'short' ? price : Infinity,
+      currentStop: profitStopPrice,
+      initialStop: profitStopPrice,
+      trailingActive: false,
+      breakevenActive: false,
+      // CC-C Commit 5: symbol assignment AFTER `...context` so the dash-
+      // normalized value (line 405-407) wins over context.symbol (slash form
+      // from the caller). The prior order had `symbol: tradeSymbol` BEFORE
+      // the spread, which silently overwrote the normalization with the raw
+      // slash form, making the :417 "Dash-form normalized" comment a lie.
+      // This was the load-bearing reason getTradesBySymbol filter ran on a
+      // dash-normalized input but matched against slash-stored trade.symbol
+      // (returning [] for crypto pairs and silently breaking exit-checks).
+      symbol: tradeSymbol,
+      brokerId: tradeScope.brokerId,
+      accountId: tradeScope.accountId,
+      accountIdSource: tradeScope.accountIdSource,
+      assetClass: tradeScope.assetClass,
+      executionMode: tradeScope.executionMode,
+      timeframe: tradeScope.timeframe,
+      scopeKey: tradeScope.key,
+      scopeKeyVersion: 2,
+    };
+
+    // L1: Attach decision ledger skeleton at trade birth
+    if (context.ledgerData) {
+      const { createLedgerSkeleton } = require('./dto/DecisionLedgerSchema');
+      try {
+        trade.decisionLedger = createLedgerSkeleton({
+          tradeId,
+          decisionConfiguration: context.ledgerData.decisionConfiguration ?? null,
+          entryConfiguration: stateContext.frozenExitPolicy?.configuration ?? null,
+          entryPolicyHash: stateContext.frozenExitPolicy?.policyHash ?? null,
+          candleTimestamp: context.ledgerData.candleTimestamp,
+          symbol: tradeScope.symbol,
+          timeframe: tradeScope.timeframe,
+          executionMode: tradeScope.executionMode,
+          entryPrice: price,
+          direction: tradeDirection,
+          positionEffect,
+          strategySignals: context.ledgerData.strategySignals,
+          orchestratorDecision: context.ledgerData.orchestratorDecision,
+          confluence: context.ledgerData.confluence,
+          positionSizing: context.ledgerData.positionSizing,
+          exitContract: context.ledgerData.exitContract,
+          // L5: pre-trade + RiskManager gate observability (pass/fail per gate).
+          // Pure instrumentation — never changes trade logic.
+          riskGates: context.ledgerData.riskGates,
+          operationalQuarantine: context.ledgerData.operationalQuarantine,
+        });
+      } catch (err) {
+        return this._rejectOpenPositionLedger(err, context);
+      }
+    }
+
+    const quantityIssues = this._activeTradeQuantityIssuesForTrade(trade, tradeId);
+    if (quantityIssues.length > 0) {
+      return this._rejectOpenPositionQuantity(quantityIssues, context);
+    }
+
+    let result;
+    await this.acquireLock();
+    try {
+      if (this.state.position > 0) {
+        console.warn('[StateManager] Already in position, adding to it');
+      }
+
+      // DEBUG: Log what we're doing
+      // FIX 2026-03-28: size is already USD, no multiplication needed
+      console.log(`[StateManager] Opening ${tradeDirection.toUpperCase()} position:`);
+      console.log(`   Size: $${size.toFixed(2)} USD`);
+      console.log(`   Price: $${price}`);
+      console.log(`   USD Cost: $${usdCost.toFixed(2)}`);
+      console.log(`   Direction: ${tradeDirection}`);
+      console.log(`   Current Balance: $${this.state.balance}`);
+
+      const nextActiveTrades = new Map(this.state.activeTrades || []);
+      const oppositeDirection = tradeDirection === 'long' ? 'short' : 'long';
+      const entryInstantKey = activeTradeEntryInstantKey(stateContext);
+      const sameSymbolOppositeTrade = Array.from(nextActiveTrades.values()).find((activeTrade) => {
+        if (!activeTrade || typeof activeTrade !== 'object') return false;
+        if (activeTrade.symbol !== tradeSymbol) return false;
+        if (!entryInstantKey || activeTradeEntryInstantKey(activeTrade) !== entryInstantKey) return false;
+        const activeDirection = activeTradeDirection(activeTrade);
+        return activeDirection === oppositeDirection;
+      });
+      const sameSymbolUnknownTrade = Array.from(nextActiveTrades.values()).find((activeTrade) => {
+        if (!activeTrade || typeof activeTrade !== 'object') return false;
+        if (activeTrade.symbol !== tradeSymbol) return false;
+        return activeTradeDirection(activeTrade) === null;
+      });
+      if (sameSymbolUnknownTrade) {
+        const existingId = sameSymbolUnknownTrade.orderId || sameSymbolUnknownTrade.id || 'unknown';
+        return {
+          success: false,
+          error: `StateManager.openPosition same-symbol direction unknown: ${tradeSymbol} active trade ${existingId} has no trusted direction; refusing ${tradeDirection} entry ${tradeId}`,
+          blockedReason: 'same_symbol_trade_direction_unknown',
+          existingTradeId: existingId,
+          existingDirection: null,
+          nextDirection: tradeDirection,
+        };
+      }
+      if (sameSymbolOppositeTrade) {
+        const existingId = sameSymbolOppositeTrade.orderId || sameSymbolOppositeTrade.id || 'unknown';
+        return {
+          success: false,
+          error: `StateManager.openPosition opposite entry same instant: ${tradeSymbol} already has ${oppositeDirection} trade ${existingId} for instant ${entryInstantKey}; refusing ${tradeDirection} entry ${tradeId}`,
+          blockedReason: 'opposite_entry_same_instant',
+          existingTradeId: existingId,
+          existingDirection: oppositeDirection,
+          nextDirection: tradeDirection,
+          decisionInstantKey: entryInstantKey,
+        };
+      }
+      nextActiveTrades.set(tradeId, trade);
+      console.log(`[StateManager] Added trade ${tradeId} to activeTrades (now ${nextActiveTrades.size} trades)`);
+
+      // For position scalar (kept for compatibility)
+      const positionDelta = tradeDirection === 'short' ? -size : size;
+      const newPosition = this.state.position + positionDelta;
+
+      // FIX 2026-03-28: Per-trade equity accounting
+      // Only entryFee affects realizedPnL on open - NO principal movement
+      console.log('[EQUITY-DEBUG] OPEN direction=' + tradeDirection + ' entryFee=' + entryFee.toFixed(4) + ' realizedPnL=' + this.state.realizedPnL);
+
+      const updates = {
+        activeTrades: nextActiveTrades,
+        position: newPosition,  // Positive for long, negative for short (kept for compatibility)
+        positionCount: this.state.positionCount + 1,
+        entryPrice: Math.abs(this.state.position) > 0
+          ? (this.state.entryPrice * Math.abs(this.state.position) + price * size) / (Math.abs(this.state.position) + size)
+          : price,
+        entryTime: this.state.entryTime || Date.now(),
+        // FIX 2026-03-28: No balance principal movement - only fee deducted from realizedPnL
+        realizedPnL: this.state.realizedPnL - entryFee,
+        inPosition: this.state.inPosition + usdCost,  // Track USD exposure
+        lastTradeTime: Date.now(),
+        tradeCount: this.state.tradeCount + 1,
+        dailyTradeCount: this.state.dailyTradeCount + 1
+      };
+
+      result = this._applyStateUpdatesLocked(updates, { action: 'OPEN_POSITION', price, size, ...context });
+    } finally {
+      this.releaseLock();
+    }
+
+    // Narrator: entered event. Uses module-cached singleton.
+    // Disabled path: property-access + branch-taken, zero allocation.
+    // Try frame only entered when enabled so a formatter throw can never
+    // break an open path.
+    if (result?.success && narrator.enabled) {
+      try {
+        narrator.entered({
+          tradeId,
+          strategy: entryStrategy,
+          direction: tradeDirection,
+          price,
+          sizeUsd: size,
+          confidence: context.confidence,
+          exitContract: context.exitContract || null,
+          confluence: context.signalBreakdown ? {
+            count: context.signalBreakdown.confluenceCount,
+          } : null,
+          timestamp: Date.now(),
+        });
+      } catch (_) { /* narrator must never break trading */ }
+    }
+
+    return result;
+  }
+
+  _rejectOpenPositionScope(err, context = {}) {
+    const missingFields = Array.isArray(err.missingFields) ? err.missingFields : [];
+    const invalidFields = Array.isArray(err.invalidFields) ? err.invalidFields : [];
+    const result = {
+      success: false,
+      error: err.message,
+      code: err.code || 'SCOPE_REJECTED',
+      scopeRejected: true,
+      missingFields,
+      invalidFields,
+    };
+
+    if (err.suppliedScopeKey !== undefined) {
+      result.suppliedScopeKey = err.suppliedScopeKey;
+    }
+    if (err.expectedScopeKey !== undefined) {
+      result.expectedScopeKey = err.expectedScopeKey;
+    }
+
+    const contextSymbol = context.symbol ?? context.ledgerData?.symbol ?? null;
+    console.error(`[StateManager] openPosition BLOCKED - ${err.message} context.symbol=${contextSymbol}`);
+    return result;
+  }
+
+  _rejectOpenPositionIdentity(message, missingFields = [], context = {}) {
+    const result = {
+      success: false,
+      error: message,
+      code: 'ENTRY_IDENTITY_REJECTED',
+      identityRejected: true,
+      missingFields,
+    };
+    const contextSymbol = context.symbol ?? context.ledgerData?.symbol ?? null;
+    console.error(`[StateManager] openPosition BLOCKED - ${message} context.symbol=${contextSymbol}`);
+    return result;
+  }
+
+  _rejectOpenPositionExitContract(err, context = {}) {
+    const result = {
+      success: false,
+      error: err.message,
+      code: 'ENTRY_EXIT_CONTRACT_REJECTED',
+      exitContractRejected: true,
+      missingFields: ['exitContract.useStructuralExits'],
+    };
+    const contextSymbol = context.symbol ?? context.ledgerData?.symbol ?? null;
+    console.error(`[StateManager] openPosition BLOCKED - ${err.message} context.symbol=${contextSymbol}`);
+    return result;
+  }
+
+  _rejectOpenPositionQuantity(quantityIssues, context = {}) {
+    const message = `StateManager.openPosition active trade quantity invariant failed: ${quantityIssues.join('; ')}`;
+    const result = {
+      success: false,
+      error: message,
+      code: 'ENTRY_QUANTITY_REJECTED',
+      quantityRejected: true,
+      quantityIssues,
+    };
+    const contextSymbol = context.symbol ?? context.ledgerData?.symbol ?? null;
+    console.error(`[StateManager] openPosition BLOCKED - ${message} context.symbol=${contextSymbol}`);
+    return result;
+  }
+
+  _rejectOpenPositionLedger(err, context = {}) {
+    const missingFields = Array.isArray(err.missingFields) ? err.missingFields : [];
+    const result = {
+      success: false,
+      error: err.message,
+      code: err.code || 'LEDGER_SKELETON_REJECTED',
+      ledgerRejected: true,
+      missingFields,
+    };
+    if (Array.isArray(err.validationIssues) && err.validationIssues.length > 0) {
+      result.validationIssues = err.validationIssues;
+    }
+    const contextSymbol = context.symbol ?? context.ledgerData?.symbol ?? null;
+    console.error(`[StateManager] openPosition BLOCKED - ${err.message} context.symbol=${contextSymbol}`);
+    return result;
+  }
+
+  _routeDecisionLedgerWriteFailure(err, ledgerToWrite, source) {
+    const reason = err && err.message ? err.message : String(err);
+    const outcome = ledgerToWrite && ledgerToWrite.outcome ? ledgerToWrite.outcome : {};
+    const tradeId = firstNonEmptyString(ledgerToWrite?.tradeId, ledgerToWrite?.orderId, outcome.tradeId);
+    const symbol = firstNonEmptyString(ledgerToWrite?.symbol, outcome.symbol);
+    console.error('[LEDGER] Failed to persist decision ledger:', reason);
+    emitTrace({}, 'DECISION_LEDGER_RECONCILIATION_REQUIRED', {
+      tradeId,
+      symbol,
+      reason,
+      source,
+      journalStatus: 'unjournaled',
+      trustStatus: 'untrusted',
+      manualReconciliationRequired: true,
+      operatorActionRequired: true,
+      route: 'state_manager_decision_ledger_write_failure_trade_isolated'
+    });
+  }
+
+  /**
+   * Close position (SELL) - partial or full.
+   *
+   * @async
+   * @param {number} price - Current market price
+   * @param {boolean} [partial=false] - true for partial close, false for full
+   * @param {number|null} [size=null] - USD amount to close (null = full position)
+   * @param {Object} [context={}] - Additional context for logging/tracking
+   * @returns {Promise<{success: boolean, state?: Object, error?: string}>}
+   *
+   * @example
+   * // Full close at $101 (1% profit on $100 entry)
+   * await stateManager.closePosition(101, false, null, { tradeId: 'TRADE_123' });
+   * // Result: pnl = $500 × 1% = $5 profit
+   *
+   * @description
+   * Per-trade equity accounting (fixed 2026-03-28):
+   * - Looks up trade by tradeId (required, no fallback)
+   * - Uses trade's entryPrice for percentage-based P&L
+   * - pnl = positionUSD × ((exitPrice - entryPrice) / entryPrice)
+   * - Only fees and P&L affect realizedPnL, no principal movement
+   */
+  async closePosition(price, partial = false, size = null, context = {}) {
+    // Reject partial closes — use reducePosition instead
+    if (partial) {
+      console.error('[StateManager] closePosition does not support partial closes; use reducePosition.');
+      return { success: false, error: 'closePosition does not support partial closes; use reducePosition' };
+    }
+    let result;
+    let ledgerToWrite = null;
+    let narratorPayload = null;
+
+    await this.acquireLock();
+    try {
+      // Allow closing both long (positive) and short (negative) positions
+      // FIX 2026-03-29: Allow close when position=0 but activeTrades exist (hedged positions)
+      if (this.state.position === 0 && !(this.state.activeTrades && this.state.activeTrades.size > 0)) {
+        console.error('[StateManager] No position to close!');
+        return { success: false, error: 'No position to close' };
+      }
+
+      // FIX 2026-03-28: Per-trade equity accounting - look up trade FIRST
+      // CRITICAL: No fallback to global state - require valid tradeId
+      const tradeId = context.tradeId || context.orderId;
+      if (!tradeId) {
+        console.error('[StateManager] closePosition called without tradeId!');
+        return { success: false, error: 'tradeId required for closePosition' };
+      }
+
+      const trade = this.state.activeTrades?.get(tradeId);
+      if (!trade) {
+        console.error(`[StateManager] Trade ${tradeId} not found in activeTrades!`);
+        return { success: false, error: `Trade ${tradeId} not found` };
+      }
+
+      // Use trade's values - NO fallback to global state
+      const tradeEntryPrice = trade.entryPrice;
+      const tradeSizeUsd = trade.sizeUsd || trade.size;
+      const tradeDirection = strictActiveTradeDirection(trade);
+      if (!tradeDirection) {
+        return activeTradeDirectionRefusal(tradeId, trade, 'StateManager.closePosition');
+      }
+      const isShort = tradeDirection === 'short';
+      const positionEffect = exitPositionEffectForDirection(tradeDirection);
+      const closeSize = Math.abs(tradeSizeUsd);
+
+      // CRITICAL: PnL depends on direction, using TRADE's entryPrice
+      // LONG: profit when price goes UP (exit - entry)
+      // SHORT: profit when price goes DOWN (entry - exit)
+      let priceChangePercent;
+      if (isShort) {
+        priceChangePercent = tradeEntryPrice > 0
+          ? ((tradeEntryPrice - price) / tradeEntryPrice)
+          : 0;
+      } else {
+        priceChangePercent = tradeEntryPrice > 0
+          ? ((price - tradeEntryPrice) / tradeEntryPrice)
+          : 0;
+      }
+      const pnl = closeSize * priceChangePercent;  // USD P&L
+      const pnlPercent = priceChangePercent * 100;
+
+      // Calculate exit fee
+      const usdValueAtClose = closeSize + pnl;
+      const exitFee = FeeModel.fromTradingConfig().calculateOrderFee({
+        notionalUsd: usdValueAtClose,
+        quantity: context.orderQuantity || trade.remainingOrderQuantity || trade.entryOrderQuantity,
+        side: 'exit',
+      });
+
+      const nextActiveTrades = new Map(this.state.activeTrades || []);
+      if (nextActiveTrades.has(tradeId)) {
+        nextActiveTrades.delete(tradeId);
+        console.log(`[StateManager] Removed trade ${tradeId} (${trade?.action || trade?.type}) from activeTrades`);
+        console.log(`[StateManager] ${nextActiveTrades.size} active trades remaining`);
+      } else if ((this.state.position - closeSize) <= 0) {
+        // Full close with no position remaining - clear all trades
+        const tradeCount = nextActiveTrades.size;
+        for (const [id, t] of nextActiveTrades.entries()) {
+          nextActiveTrades.delete(id);
+          console.log(`[StateManager] Removed trade ${id} (${t.action || t.type}) from activeTrades`);
+        }
+        console.log(`[StateManager] Cleared ${tradeCount} active trades (position fully closed)`);
+      }
+
+      // FIX 2026-03-28: Per-trade equity accounting
+      // Net realized result = pnl - exitFee (added to realizedPnL)
+      // NO balance principal movement
+      const netRealizedResult = pnl - exitFee;
+
+      // L8: Persist decision ledger to JSONL on full close (after netRealizedResult computed)
+      const closedAt = Date.now();
+      const exitReason = firstNonEmptyString(context.exitReason, context.reason);
+      const tradeStrategy = firstNonEmptyString(trade.entryStrategy, trade.strategy);
+      const holdTimeMs = holdTimeMsOrNull(trade, closedAt);
+      if (trade.decisionLedger) {
+        ledgerToWrite = {
+          ...trade.decisionLedger,
+          outcome: {
+            exitPrice: price,
+            exitTime: closedAt,
+            positionEffect,
+            pnlDollars: pnl,
+            pnlPercent,
+            exitFee,
+            netPnlDollars: netRealizedResult,
+            exitReason,
+            holdTimeMs,
+          },
+        };
+      }
+
+      // Position scalar update (kept for compatibility)
+      const remainingExposureUsd = nextActiveTrades.size === 0 ? 0 : this._getActiveTradeExposureUsd(nextActiveTrades);
+      const remainingSignedExposureUsd = nextActiveTrades.size === 0 ? 0 : this._getActiveTradeSignedExposureUsd(nextActiveTrades);
+      const noActiveTradesRemaining = nextActiveTrades.size === 0;
+      const finalPosition = noActiveTradesRemaining ? 0 : remainingSignedExposureUsd;
+
+      console.log('[EQUITY-DEBUG] CLOSE isShort=' + isShort + ' pnl=' + pnl.toFixed(2) + ' exitFee=' + exitFee.toFixed(4) + ' netResult=' + netRealizedResult.toFixed(2));
+
+      // 2026-05-04: closedTrades append for win-rate math (CandleProcessor:406-408 reads this).
+      // Pure additive — fields mirror the session-doc record shape so downstream consumers
+      // beyond the win-rate path can read direction/strategy/holdMs without further changes.
+      const closedTradeRecord = {
+        tradeId,
+        symbol: trade.symbol || null,  // FIX S10-BUG-1: carry symbol for per-ticker analytics
+        pnl,
+        pnlPercent,
+        direction: tradeDirection,
+        positionEffect,
+        entryPrice: tradeEntryPrice,
+        exitPrice: price,
+        strategy: tradeStrategy,
+        holdMs: holdTimeMs,
+        closedAt
+      };
+
+      const updates = {
+        activeTrades: nextActiveTrades,
+        position: finalPosition,
+        positionCount: noActiveTradesRemaining ? 0 : nextActiveTrades.size,
+        entryPrice: noActiveTradesRemaining ? 0 : this.state.entryPrice,
+        entryTime: noActiveTradesRemaining ? null : this.state.entryTime,
+        // FIX 2026-03-28: No balance principal movement - only realizedPnL changes
+        inPosition: remainingExposureUsd,
+        realizedPnL: this.state.realizedPnL + netRealizedResult,
+        totalPnL: this.state.totalPnL + pnl,
+        closedTrades: [...(this.state.closedTrades || []), closedTradeRecord],
+        lastTradeTime: closedAt,
+      };
+
+      console.log(`Position closed: PnL ${pnl > 0 ? '+' : ''}$${pnl.toFixed(2)} (${pnlPercent.toFixed(2)}%)`);
+
+      result = this._applyStateUpdatesLocked(updates, {
+        action: 'CLOSE_POSITION',
+        price,
+        size: closeSize,
+        pnl,
+        partial,
+        ...context,
+        positionEffect,
+      });
+
+      narratorPayload = {
+        tradeId,
+        strategy: tradeStrategy,
+        direction: tradeDirection,
+        positionEffect,
+        entryPrice: tradeEntryPrice,
+        exitPrice: price,
+        pnl,
+        pnlPercent,
+        reason: exitReason,
+        holdMs: holdTimeMs,
+      };
+    } finally {
+      this.releaseLock();
+    }
+
+    if (result?.success && ledgerToWrite) {
+      try {
+        const ledgerLogger = require('./DecisionLedgerLogger');
+        ledgerLogger.writeOnClose(ledgerToWrite);
+      } catch (e) {
+        this._routeDecisionLedgerWriteFailure(e, ledgerToWrite, 'closePosition');
+      }
+    }
+
+    // Narrator: closed event. Uses module-cached singleton.
+    if (result?.success && narrator.enabled && narratorPayload) {
+      try {
+        narrator.closed(narratorPayload);
+      } catch (_) { /* narrator must never break trading */ }
+    }
+
+    return result;
+  }
+
+  async reconcileBrokerFlat(tradeId, context = {}) {
+    if (!tradeId) {
+      return { success: false, error: 'tradeId required for broker-flat reconciliation' };
+    }
+
+    let result;
+    await this.acquireLock();
+    try {
+      const trades = this._normalizeActiveTradesInput(
+        this.state.activeTrades || new Map(),
+        'StateManager.reconcileBrokerFlat'
+      );
+
+      const trade = trades.get(tradeId);
+      if (!trade) {
+        return { success: false, error: `Trade ${tradeId} not found` };
+      }
+
+      const nextActiveTrades = new Map(trades);
+      nextActiveTrades.delete(tradeId);
+      const remainingExposureUsd = nextActiveTrades.size === 0 ? 0 : this._getActiveTradeExposureUsd(nextActiveTrades);
+      const remainingSignedExposureUsd = nextActiveTrades.size === 0 ? 0 : this._getActiveTradeSignedExposureUsd(nextActiveTrades);
+      const noActiveTradesRemaining = nextActiveTrades.size === 0;
+      const reconciledAt = Date.now();
+      const reconciliation = {
+        tradeId,
+        orderId: trade.orderId || trade.id || tradeId,
+        symbol: trade.symbol || context.symbol || null,
+        action: context.action || null,
+        direction: trade.direction || null,
+        reason: context.reason || 'broker_flat_no_open_position',
+        responseBody: context.responseBody || null,
+        traceId: context.traceId || null,
+        signalId: context.signalId || null,
+        decisionId: context.decisionId || null,
+        reconciledAt,
+        verifiedFill: false,
+      };
+
+      const updates = {
+        activeTrades: nextActiveTrades,
+        position: remainingSignedExposureUsd,
+        positionCount: nextActiveTrades.size,
+        entryPrice: noActiveTradesRemaining ? 0 : this.state.entryPrice,
+        entryTime: noActiveTradesRemaining ? null : this.state.entryTime,
+        inPosition: remainingExposureUsd,
+        reconciledTrades: [...(this.state.reconciledTrades || []), reconciliation],
+        lastTradeTime: reconciledAt,
+      };
+
+      result = this._applyStateUpdatesLocked(updates, {
+        action: 'RECONCILE_BROKER_FLAT',
+        tradeId,
+        ...context,
+      });
+      if (result?.success) {
+        result.reconciliation = reconciliation;
+      }
+    } finally {
+      this.releaseLock();
+    }
+
+    return result;
+  }
+
+  /**
+   * Reduce a position partially — handles multi-leg exits.
+   * @param {string} tradeId - Identifier of the trade to reduce.
+   * @param {number} fraction - Fraction of the trade to close (0-1).
+   * @param {number} price - Exit price.
+   * @param {Object} context - Additional context (orderId, exitReason, etc.).
+   */
+  async reducePosition(tradeId, fraction, price, context = {}) {
+    if (fraction <= 0 || fraction > 1) {
+      console.error('[StateManager] reducePosition called with invalid fraction:', fraction);
+      return { success: false, error: 'Invalid fraction for reducePosition' };
+    }
+
+    await this.acquireLock();
+    try {
+      const trade = this.state.activeTrades?.get(tradeId);
+      if (!trade) {
+        console.error(`[StateManager] Trade ${tradeId} not found for reducePosition`);
+        return { success: false, error: `Trade ${tradeId} not found` };
+      }
+
+      const tradeSizeUsd = trade.sizeUsd || trade.size;
+      const closeSize = tradeSizeUsd * fraction;
+      const tradeEntryPrice = trade.entryPrice;
+      const tradeDirection = strictActiveTradeDirection(trade);
+      if (!tradeDirection) {
+        return activeTradeDirectionRefusal(tradeId, trade, 'StateManager.reducePosition');
+      }
+      const isShort = tradeDirection === 'short';
+      const positionEffect = exitPositionEffectForDirection(tradeDirection);
+      const priceChangePercent = isShort
+        ? (tradeEntryPrice > 0 ? (tradeEntryPrice - price) / tradeEntryPrice : 0)
+        : (tradeEntryPrice > 0 ? (price - tradeEntryPrice) / tradeEntryPrice : 0);
+      const pnl = closeSize * priceChangePercent;
+      const usdValueAtClose = closeSize + pnl;
+      const exitFee = FeeModel.fromTradingConfig().calculateOrderFee({
+        notionalUsd: usdValueAtClose,
+        quantity: context.orderQuantity || (Number(trade.remainingOrderQuantity) * fraction) || trade.entryOrderQuantity,
+        side: 'exit',
+      });
+      const netRealizedResult = pnl - exitFee;
+
+      const nextActiveTrades = new Map(this.state.activeTrades || []);
+      const nextTrade = {
+        ...trade,
+        decisionLedger: trade.decisionLedger
+          ? {
+              ...trade.decisionLedger,
+              exits: Array.isArray(trade.decisionLedger.exits)
+                ? [...trade.decisionLedger.exits]
+                : [],
+            }
+          : trade.decisionLedger,
+      };
+
+      // Update trade size (and possibly delete)
+      const remainingSize = tradeSizeUsd - closeSize;
+      const priorOrderQuantity = Number(trade.remainingOrderQuantity);
+      const closedOrderQuantity = Number(context.orderQuantity);
+      const hasBrokerQuantity = Number.isFinite(priorOrderQuantity) && priorOrderQuantity > 0;
+      const hasClosedBrokerQuantity = Number.isFinite(closedOrderQuantity) && closedOrderQuantity > 0;
+      const remainingOrderQuantity = hasBrokerQuantity
+        ? Math.max(0, priorOrderQuantity - (hasClosedBrokerQuantity ? closedOrderQuantity : priorOrderQuantity * fraction))
+        : null;
+      if (remainingSize <= 0) {
+        nextActiveTrades.delete(tradeId);
+      } else {
+        nextTrade.sizeUsd = remainingSize;
+        nextTrade.size = remainingSize;  // FIX P1-A: keep both fields in sync - OrderExecutor reads trade.size for P&L computation, fees, console logs
+        if (hasBrokerQuantity) {
+          nextTrade.remainingOrderQuantity = remainingOrderQuantity;
+          nextTrade.remainingOrderQuantityUnit = context.quantityUnit || trade.remainingOrderQuantityUnit || trade.entryOrderQuantityUnit || null;
+        }
+        nextActiveTrades.set(tradeId, nextTrade);
+      }
+
+      // Append exit info to decision ledger
+      if (nextTrade.decisionLedger) {
+        const rawExitReason = firstNonEmptyString(context.exitReason, context.reason);
+        const exitEntry = {
+          exitSize: closeSize,
+          exitFraction: fraction,
+          remainingSize: Math.max(0, remainingSize),
+          exitOrderQuantity: hasClosedBrokerQuantity ? closedOrderQuantity : null,
+          remainingOrderQuantity,
+          exitPrice: price,
+          positionEffect,
+          exitReason: normalizeDecisionLedgerExitReason(rawExitReason),
+          rawExitReason,
+          netPnlDollars: netRealizedResult,
+          timestamp: Date.now()
+        };
+        nextTrade.decisionLedger.exits.push(exitEntry);
+      }
+
+      // Update global state metrics
+      const remainingExposureUsd = nextActiveTrades.size === 0 ? 0 : this._getActiveTradeExposureUsd(nextActiveTrades);
+      const remainingSignedExposureUsd = nextActiveTrades.size === 0 ? 0 : this._getActiveTradeSignedExposureUsd(nextActiveTrades);
+      const noActiveTradesRemaining = nextActiveTrades.size === 0;
+      const updates = {
+        activeTrades: nextActiveTrades,
+        position: noActiveTradesRemaining ? 0 : remainingSignedExposureUsd,
+        positionCount: nextActiveTrades.size,
+        entryPrice: noActiveTradesRemaining ? 0 : this.state.entryPrice,
+        entryTime: noActiveTradesRemaining ? null : this.state.entryTime,
+        inPosition: remainingExposureUsd,
+        realizedPnL: this.state.realizedPnL + netRealizedResult,
+        totalPnL: this.state.totalPnL + pnl,
+        lastTradeTime: Date.now()
+      };
+      return this._applyStateUpdatesLocked(updates, {
+        action: 'REDUCE_POSITION',
+        tradeId,
+        fraction,
+        price,
+        pnl,
+        netRealizedResult,
+        ...context,
+        positionEffect
+      });
+    } finally {
+      this.releaseLock();
+    }
+  }
+
+  /**
+   * Reset daily counters
+   */
+  async resetDaily() {
+    const updates = {
+      dailyTradeCount: 0
+    };
+
+    return this.updateState(updates, { action: 'DAILY_RESET' });
+  }
+
+  _activeTradeQuantityIssuesForTrade(trade, fallbackTradeId = '<unknown>') {
+    const tradeId = trade?.orderId || trade?.id || fallbackTradeId || '<unknown>';
+    if (!trade || typeof trade !== 'object') {
+      return [`${tradeId}: trade record is not an object`];
+    }
+
+    const issues = [];
+    const hasText = (value) => value !== null && value !== undefined && String(value).trim() !== '';
+    const sizeUsd = Number(trade.sizeUsd ?? trade.size);
+    const entryOrderQuantity = Number(trade.entryOrderQuantity);
+    const remainingOrderQuantity = Number(trade.remainingOrderQuantity);
+    const entryOrderQuantityUnit = trade.entryOrderQuantityUnit;
+    const remainingOrderQuantityUnit = trade.remainingOrderQuantityUnit;
+    const tolerance = 1e-12;
+
+    if (!Number.isFinite(sizeUsd) || Math.abs(sizeUsd) <= tolerance) {
+      issues.push(`${tradeId}: invalid open sizeUsd=${trade.sizeUsd ?? trade.size}`);
+    }
+    if (!Number.isFinite(entryOrderQuantity) || entryOrderQuantity <= 0) {
+      issues.push(`${tradeId}: invalid entryOrderQuantity=${trade.entryOrderQuantity}`);
+    }
+    if (!Number.isFinite(remainingOrderQuantity) || remainingOrderQuantity <= 0) {
+      issues.push(`${tradeId}: invalid remainingOrderQuantity=${trade.remainingOrderQuantity}`);
+    }
+    if (!hasText(entryOrderQuantityUnit)) {
+      issues.push(`${tradeId}: missing entryOrderQuantityUnit`);
+    }
+    if (!hasText(remainingOrderQuantityUnit)) {
+      issues.push(`${tradeId}: missing remainingOrderQuantityUnit`);
+    }
+    if (
+      hasText(entryOrderQuantityUnit)
+      && hasText(remainingOrderQuantityUnit)
+      && String(entryOrderQuantityUnit).trim() !== String(remainingOrderQuantityUnit).trim()
+    ) {
+      issues.push(`${tradeId}: quantity unit mismatch entry=${entryOrderQuantityUnit} remaining=${remainingOrderQuantityUnit}`);
+    }
+    if (
+      Number.isFinite(entryOrderQuantity)
+      && entryOrderQuantity > 0
+      && Number.isFinite(remainingOrderQuantity)
+      && remainingOrderQuantity > entryOrderQuantity + tolerance
+    ) {
+      issues.push(`${tradeId}: remainingOrderQuantity=${remainingOrderQuantity} exceeds entryOrderQuantity=${entryOrderQuantity}`);
+    }
+
+    return issues;
+  }
+
+  _activeTradeIdentityIssuesForTrade(trade, fallbackTradeId = '<unknown>') {
+    return activeTradeIdentityIssuesForTrade(trade, fallbackTradeId);
+  }
+
+  _normalizeActiveTradesInput(value, caller = 'StateManager.activeTrades', { resetLifecycle = false } = {}) {
+    let activeTrades;
+    if (Array.isArray(value)) {
+      activeTrades = new Map(value);
+    } else if (value instanceof Map) {
+      activeTrades = value;
+    } else {
+      throw new Error(
+        `[${caller}] activeTrades container invariant failed: expected Map/array, got ${Object.prototype.toString.call(value)}`
+      );
+    }
+
+    const identityIssues = [];
+    const quantityIssues = [];
+    const normalizedTrades = new Map();
+    for (const [tradeId, trade] of activeTrades.entries()) {
+      const normalizedTrade = withExitLifecycleFields(trade, { reset: resetLifecycle });
+      identityIssues.push(...this._activeTradeIdentityIssuesForTrade(normalizedTrade, tradeId));
+      quantityIssues.push(...this._activeTradeQuantityIssuesForTrade(normalizedTrade, tradeId));
+      normalizedTrades.set(tradeId, normalizedTrade);
+    }
+    if (identityIssues.length > 0) {
+      throw new Error(`[${caller}] active trade identity invariant failed: ${identityIssues.join('; ')}`);
+    }
+    if (quantityIssues.length > 0) {
+      throw new Error(`[${caller}] active trade quantity invariant failed: ${quantityIssues.join('; ')}`);
+    }
+
+    return normalizedTrades;
+  }
+
+  _activeTradeQuantityIssues() {
+    if (!this.state.activeTrades) {
+      return [];
+    }
+    if (!(this.state.activeTrades instanceof Map)) {
+      return [`activeTrades: invalid container ${Object.prototype.toString.call(this.state.activeTrades)}; expected Map`];
+    }
+
+    const issues = [];
+    for (const [tradeId, trade] of this.state.activeTrades.entries()) {
+      issues.push(...this._activeTradeQuantityIssuesForTrade(trade, tradeId));
+    }
+    return issues;
+  }
+
+  _activeTradeIdentityIssues() {
+    if (!this.state.activeTrades) {
+      return [];
+    }
+    if (!(this.state.activeTrades instanceof Map)) {
+      return [`activeTrades: invalid container ${Object.prototype.toString.call(this.state.activeTrades)}; expected Map`];
+    }
+
+    const issues = [];
+    for (const [tradeId, trade] of this.state.activeTrades.entries()) {
+      issues.push(...this._activeTradeIdentityIssuesForTrade(trade, tradeId));
+    }
+    return issues;
+  }
+
+  _normalizeQuarantinedTrades(value) {
+    return Array.isArray(value)
+      ? value.filter((record) => record && typeof record === 'object' && !Array.isArray(record))
+      : [];
+  }
+
+  _recordDirectionIntegritySymbolHalt(symbol, reason, metadata = {}) {
+    if (typeof symbol !== 'string' || !symbol.trim()) {
+      return { halted: false, standing: false, reason: 'missing_symbol' };
+    }
+
+    const normalized = this.normalizeSymbol(symbol, 'StateManager.directionIntegrityHalt');
+    const existingCode = this.getSymbolHaltCode(normalized);
+    if (existingCode === DIRECTION_INTEGRITY_EXIT_REFUSAL) {
+      console.debug(`[StateManager] direction integrity halt already standing for ${normalized}`);
+      return { halted: false, standing: true, symbol: normalized, code: DIRECTION_INTEGRITY_EXIT_REFUSAL };
+    }
+
+    const now = Date.now();
+    this.state.symbolEntryHalts = this._normalizeSymbolEntryHaltsCollection({
+      ...(this.state.symbolEntryHalts || {}),
+      [normalized]: {
+        reason,
+        code: DIRECTION_INTEGRITY_EXIT_REFUSAL,
+        haltedAt: now,
+        expiresAt: null,
+        authority: 'financial_integrity',
+        financialIntegrityCritical: true,
+        entryBlockScope: 'symbol',
+        operatorActionRequired: true,
+        manualReconciliationRequired: true,
+        ...metadata,
+      },
+    }, 'StateManager.directionIntegrityHalt');
+
+    emitTrace({}, 'DIRECTION_INTEGRITY_SYMBOL_HALT', {
+      symbol: normalized,
+      code: DIRECTION_INTEGRITY_EXIT_REFUSAL,
+      reason,
+      tradeId: metadata.tradeId || null,
+      source: metadata.source || null,
+      manualReconciliationRequired: true,
+      operatorActionRequired: true,
+    });
+    console.error(`[StateManager] SYMBOL ENTRY HALT: ${normalized} - ${reason}`);
+    return { halted: true, standing: false, symbol: normalized, code: DIRECTION_INTEGRITY_EXIT_REFUSAL };
+  }
+
+  _activeTradeExposureSummary(activeTrades = this.state.activeTrades) {
+    let exposureUsd = 0;
+    let signedExposureUsd = 0;
+    let count = 0;
+    if (!(activeTrades instanceof Map)) {
+      return { exposureUsd, signedExposureUsd, count };
+    }
+
+    for (const trade of activeTrades.values()) {
+      const direction = strictActiveTradeDirection(trade);
+      const sizeUsd = Number(trade?.sizeUsd ?? trade?.size);
+      if (!direction || !Number.isFinite(sizeUsd) || sizeUsd < 0) {
+        continue;
+      }
+      count += 1;
+      exposureUsd += Math.abs(sizeUsd);
+      signedExposureUsd += direction === 'short' ? -Math.abs(sizeUsd) : Math.abs(sizeUsd);
+    }
+
+    return { exposureUsd, signedExposureUsd, count };
+  }
+
+  _reconcileOpenPositionFromActiveTrades() {
+    const summary = this._activeTradeExposureSummary();
+    this.state.inPosition = summary.exposureUsd;
+    this.state.position = summary.signedExposureUsd;
+    this.state.positionCount = summary.count;
+    if (summary.count === 0) {
+      this.state.entryPrice = 0;
+      this.state.entryTime = null;
+    }
+    return summary;
+  }
+
+  _quarantineActiveTrade(tradeId, trade, issues, source) {
+    const resolvedTradeId = trade?.orderId || trade?.id || tradeId || '<unknown>';
+    const quarantinedAt = new Date().toISOString();
+    let symbol = null;
+    if (trade && typeof trade === 'object' && typeof trade.symbol === 'string' && trade.symbol.trim()) {
+      try {
+        symbol = this.normalizeSymbol(trade.symbol, `${source} quarantine symbol`);
+      } catch (_) {
+        symbol = trade.symbol.trim().toUpperCase();
+      }
+    }
+
+    const normalizedIssues = Array.isArray(issues) && issues.length > 0
+      ? issues.map((issue) => String(issue))
+      : [`${resolvedTradeId}: active trade direction_integrity quarantine`];
+    const record = {
+      tradeId: resolvedTradeId,
+      symbol,
+      code: DIRECTION_INTEGRITY_EXIT_REFUSAL,
+      status: 'quarantined',
+      source,
+      quarantinedAt,
+      issues: normalizedIssues,
+      trade: clonePlain(trade),
+    };
+
+    const existingRecords = this._normalizeQuarantinedTrades(this.state.quarantinedTrades);
+    const duplicate = existingRecords.some((entry) => (
+      entry.tradeId === record.tradeId
+      && entry.code === record.code
+      && entry.source === record.source
+    ));
+    this.state.quarantinedTrades = duplicate ? existingRecords : [...existingRecords, record];
+    if (this.state.activeTrades instanceof Map) {
+      this.state.activeTrades.delete(tradeId);
+      if (resolvedTradeId !== tradeId) {
+        this.state.activeTrades.delete(resolvedTradeId);
+      }
+    }
+
+    const reason = `[${source}] quarantined active trade ${resolvedTradeId}: ${normalizedIssues.join('; ')}`;
+    const haltResult = this._recordDirectionIntegritySymbolHalt(symbol, reason, {
+      source,
+      tradeId: resolvedTradeId,
+      identityIssues: normalizedIssues,
+      quarantineStatus: 'quarantined',
+    });
+
+    emitTrace({}, 'DIRECTION_INTEGRITY_TRADE_QUARANTINED', {
+      symbol,
+      tradeId: resolvedTradeId,
+      source,
+      code: DIRECTION_INTEGRITY_EXIT_REFUSAL,
+      issues: normalizedIssues.join('; '),
+      haltStanding: haltResult.standing === true,
+      haltCreated: haltResult.halted === true,
+      manualReconciliationRequired: true,
+    });
+    console.error(reason);
+    return record;
+  }
+
+  quarantineActiveTradesForSymbol(symbol, issues = [], source = 'StateManager.quarantineActiveTradesForSymbol') {
+    let normalized;
+    try {
+      normalized = this.normalizeSymbol(symbol, source);
+    } catch (err) {
+      return { quarantined: 0, records: [], error: err.message };
+    }
+    const activeTrades = this.state.activeTrades;
+    if (!(activeTrades instanceof Map)) {
+      return { quarantined: 0, records: [], error: 'activeTrades_not_map', symbol: normalized };
+    }
+
+    const records = [];
+    const preservedEvidenceRecords = [];
+    for (const [tradeId, trade] of Array.from(activeTrades.entries())) {
+      let tradeSymbol = null;
+      try {
+        tradeSymbol = trade?.symbol ? this.normalizeSymbol(String(trade.symbol), `${source} active trade`) : null;
+      } catch (_) {
+        tradeSymbol = trade?.symbol ? String(trade.symbol).trim().toUpperCase() : null;
+      }
+      if (tradeSymbol !== normalized) continue;
+      const brokerUnverifiableLane = this._brokerUnverifiableLaneForTrade(trade);
+      if (brokerUnverifiableLane) {
+        const resolvedTradeId = String(trade?.orderId || trade?.id || tradeId);
+        const preserved = {
+          tradeId: resolvedTradeId,
+          symbol: normalized,
+          code: BROKER_UNVERIFIABLE,
+          brokerId: brokerUnverifiableLane.brokerId,
+          executionMode: brokerUnverifiableLane.executionMode,
+          reason: brokerUnverifiableLane.reason,
+        };
+        preservedEvidenceRecords.push(preserved);
+        emitTrace({}, 'BROKER_UNVERIFIABLE_EVIDENCE_PRESERVED', {
+          ...preserved,
+          source,
+          manualReconciliationRequired: true,
+          operatorActionRequired: true,
+        });
+        console.error(`[StateManager] Preserved broker-unverifiable active trade ${resolvedTradeId} for ${normalized}; not quarantining/deleting evidence record`);
+        continue;
+      }
+      records.push(this._quarantineActiveTrade(tradeId, trade, issues, source));
+    }
+
+    if (preservedEvidenceRecords.length > 0) {
+      const existingEvidence = Array.isArray(this.state.brokerUnverifiableEvidenceRecords)
+        ? this.state.brokerUnverifiableEvidenceRecords.filter((record) => record && typeof record === 'object' && !Array.isArray(record))
+        : [];
+      const nextEvidence = [...existingEvidence];
+      for (const preserved of preservedEvidenceRecords) {
+        const duplicate = nextEvidence.some((record) => (
+          record.tradeId === preserved.tradeId
+          && record.symbol === preserved.symbol
+          && record.code === preserved.code
+          && record.source === source
+        ));
+        if (!duplicate) {
+          nextEvidence.push({
+            ...preserved,
+            source,
+            preservedAt: new Date().toISOString(),
+            status: 'preserved',
+            manualReconciliationRequired: true,
+            operatorActionRequired: true,
+          });
+        }
+      }
+      this.state.brokerUnverifiableEvidenceRecords = nextEvidence;
+    }
+
+    if (records.length > 0 || preservedEvidenceRecords.length > 0) {
+      if (records.length > 0) {
+        this._reconcileOpenPositionFromActiveTrades();
+      }
+      const saveResult = this.save({ suppressPersistenceFailureTrace: true });
+      if (!saveResult || saveResult.success !== true) {
+        this._recordStatePersistenceBoundaryFailure(saveResult, source, {
+          symbol: normalized,
+          quarantined: records.length,
+          preservedEvidenceRecords: preservedEvidenceRecords.length,
+          manualReconciliationRequired: true,
+          operatorActionRequired: true,
+        });
+      }
+      return { quarantined: records.length, records, symbol: normalized, persistence: saveResult, preservedEvidenceRecords };
+    }
+
+    return { quarantined: 0, records, symbol: normalized, preservedEvidenceRecords };
+  }
+
+  _alpacaCredentialMismatchForExecutionMode(executionMode) {
+    const mode = typeof executionMode === 'string' ? executionMode.trim().toLowerCase() : '';
+    if (mode !== 'live' && mode !== 'paper') {
+      return null;
+    }
+
+    ensureConfigLoaded();
+    const apiKey = getConfigValue('broker.alpacaApiKey');
+    const keyText = typeof apiKey === 'string' ? apiKey.trim() : '';
+    if (!keyText) {
+      if (mode === 'paper') {
+        return null;
+      }
+      return {
+        executionMode: mode,
+        expectedKeyPrefix: mode === 'live' ? 'AK' : 'PK',
+        actualKeyPrefix: 'missing',
+        reason: `Alpaca ${mode} broker verification unavailable: ALPACA_API_KEY is missing`,
+      };
+    }
+
+    const prefix = keyText.slice(0, 2).toUpperCase();
+    if (prefix !== 'AK' && prefix !== 'PK') {
+      return null;
+    }
+
+    const expected = mode === 'live' ? 'AK' : 'PK';
+    if (prefix === expected) {
+      return null;
+    }
+
+    return {
+      executionMode: mode,
+      expectedKeyPrefix: expected,
+      actualKeyPrefix: prefix,
+      reason: `Alpaca ${mode} broker verification unavailable: ${prefix} key cannot prove ${mode} broker flatness`,
+    };
+  }
+
+  _brokerUnverifiableLaneForTrade(trade) {
+    const integrity = this.state.brokerVerificationIntegrity;
+    if (!integrity || integrity.status !== 'untrusted' || integrity.code !== BROKER_UNVERIFIABLE) {
+      return null;
+    }
+    const brokerId = firstNonEmptyString(trade?.brokerId, trade?.brokerName, trade?.broker);
+    const executionMode = firstNonEmptyString(trade?.executionMode);
+    if (!brokerId || !executionMode) {
+      return null;
+    }
+    const normalizedBrokerId = brokerId.trim().toLowerCase();
+    const normalizedExecutionMode = executionMode.trim().toLowerCase();
+    return Array.isArray(integrity.affectedLanes)
+      ? integrity.affectedLanes.find((candidate) => (
+        candidate
+        && candidate.brokerId === normalizedBrokerId
+        && candidate.executionMode === normalizedExecutionMode
+      )) || null
+      : null;
+  }
+
+  _recordBrokerUnverifiableActiveTradeLanes() {
+    if (!(this.state.activeTrades instanceof Map) || this.state.activeTrades.size === 0) {
+      if (this.state.brokerVerificationIntegrity?.code === BROKER_UNVERIFIABLE) {
+        this.state.brokerVerificationIntegrity = { status: 'trusted', lanes: [], clearedAt: new Date().toISOString() };
+        return true;
+      }
+      return false;
+    }
+
+    const lanes = new Map();
+    for (const [tradeId, trade] of this.state.activeTrades.entries()) {
+      if (!trade || typeof trade !== 'object') continue;
+      const brokerId = firstNonEmptyString(trade.brokerId, trade.brokerName, trade.broker);
+      if (!brokerId || brokerId.trim().toLowerCase() !== 'alpaca') continue;
+      const mismatch = this._alpacaCredentialMismatchForExecutionMode(trade.executionMode);
+      if (!mismatch) continue;
+
+      const laneKey = `alpaca:${mismatch.executionMode}`;
+      if (!lanes.has(laneKey)) {
+        lanes.set(laneKey, {
+          brokerId: 'alpaca',
+          executionMode: mismatch.executionMode,
+          expectedKeyPrefix: mismatch.expectedKeyPrefix,
+          actualKeyPrefix: mismatch.actualKeyPrefix,
+          reason: mismatch.reason,
+          affectedSymbols: new Set(),
+          tradeIds: [],
+        });
+      }
+      const lane = lanes.get(laneKey);
+      lane.tradeIds.push(String(trade?.orderId || trade?.id || tradeId));
+      const tradeSymbol = firstNonEmptyString(trade.symbol);
+      if (tradeSymbol) {
+        lane.affectedSymbols.add(tradeSymbol.trim().toUpperCase());
+      }
+    }
+
+    if (lanes.size === 0) {
+      if (this.state.brokerVerificationIntegrity?.code === BROKER_UNVERIFIABLE) {
+        this.state.brokerVerificationIntegrity = { status: 'trusted', lanes: [], clearedAt: new Date().toISOString() };
+        return true;
+      }
+      return false;
+    }
+
+    const recordedAt = new Date().toISOString();
+    const affectedLanes = Array.from(lanes.values()).map((lane) => ({
+      ...lane,
+      affectedSymbols: Array.from(lane.affectedSymbols).sort(),
+    }));
+    this.state.brokerVerificationIntegrity = {
+      status: 'untrusted',
+      code: BROKER_UNVERIFIABLE,
+      source: 'StateManager.load',
+      entryBlocking: true,
+      brokerFlatVerified: false,
+      manualReconciliationRequired: true,
+      operatorActionRequired: true,
+      recordedAt,
+      reason: 'Broker verification is unavailable for restored active trade lane(s)',
+      affectedLanes,
+    };
+
+    const nextHalts = { ...(this.state.symbolEntryHalts || {}) };
+    for (const lane of affectedLanes) {
+      for (const symbol of lane.affectedSymbols) {
+        nextHalts[symbol] = {
+          reason: `[BROKER_UNVERIFIABLE] ${lane.reason}; active records remain evidence until broker flatness is witnessed`,
+          code: BROKER_UNVERIFIABLE,
+          haltedAt: Date.now(),
+          expiresAt: null,
+          authority: 'broker_verification',
+          financialIntegrityCritical: true,
+          entryBlockScope: 'symbol',
+          brokerId: lane.brokerId,
+          executionMode: lane.executionMode,
+          brokerFlatVerified: false,
+          manualReconciliationRequired: true,
+          operatorActionRequired: true,
+          affectedTradeIds: lane.tradeIds,
+        };
+      }
+    }
+    this.state.symbolEntryHalts = this._normalizeSymbolEntryHaltsCollection(
+      nextHalts,
+      'StateManager.brokerVerification'
+    );
+
+    emitTrace({}, 'BROKER_UNVERIFIABLE', this.state.brokerVerificationIntegrity);
+    console.error(`[StateManager] BROKER_UNVERIFIABLE: ${affectedLanes.map(lane => `${lane.brokerId}:${lane.executionMode}:${lane.actualKeyPrefix}->${lane.expectedKeyPrefix}`).join(', ')}`);
+    return true;
+  }
+
+  getBrokerVerificationEntryBlock(scope = {}) {
+    const integrity = this.state.brokerVerificationIntegrity;
+    if (!integrity || integrity.status !== 'untrusted' || integrity.code !== BROKER_UNVERIFIABLE || integrity.entryBlocking !== true) {
+      return null;
+    }
+    const brokerId = typeof scope.brokerId === 'string' ? scope.brokerId.trim().toLowerCase() : '';
+    const executionMode = typeof scope.executionMode === 'string' ? scope.executionMode.trim().toLowerCase() : '';
+    if (!brokerId || !executionMode) {
+      return null;
+    }
+    const lane = Array.isArray(integrity.affectedLanes)
+      ? integrity.affectedLanes.find((candidate) => (
+        candidate
+        && candidate.brokerId === brokerId
+        && candidate.executionMode === executionMode
+      ))
+      : null;
+    if (!lane) {
+      return null;
+    }
+    return {
+      blocked: true,
+      code: BROKER_UNVERIFIABLE,
+      reason: lane.reason || integrity.reason,
+      brokerId,
+      executionMode,
+      affectedSymbols: lane.affectedSymbols || [],
+      tradeIds: lane.tradeIds || [],
+    };
+  }
+
+  _stateSnapshotForPersistence(state = this.state) {
+    const stateToSave = { ...state };
+    if (state.activeTrades instanceof Map) {
+      stateToSave.activeTrades = Array.from(state.activeTrades.entries());
+    }
+    if (state.lastPrices instanceof Map) {
+      stateToSave.lastPrices = Object.fromEntries(state.lastPrices);
+    }
+    if (state.lastPriceTimes instanceof Map) {
+      stateToSave.lastPriceTimes = Object.fromEntries(state.lastPriceTimes);
+    }
+    return stateToSave;
+  }
+
+  /**
+   * Validate state consistency
+   */
+  validateState() {
+    const issues = [];
+
+    // Check balance consistency
+    const expectedTotal = this.state.balance + this.state.inPosition;
+    const diff = Math.abs(expectedTotal - this.state.totalBalance);
+    if (diff > 0.01) {
+      issues.push(`Balance mismatch: total=${this.state.totalBalance}, expected=${expectedTotal}`);
+    }
+
+    // Check position consistency
+    if (this.state.position > 0 && !this.state.entryPrice) {
+      issues.push('Position exists but no entry price');
+    }
+
+    if (this.state.position === 0 && this.state.inPosition > 0) {
+      issues.push('No position but funds locked');
+    }
+
+    if (this.state.position < 0) {
+      issues.push('Negative position detected!');
+    }
+
+    if (this.state.balance < 0) {
+      issues.push('Negative balance detected!');
+    }
+    issues.push(...this._activeTradeIdentityIssues());
+    issues.push(...this._activeTradeQuantityIssues());
+
+    return {
+      valid: issues.length === 0,
+      issues
+    };
+  }
+
+  /**
+   * Emergency state reset (use with caution!)
+   */
+  async emergencyReset(safeBalance = null) {
+    console.warn('[StateManager] EMERGENCY RESET INITIATED');
+
+    const updates = {
+      position: 0,
+      positionCount: 0,
+      entryPrice: 0,
+      entryTime: null,
+      balance: safeBalance || this.state.totalBalance,
+      totalBalance: safeBalance || this.state.totalBalance,
+      inPosition: 0,
+      activeTrades: new Map()
+    };
+
+    return this.updateState(updates, { action: 'EMERGENCY_RESET' });
+  }
+
+  /**
+   * Pause trading for safety
+   * @param {string} reason - Why trading is being paused
+   */
+  async pauseTrading(reason, options = {}) {
+    console.log('[StateManager] PAUSING TRADING:', reason);
+
+    const source = typeof options.source === 'string' && options.source.trim()
+      ? options.source.trim()
+      : null;
+    const scope = options.scope && typeof options.scope === 'object'
+      ? {
+        symbol: options.scope.symbol || null,
+        timeframe: options.scope.timeframe || null,
+        brokerId: options.scope.brokerId || null,
+        accountId: options.scope.accountId || null,
+        assetClass: options.scope.assetClass || null,
+        executionMode: options.scope.executionMode || null,
+      }
+      : null;
+
+    const updates = {
+      isTrading: false,
+      lastError: reason,
+      pausedAt: Date.now(),
+      pauseReason: reason,
+      pauseSource: source,
+      pauseRecoverable: options.recoverable === true,
+      pauseScope: scope
+    };
+
+    await this.updateState(updates, { action: 'PAUSE_TRADING', reason, source, scope });
+
+    // Log to console with visible warning
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('TRADING PAUSED - SAFETY STOP');
+    console.log(`   Reason: ${reason}`);
+    console.log(`   Time: ${new Date().toISOString()}`);
+    console.log('   Action Required: Review logs and resume manually');
+    console.log('═══════════════════════════════════════════════════════');
+
+    return { success: true, message: `Trading paused: ${reason}` };
+  }
+
+  /**
+   * Resume trading after pause
+   */
+  async resumeTrading(context = {}) {
+    console.log('[StateManager] RESUMING TRADING');
+
+    const updates = {
+      isTrading: true,
+      lastError: null,
+      pausedAt: null,
+      pauseReason: null,
+      pauseSource: null,
+      pauseRecoverable: false,
+      pauseScope: null,
+      resumedAt: Date.now()
+    };
+
+    await this.updateState(updates, { action: 'RESUME_TRADING', ...context });
+
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('TRADING RESUMED');
+    console.log(`   Time: ${new Date().toISOString()}`);
+    console.log('═══════════════════════════════════════════════════════');
+
+    return { success: true, message: 'Trading resumed' };
+  }
+
+  _pauseScopeMatches(expectedScope = {}) {
+    const stored = this.state.pauseScope;
+    if (!stored || typeof stored !== 'object') return true;
+
+    for (const field of ['symbol', 'timeframe', 'brokerId', 'accountId', 'assetClass', 'executionMode']) {
+      const expectedValue = expectedScope[field];
+      const storedValue = stored[field];
+      if (storedValue === null || storedValue === undefined || storedValue === '') return false;
+      if (expectedValue === null || expectedValue === undefined || expectedValue === '') return false;
+      const left = field === 'symbol'
+        ? this.normalizeSymbol(String(storedValue), 'StateManager.pauseScope')
+        : String(storedValue).trim();
+      const right = field === 'symbol'
+        ? this.normalizeSymbol(String(expectedValue), 'StateManager.resume scope')
+        : String(expectedValue).trim();
+      if (left !== right) return false;
+    }
+
+    return true;
+  }
+
+  _isLegacyTtpFlatnessPause() {
+    const pauseReason = String(this.state.pauseReason || '').trim();
+    const lastError = String(this.state.lastError || '').trim();
+    const pauseSource = typeof this.state.pauseSource === 'string' ? this.state.pauseSource.trim() : this.state.pauseSource || null;
+    const legacyReason = pauseReason || lastError;
+    const reasonMatches = legacyReason.startsWith(TTP_CUTOFF_FLATNESS_PAUSE_PREFIX);
+    const errorMatches = !lastError || lastError === legacyReason || lastError.startsWith(TTP_CUTOFF_FLATNESS_PAUSE_PREFIX);
+    return pauseSource === TTP_CUTOFF_FLATNESS_PAUSE_SOURCE && reasonMatches && errorMatches;
+  }
+
+  _legacyTtpFlatnessReason() {
+    const pauseReason = String(this.state.pauseReason || '');
+    return pauseReason.trim() ? pauseReason : String(this.state.lastError || '');
+  }
+
+  _isDataFeedLivenessPause() {
+    if (this.state.isTrading !== false) return false;
+    const pauseSource = typeof this.state.pauseSource === 'string'
+      ? this.state.pauseSource.trim()
+      : this.state.pauseSource || null;
+    return pauseSource === DATA_FEED_LIVENESS_PAUSE_SOURCE;
+  }
+
+  _clearPersistedDataFeedLivenessPause() {
+    if (!this._isDataFeedLivenessPause()) {
+      return false;
+    }
+
+    const pauseReason = String(this.state.pauseReason || this.state.lastError || '').trim();
+    this.state.isTrading = true;
+    this.state.pauseReason = null;
+    this.state.pauseSource = null;
+    this.state.pauseRecoverable = false;
+    this.state.pauseScope = null;
+    this.state.lastError = null;
+    this.state.pausedAt = null;
+    this.state.resumedAt = Date.now();
+    console.warn(`[StateManager] Cleared persisted data-feed liveness pause on load: ${pauseReason || 'unknown liveness pause'}`);
+    return true;
+  }
+
+  _migrateLegacyTtpFlatnessPause(activeTradeCount) {
+    if (this.state.isTrading !== false || !this._isLegacyTtpFlatnessPause()) {
+      return false;
+    }
+    if (this.state.pauseRecoverable !== false) {
+      return false;
+    }
+    if (activeTradeCount !== 0) {
+      return false;
+    }
+    if (Number(this.state.position) !== 0 || Number(this.state.inPosition) !== 0) {
+      return false;
+    }
+
+    const pauseReason = this._legacyTtpFlatnessReason();
+    const cutoffDate = pauseReason.match(/date=([0-9]{4}-[0-9]{2}-[0-9]{2})/)?.[1] || null;
+    const migratedAt = new Date().toISOString();
+    this.state.ttpCutoffQuarantine = {
+      source: TTP_CUTOFF_FLATNESS_PAUSE_SOURCE,
+      status: 'quarantined',
+      entryBlocking: true,
+      manualReconciliationRequired: true,
+      requiresManualReconciliation: true,
+      brokerFlatVerified: false,
+      migratedFromLegacyPause: true,
+      migratedAt,
+      legacyPausedAt: this.state.pausedAt || null,
+      legacyPauseRecoverable: this.state.pauseRecoverable,
+      legacyPauseReason: pauseReason,
+      manualReconciliationMessage: pauseReason,
+      operatorMessage: pauseReason,
+      currentDateET: cutoffDate,
+      reason: `${pauseReason}; migrated from legacy global pause to entry-blocking quarantine`,
+    };
+    this.state.isTrading = true;
+    this.state.pauseReason = null;
+    this.state.pauseSource = null;
+    this.state.pauseRecoverable = false;
+    this.state.pauseScope = null;
+    this.state.lastError = null;
+    this.state.pausedAt = null;
+    this.state.resumedAt = Date.now();
+    console.warn(`[StateManager] Migrated legacy TTP flatness pause to quarantine at ${migratedAt}`);
+    return true;
+  }
+
+  async resumeTradingIfPausedBy(source, options = {}) {
+    await this.acquireLock();
+    try {
+      if (this.state.isTrading !== false) {
+        return { success: true, resumed: false, reason: 'not_paused' };
+      }
+
+      const pauseReason = String(this.state.pauseReason || this.state.lastError || '');
+      const legacyPrefixes = Array.isArray(options.legacyReasonPrefixes)
+        ? options.legacyReasonPrefixes
+        : [];
+      const sourceMatches = source && this.state.pauseSource === source;
+      const legacyMatches = options.allowLegacyUnscoped === true
+        && !this.state.pauseSource
+        && legacyPrefixes.some(prefix => pauseReason.startsWith(prefix));
+      if (!sourceMatches && !legacyMatches) {
+        return {
+          success: false,
+          resumed: false,
+          reason: 'pause_source_mismatch',
+          pauseSource: this.state.pauseSource || null,
+          pauseReason,
+        };
+      }
+
+      if (this.state.pauseRecoverable === false && !legacyMatches) {
+        return { success: false, resumed: false, reason: 'pause_not_recoverable', pauseSource: this.state.pauseSource || null };
+      }
+
+      if (!this._pauseScopeMatches(options.scope || {})) {
+        return {
+          success: false,
+          resumed: false,
+          reason: 'pause_scope_mismatch',
+          pauseScope: this.state.pauseScope || null,
+          recoveryScope: options.scope || null,
+        };
+      }
+
+      const updates = {
+        isTrading: true,
+        lastError: null,
+        pausedAt: null,
+        pauseReason: null,
+        pauseSource: null,
+        pauseRecoverable: false,
+        pauseScope: null,
+        resumedAt: Date.now()
+      };
+
+      const result = this._applyStateUpdatesLocked(updates, {
+        action: 'RESUME_TRADING',
+        resumeSource: options.resumeSource || source,
+        resumeReason: options.reason || null,
+        recoveredPauseReason: pauseReason,
+        recoveredPauseSource: this.state.pauseSource || (legacyMatches ? 'legacy' : null),
+      });
+      if (!result.success) return { ...result, resumed: false };
+
+      console.log('═══════════════════════════════════════════════════════');
+      console.log('TRADING RESUMED');
+      console.log(`   Time: ${new Date().toISOString()}`);
+      console.log('═══════════════════════════════════════════════════════');
+
+      return { success: true, resumed: true, reason: 'resumed' };
+    } finally {
+      this.releaseLock();
+    }
+  }
+
+  // === CHANGE 2025-12-13: STEP 1 - ACTIVE TRADES MANAGEMENT ===
+
+  /**
+   * Add or update an active trade.
+   * Direct callers are recorded as bypass telemetry only; this path must not
+   * silently convert an active-trade write into a global entry halt.
+   */
+  updateActiveTrade(orderId, tradeData) {
+    const stack = new Error().stack;
+    const isFromPositionTracker = stack.includes('PositionTracker');
+    if (!isFromPositionTracker) {
+      const caller = stack.split('\n')[2]?.trim() || 'unknown';
+
+      // Always collect violation for analysis
+      this._bypassViolations = this._bypassViolations || [];
+      this._bypassViolations.push({
+        method: 'updateActiveTrade',
+        orderId,
+        caller,
+        timestamp: Date.now(),
+        stack: stack.split('\n').slice(1, 6).join('\n')
+      });
+
+      console.warn(`[StateManager] BYPASS DETECTED: updateActiveTrade() called from outside PositionTracker`);
+      console.warn(`   Caller: ${caller}`);
+      console.warn(`   OrderId: ${orderId}`);
+
+      if (this._alertListeners?.length > 0) {
+        const alert = {
+          type: 'BYPASS_VIOLATION',
+          method: 'updateActiveTrade',
+          caller,
+          orderId,
+          timestamp: Date.now()
+        };
+        for (const listener of this._alertListeners) {
+          try { listener(alert); } catch (e) { /* ignore */ }
+        }
+      }
+    }
+
+    console.log(`[StateManager] updateActiveTrade called with orderId: ${orderId}`);
+    console.log(`[StateManager] this.get exists: ${typeof this.get}`);
+    console.log(`[StateManager] this.set exists: ${typeof this.set}`);
+
+    const trades = new Map(this.state.activeTrades || []);
+    console.log(`[StateManager] Got trades: ${trades instanceof Map ? 'Map' : typeof trades}`);
+    if (!(trades instanceof Map)) {
+      throw new Error(`[StateManager.updateActiveTrade] activeTrades container invariant failed: expected Map, got ${typeof trades}`);
+    }
+
+    const existingTrade = trades.get(orderId);
+    let normalizedFrozenExitPolicy = existingTrade?.frozenExitPolicy;
+    if (tradeData && typeof tradeData === 'object' && tradeData.frozenExitPolicy !== undefined) {
+      normalizedFrozenExitPolicy = freezePolicy(tradeData.frozenExitPolicy);
+      const existingHash = existingTrade?.frozenExitPolicy?.policyHash;
+      const incomingHash = normalizedFrozenExitPolicy?.policyHash;
+      if (existingHash && incomingHash && existingHash !== incomingHash) {
+        throw new Error(`[StateManager.updateActiveTrade] frozenExitPolicy is immutable for active trade ${orderId}; existing policyHash ${existingHash} does not match incoming ${incomingHash}`);
+      }
+    }
+
+    const tradeRecord = tradeData && typeof tradeData === 'object'
+      ? withExitLifecycleFields({
+          ...tradeData,
+          id: tradeData.id || orderId,
+          orderId: tradeData.orderId || orderId,
+          ...(normalizedFrozenExitPolicy !== undefined ? { frozenExitPolicy: normalizedFrozenExitPolicy } : {}),
+        }, { reset: true })
+      : tradeData;
+    const identityIssues = this._activeTradeIdentityIssuesForTrade(tradeRecord, orderId);
+    if (identityIssues.length > 0) {
+      throw new Error(`[StateManager.updateActiveTrade] active trade identity invariant failed: ${identityIssues.join('; ')}`);
+    }
+    const quantityIssues = this._activeTradeQuantityIssuesForTrade(tradeRecord, orderId);
+    if (quantityIssues.length > 0) {
+      throw new Error(`[StateManager.updateActiveTrade] active trade quantity invariant failed: ${quantityIssues.join('; ')}`);
+    }
+
+    trades.set(orderId, tradeRecord);
+    console.log(`[StateManager] About to normalize activeTrades`);
+
+    this.state.activeTrades = this._normalizeActiveTradesInput(trades, 'StateManager.updateActiveTrade');
+    // FIX 2026-02-16: REMOVED this.save() - was causing race condition!
+    // openPosition() saves AFTER updating BOTH activeTrades AND position atomically
+    console.log(`[StateManager] Updated trade ${orderId} (no save - openPosition will save)`);
+  }
+
+  markActiveTradeJournalFailure(orderId, failure = {}) {
+    const target = firstNonEmptyString(orderId, failure.orderId);
+    if (!target) {
+      return { success: false, reason: 'missing_order_id' };
+    }
+
+    const trades = new Map(this.state.activeTrades || []);
+    let targetKey = trades.has(target) ? target : null;
+    if (!targetKey) {
+      for (const [key, trade] of trades.entries()) {
+        if (trade?.orderId === target || trade?.id === target) {
+          targetKey = key;
+          break;
+        }
+      }
+    }
+    if (!targetKey) {
+      return { success: false, reason: 'active_trade_not_found', orderId: target };
+    }
+
+    const trade = trades.get(targetKey);
+    const failureRecord = {
+      status: 'unjournaled',
+      trustStatus: 'untrusted',
+      journalStatus: 'unjournaled',
+      journaled: false,
+      untrusted: true,
+      manualReconciliationRequired: true,
+      requiresManualReconciliation: true,
+      eventType: firstNonEmptyString(failure.eventType),
+      phase: firstNonEmptyString(failure.phase),
+      source: firstNonEmptyString(failure.source),
+      message: firstNonEmptyString(failure.message),
+      recordedAt: new Date().toISOString(),
+    };
+    const markedTrade = {
+      ...trade,
+      journalStatus: 'unjournaled',
+      journaled: false,
+      trustStatus: 'untrusted',
+      untrusted: true,
+      manualReconciliationRequired: true,
+      requiresManualReconciliation: true,
+      journalFailure: failureRecord,
+    };
+    trades.set(targetKey, markedTrade);
+
+    return this._applyStateUpdatesLocked(
+      { activeTrades: trades },
+      {
+        action: 'MARK_ACTIVE_TRADE_JOURNAL_FAILURE',
+        tradeId: target,
+        source: failureRecord.source,
+        reason: failureRecord.message,
+      },
+      { resetActiveTradeLifecycle: false }
+    );
+  }
+
+  /**
+   * Remove an active trade
+   */
+  removeActiveTrade(orderId) {
+    const trades = new Map(this.state.activeTrades || []);
+    if (trades && trades.has(orderId)) {
+      trades.delete(orderId);
+      this.state.activeTrades = this._normalizeActiveTradesInput(trades, 'StateManager.removeActiveTrade');
+      // FIX 2026-02-16: REMOVED this.save() - same race condition fix
+      // closePosition() saves AFTER updating BOTH activeTrades AND position atomically
+      console.log(`[StateManager] Removed trade ${orderId} (no save - closePosition will save)`);
+    }
+  }
+
+  /**
+   * Get all active trades as array — account-wide query across every symbol.
+   * Use for equity/P&L reconciliation, snapshots, position-tracker rebuilds.
+   * For symbol-specific decisions (exit-check on a symbol's candle, BUY-match
+   * for a symbol's SELL) use getTradesBySymbol(symbol) instead — that filter
+   * is what prevents cross-symbol contamination in multi-broker arbitrage.
+   */
+  getAllTrades() {
+    const trades = this.state.activeTrades;
+    return trades ? Array.from(trades.values()) : [];
+  }
+
+  /**
+   * Get a read-only active trade snapshot by id/orderId.
+   * This is the StateManager-owned read boundary for planner/coordinator code:
+   * callers can inspect trade truth without mutating the live activeTrades Map.
+   */
+  getActiveTrade(tradeId) {
+    if (typeof tradeId !== 'string' || !tradeId.trim()) {
+      throw new Error(`[StateManager.getActiveTrade] requires explicit non-empty tradeId; got ${JSON.stringify(tradeId)}`);
+    }
+
+    const trades = this.get('activeTrades');
+    if (!trades) {
+      return null;
+    }
+    if (!(trades instanceof Map)) {
+      throw new Error(`[StateManager.getActiveTrade] activeTrades container invariant failed: expected Map, got ${Object.prototype.toString.call(trades)}`);
+    }
+
+    const trade = trades.get(tradeId.trim()) || null;
+    return trade ? deepFreezePlain(clonePlain(trade)) : null;
+  }
+
+  /**
+   * Apply an operator's fixed stop to one current trade, never its entry policy
+   * or global settings. The existing state lock serializes this with fills.
+   */
+  async updateTradeStop(request = {}) {
+    const reject = reason => ({ success: false, applied: false, reason });
+    if (!request || typeof request !== 'object' || Array.isArray(request)) return reject('invalid_trade_stop_request');
+    const { requestId, tradeId, scopeKey, expectedTradeRevision, stopPrice } = request;
+    if ([requestId, tradeId, scopeKey].some(value => typeof value !== 'string'
+      || value.trim() !== value || value.length === 0 || value.length > 512)) {
+      return reject('invalid_trade_stop_identity');
+    }
+    if (!Number.isSafeInteger(expectedTradeRevision) || expectedTradeRevision < 0
+      || typeof stopPrice !== 'number' || !Number.isFinite(stopPrice) || stopPrice <= 0) {
+      return reject('invalid_trade_stop_value');
+    }
+
+    await this.acquireLock();
+    try {
+      const trade = this.state.activeTrades.get(tradeId);
+      if (!trade) return reject('trade_not_found');
+      if (trade.scopeKey !== scopeKey) return reject('trade_scope_mismatch');
+      if (trade.operatorStop?.requestId === requestId) {
+        if (trade.operatorStop.price !== stopPrice) return reject('request_id_conflict');
+        return { success: true, applied: true, duplicate: true, requestId, tradeId, scopeKey,
+          tradeRevision: trade.tradeRevision, operatorStop: clonePlain(trade.operatorStop),
+          entryPolicyHash: trade.frozenExitPolicy?.policyHash ?? null,
+          persistence: getConfigValue('mode.backtest') ? 'backtest_memory_only' : 'state_file',
+          effectiveAt: 'next_exit_evaluation' };
+      }
+      if (trade.tradeRevision !== expectedTradeRevision) return reject('trade_revision_changed');
+      if (trade.pendingExitIntent) return reject('trade_exit_pending');
+      if (!(trade.remainingOrderQuantity > 0)) return reject('trade_not_open');
+
+      const operatorStop = {
+        requestId, price: stopPrice, updatedAtMs: Date.now(),
+        previousPrice: trade.operatorStop?.price ?? null,
+        fromTradeRevision: trade.tradeRevision, tradeRevision: trade.tradeRevision + 1,
+      };
+      const trades = new Map(this.state.activeTrades);
+      trades.set(tradeId, { ...trade, operatorStop, tradeRevision: operatorStop.tradeRevision });
+      const result = this._applyStateUpdatesLocked({ activeTrades: trades }, {
+        action: 'UPDATE_TRADE_STOP', source: 'dashboard', requestId, tradeId,
+        symbol: trade.symbol, scopeKey, operatorStop,
+        entryPolicyHash: trade.frozenExitPolicy?.policyHash ?? null,
+      });
+      if (!result.success) return reject(result.code || 'trade_stop_state_update_failed');
+      const receipt = {
+        success: true, applied: true, duplicate: false, requestId, tradeId, scopeKey,
+        tradeRevision: operatorStop.tradeRevision, operatorStop,
+        entryPolicyHash: trade.frozenExitPolicy?.policyHash ?? null,
+        persistence: getConfigValue('mode.backtest') ? 'backtest_memory_only' : 'state_file',
+        effectiveAt: 'next_exit_evaluation',
+      };
+      emitTrace({}, 'TRADE_STOP_UPDATED', receipt);
+      return receipt;
+    } finally {
+      this.releaseLock();
+    }
+  }
+
+  /**
+   * Reserve a single in-flight exit intent for a trade before broker submission.
+   * This is pre-confirm bookkeeping only: it prevents duplicate exits but does
+   * not change size, quantity, P&L, tier state, or BE scale-out state.
+   */
+  async reserveExitSlot(tradeId, intentId, options = {}) {
+    const caller = 'StateManager.reserveExitSlot';
+    const normalizedTradeId = requireNonEmptyString(tradeId, 'tradeId', caller);
+    const normalizedIntentId = requireNonEmptyString(intentId, 'intentId', caller);
+    const submittedAtMs = optionalFiniteNumber(options.submittedAtMs, 'submittedAtMs', caller, { min: 1 });
+    if (submittedAtMs === null) {
+      throw new Error(`[${caller}] submittedAtMs is required for deterministic exit intent provenance`);
+    }
+
+    const exitFraction = optionalFiniteNumber(options.exitFraction, 'exitFraction', caller, { min: 0, max: 1 });
+    if (exitFraction !== null && exitFraction <= 0) {
+      throw new Error(`[${caller}] exitFraction must be > 0 when supplied; got ${exitFraction}`);
+    }
+
+    await this.acquireLock();
+    try {
+      const trades = this.state.activeTrades;
+      if (!(trades instanceof Map)) {
+        throw new Error(`[${caller}] activeTrades container invariant failed: expected Map, got ${Object.prototype.toString.call(trades)}`);
+      }
+
+      const trade = trades.get(normalizedTradeId);
+      if (!trade) {
+        return { success: false, reserved: false, reason: 'trade_not_found', tradeId: normalizedTradeId, intentId: normalizedIntentId };
+      }
+
+      if (trade.pendingExitIntent && trade.pendingExitIntent.intentId) {
+        return {
+          success: true,
+          reserved: false,
+          reason: 'exit_already_pending',
+          tradeId: normalizedTradeId,
+          intentId: normalizedIntentId,
+          pendingExitIntent: clonePlain(trade.pendingExitIntent),
+        };
+      }
+
+      const remainingQuantity = Number(trade.remainingOrderQuantity);
+      const expectedRemainingQuantity = optionalFiniteNumber(
+        options.expectedRemainingQuantity,
+        'expectedRemainingQuantity',
+        caller,
+        { min: 0 }
+      ) ?? (
+        Number.isFinite(remainingQuantity) && remainingQuantity > 0 && exitFraction !== null
+          ? Math.max(0, remainingQuantity * (1 - exitFraction))
+          : null
+      );
+      const tradeRevision = Number.isSafeInteger(Number(trade.tradeRevision)) && Number(trade.tradeRevision) >= 0
+        ? Number(trade.tradeRevision)
+        : 0;
+      const nextTrade = {
+        ...trade,
+        tradeRevision: tradeRevision + 1,
+        pendingExitIntent: {
+          intentId: normalizedIntentId,
+          sourceEventId: typeof options.sourceEventId === 'string' && options.sourceEventId.trim()
+            ? options.sourceEventId.trim()
+            : null,
+          brokerOrderId: typeof options.brokerOrderId === 'string' && options.brokerOrderId.trim()
+            ? options.brokerOrderId.trim()
+            : null,
+          lifecycleState: 'submitted',
+          submittedAtMs,
+          exitFraction,
+          expectedRemainingQuantity,
+          tradeRevision,
+        },
+      };
+      const targetQuantity = optionalFiniteNumber(options.targetQuantity, 'targetQuantity', caller, { min: 0 })
+        ?? (Number.isFinite(remainingQuantity) && remainingQuantity > 0 && exitFraction !== null
+          ? remainingQuantity * exitFraction
+          : null);
+      const stateKey = typeof options.stateKey === 'string' && options.stateKey.trim()
+        ? options.stateKey.trim()
+        : null;
+      if (stateKey === 'beScaleOutState') {
+        nextTrade.beScaleOutState = {
+          ...normalizeBeScaleOutState(nextTrade.beScaleOutState),
+          status: 'pending',
+          intentId: normalizedIntentId,
+          targetQuantity,
+          brokerOrderIds: [],
+        };
+      } else if (stateKey === 'tierStates') {
+        const tierIndex = Number(options.tierIndex);
+        if (!Number.isInteger(tierIndex) || tierIndex < 0) {
+          throw new Error(`[${caller}] tierIndex must be a non-negative integer for tierStates reservation; got ${options.tierIndex}`);
+        }
+        if (!Array.isArray(nextTrade.tierStates) || !nextTrade.tierStates[tierIndex]) {
+          throw new Error(`[${caller}] tierStates[${tierIndex}] missing on active trade ${normalizedTradeId}`);
+        }
+        nextTrade.tierStates = nextTrade.tierStates.map((tier, index) => (
+          index === tierIndex
+            ? {
+                ...tier,
+                status: 'pending',
+                intentId: normalizedIntentId,
+                targetQuantity,
+                brokerOrderIds: [],
+              }
+            : tier
+        ));
+      } else if (stateKey !== null) {
+        throw new Error(`[${caller}] unsupported exit stateKey ${stateKey}`);
+      }
+      const nextActiveTrades = new Map(trades);
+      nextActiveTrades.set(normalizedTradeId, nextTrade);
+
+      const result = this._applyStateUpdatesLocked({
+        activeTrades: nextActiveTrades,
+      }, {
+        action: 'RESERVE_EXIT_SLOT',
+        tradeId: normalizedTradeId,
+        intentId: normalizedIntentId,
+        sourceEventId: nextTrade.pendingExitIntent.sourceEventId,
+      });
+
+      return {
+        ...result,
+        reserved: result.success === true,
+        reason: result.success === true ? 'reserved' : 'state_update_failed',
+        tradeId: normalizedTradeId,
+        intentId: normalizedIntentId,
+        pendingExitIntent: clonePlain(nextTrade.pendingExitIntent),
+      };
+    } finally {
+      this.releaseLock();
+    }
+  }
+
+  async markExitSlotAccepted(tradeId, intentId, options = {}) {
+    const normalizedTradeId = typeof tradeId === 'string' && tradeId.trim() ? tradeId.trim() : null;
+    const normalizedIntentId = typeof intentId === 'string' && intentId.trim() ? intentId.trim() : null;
+    if (!normalizedTradeId || !normalizedIntentId) {
+      return {
+        success: false,
+        accepted: false,
+        reason: 'invalid_exit_intent_identity',
+        tradeId: normalizedTradeId,
+        intentId: normalizedIntentId,
+      };
+    }
+
+    await this.acquireLock();
+    try {
+      const trades = this.state.activeTrades;
+      if (!(trades instanceof Map)) {
+        return {
+          success: false,
+          accepted: false,
+          reason: 'active_trades_not_map',
+          tradeId: normalizedTradeId,
+          intentId: normalizedIntentId,
+        };
+      }
+
+      const trade = trades.get(normalizedTradeId);
+      if (!trade) {
+        return { success: false, accepted: false, reason: 'trade_not_found', tradeId: normalizedTradeId, intentId: normalizedIntentId };
+      }
+
+      const pending = trade.pendingExitIntent;
+      if (!pending || !pending.intentId) {
+        return { success: true, accepted: false, reason: 'no_exit_pending', tradeId: normalizedTradeId, intentId: normalizedIntentId };
+      }
+      if (pending.intentId !== normalizedIntentId) {
+        return {
+          success: true,
+          accepted: false,
+          reason: 'intent_mismatch',
+          tradeId: normalizedTradeId,
+          intentId: normalizedIntentId,
+          pendingExitIntent: clonePlain(pending),
+        };
+      }
+
+      const brokerOrderId = typeof options.brokerOrderId === 'string' && options.brokerOrderId.trim()
+        ? options.brokerOrderId.trim()
+        : pending.brokerOrderId || null;
+      const acceptedAtMs = Number(options.acceptedAtMs);
+      const nextPending = {
+        ...pending,
+        brokerOrderId,
+        lifecycleState: 'accepted',
+        acceptedAtMs: Number.isFinite(acceptedAtMs) && acceptedAtMs > 0 ? acceptedAtMs : Date.now(),
+      };
+      const nextTrade = {
+        ...trade,
+        pendingExitIntent: nextPending,
+      };
+      if (nextTrade.beScaleOutState && nextTrade.beScaleOutState.intentId === normalizedIntentId && brokerOrderId) {
+        nextTrade.beScaleOutState = {
+          ...nextTrade.beScaleOutState,
+          brokerOrderIds: Array.from(new Set([...(nextTrade.beScaleOutState.brokerOrderIds || []), brokerOrderId])),
+        };
+      }
+      if (Array.isArray(nextTrade.tierStates) && brokerOrderId) {
+        nextTrade.tierStates = nextTrade.tierStates.map((tier) => (
+          tier && tier.intentId === normalizedIntentId
+            ? {
+                ...tier,
+                brokerOrderIds: Array.from(new Set([...(tier.brokerOrderIds || []), brokerOrderId])),
+              }
+            : tier
+        ));
+      }
+
+      const nextActiveTrades = new Map(trades);
+      nextActiveTrades.set(normalizedTradeId, nextTrade);
+
+      const result = this._applyStateUpdatesLocked({
+        activeTrades: nextActiveTrades,
+      }, {
+        action: 'MARK_EXIT_SLOT_ACCEPTED',
+        tradeId: normalizedTradeId,
+        intentId: normalizedIntentId,
+        brokerOrderId,
+      });
+
+      return {
+        ...result,
+        accepted: result.success === true,
+        reason: result.success === true ? 'accepted' : 'state_update_failed',
+        tradeId: normalizedTradeId,
+        intentId: normalizedIntentId,
+        pendingExitIntent: clonePlain(nextPending),
+      };
+    } finally {
+      this.releaseLock();
+    }
+  }
+
+  /**
+   * Release a reserved exit slot after broker rejection/cancel or caller abort.
+   * A mismatched intent cannot clear another pending exit.
+   */
+  async releaseExitSlot(tradeId, intentId, options = {}) {
+    const caller = 'StateManager.releaseExitSlot';
+    const normalizedTradeId = requireNonEmptyString(tradeId, 'tradeId', caller);
+    const normalizedIntentId = requireNonEmptyString(intentId, 'intentId', caller);
+
+    await this.acquireLock();
+    try {
+      const trades = this.state.activeTrades;
+      if (!(trades instanceof Map)) {
+        throw new Error(`[${caller}] activeTrades container invariant failed: expected Map, got ${Object.prototype.toString.call(trades)}`);
+      }
+
+      const trade = trades.get(normalizedTradeId);
+      if (!trade) {
+        return { success: false, released: false, reason: 'trade_not_found', tradeId: normalizedTradeId, intentId: normalizedIntentId };
+      }
+
+      const pending = trade.pendingExitIntent;
+      if (!pending || !pending.intentId) {
+        return { success: true, released: false, reason: 'no_exit_pending', tradeId: normalizedTradeId, intentId: normalizedIntentId };
+      }
+      if (pending.intentId !== normalizedIntentId) {
+        return {
+          success: true,
+          released: false,
+          reason: 'intent_mismatch',
+          tradeId: normalizedTradeId,
+          intentId: normalizedIntentId,
+          pendingExitIntent: clonePlain(pending),
+        };
+      }
+
+      const tradeRevision = Number.isSafeInteger(Number(trade.tradeRevision)) && Number(trade.tradeRevision) >= 0
+        ? Number(trade.tradeRevision)
+        : 0;
+      const nextTrade = {
+        ...trade,
+        tradeRevision: tradeRevision + 1,
+        pendingExitIntent: null,
+      };
+      if (nextTrade.beScaleOutState && nextTrade.beScaleOutState.intentId === normalizedIntentId) {
+        nextTrade.beScaleOutState = {
+          ...nextTrade.beScaleOutState,
+          status: 'idle',
+          intentId: null,
+          targetQuantity: null,
+          brokerOrderIds: [],
+        };
+      }
+      if (Array.isArray(nextTrade.tierStates)) {
+        nextTrade.tierStates = nextTrade.tierStates.map((tier) => (
+          tier && tier.intentId === normalizedIntentId
+            ? {
+                ...tier,
+                status: 'idle',
+                intentId: null,
+                targetQuantity: null,
+                brokerOrderIds: [],
+              }
+            : tier
+        ));
+      }
+      const nextActiveTrades = new Map(trades);
+      nextActiveTrades.set(normalizedTradeId, nextTrade);
+
+      const result = this._applyStateUpdatesLocked({
+        activeTrades: nextActiveTrades,
+      }, {
+        action: 'RELEASE_EXIT_SLOT',
+        tradeId: normalizedTradeId,
+        intentId: normalizedIntentId,
+        reason: options.reason || null,
+      });
+
+      return {
+        ...result,
+        released: result.success === true,
+        reason: result.success === true ? 'released' : 'state_update_failed',
+        tradeId: normalizedTradeId,
+        intentId: normalizedIntentId,
+      };
+    } finally {
+      this.releaseLock();
+    }
+  }
+
+  /**
+   * Apply a broker/simulator-confirmed exit fill to active trade truth.
+   * This is the future canonical mutation path for exits: callers provide
+   * confirmed fill quantity/value only, never a requested fraction.
+   */
+  async applyFill(fill = {}) {
+    const caller = 'StateManager.applyFill';
+    const invalidFill = (error, extra = {}) => ({
+      success: false,
+      applied: false,
+      code: 'FILL_INVALID_DTO',
+      error,
+      ...extra,
+    });
+    if (!fill || typeof fill !== 'object' || Array.isArray(fill)) {
+      return invalidFill(`[${caller}] fill must be an explicit object`);
+    }
+    if (Object.prototype.hasOwnProperty.call(fill, 'fraction') || Object.prototype.hasOwnProperty.call(fill, 'exitFraction')) {
+      return invalidFill(`[${caller}] fill must not contain fraction or exitFraction; StateManager derives fraction from confirmed quantity`);
+    }
+
+    let fillId;
+    let brokerOrderId;
+    let tradeId;
+    let intentId;
+    let sourceEventId;
+    let lifecycleState;
+    let filledQuantity;
+    let filledQuantityUnit;
+    let filledSizeUsd;
+    let fillPrice;
+    let fee;
+    let expectedQuantity;
+    let remainingQuantityFromFill;
+    let submittedAtMs;
+    let confirmedAtMs;
+    let eventTimeMs;
+    let expectedTradeRevision;
+    let executionMode;
+
+    try {
+      fillId = requireNonEmptyString(fill.fillId, 'fillId', caller);
+      brokerOrderId = requireNonEmptyString(fill.brokerOrderId, 'brokerOrderId', caller);
+      tradeId = requireNonEmptyString(fill.tradeId, 'tradeId', caller);
+      intentId = requireNonEmptyString(fill.intentId, 'intentId', caller);
+      sourceEventId = requireNonEmptyString(fill.sourceEventId, 'sourceEventId', caller);
+      lifecycleState = requireLifecycleState(fill.lifecycleState, caller);
+      filledQuantity = requireFiniteNumber(fill.filledQuantity, 'filledQuantity', caller, { min: 0 });
+      if (filledQuantity <= 0) {
+        throw new Error(`[${caller}] filledQuantity must be > 0; got ${filledQuantity}`);
+      }
+      filledQuantityUnit = requireNonEmptyString(fill.filledQuantityUnit, 'filledQuantityUnit', caller);
+      filledSizeUsd = requireFiniteNumber(fill.filledSizeUsd, 'filledSizeUsd', caller, { min: 0 });
+      if (filledSizeUsd <= 0) {
+        throw new Error(`[${caller}] filledSizeUsd must be > 0; got ${filledSizeUsd}`);
+      }
+      fillPrice = requireFiniteNumber(fill.fillPrice, 'fillPrice', caller, { min: 0 });
+      if (fillPrice <= 0) {
+        throw new Error(`[${caller}] fillPrice must be > 0; got ${fillPrice}`);
+      }
+      const expectedFilledSizeUsd = filledQuantity * fillPrice;
+      const fillNotionalTolerance = Math.max(0.01, Math.abs(expectedFilledSizeUsd) * 1e-6);
+      if (Math.abs(filledSizeUsd - expectedFilledSizeUsd) > fillNotionalTolerance) {
+        throw new Error(`[${caller}] filledSizeUsd ${filledSizeUsd} does not match filledQuantity * fillPrice ${expectedFilledSizeUsd}`);
+      }
+      fee = requireFiniteNumber(fill.fee, 'fee', caller, { min: 0 });
+      expectedQuantity = requireFiniteNumber(fill.expectedQuantity, 'expectedQuantity', caller, { min: 0 });
+      if (expectedQuantity <= 0) {
+        throw new Error(`[${caller}] expectedQuantity must be > 0; got ${expectedQuantity}`);
+      }
+      remainingQuantityFromFill = requireFiniteNumber(fill.remainingQuantity, 'remainingQuantity', caller, { min: 0 });
+      submittedAtMs = requireFiniteNumber(fill.submittedAtMs, 'submittedAtMs', caller, { min: 1 });
+      confirmedAtMs = requireFiniteNumber(fill.confirmedAtMs, 'confirmedAtMs', caller, { min: 1 });
+      eventTimeMs = requireFiniteNumber(fill.eventTimeMs, 'eventTimeMs', caller, { min: 1 });
+      expectedTradeRevision = requireNonNegativeInteger(fill.expectedTradeRevision, 'expectedTradeRevision', caller);
+      executionMode = requireNonEmptyString(fill.executionMode, 'executionMode', caller);
+      if (typeof fill.simulated !== 'boolean') {
+        throw new Error(`[${caller}] simulated must be explicit boolean; got ${JSON.stringify(fill.simulated)}`);
+      }
+    } catch (error) {
+      return invalidFill(error.message, {
+        fillId: typeof fill.fillId === 'string' ? fill.fillId : null,
+        tradeId: typeof fill.tradeId === 'string' ? fill.tradeId : null,
+        intentId: typeof fill.intentId === 'string' ? fill.intentId : null,
+      });
+    }
+
+    await this.acquireLock();
+    try {
+      const trades = this.state.activeTrades;
+      if (!(trades instanceof Map)) {
+        throw new Error(`[${caller}] activeTrades container invariant failed: expected Map, got ${Object.prototype.toString.call(trades)}`);
+      }
+
+      const trade = trades.get(tradeId);
+      if (!trade) {
+        return { success: false, applied: false, code: 'FILL_TRADE_NOT_FOUND', error: `Trade ${tradeId} not found`, fillId, tradeId, intentId };
+      }
+      const processedFillIds = Array.isArray(trade.processedFillIds)
+        ? trade.processedFillIds.filter((id) => typeof id === 'string' && id.trim())
+        : [];
+      if (processedFillIds.includes(fillId)) {
+        return {
+          success: false,
+          applied: false,
+          code: 'FILL_DUPLICATE_FILL',
+          error: `Fill ${fillId} was already applied to trade ${tradeId}`,
+          fillId,
+          tradeId,
+          intentId,
+        };
+      }
+
+      const pending = trade.pendingExitIntent;
+      if (!pending || !pending.intentId) {
+        return { success: false, applied: false, code: 'FILL_INTENT_NOT_RESERVED', error: `No pending exit intent for ${tradeId}`, fillId, tradeId, intentId };
+      }
+      if (pending.intentId !== intentId) {
+        return {
+          success: false,
+          applied: false,
+          code: 'FILL_INTENT_MISMATCH',
+          error: `Fill intent ${intentId} does not match pending intent ${pending.intentId}`,
+          fillId,
+          tradeId,
+          intentId,
+          pendingExitIntent: clonePlain(pending),
+        };
+      }
+      const pendingStatus = pending.lifecycleState || pending.status || 'reserved';
+      if (pending.tradeRevision !== expectedTradeRevision) {
+        return {
+          success: false,
+          applied: false,
+          code: 'FILL_STALE_REVISION',
+          error: `Fill expected tradeRevision ${expectedTradeRevision} but pending intent was created at revision ${pending.tradeRevision}`,
+          fillId,
+          tradeId,
+          intentId,
+          pendingExitIntent: clonePlain(pending),
+        };
+      }
+
+      const currentRevision = Number.isSafeInteger(Number(trade.tradeRevision)) && Number(trade.tradeRevision) >= 0
+        ? Number(trade.tradeRevision)
+        : 0;
+      const expectedCurrentRevision = pendingStatus === 'partial_fill'
+        ? expectedTradeRevision
+        : expectedTradeRevision + 1;
+      if (currentRevision !== expectedCurrentRevision) {
+        return {
+          success: false,
+          applied: false,
+          code: 'FILL_STALE_TRADE_STATE',
+          error: `Fill expected current tradeRevision ${expectedCurrentRevision} but current revision is ${currentRevision}`,
+          fillId,
+          tradeId,
+          intentId,
+        };
+      }
+
+      const priorOrderQuantity = Number(trade.remainingOrderQuantity);
+      const priorSizeUsd = Number(trade.sizeUsd ?? trade.size);
+      if (!Number.isFinite(priorOrderQuantity) || priorOrderQuantity <= 0) {
+        return { success: false, applied: false, code: 'FILL_INVALID_REMAINING_QUANTITY', error: `Invalid remainingOrderQuantity ${trade.remainingOrderQuantity}`, fillId, tradeId, intentId };
+      }
+      const tradeEntryPrice = Number(trade.entryPrice ?? trade.price);
+      if (!Number.isFinite(priorSizeUsd) || priorSizeUsd <= 0) {
+        return { success: false, applied: false, code: 'FILL_INVALID_SIZE_USD', error: `Invalid sizeUsd ${trade.sizeUsd ?? trade.size}`, fillId, tradeId, intentId };
+      }
+      if (!Number.isFinite(tradeEntryPrice) || tradeEntryPrice <= 0) {
+        return { success: false, applied: false, code: 'FILL_INVALID_ENTRY_PRICE', error: `Invalid entryPrice ${trade.entryPrice ?? trade.price}`, fillId, tradeId, intentId };
+      }
+      if (String(trade.remainingOrderQuantityUnit || '').trim() !== filledQuantityUnit) {
+        return {
+          success: false,
+          applied: false,
+          code: 'FILL_QUANTITY_UNIT_MISMATCH',
+          error: `Fill quantity unit ${filledQuantityUnit} does not match trade remainingOrderQuantityUnit ${trade.remainingOrderQuantityUnit}`,
+          fillId,
+          tradeId,
+          intentId,
+        };
+      }
+
+      const tolerance = 1e-9;
+      if (filledQuantity > priorOrderQuantity + tolerance) {
+        return {
+          success: false,
+          applied: false,
+          code: 'FILL_EXCEEDS_REMAINING_QUANTITY',
+          error: `Fill quantity ${filledQuantity} exceeds remaining quantity ${priorOrderQuantity}`,
+          fillId,
+          tradeId,
+          intentId,
+        };
+      }
+
+      const computedRemainingQuantity = Math.max(0, priorOrderQuantity - filledQuantity);
+      if (Math.abs(remainingQuantityFromFill - computedRemainingQuantity) > tolerance) {
+        return {
+          success: false,
+          applied: false,
+          code: 'FILL_REMAINING_QUANTITY_MISMATCH',
+          error: `Fill remainingQuantity ${remainingQuantityFromFill} does not match computed remaining ${computedRemainingQuantity}`,
+          fillId,
+          tradeId,
+          intentId,
+        };
+      }
+
+      const closedEntryNotionalUsd = filledQuantity * tradeEntryPrice;
+      const remainingSizeUsd = computedRemainingQuantity <= tolerance
+        ? 0
+        : computedRemainingQuantity * tradeEntryPrice;
+      const tradeDirection = strictActiveTradeDirection(trade);
+      if (!tradeDirection) {
+        return activeTradeDirectionRefusal(tradeId, trade, 'StateManager.applyFill', {
+          applied: false,
+          fillId,
+          intentId,
+        });
+      }
+      const isShort = tradeDirection === 'short';
+      const positionEffect = exitPositionEffectForDirection(tradeDirection);
+      const pnl = isShort
+        ? closedEntryNotionalUsd - filledSizeUsd
+        : filledSizeUsd - closedEntryNotionalUsd;
+      const pnlPercent = closedEntryNotionalUsd > 0 ? (pnl / closedEntryNotionalUsd) * 100 : 0;
+      const netRealizedResult = pnl - fee;
+      const noActiveTradeRemainder = computedRemainingQuantity <= tolerance || remainingSizeUsd <= tolerance;
+      const rawExitReason = firstNonEmptyString(fill.exitReason, pending.exitReason, pending.reason, lifecycleState);
+      const exitReason = normalizeDecisionLedgerExitReason(rawExitReason);
+      const existingLedgerExits = Array.isArray(trade.decisionLedger?.exits) ? trade.decisionLedger.exits : [];
+      const ledgerExitEntry = trade.decisionLedger
+        ? {
+            legNumber: existingLedgerExits.length + 1,
+            exitSize: closedEntryNotionalUsd,
+            exitFraction: priorOrderQuantity > 0 ? filledQuantity / priorOrderQuantity : null,
+            remainingSize: Math.max(0, remainingSizeUsd),
+            exitOrderQuantity: filledQuantity,
+            remainingOrderQuantity: computedRemainingQuantity,
+            exitPrice: fillPrice,
+            positionEffect,
+            exitReason,
+            rawExitReason,
+            realizedPnL: netRealizedResult,
+            realizedPnLPercent: pnlPercent,
+            triggeredBy: firstNonEmptyString(fill.triggeredBy, pending.triggeredBy, 'StateManager.applyFill'),
+            netPnlDollars: netRealizedResult,
+            fillId,
+            brokerOrderId,
+            intentId,
+            sourceEventId,
+            lifecycleState,
+            timestamp: confirmedAtMs,
+          }
+        : null;
+      const nextDecisionLedger = ledgerExitEntry
+        ? {
+            ...trade.decisionLedger,
+            exits: [
+              ...existingLedgerExits,
+              ledgerExitEntry,
+            ],
+          }
+        : trade.decisionLedger;
+      const nextActiveTrades = new Map(trades);
+      const recordingFailure = fill.recordingFailure && typeof fill.recordingFailure === 'object' && !Array.isArray(fill.recordingFailure)
+        ? {
+            status: 'unjournaled',
+            trustStatus: 'untrusted',
+            journalStatus: 'unjournaled',
+            journaled: false,
+            untrusted: true,
+            manualReconciliationRequired: true,
+            requiresManualReconciliation: true,
+            eventType: firstNonEmptyString(fill.recordingFailure.eventType),
+            phase: firstNonEmptyString(fill.recordingFailure.phase),
+            source: firstNonEmptyString(fill.recordingFailure.source),
+            message: firstNonEmptyString(fill.recordingFailure.message),
+            recordedAt: firstNonEmptyString(fill.recordingFailure.recordedAt) || new Date().toISOString(),
+          }
+        : null;
+      const recordingFailureFields = recordingFailure
+        ? {
+            backtestRecorderStatus: firstNonEmptyString(fill.recordingFailure.backtestRecorderStatus) || 'unrecorded',
+            journalStatus: 'unjournaled',
+            journaled: false,
+            trustStatus: 'untrusted',
+            untrusted: true,
+            manualReconciliationRequired: true,
+            requiresManualReconciliation: true,
+            journalFailure: recordingFailure,
+          }
+        : null;
+      let closedTradeRecord = null;
+      let ledgerToWrite = null;
+
+      if (noActiveTradeRemainder) {
+        nextActiveTrades.delete(tradeId);
+        if (nextDecisionLedger) {
+          ledgerToWrite = {
+            ...nextDecisionLedger,
+            outcome: {
+              exitPrice: fillPrice,
+              exitTime: confirmedAtMs,
+              positionEffect,
+              pnlDollars: pnl,
+              pnlPercent,
+              exitFee: fee,
+              netPnlDollars: netRealizedResult,
+              exitReason,
+              rawExitReason,
+              holdTimeMs: holdTimeMsOrNull(trade, confirmedAtMs),
+            },
+          };
+        }
+        closedTradeRecord = {
+          tradeId,
+          symbol: trade.symbol || null,
+          pnl,
+          pnlPercent,
+          direction: tradeDirection,
+          positionEffect,
+          entryPrice: trade.entryPrice,
+          exitPrice: fillPrice,
+          strategy: firstNonEmptyString(trade.entryStrategy, trade.strategy),
+          holdMs: holdTimeMsOrNull(trade, confirmedAtMs),
+          closedAt: confirmedAtMs,
+          fillId,
+          brokerOrderId,
+          intentId,
+          sourceEventId,
+          lifecycleState,
+          executionMode,
+          simulated: fill.simulated,
+          ...(recordingFailureFields || {}),
+        };
+      } else {
+        const nextRevision = currentRevision + 1;
+        const nextPendingExitIntent = lifecycleState === 'partial_fill'
+          ? {
+              ...pending,
+              status: 'partial_fill',
+              lifecycleState: 'partial_fill',
+              tradeRevision: nextRevision,
+              filledQuantity: Number(pending.filledQuantity || 0) + filledQuantity,
+              remainingQuantity: remainingQuantityFromFill,
+              brokerOrderIds: Array.from(new Set([...(pending.brokerOrderIds || []), brokerOrderId])),
+              lastFillId: fillId,
+              lastFillAtMs: confirmedAtMs,
+            }
+          : null;
+        const nextTrade = {
+          ...trade,
+          tradeRevision: nextRevision,
+          pendingExitIntent: nextPendingExitIntent,
+          processedFillIds: Array.from(new Set([...processedFillIds, fillId])),
+          decisionLedger: nextDecisionLedger,
+          sizeUsd: remainingSizeUsd,
+          size: remainingSizeUsd,
+          remainingOrderQuantity: computedRemainingQuantity,
+          remainingOrderQuantityUnit: filledQuantityUnit,
+          ...(recordingFailureFields || {}),
+        };
+        if (nextTrade.beScaleOutState && nextTrade.beScaleOutState.intentId === intentId) {
+          const filledTotal = Number(nextTrade.beScaleOutState.filledQuantity || 0) + filledQuantity;
+          const targetQuantity = Number(nextTrade.beScaleOutState.targetQuantity || expectedQuantity);
+          nextTrade.beScaleOutState = {
+            ...nextTrade.beScaleOutState,
+            status: filledTotal + tolerance >= targetQuantity ? 'complete' : 'partial',
+            filledQuantity: filledTotal,
+            brokerOrderIds: Array.from(new Set([...(nextTrade.beScaleOutState.brokerOrderIds || []), brokerOrderId])),
+            lastUpdatedMs: confirmedAtMs,
+          };
+        }
+        if (Array.isArray(nextTrade.tierStates)) {
+          nextTrade.tierStates = nextTrade.tierStates.map((tier) => {
+            if (!tier || tier.intentId !== intentId) {
+              return tier;
+            }
+            const filledTotal = Number(tier.filledQuantity || 0) + filledQuantity;
+            const targetQuantity = Number(tier.targetQuantity || expectedQuantity);
+            return {
+              ...tier,
+              status: filledTotal + tolerance >= targetQuantity ? 'complete' : 'partial',
+              filledQuantity: filledTotal,
+              brokerOrderIds: Array.from(new Set([...(tier.brokerOrderIds || []), brokerOrderId])),
+              completedAtMs: filledTotal + tolerance >= targetQuantity ? confirmedAtMs : tier.completedAtMs ?? null,
+            };
+          });
+        }
+        nextActiveTrades.set(tradeId, nextTrade);
+      }
+
+      const remainingExposureUsd = nextActiveTrades.size === 0 ? 0 : this._getActiveTradeExposureUsd(nextActiveTrades);
+      const remainingSignedExposureUsd = nextActiveTrades.size === 0 ? 0 : this._getActiveTradeSignedExposureUsd(nextActiveTrades);
+      const updates = {
+        activeTrades: nextActiveTrades,
+        position: remainingSignedExposureUsd,
+        positionCount: nextActiveTrades.size,
+        entryPrice: nextActiveTrades.size === 0 ? 0 : this.state.entryPrice,
+        entryTime: nextActiveTrades.size === 0 ? null : this.state.entryTime,
+        inPosition: remainingExposureUsd,
+        realizedPnL: this.state.realizedPnL + netRealizedResult,
+        totalPnL: this.state.totalPnL + pnl,
+        lastTradeTime: confirmedAtMs,
+        ...(closedTradeRecord ? { closedTrades: [...(this.state.closedTrades || []), closedTradeRecord] } : {}),
+      };
+
+      const result = this._applyStateUpdatesLocked(updates, {
+        action: 'APPLY_EXECUTION_FILL',
+        fillId,
+        brokerOrderId,
+        tradeId,
+        intentId,
+        sourceEventId,
+        lifecycleState,
+        filledQuantity,
+        filledQuantityUnit,
+        filledSizeUsd,
+        fillPrice,
+        positionEffect,
+        fee,
+        pnl,
+        netRealizedResult,
+        submittedAtMs,
+        confirmedAtMs,
+        eventTimeMs,
+        executionMode,
+        simulated: fill.simulated,
+      });
+
+      if (result?.success && ledgerToWrite) {
+        try {
+          const ledgerLogger = require('./DecisionLedgerLogger');
+          ledgerLogger.writeOnClose(ledgerToWrite);
+        } catch (e) {
+          this._routeDecisionLedgerWriteFailure(e, ledgerToWrite, 'applyFill');
+        }
+      }
+
+      return {
+        ...result,
+        applied: result.success === true,
+        code: result.success === true ? 'FILL_APPLIED' : 'FILL_STATE_UPDATE_FAILED',
+        fillId,
+        tradeId,
+        intentId,
+        filledQuantity,
+        remainingOrderQuantity: computedRemainingQuantity,
+        positionEffect,
+        pnl,
+        netRealizedResult,
+      };
+    } finally {
+      this.releaseLock();
+    }
+  }
+
+  normalizeSymbol(symbol, caller = 'StateManager.normalizeSymbol') {
+    if (typeof symbol !== 'string' || !symbol.trim()) {
+      throw new Error(
+        `${caller} requires explicit non-empty string symbol; got ${JSON.stringify(symbol)}`
+      );
+    }
+    return symbol.trim().toUpperCase().replace('XBT', 'BTC').replace('/', '-');
+  }
+
+  buildTradeScope(context, symbol, caller = 'StateManager.buildTradeScope') {
+    const brokerId = context.brokerId || context.ledgerData?.brokerId || null;
+    const rawAccountCandidate = context.accountId
+      || context.account
+      || context.brokerAccountId
+      || context.ledgerData?.accountId
+      || context.ledgerData?.account
+      || null;
+    const cleanedAccountCandidate = rawAccountCandidate !== null && rawAccountCandidate !== undefined
+      ? String(rawAccountCandidate).trim()
+      : '';
+    const hasExplicitAccountId = rawAccountCandidate !== null
+      && rawAccountCandidate !== undefined
+      && cleanedAccountCandidate !== ''
+      && cleanedAccountCandidate !== 'default';
+    const accountId = hasExplicitAccountId ? cleanedAccountCandidate : 'default';
+    const suppliedAccountIdSource = context.accountIdSource || context.ledgerData?.accountIdSource || null;
+    const accountIdSource = hasExplicitAccountId
+      ? (suppliedAccountIdSource && suppliedAccountIdSource !== 'default' ? suppliedAccountIdSource : 'trade')
+      : 'default';
+    const assetClass = context.assetClass || context.ledgerData?.assetClass || null;
+    const executionMode = context.executionMode || context.ledgerData?.executionMode || null;
+    const timeframe = context.timeframe || context.ledgerData?.timeframe || null;
+    const missing = [];
+    const invalid = [];
+    const cleanText = (value, name) => {
+      if (value === null || value === undefined) {
+        missing.push(name);
+        return null;
+      }
+      const cleaned = String(value).trim();
+      if (!cleaned) {
+        missing.push(name);
+        return null;
+      }
+      if (INVALID_SCOPE_PLACEHOLDER_VALUES.has(cleaned.toLowerCase())) {
+        invalid.push(name);
+        return null;
+      }
+      return cleaned;
+    };
+    const rawSymbol = cleanText(symbol, 'symbol');
+    const rawBrokerId = cleanText(brokerId, 'brokerId');
+    const rawAccountId = cleanText(accountId, 'accountId');
+    const rawAssetClass = cleanText(assetClass, 'assetClass');
+    const rawExecutionMode = cleanText(executionMode, 'executionMode');
+    const rawTimeframe = cleanText(timeframe, 'timeframe');
+    if (missing.length > 0) {
+      const error = new Error(`${caller} missing immutable trade scope field(s): ${missing.join(', ')}`);
+      error.code = 'SCOPE_REJECTED';
+      error.missingFields = missing;
+      throw error;
+    }
+    if (invalid.length > 0) {
+      const error = new Error(`${caller} invalid immutable trade scope placeholder field(s): ${invalid.join(', ')}`);
+      error.code = 'SCOPE_REJECTED';
+      error.invalidFields = invalid;
+      throw error;
+    }
+
+    const scope = {
+      symbol: this.normalizeSymbol(rawSymbol, caller),
+      brokerId: rawBrokerId.toLowerCase(),
+      accountId: rawAccountId,
+      accountIdSource,
+      assetClass: rawAssetClass.toLowerCase(),
+      executionMode: rawExecutionMode.toLowerCase(),
+      timeframe: rawTimeframe
+    };
+    scope.key = `${scope.executionMode}:${scope.brokerId}:${scope.accountId}:${scope.assetClass}:${scope.symbol}:${scope.timeframe}`;
+    const suppliedScopeKey = context.scopeKey || context.ledgerData?.scopeKey || null;
+    if (suppliedScopeKey !== null && suppliedScopeKey !== undefined && String(suppliedScopeKey).trim() !== scope.key) {
+      const error = new Error(`${caller} scopeKey mismatch: supplied ${String(suppliedScopeKey).trim()} expected ${scope.key}`);
+      error.code = 'SCOPE_REJECTED';
+      error.missingFields = [];
+      error.suppliedScopeKey = String(suppliedScopeKey).trim();
+      error.expectedScopeKey = scope.key;
+      throw error;
+    }
+    return scope;
+  }
+
+  setDashboardRuntimeScope(context = {}) {
+    const symbol = context.symbol || context.tradingPair;
+    const scope = this.buildTradeScope(context, symbol, 'StateManager.dashboardRuntimeScope');
+    const missingFields = [];
+    if (scope.accountId === 'default' || scope.accountIdSource === 'default') {
+      missingFields.push('accountId');
+    }
+    const scopeComplete = missingFields.length === 0;
+    this.dashboardRuntimeScope = {
+      symbol: scope.symbol,
+      broker: scope.brokerId,
+      brokerId: scope.brokerId,
+      accountId: scope.accountId,
+      accountIdSource: scope.accountIdSource,
+      assetClass: scope.assetClass,
+      executionMode: scope.executionMode,
+      timeframe: scope.timeframe,
+      scopeKey: scope.key,
+      scopeKeyVersion: 2,
+      scopeComplete,
+      runtimeScopeStatus: scopeComplete ? 'complete' : 'incomplete',
+      missingFields
+    };
+    return { ...this.dashboardRuntimeScope };
+  }
+
+  getDashboardRuntimeScope() {
+    return this.dashboardRuntimeScope ? { ...this.dashboardRuntimeScope } : null;
+  }
+
+  clearDashboardRuntimeScope() {
+    this.dashboardRuntimeScope = null;
+    return true;
+  }
+
+  /**
+   * Get active trades for ONE symbol. Required argument; throws on missing.
+   * No null-fallback to "all trades" — that silent semantic is the footgun
+   * that lets a caller forget the symbol and accidentally cross-contaminate
+   * BUY-matching across TSLA/BTC/etc. Strict by design.
+   */
+  getTradesBySymbol(symbol) {
+    // CC-C Commit 5: apply the SAME normalization openPosition uses at :406
+    // (uppercase + XBT→BTC + slash→dash). External callers pass the broker/env
+    // form ('BTC/USD', 'XBT/USD'); internal storage is dash-canonical
+    // ('BTC-USD'). Without this, Phase 0 reproduces bit-identical for TSLA
+    // (form-invariant) but Kraken/BTC mode silently fails: filter strict-eq
+    // returns [] → exit-check skips → positions never close. Single source of
+    // truth for the transform: when openPosition's canonical form changes,
+    // change it here too.
+    const normalized = this.normalizeSymbol(symbol, 'StateManager.getTradesBySymbol');
+    const trades = this.get('activeTrades');
+    if (!trades) return [];
+    return Array.from(trades.values()).filter(t => t.symbol === normalized);
+  }
+
+  /**
+   * Check if state is in sync
+   */
+  isInSync() {
+    const validation = this.validateState();
+    if (!validation.valid) {
+      console.error('[StateManager] STATE DESYNC DETECTED:', validation.issues);
+    }
+    return validation.valid;
+  }
+
+  /**
+   * PHASE 13A: Get bypass violations for analysis
+   * Call this after backtest to see which code paths bypassed PositionTracker
+   * @returns {Array} List of bypass violations
+   */
+  getBypassViolations() {
+    return this._bypassViolations || [];
+  }
+
+  /**
+   * PHASE 13A: Clear bypass violations (for fresh test runs)
+   */
+  clearBypassViolations() {
+    this._bypassViolations = [];
+  }
+
+  /**
+   * Historical bypass halt surface retained for callers, but bypass detection
+   * is now telemetry-only and cannot globally halt entries.
+   */
+  isHalted() {
+    return false;
+  }
+
+  /**
+   * Historical bypass halt reason retained for callers.
+   * @returns {string|null} Reason for halt or null
+   */
+  getHaltReason() {
+    return null;
+  }
+
+  _normalizeSymbolEntryHaltsCollection(symbolEntryHalts, source = 'StateManager.symbolEntryHalts') {
+    if (!symbolEntryHalts || typeof symbolEntryHalts !== 'object' || Array.isArray(symbolEntryHalts)) {
+      return {};
+    }
+
+    const normalizedHalts = {};
+    const now = Date.now();
+    for (const [haltSymbol, halt] of Object.entries(symbolEntryHalts)) {
+      if (!halt || typeof halt !== 'object' || Array.isArray(halt)) continue;
+      const normalized = this.normalizeSymbol(haltSymbol, `${source} symbolEntryHalts`);
+      const haltedAt = finiteNumberOrNull(halt.haltedAt);
+      const expiresAt = normalizeSymbolHaltExpiry(halt);
+      if (haltedAt === null) continue;
+      if (expiresAt !== null && expiresAt <= now) continue;
+      const code = normalizeSymbolHaltCode(halt);
+      if (!code || !AUTHORIZED_SYMBOL_HALT_CODES.has(code)) continue;
+      const normalizedHalt = { ...halt, code };
+      normalizedHalts[normalized] = {
+        ...normalizedHalt,
+        reason: typeof halt.reason === 'string' && halt.reason.trim() ? halt.reason : 'unspecified',
+        code,
+        haltedAt,
+        expiresAt,
+      };
+    }
+    return normalizedHalts;
+  }
+
+  _normalizeSymbolEntryHaltsMutation(symbolEntryHalts, context = {}) {
+    if (!hasSymbolEntryHaltsMutationAuthority(context)) {
+      const action = typeof context.action === 'string' && context.action.trim()
+        ? context.action.trim()
+        : 'unknown';
+      console.error(`[StateManager] REFUSING UNAUTHORIZED symbolEntryHalts state mutation from ${action}`);
+      return this._normalizeSymbolEntryHaltsCollection(
+        this.state.symbolEntryHalts || {},
+        'StateManager.current'
+      );
+    }
+
+    return this._normalizeSymbolEntryHaltsCollection(
+      symbolEntryHalts,
+      'StateManager.authorizedMutation'
+    );
+  }
+
+  _symbolHaltRecord(symbol, now = Date.now()) {
+    const normalized = this.normalizeSymbol(symbol, 'StateManager.symbolHaltRecord');
+    const halt = this.state.symbolEntryHalts?.[normalized];
+    if (!halt) return null;
+    const expiresAt = normalizeSymbolHaltExpiry(halt);
+    if (expiresAt !== null && expiresAt <= now) {
+      return null;
+    }
+    return halt;
+  }
+
+  async haltSymbol(symbol, reason, metadata = {}) {
+    const normalized = this.normalizeSymbol(symbol, 'StateManager.haltSymbol');
+    const haltMetadata = metadata && typeof metadata === 'object' ? metadata : {};
+    const code = normalizeSymbolHaltCode(haltMetadata);
+    if (!code || !AUTHORIZED_SYMBOL_HALT_CODES.has(code)) {
+      console.error(`[StateManager] REFUSING UNAUTHORIZED SYMBOL ENTRY HALT: ${normalized} - ${reason || 'unspecified'} (code=${code || 'missing'})`);
+      return {
+        success: false,
+        reason: 'unauthorized_symbol_halt',
+        symbol: normalized,
+        requestedReason: reason || 'unspecified',
+        code
+      };
+    }
+    const now = Date.now();
+    const halts = { ...(this.state.symbolEntryHalts || {}) };
+    halts[normalized] = {
+      reason: reason || 'unspecified',
+      haltedAt: now,
+      ...haltMetadata,
+      code
+    };
+
+    console.error(`[StateManager] SYMBOL ENTRY HALT: ${normalized} - ${halts[normalized].reason}`);
+    return this.updateState(
+      { symbolEntryHalts: halts },
+      {
+        action: 'SYMBOL_ENTRY_HALT',
+        symbol: normalized,
+        reason: halts[normalized].reason,
+        symbolEntryHaltsMutationToken: SYMBOL_ENTRY_HALTS_MUTATION_TOKEN,
+      }
+    );
+  }
+
+  isSymbolHalted(symbol) {
+    return Boolean(this._symbolHaltRecord(symbol));
+  }
+
+  getSymbolHaltReason(symbol) {
+    return this._symbolHaltRecord(symbol)?.reason || null;
+  }
+
+  getSymbolHaltCode(symbol) {
+    return this._symbolHaltRecord(symbol)?.code || null;
+  }
+
+  async resetSymbolHalt(symbol) {
+    const normalized = this.normalizeSymbol(symbol, 'StateManager.resetSymbolHalt');
+    const halts = { ...(this.state.symbolEntryHalts || {}) };
+    delete halts[normalized];
+    console.warn(`[StateManager] SYMBOL ENTRY HALT RESET: ${normalized}`);
+    return this.updateState(
+      { symbolEntryHalts: halts },
+      {
+        action: 'SYMBOL_ENTRY_HALT_RESET',
+        symbol: normalized,
+        symbolEntryHaltsMutationToken: SYMBOL_ENTRY_HALTS_MUTATION_TOKEN,
+      }
+    );
+  }
+
+  /**
+   * Historical bypass halt reset retained for compatibility.
+   */
+  resetHalt() {
+    this._haltNewEntries = false;
+    this._haltReason = null;
+  }
+
+  /**
+   * PHASE 13B: Register alert listener for bypass violations
+   * @param {Function} callback - Called with alert object on violation
+   */
+  onAlert(callback) {
+    this._alertListeners = this._alertListeners || [];
+    this._alertListeners.push(callback);
+  }
+
+  // === CHANGE 2025-12-13: CRITICAL - MAP SERIALIZATION FOR PERSISTENCE ===
+
+  /**
+   * Save state to disk with Map serialization
+   */
+  save(options = {}) {
+    try {
+      ensureConfigLoaded();
+      // Skip state saving in backtest mode - don't corrupt real state
+      if (getConfigValue('mode.backtest')) {
+        return { success: true, skipped: true, reason: 'backtest_mode' };
+      }
+
+      const fs = require('fs');
+      const path = require('path');
+      const dataDir = getConfigValue('paths.dataDir');
+      const stateFile = getConfigValue('paths.stateFile');
+
+      // Create data directory if it doesn't exist
+      if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
+      }
+
+      const persistenceQuarantineCandidates = [];
+      if (this.state.activeTrades instanceof Map) {
+        for (const [tradeId, trade] of Array.from(this.state.activeTrades.entries())) {
+          const issues = [
+            ...this._activeTradeIdentityIssuesForTrade(trade, tradeId),
+            ...this._activeTradeQuantityIssuesForTrade(trade, tradeId),
+          ];
+          if (issues.length > 0) {
+            persistenceQuarantineCandidates.push({ tradeId, trade, issues });
+          }
+        }
+      }
+      if (persistenceQuarantineCandidates.length > 0) {
+        for (const candidate of persistenceQuarantineCandidates) {
+          this._quarantineActiveTrade(
+            candidate.tradeId,
+            candidate.trade,
+            candidate.issues,
+            'StateManager.save'
+          );
+        }
+        this._reconcileOpenPositionFromActiveTrades();
+      }
+
+      const stateToSave = this._stateSnapshotForPersistence();
+
+      // Save to disk atomically (Mercury Vector 6 — crash-safe state persistence)
+      const { writeJsonAtomic } = require('./AtomicWrite');
+      writeJsonAtomic(stateFile, stateToSave);
+      console.log('[StateManager] State saved to disk');
+      return { success: true, stateFile };
+    } catch (error) {
+      console.error('[StateManager] Failed to save state:', error);
+      if (!options || options.suppressPersistenceFailureTrace !== true) {
+        emitTrace({}, 'STATE_PERSISTENCE_RECONCILIATION_REQUIRED', {
+          code: 'STATE_PERSIST_FAILED',
+          error: error.message,
+          persistenceSucceeded: false,
+          manualReconciliationRequired: true,
+          operatorActionRequired: true,
+        });
+      }
+      return {
+        success: false,
+        code: 'STATE_PERSIST_FAILED',
+        error: error.message,
+        persistenceSucceeded: false,
+        manualReconciliationRequired: true,
+        operatorActionRequired: true,
+      };
+    }
+  }
+
+  /**
+   * Load state from disk with Map deserialization
+   */
+  load() {
+    try {
+      ensureConfigLoaded();
+      // Skip persisted state in backtest mode, but still honor explicit
+      // INITIAL_BALANCE so sizing, recorder math, and state agree.
+      if (getConfigValue('mode.backtest')) {
+        const initialBalanceSource = getConfigSource('backtest.initialBalance');
+        if (!initialBalanceSource || initialBalanceSource === 'default') {
+          throw new Error('[StateManager] BACKTEST_MODE=true requires explicit INITIAL_BALANCE; refusing default $10000 reset');
+        }
+        const initialBalance = getConfigValue('backtest.initialBalance');
+        console.log(`[StateManager] BACKTEST_MODE: Starting with clean $${initialBalance} state`);
+        this.initializeFreshState(initialBalance, { source: 'StateManager.backtestMode' });
+        return;
+      }
+
+      // CHANGE 2026-01-23: Option to start fresh in paper mode
+      // Set FRESH_START=true to reset paper trading state on boot
+      if (getConfigValue('backtest.freshStart')) {
+        if (getConfigValue('mode.liveTrading')) {
+          throw new Error('[StateManager] FRESH_START=true is not allowed when LIVE_TRADING=true');
+        }
+        const initialBalanceSource = getConfigSource('backtest.initialBalance');
+        if (!initialBalanceSource || initialBalanceSource === 'default') {
+          throw new Error('[StateManager] FRESH_START=true requires explicit INITIAL_BALANCE; refusing default $10000 reset');
+        }
+        const initialBalance = getConfigValue('backtest.initialBalance');
+        console.log(`[StateManager] FRESH_START: Resetting to clean $${initialBalance} state`);
+        this.initializeFreshState(initialBalance, { source: 'StateManager.freshStart' });
+        return;
+      }
+
+      const fs = require('fs');
+      const path = require('path');
+      const dataDir = getConfigValue('paths.dataDir');
+      const stateFile = getConfigValue('paths.stateFile');
+
+      if (fs.existsSync(stateFile)) {
+        const savedState = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+        let correctedStateShape = false;
+
+        // CRITICAL: Convert Array back to Map
+        if (Array.isArray(savedState.activeTrades)) {
+          savedState.activeTrades = new Map(savedState.activeTrades);
+        } else if (savedState.activeTrades && typeof savedState.activeTrades === 'object' && !Array.isArray(savedState.activeTrades)) {
+          savedState.activeTrades = new Map(Object.entries(savedState.activeTrades));
+        } else if (!savedState.activeTrades) {
+          savedState.activeTrades = new Map();
+        } else {
+          savedState.quarantinedTrades = [
+            ...this._normalizeQuarantinedTrades(savedState.quarantinedTrades),
+            {
+              tradeId: '<activeTrades_container>',
+              symbol: null,
+              code: DIRECTION_INTEGRITY_EXIT_REFUSAL,
+              status: 'quarantined',
+              source: 'StateManager.load',
+              quarantinedAt: new Date().toISOString(),
+              issues: [`activeTrades container invariant failed: ${Object.prototype.toString.call(savedState.activeTrades)}`],
+              trade: savedState.activeTrades,
+            },
+          ];
+          savedState.activeTrades = new Map();
+          correctedStateShape = true;
+        }
+        // Rehydrate lastPrices Map (same pattern as activeTrades)
+        if (savedState.lastPrices && !(savedState.lastPrices instanceof Map)) {
+          savedState.lastPrices = new Map(Object.entries(savedState.lastPrices));
+        } else if (!savedState.lastPrices) {
+          savedState.lastPrices = new Map();
+        }
+        if (savedState.lastPriceTimes && !(savedState.lastPriceTimes instanceof Map)) {
+          savedState.lastPriceTimes = new Map(Object.entries(savedState.lastPriceTimes).map(([symbol, value]) => [symbol, Number(value)]));
+        } else if (!savedState.lastPriceTimes) {
+          savedState.lastPriceTimes = new Map();
+        }
+
+        savedState.quarantinedTrades = this._normalizeQuarantinedTrades(savedState.quarantinedTrades);
+
+        // Restore state
+        this.state = { ...this.state, ...savedState };
+        if (Object.prototype.hasOwnProperty.call(this.state, 'recoveryMode')) {
+          delete this.state.recoveryMode;
+          correctedStateShape = true;
+          console.warn('[StateManager] Dropped persisted recoveryMode field; Trey drawdown law owns risk halt authority.');
+        }
+        if (!(this.state.activeTrades instanceof Map)) {
+          const invalidActiveTrades = this.state.activeTrades;
+          const reason = `[StateManager.load] activeTrades container invariant failed after restore: expected serialized array/Map, got ${Object.prototype.toString.call(invalidActiveTrades)}`;
+          this.state.quarantinedTrades = [
+            ...this._normalizeQuarantinedTrades(this.state.quarantinedTrades),
+            {
+              tradeId: '<activeTrades_container_post_restore>',
+              symbol: null,
+              code: DIRECTION_INTEGRITY_EXIT_REFUSAL,
+              status: 'quarantined',
+              source: 'StateManager.load',
+              quarantinedAt: new Date().toISOString(),
+              issues: [reason],
+              trade: clonePlain(invalidActiveTrades),
+            },
+          ];
+          this.state.activeTrades = new Map();
+          correctedStateShape = true;
+          console.error(reason);
+        }
+        this.state.activeTrades = new Map(
+          Array.from(this.state.activeTrades.entries()).map(([tradeId, trade]) => [
+            tradeId,
+            withExitLifecycleFields(trade, { legacy: true }),
+          ])
+        );
+        if (typeof this.state.isTrading !== 'boolean') {
+          const invalidIsTrading = this.state.isTrading;
+          const pauseReason = `[StateManager.load] invalid persisted isTrading=${JSON.stringify(invalidIsTrading)}; forcing entries paused`;
+          this.state.isTrading = false;
+          this.state.pauseReason = this.state.pauseReason || pauseReason;
+          this.state.lastError = this.state.lastError || pauseReason;
+          correctedStateShape = true;
+          console.warn(pauseReason);
+        }
+        if (!this.state.symbolEntryHalts || typeof this.state.symbolEntryHalts !== 'object' || Array.isArray(this.state.symbolEntryHalts)) {
+          this.state.symbolEntryHalts = {};
+        } else {
+          const originalHalts = this.state.symbolEntryHalts;
+          const normalizedHalts = this._normalizeSymbolEntryHaltsCollection(
+            this.state.symbolEntryHalts,
+            'StateManager.load'
+          );
+          this.state.symbolEntryHalts = normalizedHalts;
+          if (JSON.stringify(originalHalts) !== JSON.stringify(normalizedHalts)) {
+            correctedStateShape = true;
+          }
+        }
+        // Retire saved loss-cooldown bookkeeping regardless of its legacy shape.
+        // Retired halt codes are removed by the collection normalizer above.
+        if (Object.prototype.hasOwnProperty.call(this.state, 'symbolLossStreaks')) {
+          delete this.state.symbolLossStreaks;
+          correctedStateShape = true;
+        }
+        console.log('[StateManager] State loaded from disk');
+
+        // Active trades without immutable scope are ambiguous. Do not infer
+        // from current boot config: after symbol/broker switching, brokerId,
+        // assetClass, executionMode, and timeframe may no longer match the
+        // trade's true origin.
+        const quarantineCandidates = [];
+        let normalizedExisting = 0;
+        for (const [mapTradeId, trade] of Array.from(this.state.activeTrades.entries())) {
+          const tradeId = trade?.id || trade?.orderId || '<unknown>';
+          const tradeIssues = [];
+          tradeIssues.push(...this._activeTradeIdentityIssuesForTrade(trade, tradeId));
+          if (!trade || typeof trade !== 'object') {
+            quarantineCandidates.push({ tradeId: mapTradeId, trade, issues: tradeIssues });
+            continue;
+          }
+          if (!trade.symbol) {
+            tradeIssues.push(`${tradeId}:symbol`);
+          } else {
+            const normalizedTradeSymbol = this.normalizeSymbol(String(trade.symbol), 'StateManager.load trade.symbol');
+            if (trade.symbol !== normalizedTradeSymbol) {
+              trade.symbol = normalizedTradeSymbol;
+              normalizedExisting++;
+            }
+          }
+          const scopeInput = {
+            symbol: trade.symbol,
+            brokerId: trade.brokerId || trade.brokerName || trade.broker || null,
+            accountId: trade.accountId || trade.account || null,
+            accountIdSource: trade.accountIdSource,
+            assetClass: trade.assetClass || trade.assetType || null,
+            executionMode: trade.executionMode || trade.decisionLedger?.executionMode || null,
+            timeframe: trade.timeframe || trade.decisionLedger?.timeframe || null
+          };
+          try {
+            const scope = this.buildTradeScope(scopeInput, trade.symbol, 'StateManager.load trade scope');
+            trade.brokerId = scope.brokerId;
+            trade.accountId = scope.accountId;
+            trade.accountIdSource = scope.accountIdSource;
+            trade.assetClass = scope.assetClass;
+            trade.executionMode = scope.executionMode;
+            trade.timeframe = scope.timeframe;
+            trade.scopeKey = scope.key;
+          } catch (err) {
+            tradeIssues.push(`${tradeId}:${err.message}`);
+          }
+          tradeIssues.push(...this._activeTradeQuantityIssuesForTrade(trade, tradeId));
+          if (tradeIssues.length > 0) {
+            quarantineCandidates.push({ tradeId: mapTradeId, trade, issues: tradeIssues });
+          }
+        }
+        if (quarantineCandidates.length > 0) {
+          for (const candidate of quarantineCandidates) {
+            this._quarantineActiveTrade(
+              candidate.tradeId,
+              candidate.trade,
+              candidate.issues,
+              'StateManager.load'
+            );
+          }
+          this._reconcileOpenPositionFromActiveTrades();
+          correctedStateShape = true;
+        }
+        if (normalizedExisting > 0) {
+          console.warn(`[StateManager] Normalized ${normalizedExisting} persisted trade symbol(s) to dash form.`);
+        }
+        const activeTradeCount = this.state.activeTrades instanceof Map ? this.state.activeTrades.size : 0;
+        const symbolHaltCount = Object.keys(this.state.symbolEntryHalts || {}).length;
+        if (this._recordBrokerUnverifiableActiveTradeLanes()) {
+          correctedStateShape = true;
+        }
+        if (activeTradeCount === 0) {
+          const persistedPosition = Number(this.state.position);
+          const persistedInPosition = Number(this.state.inPosition);
+          if (!Number.isFinite(persistedPosition) || persistedPosition !== 0) {
+            const reason = `[StateManager.load] Source-less position exposure quarantined: activeTrades empty but position=${this.state.position}`;
+            this.state.quarantinedTrades = [
+              ...this._normalizeQuarantinedTrades(this.state.quarantinedTrades),
+              {
+                tradeId: '<source_less_position>',
+                symbol: null,
+                code: DIRECTION_INTEGRITY_EXIT_REFUSAL,
+                status: 'quarantined',
+                source: 'StateManager.load',
+                quarantinedAt: new Date().toISOString(),
+                issues: [reason],
+                trade: {
+                  position: this.state.position,
+                  inPosition: this.state.inPosition,
+                  positionCount: this.state.positionCount,
+                  entryPrice: this.state.entryPrice,
+                  entryTime: this.state.entryTime,
+                },
+              },
+            ];
+            this.state.position = 0;
+            correctedStateShape = true;
+            console.error(reason);
+          }
+          if (!Number.isFinite(persistedInPosition) || persistedInPosition < 0) {
+            const reason = `[StateManager.load] Invalid flat-state inPosition quarantined: activeTrades empty but inPosition=${this.state.inPosition}`;
+            this.state.quarantinedTrades = [
+              ...this._normalizeQuarantinedTrades(this.state.quarantinedTrades),
+              {
+                tradeId: '<source_less_in_position>',
+                symbol: null,
+                code: DIRECTION_INTEGRITY_EXIT_REFUSAL,
+                status: 'quarantined',
+                source: 'StateManager.load',
+                quarantinedAt: new Date().toISOString(),
+                issues: [reason],
+                trade: {
+                  position: this.state.position,
+                  inPosition: this.state.inPosition,
+                  positionCount: this.state.positionCount,
+                  entryPrice: this.state.entryPrice,
+                  entryTime: this.state.entryTime,
+                },
+              },
+            ];
+            this.state.inPosition = 0;
+            correctedStateShape = true;
+            console.error(reason);
+          }
+          if (persistedInPosition > 0 || this.state.positionCount !== 0 || this.state.entryPrice !== 0 || this.state.entryTime !== null) {
+            const staleFlatState = {
+              inPosition: this.state.inPosition,
+              positionCount: this.state.positionCount,
+              entryPrice: this.state.entryPrice,
+              entryTime: this.state.entryTime,
+            };
+            this.state.inPosition = 0;
+            this.state.positionCount = 0;
+            this.state.entryPrice = 0;
+            this.state.entryTime = null;
+            correctedStateShape = true;
+            console.warn(`[StateManager] Cleared stale flat position metadata: ${JSON.stringify(staleFlatState)}`);
+          }
+        }
+        if (this._migrateLegacyTtpFlatnessPause(activeTradeCount)) {
+          correctedStateShape = true;
+        }
+        if (this._clearPersistedDataFeedLivenessPause()) {
+          correctedStateShape = true;
+        }
+        if (correctedStateShape) {
+          const saveResult = this.save({ suppressPersistenceFailureTrace: true });
+          if (saveResult && saveResult.success === false) {
+            this._recordStatePersistenceBoundaryFailure(
+              saveResult,
+              'StateManager.load',
+              {
+                correctedStateShape: true,
+                activeTradeCount: this.state.activeTrades instanceof Map ? this.state.activeTrades.size : null,
+              }
+            );
+          }
+        }
+        // Verify Map restoration
+        console.log(`[StateManager] Active trades restored: ${this.state.activeTrades.size} trades`);
+      } else {
+        const initialBalance = getConfigValue('backtest.initialBalance');
+        this.initializeFreshState(initialBalance, { source: 'StateManager.noPersistedState' });
+        console.log(`[StateManager] No persisted state; initialized configured starting balance $${initialBalance}`);
+      }
+    } catch (error) {
+      console.error('[StateManager] Failed to load state:', error);
+      this.state.lastError = error.message;
+      throw error;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SECTION: Internal Methods (Lock, Validation, Logging)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Validate state updates before applying.
+   * Throws if updates would create invalid state.
+   *
+   * @private
+   * @param {Object} updates - Proposed state updates
+   * @throws {Error} If updates would create negative position or balance
+   */
+  validateUpdates(updates) {
+    // Position can be negative for shorts - don't validate sign
+    // Only validate balance (can't go negative)
+    if (updates.balance !== undefined && updates.balance < 0) {
+      throw new Error('Cannot set negative balance');
+    }
+  }
+
+  /**
+   * Log a transaction for debugging/audit purposes.
+   * Maintains a rolling window of the last N transactions.
+   *
+   * @private
+   * @param {Object} transaction - Transaction record
+   * @param {number} transaction.timestamp - When transaction occurred
+   * @param {Object} transaction.updates - What was changed
+   * @param {Object} transaction.context - Why it was changed
+   * @param {Object} transaction.snapshot - State before change
+   */
+  logTransaction(transaction) {
+    this.transactionLog.push(transaction);
+    if (this.transactionLog.length > this.maxLogSize) {
+      this.transactionLog.shift();
+    }
+  }
+
+  /**
+   * Acquire exclusive lock for atomic operations.
+   * Uses a simple queue-based mutex to ensure only one update runs at a time.
+   *
+   * @private
+   * @async
+   * @returns {Promise<void>} Resolves when lock is acquired
+   */
+  async acquireLock() {
+    if (!this.locked) {
+      this.locked = true;
+      return;
+    }
+
+    // Wait for lock to be available
+    await new Promise(resolve => {
+      this.lockQueue.push(resolve);
+    });
+    this.locked = true;  // CRITICAL: Must set after wait completes
+  }
+
+  releaseLock() {
+    if (this.lockQueue.length > 0) {
+      const next = this.lockQueue.shift();
+      this.locked = false;  // Release lock
+      next();  // Wake next waiter
+    } else {
+      this.locked = false;  // Only release if no queue
+    }
+  }
+
+  // === LISTENERS ===
+
+  addListener(callback) {
+    this.listeners.add(callback);
+  }
+
+  removeListener(callback) {
+    this.listeners.delete(callback);
+  }
+
+  notifyListeners(updates, context) {
+    for (const listener of this.listeners) {
+      try {
+        listener(updates, context, this.getState());
+      } catch (error) {
+        console.error('[StateManager] Listener error:', error);
+      }
+    }
+
+    // CHANGE 2025-12-11: Broadcast to dashboard AFTER state changes
+    // This ensures dashboard always shows accurate, post-update state
+    try {
+      this.broadcastToDashboard(updates, context);
+    } catch (error) {
+      console.warn('[StateManager] state_update broadcast notification failed:', error.message);
+    }
+  }
+
+  // === DASHBOARD INTEGRATION ===
+  // CHANGE 2025-12-11: Dashboard gets state AFTER updates, never stale data
+
+  setDashboardWs(ws) {
+    const heartbeatMs = this._dashboardStateHeartbeatMs();
+    const closeMethod = this._dashboardSocketCloseMethod(ws);
+    this._assertDashboardSocketCanSend(ws);
+    this._assertDashboardSocketOpen(ws);
+    this._clearDashboardStateHeartbeat();
+    this.dashboardWs = ws;
+    console.log('[StateManager] Dashboard WebSocket connected');
+    try {
+      this.broadcastToDashboard({}, { reason: 'dashboard_connect' });
+    } catch (error) {
+      console.warn('[StateManager] dashboard_connect state_update failed:', error.message);
+    }
+    this._startDashboardStateHeartbeat(ws, heartbeatMs);
+    this._bindDashboardSocketClose(ws, closeMethod);
+  }
+
+  _dashboardStateHeartbeatMs() {
+    const heartbeatMs = Number(ConfigLoader.get('dashboard.stateUpdateHeartbeatMs'));
+    if (!Number.isFinite(heartbeatMs) || heartbeatMs <= 0) {
+      throw new Error(`ConfigLoader dashboard.stateUpdateHeartbeatMs must be positive milliseconds; got ${heartbeatMs}`);
+    }
+    return heartbeatMs;
+  }
+
+  _startDashboardStateHeartbeat(ws, heartbeatMs = this._dashboardStateHeartbeatMs()) {
+    this.dashboardHeartbeatInterval = setInterval(() => {
+      if (this.dashboardWs !== ws) return;
+      if (!ws || ws.readyState !== 1) {
+        console.warn('[StateManager] dashboard_heartbeat stopped; socket not open:', ws ? ws.readyState : 'missing');
+        this._clearDashboardStateHeartbeat();
+        if (this.dashboardWs === ws) this.dashboardWs = null;
+        return;
+      }
+      try {
+        this.broadcastToDashboard({}, { reason: 'dashboard_heartbeat' });
+      } catch (error) {
+        console.warn('[StateManager] dashboard_heartbeat state_update failed:', error.message);
+      }
+    }, heartbeatMs);
+    if (typeof this.dashboardHeartbeatInterval.unref === 'function') {
+      this.dashboardHeartbeatInterval.unref();
+    }
+  }
+
+  _clearDashboardStateHeartbeat() {
+    if (this.dashboardHeartbeatInterval) {
+      clearInterval(this.dashboardHeartbeatInterval);
+      this.dashboardHeartbeatInterval = null;
+    }
+  }
+
+  _dashboardSocketCloseMethod(ws) {
+    if (!ws) {
+      throw new Error('StateManager.setDashboardWs requires a dashboard WebSocket instance');
+    }
+    if (typeof ws.once === 'function') return 'once';
+    if (typeof ws.on === 'function') return 'on';
+    if (typeof ws.addEventListener === 'function') return 'addEventListener';
+    throw new Error('StateManager dashboard WebSocket must expose once, on, or addEventListener close binding');
+  }
+
+  _assertDashboardSocketCanSend(ws) {
+    if (typeof ws.send !== 'function') {
+      throw new Error('StateManager dashboard WebSocket must expose send method');
+    }
+  }
+
+  _assertDashboardSocketOpen(ws) {
+    if (ws.readyState !== 1) {
+      throw new Error(`StateManager dashboard WebSocket must be open; readyState=${ws.readyState}`);
+    }
+  }
+
+  _bindDashboardSocketClose(ws, closeMethod = this._dashboardSocketCloseMethod(ws)) {
+    const handleClose = () => {
+      if (this.dashboardWs === ws) {
+        console.warn('[StateManager] dashboard WebSocket closed; state_update broadcasts stopped');
+        this._clearDashboardStateHeartbeat();
+        this.dashboardWs = null;
+      }
+    };
+    if (closeMethod === 'once') {
+      ws.once('close', handleClose);
+    } else if (closeMethod === 'on') {
+      ws.on('close', handleClose);
+    } else if (closeMethod === 'addEventListener') {
+      ws.addEventListener('close', handleClose, { once: true });
+    }
+  }
+
+  _getActiveTradesForProjection(state = this.state) {
+    const trades = state.activeTrades;
+    if (trades instanceof Map) {
+      return Array.from(trades.values());
+    }
+    if (Array.isArray(trades)) {
+      return trades
+        .map((entry) => Array.isArray(entry) ? entry[1] : entry)
+        .filter(Boolean);
+    }
+    if (trades && typeof trades === 'object') {
+      return Object.values(trades).filter(Boolean);
+    }
+    return [];
+  }
+
+  _buildScopedDashboardPositions(state = this.state) {
+    const lastPrices = state.lastPrices instanceof Map
+      ? state.lastPrices
+      : new Map(Object.entries(state.lastPrices || {}));
+
+    return this._getActiveTradesForProjection(state).map((trade) => {
+      let symbol = null;
+      if (trade.symbol) {
+        try {
+          symbol = this.normalizeSymbol(String(trade.symbol), 'StateManager.dashboardPosition symbol');
+        } catch (_) {
+          symbol = null;
+        }
+      }
+
+      const action = trade.action || trade.type || null;
+      const side = strictActiveTradeDirection(trade);
+      const entryPrice = Number(trade.entryPrice ?? trade.price ?? 0);
+      const sizeUsd = Number(trade.sizeUsd ?? trade.size ?? 0);
+      const currentPriceRaw = symbol && lastPrices.has(symbol)
+        ? lastPrices.get(symbol)
+        : (trade.currentPrice ?? trade.lastPrice ?? entryPrice);
+      const currentPrice = Number(currentPriceRaw);
+      let unrealizedPnL = side === null ? null : 0;
+
+      if (
+        side !== null &&
+        Number.isFinite(entryPrice) &&
+        entryPrice > 0 &&
+        Number.isFinite(currentPrice) &&
+        Number.isFinite(sizeUsd)
+      ) {
+        unrealizedPnL = side === 'short'
+          ? sizeUsd * ((entryPrice - currentPrice) / entryPrice)
+          : sizeUsd * ((currentPrice - entryPrice) / entryPrice);
+      }
+
+      const brokerId = trade.brokerId || trade.broker || trade.brokerName || null;
+      const accountId = trade.accountId || trade.account || 'default';
+      const accountIdSource = trade.accountIdSource || (accountId !== 'default' ? 'trade' : 'default');
+      const hasExplicitAccountId = Boolean(accountId && accountId !== 'default' && accountIdSource !== 'default');
+      const assetClass = trade.assetClass || trade.assetType || null;
+      const executionMode = trade.executionMode || null;
+      const timeframe = trade.timeframe || null;
+      const scopeKey = trade.scopeKey || null;
+      const scopeKeyVersion = typeof scopeKey === 'string' && scopeKey.split(':').length >= 6 ? 2 : 1;
+
+      return {
+        tradeId: trade.id || trade.orderId || null,
+        orderId: trade.orderId || trade.id || null,
+        symbol,
+        broker: brokerId,
+        brokerId,
+        accountId,
+        accountIdSource,
+        assetClass,
+        executionMode,
+        timeframe,
+        scopeKey,
+        scopeKeyVersion,
+        scopeComplete: Boolean(symbol && brokerId && hasExplicitAccountId && assetClass && executionMode && timeframe && scopeKeyVersion >= 2),
+        action,
+        side,
+        directionIntegrityRefusal: side === null,
+        refusalCode: side === null ? 'active_trade_direction_unknown' : null,
+        status: trade.status || 'open',
+        sizeUsd: Number.isFinite(sizeUsd) ? sizeUsd : 0,
+        size: Number.isFinite(sizeUsd) ? sizeUsd : 0,
+        entryPrice: Number.isFinite(entryPrice) ? entryPrice : 0,
+        currentPrice: Number.isFinite(currentPrice) ? currentPrice : 0,
+        unrealizedPnL,
+        openedAt: trade.entryTime || trade.timestamp || null,
+        strategy: trade.strategy || trade.source || null,
+        reason: trade.reason || null,
+        tradeRevision: trade.tradeRevision,
+        operatorStop: trade.operatorStop ? clonePlain(trade.operatorStop) : null,
+        entryConfiguration: trade.frozenExitPolicy?.configuration ?? null,
+        entryPolicyHash: trade.frozenExitPolicy?.policyHash ?? null,
+        strategyStopLossPercent: trade.exitContract?.stopLossPercent ?? null
+      };
+    });
+  }
+
+  _getDashboardPricingStatus(state = this.state) {
+    const lastPrices = state.lastPrices instanceof Map
+      ? state.lastPrices
+      : new Map(Object.entries(state.lastPrices || {}));
+    const missingPriceSymbols = new Set();
+
+    for (const trade of this._getActiveTradesForProjection(state)) {
+      const rawSymbol = trade.symbol ? String(trade.symbol) : null;
+      let symbol = null;
+      if (rawSymbol) {
+        try {
+          symbol = this.normalizeSymbol(rawSymbol, 'StateManager.dashboardPricing symbol');
+        } catch (_) {
+          symbol = null;
+        }
+      }
+
+      const price = rawSymbol && lastPrices.has(rawSymbol)
+        ? Number(lastPrices.get(rawSymbol))
+        : null;
+
+      if (!Number.isFinite(price) || price <= 0) {
+        missingPriceSymbols.add(symbol || rawSymbol || trade.id || trade.orderId || 'unknown');
+      }
+    }
+
+    return {
+      pnlStatus: missingPriceSymbols.size > 0 ? 'unpriced_open_position' : 'priced',
+      pnlMissingPriceSymbols: [...missingPriceSymbols],
+    };
+  }
+
+  broadcastToDashboard(updates, context) {
+    if (!this.dashboardWs) return false;
+    if (this.dashboardWs.readyState !== 1) {
+      console.warn('[StateManager] state_update skipped; dashboard socket not open:', this.dashboardWs.readyState);
+      return false;
+    }
+
+    try {
+      const state = this.getState();
+      const positions = this._buildScopedDashboardPositions(state);
+      const pricingStatus = this._getDashboardPricingStatus(state);
+      const hasPricedOpenPositions = pricingStatus.pnlMissingPriceSymbols.length === 0;
+      const equity = hasPricedOpenPositions ? this.getEquity() : null;
+      const initialBalance = state.initialBalance;
+      const dashboardTotalPnL = equity != null ? equity - initialBalance : null;
+      const dashboardUnrealizedPnL = dashboardTotalPnL != null ? dashboardTotalPnL - state.realizedPnL : null;
+      const runtimeScope = this.getDashboardRuntimeScope();
+      const runtimeScopeStatus = runtimeScope
+        ? (runtimeScope.scopeComplete ? 'complete' : 'incomplete')
+        : 'unset';
+      const runtimeScopeMissing = runtimeScope
+        ? [...(runtimeScope.missingFields || [])]
+        : ['runtimeScope'];
+      const authoritativeRuntimeScope = runtimeScope && runtimeScope.scopeComplete && positions.length === 0
+        ? runtimeScope
+        : null;
+      // Win-rate truth (2026-07-01): computed from the SAME closedTrades
+      // ledger CandleProcessor uses for its winRate math. The dashboard header
+      // previously divided a browser-session-local win tally by the lifetime
+      // tradeCount — structurally wrong (mixed scopes) and rendered WIN 0%
+      // on any dashboard that connected after wins occurred.
+      const closedTrades = Array.isArray(state.closedTrades) ? state.closedTrades : [];
+      const winningTrades = closedTrades.filter(t => Number(t && t.pnl) > 0).length;
+      const losingTrades = closedTrades.filter(t => Number(t && t.pnl) < 0).length;
+
+      const dashboardState = {
+        position: state.position,
+        balance: state.balance,
+        totalBalance: state.totalBalance,
+        initialBalance,
+        equity,
+        realizedPnL: state.realizedPnL,
+        unrealizedPnL: dashboardUnrealizedPnL,
+        totalPnL: dashboardTotalPnL,
+        pnlStatus: pricingStatus.pnlStatus,
+        pnlMissingPriceSymbols: pricingStatus.pnlMissingPriceSymbols,
+        equityIntegrity: state.equityIntegrity || { status: 'trusted', excludedTrades: [] },
+        tradeCount: state.tradeCount,
+        closedTradeCount: closedTrades.length,
+        winningTrades,
+        losingTrades,
+        dailyTradeCount: state.dailyTradeCount,
+        quarantinedTrades: state.quarantinedTrades || [],
+        ttpCutoffQuarantine: state.ttpCutoffQuarantine || null,
+        brokerVerificationIntegrity: state.brokerVerificationIntegrity || { status: 'trusted', lanes: [] },
+        symbolEntryHalts: state.symbolEntryHalts || {},
+        runtimeScope,
+        runtimeScopeStatus,
+        runtimeScopeMissing,
+        ...(authoritativeRuntimeScope || {}),
+        positions,
+        scopedPositionCount: positions.length
+      };
+      this.dashboardWs.send(JSON.stringify({
+        type: 'state_update',
+        source: 'StateManager',
+        updates: updates,
+        context: context,
+        balance: dashboardState.balance,
+        totalBalance: dashboardState.totalBalance,
+        initialBalance: dashboardState.initialBalance,
+        equity: dashboardState.equity,
+        realizedPnL: dashboardState.realizedPnL,
+        unrealizedPnL: dashboardState.unrealizedPnL,
+        totalPnL: dashboardState.totalPnL,
+        pnlStatus: dashboardState.pnlStatus,
+        pnlMissingPriceSymbols: dashboardState.pnlMissingPriceSymbols,
+        equityIntegrity: dashboardState.equityIntegrity,
+        tradeCount: dashboardState.tradeCount,
+        dailyTradeCount: dashboardState.dailyTradeCount,
+        quarantinedTrades: dashboardState.quarantinedTrades,
+        ttpCutoffQuarantine: dashboardState.ttpCutoffQuarantine,
+        brokerVerificationIntegrity: dashboardState.brokerVerificationIntegrity,
+        symbolEntryHalts: dashboardState.symbolEntryHalts,
+        runtimeScope,
+        runtimeScopeStatus,
+        runtimeScopeMissing,
+        ...(authoritativeRuntimeScope || {}),
+        positions: dashboardState.positions,
+        scopedPositionCount: dashboardState.scopedPositionCount,
+        state: dashboardState,
+        timestamp: Date.now()
+      }));
+      return true;
+    } catch (error) {
+      console.warn('[StateManager] Dashboard state_update broadcast failed:', error.message);
+      return false;
+    }
+  }
+
+  // === DEBUGGING ===
+
+  getTransactionLog() {
+    return [...this.transactionLog];
+  }
+
+  printState() {
+    console.log('\n=== STATE SNAPSHOT ===');
+    console.log(`Position: ${this.state.position} @ ${this.state.entryPrice || 'N/A'}`);
+    console.log(`Balance: $${this.state.balance.toFixed(2)} (Total: $${this.state.totalBalance.toFixed(2)})`);
+    console.log(`P&L: $${this.state.totalPnL.toFixed(2)} (Realized: $${this.state.realizedPnL.toFixed(2)})`);
+    console.log(`Trades: ${this.state.tradeCount} total, ${this.state.dailyTradeCount} today`);
+    console.log('======================\n');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION: Module Exports (Singleton Pattern)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** @type {StateManager|null} Singleton instance */
+let instance = null;
+
+/**
+ * Get the singleton StateManager instance.
+ * Creates the instance on first call, returns existing on subsequent calls.
+ *
+ * @function getInstance
+ * @returns {StateManager} The singleton StateManager instance
+ *
+ * @example
+ * const { getInstance } = require('./core/StateManager');
+ * const stateManager = getInstance();
+ * const state = stateManager.getState();
+ */
+module.exports = {
+  getInstance: () => {
+    if (!instance) {
+      instance = new StateManager();
+    }
+    return instance;
+  },
+  /** @type {typeof StateManager} The StateManager class (for testing) */
+  StateManager
+};

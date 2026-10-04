@@ -1,0 +1,9 @@
+{
+  "orbRealFvgSignalActive": true,
+  "orbNoDisabledSignalOrConsumption": true,
+  "liquidityRealEngulfingSignalActive": true,
+  "liquidityNoDisabledSignalOrConsumption": true,
+  "noWickRealTrendAndEntryActive": true,
+  "noWickObservedLevelNotConsumed": true,
+  "limits": "ORB uses actual candle pattern; liquidity uses explicitly seeded prior valid session state then actual candle/pattern/generation path. NoWick seeds a prior pending level then uses actual trend/touch/exit calculations. No executed trade."
+}

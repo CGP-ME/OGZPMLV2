@@ -1,0 +1,42 @@
+{
+  "pass": true,
+  "cases": [
+    {
+      "action": "BUY",
+      "absoluteCapPercent": 0.1,
+      "reason": "absolute_position_cap",
+      "quantity": 1
+    },
+    {
+      "action": "BUY",
+      "absoluteCapPercent": 0.2,
+      "reason": "absolute_position_cap",
+      "quantity": 2
+    },
+    {
+      "action": "BUY",
+      "absoluteCapPercent": 0.8,
+      "reason": "configured_position_maximum",
+      "quantity": 2
+    },
+    {
+      "action": "SELL_SHORT",
+      "absoluteCapPercent": 0.1,
+      "reason": "absolute_position_cap",
+      "quantity": 1
+    },
+    {
+      "action": "SELL_SHORT",
+      "absoluteCapPercent": 0.2,
+      "reason": "absolute_position_cap",
+      "quantity": 2
+    },
+    {
+      "action": "SELL_SHORT",
+      "absoluteCapPercent": 0.8,
+      "reason": "configured_position_maximum",
+      "quantity": 2
+    }
+  ],
+  "limits": "Actual methods, explicit fixture collaborators, no broker"
+}

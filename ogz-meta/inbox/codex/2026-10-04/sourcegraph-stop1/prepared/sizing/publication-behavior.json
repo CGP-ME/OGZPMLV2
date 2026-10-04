@@ -1,0 +1,10 @@
+{
+  "pass": true,
+  "forcedReplacementRejectedCases": 16,
+  "validReplacementPublished": true,
+  "limits": [
+    "Actual load and replacement-validator functions; buildSnapshot and independent confidence validators are explicit fixture collaborators",
+    "Initial malformed startup file handling unchanged; no new startup throw added",
+    "No broker or PM2 activation"
+  ]
+}

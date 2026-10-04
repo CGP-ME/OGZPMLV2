@@ -1,0 +1,23 @@
+{
+  "heldDisabledEvaluations": 600,
+  "retainedRegistrations": 16,
+  "retainedSymbolModules": [
+    "BreakRetest",
+    "OpeningRangeBreakout",
+    "EMASMACrossover",
+    "LiquiditySweep",
+    "OGZTPO",
+    "MtfConfluenceService",
+    "MADynamicSR",
+    "SmartMoneySweep",
+    "DonchianBreakout",
+    "PropSafeEMAPullback",
+    "EMATrendRetest",
+    "RSI2MeanReversion",
+    "TimeSeriesMomentum"
+  ],
+  "twoSymbolTpo": true,
+  "reenabledSameObjects": true,
+  "configWritesOnlyInMemory": true,
+  "limits": "Actual full orchestrator with synthetic candles and in-memory ConfigLoader save; no broker/PM2 or exhaustive strategy pattern coverage."
+}

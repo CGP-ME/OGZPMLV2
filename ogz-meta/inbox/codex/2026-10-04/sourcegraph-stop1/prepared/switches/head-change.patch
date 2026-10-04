@@ -1,0 +1,161 @@
+===================================================================
+--- a/core/StrategyOrchestrator.js
++++ b/core/StrategyOrchestrator.js
+@@ -1974,8 +1974,9 @@
+           ctx.extras?.symbol,
+           tpoIntegrationModule,
+           () => new OgzTpoIntegration(ogzTpoConfig)
+         );
++        scopedTpoIntegration.config.enabled = ConfigLoader.get('pipeline.enableOGZTPO');
+         const tpoBarTimestamp = latestCandle.etime
+           ?? latestCandle.timestamp
+           ?? latestCandle.time
+           ?? latestCandle.t
+@@ -2207,15 +2208,19 @@
+         ).evaluate(ctx, ConfigLoader.get('strategies.TimeSeriesMomentum'))
+       });
+     }
+ 
+-    // Apply pipeline toggles - filter strategies based on env vars
++    // Apply canonical pipeline settings to the retained strategy registrations.
++    // Keep the registered closures and per-symbol state when an operator
++    // changes which strategies may supply NEW entries.
++    this.registeredStrategies = this.strategies.slice();
++    this.builtinStrategies = new Set(this.registeredStrategies);
+     this._applyPipelineToggles();
+   }
+ 
+   /**
+    * Filter registered strategies based on pipeline toggles.
+-   * Called once at end of _registerBuiltinStrategies().
++   * Called at construction and before the first decision after a settings save.
+    * Logs exactly which strategies are active/disabled - no silent failures.
+    */
+   _applyPipelineToggles() {
+     const pipeline = ConfigLoader.get('pipeline');
+@@ -2236,20 +2241,16 @@
+       'EMATrendRetest': pipeline.enableEMATrendRetest,
+       'RSI2MeanReversion': pipeline.enableRSI2MeanReversion,
+       'TimeSeriesMomentum': pipeline.enableTimeSeriesMomentum,
+     };
+-    const before = this.strategies.length;
++    const before = this.registeredStrategies.length;
+     const disabled = [];
+ 
+-    this.strategies = this.strategies.filter(s => {
++    this.strategies = this.registeredStrategies.filter(s => {
++      // The explicit custom-strategy API has no built-in pipeline switch.
++      if (!this.builtinStrategies.has(s)) return true;
+       const toggle = toggleMap[s.name];
+-      if (typeof toggle !== 'boolean') {
+-        throw new Error(`[PIPELINE] ${s.name} pipeline toggle must be boolean; got ${toggle}. Check config path pipeline.${s.name}`);
+-      }
+       if (toggle === false) {
+-        if (this.soloStrategies && this.soloStrategies.includes(s.name.toLowerCase())) {
+-          throw new Error(`[STRATEGY_SOLO_FILTER] ${s.name} was requested but its pipeline toggle is disabled; enable it in config or remove it from strategies.soloFilter`);
+-        }
+         disabled.push(s.name);
+         return false;
+       }
+       return true;
+@@ -2258,8 +2259,9 @@
+     if (disabled.length > 0) {
+       console.log(`[PIPELINE] Disabled ${disabled.length} strategies: ${disabled.join(', ')}`);
+     }
+     console.log(`[PIPELINE] Active strategies: ${this.strategies.map(s => s.name).join(', ')} (${this.strategies.length}/${before})`);
++    this.pipelineConfiguration = ConfigLoader.load().fingerprint;
+   }
+ 
+   /**
+    * Main entry point — evaluate all strategies independently, pick winner.
+@@ -2271,8 +2273,9 @@
+    * @param {Object} extras - { emaCrossoverSignal, maDynamicSRSignal, liquiditySweepSignal, mtfAdapter, tpoResult, price }
+    * @returns {Object} { action, direction, confidence, winnerStrategy, exitContract, sizingMultiplier, confluence, allResults }
+    */
+   evaluate(indicators, patterns = [], regime = null, priceHistory = [], extras = {}) {
++    if (this.pipelineConfiguration !== ConfigLoader.load().fingerprint) this._applyPipelineToggles();
+     this.evalCount++;
+ 
+     const entrySizingInput = ConfigLoader.getEntrySizingInput();
+     const ctx = { indicators, patterns, regime, priceHistory, extras };
+@@ -3086,18 +3089,23 @@
+   registerStrategy(strategy) {
+     if (!strategy.name || typeof strategy.evaluate !== 'function') {
+       throw new Error('Strategy must have name and evaluate function');
+     }
+-    this.strategies.push(strategy);
+-    console.log(`📌 [StrategyOrchestrator] Registered strategy: ${strategy.name}`);
++    this.registeredStrategies.push(strategy);
++    this._applyPipelineToggles();
++    console.log(`[StrategyOrchestrator] Registered strategy: ${strategy.name}`);
+   }
+ 
+   /**
+    * Remove a strategy by name
+    */
+   removeStrategy(name) {
+-    this.strategies = this.strategies.filter(s => s.name !== name);
+-    console.log(`🗑️ [StrategyOrchestrator] Removed strategy: ${name}`);
++    for (const strategy of this.registeredStrategies) {
++      if (strategy.name === name) this.builtinStrategies.delete(strategy);
++    }
++    this.registeredStrategies = this.registeredStrategies.filter(s => s.name !== name);
++    this._applyPipelineToggles();
++    console.log(`[StrategyOrchestrator] Removed strategy: ${name}`);
+   }
+ 
+   /**
+    * Forward trade result to strategy module for daily loss tracking
+===================================================================
+--- a/foundation/ConfigLoader.js
++++ b/foundation/ConfigLoader.js
+@@ -2578,8 +2578,29 @@
+ // This is the delivered hot-edit surface, not a list of every declared setting.
+ // Add fields only with their producer/consumer connection in the same change.
+ const EDITABLE_SETTINGS = deepFreeze({
+   ...Object.fromEntries([
++    ['enableRSI', 'RSI'],
++    ['enableMADynamicSR', 'MADynamicSR'],
++    ['enableEMACrossover', 'EMA crossover'],
++    ['enableLiquiditySweep', 'Liquidity sweep'],
++    ['enableCandlePattern', 'Candle pattern'],
++    ['enableBreakRetest', 'Break and retest'],
++    ['enableMarketRegime', 'Market regime'],
++    ['enableOGZTPO', 'OGZ TPO'],
++    ['enableOpeningRangeBreakout', 'Opening range breakout'],
++    ['enableSmartMoneySweep', 'Smart money sweep'],
++    ['enableNoWickImbalance', 'No wick imbalance'],
++    ['enableDonchianBreakout', 'Donchian breakout'],
++    ['enablePropSafeEMAPullback', 'PropSafe EMA pullback'],
++    ['enableEMATrendRetest', 'EMA trend retest'],
++    ['enableRSI2MeanReversion', 'RSI2 mean reversion'],
++    ['enableTimeSeriesMomentum', 'Time series momentum'],
++  ].map(([key, label]) => [`pipeline.${key}`, {
++    type: 'boolean', unit: 'boolean', scope: 'active_launch_profile',
++    label: `Enable ${label} strategy`, effect: 'next_entry_evaluation',
++  }])),
++  ...Object.fromEntries([
+     ['manipCandle', 'Liquidity sweep manipulation-candle confidence weight'],
+     ['wickSweep', 'Liquidity sweep wick confidence weight'],
+     ['sweepReject', 'Liquidity sweep rejection confidence weight'],
+     ['hammerPattern', 'Liquidity sweep hammer confidence weight'],
+@@ -3054,13 +3075,17 @@
+   }
+   if (entries.some(([key]) => key.startsWith('positionSizing.confluenceMultipliers.'))) {
+     nextConfig.sizing = cloneConfiguredObject(nextConfig.positionSizing);
+   }
++  const nextSources = clonePlain(_cached.sources);
++  if (entries.some(([key]) => key.startsWith('pipeline.enable'))) {
++    refreshDerivedAliases(nextConfig, nextSources);
++  }
+   nextConfig.revision = nextSettings.revision;
+   const revisions = { ..._cached.revisions, settings: nextSettings.revision, settingsHash: canonicalHash(nextSettings) };
+-  const nextSnapshot = { ..._cached, config: deepFreeze(nextConfig), entrySizing: nextEntrySizing, revisions: Object.freeze(revisions),
++  const nextSnapshot = { ..._cached, config: deepFreeze(nextConfig), sources: deepFreeze(nextSources), entrySizing: nextEntrySizing, revisions: Object.freeze(revisions),
+     timestamp: new Date().toISOString(),
+-    fingerprint: fingerprint(nextConfig, _cached.sources, { role: _cached.role,
++    fingerprint: fingerprint(nextConfig, nextSources, { role: _cached.role,
+       revisions: { settings: revisions.settings, internals: revisions.internals } }) };
+   try {
+     writeJsonAtomic(SETTINGS_PATH, nextSettings, { flag: 'wx' });
+   } catch (error) {

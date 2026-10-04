@@ -1,0 +1,44 @@
+diff --git a/foundation/ConfigLoader.js b/foundation/ConfigLoader.js
+index 540a9d4a..958149b4 100644
+--- a/foundation/ConfigLoader.js
++++ b/foundation/ConfigLoader.js
+@@ -2483,6 +2483,20 @@ function timeSeriesMomentumConfidenceReplacementProblem(config) {
+   return null;
+ }
+ 
++function rsiConfidenceReplacementProblem(config) {
++  const cfg = config.strategies?.RSI;
++  for (const key of ['confidenceBase', 'confidenceDepthRange', 'confidenceDepthMultiplier', 'maxConfidence']) {
++    const problem = { reason: 'invalid_rsi_confidence', path: `strategies.RSI.${key}` };
++    const raw = cfg?.[key];
++    if ((typeof raw !== 'number' && typeof raw !== 'string')
++        || (typeof raw === 'string' && raw.trim() === '')) return problem;
++    const value = Number(raw);
++    if (!Number.isFinite(value)) return problem;
++    if (key === 'confidenceDepthRange' ? value < 0.000001 : value < 0 || value > 1) return problem;
++  }
++  return null;
++}
++
+ function rsi2ConfidenceReplacementProblem(config) {
+   const cfg = config.strategies?.RSI2MeanReversion;
+   const confidence = {};
+@@ -2547,6 +2561,7 @@ function load(opts = {}) {
+       || maDynamicSRConfidenceReplacementProblem(candidate.config)
+       || liquiditySweepWeightsReplacementProblem(candidate.config)
+       || timeSeriesMomentumConfidenceReplacementProblem(candidate.config)
++      || rsiConfidenceReplacementProblem(candidate.config)
+       || rsi2ConfidenceReplacementProblem(candidate.config)
+       || emaRetestConfidenceReplacementProblem(candidate.config);
+     if (problem) {
+@@ -3070,6 +3085,10 @@ function saveSettings(request) {
+     const problem = timeSeriesMomentumConfidenceReplacementProblem(nextConfig);
+     if (problem) return reject(problem.reason, { path: problem.path });
+   }
++  if (entries.some(([key]) => key.startsWith('strategies.RSI.'))) {
++    const problem = rsiConfidenceReplacementProblem(nextConfig);
++    if (problem) return reject(problem.reason, { path: problem.path });
++  }
+   if (entries.some(([key]) => key.startsWith('strategies.RSI2MeanReversion.'))) {
+     const problem = rsi2ConfidenceReplacementProblem(nextConfig);
+     if (problem) return reject(problem.reason, { path: problem.path });

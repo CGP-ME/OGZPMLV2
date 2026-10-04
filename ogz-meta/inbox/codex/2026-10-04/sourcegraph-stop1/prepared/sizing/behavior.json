@@ -1,0 +1,30 @@
+{
+  "pass": true,
+  "flat": {
+    "positionSize": 100,
+    "confidenceMultiplier": 1
+  },
+  "boosted": {
+    "positionSize": 150,
+    "confidenceMultiplier": 1.5
+  },
+  "results": [
+    {
+      "action": "BUY",
+      "wholeShareRounded": 100,
+      "confluenceCapped": 200,
+      "minimumAboveCeiling": 0
+    },
+    {
+      "action": "SELL_SHORT",
+      "wholeShareRounded": 100,
+      "confluenceCapped": 200,
+      "minimumAboveCeiling": 0
+    }
+  ],
+  "limits": [
+    "Actual sizing and entry-plan/share methods with explicit fixtures; policy/ownership collaborators stubbed",
+    "No broker submission, fills or activation"
+  ],
+  "fixtureCorrection": "Initial expected fractional stock value 150 corrected to existing whole-share normalization 100; no production change for this correction"
+}

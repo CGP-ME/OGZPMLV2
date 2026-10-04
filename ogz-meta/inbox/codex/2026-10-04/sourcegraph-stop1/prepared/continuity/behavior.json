@@ -1,0 +1,21 @@
+{
+  "samples": 440,
+  "disabledEvents": 0,
+  "continuousReferenceMatches": true,
+  "sameTimestampReplacement": true,
+  "symbols": [
+    {
+      "symbol": "AAA",
+      "bars": 220,
+      "oldGappedBars": 110,
+      "lastTpo": -0.34403807233958444
+    },
+    {
+      "symbol": "BBB",
+      "bars": 220,
+      "oldGappedBars": 110,
+      "lastTpo": -0.344038072339584
+    }
+  ],
+  "limits": "Actual integration module + indicator, independent per-symbol instances. Full orchestrator dispatch not exercised in this probe."
+}

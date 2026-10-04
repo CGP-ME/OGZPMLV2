@@ -1,0 +1,56 @@
+{
+  "saves": 8,
+  "rejections": 52,
+  "first": {
+    "stopLossPercent": -5.048543689320389,
+    "stopType": "structural",
+    "atrStopMult": 2,
+    "atrPeriod": 5,
+    "takeProfitPercent": null,
+    "tpMode": "off",
+    "trailingStopPercent": null,
+    "trailingActivation": null,
+    "trailType": "channel",
+    "trailChannelBars": 7,
+    "maxHoldTimeMinutes": null,
+    "maxHoldMode": "off",
+    "partialExit": {
+      "enabled": false,
+      "triggerR": 1,
+      "fraction": 0.5,
+      "remainderTrail": "terrain"
+    },
+    "donchianChannelUpper": 101,
+    "donchianChannelLower": 99,
+    "invalidationConditions": [
+      "donchian_channel_reentry"
+    ]
+  },
+  "second": {
+    "stopLossPercent": -6.917475728155339,
+    "stopType": "structural",
+    "atrStopMult": 3,
+    "atrPeriod": 8,
+    "takeProfitPercent": null,
+    "tpMode": "off",
+    "trailingStopPercent": null,
+    "trailingActivation": null,
+    "trailType": "channel",
+    "trailChannelBars": 9,
+    "maxHoldTimeMinutes": null,
+    "maxHoldMode": "off",
+    "partialExit": {
+      "enabled": false,
+      "triggerR": 1,
+      "fraction": 0.5,
+      "remainderTrail": "terrain"
+    },
+    "donchianChannelUpper": 101,
+    "donchianChannelLower": 99,
+    "invalidationConditions": [
+      "donchian_channel_reentry"
+    ]
+  },
+  "finalPeriod": 6,
+  "limits": "Actual save/reload and retained Donchian module with actual IndicatorCalculator, synthetic candles; disk writes intercepted in memory. No broker/full orchestrator/provider/runtime. Non-numeric configuration invariants and initial malformed startup unchanged."
+}

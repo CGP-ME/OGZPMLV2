@@ -1,0 +1,3457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Empty WS-token placeholder. Public dashboard HTML MUST NOT carry
+         WEBSOCKET_AUTH_TOKEN; real auth belongs in a gated ticket/session flow. -->
+    <meta name="ws-token" content="">
+    <title>OGZPrime Unified Trading System - Live Dashboard</title>
+    <!-- TradingView Lightweight Charts v4.1 -->
+    <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+    <link rel="stylesheet" href="/css/dashboard.css?v=1777847456749">
+    <link rel="stylesheet" href="/css/trading-panel.css?v=1777847456749">
+    <link rel="stylesheet" href="/css/asset-tf-card.css?v=1777847456749">
+    <link rel="stylesheet" href="/css/header-brand.css?v=1777847456749">
+    <link rel="stylesheet" href="/css/golden-proximity.css?v=1777847456749">
+    <link rel="stylesheet" href="/css/pattern-sparkline.css?v=1777847456749">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Orbitron:wght@400;700;900&display=swap');
+        /* TODO: Self-host fonts via public/css/fonts/*.woff2 + @font-face declarations */
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --bg-primary: #000000;
+            --bg-secondary: #0a0a0a;
+            --bg-panel: rgba(20, 20, 20, 0.9);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            
+            /* Version-specific colors */
+            --core-color: #00ccff;
+            --ml-color: #ffd700;
+            
+            --profit-color: #00ff88;
+            --loss-color: #ff3366;
+            --neutral-color: #8b8b8b;
+            
+            --metallic-gradient: linear-gradient(135deg, #c0c0c0 0%, #808080 50%, #c0c0c0 100%);
+            --core-gradient: linear-gradient(135deg, #00ccff 0%, #4dddff 50%, #00ccff 100%);
+            --ml-gradient: linear-gradient(135deg, #ffd700 0%, #ffed4e 50%, #ffd700 100%);
+        }
+        
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            overflow-y: auto;  /* CHANGE 2026-01-31: Allow page scroll for full content */
+            min-height: 100vh;
+            /* CHANGE 2026-04-24: user reported "black circle cursor, can't see
+               shit with it." Forcing `cursor: auto` lets the OS theme pick
+               its default visible cursor (usually white-with-black-outline
+               on light themes, yellow/white on dark themes). The previous
+               `cursor: default` on dark backgrounds renders as a mostly-
+               black arrow on some Chrome+forced-dark-mode configs which is
+               likely what the user was seeing. */
+            cursor: auto;
+            position: relative;
+        }
+        html {
+            cursor: auto;
+        }
+
+        /* === RESIZABLE RAILS — driven by --left-rail-width / --right-rail-width.
+           rail-resize.js mutates these on drag + persists to localStorage.
+           Defaults set here are the historical 320px; clamped 200-600 by JS. */
+        :root {
+            --left-rail-width: 320px;
+            --right-rail-width: 320px;
+            --rail-gap: 20px;
+        }
+
+        /* Drag handles — 6px-wide vertical bars hugging each rail's chart-side edge */
+        .rail-resize-handle {
+            position: fixed;
+            top: 100px;
+            bottom: 20px;
+            width: 6px;
+            cursor: col-resize;
+            z-index: 99;
+            background: transparent;
+            transition: background 120ms ease;
+        }
+        .rail-resize-handle:hover,
+        .rail-resize-handle.dragging {
+            background: rgba(220, 38, 38, 0.45);
+            box-shadow: 0 0 12px rgba(220, 38, 38, 0.35);
+        }
+        #leftRailResize  { left: calc(var(--left-rail-width) + 12px); }
+        #rightRailResize { right: calc(var(--right-rail-width) + 12px); }
+        body.rail-dragging,
+        body.rail-dragging * {
+            user-select: none !important;
+            cursor: col-resize !important;
+        }
+
+        /* Background effects */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(255, 215, 0, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 80% 50%, rgba(0, 255, 255, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        /* Header — restructured 2026-04-25 to a flex row:
+           [logo+tagline LEFT] [hero-price CENTER] [status cluster RIGHT].
+           Replaces the previous text-align:center layout to match
+           the mockup's three-zone header. */
+        .header {
+            background: linear-gradient(180deg, #0d0d1a 0%, #080812 100%);
+            padding: 12px 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
+            position: relative;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+        /* .logo + .tagline rules moved to public/css/header-brand.css
+           (2026-04-25 L6 logo restyle + modular extraction). */
+
+        /* Hero price (CENTER zone) — big centered $price + delta + %.
+           Mirrors #currentPrice via JS so chart.js's existing write
+           path keeps working. */
+        .header-hero-price {
+            flex: 1;
+            text-align: center;
+            min-width: 0;
+        }
+        .hero-price-main {
+            font-family: 'Orbitron', monospace;
+            font-size: 36px;
+            font-weight: 800;
+            color: #22c55e;
+            letter-spacing: 1.5px;
+            text-shadow: 0 0 22px rgba(34, 197, 94, 0.4);
+            line-height: 1;
+        }
+        .hero-price-main.neg {
+            color: #ef4444;
+            text-shadow: 0 0 22px rgba(239, 68, 68, 0.4);
+        }
+        .hero-price-delta {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: #888;
+            margin-top: 4px;
+            letter-spacing: 0.5px;
+        }
+        .hero-price-delta.pos { color: #22c55e; }
+        .hero-price-delta.neg { color: #ef4444; }
+
+        /* Status cluster (RIGHT zone) — holds the lights triad,
+           risk gauge mount, and session phase indicator inline.
+           2026-04-27 hardening: margin-left:auto forces this cluster to
+           the right edge of the flex parent regardless of whether
+           justify-content:space-between is being honored (defense against
+           cascade collisions where another rule overrides the parent
+           layout). Trey's screenshot showed the Risk Gauge "0%" overlapping
+           the OGZPRIME logo on the LEFT — this auto-margin pushes the
+           whole cluster (and therefore the gauge inside it) to the right
+           even if the header's flex layout breaks down for any reason.
+           justify-self:end as a CSS-grid backup if the parent ever flips
+           to grid. */
+        .header-status-cluster {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 0 0 auto;
+            margin-left: auto;
+            justify-self: end;
+        }
+
+        /* Brand zone (LEFT) — logo + tagline stacked vertically. */
+        .header-brand {
+            display: flex;
+            flex-direction: column;
+            flex: 0 0 auto;
+            min-width: 0;
+        }
+        
+        /* Tier Selector - Prominent placement */
+        .tier-selector-container {
+            position: absolute;
+            top: 20px;
+            right: 80px; /* Moved left to avoid theme-customizer at right:20px */
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            z-index: 15;
+        }
+        
+        .tier-label {
+            color: var(--ml-color);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .tier-selector {
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid var(--ml-color);
+            color: var(--ml-color);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-family: 'Orbitron', monospace;
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+            min-width: 250px;
+        }
+        
+        .tier-selector:hover {
+            background: rgba(0, 255, 255, 0.1);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+            transform: translateY(-2px);
+        }
+        
+        .tier-selector option {
+            background: #000;
+            color: #fff;
+            padding: 5px;
+        }
+        
+        /* Dynamic border color based on selected version */
+        .tier-core .tier-selector { border-color: var(--core-color); color: var(--core-color); }
+        .tier-ml .tier-selector { border-color: var(--ml-color); color: var(--ml-color); }
+        
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff0040;
+            animation: statusPulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: var(--profit-color);
+        }
+
+        @keyframes statusPulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+
+        /* CHANGE 2026-01-22: Multi-status lights bar */
+        .status-lights-bar {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 8px 15px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-left: 15px;
+        }
+
+        .status-light {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-light .light {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #444;
+            box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .status-light .light.green {
+            background: #00ff88;
+            box-shadow: 0 0 8px rgba(0, 255, 136, 0.6);
+        }
+
+        .status-light .light.yellow {
+            background: #ffcc00;
+            box-shadow: 0 0 8px rgba(255, 204, 0, 0.6);
+            animation: statusPulse 1.5s infinite;
+        }
+
+        .status-light .light.red {
+            background: #ff3366;
+            box-shadow: 0 0 8px rgba(255, 51, 102, 0.6);
+        }
+
+        .status-light .label {
+            color: #888;
+        }
+
+        .status-light .light.green + .label {
+            color: #00ff88;
+        }
+
+        .status-light .light.yellow + .label {
+            color: #ffcc00;
+        }
+
+        .status-light .light.red + .label {
+            color: #ff3366;
+        }
+        
+        /* Main Container
+           2026-04-25: Both rails active again. Edge Analytics on the LEFT
+           (340px), trading-panel narrative grid relocated to the RIGHT
+           (340px). Chart + headers fill the center column. Mirrors mockup
+           layout. */
+        .main-container {
+            padding: 10px;
+            /* Dynamic — tracks the resizable rails. Adds 20px gap on each side. */
+            padding-left: calc(var(--left-rail-width, 320px) + 20px);
+            padding-right: calc(var(--right-rail-width, 320px) + 20px);
+            position: relative;
+            z-index: 5;
+            transition: padding 0.3s ease;
+        }
+
+        /* Dynamic padding when panels collapse */
+        .main-container.left-collapsed {
+            padding-left: 60px;
+        }
+
+        .main-container.right-collapsed {
+            padding-right: 60px;
+        }
+        
+        /* Unified Chart Section */
+        .unified-chart-section {
+            background: var(--bg-panel);
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8);
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+
+        /* @supports fallback so Firefox<103 / older Edge don't render
+           the chart panel fully transparent. This is Phase A code
+           touched defensively on pass-4 of the Phase B audit. */
+        @supports not ((backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px))) {
+            .unified-chart-section {
+                background: rgba(14, 14, 16, 0.94);
+            }
+        }
+        
+        /* Dynamic version border highlighting */
+        .tier-core .unified-chart-section { border-color: var(--core-color); }
+        .tier-ml .unified-chart-section { border-color: var(--ml-color); }
+        
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .chart-title-container {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .chart-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 28px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s ease;
+        }
+        
+        .price-display {
+            font-size: 20px;
+            font-weight: 700;
+            padding: 8px 20px;
+            border-radius: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--profit-color);
+            color: var(--profit-color);
+            font-family: 'Orbitron', monospace;
+        }
+        
+        /* Dynamic version coloring */
+        .tier-core .chart-title {
+            background: var(--core-gradient);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(0, 204, 255, 0.8);
+        }
+
+        .tier-ml .chart-title {
+            background: var(--ml-gradient);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+        }
+        
+        .chart-controls {
+            display: flex;
+            gap: 10px;
+            /* Allow children to wrap onto a second line so the indicator strip
+               can claim its own full-width row below the selectors instead of
+               being squeezed by them. */
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .indicator-checkboxes {
+            /* Layout (display, flex-wrap, gap, max-width) lives in the more-specific
+               #indicatorCheckboxes rule below. This class rule only carries the
+               visual chrome (background, border, padding) so both selectors don't
+               fight over flex behavior. */
+            background: rgba(26, 0, 0, 0.8);
+            border: 1px solid #ff0040;
+            border-radius: 5px;
+            padding: 8px;
+        }
+
+        .indicator-check {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            user-select: none;
+            font-size: 13px;  /* Increased from 11px */
+            color: #fff;
+            font-family: 'JetBrains Mono', monospace;
+            padding: 3px 6px;
+            border-radius: 3px;
+            transition: background 0.2s;
+        }
+
+        .indicator-check:hover {
+            background: rgba(255, 0, 64, 0.1);
+        }
+
+        .indicator-check input[type="checkbox"] {
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .color-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        select, button {
+            background: rgba(26, 0, 0, 0.8);
+            color: #fff;
+            border: 1px solid #ff0040;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+            text-transform: uppercase;
+            transition: all 0.3s;
+        }
+        
+        select:hover, button:hover {
+            background: #ff0040;
+            box-shadow: 0 0 15px rgba(255, 0, 64, 0.6);
+            transform: translateY(-2px);
+        }
+        
+        /* Chart Container - TradingView.  Phase A polish: subtle red inner
+           border + outer glow so the chart feels like a focal panel. */
+        .chart-container {
+            position: relative;
+            background: #0a0a0a;
+            border-radius: 10px;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid rgba(220, 38, 38, 0.18);
+            box-shadow:
+                0 0 0 1px rgba(255,255,255,0.02) inset,
+                0 8px 40px -12px rgba(220, 38, 38, 0.25),
+                0 0 60px -20px rgba(220, 38, 38, 0.15);
+            height: calc(100vh - 200px);  /* CHANGE 2026-01-28: Fill viewport minus header */
+            min-height: 500px;
+            width: 100%;
+        }
+
+        #tvChartContainer {
+            width: 100%;
+            height: 100%;
+            border-radius: 8px;
+            cursor: crosshair;  /* CHANGE 2026-01-23: Crosshair only on chart */
+        }
+
+        /* Phase A · Floating price HUD inside the chart, top-right corner.
+           Updated from chart.js on every tick. Orbitron for the price,
+           JetBrains Mono for the OHLC line. Pointer-events off so it
+           doesn't steal hovers from candles underneath.
+           Hidden by default — chart.js reveals when storedCandles is
+           non-empty so we don't render "$0.00 / 0.00 0.00 0.00 0.00"
+           on cold-boot when no historical data has loaded yet. */
+        #chartHud {
+            position: absolute;
+            top: 16px;
+            right: 60px;
+            z-index: 20;
+            pointer-events: none;
+            padding: 10px 16px;
+            background: rgba(10, 10, 10, 0.72);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            box-shadow: 0 8px 30px -14px rgba(0,0,0,0.8);
+            user-select: none;
+            visibility: hidden;
+        }
+        #chartHudPrice {
+            font-family: 'Orbitron', 'Inter', sans-serif;
+            font-weight: 700;
+            font-size: 28px;
+            line-height: 1;
+            color: #22c55e;
+            text-shadow: 0 0 10px rgba(34,197,94,0.45);
+            letter-spacing: 0.5px;
+        }
+        #chartHudOhlc {
+            margin-top: 6px;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 10px;
+            color: #999;
+            letter-spacing: 0.3px;
+        }
+        
+        /* Multiple Bot Status Display */
+        .bot-status-row {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            gap: 15px;
+            z-index: 15;
+        }
+        
+        .bot-status-indicator {
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;  /* Increased for readability */
+            font-weight: 700;
+            text-transform: uppercase;
+            border: 1px solid;
+            transition: all 0.3s ease;
+        }
+        
+        .bot-status-indicator.core {
+            background: rgba(0, 204, 255, 0.1);
+            border-color: var(--core-color);
+            color: var(--core-color);
+        }
+
+        .bot-status-indicator.ml {
+            background: rgba(255, 215, 0, 0.1);
+            border-color: var(--ml-color);
+            color: var(--ml-color);
+        }
+        
+        .bot-status-indicator.active {
+            animation: botPulse 1s infinite;
+        }
+        
+        @keyframes botPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* Indicator Overlays */
+        .indicator-overlay {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9) 0%, rgba(20, 20, 20, 0.9) 100%);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            border-radius: 12px;
+            padding: 12px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(255, 215, 0, 0.3);
+            z-index: 10;
+            min-width: 200px;
+            max-width: 280px;
+            max-height: 55vh; /* Reduced to account for new top position */
+            overflow-y: auto;
+            overflow-x: hidden;
+            transition: all 0.3s ease;
+        }
+
+        /* Custom scrollbar */
+        .indicator-overlay::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .indicator-overlay::-webkit-scrollbar-track {
+            background: rgba(20, 20, 40, 0.3);
+            border-radius: 3px;
+        }
+
+        .indicator-overlay::-webkit-scrollbar-thumb {
+            background: rgba(255, 215, 0, 0.3);
+            border-radius: 3px;
+        }
+
+        .indicator-overlay::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 215, 0, 0.6);
+        }
+        
+        .indicator-overlay h4 {
+            color: #ffd700;
+            font-size: 12px;
+            margin: 0 0 8px 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+        }
+        
+        .indicator-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+            font-size: 13px;  /* Increased for readability */
+        }
+        
+        .indicator-label {
+            color: #ccc;
+        }
+        
+        .indicator-value {
+            color: #ffd700;
+            font-weight: bold;
+            font-family: 'Orbitron', monospace;
+        }
+        
+        /* Indicator panel visibility */
+        .indicators-panel {
+            display: none;
+        }
+
+        .tier-core .core-indicators {
+            display: block;
+        }
+
+        .tier-ml .ml-indicators {
+            display: block;
+        }
+        
+        /* Trading Panel */
+        /* 2026-04-25: Relocated to RIGHT RAIL per mockup. Was previously
+           a horizontal grid below the chart; now a fixed-position vertical
+           stack on the right side, mirroring Edge Analytics on the left.
+           Holds the narrative panels (Pattern Analysis, Performance Stats,
+           Chain of Thought, Strategy Leaderboard, Trade Log) in mockup
+           positions. */
+        /* .trading-panel container + scrollbars moved to public/css/trading-panel.css (2026-04-25 modular extraction) */
+
+        .panel-section {
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.95) 0%, rgba(14, 14, 14, 0.95) 100%);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 8px;
+            padding: 14px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+        }
+        
+        .panel-title {
+            color: #ffd700;
+            font-size: 16px;  /* Increased for better visibility */
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+            border-bottom: 1px solid rgba(255, 215, 0, 0.3);
+            padding-bottom: 8px;
+        }
+        
+        /* Trade Controls */
+        .trade-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .trade-btn {
+            flex: 1;
+            padding: 12px;
+            font-weight: 700;
+            font-family: 'Orbitron', monospace;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .trade-btn:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .trade-btn:hover:before {
+            left: 100%;
+        }
+        
+        .buy-btn {
+            background: linear-gradient(135deg, #00ff41, #00cc33);
+            color: #000;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+        }
+        
+        .sell-btn {
+            background: linear-gradient(135deg, #ff4444, #cc1111);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(255, 68, 68, 0.3);
+        }
+        
+        .kill-btn {
+            background: linear-gradient(135deg, #ff6600, #cc4400);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(255, 102, 0, 0.3);
+        }
+        
+        .long-btn {
+            background: linear-gradient(135deg, #1e90ff, #0066cc);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(30, 144, 255, 0.3);
+        }
+        
+        .short-btn {
+            background: linear-gradient(135deg, #9400d3, #6a0dad);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(148, 0, 211, 0.3);
+        }
+        
+        .hedge-btn {
+            background: linear-gradient(135deg, #ff8c00, #cc7000);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(255, 140, 0, 0.3);
+        }
+        
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-item {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-item:hover {
+            border-color: rgba(255, 215, 0, 0.4);
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.2);
+        }
+        
+        .stat-label {
+            font-size: 13px;  /* Increased from 11px */
+            color: #aaa;  /* Brightened from #888 */
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .stat-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: #ffd700;
+            font-family: 'Orbitron', monospace;
+        }
+        
+        .positive { color: var(--profit-color) !important; }
+        .negative { color: var(--loss-color) !important; }
+        
+        /* Trade Log - CHANGE 2026-01-31: Increased height to prevent cutoff */
+        .trade-log {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 10px;
+            padding: 5px;
+        }
+
+        .trade-log-entry {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            margin-bottom: 4px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 6px;
+            font-size: 12px;
+            border-left: 3px solid transparent;
+            transition: background 0.15s;
+        }
+
+        .trade-log-entry:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .trade-log-entry.entry-buy {
+            border-left-color: #00ff88;
+        }
+
+        .trade-log-entry.entry-sell {
+            border-left-color: #ff3366;
+        }
+
+        .trade-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-weight: 800;
+            font-size: 10px;
+            letter-spacing: 0.5px;
+            min-width: 38px;
+            text-align: center;
+        }
+
+        .trade-badge.buy { background: rgba(0, 255, 136, 0.15); color: #00ff88; }
+        .trade-badge.sell { background: rgba(255, 51, 102, 0.15); color: #ff3366; }
+
+        .trade-price {
+            color: #ccc;
+            font-weight: 500;
+            flex: 1;
+        }
+
+        .trade-pnl {
+            font-weight: 700;
+            font-size: 12px;
+            min-width: 70px;
+            text-align: right;
+        }
+
+        .trade-pnl.profit { color: #00ff88; }
+        .trade-pnl.loss { color: #ff3366; }
+        .trade-pnl.neutral { color: #888; }
+
+        .trade-meta {
+            color: #555;
+            font-size: 10px;
+            min-width: 60px;
+            text-align: right;
+        }
+
+        /* Chain of Thought - CHANGE 2026-01-30: Enhanced styling */
+        .chain-of-thought {
+            max-height: 250px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+        }
+
+        .thought-entry {
+            padding: 15px;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(20, 20, 40, 0.8) 100%);
+            border-radius: 12px;
+            border-left: 4px solid #ffd700;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.1);
+        }
+
+        .thought-step {
+            margin: 8px 0;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 6px;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .thought-step strong {
+            color: #ffd700;
+        }
+
+        .decision-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .decision-badge.buy {
+            background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+            color: #000;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+        }
+
+        .decision-badge.sell {
+            background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(255, 68, 68, 0.4);
+        }
+
+        .decision-badge.hold {
+            background: linear-gradient(135deg, #ffd700 0%, #cc9900 100%);
+            color: #000;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+        }
+
+        .thought-step {
+            font-size: 13px;  /* Increased for readability */
+            margin-bottom: 5px;
+            color: #ccc;
+        }
+
+        .thought-step strong {
+            color: #ffd700;
+        }
+
+        /* Pattern Panel */
+        .pattern-panel {
+            background: linear-gradient(135deg, rgba(138, 43, 226, 0.1) 0%, rgba(75, 0, 130, 0.1) 100%);
+            border: 1px solid rgba(138, 43, 226, 0.4);
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .pattern-display {
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 8px;
+        }
+
+        .pattern-name {
+            font-weight: 700;
+            color: #8a2be2;
+            text-transform: uppercase;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        /* CHANGE 2026-01-30: Enhanced for SVG pattern display */
+        .pattern-visual {
+            text-align: center;
+            margin-bottom: 10px;
+            min-height: 80px;
+            background: rgba(0, 20, 40, 0.5);
+            border-radius: 8px;
+            padding: 10px;
+            border: 1px solid rgba(0, 255, 136, 0.2);
+        }
+
+        .pattern-visual svg {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .pattern-description {
+            font-size: 13px;  /* Increased for readability */
+            color: #aaa;
+        }
+
+        .pattern-info {
+            margin: 0;
+            line-height: 1.4;
+        }
+
+        /* Neural Ensemble - HIDDEN: Commented out for proof display */
+        .neural-ensemble {
+            display: none; /* CHANGE 2026-01-29: Hidden for proof-only display */
+            margin-top: 20px;
+        }
+        
+        .ensemble-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+        }
+        
+        .brain-module {
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(20, 20, 20, 0.9));
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .brain-module:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+        }
+        
+        .brain-name {
+            font-size: 12px;  /* Increased for readability */
+            color: #666666;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+        
+        .brain-vote {
+            font-weight: 700;
+            font-size: 14px;
+            font-family: 'Orbitron', monospace;
+        }
+        
+        .brain-confidence {
+            font-size: 12px;  /* Increased for readability */
+            color: #888;
+            margin-top: 3px;
+        }
+        
+        .vote-long { color: #00ff41; }
+        .vote-short { color: #ff4444; }
+        .vote-hedge { color: #ff8c00; }
+        .vote-hold { color: #8b8b8b; }
+
+        /* Upgrade Prompt */
+        .upgrade-prompt {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.9), rgba(255, 140, 0, 0.9));
+            color: #000;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
+            z-index: 100;
+            display: none;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1a0000;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #ffd700;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #ffed4e;
+        }
+        /* Responsive Design for Different Devices */
+        @media screen and (max-width: 1920px) {
+            /* Desktop */
+            .container {
+                max-width: 95%;
+            }
+        }
+
+        @media screen and (max-width: 1440px) {
+            /* Laptop */
+            .indicator-overlay {
+                max-width: 250px;
+                font-size: 11px;
+            }
+
+            .chart-container {
+                height: calc(100vh - 180px);  /* CHANGE 2026-01-28: Viewport-relative */
+                min-height: 450px;
+            }
+        }
+
+        @media screen and (max-width: 1024px) {
+            /* Tablet Landscape */
+            .indicator-overlay {
+                max-width: 220px;
+                font-size: 10px;
+                max-height: 50vh;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .chart-container {
+                height: calc(100vh - 180px);  /* CHANGE 2026-01-28: Viewport-relative */
+                min-height: 400px;
+            }
+        }
+
+        @media screen and (max-width: 768px) {
+            /* Tablet Portrait */
+            .indicator-overlay {
+                position: fixed;
+                top: 10px;
+                left: 10px;
+                max-width: 180px;
+                font-size: 9px;
+                padding: 8px;
+                max-height: 40vh;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .chart-container {
+                height: 450px;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+        }
+
+        @media screen and (max-width: 480px) {
+            /* Mobile */
+            .indicator-overlay {
+                position: fixed;
+                bottom: 10px;
+                left: 10px;
+                right: 10px;
+                top: auto;
+                max-width: none;
+                max-height: 150px;
+                font-size: 9px;
+                padding: 6px;
+            }
+
+            .indicator-item {
+                margin: 2px 0;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+
+            .chart-container {
+                height: 300px;
+            }
+
+            .header h1 {
+                font-size: 1.2rem;
+            }
+
+            .panel-title {
+                font-size: 12px;
+            }
+        }
+
+        @media screen and (max-width: 320px) {
+            /* Small Mobile */
+            .indicator-overlay {
+                font-size: 8px;
+                max-height: 120px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .chart-container {
+                height: 250px;
+            }
+        }
+
+        /* ========================================
+           RESPONSIVE RULES FOR FIXED PANELS
+           Auto-adapts to device size
+           ======================================== */
+
+        /* Tablet Landscape (1024px) - Reduce panel widths */
+        @media screen and (max-width: 1024px) {
+            .edge-panel {
+                width: 280px;
+                left: 10px;
+            }
+
+            .trade-manager {
+                right: 10px;
+            }
+
+            .theme-customizer {
+                right: 10px;
+            }
+
+            .tier-selector-container {
+                right: 70px;
+            }
+
+            .drawing-tools {
+                left: 10px;
+            }
+        }
+
+        /* Tablet Portrait (768px) - Collapse panels by default */
+        @media screen and (max-width: 768px) {
+            .main-container {
+                padding-left: 10px !important;
+                padding-right: 10px !important;
+            }
+
+            .edge-panel {
+                width: 260px;
+                left: 10px;
+                top: 120px;
+                max-height: 60vh;
+            }
+
+            .edge-panel.collapsed {
+                width: 45px;
+                height: 45px;
+            }
+
+            .trade-manager {
+                top: 70px;
+                right: 10px;
+            }
+
+            .trade-panel {
+                width: 300px;
+                max-height: 70vh;
+            }
+
+            .theme-customizer {
+                top: 10px;
+                right: 10px;
+            }
+
+            .theme-panel {
+                width: 280px;
+            }
+
+            .tier-selector-container {
+                position: relative;
+                top: auto;
+                right: auto;
+                justify-content: center;
+                margin-top: 10px;
+            }
+
+            .tier-selector {
+                min-width: 200px;
+            }
+
+            .drawing-tools {
+                top: 70px;
+                left: 10px;
+            }
+
+            .bot-status-row {
+                top: 10px;
+                left: 10px;
+                flex-wrap: wrap;
+                gap: 5px;
+            }
+
+            .indicator-overlay {
+                top: 45px;
+                left: 10px;
+                max-width: 200px;
+                max-height: 45vh;
+            }
+        }
+
+        /* Mobile (480px) - Stack vertically, bottom sheet approach */
+        @media screen and (max-width: 480px) {
+            .main-container {
+                padding-left: 5px !important;
+                padding-right: 5px !important;
+            }
+
+            .header {
+                flex-direction: column;
+                padding: 8px;
+                gap: 5px;
+            }
+
+            .header h1 {
+                font-size: 1rem;
+            }
+
+            .header .subtitle {
+                font-size: 9px;
+                letter-spacing: 1px;
+            }
+
+            .unified-chart-section {
+                padding: 6px;
+                border-radius: 4px;
+            }
+
+            .chart-header {
+                flex-direction: column;
+                gap: 5px;
+                align-items: flex-start;
+            }
+
+            .chart-header .chart-title {
+                font-size: 14px;
+            }
+
+            #indicatorCheckboxes {
+                /* Forced onto its own full-width row below the selectors via
+                   flex-basis:100% inside the wrapping .chart-controls parent.
+                   Single horizontal line; scrolls horizontally if cramped. */
+                display: flex;
+                flex-wrap: nowrap;
+                gap: 6px;
+                overflow-x: auto;
+                overflow-y: hidden;
+                flex: 0 0 100%;
+                min-width: 0;
+                scrollbar-width: thin;
+                scrollbar-color: rgba(255,255,255,0.18) transparent;
+            }
+            #indicatorCheckboxes::-webkit-scrollbar { height: 4px; }
+            #indicatorCheckboxes::-webkit-scrollbar-thumb {
+                background: rgba(255,255,255,0.18);
+                border-radius: 2px;
+            }
+            #indicatorCheckboxes .indicator-check {
+                flex: 0 0 auto;
+                white-space: nowrap;
+            }
+
+            .indicator-check {
+                font-size: 9px;
+            }
+
+            .signal-overlay {
+                top: auto !important;
+                bottom: 10px !important;
+                right: 10px !important;
+                left: 10px !important;
+                min-width: auto !important;
+                max-height: 120px;
+                overflow-y: auto;
+            }
+
+            .edge-panel {
+                position: fixed;
+                bottom: 10px;
+                top: auto;
+                left: 10px;
+                right: 10px;
+                width: auto;
+                max-height: 40vh;
+                border-radius: 15px 15px 0 0;
+            }
+
+            .edge-panel.collapsed {
+                bottom: 10px;
+                left: auto;
+                right: 10px;
+                width: 45px;
+                height: 45px;
+            }
+
+            .trade-manager {
+                top: 10px;
+                right: 60px; /* Space for theme-customizer */
+            }
+
+            .trade-panel {
+                position: fixed;
+                top: auto;
+                bottom: 60px;
+                left: 10px;
+                right: 10px;
+                width: auto;
+                max-height: 50vh;
+            }
+
+            .theme-customizer {
+                top: 10px;
+                right: 10px;
+            }
+
+            .theme-toggle {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+            }
+
+            .theme-panel {
+                position: fixed;
+                top: auto;
+                bottom: 10px;
+                left: 10px;
+                right: 10px;
+                width: auto;
+                max-height: 60vh;
+            }
+
+            .drawing-tools {
+                top: auto;
+                bottom: 60px;
+                left: 10px;
+            }
+
+            .drawing-tools.collapsed {
+                bottom: 10px;
+            }
+
+            .tool-btn {
+                width: 35px;
+                height: 35px;
+                font-size: 16px;
+            }
+
+            .bot-status-row {
+                top: 5px;
+                left: 5px;
+                gap: 3px;
+            }
+
+            .bot-status-indicator {
+                padding: 3px 6px;
+                font-size: 10px;
+            }
+
+            .tier-selector-container {
+                display: none; /* Hide on mobile - use menu instead */
+            }
+        }
+
+        /* Landscape Mobile - Side by side panels */
+        @media screen and (max-width: 768px) and (orientation: landscape) {
+            .edge-panel {
+                position: fixed;
+                left: 10px;
+                top: 60px;
+                bottom: auto;
+                width: 250px;
+                max-height: 70vh;
+            }
+
+            .indicator-overlay {
+                left: 10px;
+                top: 60px;
+                max-width: 180px;
+                max-height: 60vh;
+            }
+
+            .chart-container {
+                height: 280px;
+            }
+        }
+
+        /* Edge Analytics Panel - THE REAL MONEY MAKERS
+           MOVED TO LEFT SIDE 2026-04-24 per user feedback.
+           Main-container padding flips: right goes light, left keeps 340px. */
+        .edge-panel {
+            position: fixed;
+            left: 10px;
+            top: 100px;
+            width: var(--left-rail-width, 320px);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            background: rgba(10, 10, 30, 0.95);
+            border: 2px solid rgba(255, 0, 100, 0.5);
+            border-radius: 15px;
+            padding: 15px;
+            z-index: 98;
+            box-shadow: 0 0 30px rgba(255, 0, 100, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .edge-panel.collapsed {
+            width: 50px;
+            height: 50px;
+            max-height: 50px;
+            padding: 0;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .edge-panel.collapsed .edge-content {
+            display: none;
+        }
+
+        .edge-panel.collapsed .edge-header {
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            margin: 0;
+            padding: 15px 5px;
+            font-size: 12px;
+        }
+
+        .edge-toggle {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 24px;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px;
+            color: #a1a1aa;
+            cursor: pointer;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 600;
+            line-height: 22px;
+            text-align: center;
+            padding: 0;
+            transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+        }
+
+        .edge-toggle:hover {
+            background: rgba(220, 38, 38, 0.12);
+            border-color: rgba(220, 38, 38, 0.4);
+            color: #f5f5f5;
+        }
+
+        .edge-header {
+            color: #ff0064;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px rgba(255, 0, 100, 0.8);
+            animation: pulse-glow 2s infinite;
+            cursor: pointer;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { text-shadow: 0 0 10px rgba(255, 0, 100, 0.8); }
+            50% { text-shadow: 0 0 20px rgba(255, 0, 100, 1); }
+        }
+
+        .edge-section {
+            background: rgba(20, 20, 40, 0.6);
+            border: 1px solid rgba(255, 0, 100, 0.2);
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 12px;
+        }
+
+        .edge-section h4 {
+            color: #fff;
+            font-size: 13px;
+            margin: 0 0 10px 0;
+            padding-bottom: 5px;
+            border-bottom: 1px solid rgba(255, 0, 100, 0.3);
+        }
+
+        /* Liquidation Levels */
+        .liq-levels {
+            margin-bottom: 10px;
+        }
+
+        /* CHANGE 2026-01-30: Increased font size for readability */
+        .liq-level {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 5px;
+            font-size: 13px;
+        }
+
+        .long-liq {
+            background: rgba(255, 0, 0, 0.1);
+            border-left: 3px solid #ff0000;
+        }
+
+        .short-liq {
+            background: rgba(0, 255, 0, 0.1);
+            border-left: 3px solid #00ff00;
+        }
+
+        .liq-price {
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .liq-volume {
+            color: #00d4ff;
+        }
+
+        /* CVD Display */
+        .cvd-display {
+            text-align: center;
+        }
+
+        .cvd-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #00d4ff;
+        }
+
+        .cvd-trend {
+            padding: 4px 8px;
+            background: rgba(0, 212, 255, 0.2);
+            border-radius: 5px;
+            margin-top: 5px;
+            display: inline-block;
+            font-size: 11px;
+        }
+
+        /* Funding Rates */
+        .funding-display {
+            font-size: 12px;
+        }
+
+        .funding-current, .funding-predicted {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+        }
+
+        .funding-rate {
+            font-weight: bold;
+        }
+
+        .funding-signal {
+            text-align: center;
+            padding: 5px;
+            margin-top: 10px;
+            background: rgba(100, 100, 200, 0.2);
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        /* Whale Alerts */
+        .whale-alerts {
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        /* CHANGE 2026-01-30: Increased font size for readability */
+        .whale-item {
+            padding: 8px;
+            margin: 4px 0;
+            background: rgba(0, 100, 255, 0.1);
+            border-left: 3px solid #0064ff;
+            border-radius: 3px;
+            font-size: 12px;
+            animation: slideInLeft 0.5s;
+        }
+
+        @keyframes slideInLeft {
+            from { transform: translateX(-100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Market Internals - CHANGE 2026-01-30: Increased font size */
+        .internal-item, .metric-item, .smart-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 6px 0;
+            font-size: 13px;
+        }
+
+        .internal-item span:last-child,
+        .metric-item span:last-child,
+        .smart-item span:last-child {
+            font-weight: bold;
+            color: #00d4ff;
+        }
+
+        /* Fear & Greed */
+        .fg-gauge {
+            text-align: center;
+        }
+
+        .fg-value {
+            font-size: 36px;
+            font-weight: bold;
+        }
+
+        .fg-label {
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .fg-bar {
+            height: 20px;
+            background: rgba(50, 50, 50, 0.5);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .fg-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff0000, #ffff00, #00ff00);
+            transition: width 1s ease;
+        }
+
+        /* Divergences - CHANGE 2026-01-30: Increased font size */
+        .divergence-item {
+            padding: 8px;
+            margin: 4px 0;
+            background: rgba(147, 51, 234, 0.1);
+            border-left: 3px solid #9333ea;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+
+        /* Drawing Tools Panel */
+        .drawing-tools {
+            position: fixed;
+            top: 80px;
+            left: 20px;
+            background: rgba(20, 20, 40, 0.95);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            border-radius: 12px;
+            padding: 10px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .drawing-tools.collapsed {
+            width: 45px;
+            height: 45px;
+            padding: 5px;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .drawing-tools.collapsed .tool-btn {
+            display: none;
+        }
+
+        .tool-header {
+            color: #ffd700;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 5px;
+            text-align: center;
+        }
+
+        .tool-btn {
+            width: 40px;
+            height: 40px;
+            background: rgba(40, 40, 60, 0.6);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 18px;
+        }
+
+        .tool-btn:hover {
+            background: rgba(255, 215, 0, 0.2);
+            border-color: rgba(255, 215, 0, 0.6);
+            transform: scale(1.1);
+        }
+
+        .tool-btn.active {
+            background: rgba(255, 215, 0, 0.3);
+            border-color: #ffd700;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        /* Trade Manager — REMOVED */
+        .trade-manager, .trade-toggle, #tradeManager { display: none !important; visibility: hidden !important; width: 0 !important; height: 0 !important; overflow: hidden !important; position: absolute !important; left: -9999px !important; }
+
+        .trade-manager.collapsed {
+            width: 50px;
+        }
+
+        .trade-manager.collapsed .trade-panel {
+            display: none;
+        }
+
+        .trade-manager.collapsed .trade-toggle {
+            width: 50px;
+            height: 50px;
+        }
+
+        .trade-toggle {
+            width: 100%;
+            height: 40px;
+            background: linear-gradient(135deg, #00d4ff 0%, #0066ff 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 102, 255, 0.4);
+            transition: all 0.3s ease;
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .trade-toggle:hover {
+            box-shadow: 0 6px 20px rgba(0, 102, 255, 0.6);
+            transform: translateY(-2px);
+        }
+
+        .trade-manager.collapsed .trade-toggle {
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+        }
+
+        .trade-panel {
+            margin-top: 10px;
+            width: 100%;
+            max-height: calc(100vh - 180px);
+            overflow-y: auto;
+            background: rgba(20, 20, 40, 0.98);
+            border: 1px solid rgba(0, 102, 255, 0.5);
+            border-radius: 10px;
+            padding: 15px;
+            display: block;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+        }
+
+        .trade-panel h3 {
+            color: #00d4ff;
+            margin: 0 0 20px 0;
+            text-align: center;
+            font-size: 18px;
+        }
+
+        .trade-panel h4 {
+            color: #fff;
+            font-size: 14px;
+            margin: 15px 0 10px 0;
+            padding-bottom: 5px;
+            border-bottom: 1px solid rgba(0, 102, 255, 0.3);
+        }
+
+        /* Calculator Section */
+        .calc-section, .sl-section, .quick-actions, .tp-section {
+            margin-bottom: 20px;
+        }
+
+        .calc-row, .sl-row, .tp-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .calc-row label, .sl-row label, .tp-row label {
+            color: #aaa;
+            font-size: 12px;
+        }
+
+        .calc-row input, .sl-row input, .tp-row input {
+            width: 120px;
+            padding: 6px;
+            background: rgba(40, 40, 60, 0.6);
+            border: 1px solid rgba(0, 102, 255, 0.3);
+            border-radius: 6px;
+            color: #fff;
+            text-align: right;
+        }
+
+        .calc-result {
+            background: rgba(0, 102, 255, 0.1);
+            border: 1px solid rgba(0, 102, 255, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+
+        .calc-result div {
+            color: #00d4ff;
+            font-size: 12px;
+            margin: 5px 0;
+        }
+
+        .calc-result span {
+            float: right;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        /* Stop Loss Modes */
+        .sl-modes {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+
+        .sl-btn {
+            flex: 1;
+            padding: 8px;
+            background: rgba(40, 40, 60, 0.6);
+            border: 1px solid rgba(0, 102, 255, 0.3);
+            border-radius: 6px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.3s ease;
+        }
+
+        .sl-btn:hover {
+            background: rgba(0, 102, 255, 0.2);
+        }
+
+        .sl-btn.active {
+            background: rgba(0, 102, 255, 0.4);
+            border-color: #00d4ff;
+        }
+
+        /* Quick Actions */
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .quick-actions button {
+            padding: 10px;
+            background: rgba(40, 40, 60, 0.6);
+            border: 1px solid rgba(0, 102, 255, 0.3);
+            border-radius: 6px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+        }
+
+        .quick-actions button:hover {
+            background: rgba(0, 102, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .apply-btn {
+            width: 100%;
+            padding: 10px;
+            background: linear-gradient(135deg, #00d4ff, #0066ff);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .apply-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 102, 255, 0.4);
+        }
+
+        /* Theme Customizer Styles */
+        .theme-customizer {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .theme-toggle {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .theme-toggle:hover {
+            transform: rotate(20deg) scale(1.1);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .theme-panel {
+            position: absolute;
+            top: 60px;
+            right: 0;
+            width: 320px;
+            background: rgba(20, 20, 40, 0.98);
+            border: 1px solid rgba(102, 126, 234, 0.5);
+            border-radius: 15px;
+            padding: 20px;
+            display: none;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+        }
+
+        .theme-panel.active {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .theme-panel h3 {
+            color: #fff;
+            margin: 0 0 20px 0;
+            font-size: 18px;
+            text-align: center;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .theme-section {
+            margin-bottom: 20px;
+        }
+
+        .theme-section label {
+            display: block;
+            color: #aaa;
+            font-size: 12px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .theme-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .theme-btn {
+            padding: 8px 12px;
+            background: rgba(40, 40, 60, 0.6);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+        }
+
+        .theme-btn:hover {
+            background: rgba(102, 126, 234, 0.2);
+            border-color: rgba(102, 126, 234, 0.6);
+            transform: translateY(-2px);
+        }
+
+        .theme-btn.active {
+            background: rgba(102, 126, 234, 0.4);
+            border-color: rgba(102, 126, 234, 1);
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
+        }
+
+        .color-picker {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .color-picker input[type="color"] {
+            width: 60px;
+            height: 40px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .color-picker span {
+            color: #fff;
+            font-family: monospace;
+        }
+
+        #fontSelect, #chartStyle {
+            width: 100%;
+            padding: 8px;
+            background: rgba(40, 40, 60, 0.6);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        .toggle-switch {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .theme-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .theme-actions button {
+            flex: 1;
+            padding: 10px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .theme-actions button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        /* Underglow Effects for Boxes */
+        .underglow {
+            position: relative;
+            overflow: visible;
+        }
+
+        .underglow::before {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 10%;
+            right: 10%;
+            height: 20px;
+            background: var(--underglow-color, linear-gradient(90deg, #ff00ff, #00ffff, #ff00ff));
+            filter: blur(20px);
+            opacity: 0.6;
+            z-index: -1;
+            animation: underglow-pulse 3s ease-in-out infinite;
+        }
+
+        @keyframes underglow-pulse {
+            0%, 100% { opacity: 0.4; transform: scaleX(0.8); }
+            50% { opacity: 0.8; transform: scaleX(1); }
+        }
+
+        .panel-section.underglow::before {
+            bottom: -5px;
+            height: 30px;
+            filter: blur(25px);
+        }
+
+        .stat-card.underglow::before {
+            background: linear-gradient(90deg,
+                var(--card-glow-1, #ff00ff),
+                var(--card-glow-2, #00ffff));
+            height: 15px;
+            bottom: -3px;
+            animation: underglow-shift 4s linear infinite;
+        }
+
+        @keyframes underglow-shift {
+            0% { filter: blur(20px) hue-rotate(0deg); }
+            100% { filter: blur(20px) hue-rotate(360deg); }
+        }
+
+        .indicator-overlay.underglow::before {
+            background: linear-gradient(135deg, #ffd700, #ff6600, #ffd700);
+            animation: underglow-breathe 2s ease-in-out infinite;
+        }
+
+        @keyframes underglow-breathe {
+            0%, 100% {
+                opacity: 0.3;
+                filter: blur(15px);
+            }
+            50% {
+                opacity: 0.7;
+                filter: blur(25px);
+            }
+        }
+
+        /* Theme-specific Underglow Colors */
+        .theme-cyberpunk .underglow::before {
+            background: linear-gradient(90deg, #ff00ff, #00ffff, #ff00ff);
+        }
+
+        .theme-matrix .underglow::before {
+            background: linear-gradient(90deg, #00ff00, #00cc00, #00ff00);
+        }
+
+        .theme-neon .underglow::before {
+            background: linear-gradient(90deg, #ff00ff, #00ff00, #00ffff, #ff00ff);
+        }
+
+        .theme-ocean .underglow::before {
+            background: linear-gradient(90deg, #006aff, #00d4ff, #006aff);
+        }
+
+        .theme-sunset .underglow::before {
+            background: linear-gradient(90deg, #ff6600, #ff0066, #ff6600);
+        }
+
+        .theme-royal .underglow::before {
+            background: linear-gradient(90deg, #9400d3, #ffd700, #9400d3);
+        }
+
+        .theme-hacker .underglow::before {
+            background: linear-gradient(90deg, #00ff00, #00ff00);
+            animation: underglow-flicker 0.5s infinite;
+        }
+
+        @keyframes underglow-flicker {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 0.3; }
+        }
+
+        /* High DPI / Retina Display Support */
+        @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+            .indicator-overlay {
+                font-weight: 500;
+            }
+        }
+
+        /* Landscape Orientation for Mobile */
+        @media screen and (max-width: 768px) and (orientation: landscape) {
+            .indicator-overlay {
+                max-height: 30vh;
+                top: 5px;
+                left: 5px;
+            }
+
+            .chart-container {
+                height: 280px;
+            }
+        }
+
+        /* ============================================================
+           .indicator-bar BASE LAYOUT (outside Phase B fence)
+           ------------------------------------------------------------
+           Pre-Phase-B base so rollback of the entire Phase B block
+           leaves a functional, visible indicator bar instead of a
+           completely unstyled element. Phase B below adds the
+           brand-red/glass polish on top of this base.
+
+           Base includes a minimal dark background + hairline border
+           so rollback doesn't leave the bar invisible on the dark
+           page background — reverts to a "plain dark pill" rather
+           than "nothing visible."
+           ============================================================ */
+        .indicator-bar {
+            /* position:relative so the scoped Phase B separator
+               pseudo-elements have a deterministic positioning
+               ancestor (Phase B's ::before is on .indicator-bar > *
+               which is already relative, but anchoring the
+               container too is belt-and-suspenders for any future
+               selector that needs bar-relative positioning). */
+            position: relative;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0;
+            padding: 8px 4px;
+            /* Bumped to 0.65 opacity so composite against a dark
+               page bg still gives clear separation (≥4.5:1 AA text
+               contrast with the brightened --text-color below). */
+            background: rgba(0, 0, 0, 0.65);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            line-height: 1.3;
+            margin-bottom: 12px;
+            /* Brightened from #d6d6d6 → #e5e5e5 so AA text contrast
+               clears unambiguously even on lighter page backgrounds. */
+            color: #e5e5e5;
+        }
+        .indicator-bar > * {
+            position: relative;
+            padding: 4px 10px;
+            white-space: nowrap;
+        }
+
+        /* ============================================================
+           PHASE B · Glass Right Rail + Brand Frame
+           ------------------------------------------------------------
+           Re-skins trading panels, selectors, status bar, and
+           proximity strip with OGZprime brand-red glass-morphism.
+           Pure visual overrides — no DOM IDs removed/renamed,
+           no selectors invented outside what already exists.
+           Shippable independently of any other phase.
+
+           Scoping contract (post-audit):
+             .panel-section and .panel-title rules are scoped under
+             .trading-panel (the right-rail container at unified-
+             dashboard.html line 3076) so Phase B NEVER silently clobbers
+             Phase A .panel-section/.panel-title rules outside that rail.
+
+           Rollback contract (post-audit, post-pass-2 refactor):
+             Rollback = delete this Phase B fenced block (L2148-end).
+             A minimal .indicator-bar BASE LAYOUT block was added
+             OUTSIDE this fence (see the block directly above the
+             Phase B opening comment) so rollback leaves a plain
+             but visible indicator bar instead of a completely
+             unstyled (invisible on dark bg) element. That base
+             block is INTENTIONAL — it is not part of Phase B and
+             is not deleted on Phase B rollback. It represents a
+             deliberate hardening of Phase A to make Phase B
+             cleanly revertable. If a full revert to pre-Phase-B
+             state is needed, also delete the .indicator-bar
+             base block above this fence.
+
+           Accessibility contract (post-audit):
+             A @media (prefers-reduced-motion: reduce) guard below
+             disables the pulsing ogzBrandPulse keyframe for users
+             who opted out of motion (WCAG 2.4.3).
+
+           Paint-cost contract (post-audit):
+             .panel-section and .indicator-bar use backdrop-filter
+             (GPU-expensive). contain:paint + will-change hints bound
+             the repaint surface to the element's own box, preventing
+             whole-rail re-rasterization on hover/scroll.
+           ============================================================ */
+
+        :root {
+            /* OGZprime brand palette */
+            --brand-red:          #dc2626;
+            --brand-red-bright:   #ef4444;
+            --brand-red-dim:      #991b1b;
+            --brand-red-glow:     rgba(220, 38, 38, 0.55);
+            --brand-red-line:     rgba(220, 38, 38, 0.25);
+
+            /* Glass surfaces */
+            --glass-bg:           rgba(14, 14, 16, 0.72);
+            --glass-bg-strong:    rgba(10, 10, 12, 0.86);
+            --glass-border:       rgba(220, 38, 38, 0.14);
+            --glass-border-hover: rgba(220, 38, 38, 0.38);
+            --glass-shadow:       0 8px 28px rgba(0, 0, 0, 0.55),
+                                  0 0 0 1px rgba(220, 38, 38, 0.06) inset;
+        }
+
+        /* .trading-panel-scoped rules (.panel-section, .panel-title,
+           .stats-grid, .stat-item, .indicator-bar, .trade-badge) +
+           @keyframes ogzBrandPulse moved to public/css/trading-panel.css
+           (2026-04-25 modular extraction). */
+
+        /* Pattern headline — modern Orbitron with brand-red cast */
+        .pattern-name {
+            color: var(--brand-red-bright);
+            font-family: 'Orbitron', monospace;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-align: center;
+            text-shadow:
+                0 0 10px rgba(220, 38, 38, 0.55),
+                0 0 20px rgba(220, 38, 38, 0.25);
+            margin-bottom: 10px;
+        }
+
+        /* Trade log — glass rows, pill badges, brand-red scrollbar */
+        .trade-log {
+            max-height: 380px;
+            overflow-y: auto;
+            margin-top: 8px;
+            padding: 4px 2px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--brand-red-dim) transparent;
+        }
+
+        .trade-log::-webkit-scrollbar { width: 6px; }
+        .trade-log::-webkit-scrollbar-track { background: transparent; }
+        .trade-log::-webkit-scrollbar-thumb {
+            background: var(--brand-red-dim);
+            border-radius: 3px;
+        }
+        .trade-log::-webkit-scrollbar-thumb:hover { background: var(--brand-red); }
+
+        .trade-log-entry {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            margin-bottom: 5px;
+            background: rgba(255, 255, 255, 0.025);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-left: 3px solid transparent;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            transition: background 0.15s ease, border-color 0.15s ease;
+        }
+
+        .trade-log-entry:hover {
+            background: rgba(220, 38, 38, 0.04);
+            border-color: rgba(220, 38, 38, 0.12);
+        }
+
+        .trade-log-entry.entry-buy  { border-left-color: #22c55e; }
+        .trade-log-entry.entry-sell { border-left-color: var(--brand-red-bright); }
+
+        .trade-pnl.profit  { color: #4ade80; }
+        .trade-pnl.loss    { color: var(--brand-red-bright); }
+        .trade-pnl.neutral { color: #888; }
+
+        /* Chain of Thought — red left-accent cards, brand-red scrollbar */
+        .chain-of-thought {
+            max-height: 280px;
+            overflow-y: auto;
+            margin-bottom: 14px;
+            padding-right: 2px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--brand-red-dim) transparent;
+        }
+
+        .chain-of-thought::-webkit-scrollbar { width: 6px; }
+        .chain-of-thought::-webkit-scrollbar-track { background: transparent; }
+        .chain-of-thought::-webkit-scrollbar-thumb {
+            background: var(--brand-red-dim);
+            border-radius: 3px;
+        }
+
+        .thought-entry {
+            padding: 12px 14px;
+            background: linear-gradient(
+                135deg,
+                rgba(12, 12, 14, 0.80) 0%,
+                rgba(20, 8, 8, 0.72) 100%
+            );
+            border: 1px solid var(--glass-border);
+            border-left: 3px solid var(--brand-red);
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+            margin-bottom: 8px;
+        }
+
+        .thought-step {
+            margin: 6px 0;
+            padding: 7px 10px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            color: #d6d6d6;
+        }
+
+        .thought-step strong {
+            color: var(--brand-red-bright);
+            font-weight: 700;
+        }
+
+        /* Decision badges re-skinned into brand tones */
+        .decision-badge {
+            font-family: 'Orbitron', monospace;
+            letter-spacing: 1.2px;
+        }
+
+        .decision-badge.buy {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            color: #042712;
+            box-shadow: 0 0 18px rgba(34, 197, 94, 0.35);
+        }
+
+        .decision-badge.sell {
+            background: linear-gradient(135deg, var(--brand-red-bright) 0%, var(--brand-red) 100%);
+            color: #ffffff;
+            box-shadow: 0 0 18px var(--brand-red-glow);
+        }
+
+        .decision-badge.hold {
+            background: linear-gradient(135deg, #3b3b3b 0%, #1f1f1f 100%);
+            color: #d6d6d6;
+            box-shadow: 0 0 14px rgba(150, 150, 150, 0.25);
+        }
+
+        /* Left-frame selectors (tier / asset / timeframe) —
+           red-themed glass dropdowns with custom chevron arrow */
+        select#tierSelector,
+        select#assetSelector,
+        select#timeframeSelector,
+        select#chartTypeSelector {
+            background-color: var(--glass-bg-strong);
+            color: #ffffff;
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            padding: 8px 30px 8px 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image:
+                linear-gradient(45deg,  transparent 48%, var(--brand-red-bright) 48%, var(--brand-red-bright) 52%, transparent 52%),
+                linear-gradient(-45deg, transparent 48%, var(--brand-red-bright) 48%, var(--brand-red-bright) 52%, transparent 52%);
+            background-size: 6px 6px, 6px 6px;
+            background-position: right 14px center, right 8px center;
+            background-repeat: no-repeat;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        select#tierSelector:hover,
+        select#assetSelector:hover,
+        select#timeframeSelector:hover,
+        select#chartTypeSelector:hover {
+            border-color: var(--glass-border-hover);
+            box-shadow: 0 0 12px rgba(220, 38, 38, 0.18);
+        }
+
+        select#tierSelector:focus,
+        select#assetSelector:focus,
+        select#timeframeSelector:focus,
+        select#chartTypeSelector:focus {
+            /* outline:none is deliberate — the box-shadow ring below
+               IS the focus indicator. Previous 0.22 alpha fell below
+               WCAG non-text contrast 3:1 against the dark page
+               background. Bumped to 0.85 + 3px so the ring is clearly
+               distinguishable for keyboard users. Border also goes
+               full brand-red-bright for redundant cueing. */
+            outline: none;
+            border-color: var(--brand-red-bright);
+            /* Focus ring dialed back 2026-04-24: user reported selects were
+               glowing more than important content. 3px/0.85 was too loud.
+               2px/0.5 is visible for keyboard users without competing with
+               chart/data for attention. Still clears WCAG 3:1 non-text. */
+            box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.5);
+        }
+
+        select#tierSelector option,
+        select#assetSelector option,
+        select#timeframeSelector option,
+        select#chartTypeSelector option {
+            background: #0c0c0e;
+            color: #ffffff;
+        }
+
+        /* Graceful degradation for selects on browsers without
+           backdrop-filter (Firefox<103, older Edge) — opaque background
+           so dropdown trigger remains visible over dark page. */
+        @supports not ((backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px))) {
+            select#tierSelector,
+            select#assetSelector,
+            select#timeframeSelector,
+            select#chartTypeSelector {
+                background-color: rgba(14, 14, 16, 0.94);
+            }
+        }
+
+        /* Status light triad (BOT · DATA · TRAI) — brand ambient + glass */
+        .status-lights-bar {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 0 14px rgba(220, 38, 38, 0.10);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        /* Same @supports fallback for status-lights-bar so BOT/DATA/TRAI
+           pill row stays legible without backdrop-filter support. */
+        @supports not ((backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px))) {
+            .status-lights-bar {
+                background: rgba(14, 14, 16, 0.94);
+            }
+        }
+
+        /* .proximity-container + #goldenProximityFill rules moved to
+           public/css/golden-proximity.css (2026-04-25 L7 — relocated
+           from left-rail strip to full-width top-of-document gauge). */
+
+        /* Feed-status pill (Phase A inline positioning preserved) —
+           just polish the colors into brand tones */
+        #feedStatusPill {
+            background: rgba(220, 38, 38, 0.14) !important;
+            border: 1px solid rgba(220, 38, 38, 0.45) !important;
+            color: #fca5a5 !important;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-shadow:
+                0 4px 14px rgba(0, 0, 0, 0.55),
+                0 0 0 1px rgba(220, 38, 38, 0.12) inset;
+            font-family: 'JetBrains Mono', monospace !important;
+            letter-spacing: 1.1px !important;
+        }
+
+        /* Chart container — tighter Phase B brand halo on top of Phase A glow */
+        .chart-container {
+            border: 1px solid var(--glass-border);
+            box-shadow:
+                0 0 0 1px rgba(220, 38, 38, 0.08) inset,
+                0 12px 40px rgba(0, 0, 0, 0.55),
+                0 0 40px rgba(220, 38, 38, 0.08);
+        }
+        /* ============================================================
+           END PHASE B
+           ============================================================ */
+
+        /* ============================================================
+           PHASE E · Risk Gauge mount — inline, not absolute-positioned
+           ============================================================
+           DeepSearch diagnosis 2026-04-27: the global `.bot-status-row`
+           rule at L533 sets `position:absolute; top:20px; left:20px`
+           which yanks the Risk Gauge out of its flex parent and pins it
+           to the top-LEFT of the header (overlapping the OGZPRIME logo).
+           The original Phase E override scoped only to .tier-selector-
+           container; when #botStatusRow was relocated to .header-status-
+           cluster (commit f24b83e), the override no longer matched.
+           Extended below to catch BOTH mount locations. */
+        .header-status-cluster .bot-status-row,
+        .tier-selector-container .bot-status-row {
+            position: static;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            z-index: auto;
+        }
+        /* ============================================================
+           END PHASE E
+           ============================================================ */
+    </style>
+    <link rel="stylesheet" href="/css/panels/configuration-settings.css?v=1790985600000">
+</head>
+<body>
+    <!-- L7 Golden Proximity full-width gauge — fixed at top of document.
+         Wiring lives in js/core.js (golden_setup WS handler writes width).
+         Style: public/css/golden-proximity.css -->
+    <div class="proximity-container"><div id="goldenProximityFill"></div></div>
+
+    <!-- Resize handles (rail-resize.js drives these) -->
+    <div class="rail-resize-handle" id="leftRailResize" title="Drag to resize left rail"></div>
+    <div class="rail-resize-handle" id="rightRailResize" title="Drag to resize right rail"></div>
+
+    <!-- Edge Analytics Panel -->
+    <div class="edge-panel" id="edgePanel">
+        <button class="edge-toggle" title="Toggle Panel">−</button>
+        <div class="edge-header">🎯 EDGE ANALYTICS <span style="font-size:10px;opacity:0.7">(click to collapse)</span></div>
+        <div class="edge-content">
+
+        <!-- Asset + Timeframe card (top-of-rail, mockup parity).
+             Symbol/price mirror #symbolSelector / #currentPrice via JS;
+             pills drive #timeframeSelector via dispatched 'change' event
+             so all 8 timeframe consumers stay wired (chart.js, websocket.js,
+             command-palette.js, candle-countdown.js). See
+             public/js/panels/asset-tf-card.js + public/css/asset-tf-card.css. -->
+        <div class="asset-tf-card" id="assetTfCard">
+            <div class="asset-tf-card__symbol-row">
+                <span class="asset-tf-card__symbol">TSLA</span>
+                <span class="asset-tf-card__delta" aria-label="24h change">--</span>
+            </div>
+            <div class="asset-tf-card__price">$0.00</div>
+            <div class="asset-tf-card__pills" role="group" aria-label="Timeframe">
+                <button type="button" class="asset-tf-card__pill" data-tf="1m"  aria-pressed="false">1M</button>
+                <button type="button" class="asset-tf-card__pill" data-tf="5m"  aria-pressed="false">5M</button>
+                <button type="button" class="asset-tf-card__pill" data-tf="15m" aria-pressed="false">15M</button>
+                <button type="button" class="asset-tf-card__pill" data-tf="30m" aria-pressed="false">30M</button>
+                <button type="button" class="asset-tf-card__pill" data-tf="1h"  aria-pressed="false">1H</button>
+                <button type="button" class="asset-tf-card__pill" data-tf="4h"  aria-pressed="false">4H</button>
+                <button type="button" class="asset-tf-card__pill" data-tf="1d"  aria-pressed="false">1D</button>
+            </div>
+        </div>
+
+        <!-- Liquidation Heatmap -->
+        <div class="edge-section">
+            <h4>💀 Liquidation Levels</h4>
+            <div class="liq-levels">
+                <div class="liq-level long-liq">
+                    <span>Long Liq Zone:</span>
+                    <span class="liq-price" id="longLiqPrice">--</span>
+                    <span class="liq-volume" id="longLiqVol">$0</span>
+                </div>
+                <div class="liq-level short-liq">
+                    <span>Short Liq Zone:</span>
+                    <span class="liq-price" id="shortLiqPrice">--</span>
+                    <span class="liq-volume" id="shortLiqVol">$0</span>
+                </div>
+            </div>
+            <canvas id="liqHeatmap" width="300" height="150"></canvas>
+        </div>
+
+        <!-- CVD - Cumulative Volume Delta -->
+        <div class="edge-section">
+            <h4>📊 CVD (Order Flow)</h4>
+            <div class="cvd-display">
+                <div class="cvd-value" id="cvdValue">0</div>
+                <div class="cvd-trend" id="cvdTrend">NEUTRAL</div>
+                <canvas id="cvdChart" width="300" height="100"></canvas>
+            </div>
+        </div>
+
+        <!-- Funding Rates -->
+        <div class="edge-section">
+            <h4>💰 Funding Rates</h4>
+            <div class="funding-display">
+                <div class="funding-current">
+                    <span>Current:</span>
+                    <span class="funding-rate" id="currentFunding">0.01%</span>
+                </div>
+                <div class="funding-predicted">
+                    <span>Predicted:</span>
+                    <span class="funding-rate" id="predictedFunding">0.01%</span>
+                </div>
+                <div class="funding-signal" id="fundingSignal">NEUTRAL</div>
+            </div>
+        </div>
+
+        <!-- Whale Alerts -->
+        <div class="edge-section">
+            <h4>🐋 Whale Activity</h4>
+            <div class="whale-alerts" id="whaleAlerts">
+                <div class="whale-item">Waiting for whales...</div>
+            </div>
+        </div>
+
+        <!-- Market Internals -->
+        <div class="edge-section">
+            <h4>🔍 Market Internals</h4>
+            <div class="internals">
+                <div class="internal-item">
+                    <span>Buy/Sell Ratio:</span>
+                    <span id="buySellRatio">1.0</span>
+                </div>
+                <div class="internal-item">
+                    <span>Aggressor Side:</span>
+                    <span id="aggressorSide">NEUTRAL</span>
+                </div>
+                <div class="internal-item">
+                    <span>Order Book Imbalance:</span>
+                    <span id="bookImbalance">0%</span>
+                </div>
+                <div class="internal-item">
+                    <span>Spread:</span>
+                    <span id="spreadValue">0.01%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- On-Chain Edge: removed — no free API available for NVT/MVRV/SOPR/Exchange Reserve -->
+
+        <!-- Smart Money Tracking -->
+        <div class="edge-section">
+            <h4>🧠 Smart Money</h4>
+            <div class="smart-money">
+                <div class="smart-item">
+                    <span>Smart Money Flow:</span>
+                    <span id="smartFlow" class="flow-value">ACCUMULATING</span>
+                </div>
+                <div class="smart-item">
+                    <span>Institutional Activity:</span>
+                    <span id="instActivity">HIGH</span>
+                </div>
+                <div class="smart-item">
+                    <span>Old Coins Moving:</span>
+                    <span id="dormancy">LOW</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fear & Greed Index -->
+        <div class="edge-section">
+            <h4>😱 Fear & Greed</h4>
+            <div class="fear-greed">
+                <div class="fg-gauge">
+                    <div class="fg-value" id="fgValue">50</div>
+                    <div class="fg-label" id="fgLabel">NEUTRAL</div>
+                    <div class="fg-bar">
+                        <div class="fg-fill" id="fgFill" style="width: 50%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hidden Divergences -->
+        <div class="edge-section">
+            <h4>🔮 Hidden Divergences</h4>
+            <div class="divergences" id="divergences">
+                <div class="divergence-item">Scanning...</div>
+            </div>
+        </div>
+        <!-- Proximity Gauge moved to top of document (L7 mockup) — see
+             markup right after <body>. Wiring untouched: js/core.js still
+             writes width on golden_setup WS event, same #goldenProximityFill ID. -->
+        </div><!-- end edge-content -->
+    </div>
+
+    <!-- Drawing Tools: moved inline to chart controls bar -->
+
+    <!-- Trade Management Panel — REMOVED from proof display page -->
+    <div id="tradeManager" style="display:none !important;position:absolute;left:-9999px;">
+        <div class="trade-panel active" id="tradePanel">
+            <h3>Trade Management</h3>
+
+            <!-- Position Calculator -->
+            <div class="calc-section">
+                <h4>Position Calculator</h4>
+                <div class="calc-row">
+                    <label>Account Balance:</label>
+                    <input type="number" id="accountBalance" value="10000">
+                </div>
+                <div class="calc-row">
+                    <label>Risk %:</label>
+                    <input type="number" id="riskPercent" value="1" step="0.1">
+                </div>
+                <div class="calc-row">
+                    <label>Entry Price:</label>
+                    <input type="number" id="entryPrice" step="0.01">
+                </div>
+                <div class="calc-row">
+                    <label>Stop Loss:</label>
+                    <input type="number" id="stopLoss" step="0.01">
+                </div>
+                <div class="calc-result">
+                    <div>Position Size: <span id="positionSize">0</span></div>
+                    <div>Risk Amount: <span id="riskAmount">$0</span></div>
+                    <div>Risk/Reward: <span id="riskReward">0:0</span></div>
+                </div>
+            </div>
+
+            <!-- Stop Loss Manager -->
+            <div class="sl-section">
+                <h4>Stop Loss Manager</h4>
+                <div class="sl-modes">
+                    <button class="sl-btn">Fixed SL</button>
+                    <button class="sl-btn">Trailing SL</button>
+                    <button class="sl-btn">Breakeven</button>
+                </div>
+                <div class="sl-settings">
+                    <div class="sl-row">
+                        <label>Current SL:</label>
+                        <input type="number" id="currentSL" step="0.01">
+                    </div>
+                    <div class="sl-row">
+                        <label>Trail Distance:</label>
+                        <input type="number" id="trailDistance" value="50" step="1">
+                    </div>
+                    <div class="sl-row">
+                        <label>Move to BE at:</label>
+                        <input type="number" id="beTarget" value="100" step="1">
+                    </div>
+                </div>
+                <button class="apply-btn">Apply Changes</button>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+                <h4>Quick Actions</h4>
+                <button>Close 50%</button>
+                <button>Close All</button>
+                <button>Reverse</button>
+                <button>Hedge</button>
+            </div>
+
+            <!-- Take Profit Targets -->
+            <div class="tp-section">
+                <h4>Take Profit Targets</h4>
+                <div class="tp-row">
+                    <label>TP1 (25%):</label>
+                    <input type="number" id="tp1" step="0.01">
+                </div>
+                <div class="tp-row">
+                    <label>TP2 (50%):</label>
+                    <input type="number" id="tp2" step="0.01">
+                </div>
+                <div class="tp-row">
+                    <label>TP3 (25%):</label>
+                    <input type="number" id="tp3" step="0.01">
+                </div>
+                <button class="apply-btn">Set Targets</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Theme Customizer -->
+    <div class="theme-customizer" id="themeCustomizer">
+        <div class="theme-toggle">🎨</div>
+        <div class="theme-panel" id="themePanel">
+            <h3>Customize Your Dashboard</h3>
+
+            <!-- Theme Presets -->
+            <div class="theme-section">
+                <label>Theme</label>
+                <div class="theme-options">
+                    <button class="theme-btn" data-theme="cyberpunk">🌃 Cyberpunk</button>
+                    <button class="theme-btn" data-theme="matrix">💚 Matrix</button>
+                    <button class="theme-btn" data-theme="neon">🌈 Neon</button>
+                    <button class="theme-btn" data-theme="dark">🌑 Dark</button>
+                    <button class="theme-btn" data-theme="ocean">🌊 Ocean</button>
+                    <button class="theme-btn" data-theme="sunset">🌅 Sunset</button>
+                    <button class="theme-btn" data-theme="royal">👑 Royal</button>
+                    <button class="theme-btn" data-theme="hacker">💻 Hacker</button>
+                </div>
+            </div>
+
+            <!-- Accent Color -->
+            <div class="theme-section">
+                <label>Accent Color</label>
+                <div class="color-picker">
+                    <input type="color" id="accentColor">
+                    <span id="colorValue">#FFD700</span>
+                </div>
+            </div>
+
+            <!-- Font: JetBrains Mono (self-host later with more options) -->
+
+            <!-- Chart Style: use the selector at top of chart instead -->
+
+            <!-- Animations -->
+            <div class="theme-section">
+                <label>Animations</label>
+                <div class="toggle-switch">
+                    <input type="checkbox" id="animToggle" checked>
+                    <label for="animToggle">Enable</label>
+                </div>
+            </div>
+
+            <!-- Save/Reset -->
+            <div class="theme-actions">
+                <button>💾 Save</button>
+                <button>🔄 Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="header">
+        <div class="header-brand">
+            <div class="logo">OGZPrime</div>
+            <div class="tagline">Neural Ensemble • Real-Time Data</div>
+        </div>
+
+        <!-- Hero price — big centered number per mockup. Mirrors
+             #currentPrice (chart-title-container) via JS for now;
+             chart.js writes to #currentPrice, we mirror via a
+             listener below. Once stable, we'll move chart.js to
+             write directly here. -->
+        <div class="header-hero-price" id="headerHeroPrice">
+            <div class="hero-price-main" id="heroPriceMain">$0.00</div>
+            <div class="hero-price-delta" id="heroPriceDelta"></div>
+        </div>
+
+        <!-- Status indicators (moved out of the hidden tier-selector-
+             container 2026-04-25 so #botStatusRow / #sessionPhase /
+             status-lights-bar actually mount visibly. The hidden
+             SELECT VERSION dropdown was incidentally hiding all of
+             these too — Risk Gauge / Session Phase widgets had
+             nowhere visible to render.) -->
+        <div class="header-status-cluster">
+            <!-- Multi-status lights for system health -->
+            <div class="status-lights-bar" title="System health — green = online, yellow = warning, red = offline">
+                <div class="status-light" title="Live market data feed (Alpaca during RTH, Kraken on weekends)">
+                    <span class="light" id="dataLight"></span>
+                    <span class="label">DATA</span>
+                </div>
+                <div class="status-light" title="Bot process — orchestrator + strategy engine + execution">
+                    <span class="light" id="botLight"></span>
+                    <span class="label">BOT</span>
+                </div>
+                <div class="status-light" title="TRAI inference (Mercury-2 / Inception Labs)">
+                    <span class="light" id="traiLight"></span>
+                    <span class="label">TRAI</span>
+                </div>
+            </div>
+            <!-- Phase E: Risk gauge mount point -->
+            <div class="bot-status-row" id="botStatusRow" style="display:inline-flex;align-items:center;gap:8px;"></div>
+            <!-- Phase F: Session phase indicator -->
+            <span id="sessionPhase"></span>
+        </div>
+
+        <!-- Version selector HIDDEN 2026-04-24: only one active version
+             so the "SELECT VERSION" label + dropdown took up header
+             real-estate for no user value. DOM preserved (display:none)
+             so any JS referencing #tierSelector still resolves. -->
+        <div class="tier-selector-container" style="display:none;">
+            <span class="tier-label">SELECT VERSION:</span>
+            <select id="tierSelector" class="tier-selector">
+                <option value="ml">ML VERSION - ALL FEATURES</option>
+                <option value="core">CORE VERSION</option>
+            </select>
+            <div class="connection-status">
+                <span class="status-dot" id="connectionStatus"></span>
+                <span id="statusText">Connecting...</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="main-container">
+        <!-- Unified Chart Section -->
+        <div class="unified-chart-section tier-ml" id="unifiedChart">
+            <div class="chart-header">
+                <div class="chart-title-container">
+                    <!-- "ML VERSION" h2 HIDDEN 2026-04-24: user feedback —
+                         useless title taking top-left real-estate. DOM
+                         kept so anything referencing #chartTitle still
+                         resolves. #currentPrice is the only thing that
+                         should be visible here. -->
+                    <h2 class="chart-title" id="chartTitle" style="display:none;">ML VERSION</h2>
+                    <span class="price-display" id="currentPrice">$0.00</span>
+                </div>
+                <div class="chart-controls">
+                    <select id="chartTypeSelector">
+                        <option value="candlestick" selected>Candlestick</option>
+                        <option value="line">Line</option>
+                        <option value="area">Area</option>
+                        <option value="bar">Bar</option>
+                    </select>
+                    <select id="assetSelector">
+                        <optgroup label="Crypto (Kraken)">
+                            <option value="BTC-USD">Bitcoin (BTC)</option>
+                            <option value="ETH-USD">Ethereum (ETH)</option>
+                            <option value="SOL-USD">Solana (SOL)</option>
+                            <option value="XRP-USD">Ripple (XRP)</option>
+                            <option value="DOGE-USD">Dogecoin (DOGE)</option>
+                            <option value="ADA-USD">Cardano (ADA)</option>
+                            <option value="AVAX-USD">Avalanche (AVAX)</option>
+                            <option value="LINK-USD">Chainlink (LINK)</option>
+                            <option value="LTC-USD">Litecoin (LTC)</option>
+                            <option value="DOT-USD">Polkadot (DOT)</option>
+                        </optgroup>
+                        <optgroup label="Stocks (Alpaca)">
+                            <option value="TSLA" selected>Tesla (TSLA)</option>
+                            <option value="AAPL">Apple (AAPL)</option>
+                            <option value="NVDA">NVIDIA (NVDA)</option>
+                            <option value="SPY">S&P 500 (SPY)</option>
+                            <option value="QQQ">Nasdaq 100 (QQQ)</option>
+                            <option value="AMD">AMD (AMD)</option>
+                            <option value="AMZN">Amazon (AMZN)</option>
+                            <option value="MSFT">Microsoft (MSFT)</option>
+                            <option value="GOOG">Google (GOOG)</option>
+                            <option value="META">Meta (META)</option>
+                            <option value="NFLX">Netflix (NFLX)</option>
+                            <option value="COIN">Coinbase (COIN)</option>
+                            <option value="RIOT">Riot (RIOT)</option>
+                            <option value="MARA">Marathon (MARA)</option>
+                            <option value="PLTR">Palantir (PLTR)</option>
+                        </optgroup>
+                    </select>
+                    <select id="timeframeSelector">
+                        <option value="1m" selected>1M</option>
+                        <option value="5m">5M</option>
+                        <option value="15m">15M</option>
+                        <option value="30m">30M</option>
+                        <option value="1h">1H</option>
+                        <option value="4h">4H</option>
+                        <option value="1d">1D</option>
+                    </select>
+                    <!-- Phase F: Candle countdown ring -->
+                    <span id="candleCountdown"></span>
+                    <div class="indicator-checkboxes" id="indicatorCheckboxes">
+                        <label class="indicator-check">
+                            <input type="checkbox" id="chk-ema" value="ema">
+                            <span class="color-dot" style="background: #ffcc00;"></span>
+                            <span>EMA</span>
+                        </label>
+                        <label class="indicator-check">
+                            <input type="checkbox" id="chk-sma" value="sma">
+                            <span class="color-dot" style="background: #00ccff;"></span>
+                            <span>SMA</span>
+                        </label>
+                        <label class="indicator-check">
+                            <input type="checkbox" id="chk-bollinger" value="bollinger">
+                            <span class="color-dot" style="background: #ff00cc;"></span>
+                            <span>Bollinger Bands</span>
+                        </label>
+                        <label class="indicator-check">
+                            <input type="checkbox" id="chk-atr" value="atr">
+                            <span class="color-dot" style="background: #ff6600;"></span>
+                            <span>ATR</span>
+                        </label>
+                        <label class="indicator-check">
+                            <input type="checkbox" id="chk-fibonacci" value="fibonacci">
+                            <span class="color-dot" style="background: #9900ff;"></span>
+                            <span>Fibonacci</span>
+                        </label>
+                        <label class="indicator-check">
+                            <input type="checkbox" id="chk-trendlines" value="trendlines">
+                            <span class="color-dot" style="background: #00ff00;"></span>
+                            <span>Trend Lines</span>
+                        </label>
+                        <label class="indicator-check">
+                            <input type="checkbox" id="chk-rsi" value="rsi">
+                            <span class="color-dot" style="background: #ff0066;"></span>
+                            <span>RSI Overlay</span>
+                        </label>
+                        <label class="indicator-check">
+                            <input type="checkbox" id="chk-macd" value="macd">
+                            <span class="color-dot" style="background: #6600ff;"></span>
+                            <span>MACD Overlay</span>
+                        </label>
+                        <label class="indicator-check">
+                            <input type="checkbox" id="chk-vwap" value="vwap">
+                            <span class="color-dot" style="background: #00ffcc;"></span>
+                            <span>VWAP</span>
+                        </label>
+                        <label class="indicator-check">
+                            <input type="checkbox" id="chk-ichimoku" value="ichimoku">
+                            <span class="color-dot" style="background: #ccff00;"></span>
+                            <span>Ichimoku Cloud</span>
+                        </label>
+                        <label class="indicator-check">
+                            <input type="checkbox" id="chk-sr" value="sr">
+                            <span class="color-dot" style="background: #ff9900;"></span>
+                            <span>Support/Resistance</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chart-container">
+                <!-- TradingView Chart -->
+                <div id="tvChartContainer"></div>
+
+                <!-- Trade Tooltip (hover on markers) -->
+                <div id="tradeTooltip" style="display:none; position:absolute; background:rgba(0,0,0,0.95); border:1px solid #444; border-radius:6px; padding:10px 12px; font-size:11px; font-family:monospace; z-index:1000; pointer-events:none; min-width:180px;">
+                    <div id="tooltipContent"></div>
+                </div>
+
+                <!-- Crosshair Tooltip (live time + price at cursor). Driven by chart.js. -->
+                <div id="crosshairTooltip" style="display:none; position:absolute; background:rgba(10,10,10,0.96); border:1px solid rgba(255,215,0,0.35); border-radius:6px; padding:6px 10px; z-index:999; pointer-events:none; min-width:150px; box-shadow:0 4px 20px rgba(0,0,0,0.6);"></div>
+
+                <!-- Feed Status Pill (visible when bot feed is stale). Driven by core.js watchdog. -->
+                <div id="feedStatusPill" style="display:none; position:absolute; top:12px; left:50%; transform:translateX(-50%); background:rgba(255,51,102,0.15); border:1px solid rgba(255,51,102,0.5); color:#ff6b8a; padding:6px 14px; border-radius:20px; font-size:11px; font-family:monospace; z-index:998; letter-spacing:0.5px;">
+                    ⚠ Bot offline — waiting for feed
+                </div>
+
+                <!-- Phase A HUD RESTORED 2026-04-24: user wanted the OHLC
+                     mouseover (crosshair → O/H/L/C readout). Previous
+                     hide was too aggressive — killed a feature they
+                     liked. Now keeping the hover OHLC visible but
+                     dropping the redundant price row (still shown in
+                     the top-left). #chartHudPrice stays in DOM so
+                     chart.js flash-color animation handler doesn't
+                     crash; it's just visually hidden. -->
+                <div id="chartHud" aria-hidden="true">
+                    <div id="chartHudPrice" style="display:none;">$0.00</div>
+                    <div id="chartHudOhlc">O 0.00  H 0.00  L 0.00  C 0.00</div>
+                </div>
+
+                <!-- Dynamic Indicator Overlay - MOVED to Trade Log panel for readability -->
+
+                <!-- Signal Pipeline Panel - HIDDEN: Clutters the chart, info available in Edge Analytics -->
+                <div class="signal-overlay" id="signalOverlay" style="display:none !important; position:absolute; top:10px; right:10px; background:rgba(0,0,0,0.85); border:1px solid rgba(255,255,255,0.15); border-radius:8px; padding:10px; min-width:220px; z-index:100; font-family:monospace;">
+                    <h4 style="margin:0 0 6px 0; font-size:12px; color:#888;">📡 SIGNAL PIPELINE</h4>
+                    <div id="signalDirection" style="font-size:15px; font-weight:bold; color:#888;">WAITING...</div>
+                    <div id="signalConfidence" style="font-size:11px; color:#aaa; margin-bottom:6px;"></div>
+                    <div id="signalList" style="font-size:10px; max-height:140px; overflow-y:auto;"></div>
+                    <div id="moduleStatus" style="font-size:9px; color:#666; margin-top:6px; border-top:1px solid rgba(255,255,255,0.08); padding-top:4px;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="trading-panel">
+            <!-- CHANGE 2026-01-29: Trading Controls commented out - this is a PROOF display, not trading interface
+            <div class="panel-section">
+                <div class="panel-title">Trading Controls</div>
+                <div class="trade-controls">
+                    <button class="trade-btn buy-btn" onclick="executeTrade('buy')">BUY</button>
+                    <button class="trade-btn sell-btn" onclick="executeTrade('sell')">SELL</button>
+                    <button class="trade-btn kill-btn" onclick="executeTrade('kill')">KILL</button>
+                </div>
+                <div class="trade-controls">
+                    <button class="trade-btn long-btn" onclick="executeTrade('long')">LONG</button>
+                    <button class="trade-btn short-btn" onclick="executeTrade('short')">SHORT</button>
+                    <button class="trade-btn hedge-btn" onclick="executeTrade('hedge')">HEDGE</button>
+                </div>
+                <div class="trade-controls" style="margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
+                    <button class="trade-btn pause-btn" id="pauseBtn" onclick="pauseTrading()" style="background: linear-gradient(135deg, #f59e0b, #d97706);">⏸️ PAUSE</button>
+                    <button class="trade-btn resume-btn" id="resumeBtn" onclick="resumeTrading()" style="background: linear-gradient(135deg, #10b981, #059669); display: none;">▶️ RESUME</button>
+                </div>
+                <div id="pauseStatus" style="font-size: 11px; color: #f59e0b; margin-top: 5px; display: none;">
+                    <span id="pauseReason"></span>
+                </div>
+            </div>
+            END TRADING CONTROLS -->
+
+            <!-- Session Performance: consolidates the old Performance Stats + Trade Log session header.
+                 All fields are session-scoped (since this dashboard tab opened) and read from
+                 a single source — TradeLog.getSessionStats() in trade-log.js. -->
+            <div class="panel-section">
+                <div class="panel-title" style="display:flex; justify-content:space-between; align-items:baseline; gap:8px;">
+                    <span>Session Performance</span>
+                    <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#a1a1aa; font-weight:400; letter-spacing:0.04em;">
+                        Session <span id="sessionTimer" style="color:#e4e4e7;">00:00:00</span>
+                    </span>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">Session P&amp;L</div>
+                        <div class="stat-value" id="totalPnl">$0.00</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Session Win Rate</div>
+                        <div class="stat-value" id="winRate">0%</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Session Trades</div>
+                        <div class="stat-value" id="tradesExecuted">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Session W&middot;L</div>
+                        <div class="stat-value" id="sessionWL">0W &middot; 0L</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Readouts: consolidates the old Pattern Analysis card + Indicators block.
+                 All fields are live single-tick (current candle / latest signal), not session-scoped. -->
+            <div class="panel-section">
+                <div class="panel-title">Live Readouts</div>
+                <div class="indicator-bar" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:8px 12px; padding:10px 12px; background:rgba(0,0,0,0.3); border-radius:6px; font-size:12px;">
+                    <span style="display:flex; flex-direction:column; gap:2px;"><b style="color:#a1a1aa; font-size:9px; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">RSI</b><span id="rsiCore" style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#e4e4e7;">50</span></span>
+                    <span style="display:flex; flex-direction:column; gap:2px;"><b style="color:#a1a1aa; font-size:9px; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">MACD</b><span id="macdCore" style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#e4e4e7;">0.00</span></span>
+                    <span style="display:flex; flex-direction:column; gap:2px;"><b style="color:#a1a1aa; font-size:9px; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">Pattern</b><span id="patternCore" style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#e4e4e7;">None</span></span>
+                    <span style="display:flex; flex-direction:column; gap:2px;"><b style="color:#a1a1aa; font-size:9px; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">Volume</b><span id="volumeCore" style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#e4e4e7;">0</span></span>
+                    <span style="display:flex; flex-direction:column; gap:2px;"><b style="color:#a1a1aa; font-size:9px; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">ATR</b><span id="atrML" style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#e4e4e7;">0.00</span></span>
+                    <span style="display:flex; flex-direction:column; gap:2px;"><b style="color:#a1a1aa; font-size:9px; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">Live Conf</b><span id="confidenceML" style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#e4e4e7;">0%</span></span>
+                </div>
+                <!-- Pattern detail (folded in from old Pattern Analysis card). #confidence kept inline
+                     with the pattern name so pattern_analysis WS handler in core.js still finds it. -->
+                <div class="pattern-display" id="patternDisplay" style="margin-top:12px;">
+                    <div class="pattern-name" id="currentPatternName">Analyzing... <span id="confidence" style="color:#a1a1aa; font-size:0.85em; margin-left:6px;">0%</span></div>
+                    <!-- CHANGE 2026-01-30: SVG replaces canvas for pattern visualization -->
+                    <div class="pattern-visual" id="patternVisual">
+                        <svg viewBox="0 0 200 80" style="width:100%;height:80px"><circle cx="80" cy="35" r="20" stroke="#888" fill="none" stroke-width="2"/><line x1="95" y1="50" x2="120" y2="70" stroke="#888" stroke-width="4" stroke-linecap="round"/><text x="100" y="78" fill="#888" font-size="10" text-anchor="middle">Scanning...</text></svg>
+                    </div>
+                    <div class="pattern-description" id="patternDescription">
+                        <p class="pattern-info">Pattern detection active. When a pattern is identified, its visual representation and explanation will appear here.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase F: Size Preview -->
+            <div class="panel-section" id="sizePreview"></div>
+
+            <!-- Trade Log (live tape — session counts now live in Session Performance above) -->
+            <div class="panel-section">
+                <div class="panel-title">Trade Log</div>
+                <div class="trade-log" id="tradeLog">
+                </div>
+            </div>
+
+            <!-- Phase F: Strategy Leaderboard -->
+            <div class="panel-section" id="strategyLeaderboard"></div>
+
+            <!-- Chain of Thought Section -->
+            <div class="panel-section">
+                <div class="panel-title">Chain of Thought</div>
+                <div class="chain-of-thought" id="chainOfThought">
+                    <div class="thought-entry" id="thoughtDisplay">
+                        <p>Awaiting market data...</p>
+                    </div>
+                </div>
+
+                <!-- CHANGE 2026-01-29: Neural Ensemble Voting commented out for now
+                <div class="neural-ensemble">
+                    <div class="panel-title">Neural Ensemble Voting</div>
+                    <div class="ensemble-grid">
+                        <div class="brain-module">
+                            <div class="brain-name">Technical</div>
+                            <div class="brain-vote vote-hold" id="technicalVote">HOLD</div>
+                            <div class="brain-confidence" id="technicalConf">0%</div>
+                        </div>
+                        <div class="brain-module">
+                            <div class="brain-name">Pattern</div>
+                            <div class="brain-vote vote-hold" id="patternVote">HOLD</div>
+                            <div class="brain-confidence" id="patternConf">0%</div>
+                        </div>
+                        <div class="brain-module">
+                            <div class="brain-name">Momentum</div>
+                            <div class="brain-vote vote-hold" id="momentumVote">HOLD</div>
+                            <div class="brain-confidence" id="momentumConf">0%</div>
+                        </div>
+                        <div class="brain-module">
+                            <div class="brain-name">Risk</div>
+                            <div class="brain-vote vote-hold" id="riskVote">HOLD</div>
+                            <div class="brain-confidence" id="riskConf">0%</div>
+                        </div>
+                        <div class="brain-module">
+                            <div class="brain-name">Ensemble</div>
+                            <div class="brain-vote vote-hold" id="ensembleVote">HOLD</div>
+                            <div class="brain-confidence" id="ensembleConf">0%</div>
+                        </div>
+                    </div>
+                </div>
+                END NEURAL ENSEMBLE -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Upgrade Prompt -->
+    <div class="upgrade-prompt" onclick="showUpgradeOptions()" style="display: none;">
+        Contact for ML Version Access
+    </div>
+    
+
+    <!-- OGZPrime Modular Dashboard v2.0 -->
+    <!-- Orchestrator first: provides OGZ.register() for all modules -->
+    <script src="/js/core.js?v=1779925633316"></script>
+
+    <!-- Data layer -->
+    <script src="/js/indicators.js?v=1776116744941"></script>
+    <details id="configurationSettings"></details>
+    <script src="/js/websocket.js?v=1790985600000"></script>
+    <script src="/js/panels/configuration-settings.js?v=1790985600000"></script>
+    <script src="/js/chart.js?v=1782680000000"></script>
+
+    <!-- Panels (self-registering, order-independent) -->
+    <script src="/js/panels/rail-resize.js?v=1777847456749"></script>
+    <script src="/js/panels/system-snapshot.js?v=1778705869178"></script>
+    <script src="/js/panels/trade-log.js?v=1777847456749"></script>
+    <script src="/js/panels/edge-analytics.js?v=1777847456749"></script>
+    <script src="/js/panels/asset-tf-card.js?v=1777847456749"></script>
+    <script src="/js/panels/pattern-sparkline.js?v=1777847456749"></script>
+    <script src="/js/panels/bot-intelligence.js?v=1776116744941"></script>
+    <script src="/js/drawing-tools.js?v=1776116744941"></script>
+    <script src="/js/theme-customizer.js?v=1776116744941"></script>
+
+    <!-- Phase E: Confidence Heatbar + Risk Gauge -->
+    <script src="/js/panels/confidence-heatbar.js?v=1791126000000"></script>
+    <script src="/js/panels/risk-gauge.js?v=1777847456749"></script>
+
+    <!-- Phase F: HUD Widgets -->
+    <script src="/js/panels/candle-countdown.js?v=1777005601913"></script>
+    <script src="/js/panels/session-phase.js?v=1777945312788"></script>
+    <script src="/js/panels/size-preview.js?v=1777847456749"></script>
+    <script src="/js/panels/strategy-leaderboard.js?v=1780008152632"></script>
+
+    <!-- Execution layer -->
+    <script src="/js/operator/trade-manager.js?v=1776116744941"></script>
+
+    <!-- Command Palette (Ctrl+K) -->
+    <script src="/js/command-palette.js?v=1777005166748"></script>
+
+    <script>
+        window.onload = () => {
+            OGZ.init();
+            if (OGZ.get('Theme')) OGZ.get('Theme').init();
+            console.log("[OGZPrime] Modular System: ONLINE");
+        };
+    </script>
+
+
+    <!-- Hero price mirror — chart.js writes to #currentPrice on every
+         tick. Mirror that into #heroPriceMain (header center zone)
+         and compute delta vs prior price for color-coding. Standalone
+         IIFE, no module boundary needed. -->
+    <script>
+    (function () {
+        'use strict';
+        const src = document.getElementById('currentPrice');
+        const dst = document.getElementById('heroPriceMain');
+        const delta = document.getElementById('heroPriceDelta');
+        if (!src || !dst) return;
+
+        let lastNum = null;
+        function parsePrice(text) {
+            if (!text) return null;
+            const m = String(text).match(/\$?([\d,]+\.?\d*)/);
+            if (!m) return null;
+            const n = parseFloat(m[1].replace(/,/g, ''));
+            return isFinite(n) ? n : null;
+        }
+
+        function tick() {
+            const text = src.textContent || '';
+            const num = parsePrice(text);
+            if (num == null || num <= 0) return;
+
+            // Only show price part — strip OHLC if currentPrice has it
+            // (when crosshair is hovering the chart, #currentPrice may
+            // hold "O:..H:..L:..C:..". Hero stays clean with just $.)
+            dst.textContent = '$' + num.toFixed(2);
+
+            if (lastNum != null) {
+                const d = num - lastNum;
+                const pct = (d / lastNum) * 100;
+                if (Math.abs(d) >= 0.01) {
+                    const sign = d >= 0 ? '+' : '';
+                    delta.textContent = sign + d.toFixed(2) + '  (' + sign + pct.toFixed(2) + '%)';
+                    delta.className = 'hero-price-delta ' + (d >= 0 ? 'pos' : 'neg');
+                    dst.className = 'hero-price-main ' + (d >= 0 ? '' : 'neg');
+                }
+            }
+            lastNum = num;
+        }
+
+        // Observe #currentPrice for textContent changes
+        const observer = new MutationObserver(tick);
+        observer.observe(src, { childList: true, characterData: true, subtree: true });
+        // Initial tick
+        tick();
+    })();
+    </script>
+
+    <!-- TRAI Chat Widget -->
+    <script src="trai-widget.js?v=1781269500000"></script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+===================================================================
+--- a/core/StrategyOrchestrator.js
++++ b/core/StrategyOrchestrator.js
+@@ -819,9 +819,8 @@
+     // This is PER-STRATEGY, not aggregate — much more meaningful
+     // TUNE 2026-02-27: Raised from 0.25 to filter garbage signals
+ 
+     // FIX 2026-03-19: Extracted hardcoded thresholds to config
+-    this.confluenceMinScore = ConfigLoader.get('confidence.confluenceMinScore');
+ 
+     this.mtfBaseTimeframe = typeof config.mtfBaseTimeframe === 'string' && config.mtfBaseTimeframe.trim()
+       ? config.mtfBaseTimeframe.trim()
+       : null;
+===================================================================
+--- a/config/settings.json
++++ b/config/settings.json
+@@ -1,11 +1,10 @@
+ {
+   "schemaVersion": 1,
+-  "revision": 6,
++  "revision": 7,
+   "confidence": {
+     "minStrategyConfidence": 0.35,
+-    "candlePatternMinConfidence": 0.7,
+-    "confluenceMinScore": 0.3
++    "candlePatternMinConfidence": 0.7
+   },
+   "regimeDetection": {
+     "minimumCandles": 10,
+     "trendThreshold": 0.005,

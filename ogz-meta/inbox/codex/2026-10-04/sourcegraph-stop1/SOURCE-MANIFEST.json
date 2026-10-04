@@ -1,0 +1,914 @@
+{
+  "capturedAt": "2026-10-04T17:53:21.353Z",
+  "branch": "astra-era",
+  "baseCommit": "eea6c9aee2e484bbb4cae1a2330e8138fe36e4a8",
+  "status": "UNREVIEWED LOCAL CONTEXT; NOT PRODUCTION DELIVERY",
+  "files": [
+    {
+      "path": "working-source/config/settings.json",
+      "source": "config/settings.json",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 76268,
+      "sha256": "a7b34520f5e80cefa51c25ac059175d4d4e3fa2cc719d6f80f2d3b64b390ac07"
+    },
+    {
+      "path": "working-source/core/BacktestRunner.js",
+      "source": "core/BacktestRunner.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 27530,
+      "sha256": "d265cbba8c826e9a07774870ec7356b16d5b25d0456ea1b0ad703b24cf1187d2"
+    },
+    {
+      "path": "working-source/core/DrawdownTracker.js",
+      "source": "core/DrawdownTracker.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 1856,
+      "sha256": "3417b5fd6260338bae821bffd4b6728fb67f6815b5cae283289d3e8783ae5f9a"
+    },
+    {
+      "path": "working-source/core/EnhancedPatternRecognition.js",
+      "source": "core/EnhancedPatternRecognition.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 28006,
+      "sha256": "6d3f0ef655e11fe43bf7097ccb754a9ee12155aefb1b6c901cd40af2ae910365"
+    },
+    {
+      "path": "working-source/core/ExitContractManager.js",
+      "source": "core/ExitContractManager.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 47141,
+      "sha256": "dfe88385f9f4666db471099be8cb5a8695c6a8fa171b39cded60d3fb52c0ff51"
+    },
+    {
+      "path": "working-source/core/FeatureExtractor.js",
+      "source": "core/FeatureExtractor.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 11695,
+      "sha256": "b5be346ab3c8d62be1c42b2ca81b7161ff1c26f7b9bbd918e1cdab352ae7daf4"
+    },
+    {
+      "path": "working-source/core/OgzTpoIntegration.js",
+      "source": "core/OgzTpoIntegration.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 21589,
+      "sha256": "a6a5b9f6398bbd4b62384179f92cb2b16c4456dba1dc119cb44cbfb6d3c17ece"
+    },
+    {
+      "path": "working-source/core/OrderExecutor.js",
+      "source": "core/OrderExecutor.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 254795,
+      "sha256": "f9165c9c9b0cf2507c7bbee5bbf165da2aa1bc4f846f313a6a3b6fea248bb358"
+    },
+    {
+      "path": "working-source/core/PnLTracker.js",
+      "source": "core/PnLTracker.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 2664,
+      "sha256": "7e0745f12d3c506ace1cb70da9920328f21e7a399a65acc3bf5d37f515c30932"
+    },
+    {
+      "path": "working-source/core/PolicyBuilder.js",
+      "source": "core/PolicyBuilder.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 25024,
+      "sha256": "066a6d2a8fd63fd4e0a06bf822300ed8441e0c2b56eaf068108da1fab1a0da18"
+    },
+    {
+      "path": "working-source/core/ProfitExitPlanner.js",
+      "source": "core/ProfitExitPlanner.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 11478,
+      "sha256": "b4a7a5a5bc78522f88e84b4d7e9f391a0d3c41b75d62d9d9d4db1e77e2fb1994"
+    },
+    {
+      "path": "working-source/core/StateManager.js",
+      "source": "core/StateManager.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 201276,
+      "sha256": "2fbb21e0722d30dd47cc863603ec7231dcde0719fc7f6463d4a4a65eab6d3cc3"
+    },
+    {
+      "path": "working-source/core/StrategyOrchestrator.js",
+      "source": "core/StrategyOrchestrator.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 135824,
+      "sha256": "51d00bc86d2209e621b13f04103cb48f0cb6d17a8ee834d28c815be34f52bed7"
+    },
+    {
+      "path": "working-source/core/TradingLoop.js",
+      "source": "core/TradingLoop.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 103415,
+      "sha256": "d7358df11668332b79c97347a98e5691678dc8991e0b4a3b709c4d3501659430"
+    },
+    {
+      "path": "working-source/core/WebSocketManager.js",
+      "source": "core/WebSocketManager.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 19069,
+      "sha256": "1d089eee395e3c9362f3a21206e851bdb95573d05bde844abd684031bc4a0f51"
+    },
+    {
+      "path": "working-source/core/dto/DecisionLedgerSchema.js",
+      "source": "core/dto/DecisionLedgerSchema.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 8013,
+      "sha256": "c19286872229a31493c0b8b1e5cdf63311ccabfd80dbeed9431c4b26af2c8bf3"
+    },
+    {
+      "path": "working-source/core/exit/StopLossChecker.js",
+      "source": "core/exit/StopLossChecker.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 3244,
+      "sha256": "417f319632b7935a451ba599c0ea770dc2c2530a126abb150136bec0a903249d"
+    },
+    {
+      "path": "working-source/foundation/ConfigLoader.js",
+      "source": "foundation/ConfigLoader.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 159277,
+      "sha256": "b978070e8c1f23ee7f957163664b5f19d05621c9b2e73df8e4e17f4dbf805f82"
+    },
+    {
+      "path": "working-source/modules/BreakAndRetest.js",
+      "source": "modules/BreakAndRetest.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 29228,
+      "sha256": "529a5bd252cf1c32ac3d74e79025f5f357ec9dd054f93ef865b3aaf3574644d2"
+    },
+    {
+      "path": "working-source/modules/DonchianBreakout.js",
+      "source": "modules/DonchianBreakout.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 5809,
+      "sha256": "7cb886896ff1b46b9d9991a50b8e40501c8d03f7657c6d0afd2b0d636f9e6d2b"
+    },
+    {
+      "path": "working-source/modules/EMASMACrossoverSignal.js",
+      "source": "modules/EMASMACrossoverSignal.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 24556,
+      "sha256": "fb4dc723a7133d8dfa34923f94353ca2174e15f4919d41b0d4111bedca754678"
+    },
+    {
+      "path": "working-source/modules/EMATrendRetest.js",
+      "source": "modules/EMATrendRetest.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 11800,
+      "sha256": "fac7389548d54d8b59db3c36861a348faa7e1fb7892f6e62863c6c48f364fb91"
+    },
+    {
+      "path": "working-source/modules/LiquiditySweepDetector.js",
+      "source": "modules/LiquiditySweepDetector.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 23690,
+      "sha256": "6266dec235c5f187720959ee4b624a6aef9f6b024e8bcf493c67130c292d53e7"
+    },
+    {
+      "path": "working-source/modules/MADynamicSR.js",
+      "source": "modules/MADynamicSR.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 39836,
+      "sha256": "0c25742782f91334ffda5778f34eb946343e14d03b9907ac9a8049bebe0b7646"
+    },
+    {
+      "path": "working-source/modules/NoWickImbalance.js",
+      "source": "modules/NoWickImbalance.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 23374,
+      "sha256": "777d3745ead2bec3133af6ddc00cbf20813338abcbbc3a4552825069b87a6549"
+    },
+    {
+      "path": "working-source/modules/OpeningRangeBreakout.js",
+      "source": "modules/OpeningRangeBreakout.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 18274,
+      "sha256": "a3512cec7fd05cab1ff0bebcfb54d84a748db632465d050f1007c0deca2181b0"
+    },
+    {
+      "path": "working-source/modules/PropSafeEMAPullback.js",
+      "source": "modules/PropSafeEMAPullback.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 13296,
+      "sha256": "9058e977764a5092a6649950796ced2fb67c1650b87c1443b2b43af681e2fa32"
+    },
+    {
+      "path": "working-source/modules/RSI2MeanReversion.js",
+      "source": "modules/RSI2MeanReversion.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 6293,
+      "sha256": "90974b9b5e70e54459a9f0bcd6a1528ee893368d0059a07fcb64fdeb88513608"
+    },
+    {
+      "path": "working-source/modules/SmartMoneySweep.js",
+      "source": "modules/SmartMoneySweep.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 44203,
+      "sha256": "2cbafbc311c90fa2105df78bf441691d7b97cceccbb21f64ca1a8503bc05a17d"
+    },
+    {
+      "path": "working-source/modules/TimeSeriesMomentum.js",
+      "source": "modules/TimeSeriesMomentum.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 6994,
+      "sha256": "74af3b85dbdbaa9ada9d2a999ec04a208c9c839ff7cb5333fabe105b8b896880"
+    },
+    {
+      "path": "working-source/ogzprime-ssl-server.js",
+      "source": "ogzprime-ssl-server.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 93381,
+      "sha256": "186137a8cff35309f50aa4f15dd1f9f32b89874a74f371a34212388e02a7a532"
+    },
+    {
+      "path": "working-source/public/js/panels/chain-of-thought.js",
+      "source": "public/js/panels/chain-of-thought.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 24618,
+      "sha256": "28dd8a467348f2a4127c5944c10eede369a87980225360d8602361d0b2f1d8a3"
+    },
+    {
+      "path": "working-source/public/js/panels/confidence-heatbar.js",
+      "source": "public/js/panels/confidence-heatbar.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 15204,
+      "sha256": "9cf6137f810bebab5413cfc61b11162ba1427ec6dcfa8d4e3333640c53fb9d4f"
+    },
+    {
+      "path": "working-source/public/unified-dashboard-v2.html",
+      "source": "public/unified-dashboard-v2.html",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 47708,
+      "sha256": "22a60125a539a0710a666d6a467865c42e4dd3e3ec5994d949b798ba8f86dbbb"
+    },
+    {
+      "path": "working-source/public/unified-dashboard.html",
+      "source": "public/unified-dashboard.html",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 126450,
+      "sha256": "28df0f3ed022c15c2773e7d725cf3d382422261929f12ab8b028239db4384eac"
+    },
+    {
+      "path": "working-source/run-empire-v2.js",
+      "source": "run-empire-v2.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 175581,
+      "sha256": "e185b4cdb80b012d93cb2f8715c92b28537603fcf42f03cdbbaecbfe10aa265f"
+    },
+    {
+      "path": "working-source.patch",
+      "source": "git diff eea6c9aee2e484bbb4cae1a2330e8138fe36e4a8",
+      "kind": "exact working delta, context only",
+      "bytes": 105245,
+      "sha256": "1fcee4e28c5540ec44cf270311711378bee81dfb44123d38bfbaf581934c551e"
+    },
+    {
+      "path": "prepared/sizing/before.js",
+      "source": "ogz-meta/inbox/codex/2026-10-03/stop1-base-boosted-sizing/before.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 250276,
+      "sha256": "00b466cae2c8ca9992bcf11c466e2d2981479a39cf4b325325255e9fd8eee9fb"
+    },
+    {
+      "path": "prepared/sizing/behavior.json",
+      "source": "ogz-meta/inbox/codex/2026-10-03/stop1-base-boosted-sizing/behavior.json",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 797,
+      "sha256": "0889a23f20b6ad5c00aa976cf7461ae0ebaf95f7c97ed22e9a4ef0e7439c4d03"
+    },
+    {
+      "path": "prepared/sizing/candidate.js",
+      "source": "ogz-meta/inbox/codex/2026-10-03/stop1-base-boosted-sizing/candidate.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 250935,
+      "sha256": "26d1b4462df85394ebd841711999d2ebd4563465a91d17cc2ffd6055d5472813"
+    },
+    {
+      "path": "prepared/sizing/ceiling-reasons-behavior.json",
+      "source": "ogz-meta/inbox/codex/2026-10-03/stop1-base-boosted-sizing/ceiling-reasons-behavior.json",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 922,
+      "sha256": "bf9279042eb4d601412180ddc18591a44b3a7b713b43f4b877d01d0918729116"
+    },
+    {
+      "path": "prepared/sizing/change.patch",
+      "source": "ogz-meta/inbox/codex/2026-10-03/stop1-base-boosted-sizing/change.patch",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 6595,
+      "sha256": "be414d3102f85dc8a68b8d7a036ea3cf71e4ed7e48a367f1ab8ea952758a4265"
+    },
+    {
+      "path": "prepared/sizing/loader-before.js",
+      "source": "ogz-meta/inbox/codex/2026-10-03/stop1-base-boosted-sizing/loader-before.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 151385,
+      "sha256": "818dfa2c8dd045b06b84cc91e45335278e3e9e919d8c0f2bd6bc3f1d4642b7b0"
+    },
+    {
+      "path": "prepared/sizing/loader-candidate.js",
+      "source": "ogz-meta/inbox/codex/2026-10-03/stop1-base-boosted-sizing/loader-candidate.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 151948,
+      "sha256": "5b3a000966f5bd9954ae32c3bc8a863b8255097e106a5311b3ada3838f9ebf29"
+    },
+    {
+      "path": "prepared/sizing/publication-behavior.json",
+      "source": "ogz-meta/inbox/codex/2026-10-03/stop1-base-boosted-sizing/publication-behavior.json",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 377,
+      "sha256": "42c43437df2adec6f82b2b2a8804f410369f1787fffe5879416a63572d331dfc"
+    },
+    {
+      "path": "prepared/switches/behavior.json",
+      "source": "ogz-meta/inbox/retire-unused-confidence/2026-10-03/pipeline-toggles/behavior.json",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 3749,
+      "sha256": "930255101b13616b0e965ccd0dfd32e16f6a262e875b3139490e33e45bcf8f4d"
+    },
+    {
+      "path": "prepared/switches/blast.json",
+      "source": "ogz-meta/inbox/retire-unused-confidence/2026-10-03/pipeline-toggles/blast.json",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 11383,
+      "sha256": "eb8e9bf75b4f4079a482e3b85af00123bbaa1d3b375f189cf5f66d930c222919"
+    },
+    {
+      "path": "prepared/switches/head-behavior.json",
+      "source": "ogz-meta/inbox/retire-unused-confidence/2026-10-03/pipeline-toggles/head-behavior.json",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 3831,
+      "sha256": "d2dad17f2c4bbc23582cb439537be041db4d712f9f96dd961260f1a571f0464c"
+    },
+    {
+      "path": "prepared/switches/head-change.patch",
+      "source": "ogz-meta/inbox/retire-unused-confidence/2026-10-03/pipeline-toggles/head-change.patch",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 7840,
+      "sha256": "9da1a44798d053181ed57b1ee240d7fc698da8b1d8307f880994a2b53aaace5d"
+    },
+    {
+      "path": "prepared/switches/loader-before.js",
+      "source": "ogz-meta/inbox/retire-unused-confidence/2026-10-03/pipeline-toggles/loader-before.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 154415,
+      "sha256": "c2d8dba5af6467161c7674b1341a4b9262d1b6466b71a63e1407495609162f63"
+    },
+    {
+      "path": "prepared/switches/loader-candidate.js",
+      "source": "ogz-meta/inbox/retire-unused-confidence/2026-10-03/pipeline-toggles/loader-candidate.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 155621,
+      "sha256": "cf98e3e1951957d89634296042111b4ae1bd4905898b14028b90b99f62247018"
+    },
+    {
+      "path": "prepared/switches/loader-head-candidate.js",
+      "source": "ogz-meta/inbox/retire-unused-confidence/2026-10-03/pipeline-toggles/loader-head-candidate.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 152591,
+      "sha256": "322f23e7b9963c55ddaf3e62cdeb264602837c8220e691c670333952d845b1fc"
+    },
+    {
+      "path": "prepared/switches/loader-head.js",
+      "source": "ogz-meta/inbox/retire-unused-confidence/2026-10-03/pipeline-toggles/loader-head.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 151385,
+      "sha256": "818dfa2c8dd045b06b84cc91e45335278e3e9e919d8c0f2bd6bc3f1d4642b7b0"
+    },
+    {
+      "path": "prepared/switches/orchestrator-before.js",
+      "source": "ogz-meta/inbox/retire-unused-confidence/2026-10-03/pipeline-toggles/orchestrator-before.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 134442,
+      "sha256": "98934ebc958527118c19609e897320ba1d8153221611884a65808e4b132a9ffe"
+    },
+    {
+      "path": "prepared/switches/orchestrator-candidate.js",
+      "source": "ogz-meta/inbox/retire-unused-confidence/2026-10-03/pipeline-toggles/orchestrator-candidate.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 134275,
+      "sha256": "accca11afb4d5c518bbdc9177393d36f173c6b1c450278642b82b677aa96231e"
+    },
+    {
+      "path": "prepared/switches/orchestrator-head-candidate.js",
+      "source": "ogz-meta/inbox/retire-unused-confidence/2026-10-03/pipeline-toggles/orchestrator-head-candidate.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 135655,
+      "sha256": "564e3466fe8dd840e1b9e2954b5490f89c2026f64207f026d6e6348e2374e828"
+    },
+    {
+      "path": "prepared/switches/orchestrator-head.js",
+      "source": "ogz-meta/inbox/retire-unused-confidence/2026-10-03/pipeline-toggles/orchestrator-head.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 135193,
+      "sha256": "e6a1f101c7ed002797163bc259472555957d1e517c72fd5eed123909f6d11cea"
+    },
+    {
+      "path": "prepared/switches/working-change.patch",
+      "source": "ogz-meta/inbox/retire-unused-confidence/2026-10-03/pipeline-toggles/working-change.patch",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 6668,
+      "sha256": "38279a1a30943ff4a84b913498ed5e3d5668f270fd53efb704e855f4b1736541"
+    },
+    {
+      "path": "prepared/continuity/BreakAndRetest-before.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/BreakAndRetest-before.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 29027,
+      "sha256": "78c714a3f88de2893195df2923644c37da6c340327aeaa044d0ae017e80f3883"
+    },
+    {
+      "path": "prepared/continuity/BreakAndRetest-candidate.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/BreakAndRetest-candidate.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 29228,
+      "sha256": "529a5bd252cf1c32ac3d74e79025f5f357ec9dd054f93ef865b3aaf3574644d2"
+    },
+    {
+      "path": "prepared/continuity/EMASMACrossoverSignal-before.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/EMASMACrossoverSignal-before.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 24320,
+      "sha256": "523962bb11b1d0d7dec3fa7242a97f441f89168f61225b14a9335ea7e2aea040"
+    },
+    {
+      "path": "prepared/continuity/EMASMACrossoverSignal-candidate.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/EMASMACrossoverSignal-candidate.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 24556,
+      "sha256": "fb4dc723a7133d8dfa34923f94353ca2174e15f4919d41b0d4111bedca754678"
+    },
+    {
+      "path": "prepared/continuity/LiquiditySweepDetector-before.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/LiquiditySweepDetector-before.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 23514,
+      "sha256": "a496229ce623c3de36bea343e2f6bf3a30ad03aa2a33981145c8e8d9d3146ff3"
+    },
+    {
+      "path": "prepared/continuity/LiquiditySweepDetector-candidate.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/LiquiditySweepDetector-candidate.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 23690,
+      "sha256": "6266dec235c5f187720959ee4b624a6aef9f6b024e8bcf493c67130c292d53e7"
+    },
+    {
+      "path": "prepared/continuity/MADynamicSR-before.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/MADynamicSR-before.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 39547,
+      "sha256": "1bd9de7096a74cb70c7987031e3ba4dd6ef8d6586eb757a4fb495eee2aa06e06"
+    },
+    {
+      "path": "prepared/continuity/MADynamicSR-candidate.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/MADynamicSR-candidate.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 39836,
+      "sha256": "0c25742782f91334ffda5778f34eb946343e14d03b9907ac9a8049bebe0b7646"
+    },
+    {
+      "path": "prepared/continuity/NoWickImbalance-before.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/NoWickImbalance-before.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 23215,
+      "sha256": "eb1b361492ec979fffcb95eaeeb332014fe9067cabed0ec288dc5ab00cd17096"
+    },
+    {
+      "path": "prepared/continuity/NoWickImbalance-candidate.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/NoWickImbalance-candidate.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 23374,
+      "sha256": "777d3745ead2bec3133af6ddc00cbf20813338abcbbc3a4552825069b87a6549"
+    },
+    {
+      "path": "prepared/continuity/OpeningRangeBreakout-before.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/OpeningRangeBreakout-before.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 17959,
+      "sha256": "23bdff8ae88bbf6d8318b25dfa293b19dba67e5cbd6533b43d725ae894476d1d"
+    },
+    {
+      "path": "prepared/continuity/OpeningRangeBreakout-candidate.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/OpeningRangeBreakout-candidate.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 18274,
+      "sha256": "a3512cec7fd05cab1ff0bebcfb54d84a748db632465d050f1007c0deca2181b0"
+    },
+    {
+      "path": "prepared/continuity/SmartMoneySweep-before.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/SmartMoneySweep-before.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 43981,
+      "sha256": "8e1d60fb762185546431f387ec2670630234f11f3e389688b06b0acb7d341f33"
+    },
+    {
+      "path": "prepared/continuity/SmartMoneySweep-candidate.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/SmartMoneySweep-candidate.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 44203,
+      "sha256": "2cbafbc311c90fa2105df78bf441691d7b97cceccbb21f64ca1a8503bc05a17d"
+    },
+    {
+      "path": "prepared/continuity/behavior.json",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/behavior.json",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 521,
+      "sha256": "c1a971e736d3517d458a2141ed85d2096fd7dd69228c06f15151f4de3910cf46"
+    },
+    {
+      "path": "prepared/continuity/change.patch",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/change.patch",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 18806,
+      "sha256": "372b3d7dfbb7b31a38dfa5bbf409583428197f040b3af1544774cf85a147274c"
+    },
+    {
+      "path": "prepared/continuity/dispatch-behavior.json",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/dispatch-behavior.json",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 644,
+      "sha256": "89858a508862f481292a43ac91a7f5a504ab4f05cbb1b74a7326508247a5e0cd"
+    },
+    {
+      "path": "prepared/continuity/dispatch-proof.cjs",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/dispatch-proof.cjs",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 5228,
+      "sha256": "394656189a9733fe3c5a57c6052a3c8ab7526ed5af086a7324bb0c35c24ecea3",
+      "originalSha256": "405e596ab4868638d251a6aafb5fbab481c47c5df7418c5a4355da6930a35a99",
+      "exportTransformation": "Three synthetic fixture-no-network credential literals replaced by scanner-recognized placeholders in export only; original proof unchanged. Exported proof is inspection context, not a freshly executed test."
+    },
+    {
+      "path": "prepared/continuity/emission-behavior.json",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/emission-behavior.json",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 512,
+      "sha256": "34f634a66e9142038de067d80837840a02fb9748197bc3511178b820452f6159"
+    },
+    {
+      "path": "prepared/continuity/emission-proof.cjs",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/emission-proof.cjs",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 4094,
+      "sha256": "b7abfd5eb087c7086953b4a34a48d88c695ffbe5544fbc0a208006f17a7da9b5"
+    },
+    {
+      "path": "prepared/continuity/integration-before.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/integration-before.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 21404,
+      "sha256": "7c2f3bd5d22deb58fc9420f549eaf038f270c1849f8b48d62d00170c3a3b5a09"
+    },
+    {
+      "path": "prepared/continuity/integration-candidate.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/integration-candidate.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 21590,
+      "sha256": "2382bb59897fb0f2c94bc2281bb2600e4a9c8ef8e38cd89781476c3bb58dccd4"
+    },
+    {
+      "path": "prepared/continuity/loader-candidate.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/loader-candidate.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 152591,
+      "sha256": "322f23e7b9963c55ddaf3e62cdeb264602837c8220e691c670333952d845b1fc"
+    },
+    {
+      "path": "prepared/continuity/orchestrator-before.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/orchestrator-before.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 134491,
+      "sha256": "aaf317edfe17eba6f09edb03bc9ea8643a442ffd143513113f9af2d31eed4d3a"
+    },
+    {
+      "path": "prepared/continuity/orchestrator-candidate.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/orchestrator-candidate.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 136040,
+      "sha256": "26e70e2750a67497fac66d7b170a076f85176873b0aa139c7a758d1198cabf00"
+    },
+    {
+      "path": "prepared/continuity/proof.cjs",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/proof.cjs",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 2918,
+      "sha256": "6e137884435749f09de6e4821939c1a9ca1a9cc11b691ec12c99224512c92801"
+    },
+    {
+      "path": "prepared/continuity/source-identity.json",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/source-identity.json",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 1097,
+      "sha256": "109877db0bd862583750a7576d4c3ad7669a640857cfbfeaf009ef941e8a4b4c"
+    },
+    {
+      "path": "prepared/continuity/stateful-behavior.json",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/stateful-behavior.json",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 1355,
+      "sha256": "5a4e94e8ed4c5a88d65f865cc08e40817837e956f873e8879c793384b952fdff"
+    },
+    {
+      "path": "prepared/continuity/stateful-proof.cjs",
+      "source": "ogz-meta/inbox/codex/2026-10-04/tpo-toggle-continuity/stateful-proof.cjs",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 5024,
+      "sha256": "9dc49b06bf48156da868fb5d8c23e46eb00a0a49c5cc28e4eeb81f57a3c5d391"
+    },
+    {
+      "path": "prepared/nowick/before.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/nowick-confidence/before.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 154764,
+      "sha256": "5b4968e5b5a88fb2847b8804d1969c81b269fcbd25f68d0708309c612871eae6"
+    },
+    {
+      "path": "prepared/nowick/candidate.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/nowick-confidence/candidate.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 155655,
+      "sha256": "d5504aab3b919989094d65e4b43974e9723aa3e5212b83fb6cccd585b1ce4b30"
+    },
+    {
+      "path": "prepared/nowick/change.patch",
+      "source": "ogz-meta/inbox/codex/2026-10-04/nowick-confidence/change.patch",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 4961,
+      "sha256": "701ae68228fe11ac69a60673a4ce97efe7d61506316119f43a87edcee665c025"
+    },
+    {
+      "path": "prepared/nowick/delivery-loader-before.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/nowick-confidence/delivery-loader-before.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 154921,
+      "sha256": "f4f69584a6e78214802dc9922d5653809bfb66d6cdbccfe4f40de919dd392eea"
+    },
+    {
+      "path": "prepared/nowick/delivery-loader-candidate.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/nowick-confidence/delivery-loader-candidate.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 155812,
+      "sha256": "eebe8f30c97bc217a5f37f09e4765a0d536f3b5fcef2f829a031d9b2442266da"
+    },
+    {
+      "path": "prepared/nowick/delivery-module-before.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/nowick-confidence/delivery-module-before.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 23374,
+      "sha256": "777d3745ead2bec3133af6ddc00cbf20813338abcbbc3a4552825069b87a6549"
+    },
+    {
+      "path": "prepared/nowick/delivery-module-candidate.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/nowick-confidence/delivery-module-candidate.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 23537,
+      "sha256": "e78fcea571d067cf051c833bf55f037098b80e4127c6261bb2c229a55f80bc29"
+    },
+    {
+      "path": "prepared/nowick/delivery-orchestrator-before.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/nowick-confidence/delivery-orchestrator-before.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 135824,
+      "sha256": "51d00bc86d2209e621b13f04103cb48f0cb6d17a8ee834d28c815be34f52bed7"
+    },
+    {
+      "path": "prepared/nowick/delivery-orchestrator-candidate.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/nowick-confidence/delivery-orchestrator-candidate.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 135889,
+      "sha256": "96558037e04e8c754f4bc67e2d08c0974d08fde5bad0507117283dada189ba8c"
+    },
+    {
+      "path": "prepared/nowick/delivery-proof.cjs",
+      "source": "ogz-meta/inbox/codex/2026-10-04/nowick-confidence/delivery-proof.cjs",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 5072,
+      "sha256": "e589806890a5fb1d20ecaaf4e388ed6a3570e7163b0df17c671d0faddf4ad709"
+    },
+    {
+      "path": "prepared/nowick/delivery-proof.json",
+      "source": "ogz-meta/inbox/codex/2026-10-04/nowick-confidence/delivery-proof.json",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 409,
+      "sha256": "0785e9d9136894d9d6bd5ca29bd5875e65d2ac76234fb9f830e7f9feb59b51ab"
+    },
+    {
+      "path": "prepared/nowick/delivery.patch",
+      "source": "ogz-meta/inbox/codex/2026-10-04/nowick-confidence/delivery.patch",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 4971,
+      "sha256": "4d9cd400e2fce0682cc7fe755c298836b2dbcfcea78dacf6c01b2e9d9ba1b1ec"
+    },
+    {
+      "path": "prepared/nowick/module-before.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/nowick-confidence/module-before.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 23215,
+      "sha256": "eb1b361492ec979fffcb95eaeeb332014fe9067cabed0ec288dc5ab00cd17096"
+    },
+    {
+      "path": "prepared/nowick/module-candidate.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/nowick-confidence/module-candidate.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 23344,
+      "sha256": "91e89419e45c5ff52cd6fb4461bf4c02cb15f91fec22066ab0deede78131848c"
+    },
+    {
+      "path": "prepared/nowick/orchestrator-before.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/nowick-confidence/orchestrator-before.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 134029,
+      "sha256": "10a379a2890b40db8f52e904fbe45ab1bb6a0ed86f2bf6bbc8d512471a6c16d4"
+    },
+    {
+      "path": "prepared/nowick/orchestrator-candidate.js",
+      "source": "ogz-meta/inbox/codex/2026-10-04/nowick-confidence/orchestrator-candidate.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 134094,
+      "sha256": "7f934c3e6d71dc34df5c359125a7dc57ffa2405c7591545fef48ab8d2dceac97"
+    },
+    {
+      "path": "prepared/nowick/proof.cjs",
+      "source": "ogz-meta/inbox/codex/2026-10-04/nowick-confidence/proof.cjs",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 4937,
+      "sha256": "ea33daced19a121a5280f52c424c90a3a9444913fd161de829839157ed973aff"
+    },
+    {
+      "path": "prepared/nowick/proof.json",
+      "source": "ogz-meta/inbox/codex/2026-10-04/nowick-confidence/proof.json",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 409,
+      "sha256": "0785e9d9136894d9d6bd5ca29bd5875e65d2ac76234fb9f830e7f9feb59b51ab"
+    },
+    {
+      "path": "prepared/rsi/before.js",
+      "source": "ogz-meta/inbox/ui-config-ahead/2026-10-04/rsi-confidence/before.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 153012,
+      "sha256": "265e6ed264e188003030ac7e4175a7c6ab5f0aaea1a77671019e1f17dabba281"
+    },
+    {
+      "path": "prepared/rsi/candidate.js",
+      "source": "ogz-meta/inbox/ui-config-ahead/2026-10-04/rsi-confidence/candidate.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 153936,
+      "sha256": "43b7f0bf50653f142513891533eef18d8f67c172da7b66c421d3d9ef56173862"
+    },
+    {
+      "path": "prepared/rsi/change.patch",
+      "source": "ogz-meta/inbox/ui-config-ahead/2026-10-04/rsi-confidence/change.patch",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 2198,
+      "sha256": "6bdbd0af7880d2d354db33f1fc1d91cefeedb2b4b18abe2a23ccfa704162c415"
+    },
+    {
+      "path": "prepared/rsi/orchestrator.js",
+      "source": "ogz-meta/inbox/ui-config-ahead/2026-10-04/rsi-confidence/orchestrator.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 134029,
+      "sha256": "10a379a2890b40db8f52e904fbe45ab1bb6a0ed86f2bf6bbc8d512471a6c16d4"
+    },
+    {
+      "path": "prepared/rsi/proof.cjs",
+      "source": "ogz-meta/inbox/ui-config-ahead/2026-10-04/rsi-confidence/proof.cjs",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 4024,
+      "sha256": "b2178f1cae12e421aa6d3108f7c6a2dac9971e862cfb1449603b20382d79dc2b"
+    },
+    {
+      "path": "prepared/rsi/proof.json",
+      "source": "ogz-meta/inbox/ui-config-ahead/2026-10-04/rsi-confidence/proof.json",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 352,
+      "sha256": "6865e3b0b4c77b721385efa50a32e11faf8102bda2963732448a1e39090bee72"
+    },
+    {
+      "path": "prepared/donchian/before.js",
+      "source": "ogz-meta/inbox/ui-config-ahead/2026-10-04/donchian-publication/before.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 154921,
+      "sha256": "f4f69584a6e78214802dc9922d5653809bfb66d6cdbccfe4f40de919dd392eea"
+    },
+    {
+      "path": "prepared/donchian/candidate.js",
+      "source": "ogz-meta/inbox/ui-config-ahead/2026-10-04/donchian-publication/candidate.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 155665,
+      "sha256": "5a6e81f14ac8f3362bcdd595a8e3ee534223576115fd32350d5ba21867dea81d"
+    },
+    {
+      "path": "prepared/donchian/change.patch",
+      "source": "ogz-meta/inbox/ui-config-ahead/2026-10-04/donchian-publication/change.patch",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 1621,
+      "sha256": "eda8216cbf77e07d8b7fea0aa82454536718a675ea6c4b2905210751c4819853"
+    },
+    {
+      "path": "prepared/donchian/proof.cjs",
+      "source": "ogz-meta/inbox/ui-config-ahead/2026-10-04/donchian-publication/proof.cjs",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 4072,
+      "sha256": "6bad7851e0a769d50ce8f1d47b5bc9fbc2a94bed6f31f0bbbd392d5b81720eb9"
+    },
+    {
+      "path": "prepared/donchian/proof.json",
+      "source": "ogz-meta/inbox/ui-config-ahead/2026-10-04/donchian-publication/proof.json",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 1590,
+      "sha256": "ef40146eb4234f418aaba4070ccb69766496c6cff6d3a85c89c6c15b0881de18"
+    },
+    {
+      "path": "prepared/unused-confidence/confluenceMinScore.json",
+      "source": "ogz-meta/inbox/codex/2026-10-03/stop1-unused-confidence/confluenceMinScore.json",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 57900,
+      "sha256": "b1266e0a782ff216b0ebe7bd49d76aee2baba2c9b4fbd0b27fcf8043aeb647e3"
+    },
+    {
+      "path": "prepared/unused-confidence/confluenceMinScore.patch",
+      "source": "ogz-meta/inbox/codex/2026-10-03/stop1-unused-confidence/confluenceMinScore.patch",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 1062,
+      "sha256": "830380a830978a383a2b8940162193323fbbb31ab208383fbcc81b5499a516c3"
+    },
+    {
+      "path": "prepared/unused-confidence/orchestrator-before.js",
+      "source": "ogz-meta/inbox/codex/2026-10-03/stop1-unused-confidence/orchestrator-before.js",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 134029,
+      "sha256": "10a379a2890b40db8f52e904fbe45ab1bb6a0ed86f2bf6bbc8d512471a6c16d4"
+    },
+    {
+      "path": "prepared/unused-confidence/regimeMinConfidence.json",
+      "source": "ogz-meta/inbox/codex/2026-10-03/stop1-unused-confidence/regimeMinConfidence.json",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 57905,
+      "sha256": "3367f85073d6a7197cc7489f0426f8855274ee5f3b4174caa72b8e93a8f7402b"
+    },
+    {
+      "path": "prepared/unused-confidence/regimeMinConfidence.patch",
+      "source": "ogz-meta/inbox/codex/2026-10-03/stop1-unused-confidence/regimeMinConfidence.patch",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 1095,
+      "sha256": "1368b7a235d1cd827f573b52fbdce5d6589a1c5898ab7ca63a41bafd6563f758"
+    },
+    {
+      "path": "prepared/unused-confidence/settings-before.json",
+      "source": "ogz-meta/inbox/codex/2026-10-03/stop1-unused-confidence/settings-before.json",
+      "kind": "prepared proposal or historical test source/result; not approval",
+      "bytes": 76309,
+      "sha256": "b51520796a099ef27ca423a04677f64df61ac18cf671fe50c7703cedacdbc8c4"
+    }
+  ],
+  "excluded": [
+    {
+      "path": "CHANGELOG.md",
+      "reason": "Unpublished mixed-owner notes; committed changelog plus handoff is authoritative delivery record"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/adversarial-review.js",
+      "reason": "Mercury repair owned by other lane; unrelated to configuration migration"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/ask.js",
+      "reason": "Mercury repair owned by other lane; unrelated to configuration migration"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/config.js",
+      "reason": "Mercury repair owned by other lane; unrelated to configuration migration"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/doctrine-review.js",
+      "reason": "Mercury repair owned by other lane; unrelated to configuration migration"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/evidence-ingestion.js",
+      "reason": "Mercury repair owned by other lane; unrelated to configuration migration"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/explicit-continuation.js",
+      "reason": "Mercury repair owned by other lane; unrelated to configuration migration"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/indexer.js",
+      "reason": "Mercury repair owned by other lane; unrelated to configuration migration"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/run-ledger.js",
+      "reason": "Mercury repair owned by other lane; unrelated to configuration migration"
+    },
+    {
+      "path": "trai_brain/mercury-bridge/tool-adapter.js",
+      "reason": "Mercury repair owned by other lane; unrelated to configuration migration"
+    }
+  ],
+  "existingReferences": [
+    {
+      "path": "ogz-meta/inbox/astra/STOP1-CONFIG-EVIDENCE.csv",
+      "sha256": "35dabed05002fe3d678bc1402d068aeb84532f03dec18b36bd63c1de8e3dfc58",
+      "bytes": 15640086,
+      "note": "Already tracked in repository; intentionally not duplicated in export."
+    }
+  ]
+}

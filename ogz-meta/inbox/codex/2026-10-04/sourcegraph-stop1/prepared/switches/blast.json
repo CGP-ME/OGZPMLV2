@@ -1,0 +1,406 @@
+[
+  {
+    "file": "core/StrategyOrchestrator.js",
+    "result": {
+      "file": "core/StrategyOrchestrator.js",
+      "callers": [
+        {
+          "source": "run-empire-v2.js",
+          "line": 469,
+          "type": "require",
+          "target": "./core/StrategyOrchestrator"
+        }
+      ],
+      "callerCount": 1,
+      "truncated": false,
+      "riskLevel": "low",
+      "summary": "core/StrategyOrchestrator.js is required by 1 file(s): run-empire-v2.js.",
+      "latencyMs": 107
+    }
+  },
+  {
+    "file": "foundation/ConfigLoader.js",
+    "result": {
+      "file": "foundation/ConfigLoader.js",
+      "callers": [
+        {
+          "source": "TierFeatureFlags.js",
+          "line": 14,
+          "type": "require",
+          "target": "./foundation/ConfigLoader"
+        },
+        {
+          "source": "core/AuthFailureGuard.js",
+          "line": 39,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/BacktestRecorder.js",
+          "line": 17,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/BacktestRunner.js",
+          "line": 15,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/CandleProcessor.js",
+          "line": 19,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/DashboardDepthCoalescer.js",
+          "line": 3,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/DataFileInstrument.js",
+          "line": 4,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/DecisionAutopsyLogger.js",
+          "line": 7,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/DecisionLedgerLogger.js",
+          "line": 8,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/DynamicPositionSizer.js",
+          "line": 45,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/EnhancedPatternRecognition.js",
+          "line": 37,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/ExitContractManager.js",
+          "line": 20,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/FeatureExtractor.js",
+          "line": 17,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/FeatureFlagManager.js",
+          "line": 53,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/FeeModel.js",
+          "line": 3,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/KrakenAdapterV2.js",
+          "line": 50,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/MarketRegimeDetector.js",
+          "line": 30,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/ModuleInitializer.js",
+          "line": 13,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/OgzTpoIntegration.js",
+          "line": 29,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/OptimizedIndicators.js",
+          "line": 33,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/OrderExecutor.js",
+          "line": 16,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/OutputPaths.js",
+          "line": 5,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/PIDController.js",
+          "line": 29,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/PatternMemoryBank.js",
+          "line": 57,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/PolicyBuilder.js",
+          "line": 3,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/PositionSizer.js",
+          "line": 17,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/SingletonLock.js",
+          "line": 10,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/StateManager.js",
+          "line": 77,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/StateManager.js",
+          "line": 78,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/StrategyOrchestrator.js",
+          "line": 39,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/TRAIDecisionModule.js",
+          "line": 26,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/TradeJournalBridge.js",
+          "line": 30,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/TradeNarrator.js",
+          "line": 56,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/TradingLoop.js",
+          "line": 28,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/UnifiedPatternMemory.js",
+          "line": 65,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/WebSocketManager.js",
+          "line": 18,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/exit/DynamicTrailingStop.js",
+          "line": 31,
+          "type": "require",
+          "target": "../../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/tradeLogger.js",
+          "line": 56,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "core/trai_llm_config.js",
+          "line": 3,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "ecosystem.config.js",
+          "line": 3,
+          "type": "require",
+          "target": "./foundation/ConfigLoader"
+        },
+        {
+          "source": "foundation/MarketCalendar.js",
+          "line": 39,
+          "type": "require",
+          "target": "./ConfigLoader"
+        },
+        {
+          "source": "instrument.js",
+          "line": 38,
+          "type": "require",
+          "target": "./foundation/ConfigLoader"
+        },
+        {
+          "source": "modules/OpeningRangeBreakout.js",
+          "line": 6,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "ogz-meta/audit-features.js",
+          "line": 16,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "ogz-meta/claudito-logger.js",
+          "line": 17,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "ogzprime-ssl-server.js",
+          "line": 79,
+          "type": "require",
+          "target": "./foundation/ConfigLoader"
+        },
+        {
+          "source": "public/stripe-checkout.js",
+          "line": 50,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "run-empire-v2.js",
+          "line": 118,
+          "type": "require",
+          "target": "./foundation/ConfigLoader"
+        },
+        {
+          "source": "scripts/supervisor-daemon.js",
+          "line": 69,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "scripts/telemetry-report.js",
+          "line": 10,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "tools/backtest-worker-env.js",
+          "line": 5,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "tools/config-audit.js",
+          "line": 15,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "tools/data-parity-check.js",
+          "line": 8,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "tools/fee-profiles.js",
+          "line": 3,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "tools/grid-search-confidence.js",
+          "line": 15,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "tools/harvest-pattern-pack.js",
+          "line": 44,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "tools/matrix-sweep.js",
+          "line": 58,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "tools/parallel-backtest.js",
+          "line": 30,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "tools/tuning-profiles.js",
+          "line": 3,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "tools/weekend-campaign-gauntlet.js",
+          "line": 7,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "utils/discordNotifier.js",
+          "line": 49,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        },
+        {
+          "source": "utils/telegramNotifier.js",
+          "line": 45,
+          "type": "require",
+          "target": "../foundation/ConfigLoader"
+        }
+      ],
+      "callerCount": 62,
+      "truncated": false,
+      "riskLevel": "high",
+      "summary": "foundation/ConfigLoader.js is required by 62 file(s) including TierFeatureFlags.js, core/AuthFailureGuard.js, core/BacktestRecorder.js.",
+      "latencyMs": 86
+    }
+  }
+]

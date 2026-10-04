@@ -1,0 +1,523 @@
+/**
+ * WebSocketManager - Phase 20 Extraction
+ *
+ * EXACT COPY of initializeDashboardWebSocket() + startHeartbeatPing() from run-empire-v2.js
+ * NO logic changes. Just moved to separate file.
+ *
+ * Dependencies passed via context object in constructor.
+ *
+ * @module core/WebSocketManager
+ */
+
+'use strict';
+
+const WebSocket = require('ws');
+const { getInstance: getStateManager } = require('./StateManager');
+const { getNarrator } = require('./TradeNarrator');
+const { buildBotStateFrame } = require('./BotStateFrame');
+const ConfigLoader = require('../foundation/ConfigLoader');
+const stateManager = getStateManager();
+
+class WebSocketManager {
+  constructor(ctx, options = {}) {
+    this.ctx = ctx;
+    this.wsUrl = options.wsUrl;
+    this.authToken = options.authToken;
+    console.log('[WebSocketManager] Initialized (Phase 20 - exact copy)');
+  }
+
+  handleDashboardAssetChange(asset) {
+    const requestedAsset = typeof asset === 'string' && asset.trim()
+      ? asset.trim().toUpperCase()
+      : null;
+    console.warn(`[WebSocketManager] Ignoring dashboard asset_change ${requestedAsset || '(missing)'} - dashboard asset selection is display-only until SessionRouter owns broker transitions`);
+
+    if (this.ctx.dashboardWs && this.ctx.dashboardWs.readyState === WebSocket.OPEN) {
+      this.ctx.dashboardWs.send(JSON.stringify({
+        type: 'asset_change_ignored',
+        asset: requestedAsset,
+        reason: 'display_only_runtime_guard'
+      }));
+    }
+
+    return false;
+  }
+
+  rejectDashboardProfileCommand(command, profile) {
+    const normalizedCommand = typeof command === 'string' && command.trim()
+      ? command.trim()
+      : 'unknown';
+    const requestedProfile = typeof profile === 'string' && profile.trim()
+      ? profile.trim()
+      : null;
+    const reason = 'runtime_profile_switch_not_wired';
+
+    console.error(`[WebSocketManager] Rejecting dashboard command ${normalizedCommand}: ${reason}`);
+
+    if (this.ctx.dashboardWs && this.ctx.dashboardWs.readyState === WebSocket.OPEN) {
+      this.ctx.dashboardWs.send(JSON.stringify({
+        type: 'command_rejected',
+        command: normalizedCommand,
+        profile: requestedProfile,
+        reason,
+        message: 'Runtime profile switching is disabled until a flat-state profile owner safely applies and verifies all affected tunables.'
+      }));
+    }
+
+    return false;
+  }
+
+  pauseTradingFromDashboard(reason) {
+    const normalizedReason = typeof reason === 'string' && reason.trim()
+      ? reason.trim()
+      : 'Manual pause from dashboard';
+    console.log('[Dashboard] Pause command received:', normalizedReason);
+    const result = stateManager.pauseTrading(normalizedReason, {
+      source: 'dashboard_manual',
+      recoverable: false
+    });
+    if (this.ctx.dashboardWs && this.ctx.dashboardWs.readyState === WebSocket.OPEN) {
+      this.ctx.dashboardWs.send(JSON.stringify({
+        type: 'pause_confirmed',
+        reason: normalizedReason,
+        source: 'dashboard_manual',
+        timestamp: Date.now()
+      }));
+    }
+    return result;
+  }
+
+  resumeTradingFromDashboard() {
+    console.log('[Dashboard] Resume command received');
+    const result = stateManager.resumeTrading({
+      source: 'dashboard_manual'
+    });
+    if (this.ctx.dashboardWs && this.ctx.dashboardWs.readyState === WebSocket.OPEN) {
+      this.ctx.dashboardWs.send(JSON.stringify({
+        type: 'resume_confirmed',
+        source: 'dashboard_manual',
+        timestamp: Date.now()
+      }));
+    }
+    return result;
+  }
+
+  async handleTradeStopEdit(message) {
+    let result;
+    try {
+      result = await stateManager.updateTradeStop(message);
+    } catch (error) {
+      console.error('[WebSocketManager] Trade stop application failed:', error.message);
+      result = { success: false, applied: false, reason: 'trade_stop_application_failed' };
+    }
+    const receipt = {
+      type: 'trade_stop_result',
+      requestId: typeof message.requestId === 'string' ? message.requestId : null,
+      ...result,
+    };
+    if (this.ctx.dashboardWs?.readyState === WebSocket.OPEN) {
+      this.ctx.dashboardWs.send(JSON.stringify(receipt));
+    }
+    return receipt;
+  }
+
+  handleSettings(message) {
+    const result = message.type === 'get_settings'
+      ? { success: true, ...ConfigLoader.getSettingsView() }
+      : ConfigLoader.saveSettings(message);
+    const receipt = { type: 'settings_result', requestId: message.requestId, ...result };
+    if (result.applied && this.ctx.onSettingsApplied) {
+      this.ctx.onSettingsApplied(ConfigLoader.getCachedSnapshot(), receipt);
+    }
+    if (this.ctx.dashboardWs?.readyState === WebSocket.OPEN) {
+      this.ctx.dashboardWs.send(JSON.stringify(receipt));
+    }
+    return receipt;
+  }
+
+  /**
+   * Initialize Dashboard WebSocket connection (Change 528)
+   * OPTIONAL - only connects if WS_HOST is set
+   * EXACT COPY from run-empire-v2.js
+   */
+  initializeDashboardWebSocket() {
+    // Bot connects to WebSocket relay on port 3010
+    const wsUrl = this.wsUrl;
+
+    console.log(`\n[WebSocketManager] Connecting to Dashboard WebSocket at ${wsUrl}...`);
+
+    try {
+      this.ctx.dashboardWs = new WebSocket(wsUrl);
+
+      this.ctx.dashboardWs.on('open', () => {
+        console.log('[WebSocketManager] Dashboard WebSocket connected');
+        this.ctx.dashboardWsConnected = true;
+        this.ctx.lastPongReceived = Date.now(); // CHANGE 2026-01-28: Track pong for heartbeat
+
+        // SECURITY (Change 582): Authenticate first before sending any data
+        const authToken = this.authToken;
+        if (!authToken) {
+          console.error('[WebSocketManager] WEBSOCKET_AUTH_TOKEN not set - closing dashboard WebSocket without authentication.');
+          this.ctx.dashboardWsConnected = false;
+          this.ctx.dashboardWs.close(1011, 'Authentication unavailable');
+          return;
+        }
+
+        this.ctx.dashboardWs.send(JSON.stringify({
+          type: 'auth',
+          token: authToken
+        }));
+        this.ctx.dashboardAuthPending = true;
+        this.ctx.dashboardConnectionId = null;
+        console.log('[WebSocketManager] Sent authentication to dashboard');
+
+        // DON'T send identify here - wait for auth_success message
+      });
+
+      this.ctx.dashboardWs.on('error', (error) => {
+        console.error('[WebSocketManager] Dashboard WebSocket error:', error.message);
+        this.ctx.dashboardWsConnected = false;
+      });
+
+      this.ctx.dashboardWs.on('close', () => {
+        console.log('[WebSocketManager] Dashboard WebSocket closed - reconnecting in 2s');
+        this.ctx.dashboardWsConnected = false;
+        // CHANGE 2026-01-31: Clear both intervals on close
+        if (this.ctx.heartbeatInterval) {
+          clearInterval(this.ctx.heartbeatInterval);
+          this.ctx.heartbeatInterval = null;
+        }
+        if (this.ctx.dataWatchdogInterval) {
+          clearInterval(this.ctx.dataWatchdogInterval);
+          this.ctx.dataWatchdogInterval = null;
+        }
+        if (this.ctx.botStateInterval) {
+          clearInterval(this.ctx.botStateInterval);
+          this.ctx.botStateInterval = null;
+        }
+        this.ctx.dashboardAuthPending = false;
+        this.ctx.dashboardConnectionId = null;
+        // Reconnect faster (2s instead of 5s)
+        if (this.ctx.isRunning) {
+          if (this.ctx.dashboardReconnectTimeout) {
+            clearTimeout(this.ctx.dashboardReconnectTimeout);
+          }
+          this.ctx.dashboardReconnectTimeout = setTimeout(() => {
+            this.ctx.dashboardReconnectTimeout = null;
+            if (this.ctx.isRunning) this.initializeDashboardWebSocket();
+          }, 2000);
+        }
+      });
+
+      this.ctx.dashboardWs.on('message', async (data) => {
+        try {
+          const msg = JSON.parse(data.toString());
+
+          // CHANGE 2026-01-31: Track last message for data watchdog
+          this.ctx.lastDashboardMessageReceived = Date.now();
+
+          // Handle authentication success
+          if (msg.type === 'auth_success') {
+            const connectionId = typeof msg.connectionId === 'string' && msg.connectionId.trim()
+              ? msg.connectionId.trim()
+              : null;
+            if (!this.ctx.dashboardAuthPending || !connectionId) {
+              console.error('[WebSocketManager] Invalid dashboard auth_success frame - closing connection.');
+              this.ctx.dashboardAuthPending = false;
+              this.ctx.dashboardWs.close(1008, 'Invalid auth_success');
+              return;
+            }
+
+            this.ctx.dashboardAuthPending = false;
+            this.ctx.dashboardConnectionId = connectionId;
+            console.log('[WebSocketManager] Dashboard authentication successful');
+
+            // Now send identify message after successful auth
+            this.ctx.dashboardWs.send(JSON.stringify({
+              type: 'identify',
+              source: 'trading_bot',
+              bot: 'ogzprime-v14-refactored',
+              version: 'V14-REFACTORED-MERGED',
+              capabilities: ['trading', 'realtime', 'risk-management']
+            }));
+
+            // PHASE 4 REWRITE: executionLayer deleted - StateManager handles dashboard connection
+            // this.ctx.executionLayer.setWebSocketClient(this.ctx.dashboardWs);
+
+            // CHANGE 2025-12-11: Connect StateManager to dashboard for accurate post-update state
+            // Dashboard now receives state AFTER changes, never stale data
+            stateManager.setDashboardWs(this.ctx.dashboardWs);
+
+            // Connect TRAI for chain-of-thought broadcasts
+            if (this.ctx.trai) {
+              this.ctx.trai.setWebSocketClient(this.ctx.dashboardWs);
+            }
+
+            // Wire narrator for USER-mode broadcasts. Does nothing when
+            // config/settings.json services.narrator.userEnabled is false.
+            try {
+              getNarrator().setWebSocketClient(this.ctx.dashboardWs);
+            } catch (e) {
+              console.warn('[Narrator] setWebSocketClient failed:', e.message);
+            }
+
+            // CHANGE 2026-01-28: Start heartbeat ping interval after auth
+            this.startHeartbeatPing();
+            this.startBotStateBroadcast();
+
+            return;
+          }
+
+          // Handle authentication errors
+          if (msg.type === 'error') {
+            console.error('[WebSocketManager] Dashboard error:', msg.message);
+            this.ctx.dashboardAuthPending = false;
+            return;
+          }
+
+          // CHANGE 2026-01-28: Handle pong for heartbeat
+          if (msg.type === 'pong') {
+            this.ctx.lastPongReceived = Date.now();
+            return;
+          }
+
+          // CHANGE 2026-01-30: Handle timeframe change from dashboard
+          // Fetch REAL historical data from Kraken REST API, not just cached WebSocket data
+          if (msg.type === 'timeframe_change') {
+            const newTimeframe = msg.timeframe || '1m';
+            console.log(`[WebSocketManager] Dashboard timeframe changed to: ${newTimeframe}`);
+            this.ctx.dashboardTimeframe = newTimeframe;
+
+            // Fetch historical candles from Kraken REST API
+            this.ctx.fetchAndSendHistoricalCandles(newTimeframe, 200, msg.asset);
+            return;
+          }
+
+          // CHANGE 2026-01-30: Handle request for historical data
+          if (msg.type === 'request_historical') {
+            const timeframe = msg.timeframe || '1m';
+            const limit = msg.limit || 200;
+
+            // Fetch historical candles from Kraken REST API
+            this.ctx.fetchAndSendHistoricalCandles(timeframe, limit, msg.asset);
+            return;
+          }
+
+          // CHANGE 2026-02-10: Handle asset switching from dashboard (Multi-Asset Manager)
+          if (msg.type === 'asset_change') {
+            this.handleDashboardAssetChange(msg.asset);
+            return;
+          }
+
+          // CHANGE 665: Handle profile switching and dashboard commands
+          if (msg.type === 'update_trade_stop') {
+            await this.handleTradeStopEdit(msg);
+            return;
+          }
+
+          if (msg.type === 'get_settings' || msg.type === 'save_settings') {
+            this.handleSettings(msg);
+            return;
+          }
+
+          if (msg.type === 'command') {
+            console.log('[Dashboard] command received:', msg.command);
+
+            // Profile switching is disabled until a runtime owner can prove
+            // flat-state safety and apply all affected tunables atomically.
+            if (msg.command === 'switch_profile' && msg.profile) {
+              this.rejectDashboardProfileCommand(msg.command, msg.profile);
+            }
+
+            // Get all profiles
+            else if (msg.command === 'get_profiles') {
+              this.rejectDashboardProfileCommand(msg.command);
+            }
+
+            // Dynamic confidence adjustment
+            else if (msg.command === 'set_confidence' && msg.confidence) {
+              this.rejectDashboardProfileCommand(msg.command);
+            }
+
+            // PAUSE TRADING - Manual safety stop from dashboard
+            else if (msg.command === 'pause_trading') {
+              const reason = msg.reason || 'Manual pause from dashboard';
+              this.pauseTradingFromDashboard(reason);
+            }
+
+            // RESUME TRADING - Manual resume from dashboard
+            else if (msg.command === 'resume_trading') {
+              this.resumeTradingFromDashboard();
+            }
+          }
+
+          // TRAI Chat Support - Tech support queries from dashboard
+          if (msg.type === 'trai_query' && this.ctx.trai) {
+            console.log('[TRAI] Received chat query:', msg.query?.substring(0, 50) + '...');
+            this.ctx.handleTraiQuery(msg);
+          }
+        } catch (error) {
+          console.error('[WebSocketManager] Dashboard message parse error:', error.message);
+        }
+      });
+
+    } catch (error) {
+      console.error('[WebSocketManager] Dashboard WebSocket initialization failed:', error.message);
+      this.ctx.dashboardWsConnected = false;
+    }
+  }
+
+  /**
+   * CHANGE 2026-01-31: Aggressive heartbeat to prevent silent connection death
+   * - Ping every 15s (more frequent)
+   * - Timeout after 30s (miss 2 pings = dead)
+   * - Data watchdog: reconnect if no messages for 60s
+   * EXACT COPY from run-empire-v2.js
+   */
+  startHeartbeatPing() {
+    // Clear any existing intervals
+    if (this.ctx.heartbeatInterval) {
+      clearInterval(this.ctx.heartbeatInterval);
+    }
+    if (this.ctx.dataWatchdogInterval) {
+      clearInterval(this.ctx.dataWatchdogInterval);
+    }
+
+    const PING_INTERVAL = 15000; // 15 seconds (more aggressive)
+    const PONG_TIMEOUT = 30000;  // 30 seconds (miss 2 pings = dead)
+    const DATA_TIMEOUT = 60000;  // 60 seconds no data = force reconnect
+
+    // Reset the data-watchdog grace window on each authenticated connection.
+    this.ctx.lastDashboardMessageReceived = Date.now();
+
+    // Heartbeat ping/pong check
+    this.ctx.heartbeatInterval = setInterval(() => {
+      // Check if socket exists and thinks it's open
+      if (!this.ctx.dashboardWs) {
+        console.log('[Heartbeat] No WebSocket instance - triggering reconnect');
+        this.initializeDashboardWebSocket();
+        return;
+      }
+
+      const state = this.ctx.dashboardWs.readyState;
+      if (state !== 1) {
+        console.log(`[Heartbeat] Socket not open (readyState=${state}) - waiting for reconnect`);
+        return;
+      }
+
+      // Check if last pong is too old
+      const timeSinceLastPong = Date.now() - (this.ctx.lastPongReceived || 0);
+      if (timeSinceLastPong > PONG_TIMEOUT) {
+        console.log('[Heartbeat] TIMEOUT - no pong in ' + Math.round(timeSinceLastPong/1000) + 's - forcing reconnect');
+        try {
+          this.ctx.dashboardWs.terminate();
+        } catch (e) {
+          console.error('[Heartbeat] Terminate failed:', e.message);
+        }
+        return;
+      }
+
+      // Send ping
+      try {
+        this.ctx.dashboardWs.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
+      } catch (err) {
+        console.error('[Heartbeat] Ping failed:', err.message, '- forcing reconnect');
+        try {
+          this.ctx.dashboardWs.terminate();
+        } catch (e) {}
+      }
+    }, PING_INTERVAL);
+
+    // Data watchdog - ensure SOME data is flowing
+    this.ctx.dataWatchdogInterval = setInterval(() => {
+      if (!this.ctx.dashboardWs || this.ctx.dashboardWs.readyState !== 1) {
+        return; // Not connected
+      }
+
+      const timeSinceData = Date.now() - (this.ctx.lastDashboardMessageReceived || 0);
+      if (timeSinceData > DATA_TIMEOUT) {
+        console.log('[Watchdog] NO DATA for ' + Math.round(timeSinceData/1000) + 's - forcing reconnect');
+        try {
+          this.ctx.dashboardWs.terminate();
+        } catch (e) {
+          console.error('[Watchdog] Terminate failed:', e.message);
+        }
+      }
+    }, 30000); // Check every 30s
+
+    console.log('[WebSocketManager] Heartbeat started (ping every 15s, pong timeout 30s, data timeout 60s)');
+  }
+
+  sendBotStateFrame() {
+    if (!this.ctx.dashboardWs || this.ctx.dashboardWs.readyState !== WebSocket.OPEN) {
+      return false;
+    }
+
+    const frame = buildBotStateFrame({
+      ...this.ctx,
+      stateManager,
+    });
+
+    this.ctx.dashboardWs.send(JSON.stringify(frame));
+    return true;
+  }
+
+  async stop() {
+    if (this.ctx.dashboardReconnectTimeout) {
+      clearTimeout(this.ctx.dashboardReconnectTimeout);
+      this.ctx.dashboardReconnectTimeout = null;
+    }
+    for (const timerName of ['heartbeatInterval', 'dataWatchdogInterval', 'botStateInterval']) {
+      if (this.ctx[timerName]) {
+        clearInterval(this.ctx[timerName]);
+        this.ctx[timerName] = null;
+      }
+    }
+
+    const socket = this.ctx.dashboardWs;
+    this.ctx.dashboardWsConnected = false;
+    if (!socket) return { success: true, skipped: true };
+    if (socket.readyState === WebSocket.CLOSED) {
+      this.ctx.dashboardWs = null;
+      return { success: true };
+    }
+
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (result) => {
+        if (settled) return;
+        settled = true;
+        if (this.ctx.dashboardWs === socket) this.ctx.dashboardWs = null;
+        resolve(result);
+      };
+      socket.once('close', () => finish({ success: true }));
+      try {
+        socket.close();
+      } catch (error) {
+        finish({ success: false, code: 'DASHBOARD_SOCKET_CLOSE_FAILED', reason: error.message });
+      }
+    });
+  }
+
+  startBotStateBroadcast() {
+    if (this.ctx.botStateInterval) {
+      clearInterval(this.ctx.botStateInterval);
+      this.ctx.botStateInterval = null;
+    }
+
+    try {
+      this.sendBotStateFrame();
+    } catch (error) {
+      console.error('[WebSocketManager] bot_state broadcast failed:', error.message);
+    }
+    this.ctx.botStateInterval = setInterval(() => {
+      try {
+        this.sendBotStateFrame();
+      } catch (error) {
+        console.error('[WebSocketManager] bot_state broadcast failed:', error.message);
+      }
+    }, 60000);
+  }
+}
+
+module.exports = WebSocketManager;

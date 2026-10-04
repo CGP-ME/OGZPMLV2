@@ -1,0 +1,33 @@
+diff --git a/foundation/ConfigLoader.js b/foundation/ConfigLoader.js
+index bcd3ac50..425202bd 100644
+--- a/foundation/ConfigLoader.js
++++ b/foundation/ConfigLoader.js
+@@ -2483,6 +2483,20 @@ function timeSeriesMomentumConfidenceReplacementProblem(config) {
+   return null;
+ }
+ 
++function donchianNumericReplacementProblem(config) {
++  const cfg = config.strategies?.DonchianBreakout;
++  for (const key of ['entryPeriod', 'atrPeriod', 'atrStopMult', 'trailChannelBars']) {
++    const problem = { reason: 'invalid_donchian_numeric_setting', path: `strategies.DonchianBreakout.${key}` };
++    const raw = cfg?.[key];
++    if ((typeof raw !== 'number' && typeof raw !== 'string')
++        || (typeof raw === 'string' && raw.trim() === '')) return problem;
++    const value = Number(raw);
++    if (!Number.isFinite(value) || value <= 0) return problem;
++    if ((key === 'entryPeriod' || key === 'atrPeriod') && !Number.isInteger(value)) return problem;
++  }
++  return null;
++}
++
+ function rsi2ConfidenceReplacementProblem(config) {
+   const cfg = config.strategies?.RSI2MeanReversion;
+   const confidence = {};
+@@ -2570,6 +2584,7 @@ function load(opts = {}) {
+       || maDynamicSRConfidenceReplacementProblem(candidate.config)
+       || liquiditySweepWeightsReplacementProblem(candidate.config)
+       || timeSeriesMomentumConfidenceReplacementProblem(candidate.config)
++      || donchianNumericReplacementProblem(candidate.config)
+       || rsi2ConfidenceReplacementProblem(candidate.config)
+       || emaRetestConfidenceReplacementProblem(candidate.config)
+       || propSafeConfidenceReplacementProblem(candidate.config);

@@ -1,0 +1,442 @@
+diff --git a/core/StrategyOrchestrator.js b/core/StrategyOrchestrator.js
+index 09339b4f..e26246e1 100644
+--- a/core/StrategyOrchestrator.js
++++ b/core/StrategyOrchestrator.js
+@@ -1633,6 +1633,10 @@ class StrategyOrchestrator {
+           emaCrossoverModule,
+           () => new EMASMACrossoverSignal(this.emaCrossoverConfig, () => ConfigLoader.get('strategies.EMASMACrossover'))
+         );
++        if (ctx.entriesEnabled === false) {
++          scopedEmaCrossover.observe(latestCandle, candles);
++          return null;
++        }
+         const sig = scopedEmaCrossover.update(latestCandle, candles);
+         if (sig) diagEMA.moduleNonNull++;
+         if (sig?.diagnostics) {
+@@ -1697,6 +1701,10 @@ class StrategyOrchestrator {
+           maDynamicSRModule,
+           () => new MADynamicSR(this.maDynamicSRConfig, () => ConfigLoader.get('strategies.MADynamicSR'))
+         );
++        if (ctx.entriesEnabled === false) {
++          scopedMaDynamicSR.observe(latestCandle, candles);
++          return null;
++        }
+         const sig = scopedMaDynamicSR.update(latestCandle, candles);
+         if (sig && sig.direction) diagMASR.moduleNonNull++;
+ 
+@@ -1756,6 +1764,10 @@ class StrategyOrchestrator {
+           liquiditySweepModule,
+           () => new LiquiditySweepDetector(this.liquiditySweepConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'))
+         );
++        if (ctx.entriesEnabled === false) {
++          scopedLiquiditySweep.observe(latestCandle);
++          return null;
++        }
+         const sig = scopedLiquiditySweep.feedCandle(latestCandle);
+ 
+         // DIAGNOSTIC: Log every call to see why no signals
+@@ -1807,6 +1819,10 @@ class StrategyOrchestrator {
+             breakAndRetestModule,
+             () => new BreakAndRetest(this.breakAndRetestConfig)
+           );
++          if (ctx.entriesEnabled === false) {
++            scopedBreakAndRetest.observe(latestCandle, candles);
++            return null;
++          }
+           const sig = scopedBreakAndRetest.update(latestCandle, candles);
+           if (!sig || !sig.direction || sig.direction === 'neutral') return null;
+           let conf = sig.confidence || 0;
+@@ -2028,6 +2044,10 @@ class StrategyOrchestrator {
+           orbInstance,
+           () => new OpeningRangeBreakout(this.openingRangeBreakoutConfig)
+         );
++        if (ctx.entriesEnabled === false) {
++          scopedOrb.observe(latestCandle);
++          return null;
++        }
+         const signal = scopedOrb.update(latestCandle);
+ 
+         // DIAGNOSTIC: Log every call
+@@ -2071,6 +2091,10 @@ class StrategyOrchestrator {
+           smartMoneySweepModule,
+           () => new SmartMoneySweep(this.smartMoneySweepConfig)
+         );
++        if (ctx.entriesEnabled === false) {
++          scopedSmartMoneySweep.observe(latestCandle, candles);
++          return null;
++        }
+         const sig = scopedSmartMoneySweep.update(latestCandle, candles);
+ 
+         if (sig) diagSMS.moduleNonNull++;
+@@ -2109,6 +2133,10 @@ class StrategyOrchestrator {
+       name: 'NoWickImbalance',
+       evaluate: (ctx) => {
+         try {
++          if (ctx.entriesEnabled === false) {
++            noWickModule.observe(ctx);
++            return null;
++          }
+           return noWickModule.evaluate(ctx);
+         } catch (e) {
+           if (e.message && e.message.startsWith('[STRATEGY-SCOPE]')) {
+@@ -2275,7 +2303,7 @@ class StrategyOrchestrator {
+     this.evalCount++;
+ 
+     const entrySizingInput = ConfigLoader.getEntrySizingInput();
+-    const ctx = { indicators, patterns, regime, priceHistory, extras };
++    const ctx = { indicators, patterns, regime, priceHistory, extras, entriesEnabled: true };
+     const unavailableStrategies = [];
+     this.currentEvaluationUnavailableStrategies = unavailableStrategies;
+     if (entrySizingInput.issues.length > 0) {
+@@ -2322,7 +2350,13 @@ class StrategyOrchestrator {
+     const contractConfidenceDropped = [];
+     // Quarantine malformed external entry configuration before routing strategies.
+     // Existing positions retain their own exit contracts and exit processing.
+-    const entryStrategies = entrySizingInput.multipliers === null ? [] : this.strategies;
++    // These retained modules own candle-by-candle state even while entries are disabled.
++    const statefulNames = ['EMASMACrossover', 'MADynamicSR', 'LiquiditySweep', 'BreakRetest',
++      'OGZTPO', 'OpeningRangeBreakout', 'SmartMoneySweep', 'NoWickImbalance'];
++    const entryStrategies = entrySizingInput.multipliers === null ? [] : this.registeredStrategies.filter(
++      strategy => this.strategies.includes(strategy)
++        || (this.builtinStrategies.has(strategy) && statefulNames.includes(strategy.name))
++    );
+     for (const strategy of entryStrategies) {
+       // DISABLED 2026-03-09: VP chop filter removed — strategies handle own filtering
+       // if (skipTrendStrategies && TREND_STRATEGIES.includes(strategy.name)) {
+@@ -2330,7 +2364,9 @@ class StrategyOrchestrator {
+       // }
+ 
+       try {
+-        const result = strategy.evaluate(ctx);
++        const entriesEnabled = this.strategies.includes(strategy);
++        const result = strategy.evaluate(entriesEnabled ? ctx : { ...ctx, entriesEnabled: false });
++        if (!entriesEnabled) continue;
+         if (isStrategyUnavailableRecord(result)) {
+           noSignalStrategies.push(`${strategy.name}:unavailable:${result.reason}`);
+           continue;
+diff --git a/core/OgzTpoIntegration.js b/core/OgzTpoIntegration.js
+index c413aced..0adecd5a 100644
+--- a/core/OgzTpoIntegration.js
++++ b/core/OgzTpoIntegration.js
+@@ -227,9 +227,6 @@ class OgzTpoIntegration extends EventEmitter {
+      * @returns {Object} Update result with signals and votes
+      */
+     update(candle) {
+-        if (!this.config.enabled) {
+-            return { enabled: false };
+-        }
+         const rawBarTimestamp = candleBarTimestamp(candle);
+         const candleTimestamp = rawBarTimestamp ?? this.lastBarTimestamp ?? MISSING_TIMESTAMP_BAR;
+         const isSameBarUpdate = this.lastBarTimestamp !== null && this.lastBarTimestamp === candleTimestamp;
+@@ -267,7 +264,7 @@ class OgzTpoIntegration extends EventEmitter {
+         if (this.candleHistory.closes.length < this.config.normLength + 5) {
+             this._expireLastSignal(currentBarIndex);
+             return { 
+-                enabled: true, 
++                enabled: this.config.enabled, 
+                 ready: false, 
+                 message: `Warming up (${this.candleHistory.closes.length}/${this.config.normLength + 5})` 
+             };
+@@ -296,6 +293,13 @@ class OgzTpoIntegration extends EventEmitter {
+         this.existingTpo.update(candle);
+         existingSignal = this.existingTpo.getValues()?.signal || null;
+         
++        // Disabling entries must not create a gap in either oscillator's candle history.
++        if (!this.config.enabled) {
++            this.lastSignal = null;
++            this.lastSignalBarIndex = null;
++            return { enabled: false };
++        }
++
+         // Track statistics
+         if (newSignal && newSignal.type !== 'INVALID') this.stats.newTpoSignals++;
+         if (existingSignal && existingSignal.type !== 'INVALID') this.stats.existingTpoSignals++;
+diff --git a/modules/EMASMACrossoverSignal.js b/modules/EMASMACrossoverSignal.js
+index 6cdd0edb..b5640d5c 100644
+--- a/modules/EMASMACrossoverSignal.js
++++ b/modules/EMASMACrossoverSignal.js
+@@ -206,7 +206,11 @@ class EMASMACrossoverSignal {
+    * @param {Array}  priceHistory — array of candles, newest LAST
+    * @returns {Object} signal
+    */
+-  update(candle, priceHistory) {
++  update(candle, priceHistory) { return this._update(candle, priceHistory, true); }
++
++  observe(candle, priceHistory) { return this._update(candle, priceHistory, false); }
++
++  _update(candle, priceHistory, emitEntries) {
+     // Production callers supply the validated settings owner. Explicitly
+     // injected configurations stay fixed when no provider was supplied.
+     if (this.confidenceConfigProvider) {
+@@ -318,6 +322,7 @@ class EMASMACrossoverSignal {
+     this.barIndex += 1;
+     this.diagCounters.crossesDetected += funnel.crossesDetected;
+     this.diagCounters.eventsFresh += funnel.eventsFresh;
++    if (!emitEntries) return this._emptySignal();
+ 
+     // ═══════════════════════════════════════════════════════════════════
+     // Direction and base confidence are config-owned. Restored filters are
+diff --git a/modules/MADynamicSR.js b/modules/MADynamicSR.js
+index 42156819..65cbdcc7 100644
+--- a/modules/MADynamicSR.js
++++ b/modules/MADynamicSR.js
+@@ -306,7 +306,11 @@ class MADynamicSR {
+    * Main update - call on each candle
+    * REWRITTEN 2026-03-09: Corrected Trader DNA implementation
+    */
+-  update(candle, priceHistory) {
++  update(candle, priceHistory) { return this._update(candle, priceHistory, true); }
++
++  observe(candle, priceHistory) { return this._update(candle, priceHistory, false); }
++
++  _update(candle, priceHistory, emitEntries) {
+     if (this.confidenceConfigProvider) {
+       const confidenceConfig = this.confidenceConfigProvider();
+       this.config.baseConfidence = Number(confidenceConfig.baseConfidence);
+@@ -422,10 +426,13 @@ class MADynamicSR {
+       });
+       confidence = clamp(confidence * confidenceProfile.composite, 0, this.config.maxConfidence);
+ 
++      if (!emitEntries) return this._emptySignal();
+       this.diag.signalsEmitted++;
+       this.inPullbackTaken = true;
+     }
+ 
++    if (!emitEntries) return this._emptySignal();
++
+     const signal = {
+       module: 'MADynamicSR',
+       direction,
+diff --git a/modules/BreakAndRetest.js b/modules/BreakAndRetest.js
+index e9f29d75..f4b439b2 100644
+--- a/modules/BreakAndRetest.js
++++ b/modules/BreakAndRetest.js
+@@ -133,7 +133,11 @@ class BreakAndRetest {
+    * @param {Array}  priceHistory  — candles array, newest LAST
+    * @returns {Object} signal
+    */
+-  update(candle, priceHistory) {
++  update(candle, priceHistory) { return this._update(candle, priceHistory, true); }
++
++  observe(candle, priceHistory) { return this._update(candle, priceHistory, false); }
++
++  _update(candle, priceHistory, emitEntries) {
+     if (!priceHistory || priceHistory.length < this.minimumHistoryBars) {
+       return this._emptySignal();
+     }
+@@ -197,7 +201,7 @@ class BreakAndRetest {
+       }
+ 
+       // Need minimum candles before we look for entry
+-      if (battleCount >= this.minBattleCandles) {
++      if (emitEntries && battleCount >= this.minBattleCandles) {
+         signal = this._readBattleZone(candle, priceHistory);
+       }
+     }
+diff --git a/modules/SmartMoneySweep.js b/modules/SmartMoneySweep.js
+index fae58ca9..1a628c69 100644
+--- a/modules/SmartMoneySweep.js
++++ b/modules/SmartMoneySweep.js
+@@ -140,7 +140,11 @@ class SmartMoneySweep {
+    * @param {Array} priceHistory - Full candle array, newest LAST
+    * @returns {Object|null} { direction, confidence, reason, conditionsMet, overrideLevels } or null
+    */
+-  update(candle, priceHistory) {
++  update(candle, priceHistory) { return this._update(candle, priceHistory, true); }
++
++  observe(candle, priceHistory) { return this._update(candle, priceHistory, false); }
++
++  _update(candle, priceHistory, emitEntries) {
+     if (!priceHistory || priceHistory.length < 30) return null;
+     this.barIndex = priceHistory.length - 1;
+ 
+@@ -264,6 +268,8 @@ class SmartMoneySweep {
+     const levels = this._computeExitLevels(direction, price, priceHistory, atrVal, vp, result.conditionsMet);
+     if (!levels) return null;
+ 
++    if (!emitEntries) return null;
++
+     // Mark sweep as consumed (only after exit levels validated)
+     if (winner === 'long') this.lastLongSweepBar = currentLongSweepBar;
+     if (winner === 'short') this.lastShortSweepBar = currentShortSweepBar;
+diff --git a/modules/NoWickImbalance.js b/modules/NoWickImbalance.js
+index 542604c4..279248c1 100644
+--- a/modules/NoWickImbalance.js
++++ b/modules/NoWickImbalance.js
+@@ -242,7 +242,11 @@ class NoWickImbalance {
+    *   indicators: { atr, rsi, ... }
+    * @returns {Object|null} - { direction, confidence, reason, overrideLevels } or null
+    */
+-  evaluate(ctx) {
++  evaluate(ctx) { return this._evaluate(ctx, true); }
++
++  observe(ctx) { return this._evaluate(ctx, false); }
++
++  _evaluate(ctx, emitEntries) {
+     const candles = ctx.priceHistory;
+     const indicators = ctx.indicators;
+     if (!candles || candles.length < this.swingLookback) return null;
+@@ -324,6 +328,8 @@ class NoWickImbalance {
+         continue;
+       }
+ 
++      if (!emitEntries) continue;
++
+       const exit = this._computeStructuralExit(level.type, currentPrice, candles, atr);
+       if (!exit) {
+         state.pendingLevels.splice(i, 1);
+diff --git a/modules/OpeningRangeBreakout.js b/modules/OpeningRangeBreakout.js
+index cdaa96f6..8958f371 100644
+--- a/modules/OpeningRangeBreakout.js
++++ b/modules/OpeningRangeBreakout.js
+@@ -179,7 +179,11 @@ class OpeningRangeBreakout {
+    * @param {Object} candle - OHLCV candle { o, h, l, c, v, t }
+    * @returns {Object|null} Signal if ready, null otherwise
+    */
+-  update(candle) {
++  update(candle) { return this._update(candle, true); }
++
++  observe(candle) { return this._update(candle, false); }
++
++  _update(candle, emitEntries) {
+     if (!candle || !_t(candle)) return null;
+ 
+     const timestamp = _t(candle);
+@@ -204,17 +208,17 @@ class OpeningRangeBreakout {
+         return this._handleWaitingForOpen(candle, candleDate);
+ 
+       case STATES.COLLECTING_OR:
+-        return this._handleCollectingOpeningRange(candle, candleDate);
++        return this._handleCollectingOpeningRange(candle, candleDate, emitEntries);
+ 
+       case STATES.WATCHING_FOR_BREAK:
+-        return this._handleWatchingForBreak(candle);
++        return this._handleWatchingForBreak(candle, emitEntries);
+ 
+       case STATES.WATCHING_FOR_FVG:
+-        return this._handleWatchingForFVG(candle);
++        return this._handleWatchingForFVG(candle, emitEntries);
+ 
+       case STATES.SIGNAL_READY:
+         // Signal already pending - return it
+-        return this.pendingSignal;
++        return emitEntries ? this.pendingSignal : null;
+ 
+       case STATES.DONE:
+         // Wait for next session
+@@ -241,7 +245,7 @@ class OpeningRangeBreakout {
+    * Accumulate the configured opening window before breakout logic can run.
+    * @private
+    */
+-  _handleCollectingOpeningRange(candle, candleDate) {
++  _handleCollectingOpeningRange(candle, candleDate, emitEntries) {
+     if (this._isInsideOpeningRangeWindow(candleDate)) {
+       this._extendOpeningRange(candle);
+       return null;
+@@ -251,7 +255,7 @@ class OpeningRangeBreakout {
+       return null;
+     }
+ 
+-    return this._handleWatchingForBreak(candle);
++    return this._handleWatchingForBreak(candle, emitEntries);
+   }
+ 
+   _startOpeningRange(candle, candleDate) {
+@@ -335,7 +339,7 @@ class OpeningRangeBreakout {
+    * Watch for price to close beyond OR high/low.
+    * @private
+    */
+-  _handleWatchingForBreak(candle) {
++  _handleWatchingForBreak(candle, emitEntries) {
+     if (!this.openingRange) return null;
+ 
+     const close = _c(candle);
+@@ -348,7 +352,7 @@ class OpeningRangeBreakout {
+       this.barsSinceBreakout = 0;
+       console.log(`[ORB] BULLISH breakout! Close ${close.toFixed(2)} > OR high ${this.openingRange.high.toFixed(2)}`);
+       // Immediately check for FVG in this bar
+-      return this._handleWatchingForFVG(candle);
++      return this._handleWatchingForFVG(candle, emitEntries);
+     }
+ 
+     // Bearish breakout: close below OR low
+@@ -358,7 +362,7 @@ class OpeningRangeBreakout {
+       this.fvgScanCandles = [candle];
+       this.barsSinceBreakout = 0;
+       console.log(`[ORB] BEARISH breakout! Close ${close.toFixed(2)} < OR low ${this.openingRange.low.toFixed(2)}`);
+-      return this._handleWatchingForFVG(candle);
++      return this._handleWatchingForFVG(candle, emitEntries);
+     }
+ 
+     return null;
+@@ -368,7 +372,7 @@ class OpeningRangeBreakout {
+    * Scan for FVG in breakout direction.
+    * @private
+    */
+-  _handleWatchingForFVG(candle) {
++  _handleWatchingForFVG(candle, emitEntries) {
+     if (!this.breakoutDirection) return null;
+ 
+     if (this.fvgScanCandles[this.fvgScanCandles.length - 1] !== candle) {
+@@ -380,7 +384,7 @@ class OpeningRangeBreakout {
+     // Look for FVG in the direction of breakout
+     const fvg = this.fvgDetector.detect(this.fvgScanCandles, this.breakoutDirection);
+ 
+-    if (fvg) {
++    if (fvg && emitEntries) {
+       // Found FVG! Generate signal
+       const signal = this._generateSignal(fvg, candle);
+       if (!signal) {
+@@ -398,7 +402,7 @@ class OpeningRangeBreakout {
+     if (this.barsSinceBreakout >= this.fvgScanBars) {
+       // No FVG found within window - session done
+       this.state = STATES.DONE;
+-      console.log(`[ORB] No FVG found within ${this.fvgScanBars} bars. Session done.`);
++      console.log(`[ORB] FVG scan window ended after ${this.fvgScanBars} bars without an entry signal. Session done.`);
+     }
+ 
+     return null;
+diff --git a/modules/LiquiditySweepDetector.js b/modules/LiquiditySweepDetector.js
+index 1380ba3f..d90d55ae 100644
+--- a/modules/LiquiditySweepDetector.js
++++ b/modules/LiquiditySweepDetector.js
+@@ -187,7 +187,11 @@ class LiquiditySweepDetector {
+     this._lastCandleTs = ts;
+   }
+ 
+-  feedCandle(candle) {
++  feedCandle(candle) { return this._feedCandle(candle, true); }
++
++  observe(candle) { this._feedCandle(candle, false); }
++
++  _feedCandle(candle, emitEntries) {
+     if (!candle || c(candle) == null) return this._emptySignal();
+     this._detectInterval(candle);
+ 
+@@ -224,7 +228,7 @@ class LiquiditySweepDetector {
+     }
+ 
+     if (this.state.phase === 'watching_for_exit' || this.state.phase === 'watching_for_pattern') {
+-      this._processCandle(candle);
++      this._processCandle(candle, emitEntries);
+     }
+ 
+     if (this.config.verbose) {
+@@ -348,7 +352,7 @@ class LiquiditySweepDetector {
+     this.state.barsAfterOpen = 0;
+   }
+ 
+-  _processCandle(bar) {
++  _processCandle(bar, emitEntries) {
+     if (!bar || !this.state.box || this.state.phase === 'done' || this.state.phase === 'waiting_for_open') return;
+     this.state.barsAfterOpen++;
+     const box = this.state.box;
+@@ -378,7 +382,7 @@ class LiquiditySweepDetector {
+         return;
+       }
+       const pattern = this._detectReversalPattern(bar, this.state.prevBar, this.state.exitSide);
+-      if (pattern) this._generateSignal(pattern, bar, this.state.prevBar);
++      if (pattern && emitEntries) this._generateSignal(pattern, bar, this.state.prevBar);
+       this.state.prevBar = { o: o(bar), h: h(bar), l: l(bar), c: c(bar), v: v(bar), t: t(bar) };
+     }
+   }

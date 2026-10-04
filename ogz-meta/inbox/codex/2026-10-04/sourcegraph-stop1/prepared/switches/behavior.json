@@ -1,0 +1,176 @@
+{
+  "pass": true,
+  "toggleSaves": 32,
+  "retainedRegistrations": 16,
+  "customCollisionPreserved": true,
+  "removedDoesNotResurrect": true,
+  "invalidSavesRejected": 4,
+  "soloToggleNoThrow": true,
+  "tpoTwoSymbolStateRetained": true,
+  "observations": [
+    {
+      "key": "pipeline.enableRSI",
+      "value": false,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableRSI",
+      "value": true,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableMADynamicSR",
+      "value": false,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableMADynamicSR",
+      "value": true,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableEMACrossover",
+      "value": false,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableEMACrossover",
+      "value": true,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableLiquiditySweep",
+      "value": false,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableLiquiditySweep",
+      "value": true,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableCandlePattern",
+      "value": false,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableCandlePattern",
+      "value": true,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableBreakRetest",
+      "value": false,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableBreakRetest",
+      "value": true,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableMarketRegime",
+      "value": false,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableMarketRegime",
+      "value": true,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableOGZTPO",
+      "value": false,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableOGZTPO",
+      "value": true,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableOpeningRangeBreakout",
+      "value": false,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableOpeningRangeBreakout",
+      "value": true,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableSmartMoneySweep",
+      "value": false,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableSmartMoneySweep",
+      "value": true,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableNoWickImbalance",
+      "value": false,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableNoWickImbalance",
+      "value": true,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableDonchianBreakout",
+      "value": false,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableDonchianBreakout",
+      "value": true,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enablePropSafeEMAPullback",
+      "value": false,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enablePropSafeEMAPullback",
+      "value": true,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableEMATrendRetest",
+      "value": false,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableEMATrendRetest",
+      "value": true,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableRSI2MeanReversion",
+      "value": false,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableRSI2MeanReversion",
+      "value": true,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableTimeSeriesMomentum",
+      "value": false,
+      "action": "HOLD"
+    },
+    {
+      "key": "pipeline.enableTimeSeriesMomentum",
+      "value": true,
+      "action": "HOLD"
+    }
+  ],
+  "limits": [
+    "Isolated real config save and actual full orchestrator evaluate with empty warmup inputs",
+    "No broker, trading fill, PM2 activation, or market profitability proof"
+  ]
+}
