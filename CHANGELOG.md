@@ -1,3 +1,9 @@
+## 2026-10-04 — Codex 1: make Sourcegraph derive migrations directly from source
+
+Trey corrected the external task: Deep Search should implement the remaining configurable settings from actual code, not repair or reconcile other agents' patches. Rewrote sourcegraph-stop1/PROMPT.txt and README.md accordingly. Removed all task references to prior agent patches, historical audits and handoffs. Added WORKING-SOURCE-MANIFEST.json containing only the 36 application source identities. Defined one source view: captured working-source files where present, capture commit eea6c9ae for unchanged dependencies. Diffs use original application paths. Local agent owns dirty-work integration and atomic delivery.
+
+Verification: reread both revised documents for consistent source selection, scope and responsibility; checked scoped diff and whitespace. Preserved published source/proofs and unrelated dirty work. This is a documentation-only correction, with no production source, runtime or review-harness changes. No claim that Sourcegraph's authenticated index has refreshed.
+
 ## 2026-10-04 — Codex 1: remove obsolete Sourcegraph task prompt
 
 Trey explicitly ordered deletion of the obsolete prompt to prevent Deep Search following the wrong task. Deleted ogz-meta/inbox/codex/2026-10-03/sourcegraph-stop1-prompt.txt. The sole current Stop 1 Sourcegraph prompt is ogz-meta/inbox/codex/2026-10-04/sourcegraph-stop1/PROMPT.txt; its required source export and reading map remain intact. No production files or unrelated agent work changed. Verified tracked prompt paths and reviewed scoped deletion. Sourcegraph HTTP access redirected to its Accounts page from this session, so authenticated indexing/readability is not claimed. No runtime activation.

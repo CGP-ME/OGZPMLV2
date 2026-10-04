@@ -1,0 +1,260 @@
+{
+  "capturedAt": "2026-10-04T17:53:21.353Z",
+  "baseCommit": "eea6c9aee2e484bbb4cae1a2330e8138fe36e4a8",
+  "branch": "astra-era",
+  "status": "Captured application source; no approval or runtime activation implied",
+  "files": [
+    {
+      "path": "working-source/config/settings.json",
+      "source": "config/settings.json",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 76268,
+      "sha256": "a7b34520f5e80cefa51c25ac059175d4d4e3fa2cc719d6f80f2d3b64b390ac07"
+    },
+    {
+      "path": "working-source/core/BacktestRunner.js",
+      "source": "core/BacktestRunner.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 27530,
+      "sha256": "d265cbba8c826e9a07774870ec7356b16d5b25d0456ea1b0ad703b24cf1187d2"
+    },
+    {
+      "path": "working-source/core/DrawdownTracker.js",
+      "source": "core/DrawdownTracker.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 1856,
+      "sha256": "3417b5fd6260338bae821bffd4b6728fb67f6815b5cae283289d3e8783ae5f9a"
+    },
+    {
+      "path": "working-source/core/EnhancedPatternRecognition.js",
+      "source": "core/EnhancedPatternRecognition.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 28006,
+      "sha256": "6d3f0ef655e11fe43bf7097ccb754a9ee12155aefb1b6c901cd40af2ae910365"
+    },
+    {
+      "path": "working-source/core/ExitContractManager.js",
+      "source": "core/ExitContractManager.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 47141,
+      "sha256": "dfe88385f9f4666db471099be8cb5a8695c6a8fa171b39cded60d3fb52c0ff51"
+    },
+    {
+      "path": "working-source/core/FeatureExtractor.js",
+      "source": "core/FeatureExtractor.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 11695,
+      "sha256": "b5be346ab3c8d62be1c42b2ca81b7161ff1c26f7b9bbd918e1cdab352ae7daf4"
+    },
+    {
+      "path": "working-source/core/OgzTpoIntegration.js",
+      "source": "core/OgzTpoIntegration.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 21589,
+      "sha256": "a6a5b9f6398bbd4b62384179f92cb2b16c4456dba1dc119cb44cbfb6d3c17ece"
+    },
+    {
+      "path": "working-source/core/OrderExecutor.js",
+      "source": "core/OrderExecutor.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 254795,
+      "sha256": "f9165c9c9b0cf2507c7bbee5bbf165da2aa1bc4f846f313a6a3b6fea248bb358"
+    },
+    {
+      "path": "working-source/core/PnLTracker.js",
+      "source": "core/PnLTracker.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 2664,
+      "sha256": "7e0745f12d3c506ace1cb70da9920328f21e7a399a65acc3bf5d37f515c30932"
+    },
+    {
+      "path": "working-source/core/PolicyBuilder.js",
+      "source": "core/PolicyBuilder.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 25024,
+      "sha256": "066a6d2a8fd63fd4e0a06bf822300ed8441e0c2b56eaf068108da1fab1a0da18"
+    },
+    {
+      "path": "working-source/core/ProfitExitPlanner.js",
+      "source": "core/ProfitExitPlanner.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 11478,
+      "sha256": "b4a7a5a5bc78522f88e84b4d7e9f391a0d3c41b75d62d9d9d4db1e77e2fb1994"
+    },
+    {
+      "path": "working-source/core/StateManager.js",
+      "source": "core/StateManager.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 201276,
+      "sha256": "2fbb21e0722d30dd47cc863603ec7231dcde0719fc7f6463d4a4a65eab6d3cc3"
+    },
+    {
+      "path": "working-source/core/StrategyOrchestrator.js",
+      "source": "core/StrategyOrchestrator.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 135824,
+      "sha256": "51d00bc86d2209e621b13f04103cb48f0cb6d17a8ee834d28c815be34f52bed7"
+    },
+    {
+      "path": "working-source/core/TradingLoop.js",
+      "source": "core/TradingLoop.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 103415,
+      "sha256": "d7358df11668332b79c97347a98e5691678dc8991e0b4a3b709c4d3501659430"
+    },
+    {
+      "path": "working-source/core/WebSocketManager.js",
+      "source": "core/WebSocketManager.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 19069,
+      "sha256": "1d089eee395e3c9362f3a21206e851bdb95573d05bde844abd684031bc4a0f51"
+    },
+    {
+      "path": "working-source/core/dto/DecisionLedgerSchema.js",
+      "source": "core/dto/DecisionLedgerSchema.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 8013,
+      "sha256": "c19286872229a31493c0b8b1e5cdf63311ccabfd80dbeed9431c4b26af2c8bf3"
+    },
+    {
+      "path": "working-source/core/exit/StopLossChecker.js",
+      "source": "core/exit/StopLossChecker.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 3244,
+      "sha256": "417f319632b7935a451ba599c0ea770dc2c2530a126abb150136bec0a903249d"
+    },
+    {
+      "path": "working-source/foundation/ConfigLoader.js",
+      "source": "foundation/ConfigLoader.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 159277,
+      "sha256": "b978070e8c1f23ee7f957163664b5f19d05621c9b2e73df8e4e17f4dbf805f82"
+    },
+    {
+      "path": "working-source/modules/BreakAndRetest.js",
+      "source": "modules/BreakAndRetest.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 29228,
+      "sha256": "529a5bd252cf1c32ac3d74e79025f5f357ec9dd054f93ef865b3aaf3574644d2"
+    },
+    {
+      "path": "working-source/modules/DonchianBreakout.js",
+      "source": "modules/DonchianBreakout.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 5809,
+      "sha256": "7cb886896ff1b46b9d9991a50b8e40501c8d03f7657c6d0afd2b0d636f9e6d2b"
+    },
+    {
+      "path": "working-source/modules/EMASMACrossoverSignal.js",
+      "source": "modules/EMASMACrossoverSignal.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 24556,
+      "sha256": "fb4dc723a7133d8dfa34923f94353ca2174e15f4919d41b0d4111bedca754678"
+    },
+    {
+      "path": "working-source/modules/EMATrendRetest.js",
+      "source": "modules/EMATrendRetest.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 11800,
+      "sha256": "fac7389548d54d8b59db3c36861a348faa7e1fb7892f6e62863c6c48f364fb91"
+    },
+    {
+      "path": "working-source/modules/LiquiditySweepDetector.js",
+      "source": "modules/LiquiditySweepDetector.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 23690,
+      "sha256": "6266dec235c5f187720959ee4b624a6aef9f6b024e8bcf493c67130c292d53e7"
+    },
+    {
+      "path": "working-source/modules/MADynamicSR.js",
+      "source": "modules/MADynamicSR.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 39836,
+      "sha256": "0c25742782f91334ffda5778f34eb946343e14d03b9907ac9a8049bebe0b7646"
+    },
+    {
+      "path": "working-source/modules/NoWickImbalance.js",
+      "source": "modules/NoWickImbalance.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 23374,
+      "sha256": "777d3745ead2bec3133af6ddc00cbf20813338abcbbc3a4552825069b87a6549"
+    },
+    {
+      "path": "working-source/modules/OpeningRangeBreakout.js",
+      "source": "modules/OpeningRangeBreakout.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 18274,
+      "sha256": "a3512cec7fd05cab1ff0bebcfb54d84a748db632465d050f1007c0deca2181b0"
+    },
+    {
+      "path": "working-source/modules/PropSafeEMAPullback.js",
+      "source": "modules/PropSafeEMAPullback.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 13296,
+      "sha256": "9058e977764a5092a6649950796ced2fb67c1650b87c1443b2b43af681e2fa32"
+    },
+    {
+      "path": "working-source/modules/RSI2MeanReversion.js",
+      "source": "modules/RSI2MeanReversion.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 6293,
+      "sha256": "90974b9b5e70e54459a9f0bcd6a1528ee893368d0059a07fcb64fdeb88513608"
+    },
+    {
+      "path": "working-source/modules/SmartMoneySweep.js",
+      "source": "modules/SmartMoneySweep.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 44203,
+      "sha256": "2cbafbc311c90fa2105df78bf441691d7b97cceccbb21f64ca1a8503bc05a17d"
+    },
+    {
+      "path": "working-source/modules/TimeSeriesMomentum.js",
+      "source": "modules/TimeSeriesMomentum.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 6994,
+      "sha256": "74af3b85dbdbaa9ada9d2a999ec04a208c9c839ff7cb5333fabe105b8b896880"
+    },
+    {
+      "path": "working-source/ogzprime-ssl-server.js",
+      "source": "ogzprime-ssl-server.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 93381,
+      "sha256": "186137a8cff35309f50aa4f15dd1f9f32b89874a74f371a34212388e02a7a532"
+    },
+    {
+      "path": "working-source/public/js/panels/chain-of-thought.js",
+      "source": "public/js/panels/chain-of-thought.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 24618,
+      "sha256": "28dd8a467348f2a4127c5944c10eede369a87980225360d8602361d0b2f1d8a3"
+    },
+    {
+      "path": "working-source/public/js/panels/confidence-heatbar.js",
+      "source": "public/js/panels/confidence-heatbar.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 15204,
+      "sha256": "9cf6137f810bebab5413cfc61b11162ba1427ec6dcfa8d4e3333640c53fb9d4f"
+    },
+    {
+      "path": "working-source/public/unified-dashboard-v2.html",
+      "source": "public/unified-dashboard-v2.html",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 47708,
+      "sha256": "22a60125a539a0710a666d6a467865c42e4dd3e3ec5994d949b798ba8f86dbbb"
+    },
+    {
+      "path": "working-source/public/unified-dashboard.html",
+      "source": "public/unified-dashboard.html",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 126450,
+      "sha256": "28df0f3ed022c15c2773e7d725cf3d382422261929f12ab8b028239db4384eac"
+    },
+    {
+      "path": "working-source/run-empire-v2.js",
+      "source": "run-empire-v2.js",
+      "kind": "working source; mixed ownership; inspect, do not wholesale apply",
+      "bytes": 175581,
+      "sha256": "e185b4cdb80b012d93cb2f8715c92b28537603fcf42f03cdbbaecbfe10aa265f"
+    }
+  ]
+}
