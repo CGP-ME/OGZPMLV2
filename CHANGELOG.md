@@ -1,3 +1,11 @@
+## 2026-10-04 — Codex 1: reject malformed EMA confidence replacements before coercion
+
+Problem: the earlier EMA publication helper accepted null, booleans, arrays and blank strings through Number coercion. Added an explicit primitive/nonblank-string check before conversion; existing numeric-string compatibility, domains and ceiling/base relationship remain. No new trading halt, startup throw, fallback or runtime activation.
+
+Verification: exact staged loader matches the tested candidate. Actual in-memory ConfigLoader save/reload and retained EMA module proof passed: 71 invalid publications rejected while prior owner remained; valid numeric strings still applied. Baseline accepted 32 of 45 malformed attempts. Synthetic signal context, not full orchestrator/broker or durable-write proof; initial load/direct construction remain unchanged.
+
+Review: Mercury and identity-verified Astra both returned no_break_found on candidate 938d8da837e0439664cf7ea70a63aaad847416e2 against e627211cecdc71056a8c9c75cf2cfc21a88538c5. Both static reviews; Astra explicitly did not independently run the untracked proof. Full answers read. Receipts and proof: ogz-meta/inbox/codex/2026-10-04/ema-confidence-input-domain/. Whitespace and scoped secret scan checked before commit. No deployment.
+
 ## 2026-10-04 — Codex 3: remove unreachable missing-exit-reason throws
 
 Original halt-producer scope: M01, exit_monitor_reconciliation_required. Fourth Shape disposition: unreachability of two internal MED-01 tripwires, not a claim that an observed broker failure was repaired. The timer and candle exit paths added throws for missing exit reasons even though every current shouldExit=true producer constructs a nonempty reason. History: 7031f277 introduced a warning; 7d2bf6a1 promoted it to a throw; d0b77990 added the timer path. Their hypothetical future-regression rationale does not establish an external boundary or a presently faulty producer.

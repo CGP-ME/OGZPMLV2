@@ -2508,9 +2508,11 @@ function emaRetestConfidenceReplacementProblem(config) {
   const confidence = {};
   for (const key of ['confidenceBase', 'confidenceSlopeBonus', 'confidenceRetestBonus', 'confidenceConfirmationBonus', 'maxConfidence']) {
     const problem = { reason: 'invalid_ema_retest_confidence', path: `strategies.EMATrendRetest.${key}` };
+    const raw = cfg?.[key];
+    if (typeof raw !== 'number' && (typeof raw !== 'string' || raw.trim() === '')) return problem;
     let value;
     try {
-      value = Number(cfg?.[key]);
+      value = Number(raw);
     } catch (error) {
       return problem;
     }
