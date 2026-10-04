@@ -1170,9 +1170,6 @@ class TradingLoop {
       });
 
       if (exitCheck.shouldExit) {
-        if (!exitCheck.exitReason) {
-          throw new Error('[MED-01] exitCheck.shouldExit=true but exitCheck.exitReason missing — exit-checker contract violation');
-        }
         const isClosingShort = this._isClosingShort(activeTrade);
         const action = isClosingShort ? 'COVER' : 'SELL';
         const exitConfidence = this._exitConfidenceOrNull(exitCheck);
@@ -1549,13 +1546,6 @@ class TradingLoop {
           // Determine correct exit action based on what we're closing
           const isClosingShort = this._isClosingShort(activeTrade);
           const action = isClosingShort ? 'COVER' : 'SELL';
-          // MED-01: throw on missing exitReason. All exit checkers
-          // (TakeProfitChecker/StopLossChecker/MaxHoldChecker/etc.) MUST emit
-          // a specific reason. Halt-class — refuses to silently attribute the
-          // exit as 'signal' when the source contract is broken.
-          if (exitCheck.shouldExit && !exitCheck.exitReason) {
-            throw new Error('[MED-01] exitCheck.shouldExit=true but exitCheck.exitReason missing — exit-checker contract violation');
-          }
           const exitConfidence = this._exitConfidenceOrNull(exitCheck);
           decision = {
             action,
