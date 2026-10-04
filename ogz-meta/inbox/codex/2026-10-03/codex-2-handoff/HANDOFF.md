@@ -1,3 +1,43 @@
+# Codex 2 — account-swap handoff, 2026-10-04
+
+This update supersedes the older restart state retained below. Read current AGENTS and Alignment, especially Trey Doctrine and Rulings. Scope: Mercury repairs/Astra seat only; other agents own Stop 1 and trading/frontend work. Branch astra-era. HEAD observed d425c7f6; shared staged foundation/ConfigLoader.js belongs to another agent. Recheck both before acting.
+
+## Immediate user request
+
+Remove the self-imposed 800-line CHANGELOG indexing cutoff. Then user requested this handoff before swapping accounts. Changes are implemented locally but NOT committed/pushed or refreshed in Mongo. No PM2 restart. No Kimi or Claude calls.
+
+New lane: ogz-meta/inbox/codex/2026-10-04/changelog-index-history/.
+- config.js: removed CHANGELOG_RECENT_LINES constant/export.
+- indexer.js: removed changelog slicing and fabricated truncated-history note. Exempted only root CHANGELOG.md from MAX_FILE_BYTES: actual changelog was 525,897 bytes, above 500,000, so removing line cutoff alone would still skip entire file. Other exclusions/batching unchanged.
+- behavior.json: actual walker includes it; actual processFile produces 1,031 chunks spanning 7,281 split lines; content past800/final entry present; all hashes match full source. This preceded newly prepended changelog entries.
+- candidate.json: base e627211cecdc71056a8c9c75cf2cfc21a88538c5; tree b9e2c004c9d41a1370db0d74a3f018baebcae5ac. Exactly TWO production paths above. Unrelated later HEAD moves allowed only if those blobs unchanged.
+- review.cjs is RUNNING as of handoff, tool session93194. Command: node [lane]/review.cjs [lane]/candidate.json, redirected candidate-review.log. Uses exact candidate bridge module loader, Mercury + Astra, maxTokens7750, no iteration cap. Inspect process/log/result before starting another Mercury call; never parallel Mercury. Initial log only provider startup at last check. Full candidate-result.json appears on completion.
+- deliver.cjs prepared, never executed. Isolated index plus shared-index lock/reconciliation preserves others. Explicit two production paths; consumes changelog-entry.txt. Finalize entry after actual review. Inspect script before use; add scoped secret scan. Show diff, deliver, push exactSHA and verify remote. Reindex only with actual result recorded; do not claim fresh based on push.
+- A first candidate build raced another agent's commit, showing unrelated reverse diffs; rebuilt from captured base in one invocation BEFORE review. Current candidate has only own two files. No shared index touched.
+
+## Separate unfinished first-pass tooling repair
+
+Directory ogz-meta/inbox/codex/2026-10-04/mercury-first-pass/. Contrary to old handoff, implementation and real tests now exist, but NO delivery yet.
+- Own production edits: ask.js enables callback unless explicit noTools; evidence-ingestion.js starts existing native continuation loop immediately; explicit-continuation.js retains actual open_file/git_show ref/hash per file; tool-adapter.js emits those hashes; doctrine-review.js newest edit uses qualified explicit source coverage instead of filename-only historical read aggregation.
+- New test/mercury-first-pass-tools.test.js. Six focused tests passed before newest doctrine consumer edit; newest assertion/fix NOT yet tested or reviewed.
+- Current candidate f22e9b513ba26ac7a24ddebc765e00e773041cc9, base d7283ae4f977907f01965d7ebae3c94852189077. build.cjs derives own changes from baseline/ files, excluding inherited transport hunks. Never stage whole dirty bridge files.
+- Historical real run:28 requests,0 map calls, first request native tools, first tool git_diff. Wrong historical Claude-helper allegation remained, so tool repair DOES NOT establish reasoning solved.
+- Reviews v1-v4 preserved. Actual fixes found: missing working-tree ref/hash, mixed deleted/current refs incorrectly discarding reads, missing git_show receipts, then downstream doctrine whole_file_read_absent suppression by historical reads. Latest doctrine fix addresses last issue; check source_coverage producer census to avoid accidental undefined.some throw, then exact candidate tests and actual review.
+- v4 candidate47f1f610fbf7616d1aad668ba579ddc7b98150d1 was NOT clean. Astra caught downstream coverage error and Mercury confirmed. Also false findings retained; don't accept invented policy claims.
+- final-astra.cjs reads exact source snapshot directory derived from manifest filename without .json; validates hashes. Earlier wrong-source invocation is preserved as wrong-source-final-astra-result.json, not accepted approval. Response text is result.answer, not text/content.
+- Oversized Astra review with full CHANGELOG exceeded CLI1,048,576 chars; production review candidates exclude changelog but include full scoped production/test changes. Changelog added only for delivery. Full evidence retained separately.
+- Existing changelog-entry.txt exact string is present in working CHANGELOG.md. Replace only that owned string when updating. Do not overwrite others' entries.
+
+## Remaining prompting/history investigation
+
+User asks whether Mercury searches repo/history. It has grep/search/list_files/open_file/Git tools. Recorded historical run search Fable returned changelog matches but no targeted historical follow-up. Doctrine already explicitly requires historical changelog collection; capability alone does not imply use. 800-line cutoff was self-imposed; comment attributed Aug7 Trey ruling but attribution not verified. Latest explicit removal supersedes it. Inspect message assembly/tool semantics/conflicts after delivery; no attribution hunt, no new gates/defaults/throws/fallbacks, no automatic rerun requirement.
+
+## Shared-state preservation and delivery
+
+Extensive inherited dirty bridge transport remains in adversarial-review, ask, evidence-ingestion, explicit-continuation, run-ledger, tool-adapter. baseline/ captures pre-own edits; use build.cjs for tooling. No worktrees/branch change. Other agent staged ConfigLoader; preserve all unknown work and detailed changelog entries. Source push != runtime activation. Old handoff below is historical, not current.
+
+---
+
 # Codex 2 — Mercury repair restart handoff
 
 Requested by Trey before restarting his computer, 2026-10-03. This is the Mercury/Astra lane, not Stop 1 or frontend. Read live AGENTS instructions and Alignment/Trey Doctrine/Trey Rulings before resuming; current source and Git state outrank this note.

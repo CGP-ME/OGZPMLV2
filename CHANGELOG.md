@@ -1,3 +1,9 @@
+## 2026-10-04 — Codex 2: Account-swap handoff and unfinished Mercury repairs
+
+Updated ogz-meta/inbox/codex/2026-10-03/codex-2-handoff/HANDOFF.md under the same Codex 2 identity. Records implemented but uncommitted first-pass tooling, six earlier passing focused tests, real 28-request/zero-map tool run with continued incorrect reasoning, actual review-discovered source receipt defects, and the newest untested doctrine coverage consumer correction. No clean final tooling review or delivery is claimed.
+
+Latest requested changelog-history repair removes the 800-line cutoff and exempts root CHANGELOG.md from the generic 500,000-byte file exclusion. Actual 525,897-byte file was included and produced 1,031 chunks through its final entry with full-source hashes. Exact two-file candidate b9e2c004c9d41a1370db0d74a3f018baebcae5ac is under Mercury/Astra review; inspect its result before proceeding. Supporting receipts and scripts: ogz-meta/inbox/codex/2026-10-04/changelog-index-history/ and mercury-first-pass/. No refreshed Mongo index, production delivery or runtime activation claimed. Other agent staged ConfigLoader and all inherited dirty work preserved. No new gate, fallback, shutdown, Kimi call or Claude fallback.
+
 ## 2026-10-04 — Codex 1: usage-limit handoff and remaining UI migration work
 
 Updated handoff 1 in place with delivered EMA controls (3e626813) and PropSafe controls (e627211c, remote confirmed), exact staged EMA correction, actual review status, agent-prepared RSI/Donchian/NoWick work, and the switch continuity correction required by Astra. Production details remain in their individual entries; this is a documentation-only stopping-point record, not a claim those pending changes landed.
