@@ -1,0 +1,15 @@
+.configuration-settings { position: fixed; right: 16px; bottom: 16px; z-index: 10000; color: #d8e6e4; font: 12px 'JetBrains Mono', monospace; }
+.configuration-settings > summary { cursor: pointer; padding: 10px 16px; background: #101918; border: 1px solid #44776c; border-radius: 5px; }
+.configuration-settings[open] { width: min(760px, calc(100vw - 32px)); background: #090e0d; border: 1px solid #44776c; border-radius: 5px; box-shadow: 0 8px 40px #000; }
+.configuration-settings .settings-body { padding: 16px; max-height: 75vh; overflow: auto; }
+.configuration-settings .settings-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.configuration-settings select, .configuration-settings input, .configuration-settings button { font: inherit; color: inherit; background: #14211e; border: 1px solid #44776c; border-radius: 3px; padding: 7px; max-width: 100%; }
+.configuration-settings button { cursor: pointer; }
+.configuration-settings :disabled { opacity: .55; cursor: not-allowed; }
+.configuration-settings :focus-visible { outline: 2px solid #5ce0be; outline-offset: 2px; }
+.configuration-settings .settings-status { white-space: pre-wrap; overflow-wrap: anywhere; margin: 12px 0; }
+.configuration-settings .settings-field { display: grid; grid-template-columns: minmax(0, 1fr) minmax(100px, 180px); gap: 8px; border-top: 1px solid #243631; padding: 12px 0; }
+.configuration-settings .settings-field small { display: block; color: #a4b9b4; overflow-wrap: anywhere; margin-top: 5px; }
+.configuration-settings .settings-identity { white-space: pre-wrap; overflow-wrap: anywhere; margin: 10px 0; }
+.configuration-settings .settings-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.configuration-settings .settings-note { color: #a4b9b4; line-height: 1.6; }

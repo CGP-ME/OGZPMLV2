@@ -311,6 +311,7 @@
         authenticated = false;
         ws = null;
         stopHealthChecks();
+        notifyConnectionClosed(reason);
 
         if (staleSocket && staleSocket.readyState === OPEN) {
             try {
@@ -321,6 +322,11 @@
         }
 
         scheduleReconnect(reason);
+    }
+
+    function notifyConnectionClosed(reason) {
+        const listeners = handlers.get('socket_disconnected');
+        if (listeners) listeners.slice().forEach(cb => cb({ reason }));
     }
 
     function startHealthChecks() {
@@ -451,6 +457,7 @@
                 stopHealthChecks();
                 const code = event && event.code != null ? event.code : 'unknown';
                 const reason = event && event.reason ? event.reason : 'no reason';
+                notifyConnectionClosed(reason);
                 console.log(`[Socket] Disconnected: code=${code}, reason=${reason}`);
                 if (!wasAuthenticated && (code === 1008 || /auth|token/i.test(reason))) {
                     clearStoredDashboardToken();

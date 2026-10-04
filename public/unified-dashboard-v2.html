@@ -32,6 +32,7 @@
     <meta name="ws-token" content="">
 
     <title>OGZPrime Unified Dashboard v2</title>
+    <link rel="stylesheet" href="/css/panels/configuration-settings.css?v=1790985600000">
 
     <!-- PostHog analytics (inert until keyed in /js/posthog-init.js) -->
     <script src="/js/posthog-init.js" defer></script>
@@ -1086,7 +1087,9 @@
 
     <!-- Data Layer -->
     <script src="/js/indicators.js?v=1776116744941"></script>
-    <script src="/js/websocket.js?v=1782860400000"></script>
+    <details id="configurationSettings"></details>
+    <script src="/js/websocket.js?v=1790985600000"></script>
+    <script src="/js/panels/configuration-settings.js?v=1790985600000"></script>
 
     <!-- Chart System — Phase 5: legacy chart.js DELETED from import list.
          Replaced by ChartPanel module loaded below. -->
