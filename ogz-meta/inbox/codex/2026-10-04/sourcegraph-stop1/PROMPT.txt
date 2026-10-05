@@ -19,6 +19,9 @@ Start at config/settings.json, config/internals.json, foundation/ConfigLoader.js
 
 Make sure each migrated setting reaches a constructed, called module and changes the intended behavior. Keep derived aliases current after saves. Preserve relevant per-symbol/timeframe history when entries are disabled. Remove actual dead declarations or phantom references only after tracing all consumers. Eliminate hidden alternate behavioral owners without inventing replacement policy.
 
+REPOSITORY-GROUNDED SCOPE
+Do not theorize about hypothetical edge cases or expand the work based on scenarios absent from the written repository requirements and actual code. Every proposed fix must cite the written requirement or concrete reachable code path that establishes the problem. Do not invent trading policy, speculative failure modes, new safeguards, extra validation rules or architecture based on generic best practices. Fix demonstrated defects and the wiring necessary to satisfy the documented behavior. If the repository does not establish a behavior, name that specific absence without designing a speculative solution or turning it into another task.
+
 DOCTRINE
 No invented values, percentages, fallback defaults, silent overrides, new trading gates, shutdowns or throws. Fix invalid-state producers under the Fourth Shape. Invalid replacements must return an explicit result while preserving current valid configuration; trace any existing throw path your changes would newly trigger. Name genuine unresolved behavior decisions instead of guessing them. One qualified strategy can enter alone; agreement boosts confluence and does not veto entry.
 

@@ -1,3 +1,7 @@
+## 2026-10-05 — Codex 1: constrain external migration analysis to repository evidence
+
+Trey requested no theorizing about hypothetical edge cases beyond written repository material. Added a repository-grounded scope instruction to the current Sourcegraph PROMPT.txt: proposed fixes require a documented requirement or concrete reachable code path; speculative safeguards, policies, validation rules and architecture are excluded. Genuine missing requirements are named without inventing a solution. Reviewed the exact text and scoped diff; documentation only, no production or runtime changes.
+
 ## 2026-10-04 — Codex 1: make Sourcegraph derive migrations directly from source
 
 Trey corrected the external task: Deep Search should implement the remaining configurable settings from actual code, not repair or reconcile other agents' patches. Rewrote sourcegraph-stop1/PROMPT.txt and README.md accordingly. Removed all task references to prior agent patches, historical audits and handoffs. Added WORKING-SOURCE-MANIFEST.json containing only the 36 application source identities. Defined one source view: captured working-source files where present, capture commit eea6c9ae for unchanged dependencies. Diffs use original application paths. Local agent owns dirty-work integration and atomic delivery.
