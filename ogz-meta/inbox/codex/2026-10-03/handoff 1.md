@@ -1,5 +1,11 @@
 # handoff 1 — Stop 1 configuration migration
 
+## 2026-10-05 low-usage continuation — resume here
+
+Source-based remaining-work inventory is now in CHANGELOG under “Codex 1: source-based Stop 1 remaining-work inventory”, with full schema census at ogz-meta/inbox/codex/2026-10-05/stop1-inventory/source-census.json. Base c18d9f67: 106 committed editable fields, 122 working (16 switches uncommitted), 1,874 structural settings leaves including profile duplicates. Do NOT treat these as bug counts. Queue UI-01 through ACCEPT-01 and group coverage table are in that entry. Consumer/customer classification for all leaves is still incomplete; do not claim inventory closure.
+
+First delivery: switches plus their continuity correction together, then NoWick, RSI/Donchian replacement handling, sizing and remaining customer groups. Per-trade editing remains working-only; coordinate owner. Historical global loss-cooldown finding is stale (HEAD already retires saved bookkeeping); MA pullbackCooldown is different. Sourcegraph is not a dependency. No production change was made in this inventory turn. Preserve unrelated dirty work and use actual review before atomic commit/push.
+
 ## 2026-10-04 usage-limit handoff — Codex 1 (current authority over older status below)
 
 User requests this handoff because usage is nearly exhausted. Resume UI-bound Stop 1 migration, not frontend or Mercury repair. One logical change, actual behavior check, clean adversarial review, scoped changelog, atomic commit and push. No new packets, defaults, trading halts, PM2 restart or worktrees. Preserve all other agents' dirty work.

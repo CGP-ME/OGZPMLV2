@@ -1,3 +1,95 @@
+## 2026-10-05 — Codex 1: source-based Stop 1 remaining-work inventory
+
+Source checkpoint: c18d9f67453e1762d94de418285375667e370552 on astra-era, compared with local working source. This replaces historical remaining-count claims. Static extraction of the actual EDITABLE_SETTINGS expression found **106 committed editable fields**, **122 working fields**, and exactly **16 working-only pipeline switches**. Canonical settings contain **1,874 structural leaves** (arrays counted once, including profile duplicates and metadata). These are not 1,874 migration tasks. An exposed field is not proof of correct runtime behavior; an unexposed leaf is not automatically a customer control.
+
+### Confirmed delivery baseline
+
+EMA retest five confidence controls 3e626813, PropSafe six controls e627211c, strict EMA replacement correction 0109886e, independent-strategy confluence-veto removal 5c598f27 and retained regime getter a65cc75f are committed ancestors. Do not redo them. Their detailed behavior/review limitations remain in their original entries. Sourcegraph publication/prompt commits are documentation, not migration progress.
+
+### Delivery queue and explicit closure obligations
+
+| ID | Work | Current source status / next action |
+| --- | --- | --- |
+| UI-01 | Sixteen pipeline enable switches + disabled observation continuity | Only local schema includes switches. Original switch draft plus nine-file continuity correction must be integrated as one logical change, not delivered independently in reverse order. Actual stateful consumers, active/disabled/re-enabled paths, symbol isolation and live publication require exact-candidate verification and fresh review; then commit/push. |
+| UI-02 | NoWick confidence | No committed UI field; module/provider/UI change is prepared but not landed. Use current source after UI-01, not the old pre-continuity patch. Prove observe does not consume an entry and active evaluation reads current confidence. |
+| UI-03 | RSI confidence replacement publication | Existing UI fields present, forced replacement helper absent in committed loader. Prepared four-field producer validation correction uncommitted. Verify domains, current-owner retention and retained evaluator. |
+| UI-04 | Donchian numeric replacement publication | Five fields already exposed. Forced replacement guard absent in committed loader; prepared correction uncommitted. Verify actual existing domains and retained real indicators. Do not label this a new UI migration. |
+| UI-05 | Base/maximum sizing and customer exposure | Committed OrderExecutor still starts from maxPositionSize and scales ceiling by 2.5. Local correction exists but not delivered. Only four confluence multipliers are UI-exposed; basePositionSize/maxPositionSize/maxPositions are not. Complete consumers, final dollar/share bounds, aliases and publication together where dependent. Do not invent maxRiskPerTrade or denominator/policy. |
+| UI-06 | Dead confidence declarations | HEAD still declares regimeMinConfidence/confluenceMinScore and assigns them at StrategyOrchestrator:823–824. Full reference closure required before separately removing either. Existing drafts not delivery. |
+| UI-07 | Remaining strategy parameters | Coverage table below identifies all strategy groups and schema counts. Trace unexposed leaves against written customer intent, retained construction/reads and ownership; mark customer/internal/dead explicitly before implementing. Existing draft list does not close these groups. |
+| UI-08 | Remaining shared controls | Regime/indicator/entry/exit/fee/profile/schedule/tier/TRAI groups below need customer-vs-internal classification and actual consumers. Profile-qualified settings may map to an effective path rather than literal UI keys. Do not expose duplicate profile leaves mechanically. |
+| LIFE-01 | Per-trade exit editing / frozen ownership | updateTradeStop and update_trade_stop exist in WORKING StateManager:2986 and WebSocketManager:313, absent from committed versions in this check. Coordinate owning agent; establish exact scope, behavior review and delivery before counting complete. No assertion that all exit-freeze behavior is missing. |
+| CLOSED-01 | Old symbol loss-cooldown finding | Historical Sept29 map is stale: current HEAD StateManager:4307 retires saved loss-cooldown bookkeeping; settings search finds only MA pullbackCooldown, a distinct strategy parameter. Do not reopen old global cooldown removal from that map. This is a bounded source correction, not full recovery acceptance. |
+| INT-01 | Static/internal ownership | After customer controls, inventory internals.json plus remaining behavioral literals/aliases and classify ownership. This turn did not audit every internal leaf. No claim of completed static migration. |
+| ACCEPT-01 | End-to-end completion | Close every classified customer control with a real consumer, correct save/reload/init behavior and UI transport binding; close internal ownership and phantom references. Verify no unintended behavioral environment owner via aliases/computed reads as well as literal search. Commit/push each reviewed change. Runtime activation remains separately authorized. |
+
+Execution order: UI-01, UI-02, UI-03/UI-04, UI-05, then remaining customer groups in dependency order; independent dead-field cleanup stays separate. Each production change must finish actual checks, adversarial review, scoped changelog, atomic commit and push before root starts another delivery lane. Ahead agents may prepare one named group independently. Other owners retain their work; no shared-index sweep. A real unresolved ruling is recorded on that item, not guessed or used to stall independent groups.
+
+### Complete top-level/strategy schema coverage census
+
+Counts below are declaration/exposure facts, NOT missing-control counts or consumer approval. Zero means no direct matching schema prefix; effective profile mappings require tracing. Every declared path and every schema descriptor is in the linked machine-readable census, enabling continuation without repeating extraction.
+
+| Group | Declared leaves | Committed editable fields |
+| --- | ---: | ---: |
+| schemaVersion | 1 | 0 |
+| revision | 1 | 0 |
+| confidence | 4 | 3 |
+| regimeDetection | 13 | 0 |
+| indicators | 79 | 0 |
+| patternRecognition | 14 | 0 |
+| featureExtraction | 12 | 0 |
+| performanceAnalysis | 8 | 0 |
+| fibonacci | 6 | 0 |
+| authFailureGuard | 2 | 0 |
+| execution | 6 | 0 |
+| launchProfiles | 575 | 0 |
+| tuningProfiles | 102 | 0 |
+| feeProfiles | 22 | 0 |
+| patternMemory | 19 | 0 |
+| positionSizing | 7 | 4 |
+| regimeBoosts | 22 | 0 |
+| volumeProfileBoosts | 21 | 0 |
+| pid | 28 | 0 |
+| exits | 7 | 0 |
+| exitContracts | 324 | 0 |
+| exitLogic | 36 | 14 |
+| strategyBehavior | 7 | 0 |
+| entryLogic | 7 | 0 |
+| strategies.MADynamicSR | 46 | 3 |
+| strategies.EMASMACrossover | 19 | 5 |
+| strategies.LiquiditySweep | 20 | 5 |
+| strategies.RSI | 12 | 10 |
+| strategies.VolumeProfile | 7 | 0 |
+| strategies.BreakRetest | 40 | 0 |
+| strategies.CandlePattern | 2 | 0 |
+| strategies.MarketRegime | 2 | 0 |
+| strategies.SmartMoneySweep | 45 | 0 |
+| strategies.OpeningRangeBreakout | 13 | 0 |
+| strategies.DonchianBreakout | 16 | 5 |
+| strategies.OGZTPO | 27 | 0 |
+| strategies.NoWickImbalance | 16 | 0 |
+| strategies.PropSafeEMAPullback | 26 | 18 |
+| strategies.EMATrendRetest | 25 | 16 |
+| strategies.RSI2MeanReversion | 17 | 11 |
+| strategies.TimeSeriesMomentum | 21 | 10 |
+| orchestrator | 36 | 0 |
+| fees | 8 | 0 |
+| filters | 2 | 2 |
+| timeframeConfig | 28 | 0 |
+| features | 2 | 0 |
+| featureCatalog | 33 | 0 |
+| tierPolicy | 20 | 0 |
+| trai | 23 | 0 |
+| services | 31 | 0 |
+| misc | 3 | 0 |
+| proofPublication | 9 | 0 |
+| fundTarget | 1 | 0 |
+| startingBalance | 1 | 0 |
+
+### Verification and limitations
+
+Read committed source through Git at the pinned SHA; evaluated only the isolated schema object in a VM, never loaded the bot or configuration singleton. Compared working schema and checked targeted committed/local consumers and methods. Supporting census: ogz-meta/inbox/codex/2026-10-05/stop1-inventory/source-census.json. It lists every declared path, all editable descriptors, group counts and working-only keys; no configuration values or secrets copied. Literal process.env search alone is not proof of absence of behavioral overrides, and no such clearance is claimed. Full per-leaf consumer/customer classification remains unfinished: this is a complete structural settings census plus a verified bounded delivery queue, not a fabricated final migration count. No provider run, deployment, PM2 action or production edits. This documentation/source inventory is reviewed and delivered separately from production work.
+
 ## 2026-10-05 — Codex 1: constrain external migration analysis to repository evidence
 
 Trey requested no theorizing about hypothetical edge cases beyond written repository material. Added a repository-grounded scope instruction to the current Sourcegraph PROMPT.txt: proposed fixes require a documented requirement or concrete reachable code path; speculative safeguards, policies, validation rules and architecture are excluded. Genuine missing requirements are named without inventing a solution. Reviewed the exact text and scoped diff; documentation only, no production or runtime changes.
