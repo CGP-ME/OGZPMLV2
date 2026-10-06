@@ -2648,6 +2648,10 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'fraction', min: 0, exclusiveMin: true, max: 0.25,
     label: 'Maximum position size', effect: 'next_entry_decision',
   },
+  'features.enableDynamicSizing': {
+    type: 'boolean', unit: 'boolean',
+    label: 'Dynamic confidence sizing', effect: 'next_entry_decision',
+  },
 
   'confidence.minTradeConfidence': {
     type: 'number', unit: 'fraction', min: 0, max: 1,
