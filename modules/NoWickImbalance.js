@@ -242,7 +242,11 @@ class NoWickImbalance {
    *   indicators: { atr, rsi, ... }
    * @returns {Object|null} - { direction, confidence, reason, overrideLevels } or null
    */
-  evaluate(ctx) {
+  evaluate(ctx) { return this._evaluate(ctx, true); }
+
+  observe(ctx) { return this._evaluate(ctx, false); }
+
+  _evaluate(ctx, emitEntries) {
     const candles = ctx.priceHistory;
     const indicators = ctx.indicators;
     if (!candles || candles.length < this.swingLookback) return null;
@@ -323,6 +327,8 @@ class NoWickImbalance {
         if (this.DEBUG) console.log(`[NoWick] INVALIDATED bearish @ ${level.level.toFixed(2)} — trend shifted to ${currentTrend}`);
         continue;
       }
+
+      if (!emitEntries) continue;
 
       const exit = this._computeStructuralExit(level.type, currentPrice, candles, atr);
       if (!exit) {

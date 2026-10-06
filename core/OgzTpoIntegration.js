@@ -133,7 +133,6 @@ function normalizeConfig(config) {
     }
 
     return {
-        enabled: requireBoolean(source.enabled, 'strategies.OGZTPO.enabled'),
         mode,
         dynamicSL: requireBoolean(source.dynamicSL, 'strategies.OGZTPO.dynamicSL'),
         confluence: requireBoolean(source.confluence, 'strategies.OGZTPO.confluence'),
@@ -156,6 +155,7 @@ class OgzTpoIntegration extends EventEmitter {
     constructor(config) {
         super();
         this.config = normalizeConfig(config);
+        this.entriesEnabled = ConfigLoader.get('pipeline.enableOGZTPO');
         
         // Candle history for batch processing
         this.candleHistory = {
@@ -226,10 +226,8 @@ class OgzTpoIntegration extends EventEmitter {
      * @param {Object} candle - OHLC candle {o, h, l, c, t}
      * @returns {Object} Update result with signals and votes
      */
-    update(candle) {
-        if (!this.config.enabled) {
-            return { enabled: false };
-        }
+    update(candle, entriesEnabled) {
+        this.entriesEnabled = entriesEnabled;
         const rawBarTimestamp = candleBarTimestamp(candle);
         const candleTimestamp = rawBarTimestamp ?? this.lastBarTimestamp ?? MISSING_TIMESTAMP_BAR;
         const isSameBarUpdate = this.lastBarTimestamp !== null && this.lastBarTimestamp === candleTimestamp;
@@ -267,7 +265,7 @@ class OgzTpoIntegration extends EventEmitter {
         if (this.candleHistory.closes.length < this.config.normLength + 5) {
             this._expireLastSignal(currentBarIndex);
             return { 
-                enabled: true, 
+                enabled: this.entriesEnabled,
                 ready: false, 
                 message: `Warming up (${this.candleHistory.closes.length}/${this.config.normLength + 5})` 
             };
@@ -296,6 +294,13 @@ class OgzTpoIntegration extends EventEmitter {
         this.existingTpo.update(candle);
         existingSignal = this.existingTpo.getValues()?.signal || null;
         
+        // Disabling entries must not create a gap in either oscillator's candle history.
+        if (!this.entriesEnabled) {
+            this.lastSignal = null;
+            this.lastSignalBarIndex = null;
+            return { enabled: false };
+        }
+
         // Track statistics
         if (newSignal && newSignal.type !== 'INVALID') this.stats.newTpoSignals++;
         if (existingSignal && existingSignal.type !== 'INVALID') this.stats.existingTpoSignals++;
@@ -426,7 +431,7 @@ class OgzTpoIntegration extends EventEmitter {
      */
     getVotes() {
         const activeSignal = this._expireLastSignal();
-        if (!activeSignal || !this.config.enabled) {
+        if (!activeSignal || !this.entriesEnabled) {
             return [];
         }
         
@@ -475,7 +480,7 @@ class OgzTpoIntegration extends EventEmitter {
         
         return {
             ready: true,
-            enabled: this.config.enabled,
+            enabled: this.entriesEnabled,
             mode: this.config.mode,
             current: {
                 tpo: this.lastResult.tpo[lastIdx],
@@ -543,7 +548,7 @@ class OgzTpoIntegration extends EventEmitter {
      */
     getConfigSummary() {
         return {
-            enabled: this.config.enabled,
+            enabled: this.entriesEnabled,
             mode: this.config.mode,
             dynamicSL: this.config.dynamicSL,
             confluence: this.config.confluence,

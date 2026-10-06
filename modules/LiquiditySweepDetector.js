@@ -187,7 +187,11 @@ class LiquiditySweepDetector {
     this._lastCandleTs = ts;
   }
 
-  feedCandle(candle) {
+  feedCandle(candle) { return this._feedCandle(candle, true); }
+
+  observe(candle) { this._feedCandle(candle, false); }
+
+  _feedCandle(candle, emitEntries) {
     if (!candle || c(candle) == null) return this._emptySignal();
     this._detectInterval(candle);
 
@@ -224,7 +228,7 @@ class LiquiditySweepDetector {
     }
 
     if (this.state.phase === 'watching_for_exit' || this.state.phase === 'watching_for_pattern') {
-      this._processCandle(candle);
+      this._processCandle(candle, emitEntries);
     }
 
     if (this.config.verbose) {
@@ -348,7 +352,7 @@ class LiquiditySweepDetector {
     this.state.barsAfterOpen = 0;
   }
 
-  _processCandle(bar) {
+  _processCandle(bar, emitEntries) {
     if (!bar || !this.state.box || this.state.phase === 'done' || this.state.phase === 'waiting_for_open') return;
     this.state.barsAfterOpen++;
     const box = this.state.box;
@@ -378,7 +382,7 @@ class LiquiditySweepDetector {
         return;
       }
       const pattern = this._detectReversalPattern(bar, this.state.prevBar, this.state.exitSide);
-      if (pattern) this._generateSignal(pattern, bar, this.state.prevBar);
+      if (pattern && emitEntries) this._generateSignal(pattern, bar, this.state.prevBar);
       this.state.prevBar = { o: o(bar), h: h(bar), l: l(bar), c: c(bar), v: v(bar), t: t(bar) };
     }
   }

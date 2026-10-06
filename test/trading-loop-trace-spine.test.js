@@ -2233,6 +2233,45 @@ describe('TradingLoop trace spine', () => {
     }
   });
 
+  test('passes the canonical OGZ TPO pipeline switch to the runner-injected TPO instance', () => {
+    const ogzTpo = { update: jest.fn(() => ({ enabled: false })) };
+    const originalGet = ConfigLoader.get.bind(ConfigLoader);
+    const getSpy = jest.spyOn(ConfigLoader, 'get').mockImplementation((key, defaultValue) => {
+      if (key === 'pipeline.enableOGZTPO') return false;
+      return originalGet(key, defaultValue);
+    });
+
+    try {
+      const loop = new TradingLoop(baseEntryContext({
+        priceHistory: candles(10),
+        indicatorEngine: {
+          getSnapshot: jest.fn(() => ({
+            indicators: {
+              rsi: 55,
+              superTrendDirection: 'sideways',
+              atr: 1,
+            },
+          })),
+          getRawState: jest.fn(() => null),
+        },
+        patternChecker: { analyzePatterns: jest.fn(() => []) },
+        fibonacciDetector: null,
+        ogzTpo,
+      }));
+
+      loop._gatherData(100, null, 'TSLA', { volume: 1000, timestamp: 1700000000009 });
+
+      expect(ogzTpo.update).toHaveBeenCalledWith(expect.objectContaining({
+        o: 100,
+        h: 101,
+        l: 99,
+        c: 100,
+      }), false);
+    } finally {
+      getSpy.mockRestore();
+    }
+  });
+
   test('fails loud when runtime asset class is missing while TTP consistency rules are enabled', async () => {
     mockStateManager.getTradesBySymbol.mockReturnValue([{
       id: 'BUY_4',

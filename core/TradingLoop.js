@@ -2149,7 +2149,7 @@ class TradingLoop {
       tpoResult = this.ctx.ogzTpo.update({
         o: _o(latestCandle), h: _h(latestCandle), l: _l(latestCandle), c: _c(latestCandle),
         t: latestCandle.etime ?? latestCandle.timestamp ?? latestCandle.time ?? latestCandle.t ?? Date.now()
-      });
+      }, ConfigLoader.get('pipeline.enableOGZTPO'));
       if (tpoResult?.signal) {
         console.log(`\n🎯 OGZ TPO Signal: ${tpoResult.signal.action} (${tpoResult.signal.zone}) | Strength: ${(tpoResult.signal.strength * 100).toFixed(2)}%`);
       }

@@ -210,7 +210,7 @@ describe('OgzTpoIntegration restored filters and config ownership', () => {
       low: 98,
       close: 101,
       timestamp: 1700000000000,
-    });
+    }, true);
 
     expect(strategy.barCounter).toBe(10);
     expect(strategy.candleHistory.closes).toEqual([101]);
@@ -243,7 +243,7 @@ describe('OgzTpoIntegration restored filters and config ownership', () => {
       low: 98,
       close: 99,
       timestamp: '1700000000000',
-    });
+    }, true);
 
     expect(strategy.barCounter).toBe(3);
     expect(strategy.candleHistory.closes).toEqual([99]);
@@ -275,7 +275,7 @@ describe('OgzTpoIntegration restored filters and config ownership', () => {
       high: 103,
       low: 97,
       close: 102,
-    });
+    }, true);
 
     expect(strategy.barCounter).toBe(7);
     expect(strategy.candleHistory.closes).toEqual([102]);
@@ -309,7 +309,7 @@ describe('OgzTpoIntegration restored filters and config ownership', () => {
       close: 103,
       t: 1700000000000,
       etime: 1700000000100,
-    });
+    }, true);
 
     expect(strategy.barCounter).toBe(12);
     expect(strategy.candleHistory.closes).toEqual([103]);
@@ -342,7 +342,7 @@ describe('OgzTpoIntegration restored filters and config ownership', () => {
       low: 95,
       close: 96,
       timestamp: 'not-a-number',
-    });
+    }, true);
 
     expect(strategy.barCounter).toBe(15);
     expect(strategy.candleHistory.closes).toEqual([96]);

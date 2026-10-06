@@ -173,7 +173,6 @@ describe('StrategyOrchestrator pipeline toggles', () => {
       const tpoConfig = ConfigLoader.get('strategies.OGZTPO');
       expect(orchestrator.tpoIntegration.config).toEqual(
         expect.objectContaining({
-          enabled: tpoConfig.enabled,
           mode: tpoConfig.mode,
           dynamicSL: tpoConfig.dynamicSL,
           confluence: tpoConfig.confluence,
@@ -191,6 +190,8 @@ describe('StrategyOrchestrator pipeline toggles', () => {
           modes: tpoConfig.modes,
         })
       );
+      expect(orchestrator.tpoIntegration.config).not.toHaveProperty('enabled');
+      expect(orchestrator.tpoIntegration.entriesEnabled).toBe(ConfigLoader.get('pipeline.enableOGZTPO'));
       expect(tpoConfig.confluenceBoost).toEqual({ enabled: false, weight: 0 });
     } finally {
       process.env = originalEnv;
@@ -228,6 +229,7 @@ describe('StrategyOrchestrator pipeline toggles', () => {
       expect(() => ogzTpo.evaluate({
         priceHistory: candles,
         extras: { symbol: 'TSLA' },
+        entriesEnabled: true,
       })).toThrow(/ogztpo update exploded/);
     } finally {
       process.env = originalEnv;
@@ -261,12 +263,14 @@ describe('StrategyOrchestrator pipeline toggles', () => {
       expect(ogzTpo.evaluate({
         priceHistory: candles,
         extras: { symbol: 'TSLA' },
+        entriesEnabled: true,
       })).toBeNull();
 
       expect(update).toHaveBeenCalledTimes(1);
       expect(update.mock.calls[0][0]).toEqual(expect.objectContaining({
         t: candles.length - 1,
       }));
+      expect(update.mock.calls[0][1]).toBe(true);
     } finally {
       process.env = originalEnv;
     }

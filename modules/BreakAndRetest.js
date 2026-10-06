@@ -133,7 +133,11 @@ class BreakAndRetest {
    * @param {Array}  priceHistory  — candles array, newest LAST
    * @returns {Object} signal
    */
-  update(candle, priceHistory) {
+  update(candle, priceHistory) { return this._update(candle, priceHistory, true); }
+
+  observe(candle, priceHistory) { return this._update(candle, priceHistory, false); }
+
+  _update(candle, priceHistory, emitEntries) {
     if (!priceHistory || priceHistory.length < this.minimumHistoryBars) {
       return this._emptySignal();
     }
@@ -197,7 +201,7 @@ class BreakAndRetest {
       }
 
       // Need minimum candles before we look for entry
-      if (battleCount >= this.minBattleCandles) {
+      if (emitEntries && battleCount >= this.minBattleCandles) {
         signal = this._readBattleZone(candle, priceHistory);
       }
     }

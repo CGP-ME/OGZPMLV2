@@ -126,9 +126,18 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(loaded.config.exits.stopLossPercent).toBe(configFileValue('exits.stopLossPercent'));
     expect(loaded.config.exits.takeProfitPercent).toBe(configFileValue('exits.takeProfitPercent'));
     expect(loaded.config.exits.trailingStopPercent).toBe(configFileValue('exits.trailingStopPercent'));
-    expect(loaded.config.strategies.enableBreakRetest).toBe(configFileValue('pipeline.enableBreakRetest'));
-    expect(loaded.config.strategies.enableMarketRegime).toBe(configFileValue('pipeline.enableMarketRegime'));
-    expect(loaded.config.strategies.enableORB).toBe(configFileValue('pipeline.enableOpeningRangeBreakout'));
+    expect(loaded.config.pipeline.enableBreakRetest).toBe(configFileValue('pipeline.enableBreakRetest'));
+    expect(loaded.config.pipeline.enableMarketRegime).toBe(configFileValue('pipeline.enableMarketRegime'));
+    expect(loaded.config.pipeline.enableOpeningRangeBreakout).toBe(configFileValue('pipeline.enableOpeningRangeBreakout'));
+    const switchAliases = [
+      'enableRSI', 'enableMADynamicSR', 'enableEMACrossover', 'enableLiquiditySweep',
+      'enableCandlePattern', 'enableBreakRetest', 'enableMarketRegime', 'enableOGZTPO',
+      'enableORB', 'enableSmartMoneySweep', 'enableNoWickImbalance', 'enableDonchianBreakout',
+      'enablePropSafeEMAPullback', 'enableEMATrendRetest', 'enableRSI2MeanReversion',
+      'enableTimeSeriesMomentum',
+    ];
+    expect(Object.keys(loaded.config.strategies).filter((key) => switchAliases.includes(key))).toEqual([]);
+    expect(loaded.config.strategies.OGZTPO).not.toHaveProperty('enabled');
     expect(loaded.config.exits.trailingActivation).toBe(configFileValue('exits.trailingActivation'));
     expect(loaded.config.filters.atrEnabled).toBe(configFileValue('filters.atrEnabled'));
     expect(loaded.config.filters.atrMinPercent).toBe(configFileValue('filters.atrMinPercent'));
@@ -273,7 +282,7 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(ConfigLoader.get('fees.perShare')).toBe(second.config.fees.perShare);
   });
 
-  test('ConfigLoader whole pipeline section uses ConfigLoader strategy snapshot values', () => {
+  test('ConfigLoader exposes the launch-profile pipeline without strategy-switch aliases', () => {
     process.env.ENABLE_RSI = 'false';
     process.env.ENABLE_ORB = 'false';
     const ConfigLoader = require('../foundation/ConfigLoader');
@@ -283,10 +292,10 @@ describe('ConfigLoader live trading safety guard', () => {
     const loaded = loadConfig();
     const pipeline = ConfigLoader.get('pipeline');
 
-    expect(pipeline.enableRSI).toBe(loaded.config.strategies.enableRSI);
-    expect(pipeline.enableOpeningRangeBreakout).toBe(loaded.config.strategies.enableORB);
-    expect(ConfigLoader.get('pipeline.enableRSI')).toBe(loaded.config.strategies.enableRSI);
-    expect(ConfigLoader.get('pipeline.enableOpeningRangeBreakout')).toBe(loaded.config.strategies.enableORB);
+    expect(ConfigLoader.get('pipeline.enableRSI')).toBe(pipeline.enableRSI);
+    expect(ConfigLoader.get('pipeline.enableOpeningRangeBreakout')).toBe(pipeline.enableOpeningRangeBreakout);
+    expect(loaded.config.strategies).not.toHaveProperty('enableRSI');
+    expect(loaded.config.strategies).not.toHaveProperty('enableORB');
   });
 
   test('ConfigLoader exposes additional ConfigLoader-owned compatibility sections', () => {

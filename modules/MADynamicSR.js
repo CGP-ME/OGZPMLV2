@@ -306,7 +306,11 @@ class MADynamicSR {
    * Main update - call on each candle
    * REWRITTEN 2026-03-09: Corrected Trader DNA implementation
    */
-  update(candle, priceHistory) {
+  update(candle, priceHistory) { return this._update(candle, priceHistory, true); }
+
+  observe(candle, priceHistory) { return this._update(candle, priceHistory, false); }
+
+  _update(candle, priceHistory, emitEntries) {
     if (this.confidenceConfigProvider) {
       const confidenceConfig = this.confidenceConfigProvider();
       this.config.baseConfidence = Number(confidenceConfig.baseConfidence);
@@ -422,9 +426,12 @@ class MADynamicSR {
       });
       confidence = clamp(confidence * confidenceProfile.composite, 0, this.config.maxConfidence);
 
+      if (!emitEntries) return this._emptySignal();
       this.diag.signalsEmitted++;
       this.inPullbackTaken = true;
     }
+
+    if (!emitEntries) return this._emptySignal();
 
     const signal = {
       module: 'MADynamicSR',

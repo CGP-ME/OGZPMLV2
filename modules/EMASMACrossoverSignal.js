@@ -206,7 +206,11 @@ class EMASMACrossoverSignal {
    * @param {Array}  priceHistory — array of candles, newest LAST
    * @returns {Object} signal
    */
-  update(candle, priceHistory) {
+  update(candle, priceHistory) { return this._update(candle, priceHistory, true); }
+
+  observe(candle, priceHistory) { return this._update(candle, priceHistory, false); }
+
+  _update(candle, priceHistory, emitEntries) {
     // Production callers supply the validated settings owner. Explicitly
     // injected configurations stay fixed when no provider was supplied.
     if (this.confidenceConfigProvider) {
@@ -318,6 +322,7 @@ class EMASMACrossoverSignal {
     this.barIndex += 1;
     this.diagCounters.crossesDetected += funnel.crossesDetected;
     this.diagCounters.eventsFresh += funnel.eventsFresh;
+    if (!emitEntries) return this._emptySignal();
 
     // ═══════════════════════════════════════════════════════════════════
     // Direction and base confidence are config-owned. Restored filters are

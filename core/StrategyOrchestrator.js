@@ -1633,6 +1633,10 @@ class StrategyOrchestrator {
           emaCrossoverModule,
           () => new EMASMACrossoverSignal(this.emaCrossoverConfig, () => ConfigLoader.get('strategies.EMASMACrossover'))
         );
+        if (ctx.entriesEnabled === false) {
+          scopedEmaCrossover.observe(latestCandle, candles);
+          return null;
+        }
         const sig = scopedEmaCrossover.update(latestCandle, candles);
         if (sig) diagEMA.moduleNonNull++;
         if (sig?.diagnostics) {
@@ -1697,6 +1701,10 @@ class StrategyOrchestrator {
           maDynamicSRModule,
           () => new MADynamicSR(this.maDynamicSRConfig, () => ConfigLoader.get('strategies.MADynamicSR'))
         );
+        if (ctx.entriesEnabled === false) {
+          scopedMaDynamicSR.observe(latestCandle, candles);
+          return null;
+        }
         const sig = scopedMaDynamicSR.update(latestCandle, candles);
         if (sig && sig.direction) diagMASR.moduleNonNull++;
 
@@ -1756,6 +1764,10 @@ class StrategyOrchestrator {
           liquiditySweepModule,
           () => new LiquiditySweepDetector(this.liquiditySweepConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'))
         );
+        if (ctx.entriesEnabled === false) {
+          scopedLiquiditySweep.observe(latestCandle);
+          return null;
+        }
         const sig = scopedLiquiditySweep.feedCandle(latestCandle);
 
         // DIAGNOSTIC: Log every call to see why no signals
@@ -1807,6 +1819,10 @@ class StrategyOrchestrator {
             breakAndRetestModule,
             () => new BreakAndRetest(this.breakAndRetestConfig)
           );
+          if (ctx.entriesEnabled === false) {
+            scopedBreakAndRetest.observe(latestCandle, candles);
+            return null;
+          }
           const sig = scopedBreakAndRetest.update(latestCandle, candles);
           if (!sig || !sig.direction || sig.direction === 'neutral') return null;
           let conf = sig.confidence || 0;
@@ -1980,7 +1996,7 @@ class StrategyOrchestrator {
         const tpo = scopedTpoIntegration.update({
           ...latestCandle,
           t: tpoBarTimestamp,
-        });
+        }, ctx.entriesEnabled);
 
         if (!tpo || !tpo.signal) return null;
 
@@ -2027,6 +2043,10 @@ class StrategyOrchestrator {
           orbInstance,
           () => new OpeningRangeBreakout(this.openingRangeBreakoutConfig)
         );
+        if (ctx.entriesEnabled === false) {
+          scopedOrb.observe(latestCandle);
+          return null;
+        }
         const signal = scopedOrb.update(latestCandle);
 
         // DIAGNOSTIC: Log every call
@@ -2070,6 +2090,10 @@ class StrategyOrchestrator {
           smartMoneySweepModule,
           () => new SmartMoneySweep(this.smartMoneySweepConfig)
         );
+        if (ctx.entriesEnabled === false) {
+          scopedSmartMoneySweep.observe(latestCandle, candles);
+          return null;
+        }
         const sig = scopedSmartMoneySweep.update(latestCandle, candles);
 
         if (sig) diagSMS.moduleNonNull++;
@@ -2108,6 +2132,10 @@ class StrategyOrchestrator {
       name: 'NoWickImbalance',
       evaluate: (ctx) => {
         try {
+          if (ctx.entriesEnabled === false) {
+            noWickModule.observe(ctx);
+            return null;
+          }
           return noWickModule.evaluate(ctx);
         } catch (e) {
           if (e.message && e.message.startsWith('[STRATEGY-SCOPE]')) {
@@ -2205,13 +2233,17 @@ class StrategyOrchestrator {
       });
     }
 
-    // Apply pipeline toggles - filter strategies based on env vars
+    // Apply canonical pipeline settings to the retained strategy registrations.
+    // Keep the registered closures and per-symbol state when an operator
+    // changes which strategies may supply NEW entries.
+    this.registeredStrategies = this.strategies.slice();
+    this.builtinStrategies = new Set(this.registeredStrategies);
     this._applyPipelineToggles();
   }
 
   /**
    * Filter registered strategies based on pipeline toggles.
-   * Called once at end of _registerBuiltinStrategies().
+   * Called at construction and before the first decision after a settings save.
    * Logs exactly which strategies are active/disabled - no silent failures.
    */
   _applyPipelineToggles() {
@@ -2234,18 +2266,14 @@ class StrategyOrchestrator {
       'RSI2MeanReversion': pipeline.enableRSI2MeanReversion,
       'TimeSeriesMomentum': pipeline.enableTimeSeriesMomentum,
     };
-    const before = this.strategies.length;
+    const before = this.registeredStrategies.length;
     const disabled = [];
 
-    this.strategies = this.strategies.filter(s => {
+    this.strategies = this.registeredStrategies.filter(s => {
+      // The explicit custom-strategy API has no built-in pipeline switch.
+      if (!this.builtinStrategies.has(s)) return true;
       const toggle = toggleMap[s.name];
-      if (typeof toggle !== 'boolean') {
-        throw new Error(`[PIPELINE] ${s.name} pipeline toggle must be boolean; got ${toggle}. Check config path pipeline.${s.name}`);
-      }
       if (toggle === false) {
-        if (this.soloStrategies && this.soloStrategies.includes(s.name.toLowerCase())) {
-          throw new Error(`[STRATEGY_SOLO_FILTER] ${s.name} was requested but its pipeline toggle is disabled; enable it in config or remove it from strategies.soloFilter`);
-        }
         disabled.push(s.name);
         return false;
       }
@@ -2256,6 +2284,7 @@ class StrategyOrchestrator {
       console.log(`[PIPELINE] Disabled ${disabled.length} strategies: ${disabled.join(', ')}`);
     }
     console.log(`[PIPELINE] Active strategies: ${this.strategies.map(s => s.name).join(', ')} (${this.strategies.length}/${before})`);
+    this.pipelineConfiguration = ConfigLoader.load().fingerprint;
   }
 
   /**
@@ -2269,10 +2298,11 @@ class StrategyOrchestrator {
    * @returns {Object} { action, direction, confidence, winnerStrategy, exitContract, sizingMultiplier, confluence, allResults }
    */
   evaluate(indicators, patterns = [], regime = null, priceHistory = [], extras = {}) {
+    if (this.pipelineConfiguration !== ConfigLoader.load().fingerprint) this._applyPipelineToggles();
     this.evalCount++;
 
     const entrySizingInput = ConfigLoader.getEntrySizingInput();
-    const ctx = { indicators, patterns, regime, priceHistory, extras };
+    const ctx = { indicators, patterns, regime, priceHistory, extras, entriesEnabled: true };
     const unavailableStrategies = [];
     this.currentEvaluationUnavailableStrategies = unavailableStrategies;
     if (entrySizingInput.issues.length > 0) {
@@ -2319,7 +2349,13 @@ class StrategyOrchestrator {
     const contractConfidenceDropped = [];
     // Quarantine malformed external entry configuration before routing strategies.
     // Existing positions retain their own exit contracts and exit processing.
-    const entryStrategies = entrySizingInput.multipliers === null ? [] : this.strategies;
+    // These retained modules own candle-by-candle state even while entries are disabled.
+    const statefulNames = ['EMASMACrossover', 'MADynamicSR', 'LiquiditySweep', 'BreakRetest',
+      'OGZTPO', 'OpeningRangeBreakout', 'SmartMoneySweep', 'NoWickImbalance'];
+    const entryStrategies = entrySizingInput.multipliers === null ? [] : this.registeredStrategies.filter(
+      strategy => this.strategies.includes(strategy)
+        || (this.builtinStrategies.has(strategy) && statefulNames.includes(strategy.name))
+    );
     for (const strategy of entryStrategies) {
       // DISABLED 2026-03-09: VP chop filter removed — strategies handle own filtering
       // if (skipTrendStrategies && TREND_STRATEGIES.includes(strategy.name)) {
@@ -2327,7 +2363,9 @@ class StrategyOrchestrator {
       // }
 
       try {
-        const result = strategy.evaluate(ctx);
+        const entriesEnabled = this.strategies.includes(strategy);
+        const result = strategy.evaluate(entriesEnabled ? ctx : { ...ctx, entriesEnabled: false });
+        if (!entriesEnabled) continue;
         if (isStrategyUnavailableRecord(result)) {
           noSignalStrategies.push(`${strategy.name}:unavailable:${result.reason}`);
           continue;
@@ -3058,16 +3096,21 @@ class StrategyOrchestrator {
     if (!strategy.name || typeof strategy.evaluate !== 'function') {
       throw new Error('Strategy must have name and evaluate function');
     }
-    this.strategies.push(strategy);
-    console.log(`📌 [StrategyOrchestrator] Registered strategy: ${strategy.name}`);
+    this.registeredStrategies.push(strategy);
+    this._applyPipelineToggles();
+    console.log(`[StrategyOrchestrator] Registered strategy: ${strategy.name}`);
   }
 
   /**
    * Remove a strategy by name
    */
   removeStrategy(name) {
-    this.strategies = this.strategies.filter(s => s.name !== name);
-    console.log(`🗑️ [StrategyOrchestrator] Removed strategy: ${name}`);
+    for (const strategy of this.registeredStrategies) {
+      if (strategy.name === name) this.builtinStrategies.delete(strategy);
+    }
+    this.registeredStrategies = this.registeredStrategies.filter(s => s.name !== name);
+    this._applyPipelineToggles();
+    console.log(`[StrategyOrchestrator] Removed strategy: ${name}`);
   }
 
   /**

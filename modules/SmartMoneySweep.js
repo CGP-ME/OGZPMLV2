@@ -140,7 +140,11 @@ class SmartMoneySweep {
    * @param {Array} priceHistory - Full candle array, newest LAST
    * @returns {Object|null} { direction, confidence, reason, conditionsMet, overrideLevels } or null
    */
-  update(candle, priceHistory) {
+  update(candle, priceHistory) { return this._update(candle, priceHistory, true); }
+
+  observe(candle, priceHistory) { return this._update(candle, priceHistory, false); }
+
+  _update(candle, priceHistory, emitEntries) {
     if (!priceHistory || priceHistory.length < 30) return null;
     this.barIndex = priceHistory.length - 1;
 
@@ -263,6 +267,8 @@ class SmartMoneySweep {
     const price = c(candle);
     const levels = this._computeExitLevels(direction, price, priceHistory, atrVal, vp, result.conditionsMet);
     if (!levels) return null;
+
+    if (!emitEntries) return null;
 
     // Mark sweep as consumed (only after exit levels validated)
     if (winner === 'long') this.lastLongSweepBar = currentLongSweepBar;

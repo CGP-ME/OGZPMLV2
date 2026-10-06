@@ -882,26 +882,6 @@ function applyFlatOverlay(config, sources, overlay, source) {
 function refreshDerivedAliases(config, sources) {
   config.tiers = cloneConfiguredObject(config.exits.profitTiers);
   config.startingBalance = config.backtest.initialBalance;
-  const pipeline = config.pipeline;
-  Object.assign(config.strategies, {
-    enableRSI: pipeline.enableRSI,
-    enableMADynamicSR: pipeline.enableMADynamicSR,
-    enableEMACrossover: pipeline.enableEMACrossover,
-    enableLiquiditySweep: pipeline.enableLiquiditySweep,
-    enableCandlePattern: pipeline.enableCandlePattern,
-    enableBreakRetest: pipeline.enableBreakRetest,
-    enableMarketRegime: pipeline.enableMarketRegime,
-    enableOGZTPO: pipeline.enableOGZTPO,
-    enableORB: pipeline.enableOpeningRangeBreakout,
-    enableSmartMoneySweep: pipeline.enableSmartMoneySweep,
-    enableNoWickImbalance: pipeline.enableNoWickImbalance,
-    enableDonchianBreakout: pipeline.enableDonchianBreakout,
-    enablePropSafeEMAPullback: pipeline.enablePropSafeEMAPullback,
-    enableEMATrendRetest: pipeline.enableEMATrendRetest,
-    enableRSI2MeanReversion: pipeline.enableRSI2MeanReversion,
-    enableTimeSeriesMomentum: pipeline.enableTimeSeriesMomentum,
-  });
-  config.strategies.OGZTPO.enabled = pipeline.enableOGZTPO;
   config.broker.id = config.execution.broker;
   config.broker.alpacaMode = config.execution.brokerMode;
   config.broker.alpacaSymbols = config.execution.symbols.join(',');
@@ -918,28 +898,6 @@ function refreshDerivedAliases(config, sources) {
   sources['broker.tradingPair'] = 'derived:execution.tradingPair';
   sources['broker.candleTimeframe'] = 'derived:execution.candleTimeframe';
   sources['broker.assetClass'] = 'derived:execution.assetClass';
-  const strategyToggleSources = {
-    enableRSI: 'enableRSI',
-    enableMADynamicSR: 'enableMADynamicSR',
-    enableEMACrossover: 'enableEMACrossover',
-    enableLiquiditySweep: 'enableLiquiditySweep',
-    enableCandlePattern: 'enableCandlePattern',
-    enableBreakRetest: 'enableBreakRetest',
-    enableMarketRegime: 'enableMarketRegime',
-    enableOGZTPO: 'enableOGZTPO',
-    enableORB: 'enableOpeningRangeBreakout',
-    enableSmartMoneySweep: 'enableSmartMoneySweep',
-    enableNoWickImbalance: 'enableNoWickImbalance',
-    enableDonchianBreakout: 'enableDonchianBreakout',
-    enablePropSafeEMAPullback: 'enablePropSafeEMAPullback',
-    enableEMATrendRetest: 'enableEMATrendRetest',
-    enableRSI2MeanReversion: 'enableRSI2MeanReversion',
-    enableTimeSeriesMomentum: 'enableTimeSeriesMomentum',
-  };
-  for (const [aliasName, pipelineName] of Object.entries(strategyToggleSources)) {
-    sources[`strategies.${aliasName}`] = sources[`pipeline.${pipelineName}`];
-  }
-  sources['strategies.OGZTPO.enabled'] = sources['pipeline.enableOGZTPO'];
 }
 
 function fillSourceGaps(config, sources) {
@@ -1209,22 +1167,6 @@ function buildConfig() {
       cloneConfiguredObject(profile.strategies.soloFilter),
       `config:settings.json:launchProfiles.${profileName}.strategies.soloFilter`
     ),
-    enableRSI: strategyPipeline.enableRSI,
-    enableMADynamicSR: strategyPipeline.enableMADynamicSR,
-    enableEMACrossover: strategyPipeline.enableEMACrossover,
-    enableLiquiditySweep: strategyPipeline.enableLiquiditySweep,
-    enableCandlePattern: strategyPipeline.enableCandlePattern,
-    enableBreakRetest: strategyPipeline.enableBreakRetest,
-    enableMarketRegime: strategyPipeline.enableMarketRegime,
-    enableOGZTPO: strategyPipeline.enableOGZTPO,
-    enableORB: strategyPipeline.enableOpeningRangeBreakout,
-    enableSmartMoneySweep: strategyPipeline.enableSmartMoneySweep,
-    enableNoWickImbalance: strategyPipeline.enableNoWickImbalance,
-    enableDonchianBreakout: strategyPipeline.enableDonchianBreakout,
-    enablePropSafeEMAPullback: strategyPipeline.enablePropSafeEMAPullback,
-    enableEMATrendRetest: strategyPipeline.enableEMATrendRetest,
-    enableRSI2MeanReversion: strategyPipeline.enableRSI2MeanReversion,
-    enableTimeSeriesMomentum: strategyPipeline.enableTimeSeriesMomentum,
   };
 
   const dashboardService = setting('services.dashboard');
@@ -2622,6 +2564,27 @@ function getReceipt() {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  ...Object.fromEntries([
+    ['enableRSI', 'RSI'],
+    ['enableMADynamicSR', 'MADynamicSR'],
+    ['enableEMACrossover', 'EMA crossover'],
+    ['enableLiquiditySweep', 'Liquidity sweep'],
+    ['enableCandlePattern', 'Candle pattern'],
+    ['enableBreakRetest', 'Break and retest'],
+    ['enableMarketRegime', 'Market regime'],
+    ['enableOGZTPO', 'OGZ TPO'],
+    ['enableOpeningRangeBreakout', 'Opening range breakout'],
+    ['enableSmartMoneySweep', 'Smart money sweep'],
+    ['enableNoWickImbalance', 'No wick imbalance'],
+    ['enableDonchianBreakout', 'Donchian breakout'],
+    ['enablePropSafeEMAPullback', 'PropSafe EMA pullback'],
+    ['enableEMATrendRetest', 'EMA trend retest'],
+    ['enableRSI2MeanReversion', 'RSI2 mean reversion'],
+    ['enableTimeSeriesMomentum', 'Time series momentum'],
+  ].map(([key, label]) => [`pipeline.${key}`, {
+    type: 'boolean', unit: 'boolean', scope: 'active_launch_profile',
+    label: `Enable ${label} strategy`, effect: 'next_entry_evaluation',
+  }])),
   ...Object.fromEntries([
     ['confidenceBase', 'PropSafe base confidence'],
     ['confidenceTrendBonus', 'PropSafe trend confidence contribution'],

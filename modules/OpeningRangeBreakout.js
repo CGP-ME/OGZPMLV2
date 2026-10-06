@@ -179,7 +179,11 @@ class OpeningRangeBreakout {
    * @param {Object} candle - OHLCV candle { o, h, l, c, v, t }
    * @returns {Object|null} Signal if ready, null otherwise
    */
-  update(candle) {
+  update(candle) { return this._update(candle, true); }
+
+  observe(candle) { return this._update(candle, false); }
+
+  _update(candle, emitEntries) {
     if (!candle || !_t(candle)) return null;
 
     const timestamp = _t(candle);
@@ -204,17 +208,17 @@ class OpeningRangeBreakout {
         return this._handleWaitingForOpen(candle, candleDate);
 
       case STATES.COLLECTING_OR:
-        return this._handleCollectingOpeningRange(candle, candleDate);
+        return this._handleCollectingOpeningRange(candle, candleDate, emitEntries);
 
       case STATES.WATCHING_FOR_BREAK:
-        return this._handleWatchingForBreak(candle);
+        return this._handleWatchingForBreak(candle, emitEntries);
 
       case STATES.WATCHING_FOR_FVG:
-        return this._handleWatchingForFVG(candle);
+        return this._handleWatchingForFVG(candle, emitEntries);
 
       case STATES.SIGNAL_READY:
         // Signal already pending - return it
-        return this.pendingSignal;
+        return emitEntries ? this.pendingSignal : null;
 
       case STATES.DONE:
         // Wait for next session
@@ -241,7 +245,7 @@ class OpeningRangeBreakout {
    * Accumulate the configured opening window before breakout logic can run.
    * @private
    */
-  _handleCollectingOpeningRange(candle, candleDate) {
+  _handleCollectingOpeningRange(candle, candleDate, emitEntries) {
     if (this._isInsideOpeningRangeWindow(candleDate)) {
       this._extendOpeningRange(candle);
       return null;
@@ -251,7 +255,7 @@ class OpeningRangeBreakout {
       return null;
     }
 
-    return this._handleWatchingForBreak(candle);
+    return this._handleWatchingForBreak(candle, emitEntries);
   }
 
   _startOpeningRange(candle, candleDate) {
@@ -335,7 +339,7 @@ class OpeningRangeBreakout {
    * Watch for price to close beyond OR high/low.
    * @private
    */
-  _handleWatchingForBreak(candle) {
+  _handleWatchingForBreak(candle, emitEntries) {
     if (!this.openingRange) return null;
 
     const close = _c(candle);
@@ -348,7 +352,7 @@ class OpeningRangeBreakout {
       this.barsSinceBreakout = 0;
       console.log(`[ORB] BULLISH breakout! Close ${close.toFixed(2)} > OR high ${this.openingRange.high.toFixed(2)}`);
       // Immediately check for FVG in this bar
-      return this._handleWatchingForFVG(candle);
+      return this._handleWatchingForFVG(candle, emitEntries);
     }
 
     // Bearish breakout: close below OR low
@@ -358,7 +362,7 @@ class OpeningRangeBreakout {
       this.fvgScanCandles = [candle];
       this.barsSinceBreakout = 0;
       console.log(`[ORB] BEARISH breakout! Close ${close.toFixed(2)} < OR low ${this.openingRange.low.toFixed(2)}`);
-      return this._handleWatchingForFVG(candle);
+      return this._handleWatchingForFVG(candle, emitEntries);
     }
 
     return null;
@@ -368,7 +372,7 @@ class OpeningRangeBreakout {
    * Scan for FVG in breakout direction.
    * @private
    */
-  _handleWatchingForFVG(candle) {
+  _handleWatchingForFVG(candle, emitEntries) {
     if (!this.breakoutDirection) return null;
 
     if (this.fvgScanCandles[this.fvgScanCandles.length - 1] !== candle) {
@@ -380,7 +384,7 @@ class OpeningRangeBreakout {
     // Look for FVG in the direction of breakout
     const fvg = this.fvgDetector.detect(this.fvgScanCandles, this.breakoutDirection);
 
-    if (fvg) {
+    if (fvg && emitEntries) {
       // Found FVG! Generate signal
       const signal = this._generateSignal(fvg, candle);
       if (!signal) {
@@ -398,7 +402,7 @@ class OpeningRangeBreakout {
     if (this.barsSinceBreakout >= this.fvgScanBars) {
       // No FVG found within window - session done
       this.state = STATES.DONE;
-      console.log(`[ORB] No FVG found within ${this.fvgScanBars} bars. Session done.`);
+      console.log(`[ORB] FVG scan window ended after ${this.fvgScanBars} bars without an entry signal. Session done.`);
     }
 
     return null;
