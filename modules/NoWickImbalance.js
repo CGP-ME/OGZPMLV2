@@ -90,13 +90,13 @@ function readConfig(config) {
     entrySideWickMaxPct: _entrySideWickMaxPct,
     swingExtremeLookback: _swingExtremeLookback,
     almostTouchPct: _almostTouchPct,
+    stopLookbackBars: _stopLookbackBars,
+    stopBufferAtr: _stopBufferAtr,
+    targetRR: _targetRR,
     ...normalizedConfig
   } = cfg;
   return {
     ...normalizedConfig,
-    stopLookbackBars: Number(cfg.stopLookbackBars),
-    stopBufferAtr: Number(cfg.stopBufferAtr),
-    targetRR: Number(cfg.targetRR),
     twinProximityBars: Number(cfg.twinProximityBars),
     entryMode: cfg.entryMode,
     twinSplitEnabled: cfg.twinSplitEnabled,
@@ -110,9 +110,6 @@ class NoWickImbalance {
     this.confidenceProvider = confidenceProvider;
     this.detectionConfigProvider = detectionConfigProvider;
     this.cfg = Object.freeze(readConfig(config));
-    this.stopLookbackBars = this.cfg.stopLookbackBars;
-    this.stopBufferAtr = this.cfg.stopBufferAtr;
-    this.targetRR = this.cfg.targetRR;
     this.entryMode = this.cfg.entryMode;
     this.twinSplitEnabled = this.cfg.twinSplitEnabled;
     this.twinProximityBars = this.cfg.twinProximityBars;
@@ -338,7 +335,7 @@ class NoWickImbalance {
         if (this.DEBUG) console.log(`[NoWick] INVALIDATED ${level.type} @ ${level.level.toFixed(2)} — structural exit geometry invalid`);
         continue;
       }
-      const { direction, stopLoss, takeProfit, structuralLevel, stopBuffer, risk } = exit;
+      const { direction, stopLoss, takeProfit, structuralLevel, stopBuffer, risk, targetRR } = exit;
 
       // Sanity: SL must be a reasonable distance
       if (!Number.isFinite(takeProfit) || stopLoss <= 0 || takeProfit <= 0) {
@@ -374,7 +371,7 @@ class NoWickImbalance {
           direction: legExit?.direction || direction,
           confidence,
           sizingMultiplier: twinSplit ? 0.5 : 1,
-          reason: `NoWick ${leg.level.type} imbalance ${this.entryMode} @ ${leg.level.level.toFixed(2)} after ${state.candleCount - leg.level.formationCount} candles | trend=${currentTrend} | ${this.targetRR}:1 RR`,
+          reason: `NoWick ${leg.level.type} imbalance ${this.entryMode} @ ${leg.level.level.toFixed(2)} after ${state.candleCount - leg.level.formationCount} candles | trend=${currentTrend} | ${targetRR}:1 RR`,
           signalData: {
             type: leg.level.type,
             level: leg.level.level,
@@ -424,7 +421,7 @@ class NoWickImbalance {
         entryGroupType: primaryLeg.entryGroupType,
         entryGroupId: primaryLeg.entryGroupId,
         entryTriggerClass: 'nowick_retrace',
-        reason: `NoWick ${level.type} imbalance ${this.entryMode} @ ${level.level.toFixed(2)} after ${age} candles | trend=${currentTrend} | ${this.targetRR}:1 RR`,
+        reason: `NoWick ${level.type} imbalance ${this.entryMode} @ ${level.level.toFixed(2)} after ${age} candles | trend=${currentTrend} | ${targetRR}:1 RR`,
         signalData: {
           type: level.type,
           level: level.level,
@@ -529,11 +526,12 @@ class NoWickImbalance {
   }
 
   _computeStructuralExit(type, currentPrice, candles, atr) {
+    const exitConfig = this.detectionConfigProvider();
     if (!Number.isFinite(currentPrice) || currentPrice <= 0) return null;
-    if (!Array.isArray(candles) || candles.length < this.stopLookbackBars) return null;
+    if (!Array.isArray(candles) || candles.length < exitConfig.stopLookbackBars) return null;
 
-    const recent = candles.slice(-this.stopLookbackBars);
-    const stopBuffer = Number.isFinite(atr) && atr > 0 ? atr * this.stopBufferAtr : 0;
+    const recent = candles.slice(-exitConfig.stopLookbackBars);
+    const stopBuffer = Number.isFinite(atr) && atr > 0 ? atr * exitConfig.stopBufferAtr : 0;
     if (type === 'bullish') {
       const structuralLevel = Math.min(...recent.map(candle => candle.l));
       const stopLoss = structuralLevel - stopBuffer;
@@ -542,7 +540,8 @@ class NoWickImbalance {
       return {
         direction: 'buy',
         stopLoss,
-        takeProfit: currentPrice + risk * this.targetRR,
+        takeProfit: currentPrice + risk * exitConfig.targetRR,
+        targetRR: exitConfig.targetRR,
         structuralLevel,
         stopBuffer,
         risk,
@@ -556,7 +555,8 @@ class NoWickImbalance {
     return {
       direction: 'sell',
       stopLoss,
-      takeProfit: currentPrice - risk * this.targetRR,
+      takeProfit: currentPrice - risk * exitConfig.targetRR,
+      targetRR: exitConfig.targetRR,
       structuralLevel,
       stopBuffer,
       risk,

@@ -37,3 +37,10 @@ This is a bounded deferred list for the current configuration migration. It reco
 - **Evidence:** `positionSizing.maxTotalExposure` is absent from committed settings/loader/executor at `dab768d3`. It appears in the shared uncommitted settings, loader validation and executor aggregate-exposure arithmetic. Those edits are not part of the delivered base/maximum position-size migration.
 - **What must be resolved:** Identify the existing work's owner and approved intended exposure behavior before reviewing and delivering it. The uploaded UI field is not proof of a completed runtime setting.
 - **Status:** Preserved untouched; no new aggregate-exposure policy, denominator or gate added.
+
+## 6. NoWick extreme numeric geometry domain
+
+- **Severity:** Existing accepted numeric-domain limitation; no confirmed fatal defect in this migration.
+- **Evidence:** NoWick startup accepts finite non-negative stopBufferAtr and finite positive targetRR. The corresponding descriptors preserve those domains. In candidate `3853c39158fb3335cc5c453f7296c4655037f691`, `modules/NoWickImbalance.js:534-559` multiplies these values by ATR/risk; extreme finite inputs can overflow. Existing primary/fanout finite-geometry checks reject the resulting signal rather than emit a usable order.
+- **What must be resolved:** Establish useful customer ranges or calculation-domain handling with actual market units before changing the existing domain. Do not invent arbitrary trading thresholds or add a runtime throw/fallback during migration.
+- **Status:** Deferred. Normal saved-value BUY/SELL geometry is verified in `nowick-exit-geometry/final-exact-staged-proof.json`; extreme inputs and broker execution are not claimed as verified.
