@@ -2687,6 +2687,94 @@ const EDITABLE_SETTINGS = deepFreeze({
       effect: 'next_entry_decision',
     },
   ])),
+  'regimeBoosts.trending.EMASMACrossover': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Trending EMA/SMA regime ranking multiplier', effect: 'next_regime_evaluation_ranking',
+  },
+  'regimeBoosts.trending.MADynamicSR': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Trending MA Dynamic SR regime ranking multiplier', effect: 'next_regime_evaluation_ranking',
+  },
+  'regimeBoosts.trending.RSI': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Trending RSI regime ranking multiplier', effect: 'next_regime_evaluation_ranking',
+  },
+  'regimeBoosts.trending.LiquiditySweep': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Trending liquidity sweep regime ranking multiplier', effect: 'next_regime_evaluation_ranking',
+  },
+  'regimeBoosts.trending.SmartMoneySweep': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Trending smart money sweep regime ranking multiplier', effect: 'next_regime_evaluation_ranking',
+  },
+  'regimeBoosts.ranging.EMASMACrossover': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Ranging EMA/SMA regime ranking multiplier', effect: 'next_regime_evaluation_ranking',
+  },
+  'regimeBoosts.ranging.MADynamicSR': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Ranging MA Dynamic SR regime ranking multiplier', effect: 'next_regime_evaluation_ranking',
+  },
+  'regimeBoosts.ranging.RSI': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Ranging RSI regime ranking multiplier', effect: 'next_regime_evaluation_ranking',
+  },
+  'regimeBoosts.ranging.LiquiditySweep': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Ranging liquidity sweep regime ranking multiplier', effect: 'next_regime_evaluation_ranking',
+  },
+  'regimeBoosts.ranging.SmartMoneySweep': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Ranging smart money sweep regime ranking multiplier', effect: 'next_regime_evaluation_ranking',
+  },
+  'regimeBoosts.volatile.EMASMACrossover': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Volatile EMA/SMA regime ranking multiplier', effect: 'next_regime_evaluation_ranking',
+  },
+  'regimeBoosts.volatile.MADynamicSR': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Volatile MA Dynamic SR regime ranking multiplier', effect: 'next_regime_evaluation_ranking',
+  },
+  'regimeBoosts.volatile.RSI': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Volatile RSI regime ranking multiplier', effect: 'next_regime_evaluation_ranking',
+  },
+  'regimeBoosts.volatile.LiquiditySweep': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Volatile liquidity sweep regime ranking multiplier', effect: 'next_regime_evaluation_ranking',
+  },
+  'regimeBoosts.volatile.SmartMoneySweep': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Volatile smart money sweep regime ranking multiplier', effect: 'next_regime_evaluation_ranking',
+  },
+  'regimeBoosts.volatile._positionSizeMultiplier': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Volatile regime position sizing multiplier', effect: 'next_regime_evaluation_sizing',
+  },
+  'regimeBoosts.dead.EMASMACrossover': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Dead EMA/SMA regime ranking multiplier', effect: 'next_regime_evaluation_ranking',
+  },
+  'regimeBoosts.dead.MADynamicSR': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Dead MA Dynamic SR regime ranking multiplier', effect: 'next_regime_evaluation_ranking',
+  },
+  'regimeBoosts.dead.RSI': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Dead RSI regime ranking multiplier', effect: 'next_regime_evaluation_ranking',
+  },
+  'regimeBoosts.dead.LiquiditySweep': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Dead liquidity sweep regime ranking multiplier', effect: 'next_regime_evaluation_ranking',
+  },
+  'regimeBoosts.dead.SmartMoneySweep': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Dead smart money sweep regime ranking multiplier', effect: 'next_regime_evaluation_ranking',
+  },
+  'regimeBoosts.dead._positionSizeMultiplier': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Dead regime position sizing multiplier', effect: 'next_regime_evaluation_sizing',
+  },
 
   'positionSizing.basePositionSize': {
     type: 'number', unit: 'fraction', min: 0, exclusiveMin: true, max: 1,
