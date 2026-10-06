@@ -44,3 +44,17 @@ This is a bounded deferred list for the current configuration migration. It reco
 - **Evidence:** NoWick startup accepts finite non-negative stopBufferAtr and finite positive targetRR. The corresponding descriptors preserve those domains. In candidate `3853c39158fb3335cc5c453f7296c4655037f691`, `modules/NoWickImbalance.js:534-559` multiplies these values by ATR/risk; extreme finite inputs can overflow. Existing primary/fanout finite-geometry checks reject the resulting signal rather than emit a usable order.
 - **What must be resolved:** Establish useful customer ranges or calculation-domain handling with actual market units before changing the existing domain. Do not invent arbitrary trading thresholds or add a runtime throw/fallback during migration.
 - **Status:** Deferred. Normal saved-value BUY/SELL geometry is verified in `nowick-exit-geometry/final-exact-staged-proof.json`; extreme inputs and broker execution are not claimed as verified.
+
+## 7. Adaptive timeframe per-share fee context
+
+- **Severity:** Existing execution-path exception; held fee migration would make a model switch reach it in a retained selector. Production occurrence is not established by a live replay.
+- **Evidence:** Committed `b99abbd0` runner constructs AdaptiveTimeframeSelector without feeContext at `run-empire-v2.js:773-778`, then evaluates it at `:1072-1076`. `_scoreTimeframe` calls roundTripFeePercent at `core/AdaptiveTimeframeSelector.js:168`; that method throws for per_share_minimum without quantity/notional context at `:256-265`. Current canonical fees already select per_share_minimum. The proposed live model reader would also expose this on a percent-to-per-share save. The active PnL calculateNetPnL caller supplies quantity/notional and is a separate path.
+- **What must be resolved:** Establish the real notional/quantity producer for timeframe viability before exposing fee-model switching or claiming complete fee hot-read wiring. Do not invent a dollar/share assumption or add another guard/fallback.
+- **Status:** Entire prepared fee-model group is held and uncommitted. Candidate, isolated fixtures and exact caller trace remain under `fee-model-group/`; explicit feeContext in a fixture is not proof the runner supplies it. Continue other migration groups; resolve this in the deferred pass.
+
+## 8. Total-round-trip fee metadata has a separate stored value
+
+- **Severity:** Confirmed conflicting fee metadata ownership; no active fee calculation override established.
+- **Evidence:** Committed settings store fees.totalRoundTrip .005. FeeModel calculates actual percent fees from maker/taker and per-share fees from quantity/notional. PolicyBuilder nevertheless copies totalRoundTrip into newly frozen policy metadata (`core/PolicyBuilder.js:53-62,547-557`), RuntimeConfigProof reports it, and ConfigLoader uses it in a tier warning/validation. No active frozenExitPolicy.fees or legacy FEES_ROUND_TRIP consumer was found in the bounded trace. Saving maker/taker through the held candidate leaves that stored metadata unchanged.
+- **What must be resolved:** Determine whether this field is intended independent policy or obsolete duplicated fee metadata, then reconcile its producers/reports without introducing a calculated compatibility alias. Do not delete solely because the active calculation uses another field.
+- **Status:** Preserved with the held fee group; exact-source trace is `fee-model-group/runtime-trace.md`. No fee value or runtime policy changed.

@@ -1,3 +1,7 @@
+## 2026-10-06 — Record fee migration execution and metadata holds
+
+Added two findings to the shared config-migration-followups.md list: the live timeframe-selector producer omits quantity/notional context required by its configured per-share model, and totalRoundTrip remains separately stored in policy/proof metadata while actual calculations use maker/taker or per-share inputs. Root and independent readers checked committed producer/caller lines; the held fixture supplied fee context and cannot establish runner correctness. Preserve the entire fee candidate uncommitted and continue other groups under Trey's deferred-issue instruction. No fee value, consumer, throw, gate, fallback, test or runtime process changed. Documentation-only review; no Mercury production review applies. Supporting trace remains in fee-model-group/runtime-trace.md.
+
 ## 2026-10-06 — Expose sixteen strategy confluence switches and weights
 
 Problem/change: the sixteen canonical strategy confluenceBoost rows were freshly consumed but absent from the editable surface. Expose each existing enabled boolean and non-negative finite weight, 32 fields total, using the established loader domains. The existing master MTF booster switch remains a separate owner; these rows affect ranking only while it is enabled. No master control, strategy, setting value, scoring calculation, runtime validation, gate, throw, default, fallback or test was added or changed.
