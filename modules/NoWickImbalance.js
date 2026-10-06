@@ -93,13 +93,13 @@ function readConfig(config) {
     stopLookbackBars: _stopLookbackBars,
     stopBufferAtr: _stopBufferAtr,
     targetRR: _targetRR,
+    twinProximityBars: _twinProximityBars,
+    entryMode: _entryMode,
+    twinSplitEnabled: _twinSplitEnabled,
     ...normalizedConfig
   } = cfg;
   return {
     ...normalizedConfig,
-    twinProximityBars: Number(cfg.twinProximityBars),
-    entryMode: cfg.entryMode,
-    twinSplitEnabled: cfg.twinSplitEnabled,
     debug: cfg.debug === true,
   };
 }
@@ -110,9 +110,6 @@ class NoWickImbalance {
     this.confidenceProvider = confidenceProvider;
     this.detectionConfigProvider = detectionConfigProvider;
     this.cfg = Object.freeze(readConfig(config));
-    this.entryMode = this.cfg.entryMode;
-    this.twinSplitEnabled = this.cfg.twinSplitEnabled;
-    this.twinProximityBars = this.cfg.twinProximityBars;
 
     // Active NoWick levels waiting for retrace tap, isolated by symbol+timeframe.
     // Each scope entry: { pendingLevels, invalidatedLevels, candleCount }.
@@ -306,7 +303,7 @@ class NoWickImbalance {
         }
         continue;
       }
-      if (this.entryMode === 'rejection' && !touch.rejected) {
+      if (this.detectionConfigProvider().entryMode === 'rejection' && !touch.rejected) {
         this._invalidatePendingLevel(state, i, 'touch_without_rejection', currentCandle);
         continue;
       }
@@ -356,7 +353,7 @@ class NoWickImbalance {
       }
 
       const twinSiblings = this._findTouchedTwinSiblings(state, i, currentCandle);
-      const twinSplit = this.twinSplitEnabled && twinSiblings.length > 0;
+      const twinSplit = this.detectionConfigProvider().twinSplitEnabled && twinSiblings.length > 0;
       const entryLegLevels = twinSplit
         ? [{ index: i, level }, ...twinSiblings]
         : [{ index: i, level }];
@@ -371,13 +368,13 @@ class NoWickImbalance {
           direction: legExit?.direction || direction,
           confidence,
           sizingMultiplier: twinSplit ? 0.5 : 1,
-          reason: `NoWick ${leg.level.type} imbalance ${this.entryMode} @ ${leg.level.level.toFixed(2)} after ${state.candleCount - leg.level.formationCount} candles | trend=${currentTrend} | ${targetRR}:1 RR`,
+          reason: `NoWick ${leg.level.type} imbalance ${this.detectionConfigProvider().entryMode} @ ${leg.level.level.toFixed(2)} after ${state.candleCount - leg.level.formationCount} candles | trend=${currentTrend} | ${targetRR}:1 RR`,
           signalData: {
             type: leg.level.type,
             level: leg.level.level,
             age: state.candleCount - leg.level.formationCount,
             trend: currentTrend,
-            entryMode: this.entryMode,
+            entryMode: this.detectionConfigProvider().entryMode,
             structuralLevel: legExit?.structuralLevel ?? null,
             stopBuffer: legExit?.stopBuffer ?? null,
             risk: legExit?.risk ?? null,
@@ -421,13 +418,13 @@ class NoWickImbalance {
         entryGroupType: primaryLeg.entryGroupType,
         entryGroupId: primaryLeg.entryGroupId,
         entryTriggerClass: 'nowick_retrace',
-        reason: `NoWick ${level.type} imbalance ${this.entryMode} @ ${level.level.toFixed(2)} after ${age} candles | trend=${currentTrend} | ${targetRR}:1 RR`,
+        reason: `NoWick ${level.type} imbalance ${this.detectionConfigProvider().entryMode} @ ${level.level.toFixed(2)} after ${age} candles | trend=${currentTrend} | ${targetRR}:1 RR`,
         signalData: {
           type: level.type,
           level: level.level,
           age,
           trend: currentTrend,
-          entryMode: this.entryMode,
+          entryMode: this.detectionConfigProvider().entryMode,
           structuralLevel,
           stopBuffer,
           risk,
@@ -564,10 +561,11 @@ class NoWickImbalance {
   }
 
   _attachTwinGroup(state, pendingLevel) {
-    if (!this.twinSplitEnabled) return;
+    const entryConfig = this.detectionConfigProvider();
+    if (!entryConfig.twinSplitEnabled) return;
     const sibling = state.pendingLevels.find(level => (
       level.type === pendingLevel.type &&
-      Math.abs(pendingLevel.formationCount - level.formationCount) <= this.twinProximityBars
+      Math.abs(pendingLevel.formationCount - level.formationCount) <= entryConfig.twinProximityBars
     ));
     if (!sibling) return;
     const groupId = sibling.twinGroupId || `${pendingLevel.type}:${sibling.formationCount}:${pendingLevel.formationCount}`;
@@ -585,7 +583,7 @@ class NoWickImbalance {
       if (level.twinGroupId !== active.twinGroupId) continue;
       const touch = this._getTouchState(level, candle);
       if (!touch.touched) continue;
-      if (this.entryMode === 'rejection' && !touch.rejected) continue;
+      if (this.detectionConfigProvider().entryMode === 'rejection' && !touch.rejected) continue;
       siblings.push({ index, level });
     }
     return siblings;

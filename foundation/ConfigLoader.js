@@ -2604,6 +2604,18 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'risk-reward ratio', min: 0, max: Number.MAX_VALUE, exclusiveMin: true,
     label: 'NoWick structural target reward ratio', effect: 'next_new_NoWick_signal_geometry',
   },
+  'strategies.NoWickImbalance.entryMode': {
+    type: 'string', unit: 'choice', values: ['tap', 'rejection'],
+    label: 'NoWick pending-level entry mode', effect: 'next_NoWick_pending_entry_evaluation',
+  },
+  'strategies.NoWickImbalance.twinSplitEnabled': {
+    type: 'boolean', unit: 'boolean',
+    label: 'NoWick twin-entry split', effect: 'next_NoWick_formation_and_pending_entry_evaluation',
+  },
+  'strategies.NoWickImbalance.twinProximityBars': {
+    type: 'number', unit: 'candles', min: 0, max: Number.MAX_SAFE_INTEGER, exclusiveMin: true, integer: true,
+    label: 'NoWick twin formation proximity', effect: 'next_new_NoWick_formation_grouping',
+  },
   ...Object.fromEntries([
     ['enableRSI', 'RSI'],
     ['enableMADynamicSR', 'MADynamicSR'],
