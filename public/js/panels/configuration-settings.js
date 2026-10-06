@@ -74,6 +74,9 @@
             if (field.min !== undefined || field.max !== undefined) {
                 label.append(node('small', `Range: ${field.exclusiveMin ? '>' : '>='} ${field.min ?? 'unspecified'}, ${field.exclusiveMax ? '<' : '<='} ${field.max ?? 'unspecified'}${field.integer ? ' | whole numbers' : ''}`));
             }
+            if (field.format === 'integer_list') {
+                label.append(node('small', `Comma-separated whole numbers greater than ${field.itemMin}; at least ${field.minItems} item.`));
+            }
             const enumerated = Array.isArray(field.values);
             const supported = ['number', 'boolean', 'string'].includes(field.type);
             const input = node(field.type === 'boolean' || enumerated ? 'select' : 'input');
@@ -223,7 +226,12 @@
             if (!field || field.editable !== true) { message(`Cannot save ${path}: no longer editable. Edits preserved.`); return; }
             const value = field.type === 'number' ? (raw.trim() === '' ? NaN : Number(raw))
                 : field.type === 'boolean' ? (raw === 'true' ? true : raw === 'false' ? false : null) : raw;
-            if (typeof value !== field.type || (field.values && !field.values.includes(value))
+            const validIntegerList = field.format !== 'integer_list' || (typeof value === 'string'
+                && value.split(',').length >= field.minItems
+                && value.split(',').every(item => item.trim() !== ''
+                    && Number.isSafeInteger(Number(item.trim()))
+                    && Number(item.trim()) > field.itemMin));
+            if (typeof value !== field.type || !validIntegerList || (field.values && !field.values.includes(value))
                 || (field.type === 'number' && (!Number.isFinite(value)
                     || (field.integer && !Number.isSafeInteger(value))
                     || (field.min !== undefined && (field.exclusiveMin ? value <= field.min : value < field.min))

@@ -2737,6 +2737,11 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'fraction', min: 0, max: 1,
     label, effect: 'next_entry_evaluation',
   }])),
+  'strategies.EMATrendRetest.emaPeriods': {
+    type: 'string', format: 'integer_list', unit: 'EMA periods in candles', itemMin: 1, itemExclusiveMin: true,
+    itemInteger: true, minItems: 1,
+    label: 'EMA retest periods', effect: 'next_entry_evaluation',
+  },
   ...Object.fromEntries([
     ['manipCandle', 'Liquidity sweep manipulation-candle confidence weight'],
     ['wickSweep', 'Liquidity sweep wick confidence weight'],
@@ -3849,7 +3854,13 @@ function saveSettings(request) {
   for (const [key, value] of entries) {
     if (!Object.hasOwn(EDITABLE_SETTINGS, key)) return reject('setting_not_hot_editable', { path: key });
     const definition = EDITABLE_SETTINGS[key];
-    if (typeof value !== definition.type || (definition.values && !definition.values.includes(value))
+    const validIntegerList = definition.format !== 'integer_list' || (typeof value === 'string'
+      && value.split(',').length >= definition.minItems
+      && value.split(',').every(item => item.trim() !== ''
+        && Number.isSafeInteger(Number(item.trim()))
+        && Number(item.trim()) > definition.itemMin));
+    if (typeof value !== definition.type || !validIntegerList
+      || (definition.values && !definition.values.includes(value))
       || (definition.type === 'number' && (!Number.isFinite(value) || value < definition.min || value > definition.max
         || (definition.exclusiveMin && value === definition.min) || (definition.exclusiveMax && value === definition.max)
         || (definition.integer && !Number.isSafeInteger(value))))) {
