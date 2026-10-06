@@ -3162,6 +3162,26 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'atr_multiple', min: 0, exclusiveMin: true, max: Number.MAX_VALUE,
     label: 'MA dynamic S/R maximum extension', effect: 'next_MADynamicSR_signal_evaluation',
   },
+  'strategies.VolumeProfile.sessionLookback': {
+    type: 'number', unit: 'candles', min: 20, max: Number.MAX_SAFE_INTEGER, integer: true,
+    label: 'Volume profile history', effect: 'next_scheduled_volume_profile_rebuild',
+  },
+  ...Object.fromEntries([
+    ['valueAreaPct', 'Volume profile value-area share'],
+    ['lvnThresholdPct', 'Volume profile low-volume threshold'],
+    ['hvnThresholdPct', 'Volume profile high-volume threshold'],
+  ].map(([key, label]) => [`strategies.VolumeProfile.${key}`, {
+    type: 'number', unit: 'fraction', min: 0, max: 1,
+    label, effect: 'next_scheduled_volume_profile_rebuild',
+  }])),
+  'strategies.VolumeProfile.outOfBalancePct': {
+    type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE,
+    label: 'Volume profile out-of-balance distance', effect: 'next_volume_profile_market_state_read',
+  },
+  'strategies.VolumeProfile.recalcInterval': {
+    type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
+    label: 'Volume profile rebuild interval', effect: 'next_volume_profile_observation',
+  },
   'strategies.RSI.period': {
     type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
     label: 'RSI period', effect: 'next_RSI_entry_and_its_owned_exit',

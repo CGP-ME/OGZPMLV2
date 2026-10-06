@@ -40,7 +40,7 @@ class SymbolTradingContext {
      * @param {Function} [config.emaCrossoverConfigProvider] — canonical EMA crossover settings owner
      * @param {object} [config.maDynamicSRConfig] — canonical MA dynamic S/R settings
      * @param {Function} [config.maDynamicSRConfigProvider] — canonical MA dynamic S/R settings reader
-     * @param {object} [config.volumeProfileConfig] — passed through to VolumeProfile
+     * @param {Function} [config.volumeProfileConfigProvider] — canonical volume-profile settings reader
      * @param {object} [config.fibonacciConfig] — canonical Fibonacci settings
      */
     constructor(symbol, candleStore, config = {}) {
@@ -87,7 +87,7 @@ class SymbolTradingContext {
             config.emaCrossoverConfigProvider
         );
         this.maDynamicSR = new MADynamicSR(config.maDynamicSRConfig, config.maDynamicSRConfigProvider);
-        this.volumeProfile = new VolumeProfile(config.volumeProfileConfig);
+        this.volumeProfile = new VolumeProfile(config.volumeProfileConfigProvider);
         this.fibonacciDetector = new FibonacciDetector(config.fibonacciConfig);
 
         // Per-symbol last-computed signal outputs. CandleProcessor (commit 3)

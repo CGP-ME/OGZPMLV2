@@ -58,3 +58,17 @@ This is a bounded deferred list for the current configuration migration. It reco
 - **Evidence:** Committed settings store fees.totalRoundTrip .005. FeeModel calculates actual percent fees from maker/taker and per-share fees from quantity/notional. PolicyBuilder nevertheless copies totalRoundTrip into newly frozen policy metadata (`core/PolicyBuilder.js:53-62,547-557`), RuntimeConfigProof reports it, and ConfigLoader uses it in a tier warning/validation. No active frozenExitPolicy.fees or legacy FEES_ROUND_TRIP consumer was found in the bounded trace. Saving maker/taker through the held candidate leaves that stored metadata unchanged.
 - **What must be resolved:** Determine whether this field is intended independent policy or obsolete duplicated fee metadata, then reconcile its producers/reports without introducing a calculated compatibility alias. Do not delete solely because the active calculation uses another field.
 - **Status:** Preserved with the held fee group; exact-source trace is `fee-model-group/runtime-trace.md`. No fee value or runtime policy changed.
+
+## 9. Volume-profile bin-count resource domain
+
+- **Severity:** Unresolved customer input domain for direct array allocation; no live failure claimed.
+- **Evidence:** `core/VolumeProfile.js:218-219` allocates two arrays of canonical numBins and the following calculation loops over those bins for each candle. The native array-length maximum is not an operational memory/CPU budget. No existing producer establishes a useful resource limit.
+- **What must be resolved:** Establish the intended supported profile resolution/resource budget before exposing numBins. Do not invent a cap or expose the entire native array range as a safe customer domain.
+- **Status:** Canonical numBins and its calculation are preserved; six other profile controls migrate independently. No new numBins descriptor or runtime guard.
+
+## 10. Existing volume-profile weighting can make volume negative
+
+- **Severity:** Reproduced baseline calculation defect with controlled narrow candles; live occurrence not established.
+- **Evidence:** At committed base `c7c11aa2ec9dcca926fce6e372d607009732a31a`, core/VolumeProfile.js computes weight as `1 + (1 - minDist / maxDist)`. A candle narrower than its price bin can put the bin midpoint far enough away to produce a negative weight. The preserved baseline counterexample produces 50 negative bins, minimum -53465.22999997043, from positive input volume: `volume-profile-mechanics/baseline-negative-volume.json`. The migration's initial proof revealed this; it is present before the provider change.
+- **What must be resolved:** Correct the volume-distribution calculation using actual candle/bin overlap semantics in the later defect pass. Do not hide the defect with a new default or gate during settings migration.
+- **Status:** Logged and preserved. The six-control migration proof separately uses positive-volume geometry and verifies save/persistence, profile cadence, thresholds and market-state reads. That proof does not claim the original calculation defect is fixed.

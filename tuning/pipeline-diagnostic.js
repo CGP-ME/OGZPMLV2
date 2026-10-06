@@ -109,7 +109,7 @@ const liquiditySweep = new LiquiditySweepDetector(
 );
 const breakAndRetest = new BreakAndRetest();
 const mtfAdapter = new MultiTimeframeAdapter();
-const volumeProfile = new VolumeProfile();
+const volumeProfile = new VolumeProfile(() => ConfigLoader.get('strategies.VolumeProfile'));
 
 const orchestrator = new StrategyOrchestrator({
   minStrategyConfidence: MIN_CONFIDENCE / 100,

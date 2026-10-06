@@ -24,7 +24,7 @@
  *   - Previous day's POC/VAH/VAL = key levels for next session
  *
  * INTEGRATION:
- *   const vp = new VolumeProfile(config);
+ *   const vp = new VolumeProfile(() => ConfigLoader.get('strategies.VolumeProfile'));
  *   vp.update(candle, priceHistory);
  *   const profile = vp.getProfile();
  *   // profile = { poc, vah, val, lvns[], hvns[], marketState, ... }
@@ -37,29 +37,8 @@
 const { c, o, h, l, v } = require('./CandleHelper');
 
 class VolumeProfile {
-  constructor(config) {
-    // ─── PROFILE SETTINGS ───
-    // Number of price bins to divide the range into
-    this.numBins = config.numBins;
-
-    // Value area percentage (standard is 70% — where 70% of volume transacted)
-    this.valueAreaPct = config.valueAreaPct;
-
-    // Session lookback for building the profile (candles)
-    this.sessionLookback = config.sessionLookback;
-
-    // Low Volume Node threshold (below this % of max bin = LVN)
-    this.lvnThresholdPct = config.lvnThresholdPct;
-
-    // High Volume Node threshold (above this % of max bin = HVN)
-    this.hvnThresholdPct = config.hvnThresholdPct;
-
-    // Recalculate interval (every N candles)
-    this.recalcInterval = config.recalcInterval;
-
-    // How far outside VA to consider "out of balance" (% beyond VAH/VAL)
-    // FIX 2026-03-06: Was 0.1% (too tight), changed to 0.5% per STRATEGY-REWRITE-SPEC
-    this.outOfBalancePct = config.outOfBalancePct;
+  constructor(configProvider) {
+    this.configProvider = configProvider;
 
     // ─── INTERNAL STATE ───
     this.profile = null;          // Current computed profile
@@ -80,15 +59,16 @@ class VolumeProfile {
   update(candle, priceHistory) {
     if (!priceHistory || priceHistory.length < 20) return;
 
+    const config = this.configProvider();
     this.barCount++;
 
     // Recalculate profile periodically
-    if (this.barCount - this.lastProfileBar >= this.recalcInterval) {
+    if (this.barCount - this.lastProfileBar >= config.recalcInterval) {
       // Save current as previous before rebuilding
       if (this.profile) {
         this.previousProfile = { ...this.profile };
       }
-      this._buildProfile(priceHistory);
+      this._buildProfile(priceHistory, config);
       this.lastProfileBar = this.barCount;
     }
   }
@@ -124,11 +104,12 @@ class VolumeProfile {
     if (!this.profile) return { state: 'unknown' };
 
     const { vah, val, poc, lvns, hvns } = this.profile;
+    const { outOfBalancePct } = this.configProvider();
 
     let state = 'balanced';
-    if (price > vah * (1 + this.outOfBalancePct / 100)) {
+    if (price > vah * (1 + outOfBalancePct / 100)) {
       state = 'imbalanced_high';  // Above value area = expensive, trend up
-    } else if (price < val * (1 - this.outOfBalancePct / 100)) {
+    } else if (price < val * (1 - outOfBalancePct / 100)) {
       state = 'imbalanced_low';   // Below value area = cheap, trend down
     }
 
@@ -213,8 +194,8 @@ class VolumeProfile {
   //  PROFILE BUILDER
   // ═══════════════════════════════════════════════════════════════
 
-  _buildProfile(priceHistory) {
-    const candles = priceHistory.slice(-this.sessionLookback);
+  _buildProfile(priceHistory, config) {
+    const candles = priceHistory.slice(-config.sessionLookback);
     if (candles.length < 20) return;
 
     // Find price range
@@ -230,14 +211,14 @@ class VolumeProfile {
     if (maxPrice <= minPrice) return;
 
     const range = maxPrice - minPrice;
-    const binSize = range / this.numBins;
+    const binSize = range / config.numBins;
 
     // Build volume histogram
     // Each candle distributes its volume across the bins it touches
-    const bins = new Array(this.numBins).fill(0);
-    const binPrices = new Array(this.numBins);
+    const bins = new Array(config.numBins).fill(0);
+    const binPrices = new Array(config.numBins);
 
-    for (let i = 0; i < this.numBins; i++) {
+    for (let i = 0; i < config.numBins; i++) {
       binPrices[i] = minPrice + (i + 0.5) * binSize; // Midpoint of bin
     }
 
@@ -256,7 +237,7 @@ class VolumeProfile {
       const volPerBin = cdVol / touchedBins;
 
       // Distribute volume with emphasis on close (more volume where candle closed)
-      for (let b = Math.max(0, lowBin); b <= Math.min(this.numBins - 1, highBin); b++) {
+      for (let b = Math.max(0, lowBin); b <= Math.min(config.numBins - 1, highBin); b++) {
         // Weight: more volume near the close price
         const binMid = binPrices[b];
         const distToClose = Math.abs(binMid - cdClose);
@@ -282,7 +263,7 @@ class VolumeProfile {
 
     // ─── Calculate Value Area (70% of total volume) ───
     const totalVolume = bins.reduce((sum, b) => sum + b, 0);
-    const targetVolume = totalVolume * this.valueAreaPct;
+    const targetVolume = totalVolume * config.valueAreaPct;
 
     // Start from POC, expand up and down until 70% captured
     let vaVolume = bins[pocBin];
@@ -306,7 +287,7 @@ class VolumeProfile {
     const val = binPrices[vaLowBin] - binSize / 2;  // Bottom of lower bin
 
     // ─── Find Low Volume Nodes ───
-    const lvnThreshold = maxVol * this.lvnThresholdPct;
+    const lvnThreshold = maxVol * config.lvnThresholdPct;
     const lvns = [];
     for (let i = 1; i < bins.length - 1; i++) {
       // LVN = bin significantly lower than neighbors
@@ -321,7 +302,7 @@ class VolumeProfile {
     }
 
     // ─── Find High Volume Nodes ───
-    const hvnThreshold = maxVol * this.hvnThresholdPct;
+    const hvnThreshold = maxVol * config.hvnThresholdPct;
     const hvns = [];
     for (let i = 0; i < bins.length; i++) {
       if (bins[i] >= hvnThreshold && i !== pocBin) {

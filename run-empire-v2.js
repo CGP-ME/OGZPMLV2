@@ -811,8 +811,7 @@ class OGZPrimeV14Bot {
 
     // CHANGE 2026-02-23: Volume Profile (Fabio Valentino / Auction Market Theory)
     // Filters out trend strategies when market is BALANCED (inside value area = chop)
-    const vpConfig = ConfigLoader.get('strategies.VolumeProfile');
-    this.volumeProfile = new VolumeProfile(vpConfig);
+    this.volumeProfile = new VolumeProfile(() => ConfigLoader.get('strategies.VolumeProfile'));
 
     console.log('[ModularEntry] MTF + Crossovers + S/R + Liquidity initialized');
 
@@ -3127,7 +3126,7 @@ class OGZPrimeV14Bot {
           }),
           maDynamicSRConfig: ConfigLoader.get('strategies.MADynamicSR'),
           maDynamicSRConfigProvider: () => ConfigLoader.get('strategies.MADynamicSR'),
-          volumeProfileConfig: resolvedConfig.config.strategies.VolumeProfile,
+          volumeProfileConfigProvider: () => ConfigLoader.get('strategies.VolumeProfile'),
           fibonacciConfig: resolvedConfig.config.fibonacci,
         });
         this.symbolContexts.set(sym, ctx);
