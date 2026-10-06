@@ -647,7 +647,7 @@
               "strategies.soloFilter": [
                 "DonchianBreakout"
               ],
-              "strategies.DonchianBreakout.atrStopMult": 1.2
+              "exitContracts.DonchianBreakout.atrStopMult": 1.2
             }
           },
           {
@@ -656,7 +656,7 @@
               "strategies.soloFilter": [
                 "DonchianBreakout"
               ],
-              "strategies.DonchianBreakout.atrStopMult": 1.6
+              "exitContracts.DonchianBreakout.atrStopMult": 1.6
             }
           },
           {
@@ -665,7 +665,7 @@
               "strategies.soloFilter": [
                 "DonchianBreakout"
               ],
-              "strategies.DonchianBreakout.atrStopMult": 2
+              "exitContracts.DonchianBreakout.atrStopMult": 2
             }
           },
           {

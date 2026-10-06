@@ -6,26 +6,25 @@ const { IndicatorCalculator } = require('../core/IndicatorCalculator');
 const REQUIRED_NUMERIC_KEYS = [
   'entryPeriod',
   'atrPeriod',
+];
+
+const REQUIRED_EXIT_NUMERIC_KEYS = [
   'atrStopMult',
   'trailChannelBars',
 ];
 
-const REQUIRED_STRING_KEYS = [
+const REQUIRED_EXIT_STRING_KEYS = [
   'stopType',
   'trailType',
   'tpMode',
   'maxHoldMode',
 ];
 
-function readConfig(config) {
+function readEntryConfig(config) {
   const cfg = config;
   const missing = REQUIRED_NUMERIC_KEYS.filter(key => !Number.isFinite(Number(cfg[key])));
   if (missing.length > 0) {
     throw new Error(`[DonchianBreakout] missing finite config key(s): ${missing.join(', ')}`);
-  }
-  const missingStrings = REQUIRED_STRING_KEYS.filter(key => typeof cfg[key] !== 'string' || cfg[key].trim() === '');
-  if (missingStrings.length > 0) {
-    throw new Error(`[DonchianBreakout] missing string config key(s): ${missingStrings.join(', ')}`);
   }
   if (!Number.isInteger(Number(cfg.entryPeriod)) || Number(cfg.entryPeriod) <= 0) {
     throw new Error(`[DonchianBreakout] entryPeriod must be a positive integer (got ${cfg.entryPeriod})`);
@@ -33,7 +32,20 @@ function readConfig(config) {
   if (!Number.isInteger(Number(cfg.atrPeriod)) || Number(cfg.atrPeriod) <= 0) {
     throw new Error(`[DonchianBreakout] atrPeriod must be a positive integer (got ${cfg.atrPeriod})`);
   }
-  for (const key of ['atrStopMult', 'trailChannelBars']) {
+  return cfg;
+}
+
+function readExitConfig(config) {
+  const cfg = config;
+  const missing = REQUIRED_EXIT_NUMERIC_KEYS.filter(key => !Number.isFinite(Number(cfg[key])));
+  if (missing.length > 0) {
+    throw new Error(`[DonchianBreakout] missing finite exit config key(s): ${missing.join(', ')}`);
+  }
+  const missingStrings = REQUIRED_EXIT_STRING_KEYS.filter(key => typeof cfg[key] !== 'string' || cfg[key].trim() === '');
+  if (missingStrings.length > 0) {
+    throw new Error(`[DonchianBreakout] missing string exit config key(s): ${missingStrings.join(', ')}`);
+  }
+  for (const key of REQUIRED_EXIT_NUMERIC_KEYS) {
     if (Number(cfg[key]) <= 0) {
       throw new Error(`[DonchianBreakout] ${key} must be positive (got ${cfg[key]})`);
     }
@@ -57,33 +69,37 @@ function readConfig(config) {
 }
 
 class DonchianBreakout {
-  constructor(config) {
-    this.configure(config);
+  constructor(entryConfig, exitConfig) {
+    this.configure(entryConfig, exitConfig);
   }
 
-  configure(config) {
-    const cfg = readConfig(config);
+  configure(entryConfig, exitConfig) {
+    const entry = readEntryConfig(entryConfig);
+    const exit = readExitConfig(exitConfig);
 
-    this.entryPeriod = Number(cfg.entryPeriod);
-    this.atrPeriod = Number(cfg.atrPeriod);
-    this.atrStopMult = Number(cfg.atrStopMult);
-    this.allowShorts = cfg.allowShorts === true;
+    this.entryPeriod = Number(entry.entryPeriod);
+    this.atrPeriod = Number(entry.atrPeriod);
+    this.atrStopMult = Number(exit.atrStopMult);
+    this.allowShorts = entry.allowShorts === true;
     this.minHistory = Math.max(this.entryPeriod + 2, this.atrPeriod + 2);
 
     this.exit = {
-      stopType: cfg.stopType,
-      trailType: cfg.trailType,
-      trailChannelBars: Number(cfg.trailChannelBars),
-      tpMode: cfg.tpMode,
-      maxHoldMode: cfg.maxHoldMode,
-      partialExit: { ...cfg.partialExit },
-      invalidationConditions: [...cfg.invalidationConditions],
+      stopType: exit.stopType,
+      trailType: exit.trailType,
+      trailChannelBars: Number(exit.trailChannelBars),
+      tpMode: exit.tpMode,
+      maxHoldMode: exit.maxHoldMode,
+      partialExit: { ...exit.partialExit },
+      invalidationConditions: [...exit.invalidationConditions],
     };
-    this.configurationInput = config;
+    this.entryConfigurationInput = entryConfig;
+    this.exitConfigurationInput = exitConfig;
   }
 
-  evaluate(ctx, config = this.configurationInput) {
-    if (config !== this.configurationInput) this.configure(config);
+  evaluate(ctx, entryConfig = this.entryConfigurationInput, exitConfig = this.exitConfigurationInput) {
+    if (entryConfig !== this.entryConfigurationInput || exitConfig !== this.exitConfigurationInput) {
+      this.configure(entryConfig, exitConfig);
+    }
     const candles = ctx && ctx.priceHistory;
     if (!Array.isArray(candles) || candles.length < this.minHistory) return null;
 

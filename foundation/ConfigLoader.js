@@ -667,7 +667,7 @@ function buildRoleConfig(role) {
 }
 
 const DESCRIPTOR_OVERRIDE_PATHS = Object.freeze([
-  /^exitContracts\.[A-Za-z0-9_]+\.(stopLossPercent|takeProfitPercent|trailingStopPercent|trailingActivation|maxHoldTimeMinutes|atrStopMult|targetRR|trailActivationR|trailDistanceR)$/,
+  /^exitContracts\.[A-Za-z0-9_]+\.(stopLossPercent|takeProfitPercent|trailingStopPercent|trailingActivation|maxHoldTimeMinutes|atrStopMult|targetRR|trailActivationR|trailDistanceR|trailChannelBars)$/,
   /^strategies\.[A-Za-z0-9_]+\.[A-Za-z0-9_.]+$/,
   /^strategies\.soloFilter$/,
   /^confidence\.minTradeConfidence$/,
@@ -3542,7 +3542,7 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
     label: 'Donchian ATR period', effect: 'next_Donchian_entry_risk_and_confidence',
   },
-  'strategies.DonchianBreakout.atrStopMult': {
+  'exitContracts.DonchianBreakout.atrStopMult': {
     type: 'number', unit: 'atr_multiple', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
     label: 'Donchian stop ATR multiple', effect: 'new_Donchian_trade_stop_only',
   },
@@ -3550,7 +3550,7 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'boolean', unit: 'boolean', label: 'Donchian short signals',
     effect: 'next_Donchian_evaluation_subject_to_existing_direction_policy',
   },
-  'strategies.DonchianBreakout.trailChannelBars': {
+  'exitContracts.DonchianBreakout.trailChannelBars': {
     type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
     label: 'Donchian exit channel period', effect: 'new_Donchian_trade_channel_trail_only',
   },

@@ -870,8 +870,10 @@ class StrategyOrchestrator {
     this.tpoIntegration = new OgzTpoIntegration(this.ogzTpoConfigProvider);
     this.smartMoneySweepConfigProvider = () => ({ ...ConfigLoader.get('strategies.SmartMoneySweep'), debug: ConfigLoader.get('observability.smartMoneyDebug') === true });
     this.smartMoneySweepModule = new SmartMoneySweep(this.smartMoneySweepConfigProvider);
+    this.donchianEntryConfigProvider = () => ConfigLoader.get('strategies.DonchianBreakout');
+    this.donchianExitConfigProvider = () => ConfigLoader.get('exitContracts.DonchianBreakout');
     this.donchianBreakoutModule = new DonchianBreakout(
-      ConfigLoader.get('strategies.DonchianBreakout')
+      this.donchianEntryConfigProvider(), this.donchianExitConfigProvider()
     );
     // Solo strategy mode is resolved by ConfigLoader as strategies.soloFilter.
     const soloFilter = ConfigLoader.get('strategies.soloFilter');
@@ -2172,9 +2174,9 @@ class StrategyOrchestrator {
         ctx.extras?.symbol,
         donchianBreakoutModule,
         () => new DonchianBreakout(
-          ConfigLoader.get('strategies.DonchianBreakout')
+          this.donchianEntryConfigProvider(), this.donchianExitConfigProvider()
         )
-      ).evaluate(ctx, ConfigLoader.get('strategies.DonchianBreakout'))
+      ).evaluate(ctx, this.donchianEntryConfigProvider(), this.donchianExitConfigProvider())
     });
 
     if (shouldRegister('PropSafeEMAPullback')) {

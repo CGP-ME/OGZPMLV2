@@ -17,6 +17,13 @@ function donchianConfig(overrides = {}) {
   return {
     entryPeriod: 20,
     atrPeriod: 20,
+    allowShorts: false,
+    ...overrides,
+  };
+}
+
+function donchianExitConfig(overrides = {}) {
+  return {
     atrStopMult: 2.5,
     stopType: 'structural',
     trailType: 'channel',
@@ -53,7 +60,7 @@ describe('DonchianBreakout', () => {
   });
 
   test('generates a long breakout only when close exceeds the prior channel high', () => {
-    const strategy = new DonchianBreakout(donchianConfig());
+    const strategy = new DonchianBreakout(donchianConfig(), donchianExitConfig());
     const candles = [
       ...rangeCandles(22, 105, 95, 100),
       candle(100, 109, 99, 108, 23),
@@ -74,13 +81,13 @@ describe('DonchianBreakout', () => {
   });
 
   test('fails loudly when ATR stop multiplier would create a zero or inverted stop', () => {
-    expect(() => new DonchianBreakout(donchianConfig({ atrStopMult: 0 }))).toThrow(/atrStopMult must be positive/);
+    expect(() => new DonchianBreakout(donchianConfig(), donchianExitConfig({ atrStopMult: 0 }))).toThrow(/atrStopMult must be positive/);
 
-    expect(() => new DonchianBreakout(donchianConfig({ atrStopMult: -2.5 }))).toThrow(/atrStopMult must be positive/);
+    expect(() => new DonchianBreakout(donchianConfig(), donchianExitConfig({ atrStopMult: -2.5 }))).toThrow(/atrStopMult must be positive/);
   });
 
   test('does not include the current candle in the breakout channel', () => {
-    const strategy = new DonchianBreakout(donchianConfig());
+    const strategy = new DonchianBreakout(donchianConfig(), donchianExitConfig());
     const candles = [
       ...rangeCandles(22, 105, 95, 100),
       candle(100, 110, 99, 106, 23),
@@ -93,7 +100,7 @@ describe('DonchianBreakout', () => {
   });
 
   test('returns null instead of emitting a false trade when ATR is zero', () => {
-    const strategy = new DonchianBreakout(donchianConfig());
+    const strategy = new DonchianBreakout(donchianConfig(), donchianExitConfig());
     const candles = [
       ...rangeCandles(22, 105, 95, 100),
       candle(100, 109, 99, 108, 23),
@@ -103,7 +110,7 @@ describe('DonchianBreakout', () => {
   });
 
   test('returns null instead of emitting a false trade when ATR is missing and cannot warm up', () => {
-    const strategy = new DonchianBreakout(donchianConfig());
+    const strategy = new DonchianBreakout(donchianConfig(), donchianExitConfig());
 
     expect(strategy.evaluate({ priceHistory: rangeCandles(21), indicators: {} })).toBeNull();
   });

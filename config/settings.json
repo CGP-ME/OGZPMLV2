@@ -2203,22 +2203,7 @@
     "DonchianBreakout": {
       "entryPeriod": 20,
       "atrPeriod": 20,
-      "atrStopMult": 2.5,
       "allowShorts": false,
-      "stopType": "structural",
-      "trailType": "channel",
-      "trailChannelBars": 10,
-      "tpMode": "off",
-      "maxHoldMode": "off",
-      "partialExit": {
-        "enabled": false,
-        "triggerR": 1,
-        "fraction": 0.5,
-        "remainderTrail": "terrain"
-      },
-      "invalidationConditions": [
-        "donchian_channel_reentry"
-      ],
       "confluenceBoost": {
         "enabled": false,
         "weight": 0
