@@ -1,9 +1,11 @@
 {
   "schemaVersion": 1,
-  "revision": 6,
+  "revision": 7,
   "confidence": {
     "minStrategyConfidence": 0.35,
-    "candlePatternMinConfidence": 0.7
+    "candlePatternMinConfidence": 0.7,
+    "regimeMinConfidence": 0.3,
+    "confluenceMinScore": 0.3
   },
   "regimeDetection": {
     "minimumCandles": 10,
