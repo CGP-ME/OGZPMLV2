@@ -2640,6 +2640,15 @@ const EDITABLE_SETTINGS = deepFreeze({
     },
   ])),
 
+  'positionSizing.basePositionSize': {
+    type: 'number', unit: 'fraction', min: 0, exclusiveMin: true, max: 1,
+    label: 'Base position size', effect: 'next_entry_decision',
+  },
+  'positionSizing.maxPositionSize': {
+    type: 'number', unit: 'fraction', min: 0, exclusiveMin: true, max: 0.25,
+    label: 'Maximum position size', effect: 'next_entry_decision',
+  },
+
   'confidence.minTradeConfidence': {
     type: 'number', unit: 'fraction', min: 0, max: 1,
     scope: 'active_launch_profile', label: 'Minimum entry confidence',

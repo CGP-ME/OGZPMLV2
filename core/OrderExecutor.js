@@ -2189,7 +2189,7 @@ class OrderExecutor {
     return this._percentDistanceDecimal(exitContract.stopLossPercent, 'exitContract.stopLossPercent');
   }
 
-  _applyStockShareRange({ orderQuantity, price, exitContract, absoluteCapSizeUsd }) {
+  _applyStockShareRange({ orderQuantity, price, exitContract, absoluteCapSizeUsd, capReason }) {
     const range = {
       enabled: ConfigLoader.get('entryLogic.sizing.stockShareRange.enabled'),
       minShares: ConfigLoader.get('entryLogic.sizing.stockShareRange.minShares'),
@@ -2220,7 +2220,7 @@ class OrderExecutor {
       absoluteCapShares -= 1;
     }
     const caps = [absoluteCapShares];
-    const reasons = ['absolute_position_cap'];
+    const reasons = [capReason];
 
     const configuredMaxShares = Number(range.maxShares);
     if (Number.isFinite(configuredMaxShares) && configuredMaxShares > 0) {
@@ -2351,10 +2351,15 @@ class OrderExecutor {
     const capPercent = absoluteCapPercent ?? this._resolveAbsolutePositionCap();
     const requestedSizeUsd = positionSize * sizingMultiplier;
     const absoluteCapSizeUsd = currentBalance * capPercent;
-    const cappedByAbsoluteCap = requestedSizeUsd > absoluteCapSizeUsd;
-    const sizeUsd = cappedByAbsoluteCap ? absoluteCapSizeUsd : requestedSizeUsd;
+    const maxPositionSizeUsd = currentBalance * ConfigLoader.get('positionSizing.maxPositionSize');
+    const cappedByAbsoluteCap = requestedSizeUsd > absoluteCapSizeUsd && absoluteCapSizeUsd <= maxPositionSizeUsd;
+    const cappedByPositionMaximum = requestedSizeUsd > maxPositionSizeUsd && maxPositionSizeUsd < absoluteCapSizeUsd;
+    const sizeUsd = Math.min(requestedSizeUsd, absoluteCapSizeUsd, maxPositionSizeUsd);
     if (cappedByAbsoluteCap) {
       console.log(`Position absolute-capped final size: $${requestedSizeUsd.toFixed(2)} -> $${sizeUsd.toFixed(2)} (${(capPercent * 100).toFixed(2)}% ABSOLUTE_POSITION_CAP)`);
+    }
+    if (cappedByPositionMaximum) {
+      console.log(`[POSITION_MAXIMUM] Requested ${requestedSizeUsd.toFixed(2)}, configured ceiling ${maxPositionSizeUsd.toFixed(2)}, planned ${sizeUsd.toFixed(2)}`);
     }
     const quantityUnit = this._orderQuantityUnit(scope);
     let orderQuantity = this._orderQuantityFromSizeUsd(sizeUsd, price, scope, { forceWholeShares });
@@ -2364,7 +2369,8 @@ class OrderExecutor {
         orderQuantity,
         price,
         exitContract,
-        absoluteCapSizeUsd,
+        absoluteCapSizeUsd: Math.min(absoluteCapSizeUsd, maxPositionSizeUsd),
+        capReason: maxPositionSizeUsd < absoluteCapSizeUsd ? 'configured_position_maximum' : 'absolute_position_cap',
       });
       orderQuantity = shareRange.orderQuantity;
     }
@@ -2398,6 +2404,9 @@ class OrderExecutor {
       absoluteCapPercent: capPercent,
       absoluteCapSizeUsd,
       cappedByAbsoluteCap,
+      maxPositionSizeUsd,
+      cappedByPositionMaximum,
+      configuredBasePercent: ConfigLoader.get('positionSizing.basePositionSize'),
       stockShareRange: shareRange?.bounds || null,
       stockShareRangeBlockReason: shareRange?.blockReason || null,
       confidence: decision.confidence,
@@ -3053,7 +3062,7 @@ class OrderExecutor {
     const dynamicSizingEnabled = ConfigLoader.get('features.enableDynamicSizing') === true;
     let confidenceMultiplier = 1.0;
     if (isEntryAction) {
-      basePositionPercent = ConfigLoader.get('positionSizing.maxPositionSize');
+      basePositionPercent = ConfigLoader.get('positionSizing.basePositionSize');
     }
     if (isEntryAction && dynamicSizingEnabled) {
       // Linear scale: confidence 0.5 -> multiplier 0.5, confidence 1.0 -> multiplier 2.5
@@ -3064,7 +3073,7 @@ class OrderExecutor {
     }
 
     // FIX 2026-03-06: ENFORCE MAX_POSITION_SIZE cap after confidence multiplier
-    const maxPositionPercent = ConfigLoader.get('positionSizing.maxPositionSize') * (dynamicSizingEnabled ? 2.5 : 1);
+    const maxPositionPercent = ConfigLoader.get('positionSizing.maxPositionSize');
     if (isEntryAction && basePositionPercent > maxPositionPercent) {
       console.log(`Position capped: ${(basePositionPercent * 100).toFixed(2)}% -> ${(maxPositionPercent * 100).toFixed(2)}% (MAX_POSITION_SIZE limit)`);
       basePositionPercent = maxPositionPercent;
@@ -3863,7 +3872,7 @@ class OrderExecutor {
           // L4: Enrich ledger with actual computed position sizing
           let ledgerPositionSizing = null;
           if (decision.ledgerData) {
-            const baseP = ConfigLoader.get('positionSizing.maxPositionSize');
+            const baseP = entryPlan.configuredBasePercent;
             ledgerPositionSizing = {
               basePercent: baseP,
               confidenceMultiplier,
@@ -4131,7 +4140,7 @@ class OrderExecutor {
           // L4: Enrich ledger with actual computed position sizing (short path)
           let ledgerPositionSizing = null;
           if (decision.ledgerData) {
-            const baseP = ConfigLoader.get('positionSizing.maxPositionSize');
+            const baseP = entryPlan.configuredBasePercent;
             ledgerPositionSizing = {
               basePercent: baseP,
               confidenceMultiplier,
