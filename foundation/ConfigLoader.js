@@ -3732,6 +3732,15 @@ const EDITABLE_SETTINGS = deepFreeze({
   'strategies.PropSafeEMAPullback.requireRth': {
     type: 'boolean', unit: 'boolean', label: 'Require PropSafe regular trading hours', effect: 'next_entry_evaluation',
   },
+  'strategies.PropSafeEMAPullback.rthStartET': {
+    type: 'string', unit: 'HH:mm', label: 'PropSafe session start', effect: 'next_entry_evaluation',
+  },
+  'strategies.PropSafeEMAPullback.rthEndET': {
+    type: 'string', unit: 'HH:mm', label: 'PropSafe session end', effect: 'next_entry_evaluation',
+  },
+  'strategies.PropSafeEMAPullback.sessionTimeZone': {
+    type: 'string', unit: 'IANA time zone', label: 'PropSafe session time zone', effect: 'next_entry_evaluation',
+  },
   'strategies.PropSafeEMAPullback.allowShorts': {
     type: 'boolean', unit: 'boolean', label: 'Allow PropSafe short signals', effect: 'next_entry_evaluation',
   },
@@ -3869,6 +3878,22 @@ function saveSettings(request) {
     }
     if (!(cfg.pullbackMinAtr < cfg.pullbackMaxAtr)) {
       return reject('propsafe_pullback_min_must_be_below_max');
+    }
+    const isHhMm = value => typeof value === 'string'
+      && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value);
+    if (!isHhMm(cfg.rthStartET)) {
+      return reject('propsafe_rth_start_must_use_hh_mm', { path: 'strategies.PropSafeEMAPullback.rthStartET' });
+    }
+    if (!isHhMm(cfg.rthEndET)) {
+      return reject('propsafe_rth_end_must_use_hh_mm', { path: 'strategies.PropSafeEMAPullback.rthEndET' });
+    }
+    if (typeof cfg.sessionTimeZone !== 'string' || cfg.sessionTimeZone.trim() === '') {
+      return reject('propsafe_session_time_zone_must_be_iana', { path: 'strategies.PropSafeEMAPullback.sessionTimeZone' });
+    }
+    try {
+      new Intl.DateTimeFormat('en-US', { timeZone: cfg.sessionTimeZone }).format(new Date(Date.UTC(2026, 0, 1)));
+    } catch (error) {
+      return reject('propsafe_session_time_zone_must_be_iana', { path: 'strategies.PropSafeEMAPullback.sessionTimeZone' });
     }
   }
   if (entries.some(([key]) => key.startsWith('strategies.OpeningRangeBreakout.'))) {
