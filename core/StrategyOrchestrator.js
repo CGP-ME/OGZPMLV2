@@ -2179,7 +2179,8 @@ class StrategyOrchestrator {
 
     if (shouldRegister('PropSafeEMAPullback')) {
       const propSafeEmaPullbackModule = new PropSafeEMAPullback(
-        ConfigLoader.get('strategies.PropSafeEMAPullback')
+        ConfigLoader.get('strategies.PropSafeEMAPullback'),
+        ConfigLoader.get('exitContracts.PropSafeEMAPullback')
       );
       this.strategies.push({
         name: 'PropSafeEMAPullback',
@@ -2188,9 +2189,14 @@ class StrategyOrchestrator {
           ctx.extras?.symbol,
           propSafeEmaPullbackModule,
           () => new PropSafeEMAPullback(
-            ConfigLoader.get('strategies.PropSafeEMAPullback')
+            ConfigLoader.get('strategies.PropSafeEMAPullback'),
+            ConfigLoader.get('exitContracts.PropSafeEMAPullback')
           )
-        ).evaluate(ctx, ConfigLoader.get('strategies.PropSafeEMAPullback'))
+        ).evaluate(
+          ctx,
+          ConfigLoader.get('strategies.PropSafeEMAPullback'),
+          ConfigLoader.get('exitContracts.PropSafeEMAPullback')
+        )
       });
     }
 

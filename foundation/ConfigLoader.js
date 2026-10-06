@@ -667,7 +667,7 @@ function buildRoleConfig(role) {
 }
 
 const DESCRIPTOR_OVERRIDE_PATHS = Object.freeze([
-  /^exitContracts\.[A-Za-z0-9_]+\.(stopLossPercent|takeProfitPercent|trailingStopPercent|trailingActivation|maxHoldTimeMinutes)$/,
+  /^exitContracts\.[A-Za-z0-9_]+\.(stopLossPercent|takeProfitPercent|trailingStopPercent|trailingActivation|maxHoldTimeMinutes|atrStopMult|targetRR|trailActivationR|trailDistanceR)$/,
   /^strategies\.[A-Za-z0-9_]+\.[A-Za-z0-9_.]+$/,
   /^strategies\.soloFilter$/,
   /^confidence\.minTradeConfidence$/,
@@ -3726,11 +3726,23 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'ATR multiples', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
     label: 'PropSafe maximum pullback distance', effect: 'next_entry_evaluation',
   },
-  'strategies.PropSafeEMAPullback.atrStopMult': {
+  'exitContracts.PropSafeEMAPullback.atrStopMult': {
     type: 'number', unit: 'ATR multiples', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
-    label: 'PropSafe initial stop distance', effect: 'new_trades_only',
+    label: 'PropSafe initial stop ATR multiple', effect: 'new_trades_only',
   },
-  'strategies.PropSafeEMAPullback.maxHoldTimeMinutes': {
+  'exitContracts.PropSafeEMAPullback.targetRR': {
+    type: 'number', unit: 'risk-reward ratio', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
+    label: 'PropSafe target reward/risk', effect: 'new_trades_only',
+  },
+  'exitContracts.PropSafeEMAPullback.trailActivationR': {
+    type: 'number', unit: 'risk multiples', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
+    label: 'PropSafe trailing activation', effect: 'new_trades_only',
+  },
+  'exitContracts.PropSafeEMAPullback.trailDistanceR': {
+    type: 'number', unit: 'risk multiples', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
+    label: 'PropSafe trailing distance', effect: 'new_trades_only',
+  },
+  'exitContracts.PropSafeEMAPullback.maxHoldTimeMinutes': {
     type: 'number', unit: 'minutes', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
     label: 'PropSafe maximum hold', effect: 'new_trades_only',
   },

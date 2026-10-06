@@ -28,7 +28,7 @@ function buildTrendCandles() {
   return candles;
 }
 
-function strategy(overrides = {}) {
+function strategy(entryOverrides = {}, exitOverrides = {}) {
   return new PropSafeEMAPullback({
     fastEmaPeriod: 3,
     pullbackEmaPeriod: 5,
@@ -38,11 +38,6 @@ function strategy(overrides = {}) {
     pullbackLookbackBars: 8,
     pullbackMinAtr: 0,
     pullbackMaxAtr: 2.0,
-    atrStopMult: 1.1,
-    targetRR: 3,
-    trailActivationR: 1.5,
-    trailDistanceR: 1,
-    maxHoldTimeMinutes: 240,
     confidenceBase: 0.62,
     confidenceTrendBonus: 0.06,
     confidencePullbackBonus: 0.08,
@@ -54,7 +49,15 @@ function strategy(overrides = {}) {
     rthEndET: '16:00',
     sessionTimeZone: 'America/New_York',
     allowShorts: false,
-    ...overrides,
+    ...entryOverrides,
+  }, {
+    atrStopMult: 1.1,
+    targetRR: 3,
+    trailActivationR: 1.5,
+    trailDistanceR: 1,
+    maxHoldTimeMinutes: 240,
+    invalidationConditions: ['ema_pullback_invalidated'],
+    ...exitOverrides,
   });
 }
 

@@ -751,11 +751,11 @@
               "strategies.soloFilter": [
                 "PropSafeEMAPullback"
               ],
-              "strategies.PropSafeEMAPullback.atrStopMult": 0.8,
-              "strategies.PropSafeEMAPullback.targetRR": 2,
-              "strategies.PropSafeEMAPullback.trailActivationR": 1,
-              "strategies.PropSafeEMAPullback.trailDistanceR": 0.7,
-              "strategies.PropSafeEMAPullback.maxHoldTimeMinutes": 120
+              "exitContracts.PropSafeEMAPullback.atrStopMult": 0.8,
+              "exitContracts.PropSafeEMAPullback.targetRR": 2,
+              "exitContracts.PropSafeEMAPullback.trailActivationR": 1,
+              "exitContracts.PropSafeEMAPullback.trailDistanceR": 0.7,
+              "exitContracts.PropSafeEMAPullback.maxHoldTimeMinutes": 120
             }
           },
           {
@@ -764,11 +764,11 @@
               "strategies.soloFilter": [
                 "PropSafeEMAPullback"
               ],
-              "strategies.PropSafeEMAPullback.atrStopMult": 1,
-              "strategies.PropSafeEMAPullback.targetRR": 2.6,
-              "strategies.PropSafeEMAPullback.trailActivationR": 1.2,
-              "strategies.PropSafeEMAPullback.trailDistanceR": 0.8,
-              "strategies.PropSafeEMAPullback.maxHoldTimeMinutes": 180
+              "exitContracts.PropSafeEMAPullback.atrStopMult": 1,
+              "exitContracts.PropSafeEMAPullback.targetRR": 2.6,
+              "exitContracts.PropSafeEMAPullback.trailActivationR": 1.2,
+              "exitContracts.PropSafeEMAPullback.trailDistanceR": 0.8,
+              "exitContracts.PropSafeEMAPullback.maxHoldTimeMinutes": 180
             }
           },
           {

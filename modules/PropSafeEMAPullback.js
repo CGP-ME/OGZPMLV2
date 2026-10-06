@@ -12,11 +12,6 @@ const REQUIRED_NUMERIC_KEYS = [
   'pullbackLookbackBars',
   'pullbackMinAtr',
   'pullbackMaxAtr',
-  'atrStopMult',
-  'targetRR',
-  'trailActivationR',
-  'trailDistanceR',
-  'maxHoldTimeMinutes',
   'confidenceBase',
   'confidenceTrendBonus',
   'confidencePullbackBonus',
@@ -29,6 +24,14 @@ const REQUIRED_TEXT_KEYS = [
   'rthStartET',
   'rthEndET',
   'sessionTimeZone',
+];
+
+const REQUIRED_EXIT_NUMERIC_KEYS = [
+  'atrStopMult',
+  'targetRR',
+  'trailActivationR',
+  'trailDistanceR',
+  'maxHoldTimeMinutes',
 ];
 
 function parseEtMinute(value, label) {
@@ -75,11 +78,6 @@ function readConfig(config) {
   if (Number(cfg.pullbackMinAtr) < 0 || Number(cfg.pullbackMaxAtr) <= Number(cfg.pullbackMinAtr)) {
     throw new Error('[PropSafeEMAPullback] pullback ATR band must satisfy 0 <= min < max');
   }
-  for (const key of ['atrStopMult', 'targetRR', 'trailActivationR', 'trailDistanceR', 'maxHoldTimeMinutes']) {
-    if (Number(cfg[key]) <= 0) {
-      throw new Error(`[PropSafeEMAPullback] ${key} must be positive (got ${cfg[key]})`);
-    }
-  }
   for (const key of ['confidenceBase', 'confidenceTrendBonus', 'confidencePullbackBonus', 'confidenceConfirmationBonus', 'confidenceFreshCrossBonus', 'maxConfidence']) {
     const value = Number(cfg[key]);
     if (value < 0 || value > 1) {
@@ -101,11 +99,6 @@ function readConfig(config) {
     pullbackLookbackBars: Number(cfg.pullbackLookbackBars),
     pullbackMinAtr: Number(cfg.pullbackMinAtr),
     pullbackMaxAtr: Number(cfg.pullbackMaxAtr),
-    atrStopMult: Number(cfg.atrStopMult),
-    targetRR: Number(cfg.targetRR),
-    trailActivationR: Number(cfg.trailActivationR),
-    trailDistanceR: Number(cfg.trailDistanceR),
-    maxHoldTimeMinutes: Number(cfg.maxHoldTimeMinutes),
     confidenceBase: Number(cfg.confidenceBase),
     confidenceTrendBonus: Number(cfg.confidenceTrendBonus),
     confidencePullbackBonus: Number(cfg.confidencePullbackBonus),
@@ -116,6 +109,27 @@ function readConfig(config) {
     allowShorts: cfg.allowShorts === true,
     rthStartMinute: parseEtMinute(cfg.rthStartET, 'rthStartET'),
     rthEndMinute: parseEtMinute(cfg.rthEndET, 'rthEndET'),
+  };
+}
+
+function readExitConfig(config) {
+  const cfg = config;
+  const missingNumeric = REQUIRED_EXIT_NUMERIC_KEYS.filter(key => !Number.isFinite(Number(cfg[key])));
+  if (missingNumeric.length > 0) {
+    throw new Error(`[PropSafeEMAPullback] missing finite exit config key(s): ${missingNumeric.join(', ')}`);
+  }
+  for (const key of REQUIRED_EXIT_NUMERIC_KEYS) {
+    if (Number(cfg[key]) <= 0) {
+      throw new Error(`[PropSafeEMAPullback] ${key} must be positive (got ${cfg[key]})`);
+    }
+  }
+  return {
+    atrStopMult: Number(cfg.atrStopMult),
+    targetRR: Number(cfg.targetRR),
+    trailActivationR: Number(cfg.trailActivationR),
+    trailDistanceR: Number(cfg.trailDistanceR),
+    maxHoldTimeMinutes: Number(cfg.maxHoldTimeMinutes),
+    invalidationConditions: cfg.invalidationConditions,
   };
 }
 
@@ -147,21 +161,25 @@ function etMinuteFor(date, timeZone) {
 }
 
 class PropSafeEMAPullback {
-  constructor(config) {
-    this.configure(config);
+  constructor(entryConfig, exitConfig) {
+    this.configure(entryConfig, exitConfig);
   }
 
-  configure(config) {
-    this.cfg = Object.freeze(readConfig(config));
+  configure(entryConfig, exitConfig) {
+    this.cfg = Object.freeze(readConfig(entryConfig));
+    this.exitCfg = Object.freeze(readExitConfig(exitConfig));
     this.minHistory = Math.max(
       this.cfg.trendEmaPeriod + this.cfg.crossLookbackBars + 2,
       this.cfg.atrPeriod + 2
     );
-    this.configurationInput = config;
+    this.entryConfigurationInput = entryConfig;
+    this.exitConfigurationInput = exitConfig;
   }
 
-  evaluate(ctx, config = this.configurationInput) {
-    if (config !== this.configurationInput) this.configure(config);
+  evaluate(ctx, entryConfig = this.entryConfigurationInput, exitConfig = this.exitConfigurationInput) {
+    if (entryConfig !== this.entryConfigurationInput || exitConfig !== this.exitConfigurationInput) {
+      this.configure(entryConfig, exitConfig);
+    }
     const candles = ctx && ctx.priceHistory;
     if (!Array.isArray(candles) || candles.length < this.minHistory) return null;
 
@@ -295,7 +313,7 @@ class PropSafeEMAPullback {
   }
 
   _signal(direction, context) {
-    const stopPct = (this.cfg.atrStopMult * context.atr) / context.price * 100;
+    const stopPct = (this.exitCfg.atrStopMult * context.atr) / context.price * 100;
     const freshCrossBonus = Number.isFinite(context.crossBarsAgo)
       ? (this.cfg.crossLookbackBars - context.crossBarsAgo) / this.cfg.crossLookbackBars * this.cfg.confidenceFreshCrossBonus
       : 0;
@@ -316,16 +334,16 @@ class PropSafeEMAPullback {
       signalData: {
         crossBarsAgo: context.crossBarsAgo,
         pullbackDistanceAtr: context.pullbackDistance,
-        atrStopMult: this.cfg.atrStopMult,
-        targetRR: this.cfg.targetRR,
+        atrStopMult: this.exitCfg.atrStopMult,
+        targetRR: this.exitCfg.targetRR,
       },
       exitContractHint: {
         stopLossPercent: -Math.abs(stopPct),
-        takeProfitPercent: Math.abs(stopPct) * this.cfg.targetRR,
-        trailingStopPercent: Math.abs(stopPct) * this.cfg.trailDistanceR,
-        trailingActivation: Math.abs(stopPct) * this.cfg.trailActivationR,
-        maxHoldTimeMinutes: this.cfg.maxHoldTimeMinutes,
-        invalidationConditions: ['ema_pullback_invalidated'],
+        takeProfitPercent: Math.abs(stopPct) * this.exitCfg.targetRR,
+        trailingStopPercent: Math.abs(stopPct) * this.exitCfg.trailDistanceR,
+        trailingActivation: Math.abs(stopPct) * this.exitCfg.trailActivationR,
+        maxHoldTimeMinutes: this.exitCfg.maxHoldTimeMinutes,
+        invalidationConditions: [...this.exitCfg.invalidationConditions],
       },
     };
   }
