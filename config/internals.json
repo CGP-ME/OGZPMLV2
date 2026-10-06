@@ -785,11 +785,11 @@
               "strategies.soloFilter": [
                 "EMATrendRetest"
               ],
-              "strategies.EMATrendRetest.atrStopMult": 0.8,
-              "strategies.EMATrendRetest.targetRR": 2,
-              "strategies.EMATrendRetest.trailActivationR": 1,
-              "strategies.EMATrendRetest.trailDistanceR": 0.7,
-              "strategies.EMATrendRetest.maxHoldTimeMinutes": 120
+              "exitContracts.EMATrendRetest.atrStopMult": 0.8,
+              "exitContracts.EMATrendRetest.targetRR": 2,
+              "exitContracts.EMATrendRetest.trailActivationR": 1,
+              "exitContracts.EMATrendRetest.trailDistanceR": 0.7,
+              "exitContracts.EMATrendRetest.maxHoldTimeMinutes": 120
             }
           },
           {
@@ -798,11 +798,11 @@
               "strategies.soloFilter": [
                 "EMATrendRetest"
               ],
-              "strategies.EMATrendRetest.atrStopMult": 1,
-              "strategies.EMATrendRetest.targetRR": 2.6,
-              "strategies.EMATrendRetest.trailActivationR": 1.2,
-              "strategies.EMATrendRetest.trailDistanceR": 0.8,
-              "strategies.EMATrendRetest.maxHoldTimeMinutes": 180
+              "exitContracts.EMATrendRetest.atrStopMult": 1,
+              "exitContracts.EMATrendRetest.targetRR": 2.6,
+              "exitContracts.EMATrendRetest.trailActivationR": 1.2,
+              "exitContracts.EMATrendRetest.trailDistanceR": 0.8,
+              "exitContracts.EMATrendRetest.maxHoldTimeMinutes": 180
             }
           }
         ]

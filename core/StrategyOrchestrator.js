@@ -2202,7 +2202,8 @@ class StrategyOrchestrator {
 
     if (shouldRegister('EMATrendRetest')) {
       const emaTrendRetestModule = new EMATrendRetest(
-        ConfigLoader.get('strategies.EMATrendRetest')
+        ConfigLoader.get('strategies.EMATrendRetest'),
+        ConfigLoader.get('exitContracts.EMATrendRetest')
       );
       this.strategies.push({
         name: 'EMATrendRetest',
@@ -2211,9 +2212,14 @@ class StrategyOrchestrator {
           ctx.extras?.symbol,
           emaTrendRetestModule,
           () => new EMATrendRetest(
-            ConfigLoader.get('strategies.EMATrendRetest')
+            ConfigLoader.get('strategies.EMATrendRetest'),
+            ConfigLoader.get('exitContracts.EMATrendRetest')
           )
-        ).evaluate(ctx, ConfigLoader.get('strategies.EMATrendRetest'))
+        ).evaluate(
+          ctx,
+          ConfigLoader.get('strategies.EMATrendRetest'),
+          ConfigLoader.get('exitContracts.EMATrendRetest')
+        )
       });
     }
 

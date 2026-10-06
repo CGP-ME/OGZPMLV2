@@ -26,7 +26,7 @@ function buildFlatTouchCandles() {
   return Array.from({ length: 9 }, (_, index) => candle(100, 100.25, 99.75, 100, index));
 }
 
-function strategy(overrides = {}) {
+function strategy(entryOverrides = {}, exitOverrides = {}) {
   return new EMATrendRetest({
     emaPeriods: [3, 5],
     atrPeriod: 3,
@@ -41,17 +41,20 @@ function strategy(overrides = {}) {
     confidenceRetestBonus: 0.12,
     confidenceConfirmationBonus: 0.08,
     maxConfidence: 0.88,
-    atrStopMult: 1,
-    targetRR: 3,
-    trailActivationR: 1.5,
-    trailDistanceR: 1,
-    maxHoldTimeMinutes: 240,
     requireRth: true,
     rthStartET: '09:30',
     rthEndET: '16:00',
     sessionTimeZone: 'America/New_York',
     allowShorts: false,
-    ...overrides,
+    ...entryOverrides,
+  }, {
+    atrStopMult: 1,
+    targetRR: 3,
+    trailActivationR: 1.5,
+    trailDistanceR: 1,
+    maxHoldTimeMinutes: 240,
+    invalidationConditions: ['ema_retest_failed'],
+    ...exitOverrides,
   });
 }
 

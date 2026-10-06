@@ -3789,11 +3789,23 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'ATR multiples', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
     label: 'EMA retest maximum extension', effect: 'next_entry_evaluation',
   },
-  'strategies.EMATrendRetest.atrStopMult': {
+  'exitContracts.EMATrendRetest.atrStopMult': {
     type: 'number', unit: 'ATR multiples', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
     label: 'EMA retest initial stop distance', effect: 'new_trades_only',
   },
-  'strategies.EMATrendRetest.maxHoldTimeMinutes': {
+  'exitContracts.EMATrendRetest.targetRR': {
+    type: 'number', unit: 'R multiple', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
+    label: 'EMA retest profit target multiple', effect: 'new_trades_only',
+  },
+  'exitContracts.EMATrendRetest.trailActivationR': {
+    type: 'number', unit: 'R multiple', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
+    label: 'EMA retest trailing activation multiple', effect: 'new_trades_only',
+  },
+  'exitContracts.EMATrendRetest.trailDistanceR': {
+    type: 'number', unit: 'R multiple', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
+    label: 'EMA retest trailing distance multiple', effect: 'new_trades_only',
+  },
+  'exitContracts.EMATrendRetest.maxHoldTimeMinutes': {
     type: 'number', unit: 'minutes', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
     label: 'EMA retest maximum hold', effect: 'new_trades_only',
   },

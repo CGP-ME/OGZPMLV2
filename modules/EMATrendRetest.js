@@ -16,6 +16,9 @@ const REQUIRED_NUMERIC_KEYS = [
   'confidenceRetestBonus',
   'confidenceConfirmationBonus',
   'maxConfidence',
+];
+
+const REQUIRED_EXIT_NUMERIC_KEYS = [
   'atrStopMult',
   'targetRR',
   'trailActivationR',
@@ -67,7 +70,7 @@ function parseEmaPeriods(value) {
   return Object.freeze(unique.sort((a, b) => a - b));
 }
 
-function readConfig(config) {
+function readEntryConfig(config) {
   const cfg = config;
 
   if (cfg.emaPeriods === undefined || cfg.emaPeriods === null || cfg.emaPeriods === '') {
@@ -87,7 +90,7 @@ function readConfig(config) {
       throw new Error(`[EMATrendRetest] ${key} must be a positive integer (got ${cfg[key]})`);
     }
   }
-  for (const key of ['minSlopePct', 'touchZoneAtr', 'closeAwayAtr', 'maxExtensionAtr', 'atrStopMult', 'targetRR', 'trailActivationR', 'trailDistanceR', 'maxHoldTimeMinutes']) {
+  for (const key of ['minSlopePct', 'touchZoneAtr', 'closeAwayAtr', 'maxExtensionAtr']) {
     if (Number(cfg[key]) <= 0) {
       throw new Error(`[EMATrendRetest] ${key} must be positive (got ${cfg[key]})`);
     }
@@ -118,15 +121,31 @@ function readConfig(config) {
     confidenceRetestBonus: Number(cfg.confidenceRetestBonus),
     confidenceConfirmationBonus: Number(cfg.confidenceConfirmationBonus),
     maxConfidence: Number(cfg.maxConfidence),
+    requireRth: cfg.requireRth !== false,
+    allowShorts: cfg.allowShorts === true,
+    rthStartMinute: parseEtMinute(cfg.rthStartET, 'rthStartET'),
+    rthEndMinute: parseEtMinute(cfg.rthEndET, 'rthEndET'),
+  };
+}
+
+function readExitConfig(config) {
+  const cfg = config;
+  const missingNumeric = REQUIRED_EXIT_NUMERIC_KEYS.filter(key => !Number.isFinite(Number(cfg[key])));
+  if (missingNumeric.length > 0) {
+    throw new Error(`[EMATrendRetest] missing finite exit config key(s): ${missingNumeric.join(', ')}`);
+  }
+  for (const key of REQUIRED_EXIT_NUMERIC_KEYS) {
+    if (Number(cfg[key]) <= 0) {
+      throw new Error(`[EMATrendRetest] ${key} must be positive (got ${cfg[key]})`);
+    }
+  }
+  return {
     atrStopMult: Number(cfg.atrStopMult),
     targetRR: Number(cfg.targetRR),
     trailActivationR: Number(cfg.trailActivationR),
     trailDistanceR: Number(cfg.trailDistanceR),
     maxHoldTimeMinutes: Number(cfg.maxHoldTimeMinutes),
-    requireRth: cfg.requireRth !== false,
-    allowShorts: cfg.allowShorts === true,
-    rthStartMinute: parseEtMinute(cfg.rthStartET, 'rthStartET'),
-    rthEndMinute: parseEtMinute(cfg.rthEndET, 'rthEndET'),
+    invalidationConditions: cfg.invalidationConditions,
   };
 }
 
@@ -158,22 +177,26 @@ function etMinuteFor(date, timeZone) {
 }
 
 class EMATrendRetest {
-  constructor(config) {
-    this.configure(config);
+  constructor(entryConfig, exitConfig) {
+    this.configure(entryConfig, exitConfig);
   }
 
-  configure(config) {
-    this.cfg = Object.freeze(readConfig(config));
+  configure(entryConfig, exitConfig) {
+    this.cfg = Object.freeze(readEntryConfig(entryConfig));
+    this.exitCfg = Object.freeze(readExitConfig(exitConfig));
     this.minHistory = Math.max(
       Math.max(...this.cfg.emaPeriods) + this.cfg.slopeLookbackBars + 2,
       this.cfg.atrPeriod + 2,
       this.cfg.retestLookbackBars + 2
     );
-    this.configurationInput = config;
+    this.entryConfigInput = entryConfig;
+    this.exitConfigInput = exitConfig;
   }
 
-  evaluate(ctx, config = this.configurationInput) {
-    if (config !== this.configurationInput) this.configure(config);
+  evaluate(ctx, entryConfig = this.entryConfigInput, exitConfig = this.exitConfigInput) {
+    if (entryConfig !== this.entryConfigInput || exitConfig !== this.exitConfigInput) {
+      this.configure(entryConfig, exitConfig);
+    }
     const candles = ctx && ctx.priceHistory;
     if (!Array.isArray(candles) || candles.length < this.minHistory) return null;
 
@@ -273,7 +296,7 @@ class EMATrendRetest {
   }
 
   _signal(direction, context) {
-    const stopPct = (this.cfg.atrStopMult * context.atr) / context.price * 100;
+    const stopPct = (this.exitCfg.atrStopMult * context.atr) / context.price * 100;
     const slopeScore = Math.min(1, Math.abs(context.slopePct) / this.cfg.minSlopePct);
     const confidence = Math.min(
       this.cfg.maxConfidence,
@@ -296,16 +319,16 @@ class EMATrendRetest {
         retestBarsAgo: context.retest.barsAgo,
         retestQuality: context.retest.quality,
         extensionAtr: context.extensionAtr,
-        atrStopMult: this.cfg.atrStopMult,
-        targetRR: this.cfg.targetRR,
+        atrStopMult: this.exitCfg.atrStopMult,
+        targetRR: this.exitCfg.targetRR,
       },
       exitContractHint: {
         stopLossPercent: -Math.abs(stopPct),
-        takeProfitPercent: Math.abs(stopPct) * this.cfg.targetRR,
-        trailingStopPercent: Math.abs(stopPct) * this.cfg.trailDistanceR,
-        trailingActivation: Math.abs(stopPct) * this.cfg.trailActivationR,
-        maxHoldTimeMinutes: this.cfg.maxHoldTimeMinutes,
-        invalidationConditions: ['ema_retest_failed'],
+        takeProfitPercent: Math.abs(stopPct) * this.exitCfg.targetRR,
+        trailingStopPercent: Math.abs(stopPct) * this.exitCfg.trailDistanceR,
+        trailingActivation: Math.abs(stopPct) * this.exitCfg.trailActivationR,
+        maxHoldTimeMinutes: this.exitCfg.maxHoldTimeMinutes,
+        invalidationConditions: this.exitCfg.invalidationConditions,
       },
     };
   }
