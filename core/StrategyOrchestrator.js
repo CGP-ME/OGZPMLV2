@@ -854,9 +854,9 @@ class StrategyOrchestrator {
     this.breakAndRetestConfig = ConfigLoader.get('strategies.BreakRetest');
     this.breakAndRetestModule = new BreakAndRetest(this.breakAndRetestConfig);
     const NoWickImbalance = require('../modules/NoWickImbalance');
-    this.noWickConfig = ConfigLoader.get('strategies.NoWickImbalance');
+    const noWickConfig = ConfigLoader.get('strategies.NoWickImbalance');
     this.noWickModule = new NoWickImbalance(
-      this.noWickConfig,
+      noWickConfig,
       () => Number(ConfigLoader.get('strategies.NoWickImbalance.confidence')),
       () => ConfigLoader.get('strategies.NoWickImbalance')
     );

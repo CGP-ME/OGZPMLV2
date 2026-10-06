@@ -2580,6 +2580,18 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'percent', min: 0, max: 100,
     label: 'NoWick almost-touch band', effect: 'next_entry_evaluation',
   },
+  'strategies.NoWickImbalance.maxCandleAge': {
+    type: 'number', unit: 'candles', min: 0, max: Number.MAX_SAFE_INTEGER, exclusiveMin: true, integer: true,
+    label: 'NoWick pending-level lifetime', effect: 'next_observation_evaluation_affects_pending_expiry',
+  },
+  'strategies.NoWickImbalance.swingLookback': {
+    type: 'number', unit: 'candles', min: 0, max: Number.MAX_SAFE_INTEGER, exclusiveMin: true, integer: true,
+    label: 'NoWick trend swing lookback', effect: 'next_observation_evaluation',
+  },
+  'strategies.NoWickImbalance.swingExtremeLookback': {
+    type: 'number', unit: 'candles', min: 0, max: Number.MAX_SAFE_INTEGER, exclusiveMin: true, integer: true,
+    label: 'NoWick formation swing-extreme lookback', effect: 'next_observation_evaluation',
+  },
   ...Object.fromEntries([
     ['enableRSI', 'RSI'],
     ['enableMADynamicSR', 'MADynamicSR'],

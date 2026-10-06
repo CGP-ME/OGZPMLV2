@@ -84,16 +84,16 @@ function readConfig(config) {
   }
   const {
     confidence: _confidence,
+    maxCandleAge: _maxCandleAge,
+    swingLookback: _swingLookback,
     minBodyPercent: _minBodyPercent,
     entrySideWickMaxPct: _entrySideWickMaxPct,
+    swingExtremeLookback: _swingExtremeLookback,
     almostTouchPct: _almostTouchPct,
     ...normalizedConfig
   } = cfg;
   return {
     ...normalizedConfig,
-    maxCandleAge: Number(cfg.maxCandleAge),
-    swingLookback: Number(cfg.swingLookback),
-    swingExtremeLookback: Number(cfg.swingExtremeLookback),
     stopLookbackBars: Number(cfg.stopLookbackBars),
     stopBufferAtr: Number(cfg.stopBufferAtr),
     targetRR: Number(cfg.targetRR),
@@ -110,9 +110,6 @@ class NoWickImbalance {
     this.confidenceProvider = confidenceProvider;
     this.detectionConfigProvider = detectionConfigProvider;
     this.cfg = Object.freeze(readConfig(config));
-    this.maxCandleAge = this.cfg.maxCandleAge;       // Valid for configured candle count; next candle invalidates
-    this.swingLookback = this.cfg.swingLookback;     // Candles to look back for swing points
-    this.swingExtremeLookback = this.cfg.swingExtremeLookback;
     this.stopLookbackBars = this.cfg.stopLookbackBars;
     this.stopBufferAtr = this.cfg.stopBufferAtr;
     this.targetRR = this.cfg.targetRR;
@@ -197,9 +194,10 @@ class NoWickImbalance {
    * @returns {'uptrend'|'downtrend'|'none'}
    */
   _detectTrend(candles) {
-    if (!candles || candles.length < this.swingLookback) return 'none';
+    const detectionConfig = this.detectionConfigProvider();
+    if (!candles || candles.length < detectionConfig.swingLookback) return 'none';
 
-    const recent = candles.slice(-this.swingLookback);
+    const recent = candles.slice(-detectionConfig.swingLookback);
 
     // Find swing highs and swing lows (simple: local max/min over 3 candles)
     const swingHighs = [];
@@ -252,7 +250,8 @@ class NoWickImbalance {
   _evaluate(ctx, emitEntries) {
     const candles = ctx.priceHistory;
     const indicators = ctx.indicators;
-    if (!candles || candles.length < this.swingLookback) return null;
+    const detectionConfig = this.detectionConfigProvider();
+    if (!candles || candles.length < detectionConfig.swingLookback) return null;
 
     const currentCandle = candles[candles.length - 1];
     const scopeKey = this._resolveScopeKey(ctx, currentCandle);
@@ -459,11 +458,12 @@ class NoWickImbalance {
   }
 
   _expireState(state) {
+    const detectionConfig = this.detectionConfigProvider();
     if (!Array.isArray(state.pendingLevels)) state.pendingLevels = [];
     if (!Array.isArray(state.invalidatedLevels)) state.invalidatedLevels = [];
     state.pendingLevels = state.pendingLevels.filter(level => {
       const age = state.candleCount - level.formationCount;
-      if (age > this.maxCandleAge) {
+      if (age > detectionConfig.maxCandleAge) {
         if (this.DEBUG) {
           console.log(`[NoWick] EXPIRED ${level.type} @ ${level.level.toFixed(2)} after ${age} candles`);
         }
@@ -472,12 +472,13 @@ class NoWickImbalance {
       return true;
     });
     state.invalidatedLevels = state.invalidatedLevels.filter(level => (
-      state.candleCount - level.formationCount <= this.maxCandleAge
+      state.candleCount - level.formationCount <= detectionConfig.maxCandleAge
     ));
   }
 
   _isSwingExtremeFormation(nowick, candles) {
-    const recent = candles.slice(-this.swingExtremeLookback);
+    const detectionConfig = this.detectionConfigProvider();
+    const recent = candles.slice(-detectionConfig.swingExtremeLookback);
     if (recent.length === 0) return false;
     if (nowick.type === 'bullish') {
       const lowestLow = Math.min(...recent.map(candle => candle.l));
