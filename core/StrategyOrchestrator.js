@@ -857,7 +857,8 @@ class StrategyOrchestrator {
     this.noWickConfig = ConfigLoader.get('strategies.NoWickImbalance');
     this.noWickModule = new NoWickImbalance(
       this.noWickConfig,
-      () => Number(ConfigLoader.get('strategies.NoWickImbalance.confidence'))
+      () => Number(ConfigLoader.get('strategies.NoWickImbalance.confidence')),
+      () => ConfigLoader.get('strategies.NoWickImbalance')
     );
     this.mtfAdapter = new MultiTimeframeAdapter(this._buildMtfAdapterConfig());
     this.ogzTpoConfig = ConfigLoader.get('strategies.OGZTPO');

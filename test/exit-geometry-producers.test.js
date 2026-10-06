@@ -71,6 +71,10 @@ function liquidityConfig(overrides = {}) {
   };
 }
 
+function createNoWickImbalance(config, confidenceProvider) {
+  return new NoWickImbalance(config, confidenceProvider, () => config);
+}
+
 describe('exit geometry producer contracts', () => {
   let warnSpy;
 
@@ -152,7 +156,7 @@ describe('exit geometry producer contracts', () => {
   });
 
   test('NoWickImbalance removes tapped levels when structural stop becomes non-positive', () => {
-    const strategy = new NoWickImbalance({
+    const strategy = createNoWickImbalance({
       swingLookback: 5,
       entryMode: 'tap',
       stopLookbackBars: 5,

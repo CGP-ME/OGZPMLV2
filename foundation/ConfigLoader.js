@@ -2568,6 +2568,18 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'fraction', min: 0, max: 1,
     label: 'NoWick entry confidence', effect: 'next_entry_evaluation',
   },
+  'strategies.NoWickImbalance.minBodyPercent': {
+    type: 'number', unit: 'fraction', min: 0, max: 1,
+    label: 'NoWick minimum candle body', effect: 'next_entry_evaluation',
+  },
+  'strategies.NoWickImbalance.entrySideWickMaxPct': {
+    type: 'number', unit: 'percent', min: 0, max: 100,
+    label: 'NoWick entry-side wick maximum', effect: 'next_entry_evaluation',
+  },
+  'strategies.NoWickImbalance.almostTouchPct': {
+    type: 'number', unit: 'percent', min: 0, max: 100,
+    label: 'NoWick almost-touch band', effect: 'next_entry_evaluation',
+  },
   ...Object.fromEntries([
     ['enableRSI', 'RSI'],
     ['enableMADynamicSR', 'MADynamicSR'],

@@ -15,6 +15,10 @@ function makeCandles(symbol, timeframe, closes) {
   }));
 }
 
+function createNoWickImbalance(config, confidenceProvider) {
+  return new NoWickImbalance(config, confidenceProvider, () => config);
+}
+
 function makeCtx(symbol, timeframe, closes) {
   return {
     priceHistory: makeCandles(symbol, timeframe, closes),
@@ -41,7 +45,7 @@ describe('NoWickImbalance scoped pending levels', () => {
   });
 
   test('keeps pending levels isolated by symbol and timeframe', () => {
-    const strategy = new NoWickImbalance({ swingLookback: 5 }, () => 0.5);
+    const strategy = createNoWickImbalance({ swingLookback: 5 }, () => 0.5);
     const tslaScope = 'TSLA:15M';
     strategy.scopedState.set(tslaScope, {
       candleCount: 4,
@@ -65,7 +69,7 @@ describe('NoWickImbalance scoped pending levels', () => {
   });
 
   test('requires explicit symbol and timeframe instead of using a shared fallback bucket', () => {
-    const strategy = new NoWickImbalance({ swingLookback: 5 }, () => 0.5);
+    const strategy = createNoWickImbalance({ swingLookback: 5 }, () => 0.5);
     expect(() => strategy.evaluate({
       priceHistory: makeCandles('TSLA', '15m', [101, 102, 101.5, 103, 102.5, 99.5]).map(({ symbol, timeframe, ...candle }) => candle),
       indicators: { atr: 1 },
@@ -74,7 +78,7 @@ describe('NoWickImbalance scoped pending levels', () => {
   });
 
   test('can reset one scope without clearing sibling symbol state', () => {
-    const strategy = new NoWickImbalance({ swingLookback: 5 }, () => 0.5);
+    const strategy = createNoWickImbalance({ swingLookback: 5 }, () => 0.5);
     strategy.scopedState.set('TSLA:15M', { candleCount: 2, pendingLevels: [{ level: 100 }] });
     strategy.scopedState.set('SPY:15M', { candleCount: 3, pendingLevels: [{ level: 400 }] });
 
@@ -85,7 +89,7 @@ describe('NoWickImbalance scoped pending levels', () => {
   });
 
   test('keeps same-symbol pending levels isolated across timeframes', () => {
-    const strategy = new NoWickImbalance({ swingLookback: 5 }, () => 0.5);
+    const strategy = createNoWickImbalance({ swingLookback: 5 }, () => 0.5);
     strategy.scopedState.set('TSLA:15M', {
       candleCount: 4,
       pendingLevels: [{
@@ -108,7 +112,7 @@ describe('NoWickImbalance scoped pending levels', () => {
   });
 
   test('builds bullish stop and target from actual current entry price', () => {
-    const strategy = new NoWickImbalance({
+    const strategy = createNoWickImbalance({
       swingLookback: 5,
       entryMode: 'tap',
       stopLookbackBars: 5,
@@ -146,7 +150,7 @@ describe('NoWickImbalance scoped pending levels', () => {
   });
 
   test('builds bearish stop and target from actual current entry price', () => {
-    const strategy = new NoWickImbalance({
+    const strategy = createNoWickImbalance({
       swingLookback: 5,
       entryMode: 'tap',
       stopLookbackBars: 5,
@@ -184,7 +188,7 @@ describe('NoWickImbalance scoped pending levels', () => {
   });
 
   test('tap mode can fire on a continuation candle that slices through the level', () => {
-    const strategy = new NoWickImbalance({
+    const strategy = createNoWickImbalance({
       swingLookback: 5,
       entryMode: 'tap',
       stopLookbackBars: 5,
@@ -218,7 +222,7 @@ describe('NoWickImbalance scoped pending levels', () => {
   });
 
   test('rejection mode refuses a continuation candle that slices through the level', () => {
-    const strategy = new NoWickImbalance({
+    const strategy = createNoWickImbalance({
       swingLookback: 5,
       entryMode: 'rejection',
       stopLookbackBars: 5,
@@ -253,7 +257,7 @@ describe('NoWickImbalance scoped pending levels', () => {
   });
 
   test('wick on the entry side is not a NoWick signature', () => {
-    const strategy = new NoWickImbalance({ entrySideWickMaxPct: 5 }, () => 0.5);
+    const strategy = createNoWickImbalance({ entrySideWickMaxPct: 5 }, () => 0.5);
 
     expect(strategy._detectNoWick({
       o: 100,
@@ -274,7 +278,7 @@ describe('NoWickImbalance scoped pending levels', () => {
   });
 
   test('almost-touch reversal invalidates the level before later entry', () => {
-    const strategy = new NoWickImbalance({
+    const strategy = createNoWickImbalance({
       swingLookback: 5,
       almostTouchPct: 0.05,
     }, () => 0.5);
@@ -307,7 +311,7 @@ describe('NoWickImbalance scoped pending levels', () => {
   });
 
   test('normalizes reset scope casing to the same key used during evaluation', () => {
-    const strategy = new NoWickImbalance({ swingLookback: 5 }, () => 0.5);
+    const strategy = createNoWickImbalance({ swingLookback: 5 }, () => 0.5);
     strategy.scopedState.set('TSLA:15M', { candleCount: 2, pendingLevels: [{ level: 100 }] });
 
     strategy.reset({ symbol: 'tsla', timeframe: '15m' });

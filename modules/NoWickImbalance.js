@@ -82,15 +82,18 @@ function readConfig(config) {
       throw new Error(`[NoWickImbalance] ${key} must be 0..1 (got ${cfg[key]})`);
     }
   }
-  const { confidence: _confidence, ...normalizedConfig } = cfg;
+  const {
+    confidence: _confidence,
+    minBodyPercent: _minBodyPercent,
+    entrySideWickMaxPct: _entrySideWickMaxPct,
+    almostTouchPct: _almostTouchPct,
+    ...normalizedConfig
+  } = cfg;
   return {
     ...normalizedConfig,
     maxCandleAge: Number(cfg.maxCandleAge),
     swingLookback: Number(cfg.swingLookback),
-    minBodyPercent: Number(cfg.minBodyPercent),
-    entrySideWickMaxPct: Number(cfg.entrySideWickMaxPct),
     swingExtremeLookback: Number(cfg.swingExtremeLookback),
-    almostTouchPct: Number(cfg.almostTouchPct),
     stopLookbackBars: Number(cfg.stopLookbackBars),
     stopBufferAtr: Number(cfg.stopBufferAtr),
     targetRR: Number(cfg.targetRR),
@@ -102,16 +105,14 @@ function readConfig(config) {
 }
 
 class NoWickImbalance {
-  constructor(config, confidenceProvider) {
+  constructor(config, confidenceProvider, detectionConfigProvider) {
     this.name = 'NoWickImbalance';
     this.confidenceProvider = confidenceProvider;
+    this.detectionConfigProvider = detectionConfigProvider;
     this.cfg = Object.freeze(readConfig(config));
     this.maxCandleAge = this.cfg.maxCandleAge;       // Valid for configured candle count; next candle invalidates
     this.swingLookback = this.cfg.swingLookback;     // Candles to look back for swing points
-    this.minBodyPercent = this.cfg.minBodyPercent;   // Min body size as % of total range (filter dojis)
-    this.entrySideWickMaxPct = this.cfg.entrySideWickMaxPct;
     this.swingExtremeLookback = this.cfg.swingExtremeLookback;
-    this.almostTouchPct = this.cfg.almostTouchPct;
     this.stopLookbackBars = this.cfg.stopLookbackBars;
     this.stopBufferAtr = this.cfg.stopBufferAtr;
     this.targetRR = this.cfg.targetRR;
@@ -143,6 +144,7 @@ class NoWickImbalance {
   _detectNoWick(candle) {
     if (!candle || typeof candle.o !== 'number') return null;
 
+    const detectionConfig = this.detectionConfigProvider();
     const isBullish = candle.c > candle.o;  // green candle
     const isBearish = candle.c < candle.o;  // red candle
 
@@ -150,13 +152,13 @@ class NoWickImbalance {
     const bodySize = Math.abs(candle.c - candle.o);
     const totalRange = candle.h - candle.l;
     if (totalRange <= 0) return null;
-    if ((bodySize / totalRange) < this.minBodyPercent) return null;
+    if ((bodySize / totalRange) < detectionConfig.minBodyPercent) return null;
 
     const bottomWickPct = Math.max(0, candle.o - candle.l) / totalRange * 100;
     const topWickPct = Math.max(0, candle.h - candle.o) / totalRange * 100;
 
     // Bullish: no bottom wick from open side
-    if (isBullish && bottomWickPct <= this.entrySideWickMaxPct) {
+    if (isBullish && bottomWickPct <= detectionConfig.entrySideWickMaxPct) {
       return {
         type: 'bullish',
         level: candle.l,  // bottom of the candle — where buyers stepped in
@@ -169,7 +171,7 @@ class NoWickImbalance {
     }
 
     // Bearish: no top wick from open side
-    if (isBearish && topWickPct <= this.entrySideWickMaxPct) {
+    if (isBearish && topWickPct <= detectionConfig.entrySideWickMaxPct) {
       return {
         type: 'bearish',
         level: candle.h,  // top of the candle — where sellers stepped in
@@ -499,8 +501,9 @@ class NoWickImbalance {
   }
 
   _isAlmostTouch(level, candle) {
-    if (this.almostTouchPct <= 0) return false;
-    const band = this.almostTouchPct / 100;
+    const detectionConfig = this.detectionConfigProvider();
+    if (detectionConfig.almostTouchPct <= 0) return false;
+    const band = detectionConfig.almostTouchPct / 100;
     if (level.type === 'bullish') {
       const nearLevel = level.level * (1 + band);
       return candle.l > level.level && candle.l <= nearLevel;
