@@ -3166,6 +3166,27 @@ const EDITABLE_SETTINGS = deepFreeze({
     label: 'MA dynamic S/R minimum EMA slope', effect: 'next_MADynamicSR_signal_evaluation',
   },
   ...Object.fromEntries([
+    ['approachSide', 'MA dynamic S/R approach-side entry condition'],
+    ['extension', 'MA dynamic S/R extension confidence condition'],
+    ['firstTouchAfterParabolic', 'MA dynamic S/R first-touch-after-extension confidence condition'],
+    ['pullbackCooldown', 'MA dynamic S/R pullback cooldown confidence condition'],
+    ['confirmationCandle', 'MA dynamic S/R confirmation-candle confidence condition'],
+    ['srAlignment', 'MA dynamic S/R support/resistance alignment confidence condition'],
+    ['structuralValidity', 'MA dynamic S/R structural-validity confidence condition'],
+  ].map(([key, label]) => [`strategies.MADynamicSR.conditionFlags.${key}`, {
+    type: 'boolean', unit: 'boolean', label, effect: 'next_MADynamicSR_signal_evaluation',
+  }])),
+  ...Object.fromEntries([
+    ['allowLongFromAbove', 'MA dynamic S/R allow long approach from above'],
+    ['allowLongFromBelowBullReclaim', 'MA dynamic S/R allow long approach from below after bullish reclaim'],
+    ['allowLongFromBelowOutsideBull', 'MA dynamic S/R allow long approach from below outside bullish regime'],
+    ['allowShortFromBelow', 'MA dynamic S/R allow short approach from below'],
+    ['allowShortFromAboveBearReclaim', 'MA dynamic S/R allow short approach from above after bearish reclaim'],
+    ['allowShortFromAboveOutsideBear', 'MA dynamic S/R allow short approach from above outside bearish regime'],
+  ].map(([key, label]) => [`strategies.MADynamicSR.approachRules.${key}`, {
+    type: 'boolean', unit: 'boolean', label, effect: 'next_MADynamicSR_signal_evaluation',
+  }])),
+  ...Object.fromEntries([
     ['extensionMin', 'MA dynamic S/R extension confidence floor'],
     ['extensionPenaltyScale', 'MA dynamic S/R extension confidence penalty scale'],
     ['firstTouchAfterParabolic', 'MA dynamic S/R first-touch-after-extension confidence multiplier'],
@@ -3203,11 +3224,14 @@ const EDITABLE_SETTINGS = deepFreeze({
     ['srMaPeriod', 'MA dynamic S/R support/resistance EMA period'],
     ['atrPeriod', 'MA dynamic S/R ATR period'],
     ['swingLookback', 'MA dynamic S/R swing lookback'],
-    ['srTestCount', 'MA dynamic S/R required S/R tests'],
   ].map(([key, label]) => [`strategies.MADynamicSR.${key}`, {
     type: 'number', unit: 'candles', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER, integer: true,
     label, effect: 'next_MADynamicSR_observation_evaluation',
   }])),
+  'strategies.MADynamicSR.srTestCount': {
+    type: 'number', unit: 'tests', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER, integer: true,
+    label: 'MA dynamic S/R required S/R tests', effect: 'next_MADynamicSR_observation_evaluation',
+  },
   'strategies.MADynamicSR.slopeLookback': {
     type: 'number', unit: 'candles', min: 2, max: Number.MAX_SAFE_INTEGER, integer: true,
     label: 'MA dynamic S/R EMA slope lookback', effect: 'next_MADynamicSR_signal_evaluation',

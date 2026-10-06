@@ -203,9 +203,6 @@ class MADynamicSR {
     // Pattern persistence
     this.patternPersistBars = resolvedConfig.patternPersistBars;
 
-    this.conditionFlags = resolvedConfig.conditionFlags;
-    this.approachRules = resolvedConfig.approachRules;
-
     // State tracking
     this.swings = [];           // Array of { type: 'high'|'low', price, bar, wick }
     this.srLevels = [];         // Array of { price, tests, lastTest }
@@ -264,11 +261,6 @@ class MADynamicSR {
       signalsEmitted: 0     // Signals that passed ALL checks
     };
 
-    this.configReceipt = {
-      conditionFlags: this.conditionFlags,
-      approachRules: this.approachRules
-    };
-    console.log(`[MADynamicSR][CONFIG] ${JSON.stringify(this.configReceipt)}`);
     console.log('[MADynamicSR] initialized (Trader DNA CORRECTED)');
   }
 
@@ -297,6 +289,8 @@ class MADynamicSR {
     const maxExtensionAtr = Number(currentConfig.maxExtensionAtr);
     const multipliers = currentConfig.multipliers;
     const structuralConfig = currentConfig.structural;
+    const conditionFlags = currentConfig.conditionFlags;
+    const approachRules = currentConfig.approachRules;
     this.barCount++;
 
     // Detect swings early (only needs swingLookback * 2 + 1 = 7 candles)
@@ -308,7 +302,7 @@ class MADynamicSR {
     // Need enough history for 200 MA + slope lookback to generate signals
     const minBars = Math.max(entryMaPeriod, srMaPeriod) + slopeLookback + 20;
     if (!priceHistory || priceHistory.length < minBars) {
-      return this._emptySignal();
+      return this._emptySignal(conditionFlags);
     }
 
     const closes = priceHistory.map(x => c(x));
@@ -320,7 +314,7 @@ class MADynamicSR {
     const ma20 = this._ema(closes, entryMaPeriod);     // Entry + trend line
     const ma200 = this._ema(closes, srMaPeriod);       // S/R level (NOT trend gate)
     const atr = this._atr(priceHistory, atrPeriod);
-    if (!ma20) return this._emptySignal();
+    if (!ma20) return this._emptySignal(conditionFlags);
     // ma200 can be null if not enough data — that's okay, we just skip S/R features
 
     const touchingMA = this._isTouchingEMA(price, ma20, touchZonePct);
@@ -352,7 +346,7 @@ class MADynamicSR {
     let direction = 'neutral';
     let confidence = 0;
     let reason = '';
-    let confidenceProfile = this._emptyConfidenceProfile();
+    let confidenceProfile = this._emptyConfidenceProfile(conditionFlags);
     let structural = null;
 
     if (touchingMA) {
@@ -368,7 +362,7 @@ class MADynamicSR {
         reason = `MA Touch SHORT: falling ${entryMaPeriod} EMA ($${ma20.toFixed(2)})`;
       } else {
         this.diag.trendGateRejects++;
-        return this._emptySignal('trend_slope_flat', {
+        return this._emptySignal(conditionFlags, 'trend_slope_flat', {
           touchingMA,
           maSlope,
           extension,
@@ -377,10 +371,10 @@ class MADynamicSR {
         });
       }
 
-      const approachSide = this._approachSideInfo(priceHistory, price, ma20, ma200, direction, entryMaPeriod);
-      if (this.conditionFlags.approachSide && !approachSide.allowed) {
+      const approachSide = this._approachSideInfo(priceHistory, price, ma20, ma200, direction, entryMaPeriod, approachRules);
+      if (conditionFlags.approachSide && !approachSide.allowed) {
         this.diag.approachSideRejects++;
-        return this._emptySignal('approach_side_reject', {
+        return this._emptySignal(conditionFlags, 'approach_side_reject', {
           touchingMA,
           maSlope,
           extension,
@@ -404,16 +398,17 @@ class MADynamicSR {
         confirmation,
         structural,
         multipliers,
-        maxExtensionAtr
+        maxExtensionAtr,
+        conditionFlags
       });
       confidence = clamp(confidence * confidenceProfile.composite, 0, maxConfidence);
 
-      if (!emitEntries) return this._emptySignal();
+      if (!emitEntries) return this._emptySignal(conditionFlags);
       this.diag.signalsEmitted++;
       this.inPullbackTaken = true;
     }
 
-    if (!emitEntries) return this._emptySignal();
+    if (!emitEntries) return this._emptySignal(conditionFlags);
 
     const signal = {
       module: 'MADynamicSR',
@@ -434,7 +429,7 @@ class MADynamicSR {
       srAlignment,
       confirmation,
       confidenceProfile,
-      conditionFlags: this.conditionFlags
+      conditionFlags
     };
 
     this.lastSignal = signal;
@@ -649,7 +644,7 @@ class MADynamicSR {
     return distance <= touchZonePct;
   }
 
-  _approachSideInfo(priceHistory, price, ma20, ma200, direction, entryMaPeriod) {
+  _approachSideInfo(priceHistory, price, ma20, ma200, direction, entryMaPeriod, approachRules) {
     const priorCandle = Array.isArray(priceHistory) && priceHistory.length >= 2
       ? priceHistory[priceHistory.length - 2]
       : null;
@@ -671,7 +666,7 @@ class MADynamicSR {
       ? this._regimeAgainstSrMa(price, ma200)
       : 'unknown';
 
-    const decision = this._approachDecision(direction, priorSide, currentRegime);
+    const decision = this._approachDecision(direction, priorSide, currentRegime, approachRules);
     return {
       direction,
       priorClose,
@@ -696,8 +691,7 @@ class MADynamicSR {
     return 'at_sr_ma';
   }
 
-  _approachDecision(direction, priorSide, currentRegime) {
-    const rules = this.approachRules;
+  _approachDecision(direction, priorSide, currentRegime, rules) {
     if (direction === 'buy') {
       if (priorSide === 'above' || priorSide === 'at') {
         return { allowed: rules.allowLongFromAbove, rule: 'allowLongFromAbove' };
@@ -731,28 +725,28 @@ class MADynamicSR {
     }
   }
 
-  _emptyConfidenceProfile() {
+  _emptyConfidenceProfile(conditionFlags) {
     return {
       composite: 1,
       components: {
         trendGate: {
-          enabled: this.conditionFlags.trendGate,
+          enabled: true,
           fired: false,
           hardCondition: true,
           multiplier: 1
         },
         approachSide: {
-          enabled: this.conditionFlags.approachSide,
+          enabled: conditionFlags.approachSide,
           fired: false,
           hardCondition: true,
           multiplier: 1
         },
-        extension: { enabled: this.conditionFlags.extension, fired: false, multiplier: 1 },
-        firstTouchAfterParabolic: { enabled: this.conditionFlags.firstTouchAfterParabolic, fired: false, multiplier: 1 },
-        pullbackCooldown: { enabled: this.conditionFlags.pullbackCooldown, fired: false, multiplier: 1 },
-        confirmationCandle: { enabled: this.conditionFlags.confirmationCandle, fired: false, multiplier: 1 },
-        srAlignment: { enabled: this.conditionFlags.srAlignment, fired: false, multiplier: 1 },
-        structuralValidity: { enabled: this.conditionFlags.structuralValidity, fired: false, multiplier: 1 }
+        extension: { enabled: conditionFlags.extension, fired: false, multiplier: 1 },
+        firstTouchAfterParabolic: { enabled: conditionFlags.firstTouchAfterParabolic, fired: false, multiplier: 1 },
+        pullbackCooldown: { enabled: conditionFlags.pullbackCooldown, fired: false, multiplier: 1 },
+        confirmationCandle: { enabled: conditionFlags.confirmationCandle, fired: false, multiplier: 1 },
+        srAlignment: { enabled: conditionFlags.srAlignment, fired: false, multiplier: 1 },
+        structuralValidity: { enabled: conditionFlags.structuralValidity, fired: false, multiplier: 1 }
       }
     };
   }
@@ -768,12 +762,13 @@ class MADynamicSR {
     confirmation,
     structural,
     multipliers,
-    maxExtensionAtr
+    maxExtensionAtr,
+    conditionFlags
   }) {
-    const profile = this._emptyConfidenceProfile();
+    const profile = this._emptyConfidenceProfile(conditionFlags);
     profile.components.trendGate = {
-      enabled: this.conditionFlags.trendGate,
-      fired: this.conditionFlags.trendGate,
+      enabled: true,
+      fired: true,
       hardCondition: true,
       passed: maSlope === 'rising' || maSlope === 'falling',
       maSlope,
@@ -781,15 +776,15 @@ class MADynamicSR {
       multiplier: 1
     };
     profile.components.approachSide = {
-      enabled: this.conditionFlags.approachSide,
-      fired: this.conditionFlags.approachSide,
+      enabled: conditionFlags.approachSide,
+      fired: conditionFlags.approachSide,
       hardCondition: true,
-      passed: !this.conditionFlags.approachSide || Boolean(approachSide?.allowed),
+      passed: !conditionFlags.approachSide || Boolean(approachSide?.allowed),
       approachSide: approachSide || null,
       multiplier: 1
     };
 
-    if (this.conditionFlags.extension && extension.extended) {
+    if (conditionFlags.extension && extension.extended) {
       const overshoot = Math.max(0, extension.extensionAtr - maxExtensionAtr);
       const multiplier = clamp(
         1 - (overshoot * multipliers.extensionPenaltyScale),
@@ -806,7 +801,7 @@ class MADynamicSR {
       this.diag.extensionPenalties++;
     }
 
-    if (this.conditionFlags.firstTouchAfterParabolic && wasExtendedBefore && touchingMA) {
+    if (conditionFlags.firstTouchAfterParabolic && wasExtendedBefore && touchingMA) {
       profile.components.firstTouchAfterParabolic = {
         enabled: true,
         fired: true,
@@ -820,7 +815,7 @@ class MADynamicSR {
       this._firstTouchAfterExtension = false;
     }
 
-    if (this.conditionFlags.pullbackCooldown && touchingMA && this.inPullbackTaken) {
+    if (conditionFlags.pullbackCooldown && touchingMA && this.inPullbackTaken) {
       profile.components.pullbackCooldown = {
         enabled: true,
         fired: true,
@@ -829,7 +824,7 @@ class MADynamicSR {
       this.diag.pullbackCooldownPenalties++;
     }
 
-    if (this.conditionFlags.confirmationCandle) {
+    if (conditionFlags.confirmationCandle) {
       const aligned = direction === 'buy' ? confirmation.bullish : confirmation.bearish;
       const conflicted = direction === 'buy' ? confirmation.bearish : confirmation.bullish;
       if (aligned) {
@@ -862,7 +857,7 @@ class MADynamicSR {
       }
     }
 
-    if (this.conditionFlags.srAlignment) {
+    if (conditionFlags.srAlignment) {
       const correctType = direction === 'buy' ? 'support' : 'resistance';
       if (srAlignment.aligned && srAlignment.type === correctType) {
         profile.components.srAlignment = {
@@ -893,7 +888,7 @@ class MADynamicSR {
       }
     }
 
-    if (this.conditionFlags.structuralValidity) {
+    if (conditionFlags.structuralValidity) {
       if (structural.valid) {
         profile.components.structuralValidity = {
           enabled: true,
@@ -1110,7 +1105,7 @@ class MADynamicSR {
     return trSum / period;
   }
 
-  _emptySignal(reason = 'insufficient_data', context = {}) {
+  _emptySignal(conditionFlags, reason = 'insufficient_data', context = {}) {
     return {
       module: 'MADynamicSR',
       direction: 'neutral',
@@ -1125,8 +1120,8 @@ class MADynamicSR {
       maSlope: context.maSlope || null,
       extension: context.extension || null,
       approachSide: context.approachSide || null,
-      confidenceProfile: this._emptyConfidenceProfile(),
-      conditionFlags: this.conditionFlags
+      confidenceProfile: this._emptyConfidenceProfile(conditionFlags),
+      conditionFlags
     };
   }
 

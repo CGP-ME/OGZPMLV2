@@ -72,3 +72,10 @@ This is a bounded deferred list for the current configuration migration. It reco
 - **Evidence:** At committed base `c7c11aa2ec9dcca926fce6e372d607009732a31a`, core/VolumeProfile.js computes weight as `1 + (1 - minDist / maxDist)`. A candle narrower than its price bin can put the bin midpoint far enough away to produce a negative weight. The preserved baseline counterexample produces 50 negative bins, minimum -53465.22999997043, from positive input volume: `volume-profile-mechanics/baseline-negative-volume.json`. The migration's initial proof revealed this; it is present before the provider change.
 - **What must be resolved:** Correct the volume-distribution calculation using actual candle/bin overlap semantics in the later defect pass. Do not hide the defect with a new default or gate during settings migration.
 - **Status:** Logged and preserved. The six-control migration proof separately uses positive-volume geometry and verifies save/persistence, profile cadence, thresholds and market-state reads. That proof does not claim the original calculation defect is fixed.
+
+## 11. MA trend-gate and pattern-persistence intent
+
+- **Severity:** Existing annotation-only/unwired settings; no newly established fatality.
+- **Evidence:** At production tree eaefb0a8b075c3871874b3ef9dd003619e822706, modules/MADynamicSR.js rejects a flat slope unconditionally in update; conditionFlags.trendGate does not control that rejection. patternPersistBars is validated and copied in the constructor but has no behavioral consumer. The thirteen effective condition/approach controls are separate.
+- **What must be resolved:** Establish the intended slope-switch and pattern-persistence behavior before wiring or removing these settings. Do not interpret lack of a consumer as proof the feature was unwanted.
+- **Status:** Both canonical fields preserved and not exposed as effective customer controls. Scoring metadata reports the actual always-active slope condition; no new rejection added. Evidence: madynamicsr-condition-approach-flags/candidate.patch and root-proof.log.
