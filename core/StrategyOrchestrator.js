@@ -855,7 +855,10 @@ class StrategyOrchestrator {
     this.breakAndRetestModule = new BreakAndRetest(this.breakAndRetestConfig);
     const NoWickImbalance = require('../modules/NoWickImbalance');
     this.noWickConfig = ConfigLoader.get('strategies.NoWickImbalance');
-    this.noWickModule = new NoWickImbalance(this.noWickConfig);
+    this.noWickModule = new NoWickImbalance(
+      this.noWickConfig,
+      () => Number(ConfigLoader.get('strategies.NoWickImbalance.confidence'))
+    );
     this.mtfAdapter = new MultiTimeframeAdapter(this._buildMtfAdapterConfig());
     this.ogzTpoConfig = ConfigLoader.get('strategies.OGZTPO');
     this.tpoIntegration = new OgzTpoIntegration(this.ogzTpoConfig);

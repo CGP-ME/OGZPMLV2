@@ -82,8 +82,9 @@ function readConfig(config) {
       throw new Error(`[NoWickImbalance] ${key} must be 0..1 (got ${cfg[key]})`);
     }
   }
+  const { confidence: _confidence, ...normalizedConfig } = cfg;
   return {
-    ...cfg,
+    ...normalizedConfig,
     maxCandleAge: Number(cfg.maxCandleAge),
     swingLookback: Number(cfg.swingLookback),
     minBodyPercent: Number(cfg.minBodyPercent),
@@ -94,7 +95,6 @@ function readConfig(config) {
     stopBufferAtr: Number(cfg.stopBufferAtr),
     targetRR: Number(cfg.targetRR),
     twinProximityBars: Number(cfg.twinProximityBars),
-    confidence: Number(cfg.confidence),
     entryMode: cfg.entryMode,
     twinSplitEnabled: cfg.twinSplitEnabled,
     debug: cfg.debug === true,
@@ -102,8 +102,9 @@ function readConfig(config) {
 }
 
 class NoWickImbalance {
-  constructor(config) {
+  constructor(config, confidenceProvider) {
     this.name = 'NoWickImbalance';
+    this.confidenceProvider = confidenceProvider;
     this.cfg = Object.freeze(readConfig(config));
     this.maxCandleAge = this.cfg.maxCandleAge;       // Valid for configured candle count; next candle invalidates
     this.swingLookback = this.cfg.swingLookback;     // Candles to look back for swing points
@@ -361,6 +362,7 @@ class NoWickImbalance {
       const entryLegLevels = twinSplit
         ? [{ index: i, level }, ...twinSiblings]
         : [{ index: i, level }];
+      const confidence = this.confidenceProvider();
       const entryFanout = entryLegLevels.map((leg, fanoutIndex) => {
         const legExit = this._computeStructuralExit(leg.level.type, currentPrice, candles, atr);
         return {
@@ -369,7 +371,7 @@ class NoWickImbalance {
           entryGroupType: twinSplit ? 'twin' : 'single',
           entryGroupId: leg.level.twinGroupId || null,
           direction: legExit?.direction || direction,
-          confidence: this.cfg.confidence,
+          confidence,
           sizingMultiplier: twinSplit ? 0.5 : 1,
           reason: `NoWick ${leg.level.type} imbalance ${this.entryMode} @ ${leg.level.level.toFixed(2)} after ${state.candleCount - leg.level.formationCount} candles | trend=${currentTrend} | ${this.targetRR}:1 RR`,
           signalData: {
@@ -408,7 +410,6 @@ class NoWickImbalance {
       if (twinSplit) twinSiblings.forEach(sibling => removeIndexes.add(sibling.index));
       [...removeIndexes].sort((a, b) => b - a).forEach(index => state.pendingLevels.splice(index, 1));
 
-      const confidence = this.cfg.confidence;
       const primaryLeg = entryFanout[0];
 
       if (this.DEBUG) {

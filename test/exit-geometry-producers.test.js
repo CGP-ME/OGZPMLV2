@@ -157,7 +157,7 @@ describe('exit geometry producer contracts', () => {
       entryMode: 'tap',
       stopLookbackBars: 5,
       stopBufferAtr: 1,
-    });
+    }, () => 0.5);
     jest.spyOn(strategy, '_detectNoWick').mockReturnValue(null);
     jest.spyOn(strategy, '_detectTrend').mockReturnValue('uptrend');
     strategy.scopedState.set('TSLA:15M', {

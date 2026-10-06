@@ -41,7 +41,7 @@ describe('NoWickImbalance scoped pending levels', () => {
   });
 
   test('keeps pending levels isolated by symbol and timeframe', () => {
-    const strategy = new NoWickImbalance({ swingLookback: 5 });
+    const strategy = new NoWickImbalance({ swingLookback: 5 }, () => 0.5);
     const tslaScope = 'TSLA:15M';
     strategy.scopedState.set(tslaScope, {
       candleCount: 4,
@@ -65,7 +65,7 @@ describe('NoWickImbalance scoped pending levels', () => {
   });
 
   test('requires explicit symbol and timeframe instead of using a shared fallback bucket', () => {
-    const strategy = new NoWickImbalance({ swingLookback: 5 });
+    const strategy = new NoWickImbalance({ swingLookback: 5 }, () => 0.5);
     expect(() => strategy.evaluate({
       priceHistory: makeCandles('TSLA', '15m', [101, 102, 101.5, 103, 102.5, 99.5]).map(({ symbol, timeframe, ...candle }) => candle),
       indicators: { atr: 1 },
@@ -74,7 +74,7 @@ describe('NoWickImbalance scoped pending levels', () => {
   });
 
   test('can reset one scope without clearing sibling symbol state', () => {
-    const strategy = new NoWickImbalance({ swingLookback: 5 });
+    const strategy = new NoWickImbalance({ swingLookback: 5 }, () => 0.5);
     strategy.scopedState.set('TSLA:15M', { candleCount: 2, pendingLevels: [{ level: 100 }] });
     strategy.scopedState.set('SPY:15M', { candleCount: 3, pendingLevels: [{ level: 400 }] });
 
@@ -85,7 +85,7 @@ describe('NoWickImbalance scoped pending levels', () => {
   });
 
   test('keeps same-symbol pending levels isolated across timeframes', () => {
-    const strategy = new NoWickImbalance({ swingLookback: 5 });
+    const strategy = new NoWickImbalance({ swingLookback: 5 }, () => 0.5);
     strategy.scopedState.set('TSLA:15M', {
       candleCount: 4,
       pendingLevels: [{
@@ -114,7 +114,7 @@ describe('NoWickImbalance scoped pending levels', () => {
       stopLookbackBars: 5,
       stopBufferAtr: 0.1,
       targetRR: 1,
-    });
+    }, () => 0.5);
     jest.spyOn(strategy, '_detectTrend').mockReturnValue('uptrend');
     strategy.scopedState.set('TSLA:15M', {
       candleCount: 5,
@@ -152,7 +152,7 @@ describe('NoWickImbalance scoped pending levels', () => {
       stopLookbackBars: 5,
       stopBufferAtr: 0.1,
       targetRR: 1,
-    });
+    }, () => 0.5);
     jest.spyOn(strategy, '_detectTrend').mockReturnValue('downtrend');
     strategy.scopedState.set('TSLA:15M', {
       candleCount: 5,
@@ -189,7 +189,7 @@ describe('NoWickImbalance scoped pending levels', () => {
       entryMode: 'tap',
       stopLookbackBars: 5,
       stopBufferAtr: 0,
-    });
+    }, () => 0.5);
     jest.spyOn(strategy, '_detectTrend').mockReturnValue('uptrend');
     strategy.scopedState.set('TSLA:15M', {
       candleCount: 5,
@@ -223,7 +223,7 @@ describe('NoWickImbalance scoped pending levels', () => {
       entryMode: 'rejection',
       stopLookbackBars: 5,
       stopBufferAtr: 0,
-    });
+    }, () => 0.5);
     jest.spyOn(strategy, '_detectTrend').mockReturnValue('uptrend');
     strategy.scopedState.set('TSLA:15M', {
       candleCount: 5,
@@ -253,7 +253,7 @@ describe('NoWickImbalance scoped pending levels', () => {
   });
 
   test('wick on the entry side is not a NoWick signature', () => {
-    const strategy = new NoWickImbalance({ entrySideWickMaxPct: 5 });
+    const strategy = new NoWickImbalance({ entrySideWickMaxPct: 5 }, () => 0.5);
 
     expect(strategy._detectNoWick({
       o: 100,
@@ -277,7 +277,7 @@ describe('NoWickImbalance scoped pending levels', () => {
     const strategy = new NoWickImbalance({
       swingLookback: 5,
       almostTouchPct: 0.05,
-    });
+    }, () => 0.5);
     jest.spyOn(strategy, '_detectTrend').mockReturnValue('uptrend');
     strategy.scopedState.set('TSLA:15M', {
       candleCount: 5,
@@ -307,7 +307,7 @@ describe('NoWickImbalance scoped pending levels', () => {
   });
 
   test('normalizes reset scope casing to the same key used during evaluation', () => {
-    const strategy = new NoWickImbalance({ swingLookback: 5 });
+    const strategy = new NoWickImbalance({ swingLookback: 5 }, () => 0.5);
     strategy.scopedState.set('TSLA:15M', { candleCount: 2, pendingLevels: [{ level: 100 }] });
 
     strategy.reset({ symbol: 'tsla', timeframe: '15m' });

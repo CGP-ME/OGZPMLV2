@@ -2564,6 +2564,10 @@ function getReceipt() {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  'strategies.NoWickImbalance.confidence': {
+    type: 'number', unit: 'fraction', min: 0, max: 1,
+    label: 'NoWick entry confidence', effect: 'next_entry_evaluation',
+  },
   ...Object.fromEntries([
     ['enableRSI', 'RSI'],
     ['enableMADynamicSR', 'MADynamicSR'],
