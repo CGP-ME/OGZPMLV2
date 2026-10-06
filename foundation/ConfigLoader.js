@@ -880,7 +880,6 @@ function applyFlatOverlay(config, sources, overlay, source) {
 }
 
 function refreshDerivedAliases(config, sources) {
-  config.sizing = cloneConfiguredObject(config.positionSizing);
   config.tiers = cloneConfiguredObject(config.exits.profitTiers);
   config.startingBalance = config.backtest.initialBalance;
   const pipeline = config.pipeline;
@@ -910,7 +909,6 @@ function refreshDerivedAliases(config, sources) {
   config.broker.tradingPair = config.execution.tradingPair;
   config.broker.candleTimeframe = config.execution.candleTimeframe;
   config.broker.assetClass = config.execution.assetClass;
-  recordTreeSources(sources, 'sizing', config.sizing, 'derived:positionSizing');
   recordTreeSources(sources, 'tiers', config.tiers, 'derived:exits.profitTiers');
   recordTreeSources(sources, 'startingBalance', config.startingBalance, 'derived:backtest.initialBalance');
   sources['broker.id'] = 'derived:execution.broker';
@@ -1280,7 +1278,6 @@ function buildConfig() {
         `config:settings.json:launchProfiles.${profileName}.confidence.minTradeConfidence`
       ),
     },
-    sizing: setting('positionSizing'),
     positionSizing: setting('positionSizing'),
     entryLogic: setting('entryLogic'),
     exitLogic: setting('exitLogic'),
@@ -1883,8 +1880,8 @@ function validate(config, sources = {}, opts = {}) {
   }
 
   // Sizing
-  if (config.sizing.maxPositionSize > 0.25) {
-    errors.push(`maxPositionSize too high: ${config.sizing.maxPositionSize} (>25% of account per trade)`);
+  if (config.positionSizing.maxPositionSize > 0.25) {
+    errors.push(`maxPositionSize too high: ${config.positionSizing.maxPositionSize} (>25% of account per trade)`);
   }
 
   const feeModel = String(config.fees.model || '').trim().toLowerCase();
@@ -3128,9 +3125,6 @@ function saveSettings(request) {
       && nextConfig.exitLogic.trail.minTrailPercent > nextConfig.exitLogic.trail.maxTrailPercent) {
     return reject('trail_min_must_not_exceed_max');
   }
-  if (entries.some(([key]) => key.startsWith('positionSizing.confluenceMultipliers.'))) {
-    nextConfig.sizing = cloneConfiguredObject(nextConfig.positionSizing);
-  }
   nextConfig.revision = nextSettings.revision;
   const revisions = { ..._cached.revisions, settings: nextSettings.revision, settingsHash: canonicalHash(nextSettings) };
   const nextSnapshot = { ..._cached, config: deepFreeze(nextConfig), entrySizing: nextEntrySizing, revisions: Object.freeze(revisions),
@@ -3385,7 +3379,7 @@ const compatibilitySections = [
   'pid', 'pipeline', 'positionSizing', 'proofPublication',
   'regimeBoosts', 'risk', 'services', 'startingBalance',
   'regimeDetection', 'strategies', 'strategyBehavior', 'tierPolicy', 'timeframeConfig', 'trai',
-  'volumeProfileBoosts', 'sizing', 'tiers',
+  'volumeProfileBoosts', 'tiers',
   'broker', 'backtest', 'paths', 'monitoring', 'observability', 'dataFeed',
   'dashboard', 'webhookOrders', 'sessionRouter', 'evalRules', 'internals',
 ];

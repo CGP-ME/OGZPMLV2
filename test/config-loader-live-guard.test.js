@@ -155,7 +155,8 @@ describe('ConfigLoader live trading safety guard', () => {
     const loaded = loadConfig();
 
     expect(loaded.config.confidence.minTradeConfidence).toBe(0.5);
-    expect(loaded.config.sizing.maxPositionSize).toBe(0.10);
+    expect(loaded.config.positionSizing.maxPositionSize).toBe(0.10);
+    expect(loaded.config).not.toHaveProperty('sizing');
     expect(loaded.config.strategyBehavior.emaCrossover.entryEventsOnly).toBe(false);
     expect(loaded.config.strategyBehavior.emaCrossover.warmupBars).toBe(10);
     expect(loaded.config.strategyBehavior.atrContracts.enabled).toBe(true);
@@ -200,7 +201,7 @@ describe('ConfigLoader live trading safety guard', () => {
 
     expect(ConfigLoader.get('confidence.minTradeConfidence')).toBe(loaded.config.confidence.minTradeConfidence);
     expect(ConfigLoader.get('confidence.minStrategyConfidence')).toBe(loaded.config.confidence.minStrategyConfidence);
-    expect(ConfigLoader.get('positionSizing.maxPositionSize')).toBe(loaded.config.sizing.maxPositionSize);
+    expect(ConfigLoader.get('positionSizing.maxPositionSize')).toBe(loaded.config.positionSizing.maxPositionSize);
     expect(ConfigLoader.get('fees.model')).toBe(loaded.config.fees.model);
     expect(ConfigLoader.get('fees.perShare')).toBe(loaded.config.fees.perShare);
     expect(ConfigLoader.get('fees.minOrderFee')).toBe(loaded.config.fees.minOrderFee);
@@ -216,7 +217,7 @@ describe('ConfigLoader live trading safety guard', () => {
     );
 
     expect(ConfigLoader.getSection('confidence').minTradeConfidence).toBe(loaded.config.confidence.minTradeConfidence);
-    expect(ConfigLoader.getSection('positionSizing').maxPositionSize).toBe(loaded.config.sizing.maxPositionSize);
+    expect(ConfigLoader.getSection('positionSizing').maxPositionSize).toBe(loaded.config.positionSizing.maxPositionSize);
     expect(ConfigLoader.getSection('fees').perShare).toBe(loaded.config.fees.perShare);
     expect(ConfigLoader.getSection('filters').atrMinPercent).toBe(loaded.config.filters.atrMinPercent);
   });
