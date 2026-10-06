@@ -23,6 +23,10 @@ function isFinitePositivePrice(value) {
  */
 class FairValueGapDetector {
   constructor(config) {
+    this.configure(config);
+  }
+
+  configure(config) {
     this.minFVGPercent = config.minFVGPercent;
     this.maxFVGPercent = config.maxFVGPercent;
   }

@@ -834,8 +834,8 @@ class StrategyOrchestrator {
 
     // Opening Range Breakout stateful strategy instance
     // MUST be initialized BEFORE _registerBuiltinStrategies() so closure captures it
-    this.openingRangeBreakoutConfig = ConfigLoader.get('strategies.OpeningRangeBreakout');
-    this.orbStrategy = new OpeningRangeBreakout(this.openingRangeBreakoutConfig);
+    this.openingRangeBreakoutConfigProvider = () => ConfigLoader.get('strategies.OpeningRangeBreakout');
+    this.orbStrategy = new OpeningRangeBreakout(this.openingRangeBreakoutConfigProvider);
 
     // MA Extension Filter for trend confirmation + first-touch skip
     this.maExtensionFilter = new MAExtensionFilter();
@@ -2057,7 +2057,7 @@ class StrategyOrchestrator {
           'OpeningRangeBreakout',
           orbSymbol,
           orbInstance,
-          () => new OpeningRangeBreakout(this.openingRangeBreakoutConfig)
+          () => new OpeningRangeBreakout(this.openingRangeBreakoutConfigProvider)
         );
         if (ctx.entriesEnabled === false) {
           scopedOrb.observe(latestCandle);

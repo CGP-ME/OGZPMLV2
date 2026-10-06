@@ -3,7 +3,6 @@
 
 const { c: _c, o: _o, h: _h, l: _l, v: _v, t: _t } = require('../core/CandleHelper');
 const FairValueGapDetector = require('./FairValueGapDetector');
-const ConfigLoader = require('../foundation/ConfigLoader');
 
 /**
  * OpeningRangeBreakout (ORB) Strategy
@@ -83,21 +82,19 @@ function requiredString(config, key, { allowBlank = false } = {}) {
 }
 
 function resolveConfig(config) {
-  const provided = config && Object.keys(config).length > 0
-    ? config
-    : ConfigLoader.get('strategies.OpeningRangeBreakout');
-  if (!provided || typeof provided !== 'object' || Array.isArray(provided)) {
+  if (!config || typeof config !== 'object' || Array.isArray(config)) {
     throw new Error('[ORB] strategies.OpeningRangeBreakout config object is required');
   }
   for (const key of REQUIRED_CONFIG_KEYS) {
-    requiredRaw(provided, key);
+    requiredRaw(config, key);
   }
-  return provided;
+  return config;
 }
 
 class OpeningRangeBreakout {
-  constructor(config = {}) {
-    const orbConfig = resolveConfig(config);
+  constructor(configProvider) {
+    this.configProvider = configProvider;
+    const orbConfig = resolveConfig(this.configProvider());
 
     this.sessionOpenHourUTC = requiredNumber(orbConfig, 'sessionOpenHourUTC', { min: 0 });
     // 2026-05-04: NYSE 9:30 ET session detection. Handles DST automatically via Intl
@@ -188,13 +185,16 @@ class OpeningRangeBreakout {
 
     const timestamp = _t(candle);
     const candleDate = new Date(timestamp);
+    const currentConfig = this.configProvider();
     const sessionDate = this._getSessionDate(candleDate);
 
     // New session? Reset state machine
     if (sessionDate !== this.currentSessionDate) {
       this.reset();
-      this.currentSessionDate = sessionDate;
+      this._applySessionConfig(currentConfig);
+      this.currentSessionDate = this._getSessionDate(candleDate);
     }
+    this._applyLiveConfig(currentConfig);
 
     // Track recent candles for FVG scanning
     this.recentCandles.push(candle);
@@ -239,6 +239,43 @@ class OpeningRangeBreakout {
     }
 
     return null;
+  }
+
+  _applySessionConfig(config) {
+    this.sessionOpenHourUTC = Number(config.sessionOpenHourUTC);
+    this.sessionOpenET = config.sessionOpenET.trim();
+    this.sessionTimeZone = config.sessionTimeZone.trim();
+    this.orDurationMinutes = Number(config.orDurationMinutes);
+    this._etDateFmt = null;
+    if (this.sessionOpenET) {
+      const [hour, minute] = this.sessionOpenET.split(':').map(value => parseInt(value, 10));
+      this.sessionOpenHourET = hour;
+      this.sessionOpenMinuteET = minute;
+      this._etTimeFmt = new Intl.DateTimeFormat('en-US', {
+        timeZone: this.sessionTimeZone,
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+    } else {
+      this.sessionOpenHourET = null;
+      this.sessionOpenMinuteET = null;
+      this._etTimeFmt = null;
+    }
+  }
+
+  _applyLiveConfig(config) {
+    this.orMinWidthAtr = Number(config.orMinWidthAtr);
+    this.fvgScanBars = Number(config.fvgScanBars);
+    this.minFVGPercent = Number(config.minFVGPercent);
+    this.maxFVGPercent = Number(config.maxFVGPercent);
+    this.entryLevel = config.entryLevel;
+    this.stopBufferPct = Number(config.stopBufferPct);
+    this.targetRR = Number(config.targetRR);
+    this.fvgDetector.configure({
+      minFVGPercent: this.minFVGPercent,
+      maxFVGPercent: this.maxFVGPercent,
+    });
   }
 
   /**

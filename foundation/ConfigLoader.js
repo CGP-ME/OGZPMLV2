@@ -2561,6 +2561,27 @@ function getReceipt() {
   });
 }
 
+function openingRangeBreakoutConfigurationProblem(config) {
+  const orb = config.strategies?.OpeningRangeBreakout;
+  if (!isPlainObject(orb)) return { reason: 'invalid_orb_configuration', path: 'strategies.OpeningRangeBreakout' };
+  if (orb.maxFVGPercent < orb.minFVGPercent) {
+    return { reason: 'orb_min_fvg_must_not_exceed_max', path: 'strategies.OpeningRangeBreakout.minFVGPercent' };
+  }
+  if (typeof orb.sessionOpenET !== 'string'
+    || (orb.sessionOpenET !== '' && !/^([01]\d|2[0-3]):[0-5]\d$/.test(orb.sessionOpenET))) {
+    return { reason: 'invalid_orb_session_open_et', path: 'strategies.OpeningRangeBreakout.sessionOpenET' };
+  }
+  if (typeof orb.sessionTimeZone !== 'string' || !orb.sessionTimeZone.trim()) {
+    return { reason: 'invalid_orb_session_time_zone', path: 'strategies.OpeningRangeBreakout.sessionTimeZone' };
+  }
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: orb.sessionTimeZone });
+  } catch {
+    return { reason: 'invalid_orb_session_time_zone', path: 'strategies.OpeningRangeBreakout.sessionTimeZone' };
+  }
+  return null;
+}
+
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
@@ -2987,6 +3008,50 @@ const EDITABLE_SETTINGS = deepFreeze({
   'strategies.OpeningRangeBreakout.confluenceBoost.weight': {
     type: 'number', unit: 'weight', min: 0, max: Number.MAX_VALUE,
     label: 'OpeningRangeBreakout MTF confluence weight', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.OpeningRangeBreakout.sessionOpenHourUTC': {
+    type: 'number', unit: 'UTC hour', min: 0, max: 23, integer: true,
+    label: 'Opening range UTC session hour fallback when ET open is blank', effect: 'next_session_date_boundary_when_session_open_et_is_blank',
+  },
+  'strategies.OpeningRangeBreakout.sessionOpenET': {
+    type: 'string', unit: 'HH:MM',
+    label: 'Opening range session open in the configured timezone; takes precedence over UTC hour', effect: 'next_session_date_boundary',
+  },
+  'strategies.OpeningRangeBreakout.sessionTimeZone': {
+    type: 'string', unit: 'IANA timezone',
+    label: 'Opening range session timezone for the ET session-open owner', effect: 'next_session_date_boundary',
+  },
+  'strategies.OpeningRangeBreakout.orDurationMinutes': {
+    type: 'number', unit: 'minutes', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
+    label: 'Opening range collection duration', effect: 'next_session_opening_range_window',
+  },
+  'strategies.OpeningRangeBreakout.orMinWidthAtr': {
+    type: 'number', unit: 'ATR multiples', min: 0, max: Number.MAX_VALUE,
+    label: 'Opening range minimum width filter', effect: 'next_opening_range_finalization',
+  },
+  'strategies.OpeningRangeBreakout.fvgScanBars': {
+    type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
+    label: 'Opening range post-breakout FVG scan window', effect: 'next_FVG_scan_observation',
+  },
+  'strategies.OpeningRangeBreakout.minFVGPercent': {
+    type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE,
+    label: 'Opening range minimum fair-value-gap size', effect: 'next_FVG_detection',
+  },
+  'strategies.OpeningRangeBreakout.maxFVGPercent': {
+    type: 'number', unit: 'percent', min: 0, exclusiveMin: true, max: Number.MAX_VALUE,
+    label: 'Opening range maximum fair-value-gap size', effect: 'next_FVG_detection',
+  },
+  'strategies.OpeningRangeBreakout.entryLevel': {
+    type: 'string', unit: 'choice', values: ['top', 'middle', 'bottom'],
+    label: 'Opening range fair-value-gap entry level', effect: 'next_generated_ORB_signal_geometry',
+  },
+  'strategies.OpeningRangeBreakout.stopBufferPct': {
+    type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE,
+    label: 'Opening range fair-value-gap stop buffer', effect: 'next_generated_ORB_signal_geometry',
+  },
+  'strategies.OpeningRangeBreakout.targetRR': {
+    type: 'number', unit: 'risk-reward ratio', min: 0, exclusiveMin: true, max: Number.MAX_VALUE,
+    label: 'Opening range fair-value-gap target reward ratio', effect: 'next_generated_ORB_signal_geometry',
   },
   'strategies.DonchianBreakout.confluenceBoost.enabled': {
     type: 'boolean', unit: 'boolean',
@@ -3662,6 +3727,10 @@ function saveSettings(request) {
     if (!(cfg.pullbackMinAtr < cfg.pullbackMaxAtr)) {
       return reject('propsafe_pullback_min_must_be_below_max');
     }
+  }
+  if (entries.some(([key]) => key.startsWith('strategies.OpeningRangeBreakout.'))) {
+    const problem = openingRangeBreakoutConfigurationProblem(nextConfig);
+    if (problem) return reject(problem.reason, { path: problem.path });
   }
   if (entries.some(([key]) => key.startsWith('strategies.EMATrendRetest.'))
       && nextConfig.strategies.EMATrendRetest.maxExtensionAtr <= nextConfig.strategies.EMATrendRetest.closeAwayAtr) {
