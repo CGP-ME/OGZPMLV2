@@ -2672,6 +2672,10 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'fraction', min: 0, exclusiveMin: true, max: 0.25,
     label: 'Maximum position size', effect: 'next_entry_decision',
   },
+  'fees.slippage': {
+    type: 'number', unit: 'fraction', min: 0, max: 1, exclusiveMax: true,
+    label: 'Simulated fill slippage', effect: 'next_simulated_fill',
+  },
   'features.enableDynamicSizing': {
     type: 'boolean', unit: 'boolean',
     label: 'Dynamic confidence sizing', effect: 'next_entry_decision',
