@@ -844,8 +844,10 @@ class StrategyOrchestrator {
     // Each strategy owns its signal computation — no ctx.extras handoff
     this.emaCrossoverConfig = getEmaCrossoverConfig();
     this.emaCrossoverModule = new EMASMACrossoverSignal(this.emaCrossoverConfig, () => ConfigLoader.get('strategies.EMASMACrossover'));
-    this.maDynamicSRConfig = ConfigLoader.get('strategies.MADynamicSR');
-    this.maDynamicSRModule = new MADynamicSR(this.maDynamicSRConfig, () => ConfigLoader.get('strategies.MADynamicSR'));
+    this.maDynamicSRModule = new MADynamicSR(
+      ConfigLoader.get('strategies.MADynamicSR'),
+      () => ConfigLoader.get('strategies.MADynamicSR')
+    );
     this.liquiditySweepConfig = {
       ...ConfigLoader.get('strategies.LiquiditySweep'),
       verbose: ConfigLoader.get('observability.backtestVerbose') === true,
@@ -1703,7 +1705,10 @@ class StrategyOrchestrator {
           'MADynamicSR',
           ctx.extras?.symbol,
           maDynamicSRModule,
-          () => new MADynamicSR(this.maDynamicSRConfig, () => ConfigLoader.get('strategies.MADynamicSR'))
+          () => new MADynamicSR(
+            ConfigLoader.get('strategies.MADynamicSR'),
+            () => ConfigLoader.get('strategies.MADynamicSR')
+          )
         );
         if (ctx.entriesEnabled === false) {
           scopedMaDynamicSR.observe(latestCandle, candles);

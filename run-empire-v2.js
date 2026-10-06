@@ -787,8 +787,10 @@ class OGZPrimeV14Bot {
     };
     this.emaCrossover = new EMASMACrossoverSignal(emaConfig, () => ConfigLoader.get('strategies.EMASMACrossover'));
 
-    const masrConfig = ConfigLoader.get('strategies.MADynamicSR');
-    this.maDynamicSR = new MADynamicSR(masrConfig, () => ConfigLoader.get('strategies.MADynamicSR'));
+    this.maDynamicSR = new MADynamicSR(
+      ConfigLoader.get('strategies.MADynamicSR'),
+      () => ConfigLoader.get('strategies.MADynamicSR')
+    );
 
     // 2026-05-04: BreakAndRetest now owned by StrategyOrchestrator (self-contained pattern).
     // Runner-side instance removed to prevent two-instance state divergence.
@@ -3125,7 +3127,7 @@ class OGZPrimeV14Bot {
             ...resolvedConfig.config.strategyBehavior.emaCrossover,
           },
           maDynamicSRConfig: ConfigLoader.get('strategies.MADynamicSR'),
-          maDynamicSRConfidenceConfigProvider: () => ConfigLoader.get('strategies.MADynamicSR'),
+          maDynamicSRConfigProvider: () => ConfigLoader.get('strategies.MADynamicSR'),
           volumeProfileConfig: resolvedConfig.config.strategies.VolumeProfile,
           fibonacciConfig: resolvedConfig.config.fibonacci,
         });

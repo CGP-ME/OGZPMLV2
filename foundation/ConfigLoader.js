@@ -3042,6 +3042,47 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'fraction', min: 0, exclusiveMin: true, max: 1,
     label: 'MA dynamic S/R confidence ceiling', effect: 'next_MADynamicSR_signal_evaluation',
   },
+  'strategies.MADynamicSR.touchZonePct': {
+    type: 'number', unit: 'percent', min: 0, exclusiveMin: true, max: Number.MAX_VALUE,
+    label: 'MA dynamic S/R entry-MA touch zone', effect: 'next_MADynamicSR_signal_evaluation',
+  },
+  'strategies.MADynamicSR.minSlopePct': {
+    type: 'number', unit: 'percent', min: 0, exclusiveMin: true, max: Number.MAX_VALUE,
+    label: 'MA dynamic S/R minimum EMA slope', effect: 'next_MADynamicSR_signal_evaluation',
+  },
+  ...Object.fromEntries([
+    ['extensionMin', 'MA dynamic S/R extension confidence floor'],
+    ['extensionPenaltyScale', 'MA dynamic S/R extension confidence penalty scale'],
+    ['firstTouchAfterParabolic', 'MA dynamic S/R first-touch-after-extension confidence multiplier'],
+    ['pullbackCooldown', 'MA dynamic S/R pullback cooldown confidence multiplier'],
+    ['confirmationAligned', 'MA dynamic S/R aligned-confirmation confidence multiplier'],
+    ['confirmationMissing', 'MA dynamic S/R missing-confirmation confidence multiplier'],
+    ['confirmationConflict', 'MA dynamic S/R conflicting-confirmation confidence multiplier'],
+    ['srAligned', 'MA dynamic S/R aligned S/R confidence multiplier'],
+    ['srMissing', 'MA dynamic S/R missing S/R confidence multiplier'],
+    ['srWrongSide', 'MA dynamic S/R wrong-side S/R confidence multiplier'],
+    ['structuralValid', 'MA dynamic S/R valid-structure confidence multiplier'],
+    ['structuralInvalid', 'MA dynamic S/R invalid-structure confidence multiplier'],
+  ].map(([key, label]) => [`strategies.MADynamicSR.multipliers.${key}`, {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_VALUE,
+    label, effect: 'next_MADynamicSR_signal_confidence_evaluation',
+  }])),
+  'strategies.MADynamicSR.structural.atrBufferMultiplier': {
+    type: 'number', unit: 'atr_multiple', min: 0, exclusiveMin: true, max: Number.MAX_VALUE,
+    label: 'MA dynamic S/R structural ATR buffer', effect: 'next_MADynamicSR_signal_confidence_evaluation',
+  },
+  'strategies.MADynamicSR.structural.rewardRiskTarget': {
+    type: 'number', unit: 'risk-reward ratio', min: 0, exclusiveMin: true, max: Number.MAX_VALUE,
+    label: 'MA dynamic S/R structural reward-risk target', effect: 'next_MADynamicSR_signal_confidence_evaluation',
+  },
+  'strategies.MADynamicSR.structural.minRewardRisk': {
+    type: 'number', unit: 'risk-reward ratio', min: 0, exclusiveMin: true, max: Number.MAX_VALUE,
+    label: 'MA dynamic S/R minimum structural reward-risk', effect: 'next_MADynamicSR_signal_confidence_evaluation',
+  },
+  'strategies.MADynamicSR.structural.minTakeProfitPct': {
+    type: 'number', unit: 'fraction', min: 0, exclusiveMin: true, max: Number.MAX_VALUE,
+    label: 'MA dynamic S/R minimum structural take-profit distance', effect: 'next_MADynamicSR_signal_confidence_evaluation',
+  },
   'strategies.RSI.period': {
     type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
     label: 'RSI period', effect: 'next_RSI_entry_and_its_owned_exit',

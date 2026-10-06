@@ -137,7 +137,7 @@ function runBacktestAndCaptureTrades() {
   const emaCrossover = new EMASMACrossoverSignal(emaConfig);
 
   const masrConfig = ConfigLoader.get('strategies.MADynamicSR');
-  const maDynamicSR = new MADynamicSR(masrConfig);
+  const maDynamicSR = new MADynamicSR(masrConfig, () => ConfigLoader.get('strategies.MADynamicSR'));
 
   const liquiditySweep = new LiquiditySweepDetector(
     ConfigLoader.get('strategies.LiquiditySweep')

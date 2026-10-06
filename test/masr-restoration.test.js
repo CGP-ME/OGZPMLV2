@@ -39,6 +39,10 @@ function masrConfig(overrides = {}) {
   };
 }
 
+function createMADynamicSR(config) {
+  return new MADynamicSR(config, () => config);
+}
+
 function fallingMaTouchCandles() {
   const history = [];
   for (let i = 0; i < 229; i += 1) {
@@ -46,7 +50,7 @@ function fallingMaTouchCandles() {
     history.push(candle(close, { open: close + 0.05, high: close + 0.25, low: close - 0.25, t: i }));
   }
 
-  const probe = new MADynamicSR(masrConfig());
+  const probe = createMADynamicSR(masrConfig());
   const ma20 = probe._ema(history.map(item => item.c), 20);
   const finalClose = ma20 * 1.001;
   history.push(candle(finalClose, {
@@ -79,7 +83,7 @@ describe('MADynamicSR Trader DNA restoration', () => {
   });
 
   test('uses falling 20MA slope to reject the parent buy-on-above-MA touch', () => {
-    const strategy = new MADynamicSR(masrConfig({
+    const strategy = createMADynamicSR(masrConfig({
       conditionFlags: {
         extension: false,
         firstTouchAfterParabolic: false,
@@ -101,7 +105,7 @@ describe('MADynamicSR Trader DNA restoration', () => {
   });
 
   test('keeps direction slope-owned even when trendGate is disabled for ablation', () => {
-    const strategy = new MADynamicSR(masrConfig({
+    const strategy = createMADynamicSR(masrConfig({
       conditionFlags: {
         trendGate: false,
         extension: false,
@@ -123,14 +127,14 @@ describe('MADynamicSR Trader DNA restoration', () => {
   });
 
   test('rejects slope config that can turn a one-candle bounce into trend direction', () => {
-    expect(() => new MADynamicSR(masrConfig({ minSlopePct: 0 })))
+    expect(() => createMADynamicSR(masrConfig({ minSlopePct: 0 })))
       .toThrow(/minSlopePct must be greater than 0/);
-    expect(() => new MADynamicSR(masrConfig({ slopeLookback: 1 })))
+    expect(() => createMADynamicSR(masrConfig({ slopeLookback: 1 })))
       .toThrow(/slopeLookback must be at least 2 bars/);
   });
 
   test('emits evidence for every restored confidence condition', () => {
-    const strategy = new MADynamicSR(masrConfig({ maxExtensionAtr: 0.01 }));
+    const strategy = createMADynamicSR(masrConfig({ maxExtensionAtr: 0.01 }));
     const candles = fallingMaTouchCandles();
     const closes = candles.map(item => item.c);
     const ma20 = strategy._ema(closes, strategy.entryMaPeriod);
@@ -160,7 +164,7 @@ describe('MADynamicSR Trader DNA restoration', () => {
   });
 
   test('rejects from-below rally into rising EMA when price is below the 200MA regime line', () => {
-    const strategy = new MADynamicSR(masrConfig({
+    const strategy = createMADynamicSR(masrConfig({
       conditionFlags: {
         extension: false,
         firstTouchAfterParabolic: false,
@@ -193,7 +197,7 @@ describe('MADynamicSR Trader DNA restoration', () => {
   });
 
   test('keeps from-below bull reclaim behind an explicit config arm', () => {
-    const strategy = new MADynamicSR(masrConfig({
+    const strategy = createMADynamicSR(masrConfig({
       approachRules: {
         allowLongFromBelowBullReclaim: true,
       },

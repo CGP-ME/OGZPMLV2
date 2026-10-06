@@ -196,36 +196,28 @@ function validateResolvedConfig(config) {
 }
 
 class MADynamicSR {
-  constructor(config, confidenceConfigProvider) {
-    this.config = loadResolvedConfig(config);
-    // Production owners supply the validated current snapshot; explicit fixtures stay pinned.
-    this.confidenceConfigProvider = confidenceConfigProvider;
+  constructor(config, configProvider) {
+    const resolvedConfig = loadResolvedConfig(config);
+    this.configProvider = configProvider;
 
     // MA periods per CORRECTED Trader DNA interpretation
-    this.entryMaPeriod = this.config.entryMaPeriod;     // 20 MA — the trend + entry line
-    this.srMaPeriod = this.config.srMaPeriod;           // 200 MA — support/resistance level (NOT trend)
-    this.atrPeriod = this.config.atrPeriod;             // For SL buffer and structural validity
+    this.entryMaPeriod = resolvedConfig.entryMaPeriod;     // 20 MA — the trend + entry line
+    this.srMaPeriod = resolvedConfig.srMaPeriod;           // 200 MA — support/resistance level (NOT trend)
+    this.atrPeriod = resolvedConfig.atrPeriod;             // For SL buffer and structural validity
 
     // Swing detection settings
-    this.swingLookback = this.config.swingLookback;     // Bars to confirm swing (3 for 15m)
-    this.srTestCount = this.config.srTestCount;         // Times a level must be tested
-    this.srZonePct = this.config.srZonePct;             // Zone width as % of price
-
-    // Touch detection
-    this.touchZonePct = this.config.touchZonePct;       // % distance to count as "touching"
+    this.swingLookback = resolvedConfig.swingLookback;     // Bars to confirm swing (3 for 15m)
+    this.srTestCount = resolvedConfig.srTestCount;         // Times a level must be tested
+    this.srZonePct = resolvedConfig.srZonePct;             // Zone width as % of price
 
     // Pattern persistence
-    this.patternPersistBars = this.config.patternPersistBars;
+    this.patternPersistBars = resolvedConfig.patternPersistBars;
 
     // 20 MA slope detection
-    this.slopeLookback = this.config.slopeLookback;     // Compare current 20 MA to prior MA
-    this.minSlopePct = this.config.minSlopePct;         // 20 MA must move to count as trending
-
-    this.maxExtensionAtr = this.config.maxExtensionAtr;
-    this.conditionFlags = this.config.conditionFlags;
-    this.approachRules = this.config.approachRules;
-    this.multipliers = this.config.multipliers;
-    this.structural = this.config.structural;
+    this.slopeLookback = resolvedConfig.slopeLookback;     // Compare current 20 MA to prior MA
+    this.maxExtensionAtr = resolvedConfig.maxExtensionAtr;
+    this.conditionFlags = resolvedConfig.conditionFlags;
+    this.approachRules = resolvedConfig.approachRules;
 
     // State tracking
     this.swings = [];           // Array of { type: 'high'|'low', price, bar, wick }
@@ -289,14 +281,10 @@ class MADynamicSR {
       entryMaPeriod: this.entryMaPeriod,
       srMaPeriod: this.srMaPeriod,
       atrPeriod: this.atrPeriod,
-      touchZonePct: this.touchZonePct,
       slopeLookback: this.slopeLookback,
-      minSlopePct: this.minSlopePct,
       maxExtensionAtr: this.maxExtensionAtr,
       conditionFlags: this.conditionFlags,
-      approachRules: this.approachRules,
-      multipliers: this.multipliers,
-      structural: this.structural
+      approachRules: this.approachRules
     };
     console.log(`[MADynamicSR][CONFIG] ${JSON.stringify(this.configReceipt)}`);
     console.log(`[MADynamicSR] initialized (Trader DNA CORRECTED) - Entry MA: ${this.entryMaPeriod}, S/R MA: ${this.srMaPeriod}`);
@@ -311,12 +299,14 @@ class MADynamicSR {
   observe(candle, priceHistory) { return this._update(candle, priceHistory, false); }
 
   _update(candle, priceHistory, emitEntries) {
-    if (this.confidenceConfigProvider) {
-      const confidenceConfig = this.confidenceConfigProvider();
-      this.config.baseConfidence = Number(confidenceConfig.baseConfidence);
-      this.config.touchQualityWeight = Number(confidenceConfig.touchQualityWeight);
-      this.config.maxConfidence = Number(confidenceConfig.maxConfidence);
-    }
+    const currentConfig = this.configProvider();
+    const baseConfidence = Number(currentConfig.baseConfidence);
+    const touchQualityWeight = Number(currentConfig.touchQualityWeight);
+    const maxConfidence = Number(currentConfig.maxConfidence);
+    const touchZonePct = Number(currentConfig.touchZonePct);
+    const minSlopePct = Number(currentConfig.minSlopePct);
+    const multipliers = currentConfig.multipliers;
+    const structuralConfig = currentConfig.structural;
     this.barCount++;
 
     // Detect swings early (only needs swingLookback * 2 + 1 = 7 candles)
@@ -343,10 +333,10 @@ class MADynamicSR {
     if (!ma20) return this._emptySignal();
     // ma200 can be null if not enough data — that's okay, we just skip S/R features
 
-    const touchingMA = this._isTouchingEMA(price, ma20);
+    const touchingMA = this._isTouchingEMA(price, ma20, touchZonePct);
     if (touchingMA) this.diag.emaTouches++;
 
-    const maSlope = this._getMaSlope(closes, this.entryMaPeriod);
+    const maSlope = this._getMaSlope(closes, this.entryMaPeriod, minSlopePct);
     if (maSlope === 'rising') this.diag.trendBullish++;
     else if (maSlope === 'falling') this.diag.trendBearish++;
     else this.diag.trendFlat++;
@@ -378,7 +368,7 @@ class MADynamicSR {
     if (touchingMA) {
       // Calculate touch quality (closer = higher confidence)
       const distancePct = Math.abs(price - ma20) / ma20 * 100;
-      const touchQuality = clamp(1 - (distancePct / this.touchZonePct), 0, 1);  // 1.0 = perfect touch, 0 = edge of zone
+      const touchQuality = clamp(1 - (distancePct / touchZonePct), 0, 1);  // 1.0 = perfect touch, 0 = edge of zone
 
       if (maSlope === 'rising') {
         direction = 'buy';
@@ -411,8 +401,8 @@ class MADynamicSR {
       }
       this._recordApproachSide(approachSide);
 
-      confidence = this.config.baseConfidence + (touchQuality * this.config.touchQualityWeight);
-      structural = this._structuralProfile(direction, price, ma20, atr);
+      confidence = baseConfidence + (touchQuality * touchQualityWeight);
+      structural = this._structuralProfile(direction, price, ma20, atr, structuralConfig);
       confidenceProfile = this._confidenceProfile({
         direction,
         maSlope,
@@ -422,9 +412,10 @@ class MADynamicSR {
         wasExtendedBefore,
         srAlignment,
         confirmation,
-        structural
+        structural,
+        multipliers
       });
-      confidence = clamp(confidence * confidenceProfile.composite, 0, this.config.maxConfidence);
+      confidence = clamp(confidence * confidenceProfile.composite, 0, maxConfidence);
 
       if (!emitEntries) return this._emptySignal();
       this.diag.signalsEmitted++;
@@ -620,7 +611,7 @@ class MADynamicSR {
    *
    * @returns {'rising'|'falling'|'flat'}
    */
-  _getMaSlope(closes, period) {
+  _getMaSlope(closes, period, minSlopePct) {
     if (closes.length < period + this.slopeLookback) return 'flat';
 
     const currentMa = this._ema(closes, period);
@@ -633,8 +624,8 @@ class MADynamicSR {
 
     const slopePct = ((currentMa - olderMa) / olderMa) * 100;
 
-    if (slopePct > this.minSlopePct) return 'rising';
-    if (slopePct < -this.minSlopePct) return 'falling';
+    if (slopePct > minSlopePct) return 'rising';
+    if (slopePct < -minSlopePct) return 'falling';
     return 'flat';
   }
 
@@ -662,9 +653,9 @@ class MADynamicSR {
   /**
    * Check if price is touching the 20 MA
    */
-  _isTouchingEMA(price, ema) {
+  _isTouchingEMA(price, ema, touchZonePct) {
     const distance = Math.abs(price - ema) / ema * 100;
-    return distance <= this.touchZonePct;
+    return distance <= touchZonePct;
   }
 
   _approachSideInfo(priceHistory, price, ma20, ma200, direction) {
@@ -784,7 +775,8 @@ class MADynamicSR {
     wasExtendedBefore,
     srAlignment,
     confirmation,
-    structural
+    structural,
+    multipliers
   }) {
     const profile = this._emptyConfidenceProfile();
     profile.components.trendGate = {
@@ -808,8 +800,8 @@ class MADynamicSR {
     if (this.conditionFlags.extension && extension.extended) {
       const overshoot = Math.max(0, extension.extensionAtr - this.maxExtensionAtr);
       const multiplier = clamp(
-        1 - (overshoot * this.multipliers.extensionPenaltyScale),
-        this.multipliers.extensionMin,
+        1 - (overshoot * multipliers.extensionPenaltyScale),
+        multipliers.extensionMin,
         1
       );
       profile.components.extension = {
@@ -826,7 +818,7 @@ class MADynamicSR {
       profile.components.firstTouchAfterParabolic = {
         enabled: true,
         fired: true,
-        multiplier: this.multipliers.firstTouchAfterParabolic
+        multiplier: multipliers.firstTouchAfterParabolic
       };
       this._firstTouchAfterExtension = true;
       this._wasExtended = false;
@@ -840,7 +832,7 @@ class MADynamicSR {
       profile.components.pullbackCooldown = {
         enabled: true,
         fired: true,
-        multiplier: this.multipliers.pullbackCooldown
+        multiplier: multipliers.pullbackCooldown
       };
       this.diag.pullbackCooldownPenalties++;
     }
@@ -854,7 +846,7 @@ class MADynamicSR {
           fired: true,
           state: 'aligned',
           pattern: confirmation.pattern,
-          multiplier: this.multipliers.confirmationAligned
+          multiplier: multipliers.confirmationAligned
         };
         this.diag.confirmationAligned++;
       } else if (conflicted) {
@@ -863,7 +855,7 @@ class MADynamicSR {
           fired: true,
           state: 'conflict',
           pattern: confirmation.pattern,
-          multiplier: this.multipliers.confirmationConflict
+          multiplier: multipliers.confirmationConflict
         };
         this.diag.confirmationConflicts++;
       } else {
@@ -872,7 +864,7 @@ class MADynamicSR {
           fired: false,
           state: 'missing',
           pattern: confirmation.pattern,
-          multiplier: this.multipliers.confirmationMissing
+          multiplier: multipliers.confirmationMissing
         };
         this.diag.confirmationMissing++;
       }
@@ -885,7 +877,7 @@ class MADynamicSR {
           enabled: true,
           fired: true,
           state: 'aligned',
-          multiplier: this.multipliers.srAligned,
+          multiplier: multipliers.srAligned,
           level: srAlignment
         };
       } else if (srAlignment.aligned) {
@@ -893,7 +885,7 @@ class MADynamicSR {
           enabled: true,
           fired: true,
           state: 'wrong_side',
-          multiplier: this.multipliers.srWrongSide,
+          multiplier: multipliers.srWrongSide,
           level: srAlignment
         };
         this.diag.srWrongSide++;
@@ -902,7 +894,7 @@ class MADynamicSR {
           enabled: true,
           fired: false,
           state: 'missing',
-          multiplier: this.multipliers.srMissing,
+          multiplier: multipliers.srMissing,
           level: srAlignment
         };
         this.diag.srMissing++;
@@ -915,7 +907,7 @@ class MADynamicSR {
           enabled: true,
           fired: true,
           state: 'valid',
-          multiplier: this.multipliers.structuralValid,
+          multiplier: multipliers.structuralValid,
           structural
         };
         this.diag.structuralValid++;
@@ -924,7 +916,7 @@ class MADynamicSR {
           enabled: true,
           fired: true,
           state: structural.failure,
-          multiplier: this.multipliers.structuralInvalid,
+          multiplier: multipliers.structuralInvalid,
           structural
         };
         this.diag.structuralInvalid++;
@@ -936,15 +928,15 @@ class MADynamicSR {
     return profile;
   }
 
-  _structuralProfile(direction, price, ma20, atr) {
-    const atrBuffer = atr && atr > 0 ? atr * this.structural.atrBufferMultiplier : price * 0.01;
+  _structuralProfile(direction, price, ma20, atr, structuralConfig) {
+    const atrBuffer = atr && atr > 0 ? atr * structuralConfig.atrBufferMultiplier : price * 0.01;
     let stopLoss;
     let takeProfit;
     let risk;
     if (direction === 'buy') {
       stopLoss = ma20 - atrBuffer;
       risk = price - stopLoss;
-      takeProfit = price + (risk * this.structural.rewardRiskTarget);
+      takeProfit = price + (risk * structuralConfig.rewardRiskTarget);
       if (stopLoss >= price) {
         this.diag.slInvalid++;
         return { valid: false, failure: 'sl_invalid', stopLoss, takeProfit, risk };
@@ -955,11 +947,11 @@ class MADynamicSR {
       }
       const tpDistance = (takeProfit - price) / price;
       const actualRR = risk > 0 ? (takeProfit - price) / risk : 0;
-      if (actualRR < this.structural.minRewardRisk) {
+      if (actualRR < structuralConfig.minRewardRisk) {
         this.diag.rrTooLow++;
         return { valid: false, failure: 'rr_too_low', stopLoss, takeProfit, risk, actualRR, tpDistance };
       }
-      if (tpDistance < this.structural.minTakeProfitPct) {
+      if (tpDistance < structuralConfig.minTakeProfitPct) {
         this.diag.tpTooSmall++;
         return { valid: false, failure: 'tp_too_small', stopLoss, takeProfit, risk, actualRR, tpDistance };
       }
@@ -968,7 +960,7 @@ class MADynamicSR {
 
     stopLoss = ma20 + atrBuffer;
     risk = stopLoss - price;
-    takeProfit = price - (risk * this.structural.rewardRiskTarget);
+    takeProfit = price - (risk * structuralConfig.rewardRiskTarget);
     if (stopLoss <= price) {
       this.diag.slInvalid++;
       return { valid: false, failure: 'sl_invalid', stopLoss, takeProfit, risk };
@@ -979,11 +971,11 @@ class MADynamicSR {
     }
     const tpDistance = (price - takeProfit) / price;
     const actualRR = risk > 0 ? (price - takeProfit) / risk : 0;
-    if (actualRR < this.structural.minRewardRisk) {
+    if (actualRR < structuralConfig.minRewardRisk) {
       this.diag.rrTooLow++;
       return { valid: false, failure: 'rr_too_low', stopLoss, takeProfit, risk, actualRR, tpDistance };
     }
-    if (tpDistance < this.structural.minTakeProfitPct) {
+    if (tpDistance < structuralConfig.minTakeProfitPct) {
       this.diag.tpTooSmall++;
       return { valid: false, failure: 'tp_too_small', stopLoss, takeProfit, risk, actualRR, tpDistance };
     }
