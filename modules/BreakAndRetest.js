@@ -19,7 +19,7 @@
  *   8. PT1 = previous breakout high (1:1), scale 50%, let rest run
  *
  * INTEGRATION:
- *   const br = new BreakAndRetest();
+ *   const br = new BreakAndRetest(() => ConfigLoader.get('strategies.BreakRetest'));
  *   const signal = br.update(candle, priceHistory);
  *   // signal = { direction, confidence, reason, stopLoss, takeProfit, ... }
  *
@@ -46,70 +46,8 @@ function hasValidExitGeometry(direction, entry, stopLoss, takeProfit) {
 }
 
 class BreakAndRetest {
-  constructor(config) {
-    // ─── KEY LEVEL DETECTION ───
-    // How many candles back to find session highs/lows
-    this.sessionLookback = config.sessionLookback;
-
-    // S/R zone width — swings within this % are grouped as one level
-    this.srZonePct = config.srZonePct;
-
-    // Minimum times a level must be tested to be "key"
-    this.minLevelTests = config.minLevelTests;
-
-    // Swing detection lookback (bars on each side)
-    this.swingLookback = config.swingLookback;
-
-    // ─── BREAK DETECTION ───
-    // How far through the level price must close to confirm break (%)
-    this.breakConfirmPct = config.breakConfirmPct;
-
-    // Minimum candle body size relative to ATR to be a "breaker candle"
-    this.minBreakerBodyRatio = config.minBreakerBodyRatio;
-
-    // ─── RETEST / BATTLE ZONE ───
-    // How close price must return to the broken level (%)
-    this.retestZonePct = config.retestZonePct;
-
-    // Max candles to wait for retest after break
-    this.maxRetestWait = config.maxRetestWait;
-
-    // Min candles in battle zone before entry is valid
-    this.minBattleCandles = config.minBattleCandles;
-
-    // Max candles in battle zone before setup expires
-    this.maxBattleCandles = config.maxBattleCandles;
-
-    // ─── NO TRADE ZONE ───
-    // If upper and lower key levels are within this %, define NTZ
-    this.ntzMaxRangePct = config.ntzMaxRangePct;
-
-    // ─── RISK MANAGEMENT ───
-    // Reward to risk ratio for PT1
-    this.rewardRiskRatio = config.rewardRiskRatio;
-    this.minimumHistoryBars = config.minimumHistoryBars;
-    this.recentBufferExtraBars = config.recentBufferExtraBars;
-    this.atrPeriod = config.atrPeriod;
-    this.keyLevelRefreshBars = config.keyLevelRefreshBars;
-    this.minimumLevelHistoryBars = config.minimumLevelHistoryBars;
-    this.maxKeyLevels = config.maxKeyLevels;
-    this.wickProximityFraction = config.wickProximityFraction;
-    this.strongCandleAtrMultiplier = config.strongCandleAtrMultiplier;
-    this.minimumDefendingWicks = config.minimumDefendingWicks;
-    this.stopBufferAtrMultiplier = config.stopBufferAtrMultiplier;
-    this.secondaryTargetRiskMultiplier = config.secondaryTargetRiskMultiplier;
-    this.baseConfidence = config.baseConfidence;
-    this.wickConfidencePerCount = config.wickConfidencePerCount;
-    this.wickConfidenceMax = config.wickConfidenceMax;
-    this.engulfingConfidenceBoost = config.engulfingConfidenceBoost;
-    this.strongCandleConfidenceBoost = config.strongCandleConfidenceBoost;
-    this.battleConfidenceOffsetBars = config.battleConfidenceOffsetBars;
-    this.battleConfidencePerBar = config.battleConfidencePerBar;
-    this.battleConfidenceMax = config.battleConfidenceMax;
-    this.levelTestConfidencePerCount = config.levelTestConfidencePerCount;
-    this.levelTestConfidenceMax = config.levelTestConfidenceMax;
-    this.maxConfidence = config.maxConfidence;
-    this.invalidationThresholdMultiplier = config.invalidationThresholdMultiplier;
+  constructor(configProvider) {
+    this.configProvider = configProvider;
 
     // ─── INTERNAL STATE ───
     this.keyLevels = [];         // { price, type: 'high'|'low', tests, source }
@@ -138,7 +76,8 @@ class BreakAndRetest {
   observe(candle, priceHistory) { return this._update(candle, priceHistory, false); }
 
   _update(candle, priceHistory, emitEntries) {
-    if (!priceHistory || priceHistory.length < this.minimumHistoryBars) {
+    const config = this.configProvider();
+    if (!priceHistory || priceHistory.length < config.minimumHistoryBars) {
       return this._emptySignal();
     }
 
@@ -152,12 +91,12 @@ class BreakAndRetest {
 
     // Update recent candles buffer
     this.recentCandles.push(candle);
-    if (this.recentCandles.length > this.sessionLookback + this.recentBufferExtraBars) {
-      this.recentCandles = this.recentCandles.slice(-this.sessionLookback - this.recentBufferExtraBars);
+    if (this.recentCandles.length > config.sessionLookback + config.recentBufferExtraBars) {
+      this.recentCandles = this.recentCandles.slice(-config.sessionLookback - config.recentBufferExtraBars);
     }
 
     // Calculate ATR
-    this.atr = this._calcATR(priceHistory, this.atrPeriod);
+    this.atr = this._calcATR(priceHistory, config.atrPeriod);
     if (this.atr === 0) return this._emptySignal();
 
     // ─── PHASE 1: Update key levels ───
@@ -187,7 +126,7 @@ class BreakAndRetest {
       const battleCount = this.battleZone.candles.length;
 
       // Expire if too many candles without confirmation
-      if (battleCount > this.maxBattleCandles) {
+      if (battleCount > config.maxBattleCandles) {
         this._logSignal('BATTLE_EXPIRED', `Battle zone expired after ${battleCount} candles`);
         this._resetState();
         return this._emptySignal();
@@ -201,7 +140,7 @@ class BreakAndRetest {
       }
 
       // Need minimum candles before we look for entry
-      if (emitEntries && battleCount >= this.minBattleCandles) {
+      if (emitEntries && battleCount >= config.minBattleCandles) {
         signal = this._readBattleZone(candle, priceHistory);
       }
     }
@@ -209,7 +148,7 @@ class BreakAndRetest {
     // ─── PHASE 7: Expire stale breaks waiting for retest ───
     if (this.activeBreak && !this.battleZone) {
       const barsWaiting = this.barCount - this.activeBreak.breakBar;
-      if (barsWaiting > this.maxRetestWait) {
+      if (barsWaiting > config.maxRetestWait) {
         this._logSignal('RETEST_TIMEOUT', `No retest after ${barsWaiting} bars — break expired`);
         this._resetState();
       }
@@ -229,21 +168,22 @@ class BreakAndRetest {
   // ═══════════════════════════════════════════════════════════════
 
   _updateKeyLevels(priceHistory) {
-    if (this.barCount % this.keyLevelRefreshBars !== 0 && this.keyLevels.length > 0) return;
+    const config = this.configProvider();
+    if (this.barCount % config.keyLevelRefreshBars !== 0 && this.keyLevels.length > 0) return;
 
-    const candles = priceHistory.slice(-this.sessionLookback);
-    if (candles.length < this.minimumLevelHistoryBars) return;
+    const candles = priceHistory.slice(-config.sessionLookback);
+    if (candles.length < config.minimumLevelHistoryBars) return;
 
     // Find swing highs and lows
     const swings = [];
-    for (let i = this.swingLookback; i < candles.length - this.swingLookback; i++) {
+    for (let i = config.swingLookback; i < candles.length - config.swingLookback; i++) {
       const cHigh = h(candles[i]);
       const cLow = l(candles[i]);
 
       let isSwingHigh = true;
       let isSwingLow = true;
 
-      for (let j = 1; j <= this.swingLookback; j++) {
+      for (let j = 1; j <= config.swingLookback; j++) {
         if (h(candles[i - j]) >= cHigh || h(candles[i + j]) >= cHigh) isSwingHigh = false;
         if (l(candles[i - j]) <= cLow || l(candles[i + j]) <= cLow) isSwingLow = false;
       }
@@ -260,7 +200,7 @@ class BreakAndRetest {
       if (used.has(i)) continue;
 
       const zone = { price: swings[i].price, type: swings[i].type, tests: 1, bars: [swings[i].bar] };
-      const zoneTolerance = swings[i].price * (this.srZonePct / 100);
+      const zoneTolerance = swings[i].price * (config.srZonePct / 100);
 
       for (let j = i + 1; j < swings.length; j++) {
         if (used.has(j)) continue;
@@ -273,7 +213,7 @@ class BreakAndRetest {
       }
       used.add(i);
 
-      if (zone.tests >= this.minLevelTests) {
+      if (zone.tests >= config.minLevelTests) {
         levels.push(zone);
       }
     }
@@ -283,8 +223,8 @@ class BreakAndRetest {
     const sessionLow = Math.min(...candles.map(cd => l(cd)));
 
     // Check if session high/low already covered by a zone
-    const highCovered = levels.some(lv => Math.abs(lv.price - sessionHigh) / sessionHigh < this.srZonePct / 100);
-    const lowCovered = levels.some(lv => Math.abs(lv.price - sessionLow) / sessionLow < this.srZonePct / 100);
+    const highCovered = levels.some(lv => Math.abs(lv.price - sessionHigh) / sessionHigh < config.srZonePct / 100);
+    const lowCovered = levels.some(lv => Math.abs(lv.price - sessionLow) / sessionLow < config.srZonePct / 100);
 
     if (!highCovered) levels.push({ price: sessionHigh, type: 'high', tests: 1, source: 'session_high' });
     if (!lowCovered) levels.push({ price: sessionLow, type: 'low', tests: 1, source: 'session_low' });
@@ -293,7 +233,7 @@ class BreakAndRetest {
     const currentPrice = c(priceHistory[priceHistory.length - 1]);
     levels.sort((a, b) => Math.abs(a.price - currentPrice) - Math.abs(b.price - currentPrice));
 
-    this.keyLevels = levels.slice(0, this.maxKeyLevels);
+    this.keyLevels = levels.slice(0, config.maxKeyLevels);
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -301,6 +241,7 @@ class BreakAndRetest {
   // ═══════════════════════════════════════════════════════════════
 
   _updateNTZ(price) {
+    const config = this.configProvider();
     if (this.keyLevels.length < 2) {
       this.ntz = null;
       return;
@@ -321,7 +262,7 @@ class BreakAndRetest {
 
     if (upper && lower) {
       const rangePct = ((upper.price - lower.price) / lower.price) * 100;
-      if (rangePct <= this.ntzMaxRangePct) {
+      if (rangePct <= config.ntzMaxRangePct) {
         this.ntz = { upper: upper.price, lower: lower.price, rangePct };
       } else {
         this.ntz = null; // Range too wide to be NTZ
@@ -341,15 +282,16 @@ class BreakAndRetest {
   // ═══════════════════════════════════════════════════════════════
 
   _detectBreak(candle, priceHistory) {
+    const config = this.configProvider();
     const price = c(candle);
     const candleOpen = o(candle);
     const body = Math.abs(price - candleOpen);
 
     // Need a candle with decent body (not a doji)
-    if (body < this.atr * this.minBreakerBodyRatio) return;
+    if (body < this.atr * config.minBreakerBodyRatio) return;
 
     for (const level of this.keyLevels) {
-      const breakThreshold = level.price * (this.breakConfirmPct / 100);
+      const breakThreshold = level.price * (config.breakConfirmPct / 100);
 
       // BULLISH BREAK: price closes above a resistance level
       if (price > level.price + breakThreshold && candleOpen < level.price) {
@@ -387,11 +329,12 @@ class BreakAndRetest {
   // ═══════════════════════════════════════════════════════════════
 
   _detectRetest(candle) {
+    const config = this.configProvider();
     if (!this.activeBreak) return;
 
     const price = c(candle);
     const level = this.activeBreak.level;
-    const retestZone = level * (this.retestZonePct / 100);
+    const retestZone = level * (config.retestZonePct / 100);
 
     if (this.activeBreak.direction === 'bullish') {
       // For bullish: retest = price pulls back DOWN to the broken level
@@ -430,6 +373,7 @@ class BreakAndRetest {
   // ═══════════════════════════════════════════════════════════════
 
   _readBattleZone(candle, priceHistory) {
+    const config = this.configProvider();
     const bz = this.battleZone;
     if (!bz) return this._emptySignal();
 
@@ -451,20 +395,20 @@ class BreakAndRetest {
     if (bz.direction === 'bullish') {
       // Check for defending wicks: lows dip near/below level but close above
       const defendingWicks = bz.candles.filter(cd => {
-        return l(cd) <= bz.level * (1 + this.wickProximityFraction) && c(cd) > bz.level;
+        return l(cd) <= bz.level * (1 + config.wickProximityFraction) && c(cd) > bz.level;
       }).length;
 
       // Check for engulfing / strong bullish candle breaking flag
       const isEngulfing = this._isBullishEngulfing(candle, bz.candles);
-      const isStrongBullish = isBullishCandle && body > this.atr * this.strongCandleAtrMultiplier;
+      const isStrongBullish = isBullishCandle && body > this.atr * config.strongCandleAtrMultiplier;
       const breaksFlagHigh = price > bz.flagHigh && isBullishCandle;
 
       // ENTRY CONDITION: Defending wicks + bullish confirmation + flag break
-      if ((isEngulfing || isStrongBullish) && (breaksFlagHigh || defendingWicks >= this.minimumDefendingWicks)) {
-        const stopLoss = Math.min(bz.level, bz.flagLow) - (this.atr * this.stopBufferAtrMultiplier);
+      if ((isEngulfing || isStrongBullish) && (breaksFlagHigh || defendingWicks >= config.minimumDefendingWicks)) {
+        const stopLoss = Math.min(bz.level, bz.flagLow) - (this.atr * config.stopBufferAtrMultiplier);
         const risk = price - stopLoss;
-        const takeProfit = price + (risk * this.rewardRiskRatio);
-        const pt2 = bz.breakoutHigh || (price + risk * this.secondaryTargetRiskMultiplier);
+        const takeProfit = price + (risk * config.rewardRiskRatio);
+        const pt2 = bz.breakoutHigh || (price + risk * config.secondaryTargetRiskMultiplier);
         if (!hasValidExitGeometry('buy', price, stopLoss, takeProfit)) {
           this._logSignal('INVALID_EXIT_GEOMETRY', `Long setup produced invalid exits: entry=${price}, stop=${stopLoss}, target=${takeProfit}`);
           this._resetState();
@@ -472,18 +416,18 @@ class BreakAndRetest {
         }
 
         // Confidence based on quality
-        let confidence = this.baseConfidence;
-        confidence += Math.min(this.wickConfidenceMax, defendingWicks * this.wickConfidencePerCount);
-        confidence += isEngulfing ? this.engulfingConfidenceBoost : this.strongCandleConfidenceBoost;
+        let confidence = config.baseConfidence;
+        confidence += Math.min(config.wickConfidenceMax, defendingWicks * config.wickConfidencePerCount);
+        confidence += isEngulfing ? config.engulfingConfidenceBoost : config.strongCandleConfidenceBoost;
         confidence += Math.min(
-          this.battleConfidenceMax,
-          (bz.candles.length - this.battleConfidenceOffsetBars) * this.battleConfidencePerBar
+          config.battleConfidenceMax,
+          (bz.candles.length - config.battleConfidenceOffsetBars) * config.battleConfidencePerBar
         );
         confidence += Math.min(
-          this.levelTestConfidenceMax,
-          (this.activeBreak?.levelTests || 1) * this.levelTestConfidencePerCount
+          config.levelTestConfidenceMax,
+          (this.activeBreak?.levelTests || 1) * config.levelTestConfidencePerCount
         );
-        confidence = Math.min(this.maxConfidence, confidence);
+        confidence = Math.min(config.maxConfidence, confidence);
 
         const reason = `BREAK_RETEST LONG: Broke ${bz.level.toFixed(0)}, retested ${bz.candles.length} bars, ` +
           `${defendingWicks} defending wicks, ${isEngulfing ? 'engulfing' : 'strong_bullish'}, ` +
@@ -513,38 +457,38 @@ class BreakAndRetest {
     if (bz.direction === 'bearish') {
       // Check for rejection wicks: highs poke near/above level but close below
       const rejectionWicks = bz.candles.filter(cd => {
-        return h(cd) >= bz.level * (1 - this.wickProximityFraction) && c(cd) < bz.level;
+        return h(cd) >= bz.level * (1 - config.wickProximityFraction) && c(cd) < bz.level;
       }).length;
 
       // Check for engulfing / strong bearish candle breaking flag
       const isEngulfing = this._isBearishEngulfing(candle, bz.candles);
-      const isStrongBearish = isBearishCandle && body > this.atr * this.strongCandleAtrMultiplier;
+      const isStrongBearish = isBearishCandle && body > this.atr * config.strongCandleAtrMultiplier;
       const breaksFlagLow = price < bz.flagLow && isBearishCandle;
 
       // ENTRY CONDITION: Rejection wicks + bearish confirmation + flag break
-      if ((isEngulfing || isStrongBearish) && (breaksFlagLow || rejectionWicks >= this.minimumDefendingWicks)) {
-        const stopLoss = Math.max(bz.level, bz.flagHigh) + (this.atr * this.stopBufferAtrMultiplier);
+      if ((isEngulfing || isStrongBearish) && (breaksFlagLow || rejectionWicks >= config.minimumDefendingWicks)) {
+        const stopLoss = Math.max(bz.level, bz.flagHigh) + (this.atr * config.stopBufferAtrMultiplier);
         const risk = stopLoss - price;
-        const takeProfit = price - (risk * this.rewardRiskRatio);
-        const pt2 = bz.breakoutLow || (price - risk * this.secondaryTargetRiskMultiplier);
+        const takeProfit = price - (risk * config.rewardRiskRatio);
+        const pt2 = bz.breakoutLow || (price - risk * config.secondaryTargetRiskMultiplier);
         if (!hasValidExitGeometry('sell', price, stopLoss, takeProfit)) {
           this._logSignal('INVALID_EXIT_GEOMETRY', `Short setup produced invalid exits: entry=${price}, stop=${stopLoss}, target=${takeProfit}`);
           this._resetState();
           return this._emptySignal();
         }
 
-        let confidence = this.baseConfidence;
-        confidence += Math.min(this.wickConfidenceMax, rejectionWicks * this.wickConfidencePerCount);
-        confidence += isEngulfing ? this.engulfingConfidenceBoost : this.strongCandleConfidenceBoost;
+        let confidence = config.baseConfidence;
+        confidence += Math.min(config.wickConfidenceMax, rejectionWicks * config.wickConfidencePerCount);
+        confidence += isEngulfing ? config.engulfingConfidenceBoost : config.strongCandleConfidenceBoost;
         confidence += Math.min(
-          this.battleConfidenceMax,
-          (bz.candles.length - this.battleConfidenceOffsetBars) * this.battleConfidencePerBar
+          config.battleConfidenceMax,
+          (bz.candles.length - config.battleConfidenceOffsetBars) * config.battleConfidencePerBar
         );
         confidence += Math.min(
-          this.levelTestConfidenceMax,
-          (this.activeBreak?.levelTests || 1) * this.levelTestConfidencePerCount
+          config.levelTestConfidenceMax,
+          (this.activeBreak?.levelTests || 1) * config.levelTestConfidencePerCount
         );
-        confidence = Math.min(this.maxConfidence, confidence);
+        confidence = Math.min(config.maxConfidence, confidence);
 
         const reason = `BREAK_RETEST SHORT: Broke ${bz.level.toFixed(0)}, retested ${bz.candles.length} bars, ` +
           `${rejectionWicks} rejection wicks, ${isEngulfing ? 'engulfing' : 'strong_bearish'}, ` +
@@ -578,11 +522,12 @@ class BreakAndRetest {
   // ═══════════════════════════════════════════════════════════════
 
   _isInvalidated(candle) {
+    const config = this.configProvider();
     if (!this.battleZone) return false;
     const price = c(candle);
     const level = this.battleZone.level;
     const invalidateThreshold = level * (
-      this.breakConfirmPct * this.invalidationThresholdMultiplier / 100
+      config.breakConfirmPct * config.invalidationThresholdMultiplier / 100
     );
 
     if (this.battleZone.direction === 'bullish') {

@@ -856,8 +856,8 @@ class StrategyOrchestrator {
       verbose: ConfigLoader.get('observability.backtestVerbose') === true,
     };
     this.liquiditySweepModule = new LiquiditySweepDetector(this.liquiditySweepConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'));
-    this.breakAndRetestConfig = ConfigLoader.get('strategies.BreakRetest');
-    this.breakAndRetestModule = new BreakAndRetest(this.breakAndRetestConfig);
+    this.breakAndRetestConfigProvider = () => ConfigLoader.get('strategies.BreakRetest');
+    this.breakAndRetestModule = new BreakAndRetest(this.breakAndRetestConfigProvider);
     const NoWickImbalance = require('../modules/NoWickImbalance');
     const noWickConfig = ConfigLoader.get('strategies.NoWickImbalance');
     this.noWickModule = new NoWickImbalance(
@@ -1832,7 +1832,7 @@ class StrategyOrchestrator {
             'BreakRetest',
             ctx.extras?.symbol,
             breakAndRetestModule,
-            () => new BreakAndRetest(this.breakAndRetestConfig)
+            () => new BreakAndRetest(this.breakAndRetestConfigProvider)
           );
           if (ctx.entriesEnabled === false) {
             scopedBreakAndRetest.observe(latestCandle, candles);
@@ -1844,10 +1844,11 @@ class StrategyOrchestrator {
           if (conf < this.minStrategyConfidence) return null;
           const fib = ctx.extras?.nearestFibLevel;
           let fibBoost = '';
-          if (fib && fib.distance < this.breakAndRetestConfig.fibDistance) {
+          const breakAndRetestConfig = this.breakAndRetestConfigProvider();
+          if (fib && fib.distance < breakAndRetestConfig.fibDistance) {
             const boost = fib.isGoldenZone
-              ? this.breakAndRetestConfig.fibBoostGolden
-              : this.breakAndRetestConfig.fibBoostNormal;
+              ? breakAndRetestConfig.fibBoostGolden
+              : breakAndRetestConfig.fibBoostNormal;
             conf = Math.min(1.0, conf + boost);
             fibBoost = ` @ Fib ${(fib.level * 100).toFixed(1)}%${fib.isGoldenZone ? ' GOLDEN' : ''}`;
           }

@@ -107,7 +107,7 @@ const maDynamicSR = new MADynamicSR({ emaPeriod: 20, trendEmaPeriod: 50 });
 const liquiditySweep = new LiquiditySweepDetector(
   ConfigLoader.get('strategies.LiquiditySweep')
 );
-const breakAndRetest = new BreakAndRetest();
+const breakAndRetest = new BreakAndRetest(() => ConfigLoader.get('strategies.BreakRetest'));
 const mtfAdapter = new MultiTimeframeAdapter();
 const volumeProfile = new VolumeProfile(() => ConfigLoader.get('strategies.VolumeProfile'));
 
