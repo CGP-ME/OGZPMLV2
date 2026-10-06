@@ -2726,6 +2726,23 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'weight', min: 0, max: Number.MAX_VALUE,
     label, effect: 'next_signal_calculation',
   }])),
+  ...Object.fromEntries(Object.entries({
+    atrMultiplier: { unit: 'ATR multiples', min: 0, exclusiveMin: true, label: 'Liquidity sweep ATR manipulation multiplier', effect: 'next_opening_range_qualification' },
+    atrPeriod: { integer: true, max: Number.MAX_SAFE_INTEGER, unit: 'daily candles', min: 0, exclusiveMin: true, label: 'Liquidity sweep daily ATR period', effect: 'next_daily_close_ATR_calculation' },
+    entryWindowMinutes: { unit: 'minutes', min: 0, exclusiveMin: true, label: 'Liquidity sweep entry window', effect: 'next_observation_entry_window_evaluation' },
+    openingRangeMinutes: { unit: 'minutes', min: 0, exclusiveMin: true, label: 'Liquidity sweep opening range', effect: 'next_opening_range_aggregation' },
+    hammerBodyMaxPct: { unit: 'fraction', min: 0, label: 'Liquidity sweep hammer maximum body', effect: 'next_reversal_pattern_evaluation' },
+    hammerWickMinRatio: { unit: 'ratio', min: 0, label: 'Liquidity sweep hammer minimum wick ratio', effect: 'next_reversal_pattern_evaluation' },
+    engulfMinRatio: { unit: 'ratio', min: 0, label: 'Liquidity sweep engulfing minimum ratio', effect: 'next_reversal_pattern_evaluation' },
+    stopBufferPct: { unit: 'percent', min: 0, label: 'Liquidity sweep structural stop buffer', effect: 'next_new_signal_geometry' },
+    sweepMinExtensionPct: { unit: 'percent', min: 0, label: 'Liquidity sweep minimum sweep extension', effect: 'next_opening_sweep_qualification' },
+    sweepExtensionBandMult: { unit: 'multiplier', min: 0, exclusiveMin: true, label: 'Liquidity sweep sweep-extension band', effect: 'next_opening_sweep_qualification' },
+    sweepLookbackBars: { integer: true, max: Number.MAX_SAFE_INTEGER, unit: 'daily candles', min: 0, exclusiveMin: true, label: 'Liquidity sweep retained sweep history', effect: 'next_daily_close_sweep_history_trim' },
+    sessionOpenHour: { integer: true, max: 23, unit: 'UTC hour', min: 0, label: 'Liquidity sweep session-open hour', effect: 'next_UTC_session_open_observation' },
+    sessionOpenMinute: { integer: true, max: 59, unit: 'UTC minute', min: 0, label: 'Liquidity sweep session-open minute', effect: 'next_UTC_session_open_observation' },
+  }).map(([key, definition]) => [`strategies.LiquiditySweep.${key}`, {
+    type: 'number', max: Number.MAX_VALUE, ...definition,
+  }])),
   ...Object.fromEntries([
     ['baseConfidence', 'EMA crossover base confidence'],
     ['confluenceWeight', 'EMA crossover confluence confidence weight'],

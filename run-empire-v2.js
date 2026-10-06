@@ -803,11 +803,11 @@ class OGZPrimeV14Bot {
       });
     }
 
-    const liqConfig = {
+    const liqConfigProvider = () => ({
       ...ConfigLoader.get('strategies.LiquiditySweep'),
       verbose: resolvedConfig.config.internals.observability.backtestVerbose === true,
-    };
-    this.liquiditySweep = new LiquiditySweepDetector(liqConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'));
+    });
+    this.liquiditySweep = new LiquiditySweepDetector(liqConfigProvider(), liqConfigProvider);
 
     // CHANGE 2026-02-23: Volume Profile (Fabio Valentino / Auction Market Theory)
     // Filters out trend strategies when market is BALANCED (inside value area = chop)

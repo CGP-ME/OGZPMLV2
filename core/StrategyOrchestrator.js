@@ -851,11 +851,11 @@ class StrategyOrchestrator {
       ConfigLoader.get('strategies.MADynamicSR'),
       () => ConfigLoader.get('strategies.MADynamicSR')
     );
-    this.liquiditySweepConfig = {
+    this.liquiditySweepConfigProvider = () => ({
       ...ConfigLoader.get('strategies.LiquiditySweep'),
       verbose: ConfigLoader.get('observability.backtestVerbose') === true,
-    };
-    this.liquiditySweepModule = new LiquiditySweepDetector(this.liquiditySweepConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'));
+    });
+    this.liquiditySweepModule = new LiquiditySweepDetector(this.liquiditySweepConfigProvider(), this.liquiditySweepConfigProvider);
     this.breakAndRetestConfigProvider = () => ConfigLoader.get('strategies.BreakRetest');
     this.breakAndRetestModule = new BreakAndRetest(this.breakAndRetestConfigProvider);
     const NoWickImbalance = require('../modules/NoWickImbalance');
@@ -1777,7 +1777,7 @@ class StrategyOrchestrator {
           'LiquiditySweep',
           ctx.extras?.symbol,
           liquiditySweepModule,
-          () => new LiquiditySweepDetector(this.liquiditySweepConfig, () => ConfigLoader.get('strategies.LiquiditySweep.weights'))
+          () => new LiquiditySweepDetector(this.liquiditySweepConfigProvider(), this.liquiditySweepConfigProvider)
         );
         if (ctx.entriesEnabled === false) {
           scopedLiquiditySweep.observe(latestCandle);

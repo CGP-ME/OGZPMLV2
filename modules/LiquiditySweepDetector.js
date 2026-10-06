@@ -59,37 +59,41 @@ function buildKnownEntryOverrideLevels(direction, entry, stopLoss, takeProfit) {
   return null;
 }
 
+function buildDetectorConfig(config) {
+  const weightConfig = config.weights;
+  const weights = Object.freeze({
+    manipCandle: requiredConfigNumber(weightConfig, 'manipCandle'),
+    wickSweep: requiredConfigNumber(weightConfig, 'wickSweep'),
+    sweepReject: requiredConfigNumber(weightConfig, 'sweepReject'),
+    hammerPattern: requiredConfigNumber(weightConfig, 'hammerPattern'),
+    engulfPattern: requiredConfigNumber(weightConfig, 'engulfPattern'),
+  });
+
+  return Object.freeze({
+    atrMultiplier: positiveConfigNumber(config, 'atrMultiplier'),
+    atrPeriod: requiredConfigNumber(config, 'atrPeriod', { min: 0, exclusiveMin: true }),
+    entryWindowMinutes: requiredConfigNumber(config, 'entryWindowMinutes', { min: 0, exclusiveMin: true }),
+    openingRangeMinutes: requiredConfigNumber(config, 'openingRangeMinutes', { min: 0, exclusiveMin: true }),
+    hammerBodyMaxPct: requiredConfigNumber(config, 'hammerBodyMaxPct'),
+    hammerWickMinRatio: requiredConfigNumber(config, 'hammerWickMinRatio'),
+    engulfMinRatio: requiredConfigNumber(config, 'engulfMinRatio'),
+    stopBufferPct: requiredConfigNumber(config, 'stopBufferPct'),
+    sweepMinExtensionPct: requiredConfigNumber(config, 'sweepMinExtensionPct'),
+    sweepExtensionBandMult: requiredConfigNumber(config, 'sweepExtensionBandMult', { min: 0, exclusiveMin: true }),
+    sweepLookbackBars: requiredConfigNumber(config, 'sweepLookbackBars', { min: 0, exclusiveMin: true }),
+    weights,
+    sessionOpenHour: requiredConfigNumber(config, 'sessionOpenHour'),
+    sessionOpenMinute: requiredConfigNumber(config, 'sessionOpenMinute'),
+    verbose: config.verbose === true,
+  });
+}
+
 class LiquiditySweepDetector {
   #dailyATR = null;
 
-  constructor(config, confidenceWeightsProvider = null) {
-    const weightConfig = config.weights;
-    const weights = Object.freeze({
-      manipCandle: requiredConfigNumber(weightConfig, 'manipCandle'),
-      wickSweep: requiredConfigNumber(weightConfig, 'wickSweep'),
-      sweepReject: requiredConfigNumber(weightConfig, 'sweepReject'),
-      hammerPattern: requiredConfigNumber(weightConfig, 'hammerPattern'),
-      engulfPattern: requiredConfigNumber(weightConfig, 'engulfPattern'),
-    });
-
-    this.config = Object.freeze({
-      atrMultiplier: positiveConfigNumber(config, 'atrMultiplier'),
-      atrPeriod: requiredConfigNumber(config, 'atrPeriod', { min: 0, exclusiveMin: true }),
-      entryWindowMinutes: requiredConfigNumber(config, 'entryWindowMinutes', { min: 0, exclusiveMin: true }),
-      openingRangeMinutes: requiredConfigNumber(config, 'openingRangeMinutes', { min: 0, exclusiveMin: true }),
-      hammerBodyMaxPct: requiredConfigNumber(config, 'hammerBodyMaxPct'),
-      hammerWickMinRatio: requiredConfigNumber(config, 'hammerWickMinRatio'),
-      engulfMinRatio: requiredConfigNumber(config, 'engulfMinRatio'),
-      stopBufferPct: requiredConfigNumber(config, 'stopBufferPct'),
-      sweepMinExtensionPct: requiredConfigNumber(config, 'sweepMinExtensionPct'),
-      sweepExtensionBandMult: requiredConfigNumber(config, 'sweepExtensionBandMult', { min: 0, exclusiveMin: true }),
-      sweepLookbackBars: requiredConfigNumber(config, 'sweepLookbackBars', { min: 0, exclusiveMin: true }),
-      weights,
-      sessionOpenHour: requiredConfigNumber(config, 'sessionOpenHour'),
-      sessionOpenMinute: requiredConfigNumber(config, 'sessionOpenMinute'),
-      verbose: config.verbose === true,
-    });
-    this.confidenceWeightsProvider = confidenceWeightsProvider;
+  constructor(config, configProvider = null) {
+    this.config = buildDetectorConfig(config);
+    this.configProvider = configProvider;
 
     this._candleIntervalMs = null;
     this._candleIntervalMin = null;
@@ -191,7 +195,23 @@ class LiquiditySweepDetector {
 
   observe(candle) { this._feedCandle(candle, false); }
 
+  _refreshConfig() {
+    if (!this.configProvider) return;
+
+    this.config = buildDetectorConfig(this.configProvider());
+    if (this._candleIntervalMin) {
+      this._entryWindowBars = Math.max(1, Math.round(this.config.entryWindowMinutes / this._candleIntervalMin));
+      this._openingRangeBars = Math.max(1, Math.round(this.config.openingRangeMinutes / this._candleIntervalMin));
+    }
+    if (Number.isFinite(this.#dailyATR) && this.#dailyATR > 0) {
+      this.state.manipThreshold = this.config.atrMultiplier * this.#dailyATR;
+    }
+  }
+
   _feedCandle(candle, emitEntries) {
+    // This preserves session and signal state. ATR/history retention is resolved
+    // at the next daily close by the existing finalize path.
+    this._refreshConfig();
     if (!candle || c(candle) == null) return this._emptySignal();
     this._detectInterval(candle);
 
@@ -426,16 +446,6 @@ class LiquiditySweepDetector {
   }
 
   _generateSignal(pattern, signalCandle, prevCandle) {
-    // Refresh only when calculating a new signal. A previously materialized
-    // signal keeps its original confidence until consumed.
-    if (this.confidenceWeightsProvider) {
-      const configuredWeights = this.confidenceWeightsProvider();
-      const weights = Object.fromEntries(Object.keys(this.config.weights)
-        .map(key => [key, Number(configuredWeights[key])]));
-      if (Object.keys(weights).some(key => weights[key] !== this.config.weights[key])) {
-        this.config = Object.freeze({ ...this.config, weights: Object.freeze(weights) });
-      }
-    }
     const box = this.state.box;
     const bufUp = 1 + (this.config.stopBufferPct / 100);
     const bufDn = 1 - (this.config.stopBufferPct / 100);
