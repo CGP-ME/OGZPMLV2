@@ -3783,6 +3783,15 @@ const EDITABLE_SETTINGS = deepFreeze({
   'strategies.EMATrendRetest.requireRth': {
     type: 'boolean', unit: 'boolean', label: 'Require EMA retest regular trading hours', effect: 'next_entry_evaluation',
   },
+  'strategies.EMATrendRetest.rthStartET': {
+    type: 'string', unit: 'HH:mm', label: 'EMA retest session start', effect: 'next_entry_evaluation',
+  },
+  'strategies.EMATrendRetest.rthEndET': {
+    type: 'string', unit: 'HH:mm', label: 'EMA retest session end', effect: 'next_entry_evaluation',
+  },
+  'strategies.EMATrendRetest.sessionTimeZone': {
+    type: 'string', unit: 'IANA time zone', label: 'EMA retest session time zone', effect: 'next_entry_evaluation',
+  },
   'strategies.EMATrendRetest.allowShorts': {
     type: 'boolean', unit: 'boolean', label: 'Allow EMA retest short signals', effect: 'next_entry_evaluation',
   },
@@ -3903,6 +3912,20 @@ function saveSettings(request) {
   if (entries.some(([key]) => key.startsWith('strategies.EMATrendRetest.'))
       && nextConfig.strategies.EMATrendRetest.maxExtensionAtr <= nextConfig.strategies.EMATrendRetest.closeAwayAtr) {
     return reject('ema_retest_extension_must_exceed_confirmation');
+  }
+  for (const [key, value] of entries) {
+    if ((key === 'strategies.EMATrendRetest.rthStartET' || key === 'strategies.EMATrendRetest.rthEndET')
+        && !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value)) {
+      return reject(key.endsWith('rthStartET') ? 'ema_retest_rth_start_must_use_hh_mm' : 'ema_retest_rth_end_must_use_hh_mm', { path: key });
+    }
+    if (key === 'strategies.EMATrendRetest.sessionTimeZone') {
+      if (value.trim() === '') return reject('ema_retest_session_time_zone_must_be_iana', { path: key });
+      try {
+        new Intl.DateTimeFormat('en-US', { timeZone: value }).format(new Date(Date.UTC(2026, 0, 1)));
+      } catch (error) {
+        return reject('ema_retest_session_time_zone_must_be_iana', { path: key });
+      }
+    }
   }
   if (entries.some(([key]) => key.startsWith('strategies.EMASMACrossover.'))
       && Number(nextConfig.strategies.EMASMACrossover.maxConfidence) < Number(nextConfig.strategies.EMASMACrossover.baseConfidence)) {
