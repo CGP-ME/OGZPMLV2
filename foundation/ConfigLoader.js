@@ -2784,6 +2784,134 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'fraction', min: 0, exclusiveMin: true, max: 0.25,
     label: 'Maximum position size', effect: 'next_entry_decision',
   },
+  'strategies.MADynamicSR.confluenceBoost.enabled': {
+    type: 'boolean', unit: 'boolean',
+    label: 'MADynamicSR MTF confluence contribution', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.MADynamicSR.confluenceBoost.weight': {
+    type: 'number', unit: 'weight', min: 0, max: Number.MAX_VALUE,
+    label: 'MADynamicSR MTF confluence weight', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.EMASMACrossover.confluenceBoost.enabled': {
+    type: 'boolean', unit: 'boolean',
+    label: 'EMASMACrossover MTF confluence contribution', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.EMASMACrossover.confluenceBoost.weight': {
+    type: 'number', unit: 'weight', min: 0, max: Number.MAX_VALUE,
+    label: 'EMASMACrossover MTF confluence weight', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.LiquiditySweep.confluenceBoost.enabled': {
+    type: 'boolean', unit: 'boolean',
+    label: 'LiquiditySweep MTF confluence contribution', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.LiquiditySweep.confluenceBoost.weight': {
+    type: 'number', unit: 'weight', min: 0, max: Number.MAX_VALUE,
+    label: 'LiquiditySweep MTF confluence weight', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.RSI.confluenceBoost.enabled': {
+    type: 'boolean', unit: 'boolean',
+    label: 'RSI MTF confluence contribution', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.RSI.confluenceBoost.weight': {
+    type: 'number', unit: 'weight', min: 0, max: Number.MAX_VALUE,
+    label: 'RSI MTF confluence weight', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.BreakRetest.confluenceBoost.enabled': {
+    type: 'boolean', unit: 'boolean',
+    label: 'BreakRetest MTF confluence contribution', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.BreakRetest.confluenceBoost.weight': {
+    type: 'number', unit: 'weight', min: 0, max: Number.MAX_VALUE,
+    label: 'BreakRetest MTF confluence weight', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.CandlePattern.confluenceBoost.enabled': {
+    type: 'boolean', unit: 'boolean',
+    label: 'CandlePattern MTF confluence contribution', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.CandlePattern.confluenceBoost.weight': {
+    type: 'number', unit: 'weight', min: 0, max: Number.MAX_VALUE,
+    label: 'CandlePattern MTF confluence weight', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.MarketRegime.confluenceBoost.enabled': {
+    type: 'boolean', unit: 'boolean',
+    label: 'MarketRegime MTF confluence contribution', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.MarketRegime.confluenceBoost.weight': {
+    type: 'number', unit: 'weight', min: 0, max: Number.MAX_VALUE,
+    label: 'MarketRegime MTF confluence weight', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.SmartMoneySweep.confluenceBoost.enabled': {
+    type: 'boolean', unit: 'boolean',
+    label: 'SmartMoneySweep MTF confluence contribution', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.SmartMoneySweep.confluenceBoost.weight': {
+    type: 'number', unit: 'weight', min: 0, max: Number.MAX_VALUE,
+    label: 'SmartMoneySweep MTF confluence weight', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.OpeningRangeBreakout.confluenceBoost.enabled': {
+    type: 'boolean', unit: 'boolean',
+    label: 'OpeningRangeBreakout MTF confluence contribution', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.OpeningRangeBreakout.confluenceBoost.weight': {
+    type: 'number', unit: 'weight', min: 0, max: Number.MAX_VALUE,
+    label: 'OpeningRangeBreakout MTF confluence weight', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.DonchianBreakout.confluenceBoost.enabled': {
+    type: 'boolean', unit: 'boolean',
+    label: 'DonchianBreakout MTF confluence contribution', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.DonchianBreakout.confluenceBoost.weight': {
+    type: 'number', unit: 'weight', min: 0, max: Number.MAX_VALUE,
+    label: 'DonchianBreakout MTF confluence weight', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.OGZTPO.confluenceBoost.enabled': {
+    type: 'boolean', unit: 'boolean',
+    label: 'OGZTPO MTF confluence contribution', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.OGZTPO.confluenceBoost.weight': {
+    type: 'number', unit: 'weight', min: 0, max: Number.MAX_VALUE,
+    label: 'OGZTPO MTF confluence weight', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.NoWickImbalance.confluenceBoost.enabled': {
+    type: 'boolean', unit: 'boolean',
+    label: 'NoWickImbalance MTF confluence contribution', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.NoWickImbalance.confluenceBoost.weight': {
+    type: 'number', unit: 'weight', min: 0, max: Number.MAX_VALUE,
+    label: 'NoWickImbalance MTF confluence weight', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.PropSafeEMAPullback.confluenceBoost.enabled': {
+    type: 'boolean', unit: 'boolean',
+    label: 'PropSafeEMAPullback MTF confluence contribution', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.PropSafeEMAPullback.confluenceBoost.weight': {
+    type: 'number', unit: 'weight', min: 0, max: Number.MAX_VALUE,
+    label: 'PropSafeEMAPullback MTF confluence weight', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.EMATrendRetest.confluenceBoost.enabled': {
+    type: 'boolean', unit: 'boolean',
+    label: 'EMATrendRetest MTF confluence contribution', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.EMATrendRetest.confluenceBoost.weight': {
+    type: 'number', unit: 'weight', min: 0, max: Number.MAX_VALUE,
+    label: 'EMATrendRetest MTF confluence weight', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.RSI2MeanReversion.confluenceBoost.enabled': {
+    type: 'boolean', unit: 'boolean',
+    label: 'RSI2MeanReversion MTF confluence contribution', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.RSI2MeanReversion.confluenceBoost.weight': {
+    type: 'number', unit: 'weight', min: 0, max: Number.MAX_VALUE,
+    label: 'RSI2MeanReversion MTF confluence weight', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.TimeSeriesMomentum.confluenceBoost.enabled': {
+    type: 'boolean', unit: 'boolean',
+    label: 'TimeSeriesMomentum MTF confluence contribution', effect: 'next_entry_evaluation_ranking',
+  },
+  'strategies.TimeSeriesMomentum.confluenceBoost.weight': {
+    type: 'number', unit: 'weight', min: 0, max: Number.MAX_VALUE,
+    label: 'TimeSeriesMomentum MTF confluence weight', effect: 'next_entry_evaluation_ranking',
+  },
   'fees.slippage': {
     type: 'number', unit: 'fraction', min: 0, max: 1, exclusiveMax: true,
     label: 'Simulated fill slippage', effect: 'next_simulated_fill',
