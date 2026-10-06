@@ -1,3 +1,7 @@
+## 2026-10-06 — Record position-count and aggregate-exposure migration holds
+
+Added two concrete findings to ogz-meta/inbox/codex/2026-10-06/config-migration-followups.md. The prepared maxPositions descriptor mislabeled a per-symbol count as generic open positions and attributed a range to committed validation that exists only in dirty code. Root checked the exact committed loader and TradingLoop consumer and held that candidate. The related maxTotalExposure implementation is dirty-only and remains preserved for its owner. These findings require scope/intent reconciliation, not a new runtime guard or automatic retirement. Documentation-only change; no config value, runtime behavior, test, process or deployment changed. Review consists of exact-source comparison and preserving the candidate/evidence; no Mercury production review is applicable.
+
 ## 2026-10-06 — Expose the canonical dynamic-confidence-sizing switch
 
 Problem/change: features.enableDynamicSizing already controls the executor's confidence multiplier through a direct read on every entry, but lacked an editable settings descriptor. Add that existing boolean to the current save/UI surface. No executor code, prototype positionSizing.dynamicSizing alias, second setting, new gate, throw, default, fallback or Jest test was added.
