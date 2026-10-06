@@ -11,7 +11,7 @@
  *   No external indicator dependencies except ATR for TP calculation.
  *
  * INTEGRATION:
- *   const sms = new SmartMoneySweep(config);
+ *   const sms = new SmartMoneySweep(() => config);
  *   const signal = sms.update(candle, priceHistory);
  *   // signal = { direction, confidence, reason, conditionsMet, overrideLevels, ... } or null
  *
@@ -44,7 +44,30 @@ function requireFiniteConfig(config, key) {
 }
 
 class SmartMoneySweep {
-  constructor(config) {
+  constructor(configProvider) {
+    this.configProvider = configProvider;
+    this._applyConfig(this.configProvider());
+
+    // ─── Internal State ───
+    this.ivbHigh = null;
+    this.ivbLow = null;
+    this.ivbLocked = false;
+    this.ivbBarCount = 0;
+    this.ivbDirection = 0;  // 0=none, 1=long, -1=short
+    this.sessionDay = '';
+
+    this.cvd = 0;
+    this.dailyLosses = 0;
+
+    this.lastLongSweepBar = -1;
+    this.lastShortSweepBar = -1;
+
+    // Candle index counter (since we don't have bar_index)
+    this.barIndex = 0;
+
+  }
+
+  _applyConfig(config) {
     // ─── Volume Profile Config ───
     this.vpDays = requireFiniteConfig(config, 'vpDays');
     this.vpBins = requireFiniteConfig(config, 'vpBins');
@@ -91,23 +114,6 @@ class SmartMoneySweep {
     this.validSessionEndHour = requireFiniteConfig(config, 'validSessionEndHour');
     this.validSessionEndMin = requireFiniteConfig(config, 'validSessionEndMinute');
 
-    // ─── Internal State ───
-    this.ivbHigh = null;
-    this.ivbLow = null;
-    this.ivbLocked = false;
-    this.ivbBarCount = 0;
-    this.ivbDirection = 0;  // 0=none, 1=long, -1=short
-    this.sessionDay = '';
-
-    this.cvd = 0;
-    this.dailyLosses = 0;
-
-    this.lastLongSweepBar = -1;
-    this.lastShortSweepBar = -1;
-
-    // Candle index counter (since we don't have bar_index)
-    this.barIndex = 0;
-
     // ─── Debug Mode ───
     this.DEBUG = config.debug === true;
 
@@ -145,6 +151,7 @@ class SmartMoneySweep {
   observe(candle, priceHistory) { return this._update(candle, priceHistory, false); }
 
   _update(candle, priceHistory, emitEntries) {
+    this._applyConfig(this.configProvider());
     if (!priceHistory || priceHistory.length < 30) return null;
     this.barIndex = priceHistory.length - 1;
 

@@ -137,7 +137,7 @@ describe('exit geometry producer contracts', () => {
   });
 
   test('SmartMoneySweep refuses invalid current price before emitting override levels', () => {
-    const sms = new SmartMoneySweep(smartMoneyConfig());
+    const sms = new SmartMoneySweep(() => smartMoneyConfig());
     const candles = [
       { o: 100, h: 101, l: 99, c: 100, v: 1000, t: 1 },
       { o: 101, h: 102, l: 100, c: 101, v: 1000, t: 2 },

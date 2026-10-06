@@ -3001,6 +3001,126 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'weight', min: 0, max: Number.MAX_VALUE,
     label: 'SmartMoneySweep MTF confluence weight', effect: 'next_entry_evaluation_ranking',
   },
+  'strategies.SmartMoneySweep.vpDays': {
+    type: "number", unit: "days", min: 1, max: 9007199254740991, integer: true, label: "Smart money sweep: Volume-profile lookback days", effect: "next_SmartMoneySweep_observation_and_entry_evaluation",
+  },
+  'strategies.SmartMoneySweep.ivbMinutes': {
+    type: "number", unit: "minutes", min: 1, max: 9007199254740991, integer: true, label: "Smart money sweep: Initial balance window", effect: "next_SmartMoneySweep_observation_and_entry_evaluation",
+  },
+  'strategies.SmartMoneySweep.volAvgLen': {
+    type: "number", unit: "candles", min: 1, max: 9007199254740991, integer: true, label: "Smart money sweep: Volume average period", effect: "next_SmartMoneySweep_observation_and_entry_evaluation",
+  },
+  'strategies.SmartMoneySweep.cvdDivLen': {
+    type: "number", unit: "candles", min: 1, max: 9007199254740991, integer: true, label: "Smart money sweep: Volume-delta divergence lookback", effect: "next_SmartMoneySweep_observation_and_entry_evaluation",
+  },
+  'strategies.SmartMoneySweep.atrLen': {
+    type: "number", unit: "candles", min: 1, max: 9007199254740991, integer: true, label: "Smart money sweep: ATR period", effect: "next_SmartMoneySweep_observation_and_entry_evaluation",
+  },
+  'strategies.SmartMoneySweep.maxDailyLosses': {
+    type: "number", unit: "losses", min: 0, max: 9007199254740991, integer: true, label: "Smart money sweep: Daily losing-trade limit", effect: "next_SmartMoneySweep_observation_and_entry_evaluation",
+  },
+  'strategies.SmartMoneySweep.vpLookbackBars': {
+    type: "number", unit: "candles", min: 0, max: 9007199254740991, integer: true, label: "Smart money sweep: Volume-profile candle lookback (0 uses days)", effect: "next_SmartMoneySweep_observation_and_entry_evaluation",
+  },
+  'strategies.SmartMoneySweep.minConditionsGate': {
+    type: "number", unit: "conditions", min: 0, max: 9007199254740991, integer: true, label: "Smart money sweep: Minimum satisfied entry conditions", effect: "next_SmartMoneySweep_observation_and_entry_evaluation",
+  },
+  'strategies.SmartMoneySweep.breakHigh': {
+    type: "number", unit: "conditions", min: 0, max: 9007199254740991, integer: true, label: "Smart money sweep: High-confidence condition count", effect: "next_SmartMoneySweep_observation_and_entry_evaluation",
+  },
+  'strategies.SmartMoneySweep.breakMid': {
+    type: "number", unit: "conditions", min: 0, max: 9007199254740991, integer: true, label: "Smart money sweep: Mid-confidence condition count", effect: "next_SmartMoneySweep_observation_and_entry_evaluation",
+  },
+  'strategies.SmartMoneySweep.cashSessionStartHour': {
+    type: "number", unit: "hour", min: 0, max: 23, integer: true, label: "Smart money sweep: Cash-session start hour (Eastern)", effect: "next_SmartMoneySweep_session_evaluation",
+  },
+  'strategies.SmartMoneySweep.cashSessionEndHour': {
+    type: "number", unit: "hour", min: 0, max: 23, integer: true, label: "Smart money sweep: Cash-session end hour (Eastern)", effect: "next_SmartMoneySweep_session_evaluation",
+  },
+  'strategies.SmartMoneySweep.validSessionStartHour': {
+    type: "number", unit: "hour", min: 0, max: 23, integer: true, label: "Smart money sweep: Entry-session start hour (Eastern)", effect: "next_SmartMoneySweep_session_evaluation",
+  },
+  'strategies.SmartMoneySweep.validSessionEndHour': {
+    type: "number", unit: "hour", min: 0, max: 23, integer: true, label: "Smart money sweep: Entry-session end hour (Eastern)", effect: "next_SmartMoneySweep_session_evaluation",
+  },
+  'strategies.SmartMoneySweep.cashSessionStartMinute': {
+    type: "number", unit: "minute", min: 0, max: 59, integer: true, label: "Smart money sweep: Cash-session start minute", effect: "next_SmartMoneySweep_session_evaluation",
+  },
+  'strategies.SmartMoneySweep.cashSessionEndMinute': {
+    type: "number", unit: "minute", min: 0, max: 59, integer: true, label: "Smart money sweep: Cash-session end minute", effect: "next_SmartMoneySweep_session_evaluation",
+  },
+  'strategies.SmartMoneySweep.validSessionStartMinute': {
+    type: "number", unit: "minute", min: 0, max: 59, integer: true, label: "Smart money sweep: Entry-session start minute", effect: "next_SmartMoneySweep_session_evaluation",
+  },
+  'strategies.SmartMoneySweep.validSessionEndMinute': {
+    type: "number", unit: "minute", min: 0, max: 59, integer: true, label: "Smart money sweep: Entry-session end minute", effect: "next_SmartMoneySweep_session_evaluation",
+  },
+  'strategies.SmartMoneySweep.valueAreaPct': {
+    type: "number", unit: "percent", min: 0, max: 100, label: "Smart money sweep: Volume-profile value area", effect: "next_SmartMoneySweep_observation_and_entry_evaluation",
+  },
+  'strategies.SmartMoneySweep.bodyWeightPct': {
+    type: "number", unit: "percent", min: 0, max: 100, label: "Smart money sweep: Candle-body volume share", effect: "next_SmartMoneySweep_observation_and_entry_evaluation",
+  },
+  'strategies.SmartMoneySweep.lvnPctile': {
+    type: "number", unit: "percent", min: 0, max: 100, label: "Smart money sweep: Low-volume node percentile", effect: "next_SmartMoneySweep_observation_and_entry_evaluation",
+  },
+  'strategies.SmartMoneySweep.absorbBodyPct': {
+    type: "number", unit: "percent", min: 0, max: 100, label: "Smart money sweep: Absorption maximum body share", effect: "next_SmartMoneySweep_observation_and_entry_evaluation",
+  },
+  'strategies.SmartMoneySweep.absorbWickPct': {
+    type: "number", unit: "percent", min: 0, max: 100, label: "Smart money sweep: Absorption minimum wick share", effect: "next_SmartMoneySweep_observation_and_entry_evaluation",
+  },
+  'strategies.SmartMoneySweep.initBodyPct': {
+    type: "number", unit: "percent", min: 0, max: 100, label: "Smart money sweep: Initiative minimum body share", effect: "next_SmartMoneySweep_observation_and_entry_evaluation",
+  },
+  'strategies.SmartMoneySweep.absorbBodyProgPct': {
+    type: "number", unit: "percent", min: 0, max: 100, label: "Smart money sweep: Developing absorption maximum body share", effect: "next_SmartMoneySweep_observation_and_entry_evaluation",
+  },
+  'strategies.SmartMoneySweep.absorbWickProgPct': {
+    type: "number", unit: "percent", min: 0, max: 100, label: "Smart money sweep: Developing absorption minimum wick share", effect: "next_SmartMoneySweep_observation_and_entry_evaluation",
+  },
+  'strategies.SmartMoneySweep.initBodyProgPct': {
+    type: "number", unit: "percent", min: 0, max: 100, label: "Smart money sweep: Developing initiative minimum body share", effect: "next_SmartMoneySweep_observation_and_entry_evaluation",
+  },
+  'strategies.SmartMoneySweep.slBufferPct': {
+    type: "number", unit: "percent", min: 0, max: 100, label: "Smart money sweep: Stop-loss buffer", effect: "next_SmartMoneySweep_observation_and_entry_evaluation",
+  },
+  'strategies.SmartMoneySweep.maxLossPct': {
+    type: "number", unit: "percent", min: 0, max: 100, label: "Smart money sweep: Maximum loss distance", effect: "next_SmartMoneySweep_observation_and_entry_evaluation",
+  },
+  'strategies.SmartMoneySweep.absorbVolMult': {
+    type: "number", unit: "multiplier", min: 0, max: 1.7976931348623157e+308, label: "Smart money sweep: Absorption volume multiplier", effect: "next_SmartMoneySweep_entry_geometry_and_confidence",
+  },
+  'strategies.SmartMoneySweep.absorbVolProgMult': {
+    type: "number", unit: "multiplier", min: 0, max: 1.7976931348623157e+308, label: "Smart money sweep: Developing absorption volume multiplier", effect: "next_SmartMoneySweep_entry_geometry_and_confidence",
+  },
+  'strategies.SmartMoneySweep.lowConvATRMult': {
+    type: "number", unit: "multiplier", min: 0, max: 1.7976931348623157e+308, label: "Smart money sweep: Low-conviction target ATR multiplier", effect: "next_SmartMoneySweep_entry_geometry_and_confidence",
+  },
+  'strategies.SmartMoneySweep.midConvATRMult': {
+    type: "number", unit: "multiplier", min: 0, max: 1.7976931348623157e+308, label: "Smart money sweep: Mid-conviction target ATR multiplier", effect: "next_SmartMoneySweep_entry_geometry_and_confidence",
+  },
+  'strategies.SmartMoneySweep.highConvATRMult': {
+    type: "number", unit: "multiplier", min: 0, max: 1.7976931348623157e+308, label: "Smart money sweep: High-conviction target ATR multiplier", effect: "next_SmartMoneySweep_entry_geometry_and_confidence",
+  },
+  'strategies.SmartMoneySweep.tierHigh': {
+    type: "number", unit: "fraction", min: 0, max: 1, label: "Smart money sweep: High confidence", effect: "next_SmartMoneySweep_confidence_evaluation",
+  },
+  'strategies.SmartMoneySweep.tierMid': {
+    type: "number", unit: "fraction", min: 0, max: 1, label: "Smart money sweep: Mid confidence", effect: "next_SmartMoneySweep_confidence_evaluation",
+  },
+  'strategies.SmartMoneySweep.tierFloor': {
+    type: "number", unit: "fraction", min: 0, max: 1, label: "Smart money sweep: Confidence floor", effect: "next_SmartMoneySweep_confidence_evaluation",
+  },
+  'strategies.SmartMoneySweep.useSessionFilter': {
+    type: "boolean", unit: "boolean", label: "Smart money sweep session filter", effect: "next_SmartMoneySweep_session_evaluation",
+  },
+  'strategies.SmartMoneySweep.vpRthOnly': {
+    type: "boolean", unit: "boolean", label: "Smart money sweep RTH profile", effect: "next_SmartMoneySweep_observation_evaluation",
+  },
+  'strategies.SmartMoneySweep.confidenceMode': {
+    type: "string", unit: "mode", values: ["tiered", "continuous"], label: "Smart money sweep confidence mode", effect: "next_SmartMoneySweep_confidence_evaluation",
+  },
   'strategies.OpeningRangeBreakout.confluenceBoost.enabled': {
     type: 'boolean', unit: 'boolean',
     label: 'OpeningRangeBreakout MTF confluence contribution', effect: 'next_entry_evaluation_ranking',

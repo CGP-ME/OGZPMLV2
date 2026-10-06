@@ -96,7 +96,7 @@ describe('StrategyOrchestrator symbol-scoped strategy state', () => {
     const ConfigLoader = require('../foundation/ConfigLoader');
     const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
     const makeSmartMoneySweep = () => new SmartMoneySweep(
-      ConfigLoader.get('strategies.SmartMoneySweep') || {}
+      () => ConfigLoader.get('strategies.SmartMoneySweep')
     );
 
     const tslaSms = orchestrator._getSymbolStrategyModule(

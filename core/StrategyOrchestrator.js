@@ -868,11 +868,8 @@ class StrategyOrchestrator {
     this.mtfAdapter = new MultiTimeframeAdapter(this._buildMtfAdapterConfig());
     this.ogzTpoConfigProvider = () => ConfigLoader.get('strategies.OGZTPO');
     this.tpoIntegration = new OgzTpoIntegration(this.ogzTpoConfigProvider);
-    this.smartMoneySweepConfig = {
-      ...ConfigLoader.get('strategies.SmartMoneySweep'),
-      debug: ConfigLoader.get('observability.smartMoneyDebug') === true,
-    };
-    this.smartMoneySweepModule = new SmartMoneySweep(this.smartMoneySweepConfig);
+    this.smartMoneySweepConfigProvider = () => ({ ...ConfigLoader.get('strategies.SmartMoneySweep'), debug: ConfigLoader.get('observability.smartMoneyDebug') === true });
+    this.smartMoneySweepModule = new SmartMoneySweep(this.smartMoneySweepConfigProvider);
     this.donchianBreakoutModule = new DonchianBreakout(
       ConfigLoader.get('strategies.DonchianBreakout')
     );
@@ -2103,7 +2100,7 @@ class StrategyOrchestrator {
           'SmartMoneySweep',
           ctx.extras?.symbol,
           smartMoneySweepModule,
-          () => new SmartMoneySweep(this.smartMoneySweepConfig)
+          () => new SmartMoneySweep(this.smartMoneySweepConfigProvider)
         );
         if (ctx.entriesEnabled === false) {
           scopedSmartMoneySweep.observe(latestCandle, candles);
@@ -3140,7 +3137,7 @@ class StrategyOrchestrator {
         'SmartMoneySweep',
         symbol,
         this.smartMoneySweepModule,
-        () => new SmartMoneySweep(this.smartMoneySweepConfig)
+        () => new SmartMoneySweep(this.smartMoneySweepConfigProvider)
       );
       smsModule.recordTradeResult(pnl);
       console.log(`[SMS-DAILY] Recorded trade result: $${pnl.toFixed(2)} symbol=${symbol || 'legacy'} dailyLosses=${smsModule.dailyLosses}`);

@@ -60,7 +60,7 @@ function candles(count = 30) {
 }
 
 function sweepModule({ conditionsMet = 0, rawConfidence = 0, overrides = {} } = {}) {
-  const sms = new SmartMoneySweep(config(overrides));
+  const sms = new SmartMoneySweep(() => config(overrides));
   sms._detectTimeframe = jest.fn(() => 15);
   sms._computeVolumeProfile = jest.fn(() => ({
     vah: 105,

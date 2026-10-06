@@ -86,3 +86,13 @@ This is a bounded deferred list for the current configuration migration. It reco
 - **Evidence:** In tree 2ef40fc5ce9a7fe9aa8bf333ab16e8e78c64c4da, core/OgzTpoIntegration.js normalizes strategies.OGZTPO.adaptive, but neither its update/vote/filter paths nor src/indicators/ogzTwoPoleOscillator.js consumes that flag.
 - **What must be resolved:** Establish the intended adaptive algorithm before wiring or retiring the flag. Its presence alone is not proof an adaptive feature works.
 - **Status:** Canonical value and validation preserved; it is not exposed as a working control. The separate 24-control migration does not claim to implement adaptive behavior.
+
+## 13. SmartMoney volume-profile bins need a resource domain
+
+- **Evidence:** SmartMoneySweep allocates and loops over vpBins for its profile. No producer establishes a supported operational memory/CPU budget; the native array limit is not that budget.
+- **Action:** Establish supported profile resolution before exposing vpBins. Preserve the current canonical value; no invented cap or runtime guard added.
+
+## 14. SmartMoney hold and sweep-offset intent
+
+- **Evidence:** maxHoldBars and sweepMaxOffset are validated/copied in SmartMoneySweep but have no effective downstream behavioral reads in the bounded source trace.
+- **Action:** Determine intended hold/sweep-offset behavior in the deferred pass. Both fields and validation remain; neither is presented as an effective customer control.

@@ -115,10 +115,10 @@ function runSmartMoneyPair(work, opts) {
   clearModuleCache(pinePath);
   const PineMod = require(pinePath);
 
-  const native = new SmartMoneySweep({
+  const native = new SmartMoneySweep(() => ({
     ...ConfigLoader.getConfigFileValue('strategies.SmartMoneySweep'),
     debug: ConfigLoader.getInternalsFileValue('observability.smartMoneyDebug') === true,
-  });
+  }));
   const minBar = opts.minBar != null ? opts.minBar : 200;
   const mismatches = [];
   let compared = 0;
