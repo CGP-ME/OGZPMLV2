@@ -2695,6 +2695,46 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', ...domain,
     label, effect: 'next_EMASMACrossover_observation_and_evaluation',
   }])),
+  'orchestrator.maDynamicSRMtf.requireHourlyTrendAlign': {
+    type: 'boolean', unit: 'boolean',
+    label: 'MA dynamic S/R require hourly trend alignment', effect: 'next_strategy_ranking_evaluation',
+  },
+  'orchestrator.maDynamicSRMtf.hourlyTrendConflictMultiplier': {
+    type: 'number', unit: 'multiplier', min: 0, max: Number.MAX_SAFE_INTEGER,
+    label: 'MA dynamic S/R hourly trend-conflict ranking multiplier', effect: 'next_strategy_ranking_evaluation',
+  },
+  'orchestrator.maDynamicSRMtf.fourHourAlignBoost': {
+    type: 'number', unit: 'ranking_points', min: 0, max: Number.MAX_VALUE,
+    label: 'MA dynamic S/R four-hour alignment ranking boost', effect: 'next_strategy_ranking_evaluation',
+  },
+  'orchestrator.rsiMtf.penalizeAgainst4hTrend': {
+    type: 'boolean', unit: 'boolean',
+    label: 'RSI penalize four-hour trend conflict', effect: 'next_strategy_ranking_evaluation',
+  },
+  'orchestrator.rsiMtf.fourHourTrendConflictMultiplier': {
+    type: 'number', unit: 'multiplier', min: 0, max: Number.MAX_SAFE_INTEGER,
+    label: 'RSI four-hour trend-conflict ranking multiplier', effect: 'next_strategy_ranking_evaluation',
+  },
+  'orchestrator.rsiMtf.hourlyRsiAlignBoost': {
+    type: 'number', unit: 'ranking_points', min: 0, max: Number.MAX_VALUE,
+    label: 'RSI hourly alignment ranking boost', effect: 'next_strategy_ranking_evaluation',
+  },
+  'orchestrator.rsiMtf.hourlyRsiBuyMax': {
+    type: 'number', unit: 'rsi_points', min: 0, max: Number.MAX_VALUE,
+    label: 'RSI hourly buy-alignment threshold', effect: 'next_strategy_ranking_evaluation',
+  },
+  'orchestrator.rsiMtf.hourlyRsiSellMin': {
+    type: 'number', unit: 'rsi_points', min: 0, max: Number.MAX_VALUE,
+    label: 'RSI hourly sell-alignment threshold', effect: 'next_strategy_ranking_evaluation',
+  },
+  'orchestrator.ogzTpoMtf.fourHourTrendBoostMultiplier': {
+    type: 'number', unit: 'multiplier', min: 1, max: Number.MAX_SAFE_INTEGER,
+    label: 'OGZ TPO four-hour trend ranking multiplier', effect: 'next_strategy_ranking_evaluation',
+  },
+  'orchestrator.ogzTpoMtf.hourlyMacdAlignBoost': {
+    type: 'number', unit: 'multiplier', min: 1, max: Number.MAX_SAFE_INTEGER,
+    label: 'OGZ TPO hourly MACD alignment ranking multiplier', effect: 'next_strategy_ranking_evaluation',
+  },
   ...Object.fromEntries([1, 2, 3, 4].map(count => [
     `positionSizing.confluenceMultipliers.${count}`,
     {
