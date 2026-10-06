@@ -1,3 +1,9 @@
+## 2026-10-06 — Keep configuration side findings on one deferred list
+
+Trey directed continued configuration migration and deferred side investigations until its end, using Terra/Luna instead of Astra delegates to conserve usage. Created ogz-meta/inbox/codex/2026-10-06/config-migration-followups.md with evidence, severity, unresolved decisions and status. Initial items preserve the two confidence controls pending reconciliation with intended regime/archetype boosts, and record the stale live-guard test import. No confirmed fatal production defect is established by these entries. A defect introduced by the current migration still must be corrected before delivering that migration.
+
+Reviewed the bounded list against current StrategyOrchestrator reads/scoring and test import, and checked the changelog delivery queue against Git: the sixteen switches are prior prepared work awaiting integration/review/delivery, not newly discovered settings. This is documentation only; no behavior change, deployment or PM2 restart. Existing history and unrelated dirty work preserved.
+
 ## 2026-10-06 — Remove copied sizing configuration alias
 
 Problem/change: ConfigLoader published a second sizing object copied from canonical positionSizing during construction, refresh and confluence saves. Removed that alias, its source metadata and compatibility export; the existing maximum-size validation and three test assertions now read positionSizing directly. No customer setting or strategy behavior was retired. Existing entryLogic.sizing and calculated entry-sizing inputs remain distinct consumers. No new gate, throw, fallback or configuration file.
