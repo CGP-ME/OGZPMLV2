@@ -8,35 +8,26 @@ const REQUIRED_NUMERIC_KEYS = [
   'trendPeriod',
   'atrPeriod',
   'minReturn',
-  'atrStopMult',
-  'trailAtrMult',
   'confidenceBase',
   'confidenceReturnMultiplier',
   'maxConfidence',
 ];
 
-const REQUIRED_STRING_KEYS = [
+const REQUIRED_EXIT_NUMERIC_KEYS = ['atrStopMult', 'trailAtrMult'];
+const REQUIRED_EXIT_STRING_KEYS = [
   'stopType',
   'trailType',
   'tpMode',
   'maxHoldMode',
 ];
 
-function readConfig(config) {
+function readEntryConfig(config) {
   const cfg = config;
 
   const missingNumeric = REQUIRED_NUMERIC_KEYS.filter(key => !Number.isFinite(Number(cfg[key])));
   if (missingNumeric.length > 0) {
     throw new Error(`[TimeSeriesMomentum] missing finite config key(s): ${missingNumeric.join(', ')}`);
   }
-  const missingStrings = REQUIRED_STRING_KEYS.filter(key => typeof cfg[key] !== 'string' || cfg[key].trim() === '');
-  if (missingStrings.length > 0) {
-    throw new Error(`[TimeSeriesMomentum] missing string config key(s): ${missingStrings.join(', ')}`);
-  }
-  if (!Array.isArray(cfg.invalidationConditions)) {
-    throw new Error('[TimeSeriesMomentum] invalidationConditions must be an array');
-  }
-
   for (const key of ['lookback', 'trendPeriod', 'atrPeriod']) {
     if (!Number.isInteger(Number(cfg[key])) || Number(cfg[key]) <= 0) {
       throw new Error(`[TimeSeriesMomentum] ${key} must be a positive integer (got ${cfg[key]})`);
@@ -44,23 +35,6 @@ function readConfig(config) {
   }
   if (Number(cfg.minReturn) < 0) {
     throw new Error(`[TimeSeriesMomentum] minReturn must be >= 0 (got ${cfg.minReturn})`);
-  }
-  if (cfg.stopType !== 'atr' && cfg.stopType !== 'structural' && cfg.stopType !== 'percent') {
-    throw new Error(`[TimeSeriesMomentum] stopType must be atr, structural, or percent (got ${cfg.stopType})`);
-  }
-  if (cfg.trailType !== 'atr') {
-    throw new Error(`[TimeSeriesMomentum] trailType must be atr (got ${cfg.trailType})`);
-  }
-  if (cfg.tpMode !== 'off') {
-    throw new Error(`[TimeSeriesMomentum] tpMode must be off (got ${cfg.tpMode})`);
-  }
-  if (cfg.maxHoldMode !== 'off') {
-    throw new Error(`[TimeSeriesMomentum] maxHoldMode must be off (got ${cfg.maxHoldMode})`);
-  }
-  for (const key of ['atrStopMult', 'trailAtrMult']) {
-    if (Number(cfg[key]) <= 0) {
-      throw new Error(`[TimeSeriesMomentum] ${key} must be positive (got ${cfg[key]})`);
-    }
   }
   for (const key of ['confidenceBase', 'maxConfidence']) {
     const value = Number(cfg[key]);
@@ -82,33 +56,43 @@ function readConfig(config) {
     atrPeriod: Number(cfg.atrPeriod),
     minReturn: Number(cfg.minReturn),
     allowShorts: cfg.allowShorts === true,
-    stopType: cfg.stopType,
-    atrStopMult: Number(cfg.atrStopMult),
-    trailType: cfg.trailType,
-    trailAtrMult: Number(cfg.trailAtrMult),
-    tpMode: cfg.tpMode,
-    maxHoldMode: cfg.maxHoldMode,
-    partialExit: Object.freeze({ ...cfg.partialExit }),
     confidenceBase: Number(cfg.confidenceBase),
     confidenceReturnMultiplier: Number(cfg.confidenceReturnMultiplier),
     maxConfidence: Number(cfg.maxConfidence),
-    invalidationConditions: Object.freeze([...cfg.invalidationConditions]),
   };
 }
 
+function readExitConfig(config) {
+  const cfg = config;
+  const missingNumeric = REQUIRED_EXIT_NUMERIC_KEYS.filter(key => !Number.isFinite(Number(cfg[key])));
+  if (missingNumeric.length > 0) throw new Error(`[TimeSeriesMomentum] missing finite exit config key(s): ${missingNumeric.join(', ')}`);
+  const missingStrings = REQUIRED_EXIT_STRING_KEYS.filter(key => typeof cfg[key] !== 'string' || cfg[key].trim() === '');
+  if (missingStrings.length > 0) throw new Error(`[TimeSeriesMomentum] missing string exit config key(s): ${missingStrings.join(', ')}`);
+  if (!Array.isArray(cfg.invalidationConditions)) throw new Error('[TimeSeriesMomentum] invalidationConditions must be an array');
+  if (cfg.stopType !== 'atr' && cfg.stopType !== 'structural' && cfg.stopType !== 'percent') throw new Error(`[TimeSeriesMomentum] stopType must be atr, structural, or percent (got ${cfg.stopType})`);
+  if (cfg.trailType !== 'atr') throw new Error(`[TimeSeriesMomentum] trailType must be atr (got ${cfg.trailType})`);
+  if (cfg.tpMode !== 'off') throw new Error(`[TimeSeriesMomentum] tpMode must be off (got ${cfg.tpMode})`);
+  if (cfg.maxHoldMode !== 'off') throw new Error(`[TimeSeriesMomentum] maxHoldMode must be off (got ${cfg.maxHoldMode})`);
+  for (const key of REQUIRED_EXIT_NUMERIC_KEYS) if (Number(cfg[key]) <= 0) throw new Error(`[TimeSeriesMomentum] ${key} must be positive (got ${cfg[key]})`);
+  return { stopType: cfg.stopType, atrStopMult: Number(cfg.atrStopMult), trailType: cfg.trailType,
+    trailAtrMult: Number(cfg.trailAtrMult), tpMode: cfg.tpMode, maxHoldMode: cfg.maxHoldMode,
+    partialExit: Object.freeze({ ...cfg.partialExit }), invalidationConditions: Object.freeze([...cfg.invalidationConditions]) };
+}
+
 class TimeSeriesMomentum {
-  constructor(config) {
-    this.configure(config);
+  constructor(entryConfig, exitConfig) {
+    this.configure(entryConfig, exitConfig);
   }
 
-  configure(config) {
-    this.cfg = Object.freeze(readConfig(config));
+  configure(entryConfig, exitConfig) {
+    this.cfg = Object.freeze({ ...readEntryConfig(entryConfig), exit: Object.freeze(readExitConfig(exitConfig)) });
     this.minHistory = Math.max(this.cfg.trendPeriod, this.cfg.lookback, this.cfg.atrPeriod) + 2;
-    this.configurationInput = config;
+    this.entryConfigurationInput = entryConfig;
+    this.exitConfigurationInput = exitConfig;
   }
 
-  evaluate(ctx, config = this.configurationInput) {
-    if (config !== this.configurationInput) this.configure(config);
+  evaluate(ctx, entryConfig = this.entryConfigurationInput, exitConfig = this.exitConfigurationInput) {
+    if (entryConfig !== this.entryConfigurationInput || exitConfig !== this.exitConfigurationInput) this.configure(entryConfig, exitConfig);
     const candles = ctx && ctx.priceHistory;
     if (!Array.isArray(candles) || candles.length < this.minHistory) return null;
 
@@ -145,7 +129,7 @@ class TimeSeriesMomentum {
   }
 
   _signal(direction, trailingReturn, trendSMA, atr, price, confidence) {
-    const stopPct = (this.cfg.atrStopMult * atr) / price * 100;
+    const stopPct = (this.cfg.exit.atrStopMult * atr) / price * 100;
     return {
       strategy: 'TimeSeriesMomentum',
       direction,
@@ -159,20 +143,20 @@ class TimeSeriesMomentum {
       },
       exitContractHint: {
         stopLossPercent: -Math.abs(stopPct),
-        stopType: this.cfg.stopType,
-        atrStopMult: this.cfg.atrStopMult,
+        stopType: this.cfg.exit.stopType,
+        atrStopMult: this.cfg.exit.atrStopMult,
         takeProfitPercent: null,
-        tpMode: this.cfg.tpMode,
+        tpMode: this.cfg.exit.tpMode,
         trailingStopPercent: null,
         trailingActivation: null,
-        trailType: this.cfg.trailType,
-        trailAtrMult: this.cfg.trailAtrMult,
+        trailType: this.cfg.exit.trailType,
+        trailAtrMult: this.cfg.exit.trailAtrMult,
         maxHoldTimeMinutes: null,
-        maxHoldMode: this.cfg.maxHoldMode,
-        partialExit: { ...this.cfg.partialExit },
+        maxHoldMode: this.cfg.exit.maxHoldMode,
+        partialExit: { ...this.cfg.exit.partialExit },
         tsmLookback: this.cfg.lookback,
         tsmEntryTrailingReturn: trailingReturn,
-        invalidationConditions: [...this.cfg.invalidationConditions],
+        invalidationConditions: [...this.cfg.exit.invalidationConditions],
       },
     };
   }

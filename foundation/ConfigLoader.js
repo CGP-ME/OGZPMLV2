@@ -667,7 +667,7 @@ function buildRoleConfig(role) {
 }
 
 const DESCRIPTOR_OVERRIDE_PATHS = Object.freeze([
-  /^exitContracts\.[A-Za-z0-9_]+\.(stopLossPercent|takeProfitPercent|trailingStopPercent|trailingActivation|maxHoldTimeMinutes|atrStopMult|targetRR|trailActivationR|trailDistanceR|trailChannelBars)$/,
+  /^exitContracts\.[A-Za-z0-9_]+\.(stopLossPercent|takeProfitPercent|trailingStopPercent|trailingActivation|maxHoldTimeMinutes|atrStopMult|targetRR|trailActivationR|trailDistanceR|trailChannelBars|trailAtrMult)$/,
   /^strategies\.[A-Za-z0-9_]+\.[A-Za-z0-9_.]+$/,
   /^strategies\.soloFilter$/,
   /^confidence\.minTradeConfidence$/,
@@ -3586,11 +3586,11 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'boolean', unit: 'boolean', label: 'Momentum short signals',
     effect: 'next_TSM_evaluation_subject_to_existing_direction_policy',
   },
-  'strategies.TimeSeriesMomentum.atrStopMult': {
+  'exitContracts.TimeSeriesMomentum.atrStopMult': {
     type: 'number', unit: 'atr_multiple', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
     label: 'Momentum entry-stop ATR multiple', effect: 'new_TSM_entry_stop_only',
   },
-  'strategies.TimeSeriesMomentum.trailAtrMult': {
+  'exitContracts.TimeSeriesMomentum.trailAtrMult': {
     type: 'number', unit: 'atr_multiple', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
     label: 'Momentum trailing ATR multiple', effect: 'new_TSM_trade_existing_dynamic_trailing_policy',
   },

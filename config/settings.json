@@ -2349,24 +2349,9 @@
       "atrPeriod": 14,
       "minReturn": 0,
       "allowShorts": false,
-      "stopType": "atr",
-      "atrStopMult": 2,
-      "trailType": "atr",
-      "trailAtrMult": 1,
-      "tpMode": "off",
-      "maxHoldMode": "off",
-      "partialExit": {
-        "enabled": false,
-        "triggerR": 1,
-        "fraction": 0.5,
-        "remainderTrail": "atr"
-      },
       "confidenceBase": 0.5,
       "confidenceReturnMultiplier": 4,
       "maxConfidence": 0.85,
-      "invalidationConditions": [
-        "tsm_return_flip"
-      ],
       "confluenceBoost": {
         "enabled": false,
         "weight": 0

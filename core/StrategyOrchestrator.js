@@ -2243,8 +2243,10 @@ class StrategyOrchestrator {
     }
 
     if (shouldRegister('TimeSeriesMomentum')) {
+      const timeSeriesMomentumEntryConfigProvider = () => ConfigLoader.get('strategies.TimeSeriesMomentum');
+      const timeSeriesMomentumExitConfigProvider = () => ConfigLoader.get('exitContracts.TimeSeriesMomentum');
       const timeSeriesMomentumModule = new TimeSeriesMomentum(
-        ConfigLoader.get('strategies.TimeSeriesMomentum')
+        timeSeriesMomentumEntryConfigProvider(), timeSeriesMomentumExitConfigProvider()
       );
       this.strategies.push({
         name: 'TimeSeriesMomentum',
@@ -2253,9 +2255,9 @@ class StrategyOrchestrator {
           ctx.extras?.symbol,
           timeSeriesMomentumModule,
           () => new TimeSeriesMomentum(
-            ConfigLoader.get('strategies.TimeSeriesMomentum')
+            timeSeriesMomentumEntryConfigProvider(), timeSeriesMomentumExitConfigProvider()
           )
-        ).evaluate(ctx, ConfigLoader.get('strategies.TimeSeriesMomentum'))
+        ).evaluate(ctx, timeSeriesMomentumEntryConfigProvider(), timeSeriesMomentumExitConfigProvider())
       });
     }
 

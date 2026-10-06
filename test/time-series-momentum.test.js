@@ -13,13 +13,18 @@ function candle(close, offset = 0) {
   };
 }
 
-function strategy(overrides = {}) {
+function strategy(overrides = {}, exitOverrides = {}) {
   return new TimeSeriesMomentum({
     lookback: 3,
     trendPeriod: 5,
     atrPeriod: 3,
     minReturn: 0.005,
     allowShorts: false,
+    confidenceBase: 0.50,
+    confidenceReturnMultiplier: 4.0,
+    maxConfidence: 0.85,
+    ...overrides,
+  }, {
     stopType: 'atr',
     atrStopMult: 2.0,
     trailType: 'atr',
@@ -32,11 +37,8 @@ function strategy(overrides = {}) {
       fraction: 0.5,
       remainderTrail: 'atr',
     },
-    confidenceBase: 0.50,
-    confidenceReturnMultiplier: 4.0,
-    maxConfidence: 0.85,
     invalidationConditions: ['regime_change'],
-    ...overrides,
+    ...exitOverrides,
   });
 }
 
@@ -74,17 +76,17 @@ describe('TimeSeriesMomentum', () => {
 
   test('fails loudly on invalid config instead of accepting a fallback', () => {
     expect(() => strategy({ lookback: 0 })).toThrow(/lookback must be a positive integer/);
-    expect(() => strategy({ atrStopMult: 0 })).toThrow(/atrStopMult must be positive/);
-    expect(() => strategy({ invalidationConditions: 'regime_change' })).toThrow(/must be an array/);
+    expect(() => strategy({}, { atrStopMult: 0 })).toThrow(/atrStopMult must be positive/);
+    expect(() => strategy({}, { invalidationConditions: 'regime_change' })).toThrow(/must be an array/);
   });
 
   test('seals validated config against post-construction mutation', () => {
     const instance = strategy();
 
     expect(Object.isFrozen(instance.cfg)).toBe(true);
-    expect(Object.isFrozen(instance.cfg.invalidationConditions)).toBe(true);
+    expect(Object.isFrozen(instance.cfg.exit.invalidationConditions)).toBe(true);
     expect(() => {
-      instance.cfg.invalidationConditions.push('late_mutation');
+      instance.cfg.exit.invalidationConditions.push('late_mutation');
     }).toThrow(TypeError);
     expect(() => {
       instance.cfg = { ...instance.cfg, lookback: 10 };
