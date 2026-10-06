@@ -2678,6 +2678,23 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'fraction', min: 0, max: 1,
     label, effect: 'next_strategy_evaluation',
   }])),
+  ...Object.fromEntries([
+    ['decayBars', 'EMA crossover confidence-decay bars', { unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true }],
+    ['decayMinMultiplier', 'EMA crossover minimum confidence-decay multiplier', { unit: 'fraction', min: 0, max: 1 }],
+    ['velocityWindowBars', 'EMA crossover velocity window', { unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true }],
+    ['velocityAtrPeriod', 'EMA crossover velocity ATR period', { unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true }],
+    ['velocityScale', 'EMA crossover velocity scale', { unit: 'scale', min: -Number.MAX_VALUE, max: Number.MAX_VALUE }],
+    ['velocityMaxBoost', 'EMA crossover velocity maximum confidence boost', { unit: 'fraction', min: 0, max: 1 }],
+    ['velocityMaxPenalty', 'EMA crossover velocity maximum confidence penalty', { unit: 'fraction', min: 0, max: 1 }],
+    ['elasticityMinAtr', 'EMA crossover elasticity minimum ATR', { unit: 'ATR multiples', min: -Number.MAX_VALUE, max: Number.MAX_VALUE }],
+    ['elasticityMaxAtr', 'EMA crossover elasticity maximum ATR', { unit: 'ATR multiples', min: -Number.MAX_VALUE, max: Number.MAX_VALUE }],
+    ['elasticityScale', 'EMA crossover elasticity scale', { unit: 'scale', min: -Number.MAX_VALUE, max: Number.MAX_VALUE }],
+    ['elasticityMaxBoost', 'EMA crossover elasticity maximum confidence boost', { unit: 'fraction', min: 0, max: 1 }],
+    ['elasticityMaxPenalty', 'EMA crossover elasticity maximum confidence penalty', { unit: 'fraction', min: 0, max: 1 }],
+  ].map(([key, label, domain]) => [`strategies.EMASMACrossover.${key}`, {
+    type: 'number', ...domain,
+    label, effect: 'next_EMASMACrossover_observation_and_evaluation',
+  }])),
   ...Object.fromEntries([1, 2, 3, 4].map(count => [
     `positionSizing.confluenceMultipliers.${count}`,
     {
@@ -3494,6 +3511,10 @@ function saveSettings(request) {
   if (entries.some(([key]) => key.startsWith('strategies.EMASMACrossover.'))
       && Number(nextConfig.strategies.EMASMACrossover.maxConfidence) < Number(nextConfig.strategies.EMASMACrossover.baseConfidence)) {
     return reject('ema_crossover_max_confidence_below_base', { path: 'strategies.EMASMACrossover.maxConfidence' });
+  }
+  if (entries.some(([key]) => key.startsWith('strategies.EMASMACrossover.'))
+      && Number(nextConfig.strategies.EMASMACrossover.elasticityMaxAtr) <= Number(nextConfig.strategies.EMASMACrossover.elasticityMinAtr)) {
+    return reject('ema_crossover_elasticity_max_must_exceed_min', { path: 'strategies.EMASMACrossover.elasticityMaxAtr' });
   }
   if (entries.some(([key]) => key.startsWith('strategies.TimeSeriesMomentum.'))) {
     const problem = timeSeriesMomentumConfidenceReplacementProblem(nextConfig);

@@ -25,11 +25,6 @@
 // FIX 2026-02-16: Use centralized candle helper for format compatibility
 const { c } = require('../core/CandleHelper');
 
-const CONFIDENCE_KEYS = [
-  'baseConfidence', 'confluenceWeight', 'freshCrossoverBonusPerCross',
-  'freshCrossoverBonusMax', 'maxConfidence',
-];
-
 const REQUIRED_NUMERIC_KEYS = [
   'decayBars',
   'decayMinMultiplier',
@@ -134,8 +129,27 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+function configReceipt(cfg, warmupBars) {
+  return Object.freeze({
+    module: 'EMASMACrossover',
+    entryEventsOnly: cfg.entryEventsOnly,
+    confirmBars: cfg.confirmBars,
+    warmupBars,
+    baseConfidence: cfg.baseConfidence,
+    confluenceWeight: cfg.confluenceWeight,
+    freshCrossoverBonusPerCross: cfg.freshCrossoverBonusPerCross,
+    freshCrossoverBonusMax: cfg.freshCrossoverBonusMax,
+    maxConfidence: cfg.maxConfidence,
+    velocityWindowBars: cfg.velocityWindowBars,
+    velocityScale: cfg.velocityScale,
+    elasticityBandAtr: [cfg.elasticityMinAtr, cfg.elasticityMaxAtr],
+    decayBars: cfg.decayBars,
+    decayMinMultiplier: cfg.decayMinMultiplier,
+  });
+}
+
 class EMASMACrossoverSignal {
-  constructor(config, confidenceConfigProvider = null) {
+  constructor(config, configProvider = null) {
     // MA pair definitions — period pairs + type
     this.pairs = [
       { id: 'ema9_20',   fast: 9,   slow: 20,  type: 'ema', weight: 1.0 },
@@ -145,14 +159,9 @@ class EMASMACrossoverSignal {
       { id: 'sma50_200', fast: 50,  slow: 200, type: 'sma', weight: 1.4 },
     ];
 
-    this.cfg = readConfig(config);
-    this.confidenceConfigProvider = confidenceConfigProvider;
-    this.decayBars = this.cfg.decayBars;
-    this.entryEventsOnly = this.cfg.entryEventsOnly;
-    this.confirmBars = this.cfg.confirmBars;
-    const slowestPair = this.pairs.reduce((max, pair) => Math.max(max, pair.slow), 0);
-    this.warmupBars = this.cfg.warmupBars;
-    this.warmupBars = Math.max(this.warmupBars, this.entryEventsOnly ? slowestPair : 1);
+    this.configProvider = configProvider;
+    this.slowestPair = this.pairs.reduce((max, pair) => Math.max(max, pair.slow), 0);
+    this._applyConfig(readConfig(config));
 
     // --- internal state ---
     this.crossoverState = {};      // { pairId: { side, barsAgo } }
@@ -178,23 +187,15 @@ class EMASMACrossoverSignal {
       this.divergenceHistory[p.id] = [];
     }
 
-    this.configReceipt = Object.freeze({
-      module: 'EMASMACrossover',
-      entryEventsOnly: this.entryEventsOnly,
-      confirmBars: this.confirmBars,
-      warmupBars: this.warmupBars,
-      baseConfidence: this.cfg.baseConfidence,
-      confluenceWeight: this.cfg.confluenceWeight,
-      freshCrossoverBonusPerCross: this.cfg.freshCrossoverBonusPerCross,
-      freshCrossoverBonusMax: this.cfg.freshCrossoverBonusMax,
-      maxConfidence: this.cfg.maxConfidence,
-      velocityWindowBars: this.cfg.velocityWindowBars,
-      velocityScale: this.cfg.velocityScale,
-      elasticityBandAtr: [this.cfg.elasticityMinAtr, this.cfg.elasticityMaxAtr],
-      decayBars: this.cfg.decayBars,
-      decayMinMultiplier: this.cfg.decayMinMultiplier,
-    });
     console.log(`[EMASMACrossover][CONFIG] ${JSON.stringify(this.configReceipt)}`);
+  }
+
+  _applyConfig(cfg) {
+    this.cfg = cfg;
+    this.entryEventsOnly = cfg.entryEventsOnly;
+    this.confirmBars = cfg.confirmBars;
+    this.warmupBars = Math.max(cfg.warmupBars, this.entryEventsOnly ? this.slowestPair : 1);
+    this.configReceipt = configReceipt(cfg, this.warmupBars);
   }
 
   // ─── CORE API ───────────────────────────────────────────────
@@ -213,12 +214,10 @@ class EMASMACrossoverSignal {
   _update(candle, priceHistory, emitEntries) {
     // Production callers supply the validated settings owner. Explicitly
     // injected configurations stay fixed when no provider was supplied.
-    if (this.confidenceConfigProvider) {
-      const confidenceConfig = this.confidenceConfigProvider();
-      const confidence = Object.fromEntries(CONFIDENCE_KEYS.map(key => [key, Number(confidenceConfig[key])]));
-      if (CONFIDENCE_KEYS.some(key => this.cfg[key] !== confidence[key])) {
-        this.cfg = Object.freeze({ ...this.cfg, ...confidence });
-        this.configReceipt = Object.freeze({ ...this.configReceipt, ...confidence });
+    if (this.configProvider) {
+      const nextConfig = readConfig(this.configProvider());
+      if (Object.keys(nextConfig).some(key => this.cfg[key] !== nextConfig[key])) {
+        this._applyConfig(nextConfig);
       }
     }
     this.diagCounters.updates++;

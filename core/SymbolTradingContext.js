@@ -37,7 +37,7 @@ class SymbolTradingContext {
      * @param {object} [config]
      * @param {string} config.timeframe
      * @param {object} [config.indicatorConfig] — passed through to IndicatorEngine
-     * @param {object} [config.emaCrossoverConfig] — canonical EMA crossover settings
+     * @param {Function} [config.emaCrossoverConfigProvider] — canonical EMA crossover settings owner
      * @param {object} [config.maDynamicSRConfig] — canonical MA dynamic S/R settings
      * @param {Function} [config.maDynamicSRConfigProvider] — canonical MA dynamic S/R settings reader
      * @param {object} [config.volumeProfileConfig] — passed through to VolumeProfile
@@ -82,7 +82,10 @@ class SymbolTradingContext {
         // before Fix 10 the missing symbol silently defaulted to BTC-USD
         // inside what was supposed to be a per-symbol context for TSLA.
         this.indicatorEngine = new IndicatorEngine({ ...config.indicatorConfig, symbol: canonicalSymbol });
-        this.emaCrossover = new EMASMACrossoverSignal(config.emaCrossoverConfig, config.emaCrossoverConfidenceProvider);
+        this.emaCrossover = new EMASMACrossoverSignal(
+            config.emaCrossoverConfigProvider(),
+            config.emaCrossoverConfigProvider
+        );
         this.maDynamicSR = new MADynamicSR(config.maDynamicSRConfig, config.maDynamicSRConfigProvider);
         this.volumeProfile = new VolumeProfile(config.volumeProfileConfig);
         this.fibonacciDetector = new FibonacciDetector(config.fibonacciConfig);

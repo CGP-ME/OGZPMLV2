@@ -781,11 +781,11 @@ class OGZPrimeV14Bot {
     // zeros (e.g., 0 decayBars = "no decay", 0 snapbackThreshold = "always
     // snap"). || coerced any 0 config value to the hardcoded default, blocking
     // intentional overrides. Same architectural class across all 6 constructors.
-    const emaConfig = {
+    const emaCrossoverConfigProvider = () => ({
       ...ConfigLoader.get('strategies.EMASMACrossover'),
       ...ConfigLoader.get('strategyBehavior.emaCrossover'),
-    };
-    this.emaCrossover = new EMASMACrossoverSignal(emaConfig, () => ConfigLoader.get('strategies.EMASMACrossover'));
+    });
+    this.emaCrossover = new EMASMACrossoverSignal(emaCrossoverConfigProvider(), emaCrossoverConfigProvider);
 
     this.maDynamicSR = new MADynamicSR(
       ConfigLoader.get('strategies.MADynamicSR'),
@@ -3121,11 +3121,10 @@ class OGZPrimeV14Bot {
             ...resolvedConfig.config.internals.indicators.engine,
             tf: metadata.timeframe,
           },
-          emaCrossoverConfidenceProvider: () => ConfigLoader.get('strategies.EMASMACrossover'),
-          emaCrossoverConfig: {
-            ...resolvedConfig.config.strategies.EMASMACrossover,
-            ...resolvedConfig.config.strategyBehavior.emaCrossover,
-          },
+          emaCrossoverConfigProvider: () => ({
+            ...ConfigLoader.get('strategies.EMASMACrossover'),
+            ...ConfigLoader.get('strategyBehavior.emaCrossover'),
+          }),
           maDynamicSRConfig: ConfigLoader.get('strategies.MADynamicSR'),
           maDynamicSRConfigProvider: () => ConfigLoader.get('strategies.MADynamicSR'),
           volumeProfileConfig: resolvedConfig.config.strategies.VolumeProfile,

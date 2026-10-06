@@ -842,8 +842,11 @@ class StrategyOrchestrator {
 
     // FIX 2026-03-19: Self-contained signal modules
     // Each strategy owns its signal computation — no ctx.extras handoff
-    this.emaCrossoverConfig = getEmaCrossoverConfig();
-    this.emaCrossoverModule = new EMASMACrossoverSignal(this.emaCrossoverConfig, () => ConfigLoader.get('strategies.EMASMACrossover'));
+    this.emaCrossoverConfigProvider = getEmaCrossoverConfig;
+    this.emaCrossoverModule = new EMASMACrossoverSignal(
+      this.emaCrossoverConfigProvider(),
+      this.emaCrossoverConfigProvider
+    );
     this.maDynamicSRModule = new MADynamicSR(
       ConfigLoader.get('strategies.MADynamicSR'),
       () => ConfigLoader.get('strategies.MADynamicSR')
@@ -1637,7 +1640,10 @@ class StrategyOrchestrator {
           'EMASMACrossover',
           ctx.extras?.symbol,
           emaCrossoverModule,
-          () => new EMASMACrossoverSignal(this.emaCrossoverConfig, () => ConfigLoader.get('strategies.EMASMACrossover'))
+          () => new EMASMACrossoverSignal(
+            this.emaCrossoverConfigProvider(),
+            this.emaCrossoverConfigProvider
+          )
         );
         if (ctx.entriesEnabled === false) {
           scopedEmaCrossover.observe(latestCandle, candles);
