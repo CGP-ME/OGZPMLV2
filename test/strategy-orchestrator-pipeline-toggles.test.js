@@ -313,6 +313,8 @@ describe('StrategyOrchestrator pipeline toggles', () => {
     expect(tradingConfig.strategies.RSI2MeanReversion).toEqual(expect.objectContaining({
       rsiPeriod: 2,
       rsiEntry: 10,
+    }));
+    expect(tradingConfig.exitContracts.RSI2MeanReversion).toEqual(expect.objectContaining({
       rsiExitLong: 80,
     }));
     expect(tradingConfig.strategies.NoWickImbalance).toEqual(expect.objectContaining({

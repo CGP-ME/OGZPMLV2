@@ -667,7 +667,7 @@ function buildRoleConfig(role) {
 }
 
 const DESCRIPTOR_OVERRIDE_PATHS = Object.freeze([
-  /^exitContracts\.[A-Za-z0-9_]+\.(stopLossPercent|takeProfitPercent|trailingStopPercent|trailingActivation|maxHoldTimeMinutes|atrStopMult|targetRR|trailActivationR|trailDistanceR|trailChannelBars|trailAtrMult)$/,
+  /^exitContracts\.[A-Za-z0-9_]+\.(stopLossPercent|takeProfitPercent|trailingStopPercent|trailingActivation|maxHoldTimeMinutes|atrStopMult|targetRR|trailActivationR|trailDistanceR|trailChannelBars|trailAtrMult|rsiExitLong)$/,
   /^strategies\.[A-Za-z0-9_]+\.[A-Za-z0-9_.]+$/,
   /^strategies\.soloFilter$/,
   /^confidence\.minTradeConfidence$/,
@@ -3670,7 +3670,7 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'rsi_points', min: 0, max: 50, exclusiveMin: true, exclusiveMax: true,
     label: 'RSI2 long entry below', effect: 'next_entry_evaluation',
   },
-  'strategies.RSI2MeanReversion.rsiExitLong': {
+  'exitContracts.RSI2MeanReversion.rsiExitLong': {
     type: 'number', unit: 'rsi_points', min: 50, max: 99, exclusiveMin: true,
     label: 'RSI2 long exit at or above', effect: 'new_long_trades_only',
   },
@@ -3685,12 +3685,24 @@ const EDITABLE_SETTINGS = deepFreeze({
   'strategies.RSI2MeanReversion.allowShorts': {
     type: 'boolean', unit: 'boolean', label: 'Allow RSI2 short signals', effect: 'next_entry_evaluation',
   },
-  'strategies.RSI2MeanReversion.stopLossPercent': {
+  'exitContracts.RSI2MeanReversion.stopLossPercent': {
     // The order consumer requires a nonzero fraction strictly below one.
     type: 'number', unit: 'percent', min: -100, exclusiveMin: true, max: -(Number.MIN_VALUE * 100),
     label: 'RSI2 initial stop (negative percent)', effect: 'new_trades_only',
   },
-  'strategies.RSI2MeanReversion.maxHoldTimeMinutes': {
+  'exitContracts.RSI2MeanReversion.takeProfitPercent': {
+    type: 'number', unit: 'percent', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
+    label: 'RSI2 profit target', effect: 'new_trades_only',
+  },
+  'exitContracts.RSI2MeanReversion.trailingStopPercent': {
+    type: 'number', unit: 'percent', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
+    label: 'RSI2 trailing distance', effect: 'new_trades_only',
+  },
+  'exitContracts.RSI2MeanReversion.trailingActivation': {
+    type: 'number', unit: 'percent', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
+    label: 'RSI2 trailing activation', effect: 'new_trades_only',
+  },
+  'exitContracts.RSI2MeanReversion.maxHoldTimeMinutes': {
     type: 'number', unit: 'minutes', min: Number.MIN_VALUE, max: Number.MAX_VALUE,
     label: 'RSI2 maximum hold', effect: 'new_trades_only',
   },

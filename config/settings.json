@@ -2322,22 +2322,12 @@
     "RSI2MeanReversion": {
       "rsiPeriod": 2,
       "rsiEntry": 10,
-      "rsiExitLong": 80,
       "rsiEntryOB": 95,
       "trendPeriod": 200,
       "allowShorts": false,
-      "stopLossPercent": -1,
-      "takeProfitPercent": 1.5,
-      "trailingStopPercent": 0.6,
-      "trailingActivation": 0.8,
-      "maxHoldTimeMinutes": 240,
       "confidenceBase": 0.5,
       "confidenceDepthMultiplier": 0.4,
       "maxConfidence": 0.9,
-      "invalidationConditions": [
-        "rsi2_exit_long",
-        "regime_change"
-      ],
       "confluenceBoost": {
         "enabled": false,
         "weight": 0

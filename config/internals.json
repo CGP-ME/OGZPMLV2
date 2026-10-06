@@ -717,11 +717,11 @@
               "strategies.soloFilter": [
                 "RSI2MeanReversion"
               ],
-              "strategies.RSI2MeanReversion.stopLossPercent": -0.6,
-              "strategies.RSI2MeanReversion.takeProfitPercent": 1,
-              "strategies.RSI2MeanReversion.trailingStopPercent": 0.4,
-              "strategies.RSI2MeanReversion.trailingActivation": 0.6,
-              "strategies.RSI2MeanReversion.maxHoldTimeMinutes": 120
+              "exitContracts.RSI2MeanReversion.stopLossPercent": -0.6,
+              "exitContracts.RSI2MeanReversion.takeProfitPercent": 1,
+              "exitContracts.RSI2MeanReversion.trailingStopPercent": 0.4,
+              "exitContracts.RSI2MeanReversion.trailingActivation": 0.6,
+              "exitContracts.RSI2MeanReversion.maxHoldTimeMinutes": 120
             }
           },
           {
@@ -730,11 +730,11 @@
               "strategies.soloFilter": [
                 "RSI2MeanReversion"
               ],
-              "strategies.RSI2MeanReversion.stopLossPercent": -0.8,
-              "strategies.RSI2MeanReversion.takeProfitPercent": 1.4,
-              "strategies.RSI2MeanReversion.trailingStopPercent": 0.5,
-              "strategies.RSI2MeanReversion.trailingActivation": 0.7,
-              "strategies.RSI2MeanReversion.maxHoldTimeMinutes": 180
+              "exitContracts.RSI2MeanReversion.stopLossPercent": -0.8,
+              "exitContracts.RSI2MeanReversion.takeProfitPercent": 1.4,
+              "exitContracts.RSI2MeanReversion.trailingStopPercent": 0.5,
+              "exitContracts.RSI2MeanReversion.trailingActivation": 0.7,
+              "exitContracts.RSI2MeanReversion.maxHoldTimeMinutes": 180
             }
           },
           {

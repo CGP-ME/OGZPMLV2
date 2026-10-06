@@ -6,28 +6,28 @@ const { IndicatorCalculator } = require('../core/IndicatorCalculator');
 const REQUIRED_NUMERIC_KEYS = [
   'rsiPeriod',
   'rsiEntry',
-  'rsiExitLong',
   'rsiEntryOB',
   'trendPeriod',
-  'stopLossPercent',
-  'takeProfitPercent',
-  'trailingStopPercent',
-  'trailingActivation',
-  'maxHoldTimeMinutes',
   'confidenceBase',
   'confidenceDepthMultiplier',
   'maxConfidence',
 ];
 
-function readConfig(config) {
+const REQUIRED_EXIT_NUMERIC_KEYS = [
+  'rsiExitLong',
+  'stopLossPercent',
+  'takeProfitPercent',
+  'trailingStopPercent',
+  'trailingActivation',
+  'maxHoldTimeMinutes',
+];
+
+function readEntryConfig(config) {
   const cfg = config;
 
   const missingNumeric = REQUIRED_NUMERIC_KEYS.filter(key => !Number.isFinite(Number(cfg[key])));
   if (missingNumeric.length > 0) {
     throw new Error(`[RSI2MeanReversion] missing finite config key(s): ${missingNumeric.join(', ')}`);
-  }
-  if (!Array.isArray(cfg.invalidationConditions)) {
-    throw new Error('[RSI2MeanReversion] invalidationConditions must be an array');
   }
 
   for (const key of ['rsiPeriod', 'trendPeriod']) {
@@ -38,19 +38,8 @@ function readConfig(config) {
   if (Number(cfg.rsiEntry) <= 0 || Number(cfg.rsiEntry) >= 50) {
     throw new Error(`[RSI2MeanReversion] rsiEntry must be between 0 and 50 (got ${cfg.rsiEntry})`);
   }
-  if (Number(cfg.rsiExitLong) <= 50 || Number(cfg.rsiExitLong) >= 100) {
-    throw new Error(`[RSI2MeanReversion] rsiExitLong must be between 50 and 100 (got ${cfg.rsiExitLong})`);
-  }
   if (Number(cfg.rsiEntryOB) <= 50 || Number(cfg.rsiEntryOB) >= 100) {
     throw new Error(`[RSI2MeanReversion] rsiEntryOB must be between 50 and 100 (got ${cfg.rsiEntryOB})`);
-  }
-  if (Number(cfg.stopLossPercent) >= 0) {
-    throw new Error(`[RSI2MeanReversion] stopLossPercent must be negative (got ${cfg.stopLossPercent})`);
-  }
-  for (const key of ['takeProfitPercent', 'trailingStopPercent', 'trailingActivation', 'maxHoldTimeMinutes']) {
-    if (Number(cfg[key]) <= 0) {
-      throw new Error(`[RSI2MeanReversion] ${key} must be positive (got ${cfg[key]})`);
-    }
   }
   for (const key of ['confidenceBase', 'confidenceDepthMultiplier', 'maxConfidence']) {
     const value = Number(cfg[key]);
@@ -66,35 +55,63 @@ function readConfig(config) {
     ...cfg,
     rsiPeriod: Number(cfg.rsiPeriod),
     rsiEntry: Number(cfg.rsiEntry),
-    rsiExitLong: Number(cfg.rsiExitLong),
     rsiEntryOB: Number(cfg.rsiEntryOB),
     trendPeriod: Number(cfg.trendPeriod),
     allowShorts: cfg.allowShorts === true,
+    confidenceBase: Number(cfg.confidenceBase),
+    confidenceDepthMultiplier: Number(cfg.confidenceDepthMultiplier),
+    maxConfidence: Number(cfg.maxConfidence),
+  };
+}
+
+function readExitConfig(config) {
+  const cfg = config;
+  const missingNumeric = REQUIRED_EXIT_NUMERIC_KEYS.filter(key => !Number.isFinite(Number(cfg[key])));
+  if (missingNumeric.length > 0) {
+    throw new Error(`[RSI2MeanReversion] missing finite exit config key(s): ${missingNumeric.join(', ')}`);
+  }
+  if (!Array.isArray(cfg.invalidationConditions)) {
+    throw new Error('[RSI2MeanReversion] invalidationConditions must be an array');
+  }
+  if (Number(cfg.rsiExitLong) <= 50 || Number(cfg.rsiExitLong) >= 100) {
+    throw new Error(`[RSI2MeanReversion] rsiExitLong must be between 50 and 100 (got ${cfg.rsiExitLong})`);
+  }
+  if (Number(cfg.stopLossPercent) >= 0) {
+    throw new Error(`[RSI2MeanReversion] stopLossPercent must be negative (got ${cfg.stopLossPercent})`);
+  }
+  for (const key of ['takeProfitPercent', 'trailingStopPercent', 'trailingActivation', 'maxHoldTimeMinutes']) {
+    if (Number(cfg[key]) <= 0) {
+      throw new Error(`[RSI2MeanReversion] ${key} must be positive (got ${cfg[key]})`);
+    }
+  }
+  return {
+    rsiExitLong: Number(cfg.rsiExitLong),
     stopLossPercent: Number(cfg.stopLossPercent),
     takeProfitPercent: Number(cfg.takeProfitPercent),
     trailingStopPercent: Number(cfg.trailingStopPercent),
     trailingActivation: Number(cfg.trailingActivation),
     maxHoldTimeMinutes: Number(cfg.maxHoldTimeMinutes),
-    confidenceBase: Number(cfg.confidenceBase),
-    confidenceDepthMultiplier: Number(cfg.confidenceDepthMultiplier),
-    maxConfidence: Number(cfg.maxConfidence),
     invalidationConditions: Object.freeze([...cfg.invalidationConditions]),
   };
 }
 
 class RSI2MeanReversion {
-  constructor(config) {
-    this.configure(config);
+  constructor(entryConfig, exitConfig) {
+    this.configure(entryConfig, exitConfig);
   }
 
-  configure(config) {
-    this.cfg = Object.freeze(readConfig(config));
+  configure(entryConfig, exitConfig) {
+    this.cfg = Object.freeze(readEntryConfig(entryConfig));
+    this.exitCfg = Object.freeze(readExitConfig(exitConfig));
     this.minHistory = Math.max(this.cfg.trendPeriod + 2, this.cfg.rsiPeriod + 2);
-    this.configurationInput = config;
+    this.entryConfigInput = entryConfig;
+    this.exitConfigInput = exitConfig;
   }
 
-  evaluate(ctx, config = this.configurationInput) {
-    if (config !== this.configurationInput) this.configure(config);
+  evaluate(ctx, entryConfig = this.entryConfigInput, exitConfig = this.exitConfigInput) {
+    if (entryConfig !== this.entryConfigInput || exitConfig !== this.exitConfigInput) {
+      this.configure(entryConfig, exitConfig);
+    }
     const candles = ctx && ctx.priceHistory;
     if (!Array.isArray(candles) || candles.length < this.minHistory) return null;
 
@@ -141,17 +158,17 @@ class RSI2MeanReversion {
         rsiPeriod: this.cfg.rsiPeriod,
         trendPeriod: this.cfg.trendPeriod,
         rsiEntry: this.cfg.rsiEntry,
-        rsiExitLong: this.cfg.rsiExitLong,
+        rsiExitLong: this.exitCfg.rsiExitLong,
       },
       exitContractHint: {
-        stopLossPercent: this.cfg.stopLossPercent,
-        takeProfitPercent: this.cfg.takeProfitPercent,
-        trailingStopPercent: this.cfg.trailingStopPercent,
-        trailingActivation: this.cfg.trailingActivation,
-        maxHoldTimeMinutes: this.cfg.maxHoldTimeMinutes,
+        stopLossPercent: this.exitCfg.stopLossPercent,
+        takeProfitPercent: this.exitCfg.takeProfitPercent,
+        trailingStopPercent: this.exitCfg.trailingStopPercent,
+        trailingActivation: this.exitCfg.trailingActivation,
+        maxHoldTimeMinutes: this.exitCfg.maxHoldTimeMinutes,
         rsiPeriod: this.cfg.rsiPeriod,
-        rsiExitLong: this.cfg.rsiExitLong,
-        invalidationConditions: [...this.cfg.invalidationConditions],
+        rsiExitLong: this.exitCfg.rsiExitLong,
+        invalidationConditions: [...this.exitCfg.invalidationConditions],
       },
     };
   }
@@ -161,7 +178,7 @@ class RSI2MeanReversion {
       strategy: 'RSI2MeanReversion',
       rsiPeriod: this.cfg.rsiPeriod,
       rsiEntry: this.cfg.rsiEntry,
-      rsiExitLong: this.cfg.rsiExitLong,
+      rsiExitLong: this.exitCfg.rsiExitLong,
       rsiEntryOB: this.cfg.rsiEntryOB,
       trendPeriod: this.cfg.trendPeriod,
       allowShorts: this.cfg.allowShorts,

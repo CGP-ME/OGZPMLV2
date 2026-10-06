@@ -2227,7 +2227,8 @@ class StrategyOrchestrator {
 
     if (shouldRegister('RSI2MeanReversion')) {
       const rsi2MeanReversionModule = new RSI2MeanReversion(
-        ConfigLoader.get('strategies.RSI2MeanReversion')
+        ConfigLoader.get('strategies.RSI2MeanReversion'),
+        ConfigLoader.get('exitContracts.RSI2MeanReversion')
       );
       this.strategies.push({
         name: 'RSI2MeanReversion',
@@ -2236,9 +2237,14 @@ class StrategyOrchestrator {
           ctx.extras?.symbol,
           rsi2MeanReversionModule,
           () => new RSI2MeanReversion(
-            ConfigLoader.get('strategies.RSI2MeanReversion')
+            ConfigLoader.get('strategies.RSI2MeanReversion'),
+            ConfigLoader.get('exitContracts.RSI2MeanReversion')
           )
-        ).evaluate(ctx, ConfigLoader.get('strategies.RSI2MeanReversion'))
+        ).evaluate(
+          ctx,
+          ConfigLoader.get('strategies.RSI2MeanReversion'),
+          ConfigLoader.get('exitContracts.RSI2MeanReversion')
+        )
       });
     }
 

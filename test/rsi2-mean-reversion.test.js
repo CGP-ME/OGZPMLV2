@@ -13,23 +13,26 @@ function candle(close, offset = 0) {
   };
 }
 
-function strategy(overrides = {}) {
+function strategy(entryOverrides = {}, exitOverrides = {}) {
   return new RSI2MeanReversion({
     rsiPeriod: 2,
     rsiEntry: 5,
     rsiEntryOB: 95,
     trendPeriod: 5,
     allowShorts: false,
+    confidenceBase: 0.50,
+    confidenceDepthMultiplier: 0.40,
+    maxConfidence: 0.90,
+    ...entryOverrides,
+  }, {
+    rsiExitLong: 80,
     stopLossPercent: -1.0,
     takeProfitPercent: 1.5,
     trailingStopPercent: 0.6,
     trailingActivation: 0.8,
     maxHoldTimeMinutes: 240,
-    confidenceBase: 0.50,
-    confidenceDepthMultiplier: 0.40,
-    maxConfidence: 0.90,
     invalidationConditions: ['rsi2_exit_long', 'regime_change'],
-    ...overrides,
+    ...exitOverrides,
   });
 }
 
@@ -85,17 +88,17 @@ describe('RSI2MeanReversion', () => {
   });
 
   test('fails loudly on invalid exit contract shape', () => {
-    expect(() => strategy({ stopLossPercent: 1 })).toThrow(/stopLossPercent must be negative/);
-    expect(() => strategy({ invalidationConditions: 'regime_change' })).toThrow(/must be an array/);
+    expect(() => strategy({}, { stopLossPercent: 1 })).toThrow(/stopLossPercent must be negative/);
+    expect(() => strategy({}, { invalidationConditions: 'regime_change' })).toThrow(/must be an array/);
   });
 
   test('seals validated config against post-construction mutation', () => {
     const instance = strategy();
 
     expect(Object.isFrozen(instance.cfg)).toBe(true);
-    expect(Object.isFrozen(instance.cfg.invalidationConditions)).toBe(true);
+    expect(Object.isFrozen(instance.exitCfg.invalidationConditions)).toBe(true);
     expect(() => {
-      instance.cfg.invalidationConditions.push('late_mutation');
+      instance.exitCfg.invalidationConditions.push('late_mutation');
     }).toThrow(TypeError);
     expect(() => {
       instance.cfg = { ...instance.cfg, rsiEntry: 10 };
