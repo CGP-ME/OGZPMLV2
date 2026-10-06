@@ -3069,6 +3069,29 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'weight', min: 0, max: Number.MAX_VALUE,
     label: 'OGZTPO MTF confluence weight', effect: 'next_entry_evaluation_ranking',
   },
+  'strategies.OGZTPO.mode': {
+    type: 'string', unit: 'mode', values: ['conservative', 'standard', 'aggressive'], label: 'OGZTPO operating mode', effect: 'next_OGZTPO_update_and_signal_evaluation',
+  },
+  ...Object.fromEntries([
+    ['dynamicSL', 'OGZTPO dynamic levels'], ['confluence', 'OGZTPO confluence requirement'],
+  ].map(([key, label]) => [`strategies.OGZTPO.${key}`, { type: 'boolean', unit: 'boolean', label, effect: 'next_OGZTPO_signal_evaluation' }])),
+  ...Object.fromEntries([
+    ['voteWeight', 'OGZTPO vote weight', 'weight', 0, false, 'next_OGZTPO_vote_evaluation'],
+    ['tpoLength', 'OGZTPO oscillator length', 'candles', 0, true, 'next_OGZTPO_update_and_calculation'],
+    ['normLength', 'OGZTPO normalization length', 'candles', 0, true, 'next_OGZTPO_update_and_calculation', true],
+    ['volLength', 'OGZTPO volatility length', 'candles', 0, true, 'next_OGZTPO_update_and_calculation', true],
+    ['lagBars', 'OGZTPO lag bars', 'candles', 1, false, 'next_OGZTPO_update_and_calculation', true],
+    ['maxHistory', 'OGZTPO retained history', 'candles', 0, true, 'next_OGZTPO_update_history_bound', true],
+    ['lastSignalTtlBars', 'OGZTPO signal TTL', 'candles', 0, false, 'next_OGZTPO_signal_freshness_evaluation', true],
+    ['confluenceBonusStrength', 'OGZTPO confluence vote strength', 'strength_points', 0, false, 'next_OGZTPO_vote_evaluation'],
+    ['strengthConfidenceMultiplier', 'OGZTPO signal confidence multiplier', 'multiplier', 0, true, 'next_OGZTPO_entry_evaluation'],
+  ].map(([key, label, unit, min, exclusiveMin, effect, integer]) => [`strategies.OGZTPO.${key}`, { type: 'number', unit, min, max: Number.MAX_VALUE, exclusiveMin, ...(integer ? { integer: true } : {}), label, effect }])),
+  ...Object.fromEntries(['conservative', 'standard', 'aggressive'].flatMap((mode) => [
+    [`strategies.OGZTPO.dynamicLevelMultipliers.${mode}`, { type: 'number', unit: 'multiplier', min: 0, max: Number.MAX_VALUE, exclusiveMin: true, label: `OGZTPO ${mode} dynamic-level multiplier`, effect: 'next_OGZTPO_signal_evaluation' }],
+    [`strategies.OGZTPO.modes.${mode}.minStrength`, { type: 'number', unit: 'fraction', min: 0, max: Number.MAX_VALUE, label: `OGZTPO ${mode} minimum strength`, effect: 'next_OGZTPO_signal_evaluation' }],
+    [`strategies.OGZTPO.modes.${mode}.zoneRequired`, { type: 'boolean', unit: 'boolean', label: `OGZTPO ${mode} zone requirement`, effect: 'next_OGZTPO_signal_evaluation' }],
+    [`strategies.OGZTPO.modes.${mode}.voteMultiplier`, { type: 'number', unit: 'multiplier', min: 0, max: Number.MAX_VALUE, exclusiveMin: true, label: `OGZTPO ${mode} vote multiplier`, effect: 'next_OGZTPO_vote_evaluation' }],
+  ])),
   'strategies.NoWickImbalance.confluenceBoost.enabled': {
     type: 'boolean', unit: 'boolean',
     label: 'NoWickImbalance MTF confluence contribution', effect: 'next_entry_evaluation_ranking',

@@ -152,9 +152,10 @@ function normalizeConfig(config) {
 }
 
 class OgzTpoIntegration extends EventEmitter {
-    constructor(config) {
+    constructor(configProvider) {
         super();
-        this.config = normalizeConfig(config);
+        this.configProvider = configProvider;
+        this.config = normalizeConfig(this.configProvider());
         this.entriesEnabled = ConfigLoader.get('pipeline.enableOGZTPO');
         
         // Candle history for batch processing
@@ -164,7 +165,6 @@ class OgzTpoIntegration extends EventEmitter {
             lows: [],
             timestamps: []
         };
-        this.maxHistory = this.config.maxHistory;
         this.barCounter = 0;
         this.lastBarTimestamp = null;
         
@@ -208,7 +208,7 @@ class OgzTpoIntegration extends EventEmitter {
             return null;
         }
 
-        return new OgzTpoIntegration(ConfigLoader.get('strategies.OGZTPO'));
+        return new OgzTpoIntegration(() => ConfigLoader.get('strategies.OGZTPO'));
     }
 
     /**
@@ -227,6 +227,13 @@ class OgzTpoIntegration extends EventEmitter {
      * @returns {Object} Update result with signals and votes
      */
     update(candle, entriesEnabled) {
+        this.config = normalizeConfig(this.configProvider());
+        this.existingTpo.configure({
+            normLength: this.config.normLength,
+            tpoLength: this.config.tpoLength,
+            volLength: this.config.volLength,
+            lagBars: this.config.lagBars,
+        });
         this.entriesEnabled = entriesEnabled;
         const rawBarTimestamp = candleBarTimestamp(candle);
         const candleTimestamp = rawBarTimestamp ?? this.lastBarTimestamp ?? MISSING_TIMESTAMP_BAR;
@@ -252,7 +259,7 @@ class OgzTpoIntegration extends EventEmitter {
         }
         
         // Trim to max history
-        if (this.candleHistory.closes.length > this.maxHistory) {
+        while (this.candleHistory.closes.length > this.config.maxHistory) {
             this.candleHistory.closes.shift();
             this.candleHistory.highs.shift();
             this.candleHistory.lows.shift();
@@ -430,6 +437,7 @@ class OgzTpoIntegration extends EventEmitter {
      * @returns {Array} Array of vote objects
      */
     getVotes() {
+        this.config = normalizeConfig(this.configProvider());
         const activeSignal = this._expireLastSignal();
         if (!activeSignal || !this.entriesEnabled) {
             return [];
@@ -471,6 +479,7 @@ class OgzTpoIntegration extends EventEmitter {
      * @returns {Object} Current TPO state
      */
     getState() {
+        this.config = normalizeConfig(this.configProvider());
         if (!this.lastResult) {
             return { ready: false };
         }
@@ -506,6 +515,7 @@ class OgzTpoIntegration extends EventEmitter {
      * @returns {Object} Stop loss and take profit levels
      */
     getDynamicLevels(entryPrice, direction, multiplier = null) {
+        this.config = normalizeConfig(this.configProvider());
         if (!this.lastResult) {
             return null;
         }
@@ -547,6 +557,7 @@ class OgzTpoIntegration extends EventEmitter {
      * Get configuration summary
      */
     getConfigSummary() {
+        this.config = normalizeConfig(this.configProvider());
         return {
             enabled: this.entriesEnabled,
             mode: this.config.mode,

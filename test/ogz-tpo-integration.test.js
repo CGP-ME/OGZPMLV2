@@ -22,7 +22,7 @@ describe('OgzTpoIntegration restored filters and config ownership', () => {
   });
 
   test('constructor consumes explicit OGZTPO config values without hidden defaults', () => {
-    const strategy = new OgzTpoIntegration(cloneOgzTpoConfig({
+    const strategy = new OgzTpoIntegration(() => cloneOgzTpoConfig({
       mode: 'aggressive',
       voteWeight: 0.42,
       lastSignalTtlBars: 2,
@@ -45,12 +45,12 @@ describe('OgzTpoIntegration restored filters and config ownership', () => {
     const incomplete = cloneOgzTpoConfig();
     delete incomplete.lastSignalTtlBars;
 
-    expect(() => new OgzTpoIntegration(incomplete))
+    expect(() => new OgzTpoIntegration(() => incomplete))
       .toThrow(/strategies\.OGZTPO\.lastSignalTtlBars must be a finite number/);
   });
 
   test('restored filters reject weak, off-zone, or unconfluent crossovers', () => {
-    const strategy = new OgzTpoIntegration(cloneOgzTpoConfig({
+    const strategy = new OgzTpoIntegration(() => cloneOgzTpoConfig({
       mode: 'conservative',
       confluence: true,
     }));
@@ -101,7 +101,7 @@ describe('OgzTpoIntegration restored filters and config ownership', () => {
   });
 
   test('dynamic levels use the configured mode multiplier', () => {
-    const strategy = new OgzTpoIntegration(cloneOgzTpoConfig({
+    const strategy = new OgzTpoIntegration(() => cloneOgzTpoConfig({
       mode: 'conservative',
       dynamicLevelMultipliers: {
         conservative: 2,
@@ -119,7 +119,7 @@ describe('OgzTpoIntegration restored filters and config ownership', () => {
   });
 
   test('confluence compares matching BUY/SELL actions from both oscillator implementations', () => {
-    const strategy = new OgzTpoIntegration(cloneOgzTpoConfig({ confluence: true }));
+    const strategy = new OgzTpoIntegration(() => cloneOgzTpoConfig({ confluence: true }));
     const newSignal = {
       type: 'BULLISH_CROSS',
       action: 'BUY',
@@ -140,7 +140,7 @@ describe('OgzTpoIntegration restored filters and config ownership', () => {
   });
 
   test('stale lastSignal past configured TTL contributes no votes', () => {
-    const strategy = new OgzTpoIntegration(cloneOgzTpoConfig({
+    const strategy = new OgzTpoIntegration(() => cloneOgzTpoConfig({
       lastSignalTtlBars: 0,
     }));
     strategy.lastSignal = {
@@ -163,7 +163,7 @@ describe('OgzTpoIntegration restored filters and config ownership', () => {
   });
 
   test('stale lastSignal still expires when candle buffer length is capped', () => {
-    const strategy = new OgzTpoIntegration(cloneOgzTpoConfig({
+    const strategy = new OgzTpoIntegration(() => cloneOgzTpoConfig({
       maxHistory: 1,
       lastSignalTtlBars: 0,
     }));
@@ -187,7 +187,7 @@ describe('OgzTpoIntegration restored filters and config ownership', () => {
   });
 
   test('same-timestamp candle update does not age a fresh same-bar signal', () => {
-    const strategy = new OgzTpoIntegration(cloneOgzTpoConfig({
+    const strategy = new OgzTpoIntegration(() => cloneOgzTpoConfig({
       lastSignalTtlBars: 0,
     }));
     strategy.lastSignal = {
@@ -220,7 +220,7 @@ describe('OgzTpoIntegration restored filters and config ownership', () => {
   });
 
   test('numeric string timestamp update does not age a fresh same-bar signal', () => {
-    const strategy = new OgzTpoIntegration(cloneOgzTpoConfig({
+    const strategy = new OgzTpoIntegration(() => cloneOgzTpoConfig({
       lastSignalTtlBars: 0,
     }));
     strategy.lastSignal = {
@@ -253,7 +253,7 @@ describe('OgzTpoIntegration restored filters and config ownership', () => {
   });
 
   test('missing timestamp update does not invent a new bar while a signal is fresh', () => {
-    const strategy = new OgzTpoIntegration(cloneOgzTpoConfig({
+    const strategy = new OgzTpoIntegration(() => cloneOgzTpoConfig({
       lastSignalTtlBars: 0,
     }));
     strategy.lastSignal = {
@@ -285,7 +285,7 @@ describe('OgzTpoIntegration restored filters and config ownership', () => {
   });
 
   test('same start timestamp with changed etime does not age a fresh same-bar signal', () => {
-    const strategy = new OgzTpoIntegration(cloneOgzTpoConfig({
+    const strategy = new OgzTpoIntegration(() => cloneOgzTpoConfig({
       lastSignalTtlBars: 0,
     }));
     strategy.lastSignal = {
@@ -319,7 +319,7 @@ describe('OgzTpoIntegration restored filters and config ownership', () => {
   });
 
   test('non-parseable timestamp string does not invent a new bar while a signal is fresh', () => {
-    const strategy = new OgzTpoIntegration(cloneOgzTpoConfig({
+    const strategy = new OgzTpoIntegration(() => cloneOgzTpoConfig({
       lastSignalTtlBars: 0,
     }));
     strategy.lastSignal = {

@@ -90,10 +90,7 @@ function trueRange(high, low, prevClose) {
 
 class TwoPoleOscillator {
     constructor(config) {
-        this.tpoLength = config.tpoLength;
-        this.normLength = config.normLength;
-        this.volLength = config.volLength;
-        this.lagBars = config.lagBars;
+        this.configure(config);
 
         // Internal state arrays
         this.closes = [];
@@ -117,6 +114,13 @@ class TwoPoleOscillator {
 
         // Latest signal (if any)
         this.latestSignal = null;
+    }
+
+    configure(config) {
+        this.tpoLength = config.tpoLength;
+        this.normLength = config.normLength;
+        this.volLength = config.volLength;
+        this.lagBars = config.lagBars;
     }
 
     /**

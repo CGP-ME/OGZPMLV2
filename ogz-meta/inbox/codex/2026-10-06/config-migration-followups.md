@@ -79,3 +79,10 @@ This is a bounded deferred list for the current configuration migration. It reco
 - **Evidence:** At production tree eaefb0a8b075c3871874b3ef9dd003619e822706, modules/MADynamicSR.js rejects a flat slope unconditionally in update; conditionFlags.trendGate does not control that rejection. patternPersistBars is validated and copied in the constructor but has no behavioral consumer. The thirteen effective condition/approach controls are separate.
 - **What must be resolved:** Establish the intended slope-switch and pattern-persistence behavior before wiring or removing these settings. Do not interpret lack of a consumer as proof the feature was unwanted.
 - **Status:** Both canonical fields preserved and not exposed as effective customer controls. Scoring metadata reports the actual always-active slope condition; no new rejection added. Evidence: madynamicsr-condition-approach-flags/candidate.patch and root-proof.log.
+
+## 12. OGZTPO adaptive mode has no behavioral consumer
+
+- **Severity:** Existing intended-but-unwired flag; no newly established fatality.
+- **Evidence:** In tree 2ef40fc5ce9a7fe9aa8bf333ab16e8e78c64c4da, core/OgzTpoIntegration.js normalizes strategies.OGZTPO.adaptive, but neither its update/vote/filter paths nor src/indicators/ogzTwoPoleOscillator.js consumes that flag.
+- **What must be resolved:** Establish the intended adaptive algorithm before wiring or retiring the flag. Its presence alone is not proof an adaptive feature works.
+- **Status:** Canonical value and validation preserved; it is not exposed as a working control. The separate 24-control migration does not claim to implement adaptive behavior.

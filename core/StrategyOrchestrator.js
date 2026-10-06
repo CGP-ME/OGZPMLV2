@@ -866,8 +866,8 @@ class StrategyOrchestrator {
       () => ConfigLoader.get('strategies.NoWickImbalance')
     );
     this.mtfAdapter = new MultiTimeframeAdapter(this._buildMtfAdapterConfig());
-    this.ogzTpoConfig = ConfigLoader.get('strategies.OGZTPO');
-    this.tpoIntegration = new OgzTpoIntegration(this.ogzTpoConfig);
+    this.ogzTpoConfigProvider = () => ConfigLoader.get('strategies.OGZTPO');
+    this.tpoIntegration = new OgzTpoIntegration(this.ogzTpoConfigProvider);
     this.smartMoneySweepConfig = {
       ...ConfigLoader.get('strategies.SmartMoneySweep'),
       debug: ConfigLoader.get('observability.smartMoneyDebug') === true,
@@ -1989,7 +1989,6 @@ class StrategyOrchestrator {
     // FIX 2026-03-19: Self-contained — owns its TPO integration internally
     const tpoIntegrationModule = this.tpoIntegration;
     const minCandlesTPO = this.minCandlesTPO;
-    const ogzTpoConfig = this.ogzTpoConfig;
     if (shouldRegister('OGZTPO')) this.strategies.push({
       name: 'OGZTPO',  // OGZ TPO strategy
       evaluate: (ctx) => {
@@ -2002,7 +2001,7 @@ class StrategyOrchestrator {
           'OGZTPO',
           ctx.extras?.symbol,
           tpoIntegrationModule,
-          () => new OgzTpoIntegration(ogzTpoConfig)
+          () => new OgzTpoIntegration(this.ogzTpoConfigProvider)
         );
         const tpoBarTimestamp = latestCandle.etime
           ?? latestCandle.timestamp
@@ -2029,7 +2028,7 @@ class StrategyOrchestrator {
 
         return {
           direction,
-          confidence: Math.min(1.0, strength * ogzTpoConfig.strengthConfidenceMultiplier),
+          confidence: Math.min(1.0, strength * this.ogzTpoConfigProvider().strengthConfidenceMultiplier),
           reason: `OGZ TPO ${tpo.signal.zone} (strength: ${(strength * 100).toFixed(1)}%)`,
           signalData: tpo.signal,
           // TPO provides its own levels
