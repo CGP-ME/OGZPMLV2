@@ -2912,6 +2912,90 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'weight', min: 0, max: Number.MAX_VALUE,
     label: 'TimeSeriesMomentum MTF confluence weight', effect: 'next_entry_evaluation_ranking',
   },
+  'volumeProfileBoosts.aboveVAH.EMASMACrossover': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Above value area high: EMA/SMA ranking multiplier', effect: 'next_entry_evaluation_ranking',
+  },
+  'volumeProfileBoosts.aboveVAH.MADynamicSR': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Above value area high: MA Dynamic SR ranking multiplier', effect: 'next_entry_evaluation_ranking',
+  },
+  'volumeProfileBoosts.aboveVAH.RSI': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Above value area high: RSI ranking multiplier', effect: 'next_entry_evaluation_ranking',
+  },
+  'volumeProfileBoosts.aboveVAH.LiquiditySweep': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Above value area high: Liquidity sweep ranking multiplier', effect: 'next_entry_evaluation_ranking',
+  },
+  'volumeProfileBoosts.aboveVAH.SmartMoneySweep': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Above value area high: Smart money sweep ranking multiplier', effect: 'next_entry_evaluation_ranking',
+  },
+  'volumeProfileBoosts.belowVAL.EMASMACrossover': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Below value area low: EMA/SMA ranking multiplier', effect: 'next_entry_evaluation_ranking',
+  },
+  'volumeProfileBoosts.belowVAL.MADynamicSR': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Below value area low: MA Dynamic SR ranking multiplier', effect: 'next_entry_evaluation_ranking',
+  },
+  'volumeProfileBoosts.belowVAL.RSI': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Below value area low: RSI ranking multiplier', effect: 'next_entry_evaluation_ranking',
+  },
+  'volumeProfileBoosts.belowVAL.LiquiditySweep': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Below value area low: Liquidity sweep ranking multiplier', effect: 'next_entry_evaluation_ranking',
+  },
+  'volumeProfileBoosts.belowVAL.SmartMoneySweep': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Below value area low: Smart money sweep ranking multiplier', effect: 'next_entry_evaluation_ranking',
+  },
+  'volumeProfileBoosts.atPOC.EMASMACrossover': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'At point of control: EMA/SMA ranking multiplier', effect: 'next_entry_evaluation_ranking',
+  },
+  'volumeProfileBoosts.atPOC.MADynamicSR': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'At point of control: MA Dynamic SR ranking multiplier', effect: 'next_entry_evaluation_ranking',
+  },
+  'volumeProfileBoosts.atPOC.RSI': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'At point of control: RSI ranking multiplier', effect: 'next_entry_evaluation_ranking',
+  },
+  'volumeProfileBoosts.atPOC.LiquiditySweep': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'At point of control: Liquidity sweep ranking multiplier', effect: 'next_entry_evaluation_ranking',
+  },
+  'volumeProfileBoosts.atPOC.SmartMoneySweep': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'At point of control: Smart money sweep ranking multiplier', effect: 'next_entry_evaluation_ranking',
+  },
+  'volumeProfileBoosts.inLVN._allStrategies': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Near low-volume node: all strategies ranking multiplier', effect: 'next_entry_evaluation_ranking',
+  },
+  'volumeProfileBoosts.inValueArea.EMASMACrossover': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Inside value area: EMA/SMA ranking multiplier', effect: 'next_entry_evaluation_ranking',
+  },
+  'volumeProfileBoosts.inValueArea.MADynamicSR': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Inside value area: MA Dynamic SR ranking multiplier', effect: 'next_entry_evaluation_ranking',
+  },
+  'volumeProfileBoosts.inValueArea.RSI': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Inside value area: RSI ranking multiplier', effect: 'next_entry_evaluation_ranking',
+  },
+  'volumeProfileBoosts.inValueArea.LiquiditySweep': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Inside value area: Liquidity sweep ranking multiplier', effect: 'next_entry_evaluation_ranking',
+  },
+  'volumeProfileBoosts.inValueArea.SmartMoneySweep': {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER,
+    label: 'Inside value area: Smart money sweep ranking multiplier', effect: 'next_entry_evaluation_ranking',
+  },
   'fees.slippage': {
     type: 'number', unit: 'fraction', min: 0, max: 1, exclusiveMax: true,
     label: 'Simulated fill slippage', effect: 'next_simulated_fill',
