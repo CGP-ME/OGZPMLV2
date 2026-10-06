@@ -200,22 +200,9 @@ class MADynamicSR {
     const resolvedConfig = loadResolvedConfig(config);
     this.configProvider = configProvider;
 
-    // MA periods per CORRECTED Trader DNA interpretation
-    this.entryMaPeriod = resolvedConfig.entryMaPeriod;     // 20 MA — the trend + entry line
-    this.srMaPeriod = resolvedConfig.srMaPeriod;           // 200 MA — support/resistance level (NOT trend)
-    this.atrPeriod = resolvedConfig.atrPeriod;             // For SL buffer and structural validity
-
-    // Swing detection settings
-    this.swingLookback = resolvedConfig.swingLookback;     // Bars to confirm swing (3 for 15m)
-    this.srTestCount = resolvedConfig.srTestCount;         // Times a level must be tested
-    this.srZonePct = resolvedConfig.srZonePct;             // Zone width as % of price
-
     // Pattern persistence
     this.patternPersistBars = resolvedConfig.patternPersistBars;
 
-    // 20 MA slope detection
-    this.slopeLookback = resolvedConfig.slopeLookback;     // Compare current 20 MA to prior MA
-    this.maxExtensionAtr = resolvedConfig.maxExtensionAtr;
     this.conditionFlags = resolvedConfig.conditionFlags;
     this.approachRules = resolvedConfig.approachRules;
 
@@ -278,16 +265,11 @@ class MADynamicSR {
     };
 
     this.configReceipt = {
-      entryMaPeriod: this.entryMaPeriod,
-      srMaPeriod: this.srMaPeriod,
-      atrPeriod: this.atrPeriod,
-      slopeLookback: this.slopeLookback,
-      maxExtensionAtr: this.maxExtensionAtr,
       conditionFlags: this.conditionFlags,
       approachRules: this.approachRules
     };
     console.log(`[MADynamicSR][CONFIG] ${JSON.stringify(this.configReceipt)}`);
-    console.log(`[MADynamicSR] initialized (Trader DNA CORRECTED) - Entry MA: ${this.entryMaPeriod}, S/R MA: ${this.srMaPeriod}`);
+    console.log('[MADynamicSR] initialized (Trader DNA CORRECTED)');
   }
 
   /**
@@ -305,18 +287,26 @@ class MADynamicSR {
     const maxConfidence = Number(currentConfig.maxConfidence);
     const touchZonePct = Number(currentConfig.touchZonePct);
     const minSlopePct = Number(currentConfig.minSlopePct);
+    const entryMaPeriod = Number(currentConfig.entryMaPeriod);
+    const srMaPeriod = Number(currentConfig.srMaPeriod);
+    const atrPeriod = Number(currentConfig.atrPeriod);
+    const slopeLookback = Number(currentConfig.slopeLookback);
+    const swingLookback = Number(currentConfig.swingLookback);
+    const srZonePct = Number(currentConfig.srZonePct);
+    const srTestCount = Number(currentConfig.srTestCount);
+    const maxExtensionAtr = Number(currentConfig.maxExtensionAtr);
     const multipliers = currentConfig.multipliers;
     const structuralConfig = currentConfig.structural;
     this.barCount++;
 
     // Detect swings early (only needs swingLookback * 2 + 1 = 7 candles)
-    if (priceHistory && priceHistory.length >= this.swingLookback * 2 + 1) {
-      this._detectSwings(priceHistory);
-      this._updateSRLevels();
+    if (priceHistory && priceHistory.length >= swingLookback * 2 + 1) {
+      this._detectSwings(priceHistory, swingLookback);
+      this._updateSRLevels(srZonePct);
     }
 
     // Need enough history for 200 MA + slope lookback to generate signals
-    const minBars = Math.max(this.entryMaPeriod, this.srMaPeriod) + this.slopeLookback + 20;
+    const minBars = Math.max(entryMaPeriod, srMaPeriod) + slopeLookback + 20;
     if (!priceHistory || priceHistory.length < minBars) {
       return this._emptySignal();
     }
@@ -327,21 +317,21 @@ class MADynamicSR {
     const low = l(candle);
 
     // Calculate MAs
-    const ma20 = this._ema(closes, this.entryMaPeriod);     // Entry + trend line
-    const ma200 = this._ema(closes, this.srMaPeriod);       // S/R level (NOT trend gate)
-    const atr = this._atr(priceHistory, this.atrPeriod);
+    const ma20 = this._ema(closes, entryMaPeriod);     // Entry + trend line
+    const ma200 = this._ema(closes, srMaPeriod);       // S/R level (NOT trend gate)
+    const atr = this._atr(priceHistory, atrPeriod);
     if (!ma20) return this._emptySignal();
     // ma200 can be null if not enough data — that's okay, we just skip S/R features
 
     const touchingMA = this._isTouchingEMA(price, ma20, touchZonePct);
     if (touchingMA) this.diag.emaTouches++;
 
-    const maSlope = this._getMaSlope(closes, this.entryMaPeriod, minSlopePct);
+    const maSlope = this._getMaSlope(closes, entryMaPeriod, slopeLookback, minSlopePct);
     if (maSlope === 'rising') this.diag.trendBullish++;
     else if (maSlope === 'falling') this.diag.trendBearish++;
     else this.diag.trendFlat++;
 
-    const extension = this._extensionInfo(price, ma20, atr);
+    const extension = this._extensionInfo(price, ma20, atr, maxExtensionAtr);
     const wasExtendedBefore = this._wasExtended;
     if (extension.extended) {
       this._wasExtended = true;
@@ -352,7 +342,7 @@ class MADynamicSR {
       this.inPullbackTaken = false;
     }
 
-    const srAlignment = this._checkSRAlignment(ma20);
+    const srAlignment = this._checkSRAlignment(ma20, srZonePct, srTestCount);
     if (srAlignment.aligned) this.diag.srAligned++;
 
     const confirmation = this._checkConfirmationCandle(candle, priceHistory);
@@ -372,10 +362,10 @@ class MADynamicSR {
 
       if (maSlope === 'rising') {
         direction = 'buy';
-        reason = `MA Touch LONG: rising ${this.entryMaPeriod} EMA ($${ma20.toFixed(2)})`;
+        reason = `MA Touch LONG: rising ${entryMaPeriod} EMA ($${ma20.toFixed(2)})`;
       } else if (maSlope === 'falling') {
         direction = 'sell';
-        reason = `MA Touch SHORT: falling ${this.entryMaPeriod} EMA ($${ma20.toFixed(2)})`;
+        reason = `MA Touch SHORT: falling ${entryMaPeriod} EMA ($${ma20.toFixed(2)})`;
       } else {
         this.diag.trendGateRejects++;
         return this._emptySignal('trend_slope_flat', {
@@ -387,7 +377,7 @@ class MADynamicSR {
         });
       }
 
-      const approachSide = this._approachSideInfo(priceHistory, price, ma20, ma200, direction);
+      const approachSide = this._approachSideInfo(priceHistory, price, ma20, ma200, direction, entryMaPeriod);
       if (this.conditionFlags.approachSide && !approachSide.allowed) {
         this.diag.approachSideRejects++;
         return this._emptySignal('approach_side_reject', {
@@ -413,7 +403,8 @@ class MADynamicSR {
         srAlignment,
         confirmation,
         structural,
-        multipliers
+        multipliers,
+        maxExtensionAtr
       });
       confidence = clamp(confidence * confidenceProfile.composite, 0, maxConfidence);
 
@@ -453,11 +444,11 @@ class MADynamicSR {
   /**
    * Detect swing highs and lows from price history
    */
-  _detectSwings(priceHistory) {
-    if (priceHistory.length < this.swingLookback * 2 + 1) return;
+  _detectSwings(priceHistory, swingLookback) {
+    if (priceHistory.length < swingLookback * 2 + 1) return;
 
     const len = priceHistory.length;
-    const lookback = this.swingLookback;
+    const lookback = swingLookback;
 
     // Check if we have a new swing high
     const midBar = len - 1 - lookback;
@@ -524,11 +515,11 @@ class MADynamicSR {
   /**
    * Build S/R levels from swings - levels tested multiple times are stronger
    */
-  _updateSRLevels() {
+  _updateSRLevels(srZonePct) {
     if (this.swings.length < 2) return;
 
     // Group swings into zones
-    const zonePct = this.srZonePct / 100;
+    const zonePct = srZonePct / 100;
 
     for (const swing of this.swings) {
       const price = swing.wick;  // Use wick
@@ -611,13 +602,13 @@ class MADynamicSR {
    *
    * @returns {'rising'|'falling'|'flat'}
    */
-  _getMaSlope(closes, period, minSlopePct) {
-    if (closes.length < period + this.slopeLookback) return 'flat';
+  _getMaSlope(closes, period, slopeLookback, minSlopePct) {
+    if (closes.length < period + slopeLookback) return 'flat';
 
     const currentMa = this._ema(closes, period);
 
     // Calculate MA value from slopeLookback bars ago
-    const olderCloses = closes.slice(0, closes.length - this.slopeLookback);
+    const olderCloses = closes.slice(0, closes.length - slopeLookback);
     const olderMa = this._ema(olderCloses, period);
 
     if (!currentMa || !olderMa || olderMa === 0) return 'flat';
@@ -634,19 +625,19 @@ class MADynamicSR {
    * Trader DNA: "distance between price and 20 MA = extension = overbought"
    * "I would never be buying up here because we're super far away from the 20 MA"
    */
-  _extensionInfo(price, ma20, atr) {
+  _extensionInfo(price, ma20, atr, maxExtensionAtr) {
     const distance = Math.abs(price - ma20);
     const distancePct = ma20 ? (distance / ma20) * 100 : null;
     const extensionAtr = atr && atr > 0 ? distance / atr : null;
     const extended = Number.isFinite(extensionAtr)
-      ? extensionAtr > this.maxExtensionAtr
+      ? extensionAtr > maxExtensionAtr
       : false;
     return {
       extended,
       distance,
       distancePct,
       extensionAtr,
-      maxExtensionAtr: this.maxExtensionAtr
+      maxExtensionAtr
     };
   }
 
@@ -658,7 +649,7 @@ class MADynamicSR {
     return distance <= touchZonePct;
   }
 
-  _approachSideInfo(priceHistory, price, ma20, ma200, direction) {
+  _approachSideInfo(priceHistory, price, ma20, ma200, direction, entryMaPeriod) {
     const priorCandle = Array.isArray(priceHistory) && priceHistory.length >= 2
       ? priceHistory[priceHistory.length - 2]
       : null;
@@ -666,8 +657,8 @@ class MADynamicSR {
     const priorCloses = Array.isArray(priceHistory) && priceHistory.length >= 2
       ? priceHistory.slice(0, -1).map(item => c(item))
       : [];
-    const priorMa20 = priorCloses.length >= this.entryMaPeriod
-      ? this._ema(priorCloses, this.entryMaPeriod)
+    const priorMa20 = priorCloses.length >= entryMaPeriod
+      ? this._ema(priorCloses, entryMaPeriod)
       : ma20;
 
     const priorSide = Number.isFinite(priorClose) && Number.isFinite(priorMa20)
@@ -776,7 +767,8 @@ class MADynamicSR {
     srAlignment,
     confirmation,
     structural,
-    multipliers
+    multipliers,
+    maxExtensionAtr
   }) {
     const profile = this._emptyConfidenceProfile();
     profile.components.trendGate = {
@@ -798,7 +790,7 @@ class MADynamicSR {
     };
 
     if (this.conditionFlags.extension && extension.extended) {
-      const overshoot = Math.max(0, extension.extensionAtr - this.maxExtensionAtr);
+      const overshoot = Math.max(0, extension.extensionAtr - maxExtensionAtr);
       const multiplier = clamp(
         1 - (overshoot * multipliers.extensionPenaltyScale),
         multipliers.extensionMin,
@@ -809,7 +801,7 @@ class MADynamicSR {
         fired: true,
         multiplier,
         extensionAtr: extension.extensionAtr,
-        maxExtensionAtr: this.maxExtensionAtr
+        maxExtensionAtr
       };
       this.diag.extensionPenalties++;
     }
@@ -985,11 +977,11 @@ class MADynamicSR {
   /**
    * Check if EMA aligns with a previously tested S/R level
    */
-  _checkSRAlignment(ema) {
-    const zonePct = this.srZonePct / 100;
+  _checkSRAlignment(ema, srZonePct, srTestCount) {
+    const zonePct = srZonePct / 100;
 
     for (const level of this.srLevels) {
-      if (level.tests < this.srTestCount) continue;  // Must be tested multiple times
+      if (level.tests < srTestCount) continue;  // Must be tested multiple times
 
       const diff = Math.abs(ema - level.price) / level.price;
       if (diff <= zonePct) {

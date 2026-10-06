@@ -3083,6 +3083,28 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'fraction', min: 0, exclusiveMin: true, max: Number.MAX_VALUE,
     label: 'MA dynamic S/R minimum structural take-profit distance', effect: 'next_MADynamicSR_signal_confidence_evaluation',
   },
+  ...Object.fromEntries([
+    ['entryMaPeriod', 'MA dynamic S/R entry EMA period'],
+    ['srMaPeriod', 'MA dynamic S/R support/resistance EMA period'],
+    ['atrPeriod', 'MA dynamic S/R ATR period'],
+    ['swingLookback', 'MA dynamic S/R swing lookback'],
+    ['srTestCount', 'MA dynamic S/R required S/R tests'],
+  ].map(([key, label]) => [`strategies.MADynamicSR.${key}`, {
+    type: 'number', unit: 'candles', min: 0, exclusiveMin: true, max: Number.MAX_SAFE_INTEGER, integer: true,
+    label, effect: 'next_MADynamicSR_observation_evaluation',
+  }])),
+  'strategies.MADynamicSR.slopeLookback': {
+    type: 'number', unit: 'candles', min: 2, max: Number.MAX_SAFE_INTEGER, integer: true,
+    label: 'MA dynamic S/R EMA slope lookback', effect: 'next_MADynamicSR_signal_evaluation',
+  },
+  'strategies.MADynamicSR.srZonePct': {
+    type: 'number', unit: 'percent', min: 0, exclusiveMin: true, max: Number.MAX_VALUE,
+    label: 'MA dynamic S/R support/resistance zone', effect: 'next_MADynamicSR_observation_evaluation',
+  },
+  'strategies.MADynamicSR.maxExtensionAtr': {
+    type: 'number', unit: 'atr_multiple', min: 0, exclusiveMin: true, max: Number.MAX_VALUE,
+    label: 'MA dynamic S/R maximum extension', effect: 'next_MADynamicSR_signal_evaluation',
+  },
   'strategies.RSI.period': {
     type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
     label: 'RSI period', effect: 'next_RSI_entry_and_its_owned_exit',

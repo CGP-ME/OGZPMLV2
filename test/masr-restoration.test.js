@@ -39,6 +39,8 @@ function masrConfig(overrides = {}) {
   };
 }
 
+const BASE_MASR_CONFIG = ConfigLoader.BASE_CONFIG.strategies.MADynamicSR;
+
 function createMADynamicSR(config) {
   return new MADynamicSR(config, () => config);
 }
@@ -51,7 +53,7 @@ function fallingMaTouchCandles() {
   }
 
   const probe = createMADynamicSR(masrConfig());
-  const ma20 = probe._ema(history.map(item => item.c), 20);
+  const ma20 = probe._ema(history.map(item => item.c), BASE_MASR_CONFIG.entryMaPeriod);
   const finalClose = ma20 * 1.001;
   history.push(candle(finalClose, {
     open: finalClose + 1.0,
@@ -137,13 +139,13 @@ describe('MADynamicSR Trader DNA restoration', () => {
     const strategy = createMADynamicSR(masrConfig({ maxExtensionAtr: 0.01 }));
     const candles = fallingMaTouchCandles();
     const closes = candles.map(item => item.c);
-    const ma20 = strategy._ema(closes, strategy.entryMaPeriod);
+    const ma20 = strategy._ema(closes, BASE_MASR_CONFIG.entryMaPeriod);
 
     strategy._wasExtended = true;
     strategy.inPullbackTaken = true;
     strategy.srLevels = [{
       price: ma20,
-      tests: strategy.srTestCount,
+      tests: BASE_MASR_CONFIG.srTestCount,
       lastTest: strategy.barCount + 1,
       type: 'resistance',
     }];
@@ -179,7 +181,7 @@ describe('MADynamicSR Trader DNA restoration', () => {
     candles[candles.length - 1] = candle(99.9, { open: 99.1, high: 100.1, low: 98.9, t: 229 });
 
     jest.spyOn(strategy, '_ema')
-      .mockImplementation((closes, period) => (period === strategy.entryMaPeriod ? 100 : 110));
+      .mockImplementation((closes, period) => (period === BASE_MASR_CONFIG.entryMaPeriod ? 100 : 110));
     jest.spyOn(strategy, '_getMaSlope').mockReturnValue('rising');
     jest.spyOn(strategy, '_atr').mockReturnValue(1);
     jest.spyOn(strategy, '_isTouchingEMA').mockReturnValue(true);
@@ -215,7 +217,7 @@ describe('MADynamicSR Trader DNA restoration', () => {
     candles[candles.length - 1] = candle(99.9, { open: 99.1, high: 100.1, low: 98.9, t: 229 });
 
     jest.spyOn(strategy, '_ema')
-      .mockImplementation((closes, period) => (period === strategy.entryMaPeriod ? 100 : 90));
+      .mockImplementation((closes, period) => (period === BASE_MASR_CONFIG.entryMaPeriod ? 100 : 90));
     jest.spyOn(strategy, '_getMaSlope').mockReturnValue('rising');
     jest.spyOn(strategy, '_atr').mockReturnValue(1);
     jest.spyOn(strategy, '_isTouchingEMA').mockReturnValue(true);
