@@ -73,12 +73,12 @@ This is a bounded deferred list for the current configuration migration. It reco
 - **What must be resolved:** Correct the volume-distribution calculation using actual candle/bin overlap semantics in the later defect pass. Do not hide the defect with a new default or gate during settings migration.
 - **Status:** Logged and preserved. The six-control migration proof separately uses positive-volume geometry and verifies save/persistence, profile cadence, thresholds and market-state reads. That proof does not claim the original calculation defect is fixed.
 
-## 11. MA trend-gate and pattern-persistence intent
+## 11. MA intent and MTF annotation-only inputs
 
-- **Severity:** Existing annotation-only/unwired settings; no newly established fatality.
-- **Evidence:** At production tree eaefb0a8b075c3871874b3ef9dd003619e822706, modules/MADynamicSR.js rejects a flat slope unconditionally in update; conditionFlags.trendGate does not control that rejection. patternPersistBars is validated and copied in the constructor but has no behavioral consumer. The thirteen effective condition/approach controls are separate.
-- **What must be resolved:** Establish the intended slope-switch and pattern-persistence behavior before wiring or removing these settings. Do not interpret lack of a consumer as proof the feature was unwanted.
-- **Status:** Both canonical fields preserved and not exposed as effective customer controls. Scoring metadata reports the actual always-active slope condition; no new rejection added. Evidence: madynamicsr-condition-approach-flags/candidate.patch and root-proof.log.
+- **Severity:** Existing annotation-only or unwired settings; no newly established fatality.
+- **Evidence:** At committed `84441cb6`, `modules/MADynamicSR.js:357-371` rejects a flat slope unconditionally; `conditionFlags.trendGate` does not control that rejection. `patternPersistBars` is validated/copied at `:177-204` but has no behavioral read. Separately, `core/StrategyOrchestrator.js:1424-1462,1486-1495,1549-1557` reads five MTF fields only to attach `type: 'annotation'` decision contributors: `orchestrator.emaCrossoverMtf.hourlyTrendVetoMultiplier`, `fourHourMacdBoostMultiplier`, `freshLongTermCrossoverMinTrendStrength`, `orchestrator.maDynamicSRMtf.compressionBandwidthThreshold`, and `orchestrator.ogzTpoMtf.bandwidthThreshold`. The other ten MTF ranking controls were delivered separately; these five do not change ranking score.
+- **What must be resolved:** Establish intended slope-switch/persistence behavior and whether the five MTF annotations should become customer-changing ranking policy. Do not label annotations as multipliers, infer a missing consumer as unwanted, or add a gate simply to surface them.
+- **Status:** The MA fields and five MTF inputs remain canonical and unexposed as effective customer controls. The thirteen effective MA condition/approach controls and ten ranking MTF controls are separate delivered groups. No new rejection or MTF scoring behavior was added. Evidence: `madynamicsr-condition-approach-flags/` and `strategy-mtf-ranking-controls/deferred-annotation-intent.md`.
 
 ## 12. OGZTPO adaptive mode has no behavioral consumer
 
@@ -96,3 +96,10 @@ This is a bounded deferred list for the current configuration migration. It reco
 
 - **Evidence:** maxHoldBars and sweepMaxOffset are validated/copied in SmartMoneySweep but have no effective downstream behavioral reads in the bounded source trace.
 - **Action:** Determine intended hold/sweep-offset behavior in the deferred pass. Both fields and validation remain; neither is presented as an effective customer control.
+
+## 15. RSI2 no-hint period seed versus canonical entry period
+
+- **Severity:** Unresolved ownership of the legacy period seed; no new production change.
+- **Evidence:** At committed `84441cb6`, `strategies.RSI2MeanReversion.rsiPeriod` is the entry evaluator's period (`modules/RSI2MeanReversion.js:95,111`) and emitted hints snapshot it (`:143,154`). The queued `rsi2-exit-contract-ownership/` packet intentionally keeps `exitContracts.RSI2MeanReversion.rsiPeriod` as the existing no-hint seed. `core/ExitContractManager.js:363` selects a default contract only when a trade lacks `exitContract`; invalidation then reads that contract's period at `:524-534`. The ordinary orchestrator creates each winner contract with its signal overrides at `core/StrategyOrchestrator.js:2990-3002`, so a new RSI2 signal carries the entry period. The bounded trace found no separate production `createExitContract('RSI2MeanReversion', {})` caller; the legacy/no-contract fallback remains real through `checkInvalidation`.
+- **What must be resolved:** Decide whether a legacy trade without a frozen exit contract must retain its independent exit seed or should derive a period from a recorded entry source. A later customer edit to strategy `rsiPeriod` would affect new hints but not that no-hint seed. Do not remove the seed or claim all duplicate owners are defects without a legacy-trade producer/contract-history decision. Similar percent seeds in the committed PropSafe/EMA migrations are documented no-hint ECM behavior, not proof of a global duplication defect.
+- **Status:** The RSI2 packet is uncommitted. Keep the duplicate seed visible in review and require an explicit canonical-trust decision before calling the queued exit migration single-owner complete.

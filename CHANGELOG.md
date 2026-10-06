@@ -1,3 +1,9 @@
+## 2026-10-06 — Consolidate preserved configuration follow-ups
+
+Problem/change: collect the five existing MTF annotation-only inputs alongside the preserved MA trend/persistence questions, and record the legacy RSI2 exit-period seed separately from its editable entry period. These entries describe unresolved intent/ownership; they authorize no new strategy behavior, gates, deletions or compatibility aliases. Existing fee context, exposure, allocation-domain and inactive-setting questions remain on the same list.
+
+Verification/review: independent Terra traced committed consumers and prepared the narrow documentation patch; root reviewed the evidence against the stated committed84441cb6 source and limited this delivery to the tracked follow-up list. No runtime or settings file changed. See ogz-meta/inbox/codex/2026-10-06/config-migration-followups.md, items11 and15. Scoped whitespace and staged secret checks pass; prose-only documentation needs no Mercury review. Production candidates and the separate review-record blocker retain the status documented in the preceding accounting correction. No PM2 restart or runtime activation.
+
 ## 2026-10-06 — Correct configuration migration review-clearance claims
 
 Problem: eight delivered configuration groups were described as having completed clean Mercury review based on their reported no_break_found verdicts. The saved structured records instead show failed answer quality, incomplete/authority-unready coverage, and missing final claim adjudications. Clean independent review was not established before those pushes. This is an assistant delivery/accounting error; subsequent review cannot retroactively satisfy the pre-commit sequence.
