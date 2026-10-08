@@ -325,12 +325,14 @@ describe('StrategyOrchestrator pipeline toggles', () => {
       entryMode: 'rejection',
       swingExtremeLookback: 20,
       almostTouchPct: 0.05,
-      stopLookbackBars: 10,
-      stopBufferAtr: 0.1,
-      targetRR: 1,
       twinSplitEnabled: true,
       twinProximityBars: 1,
       confidence: 0.7,
+    }));
+    expect(tradingConfig.exitContracts.NoWickImbalance).toEqual(expect.objectContaining({
+      stopLookbackBars: 10,
+      stopBufferAtr: 0.1,
+      targetRR: 1,
     }));
   });
 

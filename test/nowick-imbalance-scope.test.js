@@ -16,7 +16,9 @@ function makeCandles(symbol, timeframe, closes) {
 }
 
 function createNoWickImbalance(config, confidenceProvider) {
-  return new NoWickImbalance(config, confidenceProvider, () => config);
+  const { stopLookbackBars, stopBufferAtr, targetRR, ...entryConfig } = config;
+  const exitConfig = { stopLookbackBars, stopBufferAtr, targetRR };
+  return new NoWickImbalance(entryConfig, confidenceProvider, () => entryConfig, () => exitConfig);
 }
 
 function makeCtx(symbol, timeframe, closes) {

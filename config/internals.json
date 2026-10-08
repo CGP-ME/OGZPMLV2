@@ -1031,7 +1031,7 @@
                 "tap",
                 "rejection"
               ],
-              "strategies.NoWickImbalance.targetRR": [
+              "exitContracts.NoWickImbalance.targetRR": [
                 1,
                 1.5,
                 2

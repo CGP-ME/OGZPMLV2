@@ -667,7 +667,7 @@ function buildRoleConfig(role) {
 }
 
 const DESCRIPTOR_OVERRIDE_PATHS = Object.freeze([
-  /^exitContracts\.[A-Za-z0-9_]+\.(stopLossPercent|takeProfitPercent|trailingStopPercent|trailingActivation|maxHoldTimeMinutes|atrStopMult|targetRR|trailActivationR|trailDistanceR|trailChannelBars|trailAtrMult|rsiExitLong)$/,
+  /^exitContracts\.[A-Za-z0-9_]+\.(stopLossPercent|takeProfitPercent|trailingStopPercent|trailingActivation|maxHoldTimeMinutes|atrStopMult|targetRR|trailActivationR|trailDistanceR|trailChannelBars|trailAtrMult|rsiExitLong|stopLookbackBars|stopBufferAtr)$/,
   /^strategies\.[A-Za-z0-9_]+\.[A-Za-z0-9_.]+$/,
   /^strategies\.soloFilter$/,
   /^confidence\.minTradeConfidence$/,
@@ -2613,15 +2613,15 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'candles', min: 0, max: Number.MAX_SAFE_INTEGER, exclusiveMin: true, integer: true,
     label: 'NoWick formation swing-extreme lookback', effect: 'next_observation_evaluation',
   },
-  'strategies.NoWickImbalance.stopLookbackBars': {
+  'exitContracts.NoWickImbalance.stopLookbackBars': {
     type: 'number', unit: 'candles', min: 0, max: Number.MAX_SAFE_INTEGER, exclusiveMin: true, integer: true,
     label: 'NoWick structural-stop lookback', effect: 'next_new_NoWick_signal_geometry',
   },
-  'strategies.NoWickImbalance.stopBufferAtr': {
+  'exitContracts.NoWickImbalance.stopBufferAtr': {
     type: 'number', unit: 'ATR multiples', min: 0, max: Number.MAX_VALUE,
     label: 'NoWick structural-stop buffer', effect: 'next_new_NoWick_signal_geometry',
   },
-  'strategies.NoWickImbalance.targetRR': {
+  'exitContracts.NoWickImbalance.targetRR': {
     type: 'number', unit: 'risk-reward ratio', min: 0, max: Number.MAX_VALUE, exclusiveMin: true,
     label: 'NoWick structural target reward ratio', effect: 'next_new_NoWick_signal_geometry',
   },

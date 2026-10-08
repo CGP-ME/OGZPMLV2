@@ -32,9 +32,6 @@ const REQUIRED_NUMERIC_KEYS = [
   'entrySideWickMaxPct',
   'swingExtremeLookback',
   'almostTouchPct',
-  'stopLookbackBars',
-  'stopBufferAtr',
-  'targetRR',
   'twinProximityBars',
   'confidence',
 ];
@@ -43,7 +40,6 @@ const REQUIRED_INTEGER_KEYS = [
   'maxCandleAge',
   'swingLookback',
   'swingExtremeLookback',
-  'stopLookbackBars',
   'twinProximityBars',
 ];
 
@@ -70,12 +66,6 @@ function readConfig(config) {
       throw new Error(`[NoWickImbalance] ${key} must be 0..100 (got ${cfg[key]})`);
     }
   }
-  if (Number(cfg.stopBufferAtr) < 0) {
-    throw new Error(`[NoWickImbalance] stopBufferAtr must be non-negative (got ${cfg.stopBufferAtr})`);
-  }
-  if (Number(cfg.targetRR) <= 0) {
-    throw new Error(`[NoWickImbalance] targetRR must be positive (got ${cfg.targetRR})`);
-  }
   for (const key of ['minBodyPercent', 'confidence']) {
     const value = Number(cfg[key]);
     if (value < 0 || value > 1) {
@@ -90,9 +80,6 @@ function readConfig(config) {
     entrySideWickMaxPct: _entrySideWickMaxPct,
     swingExtremeLookback: _swingExtremeLookback,
     almostTouchPct: _almostTouchPct,
-    stopLookbackBars: _stopLookbackBars,
-    stopBufferAtr: _stopBufferAtr,
-    targetRR: _targetRR,
     twinProximityBars: _twinProximityBars,
     entryMode: _entryMode,
     twinSplitEnabled: _twinSplitEnabled,
@@ -104,12 +91,25 @@ function readConfig(config) {
   };
 }
 
+function readExitConfig(config) {
+  const cfg = config;
+  const missing = ['stopLookbackBars', 'stopBufferAtr', 'targetRR']
+    .filter(key => !Number.isFinite(Number(cfg[key])));
+  if (missing.length > 0) throw new Error(`[NoWickImbalance] missing finite exit config key(s): ${missing.join(', ')}`);
+  if (!Number.isInteger(Number(cfg.stopLookbackBars)) || Number(cfg.stopLookbackBars) <= 0) throw new Error(`[NoWickImbalance] stopLookbackBars must be a positive integer (got ${cfg.stopLookbackBars})`);
+  if (Number(cfg.stopBufferAtr) < 0) throw new Error(`[NoWickImbalance] stopBufferAtr must be non-negative (got ${cfg.stopBufferAtr})`);
+  if (Number(cfg.targetRR) <= 0) throw new Error(`[NoWickImbalance] targetRR must be positive (got ${cfg.targetRR})`);
+  return Object.freeze({ stopLookbackBars: Number(cfg.stopLookbackBars), stopBufferAtr: Number(cfg.stopBufferAtr), targetRR: Number(cfg.targetRR) });
+}
+
 class NoWickImbalance {
-  constructor(config, confidenceProvider, detectionConfigProvider) {
+  constructor(config, confidenceProvider, detectionConfigProvider, exitConfigProvider) {
     this.name = 'NoWickImbalance';
     this.confidenceProvider = confidenceProvider;
     this.detectionConfigProvider = detectionConfigProvider;
+    this.exitConfigProvider = exitConfigProvider;
     this.cfg = Object.freeze(readConfig(config));
+    readExitConfig(this.exitConfigProvider());
 
     // Active NoWick levels waiting for retrace tap, isolated by symbol+timeframe.
     // Each scope entry: { pendingLevels, invalidatedLevels, candleCount }.
@@ -523,7 +523,7 @@ class NoWickImbalance {
   }
 
   _computeStructuralExit(type, currentPrice, candles, atr) {
-    const exitConfig = this.detectionConfigProvider();
+    const exitConfig = this.exitConfigProvider();
     if (!Number.isFinite(currentPrice) || currentPrice <= 0) return null;
     if (!Array.isArray(candles) || candles.length < exitConfig.stopLookbackBars) return null;
 

@@ -71,7 +71,7 @@ describe('BacktestConfigOverrides', () => {
       'broker.candleTimeframe': '1h',
       'orchestrator.mtfConfluenceService.minReadyTimeframes': 3,
       'strategies.NoWickImbalance.entryMode': 'rejection',
-      'strategies.NoWickImbalance.targetRR': 1.5,
+      'exitContracts.NoWickImbalance.targetRR': 1.5,
       'strategies.EMASMACrossover.confluenceBoost.enabled': true,
       'strategies.EMASMACrossover.confluenceBoost.weight': 0.2,
     });
@@ -80,7 +80,7 @@ describe('BacktestConfigOverrides', () => {
       'broker.candleTimeframe': '1h',
       'orchestrator.mtfConfluenceService.minReadyTimeframes': 3,
       'strategies.NoWickImbalance.entryMode': 'rejection',
-      'strategies.NoWickImbalance.targetRR': 1.5,
+      'exitContracts.NoWickImbalance.targetRR': 1.5,
       'strategies.EMASMACrossover.confluenceBoost.enabled': true,
       'strategies.EMASMACrossover.confluenceBoost.weight': 0.2,
     });

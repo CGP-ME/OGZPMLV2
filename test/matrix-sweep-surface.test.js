@@ -100,7 +100,7 @@ describe('matrix-sweep runnable surface', () => {
       .toEqual([3, 5, 8]);
     expect(GRID.conf.strategyParams.NoWickImbalance['strategies.NoWickImbalance.entryMode'])
       .toEqual(['tap', 'rejection']);
-    expect(GRID.conf.strategyParams.NoWickImbalance['strategies.NoWickImbalance.targetRR'])
+    expect(GRID.conf.strategyParams.NoWickImbalance['exitContracts.NoWickImbalance.targetRR'])
       .toEqual([1.0, 1.5, 2.0]);
     expect(GRID.conf.strategyParams.SmartMoneySweep['strategies.SmartMoneySweep.minConditionsGate'])
       .toEqual([0, 1, 2, 3]);
@@ -257,7 +257,7 @@ describe('matrix-sweep runnable surface', () => {
     const configs = generateMatrix(['NoWickImbalance'], GRID.conf, 'conf');
     const payloads = configs.map(config => JSON.parse(config.env.BACKTEST_CONFIG_OVERRIDES_JSON));
     const entryModes = payloads.map(payload => payload['strategies.NoWickImbalance.entryMode']);
-    const targetRRs = payloads.map(payload => payload['strategies.NoWickImbalance.targetRR']);
+    const targetRRs = payloads.map(payload => payload['exitContracts.NoWickImbalance.targetRR']);
 
     expect(configs).toHaveLength(GRID.conf.confidence.length * 2 * 3 * paramArmCount(GRID.conf.globalParams));
     expect(new Set(entryModes)).toEqual(new Set(['tap', 'rejection']));
@@ -267,7 +267,7 @@ describe('matrix-sweep runnable surface', () => {
     expect(configs.every(config => config.env.NOWICK_TARGET_RR === undefined)).toBe(true);
     expect(configs.every(config => config.strategyParams != null)).toBe(true);
     expect(configs.every(config => config.strategyParams['strategies.NoWickImbalance.entryMode'] != null)).toBe(true);
-    expect(configs.every(config => config.strategyParams['strategies.NoWickImbalance.targetRR'] != null)).toBe(true);
+    expect(configs.every(config => config.strategyParams['exitContracts.NoWickImbalance.targetRR'] != null)).toBe(true);
   });
 
   test('OpeningRangeBreakout OR duration and width sweeps stay inside caged backtest overrides', () => {
