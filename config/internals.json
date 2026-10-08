@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 1,
+  "revision": 2,
   "backtest": {
     "candleDataFile": "",
     "reportTag": "",
@@ -1146,6 +1146,19 @@
       "ntfy": {
         "requestTimeoutMs": 5000
       }
+    }
+  },
+  "exitContracts": {
+    "DonchianBreakout": {
+      "stopType": "structural",
+      "trailType": "channel",
+      "tpMode": "off",
+      "maxHoldMode": "off"
+    },
+    "TimeSeriesMomentum": {
+      "trailType": "atr",
+      "tpMode": "off",
+      "maxHoldMode": "off"
     }
   }
 }

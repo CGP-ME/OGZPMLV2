@@ -1102,6 +1102,14 @@ function buildConfig() {
   }
 
   const exits = setting('exits');
+  const exitContracts = setting('exitContracts');
+  exitContracts.DonchianBreakout.stopType = internal('exitContracts.DonchianBreakout.stopType');
+  exitContracts.DonchianBreakout.trailType = internal('exitContracts.DonchianBreakout.trailType');
+  exitContracts.DonchianBreakout.tpMode = internal('exitContracts.DonchianBreakout.tpMode');
+  exitContracts.DonchianBreakout.maxHoldMode = internal('exitContracts.DonchianBreakout.maxHoldMode');
+  exitContracts.TimeSeriesMomentum.trailType = internal('exitContracts.TimeSeriesMomentum.trailType');
+  exitContracts.TimeSeriesMomentum.tpMode = internal('exitContracts.TimeSeriesMomentum.tpMode');
+  exitContracts.TimeSeriesMomentum.maxHoldMode = internal('exitContracts.TimeSeriesMomentum.maxHoldMode');
   const trai = setting('trai');
   const llmCredentialName = String(trai.llm?.apiKeyEnv || '').trim();
   trai.apiKey = llmCredentialName ? credential('trai.apiKey', llmCredentialName) : '';
@@ -1154,6 +1162,7 @@ function buildConfig() {
   delete botInternals.deployment;
   delete botInternals.services;
   delete botInternals.tooling;
+  delete botInternals.exitContracts;
 
   const config = {
     ...runtimeSettings,
@@ -1192,6 +1201,7 @@ function buildConfig() {
     positionSizing: setting('positionSizing'),
     entryLogic: setting('entryLogic'),
     exitLogic: setting('exitLogic'),
+    exitContracts,
     strategyBehavior,
     orchestrator,
     exits,

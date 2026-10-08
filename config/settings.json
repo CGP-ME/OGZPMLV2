@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 7,
+  "revision": 8,
   "confidence": {
     "minStrategyConfidence": 0.35,
     "candlePatternMinConfidence": 0.7,
@@ -1667,18 +1667,14 @@
     },
     "DonchianBreakout": {
       "stopLossPercent": -2.5,
-      "stopType": "structural",
       "atrStopMult": 2.5,
       "takeProfitPercent": null,
-      "tpMode": "off",
       "tpAtrMultiple": null,
       "trailingStopPercent": null,
       "trailingActivation": null,
-      "trailType": "channel",
       "trailAtrMult": null,
       "trailChannelBars": 10,
       "maxHoldTimeMinutes": null,
-      "maxHoldMode": "off",
       "partialExit": {
         "enabled": false,
         "triggerR": 1,
@@ -1781,15 +1777,12 @@
       "stopType": "atr",
       "atrStopMult": 2,
       "takeProfitPercent": null,
-      "tpMode": "off",
       "tpAtrMultiple": null,
       "trailingStopPercent": null,
       "trailingActivation": null,
-      "trailType": "atr",
       "trailAtrMult": 1,
       "trailChannelBars": null,
       "maxHoldTimeMinutes": null,
-      "maxHoldMode": "off",
       "useStructuralExits": false,
       "partialExit": {
         "enabled": false,
