@@ -251,13 +251,8 @@ function applyConcurrencyContractDefaults(contract, defaults) {
  * Exit contracts now come from ConfigLoader (single source of truth)
  * Phase 1 REWRITE: Eliminated hardcoded duplicates - ConfigLoader owns all trading params
  */
-const DEFAULT_CONTRACTS = ConfigLoader.get('exitContracts');
-
 class ExitContractManager {
   constructor() {
-    // Phase 1 REWRITE: Read from ConfigLoader (single source of truth)
-    this.defaultContracts = ConfigLoader.get('exitContracts');
-
     // Phase 10: Delegate to individual checkers
     this.stopLossChecker = new StopLossChecker();
     this.takeProfitChecker = new TakeProfitChecker();
@@ -272,6 +267,7 @@ class ExitContractManager {
    * @returns {Object} Exit contract with SL/TP/invalidation
    */
   getDefaultContract(strategyName, context = {}) {
+    const defaultContracts = ConfigLoader.get('exitContracts');
     // FIX 2026-02-24: Validate strategyName is a string (Phase 12 fuzzing)
     if (typeof strategyName !== 'string' || !strategyName) {
       strategyName = 'default';
@@ -279,10 +275,10 @@ class ExitContractManager {
     const timeframe = normalizeTimeframeValue(context?.timeframe);
 
     // Try exact match first
-    if (this.defaultContracts[strategyName]) {
+    if (defaultContracts[strategyName]) {
       return applyConcurrencyContractDefaults(
-        buildStrategyContract(this.defaultContracts[strategyName], strategyName, timeframe),
-        this.defaultContracts.default
+        buildStrategyContract(defaultContracts[strategyName], strategyName, timeframe),
+        defaultContracts.default
       );
     }
 
@@ -290,37 +286,37 @@ class ExitContractManager {
     const lowerName = strategyName.toLowerCase();
     if (lowerName.includes('ema') || lowerName.includes('crossover')) {
       return applyConcurrencyContractDefaults(
-        buildStrategyContract(this.defaultContracts.EMASMACrossover, strategyName, timeframe),
-        this.defaultContracts.default
+        buildStrategyContract(defaultContracts.EMASMACrossover, strategyName, timeframe),
+        defaultContracts.default
       );
     }
     if (lowerName.includes('sweep') || lowerName.includes('liquidity')) {
       return applyConcurrencyContractDefaults(
-        buildStrategyContract(this.defaultContracts.LiquiditySweep, strategyName, timeframe),
-        this.defaultContracts.default
+        buildStrategyContract(defaultContracts.LiquiditySweep, strategyName, timeframe),
+        defaultContracts.default
       );
     }
     if (lowerName.includes('sr') || lowerName.includes('support') || lowerName.includes('resistance')) {
       return applyConcurrencyContractDefaults(
-        buildStrategyContract(this.defaultContracts.MADynamicSR, strategyName, timeframe),
-        this.defaultContracts.default
+        buildStrategyContract(defaultContracts.MADynamicSR, strategyName, timeframe),
+        defaultContracts.default
       );
     }
     if (lowerName.includes('candle') || lowerName.includes('pattern')) {
       return applyConcurrencyContractDefaults(
-        buildStrategyContract(this.defaultContracts.CandlePattern, strategyName, timeframe),
-        this.defaultContracts.default
+        buildStrategyContract(defaultContracts.CandlePattern, strategyName, timeframe),
+        defaultContracts.default
       );
     }
     if (lowerName.includes('regime')) {
       return applyConcurrencyContractDefaults(
-        buildStrategyContract(this.defaultContracts.MarketRegime, strategyName, timeframe),
-        this.defaultContracts.default
+        buildStrategyContract(defaultContracts.MarketRegime, strategyName, timeframe),
+        defaultContracts.default
       );
     }
     return applyConcurrencyContractDefaults(
-      buildStrategyContract(this.defaultContracts.default, strategyName, timeframe),
-      this.defaultContracts.default
+      buildStrategyContract(defaultContracts.default, strategyName, timeframe),
+      defaultContracts.default
     );
   }
 
@@ -1090,5 +1086,4 @@ function getInstance() {
 module.exports = {
   ExitContractManager,
   getInstance,
-  DEFAULT_CONTRACTS,
 };
