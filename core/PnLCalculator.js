@@ -18,10 +18,10 @@ const FeeModel = require('./FeeModel');
 
 class PnLCalculator {
   constructor(options = {}) {
-    this.feeModel = options.feeModel || (
+    this.explicitFeeModel = options.feeModel || (
       options.feePercent !== undefined
         ? FeeModel.percent({ totalRoundTrip: options.feePercent })
-        : FeeModel.fromTradingConfig()
+        : null
     );
     this.feeBuffer = options.feeBuffer ?? null;
 
@@ -29,13 +29,18 @@ class PnLCalculator {
   }
 
   _staticPercentFeeBuffer() {
-    if (this.feeModel.model !== 'percent') {
+    const feeModel = this._feeModel();
+    if (feeModel.model !== 'percent') {
       throw new Error('[PnLCalculator] fee context required for per_share_minimum fee buffer calculations');
     }
-    return this.feeModel.calculateRoundTripFeePercent({
+    return feeModel.calculateRoundTripFeePercent({
       entryNotionalUsd: 1,
       exitNotionalUsd: 1,
     });
+  }
+
+  _feeModel() {
+    return this.explicitFeeModel || FeeModel.fromTradingConfig();
   }
 
   /**
@@ -94,7 +99,7 @@ class PnLCalculator {
     const entryValue = size * entryPrice;
     const exitValue = size * currentPrice;
     // Fees on both entry and exit
-    const fees = this.feeModel.calculateRoundTripFees({
+    const fees = this._feeModel().calculateRoundTripFees({
       entryNotionalUsd: entryValue,
       exitNotionalUsd: exitValue,
       entryQuantity: size,
@@ -121,7 +126,7 @@ class PnLCalculator {
    */
   feeBufferPercent(context = null) {
     if (context) {
-      return this.feeModel.calculateRoundTripFeePercent(context);
+      return this._feeModel().calculateRoundTripFeePercent(context);
     }
     return this.feeBuffer ?? this._staticPercentFeeBuffer();
   }
@@ -139,7 +144,7 @@ class PnLCalculator {
    */
   calculateBreakEven(entryPrice, side = 'long', context = null) {
     const feePercent = context
-      ? this.feeModel.calculateRoundTripFeePercent(context)
+      ? this._feeModel().calculateRoundTripFeePercent(context)
       : this._staticPercentFeeBuffer();
     const feeMultiplier = 1 + (feePercent / 100);
 
@@ -156,12 +161,13 @@ class PnLCalculator {
    * Get fee configuration
    */
   getFeeConfig() {
+    const feeModel = this._feeModel();
     return {
-      feeModel: this.feeModel.model,
+      feeModel: feeModel.model,
       feeBuffer: this.feeBuffer,
-      roundTripFeePercent: this.feeModel.model === 'percent' ? this._staticPercentFeeBuffer() : null,
-      perShare: this.feeModel.perShare,
-      minOrderFee: this.feeModel.minOrderFee,
+      roundTripFeePercent: feeModel.model === 'percent' ? this._staticPercentFeeBuffer() : null,
+      perShare: feeModel.perShare,
+      minOrderFee: feeModel.minOrderFee,
     };
   }
 }

@@ -49,15 +49,15 @@ This is a bounded deferred list for the current configuration migration. It reco
 
 - **Severity:** Existing execution-path exception; held fee migration would make a model switch reach it in a retained selector. Production occurrence is not established by a live replay.
 - **Evidence:** Committed `b99abbd0` runner constructs AdaptiveTimeframeSelector without feeContext at `run-empire-v2.js:773-778`, then evaluates it at `:1072-1076`. `_scoreTimeframe` calls roundTripFeePercent at `core/AdaptiveTimeframeSelector.js:168`; that method throws for per_share_minimum without quantity/notional context at `:256-265`. Current canonical fees already select per_share_minimum. The proposed live model reader would also expose this on a percent-to-per-share save. The active PnL calculateNetPnL caller supplies quantity/notional and is a separate path.
-- **What must be resolved:** Establish the real notional/quantity producer for timeframe viability before exposing fee-model switching or claiming complete fee hot-read wiring. Do not invent a dollar/share assumption or add another guard/fallback.
-- **Status:** Entire prepared fee-model group is held and uncommitted. Candidate, isolated fixtures and exact caller trace remain under `fee-model-group/`; explicit feeContext in a fixture is not proof the runner supplies it. Continue other migration groups; resolve this in the deferred pass.
+- **What must be resolved:** Establish the real notional/quantity producer for timeframe viability before claiming complete live-runner fee wiring. Do not invent a dollar/share assumption or add another guard/fallback.
+- **Status:** The five fee controls and retained consumer reads are delivered in the 2026-10-08 fee-control change under Trey's instruction to defer pre-existing failures. This context defect remains open: canonical per-share fees already reached it before that change. Explicit feeContext in the passing fixture is not proof the runner supplies it. Updated exact-source evidence: `ogz-meta/inbox/codex/2026-10-08/fee-controls/`.
 
 ## 8. Total-round-trip fee metadata has a separate stored value
 
 - **Severity:** Confirmed conflicting fee metadata ownership; no active fee calculation override established.
 - **Evidence:** Committed settings store fees.totalRoundTrip .005. FeeModel calculates actual percent fees from maker/taker and per-share fees from quantity/notional. PolicyBuilder nevertheless copies totalRoundTrip into newly frozen policy metadata (`core/PolicyBuilder.js:53-62,547-557`), RuntimeConfigProof reports it, and ConfigLoader uses it in a tier warning/validation. No active frozenExitPolicy.fees or legacy FEES_ROUND_TRIP consumer was found in the bounded trace. Saving maker/taker through the held candidate leaves that stored metadata unchanged.
 - **What must be resolved:** Determine whether this field is intended independent policy or obsolete duplicated fee metadata, then reconcile its producers/reports without introducing a calculated compatibility alias. Do not delete solely because the active calculation uses another field.
-- **Status:** Preserved with the held fee group; exact-source trace is `fee-model-group/runtime-trace.md`. No fee value or runtime policy changed.
+- **Status:** Metadata preserved unchanged when the five actual fee controls were delivered on 2026-10-08. Exact-source trace is `fee-model-group/runtime-trace.md`. Actual fee calculation changes with saved maker/taker or per-share values; independent totalRoundTrip metadata does not. No compatibility alias added.
 
 ## 9. Volume-profile bin-count resource domain
 
@@ -119,3 +119,7 @@ Mercury 2026-10-08T01-50-34-561Z-3510be25b104 flags the existing send catch (`pu
 ## 19. Position-limit review leads in unchanged loader code
 
 Mercury 2026-10-08T02-45-59-803Z-14b87c235787 flags credential role handling, dotenv selection, broker-mode construction and role-mismatch error returns at foundation/ConfigLoader.js:528-533,1105-1120,2494-2509. The sole production change is a four-line descriptor at :2940; all cited behavior predates it. Mercury explicitly says that descriptor is not a defect. Preserve these as unverified inherited leads, not confirmed credential or trading failures. Review: `ogz-meta/inbox/codex/2026-10-08/max-position-ui/delivery-review-answer.txt`.
+
+## 20. Fee-control review leads in unchanged loader code
+
+Mercury run 2026-10-08T02-53-27-041Z-ae51e117d9af alleges missing null-context and circular-reference guards at foundation/ConfigLoader.js:1027-1029,2151-2156. Both blocks are byte-identical between fef382ef and fee candidate 41dbeaec. No concrete invalid producer or migration-caused failure was supplied. Preserve as unverified inherited leads under Trey's scope instruction; do not add speculative guards. Review: `ogz-meta/inbox/codex/2026-10-08/fee-controls/delivery-review-answer.txt`.

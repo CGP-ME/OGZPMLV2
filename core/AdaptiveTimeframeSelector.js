@@ -35,7 +35,7 @@ class AdaptiveTimeframeSelector {
   constructor(config = {}) {
     this.mtfAdapter = config.mtfAdapter || null;
 
-    this.feeModel = config.feeModel || FeeModel.fromTradingConfig();
+    this.explicitFeeModel = config.feeModel || null;
     this.feeContext = config.feeContext || null;
 
     // Minimum R:R after fees for a timeframe to be tradable
@@ -254,15 +254,20 @@ class AdaptiveTimeframeSelector {
   }
 
   roundTripFeePercent() {
-    if (this.feeModel.model === 'per_share_minimum' && !this.feeContext) {
+    const feeModel = this._feeModel();
+    if (feeModel.model === 'per_share_minimum' && !this.feeContext) {
       throw new Error('[AdaptiveTimeframeSelector] fees.model=per_share_minimum requires feeContext with notional and quantity for fee viability scoring');
     }
-    return this.feeModel.calculateRoundTripFeePercent(
+    return feeModel.calculateRoundTripFeePercent(
       this.feeContext || {
         entryNotionalUsd: 1,
         exitNotionalUsd: 1,
       }
     );
+  }
+
+  _feeModel() {
+    return this.explicitFeeModel || FeeModel.fromTradingConfig();
   }
 
   /**

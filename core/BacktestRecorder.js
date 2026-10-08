@@ -146,19 +146,21 @@ class BacktestRecorder {
           throw new Error(`[MIRROR-RECORDER-BALANCE] BacktestRecorder requires positive finite startingBalance (got ${rawBalance}) — refusing $10K phantom`);
         }
         this.startingBalance = numericBalance;
-        this.feeModel = config.feeModel || (
+        this.explicitFeeModel = config.feeModel || (
             config.feePerSide !== undefined
                 ? FeeModel.percent({ makerFee: config.feePerSide, takerFee: config.feePerSide })
-                : FeeModel.fromTradingConfig()
+                : null
         );
-        this.feePerSide = config.feePerSide ?? ConfigLoader.get('fees.makerFee');
-        this.roundTripFee = this.feePerSide * 2;
 
         this.balance = this.startingBalance;
         this.trades = [];
         this.peakBalance = this.startingBalance;
         this.maxDrawdown = 0;
         this.maxDrawdownDollars = 0;
+    }
+
+    _feeModel() {
+        return this.explicitFeeModel || FeeModel.fromTradingConfig();
     }
 
     /**
@@ -212,7 +214,7 @@ class BacktestRecorder {
         const exitNotionalUsd = Number.isFinite(Number(trade.exitSizeUsd))
             ? Number(trade.exitSizeUsd)
             : positionSizeUsd * (exitPrice / entryPrice);
-        const totalFees = this.feeModel.calculateRoundTripFees({
+        const totalFees = this._feeModel().calculateRoundTripFees({
             entryNotionalUsd: positionSizeUsd,
             exitNotionalUsd,
             entryQuantity: entryFeeQuantity,

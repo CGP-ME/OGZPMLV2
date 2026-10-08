@@ -3355,6 +3355,26 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'fraction', min: 0, max: 1, exclusiveMax: true,
     label: 'Simulated fill slippage', effect: 'next_simulated_fill',
   },
+  'fees.model': {
+    type: 'string', values: ['percent', 'per_share_minimum'], unit: 'model',
+    label: 'Trading fee model', effect: 'next_fee_calculation',
+  },
+  'fees.makerFee': {
+    type: 'number', unit: 'fraction', min: 0, max: Number.MAX_VALUE,
+    label: 'Maker fee', effect: 'next_fee_calculation',
+  },
+  'fees.takerFee': {
+    type: 'number', unit: 'fraction', min: 0, max: Number.MAX_VALUE,
+    label: 'Taker fee', effect: 'next_fee_calculation',
+  },
+  'fees.perShare': {
+    type: 'number', unit: 'currency_per_share', min: 0, max: Number.MAX_VALUE,
+    label: 'Per-share fee', effect: 'next_fee_calculation',
+  },
+  'fees.minOrderFee': {
+    type: 'number', unit: 'currency', min: 0, max: Number.MAX_VALUE,
+    label: 'Minimum order fee', effect: 'next_fee_calculation',
+  },
   'features.enableDynamicSizing': {
     type: 'boolean', unit: 'boolean',
     label: 'Dynamic confidence sizing', effect: 'next_entry_decision',
@@ -3969,6 +3989,11 @@ function saveSettings(request) {
   if (entries.some(([key]) => key.startsWith('strategies.EMATrendRetest.'))
       && nextConfig.strategies.EMATrendRetest.maxExtensionAtr <= nextConfig.strategies.EMATrendRetest.closeAwayAtr) {
     return reject('ema_retest_extension_must_exceed_confirmation');
+  }
+  if (entries.some(([key]) => key.startsWith('fees.'))
+      && nextConfig.fees.model === 'per_share_minimum'
+      && nextConfig.fees.perShare === 0 && nextConfig.fees.minOrderFee === 0) {
+    return reject('per_share_minimum_requires_per_share_or_min_order');
   }
   for (const [key, value] of entries) {
     if ((key === 'strategies.EMATrendRetest.rthStartET' || key === 'strategies.EMATrendRetest.rthEndET')
