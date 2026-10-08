@@ -1,3 +1,11 @@
+## 2026-10-08 — Give BreakRetest exit geometry one settings owner
+
+Moved rewardRiskRatio and stopBufferAtrMultiplier from strategies.BreakRetest to exitContracts.BreakRetest. The root and per-symbol orchestrator constructors and diagnostic caller now provide separate entry/exit readers; BUY and SELL stop/target calculations read the exit owner. Moved the editable paths and typed override allowlist and removed descriptor branches made unreachable by that move. No new runtime throw, gate, default, compatibility alias or test was added.
+
+Verification: actual saved values on staged tree b8a66eeacaed5457b1320bd91af784ce1ff1aeb7 against 6d5c5ef0 change the retained module's stop/target from 98/113 to 97/121. Disk persists only the exit-owned values; real ECM new contracts reflect the geometry and the held contract remains byte-identical. Copied settings restored after the proof. Scoped whitespace and staged secret checks pass. Receipt and complete proof: ogz-meta/inbox/codex/2026-10-06/exit-owner-sequential-rebase/breakretest/final-reviewed-source-receipt.json and delivery-proof.log.
+
+Review: Mercury 2026-10-08T01-44-31-493Z-c353ba29edd7 returned found_break, claiming exitContracts.BreakRetest is missing. Root read the exact reviewed JSON: that owner exists at config/settings.json:1480 and the migrated values at :1502-1503; the actual loader/save/consumer proof successfully exercises it. The sole alleged migration defect is refuted, without adding a null guard or initiating another review loop. Full answer is preserved in delivery-review-answer.txt. No claim of green legacy suites, full entry/broker execution or fresh Mercury index. No PM2 restart or deployment; existing unrelated issues remain deferred.
+
 ## 2026-10-08 — Give NoWick structural exits one settings owner
 
 Moved stopLookbackBars, stopBufferAtr and targetRR from strategies.NoWickImbalance to exitContracts.NoWickImbalance. The existing orchestrator passes separate detection and exit providers; retained NoWick geometry reads the exit owner. Updated the editable paths, descriptor override allowlist, existing sweep preset and existing test callers. Existing startup validation moves with its inputs; no signal-time validation, new runtime gate, default or compatibility alias was added.

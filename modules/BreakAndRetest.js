@@ -19,7 +19,10 @@
  *   8. PT1 = previous breakout high (1:1), scale 50%, let rest run
  *
  * INTEGRATION:
- *   const br = new BreakAndRetest(() => ConfigLoader.get('strategies.BreakRetest'));
+ *   const br = new BreakAndRetest(
+ *     () => ConfigLoader.get('strategies.BreakRetest'),
+ *     () => ConfigLoader.get('exitContracts.BreakRetest')
+ *   );
  *   const signal = br.update(candle, priceHistory);
  *   // signal = { direction, confidence, reason, stopLoss, takeProfit, ... }
  *
@@ -46,8 +49,9 @@ function hasValidExitGeometry(direction, entry, stopLoss, takeProfit) {
 }
 
 class BreakAndRetest {
-  constructor(configProvider) {
+  constructor(configProvider, exitConfigProvider) {
     this.configProvider = configProvider;
+    this.exitConfigProvider = exitConfigProvider;
 
     // ─── INTERNAL STATE ───
     this.keyLevels = [];         // { price, type: 'high'|'low', tests, source }
@@ -374,6 +378,7 @@ class BreakAndRetest {
 
   _readBattleZone(candle, priceHistory) {
     const config = this.configProvider();
+    const exitConfig = this.exitConfigProvider();
     const bz = this.battleZone;
     if (!bz) return this._emptySignal();
 
@@ -405,9 +410,9 @@ class BreakAndRetest {
 
       // ENTRY CONDITION: Defending wicks + bullish confirmation + flag break
       if ((isEngulfing || isStrongBullish) && (breaksFlagHigh || defendingWicks >= config.minimumDefendingWicks)) {
-        const stopLoss = Math.min(bz.level, bz.flagLow) - (this.atr * config.stopBufferAtrMultiplier);
+        const stopLoss = Math.min(bz.level, bz.flagLow) - (this.atr * exitConfig.stopBufferAtrMultiplier);
         const risk = price - stopLoss;
-        const takeProfit = price + (risk * config.rewardRiskRatio);
+        const takeProfit = price + (risk * exitConfig.rewardRiskRatio);
         const pt2 = bz.breakoutHigh || (price + risk * config.secondaryTargetRiskMultiplier);
         if (!hasValidExitGeometry('buy', price, stopLoss, takeProfit)) {
           this._logSignal('INVALID_EXIT_GEOMETRY', `Long setup produced invalid exits: entry=${price}, stop=${stopLoss}, target=${takeProfit}`);
@@ -467,9 +472,9 @@ class BreakAndRetest {
 
       // ENTRY CONDITION: Rejection wicks + bearish confirmation + flag break
       if ((isEngulfing || isStrongBearish) && (breaksFlagLow || rejectionWicks >= config.minimumDefendingWicks)) {
-        const stopLoss = Math.max(bz.level, bz.flagHigh) + (this.atr * config.stopBufferAtrMultiplier);
+        const stopLoss = Math.max(bz.level, bz.flagHigh) + (this.atr * exitConfig.stopBufferAtrMultiplier);
         const risk = stopLoss - price;
-        const takeProfit = price - (risk * config.rewardRiskRatio);
+        const takeProfit = price - (risk * exitConfig.rewardRiskRatio);
         const pt2 = bz.breakoutLow || (price - risk * config.secondaryTargetRiskMultiplier);
         if (!hasValidExitGeometry('sell', price, stopLoss, takeProfit)) {
           this._logSignal('INVALID_EXIT_GEOMETRY', `Short setup produced invalid exits: entry=${price}, stop=${stopLoss}, target=${takeProfit}`);

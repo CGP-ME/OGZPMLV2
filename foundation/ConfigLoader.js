@@ -667,7 +667,7 @@ function buildRoleConfig(role) {
 }
 
 const DESCRIPTOR_OVERRIDE_PATHS = Object.freeze([
-  /^exitContracts\.[A-Za-z0-9_]+\.(stopLossPercent|takeProfitPercent|trailingStopPercent|trailingActivation|maxHoldTimeMinutes|atrStopMult|targetRR|trailActivationR|trailDistanceR|trailChannelBars|trailAtrMult|rsiExitLong|stopLookbackBars|stopBufferAtr)$/,
+  /^exitContracts\.[A-Za-z0-9_]+\.(stopLossPercent|takeProfitPercent|trailingStopPercent|trailingActivation|maxHoldTimeMinutes|atrStopMult|targetRR|trailActivationR|trailDistanceR|trailChannelBars|trailAtrMult|rsiExitLong|stopLookbackBars|stopBufferAtr|rewardRiskRatio|stopBufferAtrMultiplier)$/,
   /^strategies\.[A-Za-z0-9_]+\.[A-Za-z0-9_.]+$/,
   /^strategies\.soloFilter$/,
   /^confidence\.minTradeConfidence$/,
@@ -2661,10 +2661,8 @@ const EDITABLE_SETTINGS = deepFreeze({
     ['retestZonePct', 'BreakRetest retest zone', 'percent'],
     ['ntzMaxRangePct', 'BreakRetest no-trade-zone range', 'percent'],
     ['minBreakerBodyRatio', 'BreakRetest minimum breaker body', 'ATR multiples'],
-    ['rewardRiskRatio', 'BreakRetest signal take-profit risk ratio', 'risk-reward ratio'],
     ['wickProximityFraction', 'BreakRetest wick proximity', 'fraction'],
     ['strongCandleAtrMultiplier', 'BreakRetest strong-candle threshold', 'ATR multiples'],
-    ['stopBufferAtrMultiplier', 'BreakRetest signal stop-loss buffer', 'ATR multiples'],
     ['secondaryTargetRiskMultiplier', 'BreakRetest signal PT2 metadata target', 'risk multiples'],
     ['invalidationThresholdMultiplier', 'BreakRetest invalidation threshold', 'multiplier'],
     ['fibDistance', 'BreakRetest Fibonacci proximity', 'fraction'],
@@ -2672,14 +2670,19 @@ const EDITABLE_SETTINGS = deepFreeze({
     ['fibBoostGolden', 'BreakRetest golden-zone confidence contribution', 'fraction'],
   ].map(([key, label, unit]) => [`strategies.BreakRetest.${key}`, {
     type: 'number', unit, min: 0, max: Number.MAX_VALUE,
-    ...(key === 'rewardRiskRatio' ? { exclusiveMin: true } : {}),
     label,
     effect: key === 'secondaryTargetRiskMultiplier'
       ? 'next_BreakRetest_signal_pt2_metadata'
-      : (key === 'rewardRiskRatio' || key === 'stopBufferAtrMultiplier'
-        ? 'next_BreakRetest_signal_exit_levels_and_exit_contract'
-        : 'next_BreakRetest_observation_and_entry_evaluation'),
+      : 'next_BreakRetest_observation_and_entry_evaluation',
   }])),
+  'exitContracts.BreakRetest.rewardRiskRatio': {
+    type: 'number', unit: 'risk-reward ratio', min: 0, max: Number.MAX_VALUE, exclusiveMin: true,
+    label: 'BreakRetest signal take-profit risk ratio', effect: 'next_BreakRetest_signal_exit_levels_and_new_exit_contract',
+  },
+  'exitContracts.BreakRetest.stopBufferAtrMultiplier': {
+    type: 'number', unit: 'ATR multiples', min: 0, max: Number.MAX_VALUE,
+    label: 'BreakRetest signal stop-loss buffer', effect: 'next_BreakRetest_signal_exit_levels_and_new_exit_contract',
+  },
   ...Object.fromEntries([
     ['baseConfidence', 'BreakRetest base confidence'],
     ['wickConfidencePerCount', 'BreakRetest per-wick confidence contribution'],

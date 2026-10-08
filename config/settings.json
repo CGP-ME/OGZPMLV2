@@ -1499,6 +1499,8 @@
       "invalidationConditions": [
         "break_retest_invalidated"
       ],
+      "rewardRiskRatio": 1.5,
+      "stopBufferAtrMultiplier": 0.2,
       "_validated": null
     },
     "RSI": {
@@ -2093,7 +2095,6 @@
       "minBattleCandles": 3,
       "maxBattleCandles": 15,
       "ntzMaxRangePct": 2,
-      "rewardRiskRatio": 1.5,
       "minimumHistoryBars": 30,
       "recentBufferExtraBars": 50,
       "atrPeriod": 14,
@@ -2103,7 +2104,6 @@
       "wickProximityFraction": 0.002,
       "strongCandleAtrMultiplier": 0.5,
       "minimumDefendingWicks": 2,
-      "stopBufferAtrMultiplier": 0.2,
       "secondaryTargetRiskMultiplier": 2.5,
       "baseConfidence": 0.35,
       "wickConfidencePerCount": 0.05,

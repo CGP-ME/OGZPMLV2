@@ -857,7 +857,8 @@ class StrategyOrchestrator {
     });
     this.liquiditySweepModule = new LiquiditySweepDetector(this.liquiditySweepConfigProvider(), this.liquiditySweepConfigProvider);
     this.breakAndRetestConfigProvider = () => ConfigLoader.get('strategies.BreakRetest');
-    this.breakAndRetestModule = new BreakAndRetest(this.breakAndRetestConfigProvider);
+    this.breakAndRetestExitConfigProvider = () => ConfigLoader.get('exitContracts.BreakRetest');
+    this.breakAndRetestModule = new BreakAndRetest(this.breakAndRetestConfigProvider, this.breakAndRetestExitConfigProvider);
     const NoWickImbalance = require('../modules/NoWickImbalance');
     const noWickConfig = ConfigLoader.get('strategies.NoWickImbalance');
     const noWickExitConfig = () => ConfigLoader.get('exitContracts.NoWickImbalance');
@@ -1833,7 +1834,7 @@ class StrategyOrchestrator {
             'BreakRetest',
             ctx.extras?.symbol,
             breakAndRetestModule,
-            () => new BreakAndRetest(this.breakAndRetestConfigProvider)
+            () => new BreakAndRetest(this.breakAndRetestConfigProvider, this.breakAndRetestExitConfigProvider)
           );
           if (ctx.entriesEnabled === false) {
             scopedBreakAndRetest.observe(latestCandle, candles);
