@@ -29,7 +29,7 @@ This is a bounded deferred list for the current configuration migration. It reco
 - **Severity:** Confirmed mismatch between a prepared UI label/domain claim and committed consumers; no new runtime defect introduced.
 - **Evidence:** At commit `dab768d3`, `core/TradingLoop.js:1466-1467` reads trades for one symbol and `positionSizing.maxPositions`; its count check at `1619-1627` uses that symbol's trades. `git show dab768d3:foundation/ConfigLoader.js` contains no maxPositions validation. The proposed safe-integer/minimum-one domain was mistakenly attributed to committed code but came from unrelated dirty loader work. The proposed label, “Maximum open positions,” omitted the symbol scope. The prepared proof uses two controlled same-symbol trades, not a portfolio-wide limit or proof of reachable production concurrency.
 - **What must be resolved:** Establish whether the intended customer setting limits symbol trades, account positions, or a different count; reconcile its domain and existing contract-level concurrency before exposing it. Do not introduce a global count or new guard as a migration shortcut.
-- **Status:** Candidate held and uncommitted under `max-position-limits/`; original setting and runtime behavior preserved. Author/reviewer claims are corrected by these exact-source findings.
+- **Status:** Resolved 2026-10-08 by exposing the existing control with an explicit per-symbol label and positive safe-integer UI domain. No runtime enforcement change or account-wide limit was introduced. Exact-source actual save/caller replay passed; `ogz-meta/inbox/codex/2026-10-08/max-position-ui/` preserves the evidence. The older claim of pre-existing committed validation remains corrected.
 
 ## 5. Aggregate exposure exists only in unrelated dirty work
 
@@ -115,3 +115,7 @@ Mercury 2026-10-08T01-48-05-116Z-2520f243c947 conditionally alleges absent orche
 ## 18. Settings UI review leads in unchanged browser code
 
 Mercury 2026-10-08T01-50-34-561Z-3510be25b104 flags the existing send catch (`public/js/panels/configuration-settings.js:82-89`), custom-alerts ordering (`public/unified-dashboard-v2.html:1150-1160`) and CDN integrity metadata (`:39-43`). Root verified all three blocks are byte-identical between 4a6327b8 and UI candidate 86901962. No layout-caused failure is established. These are deferred inherited leads; script-order comments and missing catches/metadata alone do not prove the claimed runtime consequence. Preserve existing transport and do not add gates. Complete review: `settings-ui-rough-layout/delivery-review-answer.txt`.
+
+## 19. Position-limit review leads in unchanged loader code
+
+Mercury 2026-10-08T02-45-59-803Z-14b87c235787 flags credential role handling, dotenv selection, broker-mode construction and role-mismatch error returns at foundation/ConfigLoader.js:528-533,1105-1120,2494-2509. The sole production change is a four-line descriptor at :2940; all cited behavior predates it. Mercury explicitly says that descriptor is not a defect. Preserve these as unverified inherited leads, not confirmed credential or trading failures. Review: `ogz-meta/inbox/codex/2026-10-08/max-position-ui/delivery-review-answer.txt`.

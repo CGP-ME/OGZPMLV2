@@ -2937,6 +2937,10 @@ const EDITABLE_SETTINGS = deepFreeze({
     label: 'Dead regime position sizing multiplier', effect: 'next_regime_evaluation_sizing',
   },
 
+  'positionSizing.maxPositions': {
+    type: 'number', unit: 'positions per symbol', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
+    label: 'Maximum open positions per symbol', effect: 'next_entry_decision',
+  },
   'positionSizing.basePositionSize': {
     type: 'number', unit: 'fraction', min: 0, exclusiveMin: true, max: 1,
     label: 'Base position size', effect: 'next_entry_decision',
