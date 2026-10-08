@@ -1160,7 +1160,7 @@
           "tools/backtest-worker-env.js historical profile precedence"
         ],
         "overrides": {
-          "backtest.initialBalance": 5000,
+          "startingBalance": 5000,
           "features.enableDynamicSizing": true,
           "positionSizing.basePositionSize": 0.01,
           "positionSizing.maxPositionSize": 0.1,
@@ -1196,7 +1196,7 @@
           "foundation/ConfigLoader.js typed canonical profile overrides"
         ],
         "overrides": {
-          "backtest.initialBalance": 5000,
+          "startingBalance": 5000,
           "features.enableDynamicSizing": true,
           "positionSizing.basePositionSize": 0.01,
           "positionSizing.maxPositionSize": 0.1,

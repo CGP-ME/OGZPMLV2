@@ -60,11 +60,11 @@ function addConfiguredStockSymbols(symbols, raw) {
 function configuredStockSymbols() {
   const symbols = new Set();
   try {
-    addConfiguredStockSymbols(symbols, getConfigValue('broker.alpacaSymbols'));
-    const brokerId = getConfigValue('broker.id');
-    const assetClass = getConfigValue('broker.assetClass');
+    addConfiguredStockSymbols(symbols, getConfigValue('execution.symbols'));
+    const brokerId = getConfigValue('execution.broker');
+    const assetClass = getConfigValue('execution.assetClass');
     if (brokerId === 'alpaca' || assetClass === 'stocks') {
-      addConfiguredStockSymbols(symbols, getConfigValue('broker.tradingPair'));
+      addConfiguredStockSymbols(symbols, getConfigValue('execution.tradingPair'));
     }
   } catch (err) {
     throw new Error(`[GAP-RECOVERY] Unable to read stock symbol config for broker guard: ${err.message}`);
@@ -1190,7 +1190,7 @@ class CandleProcessor {
         // about totalPnL (totalAccountValue - phantomInitialBalance) to the
         // user's dashboard if both stateManager and config sources were
         // missing. Better to crash the broadcast than show fake P&L.
-        const _initialBalance = stateManager.get('initialBalance') ?? getConfigValue('backtest.initialBalance');
+        const _initialBalance = stateManager.get('initialBalance') ?? getConfigValue('startingBalance');
         if (!Number.isFinite(_initialBalance) || _initialBalance <= 0) {
           throw new Error(`CandleProcessor dashboard broadcast: initialBalance unavailable from stateManager + config (got ${_initialBalance}) — refusing to broadcast phantom P&L`);
         }

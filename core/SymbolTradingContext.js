@@ -47,12 +47,12 @@ class SymbolTradingContext {
         if (!symbol) throw new Error('SymbolTradingContext: symbol required');
         if (!candleStore) throw new Error('SymbolTradingContext: candleStore required (single source of truth for priceHistory)');
         // Mercury fix #7: timeframe is REQUIRED. No '15m' default. Caller
-        // (run-empire-v2.js commit 2) reads broker.candleTimeframe — threaded
+        // (run-empire-v2.js commit 2) reads execution.candleTimeframe — threaded
         // through ctx in commit b4173b8 — and passes it explicitly. Defaulting
         // silently could pull candles for the wrong timeframe key from
         // CandleStore on a non-15m feed.
         if (!config.timeframe) {
-            throw new Error('SymbolTradingContext: config.timeframe required (no default — pass broker.candleTimeframe explicitly)');
+            throw new Error('SymbolTradingContext: config.timeframe required (no default — pass execution.candleTimeframe explicitly)');
         }
 
         const canonicalSymbol = normalizeAssetSymbol(symbol);

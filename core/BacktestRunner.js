@@ -177,10 +177,10 @@ class BacktestRunner {
       const symbol = this.ctx.symbol;
       const timeframe = this.ctx.timeframe;
       const candleScope = {
-        brokerId: this.ctx.runtimeConfig.broker.id,
+        brokerId: this.ctx.runtimeConfig.execution.broker,
         accountId: 'backtest',
         accountIdSource: 'backtest',
-        assetClass: this.ctx.runtimeConfig.broker.assetClass,
+        assetClass: this.ctx.runtimeConfig.execution.assetClass,
         executionMode: this.ctx.runtimeConfig.mode.execution,
       };
       if (!symbol) throw new Error('BacktestRunner: ctx.symbol required to mirror runtime candle scope');

@@ -2981,11 +2981,11 @@ class StrategyOrchestrator {
       throw new Error(`[HIGH-15] volPct unresolvable: ATR=${indicators?.atr} price=${price} volatility=${indicators?.volatility}`);
     }
     // HIGH-16: extras.timeframe now wired from TradingLoop (which pulls
-    // ctx.candleTimeframe from resolvedConfig.config.broker.candleTimeframe).
+    // ctx.candleTimeframe from resolvedConfig.config.execution.candleTimeframe).
     // Throw on missing/non-string instead of silent '15m' default.
     const timeframe = extras.timeframe;
     if (typeof timeframe !== 'string' || !timeframe) {
-      throw new Error(`[HIGH-16] extras.timeframe missing or non-string (got ${typeof timeframe}: ${timeframe}) — TradingLoop must thread broker.candleTimeframe`);
+      throw new Error(`[HIGH-16] extras.timeframe missing or non-string (got ${typeof timeframe}: ${timeframe}) — TradingLoop must thread execution.candleTimeframe`);
     }
     const winnerTimeframe = normalizeTimeframeValue(winner.timeframe) || timeframe;
     const atrContractOverrides = buildAtrContractOverrides({

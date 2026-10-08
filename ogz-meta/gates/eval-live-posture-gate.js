@@ -52,8 +52,8 @@ const REQUIRED_CONFIG_EXACT = Object.freeze({
   'mode.paperTrading': false,
   'mode.liveTrading': true,
   'mode.confirmLiveTrading': true,
-  'broker.id': 'alpaca',
-  'broker.assetClass': 'stocks',
+  'execution.broker': 'alpaca',
+  'execution.assetClass': 'stocks',
   'risk.guardMode': 'venueRailBuffer',
   'risk.venueRailBuffer.enabled': true,
   'webhookOrders.enabled': true,
@@ -80,14 +80,14 @@ const REQUIRED_CONFIG_EXACT = Object.freeze({
 });
 
 const REQUIRED_CONFIG_PRESENT = Object.freeze([
-  'broker.tradingPair',
-  'broker.alpacaSymbols',
-  'broker.candleTimeframe',
+  'execution.tradingPair',
+  'execution.symbols',
+  'execution.candleTimeframe',
   'paths.stateFile',
 ]);
 
 const REQUIRED_NUMERIC_CONFIG = Object.freeze([
-  'backtest.initialBalance',
+  'startingBalance',
   'evalRules.ttp.volumeCap.percent',
   'evalRules.ttp.volumeCap.maxReferenceAgeMs',
   'evalRules.ttp.marketTime.cutoffMinutesBeforeClose',
@@ -313,7 +313,7 @@ async function readAlpacaPositions(effectiveEnv, configSnapshot) {
   const brokerSources = configSnapshot?.sources || {};
   const apiKey = brokerConfig ? brokerConfig.alpacaApiKey : values.ALPACA_API_KEY;
   const apiSecret = brokerConfig ? brokerConfig.alpacaApiSecret : values.ALPACA_API_SECRET;
-  const modeRaw = brokerConfig ? brokerConfig.alpacaMode : values.ALPACA_MODE;
+  const modeRaw = brokerConfig ? configSnapshot.config.execution.brokerMode : values.ALPACA_MODE;
   const mode = modeRaw ? String(modeRaw).trim().toLowerCase() : '';
 
   if (!apiKey) {
@@ -329,7 +329,7 @@ async function readAlpacaPositions(effectiveEnv, configSnapshot) {
     for (const [pathName, source] of Object.entries({
       'broker.alpacaApiKey': brokerSources['broker.alpacaApiKey'],
       'broker.alpacaApiSecret': brokerSources['broker.alpacaApiSecret'],
-      'broker.alpacaMode': brokerSources['broker.alpacaMode'],
+      'execution.brokerMode': brokerSources['execution.brokerMode'],
     })) {
       if (!source || source === 'default') {
         throw new Error(`${pathName} must be explicitly sourced for broker exposure reconciliation`);
@@ -432,11 +432,11 @@ function expectConfigPresent(report, configPath) {
 }
 
 function validateSymbolConsistency(report) {
-  const tradingPair = getPath(report.configSnapshot.config, 'broker.tradingPair');
-  const alpacaSymbols = getPath(report.configSnapshot.config, 'broker.alpacaSymbols');
-  const alpacaSymbolsSource = report.configSnapshot.sources['broker.alpacaSymbols'] || 'missing';
-  const rawSymbols = typeof alpacaSymbols === 'string'
-    ? alpacaSymbols.split(',').map((symbol) => symbol.trim()).filter(Boolean)
+  const tradingPair = getPath(report.configSnapshot.config, 'execution.tradingPair');
+  const alpacaSymbols = getPath(report.configSnapshot.config, 'execution.symbols');
+  const alpacaSymbolsSource = report.configSnapshot.sources['execution.symbols'] || 'missing';
+  const rawSymbols = Array.isArray(alpacaSymbols)
+    ? alpacaSymbols.map((symbol) => symbol.trim()).filter(Boolean)
     : [];
   const symbols = rawSymbols.map((symbol) => symbol.toUpperCase());
   const duplicateSymbols = symbols.filter((symbol, index) => symbols.indexOf(symbol) !== index);
@@ -448,7 +448,7 @@ function validateSymbolConsistency(report) {
   };
 
   if (!alpacaSymbols || alpacaSymbolsSource === 'default') {
-    addError(report.errors, `broker.alpacaSymbols must be explicitly sourced for eval-live posture, got ${alpacaSymbolsSource}`);
+    addError(report.errors, `execution.symbols must be explicitly sourced for eval-live posture, got ${alpacaSymbolsSource}`);
     return;
   }
   if (symbols.length === 0) {
@@ -459,10 +459,10 @@ function validateSymbolConsistency(report) {
     addError(report.errors, `ALPACA_SYMBOLS must not contain duplicate symbols for eval-live posture, got ${[...new Set(duplicateSymbols)].join(', ')}`);
   }
   if (!symbols.includes(tradingPair)) {
-    addError(report.errors, `ALPACA_SYMBOLS must include broker.tradingPair ${tradingPair}, got ${symbols.join(', ')}`);
+    addError(report.errors, `ALPACA_SYMBOLS must include execution.tradingPair ${tradingPair}, got ${symbols.join(', ')}`);
   }
   if (symbols[0] !== tradingPair) {
-    addError(report.errors, `ALPACA_SYMBOLS must list broker.tradingPair ${tradingPair} first so primary routing remains deterministic, got ${symbols[0]}`);
+    addError(report.errors, `ALPACA_SYMBOLS must list execution.tradingPair ${tradingPair} first so primary routing remains deterministic, got ${symbols[0]}`);
   }
 }
 
@@ -471,7 +471,7 @@ function validateTtpCrossChecks(report) {
   const accountStartDate = getPath(report.configSnapshot.config, 'evalRules.ttp.accountLimits.accountStartOfDayDate');
   const configuredSymbols = report.checked.symbol && Array.isArray(report.checked.symbol.alpacaSymbols)
     ? report.checked.symbol.alpacaSymbols
-    : [getPath(report.configSnapshot.config, 'broker.tradingPair')].filter(Boolean);
+    : [getPath(report.configSnapshot.config, 'execution.tradingPair')].filter(Boolean);
   const symbols = manualStatus && typeof manualStatus === 'object' && !Array.isArray(manualStatus)
     ? manualStatus.symbols
     : null;
@@ -501,7 +501,7 @@ function validateTtpCrossChecks(report) {
     }
   }
 
-  const initialBalance = getPath(report.configSnapshot.config, 'backtest.initialBalance');
+  const initialBalance = getPath(report.configSnapshot.config, 'startingBalance');
   const profitTarget = getPath(report.configSnapshot.config, 'evalRules.ttp.consistency.profitTargetDollars');
   const profitTargetRatio = getPath(report.configSnapshot.config, 'evalRules.ttp.consistency.maxProfitTargetInitialBalanceRatio');
   if (

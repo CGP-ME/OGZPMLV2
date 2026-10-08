@@ -173,10 +173,10 @@ function sanitizePatternBucket(value) {
 
 function resolveInitialAssetBucket(mode, runtimeConfig) {
   if (mode === 'backtest') {
-    return sanitizePatternBucket(runtimeConfig.broker.tradingPair);
+    return sanitizePatternBucket(runtimeConfig.execution.tradingPair);
   }
 
-  const cls = runtimeConfig.broker.assetClass;
+  const cls = runtimeConfig.execution.assetClass;
   if (!cls) {
     throw new Error('[SESSION-HIGH-02] UnifiedPatternMemory: ConfigLoader did not resolve an asset class');
   }

@@ -23,6 +23,7 @@ function buildRuntimeAuditContext(runtimeScope, extra = {}) {
   }
 
   const broker = config.broker || {};
+  const execution = config.execution;
   const mode = config.mode || {};
   const executionMode = mode.backtest
     ? 'backtest'
@@ -35,11 +36,11 @@ function buildRuntimeAuditContext(runtimeScope, extra = {}) {
     runtimeScope,
     configFingerprint: resolvedConfig.fingerprint || null,
     executionMode,
-    brokerId: broker.id || null,
+    brokerId: execution.broker || null,
     accountId: accountIdentity.accountId,
-    assetClass: broker.assetClass || null,
-    symbol: broker.tradingPair || null,
-    timeframe: broker.candleTimeframe || null,
+    assetClass: execution.assetClass || null,
+    symbol: execution.tradingPair || null,
+    timeframe: execution.candleTimeframe || null,
     extra,
   };
 }
@@ -257,10 +258,10 @@ function resolveRuntimeAccountIdentity(enableBacktestMode, brokerConfig = {}) {
   };
 }
 
-function resolveAlpacaSymbols(brokerConfig = {}, options = {}) {
-  const explicitSymbols = splitSymbols(brokerConfig.alpacaSymbols);
+function resolveAlpacaSymbols(executionConfig, options = {}) {
+  const explicitSymbols = splitSymbols(executionConfig.symbols);
   const allowTradingPairFallback = options.allowTradingPairFallback !== false;
-  const tradingPairSymbols = allowTradingPairFallback ? splitSymbols(brokerConfig.tradingPair) : [];
+  const tradingPairSymbols = allowTradingPairFallback ? splitSymbols(executionConfig.tradingPair) : [];
   const symbols = explicitSymbols.length > 0
     ? explicitSymbols
     : tradingPairSymbols;
@@ -271,14 +272,14 @@ function resolveAlpacaSymbols(brokerConfig = {}, options = {}) {
   return symbols;
 }
 
-function buildAlpacaAdapterOptions(brokerConfig = {}, options = {}) {
+function buildAlpacaAdapterOptions(brokerConfig, executionConfig, options = {}) {
   const symbols = Array.isArray(options.symbols)
     ? options.symbols
-    : resolveAlpacaSymbols(brokerConfig, options);
+    : resolveAlpacaSymbols(executionConfig, options);
   return {
     apiKey: brokerConfig.alpacaApiKey,
     apiSecret: brokerConfig.alpacaApiSecret,
-    mode: brokerConfig.alpacaMode,
+    mode: executionConfig.brokerMode,
     tradingPair: symbols[0],
     symbols,
     accountId: brokerConfig.accountId,
@@ -417,15 +418,15 @@ const { buildRiskManagerConfig } = require('./core/RiskManagerConfig');
 
 // CHANGE 2025-12-23: Empire V2 IndicatorEngine - Single source of truth for indicators
 const IndicatorEngine = require('./core/indicators/IndicatorEngine');
-const _indicatorEngineSymbol = resolvedConfig.config.broker.tradingPair;
+const _indicatorEngineSymbol = resolvedConfig.config.execution.tradingPair;
 if (!_indicatorEngineSymbol) {
-  throw new Error('[RUN-HIGH-01] IndicatorEngine init requires resolvedConfig.config.broker.tradingPair — refusing to default to BTC-USD');
+  throw new Error('[RUN-HIGH-01] IndicatorEngine init requires resolvedConfig.config.execution.tradingPair — refusing to default to BTC-USD');
 }
 const indicatorEngine = new IndicatorEngine({
   ...resolvedConfig.config.indicators.engine,
   ...resolvedConfig.config.internals.indicators.engine,
   symbol: _indicatorEngineSymbol,
-  tf: resolvedConfig.config.broker.candleTimeframe,
+  tf: resolvedConfig.config.execution.candleTimeframe,
 });
 
 // CHANGE 2026-01-25: Trading Proof Logger for website transparency
@@ -693,9 +694,9 @@ class OGZPrimeV14Bot {
     // CHANGE 2026-02-21: Isolated strategy entry pipeline (replaces soupy pooled confidence)
     // Each strategy evaluates independently. Highest confidence WINS and OWNS the trade.
     // Confluence only affects POSITION SIZING, not the entry decision.
-    const runtimeCandleTimeframe = resolvedConfig.config.broker.candleTimeframe;
+    const runtimeCandleTimeframe = resolvedConfig.config.execution.candleTimeframe;
     if (typeof runtimeCandleTimeframe !== 'string' || !runtimeCandleTimeframe.trim()) {
-      throw new Error(`[BOOT][Timeframe] broker.candleTimeframe missing/invalid (${runtimeCandleTimeframe}) - refusing to start without a real candle timeframe`);
+      throw new Error(`[BOOT][Timeframe] execution.candleTimeframe missing/invalid (${runtimeCandleTimeframe}) - refusing to start without a real candle timeframe`);
     }
     this.candleTimeframe = runtimeCandleTimeframe.trim();
 
@@ -768,7 +769,7 @@ class OGZPrimeV14Bot {
     this.candleAggregator = new CandleAggregator();
 
     // CHANGE 2026-02-21: Adaptive timeframe selection based on market conditions
-    // Runtime analysis is pinned to broker.candleTimeframe until SymbolTradingContext
+    // Runtime analysis is pinned to execution.candleTimeframe until SymbolTradingContext
     // and CandleStore support active multi-timeframe context swaps.
     this.timeframeSelector = new AdaptiveTimeframeSelector({
       mtfAdapter: this.mtfAdapter,
@@ -799,7 +800,7 @@ class OGZPrimeV14Bot {
     // FIX 2026-02-26: Use same INITIAL_BALANCE as StateManager (was hardcoded 25000 vs 10000 mismatch)
     if (resolvedConfig.config.mode.backtest || resolvedConfig.config.mode.execution === 'backtest' || resolvedConfig.config.mode.candleSource === 'file') {
       this.backtestRecorder = new BacktestRecorder({
-        startingBalance: resolvedConfig.config.backtest.initialBalance
+        startingBalance: resolvedConfig.config.startingBalance
       });
     }
 
@@ -862,7 +863,7 @@ class OGZPrimeV14Bot {
     // this.safetyNet = new TradingSafetyNet(); // DISABLED - blocking everything
     // this.tradeLogger = new TradeLogger(); // Module doesn't exist
 
-    console.log('[DEBUG] About to create ' + resolvedConfig.config.broker.id + ' adapter...');
+    console.log('[DEBUG] About to create ' + resolvedConfig.config.execution.broker + ' adapter...');
     console.log('[DEBUG] BrokerFactory available:', typeof createBrokerAdapter);
 
     // BROKER SETUP — profile-owned route table.
@@ -879,9 +880,9 @@ class OGZPrimeV14Bot {
     this.isRunning = false;
     this.marketData = null;
     this.priceHistory = [];
-    this.tradingPair = normalizeRuntimeSymbol(resolvedConfig.config.broker.tradingPair);
+    this.tradingPair = normalizeRuntimeSymbol(resolvedConfig.config.execution.tradingPair);
     if (!this.tradingPair) {
-      throw new Error('[BOOT][SymbolContexts] broker.tradingPair missing/invalid — refusing to start without canonical symbol');
+      throw new Error('[BOOT][SymbolContexts] execution.tradingPair missing/invalid — refusing to start without canonical symbol');
     }
     this._candleStore = new CandleStore({
       maxCandles: resolvedConfig.config.internals.candleStore.maxCandles,
@@ -890,7 +891,7 @@ class OGZPrimeV14Bot {
     this.symbolContextQuarantine = new Map();
 
     const rawStockSymbols = sessionRouteUsesStocks
-      ? resolveAlpacaSymbols(resolvedConfig.config.broker, {
+      ? resolveAlpacaSymbols(resolvedConfig.config.execution, {
           allowTradingPairFallback: resolvedConfig.config.mode.backtest || sessionRouterMode === 'static',
         })
       : [];
@@ -923,7 +924,7 @@ class OGZPrimeV14Bot {
         symbols: [primaryCryptoSymbol],
       }) : null;
       const alpacaAdapterOptions = sessionRouteUsesStocks
-        ? buildAlpacaAdapterOptions(resolvedConfig.config.broker, {
+        ? buildAlpacaAdapterOptions(resolvedConfig.config.broker, resolvedConfig.config.execution, {
             allowTradingPairFallback: false,
             symbols: stockSymbols,
           })
@@ -1192,9 +1193,9 @@ class OGZPrimeV14Bot {
     // being subscribed and handled downstream by fallback/gate logic.
     //
     // SymbolTradingContext must read the same timeframe CandleProcessor writes.
-    // broker.candleTimeframe is the single active timeframe until active
+    // execution.candleTimeframe is the single active timeframe until active
     // multi-timeframe context swaps are implemented.
-    console.log(`[VIS][BOOT][SymbolContexts] broker=${resolvedConfig.config.broker.id} sessionRouterMode=${sessionRouterMode || '(missing)'} staticSession=${staticSession || '(none)'} tradingPair=${this.tradingPair} registered=${describeSymbolContexts(this.symbolContexts)} quarantined=${Array.from(this.symbolContextQuarantine.keys()).join(',') || '(none)'}`);
+    console.log(`[VIS][BOOT][SymbolContexts] broker=${resolvedConfig.config.execution.broker} sessionRouterMode=${sessionRouterMode || '(missing)'} staticSession=${staticSession || '(none)'} tradingPair=${this.tradingPair} registered=${describeSymbolContexts(this.symbolContexts)} quarantined=${Array.from(this.symbolContextQuarantine.keys()).join(',') || '(none)'}`);
 
     this.candleSaveCounter = 0; // CHANGE 2026-01-28: Track candles for periodic save
     // CHANGE 2026-01-28: Load saved candles on startup
@@ -1266,7 +1267,7 @@ class OGZPrimeV14Bot {
     // CHANGE 2025-12-13: STEP 1 - SINGLE SOURCE OF TRUTH
     // stateManager.get('balance') REMOVED - use stateManager.get('balance') instead
     // this.activeTrades REMOVED - use stateManager.get('activeTrades') instead
-    const initialBalance = resolvedConfig.config.backtest.initialBalance;
+    const initialBalance = resolvedConfig.config.startingBalance;
     this.startTime = Date.now();
     this.systemState = {
       currentBalance: initialBalance
@@ -1277,7 +1278,7 @@ class OGZPrimeV14Bot {
     const currentState = stateManager.getState();
     if (resolvedConfig.config.mode.backtest) {
       if (resolvedConfig.config.backtest.freshStart) {
-        const initialBalanceSource = resolvedConfig.sources?.['backtest.initialBalance'];
+        const initialBalanceSource = resolvedConfig.sources?.['startingBalance'];
         if (!initialBalanceSource || initialBalanceSource === 'default') {
           throw new Error('Backtest FRESH_START=true requires explicit INITIAL_BALANCE; refusing default $10000 reset');
         }
@@ -1365,10 +1366,10 @@ class OGZPrimeV14Bot {
       // CHANGE 2026-02-28: Use ConfigLoader for minTradeConfidence
       get minTradeConfidence() { return ConfigLoader.get('confidence.minTradeConfidence'); },
       tradingPair: this.tradingPair,
-      brokerId: resolvedConfig.config.broker.id,
+      brokerId: resolvedConfig.config.execution.broker,
       accountId: runtimeAccountIdentity.accountId,
       accountIdSource: runtimeAccountIdentity.accountIdSource,
-      assetClass: resolvedConfig.config.broker.assetClass,
+      assetClass: resolvedConfig.config.execution.assetClass,
       executionMode: enableBacktestMode ? 'backtest' : (enableLiveTrading ? 'live' : 'paper'),
       timeframe: this.candleTimeframe,
       evalTraceEnabled: resolvedConfig.config.observability.evalTraceEnabled,
@@ -1498,7 +1499,7 @@ class OGZPrimeV14Bot {
       backtestFast: resolvedConfig.config.backtest.fast,
       testMode: resolvedConfig.config.mode.testMode,
       traiEnableBacktest: resolvedConfig.config.trai.enableBacktest,
-      // HIGH-16: broker.candleTimeframe threaded into ctx for orchestrator validation
+      // HIGH-16: execution.candleTimeframe threaded into ctx for orchestrator validation
       candleTimeframe: this.candleTimeframe,
       get regimeDetection() { return ConfigLoader.get('regimeDetection'); },
       // Additional context for strategy orchestration
@@ -1627,7 +1628,7 @@ class OGZPrimeV14Bot {
     // resolution broke. ConfigLoader.js currently guarantees a value
     // (broker-conditional default), so the throw is defensive.
     const symbol = this.tradingPair || (() => {
-      throw new Error('loadCandleHistory: resolvedConfig.config.broker.tradingPair missing — refusing to load candles under BTC-USD default');
+      throw new Error('loadCandleHistory: resolvedConfig.config.execution.tradingPair missing — refusing to load candles under BTC-USD default');
     })();
     // Clear in-memory priceHistory before hydrating. Defends against
     // cross-symbol contamination if loadCandleHistory is invoked more than
@@ -1655,7 +1656,7 @@ class OGZPrimeV14Bot {
     // would persist mismatched candles to disk and propagate the error to
     // the next session's loadCandleHistory.
     const symbol = this.tradingPair || (() => {
-      throw new Error('saveCandleHistory: resolvedConfig.config.broker.tradingPair missing — refusing to persist candles under BTC-USD default');
+      throw new Error('saveCandleHistory: resolvedConfig.config.execution.tradingPair missing — refusing to persist candles under BTC-USD default');
     })();
     const timeframe = this.candleTimeframe;
     if (typeof timeframe !== 'string' || !timeframe.trim()) {
@@ -1974,8 +1975,8 @@ class OGZPrimeV14Bot {
 
         // CHANGE 2026-02-10: Initialize Multi-Asset Manager
         this.assetManager = new MultiAssetManager(this, {
-          brokerId: resolvedConfig.config.broker.id,
-          tradingPair: resolvedConfig.config.broker.tradingPair,
+          brokerId: resolvedConfig.config.execution.broker,
+          tradingPair: resolvedConfig.config.execution.tradingPair,
         });
 
         // CHANGE 2026-02-10: Initialize Trade Journal + Replay Bridge
@@ -2430,7 +2431,7 @@ class OGZPrimeV14Bot {
   async fetchAndSendHistoricalCandles(timeframe, limit = 200, requestedAsset = null) {
     const requestedDashboardSymbol = normalizeRuntimeSymbol(requestedAsset);
     const fallbackDashboardSymbol = normalizeRuntimeSymbol(
-      this.assetManager?.activeAsset || this.tradingPair || resolvedConfig.config.broker.tradingPair
+      this.assetManager?.activeAsset || this.tradingPair || resolvedConfig.config.execution.tradingPair
     );
     const dashboardSymbol = requestedDashboardSymbol || fallbackDashboardSymbol;
 
@@ -2895,7 +2896,7 @@ class OGZPrimeV14Bot {
     }
 
     const brokerId = this.sessionRouter?.activeBroker?.id || null;
-    const assetClass = resolvedConfig.config.broker.assetClass || '';
+    const assetClass = resolvedConfig.config.execution.assetClass || '';
     const isStockFeed = this.sessionRouter?.activeSession === 'stocks' || assetClass === 'stocks' || brokerId === 'alpaca';
     if (!isStockFeed) return false;
 

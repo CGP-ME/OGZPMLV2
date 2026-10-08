@@ -248,8 +248,8 @@ describe('ConfigLoader live trading safety guard', () => {
 
     expect(ConfigLoader.get('confidence.minTradeConfidence')).toBe(loaded.config.confidence.minTradeConfidence);
     expect(ConfigLoader.get('fees.perShare')).toBe(loaded.config.fees.perShare);
-    expect(ConfigLoader.get('exits.profitTiers.tier1')).toBe(loaded.config.tiers.tier1);
-    expect(ConfigLoader.getSection('exits').profitTiers.tier1).toBe(loaded.config.tiers.tier1);
+    expect(ConfigLoader.get('exits.profitTiers.tier1')).toBe(loaded.config.exits.profitTiers.tier1);
+    expect(ConfigLoader.getSection('exits').profitTiers.tier1).toBe(loaded.config.exits.profitTiers.tier1);
   });
 
   test('ConfigLoader tuning profiles cannot replace ConfigLoader-owned paths after config load', () => {

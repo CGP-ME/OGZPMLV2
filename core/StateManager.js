@@ -4176,11 +4176,11 @@ class StateManager {
       // Skip persisted state in backtest mode, but still honor explicit
       // INITIAL_BALANCE so sizing, recorder math, and state agree.
       if (getConfigValue('mode.backtest')) {
-        const initialBalanceSource = getConfigSource('backtest.initialBalance');
+        const initialBalanceSource = getConfigSource('startingBalance');
         if (!initialBalanceSource || initialBalanceSource === 'default') {
           throw new Error('[StateManager] BACKTEST_MODE=true requires explicit INITIAL_BALANCE; refusing default $10000 reset');
         }
-        const initialBalance = getConfigValue('backtest.initialBalance');
+        const initialBalance = getConfigValue('startingBalance');
         console.log(`[StateManager] BACKTEST_MODE: Starting with clean $${initialBalance} state`);
         this.initializeFreshState(initialBalance, { source: 'StateManager.backtestMode' });
         return;
@@ -4192,11 +4192,11 @@ class StateManager {
         if (getConfigValue('mode.liveTrading')) {
           throw new Error('[StateManager] FRESH_START=true is not allowed when LIVE_TRADING=true');
         }
-        const initialBalanceSource = getConfigSource('backtest.initialBalance');
+        const initialBalanceSource = getConfigSource('startingBalance');
         if (!initialBalanceSource || initialBalanceSource === 'default') {
           throw new Error('[StateManager] FRESH_START=true requires explicit INITIAL_BALANCE; refusing default $10000 reset');
         }
-        const initialBalance = getConfigValue('backtest.initialBalance');
+        const initialBalance = getConfigValue('startingBalance');
         console.log(`[StateManager] FRESH_START: Resetting to clean $${initialBalance} state`);
         this.initializeFreshState(initialBalance, { source: 'StateManager.freshStart' });
         return;
@@ -4471,7 +4471,7 @@ class StateManager {
         // Verify Map restoration
         console.log(`[StateManager] Active trades restored: ${this.state.activeTrades.size} trades`);
       } else {
-        const initialBalance = getConfigValue('backtest.initialBalance');
+        const initialBalance = getConfigValue('startingBalance');
         this.initializeFreshState(initialBalance, { source: 'StateManager.noPersistedState' });
         console.log(`[StateManager] No persisted state; initialized configured starting balance $${initialBalance}`);
       }

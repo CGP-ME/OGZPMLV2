@@ -702,9 +702,7 @@ function profileTypedOverrides(profile, kind, runtimeConfig = null) {
   for (const [pathName, value] of Object.entries(profile.overrides)) {
     const canonicalValue = runtimeConfig
       ? readConfiguredPath(runtimeConfig, pathName)
-      : (pathName === 'backtest.initialBalance'
-        ? settingsConfigFile.startingBalance
-        : readConfiguredPath(settingsConfigFile, pathName));
+      : readConfiguredPath(settingsConfigFile, pathName);
     if (canonicalValue === undefined) {
       throw new Error(`[ConfigLoader] ${kind} profile override '${pathName}' has no canonical config leaf`);
     }
@@ -879,26 +877,6 @@ function applyFlatOverlay(config, sources, overlay, source) {
   }
 }
 
-function refreshDerivedAliases(config, sources) {
-  config.tiers = cloneConfiguredObject(config.exits.profitTiers);
-  config.startingBalance = config.backtest.initialBalance;
-  config.broker.id = config.execution.broker;
-  config.broker.alpacaMode = config.execution.brokerMode;
-  config.broker.alpacaSymbols = config.execution.symbols.join(',');
-  config.broker.symbols = cloneConfiguredObject(config.execution.symbols);
-  config.broker.tradingPair = config.execution.tradingPair;
-  config.broker.candleTimeframe = config.execution.candleTimeframe;
-  config.broker.assetClass = config.execution.assetClass;
-  recordTreeSources(sources, 'tiers', config.tiers, 'derived:exits.profitTiers');
-  recordTreeSources(sources, 'startingBalance', config.startingBalance, 'derived:backtest.initialBalance');
-  sources['broker.id'] = 'derived:execution.broker';
-  sources['broker.alpacaMode'] = 'derived:execution.brokerMode';
-  sources['broker.alpacaSymbols'] = 'derived:execution.symbols';
-  recordTreeSources(sources, 'broker.symbols', config.broker.symbols, 'derived:execution.symbols');
-  sources['broker.tradingPair'] = 'derived:execution.tradingPair';
-  sources['broker.candleTimeframe'] = 'derived:execution.candleTimeframe';
-  sources['broker.assetClass'] = 'derived:execution.assetClass';
-}
 
 function fillSourceGaps(config, sources) {
   const visit = (pathName, value) => {
@@ -1018,7 +996,6 @@ function applyRunDescriptor(config, sources, descriptorReceipt) {
     typedOverrides[pathName] = validateDescriptorOverride(config, pathName, value);
   }
   applyFlatOverlay(config, sources, typedOverrides, 'descriptor:override');
-  refreshDerivedAliases(config, sources);
 }
 
 function buildConfig() {
@@ -1108,11 +1085,7 @@ function buildConfig() {
     execution.candleSource = 'file';
     sources['execution.candleSource'] = 'derived:backtest-file-source';
   }
-  const configuredBacktest = internal('backtest');
-  const backtest = {
-    ...configuredBacktest,
-    initialBalance: remember('backtest.initialBalance', settingsConfigFile.startingBalance, 'config:settings.json:startingBalance'),
-  };
+  const backtest = internal('backtest');
   const configuredPaths = internal('paths');
   const paths = {
     ...configuredPaths,
@@ -1205,6 +1178,7 @@ function buildConfig() {
     featureCatalog,
     tierPolicy: setting('tierPolicy'),
     backtest,
+    startingBalance: setting('startingBalance'),
     paths,
     monitoring: {
       ...internal('monitoring'),
@@ -1226,7 +1200,6 @@ function buildConfig() {
     strategyBehavior,
     orchestrator,
     exits,
-    tiers: rememberTree('tiers', exits.profitTiers, 'config:settings.json:exits.profitTiers'),
     fees: setting('fees'),
     risk: profileRisk,
     filters: setting('filters'),
@@ -1241,19 +1214,12 @@ function buildConfig() {
       },
     },
     broker: {
-      id: remember('broker.id', execution.broker, 'config:settings.json:execution.broker'),
       apiKey: credential('broker.apiKey', 'KRAKEN_API_KEY'),
       apiSecret: credential('broker.apiSecret', 'KRAKEN_API_SECRET'),
       alpacaApiKey: credential('broker.alpacaApiKey', 'ALPACA_API_KEY'),
       alpacaApiSecret: credential('broker.alpacaApiSecret', 'ALPACA_API_SECRET'),
-      alpacaMode: remember('broker.alpacaMode', execution.brokerMode, `derived:launchProfiles.${profileName}.mode`),
-      alpacaSymbols: remember('broker.alpacaSymbols', execution.symbols.join(','), 'config:settings.json:execution.symbols'),
-      symbols: rememberTree('broker.symbols', execution.symbols, 'config:settings.json:execution.symbols'),
-      tradingPair: remember('broker.tradingPair', execution.tradingPair, 'config:settings.json:execution.tradingPair'),
-      candleTimeframe: remember('broker.candleTimeframe', execution.candleTimeframe, 'config:settings.json:execution.candleTimeframe'),
       tradingInterval: internal('broker.tradingIntervalMs'),
       alpacaWebSocket: internal('broker.alpacaWebSocket'),
-      assetClass: remember('broker.assetClass', execution.assetClass, 'config:settings.json:execution.assetClass'),
       accountId: credential('broker.accountId', 'BROKER_ACCOUNT_ID'),
     },
     webhookOrders: {
@@ -1312,7 +1278,6 @@ function buildConfig() {
   };
 
   applyRunDescriptor(config, sources, activeRunDescriptor);
-  refreshDerivedAliases(config, sources);
   fillSourceGaps(config, sources);
   return { config, sources };
 }
@@ -1659,9 +1624,9 @@ function validateBotRuntimeContract(config, errors) {
     requireRoleObject(errors, config, `tierPolicy.${botTier}`);
   }
 
-  requireRoleString(errors, config, 'broker.id');
-  requireRoleString(errors, config, 'broker.assetClass');
-  requireRoleString(errors, config, 'broker.candleTimeframe');
+  requireRoleString(errors, config, 'execution.broker');
+  requireRoleString(errors, config, 'execution.assetClass');
+  requireRoleString(errors, config, 'execution.candleTimeframe');
 
   const pipeline = requireRoleObject(errors, config, 'pipeline');
   if (pipeline) {
@@ -1831,8 +1796,8 @@ function validate(config, sources = {}, opts = {}) {
   // minimum fees require order quantity/notional and are enforced by FeeModel at runtime.
   if (feeModel === 'percent') {
     const feeThreshold = config.fees.totalRoundTrip;
-    if (config.tiers.tier1 < feeThreshold) {
-      warnings.push(`tier1 (${config.tiers.tier1}) below round-trip fees (${feeThreshold}) — tier 1 exits are net losses`);
+    if (config.exits.profitTiers.tier1 < feeThreshold) {
+      warnings.push(`tier1 (${config.exits.profitTiers.tier1}) below round-trip fees (${feeThreshold}) — tier 1 exits are net losses`);
     }
   } else if (feeModel === 'per_share_minimum') {
     warnings.push('tier fee threshold cannot be statically validated for FEE_MODEL=per_share_minimum; runtime fee checks require order quantity/notional');
@@ -1910,8 +1875,8 @@ function validate(config, sources = {}, opts = {}) {
   if (typeof sessionRouter.fast !== 'boolean') {
     errors.push('sessionRouter.fast must be boolean');
   }
-  if (typeof config.broker.tradingPair !== 'string' || config.broker.tradingPair.trim().length === 0) {
-    errors.push('broker.tradingPair must resolve to a non-empty string');
+  if (typeof config.execution.tradingPair !== 'string' || config.execution.tradingPair.trim().length === 0) {
+    errors.push('execution.tradingPair must resolve to a non-empty string');
   }
   for (const [strategyName, strategyConfig] of Object.entries(config.strategies || {})) {
     // VolumeProfile is a per-symbol market feature, not an orchestrator strategy.
@@ -1973,11 +1938,11 @@ function validate(config, sources = {}, opts = {}) {
     if (!config.broker.alpacaApiSecret) {
       errors.push('ALPACA_API_SECRET must be configured when SessionRouter uses stocks outside backtest mode');
     }
-    if (config.broker.alpacaMode !== 'paper' && config.broker.alpacaMode !== 'live') {
-      errors.push(`ALPACA_MODE must be explicitly set to paper or live when SessionRouter uses stocks outside backtest mode, got ${config.broker.alpacaMode || '(missing)'}`);
+    if (config.execution.brokerMode !== 'paper' && config.execution.brokerMode !== 'live') {
+      errors.push(`ALPACA_MODE must be explicitly set to paper or live when SessionRouter uses stocks outside backtest mode, got ${config.execution.brokerMode || '(missing)'}`);
     }
-    const hasExplicitAlpacaSymbols = !!config.broker.alpacaSymbols && sources['broker.alpacaSymbols'] !== 'default';
-    const hasExplicitTradingPair = !!config.broker.tradingPair && sources['broker.tradingPair'] !== 'default';
+    const hasExplicitAlpacaSymbols = config.execution.symbols.length > 0 && sources['execution.symbols'] !== 'default';
+    const hasExplicitTradingPair = !!config.execution.tradingPair && sources['execution.tradingPair'] !== 'default';
     if (!hasExplicitAlpacaSymbols && !hasExplicitTradingPair) {
       errors.push('ALPACA_SYMBOLS or TRADING_PAIR must be explicitly configured when SessionRouter uses stocks outside backtest mode');
     }
@@ -2119,15 +2084,15 @@ function validate(config, sources = {}, opts = {}) {
     if (!Number.isFinite(ttpConsistency.maxProfitTargetInitialBalanceRatio) || ttpConsistency.maxProfitTargetInitialBalanceRatio <= 0 || ttpConsistency.maxProfitTargetInitialBalanceRatio > 0.10) {
       errors.push(`TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO out of range: ${ttpConsistency.maxProfitTargetInitialBalanceRatio}`);
     }
-    const maxProfitTargetDollars = config.backtest.initialBalance * ttpConsistency.maxProfitTargetInitialBalanceRatio;
+    const maxProfitTargetDollars = config.startingBalance * ttpConsistency.maxProfitTargetInitialBalanceRatio;
     if (Number.isFinite(maxProfitTargetDollars) && ttpConsistency.profitTargetDollars > maxProfitTargetDollars) {
       errors.push(`TTP_PROFIT_TARGET_DOLLARS too high for initial balance: ${ttpConsistency.profitTargetDollars} > ${maxProfitTargetDollars}`);
     }
   }
 
   // Balance
-  if (!Number.isFinite(config.backtest.initialBalance) || config.backtest.initialBalance <= 0) {
-    errors.push(`initialBalance must be a finite positive number: ${config.backtest.initialBalance}`);
+  if (!Number.isFinite(config.startingBalance) || config.startingBalance <= 0) {
+    errors.push(`initialBalance must be a finite positive number: ${config.startingBalance}`);
   }
 
   for (const riskPath of REQUIRED_RISK_SOURCE_PATHS) {
@@ -4296,7 +4261,7 @@ const compatibilitySections = [
   'pid', 'pipeline', 'positionSizing', 'proofPublication',
   'regimeBoosts', 'risk', 'services', 'startingBalance',
   'regimeDetection', 'strategies', 'strategyBehavior', 'tierPolicy', 'timeframeConfig', 'trai',
-  'volumeProfileBoosts', 'tiers',
+  'volumeProfileBoosts',
   'broker', 'backtest', 'paths', 'monitoring', 'observability', 'dataFeed',
   'dashboard', 'webhookOrders', 'sessionRouter', 'evalRules', 'internals',
 ];

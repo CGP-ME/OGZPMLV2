@@ -8,7 +8,7 @@ describe('MTF runtime base timeframe contract', () => {
 
   test('resolves broker candle timeframe before constructing MTF adapters', () => {
     const source = runnerSource();
-    const runtimeTimeframeIndex = source.indexOf('const runtimeCandleTimeframe = resolvedConfig.config.broker.candleTimeframe;');
+    const runtimeTimeframeIndex = source.indexOf('const runtimeCandleTimeframe = resolvedConfig.config.execution.candleTimeframe;');
     const orchestratorIndex = source.indexOf('this.strategyOrchestrator = new StrategyOrchestrator({');
     const liveMtfServiceIndex = source.indexOf("const mtfServiceConfig = ConfigLoader.get('orchestrator.mtfConfluenceService') || {};");
     const liveMtfIndex = source.indexOf('this.mtfAdapter = new MultiTimeframeAdapter({');
