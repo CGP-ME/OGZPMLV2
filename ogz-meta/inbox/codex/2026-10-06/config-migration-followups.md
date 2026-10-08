@@ -111,3 +111,7 @@ Mercury run 2026-10-08T01-40-38-724Z-577e7b3aa622 flags multiplier/penalty valid
 ## 17. ORB review lead in unchanged MTF initialization
 
 Mercury 2026-10-08T01-48-05-116Z-2520f243c947 conditionally alleges absent orchestrator.mtfConfluenceService or orchestrator.mtfAdapter would cause dereference errors at core/StrategyOrchestrator.js:944-951. Root verified the cited block is byte-identical between 5d5a6cfb and ORB candidate 87251661. No missing producer or ORB-migration-caused failure was established. Preserve as an unverified inherited lead for the deferred pass; do not add guards/defaults. Full answer: `exit-owner-sequential-rebase/orb/delivery-review-answer.txt`.
+
+## 18. Settings UI review leads in unchanged browser code
+
+Mercury 2026-10-08T01-50-34-561Z-3510be25b104 flags the existing send catch (`public/js/panels/configuration-settings.js:82-89`), custom-alerts ordering (`public/unified-dashboard-v2.html:1150-1160`) and CDN integrity metadata (`:39-43`). Root verified all three blocks are byte-identical between 4a6327b8 and UI candidate 86901962. No layout-caused failure is established. These are deferred inherited leads; script-order comments and missing catches/metadata alone do not prove the claimed runtime consequence. Preserve existing transport and do not add gates. Complete review: `settings-ui-rough-layout/delivery-review-answer.txt`.
