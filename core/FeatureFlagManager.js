@@ -16,7 +16,7 @@
  * They didn't communicate, causing flags to be ignored.
  *
  * NOW:
- * - ConfigLoader's featureCatalog is the only runtime source of truth for toggles
+ * - ConfigLoader owns featureCatalog toggles and the canonical trai.enabled switch
  * - Tier logic provides SCALING on top (multipliers, limits)
  * - All code uses this singleton
  *
@@ -73,7 +73,7 @@ class FeatureFlagManager {
 
     console.log(`[FeatureFlagManager] Initialized: mode=${this.mode}, tier=${this.tier}`);
     console.log(`[FeatureFlagManager] Enabled features:`,
-      Object.keys(this.features).filter(f => this.features[f]?.enabled));
+      Object.keys(this.features).filter(f => this.isEnabled(f)));
 
     instance = this;
   }
@@ -129,6 +129,10 @@ class FeatureFlagManager {
    * @returns {boolean}
    */
   isEnabled(featureName) {
+    if (featureName === 'TRAI_INFERENCE' || featureName === 'traiEnabled') {
+      return ConfigLoader.get('trai.enabled') === true;
+    }
+
     // Check the ConfigLoader-owned feature catalog first
     const feature = this.features[featureName];
     if (feature !== undefined) {
@@ -145,8 +149,7 @@ class FeatureFlagManager {
       'ogzTpoConfluence': 'OGZ_TPO',
       'ogzTpoAdaptive': 'OGZ_TPO',
       'patternsEnabled': 'PATTERN_DOMINANCE',
-      'quantumPositionSizer': 'PATTERN_BASED_SIZING',
-      'traiEnabled': 'TRAI_INFERENCE'
+      'quantumPositionSizer': 'PATTERN_BASED_SIZING'
     };
 
     const mappedName = legacyMapping[featureName];
@@ -300,7 +303,7 @@ class FeatureFlagManager {
    * @returns {string[]}
    */
   getEnabledFeatures() {
-    return Object.keys(this.features).filter(f => this.features[f]?.enabled);
+    return Object.keys(this.features).filter(f => this.isEnabled(f));
   }
 
   /**

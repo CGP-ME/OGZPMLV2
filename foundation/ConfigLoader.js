@@ -1108,11 +1108,6 @@ function buildConfig() {
 
   const configuredOrchestrator = setting('orchestrator');
   const featureCatalog = setting('featureCatalog');
-  featureCatalog.TRAI_INFERENCE.enabled = remember(
-    'featureCatalog.TRAI_INFERENCE.enabled',
-    trai.enabled,
-    'config:settings.json:trai.enabled'
-  );
   const orchestrator = {
     ...configuredOrchestrator,
     mtfConfluenceService: rememberTree(

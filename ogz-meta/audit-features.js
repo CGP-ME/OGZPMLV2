@@ -30,7 +30,7 @@ const enabledFeatures = [];
 const unusedFeatures = [];
 
 Object.entries(featuresConfig).forEach(([name, config]) => {
-  if (config.enabled) {
+  if (name === 'TRAI_INFERENCE' ? runtimeConfig.trai.enabled : config.enabled) {
     enabledFeatures.push(name);
     const found = mainBotCode.includes(name);
     const status = found ? '✅ USED' : '❌ NOT USED';
