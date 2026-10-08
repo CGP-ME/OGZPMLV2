@@ -42,28 +42,26 @@ const REQUIRED_CONFIG_KEYS = Object.freeze([
   'minFVGPercent',
   'maxFVGPercent',
   'entryLevel',
-  'stopBufferPct',
-  'targetRR',
 ]);
 
 function hasOwn(obj, key) {
   return Object.prototype.hasOwnProperty.call(obj, key);
 }
 
-function requiredRaw(config, key) {
+function requiredRaw(config, key, owner = 'strategies.OpeningRangeBreakout') {
   if (!hasOwn(config, key)) {
-    throw new Error(`[ORB] strategies.OpeningRangeBreakout.${key} is required`);
+    throw new Error(`[ORB] ${owner}.${key} is required`);
   }
   return config[key];
 }
 
-function requiredNumber(config, key, { min = 0, exclusiveMin = false } = {}) {
-  const raw = requiredRaw(config, key);
+function requiredNumber(config, key, { min = 0, exclusiveMin = false, owner } = {}) {
+  const raw = requiredRaw(config, key, owner);
   const value = Number(raw);
   const belowMin = exclusiveMin ? value <= min : value < min;
   if (!Number.isFinite(value) || belowMin) {
     const comparator = exclusiveMin ? `greater than ${min}` : `at least ${min}`;
-    throw new Error(`[ORB] strategies.OpeningRangeBreakout.${key} must be a finite number ${comparator}; got ${raw}`);
+    throw new Error(`[ORB] ${owner || 'strategies.OpeningRangeBreakout'}.${key} must be a finite number ${comparator}; got ${raw}`);
   }
   return value;
 }
@@ -92,9 +90,11 @@ function resolveConfig(config) {
 }
 
 class OpeningRangeBreakout {
-  constructor(configProvider) {
-    this.configProvider = configProvider;
-    const orbConfig = resolveConfig(this.configProvider());
+  constructor(entryConfigProvider, exitConfigProvider) {
+    this.entryConfigProvider = entryConfigProvider;
+    this.exitConfigProvider = exitConfigProvider;
+    const orbConfig = resolveConfig(this.entryConfigProvider());
+    const exitConfig = this.exitConfigProvider();
 
     this.sessionOpenHourUTC = requiredNumber(orbConfig, 'sessionOpenHourUTC', { min: 0 });
     // 2026-05-04: NYSE 9:30 ET session detection. Handles DST automatically via Intl
@@ -128,8 +128,9 @@ class OpeningRangeBreakout {
     if (!['top', 'middle', 'bottom'].includes(this.entryLevel)) {
       throw new Error(`[ORB] strategies.OpeningRangeBreakout.entryLevel must be top, middle, or bottom; got ${this.entryLevel}`);
     }
-    this.stopBufferPct = requiredNumber(orbConfig, 'stopBufferPct', { min: 0 });
-    this.targetRR = requiredNumber(orbConfig, 'targetRR', { min: 0, exclusiveMin: true });
+    this.stopBufferPct = requiredNumber(exitConfig, 'stopBufferPct', { min: 0, owner: 'exitContracts.OpeningRangeBreakout' });
+    this.targetRR = requiredNumber(exitConfig, 'targetRR', { min: 0, exclusiveMin: true, owner: 'exitContracts.OpeningRangeBreakout' });
+    this.exitConfig = exitConfig;
 
     // State
     this.state = STATES.WAITING_FOR_OPEN;
@@ -185,7 +186,8 @@ class OpeningRangeBreakout {
 
     const timestamp = _t(candle);
     const candleDate = new Date(timestamp);
-    const currentConfig = this.configProvider();
+    const currentConfig = this.entryConfigProvider();
+    const currentExitConfig = this.exitConfigProvider();
     const sessionDate = this._getSessionDate(candleDate);
 
     // New session? Reset state machine
@@ -194,7 +196,7 @@ class OpeningRangeBreakout {
       this._applySessionConfig(currentConfig);
       this.currentSessionDate = this._getSessionDate(candleDate);
     }
-    this._applyLiveConfig(currentConfig);
+    this._applyLiveConfig(currentConfig, currentExitConfig);
 
     // Track recent candles for FVG scanning
     this.recentCandles.push(candle);
@@ -264,14 +266,15 @@ class OpeningRangeBreakout {
     }
   }
 
-  _applyLiveConfig(config) {
+  _applyLiveConfig(config, exitConfig) {
     this.orMinWidthAtr = Number(config.orMinWidthAtr);
     this.fvgScanBars = Number(config.fvgScanBars);
     this.minFVGPercent = Number(config.minFVGPercent);
     this.maxFVGPercent = Number(config.maxFVGPercent);
     this.entryLevel = config.entryLevel;
-    this.stopBufferPct = Number(config.stopBufferPct);
-    this.targetRR = Number(config.targetRR);
+    this.stopBufferPct = Number(exitConfig.stopBufferPct);
+    this.targetRR = Number(exitConfig.targetRR);
+    this.exitConfig = exitConfig;
     this.fvgDetector.configure({
       minFVGPercent: this.minFVGPercent,
       maxFVGPercent: this.maxFVGPercent,
@@ -493,10 +496,10 @@ class OpeningRangeBreakout {
         strategyName: 'OpeningRangeBreakout',
         stopLossPercent: -Math.abs((levels.stop - levels.entry) / levels.entry * 100),
         takeProfitPercent: Math.abs((levels.target - levels.entry) / levels.entry * 100),
-        trailingStopPercent: 0.6,
-        trailingActivation: 0.8,
-        maxHoldTimeMinutes: 180,
-        invalidationConditions: ['fvg_filled', 'or_break_reversal'],
+        trailingStopPercent: this.exitConfig.trailingStopPercent,
+        trailingActivation: this.exitConfig.trailingActivation,
+        maxHoldTimeMinutes: this.exitConfig.maxHoldTimeMinutes,
+        invalidationConditions: this.exitConfig.invalidationConditions,
       },
 
       timestamp: _t(currentCandle),

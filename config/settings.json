@@ -1638,7 +1638,9 @@
       "invalidationConditions": [
         "fvg_filled",
         "or_break_reversal"
-      ]
+      ],
+      "stopBufferPct": 0.05,
+      "targetRR": 2
     },
     "SmartMoneySweep": {
       "stopLossPercent": -0.3,
@@ -2196,8 +2198,6 @@
       "minFVGPercent": 0.05,
       "maxFVGPercent": 2,
       "entryLevel": "top",
-      "stopBufferPct": 0.05,
-      "targetRR": 2,
       "confluenceBoost": {
         "enabled": false,
         "weight": 0

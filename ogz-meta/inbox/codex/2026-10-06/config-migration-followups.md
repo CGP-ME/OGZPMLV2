@@ -107,3 +107,7 @@ This is a bounded deferred list for the current configuration migration. It reco
 ## 16. NoWick review leads in unchanged code
 
 Mercury run 2026-10-08T01-40-38-724Z-577e7b3aa622 flags multiplier/penalty validation (`core/StrategyOrchestrator.js:1365,1405`), generic strategy exception handling (`:2529`) and placeholder-URL parsing (`foundation/ConfigLoader.js:1324`). Root verified those blocks are unchanged between d913f924 and NoWick candidate 9d8b1452. No migration-caused failure was established; no new guard or behavior is authorized. These are unverified inherited leads for the deferred pass, not four proven production defects. Full review: `exit-owner-sequential-rebase/nowick/delivery-review-answer.txt`.
+
+## 17. ORB review lead in unchanged MTF initialization
+
+Mercury 2026-10-08T01-48-05-116Z-2520f243c947 conditionally alleges absent orchestrator.mtfConfluenceService or orchestrator.mtfAdapter would cause dereference errors at core/StrategyOrchestrator.js:944-951. Root verified the cited block is byte-identical between 5d5a6cfb and ORB candidate 87251661. No missing producer or ORB-migration-caused failure was established. Preserve as an unverified inherited lead for the deferred pass; do not add guards/defaults. Full answer: `exit-owner-sequential-rebase/orb/delivery-review-answer.txt`.

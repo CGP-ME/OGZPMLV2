@@ -25,13 +25,20 @@ describe('OpeningRangeBreakout', () => {
     minFVGPercent: 0.01,
     maxFVGPercent: 5.0,
     entryLevel: 'top',
+    ...overrides,
+  });
+  const orbExitConfig = (overrides = {}) => ({
     stopBufferPct: 0.05,
     targetRR: 2.0,
+    trailingStopPercent: 0.6,
+    trailingActivation: 0.8,
+    maxHoldTimeMinutes: 180,
+    invalidationConditions: ['fvg_filled', 'or_break_reversal'],
     ...overrides,
   });
 
   beforeEach(() => {
-    orb = new OpeningRangeBreakout(() => orbConfig());
+    orb = new OpeningRangeBreakout(() => orbConfig(), () => orbExitConfig());
   });
 
   describe('State Machine - Opening Range Detection', () => {
@@ -53,7 +60,7 @@ describe('OpeningRangeBreakout', () => {
     });
 
     test('accumulates the full opening window before watching for breakout', () => {
-      orb = new OpeningRangeBreakout(() => orbConfig());
+      orb = new OpeningRangeBreakout(() => orbConfig(), () => orbExitConfig());
 
       orb.update(candle(100, 101, 99, 100, makeTimestamp(14, 0)));
       orb.update(candle(100, 110, 98, 109, makeTimestamp(14, 5)));
@@ -84,7 +91,7 @@ describe('OpeningRangeBreakout', () => {
     });
 
     test('orMinWidthAtr rejects narrow opening ranges when enabled', () => {
-      orb = new OpeningRangeBreakout(() => orbConfig({ orMinWidthAtr: 2 }));
+      orb = new OpeningRangeBreakout(() => orbConfig({ orMinWidthAtr: 2 }), () => orbExitConfig());
 
       orb.update(candle(100, 100.5, 99.5, 100, makeTimestamp(14, 0)));
       orb.update(candle(100, 100.5, 99.5, 100, makeTimestamp(14, 5)));
@@ -100,7 +107,7 @@ describe('OpeningRangeBreakout', () => {
       const config = orbConfig();
       delete config.orMinWidthAtr;
 
-      expect(() => new OpeningRangeBreakout(() => config)).toThrow(/orMinWidthAtr is required/);
+      expect(() => new OpeningRangeBreakout(() => config, () => orbExitConfig())).toThrow(/orMinWidthAtr is required/);
     });
   });
 
@@ -183,7 +190,7 @@ describe('OpeningRangeBreakout', () => {
     test('transitions to DONE when FVG scan limit exceeded', () => {
       orb = new OpeningRangeBreakout(() => orbConfig({
         fvgScanBars: 3, // Very short scan window
-      }));
+      }), () => orbExitConfig());
 
       // OR and breakout - use overlapping candles to avoid accidental FVG
       orb.update(candle(100, 105, 98, 103, makeTimestamp(14, 0)));

@@ -667,7 +667,7 @@ function buildRoleConfig(role) {
 }
 
 const DESCRIPTOR_OVERRIDE_PATHS = Object.freeze([
-  /^exitContracts\.[A-Za-z0-9_]+\.(stopLossPercent|takeProfitPercent|trailingStopPercent|trailingActivation|maxHoldTimeMinutes|atrStopMult|targetRR|trailActivationR|trailDistanceR|trailChannelBars|trailAtrMult|rsiExitLong|stopLookbackBars|stopBufferAtr|rewardRiskRatio|stopBufferAtrMultiplier)$/,
+  /^exitContracts\.[A-Za-z0-9_]+\.(stopLossPercent|takeProfitPercent|trailingStopPercent|trailingActivation|maxHoldTimeMinutes|atrStopMult|targetRR|trailActivationR|trailDistanceR|trailChannelBars|trailAtrMult|rsiExitLong|stopLookbackBars|stopBufferAtr|rewardRiskRatio|stopBufferAtrMultiplier|stopBufferPct|targetRR)$/,
   /^strategies\.[A-Za-z0-9_]+\.[A-Za-z0-9_.]+$/,
   /^strategies\.soloFilter$/,
   /^confidence\.minTradeConfidence$/,
@@ -3173,14 +3173,17 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'string', unit: 'choice', values: ['top', 'middle', 'bottom'],
     label: 'Opening range fair-value-gap entry level', effect: 'next_generated_ORB_signal_geometry',
   },
-  'strategies.OpeningRangeBreakout.stopBufferPct': {
+  'exitContracts.OpeningRangeBreakout.stopBufferPct': {
     type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE,
     label: 'Opening range fair-value-gap stop buffer', effect: 'next_generated_ORB_signal_geometry',
   },
-  'strategies.OpeningRangeBreakout.targetRR': {
+  'exitContracts.OpeningRangeBreakout.targetRR': {
     type: 'number', unit: 'risk-reward ratio', min: 0, exclusiveMin: true, max: Number.MAX_VALUE,
     label: 'Opening range fair-value-gap target reward ratio', effect: 'next_generated_ORB_signal_geometry',
   },
+  'exitContracts.OpeningRangeBreakout.trailingStopPercent': { type: 'number', unit: 'percent', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, label: 'Opening range trailing stop distance', effect: 'next_generated_ORB_signal_geometry' },
+  'exitContracts.OpeningRangeBreakout.trailingActivation': { type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE, label: 'Opening range trailing stop activation', effect: 'next_generated_ORB_signal_geometry' },
+  'exitContracts.OpeningRangeBreakout.maxHoldTimeMinutes': { type: 'number', unit: 'minutes', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'Opening range maximum hold time', effect: 'next_generated_ORB_signal_geometry' },
   'strategies.DonchianBreakout.confluenceBoost.enabled': {
     type: 'boolean', unit: 'boolean',
     label: 'DonchianBreakout MTF confluence contribution', effect: 'next_entry_evaluation_ranking',
