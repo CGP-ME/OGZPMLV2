@@ -2555,6 +2555,17 @@ function openingRangeBreakoutConfigurationProblem(config) {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  'exits.volatilityThreshold': {
+    type: 'number', unit: 'ATR percent of price', min: 0, max: Number.MAX_VALUE,
+    label: 'Exit volatility adjustment threshold', effect: 'new_trade_exit_contract',
+  },
+  ...Object.fromEntries([
+    ['volatilitySlMultiplier', 'High-volatility stop-loss multiplier'],
+    ['volatilityTpMultiplier', 'High-volatility take-profit multiplier'],
+  ].map(([key, label]) => [`exits.${key}`, {
+    type: 'number', unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_VALUE,
+    label, effect: 'new_trade_exit_contract',
+  }])),
   ...Object.fromEntries([
     ['tier1', 'First profit target'],
     ['tier2', 'Second profit target'],

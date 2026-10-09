@@ -1,3 +1,9 @@
+## 2026-10-09 — Original Stop 1 UI-08: connect volatility exit adjustments
+
+- Connect the three existing canonical exits.volatilityThreshold/volatilitySlMultiplier/volatilityTpMultiplier values to the existing customer settings save/UI path. The threshold is ATR percent of price, matching StrategyOrchestrator's ATR/price * 100 producer; multipliers retain their existing multiplication semantics. No config values, runtime algorithms, defaults, fallbacks, throws, or trading gates changed.
+- Actual verification: staged tree 32ab91db23ea2f515f6c068bac7fa6f54258a183 against bb0f510a. Each save persisted/published and reached the same already-constructed ExitContractManager: threshold 5→.5 activates adjustments at volatility 1, stop multiplier 1.15→2 changes stop -.92→-1.6, target multiplier 1.2→2 changes target 1.2→2. Previously created contract remains byte-equal. Controlled isolated settings and real contract construction, no live saves or broker calls. Syntax, whitespace and staged secret checks passed.
+- Mercury adversarial run 2026-10-09T23-29-03-149Z-47af87244455 returned no_break_found. Supporting source manifest, real save/consumer fixture and output, and review answer: ogz-meta/inbox/codex/2026-10-09/volatility-exit-controls/. The original shared-controls/static-ownership queue remains open; no deployment or PM2 restart, no Mercury reindex claimed.
+
 ## 2026-10-09 — Original Stop 1 UI-08: connect four profit targets with one unit
 
 - Original-list item: exits.profitTiers.tier1/tier2/tier3/final in the existing source census. Register these four canonical price-fraction values for the existing settings panel/save path. New trade policies read them through PolicyBuilder; held policies retain their entry values. Final target also participates in the existing stock-entry consistency budget.
