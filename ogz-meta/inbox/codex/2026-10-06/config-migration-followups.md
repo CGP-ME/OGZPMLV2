@@ -135,3 +135,8 @@ Mercury run 2026-10-09T23-23-27-687Z-7b006f49f796 cites webhook response slicing
 ## 23. TRAI declared ceiling and deliberately disabled veto
 
 HEAD source at d0310b15 passes trai.maxConf into maxConfidenceOverride at run-empire-v2.js:836, but TRAIDecisionModule never reads maxConfidenceOverride. trai.vetoPower is passed at :832 but TRAIDecisionModule:43-46 fixes enableVetoPower=false under existing opinion-only policy. Preserve both declarations and existing behavior; neither is exposed as an effective customer knob. Decide intended ceiling behavior and static ownership of disabled veto in the user-requested defect/intent pass, without silently re-enabling risk veto. Final migration review's unused-TRAI and null-spread claims are refuted in ogz-meta/inbox/codex/2026-10-09/trai-decision-controls/review-disposition.json; inherited URL handling remains unchanged.
+
+## 24. Optimized two-pole inactive confidence and oversold declarations
+
+- Evidence: core/TwoPoleOscillator.js:17 assigns config.extremeOversold to the instance. No later method reads that property. confidenceBase is read at :251 and unconditionally overwritten by the exhaustive branches at :254-263. Independent Astra review reproduced identical outputs for confidenceBase 0 and 100 over 36 input pairs. The other 40 optimized-indicator inputs have actual consumer paths and were separately connected to the settings save registry.
+- Action/status: Preserve the canonical extremeOversold and confidenceBase values and assignments. Determine intended asymmetric threshold behavior in the deferred pass; do not expose it as an effective customer control or invent its missing behavior during migration.
