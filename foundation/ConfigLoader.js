@@ -1102,6 +1102,7 @@ function buildConfig() {
   }
 
   const exits = setting('exits');
+  const featureExtraction = { ...setting('featureExtraction'), ...internal('featureExtraction') };
   const exitContracts = setting('exitContracts');
   exitContracts.DonchianBreakout.stopType = internal('exitContracts.DonchianBreakout.stopType');
   exitContracts.DonchianBreakout.trailType = internal('exitContracts.DonchianBreakout.trailType');
@@ -1163,6 +1164,7 @@ function buildConfig() {
   delete botInternals.services;
   delete botInternals.tooling;
   delete botInternals.exitContracts;
+  delete botInternals.featureExtraction;
 
   const config = {
     ...runtimeSettings,
@@ -1205,6 +1207,7 @@ function buildConfig() {
     strategyBehavior,
     orchestrator,
     exits,
+    featureExtraction,
     fees: setting('fees'),
     risk: profileRisk,
     filters: setting('filters'),
@@ -2555,6 +2558,16 @@ function openingRangeBreakoutConfigurationProblem(config) {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  ...Object.fromEntries([
+    ['volumeMinimumCandles', 'Volume feature minimum candles', { unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true }],
+    ['volumeLookback', 'Volume feature lookback', { unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true }],
+    ['volumeRatioCeiling', 'Volume feature normalization ceiling', { unit: 'volume ratio', min: 0, exclusiveMin: true, max: Number.MAX_VALUE }],
+    ['volatilityPercentCeiling', 'Volatility feature normalization ceiling', { unit: 'ATR percent of price', min: 0, exclusiveMin: true, max: Number.MAX_VALUE }],
+    ['changeMultiplier', 'Price-change feature normalization multiplier', { unit: 'multiplier', min: 0, max: Number.MAX_VALUE }],
+    ['macdDeltaRange', 'MACD feature normalization range', { unit: 'MACD delta', min: 0, exclusiveMin: true, max: Number.MAX_VALUE }],
+  ].map(([key, label, domain]) => [`featureExtraction.${key}`, {
+    type: 'number', ...domain, label, effect: 'next_feature_extraction_changes_future_pattern_features',
+  }])),
   ...Object.fromEntries([
     ['enabled', 'Enable TRAI advisor'],
     ['trackDecisions', 'Record TRAI decisions'],

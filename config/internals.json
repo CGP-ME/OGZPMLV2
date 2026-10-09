@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 2,
+  "revision": 3,
   "backtest": {
     "candleDataFile": "",
     "reportTag": "",
@@ -1160,5 +1160,13 @@
       "tpMode": "off",
       "maxHoldMode": "off"
     }
+  },
+  "featureExtraction": {
+    "trendBullishValue": 0.85,
+    "trendBearishValue": 0.15,
+    "neutralValue": 0.5,
+    "longDirectionValue": 0.75,
+    "shortDirectionValue": 0.25,
+    "signatureQuantizationSteps": 10
   }
 }

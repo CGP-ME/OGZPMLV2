@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 8,
+  "revision": 9,
   "confidence": {
     "minStrategyConfidence": 0.35,
     "candlePatternMinConfidence": 0.7,
@@ -130,14 +130,8 @@
     "volumeLookback": 20,
     "volumeRatioCeiling": 2,
     "volatilityPercentCeiling": 5,
-    "trendBullishValue": 0.85,
-    "trendBearishValue": 0.15,
-    "neutralValue": 0.5,
     "changeMultiplier": 10,
-    "macdDeltaRange": 1000,
-    "longDirectionValue": 0.75,
-    "shortDirectionValue": 0.25,
-    "signatureQuantizationSteps": 10
+    "macdDeltaRange": 1000
   },
   "performanceAnalysis": {
     "minTradesForAnalysis": 20,
