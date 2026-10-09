@@ -2170,7 +2170,7 @@ class OrderExecutor {
     const distances = [];
     const finalTier = this._positiveConfigNumber('exits.profitTiers.final');
     if (finalTier !== null) {
-      distances.push(finalTier > 1 ? finalTier / 100 : finalTier);
+      distances.push(finalTier);
     }
     if (exitContract && exitContract.takeProfitPercent !== undefined) {
       distances.push(this._percentDistanceDecimal(exitContract.takeProfitPercent, 'exitContract.takeProfitPercent'));

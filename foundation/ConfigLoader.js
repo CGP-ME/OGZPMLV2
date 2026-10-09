@@ -2555,6 +2555,15 @@ function openingRangeBreakoutConfigurationProblem(config) {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  ...Object.fromEntries([
+    ['tier1', 'First profit target'],
+    ['tier2', 'Second profit target'],
+    ['tier3', 'Third profit target'],
+    ['final', 'Final profit target'],
+  ].map(([key, label]) => [`exits.profitTiers.${key}`, {
+    type: 'number', unit: 'price fraction', min: 0, exclusiveMin: true, max: Number.MAX_VALUE,
+    label, effect: 'new_trade_exit_policy_and_next_entry_consistency_budget',
+  }])),
   'entryLogic.sizing.absoluteCapPercent': {
     type: 'number', unit: 'account fraction', min: 0, exclusiveMin: true, max: Number.MAX_VALUE,
     label: 'Absolute position-size cap', effect: 'next_entry_size_calculation',
