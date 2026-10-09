@@ -2558,6 +2558,14 @@ function openingRangeBreakoutConfigurationProblem(config) {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  'performanceAnalysis.minTradesForAnalysis': { type: 'number', unit: 'trade count', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'Minimum trades before performance insights', effect: 'next_performance_analyzer_initialization_restart_required' },
+  'performanceAnalysis.edgeDecayLookback': { type: 'number', unit: 'trade count', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'Performance edge-decay lookback', effect: 'next_performance_analyzer_initialization_restart_required' },
+  'performanceAnalysis.edgeDecayThreshold': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'Edge-decay detection threshold', effect: 'next_performance_analyzer_initialization_restart_required' },
+  'performanceAnalysis.entryQualityWeight': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'Entry-quality score weight', effect: 'next_performance_analyzer_initialization_restart_required' },
+  'performanceAnalysis.exitQualityWeight': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'Exit-quality score weight', effect: 'next_performance_analyzer_initialization_restart_required' },
+  'performanceAnalysis.patternAccuracyWeight': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'Pattern-accuracy score weight', effect: 'next_performance_analyzer_initialization_restart_required' },
+  'performanceAnalysis.recommendationInterval': { type: 'number', unit: 'trade count', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'Performance recommendation interval', effect: 'next_performance_analyzer_initialization_restart_required' },
+  'performanceAnalysis.alertOnTradesBelow': { type: 'number', unit: 'quality points', min: 0, max: 100, label: 'Low-quality trade alert threshold', effect: 'next_performance_analyzer_initialization_restart_required' },
   'patternRecognition.confidenceThreshold': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'Pattern confidence threshold', effect: 'next_pattern_checker_initialization_restart_required' },
   'patternRecognition.useOptimizedIndicators': { type: 'boolean', unit: 'boolean', label: 'Use optimized indicators for pattern features', effect: 'next_pattern_feature_extraction' },
   'patternRecognition.flatCandleWickRatio': { type: 'number', unit: 'ratio', min: 0, max: 1, label: 'Flat-candle wick ratio fallback', effect: 'next_pattern_feature_extraction' },
