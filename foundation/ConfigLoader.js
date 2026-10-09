@@ -2555,6 +2555,26 @@ function openingRangeBreakoutConfigurationProblem(config) {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  ...Object.fromEntries([
+    ['enabled', 'Enable TRAI advisor'],
+    ['trackDecisions', 'Record TRAI decisions'],
+    ['enableBacktest', 'Run TRAI during backtests'],
+  ].map(([key, label]) => [`trai.${key}`, {
+    type: 'boolean', unit: 'boolean', label, effect: 'next_bot_initialization_restart_required',
+  }])),
+  'trai.mode': {
+    type: 'string', unit: 'mode', values: ['passive', 'advisory', 'hybrid', 'autonomous'],
+    label: 'TRAI advisory mode', effect: 'next_bot_initialization_restart_required',
+  },
+  ...Object.fromEntries([
+    ['weight', 'TRAI confidence contribution', { unit: 'confidence multiplier', min: 0, max: Number.MAX_VALUE }],
+    ['maxRisk', 'TRAI maximum-loss advisory threshold', { unit: 'account currency', min: 0, max: Number.MAX_VALUE }],
+    ['emergencyStopLoss', 'TRAI advisory stop distance when signal lacks a stop', { unit: 'price fraction', min: 0, max: Number.MAX_VALUE }],
+    ['minConf', 'TRAI recommendation confidence threshold', { unit: 'confidence fraction', min: 0, max: 1 }],
+    ['legacyPatternMinSamples', 'TRAI legacy pattern minimum samples', { unit: 'samples', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true }],
+  ].map(([key, label, domain]) => [`trai.${key}`, {
+    type: 'number', ...domain, label, effect: 'next_bot_initialization_restart_required',
+  }])),
   'exits.volatilityThreshold': {
     type: 'number', unit: 'ATR percent of price', min: 0, max: Number.MAX_VALUE,
     label: 'Exit volatility adjustment threshold', effect: 'new_trade_exit_contract',
