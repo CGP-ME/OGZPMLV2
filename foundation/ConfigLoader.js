@@ -2555,6 +2555,22 @@ function openingRangeBreakoutConfigurationProblem(config) {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  'entryLogic.sizing.absoluteCapPercent': {
+    type: 'number', unit: 'account fraction', min: 0, exclusiveMin: true, max: Number.MAX_VALUE,
+    label: 'Absolute position-size cap', effect: 'next_entry_size_calculation',
+  },
+  'entryLogic.sizing.stockShareRange.enabled': {
+    type: 'boolean', unit: 'boolean', label: 'Apply stock share limits', effect: 'next_stock_entry_size_calculation',
+  },
+  ...Object.fromEntries([
+    ['minShares', 'Minimum whole shares', { unit: 'shares', min: 0, max: Number.MAX_SAFE_INTEGER, integer: true }],
+    ['maxShares', 'Maximum whole shares (0 disables this cap)', { unit: 'shares', min: 0, max: Number.MAX_SAFE_INTEGER, integer: true }],
+    ['maxNotionalUsd', 'Maximum stock order value (0 disables this cap)', { unit: 'USD', min: 0, max: Number.MAX_VALUE }],
+    ['consistencyCapBuffer', 'Consistency profit-cap fraction', { unit: 'fraction', min: 0, exclusiveMin: true, max: 1 }],
+    ['dailyLossRiskFraction', 'Daily-loss budget fraction per stock entry', { unit: 'fraction', min: 0, exclusiveMin: true, max: 1 }],
+  ].map(([key, label, domain]) => [`entryLogic.sizing.stockShareRange.${key}`, {
+    type: 'number', ...domain, label, effect: 'next_stock_entry_size_calculation',
+  }])),
   ...Object.fromEntries([
     ['minimumCandles', 'Market regime minimum history', { unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true }],
     ['trendLookback', 'Market regime trend lookback', { unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true }],
