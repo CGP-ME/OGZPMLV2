@@ -2558,6 +2558,19 @@ function openingRangeBreakoutConfigurationProblem(config) {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  'patternRecognition.confidenceThreshold': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'Pattern confidence threshold', effect: 'next_pattern_checker_initialization_restart_required' },
+  'patternRecognition.useOptimizedIndicators': { type: 'boolean', unit: 'boolean', label: 'Use optimized indicators for pattern features', effect: 'next_pattern_feature_extraction' },
+  'patternRecognition.flatCandleWickRatio': { type: 'number', unit: 'ratio', min: 0, max: 1, label: 'Flat-candle wick ratio fallback', effect: 'next_pattern_feature_extraction' },
+  'patternRecognition.optimizedVolatilityCeiling': { type: 'number', unit: 'price fraction', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, label: 'Optimized volatility ceiling', effect: 'next_pattern_feature_extraction' },
+  'patternRecognition.defaultPatternQuality': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'Default pattern quality', effect: 'next_pattern_checker_initialization_restart_required' },
+  'patternRecognition.historySimilarityThreshold': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'Pattern-history similarity threshold', effect: 'next_pattern_checker_initialization_restart_required' },
+  'patternRecognition.decayRate': { type: 'number', unit: 'per hour', min: 0, max: Number.MAX_VALUE, label: 'Pattern confidence decay rate', effect: 'next_pattern_checker_initialization_restart_required' },
+  'patternRecognition.minimumDecayMultiplier': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'Minimum pattern decay multiplier', effect: 'next_pattern_checker_initialization_restart_required' },
+  'patternRecognition.fastPathMinTradeHistory': { type: 'number', unit: 'trade results', min: 0, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'Fast-path minimum trade history', effect: 'next_pattern_checker_initialization_restart_required' },
+  'patternRecognition.fastPathRecentResultCount': { type: 'number', unit: 'trade results', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'Fast-path recent result count', effect: 'next_pattern_checker_initialization_restart_required' },
+  'patternRecognition.fastPathHistoricalWeight': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'Fast-path historical confidence weight', effect: 'next_pattern_checker_initialization_restart_required' },
+  'patternRecognition.fastPathRecentWeight': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'Fast-path recent confidence weight', effect: 'next_pattern_checker_initialization_restart_required' },
+  'patternRecognition.fastPathNewPatternConfidence': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'Fast-path new-pattern confidence', effect: 'next_pattern_checker_initialization_restart_required' },
   'indicators.optimized.rsiPeriod': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'Optimized RSI period', effect: 'next_optimized_indicator_engine_initialization_restart_required' },
   'indicators.optimized.macdFastPeriod': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'Optimized MACD fast period', effect: 'next_optimized_indicator_engine_initialization_restart_required' },
   'indicators.optimized.macdSlowPeriod': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'Optimized MACD slow period', effect: 'next_optimized_indicator_engine_initialization_restart_required' },

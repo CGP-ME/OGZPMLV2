@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 3,
+  "revision": 4,
   "backtest": {
     "candleDataFile": "",
     "reportTag": "",
@@ -1168,5 +1168,8 @@
     "longDirectionValue": 0.75,
     "shortDirectionValue": 0.25,
     "signatureQuantizationSteps": 10
+  },
+  "patternRecognition": {
+    "signatureQuantizationSteps": 20
   }
 }

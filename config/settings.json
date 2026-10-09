@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 9,
+  "revision": 10,
   "confidence": {
     "minStrategyConfidence": 0.35,
     "candlePatternMinConfidence": 0.7,
@@ -118,7 +118,6 @@
     "historySimilarityThreshold": 0.9,
     "decayRate": 0.01,
     "minimumDecayMultiplier": 0.1,
-    "signatureQuantizationSteps": 20,
     "fastPathMinTradeHistory": 2,
     "fastPathRecentResultCount": 3,
     "fastPathHistoricalWeight": 0.7,

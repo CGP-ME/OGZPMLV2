@@ -376,7 +376,10 @@ class EnhancedPatternChecker {
    * @param {Object} options - Configuration options
    */
   constructor(options) {
-    this.options = options;
+    this.options = {
+      ...options,
+      signatureQuantizationSteps: ConfigLoader.get('internals.patternRecognition.signatureQuantizationSteps'),
+    };
 
     // Initialize pattern memory system - uses UnifiedPatternMemory singleton
     // CHANGE 2026-03-18: Replaced PatternMemorySystem with UnifiedPatternMemory
