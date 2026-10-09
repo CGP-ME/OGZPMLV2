@@ -2555,6 +2555,23 @@ function openingRangeBreakoutConfigurationProblem(config) {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  ...Object.fromEntries([
+    ['minimumCandles', 'Market regime minimum history', { unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true }],
+    ['trendLookback', 'Market regime trend lookback', { unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true }],
+    ['volatilityLookback', 'Market regime volatility lookback', { unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true }],
+    ['directionalLookback', 'Market regime direction lookback', { unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true }],
+    ['trendThreshold', 'Market regime trend threshold', { unit: 'price fraction', min: 0, exclusiveMin: true, max: Number.MAX_VALUE }],
+    ['strongTrendThreshold', 'Market regime strong-trend threshold', { unit: 'price fraction', min: 0, exclusiveMin: true, max: Number.MAX_VALUE }],
+    ['volatilityThreshold', 'Market regime volatility threshold', { unit: 'price fraction', min: 0, exclusiveMin: true, max: Number.MAX_VALUE }],
+    ['minTrendConsistency', 'Market regime minimum trend consistency', { unit: 'fraction', min: 0, max: 1 }],
+    ['strongTrendConsistency', 'Market regime strong-trend consistency', { unit: 'fraction', min: 0, max: 1 }],
+    ['consistencyConfidenceWeight', 'Market regime consistency confidence weight', { unit: 'fraction', min: 0, max: 1 }],
+    ['dominanceConfidenceWeight', 'Market regime direction confidence weight', { unit: 'fraction', min: 0, max: 1 }],
+    ['moderateTrendConfidenceMultiplier', 'Market regime moderate-trend confidence multiplier', { unit: 'multiplier', min: 0, max: 1 }],
+    ['volatileConfidenceThresholdMultiplier', 'Market regime volatility confidence divisor', { unit: 'multiplier', min: 0, exclusiveMin: true, max: Number.MAX_VALUE }],
+  ].map(([key, label, domain]) => [`regimeDetection.${key}`, {
+    type: 'number', ...domain, label, effect: 'next_market_regime_evaluation',
+  }])),
   'strategies.NoWickImbalance.confidence': {
     type: 'number', unit: 'fraction', min: 0, max: 1,
     label: 'NoWick entry confidence', effect: 'next_entry_evaluation',
