@@ -20,6 +20,9 @@
         return a && b && a.settings === b.settings && a.settingsHash === b.settingsHash
             && a.fingerprint === b.fingerprint;
     }
+    function sameValue(a, b) {
+        return Array.isArray(a) || Array.isArray(b) ? JSON.stringify(a) === JSON.stringify(b) : a === b;
+    }
     function validView(data) {
         return typeof data.ownerId === 'string' && data.ownerId.length > 0
             && Number.isSafeInteger(data.configuration?.settings)
@@ -136,6 +139,7 @@
         label.append(node('small', `Unit: ${field.unit ?? 'not supplied'} | Effect: ${humanEffect(field.effect)}`));
         if (field.min !== undefined || field.max !== undefined) label.append(node('small', `Range: ${field.exclusiveMin ? '>' : '>='} ${field.min ?? 'unspecified'}, ${field.exclusiveMax ? '<' : '<='} ${field.max ?? 'unspecified'}${field.integer ? ' | whole numbers' : ''}`));
         if (field.format === 'integer_list') label.append(node('small', `Comma-separated whole numbers greater than ${field.itemMin}; at least ${field.minItems} item.`));
+        if (field.type === 'array') label.append(node('small', `Comma-separated ${field.itemInteger ? 'whole ' : ''}numbers${field.itemMin !== undefined ? ` greater than ${field.itemMin}` : ''}; at least ${field.minItems} item.`));
         const details = node('details', undefined, 'settings-field-details');
         details.append(node('summary', 'Details'));
         details.append(node('small', `Path: ${path}`));
@@ -143,7 +147,7 @@
         details.append(node('small', `Current: ${JSON.stringify(field.value) ?? 'unavailable'}`));
         label.append(details);
         const enumerated = Array.isArray(field.values);
-        const supported = ['number', 'boolean', 'string'].includes(field.type);
+        const supported = ['number', 'boolean', 'string', 'array'].includes(field.type);
         const input = node(field.type === 'boolean' || enumerated ? 'select' : 'input');
         input.id = id;
         input.dataset.path = path;
@@ -157,7 +161,7 @@
                 input.append(option);
             }
         } else { input.type = 'text'; if (field.type === 'number') input.inputMode = 'decimal'; }
-        input.value = Object.hasOwn(owner.draft, path) ? owner.draft[path] : field.value == null ? '' : String(field.value);
+        input.value = Object.hasOwn(owner.draft, path) ? owner.draft[path] : field.value == null ? '' : field.type === 'array' ? field.value.join(',') : String(field.value);
         input.disabled = field.editable !== true || !supported || !!pending;
         if (field.editable !== true || !supported) label.append(node('small', 'Read only'));
         input.addEventListener('input', () => {
@@ -273,7 +277,7 @@
             const owner = owners.get(write.ownerId);
             const applied = data.success === true && data.saved === true && data.applied === true
                 && validView(data) && data.configuration.settings > write.revision
-                && Object.entries(write.changes).every(([path, value]) => data.fields[path]?.value === value);
+                && Object.entries(write.changes).every(([path, value]) => sameValue(data.fields[path]?.value, value));
             if (applied) {
                 // Late receipts still confirm their own write, but cannot replace newer
                 // configuration or discard edits made since that write was submitted.
@@ -327,13 +331,19 @@
             const field = owner.view.fields[path];
             if (!field || field.editable !== true) { message(`Cannot save ${path}: no longer editable. Edits preserved.`); return; }
             const value = field.type === 'number' ? (raw.trim() === '' ? NaN : Number(raw))
+                : field.type === 'array' ? raw.split(',').map(item => Number(item.trim()))
                 : field.type === 'boolean' ? (raw === 'true' ? true : raw === 'false' ? false : null) : raw;
             const validIntegerList = field.format !== 'integer_list' || (typeof value === 'string'
                 && value.split(',').length >= field.minItems
                 && value.split(',').every(item => item.trim() !== ''
                     && Number.isSafeInteger(Number(item.trim()))
                     && Number(item.trim()) > field.itemMin));
-            if (typeof value !== field.type || !validIntegerList || (field.values && !field.values.includes(value))
+            const validNumericArray = field.type !== 'array' || (Array.isArray(value)
+                && value.length >= field.minItems
+                && value.every(item => Number.isFinite(item)
+                    && (!field.itemInteger || Number.isSafeInteger(item))
+                    && (field.itemMin === undefined || item > field.itemMin)));
+            if ((field.type !== 'array' && typeof value !== field.type) || !validIntegerList || !validNumericArray || (field.values && !field.values.includes(value))
                 || (field.type === 'number' && (!Number.isFinite(value)
                     || (field.integer && !Number.isSafeInteger(value))
                     || (field.min !== undefined && (field.exclusiveMin ? value <= field.min : value < field.min))

@@ -2587,6 +2587,65 @@ const EDITABLE_SETTINGS = deepFreeze({
     label, effect: 'new_trade_exit_contract',
   }])),
   ...Object.fromEntries([
+    ['smaPeriods', 'SMA periods'], ['emaPeriods', 'EMA periods'],
+  ].map(([key, label]) => [`indicators.engine.${key}`, {
+    type: 'array', itemType: 'number', itemInteger: true, itemMin: 0, minItems: 1,
+    unit: 'candles', label, effect: 'next_engine_initialization_restart_required',
+  }])),
+  ...Object.fromEntries([
+    ['bbPeriod', 'Bollinger period', 'candles', 1], ['atrPeriod', 'ATR period', 'candles', 1],
+    ['rsiPeriod', 'RSI period', 'candles', 1], ['stochRsiPeriod', 'Stochastic RSI period', 'candles', 1],
+    ['stochRsiK', 'Stochastic RSI K period', 'candles', 1], ['stochRsiD', 'Stochastic RSI D period', 'candles', 1],
+    ['adxPeriod', 'ADX period', 'candles', 1], ['superTrendPeriod', 'SuperTrend period', 'candles', 1],
+    ['keltnerPeriod', 'Keltner period', 'candles', 1], ['donchianPeriod', 'Donchian period', 'candles', 1],
+    ['mfiPeriod', 'MFI period', 'candles', 1], ['twoPolePeriod', 'Two-pole period', 'candles', 1],
+    ['ogzTpoLength', 'OGZ TPO length', 'candles', 2], ['ogzTpoNormLength', 'OGZ TPO normalization length', 'candles', 2],
+    ['ogzTpoVolLength', 'OGZ TPO volatility length', 'candles', 2], ['ichimokuTenkan', 'Ichimoku Tenkan', 'candles', 1],
+    ['ichimokuKijun', 'Ichimoku Kijun', 'candles', 1], ['ichimokuSenkouB', 'Ichimoku Senkou B', 'candles', 1],
+    ['pivotLeft', 'Pivot left window', 'candles', 0], ['pivotRight', 'Pivot right window', 'candles', 0],
+    ['maxSRLevels', 'Maximum support/resistance levels', 'levels', 1],
+    ['trendMinPivots', 'Minimum trend pivots', 'pivots', 1], ['trendMaxLookback', 'Trendline lookback', 'candles', 1],
+  ].map(([key, label, unit, min]) => [`indicators.engine.${key}`, {
+    type: 'number', unit, min, max: Number.MAX_SAFE_INTEGER, integer: true,
+    label, effect: 'next_engine_initialization_restart_required',
+  }])),
+  ...Object.fromEntries([
+    ['bbStdDev', 'Bollinger standard-deviation multiplier', 'multiplier', 0],
+    ['superTrendMultiplier', 'SuperTrend multiplier', 'multiplier', 0],
+    ['keltnerMultiplier', 'Keltner multiplier', 'multiplier', 0],
+    ['srClusterPct', 'Support/resistance clustering fraction', 'fraction', 0],
+  ].map(([key, label, unit, min]) => [`indicators.engine.${key}`, {
+    type: 'number', unit, min, max: Number.MAX_VALUE,
+    label, effect: 'next_engine_initialization_restart_required',
+  }])),
+  ...Object.fromEntries([
+    ['twoPoleNormalizeByATR', 'Normalize two-pole oscillator by ATR'],
+    ['ogzTpoEnabled', 'Enable OGZ TPO oscillator'],
+    ['ogzTpoEmitMarkers', 'Emit OGZ TPO markers'],
+  ].map(([key, label]) => [`indicators.engine.${key}`, {
+    type: 'boolean', unit: 'boolean', label, effect: 'next_engine_initialization_restart_required',
+  }])),
+  'indicators.engine.macdFast': {
+    type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
+    label: 'MACD fast period', effect: 'next_engine_initialization_restart_required',
+  },
+  'indicators.engine.macdSlow': {
+    type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
+    label: 'MACD slow period', effect: 'next_engine_initialization_restart_required',
+  },
+  'indicators.engine.macdSignal': {
+    type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
+    label: 'MACD signal period', effect: 'next_engine_initialization_restart_required',
+  },
+  'indicators.engine.ogzTpoLagBars': {
+    type: 'number', unit: 'candles', min: 0, max: Number.MAX_SAFE_INTEGER, integer: true,
+    label: 'OGZ TPO lag bars', effect: 'next_engine_initialization_restart_required',
+  },
+  'indicators.engine.ichimokuDisplacement': {
+    type: 'number', unit: 'candles', min: 0, max: Number.MAX_SAFE_INTEGER, integer: true,
+    label: 'Ichimoku displacement', effect: 'next_engine_initialization_restart_required',
+  },
+  ...Object.fromEntries([
     ['tier1', 'First profit target'],
     ['tier2', 'Second profit target'],
     ['tier3', 'Third profit target'],
@@ -3968,7 +4027,13 @@ function saveSettings(request) {
       && value.split(',').every(item => item.trim() !== ''
         && Number.isSafeInteger(Number(item.trim()))
         && Number(item.trim()) > definition.itemMin));
-    if (typeof value !== definition.type || !validIntegerList
+    const validNumericArray = definition.type !== 'array' || (Array.isArray(value)
+      && value.length >= definition.minItems
+      && value.every(item => typeof item === definition.itemType
+        && Number.isFinite(item)
+        && (!definition.itemInteger || Number.isSafeInteger(item))
+        && (definition.itemMin === undefined || item > definition.itemMin)));
+    if ((definition.type !== 'array' && typeof value !== definition.type) || !validIntegerList || !validNumericArray
       || (definition.values && !definition.values.includes(value))
       || (definition.type === 'number' && (!Number.isFinite(value) || value < definition.min || value > definition.max
         || (definition.exclusiveMin && value === definition.min) || (definition.exclusiveMax && value === definition.max)
