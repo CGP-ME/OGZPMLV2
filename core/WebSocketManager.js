@@ -102,6 +102,25 @@ class WebSocketManager {
     return result;
   }
 
+  async handleTradeStopEdit(message) {
+    let result;
+    try {
+      result = await stateManager.updateTradeStop(message);
+    } catch (error) {
+      console.error('[WebSocketManager] Trade stop application failed:', error.message);
+      result = { success: false, applied: false, reason: 'trade_stop_application_failed' };
+    }
+    const receipt = {
+      type: 'trade_stop_result',
+      requestId: typeof message.requestId === 'string' ? message.requestId : null,
+      ...result,
+    };
+    if (this.ctx.dashboardWs?.readyState === WebSocket.OPEN) {
+      this.ctx.dashboardWs.send(JSON.stringify(receipt));
+    }
+    return receipt;
+  }
+
   handleSettings(message) {
     const result = message.type === 'get_settings'
       ? { success: true, ...ConfigLoader.getSettingsView() }
@@ -190,7 +209,7 @@ class WebSocketManager {
         }
       });
 
-      this.ctx.dashboardWs.on('message', (data) => {
+      this.ctx.dashboardWs.on('message', async (data) => {
         try {
           const msg = JSON.parse(data.toString());
 
@@ -290,12 +309,17 @@ class WebSocketManager {
             return;
           }
 
+          // CHANGE 665: Handle profile switching and dashboard commands
+          if (msg.type === 'update_trade_stop') {
+            await this.handleTradeStopEdit(msg);
+            return;
+          }
+
           if (msg.type === 'get_settings' || msg.type === 'save_settings') {
             this.handleSettings(msg);
             return;
           }
 
-          // CHANGE 665: Handle profile switching and dashboard commands
           if (msg.type === 'command') {
             console.log('[Dashboard] command received:', msg.command);
 

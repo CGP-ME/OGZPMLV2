@@ -416,7 +416,7 @@ function normalizeDecisionLedgerExitReason(reason) {
   if (value === 'session_end' || value === 'backtest_end_close' || value === 'ttp_1550_liquidation') return 'session_end';
   if (value === 'max_hold' || value.startsWith('max_hold_')) return 'max_hold';
   if (value === 'profit_tier_4') return 'take_profit';
-  if (value === 'hard_stop' || value === 'break_even' || value === 'stop_loss' || value === 'stoploss') return 'stop_loss';
+  if (value === 'operator_stop' || value === 'hard_stop' || value === 'break_even' || value === 'stop_loss' || value === 'stoploss') return 'stop_loss';
   return value ? `unmapped:${value}` : 'unmapped:missing';
 }
 
@@ -2977,6 +2977,67 @@ class StateManager {
   }
 
   /**
+   * Apply an operator's fixed stop to one current trade, never its entry policy
+   * or global settings. The existing state lock serializes this with fills.
+   */
+  async updateTradeStop(request = {}) {
+    const reject = reason => ({ success: false, applied: false, reason });
+    if (!request || typeof request !== 'object' || Array.isArray(request)) return reject('invalid_trade_stop_request');
+    const { requestId, tradeId, scopeKey, expectedTradeRevision, stopPrice } = request;
+    if ([requestId, tradeId, scopeKey].some(value => typeof value !== 'string'
+      || value.trim() !== value || value.length === 0 || value.length > 512)) {
+      return reject('invalid_trade_stop_identity');
+    }
+    if (!Number.isSafeInteger(expectedTradeRevision) || expectedTradeRevision < 0
+      || typeof stopPrice !== 'number' || !Number.isFinite(stopPrice) || stopPrice <= 0) {
+      return reject('invalid_trade_stop_value');
+    }
+
+    await this.acquireLock();
+    try {
+      const trade = this.state.activeTrades.get(tradeId);
+      if (!trade) return reject('trade_not_found');
+      if (trade.scopeKey !== scopeKey) return reject('trade_scope_mismatch');
+      if (trade.operatorStop?.requestId === requestId) {
+        if (trade.operatorStop.price !== stopPrice) return reject('request_id_conflict');
+        return { success: true, applied: true, duplicate: true, requestId, tradeId, scopeKey,
+          tradeRevision: trade.tradeRevision, operatorStop: clonePlain(trade.operatorStop),
+          entryPolicyHash: trade.frozenExitPolicy?.policyHash ?? null,
+          persistence: getConfigValue('mode.backtest') ? 'backtest_memory_only' : 'state_file',
+          effectiveAt: 'next_exit_evaluation' };
+      }
+      if (trade.tradeRevision !== expectedTradeRevision) return reject('trade_revision_changed');
+      if (trade.pendingExitIntent) return reject('trade_exit_pending');
+      if (!(trade.remainingOrderQuantity > 0)) return reject('trade_not_open');
+
+      const operatorStop = {
+        requestId, price: stopPrice, updatedAtMs: Date.now(),
+        previousPrice: trade.operatorStop?.price ?? null,
+        fromTradeRevision: trade.tradeRevision, tradeRevision: trade.tradeRevision + 1,
+      };
+      const trades = new Map(this.state.activeTrades);
+      trades.set(tradeId, { ...trade, operatorStop, tradeRevision: operatorStop.tradeRevision });
+      const result = this._applyStateUpdatesLocked({ activeTrades: trades }, {
+        action: 'UPDATE_TRADE_STOP', source: 'dashboard', requestId, tradeId,
+        symbol: trade.symbol, scopeKey, operatorStop,
+        entryPolicyHash: trade.frozenExitPolicy?.policyHash ?? null,
+      });
+      if (!result.success) return reject(result.code || 'trade_stop_state_update_failed');
+      const receipt = {
+        success: true, applied: true, duplicate: false, requestId, tradeId, scopeKey,
+        tradeRevision: operatorStop.tradeRevision, operatorStop,
+        entryPolicyHash: trade.frozenExitPolicy?.policyHash ?? null,
+        persistence: getConfigValue('mode.backtest') ? 'backtest_memory_only' : 'state_file',
+        effectiveAt: 'next_exit_evaluation',
+      };
+      emitTrace({}, 'TRADE_STOP_UPDATED', receipt);
+      return receipt;
+    } finally {
+      this.releaseLock();
+    }
+  }
+
+  /**
    * Reserve a single in-flight exit intent for a trade before broker submission.
    * This is pre-confirm bookkeeping only: it prevents duplicate exits but does
    * not change size, quantity, P&L, tier state, or BE scale-out state.
@@ -4762,7 +4823,10 @@ class StateManager {
         unrealizedPnL,
         openedAt: trade.entryTime || trade.timestamp || null,
         strategy: trade.strategy || trade.source || null,
-        reason: trade.reason || null
+        reason: trade.reason || null,
+        tradeRevision: trade.tradeRevision,
+        operatorStop: trade.operatorStop ? clonePlain(trade.operatorStop) : null,
+        entryPolicyHash: trade.frozenExitPolicy?.policyHash ?? null
       };
     });
   }

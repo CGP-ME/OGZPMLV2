@@ -107,6 +107,9 @@
         // Event listeners (for cleanup)
         listeners: [],
         _timeTicker: null,
+        pendingStopRequests: new Map(),
+        stopDrafts: new Map(),
+        stopStatuses: new Map(),
     };
 
     // ─── CSS Injection ────────────────────────────────────────────────
@@ -335,6 +338,11 @@
                 0%, 100% { background-color: rgba(255, 255, 255, 0); }
                 50% { background-color: rgba(255, 215, 0, 0.025); }
             }
+
+            .op-stop-editor { display: inline-flex; gap: 3px; align-items: center; }
+            .op-stop-input { width: 58px; background: rgba(0,0,0,0.25); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 3px; padding: 2px 3px; font: inherit; }
+            .op-stop-button { border: 1px solid rgba(255,215,0,0.35); background: rgba(255,215,0,0.1); color: var(--ml-color); border-radius: 3px; padding: 2px 4px; cursor: pointer; font: inherit; }
+            .op-stop-button:disabled { opacity: 0.5; cursor: wait; }
 
             .op-time {
                 text-align: right;
@@ -606,12 +614,22 @@
             <div class="op-cell"><span class="op-side ${position.side === 'short' ? 'short' : ''}">${position.side.toUpperCase()}</span></div>
             <div class="op-cell op-price" id="opEntry-${position.symbol}-${position.broker}-${position.openedAt}">${fmtPrice(position.entry)}</div>
             <div class="op-cell op-price" id="opCurrent-${position.symbol}-${position.broker}-${position.openedAt}">${fmtPrice(position.current || position.entry)}</div>
-            <div class="op-cell op-price" id="opSL-${position.symbol}-${position.broker}-${position.openedAt}">${fmtPrice(position.stopLoss)}</div>
+            <div class="op-cell op-price op-stop-editor"><input class="op-stop-input" type="number" min="0" step="any" value="${position.stopLoss > 0 ? Number(position.stopLoss) : ''}" aria-label="Stop price for ${position.symbol}"><button class="op-stop-button" type="button" aria-label="Update stop price">Set</button><span class="op-stop-status" role="status"></span></div>
             <div class="op-cell op-price" id="opTP-${position.symbol}-${position.broker}-${position.openedAt}">${fmtPrice(position.takeProfit)}</div>
             <div class="op-cell op-pnl ${pnl.value < 0 ? 'negative' : ''}" id="opPnlDol-${position.symbol}-${position.broker}-${position.openedAt}">${pnl.dollar}</div>
             <div class="op-cell op-pnl ${pnl.value < 0 ? 'negative' : ''}" id="opPnlPct-${position.symbol}-${position.broker}-${position.openedAt}">${pnl.percent}</div>
             <div class="op-cell op-time" id="opTime-${position.symbol}-${position.broker}-${position.openedAt}">${timeHeld}</div>
         `;
+
+        const stopInput = row.querySelector('.op-stop-input');
+        const stopButton = row.querySelector('.op-stop-button');
+        const editKey = stopEditKey(position);
+        if (state.stopDrafts.has(editKey)) stopInput.value = state.stopDrafts.get(editKey);
+        stopInput.addEventListener('input', () => state.stopDrafts.set(editKey, stopInput.value));
+        stopButton.disabled = Array.from(state.pendingStopRequests.values()).some(pending => pending.editKey === editKey);
+        stopInput.disabled = stopButton.disabled;
+        row.querySelector('.op-stop-status').textContent = state.stopStatuses.get(editKey) || '';
+        stopButton.addEventListener('click', () => submitStopEdit(position, stopInput, stopButton));
 
         // Highlight if this is selected ticker
         if (state.selectedTicker && position.symbol === state.selectedTicker) {
@@ -759,12 +777,15 @@
             executionMode: raw.executionMode,
             timeframe: raw.timeframe,
             scopeKey: raw.scopeKey,
+            ownerId: typeof raw.ownerId === 'string' ? raw.ownerId : null,
             scopeComplete: raw.scopeComplete === true,
             scopeKeyVersion: raw.scopeKeyVersion || 1,
             side: side === 'short' ? 'short' : 'long',
             entry: isFinite(entry) ? entry : 0,
             current: isFinite(current) ? current : 0,
-            stopLoss: Number(raw.stopLoss ?? raw.sl ?? 0) || 0,
+            stopLoss: Number(raw.operatorStop?.price ?? raw.stopLoss ?? raw.sl ?? 0) || 0,
+            operatorStop: raw.operatorStop || null,
+            tradeRevision: Number.isSafeInteger(raw.tradeRevision) ? raw.tradeRevision : null,
             takeProfit: Number(raw.takeProfit ?? raw.tp ?? 0) || 0,
             size: isFinite(size) ? Math.abs(size) : 0,
             openedAt: isFinite(openedAt) ? openedAt : Date.now(),
@@ -774,6 +795,37 @@
             orderId: raw.orderId || null,
             status: raw.status || 'open',
         };
+    }
+
+    function stopEditKey(position) {
+        return JSON.stringify([position.ownerId, position.scopeKey, position.tradeId]);
+    }
+
+    function submitStopEdit(position, input, button) {
+        const socket = OGZ.get('Socket');
+        const stopPrice = Number(input.value);
+        const editKey = stopEditKey(position);
+        if (!position.tradeId || !position.scopeKey || !position.ownerId || !Number.isSafeInteger(position.tradeRevision)) {
+            state.stopStatuses.set(editKey, 'Refresh position before editing');
+            renderRows();
+            return;
+        }
+        if (!Number.isFinite(stopPrice) || stopPrice <= 0) {
+            state.stopStatuses.set(editKey, 'Enter a positive stop price');
+            renderRows();
+            return;
+        }
+        const requestId = window.crypto.randomUUID();
+        state.pendingStopRequests.set(requestId, { tradeId: position.tradeId, scopeKey: position.scopeKey, ownerId: position.ownerId, editKey });
+        const sent = socket && socket.send({ type: 'update_trade_stop', requestId, tradeId: position.tradeId,
+            scopeKey: position.scopeKey, ownerId: position.ownerId, expectedTradeRevision: position.tradeRevision, stopPrice });
+        if (sent) {
+            state.stopStatuses.set(editKey, 'Saving');
+        } else {
+            state.pendingStopRequests.delete(requestId);
+            state.stopStatuses.set(editKey, 'Disconnected; stop was not sent');
+        }
+        renderRows();
     }
 
     // Capture entry price keyed by (symbol|broker) so reopens replace entry
@@ -976,6 +1028,23 @@
                 socket.registerHandler('trade', (e) => { try { handleTradeEvent(e); } catch (_) {} });
                 socket.registerHandler('price', (e) => { try { handlePriceEvent(e); } catch (_) {} });
                 socket.registerHandler('state_update', (e) => { try { handleStateUpdate(e); } catch (_) {} });
+                socket.registerHandler('trade_stop_result', (e) => {
+                    if (!e || !e.requestId) return;
+                    const pending = state.pendingStopRequests.get(e.requestId);
+                    if (!pending || e.ownerId !== pending.ownerId || e.scopeKey !== pending.scopeKey || e.tradeId !== pending.tradeId) return;
+                    state.pendingStopRequests.delete(e.requestId);
+                    state.stopStatuses.set(pending.editKey, e.success && e.applied ? 'Saved' : e.reason);
+                    if (e.success && e.applied) state.stopDrafts.delete(pending.editKey);
+                    state.positions.forEach((position) => {
+                        if (stopEditKey(position) !== pending.editKey) return;
+                        if (e.success && e.applied && e.operatorStop) {
+                            position.operatorStop = e.operatorStop;
+                            position.stopLoss = e.operatorStop.price;
+                            position.tradeRevision = e.tradeRevision;
+                        }
+                    });
+                    renderRows();
+                });
             })();
 
             // Re-render every 10s so the "time held" column ticks up live

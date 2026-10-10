@@ -25,6 +25,18 @@ class StopLossChecker {
    * @returns {Object} { shouldExit, exitReason, details, confidence } or { shouldExit: false }
    */
   check(trade, currentPrice, pnlPercent, context = {}) {
+    // A customer edit replaces this trade's fixed SL only. Targets, strategy
+    // invalidation and trailing exits continue under their existing owners.
+    if (trade.operatorStop) {
+      const stopPrice = trade.operatorStop.price;
+      const reached = trade.direction === 'short' ? currentPrice >= stopPrice : currentPrice <= stopPrice;
+      return reached ? {
+        shouldExit: true,
+        exitReason: 'operator_stop',
+        details: `Trade-specific stop reached: ${currentPrice} at ${stopPrice}`,
+        confidence: 100
+      } : { shouldExit: false };
+    }
     const contract = trade.exitContract || {};
     const stopType = typeof contract.stopType === 'string' ? contract.stopType : 'percent';
 
@@ -63,6 +75,10 @@ class StopLossChecker {
    * @returns {number} Effective stop loss percent
    */
   getEffectiveStop(trade) {
+    if (trade.operatorStop) {
+      const move = (trade.operatorStop.price - trade.entryPrice) / trade.entryPrice * 100;
+      return trade.direction === 'short' ? -move : move;
+    }
     return this.breakEvenManager.getEffectiveStop(trade);
   }
 }

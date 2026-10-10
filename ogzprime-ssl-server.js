@@ -105,6 +105,7 @@ const dashboardSessionAuth = createDashboardSessionAuth({
   ticketTtlMs: dashboardRuntimeConfig.dashboard.ticketTtlMs,
 });
 const dashboardAuthToken = dashboardConfig.authToken;
+const pendingTradeStopRequests = new Map();
 
 function isSameOriginDashboardRequest(req) {
   const headers = req && req.headers ? req.headers : {};
@@ -2025,6 +2026,16 @@ wss.on('connection', (ws, req) => {
         return;
       }
 
+      if (data.type === 'trade_stop_result' && ws.clientType === 'bot' && ws.botAuthenticated) {
+        const pending = typeof data.requestId === 'string' ? pendingTradeStopRequests.get(data.requestId) : null;
+        if (!pending || pending.ownerId !== ws.connectionId) return;
+        pendingTradeStopRequests.delete(data.requestId);
+        if (pending.dashboard.readyState === WebSocket.OPEN && pending.dashboard.authenticated) {
+          pending.dashboard.send(JSON.stringify({ ...data, tradeId: pending.tradeId, scopeKey: pending.scopeKey, ownerId: pending.ownerId }));
+        }
+        return;
+      }
+
       if (data.type === 'settings_result') {
         if (ws.clientType === 'bot' && ws.botAuthenticated) {
           const receipt = JSON.stringify({ ...data, ownerId: ws.connectionId });
@@ -2034,6 +2045,22 @@ wss.on('connection', (ws, req) => {
             }
           }
         }
+        return;
+      }
+
+      if (ws.clientType === 'dashboard' && data.type === 'update_trade_stop') {
+        const requestId = typeof data.requestId === 'string' ? data.requestId : null;
+        const tradeId = typeof data.tradeId === 'string' ? data.tradeId : null;
+        const scopeKey = typeof data.scopeKey === 'string' ? data.scopeKey : null;
+        const ownerId = typeof data.ownerId === 'string' ? data.ownerId : null;
+        const target = [...wss.clients].find(client => client.readyState === WebSocket.OPEN
+          && client.authenticated && client.botAuthenticated && client.clientType === 'bot'
+          && client.connectionId === ownerId);
+        const receiptBase = { type: 'trade_stop_result', requestId, tradeId, scopeKey, ownerId, success: false, applied: false };
+        if (!requestId || !tradeId || !scopeKey || !ownerId) { ws.send(JSON.stringify({ ...receiptBase, reason: 'invalid_trade_stop_identity' })); return; }
+        if (!target) { ws.send(JSON.stringify({ ...receiptBase, reason: 'trade_stop_owner_unavailable' })); return; }
+        pendingTradeStopRequests.set(requestId, { dashboard: ws, tradeId, scopeKey, ownerId });
+        target.send(JSON.stringify(data));
         return;
       }
 
@@ -2059,14 +2086,21 @@ wss.on('connection', (ws, req) => {
 
       // RELAY: Bot messages -> Dashboard clients
       if (ws.clientType === 'bot' && data.type !== 'identify') {
-        // Cache snapshot-style events so newly-connecting dashboards can hydrate.
-        // Streaming-style events (price, delta, trade) are NOT cached because
-        // their value is in live arrival order, not in their last snapshot.
-        if (Object.prototype.hasOwnProperty.call(dashboardSnapshotCache, data.type)) {
-          dashboardSnapshotCache[data.type] = data;
+        // The relay owns bot connection identity. Stamp state positions before
+        // caching or fanout so dashboards can target the same bot on edits.
+        const relayData = data.type === 'state_update' ? {
+          ...data,
+          ownerId: ws.connectionId,
+          ...(Array.isArray(data.positions) ? { positions: data.positions.map(position => ({ ...position, ownerId: ws.connectionId })) } : {}),
+          ...(data.state && typeof data.state === 'object' ? {
+            state: { ...data.state, ...(Array.isArray(data.state.positions) ? { positions: data.state.positions.map(position => ({ ...position, ownerId: ws.connectionId })) } : {}) }
+          } : {})
+        } : data;
+        if (Object.prototype.hasOwnProperty.call(dashboardSnapshotCache, relayData.type)) {
+          dashboardSnapshotCache[relayData.type] = relayData;
         }
 
-        const messageStr = JSON.stringify(data);
+        const messageStr = JSON.stringify(relayData);
 
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN &&
