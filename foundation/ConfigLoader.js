@@ -2558,6 +2558,11 @@ function openingRangeBreakoutConfigurationProblem(config) {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  'exitContracts.RSI.takeProfitPercent': { type: 'number', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, unit: 'percent', label: 'RSI stock-sizing target distance', effect: 'new_trades_only' },
+  'exitContracts.EMASMACrossover.takeProfitPercent': { type: 'number', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, unit: 'percent', label: 'EMA crossover stock-sizing target distance', effect: 'new_trades_only' },
+  'exitContracts.MADynamicSR.takeProfitPercent': { type: 'number', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, unit: 'percent', label: 'MA support/resistance stock-sizing target distance', effect: 'new_trades_only' },
+  'exitContracts.CandlePattern.takeProfitPercent': { type: 'number', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, unit: 'percent', label: 'Candle pattern stock-sizing target distance', effect: 'new_trades_only' },
+  'exitContracts.MarketRegime.takeProfitPercent': { type: 'number', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, unit: 'percent', label: 'Market regime stock-sizing target distance', effect: 'new_trades_only' },
   'exitContracts.NoWickImbalance.maxConcurrentEntries': {
     type: 'number', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, unit: 'entries',
     label: 'NoWick imbalance maximum concurrent entries', effect: 'new_trades_only',
