@@ -1,0 +1,38 @@
+{
+  "reviewedTree": "4d5535a7a929f468a98ca667c3072b18db77f41c",
+  "base": "73a5b0218154c56e7019b3af66a1e081f040e467",
+  "mercury": {
+    "run": "2026-10-10T20-46-00-678Z-1ddb25717989",
+    "rawVerdict": "found_break",
+    "coverage": "1 of 7 text production files",
+    "findings": [
+      "External Polygon fetch lacks timeout",
+      "News broadcast send errors logged without removing client"
+    ]
+  },
+  "astra": {
+    "disposition": "No introduced blocker found",
+    "evidence": [
+      "fetchMarketData is byte-identical: base line337, candidate342; control panel does not invoke its TRAI endpoints",
+      "broadcastDashboardNewsEvents is byte-identical: base1226, candidate1231",
+      "Owner/save/receipt/refresh functions byte-identical tobase"
+    ]
+  },
+  "combinedDisposition": "User-authorized combined review: findings predate change; do not characterize Mercury as clean or exhaustive",
+  "verificationIncident": {
+    "path": "config/settings.json",
+    "mistake": "Helper smoke used working repo instead of isolated export",
+    "write": {
+      "fees.slippage": 0.1234,
+      "revision": 12
+    },
+    "restoredObserved": {
+      "fees.slippage": 0.0005,
+      "revision": 11
+    },
+    "restoration": "Helper captured raw file bytes and restored in finally; no independent pre-write hash recorded",
+    "durationReported": "approximately 1-2 seconds",
+    "runtime": "No PM2 restart or command to production bot. Another process reading during the brief write was not independently ruled out."
+  },
+  "scope": "UI integration only; no configuration schema, profile, or trading algorithm change"
+}

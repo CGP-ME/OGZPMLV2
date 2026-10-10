@@ -1,4 +1,7 @@
-/* Existing settings API consumer. Drafts belong to the exact relay owner. */
+/* Existing settings API consumer. Drafts belong to the exact relay owner.
+ * v2 rendering layer (search, effect filter, cards, sliders, review list) replaces
+ * appendField/renderNavigation/render only; transport, owner, draft, receipt and
+ * save validation code is unchanged from astra-era@1260a5d5. */
 (function (OGZ) {
     'use strict';
     const owners = new Map();
@@ -8,6 +11,8 @@
     let socket, root, select, fields, status, identity, saveButton, refreshButton, reviewButton, discardButton;
     let selected = '', readId = null, readTimer = null, pending = null, activeSection = 'Strategy';
     let headerMeta, sectionNav, sectionTitle, sectionCopy, groupNav, actionSummary, actionDetail;
+    // View-only state (rendering layer). Transport, owner, draft and receipt state above is unchanged.
+    let query = '', effectFilter = 'all', reviewOpen = false, searchInput, effectBar, reviewButtonView, reviewPanel;
 
     function node(tag, text, className) {
         const el = document.createElement(tag);
@@ -130,62 +135,215 @@
             node('span', owner.available ? 'Owner available' : 'Owner unavailable', `settings-chip ${owner.available ? 'settings-chip-live' : ''}`)
         );
     }
+    // ── Rendering layer (v2) ───────────────────────────────────────────
+    // Draft values stay raw strings keyed by canonical path, exactly as before,
+    // so save() parses and validates them unchanged.
+    function effectBucket(effect) {
+        const e = String(effect ?? '');
+        if (/restart/i.test(e)) return 'restart';
+        if (/^new_|new[_ ]?trade|new_exit_contract/i.test(e)) return 'new';
+        if (/(?:scheduled|rebuild|initialization|detector|engine|feature[_ ]extraction|pattern[_ ]memory|performance[_ ]analyzer)/i.test(e)) return 'lifecycle';
+        return 'next';
+    }
+    const BUCKET_LABEL = {
+        restart: 'Restart required',
+        new: 'New trades only',
+        lifecycle: 'Lifecycle / scheduled',
+        next: 'Next evaluation'
+    };
+    function originalRaw(field) { return field.value == null ? '' : field.type === 'array' ? field.value.join(',') : String(field.value); }
+    function rawFor(owner, path, field) { return Object.hasOwn(owner.draft, path) ? owner.draft[path] : originalRaw(field); }
+    function decimals(x) {
+        const m = String(x ?? '').toLowerCase().match(/(?:\.(\d+))?(?:e-(\d+))?$/);
+        return (m && m[1] ? m[1].length : 0) + (m && m[2] ? Number(m[2]) : 0);
+    }
+    function matchesView(path, field) {
+        if (effectFilter !== 'all' && effectBucket(field.effect) !== effectFilter) return false;
+        if (!query) return true;
+        const q = query.toLowerCase();
+        return path.toLowerCase().includes(q) || String(field.label || '').toLowerCase().includes(q);
+    }
+    function setDraft(owner, path, field, raw, row) {
+        if (raw === originalRaw(field)) delete owner.draft[path];
+        else owner.draft[path] = raw;
+        if (!changed(owner)) { owner.base = owner.view.configuration; owner.needsReview = false; }
+        if (row) row.classList.toggle('is-dirty', Object.hasOwn(owner.draft, path));
+        message('Unsaved edits remain in this browser tab. Save sends only edited fields.');
+        ownerOptions();
+        renderNavigation(owner);
+        renderReview(owner);
+        actions();
+    }
     function appendField(owner, path, field, container) {
         const id = `setting-${path.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
-        const row = node('div', undefined, 'settings-field');
+        const bucket = effectBucket(field.effect);
+        const enumerated = Array.isArray(field.values);
+        const supported = ['number', 'boolean', 'string', 'array'].includes(field.type);
+        const disabled = field.editable !== true || !supported || !!pending;
+        const raw = rawFor(owner, path, field);
+        const row = node('div', undefined, `settings-field${Object.hasOwn(owner.draft, path) ? ' is-dirty' : ''}${disabled ? ' is-disabled' : ''}`);
+        row.dataset.path = path;
+
+        const head = node('div', undefined, 'settings-field-head');
         const label = node('label');
         label.htmlFor = id;
         label.append(node('strong', field.label || path));
-        label.append(node('small', `Unit: ${field.unit ?? 'not supplied'} | Effect: ${humanEffect(field.effect)}`));
-        if (field.min !== undefined || field.max !== undefined) label.append(node('small', `Range: ${field.exclusiveMin ? '>' : '>='} ${field.min ?? 'unspecified'}, ${field.exclusiveMax ? '<' : '<='} ${field.max ?? 'unspecified'}${field.integer ? ' | whole numbers' : ''}`));
-        if (field.format === 'integer_list') label.append(node('small', `Comma-separated whole numbers greater than ${field.itemMin}; ${field.maxItems === field.minItems ? 'exactly' : 'at least'} ${field.minItems} items.`));
-        if (field.type === 'array') label.append(node('small', `Comma-separated ${field.itemType === 'string' ? 'names' : (field.itemInteger ? 'whole numbers' : 'numbers')}${field.itemMin !== undefined ? ` greater than ${field.itemMin}` : ''}; ${field.maxItems === field.minItems ? 'exactly' : 'at least'} ${field.minItems} items.`));
+        const badge = node('span', BUCKET_LABEL[bucket], 'settings-effect');
+        badge.dataset.bucket = bucket;
+        badge.title = 'Effect: ' + String(field.effect ?? 'not supplied').replace(/_/g, ' ');
+        head.append(label, badge);
+
+        const meta = node('div', undefined, 'settings-field-meta');
+        meta.append(node('code', path, 'settings-path'));
+        const hint = [];
+        if (field.unit && field.unit !== 'boolean') hint.push(field.unit);
+        if (field.min !== undefined || field.max !== undefined) hint.push(`${field.exclusiveMin ? '>' : '≥'} ${field.min ?? '−∞'} · ${field.exclusiveMax ? '<' : '≤'} ${field.max ?? '∞'}`);
+        if (field.integer) hint.push('whole numbers');
+        if (field.format === 'integer_list') hint.push(`comma-separated whole numbers > ${field.itemMin}, ${field.maxItems === field.minItems ? 'exactly' : 'at least'} ${field.minItems}`);
+        if (field.type === 'array') hint.push(`comma-separated ${field.itemType === 'string' ? 'names' : (field.itemInteger ? 'whole numbers' : 'numbers')}, ${field.maxItems === field.minItems ? 'exactly' : 'at least'} ${field.minItems}`);
+        if (field.editable !== true || !supported) hint.push('read only');
+        if (hint.length) meta.append(node('small', hint.join(' · ')));
         const details = node('details', undefined, 'settings-field-details');
         details.append(node('summary', 'Details'));
-        details.append(node('small', `Path: ${path}`));
         details.append(node('small', `Source: ${field.source ?? 'not supplied'}`));
+        details.append(node('small', `Effect: ${String(field.effect ?? 'not supplied').replace(/_/g, ' ')}`));
         details.append(node('small', `Current: ${JSON.stringify(field.value) ?? 'unavailable'}`));
-        label.append(details);
-        const enumerated = Array.isArray(field.values);
-        const supported = ['number', 'boolean', 'string', 'array'].includes(field.type);
-        const input = node(field.type === 'boolean' || enumerated ? 'select' : 'input');
-        input.id = id;
-        input.dataset.path = path;
-        if (input.tagName === 'SELECT') {
+        meta.append(details);
+
+        const control = node('div', undefined, 'settings-control');
+        let input;
+        if (field.type === 'boolean' && !enumerated) {
+            input = node('button', undefined, 'settings-toggle');
+            input.type = 'button';
+            input.id = id;
+            const on = raw === 'true';
+            input.setAttribute('role', 'switch');
+            input.setAttribute('aria-checked', String(on));
+            input.setAttribute('aria-label', field.label || path);
+            input.append(node('span', undefined, 'settings-toggle-knob'));
+            const state = node('span', raw === '' ? 'unset' : on ? 'on' : 'off', 'settings-toggle-state');
+            input.addEventListener('click', () => {
+                // Unset → on → unset; a second toggle on an unset field restores the owner value.
+                const original = originalRaw(field);
+                const current = rawFor(owner, path, field);
+                const next = original === '' ? (current === 'true' ? '' : 'true') : (current === 'true' ? 'false' : 'true');
+                setDraft(owner, path, field, next);
+                render();
+            });
+            control.append(input, state);
+        } else if (enumerated) {
+            input = node('select');
+            input.id = id;
             const blank = node('option', 'Select a value');
             blank.value = '';
             input.append(blank);
-            for (const value of field.type === 'boolean' ? [true, false] : field.values) {
+            for (const value of field.values) {
                 const option = node('option', String(value));
                 option.value = String(value);
                 input.append(option);
             }
-        } else { input.type = 'text'; if (field.type === 'number') input.inputMode = 'decimal'; }
-        input.value = Object.hasOwn(owner.draft, path) ? owner.draft[path] : field.value == null ? '' : field.type === 'array' ? field.value.join(',') : String(field.value);
-        input.disabled = field.editable !== true || !supported || !!pending;
-        if (field.editable !== true || !supported) label.append(node('small', 'Read only'));
-        input.addEventListener('input', () => {
-            if (input.value === (field.value == null ? '' : String(field.value))) delete owner.draft[path];
-            else owner.draft[path] = input.value;
-            if (!changed(owner)) { owner.base = owner.view.configuration; owner.needsReview = false; }
-            message('Unsaved edits remain in this browser tab. Save sends only edited fields.');
-            ownerOptions();
-            renderNavigation(owner);
-            actions();
-        });
-        row.append(label, input);
+            input.value = raw;
+            input.addEventListener('input', () => setDraft(owner, path, field, input.value, row));
+            control.append(input);
+        } else if (field.type === 'string' && /instruction/i.test(field.unit || '')) {
+            input = node('textarea');
+            input.id = id;
+            input.rows = 5;
+            input.value = raw;
+            input.addEventListener('input', () => setDraft(owner, path, field, input.value, row));
+            control.append(input);
+        } else {
+            input = node('input');
+            input.id = id;
+            input.type = 'text';
+            if (field.type === 'number') { input.inputMode = 'decimal'; input.className = 'settings-number'; }
+            input.value = raw;
+            const finite = field.type === 'number' && Number.isFinite(field.min) && Number.isFinite(field.max) && field.max > field.min && field.max - field.min <= 1000;
+            if (finite) {
+                // Step fine enough to land on the stored value exactly, so touching the slider never silently rounds it.
+                const coarse = field.max - field.min <= 1 ? 0.01 : field.max - field.min <= 10 ? 0.05 : 0.5;
+                const fine = Math.pow(10, -Math.max(decimals(originalRaw(field)), decimals(field.min), decimals(field.max)));
+                const sliderStep = field.integer ? 1 : Math.min(coarse, fine);
+                // Number.MIN_VALUE-style bounds can underflow fine to zero. Keep the
+                // authoritative text input and omit an invalid range control.
+                if (Number.isFinite(sliderStep) && sliderStep > 0) {
+                    const slider = node('input', undefined, 'settings-slider');
+                    slider.type = 'range';
+                    slider.min = String(field.min);
+                    slider.max = String(field.max);
+                    slider.step = String(sliderStep);
+                    slider.value = raw === '' || !Number.isFinite(Number(raw)) ? String(field.min) : raw;
+                    slider.setAttribute('aria-label', (field.label || path) + ' slider');
+                    slider.disabled = disabled;
+                    slider.addEventListener('input', () => { input.value = slider.value; setDraft(owner, path, field, slider.value, row); });
+                    input.addEventListener('input', () => { if (Number.isFinite(Number(input.value))) slider.value = input.value; });
+                    control.append(slider);
+                }
+            }
+            input.addEventListener('input', () => setDraft(owner, path, field, input.value, row));
+            control.append(input);
+            if (field.type === 'number' && field.unit) control.append(node('span', field.unit, 'settings-unit'));
+        }
+        input.dataset.path = path;
+        input.disabled = disabled;
+        if (Object.hasOwn(owner.draft, path) && !disabled) {
+            const revert = node('button', 'was ' + (originalRaw(field) === '' ? 'unset' : originalRaw(field).slice(0, 24)), 'settings-revert');
+            revert.type = 'button';
+            revert.title = 'Revert this field to the value the owner reported';
+            revert.addEventListener('click', () => { delete owner.draft[path]; setDraft(owner, path, field, originalRaw(field)); render(); });
+            control.append(revert);
+        }
+        row.append(head, meta, control);
         container.append(row);
     }
     function renderNavigation(owner) {
         sectionNav.replaceChildren();
+        const fieldEntries = owner?.view ? Object.entries(owner.view.fields) : [];
         for (const [name] of SECTIONS) {
             const dirty = owner ? Object.keys(owner.draft).filter(path => sectionFor(path) === name).length : 0;
-            const button = node('button', undefined, `settings-section${name === activeSection ? ' is-active' : ''}`);
+            const count = fieldEntries.filter(([path, field]) => sectionFor(path) === name && (effectFilter === 'all' || effectBucket(field.effect) === effectFilter)).length;
+            const active = !query && name === activeSection;
+            const button = node('button', undefined, `settings-section${active ? ' is-active' : ''}${dirty ? ' has-dirty' : ''}`);
             button.type = 'button';
-            button.setAttribute('aria-pressed', String(name === activeSection));
-            button.append(node('span', name), node('small', dirty ? `${dirty} unsaved` : 'No unsaved edits'));
-            button.addEventListener('click', () => { activeSection = name; render(); });
+            button.setAttribute('aria-pressed', String(active));
+            const right = node('span', undefined, 'settings-section-meta');
+            if (dirty) right.append(node('b', String(dirty), 'settings-dirty-count'));
+            right.append(node('small', String(count)));
+            button.append(node('span', name), right);
+            button.addEventListener('click', () => { activeSection = name; query = ''; if (searchInput) searchInput.value = ''; render(); });
             sectionNav.append(button);
+        }
+    }
+    function renderEffectBar() {
+        if (!effectBar) return;
+        effectBar.replaceChildren();
+        for (const [key, text] of [['all', 'All'], ['next', 'Next evaluation'], ['new', 'New trades'], ['lifecycle', 'Lifecycle / scheduled'], ['restart', 'Restart']]) {
+            const b = node('button', text, `settings-effect-filter${effectFilter === key ? ' is-active' : ''}`);
+            b.type = 'button';
+            b.dataset.bucket = key;
+            b.setAttribute('aria-pressed', String(effectFilter === key));
+            b.addEventListener('click', () => { effectFilter = key; render(); });
+            effectBar.append(b);
+        }
+    }
+    function renderReview(owner) {
+        if (!reviewPanel) return;
+        const paths = owner ? Object.keys(owner.draft) : [];
+        if (reviewButtonView) { reviewButtonView.disabled = !paths.length; reviewButtonView.textContent = reviewOpen && paths.length ? 'Hide changes' : 'Review changes'; }
+        reviewPanel.hidden = !(reviewOpen && paths.length);
+        reviewPanel.replaceChildren();
+        if (reviewPanel.hidden) return;
+        reviewPanel.append(node('strong', 'Changes Save will send', 'settings-review-title'));
+        for (const path of paths) {
+            const field = owner.view?.fields[path];
+            const line = node('div', undefined, 'settings-review-row');
+            line.append(node('span', field?.label || path, 'settings-review-label'));
+            if (field) { const b = node('span', BUCKET_LABEL[effectBucket(field.effect)], 'settings-effect'); b.dataset.bucket = effectBucket(field.effect); line.append(b); }
+            line.append(node('code', path, 'settings-path'));
+            const delta = node('span', undefined, 'settings-review-delta');
+            delta.append(node('span', field ? (originalRaw(field) || 'unset') : 'unavailable', 'settings-review-from'), node('span', ' → '), node('span', owner.draft[path] === '' ? 'unset' : owner.draft[path], 'settings-review-to'));
+            line.append(delta);
+            reviewPanel.append(line);
         }
     }
     function render() {
@@ -195,33 +353,43 @@
         identity.textContent = owner ? JSON.stringify(owner.view.configuration, null, 2) : 'No owner selected.';
         setHeader(owner);
         renderNavigation(owner);
+        renderEffectBar();
+        renderReview(owner);
         const currentSection = SECTIONS.find(([name]) => name === activeSection) || SECTIONS[0];
-        sectionTitle.textContent = currentSection[0];
-        sectionCopy.textContent = currentSection[1];
+        sectionTitle.textContent = query ? 'Search' : currentSection[0];
+        sectionCopy.textContent = query ? `Matches across every section for “${query}”.` : currentSection[1];
         if (!owner?.view) {
+            groupNav.hidden = true;
             fields.append(node('p', 'Select an available authenticated owner, then refresh its returned settings.', 'settings-note'));
             actions();
             return;
         }
         if (owner.needsReview) fields.append(node('p', 'Configuration changed or a save was not confirmed. Your edits are preserved. Compare them with the current values before using the refreshed configuration.', 'settings-note settings-review-note'));
+        const entries = Object.entries(owner.view.fields)
+            .filter(([path, field]) => matchesView(path, field) && (query || sectionFor(path) === activeSection))
+            .sort(([left], [right]) => left.localeCompare(right));
         const grouped = new Map();
-        for (const [path, field] of Object.entries(owner.view.fields).filter(([path]) => sectionFor(path) === activeSection).sort(([left], [right]) => left.localeCompare(right))) {
-            const title = titleFor(path, activeSection);
+        for (const [path, field] of entries) {
+            const title = query ? sectionFor(path) : titleFor(path, activeSection);
             if (!grouped.has(title)) grouped.set(title, []);
             grouped.get(title).push([path, field]);
         }
-        const activeGroup = renderGroupTabs(owner, activeSection, grouped);
-        if (!grouped.size) fields.append(node('p', `The selected owner returned no ${activeSection.toLowerCase()} fields.`, 'settings-note'));
-        for (const [title, entries] of grouped) {
-            if ((activeSection === 'Strategy' || activeSection === 'Exits') && title !== activeGroup) continue;
+        let activeGroup = '';
+        if (query) { groupNav.replaceChildren(); groupNav.hidden = true; }
+        else activeGroup = renderGroupTabs(owner, activeSection, grouped);
+        if (!grouped.size) fields.append(node('p', query ? `No settings match “${query}”.` : `The selected owner returned no ${activeSection.toLowerCase()} fields${effectFilter === 'all' ? '' : ' for this effect filter'}.`, 'settings-note'));
+        for (const [title, list] of grouped) {
+            if (!query && (activeSection === 'Strategy' || activeSection === 'Exits') && title !== activeGroup) continue;
             const card = node('section', undefined, 'settings-card');
-            card.append(node('h3', title));
+            const h = node('h3');
+            h.append(node('span', title), node('small', `${list.length} ${list.length === 1 ? 'setting' : 'settings'}`));
+            card.append(h);
             const cardFields = node('div', undefined, 'settings-card-fields');
-            for (const [path, field] of entries) appendField(owner, path, field, cardFields);
+            for (const [path, field] of list) appendField(owner, path, field, cardFields);
             card.append(cardFields);
             fields.append(card);
         }
-        for (const [path, raw] of Object.entries(owner.draft)) if (!Object.hasOwn(owner.view.fields, path) && sectionFor(path) === activeSection) fields.append(node('p', `Preserved edit for unavailable field ${path}: ${raw}. This field cannot be saved.`, 'settings-note'));
+        for (const [path, raw] of Object.entries(owner.draft)) if (!Object.hasOwn(owner.view.fields, path) && (query || sectionFor(path) === activeSection)) fields.append(node('p', `Preserved edit for unavailable field ${path}: ${raw}. This field cannot be saved.`, 'settings-note'));
         if (owner.view.unavailableInputs?.length) fields.append(node('p', `Unavailable inputs: ${JSON.stringify(owner.view.unavailableInputs)}`, 'settings-note'));
         actions();
     }
@@ -411,6 +579,15 @@
             refreshButton.type = 'button';
             refreshButton.addEventListener('click', refresh);
             toolbar.append(select, refreshButton);
+            searchInput = node('input', undefined, 'settings-search');
+            searchInput.type = 'search';
+            searchInput.placeholder = 'Search settings by name or path';
+            searchInput.setAttribute('aria-label', 'Search settings');
+            searchInput.addEventListener('input', () => { query = searchInput.value.trim(); render(); });
+            effectBar = node('div', undefined, 'settings-effect-bar');
+            effectBar.setAttribute('role', 'group');
+            effectBar.setAttribute('aria-label', 'Filter by when a saved change takes effect');
+            toolbar.append(searchInput, effectBar);
             status = node('div', 'Waiting for an authenticated dashboard connection.', 'settings-status');
             status.setAttribute('role', 'status');
             const details = node('details', undefined, 'settings-identity-disclosure');
@@ -461,8 +638,13 @@
                 message('Selected owner edits discarded. Other owner edits are unchanged.');
                 render();
             });
-            buttons.append(actionInfo, reviewButton, discardButton, saveButton);
-            body.append(header, toolbar, status, details, layout, buttons);
+            reviewButtonView = node('button', 'Review changes', 'settings-review-toggle');
+            reviewButtonView.type = 'button';
+            reviewButtonView.addEventListener('click', () => { reviewOpen = !reviewOpen; renderReview(owners.get(selected)); });
+            reviewPanel = node('div', undefined, 'settings-review');
+            reviewPanel.hidden = true;
+            buttons.append(actionInfo, reviewButtonView, reviewButton, discardButton, saveButton);
+            body.append(header, toolbar, status, details, layout, reviewPanel, buttons);
             root.append(body);
             socket.registerHandler('auth_success', refresh);
             socket.registerHandler('socket_disconnected', disconnected);

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>OGZPrime · Control Panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/panels/configuration-settings.css">
+<style>
+  body { margin: 0; min-height: 100vh; background: #000; color: #fff; font: 13px 'JetBrains Mono', monospace; }
+  .cp-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; max-width: 1400px; margin: 0 auto; padding: 20px 24px; }
+  .cp-brand { display: flex; align-items: center; gap: 12px; }
+  .cp-brand img { height: 40px; display: block; }
+  .cp-brand span { font-family: 'Orbitron', monospace; font-weight: 900; letter-spacing: .2em; font-size: 15px; }
+  .cp-brand small { display: block; font-size: 10px; letter-spacing: .22em; text-transform: uppercase; color: #ffd700; margin-top: 2px; }
+  .cp-links { display: flex; gap: 10px; }
+  .cp-links a, .cp-links button { font: inherit; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: #a0a0a0; text-decoration: none; padding: 8px 12px; background: #111; border: 1px solid #2a2a2a; border-radius: 6px; cursor: pointer; }
+  .cp-links a:hover, .cp-links button:hover { color: #fff; border-color: #dc2626; }
+  .cp-signin { max-width: 420px; margin: 8vh auto; padding: 28px; background: rgba(14,14,16,.72); border: 1px solid rgba(220,38,38,.45); border-radius: 12px; box-shadow: 0 0 30px rgba(220,38,38,.15); }
+  .cp-signin[hidden] { display: none; }
+  .cp-signin h1 { margin: 0 0 6px; font: 800 18px 'Orbitron', monospace; letter-spacing: .06em; }
+  .cp-signin p { margin: 0 0 18px; color: #8a8a92; line-height: 1.6; }
+  .cp-signin form { display: flex; flex-direction: column; gap: 12px; }
+  .cp-signin input { font: inherit; font-size: 13px; padding: 11px 14px; color: #fff; background: #0a0a0a; border: 1px solid #2a2a2a; border-radius: 8px; }
+  .cp-signin input:focus { outline: none; border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,.18); }
+  .cp-signin button { font: inherit; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; padding: 11px; color: #fff; background: #dc2626; border: 1px solid #ef4444; border-radius: 8px; cursor: pointer; }
+  .cp-signin button:disabled { opacity: .5; cursor: wait; }
+  .cp-signin output { min-height: 1.4em; color: #ff3366; font-size: 12px; }
+</style>
+</head>
+<body class="ogz-control-panel" data-socket-stream="settings">
+  <header class="cp-top">
+    <div class="cp-brand"><img src="/assets/logos/ogz-hat-gold.png" alt=""><div><span>OGZPRIME</span><small>Control panel</small></div></div>
+    <nav class="cp-links"><a href="/unified-dashboard-v2.html">Dashboard</a><button type="button" id="cpSignOut" hidden>Sign out</button></nav>
+  </header>
+
+  <!-- Existing session auth: POST /api/dashboard/session sets the session cookie;
+       websocket.js then fetches a ticket from /api/dashboard/session-ticket and authenticates the socket. -->
+  <section class="cp-signin" id="cpSignIn" hidden>
+    <h1>Sign in</h1>
+    <p>Settings change how the bot trades. Enter the dashboard access token to open an authenticated session.</p>
+    <form id="cpSignInForm">
+      <input type="password" id="cpToken" autocomplete="current-password" placeholder="Dashboard access token" required>
+      <button type="submit" id="cpSubmit">Open session</button>
+      <output id="cpError" role="alert"></output>
+    </form>
+  </section>
+
+  <details id="configurationSettings" aria-label="Bot settings" open></details>
+
+  <script src="/js/core.js"></script>
+  <script src="/js/websocket.js"></script>
+  <script src="/js/panels/configuration-settings.js"></script>
+  <script>
+  (function () {
+    'use strict';
+    var signIn = document.getElementById('cpSignIn');
+    var form = document.getElementById('cpSignInForm');
+    var tokenInput = document.getElementById('cpToken');
+    var submit = document.getElementById('cpSubmit');
+    var errorOut = document.getElementById('cpError');
+    var signOut = document.getElementById('cpSignOut');
+    var authed = false;
+
+    function socket() { return window.OGZ && window.OGZ.get('Socket'); }
+    function showSignIn(show) { signIn.hidden = !show; signOut.hidden = show; }
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      errorOut.textContent = '';
+      submit.disabled = true;
+      fetch('/api/dashboard/session', {
+        method: 'POST', credentials: 'same-origin', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ token: tokenInput.value })
+      }).then(function (r) { return r.json().then(function (body) { return { ok: r.ok, status: r.status, body: body }; }); })
+        .then(function (res) {
+          tokenInput.value = '';
+          if (!res.ok || !res.body || res.body.ok !== true) {
+            errorOut.textContent = res.status === 401 ? 'Token rejected.' : 'Session unavailable (' + (res.body && res.body.error || res.status) + ').';
+            return;
+          }
+          // Cookie is now set; Socket.connect() bootstraps a ticket from it.
+          if (socket()) socket().connect();
+        })
+        .catch(function (err) { errorOut.textContent = 'Session request failed: ' + err.message; })
+        .then(function () { submit.disabled = false; });
+    });
+
+    signOut.addEventListener('click', function () {
+      fetch('/api/dashboard/logout', { method: 'POST', credentials: 'same-origin', cache: 'no-store' })
+        .then(function (response) {
+          if (!response.ok) { errorOut.textContent = 'Sign out failed. Please try again.'; return; }
+          if (socket()) socket().clearAuthToken();
+          window.location.reload();
+        }).catch(function (err) { errorOut.textContent = 'Sign out failed: ' + err.message; });
+    });
+
+    function boot() {
+      var s = socket();
+      if (s) {
+        s.registerHandler('auth_success', function () { authed = true; showSignIn(false); });
+        s.registerHandler('auth_failure', function () { authed = false; showSignIn(true); });
+        s.registerHandler('socket_disconnected', function () { authed = false; showSignIn(true); });
+      }
+      // Existing boot path: init registered modules (ConfigurationSettings), then Socket.connect().
+      window.OGZ.init();
+      // No session cookie → websocket.js stays disconnected; offer sign-in after its ticket attempt settles.
+      setTimeout(function () { if (!authed) showSignIn(true); }, 1500);
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+  })();
+  </script>
+</body>
+</html>

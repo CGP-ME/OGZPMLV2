@@ -19,6 +19,7 @@
     let dashboardSessionBootstrap = null;
 
     const WS_PATH = '/ws';
+    const settingsOnly = document.body?.dataset.socketStream === 'settings';
     const DASHBOARD_WS_STORAGE_NAME = 'ogz.dashboard.wsToken';
     const DASHBOARD_WS_FRAGMENT_KEYS = ['dashboardToken', 'ogzDashboardToken', 'ogz_ws_token'];
     const DASHBOARD_SESSION_AUTH_TOKEN = '__OGZ_DASHBOARD_SESSION__';
@@ -347,6 +348,8 @@
             sendRaw({ type: 'ping', timestamp: Date.now() });
         }, HEARTBEAT_INTERVAL_MS);
 
+        if (settingsOnly) return;
+
         dataWatchdogTimer = setInterval(() => {
             if (!ws || ws.readyState !== OPEN || !authenticated) return;
 
@@ -423,16 +426,18 @@
                         this.send({ type: 'identify', source: 'dashboard', tier: OGZ.state.tier, version: '2.0.0' });
                         // V2 chart-panel uses cp-* IDs; fall back to legacy monolith IDs,
                         // then default. Same fallback chain CC-D bakes into asset consumers.
-                        const asset = selectedDashboardAsset();
-                        const tf = selectedDashboardTimeframe();
-                        // #47: prime both startup paths. `asset_change` updates
-                        // bot-side selected asset state, while `request_historical`
-                        // asks the stock adapter or bot to send historical_candles.
-                        // Fresh loads need both; manual ticker clicks already send
-                        // asset_change, which is why the chart populated only after
-                        // the user clicked a ticker.
-                        this.send({ type: 'asset_change', asset: asset });
-                        this.send({ type: 'request_historical', timeframe: tf, asset: asset, limit: 500 });
+                        if (!settingsOnly) {
+                            const asset = selectedDashboardAsset();
+                            const tf = selectedDashboardTimeframe();
+                            // #47: prime both startup paths. `asset_change` updates
+                            // bot-side selected asset state, while `request_historical`
+                            // asks the stock adapter or bot to send historical_candles.
+                            // Fresh loads need both; manual ticker clicks already send
+                            // asset_change, which is why the chart populated only after
+                            // the user clicked a ticker.
+                            this.send({ type: 'asset_change', asset: asset });
+                            this.send({ type: 'request_historical', timeframe: tf, asset: asset, limit: 500 });
+                        }
                     }
                     if (data.type === 'auth_failure') {
                         clearStoredDashboardToken();

@@ -1,0 +1,18 @@
+{
+  "tree": "4d5535a7a929f468a98ca667c3072b18db77f41c",
+  "checks": [
+    "Actual session cookie/ticket login, no-store and OGZ.init without dashboard panels",
+    "Browser saved shared field and active-profile switch through actual ConfigLoader; other profiles unchanged",
+    "Retained EMA consumer uses saved periods; actual orchestrator method honors saved profile switch",
+    "Reload reads persisted settings through session ticket",
+    "Out-of-band change rejects stale save; draft survives refresh and explicit rebase then saves",
+    "Desktop/mobile layout captured with no horizontal overflow",
+    "Disconnect mid-save preserves draft, reports unknown outcome and does not retry",
+    "95 seconds without market frames: heartbeat stays live, no reconnect or market subscription",
+    "Sign out clears session cookie and browser credential"
+  ],
+  "limitations": [
+    "Isolated real settings owner and production auth/relay handlers; no broker process, orders, PM2 restart, or deployment."
+  ],
+  "status": "pass"
+}

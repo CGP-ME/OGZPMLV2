@@ -32,6 +32,7 @@ function createHarness({
   class FakeElement {
     constructor(tagName) {
       this.tagName = tagName.toUpperCase();
+      this.dataset = {};
       this.children = [];
       this.parentNode = null;
       this.style = {};

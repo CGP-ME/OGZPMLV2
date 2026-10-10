@@ -192,6 +192,11 @@ function serveDashboardV2(req, res) {
 }
 app.get(['/unified-dashboard-v2.html', '/unified-dashboard-v2.html/'], serveDashboardV2);
 
+app.get(['/control-panel.html', '/control-panel.html/'], (req, res) => serveDashboardTemplate(
+  req, res, path.join(__dirname, 'public', 'control-panel.html'),
+  'control-panel.html', 'Control panel HTML unavailable - current disk template could not be loaded.'
+));
+
 app.get(['/', '/index.html', '/index.html/', '/unified-dashboard-legacy.html', '/unified-dashboard-legacy.html/'], serveDashboardV2);
 
 app.post('/api/dashboard/session', (req, res) => {
