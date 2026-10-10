@@ -1,3 +1,11 @@
+## 2026-10-10 — Correct MTF requirement and record scanner integration gap
+
+- Problem: the Stop 1 discussion incorrectly reduced multi-timeframe trading to confluence analysis and treated restart-bound timeframe selection as the intended design. Trey clarified that every selected ticker must be scanned across configured trading timeframes, with higher-timeframe checks after setup discovery.
+- Evidence/review: bounded current-source trace at `08e6531b` shows the runner selecting one active trading timeframe, symbol contexts holding one timeframe, and strategy module instances scoped by symbol. July commit `c63e3012` contains the platform engine and a separate integration plan; the searched production paths have no engine importer/constructor. These findings establish a source integration gap, not a live-process test or proof that all historical MTF work was absent. Checked the distinction between chart switching, concurrent setup discovery, and confluence consumers; no production code was changed.
+- Process check: PM2 confirms the actual runner entrypoint. Traced its TradingLoop/orchestrator/order route and sampled its error log, which contains selected-ticker `1m` drops against active `15m`. Individual log lines lack timestamps; no claim that the process started October 3 loaded today's commits. The unconnected engine is historical evidence only.
+- Record: added item 27 to [the existing deferred repair log](ogz-meta/inbox/codex/2026-10-06/config-migration-followups.md), including exact paths, intended behavior, and end-to-end acceptance. Preserve the existing implementation and defer its repair under Trey's scope instruction; configuration delivery alone cannot certify MTF trading.
+- Verification/activation: documentation diff reviewed against current files and the engine commit. No runtime tests required for this prose-only correction, no Mercury run, no deployment or PM2 restart. Stop 1 and the required MTF capability are not declared complete.
+
 ## 2026-10-10 — Added existing regime and ATR configuration controls (Stop 1 / UI-08)
 
 - Problem: seven existing strategyBehavior settings had live consumers but were unavailable through the customer configuration panel.
