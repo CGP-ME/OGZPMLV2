@@ -2558,6 +2558,9 @@ function openingRangeBreakoutConfigurationProblem(config) {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  'exitContracts.RSI.stopLossPercent': { type: 'number', min: -Number.MAX_VALUE, max: 0, exclusiveMax: true, unit: 'percent', label: 'RSI base stop loss before ATR and volatility adjustments', effect: 'new_trades_only' },
+  'exitContracts.RSI.maxHoldTimeMinutes': { type: 'number', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, unit: 'minutes', label: 'RSI maximum hold time', effect: 'new_trades_only' },
+  'exitContracts.RSI.minConfidence': { type: 'number', min: 0, max: 1, unit: 'fraction', label: 'RSI contract minimum confidence', effect: 'next_entry_evaluation' },
   'strategyBehavior.trendRegimeGate.enabled': { type: 'boolean', unit: 'boolean', label: 'Require trending regime for selected strategies', effect: 'next_strategy_evaluation' },
   'strategyBehavior.trendRegimeGate.minConfidence': { type: 'number', min: 0, max: 1, unit: 'fraction', label: 'Trending regime minimum confidence', effect: 'next_strategy_evaluation' },
   'strategyBehavior.trendRegimeGate.strategies': { type: 'array', itemType: 'string', minItems: 0, label: 'Strategies requiring a trending regime', effect: 'next_strategy_evaluation' },
