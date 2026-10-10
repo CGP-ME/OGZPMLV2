@@ -170,7 +170,7 @@ HEAD source at d0310b15 passes trai.maxConf into maxConfidenceOverride at run-em
 ## 28. Scale-in trigger, profit-toggle and sizing-ladder intent
 
 - At committed source e927cdbb, OrderExecutor._entryConcurrencyBlock reads addTriggerClass but rejects equality with the entry trigger (core/OrderExecutor.js:1673-1686). The normal orchestrator transports a trigger or null (:3033,3083); the bounded producer trace did not establish a concrete trigger-class producer. Preserve the canonical current value and investigate intended classification behavior later; no new selector is advertised.
-- requireProfitConfirmation=false unconditionally rejects scale-in at OrderExecutor.js:1688-1693. It does not disable the later profit check, so presenting it as a working optional-profit toggle would mislead customers. Preserve true and defer intended alternate behavior.
+- Profit-toggle portion resolved 2026-10-10: false now skips only the profit comparison; true retains it, and the existing trigger, add-count and aggregate-risk rules remain. Both existing default/NoWickImbalance fields are available through the dynamic settings registry for newly created contracts. Isolated actual save -> new ECM contract proof and executor behavior checks are under `ogz-meta/inbox/codex/2026-10-10/deferred-scalein/`. This does not resolve trigger classification or the unused sizing ladder below.
 - scaleIn.addSizingLadder is cloned by ECM (:227-245), but the active scale-in executor does not consume it. Preserve the intended setting for later wiring; no ladder feature was deleted or newly implemented. The eight-control migration exposes only the actual entry-limit, enabled, add-count and risk-cap inputs.
 
 ## 29. Contract target and percent-trailing exit intent remains disconnected

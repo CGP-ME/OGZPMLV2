@@ -1685,7 +1685,10 @@ class OrderExecutor {
       };
     }
 
-    if (scaleIn.requireProfitConfirmation !== true) {
+    if (
+      scaleIn.requireProfitConfirmation !== true
+      && scaleIn.requireProfitConfirmation !== false
+    ) {
       return {
         reason: 'scale_in_profit_confirmation_required',
         entryStrategy: entryPlan.entryStrategy,
@@ -1701,13 +1704,15 @@ class OrderExecutor {
       };
     }
 
-    const profitViolation = sameStrategyTrades.find((trade) => {
-      const entryPrice = Number(trade.entryPrice ?? trade.price);
-      if (!Number.isFinite(entryPrice) || entryPrice <= 0) return true;
-      return entryPlan.direction === 'long'
-        ? entryPlan.price <= entryPrice
-        : entryPlan.price >= entryPrice;
-    });
+    const profitViolation = scaleIn.requireProfitConfirmation === true
+      ? sameStrategyTrades.find((trade) => {
+        const entryPrice = Number(trade.entryPrice ?? trade.price);
+        if (!Number.isFinite(entryPrice) || entryPrice <= 0) return true;
+        return entryPlan.direction === 'long'
+          ? entryPlan.price <= entryPrice
+          : entryPlan.price >= entryPrice;
+      })
+      : null;
     if (profitViolation) {
       return {
         reason: 'scale_in_profit_confirmation',

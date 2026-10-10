@@ -1,0 +1,25 @@
+{
+  "tree": "dfe597e81c3d63e28b38f0b314a5a8f231bd98b5",
+  "status": "pass",
+  "savedFields": [
+    "exitContracts.default.scaleIn.requireProfitConfirmation",
+    "exitContracts.NoWickImbalance.scaleIn.requireProfitConfirmation"
+  ],
+  "newRSI": {
+    "enabled": false,
+    "maxAdds": 0,
+    "addTriggerClass": "none",
+    "requireProfitConfirmation": false,
+    "aggregateRiskCap": 1,
+    "addSizingLadder": []
+  },
+  "newNoWick": {
+    "enabled": false,
+    "maxAdds": 0,
+    "addTriggerClass": "none",
+    "requireProfitConfirmation": false,
+    "aggregateRiskCap": 1,
+    "addSizingLadder": []
+  },
+  "existingContractsRetainedTrue": true
+}

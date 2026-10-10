@@ -1,0 +1,11 @@
+{
+  "tree": "dfe597e81c3d63e28b38f0b314a5a8f231bd98b5",
+  "status": "pass",
+  "cases": 504,
+  "falseAllowed": 18,
+  "checks": [
+    "non-false flags identical to base",
+    "false retains concurrent-entry and aggregate-risk caps",
+    "frozen input contracts remain unmodified"
+  ]
+}

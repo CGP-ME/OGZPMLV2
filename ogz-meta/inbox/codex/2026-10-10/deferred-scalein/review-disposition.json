@@ -1,0 +1,54 @@
+{
+  "candidate_tree": "dfe597e81c3d63e28b38f0b314a5a8f231bd98b5",
+  "base": "b93edddfbe136528e720bfb1b3e629ada50749cd",
+  "raw_mercury": {
+    "outer_verdict": "found_break",
+    "termination": "answer_given",
+    "answer_verdict": "found_break",
+    "answer_adversarial_review_blocking": "yes",
+    "answer_source": "delivery-review-answer.txt"
+  },
+  "scoped_conclusion": "PASS: no supported introduced defect. Preserve raw found_break; this disposition does not claim clean Mercury or adjudicate inherited code safe.",
+  "claims": [
+    {
+      "allegation": "missingOrderId",
+      "disposition": "unchanged lead; not an introduced defect",
+      "candidate_evidence": "core/OrderExecutor.js:3648-3653",
+      "base_evidence": "core/OrderExecutor.js:3643-3648",
+      "byte_identical": true
+    },
+    {
+      "allegation": "dotenv ENOENT",
+      "disposition": "unchanged lead; not an introduced defect",
+      "candidate_evidence": "foundation/ConfigLoader.js:410-419",
+      "base_evidence": "foundation/ConfigLoader.js:410-419",
+      "byte_identical": true
+    },
+    {
+      "allegation": "venueGuards",
+      "disposition": "unchanged lead; not an introduced defect",
+      "candidate_evidence": "foundation/ConfigLoader.js:1061-1065",
+      "base_evidence": "foundation/ConfigLoader.js:1061-1065",
+      "byte_identical": true
+    },
+    {
+      "allegation": "canonicalize cycles",
+      "disposition": "unchanged lead; not an introduced defect",
+      "candidate_evidence": "foundation/ConfigLoader.js:2124-2129",
+      "base_evidence": "foundation/ConfigLoader.js:2124-2129",
+      "byte_identical": true
+    },
+    {
+      "allegation": "undefined strategyName",
+      "disposition": "refuted: strategyName is the enclosing flatMap callback parameter",
+      "candidate_evidence": "foundation/ConfigLoader.js:2596,2604-2606"
+    },
+    {
+      "allegation": "requireProfitConfirmation guard",
+      "disposition": "intended repair: explicit false skips only profit confirmation; missing and nonboolean remain rejected; unchanged limits and risk checks remain active",
+      "candidate_evidence": "core/OrderExecutor.js:1640-1669,1688-1745",
+      "execution_evidence": "astra-policy-matrix.json: 504 cases, non-false parity, risk/entry limits retained"
+    }
+  ],
+  "limitations": "Existing broad allegations are outside this two-file logical change; no new audit, tests, production edits, or runtime activation performed in this disposition."
+}

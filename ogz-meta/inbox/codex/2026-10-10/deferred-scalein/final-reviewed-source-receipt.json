@@ -1,0 +1,543 @@
+{
+  "tree": "dfe597e81c3d63e28b38f0b314a5a8f231bd98b5",
+  "base": "b93edddfbe136528e720bfb1b3e629ada50749cd",
+  "sourceRoot": "/opt/ogzprime/OGZPMLV2/ogz-meta/inbox/codex/2026-10-10/deferred-scalein/root-scratch/exact-8fj_o_en",
+  "manifest": [
+    {
+      "path": "TierFeatureFlags.js",
+      "sha256": "0411be28878d9ad0c92938d6c0ba32e4710572cfefc7f242eeb630d04f479c1f"
+    },
+    {
+      "path": "brokers/BrokerFactory.js",
+      "sha256": "3a5172db5d0b5b6deab3aedc494d6d289038a39b1ef5c6dc44015e582f988e6c"
+    },
+    {
+      "path": "brokers/BrokerRegistry.js",
+      "sha256": "2533590a406e3cc1572e4dc7734e9d1502a5c23bdaa658ad326e1e74ff5d5da2"
+    },
+    {
+      "path": "config/internals.json",
+      "sha256": "44a64fb2ea8bda6db6059ed06c4c712cfd911e61112f0cb06b501cfd1b8940ef"
+    },
+    {
+      "path": "config/pattern-descriptions.json",
+      "sha256": "b5fea381a7b84994161f9d2d5c1834bb1262cd78b4be4363249efe804dcb5562"
+    },
+    {
+      "path": "config/settings.json",
+      "sha256": "807b57da4b7c990c9b70202c6d69967f5efba2092268c4d9f5b835a45f6d3c79"
+    },
+    {
+      "path": "core/AdaptiveTimeframeSelector.js",
+      "sha256": "9a46b29314dbe634b9825e642678e5d9e6335f94592c170a4224c3755d3b6eb0"
+    },
+    {
+      "path": "core/AssetRegistry.js",
+      "sha256": "cd3041e6ed5c8e23d9fae27fafc15cc33ee001c6972426a8bad862b13e92a0d7"
+    },
+    {
+      "path": "core/AtomicWrite.js",
+      "sha256": "3d451213bba7b3680b7560e1d8c60e36650a595c7970a116a926f5d96390a924"
+    },
+    {
+      "path": "core/AuthFailureGuard.js",
+      "sha256": "62aa1860bbfec49b0fcd2e22e937f4a1aa41d0d06d55416055f611af633dd44c"
+    },
+    {
+      "path": "core/BacktestRecorder.js",
+      "sha256": "3377ecc4bf9f6c52056a6daed50909c9f860e28c7fb6078ce979bc4aac6c77a6"
+    },
+    {
+      "path": "core/BacktestRunner.js",
+      "sha256": "b3edff4850ece3d1ad8f0d0aa59d76461178090528a24439670f8a112018e5cb"
+    },
+    {
+      "path": "core/BotStateFrame.js",
+      "sha256": "873a02e9ee1ed1d0e484b05db41190dfabdaaaa35d614bc940770fd019aefb4e"
+    },
+    {
+      "path": "core/CandleAggregator.js",
+      "sha256": "905ebcd54e300cf3679d250e2e4c3ba93114f62ccf0325a47bc2177807f91a8a"
+    },
+    {
+      "path": "core/CandleHelper.js",
+      "sha256": "33195306d283e2d0e23868849c87953ee5a6cecbbb74d1cb8c619af16701e5f3"
+    },
+    {
+      "path": "core/CandlePatternDetector.js",
+      "sha256": "6687cb910c9f825b71d3a428da63d41cd1cb4d2b40b8d154c38d50fb63efc45b"
+    },
+    {
+      "path": "core/CandleProcessor.js",
+      "sha256": "2977831d284a4f1ac7596d51e93c05e348ec891069652c36e6872bea1292a531"
+    },
+    {
+      "path": "core/CandleStore.js",
+      "sha256": "a5808a22a6c502731fee94cb3241d69b1531ce562738b0ce3f8c5c2ce53c995f"
+    },
+    {
+      "path": "core/ContractValidator.js",
+      "sha256": "d18f2e5f7cfae85fbaef6e943263f3408b09cd7c408a36bbc77f05fae6462b09"
+    },
+    {
+      "path": "core/DashboardBroadcaster.js",
+      "sha256": "6e1657c711a65772ddcc31f3b7a79f8784950be22f70b324b70030e6ddfbdcd6"
+    },
+    {
+      "path": "core/DashboardDepthCoalescer.js",
+      "sha256": "594026ccdfd6ce2697da4a979dfda99e6c6ba94cfa2e2a3a14b47663d519c925"
+    },
+    {
+      "path": "core/DataFileInstrument.js",
+      "sha256": "ad4e68dd0bee90f1aa02f0332063fe60e9d9985948c9940d2715f77bf55c9ae3"
+    },
+    {
+      "path": "core/DecisionAutopsyLogger.js",
+      "sha256": "bfc8289809490d509e0ddf2ab651fdac40ac3f23b89810ad204ebceea807f9ca"
+    },
+    {
+      "path": "core/DecisionLedgerLogger.js",
+      "sha256": "367aa42bc0d6f2be49129b61190e446fe6b7ef806c8f6175227d36d6d0476fb1"
+    },
+    {
+      "path": "core/EnhancedPatternRecognition.js",
+      "sha256": "ee7f2861175b037213df1cf37198446c151d7ce097a18f328b91841584023e19"
+    },
+    {
+      "path": "core/EvalRuleEngine.js",
+      "sha256": "4d6c6418914f9da34212333750e2a3955ccbd836d1c9dadf27b61f7a5b7a0413"
+    },
+    {
+      "path": "core/EventLoopMonitor.js",
+      "sha256": "39675e75a298272cfd65ac78b6e446fed6f75acff5fb8f7cbcb093bac0580072"
+    },
+    {
+      "path": "core/ExitContractManager.js",
+      "sha256": "51abaacb419118396067751075c383efd3dddcd31ab87ffc74afd69049604787"
+    },
+    {
+      "path": "core/FeatureExtractor.js",
+      "sha256": "09faaf7005fd1683eb8c14742600996fde0eb090161c59f6820eb12dd0dfeedf"
+    },
+    {
+      "path": "core/FeatureFlagManager.js",
+      "sha256": "38d64b660fe2a4e93efa6cd2c402c07d3596d641cd08ccf0fb01ed7806569efd"
+    },
+    {
+      "path": "core/FeeModel.js",
+      "sha256": "1cfc40f1d61f553ed48abc66aff05e563d4357a729080dfd7969ff0a1cacd74a"
+    },
+    {
+      "path": "core/FibonacciDetector.js",
+      "sha256": "33483b9d9767499a73358b31862c1f2b40319b93dd70a82318666964d1eb49be"
+    },
+    {
+      "path": "core/IndicatorCalculator.js",
+      "sha256": "941138f5831a0bd08dd3924b7c461c49abf6a24550b417502b380df77acdd323"
+    },
+    {
+      "path": "core/MAExtensionFilter.js",
+      "sha256": "a4244d38b06c494d0a9d2a5a628991f76514469b934ef6dd1ba4e84452c7654a"
+    },
+    {
+      "path": "core/MessageQueue.js",
+      "sha256": "d584c8d8b13ba3f1b444128a727a67c5d9dc20c58a52d1ea8673ab09e7ae6883"
+    },
+    {
+      "path": "core/ModuleAutoLoader.js",
+      "sha256": "182e0df810fd622767b0aa0ddda326210865b0ea8cc06185b25e08c35c716b78"
+    },
+    {
+      "path": "core/ModuleInitializer.js",
+      "sha256": "bda4267081c6b13cf64ce3d42be79bdb12e6f1161f98a47ac1f50e7b39d45beb"
+    },
+    {
+      "path": "core/MultiAssetManager.js",
+      "sha256": "9fb0f1d5fc75d7aeb5c4248d70e1e258696ea1044fcc2ad2f8efced4159d6763"
+    },
+    {
+      "path": "core/NtfyTraceNotifier.js",
+      "sha256": "11f4c14814416f16afe3deea619afdff16fb44c49d319176eed07b093b104247"
+    },
+    {
+      "path": "core/OgzTpoIntegration.js",
+      "sha256": "479699fa401331b6e0e14afe90019155f6ebf52f56a7cdb4c4114f18e333262f"
+    },
+    {
+      "path": "core/OptimizedIndicators.js",
+      "sha256": "bfe35c5a7c31d4f7e22df807f7ae2986e2a521c020389db2ba0ed5e3c68e954a"
+    },
+    {
+      "path": "core/OrderExecutor.js",
+      "sha256": "e90767099a69c5770e24f133b07d736b5bb5574020ffd207082ea6ec86136672"
+    },
+    {
+      "path": "core/OrderRouter.js",
+      "sha256": "5a537b96be658ad113f464f845c696a0d45c2200a7264e064c89f7bab5c27b89"
+    },
+    {
+      "path": "core/OutputPaths.js",
+      "sha256": "0b1c1da942182adf81ae7783c630acf9142be9078151c11e2124dc1a147ce237"
+    },
+    {
+      "path": "core/PIDController.js",
+      "sha256": "0547d70f57b72b1a6f44ea5562a4d21036c4b31bdd4bb24711e7959ac93213d4"
+    },
+    {
+      "path": "core/PatternBasedExitModel.js",
+      "sha256": "b457c2f1d1c13d57b600c9e2284ebd87471a03ca9dc6063549dce0dda4634f7e"
+    },
+    {
+      "path": "core/PatternMaturity.js",
+      "sha256": "4900b8a6e23206d305a5a9767d8d05ed5c15e283236f7c59f527057bd72ab878"
+    },
+    {
+      "path": "core/PatternScope.js",
+      "sha256": "872a2a74cb4ad1085a665505f228a2d30b8c4adfeaaa143b92d2b7aa4b41a9ce"
+    },
+    {
+      "path": "core/PipelineSnapshot.js",
+      "sha256": "138d289b9b45129b455f81037fe37bdbe89a914532ecfb877032cbc61348db47"
+    },
+    {
+      "path": "core/PnLCalculator.js",
+      "sha256": "1179fca7b3abc8f9f4c895d0002d5d9e85f25d6634fb33fc7237aa817c688f0b"
+    },
+    {
+      "path": "core/PolicyBuilder.js",
+      "sha256": "021965a21f84af16214215cb96beb1f9484c99935a0b9046003094e29c5607d5"
+    },
+    {
+      "path": "core/PositionEffect.js",
+      "sha256": "70a5a4df27ccfd8972ab6bbfa954776abc64839ba1e80e8f061bca704f35e0b0"
+    },
+    {
+      "path": "core/PositionSizer.js",
+      "sha256": "e98e07537ffcf3d857871f6aff518eddd0d06c071d979620afa8a609a5dffcba"
+    },
+    {
+      "path": "core/PositionTracker.js",
+      "sha256": "3ec7bcbee8f23e700a6a84985b6524e8ef708ecd10bf7b2a1160ac76fbf0f4ea"
+    },
+    {
+      "path": "core/ProfitExitPlanner.js",
+      "sha256": "d841df70f04b5701d7e08e05dce0791532bc42191cd42d37a82bdb90a45525ca"
+    },
+    {
+      "path": "core/RegimeDetector.js",
+      "sha256": "ed6591dbe64900304ab6f2b84355e53aca45f72a3b18ccef5db74f926c3ca570"
+    },
+    {
+      "path": "core/RiskManagerConfig.js",
+      "sha256": "a154b3933589c0a5a77d14650d42147d7fdfce95eba2b74d195535b084386c59"
+    },
+    {
+      "path": "core/RuntimeAuditSink.js",
+      "sha256": "148aae5f6a04008f31ba97f4cd0c2f17995b30e0e304babb58691d92fc276fb7"
+    },
+    {
+      "path": "core/RuntimeConfigProof.js",
+      "sha256": "479fdfa2c7f85ab3611412aef883aa711df3c777c76e56d648b0c7753cee14e4"
+    },
+    {
+      "path": "core/SessionRouter.js",
+      "sha256": "0a20cd1a3ce903431157c91539aab026c5377689d03165d9429272d65007edf0"
+    },
+    {
+      "path": "core/SingletonLock.js",
+      "sha256": "b6e89a882656150397c35e58f0b6772c582ba638f398296fc9074434961f3c84"
+    },
+    {
+      "path": "core/StateManager.js",
+      "sha256": "d823761ad08e1e9c70b83df0b37883d2b17d19c578b6b233567cc08f2732bd70"
+    },
+    {
+      "path": "core/StrategyOrchestrator.js",
+      "sha256": "cc12dc53842d2b9794af6539466577a94e877e1b5cd05f20494692f353ed5d11"
+    },
+    {
+      "path": "core/SymbolTradingContext.js",
+      "sha256": "0afb7ac436bf2cfd84ecac2648b31bfe01498302ca424bf8457ffaea0fd806a4"
+    },
+    {
+      "path": "core/TRAIWebContext.js",
+      "sha256": "69c571e92f86c5d386551edf1284a2426ffa2bac6c8963b20f7cbcf8614dbe45"
+    },
+    {
+      "path": "core/Telemetry.js",
+      "sha256": "c1df36e9162cd13fa3922f1054577b033e5a495daa7b9cb76a9ce07aad5d7577"
+    },
+    {
+      "path": "core/TraceSpine.js",
+      "sha256": "6aff25395a4469238ab202115aa53ad3b46b95c17c4b2de4ceac644aae4927d1"
+    },
+    {
+      "path": "core/TradeIntelligenceEngine.js",
+      "sha256": "29d9e341738cf900ebda0498a639881a865081aef31880181ff5ab87fe2c28d0"
+    },
+    {
+      "path": "core/TradeJournal.js",
+      "sha256": "fc025edd4513030e10680fd2e940538791cf1b03fe6ee4c077942ed8035909d3"
+    },
+    {
+      "path": "core/TradeJournalBridge.js",
+      "sha256": "002c28ec0106f765a8cc8600ec79aa819f59bb042fa1a55da0b5d5e041858e0e"
+    },
+    {
+      "path": "core/TradeNarrator.js",
+      "sha256": "47b14c6a487eb8c78cdf8f1cad0764f7fe46fd248ca916f8c21cd6dae423cae0"
+    },
+    {
+      "path": "core/TradeReplayCapture.js",
+      "sha256": "5e8bcc70eadf5b76228ab6363812d0dd2bd777108caeb48c113e8870d177d4f1"
+    },
+    {
+      "path": "core/TradingLoop.js",
+      "sha256": "c4a6d9e36c83edfa196bdc0e8a860a5fa882ce41ec58190c46f40389d50d7285"
+    },
+    {
+      "path": "core/TtpCutoffEnforcer.js",
+      "sha256": "b521848084723b6805c5cb8e1ef8a93dd839432e28216f3e1252a538b1711f80"
+    },
+    {
+      "path": "core/TwoPoleOscillator.js",
+      "sha256": "94da817ac63600138858c51df26898861ce8bb6ab29f187f0ffd0c0bc2487b4b"
+    },
+    {
+      "path": "core/UnifiedPatternMemory.js",
+      "sha256": "02c21cc20cb837892c30bbb128acc05cb5579513d01956c955f9476fff7cf427"
+    },
+    {
+      "path": "core/VolumeProfile.js",
+      "sha256": "428b59a7f3d027371ffdeb50dc000095ab9669f02d1dfa4ffae75c998ca1c7d0"
+    },
+    {
+      "path": "core/WebSocketManager.js",
+      "sha256": "1d089eee395e3c9362f3a21206e851bdb95573d05bde844abd684031bc4a0f51"
+    },
+    {
+      "path": "core/WebhookOrderAdapter.js",
+      "sha256": "7c15d70259bd1a502ece9fccd9dbf26bc5e4512d9ddf862399b8d4a91b7c5ec2"
+    },
+    {
+      "path": "core/dto/DecisionLedgerSchema.js",
+      "sha256": "247bfb368b0116f82664972a803ec988ece72fe1025031969043c913a3345e26"
+    },
+    {
+      "path": "core/dto/ExitContractOwnership.js",
+      "sha256": "5574b18d725b7ce0c544ccc47e39d1bd33d84cd82b6e402808a137b55ba0e3aa"
+    },
+    {
+      "path": "core/dto/FrozenExitPolicy.js",
+      "sha256": "76300ec0b959d5964fa14a49cefbf9614718a35b723e22e7062bb8fe84f359f4"
+    },
+    {
+      "path": "core/dto/IndicatorSnapshotDTO.js",
+      "sha256": "77e2e0d313aedff1bf606fb39b4e4e802e658d0cedcf022b6994cd9c8f98b00e"
+    },
+    {
+      "path": "core/exit/BreakEvenManager.js",
+      "sha256": "dae3bc5dd49b85914005befaa6103e96d3214b77c5a9bcfbce787894fa8c7f42"
+    },
+    {
+      "path": "core/exit/MaxHoldChecker.js",
+      "sha256": "84aeefd5e9243466168ce63101617a9bb427c05d15fa8ca46d0fce37e337797b"
+    },
+    {
+      "path": "core/exit/StopLossChecker.js",
+      "sha256": "417f319632b7935a451ba599c0ea770dc2c2530a126abb150136bec0a903249d"
+    },
+    {
+      "path": "core/exit/TakeProfitChecker.js",
+      "sha256": "041cf71d8903ed31dd5ed09e43a6143e3b32de6c218019841c43fc8f75029e31"
+    },
+    {
+      "path": "core/indicators/IndicatorEngine.js",
+      "sha256": "5d22379c4505673d6a9b0a9850e60d06f3c11cf5951096b906fe86ec54369f65"
+    },
+    {
+      "path": "core/indicators/TwoPoleOscillator.js",
+      "sha256": "b484260f2bd76592f65fc8ac2b40689fd357b68d15921dfeb8d6d6827d1e72f6"
+    },
+    {
+      "path": "core/ogzTwoPoleOscillator.js",
+      "sha256": "8ded3a3635ee6e39bb88dc41def43a23c7636579957a63b1915d2807f882412e"
+    },
+    {
+      "path": "core/session-router/TransitionStore.js",
+      "sha256": "534cd8b626287720feaa9d44fa403ca5e07d238127ba12758e2b175674fec524"
+    },
+    {
+      "path": "core/tradeLogger.js",
+      "sha256": "a3ec58eed9e334f49878eb7ba7a3d3cd825e69f7650fc22c223a3cdc9c6a8829"
+    },
+    {
+      "path": "core/trai_llm_config.js",
+      "sha256": "b4e6b39ced245d509b8c7f593c005c21116da2faf827711230e2ebaa0bc853cc"
+    },
+    {
+      "path": "foundation/ConfigLoader.js",
+      "sha256": "07308ca645b5f5a6106d96bcf5aa12591859d6d35c45d6c4e33f1b3a6f2d5632"
+    },
+    {
+      "path": "foundation/MarketCalendar.js",
+      "sha256": "a8696a6efceb8607e137748c974967c74c64cb489baf0c3f8f6735294d8563a6"
+    },
+    {
+      "path": "foundation/ohlc-normalize.js",
+      "sha256": "d2e36fa331c19c859efb60b00b34e276a5bc4b9caa9e8d073808832b3390d0df"
+    },
+    {
+      "path": "instrument.js",
+      "sha256": "2cd89f545e9fc21a13ad03f0a14aa6fbad8b53812b28cc09c5e7d1073e86acb7"
+    },
+    {
+      "path": "modules/BreakAndRetest.js",
+      "sha256": "7fdc3f2144be8ae34de5cad9e640a0222486f52118a613221912eca23fdf7fb0"
+    },
+    {
+      "path": "modules/DonchianBreakout.js",
+      "sha256": "50ab1ec9d40c0a570d1faa0846da6acdb6b95fc12f69506c4264d06f8c9267d1"
+    },
+    {
+      "path": "modules/EMASMACrossoverSignal.js",
+      "sha256": "e0e5ff8888520426e14b8ae85bcbf7b032410ce7a8414e0a6a8b78ae3bca012a"
+    },
+    {
+      "path": "modules/EMATrendRetest.js",
+      "sha256": "a3d57b692ff73ae2f35b7b0310c6d7749c2d0559c63767eb4b7a427b77c9b7ba"
+    },
+    {
+      "path": "modules/FairValueGapDetector.js",
+      "sha256": "c59c640bbedc6fa1d7ea1ac67c01dfa4e31f0edea957221cdca094a2fe8ee6bd"
+    },
+    {
+      "path": "modules/LiquiditySweepDetector.js",
+      "sha256": "1e47a19eec21f16d656e5bbf519e1001500bc21bc73d667e54f6e34b09312312"
+    },
+    {
+      "path": "modules/MADynamicSR.js",
+      "sha256": "2393f93ea23be2f65bba254035b9401d4e05f2cc9fec2b0db28a51b4fe69a755"
+    },
+    {
+      "path": "modules/MultiTimeframeAdapter.js",
+      "sha256": "68c2cc408ad77584293801ed34054cbbd081bfdec1a4cda5d71cb4ed5594c042"
+    },
+    {
+      "path": "modules/NoWickImbalance.js",
+      "sha256": "d838e1f44cae20a3e98a175bc08c5e95f6b2fa1787e01baa5927c2471bcd341e"
+    },
+    {
+      "path": "modules/OpeningRangeBreakout.js",
+      "sha256": "8a580556386991d72b5bf3b98c1f6086c64934f4252ff1ff8aea6120fa7672e3"
+    },
+    {
+      "path": "modules/PropSafeEMAPullback.js",
+      "sha256": "8403ca2d10621dbbc1e49551a1e1d8eaedc4ef85edaccef566da6d61cbec6393"
+    },
+    {
+      "path": "modules/RSI2MeanReversion.js",
+      "sha256": "1a87c679dcad043dd1d049614c5a598a9052849713363432bc2e78fa0fcf2611"
+    },
+    {
+      "path": "modules/SmartMoneySweep.js",
+      "sha256": "ce05dfc5f8087ebde138ade12e6e6e4ecf73c8295c8b2fd6e74b2896585fe169"
+    },
+    {
+      "path": "modules/TimeSeriesMomentum.js",
+      "sha256": "02413f586f574e609c6a84b4d7da7ec5e7a145de3c53ab8fe51bff959072e9fb"
+    },
+    {
+      "path": "ogz-meta/claudito-logger.js",
+      "sha256": "f50b0d676607abf455f1b5a4a9565a00f9a7fe01c6f59d27b0e938b6987c0631"
+    },
+    {
+      "path": "public/js/panels/configuration-settings.js",
+      "sha256": "de9cc1143c4a2b3d87c65f95e6108233792cfc388f13b7e84223623be8286446"
+    },
+    {
+      "path": "run-empire-v2.js",
+      "sha256": "060abcb381499e10383b02e2c7943137d915ff48aef7a7b73f15e02518de8a71"
+    },
+    {
+      "path": "server/dashboard-pattern-contract.js",
+      "sha256": "d9c381e9219624390803cbcce816bad8a2fb38df11d1ea40a69397450b05015b"
+    },
+    {
+      "path": "server/dashboard-stock-stream-config.js",
+      "sha256": "b2c14ce7b2267a4d00bc687cd8cba7f4198f8e653672eae7a14bd23dba7d4533"
+    },
+    {
+      "path": "server/stock-data-adapter.js",
+      "sha256": "95c8d2cf400d2c0cf70a88980ef363fe4ccbc4c6b0a402c3a1e0332a24182432"
+    },
+    {
+      "path": "src/indicators/ogzTwoPoleOscillator.js",
+      "sha256": "6727c367025d4ba63587e322128d88fa03c48dec9659df6af13a3acd892c4389"
+    },
+    {
+      "path": "test/donchian-breakout.test.js",
+      "sha256": "b81f8ee62c6396ec63a654e2ddd1ecc2d3564c619870e446f45b36ddd7dbea75"
+    },
+    {
+      "path": "test/ema-trend-retest.test.js",
+      "sha256": "5fa076ca717e66ee0b015cd391e7c149386b2b733d54a8efb14ee075157c533c"
+    },
+    {
+      "path": "test/ogz-tpo-integration.test.js",
+      "sha256": "7900ec04db72a5e445d0bed74453e881db7df386ea81ef7b3740bf9571c9ad14"
+    },
+    {
+      "path": "test/propsafe-ema-pullback.test.js",
+      "sha256": "e8aca6a73805ee706746b4ff5931be85ca47ef1805a51b5ae3aac4f0dbc78c8a"
+    },
+    {
+      "path": "tuning/pipeline-diagnostic.js",
+      "sha256": "ed37955c0d9bd42de8443e2f36ede0ab79d09fb7e73ccaec72a47484070d7eea"
+    },
+    {
+      "path": "utils/discordNotifier.js",
+      "sha256": "f22e127fa7ac7bc605ced97d71f39e0132ff70fce95823837cde0f7edbcf2b72"
+    },
+    {
+      "path": "utils/telegramNotifier.js",
+      "sha256": "a1f691ac2854e21bcc47550beb625092a8895ecb3021a4d9db4a054b35268b3b"
+    },
+    {
+      "path": "ogzprime-ssl-server.js",
+      "sha256": "ff849dda156984f43c20d1f1a69f084496295f687f8a92c3457a19b257cc2c8e"
+    },
+    {
+      "path": "public/assets/logos/ogz-hat-gold.png",
+      "sha256": "c9a71d5e2c380dd30e4307f89e6c866c6b609103313c4b23dbcb12435e07202f"
+    },
+    {
+      "path": "public/control-panel.html",
+      "sha256": "afbd8b249943d5de10a735ec88e0d95084dc3710c6c0064b72938a226255ccba"
+    },
+    {
+      "path": "public/css/panels/configuration-settings.css",
+      "sha256": "9c27c8f8905c959d0c103b7ba145e5adb5af092db37fcf05fd2b0308bc5e631f"
+    },
+    {
+      "path": "public/js/websocket.js",
+      "sha256": "66ceda68c57019af326617758788719c95114619f4a9600d3af46fdaed19ff48"
+    },
+    {
+      "path": "public/unified-dashboard-v2.html",
+      "sha256": "4a261d44e7e6a90bb088077516ba831cb3e838068dd4f2fd5e0b19dc1b51ea0d"
+    },
+    {
+      "path": "public/unified-dashboard.html",
+      "sha256": "991cfb77b9acbec5f93b14ec4ae251de89a26da493a5fcd55c1aa5f2f9eacee9"
+    },
+    {
+      "path": "public/js/core.js",
+      "sha256": "722eca749da3d708f47e369e0c6c109b8eaad207348e07427d5252e03c1eac2a"
+    },
+    {
+      "path": "server/dashboard-session-auth.js",
+      "sha256": "459b79ebf848fd68ddae0fed1e0ace37f8dfde7207bc163ab05e24e4c89c0fd0"
+    }
+  ]
+}

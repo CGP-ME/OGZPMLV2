@@ -1,0 +1,17 @@
+{
+  "tree": "dfe597e81c3d63e28b38f0b314a5a8f231bd98b5",
+  "sourceSHA256": "e90767099a69c5770e24f133b07d736b5bb5574020ffd207082ea6ec86136672",
+  "status": "pass",
+  "cases": {
+    "long_true_unprofitable": "scale_in_profit_confirmation",
+    "long_true_profitable": null,
+    "long_false_unprofitable": null,
+    "short_true_unprofitable": "scale_in_profit_confirmation",
+    "short_true_profitable": null,
+    "short_false_unprofitable": null,
+    "false_over_risk_cap": "scale_in_aggregate_risk_cap",
+    "false_max_adds": "scale_in_max_adds",
+    "false_trigger_class": "scale_in_trigger_class_invalid",
+    "invalid_value": "scale_in_profit_confirmation_required"
+  }
+}

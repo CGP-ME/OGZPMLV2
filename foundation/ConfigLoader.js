@@ -2601,6 +2601,9 @@ const EDITABLE_SETTINGS = deepFreeze({
       type: 'number', min: 0, max: Number.MAX_SAFE_INTEGER, integer: true, unit: 'adds',
       label: 'Strategy maximum scale-in adds', effect: 'new_trades_only',
     }],
+    [`exitContracts.${strategyName}.scaleIn.requireProfitConfirmation`, {
+      type: 'boolean', unit: 'boolean', label: 'Require scale-in profit confirmation', effect: 'new_trades_only',
+    }],
     [`exitContracts.${strategyName}.scaleIn.aggregateRiskCap`, {
       type: 'number', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, unit: 'risk multiple',
       label: 'Strategy aggregate scale-in risk cap', effect: 'new_trades_only',

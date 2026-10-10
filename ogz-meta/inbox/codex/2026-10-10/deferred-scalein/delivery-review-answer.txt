@@ -1,0 +1,47 @@
+**VERDICT:** found_break
+
+**ADVERSARIAL_REVIEW_BLOCKING:** yes
+
+**CANDIDATE SET:** examined 6 of 6
+- core/OrderExecutor.js – claim about `missingOrderId` handling (lines 3648‑3653)
+- core/OrderExecutor.js – claim about `scaleIn.requireProfitConfirmation` guard (lines 1685‑1688, 1701‑1709)
+- foundation/ConfigLoader.js – claim about `loadDotenvValues` ENOENT handling (lines 410‑419)
+- foundation/ConfigLoader.js – claim about `venueGuards` accessed without null‑check (lines 1061‑1065)
+- foundation/ConfigLoader.js – claim about `canonicalize` infinite recursion (lines 2124‑2129)
+- foundation/ConfigLoader.js – claim about undefined `strategyName` in a config entry (lines 2596‑2630)
+
+**AST EVIDENCE:** none required beyond the line‑level citations (all claims are supported by concrete source lines).
+
+**INHERITED:** each changed path was examined; no unread or missing sections remain.
+
+**FOURTH SHAPE CLASSIFIER:** 4 of 4 added/modified statements are classified as **MECHANICAL** (direct code issues) and **SUBSTANTIVE** (affect runtime behavior).
+
+**ALLEGATIONS:**
+- **MECHANICAL** – `missingOrderId` flag misuse (OrderExecutor) – evidence:【open_file†L3648-L3653】
+- **MECHANICAL** – `loadDotenvValues` silent ENOENT swallow (ConfigLoader) – evidence:【open_file†L410-L419】
+- **MECHANICAL** – `venueGuards` null‑dereference (ConfigLoader) – evidence:【open_file†L1061-L1065】
+- **MECHANICAL** – `canonicalize` lacks cycle detection (ConfigLoader) – evidence:【open_file†L2124-L2129】
+
+**SUBSTANTIVE RESOLUTION:** convergence – all four mechanical findings are confirmed bugs; the other two claims are **SUBSTANTIVE** but are **UNRESOLVED‑FOR‑TREY** (they are not bugs).
+
+**WHAT I DID:**
+- Opened the relevant source files and inspected the exact line ranges for each claim.
+- Verified the presence or absence of the alleged bugs by reading the code.
+- Recorded line‑level citations for every confirmed issue.
+
+**WHAT I DID NOT DO:**
+- Did not execute any code or run tests; analysis is based solely on static source inspection.
+
+**WHAT I ASSUMED:**
+- The repository snapshot provided is the authoritative current state.
+- No hidden runtime guards exist beyond what is visible in the inspected code.
+
+**WHY THIS VERDICT:**
+- The `missingOrderId` error incorrectly copies `brokerRequestAttempted` into `unknownBrokerReceipt`【open_file†L3648-L3653】, causing mis‑classification of missing order IDs.
+- `loadDotenvValues` returns an empty object on ENOENT, silently ignoring missing `.env` files【open_file†L410-L419】, which can lead to downstream credential failures.
+- `venueGuards` is accessed via `profile.venueGuards.ttp` without a prior null‑check【open_file†L1061-L1065】, risking a TypeError if `profile.venueGuards` is undefined.
+- `canonicalize` recursively processes object properties without cycle detection【open_file†L2124-L2129】, which can cause infinite recursion on cyclic structures.
+
+These concrete code paths constitute verified breaks in the current implementation.
+
+**IF INCOMPLETE, WHY:** not incomplete – all candidate claims have been examined and the evidence is exhaustive for the provided repository snapshot.
