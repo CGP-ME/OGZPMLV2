@@ -2558,6 +2558,10 @@ function openingRangeBreakoutConfigurationProblem(config) {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  'exitContracts.LiquiditySweep.maxHoldTimeMinutes': { type: 'number', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, unit: 'minutes', label: 'Liquidity sweep maximum hold time', effect: 'new_trades_only' },
+  'exitContracts.BreakRetest.maxHoldTimeMinutes': { type: 'number', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, unit: 'minutes', label: 'Break and retest maximum hold time', effect: 'new_trades_only' },
+  'exitContracts.SmartMoneySweep.maxHoldTimeMinutes': { type: 'number', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, unit: 'minutes', label: 'Smart money sweep maximum hold time', effect: 'new_trades_only' },
+  'exitContracts.NoWickImbalance.maxHoldTimeMinutes': { type: 'number', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, unit: 'minutes', label: 'NoWick imbalance maximum hold time', effect: 'new_trades_only' },
   'exitContracts.PropSafeEMAPullback.minConfidence': { type: 'number', min: 0, max: 1, unit: 'fraction', label: 'PropSafe EMA pullback contract minimum confidence', effect: 'next_entry_evaluation' },
   'exitContracts.EMATrendRetest.minConfidence': { type: 'number', min: 0, max: 1, unit: 'fraction', label: 'EMA trend retest contract minimum confidence', effect: 'next_entry_evaluation' },
   'exitContracts.RSI2MeanReversion.minConfidence': { type: 'number', min: 0, max: 1, unit: 'fraction', label: 'RSI2 mean reversion contract minimum confidence', effect: 'next_entry_evaluation' },
