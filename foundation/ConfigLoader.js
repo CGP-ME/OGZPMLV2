@@ -2558,6 +2558,24 @@ function openingRangeBreakoutConfigurationProblem(config) {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  'exitLogic.beScaleOut.enabled': { type: 'boolean', unit: 'boolean', label: 'Break-even scale-out enabled', effect: 'next_trade_policy_creation' },
+  'exitLogic.beScaleOut.triggerType': { type: 'string', values: ['one_to_one_r', 'fixed_percent'], unit: 'trigger mode', label: 'Break-even scale-out trigger mode', effect: 'next_trade_policy_creation' },
+  'exitLogic.beScaleOut.fixedPercentTrigger': { type: 'number', unit: 'percent', min: 0, max: 100, label: 'price percent trigger', effect: 'next_trade_policy_creation' },
+  'exitLogic.beScaleOut.scaleOutFraction': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'scale-out fraction', effect: 'next_trade_policy_creation' },
+  'exitLogic.tieredExit.tier1ExitFraction': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'Tier 1 exit fraction', effect: 'next_trade_policy_creation' },
+  'exitLogic.tieredExit.tier2ExitFraction': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'Tier 2 exit fraction', effect: 'next_trade_policy_creation' },
+  'exitLogic.tieredExit.tier3ExitFraction': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'Tier 3 exit fraction', effect: 'next_trade_policy_creation' },
+  'exitLogic.tieredExit.enabled': { type: 'boolean', unit: 'boolean', label: 'Tiered exit enabled', effect: 'next_trade_policy_creation' },
+  'exitLogic.tieredExit.enableMarketAdaptation': { type: 'boolean', unit: 'boolean', label: 'Tiered exit market adaptation', effect: 'next_trade_policy_creation' },
+  'exitLogic.tieredExit.trendingTargetMultiplier': { type: 'number', unit: 'multiplier', min: 0, max: Number.MAX_VALUE, label: 'Trending target multiplier', effect: 'next_trade_policy_creation' },
+  'exitLogic.tieredExit.rangingTargetMultiplier': { type: 'number', unit: 'multiplier', min: 0, max: Number.MAX_VALUE, label: 'Ranging target multiplier', effect: 'next_trade_policy_creation' },
+  'exitLogic.tieredExit.highConfidenceThreshold': { type: 'number', unit: 'fraction', min: 0, max: Number.MAX_VALUE, label: 'High-confidence threshold', effect: 'next_trade_policy_creation' },
+  'exitLogic.tieredExit.highConfidenceMultiplier': { type: 'number', unit: 'multiplier', min: 0, max: Number.MAX_VALUE, label: 'High-confidence target multiplier', effect: 'next_trade_policy_creation' },
+  'exitLogic.tieredExit.lowConfidenceThreshold': { type: 'number', unit: 'fraction', min: 0, max: Number.MAX_VALUE, label: 'Low-confidence threshold', effect: 'next_trade_policy_creation' },
+  'exitLogic.tieredExit.lowConfidenceMultiplier': { type: 'number', unit: 'multiplier', min: 0, max: Number.MAX_VALUE, label: 'Low-confidence target multiplier', effect: 'next_trade_policy_creation' },
+  'exitLogic.volatilityAdjustment.enabled': { type: 'boolean', unit: 'boolean', label: 'Exit volatility adjustment enabled', effect: 'next_trade_policy_creation' },
+  'exitLogic.volatilityAdjustment.lowThresholdPercent': { type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE, label: 'Low-volatility target threshold', effect: 'next_trade_policy_creation' },
+  'exitLogic.volatilityAdjustment.highThresholdPercent': { type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE, label: 'High-volatility target threshold', effect: 'next_trade_policy_creation' },
   'features.enableLearning': { type: 'boolean', unit: 'boolean', label: 'Enable pattern learning', effect: 'next_pattern_observation; TRAI_memory_requires_restart' },
   'patternMemory.minSamples': { type: 'number', unit: 'trade count', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'Pattern memory minimum samples', effect: 'next_pattern_memory_initialization_restart_required' },
   'patternMemory.successThreshold': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'Pattern memory success threshold', effect: 'next_pattern_memory_initialization_restart_required' },
@@ -4142,6 +4160,12 @@ function saveSettings(request) {
       ? `launchProfiles.${_cached.config.mode.launchProfile}.${key}` : key;
     setObjectPath(nextSettings, canonicalPath, value);
     setObjectPath(nextConfig, key, value);
+  }
+  if (entries.some(([key]) => /^exitLogic\.tieredExit\.tier[123]ExitFraction$/.test(key))) {
+    const tiers = nextConfig.exitLogic.tieredExit;
+    if (tiers.tier1ExitFraction + tiers.tier2ExitFraction + tiers.tier3ExitFraction > 1) {
+      return reject('tier_exit_fractions_must_not_exceed_one');
+    }
   }
   if (entries.some(([key]) => key.startsWith('strategies.RSI.'))
       && nextConfig.strategies.RSI.buyBelow >= nextConfig.strategies.RSI.exitAbove) {

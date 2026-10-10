@@ -145,3 +145,9 @@ HEAD source at d0310b15 passes trai.maxConf into maxConfidenceOverride at run-em
 
 - Evidence: The ten patternMemory.bank fields are consumed by core/PatternMemoryBank.js, but the current EnhancedPatternRecognition and TRAI constructors use core/UnifiedPatternMemory.js. A bounded production require/constructor trace found no active PatternMemoryBank constructor. Old OrderExecutor comments naming that bank accompany calls through the current TRAI interface and do not prove legacy-bank activation.
 - Action/status: Preserve the legacy bank declarations/module and determine their intended role in the deferred pass. Expose the seven active UnifiedPatternMemory policy fields separately; retain persistToDisk/saveIntervalMs as operator storage settings rather than customer trading controls. Do not delete intended features or wire a second memory bank during configuration migration.
+
+## 26. Shared exit declarations without active behavior
+
+- exitLogic.beScaleOut.feeBufferPercent is copied/normalized into policy but has no active behavior reader; exitLogic.volatilityAdjustment.lookbackPeriods is validated without participating in the volatility calculation. Preserve both settings for the intent/wiring pass.
+- exitLogic.trail.roundNumberProximity and roundNumberTighten are read by core/exit/DynamicTrailingStop.js, but the current production tree has no constructor/import activating that module. ExitContractManager's active trailing calculation does not read these fields. Preserve the module and declarations; do not invent a second trailing path or expose inert controls during migration.
+- Evidence: exact candidate 39dd10b07dc4ca3ee5fbae05937a9e5ffe8a0f99 and the bounded consumer trace in ogz-meta/inbox/codex/2026-10-09/exit-logic-controls/. Eighteen effective shared-exit fields were separately verified and connected.
