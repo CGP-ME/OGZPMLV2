@@ -2558,6 +2558,15 @@ function openingRangeBreakoutConfigurationProblem(config) {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  'exitContracts.EMASMACrossover.stopLossPercent': { type: 'number', min: -Number.MAX_VALUE, max: 0, exclusiveMax: true, unit: 'percent', label: 'EMA crossover base stop loss before ATR and volatility adjustments', effect: 'new_trades_only' },
+  'exitContracts.EMASMACrossover.maxHoldTimeMinutes': { type: 'number', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, unit: 'minutes', label: 'EMA crossover maximum hold time', effect: 'new_trades_only' },
+  'exitContracts.MADynamicSR.stopLossPercent': { type: 'number', min: -Number.MAX_VALUE, max: 0, exclusiveMax: true, unit: 'percent', label: 'MA support/resistance base stop loss before ATR and volatility adjustments', effect: 'new_trades_only' },
+  'exitContracts.MADynamicSR.maxHoldTimeMinutes': { type: 'number', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, unit: 'minutes', label: 'MA support/resistance maximum hold time', effect: 'new_trades_only' },
+  'exitContracts.CandlePattern.stopLossPercent': { type: 'number', min: -Number.MAX_VALUE, max: 0, exclusiveMax: true, unit: 'percent', label: 'Candle pattern base stop loss before ATR and volatility adjustments', effect: 'new_trades_only' },
+  'exitContracts.CandlePattern.maxHoldTimeMinutes': { type: 'number', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, unit: 'minutes', label: 'Candle pattern maximum hold time', effect: 'new_trades_only' },
+  'exitContracts.MarketRegime.stopLossPercent': { type: 'number', min: -Number.MAX_VALUE, max: 0, exclusiveMax: true, unit: 'percent', label: 'Market regime base stop loss before ATR and volatility adjustments', effect: 'new_trades_only' },
+  'exitContracts.MarketRegime.maxHoldTimeMinutes': { type: 'number', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, unit: 'minutes', label: 'Market regime maximum hold time', effect: 'new_trades_only' },
+  'exitContracts.OGZTPO.maxHoldTimeMinutes': { type: 'number', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, unit: 'minutes', label: 'OGZTPO maximum hold time', effect: 'new_trades_only' },
   'exitContracts.RSI.stopLossPercent': { type: 'number', min: -Number.MAX_VALUE, max: 0, exclusiveMax: true, unit: 'percent', label: 'RSI base stop loss before ATR and volatility adjustments', effect: 'new_trades_only' },
   'exitContracts.RSI.maxHoldTimeMinutes': { type: 'number', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, unit: 'minutes', label: 'RSI maximum hold time', effect: 'new_trades_only' },
   'exitContracts.RSI.minConfidence': { type: 'number', min: 0, max: 1, unit: 'fraction', label: 'RSI contract minimum confidence', effect: 'next_entry_evaluation' },
