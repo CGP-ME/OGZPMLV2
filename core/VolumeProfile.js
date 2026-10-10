@@ -239,9 +239,11 @@ class VolumeProfile {
       // Distribute volume with emphasis on close (more volume where candle closed)
       for (let b = Math.max(0, lowBin); b <= Math.min(config.numBins - 1, highBin); b++) {
         // Weight: more volume near the close price
-        const binMid = binPrices[b];
-        const distToClose = Math.abs(binMid - cdClose);
-        const distToOpen = Math.abs(binMid - cdOpen);
+        const overlapLow = Math.max(cdLow, minPrice + b * binSize);
+        const overlapHigh = Math.min(cdHigh, minPrice + (b + 1) * binSize);
+        const overlapMid = overlapLow + (overlapHigh - overlapLow) / 2;
+        const distToClose = Math.abs(overlapMid - cdClose);
+        const distToOpen = Math.abs(overlapMid - cdOpen);
         const minDist = Math.min(distToClose, distToOpen);
         const maxDist = cdHigh - cdLow || 1;
         const weight = 1 + (1 - minDist / maxDist); // 1-2x weight, higher near close/open
