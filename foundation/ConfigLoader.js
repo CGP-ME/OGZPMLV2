@@ -2558,6 +2558,12 @@ function openingRangeBreakoutConfigurationProblem(config) {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  'fibonacci.levels': { type: 'array', itemType: 'number', itemMin: 0, maxItems: Number.MAX_SAFE_INTEGER, minItems: 1, label: 'Fibonacci retracement levels', effect: 'next_fibonacci_detector_initialization_restart_required' },
+  'fibonacci.goldenZone': { type: 'array', itemType: 'number', itemMin: 0, maxItems: 2, minItems: 2, label: 'Fibonacci golden-zone bounds', effect: 'next_fibonacci_detector_initialization_restart_required' },
+  'fibonacci.lookbackCandles': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'Fibonacci swing lookback', effect: 'next_fibonacci_detector_initialization_restart_required' },
+  'fibonacci.strengthRequired': { type: 'number', unit: 'swing strength', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'Fibonacci swing strength requirement', effect: 'next_fibonacci_detector_initialization_restart_required' },
+  'fibonacci.swingThresholdPercent': { type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE, label: 'Fibonacci swing threshold', effect: 'next_fibonacci_detector_initialization_restart_required' },
+  'fibonacci.proximityThreshold': { type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE, label: 'Fibonacci nearest-level proximity', effect: 'next_fibonacci_detector_initialization_restart_required' },
   'orchestrator.minCandlesEMA': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'EMA/SMA minimum candles', effect: 'next_orchestrator_restart' },
   'orchestrator.minCandlesMASR': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'MA dynamic S/R minimum candles', effect: 'next_orchestrator_restart' },
   'orchestrator.minCandlesSweep': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'Liquidity sweep minimum candles', effect: 'next_orchestrator_restart' },
@@ -4139,6 +4145,7 @@ function saveSettings(request) {
         && Number(item.trim()) > definition.itemMin));
     const validNumericArray = definition.type !== 'array' || (Array.isArray(value)
       && value.length >= definition.minItems
+      && (definition.maxItems === undefined || value.length <= definition.maxItems)
       && value.every(item => typeof item === definition.itemType
         && Number.isFinite(item)
         && (!definition.itemInteger || Number.isSafeInteger(item))
