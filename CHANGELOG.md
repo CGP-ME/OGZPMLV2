@@ -1,3 +1,10 @@
+## 2026-10-10 — Align five stop-control bounds with the existing policy consumer (Stop 1)
+
+- Problem/change: The five newly delivered base-stop controls accepted values below -100, while PolicyBuilder already requires -100 <= stopLossPercent < 0. Correct the descriptor minimum for RSI, EMA crossover, MA dynamic support/resistance, candle pattern and market regime. This fixes the authored save domain; no trading algorithm or runtime guard is added, and current configured values are unchanged.
+- Verification: candidate `a78e55ba5db645b6838afe662a1efc261f57a2f0`, base `b2b5be11a7895af393d3b0e489631f28145f1d0e`. Real save accepts -100 for all five; fresh ECM contracts and PolicyBuilder receive it. Separate -100.01 saves reject for every field without changing disk; retained contracts stay unchanged. Syntax, diff and staged secret checks pass.
+- Review: Scoped Astra PASS. Mercury `2026-10-10T03-56-42-418Z-cefdac4ba836` returns no_break_found. Its literal-key search does not establish consumer coverage; the active ECM/PolicyBuilder route is established independently by the executable fixture and Astra source review.
+- Evidence/activation: [behavior](ogz-meta/inbox/codex/2026-10-10/stop-percent-domain/behavior.log), [source manifest](ogz-meta/inbox/codex/2026-10-10/stop-percent-domain/final-reviewed-source-receipt.json), [Astra](ogz-meta/inbox/codex/2026-10-10/stop-percent-domain/astra-review.txt). Controlled source-level exercise, no broker/browser rehearsal, PM2 restart or runtime activation. Overall Stop 1 remains open.
+
 ## 2026-10-10 — Connect 48 strategy partial-exit controls (Stop 1 / UI-08)
 
 - Problem/change: The sixteen named strategy contracts already owned partialExit.enabled, triggerR and fraction, but customers could not save them through the settings panel. Register those 48 controls with new-trade timing. The enabled label says “Use strategy partial-exit policy”: disabling it retains the existing global break-even scale-out selection. Generic default and evidence-only remainderTrail are not exposed. No execution algorithm, new runtime gate, throw, fallback or alias changes.
