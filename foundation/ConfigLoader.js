@@ -2558,6 +2558,14 @@ function openingRangeBreakoutConfigurationProblem(config) {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  'features.enableLearning': { type: 'boolean', unit: 'boolean', label: 'Enable pattern learning', effect: 'next_pattern_observation; TRAI_memory_requires_restart' },
+  'patternMemory.minSamples': { type: 'number', unit: 'trade count', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'Pattern memory minimum samples', effect: 'next_pattern_memory_initialization_restart_required' },
+  'patternMemory.successThreshold': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'Pattern memory success threshold', effect: 'next_pattern_memory_initialization_restart_required' },
+  'patternMemory.failureThreshold': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'Pattern memory failure threshold', effect: 'next_pattern_memory_initialization_restart_required' },
+  'patternMemory.maxAgeDays': { type: 'number', unit: 'days', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'Pattern memory maximum age', effect: 'next_pattern_memory_initialization_restart_required' },
+  'patternMemory.decayHalflifeDays': { type: 'number', unit: 'days', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, label: 'Pattern memory decay half-life', effect: 'next_pattern_memory_initialization_restart_required' },
+  'patternMemory.maxPatterns': { type: 'number', unit: 'patterns', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'Pattern memory maximum patterns', effect: 'next_pattern_memory_initialization_restart_required' },
+  'patternMemory.dtwThreshold': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'Pattern memory DTW similarity threshold', effect: 'next_pattern_memory_initialization_restart_required' },
   'performanceAnalysis.minTradesForAnalysis': { type: 'number', unit: 'trade count', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'Minimum trades before performance insights', effect: 'next_performance_analyzer_initialization_restart_required' },
   'performanceAnalysis.edgeDecayLookback': { type: 'number', unit: 'trade count', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'Performance edge-decay lookback', effect: 'next_performance_analyzer_initialization_restart_required' },
   'performanceAnalysis.edgeDecayThreshold': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'Edge-decay detection threshold', effect: 'next_performance_analyzer_initialization_restart_required' },

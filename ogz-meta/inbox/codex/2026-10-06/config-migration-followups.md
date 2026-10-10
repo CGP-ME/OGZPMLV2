@@ -140,3 +140,8 @@ HEAD source at d0310b15 passes trai.maxConf into maxConfidenceOverride at run-em
 
 - Evidence: core/TwoPoleOscillator.js:17 assigns config.extremeOversold to the instance. No later method reads that property. confidenceBase is read at :251 and unconditionally overwritten by the exhaustive branches at :254-263. Independent Astra review reproduced identical outputs for confidenceBase 0 and 100 over 36 input pairs. The other 40 optimized-indicator inputs have actual consumer paths and were separately connected to the settings save registry.
 - Action/status: Preserve the canonical extremeOversold and confidenceBase values and assignments. Determine intended asymmetric threshold behavior in the deferred pass; do not expose it as an effective customer control or invent its missing behavior during migration.
+
+## 25. Legacy pattern bank configuration is not the active memory owner
+
+- Evidence: The ten patternMemory.bank fields are consumed by core/PatternMemoryBank.js, but the current EnhancedPatternRecognition and TRAI constructors use core/UnifiedPatternMemory.js. A bounded production require/constructor trace found no active PatternMemoryBank constructor. Old OrderExecutor comments naming that bank accompany calls through the current TRAI interface and do not prove legacy-bank activation.
+- Action/status: Preserve the legacy bank declarations/module and determine their intended role in the deferred pass. Expose the seven active UnifiedPatternMemory policy fields separately; retain persistToDisk/saveIntervalMs as operator storage settings rather than customer trading controls. Do not delete intended features or wire a second memory bank during configuration migration.
