@@ -1,3 +1,10 @@
+## 2026-10-10 — Original Stop 1 UI-08: connect orchestrator history and Fibonacci controls
+
+- Change: Register ten existing orchestrator controls: five history requirements, three Fibonacci proximity thresholds and two confidence boosts. All retain their canonical settings owner and constructor/restart timing. Existing strategy implementations and values are unchanged; no new defaults, fallbacks, throws or trading gates.
+- Verification: Exact production candidate 3b0a8e04dc179de06987490872d32add14b1f96c against 3c4b2ecd. All ten edits persist and reach a fresh real StrategyOrchestrator while its retained predecessor stays unchanged. Actual registered evaluators exercise all five history requirements, all three proximity branches, and both confidence-boost calculations with controlled module signals. Fibonacci context is produced by TradingLoop's existing detector update/getNearestLevel path. Syntax, whitespace and staged secret checks passed; no broker/full-bot claim or Jest addition.
+- Review: Mercury run 2026-10-10T00-11-20-338Z-9b4f53732376 returns no_break_found; its source investigation refutes inherited run-descriptor/mode allegations. Consumer behavior is established by the separate executable fixture, not inferred from that loader-only review answer. Evidence: ogz-meta/inbox/codex/2026-10-09/orchestrator-core-controls/ (exact-source manifest, fixtures/check.cjs, behavior.log, delivery-review-answer.txt).
+- Status: Original Stop 1 remains open. No live save, PM2 restart, deployment, broker call or Mercury reindex. Unrelated dirty work preserved.
+
 ## 2026-10-10 — Original Stop 1 UI-08: connect shared exit-policy controls
 
 - Change: Expose eighteen existing break-even scale-out, tiered-exit and volatility-adjustment settings through the existing customer UI/save registry. Their values remain in config/settings.json and apply to newly created frozen trade policies. Validate the existing total-tier-fraction contract at save time before publishing customer input; this prevents an overallocated edit from reaching PolicyBuilder's existing rejection. No new execution gate, throw, fallback, default or exit algorithm.

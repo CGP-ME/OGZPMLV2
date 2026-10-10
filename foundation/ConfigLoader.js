@@ -2558,6 +2558,16 @@ function openingRangeBreakoutConfigurationProblem(config) {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  'orchestrator.minCandlesEMA': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'EMA/SMA minimum candles', effect: 'next_orchestrator_restart' },
+  'orchestrator.minCandlesMASR': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'MA dynamic S/R minimum candles', effect: 'next_orchestrator_restart' },
+  'orchestrator.minCandlesSweep': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'Liquidity sweep minimum candles', effect: 'next_orchestrator_restart' },
+  'orchestrator.minCandlesMTF': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'Multi-timeframe minimum candles', effect: 'next_orchestrator_restart' },
+  'orchestrator.minCandlesTPO': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'OGZ TPO minimum candles', effect: 'next_orchestrator_restart' },
+  'orchestrator.fibDistanceEMA': { type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE, label: 'EMA/SMA Fibonacci proximity', effect: 'next_orchestrator_restart' },
+  'orchestrator.fibDistanceMASR': { type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE, label: 'MA dynamic S/R Fibonacci proximity', effect: 'next_orchestrator_restart' },
+  'orchestrator.fibDistanceSweep': { type: 'number', unit: 'percent', min: 0, max: Number.MAX_VALUE, label: 'Liquidity sweep Fibonacci proximity', effect: 'next_orchestrator_restart' },
+  'orchestrator.fibBoostNormal': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'Normal Fibonacci confidence boost', effect: 'next_orchestrator_restart' },
+  'orchestrator.fibBoostGolden': { type: 'number', unit: 'fraction', min: 0, max: 1, label: 'Golden-zone Fibonacci confidence boost', effect: 'next_orchestrator_restart' },
   'exitLogic.beScaleOut.enabled': { type: 'boolean', unit: 'boolean', label: 'Break-even scale-out enabled', effect: 'next_trade_policy_creation' },
   'exitLogic.beScaleOut.triggerType': { type: 'string', values: ['one_to_one_r', 'fixed_percent'], unit: 'trigger mode', label: 'Break-even scale-out trigger mode', effect: 'next_trade_policy_creation' },
   'exitLogic.beScaleOut.fixedPercentTrigger': { type: 'number', unit: 'percent', min: 0, max: 100, label: 'price percent trigger', effect: 'next_trade_policy_creation' },
