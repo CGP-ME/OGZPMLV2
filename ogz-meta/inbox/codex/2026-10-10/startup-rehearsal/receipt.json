@@ -1,0 +1,157 @@
+{
+  "date": "2026-10-10",
+  "authorization": "Trey requested full startup, restart with environment reload, and dashboard startup check before planning Stop 2.",
+  "sourceHead": "d500a358157e28137e4dd7fbc66f1f05cb14bff1",
+  "sourceIncludesPreexistingUncommittedWork": true,
+  "trackedDirtyPathsAtStart": [
+    " M CHANGELOG.md",
+    " M config/settings.json",
+    " M core/BacktestRunner.js",
+    " M core/DrawdownTracker.js",
+    " M core/EnhancedPatternRecognition.js",
+    " M core/ExitContractManager.js",
+    " M core/FeatureExtractor.js",
+    " M core/OrderExecutor.js",
+    " M core/PnLTracker.js",
+    " M core/PolicyBuilder.js",
+    " M core/ProfitExitPlanner.js",
+    " M core/StateManager.js",
+    " M core/StrategyOrchestrator.js",
+    " M core/TradingLoop.js",
+    " M core/dto/DecisionLedgerSchema.js",
+    " M foundation/ConfigLoader.js",
+    " M modules/DonchianBreakout.js",
+    " M modules/EMATrendRetest.js",
+    " M modules/PropSafeEMAPullback.js",
+    " M modules/RSI2MeanReversion.js",
+    " M modules/TimeSeriesMomentum.js",
+    " M ogzprime-ssl-server.js",
+    " M public/js/panels/chain-of-thought.js",
+    " M public/js/panels/confidence-heatbar.js",
+    " M public/unified-dashboard-v2.html",
+    " M public/unified-dashboard.html",
+    " M run-empire-v2.js",
+    " M trai_brain/mercury-bridge/adversarial-review.js",
+    " M trai_brain/mercury-bridge/ask.js",
+    " M trai_brain/mercury-bridge/config.js",
+    " M trai_brain/mercury-bridge/doctrine-review.js",
+    " M trai_brain/mercury-bridge/evidence-ingestion.js",
+    " M trai_brain/mercury-bridge/explicit-continuation.js",
+    " M trai_brain/mercury-bridge/indexer.js",
+    " M trai_brain/mercury-bridge/run-ledger.js",
+    " M trai_brain/mercury-bridge/tool-adapter.js"
+  ],
+  "sourceChangedDuringObservation": [],
+  "command": "bash start-ogzprime.sh restart",
+  "startupUsesUpdateEnv": true,
+  "observedAt": "2026-10-10T23:57:02.425560+00:00",
+  "processes": [
+    {
+      "name": "ogz-prime-v2",
+      "pid": 3935099,
+      "status": "online",
+      "restarts": 1,
+      "startedAt": "2026-10-10T23:54:19.041000+00:00"
+    },
+    {
+      "name": "ogz-websocket",
+      "pid": 3935053,
+      "status": "online",
+      "restarts": 1,
+      "startedAt": "2026-10-10T23:54:17.936000+00:00"
+    },
+    {
+      "name": "ogz-supervisor",
+      "pid": 3935117,
+      "status": "online",
+      "restarts": 0,
+      "startedAt": "2026-10-10T23:54:19.510000+00:00"
+    },
+    {
+      "name": "ogz-stripe",
+      "pid": 3935080,
+      "status": "online",
+      "restarts": 0,
+      "startedAt": "2026-10-10T23:54:18.462000+00:00"
+    }
+  ],
+  "runtimeConfig": {
+    "event": "runtime_config",
+    "execution": {
+      "value": "paper",
+      "source": "config:settings.json:launchProfiles.paper.mode"
+    },
+    "paper": {
+      "value": true,
+      "source": "derived:mode.paperTrading"
+    },
+    "live": {
+      "value": false,
+      "source": "derived:mode.liveTrading"
+    },
+    "broker": {
+      "value": "alpaca",
+      "source": "config:settings.json:execution"
+    },
+    "symbols": {
+      "value": [
+        "TSLA",
+        "NVDA",
+        "COIN",
+        "MARA",
+        "RIOT"
+      ],
+      "source": "config:settings.json:execution"
+    },
+    "timeframe": {
+      "value": "15m",
+      "source": "config:settings.json:execution"
+    },
+    "alpacaCredentialsFromDotenv": true,
+    "feeModel": {
+      "value": "percent",
+      "source": "config:settings.json:fees"
+    }
+  },
+  "browser": {
+    "url": "https://ogzprime.com/unified-dashboard-v2.html",
+    "status": 200,
+    "title": "OGZPrime Unified Dashboard v2",
+    "errors": [],
+    "consoleErrors": [],
+    "failedRequests": [],
+    "sockets": [
+      {
+        "url": "wss://ogzprime.com/ws",
+        "received": 121,
+        "types": {
+          "auth_success": 1,
+          "state_update": 2,
+          "broker_status": 12,
+          "historical_candles": 2,
+          "price": 13,
+          "ticker_price": 13,
+          "depth_update": 38,
+          "market_internals": 38,
+          "cvd_update": 1,
+          "pong": 1
+        },
+        "closed": false
+      }
+    ]
+  },
+  "observations": [
+    "Public dashboard and control panel return HTTP 200 with no-store. Public health endpoint returns healthy; this describes the relay, not entry readiness.",
+    "Anonymous dashboard loads but session-ticket request returns 401 and socket remains disconnected. Authenticated session receives 121 WebSocket frames, including state_update, historical_candles, price, broker_status and pong, with no JS errors or failed requests.",
+    "Alpaca account verified and data stream authenticated. Boot hydrated 60 TSLA 15m candles, latest 2026-10-09T20:45:00.000Z.",
+    "Startup explicitly reports entries blocked: StateManager.isTrading=false. Loaded state file has false with null pause source/reason and zero active trades. No resume command was issued.",
+    "Alpaca silence watchdog reported about 90 seconds without stream data, marked broker truth unavailable, then reauthenticated. Dashboard market status displayed CLOSED. This is an observed closed-market reconnect, not a proven market-hours feed failure.",
+    "Dashboard rendered TSLA history and live report but shows BOT STATE AWAITING and broker disconnected status during observation.",
+    "All four PM2 services remain online. Bot and relay each have one requested restart; checkout and supervisor have zero restarts. No post-start crash loop observed."
+  ],
+  "limitations": [
+    "No code/config/env edits, trading resume, live-mode switch or test order. Stop 2 implementation remains paused.",
+    "This is a startup and dashboard check, not strategy/trade execution acceptance or proof that all intended features work.",
+    "Current working settings select percent fees; the committed settings differ. Existing dirty work was preserved and its effect reported, not attributed to the prior committed migration."
+  ]
+}
