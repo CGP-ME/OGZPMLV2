@@ -2558,6 +2558,19 @@ function openingRangeBreakoutConfigurationProblem(config) {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  ...Object.fromEntries([
+    'EMASMACrossover', 'LiquiditySweep', 'BreakRetest', 'RSI', 'MADynamicSR', 'CandlePattern', 'MarketRegime', 'OGZTPO', 'OpeningRangeBreakout', 'SmartMoneySweep', 'DonchianBreakout', 'PropSafeEMAPullback', 'EMATrendRetest', 'RSI2MeanReversion', 'TimeSeriesMomentum', 'NoWickImbalance'
+  ].flatMap((strategyName) => [
+    [`exitContracts.${strategyName}.partialExit.enabled`, {
+      type: 'boolean', unit: 'boolean', label: 'Use strategy partial-exit policy', effect: 'new_trades_only',
+    }],
+    [`exitContracts.${strategyName}.partialExit.triggerR`, {
+      type: 'number', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, unit: 'risk multiple', label: 'Partial-exit trigger risk multiple', effect: 'new_trades_only',
+    }],
+    [`exitContracts.${strategyName}.partialExit.fraction`, {
+      type: 'number', min: 0, exclusiveMin: true, max: 1, unit: 'fraction', label: 'Partial-exit fraction', effect: 'new_trades_only',
+    }],
+  ])),
   'exitContracts.LiquiditySweep.maxHoldTimeMinutes': { type: 'number', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, unit: 'minutes', label: 'Liquidity sweep maximum hold time', effect: 'new_trades_only' },
   'exitContracts.BreakRetest.maxHoldTimeMinutes': { type: 'number', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, unit: 'minutes', label: 'Break and retest maximum hold time', effect: 'new_trades_only' },
   'exitContracts.SmartMoneySweep.maxHoldTimeMinutes': { type: 'number', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, unit: 'minutes', label: 'Smart money sweep maximum hold time', effect: 'new_trades_only' },
