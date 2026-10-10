@@ -1,3 +1,9 @@
+## 2026-10-10 — Export the requested dynamic configuration for the UI agent
+
+- Delivery: Export an exact config/settings.json snapshot from 35b052087bdce29761028f515d124b7c74c3acae, plus the 721 committed UI field definitions and a short existing-transport guide, under ogz-meta/inbox/codex/2026-10-10/dynamic-config-ui-handoff/. These are handoff artifacts, not new runtime owners. Preserve unrelated working-tree config edits.
+- Verification/review: The settings copy matches the committed bytes and recorded SHA-256. Source manifest hashes match committed production files; field metadata is exported from that qualified loader with fixture credentials omitted from the output. JSON parses, all 721 definitions are present, and the archive contains the four intended files. Scoped artifact diff and staged secret scan pass. No production code changes; Mercury is not required for this export.
+- Limits: Migration completion does not establish absence of every phantom call or crash. Previously deferred MTF and disconnected-feature findings remain in the existing followup log. No runtime save, broker operation or PM2 restart.
+
 ## 2026-10-10 — Finish Stop 1 settings migration and correct Learning navigation
 
 - Final product correction: The settings panel routed canonical patternMemory, patternRecognition, featureExtraction and features controls into Runtime because its Learning matcher recognized different prefixes. Match the actual canonical prefixes. The existing dynamic-sizing exception stays in Risk. No save transport, trading algorithm, gate, throw, fallback or ownership change.

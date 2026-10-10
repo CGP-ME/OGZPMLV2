@@ -1,0 +1,6 @@
+{
+  "commit": "35b052087bdce29761028f515d124b7c74c3acae",
+  "canonicalPath": "config/settings.json",
+  "sha256": "807b57da4b7c990c9b70202c6d69967f5efba2092268c4d9f5b835a45f6d3c79",
+  "purpose": "UI handoff snapshot; not another runtime configuration owner"
+}
