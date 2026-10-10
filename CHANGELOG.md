@@ -1,3 +1,10 @@
+## 2026-10-10 — Connect learned-pattern persistence controls (Stop 1)
+
+- Change: Register patternMemory.persistToDisk and saveIntervalMs with their existing constructor/restart lifetime. The interval respects the existing Node timer representation limit; configured defaults, memory ownership, timers and persistence implementation are unchanged. No new execution gate, fallback or throw.
+- Verification: exact candidate c0da09b3e7af251a5ba82f3f30bb0e731db8293e against e41413bb9dde9dfd5607a52a8fe37990b9392e6d. Actual settings saves create a fresh memory with a 7000ms timer and successful isolated disk write; disabling persistence creates no timer and skips writes. Held instances remain unchanged. Invalid timer values reject in the existing settings transport. Syntax, diff and staged secret checks pass.
+- Review: Scoped Astra PASS. Mercury a35dd477ca5e (2026-10-10T19-38-18-446Z) reports found_break solely for unchanged dotenv ENOENT handling, and refutes its missing-consumer allegation. Authorized combined adjudication preserves that raw finding and confirms the actual consumer route; no unrelated repair.
+- Evidence/limits: ogz-meta/inbox/codex/2026-10-10/pattern-persistence-controls/ contains exact-source manifest, executed fixture, behavior log and adversarial receipts. Actual writes occurred only in the isolated candidate directory. No production configuration save, pattern-bank mutation, PM2 restart or runtime activation.
+
 ## 2026-10-10 — Connect the two remaining volume-profile bin controls (Stop 1 / UI-08)
 
 - Problem/change: VolumeProfile.numBins and SmartMoneySweep.vpBins were effective canonical settings withheld from the customer save surface during speculative resource-budget discussion. Register the existing values as positive integer bin counts. VolumeProfile applies at its next scheduled rebuild; retained SmartMoneySweep refreshes on its next observation/evaluation. The 0xffffffff maximum is the ordinary Array representation limit used by both computations, not a practical resource-budget recommendation. No invented performance cap, allocation guard, algorithm change, fallback or alias was added.

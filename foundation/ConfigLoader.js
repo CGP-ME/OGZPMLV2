@@ -2558,6 +2558,8 @@ function openingRangeBreakoutConfigurationProblem(config) {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  'patternMemory.persistToDisk': { type: 'boolean', unit: 'boolean', label: 'Save learned patterns to disk', effect: 'next_pattern_memory_initialization_restart_required' },
+  'patternMemory.saveIntervalMs': { type: 'number', min: 1, max: 2147483647, integer: true, unit: 'milliseconds', label: 'Learned-pattern save interval', effect: 'next_pattern_memory_initialization_restart_required' },
   'strategies.SmartMoneySweep.vpBins': {
     type: 'number', unit: 'bins', min: 1, max: 0xffffffff, integer: true,
     label: 'Smart money sweep volume-profile bins', effect: 'next_SmartMoneySweep_observation_and_entry_evaluation',
