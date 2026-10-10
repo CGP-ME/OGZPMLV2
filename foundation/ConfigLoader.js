@@ -2558,6 +2558,18 @@ function openingRangeBreakoutConfigurationProblem(config) {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  ...Object.fromEntries([
+    ['maxTokens', 'TRAI LLM maximum request tokens', { type: 'number', min: 1, max: 200000, integer: true, unit: 'tokens' }],
+    ['minimumTokens', 'TRAI LLM minimum request tokens', { type: 'number', min: 0, max: 200000, integer: true, unit: 'tokens' }],
+    ['temperature', 'TRAI LLM sampling temperature', { type: 'number', min: 0, max: 2, unit: 'temperature' }],
+    ['requestTimeoutMs', 'TRAI LLM request timeout', { type: 'number', min: 1000, max: 300000, integer: true, unit: 'milliseconds' }],
+  ].map(([key, label, domain]) => [`trai.llm.${key}`, {
+    ...domain, label, effect: 'next_bot_initialization_restart_required',
+  }])),
+  'trai.llm.systemPrompt': {
+    type: 'string', pattern: '\\S', unit: 'instruction text', label: 'TRAI LLM system instruction',
+    effect: 'next_bot_initialization_restart_required',
+  },
   'patternMemory.persistToDisk': { type: 'boolean', unit: 'boolean', label: 'Save learned patterns to disk', effect: 'next_pattern_memory_initialization_restart_required' },
   'patternMemory.saveIntervalMs': { type: 'number', min: 1, max: 2147483647, integer: true, unit: 'milliseconds', label: 'Learned-pattern save interval', effect: 'next_pattern_memory_initialization_restart_required' },
   'strategies.SmartMoneySweep.vpBins': {
@@ -4239,6 +4251,7 @@ function saveSettings(request) {
             && (definition.itemMin === undefined || item > definition.itemMin))));
     if ((definition.type !== 'array' && typeof value !== definition.type) || !validIntegerList || !validArray
       || (definition.values && !definition.values.includes(value))
+      || (definition.pattern && !new RegExp(definition.pattern).test(value))
       || (definition.type === 'number' && (!Number.isFinite(value) || value < definition.min || value > definition.max
         || (definition.exclusiveMin && value === definition.min) || (definition.exclusiveMax && value === definition.max)
         || (definition.integer && !Number.isSafeInteger(value))))) {

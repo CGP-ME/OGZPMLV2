@@ -478,7 +478,7 @@ class TRAICore extends EventEmitter {
       }
 
       const startTime = Date.now();
-      const response = await this.persistentLLM.generateResponse(fullPrompt, 2500);
+      const response = await this.persistentLLM.generateResponse(fullPrompt);
       const inferenceTime = Date.now() - startTime;
 
       this.processPool.totalCompleted++;
