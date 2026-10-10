@@ -2558,6 +2558,13 @@ function openingRangeBreakoutConfigurationProblem(config) {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  'strategyBehavior.trendRegimeGate.enabled': { type: 'boolean', unit: 'boolean', label: 'Require trending regime for selected strategies', effect: 'next_strategy_evaluation' },
+  'strategyBehavior.trendRegimeGate.minConfidence': { type: 'number', min: 0, max: 1, unit: 'fraction', label: 'Trending regime minimum confidence', effect: 'next_strategy_evaluation' },
+  'strategyBehavior.trendRegimeGate.strategies': { type: 'array', itemType: 'string', minItems: 0, label: 'Strategies requiring a trending regime', effect: 'next_strategy_evaluation' },
+  'strategyBehavior.atrContracts.enabled': { type: 'boolean', unit: 'boolean', label: 'Scale new exit contracts by ATR', effect: 'next_trade_policy_creation' },
+  'strategyBehavior.atrContracts.stopMultiplier': { type: 'number', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, unit: 'ATR multiplier', label: 'ATR contract stop multiplier', effect: 'next_trade_policy_creation' },
+  'strategyBehavior.atrContracts.trailMultiplier': { type: 'number', min: 0, max: Number.MAX_VALUE, unit: 'ATR multiplier', label: 'ATR contract trail multiplier', effect: 'next_trade_policy_creation' },
+  'strategyBehavior.atrContracts.trailingActivationR': { type: 'number', min: 0, max: Number.MAX_VALUE, unit: 'risk multiple', label: 'ATR contract trail activation', effect: 'next_trade_policy_creation' },
   'orchestrator.mtfAdapter.indicatorPeriods.rsi': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'MTF rsi', effect: 'next_mtf_adapter_initialization_restart_required' },
   'orchestrator.mtfAdapter.indicatorPeriods.smaFast': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'MTF smaFast', effect: 'next_mtf_adapter_initialization_restart_required' },
   'orchestrator.mtfAdapter.indicatorPeriods.smaSlow': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'MTF smaSlow', effect: 'next_mtf_adapter_initialization_restart_required' },
@@ -4153,14 +4160,15 @@ function saveSettings(request) {
       && value.split(',').every(item => item.trim() !== ''
         && Number.isSafeInteger(Number(item.trim()))
         && Number(item.trim()) > definition.itemMin));
-    const validNumericArray = definition.type !== 'array' || (Array.isArray(value)
+    const validArray = definition.type !== 'array' || (Array.isArray(value)
       && value.length >= definition.minItems
       && (definition.maxItems === undefined || value.length <= definition.maxItems)
       && value.every(item => typeof item === definition.itemType
-        && Number.isFinite(item)
-        && (!definition.itemInteger || Number.isSafeInteger(item))
-        && (definition.itemMin === undefined || item > definition.itemMin)));
-    if ((definition.type !== 'array' && typeof value !== definition.type) || !validIntegerList || !validNumericArray
+        && (definition.itemType === 'string' ? item.trim() !== '' && item === item.trim()
+          : Number.isFinite(item)
+            && (!definition.itemInteger || Number.isSafeInteger(item))
+            && (definition.itemMin === undefined || item > definition.itemMin))));
+    if ((definition.type !== 'array' && typeof value !== definition.type) || !validIntegerList || !validArray
       || (definition.values && !definition.values.includes(value))
       || (definition.type === 'number' && (!Number.isFinite(value) || value < definition.min || value > definition.max
         || (definition.exclusiveMin && value === definition.min) || (definition.exclusiveMax && value === definition.max)

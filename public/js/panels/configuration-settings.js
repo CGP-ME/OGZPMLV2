@@ -36,7 +36,7 @@
     const SECTIONS = [
         ['Runtime', 'Connected owner, revision, and service controls.', /^(mode|execution|pipeline|broker|monitoring|paths|sessionRouter|webhookOrders|dashboard)\./i],
         ['Risk', 'Position, sizing, and account-risk controls.', /^(risk|positionSizing|entryLogic|fundTarget|tierPolicy)\./i],
-        ['Strategy', 'Strategy parameters returned by the selected owner.', /^(strategies|orchestrator|regimeBoosts|volumeProfileBoosts)\./i],
+        ['Strategy', 'Strategy parameters returned by the selected owner.', /^(strategies|strategyBehavior|orchestrator|regimeBoosts|volumeProfileBoosts)\./i],
         ['Filters', 'Signal and market-condition filter controls.', /^(filters?|indicators|regimeDetection|fibonacci)\./i],
         ['Exits', 'Exit-contract controls apply when the selected owner evaluates a new trade.', /^(exitContracts|exitLogic|exits?)\./i],
         ['Learning', 'Pattern, feature, and learning controls reported by the selected owner.', /^(pattern|learning|performanceAnalysis|feature)\./i],
@@ -139,7 +139,7 @@
         label.append(node('small', `Unit: ${field.unit ?? 'not supplied'} | Effect: ${humanEffect(field.effect)}`));
         if (field.min !== undefined || field.max !== undefined) label.append(node('small', `Range: ${field.exclusiveMin ? '>' : '>='} ${field.min ?? 'unspecified'}, ${field.exclusiveMax ? '<' : '<='} ${field.max ?? 'unspecified'}${field.integer ? ' | whole numbers' : ''}`));
         if (field.format === 'integer_list') label.append(node('small', `Comma-separated whole numbers greater than ${field.itemMin}; ${field.maxItems === field.minItems ? 'exactly' : 'at least'} ${field.minItems} items.`));
-        if (field.type === 'array') label.append(node('small', `Comma-separated ${field.itemInteger ? 'whole ' : ''}numbers${field.itemMin !== undefined ? ` greater than ${field.itemMin}` : ''}; ${field.maxItems === field.minItems ? 'exactly' : 'at least'} ${field.minItems} items.`));
+        if (field.type === 'array') label.append(node('small', `Comma-separated ${field.itemType === 'string' ? 'names' : (field.itemInteger ? 'whole numbers' : 'numbers')}${field.itemMin !== undefined ? ` greater than ${field.itemMin}` : ''}; ${field.maxItems === field.minItems ? 'exactly' : 'at least'} ${field.minItems} items.`));
         const details = node('details', undefined, 'settings-field-details');
         details.append(node('summary', 'Details'));
         details.append(node('small', `Path: ${path}`));
@@ -331,20 +331,21 @@
             const field = owner.view.fields[path];
             if (!field || field.editable !== true) { message(`Cannot save ${path}: no longer editable. Edits preserved.`); return; }
             const value = field.type === 'number' ? (raw.trim() === '' ? NaN : Number(raw))
-                : field.type === 'array' ? raw.split(',').map(item => Number(item.trim()))
+                : field.type === 'array' ? (raw.trim() === '' ? [] : raw.split(',').map(item => field.itemType === 'string' ? item.trim() : Number(item.trim())))
                 : field.type === 'boolean' ? (raw === 'true' ? true : raw === 'false' ? false : null) : raw;
             const validIntegerList = field.format !== 'integer_list' || (typeof value === 'string'
                 && value.split(',').length >= field.minItems
                 && value.split(',').every(item => item.trim() !== ''
                     && Number.isSafeInteger(Number(item.trim()))
                     && Number(item.trim()) > field.itemMin));
-            const validNumericArray = field.type !== 'array' || (Array.isArray(value)
+            const validArray = field.type !== 'array' || (Array.isArray(value)
                 && value.length >= field.minItems
                 && (field.maxItems === undefined || value.length <= field.maxItems)
-                && value.every(item => Number.isFinite(item)
-                    && (!field.itemInteger || Number.isSafeInteger(item))
-                    && (field.itemMin === undefined || item > field.itemMin)));
-            if ((field.type !== 'array' && typeof value !== field.type) || !validIntegerList || !validNumericArray || (field.values && !field.values.includes(value))
+                && value.every(item => field.itemType === 'string' ? typeof item === 'string' && item.trim() !== ''
+                    : Number.isFinite(item)
+                      && (!field.itemInteger || Number.isSafeInteger(item))
+                      && (field.itemMin === undefined || item > field.itemMin)));
+            if ((field.type !== 'array' && typeof value !== field.type) || !validIntegerList || !validArray || (field.values && !field.values.includes(value))
                 || (field.type === 'number' && (!Number.isFinite(value)
                     || (field.integer && !Number.isSafeInteger(value))
                     || (field.min !== undefined && (field.exclusiveMin ? value <= field.min : value < field.min))
