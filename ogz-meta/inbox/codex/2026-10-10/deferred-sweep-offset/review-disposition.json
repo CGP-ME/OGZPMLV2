@@ -1,0 +1,11 @@
+{
+  "tree": "57dab65a0a25a97c22c18c5392a808b4d6bd3929",
+  "mercuryRun": "2026-10-10T21-26-56-011Z-22e129787887",
+  "rawVerdict": {
+    "outer": "no_claim",
+    "inner": "found_break"
+  },
+  "astra": "scoped_pass",
+  "disposition": "Existing loader regions unchanged; zero-offset reduce exception independently refuted; initial missed stop geometry fixed and rechecked.",
+  "runtimeActivated": false
+}

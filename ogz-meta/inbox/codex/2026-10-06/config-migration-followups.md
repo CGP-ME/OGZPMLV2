@@ -101,6 +101,8 @@ This is a bounded deferred list for the current configuration migration. It reco
 - **Evidence:** maxHoldBars and sweepMaxOffset are validated/copied in SmartMoneySweep but have no effective downstream behavioral reads in the bounded source trace.
 - **Action:** Determine intended hold/sweep-offset behavior in the deferred pass. Both fields and validation remain; neither is presented as an effective customer control.
 
+- **2026-10-10 partial resolution:** sweepMaxOffset now drives detection, classification, nearest-sweep selection, freshness and stop geometry, and is exposed through the existing dynamic UI registry. Canonical three-bar replay matches baseline; four-bar discovery and long/short stops pass. See CHANGELOG and deferred-sweep-offset/ receipts. maxHoldBars remains unresolved; no hold-policy change.
+
 ## 15. RSI2 no-hint period seed versus canonical entry period
 
 - **Severity:** Unresolved ownership of the legacy period seed; no new production change.

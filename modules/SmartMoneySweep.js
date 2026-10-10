@@ -182,13 +182,11 @@ class SmartMoneySweep {
     const inValid = this.useSessionFilter ? this._inValidSession(candleTime) : true;
     const canTrade = this.dailyLosses < this.maxDailyLosses;
 
-    // ─── Step 3: Classify last 4 candles ───
-    // We need current + 3 prior candles for sweep lookback
+    // ─── Step 3: Classify the current candle and configured sweep history ───
     if (priceHistory.length < 5) return null;
-    const cc = []; // classified candles: index 0 = current, 1 = [1], 2 = [2], 3 = [3]
-    for (let i = 0; i < 4; i++) {
+    const cc = []; // index 0 = current; other indices are prior-candle offsets
+    for (let i = 0; i <= this.sweepMaxOffset && i < priceHistory.length; i++) {
       const idx = priceHistory.length - 1 - i;
-      if (idx < 0) return null;
       cc.push(this._classifyCandle(priceHistory[idx], volAvg));
     }
 
@@ -200,26 +198,32 @@ class SmartMoneySweep {
     const exh = this._detectExhaustion(priceHistory);
 
     // ─── Step 4: Sweep Detection ───
-    // Sweep on bars [1], [2], [3] — check if price wicked beyond a level and closed back
+    // Check configured prior bars for a wick beyond a level and a close back
     const sweeps = this._detectSweeps(priceHistory, vp);
 
-    // ─── DEBUG: Sweep Detection Stats ───
-    if (this.DEBUG) {
-      const rawL = (sweeps[1].long?1:0) + (sweeps[2].long?1:0) + (sweeps[3].long?1:0);
-      const rawS = (sweeps[1].short?1:0) + (sweeps[2].short?1:0) + (sweeps[3].short?1:0);
-      if (rawL > 0 || rawS > 0) {
-        console.log(`[SMS-SWEEP] Bar ${this.barIndex} | ${rawL}L/${rawS}S raw | inCash=${inCash} inValid=${inValid} | VAL=${vp.val.toFixed(2)} VAH=${vp.vah.toFixed(2)}`);
+    let sweepBarIdxL = -1;
+    let sweepBarIdxS = -1;
+    let rawL = 0;
+    let rawS = 0;
+    for (const [offset, sweep] of Object.entries(sweeps)) {
+      if (sweep.long) {
+        rawL++;
+        if (sweepBarIdxL === -1) sweepBarIdxL = Number(offset);
+      }
+      if (sweep.short) {
+        rawS++;
+        if (sweepBarIdxS === -1) sweepBarIdxS = Number(offset);
       }
     }
 
-    // ─── Step 5: Confidence Scoring ───
-    // Long sweep: any of bars [1-3] swept long
-    const sweepLongAny = (sweeps[1].long || sweeps[2].long || sweeps[3].long) && inCash && inValid && canTrade;
-    const sweepShortAny = (sweeps[1].short || sweeps[2].short || sweeps[3].short) && inCash && inValid && canTrade;
+    // ─── DEBUG: Sweep Detection Stats ───
+    if (this.DEBUG && (rawL > 0 || rawS > 0)) {
+      console.log(`[SMS-SWEEP] Bar ${this.barIndex} | ${rawL}L/${rawS}S raw | inCash=${inCash} inValid=${inValid} | VAL=${vp.val.toFixed(2)} VAH=${vp.vah.toFixed(2)}`);
+    }
 
-    // Get absorption on the sweep candle itself
-    const sweepBarIdxL = sweeps[1].long ? 1 : sweeps[2].long ? 2 : sweeps[3].long ? 3 : -1;
-    const sweepBarIdxS = sweeps[1].short ? 1 : sweeps[2].short ? 2 : sweeps[3].short ? 3 : -1;
+    // ─── Step 5: Confidence Scoring ───
+    const sweepLongAny = sweepBarIdxL !== -1 && inCash && inValid && canTrade;
+    const sweepShortAny = sweepBarIdxS !== -1 && inCash && inValid && canTrade;
 
     let longResult = null;
     let shortResult = null;
@@ -233,12 +237,8 @@ class SmartMoneySweep {
 
     // ─── Step 6: Entry Validation ───
     // Freshness check: don't re-trigger same sweep bar
-    const currentLongSweepBar = sweeps[1].long ? this.barIndex - 1 :
-                                 sweeps[2].long ? this.barIndex - 2 :
-                                 sweeps[3].long ? this.barIndex - 3 : -1;
-    const currentShortSweepBar = sweeps[1].short ? this.barIndex - 1 :
-                                  sweeps[2].short ? this.barIndex - 2 :
-                                  sweeps[3].short ? this.barIndex - 3 : -1;
+    const currentLongSweepBar = sweepBarIdxL === -1 ? -1 : this.barIndex - sweepBarIdxL;
+    const currentShortSweepBar = sweepBarIdxS === -1 ? -1 : this.barIndex - sweepBarIdxS;
 
     const longFresh = sweepLongAny && currentLongSweepBar !== this.lastLongSweepBar;
     const shortFresh = sweepShortAny && currentShortSweepBar !== this.lastShortSweepBar;
@@ -682,13 +682,9 @@ class SmartMoneySweep {
 
   _detectSweeps(priceHistory, vp) {
     const sweeps = {};
-    // Check bars [1], [2], [3]
-    for (let offset = 1; offset <= 3; offset++) {
+    // Inspect available prior candles within the configured lookback.
+    for (let offset = 1; offset <= this.sweepMaxOffset && offset < priceHistory.length; offset++) {
       const idx = priceHistory.length - 1 - offset;
-      if (idx < 0) {
-        sweeps[offset] = { long: false, short: false };
-        continue;
-      }
       const candle = priceHistory[idx];
       const cC = c(candle);
       const cL = l(candle);
@@ -899,19 +895,14 @@ class SmartMoneySweep {
     if (!Number.isFinite(atrVal) || atrVal <= 0) return null;
     if (!isFinitePositivePrice(price)) return null;
     if (!vp || ![vp.poc, vp.vah, vp.val].every(isFinitePositivePrice)) return null;
+    const sweepBars = priceHistory.slice(Math.max(0, priceHistory.length - this.sweepMaxOffset - 1), -1);
     if (direction === 'buy') {
       // SL = lowest low of sweep bars minus buffer, capped by maxLossPct
-      const candle2 = priceHistory[priceHistory.length - 2];
-      const candle3 = priceHistory[priceHistory.length - 3];
-      const candle4 = priceHistory[priceHistory.length - 4];
-      const low2 = l(candle2);
-      const low3 = l(candle3);
-      const low4 = l(candle4);
-      if (![low2, low3, low4].every(isFinitePositivePrice)) return null;
-      const sweepLow = Math.min(low2, low3, low4);
+      const sweepLows = sweepBars.map(candle => l(candle));
+      if (!sweepLows.every(isFinitePositivePrice)) return null;
+      const sweepLow = sweepLows.reduce((lowest, low) => Math.min(lowest, low), sweepLows[0]);
 
-      // DEBUG: Show sweep low calculation
-      console.log(`[SL-CALC] LONG price=$${price?.toFixed(2)} | candle lows: [-2]=$${low2?.toFixed(2)} [-3]=$${low3?.toFixed(2)} [-4]=$${low4?.toFixed(2)} → sweepLow=$${sweepLow?.toFixed(2)}`);
+      console.log(`[SL-CALC] LONG price=$${price?.toFixed(2)} | sweep bars=${sweepBars.length} sweepLow=$${sweepLow?.toFixed(2)}`);
 
       const slBuffer = price * (this.slBufferPct / 100);
       const wickSL = sweepLow - slBuffer;
@@ -943,11 +934,9 @@ class SmartMoneySweep {
       return hasValidExitGeometry(direction, price, levels) ? levels : null;
     } else {
       // Short
-      const high2 = h(priceHistory[priceHistory.length - 2]);
-      const high3 = h(priceHistory[priceHistory.length - 3]);
-      const high4 = h(priceHistory[priceHistory.length - 4]);
-      if (![high2, high3, high4].every(isFinitePositivePrice)) return null;
-      const sweepHigh = Math.max(high2, high3, high4);
+      const sweepHighs = sweepBars.map(candle => h(candle));
+      if (!sweepHighs.every(isFinitePositivePrice)) return null;
+      const sweepHigh = sweepHighs.reduce((highest, high) => Math.max(highest, high), sweepHighs[0]);
       const slBuffer = price * (this.slBufferPct / 100);
       const wickSL = sweepHigh + slBuffer;
       const maxLossSL = price + (price * this.maxLossPct / 100);

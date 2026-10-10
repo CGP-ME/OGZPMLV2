@@ -1,0 +1,10 @@
+{
+  "tree": "57dab65a0a25a97c22c18c5392a808b4d6bd3929",
+  "canonicalOffset": 3,
+  "invalidOffset": 0,
+  "throws": false,
+  "longExit": null,
+  "shortExit": null,
+  "update": null,
+  "emptyArrayReduceWithExplicitUndefined": "returns undefined"
+}

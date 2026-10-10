@@ -1,0 +1,54 @@
+{
+  "tree": "57dab65a0a25a97c22c18c5392a808b4d6bd3929",
+  "checks": [
+    {
+      "canonicalThreeBarReplay": 240,
+      "identicalSignals": 123
+    },
+    {
+      "realSave": 4,
+      "retainedDetectionOffset": 4
+    },
+    {
+      "actualUpdate": {
+        "case": 0,
+        "signal": {
+          "direction": "sell",
+          "confidence": 0.625,
+          "reason": "SMS SELL: 1/7 conditions, 0% progress | PriorVA✓",
+          "conditionsMet": 1,
+          "rawConfidence": 0,
+          "overrideLevels": {
+            "stopLoss": 101.2814612846964,
+            "takeProfit": 100.47852570757368
+          },
+          "signalData": {
+            "vah": 102.39912081233034,
+            "val": 98.90876165547515,
+            "poc": 101.85063580196739,
+            "ivbHigh": 101.37852570757369,
+            "ivbLow": 100.37852570757369,
+            "ivbDirection": 0,
+            "profileBias": 1,
+            "conditionsMet": 1,
+            "rawConfidence": 0
+          }
+        },
+        "consumedOffset": 4
+      }
+    },
+    {
+      "shortDetectionOffset": 4
+    },
+    {
+      "savedLookbackContractsTo": 1
+    },
+    {
+      "fourthBarStopGeometry": {
+        "long": 98,
+        "short": 102
+      }
+    }
+  ],
+  "status": "pass"
+}

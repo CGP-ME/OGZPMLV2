@@ -3329,6 +3329,10 @@ const EDITABLE_SETTINGS = deepFreeze({
     type: 'number', unit: 'weight', min: 0, max: Number.MAX_VALUE,
     label: 'SmartMoneySweep MTF confluence weight', effect: 'next_entry_evaluation_ranking',
   },
+  'strategies.SmartMoneySweep.sweepMaxOffset': {
+    type: 'number', unit: 'prior candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true,
+    label: 'Smart money sweep: Sweep lookback', effect: 'next_SmartMoneySweep_observation_and_entry_evaluation',
+  },
   'strategies.SmartMoneySweep.vpDays': {
     type: "number", unit: "days", min: 1, max: 9007199254740991, integer: true, label: "Smart money sweep: Volume-profile lookback days", effect: "next_SmartMoneySweep_observation_and_entry_evaluation",
   },
