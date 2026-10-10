@@ -2558,6 +2558,16 @@ function openingRangeBreakoutConfigurationProblem(config) {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  'orchestrator.mtfAdapter.indicatorPeriods.rsi': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'MTF rsi', effect: 'next_mtf_adapter_initialization_restart_required' },
+  'orchestrator.mtfAdapter.indicatorPeriods.smaFast': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'MTF smaFast', effect: 'next_mtf_adapter_initialization_restart_required' },
+  'orchestrator.mtfAdapter.indicatorPeriods.smaSlow': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'MTF smaSlow', effect: 'next_mtf_adapter_initialization_restart_required' },
+  'orchestrator.mtfAdapter.indicatorPeriods.ema': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'MTF ema', effect: 'next_mtf_adapter_initialization_restart_required' },
+  'orchestrator.mtfAdapter.indicatorPeriods.macdFast': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'MTF macdFast', effect: 'next_mtf_adapter_initialization_restart_required' },
+  'orchestrator.mtfAdapter.indicatorPeriods.macdSlow': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'MTF macdSlow', effect: 'next_mtf_adapter_initialization_restart_required' },
+  'orchestrator.mtfAdapter.indicatorPeriods.atr': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'MTF atr', effect: 'next_mtf_adapter_initialization_restart_required' },
+  'orchestrator.mtfAdapter.indicatorPeriods.bollingerPeriod': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'MTF bollingerPeriod', effect: 'next_mtf_adapter_initialization_restart_required' },
+  'orchestrator.mtfAdapter.indicatorPeriods.bollingerStd': { type: 'number', unit: 'standard deviations', min: 0, max: Number.MAX_SAFE_INTEGER, label: 'MTF bollingerStd', effect: 'next_mtf_adapter_initialization_restart_required' },
+  'orchestrator.mtfAdapter.minCandlesForAnalysis': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'MTF minimum analysis candles', effect: 'next_mtf_adapter_initialization_restart_required' },
   'fibonacci.levels': { type: 'array', itemType: 'number', itemMin: 0, maxItems: Number.MAX_SAFE_INTEGER, minItems: 1, label: 'Fibonacci retracement levels', effect: 'next_fibonacci_detector_initialization_restart_required' },
   'fibonacci.goldenZone': { type: 'array', itemType: 'number', itemMin: 0, maxItems: 2, minItems: 2, label: 'Fibonacci golden-zone bounds', effect: 'next_fibonacci_detector_initialization_restart_required' },
   'fibonacci.lookbackCandles': { type: 'number', unit: 'candles', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, label: 'Fibonacci swing lookback', effect: 'next_fibonacci_detector_initialization_restart_required' },

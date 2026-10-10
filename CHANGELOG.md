@@ -1,3 +1,10 @@
+## 2026-10-10 — Original Stop 1 UI-08: connect multi-timeframe indicator controls
+
+- Change: Register nine existing multi-timeframe indicator parameters and their minimum-analysis-history setting. The adapter retains initialization-time configuration; the panel states restart/next initialization timing. Canonical values, history capacities and indicator/confluence algorithms remain unchanged. No new defaults, fallbacks, throws or execution gates.
+- Verification: Exact production candidate 364018418b56062bd44e7cdcf62540083830cacd against 499059d7. Actual saves persist all ten settings. The actual StrategyOrchestrator configuration factory constructs a fresh MultiTimeframeAdapter with each new value while its predecessor retains its snapshot. Delivered fixture candles change readiness and RSI, both SMAs, EMA, MACD, ATR and Bollinger outputs; both adapters report zero calculation errors. Syntax, whitespace and staged secret checks passed. No broker/full-bot run or Jest addition.
+- Review: Mercury run 2026-10-10T00-18-17-799Z-c619cd113267 has outer no_claim and an inner found_break for existing dotenv ENOENT and credential role-filter behavior. Independent Astra verifies all 107 loader function bodies unchanged, all ten consumers/domains/timing and the actual fixture, returning scoped PASS. Preserve both raw verdict levels; do not call Mercury clean. Evidence: ogz-meta/inbox/codex/2026-10-10/mtf-indicator-controls/ (exact-source manifest, fixtures/check.cjs, behavior.log, delivery-review-answer.txt, astra-review.txt).
+- Status: Original Stop 1 remains open. No live save, PM2 restart, deployment, broker call or Mercury reindex. Unrelated dirty work preserved.
+
 ## 2026-10-10 — Original Stop 1 UI-08: connect Fibonacci detector controls
 
 - Change: Expose the six existing Fibonacci settings through the customer panel, under Filters, with detector initialization/restart timing. Keep canonical arrays as arrays; extend the existing numeric-array length handling so goldenZone carries exactly its two indexed bounds. No detector formulas, values, normalization, defaults, fallbacks, throws or execution gates changed.
