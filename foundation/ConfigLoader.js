@@ -2558,6 +2558,27 @@ function openingRangeBreakoutConfigurationProblem(config) {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  'exitContracts.NoWickImbalance.maxConcurrentEntries': {
+    type: 'number', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, unit: 'entries',
+    label: 'NoWick imbalance maximum concurrent entries', effect: 'new_trades_only',
+  },
+  'exitContracts.default.maxConcurrentEntries': {
+    type: 'number', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true, unit: 'entries',
+    label: 'Default maximum concurrent entries', effect: 'new_trades_only',
+  },
+  ...Object.fromEntries(['default', 'NoWickImbalance'].flatMap((strategyName) => [
+    [`exitContracts.${strategyName}.scaleIn.enabled`, {
+      type: 'boolean', unit: 'boolean', label: 'Enable strategy scale-in policy', effect: 'new_trades_only',
+    }],
+    [`exitContracts.${strategyName}.scaleIn.maxAdds`, {
+      type: 'number', min: 0, max: Number.MAX_SAFE_INTEGER, integer: true, unit: 'adds',
+      label: 'Strategy maximum scale-in adds', effect: 'new_trades_only',
+    }],
+    [`exitContracts.${strategyName}.scaleIn.aggregateRiskCap`, {
+      type: 'number', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, unit: 'risk multiple',
+      label: 'Strategy aggregate scale-in risk cap', effect: 'new_trades_only',
+    }],
+  ])),
   ...Object.fromEntries([
     'EMASMACrossover', 'LiquiditySweep', 'BreakRetest', 'RSI', 'MADynamicSR', 'CandlePattern', 'MarketRegime', 'OGZTPO', 'OpeningRangeBreakout', 'SmartMoneySweep', 'DonchianBreakout', 'PropSafeEMAPullback', 'EMATrendRetest', 'RSI2MeanReversion', 'TimeSeriesMomentum', 'NoWickImbalance'
   ].flatMap((strategyName) => [
