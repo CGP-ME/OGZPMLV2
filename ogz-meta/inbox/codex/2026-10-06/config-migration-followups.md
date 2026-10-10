@@ -148,7 +148,7 @@ HEAD source at d0310b15 passes trai.maxConf into maxConfidenceOverride at run-em
 ## 25. Legacy pattern bank configuration is not the active memory owner
 
 - Evidence: The ten patternMemory.bank fields are consumed by core/PatternMemoryBank.js, but the current EnhancedPatternRecognition and TRAI constructors use core/UnifiedPatternMemory.js. A bounded production require/constructor trace found no active PatternMemoryBank constructor. Old OrderExecutor comments naming that bank accompany calls through the current TRAI interface and do not prove legacy-bank activation.
-- Action/status: Preserve the legacy bank declarations/module and determine their intended role in the deferred pass. Expose the seven active UnifiedPatternMemory policy fields separately; retain persistToDisk/saveIntervalMs as operator storage settings rather than customer trading controls. Do not delete intended features or wire a second memory bank during configuration migration.
+- Action/status: Preserve the legacy bank declarations/module and determine their intended role in the deferred pass. The seven active UnifiedPatternMemory policy fields were delivered separately. Active memory persistToDisk/saveIntervalMs were subsequently connected in 63cab433 with their truthful constructor/restart lifetime; the October 10 Learning navigation correction places them with the other active memory controls. The earlier decision to withhold these two fields is superseded. Do not delete intended features or wire a second memory bank during configuration migration.
 
 ## 26. Shared exit declarations without active behavior
 
