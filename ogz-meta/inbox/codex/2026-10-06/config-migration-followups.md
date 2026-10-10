@@ -66,6 +66,8 @@ This is a bounded deferred list for the current configuration migration. It reco
 - **What must be resolved:** Establish the intended supported profile resolution/resource budget before exposing numBins. Do not invent a cap or expose the entire native array range as a safe customer domain.
 - **Status:** Canonical numBins and its calculation are preserved; six other profile controls migrate independently. No new numBins descriptor or runtime guard.
 
+- **2026-10-10 disposition:** Earlier migration hold superseded by Trey's instruction to finish migration without speculative edge-case/resource-budget work. numBins now has a positive integer descriptor bounded by the native Array representation limit, effective at the next scheduled rebuild. Actual retained-instance proof changes 50 to 17 bins. The maximum is not advertised as a practical allocation budget; no invented resource cap or runtime guard was added. Resource sizing is a separate operational concern, not an unfinished owner migration. See volume-bin-controls/ and CHANGELOG.
+
 ## 10. Existing volume-profile weighting can make volume negative
 
 - **Severity:** Reproduced baseline calculation defect with controlled narrow candles; live occurrence not established.
@@ -91,6 +93,8 @@ This is a bounded deferred list for the current configuration migration. It reco
 
 - **Evidence:** SmartMoneySweep allocates and loops over vpBins for its profile. No producer establishes a supported operational memory/CPU budget; the native array limit is not that budget.
 - **Action:** Establish supported profile resolution before exposing vpBins. Preserve the current canonical value; no invented cap or runtime guard added.
+
+- **2026-10-10 disposition:** Same scope correction as item 9. vpBins is now registered with positive integer/native Array-length bounds (the existing calculation converts its typed histogram with Array.from). Actual retained provider refresh and profile calculation change from 50 to 13 bins. No resource-budget claim, benchmark project, invented cap or runtime guard. The migration hold is closed; existing calculation behavior is preserved.
 
 ## 14. SmartMoney hold and sweep-offset intent
 

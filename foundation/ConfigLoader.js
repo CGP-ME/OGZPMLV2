@@ -2558,6 +2558,14 @@ function openingRangeBreakoutConfigurationProblem(config) {
 // This is the delivered hot-edit surface, not a list of every declared setting.
 // Add fields only with their producer/consumer connection in the same change.
 const EDITABLE_SETTINGS = deepFreeze({
+  'strategies.SmartMoneySweep.vpBins': {
+    type: 'number', unit: 'bins', min: 1, max: 0xffffffff, integer: true,
+    label: 'Smart money sweep volume-profile bins', effect: 'next_SmartMoneySweep_observation_and_entry_evaluation',
+  },
+  'strategies.VolumeProfile.numBins': {
+    type: 'number', unit: 'bins', min: 1, max: 0xffffffff, integer: true,
+    label: 'Volume profile histogram bins', effect: 'next_scheduled_volume_profile_rebuild',
+  },
   'exitContracts.RSI.takeProfitPercent': { type: 'number', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, unit: 'percent', label: 'RSI stock-sizing target distance', effect: 'new_trades_only' },
   'exitContracts.EMASMACrossover.takeProfitPercent': { type: 'number', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, unit: 'percent', label: 'EMA crossover stock-sizing target distance', effect: 'new_trades_only' },
   'exitContracts.MADynamicSR.takeProfitPercent': { type: 'number', min: 0, exclusiveMin: true, max: Number.MAX_VALUE, unit: 'percent', label: 'MA support/resistance stock-sizing target distance', effect: 'new_trades_only' },
