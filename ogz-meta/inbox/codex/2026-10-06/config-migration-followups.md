@@ -40,7 +40,7 @@ This is the continuing deferred queue. Item numbers below stay stable; they are 
 - **Severity:** Confirmed baseline test failures; production impact is not established by these fixtures.
 - **Evidence:** Before the NoWick confidence change, the focused NoWick scope and exit-geometry suites construct modules without required configuration. NoWick constructors lack required keys; orchestrator cases lack an MTF base timeframe; other exit-geometry cases provide incomplete LiquiditySweep/SmartMoney/FVG configuration. Captured details: `ogz-meta/inbox/codex/2026-10-06/nowick-confidence/baseline-test-limitations.md`.
 - **What must be resolved:** Bring test producers into agreement with the actual required configuration, then rerun those cases. Do not restore production defaults merely to make old partial fixtures pass.
-- **Status:** Deferred test-fixture work. Isolated migration proofs use complete explicit configurations; the existing suites are not claimed as passing.
+- **2026-10-11 resolution:** Existing NoWick scope and exit-geometry fixtures now supply complete canonical entry/exit config, explicit MTF base and test credentials, and register the existing injected twin strategy with the actual evaluation registry. All 20 existing cases and assertions are preserved and pass on committed-source export and working source. No production defaults or code changes. [Evidence](../2026-10-11/deferred-strategy-fixtures/README.md).
 
 ## 4. Maximum-position control scope and domain
 

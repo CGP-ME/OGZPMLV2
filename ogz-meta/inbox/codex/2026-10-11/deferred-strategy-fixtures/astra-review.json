@@ -1,0 +1,61 @@
+{
+  "base_commit": "b04088745260225ab73504844b9bf36ea80ea908",
+  "verdict": "scoped_pass",
+  "findings": [],
+  "scope": "Only two test-fixture diffs against committed HEAD; no production changes reviewed or authored.",
+  "test_sha256": {
+    "test/nowick-imbalance-scope.test.js": "ebd2c392514fd4a10b6b454fa43acc13f4dc0cd368b3e166c61bf531f19d6d11",
+    "test/exit-geometry-producers.test.js": "c7545906666724cefd15e00ff292daca3bac38c2b0967cbe1221d68d77c8618b"
+  },
+  "coverage": {
+    "nowick_cases_before_after": [
+      14,
+      14
+    ],
+    "exit_geometry_cases_before_after": [
+      6,
+      6
+    ],
+    "all_existing_expect_lines_unchanged": true,
+    "skips_added": false
+  },
+  "evidence": [
+    {
+      "finding": "Canonical constructor fixtures are legitimate setup repair",
+      "details": "Imported SmartMoneySweep, LiquiditySweep, NoWickImbalance and OpeningRangeBreakout strategy blocks, plus NoWick exit block, are structurally identical in working settings and HEAD. Explicit scenario overrides remain last and are preserved. No test exercises missing exit config, so filling omitted constructor settings does not mask a negative-config assertion.",
+      "source": [
+        "test/exit-geometry-producers.test.js:10",
+        "test/exit-geometry-producers.test.js:24",
+        "test/exit-geometry-producers.test.js:158",
+        "test/nowick-imbalance-scope.test.js:19",
+        "HEAD:modules/NoWickImbalance.js:45",
+        "HEAD:modules/NoWickImbalance.js:99",
+        "HEAD:modules/FairValueGapDetector.js:27"
+      ]
+    },
+    {
+      "finding": "Orchestrator fixture matches current committed input and registry contract",
+      "details": "Explicit 15m base timeframe satisfies constructor ownership. Twin fanout already used a scripted strategy; now registers that same object in the committed evaluation owner rather than only its active subset. Assertions still require the original two fanout legs. This does not pretend to test natural twin signal detection or pipeline enablement.",
+      "source": [
+        "test/nowick-imbalance-scope.test.js:342",
+        "test/nowick-imbalance-scope.test.js:370",
+        "test/nowick-imbalance-scope.test.js:405",
+        "HEAD:core/StrategyOrchestrator.js:826",
+        "HEAD:core/StrategyOrchestrator.js:2283",
+        "HEAD:core/StrategyOrchestrator.js:2399"
+      ]
+    }
+  ],
+  "validation": "Static diff/producer-consumer review; all assertion lines compared unchanged, all 20 test cases retained, relevant imported settings compared to HEAD. Parent executing isolated committed-source suite separately; no independent execution claimed here.",
+  "limitations": [
+    "Pass applies to fixture repair only; no broad strategy/runtime audit.",
+    "Working-only test success is insufficient for delivery until parent isolated committed-source run completes."
+  ],
+  "final_producer_qualification": {
+    "change": "NoWick beforeEach explicitly supplies fake Alpaca/Kraken/dashboard credentials and initializes real ConfigLoader with loadDotenv:false.",
+    "disposition": "Correct fixture credential-source producer repair; avoids default dotenv credential lookup. No added mock of production validation, assertion removal or case retirement.",
+    "source": "test/nowick-imbalance-scope.test.js:54",
+    "validation": "Read final producer edit; rechecked all original expect lines and case counts. Final working and isolated committed-source runs remain separately in progress.",
+    "prior_review": "astra-review-before-explicit-credentials.json"
+  }
+}

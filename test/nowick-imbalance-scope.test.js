@@ -1,6 +1,7 @@
 'use strict';
 
 const NoWickImbalance = require('../modules/NoWickImbalance');
+const settings = require('../config/settings.json');
 
 function makeCandles(symbol, timeframe, closes) {
   return closes.map((close, index) => ({
@@ -17,8 +18,19 @@ function makeCandles(symbol, timeframe, closes) {
 
 function createNoWickImbalance(config, confidenceProvider) {
   const { stopLookbackBars, stopBufferAtr, targetRR, ...entryConfig } = config;
-  const exitConfig = { stopLookbackBars, stopBufferAtr, targetRR };
-  return new NoWickImbalance(entryConfig, confidenceProvider, () => entryConfig, () => exitConfig);
+  const configuredEntry = { ...settings.strategies.NoWickImbalance, ...entryConfig };
+  const configuredExit = {
+    ...settings.exitContracts.NoWickImbalance,
+    ...(stopLookbackBars === undefined ? {} : { stopLookbackBars }),
+    ...(stopBufferAtr === undefined ? {} : { stopBufferAtr }),
+    ...(targetRR === undefined ? {} : { targetRR }),
+  };
+  return new NoWickImbalance(
+    configuredEntry,
+    confidenceProvider,
+    () => configuredEntry,
+    () => configuredExit
+  );
 }
 
 function makeCtx(symbol, timeframe, closes) {
@@ -39,7 +51,13 @@ describe('NoWickImbalance scoped pending levels', () => {
       ENABLE_NOWICK: 'true',
       ENABLE_TRAI: 'false',
       ATR_FILTER_ENABLED: 'false',
+      ALPACA_API_KEY: 'test-alpaca-key',
+      ALPACA_API_SECRET: 'test-alpaca-secret',
+      KRAKEN_API_KEY: 'test-kraken-key',
+      KRAKEN_API_SECRET: 'test-kraken-secret',
+      WEBSOCKET_AUTH_TOKEN: 'test-dashboard-token',
     };
+    require('../foundation/ConfigLoader').load({ force: true, silent: true, loadDotenv: false });
   });
 
   afterEach(() => {
@@ -323,7 +341,7 @@ describe('NoWickImbalance scoped pending levels', () => {
 
   test('orchestrator rethrows NoWick scope errors instead of converting them to hold', () => {
     const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
-    const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
+    const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1, mtfBaseTimeframe: '15m' });
     const noWick = orchestrator.strategies.find(strategy => strategy.name === 'NoWickImbalance');
     expect(noWick).toBeDefined();
     orchestrator.strategies = [noWick];
@@ -340,7 +358,7 @@ describe('NoWickImbalance scoped pending levels', () => {
 
   test('orchestrator reset hook clears NoWick state for session transitions', () => {
     const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
-    const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
+    const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1, mtfBaseTimeframe: '15m' });
     orchestrator.noWickModule.scopedState.set('TSLA:15M', { candleCount: 2, pendingLevels: [{ level: 100 }] });
     orchestrator.noWickModule.scopedState.set('BTC-USD:1M', { candleCount: 4, pendingLevels: [{ level: 70000 }] });
 
@@ -351,8 +369,8 @@ describe('NoWickImbalance scoped pending levels', () => {
 
   test('orchestrator expands NoWick twin split into two entry fanout legs', () => {
     const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
-    const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
-    orchestrator.strategies = [{
+    const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1, mtfBaseTimeframe: '15m' });
+    const noWickTwinStrategy = {
       name: 'NoWickImbalance',
       evaluate: () => ({
         direction: 'buy',
@@ -383,7 +401,9 @@ describe('NoWickImbalance scoped pending levels', () => {
         }],
         signalData: { twinSplit: { active: true, fanoutCount: 2 } },
       }),
-    }];
+    };
+    orchestrator.strategies = [noWickTwinStrategy];
+    orchestrator.registeredStrategies = [noWickTwinStrategy];
 
     const result = orchestrator.evaluate(
       { atr: 1, volatility: 1 },

@@ -5,76 +5,37 @@ const LiquiditySweepDetector = require('../modules/LiquiditySweepDetector');
 const NoWickImbalance = require('../modules/NoWickImbalance');
 const SmartMoneySweep = require('../modules/SmartMoneySweep');
 const { calculateDynamicLevels } = require('../src/indicators/ogzTwoPoleOscillator');
+const settings = require('../config/settings.json');
 
 function smartMoneyConfig(overrides = {}) {
   return {
-    vpDays: 5,
-    vpBins: 50,
-    valueAreaPct: 70,
-    bodyWeightPct: 70,
-    lvnPctile: 20,
-    ivbMinutes: 30,
-    volAvgLen: 20,
-    absorbBodyPct: 35,
-    absorbWickPct: 60,
-    absorbVolMult: 1.2,
-    initBodyPct: 60,
-    absorbBodyProgPct: 50,
-    absorbWickProgPct: 40,
-    absorbVolProgMult: 0.9,
-    initBodyProgPct: 45,
-    cvdDivLen: 10,
-    atrLen: 14,
-    lowConvATRMult: 0.5,
-    midConvATRMult: 1,
-    highConvATRMult: 1.5,
-    slBufferPct: 0.15,
-    maxLossPct: 0.3,
-    maxHoldBars: 60,
-    maxDailyLosses: 3,
-    vpRthOnly: true,
-    vpLookbackBars: 0,
-    sweepMaxOffset: 3,
-    minConditionsGate: 0,
-    tierHigh: 0.975,
-    tierMid: 0.775,
-    tierFloor: 0.625,
-    breakHigh: 5,
-    breakMid: 3,
-    confidenceMode: 'tiered',
-    enabled: true,
+    ...settings.strategies.SmartMoneySweep,
     ...overrides,
   };
 }
 
 function liquidityConfig(overrides = {}) {
   return {
-    atrMultiplier: 0.25,
-    atrPeriod: 14,
-    entryWindowMinutes: 90,
-    openingRangeMinutes: 15,
-    hammerBodyMaxPct: 0.35,
-    hammerWickMinRatio: 2,
-    engulfMinRatio: 1,
-    stopBufferPct: 0.05,
-    sweepMinExtensionPct: 0.1,
-    sweepExtensionBandMult: 5,
-    sweepLookbackBars: 50,
-    weights: {
-      manipCandle: 0.2,
-      wickSweep: 0.15,
-      sweepReject: 0.15,
-      hammerPattern: 0.25,
-      engulfPattern: 0.25,
-    },
+    ...settings.strategies.LiquiditySweep,
     ...overrides,
   };
 }
 
 function createNoWickImbalance(config, confidenceProvider) {
   const { stopLookbackBars, stopBufferAtr, targetRR, ...entryConfig } = config;
-  const exitConfig = { stopLookbackBars, stopBufferAtr, targetRR };
-  return new NoWickImbalance(entryConfig, confidenceProvider, () => entryConfig, () => exitConfig);
+  const configuredEntry = { ...settings.strategies.NoWickImbalance, ...entryConfig };
+  const configuredExit = {
+    ...settings.exitContracts.NoWickImbalance,
+    ...(stopLookbackBars === undefined ? {} : { stopLookbackBars }),
+    ...(stopBufferAtr === undefined ? {} : { stopBufferAtr }),
+    ...(targetRR === undefined ? {} : { targetRR }),
+  };
+  return new NoWickImbalance(
+    configuredEntry,
+    confidenceProvider,
+    () => configuredEntry,
+    () => configuredExit
+  );
 }
 
 describe('exit geometry producer contracts', () => {
@@ -195,7 +156,7 @@ describe('exit geometry producer contracts', () => {
   });
 
   test('FairValueGapDetector refuses FVG levels with stop on the wrong side', () => {
-    const detector = new FairValueGapDetector();
+    const detector = new FairValueGapDetector(settings.strategies.OpeningRangeBreakout);
 
     expect(detector.calculateLevels({
       direction: 'bullish',

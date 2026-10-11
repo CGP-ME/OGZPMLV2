@@ -1,3 +1,9 @@
+## 2026-10-11 — Repair incomplete strategy fixture producers (deferred 3)
+
+- Problem/change: existing NoWick scope and exit-geometry cases could not reach their assertions because constructor fixtures lacked canonical numeric/session/exit fields and MTF base timeframe. Supply actual settings owners, retain explicit scenario overrides, set the existing twin strategy in registeredStrategies, and provide explicit fake loader credentials with dotenv disabled. Production code and settings are unchanged.
+- Actual verification: all 20 existing cases/assertions preserved; both suites pass on isolated committed production source b0408874 and working source. Initial baseline was 19 failed/1 passed; isolated execution also exposed dotenv dependence, corrected at the fixture producer before final passing reruns. Canonical config sections/source identities and final log hashes are recorded in ogz-meta/inbox/codex/2026-10-11/deferred-strategy-fixtures/.
+- Review/limits: Astra scoped review finds no weakened coverage or dirty-specific expected values. Test-only; no Mercury production review required. No runtime activation, broker orders, production settings write or PM2 restart/resume; MTF scanner item 27 remains separate.
+
 ## 2026-10-11 — Repair deleted configuration imports in existing loader fixtures (deferred 2)
 
 - Problem/change: two existing loader cases still imported deleted trading.config.json. Read canonical settings/strategy/exit/profile owners, check actual source labels, and intercept the actual settings file read for the missing-sessionRouter case. Supply explicit fixture credentials/token and disable dotenv in the test helper; no production behavior changes.
