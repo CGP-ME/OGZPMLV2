@@ -3077,6 +3077,9 @@ class OrderExecutor {
       basePositionPercent = basePositionPercent * confidenceMultiplier;
     }
 
+    const pidPositionMultiplier = isEntryAction ? getPIDController().getPositionMultiplier() : 1.0;
+    basePositionPercent *= pidPositionMultiplier;
+
     // FIX 2026-03-06: ENFORCE MAX_POSITION_SIZE cap after confidence multiplier
     const maxPositionPercent = ConfigLoader.get('positionSizing.maxPositionSize');
     if (isEntryAction && basePositionPercent > maxPositionPercent) {

@@ -1,0 +1,21 @@
+
+[ConfigLoader] Fingerprint: 2481184c2ef8e70efe11627a056ba39887cac0a0f145dad70c969b895fc47601
+[ConfigLoader] Source: .env
+[PID] Controller initialized | enabled=true | warmup=0 | interval=1
+[PID] Update #5: {
+  positionMult: '0.900',
+  trailATR: '1.000',
+  equitySlope: '-10.0000',
+  trades: 5
+}
+Confidence sizing: 80% -> 1.0x -> 1.00% of balance (flat profile)
+Position sizing: Balance=$10000.00, Percent=1.0%, USD=$100.00
+Confidence sizing: 80% -> 1.0x -> 0.90% of balance (flat profile)
+Position sizing: Balance=$10000.00, Percent=0.9%, USD=$90.00
+Position capped: 4.00% -> 2.00% (MAX_POSITION_SIZE limit)
+Confidence sizing: 80% -> 1.0x -> 2.00% of balance (flat profile)
+Position sizing: Balance=$10000.00, Percent=2.0%, USD=$200.00
+Position capped: 3.60% -> 2.00% (MAX_POSITION_SIZE limit)
+Confidence sizing: 80% -> 1.0x -> 2.00% of balance (flat profile)
+Position sizing: Balance=$10000.00, Percent=2.0%, USD=$200.00
+{"method":["executeTrade sizing segment","_buildEntryPlan"],"learnedPidMultiplier":0.9,"uncapped":{"before":100,"after":90.00000000000001},"capped":{"before":200,"after":200},"entryPlan":{"requestedSizeUsd":90.00000000000001,"sizeUsd":90.00000000000001},"result":"actual sizing segment changes uncapped future size and preserves existing caps"}

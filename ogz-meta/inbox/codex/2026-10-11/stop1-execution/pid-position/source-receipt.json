@@ -1,0 +1,15 @@
+{
+  "title": "PID learned position sizing consumer",
+  "base": "cb4dab0ac05559293623856b3ea5f20ec5870a91",
+  "candidate": "01777904f9d62ae2169cfd1b0a2faffa1ad37cfe",
+  "files": [
+    "core/OrderExecutor.js"
+  ],
+  "harnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "sourceManifest": ":100644 100644 49b51b5d d1fd53e2 M\tCHANGELOG.md\n:100644 100644 1ed58617 f75c08c3 M\tcore/OrderExecutor.js",
+  "runtimeActivation": false,
+  "finalReview": {
+    "answer": "adjudicated-review-answer.txt",
+    "verdict": "no_break_found"
+  }
+}

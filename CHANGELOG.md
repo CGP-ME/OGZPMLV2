@@ -1,3 +1,11 @@
+## 2026-10-11 — Consume PID position adjustment in entry sizing
+
+- **Problem:** PID learned from closed trades but its position multiplier had no trading consumer.
+- **Change:** Multiply future entry base size by the existing learned PID position output before the existing configured and absolute percentage caps. The downstream entry planner and dollar/exposure caps retain authority. No coefficients, limits, exit numbers, throws or fallback values are added.
+- **Verification:** Actual PIDController receives five closed losses and produces multiplier 0.9. Executing the real sizing segment changes an uncapped $100 request to $90; the same segment keeps an already capped request at $200. The actual entry-plan method consumes the resulting size. Independent source review confirmed the import/getter and cap ordering.
+- **Review / activation:** Mercury review and exact source identity retained with the change. No paper/live state mutation or PM2 activation. PID trail output remains excluded from this work.
+- **Evidence:** `ogz-meta/inbox/codex/2026-10-11/stop1-execution/pid-position/behavior.txt`, `consumer-proof.cjs`, `source-receipt.json`.
+
 ## 2026-10-11 — Consume PID learning in matched regime ranking boosts
 
 - **Problem:** PID updated per-strategy regime adjustments from closed trades, but ranking never consumed those outputs.

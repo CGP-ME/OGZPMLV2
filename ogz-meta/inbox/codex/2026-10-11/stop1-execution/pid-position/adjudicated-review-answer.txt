@@ -1,0 +1,39 @@
+VERDICT: no_break_found
+ADVERSARIAL_REVIEW_BLOCKING: no
+
+CANDIDATE SET: examined 3 of 3
+- CHANGELOG.md (diff receipt) – examined, evidence lines 1‑17【read_review_receipt†L1-L17】
+- core/OrderExecutor.js (diff receipt) – examined, evidence lines 1‑15【read_review_receipt†L1-L15】
+- core/PIDController.js – examined, evidence lines 1‑379【open_file†L1-L379】
+
+AST EVIDENCE:
+- `PIDLoop` defines `rateLimit` and clamps output to `outputMin`/`outputMax` (lines 45‑51, 79‑87)【open_file†L45-L51】【open_file†L79-L87】
+- `PIDController` constructor sets `outputs.positionMultiplier` to `1.0` (lines 180‑184)【open_file†L180-L184】
+- `getPositionMultiplier` returns `1.0` while disabled or before warm‑up (lines 291‑295)【open_file†L291-L295】
+- `OrderExecutor` diff inserts `pidPositionMultiplier` and multiplies `basePositionPercent` before caps (lines 9‑11)【read_review_receipt†L9-L11】
+- `OrderExecutor` subsequently applies the existing `maxPositionPercent` cap (lines 12‑14)【read_review_receipt†L12-L14】
+- `OrderExecutor` records realized P&L to `RiskManager` (lines 4829‑4840)【open_file†L4829-L4840】
+
+INHERITED:
+- core/PIDController.js – present, full source read (lines 1‑379) – all relevant fields examined.
+- core/OrderExecutor.js – present, diff receipt read (lines 1‑15) – change examined.
+- CHANGELOG.md – present, diff receipt read (lines 1‑17) – change examined.
+
+FOURTH SHAPE CLASSIFIER: classified 0 of 0 (no new throws, guards, or fallbacks introduced).
+
+ALLEGATIONS:
+- MECHANICAL: verification of ordering of entry multiplier vs. caps (based on diff receipt).
+- SUBSTANTIVE: verification of PID singleton behavior (based on PIDController source).
+- SUBSTANTIVE: verification that realized P&L is recorded (based on OrderExecutor source).
+
+SUBSTANTIVE RESOLUTION: convergence
+
+WHAT I DID: mechanically examined the diff receipts for CHANGELOG.md and core/OrderExecutor.js, opened the full source of core/PIDController.js, and performed targeted searches for relevant symbols (getPIDController, realized P&L).
+
+WHAT I DID NOT DO: did not inspect unrelated modules (e.g., ConfigLoader) beyond what was needed for the claims.
+
+WHAT I ASSUMED: the repository state at SHA 01777904f9d62ae2169cfd1b0a2faffa1ad37cfe is the authoritative current code.
+
+WHY THIS VERDICT: all claims (PID singleton initialization to 1, neutral output while disabled/warming, rate‑limited learned outputs, close‑producer P&L feeding, and entry‑multiplier precedence before percentage/dollar caps) are directly supported by the examined source lines; no new exception handling or guard was added, and no failure path was introduced.
+
+IF INCOMPLETE, WHY: none – the evidence set fully covers the relevant code paths for the claims.
