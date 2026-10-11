@@ -1,3 +1,11 @@
+## 2026-10-11 — Consume PID learning in matched regime ranking boosts
+
+- **Problem:** PID updated per-strategy regime adjustments from closed trades, but ranking never consumed those outputs.
+- **Change:** Apply the learned multiplier immediately after an existing matching strategy/regime boost and before its existing ranking sort. Record the separate multiplier contribution. Unknown regimes and strategies without a static regime match receive no added adjustment. No new gate or coefficient; exit/trailing behavior is unchanged.
+- **Verification:** Real PID close-event learning gives non-neutral outputs for both a matched and unmatched strategy. Executing the actual boost block adjusts only the matched strategy, preserves the unmatched score despite its non-neutral PID output, and emits no adjustment for an unknown regime. Source and reviewed candidate receipts accompany the proof.
+- **Review / activation:** Mercury review retained separately for this atomic change. No running process was restarted or resumed.
+- **Evidence:** `ogz-meta/inbox/codex/2026-10-11/stop1-execution/pid-regime/consumer-proof.cjs`, `behavior.txt`, `source-receipt.json`.
+
 ## 2026-10-11 — Enable entries when creating fresh paper account state
 
 - **Problem:** Fresh paper state initialized `isTrading=false` without any pause producer, causing the executor to reject entries.

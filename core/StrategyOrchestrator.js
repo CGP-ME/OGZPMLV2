@@ -37,6 +37,7 @@ const { getNarrator } = require('./TradeNarrator');
 const narrator = getNarrator();
 const MAExtensionFilter = require('./MAExtensionFilter');
 const ConfigLoader = require('../foundation/ConfigLoader');
+const { getPIDController } = require('./PIDController');
 const { IndicatorCalculator } = require('./IndicatorCalculator');
 const { c } = require('./CandleHelper');
 const { createTraceId, emitTrace } = require('./TraceSpine');
@@ -2797,6 +2798,19 @@ class StrategyOrchestrator {
               configuredMultiplier: boost,
             }
           );
+          const pidRegimeMultiplier = getPIDController().getRegimeBoostAdjustment(result.strategyName);
+          if (pidRegimeMultiplier !== 1.0) {
+            recordRankingScoreChange(
+              result,
+              result.rankingScore * pidRegimeMultiplier,
+              `${result.strategyName}.pidRegimeRankingScore`,
+              {
+                name: 'pid_regime_adjustment',
+                type: 'multiplier',
+                configuredMultiplier: pidRegimeMultiplier,
+              }
+            );
+          }
         }
       }
       // Re-sort after boosting

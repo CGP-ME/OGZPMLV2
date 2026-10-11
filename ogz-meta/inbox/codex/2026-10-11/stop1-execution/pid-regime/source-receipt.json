@@ -1,0 +1,15 @@
+{
+  "title": "PID learned regime ranking consumer",
+  "base": "cb4dab0ac05559293623856b3ea5f20ec5870a91",
+  "candidate": "d2af1c282a5db7aee8714e308b2c4e3f566ea787",
+  "files": [
+    "core/StrategyOrchestrator.js"
+  ],
+  "harnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "sourceManifest": ":100644 100644 49b51b5d e4c4b7ad M\tCHANGELOG.md\n:100644 100644 ad7072fd 04124518 M\tcore/StrategyOrchestrator.js",
+  "runtimeActivation": false,
+  "finalReview": {
+    "answer": "adjudicated-review-answer.txt",
+    "verdict": "no_break_found"
+  }
+}

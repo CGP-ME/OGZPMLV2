@@ -1,0 +1,42 @@
+
+[ConfigLoader] Fingerprint: 2481184c2ef8e70efe11627a056ba39887cac0a0f145dad70c969b895fc47601
+[ConfigLoader] Source: .env
+[PID] Controller initialized | enabled=true | warmup=50 | interval=10
+[PID] Controller reset
+[PID] Update #5: {
+  positionMult: '0.900',
+  trailATR: '1.000',
+  equitySlope: '-10.0000',
+  trades: 5
+}
+[PID] Update #6: {
+  positionMult: '0.810',
+  trailATR: '1.000',
+  equitySlope: '-10.0000',
+  trades: 6
+}
+[PID] Update #7: {
+  positionMult: '0.729',
+  trailATR: '1.000',
+  equitySlope: '-10.0000',
+  trades: 7
+}
+[PID] Update #8: {
+  positionMult: '0.656',
+  trailATR: '1.000',
+  equitySlope: '-10.0000',
+  trades: 8
+}
+[PID] Update #9: {
+  positionMult: '0.590',
+  trailATR: '1.000',
+  equitySlope: '-10.0000',
+  trades: 9
+}
+[PID] Update #10: {
+  positionMult: '0.531',
+  trailATR: '1.000',
+  equitySlope: '-10.0000',
+  trades: 10
+}
+{"method":"StrategyOrchestrator.evaluate static regime-boost block","pidProducer":"PIDController.onTradeClose","pidMultipliers":{"RSI":0.785,"EMASMACrossover":0.785},"matched":{"contributions":[{"strategyName":"RSI","name":"regime_boost"},{"strategyName":"RSI","name":"pid_regime_adjustment"}],"scores":[{"strategyName":"EMASMACrossover","rankingScore":0.79},{"strategyName":"RSI","rankingScore":0.6908000000000001}]},"unknownRegime":{"contributions":[],"scores":[{"strategyName":"RSI","rankingScore":0.8},{"strategyName":"EMASMACrossover","rankingScore":0.79}]},"result":"PID regime output only follows an existing static regime match"}

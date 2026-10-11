@@ -1,0 +1,32 @@
+VERDICT: no_break_found
+ADVERSARIAL_REVIEW_BLOCKING: no
+
+CANDIDATE SET: examined 2 of 2
+- core/PIDController.js – source file providing the PID controller implementation and exported symbols.
+- core/StrategyOrchestrator.js – source file that imports and uses the PID controller for regime‑boost adjustments.
+
+AST EVIDENCE:
+- **Export of getPIDController** – `module.exports = { PIDController, PIDLoop, getPIDController, resetPIDController };`【open_file†L378-L378】.
+- **Definition of singleton getter** – `function getPIDController() { if (!instance) { instance = new PIDController(); } return instance; }`【open_file†L365-L369】.
+- **Definition of getRegimeBoostAdjustment** – `getRegimeBoostAdjustment(strategyName) { if (!this.enabled || this.totalTrades < this.warmupTrades) { return 1.0; } return this.outputs.regimeBoosts[strategyName] || 1.0; }`【open_file†L301-L306】.
+- **Import in StrategyOrchestrator** – `const { getPIDController } = require('./PIDController');`【open_file†L40-L40】.
+- **Usage before ranking sort** – `const pidRegimeMultiplier = getPIDController().getRegimeBoostAdjustment(result.strategyName);`【open_file†L2801-L2802】.
+
+INHERITED:
+- core/PIDController.js – present, exported symbols confirmed, singleton pattern confirmed.
+- core/StrategyOrchestrator.js – imports the module, calls `getRegimeBoostAdjustment` inside the boost‑application block **prior** to the re‑sort step (`results.sort(...)`).
+
+FOURTH SHAPE CLASSIFIER: 0 of 0 – no new throws, guards, or fallback logic introduced in the examined changes.
+
+ALLEGATIONS:
+- MECHANICAL – existence and export of `core/PIDController.js` and `getPIDController` (supported by AST export and definition).
+- SUBSTANTIVE – integration of PID regime boost into the static boost pipeline before ranking sort (supported by import and usage evidence).
+
+SUBSTANTIVE RESOLUTION: none
+
+SELF‑REPORT FOOTER
+WHAT I DID: examined core/PIDController.js and core/StrategyOrchestrator.js, extracted relevant export, definition, import, and usage lines; verified that the PID controller is correctly exported, imported, and invoked before the ranking‑score re‑sort.
+WHAT I DID NOT DO: did not examine unrelated files (e.g., CHANGELOG.md, spec docs) because they are not required to verify the concrete code claims.
+WHAT I ASSUMED: the repository snapshot provided is complete for the files examined; no hidden runtime configuration overrides affect the import path.
+WHY THIS VERDICT: all required symbols exist, are exported, imported, and used as claimed; the usage occurs before the ranking sort, matching the description of “inside an existing matching static regime boost, before ranking sort”. No evidence of a break, error, or missing guard was found.
+IF INCOMPLETE, WHY: not incomplete – the relevant code paths have been fully inspected and evidence gathered.
