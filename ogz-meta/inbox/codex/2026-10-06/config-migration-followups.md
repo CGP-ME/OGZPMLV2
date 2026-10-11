@@ -2,6 +2,24 @@
 
 This is a bounded deferred list for the current configuration migration. It records evidence and unresolved ownership questions; it does not authorize new controls, gates, or deletions.
 
+## Current handoff — 2026-10-11
+
+This is the continuing deferred queue. Item numbers below stay stable; they are not a claim that every earlier item is closed. Historical evidence remains below each item.
+
+- **Last completed work:** scheduled paper routing (`b45f67c2`), authorized startup/dashboard observation (`6de3673e`), and isolated paper handoff rehearsal (`4ce760ac`). The rehearsal executed against both committed and working source: flattening, saved ledger/state, destination scope before resume, and partial-close transfer blocking passed. Final evidence: [session-handoff-rehearsal](../2026-10-11/session-handoff-rehearsal/README.md).
+- **Review status:** Astra scoped PASS. Mercury read the final three scripts and found no script defect; its overall `cannot_verify` remains recorded for incomplete review records and unrelated evidence gaps. Do not call that a clean Mercury verdict.
+- **Runtime boundary:** the last recorded production observation is scheduled paper/crypto with entries paused. Production market-boundary handoffs with positions have not been exercised. The isolated rehearsal did not restart or resume production. Stop 2 is not complete.
+- **Next queued fix: item 7, trade-size-aware fee assessment.** Trey explicitly answered: “Yes—scan all frames; assess fees using the proposed trade size.” Repair the premature fee assessment using the actual candidate size producer and the existing fee owner; do not supply a guessed notional or share quantity. This is queued, not implemented.
+- **Related open work: item 27, concurrent symbol/timeframe scanning.** Removing premature fee scoring alone does not implement scanning. Preserve its separate end-to-end acceptance: selected tickers, multiple configured timeframes, separate histories/strategy state, correct trade attribution, higher-frame confluence, and no restart to switch frames.
+- **Workspace:** branch `astra-era`; unrelated tracked edits remain in trading/config/UI/Mercury files. Do not reset, bundle, or claim the whole tree is clean. Source edits and the running process must be qualified separately.
+
+### Next fix acceptance — item 7
+
+1. Trace the active runner/selector caller and actual proposed-trade sizing producer before changing code. Current working evidence: `run-empire-v2.js:775-780,1075-1079`, `core/AdaptiveTimeframeSelector.js:152-177,256-266`. The selector is constructed without feeContext and scores fees before a candidate exists.
+2. Remove that premature size-dependent fee decision from opportunity discovery; use the existing FeeModel when the real proposed quantity/notional is available. Verify percent and per-share/minimum-fee behavior on actual proposed sizes. No dummy trade, compatibility alias, new gate, throw, fallback, default, or second fee owner.
+3. Prove the changed producer/consumer path in isolation, including that incomplete size data is fixed at its producer and that timeframe discovery is not eliminated by guessed fees. Do not claim item 27 complete from a selector-only proof.
+4. Run Mercury and Astra adversarial review on the exact candidate; record findings and actual behavior in CHANGELOG; show the scoped diff, commit atomically and push. Runtime restart/resume is a separate action requiring authorization.
+
 ## 1. Confidence and confluence relationship
 
 - **Severity:** Unresolved behavior/intent question; no confirmed fatal defect.
@@ -51,6 +69,8 @@ This is a bounded deferred list for the current configuration migration. It reco
 - **Evidence:** Committed `b99abbd0` runner constructs AdaptiveTimeframeSelector without feeContext at `run-empire-v2.js:773-778`, then evaluates it at `:1072-1076`. `_scoreTimeframe` calls roundTripFeePercent at `core/AdaptiveTimeframeSelector.js:168`; that method throws for per_share_minimum without quantity/notional context at `:256-265`. Current canonical fees already select per_share_minimum. The proposed live model reader would also expose this on a percent-to-per-share save. The active PnL calculateNetPnL caller supplies quantity/notional and is a separate path.
 - **What must be resolved:** Establish the real notional/quantity producer for timeframe viability before claiming complete live-runner fee wiring. Do not invent a dollar/share assumption or add another guard/fallback.
 - **Status:** The five fee controls and retained consumer reads are delivered in the 2026-10-08 fee-control change under Trey's instruction to defer pre-existing failures. This context defect remains open: canonical per-share fees already reached it before that change. Explicit feeContext in the passing fixture is not proof the runner supplies it. Updated exact-source evidence: `ogz-meta/inbox/codex/2026-10-08/fee-controls/`.
+
+- **2026-10-11 queue update:** Next repair, with customer intent resolved by Trey: scan all configured frames and assess fees from the proposed trade size. The missing-context path above is still present in current source; no fix is claimed. See the current handoff and acceptance at the top of this list.
 
 ## 8. Total-round-trip fee metadata has a separate stored value
 

@@ -1,3 +1,10 @@
+## 2026-10-11 — Clarify completed handoff and queue the next deferred repair
+
+- Problem/change: historical entry points and preliminary rehearsal reviews could be mistaken for the current status. Added a current pointer to recent-changes, marked the delivered rehearsal and its final receipts, and updated the existing deferred list without renumbering or creating a competing queue. Archived two superseded local preliminary receipts non-destructively; original runs/private evidence and unrelated dirty source remain preserved.
+- Next queued: item 7, size-dependent fees evaluated before a proposed trade exists. Trey's resolved intent is scan all configured frames and assess fees using the proposed trade size. Read the actual runner constructor/caller, selector scoring/fee helper, and existing FeeModel/executor helpers. The missing selector context is still present; this entry queues its repair and acceptance, not an implementation claim. Item 27's concurrent scanner remains separately open.
+- Verification/review: checked current Git history through 4ce760ac, final rehearsal/review receipts and current source lines cited in the queue. Checked changed Markdown links and staged diff. Documentation only; no Mercury rerun or behavior test needed. Preserved the raw cannot_verify review status and recorded isolation limits; no whole-repository or production-handoff clearance claimed.
+- Runtime/scope: no production source/config edit, orders, restart, resume or deletion. The last recorded production observation remains paper/crypto with entries paused; unrelated tracked edits mean the working tree is not clean. Stop 2 remains open.
+
 ## 2026-10-11 — Prove paper session flattening, ledger persistence and transfer state
 
 - Request/change: Trey asked for proof that outgoing positions flatten and ledger/state are correct before SessionRouter transfers markets, including the zero-open-position requirement. Added a repeatable isolated paper rehearsal of the existing implementation; no production source/config behavior changed.

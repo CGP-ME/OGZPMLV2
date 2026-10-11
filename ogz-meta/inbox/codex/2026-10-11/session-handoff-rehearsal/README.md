@@ -1,5 +1,9 @@
 # Paper session handoff rehearsal
 
+**Delivered:** `4ce760ac` on `astra-era`, confirmed pushed. This packet proves isolated paper execution, not a production market-boundary run. Final scripts are in `scripts/session-handoff-rehearsal/`; the earlier inbox `fixtures/` location is obsolete. Continue from [the existing deferred queue](../../2026-10-06/config-migration-followups.md#current-handoff--2026-10-11), next item 7.
+
+**Current receipts:** `review.json`, `mercury-source-receipt.json`, `mercury-adjudication.json`, `delivery-review-answer.txt`, `committed-result.json`, and `working-result.json`. Local preliminary reviews are archived under `ogz-meta/archive/codex/2026-10-11/session-handoff-rehearsal/`; generated runs and raw private evidence are retained locally.
+
 Built at Trey's request on 2026-10-11 to prove outgoing positions close and ledger/state persist before switching between Kraken crypto and Alpaca stocks. This is a repeatable isolated rehearsal of the existing production implementation; no production behavior was changed.
 
 Run from the repository with installed dependencies:

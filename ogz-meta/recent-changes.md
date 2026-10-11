@@ -1,3 +1,7 @@
+## 2026-10-11 — Current work entry point
+
+Read the latest `CHANGELOG.md` entries and [the existing deferred queue](inbox/codex/2026-10-06/config-migration-followups.md#current-handoff--2026-10-11) before the historical notes below. Session routing and the isolated paper handoff rehearsal are delivered through `4ce760ac`; production entries were last observed paused. Next queued: item 7, assess fees using the proposed trade size. Item 27, concurrent symbol/timeframe scanning, remains open. Stop 2 is not complete; the shared working tree still contains unrelated edits.
+
 
 ---
 
