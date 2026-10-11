@@ -23,6 +23,7 @@ const http = require('http');
 
 const OUTPUT_PATH = path.join(__dirname, '..', 'ogz-meta', 'gates', 'runs', 'latest.json');
 const PUBLIC_PATH = path.join(__dirname, '..', 'public', 'proof', 'gates', 'latest.json');
+const SETTINGS_PATH = path.join(__dirname, '..', 'config', 'settings.json');
 
 /**
  * Check PM2 process status
@@ -223,32 +224,29 @@ async function checkKrakenConnectivity() {
   });
 }
 
+function configuredProofMetadata(settings) {
+  const profileName = settings?.launchProfiles?.defaultProfile;
+  const profile = profileName ? settings.launchProfiles?.[profileName] : null;
+  if (!profile || typeof profile !== 'object') return { status: 'UNAVAILABLE', reason: 'Configured default launch profile is unavailable' };
+  return { status: 'CONFIGURED_METADATA', profileName, executionMode: profile.mode ?? null, riskGuardMode: profile.risk?.guardMode ?? null };
+}
+
+function readConfiguredProofMetadata() {
+  try { return configuredProofMetadata(JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf8'))); }
+  catch (error) { return { status: 'UNAVAILABLE', reason: `Configured metadata unavailable: ${error.message}` }; }
+}
+
 /**
  * Check risk management status
  */
-function checkRiskManagement() {
-  const result = {
-    id: 'RISK',
-    name: 'Risk Management',
-    status: 'PASS',
-    highlights: []
-  };
-
-  try {
-    // Read from env or config
-    const maxRisk = process.env.MAX_RISK_PER_TRADE || '0.02';
-    const stopLoss = process.env.STOP_LOSS_PERCENT || '2.0';
-    const liveTrading = process.env.LIVE_TRADING === 'true';
-
-    result.highlights.push(`Mode: ${liveTrading ? 'LIVE' : 'PAPER'}`);
-    result.highlights.push(`Max risk/trade: ${(parseFloat(maxRisk) * 100).toFixed(1)}%`);
-    result.highlights.push(`Stop loss: ${stopLoss}%`);
-
-  } catch (e) {
-    result.status = 'WARN';
-    result.highlights.push('Risk config check failed');
-  }
-
+function checkRiskManagement(configured) {
+  const result = { id: 'RISK', name: 'Risk Management', status: 'WARN', highlights: [] };
+  result.highlights.push('Runtime mode and risk state: unavailable (no process-bound runtime receipt)');
+  if (configured.status === 'CONFIGURED_METADATA') {
+    result.highlights.push(`Configured default profile: ${configured.profileName} (${configured.executionMode ?? 'unavailable'}; not runtime attestation)`);
+    result.highlights.push(`Configured risk guard: ${configured.riskGuardMode ?? 'unavailable'} (not runtime attestation)`);
+  } else result.highlights.push(configured.reason);
+  result.highlights.push('Active entry stop: unavailable; stops are strategy-specific exit contracts');
   return result;
 }
 
@@ -269,12 +267,7 @@ function getGitCommit() {
 async function generateLiveProof() {
   console.log('Generating live proof...');
 
-  // Load env if available
-  try {
-    require('dotenv').config({ path: path.join(__dirname, '..', '.env.gates') });
-  } catch (e) {
-    // dotenv not critical
-  }
+  const configured = readConfiguredProofMetadata();
 
   // Run all checks
   const [wsHealth, krakenHealth] = await Promise.all([
@@ -287,15 +280,17 @@ async function generateLiveProof() {
     wsHealth,
     checkStateManager(),
     krakenHealth,
-    checkRiskManagement()
+    checkRiskManagement(configured)
   ];
 
   // Build output
   const proof = {
     run_id: new Date().toISOString(),
-    env: process.env.LIVE_TRADING === 'true' ? 'LIVE' : 'PAPER',
+    env: 'RUNTIME_UNAVAILABLE',
+    runtime: { status: 'UNAVAILABLE', reason: 'This generator has not observed a process-bound runtime configuration receipt' },
+    configured_metadata: configured,
     instance: 'ogz-prime-v2',
-    brokers: ['KRAKEN'],
+    brokers: [],
     commit: getGitCommit(),
     generated: new Date().toISOString(),
     gates: gates
@@ -347,4 +342,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { generateLiveProof };
+module.exports = { generateLiveProof, configuredProofMetadata, checkRiskManagement, readConfiguredProofMetadata };

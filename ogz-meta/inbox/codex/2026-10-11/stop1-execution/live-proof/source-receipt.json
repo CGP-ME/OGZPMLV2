@@ -1,0 +1,15 @@
+{
+  "title": "Canonical proof metadata without phantom runtime claims",
+  "base": "cb4dab0ac05559293623856b3ea5f20ec5870a91",
+  "candidate": "d9313cab76cfd7591ee37df38f1859b9180f0fa7",
+  "files": [
+    "scripts/generate-live-proof.js"
+  ],
+  "harnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "sourceManifest": ":100644 100644 49b51b5d 309ac482 M\tCHANGELOG.md\n:100755 100755 2081b9da 5d082f50 M\tscripts/generate-live-proof.js",
+  "runtimeActivation": false,
+  "finalReview": {
+    "answer": "adjudicated-review-answer.txt",
+    "verdict": "no_break_found"
+  }
+}

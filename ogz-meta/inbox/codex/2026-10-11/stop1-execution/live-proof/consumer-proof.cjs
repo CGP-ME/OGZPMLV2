@@ -1,0 +1,15 @@
+'use strict';
+const assert=require('assert'),fs=require('fs'),path=require('path');
+const source=fs.readFileSync(path.resolve('scripts/generate-live-proof.js'),'utf8');
+const {configuredProofMetadata,checkRiskManagement}=require(path.resolve('scripts/generate-live-proof.js'));
+const settings=JSON.parse(fs.readFileSync('config/settings.json','utf8'));
+const metadata=configuredProofMetadata(settings),risk=checkRiskManagement(metadata);
+assert.strictEqual(metadata.profileName,settings.launchProfiles.defaultProfile);
+assert.strictEqual(metadata.executionMode,settings.launchProfiles[metadata.profileName].mode);
+assert.strictEqual(metadata.status,'CONFIGURED_METADATA');assert.strictEqual(risk.status,'WARN');
+assert(risk.highlights.some(s=>s.includes('not runtime attestation')));
+assert(!/process\.env\.(LIVE_TRADING|MAX_RISK_PER_TRADE|STOP_LOSS_PERCENT)/.test(source));
+assert(!risk.highlights.some(s=>/Max risk\/trade:|Stop loss:/.test(s)));
+assert(source.includes("env: 'RUNTIME_UNAVAILABLE'"));assert(source.includes('brokers: []'));
+const absent=checkRiskManagement(configuredProofMetadata({}));assert.strictEqual(absent.status,'WARN');
+const result={passed:true,metadata,risk,noNetworkOrGeneratorExecution:true,missingConfiguredMetadata:absent};fs.writeFileSync(path.join(__dirname,'behavior.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result));

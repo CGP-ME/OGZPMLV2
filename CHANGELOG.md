@@ -1,3 +1,11 @@
+## 2026-10-11 — Remove phantom environment-owned mode and risk proof claims
+
+- **Problem:** The standalone proof generator labeled runtime paper/live mode, risk percentage and stop loss from retired environment variables with literal defaults. It also asserted Kraken as the active broker without observing the running bot.
+- **Change:** Read clearly labeled default-profile metadata from canonical settings. Report runtime mode/risk as unavailable to this generator, omit asserted broker identity and global stop/risk numbers, and preserve the distinction between configured metadata and runtime evidence. This does not change bot trading gates or exit values.
+- **Verification:** Actual pure generator helpers use the configured profile, label it as non-runtime evidence, produce WARN for unavailable runtime risk and missing configured metadata, and have no legacy mode/risk/stop environment reads. Syntax passed. Generator, PM2, network checks and public file writes were not executed.
+- **Review / limits:** Scoped Mercury review retained. This does not create a runtime-report transport or certify all historical proof-generator health checks.
+- **Evidence:** `ogz-meta/inbox/codex/2026-10-11/stop1-execution/live-proof/consumer-proof.cjs`, `behavior.json`, `source-receipt.json`.
+
 ## 2026-10-11 — Consume PID position adjustment in entry sizing
 
 - **Problem:** PID learned from closed trades but its position multiplier had no trading consumer.

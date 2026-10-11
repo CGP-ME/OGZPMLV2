@@ -1,0 +1,31 @@
+{
+  "passed": true,
+  "metadata": {
+    "status": "CONFIGURED_METADATA",
+    "profileName": "paper",
+    "executionMode": "paper",
+    "riskGuardMode": "off"
+  },
+  "risk": {
+    "id": "RISK",
+    "name": "Risk Management",
+    "status": "WARN",
+    "highlights": [
+      "Runtime mode and risk state: unavailable (no process-bound runtime receipt)",
+      "Configured default profile: paper (paper; not runtime attestation)",
+      "Configured risk guard: off (not runtime attestation)",
+      "Active entry stop: unavailable; stops are strategy-specific exit contracts"
+    ]
+  },
+  "noNetworkOrGeneratorExecution": true,
+  "missingConfiguredMetadata": {
+    "id": "RISK",
+    "name": "Risk Management",
+    "status": "WARN",
+    "highlights": [
+      "Runtime mode and risk state: unavailable (no process-bound runtime receipt)",
+      "Configured default launch profile is unavailable",
+      "Active entry stop: unavailable; stops are strategy-specific exit contracts"
+    ]
+  }
+}
