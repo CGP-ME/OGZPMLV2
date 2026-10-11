@@ -1,0 +1,69 @@
+{
+  "candidate_tree": "70a43a6a7ea08890d245520f05c367934f11a195",
+  "base_commit": "14e5c63d33b0b265c77f757ff6d9aa7a2dbdc0fb",
+  "verdict": "scoped_source_pass",
+  "unresolved_introduced_findings": [],
+  "source_sha256": {
+    "brokers/AlpacaAdapter.js": "5f8abb11432bef9d641c32017f3d83b8a48d8dd3860448ff142be39d3f247b4a"
+  },
+  "scope": "Exact 44-line adapter-only change and active consumer/failure routing; no multi-frame scanner dispatch claim.",
+  "checks": [
+    {
+      "topic": "Actual requested-frame producer and consumer",
+      "result": "SessionRouter requests one active timeframe per stock symbol and consumes adapter ohlc events. Existing native 1m event/callback remains unchanged. Higher requested timeframe is separately labeled and reaches runner candle storage and active-timeframe analysis.",
+      "evidence": [
+        "core/SessionRouter.js:1571",
+        "core/SessionRouter.js:1242",
+        "brokers/AlpacaAdapter.js:1157",
+        "brokers/AlpacaAdapter.js:1159",
+        "brokers/AlpacaAdapter.js:1181",
+        "run-empire-v2.js:1041",
+        "run-empire-v2.js:1080"
+      ]
+    },
+    {
+      "topic": "Closed-bar identity and ordering",
+      "result": "Existing getCandles requests IEX bars with descending server order and sorts mapped numeric timestamps ascending. Added path retains provider start and sets end using requested interval; only end<=triggering native bar end is emitted. Last emitted provider start prevents duplicate delivery on later refreshes. No synthetic OHLC aggregation or invented minute-completeness rule.",
+      "evidence": [
+        "brokers/AlpacaAdapter.js:660",
+        "brokers/AlpacaAdapter.js:678",
+        "brokers/AlpacaAdapter.js:683",
+        "brokers/AlpacaAdapter.js:1168",
+        "brokers/AlpacaAdapter.js:1172",
+        "brokers/AlpacaAdapter.js:1186"
+      ]
+    },
+    {
+      "topic": "Overlapping refresh and subscription replacement",
+      "result": "One promise per subscription prevents overlapping refreshes. Completion, rejection and cleanup verify current subscription object identity; unsubscribing clears the map and resubscribing creates a fresh object, preventing late result publication to a replacement subscription.",
+      "evidence": [
+        "brokers/AlpacaAdapter.js:733",
+        "brokers/AlpacaAdapter.js:854",
+        "brokers/AlpacaAdapter.js:1166",
+        "brokers/AlpacaAdapter.js:1171",
+        "brokers/AlpacaAdapter.js:1190",
+        "brokers/AlpacaAdapter.js:1199"
+      ]
+    },
+    {
+      "topic": "Failure propagation",
+      "result": "Current-subscription REST rejection reaches existing stream-truth-unavailable event path, then OrderRouter broker-truth record and existing entry block. It is not a log-only catch. Obsolete subscription rejection does not publish the newly added unavailable event.",
+      "evidence": [
+        "brokers/AlpacaAdapter.js:1191",
+        "brokers/AlpacaAdapter.js:199",
+        "brokers/AlpacaAdapter.js:238",
+        "core/OrderRouter.js:76",
+        "core/OrderRouter.js:417",
+        "core/OrderRouter.js:431",
+        "core/OrderRouter.js:134",
+        "core/OrderExecutor.js:2955"
+      ]
+    }
+  ],
+  "validation": "Exact git-tree source/diff and reachable producer/consumer review only. Root behavioral proof and Mercury remain separate; no root executable config/state loading or production edits performed.",
+  "limitations": [
+    "The two-bar refresh is not a general history-gap recovery protocol.",
+    "Delivery is driven by native bar arrivals and asynchronous provider REST availability.",
+    "This adds the one requested timeframe; it does not implement all-frame strategy dispatch."
+  ]
+}

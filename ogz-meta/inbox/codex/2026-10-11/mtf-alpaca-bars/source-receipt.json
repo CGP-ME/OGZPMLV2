@@ -1,0 +1,98 @@
+{
+  "base_commit": "14e5c63d33b0b265c77f757ff6d9aa7a2dbdc0fb",
+  "reviewed_production_tree": "70a43a6a7ea08890d245520f05c367934f11a195",
+  "harness_tree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "mercury": {
+    "run_id": "2026-10-11T06-55-37-306Z-7cb7b23fbcdb",
+    "verdict": "no_break_found",
+    "source_refs": {
+      "current_change_evidence_bundle": {
+        "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-10-11/2026-10-11t06-55-08-694z-293934-bd1c4710a6bc/current-change-evidence.txt",
+        "citation": "ogz-meta/cognition-history/mercury-runs/evidence/2026-10-11/2026-10-11t06-55-08-694z-293934-bd1c4710a6bc/current-change-evidence.txt:1",
+        "sha256": "3fe9ce07e4499f333b3764a5f4514e888bcd00815814615cb450c5f23996de00",
+        "bytes": 76459,
+        "lines": 1971,
+        "section_count": 5,
+        "manifest_path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-10-11/2026-10-11t06-55-08-694z-293934-bd1c4710a6bc/manifest.json",
+        "manifest_sha256": "6fa0c84b0573441247b9ee18c8fbea97344d2116652c83a1583ee8622d8e78c4",
+        "manifest_bytes": 7575
+      },
+      "supplied_evidence": [],
+      "auto_blast_radius_source": "current_changes",
+      "auto_blast_radius_files": [
+        {
+          "file": "brokers/AlpacaAdapter.js",
+          "callerCount": 0,
+          "riskLevel": "isolated"
+        }
+      ],
+      "auto_blast_radius_errors": [],
+      "changed_files": [
+        "brokers/AlpacaAdapter.js"
+      ],
+      "changed_file_count": 1,
+      "reference_names": [],
+      "reference_scans": []
+    },
+    "raw_sha256": "e4bac849229afaff113b25e89fd52024323391bd261c00fea736d6cd8a954c97",
+    "answer_sha256": "fd3af6f5996b0a80a5a79b8062d9b952d29aa90cf53fb6fa68d0b91bc9155805"
+  },
+  "source_hashes": {
+    "brokers/AlpacaAdapter.js": {
+      "candidate": "5f8abb11432bef9d641c32017f3d83b8a48d8dd3860448ff142be39d3f247b4a",
+      "working": "5f8abb11432bef9d641c32017f3d83b8a48d8dd3860448ff142be39d3f247b4a"
+    },
+    "run-empire-v2.js": {
+      "candidate": "9479a3e16c72feac3fc944626ea7aa337dd6a0de79742bcae1939a2736981979",
+      "working": "e8ee66f2f4c446034f435aa43406c2ccd3e39e9940c83dc79d8b3addd60d9f40"
+    },
+    "foundation/ohlc-normalize.js": {
+      "candidate": "d2e36fa331c19c859efb60b00b34e276a5bc4b9caa9e8d073808832b3390d0df",
+      "working": "d2e36fa331c19c859efb60b00b34e276a5bc4b9caa9e8d073808832b3390d0df"
+    },
+    "foundation/ConfigLoader.js": {
+      "candidate": "eac231eb70cf7729e56d182a4c2d08e2b63b464618ec85f1731302a0e28a9b7e",
+      "working": "6b4f34bf85c96363a1315bc9d8803c2d9614ba2717a12af1bdee63852aaab2e6"
+    },
+    "core/AuthFailureGuard.js": {
+      "candidate": "62aa1860bbfec49b0fcd2e22e937f4a1aa41d0d06d55416055f611af633dd44c",
+      "working": "62aa1860bbfec49b0fcd2e22e937f4a1aa41d0d06d55416055f611af633dd44c"
+    },
+    "core/TraceSpine.js": {
+      "candidate": "6aff25395a4469238ab202115aa53ad3b46b95c17c4b2de4ceac644aae4927d1",
+      "working": "6aff25395a4469238ab202115aa53ad3b46b95c17c4b2de4ceac644aae4927d1"
+    },
+    "core/AssetRegistry.js": {
+      "candidate": "cd3041e6ed5c8e23d9fae27fafc15cc33ee001c6972426a8bad862b13e92a0d7",
+      "working": "cd3041e6ed5c8e23d9fae27fafc15cc33ee001c6972426a8bad862b13e92a0d7"
+    }
+  },
+  "fixtures": {
+    "alpaca-15m-adapter-acceptance.cjs": "94dc7cc280d5657a45ffaa34b1ffdad149afe13eeb53bea8274d584007edeb6a",
+    "jest-setup.cjs": "40211aa58fe18e68f938a99b0678bfedaa523146d433608ca751ad222b9a523a",
+    "runner-route.cjs": "deb647b7bbf3b31e227d4696c8baf26dea35af2bd57bfb7c9c9384981b78e0a7"
+  },
+  "existing_tests": {
+    "passed": 25,
+    "failed": 0,
+    "producer_change": "one existing buildAdapter now passes canonical internals.broker.alpacaWebSocket; no assertions changed",
+    "fixture_hash": "68a32bf31c46598d3b0c5c72cc9099f9c249233798eb031cc25a6fdc8916c085"
+  },
+  "proof_logs": {
+    "adapter-baseline-final.log": "e84ca48b5c353c7647e53e9e5b0aaeefa165c8349f5c66dd89050978fb1b13f3",
+    "adapter-candidate-final.log": "5f7a08de09be9714b893d634f12334b0beb05a62d5ee6f34abbf8c8534c22091",
+    "adapter-working-final.log": "5f7a08de09be9714b893d634f12334b0beb05a62d5ee6f34abbf8c8534c22091",
+    "runner-baseline.log": "18e70c9ca6efd408434ef68e7f4758aa8001569d01f008d12e9f0e5857107266",
+    "runner-candidate-final.log": "288dc132cc7761e4fe4e45ffeb88a5f885d45151ecb58748f22eefe53286bce2",
+    "runner-working-final.log": "288dc132cc7761e4fe4e45ffeb88a5f885d45151ecb58748f22eefe53286bce2",
+    "focused-jest-complete.log": "174a62c0035c72f489a9a59a35ad40e6956890609a51ccfd67c7e7fc7499f7a6"
+  },
+  "limitations": [
+    "REST responses and websocket are controlled fixtures; no real broker fill or full trading proof",
+    "Runner proof executes actual AST-extracted handler and normalizer; strategy/execution bodies stubbed at dispatch boundary",
+    "Only active requested timeframe; concurrent configured-frame dispatch remains item27",
+    "No restart/resume/runtime activation",
+    "First exploratory fixture invocation used working source in baseline mode and issued one failed REST read (401), per agent report; final runs explicitly disable dotenv and stub REST. No orders.",
+    "Initial isolated Jest attempts failed on missing credentials and websocket constructor input; explicit fixture producers repaired before final 25/25 run."
+  ]
+}

@@ -47,7 +47,7 @@ const AlpacaAdapter = require('../brokers/AlpacaAdapter');
 const { subscribeTrace } = require('../core/TraceSpine');
 
 function buildAdapter() {
-  return new AlpacaAdapter({ apiKey: 'key', apiSecret: 'secret', mode: 'paper' });
+  return new AlpacaAdapter({ apiKey: 'key', apiSecret: 'secret', mode: 'paper', webSocket: require('../config/internals.json').broker.alpacaWebSocket });
 }
 
 describe('AlpacaAdapter data stream resilience', () => {

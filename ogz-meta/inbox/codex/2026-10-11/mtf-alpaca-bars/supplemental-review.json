@@ -1,0 +1,37 @@
+{
+  "candidate_tree": "70a43a6a7ea08890d245520f05c367934f11a195",
+  "verdict": "scoped_fixture_pass",
+  "findings": [],
+  "mercury": {
+    "run_id": "2026-10-11T06-55-37-306Z-7cb7b23fbcdb",
+    "raw_verdict": "no_break_found",
+    "allegations": []
+  },
+  "fixture_sha256": {
+    "ogz-meta/inbox/codex/2026-10-11/mtf-alpaca-bars/fixtures/runner-route.cjs": "deb647b7bbf3b31e227d4696c8baf26dea35af2bd57bfb7c9c9384981b78e0a7",
+    "ogz-meta/inbox/codex/2026-10-11/mtf-alpaca-bars/fixtures/alpaca-15m-adapter-acceptance.cjs": "94dc7cc280d5657a45ffaa34b1ffdad149afe13eeb53bea8274d584007edeb6a",
+    "ogz-meta/inbox/codex/2026-10-11/mtf-alpaca-bars/fixtures/jest-setup.cjs": "40211aa58fe18e68f938a99b0678bfedaa523146d433608ca751ad222b9a523a",
+    "test/alpaca-data-stream-resilience.test.js": "68a32bf31c46598d3b0c5c72cc9099f9c249233798eb031cc25a6fdc8916c085"
+  },
+  "source_identity": "Verified actual exported AlpacaAdapter, run-empire-v2, ohlc-normalize and AssetRegistry hashes against private/candidate-source.json and exact reviewed git tree. Runner fixture extracts named functions/handler/method from supplied source AST; no reconstructed handler implementation.",
+  "meaningful_proof": [
+    "Real adapter event -> actual extracted normalization, runner OHLC handler and storeTimeframeCandle -> active 15m market-data and analysis dispatch assertions, with separate native1m rejection. Runner baseline is the before/after non-delivery reproduction.",
+    "Acceptance fixture checks real subscribe and native callback behavior, provider OHLC payload, forming-bar exclusion, dedupe, inflight coalescing, per-symbol data/callback isolation, obsolete rejection and current failure event. External stream and getCandles are fixture stubs.",
+    "Single existing resilience-test producer change supplies config/internals.json broker.alpacaWebSocket; this block matches reviewed source config and no assertions changed.",
+    "Explicit fake credentials plus loadDotenv:false repair source-qualified fixture setup without production environment dependence."
+  ],
+  "limitations": [
+    "Runner handleMarketData, run15mTradingCycle, state mark update and dashboard/scope helpers are boundary stubs. This proves actual-source dispatch, not full runner bootstrap or downstream execution.",
+    "Baseline adapter acceptance alone preserves native behavior; baseline failure reproduction comes from runner-route baseline assertions.",
+    "The historical alpaca-15m-contract.cjs and prior blocked aggregation proposals are not acceptance proof for this REST-based change.",
+    "Final source-qualified acceptance invocations are being rerun separately by parent; this receipt does not assert their pending exit codes.",
+    "No complete multi-timeframe scanner or general bar-gap recovery proof."
+  ],
+  "network_history": "Parent disclosed one exploratory baseline invocation accidentally targeted working candidate and issued one REST request returning 401; no orders. Do not claim no network activity for the entire session. Final reviewed adapter acceptance stubs getCandles before message delivery, and stream setup is stubbed; final runner-route similarly stubs REST and stream.",
+  "reviewed_log_sha256": {
+    "runner-baseline.log": "18e70c9ca6efd408434ef68e7f4758aa8001569d01f008d12e9f0e5857107266",
+    "runner-candidate-final.log": "288dc132cc7761e4fe4e45ffeb88a5f885d45151ecb58748f22eefe53286bce2",
+    "runner-working-final.log": "288dc132cc7761e4fe4e45ffeb88a5f885d45151ecb58748f22eefe53286bce2"
+  },
+  "documentation": "Parent is replacing current README with final delivery summary while retaining old blocked proposal privately. Avoid using historical proposal as final outcome."
+}

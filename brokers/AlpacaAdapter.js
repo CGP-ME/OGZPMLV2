@@ -734,6 +734,8 @@ class AlpacaAdapter extends IBrokerAdapter {
                 requestedTimeframe: timeframe,
                 streamTimeframe: STREAM_BAR_TIMEFRAME,
                 intervalMs,
+                lastRequestedBarStartMs: null,
+                requestedBarFetch: null,
             });
         }, key);
     }
@@ -1153,9 +1155,51 @@ class AlpacaAdapter extends IBrokerAdapter {
                 console.log('[Alpaca] First bar RX for', msg.S, '@', msg.t, 'OHLCV:', msg.o, msg.h, msg.l, msg.c, msg.v);
             }
             this.emit('ohlc', { timeframe: barSubscription.streamTimeframe, data: bar, symbol: bar.symbol });
+            this._emitRequestedClosedBar(msg.S, bar, barSubscription);
             const cb = this.subscriptions.get(`bars-${msg.S}`);
             if (cb) cb(bar);
         }
+    }
+
+    _emitRequestedClosedBar(symbol, nativeBar, barSubscription) {
+        if (barSubscription.requestedTimeframe === barSubscription.streamTimeframe) return;
+        if (barSubscription.requestedBarFetch) return;
+
+        const requestedIntervalMs = this._timeframeIntervalMs(barSubscription.requestedTimeframe);
+        barSubscription.requestedBarFetch = this.getCandles(symbol, barSubscription.requestedTimeframe, 2)
+            .then((candles) => {
+                if (this.barSubscriptions.get(symbol) !== barSubscription) return;
+                for (const candle of candles) {
+                    const startMs = Number(candle.t);
+                    if (startMs <= barSubscription.lastRequestedBarStartMs) continue;
+                    if (startMs + requestedIntervalMs > nativeBar.etime) continue;
+                    const requestedBar = {
+                        ...candle,
+                        etime: startMs + requestedIntervalMs,
+                        symbol,
+                    };
+                    this.emit('ohlc', {
+                        timeframe: barSubscription.requestedTimeframe,
+                        data: requestedBar,
+                        symbol,
+                    });
+                    barSubscription.lastRequestedBarStartMs = startMs;
+                }
+            })
+            .catch((error) => {
+                if (this.barSubscriptions.get(symbol) !== barSubscription) return;
+                this._recordStreamTruthUnavailable('ALPACA_REQUESTED_BAR_UNAVAILABLE', 'alpaca_requested_bar_unavailable', {
+                    operation: 'requestedBarRefresh',
+                    symbol,
+                    timeframe: barSubscription.requestedTimeframe,
+                    error: this._errorMessage(error),
+                });
+            })
+            .finally(() => {
+                if (this.barSubscriptions.get(symbol) === barSubscription) {
+                    barSubscription.requestedBarFetch = null;
+                }
+            });
     }
 
     _replaySubscriptions(subscriptionKeys = null) {

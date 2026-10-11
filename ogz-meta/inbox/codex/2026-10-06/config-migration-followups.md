@@ -189,6 +189,8 @@ HEAD source at d0310b15 passes trai.maxConf into maxConfidenceOverride at run-em
 
 - **2026-10-11 prerequisite delivered:** Stateful strategy modules now isolate candle/session state per symbol and evaluation timeframe. SmartMoneySweep retains one daily-risk budget per symbol; actual completed long/short exits forward the persisted entry frame. Exact-candidate and working-source paper execution plus four affected tests pass; adversarial disposition is recorded in [evidence](../2026-10-11/mtf-strategy-state/README.md). Full multi-frame feed/context/dispatch acceptance above remains open; no runtime activation.
 
+- **2026-10-11 Alpaca prerequisite delivered:** Requested active-frame candles now reach the runner from the broker candle reader while native1m remains available. Exact baseline reproduces the drop; exact candidate and working handler/adapter proofs plus all 25 existing Alpaca cases pass. Mercury no_break_found and Astra scoped PASS. [Evidence](../2026-10-11/mtf-alpaca-bars/README.md). Full concurrent scanning remains open; no runtime activation.
+
 ## 28. Scale-in trigger, profit-toggle and sizing-ladder intent
 
 - At committed source e927cdbb, OrderExecutor._entryConcurrencyBlock reads addTriggerClass but rejects equality with the entry trigger (core/OrderExecutor.js:1673-1686). The normal orchestrator transports a trigger or null (:3033,3083); the bounded producer trace did not establish a concrete trigger-class producer. Preserve the canonical current value and investigate intended classification behavior later; no new selector is advertised.
