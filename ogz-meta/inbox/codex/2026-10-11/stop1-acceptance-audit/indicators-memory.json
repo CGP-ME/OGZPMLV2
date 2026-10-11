@@ -1,0 +1,2630 @@
+{
+  "schemaVersion": 1,
+  "head": "cb566d93a46dca8673def2f76ea685f5be0b148e",
+  "sha256": {
+    "settings": "f83cb2f25d96bcc46ba2e3e9a4c3d561d5bda3c38c1be586aaf3df0b46da7896",
+    "internals": "44a64fb2ea8bda6db6059ed06c4c712cfd911e61112f0cb06b501cfd1b8940ef"
+  },
+  "rows": [
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.smaPeriods.0",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "run-empire-v2.js",
+          "line": 427
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 73
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 94
+        }
+      ],
+      "status": "verified_dynamic_period_array_consumer"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.smaPeriods.1",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "run-empire-v2.js",
+          "line": 427
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 73
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 94
+        }
+      ],
+      "status": "verified_dynamic_period_array_consumer"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.smaPeriods.2",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "run-empire-v2.js",
+          "line": 427
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 73
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 94
+        }
+      ],
+      "status": "verified_dynamic_period_array_consumer"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.emaPeriods.0",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "run-empire-v2.js",
+          "line": 427
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 73
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 94
+        }
+      ],
+      "status": "verified_dynamic_period_array_consumer"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.emaPeriods.1",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "run-empire-v2.js",
+          "line": 427
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 73
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 94
+        }
+      ],
+      "status": "verified_dynamic_period_array_consumer"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.emaPeriods.2",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "run-empire-v2.js",
+          "line": 427
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 73
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 94
+        }
+      ],
+      "status": "verified_dynamic_period_array_consumer"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.bbPeriod",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 428
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.bbStdDev",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 437
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 438
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.atrPeriod",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 469
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.rsiPeriod",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 489
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 527
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 556
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.stochRsiPeriod",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 527
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.stochRsiK",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 290
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 528
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 1282
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.stochRsiD",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 291
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 529
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 1283
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.adxPeriod",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 593
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 667
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.superTrendPeriod",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 712
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.superTrendMultiplier",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 713
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.keltnerPeriod",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 752
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.keltnerMultiplier",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 753
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.donchianPeriod",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 772
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.macdFast",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 954
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.macdSlow",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 955
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.macdSignal",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 288
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 956
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 1291
+        },
+        {
+          "file": "run-empire-v2.js",
+          "line": 3331
+        },
+        {
+          "file": "core/CandleProcessor.js",
+          "line": 206
+        },
+        {
+          "file": "core/CandleProcessor.js",
+          "line": 207
+        },
+        {
+          "file": "core/CandleProcessor.js",
+          "line": 209
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.mfiPeriod",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 805
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.twoPolePeriod",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 839
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.twoPoleNormalizeByATR",
+      "type": "boolean",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 857
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 863
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.ogzTpoEnabled",
+      "type": "boolean",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 867
+        },
+        {
+          "file": "run-empire-v2.js",
+          "line": 678
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.ogzTpoLength",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 891
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 916
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.ogzTpoNormLength",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 871
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 892
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 917
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.ogzTpoVolLength",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 893
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 918
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.ogzTpoLagBars",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 894
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 919
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.ogzTpoEmitMarkers",
+      "type": "boolean",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 1308
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.ichimokuTenkan",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 978
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.ichimokuKijun",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 979
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.ichimokuSenkouB",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 980
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.ichimokuDisplacement",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 989
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 995
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 1000
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 1004
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.pivotLeft",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 1033
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.pivotRight",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 1034
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.srClusterPct",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 1130
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.maxSRLevels",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 1142
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 1143
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.trendMinPivots",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 1178
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.engine.trendMaxLookback",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 1057
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 1177
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 1338
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.rsiPeriod",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/OptimizedIndicators.js",
+          "line": 109
+        },
+        {
+          "file": "core/OptimizedIndicators.js",
+          "line": 179
+        },
+        {
+          "file": "core/OptimizedIndicators.js",
+          "line": 186
+        }
+      ],
+      "status": "verified_active_singleton_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.macdFastPeriod",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/OptimizedIndicators.js",
+          "line": 235
+        }
+      ],
+      "status": "verified_active_singleton_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.macdSlowPeriod",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/OptimizedIndicators.js",
+          "line": 102
+        },
+        {
+          "file": "core/OptimizedIndicators.js",
+          "line": 105
+        },
+        {
+          "file": "core/OptimizedIndicators.js",
+          "line": 111
+        },
+        {
+          "file": "core/OptimizedIndicators.js",
+          "line": 195
+        },
+        {
+          "file": "core/OptimizedIndicators.js",
+          "line": 214
+        },
+        {
+          "file": "core/OptimizedIndicators.js",
+          "line": 236
+        }
+      ],
+      "status": "verified_active_singleton_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.macdSignalPeriod",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/OptimizedIndicators.js",
+          "line": 247
+        },
+        {
+          "file": "core/OptimizedIndicators.js",
+          "line": 261
+        },
+        {
+          "file": "core/OptimizedIndicators.js",
+          "line": 262
+        }
+      ],
+      "status": "verified_active_singleton_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.volatilityPeriod",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/OptimizedIndicators.js",
+          "line": 113
+        },
+        {
+          "file": "core/OptimizedIndicators.js",
+          "line": 309
+        },
+        {
+          "file": "core/OptimizedIndicators.js",
+          "line": 316
+        }
+      ],
+      "status": "verified_active_singleton_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.bollingerPeriod",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/OptimizedIndicators.js",
+          "line": 342
+        }
+      ],
+      "status": "verified_active_singleton_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.bollingerStdDev",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/OptimizedIndicators.js",
+          "line": 342
+        }
+      ],
+      "status": "verified_active_singleton_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.atrPeriod",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/OptimizedIndicators.js",
+          "line": 479
+        },
+        {
+          "file": "core/OptimizedIndicators.js",
+          "line": 482
+        }
+      ],
+      "status": "verified_active_singleton_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.trendShortPeriod",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/OptimizedIndicators.js",
+          "line": 403
+        }
+      ],
+      "status": "verified_active_singleton_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.trendLongPeriod",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/OptimizedIndicators.js",
+          "line": 403
+        }
+      ],
+      "status": "verified_active_singleton_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.smaLength",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 10
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.filterLength",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 11
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.extremeOverbought",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 13
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.overbought",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 14
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.neutral",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 15
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.oversold",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 16
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.extremeOversold",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 17
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.deltaDenominatorFloor",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 21
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.crossoverMinDeltaRatio",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 22
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.confidenceMidZone",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 23
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.confidenceBase",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 24
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.confidenceExtreme",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 25
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.confidenceOverbought",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 26
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.confidenceMid",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 23
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.confidenceNeutral",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 28
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.confidenceStrongDeltaThreshold",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 29
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.confidenceGoodDeltaThreshold",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 30
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.confidenceModerateDeltaThreshold",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 31
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.confidenceStrongDeltaBoost",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 32
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.confidenceGoodDeltaBoost",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 33
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.confidenceModerateDeltaBoost",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 34
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.confidenceWeakDeltaPenalty",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 35
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.noisyFilterBelow",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 36
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.noisyFilterPenalty",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 37
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.laggyFilterAbove",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 38
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.laggyFilterPenalty",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 39
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.confidenceMin",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 40
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.confidenceMax",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 41
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.stopBufferFraction",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 42
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.fallbackLongLowMultiplier",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 43
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.fallbackShortHighMultiplier",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 44
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "indicators.optimized.twoPole.rewardRiskRatio",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 45
+        }
+      ],
+      "status": "verified_constructor_and_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternMemory.minSamples",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 121
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 394
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 421
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 479
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 666
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 95
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 96
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 140
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternMemory.successThreshold",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 122
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 408
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 437
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 486
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 667
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 92
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 136
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 236
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternMemory.failureThreshold",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 123
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 409
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 438
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 493
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 668
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 93
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 137
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 237
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternMemory.maxAgeDays",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 124
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 566
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternMemory.decayHalflifeDays",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 125
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 514
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternMemory.maxPatterns",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 126
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 591
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 600
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 601
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 613
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 616
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 617
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 100
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternMemory.dtwThreshold",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 127
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 552
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternMemory.persistToDisk",
+      "type": "boolean",
+      "evidence": [
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 159
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 160
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 208
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 241
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 246
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 632
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 646
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 704
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternMemory.saveIntervalMs",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 128
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 242
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternMemory.bank.minTradesSample",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 91
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 135
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 235
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 727
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternMemory.bank.successThreshold",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 122
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 408
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 437
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 486
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 667
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 92
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 136
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 236
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternMemory.bank.failureThreshold",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 123
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 409
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 438
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 493
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 668
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 93
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 137
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 237
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternMemory.bank.maxPatternAgeMs",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 94
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 138
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 139
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 238
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternMemory.bank.promoteMinSamples",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 95
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 140
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 684
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternMemory.bank.quarantineMinSamples",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 96
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 141
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 668
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 692
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternMemory.bank.promoteMinWinRate",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 97
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 142
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 685
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternMemory.bank.promoteMinAvgR",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 98
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 143
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 686
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternMemory.bank.quarantineMaxWinRate",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 99
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 144
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 668
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 669
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 693
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternMemory.bank.maxPatterns",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 126
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 591
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 600
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 601
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 613
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 616
+        },
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 617
+        },
+        {
+          "file": "core/PatternMemoryBank.js",
+          "line": 100
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "performanceAnalysis.minTradesForAnalysis",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 53
+        },
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 85
+        },
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 801
+        },
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 852
+        },
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 1128
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "performanceAnalysis.edgeDecayLookback",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 54
+        },
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 86
+        },
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 768
+        },
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 821
+        },
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 1129
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "performanceAnalysis.edgeDecayThreshold",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 55
+        },
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 791
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "performanceAnalysis.entryQualityWeight",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 56
+        },
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 336
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "performanceAnalysis.exitQualityWeight",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 57
+        },
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 337
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "performanceAnalysis.patternAccuracyWeight",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 58
+        },
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 338
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "performanceAnalysis.recommendationInterval",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 60
+        },
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 285
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "performanceAnalysis.alertOnTradesBelow",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 62
+        },
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 354
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "filters.atrEnabled",
+      "type": "boolean",
+      "evidence": [
+        {
+          "file": "core/StrategyOrchestrator.js",
+          "line": 2661
+        }
+      ],
+      "status": "verified_per_evaluation_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "filters.atrMinPercent",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/StrategyOrchestrator.js",
+          "line": 645
+        },
+        {
+          "file": "core/StrategyOrchestrator.js",
+          "line": 646
+        },
+        {
+          "file": "core/StrategyOrchestrator.js",
+          "line": 649
+        },
+        {
+          "file": "core/StrategyOrchestrator.js",
+          "line": 2659
+        },
+        {
+          "file": "core/StrategyOrchestrator.js",
+          "line": 2660
+        },
+        {
+          "file": "core/StrategyOrchestrator.js",
+          "line": 2662
+        },
+        {
+          "file": "core/StrategyOrchestrator.js",
+          "line": 2667
+        }
+      ],
+      "status": "verified_per_evaluation_algorithm_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternRecognition.confidenceThreshold",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/EnhancedPatternRecognition.js",
+          "line": 612
+        },
+        {
+          "file": "core/EnhancedPatternRecognition.js",
+          "line": 653
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternRecognition.useOptimizedIndicators",
+      "type": "boolean",
+      "evidence": [
+        {
+          "file": "core/EnhancedPatternRecognition.js",
+          "line": 173
+        },
+        {
+          "file": "core/EnhancedPatternRecognition.js",
+          "line": 178
+        },
+        {
+          "file": "core/EnhancedPatternRecognition.js",
+          "line": 191
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternRecognition.flatCandleWickRatio",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/EnhancedPatternRecognition.js",
+          "line": 174
+        },
+        {
+          "file": "core/EnhancedPatternRecognition.js",
+          "line": 179
+        },
+        {
+          "file": "core/EnhancedPatternRecognition.js",
+          "line": 238
+        },
+        {
+          "file": "core/EnhancedPatternRecognition.js",
+          "line": 290
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternRecognition.optimizedVolatilityCeiling",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/EnhancedPatternRecognition.js",
+          "line": 175
+        },
+        {
+          "file": "core/EnhancedPatternRecognition.js",
+          "line": 180
+        },
+        {
+          "file": "core/EnhancedPatternRecognition.js",
+          "line": 225
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternRecognition.defaultPatternQuality",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/EnhancedPatternRecognition.js",
+          "line": 449
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternRecognition.historySimilarityThreshold",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/EnhancedPatternRecognition.js",
+          "line": 486
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternRecognition.decayRate",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/EnhancedPatternRecognition.js",
+          "line": 502
+        },
+        {
+          "file": "core/EnhancedPatternRecognition.js",
+          "line": 516
+        },
+        {
+          "file": "core/EnhancedPatternRecognition.js",
+          "line": 582
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternRecognition.minimumDecayMultiplier",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/EnhancedPatternRecognition.js",
+          "line": 518
+        },
+        {
+          "file": "core/EnhancedPatternRecognition.js",
+          "line": 584
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternRecognition.fastPathMinTradeHistory",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/EnhancedPatternRecognition.js",
+          "line": 629
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternRecognition.fastPathRecentResultCount",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/EnhancedPatternRecognition.js",
+          "line": 641
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternRecognition.fastPathHistoricalWeight",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/EnhancedPatternRecognition.js",
+          "line": 645
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternRecognition.fastPathRecentWeight",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/EnhancedPatternRecognition.js",
+          "line": 646
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "patternRecognition.fastPathNewPatternConfidence",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/EnhancedPatternRecognition.js",
+          "line": 666
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.engine.maxCandles",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "run-empire-v2.js",
+          "line": 428
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 199
+        }
+      ],
+      "status": "verified_engine_capacity_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.engine.maxSeriesPoints",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "run-empire-v2.js",
+          "line": 428
+        },
+        {
+          "file": "core/indicators/IndicatorEngine.js",
+          "line": 327
+        }
+      ],
+      "status": "verified_engine_capacity_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.cacheSize",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/OptimizedIndicators.js",
+          "line": 50
+        }
+      ],
+      "status": "verified_cache_capacity_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.macdHistorySize",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/OptimizedIndicators.js",
+          "line": 54
+        },
+        {
+          "file": "core/OptimizedIndicators.js",
+          "line": 247
+        }
+      ],
+      "status": "verified_algorithm_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.twoPole.maxHistory",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 47
+        }
+      ],
+      "status": "verified_algorithm_or_state_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.twoPole.stateHistoryPoints",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 48
+        }
+      ],
+      "status": "verified_algorithm_or_state_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.twoPole.chartDataPoints",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 49
+        }
+      ],
+      "status": "verified_presentation_only_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.twoPole.chartOpacityFloor",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 50
+        }
+      ],
+      "status": "verified_presentation_only_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.twoPole.chartOpacityCeiling",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 51
+        }
+      ],
+      "status": "verified_presentation_only_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.twoPole.chartOpacityScale",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 52
+        }
+      ],
+      "status": "verified_presentation_only_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.twoPole.chartColorChannelCeiling",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 53
+        }
+      ],
+      "status": "verified_presentation_only_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.twoPole.chartColorChannelBase",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 54
+        }
+      ],
+      "status": "verified_presentation_only_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.twoPole.chartColorChannelScale",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 55
+        }
+      ],
+      "status": "verified_presentation_only_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.twoPole.signalMarkerSymbol",
+      "type": "string",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 56
+        }
+      ],
+      "status": "verified_presentation_only_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.twoPole.buyMarkerColor",
+      "type": "string",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 57
+        }
+      ],
+      "status": "verified_presentation_only_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.twoPole.sellMarkerColor",
+      "type": "string",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 58
+        }
+      ],
+      "status": "verified_presentation_only_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.twoPole.signalMarkerSize",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 59
+        }
+      ],
+      "status": "verified_presentation_only_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.twoPole.stopMarkerSymbol",
+      "type": "string",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 60
+        }
+      ],
+      "status": "verified_presentation_only_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.twoPole.bullishStopMarkerColor",
+      "type": "string",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 61
+        }
+      ],
+      "status": "verified_presentation_only_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.twoPole.bearishStopMarkerColor",
+      "type": "string",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 62
+        }
+      ],
+      "status": "verified_presentation_only_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.twoPole.stopMarkerSize",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 63
+        }
+      ],
+      "status": "verified_presentation_only_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.twoPole.longStopLabel",
+      "type": "string",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 64
+        }
+      ],
+      "status": "verified_presentation_only_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.twoPole.shortStopLabel",
+      "type": "string",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 65
+        }
+      ],
+      "status": "verified_presentation_only_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.twoPole.longStopDescription",
+      "type": "string",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 66
+        }
+      ],
+      "status": "verified_presentation_only_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.twoPole.shortStopDescription",
+      "type": "string",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 67
+        }
+      ],
+      "status": "verified_presentation_only_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.twoPole.bullishGradient",
+      "type": "string",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 68
+        }
+      ],
+      "status": "verified_presentation_only_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.twoPole.bearishGradient",
+      "type": "string",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 69
+        }
+      ],
+      "status": "verified_presentation_only_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.twoPole.oscillatorLogDigits",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 70
+        }
+      ],
+      "status": "verified_logging_only_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.twoPole.zoneLogDigits",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 71
+        }
+      ],
+      "status": "verified_logging_only_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.twoPole.deltaLogDigits",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 72
+        }
+      ],
+      "status": "verified_logging_only_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.twoPole.priceLogDigits",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 73
+        }
+      ],
+      "status": "verified_logging_only_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.indicators.optimized.twoPole.riskLogDigits",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/TwoPoleOscillator.js",
+          "line": 74
+        }
+      ],
+      "status": "verified_logging_only_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.patternMemory.saveInBacktest",
+      "type": "boolean",
+      "evidence": [
+        {
+          "file": "core/UnifiedPatternMemory.js",
+          "line": 209
+        },
+        {
+          "file": "run-empire-v2.js",
+          "line": 1795
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.performanceAnalysis.updateIntervalMs",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 83
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.performanceAnalysis.performanceDbPath",
+      "type": "string",
+      "evidence": [
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 1028
+        },
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 1043
+        },
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 1061
+        },
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 1065
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.performanceAnalysis.verboseLogging",
+      "type": "boolean",
+      "evidence": [
+        {
+          "file": "core/PerformanceAnalyzer.js",
+          "line": 1091
+        }
+      ],
+      "status": "verified_algorithm_or_consumer_read"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "patternRecognition.signatureQuantizationSteps",
+      "type": "number",
+      "evidence": [
+        {
+          "file": "core/EnhancedPatternRecognition.js",
+          "line": 382
+        },
+        {
+          "file": "core/EnhancedPatternRecognition.js",
+          "line": 446
+        }
+      ],
+      "status": "verified_signature_algorithm_read"
+    }
+  ]
+}

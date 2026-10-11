@@ -1,0 +1,23 @@
+{
+  "sourceSha256": "b457c2f1d1c13d57b600c9e2284ebd87471a03ca9dc6063549dce0dda4634f7e",
+  "fixtureType": "controlled pattern fixture; not market performance evidence",
+  "emptyConfiguredReversalList": {
+    "detected": true,
+    "pattern": "bearish_engulfing",
+    "confidence": 0.9,
+    "urgency": "high"
+  },
+  "unrelatedConfiguredReversalList": {
+    "detected": true,
+    "pattern": "bearish_engulfing",
+    "confidence": 0.9,
+    "urgency": "high"
+  },
+  "raisedActualConfidenceThreshold": {
+    "detected": false,
+    "pattern": null,
+    "confidence": 0,
+    "urgency": "low"
+  },
+  "conclusion": "Configured reversalPatterns is ignored by the actual method; minReversalConfidence does affect that method. This does not establish a production evaluateExit caller."
+}

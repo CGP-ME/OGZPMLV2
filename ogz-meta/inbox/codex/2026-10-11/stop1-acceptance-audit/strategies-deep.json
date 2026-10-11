@@ -1,0 +1,1694 @@
+{
+  "audit": "Stop1 deep subset supplement",
+  "head": "cb566d93a46dca8673def2f76ea685f5be0b148e",
+  "worktree_observed": true,
+  "census": {
+    "sources": 383,
+    "calls": 343,
+    "leaves": 2549,
+    "sha256": "69c32e828f8ba69a9796335edb399a00245fecfa89403cb8fe00328b0952a5b3"
+  },
+  "scope": {
+    "prefixes": [
+      "strategies.MADynamicSR",
+      "strategies.SmartMoneySweep",
+      "strategies.BreakRetest",
+      "strategies.OGZTPO",
+      "orchestrator",
+      "strategyBehavior"
+    ],
+    "excluded": [
+      "Alpaca failure broker latch",
+      "FIFO frame ranking",
+      "Kraken forming bars"
+    ],
+    "note": "Rows do not modify prior coverage rows; MTF settings are traced only for local configuration effects."
+  },
+  "rowCount": 208,
+  "rows": [
+    {
+      "owner": "config/settings.json",
+      "key": "strategyBehavior.trendRegimeGate.enabled",
+      "status": "actual_effect_optional",
+      "reader": "StrategyOrchestrator.js:468-474 maps all array leaves into a Set; :2764-2788 filters named candidates when enabled.",
+      "initializedCaller": "getTrendRegimeGateConfig and getAtrContractConfig are live helpers in StrategyOrchestrator.js:467-512; orchestrator is initialized by run-empire-v2.js:704-710.",
+      "effect": "Live optional entry veto; base enabled=false, intended policy otherwise unresolved."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategyBehavior.trendRegimeGate.minConfidence",
+      "status": "actual_effect_optional",
+      "reader": "StrategyOrchestrator.js:468-474 maps all array leaves into a Set; :2764-2788 filters named candidates when enabled.",
+      "initializedCaller": "getTrendRegimeGateConfig and getAtrContractConfig are live helpers in StrategyOrchestrator.js:467-512; orchestrator is initialized by run-empire-v2.js:704-710.",
+      "effect": "Live optional entry veto; base enabled=false, intended policy otherwise unresolved."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategyBehavior.trendRegimeGate.strategies.0",
+      "status": "actual_effect_optional",
+      "reader": "StrategyOrchestrator.js:468-474 maps all array leaves into a Set; :2764-2788 filters named candidates when enabled.",
+      "initializedCaller": "getTrendRegimeGateConfig and getAtrContractConfig are live helpers in StrategyOrchestrator.js:467-512; orchestrator is initialized by run-empire-v2.js:704-710.",
+      "effect": "Live optional entry veto; base enabled=false, intended policy otherwise unresolved."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategyBehavior.trendRegimeGate.strategies.1",
+      "status": "actual_effect_optional",
+      "reader": "StrategyOrchestrator.js:468-474 maps all array leaves into a Set; :2764-2788 filters named candidates when enabled.",
+      "initializedCaller": "getTrendRegimeGateConfig and getAtrContractConfig are live helpers in StrategyOrchestrator.js:467-512; orchestrator is initialized by run-empire-v2.js:704-710.",
+      "effect": "Live optional entry veto; base enabled=false, intended policy otherwise unresolved."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategyBehavior.trendRegimeGate.strategies.2",
+      "status": "actual_effect_optional",
+      "reader": "StrategyOrchestrator.js:468-474 maps all array leaves into a Set; :2764-2788 filters named candidates when enabled.",
+      "initializedCaller": "getTrendRegimeGateConfig and getAtrContractConfig are live helpers in StrategyOrchestrator.js:467-512; orchestrator is initialized by run-empire-v2.js:704-710.",
+      "effect": "Live optional entry veto; base enabled=false, intended policy otherwise unresolved."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategyBehavior.trendRegimeGate.strategies.3",
+      "status": "actual_effect_optional",
+      "reader": "StrategyOrchestrator.js:468-474 maps all array leaves into a Set; :2764-2788 filters named candidates when enabled.",
+      "initializedCaller": "getTrendRegimeGateConfig and getAtrContractConfig are live helpers in StrategyOrchestrator.js:467-512; orchestrator is initialized by run-empire-v2.js:704-710.",
+      "effect": "Live optional entry veto; base enabled=false, intended policy otherwise unresolved."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategyBehavior.trendRegimeGate.strategies.4",
+      "status": "actual_effect_optional",
+      "reader": "StrategyOrchestrator.js:468-474 maps all array leaves into a Set; :2764-2788 filters named candidates when enabled.",
+      "initializedCaller": "getTrendRegimeGateConfig and getAtrContractConfig are live helpers in StrategyOrchestrator.js:467-512; orchestrator is initialized by run-empire-v2.js:704-710.",
+      "effect": "Live optional entry veto; base enabled=false, intended policy otherwise unresolved."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategyBehavior.trendRegimeGate.strategies.5",
+      "status": "actual_effect_optional",
+      "reader": "StrategyOrchestrator.js:468-474 maps all array leaves into a Set; :2764-2788 filters named candidates when enabled.",
+      "initializedCaller": "getTrendRegimeGateConfig and getAtrContractConfig are live helpers in StrategyOrchestrator.js:467-512; orchestrator is initialized by run-empire-v2.js:704-710.",
+      "effect": "Live optional entry veto; base enabled=false, intended policy otherwise unresolved."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategyBehavior.atrContracts.enabled",
+      "status": "actual_effect_optional",
+      "reader": "StrategyOrchestrator.js:477-512 maps each value; buildAtrContractOverrides calculates stop/trail/activation and is passed into the resulting policy path.",
+      "initializedCaller": "getTrendRegimeGateConfig and getAtrContractConfig are live helpers in StrategyOrchestrator.js:467-512; orchestrator is initialized by run-empire-v2.js:704-710.",
+      "effect": "When enabled and ATR/price valid, changes exit contract overrides."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategyBehavior.atrContracts.stopMultiplier",
+      "status": "actual_effect_optional",
+      "reader": "StrategyOrchestrator.js:477-512 maps each value; buildAtrContractOverrides calculates stop/trail/activation and is passed into the resulting policy path.",
+      "initializedCaller": "getTrendRegimeGateConfig and getAtrContractConfig are live helpers in StrategyOrchestrator.js:467-512; orchestrator is initialized by run-empire-v2.js:704-710.",
+      "effect": "When enabled and ATR/price valid, changes exit contract overrides."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategyBehavior.atrContracts.trailMultiplier",
+      "status": "actual_effect_optional",
+      "reader": "StrategyOrchestrator.js:477-512 maps each value; buildAtrContractOverrides calculates stop/trail/activation and is passed into the resulting policy path.",
+      "initializedCaller": "getTrendRegimeGateConfig and getAtrContractConfig are live helpers in StrategyOrchestrator.js:467-512; orchestrator is initialized by run-empire-v2.js:704-710.",
+      "effect": "When enabled and ATR/price valid, changes exit contract overrides."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategyBehavior.atrContracts.trailingActivationR",
+      "status": "actual_effect_optional",
+      "reader": "StrategyOrchestrator.js:477-512 maps each value; buildAtrContractOverrides calculates stop/trail/activation and is passed into the resulting policy path.",
+      "initializedCaller": "getTrendRegimeGateConfig and getAtrContractConfig are live helpers in StrategyOrchestrator.js:467-512; orchestrator is initialized by run-empire-v2.js:704-710.",
+      "effect": "When enabled and ATR/price valid, changes exit contract overrides."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.entryMaPeriod",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.srMaPeriod",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.touchZonePct",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.srTestCount",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.swingLookback",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.srZonePct",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.slopeLookback",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.minSlopePct",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.maxExtensionAtr",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.atrPeriod",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.patternPersistBars",
+      "status": "read_discard",
+      "reader": "MADynamicSR.js:184-185 validates and :203-204 stores it; no later reader. ",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "No demonstrated signal, rank, sizing, or exit effect."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.baseConfidence",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.touchQualityWeight",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.maxConfidence",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.conditionFlags.trendGate",
+      "status": "ignored_toggle",
+      "reader": "MADynamicSR.js:357-371 always rejects flat slope; :769-777 always sets the profile trend component enabled.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Does not control the advertised trend gate."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.conditionFlags.approachSide",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.conditionFlags.extension",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.conditionFlags.firstTouchAfterParabolic",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.conditionFlags.pullbackCooldown",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.conditionFlags.confirmationCandle",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.conditionFlags.srAlignment",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.conditionFlags.structuralValidity",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.approachRules.allowLongFromAbove",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.approachRules.allowLongFromBelowBullReclaim",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.approachRules.allowLongFromBelowOutsideBull",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.approachRules.allowShortFromBelow",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.approachRules.allowShortFromAboveBearReclaim",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.approachRules.allowShortFromAboveOutsideBear",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.multipliers.extensionMin",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.multipliers.extensionPenaltyScale",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.multipliers.firstTouchAfterParabolic",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.multipliers.pullbackCooldown",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.multipliers.confirmationAligned",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.multipliers.confirmationMissing",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.multipliers.confirmationConflict",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.multipliers.srAligned",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.multipliers.srMissing",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.multipliers.srWrongSide",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.multipliers.structuralValid",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.multipliers.structuralInvalid",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.structural.atrBufferMultiplier",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.structural.rewardRiskTarget",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.structural.minRewardRisk",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.structural.minTakeProfitPct",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.confluenceBoost.enabled",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MADynamicSR.confluenceBoost.weight",
+      "status": "actual_effect",
+      "reader": "MADynamicSR.js:276-293 dynamically re-reads currentConfig and nested objects; numeric controls affect MA, slope, S/R, touch, ATR and confidence; flags/rules/multipliers/structural values feed :375 and :754-969.",
+      "initializedCaller": "StrategyOrchestrator.js:855-858 then :1737-1794; symbol instances use the same ConfigLoader provider at :1751-1754.",
+      "effect": "Signal eligibility, direction/confidence, and emitted signal geometry context change on the next update."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.sessionLookback",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.srZonePct",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.minLevelTests",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.swingLookback",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.breakConfirmPct",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.minBreakerBodyRatio",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.retestZonePct",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.maxRetestWait",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.minBattleCandles",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.maxBattleCandles",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.ntzMaxRangePct",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.minimumHistoryBars",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.recentBufferExtraBars",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.atrPeriod",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.keyLevelRefreshBars",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.minimumLevelHistoryBars",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.maxKeyLevels",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.wickProximityFraction",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.strongCandleAtrMultiplier",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.minimumDefendingWicks",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.secondaryTargetRiskMultiplier",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.baseConfidence",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.wickConfidencePerCount",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.wickConfidenceMax",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.engulfingConfidenceBoost",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.strongCandleConfidenceBoost",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.battleConfidenceOffsetBars",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.battleConfidencePerBar",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.battleConfidenceMax",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.levelTestConfidencePerCount",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.levelTestConfidenceMax",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.maxConfidence",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.invalidationThresholdMultiplier",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.fibDistance",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.fibBoostNormal",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.fibBoostGolden",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.confluenceBoost.enabled",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.BreakRetest.confluenceBoost.weight",
+      "status": "actual_effect",
+      "reader": "BreakAndRetest.js reads dynamic config at update/key-level/break/retest/signal branches: :83-155, :175-240, :248-341, :380-496, :530-535.",
+      "initializedCaller": "StrategyOrchestrator.js:864-866 constructs BreakAndRetest and its registered symbol-scoped evaluator calls it (StrategyOrchestrator.js:1858+); module gets configProvider each operation.",
+      "effect": "Changes history/key-level/break/retest eligibility, confidence, targets and invalidation."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.vpDays",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.vpBins",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.valueAreaPct",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.bodyWeightPct",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.lvnPctile",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.ivbMinutes",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.cashSessionStartHour",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.cashSessionStartMinute",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.cashSessionEndHour",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.cashSessionEndMinute",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.volAvgLen",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.absorbBodyPct",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.absorbWickPct",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.absorbVolMult",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.initBodyPct",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.absorbBodyProgPct",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.absorbWickProgPct",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.absorbVolProgMult",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.initBodyProgPct",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.cvdDivLen",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.atrLen",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.lowConvATRMult",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.midConvATRMult",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.highConvATRMult",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.slBufferPct",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.maxLossPct",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.maxHoldBars",
+      "status": "read_discard",
+      "reader": "SmartMoneySweep.js:107 assigns the field; no later reader.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "No hold-time behavior."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.maxDailyLosses",
+      "status": "contrary_to_current_user_intent",
+      "reader": "SmartMoneySweep.js:108/:183/:225-226 vetoes entries; close result flow OrderExecutor.js:4907-4912/:5538-5543 -> StrategyOrchestrator.js:3207-3217 -> SmartMoneySweep.js:328-331.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Active restriction contrary to the user statement that SMS was removed."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.useSessionFilter",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.validSessionStartHour",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.validSessionStartMinute",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.validSessionEndHour",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.validSessionEndMinute",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.vpRthOnly",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.vpLookbackBars",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.sweepMaxOffset",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.minConditionsGate",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.tierHigh",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.tierMid",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.tierFloor",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.breakHigh",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.breakMid",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.confidenceMode",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.confluenceBoost.enabled",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.SmartMoneySweep.confluenceBoost.weight",
+      "status": "actual_effect",
+      "reader": "SmartMoneySweep.js:70-136 maps config to instance fields; reader groups: VP :162/:353-495, IVB/session :502-546/:1031-1066, candle/CVD :553-640, conviction :268/:312-320, sweep/exit :188/:691/:903-968.",
+      "initializedCaller": "StrategyOrchestrator.js:879-880 creates SmartMoneySweep and :2138-2169 evaluates symbol-scoped modules; SmartMoneySweep.js:153-154 refreshes its ConfigLoader-backed provider each update.",
+      "effect": "Changes SMS signal readiness, conditions/confidence, entry eligibility, and SMS-provided exit levels."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OGZTPO.mode",
+      "status": "actual_effect",
+      "reader": "OgzTpoIntegration.js normalizes provider config :128-151 and refreshes it every update :229-236; oscillator/history/signal/levels/mode readers occur at :261-422 and :447-531.",
+      "initializedCaller": "StrategyOrchestrator.js:877-878 creates OgzTpoIntegration; registered evaluator creates symbol-scoped integration and calls update at :2027-2080.",
+      "effect": "Changes TPO warmup, oscillator/crossover behavior, strength/zone/vote gating, TTL, dynamic levels, and final strategy confidence."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OGZTPO.dynamicSL",
+      "status": "actual_effect",
+      "reader": "OgzTpoIntegration.js normalizes provider config :128-151 and refreshes it every update :229-236; oscillator/history/signal/levels/mode readers occur at :261-422 and :447-531.",
+      "initializedCaller": "StrategyOrchestrator.js:877-878 creates OgzTpoIntegration; registered evaluator creates symbol-scoped integration and calls update at :2027-2080.",
+      "effect": "Changes TPO warmup, oscillator/crossover behavior, strength/zone/vote gating, TTL, dynamic levels, and final strategy confidence."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OGZTPO.confluence",
+      "status": "actual_effect",
+      "reader": "OgzTpoIntegration.js normalizes provider config :128-151 and refreshes it every update :229-236; oscillator/history/signal/levels/mode readers occur at :261-422 and :447-531.",
+      "initializedCaller": "StrategyOrchestrator.js:877-878 creates OgzTpoIntegration; registered evaluator creates symbol-scoped integration and calls update at :2027-2080.",
+      "effect": "Changes TPO warmup, oscillator/crossover behavior, strength/zone/vote gating, TTL, dynamic levels, and final strategy confidence."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OGZTPO.voteWeight",
+      "status": "actual_effect",
+      "reader": "OgzTpoIntegration.js normalizes provider config :128-151 and refreshes it every update :229-236; oscillator/history/signal/levels/mode readers occur at :261-422 and :447-531.",
+      "initializedCaller": "StrategyOrchestrator.js:877-878 creates OgzTpoIntegration; registered evaluator creates symbol-scoped integration and calls update at :2027-2080.",
+      "effect": "Changes TPO warmup, oscillator/crossover behavior, strength/zone/vote gating, TTL, dynamic levels, and final strategy confidence."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OGZTPO.adaptive",
+      "status": "read_discard",
+      "reader": "OgzTpoIntegration.js:140 normalizes adaptive but no later this.config.adaptive reader was found.",
+      "initializedCaller": "StrategyOrchestrator.js:877-878 creates OgzTpoIntegration; registered evaluator creates symbol-scoped integration and calls update at :2027-2080.",
+      "effect": "No demonstrated TPO or entry effect."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OGZTPO.tpoLength",
+      "status": "actual_effect",
+      "reader": "OgzTpoIntegration.js normalizes provider config :128-151 and refreshes it every update :229-236; oscillator/history/signal/levels/mode readers occur at :261-422 and :447-531.",
+      "initializedCaller": "StrategyOrchestrator.js:877-878 creates OgzTpoIntegration; registered evaluator creates symbol-scoped integration and calls update at :2027-2080.",
+      "effect": "Changes TPO warmup, oscillator/crossover behavior, strength/zone/vote gating, TTL, dynamic levels, and final strategy confidence."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OGZTPO.normLength",
+      "status": "actual_effect",
+      "reader": "OgzTpoIntegration.js normalizes provider config :128-151 and refreshes it every update :229-236; oscillator/history/signal/levels/mode readers occur at :261-422 and :447-531.",
+      "initializedCaller": "StrategyOrchestrator.js:877-878 creates OgzTpoIntegration; registered evaluator creates symbol-scoped integration and calls update at :2027-2080.",
+      "effect": "Changes TPO warmup, oscillator/crossover behavior, strength/zone/vote gating, TTL, dynamic levels, and final strategy confidence."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OGZTPO.volLength",
+      "status": "actual_effect",
+      "reader": "OgzTpoIntegration.js normalizes provider config :128-151 and refreshes it every update :229-236; oscillator/history/signal/levels/mode readers occur at :261-422 and :447-531.",
+      "initializedCaller": "StrategyOrchestrator.js:877-878 creates OgzTpoIntegration; registered evaluator creates symbol-scoped integration and calls update at :2027-2080.",
+      "effect": "Changes TPO warmup, oscillator/crossover behavior, strength/zone/vote gating, TTL, dynamic levels, and final strategy confidence."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OGZTPO.lagBars",
+      "status": "actual_effect",
+      "reader": "OgzTpoIntegration.js normalizes provider config :128-151 and refreshes it every update :229-236; oscillator/history/signal/levels/mode readers occur at :261-422 and :447-531.",
+      "initializedCaller": "StrategyOrchestrator.js:877-878 creates OgzTpoIntegration; registered evaluator creates symbol-scoped integration and calls update at :2027-2080.",
+      "effect": "Changes TPO warmup, oscillator/crossover behavior, strength/zone/vote gating, TTL, dynamic levels, and final strategy confidence."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OGZTPO.maxHistory",
+      "status": "actual_effect",
+      "reader": "OgzTpoIntegration.js normalizes provider config :128-151 and refreshes it every update :229-236; oscillator/history/signal/levels/mode readers occur at :261-422 and :447-531.",
+      "initializedCaller": "StrategyOrchestrator.js:877-878 creates OgzTpoIntegration; registered evaluator creates symbol-scoped integration and calls update at :2027-2080.",
+      "effect": "Changes TPO warmup, oscillator/crossover behavior, strength/zone/vote gating, TTL, dynamic levels, and final strategy confidence."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OGZTPO.lastSignalTtlBars",
+      "status": "actual_effect",
+      "reader": "OgzTpoIntegration.js normalizes provider config :128-151 and refreshes it every update :229-236; oscillator/history/signal/levels/mode readers occur at :261-422 and :447-531.",
+      "initializedCaller": "StrategyOrchestrator.js:877-878 creates OgzTpoIntegration; registered evaluator creates symbol-scoped integration and calls update at :2027-2080.",
+      "effect": "Changes TPO warmup, oscillator/crossover behavior, strength/zone/vote gating, TTL, dynamic levels, and final strategy confidence."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OGZTPO.confluenceBonusStrength",
+      "status": "actual_effect",
+      "reader": "OgzTpoIntegration.js normalizes provider config :128-151 and refreshes it every update :229-236; oscillator/history/signal/levels/mode readers occur at :261-422 and :447-531.",
+      "initializedCaller": "StrategyOrchestrator.js:877-878 creates OgzTpoIntegration; registered evaluator creates symbol-scoped integration and calls update at :2027-2080.",
+      "effect": "Changes TPO warmup, oscillator/crossover behavior, strength/zone/vote gating, TTL, dynamic levels, and final strategy confidence."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OGZTPO.strengthConfidenceMultiplier",
+      "status": "actual_effect",
+      "reader": "OgzTpoIntegration.js normalizes provider config :128-151 and refreshes it every update :229-236; oscillator/history/signal/levels/mode readers occur at :261-422 and :447-531.",
+      "initializedCaller": "StrategyOrchestrator.js:877-878 creates OgzTpoIntegration; registered evaluator creates symbol-scoped integration and calls update at :2027-2080.",
+      "effect": "Changes TPO warmup, oscillator/crossover behavior, strength/zone/vote gating, TTL, dynamic levels, and final strategy confidence."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OGZTPO.dynamicLevelMultipliers.conservative",
+      "status": "actual_effect",
+      "reader": "OgzTpoIntegration.js normalizes provider config :128-151 and refreshes it every update :229-236; oscillator/history/signal/levels/mode readers occur at :261-422 and :447-531.",
+      "initializedCaller": "StrategyOrchestrator.js:877-878 creates OgzTpoIntegration; registered evaluator creates symbol-scoped integration and calls update at :2027-2080.",
+      "effect": "Changes TPO warmup, oscillator/crossover behavior, strength/zone/vote gating, TTL, dynamic levels, and final strategy confidence."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OGZTPO.dynamicLevelMultipliers.standard",
+      "status": "actual_effect",
+      "reader": "OgzTpoIntegration.js normalizes provider config :128-151 and refreshes it every update :229-236; oscillator/history/signal/levels/mode readers occur at :261-422 and :447-531.",
+      "initializedCaller": "StrategyOrchestrator.js:877-878 creates OgzTpoIntegration; registered evaluator creates symbol-scoped integration and calls update at :2027-2080.",
+      "effect": "Changes TPO warmup, oscillator/crossover behavior, strength/zone/vote gating, TTL, dynamic levels, and final strategy confidence."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OGZTPO.dynamicLevelMultipliers.aggressive",
+      "status": "actual_effect",
+      "reader": "OgzTpoIntegration.js normalizes provider config :128-151 and refreshes it every update :229-236; oscillator/history/signal/levels/mode readers occur at :261-422 and :447-531.",
+      "initializedCaller": "StrategyOrchestrator.js:877-878 creates OgzTpoIntegration; registered evaluator creates symbol-scoped integration and calls update at :2027-2080.",
+      "effect": "Changes TPO warmup, oscillator/crossover behavior, strength/zone/vote gating, TTL, dynamic levels, and final strategy confidence."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OGZTPO.modes.conservative.minStrength",
+      "status": "actual_effect",
+      "reader": "OgzTpoIntegration.js normalizes provider config :128-151 and refreshes it every update :229-236; oscillator/history/signal/levels/mode readers occur at :261-422 and :447-531.",
+      "initializedCaller": "StrategyOrchestrator.js:877-878 creates OgzTpoIntegration; registered evaluator creates symbol-scoped integration and calls update at :2027-2080.",
+      "effect": "Changes TPO warmup, oscillator/crossover behavior, strength/zone/vote gating, TTL, dynamic levels, and final strategy confidence."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OGZTPO.modes.conservative.zoneRequired",
+      "status": "actual_effect",
+      "reader": "OgzTpoIntegration.js normalizes provider config :128-151 and refreshes it every update :229-236; oscillator/history/signal/levels/mode readers occur at :261-422 and :447-531.",
+      "initializedCaller": "StrategyOrchestrator.js:877-878 creates OgzTpoIntegration; registered evaluator creates symbol-scoped integration and calls update at :2027-2080.",
+      "effect": "Changes TPO warmup, oscillator/crossover behavior, strength/zone/vote gating, TTL, dynamic levels, and final strategy confidence."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OGZTPO.modes.conservative.voteMultiplier",
+      "status": "actual_effect",
+      "reader": "OgzTpoIntegration.js normalizes provider config :128-151 and refreshes it every update :229-236; oscillator/history/signal/levels/mode readers occur at :261-422 and :447-531.",
+      "initializedCaller": "StrategyOrchestrator.js:877-878 creates OgzTpoIntegration; registered evaluator creates symbol-scoped integration and calls update at :2027-2080.",
+      "effect": "Changes TPO warmup, oscillator/crossover behavior, strength/zone/vote gating, TTL, dynamic levels, and final strategy confidence."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OGZTPO.modes.standard.minStrength",
+      "status": "actual_effect",
+      "reader": "OgzTpoIntegration.js normalizes provider config :128-151 and refreshes it every update :229-236; oscillator/history/signal/levels/mode readers occur at :261-422 and :447-531.",
+      "initializedCaller": "StrategyOrchestrator.js:877-878 creates OgzTpoIntegration; registered evaluator creates symbol-scoped integration and calls update at :2027-2080.",
+      "effect": "Changes TPO warmup, oscillator/crossover behavior, strength/zone/vote gating, TTL, dynamic levels, and final strategy confidence."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OGZTPO.modes.standard.zoneRequired",
+      "status": "actual_effect",
+      "reader": "OgzTpoIntegration.js normalizes provider config :128-151 and refreshes it every update :229-236; oscillator/history/signal/levels/mode readers occur at :261-422 and :447-531.",
+      "initializedCaller": "StrategyOrchestrator.js:877-878 creates OgzTpoIntegration; registered evaluator creates symbol-scoped integration and calls update at :2027-2080.",
+      "effect": "Changes TPO warmup, oscillator/crossover behavior, strength/zone/vote gating, TTL, dynamic levels, and final strategy confidence."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OGZTPO.modes.standard.voteMultiplier",
+      "status": "actual_effect",
+      "reader": "OgzTpoIntegration.js normalizes provider config :128-151 and refreshes it every update :229-236; oscillator/history/signal/levels/mode readers occur at :261-422 and :447-531.",
+      "initializedCaller": "StrategyOrchestrator.js:877-878 creates OgzTpoIntegration; registered evaluator creates symbol-scoped integration and calls update at :2027-2080.",
+      "effect": "Changes TPO warmup, oscillator/crossover behavior, strength/zone/vote gating, TTL, dynamic levels, and final strategy confidence."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OGZTPO.modes.aggressive.minStrength",
+      "status": "actual_effect",
+      "reader": "OgzTpoIntegration.js normalizes provider config :128-151 and refreshes it every update :229-236; oscillator/history/signal/levels/mode readers occur at :261-422 and :447-531.",
+      "initializedCaller": "StrategyOrchestrator.js:877-878 creates OgzTpoIntegration; registered evaluator creates symbol-scoped integration and calls update at :2027-2080.",
+      "effect": "Changes TPO warmup, oscillator/crossover behavior, strength/zone/vote gating, TTL, dynamic levels, and final strategy confidence."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OGZTPO.modes.aggressive.zoneRequired",
+      "status": "actual_effect",
+      "reader": "OgzTpoIntegration.js normalizes provider config :128-151 and refreshes it every update :229-236; oscillator/history/signal/levels/mode readers occur at :261-422 and :447-531.",
+      "initializedCaller": "StrategyOrchestrator.js:877-878 creates OgzTpoIntegration; registered evaluator creates symbol-scoped integration and calls update at :2027-2080.",
+      "effect": "Changes TPO warmup, oscillator/crossover behavior, strength/zone/vote gating, TTL, dynamic levels, and final strategy confidence."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OGZTPO.modes.aggressive.voteMultiplier",
+      "status": "actual_effect",
+      "reader": "OgzTpoIntegration.js normalizes provider config :128-151 and refreshes it every update :229-236; oscillator/history/signal/levels/mode readers occur at :261-422 and :447-531.",
+      "initializedCaller": "StrategyOrchestrator.js:877-878 creates OgzTpoIntegration; registered evaluator creates symbol-scoped integration and calls update at :2027-2080.",
+      "effect": "Changes TPO warmup, oscillator/crossover behavior, strength/zone/vote gating, TTL, dynamic levels, and final strategy confidence."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OGZTPO.confluenceBoost.enabled",
+      "status": "actual_effect",
+      "reader": "OgzTpoIntegration.js normalizes provider config :128-151 and refreshes it every update :229-236; oscillator/history/signal/levels/mode readers occur at :261-422 and :447-531.",
+      "initializedCaller": "StrategyOrchestrator.js:877-878 creates OgzTpoIntegration; registered evaluator creates symbol-scoped integration and calls update at :2027-2080.",
+      "effect": "Changes TPO warmup, oscillator/crossover behavior, strength/zone/vote gating, TTL, dynamic levels, and final strategy confidence."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OGZTPO.confluenceBoost.weight",
+      "status": "actual_effect",
+      "reader": "OgzTpoIntegration.js normalizes provider config :128-151 and refreshes it every update :229-236; oscillator/history/signal/levels/mode readers occur at :261-422 and :447-531.",
+      "initializedCaller": "StrategyOrchestrator.js:877-878 creates OgzTpoIntegration; registered evaluator creates symbol-scoped integration and calls update at :2027-2080.",
+      "effect": "Changes TPO warmup, oscillator/crossover behavior, strength/zone/vote gating, TTL, dynamic levels, and final strategy confidence."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.minCandlesEMA",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:896-900 captures values; MTF gates at :1047-1052; EMA/MASR/Sweep/TPO gates at :1671/:1743/:1807/:2036.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Controls readiness/early null return for the named strategy or MTF analysis."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.minCandlesMASR",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:896-900 captures values; MTF gates at :1047-1052; EMA/MASR/Sweep/TPO gates at :1671/:1743/:1807/:2036.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Controls readiness/early null return for the named strategy or MTF analysis."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.minCandlesSweep",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:896-900 captures values; MTF gates at :1047-1052; EMA/MASR/Sweep/TPO gates at :1671/:1743/:1807/:2036.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Controls readiness/early null return for the named strategy or MTF analysis."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.minCandlesMTF",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:896-900 captures values; MTF gates at :1047-1052; EMA/MASR/Sweep/TPO gates at :1671/:1743/:1807/:2036.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Controls readiness/early null return for the named strategy or MTF analysis."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.minCandlesTPO",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:896-900 captures values; MTF gates at :1047-1052; EMA/MASR/Sweep/TPO gates at :1671/:1743/:1807/:2036.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Controls readiness/early null return for the named strategy or MTF analysis."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.fibDistanceEMA",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:901-905 captures values; EMA boost :1713-1719, MASR :1777-1782, Sweep :1838-1844.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Changes qualified candidate confidence when nearest Fib is within configured distance."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.fibDistanceMASR",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:901-905 captures values; EMA boost :1713-1719, MASR :1777-1782, Sweep :1838-1844.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Changes qualified candidate confidence when nearest Fib is within configured distance."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.fibDistanceSweep",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:901-905 captures values; EMA boost :1713-1719, MASR :1777-1782, Sweep :1838-1844.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Changes qualified candidate confidence when nearest Fib is within configured distance."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.fibBoostNormal",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:901-905 captures values; EMA boost :1713-1719, MASR :1777-1782, Sweep :1838-1844.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Changes qualified candidate confidence when nearest Fib is within configured distance."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.fibBoostGolden",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:901-905 captures values; EMA boost :1713-1719, MASR :1777-1782, Sweep :1838-1844.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Changes qualified candidate confidence when nearest Fib is within configured distance."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.mtfTimeframes.0",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:944-955 passes dynamic `mtfTimeframes` as MultiTimeframeAdapter activeTimeframes; adapter is used at :1008-1089.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Controls configured MTF frame set. Separate frame-ranking/forming-bar defects remain excluded."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.mtfTimeframes.1",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:944-955 passes dynamic `mtfTimeframes` as MultiTimeframeAdapter activeTimeframes; adapter is used at :1008-1089.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Controls configured MTF frame set. Separate frame-ranking/forming-bar defects remain excluded."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.mtfTimeframes.2",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:944-955 passes dynamic `mtfTimeframes` as MultiTimeframeAdapter activeTimeframes; adapter is used at :1008-1089.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Controls configured MTF frame set. Separate frame-ranking/forming-bar defects remain excluded."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.mtfTimeframes.3",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:944-955 passes dynamic `mtfTimeframes` as MultiTimeframeAdapter activeTimeframes; adapter is used at :1008-1089.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Controls configured MTF frame set. Separate frame-ranking/forming-bar defects remain excluded."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.mtfTimeframes.4",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:944-955 passes dynamic `mtfTimeframes` as MultiTimeframeAdapter activeTimeframes; adapter is used at :1008-1089.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Controls configured MTF frame set. Separate frame-ranking/forming-bar defects remain excluded."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.mtfAdapter.indicatorPeriods.rsi",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:944-955 passes indicatorPeriods/minCandlesForAnalysis to MultiTimeframeAdapter; adapter ingestion/scoring path :1018-1089.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Controls MTF indicator computation/readiness. Separate MTF defect remediation is excluded."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.mtfAdapter.indicatorPeriods.smaFast",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:944-955 passes indicatorPeriods/minCandlesForAnalysis to MultiTimeframeAdapter; adapter ingestion/scoring path :1018-1089.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Controls MTF indicator computation/readiness. Separate MTF defect remediation is excluded."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.mtfAdapter.indicatorPeriods.smaSlow",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:944-955 passes indicatorPeriods/minCandlesForAnalysis to MultiTimeframeAdapter; adapter ingestion/scoring path :1018-1089.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Controls MTF indicator computation/readiness. Separate MTF defect remediation is excluded."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.mtfAdapter.indicatorPeriods.ema",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:944-955 passes indicatorPeriods/minCandlesForAnalysis to MultiTimeframeAdapter; adapter ingestion/scoring path :1018-1089.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Controls MTF indicator computation/readiness. Separate MTF defect remediation is excluded."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.mtfAdapter.indicatorPeriods.macdFast",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:944-955 passes indicatorPeriods/minCandlesForAnalysis to MultiTimeframeAdapter; adapter ingestion/scoring path :1018-1089.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Controls MTF indicator computation/readiness. Separate MTF defect remediation is excluded."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.mtfAdapter.indicatorPeriods.macdSlow",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:944-955 passes indicatorPeriods/minCandlesForAnalysis to MultiTimeframeAdapter; adapter ingestion/scoring path :1018-1089.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Controls MTF indicator computation/readiness. Separate MTF defect remediation is excluded."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.mtfAdapter.indicatorPeriods.atr",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:944-955 passes indicatorPeriods/minCandlesForAnalysis to MultiTimeframeAdapter; adapter ingestion/scoring path :1018-1089.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Controls MTF indicator computation/readiness. Separate MTF defect remediation is excluded."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.mtfAdapter.indicatorPeriods.bollingerPeriod",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:944-955 passes indicatorPeriods/minCandlesForAnalysis to MultiTimeframeAdapter; adapter ingestion/scoring path :1018-1089.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Controls MTF indicator computation/readiness. Separate MTF defect remediation is excluded."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.mtfAdapter.indicatorPeriods.bollingerStd",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:944-955 passes indicatorPeriods/minCandlesForAnalysis to MultiTimeframeAdapter; adapter ingestion/scoring path :1018-1089.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Controls MTF indicator computation/readiness. Separate MTF defect remediation is excluded."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.mtfAdapter.minCandlesForAnalysis",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:944-955 passes indicatorPeriods/minCandlesForAnalysis to MultiTimeframeAdapter; adapter ingestion/scoring path :1018-1089.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Controls MTF indicator computation/readiness. Separate MTF defect remediation is excluded."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.emaCrossoverMtf.hourlyTrendVetoMultiplier",
+      "status": "annotation_only_noneditable",
+      "reader": "StrategyOrchestrator.js:1456-1498, :1522-1531, :1584-1593 only calls addDecisionContributor with type annotation.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Trace attribution only; no rank, eligibility, sizing or exit mutation. No current editable ConfigLoader descriptor."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.emaCrossoverMtf.fourHourMacdBoostMultiplier",
+      "status": "annotation_only_noneditable",
+      "reader": "StrategyOrchestrator.js:1456-1498, :1522-1531, :1584-1593 only calls addDecisionContributor with type annotation.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Trace attribution only; no rank, eligibility, sizing or exit mutation. No current editable ConfigLoader descriptor."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.emaCrossoverMtf.freshLongTermCrossoverMinTrendStrength",
+      "status": "annotation_only_noneditable",
+      "reader": "StrategyOrchestrator.js:1456-1498, :1522-1531, :1584-1593 only calls addDecisionContributor with type annotation.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Trace attribution only; no rank, eligibility, sizing or exit mutation. No current editable ConfigLoader descriptor."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.maDynamicSRMtf.requireHourlyTrendAlign",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:1503-1521, :1536-1561, :1565-1582 reads each dynamic field and uses recordRankingScoreChange through applyPenalty/add/multiply.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Changes candidate ranking score when stated MTF condition occurs."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.maDynamicSRMtf.hourlyTrendConflictMultiplier",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:1503-1521, :1536-1561, :1565-1582 reads each dynamic field and uses recordRankingScoreChange through applyPenalty/add/multiply.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Changes candidate ranking score when stated MTF condition occurs."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.maDynamicSRMtf.fourHourAlignBoost",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:1503-1521, :1536-1561, :1565-1582 reads each dynamic field and uses recordRankingScoreChange through applyPenalty/add/multiply.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Changes candidate ranking score when stated MTF condition occurs."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.maDynamicSRMtf.compressionBandwidthThreshold",
+      "status": "annotation_only_noneditable",
+      "reader": "StrategyOrchestrator.js:1456-1498, :1522-1531, :1584-1593 only calls addDecisionContributor with type annotation.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Trace attribution only; no rank, eligibility, sizing or exit mutation. No current editable ConfigLoader descriptor."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.rsiMtf.penalizeAgainst4hTrend",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:1503-1521, :1536-1561, :1565-1582 reads each dynamic field and uses recordRankingScoreChange through applyPenalty/add/multiply.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Changes candidate ranking score when stated MTF condition occurs."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.rsiMtf.fourHourTrendConflictMultiplier",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:1503-1521, :1536-1561, :1565-1582 reads each dynamic field and uses recordRankingScoreChange through applyPenalty/add/multiply.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Changes candidate ranking score when stated MTF condition occurs."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.rsiMtf.hourlyRsiAlignBoost",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:1503-1521, :1536-1561, :1565-1582 reads each dynamic field and uses recordRankingScoreChange through applyPenalty/add/multiply.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Changes candidate ranking score when stated MTF condition occurs."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.rsiMtf.hourlyRsiBuyMax",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:1503-1521, :1536-1561, :1565-1582 reads each dynamic field and uses recordRankingScoreChange through applyPenalty/add/multiply.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Changes candidate ranking score when stated MTF condition occurs."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.rsiMtf.hourlyRsiSellMin",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:1503-1521, :1536-1561, :1565-1582 reads each dynamic field and uses recordRankingScoreChange through applyPenalty/add/multiply.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Changes candidate ranking score when stated MTF condition occurs."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.ogzTpoMtf.fourHourTrendBoostMultiplier",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:1503-1521, :1536-1561, :1565-1582 reads each dynamic field and uses recordRankingScoreChange through applyPenalty/add/multiply.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Changes candidate ranking score when stated MTF condition occurs."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.ogzTpoMtf.hourlyMacdAlignBoost",
+      "status": "actual_effect",
+      "reader": "StrategyOrchestrator.js:1503-1521, :1536-1561, :1565-1582 reads each dynamic field and uses recordRankingScoreChange through applyPenalty/add/multiply.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Changes candidate ranking score when stated MTF condition occurs."
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "orchestrator.ogzTpoMtf.bandwidthThreshold",
+      "status": "annotation_only_noneditable",
+      "reader": "StrategyOrchestrator.js:1456-1498, :1522-1531, :1584-1593 only calls addDecisionContributor with type annotation.",
+      "initializedCaller": "StrategyOrchestrator constructor :815-938; registered evaluation executes through TradingLoop-provided orchestrator.",
+      "effect": "Trace attribution only; no rank, eligibility, sizing or exit mutation. No current editable ConfigLoader descriptor."
+    }
+  ]
+}

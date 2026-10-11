@@ -1,0 +1,1498 @@
+{
+  "audit": "Stop1 strategy-secondary leaf consumer audit",
+  "mode": "read-only static analysis; no runtime proof",
+  "head": "cb566d93a46dca8673def2f76ea685f5be0b148e",
+  "worktree_observed": true,
+  "scope": {
+    "families": [
+      "PropSafeEMAPullback",
+      "LiquiditySweep",
+      "EMATrendRetest",
+      "EMASMACrossover",
+      "NoWickImbalance",
+      "RSI",
+      "OpeningRangeBreakout",
+      "RSI2MeanReversion",
+      "TimeSeriesMomentum",
+      "VolumeProfile",
+      "DonchianBreakout",
+      "CandlePattern",
+      "MarketRegime"
+    ],
+    "leaf_count": 152,
+    "row_key_shape": "owner=config/settings.json; key=full dotted config/settings.json leaf"
+  },
+  "status_definitions": {
+    "source_traced": "concrete per-field reader and static call chain traced",
+    "conditional_effect": "reader applies only after stated runtime condition",
+    "metadata_only": "reader affects diagnostics only"
+  },
+  "evidence_families": {
+    "PropSafeEMAPullback": {
+      "consumer": "modules/PropSafeEMAPullback.js:60-112",
+      "chain": "StrategyOrchestrator.js:2229-2249",
+      "default_effect": "entry eligibility/direction/confidence"
+    },
+    "LiquiditySweep": {
+      "consumer": "modules/LiquiditySweepDetector.js:63-87,166-544",
+      "chain": "StrategyOrchestrator.js:859-863",
+      "default_effect": "sweep detection/timing/stop/confidence"
+    },
+    "EMATrendRetest": {
+      "consumer": "modules/EMATrendRetest.js:73-132,192-308",
+      "chain": "StrategyOrchestrator.js:2253-2273",
+      "default_effect": "entry eligibility/direction/confidence"
+    },
+    "EMASMACrossover": {
+      "consumer": "modules/EMASMACrossoverSignal.js:81-125,251,317,340-365,512-588",
+      "chain": "StrategyOrchestrator.js:850-854",
+      "default_effect": "vote confidence/warmup"
+    },
+    "NoWickImbalance": {
+      "consumer": "modules/NoWickImbalance.js:46-91,146-165,192-194,306-377,454-568",
+      "chain": "StrategyOrchestrator.js:867-875,2196-2199",
+      "default_effect": "formation/entry behavior/confidence"
+    },
+    "RSI": {
+      "consumer": "core/StrategyOrchestrator.js:416-452,1907-1950",
+      "chain": "core/StrategyOrchestrator.js:1907-1950",
+      "default_effect": "entry eligibility/confidence/exit hint"
+    },
+    "OpeningRangeBreakout": {
+      "consumer": "modules/OpeningRangeBreakout.js:93-155,189-280,302-560",
+      "chain": "core/StrategyOrchestrator.js:836-843",
+      "default_effect": "session/OR/FVG/entry level"
+    },
+    "RSI2MeanReversion": {
+      "consumer": "modules/RSI2MeanReversion.js:25-64,110-187",
+      "chain": "core/StrategyOrchestrator.js:2277-2297",
+      "default_effect": "entry eligibility/direction/confidence"
+    },
+    "TimeSeriesMomentum": {
+      "consumer": "modules/TimeSeriesMomentum.js:24-62,91-173",
+      "chain": "core/StrategyOrchestrator.js:2301-2318",
+      "default_effect": "entry eligibility/direction/confidence"
+    },
+    "VolumeProfile": {
+      "consumer": "core/VolumeProfile.js:62-73,107-114,197-315",
+      "chain": "run-empire-v2.js:794; core/CandleProcessor.js:576,599; core/StrategyOrchestrator.js:2836",
+      "default_effect": "profile cadence/levels/market state"
+    },
+    "DonchianBreakout": {
+      "consumer": "modules/DonchianBreakout.js:78-86,101-139",
+      "chain": "core/StrategyOrchestrator.js:881-885,2220-2226",
+      "default_effect": "breakout eligibility/stop/short direction"
+    },
+    "CandlePattern": {
+      "consumer": "core/StrategyOrchestrator.js:1332-1349",
+      "chain": "core/TradingLoop.js:2052-2060; core/StrategyOrchestrator.js:1955-1975",
+      "default_effect": "conditional MTF ranking"
+    },
+    "MarketRegime": {
+      "consumer": "core/StrategyOrchestrator.js:1332-1349",
+      "chain": "core/StrategyOrchestrator.js:1979-2015",
+      "default_effect": "conditional MTF ranking"
+    }
+  },
+  "findings": [
+    {
+      "id": "SSEC-1",
+      "status": "proven",
+      "finding": "NoWickImbalance.debug only gates diagnostics, not decisions.",
+      "evidence": "modules/NoWickImbalance.js:90,118,287,318,323,332,410,461,520"
+    },
+    {
+      "id": "SSEC-2",
+      "status": "proven",
+      "finding": "CandlePattern and MarketRegime trees contain only MTF confluence leaves; both alter ranking only when results and MTF confluence exist.",
+      "evidence": "core/StrategyOrchestrator.js:1332-1349,1955-1975,1979-2015"
+    }
+  ],
+  "source_hashes": {
+    "config/settings.json": "f83cb2f25d96bcc46ba2e3e9a4c3d561d5bda3c38c1be586aaf3df0b46da7896",
+    "modules/PropSafeEMAPullback.js": "2c2129affcdaa24fdeb6162fadecbfaaef1140e5362b94ac69117ed2187247c1",
+    "modules/LiquiditySweepDetector.js": "1e47a19eec21f16d656e5bbf519e1001500bc21bc73d667e54f6e34b09312312",
+    "modules/EMATrendRetest.js": "6fee322d2101ff276da5a93dd93ad277c86424deb84dff0b4dc451aec7debdf3",
+    "modules/EMASMACrossoverSignal.js": "e0e5ff8888520426e14b8ae85bcbf7b032410ce7a8414e0a6a8b78ae3bca012a",
+    "modules/NoWickImbalance.js": "d838e1f44cae20a3e98a175bc08c5e95f6b2fa1787e01baa5927c2471bcd341e",
+    "modules/OpeningRangeBreakout.js": "8a580556386991d72b5bf3b98c1f6086c64934f4252ff1ff8aea6120fa7672e3",
+    "modules/RSI2MeanReversion.js": "6e5a1f7dea7514d596df051549b150c86cfd1808db05e4051642e0bfe6ea655f",
+    "modules/TimeSeriesMomentum.js": "f98be214b42a1bb7359312f3ff6a5db339d85c37e5f13ab1d54793b5b8ad4367",
+    "modules/DonchianBreakout.js": "2d8f748f81d3dc8b0e0a4d8ec30efa06fc26853e2f991ffb09e006ed4f3eabde",
+    "core/VolumeProfile.js": "428b59a7f3d027371ffdeb50dc000095ab9669f02d1dfa4ffae75c998ca1c7d0",
+    "core/StrategyOrchestrator.js": "b70095a03989ac2dcc88114e09a121af8e64e943e12c8b9c27adb49b3490ccf4",
+    "core/TradingLoop.js": "6ae65452f401fa4250be1a8ccef4e7b701541a21c77051a14dd619206d8c4d8c",
+    "core/CandleProcessor.js": "efd220e8426749ec61d30fde466b2aeac6eddd21da85195eb5222dc881d70e94",
+    "run-empire-v2.js": "7f6727dfd223e6c3bea91896e0e4c4a6405da4a83bd3a6fe98a286884c452012"
+  },
+  "rows": [
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.PropSafeEMAPullback.fastEmaPeriod",
+      "status": "source_traced",
+      "reader": "modules/PropSafeEMAPullback.js:194",
+      "call_chain": "StrategyOrchestrator.js:2229-2249",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "PropSafeEMAPullback"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.PropSafeEMAPullback.pullbackEmaPeriod",
+      "status": "source_traced",
+      "reader": "modules/PropSafeEMAPullback.js:195",
+      "call_chain": "StrategyOrchestrator.js:2229-2249",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "PropSafeEMAPullback"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.PropSafeEMAPullback.trendEmaPeriod",
+      "status": "source_traced",
+      "reader": "modules/PropSafeEMAPullback.js:196",
+      "call_chain": "StrategyOrchestrator.js:2229-2249",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "PropSafeEMAPullback"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.PropSafeEMAPullback.atrPeriod",
+      "status": "source_traced",
+      "reader": "modules/PropSafeEMAPullback.js:197",
+      "call_chain": "StrategyOrchestrator.js:2229-2249",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "PropSafeEMAPullback"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.PropSafeEMAPullback.crossLookbackBars",
+      "status": "source_traced",
+      "reader": "modules/PropSafeEMAPullback.js:176,220-227",
+      "call_chain": "StrategyOrchestrator.js:2229-2249",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "PropSafeEMAPullback"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.PropSafeEMAPullback.pullbackLookbackBars",
+      "status": "source_traced",
+      "reader": "modules/PropSafeEMAPullback.js:242-250",
+      "call_chain": "StrategyOrchestrator.js:2229-2249",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "PropSafeEMAPullback"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.PropSafeEMAPullback.pullbackMinAtr",
+      "status": "source_traced",
+      "reader": "modules/PropSafeEMAPullback.js:278-279",
+      "call_chain": "StrategyOrchestrator.js:2229-2249",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "PropSafeEMAPullback"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.PropSafeEMAPullback.pullbackMaxAtr",
+      "status": "source_traced",
+      "reader": "modules/PropSafeEMAPullback.js:278-279",
+      "call_chain": "StrategyOrchestrator.js:2229-2249",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "PropSafeEMAPullback"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.PropSafeEMAPullback.confidenceBase",
+      "status": "source_traced",
+      "reader": "modules/PropSafeEMAPullback.js:318",
+      "call_chain": "StrategyOrchestrator.js:2229-2249",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "PropSafeEMAPullback"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.PropSafeEMAPullback.confidenceTrendBonus",
+      "status": "source_traced",
+      "reader": "modules/PropSafeEMAPullback.js:320-327",
+      "call_chain": "StrategyOrchestrator.js:2229-2249",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "PropSafeEMAPullback"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.PropSafeEMAPullback.confidencePullbackBonus",
+      "status": "source_traced",
+      "reader": "modules/PropSafeEMAPullback.js:320-327",
+      "call_chain": "StrategyOrchestrator.js:2229-2249",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "PropSafeEMAPullback"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.PropSafeEMAPullback.confidenceConfirmationBonus",
+      "status": "source_traced",
+      "reader": "modules/PropSafeEMAPullback.js:320-327",
+      "call_chain": "StrategyOrchestrator.js:2229-2249",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "PropSafeEMAPullback"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.PropSafeEMAPullback.confidenceFreshCrossBonus",
+      "status": "source_traced",
+      "reader": "modules/PropSafeEMAPullback.js:320",
+      "call_chain": "StrategyOrchestrator.js:2229-2249",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "PropSafeEMAPullback"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.PropSafeEMAPullback.maxConfidence",
+      "status": "source_traced",
+      "reader": "modules/PropSafeEMAPullback.js:327",
+      "call_chain": "StrategyOrchestrator.js:2229-2249",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "PropSafeEMAPullback"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.PropSafeEMAPullback.requireRth",
+      "status": "source_traced",
+      "reader": "modules/PropSafeEMAPullback.js:192",
+      "call_chain": "StrategyOrchestrator.js:2229-2249",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "PropSafeEMAPullback"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.PropSafeEMAPullback.rthStartET",
+      "status": "source_traced",
+      "reader": "modules/PropSafeEMAPullback.js:110,216",
+      "call_chain": "StrategyOrchestrator.js:2229-2249",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "PropSafeEMAPullback"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.PropSafeEMAPullback.rthEndET",
+      "status": "source_traced",
+      "reader": "modules/PropSafeEMAPullback.js:111,216",
+      "call_chain": "StrategyOrchestrator.js:2229-2249",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "PropSafeEMAPullback"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.PropSafeEMAPullback.sessionTimeZone",
+      "status": "source_traced",
+      "reader": "modules/PropSafeEMAPullback.js:90,210-216",
+      "call_chain": "StrategyOrchestrator.js:2229-2249",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "PropSafeEMAPullback"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.PropSafeEMAPullback.allowShorts",
+      "status": "source_traced",
+      "reader": "modules/PropSafeEMAPullback.js:204,294",
+      "call_chain": "StrategyOrchestrator.js:2229-2249",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "PropSafeEMAPullback"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.PropSafeEMAPullback.confluenceBoost.enabled",
+      "status": "conditional_effect",
+      "reader": "core/StrategyOrchestrator.js:1334-1349",
+      "call_chain": "StrategyOrchestrator.js:2229-2249",
+      "effect": "enabled gates at StrategyOrchestrator.js:1335; weight affects multiplier :1339-1349",
+      "evidence_family": "PropSafeEMAPullback"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.PropSafeEMAPullback.confluenceBoost.weight",
+      "status": "conditional_effect",
+      "reader": "core/StrategyOrchestrator.js:1334-1349",
+      "call_chain": "StrategyOrchestrator.js:2229-2249",
+      "effect": "enabled gates at StrategyOrchestrator.js:1335; weight affects multiplier :1339-1349",
+      "evidence_family": "PropSafeEMAPullback"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.LiquiditySweep.sweepLookbackBars",
+      "status": "source_traced",
+      "reader": "modules/LiquiditySweepDetector.js:298-299",
+      "call_chain": "StrategyOrchestrator.js:859-863",
+      "effect": "sweep detection/timing/stop/confidence",
+      "evidence_family": "LiquiditySweep"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.LiquiditySweep.sweepMinExtensionPct",
+      "status": "source_traced",
+      "reader": "modules/LiquiditySweepDetector.js:350",
+      "call_chain": "StrategyOrchestrator.js:859-863",
+      "effect": "sweep detection/timing/stop/confidence",
+      "evidence_family": "LiquiditySweep"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.LiquiditySweep.sweepExtensionBandMult",
+      "status": "source_traced",
+      "reader": "modules/LiquiditySweepDetector.js:351",
+      "call_chain": "StrategyOrchestrator.js:859-863",
+      "effect": "sweep detection/timing/stop/confidence",
+      "evidence_family": "LiquiditySweep"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.LiquiditySweep.atrMultiplier",
+      "status": "source_traced",
+      "reader": "modules/LiquiditySweepDetector.js:166,207,333",
+      "call_chain": "StrategyOrchestrator.js:859-863",
+      "effect": "sweep detection/timing/stop/confidence",
+      "evidence_family": "LiquiditySweep"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.LiquiditySweep.atrPeriod",
+      "status": "source_traced",
+      "reader": "modules/LiquiditySweepDetector.js:293,497,504",
+      "call_chain": "StrategyOrchestrator.js:859-863",
+      "effect": "sweep detection/timing/stop/confidence",
+      "evidence_family": "LiquiditySweep"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.LiquiditySweep.entryWindowMinutes",
+      "status": "source_traced",
+      "reader": "modules/LiquiditySweepDetector.js:185,203",
+      "call_chain": "StrategyOrchestrator.js:859-863",
+      "effect": "sweep detection/timing/stop/confidence",
+      "evidence_family": "LiquiditySweep"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.LiquiditySweep.openingRangeMinutes",
+      "status": "source_traced",
+      "reader": "modules/LiquiditySweepDetector.js:186,204",
+      "call_chain": "StrategyOrchestrator.js:859-863",
+      "effect": "sweep detection/timing/stop/confidence",
+      "evidence_family": "LiquiditySweep"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.LiquiditySweep.hammerBodyMaxPct",
+      "status": "source_traced",
+      "reader": "modules/LiquiditySweepDetector.js:420,433",
+      "call_chain": "StrategyOrchestrator.js:859-863",
+      "effect": "sweep detection/timing/stop/confidence",
+      "evidence_family": "LiquiditySweep"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.LiquiditySweep.hammerWickMinRatio",
+      "status": "source_traced",
+      "reader": "modules/LiquiditySweepDetector.js:420,433",
+      "call_chain": "StrategyOrchestrator.js:859-863",
+      "effect": "sweep detection/timing/stop/confidence",
+      "evidence_family": "LiquiditySweep"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.LiquiditySweep.engulfMinRatio",
+      "status": "source_traced",
+      "reader": "modules/LiquiditySweepDetector.js:426,439",
+      "call_chain": "StrategyOrchestrator.js:859-863",
+      "effect": "sweep detection/timing/stop/confidence",
+      "evidence_family": "LiquiditySweep"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.LiquiditySweep.stopBufferPct",
+      "status": "source_traced",
+      "reader": "modules/LiquiditySweepDetector.js:450-451",
+      "call_chain": "StrategyOrchestrator.js:859-863",
+      "effect": "sweep detection/timing/stop/confidence",
+      "evidence_family": "LiquiditySweep"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.LiquiditySweep.sessionOpenHour",
+      "status": "source_traced",
+      "reader": "modules/LiquiditySweepDetector.js:231",
+      "call_chain": "StrategyOrchestrator.js:859-863",
+      "effect": "sweep detection/timing/stop/confidence",
+      "evidence_family": "LiquiditySweep"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.LiquiditySweep.sessionOpenMinute",
+      "status": "source_traced",
+      "reader": "modules/LiquiditySweepDetector.js:231",
+      "call_chain": "StrategyOrchestrator.js:859-863",
+      "effect": "sweep detection/timing/stop/confidence",
+      "evidence_family": "LiquiditySweep"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.LiquiditySweep.weights.manipCandle",
+      "status": "source_traced",
+      "reader": "modules/LiquiditySweepDetector.js:464",
+      "call_chain": "StrategyOrchestrator.js:859-863",
+      "effect": "sweep detection/timing/stop/confidence",
+      "evidence_family": "LiquiditySweep"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.LiquiditySweep.weights.wickSweep",
+      "status": "source_traced",
+      "reader": "modules/LiquiditySweepDetector.js:465",
+      "call_chain": "StrategyOrchestrator.js:859-863",
+      "effect": "sweep detection/timing/stop/confidence",
+      "evidence_family": "LiquiditySweep"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.LiquiditySweep.weights.sweepReject",
+      "status": "source_traced",
+      "reader": "modules/LiquiditySweepDetector.js:466",
+      "call_chain": "StrategyOrchestrator.js:859-863",
+      "effect": "sweep detection/timing/stop/confidence",
+      "evidence_family": "LiquiditySweep"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.LiquiditySweep.weights.hammerPattern",
+      "status": "source_traced",
+      "reader": "modules/LiquiditySweepDetector.js:467",
+      "call_chain": "StrategyOrchestrator.js:859-863",
+      "effect": "sweep detection/timing/stop/confidence",
+      "evidence_family": "LiquiditySweep"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.LiquiditySweep.weights.engulfPattern",
+      "status": "source_traced",
+      "reader": "modules/LiquiditySweepDetector.js:468",
+      "call_chain": "StrategyOrchestrator.js:859-863",
+      "effect": "sweep detection/timing/stop/confidence",
+      "evidence_family": "LiquiditySweep"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.LiquiditySweep.confluenceBoost.enabled",
+      "status": "conditional_effect",
+      "reader": "core/StrategyOrchestrator.js:1334-1349",
+      "call_chain": "StrategyOrchestrator.js:859-863",
+      "effect": "enabled gates at StrategyOrchestrator.js:1335; weight affects multiplier :1339-1349",
+      "evidence_family": "LiquiditySweep"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.LiquiditySweep.confluenceBoost.weight",
+      "status": "conditional_effect",
+      "reader": "core/StrategyOrchestrator.js:1334-1349",
+      "call_chain": "StrategyOrchestrator.js:859-863",
+      "effect": "enabled gates at StrategyOrchestrator.js:1335; weight affects multiplier :1339-1349",
+      "evidence_family": "LiquiditySweep"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMATrendRetest.emaPeriods",
+      "status": "source_traced",
+      "reader": "modules/EMATrendRetest.js:56-70,192-215",
+      "call_chain": "StrategyOrchestrator.js:2253-2273",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "EMATrendRetest"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMATrendRetest.atrPeriod",
+      "status": "source_traced",
+      "reader": "modules/EMATrendRetest.js:192-215",
+      "call_chain": "StrategyOrchestrator.js:2253-2273",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "EMATrendRetest"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMATrendRetest.slopeLookbackBars",
+      "status": "source_traced",
+      "reader": "modules/EMATrendRetest.js:235",
+      "call_chain": "StrategyOrchestrator.js:2253-2273",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "EMATrendRetest"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMATrendRetest.minSlopePct",
+      "status": "source_traced",
+      "reader": "modules/EMATrendRetest.js:246,251",
+      "call_chain": "StrategyOrchestrator.js:2253-2273",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "EMATrendRetest"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMATrendRetest.retestLookbackBars",
+      "status": "source_traced",
+      "reader": "modules/EMATrendRetest.js:260",
+      "call_chain": "StrategyOrchestrator.js:2253-2273",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "EMATrendRetest"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMATrendRetest.touchZoneAtr",
+      "status": "source_traced",
+      "reader": "modules/EMATrendRetest.js:260",
+      "call_chain": "StrategyOrchestrator.js:2253-2273",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "EMATrendRetest"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMATrendRetest.closeAwayAtr",
+      "status": "source_traced",
+      "reader": "modules/EMATrendRetest.js:293",
+      "call_chain": "StrategyOrchestrator.js:2253-2273",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "EMATrendRetest"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMATrendRetest.maxExtensionAtr",
+      "status": "source_traced",
+      "reader": "modules/EMATrendRetest.js:241",
+      "call_chain": "StrategyOrchestrator.js:2253-2273",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "EMATrendRetest"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMATrendRetest.confidenceBase",
+      "status": "source_traced",
+      "reader": "modules/EMATrendRetest.js:301-308",
+      "call_chain": "StrategyOrchestrator.js:2253-2273",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "EMATrendRetest"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMATrendRetest.confidenceSlopeBonus",
+      "status": "source_traced",
+      "reader": "modules/EMATrendRetest.js:301-308",
+      "call_chain": "StrategyOrchestrator.js:2253-2273",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "EMATrendRetest"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMATrendRetest.confidenceRetestBonus",
+      "status": "source_traced",
+      "reader": "modules/EMATrendRetest.js:301-308",
+      "call_chain": "StrategyOrchestrator.js:2253-2273",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "EMATrendRetest"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMATrendRetest.confidenceConfirmationBonus",
+      "status": "source_traced",
+      "reader": "modules/EMATrendRetest.js:301-308",
+      "call_chain": "StrategyOrchestrator.js:2253-2273",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "EMATrendRetest"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMATrendRetest.maxConfidence",
+      "status": "source_traced",
+      "reader": "modules/EMATrendRetest.js:301-308",
+      "call_chain": "StrategyOrchestrator.js:2253-2273",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "EMATrendRetest"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMATrendRetest.requireRth",
+      "status": "source_traced",
+      "reader": "modules/EMATrendRetest.js:209",
+      "call_chain": "StrategyOrchestrator.js:2253-2273",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "EMATrendRetest"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMATrendRetest.rthStartET",
+      "status": "source_traced",
+      "reader": "modules/EMATrendRetest.js:228-230",
+      "call_chain": "StrategyOrchestrator.js:2253-2273",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "EMATrendRetest"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMATrendRetest.rthEndET",
+      "status": "source_traced",
+      "reader": "modules/EMATrendRetest.js:228-230",
+      "call_chain": "StrategyOrchestrator.js:2253-2273",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "EMATrendRetest"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMATrendRetest.sessionTimeZone",
+      "status": "source_traced",
+      "reader": "modules/EMATrendRetest.js:48-53,228-230",
+      "call_chain": "StrategyOrchestrator.js:2253-2273",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "EMATrendRetest"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMATrendRetest.allowShorts",
+      "status": "source_traced",
+      "reader": "modules/EMATrendRetest.js:251",
+      "call_chain": "StrategyOrchestrator.js:2253-2273",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "EMATrendRetest"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMATrendRetest.confluenceBoost.enabled",
+      "status": "conditional_effect",
+      "reader": "core/StrategyOrchestrator.js:1334-1349",
+      "call_chain": "StrategyOrchestrator.js:2253-2273",
+      "effect": "enabled gates at StrategyOrchestrator.js:1335; weight affects multiplier :1339-1349",
+      "evidence_family": "EMATrendRetest"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMATrendRetest.confluenceBoost.weight",
+      "status": "conditional_effect",
+      "reader": "core/StrategyOrchestrator.js:1334-1349",
+      "call_chain": "StrategyOrchestrator.js:2253-2273",
+      "effect": "enabled gates at StrategyOrchestrator.js:1335; weight affects multiplier :1339-1349",
+      "evidence_family": "EMATrendRetest"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMASMACrossover.decayBars",
+      "status": "source_traced",
+      "reader": "modules/EMASMACrossoverSignal.js:579-582",
+      "call_chain": "StrategyOrchestrator.js:850-854",
+      "effect": "vote confidence/warmup",
+      "evidence_family": "EMASMACrossover"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMASMACrossover.decayMinMultiplier",
+      "status": "source_traced",
+      "reader": "modules/EMASMACrossoverSignal.js:581-582",
+      "call_chain": "StrategyOrchestrator.js:850-854",
+      "effect": "vote confidence/warmup",
+      "evidence_family": "EMASMACrossover"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMASMACrossover.velocityWindowBars",
+      "status": "source_traced",
+      "reader": "modules/EMASMACrossoverSignal.js:317,515",
+      "call_chain": "StrategyOrchestrator.js:850-854",
+      "effect": "vote confidence/warmup",
+      "evidence_family": "EMASMACrossover"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMASMACrossover.velocityAtrPeriod",
+      "status": "source_traced",
+      "reader": "modules/EMASMACrossoverSignal.js:251",
+      "call_chain": "StrategyOrchestrator.js:850-854",
+      "effect": "vote confidence/warmup",
+      "evidence_family": "EMASMACrossover"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMASMACrossover.velocityScale",
+      "status": "source_traced",
+      "reader": "modules/EMASMACrossoverSignal.js:522-523",
+      "call_chain": "StrategyOrchestrator.js:850-854",
+      "effect": "vote confidence/warmup",
+      "evidence_family": "EMASMACrossover"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMASMACrossover.velocityMaxBoost",
+      "status": "source_traced",
+      "reader": "modules/EMASMACrossoverSignal.js:522",
+      "call_chain": "StrategyOrchestrator.js:850-854",
+      "effect": "vote confidence/warmup",
+      "evidence_family": "EMASMACrossover"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMASMACrossover.velocityMaxPenalty",
+      "status": "source_traced",
+      "reader": "modules/EMASMACrossoverSignal.js:523",
+      "call_chain": "StrategyOrchestrator.js:850-854",
+      "effect": "vote confidence/warmup",
+      "evidence_family": "EMASMACrossover"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMASMACrossover.elasticityMinAtr",
+      "status": "source_traced",
+      "reader": "modules/EMASMACrossoverSignal.js:543-550",
+      "call_chain": "StrategyOrchestrator.js:850-854",
+      "effect": "vote confidence/warmup",
+      "evidence_family": "EMASMACrossover"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMASMACrossover.elasticityMaxAtr",
+      "status": "source_traced",
+      "reader": "modules/EMASMACrossoverSignal.js:548-560",
+      "call_chain": "StrategyOrchestrator.js:850-854",
+      "effect": "vote confidence/warmup",
+      "evidence_family": "EMASMACrossover"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMASMACrossover.elasticityScale",
+      "status": "source_traced",
+      "reader": "modules/EMASMACrossoverSignal.js:546,556",
+      "call_chain": "StrategyOrchestrator.js:850-854",
+      "effect": "vote confidence/warmup",
+      "evidence_family": "EMASMACrossover"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMASMACrossover.elasticityMaxBoost",
+      "status": "source_traced",
+      "reader": "modules/EMASMACrossoverSignal.js:551,563",
+      "call_chain": "StrategyOrchestrator.js:850-854",
+      "effect": "vote confidence/warmup",
+      "evidence_family": "EMASMACrossover"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMASMACrossover.elasticityMaxPenalty",
+      "status": "source_traced",
+      "reader": "modules/EMASMACrossoverSignal.js:545,555",
+      "call_chain": "StrategyOrchestrator.js:850-854",
+      "effect": "vote confidence/warmup",
+      "evidence_family": "EMASMACrossover"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMASMACrossover.baseConfidence",
+      "status": "source_traced",
+      "reader": "modules/EMASMACrossoverSignal.js:340,348",
+      "call_chain": "StrategyOrchestrator.js:850-854",
+      "effect": "vote confidence/warmup",
+      "evidence_family": "EMASMACrossover"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMASMACrossover.confluenceWeight",
+      "status": "source_traced",
+      "reader": "modules/EMASMACrossoverSignal.js:340,348",
+      "call_chain": "StrategyOrchestrator.js:850-854",
+      "effect": "vote confidence/warmup",
+      "evidence_family": "EMASMACrossover"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMASMACrossover.freshCrossoverBonusPerCross",
+      "status": "source_traced",
+      "reader": "modules/EMASMACrossoverSignal.js:344,351",
+      "call_chain": "StrategyOrchestrator.js:850-854",
+      "effect": "vote confidence/warmup",
+      "evidence_family": "EMASMACrossover"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMASMACrossover.freshCrossoverBonusMax",
+      "status": "source_traced",
+      "reader": "modules/EMASMACrossoverSignal.js:344,351",
+      "call_chain": "StrategyOrchestrator.js:850-854",
+      "effect": "vote confidence/warmup",
+      "evidence_family": "EMASMACrossover"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMASMACrossover.maxConfidence",
+      "status": "source_traced",
+      "reader": "modules/EMASMACrossoverSignal.js:363-365",
+      "call_chain": "StrategyOrchestrator.js:850-854",
+      "effect": "vote confidence/warmup",
+      "evidence_family": "EMASMACrossover"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMASMACrossover.confluenceBoost.enabled",
+      "status": "conditional_effect",
+      "reader": "core/StrategyOrchestrator.js:1334-1349",
+      "call_chain": "StrategyOrchestrator.js:850-854",
+      "effect": "enabled gates at StrategyOrchestrator.js:1335; weight affects multiplier :1339-1349",
+      "evidence_family": "EMASMACrossover"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.EMASMACrossover.confluenceBoost.weight",
+      "status": "conditional_effect",
+      "reader": "core/StrategyOrchestrator.js:1334-1349",
+      "call_chain": "StrategyOrchestrator.js:850-854",
+      "effect": "enabled gates at StrategyOrchestrator.js:1335; weight affects multiplier :1339-1349",
+      "evidence_family": "EMASMACrossover"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.NoWickImbalance.maxCandleAge",
+      "status": "source_traced",
+      "reader": "modules/NoWickImbalance.js:460,469",
+      "call_chain": "StrategyOrchestrator.js:867-875,2196-2199",
+      "effect": "formation/entry behavior/confidence",
+      "evidence_family": "NoWickImbalance"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.NoWickImbalance.swingLookback",
+      "status": "source_traced",
+      "reader": "modules/NoWickImbalance.js:192-194,248",
+      "call_chain": "StrategyOrchestrator.js:867-875,2196-2199",
+      "effect": "formation/entry behavior/confidence",
+      "evidence_family": "NoWickImbalance"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.NoWickImbalance.minBodyPercent",
+      "status": "source_traced",
+      "reader": "modules/NoWickImbalance.js:146",
+      "call_chain": "StrategyOrchestrator.js:867-875,2196-2199",
+      "effect": "formation/entry behavior/confidence",
+      "evidence_family": "NoWickImbalance"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.NoWickImbalance.entrySideWickMaxPct",
+      "status": "source_traced",
+      "reader": "modules/NoWickImbalance.js:152,165",
+      "call_chain": "StrategyOrchestrator.js:867-875,2196-2199",
+      "effect": "formation/entry behavior/confidence",
+      "evidence_family": "NoWickImbalance"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.NoWickImbalance.entryMode",
+      "status": "source_traced",
+      "reader": "modules/NoWickImbalance.js:306,371,377,421,427,586",
+      "call_chain": "StrategyOrchestrator.js:867-875,2196-2199",
+      "effect": "formation/entry behavior/confidence",
+      "evidence_family": "NoWickImbalance"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.NoWickImbalance.swingExtremeLookback",
+      "status": "source_traced",
+      "reader": "modules/NoWickImbalance.js:475",
+      "call_chain": "StrategyOrchestrator.js:867-875,2196-2199",
+      "effect": "formation/entry behavior/confidence",
+      "evidence_family": "NoWickImbalance"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.NoWickImbalance.almostTouchPct",
+      "status": "source_traced",
+      "reader": "modules/NoWickImbalance.js:500-507",
+      "call_chain": "StrategyOrchestrator.js:867-875,2196-2199",
+      "effect": "formation/entry behavior/confidence",
+      "evidence_family": "NoWickImbalance"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.NoWickImbalance.twinSplitEnabled",
+      "status": "source_traced",
+      "reader": "modules/NoWickImbalance.js:356,565",
+      "call_chain": "StrategyOrchestrator.js:867-875,2196-2199",
+      "effect": "formation/entry behavior/confidence",
+      "evidence_family": "NoWickImbalance"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.NoWickImbalance.twinProximityBars",
+      "status": "source_traced",
+      "reader": "modules/NoWickImbalance.js:568",
+      "call_chain": "StrategyOrchestrator.js:867-875,2196-2199",
+      "effect": "formation/entry behavior/confidence",
+      "evidence_family": "NoWickImbalance"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.NoWickImbalance.confidence",
+      "status": "source_traced",
+      "reader": "modules/NoWickImbalance.js:360,369,416",
+      "call_chain": "StrategyOrchestrator.js:867-875,2196-2199",
+      "effect": "formation/entry behavior/confidence",
+      "evidence_family": "NoWickImbalance"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.NoWickImbalance.debug",
+      "status": "metadata_only",
+      "reader": "modules/NoWickImbalance.js:90,118,287,318,323,332,410,461,520",
+      "call_chain": "StrategyOrchestrator.js:867-875,2196-2199",
+      "effect": "diagnostic console output only",
+      "evidence_family": "NoWickImbalance"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.NoWickImbalance.confluenceBoost.enabled",
+      "status": "conditional_effect",
+      "reader": "core/StrategyOrchestrator.js:1334-1349",
+      "call_chain": "StrategyOrchestrator.js:867-875,2196-2199",
+      "effect": "enabled gates at StrategyOrchestrator.js:1335; weight affects multiplier :1339-1349",
+      "evidence_family": "NoWickImbalance"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.NoWickImbalance.confluenceBoost.weight",
+      "status": "conditional_effect",
+      "reader": "core/StrategyOrchestrator.js:1334-1349",
+      "call_chain": "StrategyOrchestrator.js:867-875,2196-2199",
+      "effect": "enabled gates at StrategyOrchestrator.js:1335; weight affects multiplier :1339-1349",
+      "evidence_family": "NoWickImbalance"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.RSI.period",
+      "status": "source_traced",
+      "reader": "core/StrategyOrchestrator.js:434,1914-1916",
+      "call_chain": "core/StrategyOrchestrator.js:1907-1950",
+      "effect": "entry eligibility/confidence/exit hint",
+      "evidence_family": "RSI"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.RSI.buyBelow",
+      "status": "source_traced",
+      "reader": "core/StrategyOrchestrator.js:435,1920,1926",
+      "call_chain": "core/StrategyOrchestrator.js:1907-1950",
+      "effect": "entry eligibility/confidence/exit hint",
+      "evidence_family": "RSI"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.RSI.exitAbove",
+      "status": "source_traced",
+      "reader": "core/StrategyOrchestrator.js:436,1942,1948",
+      "call_chain": "core/StrategyOrchestrator.js:1907-1950",
+      "effect": "entry eligibility/confidence/exit hint",
+      "evidence_family": "RSI"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.RSI.regimeMaFilter.enabled",
+      "status": "source_traced",
+      "reader": "core/StrategyOrchestrator.js:429-430,1923-1924",
+      "call_chain": "core/StrategyOrchestrator.js:1907-1950",
+      "effect": "entry eligibility/confidence/exit hint",
+      "evidence_family": "RSI"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.RSI.regimeMaFilter.period",
+      "status": "source_traced",
+      "reader": "core/StrategyOrchestrator.js:443,1923-1924",
+      "call_chain": "core/StrategyOrchestrator.js:1907-1950",
+      "effect": "entry eligibility/confidence/exit hint",
+      "evidence_family": "RSI"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.RSI.regimeMaFilter.timeframe",
+      "status": "source_traced",
+      "reader": "core/StrategyOrchestrator.js:425-427,1923-1924",
+      "call_chain": "core/StrategyOrchestrator.js:1907-1950",
+      "effect": "entry eligibility/confidence/exit hint",
+      "evidence_family": "RSI"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.RSI.confidenceBase",
+      "status": "source_traced",
+      "reader": "core/StrategyOrchestrator.js:1928-1929",
+      "call_chain": "core/StrategyOrchestrator.js:1907-1950",
+      "effect": "entry eligibility/confidence/exit hint",
+      "evidence_family": "RSI"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.RSI.confidenceDepthRange",
+      "status": "source_traced",
+      "reader": "core/StrategyOrchestrator.js:1926",
+      "call_chain": "core/StrategyOrchestrator.js:1907-1950",
+      "effect": "entry eligibility/confidence/exit hint",
+      "evidence_family": "RSI"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.RSI.confidenceDepthMultiplier",
+      "status": "source_traced",
+      "reader": "core/StrategyOrchestrator.js:1929",
+      "call_chain": "core/StrategyOrchestrator.js:1907-1950",
+      "effect": "entry eligibility/confidence/exit hint",
+      "evidence_family": "RSI"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.RSI.maxConfidence",
+      "status": "source_traced",
+      "reader": "core/StrategyOrchestrator.js:1927-1929",
+      "call_chain": "core/StrategyOrchestrator.js:1907-1950",
+      "effect": "entry eligibility/confidence/exit hint",
+      "evidence_family": "RSI"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.RSI.confluenceBoost.enabled",
+      "status": "conditional_effect",
+      "reader": "core/StrategyOrchestrator.js:1334-1349",
+      "call_chain": "core/StrategyOrchestrator.js:1907-1950",
+      "effect": "enabled gates at StrategyOrchestrator.js:1335; weight affects multiplier :1339-1349",
+      "evidence_family": "RSI"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.RSI.confluenceBoost.weight",
+      "status": "conditional_effect",
+      "reader": "core/StrategyOrchestrator.js:1334-1349",
+      "call_chain": "core/StrategyOrchestrator.js:1907-1950",
+      "effect": "enabled gates at StrategyOrchestrator.js:1335; weight affects multiplier :1339-1349",
+      "evidence_family": "RSI"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OpeningRangeBreakout.sessionOpenHourUTC",
+      "status": "source_traced",
+      "reader": "modules/OpeningRangeBreakout.js:99,247,367,555",
+      "call_chain": "core/StrategyOrchestrator.js:836-843",
+      "effect": "session/OR/FVG/entry level",
+      "evidence_family": "OpeningRangeBreakout"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OpeningRangeBreakout.sessionOpenET",
+      "status": "source_traced",
+      "reader": "modules/OpeningRangeBreakout.js:103-111,248-257,357-375",
+      "call_chain": "core/StrategyOrchestrator.js:836-843",
+      "effect": "session/OR/FVG/entry level",
+      "evidence_family": "OpeningRangeBreakout"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OpeningRangeBreakout.sessionTimeZone",
+      "status": "source_traced",
+      "reader": "modules/OpeningRangeBreakout.js:104,112-119,249-259,541-550",
+      "call_chain": "core/StrategyOrchestrator.js:836-843",
+      "effect": "session/OR/FVG/entry level",
+      "evidence_family": "OpeningRangeBreakout"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OpeningRangeBreakout.orDurationMinutes",
+      "status": "source_traced",
+      "reader": "modules/OpeningRangeBreakout.js:119,250,307,375",
+      "call_chain": "core/StrategyOrchestrator.js:836-843",
+      "effect": "session/OR/FVG/entry level",
+      "evidence_family": "OpeningRangeBreakout"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OpeningRangeBreakout.orMinWidthAtr",
+      "status": "source_traced",
+      "reader": "modules/OpeningRangeBreakout.js:120,270,333-345",
+      "call_chain": "core/StrategyOrchestrator.js:836-843",
+      "effect": "session/OR/FVG/entry level",
+      "evidence_family": "OpeningRangeBreakout"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OpeningRangeBreakout.fvgScanBars",
+      "status": "source_traced",
+      "reader": "modules/OpeningRangeBreakout.js:121,271,203,442",
+      "call_chain": "core/StrategyOrchestrator.js:836-843",
+      "effect": "session/OR/FVG/entry level",
+      "evidence_family": "OpeningRangeBreakout"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OpeningRangeBreakout.minFVGPercent",
+      "status": "source_traced",
+      "reader": "modules/OpeningRangeBreakout.js:122,272,278-280",
+      "call_chain": "core/StrategyOrchestrator.js:836-843",
+      "effect": "session/OR/FVG/entry level",
+      "evidence_family": "OpeningRangeBreakout"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OpeningRangeBreakout.maxFVGPercent",
+      "status": "source_traced",
+      "reader": "modules/OpeningRangeBreakout.js:123-125,273,278-280",
+      "call_chain": "core/StrategyOrchestrator.js:836-843",
+      "effect": "session/OR/FVG/entry level",
+      "evidence_family": "OpeningRangeBreakout"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OpeningRangeBreakout.entryLevel",
+      "status": "source_traced",
+      "reader": "modules/OpeningRangeBreakout.js:127-130,274,456-460",
+      "call_chain": "core/StrategyOrchestrator.js:836-843",
+      "effect": "session/OR/FVG/entry level",
+      "evidence_family": "OpeningRangeBreakout"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OpeningRangeBreakout.confluenceBoost.enabled",
+      "status": "conditional_effect",
+      "reader": "core/StrategyOrchestrator.js:1334-1349",
+      "call_chain": "core/StrategyOrchestrator.js:836-843",
+      "effect": "enabled gates at StrategyOrchestrator.js:1335; weight affects multiplier :1339-1349",
+      "evidence_family": "OpeningRangeBreakout"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.OpeningRangeBreakout.confluenceBoost.weight",
+      "status": "conditional_effect",
+      "reader": "core/StrategyOrchestrator.js:1334-1349",
+      "call_chain": "core/StrategyOrchestrator.js:836-843",
+      "effect": "enabled gates at StrategyOrchestrator.js:1335; weight affects multiplier :1339-1349",
+      "evidence_family": "OpeningRangeBreakout"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.RSI2MeanReversion.rsiPeriod",
+      "status": "source_traced",
+      "reader": "modules/RSI2MeanReversion.js:56,110,128,156",
+      "call_chain": "core/StrategyOrchestrator.js:2277-2297",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "RSI2MeanReversion"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.RSI2MeanReversion.rsiEntry",
+      "status": "source_traced",
+      "reader": "modules/RSI2MeanReversion.js:57,131",
+      "call_chain": "core/StrategyOrchestrator.js:2277-2297",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "RSI2MeanReversion"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.RSI2MeanReversion.rsiEntryOB",
+      "status": "source_traced",
+      "reader": "modules/RSI2MeanReversion.js:58,136-137",
+      "call_chain": "core/StrategyOrchestrator.js:2277-2297",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "RSI2MeanReversion"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.RSI2MeanReversion.trendPeriod",
+      "status": "source_traced",
+      "reader": "modules/RSI2MeanReversion.js:59,110,123-125,156",
+      "call_chain": "core/StrategyOrchestrator.js:2277-2297",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "RSI2MeanReversion"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.RSI2MeanReversion.allowShorts",
+      "status": "source_traced",
+      "reader": "modules/RSI2MeanReversion.js:60,136",
+      "call_chain": "core/StrategyOrchestrator.js:2277-2297",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "RSI2MeanReversion"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.RSI2MeanReversion.confidenceBase",
+      "status": "source_traced",
+      "reader": "modules/RSI2MeanReversion.js:61,146-147",
+      "call_chain": "core/StrategyOrchestrator.js:2277-2297",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "RSI2MeanReversion"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.RSI2MeanReversion.confidenceDepthMultiplier",
+      "status": "source_traced",
+      "reader": "modules/RSI2MeanReversion.js:62,147",
+      "call_chain": "core/StrategyOrchestrator.js:2277-2297",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "RSI2MeanReversion"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.RSI2MeanReversion.maxConfidence",
+      "status": "source_traced",
+      "reader": "modules/RSI2MeanReversion.js:63,146",
+      "call_chain": "core/StrategyOrchestrator.js:2277-2297",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "RSI2MeanReversion"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.RSI2MeanReversion.confluenceBoost.enabled",
+      "status": "conditional_effect",
+      "reader": "core/StrategyOrchestrator.js:1334-1349",
+      "call_chain": "core/StrategyOrchestrator.js:2277-2297",
+      "effect": "enabled gates at StrategyOrchestrator.js:1335; weight affects multiplier :1339-1349",
+      "evidence_family": "RSI2MeanReversion"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.RSI2MeanReversion.confluenceBoost.weight",
+      "status": "conditional_effect",
+      "reader": "core/StrategyOrchestrator.js:1334-1349",
+      "call_chain": "core/StrategyOrchestrator.js:2277-2297",
+      "effect": "enabled gates at StrategyOrchestrator.js:1335; weight affects multiplier :1339-1349",
+      "evidence_family": "RSI2MeanReversion"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.TimeSeriesMomentum.lookback",
+      "status": "source_traced",
+      "reader": "modules/TimeSeriesMomentum.js:54,91,103,139,160",
+      "call_chain": "core/StrategyOrchestrator.js:2301-2318",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "TimeSeriesMomentum"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.TimeSeriesMomentum.trendPeriod",
+      "status": "source_traced",
+      "reader": "modules/TimeSeriesMomentum.js:55,91,106-108,139",
+      "call_chain": "core/StrategyOrchestrator.js:2301-2318",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "TimeSeriesMomentum"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.TimeSeriesMomentum.atrPeriod",
+      "status": "source_traced",
+      "reader": "modules/TimeSeriesMomentum.js:56,91,112,150",
+      "call_chain": "core/StrategyOrchestrator.js:2301-2318",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "TimeSeriesMomentum"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.TimeSeriesMomentum.minReturn",
+      "status": "source_traced",
+      "reader": "modules/TimeSeriesMomentum.js:57,115,119,172",
+      "call_chain": "core/StrategyOrchestrator.js:2301-2318",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "TimeSeriesMomentum"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.TimeSeriesMomentum.allowShorts",
+      "status": "source_traced",
+      "reader": "modules/TimeSeriesMomentum.js:58,119,173",
+      "call_chain": "core/StrategyOrchestrator.js:2301-2318",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "TimeSeriesMomentum"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.TimeSeriesMomentum.confidenceBase",
+      "status": "source_traced",
+      "reader": "modules/TimeSeriesMomentum.js:59,129",
+      "call_chain": "core/StrategyOrchestrator.js:2301-2318",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "TimeSeriesMomentum"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.TimeSeriesMomentum.confidenceReturnMultiplier",
+      "status": "source_traced",
+      "reader": "modules/TimeSeriesMomentum.js:60,129",
+      "call_chain": "core/StrategyOrchestrator.js:2301-2318",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "TimeSeriesMomentum"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.TimeSeriesMomentum.maxConfidence",
+      "status": "source_traced",
+      "reader": "modules/TimeSeriesMomentum.js:61,128-130",
+      "call_chain": "core/StrategyOrchestrator.js:2301-2318",
+      "effect": "entry eligibility/direction/confidence",
+      "evidence_family": "TimeSeriesMomentum"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.TimeSeriesMomentum.confluenceBoost.enabled",
+      "status": "conditional_effect",
+      "reader": "core/StrategyOrchestrator.js:1334-1349",
+      "call_chain": "core/StrategyOrchestrator.js:2301-2318",
+      "effect": "enabled gates at StrategyOrchestrator.js:1335; weight affects multiplier :1339-1349",
+      "evidence_family": "TimeSeriesMomentum"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.TimeSeriesMomentum.confluenceBoost.weight",
+      "status": "conditional_effect",
+      "reader": "core/StrategyOrchestrator.js:1334-1349",
+      "call_chain": "core/StrategyOrchestrator.js:2301-2318",
+      "effect": "enabled gates at StrategyOrchestrator.js:1335; weight affects multiplier :1339-1349",
+      "evidence_family": "TimeSeriesMomentum"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.VolumeProfile.sessionLookback",
+      "status": "source_traced",
+      "reader": "core/VolumeProfile.js:198",
+      "call_chain": "run-empire-v2.js:794; core/CandleProcessor.js:576,599; core/StrategyOrchestrator.js:2836",
+      "effect": "profile cadence/levels/market state",
+      "evidence_family": "VolumeProfile"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.VolumeProfile.numBins",
+      "status": "source_traced",
+      "reader": "core/VolumeProfile.js:214,218-221,240",
+      "call_chain": "run-empire-v2.js:794; core/CandleProcessor.js:576,599; core/StrategyOrchestrator.js:2836",
+      "effect": "profile cadence/levels/market state",
+      "evidence_family": "VolumeProfile"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.VolumeProfile.valueAreaPct",
+      "status": "source_traced",
+      "reader": "core/VolumeProfile.js:268",
+      "call_chain": "run-empire-v2.js:794; core/CandleProcessor.js:576,599; core/StrategyOrchestrator.js:2836",
+      "effect": "profile cadence/levels/market state",
+      "evidence_family": "VolumeProfile"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.VolumeProfile.lvnThresholdPct",
+      "status": "source_traced",
+      "reader": "core/VolumeProfile.js:292",
+      "call_chain": "run-empire-v2.js:794; core/CandleProcessor.js:576,599; core/StrategyOrchestrator.js:2836",
+      "effect": "profile cadence/levels/market state",
+      "evidence_family": "VolumeProfile"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.VolumeProfile.hvnThresholdPct",
+      "status": "source_traced",
+      "reader": "core/VolumeProfile.js:307",
+      "call_chain": "run-empire-v2.js:794; core/CandleProcessor.js:576,599; core/StrategyOrchestrator.js:2836",
+      "effect": "profile cadence/levels/market state",
+      "evidence_family": "VolumeProfile"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.VolumeProfile.outOfBalancePct",
+      "status": "source_traced",
+      "reader": "core/VolumeProfile.js:107-114",
+      "call_chain": "run-empire-v2.js:794; core/CandleProcessor.js:576,599; core/StrategyOrchestrator.js:2836",
+      "effect": "profile cadence/levels/market state",
+      "evidence_family": "VolumeProfile"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.VolumeProfile.recalcInterval",
+      "status": "source_traced",
+      "reader": "core/VolumeProfile.js:62-73",
+      "call_chain": "run-empire-v2.js:794; core/CandleProcessor.js:576,599; core/StrategyOrchestrator.js:2836",
+      "effect": "profile cadence/levels/market state",
+      "evidence_family": "VolumeProfile"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.DonchianBreakout.entryPeriod",
+      "status": "source_traced",
+      "reader": "modules/DonchianBreakout.js:82,86,111,128,139,180",
+      "call_chain": "core/StrategyOrchestrator.js:881-885,2220-2226",
+      "effect": "breakout eligibility/stop/short direction",
+      "evidence_family": "DonchianBreakout"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.DonchianBreakout.atrPeriod",
+      "status": "source_traced",
+      "reader": "modules/DonchianBreakout.js:83,86,116,156,181",
+      "call_chain": "core/StrategyOrchestrator.js:881-885,2220-2226",
+      "effect": "breakout eligibility/stop/short direction",
+      "evidence_family": "DonchianBreakout"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.DonchianBreakout.allowShorts",
+      "status": "source_traced",
+      "reader": "modules/DonchianBreakout.js:85,132,183",
+      "call_chain": "core/StrategyOrchestrator.js:881-885,2220-2226",
+      "effect": "breakout eligibility/stop/short direction",
+      "evidence_family": "DonchianBreakout"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.DonchianBreakout.confluenceBoost.enabled",
+      "status": "conditional_effect",
+      "reader": "core/StrategyOrchestrator.js:1334-1349",
+      "call_chain": "core/StrategyOrchestrator.js:881-885,2220-2226",
+      "effect": "enabled gates at StrategyOrchestrator.js:1335; weight affects multiplier :1339-1349",
+      "evidence_family": "DonchianBreakout"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.DonchianBreakout.confluenceBoost.weight",
+      "status": "conditional_effect",
+      "reader": "core/StrategyOrchestrator.js:1334-1349",
+      "call_chain": "core/StrategyOrchestrator.js:881-885,2220-2226",
+      "effect": "enabled gates at StrategyOrchestrator.js:1335; weight affects multiplier :1339-1349",
+      "evidence_family": "DonchianBreakout"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.CandlePattern.confluenceBoost.enabled",
+      "status": "conditional_effect",
+      "reader": "core/StrategyOrchestrator.js:1334-1349",
+      "call_chain": "core/TradingLoop.js:2052-2060; core/StrategyOrchestrator.js:1955-1975",
+      "effect": "enabled gates at StrategyOrchestrator.js:1335; weight affects multiplier :1339-1349",
+      "evidence_family": "CandlePattern"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.CandlePattern.confluenceBoost.weight",
+      "status": "conditional_effect",
+      "reader": "core/StrategyOrchestrator.js:1334-1349",
+      "call_chain": "core/TradingLoop.js:2052-2060; core/StrategyOrchestrator.js:1955-1975",
+      "effect": "enabled gates at StrategyOrchestrator.js:1335; weight affects multiplier :1339-1349",
+      "evidence_family": "CandlePattern"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MarketRegime.confluenceBoost.enabled",
+      "status": "conditional_effect",
+      "reader": "core/StrategyOrchestrator.js:1334-1349",
+      "call_chain": "core/StrategyOrchestrator.js:1979-2015",
+      "effect": "enabled gates at StrategyOrchestrator.js:1335; weight affects multiplier :1339-1349",
+      "evidence_family": "MarketRegime"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "strategies.MarketRegime.confluenceBoost.weight",
+      "status": "conditional_effect",
+      "reader": "core/StrategyOrchestrator.js:1334-1349",
+      "call_chain": "core/StrategyOrchestrator.js:1979-2015",
+      "effect": "enabled gates at StrategyOrchestrator.js:1335; weight affects multiplier :1339-1349",
+      "evidence_family": "MarketRegime"
+    }
+  ]
+}

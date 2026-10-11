@@ -1,0 +1,2956 @@
+{
+  "audit": "stop1-execution-configuration-readonly",
+  "date": "2026-10-11",
+  "branch": "astra-era",
+  "head": "cb566d93a46dca8673def2f76ea685f5be0b148e",
+  "source_kind": "dirty_worktree_static",
+  "runtime_proof": false,
+  "ast_census": {"path": "source-census.json", "tracked_js_parsed": 382, "parse_errors": 0, "settings_leaves": 2549, "config_calls": 335, "env_references": 43, "imports": 1056, "dynamic_require_unresolved": 59},
+  "excluded": ["alpaca_requested_frame_global_latch", "fifo_cross_frame_ranking", "kraken_forming_candles"],
+  "families": {
+    "authFailureGuard": {"leaf_count": 2, "status": "covered", "owner": "settings->ConfigLoader", "consumer": "AuthFailureGuard; AlpacaAdapter; OrderExecutor"},
+    "execution": {"leaf_count": 6, "status": "covered", "owner": "settings->ConfigLoader; descriptor explicit override", "consumer": "runner->BrokerFactory/SessionRouter"},
+    "positionSizing": {"leaf_count": 8, "status": "covered", "owner": "settings->ConfigLoader", "consumer": "OrderExecutor; TradingLoop; PositionSizer"},
+    "exits": {"leaf_count": 7, "status": "covered", "owner": "settings->ConfigLoader", "consumer": "ExitContractManager; PolicyBuilder"},
+    "exitContracts": {"leaf_count": 332, "status": "mixed_active_and_disconnected", "owner": "settings->ConfigLoader", "consumer": "ExitContractManager; StrategyOrchestrator", "defects": ["takeProfitPercent has no active percent-target exit reader", "trailingStopPercent/trailingActivation have no active percent-trailing reader", "scaleIn.addSizingLadder has no executor reader", "atr stop type relies on strategy-generated percent stop"]},
+    "exitLogic": {"leaf_count": 36, "status": "covered", "owner": "settings->ConfigLoader", "consumer": "PolicyBuilder->FrozenExitPolicy->ProfitExitPlanner/ExitContractManager"},
+    "entryLogic": {"leaf_count": 7, "status": "covered", "owner": "settings->ConfigLoader", "consumer": "OrderExecutor"},
+    "fees": {"leaf_count": 8, "status": "covered", "owner": "settings->ConfigLoader", "consumer": "FeeModel; PolicyBuilder; OrderExecutor"},
+    "feeProfiles": {"leaf_count": 22, "status": "covered", "owner": "settings; descriptor selector", "consumer": "ConfigLoader applyRunDescriptor"},
+    "fundTarget": {"leaf_count": 1, "status": "phantom_execution_control", "owner": "settings->ConfigLoader", "consumer": "uninvoked ModuleInitializer factory; notification default only"},
+    "startingBalance": {"leaf_count": 1, "status": "covered", "owner": "settings->ConfigLoader", "consumer": "runner/BacktestRecorder/TradeJournal"}
+  },
+  "launch_profile_coverage": {
+    "production": 81,
+    "paper": 81,
+    "backtest-all": 82,
+    "backtest-masr": 82,
+    "backtest-rsi": 82,
+    "backtest-ttp-5k-max": 82,
+    "backtest-trey-spec": 82
+  },
+  "exit_contract_leaf_status_by_terminal_field": {
+    "stopLossPercent": "active percent stop except stopType=structural",
+    "maxHoldTimeMinutes": "active MaxHoldChecker",
+    "maxHoldMode": "active MaxHoldChecker mode",
+    "invalidationConditions": "active ECM invalidation",
+    "rsiExitLong": "active ECM RSI invalidation",
+    "rsiPeriod": "carried to RSI signal/contract; no independent ECM reader",
+    "tsmLookback": "active ECM TSM invalidation",
+    "tsmEntryTrailingReturn": "active ECM TSM invalidation",
+    "trailType": "channel is active ECM route; percent/atr select dynamic-trail shape only",
+    "trailChannelBars": "active ECM channel trail",
+    "trailAtrMult": "active ECM ATR trail multiplier",
+    "partialExit.enabled": "active ProfitExitPlanner selector",
+    "partialExit.triggerR": "active ProfitExitPlanner threshold",
+    "partialExit.fraction": "active ProfitExitPlanner quantity",
+    "partialExit.remainderTrail": "receipt evidence only; no examined execution reader",
+    "minConfidence": "active StrategyOrchestrator entry threshold",
+    "atrMinPercent": "active StrategyOrchestrator ATR eligibility threshold",
+    "maxConcurrentEntries": "active OrderExecutor concurrency limit",
+    "scaleIn.enabled|maxAdds|addTriggerClass|requireProfitConfirmation|aggregateRiskCap": "active OrderExecutor scale-in block",
+    "scaleIn.addSizingLadder": "disconnected: cloned only",
+    "takeProfitPercent": "disconnected as exit target; conditional OrderExecutor stock-sizing input",
+    "tpMode|tpAtrMultiple": "normalized/carried; no active generic take-profit exit reader",
+    "trailingStopPercent|trailingActivation": "disconnected from active ECM percent trailing",
+    "useStructuralExits|_validated": "ownership/metadata only in examined active path",
+    "stopType": "structural disables percent stop; atr itself does not calculate an ATR stop",
+    "atrStopMult|targetRR|stopBufferPct|stopBufferAtr|stopBufferAtrMultiplier": "strategy-specific hint producer only where named module reads it",
+    "donchianChannelUpper|donchianChannelLower": "runtime contract values for channel exit path when supplied"
+  },
+  "runtime_state_separate": {"isTrading": {"owner": "StateManager persisted state", "initial_value": false, "entry_choke": "OrderExecutor non-backtest block", "runtime_value_verified": false}},
+  "boundary_scan": {"command": "node scripts/check-config-boundary.js", "status": "one_false_positive_manual_review", "location": "core/OrderExecutor.js:2382"},
+  "confirmed_static_defects_worktree_and_head": ["percent take-profit disconnected from active ECM", "percent trailing declarations disconnected from active ECM", "PatternBasedExitModel.evaluateExit has no production caller", "beScaleOut.feeBufferPercent policy-only", "volatilityAdjustment.lookbackPeriods discarded while factors are hardcoded", "fundTarget phantom execution control"],
+  "relevant_internals": {"dataFeed.volumeCapMaxReferenceAgeLimitMs": "load-time validation ceiling only", "broker.tradingIntervalMs": "active: failed-safe hold and exit-monitor intervals"},
+  "proofPublication": {"leaf_count": 9, "status": "active publisher configuration", "reader": "ogz-meta/claudito-logger.js:376-392,643-646,654,734"},
+  "unresolved": ["active PROFILE/descriptor", "loaded PM2 snapshot", "persisted isTrading state", "broker/session route", "broker/fill behavior", "entry/exit runtime receipts"],
+  "per_key_method": "literal leaf inventory plus verified property-reader classes; no parent-family inheritance",
+  "per_key_row_count": 509,
+  "internals_key_normalization": "Rows use internals.<raw config/internals.json key>; this prefix declares the raw-owner namespace, not a second configuration layer.",
+  "per_key_rows": [
+    {
+      "owner": "config/settings.json",
+      "key": "authFailureGuard.thresholdCount",
+      "status": "active",
+      "citation": "AuthFailureGuard.js:46-68"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "authFailureGuard.windowMs",
+      "status": "active",
+      "citation": "AuthFailureGuard.js:46-68"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "entryLogic.sizing.absoluteCapPercent",
+      "status": "active",
+      "citation": "OrderExecutor.js:2018,2195-2200,2365-2420,3039,3119-3130"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "entryLogic.sizing.stockShareRange.consistencyCapBuffer",
+      "status": "active",
+      "citation": "OrderExecutor.js:2018,2195-2200,2365-2420,3039,3119-3130"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "entryLogic.sizing.stockShareRange.dailyLossRiskFraction",
+      "status": "active",
+      "citation": "OrderExecutor.js:2018,2195-2200,2365-2420,3039,3119-3130"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "entryLogic.sizing.stockShareRange.enabled",
+      "status": "active",
+      "citation": "OrderExecutor.js:2018,2195-2200,2365-2420,3039,3119-3130"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "entryLogic.sizing.stockShareRange.maxNotionalUsd",
+      "status": "active",
+      "citation": "OrderExecutor.js:2018,2195-2200,2365-2420,3039,3119-3130"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "entryLogic.sizing.stockShareRange.maxShares",
+      "status": "active",
+      "citation": "OrderExecutor.js:2018,2195-2200,2365-2420,3039,3119-3130"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "entryLogic.sizing.stockShareRange.minShares",
+      "status": "active",
+      "citation": "OrderExecutor.js:2018,2195-2200,2365-2420,3039,3119-3130"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "execution.assetClass",
+      "status": "active",
+      "citation": "ConfigLoader.js:1097-1103; runner:696-912"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "execution.broker",
+      "status": "active",
+      "citation": "ConfigLoader.js:1097-1103; runner:696-912"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "execution.candleSource",
+      "status": "active",
+      "citation": "ConfigLoader.js:1097-1103; runner:696-912"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "execution.candleTimeframe",
+      "status": "active",
+      "citation": "ConfigLoader.js:1097-1103; runner:696-912"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "execution.symbols",
+      "status": "active",
+      "citation": "ConfigLoader.js:1097-1103; runner:696-912"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "execution.tradingPair",
+      "status": "active",
+      "citation": "ConfigLoader.js:1097-1103; runner:696-912"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.BreakRetest._validated",
+      "status": "metadata_only",
+      "citation": "normalized/ownership only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.BreakRetest.atrMinPercent",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.BreakRetest.invalidationConditions",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.BreakRetest.maxHoldMode",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.BreakRetest.maxHoldTimeMinutes",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.BreakRetest.minConfidence",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.BreakRetest.partialExit.enabled",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.BreakRetest.partialExit.fraction",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.BreakRetest.partialExit.remainderTrail",
+      "status": "metadata_only",
+      "citation": "planner receipt evidence only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.BreakRetest.partialExit.triggerR",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.BreakRetest.rewardRiskRatio",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.BreakRetest.stopBufferAtrMultiplier",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.BreakRetest.stopLossPercent",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.BreakRetest.stopType",
+      "status": "conditional_effect",
+      "citation": "StopLossChecker.js:40-68"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.BreakRetest.takeProfitPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.BreakRetest.tpMode",
+      "status": "metadata_only",
+      "citation": "normalized; no generic target exit"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.BreakRetest.trailType",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.BreakRetest.trailingActivation",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.BreakRetest.trailingStopPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.BreakRetest.useStructuralExits",
+      "status": "metadata_only",
+      "citation": "normalized/ownership only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.CandlePattern.atrMinPercent",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.CandlePattern.invalidationConditions",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.CandlePattern.maxHoldMode",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.CandlePattern.maxHoldTimeMinutes",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.CandlePattern.minConfidence",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.CandlePattern.partialExit.enabled",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.CandlePattern.partialExit.fraction",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.CandlePattern.partialExit.remainderTrail",
+      "status": "metadata_only",
+      "citation": "planner receipt evidence only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.CandlePattern.partialExit.triggerR",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.CandlePattern.stopLossPercent",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.CandlePattern.stopType",
+      "status": "conditional_effect",
+      "citation": "StopLossChecker.js:40-68"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.CandlePattern.takeProfitPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.CandlePattern.tpMode",
+      "status": "metadata_only",
+      "citation": "normalized; no generic target exit"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.CandlePattern.trailType",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.CandlePattern.trailingActivation",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.CandlePattern.trailingStopPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.CandlePattern.useStructuralExits",
+      "status": "metadata_only",
+      "citation": "normalized/ownership only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.DonchianBreakout._validated",
+      "status": "metadata_only",
+      "citation": "normalized/ownership only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.DonchianBreakout.atrMinPercent",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.DonchianBreakout.atrStopMult",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.DonchianBreakout.invalidationConditions",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.DonchianBreakout.maxHoldTimeMinutes",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.DonchianBreakout.minConfidence",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.DonchianBreakout.partialExit.enabled",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.DonchianBreakout.partialExit.fraction",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.DonchianBreakout.partialExit.remainderTrail",
+      "status": "metadata_only",
+      "citation": "planner receipt evidence only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.DonchianBreakout.partialExit.triggerR",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.DonchianBreakout.stopLossPercent",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.DonchianBreakout.takeProfitPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.DonchianBreakout.tpAtrMultiple",
+      "status": "metadata_only",
+      "citation": "normalized; no generic target exit"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.DonchianBreakout.trailAtrMult",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.DonchianBreakout.trailChannelBars",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.DonchianBreakout.trailingActivation",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.DonchianBreakout.trailingStopPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.DonchianBreakout.useStructuralExits",
+      "status": "metadata_only",
+      "citation": "normalized/ownership only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMASMACrossover._validated",
+      "status": "metadata_only",
+      "citation": "normalized/ownership only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMASMACrossover.atrMinPercent",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMASMACrossover.invalidationConditions",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMASMACrossover.maxHoldMode",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMASMACrossover.maxHoldTimeMinutes",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMASMACrossover.minConfidence",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMASMACrossover.partialExit.enabled",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMASMACrossover.partialExit.fraction",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMASMACrossover.partialExit.remainderTrail",
+      "status": "metadata_only",
+      "citation": "planner receipt evidence only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMASMACrossover.partialExit.triggerR",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMASMACrossover.stopLossPercent",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMASMACrossover.stopType",
+      "status": "conditional_effect",
+      "citation": "StopLossChecker.js:40-68"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMASMACrossover.takeProfitPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMASMACrossover.tpMode",
+      "status": "metadata_only",
+      "citation": "normalized; no generic target exit"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMASMACrossover.trailType",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMASMACrossover.trailingActivation",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMASMACrossover.trailingStopPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMASMACrossover.useStructuralExits",
+      "status": "metadata_only",
+      "citation": "normalized/ownership only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMATrendRetest._validated",
+      "status": "metadata_only",
+      "citation": "normalized/ownership only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMATrendRetest.atrMinPercent",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMATrendRetest.atrStopMult",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMATrendRetest.invalidationConditions",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMATrendRetest.maxHoldMode",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMATrendRetest.maxHoldTimeMinutes",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMATrendRetest.minConfidence",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMATrendRetest.partialExit.enabled",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMATrendRetest.partialExit.fraction",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMATrendRetest.partialExit.remainderTrail",
+      "status": "metadata_only",
+      "citation": "planner receipt evidence only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMATrendRetest.partialExit.triggerR",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMATrendRetest.stopLossPercent",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMATrendRetest.stopType",
+      "status": "conditional_effect",
+      "citation": "StopLossChecker.js:40-68"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMATrendRetest.takeProfitPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMATrendRetest.targetRR",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMATrendRetest.tpMode",
+      "status": "metadata_only",
+      "citation": "normalized; no generic target exit"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMATrendRetest.trailActivationR",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMATrendRetest.trailDistanceR",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMATrendRetest.trailType",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMATrendRetest.trailingActivation",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMATrendRetest.trailingStopPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.EMATrendRetest.useStructuralExits",
+      "status": "metadata_only",
+      "citation": "normalized/ownership only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.LiquiditySweep._validated",
+      "status": "metadata_only",
+      "citation": "normalized/ownership only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.LiquiditySweep.atrMinPercent",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.LiquiditySweep.invalidationConditions",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.LiquiditySweep.maxHoldMode",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.LiquiditySweep.maxHoldTimeMinutes",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.LiquiditySweep.minConfidence",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.LiquiditySweep.partialExit.enabled",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.LiquiditySweep.partialExit.fraction",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.LiquiditySweep.partialExit.remainderTrail",
+      "status": "metadata_only",
+      "citation": "planner receipt evidence only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.LiquiditySweep.partialExit.triggerR",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.LiquiditySweep.stopLossPercent",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.LiquiditySweep.stopType",
+      "status": "conditional_effect",
+      "citation": "StopLossChecker.js:40-68"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.LiquiditySweep.takeProfitPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.LiquiditySweep.tpMode",
+      "status": "metadata_only",
+      "citation": "normalized; no generic target exit"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.LiquiditySweep.trailType",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.LiquiditySweep.trailingActivation",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.LiquiditySweep.trailingStopPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.LiquiditySweep.useStructuralExits",
+      "status": "metadata_only",
+      "citation": "normalized/ownership only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MADynamicSR._validated",
+      "status": "metadata_only",
+      "citation": "normalized/ownership only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MADynamicSR.atrMinPercent",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MADynamicSR.invalidationConditions",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MADynamicSR.maxHoldMode",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MADynamicSR.maxHoldTimeMinutes",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MADynamicSR.minConfidence",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MADynamicSR.partialExit.enabled",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MADynamicSR.partialExit.fraction",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MADynamicSR.partialExit.remainderTrail",
+      "status": "metadata_only",
+      "citation": "planner receipt evidence only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MADynamicSR.partialExit.triggerR",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MADynamicSR.stopLossPercent",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MADynamicSR.stopType",
+      "status": "conditional_effect",
+      "citation": "StopLossChecker.js:40-68"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MADynamicSR.takeProfitPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MADynamicSR.tpMode",
+      "status": "metadata_only",
+      "citation": "normalized; no generic target exit"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MADynamicSR.trailType",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MADynamicSR.trailingActivation",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MADynamicSR.trailingStopPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MADynamicSR.useStructuralExits",
+      "status": "metadata_only",
+      "citation": "normalized/ownership only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MarketRegime.atrMinPercent",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MarketRegime.invalidationConditions",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MarketRegime.maxHoldMode",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MarketRegime.maxHoldTimeMinutes",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MarketRegime.minConfidence",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MarketRegime.partialExit.enabled",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MarketRegime.partialExit.fraction",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MarketRegime.partialExit.remainderTrail",
+      "status": "metadata_only",
+      "citation": "planner receipt evidence only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MarketRegime.partialExit.triggerR",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MarketRegime.stopLossPercent",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MarketRegime.stopType",
+      "status": "conditional_effect",
+      "citation": "StopLossChecker.js:40-68"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MarketRegime.takeProfitPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MarketRegime.tpMode",
+      "status": "metadata_only",
+      "citation": "normalized; no generic target exit"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MarketRegime.trailType",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MarketRegime.trailingActivation",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MarketRegime.trailingStopPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.MarketRegime.useStructuralExits",
+      "status": "metadata_only",
+      "citation": "normalized/ownership only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.NoWickImbalance._validated",
+      "status": "metadata_only",
+      "citation": "normalized/ownership only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.NoWickImbalance.atrMinPercent",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.NoWickImbalance.invalidationConditions",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.NoWickImbalance.maxConcurrentEntries",
+      "status": "active",
+      "citation": "OrderExecutor.js:1610-1643"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.NoWickImbalance.maxHoldMode",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.NoWickImbalance.maxHoldTimeMinutes",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.NoWickImbalance.minConfidence",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.NoWickImbalance.partialExit.enabled",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.NoWickImbalance.partialExit.fraction",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.NoWickImbalance.partialExit.remainderTrail",
+      "status": "metadata_only",
+      "citation": "planner receipt evidence only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.NoWickImbalance.partialExit.triggerR",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.NoWickImbalance.scaleIn.addSizingLadder",
+      "status": "disconnected",
+      "citation": "cloned only; no executor reader"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.NoWickImbalance.scaleIn.addTriggerClass",
+      "status": "active",
+      "citation": "OrderExecutor.js:1649-1703"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.NoWickImbalance.scaleIn.aggregateRiskCap",
+      "status": "active",
+      "citation": "OrderExecutor.js:1649-1703"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.NoWickImbalance.scaleIn.enabled",
+      "status": "active",
+      "citation": "OrderExecutor.js:1649-1703"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.NoWickImbalance.scaleIn.maxAdds",
+      "status": "active",
+      "citation": "OrderExecutor.js:1649-1703"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.NoWickImbalance.scaleIn.requireProfitConfirmation",
+      "status": "active",
+      "citation": "OrderExecutor.js:1649-1703"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.NoWickImbalance.stopBufferAtr",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.NoWickImbalance.stopLookbackBars",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.NoWickImbalance.stopLossPercent",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.NoWickImbalance.stopType",
+      "status": "conditional_effect",
+      "citation": "StopLossChecker.js:40-68"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.NoWickImbalance.takeProfitPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.NoWickImbalance.targetRR",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.NoWickImbalance.tpMode",
+      "status": "metadata_only",
+      "citation": "normalized; no generic target exit"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.NoWickImbalance.trailType",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.NoWickImbalance.trailingActivation",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.NoWickImbalance.trailingStopPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.NoWickImbalance.useStructuralExits",
+      "status": "metadata_only",
+      "citation": "normalized/ownership only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OGZTPO.atrMinPercent",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OGZTPO.invalidationConditions",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OGZTPO.maxHoldMode",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OGZTPO.maxHoldTimeMinutes",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OGZTPO.minConfidence",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OGZTPO.partialExit.enabled",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OGZTPO.partialExit.fraction",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OGZTPO.partialExit.remainderTrail",
+      "status": "metadata_only",
+      "citation": "planner receipt evidence only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OGZTPO.partialExit.triggerR",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OGZTPO.stopLossPercent",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OGZTPO.stopType",
+      "status": "conditional_effect",
+      "citation": "StopLossChecker.js:40-68"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OGZTPO.takeProfitPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OGZTPO.tpMode",
+      "status": "metadata_only",
+      "citation": "normalized; no generic target exit"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OGZTPO.trailType",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OGZTPO.trailingActivation",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OGZTPO.trailingStopPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OGZTPO.useStructuralExits",
+      "status": "metadata_only",
+      "citation": "normalized/ownership only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OpeningRangeBreakout.atrMinPercent",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OpeningRangeBreakout.invalidationConditions",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OpeningRangeBreakout.maxHoldMode",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OpeningRangeBreakout.maxHoldTimeMinutes",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OpeningRangeBreakout.minConfidence",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OpeningRangeBreakout.partialExit.enabled",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OpeningRangeBreakout.partialExit.fraction",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OpeningRangeBreakout.partialExit.remainderTrail",
+      "status": "metadata_only",
+      "citation": "planner receipt evidence only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OpeningRangeBreakout.partialExit.triggerR",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OpeningRangeBreakout.stopBufferPct",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OpeningRangeBreakout.stopLossPercent",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OpeningRangeBreakout.stopType",
+      "status": "conditional_effect",
+      "citation": "StopLossChecker.js:40-68"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OpeningRangeBreakout.takeProfitPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OpeningRangeBreakout.targetRR",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OpeningRangeBreakout.tpMode",
+      "status": "metadata_only",
+      "citation": "normalized; no generic target exit"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OpeningRangeBreakout.trailType",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OpeningRangeBreakout.trailingActivation",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OpeningRangeBreakout.trailingStopPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.OpeningRangeBreakout.useStructuralExits",
+      "status": "metadata_only",
+      "citation": "normalized/ownership only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.PropSafeEMAPullback._validated",
+      "status": "metadata_only",
+      "citation": "normalized/ownership only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.PropSafeEMAPullback.atrMinPercent",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.PropSafeEMAPullback.atrStopMult",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.PropSafeEMAPullback.invalidationConditions",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.PropSafeEMAPullback.maxHoldMode",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.PropSafeEMAPullback.maxHoldTimeMinutes",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.PropSafeEMAPullback.minConfidence",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.PropSafeEMAPullback.partialExit.enabled",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.PropSafeEMAPullback.partialExit.fraction",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.PropSafeEMAPullback.partialExit.remainderTrail",
+      "status": "metadata_only",
+      "citation": "planner receipt evidence only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.PropSafeEMAPullback.partialExit.triggerR",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.PropSafeEMAPullback.stopLossPercent",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.PropSafeEMAPullback.stopType",
+      "status": "conditional_effect",
+      "citation": "StopLossChecker.js:40-68"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.PropSafeEMAPullback.takeProfitPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.PropSafeEMAPullback.targetRR",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.PropSafeEMAPullback.tpMode",
+      "status": "metadata_only",
+      "citation": "normalized; no generic target exit"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.PropSafeEMAPullback.trailActivationR",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.PropSafeEMAPullback.trailDistanceR",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.PropSafeEMAPullback.trailType",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.PropSafeEMAPullback.trailingActivation",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.PropSafeEMAPullback.trailingStopPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.PropSafeEMAPullback.useStructuralExits",
+      "status": "metadata_only",
+      "citation": "normalized/ownership only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI._validated",
+      "status": "metadata_only",
+      "citation": "normalized/ownership only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI.atrMinPercent",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI.invalidationConditions",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI.maxHoldMode",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI.maxHoldTimeMinutes",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI.minConfidence",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI.partialExit.enabled",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI.partialExit.fraction",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI.partialExit.remainderTrail",
+      "status": "metadata_only",
+      "citation": "planner receipt evidence only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI.partialExit.triggerR",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI.stopLossPercent",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI.stopType",
+      "status": "conditional_effect",
+      "citation": "StopLossChecker.js:40-68"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI.takeProfitPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI.tpMode",
+      "status": "metadata_only",
+      "citation": "normalized; no generic target exit"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI.trailType",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI.trailingActivation",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI.trailingStopPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI.useStructuralExits",
+      "status": "metadata_only",
+      "citation": "normalized/ownership only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI2MeanReversion._validated",
+      "status": "metadata_only",
+      "citation": "normalized/ownership only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI2MeanReversion.atrMinPercent",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI2MeanReversion.invalidationConditions",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI2MeanReversion.maxHoldMode",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI2MeanReversion.maxHoldTimeMinutes",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI2MeanReversion.minConfidence",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI2MeanReversion.partialExit.enabled",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI2MeanReversion.partialExit.fraction",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI2MeanReversion.partialExit.remainderTrail",
+      "status": "metadata_only",
+      "citation": "planner receipt evidence only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI2MeanReversion.partialExit.triggerR",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI2MeanReversion.rsiExitLong",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI2MeanReversion.rsiPeriod",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI2MeanReversion.stopLossPercent",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI2MeanReversion.stopType",
+      "status": "conditional_effect",
+      "citation": "StopLossChecker.js:40-68"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI2MeanReversion.takeProfitPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI2MeanReversion.tpMode",
+      "status": "metadata_only",
+      "citation": "normalized; no generic target exit"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI2MeanReversion.trailType",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI2MeanReversion.trailingActivation",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI2MeanReversion.trailingStopPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.RSI2MeanReversion.useStructuralExits",
+      "status": "metadata_only",
+      "citation": "normalized/ownership only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.SmartMoneySweep.atrMinPercent",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.SmartMoneySweep.invalidationConditions",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.SmartMoneySweep.maxHoldMode",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.SmartMoneySweep.maxHoldTimeMinutes",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.SmartMoneySweep.minConfidence",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.SmartMoneySweep.partialExit.enabled",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.SmartMoneySweep.partialExit.fraction",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.SmartMoneySweep.partialExit.remainderTrail",
+      "status": "metadata_only",
+      "citation": "planner receipt evidence only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.SmartMoneySweep.partialExit.triggerR",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.SmartMoneySweep.stopLossPercent",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.SmartMoneySweep.stopType",
+      "status": "conditional_effect",
+      "citation": "StopLossChecker.js:40-68"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.SmartMoneySweep.takeProfitPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.SmartMoneySweep.tpMode",
+      "status": "metadata_only",
+      "citation": "normalized; no generic target exit"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.SmartMoneySweep.trailType",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.SmartMoneySweep.trailingActivation",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.SmartMoneySweep.trailingStopPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.SmartMoneySweep.useStructuralExits",
+      "status": "metadata_only",
+      "citation": "normalized/ownership only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.TimeSeriesMomentum._validated",
+      "status": "metadata_only",
+      "citation": "normalized/ownership only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.TimeSeriesMomentum.atrMinPercent",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.TimeSeriesMomentum.atrStopMult",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.TimeSeriesMomentum.invalidationConditions",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.TimeSeriesMomentum.maxHoldTimeMinutes",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.TimeSeriesMomentum.minConfidence",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.TimeSeriesMomentum.partialExit.enabled",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.TimeSeriesMomentum.partialExit.fraction",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.TimeSeriesMomentum.partialExit.remainderTrail",
+      "status": "metadata_only",
+      "citation": "planner receipt evidence only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.TimeSeriesMomentum.partialExit.triggerR",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.TimeSeriesMomentum.stopLossPercent",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.TimeSeriesMomentum.stopType",
+      "status": "conditional_effect",
+      "citation": "StopLossChecker.js:40-68"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.TimeSeriesMomentum.takeProfitPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.TimeSeriesMomentum.tpAtrMultiple",
+      "status": "metadata_only",
+      "citation": "normalized; no generic target exit"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.TimeSeriesMomentum.trailAtrMult",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.TimeSeriesMomentum.trailChannelBars",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.TimeSeriesMomentum.trailingActivation",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.TimeSeriesMomentum.trailingStopPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.TimeSeriesMomentum.useStructuralExits",
+      "status": "metadata_only",
+      "citation": "normalized/ownership only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.default.atrMinPercent",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.default.invalidationConditions",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.default.maxConcurrentEntries",
+      "status": "active",
+      "citation": "OrderExecutor.js:1610-1643"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.default.maxHoldMode",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.default.maxHoldTimeMinutes",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.default.minConfidence",
+      "status": "active",
+      "citation": "StrategyOrchestrator.js:637-649,2659-2662"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.default.partialExit.enabled",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.default.partialExit.fraction",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.default.partialExit.remainderTrail",
+      "status": "metadata_only",
+      "citation": "planner receipt evidence only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.default.partialExit.triggerR",
+      "status": "active",
+      "citation": "ProfitExitPlanner.js:152-198"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.default.scaleIn.addSizingLadder",
+      "status": "disconnected",
+      "citation": "cloned only; no executor reader"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.default.scaleIn.addTriggerClass",
+      "status": "active",
+      "citation": "OrderExecutor.js:1649-1703"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.default.scaleIn.aggregateRiskCap",
+      "status": "active",
+      "citation": "OrderExecutor.js:1649-1703"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.default.scaleIn.enabled",
+      "status": "active",
+      "citation": "OrderExecutor.js:1649-1703"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.default.scaleIn.maxAdds",
+      "status": "active",
+      "citation": "OrderExecutor.js:1649-1703"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.default.scaleIn.requireProfitConfirmation",
+      "status": "active",
+      "citation": "OrderExecutor.js:1649-1703"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.default.stopLossPercent",
+      "status": "active",
+      "citation": "ECM:364-424,459-617,738-836"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.default.stopType",
+      "status": "conditional_effect",
+      "citation": "StopLossChecker.js:40-68"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.default.takeProfitPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.default.tpMode",
+      "status": "metadata_only",
+      "citation": "normalized; no generic target exit"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.default.trailType",
+      "status": "conditional_effect",
+      "citation": "strategy-specific producer required; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.default.trailingActivation",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.default.trailingStopPercent",
+      "status": "disconnected",
+      "citation": "ECM:364-424 omits legacy checker"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitContracts.default.useStructuralExits",
+      "status": "metadata_only",
+      "citation": "normalized/ownership only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.beScaleOut.enabled",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.beScaleOut.feeBufferPercent",
+      "status": "disconnected",
+      "citation": "PolicyBuilder copies; ProfitExitPlanner does not read"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.beScaleOut.fixedPercentTrigger",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.beScaleOut.scaleOutFraction",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.beScaleOut.triggerType",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.breakEvenStop.enabled",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.breakEvenStop.triggerPercent",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.tieredExit.enableMarketAdaptation",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.tieredExit.enabled",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.tieredExit.highConfidenceMultiplier",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.tieredExit.highConfidenceThreshold",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.tieredExit.lowConfidenceMultiplier",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.tieredExit.lowConfidenceThreshold",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.tieredExit.rangingTargetMultiplier",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.tieredExit.tier1ExitFraction",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.tieredExit.tier2ExitFraction",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.tieredExit.tier3ExitFraction",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.tieredExit.trendingTargetMultiplier",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.trail.atrMultiplier",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.trail.enabled",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.trail.feeBufferPercent",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.trail.maxTrailPercent",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.trail.minActivationPercent",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.trail.minTrailPercent",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.trail.profitRatchetFloor",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.trail.profitRatchetRate",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.trail.profitRatchetThreshold",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.trail.roundNumberProximity",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.trail.roundNumberTighten",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.trail.structureDistanceThreshold",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.trail.structureTightenMultiplier",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.trail.trendWidenMultiplier",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.volatilityAdjustment.enabled",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.volatilityAdjustment.highThresholdPercent",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.volatilityAdjustment.lookbackPeriods",
+      "status": "disconnected",
+      "citation": "PolicyBuilder validates then discards"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exitLogic.volatilityAdjustment.lowThresholdPercent",
+      "status": "active",
+      "citation": "PolicyBuilder/ECM; see execution.md"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exits.profitTiers.final",
+      "status": "active",
+      "citation": "PolicyBuilder.js:495-547; ProfitExitPlanner.js:233-307"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exits.profitTiers.tier1",
+      "status": "active",
+      "citation": "PolicyBuilder.js:495-547; ProfitExitPlanner.js:233-307"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exits.profitTiers.tier2",
+      "status": "active",
+      "citation": "PolicyBuilder.js:495-547; ProfitExitPlanner.js:233-307"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exits.profitTiers.tier3",
+      "status": "active",
+      "citation": "PolicyBuilder.js:495-547; ProfitExitPlanner.js:233-307"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exits.volatilitySlMultiplier",
+      "status": "active",
+      "citation": "ExitContractManager.js:1055-1065"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exits.volatilityThreshold",
+      "status": "active",
+      "citation": "ExitContractManager.js:1055-1065"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "exits.volatilityTpMultiplier",
+      "status": "active",
+      "citation": "ExitContractManager.js:1055-1065"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "feeProfiles.definitions.ttp_real.assetClasses",
+      "status": "conditional_effect",
+      "citation": "ConfigLoader.js:1004-1008 descriptor only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "feeProfiles.definitions.ttp_real.description",
+      "status": "conditional_effect",
+      "citation": "ConfigLoader.js:1004-1008 descriptor only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "feeProfiles.definitions.ttp_real.name",
+      "status": "conditional_effect",
+      "citation": "ConfigLoader.js:1004-1008 descriptor only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "feeProfiles.definitions.ttp_real.overrides.fees.makerFee",
+      "status": "conditional_effect",
+      "citation": "ConfigLoader.js:1004-1008 descriptor only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "feeProfiles.definitions.ttp_real.overrides.fees.minOrderFee",
+      "status": "conditional_effect",
+      "citation": "ConfigLoader.js:1004-1008 descriptor only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "feeProfiles.definitions.ttp_real.overrides.fees.model",
+      "status": "conditional_effect",
+      "citation": "ConfigLoader.js:1004-1008 descriptor only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "feeProfiles.definitions.ttp_real.overrides.fees.perShare",
+      "status": "conditional_effect",
+      "citation": "ConfigLoader.js:1004-1008 descriptor only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "feeProfiles.definitions.ttp_real.overrides.fees.safetyBuffer",
+      "status": "conditional_effect",
+      "citation": "ConfigLoader.js:1004-1008 descriptor only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "feeProfiles.definitions.ttp_real.overrides.fees.slippage",
+      "status": "conditional_effect",
+      "citation": "ConfigLoader.js:1004-1008 descriptor only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "feeProfiles.definitions.ttp_real.overrides.fees.takerFee",
+      "status": "conditional_effect",
+      "citation": "ConfigLoader.js:1004-1008 descriptor only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "feeProfiles.definitions.ttp_real.overrides.fees.totalRoundTrip",
+      "status": "conditional_effect",
+      "citation": "ConfigLoader.js:1004-1008 descriptor only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "feeProfiles.definitions.zero.assetClasses",
+      "status": "conditional_effect",
+      "citation": "ConfigLoader.js:1004-1008 descriptor only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "feeProfiles.definitions.zero.description",
+      "status": "conditional_effect",
+      "citation": "ConfigLoader.js:1004-1008 descriptor only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "feeProfiles.definitions.zero.name",
+      "status": "conditional_effect",
+      "citation": "ConfigLoader.js:1004-1008 descriptor only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "feeProfiles.definitions.zero.overrides.fees.makerFee",
+      "status": "conditional_effect",
+      "citation": "ConfigLoader.js:1004-1008 descriptor only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "feeProfiles.definitions.zero.overrides.fees.minOrderFee",
+      "status": "conditional_effect",
+      "citation": "ConfigLoader.js:1004-1008 descriptor only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "feeProfiles.definitions.zero.overrides.fees.model",
+      "status": "conditional_effect",
+      "citation": "ConfigLoader.js:1004-1008 descriptor only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "feeProfiles.definitions.zero.overrides.fees.perShare",
+      "status": "conditional_effect",
+      "citation": "ConfigLoader.js:1004-1008 descriptor only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "feeProfiles.definitions.zero.overrides.fees.safetyBuffer",
+      "status": "conditional_effect",
+      "citation": "ConfigLoader.js:1004-1008 descriptor only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "feeProfiles.definitions.zero.overrides.fees.slippage",
+      "status": "conditional_effect",
+      "citation": "ConfigLoader.js:1004-1008 descriptor only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "feeProfiles.definitions.zero.overrides.fees.takerFee",
+      "status": "conditional_effect",
+      "citation": "ConfigLoader.js:1004-1008 descriptor only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "feeProfiles.definitions.zero.overrides.fees.totalRoundTrip",
+      "status": "conditional_effect",
+      "citation": "ConfigLoader.js:1004-1008 descriptor only"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "fees.makerFee",
+      "status": "active",
+      "citation": "FeeModel.js:49-57,119-170"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "fees.minOrderFee",
+      "status": "active",
+      "citation": "FeeModel.js:49-57,119-170"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "fees.model",
+      "status": "active",
+      "citation": "FeeModel.js:49-57,119-170"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "fees.perShare",
+      "status": "active",
+      "citation": "FeeModel.js:49-57,119-170"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "fees.safetyBuffer",
+      "status": "metadata_only",
+      "citation": "PolicyBuilder metadata; FeeModel calculation ignores"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "fees.slippage",
+      "status": "conditional_effect",
+      "citation": "OrderExecutor.js:2382,3636"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "fees.takerFee",
+      "status": "active",
+      "citation": "FeeModel.js:49-57,119-170"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "fees.totalRoundTrip",
+      "status": "metadata_only",
+      "citation": "PolicyBuilder metadata; FeeModel calculation ignores"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "fundTarget",
+      "status": "disconnected",
+      "citation": "uninvoked ModuleInitializer factory"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.broker.alpacaWebSocket.dataWatchdogMs",
+      "status": "active",
+      "citation": "brokers/AlpacaAdapter.js:1072-1078 passes to websocket watchdog"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.broker.alpacaWebSocket.heartbeatPingMs",
+      "status": "active",
+      "citation": "brokers/AlpacaAdapter.js:1072-1078 passes to websocket heartbeat"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.broker.alpacaWebSocket.initialReconnectDelayMs",
+      "status": "active",
+      "citation": "brokers/AlpacaAdapter.js:1072-1078 passes reconnect delay"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.broker.alpacaWebSocket.maxBytesPerSecond",
+      "status": "active",
+      "citation": "brokers/AlpacaAdapter.js:1072-1078 passes websocket rate limit"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.broker.alpacaWebSocket.maxPayloadBytes",
+      "status": "active",
+      "citation": "brokers/AlpacaAdapter.js:1072-1078 passes websocket payload limit"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.broker.alpacaWebSocket.maxReconnectDelayMs",
+      "status": "active",
+      "citation": "brokers/AlpacaAdapter.js:1072-1078 passes reconnect cap"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.broker.alpacaWebSocket.pongTimeoutMs",
+      "status": "active",
+      "citation": "brokers/AlpacaAdapter.js:1072-1078 passes websocket pong timeout"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.broker.tradingIntervalMs",
+      "status": "active",
+      "citation": "runner:1854-1857,2504-2515"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.dataFeed.activeTimeframeMultiplier",
+      "status": "active",
+      "citation": "run-empire-v2.js:2794-2798 computes silence budget"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.dataFeed.activeTimeframeSlackMs",
+      "status": "active",
+      "citation": "run-empire-v2.js:2794-2798 computes silence budget"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.dataFeed.bootRestHydrationLimit",
+      "status": "active",
+      "citation": "run-empire-v2.js:1698 supplies REST hydration limit"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.dataFeed.expectedQuietLogIntervalMs",
+      "status": "active",
+      "citation": "run-empire-v2.js:2871-2872 throttles expected-quiet logs"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.dataFeed.gapBackfillBufferCandles",
+      "status": "active",
+      "citation": "core/CandleProcessor.js:768 calculates gap fetch count"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.dataFeed.gapBackfillRetryDelayMs",
+      "status": "active",
+      "citation": "core/CandleProcessor.js:131 owns retry delay"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.dataFeed.gapRecoveryCleanCandlesRequired",
+      "status": "active",
+      "citation": "core/CandleProcessor.js:129 owns recovery fence"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.dataFeed.gapThresholdMultiplier",
+      "status": "active",
+      "citation": "core/CandleProcessor.js:127,1051 gap threshold"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.dataFeed.livenessBackfillLimit",
+      "status": "active",
+      "citation": "run-empire-v2.js:2886 REST liveness backfill count"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.dataFeed.livenessCheckIntervalMs",
+      "status": "active",
+      "citation": "run-empire-v2.js:3016-3018 watchdog interval"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.dataFeed.maxBackfillAgeMultiplier",
+      "status": "active",
+      "citation": "run-empire-v2.js:2902 max backfill age"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.dataFeed.maxBackfillAgeSlackMs",
+      "status": "active",
+      "citation": "run-empire-v2.js:2902 max backfill age"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.dataFeed.maxDataSilenceMs",
+      "status": "active",
+      "citation": "run-empire-v2.js:2794-2798,2987 liveness silence"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.dataFeed.staleDataMaxAgeMs",
+      "status": "active",
+      "citation": "core/CandleProcessor.js:997 stale feed pause"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.dataFeed.staleDataRecoveryAgeMs",
+      "status": "active",
+      "citation": "core/CandleProcessor.js:1004 stale-feed recovery"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.dataFeed.volumeCapMaxReferenceAgeLimitMs",
+      "status": "conditional_effect",
+      "citation": "ConfigLoader.js:1236,2040-2052 validation only"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.paths.backtestOutputDir",
+      "status": "active",
+      "citation": "core/OutputPaths.js:9-16; core/BacktestRunner.js:410"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.paths.dataDir",
+      "status": "active",
+      "citation": "run-empire-v2.js:122; StateManager.js:4173-4211,4271-4275"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.paths.journalDataDir",
+      "status": "active",
+      "citation": "run-empire-v2.js:1936-1937; TradeJournalBridge.js:566-583"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.paths.logDirectory",
+      "status": "conditional_effect",
+      "citation": "ConfigLoader descriptor-derived worker log path at 973-978; no direct reader established"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.paths.stateFile",
+      "status": "active",
+      "citation": "StateManager.js:4173-4211,4271-4275"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.queues.message.maxQueueSize",
+      "status": "active",
+      "citation": "run-empire-v2.js:1295; MessageQueue.js:45"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.queues.message.minProcessingGapMs",
+      "status": "active",
+      "citation": "run-empire-v2.js:1296; MessageQueue.js:81"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.queues.message.staleThresholdMs",
+      "status": "active",
+      "citation": "run-empire-v2.js:1297; MessageQueue.js:67"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.sessionRouter.fastCheckIntervalMs",
+      "status": "active",
+      "citation": "run-empire-v2.js:923; SessionRouter.js:65"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.sessionRouter.transitionStoreDir",
+      "status": "active",
+      "citation": "run-empire-v2.js:925-927 transition store construction"
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "internals.sessionRouter.transitionStoreStaleLockMs",
+      "status": "active",
+      "citation": "run-empire-v2.js:925-927 transition store lock ownership"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "positionSizing.basePositionSize",
+      "status": "active",
+      "citation": "OrderExecutor.js:2018,2195-2200,2365-2420,3039,3119-3130"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "positionSizing.confluenceMultipliers.1",
+      "status": "active",
+      "citation": "OrderExecutor.js:2018,2195-2200,2365-2420,3039,3119-3130"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "positionSizing.confluenceMultipliers.2",
+      "status": "active",
+      "citation": "OrderExecutor.js:2018,2195-2200,2365-2420,3039,3119-3130"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "positionSizing.confluenceMultipliers.3",
+      "status": "active",
+      "citation": "OrderExecutor.js:2018,2195-2200,2365-2420,3039,3119-3130"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "positionSizing.confluenceMultipliers.4",
+      "status": "active",
+      "citation": "OrderExecutor.js:2018,2195-2200,2365-2420,3039,3119-3130"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "positionSizing.maxPositionSize",
+      "status": "active",
+      "citation": "OrderExecutor.js:2018,2195-2200,2365-2420,3039,3119-3130"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "positionSizing.maxPositions",
+      "status": "active",
+      "citation": "OrderExecutor.js:2018,2195-2200,2365-2420,3039,3119-3130"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "positionSizing.maxTotalExposure",
+      "status": "active",
+      "citation": "OrderExecutor.js:2018,2195-2200,2365-2420,3039,3119-3130"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "proofPublication.account.id",
+      "status": "active",
+      "citation": "claudito-logger.js:376-392,643-646,654,734; runner:434; OrderExecutor:20"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "proofPublication.account.label",
+      "status": "active",
+      "citation": "claudito-logger.js:376-392,643-646,654,734; runner:434; OrderExecutor:20"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "proofPublication.account.maxDrawdown",
+      "status": "active",
+      "citation": "claudito-logger.js:376-392,643-646,654,734; runner:434; OrderExecutor:20"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "proofPublication.account.minTradesRequired",
+      "status": "active",
+      "citation": "claudito-logger.js:376-392,643-646,654,734; runner:434; OrderExecutor:20"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "proofPublication.account.profitTarget",
+      "status": "active",
+      "citation": "claudito-logger.js:376-392,643-646,654,734; runner:434; OrderExecutor:20"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "proofPublication.account.stage",
+      "status": "active",
+      "citation": "claudito-logger.js:376-392,643-646,654,734; runner:434; OrderExecutor:20"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "proofPublication.account.status",
+      "status": "active",
+      "citation": "claudito-logger.js:376-392,643-646,654,734; runner:434; OrderExecutor:20"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "proofPublication.account.trackRecordStartAt",
+      "status": "active",
+      "citation": "claudito-logger.js:376-392,643-646,654,734; runner:434; OrderExecutor:20"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "proofPublication.enabled",
+      "status": "active",
+      "citation": "claudito-logger.js:376-392,643-646,654,734; runner:434; OrderExecutor:20"
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "startingBalance",
+      "status": "active",
+      "citation": "runner:780-784,1245; TradeJournal.js:197-200"
+    }
+    ,
+    {"owner":"config/internals.json","key":"internals.backtest.candleDataFile","status":"source_traced","citation":"run-empire-v2.js:780-784,1385-1389; BacktestRunner runtime context"},
+    {"owner":"config/internals.json","key":"internals.backtest.fast","status":"source_traced","citation":"run-empire-v2.js:780-784,1385-1389; BacktestRunner runtime context"},
+    {"owner":"config/internals.json","key":"internals.backtest.freshStart","status":"source_traced","citation":"run-empire-v2.js:780-784,1385-1389; BacktestRunner runtime context"},
+    {"owner":"config/internals.json","key":"internals.backtest.reportTag","status":"source_traced","citation":"run-empire-v2.js:780-784,1385-1389; BacktestRunner runtime context"},
+    {"owner":"config/internals.json","key":"internals.backtest.silent","status":"source_traced","citation":"run-empire-v2.js:780-784,1385-1389; BacktestRunner runtime context"},
+    {"owner":"config/internals.json","key":"internals.backtest.verbose","status":"source_traced","citation":"run-empire-v2.js:780-784,1385-1389; BacktestRunner runtime context"},
+    {"owner":"config/internals.json","key":"internals.candleStore.maxCandles","status":"source_traced","citation":"run-empire-v2.js:866-868 constructs CandleStore"},
+    {"owner":"config/internals.json","key":"internals.instruments.cryptoBases","status":"source_traced","citation":"core/DataFileInstrument.js:14 reads configured crypto bases"},
+    {"owner":"config/internals.json","key":"internals.journal.autoSaveIntervalMs","status":"source_traced","citation":"run-empire-v2.js:1936-1937 constructs TradeJournalBridge"},
+    {"owner":"config/internals.json","key":"internals.journal.broadcastIntervalMs","status":"source_traced","citation":"run-empire-v2.js:1936-1937 constructs TradeJournalBridge"},
+    {"owner":"config/internals.json","key":"internals.journal.dashboardHookIntervalMs","status":"source_traced","citation":"run-empire-v2.js:1936-1937 constructs TradeJournalBridge"},
+    {"owner":"config/internals.json","key":"internals.journal.maxEquityPoints","status":"source_traced","citation":"run-empire-v2.js:1936-1937 constructs TradeJournalBridge"},
+    {"owner":"config/internals.json","key":"internals.journal.maxInMemoryTrades","status":"source_traced","citation":"run-empire-v2.js:1936-1937 constructs TradeJournalBridge"},
+    {"owner":"config/internals.json","key":"internals.journal.maxPendingVisibilityErrors","status":"source_traced","citation":"run-empire-v2.js:1936-1937 constructs TradeJournalBridge"},
+    {"owner":"config/internals.json","key":"internals.journal.replayCandlesAfter","status":"source_traced","citation":"run-empire-v2.js:1936-1937 constructs TradeJournalBridge"},
+    {"owner":"config/internals.json","key":"internals.journal.replayCandlesBefore","status":"source_traced","citation":"run-empire-v2.js:1936-1937 constructs TradeJournalBridge"},
+    {"owner":"config/internals.json","key":"internals.marketCalendar.afterhoursEndMinute","status":"source_traced","citation":"run-empire-v2.js:1239 constructs MarketCalendar"},
+    {"owner":"config/internals.json","key":"internals.marketCalendar.halfDayCloseMinute","status":"source_traced","citation":"run-empire-v2.js:1239 constructs MarketCalendar"},
+    {"owner":"config/internals.json","key":"internals.marketCalendar.maxOpenSearchDays","status":"source_traced","citation":"run-empire-v2.js:1239 constructs MarketCalendar"},
+    {"owner":"config/internals.json","key":"internals.marketCalendar.premarketStartMinute","status":"source_traced","citation":"run-empire-v2.js:1239 constructs MarketCalendar"},
+    {"owner":"config/internals.json","key":"internals.marketCalendar.regularEndMinute","status":"source_traced","citation":"run-empire-v2.js:1239 constructs MarketCalendar"},
+    {"owner":"config/internals.json","key":"internals.marketCalendar.regularStartMinute","status":"source_traced","citation":"run-empire-v2.js:1239 constructs MarketCalendar"},
+    {"owner":"config/internals.json","key":"internals.marketCalendar.timezone","status":"source_traced","citation":"run-empire-v2.js:1239 constructs MarketCalendar"},
+    {"owner":"config/internals.json","key":"internals.multiTimeframe.maxCandlesByTimeframe.15m","status":"source_traced","citation":"StrategyOrchestrator.js:954 passes timeframe caps"},
+    {"owner":"config/internals.json","key":"internals.multiTimeframe.maxCandlesByTimeframe.1d","status":"source_traced","citation":"StrategyOrchestrator.js:954 passes timeframe caps"},
+    {"owner":"config/internals.json","key":"internals.multiTimeframe.maxCandlesByTimeframe.1h","status":"source_traced","citation":"StrategyOrchestrator.js:954 passes timeframe caps"},
+    {"owner":"config/internals.json","key":"internals.multiTimeframe.maxCandlesByTimeframe.1m","status":"source_traced","citation":"StrategyOrchestrator.js:954 passes timeframe caps"},
+    {"owner":"config/internals.json","key":"internals.multiTimeframe.maxCandlesByTimeframe.30m","status":"source_traced","citation":"StrategyOrchestrator.js:954 passes timeframe caps"},
+    {"owner":"config/internals.json","key":"internals.multiTimeframe.maxCandlesByTimeframe.4h","status":"source_traced","citation":"StrategyOrchestrator.js:954 passes timeframe caps"},
+    {"owner":"config/internals.json","key":"internals.multiTimeframe.maxCandlesByTimeframe.5m","status":"source_traced","citation":"StrategyOrchestrator.js:954 passes timeframe caps"},
+    {"owner":"config/internals.json","key":"internals.pipelineSnapshot.initialCaptureDelayMs","status":"source_traced","citation":"run-empire-v2.js:1941 constructs PipelineSnapshot"},
+    {"owner":"config/internals.json","key":"internals.pipelineSnapshot.intervalMs","status":"source_traced","citation":"run-empire-v2.js:1941 constructs PipelineSnapshot"},
+    {"owner":"config/internals.json","key":"internals.pipelineSnapshot.outputFile","status":"source_traced","citation":"run-empire-v2.js:1941 constructs PipelineSnapshot"},
+    {"owner":"config/internals.json","key":"internals.singleton.lockDir","status":"source_traced","citation":"run-empire-v2.js:485-489 constructs SingletonLock"},
+    {"owner":"config/internals.json","key":"internals.singleton.monitorIntervalMs","status":"source_traced","citation":"run-empire-v2.js:485-489 constructs SingletonLock"}
+  ],
+  "head_claim_review": {
+    "proofPublication": "confirmed active publisher path: claudito-logger.js:376-392,643-646,654,734",
+    "fundTarget": "confirmed no active execution consumer"
+  }
+}

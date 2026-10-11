@@ -1,0 +1,1862 @@
+{
+  "head": "cb566d93a46dca8673def2f76ea685f5be0b148e",
+  "scope": "Root audited auxiliary ownership/purpose/callers; controlled reversal-pattern probe separate",
+  "rows": [
+    {
+      "owner": "config/settings.json",
+      "key": "features.enableDynamicSizing",
+      "type": "boolean",
+      "status": "source_traced",
+      "evidence": [
+        "core/OrderExecutor.js:3116"
+      ],
+      "effect": "Enables actual confidence-based entry fraction multiplier; separate dynamicPositionSizer object is not needed for this effect.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "features.enableLearning",
+      "type": "boolean",
+      "status": "source_traced",
+      "evidence": [
+        "core/TradingLoop.js:2067",
+        "run-empire-v2.js:825",
+        "core/trai_core.js:114"
+      ],
+      "effect": "Per-analysis pattern-learning flag and startup TRAI memory connection; mixed lifecycle.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.enabled",
+      "type": "boolean",
+      "status": "tracking_only",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4132"
+      ],
+      "effect": "Controls model construction or tracking log; no exit evaluation.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.description",
+      "type": "string",
+      "status": "metadata",
+      "evidence": [
+        "core/FeatureFlagManager.js:108"
+      ],
+      "effect": "Catalog documentation; not a trade control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.version",
+      "type": "string",
+      "status": "metadata",
+      "evidence": [
+        "core/FeatureFlagManager.js:108"
+      ],
+      "effect": "Catalog documentation; not a trade control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.shadowMode",
+      "type": "boolean",
+      "status": "tracking_only",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4132"
+      ],
+      "effect": "Controls model construction or tracking log; no exit evaluation.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.minPatternExitConfidence",
+      "type": "number",
+      "status": "unread_setting",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. No property read in model; hardcoded reversal list verified with actual-class probe.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.minReversalConfidence",
+      "type": "number",
+      "status": "disconnected_exit_evaluation",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. Read only by disconnected evaluation/helper path; not an active exit control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.enablePatternTargets",
+      "type": "boolean",
+      "status": "disconnected_exit_evaluation",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. Read only by disconnected evaluation/helper path; not an active exit control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.targetConfidenceWeight",
+      "type": "number",
+      "status": "unread_setting",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. No property read in model; hardcoded reversal list verified with actual-class probe.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.minTargetAdjustment",
+      "type": "number",
+      "status": "unread_setting",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. No property read in model; hardcoded reversal list verified with actual-class probe.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.maxTargetAdjustment",
+      "type": "number",
+      "status": "unread_setting",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. No property read in model; hardcoded reversal list verified with actual-class probe.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.enablePatternStops",
+      "type": "boolean",
+      "status": "disconnected_exit_evaluation",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. Read only by disconnected evaluation/helper path; not an active exit control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.stopConfidenceWeight",
+      "type": "number",
+      "status": "unread_setting",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. No property read in model; hardcoded reversal list verified with actual-class probe.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.minStopAdjustment",
+      "type": "number",
+      "status": "disconnected_exit_evaluation",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. Read only by disconnected evaluation/helper path; not an active exit control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.maxStopAdjustment",
+      "type": "number",
+      "status": "disconnected_exit_evaluation",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. Read only by disconnected evaluation/helper path; not an active exit control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.enablePatternTrailing",
+      "type": "boolean",
+      "status": "disconnected_exit_evaluation",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. Read only by disconnected evaluation/helper path; not an active exit control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.patternTrailWeight",
+      "type": "number",
+      "status": "unread_setting",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. No property read in model; hardcoded reversal list verified with actual-class probe.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.enableReversalDetection",
+      "type": "boolean",
+      "status": "disconnected_exit_evaluation",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. Read only by disconnected evaluation/helper path; not an active exit control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.reversalPatterns.0",
+      "type": "string",
+      "status": "unread_setting",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. No property read in model; hardcoded reversal list verified with actual-class probe.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.reversalPatterns.1",
+      "type": "string",
+      "status": "unread_setting",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. No property read in model; hardcoded reversal list verified with actual-class probe.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.reversalPatterns.2",
+      "type": "string",
+      "status": "unread_setting",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. No property read in model; hardcoded reversal list verified with actual-class probe.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.reversalPatterns.3",
+      "type": "string",
+      "status": "unread_setting",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. No property read in model; hardcoded reversal list verified with actual-class probe.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.reversalPatterns.4",
+      "type": "string",
+      "status": "unread_setting",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. No property read in model; hardcoded reversal list verified with actual-class probe.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.reversalPatterns.5",
+      "type": "string",
+      "status": "unread_setting",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. No property read in model; hardcoded reversal list verified with actual-class probe.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.reversalPatterns.6",
+      "type": "string",
+      "status": "unread_setting",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. No property read in model; hardcoded reversal list verified with actual-class probe.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.reversalPatterns.7",
+      "type": "string",
+      "status": "unread_setting",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. No property read in model; hardcoded reversal list verified with actual-class probe.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.reversalPatterns.8",
+      "type": "string",
+      "status": "unread_setting",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. No property read in model; hardcoded reversal list verified with actual-class probe.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.reversalPatterns.9",
+      "type": "string",
+      "status": "unread_setting",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. No property read in model; hardcoded reversal list verified with actual-class probe.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.reversalPatterns.10",
+      "type": "string",
+      "status": "unread_setting",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. No property read in model; hardcoded reversal list verified with actual-class probe.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.reversalPatterns.11",
+      "type": "string",
+      "status": "unread_setting",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. No property read in model; hardcoded reversal list verified with actual-class probe.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.reversalPatterns.12",
+      "type": "string",
+      "status": "unread_setting",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. No property read in model; hardcoded reversal list verified with actual-class probe.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.reversalExitPercent",
+      "type": "number",
+      "status": "disconnected_exit_evaluation",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. Read only by disconnected evaluation/helper path; not an active exit control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.enableMomentumExhaustion",
+      "type": "boolean",
+      "status": "disconnected_exit_evaluation",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. Read only by disconnected evaluation/helper path; not an active exit control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.exhaustionThreshold",
+      "type": "number",
+      "status": "unread_setting",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. No property read in model; hardcoded reversal list verified with actual-class probe.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.enableRegimeExits",
+      "type": "boolean",
+      "status": "disconnected_exit_evaluation",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. Read only by disconnected evaluation/helper path; not an active exit control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.regimeExitMultipliers.trending",
+      "type": "number",
+      "status": "disconnected_exit_evaluation",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. Read only by disconnected evaluation/helper path; not an active exit control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.regimeExitMultipliers.ranging",
+      "type": "number",
+      "status": "disconnected_exit_evaluation",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. Read only by disconnected evaluation/helper path; not an active exit control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.regimeExitMultipliers.volatile",
+      "type": "number",
+      "status": "disconnected_exit_evaluation",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. Read only by disconnected evaluation/helper path; not an active exit control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.regimeExitMultipliers.breakout",
+      "type": "number",
+      "status": "disconnected_exit_evaluation",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. Read only by disconnected evaluation/helper path; not an active exit control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.regimeExitMultipliers.unknown",
+      "type": "number",
+      "status": "disconnected_exit_evaluation",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. Read only by disconnected evaluation/helper path; not an active exit control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.profitProtectionTiers.0.profit",
+      "type": "number",
+      "status": "disconnected_exit_evaluation",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. Read only by disconnected evaluation/helper path; not an active exit control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.profitProtectionTiers.0.protect",
+      "type": "number",
+      "status": "disconnected_exit_evaluation",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. Read only by disconnected evaluation/helper path; not an active exit control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.profitProtectionTiers.1.profit",
+      "type": "number",
+      "status": "disconnected_exit_evaluation",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. Read only by disconnected evaluation/helper path; not an active exit control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.profitProtectionTiers.1.protect",
+      "type": "number",
+      "status": "disconnected_exit_evaluation",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. Read only by disconnected evaluation/helper path; not an active exit control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.profitProtectionTiers.2.profit",
+      "type": "number",
+      "status": "disconnected_exit_evaluation",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. Read only by disconnected evaluation/helper path; not an active exit control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.profitProtectionTiers.2.protect",
+      "type": "number",
+      "status": "disconnected_exit_evaluation",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. Read only by disconnected evaluation/helper path; not an active exit control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.profitProtectionTiers.3.profit",
+      "type": "number",
+      "status": "disconnected_exit_evaluation",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. Read only by disconnected evaluation/helper path; not an active exit control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.PATTERN_EXIT_MODEL.settings.profitProtectionTiers.3.protect",
+      "type": "number",
+      "status": "disconnected_exit_evaluation",
+      "evidence": [
+        "run-empire-v2.js:737",
+        "core/OrderExecutor.js:4122",
+        "core/PatternBasedExitModel.js:81"
+      ],
+      "effect": "Tracking calls exist; no production evaluateExit caller found. Read only by disconnected evaluation/helper path; not an active exit control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.TRAI_INFERENCE.description",
+      "type": "string",
+      "status": "metadata",
+      "evidence": [
+        "core/FeatureFlagManager.js:108"
+      ],
+      "effect": "Catalog documentation; not a trade control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.TRAI_INFERENCE.version",
+      "type": "string",
+      "status": "metadata",
+      "evidence": [
+        "core/FeatureFlagManager.js:108"
+      ],
+      "effect": "Catalog documentation; not a trade control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.OGZ_TPO.enabled",
+      "type": "boolean",
+      "status": "source_traced",
+      "evidence": [
+        "run-empire-v2.js:678",
+        "core/FeatureFlagManager.js:147"
+      ],
+      "effect": "OGZ TPO component construction flag.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.OGZ_TPO.description",
+      "type": "string",
+      "status": "metadata",
+      "evidence": [
+        "core/FeatureFlagManager.js:108"
+      ],
+      "effect": "Catalog documentation; not a trade control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "featureCatalog.OGZ_TPO.version",
+      "type": "string",
+      "status": "metadata",
+      "evidence": [
+        "core/FeatureFlagManager.js:108"
+      ],
+      "effect": "Catalog documentation; not a trade control.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "tierPolicy.starter.maxPositions",
+      "type": "number",
+      "status": "summary_or_uncalled_policy_helpers",
+      "evidence": [
+        "core/FeatureFlagManager.js:72",
+        "core/FeatureFlagManager.js:278",
+        "TierFeatureFlags.js:32",
+        "TierFeatureFlags.js:146",
+        "run-empire-v2.js:647"
+      ],
+      "effect": "Tier summary consumes limits; asset/trade-count/size helpers have no production trading caller found. Intent unresolved; no new enforcement authorized.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "tierPolicy.starter.leverage",
+      "type": "number",
+      "status": "summary_or_uncalled_policy_helpers",
+      "evidence": [
+        "core/FeatureFlagManager.js:72",
+        "core/FeatureFlagManager.js:278",
+        "TierFeatureFlags.js:32",
+        "TierFeatureFlags.js:146",
+        "run-empire-v2.js:647"
+      ],
+      "effect": "Tier summary consumes limits; asset/trade-count/size helpers have no production trading caller found. Intent unresolved; no new enforcement authorized.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "tierPolicy.starter.maxDailyTrades",
+      "type": "number",
+      "status": "summary_or_uncalled_policy_helpers",
+      "evidence": [
+        "core/FeatureFlagManager.js:72",
+        "core/FeatureFlagManager.js:278",
+        "TierFeatureFlags.js:32",
+        "TierFeatureFlags.js:146",
+        "run-empire-v2.js:647"
+      ],
+      "effect": "Tier summary consumes limits; asset/trade-count/size helpers have no production trading caller found. Intent unresolved; no new enforcement authorized.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "tierPolicy.starter.patternLimit",
+      "type": "number",
+      "status": "summary_or_uncalled_policy_helpers",
+      "evidence": [
+        "core/FeatureFlagManager.js:72",
+        "core/FeatureFlagManager.js:278",
+        "TierFeatureFlags.js:32",
+        "TierFeatureFlags.js:146",
+        "run-empire-v2.js:647"
+      ],
+      "effect": "Tier summary consumes limits; asset/trade-count/size helpers have no production trading caller found. Intent unresolved; no new enforcement authorized.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "tierPolicy.starter.assetAccess.0",
+      "type": "string",
+      "status": "summary_or_uncalled_policy_helpers",
+      "evidence": [
+        "core/FeatureFlagManager.js:72",
+        "core/FeatureFlagManager.js:278",
+        "TierFeatureFlags.js:32",
+        "TierFeatureFlags.js:146",
+        "run-empire-v2.js:647"
+      ],
+      "effect": "Tier summary consumes limits; asset/trade-count/size helpers have no production trading caller found. Intent unresolved; no new enforcement authorized.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "tierPolicy.pro.maxPositions",
+      "type": "number",
+      "status": "summary_or_uncalled_policy_helpers",
+      "evidence": [
+        "core/FeatureFlagManager.js:72",
+        "core/FeatureFlagManager.js:278",
+        "TierFeatureFlags.js:32",
+        "TierFeatureFlags.js:146",
+        "run-empire-v2.js:647"
+      ],
+      "effect": "Tier summary consumes limits; asset/trade-count/size helpers have no production trading caller found. Intent unresolved; no new enforcement authorized.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "tierPolicy.pro.leverage",
+      "type": "number",
+      "status": "summary_or_uncalled_policy_helpers",
+      "evidence": [
+        "core/FeatureFlagManager.js:72",
+        "core/FeatureFlagManager.js:278",
+        "TierFeatureFlags.js:32",
+        "TierFeatureFlags.js:146",
+        "run-empire-v2.js:647"
+      ],
+      "effect": "Tier summary consumes limits; asset/trade-count/size helpers have no production trading caller found. Intent unresolved; no new enforcement authorized.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "tierPolicy.pro.maxDailyTrades",
+      "type": "number",
+      "status": "summary_or_uncalled_policy_helpers",
+      "evidence": [
+        "core/FeatureFlagManager.js:72",
+        "core/FeatureFlagManager.js:278",
+        "TierFeatureFlags.js:32",
+        "TierFeatureFlags.js:146",
+        "run-empire-v2.js:647"
+      ],
+      "effect": "Tier summary consumes limits; asset/trade-count/size helpers have no production trading caller found. Intent unresolved; no new enforcement authorized.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "tierPolicy.pro.patternLimit",
+      "type": "number",
+      "status": "summary_or_uncalled_policy_helpers",
+      "evidence": [
+        "core/FeatureFlagManager.js:72",
+        "core/FeatureFlagManager.js:278",
+        "TierFeatureFlags.js:32",
+        "TierFeatureFlags.js:146",
+        "run-empire-v2.js:647"
+      ],
+      "effect": "Tier summary consumes limits; asset/trade-count/size helpers have no production trading caller found. Intent unresolved; no new enforcement authorized.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "tierPolicy.pro.assetAccess.0",
+      "type": "string",
+      "status": "summary_or_uncalled_policy_helpers",
+      "evidence": [
+        "core/FeatureFlagManager.js:72",
+        "core/FeatureFlagManager.js:278",
+        "TierFeatureFlags.js:32",
+        "TierFeatureFlags.js:146",
+        "run-empire-v2.js:647"
+      ],
+      "effect": "Tier summary consumes limits; asset/trade-count/size helpers have no production trading caller found. Intent unresolved; no new enforcement authorized.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "tierPolicy.pro.assetAccess.1",
+      "type": "string",
+      "status": "summary_or_uncalled_policy_helpers",
+      "evidence": [
+        "core/FeatureFlagManager.js:72",
+        "core/FeatureFlagManager.js:278",
+        "TierFeatureFlags.js:32",
+        "TierFeatureFlags.js:146",
+        "run-empire-v2.js:647"
+      ],
+      "effect": "Tier summary consumes limits; asset/trade-count/size helpers have no production trading caller found. Intent unresolved; no new enforcement authorized.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "tierPolicy.elite.maxPositions",
+      "type": "number",
+      "status": "summary_or_uncalled_policy_helpers",
+      "evidence": [
+        "core/FeatureFlagManager.js:72",
+        "core/FeatureFlagManager.js:278",
+        "TierFeatureFlags.js:32",
+        "TierFeatureFlags.js:146",
+        "run-empire-v2.js:647"
+      ],
+      "effect": "Tier summary consumes limits; asset/trade-count/size helpers have no production trading caller found. Intent unresolved; no new enforcement authorized.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "tierPolicy.elite.leverage",
+      "type": "number",
+      "status": "summary_or_uncalled_policy_helpers",
+      "evidence": [
+        "core/FeatureFlagManager.js:72",
+        "core/FeatureFlagManager.js:278",
+        "TierFeatureFlags.js:32",
+        "TierFeatureFlags.js:146",
+        "run-empire-v2.js:647"
+      ],
+      "effect": "Tier summary consumes limits; asset/trade-count/size helpers have no production trading caller found. Intent unresolved; no new enforcement authorized.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "tierPolicy.elite.maxDailyTrades",
+      "type": "number",
+      "status": "summary_or_uncalled_policy_helpers",
+      "evidence": [
+        "core/FeatureFlagManager.js:72",
+        "core/FeatureFlagManager.js:278",
+        "TierFeatureFlags.js:32",
+        "TierFeatureFlags.js:146",
+        "run-empire-v2.js:647"
+      ],
+      "effect": "Tier summary consumes limits; asset/trade-count/size helpers have no production trading caller found. Intent unresolved; no new enforcement authorized.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "tierPolicy.elite.patternLimit",
+      "type": "number",
+      "status": "summary_or_uncalled_policy_helpers",
+      "evidence": [
+        "core/FeatureFlagManager.js:72",
+        "core/FeatureFlagManager.js:278",
+        "TierFeatureFlags.js:32",
+        "TierFeatureFlags.js:146",
+        "run-empire-v2.js:647"
+      ],
+      "effect": "Tier summary consumes limits; asset/trade-count/size helpers have no production trading caller found. Intent unresolved; no new enforcement authorized.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "tierPolicy.elite.assetAccess.0",
+      "type": "string",
+      "status": "summary_or_uncalled_policy_helpers",
+      "evidence": [
+        "core/FeatureFlagManager.js:72",
+        "core/FeatureFlagManager.js:278",
+        "TierFeatureFlags.js:32",
+        "TierFeatureFlags.js:146",
+        "run-empire-v2.js:647"
+      ],
+      "effect": "Tier summary consumes limits; asset/trade-count/size helpers have no production trading caller found. Intent unresolved; no new enforcement authorized.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "tierPolicy.elite.assetAccess.1",
+      "type": "string",
+      "status": "summary_or_uncalled_policy_helpers",
+      "evidence": [
+        "core/FeatureFlagManager.js:72",
+        "core/FeatureFlagManager.js:278",
+        "TierFeatureFlags.js:32",
+        "TierFeatureFlags.js:146",
+        "run-empire-v2.js:647"
+      ],
+      "effect": "Tier summary consumes limits; asset/trade-count/size helpers have no production trading caller found. Intent unresolved; no new enforcement authorized.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "tierPolicy.elite.assetAccess.2",
+      "type": "string",
+      "status": "summary_or_uncalled_policy_helpers",
+      "evidence": [
+        "core/FeatureFlagManager.js:72",
+        "core/FeatureFlagManager.js:278",
+        "TierFeatureFlags.js:32",
+        "TierFeatureFlags.js:146",
+        "run-empire-v2.js:647"
+      ],
+      "effect": "Tier summary consumes limits; asset/trade-count/size helpers have no production trading caller found. Intent unresolved; no new enforcement authorized.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "tierPolicy.elite.assetAccess.3",
+      "type": "string",
+      "status": "summary_or_uncalled_policy_helpers",
+      "evidence": [
+        "core/FeatureFlagManager.js:72",
+        "core/FeatureFlagManager.js:278",
+        "TierFeatureFlags.js:32",
+        "TierFeatureFlags.js:146",
+        "run-empire-v2.js:647"
+      ],
+      "effect": "Tier summary consumes limits; asset/trade-count/size helpers have no production trading caller found. Intent unresolved; no new enforcement authorized.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "tierPolicy.ml.maxPositions",
+      "type": "number",
+      "status": "summary_or_uncalled_policy_helpers",
+      "evidence": [
+        "core/FeatureFlagManager.js:72",
+        "core/FeatureFlagManager.js:278",
+        "TierFeatureFlags.js:32",
+        "TierFeatureFlags.js:146",
+        "run-empire-v2.js:647"
+      ],
+      "effect": "Tier summary consumes limits; asset/trade-count/size helpers have no production trading caller found. Intent unresolved; no new enforcement authorized.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "tierPolicy.ml.leverage",
+      "type": "number",
+      "status": "summary_or_uncalled_policy_helpers",
+      "evidence": [
+        "core/FeatureFlagManager.js:72",
+        "core/FeatureFlagManager.js:278",
+        "TierFeatureFlags.js:32",
+        "TierFeatureFlags.js:146",
+        "run-empire-v2.js:647"
+      ],
+      "effect": "Tier summary consumes limits; asset/trade-count/size helpers have no production trading caller found. Intent unresolved; no new enforcement authorized.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "tierPolicy.ml.maxDailyTrades",
+      "type": "number",
+      "status": "summary_or_uncalled_policy_helpers",
+      "evidence": [
+        "core/FeatureFlagManager.js:72",
+        "core/FeatureFlagManager.js:278",
+        "TierFeatureFlags.js:32",
+        "TierFeatureFlags.js:146",
+        "run-empire-v2.js:647"
+      ],
+      "effect": "Tier summary consumes limits; asset/trade-count/size helpers have no production trading caller found. Intent unresolved; no new enforcement authorized.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "tierPolicy.ml.patternLimit",
+      "type": "number",
+      "status": "summary_or_uncalled_policy_helpers",
+      "evidence": [
+        "core/FeatureFlagManager.js:72",
+        "core/FeatureFlagManager.js:278",
+        "TierFeatureFlags.js:32",
+        "TierFeatureFlags.js:146",
+        "run-empire-v2.js:647"
+      ],
+      "effect": "Tier summary consumes limits; asset/trade-count/size helpers have no production trading caller found. Intent unresolved; no new enforcement authorized.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "tierPolicy.ml.assetAccess.0",
+      "type": "string",
+      "status": "summary_or_uncalled_policy_helpers",
+      "evidence": [
+        "core/FeatureFlagManager.js:72",
+        "core/FeatureFlagManager.js:278",
+        "TierFeatureFlags.js:32",
+        "TierFeatureFlags.js:146",
+        "run-empire-v2.js:647"
+      ],
+      "effect": "Tier summary consumes limits; asset/trade-count/size helpers have no production trading caller found. Intent unresolved; no new enforcement authorized.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "tierPolicy.ml.assetAccess.1",
+      "type": "string",
+      "status": "summary_or_uncalled_policy_helpers",
+      "evidence": [
+        "core/FeatureFlagManager.js:72",
+        "core/FeatureFlagManager.js:278",
+        "TierFeatureFlags.js:32",
+        "TierFeatureFlags.js:146",
+        "run-empire-v2.js:647"
+      ],
+      "effect": "Tier summary consumes limits; asset/trade-count/size helpers have no production trading caller found. Intent unresolved; no new enforcement authorized.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "tierPolicy.ml.assetAccess.2",
+      "type": "string",
+      "status": "summary_or_uncalled_policy_helpers",
+      "evidence": [
+        "core/FeatureFlagManager.js:72",
+        "core/FeatureFlagManager.js:278",
+        "TierFeatureFlags.js:32",
+        "TierFeatureFlags.js:146",
+        "run-empire-v2.js:647"
+      ],
+      "effect": "Tier summary consumes limits; asset/trade-count/size helpers have no production trading caller found. Intent unresolved; no new enforcement authorized.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "tierPolicy.ml.assetAccess.3",
+      "type": "string",
+      "status": "summary_or_uncalled_policy_helpers",
+      "evidence": [
+        "core/FeatureFlagManager.js:72",
+        "core/FeatureFlagManager.js:278",
+        "TierFeatureFlags.js:32",
+        "TierFeatureFlags.js:146",
+        "run-empire-v2.js:647"
+      ],
+      "effect": "Tier summary consumes limits; asset/trade-count/size helpers have no production trading caller found. Intent unresolved; no new enforcement authorized.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "trai.enabled",
+      "type": "boolean",
+      "status": "source_traced",
+      "evidence": [
+        "run-empire-v2.js:807",
+        "core/TRAIDecisionModule.js:161",
+        "core/TRAIDecisionModule.js:588",
+        "core/TRAIDecisionModule.js:653",
+        "core/TRAIDecisionModule.js:734",
+        "core/TRAIDecisionModule.js:760",
+        "core/TRAIDecisionModule.js:997",
+        "core/TradingLoop.js:2204"
+      ],
+      "effect": "Advisory analysis/confidence/history/enablement. TradingLoop invokes asynchronously; do not claim direct execution veto or confidence replacement.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "trai.mode",
+      "type": "string",
+      "status": "source_traced",
+      "evidence": [
+        "run-empire-v2.js:807",
+        "core/TRAIDecisionModule.js:161",
+        "core/TRAIDecisionModule.js:588",
+        "core/TRAIDecisionModule.js:653",
+        "core/TRAIDecisionModule.js:734",
+        "core/TRAIDecisionModule.js:760",
+        "core/TRAIDecisionModule.js:997",
+        "core/TradingLoop.js:2204"
+      ],
+      "effect": "Advisory analysis/confidence/history/enablement. TradingLoop invokes asynchronously; do not claim direct execution veto or confidence replacement.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "trai.weight",
+      "type": "number",
+      "status": "source_traced",
+      "evidence": [
+        "run-empire-v2.js:807",
+        "core/TRAIDecisionModule.js:161",
+        "core/TRAIDecisionModule.js:588",
+        "core/TRAIDecisionModule.js:653",
+        "core/TRAIDecisionModule.js:734",
+        "core/TRAIDecisionModule.js:760",
+        "core/TRAIDecisionModule.js:997",
+        "core/TradingLoop.js:2204"
+      ],
+      "effect": "Advisory analysis/confidence/history/enablement. TradingLoop invokes asynchronously; do not claim direct execution veto or confidence replacement.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "trai.vetoPower",
+      "type": "boolean",
+      "status": "overridden_by_fixed_policy",
+      "evidence": [
+        "run-empire-v2.js:811",
+        "core/TRAIDecisionModule.js:43"
+      ],
+      "effect": "Constructor overwrites enableVetoPower=false regardless of configured value. Opinion-only policy; not approval to enable veto.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "trai.maxRisk",
+      "type": "number",
+      "status": "source_traced",
+      "evidence": [
+        "run-empire-v2.js:807",
+        "core/TRAIDecisionModule.js:161",
+        "core/TRAIDecisionModule.js:588",
+        "core/TRAIDecisionModule.js:653",
+        "core/TRAIDecisionModule.js:734",
+        "core/TRAIDecisionModule.js:760",
+        "core/TRAIDecisionModule.js:997",
+        "core/TradingLoop.js:2204"
+      ],
+      "effect": "Advisory analysis/confidence/history/enablement. TradingLoop invokes asynchronously; do not claim direct execution veto or confidence replacement.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "trai.emergencyStopLoss",
+      "type": "number",
+      "status": "source_traced",
+      "evidence": [
+        "run-empire-v2.js:807",
+        "core/TRAIDecisionModule.js:161",
+        "core/TRAIDecisionModule.js:588",
+        "core/TRAIDecisionModule.js:653",
+        "core/TRAIDecisionModule.js:734",
+        "core/TRAIDecisionModule.js:760",
+        "core/TRAIDecisionModule.js:997",
+        "core/TradingLoop.js:2204"
+      ],
+      "effect": "Advisory analysis/confidence/history/enablement. TradingLoop invokes asynchronously; do not claim direct execution veto or confidence replacement.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "trai.minConf",
+      "type": "number",
+      "status": "source_traced",
+      "evidence": [
+        "run-empire-v2.js:807",
+        "core/TRAIDecisionModule.js:161",
+        "core/TRAIDecisionModule.js:588",
+        "core/TRAIDecisionModule.js:653",
+        "core/TRAIDecisionModule.js:734",
+        "core/TRAIDecisionModule.js:760",
+        "core/TRAIDecisionModule.js:997",
+        "core/TradingLoop.js:2204"
+      ],
+      "effect": "Advisory analysis/confidence/history/enablement. TradingLoop invokes asynchronously; do not claim direct execution veto or confidence replacement.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "trai.maxConf",
+      "type": "number",
+      "status": "passed_but_unread",
+      "evidence": [
+        "run-empire-v2.js:815",
+        "core/TRAIDecisionModule.js:43"
+      ],
+      "effect": "Passed as maxConfidenceOverride; no read found. Historical followup25 records issue.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "trai.legacyPatternMinSamples",
+      "type": "number",
+      "status": "source_traced",
+      "evidence": [
+        "run-empire-v2.js:807",
+        "core/TRAIDecisionModule.js:161",
+        "core/TRAIDecisionModule.js:588",
+        "core/TRAIDecisionModule.js:653",
+        "core/TRAIDecisionModule.js:734",
+        "core/TRAIDecisionModule.js:760",
+        "core/TRAIDecisionModule.js:997",
+        "core/TradingLoop.js:2204"
+      ],
+      "effect": "Advisory analysis/confidence/history/enablement. TradingLoop invokes asynchronously; do not claim direct execution veto or confidence replacement.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "trai.trackDecisions",
+      "type": "boolean",
+      "status": "source_traced",
+      "evidence": [
+        "run-empire-v2.js:807",
+        "core/TRAIDecisionModule.js:161",
+        "core/TRAIDecisionModule.js:588",
+        "core/TRAIDecisionModule.js:653",
+        "core/TRAIDecisionModule.js:734",
+        "core/TRAIDecisionModule.js:760",
+        "core/TRAIDecisionModule.js:997",
+        "core/TradingLoop.js:2204"
+      ],
+      "effect": "Advisory analysis/confidence/history/enablement. TradingLoop invokes asynchronously; do not claim direct execution veto or confidence replacement.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "trai.enableBacktest",
+      "type": "boolean",
+      "status": "source_traced",
+      "evidence": [
+        "run-empire-v2.js:807",
+        "core/TRAIDecisionModule.js:161",
+        "core/TRAIDecisionModule.js:588",
+        "core/TRAIDecisionModule.js:653",
+        "core/TRAIDecisionModule.js:734",
+        "core/TRAIDecisionModule.js:760",
+        "core/TRAIDecisionModule.js:997",
+        "core/TradingLoop.js:2204"
+      ],
+      "effect": "Advisory analysis/confidence/history/enablement. TradingLoop invokes asynchronously; do not claim direct execution veto or confidence replacement.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "trai.patternPackPath",
+      "type": "string",
+      "status": "source_traced",
+      "evidence": [
+        "core/TRAIDecisionModule.js:69",
+        "core/TRAIPatternIntegration.js:23"
+      ],
+      "effect": "Loads configured pack during module construction.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "trai.llm.enabled",
+      "type": "boolean",
+      "status": "source_traced",
+      "evidence": [
+        "core/trai_llm_config.js:57",
+        "core/persistent_llm_client.js:113",
+        "core/persistent_llm_client.js:226"
+      ],
+      "effect": "Explicit request-client configuration, captured at initialization; registered controls advertise restart. Real network behavior not exercised.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "trai.llm.provider",
+      "type": "string",
+      "status": "source_traced",
+      "evidence": [
+        "core/trai_llm_config.js:57",
+        "core/persistent_llm_client.js:113",
+        "core/persistent_llm_client.js:226"
+      ],
+      "effect": "Explicit request-client configuration, captured at initialization; registered controls advertise restart. Real network behavior not exercised.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "trai.llm.baseUrl",
+      "type": "string",
+      "status": "source_traced",
+      "evidence": [
+        "core/trai_llm_config.js:57",
+        "core/persistent_llm_client.js:113",
+        "core/persistent_llm_client.js:226"
+      ],
+      "effect": "Explicit request-client configuration, captured at initialization; registered controls advertise restart. Real network behavior not exercised.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "trai.llm.model",
+      "type": "string",
+      "status": "source_traced",
+      "evidence": [
+        "core/trai_llm_config.js:57",
+        "core/persistent_llm_client.js:113",
+        "core/persistent_llm_client.js:226"
+      ],
+      "effect": "Explicit request-client configuration, captured at initialization; registered controls advertise restart. Real network behavior not exercised.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "trai.llm.apiKeyEnv",
+      "type": "string",
+      "status": "source_traced",
+      "evidence": [
+        "core/trai_llm_config.js:57",
+        "core/persistent_llm_client.js:113",
+        "core/persistent_llm_client.js:226"
+      ],
+      "effect": "Explicit request-client configuration, captured at initialization; registered controls advertise restart. Real network behavior not exercised.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "trai.llm.authRequired",
+      "type": "boolean",
+      "status": "source_traced",
+      "evidence": [
+        "core/trai_llm_config.js:57",
+        "core/persistent_llm_client.js:113",
+        "core/persistent_llm_client.js:226"
+      ],
+      "effect": "Explicit request-client configuration, captured at initialization; registered controls advertise restart. Real network behavior not exercised.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "trai.llm.maxTokens",
+      "type": "number",
+      "status": "source_traced",
+      "evidence": [
+        "core/trai_llm_config.js:57",
+        "core/persistent_llm_client.js:113",
+        "core/persistent_llm_client.js:226"
+      ],
+      "effect": "Explicit request-client configuration, captured at initialization; registered controls advertise restart. Real network behavior not exercised.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "trai.llm.minimumTokens",
+      "type": "number",
+      "status": "source_traced",
+      "evidence": [
+        "core/trai_llm_config.js:57",
+        "core/persistent_llm_client.js:113",
+        "core/persistent_llm_client.js:226"
+      ],
+      "effect": "Explicit request-client configuration, captured at initialization; registered controls advertise restart. Real network behavior not exercised.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "trai.llm.temperature",
+      "type": "number",
+      "status": "source_traced",
+      "evidence": [
+        "core/trai_llm_config.js:57",
+        "core/persistent_llm_client.js:113",
+        "core/persistent_llm_client.js:226"
+      ],
+      "effect": "Explicit request-client configuration, captured at initialization; registered controls advertise restart. Real network behavior not exercised.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "trai.llm.requestTimeoutMs",
+      "type": "number",
+      "status": "source_traced",
+      "evidence": [
+        "core/trai_llm_config.js:57",
+        "core/persistent_llm_client.js:113",
+        "core/persistent_llm_client.js:226"
+      ],
+      "effect": "Explicit request-client configuration, captured at initialization; registered controls advertise restart. Real network behavior not exercised.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "trai.llm.systemPrompt",
+      "type": "string",
+      "status": "source_traced",
+      "evidence": [
+        "core/trai_llm_config.js:57",
+        "core/persistent_llm_client.js:113",
+        "core/persistent_llm_client.js:226"
+      ],
+      "effect": "Explicit request-client configuration, captured at initialization; registered controls advertise restart. Real network behavior not exercised.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "misc.botTier",
+      "type": "string",
+      "status": "summary_and_feature_selection",
+      "evidence": [
+        "core/FeatureFlagManager.js:66",
+        "run-empire-v2.js:647"
+      ],
+      "effect": "Selects tier table and summary; no proof all advertised tier limits enforce trades.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "misc.subscriptionTier",
+      "type": "string",
+      "status": "report_label",
+      "evidence": [
+        "core/BacktestRunner.js:494"
+      ],
+      "effect": "Labels backtest report; no account permission enforcement implied.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "misc.tradeIntelligenceShadow",
+      "type": "boolean",
+      "status": "log_only_disconnected_component",
+      "evidence": [
+        "run-empire-v2.js:747",
+        "run-empire-v2.js:757",
+        "core/TradeIntelligenceEngine.js:47"
+      ],
+      "effect": "Constructed engine has no production evaluation caller; flag changes startup label only.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "proofPublication.enabled",
+      "type": "boolean",
+      "status": "source_traced",
+      "evidence": [
+        "run-empire-v2.js:434",
+        "core/OrderExecutor.js:20",
+        "ogz-meta/claudito-logger.js:376",
+        "ogz-meta/claudito-logger.js:643",
+        "ogz-meta/claudito-logger.js:734"
+      ],
+      "effect": "Actual TradingProofLogger publication owner; current enabled false. Do not mistake metadata directory for dormant module. Publication not executed.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "proofPublication.account.id",
+      "type": "string",
+      "status": "source_traced",
+      "evidence": [
+        "run-empire-v2.js:434",
+        "core/OrderExecutor.js:20",
+        "ogz-meta/claudito-logger.js:376",
+        "ogz-meta/claudito-logger.js:643",
+        "ogz-meta/claudito-logger.js:734"
+      ],
+      "effect": "Actual TradingProofLogger publication owner; current enabled false. Do not mistake metadata directory for dormant module. Publication not executed.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "proofPublication.account.label",
+      "type": "string",
+      "status": "source_traced",
+      "evidence": [
+        "run-empire-v2.js:434",
+        "core/OrderExecutor.js:20",
+        "ogz-meta/claudito-logger.js:376",
+        "ogz-meta/claudito-logger.js:643",
+        "ogz-meta/claudito-logger.js:734"
+      ],
+      "effect": "Actual TradingProofLogger publication owner; current enabled false. Do not mistake metadata directory for dormant module. Publication not executed.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "proofPublication.account.stage",
+      "type": "string",
+      "status": "source_traced",
+      "evidence": [
+        "run-empire-v2.js:434",
+        "core/OrderExecutor.js:20",
+        "ogz-meta/claudito-logger.js:376",
+        "ogz-meta/claudito-logger.js:643",
+        "ogz-meta/claudito-logger.js:734"
+      ],
+      "effect": "Actual TradingProofLogger publication owner; current enabled false. Do not mistake metadata directory for dormant module. Publication not executed.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "proofPublication.account.status",
+      "type": "string",
+      "status": "source_traced",
+      "evidence": [
+        "run-empire-v2.js:434",
+        "core/OrderExecutor.js:20",
+        "ogz-meta/claudito-logger.js:376",
+        "ogz-meta/claudito-logger.js:643",
+        "ogz-meta/claudito-logger.js:734"
+      ],
+      "effect": "Actual TradingProofLogger publication owner; current enabled false. Do not mistake metadata directory for dormant module. Publication not executed.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "proofPublication.account.profitTarget",
+      "type": "null",
+      "status": "source_traced",
+      "evidence": [
+        "run-empire-v2.js:434",
+        "core/OrderExecutor.js:20",
+        "ogz-meta/claudito-logger.js:376",
+        "ogz-meta/claudito-logger.js:643",
+        "ogz-meta/claudito-logger.js:734"
+      ],
+      "effect": "Actual TradingProofLogger publication owner; current enabled false. Do not mistake metadata directory for dormant module. Publication not executed.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "proofPublication.account.maxDrawdown",
+      "type": "null",
+      "status": "source_traced",
+      "evidence": [
+        "run-empire-v2.js:434",
+        "core/OrderExecutor.js:20",
+        "ogz-meta/claudito-logger.js:376",
+        "ogz-meta/claudito-logger.js:643",
+        "ogz-meta/claudito-logger.js:734"
+      ],
+      "effect": "Actual TradingProofLogger publication owner; current enabled false. Do not mistake metadata directory for dormant module. Publication not executed.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "proofPublication.account.minTradesRequired",
+      "type": "null",
+      "status": "source_traced",
+      "evidence": [
+        "run-empire-v2.js:434",
+        "core/OrderExecutor.js:20",
+        "ogz-meta/claudito-logger.js:376",
+        "ogz-meta/claudito-logger.js:643",
+        "ogz-meta/claudito-logger.js:734"
+      ],
+      "effect": "Actual TradingProofLogger publication owner; current enabled false. Do not mistake metadata directory for dormant module. Publication not executed.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "proofPublication.account.trackRecordStartAt",
+      "type": "null",
+      "status": "source_traced",
+      "evidence": [
+        "run-empire-v2.js:434",
+        "core/OrderExecutor.js:20",
+        "ogz-meta/claudito-logger.js:376",
+        "ogz-meta/claudito-logger.js:643",
+        "ogz-meta/claudito-logger.js:734"
+      ],
+      "effect": "Actual TradingProofLogger publication owner; current enabled false. Do not mistake metadata directory for dormant module. Publication not executed.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "trai.staticBrainPath",
+      "type": "string",
+      "status": "source_traced",
+      "evidence": [
+        "run-empire-v2.js:818",
+        "core/trai_core.js:97",
+        "core/trai_core.js:195",
+        "core/TRAIDecisionModule.js:948",
+        "core/TRAIDecisionModule.js:1069"
+      ],
+      "effect": "Constructor-owned memory paths, retrieval limits or decision retention/logging; source trace only.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "trai.decisionLogPath",
+      "type": "string",
+      "status": "source_traced",
+      "evidence": [
+        "run-empire-v2.js:818",
+        "core/trai_core.js:97",
+        "core/trai_core.js:195",
+        "core/TRAIDecisionModule.js:948",
+        "core/TRAIDecisionModule.js:1069"
+      ],
+      "effect": "Constructor-owned memory paths, retrieval limits or decision retention/logging; source trace only.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "trai.decisionHistoryLimit",
+      "type": "number",
+      "status": "source_traced",
+      "evidence": [
+        "run-empire-v2.js:818",
+        "core/trai_core.js:97",
+        "core/trai_core.js:195",
+        "core/TRAIDecisionModule.js:948",
+        "core/TRAIDecisionModule.js:1069"
+      ],
+      "effect": "Constructor-owned memory paths, retrieval limits or decision retention/logging; source trace only.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "trai.memoryTopK",
+      "type": "number",
+      "status": "source_traced",
+      "evidence": [
+        "run-empire-v2.js:818",
+        "core/trai_core.js:97",
+        "core/trai_core.js:195",
+        "core/TRAIDecisionModule.js:948",
+        "core/TRAIDecisionModule.js:1069"
+      ],
+      "effect": "Constructor-owned memory paths, retrieval limits or decision retention/logging; source trace only.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "trai.memoryMaxJournalEntries",
+      "type": "number",
+      "status": "source_traced",
+      "evidence": [
+        "run-empire-v2.js:818",
+        "core/trai_core.js:97",
+        "core/trai_core.js:195",
+        "core/TRAIDecisionModule.js:948",
+        "core/TRAIDecisionModule.js:1069"
+      ],
+      "effect": "Constructor-owned memory paths, retrieval limits or decision retention/logging; source trace only.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "schemaVersion",
+      "type": "number",
+      "status": "schema_and_concurrency_metadata",
+      "evidence": [
+        "foundation/ConfigLoader.js:34",
+        "foundation/ConfigLoader.js:4312",
+        "foundation/ConfigLoader.js:4422"
+      ],
+      "effect": "Schema parsing and settings revision/concurrency publication.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/settings.json",
+      "key": "revision",
+      "type": "number",
+      "status": "schema_and_concurrency_metadata",
+      "evidence": [
+        "foundation/ConfigLoader.js:34",
+        "foundation/ConfigLoader.js:4312",
+        "foundation/ConfigLoader.js:4422"
+      ],
+      "effect": "Schema parsing and settings revision/concurrency publication.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "webhookOrders.timeoutMs",
+      "type": "number",
+      "status": "conditional_transport_effect",
+      "evidence": [
+        "foundation/ConfigLoader.js:1254",
+        "run-empire-v2.js:1359",
+        "core/WebhookOrderAdapter.js:46",
+        "core/WebhookOrderAdapter.js:190",
+        "core/WebhookOrderAdapter.js:206"
+      ],
+      "effect": "Timeout or bounded order-history retention when webhook adapter is used.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "webhookOrders.orderLogCap",
+      "type": "number",
+      "status": "conditional_transport_effect",
+      "evidence": [
+        "foundation/ConfigLoader.js:1254",
+        "run-empire-v2.js:1359",
+        "core/WebhookOrderAdapter.js:46",
+        "core/WebhookOrderAdapter.js:190",
+        "core/WebhookOrderAdapter.js:206"
+      ],
+      "effect": "Timeout or bounded order-history retention when webhook adapter is used.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "tooling.parallelBacktest.sweepPresets.real.0.overrides",
+      "type": "object",
+      "status": "empty_baseline_override",
+      "evidence": [
+        "tools/parallel-backtest.js:266"
+      ],
+      "effect": "Empty override object intentionally leaves baseline unchanged; no phantom field implied.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "exitContracts.DonchianBreakout.stopType",
+      "type": "string",
+      "status": "static_contract_mode",
+      "evidence": [
+        "foundation/ConfigLoader.js:1123",
+        "core/ExitContractManager.js:201",
+        "core/ExitContractManager.js:579",
+        "core/ExitContractManager.js:741",
+        "core/exit/StopLossChecker.js:41",
+        "core/exit/MaxHoldChecker.js:32"
+      ],
+      "effect": "Fixed strategy contract mode: structural/channel/ATR/disabled-target/disabled-max-hold selection. This does not establish generic target checker wiring.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "exitContracts.DonchianBreakout.trailType",
+      "type": "string",
+      "status": "static_contract_mode",
+      "evidence": [
+        "foundation/ConfigLoader.js:1123",
+        "core/ExitContractManager.js:201",
+        "core/ExitContractManager.js:579",
+        "core/ExitContractManager.js:741",
+        "core/exit/StopLossChecker.js:41",
+        "core/exit/MaxHoldChecker.js:32"
+      ],
+      "effect": "Fixed strategy contract mode: structural/channel/ATR/disabled-target/disabled-max-hold selection. This does not establish generic target checker wiring.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "exitContracts.DonchianBreakout.tpMode",
+      "type": "string",
+      "status": "static_contract_mode",
+      "evidence": [
+        "foundation/ConfigLoader.js:1123",
+        "core/ExitContractManager.js:201",
+        "core/ExitContractManager.js:579",
+        "core/ExitContractManager.js:741",
+        "core/exit/StopLossChecker.js:41",
+        "core/exit/MaxHoldChecker.js:32"
+      ],
+      "effect": "Fixed strategy contract mode: structural/channel/ATR/disabled-target/disabled-max-hold selection. This does not establish generic target checker wiring.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "exitContracts.DonchianBreakout.maxHoldMode",
+      "type": "string",
+      "status": "static_contract_mode",
+      "evidence": [
+        "foundation/ConfigLoader.js:1123",
+        "core/ExitContractManager.js:201",
+        "core/ExitContractManager.js:579",
+        "core/ExitContractManager.js:741",
+        "core/exit/StopLossChecker.js:41",
+        "core/exit/MaxHoldChecker.js:32"
+      ],
+      "effect": "Fixed strategy contract mode: structural/channel/ATR/disabled-target/disabled-max-hold selection. This does not establish generic target checker wiring.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "exitContracts.TimeSeriesMomentum.trailType",
+      "type": "string",
+      "status": "static_contract_mode",
+      "evidence": [
+        "foundation/ConfigLoader.js:1123",
+        "core/ExitContractManager.js:201",
+        "core/ExitContractManager.js:579",
+        "core/ExitContractManager.js:741",
+        "core/exit/StopLossChecker.js:41",
+        "core/exit/MaxHoldChecker.js:32"
+      ],
+      "effect": "Fixed strategy contract mode: structural/channel/ATR/disabled-target/disabled-max-hold selection. This does not establish generic target checker wiring.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "exitContracts.TimeSeriesMomentum.tpMode",
+      "type": "string",
+      "status": "static_contract_mode",
+      "evidence": [
+        "foundation/ConfigLoader.js:1123",
+        "core/ExitContractManager.js:201",
+        "core/ExitContractManager.js:579",
+        "core/ExitContractManager.js:741",
+        "core/exit/StopLossChecker.js:41",
+        "core/exit/MaxHoldChecker.js:32"
+      ],
+      "effect": "Fixed strategy contract mode: structural/channel/ATR/disabled-target/disabled-max-hold selection. This does not establish generic target checker wiring.",
+      "behavior_executed": false
+    },
+    {
+      "owner": "config/internals.json",
+      "key": "exitContracts.TimeSeriesMomentum.maxHoldMode",
+      "type": "string",
+      "status": "static_contract_mode",
+      "evidence": [
+        "foundation/ConfigLoader.js:1123",
+        "core/ExitContractManager.js:201",
+        "core/ExitContractManager.js:579",
+        "core/ExitContractManager.js:741",
+        "core/exit/StopLossChecker.js:41",
+        "core/exit/MaxHoldChecker.js:32"
+      ],
+      "effect": "Fixed strategy contract mode: structural/channel/ATR/disabled-target/disabled-max-hold selection. This does not establish generic target checker wiring.",
+      "behavior_executed": false
+    }
+  ]
+}

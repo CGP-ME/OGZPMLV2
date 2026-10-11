@@ -1,0 +1,23 @@
+{
+  "observedAt": "2026-10-11T15:15:56.247835+00:00",
+  "processes": [
+    {
+      "name": "ogz-prime-v2",
+      "pid": 4078945,
+      "status": "online",
+      "startedAtMs": 1791682987214,
+      "script": "/opt/ogzprime/OGZPMLV2/run-empire-v2.js",
+      "cwd": "/opt/ogzprime/OGZPMLV2",
+      "PROFILE": "paper"
+    }
+  ],
+  "processControlActions": false,
+  "persistedState": {
+    "file": "data/state-paper.json",
+    "sha256": "902748385f8bd024f9a4e3dfb430a81de23fd546d70ffa6139d6ea2d50998be0",
+    "isTrading": false,
+    "pauseReason": null,
+    "pauseSource": null,
+    "activeTradeCount": 0
+  }
+}
