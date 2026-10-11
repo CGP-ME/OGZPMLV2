@@ -1,0 +1,15 @@
+{
+  "title": "Canonical stock download configuration consumer",
+  "base": "1ab030eb107e72f6af2f59de2be5457ae3ade96f",
+  "candidate": "6df15337c7bf7c3d6aa0c82f2df8db5ca7420398",
+  "files": [
+    "scripts/fetch-stock-data.js"
+  ],
+  "harnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "sourceManifest": ":100644 100644 88cc47ab 4585aef2 M\tCHANGELOG.md\n:100644 100644 b08242ec cb421620 M\tscripts/fetch-stock-data.js",
+  "runtimeActivation": false,
+  "finalReview": {
+    "answer": "delivery-review-answer.txt",
+    "verdict": "no_break_found"
+  }
+}

@@ -1,3 +1,11 @@
+## 2026-10-11 — Connect stock downloads to the canonical tool configuration
+
+- **Problem:** The stock downloader called a resolver removed during config migration. The ten static stock-download settings had no consumer; session metadata could still be silently replaced by an environment value or literal.
+- **Change:** Resolve the existing `market-data-tool` ConfigLoader role directly in the downloader. Read credentials/broker symbols from its Alpaca surface and tuning from `tooling.stockDownload`. Preserve explicit invocation date/output overrides; use the canonical session profile without another fallback or store.
+- **Verification:** Actual ConfigLoader plus actual compiled downloader resolution verifies all ten canonical values, credential handoff without exposing values, selected symbols and rejection of the old session-profile override. No network requests. Existing script suite: four tests passed; source syntax passed.
+- **Review / activation:** Scoped Mercury review and source identity retained alongside proof. No download was run, no market dataset was overwritten, and no process was restarted.
+- **Evidence:** `ogz-meta/inbox/codex/2026-10-11/stop1-execution/stock-download/consumer-proof.json`, `consumer-proof.cjs`, `tests.txt`, `source-receipt.json`.
+
 ## 2026-10-11 — Remove the retired SmartMoneySweep daily-loss restriction
 
 - **Problem / authorization:** Trey explicitly said the three-loss-per-day SMS restriction had been removed and must not remain. Current Stop 1 authorization is to complete repairs except break-even/exit numbers/trailing percentages. Removing this restriction is the requested behavior; retaining or recreating it would violate that instruction.

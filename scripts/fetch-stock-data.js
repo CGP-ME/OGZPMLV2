@@ -8,7 +8,19 @@
 require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 const fs = require('fs');
 const path = require('path');
-const { resolveAlpacaStockDownloadConfig } = require('../server/dashboard-stock-stream-config');
+const ConfigLoader = require('../foundation/ConfigLoader');
+
+function resolveAlpacaStockDownloadConfig() {
+  const { config } = ConfigLoader.load({ silent: true, role: 'market-data-tool' });
+  const alpaca = config.services.marketData.alpaca;
+  return {
+    ...config.tooling.stockDownload,
+    apiKey: alpaca.apiKey,
+    apiSecret: alpaca.apiSecret,
+    dataUrl: alpaca.baseUrl,
+    symbols: alpaca.symbols,
+  };
+}
 
 function missingDownloadConfigFields(config) {
   const missing = [];
@@ -46,7 +58,7 @@ function withOptionalDownloadConfig(config, env = process.env) {
     startDate: optionalText(config, 'startDate') || optionalText(env, 'ALPACA_STOCK_DOWNLOAD_START'),
     endDate: optionalText(config, 'endDate') || optionalText(env, 'ALPACA_STOCK_DOWNLOAD_END'),
     outputFile: optionalText(config, 'outputFile') || optionalText(env, 'ALPACA_STOCK_DOWNLOAD_OUTPUT_FILE'),
-    sessionProfile: optionalText(config, 'sessionProfile') || optionalText(env, 'ALPACA_STOCK_DOWNLOAD_SESSION_PROFILE') || 'alpaca_bars_no_session_filter',
+    sessionProfile: config.sessionProfile,
   };
 }
 
@@ -181,7 +193,7 @@ function outputFilename(symbol, config, range) {
   return `alpaca-${symbol.toLowerCase()}-${config.filenameTimeframe}-${rangeSuffix}.json`;
 }
 
-async function main(config = resolveAlpacaStockDownloadConfig(process.env)) {
+async function main(config = resolveAlpacaStockDownloadConfig()) {
   const resolvedConfig = withOptionalDownloadConfig(config);
   assertDownloadConfig(resolvedConfig);
 

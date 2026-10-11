@@ -1,0 +1,10 @@
+jest-haste-map: Haste module naming collision: ogz-prime-valhalla-edition
+  The following files share their name; please adjust your hasteImpl:
+    * <rootDir>/package.json
+    * <rootDir>/.liquidity-proof-minimal-20261006/package.json
+
+   2026-06-01 -> 2026-06-01: +1 (total: 1)
+Test Suites: 1 passed, 1 total
+Tests:       4 passed, 4 total
+Snapshots:   0 total
+Time:        1.457 s

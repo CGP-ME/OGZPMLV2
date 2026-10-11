@@ -1,0 +1,26 @@
+{
+  "passed": true,
+  "canonicalKeys": [
+    "outputDir",
+    "years",
+    "timeframe",
+    "filenameTimeframe",
+    "limit",
+    "chunkMonths",
+    "rateLimitMs",
+    "feed",
+    "adjustment",
+    "sessionProfile"
+  ],
+  "role": "market-data-tool",
+  "symbols": [
+    "TSLA",
+    "NVDA",
+    "COIN",
+    "MARA",
+    "RIOT"
+  ],
+  "sessionProfile": "alpaca_bars_no_session_filter",
+  "networkRequests": 0,
+  "credentialValuesOmitted": true
+}
