@@ -1,0 +1,146 @@
+{
+  "status": "pass",
+  "checkpoints": [
+    {
+      "label": "crypto closed and persisted before transfer",
+      "scope": {
+        "symbol": "BTC-USD",
+        "broker": "kraken",
+        "brokerId": "kraken",
+        "accountId": "fixture-kraken",
+        "accountIdSource": "broker:fixture",
+        "assetClass": "crypto",
+        "executionMode": "paper",
+        "timeframe": "15m",
+        "scopeKey": "paper:kraken:fixture-kraken:crypto:BTC-USD:15m",
+        "scopeKeyVersion": 2,
+        "scopeComplete": true,
+        "runtimeScopeStatus": "complete",
+        "missingFields": []
+      },
+      "activePositions": 0,
+      "ledgerRows": 1,
+      "equity": 10013.3425,
+      "realizedPnL": 13.342500000000015,
+      "saved": true
+    },
+    {
+      "label": "before resume stocks",
+      "scope": {
+        "symbol": "TSLA",
+        "broker": "alpaca",
+        "brokerId": "alpaca",
+        "accountId": "fixture-alpaca",
+        "accountIdSource": "broker:fixture",
+        "assetClass": "stocks",
+        "executionMode": "paper",
+        "timeframe": "15m",
+        "scopeKey": "paper:alpaca:fixture-alpaca:stocks:TSLA:15m",
+        "scopeKeyVersion": 2,
+        "scopeComplete": true,
+        "runtimeScopeStatus": "complete",
+        "missingFields": []
+      },
+      "activePositions": 0,
+      "ledgerRows": 1,
+      "equity": 10013.3425,
+      "realizedPnL": 13.342500000000015,
+      "saved": true
+    },
+    {
+      "label": "stocks closed and persisted before transfer",
+      "scope": {
+        "symbol": "TSLA",
+        "broker": "alpaca",
+        "brokerId": "alpaca",
+        "accountId": "fixture-alpaca",
+        "accountIdSource": "broker:fixture",
+        "assetClass": "stocks",
+        "executionMode": "paper",
+        "timeframe": "15m",
+        "scopeKey": "paper:alpaca:fixture-alpaca:stocks:TSLA:15m",
+        "scopeKeyVersion": 2,
+        "scopeComplete": true,
+        "runtimeScopeStatus": "complete",
+        "missingFields": []
+      },
+      "activePositions": 0,
+      "ledgerRows": 2,
+      "equity": 10026.7,
+      "realizedPnL": 26.700000000000017,
+      "saved": true
+    },
+    {
+      "label": "before resume crypto",
+      "scope": {
+        "symbol": "BTC-USD",
+        "broker": "kraken",
+        "brokerId": "kraken",
+        "accountId": "fixture-kraken",
+        "accountIdSource": "broker:fixture",
+        "assetClass": "crypto",
+        "executionMode": "paper",
+        "timeframe": "15m",
+        "scopeKey": "paper:kraken:fixture-kraken:crypto:BTC-USD:15m",
+        "scopeKeyVersion": 2,
+        "scopeComplete": true,
+        "runtimeScopeStatus": "complete",
+        "missingFields": []
+      },
+      "activePositions": 0,
+      "ledgerRows": 2,
+      "equity": 10026.7,
+      "realizedPnL": 26.700000000000017,
+      "saved": true
+    }
+  ],
+  "reloadVerified": true,
+  "incompleteClose": {
+    "retainedQuantity": 0.37600125,
+    "activeSession": "crypto",
+    "paused": true,
+    "failure": null
+  },
+  "brokerOrderCalls": 0,
+  "limitations": [
+    "Scripted strategy signals and external broker snapshots; actual router/executor/state/ledger/memory/persistence",
+    "Runner context receives StateManager scope; full runner bootstrap and real broker connectivity not exercised"
+  ],
+  "traceEventCounts": {
+    "SESSION_ROUTER_STARTUP_PAUSE_LEFT_IN_PLACE": 1,
+    "ORDER_EXECUTE_START": 7,
+    "ORDER_PLAN": 3,
+    "EVAL_RULE_CHECK": 3,
+    "STATE_MUTATION": 7,
+    "SESSION_WIND_DOWN_FORCE_FLATTEN": 3,
+    "SESSION_WIND_DOWN_FORCE_FLATTEN_ATTEMPT": 4,
+    "SESSION_WIND_DOWN_FORCE_FLATTEN_COMPLETE": 2,
+    "SESSION_WIND_DOWN_FORCE_FLATTEN_PARTIAL": 2,
+    "SESSION_WIND_DOWN_SWITCH_BLOCKED_ACTIVE_TRADES": 1
+  },
+  "source": {
+    "run": "runs/HEAD-zZwpZZ",
+    "head": "6de3673e19a0a2f986f9e52de1b4c5b6b4f416b2",
+    "kind": "HEAD",
+    "sourceManifestSha256": "e39fec872788b1818ebd5fd824d02c2249b19d06f1499e1b5e023474ba056a4e",
+    "criticalHashes": {
+      "core/SessionRouter.js": "19f93be0848421d69eaa1448bcdfe683c7b15fe5c25ee37cc79f52fffe4cc37f",
+      "core/OrderExecutor.js": "e90767099a69c5770e24f133b07d736b5bb5574020ffd207082ea6ec86136672",
+      "core/StateManager.js": "d823761ad08e1e9c70b83df0b37883d2b17d19c578b6b233567cc08f2732bd70",
+      "core/DecisionLedgerLogger.js": "367aa42bc0d6f2be49129b61190e446fe6b7ef806c8f6175227d36d6d0476fb1",
+      "core/dto/DecisionLedgerSchema.js": "247bfb368b0116f82664972a803ec988ece72fe1025031969043c913a3345e26",
+      "core/UnifiedPatternMemory.js": "02c21cc20cb837892c30bbb128acc05cb5579513d01956c955f9476fff7cf427",
+      "core/OrderRouter.js": "5a537b96be658ad113f464f845c696a0d45c2200a7264e064c89f7bab5c27b89",
+      "core/session-router/TransitionStore.js": "534cd8b626287720feaa9d44fa403ca5e07d238127ba12758e2b175674fec524",
+      "core/PolicyBuilder.js": "021965a21f84af16214215cb96beb1f9484c99935a0b9046003094e29c5607d5",
+      "core/ExitContractManager.js": "51abaacb419118396067751075c383efd3dddcd31ab87ffc74afd69049604787",
+      "foundation/ConfigLoader.js": "eac231eb70cf7729e56d182a4c2d08e2b63b464618ec85f1731302a0e28a9b7e",
+      "config/settings.json": "325f45be79ed2b179ce432ded43d429ddaae3100dec24a53a98b5cb05cb094db",
+      "config/internals.json": "44a64fb2ea8bda6db6059ed06c4c712cfd911e61112f0cb06b501cfd1b8940ef"
+    },
+    "fixtureChanges": [
+      "internals.paths redirected into isolated outputs",
+      "internals.sessionRouter.transitionStoreDir redirected"
+    ]
+  }
+}

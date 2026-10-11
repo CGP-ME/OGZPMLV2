@@ -1,0 +1,198 @@
+{
+  "candidate_tree": "750ab287eecefe13be5113edfe5b493e62a37f46",
+  "base_commit": "6de3673e19a0a2f986f9e52de1b4c5b6b4f416b2",
+  "mercury_run_id": "2026-10-11T03-58-50-072Z-d560057df02f",
+  "raw_verdict": "cannot_verify",
+  "termination": "answer_given",
+  "scope": "Three added non-production paper handoff rehearsal scripts only. No runtime production changes or harness repairs.",
+  "scoped_disposition": "No concrete introduced script defect or rehearsal proof blocker established. Astra scoped review passes; Mercury examined the exact scripts and reported no script defects, but its overall cannot_verify verdict is preserved, not relabeled clean/pass.",
+  "unresolved_scoped_blockers": [],
+  "coverage": {
+    "expectedTotal": 3,
+    "declaration": {
+      "examined": 0,
+      "total": 3,
+      "source": "host_assembled_valid_provider_target_records"
+    },
+    "wholeFilesRead": [
+      "scripts/session-handoff-rehearsal/executor-context.js",
+      "scripts/session-handoff-rehearsal/run.js",
+      "scripts/session-handoff-rehearsal/worker.js"
+    ],
+    "missingWholeFileReads": [],
+    "policyExcludedFiles": []
+  },
+  "coverage_interpretation": "Whole-file reads include all three scripts and policy excludes none. Six source/diff map records explicitly return examined_no_finding; host final declaration remains 0/3, so this is evidence of actual script examination, not a successful complete Mercury coverage declaration.",
+  "source_diff_map_receipts": [
+    {
+      "unit_id": "artifact-0001-ceb473ef6184a5bb:0-6583:ceb473ef6184a5bb5958de722466f1b7e6393f0f2b20190ff8afe17c617653ae",
+      "target": "scripts/session-handoff-rehearsal/executor-context.js",
+      "kind": "source",
+      "source_ref": "750ab287eecefe13be5113edfe5b493e62a37f46",
+      "disposition": "examined_no_finding",
+      "claims": [],
+      "accepted_from_shard_id": "map-0001-7665b32d505109d8",
+      "accepted_from_output_sha256": "ccb194bef7eb352195a414ccae2ece9f2bb3e418e2e9ed3cc9a4dd471ad32fc5"
+    },
+    {
+      "unit_id": "artifact-0002-c881fc0988d9ebcd:0-7009:c881fc0988d9ebcd019050045250895a1e236b757b784a022ab71188dd8be62b",
+      "target": "scripts/session-handoff-rehearsal/executor-context.js",
+      "kind": "diff",
+      "source_ref": "df7279dae885c24e75154b5e277b978a67e914a2..750ab287eecefe13be5113edfe5b493e62a37f46",
+      "disposition": "examined_no_finding",
+      "claims": [],
+      "accepted_from_shard_id": "map-0001-7665b32d505109d8",
+      "accepted_from_output_sha256": "ccb194bef7eb352195a414ccae2ece9f2bb3e418e2e9ed3cc9a4dd471ad32fc5"
+    },
+    {
+      "unit_id": "artifact-0003-f85ce9a9d01960d2:0-3036:f85ce9a9d01960d2df753c21c003aba2c85ba1f743b38dba310dbd82b411c904",
+      "target": "scripts/session-handoff-rehearsal/run.js",
+      "kind": "source",
+      "source_ref": "750ab287eecefe13be5113edfe5b493e62a37f46",
+      "disposition": "examined_no_finding",
+      "claims": [],
+      "accepted_from_shard_id": "map-0001-7665b32d505109d8",
+      "accepted_from_output_sha256": "ccb194bef7eb352195a414ccae2ece9f2bb3e418e2e9ed3cc9a4dd471ad32fc5"
+    },
+    {
+      "unit_id": "artifact-0004-2b1df909e09f59f3:0-3300:2b1df909e09f59f35f76ea2d388e4c3f7ee7293bae95078f7d4c10d6cbef6511",
+      "target": "scripts/session-handoff-rehearsal/run.js",
+      "kind": "diff",
+      "source_ref": "df7279dae885c24e75154b5e277b978a67e914a2..750ab287eecefe13be5113edfe5b493e62a37f46",
+      "disposition": "examined_no_finding",
+      "claims": [],
+      "accepted_from_shard_id": "map-0001-7665b32d505109d8",
+      "accepted_from_output_sha256": "ccb194bef7eb352195a414ccae2ece9f2bb3e418e2e9ed3cc9a4dd471ad32fc5"
+    },
+    {
+      "unit_id": "artifact-0005-2cb48eb480d59be5:0-13317:2cb48eb480d59be552a5acc1777255f27f2982f18d36377c3a876e015d6c7650",
+      "target": "scripts/session-handoff-rehearsal/worker.js",
+      "kind": "source",
+      "source_ref": "750ab287eecefe13be5113edfe5b493e62a37f46",
+      "disposition": "examined_no_finding",
+      "claims": [],
+      "accepted_from_shard_id": "map-0001-7665b32d505109d8",
+      "accepted_from_output_sha256": "ccb194bef7eb352195a414ccae2ece9f2bb3e418e2e9ed3cc9a4dd471ad32fc5"
+    },
+    {
+      "unit_id": "artifact-0006-849baa24e7af1184:0-13709:849baa24e7af118427a20ef35852e06156e93f5425cf414c4c5c1a5009c72900",
+      "target": "scripts/session-handoff-rehearsal/worker.js",
+      "kind": "diff",
+      "source_ref": "df7279dae885c24e75154b5e277b978a67e914a2..750ab287eecefe13be5113edfe5b493e62a37f46",
+      "disposition": "examined_no_finding",
+      "claims": [],
+      "accepted_from_shard_id": "map-0001-7665b32d505109d8",
+      "accepted_from_output_sha256": "ccb194bef7eb352195a414ccae2ece9f2bb3e418e2e9ed3cc9a4dd471ad32fc5"
+    }
+  ],
+  "claim_inventory": [
+    {
+      "target": "scripts/session-handoff-rehearsal/executor-context.js",
+      "claims": []
+    },
+    {
+      "target": "scripts/session-handoff-rehearsal/run.js",
+      "claims": []
+    },
+    {
+      "target": "scripts/session-handoff-rehearsal/worker.js",
+      "claims": []
+    }
+  ],
+  "allegation_dispositions": [
+    {
+      "claim": "executor-context.js:27 broker-routing throw",
+      "disposition": "Intentional test assertion; fails the rehearsal if paper execution attempts external routing. No changed production throw.",
+      "evidence": [
+        "scripts/session-handoff-rehearsal/executor-context.js:23",
+        "scripts/session-handoff-rehearsal/worker.js:55"
+      ]
+    },
+    {
+      "claim": "executor-context.js:51 aggregateRiskCap guard/throw",
+      "disposition": "Misclassification: aggregateRiskCap: 1 is explicit fixture contract data with scale-in disabled, not a guard or throw.",
+      "evidence": [
+        "scripts/session-handoff-rehearsal/executor-context.js:47",
+        "scripts/session-handoff-rehearsal/executor-context.js:51"
+      ]
+    },
+    {
+      "claim": "executor-context.js:68 isolated root and :69 StateManager throws",
+      "disposition": "Fixture input assertions; ensure the isolated dependency producer was supplied. These do not add trading-path runtime guards.",
+      "evidence": [
+        "scripts/session-handoff-rehearsal/executor-context.js:67",
+        "scripts/session-handoff-rehearsal/worker.js:57"
+      ]
+    },
+    {
+      "claim": "executor-context.js:78 allowed strategy and :81 paper-only throws",
+      "disposition": "Intentional fixture restrictions; the worker produces the configured scripted strategy and paper execution input. No allegation demonstrates these firing in the reviewed runs.",
+      "evidence": [
+        "scripts/session-handoff-rehearsal/executor-context.js:76",
+        "scripts/session-handoff-rehearsal/worker.js:57",
+        "scripts/session-handoff-rehearsal/worker.js:81"
+      ]
+    },
+    {
+      "claim": "executor-context.js:139 price/confidence throw",
+      "disposition": "Fixture input check. Positive scripted prices/confidence are deliberate upstream inputs; the rehearsal does not claim to exercise upstream strategy production.",
+      "evidence": [
+        "scripts/session-handoff-rehearsal/executor-context.js:131",
+        "scripts/session-handoff-rehearsal/worker.js:126",
+        "scripts/session-handoff-rehearsal/worker.js:137"
+      ]
+    },
+    {
+      "claim": "worker.js:84 replaces WebSocket with offline class / added throw",
+      "disposition": "Incorrect line and classification: line 84 supplies explicit exitContract/riskGates ledger fixture data. The offline WebSocket replacement is line 25 and is a declared external-network stub, not a production guard.",
+      "evidence": [
+        "scripts/session-handoff-rehearsal/worker.js:22",
+        "scripts/session-handoff-rehearsal/worker.js:25",
+        "scripts/session-handoff-rehearsal/worker.js:84"
+      ]
+    },
+    {
+      "claim": "Unparseable ogz-meta/ogz-run.js and malformed shard receipts",
+      "disposition": "Real Mercury review-completeness limitations remain unresolved. They establish neither a changed-script defect nor a failure of the already executed rehearsal. Preserve cannot_verify; do not repair or claim whole-repository clearance.",
+      "evidence": [
+        "private/delivery-review.json#/shardedReview/coverage",
+        "delivery-review-answer.txt"
+      ]
+    },
+    {
+      "claim": "Other-module confidence scale/defaults/clamps/regime weighting; entryPrice division by zero; Binance symbol validation; UI swallowed errors; timeframe/strategy defaults; circuit-breaker/short flag/races/stale scope",
+      "disposition": "Unadjudicated broader repository leads: no concrete changed-script defect or causal failure of this proof is supplied. The six exact script map records and three script claim inventories contain no defect claim. No unrelated production changes belong in this fixture-only delivery.",
+      "evidence": [
+        "private/delivery-review.json#/shardedReview/effective_map",
+        "private/delivery-review.json#/shardedReview/reductions",
+        "private/delivery-review.json#/shardedReview/claim_inventory"
+      ]
+    }
+  ],
+  "proof_evidence": {
+    "astra_review": "review.json",
+    "successful_runs": [
+      "runs/HEAD-zZwpZZ/outputs/result.json",
+      "runs/working-hG1mcb/outputs/result.json"
+    ],
+    "behavior": "Real paper executor, state, ledger, order router, session router and pattern memory; full closes with saved ledger/state before both transfers and destination scope before resume; two actual partial fills retain residual, block transfer and preserve exit legs on reload.",
+    "source_lines": [
+      "scripts/session-handoff-rehearsal/worker.js:77",
+      "scripts/session-handoff-rehearsal/worker.js:110",
+      "scripts/session-handoff-rehearsal/worker.js:120",
+      "scripts/session-handoff-rehearsal/worker.js:126",
+      "scripts/session-handoff-rehearsal/worker.js:145"
+    ]
+  },
+  "limitations": [
+    "Scripted upstream signals and contracts; optional telemetry and external brokers are stubs.",
+    "Does not prove full runner bootstrap, actual broker fills, upstream strategy/risk calculations, or universal crash-boundary recovery.",
+    "Filesystem/network interception is a scoped fixture guard, not an operating-system sandbox.",
+    "No fresh execution, harness repair, production edit, broker order, or runtime activation performed during this adjudication."
+  ],
+  "receipt_sha256": {
+    "private/delivery-review.json": "8501aee5505888acfc85a03d37e05f41004c5d325efa2ab1e2d5aab4b769a63c",
+    "delivery-review-answer.txt": "5d86baecbf6b310ac40b4f8fd77c09455fc47ba946b24c9e8e750d34b3a7f4ad",
+    "review.json": "0f6e35f32a26085633a106a8877740da3c4a562e0a7edc69ed4627938f45dc1a"
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "candidate_tree": "750ab287eecefe13be5113edfe5b493e62a37f46",
+  "base_tree": "df7279dae885c24e75154b5e277b978a67e914a2",
+  "base_commit": "6de3673e19a0a2f986f9e52de1b4c5b6b4f416b2",
+  "harness_tree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "source_manifest_sha256": "2428c0bea0e0501edd79f66088a64e8749a4958a68e5ee2912f1f1b80d390848",
+  "captured_fixture_count": 3,
+  "captured_files": [
+    {
+      "file": "scripts/session-handoff-rehearsal/executor-context.js",
+      "object": "413f1702f631c76ae8525a9d5ac42c7b0e6fd177",
+      "sha256": "ceb473ef6184a5bb5958de722466f1b7e6393f0f2b20190ff8afe17c617653ae",
+      "bytes": 6583
+    },
+    {
+      "file": "scripts/session-handoff-rehearsal/run.js",
+      "object": "2e744d9491493a08ff2f5c620dffca5430bd7ce1",
+      "sha256": "f85ce9a9d01960d2df753c21c003aba2c85ba1f743b38dba310dbd82b411c904",
+      "bytes": 3036
+    },
+    {
+      "file": "scripts/session-handoff-rehearsal/worker.js",
+      "object": "c21889411120739150a79707f58c40b6c2f83ab7",
+      "sha256": "2cb48eb480d59be552a5acc1777255f27f2982f18d36377c3a876e015d6c7650",
+      "bytes": 13317
+    }
+  ],
+  "policy_change": false,
+  "relocation": "Trey explicitly requested moving rehearsal code where Mercury can review it. Code moved from inbox fixtures to scripts/session-handoff-rehearsal; generated output remains inbox.",
+  "run_id": "2026-10-11T03-58-50-072Z-d560057df02f",
+  "raw_verdict": "cannot_verify",
+  "termination": "answer_given",
+  "raw_result_sha256": "8501aee5505888acfc85a03d37e05f41004c5d325efa2ab1e2d5aab4b769a63c",
+  "coverage": {
+    "expectedTotal": 3,
+    "declaration": {
+      "examined": 0,
+      "total": 3,
+      "source": "host_assembled_valid_provider_target_records"
+    },
+    "declarationComplete": false,
+    "missingInventoryFiles": [
+      "scripts/session-handoff-rehearsal/executor-context.js",
+      "scripts/session-handoff-rehearsal/run.js",
+      "scripts/session-handoff-rehearsal/worker.js"
+    ],
+    "missingWholeFileReads": [],
+    "wholeFilesRead": [
+      "scripts/session-handoff-rehearsal/executor-context.js",
+      "scripts/session-handoff-rehearsal/run.js",
+      "scripts/session-handoff-rehearsal/worker.js"
+    ],
+    "policyExcludedFiles": []
+  }
+}

@@ -1,0 +1,27 @@
+VERDICT: cannot_verify
+INHERITED:
+- scripts/session-handoff-rehearsal/executor-context.js: absent (no || 0, no swallowed catch, no bypass env, no silent default) [scripts/session-handoff-rehearsal/executor-context.js:1-165]
+- scripts/session-handoff-rehearsal/run.js: absent (no || 0, no swallowed catch, no bypass env, no silent default) [scripts/session-handoff-rehearsal/run.js:1-43]
+- scripts/session-handoff-rehearsal/worker.js: absent (no || 0, no swallowed catch, no bypass env, no silent default) [scripts/session-handoff-rehearsal/worker.js:1-161]
+
+FOURTH SHAPE CLASSIFIER:
+- Added guard/throw at line 27 in executor-context.js: throws when broker routing is attempted [scripts/session-handoff-rehearsal/executor-context.js:27]
+- Added guard/throw at line 51 in executor-context.js: aggregateRiskCap set to 1 (configuration guard) [scripts/session-handoff-rehearsal/executor-context.js:51]
+- Added guard/throw at line 68 in executor-context.js: requires root isolation [scripts/session-handoff-rehearsal/executor-context.js:68]
+- Added guard/throw at line 69 in executor-context.js: requires StateManager [scripts/session-handoff-rehearsal/executor-context.js:69]
+- Added guard/throw at line 78 in executor-context.js: validates strategyName against allowed set [scripts/session-handoff-rehearsal/executor-context.js:78]
+- Added guard/throw at line 81 in executor-context.js: enforces paper‑only execution mode [scripts/session-handoff-rehearsal/executor-context.js:81]
+- Added guard/throw at line 139 in executor-context.js: validates positive entry/exit prices and confidence range [scripts/session-handoff-rehearsal/executor-context.js:139]
+- Added guard/throw at line 84 in worker.js: replaces ws module with offline socket to block network [scripts/session-handoff-rehearsal/worker.js:84]
+
+ALLEGATIONS:
+- MECHANICAL: No defects found in the three rehearsal scripts; all intentional guards are present and correctly enforce pre‑conditions.
+- SUBSTANTIVE: Unresolved evidence includes unparseable ogz-meta/ogz-run.js, malformed shard receipts, and numerous substantive defects elsewhere (confidence handling, entryPrice division‑by‑zero, BinanceAdapter symbol handling, UI silent‑error patterns, timeframe validation inconsistencies, strategyName defaults). These issues are documented in the reduction findings and remain unresolved for the overall repository.
+
+SUBSTANTIVE RESOLUTION: UNRESOLVED‑FOR‑TREY
+
+WHAT I DID: mechanically examined the full source of the three rehearsal scripts, verified the presence of all guard/throw statements, and cross‑checked against the provided evidence.
+WHAT I DID NOT DO: claim gaps unrelated to the examined scripts (e.g., ogz‑run.js, shard gaps, external modules).
+WHAT I ASSUMED: the provided source excerpts are complete and accurate representations of the files.
+WHY THIS VERDICT: while the examined scripts are defect‑free, the existence of unresolved evidence and external substantive defects prevents a conclusive no‑break determination.
+IF INCOMPLETE, WHY: unresolved parsing of ogz‑run.js and malformed shard receipts leave portions of the codebase unverified.

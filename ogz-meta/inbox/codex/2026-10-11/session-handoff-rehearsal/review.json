@@ -1,0 +1,80 @@
+{
+  "candidate_tree": "750ab287eecefe13be5113edfe5b493e62a37f46",
+  "base": "6de3673e19a0a2f986f9e52de1b4c5b6b4f416b2",
+  "verdict": "scoped_pass",
+  "unresolved_proof_blockers": [],
+  "fixture_sha256": {
+    "scripts/session-handoff-rehearsal/run.js": "f85ce9a9d01960d2df753c21c003aba2c85ba1f743b38dba310dbd82b411c904",
+    "scripts/session-handoff-rehearsal/worker.js": "2cb48eb480d59be552a5acc1777255f27f2982f18d36377c3a876e015d6c7650",
+    "scripts/session-handoff-rehearsal/executor-context.js": "ceb473ef6184a5bb5958de722466f1b7e6393f0f2b20190ff8afe17c617653ae"
+  },
+  "runs": [
+    {
+      "run": "HEAD-zZwpZZ",
+      "head": "6de3673e19a0a2f986f9e52de1b4c5b6b4f416b2",
+      "source": "HEAD",
+      "result": "pass",
+      "completed_checkpoints": 4,
+      "broker_orders": 0,
+      "partial_legs": 2,
+      "residual": 0.37600125,
+      "result_sha256": "37df276b1ea87d35ba66ab7159a9c4b5e9139027c400cf62084ac47f51754e50",
+      "source_manifest_sha256": "e39fec872788b1818ebd5fd824d02c2249b19d06f1499e1b5e023474ba056a4e"
+    },
+    {
+      "run": "working-hG1mcb",
+      "head": "6de3673e19a0a2f986f9e52de1b4c5b6b4f416b2",
+      "source": "working",
+      "result": "pass",
+      "completed_checkpoints": 4,
+      "broker_orders": 0,
+      "partial_legs": 2,
+      "residual": 0.37592550908766004,
+      "result_sha256": "1575014f185aa98d0e1b600493a11ea13eb3c8f05f7b62dbb000355ffa8b2a48",
+      "source_manifest_sha256": "bcbbe4b8a1231890354ffdc88f786429d8e21785f32edaac8ec0b7fead85cd3c"
+    }
+  ],
+  "review_findings_resolved": [
+    {
+      "finding": "Initial residual test accepted a no-op close",
+      "resolution": "Requires quantity decrease, two positive partial legs, conservation, no completed row, and identical persisted/reloaded exit legs.",
+      "evidence": "scripts/session-handoff-rehearsal/worker.js:145-156"
+    },
+    {
+      "finding": "Destination assertion did not check symbol/account identity",
+      "resolution": "Checks expected primary symbol, broker, account, source, mode, timeframe, completeness, and full scope key.",
+      "evidence": "scripts/session-handoff-rehearsal/worker.js:110-114"
+    },
+    {
+      "finding": "Before-resume evidence alone did not assert persistence before transfer began",
+      "resolution": "Ledger/state checks now run after wind-down before each boundary plus inside resumeTrading wrapper.",
+      "evidence": "scripts/session-handoff-rehearsal/worker.js:93-120,126-143"
+    }
+  ],
+  "supported_claims": [
+    "Real OrderExecutor paper BUY/SELL and SELL_SHORT/COVER execute using actual StateManager and DecisionLedgerLogger.",
+    "Both directional handoffs close and persist source trade before transfer and verify destination scope before real resumeTrading.",
+    "Completed state and residual position/ledger are loaded by fresh actual StateManager instances.",
+    "Partial execution leaves a real residual, blocks switch/resume, and does not emit a completed trade ledger row.",
+    "Actual SessionRouter, OrderRouter registration, UnifiedPatternMemory scope transfer, and durable transition store execute with controlled external adapters."
+  ],
+  "isolation_assessment": {
+    "result": "No observed root state/config write or external order/network path in inspected execution. Actual copied module source hashes match both run manifests; outputs/cwd/config paths are under isolated run.",
+    "evidence": [
+      "scripts/session-handoff-rehearsal/run.js:13-38",
+      "scripts/session-handoff-rehearsal/worker.js:8-31,39-48,55,157",
+      "copied core/AtomicWrite.js and UnifiedPatternMemory use guarded sync writes",
+      "copied core/DecisionLedgerLogger.js and StateManager persist isolated configured paths"
+    ],
+    "limit": "Guards are fixture controls, not an OS sandbox: async fs/streams, raw socket/TLS APIs and symlink traversal are not universally intercepted. No universal containment claim."
+  },
+  "limits": [
+    "Scripted strategy decisions and supplied contract/ledger input; strategy discovery and full runner bootstrap not exercised.",
+    "Optional risk/performance/notification hooks and pattern outcome recording are stubbed; their behavior is not proven.",
+    "Real broker connectivity, broker fills, crash-at-every-boundary recovery, and production activation are not proven.",
+    "Reviewer inspected final source/results/hashes; parent executed final HEAD and working rehearsals. No extra production execution or changes performed by reviewer."
+  ],
+  "prior_candidate_tree": "c9948cd16ab0e233dda9ad3dfe9163b63a0197fd",
+  "relocation_review": "Compared with c994: four path/import/extension adjustments and harmless explicit placeholder credential literals. Helper is byte-identical. Assertions and execution logic unchanged. Mutable output remains in dated inbox runs directory.",
+  "mercury_status": "Relocated source has separate Mercury review in progress; prior inbox exclusion is historical and supplies no review verdict for current tree."
+}
