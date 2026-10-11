@@ -1,0 +1,1751 @@
+diff --git a/brokers/AlpacaAdapter.js b/brokers/AlpacaAdapter.js
+index 92c3b6ec..a605b7ad 100644
+--- a/brokers/AlpacaAdapter.js
++++ b/brokers/AlpacaAdapter.js
+@@ -725,18 +725,36 @@ class AlpacaAdapter extends IBrokerAdapter {
+         const sym = this.toBrokerSymbol(symbol);
+         const key = `bars-${sym}`;
+         const intervalMs = this._timeframeIntervalMs(STREAM_BAR_TIMEFRAME);
+-        this._ensureDataStream(() => {
+-            const payload = { action: 'subscribe', bars: [sym] };
+-            console.log('[Alpaca] TX subscribe(bars):', JSON.stringify(payload), '| url:', this.wsUrl);
+-            this.rws.send(payload);
+-            this.subscriptions.set(key, callback);
+-            this.barSubscriptions.set(sym, {
+-                requestedTimeframe: timeframe,
++        let barSubscription = this.barSubscriptions.get(sym);
++        if (!barSubscription) {
++            barSubscription = {
+                 streamTimeframe: STREAM_BAR_TIMEFRAME,
+                 intervalMs,
++                requestedFrames: new Map(),
++                nativeCallbacks: new Map(),
++                streamSubscribed: false,
++            };
++            this.barSubscriptions.set(sym, barSubscription);
++        }
++        if (!barSubscription.requestedFrames.has(timeframe)) {
++            barSubscription.requestedFrames.set(timeframe, {
++                timeframe,
+                 lastRequestedBarStartMs: null,
+                 requestedBarFetch: null,
+             });
++        }
++        if (typeof callback === 'function') barSubscription.nativeCallbacks.set(timeframe, callback);
++        this._ensureDataStream(() => {
++            if (this.barSubscriptions.get(sym) !== barSubscription || barSubscription.streamSubscribed) return;
++            const payload = { action: 'subscribe', bars: [sym] };
++            console.log('[Alpaca] TX subscribe(bars):', JSON.stringify(payload), '| url:', this.wsUrl);
++            this.rws.send(payload);
++            barSubscription.streamSubscribed = true;
++            this.subscriptions.set(key, (bar) => {
++                const active = this.barSubscriptions.get(sym);
++                if (!active) return;
++                for (const nativeCallback of active.nativeCallbacks.values()) nativeCallback(bar);
++            });
+         }, key);
+     }
+ 
+@@ -1127,7 +1145,7 @@ class AlpacaAdapter extends IBrokerAdapter {
+         }
+         if (msg.T === 'b') {
+             const barSubscription = this.barSubscriptions.get(msg.S);
+-            if (!barSubscription) {
++            if (!barSubscription?.streamSubscribed) {
+                 console.error(`[Alpaca] Received bar for unsubscribed symbol ${msg.S || '(missing)'}`);
+                 return;
+             }
+@@ -1155,23 +1173,25 @@ class AlpacaAdapter extends IBrokerAdapter {
+                 console.log('[Alpaca] First bar RX for', msg.S, '@', msg.t, 'OHLCV:', msg.o, msg.h, msg.l, msg.c, msg.v);
+             }
+             this.emit('ohlc', { timeframe: barSubscription.streamTimeframe, data: bar, symbol: bar.symbol });
+-            this._emitRequestedClosedBar(msg.S, bar, barSubscription);
++            for (const frameState of barSubscription.requestedFrames.values()) {
++                this._emitRequestedClosedBar(msg.S, bar, barSubscription, frameState);
++            }
+             const cb = this.subscriptions.get(`bars-${msg.S}`);
+             if (cb) cb(bar);
+         }
+     }
+ 
+-    _emitRequestedClosedBar(symbol, nativeBar, barSubscription) {
+-        if (barSubscription.requestedTimeframe === barSubscription.streamTimeframe) return;
+-        if (barSubscription.requestedBarFetch) return;
++    _emitRequestedClosedBar(symbol, nativeBar, barSubscription, frameState) {
++        if (frameState.timeframe === barSubscription.streamTimeframe) return;
++        if (frameState.requestedBarFetch) return;
+ 
+-        const requestedIntervalMs = this._timeframeIntervalMs(barSubscription.requestedTimeframe);
+-        barSubscription.requestedBarFetch = this.getCandles(symbol, barSubscription.requestedTimeframe, 2)
++        const requestedIntervalMs = this._timeframeIntervalMs(frameState.timeframe);
++        frameState.requestedBarFetch = this.getCandles(symbol, frameState.timeframe, 2)
+             .then((candles) => {
+-                if (this.barSubscriptions.get(symbol) !== barSubscription) return;
++                if (this.barSubscriptions.get(symbol) !== barSubscription || barSubscription.requestedFrames.get(frameState.timeframe) !== frameState) return;
+                 for (const candle of candles) {
+                     const startMs = Number(candle.t);
+-                    if (startMs <= barSubscription.lastRequestedBarStartMs) continue;
++                    if (startMs <= frameState.lastRequestedBarStartMs) continue;
+                     if (startMs + requestedIntervalMs > nativeBar.etime) continue;
+                     const requestedBar = {
+                         ...candle,
+@@ -1179,25 +1199,25 @@ class AlpacaAdapter extends IBrokerAdapter {
+                         symbol,
+                     };
+                     this.emit('ohlc', {
+-                        timeframe: barSubscription.requestedTimeframe,
++                        timeframe: frameState.timeframe,
+                         data: requestedBar,
+                         symbol,
+                     });
+-                    barSubscription.lastRequestedBarStartMs = startMs;
++                    frameState.lastRequestedBarStartMs = startMs;
+                 }
+             })
+             .catch((error) => {
+-                if (this.barSubscriptions.get(symbol) !== barSubscription) return;
++                if (this.barSubscriptions.get(symbol) !== barSubscription || barSubscription.requestedFrames.get(frameState.timeframe) !== frameState) return;
+                 this._recordStreamTruthUnavailable('ALPACA_REQUESTED_BAR_UNAVAILABLE', 'alpaca_requested_bar_unavailable', {
+                     operation: 'requestedBarRefresh',
+                     symbol,
+-                    timeframe: barSubscription.requestedTimeframe,
++                    timeframe: frameState.timeframe,
+                     error: this._errorMessage(error),
+                 });
+             })
+             .finally(() => {
+-                if (this.barSubscriptions.get(symbol) === barSubscription) {
+-                    barSubscription.requestedBarFetch = null;
++                if (this.barSubscriptions.get(symbol) === barSubscription && barSubscription.requestedFrames.get(frameState.timeframe) === frameState) {
++                    frameState.requestedBarFetch = null;
+                 }
+             });
+     }
+diff --git a/core/CandleProcessor.js b/core/CandleProcessor.js
+index 6757f923..6ac85452 100644
+--- a/core/CandleProcessor.js
++++ b/core/CandleProcessor.js
+@@ -348,39 +348,6 @@ class CandleProcessor {
+     return intervalMs;
+   }
+ 
+-  /**
+-   * CC-C Multi-Symbol Commit 3/6: resolve which SymbolTradingContext a candle
+-   * belongs to. Returns the matching context or null. Multi-step resolution
+-   * handles three real-world cases:
+-   *   1. Multi-symbol production: candles arrive with `candle.symbol` stamped
+-   *      (live broker WS or BacktestRunner with SYMBOL_MAP) → direct lookup.
+-   *   2. Single-symbol with aligned tradingPair: ctx.tradingPair matches a
+-   *      Map key → direct lookup. Common for live single-symbol mode.
+-   *   3. Missing-symbol single-symbol legacy feed: if no candle symbol exists,
+-   *      fall back to ctx.tradingPair or the sole registered context.
+-   *      Explicit candle symbols never fall back to a different context.
+-   * Returns null in pathological cases (multi-symbol Map with neither
+-   * candle.symbol nor a matching tradingPair); caller skips routing safely.
+-   */
+-  _resolveSymCtx(candle) {
+-    const map = this.ctx.symbolContexts;
+-    if (!map || map.size === 0) return null;
+-    const candleSymbol = normalizeCandleSymbol(candle.symbol);
+-    const tradingPair = normalizeCandleSymbol(this.ctx.tradingPair);
+-    if (candleSymbol && map.has(candleSymbol)) return map.get(candleSymbol);
+-    if (candleSymbol) {
+-      this._missingCandleContextSymbols ??= new Set();
+-      if (!this._missingCandleContextSymbols.has(candleSymbol)) {
+-        this._missingCandleContextSymbols.add(candleSymbol);
+-        console.error(`[VIS][CandleProcessor] symbol=${candleSymbol} has no SymbolTradingContext; contexts=${Array.from(map.keys()).join(',') || '(none)'} ctxTradingPair=${tradingPair || '(missing)'}`);
+-      }
+-      return null;
+-    }
+-    if (tradingPair && map.has(tradingPair)) return map.get(tradingPair);
+-    if (map.size === 1) return map.values().next().value;
+-    return null;
+-  }
+-
+   _resolveCandleTimeframe(candle) {
+     const timeframe = candle?.timeframe;
+     if (typeof timeframe !== 'string' || !timeframe.trim()) {
+@@ -509,12 +476,12 @@ class CandleProcessor {
+     }
+ 
+     const candleStoreSymbol = candle.symbol;
+-    const symCtx = this._resolveSymCtx(candle);
+-    const hasSymbolContexts = this.ctx.symbolContexts instanceof Map && this.ctx.symbolContexts.size > 0;
++    const frameCtx = this.ctx.getSymbolTimeframeContext(candleStoreSymbol, candleTimeframe);
+     const primarySymbol = normalizeCandleSymbol(this.ctx.tradingPair);
+     const candleSymbol = normalizeCandleSymbol(candleStoreSymbol);
+-    const shouldUpdateLegacyRoot = !hasSymbolContexts || !primarySymbol || candleSymbol === primarySymbol;
+-    const updateHistory = shouldUpdateLegacyRoot ? this.ctx.priceHistory : (symCtx?.priceHistory || []);
++    const isLegacyRootMirrorCandle = candleSymbol === primarySymbol
++      && candleTimeframe === this.ctx.candleTimeframe;
++    const updateHistory = frameCtx.priceHistory;
+ 
+     // Check if this is an update to existing candle or a new candle.
+     // In multi-symbol mode, the legacy root history is the primary-symbol mirror
+@@ -525,7 +492,7 @@ class CandleProcessor {
+ 
+     if (isUpdate) {
+       // UPDATE existing candle (same etime, new OHLCV values as candle forms)
+-      if (shouldUpdateLegacyRoot) {
++      if (isLegacyRootMirrorCandle) {
+         this.ctx.priceHistory[existingIndex] = candle;
+       }
+       this.ctx._candleStore.addCandle(
+@@ -535,7 +502,7 @@ class CandleProcessor {
+       );
+ 
+       // Feed IndicatorEngine for real-time updates
+-      if (shouldUpdateLegacyRoot && this.ctx.indicatorEngine) {
++      if (isLegacyRootMirrorCandle && this.ctx.indicatorEngine) {
+         this.ctx.indicatorEngine.updateCandle({
+           t: candle.t, o: candle.o, h: candle.h, l: candle.l, c: candle.c, v: candle.v
+         });
+@@ -545,11 +512,10 @@ class CandleProcessor {
+       // Mirrors the global indicatorEngine.updateCandle above against the symbol's
+       // own context. Global path stays alive as fallback for not-yet-migrated
+       // consumers (commits 4-6 phase it out).
+-      if (symCtx) {
+-        symCtx.indicatorEngine.updateCandle({
+-          t: candle.t, o: candle.o, h: candle.h, l: candle.l, c: candle.c, v: candle.v
+-        });
+-      }
++      frameCtx.indicatorEngine.updateCandle({
++        t: candle.t, o: candle.o, h: candle.h, l: candle.l, c: candle.c, v: candle.v
++      });
++      this.ctx.strategyOrchestrator.ingestMarketCandle(candleStoreSymbol, candle);
+       if (traceId) {
+         emitTrace(this.ctx, 'CANDLE_ACCEPTED', {
+           traceId,
+@@ -570,7 +536,7 @@ class CandleProcessor {
+     }
+ 
+     // NEW candle - smart insert: push if latest, splice if backfill
+-    if (shouldUpdateLegacyRoot) {
++    if (isLegacyRootMirrorCandle) {
+       const lastCandle = this.ctx.priceHistory[this.ctx.priceHistory.length - 1];
+       if (!lastCandle || candle.etime > lastCandle.etime) {
+         this.ctx.priceHistory.push(candle);
+@@ -594,20 +560,20 @@ class CandleProcessor {
+     );
+ 
+     // Feed IndicatorEngine
+-    if (shouldUpdateLegacyRoot && this.ctx.indicatorEngine) {
++    if (isLegacyRootMirrorCandle && this.ctx.indicatorEngine) {
+       this.ctx.indicatorEngine.updateCandle({
+         t: candle.t, o: candle.o, h: candle.h, l: candle.l, c: candle.c, v: candle.v
+       });
+     }
+ 
+     // Feed modular entry systems (only on NEW candles, not updates)
+-    if (shouldUpdateLegacyRoot && this.ctx.mtfAdapter) this.ctx.mtfAdapter.ingestCandle(candle, candleTimeframe);
+-    if (shouldUpdateLegacyRoot && this.ctx.emaCrossover) this.ctx.emaCrossoverSignal = this.ctx.emaCrossover.update(candle, this.ctx.priceHistory);
+-    if (shouldUpdateLegacyRoot && this.ctx.maDynamicSR) this.ctx.maDynamicSRSignal = this.ctx.maDynamicSR.update(candle, this.ctx.priceHistory);
++    this.ctx.strategyOrchestrator.ingestMarketCandle(candleStoreSymbol, candle);
++    if (isLegacyRootMirrorCandle && this.ctx.emaCrossover) this.ctx.emaCrossoverSignal = this.ctx.emaCrossover.update(candle, this.ctx.priceHistory);
++    if (isLegacyRootMirrorCandle && this.ctx.maDynamicSR) this.ctx.maDynamicSRSignal = this.ctx.maDynamicSR.update(candle, this.ctx.priceHistory);
+     // 2026-05-04: BreakAndRetest moved to self-contained pattern (owned by StrategyOrchestrator).
+-    if (shouldUpdateLegacyRoot && this.ctx.liquiditySweep) this.ctx.liquiditySweepSignal = this.ctx.liquiditySweep.feedCandle(candle);
++    if (isLegacyRootMirrorCandle && this.ctx.liquiditySweep) this.ctx.liquiditySweepSignal = this.ctx.liquiditySweep.feedCandle(candle);
+ 
+-    if (shouldUpdateLegacyRoot && this.ctx.volumeProfile) this.ctx.volumeProfile.update(candle, this.ctx.priceHistory);
++    if (isLegacyRootMirrorCandle && this.ctx.volumeProfile) this.ctx.volumeProfile.update(candle, this.ctx.priceHistory);
+ 
+     // CC-C Multi-Symbol Commit 3/6: per-symbol routing for NEW-candle path.
+     // Routes the new candle to its SymbolTradingContext's signal modules and
+@@ -618,21 +584,19 @@ class CandleProcessor {
+     // First-time-seen-per-symbol log uses [BOOT] tag so silent backtest shows
+     // the routing actually fired without spamming every candle.
+     {
+-      if (symCtx) {
+-        this._firstCandleSeenSymbols ??= new Set();
+-        const sym = symCtx.symbol;
+-        if (!this._firstCandleSeenSymbols.has(sym)) {
+-          console.log(`[VIS][CandleProcessor] first route candleSymbol=${candle.symbol} selected=${sym} ctxTradingPair=${normalizeCandleSymbol(this.ctx.tradingPair) || '(missing)'} price=${candle.c}`);
+-          this._firstCandleSeenSymbols.add(sym);
+-        }
+-        console.log(`[VIS][CandleProcessor] route candleSymbol=${candle.symbol} selected=${sym} price=${candle.c} candles=${this.ctx.priceHistory.length}`);
+-        symCtx.indicatorEngine.updateCandle({
+-          t: candle.t, o: candle.o, h: candle.h, l: candle.l, c: candle.c, v: candle.v
+-        });
+-        if (symCtx.emaCrossover)   symCtx.emaCrossoverSignal = symCtx.emaCrossover.update(candle, symCtx.priceHistory);
+-        if (symCtx.maDynamicSR)    symCtx.maDynamicSRSignal  = symCtx.maDynamicSR.update(candle, symCtx.priceHistory);
+-        if (symCtx.volumeProfile)  symCtx.volumeProfile.update(candle, symCtx.priceHistory);
++      this._firstCandleSeenSymbols ??= new Set();
++      const sym = frameCtx.symbol;
++      if (!this._firstCandleSeenSymbols.has(sym)) {
++        console.log(`[VIS][CandleProcessor] first route candleSymbol=${candle.symbol} selected=${sym} ctxTradingPair=${normalizeCandleSymbol(this.ctx.tradingPair) || '(missing)'} price=${candle.c}`);
++        this._firstCandleSeenSymbols.add(sym);
+       }
++      console.log(`[VIS][CandleProcessor] route candleSymbol=${candle.symbol} selected=${sym} price=${candle.c} candles=${frameCtx.priceHistory.length}`);
++      frameCtx.indicatorEngine.updateCandle({
++        t: candle.t, o: candle.o, h: candle.h, l: candle.l, c: candle.c, v: candle.v
++      });
++      if (frameCtx.emaCrossover)   frameCtx.emaCrossoverSignal = frameCtx.emaCrossover.update(candle, frameCtx.priceHistory);
++      if (frameCtx.maDynamicSR)    frameCtx.maDynamicSRSignal  = frameCtx.maDynamicSR.update(candle, frameCtx.priceHistory);
++      if (frameCtx.volumeProfile)  frameCtx.volumeProfile.update(candle, frameCtx.priceHistory);
+     }
+     if (traceId) {
+       emitTrace(this.ctx, 'CANDLE_ACCEPTED', {
+@@ -640,7 +604,7 @@ class CandleProcessor {
+         symbol: candleStoreSymbol,
+         timeframe: candleTimeframe,
+         update: false,
+-        priceHistory: this.ctx.priceHistory.length,
++        priceHistory: frameCtx.priceHistory.length,
+         close: candle.c,
+         etime: candle.etime,
+         brokerId: candle.brokerId,
+@@ -652,18 +616,18 @@ class CandleProcessor {
+     }
+ 
+     // Warmup log (only first 20 candles)
+-    if (this.ctx.priceHistory.length <= 20) {
++    if (isLegacyRootMirrorCandle && this.ctx.priceHistory.length <= 20) {
+       const candleTime = new Date(candle.t).toLocaleTimeString();
+       console.log(`Candle #${this.ctx.priceHistory.length}/15 [${candleTime}]`);
+     }
+ 
+     // Trim history to 250
+-    if (this.ctx.priceHistory.length > 250) {
++    if (isLegacyRootMirrorCandle && this.ctx.priceHistory.length > 250) {
+       this.ctx.priceHistory = this.ctx.priceHistory.slice(-250);
+     }
+ 
+     // Save counter
+-    if (persist) {
++    if (isLegacyRootMirrorCandle && persist) {
+       this.ctx.candleSaveCounter++;
+       if (this.ctx.candleSaveCounter >= 5) {
+         this.ctx.saveCandleHistory();
+@@ -800,7 +764,7 @@ class CandleProcessor {
+       }
+ 
+       // Calculate how many candles we need
+-      const missingCount = Math.ceil((gapEnd - gapStart) / this.candleIntervalMs);
++      const missingCount = Math.ceil((gapEnd - gapStart) / timeframeToMs(timeframe));
+       const fetchCount = missingCount + this.dataFeedConfig.gapBackfillBufferCandles;
+ 
+       console.log(`[GAP-RECOVERY] Fetching ${fetchCount} ${timeframe} candles of ${symbol} to fill ${missingCount} missing`);
+@@ -1075,15 +1039,16 @@ class CandleProcessor {
+ 
+     // Phase 5 REWRITE: ONE CANONICAL PATH - always call processNewCandle
+     // processNewCandle now handles both updates (same etime) and new candles
+-    const gapSymCtx = this._resolveSymCtx(candle);
+-    const gapHistory = gapSymCtx?.priceHistory || this.ctx.priceHistory;
++    const frameCtx = this.ctx.getSymbolTimeframeContext(candle.symbol, candle.timeframe);
++    const gapHistory = frameCtx.priceHistory;
+     const lastCandle = gapHistory[gapHistory.length - 1];
+     const isNewCandle = !lastCandle || lastCandle.etime !== candle.etime;
++    const candleIntervalMs = timeframeToMs(candle.timeframe);
+ 
+     // GAP DETECTION: Check for gaps only on new candles, not in backtest
+     if (isNewCandle && lastCandle && !isBacktesting) {
+       const gapMs = candle.etime - lastCandle.etime;
+-      const gapThreshold = this.candleIntervalMs * this.gapThresholdMultiplier;
++      const gapThreshold = candleIntervalMs * this.gapThresholdMultiplier;
+ 
+       if (gapMs > gapThreshold) {
+         // RTH-aware: skip gap halt for legitimate stocks overnight/weekend closes.
+@@ -1098,7 +1063,7 @@ class CandleProcessor {
+         if (isStocksMode && this._isExpectedMarketClose(lastCandle.etime, candle.etime)) {
+           console.log(`[GAP-RECOVERY] Overnight/weekend gap ${gapMs}ms - expected for stocks, skipping`);
+         } else {
+-          const missingCandles = Math.floor(gapMs / this.candleIntervalMs) - 1;
++          const missingCandles = Math.floor(gapMs / candleIntervalMs) - 1;
+           console.warn(`[GAP-RECOVERY] Gap detected: ${gapMs}ms (${missingCandles} candles missing)`);
+ 
+           const gapTraceContext = {
+@@ -1169,9 +1134,11 @@ class CandleProcessor {
+       high: parseFloat(high),
+       low: parseFloat(low)
+     };
+-    this.ctx.marketData = marketData;
+-    const symCtx = this._resolveSymCtx(candle);
+-    if (symCtx) symCtx.marketData = marketData;
++    if (normalizeCandleSymbol(candle.symbol) === normalizeCandleSymbol(this.ctx.tradingPair)
++        && candle.timeframe === this.ctx.candleTimeframe) {
++      this.ctx.marketData = marketData;
++    }
++    frameCtx.marketData = marketData;
+ 
+     // CHANGE 663: Broadcast market data to dashboard
+     // BACKTEST_FAST: Skip dashboard broadcast entirely
+diff --git a/core/OrderExecutor.js b/core/OrderExecutor.js
+index 0880c3b4..d3f9c6ed 100644
+--- a/core/OrderExecutor.js
++++ b/core/OrderExecutor.js
+@@ -2335,7 +2335,7 @@ class OrderExecutor {
+     return haltReason;
+   }
+ 
+-  _buildEntryPlan({ decision, symbol, price, positionSize, currentBalance, currentEquity, tradeConfidence, confidenceMultiplier, orchResult, entryVolatility, absoluteCapPercent, forceWholeShares = false }) {
++  _buildEntryPlan({ decision, symbol, timeframe, price, positionSize, currentBalance, currentEquity, tradeConfidence, confidenceMultiplier, orchResult, entryVolatility, absoluteCapPercent, forceWholeShares = false }) {
+     if (!this._isEntryAction(decision.action)) return null;
+ 
+     const entryStrategy = orchResult.winnerStrategy;
+@@ -2352,7 +2352,7 @@ class OrderExecutor {
+       entryDirection: decision.action === 'BUY' ? 'long' : 'short',
+       mtfConfluenceSnapshot: orchResult.mtfConfluenceSnapshot || null,
+     });
+-    const scope = this._runtimeScope(symbol);
++    const scope = this._runtimeScope(symbol, { timeframe });
+     const capPercent = absoluteCapPercent ?? this._resolveAbsolutePositionCap();
+     const requestedSizeUsd = positionSize * sizingMultiplier;
+     const absoluteCapSizeUsd = currentBalance * capPercent;
+@@ -2760,7 +2760,7 @@ class OrderExecutor {
+    * fallback — that path was the cross-contamination footgun for multi-broker
+    * arbitrage. Throws on missing/invalid symbol so weak callers fail loud.
+    */
+-  async executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision = null, orchResult = null, symbol) {
++  async executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision = null, orchResult = null, symbol, timeframe) {
+     if (typeof symbol !== 'string' || !symbol) {
+       throw new Error(
+         `OrderExecutor.executeTrade requires explicit non-empty symbol; got ${JSON.stringify(symbol)}`
+@@ -2816,7 +2816,7 @@ class OrderExecutor {
+           executionMode: exitPlan.executionMode,
+           timeframe: exitPlan.timeframe,
+         }
+-      : (isEntryAction ? this._runtimeScope(symbol) : {
++      : (isEntryAction ? this._runtimeScope(symbol, { timeframe }) : {
+           brokerId: null,
+           accountId: null,
+           accountIdSource: null,
+@@ -3142,6 +3142,7 @@ class OrderExecutor {
+     const entryPlan = isEntryAction ? this._buildEntryPlan({
+       decision,
+       symbol,
++      timeframe: executionScope.timeframe,
+       price,
+       positionSize,
+       currentBalance,
+diff --git a/core/SessionRouter.js b/core/SessionRouter.js
+index 41232188..89a1e9c9 100644
+--- a/core/SessionRouter.js
++++ b/core/SessionRouter.js
+@@ -1537,6 +1537,7 @@ class SessionRouter extends EventEmitter {
+         pauseConfirmed: true
+       });
+ 
++      await this.ctx.tradingLoop.waitForPendingOperations();
+       await this._forceCloseSourceTradesThroughExecution(transitionContext, 'crypto');
+       await this._reconcileBrokerRestBeforeActivation(this.krakenAdapter, this.alpacaAdapter, transitionContext, {
+         sourceBrokerId: 'kraken',
+@@ -1568,14 +1569,18 @@ class SessionRouter extends EventEmitter {
+         ), { symbols: this.stockSymbols, timeframe });
+       }
+ 
++      const evaluationTimeframes = new Set([timeframe, ...this.ctx.evaluationTimeframes]);
+       for (const symbol of this.stockSymbols) {
+         if (typeof this.alpacaAdapter.subscribeToCandles === 'function') {
+-          await this._executeBrokerIntent(transitionContext, 'alpaca', 'subscribe_candles', () => (
+-            this.alpacaAdapter.subscribeToCandles(symbol, timeframe)
+-          ), { symbol, timeframe });
++          for (const evaluationTimeframe of evaluationTimeframes) {
++            await this._executeBrokerIntent(transitionContext, 'alpaca', 'subscribe_candles', () => (
++              this.alpacaAdapter.subscribeToCandles(symbol, evaluationTimeframe)
++            ), { symbol, timeframe: evaluationTimeframe });
++          }
+         }
+       }
+ 
++      await this.ctx.tradingLoop.waitForPendingOperations();
+       this.activeSession = 'stocks';
+       this.activeBroker = this.alpacaAdapter;
+       this.lastTransitionAt = Date.now();
+@@ -1632,6 +1637,7 @@ class SessionRouter extends EventEmitter {
+         pauseConfirmed: true
+       });
+ 
++      await this.ctx.tradingLoop.waitForPendingOperations();
+       await this._forceCloseSourceTradesThroughExecution(transitionContext, 'stock');
+ 
+       await this._reconcileBrokerRestBeforeActivation(this.alpacaAdapter, this.krakenAdapter, transitionContext, {
+@@ -1677,6 +1683,7 @@ class SessionRouter extends EventEmitter {
+         ), { symbol: primaryCrypto, timeframe });
+       }
+ 
++      await this.ctx.tradingLoop.waitForPendingOperations();
+       this.activeSession = 'crypto';
+       this.activeBroker = this.krakenAdapter;
+       this.lastTransitionAt = Date.now();
+@@ -1801,11 +1808,14 @@ class SessionRouter extends EventEmitter {
+           this.orderRouter.registerBroker(this.alpacaAdapter, this.stockSymbols)
+         ), { symbols: this.stockSymbols, timeframe });
+       }
++      const evaluationTimeframes = new Set([timeframe, ...this.ctx.evaluationTimeframes]);
+       for (const symbol of this.stockSymbols) {
+         if (typeof this.alpacaAdapter.subscribeToCandles === 'function') {
+-          await this._executeBrokerIntent(transitionContext, 'alpaca', 'subscribe_candles', () => (
+-            this.alpacaAdapter.subscribeToCandles(symbol, timeframe)
+-          ), { symbol, timeframe });
++          for (const evaluationTimeframe of evaluationTimeframes) {
++            await this._executeBrokerIntent(transitionContext, 'alpaca', 'subscribe_candles', () => (
++              this.alpacaAdapter.subscribeToCandles(symbol, evaluationTimeframe)
++            ), { symbol, timeframe: evaluationTimeframe });
++          }
+         }
+       }
+       this.activeSession = 'stocks';
+diff --git a/core/StrategyOrchestrator.js b/core/StrategyOrchestrator.js
+index fcff4871..dce5f813 100644
+--- a/core/StrategyOrchestrator.js
++++ b/core/StrategyOrchestrator.js
+@@ -1005,6 +1005,23 @@ class StrategyOrchestrator {
+     return null;
+   }
+ 
++  _getMtfConfluenceAdapter(symbol) {
++    return this._getSymbolStrategyModule(
++      'MtfConfluenceService',
++      symbol,
++      null,
++      this.mtfAdapter,
++      () => new MultiTimeframeAdapter(this._buildMtfAdapterConfig())
++    );
++  }
++
++  ingestMarketCandle(symbol, candle) {
++    const scopedMtfAdapter = this._getMtfConfluenceAdapter(symbol);
++    scopedMtfAdapter.ingestCandle(candle, candle.timeframe);
++    this.mtfEvaluationCache = null;
++    return scopedMtfAdapter;
++  }
++
+   _getMtfConfluenceForEvaluation(ctx) {
+     if (this.mtfEvaluationCache && this.mtfEvaluationCache.evalCount === this.evalCount) {
+       return this.mtfEvaluationCache.confluence;
+@@ -1035,13 +1052,7 @@ class StrategyOrchestrator {
+     }
+ 
+     const latestCandle = candles[candles.length - 1];
+-    const scopedMtfAdapter = this._getSymbolStrategyModule(
+-      'MtfConfluenceService',
+-      ctx.extras?.symbol,
+-      null,
+-      this.mtfAdapter,
+-      () => new MultiTimeframeAdapter(this._buildMtfAdapterConfig())
+-    );
++    const scopedMtfAdapter = this._getMtfConfluenceAdapter(ctx.extras?.symbol);
+ 
+     try {
+       scopedMtfAdapter.ingestCandle(latestCandle, latestCandle.timeframe);
+diff --git a/core/TradingLoop.js b/core/TradingLoop.js
+index 2c85caaa..16427842 100644
+--- a/core/TradingLoop.js
++++ b/core/TradingLoop.js
+@@ -54,7 +54,8 @@ class TradingLoop {
+     this.ctx = ctx;
+     this.analyzing = false;
+     this.analyzingSymbols = new Set();
+-    this.pendingExitSymbols = new Set();
++    this.pendingExitSymbols = new Map();
++    this.symbolOperationQueues = new Map();
+     console.log('[TradingLoop] Initialized (clean rewrite - direction agnostic)');
+   }
+ 
+@@ -537,9 +538,10 @@ class TradingLoop {
+     exitEvaluations = [],
+     skipReason = null,
+     source = 'trading_loop',
++    timeframe,
+   }) {
+     try {
+-      const scope = this._patternScope(symbol);
++      const scope = this._patternScope(symbol, timeframe);
+       const confidencePct = Number.isFinite(orchResult?.confidence) ? orchResult.confidence : null;
+       const minConfidencePct = Number.isFinite(minConfidence) ? minConfidence * 100 : null;
+       const allResults = this._autopsyAllResults(orchResult);
+@@ -712,21 +714,18 @@ class TradingLoop {
+     return UNKNOWN_POSITION_EFFECT;
+   }
+ 
+-  _runnerScope() {
+-    const ctxTimeframe = typeof this.ctx.candleTimeframe === 'string' && this.ctx.candleTimeframe.trim() !== ''
+-      ? this.ctx.candleTimeframe.trim()
+-      : null;
++  _runnerScope(timeframe) {
+     return this.ctx.runner && typeof this.ctx.runner.getCandleScopeEnvelope === 'function'
+-      ? this.ctx.runner.getCandleScopeEnvelope({ timeframe: ctxTimeframe })
++      ? this.ctx.runner.getCandleScopeEnvelope({ timeframe })
+       : {};
+   }
+ 
+-  _patternScope(symbol) {
++  _patternScope(symbol, timeframe) {
+     const cfg = this.ctx.config || {};
+     const routerEnabled = this.ctx.runner && typeof this.ctx.runner.isSessionRoutingActive === 'function'
+       ? this.ctx.runner.isSessionRoutingActive() === true
+       : this.ctx.runner?.sessionRouter?.enabled === true;
+-    const runtimeScope = this._runnerScope();
++    const runtimeScope = this._runnerScope(timeframe);
+     const scope = {
+       symbol,
+       brokerId: runtimeScope.brokerId || (!routerEnabled ? cfg.brokerId : null),
+@@ -734,7 +733,7 @@ class TradingLoop {
+       accountIdSource: runtimeScope.accountIdSource || cfg.accountIdSource,
+       assetClass: runtimeScope.assetClass || (!routerEnabled ? cfg.assetClass : null),
+       executionMode: cfg.enableBacktestMode ? 'backtest' : (runtimeScope.executionMode || (!routerEnabled ? cfg.executionMode : null)),
+-      timeframe: runtimeScope.timeframe || (!routerEnabled ? (cfg.timeframe || this.ctx.candleTimeframe) : null),
++      timeframe,
+     };
+     if (routerEnabled) {
+       const missing = [];
+@@ -750,12 +749,12 @@ class TradingLoop {
+     return scope;
+   }
+ 
+-  _dashboardScope(symbol) {
++  _dashboardScope(symbol, timeframe) {
+     const cfg = this.ctx.config || {};
+     const routerEnabled = this.ctx.runner && typeof this.ctx.runner.isSessionRoutingActive === 'function'
+       ? this.ctx.runner.isSessionRoutingActive() === true
+       : this.ctx.runner?.sessionRouter?.enabled === true;
+-    const runtimeScope = this._runnerScope();
++    const runtimeScope = this._runnerScope(timeframe);
+     const scope = {
+       symbol,
+       asset: symbol,
+@@ -764,7 +763,7 @@ class TradingLoop {
+       accountIdSource: runtimeScope.accountIdSource || cfg.accountIdSource || null,
+       assetClass: runtimeScope.assetClass || (!routerEnabled ? cfg.assetClass : null),
+       executionMode: cfg.enableBacktestMode ? 'backtest' : (runtimeScope.executionMode || (!routerEnabled ? cfg.executionMode : null)),
+-      timeframe: runtimeScope.timeframe || (!routerEnabled ? (cfg.timeframe || this.ctx.candleTimeframe) : null),
++      timeframe,
+     };
+     if (routerEnabled) {
+       const missing = [];
+@@ -809,7 +808,7 @@ class TradingLoop {
+     }
+   }
+ 
+-  _broadcastGateEvent({ traceId, signalId, symbol, action, kind, decision, riskGates, reason }) {
++  _broadcastGateEvent({ traceId, signalId, symbol, action, kind, decision, riskGates, reason, timeframe }) {
+     const gates = Array.isArray(riskGates) ? riskGates : [];
+     if (gates.length === 0) return false;
+ 
+@@ -821,7 +820,7 @@ class TradingLoop {
+       || failedGate?.rejectReason
+       || decision?.blockReason
+       || (missingPassGate ? 'risk gate missing pass state' : null);
+-    const scope = this._dashboardScope(symbol);
++    const scope = this._dashboardScope(symbol, timeframe);
+ 
+     const frame = {
+       type: 'gate_event',
+@@ -858,7 +857,7 @@ class TradingLoop {
+     throw new Error(`[TradingLoop] active trade ${activeTrade.orderId || activeTrade.id || 'unknown'} missing close side`);
+   }
+ 
+-  _checkTtpConsistencyProfitCap(activeTrade, price) {
++  _checkTtpConsistencyProfitCap(activeTrade, price, timeframe) {
+     const evalRules = this.ctx.evalRules || this.ctx.config?.evalRules || {};
+     const cfg = evalRules.ttp?.consistency || {};
+     if (evalRules.enabled !== true || evalRules.ttp?.enabled !== true) {
+@@ -870,7 +869,7 @@ class TradingLoop {
+     }
+ 
+     const stockAliases = ['stocks', 'stock', 'equities', 'equity', 'etfs', 'etf'];
+-    const runtimeScope = this._patternScope(activeTrade.symbol || this.ctx.marketData?.symbol || null);
++    const runtimeScope = this._patternScope(activeTrade.symbol || this.ctx.marketData?.symbol || null, timeframe);
+     const runtimeAssetClass = String(runtimeScope.assetClass || '').trim().toLowerCase();
+     if (!runtimeAssetClass) {
+       throw new Error('[TTP_CONSISTENCY] runtime assetClass missing while TTP eval rules are enabled');
+@@ -928,8 +927,8 @@ class TradingLoop {
+     };
+   }
+ 
+-  _buildTtpConsistencyExitDecision(activeTrade, price, symbol, traceId, source) {
+-    const consistencyCheck = this._checkTtpConsistencyProfitCap(activeTrade, price);
++  _buildTtpConsistencyExitDecision(activeTrade, price, symbol, traceId, source, timeframe) {
++    const consistencyCheck = this._checkTtpConsistencyProfitCap(activeTrade, price, timeframe);
+     if (consistencyCheck.enabled) {
+       emitTrace(this.ctx, 'TTP_CONSISTENCY_CHECK', {
+         traceId,
+@@ -968,32 +967,53 @@ class TradingLoop {
+    * runner; multi-symbol mode (commit 6+) passes per-dispatch symbol from
+    * the OHLC handler. Throws on missing/invalid so callers fail loud.
+    */
+-  async analyzeAndTrade(symbol, traceId = createTraceId('trace')) {
+-    if (typeof symbol !== 'string' || !symbol) {
+-      throw new Error(
+-        `TradingLoop.analyzeAndTrade requires explicit non-empty string symbol; got ${JSON.stringify(symbol)}`
+-      );
++  _enqueueSymbolOperation(symbol, operation) {
++    let queue = this.symbolOperationQueues.get(symbol);
++    if (!queue) {
++      queue = { running: false, items: [] };
++      this.symbolOperationQueues.set(symbol, queue);
++    }
++    const completion = new Promise((resolve, reject) => {
++      queue.items.push({ operation, resolve, reject });
++    });
++    if (!queue.running) {
++      queue.running = true;
++      queue.drained = this._drainSymbolOperations(symbol, queue);
+     }
+-    // Concurrency guard — one analysis at a time per symbol.
+-    if (this._isSymbolAnalyzing(symbol)) {
+-      emitTrace(this.ctx, 'ANALYSIS_SKIP', { traceId, symbol, reason: 'concurrency_guard' });
+-      this._writeDecisionAutopsy({
+-        traceId,
+-        symbol,
+-        decision: { action: 'HOLD' },
+-        skipReason: 'concurrency_guard',
+-        source: 'trading_loop',
+-      });
+-      return;
++    return completion;
++  }
++
++  async waitForPendingOperations() {
++    while (this.symbolOperationQueues.size > 0) {
++      await Promise.all(Array.from(this.symbolOperationQueues.values(), queue => queue.drained));
+     }
+-    this._setSymbolAnalyzing(symbol, true);
++  }
+ 
++  async _drainSymbolOperations(symbol, queue) {
++    this._setSymbolAnalyzing(symbol, true);
+     try {
+-      await this._analyze(symbol, traceId);
++      while (queue.items.length > 0) {
++        const item = queue.items[0];
++        try {
++          item.resolve(await item.operation());
++        } catch (error) {
++          item.reject(error);
++        }
++        queue.items.shift();
++      }
+     } finally {
+       this._setSymbolAnalyzing(symbol, false);
+-      await this._drainPendingExitChecks(symbol);
++      this.symbolOperationQueues.delete(symbol);
++    }
++  }
++
++  async analyzeAndTrade(symbol, traceId = createTraceId('trace'), timeframe) {
++    if (typeof symbol !== 'string' || !symbol) {
++      throw new Error(
++        `TradingLoop.analyzeAndTrade requires explicit non-empty string symbol; got ${JSON.stringify(symbol)}`
++      );
+     }
++    return this._enqueueSymbolOperation(symbol, () => this._analyze(symbol, traceId, timeframe));
+   }
+ 
+   /**
+@@ -1006,40 +1026,21 @@ class TradingLoop {
+         `TradingLoop.checkExitsOnly requires explicit non-empty string symbol; got ${JSON.stringify(symbol)}`
+       );
+     }
+-    if (this._isSymbolAnalyzing(symbol)) {
+-      this.pendingExitSymbols.add(symbol);
+-      this._diag('EXIT_ONLY_QUEUED', { symbol });
+-      emitTrace(this.ctx, 'EXIT_ONLY_QUEUED', { symbol });
+-      return;
+-    }
+-    this._setSymbolAnalyzing(symbol, true);
+-
++    if (this.pendingExitSymbols.has(symbol)) return this.pendingExitSymbols.get(symbol);
++    const completion = this._enqueueSymbolOperation(symbol, () => this._checkExitsOnly(symbol));
++    this.pendingExitSymbols.set(symbol, completion);
+     try {
+-      await this._checkExitsOnly(symbol);
++      return await completion;
+     } finally {
+-      this._setSymbolAnalyzing(symbol, false);
+-      await this._drainPendingExitChecks(symbol);
+-    }
+-  }
+-
+-  async _drainPendingExitChecks(releasedSymbol = null) {
+-    if (!this.pendingExitSymbols || this.pendingExitSymbols.size === 0) return;
+-    const symbols = releasedSymbol
+-      ? (this.pendingExitSymbols.has(releasedSymbol) ? [releasedSymbol] : [])
+-      : Array.from(this.pendingExitSymbols);
+-    for (const symbol of symbols) {
+-      if (this._isSymbolAnalyzing(symbol)) continue;
+       this.pendingExitSymbols.delete(symbol);
+-      await this.checkExitsOnly(symbol);
+     }
+   }
+ 
+-  async _checkExitsOnly(symbol) {
+-    const traceId = createTraceId('trace');
+-    emitTrace(this.ctx, 'EXIT_ONLY_START', { traceId, symbol });
+-    const symCtx = this.ctx.symbolContexts?.get(symbol);
++  _getTradeExitContext(symbol, activeTrade) {
++    const tradeTimeframe = activeTrade.timeframe;
++    const symCtx = this.ctx.getSymbolTimeframeContext(symbol, tradeTimeframe);
++    const exitTimeframe = symCtx.timeframe;
+     const marketData = this._resolveSymbolMarketData(symbol, symCtx);
+-    this._alertMarketDataFallback(symbol, 'exit_only', traceId, symCtx, marketData);
+     const stateLastPrice = typeof stateManager.getLastPrice === 'function'
+       ? stateManager.getLastPrice(symbol)
+       : null;
+@@ -1049,49 +1050,9 @@ class TradingLoop {
+     const priceSource = Number.isFinite(stateLastPrice) && stateLastPrice > 0
+       ? 'state_last_price'
+       : (marketData?.priceSource || 'market_data');
+-    const priceHistory = symCtx?.priceHistory ?? this.ctx.priceHistory;
+-    if (!Number.isFinite(price) || price <= 0) {
+-      this._diag('EXIT_ONLY_NO_PRICE', {
+-        symbol,
+-        marketSymbol: this.ctx.marketData?.symbol || 'missing'
+-      });
+-      emitTrace(this.ctx, 'ANALYSIS_SKIP', {
+-        traceId,
+-        symbol,
+-        reason: 'no_scoped_price',
+-        source: 'exit_only',
+-        route: symCtx ? 'symbolContext' : 'global',
+-        marketSymbol: this.ctx.marketData?.symbol || null,
+-      });
+-      try {
+-        this._writeDecisionAutopsy({
+-          traceId,
+-          symbol,
+-          price,
+-          priceHistory,
+-          marketData,
+-          skipReason: 'no_scoped_price',
+-          decision: { action: 'HOLD' },
+-          source: 'exit_only',
+-        });
+-      } catch (error) {
+-        if (error.code !== 'DECISION_AUTOPSY_PERSIST_FAILED') {
+-          throw error;
+-        }
+-        this._diag('EXIT_ONLY_NO_PRICE_AUTOPSY_FAILED', {
+-          symbol,
+-          reason: error.message,
+-        });
+-      }
+-      return;
+-    }
+-
+-    const activeTrades = stateManager.getTradesBySymbol(symbol);
+-    if (activeTrades.length === 0) return;
+-    const exitEvaluations = [];
+-
+-    const indicatorEngine = symCtx?.indicatorEngine ?? this.ctx.indicatorEngine;
+-    const fibonacciDetector = symCtx?.fibonacciDetector ?? this.ctx.fibonacciDetector;
++    const priceHistory = symCtx.priceHistory;
++    const indicatorEngine = symCtx.indicatorEngine;
++    const fibonacciDetector = symCtx.fibonacciDetector;
+     const dtoState = indicatorEngine.getSnapshot();
+     const indicators = dtoState.indicators || {};
+     indicators.ema12 = indicators.ema9 ?? null;
+@@ -1100,24 +1061,39 @@ class TradingLoop {
+     indicators.bbWidth = indicators.bb?.bandwidth ?? null;
+     indicators.bollingerBands = indicators.bb;
+     indicators.trend = indicators.superTrendDirection ?? null;
+-
+     let nearestFibLevel = null;
+     if (fibonacciDetector && priceHistory.length >= 30) {
+       const fibLevels = fibonacciDetector.update(priceHistory);
+       if (fibLevels) nearestFibLevel = fibonacciDetector.getNearestLevel(price);
+     }
+-    const rawIndicatorState = typeof indicatorEngine.getRawState === 'function'
+-      ? indicatorEngine.getRawState()
+-      : null;
++    const rawIndicatorState = typeof indicatorEngine.getRawState === 'function' ? indicatorEngine.getRawState() : null;
+     const nearestStructure = this._nearestStructure(price, nearestFibLevel, rawIndicatorState?.sr);
++    return { exitTimeframe, marketData, price, priceSource, priceHistory, indicators, nearestStructure };
++  }
++
++  async _checkExitsOnly(symbol) {
++    const traceId = createTraceId('trace');
++    emitTrace(this.ctx, 'EXIT_ONLY_START', { traceId, symbol });
++    const activeTrades = stateManager.getTradesBySymbol(symbol);
++    if (activeTrades.length === 0) return;
++    const exitEvaluations = [];
+ 
+     for (const activeTrade of activeTrades) {
++      const { exitTimeframe, marketData, price, priceSource, priceHistory, indicators, nearestStructure } = this._getTradeExitContext(symbol, activeTrade);
++      if (!Number.isFinite(price) || price <= 0) {
++        this._diag('EXIT_ONLY_NO_PRICE', { symbol, marketSymbol: this.ctx.marketData?.symbol || 'missing' });
++        emitTrace(this.ctx, 'ANALYSIS_SKIP', { traceId, symbol, reason: 'no_scoped_price', source: 'exit_only', route: 'symbolTimeframeContext', marketSymbol: this.ctx.marketData?.symbol || null, timeframe: exitTimeframe });
++        this._writeDecisionAutopsy({ traceId, symbol, price, priceHistory, marketData, skipReason: 'no_scoped_price', decision: { action: 'HOLD' }, activeTrades, source: 'exit_only', timeframe: exitTimeframe });
++        continue;
++      }
++
+       const consistencyDecision = this._buildTtpConsistencyExitDecision(
+         activeTrade,
+         price,
+         symbol,
+         traceId,
+-        'exit_only'
++        'exit_only',
++        exitTimeframe
+       );
+       if (consistencyDecision) {
+         exitEvaluations.push({
+@@ -1140,8 +1116,9 @@ class TradingLoop {
+           activeTrades,
+           exitEvaluations,
+           source: 'exit_only',
++          timeframe: exitTimeframe,
+         });
+-        await this.ctx.executeTrade(consistencyDecision, { totalConfidence: 100 }, price, indicators, [], null, null, symbol);
++        await this.ctx.executeTrade(consistencyDecision, { totalConfidence: 100 }, price, indicators, [], null, null, symbol, exitTimeframe);
+         return;
+       }
+ 
+@@ -1162,7 +1139,7 @@ class TradingLoop {
+         brokerId: this.ctx.config?.brokerId,
+         accountId: this.ctx.config?.accountId,
+         assetClass: this.ctx.config?.assetClass,
+-        timeframe: this.ctx.config?.timeframe,
++        timeframe: exitTimeframe,
+         symbol,
+         intentId: `${traceId}:profit:${activeTrade.id || activeTrade.orderId}`,
+         traceId,
+@@ -1205,8 +1182,9 @@ class TradingLoop {
+           activeTrades,
+           exitEvaluations,
+           source: 'exit_only',
++          timeframe: exitTimeframe,
+         });
+-        await this.ctx.executeTrade(exitDecision, { totalConfidence: exitConfidence }, price, indicators, [], null, null, symbol);
++        await this.ctx.executeTrade(exitDecision, { totalConfidence: exitConfidence }, price, indicators, [], null, null, symbol, exitTimeframe);
+         return;
+       }
+       exitEvaluations.push({
+@@ -1219,23 +1197,24 @@ class TradingLoop {
+         details: exitCheck.details || null,
+         profitStopUpdate: exitCheck.profitStopUpdate || null,
+       });
++      this._writeDecisionAutopsy({
++        traceId,
++        symbol,
++        price,
++        priceHistory,
++        marketData,
++        indicators,
++        decision: { action: 'HOLD', confidence: 0 },
++        activeTrades,
++        exitEvaluations,
++        skipReason: 'no_exit_condition',
++        source: 'exit_only',
++        timeframe: exitTimeframe,
++      });
+     }
+-    this._writeDecisionAutopsy({
+-      traceId,
+-      symbol,
+-      price,
+-      priceHistory,
+-      marketData,
+-      indicators,
+-      decision: { action: 'HOLD', confidence: 0 },
+-      activeTrades,
+-      exitEvaluations,
+-      skipReason: 'no_exit_condition',
+-      source: 'exit_only',
+-    });
+   }
+ 
+-  async _analyze(symbol, traceId = createTraceId('trace')) {
++  async _analyze(symbol, traceId = createTraceId('trace'), timeframe) {
+     // CC-C Commit 5/6: `symbol` is REQUIRED. analyzeAndTrade enforces this
+     // upstream; the redundant check here is defense-in-depth in case _analyze
+     // is ever called from a sibling path that bypasses analyzeAndTrade.
+@@ -1244,16 +1223,13 @@ class TradingLoop {
+         `TradingLoop._analyze requires explicit non-empty string symbol; got ${JSON.stringify(symbol)}`
+       );
+     }
+-    // CC-C Multi-Symbol Commit 4: resolve per-symbol context if wired.
+-    // symCtx may be null when commit 6's per-symbol context wiring hasn't
+-    // been activated yet for this symbol; the per-data-type `symCtx?.X ??
+-    // this.ctx.X` resolvers below handle that gracefully (commit 4's surface,
+-    // not commit 5's — kept as-is, separate concern).
+-    const symCtx = this.ctx.symbolContexts?.get(symbol);
++    // Resolve the history and indicators for this candle's symbol and timeframe.
++    const symCtx = this.ctx.getSymbolTimeframeContext(symbol, timeframe);
+     // _gatherData re-resolves indicatorEngine/fibonacciDetector via its own
+     // symCtx pass — declaring them here too was dead code (Mercury attack #4).
+-    const priceHistory = symCtx?.priceHistory ?? this.ctx.priceHistory;
+-    const analysisScope = this._dashboardScope(symbol);
++    const priceHistory = symCtx.priceHistory;
++    const analysisTimeframe = symCtx.timeframe;
++    const analysisScope = this._dashboardScope(symbol, analysisTimeframe);
+     emitTrace(this.ctx, 'ANALYSIS_START', {
+       traceId,
+       symbol,
+@@ -1295,6 +1271,7 @@ class TradingLoop {
+         skipReason: 'no_scoped_price',
+         decision: { action: 'HOLD' },
+         source: 'trading_loop',
++        timeframe: analysisTimeframe,
+       });
+       return;
+     }
+@@ -1323,13 +1300,14 @@ class TradingLoop {
+         riskGates: [{ gate: 'warmup', threshold: 15, value: priceHistory.length, passed: false }],
+         skipReason: 'warmup',
+         source: 'trading_loop',
++        timeframe: analysisTimeframe,
+       });
+       return;
+     }
+ 
+     // ─── GATHER DATA ───
+-    const { indicators, patterns, regime, tpoResult, fibLevels, nearestFibLevel, nearestStructure } = this._gatherData(price, symCtx, symbol, marketData);
+-    const patternScope = this._patternScope(symbol);
++    const { indicators, patterns, regime, tpoResult, fibLevels, nearestFibLevel, nearestStructure } = this._gatherData(price, symCtx, symbol, marketData, analysisTimeframe);
++    const patternScope = this._patternScope(symbol, analysisTimeframe);
+ 
+     // ─── RUN ORCHESTRATOR ───
+     const orchResult = this.ctx.strategyOrchestrator.evaluate(
+@@ -1342,7 +1320,6 @@ class TradingLoop {
+         maDynamicSRSignal: symCtx?.maDynamicSRSignal ?? this.ctx.runner?.maDynamicSRSignal ?? this.ctx.maDynamicSRSignal,
+         // 2026-05-04: breakRetestSignal removed — orchestrator now owns BreakAndRetest instance directly.
+         liquiditySweepSignal: this.ctx.runner?.liquiditySweepSignal || this.ctx.liquiditySweepSignal,
+-        mtfAdapter: this.ctx.runner?.mtfAdapter || this.ctx.mtfAdapter,
+         tpoResult,
+         price,
+         fibLevels,
+@@ -1351,7 +1328,7 @@ class TradingLoop {
+         symbol,
+         // HIGH-16: pass timeframe so orchestrator can validate + scale SL/TP
+         // per timeframe instead of falling back to '15m' silently.
+-        timeframe: this.ctx.candleTimeframe,
++        timeframe: analysisTimeframe,
+         patternMemory: this.ctx.patternChecker?.memory || null,
+         patternScope,
+       }
+@@ -1439,14 +1416,15 @@ class TradingLoop {
+         maxPositions: ConfigLoader.get('positionSizing.maxPositions'),
+         directionFilter,
+         skipReason: directionGate.reason,
++        timeframe: analysisTimeframe,
+       });
+       console.log(`[DIRECTION-GATE] Blocked ${finalDirection}: reason=${directionGate.reason} filter=${directionFilter}`);
+-      this._broadcastAndReturn(symbol, price, indicators, patterns, regime, orchResult, confidenceData, marketData);
++      this._broadcastAndReturn(symbol, price, indicators, patterns, regime, orchResult, confidenceData, marketData, analysisTimeframe);
+       return;
+     }
+ 
+     // ─── TRAI (async observer, non-blocking) ───
+-    this._runTRAI(finalDirection, orchResult, indicators, patterns, regime, price, symbol, marketData);
++    this._runTRAI(finalDirection, orchResult, indicators, patterns, regime, price, symbol, marketData, analysisTimeframe);
+ 
+     // ═══════════════════════════════════════════════════════════════
+     // DECISION ENGINE — Direction agnostic
+@@ -1461,13 +1439,14 @@ class TradingLoop {
+     // a missing-symbol fallback to ctx.tradingPair could exit-check the
+     // wrong leg, leaving the other broker's positions unchecked (single-
+     // leg liquidation, real-money risk). All callers (runner.analyzeAndTrade,
+-    // run15mTradingCycle, the interval cycle, BacktestRunner) now pass
++    // runTradingCycle, the interval cycle, BacktestRunner) now pass
+     // symbol explicitly.
+     const activeTrades = stateManager.getTradesBySymbol(symbol);
+     const maxPositions = ConfigLoader.get('positionSizing.maxPositions');
+     const exitEvaluations = [];
+ 
+     let decision = { action: 'HOLD', confidence: orchResult.confidence };
++    let selectedExitContext = null;
+     this._diag('ENTRY_CONTEXT', {
+       symbol,
+       finalDirection,
+@@ -1486,12 +1465,14 @@ class TradingLoop {
+     const hasOpenPosition = activeTrades.length > 0;
+     if (hasOpenPosition) {
+       for (const activeTrade of activeTrades) {
++        const tradeExit = this._getTradeExitContext(symbol, activeTrade);
+         const consistencyDecision = this._buildTtpConsistencyExitDecision(
+           activeTrade,
+-          price,
++          tradeExit.price,
+           symbol,
+           traceId,
+-          'candle_exit'
++          'candle_exit',
++          tradeExit.exitTimeframe
+         );
+         if (consistencyDecision) {
+           exitEvaluations.push({
+@@ -1504,27 +1485,28 @@ class TradingLoop {
+             confidence: consistencyDecision.confidence,
+           });
+           decision = consistencyDecision;
++          selectedExitContext = tradeExit;
+           break;
+         }
+ 
+-        exitContractManager.updateMaxProfit(activeTrade, price);
++        exitContractManager.updateMaxProfit(activeTrade, tradeExit.price);
+ 
+-        const exitCheck = exitContractManager.checkExitConditions(activeTrade, price, {
+-          indicators,
+-          priceHistory,
+-          currentTime: marketData?.timestamp ?? Date.now(),
++        const exitCheck = exitContractManager.checkExitConditions(activeTrade, tradeExit.price, {
++          indicators: tradeExit.indicators,
++          priceHistory: tradeExit.priceHistory,
++          currentTime: tradeExit.marketData?.timestamp ?? Date.now(),
+           currentPosition: stateManager.get('position'),
+-          currentPrice: price,
+-          nearestStructure,
+-          priceSource: marketData?.priceSource || 'market_data',
+-          eventTimeMs: marketData?.eventTimeMs ?? marketData?.timestamp ?? null,
+-          receivedAtMs: marketData?.receivedAtMs ?? Date.now(),
++          currentPrice: tradeExit.price,
++          nearestStructure: tradeExit.nearestStructure,
++          priceSource: tradeExit.marketData?.priceSource || 'market_data',
++          eventTimeMs: tradeExit.marketData?.eventTimeMs ?? tradeExit.marketData?.timestamp ?? null,
++          receivedAtMs: tradeExit.marketData?.receivedAtMs ?? Date.now(),
+           nowMs: Date.now(),
+           executionMode: this.ctx.config?.executionMode,
+           brokerId: this.ctx.config?.brokerId,
+           accountId: this.ctx.config?.accountId,
+           assetClass: this.ctx.config?.assetClass,
+-          timeframe: this.ctx.config?.timeframe,
++          timeframe: tradeExit.exitTimeframe,
+           symbol,
+           intentId: `${traceId}:profit:${activeTrade.id || activeTrade.orderId}`,
+           traceId,
+@@ -1558,6 +1540,7 @@ class TradingLoop {
+             traceId,
+             signalId: `${traceId}:exit`
+           };
++          selectedExitContext = tradeExit;
+           break; // Exit one position per candle
+         } else {
+           exitEvaluations.push({
+@@ -1652,6 +1635,7 @@ class TradingLoop {
+             decision,
+             riskGates: decision.riskGates,
+             reason: decision.blockReason || 'risk gate blocked entry',
++            timeframe: analysisTimeframe,
+           });
+         }
+         // CC-A Change 2: stamp indicator state at entry on the decision so
+@@ -1746,6 +1730,7 @@ class TradingLoop {
+       skipReason: decision.action === 'HOLD'
+         ? (decision.blockReason || (finalDirection === 'hold' ? 'hold_direction' : (confidence < minConfidence ? 'below_min_confidence' : 'not_entry_candidate')))
+         : null,
++      timeframe: analysisTimeframe,
+     });
+ 
+     // ─── STORE STATE ───
+@@ -1753,7 +1738,7 @@ class TradingLoop {
+     this.ctx.lastDirection = finalDirection;
+ 
+     // ─── BROADCAST ───
+-    this._broadcastDecision(symbol, price, indicators, patterns, regime, orchResult, decision, confidenceData, minConfidence, marketData);
++    this._broadcastDecision(symbol, price, indicators, patterns, regime, orchResult, decision, confidenceData, minConfidence, marketData, analysisTimeframe);
+ 
+     // ─── EXECUTE ───
+     if (decision.action !== 'HOLD') {
+@@ -1796,7 +1781,7 @@ class TradingLoop {
+         const winnerAttribution = this._ledgerWinnerAttribution(allResults, winnerName);
+         const winnerIndex = winnerAttribution.winnerIndex;
+         const winnerSignalMetadata = winnerIndex !== null ? this._ledgerSignalMetadata(allResults[winnerIndex], winnerIndex) : {};
+-        const ledgerScope = this._patternScope(symbol);
++        const ledgerScope = this._patternScope(symbol, analysisTimeframe);
+         decision.ledgerData = {
+           candleTimestamp: marketData?.timestamp || Date.now(),
+           symbol,
+@@ -1897,9 +1882,20 @@ class TradingLoop {
+             kind: 'eval_pass',
+             decision: executionDecision,
+             riskGates,
++            timeframe: analysisTimeframe,
+           });
+         }
+-        const executionResult = await this.ctx.executeTrade(executionDecision, confidenceData, price, indicators, patterns, null, executionOrchResult, symbol);
++        const executionResult = await this.ctx.executeTrade(
++          executionDecision,
++          confidenceData,
++          selectedExitContext === null ? price : selectedExitContext.price,
++          selectedExitContext === null ? indicators : selectedExitContext.indicators,
++          patterns,
++          null,
++          executionOrchResult,
++          symbol,
++          selectedExitContext === null ? analysisTimeframe : selectedExitContext.exitTimeframe
++        );
+         const executionSuccess = typeof executionResult?.success === 'boolean'
+           ? executionResult.success
+           : false;
+@@ -2010,13 +2006,10 @@ class TradingLoop {
+   // DATA GATHERING — unchanged from original, just extracted
+   // ═══════════════════════════════════════════════════════════════
+ 
+-  _gatherData(price, symCtx = null, symbol = null, marketData = null) {
+-    // CC-C Multi-Symbol Commit 4/6: same per-symbol shadowing pattern as
+-    // _analyze. When symCtx is passed, route data-gathering reads through it;
+-    // otherwise fall back to this.ctx.* for single-symbol legacy callers.
+-    const priceHistory       = symCtx?.priceHistory       ?? this.ctx.priceHistory;
+-    const indicatorEngine    = symCtx?.indicatorEngine    ?? this.ctx.indicatorEngine;
+-    const fibonacciDetector  = symCtx?.fibonacciDetector  ?? this.ctx.fibonacciDetector;
++  _gatherData(price, symCtx = null, symbol = null, marketData = null, timeframe) {
++    const priceHistory = symCtx.priceHistory;
++    const indicatorEngine = symCtx.indicatorEngine;
++    const fibonacciDetector = symCtx.fibonacciDetector;
+ 
+     // Indicators
+     const dtoState = indicatorEngine.getSnapshot();
+@@ -2029,7 +2022,7 @@ class TradingLoop {
+     indicators.trend = indicators.superTrendDirection ?? null;
+ 
+     // Patterns
+-    const patternScope = this._patternScope(symbol);
++    const patternScope = this._patternScope(symbol, timeframe);
+     const memoryPatterns = this.ctx.patternChecker.analyzePatterns({
+       candles: priceHistory,
+       trend: indicators.trend,
+@@ -2196,12 +2189,12 @@ class TradingLoop {
+   // TRAI — async observer, non-blocking
+   // ═══════════════════════════════════════════════════════════════
+ 
+-  _runTRAI(direction, orchResult, indicators, patterns, regime, price, symbol, marketData = null) {
++  _runTRAI(direction, orchResult, indicators, patterns, regime, price, symbol, marketData = null, timeframe) {
+     const skipTRAI = this.ctx.config.enableBacktestMode && !this.ctx.traiEnableBacktest;
+     if (!this.ctx.trai || skipTRAI) return;
+ 
+     try {
+-      const patternScope = this._patternScope(symbol);
++      const patternScope = this._patternScope(symbol, timeframe);
+       const traiPositionSize = stateManager.get('balance') * ConfigLoader.get('positionSizing.basePositionSize');
+       this.ctx.trai.processDecision(
+         { action: direction.toUpperCase(), confidence: orchResult.confidence, patterns, indicators, price, timestamp: Date.now(), ...patternScope },
+@@ -2217,8 +2210,8 @@ class TradingLoop {
+   // DASHBOARD BROADCAST
+   // ═══════════════════════════════════════════════════════════════
+ 
+-  _broadcastAndReturn(symbol, price, indicators, patterns, regime, orchResult, confidenceData, marketData = null) {
+-    this._broadcastDecision(symbol, price, indicators, patterns, regime, orchResult, { action: 'HOLD' }, confidenceData, 0, marketData);
++  _broadcastAndReturn(symbol, price, indicators, patterns, regime, orchResult, confidenceData, marketData = null, timeframe) {
++    this._broadcastDecision(symbol, price, indicators, patterns, regime, orchResult, { action: 'HOLD' }, confidenceData, 0, marketData, timeframe);
+   }
+ 
+   _finiteDashboardNumber(...values) {
+@@ -2241,8 +2234,8 @@ class TradingLoop {
+     };
+   }
+ 
+-  _broadcastDecision(symbol, price, indicators, patterns, regime, orchResult, decision, confidenceData, minConfidence, marketData = null) {
+-    const scope = this._dashboardScope(symbol);
++  _broadcastDecision(symbol, price, indicators, patterns, regime, orchResult, decision, confidenceData, minConfidence, marketData = null, timeframe) {
++    const scope = this._dashboardScope(symbol, timeframe);
+     const dashboardIndicators = this._dashboardIndicatorsPayload(indicators, marketData);
+     const winnerResult = Array.isArray(orchResult?.allResults)
+       ? orchResult.allResults.find(r => r.strategyName === orchResult.winnerStrategy)
+diff --git a/modules/MultiTimeframeAdapter.js b/modules/MultiTimeframeAdapter.js
+index f86552f4..58b47bc1 100644
+--- a/modules/MultiTimeframeAdapter.js
++++ b/modules/MultiTimeframeAdapter.js
+@@ -186,10 +186,19 @@ class MultiTimeframeAdapter extends EventEmitter {
+ 
+     const max = this.config.maxCandlesByTimeframe[timeframe];
+ 
+-    arr.push(candle);
+-    if (arr.length > max) arr.splice(0, arr.length - max);
++    const existingIndex = arr.findIndex((existing) => (
++      t(existing) === t(candle) && existing.etime === candle.etime
++    ));
++    if (existingIndex === -1) {
++      const insertAt = arr.findIndex((existing) => t(existing) > t(candle));
++      if (insertAt === -1) arr.push(candle);
++      else arr.splice(insertAt, 0, candle);
++      if (arr.length > max) arr.splice(0, arr.length - max);
++    } else {
++      arr[existingIndex] = candle;
++    }
+ 
+-    this.lastUpdate.set(timeframe, t(candle));
++    this.lastUpdate.set(timeframe, t(arr[arr.length - 1]));
+ 
+     if (arr.length >= this.config.minCandlesForAnalysis) {
+       this.readyTimeframes.add(timeframe);
+diff --git a/run-empire-v2.js b/run-empire-v2.js
+index 83cbdc3c..744a81f3 100644
+--- a/run-empire-v2.js
++++ b/run-empire-v2.js
+@@ -446,7 +446,6 @@ const discordNotifier = require('./utils/discordNotifier');
+ const TradeIntelligenceEngine = require('./core/TradeIntelligenceEngine');
+ 
+ // CHANGE 2026-02-10: Modular Entry System (V2 Kraken format: c/o/h/l/v/t)
+-const MultiTimeframeAdapter = require('./modules/MultiTimeframeAdapter');
+ const EMASMACrossoverSignal = require('./modules/EMASMACrossoverSignal');
+ const MADynamicSR = require('./modules/MADynamicSR');
+ const BreakAndRetest = require('./modules/BreakAndRetest');
+@@ -467,7 +466,6 @@ const VolumeProfile = require('./core/VolumeProfile');
+ 
+ // CHANGE 2026-02-21: Isolated strategy entry pipeline (replaces soupy pooled confidence)
+ const { StrategyOrchestrator } = require('./core/StrategyOrchestrator');
+-const { AdaptiveTimeframeSelector } = require('./core/AdaptiveTimeframeSelector');
+ 
+ // PHASE 13A: Position management with immutability guarantees
+ const PnLCalculator = require('./core/PnLCalculator');
+@@ -699,11 +697,15 @@ class OGZPrimeV14Bot {
+       throw new Error(`[BOOT][Timeframe] execution.candleTimeframe missing/invalid (${runtimeCandleTimeframe}) - refusing to start without a real candle timeframe`);
+     }
+     this.candleTimeframe = runtimeCandleTimeframe.trim();
++    this.evaluationTimeframes = ConfigLoader.get('orchestrator.mtfTimeframes');
++    this.candleAggregator = new CandleAggregator();
+ 
+     this.strategyOrchestrator = new StrategyOrchestrator({
+       // CHANGE 2026-02-28: Use ConfigLoader for minStrategyConfidence
+       minStrategyConfidence: ConfigLoader.get('confidence.minStrategyConfidence'),
+-      mtfBaseTimeframe: this.candleTimeframe,
++      mtfBaseTimeframe: [...this.evaluationTimeframes].sort(
++        (a, b) => this.candleAggregator.getIntervalMs(a) - this.candleAggregator.getIntervalMs(b)
++      )[0],
+     });
+ 
+     // Fibonacci level detection for strategy context (supports EMA bounce + fib confluence)
+@@ -754,30 +756,6 @@ class OGZPrimeV14Bot {
+     this.tradeIntelligenceShadowMode = resolvedConfig.config.misc.tradeIntelligenceShadow;
+     console.log(`Trade Intelligence Engine: ${this.tradeIntelligenceShadowMode ? 'SHADOW MODE' : 'ACTIVE'}`);
+ 
+-    // CHANGE 2026-02-10: Modular Entry System (V2 format: c/o/h/l/v/t)
+-    const mtfServiceConfig = ConfigLoader.get('orchestrator.mtfConfluenceService');
+-    const mtfAdapterConfig = ConfigLoader.get('orchestrator.mtfAdapter');
+-    this.mtfAdapter = new MultiTimeframeAdapter({
+-      baseTimeframe: this.candleTimeframe,
+-      activeTimeframes: ConfigLoader.get('orchestrator.mtfTimeframes'),
+-      minReadyTimeframes: mtfServiceConfig.minReadyTimeframes,
+-      weights: mtfServiceConfig.weights,
+-      indicatorPeriods: mtfAdapterConfig.indicatorPeriods,
+-      minCandlesForAnalysis: mtfAdapterConfig.minCandlesForAnalysis,
+-      maxCandlesByTimeframe: resolvedConfig.config.internals.multiTimeframe.maxCandlesByTimeframe,
+-    });
+-    this.candleAggregator = new CandleAggregator();
+-
+-    // CHANGE 2026-02-21: Adaptive timeframe selection based on market conditions
+-    // Runtime analysis is pinned to execution.candleTimeframe until SymbolTradingContext
+-    // and CandleStore support active multi-timeframe context swaps.
+-    this.timeframeSelector = new AdaptiveTimeframeSelector({
+-      mtfAdapter: this.mtfAdapter,
+-      allowedTimeframes: [this.candleTimeframe],
+-      defaultTimeframe: this.candleTimeframe,
+-      minSwitchIntervalMs: 5 * 60 * 1000,          // 5 min minimum between switches
+-    });
+-
+     // RUN-MED-01: ?? on all strategy constructor params to preserve intentional
+     // zeros (e.g., 0 decayBars = "no decay", 0 snapbackThreshold = "always
+     // snap"). || coerced any 0 config value to the hardcoded default, blocking
+@@ -888,6 +866,7 @@ class OGZPrimeV14Bot {
+       maxCandles: resolvedConfig.config.internals.candleStore.maxCandles,
+     });
+     this.symbolContexts = new Map();
++    this.symbolTimeframeContexts = new Map();
+     this.symbolContextQuarantine = new Map();
+ 
+     const rawStockSymbols = sessionRouteUsesStocks
+@@ -1010,7 +989,8 @@ class OGZPrimeV14Bot {
+         this.lastBrokerDataReceived = Date.now();
+         this.lastBrokerDataSymbol = sym;
+         this.lastBrokerDataTimeframe = tf;
+-        const activeTf = (this.timeframeSelector && this.timeframeSelector.currentTimeframe) || this.candleTimeframe;
++        const activeTf = this.candleTimeframe;
++        const evaluationFrame = this.evaluationTimeframes.includes(tf);
+         const markEventTimeMs = ohlcTimestampMs(ohlcData[1]);
+         const canUpdateLastPrice = Boolean(stateManager && stateManager.updateLastPrice);
+         let markUpdated = false;
+@@ -1027,7 +1007,7 @@ class OGZPrimeV14Bot {
+           eventTime: markEventTimeMs,
+           markUpdated,
+           markAttempted: canUpdateLastPrice,
+-          strategyEligible: tf === activeTf,
++          strategyEligible: evaluationFrame,
+           influence: canUpdateLastPrice
+             ? (markUpdated ? 'mark_updated' : 'mark_rejected')
+             : 'mark_unavailable',
+@@ -1040,8 +1020,8 @@ class OGZPrimeV14Bot {
+         }
+         this.storeTimeframeCandle(tf, ohlcData, sym);
+         const storedCandle = this.storeSymbolTimeframeCandle(sym, tf, ohlcData);
+-        if (tf === activeTf) {
+-          this._markActiveTimeframeData(sym, tf);
++        if (evaluationFrame) {
++          if (tf === activeTf) this._markActiveTimeframeData(sym, tf);
+           const scopeEnvelope = this.getCandleScopeEnvelope({
+             brokerId: this.sessionRouter?.activeBroker?.id || null,
+             assetClass: this.sessionRouter?.activeSession === 'crypto'
+@@ -1051,7 +1031,7 @@ class OGZPrimeV14Bot {
+                 : null,
+             timeframe: tf,
+           });
+-          this.syncDashboardRuntimeScope(sym, scopeEnvelope);
++          if (tf === activeTf) this.syncDashboardRuntimeScope(sym, scopeEnvelope);
+           this.handleMarketData({
+             data: ohlcData,
+             symbol: sym,
+@@ -1068,23 +1048,17 @@ class OGZPrimeV14Bot {
+             symbol: sym,
+             sourceTimeframe: tf,
+             activeTimeframe: activeTf,
+-            reason: 'tfe_owns_bar_production',
++            reason: 'timeframe_not_selected',
+           });
+         }
+-        if (tf === '5m' && this.timeframeSelector) {
+-          const tfResult = this.timeframeSelector.evaluate();
+-          if (tfResult.switched) {
+-            console.log(`Active trading timeframe: ${tfResult.timeframe} (score: ${tfResult.score.toFixed(2)})`);
+-          }
+-        }
+-        if (tf === activeTf && storedCandle?.isNewCandle) {
+-          console.log(`V2: ${activeTf} candle closed - running trading analysis`);
++        if (evaluationFrame && storedCandle?.isNewCandle) {
++          console.log(`V2: ${tf} candle closed - running trading analysis`);
+           this._trackRuntimeOperation(
+             `candle_analysis:${sym}:${traceId}`,
+-            () => this.run15mTradingCycle(sym, traceId),
++            () => this.runTradingCycle(sym, traceId, tf),
+             { reportFailure: true }
+           );
+-        } else if (tf === activeTf && storedCandle && !storedCandle.isNewCandle) {
++        } else if (evaluationFrame && storedCandle && !storedCandle.isNewCandle) {
+           const skipKey = `session:${sym}:${tf}`;
+           this._visActiveTfUpdateSkipped ??= new Set();
+           if (!this._visActiveTfUpdateSkipped.has(skipKey)) {
+@@ -1480,6 +1454,7 @@ class OGZPrimeV14Bot {
+       marketDataAggregator: this.marketDataAggregator,
+       patternChecker: this.patternChecker,
+       symbolContexts: this.symbolContexts,
++      getSymbolTimeframeContext: this.getSymbolTimeframeContext.bind(this),
+       config: this.config,
+       evalRules: resolvedConfig.config.evalRules,
+       riskManager: this.riskManager,
+@@ -1500,11 +1475,9 @@ class OGZPrimeV14Bot {
+       maDynamicSRSignal: this.maDynamicSRSignal,
+       // 2026-05-04: breakRetestSignal removed — orchestrator owns the instance directly.
+       liquiditySweepSignal: this.liquiditySweepSignal,
+-      mtfAdapter: this.mtfAdapter,
+       volumeProfile: this.volumeProfile,
+       ogzTpo: this.ogzTpo,
+       fibonacciDetector: this.fibonacciDetector,
+-      timeframeSelector: this.timeframeSelector,
+       runner: this  // Self reference for makeTradeDecision
+     });
+ 
+@@ -1726,12 +1699,6 @@ class OGZPrimeV14Bot {
+       return;
+     }
+ 
+-    const timeframe = this.timeframeSelector?.currentTimeframe || this.candleTimeframe;
+-    const timeframeMs = this.candleAggregator?.getIntervalMs(timeframe);
+-    if (!Number.isFinite(timeframeMs) || timeframeMs <= 0) {
+-      throw new Error(`[BOOT][REST-HYDRATE] invalid active timeframe ${timeframe}`);
+-    }
+-
+     const symbols = this._getBootHydrationSymbols();
+     if (symbols.length === 0) {
+       throw new Error('[BOOT][REST-HYDRATE] no active symbols available for boot hydration');
+@@ -1739,77 +1706,80 @@ class OGZPrimeV14Bot {
+ 
+     const hydrationLimit = this.config.dataFeed.bootRestHydrationLimit;
+     for (const symbol of symbols) {
+-      const scopeEnvelope = this._getRestRecoveryScopeEnvelope('boot_rest_hydration', symbol, timeframe, {
+-        brokerId: broker.getBrokerName(),
+-      });
+-      const rawCandles = await broker.getCandles(symbol, timeframe, hydrationLimit);
+-      const candles = (Array.isArray(rawCandles) ? rawCandles : [])
+-        .map(c => this._normalizeHydrationCandle(c, symbol, timeframe, timeframeMs))
+-        .filter(Boolean)
+-        .sort((a, b) => a.etime - b.etime)
+-        .slice(-hydrationLimit);
+-
+-      if (candles.length === 0) {
+-        console.warn(`[BOOT][REST-HYDRATE] no usable candles returned for ${symbol} @ ${timeframe}`);
+-        continue;
+-      }
+-
+-      for (let index = 0; index < candles.length; index += 1) {
+-        const traceId = createTraceId('boot_rest');
+-        const candle = {
+-          ...candles[index],
+-          ...scopeEnvelope,
+-          traceId,
+-        };
+-        const acceptedAsNew = this.candleProcessor.processNewCandle(candle, {
+-          persist: false,
+-          traceId,
+-          source: 'boot_rest_hydration',
++      for (const timeframe of new Set([this.candleTimeframe, ...this.evaluationTimeframes])) {
++        const timeframeMs = this.candleAggregator.getIntervalMs(timeframe);
++        const scopeEnvelope = this._getRestRecoveryScopeEnvelope('boot_rest_hydration', symbol, timeframe, {
++          brokerId: broker.getBrokerName(),
+         });
+-        emitTrace(this, 'BOOT_REST_HYDRATION_CANDLE', {
+-          traceId,
+-          source: 'boot_rest_hydration',
++        const rawCandles = await broker.getCandles(symbol, timeframe, hydrationLimit);
++        const candles = (Array.isArray(rawCandles) ? rawCandles : [])
++          .map(c => this._normalizeHydrationCandle(c, symbol, timeframe, timeframeMs))
++          .filter(Boolean)
++          .sort((a, b) => a.etime - b.etime)
++          .slice(-hydrationLimit);
++
++        if (candles.length === 0) {
++          console.warn(`[BOOT][REST-HYDRATE] no usable candles returned for ${symbol} @ ${timeframe}`);
++          continue;
++        }
++
++        for (let index = 0; index < candles.length; index += 1) {
++          const traceId = createTraceId('boot_rest');
++          const candle = {
++            ...candles[index],
++            ...scopeEnvelope,
++            traceId,
++          };
++          const acceptedAsNew = this.candleProcessor.processNewCandle(candle, {
++            persist: false,
++            traceId,
++            source: 'boot_rest_hydration',
++          });
++          emitTrace(this, 'BOOT_REST_HYDRATION_CANDLE', {
++            traceId,
++            source: 'boot_rest_hydration',
++            symbol,
++            timeframe,
++            candleIndex: index + 1,
++            candleCount: candles.length,
++            close: candle.c,
++            etime: candle.etime,
++            brokerId: candle.brokerId,
++            accountId: candle.accountId,
++            assetClass: candle.assetClass,
++            executionMode: candle.executionMode,
++            scopeKey: candle.scopeKey,
++            acceptedAsNew,
++          });
++          const ohlc = candleToProcessorOhlc(candle, timeframeMs);
++          if (ohlc) {
++            this.storeTimeframeCandle(timeframe, ohlc, symbol);
++            this.storeSymbolTimeframeCandle(symbol, timeframe, ohlc);
++          }
++        }
++
++        const latest = candles[candles.length - 1];
++        const marketData = {
+           symbol,
++          price: latest.c,
++          timestamp: latest.t,
+           timeframe,
+-          candleIndex: index + 1,
+-          candleCount: candles.length,
+-          close: candle.c,
+-          etime: candle.etime,
+-          brokerId: candle.brokerId,
+-          accountId: candle.accountId,
+-          assetClass: candle.assetClass,
+-          executionMode: candle.executionMode,
+-          scopeKey: candle.scopeKey,
+-          acceptedAsNew,
+-        });
+-        const ohlc = candleToProcessorOhlc(candle, timeframeMs);
+-        if (ohlc) {
+-          this.storeTimeframeCandle(timeframe, ohlc, symbol);
+-          this.storeSymbolTimeframeCandle(symbol, timeframe, ohlc);
++          systemTime: Date.now(),
++          volume: Number.isFinite(latest.v) ? latest.v : null,
++          open: latest.o,
++          high: latest.h,
++          low: latest.l
++        };
++        if (timeframe === this.candleTimeframe) this.marketData = marketData;
++        const symCtx = this.getSymbolTimeframeContext(symbol, timeframe);
++        if (symCtx) symCtx.marketData = marketData;
++        if (stateManager && stateManager.updateLastPrice) {
++          stateManager.updateLastPrice(symbol, latest.c, latest.etime || latest.t);
+         }
+-      }
++        if (timeframe === this.candleTimeframe) this._markActiveTimeframeData(symbol, timeframe);
+ 
+-      const latest = candles[candles.length - 1];
+-      const marketData = {
+-        symbol,
+-        price: latest.c,
+-        timestamp: latest.t,
+-        timeframe,
+-        systemTime: Date.now(),
+-        volume: Number.isFinite(latest.v) ? latest.v : null,
+-        open: latest.o,
+-        high: latest.h,
+-        low: latest.l
+-      };
+-      this.marketData = marketData;
+-      const symCtx = this.symbolContexts?.get(symbol);
+-      if (symCtx) symCtx.marketData = marketData;
+-      if (stateManager && stateManager.updateLastPrice) {
+-        stateManager.updateLastPrice(symbol, latest.c, latest.etime || latest.t);
++        console.log(`[BOOT][REST-HYDRATE] symbol=${symbol} timeframe=${timeframe} candles=${candles.length} latest=${new Date(latest.etime).toISOString()} close=${latest.c}`);
+       }
+-      this._markActiveTimeframeData(symbol, timeframe);
+-
+-      console.log(`[BOOT][REST-HYDRATE] symbol=${symbol} timeframe=${timeframe} candles=${candles.length} latest=${new Date(latest.etime).toISOString()} close=${latest.c}`);
+     }
+   }
+ 
+@@ -2535,7 +2505,7 @@ class OGZPrimeV14Bot {
+   /**
+    * Exit monitor - runs on the configured interval.
+    *
+-   * Entries are candle-close driven through run15mTradingCycle(). Backtests
++   * Entries are candle-close driven through runTradingCycle(). Backtests
+    * evaluate once per candle, so live/paper must not open positions from this
+    * timer between candle closes. The timer remains for open-position exit
+    * protection and operational warmup status.
+@@ -2820,7 +2790,7 @@ class OGZPrimeV14Bot {
+   }
+ 
+   _getLivenessTimeframe() {
+-    const timeframe = this.timeframeSelector?.currentTimeframe || this.candleTimeframe;
++    const timeframe = this.candleTimeframe;
+     return typeof timeframe === 'string' && timeframe.trim() ? timeframe.trim() : null;
+   }
+ 
+@@ -3104,23 +3074,28 @@ class OGZPrimeV14Bot {
+     const routable = [];
+     for (const sym of symbols) {
+       try {
+-        const ctx = new SymbolTradingContext(sym, this._candleStore, {
+-          timeframe: metadata.timeframe,
+-          indicatorConfig: {
+-            ...resolvedConfig.config.indicators.engine,
+-            ...resolvedConfig.config.internals.indicators.engine,
+-            tf: metadata.timeframe,
+-          },
+-          emaCrossoverConfigProvider: () => ({
+-            ...ConfigLoader.get('strategies.EMASMACrossover'),
+-            ...ConfigLoader.get('strategyBehavior.emaCrossover'),
+-          }),
+-          maDynamicSRConfig: ConfigLoader.get('strategies.MADynamicSR'),
+-          maDynamicSRConfigProvider: () => ConfigLoader.get('strategies.MADynamicSR'),
+-          volumeProfileConfigProvider: () => ConfigLoader.get('strategies.VolumeProfile'),
+-          fibonacciConfig: resolvedConfig.config.fibonacci,
+-        });
+-        this.symbolContexts.set(sym, ctx);
++        const byTimeframe = new Map();
++        for (const timeframe of new Set([metadata.timeframe, ...this.evaluationTimeframes])) {
++          const ctx = new SymbolTradingContext(sym, this._candleStore, {
++            timeframe,
++            indicatorConfig: {
++              ...resolvedConfig.config.indicators.engine,
++              ...resolvedConfig.config.internals.indicators.engine,
++              tf: timeframe,
++            },
++            emaCrossoverConfigProvider: () => ({
++              ...ConfigLoader.get('strategies.EMASMACrossover'),
++              ...ConfigLoader.get('strategyBehavior.emaCrossover'),
++            }),
++            maDynamicSRConfig: ConfigLoader.get('strategies.MADynamicSR'),
++            maDynamicSRConfigProvider: () => ConfigLoader.get('strategies.MADynamicSR'),
++            volumeProfileConfigProvider: () => ConfigLoader.get('strategies.VolumeProfile'),
++            fibonacciConfig: resolvedConfig.config.fibonacci,
++          });
++          byTimeframe.set(timeframe, ctx);
++        }
++        this.symbolTimeframeContexts.set(sym, byTimeframe);
++        this.symbolContexts.set(sym, byTimeframe.get(metadata.timeframe));
+         routable.push(sym);
+         console.log(`[BOOT][SymbolContexts] registered ${sym} @ ${metadata.timeframe}`);
+       } catch (err) {
+@@ -3130,6 +3105,10 @@ class OGZPrimeV14Bot {
+     return routable;
+   }
+ 
++  getSymbolTimeframeContext(symbol, timeframe) {
++    return this.symbolTimeframeContexts.get(normalizeRuntimeSymbol(symbol))?.get(timeframe);
++  }
++
+   _recordSymbolContextRegistrationFailure(symbol, error, metadata = {}) {
+     const canonicalSymbol = normalizeRuntimeSymbol(symbol);
+     const reason = error && error.message ? error.message : String(error);
+@@ -3170,12 +3149,12 @@ class OGZPrimeV14Bot {
+     return record;
+   }
+ 
+-  async run15mTradingCycle(symbol = this.tradingPair, traceId = null) {
++  async runTradingCycle(symbol, traceId, timeframe) {
+     // CC-C Commit 5/6: pass single-symbol canonical explicitly. Multi-symbol
+     // mode (commit 6+) will dispatch per-symbol from the OHLC handler.
+     const analysisSymbol = normalizeRuntimeSymbol(symbol);
+     if (!analysisSymbol) {
+-      throw new Error(`run15mTradingCycle requires canonical symbol; got ${JSON.stringify(symbol)}`);
++      throw new Error(`runTradingCycle requires canonical symbol; got ${JSON.stringify(symbol)}`);
+     }
+     const cycleTraceId = traceId || createTraceId('candle');
+     const sessionEntryBlock = this._sessionRouterEntryBlock(analysisSymbol, cycleTraceId, 'ANALYZE_ENTRY');
+@@ -3190,14 +3169,14 @@ class OGZPrimeV14Bot {
+     emitTrace(this, 'TRADING_CYCLE_TRIGGER', {
+       traceId: cycleTraceId,
+       symbol: analysisSymbol,
+-      timeframe: this.timeframeSelector?.currentTimeframe || this.candleTimeframe,
++      timeframe,
+       defaultTradingPair: this.tradingPair,
+     });
+     console.log(`[VIS][TradingCycle] triggerSymbol=${analysisSymbol} defaultTradingPair=${this.tradingPair}`);
+-    return this.analyzeAndTrade(analysisSymbol, cycleTraceId);
++    return this.analyzeAndTrade(analysisSymbol, cycleTraceId, timeframe);
+   }
+ 
+-  async analyzeAndTrade(symbol, traceId = null) {
++  async analyzeAndTrade(symbol, traceId = null, timeframe) {
+     // CC-C Commit 5/6: `symbol` is REQUIRED. Caller passes the symbol whose
+     // candle is being acted on. TradingLoop.analyzeAndTrade enforces this
+     // upstream; the redundant entry-check here keeps the runner-side contract
+@@ -3217,7 +3196,7 @@ class OGZPrimeV14Bot {
+     this.tradingLoop.ctx._lastTraiDecision = this._lastTraiDecision;
+     this.tradingLoop.ctx.executeTrade = this.executeTrade.bind(this);
+     this.tradingLoop.ctx.broadcastPatternAnalysis = this.broadcastPatternAnalysis.bind(this);
+-    return this.tradingLoop.analyzeAndTrade(symbol, traceId || undefined);
++    return this.tradingLoop.analyzeAndTrade(symbol, traceId || undefined, timeframe);
+   }
+ 
+ 
+@@ -3233,7 +3212,7 @@ class OGZPrimeV14Bot {
+    * Original logic moved to core/OrderExecutor.js
+    * Phase 3 REWRITE: Renamed brainDecision → orchResult (orchestrator result)
+    */
+-  async executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision = null, orchResult = null, symbol) {
++  async executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision = null, orchResult = null, symbol, timeframe) {
+     const action = typeof decision?.action === 'string' ? decision.action.trim().toUpperCase() : '';
+     if (action === 'BUY' || action === 'SELL_SHORT') {
+       const sessionEntryBlock = this._sessionRouterEntryBlock(symbol, decision?.traceId || null, action);
+@@ -3258,7 +3237,7 @@ class OGZPrimeV14Bot {
+     // param — TradingLoop resolves it before calling, this wrapper just
+     // threads it. No fallback to ctx.tradingPair here; if symbol is
+     // missing OrderExecutor's entry-check throws (caller has the bug).
+-    return this.orderExecutor.executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision, orchResult, symbol);
++    return this.orderExecutor.executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision, orchResult, symbol, timeframe);
+   }
+ 
+   // REMOVED 2026-03-03: Original executeTrade() body (~810 lines) moved to core/OrderExecutor.js
+@@ -3485,7 +3464,7 @@ class OGZPrimeV14Bot {
+     this.backtestRunner.ctx.symbol = tradingPair;
+     this.backtestRunner.ctx.timeframe = this.candleTimeframe;
+     this.backtestRunner.ctx.backtestMode = resolvedConfig.config.mode.backtest;
+-    this.backtestRunner.ctx.runTradingCycle = (symbol, traceId) => this.run15mTradingCycle(symbol, traceId);
++    this.backtestRunner.ctx.runTradingCycle = (symbol, traceId) => this.runTradingCycle(symbol, traceId, this.backtestRunner.ctx.timeframe);
+     const result = await this._trackRuntimeOperation(
+       'backtest_run',
+       () => this.backtestRunner.loadHistoricalDataAndBacktest()
+@@ -3781,7 +3760,6 @@ class OGZPrimeV14Bot {
+     await cleanup('dashboard_service', async () => this.webSocketManager?.stop?.());
+ 
+     const strategyCleanup = [
+-      ['mtf_adapter', this.mtfAdapter, 'destroy'],
+       ['ema_crossover', this.emaCrossover, 'destroy'],
+       ['ma_dynamic_sr', this.maDynamicSR, 'destroy'],
+       ['liquidity_sweep', this.liquiditySweep, 'destroy'],
+diff --git a/test/alpaca-data-stream-resilience.test.js b/test/alpaca-data-stream-resilience.test.js
+index 56bbb6aa..0303ec96 100644
+--- a/test/alpaca-data-stream-resilience.test.js
++++ b/test/alpaca-data-stream-resilience.test.js
+@@ -107,7 +107,7 @@ describe('AlpacaAdapter data stream resilience', () => {
+ 
+       expect(() => rws.config.onAuthenticated({ isReconnect: false })).not.toThrow();
+       expect(adapter.subscriptions.has('bars-TSLA')).toBe(false);
+-      expect(adapter.barSubscriptions.has('TSLA')).toBe(false);
++      expect(adapter.barSubscriptions.get('TSLA').streamSubscribed).toBe(false);
+       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('ALPACA_INITIAL_SUBSCRIBE_FAILED'));
+       expect(traces).toEqual(expect.arrayContaining([
+         expect.objectContaining({

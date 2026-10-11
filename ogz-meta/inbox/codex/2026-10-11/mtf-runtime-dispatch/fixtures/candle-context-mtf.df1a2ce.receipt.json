@@ -1,0 +1,22 @@
+{
+  "status": "PASS",
+  "supersedesProofTree": "3a10dbc9b595fe3e81dc7f6cf84a813bf6788faf",
+  "tree": "df1a2ce6079f0b4ed7a38ac1a6871d9132e5093f",
+  "command": "node fixtures/candle-context-mtf.cjs runs/candle-context-df1a2ce",
+  "scope": "actual CandleProcessor/CandleStore/SymbolTradingContext/IndicatorEngine/StrategyOrchestrator/MultiTimeframeAdapter/TradingLoop",
+  "assertions": {
+    "symbols": ["TSLA", "SPY"],
+    "timeframes": ["1m", "5m", "15m", "1h", "4h"],
+    "candlesPerSymbolTimeframe": 60,
+    "rootMirror": "TSLA/15m only",
+    "actualTradingLoopEvaluations": 10,
+    "scopedSignalAnalysisFrames": 10,
+    "revisedBarUpsert": true
+  },
+  "boundaries": {
+    "network": "none constructed",
+    "execution": "fixture risk deny and executeTrade throw",
+    "dotenv": false,
+    "paths": "isolated source export cwd"
+  }
+}

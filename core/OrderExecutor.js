@@ -2335,7 +2335,7 @@ class OrderExecutor {
     return haltReason;
   }
 
-  _buildEntryPlan({ decision, symbol, price, positionSize, currentBalance, currentEquity, tradeConfidence, confidenceMultiplier, orchResult, entryVolatility, absoluteCapPercent, forceWholeShares = false }) {
+  _buildEntryPlan({ decision, symbol, timeframe, price, positionSize, currentBalance, currentEquity, tradeConfidence, confidenceMultiplier, orchResult, entryVolatility, absoluteCapPercent, forceWholeShares = false }) {
     if (!this._isEntryAction(decision.action)) return null;
 
     const entryStrategy = orchResult.winnerStrategy;
@@ -2352,7 +2352,7 @@ class OrderExecutor {
       entryDirection: decision.action === 'BUY' ? 'long' : 'short',
       mtfConfluenceSnapshot: orchResult.mtfConfluenceSnapshot || null,
     });
-    const scope = this._runtimeScope(symbol);
+    const scope = this._runtimeScope(symbol, { timeframe });
     const capPercent = absoluteCapPercent ?? this._resolveAbsolutePositionCap();
     const requestedSizeUsd = positionSize * sizingMultiplier;
     const absoluteCapSizeUsd = currentBalance * capPercent;
@@ -2760,7 +2760,7 @@ class OrderExecutor {
    * fallback — that path was the cross-contamination footgun for multi-broker
    * arbitrage. Throws on missing/invalid symbol so weak callers fail loud.
    */
-  async executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision = null, orchResult = null, symbol) {
+  async executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision = null, orchResult = null, symbol, timeframe) {
     if (typeof symbol !== 'string' || !symbol) {
       throw new Error(
         `OrderExecutor.executeTrade requires explicit non-empty symbol; got ${JSON.stringify(symbol)}`
@@ -2816,7 +2816,7 @@ class OrderExecutor {
           executionMode: exitPlan.executionMode,
           timeframe: exitPlan.timeframe,
         }
-      : (isEntryAction ? this._runtimeScope(symbol) : {
+      : (isEntryAction ? this._runtimeScope(symbol, { timeframe }) : {
           brokerId: null,
           accountId: null,
           accountIdSource: null,
@@ -3142,6 +3142,7 @@ class OrderExecutor {
     const entryPlan = isEntryAction ? this._buildEntryPlan({
       decision,
       symbol,
+      timeframe: executionScope.timeframe,
       price,
       positionSize,
       currentBalance,

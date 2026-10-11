@@ -1,0 +1,48 @@
+{
+  "ref": "df1a2ce6079f0b4ed7a38ac1a6871d9132e5093f",
+  "qualification": "Actual exact-tree TradingLoop queue/drain and complete SessionRouter transition methods in VM. Broker/state/persistence/strategy boundaries scripted; proves ordering and rejection ownership, not live execution.",
+  "results": [
+    {
+      "from": "crypto",
+      "to": "stocks",
+      "observed": [
+        {
+          "id": "first",
+          "session": "crypto"
+        },
+        {
+          "id": "queued",
+          "session": "crypto"
+        },
+        {
+          "id": "second",
+          "session": "crypto"
+        }
+      ],
+      "originalCallerErrorPreserved": true,
+      "sourceDrainBeforeFlatten": true,
+      "lateDrainBeforeDestination": true
+    },
+    {
+      "from": "stocks",
+      "to": "crypto",
+      "observed": [
+        {
+          "id": "first",
+          "session": "stocks"
+        },
+        {
+          "id": "queued",
+          "session": "stocks"
+        },
+        {
+          "id": "second",
+          "session": "stocks"
+        }
+      ],
+      "originalCallerErrorPreserved": true,
+      "sourceDrainBeforeFlatten": true,
+      "lateDrainBeforeDestination": true
+    }
+  ]
+}

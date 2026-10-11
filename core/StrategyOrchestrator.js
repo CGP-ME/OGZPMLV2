@@ -1005,6 +1005,23 @@ class StrategyOrchestrator {
     return null;
   }
 
+  _getMtfConfluenceAdapter(symbol) {
+    return this._getSymbolStrategyModule(
+      'MtfConfluenceService',
+      symbol,
+      null,
+      this.mtfAdapter,
+      () => new MultiTimeframeAdapter(this._buildMtfAdapterConfig())
+    );
+  }
+
+  ingestMarketCandle(symbol, candle) {
+    const scopedMtfAdapter = this._getMtfConfluenceAdapter(symbol);
+    scopedMtfAdapter.ingestCandle(candle, candle.timeframe);
+    this.mtfEvaluationCache = null;
+    return scopedMtfAdapter;
+  }
+
   _getMtfConfluenceForEvaluation(ctx) {
     if (this.mtfEvaluationCache && this.mtfEvaluationCache.evalCount === this.evalCount) {
       return this.mtfEvaluationCache.confluence;
@@ -1035,13 +1052,7 @@ class StrategyOrchestrator {
     }
 
     const latestCandle = candles[candles.length - 1];
-    const scopedMtfAdapter = this._getSymbolStrategyModule(
-      'MtfConfluenceService',
-      ctx.extras?.symbol,
-      null,
-      this.mtfAdapter,
-      () => new MultiTimeframeAdapter(this._buildMtfAdapterConfig())
-    );
+    const scopedMtfAdapter = this._getMtfConfluenceAdapter(ctx.extras?.symbol);
 
     try {
       scopedMtfAdapter.ingestCandle(latestCandle, latestCandle.timeframe);

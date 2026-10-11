@@ -186,10 +186,19 @@ class MultiTimeframeAdapter extends EventEmitter {
 
     const max = this.config.maxCandlesByTimeframe[timeframe];
 
-    arr.push(candle);
-    if (arr.length > max) arr.splice(0, arr.length - max);
+    const existingIndex = arr.findIndex((existing) => (
+      t(existing) === t(candle) && existing.etime === candle.etime
+    ));
+    if (existingIndex === -1) {
+      const insertAt = arr.findIndex((existing) => t(existing) > t(candle));
+      if (insertAt === -1) arr.push(candle);
+      else arr.splice(insertAt, 0, candle);
+      if (arr.length > max) arr.splice(0, arr.length - max);
+    } else {
+      arr[existingIndex] = candle;
+    }
 
-    this.lastUpdate.set(timeframe, t(candle));
+    this.lastUpdate.set(timeframe, t(arr[arr.length - 1]));
 
     if (arr.length >= this.config.minCandlesForAnalysis) {
       this.readyTimeframes.add(timeframe);

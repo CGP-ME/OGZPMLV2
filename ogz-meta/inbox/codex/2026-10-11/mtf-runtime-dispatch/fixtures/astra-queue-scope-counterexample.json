@@ -1,0 +1,16 @@
+{
+  "ref": "31cfa63916f5952f1722d11122c42677337ee48c",
+  "scope": "Actual queue+scope methods; scripted in-flight boundary and session scope swap. Does not claim full router/OE execution.",
+  "observed": [
+    {
+      "symbol": "TSLA",
+      "asset": "TSLA",
+      "brokerId": "kraken",
+      "accountId": "paper-kraken",
+      "accountIdSource": "fixture",
+      "assetClass": "crypto",
+      "executionMode": "paper",
+      "timeframe": "15m"
+    }
+  ]
+}

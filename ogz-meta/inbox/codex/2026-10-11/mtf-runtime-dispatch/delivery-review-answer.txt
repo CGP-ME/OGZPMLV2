@@ -1,0 +1,45 @@
+**VERDICT:** found_break  
+
+**ADVERSARIAL_REVIEW_BLOCKING:** yes  
+
+**CANDIDATE SET:** examined 8 of 8  
+- brokers/AlpacaAdapter.js (claims 1 & 2) – fully inspected.  
+- core/CandleProcessor.js (claim 3) – inspected; no runtime use of `symCtx`, only comment.  
+- core/OrderExecutor.js (no claim directly relevant to break) – inspected for context.  
+- core/SessionRouter.js (no claim directly relevant to break) – inspected.  
+- core/StrategyOrchestrator.js (no claim directly relevant to break) – inspected.  
+- core/TradingLoop.js (no claim directly relevant to break) – inspected.  
+- modules/MultiTimeframeAdapter.js (claims 4 & 5) – inspected.  
+- run-empire-v2.js (no claim directly relevant to break) – inspected.  
+
+**AST EVIDENCE:** used `open_file` to read exact source lines; no AST tool was required beyond confirming structural presence of code.  
+
+**INHERITED:** all listed files are present in the current repo snapshot; none are missing or unread.  
+
+**FOURTH SHAPE CLASSIFIER:** 0 of 0 – no new throws, guards, or fallbacks introduced in this review.  
+
+**ALLEGATIONS:**  
+- **MECHANICAL** – duplicate‑detection logic in `modules/MultiTimeframeAdapter.js` uses non‑existent `etime` field, rendering the check ineffective. (Citations: `modules/MultiTimeframeAdapter.js:189-191` and `modules/MultiTimeframeAdapter.js:190-196`).  
+- **MECHANICAL** – `_mapTimeframe` returns a default `'1Min'` for unknown timeframes, silently masking unsupported inputs. (Citation: `brokers/AlpacaAdapter.js:960-966`).  
+- **MECHANICAL** – `getSupportedSymbols` catches all errors, logs, and returns an empty array, potentially hiding broker unavailability. (Citation: `brokers/AlpacaAdapter.js:898-910`).  
+- **SUBSTANTIVE** – claim of a ReferenceError due to undefined `symCtx` after removal of `_resolveSymCtx` is **unsubstantiated**; the only occurrence is a comment, no runtime reference. (Citation: `core/CandleProcessor.js:580`).  
+
+**SUBSTANTIVE RESOLUTION:** none (no substantive dispute beyond the unsubstantiated ReferenceError claim).  
+
+**WHAT I DID:**  
+- Retrieved and examined the relevant source files using `open_file`.  
+- Located and cited the exact code sections supporting each claim.  
+- Verified that `symCtx` is not used as a variable in `CandleProcessor.js`, disproving the alleged ReferenceError.  
+
+**WHAT I DID NOT DO:**  
+- Execute any code or run tests.  
+- Use AST‑based tools beyond the required `open_file` verification.  
+
+**WHAT I ASSUMED:**  
+- The repository snapshot (`df1a2ce6079f0b4ed7a38ac1a6871d9132e5093f`) accurately reflects the current state of the code.  
+
+**WHY THIS VERDICT:**  
+- The duplicate‑detection bug (missing `etime` field) is a concrete functional defect that prevents the intended filtering of duplicate candles, constituting a break in the platform’s correctness.  
+- The other mechanical issues are undesirable but do not constitute a break; the alleged ReferenceError is disproven.  
+
+**IF INCOMPLETE, WHY:** not incomplete – all candidate files have been examined and relevant evidence collected.

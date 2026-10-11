@@ -107,7 +107,7 @@ describe('AlpacaAdapter data stream resilience', () => {
 
       expect(() => rws.config.onAuthenticated({ isReconnect: false })).not.toThrow();
       expect(adapter.subscriptions.has('bars-TSLA')).toBe(false);
-      expect(adapter.barSubscriptions.has('TSLA')).toBe(false);
+      expect(adapter.barSubscriptions.get('TSLA').streamSubscribed).toBe(false);
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('ALPACA_INITIAL_SUBSCRIBE_FAILED'));
       expect(traces).toEqual(expect.arrayContaining([
         expect.objectContaining({

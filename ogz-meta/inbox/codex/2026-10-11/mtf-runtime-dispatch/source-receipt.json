@@ -1,0 +1,266 @@
+{
+  "base": "eb0fcd441222a98c4deeabf1be5d1b237cb79ed8",
+  "production_tree": "df1a2ce6079f0b4ed7a38ac1a6871d9132e5093f",
+  "source_hashes": {
+    "run-empire-v2.js": {
+      "final": "82bb174508bedab62904609c774163ba86a3bc09ad2f23c46688496e569c2077",
+      "working": "7f6727dfd223e6c3bea91896e0e4c4a6405da4a83bd3a6fe98a286884c452012"
+    },
+    "core/OrderExecutor.js": {
+      "final": "ece5b2ea36585654190d7728ff902b0ebabe5470f5806db64db82b02a36493d0",
+      "working": "9ac651f0a9a241847c8c66729856efa96a9f1944942b7fe84b104614802ed3cf"
+    },
+    "core/TradingLoop.js": {
+      "final": "f71b05f2674b821ef8c965d05085f06ca2df558e7d4a0ef62a62d5a93d7d9958",
+      "working": "6ae65452f401fa4250be1a8ccef4e7b701541a21c77051a14dd619206d8c4d8c"
+    },
+    "brokers/AlpacaAdapter.js": {
+      "final": "6c28240d65ebd1b931ecbbbf2c784e72706afe860186d1be091369e3ca56ad44",
+      "working": "6c28240d65ebd1b931ecbbbf2c784e72706afe860186d1be091369e3ca56ad44"
+    },
+    "core/SessionRouter.js": {
+      "final": "1b3cd108a77f45c219b0a6d8ce4e48679e065a641f3f84f9910d7aa946853623",
+      "working": "1b3cd108a77f45c219b0a6d8ce4e48679e065a641f3f84f9910d7aa946853623"
+    },
+    "core/CandleProcessor.js": {
+      "final": "efd220e8426749ec61d30fde466b2aeac6eddd21da85195eb5222dc881d70e94",
+      "working": "efd220e8426749ec61d30fde466b2aeac6eddd21da85195eb5222dc881d70e94"
+    },
+    "core/StrategyOrchestrator.js": {
+      "final": "d727aa30bd068cea5ab960930499aec264a9e2a50b43e69f76b4e5f9239d6898",
+      "working": "b70095a03989ac2dcc88114e09a121af8e64e943e12c8b9c27adb49b3490ccf4"
+    },
+    "modules/MultiTimeframeAdapter.js": {
+      "final": "97edfd9fb0270f44c5ffd626e912b9bb74686ca5a06b2a969aef960a2e95ab63",
+      "working": "97edfd9fb0270f44c5ffd626e912b9bb74686ca5a06b2a969aef960a2e95ab63"
+    },
+    "test/alpaca-data-stream-resilience.test.js": {
+      "final": "d41603061df75db425ab86f49f976ab531d5adcfa8fb0ef0f9a37def4316d8cd",
+      "working": "d41603061df75db425ab86f49f976ab531d5adcfa8fb0ef0f9a37def4316d8cd"
+    }
+  },
+  "verification": {
+    "actual_cp_indicator_strategy_evaluations": "fixtures/candle-context-mtf.df1a2ce.receipt.json",
+    "queue_and_drain": "fixtures/queue-context.df1a2ce.receipt.json",
+    "handler_baseline": {
+      "status": "pass",
+      "sourceRef": "eb0fcd441222a98c4deeabf1be5d1b237cb79ed8",
+      "baseline": true,
+      "actualHandlerDispatch": [
+        "TSLA:15m",
+        "SPY:15m",
+        "TSLA:15m",
+        "SPY:15m"
+      ],
+      "processorInputCount": 6,
+      "scope": "actual handler and stores; downstream endpoints stubbed"
+    },
+    "handler_candidate": {
+      "status": "pass",
+      "sourceRef": null,
+      "baseline": false,
+      "actualHandlerDispatch": [
+        "TSLA:1m",
+        "TSLA:5m",
+        "TSLA:15m",
+        "TSLA:1h",
+        "TSLA:4h",
+        "SPY:1m",
+        "SPY:5m",
+        "SPY:15m",
+        "SPY:1h",
+        "SPY:4h",
+        "TSLA:1m",
+        "TSLA:5m",
+        "TSLA:15m",
+        "TSLA:1h",
+        "TSLA:4h",
+        "SPY:1m",
+        "SPY:5m",
+        "SPY:15m",
+        "SPY:1h",
+        "SPY:4h"
+      ],
+      "processorInputCount": 30,
+      "scope": "actual handler and stores; downstream endpoints stubbed"
+    },
+    "paper_execution": {
+      "source_tree": "3a10dbc9b595fe3e81dc7f6cf84a813bf6788faf",
+      "result": {
+        "status": "pass",
+        "completed": [
+          {
+            "action": "BUY",
+            "timeframe": "15m",
+            "pnl": -1.6484257871064345,
+            "dailyLosses": 1
+          },
+          {
+            "action": "SELL_SHORT",
+            "timeframe": "1h",
+            "pnl": -1.101050525262628,
+            "dailyLosses": 2
+          }
+        ],
+        "otherSymbolLosses": 0,
+        "nextSessionLosses": 0,
+        "actualRecordCalls": [
+          [
+            "SmartMoneySweep",
+            -1.6484257871064345,
+            "TSLA",
+            "15m"
+          ],
+          [
+            "SmartMoneySweep",
+            -1.101050525262628,
+            "TSLA",
+            "1h"
+          ]
+        ]
+      },
+      "qualification": "OrderExecutor and strategy/state dependencies unchanged between this tested tree and final df1a; separate final TradingLoop exit-forwarding and handoff proofs qualify later correction."
+    },
+    "working_paper_execution": {
+      "status": "pass",
+      "completed": [
+        {
+          "action": "BUY",
+          "timeframe": "15m",
+          "pnl": -1.099499999999992,
+          "dailyLosses": 1
+        },
+        {
+          "action": "SELL_SHORT",
+          "timeframe": "1h",
+          "pnl": -1.650749999999995,
+          "dailyLosses": 2
+        }
+      ],
+      "otherSymbolLosses": 0,
+      "nextSessionLosses": 0,
+      "actualRecordCalls": [
+        [
+          "SmartMoneySweep",
+          -1.099499999999992,
+          "TSLA",
+          "15m"
+        ],
+        [
+          "SmartMoneySweep",
+          -1.650749999999995,
+          "TSLA",
+          "1h"
+        ]
+      ]
+    },
+    "existing_alpaca_tests": "25 pass across two existing suites; tested 3a10 Alpaca source byte-identical to final df1a; failed-subscribe fixture now checks streamSubscribed=false while pending requested frames are retained."
+  },
+  "runtime_activated": false,
+  "full_live_startup_performed": false,
+  "harness_tree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "mercury": {
+    "run_id": "2026-10-11T07-39-26-213Z-7a7b480151a5",
+    "verdict": "found_break",
+    "reviewed_tree": "df1a2ce6079f0b4ed7a38ac1a6871d9132e5093f",
+    "answer_sha256": "3c6c518c95af2c773e97da1458073aa7b66edd3876cf1281848566d457956e0e",
+    "raw_sha256": "c954f155fb2412b88e005330722e4e2c463743894061826f06fed500e6988381",
+    "source_refs": {
+      "current_change_evidence_bundle": {
+        "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-10-11/2026-10-11t07-34-10-285z-355368-80e823008439/current-change-evidence.txt",
+        "citation": "ogz-meta/cognition-history/mercury-runs/evidence/2026-10-11/2026-10-11t07-34-10-285z-355368-80e823008439/current-change-evidence.txt:1",
+        "sha256": "a9454f8b019f01a27bec2991da2fc36b8007817962d29b3145849ac280c6098d",
+        "bytes": 1911375,
+        "lines": 55477,
+        "section_count": 29,
+        "manifest_path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-10-11/2026-10-11t07-34-10-285z-355368-80e823008439/manifest.json",
+        "manifest_sha256": "55bc23c1878e36975f23ba1015682fdd477f9d119bea697d9f4a11389a444bab",
+        "manifest_bytes": 60223
+      },
+      "supplied_evidence": [],
+      "auto_blast_radius_source": "current_changes",
+      "auto_blast_radius_files": [
+        {
+          "file": "brokers/AlpacaAdapter.js",
+          "callerCount": 0,
+          "riskLevel": "isolated"
+        },
+        {
+          "file": "core/CandleProcessor.js",
+          "callerCount": 1,
+          "riskLevel": "low"
+        },
+        {
+          "file": "core/OrderExecutor.js",
+          "callerCount": 1,
+          "riskLevel": "low"
+        },
+        {
+          "file": "core/SessionRouter.js",
+          "callerCount": 1,
+          "riskLevel": "low"
+        },
+        {
+          "file": "core/StrategyOrchestrator.js",
+          "callerCount": 1,
+          "riskLevel": "low"
+        },
+        {
+          "file": "core/TradingLoop.js",
+          "callerCount": 1,
+          "riskLevel": "low"
+        },
+        {
+          "file": "modules/MultiTimeframeAdapter.js",
+          "callerCount": 1,
+          "riskLevel": "low"
+        },
+        {
+          "file": "run-empire-v2.js",
+          "callerCount": 0,
+          "riskLevel": "isolated"
+        }
+      ],
+      "auto_blast_radius_errors": [],
+      "changed_files": [
+        "brokers/AlpacaAdapter.js",
+        "core/CandleProcessor.js",
+        "core/OrderExecutor.js",
+        "core/SessionRouter.js",
+        "core/StrategyOrchestrator.js",
+        "core/TradingLoop.js",
+        "modules/MultiTimeframeAdapter.js",
+        "run-empire-v2.js"
+      ],
+      "changed_file_count": 8,
+      "reference_names": [
+        "internals",
+        "indicators",
+        "fibonacci"
+      ],
+      "reference_scans": [
+        {
+          "symbol": "internals",
+          "source": "find_references_regex",
+          "precision": "regex",
+          "total": 111,
+          "truncated": false
+        },
+        {
+          "symbol": "indicators",
+          "source": "find_references_regex",
+          "precision": "regex",
+          "total": 837,
+          "truncated": false
+        },
+        {
+          "symbol": "fibonacci",
+          "source": "find_references_regex",
+          "precision": "regex",
+          "total": 25,
+          "truncated": false
+        }
+      ]
+    }
+  }
+}

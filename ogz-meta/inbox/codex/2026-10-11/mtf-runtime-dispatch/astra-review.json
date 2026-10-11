@@ -1,0 +1,57 @@
+{
+  "reviewer": "Astra adversarial",
+  "base": "eb0fcd441222a98c4deeabf1be5d1b237cb79ed8",
+  "initialCandidate": "3a10dbc9b595fe3e81dc7f6cf84a813bf6788faf",
+  "reviewedCandidate": "df1a2ce6079f0b4ed7a38ac1a6871d9132e5093f",
+  "disposition": "no_remaining_introduced_blocker_found",
+  "scope": "Exact staged nine-file runtime timeframe dispatch change; no production edits or production module loads. Startup/backtest callers, frame context ownership, queue handoff, exits and multi-frame subscription reviewed.",
+  "findings": [
+    {
+      "id": "ASTRA-MTF-1",
+      "severity": "P1",
+      "status": "resolved in 31cfa639",
+      "title": "Candle exit checked current trade mark but executed analysis-frame price",
+      "evidence": [
+        "3a10dbc9:core/TradingLoop.js:1033-1046 obtains trade mark",
+        "3a10dbc9:core/TradingLoop.js:1461-1506 checks that mark",
+        "3a10dbc9:core/TradingLoop.js:1879 executes original analysis price/frame",
+        "3a10dbc9:core/OrderExecutor.js:3571-3602 uses supplied price for simulated fill"
+      ],
+      "proof": "fixtures/astra-exit-price-counterexample.json",
+      "result": "Exact _analyze method: initial check90/execute100+1h; revised check90/execute90+5m. Both consistency and exit-contract branches now assign selectedExitContext."
+    },
+    {
+      "id": "ASTRA-MTF-2",
+      "severity": "P1",
+      "status": "resolved in df1a2ce6079f0b4ed7a38ac1a6871d9132e5093f",
+      "title": "Queued source-session analysis survives handoff and acquires destination scope",
+      "evidence": [
+        "31cfa639:run-empire-v2.js:3152-3176 checks entry status before enqueue",
+        "31cfa639:core/TradingLoop.js:970-1010 retains operation with symbol/trace/timeframe only",
+        "31cfa639:core/SessionRouter.js:1170-1199 fences callback at ingress only",
+        "31cfa639:core/SessionRouter.js:1530-1599 and 1628-1707 transfer runtime scope without draining queued work",
+        "31cfa639:core/SessionRouter.js:399-408 resets wind-down after transition",
+        "31cfa639:core/TradingLoop.js:717-779 reads current runner scope when queued work starts",
+        "31cfa639:core/OrderExecutor.js:384-427 independently uses current runner scope, not originating candle scope"
+      ],
+      "proof": "fixtures/astra-queue-scope-counterexample.json",
+      "result": "Exact queue+scope methods deterministically produce TSLA/15m with Kraken/crypto destination identity for work admitted before a scripted session swap. In-flight operation and session swap are scripted boundaries; no full broker fill claimed.",
+      "correctionOwner": "Coordinate queue lifetime with existing SessionRouter source freeze/flatness/transfer before resuming destination; preserve valid source identity rather than supplying fallback scope.",
+      "resolutionEvidence": [
+        "df1a2ce:core/TradingLoop.js:981 queue.drained owns actual drain coroutine",
+        "df1a2ce:core/TradingLoop.js:986-1006 wait tracks queue completion while each failed operation rejects its original caller",
+        "df1a2ce:core/SessionRouter.js:1540 and 1640 drain after source freeze, before flatten/reconcile",
+        "df1a2ce:core/SessionRouter.js:1583 and 1686 drain late exit work before destination activeSession assignment",
+        "df1a2ce:run-empire-v2.js:1071 wires runner object as router ctx; its tradingLoop is constructed before runtime start"
+      ],
+      "resolutionProof": "fixtures/astra-handoff-drain-result.json",
+      "resolutionResult": "Exact queue/drain and complete transition methods exercised in both directions: initial pending work delays flatten; work arriving during REST reconciliation delays destination assignment; all queued work observes source session; failed item rejects original caller with original Error; drain completes. Broker/state/persistence boundaries scripted."
+    }
+  ],
+  "qualifications": [
+    "No missing timeframe producer found in actual runner live/backtest entry calls; backtest runTradingCycle wrapper forwards explicit backtest timeframe. AuthFailureGuard, TtpCutoffEnforcer and SessionRouter executeTrade callers are exits, whose scope comes from persisted trade.",
+    "No full runtime startup or full broker execution was performed by this reviewer. Parent owns isolated integration proofs.",
+    "VM probes load exact method source only, script external boundaries, and write only private inbox evidence. Root config/state not loaded and no network/orders used."
+  ],
+  "finalReview": "Reviewed only revised delta plus prior findings. Exit context correction remains intact. Both demonstrated introduced P1 defects are resolved; no additional introduced blocker established in the scoped exact-tree review. Parent integration proofs and Mercury disposition remain independently required."
+}

@@ -193,6 +193,9 @@ HEAD source at d0310b15 passes trai.maxConf into maxConfidenceOverride at run-em
 
 - **2026-10-11 symbol dispatch repaired:** Same-time closes for multiple tickers now use per-symbol newness, retaining duplicate suppression. Actual baseline dispatches TSLA only; candidate and working dispatch both TSLA/SPY at each of two closes. [Evidence and qualified review](../2026-10-11/mtf-symbol-dispatch/README.md). Full concurrent frame wiring remains open; no runtime activation.
 
+
+- **2026-10-11 runtime frame wiring delivered:** The runner now constructs contexts and dispatches every configured evaluation frame, Alpaca retains all requested provider frames, the existing per-symbol confluence adapters receive actual histories, and entry/exit execution carries explicit frame context. Same-symbol analyses queue; both broker-transfer directions drain source work before flattening and before scope transfer. Actual isolated two-symbol/five-frame strategy evaluation, paper trade attribution, queue/handoff checks and adversarial corrections are recorded in [evidence](../2026-10-11/mtf-runtime-dispatch/README.md). Full operational acceptance remains open: no PM2 activation, target-session history hydration still needs its own check/repair, and inherited same-candle indicator duplication is queued next. This does not mark all Stop 2 complete.
+
 ## 28. Scale-in trigger, profit-toggle and sizing-ladder intent
 
 - At committed source e927cdbb, OrderExecutor._entryConcurrencyBlock reads addTriggerClass but rejects equality with the entry trigger (core/OrderExecutor.js:1673-1686). The normal orchestrator transports a trigger or null (:3033,3083); the bounded producer trace did not establish a concrete trigger-class producer. Preserve the canonical current value and investigate intended classification behavior later; no new selector is advertised.

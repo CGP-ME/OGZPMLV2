@@ -1,0 +1,27 @@
+{
+  "reviewedCandidate": "3a10dbc9b595fe3e81dc7f6cf84a813bf6788faf",
+  "base": "eb0fcd441222a98c4deeabf1be5d1b237cb79ed8",
+  "rawVerdict": "found_break",
+  "rawBlocking": "yes",
+  "rawAnswer": "initial-delivery-review-answer.txt",
+  "scopedDisposition": "No concrete missing-context producer established by this allegation; not an independently demonstrated runtime break. Initial candidate separately had two Astra-confirmed defects, now corrected in df1a2ce.",
+  "claims": [
+    {
+      "claim": "Removed _resolveSymCtx helper and direct frameCtx dereference can throw when getSymbolTimeframeContext returns undefined",
+      "mechanicalDisposition": "Accurate: getter can return undefined and consumer requires a registered context.",
+      "substantiveDisposition": "Unsupported reachability claim for actual configured runtime paths; raw review assumes a missing context instead of identifying a producer. No null guard or fallback recommended.",
+      "evidence": [
+        "run-empire-v2.js:700 evaluationTimeframes comes from canonical orchestrator configuration",
+        "run-empire-v2.js:868-891 initializes context maps and registers stock/crypto routable symbols before wiring",
+        "run-empire-v2.js:3072-3105 builds metadata timeframe plus all evaluation frames before publishing symbol as routable; failures are quarantined and omitted from returned list",
+        "run-empire-v2.js:905-932 passes filtered stock/crypto sets to adapters and SessionRouter",
+        "run-empire-v2.js:993 and 1023-1041 dispatches only configured evaluation frames into CandleProcessor",
+        "run-empire-v2.js:1635-1644 boot hydration selects symbols from active router filtered lists; 1708-1737 uses same registered frame union",
+        "run-empire-v2.js:3453-3467 backtest binds explicit symbol/candleTimeframe and passes timeframe to runTradingCycle",
+        "core/BacktestRunner.js:178-198 validates runtime symbol/timeframe against selected file; 234-244 feeds that same symbol/timeframe into handleMarketData and runTradingCycle",
+        "core/CandleProcessor.js:1042-1078 gap recovery selects a context from an already admitted candle and carries that symbol/timeframe into recovery"
+      ]
+    }
+  ],
+  "coverageQualification": "Raw answer explicitly reports no source windows for several changed production files and no execution. Preserve its found_break verdict; this adjudication does not relabel it as a clean full-candidate review. Fresh final-candidate Mercury is separate."
+}

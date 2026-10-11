@@ -1,0 +1,51 @@
+{
+  "candidate": "df1a2ce6079f0b4ed7a38ac1a6871d9132e5093f",
+  "base": "eb0fcd441222a98c4deeabf1be5d1b237cb79ed8",
+  "rawAnswer": "delivery-review-answer.txt",
+  "rawVerdict": "found_break",
+  "rawBlocking": "yes",
+  "scopedConclusion": "No supported introduced defect remains in the final Mercury allegations. The asserted duplicate-upsert defect is refuted by its actual producer and existing isolated behavior proof; other mechanical claims are byte-identical inherited methods. Astra separately reproduced and verified correction of the two earlier P1 findings.",
+  "claims": [
+    {
+      "claim": "MultiTimeframeAdapter duplicate detection uses nonexistent etime, so duplicates are not detected",
+      "disposition": "refuted",
+      "evidence": [
+        "core/CandleProcessor.js:1020-1028 constructs t and etime on every streamed candle",
+        "core/CandleProcessor.js:469-475 requires integer t/etime before ingestion",
+        "core/CandleProcessor.js:518 and 570 forwards the complete candle to StrategyOrchestrator.ingestMarketCandle",
+        "core/StrategyOrchestrator.js:1018-1020 forwards that complete candle to MTF ingestion",
+        "modules/MultiTimeframeAdapter.js:159 preserves candle fields; 189-199 replaces equal t/etime instead of appending",
+        "run-empire-v2.js:1647-1660 REST hydration also creates explicit t/etime"
+      ],
+      "logic": "Even if etime were absent on both same-time objects, undefined === undefined is true, so the asserted failure does not follow. No mixed-shape producer was demonstrated.",
+      "behavior": "fixtures/candle-context-mtf.cjs:153-155 asserts actual CP UPDATE and bounded 60-bar MTF history after revising TSLA/1m; fixtures/candle-context-mtf.final.receipt.json records PASS on initial3a10 export. CP, Orchestrator and MTA are byte-identical in finaldf1a, confirmed by private/astra-mercury-source-comparisons.json. This qualifies continued applicability of the upsert assertion, not a new full final-tree run."
+    },
+    {
+      "claim": "Alpaca _mapTimeframe defaults unsupported inputs to 1Min",
+      "disposition": "inherited unchanged; no introduced failing configured producer identified",
+      "evidence": [
+        "brokers/AlpacaAdapter.js:960-966 method byte-identical to base",
+        "private/astra-mercury-source-comparisons.json records exact method equality and SHA256"
+      ],
+      "note": "Raw Mercury itself says this does not constitute its break."
+    },
+    {
+      "claim": "Alpaca getSupportedSymbols logs errors and returns an empty array",
+      "disposition": "inherited unchanged; unrelated to new candle dispatch producer",
+      "evidence": [
+        "brokers/AlpacaAdapter.js:898-910 method byte-identical to base",
+        "private/astra-mercury-source-comparisons.json records exact method equality and SHA256"
+      ],
+      "note": "Raw Mercury itself says this does not constitute its break."
+    },
+    {
+      "claim": "Removed _resolveSymCtx leaves undefined symCtx runtime reference",
+      "disposition": "refuted by Mercury itself; no actionable allegation",
+      "evidence": [
+        "core/CandleProcessor.js:580 occurrence is a comment; actual changed paths use frameCtx at479/1042"
+      ],
+      "note": "The earlier hypothetical missing-context allegation is independently addressed in initial-mercury-adjudication.json with actual registration and caller evidence."
+    }
+  ],
+  "reviewQualification": "Preserves raw found_break/blocking=yes rather than rewriting reviewer output. This is source-and-existing-proof adjudication, not a claim that Mercury emitted no_break_found. No production edits, harness changes, new gates, fallbacks, broker calls, or root config/state loads."
+}

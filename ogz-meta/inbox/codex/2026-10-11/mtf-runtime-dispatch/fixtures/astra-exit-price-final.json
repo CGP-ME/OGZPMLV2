@@ -1,0 +1,12 @@
+{
+  "proof": "Exact _analyze in VM; scripted dependencies. Proves exit context forwarding only, not full broker execution.",
+  "after": {
+    "ref": "df1a2ce6079f0b4ed7a38ac1a6871d9132e5093f",
+    "checked": 90,
+    "executed": {
+      "price": 90,
+      "timeframe": "5m",
+      "action": "SELL"
+    }
+  }
+}

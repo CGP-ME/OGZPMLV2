@@ -1,0 +1,14 @@
+{
+  "status": "PASS",
+  "tree": "df1a2ce6079f0b4ed7a38ac1a6871d9132e5093f",
+  "command": "node fixtures/queue-context.cjs runs/candle-context-df1a2ce",
+  "assertions": [
+    "same-symbol frame analyses serialize",
+    "different symbols run in parallel",
+    "a rejected queued operation does not strand the next operation",
+    "waitForPendingOperations remains pending behind an active barrier and resolves only after queued work, including the original rejected promise, settles",
+    "duplicate exit monitor calls coalesce behind active analysis",
+    "router-disabled pattern scope retains the explicit timeframe"
+  ],
+  "isolation": "cwd changed to isolated source export before imports; fake credentials; no broker/network"
+}

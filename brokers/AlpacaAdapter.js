@@ -725,17 +725,35 @@ class AlpacaAdapter extends IBrokerAdapter {
         const sym = this.toBrokerSymbol(symbol);
         const key = `bars-${sym}`;
         const intervalMs = this._timeframeIntervalMs(STREAM_BAR_TIMEFRAME);
+        let barSubscription = this.barSubscriptions.get(sym);
+        if (!barSubscription) {
+            barSubscription = {
+                streamTimeframe: STREAM_BAR_TIMEFRAME,
+                intervalMs,
+                requestedFrames: new Map(),
+                nativeCallbacks: new Map(),
+                streamSubscribed: false,
+            };
+            this.barSubscriptions.set(sym, barSubscription);
+        }
+        if (!barSubscription.requestedFrames.has(timeframe)) {
+            barSubscription.requestedFrames.set(timeframe, {
+                timeframe,
+                lastRequestedBarStartMs: null,
+                requestedBarFetch: null,
+            });
+        }
+        if (typeof callback === 'function') barSubscription.nativeCallbacks.set(timeframe, callback);
         this._ensureDataStream(() => {
+            if (this.barSubscriptions.get(sym) !== barSubscription || barSubscription.streamSubscribed) return;
             const payload = { action: 'subscribe', bars: [sym] };
             console.log('[Alpaca] TX subscribe(bars):', JSON.stringify(payload), '| url:', this.wsUrl);
             this.rws.send(payload);
-            this.subscriptions.set(key, callback);
-            this.barSubscriptions.set(sym, {
-                requestedTimeframe: timeframe,
-                streamTimeframe: STREAM_BAR_TIMEFRAME,
-                intervalMs,
-                lastRequestedBarStartMs: null,
-                requestedBarFetch: null,
+            barSubscription.streamSubscribed = true;
+            this.subscriptions.set(key, (bar) => {
+                const active = this.barSubscriptions.get(sym);
+                if (!active) return;
+                for (const nativeCallback of active.nativeCallbacks.values()) nativeCallback(bar);
             });
         }, key);
     }
@@ -1127,7 +1145,7 @@ class AlpacaAdapter extends IBrokerAdapter {
         }
         if (msg.T === 'b') {
             const barSubscription = this.barSubscriptions.get(msg.S);
-            if (!barSubscription) {
+            if (!barSubscription?.streamSubscribed) {
                 console.error(`[Alpaca] Received bar for unsubscribed symbol ${msg.S || '(missing)'}`);
                 return;
             }
@@ -1155,23 +1173,25 @@ class AlpacaAdapter extends IBrokerAdapter {
                 console.log('[Alpaca] First bar RX for', msg.S, '@', msg.t, 'OHLCV:', msg.o, msg.h, msg.l, msg.c, msg.v);
             }
             this.emit('ohlc', { timeframe: barSubscription.streamTimeframe, data: bar, symbol: bar.symbol });
-            this._emitRequestedClosedBar(msg.S, bar, barSubscription);
+            for (const frameState of barSubscription.requestedFrames.values()) {
+                this._emitRequestedClosedBar(msg.S, bar, barSubscription, frameState);
+            }
             const cb = this.subscriptions.get(`bars-${msg.S}`);
             if (cb) cb(bar);
         }
     }
 
-    _emitRequestedClosedBar(symbol, nativeBar, barSubscription) {
-        if (barSubscription.requestedTimeframe === barSubscription.streamTimeframe) return;
-        if (barSubscription.requestedBarFetch) return;
+    _emitRequestedClosedBar(symbol, nativeBar, barSubscription, frameState) {
+        if (frameState.timeframe === barSubscription.streamTimeframe) return;
+        if (frameState.requestedBarFetch) return;
 
-        const requestedIntervalMs = this._timeframeIntervalMs(barSubscription.requestedTimeframe);
-        barSubscription.requestedBarFetch = this.getCandles(symbol, barSubscription.requestedTimeframe, 2)
+        const requestedIntervalMs = this._timeframeIntervalMs(frameState.timeframe);
+        frameState.requestedBarFetch = this.getCandles(symbol, frameState.timeframe, 2)
             .then((candles) => {
-                if (this.barSubscriptions.get(symbol) !== barSubscription) return;
+                if (this.barSubscriptions.get(symbol) !== barSubscription || barSubscription.requestedFrames.get(frameState.timeframe) !== frameState) return;
                 for (const candle of candles) {
                     const startMs = Number(candle.t);
-                    if (startMs <= barSubscription.lastRequestedBarStartMs) continue;
+                    if (startMs <= frameState.lastRequestedBarStartMs) continue;
                     if (startMs + requestedIntervalMs > nativeBar.etime) continue;
                     const requestedBar = {
                         ...candle,
@@ -1179,25 +1199,25 @@ class AlpacaAdapter extends IBrokerAdapter {
                         symbol,
                     };
                     this.emit('ohlc', {
-                        timeframe: barSubscription.requestedTimeframe,
+                        timeframe: frameState.timeframe,
                         data: requestedBar,
                         symbol,
                     });
-                    barSubscription.lastRequestedBarStartMs = startMs;
+                    frameState.lastRequestedBarStartMs = startMs;
                 }
             })
             .catch((error) => {
-                if (this.barSubscriptions.get(symbol) !== barSubscription) return;
+                if (this.barSubscriptions.get(symbol) !== barSubscription || barSubscription.requestedFrames.get(frameState.timeframe) !== frameState) return;
                 this._recordStreamTruthUnavailable('ALPACA_REQUESTED_BAR_UNAVAILABLE', 'alpaca_requested_bar_unavailable', {
                     operation: 'requestedBarRefresh',
                     symbol,
-                    timeframe: barSubscription.requestedTimeframe,
+                    timeframe: frameState.timeframe,
                     error: this._errorMessage(error),
                 });
             })
             .finally(() => {
-                if (this.barSubscriptions.get(symbol) === barSubscription) {
-                    barSubscription.requestedBarFetch = null;
+                if (this.barSubscriptions.get(symbol) === barSubscription && barSubscription.requestedFrames.get(frameState.timeframe) === frameState) {
+                    frameState.requestedBarFetch = null;
                 }
             });
     }

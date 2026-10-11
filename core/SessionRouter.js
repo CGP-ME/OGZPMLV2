@@ -1537,6 +1537,7 @@ class SessionRouter extends EventEmitter {
         pauseConfirmed: true
       });
 
+      await this.ctx.tradingLoop.waitForPendingOperations();
       await this._forceCloseSourceTradesThroughExecution(transitionContext, 'crypto');
       await this._reconcileBrokerRestBeforeActivation(this.krakenAdapter, this.alpacaAdapter, transitionContext, {
         sourceBrokerId: 'kraken',
@@ -1568,14 +1569,18 @@ class SessionRouter extends EventEmitter {
         ), { symbols: this.stockSymbols, timeframe });
       }
 
+      const evaluationTimeframes = new Set([timeframe, ...this.ctx.evaluationTimeframes]);
       for (const symbol of this.stockSymbols) {
         if (typeof this.alpacaAdapter.subscribeToCandles === 'function') {
-          await this._executeBrokerIntent(transitionContext, 'alpaca', 'subscribe_candles', () => (
-            this.alpacaAdapter.subscribeToCandles(symbol, timeframe)
-          ), { symbol, timeframe });
+          for (const evaluationTimeframe of evaluationTimeframes) {
+            await this._executeBrokerIntent(transitionContext, 'alpaca', 'subscribe_candles', () => (
+              this.alpacaAdapter.subscribeToCandles(symbol, evaluationTimeframe)
+            ), { symbol, timeframe: evaluationTimeframe });
+          }
         }
       }
 
+      await this.ctx.tradingLoop.waitForPendingOperations();
       this.activeSession = 'stocks';
       this.activeBroker = this.alpacaAdapter;
       this.lastTransitionAt = Date.now();
@@ -1632,6 +1637,7 @@ class SessionRouter extends EventEmitter {
         pauseConfirmed: true
       });
 
+      await this.ctx.tradingLoop.waitForPendingOperations();
       await this._forceCloseSourceTradesThroughExecution(transitionContext, 'stock');
 
       await this._reconcileBrokerRestBeforeActivation(this.alpacaAdapter, this.krakenAdapter, transitionContext, {
@@ -1677,6 +1683,7 @@ class SessionRouter extends EventEmitter {
         ), { symbol: primaryCrypto, timeframe });
       }
 
+      await this.ctx.tradingLoop.waitForPendingOperations();
       this.activeSession = 'crypto';
       this.activeBroker = this.krakenAdapter;
       this.lastTransitionAt = Date.now();
@@ -1801,11 +1808,14 @@ class SessionRouter extends EventEmitter {
           this.orderRouter.registerBroker(this.alpacaAdapter, this.stockSymbols)
         ), { symbols: this.stockSymbols, timeframe });
       }
+      const evaluationTimeframes = new Set([timeframe, ...this.ctx.evaluationTimeframes]);
       for (const symbol of this.stockSymbols) {
         if (typeof this.alpacaAdapter.subscribeToCandles === 'function') {
-          await this._executeBrokerIntent(transitionContext, 'alpaca', 'subscribe_candles', () => (
-            this.alpacaAdapter.subscribeToCandles(symbol, timeframe)
-          ), { symbol, timeframe });
+          for (const evaluationTimeframe of evaluationTimeframes) {
+            await this._executeBrokerIntent(transitionContext, 'alpaca', 'subscribe_candles', () => (
+              this.alpacaAdapter.subscribeToCandles(symbol, evaluationTimeframe)
+            ), { symbol, timeframe: evaluationTimeframe });
+          }
         }
       }
       this.activeSession = 'stocks';

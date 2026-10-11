@@ -1,0 +1,21 @@
+{
+  "proof": "Exact _analyze methods in VM; dependency boundaries scripted, no production require/network/state writes. Proves exit context forwarding only, not full broker execution.",
+  "before": {
+    "ref": "3a10dbc9b595fe3e81dc7f6cf84a813bf6788faf",
+    "checked": 90,
+    "executed": {
+      "price": 100,
+      "timeframe": "1h",
+      "action": "SELL"
+    }
+  },
+  "after": {
+    "ref": "31cfa63916f5952f1722d11122c42677337ee48c",
+    "checked": 90,
+    "executed": {
+      "price": 90,
+      "timeframe": "5m",
+      "action": "SELL"
+    }
+  }
+}
