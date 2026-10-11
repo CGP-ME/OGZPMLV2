@@ -1038,8 +1038,8 @@ class OGZPrimeV14Bot {
           this._visOhlcSeen.add(visKey);
           console.log(`[VIS][OHLC][Runner] source=sessionRouter session=${this.sessionRouter?.activeSession || '(none)'} timeframe=${tf} symbolSource=${symbolSource} payloadSymbol=${eventSymbol || rawSymbol || '(missing)'} symbol=${sym} close=${ohlcData[5]} contexts=${describeSymbolContexts(this.symbolContexts)}`);
         }
-        const storedCandle = this.storeTimeframeCandle(tf, ohlcData, sym);
-        this.storeSymbolTimeframeCandle(sym, tf, ohlcData);
+        this.storeTimeframeCandle(tf, ohlcData, sym);
+        const storedCandle = this.storeSymbolTimeframeCandle(sym, tf, ohlcData);
         if (tf === activeTf) {
           this._markActiveTimeframeData(sym, tf);
           const scopeEnvelope = this.getCandleScopeEnvelope({

@@ -1,0 +1,110 @@
+{
+  "candidate_tree": "5f9821ec21bf3490a624fe4175708bf199552a3c",
+  "base_commit": "4f75871cb28eedc5b3a22f9b55b77e717787952f",
+  "mercury_run_id": "2026-10-11T07-03-52-761Z-7fa170da8a6e",
+  "raw_mercury_verdict": "found_break",
+  "scoped_disposition": "No introduced or imminent blocker established by seven allegations. Claims 1-6 are unchanged code outside the two-line repair; claim 7 is directly refuted by the executable entrypoint and deployment script config. Raw found_break is retained, not relabeled as Mercury pass.",
+  "unresolved_introduced_findings": [],
+  "claims": [
+    {
+      "id": 1,
+      "claim": "Shutdown promise does not resolve before process.exit",
+      "disposition": "Inherited byte-identical pre-runtime termination path. process.exit terminates the process; no introduced live pending operation or relation to candle newness shown.",
+      "evidence": [
+        "run-empire-v2.js:66",
+        "run-empire-v2.js:85"
+      ]
+    },
+    {
+      "id": 2,
+      "claim": "verifyTradingMode synchronous sleep",
+      "disposition": "Inherited byte-identical live-confirmed startup countdown. Candidate changes neither mode selection nor startup. No newly introduced/imminent paper-route blocker demonstrated.",
+      "evidence": [
+        "run-empire-v2.js:1547",
+        "run-empire-v2.js:1552",
+        "run-empire-v2.js:1579"
+      ]
+    },
+    {
+      "id": 3,
+      "claim": "Depth symbol resolver can throw without local catch",
+      "disposition": "Inherited byte-identical depth-subscription validation. Two-line OHLC change does not alter this producer, symbols or invocation.",
+      "evidence": [
+        "run-empire-v2.js:2023",
+        "run-empire-v2.js:2038"
+      ]
+    },
+    {
+      "id": 4,
+      "claim": "broadcastEdgeAnalytics lacks try/catch",
+      "disposition": "Inherited byte-identical forwarding method; missing local catch alone supplies no changed failure path.",
+      "evidence": [
+        "run-empire-v2.js:3827"
+      ]
+    },
+    {
+      "id": 5,
+      "claim": "calculateVolatility lacks try/catch",
+      "disposition": "Inherited byte-identical forwarding method; unrelated to changed candle newness ownership.",
+      "evidence": [
+        "run-empire-v2.js:3841"
+      ]
+    },
+    {
+      "id": 6,
+      "claim": "detectDivergences lacks try/catch",
+      "disposition": "Inherited byte-identical forwarding method; unrelated to changed candle newness ownership.",
+      "evidence": [
+        "run-empire-v2.js:3850"
+      ]
+    },
+    {
+      "id": 7,
+      "claim": "No callers means run-empire-v2 is isolated",
+      "disposition": "Refuted: explicit require.main entrypoint calls main(), constructs bot, installs lifecycle handlers and awaits start(). PM2 config names this file as script; package main also names it. File-level reference search is not runtime-entrypoint reachability proof.",
+      "evidence": [
+        "run-empire-v2.js:3879",
+        "run-empire-v2.js:3890",
+        "ecosystem.config.js:38",
+        "package.json:5"
+      ]
+    }
+  ],
+  "exact_source_comparisons": {
+    "run-empire-v2.js:66-88": {
+      "base_candidate_identical": true,
+      "sha256": "e0b61be2ffc9c3e79ebc397503bd1724f5094525cf33a7fb1bc783dabfc58392"
+    },
+    "run-empire-v2.js:1547-1593": {
+      "base_candidate_identical": true,
+      "sha256": "38ab584946dcc570e474ded257897b7686e043dc5603df421f1a86f670a55b2c"
+    },
+    "run-empire-v2.js:2020-2038": {
+      "base_candidate_identical": true,
+      "sha256": "f64ddb9b209488d2a87da92fa3e1d98bb1be8bf510a710ad26aa82abc9425849"
+    },
+    "run-empire-v2.js:3827-3835": {
+      "base_candidate_identical": true,
+      "sha256": "7dc7f350f545e7a8c82358c85cb91297441a665774d9b359208b6b15015c3e3c"
+    },
+    "run-empire-v2.js:3841-3844": {
+      "base_candidate_identical": true,
+      "sha256": "5f17364db31b846d9973a7584074df653c1979222888af2b0ffe13ea3abb6339"
+    },
+    "run-empire-v2.js:3850-3853": {
+      "base_candidate_identical": true,
+      "sha256": "f1bd6a29fa5cc42ba9472a5713294ce718b4fa86c8b1005d37e51d1613976c99"
+    },
+    "run-empire-v2.js:3878-3904": {
+      "base_candidate_identical": true,
+      "sha256": "c278f27b8680ac74d4acf8e39e673a267c238fd949fd268c9969cb4377947ce0"
+    }
+  },
+  "diff_scope": "Only switch storedCandle binding from storeTimeframeCandle return to already-invoked storeSymbolTimeframeCandle return. Both calls and downstream active-timeframe condition remain.",
+  "validation": "Read raw Mercury answer, exact base/candidate sections and actual executable startup path. No broader policy rewrite, production edit or executable root load. Actual-handler two-symbol proof remains in progress separately.",
+  "limitations": [
+    "Does not approve or redesign inherited shutdown/startup/depth/dashboard behavior.",
+    "Does not claim full MTF scanner completion or deployment."
+  ],
+  "raw_answer_sha256": "4e9f0983e215ed9586632ce481c7818adfcf1c8b5a69548d193b5f6f28848854"
+}

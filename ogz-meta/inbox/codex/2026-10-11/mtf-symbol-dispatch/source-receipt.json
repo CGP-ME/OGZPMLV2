@@ -1,0 +1,59 @@
+{
+  "base_commit": "4f75871cb28eedc5b3a22f9b55b77e717787952f",
+  "reviewed_production_tree": "5f9821ec21bf3490a624fe4175708bf199552a3c",
+  "harness_tree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "mercury": {
+    "run_id": "2026-10-11T07-03-52-761Z-7fa170da8a6e",
+    "verdict": "found_break",
+    "source_refs": {
+      "current_change_evidence_bundle": {
+        "path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-10-11/2026-10-11t07-03-09-227z-307439-672196e7a7ba/current-change-evidence.txt",
+        "citation": "ogz-meta/cognition-history/mercury-runs/evidence/2026-10-11/2026-10-11t07-03-09-227z-307439-672196e7a7ba/current-change-evidence.txt:1",
+        "sha256": "b89f3771bd2f462c98e2eecb3fee95fe392bafa9b0c0787d7a4d843cbf12d398",
+        "bytes": 228785,
+        "lines": 5269,
+        "section_count": 5,
+        "manifest_path": "ogz-meta/cognition-history/mercury-runs/evidence/2026-10-11/2026-10-11t07-03-09-227z-307439-672196e7a7ba/manifest.json",
+        "manifest_sha256": "20eb1669c51798ef4c21852f105bab8aeba4b153a23dbf8e94f27c018b9a669a",
+        "manifest_bytes": 8982
+      },
+      "supplied_evidence": [],
+      "auto_blast_radius_source": "current_changes",
+      "auto_blast_radius_files": [
+        {
+          "file": "run-empire-v2.js",
+          "callerCount": 0,
+          "riskLevel": "isolated"
+        }
+      ],
+      "auto_blast_radius_errors": [],
+      "changed_files": [
+        "run-empire-v2.js"
+      ],
+      "changed_file_count": 1,
+      "reference_names": [],
+      "reference_scans": []
+    },
+    "raw_sha256": "c580914293ad1299e8d3983b90786a2ec0d97a97a7368a2fb75231e51c05d040",
+    "answer_sha256": "4e9f0983e215ed9586632ce481c7818adfcf1c8b5a69548d193b5f6f28848854"
+  },
+  "behavior": {
+    "baseline.log": "PASS baseline: same-etime TSLA/SPY dispatch=TSLA,TSLA",
+    "candidate.log": "PASS candidate: same-etime TSLA/SPY dispatch=TSLA,SPY,TSLA,SPY",
+    "working.log": "PASS candidate: same-etime TSLA/SPY dispatch=TSLA,SPY,TSLA,SPY"
+  },
+  "fixture_sha256": "923fc5d21bc2bb5c41c400000230cec9d37fe6e93ed2f2ac8ead831ee6d9c7bc",
+  "runner_sha256": {
+    "4f75871cb28eedc5b3a22f9b55b77e717787952f": "9479a3e16c72feac3fc944626ea7aa337dd6a0de79742bcae1939a2736981979",
+    "5f9821ec21bf3490a624fe4175708bf199552a3c": "28256b63401b354e0496571b3dda0bbfab00306142e69ad0530a190fe8325c95"
+  },
+  "working_runner_sha256": "18d19f148e2b02358cb3e89235f678203a823c49f40f8c06f58eab0e66cbd435",
+  "loaded_working_dependencies": {
+    "foundation/ohlc-normalize.js": "d2e36fa331c19c859efb60b00b34e276a5bc4b9caa9e8d073808832b3390d0df",
+    "core/AssetRegistry.js": "cd3041e6ed5c8e23d9fae27fafc15cc33ee001c6972426a8bad862b13e92a0d7",
+    "foundation/ConfigLoader.js": "6b4f34bf85c96363a1315bc9d8803c2d9614ba2717a12af1bdee63852aaab2e6",
+    "config/settings.json": "f83cb2f25d96bcc46ba2e3e9a4c3d561d5bda3c38c1be586aaf3df0b46da7896",
+    "config/internals.json": "44a64fb2ea8bda6db6059ed06c4c712cfd911e61112f0cb06b501cfd1b8940ef"
+  },
+  "qualification": "Actual runner functions extracted from exact ref, with qualified working normalizer/AssetRegistry/explicit ConfigLoader initialization; analysis endpoint stubbed. No full trader proof."
+}

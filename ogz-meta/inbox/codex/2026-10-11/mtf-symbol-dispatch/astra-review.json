@@ -1,0 +1,50 @@
+{
+  "candidate_tree": "5f9821ec21bf3490a624fe4175708bf199552a3c",
+  "base_commit": "4f75871cb28eedc5b3a22f9b55b77e717787952f",
+  "verdict": "scoped_source_pass",
+  "findings": [],
+  "source_sha256": {
+    "run-empire-v2.js": "28256b63401b354e0496571b3dda0bbfab00306142e69ad0530a190fe8325c95"
+  },
+  "scope": "Exact two-line OHLC-handler change and existing global/per-symbol candle stores; no full MTF dispatch audit.",
+  "checks": [
+    {
+      "topic": "Correct newness owner",
+      "result": "Existing global store keys only timeframe, so same-close TSLA/SPY share last candle. Existing per-symbol store keys normalized symbol then timeframe, computes same etime equality and returns isNewCandle. Candidate uses that existing result for active analysis.",
+      "evidence": [
+        "run-empire-v2.js:1041",
+        "run-empire-v2.js:1042",
+        "run-empire-v2.js:2107",
+        "run-empire-v2.js:2118",
+        "run-empire-v2.js:2138",
+        "run-empire-v2.js:2354"
+      ]
+    },
+    {
+      "topic": "No omitted side effects or incompatible return",
+      "result": "Both stores still execute in the same order before market-data handling. Both return {isNewCandle,candle}. Downstream use consumes isNewCandle and candle.etime only; it does not require symbol/timeframe fields present only on global store candle. Existing global dashboard storage remains.",
+      "evidence": [
+        "run-empire-v2.js:1041",
+        "run-empire-v2.js:1055",
+        "run-empire-v2.js:1080",
+        "run-empire-v2.js:1092",
+        "run-empire-v2.js:2152",
+        "run-empire-v2.js:2371"
+      ]
+    },
+    {
+      "topic": "Duplicate and non-active behavior",
+      "result": "Same-symbol same-timeframe repeated etime updates existing per-symbol candle without marking it new. Active-timeframe condition remains unchanged, so this does not dispatch non-active frames. Different symbols now independently qualify at a shared close timestamp.",
+      "evidence": [
+        "run-empire-v2.js:2142",
+        "run-empire-v2.js:1080"
+      ]
+    }
+  ],
+  "verification": "Static exact-tree diff and producer/consumer inspection. AST two-symbol behavioral proof and Mercury run are being performed separately by parent; no results claimed here.",
+  "limitations": [
+    "Per-symbol store retains its existing chronological-input assumptions; no general out-of-order history guarantee added.",
+    "Global history remains a presentation cache; this change does not redesign it.",
+    "This fixes multi-symbol active-frame dispatch only, not configured-frame scanning."
+  ]
+}

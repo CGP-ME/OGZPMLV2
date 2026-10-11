@@ -1,0 +1,46 @@
+**VERDICT:** found_break  
+
+**ADVERSARIAL_REVIEW_BLOCKING:** yes  
+**CANDIDATE SET:** examined 7 of 7; candidates: 1‑7 listed below.  
+
+**AST EVIDENCE:**  
+- `open_file` used to read source sections (e.g., requestRuntimeShutdown lines 73‑88, verifyTradingMode lines 1547‑1580, resolveAllowedDepthSymbols lines 2020‑2038, broadcastEdgeAnalytics lines 3827‑3834, calculateVolatility lines 3841‑3844, detectDivergences lines 3850‑3853).  
+- `find_references` used to confirm no external callers of `run-empire-v2.js`.  
+
+**INHERITED:**  
+- `run-empire-v2.js` (full path) – present, all examined ranges delivered, no missing sections.  
+
+**FOURTH SHAPE CLASSIFIER:** 0 of 0 added throws/guards/fallbacks identified as new risk surfaces.  
+
+**ALLEGATIONS:**  
+| # | Claim | Type | Basis |
+|---|-------|------|-------|
+| 1 | `requestRuntimeShutdown` returns a Promise that never resolves because `process.exit` aborts before `resolve` | MECHANICAL | `open_file` lines 73‑88 show `process.exit` executed before `resolve` |
+| 2 | `verifyTradingMode` contains a synchronous sleep loop that blocks the event loop | MECHANICAL | `open_file` lines 1579‑1582 contain `require('child_process').execSync('sleep 1')` inside a tight `for` loop |
+| 3 | `resolveAllowedDepthSymbols` can throw and is called without a surrounding `try/catch` at line 2038 | MECHANICAL | `open_file` lines 2020‑2038 define the function; line 2038 calls it directly |
+| 4 | `broadcastEdgeAnalytics` forwards to `dashboardBroadcaster.broadcastEdgeAnalytics` without `try/catch` | MECHANICAL | `open_file` lines 3827‑3834 call the method directly |
+| 5 | `calculateVolatility` forwards to `dashboardBroadcaster.calculateVolatility` without `try/catch` | MECHANICAL | `open_file` lines 3841‑3844 call the method directly |
+| 6 | `detectDivergences` forwards to `dashboardBroadcaster.detectDivergences` without `try/catch` | MECHANICAL | `open_file` lines 3850‑3853 call the method directly |
+| 7 | `run-empire-v2.js` has zero callers, indicating isolation | MECHANICAL | `find_references` returns only a comment line (no external call sites) |
+
+**SUBSTANTIVE RESOLUTION:** convergence  
+
+---  
+
+**WHAT I DID:**  
+- Opened `run-empire-v2.js` in multiple line ranges to locate the code for each claim.  
+- Executed `search` for function names (`verifyTradingMode`, `resolveAllowedDepthSymbols`).  
+- Executed `find_references` to verify call‑site count for the file.  
+- Cited exact line ranges for every factual observation.  
+
+**WHAT I DID NOT DO:**  
+- Execute any code; only static inspection was performed.  
+- Modify the repository or run tests.  
+
+**WHAT I ASSUMED:**  
+- The repository snapshot (`5f9821ec21bf3490a624fe4175708bf199552a3c`) reflects the current state of `run-empire-v2.js`.  
+
+**WHY THIS VERDICT:**  
+All seven candidate issues are directly observable in the source (cited lines) and are not mitigated elsewhere. The presence of a blocking sync loop, uncaught exception paths, and a shutdown promise that never resolves constitute concrete breaks in the fix.  
+
+**IF INCOMPLETE, WHY:** none – the investigation covered every claim with concrete source evidence.  

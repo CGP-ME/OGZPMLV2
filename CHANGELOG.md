@@ -1,3 +1,10 @@
+## 2026-10-11 — Dispatch each symbol at a shared candle close (deferred 27)
+
+- Problem/change: runner analysis used global timeframe-history newness, so the second ticker at the same candle close was skipped. Two-line repair retains both storage calls and uses the existing per-symbol history’s result for analysis/duplicate handling. No new policy, gate, throw, default, fallback or config.
+- Actual verification: actual runner OHLC handler and both actual store methods reproduce baseline TSLA-only across two closes. Exact candidate and working source dispatch TSLA and SPY at each close; repeated same-close updates add no analysis. Source/dependency hashes and stub boundaries are recorded in ogz-meta/inbox/codex/2026-10-11/mtf-symbol-dispatch/.
+- Review: exact production tree 5f9821ec against 4f75871c. Mercury run 2026-10-11T07-03-52-761Z-7fa170da8a6e returns found_break. User-authorized Astra adjudication confirms six claims concern byte-identical inherited code and refutes the seventh through actual main()/PM2 runner entrypoints. No introduced blocker; raw verdict retained. Astra source and fixture scoped PASS.
+- Limits/runtime: analysis endpoint is stubbed; this proves dispatch, not strategy orders or full concurrent MTF scanning. Unrelated dirty runner edits excluded. No PM2 restart/resume/activation; no fresh Mercury index claim after prior embedding credit exhaustion.
+
 ## 2026-10-11 — Deliver Alpaca requested timeframe to active analysis (deferred 27 prerequisite)
 
 - Problem/change: SessionRouter requests 15m while Alpaca emits native1m, which the runner drops before analysis. Keep native events/callbacks and fetch the existing provider’s requested candles after native closes; emit completed provider bars with explicit end time, deduplicate, coalesce overlapping reads and discard superseded-subscription results/errors. Active failures use existing broker-truth signaling. No new trading gate, throw, default, fallback or config owner.

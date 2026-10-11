@@ -1,0 +1,42 @@
+{
+  "candidate_tree": "5f9821ec21bf3490a624fe4175708bf199552a3c",
+  "base_commit": "4f75871cb28eedc5b3a22f9b55b77e717787952f",
+  "verdict": "scoped_fixture_pass",
+  "findings": [],
+  "fixture_sha256": "923fc5d21bc2bb5c41c400000230cec9d37fe6e93ed2f2ac8ead831ee6d9c7bc",
+  "source_qualification": {
+    "runner": "With --ref, actual OHLC handler, both storage methods and normalization wrapper functions are AST-extracted from specified git source. No substitute newness algorithm.",
+    "support_modules": "Normalizer and AssetRegistry load from supplied working root; independently verified bytes identical to candidate and base. ConfigLoader loads from supplied working root with explicit fake credentials and loadDotenv:false; it is not claimed to be an entirely isolated candidate dependency graph.",
+    "dependency_sha256": {
+      "foundation/ohlc-normalize.js": "d2e36fa331c19c859efb60b00b34e276a5bc4b9caa9e8d073808832b3390d0df",
+      "core/AssetRegistry.js": "cd3041e6ed5c8e23d9fae27fafc15cc33ee001c6972426a8bad862b13e92a0d7"
+    },
+    "working_configloader_sha256": "6b4f34bf85c96363a1315bc9d8803c2d9614ba2717a12af1bdee63852aaab2e6"
+  },
+  "assertions_verified": [
+    "First same-timeframe same-etime TSLA/SPY close reaches two market-data inputs; candidate schedules both symbols, baseline only TSLA.",
+    "Repeated updates at the same close schedule no additional analysis.",
+    "Second distinct close schedules both symbols again on candidate; baseline remains first-symbol only.",
+    "Each actual symbol-scoped store contains exactly two candle records; six inputs include repeats."
+  ],
+  "reviewed_results": {
+    "baseline.log": {
+      "text": "PASS baseline: same-etime TSLA/SPY dispatch=TSLA,TSLA",
+      "sha256": "22ce2b4df839702256ca7545fc43548a7ee0fdfab6e2cc368882c9b4b18df2c3"
+    },
+    "candidate.log": {
+      "text": "PASS candidate: same-etime TSLA/SPY dispatch=TSLA,SPY,TSLA,SPY",
+      "sha256": "a4bb5844bcb490cef0ddb4ffd68ec154a0e83fb0cabc235d0860589832142406"
+    },
+    "working.log": {
+      "text": "PASS candidate: same-etime TSLA/SPY dispatch=TSLA,SPY,TSLA,SPY",
+      "sha256": "a4bb5844bcb490cef0ddb4ffd68ec154a0e83fb0cabc235d0860589832142406"
+    }
+  },
+  "limitations": [
+    "handleMarketData and run15mTradingCycle are call-capturing stubs; this proves dispatch and store semantics, not full trading-cycle execution.",
+    "State price marking, scope/dashboard helpers and traces are fixture boundaries.",
+    "No broker construction or broker/network calls are in this fixture path; not an OS isolation claim.",
+    "Review used existing logs and source; no independent rerun."
+  ]
+}

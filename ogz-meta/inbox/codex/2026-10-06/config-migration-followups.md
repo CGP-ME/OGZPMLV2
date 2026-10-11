@@ -191,6 +191,8 @@ HEAD source at d0310b15 passes trai.maxConf into maxConfidenceOverride at run-em
 
 - **2026-10-11 Alpaca prerequisite delivered:** Requested active-frame candles now reach the runner from the broker candle reader while native1m remains available. Exact baseline reproduces the drop; exact candidate and working handler/adapter proofs plus all 25 existing Alpaca cases pass. Mercury no_break_found and Astra scoped PASS. [Evidence](../2026-10-11/mtf-alpaca-bars/README.md). Full concurrent scanning remains open; no runtime activation.
 
+- **2026-10-11 symbol dispatch repaired:** Same-time closes for multiple tickers now use per-symbol newness, retaining duplicate suppression. Actual baseline dispatches TSLA only; candidate and working dispatch both TSLA/SPY at each of two closes. [Evidence and qualified review](../2026-10-11/mtf-symbol-dispatch/README.md). Full concurrent frame wiring remains open; no runtime activation.
+
 ## 28. Scale-in trigger, profit-toggle and sizing-ladder intent
 
 - At committed source e927cdbb, OrderExecutor._entryConcurrencyBlock reads addTriggerClass but rejects equality with the entry trigger (core/OrderExecutor.js:1673-1686). The normal orchestrator transports a trigger or null (:3033,3083); the bounded producer trace did not establish a concrete trigger-class producer. Preserve the canonical current value and investigate intended classification behavior later; no new selector is advertised.
