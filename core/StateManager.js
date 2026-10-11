@@ -631,7 +631,7 @@ class StateManager {
       closedTrades: [],
       brokerVerificationIntegrity: { status: 'trusted', lanes: [] },
       brokerUnverifiableEvidenceRecords: [],
-      isTrading: false,
+      isTrading: getConfigValue('mode.execution') === 'paper',
       lastError: null,
       pauseReason: null,
       pauseSource: null,

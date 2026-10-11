@@ -1,3 +1,11 @@
+## 2026-10-11 — Enable entries when creating fresh paper account state
+
+- **Problem:** Fresh paper state initialized `isTrading=false` without any pause producer, causing the executor to reject entries.
+- **Change:** Initialize that fresh-state field from the existing execution mode. Paper starts enabled; backtest/live fresh-state behavior stays false. Persisted state restoration and deliberate manual/session pauses are unchanged. No new flag, gate, throw or fallback.
+- **Verification:** Actual StateManager baseline versus applied source in isolated fixture-owned storage: fresh paper false -> true; backtest remains false; saved dashboard and SessionRouter pauses remain false. No real state file, broker or running bot was used.
+- **Review / limits:** Mercury receipt is kept with the scoped source identity. This fixes the new-state producer; an existing unexplained saved pause is not silently cleared. PM2 was not restarted or resumed.
+- **Evidence:** `ogz-meta/inbox/codex/2026-10-11/stop1-execution/entry-state/behavior.txt` and `source-receipt.json`.
+
 ## 2026-10-11 — Connect stock downloads to the canonical tool configuration
 
 - **Problem:** The stock downloader called a resolver removed during config migration. The ten static stock-download settings had no consumer; session metadata could still be silently replaced by an environment value or literal.

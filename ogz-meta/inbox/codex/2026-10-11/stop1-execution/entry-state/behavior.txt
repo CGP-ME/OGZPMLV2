@@ -1,0 +1,45 @@
+[StateManager] Balance update: 10000 -> 10000
+[StateManager] State saved to disk
+[StateManager] No persisted state; initialized configured starting balance $10000
+[StateManager] Balance update: 10000 -> 10000
+[StateManager] State saved to disk
+[StateManager] No persisted state; initialized configured starting balance $10000
+[StateManager] Balance update: 10000 -> 10000
+[StateManager] State saved to disk
+[StateManager] No persisted state; initialized configured starting balance $10000
+[StateManager] State loaded from disk
+[StateManager] Active trades restored: 0 trades
+[StateManager] State loaded from disk
+[StateManager] Active trades restored: 0 trades
+{
+  "fixture": "StateManager only; fixture-owned state path; no runner/network/runtime state",
+  "freshPaperState": {
+    "isTrading": false,
+    "pauseReason": null,
+    "pauseSource": null
+  },
+  "patchedFreshPaperState": {
+    "isTrading": true,
+    "pauseReason": null,
+    "pauseSource": null
+  },
+  "patchedBacktestState": {
+    "isTrading": false
+  },
+  "manualPauseState": {
+    "isTrading": false,
+    "pauseReason": "Manual pause from dashboard",
+    "pauseSource": "dashboard_manual"
+  },
+  "sessionRouterPauseState": {
+    "isTrading": false,
+    "pauseSource": "session_router_wind_down",
+    "pauseRecoverable": true
+  },
+  "expectedAfterPatch": {
+    "freshPaperIsTrading": true,
+    "persistedManualPauseIsTrading": false,
+    "persistedSessionRouterPauseIsTrading": false
+  },
+  "passesProposedContract": true
+}

@@ -1,0 +1,15 @@
+{
+  "title": "Fresh paper state entry lifecycle",
+  "base": "865b203429caaf81ea55cc78b6bcf5d8e3cd7888",
+  "candidate": "eeea759e41c2dc16db073dcc883d276dbd65f48a",
+  "files": [
+    "core/StateManager.js"
+  ],
+  "harnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "sourceManifest": ":100644 100644 0d6c4240 a7277587 M\tCHANGELOG.md\n:100644 100644 53831b40 8042e747 M\tcore/StateManager.js",
+  "runtimeActivation": false,
+  "finalReview": {
+    "answer": "retry-review-answer.txt",
+    "verdict": "no_break_found"
+  }
+}
