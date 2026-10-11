@@ -1,0 +1,16 @@
+{
+  "title": "TRAI advisory confidence ceiling and existing settings registry",
+  "base": "1ab030eb107e72f6af2f59de2be5457ae3ade96f",
+  "candidate": "c2d9350ad79ddbe0b4e1319c482c811e8a86d841",
+  "files": [
+    "core/TRAIDecisionModule.js",
+    "foundation/ConfigLoader.js"
+  ],
+  "harnessTree": "9c550a22a4a03d9db79fa0bb8042e42f98c60ff8",
+  "sourceManifest": ":100644 100644 88cc47ab b7f2c9ab M\tCHANGELOG.md\n:100644 100644 5ee5d11b a70e7edd M\tcore/TRAIDecisionModule.js\n:100644 100644 2b69c4fd 578f42ed M\tfoundation/ConfigLoader.js",
+  "runtimeActivation": false,
+  "finalReview": {
+    "answer": "producer-review-answer.txt",
+    "verdict": "no_break_found"
+  }
+}

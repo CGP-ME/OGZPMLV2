@@ -1,3 +1,11 @@
+## 2026-10-11 — Honor TRAI's configured advisory confidence ceiling
+
+- **Problem:** Runner passed `trai.maxConf` into TRAI but the decision method ignored it, including after pattern multipliers.
+- **Change:** Expose the existing value in the settings registry with the same fraction domain as minimum confidence; apply the existing maximum to the completed advisory confidence score before the existing blend step. No new setting, default, bypass, throw or execution veto; passive mode still preserves the original strategy confidence.
+- **Verification:** Isolated execution of the actual decision method: TRAI score 0.9 with a 2x pattern multiplier previously reached 1; configured maximum 0.75 now reports 0.75. Passive final confidence remains 0.62. Canonical runner constructor supplies the maximum. Source syntax and consumer proof accompany review.
+- **Review / activation:** Mercury source receipt and result are retained with the change. No bot restart, order, state mutation or excluded exit adjustment.
+- **Evidence:** `ogz-meta/inbox/codex/2026-10-11/stop1-execution/strategies/05-trai-max-confidence/PROOF.md`, `probe.cjs`, `source-receipt.json`.
+
 ## 2026-10-11 — Remove phantom environment-owned mode and risk proof claims
 
 - **Problem:** The standalone proof generator labeled runtime paper/live mode, risk percentage and stop loss from retired environment variables with literal defaults. It also asserted Kraken as the active broker without observing the running bot.

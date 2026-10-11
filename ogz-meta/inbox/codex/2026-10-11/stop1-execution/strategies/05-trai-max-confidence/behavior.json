@@ -1,0 +1,18 @@
+{
+  "before": {
+    "traiConfidence": 1,
+    "finalConfidence": 0.62
+  },
+  "after": {
+    "traiConfidence": 0.75,
+    "finalConfidence": 0.62
+  },
+  "beforeNoMultiplier": {
+    "traiConfidence": 0.9,
+    "finalConfidence": 0.62
+  },
+  "afterNoMultiplier": {
+    "traiConfidence": 0.75,
+    "finalConfidence": 0.62
+  }
+}

@@ -2782,6 +2782,7 @@ const EDITABLE_SETTINGS = deepFreeze({
     ['maxRisk', 'TRAI maximum-loss advisory threshold', { unit: 'account currency', min: 0, max: Number.MAX_VALUE }],
     ['emergencyStopLoss', 'TRAI advisory stop distance when signal lacks a stop', { unit: 'price fraction', min: 0, max: Number.MAX_VALUE }],
     ['minConf', 'TRAI recommendation confidence threshold', { unit: 'confidence fraction', min: 0, max: 1 }],
+    ['maxConf', 'TRAI advisory confidence ceiling', { unit: 'confidence fraction', min: 0, max: 1 }],
     ['legacyPatternMinSamples', 'TRAI legacy pattern minimum samples', { unit: 'samples', min: 1, max: Number.MAX_SAFE_INTEGER, integer: true }],
   ].map(([key, label, domain]) => [`trai.${key}`, {
     type: 'number', ...domain, label, effect: 'next_bot_initialization_restart_required',

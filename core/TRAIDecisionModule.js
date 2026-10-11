@@ -225,6 +225,8 @@ class TRAIDecisionModule extends EventEmitter {
         decision.traiConfidence = Math.max(0, Math.min(1, adjustedConf));
       }
       
+      decision.traiConfidence = Math.max(0, Math.min(this.config.maxConfidenceOverride, decision.traiConfidence));
+
       // Step 3: Blend confidences based on mode
       decision.finalConfidence = this.blendConfidences(
         normalizedSignal.confidence,

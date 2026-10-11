@@ -1,0 +1,42 @@
+VERDICT: no_break_found
+
+ADVERSARIAL_REVIEW_BLOCKING: no
+
+CANDIDATE SET: examined 4 of 4
+- core/TRAIDecisionModule.js – consumer of confidence ceiling (clamp)
+- foundation/ConfigLoader.js – registration of `trai.maxConf` setting
+- config/settings.json – default value for `trai.maxConf` (0.95)
+- run-empire-v2.js – passes `maxConfidenceOverride: resolvedConfig.config.trai.maxConf` to the consumer
+
+AST EVIDENCE:
+- `core/TRAIDecisionModule.js` line 228 shows the clamp: `decision.traiConfidence = Math.max(0, Math.min(this.config.maxConfidenceOverride, decision.traiConfidence));`【open_file†L215-L235】
+- `git_diff` for `core/TRAIDecisionModule.js` adds the clamp line (the only occurrence)【git_diff†L-7-L8】
+- `foundation/ConfigLoader.js` defines the setting `['maxConf', 'TRAI advisory confidence ceiling', { unit: 'confidence fraction', min: 0, max: 1 }]`【open_file†L2775-L2786】
+- `config/settings.json` provides a concrete default `maxConf: 0.95`【open_file†L2580-L2582】
+- `run-empire-v2.js` passes the value as `maxConfidenceOverride: resolvedConfig.config.trai.maxConf`【open_file†L813-L815】
+
+INHERITED:
+- core/TRAIDecisionModule.js – present, reads `this.config.maxConfidenceOverride` (provided by caller)
+- foundation/ConfigLoader.js – present, registers `trai.maxConf` (no default fallback inside schema)
+- config/settings.json – present, supplies a default value for `trai.maxConf`
+
+FOURTH SHAPE CLASSIFIER: classified 2 of 2
+- Added clamp in `TRAIDecisionModule` (producer) – no guard against undefined `maxConfidenceOverride` (potential NaN) – classified as MECHANICAL (requires defensive default)
+- Registration of `maxConf` in ConfigLoader – no explicit default, but downstream consumer receives a value from `settings.json` – classified as SUBSTANTIVE (correct contract)
+
+ALLEGATIONS:
+- MECHANICAL: “Clamp without default may yield NaN if config key missing” – basis: `this.config.maxConfidenceOverride` used directly without fallback.
+- SUBSTANTIVE: “Duplicate clamp added by diff” – refuted: only a single clamp exists in current source; diff added the sole clamp.
+- SUBSTANTIVE: “Missing source for consumer/registration” – refuted: both consumer and registration are present in current source.
+
+SUBSTANTIVE RESOLUTION: none
+
+WHAT I DID: examined the current source of `core/TRAIDecisionModule.js`, the diff that added the clamp, the ConfigLoader registration of `maxConf`, the default settings in `config/settings.json`, and the wiring in `run-empire-v2.js`.
+
+WHAT I DID NOT DO: execute any runtime code, infer behavior beyond static analysis, or modify source.
+
+WHAT I ASSUMED: the repository snapshot reflects the exact code that will run; no hidden runtime defaults for `maxConfidenceOverride` beyond what is statically visible.
+
+WHY THIS VERDICT: the confidence‑ceiling consumer (`TRAIDecisionModule`) correctly reads the `maxConfidenceOverride` value supplied by the caller (`run-empire-v2.js`). The setting `trai.maxConf` is registered in `ConfigLoader` and a concrete default (0.95) exists in `config/settings.json`. No duplicate clamp is present. The only residual risk is a potential NaN if `maxConf` were omitted from the configuration, but the default configuration includes the key, and the schema does not enforce a required default. Consequently, the change does not introduce a break.
+
+IF INCOMPLETE, WHY: not incomplete – all relevant files have been examined and the contract between producer and consumer is fully covered by the evidence.
