@@ -831,6 +831,7 @@ class StrategyOrchestrator {
     // These are pluggable: add/remove strategies by editing this array
     this.strategies = [];
     this.symbolStrategyModules = new Map();
+    this.symbolStrategyRiskStates = new Map();
 
     // Opening Range Breakout stateful strategy instance
     // MUST be initialized BEFORE _registerBuiltinStrategies() so closure captures it
@@ -954,7 +955,7 @@ class StrategyOrchestrator {
     };
   }
 
-  _getSymbolStrategyModule(strategyName, symbol, fallbackModule, factory) {
+  _getSymbolStrategyModule(strategyName, symbol, timeframe, fallbackModule, factory) {
     if (typeof symbol !== 'string' || !symbol) return fallbackModule;
     if (typeof factory !== 'function') {
       throw new Error(`[STRATEGY-SCOPE] ${strategyName} requires a module factory for symbol-scoped state`);
@@ -966,9 +967,25 @@ class StrategyOrchestrator {
     }
     const bySymbol = this.symbolStrategyModules.get(strategyName);
     if (!bySymbol.has(canonicalSymbol)) {
-      bySymbol.set(canonicalSymbol, factory());
+      bySymbol.set(canonicalSymbol, new Map());
     }
-    return bySymbol.get(canonicalSymbol);
+    const byTimeframe = bySymbol.get(canonicalSymbol);
+    if (!byTimeframe.has(timeframe)) {
+      const module = factory();
+      if (strategyName === 'SmartMoneySweep') {
+        if (!this.symbolStrategyRiskStates.has(strategyName)) {
+          this.symbolStrategyRiskStates.set(strategyName, new Map());
+        }
+        const dailyRiskBySymbol = this.symbolStrategyRiskStates.get(strategyName);
+        if (!dailyRiskBySymbol.has(canonicalSymbol)) {
+          dailyRiskBySymbol.set(canonicalSymbol, module.dailyRiskState);
+        } else {
+          module.dailyRiskState = dailyRiskBySymbol.get(canonicalSymbol);
+        }
+      }
+      byTimeframe.set(timeframe, module);
+    }
+    return byTimeframe.get(timeframe);
   }
 
   _resolveStrategyStateSymbol(ctx, latestCandle = null) {
@@ -1021,6 +1038,7 @@ class StrategyOrchestrator {
     const scopedMtfAdapter = this._getSymbolStrategyModule(
       'MtfConfluenceService',
       ctx.extras?.symbol,
+      null,
       this.mtfAdapter,
       () => new MultiTimeframeAdapter(this._buildMtfAdapterConfig())
     );
@@ -1645,6 +1663,7 @@ class StrategyOrchestrator {
         const scopedEmaCrossover = this._getSymbolStrategyModule(
           'EMASMACrossover',
           ctx.extras?.symbol,
+          ctx.extras?.timeframe,
           emaCrossoverModule,
           () => new EMASMACrossoverSignal(
             this.emaCrossoverConfigProvider(),
@@ -1716,6 +1735,7 @@ class StrategyOrchestrator {
         const scopedMaDynamicSR = this._getSymbolStrategyModule(
           'MADynamicSR',
           ctx.extras?.symbol,
+          ctx.extras?.timeframe,
           maDynamicSRModule,
           () => new MADynamicSR(
             ConfigLoader.get('strategies.MADynamicSR'),
@@ -1782,6 +1802,7 @@ class StrategyOrchestrator {
         const scopedLiquiditySweep = this._getSymbolStrategyModule(
           'LiquiditySweep',
           ctx.extras?.symbol,
+          ctx.extras?.timeframe,
           liquiditySweepModule,
           () => new LiquiditySweepDetector(this.liquiditySweepConfigProvider(), this.liquiditySweepConfigProvider)
         );
@@ -1837,6 +1858,7 @@ class StrategyOrchestrator {
           const scopedBreakAndRetest = this._getSymbolStrategyModule(
             'BreakRetest',
             ctx.extras?.symbol,
+            ctx.extras?.timeframe,
             breakAndRetestModule,
             () => new BreakAndRetest(this.breakAndRetestConfigProvider, this.breakAndRetestExitConfigProvider)
           );
@@ -2006,6 +2028,7 @@ class StrategyOrchestrator {
         const scopedTpoIntegration = this._getSymbolStrategyModule(
           'OGZTPO',
           ctx.extras?.symbol,
+          ctx.extras?.timeframe,
           tpoIntegrationModule,
           () => new OgzTpoIntegration(this.ogzTpoConfigProvider)
         );
@@ -2061,6 +2084,7 @@ class StrategyOrchestrator {
         const scopedOrb = this._getSymbolStrategyModule(
           'OpeningRangeBreakout',
           orbSymbol,
+          ctx.extras?.timeframe,
           orbInstance,
           () => new OpeningRangeBreakout(
             this.openingRangeBreakoutEntryConfigProvider,
@@ -2111,6 +2135,7 @@ class StrategyOrchestrator {
         const scopedSmartMoneySweep = this._getSymbolStrategyModule(
           'SmartMoneySweep',
           ctx.extras?.symbol,
+          ctx.extras?.timeframe,
           smartMoneySweepModule,
           () => new SmartMoneySweep(this.smartMoneySweepConfigProvider)
         );
@@ -2182,6 +2207,7 @@ class StrategyOrchestrator {
       evaluate: (ctx) => this._getSymbolStrategyModule(
         'DonchianBreakout',
         ctx.extras?.symbol,
+        ctx.extras?.timeframe,
         donchianBreakoutModule,
         () => new DonchianBreakout(
           this.donchianEntryConfigProvider(), this.donchianExitConfigProvider()
@@ -2199,6 +2225,7 @@ class StrategyOrchestrator {
         evaluate: (ctx) => this._getSymbolStrategyModule(
           'PropSafeEMAPullback',
           ctx.extras?.symbol,
+          ctx.extras?.timeframe,
           propSafeEmaPullbackModule,
           () => new PropSafeEMAPullback(
             ConfigLoader.get('strategies.PropSafeEMAPullback'),
@@ -2222,6 +2249,7 @@ class StrategyOrchestrator {
         evaluate: (ctx) => this._getSymbolStrategyModule(
           'EMATrendRetest',
           ctx.extras?.symbol,
+          ctx.extras?.timeframe,
           emaTrendRetestModule,
           () => new EMATrendRetest(
             ConfigLoader.get('strategies.EMATrendRetest'),
@@ -2245,6 +2273,7 @@ class StrategyOrchestrator {
         evaluate: (ctx) => this._getSymbolStrategyModule(
           'RSI2MeanReversion',
           ctx.extras?.symbol,
+          ctx.extras?.timeframe,
           rsi2MeanReversionModule,
           () => new RSI2MeanReversion(
             ConfigLoader.get('strategies.RSI2MeanReversion'),
@@ -2269,6 +2298,7 @@ class StrategyOrchestrator {
         evaluate: (ctx) => this._getSymbolStrategyModule(
           'TimeSeriesMomentum',
           ctx.extras?.symbol,
+          ctx.extras?.timeframe,
           timeSeriesMomentumModule,
           () => new TimeSeriesMomentum(
             timeSeriesMomentumEntryConfigProvider(), timeSeriesMomentumExitConfigProvider()
@@ -3163,16 +3193,17 @@ class StrategyOrchestrator {
    * @param {string} strategyName - The strategy that made the trade
    * @param {number} pnl - The P&L of the closed trade (positive = win, negative = loss)
    */
-  recordTradeResult(strategyName, pnl, symbol = null) {
+  recordTradeResult(strategyName, pnl, symbol = null, timeframe) {
     if (strategyName === 'SmartMoneySweep' && this.smartMoneySweepModule) {
       const smsModule = this._getSymbolStrategyModule(
         'SmartMoneySweep',
         symbol,
+        timeframe,
         this.smartMoneySweepModule,
         () => new SmartMoneySweep(this.smartMoneySweepConfigProvider)
       );
       smsModule.recordTradeResult(pnl);
-      console.log(`[SMS-DAILY] Recorded trade result: $${pnl.toFixed(2)} symbol=${symbol || 'legacy'} dailyLosses=${smsModule.dailyLosses}`);
+      console.log(`[SMS-DAILY] Recorded trade result: $${pnl.toFixed(2)} symbol=${symbol || 'legacy'} dailyLosses=${smsModule.dailyRiskState.dailyLosses}`);
     }
   }
 

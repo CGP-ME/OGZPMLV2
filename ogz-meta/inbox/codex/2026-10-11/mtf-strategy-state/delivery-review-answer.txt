@@ -1,0 +1,45 @@
+VERDICT: found_break
+
+ADVERSARIAL_REVIEW_BLOCKING: yes
+
+CANDIDATE SET: examined 3 of 3
+- core/OrderExecutor.js (full source read, all claims inspected)
+- core/StrategyOrchestrator.js (full source read, all claims inspected)
+- modules/SmartMoneySweep.js (full source read, no claims found)
+
+AST EVIDENCE:
+- Used `search`, `open_file` to locate and read relevant code sections.
+- All cited lines are from the current repository (ref 2a6a46031f19f9fefb940540fb2fcede27789a30).
+
+INHERITED:
+- core/OrderExecutor.js – present, examined, claims 1, 2, 3, 4, 5 addressed.
+- core/StrategyOrchestrator.js – present, examined, claim 6 addressed.
+- modules/SmartMoneySweep.js – present, examined, no relevant claims.
+
+FOURTH SHAPE CLASSIFIER:
+- core/OrderExecutor.js – 3 throws (lines 424, 2264, 2213) and multiple guards (if‑checks for routerEnabled, missing fields, etc.).
+- core/StrategyOrchestrator.js – guard for missing timeframe (method signature includes `timeframe` but callers omit it).
+- modules/SmartMoneySweep.js – no new throws or guards introduced in the diff.
+
+ALLEGATIONS:
+1. **MECHANICAL** – `_orderQuantityUnit` calls `this._runtimeScope()` without try/catch; `_runtimeScope` can throw when required fields are missing.  
+   - Evidence: `_orderQuantityUnit` (lines 531‑540) → call to `_runtimeScope`【open_file†L531-L540】; `_runtimeScope` throws on missing fields (lines 424‑425)【open_file†L424-L425】.  
+2. **MECHANICAL** – `_supportsFractionalOrderQuantity` also calls `this._runtimeScope(scope?.symbol || null)` without handling possible exception.  
+   - Evidence: `_supportsFractionalOrderQuantity` (lines 542‑573) → call to `_runtimeScope`【open_file†L542-L573】; same throw as above.  
+3. **SUBSTANTIVE** – Entry plan may continue with impossible stock‑share‑range because `blockReason` is set but not acted upon; orderQuantity can be zero yet the plan is returned for execution.  
+   - Evidence: `_applyStockShareRange` returns `{orderQuantity:0, blockReason:…}` when `maxShares < minShares` (lines 2271‑2277)【open_file†L2271-L2277】.  
+   - Counter‑evidence: Caller checks `entryPlan && entryPlan.orderQuantity <= 0` and blocks execution (lines 3156‑3171)【open_file†L3156-L3171】. Hence the claim is **refuted**.  
+4. **MECHANICAL** – Errors from `router.sendOrder` in `_flattenAndHaltExitDesync` are caught, stored in `flattenError`, and execution continues without propagating the error.  
+   - Evidence: `try { await this.ctx.orderRouter.sendOrder(...); } catch (err) { flattenError = err.message; }` (lines 1392‑1409)【open_file†L1392-L1409】; function proceeds to halt symbol (lines 1413‑1445)【open_file†L1413-L1445】.  
+5. **MECHANICAL** – Fallback to oldest BUY trade when `decision.tradeId` does not match any active BUY trades may misattribute exit to wrong position in multi‑position mode.  
+   - Evidence: Warning and fallback logic (lines 4438‑4441)【open_file†L4438-L4441】.  
+6. **MECHANICAL** – `recordTradeResult` signature includes `timeframe` but the call to `smsModule.recordTradeResult(pnl)` omits it, potentially leading to missing timeframe argument.  
+   - Evidence: Method signature (lines 3196‑3197)【open_file†L3196-L3197】; call without timeframe (line 3205)【open_file†L3205】.  
+
+SUBSTANTIVE RESOLUTION: convergence – all supported claims have clear, verifiable code evidence; claim 3 is explicitly refuted by code that blocks execution when orderQuantity ≤ 0.
+
+WHAT I DID: mechanically examined all three changed files, performed targeted searches, opened surrounding code sections, and recorded exact line citations for each claim.  
+WHAT I DID NOT DO: execute any code, run tests, or infer behavior beyond what is provably present in the source.  
+WHAT I ASSUMED: none – all conclusions are drawn directly from the repository code.  
+WHY THIS VERDICT: multiple concrete code paths demonstrate unhandled exceptions, swallowed errors, and unsafe fallbacks, satisfying the definition of a break.  
+IF INCOMPLETE, WHY: none – the investigation covered every relevant file and claim with full source evidence.

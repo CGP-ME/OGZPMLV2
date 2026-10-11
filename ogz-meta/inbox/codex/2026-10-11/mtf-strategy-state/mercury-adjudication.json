@@ -1,0 +1,171 @@
+{
+  "candidate_tree": "2a6a46031f19f9fefb940540fb2fcede27789a30",
+  "base_commit": "d1189beabcb60bb536d81532e707c810fc0a3345",
+  "mercury_run_id": "2026-10-11T06-41-50-433Z-089db3c2e437",
+  "raw_mercury_verdict": "found_break",
+  "scoped_disposition": "No introduced defect established by six cited allegations. Five concern unchanged OrderExecutor behavior (claim 3 is already refuted); claim 6 confuses two distinct method signatures. Exact-candidate execution supports correct persisted-frame feedback and shared symbol daily-risk ownership. Raw found_break retained, not rewritten as Mercury pass.",
+  "unresolved_introduced_findings": [],
+  "claims": [
+    {
+      "id": 1,
+      "claim": "_orderQuantityUnit can expose _runtimeScope exception",
+      "disposition": "Inherited byte-identical helper and scope implementation. Candidate adds only trade-result timeframe arguments in OrderExecutor; no changed quantity/scope path.",
+      "evidence": [
+        "core/OrderExecutor.js:424",
+        "core/OrderExecutor.js:531"
+      ],
+      "helper_sha256": "967e8cb356a05680f4ee8f5767d6cf0ec8a75936ea47ae861335c18e5baec009",
+      "scope_sha256": "d4d5f1fc93748be42710733b9eee9e6a86e0f76a83399c49f26097dfc14a91eb"
+    },
+    {
+      "id": 2,
+      "claim": "_supportsFractionalOrderQuantity can expose _runtimeScope exception",
+      "disposition": "Inherited byte-identical implementation and unchanged call contract; not introduced.",
+      "evidence": [
+        "core/OrderExecutor.js:542"
+      ],
+      "helper_sha256": "16d5f066ce0c1594482599c22b04cf8cd067bff9215e2b9896e28d6c7450e482"
+    },
+    {
+      "id": 3,
+      "claim": "Zero quantity impossible share range continues into execution",
+      "disposition": "Refuted by Mercury itself and source: positive-quantity block returns before execution. _applyStockShareRange is byte-identical to base.",
+      "evidence": [
+        "core/OrderExecutor.js:2271",
+        "core/OrderExecutor.js:3156",
+        "core/OrderExecutor.js:3171"
+      ],
+      "helper_sha256": "1b33525b4f762e71ef8053e823110e967a97780360d91db549f5ec0ab922800d"
+    },
+    {
+      "id": 4,
+      "claim": "Flatten sendOrder error stored without propagating",
+      "disposition": "Inherited byte-identical helper. It proceeds to symbol halt/trace handling as cited; this review does not redesign inherited recovery behavior or infer a new defect from lack of rethrow.",
+      "evidence": [
+        "core/OrderExecutor.js:1392",
+        "core/OrderExecutor.js:1413"
+      ],
+      "helper_sha256": "98760ae02bf9a2c450c080a4668dd2f3492e80abc42ad9892c3f2617b215fc5a"
+    },
+    {
+      "id": 5,
+      "claim": "Unmatched tradeId fallback can misattribute oldest BUY",
+      "disposition": "Fallback and earlier exit selector are byte-identical. Explicit unmatched tradeId is refused by _findExitTrade; missing exit plan returns before routing. Omitted tradeId uses inherited oldest same-symbol matching direction. No changed exit-target selection; no broad asynchronous-race claim.",
+      "evidence": [
+        "core/OrderExecutor.js:2442",
+        "core/OrderExecutor.js:2462",
+        "core/OrderExecutor.js:3252",
+        "core/OrderExecutor.js:4438"
+      ],
+      "fallback_sha256": "8a060165f064179c3da04f1b373efa5eef329a500540eefdab39c009fdd969cc",
+      "selector_sha256": "ec76f0c09d64b268e228447df34538444eacd0a55e280e3919a69426a8839d16"
+    },
+    {
+      "id": 6,
+      "claim": "smsModule.recordTradeResult(pnl) omits required timeframe",
+      "disposition": "False method-contract conflation. Orchestrator receives timeframe from both actual OE close callers, uses it to select the cached SMS module, then calls SMS.recordTradeResult(pnl), whose declared signature requires only pnl. SMS increments its attached shared risk object; timeframe is not a parameter of that method. No missing-timeframe guard was added.",
+      "evidence": [
+        "core/OrderExecutor.js:4849",
+        "core/OrderExecutor.js:5480",
+        "core/StrategyOrchestrator.js:3196",
+        "core/StrategyOrchestrator.js:3201",
+        "core/StrategyOrchestrator.js:3205",
+        "modules/SmartMoneySweep.js:328",
+        "modules/SmartMoneySweep.js:330"
+      ]
+    }
+  ],
+  "proof": {
+    "runs": [
+      {
+        "path": "runs/2a6a46031f19f9fefb940540fb2fcede27789a30-strategy-state-OubmaV",
+        "result": {
+          "status": "pass",
+          "completed": [
+            {
+              "action": "BUY",
+              "timeframe": "15m",
+              "pnl": -1.6484257871064345,
+              "dailyLosses": 1
+            },
+            {
+              "action": "SELL_SHORT",
+              "timeframe": "1h",
+              "pnl": -1.101050525262628,
+              "dailyLosses": 2
+            }
+          ],
+          "otherSymbolLosses": 0,
+          "nextSessionLosses": 0,
+          "actualRecordCalls": [
+            [
+              "SmartMoneySweep",
+              -1.6484257871064345,
+              "TSLA",
+              "15m"
+            ],
+            [
+              "SmartMoneySweep",
+              -1.101050525262628,
+              "TSLA",
+              "1h"
+            ]
+          ]
+        },
+        "result_sha256": "3e3b8ad0b68923459cc12d106a544f055b022fdf5c01c7252ed904e903a53c34",
+        "source_manifest_sha256": "b5dddb69b9453a302560dc51fe97db168557f6110e65ebc7c7f2bd13ccec62c9"
+      },
+      {
+        "path": "runs/working-strategy-state-NmvvHi",
+        "result": {
+          "status": "pass",
+          "completed": [
+            {
+              "action": "BUY",
+              "timeframe": "15m",
+              "pnl": -1.099499999999992,
+              "dailyLosses": 1
+            },
+            {
+              "action": "SELL_SHORT",
+              "timeframe": "1h",
+              "pnl": -1.650749999999995,
+              "dailyLosses": 2
+            }
+          ],
+          "otherSymbolLosses": 0,
+          "nextSessionLosses": 0,
+          "actualRecordCalls": [
+            [
+              "SmartMoneySweep",
+              -1.099499999999992,
+              "TSLA",
+              "15m"
+            ],
+            [
+              "SmartMoneySweep",
+              -1.650749999999995,
+              "TSLA",
+              "1h"
+            ]
+          ]
+        },
+        "result_sha256": "467046ebf9b36dffe12aed1dd94ab85e9c20f9ae30360db928d2570b6a758521",
+        "source_manifest_sha256": "e306152fbb97e287ea70112123cf1a698a83aed39983e3749cfade91d46bf6bb"
+      }
+    ],
+    "source_identity": "Independently verified copied OE, Orchestrator, SMS and StateManager hashes against each source manifest; exact candidate copies additionally match git tree. Working run is supplementary and contains unrelated dirty production changes.",
+    "fixture_review": "Worker executes actual isolated paper executor/state/orchestrator; wraps result recorder to observe arguments while delegating real implementation. Opens and closes losing BUY 15m and SHORT 1h trades, checks persisted frame, empty active-trades map and negative close P&L; verifies shared counter 1 then 2, NVDA 0, same-day new frame no reset and next-session reset.",
+    "fixture_sha256": {
+      "fixtures/run.cjs": "caf697eed5f732c053b4e42c78db73f035005c1fd0ec6d53a4b9bf05d94e7c1f",
+      "fixtures/worker.cjs": "2c98ea3df19996401f6283c0f8534191f438e64f2e45a1a4e1f5365330cb8007"
+    },
+    "limitations": [
+      "Strategy signals/contracts are fixture supplied; natural SMS signal generation and scanner dispatch are not tested.",
+      "Session reset checks call real _updateIVB directly, not full historical indicator replay.",
+      "Filesystem/network guards are scoped fixture interception, not OS sandboxing.",
+      "No production/root state mutation or fresh independent execution performed in adjudication."
+    ]
+  },
+  "raw_answer_sha256": "5c6c0e817e3ce06bcf839f9d3962d793962ddee090e9444f551e47a2bc4ea6c2"
+}

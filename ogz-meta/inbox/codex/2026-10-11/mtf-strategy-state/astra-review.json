@@ -1,0 +1,61 @@
+{
+  "candidate_tree": "2a6a46031f19f9fefb940540fb2fcede27789a30",
+  "base_commit": "d1189beabcb60bb536d81532e707c810fc0a3345",
+  "verdict": "scoped_source_pass",
+  "unresolved_introduced_findings": [],
+  "scope": "Three exact production source paths only; state isolation prerequisite, not scanner dispatch or arbitrary timeframe-input validation.",
+  "source_sha256": {
+    "core/OrderExecutor.js": "c4ab4d46cf72c27844c4d015041f8d4734e5da065d8fee0977324ca617266a8b",
+    "core/StrategyOrchestrator.js": "ea162d09cd98ab7d93d2047be8e0783e8b49d3856f7b1721c1fd402888668ba8",
+    "modules/SmartMoneySweep.js": "2fe94729c15790d5ee5f680e1d5f14c5df4af54af916e818a3dddd9420d890c0"
+  },
+  "checks": [
+    {
+      "topic": "Cache producer and consumers",
+      "result": "All production helper calls use the expanded signature. Stateful per-frame strategies receive extras.timeframe; existing TradingLoop supplies ctx.candleTimeframe. No other production code accesses the old module map shape. Missing-symbol fallback is unchanged.",
+      "evidence": [
+        "core/StrategyOrchestrator.js:958",
+        "core/StrategyOrchestrator.js:967",
+        "core/TradingLoop.js:1335",
+        "core/TradingLoop.js:1354"
+      ]
+    },
+    {
+      "topic": "MTF confluence ownership",
+      "result": "MtfConfluenceService intentionally uses null timeframe cache key, retaining one adapter per symbol and cross-frame aggregation. Per-evaluation confluence caching and latest candle timeframe ingestion are unchanged.",
+      "evidence": [
+        "core/StrategyOrchestrator.js:1008",
+        "core/StrategyOrchestrator.js:1038",
+        "core/StrategyOrchestrator.js:1047"
+      ]
+    },
+    {
+      "topic": "SmartMoney candle state and risk budget",
+      "result": "Separate timeframe modules share one dailyRiskState object per canonical symbol. First same-day evaluation of another timeframe cannot erase the shared loss count because risk day is distinct from each module IVB/session day. Other symbols retain distinct risk objects. Daily rollover clears shared loss count; IVB reset remains per module. No production caller of resetDaily or old dailyLosses property was found outside changed owners.",
+      "evidence": [
+        "core/StrategyOrchestrator.js:973",
+        "core/StrategyOrchestrator.js:979",
+        "modules/SmartMoneySweep.js:173",
+        "modules/SmartMoneySweep.js:183",
+        "modules/SmartMoneySweep.js:328",
+        "modules/SmartMoneySweep.js:511",
+        "modules/SmartMoneySweep.js:517"
+      ]
+    },
+    {
+      "topic": "Closed trade feedback",
+      "result": "Only two production callers target orchestrator.recordTradeResult, both OrderExecutor close paths. Both now supply persisted entry trade timeframe. Result helper reuses that frame module and shared symbol risk object; a newly created frame still shares any existing symbol risk budget. Existing P&L direction/count semantics unchanged.",
+      "evidence": [
+        "core/OrderExecutor.js:4849",
+        "core/OrderExecutor.js:5480",
+        "core/StrategyOrchestrator.js:3196"
+      ]
+    }
+  ],
+  "validation": "Read exact candidate/base diff and qualified producer/caller sources; searched all tracked production JavaScript for helper calls, module-map access, resetDaily, dailyLosses, and result feedback. Behavioral execution and Mercury are performed separately by parent, not claimed by this static review.",
+  "limitations": [
+    "Current TradingLoop remains pinned to ctx.candleTimeframe; multi-frame dispatch is not implemented or verified by this prerequisite.",
+    "Retained daily reset semantics use the input candle calendar day; this review does not claim arbitrary out-of-order history replay safety.",
+    "Test API callers must be updated for nested frame maps and shared dailyRiskState; no production compatibility wrapper or new gate recommended."
+  ]
+}

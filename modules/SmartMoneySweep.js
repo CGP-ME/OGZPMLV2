@@ -57,7 +57,7 @@ class SmartMoneySweep {
     this.sessionDay = '';
 
     this.cvd = 0;
-    this.dailyLosses = 0;
+    this.dailyRiskState = { dailyLosses: 0, sessionDay: '' };
 
     this.lastLongSweepBar = -1;
     this.lastShortSweepBar = -1;
@@ -180,7 +180,7 @@ class SmartMoneySweep {
     const candleTime = this._getCandleDate(candle);
     const inCash = this._inCashSession(candleTime);
     const inValid = this.useSessionFilter ? this._inValidSession(candleTime) : true;
-    const canTrade = this.dailyLosses < this.maxDailyLosses;
+    const canTrade = this.dailyRiskState.dailyLosses < this.maxDailyLosses;
 
     // ─── Step 3: Classify the current candle and configured sweep history ───
     if (priceHistory.length < 5) return null;
@@ -327,7 +327,7 @@ class SmartMoneySweep {
    */
   recordTradeResult(pnl) {
     if (pnl < 0) {
-      this.dailyLosses++;
+      this.dailyRiskState.dailyLosses++;
     }
   }
 
@@ -335,7 +335,8 @@ class SmartMoneySweep {
    * Reset daily state. Call at session open detection.
    */
   resetDaily() {
-    this.dailyLosses = 0;
+    this.dailyRiskState.dailyLosses = 0;
+    this.dailyRiskState.sessionDay = '';
     this.ivbHigh = null;
     this.ivbLow = null;
     this.ivbLocked = false;
@@ -507,7 +508,12 @@ class SmartMoneySweep {
     // This ensures daily reset happens per calendar day, not per weekday
     const currentDay = candleDate.toISOString().slice(0, 10);
 
-    // Detect new session
+    if (currentDay !== this.dailyRiskState.sessionDay && inCash) {
+      this.dailyRiskState.sessionDay = currentDay;
+      this.dailyRiskState.dailyLosses = 0;
+    }
+
+    // Detect this timeframe's new session; its IVB range remains local.
     const newSession = currentDay !== this.sessionDay && inCash;
     if (newSession) {
       this.sessionDay = currentDay;
@@ -516,7 +522,6 @@ class SmartMoneySweep {
       this.ivbLocked = false;
       this.ivbBarCount = 1;
       this.ivbDirection = 0;
-      this.dailyLosses = 0; // Reset daily losses on new session
       return;
     }
 

@@ -1,0 +1,40 @@
+{
+  "production_candidate_tree": "2a6a46031f19f9fefb940540fb2fcede27789a30",
+  "verdict": "scoped_pass",
+  "scope": "Supplemental review of two existing test diffs and isolated run/worker fixture only; no broader production re-review.",
+  "sha256": {
+    "test/strategy-orchestrator-symbol-state.test.js": "8b8be5aa62ee043721f89b6a70e73b1ffaffa24ca152c32610914e18cdc37ad6",
+    "test/time-series-momentum.test.js": "8f6ba973f2d1825b8de0eb4da33680d1bb6ae26be4d42143e7c0b49e122d4167",
+    "ogz-meta/inbox/codex/2026-10-11/mtf-strategy-state/fixtures/run.cjs": "caf697eed5f732c053b4e42c78db73f035005c1fd0ec6d53a4b9bf05d94e7c1f",
+    "ogz-meta/inbox/codex/2026-10-11/mtf-strategy-state/fixtures/worker.cjs": "2c98ea3df19996401f6283c0f8534191f438e64f2e45a1a4e1f5365330cb8007"
+  },
+  "positive_checks": [
+    "Existing symbol normalization, distinct-symbol instances, absent-symbol fallback identity and TSM helper expectations remain.",
+    "Added timeframe-specific identity and MTF null-key reuse assertions exercise changed cache ownership.",
+    "SMS case verifies distinct local IVB highs, shared same-symbol risk reference, distinct other-symbol risk and no same-day reset.",
+    "TSM change is limited to expanded helper signature and required constructor timeframe in its corresponding case.",
+    "Worker delegates to real recordTradeResult while capturing arguments, and actual executor creates/closes both sides. Entry persisted frame and loss counts are asserted; callbacks are not replaced with fake result producers.",
+    "Runner copies qualified source, redirects mutable paths, passes fake credentials and disables dotenv; worker uses actual isolated modules, paper assertion, scoped synchronous write guards and blocked common network APIs. Root helper is fixture-only context."
+  ],
+  "limitations": [
+    "Filesystem/network interception is not an OS sandbox; no universal hostile-code isolation claim.",
+    "Scripted upstream decisions/contracts and direct IVB session updates do not prove scanner dispatch or natural strategy signals.",
+    "Exact-candidate focused 3+1 test execution is being completed separately by parent."
+  ],
+  "prior_sha256": {
+    "test/strategy-orchestrator-symbol-state.test.js": "8b8be5aa62ee043721f89b6a70e73b1ffaffa24ca152c32610914e18cdc37ad6",
+    "test/time-series-momentum.test.js": "8f6ba973f2d1825b8de0eb4da33680d1bb6ae26be4d42143e7c0b49e122d4167",
+    "ogz-meta/inbox/codex/2026-10-11/mtf-strategy-state/fixtures/run.cjs": "caf697eed5f732c053b4e42c78db73f035005c1fd0ec6d53a4b9bf05d94e7c1f",
+    "ogz-meta/inbox/codex/2026-10-11/mtf-strategy-state/fixtures/worker.cjs": "2c98ea3df19996401f6283c0f8534191f438e64f2e45a1a4e1f5365330cb8007"
+  },
+  "resolved_findings": [
+    {
+      "priority": "P2",
+      "file": "test/strategy-orchestrator-symbol-state.test.js",
+      "issue": "Rewritten SMS test drops the previous assertion that the missing-symbol fallback module retains zero losses. Symbol/frame assertions otherwise strengthen the existing case.",
+      "correction": "Restore expect(orchestrator.smartMoneySweepModule.dailyRiskState.dailyLosses).toBe(0)."
+    }
+  ],
+  "findings": [],
+  "final_edit_review": "Restored fallback-module zero-loss assertion at test/strategy-orchestrator-symbol-state.test.js:177. TSM helper case explicitly supplies paper profile and fake credentials, initializes actual ConfigLoader with loadDotenv:false, and retains existing finally environment restoration. Changes remain confined to the migrated helper case; no production changes or new test skips."
+}

@@ -4849,7 +4849,8 @@ class OrderExecutor {
               this.ctx.strategyOrchestrator.recordTradeResult(
                 longResultStrategy,
                 longResultPnlDollars,
-                symbol
+                symbol,
+                buyTrade.timeframe
               );
             } else if (this.ctx.strategyOrchestrator) {
               console.warn('[STRATEGY] Skipped trade result update: missing strategy or finite P&L dollars');
@@ -5479,7 +5480,8 @@ class OrderExecutor {
             this.ctx.strategyOrchestrator.recordTradeResult(
               shortResultStrategy,
               shortResultPnlDollars,
-              symbol
+              symbol,
+              shortTrade.timeframe
             );
           } else if (this.ctx.strategyOrchestrator) {
             console.warn('[STRATEGY] Skipped short trade result update: missing strategy or finite P&L dollars');

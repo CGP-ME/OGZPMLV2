@@ -149,6 +149,12 @@ describe('TimeSeriesMomentum', () => {
     const originalEnv = process.env;
     process.env = {
       ...originalEnv,
+      PROFILE: 'paper',
+      WEBSOCKET_AUTH_TOKEN: 'test-dashboard-token',
+      ALPACA_API_KEY: 'test-alpaca-key',
+      ALPACA_API_SECRET: 'test-alpaca-secret',
+      KRAKEN_API_KEY: 'test-kraken-key',
+      KRAKEN_API_SECRET: 'test-kraken-secret',
       SOLO_STRATEGY: 'TimeSeriesMomentum',
       ENABLE_TSMOM: 'true',
       ENABLE_TRAI: 'false',
@@ -156,16 +162,17 @@ describe('TimeSeriesMomentum', () => {
     };
 
     try {
+      require('../foundation/ConfigLoader').load({ force: true, silent: true, loadDotenv: false });
       const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
-      const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
+      const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1, mtfBaseTimeframe: '15m' });
       const fallback = { symbol: 'fallback' };
       let created = 0;
       const factory = () => ({ created: created += 1 });
 
-      const tslaModule = orchestrator._getSymbolStrategyModule('TimeSeriesMomentum', 'TSLA', fallback, factory);
-      const nvdaModule = orchestrator._getSymbolStrategyModule('TimeSeriesMomentum', 'NVDA', fallback, factory);
-      const tslaAgain = orchestrator._getSymbolStrategyModule('TimeSeriesMomentum', 'TSLA', fallback, factory);
-      const missingSymbol = orchestrator._getSymbolStrategyModule('TimeSeriesMomentum', '', fallback, factory);
+      const tslaModule = orchestrator._getSymbolStrategyModule('TimeSeriesMomentum', 'TSLA', '15m', fallback, factory);
+      const nvdaModule = orchestrator._getSymbolStrategyModule('TimeSeriesMomentum', 'NVDA', '15m', fallback, factory);
+      const tslaAgain = orchestrator._getSymbolStrategyModule('TimeSeriesMomentum', 'TSLA', '15m', fallback, factory);
+      const missingSymbol = orchestrator._getSymbolStrategyModule('TimeSeriesMomentum', '', null, fallback, factory);
 
       expect(tslaModule).not.toBe(nvdaModule);
       expect(tslaAgain).toBe(tslaModule);
