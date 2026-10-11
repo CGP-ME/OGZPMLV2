@@ -1,0 +1,27 @@
+{
+  "base_commit": "c3d380a6269df67310803f076685ddc09e6c66e4",
+  "test_sha256": "476cbcae1a946aee6dfb85f13ace8a68dd174b786be2e5e6ac30b0051a122e69",
+  "verdict": "scoped_code_pass",
+  "scope": "Only narrow stale config import/owner assertion repair and sessionRouter resolver fixture repair, plus explicit test credentials and helper loadDotenv:false. Broad rejected draft excluded.",
+  "original_test_cases": 47,
+  "current_test_cases": 47,
+  "test_skip_count": 0,
+  "findings": [],
+  "verified": [
+    "All 47 original cases retained; no guard cases retired or skipped.",
+    "First case reads current settings owners for RSI confidence, exit contracts, profile pipeline, filters and TRAI; assertions do not require dirty-only loader/settings changes.",
+    "Resolver negative test now intercepts actual settings.json filesystem read; deletes only paper.sessionRouter and expects that specific rejection.",
+    "No production source changes in reviewed test diff."
+  ],
+  "followups": [],
+  "validation": "Narrow diff/source review complete; prior focused runs passed on committed and working sources. Final reruns after isolation/cleanup edits are in flight separately and not claimed by this receipt.",
+  "focused_log_text": {
+    "focused-candidate.log": "Test Suites: 1 passed, 1 total\nTests:       45 skipped, 2 passed, 47 total\nSnapshots:   0 total\nTime:        1.461 s\nRan all test suites within paths \"test/config-loader-live-guard.test.js\".\n",
+    "focused-working.log": "Test Suites: 1 passed, 1 total\nTests:       45 skipped, 2 passed, 47 total\nSnapshots:   0 total\nTime:        0.967 s, estimated 2 s\nRan all test suites within paths \"test/config-loader-live-guard.test.js\".\n"
+  },
+  "deferred": "Other 45 existing cases are outside this narrow repair and remain deferred item 21; retained source assertions are not a passing claim.",
+  "resolved_followups": [
+    "README now documents only focused two-case verification and deferred item 21.",
+    "Resolver direct load passes loadDotenv:false and restores fs spy in finally."
+  ]
+}

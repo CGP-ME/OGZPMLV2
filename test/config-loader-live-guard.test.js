@@ -1,6 +1,7 @@
 'use strict';
 
 const path = require('path');
+const fs = require('fs');
 
 function currentNewYorkDate() {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -46,6 +47,9 @@ describe('ConfigLoader live trading safety guard', () => {
       ALPACA_MODE: 'paper',
       ALPACA_API_KEY: 'test-alpaca-key',
       ALPACA_API_SECRET: 'test-alpaca-secret',
+      KRAKEN_API_KEY: 'test-kraken-key',
+      KRAKEN_API_SECRET: 'test-kraken-secret',
+      WEBSOCKET_AUTH_TOKEN: 'test-dashboard-token',
       TRADING_PAIR: 'TSLA',
       EVAL_RULES_ENABLED: 'false',
       TTP_RULES_ENABLED: 'false',
@@ -87,7 +91,7 @@ describe('ConfigLoader live trading safety guard', () => {
     process.env = originalEnv;
   });
 
-  function loadConfig(opts = { force: true, silent: true }) {
+  function loadConfig(opts = { force: true, silent: true, loadDotenv: false }) {
     return require('../foundation/ConfigLoader').load(opts);
   }
 
@@ -99,14 +103,24 @@ describe('ConfigLoader live trading safety guard', () => {
     process.env.PROFILE = profile;
   }
 
-  function configFileValue(configPath) {
-    const tradingConfigFile = require('../config/trading.config.json');
-    return configPath.split('.').reduce((current, part) => (
+  function canonicalSettingsValue(configPath) {
+    const settings = require('../config/settings.json');
+    const canonicalPath = {
+      'confidence.maxConfidence': 'strategies.RSI.maxConfidence',
+      'exits.stopLossPercent': 'exitContracts.RSI.stopLossPercent',
+      'exits.takeProfitPercent': 'exitContracts.RSI.takeProfitPercent',
+      'exits.trailingStopPercent': 'exitContracts.RSI.trailingStopPercent',
+      'exits.trailingActivation': 'exitContracts.RSI.trailingActivation',
+      'pipeline.enableBreakRetest': 'launchProfiles.paper.pipeline.enableBreakRetest',
+      'pipeline.enableMarketRegime': 'launchProfiles.paper.pipeline.enableMarketRegime',
+      'pipeline.enableOpeningRangeBreakout': 'launchProfiles.paper.pipeline.enableOpeningRangeBreakout',
+    }[configPath] || configPath;
+    return canonicalPath.split('.').reduce((current, part) => (
       current && Object.prototype.hasOwnProperty.call(current, part) ? current[part] : undefined
-    ), tradingConfigFile);
+    ), settings);
   }
 
-  test('uses trading.config.json defaults when overlapping env vars are unset', () => {
+  test('uses canonical settings defaults when overlapping env vars are unset', () => {
     delete process.env.MIN_STRATEGY_CONFIDENCE;
     delete process.env.MAX_CONFIDENCE;
     delete process.env.STOP_LOSS_PERCENT;
@@ -121,14 +135,14 @@ describe('ConfigLoader live trading safety guard', () => {
 
     const loaded = loadConfig();
 
-    expect(loaded.config.confidence.minStrategyConfidence).toBe(configFileValue('confidence.minStrategyConfidence'));
-    expect(loaded.config.confidence.maxConfidence).toBe(configFileValue('confidence.maxConfidence'));
-    expect(loaded.config.exits.stopLossPercent).toBe(configFileValue('exits.stopLossPercent'));
-    expect(loaded.config.exits.takeProfitPercent).toBe(configFileValue('exits.takeProfitPercent'));
-    expect(loaded.config.exits.trailingStopPercent).toBe(configFileValue('exits.trailingStopPercent'));
-    expect(loaded.config.pipeline.enableBreakRetest).toBe(configFileValue('pipeline.enableBreakRetest'));
-    expect(loaded.config.pipeline.enableMarketRegime).toBe(configFileValue('pipeline.enableMarketRegime'));
-    expect(loaded.config.pipeline.enableOpeningRangeBreakout).toBe(configFileValue('pipeline.enableOpeningRangeBreakout'));
+    expect(loaded.config.confidence.minStrategyConfidence).toBe(canonicalSettingsValue('confidence.minStrategyConfidence'));
+    expect(loaded.config.strategies.RSI.maxConfidence).toBe(canonicalSettingsValue('confidence.maxConfidence'));
+    expect(loaded.config.exitContracts.RSI.stopLossPercent).toBe(canonicalSettingsValue('exits.stopLossPercent'));
+    expect(loaded.config.exitContracts.RSI.takeProfitPercent).toBe(canonicalSettingsValue('exits.takeProfitPercent'));
+    expect(loaded.config.exitContracts.RSI.trailingStopPercent).toBe(canonicalSettingsValue('exits.trailingStopPercent'));
+    expect(loaded.config.pipeline.enableBreakRetest).toBe(canonicalSettingsValue('pipeline.enableBreakRetest'));
+    expect(loaded.config.pipeline.enableMarketRegime).toBe(canonicalSettingsValue('pipeline.enableMarketRegime'));
+    expect(loaded.config.pipeline.enableOpeningRangeBreakout).toBe(canonicalSettingsValue('pipeline.enableOpeningRangeBreakout'));
     const switchAliases = [
       'enableRSI', 'enableMADynamicSR', 'enableEMACrossover', 'enableLiquiditySweep',
       'enableCandlePattern', 'enableBreakRetest', 'enableMarketRegime', 'enableOGZTPO',
@@ -138,16 +152,16 @@ describe('ConfigLoader live trading safety guard', () => {
     ];
     expect(Object.keys(loaded.config.strategies).filter((key) => switchAliases.includes(key))).toEqual([]);
     expect(loaded.config.strategies.OGZTPO).not.toHaveProperty('enabled');
-    expect(loaded.config.exits.trailingActivation).toBe(configFileValue('exits.trailingActivation'));
-    expect(loaded.config.filters.atrEnabled).toBe(configFileValue('filters.atrEnabled'));
-    expect(loaded.config.filters.atrMinPercent).toBe(configFileValue('filters.atrMinPercent'));
+    expect(loaded.config.exitContracts.RSI.trailingActivation).toBe(canonicalSettingsValue('exits.trailingActivation'));
+    expect(loaded.config.filters.atrEnabled).toBe(canonicalSettingsValue('filters.atrEnabled'));
+    expect(loaded.config.filters.atrMinPercent).toBe(canonicalSettingsValue('filters.atrMinPercent'));
     expect(loaded.config.trai.enabled).toBe(true);
     expect(loaded.config.trai.mode).toBe('passive');
     expect(loaded.config.trai.vetoPower).toBe(false);
-    expect(loaded.sources['confidence.minStrategyConfidence']).toBe('default');
-    expect(loaded.sources['exits.stopLossPercent']).toBe('default');
-    expect(loaded.sources['filters.atrEnabled']).toBe('default');
-    expect(loaded.sources['trai.enabled']).toBe('default');
+    expect(loaded.sources['confidence.minStrategyConfidence']).toBe('config:settings.json:confidence');
+    expect(loaded.sources['exitContracts.RSI.stopLossPercent']).toBe('config:settings.json:exitContracts');
+    expect(loaded.sources['filters.atrEnabled']).toBe('config:settings.json:filters');
+    expect(loaded.sources['trai.enabled']).toBe('config:settings.json:trai');
   });
 
   test('selected tuning profile cannot override launch-profile-owned EMA behavior', () => {
@@ -420,17 +434,23 @@ describe('ConfigLoader live trading safety guard', () => {
   });
 
   test('resolver refuses a launch profile missing the sessionRouter block', () => {
-    const tradingConfigFile = require('../config/trading.config.json');
-    const mockedConfig = JSON.parse(JSON.stringify(tradingConfigFile));
+    const settingsPath = path.resolve(__dirname, '../config/settings.json');
+    const settings = require('../config/settings.json');
+    const mockedConfig = JSON.parse(JSON.stringify(settings));
     delete mockedConfig.launchProfiles.paper.sessionRouter;
 
     jest.resetModules();
-    jest.doMock('../config/trading.config.json', () => mockedConfig);
+    const originalReadFileSync = fs.readFileSync.bind(fs);
+    const readFileSync = jest.spyOn(fs, 'readFileSync').mockImplementation((filePath, ...args) => (
+      filePath === settingsPath ? JSON.stringify(mockedConfig) : originalReadFileSync(filePath, ...args)
+    ));
 
-    expect(() => require('../foundation/ConfigLoader').load({ force: true, silent: true }))
-      .toThrow(/launchProfiles\.paper\.sessionRouter/);
-
-    jest.dontMock('../config/trading.config.json');
+    try {
+      expect(() => require('../foundation/ConfigLoader').load({ force: true, silent: true, loadDotenv: false }))
+        .toThrow(/launchProfiles\.paper\.sessionRouter/);
+    } finally {
+      readFileSync.mockRestore();
+    }
   });
 
   test('paper and backtest profiles keep eval rule posture explicit', () => {

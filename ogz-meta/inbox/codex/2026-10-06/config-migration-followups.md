@@ -33,7 +33,7 @@ This is the continuing deferred queue. Item numbers below stay stable; they are 
 - **Severity:** Confirmed test-suite blocker for this existing test file; no production fatality established.
 - **Evidence:** `test/config-loader-live-guard.test.js:103` requires `../config/trading.config.json`, and the repository has no `config/trading.config.json` (`test -f config/trading.config.json` returned exit code 1). The same test continues to assert that legacy file's defaults at `test/config-loader-live-guard.test.js:109-110`.
 - **What must be resolved:** Reconcile this test with the current `config/settings.json` plus `config/internals.json` ownership and loader snapshot, or explicitly retire the stale assertions through the authorized migration workflow. The separate sizing load/save proof remains the bounded evidence for sizing behavior.
-- **Status:** Confirmed stale import and likely test failure when this file executes; production impact is unverified. No fix is made here.
+- **2026-10-11 resolution:** Repaired both deleted-file fixtures and canonical owner/source assertions; two changed existing cases pass against committed production source and working source. All 47 original cases remain present; other 45 are not claimed passing and broader legacy fixture work remains item 21. No production edits or test.skip. [Evidence](../2026-10-11/deferred-live-guard-fixture/README.md).
 
 ## 3. Existing partial strategy test configurations
 

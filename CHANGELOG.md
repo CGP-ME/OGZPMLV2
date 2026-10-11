@@ -1,3 +1,9 @@
+## 2026-10-11 — Repair deleted configuration imports in existing loader fixtures (deferred 2)
+
+- Problem/change: two existing loader cases still imported deleted trading.config.json. Read canonical settings/strategy/exit/profile owners, check actual source labels, and intercept the actual settings file read for the missing-sessionRouter case. Supply explicit fixture credentials/token and disable dotenv in the test helper; no production behavior changes.
+- Verification: both changed cases pass on separately isolated committed production source c3d380a6 and on the working source. All 47 existing cases remain; the other 45 were excluded by the focused command and are not claimed passing. Broader stale API/env/backtest fixture work remains deferred 21. Exact source hashes and command are under ogz-meta/inbox/codex/2026-10-11/deferred-live-guard-fixture/.
+- Review/limits: Astra rejected an intermediate broad draft that skipped still-valid live validation cases; that draft is preserved privately and fully excluded. Final scope restores every original case with no test.skip. Test-only change, no Mercury production review required. No production config/state write, broker call, PM2 restart or runtime activation. Post-fee-push Mercury index refresh failed for exhausted embedding API credits; no fresh index claimed.
+
 ## 2026-10-11 — Assess fees after proposed entry sizing (deferred 7)
 
 - Problem/change: AdaptiveTimeframeSelector assessed fees before quantity/notional existed, disqualifying opportunities or throwing for per-share fees. Removed that premature fee contribution/veto and its unused fee-context APIs. Other ranking factors remain unchanged. OrderExecutor now calculates estimatedEntryFee using its existing fee helper after the capped/share-adjusted entry plan and publishes it in ORDER_PLAN before submission. Filled fee accounting remains unchanged; no new gate, throw, default, fallback or fee owner.
